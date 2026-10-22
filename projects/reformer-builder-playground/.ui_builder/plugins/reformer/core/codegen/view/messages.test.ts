@@ -135,6 +135,26 @@ describe('словарь замечаний: какие коды в него п�
     ]);
   });
 
+  it('кросс-полевая и асинхронная проверки кладут свой код с текстом правила', () => {
+    const { entries } = viewOf({
+      rules: rulesOf([
+        {
+          target: 'fullName',
+          rules: ['required'],
+          cross: 'values.fullName !== values.email',
+          code: 'fullNameCross',
+          message: 'Имя не должно совпадать с почтой',
+        },
+        { target: 'email', rules: [], async: 'checkEmail', code: 'taken', message: 'Почта занята' },
+      ]),
+    }).messages;
+    expect(entries).toEqual([
+      { code: 'required', text: 'Обязательное поле' },
+      { code: 'fullNameCross', text: 'Имя не должно совпадать с почтой' },
+      { code: 'taken', text: 'Почта занята' },
+    ]);
+  });
+
   it('свой валидатор приложения в словарь не попадает: текста для него взять негде', () => {
     const { entries } = viewOf({
       rules: rulesOf([{ target: 'fullName', rules: ['innChecksum()', 'required'] }]),
@@ -224,5 +244,44 @@ describe('словарь замечаний: печать и подключен�
     for (const kind of ["'submit'", "'blur'", "'change'", "'afterFirstSubmit'"]) {
       expect(code).toContain(kind);
     }
+  });
+});
+
+describe('кросс-полевое правило в валидации формы', () => {
+  it('объявление получает cross, тело — проверку над снимком формы', () => {
+    const code = renderTemplate(
+      'test.validation',
+      validationTemplate,
+      viewOf({
+        rules: rulesOf([
+          {
+            target: 'fullName',
+            rules: [],
+            cross: 'values.fullName !== values.email',
+            code: 'fullNameCross',
+            message: 'Имя не должно совпадать с почтой',
+          },
+        ]),
+      })
+    );
+    expect(code).toMatch(/defineValidation<\w+>\(\(\{ model, cross \}\) =>/);
+    expect(code).toMatch(/cross\(\s*model\.\$\.fullName,\s*\(values\) =>/);
+    // Одни кросс-полевые проверки validate не зовут — лишний импорт не дал бы собрать модуль.
+    expect(code).toContain("import { defineValidation } from '@reformer/core/validation';");
+    expect(code).toContain("code: 'fullNameCross'");
+  });
+
+  it('cross только у строки массива — заголовок формы его не объявляет', () => {
+    const code = renderTemplate(
+      'test.validation',
+      validationTemplate,
+      viewOf({
+        rules: rulesOf([
+          { target: 'items.to', each: 'items', rules: [], cross: 'values.to >= values.from' },
+        ]),
+      })
+    );
+    expect(code).toMatch(/defineValidation<\w+>\(\(\{ model \}\) =>/);
+    expect(code).toContain('({ model: item, cross }) =>');
   });
 });

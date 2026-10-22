@@ -45,8 +45,24 @@ const BEHAVIOR_KINDS = [
   'revalidateWhen',
 ] as const;
 
+/** Правило валидации, как его присылает модель: `rules` можно опустить, если есть другая проверка. */
+interface ValidationParam {
+  target: string;
+  rules?: string[];
+  when?: string;
+  each?: string;
+  /** Кросс-полевая проверка: выражение над снимком `values`, которое должно быть истинным. */
+  cross?: string;
+  /** Асинхронное правило — функция выражением: `async (value, { signal }) => …`. */
+  async?: string;
+  /** Код замечания кросс-полевой или асинхронной проверки. */
+  code?: string;
+  /** Текст замечания — в словарь формы. */
+  message?: string;
+}
+
 interface Params {
-  validation?: Array<{ target: string; rules: string[]; when?: string; each?: string }>;
+  validation?: ValidationParam[];
   behavior?: Array<{ kind: string; target: string; sources?: string[]; expr?: string }>;
   /** `replace` — заменить весь набор; по умолчанию правила добавляются к существующим. */
   mode?: 'merge' | 'replace';
@@ -73,8 +89,12 @@ export const setFormRulesTool: AgentTool<Params> = {
             },
             when: { type: 'string', description: 'Rule applies only when true' },
             each: { type: 'string', description: 'Array path: apply per item' },
+            cross: { type: 'string', description: 'Must hold: values.a === values.b' },
+            async: { type: 'string', description: 'async (value, { signal }) => issue|null' },
+            code: { type: 'string' },
+            message: { type: 'string' },
           },
-          required: ['target', 'rules'],
+          required: ['target'],
           additionalProperties: false,
         },
       },
@@ -120,7 +140,9 @@ export const setFormRulesTool: AgentTool<Params> = {
           similarNames(rule.target, [...known])
         );
       }
-      next.validation.push({ ...rule });
+      const refused = checkValidationParam(rule);
+      if (refused) return fail('INVALID_PARAMS', refused);
+      next.validation.push(validationIntent(rule));
     }
 
     for (const b of params.behavior ?? []) {
@@ -166,6 +188,43 @@ export const setFormRulesTool: AgentTool<Params> = {
     };
   },
 };
+
+/**
+ * Почему правило валидации не принять, или `null`.
+ *
+ * Тексту кросс-полевой проверки без `message` неоткуда взяться: в локали ядра нет общего кода
+ * «значение неверно», и под полем стоял бы голый код. У асинхронного правила код задаёт само
+ * выражение (`{ code: 'taken' }`), поэтому текст без кода не к чему привязать.
+ */
+function checkValidationParam(rule: ValidationParam): string | null {
+  const checks =
+    (rule.rules?.length ?? 0) > 0 || rule.cross !== undefined || rule.async !== undefined;
+  if (!checks) return `Rule on "${rule.target}" checks nothing: give rules, cross or async.`;
+  if (rule.cross !== undefined && rule.message === undefined) {
+    return `Cross check on "${rule.target}" needs message — the text shown under the field.`;
+  }
+  if (rule.message !== undefined && rule.code === undefined && rule.cross === undefined) {
+    return `message on "${rule.target}" needs code — the code the async check returns.`;
+  }
+  return null;
+}
+
+/** Правило словаря: `rules` всегда массив, у кросс-полевой проверки всегда есть код. */
+function validationIntent(rule: ValidationParam): FormRules['validation'][number] {
+  const code =
+    rule.code ??
+    (rule.cross !== undefined ? `${rule.target.split('.').pop() ?? 'field'}Cross` : undefined);
+  return {
+    target: rule.target,
+    rules: rule.rules ?? [],
+    ...(rule.when !== undefined ? { when: rule.when } : {}),
+    ...(rule.each !== undefined ? { each: rule.each } : {}),
+    ...(rule.cross !== undefined ? { cross: rule.cross } : {}),
+    ...(rule.async !== undefined ? { async: rule.async } : {}),
+    ...(code !== undefined ? { code } : {}),
+    ...(rule.message !== undefined ? { message: rule.message } : {}),
+  };
+}
 
 function cloneRules(rules: FormRules): FormRules {
   return {

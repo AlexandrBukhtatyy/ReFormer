@@ -36,10 +36,19 @@ export interface EmittedModule {
   readonly imports: readonly string[];
   /** Строки тела объявления (между `… => {` и `});`), без отступа первого уровня. */
   readonly body: readonly string[];
+  /**
+   * Параметры колбэка объявления так, как их напечатал билдер: `{ model, cross }`. Шаблон печатает
+   * объявление сам, и угадывать параметры по телу ему нельзя: `cross` строки массива объявлен
+   * своим колбэком `applyEach`, и тот же `cross` в заголовке был бы лишней переменной.
+   */
+  readonly params: string;
 }
 
 /** Первая строка объявления: `export const formBehavior = defineFormBehavior<T>(({ model }) => {`. */
 const DECLARATION = /^export const [A-Za-z_$][\w$]* = [A-Za-z_$][\w$]*<[^>]*>\(.*=> \{$/;
+
+/** Параметры колбэка в строке объявления: `(({ model, cross }) => {` → `{ model, cross }`. */
+const DECLARATION_PARAMS = /\(\(([^)]*)\) => \{$/;
 
 /** Закрывающая строка объявления — на нулевой колонке; вложенные блоки стоят с отступом. */
 const DECLARATION_END = '});';
@@ -60,6 +69,7 @@ export function parseEmittedModule(code: string): EmittedModule {
     );
   }
   return {
+    params: DECLARATION_PARAMS.exec(lines[start] ?? '')?.[1] ?? '',
     imports: lines.slice(0, start).filter((line) => line.startsWith('import {')),
     // Отступ первого уровня ставит шаблон — там, где он виден вместе с окружающим кодом.
     body: lines.slice(start + 1, end).map((line) => (line.startsWith('  ') ? line.slice(2) : line)),

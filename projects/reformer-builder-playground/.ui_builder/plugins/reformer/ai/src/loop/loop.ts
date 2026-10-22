@@ -248,7 +248,12 @@ function withOutlineSeed(
 function renderRulesSeed(rules: FormRules): string {
   const lines: string[] = [];
   for (const r of rules.validation) {
-    lines.push(`  validate ${r.target}: ${r.rules.join(', ')}${r.when ? ` when ${r.when}` : ''}`);
+    const checks = [
+      ...r.rules,
+      ...(r.cross ? [`cross ${r.cross}`] : []),
+      ...(r.async ? ['async check'] : []),
+    ];
+    lines.push(`  validate ${r.target}: ${checks.join(', ')}${r.when ? ` when ${r.when}` : ''}`);
   }
   for (const b of rules.behavior) {
     lines.push(`  ${b.kind} ${b.target}${b.sources.length ? ` <- ${b.sources.join(', ')}` : ''}`);

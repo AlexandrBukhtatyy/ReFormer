@@ -280,6 +280,11 @@ export interface RulesBlockView {
   readonly body: readonly string[];
   /** Читает ли тело модель: от этого зависит, деструктурируется ли `model` в колбэке. */
   readonly usesModel: boolean;
+  /**
+   * Параметры колбэка объявления: `{ model }`, `{ model, cross }` или пусто. Шаблоны печатают их,
+   * а не выводят из {@link usesModel}: кросс-полевым правилам нужен ещё и `cross`.
+   */
+  readonly params: string;
 }
 
 /** Импорт объявления правил, когда операторов в теле нет. */
@@ -302,10 +307,15 @@ function reflowImport(text: string): string {
  * prettier его не оставит.
  */
 function blockOf(code: ValidationCode): RulesBlockView {
+  const usesModel = mentions(code.body.join('\n'), 'model');
+  // `cross` — из заголовка, напечатанного билдером: в теле он бывает и параметром `applyEach`.
+  const names = [usesModel ? 'model' : null, /\bcross\b/.test(code.params) ? 'cross' : null];
+  const params = names.filter((name) => name !== null).join(', ');
   return {
     imports: code.imports.map(reflowImport),
     body: formatBody(code.body, { indent: BODY_INDENT }),
-    usesModel: mentions(code.body.join('\n'), 'model'),
+    usesModel,
+    params: params === '' ? '' : `{ ${params} }`,
   };
 }
 
@@ -317,7 +327,9 @@ function blockOf(code: ValidationCode): RulesBlockView {
  * поле дважды и расходиться при правке одного из них.
  */
 function scaffoldBlock(required: readonly string[]): RulesBlockView {
-  if (required.length === 0) return { imports: [DEFINE_ONLY], body: [], usesModel: false };
+  if (required.length === 0) {
+    return { imports: [DEFINE_ONLY], body: [], usesModel: false, params: '' };
+  }
   return {
     imports: [
       "import { defineValidation, validate } from '@reformer/core/validation';",
@@ -328,6 +340,7 @@ function scaffoldBlock(required: readonly string[]): RulesBlockView {
       { indent: BODY_INDENT }
     ),
     usesModel: true,
+    params: '{ model }',
   };
 }
 

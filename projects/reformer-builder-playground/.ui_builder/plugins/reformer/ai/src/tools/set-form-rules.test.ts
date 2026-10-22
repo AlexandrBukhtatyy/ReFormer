@@ -141,3 +141,61 @@ describe('set_form_rules', () => {
     expect(res.rules?.validation[0].target).toBe('quantity');
   });
 });
+
+describe('set_form_rules — кросс-полевые и асинхронные проверки', () => {
+  it('кросс-полевая проверка с текстом принимается; код выводится из цели', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      {
+        validation: [
+          { target: 'total', cross: 'values.total >= values.price', message: 'Итог меньше цены' },
+        ],
+      },
+      ctx()
+    );
+    expect(res.ok).toBe(true);
+    expect(res.rules?.validation).toEqual([
+      {
+        target: 'total',
+        rules: [],
+        cross: 'values.total >= values.price',
+        code: 'totalCross',
+        message: 'Итог меньше цены',
+      },
+    ]);
+  });
+
+  it('кросс-полевая проверка без текста отвергается: под полем стоял бы голый код', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ target: 'total', cross: 'values.total >= values.price' }] },
+      ctx()
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error?.code).toBe('INVALID_PARAMS');
+  });
+
+  it('асинхронное правило принимается выражением; текст без кода — отказ', async () => {
+    const async = 'async (value, { signal }) => (value ? null : { code: "taken" })';
+    const ok = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ target: 'price', async, code: 'taken', message: 'Занято' }] },
+      ctx()
+    );
+    expect(ok.ok).toBe(true);
+    expect(ok.rules?.validation[0]).toMatchObject({ async, code: 'taken', rules: [] });
+
+    const noCode = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ target: 'price', async, message: 'Занято' }] },
+      ctx()
+    );
+    expect(noCode.ok).toBe(false);
+  });
+
+  it('правило без единой проверки отвергается', async () => {
+    const res = await reg.invoke('set_form_rules', { validation: [{ target: 'price' }] }, ctx());
+    expect(res.ok).toBe(false);
+    expect(res.error?.code).toBe('INVALID_PARAMS');
+  });
+});

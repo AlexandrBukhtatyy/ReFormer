@@ -204,6 +204,10 @@ export function messagesView(ctx: EmitContext): MessagesView {
     for (const rule of ctx.rules.validation) {
       const collection = targetsCollection(rule, collections);
       rule.rules.flatMap((entry) => entriesOf(entry, collection)).forEach(add);
+      // Кросс-полевая и асинхронная проверки несут свой код и текст: валидатора ядра за ними нет,
+      // и взять текст больше неоткуда.
+      const code = rule.code ?? (rule.cross !== undefined ? 'cross' : undefined);
+      if (code !== undefined && rule.message !== undefined) add({ code, text: rule.message });
     }
   } else if (ctx.collected.requiredPaths.length > 0) {
     entriesOf('required').forEach(add);

@@ -28,7 +28,7 @@ import type { <%= T %> } from '<%= it.rel('validation', 'types') %>';
 <% } else { -%>
 /** Правила формы: проверяются при отправке и живой проверкой. */
 <% } -%>
-<%~ it.format(`export const ${v.rulesName} = defineValidation<${T}>((${v.block.usesModel ? '{ model }' : ''}) => {
+<%~ it.format(`export const ${v.rulesName} = defineValidation<${T}>((${v.block.params}) => {
 ${rulesBody}
 });`) %>
 

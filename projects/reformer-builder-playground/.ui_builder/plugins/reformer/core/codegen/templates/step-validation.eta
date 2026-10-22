@@ -8,6 +8,6 @@
 import type { <%= T %> } from '<%= it.step.imports.types %>';
 
 /** Правила шага «<%= it.step.title %>»: их проверяет «Далее». */
-<%~ it.format(`export const stepRules = defineValidation<${T}>((${rules.usesModel ? '{ model }' : ''}) => {
+<%~ it.format(`export const stepRules = defineValidation<${T}>((${rules.params}) => {
 ${rulesBody}
 });`) %>
