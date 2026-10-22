@@ -75,5 +75,19 @@
   "chat.attach.duplicate": "{name} уже прикреплён",
   "chat.attach.unknownScheme": "Ассистенту нечем прочитать {uri}",
   "chat.attach.limit": "Не больше {limit} вложений в одной реплике",
-  "chat.attach.howTo": "Прикрепить можно файл из дерева проекта — пункт «Прикрепить к ассистенту» — или скрепкой в чате."
+  "chat.attach.howTo": "Прикрепить можно файл из дерева проекта — пункт «Прикрепить к ассистенту» — или скрепкой в чате.",
+  "turn.failedEdits": "Ни одна правка не применилась — форма прежняя, что бы ни ответил ассистент: {error}",
+  "turn.pending.dropped": "Неприменённые правки этого хода отброшены новым запросом.",
+  "turn.undo.otherForm": "Ход отменён в форме {path} — её сейчас нет на экране.",
+  "settings.busy": "Ассистент ещё работает — подключить канал можно, когда ход закончится.",
+  "chat.target.active": "Правит: {path}",
+  "chat.target.none": "Нет открытой формы — откройте её, чтобы ассистент мог править.",
+  "chat.target.entry": "Форма: {path}",
+  "chat.working.form": "Работаю над {path}…",
+  "chat.question.submit": "Ответить",
+  "chat.question.own": "Свой вариант",
+  "chat.question.ownPlaceholder": "Ваш ответ",
+  "chat.question.answer": "Ответ: {answer}",
+  "chat.question.cancelled": "Вопросы сняты: ход остановлен без ответа.",
+  "chat.question.waiting": "Ассистент ждёт ответа на вопросы выше"
 }

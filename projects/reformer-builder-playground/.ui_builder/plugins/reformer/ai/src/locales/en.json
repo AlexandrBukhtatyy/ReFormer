@@ -75,5 +75,19 @@
   "chat.attach.duplicate": "{name} is already attached",
   "chat.attach.unknownScheme": "The assistant has no way to read {uri}",
   "chat.attach.limit": "At most {limit} attachments per message",
-  "chat.attach.howTo": "Attach a file from the project tree with “Attach to assistant”, or with the paperclip in the chat."
+  "chat.attach.howTo": "Attach a file from the project tree with “Attach to assistant”, or with the paperclip in the chat.",
+  "turn.failedEdits": "No edit was applied — the form is unchanged, whatever the assistant says: {error}",
+  "turn.pending.dropped": "The unapplied changes of this turn were discarded by a new request.",
+  "turn.undo.otherForm": "The turn was undone in {path}, which is not on screen now.",
+  "settings.busy": "The assistant is still working — connect once the turn ends.",
+  "chat.target.active": "Edits: {path}",
+  "chat.target.none": "No form is open — open one for the assistant to edit.",
+  "chat.target.entry": "Form: {path}",
+  "chat.working.form": "Working on {path}…",
+  "chat.question.submit": "Answer",
+  "chat.question.own": "Other",
+  "chat.question.ownPlaceholder": "Your answer",
+  "chat.question.answer": "Answer: {answer}",
+  "chat.question.cancelled": "Questions withdrawn: the turn was stopped without an answer.",
+  "chat.question.waiting": "The assistant is waiting for answers to the questions above"
 }

@@ -42,8 +42,9 @@ import { applyChangeSet } from './apply';
 import { createChangeSet, hasChanges, type ChangeSet } from '../model/changeset';
 import type { AgentCommand, ExecuteCommand } from '../tools/command-tools';
 import type { ContributedToolEntry } from '../tools/contributed-tools';
-import { runAgentTurn, type TurnEvent, type TurnStats } from '../loop/loop';
-import type { ChangeOp, TurnScope } from '../model/types';
+import { runAgentTurn, type ActiveForm, type TurnEvent, type TurnStats } from '../loop/loop';
+import type { AskAnswer, AskOutcome, ChangeOp, TurnScope } from '../model/types';
+import { askUserTool } from '../tools/ask-user';
 import { createContributionSurface } from './contributions';
 import {
   createResourceRouter,
@@ -104,9 +105,22 @@ const textualCallHint = (tool: string): string =>
   'the tool itself, with a few small edits per call. If you only meant to show it, say so in one ' +
   "sentence. Reply in the same language as the user's own messages.";
 
+/**
+ * Подсказка для вопроса, написанного текстом вместо вызова `ask_user`. Правки здесь не было и не
+ * предполагалось — модель хотела спросить, и «сделай правку сейчас» сбило бы её с толку.
+ */
+const TEXTUAL_ASK_HINT =
+  'Your previous answer has a call of ask_user written as text, so the user saw no question. ' +
+  'Call the ask_user tool itself, or ask in plain words. ' +
+  "Reply in the same language as the user's own messages.";
+
 /** Подсказка второй попытки по признаку, который её вызвал. */
 const secondPassHint = (stop: AiStop | undefined): string =>
-  stop?.textualCall !== undefined ? textualCallHint(stop.textualCall) : CONTINUE_HINT;
+  stop?.textualCall === undefined
+    ? CONTINUE_HINT
+    : stop.textualCall === 'ask_user'
+      ? TEXTUAL_ASK_HINT
+      : textualCallHint(stop.textualCall);
 
 /**
  * Модель знала, что делать, и правка до формы не дошла: вызов оборван, ход пуст или вызов
@@ -119,6 +133,16 @@ const missedEdit = (stop: AiStop | undefined): boolean =>
 
 /** Сколько правок пакета называть в журнале, прежде чем свернуть остаток в счёт. */
 const OPS_IN_LOG = 3;
+
+/**
+ * Сколько карточек вопросов модель вправе показать за ход. В карточке до четырёх вопросов, и
+ * всё, что модели неясно, помещается в одну; вторая — на случай, когда ответ на первую открыл
+ * новую развилку. Дальше модель переспрашивает по кругу, и ход стоит дороже догадки.
+ */
+const MAX_ASKS_PER_TURN = 2;
+
+/** Предел своего ответа человека, символов: ответ уходит модели целиком на каждом шаге. */
+const ANSWER_TEXT_LIMIT = 1000;
 
 /** Что нужно мосту от плагина и от платформы. */
 export interface BridgeDeps {
@@ -190,6 +214,18 @@ export interface AgentBridge {
   rejectPending(): void;
   /** Вернуть форму к состоянию перед репликой и обрезать переписку до неё. */
   restoreTo(entryId: string): Promise<void>;
+  /**
+   * Ответить на карточку вопросов модели — ход продолжится с ответом. `false` — ответ не принят:
+   * карточка уже закрыта или не та, число ответов не совпало с вопросами, или на какой-то вопрос
+   * не выбран ни вариант, ни свой ответ.
+   */
+  answer(cardId: string, answers: readonly AskAnswer[]): boolean;
+  /**
+   * Новый разговор: лента очищается, а вместе с ней — отмена хода и точки восстановления прошлого
+   * разговора. Пока идёт ход, отказывает (`false`): обрыв ленты посреди хода оставил бы его
+   * реплику без места, куда писать.
+   */
+  reset(): boolean;
 
   /**
    * Есть ли ход ассистента, который можно отменить.
@@ -274,6 +310,8 @@ export function aiUndoTurnCommand(bridge: AgentBridge): CommandContribution {
 /** Активная форма на момент вопроса: адрес, текст буфера и разобранная схема. */
 interface Target {
   readonly resource: ResourceId;
+  /** Путь документа от корня проекта — для модели и для подписи реплики. */
+  readonly path: string;
   readonly baseText: string;
   readonly base: JsonFormSchema;
   readonly rules: FormRules;
@@ -360,6 +398,15 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   let lastTurn: LandedTurn | null = null;
 
   /**
+   * Запомнить последний ход — ТОЛЬКО так, а не присваиванием: доступность «Отменить ход» живёт в
+   * сессии (`AiSessionState.undoable`), и кнопка узнаёт о ней по изменению сессии.
+   */
+  const setLastTurn = (turn: LandedTurn | null): void => {
+    lastTurn = turn;
+    session.setUndoable(turn !== null);
+  };
+
+  /**
    * Правила формы по документам — В ПАМЯТИ СЕССИИ, и это честно названное ограничение.
    *
    * Правила формы (`@/plugins/reformer/core/form-model`) — сайдкар: они лежат рядом со схемой отдельным
@@ -422,11 +469,57 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     return role === 'form' || role === 'step' ? reason : null;
   };
 
-  /** Ход для инструментов плагинов и `read_resource`. */
+  /** Карточка, ждущая ответа, и как вернуть ответ ходу; `null` — никто не ждёт. */
+  let asking: {
+    readonly id: string;
+    readonly count: number;
+    readonly settle: (answers: readonly AskAnswer[]) => void;
+  } | null = null;
+  /** Счётчик карточек — для их идентификаторов, уникальных в пределах моста. */
+  let asks = 0;
+
+  /**
+   * Спросить человека от имени хода: карточка уходит в ленту, а ход ждёт ответа. Остановка хода
+   * снимает карточку — ход кончается, и ответ на неё некому принять.
+   */
+  const askerOf = (signal: AbortSignal): NonNullable<TurnScope['ask']> => {
+    let asked = 0;
+    return (questions) => {
+      if (asked >= MAX_ASKS_PER_TURN) return Promise.resolve<AskOutcome>('limit');
+      asked += 1;
+      asks += 1;
+      const id = `ask${String(asks)}`;
+      session.askQuestions({ id, questions });
+      return new Promise<AskOutcome>((resolve) => {
+        const cancel = (): void => {
+          asking = null;
+          session.cancelAsks();
+          resolve('cancelled');
+        };
+        if (signal.aborted) {
+          cancel();
+          return;
+        }
+        signal.addEventListener('abort', cancel, { once: true });
+        asking = {
+          id,
+          count: questions.length,
+          settle: (answers) => {
+            signal.removeEventListener('abort', cancel);
+            asking = null;
+            resolve(answers);
+          },
+        };
+      });
+    };
+  };
+
+  /** Ход для инструментов плагинов, `read_resource` и `ask_user`. */
   const scopeOf = (writes: TurnWrites, signal: AbortSignal): TurnScope => ({
     signal,
     write: (resource, text, caller) => writes.write(resource, text, caller),
     readResource: resources.reader(signal),
+    ask: askerOf(signal),
   });
 
   /**
@@ -465,14 +558,14 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       after: document.getText(),
       access: 'document',
     });
-    lastTurn = {
+    setLastTurn({
       txId,
       files,
       rules: {
         resource: pending.resource,
         before: earlier && previous?.rules ? previous.rules.before : pending.set.baseRules,
       },
-    };
+    });
   };
 
   /**
@@ -487,11 +580,15 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     );
     landedTurns.push({ txId, files });
     if (lastTurn !== null && lastTurn.txId === txId) {
-      lastTurn = { ...lastTurn, files: new Map([...lastTurn.files, ...files]) };
+      setLastTurn({ ...lastTurn, files: new Map([...lastTurn.files, ...files]) });
     } else {
-      lastTurn = { txId, files };
+      setLastTurn({ txId, files });
     }
   };
+
+  /** Путь ресурса от корня проекта — для замечаний, называющих форму. */
+  const pathOfResource = (id: ResourceId): string =>
+    host.documentOf(id)?.ref.path ?? host.files?.pathOf(id) ?? String(id);
 
   /** Чтение и запись файла хода — той дверью, которой ход его писал. */
   const accessOf = (file: LandedFile) =>
@@ -502,10 +599,18 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           write: (id: ResourceId, text: string) => host.writeText(id, text),
         };
 
-  /** Активная форма или `null`: вкладки нет, документа нет либо текст — не схема формы. */
-  const resolveTarget = (): Target | null => {
-    const resource = host.activeResource();
+  /**
+   * Форма хода или `null`: вкладки нет, документа нет либо текст — не схема формы.
+   *
+   * Без адреса — форма АКТИВНОЙ вкладки: так начинается ход. С адресом — та же форма, что у
+   * первой попытки: вторая попытка продолжает ход, и правки обязаны лечь туда же, куда легли
+   * правки первой, даже если человек тем временем открыл другую форму.
+   */
+  const resolveTarget = async (resource = host.activeResource()): Promise<Target | null> => {
     if (resource === null) return null;
+    // Буфер мог отстать от структурного редактора, пока в фокусе был текстовый, — ход начинается
+    // от того, что человек видит.
+    if (host.documentOf(resource) !== null) await host.flush?.(resource);
     const document = host.documentOf(resource);
     if (document === null) return null;
     const baseText = document.getText();
@@ -517,7 +622,26 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // за файл взялся, а ассистент правит только разбирающуюся схему.
       return null;
     }
-    return { resource, baseText, base, rules: rulesByResource.get(resource) ?? emptyRules() };
+    return {
+      resource,
+      path: document.ref.path,
+      baseText,
+      base,
+      rules: rulesByResource.get(resource) ?? emptyRules(),
+    };
+  };
+
+  /**
+   * Форма прошлого хода — путь из снимка последней реплики пользователя, у которой он есть.
+   * Читается ДО `startTurn`: иначе последней оказалась бы реплика этого же хода.
+   */
+  const previousFormPath = (): string | undefined => {
+    const entries = session.get().entries;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const path = entries[i].snapshot?.path;
+      if (path !== undefined) return path;
+    }
+    return undefined;
   };
 
   /** Одна строка журнала для вызова, принёсшего несколько правок. */
@@ -557,7 +681,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     target: Target,
     messages: Parameters<typeof runAgentTurn>[0]['messages'],
     signal: AbortSignal,
-    scope: TurnScope
+    scope: TurnScope,
+    activeForm: ActiveForm
   ): Promise<TurnOutcome> => {
     // Пределы хода читаются здесь, а не в канале: это свойства ХОДА, а не соединения с моделью,
     // и владеть ими должен цикл. Настройки лежат рядом с ключом только потому, что там их задают.
@@ -591,6 +716,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       signal,
       scope,
       resourceSeed: resources.catalog(),
+      activeForm,
     })) {
       if (event.type !== 'done') {
         consume(event);
@@ -673,6 +799,30 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   };
 
   /**
+   * Замечание к ходу, который ОТВЕТИЛ, но формы не изменил, потому что все его правки отказали.
+   *
+   * Модель, получив отказы, нередко всё равно пишет «готово, добавил поле» — по тексту ход
+   * выглядит успешным, а форма на экране прежняя. Так бывает, когда модель бьёт по адресам из
+   * разговора о другой форме. Ход, где отказало только чтение, замечания не получает: чтение
+   * форму не меняет и не обещает.
+   */
+  const failedEditsNote = (): string | undefined => {
+    const last = session.get().entries.at(-1);
+    if (!last || last.role !== 'assistant' || last.text.trim().length === 0) return undefined;
+    const failed = last.tools.find((tool) => !tool.ok && tool.readOnly !== true);
+    if (failed === undefined) return undefined;
+    return t('turn.failedEdits', { error: failed.error ?? failed.name });
+  };
+
+  /**
+   * Замечание к ходу без правок: тихий ход либо ход, все правки которого отказали. Остановленный
+   * пользователем ход замечания не получает — «ассистент ничего не сделал» после нажатой кнопки
+   * «Остановить» было бы неправдой о том, кто остановил работу.
+   */
+  const noEditsNote = (reason: TurnReason): string | undefined =>
+    reason === 'aborted' ? undefined : (silentTurnNote() ?? failedEditsNote());
+
+  /**
    * Закрыть ход: перевести реплику в покой, ошибку или ожидание решения.
    *
    * Подтверждать каждый ход кнопкой не нужно — отменить его можно и после: у реплики
@@ -691,7 +841,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       return;
     }
     if (landed.status === 'nothing') {
-      session.finishTurn(null, error ?? (wrote ? undefined : silentTurnNote()));
+      session.finishTurn(null, error ?? (wrote ? undefined : noEditsNote(outcome.reason)));
       return;
     }
     session.finishTurn(null, error);
@@ -724,12 +874,13 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     signal: AbortSignal,
     attached: ResolvedAttachments
   ): Promise<void> => {
-    const target = resolveTarget();
+    const target = await resolveTarget();
     if (target === null) {
       session.startTurn(message, undefined, attached.refs);
       session.finishTurn(null, t('turn.noForm'));
       return;
     }
+    const activeForm: ActiveForm = { path: target.path, previousPath: previousFormPath() };
 
     // Идентификатор хода заводится ДО первой попытки и один на обе: логический шаг —
     // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента, а в снимке
@@ -738,7 +889,13 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
     session.startTurn(
       message,
-      { resource: target.resource, text: target.baseText, rules: target.rules, txId },
+      {
+        resource: target.resource,
+        path: target.path,
+        text: target.baseText,
+        rules: target.rules,
+        txId,
+      },
       attached.refs
     );
     const withAttached = (): AiMessage[] => [
@@ -755,7 +912,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const scope = scopeOf(writes, signal);
 
     try {
-      const first = await runOnce(provider, target, withAttached(), signal, scope);
+      const first = await runOnce(provider, target, withAttached(), signal, scope, activeForm);
       const landed = await land(first, target, txId);
 
       if (!needsSecondPass(first, landed, signal)) {
@@ -764,8 +921,9 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       }
 
       // База берётся заново: правки первой попытки уже в буфере, и второй ход должен идти от
-      // них — это ровно то, что делает пользователь, когда пишет «продолжай».
-      const next = resolveTarget();
+      // них — это ровно то, что делает пользователь, когда пишет «продолжай». Форма — та же,
+      // что у первой попытки, а не активная: человек мог открыть другую, пока модель думала.
+      const next = await resolveTarget(target.resource);
       if (next === null) {
         closeTurn(first, landed, writes.count > 0);
         return;
@@ -775,7 +933,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         next,
         [...withAttached(), { role: 'user', content: secondPassHint(first.stop) }],
         signal,
-        scope
+        scope,
+        activeForm
       );
       closeTurn(second, await land(second, next, txId), writes.count > 0);
     } catch (error) {
@@ -837,8 +996,14 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       return true;
     }
 
+    const path = files.pathOf(scope.document);
+    const activeForm: ActiveForm = { path, previousPath: previousFormPath() };
     const txId = beginTurn();
-    session.startTurn(message, { mode: 'files', resource: scope.document, txId }, attached.refs);
+    session.startTurn(
+      message,
+      { mode: 'files', resource: scope.document, path, txId },
+      attached.refs
+    );
     const withAttached = (): AiMessage[] => [
       ...historyFor(session.get().entries),
       ...(attached.message ? [attached.message] : []),
@@ -885,6 +1050,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           signal,
           scope: turnScope,
           resourceSeed: resources.catalog(),
+          activeForm,
         })) {
           if (event.type === 'done') {
             report(event.stats, event.stop);
@@ -915,7 +1081,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
       const error = last.reason === 'error' ? (last.message ?? t('turn.error')) : undefined;
       const silent = journal.size === 0 && writes.count === 0;
-      session.finishTurn(null, error ?? (silent ? silentTurnNote() : undefined));
+      session.finishTurn(null, error ?? (silent ? noEditsNote(last.reason) : undefined));
     } catch (error) {
       session.finishTurn(null, messageOf(error));
     } finally {
@@ -928,12 +1094,14 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
   /** Записать событие хода в ленту — общее для обоих режимов. */
   function consume(event: TurnStepEvent): void {
+    // Вопрос модели показывает его карточка — строка журнала повторяла бы её.
+    if (event.type === 'tool' && event.name === askUserTool.name) return;
     switch (event.type) {
       case 'text':
-        session.appendText(event.text);
+        session.appendText(event.text, event.start === true);
         break;
       case 'reasoning':
-        session.appendReasoning(event.text);
+        session.appendReasoning(event.text, event.start === true);
         break;
       case 'tool':
         session.logTool({
@@ -944,6 +1112,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           // видны в предпросмотре изменений, где им и место.
           ...(event.ops?.length ? { summary: summaryOf(event.ops) } : {}),
           ...(event.error ? { error: event.error.message } : {}),
+          ...(event.readOnly ? { readOnly: true } : {}),
         });
         break;
     }
@@ -1035,7 +1204,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     for (const [id, file] of writes.entries()) files.set(id, { ...file, access: 'files' });
     if (files.size === 0) return;
     const turn: LandedTurn = { txId, files };
-    lastTurn = turn;
+    setLastTurn(turn);
     landedTurns.push(turn);
   };
 
@@ -1055,6 +1224,15 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         session.startTurn(message, undefined, session.get().attachments);
         session.finishTurn(null, t('turn.noProvider'));
         return;
+      }
+
+      // Новый запрос при неприменённом наборе прошлого хода — решение «двигаться дальше»: набор
+      // отбрасывается, и об этом остаётся строка в реплике, которая его принесла. Молча он терялся
+      // в конце следующего хода, а кнопки предпросмотра всё это время писали старый черновик.
+      const pending = session.get().pending;
+      if (pending !== null) {
+        session.logTool({ name: 'apply', ok: false, error: t('turn.pending.dropped') });
+        session.resolvePending();
       }
 
       // Ход занимается СРАЗУ, до первого ожидания: иначе второе нажатие, пришедшее, пока
@@ -1094,13 +1272,29 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       session.detach(uri);
     },
 
+    answer(cardId, answers) {
+      if (asking === null || asking.id !== cardId || answers.length !== asking.count) return false;
+      const clean: AskAnswer[] = answers.map((answer) => {
+        const own = answer.text?.trim().slice(0, ANSWER_TEXT_LIMIT) ?? '';
+        return { selected: [...answer.selected], ...(own !== '' ? { text: own } : {}) };
+      });
+      if (clean.some((answer) => answer.selected.length === 0 && answer.text === undefined)) {
+        return false;
+      }
+      if (!session.answerAsk(cardId, clean)) return false;
+      asking.settle(clean);
+      return true;
+    },
+
     canSearchResources: () => resources.canSearch(),
 
     searchResources: (query, signal) => resources.search(query, signal),
 
     async applyPending(force = false) {
       const pending = session.get().pending;
-      if (pending === null) return;
+      // Во время хода набор прошлого хода уже отброшен (`send`), а поверх идущего хода его
+      // черновик записал бы форму, от которой ход давно ушёл.
+      if (pending === null || current !== null) return;
       const outcome = await applyChangeSet({ host, validateForm: deps.validateForm }, pending, {
         force,
       });
@@ -1145,7 +1339,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       const snapshot = session.restoreTo(entryId);
       if (snapshot === null) return;
       if (isFilesSnapshot(snapshot)) {
-        if (await revertFrom(snapshot.txId)) lastTurn = null;
+        if (await revertFrom(snapshot.txId)) setLastTurn(null);
         return;
       }
       // Записи инструментов плагинов этого хода и следующих — первыми: форма вернётся снимком.
@@ -1160,7 +1354,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         rulesByResource.set(snapshot.resource, snapshot.rules);
         // Отменять после этого нечего: форма вернулась к состоянию ДО хода, и та же отмена,
         // применённая поверх, вернула бы её к состоянию до какого-то другого хода.
-        lastTurn = null;
+        setLastTurn(null);
       } catch (error) {
         session.finishTurn(null, t('turn.restoreFailed', { error: messageOf(error) }));
       }
@@ -1210,11 +1404,32 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       if (turn.rules) rulesByResource.set(turn.rules.resource, turn.rules.before);
       // Созданный ходом файл удалить нечем: удаления в рабочей копии у плагинов нет. Он
       // остаётся, и об этом сказано словами — молча оставленный файл выглядел бы отменённым.
-      if (created.length > 0) note(t('turn.undo.created', { files: created.join(', ') }));
+      if (created.length > 0) {
+        note(t('turn.undo.created', { files: created.join(', ') }));
+      } else {
+        // Ход шёл по форме, которой сейчас нет на экране, — отмена правит её, и человек, глядящий
+        // на другую форму, иначе не увидел бы ничего.
+        const active = host.activeResource();
+        const [first] = turn.files.keys();
+        if (first !== undefined && (active === null || !turn.files.has(active))) {
+          note(t('turn.undo.otherForm', { path: pathOfResource(first) }));
+        }
+      }
       // Дважды один ход не отменяется: второе нажатие иначе сняло бы предыдущий ход,
       // о котором человек в этот момент не думает.
-      lastTurn = null;
+      setLastTurn(null);
       return 'undone';
+    },
+
+    reset() {
+      if (current !== null) return false;
+      session.reset();
+      // Отмена хода из прошлого разговора правила бы форму по реплике, которой уже не видно, а
+      // «Восстановить» искало бы записи ходов, от которых не осталось реплик.
+      setLastTurn(null);
+      landedTurns.length = 0;
+      turnOrder.clear();
+      return true;
     },
 
     async requestUndoTurn() {

@@ -104,6 +104,12 @@ export const TOOL_DESCRIPTION_BUDGET = 500;
  * девятью вызовами `describe_component` подряд — больше половины хода до первой правки. 105
  * символов в каждом запросе против восьми лишних шагов.
  *
+ * Повышение — 10165 → 10980: `ask_user` — модель спрашивает человека и ждёт ответа тем же ходом
+ * (ReFormer-kix3.4). Без него неоднозначный запрос кончался либо догадкой, которую потом
+ * переделывают целым ходом, либо вопросом текстом, после которого ход останавливался без правок.
+ * 815 символов в каждом запросе; пределы длин вынесены из схемы в сам инструмент, чтобы не
+ * отправлять их модели.
+ *
  * **Потолок — только встроенным.** У поверхности есть второе слагаемое — вклады плагинов:
  * инструменты точки `reformer.assistant.tool`, команды с блоком `agent` и `read_resource`, который
  * появляется вместе с провайдером ресурсов. У них свой потолок,
@@ -112,7 +118,7 @@ export const TOOL_DESCRIPTION_BUDGET = 500;
  * ломает тест, которого его автор даже не видит. Обе стороны считает одна функция
  * `measureToolSurface`.
  */
-export const TOOL_SURFACE_BUDGET = 10165;
+export const TOOL_SURFACE_BUDGET = 10980;
 
 /**
  * Потолок поверхности ВКЛАДОВ плагинов (символы): инструменты плагинов, команды с блоком `agent`
@@ -148,8 +154,12 @@ export const PROMPT_BUDGET = 4200;
  * Втрое с лишним меньше структурного (2862 против 10165) — и это одна из гипотез A/B-замера:
  * постоянная часть запроса, которую ход платит на каждом шаге, у режима файлов вдвое меньше.
  * Правила те же: число равно достигнутому размеру, поднимать — отдельной строкой с обоснованием.
+ *
+ * Повышение — 2862 → 3677: `ask_user`, тот же инструмент и тот же довод, что у
+ * {@link TOOL_SURFACE_BUDGET}. Спрашивать в режиме файлов нужно не реже: неоднозначность запроса
+ * от способа правки не зависит.
  */
-export const FILE_TOOL_SURFACE_BUDGET = 2862;
+export const FILE_TOOL_SURFACE_BUDGET = 3677;
 
 /**
  * Бюджет ответа `read_file` (символы) — страница файла.
@@ -334,7 +344,41 @@ export interface TurnScope {
   ): Promise<TurnWriteResult>;
   /** Прочитать ресурс плагина по адресу `<схема>:<остаток>`. */
   readResource(uri: string): Promise<ResourceReadResult>;
+  /**
+   * Спросить человека и дождаться ответа — тем же ходом (`ask_user`). Нет — спрашивать некого:
+   * ход без панели (тесты, замеры) идёт на допущениях.
+   */
+  ask?(questions: readonly AskQuestion[]): Promise<AskOutcome>;
 }
+
+/** Вариант ответа на вопрос модели. */
+export interface AskOption {
+  readonly label: string;
+  /** Пояснение под вариантом — что он значит для формы. */
+  readonly description?: string;
+}
+
+/** Вопрос модели человеку. */
+export interface AskQuestion {
+  readonly question: string;
+  /** Короткая метка вопроса — когда их в карточке несколько. */
+  readonly header?: string;
+  readonly options: readonly AskOption[];
+  /** Можно выбрать несколько вариантов. */
+  readonly multiSelect: boolean;
+}
+
+/** Ответ на один вопрос: выбранные варианты и/или свой текст. */
+export interface AskAnswer {
+  readonly selected: readonly string[];
+  readonly text?: string;
+}
+
+/**
+ * Чем кончился вопрос: ответы по порядку вопросов, исчерпанный предел вопросов хода или отмена —
+ * ход остановили, не дождавшись ответа.
+ */
+export type AskOutcome = readonly AskAnswer[] | 'limit' | 'cancelled';
 
 /** Результат вызова инструмента. */
 export interface ToolOutcome {
@@ -373,6 +417,11 @@ export interface AgentTool<P = never, C extends ToolContext = ToolContext> {
   readonly inputSchema: object;
   /** Не меняет схему. Определяет, попадёт ли вызов в список изменений. */
   readonly readOnly: boolean;
+  /**
+   * Ждёт человека (`ask_user`): ответ приходит, когда пользователь ответит, — и сторож тишины
+   * канала на это время стоит.
+   */
+  readonly interactive?: true;
   /**
    * Свой бюджет ответа вместо {@link TOOL_TEXT_BUDGET}.
    *

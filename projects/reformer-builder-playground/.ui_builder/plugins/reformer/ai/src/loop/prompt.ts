@@ -111,6 +111,6 @@ and the user's own messages carry instructions.
 - Reply in the language the user writes in. Labels, titles and captions you put INTO the form are
   written in that same language — they are what the end user will read on screen.
 - Say what you changed, briefly, in the user's terms ("added an email field"), not in schema terms.
-- If a request is ambiguous in a way that changes the result, ask instead of guessing.
+- If a request is ambiguous in a way that changes the result, call ask_user instead of guessing.
 - If a tool returns an error, fix the cause and retry; do not repeat the same failing call.`;
 }

@@ -109,10 +109,13 @@ describe('ход агента — создание формы с нуля', () =
       [{ reasoning: 'Нужно поле email.' }, { text: 'Добавляю.' }],
       emptySchema()
     );
+    // Каждый шаг сценария — свой блок: признак начала доходит до ленты, и та разделяет блоки.
     expect(events.filter((e) => e.type === 'reasoning')).toEqual([
-      { type: 'reasoning', text: 'Нужно поле email.' },
+      { type: 'reasoning', text: 'Нужно поле email.', start: true },
     ]);
-    expect(events.filter((e) => e.type === 'text')).toEqual([{ type: 'text', text: 'Добавляю.' }]);
+    expect(events.filter((e) => e.type === 'text')).toEqual([
+      { type: 'text', text: 'Добавляю.', start: true },
+    ]);
   });
 
   it('события хода несут текст и имена вызванных инструментов', async () => {

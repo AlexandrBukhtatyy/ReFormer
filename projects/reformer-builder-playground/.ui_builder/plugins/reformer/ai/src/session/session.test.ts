@@ -6,7 +6,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { emptyRules } from '../../../core/form-model';
-import { ATTACHMENT_LIMIT, createAiSession, type TurnSnapshot } from './session';
+import { ATTACHMENT_LIMIT, createAiSession, type TurnSnapshot, openAskOf } from './session';
 
 const SNAPSHOT: TurnSnapshot = { resource: 'form.json', text: '{}', rules: emptyRules() };
 
@@ -169,5 +169,84 @@ describe('вложения', () => {
     session.attach({ uri: 'source:b.md', name: 'b.md' });
     session.detach('source:a.md');
     expect(session.get().attachments.map((ref) => ref.uri)).toEqual(['source:b.md']);
+  });
+});
+
+describe('блоки ответа и рассуждения', () => {
+  it('блоки разных шагов разделены пустой строкой, куски одного блока — склеены', () => {
+    const session = createAiSession();
+    session.startTurn('вопрос');
+    session.appendReasoning('Смотрю ', true);
+    session.appendReasoning('форму.');
+    session.appendReasoning('Поле уже есть.', true);
+    expect(session.get().entries.at(-1)?.reasoning).toBe('Смотрю форму.\n\nПоле уже есть.');
+  });
+
+  it('ведущие переводы строки блока отбрасываются, разрыв ждёт первого текста', () => {
+    const session = createAiSession();
+    session.startTurn('вопрос');
+    session.appendReasoning('\n', true);
+    session.appendReasoning('\nДумаю.');
+    session.appendReasoning('\n\n', true);
+    session.appendReasoning('Дальше.');
+    expect(session.get().entries.at(-1)?.reasoning).toBe('Думаю.\n\nДальше.');
+  });
+
+  it('уже стоящий перевод строки не удваивает разрыв', () => {
+    const session = createAiSession();
+    session.startTurn('вопрос');
+    session.appendText('Сначала так.\n', true);
+    session.appendText('Потом так.', true);
+    expect(session.get().entries.at(-1)?.text).toBe('Сначала так.\n\nПотом так.');
+  });
+
+  it('новый ход начинается без разрыва, даже если прошлый блок остался открытым', () => {
+    const session = createAiSession();
+    session.startTurn('раз');
+    session.appendText('\n', true);
+    session.startTurn('два');
+    session.appendText('Ответ.');
+    expect(session.get().entries.at(-1)?.text).toBe('Ответ.');
+  });
+});
+
+describe('карточки вопросов', () => {
+  const question = {
+    question: 'Обязательное?',
+    options: [{ label: 'Да' }, { label: 'Нет' }],
+    multiSelect: false,
+  };
+
+  it('карточка ждёт ответа, пока идёт ход, и принимает его один раз', () => {
+    const session = createAiSession();
+    session.startTurn('вопрос');
+    session.askQuestions({ id: 'ask1', questions: [question] });
+    expect(openAskOf(session.get())?.id).toBe('ask1');
+
+    expect(session.answerAsk('ask1', [{ selected: ['Да'] }])).toBe(true);
+    expect(session.answerAsk('ask1', [{ selected: ['Нет'] }])).toBe(false);
+    expect(openAskOf(session.get())).toBeNull();
+    expect(session.get().entries.at(-1)?.asks?.[0].answers).toEqual([{ selected: ['Да'] }]);
+  });
+
+  it('снятые карточки не ждут ответа, а отвеченные остаются отвеченными', () => {
+    const session = createAiSession();
+    session.startTurn('вопрос');
+    session.askQuestions({ id: 'ask1', questions: [question] });
+    session.answerAsk('ask1', [{ selected: ['Да'] }]);
+    session.askQuestions({ id: 'ask2', questions: [question] });
+    session.cancelAsks();
+
+    const asks = session.get().entries.at(-1)?.asks ?? [];
+    expect(asks.map((card) => card.cancelled === true)).toEqual([false, true]);
+    expect(openAskOf(session.get())).toBeNull();
+  });
+
+  it('после конца хода карточка ответа не ждёт', () => {
+    const session = createAiSession();
+    session.startTurn('вопрос');
+    session.askQuestions({ id: 'ask1', questions: [question] });
+    session.finishTurn(null);
+    expect(openAskOf(session.get())).toBeNull();
   });
 });

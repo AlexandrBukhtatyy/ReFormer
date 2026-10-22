@@ -18,7 +18,7 @@
  * @module plugins/reformer/ai/ui/ChatActions
  */
 
-import { useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { MessageSquarePlus, Settings2, Undo2 } from 'lucide-react';
 import { Button } from '@reformer/ui-kit/button';
 import type { AgentBridge } from '../session/bridge';
@@ -35,26 +35,23 @@ export interface ChatActionsProps {
 export function ChatActions({ host, session, bridge }: ChatActionsProps): ReactElement {
   const t = host.useTranslate();
   const state = useAiSession(session);
-  // Отмена хода состояния сессии не меняет (лента остаётся какой была — в том и смысл),
-  // поэтому перерисовку после неё ряд запрашивает сам: иначе кнопка осталась бы доступной
-  // на вид до ближайшего чужого изменения.
-  const [, force] = useState(0);
   const running = state.status === 'running';
 
   return (
     <>
       {/* Через мост, а не прямым вызовом: у отмены один вход, и охранное условие с записью
-          в палитре относятся к нему же. Доступность спрашивается у моста напрямую — это
-          чтение, а не действие, и оно обязано быть дешёвым. */}
+          в палитре относятся к нему же. Доступность — из сессии, а не вопросом к мосту при
+          перерисовке: мост запоминает ход уже после последнего изменения ленты, и вопрос в
+          момент перерисовки оставлял кнопку недоступной до случайного следующего изменения. */}
       <Button
         variant="ghost"
         size="icon-sm"
         aria-label={t('chat.undoTurn')}
         title={t('chat.undoTurn')}
         data-testid="chat-undo-turn"
-        disabled={!bridge.canUndoTurn()}
+        disabled={running || !state.undoable}
         onClick={() => {
-          void bridge.requestUndoTurn().then(() => force((tick) => tick + 1));
+          void bridge.requestUndoTurn();
         }}
       >
         <Undo2 />
@@ -67,7 +64,7 @@ export function ChatActions({ host, session, bridge }: ChatActionsProps): ReactE
         data-testid="chat-new-conversation"
         disabled={running}
         onClick={() => {
-          session.reset();
+          bridge.reset();
         }}
       >
         <MessageSquarePlus />

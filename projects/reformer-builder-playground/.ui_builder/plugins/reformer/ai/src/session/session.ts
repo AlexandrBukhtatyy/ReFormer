@@ -25,6 +25,7 @@
 import type { FormRules } from '../../../core/form-model';
 import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { ChangeSet } from '../model/changeset';
+import type { AskAnswer, AskQuestion } from '../model/types';
 
 /** Что делает ассистент прямо сейчас. */
 export type AgentStatus =
@@ -44,6 +45,11 @@ export interface ToolLogEntry {
   /** Что изменилось — строка журнала операций. */
   readonly summary?: string;
   readonly error?: string;
+  /**
+   * Инструмент только читает. Упавшее чтение форму не задевает, а упавшая правка — задевает:
+   * по этому признаку мост отличает ход «все правки отказали» от хода, где модель лишь смотрела.
+   */
+  readonly readOnly?: boolean;
 }
 
 /**
@@ -54,6 +60,11 @@ export interface ToolLogEntry {
  */
 export interface TurnSnapshot {
   readonly resource: ResourceId;
+  /**
+   * Путь документа формы от корня проекта. По нему реплика показывает, какую форму правил ход,
+   * а следующий ход узнаёт, что пользователь переключился на другую форму.
+   */
+  readonly path?: string;
   /** Текст буфера на начало хода. Им же проверяется конфликт при применении. */
   readonly text: string;
   /**
@@ -78,8 +89,15 @@ export interface FilesTurnSnapshot {
   readonly mode: 'files';
   /** Документ формы, по модулю которого шёл ход. */
   readonly resource: ResourceId;
+  /** Путь документа формы от корня проекта — см. {@link TurnSnapshot.path}. */
+  readonly path?: string;
   /** Идентификатор хода — по нему мост находит журнал. */
   readonly txId: string;
+}
+
+/** Путь формы, которую правил ход реплики, — у реплик без формы его нет. */
+export function snapshotPath(entry: Pick<ChatEntry, 'snapshot'>): string | undefined {
+  return entry.snapshot?.path;
 }
 
 /** Точка восстановления реплики — структурного хода или хода режима файлов. */
@@ -110,6 +128,21 @@ export const ATTACHMENT_LIMIT = 8;
 /** Чем кончилась попытка прикрепить. */
 export type AttachOutcome = 'attached' | 'duplicate' | 'limit';
 
+/**
+ * Карточка вопросов модели — один вызов `ask_user`.
+ *
+ * Живёт в реплике ассистента, а не отдельным состоянием: вопрос — часть ответа модели, и в ленте
+ * он стоит там, где модель его задала, а после ответа остаётся там же — с ответом.
+ */
+export interface AskCard {
+  readonly id: string;
+  readonly questions: readonly AskQuestion[];
+  /** Ответы по порядку вопросов — когда человек ответил. */
+  readonly answers?: readonly AskAnswer[];
+  /** Ход остановили, не дождавшись ответа. */
+  readonly cancelled?: true;
+}
+
 /** Реплика диалога в интерфейсе. */
 export interface ChatEntry {
   readonly id: string;
@@ -127,6 +160,19 @@ export interface ChatEntry {
   readonly reasoning: string;
   /** Вызовы инструментов, сделанные в рамках этой реплики. */
   readonly tools: readonly ToolLogEntry[];
+  /** Вопросы модели человеку — по карточке на вызов `ask_user`. */
+  readonly asks?: readonly AskCard[];
+}
+
+/**
+ * Карточка, ждущая ответа, или `null`. Ждать может только карточка идущего хода — в последней
+ * реплике ассистента.
+ */
+export function openAskOf(state: AiSessionState): AskCard | null {
+  if (state.status !== 'running') return null;
+  const last = state.entries.at(-1);
+  if (last?.role !== 'assistant') return null;
+  return last.asks?.find((card) => card.answers === undefined && card.cancelled !== true) ?? null;
 }
 
 /** Набор изменений, ждущий решения, вместе с адресом, к которому его применять. */
@@ -163,6 +209,14 @@ export interface AiSessionState {
   readonly error: string | null;
   /** Прикреплённое к следующей реплике — чипы над полем ввода. */
   readonly attachments: readonly AttachmentRef[];
+  /**
+   * Есть ход, который можно отменить «Отменить последний ход».
+   *
+   * В состоянии сессии, хотя знает об этом мост: кнопка в шапке перерисовывается по изменениям
+   * сессии, а мост запоминает ход и после последнего изменения ленты — в `finally` хода. Кнопка,
+   * спрашивавшая мост в момент перерисовки, оставалась недоступной до случайной перерисовки.
+   */
+  readonly undoable: boolean;
 }
 
 const INITIAL: AiSessionState = Object.freeze({
@@ -173,6 +227,7 @@ const INITIAL: AiSessionState = Object.freeze({
   conflict: false,
   error: null,
   attachments: Object.freeze([]),
+  undoable: false,
 });
 
 /** Хранилище сессии. Живёт вне React — как и остальные хранилища проекта. */
@@ -182,6 +237,8 @@ export interface AiSession {
   subscribe(listener: () => void): Disposable;
 
   setSettingsOpen(open: boolean): void;
+  /** Есть ли ход, который можно отменить, — ставит мост, см. {@link AiSessionState.undoable}. */
+  setUndoable(undoable: boolean): void;
   /** Прикрепить ресурс к следующей реплике. Тот же адрес второй раз не прикрепляется. */
   attach(ref: AttachmentRef): AttachOutcome;
   /** Открепить ресурс от следующей реплики. */
@@ -191,9 +248,21 @@ export interface AiSession {
    * Прикреплённое к реплике уходит с ней (`attachments`), а поле вложений освобождается.
    */
   startTurn(text: string, snapshot?: EntrySnapshot, attachments?: readonly AttachmentRef[]): void;
-  appendText(chunk: string): void;
-  appendReasoning(chunk: string): void;
+  /**
+   * Дописать кусок ответа. `start` — кусок открывает новый блок (шаг хода, вторая попытка): перед
+   * ним встаёт пустая строка. Ведущие пустые строки блока отбрасываются — модели часто начинают
+   * рассуждение переводом строки, и в ленте это выглядело дырой над текстом.
+   */
+  appendText(chunk: string, start?: boolean): void;
+  /** Дописать кусок рассуждения — по тем же правилам, что {@link appendText}. */
+  appendReasoning(chunk: string, start?: boolean): void;
   logTool(entry: ToolLogEntry): void;
+  /** Карточка вопросов модели — в текущую реплику ассистента. */
+  askQuestions(card: AskCard): void;
+  /** Ответ человека на карточку. `false` — карточки нет или на неё уже ответили. */
+  answerAsk(id: string, answers: readonly AskAnswer[]): boolean;
+  /** Снять неотвеченные карточки текущей реплики: ход остановлен, ответа не будет. */
+  cancelAsks(): void;
   /** Ход завершён: набор (если остался) уходит на подтверждение, замечание — в статус ошибки. */
   finishTurn(pending: PendingChanges | null, error?: string): void;
   /** Пометить, что буфер разошёлся с базой хода. */
@@ -210,6 +279,21 @@ export interface AiSession {
   restoreTo(id: string): EntrySnapshot | null;
   /** Очистить диалог. */
   reset(): void;
+}
+
+/**
+ * Дописать кусок к тексту реплики.
+ *
+ * В начале текста и в начале блока ведущие пробелы и переводы строк отбрасываются; перед блоком,
+ * идущим за уже написанным, встаёт пустая строка (если её там ещё нет).
+ */
+function joinChunk(current: string, chunk: string, blockStart: boolean): string {
+  if (current !== '' && !blockStart) return current + chunk;
+  const piece = chunk.replace(/^\s+/, '');
+  if (piece === '') return current;
+  if (current === '') return piece;
+  const gap = current.endsWith('\n\n') ? '' : current.endsWith('\n') ? '\n' : '\n\n';
+  return current + gap + piece;
 }
 
 /** Создать хранилище сессии. */
@@ -245,8 +329,16 @@ export function createAiSession(): AiSession {
   const updateLast = (fn: (entry: ChatEntry) => ChatEntry): void => {
     const last = state.entries.at(-1);
     if (!last || last.role !== 'assistant') return;
-    commit({ ...state, entries: [...state.entries.slice(0, -1), fn(last)] });
+    const next = fn(last);
+    if (next === last) return;
+    commit({ ...state, entries: [...state.entries.slice(0, -1), next] });
   };
+
+  /**
+   * Открыт ли новый блок, чей первый непустой кусок ещё не пришёл. Отдельно от реплики: блок
+   * может начаться с одних переводов строки, и разрыв перед ним обязан дождаться текста.
+   */
+  const opened = { text: false, reasoning: false };
 
   return {
     get: () => state,
@@ -264,6 +356,10 @@ export function createAiSession(): AiSession {
       commit({ ...state, settingsOpen });
     },
 
+    setUndoable(undoable) {
+      if (state.undoable !== undoable) commit({ ...state, undoable });
+    },
+
     attach(ref) {
       if (state.attachments.some((known) => known.uri === ref.uri)) return 'duplicate';
       if (state.attachments.length >= ATTACHMENT_LIMIT) return 'limit';
@@ -277,6 +373,8 @@ export function createAiSession(): AiSession {
     },
 
     startTurn(text, snapshot, attachments) {
+      opened.text = false;
+      opened.reasoning = false;
       commit({
         ...state,
         status: 'running',
@@ -299,16 +397,57 @@ export function createAiSession(): AiSession {
       });
     },
 
-    appendText(chunk) {
-      updateLast((entry) => ({ ...entry, text: entry.text + chunk }));
+    appendText(chunk, start = false) {
+      if (start) opened.text = true;
+      updateLast((entry) => {
+        const text = joinChunk(entry.text, chunk, opened.text);
+        if (text === entry.text) return entry;
+        opened.text = false;
+        return { ...entry, text };
+      });
     },
 
-    appendReasoning(chunk) {
-      updateLast((entry) => ({ ...entry, reasoning: entry.reasoning + chunk }));
+    appendReasoning(chunk, start = false) {
+      if (start) opened.reasoning = true;
+      updateLast((entry) => {
+        const reasoning = joinChunk(entry.reasoning, chunk, opened.reasoning);
+        if (reasoning === entry.reasoning) return entry;
+        opened.reasoning = false;
+        return { ...entry, reasoning };
+      });
     },
 
     logTool(entry) {
       updateLast((last) => ({ ...last, tools: [...last.tools, entry] }));
+    },
+
+    askQuestions(card) {
+      updateLast((last) => ({ ...last, asks: [...(last.asks ?? []), card] }));
+    },
+
+    answerAsk(id, answers) {
+      let answered = false;
+      updateLast((last) => {
+        const asks = last.asks?.map((card) => {
+          if (card.id !== id || card.answers !== undefined || card.cancelled === true) return card;
+          answered = true;
+          return { ...card, answers };
+        });
+        return answered && asks ? { ...last, asks } : last;
+      });
+      return answered;
+    },
+
+    cancelAsks() {
+      updateLast((last) => {
+        if (!last.asks?.some((card) => card.answers === undefined && card.cancelled !== true)) {
+          return last;
+        }
+        const asks = last.asks.map((card) =>
+          card.answers === undefined ? { ...card, cancelled: true as const } : card
+        );
+        return { ...last, asks };
+      });
     },
 
     finishTurn(pending, error) {

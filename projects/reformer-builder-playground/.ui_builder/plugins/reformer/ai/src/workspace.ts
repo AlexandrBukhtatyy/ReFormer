@@ -133,6 +133,10 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     translate: (key, params) => ctx.i18n.t(key, params),
 
     activeResource: () => documents.activeResource(),
+    onDidChangeActive: (cb) => documents.onDidChange(cb),
+    flush: async (id) => {
+      await documents.flush(id);
+    },
     documentOf: (id: ResourceId): AiDocument | null => {
       const document = documents.documentOf(id);
       if (document === null) return null;

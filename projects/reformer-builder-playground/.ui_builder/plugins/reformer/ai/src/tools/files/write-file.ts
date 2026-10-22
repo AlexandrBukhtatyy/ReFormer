@@ -9,7 +9,7 @@
  * @module plugins/reformer/ai/tools/files/write-file
  */
 
-import { isRefusal } from '../../files/scope';
+import { creationRefusal, isRefusal } from '../../files/scope';
 import type { FileToolContext } from '../../files/turn';
 import { fail, ok, type AgentTool } from '../../model/types';
 import { commitWrite } from './commit';
@@ -41,7 +41,10 @@ export const writeFileTool: AgentTool<Params, FileToolContext> = {
     if (isRefusal(file)) return file;
     const before = await ctx.files.read(file);
 
-    if (before !== null) {
+    if (before === null) {
+      const refused = creationRefusal(ctx.files.scope, file.rel);
+      if (refused !== null) return refused;
+    } else {
       const seen = ctx.files.seen(file.rel);
       if (seen === undefined) {
         return fail(

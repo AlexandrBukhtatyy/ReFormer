@@ -27,6 +27,8 @@ function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
     applyPending: () => Promise.resolve(),
     rejectPending: () => {},
     restoreTo: () => Promise.resolve(),
+    answer: () => false,
+    reset: () => true,
     canUndoTurn: () => false,
     undoLastTurn: () => Promise.resolve('nothing' as const),
     requestUndoTurn: () => Promise.resolve(),
@@ -40,7 +42,7 @@ function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
 
 describe('команды плагина', () => {
   it('отмена хода и прикрепление внесены в реестр наравне с остановкой и новым разговором', () => {
-    const commands = aiCommands(fakeBridge(), createAiSession());
+    const commands = aiCommands(fakeBridge());
 
     expect(commands.map((command) => command.id)).toEqual([
       AI_STOP_COMMAND_ID,
@@ -53,7 +55,7 @@ describe('команды плагина', () => {
   it('прикрепление: адрес уходит мосту, о результате сказано тостом', () => {
     const attach = vi.fn().mockReturnValue('attached');
     const notify = vi.fn();
-    const command = aiCommands(fakeBridge({ attach }), createAiSession(), notify).find(
+    const command = aiCommands(fakeBridge({ attach }), notify).find(
       (c) => c.id === ASSISTANT_ATTACH_COMMAND_ID
     );
 
@@ -65,7 +67,7 @@ describe('команды плагина', () => {
   it('прикрепление без адреса (из палитры) — подсказка, а не ошибка', () => {
     const attach = vi.fn();
     const notify = vi.fn();
-    const command = aiCommands(fakeBridge({ attach }), createAiSession(), notify).find(
+    const command = aiCommands(fakeBridge({ attach }), notify).find(
       (c) => c.id === ASSISTANT_ATTACH_COMMAND_ID
     );
 
@@ -75,7 +77,7 @@ describe('команды плагина', () => {
   });
 
   it('у отмены есть охранное условие, и оно спрашивает мост', () => {
-    const undo = aiCommands(fakeBridge({ canUndoTurn: () => true }), createAiSession()).find(
+    const undo = aiCommands(fakeBridge({ canUndoTurn: () => true })).find(
       (command) => command.id === AI_UNDO_TURN_COMMAND_ID
     );
 
@@ -85,7 +87,7 @@ describe('команды плагина', () => {
   it('ни одна команда плагина не отдаётся модели', () => {
     // Дать модели «остановить ход» или «отменить последний ход» значило бы позволить ей
     // прервать саму себя и переиграть собственную работу.
-    const commands = aiCommands(fakeBridge(), createAiSession());
+    const commands = aiCommands(fakeBridge());
 
     expect(commands.filter((command) => command.agent !== undefined)).toEqual([]);
   });

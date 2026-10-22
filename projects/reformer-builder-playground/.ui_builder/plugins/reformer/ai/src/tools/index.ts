@@ -21,6 +21,7 @@
 import type { KnowledgeLoader } from '../knowledge';
 import { createToolRegistry, type ToolRegistry } from './registry';
 import type { AgentTool } from '../model/types';
+import { askUserTool } from './ask-user';
 import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
 import { getFormNode } from './get-form-node';
@@ -39,6 +40,7 @@ import { setNodePropTool } from './set-node-prop';
 import { validateForm } from './validate-form';
 
 export {
+  askUserTool,
   createReformerDocsTool,
   describeComponentTool,
   duplicateNodeTool,
@@ -72,6 +74,7 @@ export function readOnlyTools(options: ToolsOptions = {}): readonly AgentTool[] 
     describeComponentTool,
     validateForm,
     createReformerDocsTool(options.knowledge),
+    askUserTool,
   ];
 }
 

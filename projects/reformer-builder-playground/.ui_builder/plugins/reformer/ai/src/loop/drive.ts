@@ -40,10 +40,23 @@ export interface TurnStats {
 
 /** Событие хода, общее для обоих режимов: всё, кроме итога. */
 export type TurnStepEvent =
-  | { type: 'text'; text: string }
+  /** `start` — первый кусок нового блока ответа: см. `AiEvent`. */
+  | { type: 'text'; text: string; start?: true }
   /** Рассуждение модели: показывается свёрнутым и в историю диалога не возвращается. */
-  | { type: 'reasoning'; text: string }
-  | { type: 'tool'; name: string; ok: boolean; ops?: readonly ChangeOp[]; error?: ToolError };
+  | { type: 'reasoning'; text: string; start?: true }
+  | {
+      type: 'tool';
+      name: string;
+      ok: boolean;
+      ops?: readonly ChangeOp[];
+      error?: ToolError;
+      /** Инструмент только читает — его отказ форму не задевает. */
+      readOnly?: true;
+    };
+
+/** Признак начала блока — дальше, только если он есть. */
+const startOf = (event: { readonly start?: true }): { start?: true } =>
+  event.start ? { start: true } : {};
 
 /** Чем кончился поток провайдера — итог, который режим дополняет своим результатом. */
 export interface StreamEnd {
@@ -84,6 +97,7 @@ export function queuedTools<C extends ToolContext>(
     description: tool.description,
     inputSchema: tool.inputSchema,
     readOnly: tool.readOnly,
+    ...(tool.interactive === true ? { interactive: true } : {}),
     execute: (args) => {
       const started = queue.then(async () => {
         const outcome = await registry.invoke(tool.name, args, contextOf());
@@ -122,25 +136,29 @@ export async function* streamTurn(
   // Имя вызова известно из `tool_call`, а показать его нужно на `tool_result`. Карта живёт в
   // пределах хода: на уровне модуля два параллельных хода затирали бы записи друг друга.
   const callNames = new Map<string, string>();
+  const readOnly = new Set(request.tools.filter((tool) => tool.readOnly).map((tool) => tool.name));
 
   try {
     for await (const event of provider.stream(request, signal)) {
       switch (event.type) {
         case 'delta':
-          if (event.text) yield { type: 'text', text: event.text };
+          if (event.text) yield { type: 'text', text: event.text, ...startOf(event) };
           break;
         case 'reasoning':
-          if (event.text) yield { type: 'reasoning', text: event.text };
+          if (event.text) yield { type: 'reasoning', text: event.text, ...startOf(event) };
           break;
-        case 'tool_result':
+        case 'tool_result': {
+          const name = callNames.get(event.id) ?? 'tool';
           yield {
             type: 'tool',
-            name: callNames.get(event.id) ?? 'tool',
+            name,
             ok: event.result.ok,
             ...(event.result.ops?.length ? { ops: event.result.ops } : {}),
             ...(event.result.error ? { error: event.result.error } : {}),
+            ...(readOnly.has(name) ? { readOnly: true as const } : {}),
           };
           break;
+        }
         case 'step_usage':
           addUsage(stats, event.usage);
           break;

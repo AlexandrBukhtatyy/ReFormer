@@ -28,7 +28,8 @@
  */
 
 import type { AiMessage } from '../providers/types';
-import type { ChatEntry } from './session';
+import { answerText } from '../tools/ask-user';
+import { snapshotPath, type ChatEntry } from './session';
 
 /**
  * Сколько символов истории уходит в модель.
@@ -50,31 +51,46 @@ const TOOLS_IN_SUMMARY = 12;
  *
  * Урок 7: ход без единого слова — это не пустая реплика, а список сделанного.
  *
+ * Вопросы модели и ответы человека (`ask_user`) идут сюда же, строкой на вопрос: ответ
+ * пришёл результатом вызова внутри хода, а в историю следующих ходов вызовы не попадают — без
+ * этих строк модель забыла бы, что ей уже ответили, и спросила бы снова.
+ *
  * @param entry - Реплика ассистента из ленты.
  */
-export function assistantContent(entry: Pick<ChatEntry, 'text' | 'tools'>): string {
-  if (entry.text.trim().length > 0) return entry.text;
+export function assistantContent(entry: Pick<ChatEntry, 'text' | 'tools' | 'asks'>): string {
+  const asked = (entry.asks ?? []).flatMap((card) =>
+    card.questions.map((question, index) => {
+      const answer = card.answers?.[index];
+      const result = answer ? `answer: ${answerText(answer)}` : 'no answer, turn stopped';
+      return `(asked the user: "${question.question}" — ${result})`;
+    })
+  );
+  if (entry.text.trim().length > 0) return [entry.text, ...asked].join('\n');
+  if (entry.tools.length === 0 && asked.length > 0) return asked.join('\n');
   const done = entry.tools
     .slice(0, TOOLS_IN_SUMMARY)
     .map((tool) => tool.summary ?? tool.name)
     .join('; ');
   const rest = entry.tools.length - Math.min(entry.tools.length, TOOLS_IN_SUMMARY);
-  return `(no comment; done: ${done}${rest > 0 ? ` and ${rest} more` : ''})`;
+  return [`(no comment; done: ${done}${rest > 0 ? ` and ${rest} more` : ''})`, ...asked].join('\n');
 }
 
 /**
- * Реплика пользователя в том виде, в каком её видит модель: текст и, если что-то было
- * прикреплено, ссылки на прикреплённое.
+ * Реплика пользователя в том виде, в каком её видит модель: текст, ссылки на прикреплённое (если
+ * было) и форма хода (`form`) — когда её надо назвать, решает {@link historyFor}.
  *
  * Только ссылки, без содержимого: содержимое уходит модели в своём ходе (`./resources`), а в
  * истории — адрес, по которому его можно перечитать `read_resource`. Иначе один прикреплённый
  * файл вытеснял бы из бюджета истории весь разговор.
  */
-export function userContent(entry: Pick<ChatEntry, 'text' | 'attachments'>): string {
+export function userContent(entry: Pick<ChatEntry, 'text' | 'attachments'>, form?: string): string {
   const attached = entry.attachments ?? [];
-  if (attached.length === 0) return entry.text;
-  const list = attached.map((ref) => `${ref.name} <${ref.uri}>`).join(', ');
-  return `${entry.text}\n(attached: ${list})`;
+  const lines = [entry.text];
+  if (attached.length > 0) {
+    lines.push(`(attached: ${attached.map((ref) => `${ref.name} <${ref.uri}>`).join(', ')})`);
+  }
+  if (form !== undefined) lines.push(`(form: ${form})`);
+  return lines.join('\n');
 }
 
 /**
@@ -84,6 +100,11 @@ export function userContent(entry: Pick<ChatEntry, 'text' | 'attachments'>): str
  * Последняя проходит всегда — это сообщение, на которое агент и отвечает; иначе бюджет,
  * заданный меньше одной реплики, оставил бы модель вообще без вопроса.
  *
+ * Реплика пользователя помечает форму (`(form: путь)`), если её ход шёл по другой форме, чем
+ * предыдущий, — и самая первая. История общая на все формы, и без пометки модель не отличит
+ * разговор о форме A от разговора о форме B. Пометка зависит только от реплик ДО неё, поэтому
+ * текст прошлых реплик от хода к ходу не меняется и префикс запроса остаётся кэшируемым.
+ *
  * @param entries - Лента диалога.
  * @param budget - Потолок в символах; по умолчанию {@link HISTORY_BUDGET}.
  */
@@ -91,12 +112,19 @@ export function historyFor(
   entries: readonly ChatEntry[],
   budget: number = HISTORY_BUDGET
 ): AiMessage[] {
+  let previousForm: string | undefined;
   const all: AiMessage[] = entries
-    .filter((entry) => entry.text.trim().length > 0 || entry.tools.length > 0)
-    .map((entry) => ({
-      role: entry.role,
-      content: entry.role === 'assistant' ? assistantContent(entry) : userContent(entry),
-    }));
+    .filter(
+      (entry) =>
+        entry.text.trim().length > 0 || entry.tools.length > 0 || (entry.asks?.length ?? 0) > 0
+    )
+    .map((entry) => {
+      if (entry.role === 'assistant') return { role: entry.role, content: assistantContent(entry) };
+      const form = snapshotPath(entry);
+      const changed = form !== undefined && form !== previousForm;
+      if (form !== undefined) previousForm = form;
+      return { role: entry.role, content: userContent(entry, changed ? form : undefined) };
+    });
 
   const kept: AiMessage[] = [];
   let spent = 0;

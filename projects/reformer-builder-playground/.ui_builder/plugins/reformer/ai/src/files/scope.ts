@@ -15,6 +15,7 @@
  */
 
 import type { ResourceId } from '@reformer/builder-plugin-api';
+import { fileRoleOf, isCanonicalSchemaName, schemaDirOf } from '../../../core/codegen/layout';
 import type { AiFiles, FileScope } from '../host';
 import { fail, type ToolOutcome } from '../model/types';
 
@@ -90,4 +91,60 @@ export function relInScope(
 /** Отказ ли это, а не файл. */
 export function isRefusal(value: ModuleFile | ToolOutcome): value is ToolOutcome {
   return 'ok' in value;
+}
+
+/** Путь документа активной формы от корня проекта — им отказы называют, какая форма открыта. */
+function activeFormPath(scope: FileScope): string {
+  return scope.rootPath === '' ? scope.schemaPath : `${scope.rootPath}/${scope.schemaPath}`;
+}
+
+/**
+ * Похож ли путь на путь ДРУГОЙ формы: документ формы не на своём месте или путь от корня проекта,
+ * ведущий мимо этого модуля.
+ *
+ * Так выглядит путь из прошлого хода, если пользователь между ходами открыл другую форму: модель
+ * помнит `form.schema.json` плоской формы и пишет его во вложенный модуль, где документ лежит в
+ * `schema/`, — или называет путь проекта той формы целиком. Внутри модуля такой путь законен по
+ * форме и вёл бы к созданию лишнего файла рядом с настоящим документом.
+ *
+ * @param rel - Путь от корня модуля, уже нормализованный.
+ * @returns Причина по-английски (для модели) или `null`, если путь похож на путь этого модуля.
+ */
+export function foreignFormPathReason(scope: FileScope, rel: string): string | null {
+  const name = rel.slice(rel.lastIndexOf('/') + 1);
+  if (isCanonicalSchemaName(name)) {
+    const role = fileRoleOf(rel, scope.schemaPath);
+    if (role !== 'form' && role !== 'step') {
+      return (
+        `${rel} is not this form's document: it is ${scope.schemaPath}, and wizard step files go ` +
+        `to ${schemaDirOf(scope.schemaPath)}steps/<step>/${name}.`
+      );
+    }
+  }
+  const top = scope.rootPath.split('/')[0];
+  if (top !== '' && rel.startsWith(`${top}/`)) {
+    return `${rel} looks like a project path outside this form's module (${scope.rootPath}).`;
+  }
+  return null;
+}
+
+/**
+ * Отказ в СОЗДАНИИ файла по пути другой формы — см. {@link foreignFormPathReason}. Существующие
+ * файлы так не проверяются: путь, который уже есть в модуле, — путь этого модуля.
+ */
+export function creationRefusal(scope: FileScope, rel: string): ToolOutcome | null {
+  const reason = foreignFormPathReason(scope, rel);
+  if (reason === null) return null;
+  return fail(
+    'PATH_REFUSED',
+    `${reason} The active form is ${activeFormPath(scope)}; earlier messages may be about ` +
+      'another form. Use paths from this module root.'
+  );
+}
+
+/** Подсказка к «файла нет», если путь похож на путь другой формы; иначе пусто. */
+export function foreignPathHint(scope: FileScope, rel: string): string {
+  return foreignFormPathReason(scope, rel) === null
+    ? ''
+    : ` The active form is ${activeFormPath(scope)}; earlier messages may be about another form.`;
 }

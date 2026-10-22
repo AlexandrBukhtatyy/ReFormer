@@ -16,6 +16,7 @@
 import type { KnowledgeLoader } from '../../knowledge';
 import type { FileToolContext } from '../../files/turn';
 import type { AgentTool } from '../../model/types';
+import { askUserTool } from '../ask-user';
 import { createDescribeComponentTool } from '../describe-component';
 import { listComponentsTool } from '../list-components';
 import { createReformerDocsTool } from '../reformer-docs';
@@ -49,6 +50,7 @@ export function fileModeTools(
     listComponentsTool,
     describeComponentFileTool,
     createReformerDocsTool(options.knowledge),
+    askUserTool,
   ];
 }
 

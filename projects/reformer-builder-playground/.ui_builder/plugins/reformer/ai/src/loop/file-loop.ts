@@ -21,6 +21,7 @@ import type { AiMessage, AiProvider, AiStop } from '../providers/types';
 import type { ToolRegistry } from '../tools/registry';
 import { queuedTools, streamTurn, type TurnStats, type TurnStepEvent } from './drive';
 import { fileSystemPrompt } from './file-prompt';
+import { activeFormLines, type ActiveForm } from './loop';
 import { joinWithinBudget } from './render-budget';
 
 /** Пометка, отделяющая содержимое модуля от инструкций. */
@@ -50,6 +51,8 @@ export interface FileTurnRunOptions {
   scope?: TurnScope;
   /** Каталог ресурсов плагинов — в хвост затравки; пусто — провайдеров нет. */
   resourceSeed?: string;
+  /** Какую форму правит ход — первой строкой затравки, см. `activeFormLines`. */
+  activeForm?: ActiveForm;
 }
 
 /** Событие хода режима файлов. */
@@ -86,7 +89,15 @@ export async function* runFileTurn(opts: FileTurnRunOptions): AsyncGenerator<Fil
   }));
 
   // Каталог ресурсов — после затравки модуля и вне её бюджета: у него свой (`RESOURCE_SEED_BUDGET`).
-  const seed = [await fileSeed(turn), opts.resourceSeed ?? ''].filter(Boolean).join('\n\n');
+  // Активная форма — перед ней: путь из прошлого хода по другой форме модель иначе применила бы
+  // к этому модулю, и запись легла бы лишним файлом рядом с настоящим документом.
+  const seed = [
+    opts.activeForm ? activeFormLines(opts.activeForm) : '',
+    await fileSeed(turn),
+    opts.resourceSeed ?? '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
   for await (const event of streamTurn(
     opts.provider,
     {

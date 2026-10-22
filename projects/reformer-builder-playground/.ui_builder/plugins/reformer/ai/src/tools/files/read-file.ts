@@ -8,7 +8,7 @@
  */
 
 import { fileRoleOf } from '../../../../core/codegen/layout';
-import { isRefusal } from '../../files/scope';
+import { foreignPathHint, isRefusal } from '../../files/scope';
 import { pageOf } from '../../files/page';
 import { similarNames } from '../../loop/suggest';
 import type { FileToolContext } from '../../files/turn';
@@ -28,7 +28,7 @@ const FRAME_RESERVE = 200;
 export async function notFound(ctx: FileToolContext, rel: string): Promise<ToolOutcome> {
   return fail(
     'FILE_NOT_FOUND',
-    `${rel} does not exist in the form module.`,
+    `${rel} does not exist in the form module.${foreignPathHint(ctx.files.scope, rel)}`,
     similarNames(rel, await ctx.files.moduleFiles())
   );
 }

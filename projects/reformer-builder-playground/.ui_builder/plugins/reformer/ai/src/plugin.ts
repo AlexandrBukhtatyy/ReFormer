@@ -243,6 +243,10 @@ export function aiChatPanel(
     // это не выражается: «последняя в списке» и «у нижнего края» совпадают только пока
     // рейл заполнен целиком.
     railPlacement: 'bottom',
+    // Вся высота дока, колонкой: прокручивается лента, а поле ввода стоит внизу. Без признака
+    // оболочка кладёт тело в свою прокрутку, высота колонки растёт по содержимому — и лента, и
+    // развёрнутое рассуждение вылезали за свои рамки, а поле ввода уезжало за край панели.
+    fill: true,
     Body: () => createElement(ChatPanel, { host, session, bridge, assistant }),
     // Действия — в шапке дока, а не первой строкой ленты: заголовок панели и ряд кнопок
     // над её содержимым — один ярус интерфейса, и разложенный на два он отнимал у разговора
@@ -272,7 +276,6 @@ export function aiChatPanel(
  */
 export function aiCommands(
   bridge: AgentBridge,
-  session: AiSession,
   notify: AttachNotify = () => {}
 ): readonly CommandContribution[] {
   return [
@@ -289,7 +292,7 @@ export function aiCommands(
       titleKey: 'command.reset',
       enabled: () => !bridge.isRunning(),
       run: () => {
-        session.reset();
+        bridge.reset();
       },
     },
     aiUndoTurnCommand(bridge),
@@ -391,7 +394,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           .get(NotificationsServiceToken)
           ?.[level](pluginMessageKey(ctx.id, key), { params });
       };
-      for (const command of aiCommands(bridge, session, notify)) {
+      for (const command of aiCommands(bridge, notify)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
       ctx.subscriptions.push(

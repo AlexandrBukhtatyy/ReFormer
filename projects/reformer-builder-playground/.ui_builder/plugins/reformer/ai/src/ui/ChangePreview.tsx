@@ -55,14 +55,18 @@ export function ChangePreview({
     // Колонка с потолком высоты, а не блок по содержимому: длинный ход даёт десятки операций,
     // и список, растущий свободно, выдавливал кнопки за край панели — решение по набору
     // становилось недоступным ровно тогда, когда работы было больше всего.
-    <div className="border-border bg-muted/40 flex max-h-[50%] min-h-0 flex-none flex-col border-t px-3 py-2.5">
+    <div
+      data-testid="ai-change-preview"
+      className="border-border bg-muted/40 flex max-h-[50%] min-h-0 flex-none flex-col border-t px-3 py-2.5"
+    >
       <div className="text-muted-foreground mb-1.5 flex-none text-[11.5px] font-semibold">
         {t('changes.count', { count: ops.length })}
       </div>
 
       {/* min-h-0 обязателен: без него flex-элемент не сжимается ниже своего содержимого,
-          и прокрутка не включается — список снова растёт наружу. */}
-      <ScrollArea className="mb-2 min-h-0 flex-1">
+          и прокрутка не включается — список снова растёт наружу. Предел — ещё и на вьюпорте:
+          высота колонки считается по содержимому, и процент вьюпорта от неё не разрешается. */}
+      <ScrollArea className="mb-2 min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:max-h-48 [&>[data-slot=scroll-area-viewport]>div]:block!">
         <ul className="space-y-0.5">
           {ops.map((op, index) => (
             <li key={`${op.ref}-${String(index)}`} className="flex gap-1.5 text-[12px] leading-5">
@@ -72,7 +76,7 @@ export function ChangePreview({
               >
                 {OP_STYLE[op.kind].mark}
               </Badge>
-              <span className="min-w-0 break-words">{op.summary}</span>
+              <span className="min-w-0 wrap-anywhere">{op.summary}</span>
             </li>
           ))}
         </ul>

@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { assistantContent, historyFor, HISTORY_BUDGET, userContent } from './history';
+import { emptyRules } from '../../../core/form-model';
 import type { ChatEntry } from './session';
 
 function entry(patch: Partial<ChatEntry> & Pick<ChatEntry, 'role'>): ChatEntry {
@@ -112,5 +113,95 @@ describe('вложения в истории — ссылками, без сод
         ],
       })
     ).toBe('посмотри бриф\n(attached: brief.md <source:notes/brief.md>, spec.md <source:spec.md>)');
+  });
+});
+
+describe('форма хода в истории', () => {
+  const user = (id: string, text: string, path?: string): ChatEntry =>
+    entry({
+      id,
+      role: 'user',
+      text,
+      ...(path === undefined
+        ? {}
+        : { snapshot: { resource: path, path, text: '', rules: emptyRules() } }),
+    });
+
+  it('форма названа у первой реплики и там, где пользователь переключился', () => {
+    const contents = historyFor([
+      user('m1', 'раз', 'forms/a.json'),
+      entry({ role: 'assistant', text: 'ок' }),
+      user('m3', 'два', 'forms/a.json'),
+      entry({ role: 'assistant', text: 'ок' }),
+      user('m5', 'три', 'forms/b.json'),
+    ]).map((message) => message.content);
+
+    expect(contents[0]).toBe('раз\n(form: forms/a.json)');
+    expect(contents[2]).toBe('два');
+    expect(contents[4]).toBe('три\n(form: forms/b.json)');
+  });
+
+  it('реплика без формы пометки не получает и смену не сбрасывает', () => {
+    const contents = historyFor([
+      user('m1', 'раз', 'forms/a.json'),
+      user('m2', 'без формы'),
+      user('m3', 'снова', 'forms/a.json'),
+    ]).map((message) => message.content);
+
+    expect(contents).toEqual(['раз\n(form: forms/a.json)', 'без формы', 'снова']);
+  });
+});
+
+describe('вопросы модели в истории', () => {
+  it('вопрос и ответ — строкой на вопрос в реплике ассистента', () => {
+    const content = assistantContent({
+      text: 'Сделал.',
+      tools: [],
+      asks: [
+        {
+          id: 'ask1',
+          questions: [
+            {
+              question: 'Обязательное?',
+              options: [{ label: 'Да' }, { label: 'Нет' }],
+              multiSelect: false,
+            },
+            {
+              question: 'Подсказка?',
+              options: [{ label: 'X' }, { label: 'Y' }],
+              multiSelect: false,
+            },
+          ],
+          answers: [{ selected: ['Да'] }, { selected: [], text: 'своя' }],
+        },
+      ],
+    });
+    expect(content).toBe(
+      'Сделал.\n' +
+        '(asked the user: "Обязательное?" — answer: "Да")\n' +
+        '(asked the user: "Подсказка?" — answer: own words: "своя")'
+    );
+  });
+
+  it('ход, остановленный на вопросе, — в истории без ответа, но не теряется', () => {
+    const contents = historyFor([
+      entry({ role: 'user', text: 'добавь поле' }),
+      entry({
+        role: 'assistant',
+        asks: [
+          {
+            id: 'ask1',
+            questions: [
+              { question: 'Какое?', options: [{ label: 'A' }, { label: 'B' }], multiSelect: false },
+            ],
+            cancelled: true,
+          },
+        ],
+      }),
+    ]).map((message) => message.content);
+    expect(contents).toEqual([
+      'добавь поле',
+      '(asked the user: "Какое?" — no answer, turn stopped)',
+    ]);
   });
 });

@@ -12,7 +12,7 @@
  * @module plugins/reformer/ai/ui/MessageList
  */
 
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import { Check, ChevronRight, CircleAlert, Sparkles, Undo2 } from 'lucide-react';
 import { Button } from '@reformer/ui-kit/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@reformer/ui-kit/collapsible';
@@ -27,8 +27,11 @@ import { Message, MessageContent, MessageGroup } from '@reformer/ui-kit/message'
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Spinner } from '@reformer/ui-kit/spinner';
 import type { Translate } from '../host';
+import type { AskAnswer } from '../model/types';
 import type { ChatEntry } from '../session/session';
 import { AttachmentChips } from './AttachmentChips';
+import { QuestionCard } from './QuestionCard';
+import { useStickToBottom } from './useStickToBottom';
 
 export interface MessageListProps {
   readonly entries: readonly ChatEntry[];
@@ -37,6 +40,10 @@ export interface MessageListProps {
   readonly t: Translate;
   /** Вернуть форму к состоянию перед репликой. */
   readonly onRestore: (entryId: string) => void;
+  /** Карточка вопросов, ждущая ответа, — по ней карточка становится формой. */
+  readonly openAsk: string | null;
+  /** Ответить на карточку вопросов модели. */
+  readonly onAnswer: (cardId: string, answers: readonly AskAnswer[]) => void;
 }
 
 /** Сколько символов запроса показывать в подсказке кнопки восстановления. */
@@ -53,36 +60,64 @@ function Reasoning({ text, t }: { text: string; t: Translate }): ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11.5px] leading-4">
+      <CollapsibleTrigger
+        data-testid="ai-reasoning-toggle"
+        className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11.5px] leading-4"
+      >
         <ChevronRight
           className={`size-3 flex-none transition-transform ${open ? 'rotate-90' : ''}`}
         />
         {t('chat.reasoning')}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        {/* Предел высоты держит флекс-обёртка, а не `max-h` на самой `ScrollArea`: вьюпорт
-            берёт высоту у корня процентом, а процент от `max-height` при `height: auto`
-            не считается — текст вылез бы за рамку, так и не начав прокручиваться. */}
-        <div className="flex max-h-40 flex-col">
-          <ScrollArea className="border-border min-h-0 flex-1 border-l-2">
-            <div className="text-muted-foreground pl-2 text-[11.5px] leading-4 break-words whitespace-pre-wrap">
-              {text}
-            </div>
-          </ScrollArea>
-        </div>
+        {/* Предел высоты — на ВЬЮПОРТЕ, а не на корне или обёртке: вьюпорт берёт высоту у
+            корня процентом, а процент от высоты, которая сама считается по содержимому, не
+            разрешается — вьюпорт рос до полного текста и ложился поверх ответа. Обёртку
+            содержимого, которую Radix делает таблицей, блок переводит в обычный блок: таблица
+            растёт по самому длинному слову, и неразрывный токен расширял блок вбок. */}
+        <ScrollArea
+          data-testid="ai-reasoning"
+          className="border-border border-l-2 [&>[data-slot=scroll-area-viewport]]:max-h-40 [&>[data-slot=scroll-area-viewport]>div]:block!"
+        >
+          <div className="text-muted-foreground pr-2.5 pl-2 text-[11.5px] leading-4 wrap-anywhere whitespace-pre-wrap">
+            {text}
+          </div>
+        </ScrollArea>
       </CollapsibleContent>
     </Collapsible>
   );
 }
 
-/** Лента диалога с автопрокруткой к концу. */
-export function MessageList({ entries, running, t, onRestore }: MessageListProps): ReactElement {
-  const endRef = useRef<HTMLDivElement>(null);
+/**
+ * Над какими репликами пользователя назвать форму хода: над первой и там, где форма сменилась.
+ *
+ * Не над каждой: в разговоре об одной форме путь над каждым вопросом — шум. Подпись нужна там,
+ * где ход пошёл по другой форме, — именно этот момент без неё выглядел как «ассистент пишет не туда».
+ */
+function formTargets(entries: readonly ChatEntry[]): ReadonlyMap<string, string> {
+  const targets = new Map<string, string>();
+  let previous: string | undefined;
+  for (const entry of entries) {
+    const path = entry.snapshot?.path;
+    if (entry.role !== 'user' || path === undefined) continue;
+    if (path !== previous) targets.set(entry.id, path);
+    previous = path;
+  }
+  return targets;
+}
 
-  // Прокрутка к концу — DOM-эффект, зависящий от объёма ленты и хода.
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
-  }, [entries, running]);
+/** Лента диалога: держится у конца, пока человек не ушёл читать выше (`./useStickToBottom`). */
+export function MessageList({
+  entries,
+  running,
+  t,
+  onRestore,
+  openAsk,
+  onAnswer,
+}: MessageListProps): ReactElement {
+  const feedRef = useRef<HTMLDivElement>(null);
+  const asked = entries.filter((entry) => entry.role === 'user').length;
+  useStickToBottom(feedRef, entries.length > 0, entries, asked);
 
   if (entries.length === 0) {
     return (
@@ -100,22 +135,54 @@ export function MessageList({ entries, running, t, onRestore }: MessageListProps
     );
   }
 
+  const targets = formTargets(entries);
+  const runningForm = [...entries].reverse().find((entry) => entry.snapshot?.path)?.snapshot?.path;
+
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    // Обёртку содержимого Radix делает таблицей — она растёт по самому длинному слову, и одна
+    // неразрывная строка расширяла всю ленту: реплики уезжали за правый край. Блок держит ширину.
+    <ScrollArea
+      ref={feedRef}
+      data-testid="ai-feed"
+      className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:block!"
+    >
       <MessageGroup className="gap-3 px-3 py-3">
         {entries.map((entry) => (
-          <div key={entry.id} className="space-y-1.5">
+          <div key={entry.id} data-testid="ai-entry" data-role={entry.role} className="space-y-1.5">
+            {targets.has(entry.id) && (
+              <div
+                data-testid="ai-entry-target"
+                className="text-muted-foreground truncate text-end text-[10.5px] leading-4"
+              >
+                {t('chat.target.entry', { path: targets.get(entry.id) })}
+              </div>
+            )}
             {entry.reasoning !== '' && <Reasoning text={entry.reasoning} t={t} />}
+
+            {/* Вопросы — над ответом: модель спрашивает до правок, и ответ с журналом правок
+                приходят уже после того, как человек ответил. */}
+            {entry.asks?.map((card) => (
+              <QuestionCard
+                key={card.id}
+                card={card}
+                open={card.id === openAsk}
+                t={t}
+                onAnswer={(answers) => {
+                  onAnswer(card.id, answers);
+                }}
+              />
+            ))}
 
             {/* Пустая реплика ассистента — обычное состояние в начале хода: сначала приходит
                 рассуждение и вызовы инструментов, текст ответа может появиться только в конце. */}
             {entry.text !== '' && (
               <Message align={entry.role === 'user' ? 'end' : 'start'}>
                 <MessageContent
+                  data-testid="ai-message"
                   className={
                     entry.role === 'user'
-                      ? 'bg-muted rounded-md px-2.5 py-1.5 text-[12.5px] leading-5 break-words whitespace-pre-wrap'
-                      : 'text-foreground text-[12.5px] leading-5 break-words whitespace-pre-wrap'
+                      ? 'bg-muted rounded-md px-2.5 py-1.5 text-[12.5px] leading-5 wrap-anywhere whitespace-pre-wrap'
+                      : 'text-foreground text-[12.5px] leading-5 wrap-anywhere whitespace-pre-wrap'
                   }
                 >
                   {entry.text}
@@ -156,6 +223,8 @@ export function MessageList({ entries, running, t, onRestore }: MessageListProps
                 {entry.tools.map((tool, index) => (
                   <li
                     key={`${entry.id}-${String(index)}`}
+                    data-testid="ai-tool-line"
+                    data-ok={tool.ok}
                     className="text-muted-foreground flex gap-1.5 text-[11.5px] leading-4"
                   >
                     {tool.ok ? (
@@ -163,7 +232,7 @@ export function MessageList({ entries, running, t, onRestore }: MessageListProps
                     ) : (
                       <CircleAlert className="mt-px size-3 flex-none text-amber-600 dark:text-amber-400" />
                     )}
-                    <span className="min-w-0 break-words">
+                    <span className="min-w-0 wrap-anywhere">
                       {tool.summary ?? tool.error ?? tool.name}
                     </span>
                   </li>
@@ -174,12 +243,16 @@ export function MessageList({ entries, running, t, onRestore }: MessageListProps
         ))}
 
         {running && (
-          <div className="text-muted-foreground flex items-center gap-1.5 text-[11.5px]">
+          <div
+            data-testid="ai-working"
+            className="text-muted-foreground flex items-center gap-1.5 text-[11.5px]"
+          >
             <Spinner className="size-3" />
-            {t('chat.working')}
+            {runningForm !== undefined
+              ? t('chat.working.form', { path: runningForm })
+              : t('chat.working')}
           </div>
         )}
-        <div ref={endRef} />
       </MessageGroup>
     </ScrollArea>
   );

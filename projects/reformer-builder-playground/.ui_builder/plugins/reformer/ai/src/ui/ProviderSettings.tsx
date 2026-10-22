@@ -70,6 +70,11 @@ export interface ProviderSettingsProps {
    * откатывался бы по-разному в зависимости от того, до какой реплики.
    */
   readonly onModeChanged?: () => void;
+  /**
+   * Идёт ход ассистента. Подключение тогда недоступно: новый канал или режим начинают новый
+   * разговор, а обрыв ленты посреди хода оставил бы его реплику без места, куда писать.
+   */
+  readonly turnRunning?: boolean;
 }
 
 /** Форма настройки канала. */
@@ -78,6 +83,7 @@ export function ProviderSettings({
   t,
   onConnected,
   onModeChanged,
+  turnRunning = false,
 }: ProviderSettingsProps): ReactElement {
   const [kind, setKind] = useState<ProviderKind>('anthropic');
   const [apiKey, setApiKey] = useState('');
@@ -368,11 +374,15 @@ export function ProviderSettings({
         {t(ORIGIN_KEY[PROVIDER_ORIGIN[kind]])}
       </p>
 
+      {turnRunning && (
+        <p className="text-muted-foreground text-[11px] leading-4">{t('settings.busy')}</p>
+      )}
+
       <div className="flex gap-2">
         <Button
           size="sm"
           className="flex-1"
-          disabled={busy || model === ''}
+          disabled={busy || turnRunning || model === ''}
           onClick={() => {
             void connect();
           }}

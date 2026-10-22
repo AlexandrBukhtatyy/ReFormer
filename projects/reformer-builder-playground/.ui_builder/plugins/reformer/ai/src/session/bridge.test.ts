@@ -26,7 +26,7 @@ import { createFakeProvider, type FakeStep } from '../providers/fake';
 import { createProviderRegistry } from '../providers/registry';
 import type { AiMessage, AiProvider } from '../providers/types';
 import { printSchemaText } from '../model/schema-text';
-import { createAiSession, type AiSession } from './session';
+import { createAiSession, openAskOf, type AiSession, type AskCard } from './session';
 import { createFakeFiles, createFakeHost, type FakeFiles, type FakeHost } from '../testing';
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { ResourceProviderEntry } from './resources';
@@ -1137,5 +1137,359 @@ describe('вложения реплики', () => {
     expect(bridge.attach({ uri: 'kit:guide' })).toBe('unknown-scheme');
     expect(bridge.attach({ uri: 'no scheme' })).toBe('invalid');
     expect(session.get().attachments).toEqual([]);
+  });
+});
+
+/** Провайдеры по очереди обращений — когда попыткам нужны разные обёртки. */
+function providerSequence(providers: readonly AiProvider[]): AiProvider {
+  let call = 0;
+  return {
+    ...providers[0],
+    stream: (req, signal) => {
+      const provider = providers[Math.min(call, providers.length - 1)];
+      call += 1;
+      return provider.stream(req, signal);
+    },
+  };
+}
+
+/** Вторая форма в двойнике платформы. */
+const OTHER = 'b.json';
+
+describe('несколько форм: куда ложится ход', () => {
+  it('вторая попытка правит форму первой, даже если активной стала другая', async () => {
+    let switchTab = (): void => {};
+    const provider = providerSequence([
+      thenOutside([{ truncated: { tool: 'insert_node' } }], () => switchTab()),
+      createFakeProvider([insertField, { text: 'Дописал.' }]),
+    ]);
+    const { host, session, bridge } = harness([], { provider });
+    switchTab = () => host.openDocument(OTHER, EMPTY_TEXT);
+    await bridge.send('добавь поле почты');
+
+    expect(host.writes.map((write) => write.id)).toEqual([RESOURCE]);
+    expect(host.documentOf(OTHER)?.getText()).toBe(EMPTY_TEXT);
+    expect(session.get().entries[0].snapshot).toMatchObject({ resource: RESOURCE });
+  });
+
+  it('форму первой попытки закрыли — вторая не пишет в другую', async () => {
+    let closeTab = (): void => {};
+    const provider = providerSequence([
+      thenOutside([{ truncated: { tool: 'insert_node' } }], () => closeTab()),
+      createFakeProvider([insertField]),
+    ]);
+    const { host, bridge } = harness([], { provider });
+    closeTab = () => {
+      host.closeDocument(RESOURCE);
+      host.openDocument(OTHER, EMPTY_TEXT);
+    };
+    await bridge.send('добавь поле почты');
+
+    expect(host.writes).toEqual([]);
+  });
+
+  it('затравка называет активную форму, а после переключения — и прежнюю', async () => {
+    const { provider, requests } = recordingSequence([
+      [{ text: 'Первая.' }],
+      [{ text: 'Вторая.' }],
+    ]);
+    const { host, bridge } = harness([], { provider });
+    await bridge.send('посмотри форму');
+    host.openDocument(OTHER, EMPTY_TEXT);
+    await bridge.send('а эту?');
+
+    // Пустая форма тоже получает затравку: какую форму правит ход, модель знает всегда.
+    const first = requests[0].at(-1)?.content ?? '';
+    expect(first).toContain(`Active form: ${RESOURCE}`);
+    expect(first).not.toContain('switched');
+    const second = requests[1].at(-1)?.content ?? '';
+    expect(second).toContain(`Active form: ${OTHER}`);
+    expect(second).toContain(`switched to this form from ${RESOURCE}`);
+    // В истории реплики помечены формой своего хода — модель различает разговоры о двух формах.
+    const history = requests[1].map((message) => message.content).join('\n');
+    expect(history).toContain(`(form: ${RESOURCE})`);
+    expect(history).toContain(`(form: ${OTHER})`);
+  });
+
+  it('снимок реплики хранит путь формы — по нему лента подписывает реплику', async () => {
+    const { session, bridge } = harness([{ text: 'ok' }]);
+    await bridge.send('посмотри форму');
+    expect(session.get().entries[0].snapshot?.path).toBe(RESOURCE);
+  });
+
+  it('режим файлов: документ формы не на своём месте не создаётся — отказ называет форму', async () => {
+    const { files, session, bridge } = filesHarness([
+      { tool: 'write_file', args: { path: 'form.schema.json', content: '{}' } },
+      { tool: 'write_file', args: { path: 'forms/contact/rules.ts', content: 'x' } },
+      { text: 'Записал.' },
+    ]);
+    await bridge.send('перепиши форму');
+
+    expect(files.text('forms/loan/form.schema.json')).toBeUndefined();
+    expect(files.text('forms/loan/forms/contact/rules.ts')).toBeUndefined();
+    const tools = session.get().entries.at(-1)?.tools ?? [];
+    expect(tools.map((tool) => tool.ok)).toEqual([false, false]);
+    expect(tools[0].error).toContain("is not this form's document");
+    expect(tools[0].error).toContain(`The active form is ${FORM_FILE}`);
+    expect(tools[1].error).toContain("outside this form's module");
+  });
+
+  it('режим файлов: путь из прошлого хода по другой форме — в затравке пометка о смене', async () => {
+    const { provider, requests } = recordingSequence([[{ text: 'A.' }], [{ text: 'B.' }]]);
+    const other = 'forms/other/schema/form.schema.json';
+    const { host, bridge } = filesHarness([], {
+      provider,
+      initial: { [FORM_FILE]: EMPTY_TEXT, [other]: EMPTY_TEXT },
+    });
+    await bridge.send('посмотри');
+    host.setActive(other);
+    await bridge.send('а эту?');
+
+    const seed = requests[1].at(-1)?.content ?? '';
+    expect(seed).toContain(`Active form: ${other}`);
+    expect(seed).toContain(`switched to this form from ${FORM_FILE}`);
+  });
+});
+
+describe('закрытие хода: замечания', () => {
+  const lostField: FakeStep = {
+    tool: 'insert_node',
+    args: { parent: '/root/children/9', nodes: [{ component: FIELD, props: { label: 'Почта' } }] },
+  };
+
+  it('все правки отказали, а модель «отчиталась» — замечание с причиной отказа', async () => {
+    const { session, bridge } = harness([lostField, { text: 'Готово, добавил поле.' }]);
+    await bridge.send('добавь поле');
+
+    expect(session.get().status).toBe('error');
+    expect(session.get().error).toContain('turn.failedEdits');
+  });
+
+  it('отказало только чтение — замечания нет: форму оно не обещало менять', async () => {
+    const { session, bridge } = harness([
+      { tool: 'get_form_node', args: { ref: '/root/children/9' } },
+      { text: 'Такого узла нет.' },
+    ]);
+    await bridge.send('что в девятом поле?');
+
+    expect(session.get().error).toBeNull();
+    expect(session.get().status).toBe('idle');
+  });
+
+  it('ход, остановленный пользователем, не получает заметку о «тихом» ходе', async () => {
+    const inner = createFakeProvider([insertField]);
+    let stop = (): void => {};
+    const provider: AiProvider = {
+      ...inner,
+      stream: (req, signal) => {
+        stop();
+        return inner.stream(req, signal);
+      },
+    };
+    const { host, session, bridge } = harness([], { provider });
+    stop = () => bridge.abort();
+    await bridge.send('добавь поле');
+
+    expect(host.writes).toEqual([]);
+    expect(session.get().error).toBeNull();
+    expect(session.get().status).toBe('idle');
+  });
+
+  it('новый запрос отбрасывает неприменённый набор прошлого хода — со строкой в его реплике', async () => {
+    const { host, session, bridge } = conflictHarness();
+    await bridge.send('добавь поле почты');
+    const dropped = session.get().pending;
+    expect(dropped).not.toBeNull();
+    const written = host.writes.length;
+
+    await bridge.send('ладно, просто посмотри');
+
+    const previous = session.get().entries[1];
+    expect(previous.tools.at(-1)).toMatchObject({ name: 'apply', ok: false });
+    expect(previous.tools.at(-1)?.error).toContain('turn.pending.dropped');
+    // Черновик прошлого хода в форму не попал: записей с его идентификатором нет.
+    const later = host.writes.slice(written);
+    expect(later.every((write) => write.mark?.txId !== dropped?.txId)).toBe(true);
+  });
+});
+
+describe('отмена хода и новый разговор', () => {
+  it('после хода отмена доступна по состоянию сессии — кнопка узнаёт об этом сама', async () => {
+    const { session, bridge } = harness([insertField]);
+    expect(session.get().undoable).toBe(false);
+    await bridge.send('добавь поле почты');
+
+    expect(session.get().undoable).toBe(true);
+    expect(bridge.canUndoTurn()).toBe(true);
+    await bridge.undoLastTurn();
+    expect(session.get().undoable).toBe(false);
+  });
+
+  it('режим файлов: ход запоминается после конца хода — сессия всё равно узнаёт', async () => {
+    const { session, bridge } = filesHarness([fieldEdit]);
+    await bridge.send('добавь поле');
+    expect(session.get().undoable).toBe(true);
+  });
+
+  it('новый разговор сбрасывает отмену и точки восстановления прошлого', async () => {
+    const { session, bridge } = harness([insertField]);
+    await bridge.send('добавь поле почты');
+
+    expect(bridge.reset()).toBe(true);
+    expect(session.get().entries).toEqual([]);
+    expect(session.get().undoable).toBe(false);
+    expect(bridge.canUndoTurn()).toBe(false);
+  });
+
+  it('пока идёт ход, новый разговор не начинается', async () => {
+    const { session, bridge } = harness([insertField, { text: 'Готово.' }]);
+    const turn = bridge.send('добавь поле почты');
+    expect(bridge.reset()).toBe(false);
+    await turn;
+    expect(session.get().entries).toHaveLength(2);
+  });
+
+  it('отмена хода по форме, которой нет на экране, называет её', async () => {
+    const { host, session, bridge } = harness([insertField]);
+    await bridge.send('добавь поле почты');
+    host.openDocument(OTHER, EMPTY_TEXT);
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(host.documentOf(RESOURCE)?.getText()).toBe(EMPTY_TEXT);
+    expect(session.get().error).toContain('turn.undo.otherForm');
+    expect(session.get().error).toContain(RESOURCE);
+  });
+});
+
+/** Шаг сценария: модель спрашивает человека. */
+const askStep = (
+  questions: readonly { question: string; options: string[]; multiSelect?: boolean }[]
+): FakeStep => ({
+  tool: 'ask_user',
+  args: {
+    questions: questions.map((question) => ({
+      question: question.question,
+      options: question.options.map((label) => ({ label })),
+      ...(question.multiSelect ? { multiSelect: true } : {}),
+    })),
+  },
+});
+
+/** Дождаться карточки вопросов, ждущей ответа. */
+function untilAsk(session: AiSession): Promise<AskCard> {
+  return new Promise((resolve) => {
+    const subscription = session.subscribe(() => {
+      const card = openAskOf(session.get());
+      if (card === null) return;
+      subscription.dispose();
+      resolve(card);
+    });
+  });
+}
+
+describe('вопросы модели (ask_user)', () => {
+  const required = { question: 'Поле обязательное?', options: ['Да', 'Нет'] };
+
+  it('ответ продолжает тот же ход: правка после вопроса применяется, реплика одна', async () => {
+    const { host, session, bridge } = harness([
+      askStep([required]),
+      insertField,
+      { text: 'Готово.' },
+    ]);
+    const turn = bridge.send('добавь поле почты');
+    const card = await untilAsk(session);
+
+    expect(session.get().status).toBe('running');
+    expect(bridge.answer(card.id, [{ selected: ['Да'] }])).toBe(true);
+    await turn;
+
+    expect(session.get().entries.map((entry) => entry.role)).toEqual(['user', 'assistant']);
+    expect(host.writes).toHaveLength(1);
+    const answered = session.get().entries[1].asks?.[0];
+    expect(answered?.answers).toEqual([{ selected: ['Да'] }]);
+    // Строки журнала у вопроса нет — его показывает карточка.
+    expect(session.get().entries[1].tools.map((tool) => tool.name)).toEqual(['insert_node']);
+    expect(session.get().status).toBe('idle');
+  });
+
+  it('ответ принимается целиком: на каждый вопрос — вариант или свои слова', async () => {
+    const { session, bridge } = harness([
+      askStep([required, { question: 'Какие поля?', options: ['A', 'B'], multiSelect: true }]),
+      { text: 'Понял.' },
+    ]);
+    const turn = bridge.send('добавь поля');
+    const card = await untilAsk(session);
+
+    expect(bridge.answer(card.id, [{ selected: ['Да'] }])).toBe(false);
+    expect(bridge.answer(card.id, [{ selected: ['Да'] }, { selected: [], text: '  ' }])).toBe(
+      false
+    );
+    expect(bridge.answer('ask-unknown', [{ selected: ['Да'] }, { selected: ['A'] }])).toBe(false);
+    expect(
+      bridge.answer(card.id, [{ selected: ['Да'] }, { selected: [], text: ' Телефон ' }])
+    ).toBe(true);
+    await turn;
+
+    expect(session.get().entries[1].asks?.[0].answers).toEqual([
+      { selected: ['Да'] },
+      { selected: [], text: 'Телефон' },
+    ]);
+  });
+
+  it('«Остановить» снимает карточку: ход кончается без ответа и без замечаний', async () => {
+    const { host, session, bridge } = harness([askStep([required]), insertField]);
+    const turn = bridge.send('добавь поле');
+    const card = await untilAsk(session);
+    bridge.abort();
+    await turn;
+
+    expect(session.get().entries[1].asks?.[0]).toMatchObject({ id: card.id, cancelled: true });
+    expect(bridge.answer(card.id, [{ selected: ['Да'] }])).toBe(false);
+    expect(host.writes).toEqual([]);
+    expect(session.get().status).toBe('idle');
+    expect(session.get().error).toBeNull();
+  });
+
+  it('больше двух карточек за ход — отказ модели, третьей карточки нет', async () => {
+    const { session, bridge } = harness([
+      askStep([required]),
+      askStep([{ question: 'Точно?', options: ['Да', 'Нет'] }]),
+      askStep([{ question: 'Совсем точно?', options: ['Да', 'Нет'] }]),
+      { text: 'Делаю на допущениях.' },
+    ]);
+    const turn = bridge.send('добавь поле');
+    for (let i = 0; i < 2; i += 1) {
+      const card = await untilAsk(session);
+      bridge.answer(card.id, [{ selected: ['Да'] }]);
+    }
+    await turn;
+
+    expect(session.get().entries[1].asks).toHaveLength(2);
+    expect(session.get().entries[1].text).toBe('Делаю на допущениях.');
+  });
+
+  it('вопрос и ответ остаются в истории следующего хода', async () => {
+    const { provider, requests } = recordingSequence([
+      [askStep([required]), { text: 'Сделал обязательным.' }],
+      [{ text: 'Помню.' }],
+    ]);
+    const { session, bridge } = harness([], { provider });
+    const turn = bridge.send('добавь поле');
+    bridge.answer((await untilAsk(session)).id, [{ selected: ['Да'] }]);
+    await turn;
+    await bridge.send('а что ты спрашивал?');
+
+    const history = requests[1].map((message) => message.content).join('\n');
+    expect(history).toContain('(asked the user: "Поле обязательное?" — answer: "Да")');
+  });
+
+  it('режим файлов: ход ждёт ответа и пишет файлы после него', async () => {
+    const { files, session, bridge } = filesHarness([askStep([required]), fieldEdit]);
+    const turn = bridge.send('добавь поле');
+    bridge.answer((await untilAsk(session)).id, [{ selected: ['Нет'] }]);
+    await turn;
+
+    expect(files.text(FORM_FILE)).toContain('Почта');
+    expect(session.get().entries[1].asks?.[0].answers).toEqual([{ selected: ['Нет'] }]);
   });
 });

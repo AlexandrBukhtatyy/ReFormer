@@ -41,8 +41,40 @@ vi.mock('ai', async (importOriginal) => {
           }
           // Ошибка в сценарии = поток оборвался исключением, а не событием: так ведут себя
           // сетевые сбои и таймаут самого SDK.
+          const signal = args.abortSignal as AbortSignal | undefined;
           for (const part of stream.parts) {
             if (part instanceof Error) throw part;
+            // `{ wait }` — поток молчит столько-то; прерывание по сигналу SDK сообщает частью `abort`.
+            if (typeof part === 'object' && part !== null && 'wait' in part) {
+              await new Promise<void>((resolve) => {
+                const timer = setTimeout(resolve, (part as { wait: number }).wait);
+                signal?.addEventListener('abort', () => {
+                  clearTimeout(timer);
+                  resolve();
+                });
+              });
+              if (signal?.aborted) {
+                yield { type: 'abort' };
+                return;
+              }
+              continue;
+            }
+            // `{ execute }` — SDK исполняет инструмент, как после вызова модели.
+            if (typeof part === 'object' && part !== null && 'execute' in part) {
+              const { tool, input } = (part as { execute: { tool: string; input: unknown } })
+                .execute;
+              const tools = args.tools as Record<
+                string,
+                { execute: (input: unknown, o: { toolCallId: string }) => Promise<unknown> }
+              >;
+              const output = await tools[tool].execute(input, { toolCallId: 'call-1' });
+              if (signal?.aborted) {
+                yield { type: 'abort' };
+                return;
+              }
+              yield { type: 'tool-result', toolCallId: 'call-1', toolName: tool, output };
+              continue;
+            }
             yield part;
           }
         })(),
@@ -96,6 +128,28 @@ describe('перевод потока AI SDK', () => {
       { type: 'reasoning', text: 'посмотрю схему.' },
       { type: 'delta', text: 'Готово.' },
       { type: 'done', reason: 'complete' },
+    ]);
+  });
+
+  it('начало блока помечено на первом непустом куске — лента разделит блоки шагов', async () => {
+    const events = await play([
+      { type: 'reasoning-start', id: 'r0' },
+      { type: 'reasoning-delta', id: 'r0', text: '' },
+      { type: 'reasoning-delta', id: 'r0', text: 'Смотрю ' },
+      { type: 'reasoning-delta', id: 'r0', text: 'форму.' },
+      { type: 'reasoning-end', id: 'r0' },
+      { type: 'reasoning-start', id: 'r1' },
+      { type: 'reasoning-delta', id: 'r1', text: 'Поле есть.' },
+      { type: 'text-start', id: 't0' },
+      { type: 'text-delta', id: 't0', text: 'Готово.' },
+      { type: 'finish', finishReason: 'stop' },
+    ]);
+
+    expect(events.filter((e) => e.type === 'reasoning' || e.type === 'delta')).toEqual([
+      { type: 'reasoning', text: 'Смотрю ', start: true },
+      { type: 'reasoning', text: 'форму.' },
+      { type: 'reasoning', text: 'Поле есть.', start: true },
+      { type: 'delta', text: 'Готово.', start: true },
     ]);
   });
 
@@ -385,24 +439,108 @@ describe('перевод потока AI SDK', () => {
     expect(done.stop?.truncatedCall).toBeUndefined();
   });
 
-  it('сторож тишины берётся из настроек канала', async () => {
-    await play([], {
+  describe('сторож тишины', () => {
+    const tuning = (chunkTimeoutMs: number | null): AiSdkTuning => ({
       cacheBreakpoints: false,
       pruneContext: true,
       maxRetries: 1,
-      chunkTimeoutMs: 300_000,
+      chunkTimeoutMs,
     });
-    expect(lastCall().timeout).toMatchObject({ chunkMs: 300_000 });
-  });
 
-  it('null в настройках канала — сторожа тишины нет вовсе', async () => {
-    await play([], {
-      cacheBreakpoints: false,
-      pruneContext: true,
-      maxRetries: 1,
-      chunkTimeoutMs: null,
+    /** Проиграть поток с поддельными таймерами, промотав время на `ms`. */
+    async function playFor(
+      ms: number,
+      parts: unknown[],
+      config?: AiSdkTuning,
+      req: AiRequest = REQUEST
+    ): Promise<AiEvent[]> {
+      vi.useFakeTimers();
+      try {
+        const events = play(parts, config, req);
+        await vi.advanceTimersByTimeAsync(ms);
+        return await events;
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+
+    it('поток замолчал посреди ответа дольше предела из настроек — таймаут', async () => {
+      const events = await playFor(
+        5_000,
+        [{ type: 'start-step' }, { type: 'text-delta', id: 't', text: 'Пишу' }, { wait: 5_000 }],
+        tuning(1_000)
+      );
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        reason: 'error',
+        stop: { reason: 'timeout' },
+      });
     });
-    expect(lastCall().timeout).toBeUndefined();
+
+    it('между шагами сторожа нет: сервер разбирает запрос следующего шага', async () => {
+      const events = await playFor(
+        5_000,
+        [
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't', text: 'Шаг один.' },
+          { type: 'finish-step', usage: {} },
+          { wait: 5_000 },
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't', text: 'Шаг два.' },
+          { type: 'finish', finishReason: 'stop' },
+        ],
+        tuning(1_000)
+      );
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+    });
+
+    it('пока интерактивный инструмент ждёт человека, сторож стоит', async () => {
+      const req: AiRequest = {
+        ...REQUEST,
+        tools: [
+          {
+            name: 'ask_user',
+            description: 'ask',
+            inputSchema: { type: 'object' },
+            readOnly: true,
+            interactive: true,
+            execute: () =>
+              new Promise((resolve) =>
+                setTimeout(() => resolve({ ok: true, text: 'The user chose: "A"' }), 5_000)
+              ),
+          },
+        ],
+      };
+      const events = await playFor(
+        5_000,
+        [
+          { type: 'start-step' },
+          { type: 'tool-call', toolCallId: 'call-1', toolName: 'ask_user', input: {} },
+          { execute: { tool: 'ask_user', input: {} } },
+          { type: 'finish', finishReason: 'stop' },
+        ],
+        tuning(1_000),
+        req
+      );
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+      expect(events.find((e) => e.type === 'tool_result')).toMatchObject({
+        result: { ok: true, text: 'The user chose: "A"' },
+      });
+    });
+
+    it('null в настройках канала — сторожа тишины нет вовсе', async () => {
+      const events = await playFor(
+        10 * 60_000,
+        [
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't', text: 'Думаю' },
+          { wait: 10 * 60_000 },
+          { type: 'finish', finishReason: 'stop' },
+        ],
+        tuning(null)
+      );
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+    });
   });
 
   /**
@@ -510,10 +648,12 @@ describe('чем зовём модель', () => {
     await play(finish);
     // temperature 0 — не вкусовщина: выдуманное имя компонента стоит отказа гейта, то есть шага.
     expect(lastCall().temperature).toBe(0);
-    // Таймаут на первый фрагмент не ставится: у крупной локальной модели разбор промпта честно
-    // занимает минуты, и такой таймаут убивал бы живые запросы.
-    expect(lastCall().timeout).toMatchObject({ chunkMs: expect.any(Number) });
-    expect((lastCall().timeout as Record<string, unknown>).firstChunkMs).toBeUndefined();
+    // Таймаутов SDK нет вовсе: сторож тишины свой (см. `./watchdog`), а таймаут на первый
+    // фрагмент убивал бы живые запросы — у крупной локальной модели разбор промпта честно
+    // занимает минуты. Ошибки потока SDK не печатает в консоль: их показывает лента.
+    expect(lastCall().timeout).toBeUndefined();
+    expect(lastCall().abortSignal).toBeInstanceOf(AbortSignal);
+    expect(lastCall().onError).toBeTypeOf('function');
   });
 
   it('потолок ответа не задаётся, пока его не задал пользователь', async () => {

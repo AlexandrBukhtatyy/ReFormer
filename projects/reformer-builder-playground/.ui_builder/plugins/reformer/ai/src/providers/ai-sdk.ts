@@ -25,6 +25,7 @@ import type { ToolOutcome } from '../model/types';
 import { dropReasoning, pruneSupersededReads } from './context';
 import { textualCallOf } from './textual-call';
 import type { AiEvent, AiRequest, AiStop, AiUsage } from './types';
+import { anySignal, createWatchdog } from './watchdog';
 
 /** Ответ на случай, если исход вызова почему-то не сохранился (защита от рассинхрона). */
 const UNKNOWN_OUTCOME: ToolOutcome = { ok: true, text: '' };
@@ -302,6 +303,9 @@ export async function* streamViaAiSdk(
   // (`./textual-call`). Сбрасываются там же, где флаг выше, и по той же причине.
   let stepText = '';
   let stepCalledTool = false;
+  // Начался ли новый блок текста или рассуждения, чей первый кусок ещё не отдан, — см. `AiEvent`.
+  let textStart = false;
+  let reasoningStart = false;
 
   const tools = Object.fromEntries(
     req.tools.map((definition) => [
@@ -310,12 +314,25 @@ export async function* streamViaAiSdk(
         description: definition.description,
         inputSchema: jsonSchema(definition.inputSchema as Record<string, unknown>),
         execute: async (args: unknown, { toolCallId }: { toolCallId: string }) => {
-          const outcome = await definition.execute(args);
-          outcomes.set(toolCallId, outcome);
-          return outcome.text;
+          // Инструмент, ждущий человека, ставит сторож тишины на паузу: поток в это время молчит
+          // законно, и минута раздумий над вопросом не должна обрывать ход.
+          if (definition.interactive === true) watchdog.suspend();
+          try {
+            const outcome = await definition.execute(args);
+            outcomes.set(toolCallId, outcome);
+            return outcome.text;
+          } finally {
+            if (definition.interactive === true) watchdog.resume();
+          }
         },
       }),
     ])
+  );
+
+  // Сторож тишины — свой, а не `timeout.chunkMs` SDK: тот идёт и пока инструмент ждёт человека
+  // (см. `./watchdog`). Обрыв по нему виден как прерывание НЕ нашим сигналом — так же, как было.
+  const watchdog = createWatchdog(
+    tuning.chunkTimeoutMs === null ? null : (tuning.chunkTimeoutMs ?? TIMEOUT.chunkMs)
   );
 
   const result = streamText({
@@ -326,7 +343,10 @@ export async function* streamViaAiSdk(
     stopWhen: stopConditions(req, () => {
       exceededBudget = true;
     }),
-    abortSignal: signal,
+    abortSignal: anySignal(signal, watchdog.signal),
+    // Ошибка потока приходит нам частью `error` и показывается в ленте. Обработчик SDK по
+    // умолчанию вдобавок печатает её в консоль — ошибкой страницы, хотя ход её уже объяснил.
+    onError: () => {},
     // На последнем разрешённом шаге инструменты запрещаются: вызов оттуда всё равно не исполнится
     // (шаги кончились), и ход обрывался на полуслове с набором изменений, о котором модель ничего
     // не сказала. Запрет превращает этот шаг в обычный ответ — «сделал столько-то, осталось вот
@@ -347,9 +367,6 @@ export async function* streamViaAiSdk(
     temperature: 0,
     ...(tuning.maxOutputTokens ? { maxOutputTokens: tuning.maxOutputTokens } : {}),
     maxRetries: tuning.maxRetries,
-    ...(tuning.chunkTimeoutMs === null
-      ? {}
-      : { timeout: { chunkMs: tuning.chunkTimeoutMs ?? TIMEOUT.chunkMs } }),
     ...(tuning.promptCacheKey
       ? { providerOptions: { openai: { promptCacheKey: tuning.promptCacheKey } } }
       : {}),
@@ -357,19 +374,36 @@ export async function* streamViaAiSdk(
 
   try {
     for await (const part of result.fullStream) {
+      watchdog.observe(part.type);
       switch (part.type) {
         case 'start-step':
           stepSaidSomething = false;
           stepText = '';
           stepCalledTool = false;
           break;
+        // Начало блока помечается на первом НЕПУСТОМ куске после него: пустой кусок до ленты не
+        // доходит, и метка на нём потерялась бы вместе с разрывом между блоками.
+        case 'text-start':
+          textStart = true;
+          break;
+        case 'reasoning-start':
+          reasoningStart = true;
+          break;
         case 'text-delta':
           stepSaidSomething = true;
           stepText += part.text;
-          yield { type: 'delta', text: part.text };
+          if (part.text === '') break;
+          yield { type: 'delta', text: part.text, ...(textStart ? { start: true as const } : {}) };
+          textStart = false;
           break;
         case 'reasoning-delta':
-          yield { type: 'reasoning', text: part.text };
+          if (part.text === '') break;
+          yield {
+            type: 'reasoning',
+            text: part.text,
+            ...(reasoningStart ? { start: true as const } : {}),
+          };
+          reasoningStart = false;
           break;
         // Аргументы вызова приходят потоком, и до этих трёх событий о начатой правке не было
         // видно ничего: обрыв посреди JSON не оставлял ни записи, ни следа попытки.
@@ -412,9 +446,9 @@ export async function* streamViaAiSdk(
           yield { type: 'error', message: messageOf(part.error), retryable: true };
           break;
         case 'abort':
-          // Прерывание НЕ нашим сигналом — это сторож тишины самого SDK (`timeout.chunkMs`): он
-          // отменяет запрос своим контроллером и сообщает об этом тем же событием `abort`. Без
-          // этой ветки обрыв по таймауту выглядел «нажатой кнопкой Остановить», и замер на
+          // Прерывание НЕ сигналом пользователя — это сторож тишины (`./watchdog`; прежде —
+          // `timeout.chunkMs` SDK, вёл себя так же): SDK сообщает о нём тем же событием `abort`.
+          // Без этой ветки обрыв по таймауту выглядел «нажатой кнопкой Остановить», и замер на
           // большой спеке кончался «aborted без причины» (ReFormer-6zxe). Недописанный вызов
           // здесь не сообщается — по той же причине, что у таймаута-исключения ниже.
           if (!signal?.aborted) {
@@ -495,7 +529,7 @@ export async function* streamViaAiSdk(
     // Свой таймаут SDK тоже отменяет прерыванием, но НЕ нашим сигналом: наш `signal.aborted` при
     // этом ложь, и сырой AbortError уходил бы пользователю как «The operation was aborted» — то
     // есть выглядел бы как нажатая им же кнопка «Остановить».
-    if (isTimeout(e)) {
+    if (watchdog.fired || isTimeout(e)) {
       // `truncatedCall` здесь НЕ сообщается, хотя вызов вполне мог оборваться на полуслове:
       // молчание сервера лечится повтором самим пользователем, а автоматическая вторая попытка
       // означала бы ещё минуту ожидания того же мёртвого сервера.
@@ -505,6 +539,8 @@ export async function* streamViaAiSdk(
     }
     yield { type: 'error', message: messageOf(e), retryable: true };
     yield { type: 'done', reason: 'error' };
+  } finally {
+    watchdog.dispose();
   }
 }
 

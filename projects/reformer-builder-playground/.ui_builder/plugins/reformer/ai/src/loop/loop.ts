@@ -89,6 +89,34 @@ export interface AgentTurnOptions {
   scope?: TurnScope;
   /** Каталог ресурсов плагинов — в ту же затравку, что карта формы; пусто — провайдеров нет. */
   resourceSeed?: string;
+  /** Какую форму правит ход — первой строкой затравки, см. {@link activeFormLines}. */
+  activeForm?: ActiveForm;
+}
+
+/** Форма хода: что сказать модели о том, какую форму она правит. */
+export interface ActiveForm {
+  /** Путь документа формы от корня проекта. */
+  readonly path: string;
+  /** Путь формы прошлого хода — если с тех пор пользователь переключился на другую. */
+  readonly previousPath?: string;
+}
+
+/**
+ * Строки затравки об активной форме — общие для обоих режимов.
+ *
+ * История диалога общая на все формы, а ход правит форму активной вкладки. Без этих строк модель,
+ * которой пользователь между ходами открыл другую форму, продолжала прошлую: била по адресам узлов
+ * или путям файлов той формы, получала отказы и отвечала «готово» — форма на экране не менялась.
+ */
+export function activeFormLines(form: ActiveForm): string {
+  const lines = [`Active form: ${form.path}`];
+  if (form.previousPath !== undefined && form.previousPath !== form.path) {
+    lines.push(
+      `The user switched to this form from ${form.previousPath}. Earlier messages are about ` +
+        'that form: node addresses and file paths from them do not apply here.'
+    );
+  }
+  return lines.join('\n');
 }
 
 /** Событие хода для интерфейса. */
@@ -136,7 +164,13 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
     opts.provider,
     {
       system: opts.system ?? systemPrompt(opts.catalog),
-      messages: withOutlineSeed(opts.messages, opts.base, opts.baseRules, opts.resourceSeed),
+      messages: withOutlineSeed(
+        opts.messages,
+        opts.base,
+        opts.baseRules,
+        opts.resourceSeed,
+        opts.activeForm
+      ),
       tools,
       maxSteps,
       ...(opts.maxInputTokens !== undefined ? { maxInputTokens: opts.maxInputTokens } : {}),
@@ -178,19 +212,27 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
  *
  * Каталог ресурсов плагинов (`resources`) едет той же затравкой: это тоже данные хода, и второе
  * сообщение ради одной строки было бы лишним. Он же — повод для затравки у пустой формы.
+ *
+ * Активная форма (`active`) идёт первой строкой — и у пустой формы тоже: какую форму правит ход,
+ * модель обязана знать всегда, а не только когда в форме есть что показать.
  */
 function withOutlineSeed(
   messages: readonly AiMessage[],
   base: JsonFormSchema,
   rules?: FormRules,
-  resources?: string
+  resources?: string,
+  active?: ActiveForm
 ): readonly AiMessage[] {
   const entries = buildOutline(base);
   const rulesText = rules ? renderRulesSeed(rules) : '';
   const map = entries.length > 1 ? renderOutline(entries, OUTLINE_SEED_BUDGET) : '';
   // Пустая форма описывается одной строкой про корень — сообщать нечего, а шаг всё равно не сэкономить.
   const form = [map, rulesText].filter(Boolean).join('\n\n');
-  const parts = [form ? `${OUTLINE_SEED_LEAD}\n${form}` : '', resources ?? ''].filter(Boolean);
+  const parts = [
+    active ? activeFormLines(active) : '',
+    form ? `${OUTLINE_SEED_LEAD}\n${form}` : '',
+    resources ?? '',
+  ].filter(Boolean);
   if (parts.length === 0) return messages;
   return [...messages, { role: 'user', content: parts.join('\n\n') }];
 }

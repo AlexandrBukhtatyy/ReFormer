@@ -95,11 +95,12 @@ export function createFakeProvider(
           return;
         }
         if ('text' in item) {
-          yield { type: 'delta', text: item.text };
+          // Каждый шаг сценария — свой блок, как у настоящего канала между шагами хода.
+          yield { type: 'delta', text: item.text, start: true };
           continue;
         }
         if ('reasoning' in item) {
-          yield { type: 'reasoning', text: item.reasoning };
+          yield { type: 'reasoning', text: item.reasoning, start: true };
           continue;
         }
         if ('truncated' in item) {
