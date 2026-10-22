@@ -1159,3 +1159,63 @@ describe('замечания к успешной правке — вдогонк
     expect(res.text).not.toContain('Heads up');
   });
 });
+
+describe('особые ключи узла: $disabled и $newRow', () => {
+  const ref = '/root/children/0/children/0';
+
+  it('$disabled кладётся в сам узел поля, а не в componentProps', async () => {
+    const schema = expectOk(
+      await reg.invoke(
+        'set_node_prop',
+        { refs: [ref], props: { $disabled: true } },
+        ctxOf(sampleSchema())
+      )
+    );
+    const node = getAt(schema, ['root', 'children', 0, 'children', 0]) as Record<string, unknown>;
+    expect(node.disabled).toBe(true);
+    expect((node.componentProps as Record<string, unknown> | undefined)?.$disabled).toBeUndefined();
+
+    const cleared = expectOk(
+      await reg.invoke('set_node_prop', { refs: [ref], props: { $disabled: null } }, ctxOf(schema))
+    );
+    expect(
+      (getAt(cleared, ['root', 'children', 0, 'children', 0]) as Record<string, unknown>).disabled
+    ).toBeUndefined();
+  });
+
+  it('$newRow задаёт шаблон новой строки массива при вставке; у поля — отказ', async () => {
+    const schema = expectOk(
+      await reg.invoke(
+        'insert_node',
+        {
+          parent: '/root',
+          nodes: [{ component: 'FieldArray', model: 'phones', props: { $newRow: { number: '' } } }],
+        },
+        ctxOf(emptySchema())
+      )
+    );
+    const array = (schema.root as unknown as { children: Record<string, unknown>[] }).children[0];
+    expect(array.initialValue).toEqual({ number: '' });
+
+    const onField = await reg.invoke(
+      'set_node_prop',
+      { refs: [ref], props: { $newRow: {} } },
+      ctxOf(sampleSchema())
+    );
+    expect(onField.error?.code).toBe('INVALID_PARAMS');
+  });
+
+  it('значение свойства — массив: варианты готового списка правятся на месте', async () => {
+    const options = [
+      { value: 'a', label: 'А' },
+      { value: 'b', label: 'Б' },
+    ];
+    const res = await reg.invoke(
+      'set_node_prop',
+      { refs: [ref], props: { options } },
+      ctxOf(sampleSchema())
+    );
+    // Принять или отвергнуть массив решает схема свойств компонента, а не схема параметров.
+    expect(res.error?.code).not.toBe('INVALID_PARAMS');
+  });
+});

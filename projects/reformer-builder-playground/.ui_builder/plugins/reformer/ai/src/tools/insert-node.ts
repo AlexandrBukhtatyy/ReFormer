@@ -23,6 +23,7 @@ import { insertSlotOf } from '../model/slots';
 import { similarNames } from '../loop/suggest';
 import { fail, type AgentTool, type ToolOutcome } from '../model/types';
 import { REF_PROP } from './params';
+import { nodeKeyOf, nodeKeyRefusal, splitNodeKeys } from './node-keys';
 
 /** Один вставляемый узел. */
 interface NodeSpec {
@@ -63,7 +64,10 @@ export const insertNodeTool: AgentTool<Params> = {
           properties: {
             component: { type: 'string', description: 'Name from list_components' },
             model: { type: 'string', description: 'Model path, bare: applicant.email' },
-            props: { type: 'object', description: 'Props; see describe_component' },
+            props: {
+              type: 'object',
+              description: 'Props; see describe_component. $disabled, $newRow: as in set_node_prop',
+            },
           },
           required: ['component'],
           additionalProperties: false,
@@ -163,8 +167,16 @@ function prepareNode(
   if (spec.model && (entry.role === 'field' || entry.role === 'array')) {
     node.model = `$model(${spec.model})`;
   }
-  if (spec.props) {
-    node.componentProps = { ...(node.componentProps as object), ...spec.props };
+  // Особые ключи (`./node-keys`) — в сам узел; остальное — свойства компонента.
+  const { component: props, node: keys } = splitNodeKeys(spec.props ?? {});
+  if (Object.keys(props).length > 0) {
+    node.componentProps = { ...(node.componentProps as object), ...props };
+  }
+  for (const [name, value] of Object.entries(keys)) {
+    const refused = nodeKeyRefusal(node as unknown as JsonNode, name, value);
+    if (refused !== null) return { error: fail('INVALID_PARAMS', `${entry.name}: ${refused}`) };
+    const key = nodeKeyOf(name);
+    if (key !== undefined && value !== null) node[key] = value;
   }
 
   const label = String(spec.props?.label ?? spec.model ?? entry.name);

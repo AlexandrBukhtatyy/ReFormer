@@ -22,9 +22,10 @@ import type { NodeExpectation } from '../model/node-ref';
 import { componentOf, isResolved, labelOf, nodeRef, resolveRef } from '../model/node-ref';
 import { fail, type AgentTool, type ToolOutcome } from '../model/types';
 import { EXPECT_PROP } from './params';
+import { isNodeKey, nodeKeyRefusal, setNodeKeyValue } from './node-keys';
 
-/** Значение свойства; `null` его убирает. */
-type PropValue = string | number | boolean | null;
+/** Значение свойства — любое значение JSON (варианты списка — массив); `null` его убирает. */
+type PropValue = unknown;
 
 /** Параметры вызова. */
 interface Params {
@@ -40,8 +41,12 @@ interface Params {
   expect?: NodeExpectation;
 }
 
-/** Значения свойств в схеме параметров. */
-const PROP_VALUES = { type: ['string', 'number', 'boolean', 'null'] };
+/**
+ * Значения свойств в схеме параметров. Массивы и объекты — тоже: без них варианты готового
+ * списка (`options`) менялись только пересозданием узла. Тип значения сверяет гейт по схеме
+ * свойств компонента из каталога.
+ */
+const PROP_VALUES = { type: ['string', 'number', 'boolean', 'null', 'array', 'object'] };
 
 export const setNodePropTool: AgentTool<Params> = {
   name: 'set_node_prop',
@@ -50,7 +55,8 @@ export const setNodePropTool: AgentTool<Params> = {
   description:
     'Set component properties (label, placeholder, required, …). props go to every node in refs; ' +
     "edits gives each node its own props. The special key text sets the node's own content " +
-    'instead: a tab caption, a button label, a heading.',
+    'instead: a tab caption, a button label, a heading. $disabled locks a field for good; ' +
+    '$newRow is the object a new array row starts from.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -113,7 +119,9 @@ export const setNodePropTool: AgentTool<Params> = {
         const step =
           key === TEXT_KEY
             ? setText(ctx.catalog, draft, ref, { node, path }, value)
-            : setPlainProp(draft, { node, path }, key, value);
+            : isNodeKey(key)
+              ? setNodeKeyStep(draft, { node, path }, key, value)
+              : setPlainProp(draft, { node, path }, key, value);
         if ('error' in step) return step.error;
         draft = step.schema;
         // Узел перечитывается: предыдущее свойство уже сделало его другим объектом.
@@ -131,6 +139,27 @@ export const setNodePropTool: AgentTool<Params> = {
 
 /** Результат одной правки свойства: новая схема с описанием либо отказ. */
 type PropStep = { schema: JsonFormSchema; describe: OpDescription } | { error: ToolOutcome };
+
+/** Особый ключ узла (`./node-keys`) — в сам узел, а не в `componentProps`. */
+function setNodeKeyStep(
+  draft: JsonFormSchema,
+  found: { node: JsonNode; path: JsonPath },
+  key: string,
+  value: PropValue
+): PropStep {
+  const refused = nodeKeyRefusal(found.node, key, value);
+  if (refused !== null) return { error: fail('INVALID_PARAMS', refused) };
+  const name = labelOf(found.node) ?? componentOf(found.node) ?? nodeRef(found.path);
+  const text = value === null ? 'removed' : JSON.stringify(value);
+  return {
+    schema: setNodeKeyValue(draft, found.path, key, value),
+    describe: {
+      kind: 'update',
+      summary: `${name} → ${key} = ${value === null ? 'убрано' : JSON.stringify(value)}`,
+      report: `${name} → ${key} = ${text}`,
+    },
+  };
+}
 
 /** Обычное свойство — в `componentProps`. */
 function setPlainProp(
