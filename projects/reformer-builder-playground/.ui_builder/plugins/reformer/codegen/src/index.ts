@@ -87,6 +87,13 @@ export { deliverInto, deliverModule, SourceReadOnlyError } from './pipeline/deli
 export type { DeliveryResult, SkipReason } from './pipeline/deliver';
 
 export { defaultFormName, runCodegen, schemaOf } from './pipeline/run';
+export { generateFor } from './pipeline/generate-for';
+export type {
+  GenerateReport,
+  GenerateRequest,
+  GenerateSkipReason,
+  GenerateWrite,
+} from './pipeline/generate-for';
 
 export { CODEGEN_MESSAGES } from './messages';
 

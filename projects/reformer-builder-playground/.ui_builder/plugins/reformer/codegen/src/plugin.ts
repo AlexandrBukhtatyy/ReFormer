@@ -50,7 +50,13 @@ import type { CodegenInput } from '../../core/codegen';
 import { ensureSchema } from '../../core/form-model';
 import { generateModule, type CodegenProblem } from './pipeline/generate';
 import type { CodegenHost } from './host';
-import { codegenWorkspace, ModulePrinterCapability, type CodegenGaps } from './workspace';
+import {
+  codegenWorkspace,
+  ModuleGeneratorCapability,
+  ModulePrinterCapability,
+  type CodegenGaps,
+} from './workspace';
+import { generateFor } from './pipeline/generate-for';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './pipeline/run';
 import { applyOverrides, discoverUserTargets, overrideDrift } from './pipeline/user-targets';
@@ -479,6 +485,26 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
           ctx.extensions.contribute(point, target, { id: target.id, order: target.order })
         );
       }
+
+      // Генерация по заказу — наружу возможностью: её берёт ассистент, чтобы запись модуля стала
+      // частью его хода. Прогон тот же, что у панели, и состояние документа то же — открытая
+      // панель экспорта покажет и этот прогон.
+      ctx.subscriptions.push(
+        ctx.services.register(ModuleGeneratorCapability, {
+          generate: (documentId, request) =>
+            generateFor(
+              {
+                host,
+                targets: targets(),
+                store: sessions.storeFor(documentId),
+                problems: allProblems(),
+                translate: (key, params) => ctx.i18n.t(key, params),
+              },
+              documentId,
+              request
+            ),
+        })
+      );
 
       for (const command of codegenCommands(host, sessions, targets, allProblems)) {
         ctx.subscriptions.push(ctx.commands.register(command));

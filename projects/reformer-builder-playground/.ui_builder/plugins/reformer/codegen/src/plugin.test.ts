@@ -8,8 +8,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PluginContext, WhenContext } from '@reformer/builder-plugin-api';
-import type { ModulePrinterService } from './workspace';
+import type { PluginContext, ResourceId, WhenContext } from '@reformer/builder-plugin-api';
+import type { ModuleGeneratorService, ModulePrinterService } from './workspace';
+import { plainSchema } from '../../core/testing';
 import {
   codegenPanel,
   CODEGEN_PANEL_ID,
@@ -24,7 +25,7 @@ import {
 import { GENERATE_INTO_COMMAND_ID } from './commands/context-menu';
 import { BUILTIN_TARGETS } from './pipeline/targets';
 import { createCodegenSessions } from './pipeline/state';
-import { createFakeHost } from './testing';
+import { createFakeDocument, createFakeHost } from './testing';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
   return {
@@ -42,7 +43,7 @@ function fakeContext() {
   const contributed: { point: string; id?: string; order?: number }[] = [];
   const commands: string[] = [];
   const locales: string[] = [];
-  const services: unknown[] = [];
+  const services = new Map<string, unknown>();
   const ctx = {
     id: CODEGEN_PLUGIN_ID,
     subscriptions: [],
@@ -75,11 +76,11 @@ function fakeContext() {
     // Служб нет ни одной, и это НЕ упущение двойника: композиция вправе не дать уведомлений,
     // и плагин обязан активироваться без них — молча, а не отказом.
     // Реестр служб в объёме активации: кит не поднят (плагин обязан это пережить), а слот
-    // печатника плагин занимает сам — его вклад наружу.
+    // печатника и генератора плагин занимает сам — его вклады наружу.
     services: {
       get: () => undefined,
-      register: (_token: unknown, service: unknown) => {
-        services.push(service);
+      register: (token: { id: string }, service: unknown) => {
+        services.set(token.id, service);
         return { dispose: () => {} };
       },
     },
@@ -164,8 +165,11 @@ describe('возможность «напечатать модуль формы�
   function printer(): ModulePrinterService {
     const { ctx, services } = fakeContext();
     createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    expect(services).toHaveLength(1);
-    return services[0] as ModulePrinterService;
+    expect([...services.keys()].sort()).toEqual([
+      'reformer.codegen.generator',
+      'reformer.codegen.printer',
+    ]);
+    return services.get('reformer.codegen.printer') as ModulePrinterService;
   }
 
   /** Форма в формате 2. */
@@ -221,6 +225,32 @@ describe('возможность «напечатать модуль формы�
     expect(legacy.find((file) => file.path === 'types/anketa.ts')?.content).toContain(
       'fullName: string;'
     );
+  });
+});
+
+describe('возможность «сгенерировать код формы»', () => {
+  it('прогон по заказу отвечает отчётом и не сохраняет', async () => {
+    const id = 'src/forms/loan/schema/form.schema.json';
+    const document = createFakeDocument(id, JSON.stringify(plainSchema()));
+    const host = createFakeHost({ document, withSave: true });
+    const { ctx, services } = fakeContext();
+    createCodegenPlugin({ host }).activate(ctx);
+    const generator = services.get('reformer.codegen.generator') as ModuleGeneratorService;
+
+    // Целей двойник реестра не отдаёт (`extensions.get` пуст), поэтому модуль пуст: запись дверью
+    // проверяет `pipeline/generate-for.test.ts`, здесь — что служба собрана из состояния плагина.
+    const report = await generator.generate(id as ResourceId, { write: async () => null });
+
+    expect(report).toMatchObject({ ok: true, dir: 'src/forms/loan', formName: 'loan' });
+    expect(host.saved).toEqual([]);
+  });
+
+  it('отказ прогона называет ключ и текст словаря плагина', async () => {
+    const { ctx, services } = fakeContext();
+    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+    const generator = services.get('reformer.codegen.generator') as ModuleGeneratorService;
+    const report = await generator.generate('nowhere' as ResourceId);
+    expect(report).toEqual({ ok: false, error: 'error.no-document', message: 'error.no-document' });
   });
 });
 

@@ -12,6 +12,10 @@
     {
       "id": "reformer.codegen.printer",
       "version": "1.0.0"
+    },
+    {
+      "id": "reformer.codegen.generator",
+      "version": "1.0.0"
     }
   ],
   "permissions": ["workspace.save"],
