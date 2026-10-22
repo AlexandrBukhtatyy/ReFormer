@@ -142,8 +142,9 @@ test.describe('Кит HexaUI — плагин проекта', () => {
     for (const step of ['Данные', 'Контакты', 'Дополнительно']) {
       await expect(frame.getByText(step, { exact: true })).toBeVisible();
     }
-    // Подписи кнопок шаблон не задаёт — это словарь HexaUI, а провайдер кита локали не получает.
-    const next = frame.getByRole('button', { name: 'Next', exact: true });
+    // Подписи кнопок шаблон не задаёт — это словарь HexaUI на языке билдера: провайдер кита
+    // передаёт ей язык активной локали ReFormer.
+    const next = frame.getByRole('button', { name: 'Далее', exact: true });
 
     // Превью заполняет форму фикстурой шаблона: обязательное поле очищается здесь.
     await lastName.fill('');

@@ -449,18 +449,19 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
             прокрутки внутри поля, а нижний отступ перестал бы уезжать вместе с формой. */}
         <div className="p-4">
           <Highlight selection={selection} />
-          <KitFrame frame={host.kitFrame()}>
-            {/* Язык формы и словарь замечаний модуля — теми же провайдерами, которыми их
-                подключает страница. Внутри рамки кита: записи формы ложатся поверх того, что
-                дал кит, а язык формы — поверх языка оболочки. */}
-            <FormLocaleFrame locale={sources.contract?.locale}>
+          {/* Язык формы и словарь замечаний модуля — теми же провайдерами и в том же порядке,
+              что у страницы: язык формы — снаружи рамки кита, и провайдер кита говорит на нём
+              (кнопки визарда, календарь HexaUI); словарь — внутри, записи формы ложатся поверх
+              того, что дал кит. Язык формы при этом — поверх языка снаружи. */}
+          <FormLocaleFrame locale={sources.contract?.locale}>
+            <KitFrame frame={host.kitFrame()}>
               <ValidationMessagesProvider messages={sources.contract?.messages}>
                 {/* Реестр уже в бандле: дерево, обёртку поля и границу ошибок схемы сборка взяла
                     из него. */}
                 <FormRenderer key={formKeyOf(bundle.form)} form={bundle.form} />
               </ValidationMessagesProvider>
-            </FormLocaleFrame>
-          </KitFrame>
+            </KitFrame>
+          </FormLocaleFrame>
         </div>
       </ScrollArea>
     </div>

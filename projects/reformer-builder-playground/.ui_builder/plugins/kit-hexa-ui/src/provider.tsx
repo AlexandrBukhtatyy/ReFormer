@@ -23,6 +23,8 @@
 
 import * as React from 'react';
 import { ConfigProvider, GlobalStyle } from '@kaspersky/hexa-ui/design-system';
+import { useI18n } from '@reformer/core/react';
+import { hexaLocaleOf } from './locale';
 import { KitPopupScope } from './popup-container';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -54,12 +56,16 @@ function useIsDark(): boolean {
  * Экспортируемые `LIGHT_THEME`/`DARK_THEME` — это `ThemeConfig` для другого провайдера
  * (`ThemeProvider` из `design-system/theme`), и передача их сюда роняет рендер с
  * «ThemeProvider: "theme" prop is required».
+ *
+ * Язык HexaUI (кнопки визарда, календарь) — язык активной локали ReFormer (`./locale`): в билдере —
+ * его интерфейса, в приложении — формы. Без `I18nProvider` выше — английский, как у HexaUI.
  */
 export function KitProvider({ children }: { children?: React.ReactNode }) {
   const dark = useIsDark();
+  const { code } = useI18n();
   const Provider = ConfigProvider as any;
   return (
-    <Provider theme={dark ? 'dark' : 'light'}>
+    <Provider theme={dark ? 'dark' : 'light'} locale={hexaLocaleOf(code)}>
       <GlobalStyle />
       {/* Граница стилей в приложении: контейнер всплывающих окон — внутри неё. */}
       <div {...{ [HEXA_SCOPE_ATTRIBUTE]: '' }} style={{ display: 'contents' }}>

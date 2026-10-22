@@ -10,6 +10,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { createForm, type FormSchemaNode } from '@reformer/core';
+import type { FormLocale } from '@reformer/core/i18n';
+import { ru } from '@reformer/core/locale/ru';
+import { I18nProvider } from '@reformer/core/react';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Step } from '@reformer/cdk/form-wizard';
@@ -34,8 +37,18 @@ const contactsRules = defineValidation<Shape>(({ model }) => {
   validate(model.$.phone, [required()]);
 });
 
-/** Форма-визард из двух шагов; `withFlow: false` — без потока сборки (позиционный). */
-function mountWizard(onSubmit: (values: Shape) => void, { withFlow = true } = {}) {
+/**
+ * Форма-визард из двух шагов; `withFlow: false` — без потока сборки (позиционный), `labels: false` —
+ * без подписей кнопок в схеме (их даёт словарь HexaUI), `locale` — локаль ReFormer над формой.
+ */
+function mountWizard(
+  onSubmit: (values: Shape) => void,
+  {
+    withFlow = true,
+    labels = true,
+    locale,
+  }: { withFlow?: boolean; labels?: boolean; locale?: FormLocale } = {}
+) {
   const bundle = createForm<Shape>({
     initial: { amount: null, phone: null },
     schema: (model) =>
@@ -44,9 +57,7 @@ function mountWizard(onSubmit: (values: Shape) => void, { withFlow = true } = {}
         component: FormWizard,
         componentProps: {
           onSubmit,
-          nextLabel: 'Далее',
-          backLabel: 'Назад',
-          submitLabel: 'Отправить',
+          ...(labels ? { nextLabel: 'Далее', backLabel: 'Назад', submitLabel: 'Отправить' } : {}),
         },
         children: [
           {
@@ -86,10 +97,13 @@ function mountWizard(onSubmit: (values: Shape) => void, { withFlow = true } = {}
         }
       : {}),
   });
-  const { container } = renderReact(
+  const tree = (
     <KitProvider>
       <FormRenderer form={bundle} settings={{ fieldWrapper: FormField as any }} />
     </KitProvider>
+  );
+  const { container } = renderReact(
+    locale === undefined ? tree : <I18nProvider locale={locale}>{tree}</I18nProvider>
   );
   return { bundle, container };
 }
@@ -111,6 +125,19 @@ describe('визард кита в FormRenderer + createForm({ flow })', () => {
     expect(container.textContent).toContain('Контакты');
     expect(input(container, 'phone')).toBeNull();
     expect(button(container, 'wizardNextAction').textContent).toBe('Далее');
+  });
+
+  it('без подписей в схеме кнопки — на языке локали ReFormer: русская локаль — «Далее»', async () => {
+    const { container } = mountWizard(vi.fn(), { labels: false, locale: ru });
+
+    // Провайдер кита передаёт язык HexaUI (`ru` → `ru-ru`) — словарь её i18next.
+    await vi.waitFor(() => expect(button(container, 'wizardNextAction').textContent).toBe('Далее'));
+  });
+
+  it('без локали ReFormer — язык HexaUI по умолчанию, английский', async () => {
+    const { container } = mountWizard(vi.fn(), { labels: false });
+
+    await vi.waitFor(() => expect(button(container, 'wizardNextAction').textContent).toBe('Next'));
   });
 
   it('пустое обязательное поле не пускает дальше; заполненное — ровно на один шаг; «Назад» возвращает', async () => {
