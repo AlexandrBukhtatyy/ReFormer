@@ -235,6 +235,22 @@ describe('выбор', () => {
     await vi.waitFor(() => expect(valueOf(bundle, 'color')).toBe('blue'));
   });
 
+  it("список без выбора с '' в модели (так его стартует кодоген) показывает placeholder", async () => {
+    const { container } = mount({ city: '' }, (model) => [
+      field(model, 'city', fields.Select, {
+        placeholder: 'Выберите город',
+        options: [{ label: 'Казань', value: 'kzn' }],
+      }),
+    ]);
+    const box = await fieldBox(container, 'city');
+
+    await vi.waitFor(() =>
+      expect(box.querySelector('.ant-select-selection-placeholder')?.textContent).toBe(
+        'Выберите город'
+      )
+    );
+  });
+
   it('радиогруппа: значение из события antd', async () => {
     const { bundle, container } = mount({ size: null }, (model) => [
       field(model, 'size', fields.RadioGroup, {

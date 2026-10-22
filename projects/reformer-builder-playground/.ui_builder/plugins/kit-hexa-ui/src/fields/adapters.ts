@@ -10,7 +10,9 @@
  * ## Контракт значений модели
  *
  * Тот же, что у `@reformer/ui-kit` (`packages/reformer-ui-kit/src/fields/adapters.ts`): «пусто» у
- * поля одно — `null`. Пустая строка, пустой выбор, неполный период, `NaN` из числового поля
+ * поля одно — `null`. На входе «ничего не выбрано» у списков — и `null`, и `''`: с пустой строки
+ * кодоген билдера стартует список без выбора по умолчанию (мок модели), и `Select` ui-kit её так
+ * и читает. Пустая строка, пустой выбор, неполный период, `NaN` из числового поля
  * сворачиваются в `null`, а `required()` ловит его у любого поля. На входе `toValue` отдаёт
  * контролу то, что тот умеет показать: `''` текстовому, `[]` мультивыбору, `undefined` выпадающему
  * списку (иначе antd не покажет placeholder).
@@ -94,12 +96,13 @@ export const numberAdapter: KitFieldAdapter = valueBased(
 
 /**
  * Выпадающий список с одним значением: `Select` (`onChange(value, option)`), `TreeSelect`
- * (`onChange(value, labels, extra)`). Очистка отдаёт `undefined` → `null`. На входе `null` →
- * `undefined`: antd показывает placeholder только у `undefined`.
+ * (`onChange(value, labels, extra)`). Очистка отдаёт `undefined` → `null`. На входе `null` и `''`
+ * → `undefined`: antd показывает placeholder только у `undefined`, а пустую строку считает
+ * выбранным значением — поле без выбора стояло бы пустым, без подсказки.
  */
 export const selectAdapter: KitFieldAdapter = valueBased(
   (v) => (v === undefined || v === null || v === '' ? null : v),
-  (v) => (v === null ? undefined : v)
+  (v) => (v === undefined || v === null || v === '' ? undefined : v)
 );
 
 /**
@@ -116,14 +119,12 @@ export const multiValueAdapter: KitFieldAdapter = valueBased(
  * Выбор одного из вариантов обёрткой кита (`ToggleGroup`): обёртка уже отдаёт `string | null`,
  * адаптер только нормализует пустое.
  */
-export const choiceAdapter: KitFieldAdapter = valueBased(textOrNull, (v) =>
-  typeof v === 'string' ? v : null
-);
+export const choiceAdapter: KitFieldAdapter = valueBased(textOrNull, textOrNull);
 
 /**
  * Радиогруппа: HexaUI `Radio` — это antd `Radio.Group`, `onChange(e)` с `e.target.value`.
- * Строка — на случай value-based эмита. На входе `null` остаётся `null`: группа контролируемая,
- * просто ни один вариант не отмечен.
+ * Строка — на случай value-based эмита. На входе `null` (и `''` списка без выбора) — `null`:
+ * группа контролируемая, просто ни один вариант не отмечен.
  */
 export const radioAdapter: KitFieldAdapter = valueBased(
   (e) => {
@@ -131,7 +132,7 @@ export const radioAdapter: KitFieldAdapter = valueBased(
       typeof e === 'string' ? e : (e as { target?: { value?: unknown } } | null)?.target?.value;
     return value === undefined || value === null || value === '' ? null : value;
   },
-  (v) => (v === undefined ? null : v)
+  (v) => (v === undefined || v === '' ? null : v)
 );
 
 /**

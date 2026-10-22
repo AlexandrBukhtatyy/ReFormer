@@ -134,6 +134,11 @@ describe('Select / Combobox / ComboboxTree — один выбор', () => {
     expect(bind(selectAdapter, null).props.value).toBeUndefined();
     expect(bind(selectAdapter, 'a').props.value).toBe('a');
   });
+
+  it("'' модели — тоже «ничего не выбрано»: с него кодоген стартует список", () => {
+    // antd считает пустую строку значением и прячет placeholder — поле стояло бы пустым.
+    expect(bind(selectAdapter, '').props.value).toBeUndefined();
+  });
 });
 
 describe('мультивыбор (SelectMulti, ComboboxMulti, CheckboxGroup, ToggleGroupMulti, файлы)', () => {
@@ -175,6 +180,7 @@ describe('RadioGroup (HexaUI Radio — antd Radio.Group)', () => {
 
   it('null модели — null контролу: группа контролируемая, ничего не отмечено', () => {
     expect(bind(radioAdapter, null).props.value).toBeNull();
+    expect(bind(radioAdapter, '').props.value).toBeNull();
   });
 });
 
@@ -226,6 +232,7 @@ describe('Toggle (ToggleButton кита) и ToggleGroup', () => {
     expect(props.value).toBeNull();
     expect(emit('a')).toBe('a');
     expect(emit(null)).toBeNull();
+    expect(bind(choiceAdapter, '').props.value).toBeNull();
   });
 });
 
