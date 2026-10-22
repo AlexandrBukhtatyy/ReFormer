@@ -51,7 +51,7 @@ import { mergeFormData, type FormFixture } from '../../../core/form-fixture';
 import { carryValues } from './carry';
 import { fitInitialValues } from './initial';
 import { fieldKindsOf } from './kinds';
-import { synthMock } from './mock';
+import { overlayDataSources, synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
 
 /** Форма данных модели превью: она приходит из схемы, и сузить её нечем. */
@@ -108,6 +108,11 @@ export interface RuntimeBundleInput {
   readonly namespace: KitNamespace;
   /** Мок автора; `null` — синтезируем из схемы. */
   readonly mock: PreviewMock | null;
+  /**
+   * Значения источников из правил формы (файл правил рядом с документом) — поверх мока, вместо
+   * выдуманных вариантов. Те же значения напечатает генерация в `constants/`.
+   */
+  readonly dataSources?: Readonly<Record<string, unknown>>;
   /**
    * Фикстура формы — авторский артефакт из её каталога (`fixture.ts`).
    *
@@ -215,7 +220,10 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
   // Вид значения полей чужого кита — из его каталога, той же таблицей, что у кодогена: иначе
   // превью синтезировало бы не ту модель, которую печатает экспорт.
   const valueTypeOf = valueTypesOf(input.catalog);
-  const base = input.mock ?? synthMock(annotated, valueTypeOf);
+  const base = overlayDataSources(
+    input.mock ?? synthMock(annotated, valueTypeOf),
+    input.dataSources
+  );
   const mock = mergeFormData(
     base,
     // Значения модуля печатались по схеме на момент генерации, а схему с тех пор правили:

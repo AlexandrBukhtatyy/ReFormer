@@ -40,3 +40,14 @@ describe('файл правил формы', () => {
     ]);
   });
 });
+
+describe('значения источников данных в файле правил', () => {
+  it('печатаются и читаются; пустой набор источников в файл не попадает', () => {
+    const rules: FormRules = {
+      ...emptyRules(),
+      dataSources: { CITIES: [{ value: 'msk', label: 'Москва' }] },
+    };
+    expect(parseRulesText(printRulesText(rules))).toEqual({ ok: true, rules });
+    expect(printRulesText({ ...emptyRules(), dataSources: {} })).toBe(emptyRulesText());
+  });
+});

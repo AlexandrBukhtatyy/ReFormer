@@ -18,6 +18,7 @@ export {
   collectFieldDefaults,
   defaultForField,
   mockOptions,
+  overlayDataSources,
   synthMock,
 } from '../../../core/form-mock';
 export type { DataSourceClasses, FieldDefault, MockOption } from '../../../core/form-mock';

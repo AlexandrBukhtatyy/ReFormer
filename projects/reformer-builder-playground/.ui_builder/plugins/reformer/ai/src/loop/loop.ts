@@ -258,6 +258,11 @@ function renderRulesSeed(rules: FormRules): string {
   for (const b of rules.behavior) {
     lines.push(`  ${b.kind} ${b.target}${b.sources.length ? ` <- ${b.sources.join(', ')}` : ''}`);
   }
+  for (const [name, value] of Object.entries(rules.dataSources ?? {})) {
+    lines.push(
+      `  $dataSource(${name}): ${Array.isArray(value) ? `${value.length} option(s)` : 'a value'}`
+    );
+  }
   for (const r of rules.render) {
     const what =
       r.kind === 'hideWhen'

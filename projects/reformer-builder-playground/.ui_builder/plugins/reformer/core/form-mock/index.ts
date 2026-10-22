@@ -463,6 +463,26 @@ function humanizeSourceName(name: string): string {
 }
 
 /**
+ * Значения источников из правил формы (`FormRules.dataSources`) — поверх выдуманных, и только
+ * для имён, на которые ссылается схема: источник, которого форма не читает, ни печатать, ни
+ * показывать незачем. Общая точка генерации и превью — иначе они показали бы разные варианты.
+ */
+export function overlayDataSources(
+  mock: FormMock,
+  sources: Readonly<Record<string, unknown>> | undefined
+): FormMock {
+  if (sources === undefined) return mock;
+  const dataSources = { ...mock.dataSources };
+  let changed = false;
+  for (const [name, value] of Object.entries(sources)) {
+    if (!Object.hasOwn(dataSources, name)) continue;
+    dataSources[name] = value;
+    changed = true;
+  }
+  return changed ? { ...mock, dataSources } : mock;
+}
+
+/**
  * Синтезированный мок схемы: пустая модель плюс списки опций.
  *
  * Детерминирована по построению — в отличие от v1, где `synthMock` брал `new Date()` и форма

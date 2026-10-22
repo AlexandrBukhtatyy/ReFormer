@@ -20,8 +20,11 @@
  * возникает — возникает первый. `VisibilityIntent` из MCP приезжает извне (форма по спеке) и
  * сворачивается в `hideWhen`-вариант на входе, чтобы дальше жил один список.
  *
- * **Что здесь НЕ хранится.** Ни раскладка, ни список полей, ни источники данных: всё это уже
- * есть в схеме, и дублировать его значило бы завести второй источник истины о форме.
+ * **Что здесь НЕ хранится.** Ни раскладка, ни список полей, ни имена источников данных: всё это
+ * уже есть в схеме, и дублировать его значило бы завести второй источник истины о форме. А вот
+ * ЗНАЧЕНИЯ источников (`$dataSource(NAME)` → варианты списка) в схеме не живут нигде — они лежат
+ * здесь же, в {@link FormRules.dataSources}: их задаёт ассистент, печатает генерация и показывает
+ * превью вместо выдуманных.
  *
  * @module plugins/reformer/core/form-model/rules
  */
@@ -85,6 +88,11 @@ export interface FormRules {
   behavior: BehaviorIntent[];
   /** Поведение render-слоя по `selector`, а не по пути модели. */
   render: RenderRuleIntent[];
+  /**
+   * Значения источников данных: имя из `$dataSource(NAME)` → варианты списка
+   * (`[{ value, label }]`) либо скаляр. Нет записи — генерация и превью выдумывают значения.
+   */
+  dataSources?: Record<string, unknown>;
 }
 
 /** Пустые правила. Отдельная функция, а не константа: массивы нельзя делить между вкладками. */
@@ -95,7 +103,12 @@ export function emptyRules(): FormRules {
 /** Есть ли хоть одно правило — для dirty-индикации. */
 export function hasRules(rules: FormRules | undefined): boolean {
   if (!rules) return false;
-  return rules.validation.length > 0 || rules.behavior.length > 0 || rules.render.length > 0;
+  return (
+    rules.validation.length > 0 ||
+    rules.behavior.length > 0 ||
+    rules.render.length > 0 ||
+    Object.keys(rules.dataSources ?? {}).length > 0
+  );
 }
 
 /**
@@ -138,6 +151,7 @@ interface LegacyRules {
   behavior?: unknown;
   render?: unknown;
   visibility?: unknown;
+  dataSources?: unknown;
 }
 
 /**
@@ -157,9 +171,16 @@ export function readRules(raw: unknown): FormRules {
     .filter((v) => v && typeof v.selector === 'string')
     .map(renderRuleFromVisibility);
 
+  const dataSources =
+    src.dataSources !== null &&
+    typeof src.dataSources === 'object' &&
+    !Array.isArray(src.dataSources)
+      ? { ...(src.dataSources as Record<string, unknown>) }
+      : undefined;
   return {
     validation: arr<ValidationRuleIntent>(src.validation),
     behavior: arr<BehaviorIntent>(src.behavior),
     render: [...legacy, ...arr<RenderRuleIntent>(src.render)],
+    ...(dataSources !== undefined && Object.keys(dataSources).length > 0 ? { dataSources } : {}),
   };
 }

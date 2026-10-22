@@ -46,6 +46,7 @@ import { Notice } from '../ui/Notice';
 import {
   formKeyOf,
   useKitVersion,
+  useRuleDataSources,
   useLiveValidation,
   usePreviewSchema,
   usePreviewSelection,
@@ -79,6 +80,7 @@ export function RuntimeView({ ctx, host }: RuntimeViewProps): ReactNode {
   const schema = usePreviewSchema(ctx);
   const selection = usePreviewSelection(ctx);
   const kitVersion = useKitVersion(host);
+  const dataSources = useRuleDataSources(host, ctx.doc);
   const surface = useRef<HTMLDivElement | null>(null);
   /** Форма прошлой сборки — источник значений для следующей. */
   const live = useRef<{ model: { get(): unknown } } | null>(null);
@@ -96,9 +98,10 @@ export function RuntimeView({ ctx, host }: RuntimeViewProps): ReactNode {
       descriptor: host.kit() ?? fallbackDescriptor(),
       namespace: host.kitNamespace() ?? NO_NAMESPACE,
       mock: ctx.mock(),
+      ...(dataSources !== undefined ? { dataSources } : {}),
       carry,
     });
-  }, [schema, host, ctx, kitVersion]);
+  }, [schema, host, ctx, kitVersion, dataSources]);
 
   useLiveValidation(bundle?.form ?? null);
 

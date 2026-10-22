@@ -14,10 +14,12 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { NodeId } from '@reformer/builder-plugin-api';
+import type { NodeId, ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewContext } from '@reformer/builder-plugin-api';
 import { ensureSchema, isFormSchema } from '../../../core/form-model';
 import type { PreviewHost } from '../host';
+import { rulesSidecarNameOf } from '../../../core/codegen/layout';
+import { parseRulesText } from '../../../core/codegen/rules-file';
 
 /** Перевод документа прежнего формата — по одному на объект: снимок обязан быть стабильным. */
 const migrated = new WeakMap<object, JsonFormSchema>();
@@ -151,4 +153,52 @@ export function formKeyOf(form: object): number {
     formKeys.set(form, key);
   }
   return key;
+}
+
+/** Путь файла правил документа от корня проекта: рядом с документом. */
+function rulesPathOf(documentPath: string): string {
+  const slash = documentPath.lastIndexOf('/');
+  const dir = slash < 0 ? '' : documentPath.slice(0, slash + 1);
+  return `${dir}${rulesSidecarNameOf(documentPath)}`;
+}
+
+/**
+ * Значения источников данных из файла правил рядом с документом — их превью показывает вместо
+ * выдуманных вариантов. Файл перечитывается, когда его правят в рабочей копии.
+ *
+ * Без адреса по пути (`resolveFromRoot`) файл не читается, и превью остаётся с выдуманными
+ * вариантами — так же, как без файла правил. Битый файл — тоже «значений нет»: о нём говорят те,
+ * кто в него пишет.
+ */
+export function useRuleDataSources(
+  host: Pick<PreviewHost, 'readText' | 'resolveFromRoot' | 'onDidChangeFiles'>,
+  doc: { readonly id: ResourceId; readonly ref: { readonly path: string } }
+): Readonly<Record<string, unknown>> | undefined {
+  const [sources, setSources] = useState<Readonly<Record<string, unknown>> | undefined>();
+  useEffect(() => {
+    const resolve = host.resolveFromRoot;
+    if (resolve === undefined) return undefined;
+    const id = resolve(doc.id, rulesPathOf(doc.ref.path));
+    let live = true;
+    const load = (): void => {
+      host.readText(id).then(
+        (text) => {
+          const parsed = parseRulesText(text);
+          if (live) setSources(parsed.ok ? parsed.rules.dataSources : undefined);
+        },
+        () => {
+          if (live) setSources(undefined);
+        }
+      );
+    };
+    load();
+    const subscription = host.onDidChangeFiles?.((changed) => {
+      if (changed.includes(id)) load();
+    });
+    return () => {
+      live = false;
+      subscription?.dispose();
+    };
+  }, [host, doc.id, doc.ref.path]);
+  return sources;
 }

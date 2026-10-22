@@ -73,6 +73,8 @@ interface BehaviorParam {
 }
 
 interface Params {
+  /** Значения источников `$dataSource(NAME)`: имя → варианты списка или значение; `null` убирает. */
+  dataSources?: Record<string, unknown>;
   validation?: ValidationParam[];
   behavior?: BehaviorParam[];
   /** `replace` — заменить весь набор; по умолчанию правила добавляются к существующим. */
@@ -128,6 +130,10 @@ export const setFormRulesTool: AgentTool<Params> = {
           additionalProperties: false,
         },
       },
+      dataSources: {
+        type: 'object',
+        description: '$dataSource(NAME) values: NAME → [{ value, label }] or a value; null removes',
+      },
       mode: { type: 'string', enum: ['merge', 'replace'] },
     },
     additionalProperties: false,
@@ -155,6 +161,16 @@ export const setFormRulesTool: AgentTool<Params> = {
       const refused = checkValidationParam(rule);
       if (refused) return fail('INVALID_PARAMS', refused);
       next.validation.push(validationIntent(rule));
+    }
+
+    for (const [name, value] of Object.entries(params.dataSources ?? {})) {
+      const refused = dataSourceRefusal(name, value);
+      if (refused) return fail('INVALID_PARAMS', refused);
+      const sources = { ...next.dataSources };
+      if (value === null) delete sources[name];
+      else sources[name] = value;
+      if (Object.keys(sources).length > 0) next.dataSources = sources;
+      else delete next.dataSources;
     }
 
     for (const raw of params.behavior ?? []) {
@@ -205,6 +221,26 @@ export const setFormRulesTool: AgentTool<Params> = {
     };
   },
 };
+
+/** Имя источника — то, что стоит в `$dataSource(NAME)`: идентификатор. */
+const SOURCE_NAME = /^[A-Za-z_$][\w$]*$/;
+
+/**
+ * Почему значение источника не принять, или `null`. Список — только вариантов `{ value, label }`:
+ * иначе поле выбора получит то, чего не умеет нарисовать.
+ */
+function dataSourceRefusal(name: string, value: unknown): string | null {
+  if (!SOURCE_NAME.test(name)) return `"${name}" is not a data source name: use an identifier.`;
+  if (!Array.isArray(value)) return null;
+  const bad = value.find(
+    (item) =>
+      item === null ||
+      typeof item !== 'object' ||
+      !('value' in item) ||
+      typeof (item as { label?: unknown }).label !== 'string'
+  );
+  return bad === undefined ? null : `Options of "${name}" are { value, label } objects.`;
+}
 
 /** Путь поля строки — полным путём: `qty` при `each: 'items'` → `items.qty`. */
 function rowFull(path: string, each: string | undefined): string {
@@ -281,12 +317,14 @@ function cloneRules(rules: FormRules): FormRules {
     validation: [...rules.validation],
     behavior: [...rules.behavior],
     render: [...rules.render],
+    ...(rules.dataSources !== undefined ? { dataSources: { ...rules.dataSources } } : {}),
   };
 }
 
 function summarize(rules: FormRules): string {
   return (
     `Готово. Правил: валидация ${rules.validation.length}, поведение ${rules.behavior.length}, ` +
-    `render ${rules.render.length}. Они уходят в validation/ и behavior/ модуля формы.`
+    `render ${rules.render.length}, источников ${Object.keys(rules.dataSources ?? {}).length}. ` +
+    'Они уходят в validation/, behavior/ и constants/ модуля формы.'
   );
 }

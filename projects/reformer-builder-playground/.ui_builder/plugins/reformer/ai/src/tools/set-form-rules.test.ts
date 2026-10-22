@@ -295,3 +295,29 @@ describe('set_form_rules — связи строк массива', () => {
     expect(res.error?.message).toContain('rows.nope');
   });
 });
+
+describe('set_form_rules — значения источников данных', () => {
+  it('варианты источника ложатся в правила, null их убирает', async () => {
+    const options = [
+      { value: 'msk', label: 'Москва' },
+      { value: 'spb', label: 'Санкт-Петербург' },
+    ];
+    const set = await reg.invoke('set_form_rules', { dataSources: { CITIES: options } }, ctx());
+    expect(set.ok).toBe(true);
+    expect(set.rules?.dataSources).toEqual({ CITIES: options });
+
+    const removed = await reg.invoke(
+      'set_form_rules',
+      { dataSources: { CITIES: null } },
+      ctx(set.rules)
+    );
+    expect(removed.rules?.dataSources).toBeUndefined();
+  });
+
+  it('не идентификатор и варианты без подписи — отказ', async () => {
+    const name = await reg.invoke('set_form_rules', { dataSources: { 'my list': [] } }, ctx());
+    expect(name.error?.code).toBe('INVALID_PARAMS');
+    const bad = await reg.invoke('set_form_rules', { dataSources: { LIST: ['a', 'b'] } }, ctx());
+    expect(bad.error?.code).toBe('INVALID_PARAMS');
+  });
+});

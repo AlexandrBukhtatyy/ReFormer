@@ -93,6 +93,7 @@ import {
   formKeyOf,
   useFilesVersion,
   useKitVersion,
+  useRuleDataSources,
   useLiveValidation,
   usePreviewSchema,
   usePreviewSelection,
@@ -227,6 +228,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   // решает чтение (`./read`), а фикстура остаётся рядом с документом.
   const schemaPath = host.documentOf(documentId)?.ref.path ?? '';
   const mock = ctx.mock();
+  const dataSources = useRuleDataSources(host, ctx.doc);
 
   const kit = useMemo(() => {
     // Счётчик читается намеренно: кит приходит ФУНКЦИЯМИ порта, и только он связывает
@@ -327,6 +329,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       descriptor: kit.descriptor,
       namespace: kit.namespace,
       mock,
+      ...(dataSources !== undefined ? { dataSources } : {}),
       fixture: sources.fixture,
       extraRegistry: sources.registry,
       initialOverride: sources.initial,
@@ -351,7 +354,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       carry,
     });
     return { bundle, owner };
-  }, [schema, kit, mock, sources, ctx]);
+  }, [schema, kit, mock, dataSources, sources, ctx]);
   const bundle = built?.bundle ?? null;
   // Итог чужой сборки не показывается: форму пересобрали, и он относится к прежней.
   const shown = outcome !== null && outcome.owner === built?.owner ? outcome : null;

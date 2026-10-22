@@ -47,11 +47,13 @@ export function parseRulesText(text: string): RulesTextResult {
  * сравнение текстов отвечает на вопрос «изменились ли правила».
  */
 export function printRulesText(rules: FormRules): string {
+  const dataSources = rules.dataSources ?? {};
   return printJson({
     version: RULES_FILE_VERSION,
     validation: rules.validation,
     behavior: rules.behavior,
     render: rules.render,
+    ...(Object.keys(dataSources).length > 0 ? { dataSources } : {}),
   });
 }
 
