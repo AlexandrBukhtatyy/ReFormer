@@ -29,6 +29,8 @@ export {
   VALIDATION_DIR,
   FORM_RULES_NAME,
   MESSAGES_NAME,
+  RULES_SIDECAR_FILE,
+  rulesSidecarNameOf,
   RESERVED_STEP_NAMES,
   FLAT_LAYOUT_FILES,
   FLAT_STEPS_DIR,
@@ -54,6 +56,13 @@ export {
   type ModuleRootPort,
 } from './layout';
 export { layoutOf, type ModuleLayout, type StepInfo } from './steps';
+export {
+  RULES_FILE_VERSION,
+  parseRulesText,
+  printRulesText,
+  emptyRulesText,
+  type RulesTextResult,
+} from './rules-file';
 export { stepDirName } from '../form-model/step-dir';
 export { makeNames, pascal, camel, humanize, stepRulesAlias, type Names } from './naming';
 export { assignSelectors, type AssignResult, type SelectorInfo } from './selectors';

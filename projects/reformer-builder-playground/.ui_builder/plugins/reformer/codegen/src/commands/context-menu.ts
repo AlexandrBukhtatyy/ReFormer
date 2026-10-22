@@ -73,6 +73,8 @@ import {
 } from '../pipeline/deliver';
 import { generateModule, type ModuleFile } from '../pipeline/generate';
 import type { CodegenDocument, CodegenHost } from '../host';
+import { RulesFileError } from '../pipeline/rules';
+import type { FormRules } from '../../../core/form-model';
 import { schemaOf } from '../pipeline/run';
 import {
   asFormSchema,
@@ -304,6 +306,14 @@ export async function generateInto(
     return { kind: 'failed', message: error.message };
   }
 
+  let rules: FormRules | undefined;
+  try {
+    rules = (await host.rulesOf?.(found.ref.id)) ?? undefined;
+  } catch (error) {
+    if (!(error instanceof RulesFileError)) throw error;
+    return { kind: 'failed', message: error.message };
+  }
+
   const module = await generateModule(
     deps.targets(),
     {
@@ -313,7 +323,7 @@ export async function generateInto(
       // Документ остаётся там, где лежит: импорты и место файлов шагов считаются от него.
       schemaPath: found.schemaPath,
       kit: { kit, catalog: host.catalog() },
-      rules: host.rulesOf?.(found.ref.id) ?? undefined,
+      rules,
     },
     host.format
   );

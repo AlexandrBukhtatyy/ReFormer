@@ -9,6 +9,7 @@ import { emptyRules, type FormRules } from '../../core/form-model';
 import {
   KitsCapability,
   ValidatorPoint,
+  WorkspaceFilesServiceToken,
   type CatalogJson,
   type KitsService,
   type DocumentRef,
@@ -26,6 +27,7 @@ import {
   SCHEMA_VALIDATOR_PLUGIN_ID,
 } from './plugin';
 import type { ValidateFormSchema } from './check';
+import { printRulesText } from '../../core/codegen/rules-file';
 
 function docRef(
   kind: 'text' | 'model',
@@ -369,7 +371,10 @@ describe('плагин сообщает оркестратору о смене �
         },
       },
       commands: { get: () => undefined },
-      services: { get: () => current },
+      // По токену, а не на любой: служба файлов рабочей области — другой токен.
+      services: {
+        get: (token: { id: string }) => (token.id === KitsCapability.id ? current : undefined),
+      },
       capabilities: {
         observe: (_cap: unknown, listener: (impl: KitReader | undefined) => void) => {
           observers.add(listener);
@@ -457,6 +462,7 @@ describe('плагин сообщает оркестратору о смене �
         },
       },
       commands: { get: () => undefined },
+      services: { get: () => undefined },
     } as unknown as PluginContext;
     return { ctx, contributed };
   }
@@ -672,6 +678,7 @@ describe('проверка по мета-схеме грузится по тре
           return { dispose: () => {} };
         },
       },
+      services: { get: () => undefined },
     } as unknown as PluginContext;
 
     // Настоящий плагин грузит настоящий модуль; проверяем то, что можно проверить синхронно:
@@ -680,5 +687,55 @@ describe('проверка по мета-схеме грузится по тре
 
     expect(contributed).toHaveLength(1);
     expect(source.calls()).toBe(0);
+  });
+});
+
+describe('правила формы — файл рядом с документом', () => {
+  it('правило на несуществующее поле находится, когда файл дочитан, — с просьбой перепроверить', async () => {
+    const texts = new Map([
+      [
+        'fs:forms/credit.rules.json',
+        printRulesText({
+          validation: [{ target: 'nope', rules: ['required'] }],
+          behavior: [],
+          render: [],
+        }),
+      ],
+    ]);
+    const files = {
+      parentOf: (id: string) => id.slice(0, id.lastIndexOf('/')),
+      resolve: (dir: string, ...segments: readonly string[]) => [dir, ...segments].join('/'),
+      readText: (id: string) => Promise.resolve(texts.get(id) ?? null),
+      onDidChange: () => ({ dispose: () => {} }),
+    };
+    const contributed: ValidatorContribution[] = [];
+    const ctx = {
+      id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      i18n: { contribute: () => ({ dispose: () => {} }) },
+      subscriptions: [] as { dispose(): void }[],
+      extensions: {
+        contribute: (_point: unknown, value: ValidatorContribution) => {
+          contributed.push(value);
+          return { dispose: () => {} };
+        },
+      },
+      commands: { get: () => undefined },
+      services: {
+        get: (token: { id: string }) =>
+          token.id === WorkspaceFilesServiceToken.id ? files : undefined,
+      },
+    } as unknown as PluginContext;
+    createSchemaValidatorPlugin({ catalog: () => [] }).activate(ctx);
+    const [validator] = contributed;
+    const recheck = vi.fn();
+    validator.onDidChangeInputs?.(recheck);
+
+    const validate = (): ReturnType<NonNullable<ValidatorContribution['validate']>> =>
+      validator.validate?.(contextOf(undefined)) ?? [];
+    const orphan = (found: readonly { code: string }[]) =>
+      found.some((d) => d.code.endsWith('rules.validation-target-missing'));
+    expect(orphan(await validate())).toBe(false);
+    await vi.waitFor(() => expect(recheck).toHaveBeenCalled());
+    expect(orphan(await validate())).toBe(true);
   });
 });

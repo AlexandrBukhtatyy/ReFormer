@@ -26,6 +26,7 @@ import type { FormRules } from '../../../core/form-model';
 import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { ChangeSet } from '../model/changeset';
 import type { AskAnswer, AskQuestion } from '../model/types';
+import type { RulesFileBase } from './rules-file';
 
 /** Что делает ассистент прямо сейчас. */
 export type AgentStatus =
@@ -189,6 +190,11 @@ export interface PendingChanges {
    * него запись отложенного применения принадлежала бы неизвестно какому ходу.
    */
   readonly txId?: string;
+  /**
+   * Файл правил формы на начало хода — куда писать правила набора и с чем сверять расхождение.
+   * Нет — у платформы нет файлового доступа, и правила живут только в памяти моста.
+   */
+  readonly rulesFile?: RulesFileBase;
 }
 
 /**

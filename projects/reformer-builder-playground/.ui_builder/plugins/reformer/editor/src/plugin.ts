@@ -32,12 +32,14 @@ import {
   defineCapability,
   definePlugin,
   DiagnosticsServiceToken,
+  DocumentsServiceToken,
   EditorPoint,
   MenuPoint,
   PanelPoint,
   PreviewLiveCapability,
   SelectionServiceToken,
   SettingsServiceToken,
+  WorkspaceFilesServiceToken,
   type DocumentModelProvider,
   type EditorContribution,
   type PanelContribution,
@@ -78,7 +80,8 @@ import type {
   SchemaEditorHost,
   TextEditorProvider,
 } from './host';
-import { schemaHostFromContext } from './host-from-context';
+import { schemaHostFromContext, schemaRulesPort } from './host-from-context';
+import { createRulesCache } from '../../core/codegen/rules-cache';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
@@ -305,10 +308,20 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
       // провайдер поднимается отдельным плагином и может быть выключен человеком на ходу.
       // Режим исходника обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
       // Живой вид — возможность превью, тем же приёмом: превью выключаемо на ходу.
+      // Правила формы — файл рядом с документом; без них команда снятия осиротевшего правила
+      // не регистрируется (`./editing/commands`). Двойник хоста приходит со своими.
+      const files =
+        options.host === undefined ? ctx.services.get(WorkspaceFilesServiceToken) : undefined;
+      const documents = ctx.services.get(DocumentsServiceToken);
+      const rulesCache = files === undefined ? undefined : createRulesCache(files);
+      if (rulesCache !== undefined) ctx.subscriptions.push({ dispose: () => rulesCache.dispose() });
       const host: SchemaEditorHost = {
         ...(options.host ?? schemaHostFromContext(ctx)),
         textEditor: () => ctx.services.get(TextEditorCapability),
         live: () => ctx.services.get(PreviewLiveCapability),
+        ...(rulesCache !== undefined && documents !== undefined
+          ? { rules: schemaRulesPort(rulesCache, documents) }
+          : {}),
       };
       bound = host;
       for (const [locale, messages] of Object.entries(SCHEMA_EDITOR_MESSAGES)) {

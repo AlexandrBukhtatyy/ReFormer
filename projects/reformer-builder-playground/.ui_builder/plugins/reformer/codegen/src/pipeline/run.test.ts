@@ -6,6 +6,8 @@ import { defaultFormName, runCodegen, schemaOf } from './run';
 import { createCodegenSessions } from './state';
 import { BUILTIN_TARGETS } from './targets';
 import { createFakeDocument, createFakeHost } from '../testing';
+import { printRulesText } from '../../../core/codegen/rules-file';
+import { readFormRules } from './rules';
 
 const DOC = 'src/forms/credit.schema.json' as ResourceId;
 
@@ -66,6 +68,34 @@ describe('прогон генерации', () => {
   it('документ в папке schema называет форму каталогом МОДУЛЯ, а не «schema»', () => {
     const nested = 'src/forms/loan/schema/form.schema.json';
     expect(defaultFormName(createFakeDocument(nested, '{}', 'form.schema.json'))).toBe('loan');
+  });
+
+  it('правила берутся из файла правил рядом с документом и печатаются в валидацию', async () => {
+    const { host, store } = setup();
+    host.written.set(
+      'src/forms/credit.rules.json',
+      printRulesText({
+        validation: [{ target: 'fullName', rules: ['required'] }],
+        behavior: [],
+        render: [],
+      })
+    );
+    host.rulesOf = (id) => readFormRules(host, id, DOC);
+    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
+
+    expect(store.get().errorKey).toBeNull();
+    expect(host.written.get('src/forms/credit/validation/form.ts')).toContain('required');
+  });
+
+  it('битый файл правил — отказ прогона с адресом файла, ничего не записано', async () => {
+    const { host, store } = setup();
+    host.written.set('src/forms/credit.rules.json', '{ broken');
+    host.rulesOf = (id) => readFormRules(host, id, DOC);
+    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
+
+    expect(store.get().errorKey).toBe('error.rules-file');
+    expect(store.get().errorDetail).toContain('credit.rules.json');
+    expect([...host.written.keys()]).toEqual(['src/forms/credit.rules.json']);
   });
 
   it('без кита отказывает НАЗВАННО и ничего не пишет', async () => {

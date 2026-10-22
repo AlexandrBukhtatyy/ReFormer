@@ -28,6 +28,7 @@ import type { AiMessage, AiProvider } from '../providers/types';
 import { printSchemaText } from '../model/schema-text';
 import { createAiSession, openAskOf, type AiSession, type AskCard } from './session';
 import { createFakeFiles, createFakeHost, type FakeFiles, type FakeHost } from '../testing';
+import { emptyRulesText, printRulesText } from '../../../core/codegen/rules-file';
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { ResourceProviderEntry } from './resources';
 
@@ -1491,5 +1492,88 @@ describe('вопросы модели (ask_user)', () => {
 
     expect(files.text(FORM_FILE)).toContain('Почта');
     expect(session.get().entries[1].asks?.[0].answers).toEqual([{ selected: ['Нет'] }]);
+  });
+});
+
+describe('файл правил формы', () => {
+  const RULES_FILE = 'form.rules.json';
+  const insertEmail: FakeStep = {
+    tool: 'insert_node',
+    args: {
+      parent: '/root',
+      nodes: [{ component: FIELD, model: 'email', props: { label: 'Почта' } }],
+    },
+  };
+  const requireEmail: FakeStep = {
+    tool: 'set_form_rules',
+    args: { validation: [{ target: 'email', rules: ['required'] }] },
+  };
+  const REQUIRED = {
+    validation: [{ target: 'email', rules: ['required'] }],
+    behavior: [],
+    render: [],
+  };
+
+  it('правила хода ложатся файлом рядом с документом той же пометкой хода', async () => {
+    const files = createFakeFiles();
+    const { host, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], { files });
+    await bridge.send('добавь обязательную почту');
+
+    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
+    expect(files.writes.at(-1)?.mark).toEqual(host.writes.at(-1)?.mark);
+  });
+
+  it('новый мост — как после перезагрузки — показывает модели правила из файла', async () => {
+    const files = createFakeFiles({ [RULES_FILE]: printRulesText(REQUIRED) });
+    const { provider, requests } = recordingSequence([[{ text: 'Правило одно.' }]]);
+    const { bridge } = harness([], { files, provider });
+    await bridge.send('какие правила?');
+
+    expect(JSON.stringify(requests[0])).toContain('validate email: required');
+  });
+
+  it('отмена хода возвращает файл правил: созданный ходом — очищается', async () => {
+    const files = createFakeFiles();
+    const { host, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], { files });
+    await bridge.send('добавь обязательную почту');
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(files.text(RULES_FILE)).toBe(emptyRulesText());
+    expect(host.documentOf(RESOURCE)?.getText()).toBe(printSchemaText(EMPTY_FORM));
+  });
+
+  it('«Восстановить» на реплике возвращает и правила', async () => {
+    const files = createFakeFiles();
+    const { session, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], {
+      files,
+    });
+    await bridge.send('добавь обязательную почту');
+    await bridge.restoreTo(session.get().entries[0].id);
+
+    expect(files.text(RULES_FILE)).toBe(emptyRulesText());
+  });
+
+  it('битый файл правил: разметка легла, файл не тронут, замечание называет файл', async () => {
+    const files = createFakeFiles({ [RULES_FILE]: '{ broken' });
+    const { host, session, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], {
+      files,
+    });
+    await bridge.send('добавь обязательную почту');
+
+    expect(files.text(RULES_FILE)).toBe('{ broken');
+    expect(host.documentOf(RESOURCE)?.getText()).toContain('Почта');
+    expect(session.get().error).toContain('turn.rules.broken');
+    expect(session.get().error).toContain(RULES_FILE);
+  });
+
+  it('инструменту плагина файл правил не отдаётся', async () => {
+    const files = createFakeFiles({ [RULES_FILE]: printRulesText(REQUIRED) });
+    const { bridge } = harness([writeNote, { text: 'Готово.' }], {
+      files,
+      assistantTools: [writerTool(RULES_FILE, '{}')],
+    });
+    await bridge.send('перепиши правила');
+
+    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
   });
 });

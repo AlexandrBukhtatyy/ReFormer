@@ -39,6 +39,7 @@
   "error.not-a-schema": "This document is not a form schema.",
   "error.step-parts": "The form cannot be assembled from its step files.",
   "error.no-kit": "No kit selected: there is no way to know where to import components from.",
+  "error.rules-file": "The form rules file does not parse — fix it, or validation and behaviour would be printed as stubs.",
   "error.read-only": "The source refuses writes — there is nowhere to put the module.",
   "error.kit-mismatch": "The module was printed by kit {module}, but {active} is active: generating would reprint the registry and the page for another kit. Switch the kit in the status bar to the module's kit — or delete schema/registry.ts to reprint the module for the active one.",
   "error.failed": "Writing the module failed.",

@@ -33,6 +33,7 @@ import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { originOf } from '@reformer/builder-toolkit';
 import { isFormStepSchema, migrateNodeFormat } from '../../../core/form-model';
 import { fileRoleOf, type ModuleFileRole } from '../../../core/codegen/layout';
+import { parseRulesText } from '../../../core/codegen/rules-file';
 import { validateSchema } from '../model/validate';
 import { countErrors, introduced } from '../loop/introduced';
 import { MAX_REPORTED } from '../loop/gate';
@@ -73,6 +74,13 @@ export async function gateWrite(
   if (roleNote) notes.push(roleNote);
 
   if (role === 'form' || role === 'step') return schemaGate(ctx, file, next, before, role, notes);
+  if (role === 'rules') {
+    // Файл правил разбирается так же, как его читают ход и кодоген: битый файл они примут за
+    // отказ, а не за «правил нет», — значит, и записать его нельзя.
+    const parsed = parseRulesText(next);
+    if (!parsed.ok) return refuse('SCHEMA_INVALID', `${file.rel}: ${parsed.error}`);
+    return { ok: true, notes };
+  }
   if (/\.tsx?$/.test(file.rel)) return codeGate(ctx, next, before, notes);
   if (file.rel.endsWith('.json')) {
     try {

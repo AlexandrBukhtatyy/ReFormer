@@ -63,6 +63,7 @@ import {
   pluginMessageKey,
   withUsableFixes,
   ValidatorPoint,
+  WorkspaceFilesServiceToken,
   type CapabilityAccess,
   type CommandLookup,
   type Diagnostic,
@@ -74,6 +75,7 @@ import {
 } from '@reformer/builder-plugin-api';
 import { isFormSchemaDocument as isStackFormSchemaDocument } from '../../core/form-model';
 import { checkForm, type ValidateFormSchema } from './check';
+import { createRulesCache } from '../../core/codegen/rules-cache';
 import { SCHEMA_VALIDATOR_ID } from './codes';
 import { SCHEMA_VALIDATOR_MESSAGES } from './messages';
 
@@ -335,8 +337,26 @@ export function createSchemaValidatorPlugin(options: SchemaValidatorOptions): Pl
         ctx.i18n.contribute(locale, messages);
       }
       const deferred = createDeferredSchemaCheck();
+      // Правила — файл рядом с документом (`core/codegen/rules-file`); проход синхронный,
+      // поэтому через кэш: доехавший или изменившийся файл перепроверяет документ.
+      const files =
+        options.rules === undefined ? ctx.services.get(WorkspaceFilesServiceToken) : undefined;
+      const rulesCache = files === undefined ? undefined : createRulesCache(files);
+      if (rulesCache !== undefined) ctx.subscriptions.push({ dispose: () => rulesCache.dispose() });
+      const followers: ((cb: () => void) => Disposable)[] = [];
+      // Следить за службой китов есть смысл, только когда каталог берётся из неё. Подписка
+      // заводится оркестратором на открытии документа, а не здесь: `activate` только
+      // регистрирует.
+      if (options.onDidChangeInputs !== undefined) followers.push(options.onDidChangeInputs);
+      else if (options.catalog === undefined) {
+        followers.push((cb) => followKitCatalog(ctx.capabilities, cb));
+      }
+      if (rulesCache !== undefined) followers.push((cb) => rulesCache.onDidChange(cb));
       const withCommands: SchemaValidatorOptions = {
         ...options,
+        ...(rulesCache === undefined
+          ? {}
+          : { rules: (doc: DocumentRef) => rulesCache.get(doc.id, doc.ref.path) ?? undefined }),
         // Служба СПРАШИВАЕТСЯ на каждом проходе, а не читается сейчас, и по той же причине,
         // что реестр команд ниже: кит переключают, а плагин китов вправе подняться позже —
         // порядок активации объявлен незначимым. Захваченный здесь каталог был бы каталогом
@@ -348,12 +368,16 @@ export function createSchemaValidatorPlugin(options: SchemaValidatorOptions): Pl
             return kits === undefined ? NO_CATALOG : projectCatalog(kits.catalogJson()).entries;
           }),
         hasCommand: options.hasCommand ?? ((id) => ctx.commands.get(id) !== undefined),
-        // Следить за службой китов есть смысл, только когда каталог берётся из неё. Подписка
-        // заводится оркестратором на открытии документа, а не здесь: `activate` только
-        // регистрирует.
-        ...(options.onDidChangeInputs === undefined && options.catalog === undefined
-          ? { onDidChangeInputs: (cb: () => void) => followKitCatalog(ctx.capabilities, cb) }
-          : {}),
+        ...(followers.length === 0
+          ? {}
+          : {
+              onDidChangeInputs: (cb: () => void) => {
+                const subscriptions = followers.map((follow) => follow(cb));
+                return once(() => {
+                  for (const subscription of subscriptions) subscription.dispose();
+                });
+              },
+            }),
       };
       ctx.subscriptions.push(
         ctx.extensions.contribute(ValidatorPoint, createSchemaValidator(withCommands, deferred), {

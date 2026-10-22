@@ -27,6 +27,8 @@ import { deliverInto, KitMismatchError, SourceReadOnlyError } from './deliver';
 import { generateModule, type CodegenProblem } from './generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import type { CodegenStore } from './state';
+import { RulesFileError } from './rules';
+import type { FormRules } from '../../../core/form-model';
 import { asFormSchema, formSourceOf, StepPartsError, type FormSource } from './source';
 
 /**
@@ -117,6 +119,17 @@ export async function runCodegen(options: RunOptions): Promise<void> {
     return;
   }
 
+  // Правила читаются до начала печати: битый файл правил — отказ прогона, а не заготовки на
+  // месте правил, которые человек видит в файле.
+  let rules: FormRules | undefined;
+  try {
+    rules = (await host.rulesOf?.(documentId)) ?? undefined;
+  } catch (error) {
+    if (!(error instanceof RulesFileError)) throw error;
+    store.patch({ phase: 'idle', errorKey: 'error.rules-file', errorDetail: error.message });
+    return;
+  }
+
   const formName = (options.formName ?? '').trim() || defaultFormName(document);
   store.patch({
     phase: 'running',
@@ -137,7 +150,7 @@ export async function runCodegen(options: RunOptions): Promise<void> {
       formName,
       schemaPath: placement.schemaPath,
       kit: { kit, catalog: host.catalog() },
-      rules: host.rulesOf?.(documentId) ?? undefined,
+      rules,
     },
     host.format
   );

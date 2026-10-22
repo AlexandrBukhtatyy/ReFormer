@@ -12,7 +12,8 @@ import { applyChangeSet, isStale, type ApplyDeps } from './apply';
 import { createChangeSet, type ChangeSet } from '../model/changeset';
 import { printSchemaText } from '../model/schema-text';
 import type { PendingChanges } from './session';
-import { createFakeHost } from '../testing';
+import { createFakeFiles, createFakeHost } from '../testing';
+import { printRulesText } from '../../../core/codegen/rules-file';
 
 const RESOURCE = 'form.json';
 
@@ -179,5 +180,75 @@ describe('расхождение спрашивается заранее', () =>
     expect(isStale({ host }, pending)).toBe(true);
     host.closeDocument(RESOURCE);
     expect(isStale({ host }, pending)).toBe(true);
+  });
+});
+
+describe('файл правил формы — вторая запись того же хода', () => {
+  const RULES_FILE = 'form.rules.json';
+  const REQUIRED = {
+    validation: [{ target: 'email', rules: ['required'] }],
+    behavior: [],
+    render: [],
+  };
+
+  function withRules(rulesText: string | null, options: { broken?: string } = {}) {
+    const files = createFakeFiles(rulesText === null ? {} : { [RULES_FILE]: rulesText });
+    const host = createFakeHost(undefined, files);
+    const base = schema('Почта');
+    const baseText = printSchemaText(base);
+    host.openDocument(RESOURCE, baseText);
+    const pending: PendingChanges = {
+      set: { ...changed(base, schema('Email')), draftRules: REQUIRED },
+      resource: RESOURCE,
+      baseText,
+      txId: 'tx-1',
+      rulesFile: {
+        id: RULES_FILE,
+        text: rulesText,
+        ...(options.broken === undefined ? {} : { broken: options.broken }),
+      },
+    };
+    return { host, files, pending };
+  }
+
+  it('правила ложатся файлом рядом с той же пометкой хода, что схема', async () => {
+    const { host, files, pending } = withRules(null);
+    expect(await applyChangeSet(deps(host), pending)).toEqual({ status: 'applied' });
+    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
+    expect(files.writes[0].mark).toEqual(host.writes[0].mark);
+    expect(host.writes[0].mark?.txId).toBe('tx-1');
+  });
+
+  it('правила не менялись — файл не трогается и не заводится', async () => {
+    const { host, files, pending } = withRules(printRulesText(REQUIRED));
+    await applyChangeSet(deps(host), pending);
+    expect(files.writes).toEqual([]);
+
+    const empty = withRules(null);
+    const noRules = { ...empty.pending, set: { ...empty.pending.set, draftRules: emptyRules() } };
+    await applyChangeSet(deps(empty.host), noRules);
+    expect(empty.files.writes).toEqual([]);
+  });
+
+  it('файл правил правили после начала хода — расхождение; «всё равно» пишет', async () => {
+    const { host, files, pending } = withRules(null);
+    files.put(RULES_FILE, printRulesText(emptyRules()));
+    expect(await applyChangeSet(deps(host), pending)).toEqual({ status: 'conflict' });
+    expect(host.writes).toEqual([]);
+
+    expect(await applyChangeSet(deps(host), pending, { force: true })).toEqual({
+      status: 'applied',
+    });
+    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
+  });
+
+  it('битый файл правил не перезаписывается: схема легла, исход говорит о правилах', async () => {
+    const { host, files, pending } = withRules('{ broken', { broken: 'Unexpected token' });
+    expect(await applyChangeSet(deps(host), pending)).toEqual({
+      status: 'applied',
+      rulesBroken: true,
+    });
+    expect(files.text(RULES_FILE)).toBe('{ broken');
+    expect(host.writes).toHaveLength(1);
   });
 });

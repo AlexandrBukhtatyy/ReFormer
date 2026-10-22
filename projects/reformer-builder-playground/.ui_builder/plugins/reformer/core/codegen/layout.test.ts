@@ -12,6 +12,7 @@ import {
   modulePlacementOf,
   moduleRootOfDocument,
   moduleRootPathOf,
+  rulesSidecarNameOf,
   schemaDirOf,
   schemaPathInModule,
   stepSchemaPath,
@@ -254,6 +255,20 @@ describe('isCanonicalSchemaName', () => {
   });
 });
 
+describe('rulesSidecarNameOf — имя файла правил рядом с документом', () => {
+  it('у канонического имени документа — form.rules.json, и у прежнего тоже', () => {
+    expect(rulesSidecarNameOf('forms/loan/schema/form.schema.json')).toBe('form.rules.json');
+    expect(rulesSidecarNameOf('forms/loan/form.schema.json')).toBe('form.rules.json');
+    expect(rulesSidecarNameOf('forms/loan/renderer.schema.json')).toBe('form.rules.json');
+  });
+
+  it('у свободного имени — основа до первой точки, без окончаний документа формы', () => {
+    expect(rulesSidecarNameOf('forms/credit.schema.json')).toBe('credit.rules.json');
+    expect(rulesSidecarNameOf('forms/credit.form.json')).toBe('credit.rules.json');
+    expect(rulesSidecarNameOf('credit.json')).toBe('credit.rules.json');
+  });
+});
+
 describe('fileRoleOf — роль файла модуля для правки мимо кодогена', () => {
   const files = moduleFilesOf(NAMES);
 
@@ -263,6 +278,14 @@ describe('fileRoleOf — роль файла модуля для правки м
     // Шаги прежней плоской раскладки лежат рядом с документом в корне модуля.
     expect(fileRoleOf('steps/kontakty/form.schema.json', 'form.schema.json')).toBe('step');
     expect(fileRoleOf('schema/steps/a/b/form.schema.json', DEFAULT_SCHEMA_PATH)).toBe('other');
+  });
+
+  it('файл правил — рядом с документом, в любой раскладке', () => {
+    expect(fileRoleOf('schema/form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('rules');
+    expect(fileRoleOf('form.rules.json', 'form.schema.json')).toBe('rules');
+    // Не рядом с документом — не его правила.
+    expect(fileRoleOf('form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('other');
+    expect(fileRoleOf('schema/steps/a/form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('other');
   });
 
   it('производные файлы — те, что кодоген перепечатывает всегда', () => {

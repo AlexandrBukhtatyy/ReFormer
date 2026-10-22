@@ -24,13 +24,16 @@ import {
   KitsCapability,
   useTranslate,
   type Disposable,
+  type DocumentsService,
   type HostMessagesService,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import { projectCatalog, type CatalogEntry } from '../../core/catalog';
 import { SCHEMA_MODEL_PROVIDER_ID } from './contract';
-import type { SchemaEditorHost, SchemaModelHandle, Translate } from './host';
+import type { SchemaEditorHost, SchemaModelHandle, SchemaRulesPort, Translate } from './host';
+import type { RulesCache } from '../../core/codegen/rules-cache';
+import { printRulesText } from '../../core/codegen/rules-file';
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 const NOOP: Disposable = Object.freeze({ dispose: () => {} });
@@ -100,5 +103,34 @@ export function schemaHostFromContext(
     categoryOrder: () => kits()?.descriptor().palette.order,
 
     onCatalogChange: (cb: () => void): Disposable => kits()?.onDidChange(cb) ?? NOOP,
+  };
+}
+
+/**
+ * Порт правил формы над файлом правил рядом с документом (`core/codegen/rules-file`).
+ *
+ * Чтение — из кэша (порт синхронный: им отвечает применимость быстрого исправления), запись —
+ * обычной правкой рабочей копии без пометки: снятие правила заказал человек. Свою запись кэш
+ * помнит сразу, чтобы следующий вопрос не видел правило, которое только что убрали.
+ */
+export function schemaRulesPort(
+  cache: RulesCache,
+  documents: Pick<DocumentsService, 'documentOf' | 'writeText'>
+): SchemaRulesPort {
+  const pathOf = (id: ResourceId): string | null => documents.documentOf(id)?.ref.path ?? null;
+  return {
+    get(id) {
+      const path = pathOf(id);
+      return path === null ? null : (cache.get(id, path) ?? null);
+    },
+    set(id, rules) {
+      const path = pathOf(id);
+      if (path === null) return;
+      const text = printRulesText(rules);
+      cache.remember(id, path, text);
+      void documents.writeText(cache.fileOf(id, path), text).catch((error: unknown) => {
+        console.error('[schema-editor] файл правил не записан', error);
+      });
+    },
   };
 }

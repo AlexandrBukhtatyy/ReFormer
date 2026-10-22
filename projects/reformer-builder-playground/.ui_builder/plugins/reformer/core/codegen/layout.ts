@@ -65,6 +65,12 @@ export const FORM_RULES_NAME = 'form';
 export const MESSAGES_NAME = 'messages';
 
 /**
+ * Файл правил формы (валидация, поведение, правила узлов) рядом с её документом — сайдкар,
+ * см. `core/form-model/rules`. Разметка его не знает: правила живут отдельно от схемы.
+ */
+export const RULES_SIDECAR_FILE = 'form.rules.json';
+
+/**
  * Имена, которые шаг визарда занять не может: под ними в `validation/` лежат файлы формы.
  *
  * Шаг с заголовком «Form» дал бы `validation/form.ts` — тот же путь, что у правил формы, шаг
@@ -228,6 +234,23 @@ export function schemaPathInModule(path: string): string {
   return baseName(dirName(normalized)) === SCHEMA_DIR ? `${SCHEMA_DIR}/${file}` : file;
 }
 
+/**
+ * Имя файла правил для документа формы — он лежит в том же каталоге.
+ *
+ * У канонических имён документа — всегда {@link RULES_SIDECAR_FILE}, в том числе у прежнего
+ * `renderer.schema.json`: доставка переименует документ в `form.schema.json`, и правила обязаны
+ * пережить это без второго переименования. У свободного имени — его основа до первой точки:
+ * `credit.schema.json` → `credit.rules.json`. Окончания `.schema.json` и `.form.json` файл правил
+ * не получает никогда — по ним поиск формы в каталоге принял бы его за документ.
+ */
+export function rulesSidecarNameOf(documentPath: string): string {
+  const name = baseName(normalize(documentPath));
+  if (isCanonicalSchemaName(name)) return RULES_SIDECAR_FILE;
+  const dot = name.indexOf('.');
+  const stem = dot === -1 ? name : name.slice(0, dot);
+  return stem === '' ? RULES_SIDECAR_FILE : `${stem}.rules.json`;
+}
+
 /** Где модуль формы лежит относительно её документа. */
 export interface ModulePlacement {
   /**
@@ -337,6 +360,8 @@ export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path:
  * Роль файла модуля формы — то, что правка этого файла значит для кодогена.
  *
  * - `form` — документ формы; `step` — файл шага разбитого визарда;
+ * - `rules` — файл правил формы рядом с документом ({@link rulesSidecarNameOf}): из него кодоген
+ *   печатает `regenerable`-файлы;
  * - `derived` — производный: генерация кода перепечатывает его ВСЕГДА, ручная правка не доживёт
  *   до следующего прогона;
  * - `regenerable` — авторский, но печатается из правил формы, пока несёт маркер кодогена: правка
@@ -348,6 +373,7 @@ export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path:
 export type ModuleFileRole =
   | 'form'
   | 'step'
+  | 'rules'
   | 'derived'
   | 'regenerable'
   | 'user'
@@ -387,6 +413,7 @@ const USER_FILES: readonly string[] = Object.freeze([
 export function fileRoleOf(path: string, schemaPath: string): ModuleFileRole {
   const file = normalize(path);
   if (file === normalize(schemaPath)) return 'form';
+  if (file === `${schemaDirOf(schemaPath)}${rulesSidecarNameOf(schemaPath)}`) return 'rules';
 
   const stepsDir = `${schemaDirOf(schemaPath)}${STEP_SCHEMAS_DIR}/`;
   if (file.startsWith(stepsDir)) {

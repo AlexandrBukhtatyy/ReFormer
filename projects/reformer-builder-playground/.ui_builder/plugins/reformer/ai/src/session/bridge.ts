@@ -54,6 +54,7 @@ import {
   type ResourceSearchGroup,
 } from './resources';
 import { createTurnWrites, type TurnWrites } from './turn-writes';
+import { readRulesFile, rulesTextBefore, rulesTextToWrite, type RulesFileBase } from './rules-file';
 import type { LoadValidateForm } from '../model/validate';
 import type { AiFiles, AiHost, FileScope, WriteMark } from '../host';
 import { historyFor } from './history';
@@ -315,6 +316,8 @@ interface Target {
   readonly baseText: string;
   readonly base: JsonFormSchema;
   readonly rules: FormRules;
+  /** Файл правил на начало хода; нет — файлового доступа нет, правила живут в памяти моста. */
+  readonly rulesFile?: RulesFileBase;
 }
 
 /** Чем кончилась одна попытка: всё, что нужно, чтобы её закрыть или продолжить. */
@@ -334,7 +337,8 @@ interface FileOutcome {
 
 /** Что стало с набором изменений. */
 type Landing =
-  | { readonly status: 'applied' }
+  /** Набор лёг; `note` — что из него всё же не записалось (правила при битом файле правил). */
+  | { readonly status: 'applied'; readonly note?: string }
   /** Применять было нечего. */
   | { readonly status: 'nothing' }
   /**
@@ -407,16 +411,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   };
 
   /**
-   * Правила формы по документам — В ПАМЯТИ СЕССИИ, и это честно названное ограничение.
+   * Правила формы по документам — запасной путь для платформы без файлового доступа.
    *
-   * Правила формы (`@/plugins/reformer/core/form-model`) — сайдкар: они лежат рядом со схемой отдельным
-   * файлом. Плумбинга этого сайдкара в v2 ещё нет вовсе — валидатор схемы получает правила
-   * параметром, и композиция сегодня не передаёт ничего. Пока файла нет, единственная
-   * альтернатива памяти — отказать ассистенту в правилах совсем, то есть в валидации и
-   * поведении формы. Память хуже файла, но лучше отказа: в пределах сессии `merge` работает
-   * правильно, а карта правил уходит в затравку хода и модель их видит.
-   *
-   * Что при этом теряется, надо знать: перезагрузка страницы правила забудет.
+   * Правила формы — сайдкар: файл рядом со схемой (`./rules-file`). Ход читает его на старте и
+   * пишет в конце, а эта память нужна только там, где файлов нет (`host.files` не дан), — иначе
+   * ассистенту пришлось бы отказать в правилах совсем. Перезагрузка страницы такую память забудет.
    */
   const rulesByResource = new Map<ResourceId, FormRules>();
 
@@ -466,7 +465,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const rel = relInScope(host.files, scope, id);
     if (rel === null) return null;
     const role = fileRoleOf(rel, scope.schemaPath);
-    return role === 'form' || role === 'step' ? reason : null;
+    // Файл правил ход тоже пишет сам — из черновика правил вместе со схемой.
+    return role === 'form' || role === 'step' || role === 'rules' ? reason : null;
   };
 
   /** Карточка, ждущая ответа, и как вернуть ответ ходу; `null` — никто не ждёт. */
@@ -542,13 +542,19 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * По той же причине запись того же хода не теряет файлов, которые в нём записали инструменты
    * плагинов: они легли раньше применения набора и отменяются вместе с ним.
    */
-  const rememberTurn = (pending: PendingChanges): void => {
+  const rememberTurn = async (pending: PendingChanges): Promise<void> => {
     const txId = pending.txId;
     // Без идентификатора хода отменять нечего: сложить две такие правки в один шаг не по чему,
     // и «отмена» сняла бы половину. Сегодня его проставляет `send`, то есть он есть всегда.
     if (txId === undefined) return;
     const document = host.documentOf(pending.resource);
     if (document === null) return;
+    // Файл правил — часть хода, если ход его изменил: отмена обязана вернуть и его.
+    const rulesFile = pending.rulesFile;
+    const rulesAfter =
+      rulesFile !== undefined && host.files !== undefined
+        ? await host.files.read(rulesFile.id)
+        : null;
 
     const previous = lastTurn !== null && lastTurn.txId === txId ? lastTurn : null;
     const earlier = previous?.files.get(pending.resource);
@@ -558,6 +564,14 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       after: document.getText(),
       access: 'document',
     });
+    if (rulesFile !== undefined && rulesAfter !== null && rulesAfter !== rulesFile.text) {
+      const earlierRules = previous?.files.get(rulesFile.id);
+      files.set(rulesFile.id, {
+        before: earlierRules ? earlierRules.before : rulesTextBefore(rulesFile),
+        after: rulesAfter,
+        access: 'files',
+      });
+    }
     setLastTurn({
       txId,
       files,
@@ -589,6 +603,28 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   /** Путь ресурса от корня проекта — для замечаний, называющих форму. */
   const pathOfResource = (id: ResourceId): string =>
     host.documentOf(id)?.ref.path ?? host.files?.pathOf(id) ?? String(id);
+
+  /**
+   * Вернуть файл правил формы к правилам снимка — для «Восстановить». Без пометки хода, как и
+   * текст формы: восстановление заказал человек. Файла не было и правил в снимке нет — писать
+   * нечего; битый файл не трогается, как и при ходе.
+   */
+  const restoreRulesFile = async (resource: ResourceId, rules: FormRules): Promise<void> => {
+    const files = host.files;
+    const document = host.documentOf(resource);
+    if (files === undefined || document === null) return;
+    const current = await readRulesFile(files, resource, document.ref.path);
+    if (current.broken !== undefined) return;
+    const text = rulesTextToWrite(current, rules);
+    if (text !== null) await files.write(current.id, text);
+  };
+
+  /** Замечание: правила хода не записаны, потому что файл правил не разбирается. */
+  const brokenRulesNote = (pending: PendingChanges): string =>
+    t('turn.rules.broken', {
+      path: pending.rulesFile === undefined ? '' : pathOfResource(pending.rulesFile.id),
+      error: pending.rulesFile?.broken ?? '',
+    });
 
   /** Чтение и запись файла хода — той дверью, которой ход его писал. */
   const accessOf = (file: LandedFile) =>
@@ -622,13 +658,19 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // за файл взялся, а ассистент правит только разбирающуюся схему.
       return null;
     }
-    return {
-      resource,
-      path: document.ref.path,
-      baseText,
-      base,
-      rules: rulesByResource.get(resource) ?? emptyRules(),
-    };
+    const files = host.files;
+    if (files === undefined) {
+      return {
+        resource,
+        path: document.ref.path,
+        baseText,
+        base,
+        rules: rulesByResource.get(resource) ?? emptyRules(),
+      };
+    }
+    // Файл правил читается на каждом ходу заново: его правят и мимо ассистента.
+    const { rules, ...rulesFile } = await readRulesFile(files, resource, document.ref.path);
+    return { resource, path: document.ref.path, baseText, base, rules, rulesFile };
   };
 
   /**
@@ -753,14 +795,17 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       resource: target.resource,
       baseText: target.baseText,
       txId,
+      ...(target.rulesFile === undefined ? {} : { rulesFile: target.rulesFile }),
     };
     const applied = await applyChangeSet({ host, validateForm: deps.validateForm }, pending);
     if (applied.status === 'applied') {
       // Правила уезжают в память вместе с применением, а не раньше: набор, который не лёг,
       // не должен менять то, от чего пойдёт следующий ход.
       rulesByResource.set(target.resource, set.draftRules);
-      rememberTurn(pending);
-      return { status: 'applied' };
+      await rememberTurn(pending);
+      return applied.rulesBroken === true
+        ? { status: 'applied', note: brokenRulesNote(pending) }
+        : { status: 'applied' };
     }
     if (applied.status === 'empty') return { status: 'nothing' };
     // Расхождение замечания не получает намеренно: набор уходит в предпросмотр с кнопками
@@ -844,7 +889,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       session.finishTurn(null, error ?? (wrote ? undefined : noEditsNote(outcome.reason)));
       return;
     }
-    session.finishTurn(null, error);
+    session.finishTurn(null, error ?? landed.note);
   };
 
   /**
@@ -907,7 +952,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const writes = createTurnWrites({
       files: host.files,
       mark: { origin: 'agent', txId },
-      refuse: (id) => formPartRefusal(id, target.resource, formScope),
+      refuse: (id) =>
+        // Файл правил хода закрыт и у формы без модуля, где роль по пути не определить.
+        id === target.rulesFile?.id
+          ? 'The assistant writes the form rules itself; a plugin tool cannot write them.'
+          : formPartRefusal(id, target.resource, formScope),
     });
     const scope = scopeOf(writes, signal);
 
@@ -1303,8 +1352,9 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           rulesByResource.set(pending.resource, pending.set.draftRules);
           // Отложенное применение — тот же ход, просто приземлившийся позже: `txId` набор
           // пережил ровно ради этого, и отменяться такой ход обязан так же, как обычный.
-          rememberTurn(pending);
-          session.resolvePending();
+          await rememberTurn(pending);
+          if (outcome.rulesBroken === true) session.finishTurn(null, brokenRulesNote(pending));
+          else session.resolvePending();
           break;
         case 'empty':
           session.resolvePending();
@@ -1352,6 +1402,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       try {
         await host.writeText(snapshot.resource, snapshot.text);
         rulesByResource.set(snapshot.resource, snapshot.rules);
+        await restoreRulesFile(snapshot.resource, snapshot.rules);
         // Отменять после этого нечего: форма вернулась к состоянию ДО хода, и та же отмена,
         // применённая поверх, вернула бы её к состоянию до какого-то другого хода.
         setLastTurn(null);

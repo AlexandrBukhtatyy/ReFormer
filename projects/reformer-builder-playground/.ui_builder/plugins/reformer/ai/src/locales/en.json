@@ -79,6 +79,7 @@
   "turn.failedEdits": "No edit was applied — the form is unchanged, whatever the assistant says: {error}",
   "turn.pending.dropped": "The unapplied changes of this turn were discarded by a new request.",
   "turn.undo.otherForm": "The turn was undone in {path}, which is not on screen now.",
+  "turn.rules.broken": "The turn's rules were not saved: the rules file {path} does not parse ({error}). The form layout was changed — fix the file and ask again.",
   "settings.busy": "The assistant is still working — connect once the turn ends.",
   "chat.target.active": "Edits: {path}",
   "chat.target.none": "No form is open — open one for the assistant to edit.",

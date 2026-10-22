@@ -43,6 +43,7 @@ import {
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './host';
+import { readFormRules } from './pipeline/rules';
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
@@ -167,6 +168,13 @@ export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): Co
     exists: files.exists,
     list: files.list,
     readText: files.readText,
+
+    // Правила — файл рядом с документом; читается на каждый прогон, кэша нет: его правят
+    // ассистент, человек и быстрые исправления, и прогон обязан видеть последний текст.
+    rulesOf: (id: ResourceId) => {
+      const document = documents.documentOf(id);
+      return document === null ? null : readFormRules(files, id, document.ref.path);
+    },
 
     // Запись — ОДНОЙ дверью, той же, которой правит человек и ассистент: пометка происхождения
     // живёт у неё, и второй путь означал бы записи, не попавшие в журнал как чужие.
