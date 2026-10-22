@@ -11,7 +11,7 @@
  */
 
 import { normalizeStepRef, type JsonFormSchema } from '@reformer/renderer-json';
-import { joinFormSchema, stepRefsOf } from '../../../core/form-model';
+import { joinFormSchema, stepRefsOf, type StepOrigins } from '../../../core/form-model';
 import { schemaDirOf } from '../../../core/codegen/layout';
 import { parseSchemaText } from '../model/schema-text';
 
@@ -22,6 +22,8 @@ export type ComposedForm =
       readonly schema: JsonFormSchema;
       /** Файлы шагов, на которые ссылается корень, — пути от корня модуля. */
       readonly stepFiles: readonly string[];
+      /** Какой шаг из какого файла — чтобы кодоген напечатал разбитую форму разбитой. */
+      readonly origins?: StepOrigins;
     }
   | { readonly ok: false; readonly error: string };
 
@@ -69,7 +71,8 @@ export async function composeForm(read: ReadModuleFile, schemaPath: string): Pro
   }
 
   try {
-    return { ok: true, schema: joinFormSchema(root, parts).schema, stepFiles };
+    const joined = joinFormSchema(root, parts);
+    return { ok: true, schema: joined.schema, stepFiles, origins: joined.origins };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
