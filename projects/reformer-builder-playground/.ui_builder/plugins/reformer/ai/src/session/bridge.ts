@@ -32,7 +32,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emptyRules, type FormRules } from '../../../core/form-model';
+import { emptyRules, emptySchema, type FormRules } from '../../../core/form-model';
 import {
   parseAssistantResourceUri,
   type CommandContribution,
@@ -43,9 +43,19 @@ import { createChangeSet, hasChanges, type ChangeSet } from '../model/changeset'
 import type { AgentCommand, ExecuteCommand } from '../tools/command-tools';
 import type { ContributedToolEntry } from '../tools/contributed-tools';
 import { runAgentTurn, type ActiveForm, type TurnEvent, type TurnStats } from '../loop/loop';
-import type { AskAnswer, AskOutcome, ChangeOp, TurnScope } from '../model/types';
+import type {
+  AskAnswer,
+  AskOutcome,
+  ChangeOp,
+  CreateFormOutcome,
+  CreateFormRequest,
+  TurnScope,
+} from '../model/types';
 import { askUserTool } from '../tools/ask-user';
 import { generateCodeTool } from '../tools/generate-code';
+import { createFormTool, listTemplatesTool } from '../tools/create-form';
+import { createToolRegistry } from '../tools/registry';
+import type { FormCreatorService } from '../templates';
 import type { GenerateReport, ModuleGeneratorService } from '../generator';
 import { createContributionSurface } from './contributions';
 import {
@@ -184,6 +194,12 @@ export interface BridgeDeps {
    * отвечает модели «недоступно».
    */
   readonly generator?: () => ModuleGeneratorService | undefined;
+  /**
+   * Создание формы — возможность плагина шаблонов (`../templates`). Функция по той же причине,
+   * что {@link generator}. Без неё `create_form` отвечает «недоступно», а ход без открытой формы —
+   * «откройте форму».
+   */
+  readonly formCreator?: () => FormCreatorService | undefined;
 }
 
 /** Идентификатор команды «отменить последний ход ассистента». */
@@ -341,6 +357,51 @@ interface FileOutcome {
   readonly reason: TurnReason;
   readonly message?: string;
   readonly stop?: AiStop;
+}
+
+/** Форма, созданная ходом (`create_form`), — на ней ход продолжается. */
+interface CreatedForm {
+  readonly resource: ResourceId;
+  readonly path: string;
+  /** Имя шаблона; `null` — пустая форма. */
+  readonly template: string | null;
+}
+
+/**
+ * Создание формы в попытке хода. Успешный `create_form` останавливает попытку (`stop`): правки
+ * после него легли бы в черновик прежней формы. `signal` попытки срабатывает и от остановки
+ * человеком, и от этой.
+ */
+interface Creation {
+  created: CreatedForm | null;
+  readonly stop: AbortController;
+  readonly signal: AbortSignal;
+}
+
+/** Продолжение хода на созданной форме: та же реплика, тот же `txId`, подсказка модели. */
+interface Resume {
+  readonly resource: ResourceId;
+  readonly path: string;
+  readonly txId: string;
+  readonly hint: string;
+}
+
+/**
+ * Затравка хода без открытой формы. Инструменты у такого хода — только создание формы и вопрос
+ * человеку: править ещё нечего.
+ */
+const NO_FORM_SEED =
+  'No form is open in the editor. To build what the user asks for, create one with ' +
+  'create_form (list_templates shows templates); the turn then continues on the new form. ' +
+  'If the request is about an existing form, ask the user to open it.';
+
+/** Подсказка продолжения: модель видит, на какой форме она теперь и откуда та взялась. */
+function resumeHint(created: CreatedForm): string {
+  const from = created.template === null ? 'empty' : `from template "${created.template}"`;
+  return (
+    `The form ${created.path} was created (${from}) and is open now. ` +
+    "Carry out the user's request on this form."
+  );
 }
 
 /** Заказ генерации кода в ходе (`generate_code`) — его исполняет мост, когда правки легли. */
@@ -531,19 +592,106 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * Ход для инструментов плагинов, `read_resource`, `ask_user` и `generate_code`. Заказ генерации
    * ложится в `order` — исполняет его {@link generateOrdered}, когда правки хода легли.
    */
-  const scopeOf = (writes: TurnWrites, signal: AbortSignal, order: GenerationOrder): TurnScope => ({
-    signal,
-    write: (resource, text, caller) => writes.write(resource, text, caller),
-    readResource: resources.reader(signal),
-    ask: askerOf(signal),
-    ...(deps.generator?.() === undefined
-      ? {}
-      : {
-          generate: () => {
-            order.requested = true;
-          },
-        }),
-  });
+  const scopeOf = (
+    writes: TurnWrites,
+    signal: AbortSignal,
+    order: GenerationOrder,
+    creation?: Creation
+  ): TurnScope => {
+    const creator = deps.formCreator?.();
+    return {
+      signal,
+      write: (resource, text, caller) => writes.write(resource, text, caller),
+      readResource: resources.reader(signal),
+      ask: askerOf(signal),
+      ...(deps.generator?.() === undefined
+        ? {}
+        : {
+            generate: () => {
+              order.requested = true;
+            },
+          }),
+      ...(creator === undefined || creation === undefined
+        ? {}
+        : {
+            templates: async () =>
+              (await creator.templates()).map(({ id, name, description }) => ({
+                id,
+                name,
+                ...(description === undefined ? {} : { description }),
+              })),
+            createForm: (request) => createForm(creator, creation, request),
+          }),
+    };
+  };
+
+  /** Попытка хода с возможностью создать форму — см. {@link Creation}. */
+  const creationFor = (signal: AbortSignal): Creation => {
+    const stop = new AbortController();
+    const both = new AbortController();
+    const abort = (): void => {
+      both.abort();
+    };
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+    stop.signal.addEventListener('abort', abort, { once: true });
+    return { created: null, stop, signal: both.signal };
+  };
+
+  /**
+   * Создать форму от имени хода (`create_form`): шаблоны кладут модуль, мост открывает документ и
+   * кончает попытку — дальше ход идёт на новой форме ({@link continueOn}). Форма за ход — одна:
+   * вторая означала бы, что модель потеряла, на какой форме работает.
+   */
+  const createForm = async (
+    creator: FormCreatorService,
+    creation: Creation,
+    request: CreateFormRequest
+  ): Promise<CreateFormOutcome> => {
+    if (creation.created !== null) {
+      return {
+        ok: false,
+        code: 'REFUSED',
+        message: `This turn already created ${creation.created.path}; it continues there.`,
+      };
+    }
+    const open = host.open;
+    if (open === undefined) {
+      return { ok: false, code: 'UNAVAILABLE', message: 'No editor to open a new form in.' };
+    }
+    const near = host.activeResource();
+    const report = await creator.create({
+      formName: request.name,
+      ...(request.template === undefined ? {} : { template: request.template }),
+      ...(request.folder === undefined ? {} : { folder: request.folder }),
+      ...(near === null ? {} : { near }),
+    });
+    if (!report.ok) {
+      if (report.error === 'error.unknown-template') {
+        const ids = (await creator.templates()).map((template) => template.id);
+        return {
+          ok: false,
+          code: 'INVALID_PARAMS',
+          message: `No template "${request.template ?? ''}"; omit template for an empty form.`,
+          suggestions: ids,
+        };
+      }
+      return { ok: false, code: 'TOOL_FAILED', message: report.message };
+    }
+    await open(report.documentId);
+    creation.created = {
+      resource: report.documentId,
+      path: report.path,
+      template: report.template,
+    };
+    session.logTool({
+      name: createFormTool.name,
+      ok: true,
+      summary: t('turn.create.done', { path: report.path }),
+    });
+    creation.stop.abort();
+    return { ok: true, path: report.path, template: report.template };
+  };
 
   /**
    * Сгенерировать код формы, если ход его заказал (`generate_code`): один раз и после правок —
@@ -999,15 +1147,29 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     return landed.status !== 'stuck';
   };
 
-  /** Ход структурного режима: черновик схемы, применение одной записью. */
+  /**
+   * Ход структурного режима: черновик схемы, применение одной записью.
+   *
+   * @param resume - Продолжение хода на форме, которую он создал: реплика уже есть, `txId` — её.
+   */
   const sendStructured = async (
     message: string,
     provider: AiProvider,
     signal: AbortSignal,
-    attached: ResolvedAttachments
+    attached: ResolvedAttachments,
+    resume?: Resume
   ): Promise<void> => {
-    const target = await resolveTarget();
+    const target = await resolveTarget(resume?.resource);
     if (target === null) {
+      if (resume !== undefined) {
+        session.finishTurn(null, t('turn.create.lost', { path: resume.path }));
+        return;
+      }
+      // Формы нет — ход начинается с её создания, если создавать есть чем.
+      if (deps.formCreator?.() !== undefined && host.open !== undefined) {
+        await sendCreation(message, provider, signal, attached);
+        return;
+      }
       session.startTurn(message, undefined, attached.refs);
       session.finishTurn(null, t('turn.noForm'));
       return;
@@ -1017,22 +1179,21 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     // Идентификатор хода заводится ДО первой попытки и один на обе: логический шаг —
     // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента, а в снимке
     // реплики по нему «Восстановить» найдёт записи инструментов плагинов этого хода и следующих.
-    const txId = beginTurn();
+    const txId = resume?.txId ?? beginTurn();
     // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
-    session.startTurn(
-      message,
-      {
-        resource: target.resource,
-        path: target.path,
-        text: target.baseText,
-        rules: target.rules,
-        txId,
-      },
-      attached.refs
-    );
+    const snapshot = {
+      resource: target.resource,
+      path: target.path,
+      text: target.baseText,
+      rules: target.rules,
+      txId,
+    };
+    if (resume === undefined) session.startTurn(message, snapshot, attached.refs);
+    else session.retarget(snapshot);
     const withAttached = (): AiMessage[] => [
       ...historyFor(session.get().entries),
       ...(attached.message ? [attached.message] : []),
+      ...(resume === undefined ? [] : [{ role: 'user' as const, content: resume.hint }]),
     ];
 
     const formScope = host.files?.scopeOf(target.resource) ?? null;
@@ -1046,7 +1207,14 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           : formPartRefusal(id, target.resource, formScope),
     });
     const order: GenerationOrder = { requested: false };
-    const scope = scopeOf(writes, signal, order);
+    const creation = creationFor(signal);
+    const scope = scopeOf(writes, creation.signal, order, creation);
+    /** Форма создана в попытке — ход продолжается на ней; `true` — продолжение проведено. */
+    const resumed = async (): Promise<boolean> => {
+      if (creation.created === null || signal.aborted) return false;
+      await continueOn(creation.created, message, provider, signal, attached, txId);
+      return true;
+    };
     /** Генерация по заказу — после того, как правки попытки легли; остановленный ход её не ждёт. */
     const generate = async (outcome: TurnOutcome, landed: Landing): Promise<void> => {
       if (signal.aborted || outcome.reason === 'aborted' || outcome.reason === 'error') return;
@@ -1055,8 +1223,16 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     };
 
     try {
-      const first = await runOnce(provider, target, withAttached(), signal, scope, activeForm);
+      const first = await runOnce(
+        provider,
+        target,
+        withAttached(),
+        creation.signal,
+        scope,
+        activeForm
+      );
       const landed = await land(first, target, txId);
+      if (await resumed()) return;
 
       if (!needsSecondPass(first, landed, signal)) {
         await generate(first, landed);
@@ -1076,11 +1252,12 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         provider,
         next,
         [...withAttached(), { role: 'user', content: secondPassHint(first.stop) }],
-        signal,
+        creation.signal,
         scope,
         activeForm
       );
       const landedSecond = await land(second, next, txId);
+      if (await resumed()) return;
       await generate(second, landedSecond);
       closeTurn(second, landedSecond, writes.count > 0);
     } catch (error) {
@@ -1097,6 +1274,104 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       );
     } finally {
       // Записи инструментов плагинов уже в рабочей копии — запоминаются при любом исходе хода.
+      writes.close();
+      rememberWrites(txId, writes);
+    }
+  };
+
+  /**
+   * Продолжить ход на созданной форме — в режиме, который выбран: та же реплика, тот же `txId`,
+   * и модель получает подсказку, что форма теперь другая.
+   */
+  const continueOn = async (
+    created: CreatedForm,
+    message: string,
+    provider: AiProvider,
+    signal: AbortSignal,
+    attached: ResolvedAttachments,
+    txId: string
+  ): Promise<void> => {
+    const resume: Resume = {
+      resource: created.resource,
+      path: created.path,
+      txId,
+      hint: resumeHint(created),
+    };
+    if (host.files !== undefined && (await assistant.loadConfig())?.editMode === 'files') {
+      if (await sendFiles(message, provider, host.files, signal, attached, resume)) return;
+    }
+    await sendStructured(message, provider, signal, attached, resume);
+  };
+
+  /** Инструменты хода без открытой формы: создать её, посмотреть шаблоны, спросить человека. */
+  const creationTools = createToolRegistry([listTemplatesTool, createFormTool, askUserTool]);
+
+  /**
+   * Ход без открытой формы: у модели только создание формы. Создала — ход продолжается на новой
+   * форме тем же порядком, что после `create_form` посреди хода; не создала — её ответ и есть
+   * ответ, а молчание объясняется «откройте форму».
+   */
+  const sendCreation = async (
+    message: string,
+    provider: AiProvider,
+    signal: AbortSignal,
+    attached: ResolvedAttachments
+  ): Promise<void> => {
+    session.startTurn(message, undefined, attached.refs);
+    const txId = beginTurn();
+    // Записывать плагинам в таком ходе нечем — инструментов плагинов у него нет; дверь нужна
+    // области хода и закрыта для всего, что не форма.
+    const writes = createTurnWrites({
+      files: host.files,
+      mark: { origin: 'agent', txId },
+      refuse: () => 'No form is open.',
+    });
+    const creation = creationFor(signal);
+    const scope = scopeOf(writes, creation.signal, { requested: false }, creation);
+    try {
+      const config = await assistant.loadConfig();
+      const validateForm = await deps.validateForm();
+      let reason: TurnReason = 'complete';
+      let failure: string | undefined;
+      for await (const event of runAgentTurn({
+        provider,
+        registry: creationTools,
+        catalog: host.catalog(),
+        validateForm,
+        base: emptySchema(),
+        baseRules: emptyRules(),
+        messages: [
+          ...historyFor(session.get().entries),
+          ...(attached.message ? [attached.message] : []),
+          { role: 'user', content: NO_FORM_SEED },
+        ],
+        ...(config?.maxSteps !== undefined ? { maxSteps: config.maxSteps } : {}),
+        ...(config?.maxInputTokens !== undefined ? { maxInputTokens: config.maxInputTokens } : {}),
+        signal: creation.signal,
+        scope,
+        resourceSeed: resources.catalog(),
+      })) {
+        if (event.type !== 'done') {
+          consume(event);
+          continue;
+        }
+        report(event.stats, event.stop);
+        reason = event.reason;
+        failure = event.message;
+      }
+      if (creation.created !== null && !signal.aborted) {
+        await continueOn(creation.created, message, provider, signal, attached, txId);
+        return;
+      }
+      const said = (session.get().entries.at(-1)?.text.trim() ?? '') !== '';
+      const error = reason === 'error' ? (failure ?? t('turn.error')) : undefined;
+      session.finishTurn(
+        null,
+        error ?? (reason === 'aborted' || said ? undefined : t('turn.noForm'))
+      );
+    } catch (error) {
+      session.finishTurn(null, messageOf(error));
+    } finally {
       writes.close();
       rememberWrites(txId, writes);
     }
@@ -1121,9 +1396,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     provider: AiProvider,
     files: AiFiles,
     signal: AbortSignal,
-    attached: ResolvedAttachments
+    attached: ResolvedAttachments,
+    resume?: Resume
   ): Promise<boolean> => {
-    const resource = host.activeResource();
+    const resource = resume?.resource ?? host.activeResource();
     const scope = resource === null ? null : files.scopeOf(resource);
     if (scope === null) {
       if (resource !== null && host.documentOf(resource) !== null) {
@@ -1137,22 +1413,21 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     if (!start.ok) {
       // Ход по форме, которая не собирается, начинать нельзя: гейт сравнивает каждую запись с
       // формой на начало хода, и сравнивать было бы не с чем.
-      session.startTurn(message, undefined, attached.refs);
+      if (resume === undefined) session.startTurn(message, undefined, attached.refs);
       session.finishTurn(null, t('turn.files.broken', { error: start.error }));
       return true;
     }
 
     const path = files.pathOf(scope.document);
     const activeForm: ActiveForm = { path, previousPath: previousFormPath() };
-    const txId = beginTurn();
-    session.startTurn(
-      message,
-      { mode: 'files', resource: scope.document, path, txId },
-      attached.refs
-    );
+    const txId = resume?.txId ?? beginTurn();
+    const snapshot = { mode: 'files' as const, resource: scope.document, path, txId };
+    if (resume === undefined) session.startTurn(message, snapshot, attached.refs);
+    else session.retarget(snapshot);
     const withAttached = (): AiMessage[] => [
       ...historyFor(session.get().entries),
       ...(attached.message ? [attached.message] : []),
+      ...(resume === undefined ? [] : [{ role: 'user' as const, content: resume.hint }]),
     ];
     const journal = createFileJournal();
     const mark: WriteMark = { origin: 'agent', txId };
@@ -1165,7 +1440,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       module: { journal, relOf: (id) => relInScope(files, scope, id) },
     });
     const order: GenerationOrder = { requested: false };
-    const turnScope = scopeOf(writes, signal, order);
+    const creation = creationFor(signal);
+    const turnScope = scopeOf(writes, creation.signal, order, creation);
 
     try {
       const config = await assistant.loadConfig();
@@ -1194,7 +1470,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           ...(config?.maxInputTokens !== undefined
             ? { maxInputTokens: config.maxInputTokens }
             : {}),
-          signal,
+          signal: creation.signal,
           scope: turnScope,
           resourceSeed: resources.catalog(),
           activeForm,
@@ -1212,7 +1488,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       };
 
       let last = await attempt(start.schema, withAttached());
-      if (needsFileSecondPass(last, signal)) {
+      if (creation.created === null && needsFileSecondPass(last, signal)) {
         // База — заново из файлов: записи первой попытки уже лежат в рабочей копии.
         const next = await composeForm(read, scope.schemaPath);
         if (next.ok) {
@@ -1221,6 +1497,13 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
             { role: 'user', content: secondPassHint(last.stop) },
           ]);
         }
+      }
+      // Форма создана — модуль этой формы дописан, ход продолжается на новой.
+      if (creation.created !== null && !signal.aborted) {
+        writes.close();
+        await normalizeSchemas(files, scope, journal, mark);
+        await continueOn(creation.created, message, provider, signal, attached, txId);
+        return true;
       }
       // Генерация по заказу — из того, что модель записала к концу хода, и до закрытия двери: она
       // пишет ею. Перепечатка схем её не задевает — документ формы и шаги генерации не отдаются.
@@ -1250,6 +1533,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     if (event.type === 'tool' && event.name === askUserTool.name) return;
     // Заказ генерации — не её исход: строку с исходом мост пишет, когда генерация пройдёт.
     if (event.type === 'tool' && event.name === generateCodeTool.name && event.ok) return;
+    // Созданную форму называет строка моста — с путём; строка вызова повторяла бы её.
+    if (event.type === 'tool' && event.name === createFormTool.name && event.ok) return;
     switch (event.type) {
       case 'text':
         session.appendText(event.text, event.start === true);
@@ -1358,8 +1643,13 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     for (const [id, file] of writes.entries()) files.set(id, { ...file, access: 'files' });
     if (files.size === 0) return;
     const turn: LandedTurn = { txId, files };
-    setLastTurn(turn);
     landedTurns.push(turn);
+    // Продолжение того же хода (на созданной форме) запомнилось раньше — его файлы остаются.
+    if (lastTurn !== null && lastTurn.txId === txId) {
+      setLastTurn({ ...lastTurn, files: new Map([...files, ...lastTurn.files]) });
+    } else {
+      setLastTurn(turn);
+    }
   };
 
   return {

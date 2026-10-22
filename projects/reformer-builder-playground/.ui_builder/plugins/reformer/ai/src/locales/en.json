@@ -77,6 +77,8 @@
   "chat.attach.limit": "At most {limit} attachments per message",
   "chat.attach.howTo": "Attach a file from the project tree with “Attach to assistant”, or with the paperclip in the chat.",
   "turn.failedEdits": "No edit was applied — the form is unchanged, whatever the assistant says: {error}",
+  "turn.create.done": "Created the form {path}",
+  "turn.create.lost": "The new form {path} could not be opened — open it and ask again.",
   "turn.generate.done": "Form code generated in {dir}: {count} files written. They are not saved yet — check them, then choose File → Save all.",
   "turn.generate.kept": "Left untouched as edited by hand: {files}.",
   "turn.generate.failed": "Form code was not generated: {error}",

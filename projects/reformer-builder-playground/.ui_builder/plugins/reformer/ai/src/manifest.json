@@ -17,6 +17,10 @@
       {
         "id": "reformer.kit.catalog",
         "range": "^2"
+      },
+      {
+        "id": "reformer.templates.creator",
+        "range": "^1"
       }
     ]
   }

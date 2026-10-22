@@ -138,6 +138,12 @@ export const TOOL_DESCRIPTION_BUDGET = 500;
  * панели экспорта, а написанный руками код расходился с тем, что печатает генерация. 236 символов
  * в каждом запросе: параметров нет, исход модель не получает — его видит человек.
  *
+ * Повышение — 12343 → 12772: `create_form` — новая форма по просьбе пользователя
+ * (ReFormer-1a6r.1). Без него «сделай анкету на кредит» правило открытую форму, если она была, а без
+ * открытой формы ход отвечал «откройте форму». 429 символов в каждом запросе; `list_templates` в
+ * поверхность не входит — им пользуется ход без формы, а неизвестный шаблон `create_form` и так
+ * отвергает со списком.
+ *
  * **Потолок — только встроенным.** У поверхности есть второе слагаемое — вклады плагинов:
  * инструменты точки `reformer.assistant.tool`, команды с блоком `agent` и `read_resource`, который
  * появляется вместе с провайдером ресурсов. У них свой потолок,
@@ -146,7 +152,7 @@ export const TOOL_DESCRIPTION_BUDGET = 500;
  * ломает тест, которого его автор даже не видит. Обе стороны считает одна функция
  * `measureToolSurface`.
  */
-export const TOOL_SURFACE_BUDGET = 12343;
+export const TOOL_SURFACE_BUDGET = 12772;
 
 /**
  * Потолок поверхности ВКЛАДОВ плагинов (символы): инструменты плагинов, команды с блоком `agent`
@@ -190,8 +196,11 @@ export const PROMPT_BUDGET = 4200;
  * Повышение — 3677 → 3913: `generate_code`, тот же инструмент и тот же довод, что у
  * {@link TOOL_SURFACE_BUDGET}. Режим файлов пишет код модуля сам, но производные файлы
  * перепечатывает генерация — и писать их руками значило бы спорить с ней.
+ *
+ * Повышение — 3913 → 4342: `create_form`, тот же инструмент и тот же довод, что у
+ * {@link TOOL_SURFACE_BUDGET}: новую форму просят независимо от способа правки.
  */
-export const FILE_TOOL_SURFACE_BUDGET = 3913;
+export const FILE_TOOL_SURFACE_BUDGET = 4342;
 
 /**
  * Бюджет ответа `read_file` (символы) — страница файла.
@@ -386,7 +395,40 @@ export interface TurnScope {
    * модуль печатается из того, что легло. Нет — генерации кода в сборке нет.
    */
   generate?(): void;
+  /** Шаблоны форм (`list_templates`). Нет — шаблонов в сборке нет. */
+  templates?(): Promise<readonly TemplateInfo[]>;
+  /**
+   * Создать форму (`create_form`): мост открывает её и продолжает ход на ней, а текущая попытка
+   * кончается. Нет — создавать формы в сборке нечем.
+   */
+  createForm?(request: CreateFormRequest): Promise<CreateFormOutcome>;
 }
+
+/** Шаблон формы в списке `list_templates`. */
+export interface TemplateInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+}
+
+/** Что просит создать `create_form`. */
+export interface CreateFormRequest {
+  /** Имя модуля — имя его каталога. */
+  readonly name: string;
+  readonly template?: string;
+  /** Каталог для модуля от корня проекта. */
+  readonly folder?: string;
+}
+
+/** Исход `create_form`. */
+export type CreateFormOutcome =
+  | { readonly ok: true; readonly path: string; readonly template: string | null }
+  | {
+      readonly ok: false;
+      readonly code: ToolErrorCode;
+      readonly message: string;
+      readonly suggestions?: string[];
+    };
 
 /** Вариант ответа на вопрос модели. */
 export interface AskOption {

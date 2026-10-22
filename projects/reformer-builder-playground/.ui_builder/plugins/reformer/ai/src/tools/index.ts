@@ -26,6 +26,7 @@ import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
 import { extractPartTool } from './extract-part';
 import { generateCodeTool } from './generate-code';
+import { createFormTool, listTemplatesTool } from './create-form';
 import { getFormNode } from './get-form-node';
 import { getFormOutline } from './get-form-outline';
 import { groupNodesTool } from './group-nodes';
@@ -43,6 +44,7 @@ import { validateForm } from './validate-form';
 
 export {
   askUserTool,
+  createFormTool,
   createReformerDocsTool,
   describeComponentTool,
   duplicateNodeTool,
@@ -53,6 +55,7 @@ export {
   groupNodesTool,
   insertNodeTool,
   listComponentsTool,
+  listTemplatesTool,
   moveNodeTool,
   removeNodeTool,
   setFormRulesTool,
@@ -98,11 +101,17 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
 ];
 
 /**
- * Полная поверхность редактора. Генерация кода — отдельно от обоих наборов: схему она не меняет,
- * но пишет файлы модуля, и в наборе «правки запрещены» ей не место.
+ * Инструменты над ПРОЕКТОМ, а не над черновиком: генерация кода и новая форма. Схему они не
+ * меняют, но пишут файлы, и в наборе «правки запрещены» им не место.
+ *
+ * `list_templates` здесь нет: при открытой форме новую просят редко, а неизвестный шаблон
+ * `create_form` и так отвергает со списком. Им пользуется ход без формы (`session/bridge`).
  */
+export const PROJECT_TOOLS: readonly AgentTool[] = [generateCodeTool, createFormTool];
+
+/** Полная поверхность редактора. */
 export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
-  return [...readOnlyTools(options), ...WRITE_TOOLS, generateCodeTool];
+  return [...readOnlyTools(options), ...WRITE_TOOLS, ...PROJECT_TOOLS];
 }
 
 /**

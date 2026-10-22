@@ -255,6 +255,12 @@ export interface AiSession {
    */
   startTurn(text: string, snapshot?: EntrySnapshot, attachments?: readonly AttachmentRef[]): void;
   /**
+   * Ход перешёл на другую форму — на созданную им: снимок реплики пользователя становится снимком
+   * новой формы. По нему «Восстановить» вернёт её к состоянию сразу после создания, а следующий
+   * ход узнает, о какой форме был этот.
+   */
+  retarget(snapshot: EntrySnapshot): void;
+  /**
    * Дописать кусок ответа. `start` — кусок открывает новый блок (шаг хода, вторая попытка): перед
    * ним встаёт пустая строка. Ведущие пустые строки блока отбрасываются — модели часто начинают
    * рассуждение переводом строки, и в ленте это выглядело дырой над текстом.
@@ -401,6 +407,15 @@ export function createAiSession(): AiSession {
           { id: nextId(), role: 'assistant', text: '', reasoning: '', tools: [] },
         ],
       });
+    },
+
+    retarget(snapshot) {
+      let at = state.entries.length - 1;
+      while (at >= 0 && state.entries[at].role !== 'user') at -= 1;
+      if (at < 0) return;
+      const entries = [...state.entries];
+      entries[at] = { ...entries[at], snapshot };
+      commit({ ...state, entries });
     },
 
     appendText(chunk, start = false) {

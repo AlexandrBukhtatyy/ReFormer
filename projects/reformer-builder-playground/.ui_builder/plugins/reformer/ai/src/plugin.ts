@@ -48,6 +48,7 @@ import {
 } from '@reformer/builder-plugin-api';
 import { aiUndoTurnCommand, createAgentBridge, type AgentBridge } from './session/bridge';
 import { ModuleGeneratorCapability } from './generator';
+import { FormCreatorCapability } from './templates';
 import {
   clearProviderConfig,
   loadProviderConfig,
@@ -388,6 +389,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         // Генерация кода — возможность чужого плагина: спрашивается на каждый ход, его могут
         // поднять позже ассистента или не поднять вовсе.
         generator: () => ctx.services.get(ModuleGeneratorCapability),
+        formCreator: () => ctx.services.get(FormCreatorCapability),
       });
 
       ctx.subscriptions.push(ctx.services.register(AI_SERVICE_TOKEN, assistant));

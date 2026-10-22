@@ -137,6 +137,7 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     flush: async (id) => {
       await documents.flush(id);
     },
+    open: (id) => documents.open(id, { preview: false }),
     documentOf: (id: ResourceId): AiDocument | null => {
       const document = documents.documentOf(id);
       if (document === null) return null;

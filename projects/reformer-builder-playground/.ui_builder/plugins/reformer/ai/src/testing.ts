@@ -109,6 +109,13 @@ export function createFakeHost(
     catalog: () => catalog,
     ...(files ? { files } : {}),
 
+    // Открыть документ, созданный мимо двойника (файлом): текст берётся из файлов, если они есть.
+    async open(id) {
+      const text = files === undefined ? null : await files.read(id);
+      texts.set(id, text ?? texts.get(id) ?? '');
+      active = id;
+    },
+
     openDocument(id, text) {
       texts.set(id, text);
       active = id;

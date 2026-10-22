@@ -32,6 +32,7 @@ import { emptyRulesText, printRulesText } from '../../../core/codegen/rules-file
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { ResourceProviderEntry } from './resources';
 import type { GenerateReport, ModuleGeneratorService } from '../generator';
+import type { FormCreatorService } from '../templates';
 
 const RESOURCE = 'form.json';
 /** Контекст применимости, которого предикату отмены достаточно: он его не читает. */
@@ -104,6 +105,7 @@ function harness(
     readonly assistantTools?: readonly ContributedToolEntry[];
     readonly resourceProviders?: readonly ResourceProviderEntry[];
     readonly generator?: ModuleGeneratorService;
+    readonly formCreator?: FormCreatorService;
   } = {}
 ): Harness {
   const host = createFakeHost(catalog, options.files);
@@ -139,6 +141,7 @@ function harness(
     assistantTools: () => options.assistantTools ?? [],
     resourceProviders: () => options.resourceProviders ?? [],
     generator: () => options.generator,
+    formCreator: () => options.formCreator,
     // Настоящая проверка, а не двойник: гейт — то, ради чего мост зовёт применение,
     // и подменять его здесь значило бы проверять подмену.
     validateForm: () => Promise.resolve(validateFormSchema),
@@ -711,6 +714,7 @@ function filesHarness(
     readonly active?: string;
     readonly assistantTools?: readonly ContributedToolEntry[];
     readonly generator?: ModuleGeneratorService;
+    readonly formCreator?: (files: FakeFiles) => FormCreatorService;
   } = {}
 ) {
   const files = createFakeFiles(
@@ -744,6 +748,7 @@ function filesHarness(
     assistantTools: () => options.assistantTools ?? [],
     validateForm: () => Promise.resolve(validateFormSchema),
     generator: () => options.generator,
+    formCreator: () => options.formCreator?.(files),
   });
   return { files, host, session, bridge };
 }
@@ -1741,5 +1746,149 @@ describe('генерация кода (generate_code) — режим файло�
 
     expect(await bridge.undoLastTurn()).toBe('undone');
     expect(files.text(FORM_FILE)).toBe(EMPTY_TEXT);
+  });
+});
+
+/**
+ * Шаблоны-двойник: кладут пустую форму файлом `forms/<имя>/schema/form.schema.json` — как
+ * настоящие, мимо двойника документов; открывает её мост.
+ */
+function fakeCreator(files: FakeFiles) {
+  const requests: Parameters<FormCreatorService['create']>[0][] = [];
+  const creator: FormCreatorService = {
+    templates: async () => [{ id: 'simple', name: 'Простая форма', source: 'builtin' }],
+    async create(request) {
+      requests.push(request);
+      if (request.template !== undefined && request.template !== 'simple') {
+        return { ok: false, error: 'error.unknown-template', message: 'нет шаблона' };
+      }
+      const path = `forms/${request.formName}/schema/form.schema.json`;
+      files.put(path, EMPTY_TEXT);
+      return { ok: true, documentId: path, path, template: request.template ?? null };
+    },
+  };
+  return { creator, requests };
+}
+
+const NEW_FORM = 'forms/credit/schema/form.schema.json';
+const createCredit: FakeStep = { tool: 'create_form', args: { name: 'credit' } };
+
+describe('новая форма (create_form) — структурный режим', () => {
+  it('без открытой формы ход начинается с создания и продолжается на новой форме', async () => {
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const { provider, requests } = recordingSequence([
+      [createCredit],
+      [insertField, { text: 'Анкета готова.' }],
+    ]);
+    const { host, session, bridge } = harness([], {
+      files,
+      provider,
+      openForm: false,
+      formCreator: creator,
+    });
+    await bridge.send('сделай анкету на кредит');
+
+    expect(host.activeResource()).toBe(NEW_FORM);
+    expect(host.documentOf(NEW_FORM)?.getText()).toContain('Почта');
+    // Реплика пользователя одна, и её снимок — о новой форме: по нему «Восстановить» и следующий ход.
+    const users = session.get().entries.filter((entry) => entry.role === 'user');
+    expect(users).toHaveLength(1);
+    expect(users[0].snapshot?.path).toBe(NEW_FORM);
+    expect(session.get().status).toBe('idle');
+    expect(session.get().error).toBeNull();
+    // Строка о создании — одна, от моста; строки вызова нет.
+    const tools = session.get().entries.at(-1)?.tools ?? [];
+    expect(tools.filter((tool) => tool.name === 'create_form')).toEqual([
+      { name: 'create_form', ok: true, summary: `turn.create.done {"path":"${NEW_FORM}"}` },
+    ]);
+    // Продолжение знает, где оно: карта новой формы и подсказка о создании.
+    const second = JSON.stringify(requests[1]);
+    expect(second).toContain(`Active form: ${NEW_FORM}`);
+    expect(second).toContain('was created (empty)');
+    // Первая попытка видела только создание: править было нечего.
+    expect(JSON.stringify(requests[0])).toContain('No form is open');
+  });
+
+  it('модель ответила словами, не создав формы, — ответ стоит, замечания нет', async () => {
+    const files = createFakeFiles();
+    const { creator, requests } = fakeCreator(files);
+    const { session, bridge } = harness([{ text: 'Откройте форму, которую поправить.' }], {
+      files,
+      openForm: false,
+      formCreator: creator,
+    });
+    await bridge.send('поправь подпись');
+
+    expect(requests).toEqual([]);
+    expect(session.get().error).toBeNull();
+    expect(session.get().entries.at(-1)?.text).toContain('Откройте форму');
+  });
+
+  it('молчаливый ход без формы — «откройте форму», как раньше', async () => {
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const { session, bridge } = harness([], { files, openForm: false, formCreator: creator });
+    await bridge.send('сделай форму');
+    expect(session.get().error).toBe('turn.noForm');
+  });
+
+  it('посреди хода: правка до создания — в прежней форме, после — в новой; отмена снимает обе', async () => {
+    const files = createFakeFiles();
+    const { creator, requests } = fakeCreator(files);
+    const provider = sequenceProvider([
+      [insertField, createCredit, insertField],
+      [insertField, { text: 'Готово.' }],
+    ]);
+    const { host, bridge } = harness([], { files, provider, formCreator: creator });
+    await bridge.send('добавь почту сюда и сделай новую форму с почтой');
+
+    // Создавали рядом с открытой формой — её и назвали заказу.
+    expect(requests[0]).toMatchObject({ formName: 'credit', near: RESOURCE });
+    // Третья правка первой попытки не прошла: попытка кончилась на создании.
+    const old = host.documentOf(RESOURCE)?.getText() ?? '';
+    expect(old.split('Почта')).toHaveLength(2);
+    expect(host.documentOf(NEW_FORM)?.getText()).toContain('Почта');
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(host.documentOf(RESOURCE)?.getText()).toBe(printSchemaText(EMPTY_FORM));
+    expect(host.documentOf(NEW_FORM)?.getText()).toBe(EMPTY_TEXT);
+  });
+
+  it('неизвестный шаблон — отказ модели со списком; формы нет', async () => {
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const { host, session, bridge } = harness(
+      [{ tool: 'create_form', args: { name: 'credit', template: 'nope' } }, { text: 'Нет.' }],
+      { files, formCreator: creator }
+    );
+    await bridge.send('сделай форму по шаблону nope');
+
+    const failed = session
+      .get()
+      .entries.at(-1)
+      ?.tools.find((tool) => tool.name === 'create_form');
+    expect(failed?.ok).toBe(false);
+    expect(failed?.error).toContain('No template "nope"');
+    expect(host.documentOf(NEW_FORM)).toBeNull();
+  });
+});
+
+describe('новая форма (create_form) — режим файлов', () => {
+  it('ход продолжается в режиме файлов на модуле новой формы', async () => {
+    const provider = sequenceProvider([[createCredit], [fieldEdit, { text: 'Готово.' }]]);
+    const { files, host, session, bridge } = filesHarness([], {
+      provider,
+      formCreator: (made) => fakeCreator(made).creator,
+    });
+    await bridge.send('сделай новую форму с почтой');
+
+    expect(host.activeResource()).toBe(NEW_FORM);
+    expect(files.text(NEW_FORM)).toContain('$model(email)');
+    // Прежняя форма не тронута.
+    expect(files.text(FORM_FILE)).toBe(EMPTY_TEXT);
+    const users = session.get().entries.filter((entry) => entry.role === 'user');
+    expect(users).toHaveLength(1);
+    expect(users[0].snapshot?.path).toBe(NEW_FORM);
   });
 });
