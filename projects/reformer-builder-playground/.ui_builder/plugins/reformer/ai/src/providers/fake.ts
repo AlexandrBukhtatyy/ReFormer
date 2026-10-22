@@ -36,7 +36,14 @@ export type FakeStep =
    * потоком, и обрыв посреди JSON не даёт ни `tool_call`, ни `tool_result` — то есть выглядит как
    * отсутствие всякой попытки. Без него цикл нельзя проверить на самом тихом из своих исходов.
    */
-  | { truncated: { tool: string } };
+  | { truncated: { tool: string } }
+  /**
+   * Модель написала вызов текстом ответа и на этом кончила ход (`AiStop.textualCall`).
+   *
+   * Отдельный шаг по той же причине, что `truncated`: настоящий признак ставит адаптер SDK по
+   * тексту шага, а сценарию нужен его исход — текст в ленте, ошибка и диагностика в `done`.
+   */
+  | { textual: { tool: string } };
 
 /** Настройки сценарного провайдера. */
 export interface FakeProviderOptions {
@@ -107,6 +114,23 @@ export function createFakeProvider(
             type: 'done',
             reason: 'error',
             stop: { reason: 'other', truncatedCall: item.truncated.tool },
+          };
+          return;
+        }
+        if ('textual' in item) {
+          yield {
+            type: 'delta',
+            text: `call:${item.textual.tool}{path:"schema/form.schema.json"}`,
+          };
+          yield {
+            type: 'error',
+            message: `Модель написала вызов ${item.textual.tool} текстом ответа.`,
+            retryable: false,
+          };
+          yield {
+            type: 'done',
+            reason: 'error',
+            stop: { reason: 'stop', textualCall: item.textual.tool },
           };
           return;
         }

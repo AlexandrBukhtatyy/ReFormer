@@ -76,6 +76,33 @@ const CONTINUE_HINT =
   'state of the form and do that work now — in SMALL batches, a few nodes per call, and keep ' +
   "the thinking short. Reply in the same language as the user's own messages.";
 
+/**
+ * Подсказка для второй попытки после вызова, написанного текстом (`AiStop.textualCall`).
+ *
+ * Своя, а не {@link CONTINUE_HINT}: ответ не оборвался — модель договорила и, судя по тексту,
+ * считает правку сделанной. Сказать надо другое: текст не исполняется. Выход «только показать»
+ * оставлен намеренно: признак опознаёт вызов по виду текста, и пример, который пользователь просил
+ * показать, не должен превращаться в правку, о которой его не просили.
+ */
+const textualCallHint = (tool: string): string =>
+  `Your previous answer has a call of ${tool} written as text. Text in an answer is never ` +
+  'executed, so nothing was applied. If you meant to make that change, make it now by calling ' +
+  'the tool itself, with a few small edits per call. If you only meant to show it, say so in one ' +
+  "sentence. Reply in the same language as the user's own messages.";
+
+/** Подсказка второй попытки по признаку, который её вызвал. */
+const secondPassHint = (stop: AiStop | undefined): string =>
+  stop?.textualCall !== undefined ? textualCallHint(stop.textualCall) : CONTINUE_HINT;
+
+/**
+ * Модель знала, что делать, и правка до формы не дошла: вызов оборван, ход пуст или вызов
+ * написан текстом. Ровно эти исходы лечатся повтором — общее условие обоих режимов.
+ */
+const missedEdit = (stop: AiStop | undefined): boolean =>
+  stop?.truncatedCall !== undefined ||
+  stop?.emptyFinish === true ||
+  stop?.textualCall !== undefined;
+
 /** Сколько правок пакета называть в журнале, прежде чем свернуть остаток в счёт. */
 const OPS_IN_LOG = 3;
 
@@ -477,7 +504,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       : '';
     const why = stop?.reason ? `, остановка ${stop.reason}${stop.raw ? ` (${stop.raw})` : ''}` : '';
     const cut = stop?.truncatedCall ? `, оборван вызов ${stop.truncatedCall}` : '';
-    console.info(`[plugins/reformer/ai] ход: шагов ${stats.steps}${tokens}${why}${cut}`);
+    const textual = stop?.textualCall ? `, вызов ${stop.textualCall} написан текстом` : '';
+    console.info(`[plugins/reformer/ai] ход: шагов ${stats.steps}${tokens}${why}${cut}${textual}`);
   };
 
   /**
@@ -629,9 +657,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   /**
    * Стоит ли пробовать ещё раз.
    *
-   * Условие узкое намеренно: повтор осмыслен ровно там, где модель знала, что делать, и не
-   * успела это выговорить, — недописанный вызов и пустой конец хода. Предел шагов, бюджет и
-   * фильтр содержимого повтором не лечатся, а остановку кнопкой пользователь заказал сам.
+   * Условие узкое намеренно: повтор осмыслен ровно там, где модель знала, что делать, и правка
+   * не состоялась, — недописанный вызов, пустой конец хода, вызов текстом ({@link missedEdit}).
+   * Предел шагов, бюджет и фильтр содержимого повтором не лечатся, а остановку кнопкой
+   * пользователь заказал сам.
    *
    * Попытка ровно одна, и это по конструкции — второй заход делается без цикла. Обрыв,
    * повторённый дважды, означает, что задача не влезает в окно модели, и третий заход только
@@ -639,9 +668,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    */
   const needsSecondPass = (outcome: TurnOutcome, landed: Landing, signal: AbortSignal): boolean => {
     if (signal.aborted || outcome.reason === 'aborted') return false;
-    if (outcome.stop?.truncatedCall === undefined && outcome.stop?.emptyFinish !== true) {
-      return false;
-    }
+    if (!missedEdit(outcome.stop)) return false;
     // Застрявший набор ждёт решения пользователя: второй ход поверх неприменённых правок
     // собирал бы форму, которой на экране нет.
     return landed.status !== 'stuck';
@@ -689,7 +716,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       const second = await runOnce(
         provider,
         next,
-        [...historyFor(session.get().entries), { role: 'user', content: CONTINUE_HINT }],
+        [
+          ...historyFor(session.get().entries),
+          { role: 'user', content: secondPassHint(first.stop) },
+        ],
         signal
       );
       closeTurn(second, await land(second, next, txId));
@@ -805,7 +835,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         if (next.ok) {
           last = await attempt(next.schema, [
             ...historyFor(session.get().entries),
-            { role: 'user', content: CONTINUE_HINT },
+            { role: 'user', content: secondPassHint(last.stop) },
           ]);
         }
       }
@@ -847,9 +877,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
   /** Вторая попытка хода режима файлов — по тем же признакам обрыва, что у структурного. */
   const needsFileSecondPass = (outcome: FileOutcome, signal: AbortSignal): boolean =>
-    !signal.aborted &&
-    outcome.reason !== 'aborted' &&
-    (outcome.stop?.truncatedCall !== undefined || outcome.stop?.emptyFinish === true);
+    !signal.aborted && outcome.reason !== 'aborted' && missedEdit(outcome.stop);
 
   /**
    * Перепечатать схемы, которые ход записал, принтером документа формы — один раз, в конце хода.

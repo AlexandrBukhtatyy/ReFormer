@@ -23,6 +23,7 @@ import {
 } from 'ai';
 import type { ToolOutcome } from '../model/types';
 import { dropReasoning, pruneSupersededReads } from './context';
+import { textualCallOf } from './textual-call';
 import type { AiEvent, AiRequest, AiStop, AiUsage } from './types';
 
 /** Ответ на случай, если исход вызова почему-то не сохранился (защита от рассинхрона). */
@@ -153,6 +154,23 @@ const NO_FINISH =
   'Соединение с моделью закрылось, не завершив ответ. Сделанное применено; повторите запрос.';
 
 /**
+ * Последний шаг написал вызов инструмента текстом и на этом кончил ход.
+ *
+ * Обрывом это не выглядит ни по одному другому признаку: модель договорила, поток закрыт штатно,
+ * в ленте вызов и отчёт «готово». Но текст ответа не исполняется, и правка не применилась.
+ *
+ * @param tool - Имя инструмента: по нему видно, какая правка не состоялась.
+ */
+function textualCallNote(tool: string): string {
+  return (
+    `Модель написала вызов ${tool} текстом ответа, а не вызвала инструмент, — правка не ` +
+    'применена. У локальной модели так выглядит вызов, который сервер не смог разобрать (в журнале ' +
+    'Ollama — «tool call parsing failed»); помогает просить правки поменьше за раз, а если ' +
+    'повторяется — сменить модель.'
+  );
+}
+
+/**
  * Шаг кончился пустым: ни ответа, ни вызова инструмента.
  *
  * Наблюдавшийся исход целиком: модель уходит в рассуждение, обрывается на полуслове и закрывает
@@ -270,6 +288,10 @@ export async function* streamViaAiSdk(
   // события не шлёт, флаг накапливается за весь ход — признак от этого не портится, только
   // становится грубее.
   let stepSaidSomething = false;
+  // Текст шага и был ли в шаге настоящий вызов — материал признака «вызов написан текстом»
+  // (`./textual-call`). Сбрасываются там же, где флаг выше, и по той же причине.
+  let stepText = '';
+  let stepCalledTool = false;
 
   const tools = Object.fromEntries(
     req.tools.map((definition) => [
@@ -326,9 +348,12 @@ export async function* streamViaAiSdk(
       switch (part.type) {
         case 'start-step':
           stepSaidSomething = false;
+          stepText = '';
+          stepCalledTool = false;
           break;
         case 'text-delta':
           stepSaidSomething = true;
+          stepText += part.text;
           yield { type: 'delta', text: part.text };
           break;
         case 'reasoning-delta':
@@ -347,6 +372,7 @@ export async function* streamViaAiSdk(
           // означает дописанные аргументы при любом из них.
           openCalls.delete(part.toolCallId);
           stepSaidSomething = true;
+          stepCalledTool = true;
           yield { type: 'tool_call', id: part.toolCallId, name: part.toolName, args: part.input };
           break;
         case 'finish-step':
@@ -391,7 +417,11 @@ export async function* streamViaAiSdk(
           // prepareStep — единственный оставшийся признак, что работать было ещё над чем.
           const truncated = firstOpenCall(openCalls);
           const empty = !stepSaidSomething;
-          const stop = stopOf(part.finishReason, part.rawFinishReason, truncated, empty);
+          // На последнем разрешённом шаге инструменты запрещены (`prepareStep`), и вызов текстом
+          // там — ожидаемый исход, а не сбой: признак повёл бы мост на повтор поверх предела.
+          const textual =
+            stepCalledTool || reachedStepLimit ? undefined : textualCallOf(stepText, req.tools);
+          const stop = stopOf(part.finishReason, part.rawFinishReason, truncated, empty, textual);
           // Бюджет проверяется первым: он тоже выглядит как остановка на пределе шагов, но
           // причина у неё другая, и лечится она другой настройкой. Признаки обрыва идут следом,
           // раньше таблицы причин: они видны ВСЕГДА, а таблица знает только класс отказа — и для
@@ -403,7 +433,13 @@ export async function* streamViaAiSdk(
               : // Предел шагов идёт раньше пустоты: причина конкретнее, а лечится другим —
                 // настройкой, а не разбиением задачи.
                 (BROKEN_FINISH[part.finishReason] ??
-                (reachedStepLimit ? AT_LIMIT : empty ? EMPTY_FINISH : null));
+                (reachedStepLimit
+                  ? AT_LIMIT
+                  : textual
+                    ? textualCallNote(textual)
+                    : empty
+                      ? EMPTY_FINISH
+                      : null));
           if (broken) {
             // Повтор того же запроса упрётся в тот же предел — чинится настройкой, а не кнопкой.
             yield { type: 'error', message: broken, retryable: false };
@@ -474,13 +510,15 @@ function stopOf(
   reason?: string,
   raw?: string,
   truncatedCall?: string,
-  emptyFinish?: boolean
+  emptyFinish?: boolean,
+  textualCall?: string
 ): AiStop {
   return {
     ...(reason ? { reason } : {}),
     ...(raw ? { raw } : {}),
     ...(truncatedCall ? { truncatedCall } : {}),
     ...(emptyFinish ? { emptyFinish } : {}),
+    ...(textualCall ? { textualCall } : {}),
   };
 }
 

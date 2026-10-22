@@ -275,6 +275,77 @@ describe('перевод потока AI SDK', () => {
     });
   });
 
+  describe('вызов, написанный текстом', () => {
+    // Наблюдавшийся исход (ReFormer-lhvk.8): модель договорила, поток закрыт штатно, в ленте
+    // вызов правки и «готово» — а инструмент не вызывался, и файлы не тронуты.
+    const editFile = {
+      name: 'edit_file',
+      description: '',
+      inputSchema: { type: 'object', required: ['path', 'edits'] },
+      readOnly: false,
+      execute: () => Promise.resolve({ ok: true, text: '' }),
+    };
+    const withTools: AiRequest = { ...REQUEST, tools: [editFile] };
+    const leaked = 'call:edit_file{edits:[{new_string:<|"|>x<|"|>}],path:<|"|>a.ts<|"|>}';
+
+    it('последний шаг с вызовом в тексте — ошибка с признаком, а не успешный ход', async () => {
+      const events = await play(
+        [
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't0', text: leaked },
+          { type: 'finish', finishReason: 'stop' },
+        ],
+        undefined,
+        withTools
+      );
+
+      const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+      expect(error?.message).toContain('написала вызов edit_file текстом');
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        reason: 'error',
+        stop: { textualCall: 'edit_file' },
+      });
+    });
+
+    it('текст шага, сделавшего настоящий вызов, признаком не считается', async () => {
+      const events = await play(
+        [
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't0', text: '{"path": "a.ts", "edits": []}' },
+          { type: 'tool-call', toolCallId: 'c1', toolName: 'edit_file', input: {} },
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't1', text: 'Готово.' },
+          { type: 'finish', finishReason: 'stop' },
+        ],
+        undefined,
+        withTools
+      );
+
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+      expect(events.find((e) => e.type === 'error')).toBeUndefined();
+    });
+
+    it('на последнем разрешённом шаге вызов текстом ожидаем — это упор в предел', async () => {
+      // Инструменты там запрещены (`prepareStep`): признак повёл бы мост на повтор поверх предела.
+      const events = await play(
+        [
+          { type: 'start-step' },
+          { type: 'text-delta', id: 't0', text: leaked },
+          { type: 'finish', finishReason: 'stop' },
+        ],
+        undefined,
+        { ...withTools, maxSteps: 4 },
+        3
+      );
+
+      const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+      expect(error?.message).toContain('израсходовал все шаги');
+      const done = events.at(-1) as { stop?: { textualCall?: string } };
+      expect(done.stop?.textualCall).toBeUndefined();
+    });
+  });
+
   it('поток, кончившийся без finish, не выдаётся за завершённый ход', async () => {
     // Страховка: штатно `finish` есть всегда, но без этой ветки генератор просто заканчивался бы
     // молча, и ход с недоделанной формой считался бы успешным.

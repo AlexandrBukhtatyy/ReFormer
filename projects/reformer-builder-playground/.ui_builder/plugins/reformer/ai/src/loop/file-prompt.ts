@@ -60,7 +60,7 @@ function buildPrompt(catalog: Catalog): string {
 
 ## How you work
 
-Paths are relative to the module root. A turn starts with the module's file list and the form document; read other files with read_file. Writes land at once. A write that would break the form (invalid JSON, unknown component, wrong props, wrong ReFormer API in code) is rejected and NOT written: read the reason, fix the cause, never repeat the same call.
+Paths are relative to the module root. A turn starts with the module's file list and the form document; read other files with read_file. You change files only by calling the tools: code, JSON or a tool call written in your answer is never executed and changes nothing. Writes land at once. A write that would break the form (invalid JSON, unknown component, wrong props, wrong ReFormer API in code) is rejected and NOT written: read the reason, fix the cause, never repeat the same call.
 
 ## Module files
 

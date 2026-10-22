@@ -24,7 +24,7 @@ import type { AgentCommand } from '../tools/command-tools';
 import type { AiAssistant } from '../plugin';
 import { createFakeProvider, type FakeStep } from '../providers/fake';
 import { createProviderRegistry } from '../providers/registry';
-import type { AiProvider } from '../providers/types';
+import type { AiMessage, AiProvider } from '../providers/types';
 import { printSchemaText } from '../model/schema-text';
 import { createAiSession, type AiSession } from './session';
 import { createFakeFiles, createFakeHost, type FakeHost } from '../testing';
@@ -64,6 +64,20 @@ function sequenceProvider(scripts: readonly (readonly FakeStep[])[]): AiProvider
       return provider.stream(req, signal);
     },
   };
+}
+
+/** То же, что {@link sequenceProvider}, но с репликами, пришедшими на каждое обращение. */
+function recordingSequence(scripts: readonly (readonly FakeStep[])[]) {
+  const inner = sequenceProvider(scripts);
+  const requests: (readonly AiMessage[])[] = [];
+  const provider: AiProvider = {
+    ...inner,
+    stream: (req, signal) => {
+      requests.push(req.messages);
+      return inner.stream(req, signal);
+    },
+  };
+  return { provider, requests };
 }
 
 interface Harness {
@@ -416,6 +430,23 @@ describe('вторая попытка после обрыва', () => {
     expect(session.get().entries.at(-1)?.text).not.toContain('третья попытка');
   });
 
+  it('вызов, написанный текстом, тоже даёт повтор — со своей подсказкой', async () => {
+    // ReFormer-lhvk.8: модель «вызвала» инструмент текстом ответа, правка не применилась.
+    const { provider, requests } = recordingSequence([
+      [{ textual: { tool: 'insert_node' } }],
+      [insertField, { text: 'Добавил.' }],
+    ]);
+    const { host, session, bridge } = harness([], { provider });
+    await bridge.send('добавь поле почты');
+
+    expect(host.writes).toHaveLength(1);
+    expect(session.get()).toMatchObject({ status: 'idle', error: null });
+    // Подсказка говорит про текст, а не про обрыв: ответ не оборвался — его не исполнили.
+    const second = requests[1].map((message) => message.content).join('\n');
+    expect(second).toContain('insert_node written as text');
+    expect(second).not.toContain('cut off');
+  });
+
   it('остановка кнопкой повтора не вызывает', async () => {
     const { bridge, session } = harness([{ truncated: { tool: 'insert_node' } }]);
     const sending = bridge.send('добавь поле');
@@ -751,6 +782,38 @@ describe('режим файлов — ход', () => {
 
     expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
     expect(new Set(files.writes.map((write) => write.mark?.txId)).size).toBe(1);
+  });
+
+  it('вызов edit_file текстом — повтор, и правка доходит до файла', async () => {
+    // Исход живого прогона (gemma4:26b, ReFormer-lhvk.8): вызов в ленте, файл не тронут, ход
+    // закрывался успехом.
+    const { provider, requests } = recordingSequence([
+      [{ textual: { tool: 'edit_file' } }],
+      [rulesEdit, { text: 'Сделал.' }],
+    ]);
+    const { files, session, bridge } = filesHarness([], { provider });
+    await bridge.send('поправь правила');
+
+    expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
+    expect(session.get()).toMatchObject({ status: 'idle', error: null });
+    // Последней репликой попытки идёт затравка модуля, подсказка — перед ней.
+    expect(requests[1].map((message) => message.content).join('\n')).toContain(
+      'edit_file written as text'
+    );
+  });
+
+  it('вызов текстом дважды — ошибка остаётся видна, третьей попытки нет', async () => {
+    const { provider, requests } = recordingSequence([
+      [{ textual: { tool: 'edit_file' } }],
+      [{ textual: { tool: 'edit_file' } }],
+      [rulesEdit],
+    ]);
+    const { files, session, bridge } = filesHarness([], { provider });
+    await bridge.send('поправь правила');
+
+    expect(requests).toHaveLength(2);
+    expect(files.writes).toHaveLength(0);
+    expect(session.get().error).toContain('текстом');
   });
 
   it('ломающая запись не доходит до файлов, ход кончается без ошибки панели', async () => {

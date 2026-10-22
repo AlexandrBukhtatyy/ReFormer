@@ -27,6 +27,13 @@ describe('промпт режима файлов', () => {
     expect(prompt).toMatch(/rejected and NOT written/);
   });
 
+  it('говорит, что вызов или код в ответе не исполняется (ReFormer-lhvk.8)', () => {
+    // Без этого правила модель «вызывала» edit_file JSON-блоком в ответе и отчитывалась о правке.
+    expect(fileSystemPrompt(builtinEntries())).toMatch(
+      /only by calling the tools: .* written in your answer is never executed/
+    );
+  });
+
   it('в исходнике нет ни одного имени кита — только в собранном промпте', () => {
     const source = readFileSync(
       fileURLToPath(new URL('./file-prompt.ts', import.meta.url)),
