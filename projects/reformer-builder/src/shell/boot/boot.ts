@@ -136,8 +136,10 @@ import { createJournalRelief } from '@/shell/platform/workspace/journal/journal'
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
+import { createWorkspaceSourceService } from '@/shell/boot/ports/workspace-source';
 import {
   WorkspaceFilesServiceToken,
+  WorkspaceSourceServiceToken,
   WorkspaceTreeCapability,
 } from '@reformer/builder-plugin-api/internal';
 import {
@@ -630,6 +632,10 @@ export function boot(options: BootOptions): BuilderApp {
   // Записи рабочей области — вторая её половина: что в ней лежит и где. Отдельной службой,
   // а не методами первой, потому что права разные (см. шапку `services/workspace-files`).
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
+  // Источник проекта — третья половина: что лежит в папке на самом деле, мимо рабочей копии
+  // и без копирования в неё. Права не просит: данные те же, что у записей, а побочных
+  // эффектов меньше (см. шапку `services/workspace-source`).
+  services.register(WorkspaceSourceServiceToken, createWorkspaceSourceService({ project }));
   // Ручки модельных документов — тому плагину стека, чей провайдер документ разобрал. Раньше
   // ручку отдавал порт редактора схемы, и оболочка знала, какой провайдер чей; служба отдаёт
   // ручку ЛЮБОЙ модели с `unknown`, а сужает её сам плагин по `providerId`.

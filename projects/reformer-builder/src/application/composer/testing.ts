@@ -16,9 +16,11 @@
 import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceSourceServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createDocumentModelsService } from '@/shell/boot/ports/document-models';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
+import { createWorkspaceSourceService } from '@/shell/boot/ports/workspace-source';
 import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
 import { EditorViewStatesToken } from '@reformer/builder-plugin-api/internal';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
@@ -43,5 +45,6 @@ export function stubHostCapabilities(services: ServiceRegistry): void {
   services.register(EditorViewStatesToken, createEditorViewStates());
   services.register(DocumentsServiceToken, createDocumentsService({ project: closed }));
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project: closed }));
+  services.register(WorkspaceSourceServiceToken, createWorkspaceSourceService({ project: closed }));
   services.register(DocumentModelsCapability, createDocumentModelsService({ project: closed }));
 }
