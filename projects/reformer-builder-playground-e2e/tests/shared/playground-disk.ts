@@ -34,7 +34,7 @@ import { PLAYGROUND_DIR } from './paths';
 const DISK_MOUNT = 'e2e-disk';
 
 /** Файл снимка. Содержимое — base64: аргумент `page.evaluate` обязан быть сериализуемым. */
-interface DiskFile {
+export interface DiskFile {
   /** Путь от корня проекта, через `/`. */
   readonly path: string;
   readonly base64: string;
@@ -160,7 +160,7 @@ const PLUGIN_CHUNKS = 'chunks';
  * Список берётся из манифеста, а не обходом каталога: рядом со сборкой лежит сам пакет —
  * исходники, `node_modules`, сборка для поставки.
  */
-function readPluginBuild(root: string, pluginDir: string): DiskFile[] {
+export function readPluginBuild(root: string, pluginDir: string): DiskFile[] {
   const manifestPath = `${pluginDir}/manifest.json`;
   if (!existsSync(path.join(root, manifestPath))) {
     throw new Error(

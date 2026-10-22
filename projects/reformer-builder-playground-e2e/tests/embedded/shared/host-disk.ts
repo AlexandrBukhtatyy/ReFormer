@@ -25,8 +25,8 @@ import { execFileSync } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
-import { HOST_E2E_DIR, HOST_EXAMPLE_DIR } from '../../shared/paths';
-import { PlaygroundDisk } from '../../shared/playground-disk';
+import { HOST_E2E_DIR, HOST_EXAMPLE_DIR, PLAYGROUND_DIR } from '../../shared/paths';
+import { PlaygroundDisk, readPluginBuild } from '../../shared/playground-disk';
 
 /** Имя функции страницы, которой зеркало отдаёт записанный файл. */
 const MIRROR_BINDING = '__e2eMirrorWrite';
@@ -111,12 +111,23 @@ export class HostDisk extends PlaygroundDisk {
     );
   }
 
-  /** Кладёт на «диск» приложение-образец — тот же набор файлов, что в копии под сервером. */
-  override async seed(): Promise<void> {
-    const files = hostFiles().map((filePath) => ({
-      path: filePath,
-      base64: readFileSync(path.join(HOST_EXAMPLE_DIR, filePath)).toString('base64'),
-    }));
+  /**
+   * Кладёт на «диск» приложение-образец — тот же набор файлов, что в копии под сервером.
+   *
+   * `plugins` — сборки плагинов playground, которые положить в `.ui_builder/plugins` проекта
+   * тем же каталогом: `['kit-hexa-ui']`. Своя сборка кита у приложения (`npm run plugins:kit`)
+   * в git не едет, а сборку playground сервер прогона делает и так.
+   */
+  override async seed(options: { readonly plugins?: readonly string[] } = {}): Promise<void> {
+    const files = [
+      ...hostFiles().map((filePath) => ({
+        path: filePath,
+        base64: readFileSync(path.join(HOST_EXAMPLE_DIR, filePath)).toString('base64'),
+      })),
+      ...(options.plugins ?? []).flatMap((plugin) =>
+        readPluginBuild(PLAYGROUND_DIR, `.ui_builder/plugins/${plugin}`)
+      ),
+    ];
     await this.hostPage.evaluate(async (entries) => {
       await window.__e2eDisk!.root(true);
       for (const entry of entries) {

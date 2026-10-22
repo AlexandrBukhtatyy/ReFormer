@@ -1,29 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
-import type { BuilderApp } from './shared/builder-app.pom';
 import { test, expect } from './shared/fixtures';
-
-/**
- * Кит из плагина проекта: пакет `kit-hexa-ui` в `.ui_builder/plugins` playground.
- *
- * Его сборка весит около 5 МБ, поэтому в обычную копию проекта каталог кита не входит —
- * эти тесты просят его явно.
- */
-const KIT_PLUGIN = 'kit-hexa-ui';
-
-/**
- * Шум HexaUI в консоли: кит объявляет React до 18-го, а билдер работает на 19-м, и antd
- * со styled-components внутри кита пишут предупреждения (README кита, «Ограничения»). Форма при
- * этом рисуется. Сюда попадает только известное — всё прочее по-прежнему проваливает тест.
- */
-const KNOWN_KIT_NOISE = [
-  /React does not recognize the `%s` prop on a DOM element/,
-  /`onSearch` should work with `showSearch`/,
-  /Accessing element\.ref was removed in React 19/,
-  // `Text` HexaUI кладёт styled-проп `$color` прямо на DOM-узел (`createElement(htmlTag, {
-  // $color })`), и React отвергает имя атрибута. Им подписаны шаги `Wizard`, поэтому шум приходит
-  // с визардом кита. Это не React 19: дефект самого HexaUI, рисованию он не мешает.
-  /Invalid attribute name: `%s` \$color/,
-];
+import { dropKnownKitNoise, KIT_PLUGIN, selectHexaKit } from './shared/hexa-kit';
 
 /** Форма для полей из палитры — своя, пустая (см. тест палитры). */
 const FIELDS_FORM = 'forms/kit-fields/form.schema.json';
@@ -43,30 +20,6 @@ const EMPTY_FORM = JSON.stringify(
   null,
   2
 );
-
-/**
- * Выбирает кит HexaUI в ячейке строки состояния.
- *
- * Ячейка «кит» — вклад плагина китов. Пока кит один, она подпись; кнопкой она становится, когда
- * плагин внёс второй, — а плагины проекта поднимаются после открытия, поэтому список
- * переоткрывается. Кит меняется на лету, без перезагрузки.
- */
-async function selectHexaKit(builder: BuilderApp, page: Page): Promise<void> {
-  const cell = builder.statusBar.getByRole('button', { name: 'ReFormer UI Kit' });
-  const hexa = page.getByRole('menuitemradio', { name: /Kaspersky HexaUI/ });
-  await expect(async () => {
-    await cell.click();
-    try {
-      await expect(hexa).toBeVisible({ timeout: 1_000 });
-    } catch (error) {
-      await page.keyboard.press('Escape');
-      throw error;
-    }
-  }).toPass();
-
-  await hexa.click();
-  await expect(builder.statusBar.getByRole('button', { name: 'Kaspersky HexaUI' })).toBeVisible();
-}
 
 /** Вид «Форма» открытого документа схемы — живая отрисовка активным китом. */
 async function showForm(page: Page): Promise<void> {
@@ -95,10 +48,7 @@ test.describe('Кит HexaUI — плагин проекта', () => {
 
   // Известный шум кита отсеивается после каждого теста — до проверки консоли фикстурой.
   test.afterEach(({ pageErrors }) => {
-    const unexpected = pageErrors.filter(
-      (message) => !KNOWN_KIT_NOISE.some((pattern) => pattern.test(message))
-    );
-    pageErrors.splice(0, pageErrors.length, ...unexpected);
+    dropKnownKitNoise(pageErrors);
   });
 
   test('кит появляется в списке китов и рисует форму', async ({ builder, page }) => {

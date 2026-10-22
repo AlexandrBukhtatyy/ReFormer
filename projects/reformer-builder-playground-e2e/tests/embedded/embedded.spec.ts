@@ -23,7 +23,9 @@ const SCHEMA = 'src/forms/contact/schema/form.schema.json';
 const FORM_MODULE = 'src/forms/contact/index.ts';
 const SERVICE = 'src/services/cities.ts';
 const ENTRY = 'src/main.tsx';
-const LAUNCH_CONFIG = '.ui_builder/config.json';
+// Конфиг запуска приложения — пресет кита: без `REFORMER_BUILDER_CONFIG` его `vite.config.ts` берёт
+// пресет ui-kit. `.ui_builder/config.json` — конфиг проекта: его билдер читает, открыв каталог.
+const LAUNCH_CONFIG = '.ui_builder/presets/ui-kit.json';
 const PLUGIN_MAIN = '.ui_builder/plugins/delivery-hello/main.ts';
 const PLUGIN_LOCALE = '.ui_builder/plugins/delivery-hello/locales/ru.json';
 
@@ -571,7 +573,7 @@ test.describe('Каталог .ui_builder приложения', () => {
     expect(await host.shellFrame().title()).toBe('Сервис доставки · билдер');
 
     // `defaults` действуют только на уровне запуска: конфиг открытого проекта их не применяет.
-    // Здесь уровень запуска — каталог приложения, и отдаёт его dev-сервер приложения.
+    // Здесь уровень запуска — пресет в каталоге приложения, и отдаёт его dev-сервер приложения.
     const config = JSON.parse(disk.readServed(LAUNCH_CONFIG)) as {
       defaults: Record<string, string>;
     };
