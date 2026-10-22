@@ -423,6 +423,65 @@ describe('builders', () => {
       // Цель полным путём срезается до пути от строки: `item.$.items.amount` у строки нет.
       expect(ts).not.toContain('item.$.items');
     });
+
+    it('кросс-полевое правило: cross над снимком формы, параметр схемы — только когда нужен', () => {
+      const opts = { interfaceName: 'T', exportName: 'v', typeImport: './types' };
+      const ts = buildValidationSchemaTs(
+        [
+          {
+            target: 'confirm',
+            rules: [],
+            cross: 'values.confirm === values.password',
+            code: 'passwordMismatch',
+          },
+        ],
+        opts
+      );
+      expect(ts).toContain('defineValidation<T>(({ model, cross }) => {');
+      expect(ts).toContain(
+        "cross(model.$.confirm, (values) => ((values.confirm === values.password) ? null : { code: 'passwordMismatch' }));"
+      );
+      // Без кросс-полевых правил параметр не объявляется: noUnusedLocals.
+      expect(buildValidationSchemaTs([MIX[0]], opts)).toContain('(({ model }) => {');
+    });
+
+    it('кросс-полевое правило строки: свой cross у applyEach, код по умолчанию', () => {
+      const ts = buildValidationSchemaTs(
+        [{ target: 'items.to', each: 'items', rules: [], cross: 'values.to >= values.from' }],
+        { interfaceName: 'T', exportName: 'v', typeImport: './types' }
+      );
+      expect(ts).toContain('defineValidation<T>(({ model }) => {');
+      expect(ts).toContain('applyEach(model.$.items, ({ model: item, cross }) => {');
+      expect(ts).toContain(
+        "cross(item.$.to, (values) => ((values.to >= values.from) ? null : { code: 'cross' }));"
+      );
+    });
+  });
+
+  describe('правило валидации: кросс-полевое, код и текст замечания', () => {
+    it('правило из одной кросс-полевой проверки законно; код и текст читаются', () => {
+      const { intent } = readIntent({
+        formName: 'Pw',
+        interfaceName: 'PwForm',
+        validation: [
+          {
+            target: 'confirm',
+            cross: 'values.confirm === values.password',
+            code: 'passwordMismatch',
+            message: 'Пароли не совпадают',
+          },
+        ],
+      });
+      expect(intent.validation).toEqual([
+        {
+          target: 'confirm',
+          rules: [],
+          cross: 'values.confirm === values.password',
+          code: 'passwordMismatch',
+          message: 'Пароли не совпадают',
+        },
+      ]);
+    });
   });
 
   it('behavior.ts импортирует только использованные операторы', () => {

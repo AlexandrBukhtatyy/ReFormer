@@ -63,8 +63,21 @@ export interface ValidationRuleIntent {
   when?: string;
   /** Имена валидаторов: `required`, `email`, `minLength(2)`, … */
   rules: string[];
-  /** Асинхронная проверка: имя функции, которую напишет разработчик. */
+  /**
+   * Асинхронная проверка: имя функции, которую напишет разработчик, либо сама функция
+   * выражением `async (value, { signal }) => issue | null` — печатается как есть.
+   */
   async?: string;
+  /**
+   * Кросс-полевая проверка → `cross(target, (values) => …)`: выражение над снимком формы
+   * `values` (у правила строки массива — снимком строки), которое должно быть ИСТИННЫМ; ложное
+   * даёт замечание {@link code}. Пример: `values.confirmPassword === values.password`.
+   */
+  cross?: string;
+  /** Код замечания кросс-полевой или асинхронной проверки. По умолчанию у `cross` — `cross`. */
+  code?: string;
+  /** Текст замечания с кодом {@link code} — для словаря формы (`defineIssueMessages`). */
+  message?: string;
 }
 
 /** Реактивная связь над моделью. */
@@ -650,7 +663,8 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
 
   const rules = asNames(take(raw, 'rules', ['rule', 'validators', 'checks'], ctx));
   const async = asName(take(raw, 'async', ['asyncValidator', 'asyncRule'], ctx));
-  if (rules.length === 0 && !async) {
+  const cross = asName(take(raw, 'cross', ['crossCheck', 'check'], ctx));
+  if (rules.length === 0 && !async && !cross) {
     ctx.problems.push({
       at: `${at}.rules`,
       message: `у правила на \`${target}\` нет ни одного валидатора`,
@@ -661,10 +675,15 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
 
   const when = asName(take(raw, 'when', ['condition'], ctx));
   const each = asName(take(raw, 'each', ['array', 'arrayPath'], ctx));
+  const code = asName(take(raw, 'code', ['issue', 'errorCode'], ctx));
+  const message = asName(take(raw, 'message', ['text', 'errorMessage'], ctx));
   return {
     target,
     rules,
     ...(async ? { async } : {}),
+    ...(cross ? { cross } : {}),
+    ...(code ? { code } : {}),
+    ...(message ? { message } : {}),
     ...(when ? { when } : {}),
     ...(each ? { each } : {}),
   };

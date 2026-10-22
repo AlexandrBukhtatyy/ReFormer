@@ -374,11 +374,35 @@ function validationImports(rules: readonly ValidationRuleIntent[]): {
   ops: string[];
   validators: string[];
 } {
-  const ops = ['validate', 'defineValidation'];
+  // `validate` нужен правилам с валидаторами; набор из одних кросс-полевых и асинхронных проверок
+  // его не зовёт. Пустой набор оставляет его: заготовка предлагает дописать правила им.
+  const usesValidate = rules.length === 0 || rules.some((r) => r.rules.length > 0);
+  const ops = usesValidate ? ['validate', 'defineValidation'] : ['defineValidation'];
   if (rules.some((r) => r.async)) ops.push('validateAsync');
   if (rules.some((r) => r.when)) ops.push('validateWhen');
   if (rules.some((r) => r.each)) ops.push('applyEach');
   return { ops, validators: collectValidators([...rules]) };
+}
+
+/** Код замечания кросс-полевой проверки, если правило его не назвало. */
+const DEFAULT_CROSS_CODE = 'cross';
+
+/**
+ * `cross(ref, (values) => …)`: выражение правила должно быть истинным, иначе — замечание с кодом.
+ * Скобки вокруг выражения — чтобы `a || b` не связался с тернарным оператором иначе, чем написано.
+ * Код — в одинарных кавычках, как строки во всём напечатанном модуле (`prettier --check`).
+ */
+function crossLine(ref: string, rule: ValidationRuleIntent): string {
+  const code = (rule.code ?? DEFAULT_CROSS_CODE).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `cross(${ref}, (values) => ((${rule.cross}) ? null : { code: '${code}' }));`;
+}
+
+/**
+ * Параметры схемы валидации: `cross` — только когда им пользуется правило верхнего уровня. Лишний
+ * параметр — неиспользованная переменная, а проекты собираются с `noUnusedLocals`.
+ */
+function schemaParams(rules: readonly ValidationRuleIntent[]): string {
+  return rules.some((rule) => rule.cross && !rule.each) ? '{ model, cross }' : '{ model }';
 }
 
 /** Строки, вложенные в блок `head … });` с отступом в два пробела. */
@@ -412,9 +436,12 @@ function validationRuleBlock(rule: ValidationRuleIntent): string {
   if (rule.async) {
     lines.push(`validateAsync(${ref}, [${rule.async}]);`);
   }
+  if (rule.cross) lines.push(crossLine(ref, rule));
   if (each !== undefined) {
-    // Правила строки — схема над элементом, записанная на месте: `applyEach` отдаёт ей под-модель.
-    lines = wrapBlock(`applyEach(model.$.${each}, ({ model: item }) => {`, lines);
+    // Правила строки — схема над элементом, записанная на месте: `applyEach` отдаёт ей под-модель
+    // и свой `cross` — над снимком строки.
+    const params = rule.cross ? '{ model: item, cross }' : '{ model: item }';
+    lines = wrapBlock(`applyEach(model.$.${each}, (${params}) => {`, lines);
   }
   if (rule.when) {
     lines = wrapBlock(`validateWhen(() => ${rule.when}, () => {`, lines);
@@ -460,7 +487,7 @@ export function buildValidationSchemaTs(
   lines.push(`import type { ${opts.interfaceName} } from '${opts.typeImport}';`);
   lines.push('');
   lines.push(
-    `export const ${opts.exportName} = defineValidation<${opts.interfaceName}>(({ model }) => {`
+    `export const ${opts.exportName} = defineValidation<${opts.interfaceName}>((${schemaParams(rules)}) => {`
   );
 
   if (rules.length === 0) {
@@ -630,8 +657,14 @@ export function buildFormValidationTs(intent: FormIntent): string {
     (type) => type !== 'Record<string, unknown>'
   );
 
-  const schema = (name: string, type: string, body: string[], exported = false): string[] => [
-    `${exported ? 'export ' : ''}const ${name} = defineValidation<${type}>(({ model }) => {`,
+  const schema = (
+    name: string,
+    type: string,
+    body: string[],
+    rules: readonly ValidationRuleIntent[],
+    exported = false
+  ): string[] => [
+    `${exported ? 'export ' : ''}const ${name} = defineValidation<${type}>((${schemaParams(rules)}) => {`,
     ...(body.length > 0 ? body : ['  // Правил в intent не было — добавьте их здесь.']),
     '});',
     '',
@@ -660,7 +693,9 @@ export function buildFormValidationTs(intent: FormIntent): string {
 
   for (const row of rowSchemas) {
     lines.push(`/** Правила строки массива \`${row.path}\`: пути — от элемента. */`);
-    lines.push(...schema(row.name, row.itemType, rowRuleLines(row.rules, row.each)));
+    // Правила строки — уже от элемента: `cross` строки нужен, если им пользуется хоть одно.
+    const rowRules = row.rules.map((rule) => ({ ...rule, each: undefined }));
+    lines.push(...schema(row.name, row.itemType, rowRuleLines(row.rules, row.each), rowRules));
   }
 
   if (!withSteps) {
@@ -669,6 +704,7 @@ export function buildFormValidationTs(intent: FormIntent): string {
         'formValidation',
         intent.interfaceName,
         [...ruleLines(formRules), ...applyRows(rowSchemas)],
+        formRules,
         true
       )
     );
@@ -683,6 +719,7 @@ export function buildFormValidationTs(intent: FormIntent): string {
         step.name,
         intent.interfaceName,
         [...ruleLines(step.rules), ...applyRows(step.rows)],
+        step.rules,
         true
       )
     );
@@ -692,7 +729,12 @@ export function buildFormValidationTs(intent: FormIntent): string {
     const extrasName = identifierFrom('crossStep', 'Rules', taken);
     lines.push('/** Правила вне шагов: проверяются целиком, при отправке. */');
     lines.push(
-      ...schema(extrasName, intent.interfaceName, [...ruleLines(restRules), ...applyRows(restRows)])
+      ...schema(
+        extrasName,
+        intent.interfaceName,
+        [...ruleLines(restRules), ...applyRows(restRows)],
+        restRules
+      )
     );
     lines.push(`export const formValidation: FormValidation<${intent.interfaceName}> = {`);
     lines.push(`  extras: ${extrasName},`);
