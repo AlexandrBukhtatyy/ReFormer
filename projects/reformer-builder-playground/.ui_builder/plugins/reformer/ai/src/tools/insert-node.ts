@@ -24,12 +24,15 @@ import { similarNames } from '../loop/suggest';
 import { fail, type AgentTool, type ToolOutcome } from '../model/types';
 import { REF_PROP } from './params';
 import { nodeKeyOf, nodeKeyRefusal, splitNodeKeys } from './node-keys';
+import { documentParts } from '../../../core/form-model';
 
-/** Один вставляемый узел. */
+/** Один вставляемый узел: компонент каталога либо подключение части (`part` + `model`). */
 interface NodeSpec {
-  component: string;
+  component?: string;
   model?: string;
   props?: Record<string, unknown>;
+  /** Имя части документа — узел подключает её разметку к группе `model`. */
+  part?: string;
 }
 
 /** Параметры вызова. */
@@ -63,13 +66,13 @@ export const insertNodeTool: AgentTool<Params> = {
           type: 'object',
           properties: {
             component: { type: 'string', description: 'Name from list_components' },
+            part: { type: 'string', description: 'Mount this part instead; model is the group' },
             model: { type: 'string', description: 'Model path, bare: applicant.email' },
             props: {
               type: 'object',
               description: 'Props; see describe_component. $disabled, $newRow: as in set_node_prop',
             },
           },
-          required: ['component'],
           additionalProperties: false,
         },
       },
@@ -96,8 +99,12 @@ export const insertNodeTool: AgentTool<Params> = {
     const entries: BatchEntry[] = [];
     let at = params.index ?? Number.MAX_SAFE_INTEGER;
 
+    const parts = documentParts(ctx.draft);
     for (const [i, spec] of params.nodes.entries()) {
-      const prepared = prepareNode(ctx.catalog, spec, slot.kind, params.parent);
+      const prepared =
+        spec.part !== undefined
+          ? preparePartMount(spec, parts)
+          : prepareNode(ctx.catalog, spec, slot.kind, params.parent);
       // Индекс элемента называется прямо: без него «поле нельзя класть в мастер» на пакете из
       // двенадцати узлов не говорит, какой именно узел виноват.
       if ('error' in prepared) return withIndex(prepared.error, params.nodes.length, i);
@@ -120,6 +127,36 @@ function withIndex(outcome: ToolOutcome, total: number, index: number): ToolOutc
   return { ...outcome, text: `nodes[${index}]: ${outcome.text}` };
 }
 
+/**
+ * Подключение части: узел `{ model, part }`. Части без группы модели не к чему привязать, а
+ * части, которой нет в документе, — нечего рисовать.
+ */
+function preparePartMount(
+  spec: NodeSpec,
+  parts: ReadonlyMap<string, JsonNode>
+): { node: JsonNode; describe: OpDescription } | { error: ToolOutcome } {
+  const name = spec.part ?? '';
+  if (!parts.has(name)) {
+    return {
+      error: fail('INVALID_PARAMS', `No part "${name}" in the document.`, [...parts.keys()]),
+    };
+  }
+  if (spec.model === undefined) {
+    return {
+      error: fail('INVALID_PARAMS', `Mounting part "${name}" needs model — the group path.`),
+    };
+  }
+  const node = { model: `$model(${spec.model})`, part: `$part(${name})` } as unknown as JsonNode;
+  return {
+    node,
+    describe: {
+      kind: 'add',
+      summary: `часть «${name}» (${spec.model})`,
+      report: `part "${name}" (${spec.model})`,
+    },
+  };
+}
+
 /** Узел, готовый ко вставке, вместе с описанием операции — либо отказ с причиной. */
 function prepareNode(
   catalog: Catalog,
@@ -127,6 +164,9 @@ function prepareNode(
   slotKind: string,
   parentRef: string
 ): { node: JsonNode; describe: OpDescription } | { error: ToolOutcome } {
+  if (spec.component === undefined) {
+    return { error: fail('INVALID_PARAMS', 'A node needs component — or part to mount a part.') };
+  }
   const entry = catalogEntry(catalog, spec.component);
   if (!entry) {
     // Похожих имён может не найтись вовсе (выдуманное имя ни на что не похоже) — тогда

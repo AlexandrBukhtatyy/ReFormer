@@ -10,8 +10,10 @@
  * вложенность (`children` — у визарда это слот шагов, — `item.$template`, `wrapper`), поэтому
  * дайджест не хардкодит правила размещения повторно.
  *
- * Подформа (`{ model, part }`) и массив с `item: "$part(имя)"` в дайджесте — листья: их разметка
- * лежит в `parts` документа, вне дерева корня, и адреса у её узлов нет.
+ * Подформа (`{ model, part }`) и массив с `item: "$part(имя)"` в дереве корня — листья с пометкой
+ * `part=имя`: их разметка лежит в `parts` документа, вне дерева корня. Она идёт после дерева
+ * корня, по части на блок, с адресами `/parts/<имя>/…` — теми же JSON Pointer, которыми её правят
+ * write-инструменты. Без этого содержимое части было бы недостижимо: ни прочесть, ни поправить.
  *
  * @module plugins/reformer/ai/model/outline
  */
@@ -19,8 +21,11 @@
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   childSlots,
+  documentParts,
   isNodeLike,
   kindOf,
+  PARTS_KEY,
+  partRefOf,
   type ChildSlotKind,
   type NodeKind,
 } from '../../../core/form-model';
@@ -45,6 +50,10 @@ export interface OutlineEntry {
   slot?: ChildSlotKind;
   /** `componentProps.required === true`. */
   required?: boolean;
+  /** Имя части, разметку которой узел подключает (`$part(имя)` подформы или шаблона строки). */
+  part?: string;
+  /** У корня разметки части — её имя: с этой строки начинается блок части. */
+  partDef?: string;
 }
 
 /**
@@ -56,6 +65,12 @@ export function buildOutline(schema: JsonFormSchema): OutlineEntry[] {
   const root = (schema as { root?: unknown }).root;
   if (!isNodeLike(root)) return out;
   visit(root, ['root'], 0, undefined, out);
+  for (const [name, markup] of documentParts(schema)) {
+    const start = out.length;
+    visit(markup, [PARTS_KEY, name], 0, undefined, out);
+    const head = out[start];
+    if (head !== undefined) out[start] = { ...head, partDef: name };
+  }
   return out;
 }
 
@@ -70,6 +85,7 @@ function visit(
   const component = componentOf(node);
   const model = modelOf(node);
   const label = labelOf(node);
+  const part = partRefOf(node);
   out.push({
     ref: nodeRef(path),
     depth,
@@ -79,6 +95,7 @@ function visit(
     ...(label ? { label } : {}),
     ...(slot ? { slot } : {}),
     ...(props?.required === true ? { required: true } : {}),
+    ...(part !== undefined ? { part } : {}),
   });
   for (const s of childSlots(node, path)) {
     for (const entry of s.entries) {
@@ -94,7 +111,9 @@ function renderEntry(e: OutlineEntry): string {
   if (e.model) parts.push(`model=${e.model}`);
   if (e.label) parts.push(`«${e.label}»`);
   if (e.required) parts.push('required');
-  return `${'  '.repeat(e.depth)}${e.ref} · ${parts.join(' · ')}`;
+  if (e.part) parts.push(`part=${e.part}`);
+  const head = e.partDef ? `part «${e.partDef}»: ` : '';
+  return `${'  '.repeat(e.depth)}${head}${e.ref} · ${parts.join(' · ')}`;
 }
 
 /**

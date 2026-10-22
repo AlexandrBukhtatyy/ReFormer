@@ -408,12 +408,12 @@ describe('подформа и массив с шаблоном-частью', ()
     let schema = expectOk(
       await reg.invoke('move_node', { ref: PART, parent: '/root', index: 3 }, ctxOf(base))
     );
-    expect(buildOutline(schema).map((e) => e.kind)).toEqual([
-      'container',
-      'array',
-      'field',
-      'part',
-    ]);
+    // Дерево корня; разметка частей идёт в карте отдельным блоком (`/parts/…`).
+    const rootKinds = (next: typeof schema) =>
+      buildOutline(next)
+        .filter((e) => e.ref.startsWith('/root'))
+        .map((e) => e.kind);
+    expect(rootKinds(schema)).toEqual(['container', 'array', 'field', 'part']);
 
     schema = expectOk(
       await reg.invoke('duplicate_node', { ref: '/root/children/0' }, ctxOf(schema))
@@ -430,7 +430,7 @@ describe('подформа и массив с шаблоном-частью', ()
         ctxOf(schema)
       )
     );
-    expect(buildOutline(schema).map((e) => e.kind)).toEqual(['container', 'array', 'field']);
+    expect(rootKinds(schema)).toEqual(['container', 'array', 'field']);
     // Часть документа правки узлов не трогают.
     expect(schema.parts).toBe(base.parts);
   });
@@ -1217,5 +1217,96 @@ describe('особые ключи узла: $disabled и $newRow', () => {
     );
     // Принять или отвергнуть массив решает схема свойств компонента, а не схема параметров.
     expect(res.error?.code).not.toBe('INVALID_PARAMS');
+  });
+});
+
+describe('extract_part — блок в часть и её второе подключение', () => {
+  /** Форма с блоком адреса регистрации: поля лежат в группе `registration`. */
+  function withAddressBlock(): JsonFormSchema {
+    return {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        children: [
+          {
+            component: '$component(Box)',
+            children: [
+              { model: '$model(registration.city)', component: `$component(${FIELD})` },
+              { model: '$model(registration.street)', component: `$component(${FIELD})` },
+            ],
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+  }
+
+  it('блок уходит в часть с путями от группы, на его месте — подключение части', async () => {
+    const schema = expectOk(
+      await reg.invoke(
+        'extract_part',
+        { ref: '/root/children/0', name: 'address', model: 'registration' },
+        ctxOf(withAddressBlock())
+      )
+    );
+    expect(getAt(schema, ['root', 'children', 0])).toEqual({
+      model: '$model(registration)',
+      part: '$part(address)',
+    });
+    const fields = getAt(schema, ['parts', 'address', 'children']) as { model: string }[];
+    expect(fields.map((field) => field.model)).toEqual(['$model(city)', '$model(street)']);
+
+    // Второе подключение той же части — к другой группе.
+    const twice = expectOk(
+      await reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ part: 'address', model: 'actual' }] },
+        ctxOf(schema)
+      )
+    );
+    expect(getAt(twice, ['root', 'children', 1])).toEqual({
+      model: '$model(actual)',
+      part: '$part(address)',
+    });
+  });
+
+  it('поле вне группы и занятое имя — отказ; подключение несуществующей части — отказ', async () => {
+    const outside = await reg.invoke(
+      'extract_part',
+      { ref: '/root/children/0', name: 'address', model: 'home' },
+      ctxOf(withAddressBlock())
+    );
+    expect(outside.error?.code).toBe('INVALID_PARAMS');
+    expect(outside.text).toContain('registration.city');
+
+    const mount = await reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ part: 'nope', model: 'actual' }] },
+      ctxOf(withAddressBlock())
+    );
+    expect(mount.error?.code).toBe('INVALID_PARAMS');
+  });
+});
+
+describe('содержимое части правится по адресу /parts/…', () => {
+  it('поле части получает свойство, в часть вставляется поле', async () => {
+    const base = withParts();
+    const labelled = expectOk(
+      await reg.invoke(
+        'set_node_prop',
+        { refs: ['/parts/address/children/0'], props: { label: 'Город' } },
+        ctxOf(base)
+      )
+    );
+    expect(getAt(labelled, ['parts', 'address', 'children', 0, 'componentProps'])).toMatchObject({
+      label: 'Город',
+    });
+    const inserted = expectOk(
+      await reg.invoke(
+        'insert_node',
+        { parent: '/parts/address', nodes: [{ component: FIELD, model: 'street' }] },
+        ctxOf(labelled)
+      )
+    );
+    expect(getAt(inserted, ['parts', 'address', 'children', 1, 'model'])).toBe('$model(street)');
   });
 });

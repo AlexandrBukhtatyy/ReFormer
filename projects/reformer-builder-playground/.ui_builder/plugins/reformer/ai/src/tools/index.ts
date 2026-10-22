@@ -24,6 +24,7 @@ import type { AgentTool } from '../model/types';
 import { askUserTool } from './ask-user';
 import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
+import { extractPartTool } from './extract-part';
 import { getFormNode } from './get-form-node';
 import { getFormOutline } from './get-form-outline';
 import { groupNodesTool } from './group-nodes';
@@ -44,6 +45,7 @@ export {
   createReformerDocsTool,
   describeComponentTool,
   duplicateNodeTool,
+  extractPartTool,
   getFormNode,
   getFormOutline,
   groupNodesTool,
@@ -87,6 +89,7 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
   moveNodeTool,
   duplicateNodeTool,
   groupNodesTool,
+  extractPartTool,
   setLayoutTool,
   setFormRulesTool,
   setRenderRulesTool,

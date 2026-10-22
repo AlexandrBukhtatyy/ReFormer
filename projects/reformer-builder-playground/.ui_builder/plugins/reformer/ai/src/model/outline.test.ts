@@ -81,15 +81,20 @@ describe('buildOutline', () => {
     expect(buildOutline(schema).map((e) => [e.ref, e.component])).toEqual([['/root', 'Wizard']]);
   });
 
-  it('подформа и массив с шаблоном-частью — листья: разметка частей лежит вне дерева корня', () => {
+  it('подформа и массив с шаблоном-частью — листья с именем части; разметка части — своим блоком', () => {
     const entries = buildOutline(withParts());
-    expect(entries.map((e) => [e.ref, e.kind, e.component, e.model])).toEqual([
-      ['/root', 'container', 'Box', undefined],
-      ['/root/children/0', 'part', undefined, 'registrationAddress'],
-      ['/root/children/1', 'array', 'FieldArray', 'previousAddresses'],
+    expect(entries.map((e) => [e.ref, e.kind, e.component, e.model, e.part])).toEqual([
+      ['/root', 'container', 'Box', undefined, undefined],
+      ['/root/children/0', 'part', undefined, 'registrationAddress', 'address'],
+      ['/root/children/1', 'array', 'FieldArray', 'previousAddresses', 'address'],
+      // Разметка части идёт после дерева корня, адресом в `parts`: её правят те же инструменты.
+      ['/parts/address', 'container', 'Box', undefined, undefined],
+      ['/parts/address/children/0', 'field', 'Input', 'city', undefined],
     ]);
-    // Узлы из `parts` в карту не попадают: адреса в дереве корня у них нет.
-    expect(entries.some((e) => e.model === 'city')).toBe(false);
+    expect(entries.find((e) => e.ref === '/parts/address')?.partDef).toBe('address');
+    const text = renderOutline(entries, 4000);
+    expect(text).toContain('part «address»: /parts/address · Box');
+    expect(text).toContain('/root/children/0 · (part) · model=registrationAddress · part=address');
   });
 });
 
