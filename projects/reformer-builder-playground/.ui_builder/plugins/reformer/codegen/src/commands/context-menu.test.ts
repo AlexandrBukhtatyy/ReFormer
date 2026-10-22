@@ -368,6 +368,22 @@ describe('генерация в каталог', () => {
       write: false,
     });
     expect((await generateInto({ host: readOnly, targets }, { dir: DIR })).kind).toBe('read-only');
+
+    // Модуль на диске напечатан другим китом — перепечатки под активный нет.
+    const foreignKit = createFakeHost({
+      files: {
+        [`${DIR}/form.schema.json`]: SCHEMA,
+        [`${DIR}/schema/registry.ts`]: [
+          "import { FormField } from '@reformer/kit-hexa-ui';",
+          'reg.component(FIELD_WRAPPER, FormField);',
+        ].join('\n'),
+      },
+    });
+    expect(await generateInto({ host: foreignKit, targets }, { dir: DIR })).toEqual({
+      kind: 'kit-mismatch',
+      moduleKit: '@reformer/kit-hexa-ui',
+      activeKit: '@reformer/ui-kit',
+    });
   });
 
   it('аргументы проверяются по полю, а не приводятся целиком', () => {
@@ -414,6 +430,11 @@ describe('исход говорится словами', () => {
     const cases: readonly [GenerateIntoOutcome, string][] = [
       [{ kind: 'no-schema' }, 'warning'],
       [{ kind: 'no-kit' }, 'error'],
+      // Ничего не сломано и ничего не записано: человеку — переключить кит.
+      [
+        { kind: 'kit-mismatch', moduleKit: '@reformer/kit-hexa-ui', activeKit: '@reformer/ui-kit' },
+        'warning',
+      ],
       [{ kind: 'not-applicable', targetId: 'codegen.flow' }, 'info'],
       [
         {

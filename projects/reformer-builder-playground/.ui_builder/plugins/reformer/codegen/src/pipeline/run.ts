@@ -23,7 +23,7 @@ import {
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
-import { deliverInto, SourceReadOnlyError } from './deliver';
+import { deliverInto, KitMismatchError, SourceReadOnlyError } from './deliver';
 import { generateModule, type CodegenProblem } from './generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import type { CodegenStore } from './state';
@@ -118,7 +118,13 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   }
 
   const formName = (options.formName ?? '').trim() || defaultFormName(document);
-  store.patch({ phase: 'running', errorKey: null, errorDetail: undefined, delivery: null });
+  store.patch({
+    phase: 'running',
+    errorKey: null,
+    errorDetail: undefined,
+    errorParams: undefined,
+    delivery: null,
+  });
 
   // Где лежит документ, там и модуль: путь документа внутри модуля решается ДО печати — от него
   // считаются импорты и место файлов шагов.
@@ -177,8 +183,19 @@ export async function runCodegen(options: RunOptions): Promise<void> {
       problems,
       view: module.view,
       delivery: null,
-      errorKey: error instanceof SourceReadOnlyError ? 'error.read-only' : 'error.failed',
+      errorKey:
+        error instanceof SourceReadOnlyError
+          ? 'error.read-only'
+          : error instanceof KitMismatchError
+            ? 'error.kit-mismatch'
+            : 'error.failed',
+      ...(error instanceof KitMismatchError
+        ? { errorParams: { module: error.moduleKit, active: error.activeKit } }
+        : {}),
     });
-    if (!(error instanceof SourceReadOnlyError)) throw error;
+    // Оба отказа — ответ, а не поломка: о них говорит панель, и ничего не записано.
+    if (!(error instanceof SourceReadOnlyError) && !(error instanceof KitMismatchError)) {
+      throw error;
+    }
   }
 }

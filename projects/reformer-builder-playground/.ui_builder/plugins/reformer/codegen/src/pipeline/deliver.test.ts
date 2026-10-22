@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
-import { deliverModule, isSchemaDocumentPath, SourceReadOnlyError } from './deliver';
+import {
+  deliverModule,
+  isSchemaDocumentPath,
+  KitMismatchError,
+  registryKitOf,
+  SourceReadOnlyError,
+} from './deliver';
 import type { ModuleFile } from './generate';
 import { createFakeHost } from '../testing';
 
@@ -14,6 +20,98 @@ const file = (over: Partial<ModuleFile> & Pick<ModuleFile, 'path'>): ModuleFile 
   targetId: `t:${over.path}`,
   origin: 'builtin',
   ...over,
+});
+
+/** Реестр модуля, напечатанный китом `kit`: обёртка поля — из его главного входа. */
+const registry = (kit: string, wrapper = 'FormField'): string =>
+  withMarker(
+    [
+      `import { Box, ${wrapper}, Input } from '${kit}';`,
+      "import { Step } from '@reformer/cdk/form-wizard';",
+      "import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';",
+      '',
+      'export function createRegistry(): ComponentRegistry {',
+      '  return defineRegistry((reg) => {',
+      `    reg.component(FIELD_WRAPPER, ${wrapper});`,
+      "    reg.component('Box', Box);",
+      '  });',
+      '}',
+      '',
+    ].join('\n')
+  );
+
+const registryFile = (kit: string): ModuleFile =>
+  file({ path: 'schema/registry.ts', targetId: 'codegen.registry', content: registry(kit) });
+
+describe('кит модуля', () => {
+  it('registryKitOf — пакет, из которого импортирована обёртка поля', () => {
+    expect(registryKitOf(registry('@reformer/ui-kit'))).toBe('@reformer/ui-kit');
+    // Подпуть кита — тот же пакет; переименованный импорт находится по локальному имени.
+    const aliased = [
+      "import { HexField as Wrapper } from '@hexa/ui/fields';",
+      'reg.component(FIELD_WRAPPER, Wrapper);',
+    ].join('\n');
+    expect(registryKitOf(aliased)).toBe('@hexa/ui');
+    expect(registryKitOf('export const x = 1;\n')).toBeNull();
+  });
+
+  it('модуль, напечатанный другим китом, не перепечатывается: отказ ДО первой записи', async () => {
+    const host = createFakeHost({
+      files: { 'src/pages/my-form/schema/registry.ts': registry('@reformer/kit-hexa-ui') },
+    });
+    const delivery = deliverModule(host, PARENT, 'my-form', [
+      file({ path: 'types/my-form.ts' }),
+      registryFile('@reformer/ui-kit'),
+    ]);
+
+    await expect(delivery).rejects.toBeInstanceOf(KitMismatchError);
+    await expect(delivery).rejects.toMatchObject({
+      moduleKit: '@reformer/kit-hexa-ui',
+      activeKit: '@reformer/ui-kit',
+    });
+    // Ничего не записано: реестр на диске прежний, остальные файлы модуля не появились.
+    expect(host.written.get('src/pages/my-form/schema/registry.ts')).toBe(
+      registry('@reformer/kit-hexa-ui')
+    );
+    expect(host.written.has('src/pages/my-form/types/my-form.ts')).toBe(false);
+  });
+
+  it('тот же кит, новый модуль и реестр, напечатанный не нами, — запись как обычно', async () => {
+    const sameKit = createFakeHost({
+      files: { 'src/pages/my-form/schema/registry.ts': registry('@reformer/ui-kit') },
+    });
+    const result = await deliverModule(sameKit, PARENT, 'my-form', [
+      registryFile('@reformer/ui-kit'),
+    ]);
+    expect(result.written).toEqual(['schema/registry.ts']);
+
+    const fresh = createFakeHost();
+    await expect(
+      deliverModule(fresh, PARENT, 'my-form', [registryFile('@reformer/ui-kit')])
+    ).resolves.toMatchObject({ written: ['schema/registry.ts'] });
+
+    // Свой реестр человека без FIELD_WRAPPER — судить о ките не по чему: отказа нет.
+    const handwritten = createFakeHost({
+      files: { 'src/pages/my-form/schema/registry.ts': "import { X } from 'my-kit';\n" },
+    });
+    await expect(
+      deliverModule(handwritten, PARENT, 'my-form', [registryFile('@reformer/ui-kit')])
+    ).resolves.toMatchObject({ written: ['schema/registry.ts'] });
+  });
+
+  it('запись одной цели сверяет кит по полному модулю', async () => {
+    const host = createFakeHost({
+      files: { 'src/pages/my-form/schema/registry.ts': registry('@reformer/kit-hexa-ui') },
+    });
+    const types = file({ path: 'types/my-form.ts' });
+
+    await expect(
+      deliverModule(host, PARENT, 'my-form', [types], {
+        module: [types, registryFile('@reformer/ui-kit')],
+      })
+    ).rejects.toBeInstanceOf(KitMismatchError);
+    expect(host.written.has('src/pages/my-form/types/my-form.ts')).toBe(false);
+  });
 });
 
 describe('доставка модуля', () => {

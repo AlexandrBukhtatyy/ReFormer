@@ -67,6 +67,7 @@ import type { CodegenTarget } from '../contract';
 import {
   deliverInto,
   isSchemaDocumentPath,
+  KitMismatchError,
   SourceReadOnlyError,
   type DeliveryResult,
 } from '../pipeline/deliver';
@@ -256,6 +257,8 @@ export type GenerateIntoOutcome =
   | { readonly kind: 'no-kit' }
   | { readonly kind: 'not-applicable'; readonly targetId: string }
   | { readonly kind: 'read-only' }
+  /** Модуль на диске напечатан другим китом: перепечатка заменила бы его реестр и страницу. */
+  | { readonly kind: 'kit-mismatch'; readonly moduleKit: string; readonly activeKit: string }
   | { readonly kind: 'failed'; readonly message: string }
   | { readonly kind: 'delivered'; readonly delivery: DeliveryResult; readonly formName: string };
 
@@ -335,6 +338,9 @@ export async function generateInto(
     return { kind: 'delivered', delivery, formName };
   } catch (error) {
     if (error instanceof SourceReadOnlyError) return { kind: 'read-only' };
+    if (error instanceof KitMismatchError) {
+      return { kind: 'kit-mismatch', moduleKit: error.moduleKit, activeKit: error.activeKit };
+    }
     return { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -375,6 +381,11 @@ export function notifyOutcome(
       return;
     case 'read-only':
       notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.read-only'));
+      return;
+    case 'kit-mismatch':
+      notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.kit-mismatch'), {
+        params: { module: outcome.moduleKit, active: outcome.activeKit },
+      });
       return;
     case 'failed':
       notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.failed'), {

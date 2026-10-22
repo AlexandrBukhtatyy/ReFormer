@@ -41,6 +41,8 @@ export interface CodegenState {
   readonly errorKey: string | null;
   /** Подробность отказа, которую ключ словаря не передаёт (какой файл шага не собрался). */
   readonly errorDetail?: string;
+  /** Подстановки в текст отказа: `error.kit-mismatch` называет кит модуля и активный. */
+  readonly errorParams?: Readonly<Record<string, string>>;
   /**
    * Данные, которые видели шаблоны (`it`). `null` — прогона ещё не было.
    *

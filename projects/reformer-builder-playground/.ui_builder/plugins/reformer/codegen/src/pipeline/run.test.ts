@@ -88,6 +88,27 @@ describe('прогон генерации', () => {
     expect(store.get().errorKey).toBe('error.read-only');
   });
 
+  it('модуль, напечатанный другим китом, — отказ с именами китов, ничего не записано', async () => {
+    // Реестр на диске напечатан HexaUI: обёртка поля — из её пакета.
+    const foreign = [
+      "import { FormField } from '@reformer/kit-hexa-ui';",
+      'reg.component(FIELD_WRAPPER, FormField);',
+    ].join('\n');
+    const { host, store } = setup({
+      withSave: true,
+      files: { 'src/forms/credit/schema/registry.ts': foreign },
+    });
+    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
+
+    expect(store.get().errorKey).toBe('error.kit-mismatch');
+    expect(store.get().errorParams).toEqual({
+      module: '@reformer/kit-hexa-ui',
+      active: '@reformer/ui-kit',
+    });
+    expect(host.written.get('src/forms/credit/schema/registry.ts')).toBe(foreign);
+    expect(host.written.has('src/forms/credit/types/credit.ts')).toBe(false);
+  });
+
   it('сниппет регистрации собран из имени формы', async () => {
     const { host, store } = setup();
     await runCodegen({

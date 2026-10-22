@@ -226,7 +226,7 @@ function ExportFor({
       {state.errorKey === null ? null : (
         <Alert variant="destructive">
           <AlertDescription>
-            {t(state.errorKey)}
+            {t(state.errorKey, state.errorParams)}
             {state.errorDetail === undefined ? null : <div>{state.errorDetail}</div>}
           </AlertDescription>
         </Alert>

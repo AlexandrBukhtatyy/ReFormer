@@ -145,6 +145,76 @@ export class SourceReadOnlyError extends Error {
 }
 
 /**
+ * Модуль на диске напечатан другим китом, чем печатается сейчас, — доставка не начинается.
+ *
+ * Производные файлы (реестр, страница) доставка переписывает всегда, и без этой проверки
+ * «Сгенерировать» под чужим активным китом молча перепечатало бы форму HexaUI под ui-kit: кит —
+ * одна настройка на проект, а не свойство формы. Отказ честнее частичной записи: модуль,
+ * напечатанный наполовину под другой кит, не собрался бы.
+ */
+export class KitMismatchError extends Error {
+  constructor(
+    /** Пакет кита, которым напечатан модуль на диске. */
+    readonly moduleKit: string,
+    /** Пакет кита, под который модуль печатается сейчас. */
+    readonly activeKit: string
+  ) {
+    super(`модуль напечатан китом «${moduleKit}», а печатается под «${activeKit}»`);
+    this.name = 'KitMismatchError';
+  }
+}
+
+/** Цель, печатающая реестр компонентов: по нему узнаётся кит модуля. */
+const REGISTRY_TARGET_ID = 'codegen.registry';
+
+/** Пакет по спецификатору импорта: `@scope/name/sub` → `@scope/name`, `name/sub` → `name`. */
+function packageOf(specifier: string): string {
+  const parts = specifier.split('/');
+  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+}
+
+/**
+ * Кит, которым напечатан реестр формы, — пакет, из которого импортирована обёртка поля
+ * (`reg.component(FIELD_WRAPPER, …)`). Её даёт главный вход кита в любом реестре: в отличие от
+ * символов записей, она есть и у формы без единого поля кита. `null` — реестр не наш либо
+ * напечатан прежней раскладкой: судить не по чему.
+ */
+export function registryKitOf(text: string): string | null {
+  const wrapper = /reg\.component\(\s*FIELD_WRAPPER\s*,\s*([A-Za-z_$][\w$]*)\s*\)/.exec(text)?.[1];
+  if (wrapper === undefined) return null;
+  for (const match of text.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
+    const locals = match[1].split(',').map((name) => {
+      const parts = name.trim().split(/\s+as\s+/);
+      return parts[parts.length - 1].replace(/^type\s+/, '').trim();
+    });
+    if (locals.includes(wrapper)) return packageOf(match[2]);
+  }
+  return null;
+}
+
+/**
+ * Отказ, если модуль на диске напечатан другим китом. Сравниваются пакеты обёртки поля в
+ * реестре на диске и в свежем — то есть кит модуля и кит, под который он печатается сейчас.
+ */
+async function assertSameKit(
+  host: CodegenHost,
+  dir: ResourceId,
+  module: readonly ModuleFile[]
+): Promise<void> {
+  const registry = module.find((file) => file.targetId === REGISTRY_TARGET_ID);
+  if (registry === undefined) return;
+  const activeKit = registryKitOf(registry.content);
+  if (activeKit === null) return;
+  const id = at(host, dir, registry.path);
+  if (!(await host.exists(id))) return;
+  const current = await host.readText(id).catch(() => null);
+  const moduleKit = current === null ? null : registryKitOf(current);
+  if (moduleKit !== null && moduleKit !== activeKit) {
+    throw new KitMismatchError(moduleKit, activeKit);
+  }
+}
+
+/**
  * Записать модуль в каталог `<parent>/<dir>`.
  *
  * Каталог не создаётся отдельным шагом: рабочая область адресует ресурсы путями, и запись
@@ -284,6 +354,9 @@ export async function deliverInto(
 ): Promise<DeliveryResult> {
   const capabilities = host.sourceOf(dir);
   if (capabilities === null || !capabilities.write) throw new SourceReadOnlyError();
+  // По полному модулю: запись одной цели (типы из меню дерева) реестра среди доставляемых не несёт,
+  // а кит у модуля тот же.
+  await assertSameKit(host, dir, options.module ?? files);
 
   const written: string[] = [];
   const skipped: { path: string; reason: SkipReason }[] = [];
