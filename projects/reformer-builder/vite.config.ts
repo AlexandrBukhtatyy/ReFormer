@@ -73,7 +73,9 @@ function devApplicationPlugins(): Plugin {
       const named = process.env.REFORMER_BUILDER_PLUGINS ?? DEFAULT_APPLICATION_PLUGINS;
       if (named === '') return;
       const plugins = {
-        ...resolvePluginsSet(path.resolve(process.cwd(), named)),
+        // От корня сервера — каталога пакета билдера, а не от `process.cwd()`: встроенный билдер
+        // поднимает этот сервер в процессе приложения, и там текущий каталог — приложения.
+        ...resolvePluginsSet(path.resolve(server.config.root, named)),
         revisions: createRevisionMemo(),
         onMissing: (missing: readonly string[]) => {
           server.config.logger.warnOnce(
