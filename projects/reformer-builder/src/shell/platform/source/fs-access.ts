@@ -33,7 +33,14 @@
  * @module shell/platform/source/fs-access
  */
 
-import { basename, dirname, joinPath, mediaTypeFor } from '@reformer/builder-plugin-api/internal';
+import {
+  MEDIA_TYPE_BY_EXTENSION,
+  basename,
+  dirname,
+  extname,
+  joinPath,
+  mediaTypeFor,
+} from '@reformer/builder-plugin-api/internal';
 import { SourceError, isSourceError, sourcePath, unsupported } from './errors';
 import type {
   Entry,
@@ -60,7 +67,10 @@ import { SOURCE_LIST_LIMIT } from './types';
 export interface FsFile {
   readonly size: number;
   readonly lastModified: number;
-  /** Медиатип по мнению браузера. Часто пустая строка — тогда решает таблица расширений ядра. */
+  /**
+   * Медиатип по мнению браузера: догадка по имени, часто пустая строка. Слушается только для
+   * расширений, которых нет в таблице ядра (см. `mediaTypeOf`).
+   */
   readonly type: string;
   text(): Promise<string>;
   arrayBuffer(): Promise<ArrayBuffer>;
@@ -191,6 +201,19 @@ async function findFile(
 /** Ревизия файла: время модификации строкой. Непрозрачна для всех, включая нас. */
 const revisionOf = (file: FsFile): string => String(file.lastModified);
 
+/**
+ * Медиатип файла: таблица расширений ядра, а мнение браузера — только запасной ответ.
+ *
+ * Порядок обратный {@link mediaTypeFor}, и это не непоследовательность. Там подсказка источника
+ * перебивает расширение, потому что `Content-Type` — факт о содержимом. `File.type` — не факт,
+ * а такая же догадка по имени, только чужая и зависящая от ОС: Chrome на Windows берёт её
+ * из реестра, где `.ts` — MPEG transport stream (`video/vnd.dlna.mpeg-tts`), и модуль
+ * TypeScript не открывался ни одним редактором. Браузер спрашивается лишь о расширениях,
+ * которых таблица не знает (`.mp4`, `.webm`), — иначе они упали бы на текст по умолчанию.
+ */
+const mediaTypeOf = (path: string, file: FsFile): string =>
+  MEDIA_TYPE_BY_EXTENSION[extname(path).toLowerCase()] ?? mediaTypeFor(path, file.type);
+
 /*
  * ────────────────────────────────  Разрешения  ────────────────────────────────
  */
@@ -285,7 +308,7 @@ export function createFsAccessSource(
       const content: SourceContent = {
         text: await file.text(),
         revision: revisionOf(file),
-        mediaType: mediaTypeFor(target, file.type),
+        mediaType: mediaTypeOf(target, file),
       };
       return content;
     },
@@ -296,7 +319,7 @@ export function createFsAccessSource(
       const bytes: SourceBytes = {
         bytes: new Uint8Array(await file.arrayBuffer()),
         revision: revisionOf(file),
-        mediaType: mediaTypeFor(target, file.type),
+        mediaType: mediaTypeOf(target, file),
       };
       return bytes;
     },
@@ -344,7 +367,7 @@ export function createFsAccessSource(
           kind: 'file',
           revision: revisionOf(file),
           size: file.size,
-          mediaType: mediaTypeFor(target, file.type),
+          mediaType: mediaTypeOf(target, file),
         };
         return stat;
       } catch (err) {

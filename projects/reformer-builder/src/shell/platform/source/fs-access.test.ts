@@ -143,6 +143,49 @@ describe('запись', () => {
   });
 });
 
+describe('медиатип', () => {
+  /**
+   * Каталог, у файлов которого браузер называет тип сам, — как Chrome на Windows,
+   * берущий `File.type` из реестра ОС.
+   */
+  const withBrowserTypes = (
+    root: FsDirectoryHandle,
+    types: Readonly<Record<string, string>>
+  ): FsDirectoryHandle => ({
+    ...root,
+    async getFileHandle(name, options) {
+      const handle = await root.getFileHandle(name, options);
+      const typed: FsFileHandle = {
+        ...handle,
+        getFile: async () => ({ ...(await handle.getFile()), type: types[name] ?? '' }),
+      };
+      return typed;
+    },
+  });
+
+  it('догадка браузера по имени не перебивает таблицу расширений ядра', async () => {
+    // В реестре Windows `.ts` — MPEG transport stream, и модуль не открывался ни одним редактором.
+    const { root } = createFakeDirectory({ 'validation.ts': 'export {};' });
+    const source = createFsAccessSource(
+      withBrowserTypes(root, { 'validation.ts': 'video/vnd.dlna.mpeg-tts' })
+    );
+    const readBytes = source.readBytes;
+    if (readBytes === undefined) throw new Error('каталог обязан уметь отдавать байты');
+
+    expect((await source.read('validation.ts')).mediaType).toBe('text/typescript');
+    expect((await readBytes.call(source, 'validation.ts')).mediaType).toBe('text/typescript');
+    expect((await source.stat('validation.ts'))?.mediaType).toBe('text/typescript');
+  });
+
+  it('о расширении, которого таблица не знает, спрашивается браузер', async () => {
+    const { root } = createFakeDirectory({ 'intro.mp4': '' });
+    const source = createFsAccessSource(withBrowserTypes(root, { 'intro.mp4': 'video/mp4' }));
+
+    // Без этого видео упало бы на текст по умолчанию и открылось бы как текстовый файл.
+    expect((await source.stat('intro.mp4'))?.mediaType).toBe('video/mp4');
+  });
+});
+
 describe('каталог только на чтение', () => {
   it('не объявляет ни возможности записи, ни её методов', () => {
     const { root } = createFakeDirectory(FILES);
