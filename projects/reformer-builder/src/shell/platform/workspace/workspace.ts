@@ -398,6 +398,17 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
   const materialized = new Map<string, Entry>();
   const opened = new Map<ResourceId, OpenState>();
+  /**
+   * Открытия, которые ещё идут: ресурс → обещание его документа.
+   *
+   * Документ попадает в `opened` только после материализации и замыкания импортов, то есть
+   * через несколько `await`. Без этой таблицы второй `open` того же ресурса, пришедший в это
+   * окно (щелчок по файлу открывает предпросмотр, двойной — закрепляет), не находил его в
+   * `opened` и заводил СВОЙ буфер; в `opened` оставался последний. Модель документа вешалась
+   * на первый, и запись извне — ход ассистента, слияние, откат — попадала в буфер, которого
+   * не показывает ни один редактор.
+   */
+  const opening = new Map<ResourceId, Promise<Document>>();
   /** Свойства, изменившиеся в памяти и ещё не записанные. Пишутся одной транзакцией. */
   const dirtyStats = new Set<string>();
   /** Пути, чьи свойства надо удалить: вытеснение и откат созданного файла. */
@@ -771,6 +782,53 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     }
   };
 
+  /** Открытие без учёта открытий в полёте — их сводит `open`. */
+  function openOnce(resource: ResourceId): Promise<Document> {
+    return batched(async () => {
+      await ready();
+      const path = pathOf(resource);
+
+      const existing = opened.get(resource);
+      if (existing !== undefined) {
+        const entry = materialized.get(path);
+        if (entry !== undefined) touch(entry);
+        await persist();
+        return existing.handle.document;
+      }
+
+      // Корень материализуется отдельно и первым: его отсутствие — отказ открытия,
+      // а не «неполное замыкание», и путать эти два случая нельзя.
+      await materializeOne(path);
+      const closure = await runClosure(path);
+
+      const entry = materialized.get(path);
+      if (entry === undefined) throw new Error(`ресурс не материализовался: ${path}`);
+      const text = await workingText(path);
+      const handle = createDocument(refOf(entry), text, entry.dirty);
+
+      const order = openedOrder;
+      openedOrder += 1;
+      opened.set(resource, { handle, order, required: new Set(closure.files) });
+
+      const ts = now();
+      await tryMeta(() =>
+        meta.putOpened({
+          workspaceId: id,
+          resourceId: resource,
+          order,
+          // Закрепление вкладки пользователем и защита от вытеснения — разные вещи:
+          // от вытеснения защищает само членство в `opened`.
+          pinned: false,
+          openedAt: ts,
+          activatedAt: ts,
+        })
+      );
+      await maybeEvict();
+      await persist();
+      return handle.document;
+    });
+  }
+
   /*
    * ─────────────────────────  публичный API  ─────────────────────────
    */
@@ -780,49 +838,17 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     sourceId: source.id,
 
     open(resource) {
-      return batched(async () => {
-        await ready();
-        const path = pathOf(resource);
-
-        const existing = opened.get(resource);
-        if (existing !== undefined) {
-          const entry = materialized.get(path);
-          if (entry !== undefined) touch(entry);
-          await persist();
-          return existing.handle.document;
-        }
-
-        // Корень материализуется отдельно и первым: его отсутствие — отказ открытия,
-        // а не «неполное замыкание», и путать эти два случая нельзя.
-        await materializeOne(path);
-        const closure = await runClosure(path);
-
-        const entry = materialized.get(path);
-        if (entry === undefined) throw new Error(`ресурс не материализовался: ${path}`);
-        const text = await workingText(path);
-        const handle = createDocument(refOf(entry), text, entry.dirty);
-
-        const order = openedOrder;
-        openedOrder += 1;
-        opened.set(resource, { handle, order, required: new Set(closure.files) });
-
-        const ts = now();
-        await tryMeta(() =>
-          meta.putOpened({
-            workspaceId: id,
-            resourceId: resource,
-            order,
-            // Закрепление вкладки пользователем и защита от вытеснения — разные вещи:
-            // от вытеснения защищает само членство в `opened`.
-            pinned: false,
-            openedAt: ts,
-            activatedAt: ts,
-          })
-        );
-        await maybeEvict();
-        await persist();
-        return handle.document;
-      });
+      // Одновременное открытие ресурса, который уже открывается, — то же открытие, а не второе:
+      // иначе два буфера одного файла (см. `opening`).
+      const inFlight = opening.get(resource);
+      if (inFlight !== undefined) return inFlight;
+      const started = openOnce(resource);
+      opening.set(resource, started);
+      const settle = (): void => {
+        if (opening.get(resource) === started) opening.delete(resource);
+      };
+      started.then(settle, settle);
+      return started;
     },
 
     close(resource) {

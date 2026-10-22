@@ -171,6 +171,36 @@ describe('Workspace: открытие', () => {
     expect(h.ws.openedResources()).toHaveLength(1);
   });
 
+  it('одновременное открытие — тоже тот же документ, и запись извне видна ему', async () => {
+    // Щелчок по файлу открывает предпросмотр, двойной — закрепляет: второй `open` приходит,
+    // пока первый ещё материализует ресурс. Каждый заводил свой буфер, модель документа
+    // вешалась на первый, а `writeText` (ход ассистента) обновлял последний — правку не
+    // видел ни один редактор.
+    const h = makeWorkspace({ 'a.ts': "import './b';", 'b.ts': 'y' });
+
+    const [first, second, third] = await Promise.all([
+      h.ws.open(h.rid('a.ts')),
+      h.ws.open(h.rid('a.ts')),
+      h.ws.open(h.rid('a.ts')),
+    ]);
+    await h.ws.writeText(h.rid('a.ts'), 'стало');
+
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    expect(first.getText()).toBe('стало');
+    expect(h.ws.openedResources()).toEqual([h.rid('a.ts')]);
+  });
+
+  it('открытие в полёте не мешает следующему: отказ не залипает', async () => {
+    const h = makeWorkspace({});
+
+    await expect(h.ws.open(h.rid('late.ts'))).rejects.toMatchObject({ kind: 'not-found' });
+    await h.ws.writeText(h.rid('late.ts'), 'создан');
+    const document = await h.ws.open(h.rid('late.ts'));
+
+    expect(document.getText()).toBe('создан');
+  });
+
   it('закрыть и открыть заново — тоже не поход в источник: удаление ленивое', async () => {
     const h = makeWorkspace({ 'a.ts': "import './b';", 'b.ts': 'y' });
 
