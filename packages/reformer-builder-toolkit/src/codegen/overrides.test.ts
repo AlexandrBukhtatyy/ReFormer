@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyOverrides, overrideDrift, type OverridableTarget } from './overrides';
+import { applyOverrides, overrideDrift, targetsOfStack, type OverridableTarget } from './overrides';
 
 const builtin: readonly OverridableTarget[] = [
   { id: 'gen.types', path: 'types/{dir}.ts' },
@@ -70,5 +70,34 @@ describe('overrideDrift', () => {
       'прежняя раскладка',
       'цели больше нет',
     ]);
+  });
+});
+
+describe('targetsOfStack', () => {
+  const targets = [
+    { id: 'a.types', path: 'types.ts', stack: 'a' },
+    { id: 'b.form', path: 'Form.tsx', stack: 'b' },
+    { id: 'any.readme', path: 'README.md' },
+    { id: 'user.types', path: 'types.ts', overrides: 'a.types' },
+    { id: 'user.free', path: 'free.ts' },
+  ];
+
+  it('свои, общие и замены своих — замена наследует стек заменённой', () => {
+    expect(targetsOfStack(targets, 'a').map((t) => t.id)).toEqual([
+      'a.types',
+      'any.readme',
+      'user.types',
+      'user.free',
+    ]);
+    expect(targetsOfStack(targets, 'b').map((t) => t.id)).toEqual([
+      'b.form',
+      'any.readme',
+      'user.free',
+    ]);
+  });
+
+  it('свой стек замены сильнее унаследованного', () => {
+    const mine = { id: 'user.b', path: 'types.ts', overrides: 'a.types', stack: 'b' };
+    expect(targetsOfStack([...targets, mine], 'a').map((t) => t.id)).not.toContain('user.b');
   });
 });

@@ -41,8 +41,10 @@ export {
 export {
   applyOverrides,
   overrideDrift,
+  targetsOfStack,
   type OverridableTarget,
   type OverrideDrift,
+  type StackedTarget,
   type StaleOverride,
 } from './codegen/overrides';
 export {

@@ -117,3 +117,28 @@ export function overrideDrift<T extends OverridableTarget>(
   }
   return drift;
 }
+
+/** Цель в объёме выбора по стеку. */
+export interface StackedTarget extends OverridableTarget {
+  readonly stack?: string;
+}
+
+/**
+ * Цели одного стека: его собственные, общие (без стека) и замены его целей.
+ *
+ * Замена без своего стека наследует стек заменённой: шаблон пишется по виду того же стека, и
+ * печатать его чужим видом значило бы отказ на каждом поле. Считается по полному списку ДО
+ * {@link applyOverrides}: после неё заменённой цели нет, и наследовать было бы не у кого.
+ */
+export function targetsOfStack<T extends StackedTarget>(
+  targets: readonly T[],
+  stack: string
+): readonly T[] {
+  const byId = new Map(targets.map((target) => [target.id, target]));
+  return targets.filter((target) => {
+    const owner =
+      target.stack ??
+      (target.overrides === undefined ? undefined : byId.get(target.overrides)?.stack);
+    return owner === undefined || owner === stack;
+  });
+}
