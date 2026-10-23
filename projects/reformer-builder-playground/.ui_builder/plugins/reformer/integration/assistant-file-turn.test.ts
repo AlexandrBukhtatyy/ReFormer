@@ -1,16 +1,21 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { describe, expect, it } from 'vitest';
-import { emptySchema } from '../../../core/form-model';
-import { builtinEntries } from '../../../core/testing';
-import { validateSchema } from '../model/validate';
-import { printSchemaText } from '../model/schema-text';
-import { createFakeProvider, type FakeStep } from '../providers/fake';
-import type { AiProvider, AiRequest } from '../providers/types';
-import { createFakeFiles, createTestFileTurn, FORM_PATH, type FakeFiles } from '../testing';
-import { createFileToolRegistry } from '../tools/files';
-import { fileSystemPrompt } from './file-prompt';
-import { fileSeed, runFileTurn, type FileTurnEvent } from './file-loop';
-import type { FileTurn } from '../files/turn';
+import { emptySchema } from '../core/form-model';
+import { builtinEntries } from '../core/testing';
+import { validateSchema } from '../ai/src/model/validate';
+import { printSchemaText } from '../ai/src/model/schema-text';
+import { createFakeProvider, type FakeStep } from '../ai/src/providers/fake';
+import type { AiProvider, AiRequest } from '../ai/src/providers/types';
+import {
+  createFakeFiles,
+  createTestFileTurn,
+  FORM_PATH,
+  type FakeFiles,
+} from '../ai/src/stack/testing';
+import { createFileToolRegistry } from '../ai/src/tools/files';
+import { fileSystemPrompt } from '../ai/src/loop/file-prompt';
+import { fileSeed, runFileTurn, type FileTurnEvent } from './assistant-file-turn';
+import type { FileTurn } from '../ai/src/files/turn';
 
 const catalog = builtinEntries();
 const registry = createFileToolRegistry();

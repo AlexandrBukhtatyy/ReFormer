@@ -15,7 +15,7 @@
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { fileRoleOf, type ModuleFileRole } from '../../../core/codegen/layout';
 import type { AiFiles, FileScope } from '../host';
-import type { FileJournal } from './journal';
+import type { FileJournal } from '@reformer/builder-toolkit';
 
 /**
  * Глубина обхода в каталогах. На единицу глубже, чем у чтения модуля превью: превью нужен

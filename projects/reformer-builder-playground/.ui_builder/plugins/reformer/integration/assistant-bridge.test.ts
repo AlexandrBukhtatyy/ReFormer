@@ -8,14 +8,14 @@
  *
  * Провайдер — сценарный (`providers/fake`): сети, ключей и оплаты токенов здесь нет.
  *
- * @module plugins/reformer/ai/session/bridge.test
+ * @module plugins/reformer/integration/assistant-bridge.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '../../../core/testing';
-import { listComponents } from '../model/catalog-digest';
+import { builtinEntries } from '../core/testing';
+import { listComponents } from '../ai/src/model/catalog-digest';
 import type {
   FormCreatorService,
   GenerateReport,
@@ -23,19 +23,29 @@ import type {
   ResourceId,
   WhenContext,
 } from '@reformer/builder-plugin-api';
-import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';
-import type { AgentCommand } from '../tools/command-tools';
-import type { AiAssistant } from '../plugin';
-import { createFakeProvider, type FakeStep } from '../providers/fake';
-import { createProviderRegistry } from '../providers/registry';
-import type { AiMessage, AiProvider } from '../providers/types';
-import { printSchemaText } from '../model/schema-text';
-import { createAiSession, openAskOf, type AiSession, type AskCard } from './session';
-import { createFakeFiles, createFakeHost, type FakeFiles, type FakeHost } from '../testing';
-import { createSchemaFormStack } from '../stack';
-import { emptyRulesText, printRulesText } from '../../../core/codegen/rules-file';
-import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
-import type { ResourceProviderEntry } from './resources';
+import {
+  AI_UNDO_TURN_COMMAND_ID,
+  aiUndoTurnCommand,
+  createAgentBridge,
+} from '../ai/src/session/bridge';
+import type { AgentCommand } from '../ai/src/tools/command-tools';
+import type { AiAssistant } from '../ai/src/plugin';
+import { createFakeProvider, type FakeStep } from '../ai/src/providers/fake';
+import { createProviderRegistry } from '../ai/src/providers/registry';
+import type { AiMessage, AiProvider } from '../ai/src/providers/types';
+import { printSchemaText } from '../ai/src/model/schema-text';
+import {
+  createAiSession,
+  openAskOf,
+  type AiSession,
+  type AskCard,
+} from '../ai/src/session/session';
+import { createFakeHost, type FakeHost } from '../ai/src/testing';
+import { createFakeFiles, type FakeFiles } from '../ai/src/stack/testing';
+import { createSchemaFormStack } from '../ai/src/stack';
+import { emptyRulesText, printRulesText } from '../core/codegen/rules-file';
+import type { ContributedTool, ContributedToolEntry } from '../ai/src/tools/contributed-tools';
+import type { ResourceProviderEntry } from '../ai/src/session/resources';
 
 const RESOURCE = 'form.json';
 /** Контекст применимости, которого предикату отмены достаточно: он его не читает. */

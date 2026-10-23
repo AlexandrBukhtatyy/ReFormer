@@ -21,7 +21,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { AiFiles, FileScope, WriteMark } from '../host';
 import type { KnowledgeLoader } from '../knowledge';
 import type { ToolContext } from '../model/types';
-import type { FileJournal } from './journal';
+import type { FileJournal } from '@reformer/builder-toolkit';
 import { moduleFileOf, type ModuleFile } from './scope';
 import { moduleFiles } from './tree';
 import type { ToolOutcome } from '../model/types';

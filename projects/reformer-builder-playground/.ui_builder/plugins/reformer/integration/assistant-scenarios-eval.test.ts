@@ -13,7 +13,7 @@
  * Итог — таблицей в консоль и JSON в `.tmp/eval/` корня репозитория. Отчёт —
  * `docs/mcp-eval/builder-form-scenarios.md`.
  *
- * @module plugins/reformer/ai/session/form-scenarios-eval.test
+ * @module plugins/reformer/integration/assistant-scenarios-eval.test
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -21,18 +21,19 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '../../../core/testing';
-import { emptyRules, type FormRules } from '../../../core/form-model';
-import { parseRulesText, printRulesText } from '../../../core/codegen/rules-file';
-import { rulesSidecarNameOf } from '../../../core/codegen/layout';
-import { createAgentBridge } from './bridge';
-import { createAiSession, openAskOf, type ToolLogEntry } from './session';
-import { createProviderRegistry } from '../providers/registry';
-import { createByokProvider } from '../providers/byok';
-import { parseSchemaText, printSchemaText } from '../model/schema-text';
-import { createFakeFiles, createFakeHost } from '../testing';
-import { createSchemaFormStack } from '../stack';
-import type { AiAssistant } from '../plugin';
+import { builtinEntries } from '../core/testing';
+import { emptyRules, type FormRules } from '../core/form-model';
+import { parseRulesText, printRulesText } from '../core/codegen/rules-file';
+import { rulesSidecarNameOf } from '../core/codegen/layout';
+import { createAgentBridge } from '../ai/src/session/bridge';
+import { createAiSession, openAskOf, type ToolLogEntry } from '../ai/src/session/session';
+import { createProviderRegistry } from '../ai/src/providers/registry';
+import { createByokProvider } from '../ai/src/providers/byok';
+import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
+import { createFakeHost } from '../ai/src/testing';
+import { createFakeFiles } from '../ai/src/stack/testing';
+import { createSchemaFormStack } from '../ai/src/stack';
+import type { AiAssistant } from '../ai/src/plugin';
 import type { FormCreatorService, ModuleGeneratorService } from '@reformer/builder-plugin-api';
 
 const MODEL = process.env.EVAL_MODEL;

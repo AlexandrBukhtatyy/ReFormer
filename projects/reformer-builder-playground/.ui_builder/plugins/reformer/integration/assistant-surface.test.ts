@@ -21,8 +21,11 @@
  * `inputSchema`. Считает их {@link measureToolSurface} — та же функция, которой мост меряет
  * набор в рантайме, а не её копия в тесте: разойдись они, тест мерил бы не то, за что платят.
  *
- * Набор берётся ПОЛНЫЙ (`allTools`), а не только read-only: write-инструменты крупнее вдвое —
- * у них схемы аргументов, — и в v1 именно они долго оставались вне проверки.
+ * Набор берётся ПОЛНЫЙ, как его видит модель: списки стека ReFormer (`structuredSlots`,
+ * `fileModeSlots`) с инструментами ассистента на их местах — вопрос человеку, генерация кода,
+ * новая форма. Поэтому храповик живёт здесь: стек и ассистент — разные плагины, а платит модель за
+ * их сумму. Write-инструменты крупнее вдвое — у них схемы аргументов, — и в v1 именно они долго
+ * оставались вне проверки.
  *
  * ## Второе слагаемое: вклады плагинов
  *
@@ -33,23 +36,29 @@
  * вклады ВИДИТ, что встроенный `read_resource` в свой потолок укладывается, и что лимиты одного
  * инструмента совпадают с теми, что SDK обещает авторам плагинов.
  *
- * @module plugins/reformer/ai/tools/tool-surface.test
+ * @module plugins/reformer/integration/assistant-surface.test
  */
 
 import { describe, expect, it } from 'vitest';
 import {
   ASSISTANT_TOOL_DESCRIPTION_MAX,
   ASSISTANT_TOOL_NAME_MAX,
+  type FormAgentTool,
+  type FormHostToolName,
+  type FormToolSlot,
 } from '@reformer/builder-plugin-api';
-import { builtinEntries } from '../../../core/testing';
-import { commandTools, type AgentCommand } from './command-tools';
-import { readResourceTool } from './read-resource';
-import { fileSystemPrompt } from '../loop/file-prompt';
-import { systemPrompt } from '../loop/prompt';
+import { builtinEntries } from '../core/testing';
+import { commandTools, type AgentCommand } from '../ai/src/tools/command-tools';
+import { readResourceTool } from '../ai/src/tools/read-resource';
+import { fileSystemPrompt } from '../ai/src/loop/file-prompt';
+import { systemPrompt } from '../ai/src/loop/prompt';
 import { measureToolSurface } from '@reformer/builder-toolkit';
-import { allTools } from '../tools';
-import { fileModeTools } from './files';
-import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../budgets';
+import { structuredSlots } from '../ai/src/tools';
+import { fileModeSlots } from '../ai/src/tools/files';
+import { askUserTool } from '../ai/src/tools/ask-user';
+import { createFormTool } from '../ai/src/tools/create-form';
+import { generateCodeTool } from '../ai/src/tools/generate-code';
+import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../ai/src/budgets';
 import {
   FILE_TOOL_SURFACE_BUDGET,
   PROMPT_BUDGET,
@@ -57,7 +66,18 @@ import {
   TOOL_NAME_BUDGET,
   TOOL_SURFACE_BUDGET,
   type AgentTool,
-} from '../model/types';
+} from '../ai/src/model/types';
+
+/** Инструменты ассистента, которые стек ставит в свои списки по имени. */
+const HOST_TOOLS: Readonly<Record<FormHostToolName, FormAgentTool<never, never>>> = {
+  ask_user: askUserTool,
+  generate_code: generateCodeTool,
+  create_form: createFormTool,
+};
+
+/** Список стека, каким его видит модель: имена инструментов ассистента — их определениями. */
+const resolve = (slots: readonly FormToolSlot[]): AgentTool[] =>
+  slots.map((slot) => (typeof slot === 'string' ? HOST_TOOLS[slot] : slot) as AgentTool);
 
 /**
  * Набор без корпуса знаний — то же, что уходит модели без открытого проекта.
@@ -65,7 +85,7 @@ import {
  * Состав набора от корпуса не зависит (`ask_reformer` в нём есть всегда, см. `core/tools`),
  * поэтому измеряемая величина одна и та же при любой развязке моста.
  */
-const tools = allTools();
+const tools = resolve(structuredSlots());
 
 /** Команда, объявившая себя инструментом, — для проверки, что счётчик её видит. */
 function fakeCommand(id: string, description: string): AgentCommand {
@@ -140,7 +160,7 @@ describe('вклады плагинов — свой потолок', () => {
 });
 
 describe('поверхность режима файлов — свой храповик', () => {
-  const fileTools = fileModeTools();
+  const fileTools = resolve(fileModeSlots());
 
   it.each(fileTools.map((t) => [t.name, t] as const))(
     '%s укладывается в свои бюджеты',

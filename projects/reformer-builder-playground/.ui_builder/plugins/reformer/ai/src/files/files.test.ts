@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { emptyRules, emptySchema } from '../../../core/form-model';
 import { builtinEntries } from '../../../core/testing';
 import { printSchemaText } from '../model/schema-text';
-import { createFakeFiles, createTestFileTurn, FORM_PATH } from '../testing';
+import { createFakeFiles, createTestFileTurn, FORM_PATH } from '../stack/testing';
 import { composeForm, jsonError } from './compose';
 import { gateWrite } from './gate';
-import { createFileJournal } from './journal';
+import { createFileJournal } from '@reformer/builder-toolkit';
 import { moduleFileOf, normalizeModulePath, isRefusal } from './scope';
 import type { FileToolContext, FileTurn } from './turn';
 

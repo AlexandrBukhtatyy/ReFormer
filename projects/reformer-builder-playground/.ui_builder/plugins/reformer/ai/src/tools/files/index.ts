@@ -17,14 +17,10 @@ import type { FormToolSlot } from '@reformer/builder-plugin-api';
 import type { KnowledgeLoader } from '../../knowledge';
 import type { FileToolContext } from '../../files/turn';
 import type { AgentTool } from '../../model/types';
-import { askUserTool } from '../ask-user';
-import { generateCodeTool } from '../generate-code';
-import { createFormTool } from '../create-form';
 import { createDescribeComponentTool } from '../describe-component';
 import { listComponentsTool } from '../list-components';
 import { createReformerDocsTool } from '../reformer-docs';
 import { createToolRegistry, type ToolRegistry } from '../registry';
-import { hostSlotOf } from '../index';
 import { editFileTool } from './edit-file';
 import { listFilesTool } from './list-files';
 import { readFileTool } from './read-file';
@@ -54,17 +50,17 @@ export function fileModeTools(
     listComponentsTool,
     describeComponentFileTool,
     createReformerDocsTool(options.knowledge),
-    askUserTool,
-    generateCodeTool,
-    createFormTool,
   ];
 }
 
-/** Инструменты режима файлов стека — в порядке {@link fileModeTools}, см. `structuredSlots`. */
+/**
+ * Инструменты режима файлов, как их видит модель, — по порядку: файловые и словарь кита, затем
+ * инструменты ассистента по имени (см. `structuredSlots`).
+ */
 export function fileModeSlots(
   options: { knowledge?: KnowledgeLoader } = {}
 ): readonly FormToolSlot[] {
-  return fileModeTools(options).map((tool) => hostSlotOf(tool) ?? tool);
+  return [...fileModeTools(options), 'ask_user', 'generate_code', 'create_form'];
 }
 
 /** Реестр режима файлов. */

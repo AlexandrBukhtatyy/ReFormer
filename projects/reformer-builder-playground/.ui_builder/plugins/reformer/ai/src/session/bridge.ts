@@ -59,7 +59,12 @@ import {
   type FormCreateRequest,
   type FormTurnScope,
 } from '@reformer/builder-plugin-api';
-import { createToolRegistry, pathWithin } from '@reformer/builder-toolkit';
+import {
+  createFileJournal,
+  createToolRegistry,
+  pathWithin,
+  type FileJournal,
+} from '@reformer/builder-toolkit';
 import type { AgentCommand, ExecuteCommand } from '../tools/command-tools';
 import type { ContributedToolEntry } from '../tools/contributed-tools';
 import { runTurn, type ActiveForm } from '../loop/run-turn';
@@ -87,7 +92,6 @@ import {
   type PendingChanges,
   type TurnSnapshot,
 } from './session';
-import { createFileJournal, type FileJournal } from '../files/journal';
 import type { StreamEnd, TurnStats, TurnStepEvent } from '../loop/drive';
 import {
   createStackSet,

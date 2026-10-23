@@ -1,27 +1,28 @@
 /**
- * Ход агента над схемой: попытка стека ReFormer (`../stack/structured`), проведённая общим циклом
- * ассистента (`./run-turn`), и набор изменений на выходе.
+ * Ход агента над схемой без моста — для тестов цикла и замеров: попытка стека ReFormer
+ * (`stack/structured`), проведённая общим циклом ассистента (`loop/run-turn`), и набор изменений на
+ * выходе. Живёт в интеграции: стек и ассистент — разные плагины, а ход собирает обе стороны.
  *
  * Цикл не трогает рабочую область. Он работает над копией схемы и возвращает {@link ChangeSet};
  * решение применить принимает пользователь, а применение — одна запись в буфер.
  *
- * @module plugins/reformer/ai/loop/loop
+ * @module plugins/reformer/integration/assistant-turn
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '../../../core/catalog';
-import type { FormRules } from '../../../core/form-model';
-import type { AiMessage, AiProvider, AiStop } from '../providers/types';
-import type { ChangeSet } from '../model/changeset';
-import type { TurnStats, TurnStepEvent } from './drive';
-import type { ToolRegistry } from '../tools/registry';
-import type { ValidateFormSchema } from '../model/validate';
-import type { TurnScope } from '../model/types';
-import { createSchemaTurn } from '../stack/structured';
-import { runTurn, type ActiveForm } from './run-turn';
+import type { CatalogEntry } from '../core/catalog';
+import type { FormRules } from '../core/form-model';
+import type { AiMessage, AiProvider, AiStop } from '../ai/src/providers/types';
+import type { ChangeSet } from '../ai/src/model/changeset';
+import type { TurnStats, TurnStepEvent } from '../ai/src/loop/drive';
+import type { ToolRegistry } from '../ai/src/tools/registry';
+import type { ValidateFormSchema } from '../ai/src/model/validate';
+import type { TurnScope } from '../ai/src/model/types';
+import { createSchemaTurn } from '../ai/src/stack/structured';
+import { runTurn, type ActiveForm } from '../ai/src/loop/run-turn';
 
-export type { TurnStats } from './drive';
-export { activeFormLines, type ActiveForm } from './run-turn';
+export type { TurnStats } from '../ai/src/loop/drive';
+export { activeFormLines, type ActiveForm } from '../ai/src/loop/run-turn';
 
 /**
  * Предел шагов «модель → инструмент → модель» за один ход — по умолчанию его НЕТ.

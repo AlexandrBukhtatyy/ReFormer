@@ -43,7 +43,6 @@ const HOST = [
   'tools/read-resource.ts',
   'tools/command-tools.ts',
   'tools/contributed-tools.ts',
-  'files/journal.ts',
 ];
 
 /** Чего хозяин импортировать не вправе: ядро и библиотеки ReFormer, стек и его модули. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTurnWrites } from './turn-writes';
-import { createFileJournal } from '../files/journal';
+import { createFileJournal } from '@reformer/builder-toolkit';
 import { createFakeFiles } from '../testing';
 
 const MARK = { origin: 'agent' as const, txId: 'turn-1' };

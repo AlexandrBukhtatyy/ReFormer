@@ -11,7 +11,13 @@ import { emptyRules } from '../../../core/form-model';
 import { applyChangeSet, type ApplyDeps, type ApplyRequest } from './land';
 import { createChangeSet, type ChangeSet } from '../model/changeset';
 import { printSchemaText } from '../model/schema-text';
-import { createFakeFiles, createFakeHost } from '../testing';
+import { createFakeDocuments, createFakeFiles, type FakeFiles } from './testing';
+
+/** Документы и, если даны, файлы проекта — то, что запись набора берёт у рабочей области. */
+const createFakeHost = (files?: FakeFiles) => ({
+  ...createFakeDocuments(files),
+  ...(files === undefined ? {} : { files }),
+});
 import { builtinEntries } from '../../../core/testing';
 import { printRulesText } from '../../../core/codegen/rules-file';
 

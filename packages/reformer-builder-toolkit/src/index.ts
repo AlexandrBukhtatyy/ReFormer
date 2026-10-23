@@ -47,6 +47,7 @@ export {
   type ToolDefinition,
 } from './assistant/tool-surface';
 export { pathWithin } from './assistant/paths';
+export { createFileJournal, type FileJournal, type JournalEntry } from './assistant/journal';
 export {
   createToolRegistry,
   TOOL_TEXT_BUDGET,

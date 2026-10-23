@@ -42,7 +42,7 @@ import {
 } from '../../../core/testing';
 import { createEditorToolRegistry } from '../index';
 import { applyChangeSet } from '../stack/land';
-import { createFakeHost } from '../testing';
+import { createFakeDocuments } from '../stack/testing';
 import { createChangeSet, withOutcome } from './changeset';
 import { parseSchemaText, printSchemaText } from './schema-text';
 
@@ -270,7 +270,7 @@ describe('ход ассистента над документом кодоген
 
   /** Применить к документу кодогена один настоящий вызов инструмента и вернуть записанный текст. */
   async function applyTurn(generated: string): Promise<string> {
-    const host = createFakeHost();
+    const host = createFakeDocuments();
     host.openDocument(RESOURCE, generated);
     const base = parseSchemaText(generated);
 

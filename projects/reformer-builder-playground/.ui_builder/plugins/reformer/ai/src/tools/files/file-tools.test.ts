@@ -5,7 +5,12 @@ import { builtinEntries } from '../../../../core/testing';
 import type { FileToolContext } from '../../files/turn';
 import type { KnowledgeLoader, KnowledgeSource } from '../../knowledge';
 import { printSchemaText } from '../../model/schema-text';
-import { createFakeFiles, createTestFileTurn, FORM_PATH, type FakeFiles } from '../../testing';
+import {
+  createFakeFiles,
+  createTestFileTurn,
+  FORM_PATH,
+  type FakeFiles,
+} from '../../stack/testing';
 import { describeComponentTool } from '../describe-component';
 import { createFileToolRegistry, describeComponentFileTool } from './index';
 

@@ -13,13 +13,13 @@
  */
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '../../../core/testing';
+import { builtinEntries } from '../core/testing';
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { runAgentTurn } from '../loop/loop';
-import { createEditorToolRegistry } from '../tools';
-import { emptyRules } from '../../../core/form-model';
-import { createByokProvider } from '../providers/byok';
+import { runAgentTurn } from './assistant-turn';
+import { createEditorToolRegistry } from '../ai/src/tools';
+import { emptyRules } from '../core/form-model';
+import { createByokProvider } from '../ai/src/providers/byok';
 
 const MODEL = process.env.EVAL_MODEL;
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:11434/v1';

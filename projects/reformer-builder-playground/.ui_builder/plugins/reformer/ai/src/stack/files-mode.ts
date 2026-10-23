@@ -25,7 +25,7 @@ import { emptyRules } from '../../../core/form-model';
 import type { FileScope } from '../host';
 import type { KnowledgeLoader } from '../knowledge';
 import { composeForm } from '../files/compose';
-import type { FileJournal } from '../files/journal';
+import type { FileJournal } from '@reformer/builder-toolkit';
 import { createFileTurn, type FileToolContext, type FileTurn } from '../files/turn';
 import { fileSystemPrompt } from '../loop/file-prompt';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';

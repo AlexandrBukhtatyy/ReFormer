@@ -22,12 +22,9 @@ import type { FormToolSlot } from '@reformer/builder-plugin-api';
 import type { KnowledgeLoader } from '../knowledge';
 import { createToolRegistry, type ToolRegistry } from './registry';
 import type { AgentTool } from '../model/types';
-import { askUserTool } from './ask-user';
 import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
 import { extractPartTool } from './extract-part';
-import { generateCodeTool } from './generate-code';
-import { createFormTool, listTemplatesTool } from './create-form';
 import { getFormNode } from './get-form-node';
 import { getFormOutline } from './get-form-outline';
 import { groupNodesTool } from './group-nodes';
@@ -44,19 +41,15 @@ import { setNodePropTool } from './set-node-prop';
 import { validateForm } from './validate-form';
 
 export {
-  askUserTool,
-  createFormTool,
   createReformerDocsTool,
   describeComponentTool,
   duplicateNodeTool,
   extractPartTool,
-  generateCodeTool,
   getFormNode,
   getFormOutline,
   groupNodesTool,
   insertNodeTool,
   listComponentsTool,
-  listTemplatesTool,
   moveNodeTool,
   removeNodeTool,
   setFormRulesTool,
@@ -82,7 +75,6 @@ export function readOnlyTools(options: ToolsOptions = {}): readonly AgentTool[] 
     describeComponentTool,
     validateForm,
     createReformerDocsTool(options.knowledge),
-    askUserTool,
   ];
 }
 
@@ -101,38 +93,26 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
   setRenderRulesTool,
 ];
 
-/**
- * Инструменты над ПРОЕКТОМ, а не над черновиком: генерация кода и новая форма. Схему они не
- * меняют, но пишут файлы, и в наборе «правки запрещены» им не место.
- *
- * `list_templates` здесь нет: при открытой форме новую просят редко, а неизвестный шаблон
- * `create_form` и так отвергает со списком. Им пользуется ход без формы (`session/bridge`).
- */
-export const PROJECT_TOOLS: readonly AgentTool[] = [generateCodeTool, createFormTool];
-
-/** Полная поверхность редактора. */
+/** Инструменты стека: чтение и запись черновика. */
 export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
-  return [...readOnlyTools(options), ...WRITE_TOOLS, ...PROJECT_TOOLS];
+  return [...readOnlyTools(options), ...WRITE_TOOLS];
 }
 
 /**
- * Инструменты структурного режима стека — в том же порядке, что {@link allTools}. Вопрос
- * человеку, генерацию кода и новую форму исполняет ассистент: здесь стоят их имена — порядок
- * инструментов модель видит, и он не должен зависеть от того, кто инструмент исполняет.
+ * Инструменты структурного режима, как их видит модель, — по порядку.
+ *
+ * Вопрос человеку (`ask_user`), генерацию кода (`generate_code`) и новую форму (`create_form`)
+ * исполняет ассистент: здесь стоят их имена. Порядок модель видит, и он не должен зависеть от
+ * того, кто инструмент исполняет. Генерация и новая форма — в конце: они работают над ПРОЕКТОМ, а
+ * не над черновиком. `list_templates` здесь нет: при открытой форме новую просят редко, а
+ * неизвестный шаблон `create_form` и так отвергает со списком.
  */
 export function structuredSlots(options: ToolsOptions = {}): readonly FormToolSlot[] {
-  return allTools(options).map((tool) => hostSlotOf(tool) ?? tool);
-}
-
-/** Имя инструмента ассистента, если это он, — см. {@link structuredSlots}. */
-export function hostSlotOf(tool: AgentTool<never, never>): FormToolSlot | undefined {
-  return tool === askUserTool || tool === generateCodeTool || tool === createFormTool
-    ? (tool.name as FormToolSlot)
-    : undefined;
+  return [...readOnlyTools(options), 'ask_user', ...WRITE_TOOLS, 'generate_code', 'create_form'];
 }
 
 /**
- * Полная поверхность редактора: чтение и запись.
+ * Реестры инструментов стека — для тестов и замеров, которые зовут инструменты без ассистента.
  *
  * Фабрики реестра живут здесь, а не отдельным барелем: собрать реестр — это выбрать НАБОР
  * инструментов, и набор объявлен строкой выше. Прежний `core/index.ts` держал их вместе

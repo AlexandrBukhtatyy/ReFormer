@@ -1,25 +1,25 @@
 /**
- * Ход режима файлов: попытка стека ReFormer над модулем формы (`../stack/files-mode`), проведённая
- * общим циклом ассистента (`./run-turn`).
+ * Ход режима файлов без моста — для тестов цикла и замеров: попытка стека ReFormer над модулем
+ * формы (`stack/files-mode`), проведённая общим циклом ассистента (`loop/run-turn`).
  *
- * В отличие от хода над черновиком (`./loop`), после хода не остаётся набора изменений: каждая
+ * В отличие от хода над черновиком (`./assistant-turn`), после хода не остаётся набора изменений: каждая
  * принятая запись уже лежит в рабочей копии. Итог хода — журнал записанных файлов, по нему
  * ассистент собирает отмену, а стек нормализует схемы.
  *
- * @module plugins/reformer/ai/loop/file-loop
+ * @module plugins/reformer/integration/assistant-file-turn
  */
 
-import type { CatalogEntry } from '../../../core/catalog';
-import type { FileToolContext, FileTurn } from '../files/turn';
-import type { TurnScope } from '../model/types';
-import type { ValidateFormSchema } from '../model/validate';
-import type { AiMessage, AiProvider, AiStop } from '../providers/types';
-import type { ToolRegistry } from '../tools/registry';
-import { createFilesTurn } from '../stack/files-mode';
-import type { TurnStats, TurnStepEvent } from './drive';
-import { runTurn, type ActiveForm } from './run-turn';
+import type { CatalogEntry } from '../core/catalog';
+import type { FileToolContext, FileTurn } from '../ai/src/files/turn';
+import type { TurnScope } from '../ai/src/model/types';
+import type { ValidateFormSchema } from '../ai/src/model/validate';
+import type { AiMessage, AiProvider, AiStop } from '../ai/src/providers/types';
+import type { ToolRegistry } from '../ai/src/tools/registry';
+import { createFilesTurn } from '../ai/src/stack/files-mode';
+import type { TurnStats, TurnStepEvent } from '../ai/src/loop/drive';
+import { runTurn, type ActiveForm } from '../ai/src/loop/run-turn';
 
-export { fileSeed } from '../stack/seed';
+export { fileSeed } from '../ai/src/stack/seed';
 
 /** Настройки хода. */
 export interface FileTurnRunOptions {

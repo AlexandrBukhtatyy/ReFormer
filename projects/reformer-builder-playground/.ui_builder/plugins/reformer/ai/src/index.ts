@@ -69,7 +69,6 @@ export {
 export { assistantContent, historyFor, HISTORY_BUDGET } from './session/history';
 
 // Ход агента: чистое ядро, которым пользуется мост.
-export { runAgentTurn, type AgentTurnOptions, type TurnEvent, type TurnStats } from './loop/loop';
 export { createChangeSet, describeChangeSet, hasChanges, type ChangeSet } from './model/changeset';
 export { createEditorToolRegistry, createReadOnlyToolRegistry } from './tools';
 export type { ToolRegistry } from './tools/registry';
