@@ -406,7 +406,7 @@ describe('подформа и массив с шаблоном-частью', ()
     // них не должны ни падать, ни ломать сам узел.
     const base = withParts();
     let schema = expectOk(
-      await reg.invoke('move_node', { ref: PART, parent: '/root', index: 3 }, ctxOf(base))
+      await reg.invoke('move_node', { refs: [PART], parent: '/root', index: 3 }, ctxOf(base))
     );
     // Дерево корня; разметка частей идёт в карте отдельным блоком (`/parts/…`).
     const rootKinds = (next: typeof schema) =>
@@ -954,7 +954,7 @@ describe('move_node', () => {
     const schema = expectOk(
       await reg.invoke(
         'move_node',
-        { ref: '/root/children/0/children/0', parent: '/root/children/1' },
+        { refs: ['/root/children/0/children/0'], parent: '/root/children/1' },
         ctxOf(sampleSchema())
       )
     );
@@ -967,7 +967,7 @@ describe('move_node', () => {
   it('внутрь самого себя нельзя', async () => {
     const res = await reg.invoke(
       'move_node',
-      { ref: '/root/children/0', parent: '/root/children/0' },
+      { refs: ['/root/children/0'], parent: '/root/children/0' },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -977,7 +977,7 @@ describe('move_node', () => {
     // Адрес слота шагов кончается на `children`, как у любой секции: отличает его только вид слота.
     const res = await reg.invoke(
       'move_node',
-      { ref: '/root/children/0/children/0', parent: '/root' },
+      { refs: ['/root/children/0/children/0'], parent: '/root' },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -989,7 +989,7 @@ describe('move_node', () => {
     const schema = expectOk(
       await reg.invoke(
         'move_node',
-        { ref: '/root/children/1', parent: '/root', index: 0 },
+        { refs: ['/root/children/1'], parent: '/root', index: 0 },
         ctxOf(sampleSchema())
       )
     );
@@ -998,6 +998,49 @@ describe('move_node', () => {
         .filter((e) => e.slot === 'steps')
         .map((e) => e.label)
     ).toEqual(['Имущество', 'Кредит']);
+  });
+
+  it('пачка полей — в другой шаг одним вызовом, в порядке refs; ответ называет новые адреса', async () => {
+    // Адреса — по форме ДО переноса: модели не нужно пересчитывать их после каждого узла.
+    const res = await reg.invoke(
+      'move_node',
+      {
+        refs: ['/root/children/0/children/1', '/root/children/0/children/0'],
+        parent: '/root/children/1',
+        index: 0,
+      },
+      ctxOf(sampleSchema())
+    );
+    const schema = expectOk(res);
+    const second = buildOutline(schema)
+      .filter((e) => /^\/root\/children\/1\/children\/\d+$/.test(e.ref))
+      .map((e) => e.model);
+    expect(second.slice(0, 2)).toEqual(['loanAmount', 'loanType']);
+    expect(res.text).toContain('/root/children/1/children/0');
+    expect(res.text).toContain('/root/children/1/children/1');
+  });
+
+  it('узел внутри другого переносимого — отказ с подсказкой, что убрать', async () => {
+    const res = await reg.invoke(
+      'move_node',
+      { refs: ['/root/children/0', '/root/children/0/children/0'], parent: '/root', index: 1 },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARAMS');
+    expect(res.text).toContain('drop /root/children/0/children/0');
+  });
+
+  it('expect — только у одного адреса', async () => {
+    const res = await reg.invoke(
+      'move_node',
+      {
+        refs: ['/root/children/0/children/0', '/root/children/0/children/1'],
+        parent: '/root/children/1',
+        expect: { component: 'Select' },
+      },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARAMS');
   });
 });
 

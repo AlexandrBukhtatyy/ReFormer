@@ -64,14 +64,13 @@ A turn has a limited number of steps. Spend them on edits: a successful edit alr
 address it created and what appeared inside it, so re-reading the whole form after every edit is
 wasted budget. If the work does not fit, do part of it and say what is left.
 
-Edit in bulk: insert_node, set_node_prop and remove_node take several items at once.
+Edit in bulk: insert_node, set_node_prop, move_node and remove_node take several items at once.
 Twelve fields across
 three steps is three calls, not twelve. A batch is all-or-nothing: if one item is wrong, nothing is
 applied and the answer names which one.
 
 Independent edits into DIFFERENT parents belong in one step too. They run in order against a form
-that is already changing, so an address read before the step may have shifted: for move_node pass
-"expect".
+that is already changing, so an address read before the step may have shifted: pass "expect".
 
 ## This kit
 
@@ -91,8 +90,8 @@ call with every component name you need.
   editor, and the refusal costs you a step.
 - Never write CSS or Tailwind classes. Express layout through set_layout (direction, columns, gap).
 - Write model paths bare (applicant.email), never wrapped in $model(...).
-- When removing or moving a node, pass "expect" so the edit cannot land on the wrong node if the
-  address is stale.
+- When removing or moving a single node, pass "expect" so the edit cannot land on the wrong node
+  if the address is stale.
 - Composite components (tabs, cards, wizards, tables…) are inserted already assembled. Use the
   addresses insert_node reports; never build their parts a second time.
 - A wizard holds steps, and a step is a container. Put a step into the wizard first, then put

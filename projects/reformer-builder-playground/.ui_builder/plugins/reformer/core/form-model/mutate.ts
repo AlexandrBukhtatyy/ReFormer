@@ -279,22 +279,80 @@ export function moveNode(
   let insIdx = index;
   if (pathEquals(fromSlot, slotPath) && fromIdx < index) insIdx = index - 1;
 
-  // Цель — внутри соседа, стоящего ПОСЛЕ узла в том же слоте («поле — в шаг мастера ниже»):
-  // изъятие сдвигает соседа на позицию влево, и путь слота обязан сдвинуться вместе с ним. Без
-  // этого вставка шла по прежнему адресу — в следующий узел или в никуда, и форма ломалась.
+  return insertNode(afterRemove, shiftedByRemoval(slotPath, fromPath), insIdx, moving);
+}
+
+/**
+ * Путь после изъятия узла `removed`: если путь ведёт внутрь соседа, стоящего ПОСЛЕ изъятого в том
+ * же слоте («поле — в шаг мастера ниже»), сосед сдвигается на позицию влево, и путь — вместе с
+ * ним. Без этого вставка шла по прежнему адресу — в следующий узел или в никуда.
+ */
+function shiftedByRemoval(path: JsonPath, removed: JsonPath): JsonPath {
+  const slot = removed.slice(0, -1);
+  const index = Number(removed[removed.length - 1] as JsonPathSegment);
+  if (path.length <= slot.length || !isPrefix(slot, path)) return path;
+  const at = Number(path[slot.length]);
+  if (!Number.isInteger(at) || at <= index) return path;
+  return [...path.slice(0, slot.length), at - 1, ...path.slice(slot.length + 1)];
+}
+
+/** Порядок путей в документе: посегментно, индексы — как числа. */
+function comparePaths(a: JsonPath, b: JsonPath): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] === b[i]) continue;
+    const [x, y] = [a[i], b[i]];
+    return typeof x === 'number' && typeof y === 'number'
+      ? x - y
+      : String(x).localeCompare(String(y));
+  }
+  return a.length - b.length;
+}
+
+/** Результат переноса пачкой: схема и новые пути узлов — в порядке `fromPaths`. */
+export interface MoveManyResult {
+  schema: JsonFormSchema;
+  newPaths: JsonPath[];
+}
+
+/**
+ * Перенести несколько узлов в один слот: на позицию `index` и дальше подряд, в порядке
+ * `fromPaths`. Пути — по схеме ДО переноса: вызывающий не пересчитывает адреса, которые сдвигает
+ * каждое изъятие, — это и было главной ценой переноса по одному.
+ *
+ * Узлы изымаются с конца документа: изъятие узла сдвигает только тех, кто идёт после него, а они к
+ * этому моменту уже изъяты. Путь слота и позиция пересчитываются после каждого изъятия.
+ *
+ * Выродившийся ряд здесь не разворачивается (в отличие от {@link moveNode}): разворот меняет пути
+ * под рядом, и при нескольких изъятиях их пришлось бы пересчитывать ещё раз. Ряд из одного узла
+ * рисуется как есть. Вложенные друг в друга пути и слот внутри переносимого узла вызывающий
+ * отвергает до вызова.
+ */
+export function moveNodes(
+  schema: JsonFormSchema,
+  fromPaths: readonly JsonPath[],
+  slotPath: JsonPath,
+  index: number
+): MoveManyResult {
+  const moving = fromPaths.map((path) => clone(getAt(schema, path) as JsonNode));
+  let next = schema;
   let target = slotPath;
-  if (slotPath.length > fromSlot.length && isPrefix(fromSlot, slotPath)) {
-    const at = Number(slotPath[fromSlot.length]);
-    if (Number.isInteger(at) && at > fromIdx) {
-      target = [
-        ...slotPath.slice(0, fromSlot.length),
-        at - 1,
-        ...slotPath.slice(fromSlot.length + 1),
-      ];
-    }
+  let at = index;
+  for (const removed of [...fromPaths].sort(comparePaths).reverse()) {
+    const slot = removed.slice(0, -1);
+    const position = Number(removed[removed.length - 1] as JsonPathSegment);
+    if (pathEquals(slot, target) && position < at) at -= 1;
+    next = removeAt(next, removed);
+    target = shiftedByRemoval(target, removed);
   }
 
-  return insertNode(afterRemove, target, insIdx, moving);
+  const newPaths: JsonPath[] = [];
+  for (const node of moving) {
+    const result = insertNode(next, target, at, node);
+    next = result.schema;
+    newPaths.push(result.newPath);
+    at = Number(result.newPath[result.newPath.length - 1]) + 1;
+  }
+  return { schema: next, newPaths };
 }
 
 /**

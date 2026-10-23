@@ -8,6 +8,7 @@ import {
   appendNode,
   removeNode,
   moveNode,
+  moveNodes,
   duplicateNode,
   wrapInHtmlDiv,
   wrapInRow,
@@ -174,6 +175,95 @@ describe('moveNode', () => {
     const step = getAt(schema, ['root', 'children', 0, 'children', 0, 'children']) as JsonNode[];
     expect((step[0] as { model?: string }).model).toBe('$model(fullName)');
     expect(newPath).toEqual(['root', 'children', 0, 'children', 0, 'children', 0]);
+  });
+});
+
+describe('moveNodes', () => {
+  /** Корень: три поля и мастер с двумя шагами после них. */
+  const formWithWizard = (): JsonFormSchema =>
+    ({
+      format: 2,
+      root: {
+        component: '$html(div)',
+        children: [
+          field('name'),
+          field('email'),
+          field('phone'),
+          {
+            component: '$component(Wizard)',
+            children: [
+              { component: '$component(Step)', children: [] },
+              { component: '$component(Step)', children: [field('note')] },
+            ],
+          },
+        ],
+      },
+    }) as unknown as JsonFormSchema;
+  const models = (schema: JsonFormSchema, path: (string | number)[]): string[] =>
+    (getAt(schema, path) as { model?: string }[]).map((node) => node.model ?? '?');
+
+  it('пачка — в шаг мастера ниже, адреса по схеме до переноса, порядок — как передан', () => {
+    const into = ['root', 'children', 3, 'children', 1, 'children'];
+    const { schema, newPaths } = moveNodes(
+      formWithWizard(),
+      [
+        ['root', 'children', 2],
+        ['root', 'children', 0],
+      ],
+      into,
+      0
+    );
+
+    expect(models(schema, ['root', 'children'])).toEqual(['$model(email)', '?']);
+    const step = ['root', 'children', 1, 'children', 1, 'children'];
+    expect(models(schema, step)).toEqual(['$model(phone)', '$model(name)', '$model(note)']);
+    expect(newPaths).toEqual([
+      [...step, 0],
+      [...step, 1],
+    ]);
+  });
+
+  it('из разных контейнеров — в конец корня', () => {
+    const { schema } = moveNodes(
+      formWithWizard(),
+      [
+        ['root', 'children', 3, 'children', 1, 'children', 0],
+        ['root', 'children', 1],
+      ],
+      ['root', 'children'],
+      Number.MAX_SAFE_INTEGER
+    );
+
+    expect(models(schema, ['root', 'children'])).toEqual([
+      '$model(name)',
+      '$model(phone)',
+      '?',
+      '$model(note)',
+      '$model(email)',
+    ]);
+  });
+
+  it('перестановка в том же слоте: позиция учитывает изъятые до неё', () => {
+    const { schema, newPaths } = moveNodes(
+      formWithWizard(),
+      [
+        ['root', 'children', 0],
+        ['root', 'children', 1],
+      ],
+      ['root', 'children'],
+      3
+    );
+
+    expect(models(schema, ['root', 'children'])).toEqual([
+      '$model(phone)',
+      '$model(name)',
+      '$model(email)',
+      '?',
+    ]);
+    expect(newPaths).toEqual([
+      ['root', 'children', 1],
+      ['root', 'children', 2],
+    ]);
   });
 });
 
