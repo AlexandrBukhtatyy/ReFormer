@@ -1,21 +1,18 @@
 /**
- * Форма из корня и файлов шагов: сборка перед генерацией и то, что «Сгенерировать в папку»
- * разбитой формы оставляет её разбитой, а не затирает корень собранной схемой.
+ * Форма из корня и файлов шагов: сборка перед генерацией. Отдельно — форма ПРЕЖНЕГО формата на
+ * диске: она обязана собраться так же, как её запись в формате 2.
  *
- * Отдельно — форма ПРЕЖНЕГО формата на диске: она обязана собраться и напечататься так же, как
- * её запись в формате 2.
+ * Генерация в папку разбитой формы через хозяина — в `../cross/source.test`.
  *
- * @module plugins/reformer/codegen/pipeline/source.test
+ * @module plugins/reformer/codegen/stack/source.test
  */
 
 import { describe, expect, it } from 'vitest';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { STEP_SCHEMA_MARKER } from '../../../core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { generateInto } from '../commands/context-menu';
-import { createFakeHost } from '../testing';
+import { createFakeReader } from '../../../../.shared/codegen-fakes';
 import { asFormSchema, loadFormSource, StepPartsError } from './source';
-import { BUILTIN_TARGETS } from './targets';
 
 const DIR = 'fake:forms/wizard' as ResourceId;
 const ROOT = `${DIR}/form.schema.json` as ResourceId;
@@ -113,7 +110,7 @@ function legacySplitFiles(): Record<string, string> {
 
 describe('loadFormSource', () => {
   it('собирает шаги из файлов и помнит происхождение', async () => {
-    const host = createFakeHost({ files: splitFiles() });
+    const host = createFakeReader(splitFiles());
     const source = await loadFormSource(host, ROOT, skeleton as unknown as JsonFormSchema);
     const wizard = (source.schema.root as unknown as { children: { children: unknown[] }[] })
       .children[0];
@@ -127,80 +124,38 @@ describe('loadFormSource', () => {
       version: '1.0',
       root: { component: '$component(Box)', children: [] },
     };
-    const source = await loadFormSource(createFakeHost(), ROOT, plain as unknown as JsonFormSchema);
+    const source = await loadFormSource(
+      createFakeReader(),
+      ROOT,
+      plain as unknown as JsonFormSchema
+    );
     expect(source.schema).toBe(plain);
     expect(source.origins).toBeUndefined();
   });
 
   it('нет файла шага или он не разбирается — названный отказ', async () => {
-    const missing = createFakeHost({ files: { [ROOT]: printed(skeleton) } });
+    const missing = createFakeReader({ [ROOT]: printed(skeleton) });
     await expect(
       loadFormSource(missing, ROOT, skeleton as unknown as JsonFormSchema)
     ).rejects.toThrow(StepPartsError);
 
-    const broken = createFakeHost({
-      files: { ...splitFiles(), [STEP_FILE]: '{ не json' },
-    });
+    const broken = createFakeReader({ ...splitFiles(), [STEP_FILE]: '{ не json' });
     await expect(
       loadFormSource(broken, ROOT, skeleton as unknown as JsonFormSchema)
     ).rejects.toThrow(/не разбирается/);
   });
 });
 
-describe('генерация в папку разбитой формы', () => {
-  it('корень и файл шага остаются теми же байтами, правила шага — в папке валидации', async () => {
-    // Документ лежит в корне каталога (форма прежней плоской раскладки): он и файлы шагов
-    // остаются на месте, код печатается по папкам ролей.
-    const files = splitFiles();
-    const host = createFakeHost({ files });
-    const outcome = await generateInto({ host, targets: () => BUILTIN_TARGETS }, { dir: DIR });
-
-    expect(outcome.kind).toBe('delivered');
-    expect(host.written.get(ROOT)).toBe(files[ROOT]);
-    expect(host.written.get(STEP_FILE)).toBe(files[STEP_FILE]);
-    expect(host.written.has(`${DIR}/validation/kontakty.ts`)).toBe(true);
-    // Словарь схем шагов объявляет сама сборка — агрегатора `steps/index.ts` больше нет, — и
-    // импортирует она их оттуда, где они лежат.
-    const create = host.written.get(`${DIR}/application/create.ts`) ?? '';
-    expect(create).toContain('const stepSchemas: Record<string, JsonFormStep> = {');
-    expect(create).toContain('composeJsonFormSchema(');
-    expect(create).toContain("import step1Schema from '../steps/kontakty/form.schema.json';");
-    expect(host.written.has(`${DIR}/steps/index.ts`)).toBe(false);
-  });
-
-  it('документ в папке schema: корень и шаги остаются на месте, модуль — в выбранном каталоге', async () => {
-    const nestedRoot = `${DIR}/schema/form.schema.json`;
-    const nestedStep = `${DIR}/schema/steps/kontakty/form.schema.json`;
-    const files = {
-      [nestedRoot]: printed(skeleton),
-      [nestedStep]: printed({ $schema: STEP_SCHEMA_MARKER, node: step }),
-    };
-    const host = createFakeHost({ files });
-    const outcome = await generateInto({ host, targets: () => BUILTIN_TARGETS }, { dir: DIR });
-
-    expect(outcome.kind).toBe('delivered');
-    // Ссылка корня (`./steps/…`) относительна документу — шаги прочитаны и записаны рядом с ним.
-    expect(host.written.get(nestedRoot)).toBe(files[nestedRoot]);
-    expect(host.written.get(nestedStep)).toBe(files[nestedStep]);
-    expect(host.written.has(`${DIR}/validation/kontakty.ts`)).toBe(true);
-    expect(host.written.get(`${DIR}/application/create.ts`)).toContain(
-      "import step1Schema from '../schema/steps/kontakty/form.schema.json';"
-    );
-    // В корне каталога документа не появилось: он один, в `schema/`.
-    expect(host.written.has(ROOT)).toBe(false);
-  });
-});
-
 describe('разбитая форма прежнего формата на диске', () => {
   it('ссылки на шаги находятся в `componentProps.steps`: корень переводится ДО их поиска', async () => {
     const modern = await loadFormSource(
-      createFakeHost({ files: splitFiles() }),
+      createFakeReader(splitFiles()),
       ROOT,
       skeleton as unknown as JsonFormSchema
     );
     // Корень отдан как прочитан, без перевода на стороне вызывающего: переводить обязана сборка.
     const legacy = await loadFormSource(
-      createFakeHost({ files: legacySplitFiles() }),
+      createFakeReader(legacySplitFiles()),
       ROOT,
       legacySkeleton as unknown as JsonFormSchema
     );
@@ -218,7 +173,11 @@ describe('разбитая форма прежнего формата на ди�
         children: [{ value: '$model(email)', component: '$component(Input)' }],
       },
     };
-    const source = await loadFormSource(createFakeHost(), ROOT, plain as unknown as JsonFormSchema);
+    const source = await loadFormSource(
+      createFakeReader(),
+      ROOT,
+      plain as unknown as JsonFormSchema
+    );
     expect(source.schema).toEqual({
       format: 2,
       version: '1.0',
@@ -227,30 +186,6 @@ describe('разбитая форма прежнего формата на ди�
         children: [{ model: '$model(email)', component: '$component(Input)' }],
       },
     });
-  });
-
-  it('генерация в папку даёт тот же модуль, что и по записи формата 2', async () => {
-    const files = splitFiles();
-    const legacyFiles = legacySplitFiles();
-    // Посылка: на диске лежит не та запись, с которой работает генерация, — и в корне, и в шаге.
-    expect(legacyFiles[ROOT]).not.toBe(files[ROOT]);
-    expect(legacyFiles[STEP_FILE]).not.toBe(files[STEP_FILE]);
-
-    const modern = createFakeHost({ files });
-    const legacy = createFakeHost({ files: legacyFiles });
-    const targets = () => BUILTIN_TARGETS;
-
-    expect((await generateInto({ host: modern, targets }, { dir: DIR })).kind).toBe('delivered');
-    expect((await generateInto({ host: legacy, targets }, { dir: DIR })).kind).toBe('delivered');
-
-    // Весь модуль байт в байт: и код, и обе схемы. Схемы производные — они переписаны в формат 2.
-    expect(Object.fromEntries(legacy.written)).toEqual(Object.fromEntries(modern.written));
-    expect(legacy.written.get(ROOT)).toBe(printed(skeleton));
-    expect(legacy.written.get(STEP_FILE)).toBe(
-      printed({ $schema: STEP_SCHEMA_MARKER, node: step })
-    );
-    // Модуль — визарда, а не простой формы: шаг найден, его правила лежат своим файлом.
-    expect(legacy.written.has(`${DIR}/validation/kontakty.ts`)).toBe(true);
   });
 });
 

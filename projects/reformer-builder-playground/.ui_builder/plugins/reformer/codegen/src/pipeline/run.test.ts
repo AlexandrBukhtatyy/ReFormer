@@ -1,287 +1,159 @@
-import { describe, expect, it } from 'vitest';
-import { plainSchema } from '../../../core/testing';
-import type { ResourceId } from '@reformer/builder-plugin-api';
-import { moduleRootOfDocument } from '../../../core/codegen';
-import { defaultFormName, runCodegen, schemaOf } from './run';
-import { createCodegenSessions } from './state';
-import { BUILTIN_TARGETS } from './targets';
-import { createFakeDocument, createFakeHost } from '../testing';
-import { printRulesText } from '../../../core/codegen/rules-file';
-import { readFormRules } from './rules';
-
-const DOC = 'src/forms/credit.schema.json' as ResourceId;
-
 /**
- * Форма в ПРЕЖНЕМ формате: без `format`, привязка поля — в `value`.
+ * Прогон хозяина на двойнике стека: выбор стека, цели стека, отказы, состояние.
  *
- * Литерал прежнего формата здесь намеренно: это вход проверки перевода, а не недосмотр переноса.
+ * @module plugins/reformer/codegen/pipeline/run.test
  */
-const LEGACY_FORM = {
-  version: '1.0',
-  root: {
-    component: '$component(Box)',
-    children: [{ value: '$model(fullName)', component: '$component(Input)' }],
-  },
-};
 
-/** Она же в формате 2. */
-const FORM = {
-  format: 2,
-  version: '1.0',
-  root: {
-    component: '$component(Box)',
-    children: [{ model: '$model(fullName)', component: '$component(Input)' }],
-  },
-};
+import { describe, expect, it } from 'vitest';
+import type { CodegenTarget, ResourceId } from '@reformer/builder-plugin-api';
+import { runCodegen } from './run';
+import { createCodegenSessions } from './state';
+import {
+  createFakeDocument,
+  createFakeHost,
+  createFakeStack,
+  stacksOf,
+  type FakeStackOptions,
+} from '../testing';
 
-function setup(options: Parameters<typeof createFakeHost>[0] = {}) {
-  const document = createFakeDocument(DOC, JSON.stringify(plainSchema()), 'credit.schema.json');
-  const host = createFakeHost({ document, ...options });
-  const sessions = createCodegenSessions();
-  return { host, store: sessions.storeFor(DOC) };
+const DOC = 'src/forms/demo/form.schema.json' as ResourceId;
+
+const target = (id: string, path: string, over: Partial<CodegenTarget> = {}): CodegenTarget => ({
+  id,
+  path,
+  cls: 'derived',
+  template: '',
+  ...over,
+});
+
+function setup(stackOptions: FakeStackOptions = {}, resourceKind = 'form.schema') {
+  const document = createFakeDocument(DOC, '{}', 'form.schema.json', resourceKind);
+  const host = createFakeHost({ document });
+  const stack = createFakeStack(stackOptions);
+  const store = createCodegenSessions().storeFor(DOC);
+  const run = (targets: readonly CodegenTarget[] = [target('t.a', 'a.ts')], formName?: string) =>
+    runCodegen({
+      host,
+      stacks: stacksOf(stack),
+      targets,
+      documentId: DOC,
+      store,
+      ...(formName === undefined ? {} : { formName }),
+    });
+  return { host, stack, store, run };
 }
 
-describe('прогон генерации', () => {
-  it('печатает и записывает модуль рядом с документом', async () => {
-    const { host, store } = setup({ withSave: true });
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
+describe('прогон через стек', () => {
+  it('стек документа печатает, хозяин пишет в корень, который назвал стек', async () => {
+    const { host, stack, store, run } = setup({ root: 'src/forms/demo' });
+    await run();
 
-    const state = store.get();
-    expect(state.errorKey).toBeNull();
-    expect(state.delivery?.written).toContain('types/credit.ts');
-    expect(host.written.has('src/forms/credit/types/credit.ts')).toBe(true);
+    expect(store.get().error).toBeNull();
+    expect(store.get().stack).toBe('fake');
+    expect(store.get().rootPath).toBe('src/forms/demo');
+    expect(host.written.has('src/forms/demo/a.ts')).toBe(true);
+    // Читает стек рабочую область хозяина — один ответ на «что лежит на диске».
+    expect(stack.readers).toEqual([host]);
   });
 
-  it('имя формы по умолчанию — имя файла до ПЕРВОЙ точки, а не до последней', () => {
-    // `credit.schema` дал бы каталог `creditschema/` и тип `CreditschemaForm`: точку `kebab`
-    // выкидывает, а не заменяет разделителем.
-    expect(defaultFormName(createFakeDocument(DOC, '{}', 'credit.schema.json'))).toBe('credit');
+  it('стеку уходят его цели и общие — не чужие и не заменённые', async () => {
+    const { stack, run } = setup();
+    await run([
+      target('fake.a', 'a.ts', { stack: 'fake' }),
+      target('other.b', 'b.ts', { stack: 'other' }),
+      target('any.c', 'c.ts'),
+      target('user.a', 'a.ts', { overrides: 'fake.a' }),
+    ]);
+    expect(stack.printed[0].targets.map((t) => t.id)).toEqual(['any.c', 'user.a']);
   });
 
-  it('для канонического имени схемы имя формы — имя ПАПКИ, а не «form»/«renderer»', () => {
-    const canon = 'src/forms/loan/form.schema.json';
-    const legacy = 'src/forms/loan/renderer.schema.json';
-    expect(defaultFormName(createFakeDocument(canon, '{}', 'form.schema.json'))).toBe('loan');
-    expect(defaultFormName(createFakeDocument(legacy, '{}', 'renderer.schema.json'))).toBe('loan');
+  it('устаревшую замену стек снимает своим крючком — печатается заменяемая', async () => {
+    const { stack, run } = setup({ staleOverride: (t) => (t.id === 'user.a' ? 'устарела' : null) });
+    await run([
+      target('fake.a', 'a.ts', { stack: 'fake' }),
+      target('user.a', 'a.ts', { overrides: 'fake.a' }),
+    ]);
+    expect(stack.printed[0].targets.map((t) => t.id)).toEqual(['fake.a']);
   });
 
-  it('документ в папке schema называет форму каталогом МОДУЛЯ, а не «schema»', () => {
-    const nested = 'src/forms/loan/schema/form.schema.json';
-    expect(defaultFormName(createFakeDocument(nested, '{}', 'form.schema.json'))).toBe('loan');
+  it('имя формы по умолчанию — от стека, введённое — сильнее', async () => {
+    const first = setup({ formName: 'demo' });
+    await first.run();
+    expect(first.stack.printed[0].formName).toBe('demo');
+    expect(first.store.get().formName).toBe('demo');
+
+    const second = setup({ formName: 'demo' });
+    await second.run(undefined, '  Заявка  ');
+    expect(second.stack.printed[0].formName).toBe('Заявка');
   });
 
-  it('правила берутся из файла правил рядом с документом и печатаются в валидацию', async () => {
-    const { host, store } = setup();
-    host.written.set(
-      'src/forms/credit.rules.json',
-      printRulesText({
-        validation: [{ target: 'fullName', rules: ['required'] }],
-        behavior: [],
-        render: [],
-      })
-    );
-    host.rulesOf = (id) => readFormRules(host, id, DOC);
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-
-    expect(store.get().errorKey).toBeNull();
-    expect(host.written.get('src/forms/credit/validation/form.ts')).toContain('required');
+  it('документ, который не печатает ни один стек, — «не схема формы»', async () => {
+    const { stack, store, run } = setup({}, 'text/typescript');
+    await run();
+    expect(store.get().error).toEqual({ key: 'error.not-a-schema' });
+    expect(stack.readers).toEqual([]);
   });
 
-  it('битый файл правил — отказ прогона с адресом файла, ничего не записано', async () => {
-    const { host, store } = setup();
-    host.written.set('src/forms/credit.rules.json', '{ broken');
-    host.rulesOf = (id) => readFormRules(host, id, DOC);
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-
-    expect(store.get().errorKey).toBe('error.rules-file');
-    expect(store.get().errorDetail).toContain('credit.rules.json');
-    expect([...host.written.keys()]).toEqual(['src/forms/credit.rules.json']);
+  it('стек не узнал своей формы — тоже «не схема формы»', async () => {
+    const { store, run } = setup({ open: null });
+    await run();
+    expect(store.get().error).toEqual({ key: 'error.not-a-schema' });
   });
 
-  it('без кита отказывает НАЗВАННО и ничего не пишет', async () => {
-    const { host, store } = setup({ kit: null });
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-    expect(store.get().errorKey).toBe('error.no-kit');
+  it('отказ стека — его ключом, с подстановками и подробностью', async () => {
+    const { host, store, run } = setup({
+      open: { refusal: { key: 'error.step-parts', params: { n: 2 } }, detail: 'нет файла' },
+    });
+    await run();
+    expect(store.get().error).toEqual({
+      key: 'error.step-parts',
+      params: { n: 2 },
+      detail: 'нет файла',
+      stack: 'fake',
+    });
     expect(host.written.size).toBe(0);
   });
 
-  it('документ, который не разбирается в схему, отказывает названно', async () => {
-    const document = createFakeDocument(DOC, 'не json');
-    const { host, store } = setup({ document });
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-    expect(store.get().errorKey).toBe('error.not-a-schema');
+  it('отказ стека перед записью — его ключом, отчёт о печати остаётся', async () => {
+    const { host, store, run } = setup({ check: { refusal: { key: 'error.kit-mismatch' } } });
+    await run();
+    expect(store.get().error).toEqual({ key: 'error.kit-mismatch', stack: 'fake' });
+    expect(store.get().files.map((file) => file.path)).toEqual(['a.ts']);
+    expect(store.get().delivery).toBeNull();
+    expect(host.written.size).toBe(0);
   });
 
-  it('источник без записи отказывает названно, а не исключением', async () => {
-    const { host, store } = setup({ write: false });
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-    expect(store.get().errorKey).toBe('error.read-only');
+  it('заметки стека доезжают до отчёта записи', async () => {
+    const note = {
+      id: 'flat',
+      paths: ['index.tsx'],
+      title: { key: 'flat.title' },
+      detail: { key: 'flat.detail' },
+      notify: { key: 'notify.flat' },
+    };
+    const { store, run } = setup({ notes: [note] });
+    await run();
+    expect(store.get().delivery?.notes).toEqual([note]);
   });
 
-  it('модуль, напечатанный другим китом, — отказ с именами китов, ничего не записано', async () => {
-    // Реестр на диске напечатан HexaUI: обёртка поля — из её пакета.
-    const foreign = [
-      "import { FormField } from '@reformer/kit-hexa-ui';",
-      'reg.component(FIELD_WRAPPER, FormField);',
-    ].join('\n');
-    const { host, store } = setup({
-      withSave: true,
-      files: { 'src/forms/credit/schema/registry.ts': foreign },
-    });
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-
-    expect(store.get().errorKey).toBe('error.kit-mismatch');
-    expect(store.get().errorParams).toEqual({
-      module: '@reformer/kit-hexa-ui',
-      active: '@reformer/ui-kit',
-    });
-    expect(host.written.get('src/forms/credit/schema/registry.ts')).toBe(foreign);
-    expect(host.written.has('src/forms/credit/types/credit.ts')).toBe(false);
-  });
-
-  it('сниппет регистрации собран из имени формы', async () => {
-    const { host, store } = setup();
+  it('источник без записи — отказ хозяина, а не исключение', async () => {
+    const document = createFakeDocument(DOC, '{}');
+    const host = createFakeHost({ document, write: false });
+    const store = createCodegenSessions().storeFor(DOC);
     await runCodegen({
       host,
-      targets: BUILTIN_TARGETS,
+      stacks: stacksOf(createFakeStack()),
+      targets: [target('t.a', 'a.ts')],
       documentId: DOC,
       store,
-      formName: 'Профиль пользователя',
     });
-    expect(store.get().snippet).toContain('profilPolzovatelyaFormEntry');
+    expect(store.get().error).toEqual({ key: 'error.read-only' });
   });
 
-  it('модель документа предпочтительнее текста буфера', () => {
-    const schema = plainSchema();
-    const document = {
-      ...createFakeDocument(DOC, 'сломанный текст'),
-      model: () => schema,
-    };
-    expect(schemaOf(document)).toBe(schema);
-  });
-
-  it('текст и модель прежнего формата отдаются переведёнными в формат 2', () => {
-    // Посылка: разметка прежнего формата — не та, с которой работает генерация.
-    expect(LEGACY_FORM.root).not.toEqual(FORM.root);
-
-    const fromText = createFakeDocument(DOC, JSON.stringify(LEGACY_FORM));
-    expect(schemaOf(fromText)).toEqual(FORM);
-
-    const fromModel = { ...createFakeDocument(DOC, 'сломанный текст'), model: () => LEGACY_FORM };
-    expect(schemaOf(fromModel)).toEqual(FORM);
-  });
-
-  it('по документу прежнего формата печатает модуль с его полями, а не пустой', async () => {
-    const document = createFakeDocument(DOC, JSON.stringify(LEGACY_FORM), 'credit.schema.json');
-    const { host, store } = setup({ document });
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });
-
-    expect(store.get().errorKey).toBeNull();
-    expect(host.written.get('src/forms/credit/types/credit.ts')).toContain('fullName: string;');
-    // Схема модуля — уже формата 2: привязка в `model`, пометка `format` на месте.
-    const schema = JSON.parse(
-      host.written.get('src/forms/credit/schema/form.schema.json') ?? ''
-    ) as {
-      format?: unknown;
-      root: { children: unknown[] };
-    };
-    expect(schema.format).toBe(2);
-    expect(schema.root.children[0]).toMatchObject({ model: '$model(fullName)' });
-  });
-});
-
-describe('куда ложится модуль: три места документа', () => {
-  /** Прогон по документу с таким адресом; на «диске» — только он сам. */
-  async function runAt(path: string, name: string, files: Record<string, string> = {}) {
-    const id = path as ResourceId;
-    const text = JSON.stringify(plainSchema());
-    const document = createFakeDocument(path, text, name);
-    const host = createFakeHost({ document, files: { [path]: text, ...files } });
-    const store = createCodegenSessions().storeFor(id);
-    await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: id, store });
-    return { host, state: store.get() };
-  }
-
-  it('документ в <модуль>/schema/ — модуль печатается НА МЕСТЕ, в родителе папки', async () => {
-    const { host, state } = await runAt(
-      'src/forms/loan/schema/form.schema.json',
-      'form.schema.json'
-    );
-
-    expect(state.errorKey).toBeNull();
-    expect(state.delivery?.dir).toBe('src/forms/loan');
-    // Код — по папкам ролей от корня модуля, документ переписан на своём месте.
-    expect(host.written.has('src/forms/loan/LoanForm.tsx')).toBe(true);
-    expect(host.written.has('src/forms/loan/application/create.ts')).toBe(true);
-    expect(host.written.has('src/forms/loan/schema/registry.ts')).toBe(true);
-    expect(state.delivery?.written).toContain('schema/form.schema.json');
-    // Ни вложенного модуля, ни копии документа рядом.
-    expect([...host.written.keys()].some((id) => id.includes('/loan/loan/'))).toBe(false);
-    expect([...host.written.keys()].some((id) => id.includes('/schema/schema/'))).toBe(false);
-    expect([...host.written.keys()].filter((id) => id.endsWith('form.schema.json'))).toEqual([
-      'src/forms/loan/schema/form.schema.json',
-    ]);
-  });
-
-  it('канонический документ в другом каталоге — модуль в его каталог, схема остаётся в корне', async () => {
-    // Форма прежней плоской раскладки: документ не переезжает, код печатается по папкам ролей.
-    const { host, state } = await runAt('src/forms/loan/form.schema.json', 'form.schema.json', {
-      'src/forms/loan/index.tsx': 'прежняя страница\n',
-      'src/forms/loan/form.render.ts': 'мои правила рендера\n',
-    });
-
-    expect(state.delivery?.dir).toBe('src/forms/loan');
-    expect(state.delivery?.written).toContain('form.schema.json');
-    expect(host.written.has('src/forms/loan/schema/form.schema.json')).toBe(false);
-    expect(host.written.has('src/forms/loan/schema/registry.ts')).toBe(true);
-    // Сборка импортирует документ оттуда, где он лежит.
-    expect(host.written.get('src/forms/loan/application/create.ts')).toContain(
-      "import rawSchema from '../form.schema.json';"
-    );
-    // Файлы прежней раскладки названы и не тронуты.
-    expect(state.delivery?.flat).toEqual(['index.tsx', 'form.render.ts']);
-    expect(host.written.get('src/forms/loan/form.render.ts')).toBe('мои правила рендера\n');
-  });
-
-  it('документ со свободным именем — новый модуль в подкаталоге, документ кладётся в schema/', async () => {
-    const { host, state } = await runAt('src/forms/credit.schema.json', 'credit.schema.json');
-
-    expect(state.delivery?.dir).toBe('src/forms/credit');
-    expect(host.written.has('src/forms/credit/schema/form.schema.json')).toBe(true);
-    expect(host.written.has('src/forms/credit/CreditForm.tsx')).toBe(true);
-    // Исходный документ остался, где был: модуль заведён рядом, а не поверх него.
-    expect(host.written.has('src/forms/credit.schema.json')).toBe(true);
-    expect(host.written.has('src/forms/types/credit.ts')).toBe(false);
-  });
-
-  it('свободное имя: каталог модуля — по имени документа, введённое имя меняет только код', async () => {
-    // Модуль под введённым именем (`zayavka-na-kredit/`) не нашли бы ни превью, ни фикстура, ни
-    // превью приложением: у них есть только адрес документа.
-    const path = 'src/forms/credit.schema.json';
-    const text = JSON.stringify(plainSchema());
-    const host = createFakeHost({
-      document: createFakeDocument(path, text, 'credit.schema.json'),
-      files: { [path]: text },
-    });
-    const store = createCodegenSessions().storeFor(path as ResourceId);
-    await runCodegen({
-      host,
-      targets: BUILTIN_TARGETS,
-      documentId: path as ResourceId,
-      store,
-      formName: 'Заявка на кредит',
-    });
-    expect(store.get().delivery?.dir).toBe('src/forms/credit');
-    expect(host.written.has('src/forms/credit/ZayavkaNaKreditForm.tsx')).toBe(true);
-    expect(host.written.has('src/forms/zayavka-na-kredit/ZayavkaNaKreditForm.tsx')).toBe(false);
-  });
-
-  it('каталог модуля решает место документа — портом хоста', () => {
-    const host = createFakeHost();
-    const root = (path: string) => moduleRootOfDocument(host, path as ResourceId, path);
-    expect(root('a/b/schema/form.schema.json')).toBe('a/b');
-    expect(root('a/b/form.schema.json')).toBe('a/b');
-    expect(root('a/b.schema.json')).toBe('a/b');
-    expect(root('a/credit.schema.json')).toBe('a/credit');
+  it('документ закрыли — отказ хозяина', async () => {
+    const host = createFakeHost({ document: null });
+    const store = createCodegenSessions().storeFor(DOC);
+    await runCodegen({ host, stacks: stacksOf(), targets: [], documentId: DOC, store });
+    expect(store.get().error).toEqual({ key: 'error.no-document' });
   });
 });

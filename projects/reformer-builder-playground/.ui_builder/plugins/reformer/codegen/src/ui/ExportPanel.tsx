@@ -33,12 +33,12 @@ import { Item, ItemContent, ItemTitle } from '@reformer/ui-kit/item';
 import { Label } from '@reformer/ui-kit/label';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Separator } from '@reformer/ui-kit/separator';
-import type { CodegenTarget } from '../contract';
-import { isSchemaDocumentPath, type DeliveryResult } from '../pipeline/deliver';
-import type { CodegenProblem } from '../pipeline/generate';
+import type { CodegenProblem, CodegenTarget, CodegenText } from '@reformer/builder-plugin-api';
+import type { DeliveryResult } from '../pipeline/deliver';
 import type { CodegenHost, Translate } from '../host';
-import { defaultFormName, runCodegen } from '../pipeline/run';
-import type { CodegenSessions, CodegenState, CodegenStore } from '../pipeline/state';
+import { runCodegen } from '../pipeline/run';
+import type { CodegenError, CodegenSessions, CodegenState, CodegenStore } from '../pipeline/state';
+import { stackFor, stackText, type Stacks } from '../stacks';
 
 /** Строка поля — та же сетка, что у строки свойства в панели «Свойства». */
 const ROW_CLASS = 'grid grid-cols-[minmax(0,min(45%,9rem))_minmax(0,1fr)] items-start gap-x-2';
@@ -56,6 +56,8 @@ const FORM_NAME_HINT_ID = 'codegen-form-name-hint';
 export interface ExportPanelProps {
   readonly host: CodegenHost;
   readonly sessions: CodegenSessions;
+  /** Стеки генерации: какой печатает документ, и чьими словами говорить его отказы и заметки. */
+  readonly stacks: Stacks;
   /** Цели читаются лениво: их вносят и снимают, в том числе чужие плагины. */
   readonly targets: () => readonly CodegenTarget[];
   /**
@@ -78,6 +80,7 @@ export interface ExportPanelProps {
 export function ExportPanel({
   host,
   sessions,
+  stacks,
   targets,
   onEject,
   problems,
@@ -101,6 +104,7 @@ export function ExportPanel({
       key={documentId}
       host={host}
       sessions={sessions}
+      stacks={stacks}
       targets={targets}
       onEject={onEject}
       problems={problems}
@@ -147,9 +151,30 @@ function useCodegenState(store: CodegenStore): CodegenState {
   );
 }
 
+/** Отказ словами — словарём хозяина либо стека, чей это ключ, с подробностью строкой ниже. */
+function ErrorText({
+  error,
+  t,
+  stacks,
+}: {
+  readonly error: CodegenError;
+  readonly t: Translate;
+  readonly stacks: Stacks;
+}): ReactNode {
+  return (
+    <>
+      {error.stack === undefined
+        ? t(error.key, error.params)
+        : stackText(stacks, error.stack, error)}
+      {error.detail === undefined ? null : <div>{error.detail}</div>}
+    </>
+  );
+}
+
 function ExportFor({
   host,
   sessions,
+  stacks,
   targets,
   documentId,
   onEject,
@@ -161,20 +186,23 @@ function ExportFor({
   const document = host.documentOf(documentId);
   const kit = useActiveKit(host);
 
-  const [name, setName] = useState(
-    () => state.formName || (document === null ? '' : defaultFormName(document))
-  );
+  // Имя по умолчанию называет стек документа — из имени файла схемы.
+  const [name, setName] = useState(() => {
+    if (state.formName !== '' || document === null) return state.formName;
+    return stackFor(stacks, document)?.stack.formNameOf(document.ref.path) ?? '';
+  });
 
   const generate = useCallback(() => {
     void runCodegen({
       host,
+      stacks,
       targets: targets(),
       documentId,
       store,
       formName: name,
       problems: problems?.(),
     });
-  }, [host, targets, documentId, store, name, problems]);
+  }, [host, stacks, targets, documentId, store, name, problems]);
 
   const running = state.phase === 'running';
 
@@ -223,11 +251,10 @@ function ExportFor({
         {running ? t('action.running') : t('action.generate')}
       </Button>
 
-      {state.errorKey === null ? null : (
+      {state.error === null ? null : (
         <Alert variant="destructive">
           <AlertDescription>
-            {t(state.errorKey, state.errorParams)}
-            {state.errorDetail === undefined ? null : <div>{state.errorDetail}</div>}
+            <ErrorText error={state.error} t={t} stacks={stacks} />
           </AlertDescription>
         </Alert>
       )}
@@ -235,7 +262,7 @@ function ExportFor({
       <Separator />
 
       <ScrollArea className="min-h-0 flex-1">
-        <Report state={state} t={t} onEject={onEject} host={host} />
+        <Report state={state} t={t} onEject={onEject} host={host} stacks={stacks} />
       </ScrollArea>
     </div>
   );
@@ -277,15 +304,17 @@ interface ReportProps {
   readonly state: CodegenState;
   readonly t: Translate;
   readonly onEject?: (targetId: string) => void;
-  /** Порт — ради «Открыть form.schema.json» у прежнего имени схемы. */
+  /** Порт — ради «Открыть …» у файла под прежним именем. */
   readonly host?: Pick<CodegenHost, 'resolve' | 'openResource'>;
+  /** Стеки — заметки записи говорят словами стека, который печатал. */
+  readonly stacks: Stacks;
 }
 
 /**
- * Раскладка на диске: прежнее имя документа рядом с новым, файлы шагов, которых нет в форме, и
- * файлы прежней плоской раскладки.
+ * Модуль на диске: файлы под прежними именами рядом с новыми и заметки стека — у ReFormer это
+ * файлы шагов, которых нет в форме, и файлы прежней плоской раскладки.
  *
- * Отдельной секцией, а не пометкой у файла: все три случая — про файлы, которых в составе модуля
+ * Отдельной секцией, а не пометкой у файла: все эти случаи — про файлы, которых в составе модуля
  * НЕТ (старое имя, брошенный файл шага, код прежнего контракта), и строки для них в списке файлов
  * модуля не нашлось бы.
  */
@@ -293,10 +322,13 @@ function LayoutReport({
   delivery,
   t,
   host,
+  translate,
 }: {
   readonly delivery: DeliveryResult;
   readonly t: Translate;
   readonly host?: Pick<CodegenHost, 'resolve' | 'openResource'>;
+  /** Текст заметки — словами стека, который печатал. */
+  readonly translate: (text: CodegenText) => string;
 }): ReactNode {
   const open = host?.openResource;
   return (
@@ -313,9 +345,8 @@ function LayoutReport({
                     replacedBy: entry.replacedBy,
                   })}
                 </span>
-                {!isSchemaDocumentPath(entry.replacedBy) ||
-                open === undefined ||
-                host === undefined ? null : (
+                {/* Редактор держит открытым СТАРЫЙ файл, и дальнейшие правки ушли бы в него. */}
+                {open === undefined || host === undefined ? null : (
                   <Button
                     size="sm"
                     variant="outline"
@@ -324,7 +355,7 @@ function LayoutReport({
                       open(host.resolve(delivery.dir, ...entry.replacedBy.split('/')));
                     }}
                   >
-                    {t('legacy.open-schema', { name: entry.replacedBy })}
+                    {t('legacy.open', { name: entry.replacedBy })}
                   </Button>
                 )}
               </AlertDescription>
@@ -332,34 +363,23 @@ function LayoutReport({
           ))}
         </section>
       )}
-      {delivery.orphans.length === 0 ? null : (
-        <section className="flex flex-col gap-1" data-testid="codegen-orphans">
-          <h3 className="text-foreground text-[12px] font-semibold">{t('orphans.title')}</h3>
-          <span className="text-muted-foreground text-[11px]">{t('orphans.detail')}</span>
-          {/* Среди сирот и папки схем шагов, и файлы их правил — путь печатается как есть. */}
-          {delivery.orphans.map((path) => (
+      {delivery.notes.map((note) => (
+        <section key={note.id} className="flex flex-col gap-1" data-testid={`codegen-${note.id}`}>
+          <h3 className="text-foreground text-[12px] font-semibold">{translate(note.title)}</h3>
+          <span className="text-muted-foreground text-[11px]">{translate(note.detail)}</span>
+          {/* Пути печатаются как есть: среди них бывают и каталоги, и файлы. */}
+          {note.paths.map((path) => (
             <span key={path} className="font-mono text-[11px]">
               {path}
             </span>
           ))}
         </section>
-      )}
-      {delivery.flat.length === 0 ? null : (
-        <section className="flex flex-col gap-1" data-testid="codegen-flat">
-          <h3 className="text-foreground text-[12px] font-semibold">{t('flat.title')}</h3>
-          <span className="text-muted-foreground text-[11px]">{t('flat.detail')}</span>
-          {delivery.flat.map((path) => (
-            <span key={path} className="font-mono text-[11px]">
-              {path}
-            </span>
-          ))}
-        </section>
-      )}
+      ))}
     </>
   );
 }
 
-function Report({ state, t, onEject, host }: ReportProps): ReactNode {
+function Report({ state, t, onEject, host, stacks }: ReportProps): ReactNode {
   if (state.files.length === 0) {
     return <Empty title={t('empty.not-run')} detail={t('empty.not-run.detail')} />;
   }
@@ -428,7 +448,16 @@ function Report({ state, t, onEject, host }: ReportProps): ReactNode {
         </section>
       )}
 
-      {delivery === null ? null : <LayoutReport delivery={delivery} t={t} host={host} />}
+      {delivery === null ? null : (
+        <LayoutReport
+          delivery={delivery}
+          t={t}
+          host={host}
+          translate={(text) =>
+            state.stack === null ? text.key : stackText(stacks, state.stack, text)
+          }
+        />
+      )}
 
       {state.problems.length === 0 ? null : (
         <section className="flex flex-col gap-1">

@@ -15,7 +15,7 @@
  * документ лежит там, где его нашли (`{schema}`). Токены подставляет прогон (`./generate`); здесь
  * они записаны так, чтобы раскладка читалась одним взглядом.
  *
- * @module plugins/reformer/codegen/pipeline/targets
+ * @module plugins/reformer/codegen/stack/targets
  */
 
 import {
@@ -38,11 +38,19 @@ import {
   validationTemplate,
   emitSchema,
   emitStepSchema,
+  isFlatLayoutPath,
   LEGACY_SCHEMA_FILE,
   SCHEMA_FILE,
   STEP_SCHEMAS_DIR,
 } from '../../../core/codegen';
-import type { CodegenTarget } from '../contract';
+import type { CodegenTarget as SdkTarget } from '@reformer/builder-plugin-api';
+import type { CodegenTarget } from './generate';
+
+/**
+ * Имя стека ReFormer в генерации кода: им помечены его цели (`CodegenTarget.stack`) и под ним
+ * он стоит в точке стеков. Хозяин генерации отдаёт стеку только его цели и общие.
+ */
+export const CODEGEN_STACK_ID = 'reformer';
 
 /**
  * Встроенные цели в порядке раскладки модуля: производные файлы, затем авторские.
@@ -62,6 +70,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // Документ формы печатается туда, где он лежит: `schema/form.schema.json` либо, у формы
       // прежней плоской раскладки, в корень модуля. Прежнее имя — рядом с ним.
       id: 'codegen.schema',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.schema',
       path: '{schema}',
       legacyPaths: [`{schemaDir}${LEGACY_SCHEMA_FILE}`],
@@ -74,6 +83,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // относительную корневого документа, — поэтому файл лежит рядом с ним, а не в корне модуля.
       // Производная, как и корневая схема: её источник — форма в редакторе.
       id: 'codegen.step-schema',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.step-schema',
       path: `{schemaDir}${STEP_SCHEMAS_DIR}/{stepDir}/${SCHEMA_FILE}`,
       each: 'step',
@@ -84,6 +94,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.types',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.types',
       path: 'types/{dir}.ts',
       cls: 'derived',
@@ -92,6 +103,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.initial',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.initial',
       path: 'model/initial-value.ts',
       cls: 'derived',
@@ -100,6 +112,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.model',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.model',
       path: 'model/model.ts',
       cls: 'derived',
@@ -108,6 +121,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.registry',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.registry',
       path: 'schema/registry.ts',
       cls: 'derived',
@@ -117,6 +131,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       // Единственная сборка формы: ею пользуются и страница, и запись реестра форм.
       id: 'codegen.create',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.create',
       path: 'application/create.ts',
       cls: 'derived',
@@ -125,6 +140,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.entry',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.entry',
       path: 'application/entry.ts',
       cls: 'derived',
@@ -135,6 +151,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // Страница. Id прежний (`codegen.index`): роль та же — точка входа, которую монтирует
       // приложение; изменилось имя файла.
       id: 'codegen.index',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.index',
       path: '{Type}.tsx',
       cls: 'derived',
@@ -143,6 +160,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.barrel',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.barrel',
       path: 'index.ts',
       cls: 'derived',
@@ -153,6 +171,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // Поток шагов — только у визарда: порядок шагов берётся из схемы, поэтому файл производный —
       // перестановка шагов не требует ручной правки ни одного файла человека.
       id: 'codegen.flow',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.flow',
       path: 'flow/{dir}-flow.ts',
       cls: 'derived',
@@ -162,6 +181,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.data-sources',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.data-sources',
       path: 'constants/{dir}.ts',
       cls: 'user',
@@ -172,6 +192,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // Единственное поведение формы: связи над моделью и правила узлов схемы. Производится из
       // правил формы, поэтому несёт маркер и перезаписывается, пока его не правили руками.
       id: 'codegen.form-behavior',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.form-behavior',
       path: 'behavior/index.ts',
       cls: 'user',
@@ -181,6 +202,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.validation',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.validation',
       path: 'validation/form.ts',
       cls: 'user',
@@ -193,6 +215,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // перезапись при смене правил стёрла бы его формулировки. Новый код замечания, которого в
       // словаре нет, показывается текстом локали — форма от этого не ломается.
       id: 'codegen.messages',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.messages',
       path: 'validation/messages.ts',
       cls: 'user',
@@ -202,6 +225,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       // Правила шага: «Далее» проверяет только их. В сборку они уходят потоком шагов.
       id: 'codegen.step-validation',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.step-validation',
       path: 'validation/{step}.ts',
       each: 'step',
@@ -213,6 +237,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     // Отправка и бэкенд: перевыводить их не из чего, поэтому маркера они не несут.
     {
       id: 'codegen.submit',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.submit',
       path: 'application/submit.ts',
       cls: 'user',
@@ -221,6 +246,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.api',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.api',
       path: 'api/index.ts',
       cls: 'user',
@@ -231,6 +257,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     // к этому моменту уже известен целиком.
     {
       id: 'codegen.readme',
+      stack: CODEGEN_STACK_ID,
       titleKey: 'target.readme',
       path: 'README.md',
       cls: 'derived',
@@ -242,7 +269,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
 /**
  * Цели прежнего контракта, которых больше нет, и что пришло им на смену.
  *
- * Нужны ровно одному месту — разбору пользовательских шаблонов (`./user-targets`): шаблон,
+ * Нужны ровно одному месту — устареванию замен ({@link staleOverride}): шаблон,
  * выгруженный до перехода на единый контракт, объявляет `overrides` на одну из них. Печатать его
  * нельзя (он описывает файл, которого в модуле больше нет, и читает поля вида, которых больше
  * нет), а промолчать — значит оставить человека с правкой, которая перестала действовать.
@@ -257,3 +284,36 @@ export const RETIRED_TARGETS: Readonly<Record<string, string>> = Object.freeze({
   'codegen.step-render':
     'слоя рендера шага (steps/<шаг>/form.render.ts) больше нет: правила узлов шага печатаются в behavior/index.ts',
 });
+
+/**
+ * Замена устарела: написана под ПРЕЖНИЙ контракт кода — крючок стека для правила замен хозяина.
+ *
+ * Шаблон, выгруженный до перехода на единый контракт и папки ролей, узнаётся по заголовку:
+ *
+ * - заменяет цель, которой больше нет ({@link RETIRED_TARGETS}: шим визарда, агрегатор шагов,
+ *   слой рендера);
+ * - заменяет живую цель, но печатает по пути плоской раскладки (`registry.ts` вместо
+ *   `schema/registry.ts`).
+ *
+ * В обоих случаях его тело писалось под прежний вид (`it.wizard`, `it.layout.imports`,
+ * `it.renderBehavior`) и под прежний контракт сборки: отрисовать его нечем, а напечатанный им
+ * файл модуль не импортирует. Применить такую замену значило бы ещё и снять встроенную цель — то
+ * есть оставить модуль без файла, который он импортирует. Поэтому замена не печатается, а текст
+ * причины панель показывает рядом с отказами целей.
+ */
+export function staleOverride(target: SdkTarget, replaced: SdkTarget | undefined): string | null {
+  if (target.overrides === undefined) return null;
+  if (Object.hasOwn(RETIRED_TARGETS, target.overrides)) {
+    return (
+      `«${target.id}» заменяет цель «${target.overrides}», которой больше нет: ` +
+      `${RETIRED_TARGETS[target.overrides]}. Шаблон не применён — перенесите правки и удалите его.`
+    );
+  }
+  if (replaced === undefined || replaced.path === target.path) return null;
+  if (!isFlatLayoutPath(target.path)) return null;
+  return (
+    `«${target.id}» заменяет «${replaced.id}», но написан под прежнюю плоскую раскладку: ` +
+    `печатает «${target.path}», а модуль теперь импортирует «${replaced.path}». Шаблон не ` +
+    'применён — модуль напечатан встроенным. Выгрузите шаблон заново и перенесите в него правки.'
+  );
+}

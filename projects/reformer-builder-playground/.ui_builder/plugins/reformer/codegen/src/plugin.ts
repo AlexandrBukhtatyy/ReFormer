@@ -1,19 +1,15 @@
 /**
- * Плагин генерации кода: точка расширения целей, встроенные цели, панель и команды.
+ * Плагин генерации кода: панель «Экспорт формы», запись модуля, цели из проекта и команды.
  *
- * Встроенные цели печатают модуль формы единого контракта сборки (`createForm` +
- * `useFormBundle` + `FormRenderer`) в раскладке «папки по ролям» — см. `./pipeline/targets`.
+ * Общий для любого формата формы. Что такое форма документа, из каких файлов состоит её модуль и
+ * где он лежит, знает стек: он вносит себя в точку `CodegenStackPoint`, а файлы модуля — целями в
+ * `CodegenTargetPoint` (у ReFormer — `./stack`). Хозяин стеки и цели только спрашивает — на каждый
+ * вопрос, а не при активации: порядок активации плагинов не важен.
  *
- * **Почему это плагин, а не часть Host.** Всё содержимое каталога — предметное знание: что такое
- * схема формы, из каких файлов состоит её модуль, откуда берутся имена компонентов. В платформе
- * оно означало бы, что очередной файл модуля вносится правкой ядра. Граница проверяется
- * линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api` и ядро
- * своего домена.
- *
- * **Почему цели вносятся здесь, а не лежат массивом.** Ровно ради этого точка расширения
- * и заводилась: список файлов модуля обязан быть расширяемым и снимаемым. Встроенные цели
- * вносятся в `activate` и уходят вместе с плагином, поэтому «выключить кодоген» — это
- * действительно выключить его, а не оставить полсписка.
+ * **Почему цели читаются из точки.** Ровно ради этого точка расширения и заводилась: список
+ * файлов модуля обязан быть расширяемым и снимаемым. Цели стека уходят вместе со стеком, цели из
+ * проекта (`.ui_builder/codegen/*.eta`) вносит хозяин — наравне со всеми, чтобы замена встроенной
+ * цели встала на ЕЁ место.
  *
  * @module plugins/reformer/codegen/plugin
  */
@@ -22,52 +18,43 @@ import { createElement, type ReactElement } from 'react';
 import { FileCode2 } from 'lucide-react';
 import {
   argsOfResource,
+  CodegenStackPoint,
+  CodegenTargetPoint,
   definePlugin,
   MenuPoint,
+  ModuleGeneratorCapability,
   NotificationsServiceToken,
   PanelPoint,
+  pluginMessageKey,
   RESOURCE_CONTEXT_MENU,
   whenResource,
+  type CodegenProblem,
+  type CodegenTarget,
+  type CommandContribution,
   type Disposable,
   type MenuContribution,
   type NotificationsService,
-  type ResourceId,
-  type CommandContribution,
   type PanelContribution,
   type Plugin,
+  type ResourceId,
   type SlotId,
-  type WhenContext,
 } from '@reformer/builder-plugin-api';
-import {
-  codegenContextCommands,
-  codegenContextMenuItems,
-  type GenerateIntoDeps,
-} from './commands/context-menu';
-import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from './contract';
+import { codegenContextCommands, type GenerateIntoDeps } from './commands/generate-into';
 import { ejectTemplate, type EjectOutcome } from './commands/eject';
-import { createFixture, type FixtureOutcome } from './commands/fixture-command';
-import type { CodegenInput } from '../../core/codegen';
-import { ensureSchema } from '../../core/form-model';
-import { generateModule, type CodegenProblem } from './pipeline/generate';
 import type { CodegenHost } from './host';
-import {
-  codegenWorkspace,
-  ModuleGeneratorCapability,
-  ModulePrinterCapability,
-  type CodegenGaps,
-} from './workspace';
+import { codegenWorkspace, type CodegenGaps } from './workspace';
 import { generateFor } from './pipeline/generate-for';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './pipeline/run';
-import { applyOverrides, discoverUserTargets, overrideDrift } from './pipeline/user-targets';
+import { discoverUserTargets } from './pipeline/user-targets';
 import { createCodegenSessions, type CodegenSessions } from './pipeline/state';
-import { BUILTIN_TARGETS } from './pipeline/targets';
+import { overrideProblems, stackDocumentVisible, stackFor, type Stacks } from './stacks';
 import { ExportPanel } from './ui/ExportPanel';
+import { activateCodegenStack } from './stack/plugin';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
 import { CODEGEN_PLUGIN_ID } from './contract';
-import { pluginMessageKey } from '@reformer/builder-plugin-api';
 export { CODEGEN_PLUGIN_ID };
 
 /** Панель экспорта. */
@@ -75,9 +62,6 @@ export const CODEGEN_PANEL_ID = 'codegen.panel';
 
 /** Команда «экспортировать форму». */
 export const GENERATE_COMMAND_ID = 'codegen.generate';
-
-/** Идентификатор команды создания фикстуры предпросмотра. */
-export const CREATE_FIXTURE_COMMAND_ID = 'codegen.create-fixture';
 
 /**
  * Перечитать цели из `.ui_builder/codegen/`.
@@ -107,27 +91,14 @@ const USER_TARGET_ORDER = 1000;
  */
 export const DEFAULT_CODEGEN_SLOT: SlotId = 'panel.right';
 
-/**
- * Виды ресурса, при которых панель видима.
- *
- * `form.schema` — идентификатор провайдера модели схемы. `application/json` — то, что оболочка
- * кладёт туда, пока композиция не подключила модель документа; вторая строка уйдёт вместе
- * с этим «пока».
- */
-const PANEL_RESOURCE_KINDS: ReadonlySet<string> = new Set(['form.schema', 'application/json']);
-
 /** Значок панели. Обёртка ради размера: контракт объявляет значок компонентом без пропсов. */
 const CodegenIcon = (): ReactElement => createElement(FileCode2, { className: 'size-4' });
-
-/** Видима ли панель при таком контексте. Чистая и дешёвая — её зовут на каждый кадр. */
-export function panelVisible(ctx: WhenContext): boolean {
-  return ctx.activeResourceKind !== null && PANEL_RESOURCE_KINDS.has(ctx.activeResourceKind);
-}
 
 /** Вклад панели. Отдельно от плагина, чтобы тест звал его без реестров. */
 export function codegenPanel(
   host: CodegenHost,
   sessions: CodegenSessions,
+  stacks: Stacks,
   targets: () => readonly CodegenTarget[],
   slot: SlotId,
   /** Выгрузка шаблона цели. Без неё панель не показывает кнопку — и это законно. */
@@ -140,24 +111,13 @@ export function codegenPanel(
     slot,
     titleKey: 'panel.title',
     icon: CodegenIcon,
-    when: panelVisible,
+    // Видна, пока активен документ, который печатает какой-нибудь стек.
+    when: stackDocumentVisible(stacks),
     order: 20,
-    Body: () => createElement(ExportPanel, { host, sessions, targets, onEject, problems }),
+    Body: () => createElement(ExportPanel, { host, sessions, stacks, targets, onEject, problems }),
   };
 }
 
-/**
- * Команды плагина: сгенерировать модуль формы и создать фикстуру предпросмотра.
- *
- * Обе — про запись файлов по схеме активного документа, и обе живут здесь по одной причине:
- * писать в проект вправе только кодоген (у превью в порту записи нет вовсе). Фикстура при этом
- * не цель генерации, а команда: она артефакт предпросмотра, а не часть модуля формы, и пишется
- * по явной просьбе, а не при каждой регенерации (см. `./commands/fixture-command`).
- *
- * Имя формы команда не спрашивает — берёт то, что лежит в состоянии панели (а если панель
- * не открывали, то имя файла схемы). Команда с аргументом «как назвать» дублировала бы поле
- * ввода и разошлась бы с ним.
- */
 /**
  * Адрес документа из аргументов команды.
  *
@@ -173,17 +133,18 @@ export function documentIdOf(args: unknown): ResourceId | null {
 /**
  * Пункт контекстного меню дерева: «Сгенерировать код формы» — на ОТКРЫТОМ файле схемы.
  *
- * Остаётся рядом с подменю «Сгенерировать» (`./context-menu`) и не дублирует его: это два
- * разных вопроса, и видны они в разных местах. Здесь щёлкнули по САМОМУ ФАЙЛУ схемы, и
- * ответом будет модуль рядом с ним, в подпапке по имени формы, — то же, что делает панель
- * экспорта. Там щёлкнули по КАТАЛОГУ, и ответом будут файлы в нём самом.
+ * Остаётся рядом с подменю «Сгенерировать» и не дублирует его: это два разных вопроса, и видны
+ * они в разных местах. Здесь щёлкнули по САМОМУ ФАЙЛУ схемы, и ответом будет модуль на месте,
+ * которое назовёт стек, — то же, что делает панель экспорта. Там щёлкнули по КАТАЛОГУ, и ответом
+ * будут файлы в нём самом.
  *
- * Виден только на файле, который ОТКРЫТ как схема формы (`host.documentOf` отвечает моделью,
- * а не текстом). Проверка честная: генерировать из неоткрытого файла нечего — модель схемы
- * появляется вместе с документом, — и пункт, обещающий это, обещал бы несбыточное.
+ * Виден только на файле, который ОТКРЫТ документом, печатаемым каким-нибудь стеком. Проверка
+ * честная: генерировать из неоткрытого файла нечего — модель схемы появляется вместе с
+ * документом, — и пункт, обещающий это, обещал бы несбыточное.
  */
 export function codegenDocumentMenuItems(
-  host: CodegenHost
+  host: CodegenHost,
+  stacks: Stacks
 ): readonly { readonly id: string; readonly value: MenuContribution }[] {
   return [
     {
@@ -193,18 +154,27 @@ export function codegenDocumentMenuItems(
         menu: RESOURCE_CONTEXT_MENU,
         command: GENERATE_COMMAND_ID,
         group: '4_generate',
-        when: whenResource(
-          (target) => target.ref !== null && host.documentOf(target.ref.id) !== null
-        ),
+        when: whenResource((target) => {
+          const document = target.ref === null ? null : host.documentOf(target.ref.id);
+          return document !== null && stackFor(stacks, document) !== null;
+        }),
         argsOf: argsOfResource((target) => ({ documentId: target.ref?.id })),
       },
     },
   ];
 }
 
+/**
+ * Команда плагина: сгенерировать модуль формы.
+ *
+ * Имя формы команда не спрашивает — берёт то, что лежит в состоянии панели (а если панель
+ * не открывали, то его называет стек из имени файла схемы). Команда с аргументом «как назвать»
+ * дублировала бы поле ввода и разошлась бы с ним.
+ */
 export function codegenCommands(
   host: CodegenHost,
   sessions: CodegenSessions,
+  stacks: Stacks,
   targets: () => readonly CodegenTarget[],
   /**
    * Отказы разбора пользовательских целей.
@@ -222,32 +192,19 @@ export function codegenCommands(
       // Применимость по контексту вкладки ИЛИ по переданному адресу: пункт меню дерева
       // называет схему сам, и требовать от человека сначала открыть её вкладкой значило бы
       // просить лишний щелчок ради того, что уже названо.
-      enabled: panelVisible,
+      enabled: stackDocumentVisible(stacks),
       run(args) {
         const documentId = documentIdOf(args) ?? sessions.active();
         if (documentId === null) return;
         const store = sessions.storeFor(documentId);
         void runCodegen({
           host,
+          stacks,
           targets: targets(),
           documentId,
           store,
           formName: store.get().formName,
           problems: problems(),
-        });
-      },
-    },
-    {
-      id: CREATE_FIXTURE_COMMAND_ID,
-      titleKey: 'command.create-fixture',
-      enabled: panelVisible,
-      run(args) {
-        const documentId = documentIdOf(args) ?? sessions.active();
-        if (documentId === null) return;
-        void createFixture(host, documentId).then((outcome) => {
-          // Исход показывается словами всегда, включая «ничего не сделал»: человек нажал
-          // кнопку и обязан узнать, что произошло, — молчание тут читается как поломка.
-          notifyFixture(host, outcome);
         });
       },
     },
@@ -333,17 +290,6 @@ function notifyEject(notifications: NotificationsService | null, outcome: EjectO
   }
 }
 
-/** Показывает исход создания фикстуры. Открывает файл, только когда он действительно записан. */
-function notifyFixture(host: CodegenHost, outcome: FixtureOutcome): void {
-  if (outcome.kind === 'written') {
-    host.openResource?.(outcome.id);
-    return;
-  }
-  // Остальные исходы объясняет панель: у команды нет своего места для сообщения, а заводить
-  // его ради трёх строк значило бы вторую систему уведомлений рядом с существующей.
-  console.info('[codegen] фикстура не создана:', outcome.kind);
-}
-
 export interface CodegenPluginOptions {
   /**
    * Рабочая область ЦЕЛИКОМ — только для теста, зовущего плагин без реестра служб.
@@ -355,22 +301,17 @@ export interface CodegenPluginOptions {
    */
   readonly host?: CodegenHost;
   /**
-   * То, чему в возможностях места пока нет: сохранение (выносит наружу и ждёт политики прав),
-   * форматирование (нужна конфигурация prettier из проекта) и правила-сайдкар. Подставляет
-   * их композиция — см. `./workspace`.
+   * То, чему в возможностях места пока нет: форматирование (нужна конфигурация prettier из
+   * проекта). Подставляет его композиция — см. `./workspace`.
    */
   readonly gaps?: CodegenGaps;
-  /**
-   * Точка расширения целей.
-   *
-   * Параметром, а не импортом из `./contract` прямо в `activate`: вклад обязан уходить в ТОТ
-   * объект, который дала композиция, — иначе, когда точка переедет в `@reformer/builder-plugin-api`, чужие цели
-   * окажутся в одной точке, а наши в другой. Умолчание — наша же копия, чтобы плагин работал
-   * и до переезда.
-   */
-  readonly targetPoint?: ExtensionPointRef<CodegenTarget>;
   /** Слот панели; по умолчанию {@link DEFAULT_CODEGEN_SLOT}. */
   readonly slot?: SlotId;
+  /**
+   * Активировать ли стек ReFormer вместе с хозяином — до раскола на два плагина (шаг 2b).
+   * `false` — только хозяин: так его тесты видят ровно хозяйские вклады.
+   */
+  readonly stack?: boolean;
 }
 
 /**
@@ -380,7 +321,6 @@ export interface CodegenPluginOptions {
  * рождается при первом показе панели.
  */
 export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin {
-  const point = options.targetPoint ?? CodegenTargetPoint;
   const slot = options.slot ?? DEFAULT_CODEGEN_SLOT;
   const sessions = createCodegenSessions();
 
@@ -394,45 +334,16 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         ctx.i18n.contribute(locale, messages);
       }
 
-      // Печать модуля — наружу возможностью: её берут шаблоны, чтобы превратить схему
-      // встроенного шаблона в файлы. Кит спрашивается в момент печати, а не сейчас: его
-      // переключают, и напечатать надо тем, что действует СЕЙЧАС. Кита нет — печатать нечем,
-      // и пустой список честнее модуля с импортами чужого пакета.
-      ctx.subscriptions.push(
-        ctx.services.register(ModulePrinterCapability, {
-          print: async (schema, formName, seed) => {
-            const kit = host.kit();
-            if (kit === null) return [];
-            // Граница возможности: снаружи она описана `unknown`, потому что ни схема формы,
-            // ни правила не выразимы в SDK — их типы принадлежат рендереру. Схему приводит
-            // `ensureSchema`: конвейер печатает только формат 2, а прислать сюда вправе и документ
-            // прежнего формата — он напечатался бы пустым модулем без единой ошибки. Правила и
-            // мок проверять нечем и не нужно: печатает тот же конвейер, что и панель.
-            //
-            // Пути файлов — от корня модуля формы, в раскладке «папки по ролям»: документ лежит в
-            // `schema/form.schema.json`, страница — `<Тип>.tsx`, реэкспорты — `index.ts`.
-            const built = await generateModule(BUILTIN_TARGETS, {
-              schema: ensureSchema(schema),
-              formName,
-              rules: seed?.rules as CodegenInput['rules'],
-              mock: seed?.mock as CodegenInput['mock'],
-              splitSteps: seed?.splitSteps,
-              kit: { kit, catalog: host.catalog() },
-            });
-            return built.files.map(({ path, content }) => ({ path, content }));
-          },
-        })
-      );
-
-      // Список читается ЛЕНИВО, через реестр: цели вносят и снимают, в том числе чужие
-      // плагины, и захваченный массив показывал бы состав на момент активации.
-      //
-      // Переопределённые снимаются ЗДЕСЬ, а не реестром: замена — предметное правило
-      // кодогена, а реестр про неё не знает и знать не должен.
+      // Стеки и цели — ЛЕНИВО, через реестр: их вносят и снимают, в том числе чужие плагины,
+      // и захваченный массив показывал бы состав на момент активации.
+      const stacks: Stacks = () =>
+        ctx.extensions
+          .get(CodegenStackPoint)
+          .map((contribution) => ({ stack: contribution.value, pluginId: contribution.pluginId }));
       const targets = (): readonly CodegenTarget[] =>
-        applyOverrides(ctx.extensions.get(point).map((contribution) => contribution.value));
+        ctx.extensions.get(CodegenTargetPoint).map((contribution) => contribution.value);
 
-      // Цели из проекта вносятся ВКЛАДАМИ наравне с нашими — только так они попадают
+      // Цели из проекта вносятся ВКЛАДАМИ наравне со всеми — только так они попадают
       // в общий порядок: цель, заменившая встроенную, обязана встать на ЕЁ место, иначе
       // состав модуля переставлялся бы от одного факта переопределения.
       let userDisposables: Disposable[] = [];
@@ -447,10 +358,11 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         dropUserTargets();
         const found = await discoverUserTargets(host);
         userProblems = found.problems;
+        const contributed = ctx.extensions.get(CodegenTargetPoint);
         for (const target of found.targets) {
-          const inherited = BUILTIN_TARGETS.find((t) => t.id === target.overrides)?.order;
+          const inherited = contributed.find((c) => c.id === target.overrides)?.order;
           userDisposables.push(
-            ctx.extensions.contribute(point, target, {
+            ctx.extensions.contribute(CodegenTargetPoint, target, {
               // Свой ключ в реестре: `id` принадлежит цели, а совпадение КЛЮЧЕЙ реестр
               // встречает броском — то есть отказом активации вместо отказа одного файла.
               id: `user:${target.id}`,
@@ -461,15 +373,21 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         return found.targets.length;
       };
       ctx.subscriptions.push({ dispose: dropUserTargets });
-      void reloadUserTargets();
 
       // Отказы разбора и предупреждения о заменах — одним списком: панель показывает их
       // вместе с отказами печати. Замены считаются по ПОЛНОМУ списку вкладов, лениво —
       // цели вносят и снимают, в том числе чужие плагины.
       const allProblems = (): readonly CodegenProblem[] => [
         ...userProblems,
-        ...overrideDrift(ctx.extensions.get(point).map((contribution) => contribution.value)),
+        ...overrideProblems(targets(), stacks),
       ];
+
+      // Стек ReFormer — пока в этом же плагине (шаг 2b раскола): его вклады идут тем же
+      // контекстом, что и хозяйские. Раньше целей из проекта: замена встроенной наследует её
+      // порядок.
+      if (options.stack !== false) activateCodegenStack(ctx);
+
+      void reloadUserTargets();
       // Проект в момент активации может быть ещё не открыт, и тогда первое чтение вернуло бы
       // пустой список навсегда — до тех пор, пока человек не догадается нажать «перечитать».
       // Смена кита — тот же признак «проект появился», по которому перечитывает себя панель
@@ -480,12 +398,6 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         })
       );
 
-      for (const target of BUILTIN_TARGETS) {
-        ctx.subscriptions.push(
-          ctx.extensions.contribute(point, target, { id: target.id, order: target.order })
-        );
-      }
-
       // Генерация по заказу — наружу возможностью: её берёт ассистент, чтобы запись модуля стала
       // частью его хода. Прогон тот же, что у панели, и состояние документа то же — открытая
       // панель экспорта покажет и этот прогон.
@@ -495,6 +407,7 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
             generateFor(
               {
                 host,
+                stacks,
                 targets: targets(),
                 store: sessions.storeFor(documentId),
                 problems: allProblems(),
@@ -506,14 +419,14 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         })
       );
 
-      for (const command of codegenCommands(host, sessions, targets, allProblems)) {
+      for (const command of codegenCommands(host, sessions, stacks, targets, allProblems)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
-      // Генерация в названный каталог: своя команда и своё подменю. Уведомления берутся
-      // из сервисов, а не из порта, — исход поездки показывает оболочка, и порт кодогена
+      // Генерация в названный каталог: своя команда, подразделы меню вносят стеки. Уведомления
+      // берутся из сервисов, а не из порта, — исход поездки показывает оболочка, и порт кодогена
       // о ней знать не обязан.
-      const intoDeps: GenerateIntoDeps = { host, targets };
+      const intoDeps: GenerateIntoDeps = { host, stacks, targets };
       const notifications = ctx.services.get(NotificationsServiceToken) ?? null;
 
       for (const command of userTargetCommands(host, targets, reloadUserTargets, notifications)) {
@@ -523,13 +436,14 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
-      for (const item of [...codegenDocumentMenuItems(host), ...codegenContextMenuItems(targets)]) {
+      for (const item of codegenDocumentMenuItems(host, stacks)) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
 
       const panel = codegenPanel(
         host,
         sessions,
+        stacks,
         targets,
         slot,
         (targetId) => {

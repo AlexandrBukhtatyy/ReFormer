@@ -15,15 +15,29 @@
  * пропускается СО СЛОВАМИ. Молчаливый `skip-if-exists` не годится: человек, нажавший «создать»,
  * обязан узнать, что ничего не произошло и почему.
  *
- * @module plugins/reformer/codegen/commands/fixture-command
+ * @module plugins/reformer/codegen/stack/fixture-command
  */
 
 import { valueTypesOf } from '../../../core/codegen';
 import { emitFixture, fixturePathOf } from '../../../core/form-fixture';
 import { isGenerated, withMarker } from '@reformer/builder-toolkit';
-import type { ResourceId } from '@reformer/builder-plugin-api';
-import type { CodegenHost } from '../host';
-import { asFormSchema } from '../pipeline/source';
+import type { CatalogEntry } from '../../../core/catalog';
+import type { CodegenDocument, ResourceId } from '@reformer/builder-plugin-api';
+import { asFormSchema } from './source';
+
+/** Рабочая область в объёме фикстуры: прочитать документ, решить адрес, записать и сохранить. */
+export interface FixtureHost {
+  documentOf(id: ResourceId): Pick<CodegenDocument, 'id' | 'ref' | 'model'> | null;
+  /** Возможности источника ресурса; `null` — источника нет. */
+  sourceOf(id: ResourceId): { readonly write: boolean } | null;
+  /** Каталог активного кита: из него — вид значения поля. */
+  catalog(): readonly CatalogEntry[];
+  /** Адрес по пути от корня проекта. Нет — команда отказывается работать. */
+  resolveFromRoot?(anchor: ResourceId, path: string): ResourceId;
+  readText(id: ResourceId): Promise<string | null>;
+  writeText(id: ResourceId, text: string): Promise<void>;
+  save?(ids: readonly ResourceId[]): Promise<boolean>;
+}
 
 /** Чем кончилась попытка создать фикстуру. Различаются, потому что человеку говорят разное. */
 export type FixtureOutcome =
@@ -43,7 +57,7 @@ export type FixtureOutcome =
  * и уведомления.
  */
 export async function createFixture(
-  host: CodegenHost,
+  host: FixtureHost,
   documentId: ResourceId
 ): Promise<FixtureOutcome> {
   const document = host.documentOf(documentId);

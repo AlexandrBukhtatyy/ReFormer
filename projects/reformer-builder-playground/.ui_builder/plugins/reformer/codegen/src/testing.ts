@@ -1,28 +1,52 @@
 /**
- * Двойник порта для тестов плагина.
+ * Двойники для тестов хозяина генерации: порт рабочей области и стек.
  *
  * Отдельным модулем, а не в файле теста: порт проверяют и доставка, и прогон, и панель, а три
  * копии двойника разошлись бы — и первым же расхождением стало бы «у меня проходит».
  * Тот же приём, что у `plugins/forms/preview/testing`.
  *
+ * Формы здесь не знают: двойник стека печатает то, что ему велели, и отказывает, когда велели.
+ * Прогон через настоящий стек ReFormer — в тестах обеих сторон.
+ *
  * @module plugins/reformer/codegen/testing
  */
 
-import { SCHEMA_FILE } from '../../core/codegen';
-import { builtinKit } from '../../core/testing';
-import type { CatalogEntry } from '../../core/catalog';
-import type { FormRules } from '../../core/form-model';
-import type { KitDescriptor } from '@reformer/builder-plugin-api';
-import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
-import type { CodegenDocument, CodegenHost } from './host';
+import {
+  toDescriptor,
+  type CodegenDocument,
+  type CodegenFile,
+  type CodegenForm,
+  type CodegenNote,
+  type CodegenOpenResult,
+  type CodegenPrintRequest,
+  type CodegenReader,
+  type CodegenRefusal,
+  type CodegenStack,
+  type CodegenTarget,
+  type Disposable,
+  type KitDescriptor,
+  type ResourceId,
+} from '@reformer/builder-plugin-api';
+import { createFakeDocument, createFakeReader } from '../../../.shared/codegen-fakes';
+import type { CodegenHost } from './host';
+import type { Stacks } from './stacks';
+
+export { createFakeDocument, createFakeReader };
+
+/** Кит двойника — подпись «Кит: …» в панели. */
+export const FAKE_KIT: KitDescriptor = toDescriptor({
+  version: '2.1',
+  kit: { id: 'fake-kit', label: 'Fake kit', package: '@fake/kit' },
+  components: [],
+});
 
 export interface FakeHostOptions {
   /** Содержимое «рабочей области»: адрес → текст. */
   readonly files?: Record<string, string>;
+  /** Активный кит; `null` — службы китов нет. По умолчанию — {@link FAKE_KIT}. */
   readonly kit?: KitDescriptor | null;
-  readonly catalog?: readonly CatalogEntry[];
   readonly write?: boolean;
-  readonly rules?: FormRules;
+  /** Документ, который отдаёт `documentOf` на ЛЮБОЙ адрес. */
   readonly document?: CodegenDocument | null;
   /** Даёт ли композиция сохранение в источник. */
   readonly withSave?: boolean;
@@ -39,66 +63,20 @@ export interface FakeHost extends CodegenHost {
 
 const noop: Disposable = { dispose: () => {} };
 
-/** Порт-двойник: плоская карта адресов, никакого IO. */
 export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
-  const view = builtinKit();
-  const written = new Map<string, string>(Object.entries(options.files ?? {}));
+  const reader = createFakeReader(options.files ?? {}, () => options.document ?? null);
+  const written = reader.files;
   const saved: ResourceId[] = [];
 
   const host: FakeHost = {
+    ...reader,
     written,
     saved,
     useTranslate: () => (key) => key,
     useActiveDocument: () => null,
-    documentOf: () => options.document ?? null,
     sourceOf: () => ({ write: options.write ?? true }),
-    catalog: () => options.catalog ?? view.catalog,
-    kit: () => (options.kit === undefined ? view.kit : options.kit),
+    kit: () => (options.kit === undefined ? FAKE_KIT : options.kit),
     onDidChangeKit: () => noop,
-    parentOf: (id) => id.slice(0, id.lastIndexOf('/')) as ResourceId,
-    resolve: (dir, ...segments) =>
-      [dir, ...segments].filter((s) => s !== '').join('/') as ResourceId,
-    exists: async (id) => written.has(id),
-    // Листинг выводится из той же плоской карты: «в каталоге» — значит адрес начинается с него
-    // и не уходит глубже. Отдельного дерева каталогов у двойника нет — оно было бы вторым
-    // ответом на вопрос «что лежит на диске».
-    //
-    // Каталоги — тоже выводом: адрес глубже одного уровня называет подкаталог своим первым
-    // сегментом. Файлы идут первыми, каталоги за ними — порядок листинга не обещан, и тесты
-    // на него не опираются.
-    list: async (dir) => {
-      const inside = [...written.keys()].filter((id) => id.startsWith(`${dir}/`));
-      const files = inside
-        .filter((id) => !id.slice(dir.length + 1).includes('/'))
-        .map((id) => {
-          const name = id.slice(dir.length + 1);
-          return {
-            id: id as ResourceId,
-            sourceId: 'fake',
-            path: id,
-            name,
-            kind: 'file' as const,
-            mediaType: name.endsWith('.json') ? 'application/json' : 'text/plain',
-          };
-        });
-      const dirs = [
-        ...new Set(
-          inside
-            .map((id) => id.slice(dir.length + 1))
-            .filter((rest) => rest.includes('/'))
-            .map((rest) => rest.slice(0, rest.indexOf('/')))
-        ),
-      ].map((name) => ({
-        id: `${dir}/${name}` as ResourceId,
-        sourceId: 'fake',
-        path: `${dir}/${name}`,
-        name,
-        kind: 'directory' as const,
-        mediaType: 'inode/directory',
-      }));
-      return [...files, ...dirs];
-    },
-    readText: async (id) => written.get(id) ?? null,
     writeText: async (id, text) => {
       written.set(id, text);
     },
@@ -107,10 +85,6 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
   if (options.root !== undefined) {
     const root = options.root as ResourceId;
     host.projectRoot = () => root;
-  }
-  if (options.rules !== undefined) {
-    const rules = options.rules;
-    host.rulesOf = () => rules;
   }
   if (options.withSave === true) {
     host.save = async (ids) => {
@@ -121,25 +95,101 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
   return host;
 }
 
-/** Документ-двойник: минимум, которым пользуется прогон. */
-export function createFakeDocument(
-  id: string,
-  text: string,
-  name: string = SCHEMA_FILE
-): CodegenDocument {
-  return {
-    id: id as ResourceId,
-    ref: {
-      id: id as ResourceId,
-      sourceId: 'fake',
-      path: id,
-      name,
-      kind: 'file',
-      mediaType: 'application/json',
-    },
-    kind: 'model',
-    getText: () => text,
-    model: () => undefined,
-    onDidChangeContent: () => noop,
+/** Файл модуля двойника: `derived`, встроенный, цель по пути. */
+export function fakeFile(path: string, content = `// ${path}\n`, over: Partial<CodegenFile> = {}) {
+  const file: CodegenFile = {
+    path,
+    content,
+    cls: 'derived',
+    regenerable: false,
+    targetId: `fake.${path}`,
+    origin: 'builtin',
+    ...over,
   };
+  return file;
+}
+
+export interface FakeStackOptions {
+  readonly id?: string;
+  readonly kinds?: readonly string[];
+  /** Корень модуля, куда пишет хозяин. По умолчанию — `src/forms/demo`. */
+  readonly root?: string;
+  readonly formName?: string;
+  /** Что печатает форма. По умолчанию — один производный файл на каждую поданную цель. */
+  readonly files?: readonly CodegenFile[];
+  /** Ответ `open`: отказ, `null` («не моя форма») либо форма по умолчанию. */
+  readonly open?: CodegenRefusal | null | 'form';
+  /** Ответ `find`; `undefined` — стек из дерева не генерирует. */
+  readonly find?: CodegenRefusal | null | 'form';
+  /** Отказ записи (`CodegenModule.check`). */
+  readonly check?: CodegenRefusal;
+  readonly notes?: readonly CodegenNote[];
+  readonly snippet?: string;
+  readonly staleOverride?: CodegenStack['staleOverride'];
+}
+
+export interface FakeStack extends CodegenStack {
+  /** Заказы печати — что и с каким именем просил напечатать хозяин. */
+  readonly printed: CodegenPrintRequest[];
+  /** Кто читал рабочую область: стек получает её от хозяина. */
+  readonly readers: CodegenReader[];
+}
+
+/** Двойник стека: перевод — сам ключ с подстановками в скобках, чтобы тест видел обе части. */
+export function createFakeStack(options: FakeStackOptions = {}): FakeStack {
+  const printed: CodegenPrintRequest[] = [];
+  const readers: CodegenReader[] = [];
+  const root = (options.root ?? 'src/forms/demo') as ResourceId;
+
+  const form: CodegenForm = {
+    root,
+    rootPath: root,
+    formName: options.formName ?? 'demo',
+    async print(request) {
+      printed.push(request);
+      const files =
+        options.files ??
+        request.targets.map((target: CodegenTarget) =>
+          fakeFile(target.path, `// ${target.id}\n`, { targetId: target.id })
+        );
+      return {
+        files,
+        problems: [],
+        view: { formName: request.formName },
+        snippet: options.snippet ?? '',
+        ...(options.check === undefined ? {} : { check: async () => options.check ?? null }),
+        ...(options.notes === undefined ? {} : { inspect: async () => options.notes ?? [] }),
+      };
+    },
+  };
+  const answer = (value: CodegenRefusal | null | 'form' | undefined): CodegenOpenResult =>
+    value === undefined || value === 'form' ? form : value;
+
+  const stack: FakeStack = {
+    printed,
+    readers,
+    id: options.id ?? 'fake',
+    kinds: options.kinds ?? ['form.schema'],
+    translate: (key, params) => (params === undefined ? key : `${key}(${JSON.stringify(params)})`),
+    formNameOf: (path) => path.slice(path.lastIndexOf('/') + 1).split('.')[0],
+    async open(_document, reader) {
+      readers.push(reader);
+      return answer(options.open);
+    },
+    ...(options.find === undefined
+      ? {}
+      : {
+          async find(_dir: ResourceId, reader: CodegenReader) {
+            readers.push(reader);
+            return answer(options.find);
+          },
+        }),
+    ...(options.staleOverride === undefined ? {} : { staleOverride: options.staleOverride }),
+  };
+  return stack;
+}
+
+/** Стеки для хозяина: каждый — от своего «плагина» `<id>.plugin`. */
+export function stacksOf(...stacks: readonly CodegenStack[]): Stacks {
+  return () => stacks.map((stack) => ({ stack, pluginId: `${stack.id}.plugin` }));
 }

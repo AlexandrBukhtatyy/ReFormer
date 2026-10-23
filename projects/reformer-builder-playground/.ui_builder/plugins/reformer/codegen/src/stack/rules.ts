@@ -6,7 +6,7 @@
  * нормально. Битый файл — отказ прогона: заготовки вместо правил, которые человек видит в файле,
  * были бы молчаливой потерей.
  *
- * @module plugins/reformer/codegen/pipeline/rules
+ * @module plugins/reformer/codegen/stack/rules
  */
 
 import type { ResourceId } from '@reformer/builder-plugin-api';

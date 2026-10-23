@@ -15,7 +15,7 @@
  * `array`, шаги визарда в `componentProps.steps`. Перевод делается на входе — {@link asFormSchema}
  * для всего, что пришло текстом или чужой моделью, — и здесь, перед поиском ссылок на шаги.
  *
- * @module plugins/reformer/codegen/pipeline/source
+ * @module plugins/reformer/codegen/stack/source
  */
 
 import {
@@ -26,8 +26,7 @@ import {
   type StepOrigins,
 } from '../../../core/form-model';
 import { normalizeStepRef, type JsonFormSchema } from '@reformer/renderer-json';
-import type { ResourceId } from '@reformer/builder-plugin-api';
-import type { CodegenDocument, CodegenHost } from '../host';
+import type { CodegenDocument, CodegenReader, ResourceId } from '@reformer/builder-plugin-api';
 
 /**
  * Схема формы из сырого значения — разобранного текста файла или модели документа.
@@ -67,7 +66,7 @@ export class StepPartsError extends Error {
  * @throws {@link StepPartsError} если часть не читается или не собирается.
  */
 export async function loadFormSource(
-  host: Pick<CodegenHost, 'documentOf' | 'readText' | 'parentOf' | 'resolve'>,
+  host: Pick<CodegenReader, 'documentOf' | 'readText' | 'parentOf' | 'resolve'>,
   schemaId: ResourceId,
   rootSchema: JsonFormSchema
 ): Promise<FormSource> {
@@ -108,7 +107,7 @@ export async function loadFormSource(
  * @throws {@link StepPartsError} как {@link loadFormSource}.
  */
 export async function formSourceOf(
-  host: Pick<CodegenHost, 'documentOf' | 'readText' | 'parentOf' | 'resolve'>,
+  host: Pick<CodegenReader, 'documentOf' | 'readText' | 'parentOf' | 'resolve'>,
   document: CodegenDocument,
   schema: JsonFormSchema
 ): Promise<FormSource> {

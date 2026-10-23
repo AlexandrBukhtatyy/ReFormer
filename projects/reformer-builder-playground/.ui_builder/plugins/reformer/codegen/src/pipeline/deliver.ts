@@ -15,38 +15,26 @@
  * из-за которого агент менял правила, отчитывался об этом, а файл валидации на диске оставался
  * прежним.
  *
- * ## Доставка ничего не удаляет и ничего не переносит между контрактами
+ * ## Доставка ничего не удаляет
  *
- * Три вида файлов, которых в модуле нет, она только НАЗЫВАЕТ:
- *
- * - **сироты шагов** — папка схемы шага и файл его правил, оставшиеся после переименования или
- *   удаления шага;
- * - **прежнее имя документа** (`renderer.schema.json`) — единственный случай, когда содержимое
- *   переносится: документ под новым именем печатается заново, старый остаётся;
- * - **файлы прежней плоской раскладки** (`index.tsx`, `form.render.ts`, `wizard.tsx`,
- *   `steps/<шаг>/form.validation.ts`, …) — код ПРЕЖНЕГО контракта сборки. Под новые имена он не
- *   переносится: контракт другой (`createJsonForm` и слой рендера против `createForm` и единого
- *   поведения), и правленный файл, положенный на новое место, не собрался бы. Новый модуль их не
- *   импортирует; перенести свои правки и удалить их — решение человека.
+ * Единственный перенос — **прежнее имя файла** (`legacyPaths` цели): файл под новым именем
+ * печатается заново, правленный руками авторский — переносится, старый остаётся. Всё остальное,
+ * чего в модуле нет, знает стек: до записи он вправе отказать (`CodegenModule.check` — модуль на
+ * диске напечатан другим китом), после — назвать заметками (`CodegenModule.inspect` — сироты
+ * шагов, файлы прежней раскладки). Удалять их доставка не вправе: там может лежать единственная
+ * копия правленного файла.
  *
  * @module plugins/reformer/codegen/pipeline/deliver
  */
 
-import {
-  DEFAULT_SCHEMA_PATH,
-  FLAT_LAYOUT_FILES,
-  FLAT_STEPS_DIR,
-  FLAT_STEPS_INDEX,
-  FLAT_STEP_FILES,
-  FORM_RULES_NAME,
-  SCHEMA_FILE,
-  STEP_SCHEMAS_DIR,
-  VALIDATION_DIR,
-  schemaDirOf,
-} from '../../../core/codegen';
-import { isGenerated, originOf } from '@reformer/builder-toolkit';
-import type { ResourceId } from '@reformer/builder-plugin-api';
-import type { ModuleFile } from './generate';
+import { isGenerated } from '@reformer/builder-toolkit';
+import type {
+  CodegenFile,
+  CodegenModule,
+  CodegenNote,
+  CodegenRefusal,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import type { CodegenHost } from '../host';
 
 /** Почему файл не записан. */
@@ -67,24 +55,13 @@ export interface DeliveryResult {
    * несохранённой рабочей копией.
    */
   readonly saved: boolean | null;
-  /**
-   * Файлы шагов на диске, которых в модуле больше нет: папка схемы шага
-   * (`schema/steps/<шаг>`) и файл его правил (`validation/<шаг>.ts`), если тот напечатан билдером.
-   *
-   * Шаг переименовали — у него новое имя и новые файлы, а старые остались со всем, что человек
-   * в них правил. Удалять их доставка не вправе (там может лежать единственная копия правленной
-   * валидации), переносить — не умеет: соответствие «старое имя → новое» по одной раскладке не
-   * восстановить. Поэтому только называет — удалять или переносить решает человек.
-   */
-  readonly orphans: readonly string[];
-  /** Документ под прежним именем (`renderer.schema.json`), рядом с которым появился новый. */
+  /** Файлы под прежним именем, рядом с которыми появились новые. */
   readonly legacy: readonly LegacyFile[];
   /**
-   * Файлы прежней плоской раскладки, оставшиеся в каталоге модуля, — пути от его корня.
-   *
-   * Код прежнего контракта: модуль их не импортирует, доставка не трогает (см. шапку модуля).
+   * Заметки стека о модуле на диске после записи: файлы, которых в модуле нет (сироты шагов,
+   * файлы прежней раскладки). Тексты — ключами словаря стека.
    */
-  readonly flat: readonly string[];
+  readonly notes: readonly CodegenNote[];
 }
 
 /**
@@ -109,32 +86,8 @@ export interface LegacyFile {
   readonly carried: boolean;
 }
 
-/**
- * Документ формы ли это — по имени файла: он лежит и в `schema/`, и в корне модуля.
- *
- * Нужен интерфейсу: у прежнего имени ДОКУМЕНТА есть действие «открыть новый файл» — редактор
- * держит открытым старый, и дальнейшие правки ушли бы в него.
- */
-export function isSchemaDocumentPath(path: string): boolean {
-  return path.slice(path.lastIndexOf('/') + 1) === SCHEMA_FILE;
-}
-
-/** Необязательные сведения доставки. */
-export interface DeliveryOptions {
-  /**
-   * Весь модуль, а не только доставляемое.
-   *
-   * Нужен поиску «сирот»: при записи одной цели (типы из контекстного меню) среди доставляемых
-   * файлов шагов нет вовсе, и без полного состава КАЖДЫЙ файл шага выглядел бы брошенным. По
-   * умолчанию — сами доставляемые файлы.
-   */
-  readonly module?: readonly ModuleFile[];
-  /**
-   * Путь корневого документа внутри модуля: рядом с ним лежат папки схем шагов, среди которых
-   * ищутся сироты. По умолчанию — `schema/form.schema.json`.
-   */
-  readonly schemaPath?: string;
-}
+/** Что доставке знать о модуле сверх файлов: проверку стека до записи и его заметки после. */
+export type DeliveryOptions = Pick<CodegenModule, 'check' | 'inspect'>;
 
 /** Источник не принимает запись — доставка не начинается. */
 export class SourceReadOnlyError extends Error {
@@ -145,168 +98,20 @@ export class SourceReadOnlyError extends Error {
 }
 
 /**
- * Модуль на диске напечатан другим китом, чем печатается сейчас, — доставка не начинается.
+ * Стек отказал записи (`CodegenModule.check`) — доставка не начинается.
  *
- * Производные файлы (реестр, страница) доставка переписывает всегда, и без этой проверки
- * «Сгенерировать» под чужим активным китом молча перепечатало бы форму HexaUI под ui-kit: кит —
- * одна настройка на проект, а не свойство формы. Отказ честнее частичной записи: модуль,
- * напечатанный наполовину под другой кит, не собрался бы.
+ * Отказ честнее частичной записи: модуль, переписанный наполовину под другой кит, не собрался бы.
  */
-export class KitMismatchError extends Error {
-  constructor(
-    /** Пакет кита, которым напечатан модуль на диске. */
-    readonly moduleKit: string,
-    /** Пакет кита, под который модуль печатается сейчас. */
-    readonly activeKit: string
-  ) {
-    super(`модуль напечатан китом «${moduleKit}», а печатается под «${activeKit}»`);
-    this.name = 'KitMismatchError';
+export class DeliveryRefusedError extends Error {
+  constructor(readonly refusal: CodegenRefusal) {
+    super(refusal.refusal.key);
+    this.name = 'DeliveryRefusedError';
   }
-}
-
-/** Цель, печатающая реестр компонентов: по нему узнаётся кит модуля. */
-const REGISTRY_TARGET_ID = 'codegen.registry';
-
-/** Пакет по спецификатору импорта: `@scope/name/sub` → `@scope/name`, `name/sub` → `name`. */
-function packageOf(specifier: string): string {
-  const parts = specifier.split('/');
-  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
-}
-
-/**
- * Кит, которым напечатан реестр формы, — пакет, из которого импортирована обёртка поля
- * (`reg.component(FIELD_WRAPPER, …)`). Её даёт главный вход кита в любом реестре: в отличие от
- * символов записей, она есть и у формы без единого поля кита. `null` — реестр не наш либо
- * напечатан прежней раскладкой: судить не по чему.
- */
-export function registryKitOf(text: string): string | null {
-  const wrapper = /reg\.component\(\s*FIELD_WRAPPER\s*,\s*([A-Za-z_$][\w$]*)\s*\)/.exec(text)?.[1];
-  if (wrapper === undefined) return null;
-  for (const match of text.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
-    const locals = match[1].split(',').map((name) => {
-      const parts = name.trim().split(/\s+as\s+/);
-      return parts[parts.length - 1].replace(/^type\s+/, '').trim();
-    });
-    if (locals.includes(wrapper)) return packageOf(match[2]);
-  }
-  return null;
-}
-
-/**
- * Отказ, если модуль на диске напечатан другим китом. Сравниваются пакеты обёртки поля в
- * реестре на диске и в свежем — то есть кит модуля и кит, под который он печатается сейчас.
- */
-async function assertSameKit(
-  host: CodegenHost,
-  dir: ResourceId,
-  module: readonly ModuleFile[]
-): Promise<void> {
-  const registry = module.find((file) => file.targetId === REGISTRY_TARGET_ID);
-  if (registry === undefined) return;
-  const activeKit = registryKitOf(registry.content);
-  if (activeKit === null) return;
-  const id = at(host, dir, registry.path);
-  if (!(await host.exists(id))) return;
-  const current = await host.readText(id).catch(() => null);
-  const moduleKit = current === null ? null : registryKitOf(current);
-  if (moduleKit !== null && moduleKit !== activeKit) {
-    throw new KitMismatchError(moduleKit, activeKit);
-  }
-}
-
-/**
- * Записать модуль в каталог `<parent>/<dir>`.
- *
- * Каталог не создаётся отдельным шагом: рабочая область адресует ресурсы путями, и запись
- * по адресу внутри несуществующего каталога создаёт его сама. Отдельный `mkdir` был бы вторым
- * способом сказать то же самое — и разошёлся бы с первым на источнике, у которого каталогов нет.
- */
-export async function deliverModule(
-  host: CodegenHost,
-  parent: ResourceId,
-  dirName: string,
-  files: readonly ModuleFile[],
-  options: DeliveryOptions = {}
-): Promise<DeliveryResult> {
-  return deliverInto(host, host.resolve(parent, dirName), files, options);
 }
 
 /** Адрес файла модуля по его пути от корня. */
 function at(host: CodegenHost, dir: ResourceId, path: string): ResourceId {
   return host.resolve(dir, ...path.split('/'));
-}
-
-/**
- * Файлы шагов на диске, которых нет в модуле.
- *
- * Без листинга — пусто: сирота — подсказка, а не условие доставки, и порт без `list`
- * не обязан её давать.
- */
-async function orphansOf(
-  host: CodegenHost,
-  dir: ResourceId,
-  module: readonly ModuleFile[],
-  schemaPath: string
-): Promise<readonly string[]> {
-  if (host.list === undefined) return [];
-  const current = new Set(module.map((file) => file.path));
-  const orphans: string[] = [];
-
-  // Папки схем шагов — рядом с корневым документом. Сиротой считается папка со схемой шага:
-  // у формы с документом в корне модуля та же `steps/` держала код шагов прежней раскладки, и
-  // такая папка — не сирота шага, а файлы прежнего контракта (их называет `flatOf`).
-  //
-  // Листинг, а не `exists` + листинг: отсутствующий каталог источник отдаёт пустым списком
-  // или отказом, и оба ответа здесь значат одно — сирот нет.
-  const stepsDir = `${schemaDirOf(schemaPath)}${STEP_SCHEMAS_DIR}`;
-  for (const entry of await host.list(at(host, dir, stepsDir)).catch(() => [])) {
-    if (entry.kind !== 'directory') continue;
-    const schema = `${stepsDir}/${entry.name}/${SCHEMA_FILE}`;
-    if (current.has(schema)) continue;
-    if (await host.exists(at(host, dir, schema))) orphans.push(`${stepsDir}/${entry.name}`);
-  }
-
-  // Файлы правил шагов. Только напечатанные билдером (с маркером, пусть и правленные): свой
-  // файл человека в `validation/` — общие правила, сообщения — шагом не является.
-  for (const entry of await host.list(at(host, dir, VALIDATION_DIR)).catch(() => [])) {
-    if (entry.kind === 'directory' || !entry.name.endsWith('.ts')) continue;
-    if (entry.name === `${FORM_RULES_NAME}.ts`) continue;
-    const path = `${VALIDATION_DIR}/${entry.name}`;
-    if (current.has(path)) continue;
-    const text = await host.readText(entry.id).catch(() => null);
-    if (originOf(text) !== 'handwritten') orphans.push(path);
-  }
-
-  return orphans.sort((a, b) => a.localeCompare(b));
-}
-
-/**
- * Файлы прежней плоской раскладки в каталоге модуля.
- *
- * Имена — из раскладки стека, а не листингом каталога: рядом с модулем может лежать что угодно,
- * и «всё лишнее в корне» назвало бы прежним контрактом чужой файл. Файл, который модуль печатает
- * сам (чужая цель вправе положить в корень `api.ts`), прежним не считается.
- */
-async function flatOf(
-  host: CodegenHost,
-  dir: ResourceId,
-  module: readonly ModuleFile[]
-): Promise<readonly string[]> {
-  const current = new Set(module.map((file) => file.path));
-  const found: string[] = [];
-  const probe = async (path: string): Promise<void> => {
-    if (!current.has(path) && (await host.exists(at(host, dir, path)))) found.push(path);
-  };
-
-  for (const path of FLAT_LAYOUT_FILES) await probe(path);
-  await probe(FLAT_STEPS_INDEX);
-  if (host.list !== undefined) {
-    for (const entry of await host.list(at(host, dir, FLAT_STEPS_DIR)).catch(() => [])) {
-      if (entry.kind !== 'directory') continue;
-      for (const file of FLAT_STEP_FILES) await probe(`${FLAT_STEPS_DIR}/${entry.name}/${file}`);
-    }
-  }
-  return found;
 }
 
 /**
@@ -319,7 +124,7 @@ async function flatOf(
 async function legacyOf(
   host: CodegenHost,
   dir: ResourceId,
-  file: ModuleFile,
+  file: CodegenFile,
   id: ResourceId
 ): Promise<{ readonly path: string; readonly text: string } | null> {
   if (file.legacyPaths === undefined || file.legacyPaths.length === 0) return null;
@@ -334,29 +139,25 @@ async function legacyOf(
 }
 
 /**
- * Записать модуль В САМ каталог, без подпапки под ним.
+ * Записать модуль В каталог корня модуля.
  *
- * Второй вход, а не флаг у первого, потому что вопросы разные. {@link deliverModule} отвечает
- * «рядом с этой схемой заведи модуль формы» — имя каталога там ПРОИЗВОДНОЕ имени формы, и
- * решает его генерация. Здесь каталог НАЗВАН: это корень модуля формы — его выбрал человек,
- * щёлкнув по строке дерева, либо на него указывает место документа (`<модуль>/schema/…`), — и
- * выводить внутри него ещё один по имени формы значило бы получить
- * `credit-application/credit-application/`.
+ * Каталог называет стек (`CodegenForm.root`): место модуля — функция адреса документа либо
+ * каталог, выбранный щелчком в дереве. Каталог не создаётся отдельным шагом: рабочая область
+ * адресует ресурсы путями, и запись по адресу внутри несуществующего каталога создаёт его сама.
  *
- * Всё остальное общее и живёт здесь: право источника на запись, предикат перезаписи,
- * отправка записанного. Разница ровно в одном адресе.
+ * @throws {@link SourceReadOnlyError} источник не принимает запись.
+ * @throws {@link DeliveryRefusedError} стек отказал записи.
  */
 export async function deliverInto(
   host: CodegenHost,
   dir: ResourceId,
-  files: readonly ModuleFile[],
+  files: readonly CodegenFile[],
   options: DeliveryOptions = {}
 ): Promise<DeliveryResult> {
   const capabilities = host.sourceOf(dir);
   if (capabilities === null || !capabilities.write) throw new SourceReadOnlyError();
-  // По полному модулю: запись одной цели (типы из меню дерева) реестра среди доставляемых не несёт,
-  // а кит у модуля тот же.
-  await assertSameKit(host, dir, options.module ?? files);
+  const refusal = (await options.check?.()) ?? null;
+  if (refusal !== null) throw new DeliveryRefusedError(refusal);
 
   const written: string[] = [];
   const skipped: { path: string; reason: SkipReason }[] = [];
@@ -402,9 +203,7 @@ export async function deliverInto(
   }
 
   const saved = host.save === undefined || touched.length === 0 ? null : await host.save(touched);
-  const module = options.module ?? files;
-  const orphans = await orphansOf(host, dir, module, options.schemaPath ?? DEFAULT_SCHEMA_PATH);
-  const flat = await flatOf(host, dir, module);
+  const notes = (await options.inspect?.()) ?? [];
 
-  return { dir, written, skipped, failed, saved, orphans, legacy, flat };
+  return { dir, written, skipped, failed, saved, legacy, notes };
 }

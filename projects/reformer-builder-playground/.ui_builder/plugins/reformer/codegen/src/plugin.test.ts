@@ -1,31 +1,33 @@
 /**
- * Плагин: состав вкладов, видимость панели и команда.
+ * Плагин-хозяин генерации: состав вкладов, видимость панели, команды и генерация по заказу.
  *
- * Порт платформы подставной — настоящий собирается композицией и требует рабочей области.
- * Проверяется то, чем владеет плагин.
+ * Порт платформы и стек подставные — настоящие собирает композиция. Проверяется то, чем владеет
+ * хозяин; вклады стека ReFormer — в `./stack/plugin.test`.
  *
  * @module plugins/reformer/codegen/plugin.test
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PluginContext, ResourceId, WhenContext } from '@reformer/builder-plugin-api';
-import type { ModuleGeneratorService, ModulePrinterService } from './workspace';
-import { plainSchema } from '../../core/testing';
+import {
+  CodegenStackPoint,
+  type ModuleGeneratorService,
+  type ResourceId,
+  type WhenContext,
+} from '@reformer/builder-plugin-api';
+import { createFakePluginContext } from '../../../.shared/codegen-fakes';
 import {
   codegenPanel,
   CODEGEN_PANEL_ID,
   CODEGEN_PLUGIN_ID,
   createCodegenPlugin,
-  CREATE_FIXTURE_COMMAND_ID,
   EJECT_TEMPLATE_COMMAND_ID,
   REFRESH_TARGETS_COMMAND_ID,
   GENERATE_COMMAND_ID,
-  panelVisible,
 } from './plugin';
-import { GENERATE_INTO_COMMAND_ID } from './commands/context-menu';
-import { BUILTIN_TARGETS } from './pipeline/targets';
+import { GENERATE_INTO_COMMAND_ID } from './commands/generate-into';
 import { createCodegenSessions } from './pipeline/state';
-import { createFakeDocument, createFakeHost } from './testing';
+import { createFakeDocument, createFakeHost, createFakeStack, stacksOf } from './testing';
+import type { CodegenHost } from './host';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
   return {
@@ -38,216 +40,70 @@ function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
   };
 }
 
-/** Реестры в объёме, который трогает `activate`. */
-function fakeContext() {
-  const contributed: { point: string; id?: string; order?: number }[] = [];
-  const commands: string[] = [];
-  const locales: string[] = [];
-  const services = new Map<string, unknown>();
-  const ctx = {
-    id: CODEGEN_PLUGIN_ID,
-    subscriptions: [],
-    // Словарь плагина — поле контекста: композиция его больше не раздаёт.
-    i18n: {
-      locale: 'ru',
-      t: (key: string) => key,
-      contribute: (locale: string) => locales.push(locale),
-      onDidChangeLocale: () => ({ dispose: () => undefined }),
-    },
-    extensions: {
-      contribute: (
-        point: { id: string },
-        _value: unknown,
-        meta?: { id?: string; order?: number }
-      ) => {
-        contributed.push({ point: point.id, id: meta?.id, order: meta?.order });
-        return { dispose: () => undefined };
-      },
-      get: () => [],
-      observe: () => ({ dispose: () => undefined }),
-    },
-    commands: {
-      register: (command: { id: string }) => {
-        commands.push(command.id);
-        return { dispose: () => undefined };
-      },
-      execute: () => Promise.resolve(true),
-    },
-    // Служб нет ни одной, и это НЕ упущение двойника: композиция вправе не дать уведомлений,
-    // и плагин обязан активироваться без них — молча, а не отказом.
-    // Реестр служб в объёме активации: кит не поднят (плагин обязан это пережить), а слот
-    // печатника и генератора плагин занимает сам — его вклады наружу.
-    services: {
-      get: () => undefined,
-      register: (token: { id: string }, service: unknown) => {
-        services.set(token.id, service);
-        return { dispose: () => {} };
-      },
-    },
-  } as unknown as PluginContext;
-  return { ctx, contributed, commands, locales, services };
+/** Хозяин без стека ReFormer; стек-двойник, если нужен, вносит «соседний плагин». */
+function activate(
+  host: CodegenHost = createFakeHost(),
+  stack?: ReturnType<typeof createFakeStack>
+) {
+  const fake = createFakePluginContext(CODEGEN_PLUGIN_ID);
+  if (stack !== undefined) {
+    const neighbour = createFakePluginContext('fake.stack', fake.contributions);
+    neighbour.ctx.extensions.contribute(CodegenStackPoint, stack, { id: stack.id });
+  }
+  createCodegenPlugin({ host, stack: false }).activate(fake.ctx);
+  return fake;
 }
 
 describe('activate', () => {
-  it('вносит все встроенные цели вкладами, а не держит их массивом', () => {
-    const { ctx, contributed } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    const targets = contributed.filter((item) => item.point === 'codegen.target');
-    expect(targets.map((item) => item.id)).toEqual(BUILTIN_TARGETS.map((t) => t.id));
+  it('вносит панель, пункт документа и ничего от стека', () => {
+    const { contributions } = activate();
+    const own = contributions.filter((item) => item.pluginId === CODEGEN_PLUGIN_ID);
+    expect(own.map((item) => [item.point, item.id])).toEqual([
+      ['menu', 'codegen.context.generate'],
+      ['panel', CODEGEN_PANEL_ID],
+    ]);
   });
 
-  it('порядок целей задаётся вкладом, а не позицией в массиве', () => {
-    const { ctx, contributed } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    const orders = contributed
-      .filter((item) => item.point === 'codegen.target')
-      .map((item) => item.order);
-    expect(orders).toEqual(BUILTIN_TARGETS.map((t) => t.order));
-    // Между любыми двумя нашими целями помещается чужая: соседи отстоят больше чем на единицу.
-    const sorted = [...orders].sort((a, b) => (a ?? 0) - (b ?? 0));
-    expect(sorted.every((order, i) => i === 0 || (order ?? 0) - (sorted[i - 1] ?? 0) > 1)).toBe(
-      true
-    );
-  });
-
-  it('вносит панель', () => {
-    const { ctx, contributed } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    expect(contributed.at(-1)).toMatchObject({ point: 'panel', id: CODEGEN_PANEL_ID });
-  });
-
-  it('вклад уходит в ТУ точку, которую дала композиция', () => {
-    const { ctx, contributed } = fakeContext();
-    createCodegenPlugin({
-      host: createFakeHost(),
-      targetPoint: { id: 'codegen.target.v2' },
-    }).activate(ctx);
-    expect(contributed.filter((item) => item.point === 'codegen.target.v2')).toHaveLength(
-      BUILTIN_TARGETS.length
-    );
-  });
-
-  it('регистрирует команды экспорта, фикстуры, целей проекта и генерации в каталог', () => {
-    const { ctx, commands } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+  it('регистрирует команды экспорта, целей проекта и генерации в каталог', () => {
+    const { commands } = activate();
     // Список полный, а не «содержит»: команда, появившаяся незаметно, — это пункт палитры,
     // которого никто не заказывал, и сочетание клавиш, которое никто не назначал.
     expect(commands).toEqual([
       GENERATE_COMMAND_ID,
-      CREATE_FIXTURE_COMMAND_ID,
       REFRESH_TARGETS_COMMAND_ID,
       EJECT_TEMPLATE_COMMAND_ID,
       GENERATE_INTO_COMMAND_ID,
     ]);
   });
 
-  it('вносит и пункт документа, и подменю каталога — это разные вопросы', () => {
-    const { ctx, contributed } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    const menu = contributed.filter((item) => item.point === 'menu').map((item) => item.id);
-    expect(menu).toEqual([
-      'codegen.context.generate',
-      'codegen.context.submenu',
-      'codegen.context.all',
-      'codegen.context.targets',
-    ]);
-  });
-
   it('везёт словарь сам — в своё пространство имён, а не в общее', () => {
-    const { ctx, locales } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+    const { locales } = activate();
     expect(locales.sort()).toEqual(['en', 'ru']);
   });
-});
 
-describe('возможность «напечатать модуль формы»', () => {
-  /** Печатник, который плагин отдал наружу: его единственная служба. */
-  function printer(): ModulePrinterService {
-    const { ctx, services } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    expect([...services.keys()].sort()).toEqual([
-      'reformer.codegen.generator',
-      'reformer.codegen.printer',
-    ]);
-    return services.get('reformer.codegen.printer') as ModulePrinterService;
-  }
-
-  /** Форма в формате 2. */
-  const FORM = {
-    format: 2,
-    version: '1.0',
-    root: {
-      component: '$component(Box)',
-      children: [{ model: '$model(fullName)', component: '$component(Input)' }],
-    },
-  };
-
-  /**
-   * Она же в ПРЕЖНЕМ формате: без `format`, привязка поля — в `value`. Литерал прежнего формата
-   * здесь намеренно: это вход проверки перевода, а не недосмотр переноса.
-   */
-  const LEGACY_FORM = {
-    version: '1.0',
-    root: {
-      component: '$component(Box)',
-      children: [{ value: '$model(fullName)', component: '$component(Input)' }],
-    },
-  };
-
-  it('схему прежнего формата печатает так же, как её запись в формате 2', async () => {
-    // Посылка: разметка прежнего формата — не та, с которой работает генерация.
-    expect(LEGACY_FORM.root).not.toEqual(FORM.root);
-    const service = printer();
-
-    const modern = await service.print(FORM, 'Анкета');
-    const legacy = await service.print(LEGACY_FORM, 'Анкета');
-
-    expect(legacy).toEqual(modern);
-    // Файлы отданы в раскладке «папки по ролям», от корня модуля формы: документ — в `schema/`,
-    // страница названа типом формы, реэкспорты — `index.ts`. Плагин шаблонов кладёт их как есть.
-    const paths = modern.map((file) => file.path);
-    expect(paths).toEqual(
-      expect.arrayContaining([
-        'schema/form.schema.json',
-        'AnketaForm.tsx',
-        'index.ts',
-        'application/create.ts',
-        'validation/form.ts',
-        'behavior/index.ts',
-      ])
-    );
-    expect(paths.filter((path) => !path.includes('/')).sort()).toEqual([
-      'AnketaForm.tsx',
-      'README.md',
-      'index.ts',
-    ]);
-    // И это модуль формы с полем, а не пустой: без перевода поле не было бы найдено.
-    expect(legacy.find((file) => file.path === 'types/anketa.ts')?.content).toContain(
-      'fullName: string;'
-    );
+  it('отдаёт наружу ровно генерацию по заказу', () => {
+    const { services } = activate();
+    expect([...services.keys()]).toEqual(['reformer.codegen.generator']);
   });
 });
 
 describe('возможность «сгенерировать код формы»', () => {
-  it('прогон по заказу отвечает отчётом и не сохраняет', async () => {
+  it('прогон по заказу идёт через стек документа, отвечает отчётом и не сохраняет', async () => {
     const id = 'src/forms/loan/schema/form.schema.json';
-    const document = createFakeDocument(id, JSON.stringify(plainSchema()));
-    const host = createFakeHost({ document, withSave: true });
-    const { ctx, services } = fakeContext();
-    createCodegenPlugin({ host }).activate(ctx);
+    const host = createFakeHost({ document: createFakeDocument(id, '{}'), withSave: true });
+    const stack = createFakeStack({ root: 'src/forms/loan', formName: 'loan' });
+    const { services } = activate(host, stack);
     const generator = services.get('reformer.codegen.generator') as ModuleGeneratorService;
 
-    // Целей двойник реестра не отдаёт (`extensions.get` пуст), поэтому модуль пуст: запись дверью
-    // проверяет `pipeline/generate-for.test.ts`, здесь — что служба собрана из состояния плагина.
     const report = await generator.generate(id as ResourceId, { write: async () => null });
 
     expect(report).toMatchObject({ ok: true, dir: 'src/forms/loan', formName: 'loan' });
+    expect(stack.printed).toHaveLength(1);
     expect(host.saved).toEqual([]);
   });
 
   it('отказ прогона называет ключ и текст словаря плагина', async () => {
-    const { ctx, services } = fakeContext();
-    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+    const { services } = activate();
     const generator = services.get('reformer.codegen.generator') as ModuleGeneratorService;
     const report = await generator.generate('nowhere' as ResourceId);
     expect(report).toEqual({ ok: false, error: 'error.no-document', message: 'error.no-document' });
@@ -255,19 +111,37 @@ describe('возможность «сгенерировать код формы�
 });
 
 describe('видимость панели', () => {
-  it('видна на модельном документе схемы', () => {
-    expect(panelVisible(whenContext())).toBe(true);
-    expect(panelVisible(whenContext({ activeResourceKind: 'application/json' }))).toBe(true);
+  const panel = codegenPanel(
+    createFakeHost(),
+    createCodegenSessions(),
+    stacksOf(createFakeStack({ kinds: ['form.schema', 'application/json'] })),
+    () => [],
+    'panel.right'
+  );
+
+  it('видна на документе, который печатает стек', () => {
+    expect(panel.when?.(whenContext())).toBe(true);
+    expect(panel.when?.(whenContext({ activeResourceKind: 'application/json' }))).toBe(true);
   });
 
   it('спрятана на прочих ресурсах и когда открытого документа нет', () => {
-    expect(panelVisible(whenContext({ activeResourceKind: 'text/typescript' }))).toBe(false);
-    expect(panelVisible(whenContext({ activeResourceKind: null }))).toBe(false);
+    expect(panel.when?.(whenContext({ activeResourceKind: 'text/typescript' }))).toBe(false);
+    expect(panel.when?.(whenContext({ activeResourceKind: null }))).toBe(false);
   });
 
-  it('панель вносится ОДИН раз, а видимостью управляет предикат', () => {
-    const panel = codegenPanel(createFakeHost(), createCodegenSessions(), () => [], 'panel.right');
-    expect(panel.when).toBe(panelVisible);
+  it('без стеков не видна вовсе — печатать нечем', () => {
+    const lonely = codegenPanel(
+      createFakeHost(),
+      createCodegenSessions(),
+      stacksOf(),
+      () => [],
+      'panel.right'
+    );
+    expect(lonely.when?.(whenContext())).toBe(false);
+  });
+
+  it('панель вносится ОДИН раз, в названный слот', () => {
     expect(panel.slot).toBe('panel.right');
+    expect(panel.id).toBe(CODEGEN_PANEL_ID);
   });
 });

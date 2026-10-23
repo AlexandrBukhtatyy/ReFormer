@@ -1,77 +1,42 @@
 /**
- * Один прогон генерации: документ → файлы → рабочая область → отчёт.
+ * Один прогон генерации: документ → стек → файлы → рабочая область → отчёт.
  *
  * Отдельно от панели и от команды, потому что запускают обе, а результат обязан быть один
- * и тот же. Отдельно от `generate`/`deliver`, потому что те не знают ни документов, ни кита:
- * здесь собирается вход и разбираются отказы.
+ * и тот же. Отдельно от стека и доставки, потому что те не знают ни состояния, ни отчёта: здесь
+ * выбирается стек документа, собираются его цели и разбираются отказы.
  *
  * ## Отказы названы, а не брошены
  *
- * Их три, и все три — законные состояния, а не ошибки программы: документ не разбирается
- * в схему, кита нет, источник не принимает запись. Каждый превращается в ключ словаря плагина
- * и показывается в панели. Исключением наружу уходит только то, чего мы не предвидели.
+ * Все — законные состояния, а не ошибки программы: документ закрыли, его не печатает ни один стек,
+ * стек отказал (форма не собирается, кита нет), источник не принимает запись. Каждый превращается
+ * в ключ словаря — хозяина либо стека — и показывается в панели. Исключением наружу уходит
+ * только то, чего мы не предвидели.
  *
  * @module plugins/reformer/codegen/pipeline/run
  */
 
 import {
-  appSnippet,
-  formNameOfSchemaPath,
-  modulePlacementOf,
-  moduleRootOfDocument,
-} from '../../../core/codegen';
-import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { ResourceId } from '@reformer/builder-plugin-api';
-import type { CodegenTarget } from '../contract';
-import { deliverInto, KitMismatchError, SourceReadOnlyError } from './deliver';
-import { generateModule, type CodegenProblem } from './generate';
-import type { CodegenDocument, CodegenHost } from '../host';
-import type { CodegenStore } from './state';
-import { RulesFileError } from './rules';
-import type { FormRules } from '../../../core/form-model';
-import { asFormSchema, formSourceOf, StepPartsError, type FormSource } from './source';
-
-/**
- * Имя формы по умолчанию — из пути файла схемы ({@link formNameOfSchemaPath}).
- *
- * Для канонического имени (`form.schema.json`, прежнее `renderer.schema.json`) это имя каталога
- * МОДУЛЯ: срез по точке дал бы `form` (или `renderer`) для любой формы проекта, а имя каталога
- * документа — `schema`. Для прочих — имя файла до ПЕРВОЙ точки: каноничное имя схемы двусоставное
- * (`credit.schema.json`), и отрезание одного расширения оставило бы `credit.schema` — из чего
- * `kebab` делает `creditschema`, то есть каталог `creditschema/` и тип `CreditschemaForm`.
- */
-export function defaultFormName(document: CodegenDocument): string {
-  return formNameOfSchemaPath(document.ref.path);
-}
-
-/**
- * Схема документа: сначала модель, потом текст.
- *
- * Модель предпочтительнее, потому что она СОГЛАСОВАНА с буфером по контракту, а разбор текста
- * даст схему даже тогда, когда редактор считает буфер незаконченным. `null` — документ схемой
- * не является; это законное состояние (в схему открыт не тот файл), а не поломка.
- *
- * Отдаётся всегда формат 2 ({@link asFormSchema}): в буфере может лежать текст прежнего формата,
- * а модель приходит из чужого документа. Схема формата 2 возвращается той же ссылкой.
- */
-export function schemaOf(document: CodegenDocument): JsonFormSchema | null {
-  const model = asFormSchema(document.model());
-  if (model !== null) return model;
-  try {
-    return asFormSchema(JSON.parse(document.getText()));
-  } catch {
-    return null;
-  }
-}
+  isCodegenRefusal,
+  type CodegenProblem,
+  type CodegenRefusal,
+  type CodegenTarget,
+  type ResourceId,
+} from '@reformer/builder-plugin-api';
+import { deliverInto, DeliveryRefusedError, SourceReadOnlyError } from './deliver';
+import type { CodegenHost } from '../host';
+import type { CodegenError, CodegenStore } from './state';
+import { stackFor, targetsFor, type Stacks } from '../stacks';
 
 export interface RunOptions {
   readonly host: CodegenHost;
+  readonly stacks: Stacks;
+  /** Все цели точки: стеку уходят его собственные и общие, без заменённых. */
   readonly targets: readonly CodegenTarget[];
   readonly documentId: ResourceId;
   readonly store: CodegenStore;
   /**
-   * Имя формы; пустое — берётся из имени файла. Задаёт имена в коде (тип, страница, фабрики), но не
-   * место модуля: его решает адрес документа.
+   * Имя формы; пустое — его называет стек (из имени файла). Задаёт имена в коде (тип, страница,
+   * фабрики), но не место модуля: его решает стек по адресу документа.
    */
   readonly formName?: string;
   /**
@@ -84,76 +49,50 @@ export interface RunOptions {
   readonly problems?: readonly CodegenProblem[];
 }
 
+/** Отказ стека — отказом прогона, ключом его словаря. */
+export function stackError(stackId: string, refusal: CodegenRefusal): CodegenError {
+  return {
+    key: refusal.refusal.key,
+    stack: stackId,
+    ...(refusal.refusal.params === undefined ? {} : { params: refusal.refusal.params }),
+    ...(refusal.detail === undefined ? {} : { detail: refusal.detail }),
+  };
+}
+
 /**
  * Напечатать и записать модуль формы. Ничего не бросает при предвиденных отказах: они
  * приземляются в состояние ключом словаря.
  */
 export async function runCodegen(options: RunOptions): Promise<void> {
-  const { host, targets, documentId, store } = options;
+  const { host, stacks, documentId, store } = options;
   const document = host.documentOf(documentId);
   if (document === null) {
-    store.patch({ phase: 'idle', errorKey: 'error.no-document' });
+    store.patch({ phase: 'idle', error: { key: 'error.no-document' } });
     return;
   }
 
-  const schema = schemaOf(document);
-  if (schema === null) {
-    store.patch({ phase: 'idle', errorKey: 'error.not-a-schema' });
+  // Документ, который не печатает ни один стек, и документ, в котором стек не узнал своей формы, —
+  // для человека одно и то же: «это не схема формы».
+  const entry = stackFor(stacks, document);
+  const opened = entry === null ? null : await entry.stack.open(document, host);
+  if (entry === null || opened === null) {
+    store.patch({ phase: 'idle', error: { key: 'error.not-a-schema' }, stack: null });
+    return;
+  }
+  const { stack } = entry;
+  if (isCodegenRefusal(opened)) {
+    store.patch({ phase: 'idle', error: stackError(stack.id, opened), stack: stack.id });
     return;
   }
 
-  let source: FormSource;
-  try {
-    source = await formSourceOf(host, document, schema);
-  } catch (error) {
-    if (!(error instanceof StepPartsError)) throw error;
-    store.patch({ phase: 'idle', errorKey: 'error.step-parts', errorDetail: error.message });
-    return;
-  }
+  const formName = (options.formName ?? '').trim() || opened.formName;
+  store.patch({ phase: 'running', error: null, delivery: null, stack: stack.id });
 
-  const kit = host.kit();
-  if (kit === null) {
-    // Без кита неизвестно, откуда импортировать компоненты. Умолчание здесь вернуло бы
-    // ровно тот дефект, ради которого дескриптор и заводился, только молча.
-    store.patch({ phase: 'idle', errorKey: 'error.no-kit' });
-    return;
-  }
-
-  // Правила читаются до начала печати: битый файл правил — отказ прогона, а не заготовки на
-  // месте правил, которые человек видит в файле.
-  let rules: FormRules | undefined;
-  try {
-    rules = (await host.rulesOf?.(documentId)) ?? undefined;
-  } catch (error) {
-    if (!(error instanceof RulesFileError)) throw error;
-    store.patch({ phase: 'idle', errorKey: 'error.rules-file', errorDetail: error.message });
-    return;
-  }
-
-  const formName = (options.formName ?? '').trim() || defaultFormName(document);
-  store.patch({
-    phase: 'running',
-    errorKey: null,
-    errorDetail: undefined,
-    errorParams: undefined,
-    delivery: null,
+  const module = await opened.print({
+    targets: targetsFor(options.targets, stack),
+    formName,
+    format: host.format,
   });
-
-  // Где лежит документ, там и модуль: путь документа внутри модуля решается ДО печати — от него
-  // считаются импорты и место файлов шагов.
-  const placement = modulePlacementOf(document.ref.path);
-  const module = await generateModule(
-    targets,
-    {
-      schema: source.schema,
-      origins: source.origins,
-      formName,
-      schemaPath: placement.schemaPath,
-      kit: { kit, catalog: host.catalog() },
-      rules,
-    },
-    host.format
-  );
 
   const problems = [...(options.problems ?? []), ...module.problems];
   const files = module.files.map((file) => ({
@@ -162,52 +101,32 @@ export async function runCodegen(options: RunOptions): Promise<void> {
     targetId: file.targetId,
     origin: file.origin,
   }));
-  // Сниппет регистрации — не файл модуля: он вставляется в ЧУЖОЕ приложение, и записать его
-  // за человека нельзя. Поэтому он не цель, а часть отчёта.
-  const snippet = appSnippet(module.context.names);
+  const report = {
+    phase: 'idle' as const,
+    formName,
+    files,
+    snippet: module.snippet,
+    problems,
+    view: module.view,
+    rootPath: opened.rootPath,
+  };
 
   try {
-    // Каталог модуля — функция адреса документа (раскладка домена), а не введённого имени формы:
-    // `<модуль>/schema/form.schema.json` — модуль на месте, в родителе папки `schema`;
-    // `<каталог>/form.schema.json` (прежняя плоская раскладка) — в каталоге документа; документ со
-    // свободным именем (`forms/credit.schema.json`) — подкаталог по имени ДОКУМЕНТА рядом с ним, а
-    // документ кладётся в его `schema/form.schema.json`. Введённое имя меняет только имена в коде:
-    // модуль под ним искали бы там, где его нет, — превью, фикстура, превью приложением.
-    const root = moduleRootOfDocument(host, documentId, document.ref.path);
-    const delivery = await deliverInto(host, root, module.files, {
-      schemaPath: placement.schemaPath,
-    });
-    store.patch({
-      phase: 'idle',
-      formName,
-      files,
-      snippet,
-      problems,
-      view: module.view,
-      delivery,
-      errorKey: null,
-    });
+    const delivery = await deliverInto(host, opened.root, module.files, module);
+    store.patch({ ...report, delivery, error: null });
   } catch (error) {
     store.patch({
-      phase: 'idle',
-      formName,
-      files,
-      snippet,
-      problems,
-      view: module.view,
+      ...report,
       delivery: null,
-      errorKey:
+      error:
         error instanceof SourceReadOnlyError
-          ? 'error.read-only'
-          : error instanceof KitMismatchError
-            ? 'error.kit-mismatch'
-            : 'error.failed',
-      ...(error instanceof KitMismatchError
-        ? { errorParams: { module: error.moduleKit, active: error.activeKit } }
-        : {}),
+          ? { key: 'error.read-only' }
+          : error instanceof DeliveryRefusedError
+            ? stackError(stack.id, error.refusal)
+            : { key: 'error.failed' },
     });
     // Оба отказа — ответ, а не поломка: о них говорит панель, и ничего не записано.
-    if (!(error instanceof SourceReadOnlyError) && !(error instanceof KitMismatchError)) {
+    if (!(error instanceof SourceReadOnlyError) && !(error instanceof DeliveryRefusedError)) {
       throw error;
     }
   }

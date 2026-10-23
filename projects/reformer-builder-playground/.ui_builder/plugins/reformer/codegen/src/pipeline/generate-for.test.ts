@@ -1,20 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { plainSchema } from '../../../core/testing';
-import type { ResourceId } from '@reformer/builder-plugin-api';
+import type { CodegenRefusal, CodegenTarget, ResourceId } from '@reformer/builder-plugin-api';
 import { generateFor, type GenerateWrite } from './generate-for';
 import { createCodegenSessions } from './state';
-import { BUILTIN_TARGETS } from './targets';
-import { createFakeDocument, createFakeHost } from '../testing';
+import { createFakeDocument, createFakeHost, createFakeStack, stacksOf } from '../testing';
 
 const DOC = 'src/forms/credit.schema.json' as ResourceId;
 
-function setup(text = JSON.stringify(plainSchema())) {
-  const document = createFakeDocument(DOC, text, 'credit.schema.json');
+const TARGETS: readonly CodegenTarget[] = [
+  { id: 't.types', path: 'types/credit.ts', cls: 'derived', template: '' },
+  { id: 't.model', path: 'model/model.ts', cls: 'derived', template: '' },
+];
+
+function setup(open: CodegenRefusal | null | 'form' = 'form') {
+  const document = createFakeDocument(DOC, '{}', 'credit.schema.json');
   const host = createFakeHost({ document, withSave: true });
   const store = createCodegenSessions().storeFor(DOC);
+  const stack = createFakeStack({ root: 'src/forms/credit', formName: 'credit', open });
   const options = {
     host,
-    targets: BUILTIN_TARGETS,
+    stacks: stacksOf(stack),
+    targets: TARGETS,
     store,
     translate: (key: string) => `«${key}»`,
   };
@@ -73,13 +78,23 @@ describe('генерация по заказу', () => {
     expect(host.saved).toEqual([]);
   });
 
-  it('отказ прогона — ключ словаря и текст', async () => {
-    const { options } = setup('не json');
+  it('отказ прогона — ключ словаря хозяина и текст', async () => {
+    const { options } = setup(null);
     const report = await generateFor(options, DOC);
     expect(report).toEqual({
       ok: false,
       error: 'error.not-a-schema',
       message: '«error.not-a-schema»',
+    });
+  });
+
+  it('отказ стека — его ключ и его слова, с подробностью', async () => {
+    const { options } = setup({ refusal: { key: 'error.step-parts' }, detail: 'нет файла шага' });
+    const report = await generateFor(options, DOC);
+    expect(report).toEqual({
+      ok: false,
+      error: 'error.step-parts',
+      message: 'error.step-parts нет файла шага',
     });
   });
 

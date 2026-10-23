@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { toDescriptor, type Disposable, type KitDescriptor } from '@reformer/builder-plugin-api';
 import { renderReact } from '../../../../.shared/render';
 import { createCodegenSessions } from '../pipeline/state';
-import { createFakeDocument, createFakeHost } from '../testing';
+import { createFakeDocument, createFakeHost, createFakeStack, stacksOf } from '../testing';
 import type { CodegenHost } from '../host';
 import { ExportPanel } from './ExportPanel';
 
@@ -51,7 +51,12 @@ describe('панель экспорта', () => {
     };
 
     const { container } = renderReact(
-      <ExportPanel host={host} sessions={createCodegenSessions()} targets={() => []} />
+      <ExportPanel
+        host={host}
+        sessions={createCodegenSessions()}
+        stacks={stacksOf()}
+        targets={() => []}
+      />
     );
     await vi.waitFor(() => {
       expect(container.textContent).toContain('kit.active:Кит А');
@@ -79,7 +84,12 @@ describe('поле панели — строкой, в размере панел
     };
     const { container } = renderReact(
       <div style={{ width: DOCK_WIDTH, height: 600 }}>
-        <ExportPanel host={host} sessions={createCodegenSessions()} targets={() => []} />
+        <ExportPanel
+          host={host}
+          sessions={createCodegenSessions()}
+          stacks={stacksOf()}
+          targets={() => []}
+        />
       </div>
     );
     await vi.waitFor(() => {
@@ -160,6 +170,7 @@ describe('отчёт не раздвигает панель', () => {
       useActiveDocument: () => documentId,
     };
     const sessions = createCodegenSessions();
+    const stacks = stacksOf();
     sessions.storeFor(documentId).patch({
       files: [
         {
@@ -176,7 +187,7 @@ describe('отчёт не раздвигает панель', () => {
       // Та же раскладка, что у области прокрутки дока: блок-таблица шириной не меньше дока.
       <div style={{ width: 320, overflow: 'hidden' }} data-testid="dock">
         <div style={{ display: 'table', minWidth: '100%' }}>
-          <ExportPanel host={host} sessions={sessions} targets={() => []} />
+          <ExportPanel host={host} sessions={sessions} stacks={stacks} targets={() => []} />
         </div>
       </div>
     );
@@ -201,9 +212,9 @@ describe('отчёт не раздвигает панель', () => {
   });
 });
 
-describe('отчёт о раскладке на диске', () => {
-  it('называет прежнее имя документа, файлы шагов без шага и файлы прежней раскладки', async () => {
-    // Все три случая — про файлы, которых в составе модуля НЕТ: строки в списке файлов модуля
+describe('отчёт о модуле на диске', () => {
+  it('называет прежнее имя файла и заметки стека — каждую своей секцией', async () => {
+    // Все случаи — про файлы, которых в составе модуля НЕТ: строки в списке файлов модуля
     // для них не нашлось бы, поэтому у каждого своя секция.
     const documentId = 'fake:forms/loan/schema/form.schema.json';
     const opened: string[] = [];
@@ -217,7 +228,10 @@ describe('отчёт о раскладке на диске', () => {
       },
     };
     const sessions = createCodegenSessions();
+    // Заметки — словами стека, который печатал: двойник переводит ключом.
+    const stacks = stacksOf(createFakeStack());
     sessions.storeFor(documentId).patch({
+      stack: 'fake',
       files: [
         {
           path: 'behavior/index.ts',
@@ -232,7 +246,6 @@ describe('отчёт о раскладке на диске', () => {
         skipped: [],
         failed: [],
         saved: null,
-        orphans: ['schema/steps/old', 'validation/old.ts'],
         legacy: [
           {
             path: 'schema/renderer.schema.json',
@@ -240,12 +253,27 @@ describe('отчёт о раскладке на диске', () => {
             carried: false,
           },
         ],
-        flat: ['index.tsx', 'form.render.ts', 'steps/old/form.validation.ts'],
+        notes: [
+          {
+            id: 'orphans',
+            paths: ['schema/steps/old', 'validation/old.ts'],
+            title: { key: 'orphans.title' },
+            detail: { key: 'orphans.detail' },
+            notify: { key: 'notify.orphans' },
+          },
+          {
+            id: 'flat',
+            paths: ['index.tsx', 'form.render.ts', 'steps/old/form.validation.ts'],
+            title: { key: 'flat.title' },
+            detail: { key: 'flat.detail' },
+            notify: { key: 'notify.flat' },
+          },
+        ],
       },
     });
 
     const { container } = renderReact(
-      <ExportPanel host={host} sessions={sessions} targets={() => []} />
+      <ExportPanel host={host} sessions={sessions} stacks={stacks} targets={() => []} />
     );
     await vi.waitFor(() => {
       expect(container.querySelector('[data-testid="codegen-flat"]')).not.toBeNull();
@@ -255,7 +283,7 @@ describe('отчёт о раскладке на диске', () => {
       [...container.querySelectorAll(`[data-testid="${testId}"] span.font-mono`)].map(
         (line) => line.textContent ?? ''
       );
-    // Файлы прежней плоской раскладки — код прежнего контракта: названы поимённо.
+    // Заметка стека — его словами (двойник переводит ключом), пути — поимённо.
     expect(linesOf('codegen-flat')).toEqual([
       'index.tsx',
       'form.render.ts',
@@ -264,10 +292,10 @@ describe('отчёт о раскладке на диске', () => {
     expect(container.querySelector('[data-testid="codegen-flat"]')?.textContent).toContain(
       'flat.detail'
     );
-    // Сироты — и папка схемы шага, и файл его правил: путь печатается как есть.
+    // Каждая заметка — своей секцией: пути печатаются как есть.
     expect(linesOf('codegen-orphans')).toEqual(['schema/steps/old', 'validation/old.ts']);
 
-    // У прежнего имени ДОКУМЕНТА есть действие: открыть документ там, где он теперь лежит.
+    // У прежнего имени есть действие: открыть файл там, где он теперь лежит.
     const open = container.querySelector('[data-testid="codegen-legacy"] button');
     expect(open).not.toBeNull();
     (open as HTMLButtonElement).click();

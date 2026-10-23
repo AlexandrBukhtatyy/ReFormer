@@ -43,7 +43,9 @@ function harness(
   let sync: 'synced' | 'diverged' = 'synced';
   const document = {
     id: FORM,
+    ref: { id: FORM, path: 'forms/credit/form.json', mediaType: 'application/json' },
     kind: 'model' as const,
+    providerId: 'form.schema',
     getModel: () => model,
     getSyncState: () => sync,
     getComposition: () => ({ layout, parts: [] }),
@@ -142,6 +144,8 @@ describe('раскладка по службам', () => {
     const document = codegenWorkspace(h.ctx).documentOf(FORM);
     expect(h.calls).toContain(`documents.documentOf(${FORM})`);
     expect(document?.id).toBe(FORM);
+    // Вид ресурса — как у оболочки: провайдер модели у модельного документа.
+    expect(document?.resourceKind).toBe('form.schema');
     // Переходник, а не приведение: модель и раскладка — из модельного документа.
     expect(document?.model()).toBe(h.model);
     expect(document?.composition?.()?.layout).toBe(h.layout);
@@ -176,7 +180,6 @@ describe('раскладка по службам', () => {
     await expect(w.readText(FORM)).resolves.toBe('текст');
     expect(w.parentOf(FORM)).toBe('fs:forms/credit');
     expect(w.resolve('fs:forms/credit', 'registry.ts')).toBe('fs:forms/credit/registry.ts');
-    expect(w.resolveFromRoot?.(FORM, 'shared')).toBe(`${FORM}|shared`);
     expect(w.projectRoot?.()).toBe('fs:');
     expect(h.calls).toEqual(
       expect.arrayContaining([`files.exists(${FORM})`, `files.readText(${FORM})`])
@@ -185,28 +188,20 @@ describe('раскладка по службам', () => {
 });
 
 describe('кит спрашивается в момент вопроса', () => {
-  it('каталог читается НА КАЖДЫЙ вызов: кит переключают и поднимают позже', () => {
+  it('дескриптор — у службы китов на КАЖДЫЙ вызов: кит переключают и поднимают позже', () => {
     const h = harness();
     const w = codegenWorkspace(h.ctx);
 
-    expect(w.catalog()).toEqual([]);
-    h.arrive({
-      version: '2.1',
-      kit: { id: 'kit-a' },
-      components: [{ name: 'Text', role: 'container', propsSchema: {} }],
-    });
-
-    // Записи — ReFormer-проекция: запись кита плюс синтетика билдера.
-    expect(w.catalog().map((entry) => entry.name)).toContain('Text');
     expect(w.kit()?.id).toBe('kit-a');
+    h.arrive({ version: '2.1', kit: { id: 'kit-b', label: 'Кит Б' }, components: [] });
+    expect(w.kit()).toMatchObject({ id: 'kit-b', label: 'Кит Б' });
   });
 
-  it('без плагина китов: пустой каталог, дескриптора нет, подписка безвредна', () => {
+  it('без плагина китов: дескриптора нет, подписка безвредна', () => {
     // Порядок активации незначим, а состав без китов законен — деградация, а не отказ.
     const h = harness({ kit: false });
     const w = codegenWorkspace(h.ctx);
 
-    expect(w.catalog()).toEqual([]);
     expect(w.kit()).toBeNull();
     expect(() => w.onDidChangeKit(() => {}).dispose()).not.toThrow();
   });

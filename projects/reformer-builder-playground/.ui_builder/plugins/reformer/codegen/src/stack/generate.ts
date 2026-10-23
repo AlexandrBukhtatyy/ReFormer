@@ -25,7 +25,13 @@
  * целым сегментом. Те же токены действуют в заголовке пользовательского шаблона и в прежних
  * именах цели (`legacyPaths`).
  *
- * @module plugins/reformer/codegen/pipeline/generate
+ * ## Цели — контракта SDK
+ *
+ * Цели приходят от хозяина генерации (свои, чужие, из проекта — заменённые уже сняты) типом SDK
+ * `CodegenTarget`; печатает их здесь стек, его контекстом эмиссии. Цель из проекта несёт
+ * применимость над ВИДОМ (`appliesView`) — её спрашивают тем видом, который увидел бы шаблон.
+ *
+ * @module plugins/reformer/codegen/stack/generate
  */
 
 import {
@@ -43,59 +49,22 @@ import {
   type CodegenView,
   type EmitContext,
   type EmittedFileRef,
-  type FileClass,
 } from '../../../core/codegen';
 import { acceptsMarker, renderTemplate, withMarker } from '@reformer/builder-toolkit';
-import type { CodegenTarget } from '../contract';
+import type {
+  CodegenFile,
+  CodegenFormatter,
+  CodegenProblem,
+  CodegenTarget as SdkTarget,
+} from '@reformer/builder-plugin-api';
 
-/** Файл модуля вместе с тем, что доставке нужно знать о его происхождении. */
-export interface ModuleFile {
-  readonly path: string;
-  readonly content: string;
-  readonly cls: FileClass;
-  /** `user`-файл, который производится из правил: перезаписывается, если его не правили. */
-  readonly regenerable: boolean;
-  /** Кто напечатал — для отчёта и диагностики. */
-  readonly targetId: string;
-  /** Номер шага визарда (с единицы) у файлов, размноженных по шагам. */
-  readonly step?: number;
-  /** Прежние имена этого файла (токены уже подставлены) — для переноса под новое имя. */
-  readonly legacyPaths?: readonly string[];
-  /**
-   * Откуда цель приехала.
-   *
-   * Панели это нужно, чтобы сказать: `schema/registry.ts` печатает ФАЙЛ ЧЕЛОВЕКА, а не наш.
-   * Без пометки замена встроенной цели выглядела бы как её отсутствие.
-   */
-  readonly origin: 'builtin' | 'user' | 'plugin';
-}
+/** Цель стека: контекст эмиссии — ReFormer. */
+export type CodegenTarget = SdkTarget<EmitContext>;
 
-/** Отказ одной цели. Данные, а не исключение: генерация продолжается. */
-export interface CodegenProblem {
-  readonly targetId: string;
-  readonly path: string;
-  readonly reason:
-    | 'threw'
-    | 'duplicate-path'
-    | 'escaping-path'
-    | 'no-body'
-    | 'both-bodies'
-    /**
-     * Шаблон пути не сходится с целью: у цели `each` нет токена шага, токен шага стоит у цели
-     * без `each` либо токен неизвестен.
-     */
-    | 'bad-pattern'
-    /** Файл цели из проекта не разбирается: битый заголовок либо `applies`. */
-    | 'template-invalid'
-    /**
-     * Цель заменяет встроенную, но печатает под ДРУГИМ путём (обычно — путём прежней плоской
-     * раскладки, `registry.ts` вместо `schema/registry.ts`) либо заменяет цель, которой больше
-     * нет. Предупреждение, а не отказ прогона: модуль печатается, но правки из шаблона не
-     * действуют. Ставит `overrideDrift` из `./user-targets`.
-     */
-    | 'override-path-drift';
-  readonly message: string;
-}
+/** Файл модуля — тот, что уходит хозяину на запись. */
+export type ModuleFile = CodegenFile;
+
+export type { CodegenProblem };
 
 export interface GeneratedModule {
   /** Имя каталога модуля — производное имени формы. */
@@ -116,9 +85,7 @@ export interface GeneratedModule {
 }
 
 /** Форматирование: тексты в порядке входа. Без него файлы уезжают как напечатаны. */
-export type Formatter = (
-  files: readonly { path: string; content: string }[]
-) => Promise<readonly string[]>;
+export type Formatter = CodegenFormatter;
 
 /** Путь остаётся внутри каталога модуля. */
 function isInsideModule(path: string): boolean {
@@ -265,7 +232,9 @@ function selectTargets(
       let applies = true;
       try {
         const at = instance.step === undefined ? ctx : withStep(ctx, instance.step);
-        applies = target.applies === undefined ? true : target.applies(at);
+        applies =
+          (target.applies === undefined || target.applies(at)) &&
+          (target.appliesView === undefined || target.appliesView(buildView(at)));
       } catch (error) {
         problems.push({
           targetId: target.id,

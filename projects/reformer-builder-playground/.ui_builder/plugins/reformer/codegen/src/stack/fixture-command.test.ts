@@ -1,7 +1,7 @@
 /**
  * Создание фикстуры: адрес вне каталога формы и политика «правки человека не трутся».
  *
- * @module plugins/reformer/codegen/commands/fixture-command.test
+ * @module plugins/reformer/codegen/stack/fixture-command.test
  */
 
 import { describe, expect, it } from 'vitest';
@@ -9,8 +9,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '../../../core/catalog';
-import { createFixture } from './fixture-command';
-import type { CodegenHost } from '../host';
+import { createFixture, type FixtureHost } from './fixture-command';
 
 const DOCUMENT = 'src/forms/credit/form.schema.json' as unknown as ResourceId;
 const FIXTURE_PATH = 'src/forms/credit/fixture.ts';
@@ -36,7 +35,7 @@ const LEGACY_SCHEMA = {
 };
 
 interface Harness {
-  readonly host: CodegenHost;
+  readonly host: FixtureHost;
   readonly written: Map<string, string>;
   readonly saved: string[];
   readonly opened: string[];
@@ -76,7 +75,7 @@ function harness(
       return Promise.resolve(true);
     },
     openResource: (id: ResourceId) => opened.push(id as unknown as string),
-  } as unknown as CodegenHost;
+  } as unknown as FixtureHost;
   return { host, written, saved, opened };
 }
 
@@ -180,7 +179,7 @@ describe('создание фикстуры', () => {
         written.set(id as unknown as string, text);
         return Promise.resolve();
       },
-    } as unknown as CodegenHost;
+    } as unknown as FixtureHost;
 
     const outcome = await createFixture(host, nested);
 
@@ -227,7 +226,7 @@ describe('создание фикстуры', () => {
 
   it('без порта адресации команда отказывается, а не пишет рядом со схемой', async () => {
     const { host } = harness();
-    const crippled = { ...host, resolveFromRoot: undefined } as unknown as CodegenHost;
+    const crippled = { ...host, resolveFromRoot: undefined } as unknown as FixtureHost;
 
     expect((await createFixture(crippled, DOCUMENT)).kind).toBe('no-target');
   });

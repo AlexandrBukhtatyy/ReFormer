@@ -22,9 +22,8 @@
  * @module plugins/reformer/codegen/commands/eject
  */
 
-import { formatTargetFile } from '../../../core/codegen';
-import type { ResourceId } from '@reformer/builder-plugin-api';
-import type { CodegenTarget } from '../contract';
+import { formatTargetFile } from '@reformer/builder-toolkit';
+import type { CodegenTarget, ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenHost } from '../host';
 import { USER_TARGETS_DIR } from '../pipeline/user-targets';
 

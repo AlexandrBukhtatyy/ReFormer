@@ -1,23 +1,14 @@
 /**
- * Цели из проекта: обнаружение, отказы разбора, переопределение встроенных.
+ * Цели из проекта: обнаружение, отказы разбора, применимость над видом.
+ *
+ * Печать целей из проекта настоящим стеком и устаревшие замены — в `../cross/user-targets.test`.
  *
  * @module plugins/reformer/codegen/pipeline/user-targets.test
  */
 
 import { describe, expect, it } from 'vitest';
-import { prepare } from '../../../core/codegen';
-import { builtinKit, plainSchema, wizardSchema } from '../../../core/testing';
-import { ejectTemplate } from '../commands/eject';
-import type { CodegenTarget } from '../contract';
 import { createFakeHost } from '../testing';
-import { generateModule } from './generate';
-import { BUILTIN_TARGETS } from './targets';
-import {
-  applyOverrides,
-  discoverUserTargets,
-  overrideDrift,
-  USER_TARGETS_DIR,
-} from './user-targets';
+import { discoverUserTargets, USER_TARGETS_DIR } from './user-targets';
 
 const ROOT = 'fake:';
 const DIR = [ROOT, ...USER_TARGETS_DIR].join('/');
@@ -26,10 +17,6 @@ const file = (header: string, body = 'тело\n'): string => `---\n${header}\n-
 
 function hostWith(files: Record<string, string>) {
   return createFakeHost({ root: ROOT, files });
-}
-
-function ctxOf(schema = plainSchema()) {
-  return prepare({ schema, formName: 'Заявка на кредит', kit: builtinKit() });
 }
 
 describe('обнаружение', () => {
@@ -129,7 +116,7 @@ describe('отказы называются файлом, а не проглат
 });
 
 describe('применимость спрашивается на ВИДЕ', () => {
-  it('выражение видит те же данные, что и шаблон', async () => {
+  it('выражение компилируется в применимость над видом, который подаст стек', async () => {
     const found = await discoverUserTargets(
       hostWith({
         [`${DIR}/w.eta`]: file(
@@ -137,9 +124,11 @@ describe('применимость спрашивается на ВИДЕ', () =
         ),
       })
     );
-    const applies = found.targets[0]?.applies;
-    expect(applies?.(ctxOf(wizardSchema()))).toBe(true);
-    expect(applies?.(ctxOf())).toBe(false);
+    const applies = found.targets[0]?.appliesView;
+    expect(applies?.({ layout: { isWizard: true } })).toBe(true);
+    expect(applies?.({ layout: { isWizard: false } })).toBe(false);
+    // Применимость над контекстом эмиссии у цели из проекта не бывает: контекст — у стека.
+    expect(found.targets[0]?.applies).toBeUndefined();
   });
 
   it('выражение, вернувшее не-булево, читается как «не применяется»', async () => {
@@ -153,244 +142,21 @@ describe('применимость спрашивается на ВИДЕ', () =
         ),
       })
     );
-    expect(found.targets[0]?.applies?.(ctxOf())).toBe(false);
+    expect(found.targets[0]?.appliesView?.({ names: { dir: 'loan' } })).toBe(false);
   });
 });
 
-describe('переопределение', () => {
-  const target = (id: string, over: Partial<CodegenTarget> = {}): CodegenTarget => ({
-    id,
-    path: `${id}.ts`,
-    cls: 'derived',
-    emit: () => '',
-    ...over,
-  });
-
-  it('цель, объявившая overrides, снимает названную', () => {
-    const kept = applyOverrides([
-      target('codegen.registry'),
-      target('codegen.types'),
-      target('user.registry', { overrides: 'codegen.registry' }),
-    ]);
-    expect(kept.map((t) => t.id)).toEqual(['codegen.types', 'user.registry']);
-  });
-
-  it('переопределение несуществующей цели никого не трогает', () => {
-    const all = [target('codegen.types'), target('user.x', { overrides: 'нет-такой' })];
-    expect(applyOverrides(all)).toHaveLength(2);
-  });
-
-  it('без переопределений список возвращается тем же — лишней работы нет', () => {
-    const all = [target('a'), target('b')];
-    expect(applyOverrides(all)).toBe(all);
-  });
-});
-
-describe('цель по шагам из проекта — each: step', () => {
-  it('«each» доезжает до цели, и печать размножает её по шагам визарда', async () => {
+describe('стек шаблона', () => {
+  it('«stack» заголовка доезжает до цели; без него цель годится любому стеку', async () => {
     const found = await discoverUserTargets(
       hostWith({
-        [`${DIR}/step-note.eta`]: file(
-          '{ "id": "user.step-note", "path": "steps/{step}/NOTE.md", "each": "step", "cls": "derived" }',
-          'шаг <%= it.step.index %>\n'
-        ),
+        [`${DIR}/a.eta`]: file('{ "id": "a", "stack": "rjsf", "path": "a.ts", "cls": "user" }'),
+        [`${DIR}/b.eta`]: file('{ "id": "b", "path": "b.ts", "cls": "user" }'),
       })
     );
-    expect(found.problems).toEqual([]);
-    expect(found.targets[0]).toMatchObject({ each: 'step', path: 'steps/{step}/NOTE.md' });
-
-    const module = await generateModule(found.targets, {
-      schema: wizardSchema(),
-      formName: 'Визард',
-      kit: builtinKit(),
-    });
-    expect(module.problems).toEqual([]);
-    const notes = module.files.filter((f) => f.targetId === 'user.step-note');
-    expect(notes.length).toBe(module.context.layout.steps.length);
-    expect(notes.length).toBeGreaterThan(0);
-    expect(notes.every((f) => /^steps\/[^/]+\/NOTE\.md$/.test(f.path))).toBe(true);
-  });
-
-  it('у простой формы цель по шагам не печатает ничего', async () => {
-    const target: CodegenTarget = {
-      id: 'u.step',
-      path: 'steps/{step}/x.ts',
-      each: 'step',
-      cls: 'derived',
-      template: 'x',
-    };
-    const module = await generateModule([target], {
-      schema: plainSchema(),
-      formName: 'Простая',
-      kit: builtinKit(),
-    });
-    expect(module.files).toEqual([]);
-    expect(module.problems).toEqual([]);
-  });
-});
-
-describe('замена со сдвинутым путём — override-path-drift', () => {
-  const builtinRegistry: CodegenTarget = {
-    id: 'codegen.registry',
-    path: 'schema/registry.ts',
-    cls: 'derived',
-    template: 'b',
-  };
-  const builtinStep: CodegenTarget = {
-    id: 'codegen.step-validation',
-    path: 'validation/{step}.ts',
-    each: 'step',
-    cls: 'user',
-    template: 'b',
-  };
-
-  it('замена с путём прежней плоской раскладки — предупреждение с подсказкой', () => {
-    // Прежде здесь стоял шаблон, выгруженный до переименования `renderer.behavior.ts` →
-    // `form.render.ts`. Той цели больше нет; тот же отказ сегодня — шаблон, выгруженный до
-    // перехода на папки ролей: путь в заголовке остался плоским.
-    const user: CodegenTarget = {
-      id: 'user.registry',
-      overrides: 'codegen.registry',
-      path: 'registry.ts',
-      cls: 'derived',
-      template: 'u',
-    };
-    const problems = overrideDrift([builtinRegistry, user]);
-    expect(problems).toHaveLength(1);
-    expect(problems[0]).toMatchObject({
-      targetId: 'user.registry',
-      path: 'registry.ts',
-      reason: 'override-path-drift',
-    });
-    expect(problems[0]?.message).toMatch(/прежнюю плоскую раскладку.*schema\/registry\.ts/);
-    expect(problems[0]?.message).toMatch(/Выгрузите шаблон заново/);
-  });
-
-  it('замена по шагам без «each» — тоже сдвиг', () => {
-    const user: CodegenTarget = {
-      id: 'user.step-validation',
-      overrides: 'codegen.step-validation',
-      path: 'validation/{step}.ts',
-      cls: 'user',
-      template: 'u',
-    };
-    expect(overrideDrift([builtinStep, user])[0]?.message).toMatch(/each/);
-  });
-
-  it('замена с иным путём, но не плоским — предупреждение, что модуль импортирует другое', () => {
-    const user: CodegenTarget = {
-      id: 'user.registry',
-      overrides: 'codegen.registry',
-      path: 'schema/components.ts',
-      cls: 'derived',
-      template: 'u',
-    };
-    const problems = overrideDrift([builtinRegistry, user]);
-    expect(problems[0]?.message).toMatch(/печатает «schema\/components\.ts» вместо/);
-    // Такая замена — решение человека, а не устаревший шаблон: она действует.
-    expect(applyOverrides([builtinRegistry, user]).map((t) => t.id)).toEqual(['user.registry']);
-  });
-
-  it('замена по тому же пути — молчит', () => {
-    const user: CodegenTarget = {
-      id: 'user.registry',
-      overrides: 'codegen.registry',
-      path: 'schema/registry.ts',
-      cls: 'derived',
-      template: 'u',
-    };
-    expect(overrideDrift([builtinRegistry, user])).toEqual([]);
-    // Порядок в списке значения не имеет: реестр отдаёт вклады по `order`.
-    expect(overrideDrift([user, builtinRegistry])).toEqual([]);
-  });
-});
-
-describe('шаблон, выгруженный под прежний контракт, не роняет генерацию', () => {
-  /** Тело прежнего шаблона реестра: читает поля вида, которых больше нет. */
-  const STALE_BODY = "import { Wizard } from '<%= it.layout.imports.wizard %>';\n";
-
-  const staleRegistry: CodegenTarget = {
-    id: 'user.registry',
-    overrides: 'codegen.registry',
-    path: 'registry.ts',
-    cls: 'derived',
-    template: STALE_BODY,
-    origin: 'user',
-  };
-  const staleShim: CodegenTarget = {
-    id: 'user.wizard',
-    overrides: 'codegen.wizard',
-    path: 'wizard.tsx',
-    cls: 'derived',
-    template: '<%= it.wizard.symbol %>\n',
-    origin: 'user',
-  };
-  const staleStepRender: CodegenTarget = {
-    id: 'user.step-render',
-    overrides: 'codegen.step-render',
-    path: 'steps/{step}/form.render.ts',
-    each: 'step',
-    cls: 'user',
-    template: '<%= it.step.render.imports.join() %>\n',
-    origin: 'user',
-  };
-
-  it('устаревшая замена не побеждает: модуль печатается встроенными целями целиком', async () => {
-    const targets = applyOverrides([...BUILTIN_TARGETS, staleRegistry, staleShim, staleStepRender]);
-    expect(targets.map((t) => t.id)).toEqual(BUILTIN_TARGETS.map((t) => t.id));
-
-    const module = await generateModule(targets, {
-      schema: wizardSchema(),
-      formName: 'Визард',
-      kit: builtinKit(),
-    });
-    // Ни отказа печати, ни файлов прежней раскладки, ни дыры на месте встроенной цели.
-    expect(module.problems).toEqual([]);
-    const paths = module.files.map((f) => f.path);
-    expect(paths).toContain('schema/registry.ts');
-    expect(paths).not.toContain('registry.ts');
-    expect(paths).not.toContain('wizard.tsx');
-    expect(paths.some((p) => p.endsWith('form.render.ts'))).toBe(false);
-    expect(module.files.find((f) => f.path === 'schema/registry.ts')?.origin).toBe('builtin');
-  });
-
-  it('и каждая названа находкой с понятным текстом', () => {
-    const problems = overrideDrift([...BUILTIN_TARGETS, staleRegistry, staleShim, staleStepRender]);
-    expect(problems.map((p) => [p.targetId, p.reason])).toEqual([
-      ['user.registry', 'override-path-drift'],
-      ['user.wizard', 'override-path-drift'],
-      ['user.step-render', 'override-path-drift'],
+    expect(found.targets.map((t) => [t.id, t.stack])).toEqual([
+      ['a', 'rjsf'],
+      ['b', undefined],
     ]);
-    const [registry, shim, stepRender] = problems.map((p) => p.message);
-    // Живая цель, прежний путь: что печатает шаблон, что импортирует модуль, что делать.
-    expect(registry).toContain('«registry.ts»');
-    expect(registry).toContain('«schema/registry.ts»');
-    expect(registry).toContain('Шаблон не применён');
-    // Снятая цель: чего больше нет и что пришло на смену.
-    expect(shim).toContain('«codegen.wizard», которой больше нет');
-    expect(shim).toContain('schema/registry.ts');
-    expect(stepRender).toContain('«codegen.step-render», которой больше нет');
-    expect(stepRender).toContain('behavior/index.ts');
-  });
-
-  it('свежевыгруженный шаблон той же цели — действует и молчит', async () => {
-    const host = hostWith({});
-    const outcome = await ejectTemplate({ host, targets: () => BUILTIN_TARGETS }, 'codegen.types');
-    expect(outcome.kind).toBe('written');
-    const found = await discoverUserTargets(host);
-    expect(found.problems).toEqual([]);
-
-    const all = [...BUILTIN_TARGETS, ...found.targets];
-    expect(overrideDrift(all)).toEqual([]);
-    const module = await generateModule(applyOverrides(all), {
-      schema: plainSchema(),
-      formName: 'Заявка на кредит',
-      kit: builtinKit(),
-    });
-    expect(module.problems).toEqual([]);
-    // Путь в заголовке выгружен шаблоном (`types/{dir}.ts`) — файл лёг туда же, куда клала
-    // встроенная цель, и печатает его уже файл человека.
-    const types = module.files.find((f) => f.path === 'types/zayavka-na-kredit.ts');
-    expect(types).toMatchObject({ targetId: 'user.types', origin: 'user' });
   });
 });

@@ -4,32 +4,31 @@
  * ## Что изменилось
  *
  * Раньше весь {@link CodegenHost} собирала композиция (`shell/boot/ports/codegen`): она знала,
- * что генерации нужны документы, каталог кита, листинг каталога и путевая арифметика, — и
- * подставляла всё это параметром. Плагину из каталога проекта такой порт не соберёт никто,
- * поэтому написать «второй кодоген» было нельзя в принципе.
+ * что генерации нужны документы, листинг каталога и путевая арифметика, — и подставляла всё это
+ * параметром. Плагину из каталога проекта такой порт не соберёт никто, поэтому написать «второй
+ * кодоген» было нельзя в принципе.
  *
  * Теперь тот же объект собирается ЗДЕСЬ, из служб контекста активации. Ни одна из них
- * не является привилегированной: все четыре (документы, записи рабочей области, активный кит,
- * словарь) видны любому плагину через `ctx`.
+ * не является привилегированной, кроме сохранения: документы, записи рабочей области, служба
+ * китов и словарь видны любому плагину через `ctx`.
+ *
+ * ## Чего здесь нет
+ *
+ * Каталога кита и правил формы: оба — знание стека, и их читает стек (`CodegenStack`). Кит
+ * здесь — только подпись в панели, прямо у службы китов SDK.
  *
  * ## Что осталось порту и почему
  *
- * Два члена: `format` и `rulesOf`. Это не остаток переноса, а названная неполнота.
+ * Один член — `format`. Это не остаток переноса, а названная неполнота: форматирование требует
+ * конфигурации prettier из открытого проекта, а её чтение не написано.
  *
- * `save` отсюда ушёл: он и был тем местом, ради которого завели политику прав. Теперь это
- * привилегированная служба (`WorkspaceSaveServiceToken`), плагин просит право `workspace.save`
- * манифестом, а человек его подтверждает.
- *
- * - **`format`** требует конфигурации prettier из открытого проекта — её чтение не написано.
- * - **`rulesOf`** — сайдкар правил формы, который в v2 не проброшен ни к кому.
+ * `save` — привилегированная служба (`WorkspaceSaveServiceToken`): плагин просит право
+ * `workspace.save` манифестом, а человек его подтверждает.
  *
  * @module plugins/reformer/codegen/workspace
  */
 
-import { projectCatalog, type CatalogEntry } from '../../core/catalog';
-import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import {
-  defineCapability,
   KitsCapability,
   DocumentsServiceToken,
   useActiveDocument,
@@ -38,57 +37,12 @@ import {
   WorkspaceSaveServiceToken,
   type Disposable,
   type Document,
+  type KitDescriptor,
   type ModelDocument,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './host';
-import { readFormRules } from './pipeline/rules';
-
-/** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
-const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
-
-/**
- * Один файл напечатанного модуля: путь от КОРНЯ МОДУЛЯ формы и содержимое.
- *
- * Модуль разложен по папкам ролей: документ формы — `schema/form.schema.json`, страница —
- * `<Тип>.tsx`, реэкспорты — `index.ts`, остальное — в `application/`, `model/`, `validation/`,
- * `behavior/`, … Потребитель кладёт файлы как есть, от каталога формы.
- */
-export interface PrintedFile {
-  readonly path: string;
-  readonly content: string;
-}
-
-/** Чем затравка дополняет схему: правила формы и мок источников данных. */
-export interface PrintSeed {
-  readonly rules?: unknown;
-  readonly mock?: unknown;
-  /** Вынести шаги визарда в свои файлы — шаблон «Пошаговая форма». */
-  readonly splitSteps?: boolean;
-}
-
-/**
- * Возможность «напечатать модуль формы» — то, ради чего у генерации кода есть потребители
- * помимо её собственной панели.
- *
- * Заведена ради шаблонов: встроенный шаблон формы — это схема, которую надо превратить
- * в модуль, и печатает его ровно тот же конвейер, что и панель экспорта. Раньше переходник
- * жил в композиции и тянул кодоген динамическим импортом МИМО состава: профиль без генерации
- * всё равно печатал бы шаблоны её кодом. Теперь это возможность, и «нет кодогена — нет
- * встроенных шаблонов» стало честной деградацией вместо тихого исключения из правил.
- *
- * Версия `1.0.0` — исходная.
- */
-export const ModulePrinterCapability = defineCapability<ModulePrinterService>({
-  id: 'reformer.codegen.printer',
-  version: '1.0.0',
-});
-
-export interface ModulePrinterService {
-  /** Схема и имя формы — набор файлов модуля. Пустой список означает «печатать нечем». */
-  print(schema: unknown, formName: string, seed?: PrintSeed): Promise<readonly PrintedFile[]>;
-}
 
 /**
  * Возможность «сгенерировать код формы» — прогон панели экспорта по заказу другого плагина.
@@ -98,29 +52,28 @@ export { ModuleGeneratorCapability } from '@reformer/builder-plugin-api';
 export type { ModuleGeneratorService } from '@reformer/builder-plugin-api';
 
 /** То, чему в возможностях места пока нет. Всё остальное собирается из служб. */
-export type CodegenGaps = Pick<CodegenHost, 'format' | 'rulesOf'>;
+export type CodegenGaps = Pick<CodegenHost, 'format'>;
 
 /**
  * Документ службы в объёме генерации.
  *
  * Переходник, а не приведение типа: у документа службы модель — `getModel()` модельного вида,
- * а генерации нужна модель, СОГЛАСОВАННАЯ с буфером (`model()`), и раскладка составного
- * документа. Приведение `as CodegenDocument` давало объект без `model` — и первый же прогон
- * падал бы на вызове.
+ * а генерации нужна модель, СОГЛАСОВАННАЯ с буфером (`model()`), раскладка составного документа
+ * и вид ресурса, по которому выбирается стек. Вид — тот же, что оболочка кладёт в
+ * `activeResourceKind`: провайдер модели у модельного документа, тип содержимого у текстового.
  */
 export function asCodegenDocument(document: Document): CodegenDocument {
   const modelDocument = document.kind === 'model' ? (document as ModelDocument) : null;
   return {
     id: document.id,
     ref: document.ref,
-    kind: document.kind,
+    resourceKind: modelDocument?.providerId ?? document.ref.mediaType,
     getText: () => document.getText(),
     model: () =>
       modelDocument !== null && modelDocument.getSyncState() === 'synced'
         ? modelDocument.getModel()
         : undefined,
     composition: () => modelDocument?.getComposition?.(),
-    onDidChangeContent: (cb) => document.onDidChangeContent(cb),
   };
 }
 
@@ -136,13 +89,7 @@ export function asCodegenDocument(document: Document): CodegenDocument {
 export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): CodegenHost {
   const documents = ctx.services.require(DocumentsServiceToken);
   const files = ctx.services.require(WorkspaceFilesServiceToken);
-  // Кит — служба китов SDK; записи и дескриптор — ReFormer-проекция её сырого каталога:
-  // служба нейтральна, а узлы по умолчанию и синтетика билдера — знание стека.
-  const kit = () => ctx.services.get(KitsCapability);
-  const projection = () => {
-    const service = kit();
-    return service === undefined ? undefined : projectCatalog(service.catalogJson());
-  };
+  const kits = () => ctx.services.get(KitsCapability);
 
   return {
     // Именованные функции: правила хуков опознают хук по имени объявления, а метод
@@ -164,24 +111,16 @@ export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): Co
     sourceOf: (id: ResourceId): CodegenSourceCapabilities | null =>
       documents.hasProject() ? { write: files.canWrite(id) } : null,
 
-    catalog: () => projection()?.entries ?? NO_CATALOG,
-    kit: (): KitDescriptor | null => projection()?.descriptor ?? null,
-    onDidChangeKit: (cb: () => void): Disposable => kit()?.onDidChange(cb) ?? { dispose: () => {} },
+    kit: (): KitDescriptor | null => kits()?.descriptor() ?? null,
+    onDidChangeKit: (cb: () => void): Disposable =>
+      kits()?.onDidChange(cb) ?? { dispose: () => {} },
 
     parentOf: files.parentOf,
     resolve: files.resolve,
-    resolveFromRoot: files.fromRoot,
     projectRoot: files.projectRoot,
     exists: files.exists,
     list: files.list,
     readText: files.readText,
-
-    // Правила — файл рядом с документом; читается на каждый прогон, кэша нет: его правят
-    // ассистент, человек и быстрые исправления, и прогон обязан видеть последний текст.
-    rulesOf: (id: ResourceId) => {
-      const document = documents.documentOf(id);
-      return document === null ? null : readFormRules(files, id, document.ref.path);
-    },
 
     // Запись — ОДНОЙ дверью, той же, которой правит человек и ассистент: пометка происхождения
     // живёт у неё, и второй путь означал бы записи, не попавшие в журнал как чужие.

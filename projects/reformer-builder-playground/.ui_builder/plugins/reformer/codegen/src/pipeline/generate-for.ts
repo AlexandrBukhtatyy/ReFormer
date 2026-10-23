@@ -17,18 +17,18 @@
  * @module plugins/reformer/codegen/pipeline/generate-for
  */
 
-import { moduleRootPathOf } from '../../../core/codegen';
 import type {
+  CodegenProblem,
+  CodegenTarget,
   GenerateReport,
   GenerateRequest,
   GenerateSkipReason,
   ResourceId,
 } from '@reformer/builder-plugin-api';
-import type { CodegenTarget } from '../contract';
 import type { CodegenHost } from '../host';
-import type { CodegenProblem } from './generate';
+import { stackText, type Stacks } from '../stacks';
 import { runCodegen } from './run';
-import type { CodegenStore } from './state';
+import type { CodegenError, CodegenStore } from './state';
 
 // Заказ, отчёт и дверь записи — контракт возможности генерации в SDK: его берёт заказчик.
 export type {
@@ -43,11 +43,21 @@ class RefusedWrite extends Error {}
 
 export interface GenerateForOptions {
   readonly host: CodegenHost;
+  readonly stacks: Stacks;
   readonly targets: readonly CodegenTarget[];
   readonly store: CodegenStore;
   readonly problems?: readonly CodegenProblem[];
-  /** Текст отказа по ключу словаря кодогена. */
-  readonly translate: (key: string, params?: Readonly<Record<string, string>>) => string;
+  /** Текст отказа по ключу словаря хозяина генерации. */
+  readonly translate: (key: string, params?: Readonly<Record<string, unknown>>) => string;
+}
+
+/** Отказ словами действующей локали — словарём хозяина либо стека, чей это ключ. */
+function errorText(options: GenerateForOptions, error: CodegenError): string {
+  const text =
+    error.stack === undefined
+      ? options.translate(error.key, error.params)
+      : stackText(options.stacks, error.stack, error);
+  return error.detail === undefined ? text : `${text} ${error.detail}`;
 }
 
 /** Напечатать и записать модуль формы `documentId` дверью заказчика. Ничего не бросает. */
@@ -75,6 +85,7 @@ export async function generateFor(
   try {
     await runCodegen({
       host: scoped,
+      stacks: options.stacks,
       targets: options.targets,
       documentId,
       store,
@@ -91,12 +102,9 @@ export async function generateFor(
   }
 
   const state = store.get();
-  // Путь документа читается ПОСЛЕ прогона: документ закрыли — прогон уже сказал об этом отказом.
-  const document = host.documentOf(documentId);
-  if (state.errorKey !== null || state.delivery === null || document === null) {
-    const key = state.errorKey ?? 'error.failed';
-    const detail = state.errorDetail === undefined ? '' : ` ${state.errorDetail}`;
-    return { ok: false, error: key, message: `${translate(key, state.errorParams)}${detail}` };
+  if (state.error !== null || state.delivery === null || state.rootPath === null) {
+    const error = state.error ?? { key: 'error.failed' };
+    return { ok: false, error: error.key, message: errorText(options, error) };
   }
 
   const { delivery } = state;
@@ -111,7 +119,7 @@ export async function generateFor(
   return {
     ok: true,
     formName: state.formName,
-    dir: moduleRootPathOf(document.ref.path),
+    dir: state.rootPath,
     written: delivery.written,
     skipped,
     failed,

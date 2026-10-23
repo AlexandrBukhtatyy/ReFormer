@@ -49,44 +49,50 @@ export {
   codegenCommands,
   codegenDocumentMenuItems,
   codegenPanel,
-  panelVisible,
+  userTargetCommands,
   CODEGEN_PANEL_ID,
   CODEGEN_PLUGIN_ID,
   DEFAULT_CODEGEN_SLOT,
+  EJECT_TEMPLATE_COMMAND_ID,
   GENERATE_COMMAND_ID,
+  REFRESH_TARGETS_COMMAND_ID,
   type CodegenPluginOptions,
 } from './plugin';
 
 export {
   codegenContextCommands,
-  codegenContextMenuItems,
-  findSchemaIn,
   generateInto,
   generateIntoArgs,
+  notifyLayout,
   notifyOutcome,
-  schemaCandidates,
-  CODEGEN_CONTEXT_SUBMENU,
   GENERATE_INTO_COMMAND_ID,
-} from './commands/context-menu';
+} from './commands/generate-into';
 export type {
-  FoundSchema,
   GenerateIntoArgs,
   GenerateIntoDeps,
   GenerateIntoOutcome,
-} from './commands/context-menu';
+} from './commands/generate-into';
+export { ejectTemplate, slugOf, type EjectOutcome } from './commands/eject';
 
-export { CodegenTargetPoint } from './contract';
-export type { CodegenTarget, ExtensionPointRef, TargetCatalog } from './contract';
+export { CodegenStackPoint, CodegenTargetPoint } from './contract';
+export type { CodegenStack, CodegenTarget } from './contract';
 
-export { BUILTIN_TARGETS } from './pipeline/targets';
+export {
+  overrideProblems,
+  stackById,
+  stackDocumentVisible,
+  stackFor,
+  stackOfKind,
+  stackText,
+  targetsFor,
+  type StackEntry,
+  type Stacks,
+} from './stacks';
 
-export { generateModule } from './pipeline/generate';
-export type { CodegenProblem, Formatter, GeneratedModule, ModuleFile } from './pipeline/generate';
+export { deliverInto, DeliveryRefusedError, SourceReadOnlyError } from './pipeline/deliver';
+export type { DeliveryOptions, DeliveryResult, LegacyFile, SkipReason } from './pipeline/deliver';
 
-export { deliverInto, deliverModule, SourceReadOnlyError } from './pipeline/deliver';
-export type { DeliveryResult, SkipReason } from './pipeline/deliver';
-
-export { defaultFormName, runCodegen, schemaOf } from './pipeline/run';
+export { runCodegen, stackError, type RunOptions } from './pipeline/run';
 export { generateFor } from './pipeline/generate-for';
 export type {
   GenerateReport,
@@ -94,6 +100,15 @@ export type {
   GenerateSkipReason,
   GenerateWrite,
 } from './pipeline/generate-for';
+export { createCodegenSessions } from './pipeline/state';
+export type {
+  CodegenError,
+  CodegenSessions,
+  CodegenState,
+  CodegenStore,
+  ReportedFile,
+} from './pipeline/state';
+export { discoverUserTargets, USER_TARGETS_DIR, type UserTarget } from './pipeline/user-targets';
 
 export { CODEGEN_MESSAGES } from './messages';
 
@@ -107,5 +122,8 @@ export type {
 
 // Рабочая область генерации собирается из возможностей ЕЮ САМОЙ; композиции остаются
 // названные дыры (`CodegenGaps`) — см. шапку `./workspace`.
-export { codegenWorkspace } from './workspace';
+export { asCodegenDocument, codegenWorkspace } from './workspace';
 export type { CodegenGaps } from './workspace';
+
+// Стек ReFormer — пока в этом же пакете (шаг 2b раскола).
+export * from './stack';

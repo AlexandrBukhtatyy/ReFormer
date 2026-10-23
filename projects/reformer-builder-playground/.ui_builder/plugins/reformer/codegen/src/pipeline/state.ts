@@ -11,9 +11,14 @@
  * @module plugins/reformer/codegen/pipeline/state
  */
 
-import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
+import type {
+  CodegenFileClass,
+  CodegenProblem,
+  CodegenTargetOrigin,
+  Disposable,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import type { DeliveryResult } from './deliver';
-import type { CodegenProblem } from './generate';
 
 /** Фаза работы. `idle` — ещё не запускали или уже показали результат. */
 export type CodegenPhase = 'idle' | 'running';
@@ -21,10 +26,27 @@ export type CodegenPhase = 'idle' | 'running';
 /** Файл в отчёте: чем он является и КТО его напечатал. */
 export interface ReportedFile {
   readonly path: string;
-  readonly cls: 'derived' | 'user';
+  readonly cls: CodegenFileClass;
   /** Цель-печатник: по нему панель предлагает выгрузить её шаблон. */
   readonly targetId: string;
-  readonly origin: 'builtin' | 'user' | 'plugin';
+  readonly origin: CodegenTargetOrigin;
+}
+
+/**
+ * Отказ, из-за которого прогон не состоялся.
+ *
+ * Ключ словаря ХОЗЯИНА (документ закрыли, источник не принимает запись) либо СТЕКА (файлы шагов
+ * не собираются, кит модуля не тот): стек говорит своими словами, и панель переводит его ключ
+ * его же словарём.
+ */
+export interface CodegenError {
+  readonly key: string;
+  /** Подстановки в текст отказа: `error.kit-mismatch` называет кит модуля и активный. */
+  readonly params?: Readonly<Record<string, string | number>>;
+  /** Подробность, которую ключ словаря не передаёт (какой файл шага не собрался). */
+  readonly detail?: string;
+  /** Стек, чей это ключ. Нет — ключ словаря хозяина. */
+  readonly stack?: string;
 }
 
 export interface CodegenState {
@@ -37,12 +59,11 @@ export interface CodegenState {
   readonly snippet: string;
   readonly problems: readonly CodegenProblem[];
   readonly delivery: DeliveryResult | null;
-  /** Отказ, из-за которого прогон не состоялся. Ключ словаря плагина. */
-  readonly errorKey: string | null;
-  /** Подробность отказа, которую ключ словаря не передаёт (какой файл шага не собрался). */
-  readonly errorDetail?: string;
-  /** Подстановки в текст отказа: `error.kit-mismatch` называет кит модуля и активный. */
-  readonly errorParams?: Readonly<Record<string, string>>;
+  readonly error: CodegenError | null;
+  /** Стек, который печатал последний прогон: его словарём переводятся заметки записи. */
+  readonly stack: string | null;
+  /** Корень модуля путём от корня проекта — для отчёта заказчику генерации. */
+  readonly rootPath: string | null;
   /**
    * Данные, которые видели шаблоны (`it`). `null` — прогона ещё не было.
    *
@@ -58,7 +79,9 @@ const INITIAL: CodegenState = Object.freeze({
   snippet: '',
   problems: [],
   delivery: null,
-  errorKey: null,
+  error: null,
+  stack: null,
+  rootPath: null,
   view: null,
 });
 
