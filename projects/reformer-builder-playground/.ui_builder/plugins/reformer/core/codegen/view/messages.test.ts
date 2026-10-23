@@ -135,6 +135,26 @@ describe('словарь замечаний: какие коды в него п�
     ]);
   });
 
+  it('текст обычного правила со своим кодом заменяет текст по умолчанию на том же месте', () => {
+    // Так правило приходит от ассистента: «телефон обязателен — „Укажите телефон“». Запись
+    // валидатора с текстом локали появляется первой, и без замены текст правила терялся как повтор.
+    const { entries } = viewOf({
+      rules: rulesOf([
+        { target: 'email', rules: ['email'] },
+        {
+          target: 'fullName',
+          rules: ["required({ code: 'fullName.required' })"],
+          code: 'fullName.required',
+          message: 'Укажите имя',
+        },
+      ]),
+    }).messages;
+    expect(entries).toEqual([
+      { code: 'email', text: ru.messages['validation.email'] },
+      { code: 'fullName.required', text: 'Укажите имя' },
+    ]);
+  });
+
   it('кросс-полевая и асинхронная проверки кладут свой код с текстом правила', () => {
     const { entries } = viewOf({
       rules: rulesOf([

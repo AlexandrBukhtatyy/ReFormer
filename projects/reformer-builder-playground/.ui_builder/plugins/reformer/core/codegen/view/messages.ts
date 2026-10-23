@@ -193,8 +193,19 @@ function entriesOf(rule: string, collection = false): readonly MessageEntryView[
 export function messagesView(ctx: EmitContext): MessagesView {
   const seen = new Set<string>();
   const entries: MessageEntryView[] = [];
-  const add = (entry: MessageEntryView): void => {
-    if (seen.has(entry.code)) return;
+  /**
+   * @param own - Текст, заданный правилом: он заменяет стандартный текст того же кода. Свой код
+   *   обычного правила (`required({ code: 'phone.required' })`) сначала приходит записью валидатора
+   *   с текстом локали, и без замены текст правила отбрасывался как повтор.
+   */
+  const add = (entry: MessageEntryView, own = false): void => {
+    if (seen.has(entry.code)) {
+      if (own) {
+        const at = entries.findIndex((existing) => existing.code === entry.code);
+        entries[at] = entry;
+      }
+      return;
+    }
     seen.add(entry.code);
     entries.push(entry);
   };
@@ -203,14 +214,14 @@ export function messagesView(ctx: EmitContext): MessagesView {
     const collections = collectionPaths(ctx);
     for (const rule of ctx.rules.validation) {
       const collection = targetsCollection(rule, collections);
-      rule.rules.flatMap((entry) => entriesOf(entry, collection)).forEach(add);
+      rule.rules.flatMap((entry) => entriesOf(entry, collection)).forEach((entry) => add(entry));
       // Кросс-полевая и асинхронная проверки несут свой код и текст: валидатора ядра за ними нет,
-      // и взять текст больше неоткуда.
+      // и взять текст больше неоткуда. У обычного правила текст — его единственной проверки.
       const code = rule.code ?? (rule.cross !== undefined ? 'cross' : undefined);
-      if (code !== undefined && rule.message !== undefined) add({ code, text: rule.message });
+      if (code !== undefined && rule.message !== undefined) add({ code, text: rule.message }, true);
     }
   } else if (ctx.collected.requiredPaths.length > 0) {
-    entriesOf('required').forEach(add);
+    entriesOf('required').forEach((entry) => add(entry));
   }
 
   const dictionary = Object.fromEntries(entries.map((entry) => [entry.code, entry.text]));
