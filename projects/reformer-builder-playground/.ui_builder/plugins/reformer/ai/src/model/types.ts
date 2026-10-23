@@ -15,6 +15,25 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import type {
+  FormAgentTool,
+  FormAskAnswer,
+  FormAskOption,
+  FormAskOutcome,
+  FormAskQuestion,
+  FormChangeOp,
+  FormChangeOpKind,
+  FormCreateOutcome,
+  FormCreateRequest,
+  FormResourceReadResult,
+  FormTemplateInfo,
+  FormToolContext,
+  FormToolError,
+  FormToolErrorCode,
+  FormToolOutcome,
+  FormTurnScope,
+  FormTurnWriteResult,
+} from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { FormRules } from '../../../core/form-model';
 import type { ValidateFormSchema } from './validate';
@@ -241,71 +260,17 @@ export const RESOURCE_READ_BUDGET = FILE_READ_BUDGET;
 export const ATTACHMENT_BUDGET = 12000;
 
 /**
- * Код ошибки инструмента. Коды существуют, чтобы модель чинилась САМА: по коду и `suggestions`
- * она понимает, что именно поправить, вместо «что-то пошло не так».
+ * Код ошибки, ошибка и правка инструмента — контракт стека форм в SDK
+ * (`@reformer/builder-plugin-api`, `FormToolErrorCode` и соседи): их читает ассистент, общий
+ * для стеков, а пишут инструменты стека.
  */
-export type ToolErrorCode =
-  /** Имени нет в каталоге. `suggestions` — похожие имена. */
-  | 'UNKNOWN_COMPONENT'
-  /** `componentProps` не прошли схему компонента. */
-  | 'INVALID_PROPS'
-  /** Указатель никуда не ведёт либо ведёт не в тот узел (проверка `expect`). */
-  | 'STALE_POINTER'
-  /** Родитель не принимает детей либо слот не существует. */
-  | 'INVALID_PARENT'
-  /** Результат не прошёл строгий гейт валидации. */
-  | 'SCHEMA_INVALID'
-  /** Аргументы вызова не соответствуют `inputSchema`. */
-  | 'INVALID_PARAMS'
-  /** Инструмента с таким именем нет. `suggestions` — похожие имена. */
-  | 'UNKNOWN_TOOL'
-  /** Инструмент бросил исключение. Цикл продолжается: модель получает ошибку и пробует иначе. */
-  | 'TOOL_FAILED'
-  // ── Режим файлов ──
-  /** Путь выводит за модуль формы. */
-  | 'PATH_REFUSED'
-  /** Файла нет. `suggestions` — похожие пути модуля. */
-  | 'FILE_NOT_FOUND'
-  /** `old_string` правки не найден в файле либо найден не один раз. */
-  | 'EDIT_MISMATCH'
-  /** Файл не читали в этой попытке хода или его изменили после чтения. */
-  | 'STALE_FILE'
-  /** Код правки не прошёл проверку `@reformer/*`-API. */
-  | 'CODE_INVALID'
-  // ── Вклады плагинов: тот же словарь, что `AssistantErrorCode` SDK ──
-  /** Ресурса или записи нет. `suggestions` — похожие адреса. */
-  | 'NOT_FOUND'
-  /** Отказано по правилу — повторять тот же вызов бессмысленно. */
-  | 'REFUSED'
-  /** Такое не читается и не делается (например, двоичный файл). */
-  | 'UNSUPPORTED'
-  /** Слишком велико — читать частями. */
-  | 'TOO_LARGE'
-  /** Сейчас недоступно: проекта нет, доступ отозван, плагин выключен. */
-  | 'UNAVAILABLE';
-
-/** Структурированная ошибка инструмента. */
-export interface ToolError {
-  code: ToolErrorCode;
-  message: string;
-  /** Кандидаты на замену (имена компонентов, имена инструментов). */
-  suggestions?: string[];
-}
-
-/** Вид операции для списка изменений в предпросмотре. */
-export type ChangeOpKind = 'add' | 'update' | 'remove' | 'move';
-
-/** Одна операция хода агента — строка списка изменений в предпросмотре. */
-export interface ChangeOp {
-  kind: ChangeOpKind;
-  /** Указатель затронутого узла ПОСЛЕ операции. */
-  ref: string;
-  /** Человекочитаемое описание: «Email (Input)», «Email → обязательное». */
-  summary: string;
-}
+export type ToolErrorCode = FormToolErrorCode;
+export type ToolError = FormToolError;
+export type ChangeOpKind = FormChangeOpKind;
+export type ChangeOp = FormChangeOp;
 
 /** Вход инструмента: черновик хода и база, от которой считается diff. */
-export interface ToolContext {
+export interface ToolContext extends FormToolContext {
   /** Схема черновика — то, что инструмент читает и правит. НЕ схема активной вкладки. */
   readonly draft: JsonFormSchema;
   /** Схема на начало хода: база для diff и для проверки конфликта при применении. */
@@ -355,134 +320,27 @@ export interface ToolContext {
   readonly turn?: TurnScope;
 }
 
-/** Исход записи инструмента плагина через {@link TurnScope.write}. */
-export type TurnWriteResult =
-  | { readonly ok: true; readonly op: ChangeOp }
-  | {
-      readonly ok: false;
-      /** Те же коды, что `AssistantWriteRefusal` SDK. */
-      readonly code: 'read-only' | 'refused' | 'turn-ended' | 'unavailable' | 'failed';
-      readonly message: string;
-    };
-
-/** Прочитанный ресурс — целиком; листает его `read_resource`. */
-export type ResourceReadResult =
-  | { readonly ok: true; readonly text: string; readonly mediaType: string }
-  | { readonly ok: false; readonly error: ToolError };
-
 /**
- * Что ход даёт вызову, которому мало черновика: инструменту плагина и `read_resource`.
- *
- * Структурный тип, а не импорт контракта SDK: ядро не зависит от `@reformer/builder-plugin-api`
- * (см. `../tools/command-tools`), а собирает ход мост, которому SDK виден.
+ * Ход, вопросы человеку, шаблоны и создание формы — контракт SDK (`FormTurnScope` и соседи): их
+ * даёт ассистент, общий для стеков.
  */
-export interface TurnScope {
-  /** Срабатывает, когда ход останавливают. */
-  readonly signal: AbortSignal;
-  /**
-   * Записать ресурс от имени хода: пометка `{ origin: 'agent', txId }` и учёт для отмены хода.
-   * `caller.readOnly` — объявлен ли вызывающий только читающим: такому запись отказана.
-   */
-  write(
-    resource: string,
-    text: string,
-    caller: { readonly readOnly: boolean }
-  ): Promise<TurnWriteResult>;
-  /** Прочитать ресурс плагина по адресу `<схема>:<остаток>`. */
-  readResource(uri: string): Promise<ResourceReadResult>;
-  /**
-   * Спросить человека и дождаться ответа — тем же ходом (`ask_user`). Нет — спрашивать некого:
-   * ход без панели (тесты, замеры) идёт на допущениях.
-   */
-  ask?(questions: readonly AskQuestion[]): Promise<AskOutcome>;
-  /**
-   * Заказать генерацию кода формы хода (`generate_code`). Идёт она ОДИН раз и после правок хода:
-   * модуль печатается из того, что легло. Нет — генерации кода в сборке нет.
-   */
-  generate?(): void;
-  /** Шаблоны форм (`list_templates`). Нет — шаблонов в сборке нет. */
-  templates?(): Promise<readonly TemplateInfo[]>;
-  /**
-   * Создать форму (`create_form`): мост открывает её и продолжает ход на ней, а текущая попытка
-   * кончается. Нет — создавать формы в сборке нечем.
-   */
-  createForm?(request: CreateFormRequest): Promise<CreateFormOutcome>;
-}
-
-/** Шаблон формы в списке `list_templates`. */
-export interface TemplateInfo {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-}
-
-/** Что просит создать `create_form`. */
-export interface CreateFormRequest {
-  /** Имя модуля — имя его каталога. */
-  readonly name: string;
-  readonly template?: string;
-  /** Каталог для модуля от корня проекта. */
-  readonly folder?: string;
-}
-
-/** Исход `create_form`. */
-export type CreateFormOutcome =
-  | { readonly ok: true; readonly path: string; readonly template: string | null }
-  | {
-      readonly ok: false;
-      readonly code: ToolErrorCode;
-      readonly message: string;
-      readonly suggestions?: string[];
-    };
-
-/** Вариант ответа на вопрос модели. */
-export interface AskOption {
-  readonly label: string;
-  /** Пояснение под вариантом — что он значит для формы. */
-  readonly description?: string;
-}
-
-/** Вопрос модели человеку. */
-export interface AskQuestion {
-  readonly question: string;
-  /** Короткая метка вопроса — когда их в карточке несколько. */
-  readonly header?: string;
-  readonly options: readonly AskOption[];
-  /** Можно выбрать несколько вариантов. */
-  readonly multiSelect: boolean;
-}
-
-/** Ответ на один вопрос: выбранные варианты и/или свой текст. */
-export interface AskAnswer {
-  readonly selected: readonly string[];
-  readonly text?: string;
-}
-
-/**
- * Чем кончился вопрос: ответы по порядку вопросов, исчерпанный предел вопросов хода или отмена —
- * ход остановили, не дождавшись ответа.
- */
-export type AskOutcome = readonly AskAnswer[] | 'limit' | 'cancelled';
+export type TurnWriteResult = FormTurnWriteResult;
+export type ResourceReadResult = FormResourceReadResult;
+export type TurnScope = FormTurnScope;
+export type TemplateInfo = FormTemplateInfo;
+export type CreateFormRequest = FormCreateRequest;
+export type CreateFormOutcome = FormCreateOutcome;
+export type AskOption = FormAskOption;
+export type AskQuestion = FormAskQuestion;
+export type AskAnswer = FormAskAnswer;
+export type AskOutcome = FormAskOutcome;
 
 /** Результат вызова инструмента. */
-export interface ToolOutcome {
-  ok: boolean;
-  /** Текст для модели. Реестр обрезает до {@link TOOL_TEXT_BUDGET}. */
-  text: string;
+export interface ToolOutcome extends FormToolOutcome {
   /** Новая схема черновика. Есть только у write-инструментов при `ok: true`. */
   schema?: JsonFormSchema;
   /** Новые правила формы. Есть только у инструментов, правящих правила, при `ok: true`. */
   rules?: FormRules;
-  /**
-   * Строки для списка изменений. Есть только у write-инструментов при `ok: true`.
-   *
-   * Список, а не одна операция: инструменты принимают пакет (несколько узлов за вызов), а
-   * предпросмотр обязан показывать каждую правку отдельной строкой — «добавлено 12 полей» одной
-   * строкой невозможно ни проверить, ни отменить осмысленно.
-   */
-  ops?: readonly ChangeOp[];
-  /** Заполнено при `ok: false`. */
-  error?: ToolError;
 }
 
 /**
@@ -492,29 +350,10 @@ export interface ToolOutcome {
  * файлового режима получают его расширение (`files/turn`). Инструмент, объявленный над базовым
  * контекстом, входит в реестр расширенного без правок: ему просто передают больше, чем он читает.
  */
-export interface AgentTool<P = never, C extends ToolContext = ToolContext> {
-  /** Идентификатор вызова, snake_case. */
-  readonly name: string;
-  /** Для чего инструмент и когда его выбирать. */
-  readonly description: string;
-  /** JSON Schema аргументов — сырой объект, как в инструментах `@reformer/mcp` (без zod). */
-  readonly inputSchema: object;
-  /** Не меняет схему. Определяет, попадёт ли вызов в список изменений. */
-  readonly readOnly: boolean;
-  /**
-   * Ждёт человека (`ask_user`): ответ приходит, когда пользователь ответит, — и сторож тишины
-   * канала на это время стоит.
-   */
-  readonly interactive?: true;
-  /**
-   * Свой бюджет ответа вместо {@link TOOL_TEXT_BUDGET}.
-   *
-   * Общий бюджет рассчитан на дайджест: ответ структурного инструмента — сводка, а не данные.
-   * Чтение файла сводкой быть не может — страница из десятка строк схемы уже длиннее 1500
-   * символов, и обрезанная посередине страница хуже короткой. Поэтому бюджет у такого
-   * инструмента свой, а страницу он режет сам по строкам, оставляя запас под пометку.
-   */
-  readonly textBudget?: number;
+export interface AgentTool<P = never, C extends ToolContext = ToolContext> extends FormAgentTool<
+  P,
+  C
+> {
   /**
    * Выполнить операцию.
    *

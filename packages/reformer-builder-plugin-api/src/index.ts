@@ -517,6 +517,50 @@ export type {
   AssistantResourceRead,
 } from './assistant/resources.js';
 
+// Стек форм в ассистенте: ассистент — общий плагин, а что такое форма, какие у модели инструменты
+// и что значит «правка легла», знает стек. Стеки вносят себя в точку, как поверхности превью.
+export { FormAssistantStackPoint } from './assistant/form-stack.js';
+export type {
+  FormAgentTool,
+  FormAskAnswer,
+  FormAskOption,
+  FormAskOutcome,
+  FormAskQuestion,
+  FormAssistantStack,
+  FormChangeOp,
+  FormChangeOpKind,
+  FormChangeSet,
+  FormCreateOutcome,
+  FormCreateRequest,
+  FormDocumentDoor,
+  FormFileJournal,
+  FormFileJournalEntry,
+  FormFilesIO,
+  FormFilesMode,
+  FormHostToolName,
+  FormLandedCompanion,
+  FormLandOutcome,
+  FormLoaded,
+  FormModuleScope,
+  FormResourceReadResult,
+  FormStackDocument,
+  FormStackFiles,
+  FormStackHost,
+  FormStackSession,
+  FormStructuredMode,
+  FormStructuredTurn,
+  FormTemplateInfo,
+  FormToolContext,
+  FormToolError,
+  FormToolErrorCode,
+  FormToolOutcome,
+  FormToolSlot,
+  FormTurn,
+  FormTurnScope,
+  FormTurnWriteResult,
+  FormWriteMark,
+} from './assistant/form-stack.js';
+
 // Модели открытых документов, загрузчик модулей и словарь оболочки — возможности ОБОЛОЧКИ,
 // которыми плагин стека берёт то, что раньше ему собирал порт в композиции. Порт знал стек:
 // «этот провайдер — того плагина», «этот кит — тем превью». Возможность отдаёт механизм без
