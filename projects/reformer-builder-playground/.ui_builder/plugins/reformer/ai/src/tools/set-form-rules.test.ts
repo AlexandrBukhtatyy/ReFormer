@@ -191,6 +191,17 @@ describe('set_form_rules — кросс-полевые и асинхронные
       ctx()
     );
     expect(noCode.ok).toBe(false);
+    expect(noCode.error?.message).toContain('needs code');
+  });
+
+  it('текст у обычного правила — отказ, который называет починку', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ target: 'price', rules: ['required'], message: 'Укажите цену' }] },
+      ctx()
+    );
+    expect(res.error?.code).toBe('INVALID_PARAMS');
+    expect(res.error?.message).toContain('drop message');
   });
 
   it('правило без единой проверки отвергается', async () => {

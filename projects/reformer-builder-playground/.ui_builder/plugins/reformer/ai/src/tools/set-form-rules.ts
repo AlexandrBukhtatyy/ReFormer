@@ -293,7 +293,13 @@ function checkValidationParam(rule: ValidationParam): string | null {
     return `Cross check on "${rule.target}" needs message — the text shown under the field.`;
   }
   if (rule.message !== undefined && rule.code === undefined && rule.cross === undefined) {
-    return `message on "${rule.target}" needs code — the code the async check returns.`;
+    // Обычному правилу текст не нужен — у стандартных проверок он свой. Замер на живой модели
+    // показал: модель ставит `message` к `required` почти всегда, а прежний отказ про код
+    // асинхронной проверки уводил её в справку лишним шагом. Отказ называет починку прямо.
+    return rule.async !== undefined
+      ? `message on "${rule.target}" needs code — the code the async check returns.`
+      : `message on "${rule.target}" is for cross and async checks only; standard rules ` +
+          '(required, email…) bring their own text — drop message.';
   }
   return null;
 }
