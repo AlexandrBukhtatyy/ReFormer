@@ -93,3 +93,53 @@ describe('режим исходника', () => {
     }
   });
 });
+
+describe('документ без модели', () => {
+  /** Двойник тела Monaco. */
+  function TextEditor({ documentId }: { documentId: ResourceId }): ReactElement {
+    return <div data-testid="code-body">{documentId}</div>;
+  }
+
+  const render = (open: boolean) => {
+    const host = {
+      ...createFakeSchemaHost({ documentId: DOCUMENT, text: JSON.stringify(sampleSchema()) }),
+      // Модели нет: провайдер за документ взялся, а собрать форму не смог (нет файла шага).
+      modelOf: () => null,
+      isDocumentOpen: () => open,
+      textEditor: () => ({ TextEditor }),
+    };
+    return renderReact(
+      <SchemaEditor
+        host={host}
+        registry={createSessionRegistry({ host })}
+        documentId={DOCUMENT}
+        commands={NO_COMMANDS}
+      />
+    );
+  };
+
+  it('открытый документ показывается текстом, а не вечной заглушкой открытия', async () => {
+    const rendered = render(true);
+    try {
+      await vi.waitFor(() => {
+        expect(document.body.textContent).toContain('canvas.textOnly');
+      });
+      expect(document.querySelector('[data-testid="code-body"]')).not.toBeNull();
+      expect(document.body.textContent).not.toContain('canvas.loading');
+    } finally {
+      rendered.unmount();
+    }
+  });
+
+  it('документ, который ещё открывается, — заглушка открытия', async () => {
+    const rendered = render(false);
+    try {
+      await vi.waitFor(() => {
+        expect(document.body.textContent).toContain('canvas.loading');
+      });
+      expect(document.querySelector('[data-testid="code-body"]')).toBeNull();
+    } finally {
+      rendered.unmount();
+    }
+  });
+});

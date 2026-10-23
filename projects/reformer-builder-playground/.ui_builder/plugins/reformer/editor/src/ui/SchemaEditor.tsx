@@ -171,6 +171,19 @@ export function SchemaEditor({
   const state = useSessionState(registry, session);
 
   if (session === null || state === null) {
+    // Открытый документ без модели — текстовый: форму из него не собрать (например, нет файла
+    // шага). Сеанса у него не будет, и заглушка открытия висела бы вечно, с выключенными видами
+    // и без исходника. Показывается текст — им такой документ и чинится.
+    if (host.isDocumentOpen?.(documentId) === true && host.modelOf(documentId) === null) {
+      return (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="bg-destructive/10 text-destructive px-3 py-1.5 text-[12px]">
+            {t('canvas.textOnly')}
+          </div>
+          {TextEditor !== undefined && <TextEditor documentId={documentId} />}
+        </div>
+      );
+    }
     return (
       <Empty className="flex-1 border-0">
         <EmptyHeader>

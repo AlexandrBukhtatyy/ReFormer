@@ -17,6 +17,7 @@
   "canvas.expand": "Expand",
   "canvas.label": "Form schema tree",
   "canvas.loading": "Opening the document",
+  "canvas.textOnly": "The form does not assemble — the document is open as text. The reason is in the problems panel; reopen the tab after fixing it",
   "canvas.problems.unplaced": "{count, plural, one{# finding is not attached to a node} other{# findings are not attached to a node}} — see the problems panel",
   "command.canvas.live": "Show as form",
   "command.canvas.schematic": "Show as layout",

@@ -80,6 +80,9 @@ export function schemaHostFromContext(
     // Адрес активной вкладки: команде переключения вида он нужен, когда её зовут из палитры.
     activeDocument: () => ctx.services.get(DocumentsServiceToken)?.activeResource() ?? null,
 
+    isDocumentOpen: (id: ResourceId) =>
+      (ctx.services.get(DocumentsServiceToken)?.documentOf(id) ?? null) !== null,
+
     modelOf(id: ResourceId): SchemaModelHandle | null {
       const handle = ctx.services.get(DocumentModelsCapability)?.handleOf(id) ?? null;
       if (handle === null) return null;
