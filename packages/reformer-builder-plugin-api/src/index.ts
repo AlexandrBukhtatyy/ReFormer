@@ -233,6 +233,10 @@ export { NotificationsServiceToken } from './services/notifications.js';
 export type { NotificationsService } from './services/notifications.js';
 export { DiagnosticsServiceToken } from './services/diagnostics/service.js';
 export type { DiagnosticsService } from './services/diagnostics/service.js';
+// Журнал: событие, которое остаётся после того, как тост погас. Ошибку в подробности записи
+// превращает `errorDetail` — одна функция на оболочку и плагины, а не по копии у каждого.
+export { LogServiceToken, errorDetail } from './services/log.js';
+export type { LogEntry, LogEntryRequest, LogLevel, LogService } from './services/log.js';
 
 // Профили состава: какой собран и на какой можно пересобрать приложение. Плагину достаются
 // только имена и глагол «выбрать» — сами профили и сборка состава остаются знанием приложения.
@@ -533,6 +537,10 @@ export {
   pluginDiagnosticCode,
   splitDiagnosticCode,
 } from './services/diagnostics/types.js';
+// Свод находок ресурса: худшая строгость и счётчики. Нужен пометке файла в дереве и значку
+// журнала — двум плагинам, которые друг друга не видят; тот же довод, что у порядка строгости.
+export { summarizeDiagnostics } from './services/diagnostics/summary.js';
+export type { DiagnosticsSummary, SeverityCounts } from './services/diagnostics/summary.js';
 
 // ── Меню ─────────────────────────────────────────────────────────────────────────
 //
