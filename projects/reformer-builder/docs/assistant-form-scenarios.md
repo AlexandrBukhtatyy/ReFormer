@@ -39,6 +39,10 @@
 моделью: `projects/reformer-builder-playground-e2e/tests/assistant/form-scenarios.spec.ts` и
 группы каталога `tests/assistant/SCENARIOS.md` — тест назван номерами сценариев отсюда.
 
+Позовёт ли инструменты правильно сама модель, меряет замер на живой модели:
+`ai/src/session/form-scenarios-eval.test.ts`, отчёт — `docs/mcp-eval/builder-form-scenarios.md`
+корня репозитория (2026-10-23, `qwen3.8:27b`: 18 сценариев из 18, структурный режим).
+
 ## 1. Создание формы с нуля
 
 | №   | Сценарий                                                                       | С   | Ф   | Примечание                                                                                                                    |
