@@ -13,7 +13,7 @@ import type { ResourceId } from '@reformer/builder-plugin-api';
 import { rulesSidecarNameOf } from '../../../core/codegen/layout';
 import { emptyRulesText, parseRulesText, printRulesText } from '../../../core/codegen/rules-file';
 import { emptyRules, hasRules, type FormRules } from '../../../core/form-model';
-import type { AiFiles } from '../host';
+import type { FormStackFiles } from '@reformer/builder-plugin-api';
 
 /** Файл правил на начало хода. */
 export interface RulesFileBase {
@@ -32,7 +32,7 @@ export interface RulesFileRead extends RulesFileBase {
 
 /** Адрес файла правил документа формы — рядом с ним. */
 export function rulesFileOf(
-  files: Pick<AiFiles, 'resolve' | 'parentOf'>,
+  files: Pick<FormStackFiles, 'resolve' | 'parentOf'>,
   document: ResourceId,
   documentPath: string
 ): ResourceId {
@@ -41,7 +41,7 @@ export function rulesFileOf(
 
 /** Прочитать файл правил документа формы. */
 export async function readRulesFile(
-  files: Pick<AiFiles, 'read' | 'resolve' | 'parentOf'>,
+  files: Pick<FormStackFiles, 'read' | 'resolve' | 'parentOf'>,
   document: ResourceId,
   documentPath: string
 ): Promise<RulesFileRead> {

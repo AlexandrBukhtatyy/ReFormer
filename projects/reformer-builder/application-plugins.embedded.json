@@ -8,6 +8,7 @@
     "base/app-preview",
     "forms/kits",
     "forms/preview",
+    "forms/ai",
     "reformer/editor",
     "reformer/validator",
     "reformer/codegen",

@@ -82,11 +82,12 @@ function probe(started: BuilderApp): {
 }
 
 describe('boot с платформой форм и без движка', () => {
-  it('поднимается: встроенные, киты и превью-хост — все активны', async () => {
+  it('поднимается: встроенные, киты, превью-хост и ассистент — все активны', async () => {
     const started = await start();
 
     const statuses = started.plugins.statuses();
     expect(statuses.map((s) => s.id).sort()).toEqual([
+      'reformer.ai',
       'reformer.editor-markdown',
       'reformer.editor-monaco',
       'reformer.files',

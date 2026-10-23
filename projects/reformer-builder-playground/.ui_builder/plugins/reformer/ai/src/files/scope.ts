@@ -14,11 +14,18 @@
  * @module plugins/reformer/ai/files/scope
  */
 
-import type { ResourceId } from '@reformer/builder-plugin-api';
+import type { FormModuleScope, FormStackFiles, ResourceId } from '@reformer/builder-plugin-api';
 import { fileRoleOf, isCanonicalSchemaName, schemaDirOf } from '../../../core/codegen/layout';
-import type { AiFiles, FileScope } from '../host';
 import { fail, type ToolOutcome } from '../model/types';
 import { pathWithin } from '@reformer/builder-toolkit';
+
+/**
+ * Где лежит модуль формы, которую правит ход режима файлов, — контракт SDK (`FormModuleScope`).
+ *
+ * Все пути инструментов отсчитываются от его корня: модель видит модуль, а не проект, и выйти за
+ * его пределы не может по построению.
+ */
+export type FileScope = FormModuleScope;
 
 /** Сегменты, в которые модели заходить нечего: чужой код и служебные данные билдера. */
 const FORBIDDEN_SEGMENTS: readonly string[] = Object.freeze(['node_modules', '.ui_builder']);
@@ -59,7 +66,7 @@ export function normalizeModulePath(input: string, rootPath: string): string | n
  * реестр превратил бы в безликое `TOOL_FAILED`.
  */
 export function moduleFileOf(
-  files: Pick<AiFiles, 'resolve'>,
+  files: Pick<FormStackFiles, 'resolve'>,
   scope: FileScope,
   input: string
 ): ModuleFile | ToolOutcome {
@@ -79,7 +86,7 @@ export function moduleFileOf(
  * АДРЕС, а не путь модели: записи инструмента плагина, которая может попасть и в модуль.
  */
 export function relInScope(
-  files: Pick<AiFiles, 'pathOf'>,
+  files: Pick<FormStackFiles, 'pathOf'>,
   scope: FileScope,
   id: ResourceId
 ): string | null {

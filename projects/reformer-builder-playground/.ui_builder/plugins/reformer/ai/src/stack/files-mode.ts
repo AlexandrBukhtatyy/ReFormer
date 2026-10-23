@@ -22,7 +22,7 @@ import type { CatalogEntry } from '../../../core/catalog';
 import { fileRoleOf } from '../../../core/codegen/layout';
 import { printJson } from '../../../core/codegen/print/js';
 import { emptyRules } from '../../../core/form-model';
-import type { FileScope } from '../host';
+import type { FileScope } from '../files/scope';
 import type { KnowledgeLoader } from '../knowledge';
 import { composeForm } from '../files/compose';
 import type { FileJournal } from '@reformer/builder-toolkit';

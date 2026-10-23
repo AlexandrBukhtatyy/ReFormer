@@ -4,8 +4,8 @@ import { emptySchema } from '../core/form-model';
 import { builtinEntries } from '../core/testing';
 import { validateSchema } from '../ai/src/model/validate';
 import { printSchemaText } from '../ai/src/model/schema-text';
-import { createFakeProvider, type FakeStep } from '../ai/src/providers/fake';
-import type { AiProvider, AiRequest } from '../ai/src/providers/types';
+import { createFakeProvider, type FakeStep } from '../../forms/ai/src/providers/fake';
+import type { AiProvider, AiRequest } from '../../forms/ai/src/providers/types';
 import {
   createFakeFiles,
   createTestFileTurn,

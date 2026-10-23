@@ -17,7 +17,6 @@ import {
   missingKeys,
   type Dictionary,
 } from '@/shell/platform/services/i18n/dictionary-checks';
-import { AI_MESSAGES } from '../ai/src/messages';
 import { CODEGEN_MESSAGES } from '../codegen/src/messages';
 import { SCHEMA_EDITOR_MESSAGES } from '../editor/src/messages';
 import { PREVIEW_RUNTIME_MESSAGES } from '../render/src/messages';
@@ -26,7 +25,6 @@ import { SCHEMA_VALIDATOR_MESSAGES } from '../validator/src/messages';
 
 /** Словари плагинов домена. Имя владельца — каталог плагина в домене. */
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
-  ['ai', AI_MESSAGES],
   ['codegen', CODEGEN_MESSAGES],
   ['editor', SCHEMA_EDITOR_MESSAGES],
   ['render', PREVIEW_RUNTIME_MESSAGES],

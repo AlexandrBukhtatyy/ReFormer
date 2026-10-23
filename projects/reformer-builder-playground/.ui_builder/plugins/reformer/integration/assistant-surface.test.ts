@@ -48,17 +48,17 @@ import {
   type FormToolSlot,
 } from '@reformer/builder-plugin-api';
 import { builtinEntries } from '../core/testing';
-import { commandTools, type AgentCommand } from '../ai/src/tools/command-tools';
-import { readResourceTool } from '../ai/src/tools/read-resource';
+import { commandTools, type AgentCommand } from '../../forms/ai/src/tools/command-tools';
+import { readResourceTool } from '../../forms/ai/src/tools/read-resource';
 import { fileSystemPrompt } from '../ai/src/loop/file-prompt';
 import { systemPrompt } from '../ai/src/loop/prompt';
 import { measureToolSurface } from '@reformer/builder-toolkit';
 import { structuredSlots } from '../ai/src/tools';
 import { fileModeSlots } from '../ai/src/tools/files';
-import { askUserTool } from '../ai/src/tools/ask-user';
-import { createFormTool } from '../ai/src/tools/create-form';
-import { generateCodeTool } from '../ai/src/tools/generate-code';
-import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../ai/src/budgets';
+import { askUserTool } from '../../forms/ai/src/tools/ask-user';
+import { createFormTool } from '../../forms/ai/src/tools/create-form';
+import { generateCodeTool } from '../../forms/ai/src/tools/generate-code';
+import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../../forms/ai/src/budgets';
 import {
   FILE_TOOL_SURFACE_BUDGET,
   PROMPT_BUDGET,

@@ -18,7 +18,7 @@ import type {
 import type { CatalogEntry } from '../../../core/catalog';
 import { fileRoleOf } from '../../../core/codegen/layout';
 import { FORM_SCHEMA_PROVIDER_ID } from '../../../core/form-model';
-import type { FileScope } from '../host';
+import type { FileScope } from '../files/scope';
 import type { KnowledgeLoader } from '../knowledge';
 import { systemPrompt } from '../loop/prompt';
 import { parseSchemaText } from '../model/schema-text';

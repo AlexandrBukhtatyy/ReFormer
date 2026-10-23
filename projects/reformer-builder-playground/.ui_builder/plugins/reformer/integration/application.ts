@@ -8,8 +8,8 @@ import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 import { withDomainPlugins, type DomainPlugin } from '../../.shared/application';
 import { formsApplication } from '../../forms/integration/application';
-import { createAiPlugin } from '../ai/src';
-import aiManifest from '../ai/src/manifest.json';
+import { createSchemaStackPlugin } from '../ai/src';
+import aiSchemaManifest from '../ai/src/manifest.json';
 import { createCodegenPlugin } from '../codegen/src';
 import codegenManifest from '../codegen/src/manifest.json';
 import { createSchemaEditorPlugin } from '../editor/src';
@@ -29,7 +29,7 @@ export const REFORMER_PLUGINS: readonly DomainPlugin[] = [
     create: () => createSchemaEditorPlugin({ modelPoint: DocumentModelPoint }),
   },
   { manifest: renderManifest, create: () => createPreviewRuntimePlugin() },
-  { manifest: aiManifest, create: () => createAiPlugin() },
+  { manifest: aiSchemaManifest, create: () => createSchemaStackPlugin() },
   { manifest: codegenManifest, create: () => createCodegenPlugin() },
   { manifest: templatesManifest, create: () => createTemplatesPlugin() },
 ];

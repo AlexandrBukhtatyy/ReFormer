@@ -53,12 +53,21 @@ const PLUGIN_SOURCES = 'src';
  * Плагины, которые кладутся на «диск» только по просьбе теста, — каталогами от каталога плагинов.
  * Остальные плагины проекта лежат там всегда.
  *
- * Сборка кита HexaUI весит около 5 МБ, сборка ассистента с корпусом знаний — около 8 МБ:
- * в каждой копии они стоили бы секунд каждому тесту. Без теста, который такой плагин просит,
- * его каталога в копии нет вовсе — включённый настройкой, но отсутствующий плагин билдер
- * пропускает молча.
+ * Сборка кита HexaUI весит около 5 МБ, стек форм ReFormer в ассистенте с корпусом знаний — около
+ * 8 МБ, сам ассистент с каналами к моделям — ещё мегабайт: в каждой копии они стоили бы секунд
+ * каждому тесту. Без теста, который такой плагин просит, его каталога в копии нет вовсе —
+ * включённый настройкой, но отсутствующий плагин билдер пропускает молча.
  */
-const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai'];
+const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai', 'forms/ai'];
+
+/**
+ * Спутники необязательных плагинов: просьба положить плагин кладёт и их. Стек форм в ассистенте
+ * (`reformer/ai`) без самого ассистента (`forms/ai`) ничего не делает, и тест, который просит
+ * ассистента ReFormer, называет один каталог — как до раскола ассистента на общий плагин и стек.
+ */
+const OPTIONAL_COMPANIONS: Readonly<Record<string, readonly string[]>> = {
+  'reformer/ai': ['forms/ai'],
+};
 
 /** Что положить на «диск» сверх обычной копии. */
 export interface SeedOptions {
@@ -231,7 +240,10 @@ export class PlaygroundDisk {
    * Требует уже открытой страницы билдера: OPFS принадлежит origin, и до навигации его нет.
    */
   async seed(options: SeedOptions = {}): Promise<void> {
-    const requested = options.plugins ?? [];
+    const requested = (options.plugins ?? []).flatMap((dir) => [
+      dir,
+      ...(OPTIONAL_COMPANIONS[dir] ?? []),
+    ]);
     const withUiBuilder = options.uiBuilder !== false;
     const withPlugins = withUiBuilder && options.projectPlugins !== false;
     const plugins = (withPlugins ? pluginPackages(PLAYGROUND_DIR) : [])

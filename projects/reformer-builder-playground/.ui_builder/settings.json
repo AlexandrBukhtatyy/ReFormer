@@ -13,6 +13,7 @@
     "reformer.codegen",
     "reformer.templates",
     "reformer.ai",
+    "reformer.ai-schema",
     "reformer.rjsf.editor",
     "reformer.rjsf.render"
   ],

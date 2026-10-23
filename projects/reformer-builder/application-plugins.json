@@ -7,6 +7,7 @@
     "base/markdown-editor",
     "forms/kits",
     "forms/preview",
+    "forms/ai",
     "reformer/editor",
     "reformer/render",
     "reformer/validator",

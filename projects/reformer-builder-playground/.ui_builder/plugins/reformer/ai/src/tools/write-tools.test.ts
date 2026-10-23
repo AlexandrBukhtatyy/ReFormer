@@ -8,7 +8,7 @@ import { emptySchema } from '../../../core/form-model';
 import { getAt } from '../../../core/form-model';
 import { P, sampleSchema } from '../../../core/testing';
 import { listComponents } from '../model/catalog-digest';
-import { createEditorToolRegistry } from '../index';
+import { createEditorToolRegistry } from '../tools';
 import { buildOutline } from '../model/outline';
 import type { ToolContext, ToolOutcome } from '../model/types';
 

@@ -45,7 +45,7 @@ import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '../../../core/catalog';
 import { hasChanges, type ChangeSet } from '../model/changeset';
 import { validateSchema, type LoadValidateForm } from '../model/validate';
-import type { AiFiles, AiHost } from '../host';
+import type { FormStackFiles, FormStackHost } from '@reformer/builder-plugin-api';
 import { printSchemaText } from '../model/schema-text';
 import { rulesTextToWrite, type RulesFileBase } from '../session/rules-file';
 
@@ -98,8 +98,8 @@ export interface ApplyOptions {
 export interface ApplyDeps {
   readonly host: {
     documentOf(id: ResourceId): { getText(): string } | null;
-    readonly writeText: AiHost['writeText'];
-    readonly files?: Pick<AiFiles, 'read' | 'write'>;
+    readonly writeText: FormStackHost['writeText'];
+    readonly files?: Pick<FormStackFiles, 'read' | 'write'>;
   };
   /** Каталог активного кита — словарь строгого гейта. */
   readonly catalog: () => readonly CatalogEntry[];

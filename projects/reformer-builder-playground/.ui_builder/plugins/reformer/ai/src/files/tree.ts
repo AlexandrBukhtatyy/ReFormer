@@ -14,7 +14,8 @@
 
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { fileRoleOf, type ModuleFileRole } from '../../../core/codegen/layout';
-import type { AiFiles, FileScope } from '../host';
+import type { FormStackFiles } from '@reformer/builder-plugin-api';
+import type { FileScope } from './scope';
 import type { FileJournal } from '@reformer/builder-toolkit';
 
 /**
@@ -41,7 +42,7 @@ const ROLE_TAG: Partial<Record<ModuleFileRole, string>> = {
 
 /** Файлы модуля — пути от корня, по алфавиту. */
 export async function moduleFiles(
-  files: Pick<AiFiles, 'list'>,
+  files: Pick<FormStackFiles, 'list'>,
   scope: FileScope,
   journal?: FileJournal
 ): Promise<string[]> {

@@ -18,11 +18,11 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { AiFiles, FileScope, WriteMark } from '../host';
+import type { FormStackFiles, FormWriteMark } from '@reformer/builder-plugin-api';
 import type { KnowledgeLoader } from '../knowledge';
 import type { ToolContext } from '../model/types';
 import type { FileJournal } from '@reformer/builder-toolkit';
-import { moduleFileOf, type ModuleFile } from './scope';
+import { moduleFileOf, type FileScope, type ModuleFile } from './scope';
 import { moduleFiles } from './tree';
 import type { ToolOutcome } from '../model/types';
 
@@ -60,12 +60,12 @@ export interface FileToolContext extends ToolContext {
 
 /** Из чего собирается попытка. */
 export interface FileTurnOptions {
-  readonly files: Omit<AiFiles, 'scopeOf'>;
+  readonly files: FormStackFiles;
   readonly scope: FileScope;
   /** Журнал ХОДА — общий для обеих попыток. */
   readonly journal: FileJournal;
   /** Пометка записей: `{ origin: 'agent', txId }` — одна на ход. */
-  readonly mark: WriteMark;
+  readonly mark: FormWriteMark;
   /** Форма из файлов на начало попытки. */
   readonly base: JsonFormSchema;
   readonly knowledge?: KnowledgeLoader;

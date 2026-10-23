@@ -40,7 +40,7 @@ import {
   moduleRootPathOf,
   modulePlacementOf,
 } from '../../../core/codegen/layout';
-import type { FileScope } from '../host';
+import type { FileScope } from '../files/scope';
 import type { PackageFiles } from '../knowledge';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';
 

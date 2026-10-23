@@ -1,26 +1,14 @@
 {
-  "id": "reformer.ai",
-  "name": "Ассистент",
+  "id": "reformer.ai-schema",
+  "name": "Ассистент: формы ReFormer",
   "version": "0.1.0",
   "apiVersion": "^1",
   "main": "main.ts",
-  "styles": {
-    "file": "styles.css",
-    "isolation": "scoped"
-  },
   "requires": {
     "optional": [
       {
-        "id": "reformer.codegen.generator",
-        "range": "^1"
-      },
-      {
         "id": "reformer.kit.catalog",
         "range": "^2"
-      },
-      {
-        "id": "reformer.templates.creator",
-        "range": "^1"
       }
     ]
   }

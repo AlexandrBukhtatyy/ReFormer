@@ -24,8 +24,8 @@ import { createExtensionRegistry } from '@/shell/platform/primitives/extension-p
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
-import { createContributionSurface } from '../ai/src/session/contributions';
-import { createResourceRouter } from '../ai/src/session/resources';
+import { createContributionSurface } from '../../forms/ai/src/session/contributions';
+import { createResourceRouter } from '../../forms/ai/src/session/resources';
 import { createEditorToolRegistry } from '../ai/src/tools';
 import { createFileToolRegistry } from '../ai/src/tools/files';
 import { reformerApplication } from './application';

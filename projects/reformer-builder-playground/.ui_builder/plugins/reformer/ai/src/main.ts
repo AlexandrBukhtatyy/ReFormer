@@ -4,6 +4,6 @@
  * @module plugins/reformer/ai/main
  */
 
-import { createAiPlugin } from './plugin';
+import { createSchemaStackPlugin } from './plugin';
 
-export default createAiPlugin();
+export default createSchemaStackPlugin();

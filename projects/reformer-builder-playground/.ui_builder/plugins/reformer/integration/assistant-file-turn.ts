@@ -13,11 +13,11 @@ import type { CatalogEntry } from '../core/catalog';
 import type { FileToolContext, FileTurn } from '../ai/src/files/turn';
 import type { TurnScope } from '../ai/src/model/types';
 import type { ValidateFormSchema } from '../ai/src/model/validate';
-import type { AiMessage, AiProvider, AiStop } from '../ai/src/providers/types';
+import type { AiMessage, AiProvider, AiStop } from '../../forms/ai/src/providers/types';
 import type { ToolRegistry } from '../ai/src/tools/registry';
 import { createFilesTurn } from '../ai/src/stack/files-mode';
-import type { TurnStats, TurnStepEvent } from '../ai/src/loop/drive';
-import { runTurn, type ActiveForm } from '../ai/src/loop/run-turn';
+import type { TurnStats, TurnStepEvent } from '../../forms/ai/src/loop/drive';
+import { runTurn, type ActiveForm } from '../../forms/ai/src/loop/run-turn';
 
 export { fileSeed } from '../ai/src/stack/seed';
 

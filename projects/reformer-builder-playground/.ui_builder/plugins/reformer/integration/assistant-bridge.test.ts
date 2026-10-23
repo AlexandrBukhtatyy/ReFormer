@@ -27,25 +27,28 @@ import {
   AI_UNDO_TURN_COMMAND_ID,
   aiUndoTurnCommand,
   createAgentBridge,
-} from '../ai/src/session/bridge';
-import type { AgentCommand } from '../ai/src/tools/command-tools';
-import type { AiAssistant } from '../ai/src/plugin';
-import { createFakeProvider, type FakeStep } from '../ai/src/providers/fake';
-import { createProviderRegistry } from '../ai/src/providers/registry';
-import type { AiMessage, AiProvider } from '../ai/src/providers/types';
+} from '../../forms/ai/src/session/bridge';
+import type { AgentCommand } from '../../forms/ai/src/tools/command-tools';
+import type { AiAssistant } from '../../forms/ai/src/plugin';
+import { createFakeProvider, type FakeStep } from '../../forms/ai/src/providers/fake';
+import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
+import type { AiMessage, AiProvider } from '../../forms/ai/src/providers/types';
 import { printSchemaText } from '../ai/src/model/schema-text';
 import {
   createAiSession,
   openAskOf,
   type AiSession,
   type AskCard,
-} from '../ai/src/session/session';
-import { createFakeHost, type FakeHost } from '../ai/src/testing';
+} from '../../forms/ai/src/session/session';
+import { createFakeHost, type FakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles, type FakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
 import { emptyRulesText, printRulesText } from '../core/codegen/rules-file';
-import type { ContributedTool, ContributedToolEntry } from '../ai/src/tools/contributed-tools';
-import type { ResourceProviderEntry } from '../ai/src/session/resources';
+import type {
+  ContributedTool,
+  ContributedToolEntry,
+} from '../../forms/ai/src/tools/contributed-tools';
+import type { ResourceProviderEntry } from '../../forms/ai/src/session/resources';
 
 const RESOURCE = 'form.json';
 /** Контекст применимости, которого предикату отмены достаточно: он его не читает. */

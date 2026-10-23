@@ -137,11 +137,12 @@ const FORMATS = {
 } as const;
 
 describe('boot с плагинами домена RJSF', () => {
-  it('поднимается: основа, киты и два плагина домена — все активны', async () => {
+  it('поднимается: основа, платформа форм и два плагина домена — все активны', async () => {
     const started = await start();
 
     const statuses = started.plugins.statuses();
     expect(statuses.map((s) => s.id).sort()).toEqual([
+      'reformer.ai',
       'reformer.editor-markdown',
       'reformer.editor-monaco',
       'reformer.files',
@@ -167,17 +168,25 @@ describe('boot с плагинами домена RJSF', () => {
     expect(owners(PreviewSurfacePoint)).toEqual(['reformer.rjsf.render']);
   });
 
-  it('свойства поля — панелью правого дока; справа в этом составе она единственная', async () => {
+  it('свойства поля — панелью правого дока; рядом с ней только ассистент платформы форм', async () => {
     const started = await start();
     const panels = started.extensions.get(PanelPoint);
 
     const right = panels.filter((contribution) => contribution.value.slot === 'panel.right');
-    expect(right.map((contribution) => [contribution.pluginId, contribution.value.id])).toEqual([
+    // Ассистент — платформа форм: стека форм RJSF у него нет, и на форме RJSF он честно скажет
+    // об этом словами, но панель с настройками канала остаётся.
+    expect(
+      right.map((contribution) => [contribution.pluginId, contribution.value.id]).sort()
+    ).toEqual([
+      ['reformer.ai', 'ai.chat'],
       [RJSF_EDITOR_PLUGIN_ID, RJSF_INSPECTOR_PANEL_ID],
     ]);
-    // Вне формы домена панели нет — а с ней и правого рейла: показывать в нём нечего.
+    // Вне формы домена панели свойств нет: показывать в ней нечего.
+    const inspector = right.find(
+      (contribution) => contribution.value.id === RJSF_INSPECTOR_PANEL_ID
+    );
     const visible = (activeResourceKind: string | null) =>
-      right[0]!.value.when?.({ ...started.whenContext.get(), activeResourceKind });
+      inspector!.value.when?.({ ...started.whenContext.get(), activeResourceKind });
     expect(visible('rjsf.form')).toBe(true);
     expect(visible('text/markdown')).toBe(false);
   });

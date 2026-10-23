@@ -18,7 +18,7 @@ import {
   moduleRootPathOf,
   modulePlacementOf,
 } from '../../../core/codegen/layout';
-import type { FileScope } from '../host';
+import type { FileScope } from '../files/scope';
 import type { KnowledgeLoader } from '../knowledge';
 import { composeForm } from '../files/compose';
 import { createFileTurn, type FileTurn } from '../files/turn';

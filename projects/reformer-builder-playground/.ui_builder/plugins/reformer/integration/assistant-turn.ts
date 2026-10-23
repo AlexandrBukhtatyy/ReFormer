@@ -12,17 +12,17 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../core/catalog';
 import type { FormRules } from '../core/form-model';
-import type { AiMessage, AiProvider, AiStop } from '../ai/src/providers/types';
+import type { AiMessage, AiProvider, AiStop } from '../../forms/ai/src/providers/types';
 import type { ChangeSet } from '../ai/src/model/changeset';
-import type { TurnStats, TurnStepEvent } from '../ai/src/loop/drive';
+import type { TurnStats, TurnStepEvent } from '../../forms/ai/src/loop/drive';
 import type { ToolRegistry } from '../ai/src/tools/registry';
 import type { ValidateFormSchema } from '../ai/src/model/validate';
 import type { TurnScope } from '../ai/src/model/types';
 import { createSchemaTurn } from '../ai/src/stack/structured';
-import { runTurn, type ActiveForm } from '../ai/src/loop/run-turn';
+import { runTurn, type ActiveForm } from '../../forms/ai/src/loop/run-turn';
 
-export type { TurnStats } from '../ai/src/loop/drive';
-export { activeFormLines, type ActiveForm } from '../ai/src/loop/run-turn';
+export type { TurnStats } from '../../forms/ai/src/loop/drive';
+export { activeFormLines, type ActiveForm } from '../../forms/ai/src/loop/run-turn';
 
 /**
  * Предел шагов «модель → инструмент → модель» за один ход — по умолчанию его НЕТ.

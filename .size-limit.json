@@ -153,17 +153,22 @@
     "limit": "1.5 kB"
   },
   {
-    "name": "плагин reformer.ai проекта-образца (код)",
-    "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/main.js",
-    "limit": "360 kB"
+    "name": "плагин reformer.ai проекта-образца (ассистент, код)",
+    "path": "projects/reformer-builder-playground/.ui_builder/plugins/forms/ai/main.js",
+    "limit": "80 kB"
   },
   {
-    "name": "плагин reformer.ai (корпус знаний: индекс)",
+    "name": "плагин reformer.ai-schema проекта-образца (стек форм ReFormer в ассистенте, код)",
+    "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/main.js",
+    "limit": "120 kB"
+  },
+  {
+    "name": "плагин reformer.ai-schema (корпус знаний: индекс)",
     "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/chunks/knowledge-index.js",
     "limit": "300 kB"
   },
   {
-    "name": "плагин reformer.ai (корпус знаний: документация)",
+    "name": "плагин reformer.ai-schema (корпус знаний: документация)",
     "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/chunks/knowledge-docs.js",
     "limit": "420 kB"
   }

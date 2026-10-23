@@ -16,10 +16,12 @@ import {
   missingKeys,
   type Dictionary,
 } from '@/shell/platform/services/i18n/dictionary-checks';
+import { AI_MESSAGES } from '../ai/src/messages';
 import { KITS_MESSAGES } from '../kits/src/messages';
 import { PREVIEW_MESSAGES } from '../preview/src/messages';
 
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
+  ['ai', AI_MESSAGES],
   ['kits', KITS_MESSAGES],
   ['preview', PREVIEW_MESSAGES],
 ];
