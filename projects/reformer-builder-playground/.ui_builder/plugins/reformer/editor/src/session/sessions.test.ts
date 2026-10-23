@@ -70,6 +70,26 @@ describe('createSessionRegistry', () => {
     expect(sessions.active()).toBeNull();
   });
 
+  it('документ открыт заново с новой ручкой — сеанс новый, а не прежний', () => {
+    // Вкладку закрыли и открыли раньше, чем реестр спросил: модель у адреса есть, но другая.
+    // Прежний сеанс показывал бы модель закрытого документа и не видел бы правок с тех пор.
+    const first = createFakeSchemaHost({ text: TEXT });
+    const second = createFakeSchemaHost({
+      text: JSON.stringify({ ...sampleSchema(), version: '2.0' }),
+    });
+    let current = first;
+    const sessions = createSessionRegistry({ host: { modelOf: (id) => current.modelOf(id) } });
+    const before = sessions.open(DOCUMENT);
+
+    current = second;
+
+    expect(sessions.get(DOCUMENT)).toBeNull();
+    const after = sessions.open(DOCUMENT);
+    expect(after).not.toBe(before);
+    expect(after?.get().model.version).toBe('2.0');
+    expect(sessions.get(DOCUMENT)).toBe(after);
+  });
+
   it('не открывает сеанс документа, которого ещё нет', () => {
     const { registry: sessions } = registry();
     expect(sessions.open('fake:другой.json')).toBeNull();

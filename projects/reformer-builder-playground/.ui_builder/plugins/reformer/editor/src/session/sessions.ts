@@ -140,6 +140,8 @@ export type SelectionChannel = Pick<SelectionService, 'get' | 'set' | 'onDidChan
 interface Entry {
   readonly session: SchemaSession;
   readonly subscription: Disposable;
+  /** Ручка, над которой построен сеанс. Другая ручка у того же адреса — документ открыт заново. */
+  readonly handle: SchemaModelHandle;
 }
 
 export interface SessionRegistryDeps {
@@ -207,7 +209,7 @@ function createSession(
     restructure: (mode) => handle.restructure?.(mode) ?? false,
   };
 
-  return { session, subscription };
+  return { session, subscription, handle };
 }
 
 /**
@@ -300,10 +302,15 @@ export function createSessionRegistry(deps: SessionRegistryDeps): SessionRegistr
     if (activeId === documentId) activeId = null;
   };
 
-  /** Убирает сеансы документов, у которых модели в рабочей области больше нет. */
+  /**
+   * Убирает сеансы, чья ручка больше не ручка документа: модели нет вовсе (вкладку закрыли) или
+   * документ открыт заново — с новой ручкой. Второе нельзя распознать по `null`: закрыли и
+   * открыли раньше, чем реестр спросил, и старый сеанс так и показывал бы модель закрытого
+   * документа — без правок, сделанных с тех пор, и без правки части снаружи.
+   */
   const evictClosed = (): void => {
-    for (const documentId of [...entries.keys()]) {
-      if (host.modelOf(documentId) === null) drop(documentId);
+    for (const [documentId, entry] of [...entries]) {
+      if (host.modelOf(documentId) !== entry.handle) drop(documentId);
     }
   };
 
@@ -339,7 +346,10 @@ export function createSessionRegistry(deps: SessionRegistryDeps): SessionRegistr
       notify();
     },
 
-    get: (documentId) => entries.get(documentId)?.session ?? null,
+    get: (documentId) => {
+      evictClosed();
+      return entries.get(documentId)?.session ?? null;
+    },
     active: () => (activeId === null ? null : (entries.get(activeId)?.session ?? null)),
     version: () => version,
 
