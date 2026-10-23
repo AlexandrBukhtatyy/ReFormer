@@ -26,6 +26,8 @@ npm install @reformer/builder-toolkit
 | `measureToolSurface`, `TOOL_NAME_BUDGET`, `TOOL_DESCRIPTION_BUDGET`                  | мера поверхности инструментов, которую ход платит на каждом шаге, и лимиты одного инструмента      |
 | `pageOf`, `linesOf`, `snippetOf`, `changedLines`, `joinWithinBudget`, `similarNames` | текст для модели: страницы файла со строками, ответ по целым строкам в бюджете, подсказки имён     |
 | `createFileJournal`, `pathWithin`                                                    | журнал хода режима файлов (его заводит ассистент, пишет стек) и путь от корня модуля               |
+| `parseTargetFile`, `formatTargetFile`                                                | файл цели генерации из проекта: заголовок JSON между `---` и шаблон; читает хозяин, выгружает стек |
+| `applyOverrides`, `overrideDrift`                                                    | замены целей: кто печатает и какие замены не действуют; устаревание замены узнаёт стек крючком     |
 
 ## Что сюда НЕ попадает
 

@@ -14,7 +14,8 @@
  * ## Путь — шаблон с токенами
  *
  * Модуль формы разложен по папкам ролей, и часть имён зависит от формы. В `path` допустимы
- * токены — в любом месте пути, не обязательно целым сегментом:
+ * токены — в любом месте пути, не обязательно целым сегментом. Токены подставляет стек, чей
+ * модуль печатается; у стека ReFormer они такие:
  *
  * | токен         | значение                                                                 |
  * | ------------- | ------------------------------------------------------------------------ |
@@ -48,10 +49,17 @@
  * `path` печатать некуда, а цель, молча выпавшая из списка, неотличима от «мой файл не
  * подхватился» — и человек будет искать причину в шаблоне, которого никто не читал.
  *
- * @module plugins/reformer/core/codegen/template-file
+ * ## Почему здесь
+ *
+ * Файлы целей читает хозяин генерации (цели из проекта), а пишет стек — выгрузкой своего
+ * встроенного шаблона ровно в этой форме («скопируй и правь»). Хозяин и стек живут в разных
+ * доменах, и формат, общий им обоим, лежит там, где его видят оба.
+ *
+ * @module @reformer/builder-toolkit/codegen/target-file
  */
 
-import type { FileClass } from './types';
+/** Класс файла модуля: `derived` перезаписывается всегда, `user` пишется один раз. */
+export type TargetFileClass = 'derived' | 'user';
 
 /** Заголовок файла цели. */
 export interface TargetFileMeta {
@@ -72,7 +80,7 @@ export interface TargetFileMeta {
    */
   readonly each?: 'step';
   /** `derived` перезаписывается всегда, `user` пишется один раз. */
-  readonly cls: FileClass;
+  readonly cls: TargetFileClass;
   /** Порядок среди целей; у встроенных кратен десяти. */
   readonly order?: number;
   /** Подпись в панели. У пользовательского файла словаря нет, поэтому текстом, а не ключом. */
@@ -81,6 +89,11 @@ export interface TargetFileMeta {
   readonly regenerable?: boolean;
   /** Идентификатор цели, которую этот файл ЗАМЕНЯЕТ. */
   readonly overrides?: string;
+  /**
+   * Стек, по виду которого написан шаблон (`reformer`). Нет — стек заменённой цели, а без
+   * `overrides` — любой стек.
+   */
+  readonly stack?: string;
   /** Выражение на JS над видом: `it.layout.isWizard`. Без него цель применяется всегда. */
   readonly applies?: string;
 }
@@ -159,7 +172,7 @@ export function parseTargetFile(text: string): TargetFileResult {
     return fail('«regenerable» должно быть true или false');
   }
 
-  for (const field of ['title', 'overrides', 'applies'] as const) {
+  for (const field of ['title', 'overrides', 'stack', 'applies'] as const) {
     const value = optionalString(record[field], field);
     if (value instanceof Error) return fail(value.message);
   }
@@ -176,6 +189,7 @@ export function parseTargetFile(text: string): TargetFileResult {
       ...(regenerable === undefined ? {} : { regenerable }),
       ...(typeof record.title === 'string' ? { title: record.title.trim() } : {}),
       ...(typeof record.overrides === 'string' ? { overrides: record.overrides.trim() } : {}),
+      ...(typeof record.stack === 'string' ? { stack: record.stack.trim() } : {}),
       ...(typeof record.applies === 'string' ? { applies: record.applies.trim() } : {}),
     },
   };
@@ -193,6 +207,7 @@ export function formatTargetFile(meta: TargetFileMeta, body: string): string {
     ...(meta.overrides === undefined
       ? []
       : ([['overrides', meta.overrides]] as [string, unknown][])),
+    ...(meta.stack === undefined ? [] : ([['stack', meta.stack]] as [string, unknown][])),
     ['path', meta.path],
     ...(meta.each === undefined ? [] : ([['each', meta.each]] as [string, unknown][])),
     ['cls', meta.cls],

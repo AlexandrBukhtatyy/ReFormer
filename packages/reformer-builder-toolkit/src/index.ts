@@ -14,7 +14,9 @@
  * - **имена** — транслитерация и kebab: имена файлов и селекторов из подписей;
  * - **ассистент** — реестр инструментов модели и текст для неё: страницы файла со строками,
  *   ответ по целым строкам в бюджете, похожие имена для подсказки, мера поверхности
- *   инструментов. Нужны и ассистенту, и инструментам стека в нём.
+ *   инструментов. Нужны и ассистенту, и инструментам стека в нём;
+ * - **генерация кода** — файл цели из проекта (заголовок и шаблон) и правило замен целей. Нужны
+ *   хозяину генерации и стеку, который печатает модуль.
  *
  * @module @reformer/builder-toolkit
  */
@@ -29,6 +31,20 @@ export {
   type FileOrigin,
 } from './marker';
 export { kebab, translit } from './naming';
+export {
+  formatTargetFile,
+  parseTargetFile,
+  type TargetFileClass,
+  type TargetFileMeta,
+  type TargetFileResult,
+} from './codegen/target-file';
+export {
+  applyOverrides,
+  overrideDrift,
+  type OverridableTarget,
+  type OverrideDrift,
+  type StaleOverride,
+} from './codegen/overrides';
 export {
   changedLines,
   LINE_LIMIT,

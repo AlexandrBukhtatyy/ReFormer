@@ -112,8 +112,8 @@ export { appSnippet } from './emit/snippet';
 // Печать через шаблоны: вид, который шаблон видит как `it`, и тексты встроенных шаблонов.
 // Сам движок и маркер происхождения — в `@reformer/builder-toolkit`: они нужны любому стеку,
 // а не только этому. Решение «какие файлы производить» — не здесь, а в `plugins/reformer/codegen`.
-export { formatTargetFile, parseTargetFile } from './template-file';
-export type { TargetFileMeta, TargetFileResult } from './template-file';
+export { formatTargetFile, parseTargetFile } from '@reformer/builder-toolkit';
+export type { TargetFileMeta, TargetFileResult } from '@reformer/builder-toolkit';
 export {
   buildView,
   withLocal,

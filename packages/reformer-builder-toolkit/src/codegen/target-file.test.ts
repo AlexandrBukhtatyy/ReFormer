@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatTargetFile, parseTargetFile } from './template-file';
+import { formatTargetFile, parseTargetFile } from './target-file';
 
 const file = (header: string, body = 'тело\n'): string => `---\n${header}\n---\n${body}`;
 
@@ -26,6 +26,25 @@ describe('заголовок файла цели', () => {
     expect(result.meta.overrides).toBe('codegen.registry');
     expect(result.meta.applies).toBe('it.layout.isWizard');
     expect(result.meta.regenerable).toBe(true);
+  });
+
+  it('стек шаблона доезжает и печатается обратно перед путём', () => {
+    const result = parseTargetFile(
+      file('{ "id": "u", "stack": "reformer", "path": "p.ts", "cls": "derived" }')
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.meta.stack).toBe('reformer');
+    const text = formatTargetFile(result.meta, result.body);
+    expect(text.split('\n').slice(3, 5)).toEqual(['  "stack": "reformer",', '  "path": "p.ts",']);
+    expect(parseTargetFile(text)).toEqual(result);
+  });
+
+  it('пустой стек — отказ, а не шаблон для всех стеков', () => {
+    const result = parseTargetFile(
+      file('{ "id": "u", "stack": " ", "path": "p.ts", "cls": "user" }')
+    );
+    expect(result).toEqual({ ok: false, message: '«stack» должно быть непустой строкой' });
   });
 
   it('тело может само содержать `---`', () => {
