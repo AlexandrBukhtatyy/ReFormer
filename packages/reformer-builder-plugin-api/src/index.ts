@@ -404,6 +404,19 @@ export type {
   TemplateSummary,
 } from './services/form-authoring.js';
 
+// Шаблоны форм: хозяин (панель, хранилища проекта и браузера, запись новой формы) — общий плагин,
+// а документ формы среди файлов шаблона, имена модуля и встроенные шаблоны знает стек.
+export { TemplateStackPoint, TemplateStorePoint } from './services/form-templates.js';
+export type {
+  FormTemplate,
+  FormTemplateEngine,
+  FormTemplateFile,
+  FormTemplateFileScope,
+  FormTemplatePrint,
+  FormTemplateStore,
+  TemplateStack,
+} from './services/form-templates.js';
+
 // Генерация кода: хозяин (панель, запись, цели из проекта) — общий плагин, а что такое форма
 // документа и из каких файлов состоит её модуль, знает стек. Стеки и цели вносят себя в точки.
 export { CodegenStackPoint, CodegenTargetPoint, isCodegenRefusal } from './services/codegen.js';
