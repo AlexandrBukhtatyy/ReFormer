@@ -88,7 +88,7 @@ export {
   type CommandRejectionCode,
   type ExecuteCommand,
 } from './tools/command-tools';
-export { measureToolSurface } from './tools/tool-surface';
+export { measureToolSurface } from '@reformer/builder-toolkit';
 export type { ChangeOp, ChangeOpKind, ToolError, ToolErrorCode } from './model/types';
 // Проверка по мета-схеме: грузится по требованию, приходит параметром — см. `core/validate`.
 export type { LoadValidateForm, ValidateFormSchema } from './model/validate';

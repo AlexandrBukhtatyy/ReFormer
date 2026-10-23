@@ -10,7 +10,7 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { FormRules } from '../../../core/form-model';
-import { joinWithinBudget } from './render-budget';
+import { joinWithinBudget } from '@reformer/builder-toolkit';
 import type { AiMessage, AiProvider, AiStop } from '../providers/types';
 import { createChangeSet, withOutcome, type ChangeSet } from '../model/changeset';
 import { buildOutline, renderOutline } from '../model/outline';

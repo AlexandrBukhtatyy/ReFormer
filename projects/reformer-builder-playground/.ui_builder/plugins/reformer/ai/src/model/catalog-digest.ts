@@ -20,7 +20,7 @@ import { isCompoundPart, partNamesOf } from '../../../core/catalog';
 import type { CatalogEntry, CatalogRole } from '../../../core/catalog';
 import { toInspectorProps } from '../../../core/catalog';
 import { buildOutline, renderOutline } from './outline';
-import { joinWithinBudget } from '../loop/render-budget';
+import { joinWithinBudget } from '@reformer/builder-toolkit';
 import { printJson } from '../../../core/codegen/print/js';
 
 /** Каталог активного кита — то же значение, что лежит в `ToolContext.catalog`. */

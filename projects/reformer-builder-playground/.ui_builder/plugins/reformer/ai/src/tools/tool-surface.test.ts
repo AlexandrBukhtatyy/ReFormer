@@ -46,7 +46,7 @@ import { commandTools, type AgentCommand } from './command-tools';
 import { readResourceTool } from './read-resource';
 import { fileSystemPrompt } from '../loop/file-prompt';
 import { systemPrompt } from '../loop/prompt';
-import { measureToolSurface } from './tool-surface';
+import { measureToolSurface } from '@reformer/builder-toolkit';
 import { allTools } from '../tools';
 import { fileModeTools } from './files';
 import {

@@ -17,7 +17,7 @@ import {
   renderComponentSummary,
   type ComponentDetail,
 } from '../model/catalog-digest';
-import { similarNames } from '../loop/suggest';
+import { similarNames } from '@reformer/builder-toolkit';
 import { fail, ok, TOOL_TEXT_BUDGET, type AgentTool, type ToolContext } from '../model/types';
 
 /** Параметры вызова. */

@@ -31,7 +31,7 @@ import {
 } from '../../../core/form-model';
 import { type FormRules, type JsonPath } from '../../../core/form-model';
 import { componentOf, labelOf, modelOf, nodeRef } from './node-ref';
-import { joinWithinBudget } from '../loop/render-budget';
+import { joinWithinBudget } from '@reformer/builder-toolkit';
 
 /** Одна строка дайджеста. */
 export interface OutlineEntry {

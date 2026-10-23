@@ -11,7 +11,7 @@
  * @module plugins/reformer/ai/tools/read-resource
  */
 
-import { pageOf } from '../files/page';
+import { pageOf } from '@reformer/builder-toolkit';
 import { fail, ok, RESOURCE_READ_BUDGET, type AgentTool } from '../model/types';
 
 /** Параметры вызова. */

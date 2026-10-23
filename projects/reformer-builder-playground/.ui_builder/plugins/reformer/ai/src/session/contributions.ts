@@ -33,7 +33,7 @@ import {
 } from '../tools/contributed-tools';
 import { readResourceTool } from '../tools/read-resource';
 import { createToolRegistry, type ToolRegistry } from '../tools/registry';
-import { measureToolSurface } from '../tools/tool-surface';
+import { measureToolSurface } from '@reformer/builder-toolkit';
 import { CONTRIBUTED_TOOL_SURFACE_BUDGET, type AgentTool, type ToolContext } from '../model/types';
 
 /** Режим хода — у каждого свой набор встроенных и своя память. */

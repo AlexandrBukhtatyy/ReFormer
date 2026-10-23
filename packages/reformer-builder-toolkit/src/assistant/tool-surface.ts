@@ -1,9 +1,8 @@
 /**
  * Мера поверхности инструментов: сколько символов уходит в КАЖДЫЙ шаг хода.
  *
- * Функция вынесена из теста (`./tool-surface.test.ts`) потому, что у неё появился второй
- * читатель: с проекцией команд в инструменты (`./command-tools`) поверхность перестала быть
- * известной на сборке. Набор встроенных инструментов статичен и меряется тестом; набор
+ * Функция вынесена из теста храповика потому, что у неё появился второй читатель: с проекцией
+ * команд в инструменты поверхность перестала быть известной на сборке. Набор встроенных инструментов статичен и меряется тестом; набор
  * команд с блоком `agent` зависит от того, какие плагины включены, и известен только в
  * рантайме — значит, мерить его надо там же, где он собирается.
  *
@@ -11,13 +10,11 @@
  * `inputSchema`. Сериализация — `JSON.stringify` всего набора: она включает разделители и
  * кавычки, то есть считает то же, что реально уходит по проводу, а не сумму «чистых» строк.
  *
- * @module plugins/reformer/ai/tools/tool-surface
+ * @module @reformer/builder-toolkit/assistant/tool-surface
  */
 
-import type { AgentTool } from '../model/types';
-
-/** То, что провайдер отдаёт модели про один инструмент. */
-interface ToolDefinition {
+/** То, что провайдер отдаёт модели про один инструмент. Лишние поля инструмента не считаются. */
+export interface ToolDefinition {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: object;
@@ -28,7 +25,7 @@ interface ToolDefinition {
  *
  * @param tools - Инструменты, которые уйдут модели в этом ходе.
  */
-export function measureToolSurface(tools: readonly AgentTool[]): number {
+export function measureToolSurface(tools: readonly ToolDefinition[]): number {
   const definitions: ToolDefinition[] = tools.map((tool) => ({
     name: tool.name,
     description: tool.description,

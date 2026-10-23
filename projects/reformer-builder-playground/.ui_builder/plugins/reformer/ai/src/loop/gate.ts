@@ -19,7 +19,7 @@ import type { FormRules } from '../../../core/form-model';
 import { validateSchema } from '../model/validate';
 import { nodeRef } from '../model/node-ref';
 import { buildOutline, renderOutline } from '../model/outline';
-import { joinWithinBudget } from './render-budget';
+import { joinWithinBudget } from '@reformer/builder-toolkit';
 import { countErrors, introduced, warningLine } from './introduced';
 import {
   fail,

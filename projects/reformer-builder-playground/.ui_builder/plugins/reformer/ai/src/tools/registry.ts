@@ -31,7 +31,7 @@
  */
 
 import type { ValidateFunction } from 'ajv';
-import { similarNames } from '../loop/suggest';
+import { similarNames } from '@reformer/builder-toolkit';
 import {
   fail,
   TOOL_TEXT_BUDGET,

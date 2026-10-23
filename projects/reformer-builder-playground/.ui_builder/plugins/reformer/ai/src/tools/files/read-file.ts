@@ -9,8 +9,7 @@
 
 import { fileRoleOf } from '../../../../core/codegen/layout';
 import { foreignPathHint, isRefusal } from '../../files/scope';
-import { pageOf } from '../../files/page';
-import { similarNames } from '../../loop/suggest';
+import { pageOf, similarNames } from '@reformer/builder-toolkit';
 import type { FileToolContext } from '../../files/turn';
 import { fail, FILE_READ_BUDGET, ok, type AgentTool, type ToolOutcome } from '../../model/types';
 

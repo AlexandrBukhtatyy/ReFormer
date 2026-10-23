@@ -20,7 +20,7 @@ import { catalogEntry, componentNames, type Catalog } from '../model/catalog-dig
 import { commitBatch, type BatchEntry, type OpDescription } from '../loop/gate';
 import { isResolved, nodeRef, resolveRef } from '../model/node-ref';
 import { insertSlotOf } from '../model/slots';
-import { similarNames } from '../loop/suggest';
+import { similarNames } from '@reformer/builder-toolkit';
 import { fail, type AgentTool, type ToolOutcome } from '../model/types';
 import { REF_PROP } from './params';
 import { nodeKeyOf, nodeKeyRefusal, splitNodeKeys } from './node-keys';

@@ -27,7 +27,7 @@
 
 import { findCycle } from '@reformer/mcp/dist/core/utils/graph.js';
 import { collectModelPaths } from '../../../core/form-model';
-import { similarNames } from '../loop/suggest';
+import { similarNames } from '@reformer/builder-toolkit';
 import { emptyRules, type FormRules } from '../../../core/form-model';
 import { fail, ok, type AgentTool, type ToolOutcome } from '../model/types';
 

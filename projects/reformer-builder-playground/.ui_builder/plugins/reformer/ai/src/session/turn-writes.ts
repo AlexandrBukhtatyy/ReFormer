@@ -21,7 +21,7 @@
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { AiFiles, WriteMark } from '../host';
 import type { FileJournal } from '../files/journal';
-import { changedLines } from '../files/page';
+import { changedLines } from '@reformer/builder-toolkit';
 import type { TurnWriteResult } from '../model/types';
 
 /** Файл, записанный дверью мимо журнала модуля: чем был и чем стал. */

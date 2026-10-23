@@ -20,9 +20,7 @@ import {
   type AssistantResourceEntry,
   type AssistantResourceProvider,
 } from '@reformer/builder-plugin-api';
-import { pageOf } from '../files/page';
-import { joinWithinBudget } from '../loop/render-budget';
-import { similarNames } from '../loop/suggest';
+import { pageOf, joinWithinBudget, similarNames } from '@reformer/builder-toolkit';
 import { toolErrorCodeOf } from '../tools/contributed-tools';
 import {
   ATTACHMENT_BUDGET,

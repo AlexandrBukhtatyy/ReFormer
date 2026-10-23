@@ -9,7 +9,7 @@
  */
 
 import { gateWrite } from '../../files/gate';
-import { changedLines, linesOf, snippetOf } from '../../files/page';
+import { changedLines, linesOf, snippetOf } from '@reformer/builder-toolkit';
 import type { ModuleFile } from '../../files/scope';
 import type { FileToolContext } from '../../files/turn';
 import type { ToolOutcome } from '../../model/types';

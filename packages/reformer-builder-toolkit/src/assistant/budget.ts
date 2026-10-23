@@ -9,7 +9,7 @@
  * Длина проверяется по фактически собранному тексту, а не по накопительному счётчику: счётчик легко
  * разъезжается с реальностью на разделителях, и тогда бюджет тихо превышается.
  *
- * @module plugins/reformer/ai/loop/render-budget
+ * @module @reformer/builder-toolkit/assistant/budget
  */
 
 /**
