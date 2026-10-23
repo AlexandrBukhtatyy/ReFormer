@@ -12,9 +12,9 @@
  * - **маркер происхождения** — `// @reformer-generated <hash>`: по нему доставка решает,
  *   можно ли перезаписать файл, не потеряв правку человека;
  * - **имена** — транслитерация и kebab: имена файлов и селекторов из подписей;
- * - **ассистент** — текст для модели: страницы файла со строками, ответ по целым строкам в
- *   бюджете, похожие имена для подсказки, мера поверхности инструментов. Нужны и ассистенту, и
- *   инструментам стека в нём.
+ * - **ассистент** — реестр инструментов модели и текст для неё: страницы файла со строками,
+ *   ответ по целым строкам в бюджете, похожие имена для подсказки, мера поверхности
+ *   инструментов. Нужны и ассистенту, и инструментам стека в нём.
  *
  * @module @reformer/builder-toolkit
  */
@@ -41,3 +41,11 @@ export {
 export { joinWithinBudget } from './assistant/budget';
 export { similarNames } from './assistant/suggest';
 export { measureToolSurface, type ToolDefinition } from './assistant/tool-surface';
+export {
+  createToolRegistry,
+  TOOL_TEXT_BUDGET,
+  type RegistryOutcome,
+  type RegistryTool,
+  type ToolRegistry,
+  type ToolRegistryOptions,
+} from './assistant/registry';
