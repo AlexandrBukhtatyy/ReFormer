@@ -39,6 +39,7 @@ import {
 import { defineFormBehavior, type BehaviorScope } from '@reformer/core/behaviors';
 import {
   composeRegistries,
+  isJsonStepRef,
   type ComponentRegistry,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
@@ -198,9 +199,50 @@ function missingSubmitNodes(form: PreviewForm, named: ReadonlySet<string>): read
   );
 }
 
+/**
+ * Ссылки на файлы шагов, которые остались несобранными, — по всем местам узлов.
+ *
+ * Превью рисует собранную форму: шаги из своих файлов подставляет сборка документа редактора.
+ * Ссылка, дошедшая сюда, значит, что шаг не собран, — и рендерер бросил бы на ней внутренней
+ * ошибкой с советом позвать `composeJsonFormSchema`, которая человеку ничего не говорит. Поэтому
+ * отказ называется здесь, своими словами и с файлами.
+ */
+function unresolvedStepRefs(value: unknown, found: string[] = []): string[] {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return found;
+  if (isJsonStepRef(value)) {
+    found.push(value.$ref);
+    return found;
+  }
+  const node = value as Record<string, unknown>;
+  if (Array.isArray(node.children))
+    for (const child of node.children) unresolvedStepRefs(child, found);
+  unresolvedStepRefs((node.item as { $template?: unknown } | undefined)?.$template, found);
+  unresolvedStepRefs(node.wrapper, found);
+  return found;
+}
+
 /** Собирает форму по схеме. Отказ — данные, а не исключение. */
 export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
   const problems: PreviewProblem[] = [];
+
+  const unresolved = unresolvedStepRefs(input.schema.root);
+  if (unresolved.length > 0) {
+    const files = unresolved.map((ref) => `«${ref}»`).join(', ');
+    return {
+      schema: null,
+      form: null,
+      registry: null,
+      problems: [
+        {
+          file: '',
+          phase: 'schema',
+          message:
+            `шаги мастера не собраны: ${files}. Проверьте, что файлы шагов лежат рядом с ` +
+            'документом, и откройте вкладку заново',
+        },
+      ],
+    };
+  }
 
   let annotated: JsonFormSchema;
   try {

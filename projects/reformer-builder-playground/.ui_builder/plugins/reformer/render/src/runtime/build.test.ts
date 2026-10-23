@@ -440,3 +440,29 @@ describe('deepMerge', () => {
     expect(deepMerge({ a: { b: 1, c: 2 } }, { a: { c: 3 } })).toEqual({ a: { b: 1, c: 3 } });
   });
 });
+
+describe('несобранные шаги', () => {
+  it('ссылка на файл шага — находка с файлами, а не внутренняя ошибка рендерера', () => {
+    // Такую схему превью получает, когда сборка документа шаг не подставила.
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        children: [
+          { $ref: './steps/personal/form.schema.json' },
+          { $ref: './steps/extra/form.schema.json' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+
+    const bundle = bundleOf(schema);
+
+    expect(bundle.form).toBeNull();
+    expect(bundle.problems).toHaveLength(1);
+    expect(bundle.problems[0].message).toMatch(/^шаги мастера не собраны/);
+    expect(bundle.problems[0].message).toContain('«./steps/personal/form.schema.json»');
+    expect(bundle.problems[0].message).toContain('«./steps/extra/form.schema.json»');
+    expect(bundle.problems[0].message).not.toContain('composeJsonFormSchema');
+  });
+});
