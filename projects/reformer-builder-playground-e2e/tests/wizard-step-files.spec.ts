@@ -62,3 +62,37 @@ test.describe('Превью мастера с шагами в отдельных
     });
   }
 });
+
+test('файла шага нет: корень открывается текстом, а с появившимся шагом — формой', async ({
+  builder,
+  disk,
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const dir = 'forms/wizard-refs/schema';
+  await builder.goto();
+  await disk.seed();
+  await disk.writeText(
+    `${dir}/form.schema.json`,
+    `${JSON.stringify(ROOTS['формат 2: ссылки в children'], null, 2)}\n`
+  );
+  await builder.openFolder();
+  await builder.openFile(`${dir}/form.schema.json`);
+
+  // Собрать форму нечем — документ текстовый. Раньше вкладка навсегда оставалась в «Документ
+  // открывается», с выключенными видами и без исходника: корень нельзя было даже поправить.
+  const editor = page.getByRole('main', { name: 'Редактор' });
+  await expect(editor.getByText(/Форма не собирается — документ открыт текстом/)).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(
+    page.locator('[data-rb-plugin="reformer.editor-monaco"] .monaco-editor .view-lines')
+  ).toContainText('steps/personal');
+
+  // Шаг появился — переоткрытая вкладка собирает форму.
+  await disk.writeText(`${dir}/steps/personal/form.schema.json`, STEP);
+  await editor.getByRole('button', { name: 'Закрыть «form.schema.json»' }).click();
+  await builder.openFile(`${dir}/form.schema.json`);
+  await editor.getByRole('button', { name: 'Форма', exact: true }).click();
+  await expect(editor.getByRole('textbox', { name: 'Фамилия' })).toBeVisible({ timeout: 30_000 });
+});
