@@ -35,6 +35,10 @@
 
 Пути ниже — от `projects/reformer-builder-playground/.ui_builder/plugins/reformer/`.
 
+Что обвязка билдера выдерживает сценарии со знаком ✅ в колонке С, проверяет e2e с подменённой
+моделью: `projects/reformer-builder-playground-e2e/tests/assistant/form-scenarios.spec.ts` и
+группы каталога `tests/assistant/SCENARIOS.md` — тест назван номерами сценариев отсюда.
+
 ## 1. Создание формы с нуля
 
 | №   | Сценарий                                                                       | С   | Ф   | Примечание                                                                                                                    |
