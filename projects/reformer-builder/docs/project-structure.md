@@ -280,7 +280,8 @@ projects/reformer-builder-playground/.ui_builder/plugins/
 │   ├── render/                reformer.preview-runtime — поверхности формы и панель модели:
 │   │                          compiling/ runtime/ schema/ surface/ ui/
 │   ├── validator/             reformer.validator-schema (флат — размер позволяет)
-│   ├── codegen/               reformer.codegen: pipeline/ (+ __golden__) commands/ ui/
+│   ├── codegen/               reformer.codegen-schema — стек ReFormer в генерации кода:
+│   │                          pipeline/ (+ __golden__) stack/ commands/ (хозяин — forms/codegen)
 │   ├── templates/             reformer.templates: content/ render/ commands/ stores/ ui/
 │   ├── ai/                    reformer.ai-schema — стек ReFormer в ассистенте: stack/ model/
 │   │                          loop/ tools/ files/ knowledge/ (сам ассистент — forms/ai)
@@ -584,21 +585,21 @@ plugins/base/project/
 всё, что в правой колонке начинается с `reformer/` и `plugins/reformer/`, лежит не в билдере,
 а в каталоге плагинов проекта-образца — `.ui_builder/plugins/reformer/`.
 
-| v1                                 | v2                                                       |
-| ---------------------------------- | -------------------------------------------------------- |
-| `model/`                           | `reformer/core/form-model/`                              |
-| `catalog/`                         | `reformer/core/catalog/`                                 |
-| `kits/` (дескрипторы)              | SDK `src/kits/` + `reformer/core/kits/`                  |
-| `kits/` (активный кит)             | `plugins/forms/kits/` (каталог плагинов образца)         |
-| `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/reformer/render/`   |
-| `codegen/`                         | `reformer/core/codegen/` + `plugins/reformer/codegen/`   |
-| `templates/`, `app/*-templates.ts` | `plugins/reformer/templates/`                            |
-| `canvas/`, `panels/`               | `plugins/editor-*/`                                      |
-| `agent/core/`                      | `plugins/forms/ai/` + `plugins/reformer/ai/`             |
-| `io/fs-*`, `discovery`             | `shell/platform/source/`                                 |
-| `io/opfs`, `io/idb`, `draft-store` | `shell/platform/workspace/storage/`                      |
-| `app/EditorLayout.tsx`             | `shell/platform/ui/Shell.tsx` + вклады                   |
-| `store/reducers.ts`                | `shell/platform/workspace/` + `plugins/reformer/editor/` |
+| v1                                 | v2                                                                                |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| `model/`                           | `reformer/core/form-model/`                                                       |
+| `catalog/`                         | `reformer/core/catalog/`                                                          |
+| `kits/` (дескрипторы)              | SDK `src/kits/` + `reformer/core/kits/`                                           |
+| `kits/` (активный кит)             | `plugins/forms/kits/` (каталог плагинов образца)                                  |
+| `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/reformer/render/`                            |
+| `codegen/`                         | `reformer/core/codegen/` + `plugins/forms/codegen/` + `plugins/reformer/codegen/` |
+| `templates/`, `app/*-templates.ts` | `plugins/reformer/templates/`                                                     |
+| `canvas/`, `panels/`               | `plugins/editor-*/`                                                               |
+| `agent/core/`                      | `plugins/forms/ai/` + `plugins/reformer/ai/`                                      |
+| `io/fs-*`, `discovery`             | `shell/platform/source/`                                                          |
+| `io/opfs`, `io/idb`, `draft-store` | `shell/platform/workspace/storage/`                                               |
+| `app/EditorLayout.tsx`             | `shell/platform/ui/Shell.tsx` + вклады                                            |
+| `store/reducers.ts`                | `shell/platform/workspace/` + `plugins/reformer/editor/`                          |
 
 Порты стека, которые собирал `shell/boot/ports` (`schema`, `preview`, мосты `live-surface`
 и `kit-namespace`), сняты в 2026-09 (ось стеков, Ф2–Ф3): живой вид стал возможностью плагина
