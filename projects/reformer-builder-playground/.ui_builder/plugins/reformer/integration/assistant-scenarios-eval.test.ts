@@ -570,7 +570,7 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
   it('итог', () => {
     const passed = results.filter((result) => result.pass).length;
     console.info(`[eval] итог: ${passed}/${results.length} · модель ${MODEL}`);
-    const root = fileURLToPath(new URL('../../../../../../../../.tmp/eval/', import.meta.url));
+    const root = fileURLToPath(new URL('../../../../../../.tmp/eval/', import.meta.url));
     mkdirSync(root, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     writeFileSync(
