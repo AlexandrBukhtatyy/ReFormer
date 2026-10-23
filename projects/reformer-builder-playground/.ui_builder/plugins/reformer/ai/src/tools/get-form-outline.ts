@@ -18,6 +18,6 @@ export const getFormOutline: AgentTool = {
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   readOnly: true,
   run(_params, ctx) {
-    return ok(renderOutline(buildOutline(ctx.draft), TOOL_TEXT_BUDGET));
+    return ok(renderOutline(buildOutline(ctx.draft, ctx.rules), TOOL_TEXT_BUDGET));
   },
 };

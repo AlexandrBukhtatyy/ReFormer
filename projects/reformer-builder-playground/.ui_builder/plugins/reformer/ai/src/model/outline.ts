@@ -29,7 +29,7 @@ import {
   type ChildSlotKind,
   type NodeKind,
 } from '../../../core/form-model';
-import { type JsonPath } from '../../../core/form-model';
+import { type FormRules, type JsonPath } from '../../../core/form-model';
 import { componentOf, labelOf, modelOf, nodeRef } from './node-ref';
 import { joinWithinBudget } from '../loop/render-budget';
 
@@ -48,30 +48,65 @@ export interface OutlineEntry {
   label?: string;
   /** Слот РОДИТЕЛЯ, в котором лежит узел; у корня отсутствует. */
   slot?: ChildSlotKind;
-  /** `componentProps.required === true`. */
-  required?: boolean;
+  /**
+   * Обязательное поле: `componentProps.required === true` или правило `required` без условия;
+   * `'conditional'` — правило `required` с условием `when`.
+   */
+  required?: true | 'conditional';
   /** Имя части, разметку которой узел подключает (`$part(имя)` подформы или шаблона строки). */
   part?: string;
   /** У корня разметки части — её имя: с этой строки начинается блок части. */
   partDef?: string;
 }
 
+/** Обязательность полей по правилам: полный путь модели → безусловно или с условием. */
+type RequiredByRules = ReadonlyMap<string, true | 'conditional'>;
+
+/**
+ * Какие поля обязательны по правилам формы. Безусловное правило сильнее условного: поле, у
+ * которого есть оба, обязательно всегда.
+ */
+function requiredByRules(rules: FormRules | undefined): RequiredByRules {
+  const out = new Map<string, true | 'conditional'>();
+  for (const rule of rules?.validation ?? []) {
+    if (!rule.rules.some((check) => /^\s*required\b/.test(check))) continue;
+    if (rule.when === undefined) out.set(rule.target, true);
+    else if (!out.has(rule.target)) out.set(rule.target, 'conditional');
+  }
+  return out;
+}
+
 /**
  * Построить дайджест схемы (pre-order, начиная с корневого узла `['root']`).
  * Схема без узла-корня даёт пустой список, а не бросает: гейт качества — не здесь.
+ *
+ * @param rules - Правила формы: по ним поле помечается обязательным, как и по свойству
+ *   `required`. Без этого обязательность жила в двух местах — в свойстве (видно в карте) и в
+ *   правилах (видно в отдельном блоке затравки), — и модель на «какие поля обязательны» читала
+ *   каждый узел, проверяя свойство (замер на живой модели, сценарий 17.1: 11 вызовов).
  */
-export function buildOutline(schema: JsonFormSchema): OutlineEntry[] {
+export function buildOutline(schema: JsonFormSchema, rules?: FormRules): OutlineEntry[] {
   const out: OutlineEntry[] = [];
   const root = (schema as { root?: unknown }).root;
   if (!isNodeLike(root)) return out;
-  visit(root, ['root'], 0, undefined, out);
+  const required = requiredByRules(rules);
+  visit(root, ['root'], 0, undefined, out, { required, scope: '' });
+  // Поля части пишут пути от группы подключения, а подключений бывает несколько: обязательность по
+  // правилам к разметке части не приложить — у неё нет одного полного пути.
   for (const [name, markup] of documentParts(schema)) {
     const start = out.length;
-    visit(markup, [PARTS_KEY, name], 0, undefined, out);
+    visit(markup, [PARTS_KEY, name], 0, undefined, out, { required: new Map(), scope: '' });
     const head = out[start];
     if (head !== undefined) out[start] = { ...head, partDef: name };
   }
   return out;
+}
+
+/** Что обход несёт вниз: обязательность по правилам и путь модели строки массива. */
+interface VisitScope {
+  readonly required: RequiredByRules;
+  /** Полный путь массива, внутри строки которого идёт обход; `''` — вне строк. */
+  readonly scope: string;
 }
 
 function visit(
@@ -79,13 +114,19 @@ function visit(
   path: JsonPath,
   depth: number,
   slot: ChildSlotKind | undefined,
-  out: OutlineEntry[]
+  out: OutlineEntry[],
+  context: VisitScope
 ): void {
   const props = (node as { componentProps?: Record<string, unknown> }).componentProps;
   const component = componentOf(node);
   const model = modelOf(node);
   const label = labelOf(node);
   const part = partRefOf(node);
+  // Поле строки пишет путь от строки, правило строки — полный путь: сверяются полные.
+  const full =
+    model === undefined ? undefined : context.scope ? `${context.scope}.${model}` : model;
+  const required =
+    props?.required === true ? true : full === undefined ? undefined : context.required.get(full);
   out.push({
     ref: nodeRef(path),
     depth,
@@ -94,13 +135,15 @@ function visit(
     ...(model ? { model } : {}),
     ...(label ? { label } : {}),
     ...(slot ? { slot } : {}),
-    ...(props?.required === true ? { required: true } : {}),
+    ...(required !== undefined ? { required } : {}),
     ...(part !== undefined ? { part } : {}),
   });
   for (const s of childSlots(node, path)) {
+    const inner =
+      s.kind === 'template' && full !== undefined ? { ...context, scope: full } : context;
     for (const entry of s.entries) {
       const childPath = s.single ? s.path : [...s.path, entry.index];
-      visit(entry.node, childPath, depth + 1, s.kind, out);
+      visit(entry.node, childPath, depth + 1, s.kind, out, inner);
     }
   }
 }
@@ -110,7 +153,8 @@ function renderEntry(e: OutlineEntry): string {
   const parts = [e.component ?? `(${e.kind})`];
   if (e.model) parts.push(`model=${e.model}`);
   if (e.label) parts.push(`«${e.label}»`);
-  if (e.required) parts.push('required');
+  if (e.required === true) parts.push('required');
+  if (e.required === 'conditional') parts.push('required (conditional)');
   if (e.part) parts.push(`part=${e.part}`);
   const head = e.partDef ? `part «${e.partDef}»: ` : '';
   return `${'  '.repeat(e.depth)}${head}${e.ref} · ${parts.join(' · ')}`;

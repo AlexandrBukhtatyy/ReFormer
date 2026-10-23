@@ -58,6 +58,57 @@ describe('buildOutline', () => {
     expect(buildOutline(schema)[1].required).toBe(true);
   });
 
+  it('required — и по правилам: безусловное, с условием, у поля строки массива', () => {
+    // Обязательность жила в двух местах, и на «какие поля обязательны» модель читала каждый узел,
+    // проверяя свойство: в карте пометка была только по нему.
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(email)', component: '$component(Input)' },
+          { model: '$model(inn)', component: '$component(Input)' },
+          { model: '$model(phone)', component: '$component(Input)' },
+          {
+            model: '$model(children)',
+            component: '$component(FieldArray)',
+            item: {
+              $template: {
+                component: '$component(Box)',
+                children: [{ model: '$model(name)', component: '$component(Input)' }],
+              },
+            },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const rules = {
+      validation: [
+        { target: 'email', rules: ["required({ code: 'email.required' })"] },
+        { target: 'inn', rules: ['required'], when: "model.kind === 'company'" },
+        { target: 'phone', rules: ['minLength(5)'] },
+        { target: 'children.name', rules: ['required'], each: 'children' },
+      ],
+      behavior: [],
+      render: [],
+    };
+
+    const marks = buildOutline(schema, rules)
+      .filter((entry) => entry.model !== undefined)
+      .map((entry) => [entry.model, entry.required]);
+    expect(marks).toEqual([
+      ['email', true],
+      ['inn', 'conditional'],
+      ['phone', undefined],
+      ['children', undefined],
+      ['name', true],
+    ]);
+    expect(renderOutline(buildOutline(schema, rules), 4000)).toContain(
+      'model=inn · required (conditional)'
+    );
+  });
+
   it('пустая форма — один корневой узел; схема без корня — пусто', () => {
     expect(buildOutline(emptySchema())).toHaveLength(1);
     expect(buildOutline({} as JsonFormSchema)).toEqual([]);
