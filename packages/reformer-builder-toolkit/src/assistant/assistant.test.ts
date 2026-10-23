@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { joinWithinBudget } from './budget';
 import { similarNames } from './suggest';
 import { measureToolSurface } from './tool-surface';
+import { pathWithin } from './paths';
 
 describe('similarNames — похожие имена для подсказки модели', () => {
   it('подстрока идёт раньше опечатки', () => {
@@ -34,5 +35,16 @@ describe('measureToolSurface — то, за что платится каждый
     const withRun = { ...bare, readOnly: true, run: () => 'ok' };
     expect(measureToolSurface([withRun])).toBe(measureToolSurface([bare]));
     expect(measureToolSurface([bare])).toBe(JSON.stringify([bare]).length);
+  });
+});
+
+describe('pathWithin — путь от корня каталога', () => {
+  it('внутри — путь от корня, вне — null', () => {
+    expect(pathWithin('forms/loan/api/index.ts', 'forms/loan')).toBe('api/index.ts');
+    expect(pathWithin('forms/loans/x.ts', 'forms/loan')).toBeNull();
+  });
+
+  it('корень проекта — путь как есть', () => {
+    expect(pathWithin('form.json', '')).toBe('form.json');
   });
 });

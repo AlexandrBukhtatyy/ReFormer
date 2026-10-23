@@ -40,7 +40,13 @@ export {
 } from './assistant/page';
 export { joinWithinBudget } from './assistant/budget';
 export { similarNames } from './assistant/suggest';
-export { measureToolSurface, type ToolDefinition } from './assistant/tool-surface';
+export {
+  measureToolSurface,
+  TOOL_DESCRIPTION_BUDGET,
+  TOOL_NAME_BUDGET,
+  type ToolDefinition,
+} from './assistant/tool-surface';
+export { pathWithin } from './assistant/paths';
 export {
   createToolRegistry,
   TOOL_TEXT_BUDGET,

@@ -13,6 +13,12 @@
  * @module @reformer/builder-toolkit/assistant/tool-surface
  */
 
+/** Бюджет имени инструмента (символы). Проверяется тестом, а не в рантайме. */
+export const TOOL_NAME_BUDGET = 30;
+
+/** Бюджет описания инструмента (символы). Проверяется тестом, а не в рантайме. */
+export const TOOL_DESCRIPTION_BUDGET = 500;
+
 /** То, что провайдер отдаёт модели про один инструмент. Лишние поля инструмента не считаются. */
 export interface ToolDefinition {
   readonly name: string;
