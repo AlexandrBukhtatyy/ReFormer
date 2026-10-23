@@ -6,6 +6,8 @@ dolt-access.lock
 bd.sock
 sync-state.json
 last-touched
+# Lock of a running bd process: pid, host and start time — meaningless in another clone
+.bv.lock
 
 # Local version tracking (prevents upgrade notification spam after git ops)
 .local_version
