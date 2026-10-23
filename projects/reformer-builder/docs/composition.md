@@ -68,7 +68,7 @@ npx reformer-builder --plugins ./my-plugins
 
 Встроенных движков форм у билдера нет, как нет и ничего другого про формы. Сам он — оболочка:
 открытие проекта и сохранение, управление плагинами, выбор профиля.
-Остальное приносят плагины: основу (дерево файлов, панель проблем, операции над записями,
+Остальное приносят плагины: основу (дерево файлов, журнал, операции над записями,
 редактор кода, предпросмотр markdown),
 платформу форм (реестр китов и превью-хост — то, чем пользуется любой движок) и сами движки —
 формат схемы, её редактор, поверхности превью, валидатор, генерацию кода, шаблоны, ассистента. Едут они вместе с приложением (см. выше) или лежат в `.ui_builder/plugins/`
@@ -78,12 +78,12 @@ npx reformer-builder --plugins ./my-plugins
 ([`projects/reformer-builder-playground`](../../reformer-builder-playground/README.md)), по пакету
 на плагин:
 
-| Домен    | Каталог                         | Плагины (идентификаторы)                                                                                                                                              |
-| -------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base     | `.ui_builder/plugins/base/`     | `reformer.files` — дерево файлов, панель проблем, операции над записями; `reformer.editor-monaco` — редактор кода; `reformer.editor-markdown` — предпросмотр markdown |
-| forms    | `.ui_builder/plugins/forms/`    | `reformer.kits`, `reformer.preview` — платформа форм, общая для движков                                                                                               |
-| ReFormer | `.ui_builder/plugins/reformer/` | `reformer.editor-schema`, `reformer.preview-runtime`, `reformer.validator-schema`, `reformer.codegen`, `reformer.templates`, `reformer.ai`                            |
-| RJSF     | `.ui_builder/plugins/rjsf/`     | `reformer.rjsf.editor`, `reformer.rjsf.render`                                                                                                                        |
+| Домен    | Каталог                         | Плагины (идентификаторы)                                                                                                                                                                               |
+| -------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| base     | `.ui_builder/plugins/base/`     | `reformer.files` — дерево файлов, операции над записями; `reformer.journal` — журнал: проблемы и события; `reformer.editor-monaco` — редактор кода; `reformer.editor-markdown` — предпросмотр markdown |
+| forms    | `.ui_builder/plugins/forms/`    | `reformer.kits`, `reformer.preview` — платформа форм, общая для движков                                                                                                                                |
+| ReFormer | `.ui_builder/plugins/reformer/` | `reformer.editor-schema`, `reformer.preview-runtime`, `reformer.validator-schema`, `reformer.codegen`, `reformer.templates`, `reformer.ai`                                                             |
+| RJSF     | `.ui_builder/plugins/rjsf/`     | `reformer.rjsf.editor`, `reformer.rjsf.render`                                                                                                                                                         |
 
 Каталог плагинов допускает один уровень вложенности. Подкаталог без `manifest.json`
 и без `package.json` — **домен**; его подкаталоги с манифестом — плагины, а прочие (`core/` —
