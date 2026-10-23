@@ -519,7 +519,7 @@ export type {
 
 // Стек форм в ассистенте: ассистент — общий плагин, а что такое форма, какие у модели инструменты
 // и что значит «правка легла», знает стек. Стеки вносят себя в точку, как поверхности превью.
-export { FormAssistantStackPoint } from './assistant/form-stack.js';
+export { FormAssistantStackPoint, formToolFail, formToolOk } from './assistant/form-stack.js';
 export type {
   FormAgentTool,
   FormAskAnswer,

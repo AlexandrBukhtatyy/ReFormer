@@ -109,6 +109,27 @@ export interface FormToolOutcome {
   error?: FormToolError;
 }
 
+/** Успешный ответ инструмента. */
+export function formToolOk(text: string): FormToolOutcome {
+  return { ok: true, text };
+}
+
+/**
+ * Ответ инструмента с ошибкой. Похожие имена уходят и в текст для модели: по ним она чинит вызов
+ * сама, не переспрашивая каталог.
+ */
+export function formToolFail(
+  code: FormToolErrorCode,
+  message: string,
+  suggestions?: string[]
+): FormToolOutcome {
+  return {
+    ok: false,
+    text: suggestions?.length ? `${message} Did you mean: ${suggestions.join(', ')}.` : message,
+    error: { code, message, ...(suggestions?.length ? { suggestions } : {}) },
+  };
+}
+
 /** Исход записи инструмента плагина дверью хода. */
 export type FormTurnWriteResult =
   | { readonly ok: true; readonly op: FormChangeOp }

@@ -340,6 +340,7 @@ ctx.services.get(LogServiceToken)?.append({
 | `FormStructuredMode`                           | черновик в памяти: `load`, `begin` (попытка хода), `hasChanges`, `land` (одна запись), `rewind`              |
 | `FormFilesMode`                                | файлы модуля: `scopeOf`, `baseline`, `begin`, `normalize` — режим необязателен                               |
 | `FormAgentTool`, `FormToolOutcome`             | инструмент модели и его ответ; `FormToolSlot` ставит инструменты ассистента в список стека по имени          |
+| `formToolOk`, `formToolFail`                   | ответ инструмента — успешный и с кодом ошибки; похожие имена уходят и в текст для модели                     |
 | `FormTurnScope`, `FormToolContext`, `FormTurn` | что ход даёт вызову и что попытка хода показывает модели                                                     |
 
 Модель формы в контракте — `unknown`: разобранный документ и черновик стек держит в `state` и в
