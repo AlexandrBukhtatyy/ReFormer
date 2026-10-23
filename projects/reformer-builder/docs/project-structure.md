@@ -282,7 +282,8 @@ projects/reformer-builder-playground/.ui_builder/plugins/
 │   ├── validator/             reformer.validator-schema (флат — размер позволяет)
 │   ├── codegen/               reformer.codegen: pipeline/ (+ __golden__) commands/ ui/
 │   ├── templates/             reformer.templates: content/ render/ commands/ stores/ ui/
-│   ├── ai/                    reformer.ai: model/ loop/ tools/ session/ knowledge/ providers/ ui/
+│   ├── ai/                    reformer.ai-schema — стек ReFormer в ассистенте: stack/ model/
+│   │                          loop/ tools/ files/ knowledge/ (сам ассистент — forms/ai)
 │   └── integration/           плагины домена в собранном приложении — проверки, не плагин
 ├── rjsf/                    стек RJSF: формы react-jsonschema-form в активном ките
 │   ├── core/                  ЯДРО: формат rjsf-form/1, операции, проверки, печать Form.tsx
@@ -593,7 +594,7 @@ plugins/base/project/
 | `codegen/`                         | `reformer/core/codegen/` + `plugins/reformer/codegen/`   |
 | `templates/`, `app/*-templates.ts` | `plugins/reformer/templates/`                            |
 | `canvas/`, `panels/`               | `plugins/editor-*/`                                      |
-| `agent/core/`                      | `plugins/reformer/ai/`                                   |
+| `agent/core/`                      | `plugins/forms/ai/` + `plugins/reformer/ai/`             |
 | `io/fs-*`, `discovery`             | `shell/platform/source/`                                 |
 | `io/opfs`, `io/idb`, `draft-store` | `shell/platform/workspace/storage/`                      |
 | `app/EditorLayout.tsx`             | `shell/platform/ui/Shell.tsx` + вклады                   |

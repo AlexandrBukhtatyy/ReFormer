@@ -2,7 +2,7 @@
 
 > Замер 2026-10-23. Модель — `qwen3.8:27b-32k` (Q4_K_M) через Ollama, канал `providers/byok.ts`
 > (OpenAI-совместимый). Харнесс —
-> [form-scenarios-eval.test.ts](../../projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/session/form-scenarios-eval.test.ts).
+> [assistant-scenarios-eval.test.ts](../../projects/reformer-builder-playground/.ui_builder/plugins/reformer/integration/assistant-scenarios-eval.test.ts).
 > Сценарии — из [assistant-form-scenarios.md](../../projects/reformer-builder/docs/assistant-form-scenarios.md).
 
 ## Зачем
@@ -27,8 +27,8 @@
 - **Вопросы модели** (`ask_user`) получают первый вариант ответа автоматически.
 - Предел хода — 24 шага; по одному прогону на сценарий.
 
-Запуск: `EVAL_MODEL=qwen3.8:27b-32k npx vitest run src/session/form-scenarios-eval.test.ts` из
-каталога плагина ассистента; `EVAL_ONLY=7.1,8.1` — выборочно. JSON прогона ложится в `.tmp/eval/`.
+Запуск: `EVAL_MODEL=qwen3.8:27b-32k npx vitest run assistant-scenarios-eval.test.ts` из
+`.ui_builder/plugins/reformer/integration` проекта-образца; `EVAL_ONLY=7.1,8.1` — выборочно. JSON прогона ложится в `.tmp/eval/`.
 
 ## Результат: 18/18
 
