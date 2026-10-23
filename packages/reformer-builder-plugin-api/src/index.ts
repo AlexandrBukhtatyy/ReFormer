@@ -404,6 +404,29 @@ export type {
   TemplateSummary,
 } from './services/form-authoring.js';
 
+// Генерация кода: хозяин (панель, запись, цели из проекта) — общий плагин, а что такое форма
+// документа и из каких файлов состоит её модуль, знает стек. Стеки и цели вносят себя в точки.
+export { CodegenStackPoint, CodegenTargetPoint, isCodegenRefusal } from './services/codegen.js';
+export type {
+  CodegenDocument,
+  CodegenFile,
+  CodegenFileClass,
+  CodegenForm,
+  CodegenFormatter,
+  CodegenModule,
+  CodegenNote,
+  CodegenOpenResult,
+  CodegenPrintRequest,
+  CodegenProblem,
+  CodegenProblemReason,
+  CodegenReader,
+  CodegenRefusal,
+  CodegenStack,
+  CodegenTarget,
+  CodegenTargetOrigin,
+  CodegenText,
+} from './services/codegen.js';
+
 // ── Модель документа: второй вид документа поверх текста ────────────────────────
 //
 // Точка провайдеров модели обязана быть здесь, потому что структурный редактор — это
