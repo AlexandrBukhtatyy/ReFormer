@@ -37,6 +37,7 @@ import {
   type CommandContribution,
   type DocumentRef,
   type FormAgentTool,
+  type FormDocumentDoor,
   type FormAssistantStack,
   type FormChangeSet,
   type FormCreatorService,
@@ -68,6 +69,7 @@ import { askUserTool } from '../tools/ask-user';
 import { generateCodeTool } from '../tools/generate-code';
 import { createFormTool, listTemplatesTool } from '../tools/create-form';
 import { createContributionSurface } from './contributions';
+import { isStale } from './apply';
 import {
   createResourceRouter,
   resolveAttachments,
@@ -311,6 +313,23 @@ export interface AgentBridge {
   canSearchResources(): boolean;
   /** Поиск ресурсов для пикера — по провайдерам, умеющим искать. */
   searchResources(query: string, signal: AbortSignal): Promise<readonly ResourceSearchGroup[]>;
+
+  /**
+   * Форма активной вкладки — для подписи «Правит: …» над полем ввода: путь документа, если стек
+   * форм берётся за него и узнаёт в тексте свою форму, иначе `null`. Дёшево: панель зовёт это на
+   * каждую перерисовку, и разбор запоминается по тексту.
+   */
+  activeForm(): string | null;
+  /**
+   * Разошёлся ли документ набора, ждущего решения, с базой хода — кнопка обязана называться
+   * «Применить всё равно» ДО того, как её нажали. Сравнивается текст, каким его правит ход.
+   */
+  isPendingStale(): boolean;
+  /**
+   * Заказать загрузку того, без чего не провести вызов инструмента (движок проверки аргументов).
+   * Зовёт активация плагина — задолго до первого вопроса; отказ не отвергается.
+   */
+  prepare(): Promise<void>;
 }
 
 /** Чем кончилась попытка прикрепить: исходы сессии плюс отказы по адресу. */
@@ -446,9 +465,9 @@ interface LandedFile {
   readonly after: string;
   /**
    * Чем читать и писать этот файл — той дверью, которой его писал ход. `document` — дверь
-   * документа вкладки (`host.documentOf` / `host.writeText`), которая знает про составную форму;
-   * `files` — порт файлов. На файл, а не на ход: структурный ход пишет форму дверью документа,
-   * а инструмент плагина в том же ходе — портом файлов.
+   * документа формы: своя дверь стека (составная форма), иначе буфер вкладки; `files` — порт
+   * файлов. На файл, а не на ход: структурный ход пишет форму дверью документа, а инструмент
+   * плагина в том же ходе — портом файлов.
    */
   readonly access: 'document' | 'files';
 }
@@ -522,6 +541,26 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         : { id, ref: document.ref, kind: 'model', providerId: document.providerId };
     return stacks.forDocument(ref);
   };
+
+  /**
+   * Документ формы так, как его правит ход: своей дверью стека, если она у него есть (составная
+   * форма — текст собран из корня и шагов, запись — операцией модели), иначе буфер вкладки как
+   * есть. `null` — вкладку закрыли.
+   */
+  const formDocumentOf = (id: ResourceId): FormDocumentDoor | null => {
+    const document = host.documentOf(id);
+    if (document === null) return null;
+    return (
+      stackOfDocument(id)?.session.door?.(id) ?? {
+        getText: () => document.getText(),
+        write: (text, mark) => host.writeText(id, text, mark),
+      }
+    );
+  };
+
+  /** Последний разбор формы активной вкладки — для {@link AgentBridge.activeForm}. */
+  let recognized: { readonly id: ResourceId; readonly text: string; path: string | null } | null =
+    null;
 
   /** Ресурсы плагинов: кого спросить по адресу и что сказать модели в затравке. */
   const resources = createResourceRouter(deps.resourceProviders ?? (() => []));
@@ -800,7 +839,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     // и «отмена» сняла бы половину. Сегодня его проставляет `send`, то есть он есть всегда.
     if (txId === undefined) return;
     const { resource } = pending.loaded;
-    const document = host.documentOf(resource);
+    const document = formDocumentOf(resource);
     if (document === null) return;
 
     const previous = lastTurn !== null && lastTurn.txId === txId ? lastTurn : null;
@@ -878,7 +917,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     if (stack === null) return { status: 'no-form' };
     const structured = stack.session.structured;
     if (!structured.hasChanges(pending.set)) return { status: 'empty' };
-    const document = host.documentOf(pending.loaded.resource);
+    const document = formDocumentOf(pending.loaded.resource);
     if (document === null) return { status: 'no-form' };
     if (document.getText() !== pending.loaded.text && !force) return { status: 'conflict' };
     let outcome: FormLandOutcome;
@@ -903,8 +942,9 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     file.access === 'files' && host.files !== undefined
       ? { read: host.files.read.bind(host.files), write: host.files.write.bind(host.files) }
       : {
-          read: (id: ResourceId) => Promise.resolve(host.documentOf(id)?.getText() ?? null),
-          write: (id: ResourceId, text: string) => host.writeText(id, text),
+          read: (id: ResourceId) => Promise.resolve(formDocumentOf(id)?.getText() ?? null),
+          write: (id: ResourceId, text: string) =>
+            formDocumentOf(id)?.write(text) ?? host.writeText(id, text),
         };
 
   /**
@@ -927,7 +967,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const loaded = await stack.session.structured.load({
       resource,
       path: document.ref.path,
-      text: document.getText(),
+      text: (stack.session.door?.(resource) ?? document).getText(),
     });
     return loaded === null ? null : { stack, loaded };
   };
@@ -1692,6 +1732,27 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
     canSearchResources: () => resources.canSearch(),
 
+    activeForm() {
+      const id = host.activeResource();
+      const document = id === null ? null : host.documentOf(id);
+      const stack = id === null || document === null ? null : stackOfDocument(id);
+      if (id === null || document === null || stack === null) return null;
+      const text = (stack.session.door?.(id) ?? document).getText();
+      if (recognized === null || recognized.id !== id || recognized.text !== text) {
+        recognized = { id, text, path: stack.session.recognizes(text) ? document.ref.path : null };
+      }
+      return recognized.path;
+    },
+
+    isPendingStale() {
+      const pending = session.get().pending;
+      return pending !== null && isStale({ host: { documentOf: formDocumentOf } }, pending.loaded);
+    },
+
+    // Движок проверки аргументов у реестров один — модуль грузится раз, и заказа одного реестра
+    // хватает всем: реестры стеков собираются позже, к первому ходу.
+    prepare: () => creationTools.prepare(),
+
     searchResources: (query, signal) => resources.search(query, signal),
 
     async applyPending(force = false) {
@@ -1737,7 +1798,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // Пометки происхождения у неё нет намеренно: восстановление заказал ЧЕЛОВЕК, нажав
       // кнопку, — и в журнале оно обязано выглядеть его правкой, а не ходом ассистента.
       try {
-        await host.writeText(snapshot.resource, snapshot.text);
+        await (formDocumentOf(snapshot.resource)?.write(snapshot.text) ??
+          host.writeText(snapshot.resource, snapshot.text));
         // Сопутствующее состояние формы (правила) возвращает стек, который её разобрал.
         await stacks
           .byId(snapshot.loaded.stack)

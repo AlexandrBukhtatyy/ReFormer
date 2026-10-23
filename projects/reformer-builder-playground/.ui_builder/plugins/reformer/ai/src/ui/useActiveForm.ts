@@ -4,26 +4,22 @@
  * Ход правит форму активной вкладки, и человек должен видеть, какую, ДО отправки запроса: иначе
  * переключение на другую форму между ходами выглядело так, будто ассистент «пишет не туда».
  *
- * Формой считается документ, текст которого разбирается как схема формы, — то же условие, по
- * которому ход берётся за вкладку. Разбор кэшируется по тексту: панель перерисовывается на каждый
- * кусок ответа модели, а документ за это время не меняется.
+ * Формой считается документ, за который берётся стек форм и в тексте которого он узнаёт свою
+ * форму, — то же условие, по которому ход берётся за вкладку. Спрашивается мост: он знает стеки, а
+ * разбор запоминает по тексту — панель перерисовывается на каждый кусок ответа модели.
  *
  * @module plugins/reformer/ai/ui/useActiveForm
  */
 
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import type { AiHost } from '../host';
-import { parseSchemaText } from '../model/schema-text';
-
-interface Cached {
-  readonly text: string;
-  readonly path: string | null;
-}
+import type { AgentBridge } from '../session/bridge';
 
 /** Путь формы активной вкладки от корня проекта или `null`: вкладки нет, или в ней не форма. */
-export function useActiveForm(host: AiHost): string | null {
-  const cache = useRef<Cached | null>(null);
-
+export function useActiveForm(
+  host: AiHost,
+  bridge: Pick<AgentBridge, 'activeForm'>
+): string | null {
   const subscribe = useCallback(
     (onChange: () => void) => {
       const subscription = host.onDidChangeActive?.(onChange);
@@ -33,25 +29,6 @@ export function useActiveForm(host: AiHost): string | null {
     },
     [host]
   );
-
-  const read = useCallback((): string | null => {
-    const id = host.activeResource();
-    const document = id === null ? null : host.documentOf(id);
-    if (document === null) return null;
-    const text = document.getText();
-    const known = cache.current;
-    if (known !== null && known.text === text) {
-      return known.path === null ? null : document.ref.path;
-    }
-    let path: string | null = document.ref.path;
-    try {
-      parseSchemaText(text);
-    } catch {
-      path = null;
-    }
-    cache.current = { text, path };
-    return path;
-  }, [host]);
-
+  const read = useCallback(() => bridge.activeForm(), [bridge]);
   return useSyncExternalStore(subscribe, read);
 }

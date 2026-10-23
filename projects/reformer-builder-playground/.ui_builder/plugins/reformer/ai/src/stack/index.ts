@@ -11,6 +11,7 @@
 
 import type {
   FormAssistantStack,
+  FormDocumentDoor,
   FormStackSession,
   ResourceId,
 } from '@reformer/builder-plugin-api';
@@ -55,6 +56,8 @@ export interface SchemaFormStackOptions {
    * не различает.
    */
   readonly scopeOf?: (id: ResourceId) => FileScope | null;
+  /** Дверь составной формы (`./workspace`); нет — каждая форма пишется текстом как есть. */
+  readonly door?: (id: ResourceId) => FormDocumentDoor | null;
 }
 
 /** Собрать стек форм ReFormer. */
@@ -73,6 +76,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
         if (validate === null) throw new Error('Стек форм не подготовлен к ходу.');
         return validate;
       };
+      const door = (id: ResourceId): FormDocumentDoor | null => options.door?.(id) ?? null;
       const structured = createStructuredMode({
         stack: SCHEMA_FORM_STACK_ID,
         host,
@@ -80,6 +84,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
         catalog: options.catalog,
         validateForm: options.validateForm,
         prepared,
+        door,
       });
       const files =
         host.files === undefined || options.scopeOf === undefined
@@ -129,6 +134,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
           if (form.loaded?.companions.includes(id) === true) return RULES_REFUSAL;
           return formPartRefusal(id, form.resource);
         },
+        door,
         structured,
         ...(files === undefined ? {} : { files }),
       };

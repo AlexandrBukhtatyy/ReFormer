@@ -29,9 +29,7 @@
  * @module plugins/reformer/ai/host
  */
 
-import type { CatalogEntry } from '../../core/catalog';
 import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
-import type { PackageFiles } from './knowledge';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -53,7 +51,6 @@ export interface AiDocument {
    */
   readonly providerId?: string;
   getText(): string;
-  onDidChangeContent(cb: (text: string) => void): Disposable;
 }
 
 /**
@@ -93,7 +90,8 @@ export interface FileScope {
 }
 
 /**
- * Файлы модуля формы — для режима, в котором модель правит их напрямую.
+ * Файлы рабочей копии — для режима, в котором модель правит файлы модуля формы напрямую, и для
+ * сопутствующих файлов формы (файл правил). Где модуль формы, знает стек форм, а не порт.
  *
  * Запись идёт ТОЙ ЖЕ дверью, что у человека и у структурного режима: `Workspace.writeText` через
  * службу документов. В OPFS напрямую плагин не ходит — рабочая копия там лежит, но её буферы,
@@ -101,8 +99,6 @@ export interface FileScope {
  * бы всё это разом. На диск запись не попадает: туда её уносит только сохранение.
  */
 export interface AiFiles {
-  /** Модуль формы документа или `null`: документа нет либо у него нет своей папки модуля. */
-  scopeOf(id: ResourceId): FileScope | null;
   /**
    * Текст файла: СЫРОЙ буфер открытого документа, иначе рабочая копия; `null` — файла нет.
    *
@@ -162,23 +158,9 @@ export interface AiHost {
   writeText(id: ResourceId, text: string, options?: WriteMark): Promise<void>;
 
   /**
-   * Каталог активного кита.
-   *
-   * Функция, а не список: кит переключают, и ход обязан идти против того каталога, который
-   * действует СЕЙЧАС, а не против того, что был на активации плагина.
-   */
-  catalog(): readonly CatalogEntry[];
-
-  /**
-   * Чтение файлов открытого проекта — источник корпуса знаний о версиях, которые стоят у
-   * пользователя. `undefined` (или функция, вернувшая `undefined`) — проекта нет, останется
-   * вшитый корпус.
-   */
-  projectFiles?(): PackageFiles | undefined;
-
-  /**
-   * Файлы модуля формы — для режима файлов. Без него режим недоступен, и ход идёт структурным:
-   * так тесты структурного режима не обязаны поднимать файловую систему.
+   * Файлы рабочей копии — для режима файлов и сопутствующих файлов формы. Без них режим
+   * недоступен, и ход идёт структурным: так тесты структурного режима не обязаны поднимать
+   * файловую систему.
    */
   readonly files?: AiFiles;
 }

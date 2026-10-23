@@ -12,18 +12,20 @@ import { applyChangeSet, isStale, type ApplyDeps, type ApplyRequest } from './ap
 import { createChangeSet, type ChangeSet } from '../model/changeset';
 import { printSchemaText } from '../model/schema-text';
 import { createFakeFiles, createFakeHost } from '../testing';
+import { builtinEntries } from '../../../core/testing';
 import { printRulesText } from '../../../core/codegen/rules-file';
 
 const RESOURCE = 'form.json';
 
 /**
- * Зависимости применения: рабочая область плюс заказ проверки по мета-схеме.
+ * Зависимости применения: рабочая область, каталог кита и заказ проверки по мета-схеме.
  *
  * В тесте настоящая функция берётся статическим импортом — вес модуля здесь ничего не стоит,
  * а проверять гейт двойником значило бы проверять двойник.
  */
 const deps = (host: ApplyDeps['host']): ApplyDeps => ({
   host,
+  catalog: () => builtinEntries(),
   validateForm: () => Promise.resolve(validateFormSchema),
 });
 
@@ -94,7 +96,7 @@ describe('применение набора', () => {
     const broken = new Error('чанк не доехал');
 
     const outcome = await applyChangeSet(
-      { host, validateForm: () => Promise.reject(broken) },
+      { ...deps(host), validateForm: () => Promise.reject(broken) },
       pending
     );
 
@@ -197,7 +199,7 @@ describe('файл правил формы — вторая запись тог�
 
   function withRules(rulesText: string | null, options: { broken?: string } = {}) {
     const files = createFakeFiles(rulesText === null ? {} : { [RULES_FILE]: rulesText });
-    const host = createFakeHost(undefined, files);
+    const host = createFakeHost(files);
     const base = schema('Почта');
     const baseText = printSchemaText(base);
     host.openDocument(RESOURCE, baseText);

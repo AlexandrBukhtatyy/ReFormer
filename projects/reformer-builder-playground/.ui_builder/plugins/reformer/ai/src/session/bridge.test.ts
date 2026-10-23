@@ -24,8 +24,6 @@ import type {
   WhenContext,
 } from '@reformer/builder-plugin-api';
 import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';
-import { createEditorToolRegistry } from '../tools';
-import { createFileToolRegistry } from '../tools/files';
 import type { AgentCommand } from '../tools/command-tools';
 import type { AiAssistant } from '../plugin';
 import { createFakeProvider, type FakeStep } from '../providers/fake';
@@ -126,7 +124,7 @@ function harness(
     readonly formCreator?: FormCreatorService;
   } = {}
 ): Harness {
-  const host = createFakeHost(catalog, options.files);
+  const host = createFakeHost(options.files);
   if (options.openForm !== false) host.openDocument(RESOURCE, printSchemaText(EMPTY_FORM));
 
   const providers = createProviderRegistry();
@@ -135,11 +133,7 @@ function harness(
   }
 
   const assistant: AiAssistant = {
-    tools: createEditorToolRegistry(),
-    fileTools: createFileToolRegistry(),
-    catalog: () => catalog,
     providers,
-    knowledge: { load: () => Promise.resolve(null) } as unknown as AiAssistant['knowledge'],
     loadConfig: () => Promise.resolve({ kind: 'anthropic' as const }),
     saveConfig: () => Promise.resolve(),
     clearConfig: () => Promise.resolve(),
@@ -737,17 +731,13 @@ function filesHarness(
   const files = createFakeFiles(
     options.initial ?? { [FORM_FILE]: EMPTY_TEXT, [RULES_FILE]: RULES_TEXT }
   );
-  const host = createFakeHost(catalog, files);
+  const host = createFakeHost(files);
   host.setActive(options.active ?? FORM_FILE);
 
   const providers = createProviderRegistry();
   providers.register(options.provider ?? createFakeProvider(script));
   const assistant: AiAssistant = {
-    tools: createEditorToolRegistry(),
-    fileTools: createFileToolRegistry(),
-    catalog: () => catalog,
     providers,
-    knowledge: () => Promise.resolve(null),
     loadConfig: () => Promise.resolve({ kind: 'anthropic' as const, editMode: 'files' as const }),
     saveConfig: () => Promise.resolve(),
     clearConfig: () => Promise.resolve(),

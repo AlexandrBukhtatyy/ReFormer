@@ -9,9 +9,7 @@
  * @module plugins/reformer/ai/testing
  */
 
-import { builtinEntries } from '../../core/testing';
-import type { CatalogEntry } from '../../core/catalog';
-import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import {
   moduleRootOfDocument,
   moduleRootPathOf,
@@ -52,19 +50,11 @@ const echoTranslate: Translate = (key, params) =>
   params === undefined ? key : `${key} ${JSON.stringify(params)}`;
 
 /** Собрать двойник платформы. */
-export function createFakeHost(
-  catalog: readonly CatalogEntry[] = builtinEntries(),
-  files?: FakeFiles
-): FakeHost {
+export function createFakeHost(files?: FakeFiles): FakeHost {
   const texts = new Map<ResourceId, string>();
-  const listeners = new Map<ResourceId, Set<(text: string) => void>>();
   const writes: { id: ResourceId; text: string; mark?: WriteMark }[] = [];
   let active: ResourceId | null = null;
   let failure: Error | null = null;
-
-  const notify = (id: ResourceId, text: string): void => {
-    for (const listener of [...(listeners.get(id) ?? [])]) listener(text);
-  };
 
   const documentFor = (id: ResourceId): AiDocument => ({
     ref: {
@@ -76,19 +66,6 @@ export function createFakeHost(
       mediaType: 'application/json',
     },
     getText: () => texts.get(id) ?? files?.text(id) ?? '',
-    onDidChangeContent(cb): Disposable {
-      let set = listeners.get(id);
-      if (set === undefined) {
-        set = new Set();
-        listeners.set(id, set);
-      }
-      set.add(cb);
-      return {
-        dispose: () => {
-          set.delete(cb);
-        },
-      };
-    },
   });
 
   return {
@@ -104,11 +81,9 @@ export function createFakeHost(
       if (failure !== null) return Promise.reject(failure);
       writes.push({ id, text, ...(mark === undefined ? {} : { mark }) });
       texts.set(id, text);
-      notify(id, text);
       return Promise.resolve();
     },
 
-    catalog: () => catalog,
     ...(files ? { files } : {}),
 
     // Открыть документ, созданный мимо двойника (файлом): текст берётся из файлов, если они есть.
@@ -125,12 +100,10 @@ export function createFakeHost(
 
     editOutside(id, text) {
       texts.set(id, text);
-      notify(id, text);
     },
 
     closeDocument(id) {
       texts.delete(id);
-      listeners.delete(id);
       if (active === id) active = null;
     },
 
@@ -154,6 +127,11 @@ export function createFakeHost(
  * в рабочей области после записи нового файла.
  */
 export interface FakeFiles extends AiFiles {
+  /**
+   * Модуль формы документа — как его находит стек по раскладке; `null` — документа нет или у
+   * него нет своей папки модуля.
+   */
+  scopeOf(id: ResourceId): FileScope | null;
   /** Положить файл мимо `write` — как он лежал в проекте до хода. */
   put(path: string, text: string): void;
   /** Текст файла сейчас. */

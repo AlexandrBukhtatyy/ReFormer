@@ -19,7 +19,6 @@ import { Alert, AlertDescription } from '@reformer/ui-kit/alert';
 import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Textarea } from '@reformer/ui-kit/textarea';
-import { isStale } from '../session/apply';
 import type { AgentBridge } from '../session/bridge';
 import type { AiHost } from '../host';
 import type { AiAssistant } from '../plugin';
@@ -43,7 +42,7 @@ export interface ChatPanelProps {
 export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps): ReactElement {
   const t = host.useTranslate();
   const state = useAiSession(session);
-  const activeForm = useActiveForm(host);
+  const activeForm = useActiveForm(host, bridge);
   const [draft, setDraft] = useState('');
   // Реестр каналов — обычный объект, а не хранилище с подпиской: перерисовку после подключения
   // панель запрашивает сама. Заводить ради этого второе наблюдаемое состояние не за что —
@@ -137,7 +136,7 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
       {state.pending !== null && !running && (
         <ChangePreview
           pending={state.pending}
-          conflict={state.conflict || isStale({ host }, state.pending.loaded)}
+          conflict={state.conflict || bridge.isPendingStale()}
           t={t}
           onApply={() => {
             void bridge.applyPending(false);

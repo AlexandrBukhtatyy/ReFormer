@@ -27,8 +27,6 @@ import { parseRulesText, printRulesText } from '../../../core/codegen/rules-file
 import { rulesSidecarNameOf } from '../../../core/codegen/layout';
 import { createAgentBridge } from './bridge';
 import { createAiSession, openAskOf, type ToolLogEntry } from './session';
-import { createEditorToolRegistry } from '../tools';
-import { createFileToolRegistry } from '../tools/files';
 import { createProviderRegistry } from '../providers/registry';
 import { createByokProvider } from '../providers/byok';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';
@@ -410,7 +408,7 @@ interface EvalResult {
 
 async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
   const files = createFakeFiles();
-  const host = createFakeHost(builtinEntries(), files);
+  const host = createFakeHost(files);
   if (scenario.form !== 'none') {
     const schema = scenario.form === 'client' ? CLIENT : EMPTY;
     host.openDocument(DOCUMENT, printSchemaText(schema));
@@ -457,11 +455,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     })
   );
   const assistant: AiAssistant = {
-    tools: createEditorToolRegistry(),
-    fileTools: createFileToolRegistry(),
-    catalog: () => builtinEntries(),
     providers,
-    knowledge: { load: () => Promise.resolve(null) } as unknown as AiAssistant['knowledge'],
     loadConfig: () =>
       Promise.resolve({ kind: 'openai-compatible' as const, model: MODEL!, maxSteps: MAX_STEPS }),
     saveConfig: () => Promise.resolve(),
@@ -473,7 +467,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
 
   const session = createAiSession();
   const stack = createSchemaFormStack({
-    catalog: () => host.catalog(),
+    catalog: () => builtinEntries(),
     validateForm: () => Promise.resolve(validateFormSchema),
     scopeOf: (id) => files.scopeOf(id),
   });

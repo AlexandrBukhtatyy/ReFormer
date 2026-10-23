@@ -31,7 +31,6 @@
 
 import { createElement, type ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { CatalogEntry } from '../../core/catalog';
 import {
   ASSISTANT_ATTACH_COMMAND_ID,
   AssistantResourcePoint,
@@ -56,15 +55,13 @@ import {
   type ProviderConfig,
   type SaveOptions,
 } from './session/config';
-import { createEditorToolRegistry, type ToolRegistry } from './tools';
-import { createFileToolRegistry } from './tools/files';
-import type { FileToolContext } from './files/turn';
 import type { AgentCommand } from './tools/command-tools';
 import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 import type { AiHost } from './host';
 import { aiWorkspace } from './workspace';
 import { createSchemaFormStack } from './stack';
-import { createKnowledgeLoader, type KnowledgeLoader } from './knowledge';
+import { schemaStackWorkspace, type SchemaStackWorkspace } from './stack/workspace';
+import { createKnowledgeLoader } from './knowledge';
 import { AI_MESSAGES } from './messages';
 import { activateProvider, fetchModels, restoreProvider } from './providers/load';
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry';
@@ -111,26 +108,20 @@ export interface AiPluginOptions {
    * у него больше нет ни одного члена.
    */
   readonly host?: AiHost;
+  /** Рабочая область стека форм целиком — тоже только для теста (`./stack/workspace`). */
+  readonly stack?: SchemaStackWorkspace;
 }
 
 /**
  * Ассистент как сервис: всё, что мост и панель могут у него попросить.
  *
- * Обратите внимание, чего здесь НЕТ: метода «правь форму». Ход агента (`runAgentTurn`) принимает
- * схему и возвращает набор изменений, а решение «какая форма считается текущей» и «куда применить
- * результат» — знание рабочей области, и живёт оно в мосте, а не здесь.
+ * Обратите внимание, чего здесь НЕТ: метода «правь форму» — и инструментов, каталога, корпуса
+ * знаний. Что видит модель и как правка ложится в форму, знает стек форм (`./stack`), а решение
+ * «какая форма считается текущей» и «когда писать результат» — мост. Сервис — это канал к модели.
  */
 export interface AiAssistant {
-  /** Реестр инструментов: собран один раз, схемы аргументов статичны в пределах сессии. */
-  readonly tools: ToolRegistry;
-  /** Реестр режима файлов — модель правит файлы модуля формы напрямую. */
-  readonly fileTools: ToolRegistry<FileToolContext>;
-  /** Каталог, действующий сейчас, — его же ход кладёт в `ToolContext`. */
-  catalog(): readonly CatalogEntry[];
   /** Каналы к модели: пуст, пока пользователь не настроил ключ. */
   readonly providers: ProviderRegistry;
-  /** Корпус знаний — тот же, что видит `ask_reformer`. */
-  readonly knowledge: KnowledgeLoader;
 
   /** Настройки канала вместе с ключом; `null` — канал не настроен. */
   loadConfig(): Promise<ProviderConfig | null>;
@@ -147,23 +138,10 @@ export interface AiAssistant {
 }
 
 /** Собрать сервис ассистента — отдельно от плагина, чтобы тест звал его без реестров. */
-export function createAiAssistant(
-  host: Pick<AiHost, 'catalog' | 'projectFiles'>,
-  store: Parameters<typeof loadProviderConfig>[0]
-): AiAssistant {
+export function createAiAssistant(store: Parameters<typeof loadProviderConfig>[0]): AiAssistant {
   const providers = createProviderRegistry();
-  const knowledge = createKnowledgeLoader(host.projectFiles?.bind(host));
-  // Реестр строится один раз: каталог приходит контекстом ВЫЗОВА, а схемы аргументов статичны,
-  // поэтому пересобирать его при смене кита не нужно.
-  const tools = createEditorToolRegistry({ knowledge });
-  const fileTools = createFileToolRegistry({ knowledge });
-
   return {
-    tools,
-    fileTools,
-    catalog: () => host.catalog(),
     providers,
-    knowledge,
     loadConfig: () => loadProviderConfig(store),
     saveConfig: (config, opts) => saveProviderConfig(store, config, opts),
     async clearConfig() {
@@ -371,17 +349,19 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         ctx.i18n.contribute(locale, messages);
       }
 
-      const assistant = createAiAssistant(host, ctx);
+      const assistant = createAiAssistant(ctx);
       const session = createAiSession();
       const validateForm = createValidateFormLoader();
       // Стек форм ReFormer — пока в этом же плагине; ассистент берёт его так же, как возьмёт
-      // вклад точки стеков: по документу, на каждый ход.
-      const files = host.files;
+      // вклад точки стеков: по документу, на каждый ход. Каталог, корпус знаний, модуль формы и
+      // составная форма — его рабочей областью, не ассистента.
+      const stackWorkspace = options.stack ?? schemaStackWorkspace(ctx);
       const stack = createSchemaFormStack({
-        catalog: () => host.catalog(),
+        catalog: () => stackWorkspace.catalog(),
         validateForm,
-        knowledge: assistant.knowledge,
-        ...(files === undefined ? {} : { scopeOf: (id) => files.scopeOf(id) }),
+        knowledge: createKnowledgeLoader(() => stackWorkspace.projectFiles()),
+        scopeOf: (id) => stackWorkspace.scopeOf(id),
+        door: (id) => stackWorkspace.door(id),
       });
       const bridge = createAgentBridge({
         assistant,
@@ -430,15 +410,14 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
       });
 
       // Тот же заказ и по той же причине — для движка проверки АРГУМЕНТОВ инструмента
-      // (`core/registry`). Он тоже уехал из главного чанка, и владелец у него тот же:
+      // (реестр инструментов в toolkit). Он тоже уехал из главного чанка, и владелец у него тот же:
       // реестр не решает, когда его грузить, а `invoke` остаётся вызовом инструмента,
       // а не местом, где впервые встречается сеть.
       //
       // Отказ гасит сам `prepare` — он не отвергается, поэтому `catch` здесь не нужен:
       // не загрузившийся движок скажет о себе первым же вызовом инструмента, а следующий
       // вызов закажет загрузку заново.
-      void assistant.tools.prepare();
-      void assistant.fileTools.prepare();
+      void bridge.prepare();
 
       // Не ждём: см. заметку выше. Отказ гасится здесь, чтобы необработанный промис не всплыл
       // как ошибка запуска приложения.

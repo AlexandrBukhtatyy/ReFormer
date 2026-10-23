@@ -95,9 +95,10 @@ export interface ApplyDeps {
   readonly host: {
     documentOf(id: ResourceId): { getText(): string } | null;
     readonly writeText: AiHost['writeText'];
-    catalog(): readonly CatalogEntry[];
     readonly files?: Pick<AiFiles, 'read' | 'write'>;
   };
+  /** Каталог активного кита — словарь строгого гейта. */
+  readonly catalog: () => readonly CatalogEntry[];
   /**
    * Заказ проверки по мета-схеме. ЗАКАЗ, а не сама функция: применение асинхронно и уже ждёт
    * записи, поэтому дождаться загрузки здесь ничего не стоит, а вызывающему не приходится
@@ -159,7 +160,7 @@ export async function applyChangeSet(
   }
 
   const { valid, errors } = validateSchema(set.draft, {
-    catalog: deps.host.catalog(),
+    catalog: deps.catalog(),
     baseline: set.base,
     rules: set.draftRules,
     validateForm,

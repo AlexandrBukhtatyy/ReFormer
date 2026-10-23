@@ -36,6 +36,9 @@ function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
     detach: () => {},
     canSearchResources: () => false,
     searchResources: () => Promise.resolve([]),
+    activeForm: () => null,
+    isPendingStale: () => false,
+    prepare: () => Promise.resolve(),
     ...overrides,
   };
 }

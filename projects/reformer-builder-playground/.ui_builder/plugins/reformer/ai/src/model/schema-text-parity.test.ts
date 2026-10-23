@@ -288,7 +288,11 @@ describe('ход ассистента над документом кодоген
     expect(outcome.error?.code, outcome.text).toBeUndefined();
 
     const applied = await applyChangeSet(
-      { host, validateForm: () => Promise.resolve(validateFormSchema) },
+      {
+        host,
+        catalog: () => builtinEntries(),
+        validateForm: () => Promise.resolve(validateFormSchema),
+      },
       {
         set: withOutcome(createChangeSet(base, emptyRules()), outcome),
         resource: RESOURCE,

@@ -14,8 +14,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DocumentsServiceToken,
-  KitsCapability,
-  type CatalogJson,
   WorkspaceFilesServiceToken,
   type PluginContext,
   type ResourceId,
@@ -25,9 +23,8 @@ import { aiWorkspace } from './workspace';
 const FORM = 'fs:forms/credit/form.json';
 
 /** Службы в объёме раскладки: каждая помнит, о чём её спросили. */
-function harness(options: { readonly kit?: boolean; readonly project?: boolean } = {}) {
+function harness(options: { readonly project?: boolean } = {}) {
   const writes: { id: string; text: string; mark?: unknown }[] = [];
-  const reads: string[] = [];
   const document = { ref: { id: FORM }, getText: () => '{}' };
 
   const documents = {
@@ -45,21 +42,12 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
   const files = {
     parentOf: (id: ResourceId) => id,
     resolve: (dir: ResourceId) => dir,
-    fromRoot: (anchor: ResourceId, path: string) => `${anchor}${path}`,
-    projectRoot: () => (options.project === false ? null : 'fs:'),
     exists: () => Promise.resolve(true),
     list: () => Promise.resolve([]),
-    readText: (id: ResourceId) => {
-      reads.push(id);
-      return Promise.resolve(id.endsWith('llms.txt') ? 'корпус' : null);
-    },
+    readText: () => Promise.resolve(null),
     canWrite: () => true,
     refresh: () => Promise.resolve(),
   };
-
-  // Сырой каталог службы — как у настоящего реестра китов: до загрузки шапка без записей.
-  let catalog: CatalogJson = { version: '2.1', components: [], kit: { id: 'kit-a' } };
-  const kits = { catalogJson: () => catalog, onDidChange: () => ({ dispose: () => {} }) };
 
   const ctx = {
     id: 'ai',
@@ -72,8 +60,7 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
       onDidChangeLocale: () => ({ dispose: () => {} }),
     },
     services: {
-      get: (token: { id: string }) =>
-        token.id === KitsCapability.id && options.kit !== false ? kits : undefined,
+      get: () => undefined,
       require: (token: { id: string }) => {
         if (token.id === DocumentsServiceToken.id) return documents;
         if (token.id === WorkspaceFilesServiceToken.id) return files;
@@ -82,10 +69,7 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
     },
   } as unknown as PluginContext;
 
-  const arrive = (next: CatalogJson): void => {
-    catalog = next;
-  };
-  return { ctx, writes, reads, arrive, document };
+  return { ctx, writes, document };
 }
 
 describe('пометка происхождения доходит до рабочей области', () => {
@@ -116,25 +100,6 @@ describe('раскладка по службам', () => {
     expect(w.documentOf('fs:нет.json')).toBeNull();
   });
 
-  it('каталог читается на КАЖДЫЙ вызов: кит переключают и поднимают позже', () => {
-    const h = harness();
-    const w = aiWorkspace(h.ctx);
-
-    expect(w.catalog()).toEqual([]);
-    h.arrive({
-      version: '2.1',
-      kit: { id: 'kit-a' },
-      components: [{ name: 'Text', role: 'container', propsSchema: {} }],
-    });
-
-    // Записи — ReFormer-проекция: запись кита плюс синтетика билдера.
-    expect(w.catalog().map((entry) => entry.name)).toContain('Text');
-  });
-
-  it('без плагина китов каталог пуст, а не отсутствует', () => {
-    expect(aiWorkspace(harness({ kit: false }).ctx).catalog()).toEqual([]);
-  });
-
   it('перевод моста — обычная функция: замечание к ходу пишется вне React', () => {
     const h = harness();
 
@@ -144,34 +109,7 @@ describe('раскладка по службам', () => {
   });
 });
 
-describe('корпус знаний читается из проекта', () => {
-  it('путь считается ОТ КОРНЯ проекта, а не от активного документа', async () => {
-    const h = harness();
-
-    const files = aiWorkspace(h.ctx).projectFiles?.();
-    await expect(files?.read('node_modules/@reformer/core/llms.txt')).resolves.toEqual({
-      text: 'корпус',
-    });
-    expect(h.reads).toEqual(['fs:node_modules/@reformer/core/llms.txt']);
-  });
-
-  it('отсутствие файла — ОТКАЗ, а не пустая строка', async () => {
-    // Покалеченный llms.txt нельзя принимать за «пакета нет»: тогда вместо версий проекта
-    // ассистент молча возьмёт вшитый корпус и будет советовать не то, что стоит у человека.
-    const h = harness();
-
-    const files = aiWorkspace(h.ctx).projectFiles?.();
-    await expect(files?.read('node_modules/@reformer/core/package.json')).rejects.toThrow(
-      /не прочитан/
-    );
-  });
-
-  it('без проекта читать нечего, и корпус остаётся вшитым', () => {
-    expect(aiWorkspace(harness({ project: false }).ctx).projectFiles?.()).toBeUndefined();
-  });
-});
-
-describe('файлы модуля — режим файлов', () => {
+describe('файлы рабочей копии — режим файлов', () => {
   /** Службы, где адрес ресурса — путь: так видно, куда порт поднимается и что читает. */
   function moduleHarness(open: Record<string, string>, onDisk: Record<string, string> = {}) {
     const calls: string[] = [];
@@ -208,21 +146,6 @@ describe('файлы модуля — режим файлов', () => {
     } as unknown as PluginContext;
     return { files: aiWorkspace(ctx).files!, calls, writes };
   }
-
-  it('модуль — по раскладке документа: папка schema/ поднимает к своему родителю', () => {
-    const { files } = moduleHarness({ 'forms/loan/schema/form.schema.json': '{}' });
-    expect(files.scopeOf('forms/loan/schema/form.schema.json')).toEqual({
-      root: 'forms/loan',
-      rootPath: 'forms/loan',
-      document: 'forms/loan/schema/form.schema.json',
-      schemaPath: 'schema/form.schema.json',
-    });
-  });
-
-  it('документ со свободным именем своей папки модуля не имеет', () => {
-    const { files } = moduleHarness({ 'forms/credit.schema.json': '{}' });
-    expect(files.scopeOf('forms/credit.schema.json')).toBeNull();
-  });
 
   it('открытый документ читается из буфера после flush, закрытый — из рабочей копии', async () => {
     const { files, calls } = moduleHarness(

@@ -16,6 +16,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type {
+  FormDocumentDoor,
   FormLandedCompanion,
   FormLandOutcome,
   FormLoaded,
@@ -110,6 +111,8 @@ export interface StructuredModeOptions {
   readonly validateForm: LoadValidateForm;
   /** Проверка, загруженная подготовкой сеанса (`FormStackSession.prepare`). */
   readonly prepared: () => ValidateFormSchema;
+  /** Своя дверь документа (составная форма); `null` — документ пишется как есть. */
+  readonly door: (id: ResourceId) => FormDocumentDoor | null;
 }
 
 /** Структурный режим одного сеанса стека. */
@@ -166,11 +169,12 @@ export function createStructuredMode(options: StructuredModeOptions): FormStruct
       const applied = await applyChangeSet(
         {
           host: {
-            documentOf: (id) => host.documentOf(id),
-            writeText: (id, text, writeMark) => host.writeText(id, text, writeMark),
-            catalog: options.catalog,
+            documentOf: (id) => options.door(id) ?? host.documentOf(id),
+            writeText: (id, text, writeMark) =>
+              options.door(id)?.write(text, writeMark) ?? host.writeText(id, text, writeMark),
             ...(host.files === undefined ? {} : { files: host.files }),
           },
+          catalog: options.catalog,
           validateForm: options.validateForm,
         },
         {
