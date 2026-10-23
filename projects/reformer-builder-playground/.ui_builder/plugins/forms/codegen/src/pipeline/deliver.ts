@@ -103,9 +103,12 @@ export class SourceReadOnlyError extends Error {
  * Отказ честнее частичной записи: модуль, переписанный наполовину под другой кит, не собрался бы.
  */
 export class DeliveryRefusedError extends Error {
-  constructor(readonly refusal: CodegenRefusal) {
+  readonly refusal: CodegenRefusal;
+
+  constructor(refusal: CodegenRefusal) {
     super(refusal.refusal.key);
     this.name = 'DeliveryRefusedError';
+    this.refusal = refusal;
   }
 }
 

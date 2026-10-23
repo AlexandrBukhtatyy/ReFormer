@@ -16,13 +16,13 @@ import type { FormRules } from '../../../core/form-model';
 
 /** Файл правил есть, но не разбирается. */
 export class RulesFileError extends Error {
-  constructor(
-    /** Адрес файла правил. */
-    readonly id: ResourceId,
-    detail: string
-  ) {
+  /** Адрес файла правил. */
+  readonly id: ResourceId;
+
+  constructor(id: ResourceId, detail: string) {
     super(`${id}: ${detail}`);
     this.name = 'RulesFileError';
+    this.id = id;
   }
 }
 
