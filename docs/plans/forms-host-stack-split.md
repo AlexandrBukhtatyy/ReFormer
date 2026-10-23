@@ -167,20 +167,68 @@ SDK + поверхности из `reformer/render` и `rjsf/render`): **общ�
   `assistant-ab-eval`) — сюда же.
 - `forms/integration`: «хозяин ассистента без стека отвечает `turn.noStack`».
 
-## Этап 2 — генерация кода (эскиз, уточняется после этапа 1)
+## Этап 2 — генерация кода
 
-- В toolkit: движок целей из `pipeline/generate.ts` (жетоны пути, `each:'step'`, защиты) и ядро
-  доставки с маркерами из `deliver.ts`.
-- SDK `services/codegen.ts`: `CodegenTargetPoint` (`'codegen.target'`, `CodegenTarget<Ctx = unknown>`
-  + `stack?`), `CodegenStackPoint` (`'codegen.stack'`): `{id, applies(doc), source(doc, io) →
-  {view, steps, formName} | {error}, placement(path), targets, snippet?, check?, migrate?, fixture?}`.
-- `forms/codegen` (`reformer.codegen`, право `workspace.save`, отдаёт `reformer.codegen.generator`):
-  состояние, панель «Экспорт формы», eject, `generate-for`, пользовательские цели, оболочка
-  доставки, команды.
-- `reformer/codegen` (`reformer.codegen-schema`, отдаёт `reformer.codegen.printer`): `targets`,
-  `source`, `rules`, сниппет и раскладка из `run.ts`, команда фикстуры, меню `.schema.json`,
-  19 подписей `target.*` (свой словарь).
-- Необязательно 2b: RJSF вносит цель `Form.tsx` — второй потребитель доказывает нейтральность.
+Уточнено после этапа 1 и чтения плагина (`reformer/codegen`, ~4,3 тыс. строк кода и ~4,4 тыс.
+строк тестов).
+
+**Что поменялось против эскиза.** Движок целей (`pipeline/generate.ts`) в toolkit не едет: он
+насквозь на контексте эмиссии ReFormer (`prepare`, `withStep`, `buildView`, раскладка шагов), и
+нужен он только стеку — интеграционные тесты домена (`codegen-modules`, `builtin-templates`,
+`preview-surfaces`, …) печатают модуль именно им. В toolkit — только то, что нужно обеим
+сторонам: заголовок файла цели (`parseTargetFile`/`formatTargetFile` из `core/codegen/template-file`)
+и правило замен (`applyOverrides`/`overrideDrift` со стековым крючком «замена устарела»).
+Меню «Сгенерировать → ReFormer» остаётся стеку: заголовок подменю — ключ словаря, а резолвится он
+словарём внёсшего плагина (так же устроен подраздел RJSF).
+
+**Контракт SDK** `services/codegen.ts` (имена, не версии — `BUILDER_API_VERSION` не поднимаем,
+как на этапе 1):
+
+- `CodegenTarget<Ctx = unknown>` — нынешняя цель плюс `stack?` (цели без него годятся любому
+  стеку; цель из проекта с `overrides` наследует стек заменённой) и `appliesView?(it)` —
+  применимость над видом шаблона, которую хозяин компилирует из выражения заголовка; методы, а не
+  свойства-функции, — чтобы `CodegenTarget<EmitContext>` вносился в точку `CodegenTarget<unknown>`.
+  `CodegenTargetPoint` (`'codegen.target'`) — настоящая точка вместо структурной копии.
+- `CodegenFile` (нынешний `ModuleFile`), `CodegenProblem`, `CodegenFileClass`.
+- `CodegenStackPoint` (`'codegen.stack'`), `CodegenStack`:
+  `{id, kinds, translate, formNameOf(path), open(document, reader), find?(dir, reader),
+  staleOverride?(target, replaced)}`. `kinds` — виды ресурса (провайдер модели либо тип
+  содержимого), как `activeResourceKind`: по ним видна панель и выбирается стек документа.
+  `open`/`find` → `CodegenForm | CodegenRefusal | null` (`null` — «не моя форма»). Отказы стека
+  (`error.step-parts`, `error.no-kit`, `error.rules-file`, `error.kit-mismatch`) — ключи ЕГО
+  словаря: панель переводит их `stack.translate`, уведомления — `pluginMessageKey(владелец, ключ)`.
+- `CodegenForm {root, rootPath, formName, print({targets, formName, format}) → CodegenModule}`;
+  `CodegenModule {files, problems, view, snippet, check?(), inspect?()}`: `check` — отказ перед
+  записью (кит модуля на диске не тот), `inspect` — заметки после записи (`CodegenNote`: сироты
+  шагов, файлы плоской раскладки). `CodegenReader` — чтение рабочей области, которое хозяин даёт
+  стеку (`documentOf`, `readText`, `exists`, `list?`, `parentOf`, `resolve`).
+
+**`forms/codegen`** (`reformer.codegen`, пакет `@reformer/builder-forms-codegen`, право
+`workspace.save`, отдаёт `reformer.codegen.generator`): `plugin.ts`, панель «Экспорт формы»,
+`state`, `run` (прогон через стек), `deliver` (запись с маркером, перенос прежнего имени, отказ
+источника; `check`/`inspect` стека), `generate-for`, цели из проекта (`.ui_builder/codegen/*.eta`),
+выгрузка шаблона, команды `codegen.generate`/`generateInto`/`refresh-targets`/`eject-template`,
+пункт меню открытого документа, рабочая область без каталога кита (подпись «Кит: …» — из службы
+китов SDK). Кнопка «Открыть …» у прежнего имени — у любого перенесённого файла (сегодня такой
+файл один — документ формы).
+
+**`reformer/codegen`** (`reformer.codegen-schema`, отдаёт `reformer.codegen.printer`, право
+`workspace.save` ради фикстуры, необязательно `reformer.kit.catalog ^2`): `targets` (со `stack:
+'reformer'`), движок `generate`, `source`, `rules`, стек (`open`/`find`: схема, части визарда, кит,
+правила, место модуля, сниппет, проверка кита, сироты и плоская раскладка, устаревшие замены),
+возможность печати, команда фикстуры, подменю «Сгенерировать → ReFormer», свой словарь (19
+`target.*`, `menu.generate.*`, отказы и заметки стека).
+
+**Шаги** (как на этапе 1 — сначала шов, потом перенос):
+
+- **2a** SDK `services/codegen.ts` + toolkit `codegen/` (заголовок файла цели, правило замен) с
+  тестами; `core/codegen/template-file` реэкспортирует toolkit.
+- **2b** Шов на месте: внутри `reformer/codegen` хозяйская часть ходит в стек только через
+  `CodegenStack`, стек собран в `src/stack/`; тест чистоты хозяйской части (ни `core/`, ни
+  `stack/`). Тесты пакета зелёные.
+- **2c** Раскол: хозяин — в `forms/codegen`, стек — плагин `reformer.codegen-schema`; тесты обеих
+  сторон — в `reformer/integration/codegen-*`; чек-лист ссылок; документы.
+- Необязательно 2d: RJSF вносит цель `Form.tsx` — второй потребитель доказывает нейтральность.
 
 ## Этап 3 — шаблоны (эскиз)
 
