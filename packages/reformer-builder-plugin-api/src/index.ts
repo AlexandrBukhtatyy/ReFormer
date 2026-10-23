@@ -388,6 +388,22 @@ export type { FormModuleLocator } from './services/form-module.js';
 export { AppPreviewCapability, APP_PREVIEW_FRAME_NAME } from './services/app-preview.js';
 export type { AppPreviewService } from './services/app-preview.js';
 
+// Создание формы и генерация её кода по заказу другого плагина: объявляют шаблоны и генерация
+// кода, берёт ассистент. Плагины разных доменов, и общего кода у них, кроме контракта, нет.
+export { ModuleGeneratorCapability, FormCreatorCapability } from './services/form-authoring.js';
+export type {
+  CreateFormReport,
+  CreateFormRequest,
+  FormCreatorService,
+  GenerateReport,
+  GenerateRequest,
+  GenerateSkipReason,
+  GenerateWrite,
+  ModuleGeneratorService,
+  TemplateSourceKind,
+  TemplateSummary,
+} from './services/form-authoring.js';
+
 // ── Модель документа: второй вид документа поверх текста ────────────────────────
 //
 // Точка провайдеров модели обязана быть здесь, потому что структурный редактор — это
