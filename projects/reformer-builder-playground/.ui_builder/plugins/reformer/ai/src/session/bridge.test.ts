@@ -1542,6 +1542,29 @@ describe('файл правил формы', () => {
     expect(JSON.stringify(requests[0])).toContain('validate email: required');
   });
 
+  it('текст обычного правила виден модели, служебный код — нет', async () => {
+    const coded = {
+      validation: [
+        {
+          target: 'email',
+          rules: ["required({ code: 'email.required' })"],
+          code: 'email.required',
+          message: 'Укажите почту',
+        },
+      ],
+      behavior: [],
+      render: [],
+    };
+    const files = createFakeFiles({ [RULES_FILE]: printRulesText(coded) });
+    const { provider, requests } = recordingSequence([[{ text: 'Правило одно.' }]]);
+    const { bridge } = harness([], { files, provider });
+    await bridge.send('какие правила?');
+
+    const sent = JSON.stringify(requests[0]);
+    expect(sent).toContain('validate email: required \\"Укажите почту\\"');
+    expect(sent).not.toContain('email.required');
+  });
+
   it('отмена хода возвращает файл правил: созданный ходом — очищается', async () => {
     const files = createFakeFiles();
     const { host, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], { files });

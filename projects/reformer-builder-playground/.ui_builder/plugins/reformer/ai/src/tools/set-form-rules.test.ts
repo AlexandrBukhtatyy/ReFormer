@@ -194,14 +194,65 @@ describe('set_form_rules — кросс-полевые и асинхронные
     expect(noCode.error?.message).toContain('needs code');
   });
 
-  it('текст у обычного правила — отказ, который называет починку', async () => {
+  it('текст у обычного правила — свой код в вызове валидатора, текст под ним', async () => {
     const res = await reg.invoke(
       'set_form_rules',
-      { validation: [{ target: 'price', rules: ['required'], message: 'Укажите цену' }] },
+      {
+        validation: [
+          { target: 'price', rules: ['required'], message: 'Укажите цену' },
+          { target: 'quantity', rules: ['min(1)'], message: 'Хотя бы одна штука' },
+        ],
+      },
       ctx()
     );
-    expect(res.error?.code).toBe('INVALID_PARAMS');
-    expect(res.error?.message).toContain('drop message');
+    expect(res.ok).toBe(true);
+    expect(res.rules?.validation).toEqual([
+      {
+        target: 'price',
+        rules: ["required({ code: 'price.required' })"],
+        code: 'price.required',
+        message: 'Укажите цену',
+      },
+      {
+        target: 'quantity',
+        rules: ["min(1, { code: 'quantity.min' })"],
+        code: 'quantity.min',
+        message: 'Хотя бы одна штука',
+      },
+    ]);
+  });
+
+  it('свой код в опциях валидатора принимается как есть', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      {
+        validation: [
+          { target: 'price', rules: ["required({ code: 'priceNeeded' })"], message: 'Нужна цена' },
+        ],
+      },
+      ctx()
+    );
+    expect(res.rules?.validation[0]).toMatchObject({
+      rules: ["required({ code: 'priceNeeded' })"],
+      code: 'priceNeeded',
+    });
+  });
+
+  it('один текст на две проверки и опции без кода — отказы с починкой', async () => {
+    const two = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ target: 'price', rules: ['required', 'min(1)'], message: 'Цена?' }] },
+      ctx()
+    );
+    expect(two.error?.code).toBe('INVALID_PARAMS');
+    expect(two.error?.message).toContain('separate entries');
+
+    const options = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ target: 'price', rules: ['min(1, { params: {} })'], message: 'Цена?' }] },
+      ctx()
+    );
+    expect(options.error?.message).toContain("add code: '...'");
   });
 
   it('правило без единой проверки отвергается', async () => {

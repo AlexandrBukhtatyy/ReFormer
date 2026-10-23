@@ -245,15 +245,29 @@ function withOutlineSeed(
  * оставался `merge`. То есть «сделай email НЕ обязательным» добавляло второе правило рядом с
  * первым вместо замены. Стоит это десятки токенов и ноль поверхности инструментов.
  */
+/**
+ * Проверка без своего кода: `required({ code: 'phone.required' })` → `required`. Код — служебная
+ * связка текста правила со словарём формы (`set_form_rules`), модели в затравке он только шумит.
+ */
+function withoutCode(check: string): string {
+  return check
+    .replace(/,?\s*\{\s*code\s*:\s*(['"])(?:(?!\1).)+\1\s*\}\s*(?=\))/, '')
+    .replace(/\(\s*\)$/, '');
+}
+
 function renderRulesSeed(rules: FormRules): string {
   const lines: string[] = [];
   for (const r of rules.validation) {
     const checks = [
-      ...r.rules,
+      ...r.rules.map(withoutCode),
       ...(r.cross ? [`cross ${r.cross}`] : []),
       ...(r.async ? ['async check'] : []),
     ];
-    lines.push(`  validate ${r.target}: ${checks.join(', ')}${r.when ? ` when ${r.when}` : ''}`);
+    // Текст обычного правила — после проверок: модель должна видеть, что он уже задан.
+    const text = r.message !== undefined && !r.cross && !r.async ? ` "${r.message}"` : '';
+    lines.push(
+      `  validate ${r.target}: ${checks.join(', ')}${text}${r.when ? ` when ${r.when}` : ''}`
+    );
   }
   for (const b of rules.behavior) {
     lines.push(`  ${b.kind} ${b.target}${b.sources.length ? ` <- ${b.sources.join(', ')}` : ''}`);

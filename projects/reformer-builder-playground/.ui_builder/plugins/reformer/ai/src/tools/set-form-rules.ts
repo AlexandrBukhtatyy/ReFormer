@@ -57,9 +57,9 @@ interface ValidationParam {
   cross?: string;
   /** Асинхронное правило — функция выражением: `async (value, { signal }) => …`. */
   async?: string;
-  /** Код замечания кросс-полевой или асинхронной проверки. */
+  /** Код замечания: у кросс-полевой и асинхронной проверки — свой, у обычной — `<поле>.<правило>`. */
   code?: string;
-  /** Текст замечания — в словарь формы. */
+  /** Текст замечания — в словарь формы; у обычного правила — текст его единственной проверки. */
   message?: string;
 }
 
@@ -163,7 +163,9 @@ export const setFormRulesTool: AgentTool<Params> = {
       }
       const refused = checkValidationParam(rule);
       if (refused) return fail('INVALID_PARAMS', refused);
-      next.validation.push(validationIntent(rule));
+      const coded = withMessageCode(rule);
+      if (typeof coded === 'string') return fail('INVALID_PARAMS', coded);
+      next.validation.push(validationIntent(coded));
     }
 
     for (const [name, value] of Object.entries(params.dataSources ?? {})) {
@@ -292,16 +294,56 @@ function checkValidationParam(rule: ValidationParam): string | null {
   if (rule.cross !== undefined && rule.message === undefined) {
     return `Cross check on "${rule.target}" needs message — the text shown under the field.`;
   }
-  if (rule.message !== undefined && rule.code === undefined && rule.cross === undefined) {
-    // Обычному правилу текст не нужен — у стандартных проверок он свой. Замер на живой модели
-    // показал: модель ставит `message` к `required` почти всегда, а прежний отказ про код
-    // асинхронной проверки уводил её в справку лишним шагом. Отказ называет починку прямо.
-    return rule.async !== undefined
-      ? `message on "${rule.target}" needs code — the code the async check returns.`
-      : `message on "${rule.target}" is for cross and async checks only; standard rules ` +
-          '(required, email…) bring their own text — drop message.';
+  if (rule.message !== undefined && rule.code === undefined && rule.async !== undefined) {
+    return `message on "${rule.target}" needs code — the code the async check returns.`;
   }
   return null;
+}
+
+/** Вызов валидатора в записи правила: имя и аргументы в скобках (если скобки есть). */
+const VALIDATOR_CALL = /^\s*([A-Za-z_$][\w$]*)\s*(?:\((.*)\))?\s*$/s;
+
+/** Свой код в опциях валидатора: `required({ code: 'phone.required' })`. */
+const OPTION_CODE = /\bcode\s*:\s*(['"])((?:(?!\1).)+)\1/;
+
+/**
+ * Текст обычного правила — через свой код его проверки.
+ *
+ * Замер на живой модели: модель почти всегда ставит `message` к `required` («Укажите телефон»), а
+ * отказ стоил шага в каждом ходе с правилами. У валидатора ядра код фиксирован, и текст по нему
+ * общий на все поля формы, — поэтому правило получает СВОЙ код (`<поле>.<правило>`, соглашение
+ * `RuleOptions.code` ядра), он дописывается в вызов валидатора, а генерация кладёт текст под ним в
+ * словарь формы. Проверка у такого правила одна: к какой из двух относился бы один текст — не
+ * угадать.
+ *
+ * Кросс-полевую и асинхронную проверки не трогает: их код и текст и так свои.
+ *
+ * @returns Правило с кодом в вызове валидатора либо фраза отказа для модели.
+ */
+function withMessageCode(rule: ValidationParam): ValidationParam | string {
+  if (rule.message === undefined || rule.cross !== undefined || rule.async !== undefined) {
+    return rule;
+  }
+  const checks = rule.rules ?? [];
+  if (checks.length !== 1) {
+    return (
+      `message on "${rule.target}" belongs to one check — split ${checks.join(', ')} into ` +
+      'separate entries, a message for each.'
+    );
+  }
+  const call = VALIDATOR_CALL.exec(checks[0]);
+  if (call === null) return `"${checks[0]}" on "${rule.target}" is not a validator call.`;
+  const [, name, args = ''] = call;
+  const own = OPTION_CODE.exec(args)?.[2];
+  if (own !== undefined) return { ...rule, code: own };
+  // Опции, уже переданные объектом, сливать с кодом здесь не возьмёмся — пусть код впишет модель.
+  if (args.includes('{')) {
+    return `"${checks[0]}" on "${rule.target}" already has options: add code: '...' to them.`;
+  }
+  const code = rule.code ?? `${rule.target}.${name}`;
+  const option = `{ code: '${code}' }`;
+  const rewritten = args.trim() === '' ? `${name}(${option})` : `${name}(${args}, ${option})`;
+  return { ...rule, rules: [rewritten], code };
 }
 
 /** Правило словаря: `rules` всегда массив, у кросс-полевой проверки всегда есть код. */
