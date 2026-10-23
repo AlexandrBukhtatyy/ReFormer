@@ -16,50 +16,26 @@
  * @module plugins/reformer/templates/content/create-for
  */
 
-import { resourceNameOf, type ResourceId } from '@reformer/builder-plugin-api';
+import {
+  resourceNameOf,
+  type CreateFormReport,
+  type CreateFormRequest,
+  type ResourceId,
+  type TemplateSummary,
+} from '@reformer/builder-plugin-api';
 import { emptySchema } from '../../../core/form-model';
 import { printJson } from '../../../core/codegen/print/js';
-import type { FormTemplate, TemplateSource, TemplateStore } from '../contract';
+import type { FormTemplate, TemplateStore } from '../contract';
 import type { TemplatesHost } from '../host';
 import { isUsableFormName } from '../render/placeholders';
 import { generateFormFromTemplate, listTemplates, suggestedFolderOf } from './operations';
 
-/** Шаблон в списке для заказчика: то, по чему его выбирают. */
-export interface TemplateSummary {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly source: TemplateSource;
-}
-
-export interface CreateFormRequest {
-  /** Имя формы — оно же имя каталога модуля. */
-  readonly formName: string;
-  /** Шаблон: идентификатор или имя. Без него — пустая форма. */
-  readonly template?: string;
-  /** Каталог для модуля — путь от корня проекта. Без него — рядом с `near` или каталог форм. */
-  readonly folder?: string;
-  /** Документ, рядом с которым кладётся форма, когда каталог не назван. */
-  readonly near?: ResourceId;
-}
-
-export type CreateFormReport =
-  | {
-      readonly ok: true;
-      /** Документ новой формы — его открывают. */
-      readonly documentId: ResourceId;
-      /** Путь документа от корня проекта. */
-      readonly path: string;
-      /** Имя шаблона; `null` — пустая форма. */
-      readonly template: string | null;
-    }
-  | {
-      readonly ok: false;
-      /** Ключ словаря шаблонов либо `error.unknown-template`. */
-      readonly error: string;
-      /** Тот же отказ словами действующей локали. */
-      readonly message: string;
-    };
+// Заказ, список и отчёт — контракт возможности создания формы в SDK: его берёт заказчик.
+export type {
+  CreateFormReport,
+  CreateFormRequest,
+  TemplateSummary,
+} from '@reformer/builder-plugin-api';
 
 /** Где лежат формы, если каталог не назван и открытого документа нет. */
 const FORMS_DIR = 'forms';

@@ -44,7 +44,6 @@ import {
 } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './host';
 import { readFormRules } from './pipeline/rules';
-import type { GenerateReport, GenerateRequest } from './pipeline/generate-for';
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
@@ -93,22 +92,10 @@ export interface ModulePrinterService {
 
 /**
  * Возможность «сгенерировать код формы» — прогон панели экспорта по заказу другого плагина.
- *
- * Заведена ради ассистента: просьба «сгенерируй код» — его работа, а запись модуля обязана стать
- * частью хода. Поэтому писать можно дверью заказчика ({@link GenerateRequest.write}), а сохранять
- * прогон по заказу не сохраняет — это решение человека (`./pipeline/generate-for`).
- *
- * Версия `1.0.0` — исходная.
+ * Контракт — в SDK: заказчик (ассистент) живёт в другом домене (`./pipeline/generate-for`).
  */
-export const ModuleGeneratorCapability = defineCapability<ModuleGeneratorService>({
-  id: 'reformer.codegen.generator',
-  version: '1.0.0',
-});
-
-export interface ModuleGeneratorService {
-  /** Напечатать модуль формы документа и записать его. Ничего не бросает: отказ — в отчёте. */
-  generate(documentId: ResourceId, request?: GenerateRequest): Promise<GenerateReport>;
-}
+export { ModuleGeneratorCapability } from '@reformer/builder-plugin-api';
+export type { ModuleGeneratorService } from '@reformer/builder-plugin-api';
 
 /** То, чему в возможностях места пока нет. Всё остальное собирается из служб. */
 export type CodegenGaps = Pick<CodegenHost, 'format' | 'rulesOf'>;

@@ -16,7 +16,13 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../../../core/testing';
 import { listComponents } from '../model/catalog-digest';
-import type { ResourceId, WhenContext } from '@reformer/builder-plugin-api';
+import type {
+  FormCreatorService,
+  GenerateReport,
+  ModuleGeneratorService,
+  ResourceId,
+  WhenContext,
+} from '@reformer/builder-plugin-api';
 import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';
 import { createEditorToolRegistry } from '../tools';
 import { createFileToolRegistry } from '../tools/files';
@@ -31,8 +37,6 @@ import { createFakeFiles, createFakeHost, type FakeFiles, type FakeHost } from '
 import { emptyRulesText, printRulesText } from '../../../core/codegen/rules-file';
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { ResourceProviderEntry } from './resources';
-import type { GenerateReport, ModuleGeneratorService } from '../generator';
-import type { FormCreatorService } from '../templates';
 
 const RESOURCE = 'form.json';
 /** Контекст применимости, которого предикату отмены достаточно: он его не читает. */

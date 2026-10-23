@@ -37,6 +37,8 @@ import {
   AssistantResourcePoint,
   AssistantToolPoint,
   definePlugin,
+  FormCreatorCapability,
+  ModuleGeneratorCapability,
   NotificationsServiceToken,
   PanelPoint,
   pluginMessageKey,
@@ -47,8 +49,6 @@ import {
   type PluginContext,
 } from '@reformer/builder-plugin-api';
 import { aiUndoTurnCommand, createAgentBridge, type AgentBridge } from './session/bridge';
-import { ModuleGeneratorCapability } from './generator';
-import { FormCreatorCapability } from './templates';
 import {
   clearProviderConfig,
   loadProviderConfig,

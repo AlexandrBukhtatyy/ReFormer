@@ -18,48 +18,25 @@
  */
 
 import { moduleRootPathOf } from '../../../core/codegen';
-import type { ResourceId } from '@reformer/builder-plugin-api';
+import type {
+  GenerateReport,
+  GenerateRequest,
+  GenerateSkipReason,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import type { CodegenHost } from '../host';
 import type { CodegenProblem } from './generate';
 import { runCodegen } from './run';
 import type { CodegenStore } from './state';
 
-/** Как заказчик пишет файл модуля: строка — отказ с этой причиной, `null` — записано. */
-export type GenerateWrite = (id: ResourceId, text: string) => Promise<string | null>;
-
-export interface GenerateRequest {
-  /** Запись файла модуля; по умолчанию — рабочая копия, как у панели. */
-  readonly write?: GenerateWrite;
-  /** Имя формы; по умолчанию — введённое в панели либо выведенное из пути документа. */
-  readonly formName?: string;
-}
-
-/** Почему файл не записан: правки человека (как у панели) либо отказ записи заказчика. */
-export type GenerateSkipReason = 'authored' | 'edited' | 'refused';
-
-/** Отчёт прогона по заказу. */
-export type GenerateReport =
-  | {
-      readonly ok: true;
-      readonly formName: string;
-      /** Каталог модуля — путь от корня проекта. */
-      readonly dir: string;
-      readonly written: readonly string[];
-      readonly skipped: readonly {
-        readonly path: string;
-        readonly reason: GenerateSkipReason;
-        readonly message?: string;
-      }[];
-      readonly failed: readonly { readonly path: string; readonly message: string }[];
-    }
-  | {
-      readonly ok: false;
-      /** Ключ словаря кодогена (`error.not-a-schema`, …) — стабильный код отказа. */
-      readonly error: string;
-      /** Тот же отказ словами действующей локали. */
-      readonly message: string;
-    };
+// Заказ, отчёт и дверь записи — контракт возможности генерации в SDK: его берёт заказчик.
+export type {
+  GenerateReport,
+  GenerateRequest,
+  GenerateSkipReason,
+  GenerateWrite,
+} from '@reformer/builder-plugin-api';
 
 /** Отказ записи заказчика — исключением, чтобы доставка учла файл и пошла дальше. */
 class RefusedWrite extends Error {}

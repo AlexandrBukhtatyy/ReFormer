@@ -36,6 +36,9 @@ import { emptyRules, emptySchema, type FormRules } from '../../../core/form-mode
 import {
   parseAssistantResourceUri,
   type CommandContribution,
+  type FormCreatorService,
+  type GenerateReport,
+  type ModuleGeneratorService,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import { applyChangeSet } from './apply';
@@ -55,8 +58,6 @@ import { askUserTool } from '../tools/ask-user';
 import { generateCodeTool } from '../tools/generate-code';
 import { createFormTool, listTemplatesTool } from '../tools/create-form';
 import { createToolRegistry } from '../tools/registry';
-import type { FormCreatorService } from '../templates';
-import type { GenerateReport, ModuleGeneratorService } from '../generator';
 import { createContributionSurface } from './contributions';
 import {
   createResourceRouter,

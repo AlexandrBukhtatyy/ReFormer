@@ -48,7 +48,6 @@ import {
 } from '@reformer/builder-plugin-api';
 import type { TemplatesHost, TemplatesSourceCapabilities } from './host';
 import type { ModulePrinter } from './stores/builtin';
-import type { CreateFormReport, CreateFormRequest, TemplateSummary } from './content/create-for';
 
 /**
  * Печатник модуля формы в объёме, нужном шаблонам.
@@ -72,23 +71,10 @@ export interface ModulePrinterService {
 
 /**
  * Возможность «создать форму»: список шаблонов и создание модуля формы — из шаблона или пустого.
- *
- * Объявляют её шаблоны, берёт ассистент: «сделай анкету» без открытой формы начинается с создания
- * модуля, и лечь он обязан так же, как из окна «Создать форму» (`./content/create-for`).
- *
- * Версия `1.0.0` — исходная.
+ * Контракт — в SDK: заказчик (ассистент) живёт в другом домене (`./content/create-for`).
  */
-export const FormCreatorCapability = defineCapability<FormCreatorService>({
-  id: 'reformer.templates.creator',
-  version: '1.0.0',
-});
-
-export interface FormCreatorService {
-  /** Шаблоны всех хранилищ, по порядку хранилищ. */
-  templates(): Promise<readonly TemplateSummary[]>;
-  /** Создать форму. Ничего не бросает: отказ — в отчёте. */
-  create(request: CreateFormRequest): Promise<CreateFormReport>;
-}
+export { FormCreatorCapability } from '@reformer/builder-plugin-api';
+export type { FormCreatorService } from '@reformer/builder-plugin-api';
 
 /** Возможность «напечатать модуль формы». Объявляет её генерация кода. */
 export const ModulePrinterCapability = defineCapability<ModulePrinterService>({

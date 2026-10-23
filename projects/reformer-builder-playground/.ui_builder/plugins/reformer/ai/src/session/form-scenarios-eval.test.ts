@@ -34,8 +34,7 @@ import { createByokProvider } from '../providers/byok';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';
 import { createFakeFiles, createFakeHost } from '../testing';
 import type { AiAssistant } from '../plugin';
-import type { FormCreatorService } from '../templates';
-import type { ModuleGeneratorService } from '../generator';
+import type { FormCreatorService, ModuleGeneratorService } from '@reformer/builder-plugin-api';
 
 const MODEL = process.env.EVAL_MODEL;
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:11434/v1';
