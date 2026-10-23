@@ -90,6 +90,7 @@ describe('boot с платформой форм и без движка', () => {
       'reformer.editor-markdown',
       'reformer.editor-monaco',
       'reformer.files',
+      'reformer.journal',
       'reformer.kits',
       'reformer.plugin-manager',
       'reformer.preview',

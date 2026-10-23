@@ -145,6 +145,7 @@ describe('boot с плагинами домена RJSF', () => {
       'reformer.editor-markdown',
       'reformer.editor-monaco',
       'reformer.files',
+      'reformer.journal',
       'reformer.kits',
       'reformer.plugin-manager',
       'reformer.preview',

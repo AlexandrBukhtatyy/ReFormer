@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Плагин ReFormer Builder «Файлы»: панель проекта, панель проблем, текстовый редактор и операции над записями проекта",
+  "description": "Плагин ReFormer Builder «Файлы»: панель проекта, пометки находок в дереве, текстовый редактор и операции над записями проекта",
   "scripts": {
     "generate:styles": "node ../../.shared/plugin-styles.mjs",
     "prevalidate": "npm run generate:styles",

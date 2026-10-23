@@ -10,7 +10,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   DocumentsServiceToken,
-  HostMessagesCapability,
   WorkspaceFilesServiceToken,
   WorkspaceTreeCapability,
   type PluginContext,
@@ -33,7 +32,6 @@ function ref(path: string): ResourceRef {
 }
 
 function harness(without: readonly string[] = []) {
-  const open = vi.fn(() => Promise.resolve());
   const writeText = vi.fn(() => Promise.resolve());
   const Panel = () => null;
   const selected = [ref('forms/contact/form.schema.json')];
@@ -43,28 +41,18 @@ function harness(without: readonly string[] = []) {
       {
         hasProject: () => true,
         documentOf: (id: ResourceId) => (id === FILE ? { ref: ref('opened.json') } : null),
-        open,
         writeText,
       },
     ],
     [WorkspaceFilesServiceToken.id, { projectRoot: () => 'fs:' }],
     [WorkspaceTreeCapability.id, { Panel, selection: () => selected }],
-    [
-      HostMessagesCapability.id,
-      {
-        locale: 'ru',
-        t: (key: string) => `host:${key}`,
-        diagnosticMessage: (code: string) => `находка:${code}`,
-        onDidChangeLocale: () => ({ dispose: () => {} }),
-      },
-    ],
   ]);
   for (const id of without) services.delete(id);
   const ctx = {
     services: { get: (token: { id: string }) => services.get(token.id) },
     i18n: { locale: 'ru', t: (key: string) => key, onDidChangeLocale: () => ({ dispose() {} }) },
   } as unknown as PluginContext;
-  return { host: filesHostFromContext(ctx), open, writeText, Panel, selected };
+  return { host: filesHostFromContext(ctx), writeText, Panel, selected };
 }
 
 describe('дерево проекта', () => {
@@ -87,15 +75,6 @@ describe('дерево проекта', () => {
 });
 
 describe('рабочая область', () => {
-  it('переход к находке открывает вкладку НЕ в режиме предпросмотра', () => {
-    // Человек пришёл чинить, а не посмотреть: вкладка обязана остаться после следующего щелчка.
-    const { host, open } = harness();
-
-    host.openResource?.(FILE);
-
-    expect(open).toHaveBeenCalledWith(FILE, { preview: false });
-  });
-
   it('запись идёт в рабочую копию через службу документов', async () => {
     const { host, writeText } = harness();
 
@@ -111,17 +90,12 @@ describe('рабочая область', () => {
     await expect(host.writeText(FILE, 'x')).rejects.toThrow(/писать некуда/);
     expect(host.hasProject()).toBe(false);
     expect(host.documentOf(FILE)).toBeNull();
-    expect(() => host.openResource?.(FILE)).not.toThrow();
   });
 
-  it('имя закрытого ресурса — разбором адреса платформой; неразборчивый адрес остаётся собой', () => {
+  it('документ открытой вкладки — от службы документов', () => {
     const { host } = harness();
 
-    expect(host.nameOf?.('fs:forms/contact/validation.ts')).toEqual({
-      name: 'validation.ts',
-      path: 'forms/contact/validation.ts',
-    });
-    expect(host.nameOf?.('не-адрес')).toBeNull();
+    expect(host.documentOf(FILE)?.ref.name).toBe('opened.json');
   });
 
   it('«читается ли текстом» — правило платформы по медиатипу', () => {

@@ -31,12 +31,10 @@ import { FILES_MESSAGES } from './messages';
 import {
   createFilesPlugin,
   filesDiagnosticsDecoration,
-  filesProblemsPanel,
   filesTextEditor,
   filesTreePanel,
   FILES_DIAGNOSTICS_DECORATION_ID,
   FILES_PLUGIN_ID,
-  FILES_PROBLEMS_PANEL_ID,
   FILES_TEXT_EDITOR_ID,
   FILES_TREE_PANEL_ID,
   TEXT_EDITOR_PRIORITY,
@@ -148,7 +146,7 @@ describe('панель проекта', () => {
 
   it('оболочка дерева не даёт — панели нет вовсе, а не пустая вкладка в рейле', () => {
     // Тело панели — возможность оболочки (`reformer.workspace.tree`). Приложение на той же
-    // оболочке вправе её не давать: плагин остаётся панелью проблем и текстовым редактором.
+    // оболочке вправе её не давать: плагин остаётся текстовым редактором и операциями.
     const host = fakeHost({ ResourceTreePanel: undefined });
 
     expect(filesTreePanel(host)).toBeNull();
@@ -156,7 +154,7 @@ describe('панель проекта', () => {
     const { ctx, contributed } = fakeContext();
     createFilesPlugin({ host }).activate(ctx);
     expect(contributed.map((entry) => entry.id)).not.toContain(FILES_TREE_PANEL_ID);
-    expect(contributed.map((entry) => entry.id)).toContain(FILES_PROBLEMS_PANEL_ID);
+    expect(contributed.map((entry) => entry.id)).toContain(FILES_TEXT_EDITOR_ID);
   });
 });
 
@@ -187,7 +185,7 @@ describe('текстовый редактор', () => {
 });
 
 describe('активация', () => {
-  it('вносит панели, редактор, пункты меню и пометку — в точки SDK, без подстановок', () => {
+  it('вносит панель проекта, редактор, пункты меню и пометку — в точки SDK, без подстановок', () => {
     const plugin = createFilesPlugin({ host: fakeHost() });
     const { ctx, contributed, registered } = fakeContext();
 
@@ -205,7 +203,6 @@ describe('активация', () => {
     expect(points).toEqual(
       expect.arrayContaining([
         `${PanelPoint.id}:${FILES_TREE_PANEL_ID}`,
-        `${PanelPoint.id}:${FILES_PROBLEMS_PANEL_ID}`,
         `${EditorPoint.id}:${FILES_TEXT_EDITOR_ID}`,
         // Заголовок общего подменю «Сгенерировать»: его наполняют стеки, а вносит основа.
         `${MenuPoint.id}:files.context.generate`,
@@ -214,6 +211,10 @@ describe('активация', () => {
     );
     // Пунктов меню «Файл» плагин больше не вносит: открыть и сохранить — дело «Проекта».
     expect(points.filter((point) => point.startsWith(`${MenuPoint.id}:files.menu.`))).toEqual([]);
+    // Списка находок тоже: он вид «Проблемы» журнала, а у файлов — только панель проекта.
+    expect(points.filter((point) => point.startsWith(`${PanelPoint.id}:`))).toEqual([
+      `${PanelPoint.id}:${FILES_TREE_PANEL_ID}`,
+    ]);
   });
 
   it('словарь вносит сам плагин: заголовки панелей и команд не остаются маркерами промаха', () => {
@@ -243,27 +244,8 @@ describe('активация', () => {
   });
 });
 
-describe('панель проблем', () => {
-  it('стоит в нижнем доке: список читают вместе с текстом, а не вместо него', () => {
-    const panel = filesProblemsPanel(fakeHost(), null);
-
-    expect(panel).toMatchObject({ id: FILES_PROBLEMS_PANEL_ID, slot: 'panel.bottom' });
-  });
-
-  it('заголовок — ключ в пространстве имён плагина, а не готовая строка', () => {
-    expect(filesProblemsPanel(fakeHost(), null).titleKey).toBe('problems.title');
-  });
-
-  it('вносится и без службы диагностик: без неё она просто пуста', () => {
-    const plugin = createFilesPlugin({ host: fakeHost() });
-    const { ctx, contributed } = fakeContext(false);
-
-    plugin.activate(ctx);
-
-    expect(contributed.map((entry) => entry.id)).toContain(FILES_PROBLEMS_PANEL_ID);
-  });
-
-  it('а вот пометка без службы НЕ вносится: вклад, который всегда молчит, лишний', () => {
+describe('пометка без службы диагностик', () => {
+  it('не вносится: вклад, который всегда молчит, лишний', () => {
     const plugin = createFilesPlugin({ host: fakeHost() });
     const { ctx, contributed } = fakeContext(false);
 

@@ -1,0 +1,11 @@
+{
+  "id": "reformer.journal",
+  "name": "Журнал",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "styles": {
+    "file": "styles.css",
+    "isolation": "scoped"
+  }
+}

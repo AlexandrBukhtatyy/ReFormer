@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { RESOURCE_CONTEXT_MENU, RESOURCE_GENERATE_MENU } from '@reformer/builder-plugin-api';
 import type { WhenContext } from '@reformer/builder-plugin-api';
-import type { WorkspaceBatchResult, WorkspaceResourcesService } from '@reformer/builder-plugin-api';
+import type {
+  LogEntryRequest,
+  WorkspaceBatchResult,
+  WorkspaceResourcesService,
+} from '@reformer/builder-plugin-api';
 import type { FilesHost } from './host';
 import { FILES_MESSAGES } from './messages';
 import {
@@ -68,6 +72,8 @@ interface Harness {
     observe: () => { dispose: () => void };
   };
   readonly errors: string[];
+  /** Записи журнала, которые сделали команды. */
+  readonly logged: LogEntryRequest[];
   command(id: string): ReturnType<typeof filesOperationCommands>[number];
 }
 
@@ -81,6 +87,8 @@ function harness(
     /** `false` — право `workspace.resources` не подтверждено, службы нет. */
     permitted?: boolean;
     batch?: WorkspaceBatchResult;
+    /** Чем отказывает переименование; без значения оно проходит. */
+    renameFails?: Error;
   } = {}
 ): Harness {
   const calls: { name: string; args: unknown[] }[] = [];
@@ -97,6 +105,7 @@ function harness(
     },
     rename: (...args: unknown[]) => {
       calls.push({ name: 'rename', args });
+      if (options.renameFails !== undefined) return Promise.reject(options.renameFails);
       return Promise.resolve('fs:renamed.ts');
     },
     move: (...args: unknown[]) => {
@@ -137,6 +146,7 @@ function harness(
   };
 
   const errors: string[] = [];
+  const logged: LogEntryRequest[] = [];
   const host = {
     hasProject: () => options.hasProject ?? true,
     treeSelection: () => options.selection ?? [],
@@ -158,6 +168,11 @@ function harness(
       },
       info: () => ({ id: 'i', dismiss: () => undefined }),
     } as never,
+    log: {
+      append: (request: LogEntryRequest) => {
+        logged.push(request);
+      },
+    } as never,
     writeSystemClipboard: () => Promise.resolve(),
   });
 
@@ -167,6 +182,7 @@ function harness(
     prompt,
     clipboard,
     errors,
+    logged,
     command: (id) => {
       const found = commands.find((item) => item.id === id);
       if (found === undefined) throw new Error(`нет команды ${id}`);
@@ -283,6 +299,7 @@ describe('удаление', () => {
   });
 
   it('частичный отказ сообщается человеком, а не консолью', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const h = harness({
       selection: [ref('a.ts')],
       batch: { done: [], failed: [{ id: 'fs:a.ts', error: new Error('нет прав') }] },
@@ -291,6 +308,70 @@ describe('удаление', () => {
     await h.command(DELETE_COMMAND_ID).run();
 
     expect(h.errors).toContain('reformer.files:notify.delete.failed');
+    error.mockRestore();
+  });
+
+  it('подробности частичного отказа — по записи журнала на каждую неудалённую запись', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const h = harness({
+      selection: [ref('a.ts'), ref('b.ts')],
+      batch: { done: ['fs:b.ts'], failed: [{ id: 'fs:a.ts', error: new Error('нет прав') }] },
+    });
+
+    await h.command(DELETE_COMMAND_ID).run();
+
+    expect(h.logged).toHaveLength(1);
+    expect(h.logged[0]).toMatchObject({
+      level: 'error',
+      source: 'reformer.files',
+      messageKey: 'reformer.files:log.delete.failed',
+      params: { name: 'a.ts' },
+      resource: 'fs:a.ts',
+    });
+    expect(h.logged[0]?.detail).toContain('нет прав');
+    error.mockRestore();
+  });
+});
+
+describe('отказ операции и журнал', () => {
+  it('тост называет, что не вышло, журнал хранит почему — с именами и исключением', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const h = harness({
+      selection: [ref('src/a.ts')],
+      answer: 'b.ts',
+      renameFails: new Error('имя занято'),
+    });
+
+    await h.command(RENAME_COMMAND_ID).run();
+
+    expect(h.errors).toEqual(['reformer.files:notify.rename.failed']);
+    expect(h.logged).toEqual([
+      expect.objectContaining({
+        messageKey: 'reformer.files:log.rename.failed',
+        params: { name: 'a.ts', to: 'b.ts' },
+        resource: 'fs:src/a.ts',
+      }),
+    ]);
+    expect(h.logged[0]?.detail).toContain('имя занято');
+    error.mockRestore();
+  });
+
+  it('отказ без исключения (проекта нет) — только тост: записывать нечего', async () => {
+    const h = harness({ selection: [ref('a.ts')], hasProject: false });
+
+    await h.command(RENAME_COMMAND_ID).run();
+
+    expect(h.logged).toEqual([]);
+  });
+
+  it('тексты отказов отсылают в журнал, а не в консоль', () => {
+    for (const locale of ['ru', 'en'] as const) {
+      const failed = Object.entries(FILES_MESSAGES[locale] ?? {}).filter(([key]) =>
+        /^notify\.(create|delete|paste|rename)\.failed$/.test(key)
+      );
+      expect(failed).toHaveLength(4);
+      for (const [, message] of failed) expect(message).not.toMatch(/консол|console/i);
+    }
   });
 });
 

@@ -30,10 +30,12 @@ import {
   RESOURCE_CONTEXT_MENU,
   RESOURCE_GENERATE_MENU,
   argsOfResource,
+  errorDetail,
   pluginMessageKey,
   selectedIds,
   validateResourceName,
   whenResource,
+  type LogService,
   type MenuContribution,
   type NotificationsService,
   type PromptService,
@@ -42,6 +44,7 @@ import {
   type ResourceRef,
 } from '@reformer/builder-plugin-api';
 import type {
+  WorkspaceBatchResult,
   WorkspaceFilesService,
   WorkspaceResourcesService,
 } from '@reformer/builder-plugin-api';
@@ -95,6 +98,11 @@ export interface FilesOperationsDeps {
   readonly clipboard?: ResourceClipboardService | null;
   /** Уведомления: отказ операции обязан быть виден, а не лежать в консоли. */
   readonly notifications?: NotificationsService | null;
+  /**
+   * Журнал: подробности отказа — какая запись проекта и с каким исключением. Тост называет,
+   * что не вышло, и отсылает сюда. Без журнала подробности остаются только в консоли.
+   */
+  readonly log?: LogService | null;
   /** Перевод словарём ПЛАГИНА — для заголовков диалогов и подписей ошибок имени. */
   readonly translate?: Translate;
   /**
@@ -181,18 +189,58 @@ export function nameValidator(): (value: string) => string | null {
 const IN_TREE = 'focus == tree';
 
 /**
- * Ключ уведомления в словаре ЭТОГО плагина.
+ * Ключ в словаре ЭТОГО плагина — для уведомления и для записи журнала.
  *
- * Уведомление показывает оболочка, а текст принадлежит плагину: ключ с владельцем
+ * Показывает их оболочка и журнал, а текст принадлежит плагину: ключ с владельцем
  * (`<plugin-id>:<key>`) переводится его словарём. Раньше тексты лежали в словаре оболочки —
  * и оболочка знала о плагине файлов.
  */
-const notifyKey = (key: string): string => pluginMessageKey(FILES_PLUGIN_ID, key);
+const ownKey = (key: string): string => pluginMessageKey(FILES_PLUGIN_ID, key);
 
-/** Сообщение об отказе — человеку, а не в консоль. */
-function report(deps: FilesOperationsDeps, messageKey: string, error?: unknown): void {
-  if (error !== undefined) console.error(`[files] ${messageKey}`, error);
-  deps.notifications?.error(notifyKey(messageKey));
+/** Что именно не вышло — запись журнала по одной записи проекта. */
+interface Failure {
+  /** Ключ записи (`log.*`): тост говорит обобщённо, запись — по существу и с именем. */
+  readonly key: string;
+  readonly error: unknown;
+  readonly params?: Record<string, unknown>;
+  /** Запись проекта, о которой речь: журнал откроет её по щелчку. */
+  readonly resource?: ResourceId;
+}
+
+/**
+ * Сообщение об отказе — человеку, а не в консоль.
+ *
+ * Тост один на операцию и называет, ЧТО не вышло; подробности — по записи журнала на каждый
+ * отказ, с исключением в `detail`: у набора из десяти записей могли не удаться три, и тост
+ * на каждую был бы шумом, а одна запись на всех — потерей того, какие именно.
+ */
+function report(
+  deps: FilesOperationsDeps,
+  messageKey: string,
+  failures: readonly Failure[] = []
+): void {
+  for (const failure of failures) {
+    console.error(`[files] ${failure.key}`, failure.error);
+    deps.log?.append({
+      level: 'error',
+      source: FILES_PLUGIN_ID,
+      messageKey: ownKey(failure.key),
+      ...(failure.params === undefined ? {} : { params: failure.params }),
+      detail: errorDetail(failure.error),
+      ...(failure.resource === undefined ? {} : { resource: failure.resource }),
+    });
+  }
+  deps.notifications?.error(ownKey(messageKey));
+}
+
+/** Отказы пакетной операции — по записи журнала на каждую запись проекта. */
+function batchFailures(key: string, failed: WorkspaceBatchResult['failed']): readonly Failure[] {
+  return failed.map(({ id, error }) => ({
+    key,
+    error,
+    params: { name: nameOf(id) },
+    resource: id,
+  }));
 }
 
 /**
@@ -248,7 +296,9 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           await operations.createFile(dir, name);
           return true;
         } catch (error) {
-          report(deps, 'notify.create.failed', error);
+          report(deps, 'notify.create.failed', [
+            { key: 'log.create.failed', error, params: { name }, resource: dir },
+          ]);
           return false;
         }
       },
@@ -267,7 +317,9 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           await operations.createDirectory(dir, name);
           return true;
         } catch (error) {
-          report(deps, 'notify.create.failed', error);
+          report(deps, 'notify.create.failed', [
+            { key: 'log.create.failed', error, params: { name }, resource: dir },
+          ]);
           return false;
         }
       },
@@ -294,7 +346,14 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           await operations.rename(id, name);
           return true;
         } catch (error) {
-          report(deps, 'notify.rename.failed', error);
+          report(deps, 'notify.rename.failed', [
+            {
+              key: 'log.rename.failed',
+              error,
+              params: { name: nameOf(id), to: name },
+              resource: id,
+            },
+          ]);
           return false;
         }
       },
@@ -322,7 +381,9 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
 
         const result = await operations.remove(ids);
         // Частичный отказ — норма для набора: сообщаем ровно о том, что не удалось.
-        if (result.failed.length > 0) report(deps, 'notify.delete.failed');
+        if (result.failed.length > 0) {
+          report(deps, 'notify.delete.failed', batchFailures('log.delete.failed', result.failed));
+        }
         return result.failed.length === 0;
       },
     },
@@ -374,7 +435,11 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
               await operations.move(id, dir);
               moved += 1;
             } catch (error) {
-              report(deps, 'notify.paste.failed', error);
+              report(
+                deps,
+                'notify.paste.failed',
+                batchFailures('log.paste.failed', [{ id, error }])
+              );
             }
           }
           // Вырезанное вставляется ОДИН раз: после переноса исходников больше нет,
@@ -384,7 +449,9 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
         }
 
         const result = await operations.copy(state.items, dir);
-        if (result.failed.length > 0) report(deps, 'notify.paste.failed');
+        if (result.failed.length > 0) {
+          report(deps, 'notify.paste.failed', batchFailures('log.paste.failed', result.failed));
+        }
         return result.failed.length === 0;
       },
     },
@@ -400,10 +467,10 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
         const text = ids.map((id) => id.slice(id.indexOf(':') + 1)).join('\n');
         try {
           await deps.writeSystemClipboard(text);
-          deps.notifications?.info(notifyKey('notify.path.copied'));
+          deps.notifications?.info(ownKey('notify.path.copied'));
           return true;
         } catch (error) {
-          report(deps, 'notify.path.failed', error);
+          report(deps, 'notify.path.failed', [{ key: 'log.path.failed', error }]);
           return false;
         }
       },

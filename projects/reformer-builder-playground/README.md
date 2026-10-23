@@ -31,7 +31,8 @@ reformer-builder-playground/
 │       │   └── locales/                 ┘
 │       ├── kit-hexa-ui/                 кит HexaUI — так же: src/ и сборка в корне каталога
 │       ├── base/                        ДОМЕН: основа — то, чем работают с проектом
-│       │   ├── files/                   reformer.files — дерево, панель проблем, операции
+│       │   ├── files/                   reformer.files — дерево, пометки находок, операции
+│       │   ├── journal/                 reformer.journal — журнал: вид «Проблемы» и лента событий
 │       │   ├── monaco-editor/           reformer.editor-monaco — редактор кода, движок внутри
 │       │   ├── markdown-editor/         reformer.editor-markdown — предпросмотр markdown
 │       │   └── integration/             проверки: основа в собранном приложении

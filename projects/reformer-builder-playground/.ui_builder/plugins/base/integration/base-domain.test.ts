@@ -17,10 +17,12 @@ import {
   MenuPoint,
   PanelPoint,
   ResourceDecorationPoint,
+  type LogService,
 } from '@reformer/builder-plugin-api/internal';
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 import { FILES_PLUGIN_ID } from '../files/src';
+import { JOURNAL_PANEL_ID, JOURNAL_PLUGIN_ID } from '../journal/src';
 import { TextEditorCapability } from '../monaco-editor/src';
 import monacoManifest from '../monaco-editor/src/manifest.json';
 import { baseApplication } from './application';
@@ -62,6 +64,7 @@ describe('boot с доменом base', () => {
       'reformer.editor-markdown',
       'reformer.editor-monaco',
       'reformer.files',
+      'reformer.journal',
       'reformer.plugin-manager',
       'reformer.profile-switch',
       'reformer.project',
@@ -78,9 +81,33 @@ describe('boot с доменом base', () => {
       .map((contribution) => `${contribution.value.slot}:${contribution.value.id}`)
       .sort();
 
-    // Дерево — слева, проблемы — снизу. Без возможности `reformer.workspace.tree` первой бы
-    // не было: панель без тела плагин не вносит.
-    expect(panels).toEqual(['panel.bottom:files.problems', 'panel.left:files.tree']);
+    // Дерево — слева. Без возможности `reformer.workspace.tree` его бы не было: панель без тела
+    // плагин не вносит. Нижней панели у файлов больше нет: список находок — вид журнала.
+    expect(panels).toEqual(['panel.left:files.tree']);
+  });
+
+  it('журнал — нижняя панель, и служба журнала у него настоящая, от оболочки', async () => {
+    const started = await start();
+
+    const journal = started.extensions
+      .get(PanelPoint)
+      .filter((contribution) => contribution.pluginId === JOURNAL_PLUGIN_ID);
+    expect(
+      journal.map((contribution) => `${contribution.value.slot}:${contribution.value.id}`)
+    ).toEqual([`panel.bottom:${JOURNAL_PANEL_ID}`]);
+
+    // Тело получило службу оболочки: запись в неё ложится с идентификатором и временем,
+    // которые проставляет оболочка, а не двойник.
+    // Тело — функция-фабрика элемента; контракт объявляет его любым компонентом, поэтому вызов —
+    // через сужение до функции.
+    const body = journal[0]?.value.Body as
+      | ((props: { panelId: string }) => { props: { log: LogService | null } })
+      | undefined;
+    const log = body?.({ panelId: JOURNAL_PANEL_ID }).props.log;
+    expect(log).not.toBeNull();
+    const entry = log?.append({ source: 'test', messageKey: 'test:probe' });
+    expect(entry?.time).toBeGreaterThan(0);
+    expect(log?.entries()).toContain(entry);
   });
 
   it('текстовый редактор, пометки находок и подменю «Сгенерировать» — вклады плагина файлов', async () => {

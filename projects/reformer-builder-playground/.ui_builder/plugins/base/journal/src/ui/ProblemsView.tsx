@@ -1,5 +1,5 @@
 /**
- * Панель проблем: весь свод диагностик проекта одним списком.
+ * Вид «Проблемы» журнала: весь свод диагностик проекта одним списком.
  *
  * Третье — и последнее — место, где диагностика видна. Первые два показывают её В МЕСТЕ
  * ошибки (подчёркивание в Monaco, метка на узле канваса) и потому показывают не всё:
@@ -9,20 +9,14 @@
  *
  * ## Тексты — из словаря Host, а не плагина
  *
- * Заголовок панели и её собственные подписи переводит плагин ({@link FilesHost.useTranslate}),
- * а сами формулировки ошибок — Host, с приставкой `errors.` (см.
- * {@link FilesHost.useDiagnosticMessage}). Разделение проходит не по владельцу строки, а по
- * тому, КТО её завёл: одна ошибка обязана выглядеть одинаково здесь, в редакторе и в
- * подсказке на файле.
- *
- * ## Правила — рядом, в чистом модуле
- *
- * Группировка, порядок строк и счётчики живут в `./diagnostics` и проверяются без DOM.
- * Здесь остаётся то, что без браузера непроверяемо: подписка на службу, щелчок и разметка.
+ * Подписи вида переводит плагин ({@link JournalHost.useTranslate}), а сами формулировки
+ * ошибок — Host (см. {@link JournalHost.useDiagnosticMessage}). Разделение проходит не по
+ * владельцу строки, а по тому, КТО её завёл: одна ошибка обязана выглядеть одинаково здесь,
+ * в редакторе и в подсказке на файле.
  *
  * ## Быстрые исправления — кнопкой в строке
  *
- * Панель — первое место, где исправление вообще видно: находка здесь показана целиком,
+ * Список — первое место, где исправление вообще видно: находка здесь показана целиком,
  * включая ту, что не легла ни на узел, ни на диапазон (осиротевшее правило). Кнопка
  * появляется, только если команду исправления сейчас можно выполнить, и это проверяется
  * ДВАЖДЫ: при сборке списка и ещё раз перед вызовом. Между публикацией находки и щелчком
@@ -37,10 +31,10 @@
  * первой находке каждого файла. Стоимость обхода — десятки записей, и она заведомо меньше
  * стоимости отрисовки, которая уже случилась.
  *
- * @module plugins/base/files/ui/ProblemsPanel
+ * @module plugins/base/journal/ui/ProblemsView
  */
 
-import { useCallback, useEffect, useReducer, type ComponentType, type ReactElement } from 'react';
+import { useCallback, type ComponentType, type ReactElement } from 'react';
 import { CircleAlert, CircleX, Info } from 'lucide-react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
@@ -61,26 +55,22 @@ import type {
   QuickFix,
   ResourceId,
 } from '@reformer/builder-plugin-api';
-import {
-  groupProblems,
-  type CommandAccess,
-  type ProblemGroup,
-  type ProblemRow,
-} from '../diagnostics';
-import type { FilesHost, Translate } from '../host';
+import type { JournalHost, Translate } from '../host';
+import { groupProblems, type CommandAccess, type ProblemGroup, type ProblemRow } from '../problems';
+import { useDiagnosticsRevision } from './revision';
 
 /**
  * Значок строгости.
  *
  * Поштучный импорт из `lucide-react`, а не `@reformer/ui-kit/icon`: тот объявляет себя
- * opt-in, потому что тянет весь набор значков разом (тот же довод, что в
- * `host/ui/ResourceTree`).
+ * opt-in, потому что тянет весь набор значков разом.
  */
-const SEVERITY_ICON: Readonly<Record<DiagnosticSeverity, ComponentType<{ className?: string }>>> =
-  Object.freeze({ error: CircleX, warning: CircleAlert, info: Info });
+export const SEVERITY_ICON: Readonly<
+  Record<DiagnosticSeverity, ComponentType<{ className?: string }>>
+> = Object.freeze({ error: CircleX, warning: CircleAlert, info: Info });
 
 /** Цвет значка строгости — токенами кита, чтобы совпасть с тоном пометки в дереве. */
-const SEVERITY_CLASS: Readonly<Record<DiagnosticSeverity, string>> = Object.freeze({
+export const SEVERITY_CLASS: Readonly<Record<DiagnosticSeverity, string>> = Object.freeze({
   error: 'text-destructive',
   warning: 'text-muted-foreground',
   info: 'text-muted-foreground',
@@ -93,60 +83,34 @@ const NO_RESOURCES: readonly ResourceId[] = Object.freeze([]);
  * Запасной перевод кода: сам код.
  *
  * Хук без состояния — ради того, чтобы вызов в теле компонента был БЕЗУСЛОВНЫМ. Выбор
- * реализации происходит один раз (порт композиции не меняется за время жизни панели),
- * а вызывать хук по условию нельзя — подстановка запасного и есть способ этого избежать.
+ * реализации происходит один раз (порт не меняется за время жизни панели), а вызывать хук
+ * по условию нельзя — подстановка запасного и есть способ этого избежать.
  */
-function useDiagnosticCode(): Translate {
+export function useIdentity(): Translate {
   return (code) => code;
 }
 
-/**
- * Перерисовка по изменению свода.
- *
- * Тот же приём, что у `useLocale` в оболочке: хук ничего не считает, он делает чужое
- * состояние поводом перерисоваться. Подписка одна на всю панель, а не на ресурс: панель
- * показывает все, и фильтровать по адресу здесь нечего.
- */
-function useDiagnosticsRevision(diagnostics: DiagnosticsService | null): void {
-  const [, bump] = useReducer((revision: number) => revision + 1, 0);
-  useEffect(() => {
-    if (diagnostics === null) return;
-    const subscription = diagnostics.onDidChange(bump);
-    return () => {
-      subscription.dispose();
-    };
-  }, [diagnostics]);
-}
-
-export interface ProblemsPanelProps {
-  readonly host: FilesHost;
-  /**
-   * Служба диагностик. `null` — её нет в реестре сервисов, и показывать нечего.
-   *
-   * Плагин берёт её из `ctx.services` сам: она объявлена в `@reformer/builder-plugin-api`, поэтому проходить
-   * через порт композиции ей незачем — в отличие от рабочей области и словаря Host.
-   */
+export interface ProblemsViewProps {
+  readonly host: JournalHost;
+  /** Служба диагностик. `null` — её нет в реестре сервисов, и показывать нечего. */
   readonly diagnostics: DiagnosticsService | null;
   /**
-   * Реестр команд. `null` — исправления не показываются вовсе.
-   *
-   * Приходит от плагина, а не от композиции: реестр есть только в `activate`. Без него
-   * панель остаётся списком находок — ровно тем, чем была до появления исправлений.
+   * Реестр команд. `null` — исправления не показываются вовсе: вид остаётся списком находок.
    */
   readonly commands?: CommandAccess | null;
 }
 
-export function ProblemsPanel({
+export function ProblemsView({
   host,
   diagnostics,
   commands = null,
-}: ProblemsPanelProps): ReactElement {
+}: ProblemsViewProps): ReactElement {
   const t = host.useTranslate();
-  const useMessage = host.useDiagnosticMessage ?? useDiagnosticCode;
+  const useMessage = host.useDiagnosticMessage ?? useIdentity;
   const message = useMessage();
   // Подписи исправлений — тоже словарь Host, но БЕЗ приставки `errors.`: `QuickFix.titleKey`
   // уже полный ключ (`quickfix.*`). Отсюда и второй перевод рядом с первым.
-  const useFixTitle = host.useQuickFixTitle ?? useDiagnosticCode;
+  const useFixTitle = host.useHostMessage ?? useIdentity;
   const fixTitle = useFixTitle();
   useDiagnosticsRevision(diagnostics);
 
@@ -164,14 +128,7 @@ export function ProblemsPanel({
   const groups = groupProblems(
     diagnostics?.resources() ?? NO_RESOURCES,
     (id) => diagnostics?.get(id) ?? [],
-    (id) => {
-      // Имя спрашивается у открытого документа: у службы диагностик его нет, а разбирать
-      // идентификатор ресурса плагину нельзя — путевая арифметика принадлежит платформе.
-      // Закрытый документ (сайдкар с ошибкой сборки) называет порт — той же арифметикой.
-      const ref = host.documentOf(id)?.ref;
-      if (ref !== undefined) return { name: ref.name, path: ref.path };
-      return host.nameOf?.(id) ?? null;
-    },
+    (id) => host.nameOf(id),
     commands === null ? undefined : (commandId) => commands.has(commandId)
   );
 
@@ -187,26 +144,21 @@ export function ProblemsPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* Своей шапки у панели НЕТ: имя ей даёт оболочка — вкладкой нижнего дока, а число
-          находок — значок на той же вкладке. Строка «Проблемы 3» под вкладкой «Проблемы 3»
-          повторяла и то и другое, отнимая высоту у списка, ради которого панель открыта. */}
-      <ScrollArea className="min-h-0 flex-1">
-        <ItemGroup role="list" aria-label={t('problems.title')}>
-          {groups.map((group) => (
-            <GroupView
-              key={group.resource}
-              group={group}
-              message={message}
-              fixTitle={fixTitle}
-              onFix={runFix}
-              onOpen={host.openResource}
-              t={t}
-            />
-          ))}
-        </ItemGroup>
-      </ScrollArea>
-    </div>
+    <ScrollArea className="min-h-0 flex-1">
+      <ItemGroup role="list" aria-label={t('view.problems')}>
+        {groups.map((group) => (
+          <GroupView
+            key={group.resource}
+            group={group}
+            message={message}
+            fixTitle={fixTitle}
+            onFix={runFix}
+            onOpen={host.openResource}
+            t={t}
+          />
+        ))}
+      </ItemGroup>
+    </ScrollArea>
   );
 }
 

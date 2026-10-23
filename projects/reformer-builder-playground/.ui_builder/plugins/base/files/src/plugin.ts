@@ -1,5 +1,6 @@
 /**
- * Плагин файлов: панель проекта, панель проблем, текстовый редактор и операции над записями.
+ * Плагин файлов: панель проекта, пометки находок в дереве, текстовый редактор и операции над
+ * записями.
  *
  * **Почему это плагин, а не часть Host.** Дерево ресурсов платформенно, а вот РЕШЕНИЕ
  * «показывать его слева, называть его так-то, открывать проект вот этой командой» —
@@ -15,11 +16,11 @@
  * **Чего здесь нет.** Открытия проекта, недавних и сохранения — это встроенный плагин
  * «Проект»: открыть каталог и сохранить должен уметь любой состав, и без дерева файлов тоже.
  *
- * **Команд быстрых исправлений здесь нет** — как и у валидатора: их владелец тот, кто умеет
- * править документ. Плагин файлов их только ПОКАЗЫВАЕТ (панель проблем) и запускает через
- * общий реестр, поэтому исправление, чей владелец выключен, у него просто не рисуется.
+ * **Списка находок здесь тоже нет** — он вид «Проблемы» журнала (`base/journal`): «что сейчас
+ * не так» рядом с «что произошло». Отказы операций над записями плагин пишет в тот же журнал
+ * (`reformer.log`) с подробностями, а тост отсылает туда.
  *
- * ## Диагностика: пометка на файле и панель проблем — тоже отсюда
+ * ## Диагностика: пометка на файле — отсюда
  *
  * Не потому, что плагин её находит (находит валидатор), а потому, что он владеет ПОКАЗОМ
  * проекта: дерево ресурсов внёс он, и пометка на строке дерева — продолжение того же
@@ -30,10 +31,11 @@
 
 import { FILES_PLUGIN_ID } from './contract';
 import { createElement, type ReactElement } from 'react';
-import { CircleAlert, FolderTree } from 'lucide-react';
+import { FolderTree } from 'lucide-react';
 import {
   definePlugin,
   DiagnosticsServiceToken,
+  LogServiceToken,
   NotificationsServiceToken,
   PromptServiceToken,
   ResourceClipboardServiceToken,
@@ -49,7 +51,7 @@ import {
   type ResourceDecorationContribution,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import { diagnosticDecoration, type CommandAccess } from './diagnostics';
+import { diagnosticDecoration } from './diagnostics';
 import {
   AssistantResourcePoint,
   AssistantToolPoint,
@@ -69,8 +71,6 @@ import {
 import type { FilesHost } from './host';
 import { filesHostFromContext } from './host-from-context';
 import { FILES_MESSAGES } from './messages';
-import { ProblemsBadge } from './ui/ProblemsBadge';
-import { ProblemsPanel } from './ui/ProblemsPanel';
 import { TextEditor } from './ui/TextEditor';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
@@ -80,9 +80,6 @@ export { FILES_PLUGIN_ID } from './contract';
 
 /** Панель с деревом ресурсов. */
 export const FILES_TREE_PANEL_ID = 'files.tree';
-
-/** Панель проблем: весь свод диагностик списком. */
-export const FILES_PROBLEMS_PANEL_ID = 'files.problems';
 
 /** Ресурсы `source:` для ассистента — файлы проекта прямо из источника. */
 export const FILES_SOURCE_RESOURCES_ID = 'files.source';
@@ -123,7 +120,6 @@ export const TEXT_EDITOR_PRIORITY = 1;
  * решение того, кто значок выбрал, поэтому он задаётся здесь, а не в оболочке.
  */
 const TreeIcon = (): ReactElement => createElement(FolderTree, { className: 'size-4' });
-const ProblemsIcon = (): ReactElement => createElement(CircleAlert, { className: 'size-4' });
 
 /**
  * Панель проекта. Слот левый: навигация по проекту — то, что стоит слева во всех редакторах.
@@ -139,27 +135,6 @@ export function filesTreePanel(host: FilesHost): PanelContribution | null {
     titleKey: 'panel.title',
     icon: TreeIcon,
     Body: host.ResourceTreePanel,
-    order: 10,
-  };
-}
-
-/**
- * Панель проблем. Слот нижний — там, где её ищут: список находок читают ВМЕСТЕ с текстом,
- * а не вместо него, поэтому боковой док, отнимающий ширину у редактора, ей не подходит.
- */
-export function filesProblemsPanel(
-  host: FilesHost,
-  diagnostics: DiagnosticsService | null,
-  commands: CommandAccess | null = null
-): PanelContribution {
-  return {
-    id: FILES_PROBLEMS_PANEL_ID,
-    slot: 'panel.bottom',
-    titleKey: 'problems.title',
-    // Значок виден и когда док свёрнут в полосу — ради этого свёрнутый вид и заведён.
-    Badge: () => createElement(ProblemsBadge, { diagnostics }),
-    icon: ProblemsIcon,
-    Body: () => createElement(ProblemsPanel, { host, diagnostics, commands }),
     order: 10,
   };
 }
@@ -250,6 +225,8 @@ export function createFilesPlugin(options: FilesPluginOptions = {}): Plugin {
         prompt,
         clipboard: ctx.services.get(ResourceClipboardServiceToken) ?? null,
         notifications: ctx.services.get(NotificationsServiceToken) ?? null,
+        // Подробности отказа — в журнал: тост называет, что не вышло, журнал хранит почему.
+        log: ctx.services.get(LogServiceToken) ?? null,
         // Системный буфер — единственное, что нельзя взять ни из реестра, ни из порта:
         // он у браузера. Отсутствие движка означает лишь недоступный пункт «Копировать путь».
         writeSystemClipboard:
@@ -261,23 +238,10 @@ export function createFilesPlugin(options: FilesPluginOptions = {}): Plugin {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
-      // Служба диагностик объявлена в `@reformer/builder-plugin-api`, поэтому берётся из реестра сервисов,
-      // а не приходит портом. `undefined` — штатная деградация: панель проблем покажет
-      // пустоту, пометок в дереве не будет. Роняться на этом нельзя — это правило
-      // `get` против `require` в реестре сервисов.
+      // Служба диагностик объявлена в `@reformer/builder-plugin-api`, поэтому берётся из реестра
+      // сервисов, а не приходит портом. `undefined` — штатная деградация: пометок в дереве не
+      // будет. Роняться на этом нельзя — это правило `get` против `require` в реестре сервисов.
       const diagnostics = ctx.services.get(DiagnosticsServiceToken) ?? null;
-
-      // Реестр команд для быстрых исправлений. Спрашивается ЛЕНИВО, на каждый вопрос:
-      // между отрисовкой строки и нажатием плагин, владеющий командой, могли выключить,
-      // и панель обязана это увидеть, а не помнить ответ, данный при активации.
-      const commands: CommandAccess = {
-        has: (commandId) => ctx.commands.get(commandId) !== undefined,
-        run: (commandId, args) => {
-          void ctx.commands.execute(commandId, args).catch((error: unknown) => {
-            console.error(`[files] команда «${commandId}» отказала`, error);
-          });
-        },
-      };
 
       const treePanel = filesTreePanel(host);
       if (treePanel !== null) {
@@ -286,9 +250,6 @@ export function createFilesPlugin(options: FilesPluginOptions = {}): Plugin {
         );
       }
       ctx.subscriptions.push(
-        ctx.extensions.contribute(PanelPoint, filesProblemsPanel(host, diagnostics, commands), {
-          id: FILES_PROBLEMS_PANEL_ID,
-        }),
         ctx.extensions.contribute(EditorPoint, filesTextEditor(host), { id: FILES_TEXT_EDITOR_ID })
       );
 

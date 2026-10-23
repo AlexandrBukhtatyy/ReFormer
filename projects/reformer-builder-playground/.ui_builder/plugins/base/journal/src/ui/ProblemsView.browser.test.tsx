@@ -1,7 +1,7 @@
 /**
- * Быстрые исправления в панели проблем — в настоящем браузере.
+ * Быстрые исправления в виде «Проблемы» журнала — в настоящем браузере.
  *
- * Панель — то место, где исправление видно ВСЕГДА: на канвасе находка ложится только на узел,
+ * Вид — то место, где исправление видно ВСЕГДА: на канвасе находка ложится только на узел,
  * а здесь показаны и те, что адресованы файлом целиком (осиротевшее правило). Проверяется
  * в браузере ровно то, что без него невыразимо:
  *
@@ -14,7 +14,7 @@
  * - **разметка кита.** Кнопка — `@reformer/ui-kit`, и то, что она умещается в строку рядом
  *   с меткой узла, видно только в браузере с настоящим каскадом.
  *
- * @module plugins/base/files/ui/ProblemsPanel.browser.test
+ * @module plugins/base/journal/ui/ProblemsView.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -27,9 +27,9 @@ import type {
   ResourceId,
 } from '@reformer/builder-plugin-api';
 import { renderReact } from '../../../../.shared/render';
-import type { CommandAccess } from '../diagnostics';
-import type { FilesHost } from '../host';
-import { ProblemsPanel } from './ProblemsPanel';
+import type { JournalHost } from '../host';
+import type { CommandAccess } from '../problems';
+import { ProblemsView } from './ProblemsView';
 
 const RESOURCE = 'fs:forms/credit/schema.json';
 
@@ -54,7 +54,7 @@ interface Call {
 }
 
 /**
- * Двойник службы диагностик: вторая реализация контракта, как и в `./plugin.test`.
+ * Двойник службы диагностик: вторая реализация контракта, как двойник журнала в `../plugin.test`.
  *
  * Прямая цена границы слоёв — `plugins/**` не видит `@/shell`, настоящую службу в тест
  * не взять. Здесь достаточно ответов на три вопроса, которые задаёт панель.
@@ -68,22 +68,15 @@ function fakeDiagnostics(items: readonly Diagnostic[]): DiagnosticsService {
   };
 }
 
-function fakeHost(openResource: (id: ResourceId) => void): FilesHost {
+function fakeHost(openResource: (id: ResourceId) => void): JournalHost {
   return {
-    ResourceTreePanel: () => null,
     useTranslate: () => (key: string) => key,
     useDiagnosticMessage: () => (code: string) => `⟨${code}⟩`,
-    useQuickFixTitle: () => (key: string) =>
+    useHostMessage: () => (key: string) =>
       key === FIX.titleKey ? 'Убрать осиротевшее правило' : key,
-    hasProject: () => true,
+    useFormatTime: () => () => '00:00:00',
     openResource,
-    documentOf: () => null,
-    writeText: () => Promise.resolve(),
-    isTextual: () => true,
-    // Операции, дерево и корень — то, чем пользуются команды дерева; двойник отвечает
-    // «проекта нет», и этого хватает всем тестам, которые про них не спрашивают.
-    treeSelection: () => [],
-    treeRoot: () => null,
+    nameOf: () => null,
   };
 }
 
@@ -118,7 +111,7 @@ function Harness({ calls, opened }: { calls: Call[]; opened: ResourceId[] }): Re
         выключить владельца команды
       </button>
       <div style={{ width: 520, height: 240 }}>
-        <ProblemsPanel host={host} diagnostics={fakeDiagnostics([FINDING])} commands={commands} />
+        <ProblemsView host={host} diagnostics={fakeDiagnostics([FINDING])} commands={commands} />
       </div>
     </div>
   );
@@ -140,7 +133,7 @@ function fixButton(): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-fix="${FIX.commandId}"]`);
 }
 
-describe('исправление в строке панели проблем', () => {
+describe('исправление в строке вида «Проблемы»', () => {
   it('кнопка подписана словарём Host, а не ключом', async () => {
     const fixture = await mount();
 
@@ -182,13 +175,13 @@ describe('исправление в строке панели проблем', (
   it('закрытый ресурс подписан именем от порта, а не адресом', async () => {
     // Находка сборки сайдкара приходит под адресом файла, вкладки которого нет: имя
     // спрашивается у порта, и человек читает «schema.json», а не «fs:forms/credit/…».
-    const host: FilesHost = {
+    const host: JournalHost = {
       ...fakeHost(() => undefined),
       nameOf: () => ({ name: 'schema.json', path: 'forms/credit/schema.json' }),
     };
     const rendered = renderReact(
       <div style={{ width: 520, height: 240 }}>
-        <ProblemsPanel host={host} diagnostics={fakeDiagnostics([FINDING])} commands={null} />
+        <ProblemsView host={host} diagnostics={fakeDiagnostics([FINDING])} commands={null} />
       </div>
     );
     try {
