@@ -294,6 +294,16 @@ describe('set_form_rules — связи строк массива', () => {
     expect(res.error?.code).toBe('STALE_POINTER');
     expect(res.error?.message).toContain('rows.nope');
   });
+
+  it('правило валидации строки: путь от строки принимается и хранится полным', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      { validation: [{ each: 'items', target: 'qty', rules: ['required'] }] },
+      rowsCtx()
+    );
+    expect(res.ok).toBe(true);
+    expect(res.rules?.validation[0]).toMatchObject({ each: 'items', target: 'items.qty' });
+  });
 });
 
 describe('set_form_rules — значения источников данных', () => {

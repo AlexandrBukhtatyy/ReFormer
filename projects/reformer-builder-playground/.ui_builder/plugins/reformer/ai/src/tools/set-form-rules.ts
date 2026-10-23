@@ -150,7 +150,10 @@ export const setFormRulesTool: AgentTool<Params> = {
       !known.has(path) &&
       ![...known].some((k) => path.startsWith(`${k}.`) || k.startsWith(`${path}.`));
 
-    for (const rule of params.validation ?? []) {
+    for (const raw of params.validation ?? []) {
+      // Правило строки адресует поле строки, и модель пишет его путь от строки (`name`): хранится
+      // он полным путём, как у связей строк, — иначе правило не находило своего поля.
+      const rule = { ...raw, target: rowFull(raw.target, raw.each) };
       if (unknown(rule.target)) {
         return fail(
           'STALE_POINTER',
