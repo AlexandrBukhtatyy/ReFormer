@@ -7,6 +7,7 @@ import {
   migrateNodeFormat,
   migrateTextNodes,
 } from './normalize';
+import { stepRefsOf } from './composite';
 
 describe('isFormSchema / ensureSchema', () => {
   it('узнаёт схему по узлу в root и отвергает произвольный JSON', () => {
@@ -77,6 +78,43 @@ describe('перевод прежнего формата', () => {
 
   it('документ формата 2 возвращается той же ссылкой — round-trip не страдает', () => {
     const schema = ensureSchema(legacy());
+    expect(ensureSchema(schema)).toBe(schema);
+  });
+
+  it('формат 2 с остатком прежнего: ссылки на шаги из componentProps.steps — в children', () => {
+    // Такой корень пишет модель в режиме файлов: формат объявлен, шаги — по-старому. Перевод
+    // документа его пропускал, сборка шагов не находила ссылок, и превью рисовало пустые шаги.
+    const schema = ensureSchema({
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        componentProps: {
+          steps: [{ $ref: './steps/a/form.schema.json' }, { $ref: './steps/b/form.schema.json' }],
+        },
+      },
+    });
+
+    expect(schema.root).toEqual({
+      component: '$component(Wizard)',
+      children: [{ $ref: './steps/a/form.schema.json' }, { $ref: './steps/b/form.schema.json' }],
+    });
+    expect(stepRefsOf(schema)).toEqual([
+      './steps/a/form.schema.json',
+      './steps/b/form.schema.json',
+    ]);
+  });
+
+  it('формат 2 с привязкой в value не переводится — это ошибка схемы, а не молчаливая правка', () => {
+    // Мета-схема формата 2 отвергает `value` понятной ошибкой; перевод спрятал бы её от человека.
+    const schema = {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        children: [{ value: '$model(name)', component: '$component(Input)' }],
+      },
+    } as unknown as JsonFormSchema;
     expect(ensureSchema(schema)).toBe(schema);
   });
 

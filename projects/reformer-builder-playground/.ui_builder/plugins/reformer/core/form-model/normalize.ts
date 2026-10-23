@@ -70,7 +70,65 @@ export function ensureSchema(value: unknown): JsonFormSchema {
   if (!isFormSchema(value)) {
     throw new Error('ensureSchema: JSON не похож на JsonFormSchema (нет узла в `root`)');
   }
-  return migrateSchemaFormat(migrateTextNodes(value));
+  return withStepsInChildren(migrateSchemaFormat(migrateTextNodes(value)));
+}
+
+/**
+ * Документ, объявивший формат 2, но с шагами визарда по-старому — в `componentProps.steps`. Так
+ * его пишет модель в режиме файлов и человек по старой памяти.
+ *
+ * Перевод документа такой файл пропускает: формат объявлен. А сборка шагов ищет ссылки `$ref` в
+ * `children` визарда, не находила их, и превью рисовало ссылки пустыми шагами — «Шаг 1 из 3» без
+ * заголовков и полей. Поэтому шаги переезжают в `children` и здесь.
+ *
+ * Только шаги. Прочий остаток прежнего формата (привязка в `value`) мета-схема формата 2
+ * отвергает понятной ошибкой, и молча переводить его нельзя — человек не узнал бы, что файл написан
+ * неверно. Шагам такой ошибки не достаётся: `componentProps` мета-схема не проверяет, и сломанная
+ * сборка была единственным признаком. Документ без таких шагов возвращается ПО ТОЙ ЖЕ ссылке.
+ */
+function withStepsInChildren(schema: JsonFormSchema): JsonFormSchema {
+  const root = stepsToChildren(schema.root);
+  return root === schema.root ? schema : { ...schema, root: root as JsonNode };
+}
+
+/** Шаги визарда из `componentProps.steps` — в `children`, по всем местам узлов поддерева. */
+function stepsToChildren(value: unknown): unknown {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return value;
+  let node = value as Record<string, unknown>;
+
+  const props = node.componentProps as Record<string, unknown> | undefined;
+  const host = parseOperator(node.component)?.arg;
+  const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+  if (
+    host !== undefined &&
+    STEPS_HOST_NAMES.has(host) &&
+    Array.isArray(props?.steps) &&
+    !hasChildren
+  ) {
+    const { steps, ...rest } = props as { steps: unknown[] } & Record<string, unknown>;
+    const { componentProps: _dropped, ...without } = node;
+    node = {
+      ...without,
+      ...(Object.keys(rest).length > 0 ? { componentProps: rest } : {}),
+      children: steps,
+    };
+  }
+
+  const children = node.children;
+  if (Array.isArray(children)) {
+    const walked = children.map(stepsToChildren);
+    if (walked.some((child, i) => child !== children[i])) node = { ...node, children: walked };
+  }
+  const item = node.item as { $template?: unknown } | undefined;
+  if (item !== null && typeof item === 'object' && item.$template !== undefined) {
+    const template = stepsToChildren(item.$template);
+    if (template !== item.$template) node = { ...node, item: { ...item, $template: template } };
+  }
+  if (node.wrapper !== undefined) {
+    const wrapper = stepsToChildren(node.wrapper);
+    if (wrapper !== node.wrapper) node = { ...node, wrapper };
+  }
+  return node;
 }
 
 /**
