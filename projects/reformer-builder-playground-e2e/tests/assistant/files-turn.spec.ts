@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { call, say } from './shared/model-mock';
 import { FORM_A, FORM_B, FORM_B_FIELD, seedFormB } from './shared/forms';
 import { expect, test } from './shared/fixtures';
@@ -72,5 +73,66 @@ test.describe('Ассистент: режим файлов — вложенна�
     await builder.save();
     await expect(builder.dirtyMark(FORM_B)).toHaveCount(0);
     expect(await disk.readText(FORM_B)).toContain('ФИО полностью');
+  });
+});
+
+test.describe('Ассистент: режим файлов — шаги в своих файлах', () => {
+  /** Шаг «Данные» из проектного шаблона «Пошаговая форма». */
+  const STEP = readFileSync(
+    '../reformer-builder-playground/forms/templates/reformer-multi-step-form/schema/steps/dannye/form.schema.json',
+    'utf8'
+  );
+  const STEP_FILE = 'forms/e2e-b/schema/steps/personal/form.schema.json';
+  /**
+   * Корень так, как его пишет модель: формат 2 объявлен, а ссылка на шаг лежит по-старому, в
+   * `componentProps.steps`. Такой корень не считался составным документом, и Ctrl+S сохранял
+   * только его: файл шага оставался рабочей копией, а строка состояния говорила «Всё сохранено».
+   */
+  const ROOT = `${JSON.stringify(
+    {
+      format: 2,
+      version: '1.0',
+      root: {
+        component: '$component(Wizard)',
+        componentProps: { steps: [{ $ref: './steps/personal/form.schema.json' }] },
+      },
+    },
+    null,
+    2
+  )}\n`;
+
+  test('[F10] файл шага, созданный ходом, сохраняется вместе с корнем', async ({
+    builder,
+    disk,
+    model,
+    panel,
+  }) => {
+    test.setTimeout(150_000);
+    await builder.goto();
+    await disk.seed({ plugins: ['reformer/ai'] });
+    await seedFormB(disk);
+    await builder.openFolder();
+    await builder.openFile(FORM_B);
+    await panel.connect({ mode: 'files' });
+
+    model.reply(
+      call('read_file', { path: 'schema/form.schema.json' }),
+      call('write_file', { path: 'schema/steps/personal/form.schema.json', content: STEP }),
+      call('write_file', { path: 'schema/form.schema.json', content: ROOT }),
+      say('Готово: мастер с шагом.')
+    );
+    await panel.ask('Сделай мастер.');
+    await expect(panel.message(panel.answer(0))).toHaveText('Готово: мастер с шагом.');
+
+    await builder.activateTab(FORM_B);
+    await builder.save();
+    await expect(builder.dirtyMark(FORM_B)).toHaveCount(0);
+
+    await expect.poll(() => disk.exists(STEP_FILE)).toBe(true);
+    expect(await disk.readText(STEP_FILE)).toContain('$model(lastName)');
+    // Корень ушёл на диск форматом 2: ссылка на шаг — в children мастера.
+    expect(JSON.parse(await disk.readText(FORM_B))).toMatchObject({
+      root: { children: [{ $ref: './steps/personal/form.schema.json' }] },
+    });
   });
 });
