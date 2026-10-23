@@ -63,8 +63,7 @@ import { createFakeProvider } from '../../forms/ai/src/providers/fake';
 import type { AiProvider } from '../../forms/ai/src/providers/types';
 import type { ProviderKind } from '../../forms/ai/src/session/config';
 import { createFakeFiles, createTestFileTurn, type FakeFiles } from '../ai/src/stack/testing';
-import { createEditorToolRegistry } from '../ai/src/tools';
-import { createFileToolRegistry } from '../ai/src/tools/files';
+import { createEditorToolRegistry, createFileToolRegistry } from '../ai/src/tools/registry';
 import { createBuiltinStore, WIZARD_TEMPLATE_ID, type SeedExtras } from '../templates/src';
 
 const MODEL = process.env.EVAL_MODEL;

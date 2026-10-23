@@ -20,7 +20,6 @@ import type { AgentTool } from '../../model/types';
 import { createDescribeComponentTool } from '../describe-component';
 import { listComponentsTool } from '../list-components';
 import { createReformerDocsTool } from '../reformer-docs';
-import { createToolRegistry, type ToolRegistry } from '../registry';
 import { editFileTool } from './edit-file';
 import { listFilesTool } from './list-files';
 import { readFileTool } from './read-file';
@@ -61,11 +60,4 @@ export function fileModeSlots(
   options: { knowledge?: KnowledgeLoader } = {}
 ): readonly FormToolSlot[] {
   return [...fileModeTools(options), 'ask_user', 'generate_code', 'create_form'];
-}
-
-/** Реестр режима файлов. */
-export function createFileToolRegistry(
-  options: { knowledge?: KnowledgeLoader } = {}
-): ToolRegistry<FileToolContext> {
-  return createToolRegistry<FileToolContext>(fileModeTools(options));
 }

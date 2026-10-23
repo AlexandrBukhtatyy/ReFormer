@@ -34,11 +34,8 @@ import {
 } from '../tools/contributed-tools';
 import { readResourceTool } from '../tools/read-resource';
 import type { FormAgentTool, FormToolContext, FormToolOutcome } from '@reformer/builder-plugin-api';
-import {
-  createToolRegistry,
-  measureToolSurface,
-  type ToolRegistry,
-} from '@reformer/builder-toolkit';
+import { measureToolSurface, type ToolRegistry } from '@reformer/builder-toolkit';
+import { createToolRegistry } from '@reformer/builder-toolkit/registry';
 import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../budgets';
 
 /** Режим хода — у каждого свой набор встроенных и своя память. */

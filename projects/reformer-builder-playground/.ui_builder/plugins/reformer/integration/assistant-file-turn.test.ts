@@ -12,7 +12,7 @@ import {
   FORM_PATH,
   type FakeFiles,
 } from '../ai/src/stack/testing';
-import { createFileToolRegistry } from '../ai/src/tools/files';
+import { createFileToolRegistry } from '../ai/src/tools/registry';
 import { fileSystemPrompt } from '../ai/src/loop/file-prompt';
 import { fileSeed, runFileTurn, type FileTurnEvent } from './assistant-file-turn';
 import type { FileTurn } from '../ai/src/files/turn';

@@ -5,7 +5,7 @@ import { emptyRules } from '../../../core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { getAt } from '../../../core/form-model';
 import { P, sampleSchema } from '../../../core/testing';
-import { createEditorToolRegistry } from '../tools';
+import { createEditorToolRegistry } from './registry';
 import type { ToolContext } from '../model/types';
 
 const catalog = builtinEntries();

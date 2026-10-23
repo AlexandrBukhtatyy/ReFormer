@@ -12,9 +12,11 @@
  * - **маркер происхождения** — `// @reformer-generated <hash>`: по нему доставка решает,
  *   можно ли перезаписать файл, не потеряв правку человека, а подстановка имени его сохраняет;
  * - **имена** — транслитерация и kebab: имена файлов и селекторов из подписей;
- * - **ассистент** — реестр инструментов модели и текст для неё: страницы файла со строками,
- *   ответ по целым строкам в бюджете, похожие имена для подсказки, мера поверхности
- *   инструментов. Нужны и ассистенту, и инструментам стека в нём;
+ * - **ассистент** — текст для модели: страницы файла со строками, ответ по целым строкам в
+ *   бюджете, похожие имена для подсказки, мера поверхности инструментов. Нужны и ассистенту, и
+ *   инструментам стека в нём. Реестр инструментов — отдельным входом
+ *   `@reformer/builder-toolkit/registry` (здесь только его типы): он грузит ajv по требованию, и
+ *   отложенный импорт уехал бы чанком в сборку каждого, кто берёт из главного входа печать;
  * - **генерация кода** — файл цели из проекта (заголовок и шаблон) и правило замен целей. Нужны
  *   хозяину генерации и стеку, который печатает модуль.
  *
@@ -57,7 +59,7 @@ export {
   type ChangedLines,
   type Page,
 } from './assistant/page';
-export { joinWithinBudget } from './assistant/budget';
+export { joinWithinBudget, TOOL_TEXT_BUDGET } from './assistant/budget';
 export { similarNames } from './assistant/suggest';
 export {
   measureToolSurface,
@@ -67,11 +69,10 @@ export {
 } from './assistant/tool-surface';
 export { pathWithin } from './assistant/paths';
 export { createFileJournal, type FileJournal, type JournalEntry } from './assistant/journal';
-export {
-  createToolRegistry,
-  TOOL_TEXT_BUDGET,
-  type RegistryOutcome,
-  type RegistryTool,
-  type ToolRegistry,
-  type ToolRegistryOptions,
+// Только типы: значения реестра — во входе `./registry` (см. шапку).
+export type {
+  RegistryOutcome,
+  RegistryTool,
+  ToolRegistry,
+  ToolRegistryOptions,
 } from './assistant/registry';

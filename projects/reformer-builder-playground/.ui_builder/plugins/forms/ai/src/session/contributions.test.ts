@@ -6,7 +6,7 @@ import {
   type FormToolContext,
   type FormToolOutcome,
 } from '@reformer/builder-plugin-api';
-import { createToolRegistry } from '@reformer/builder-toolkit';
+import { createToolRegistry } from '@reformer/builder-toolkit/registry';
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { AgentCommand } from '../tools/command-tools';
 

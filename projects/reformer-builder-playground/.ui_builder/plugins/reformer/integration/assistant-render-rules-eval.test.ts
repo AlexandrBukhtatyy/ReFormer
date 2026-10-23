@@ -17,7 +17,7 @@ import { builtinEntries } from '../core/testing';
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { runAgentTurn } from './assistant-turn';
-import { createEditorToolRegistry } from '../ai/src/tools';
+import { createEditorToolRegistry } from '../ai/src/tools/registry';
 import { emptyRules } from '../core/form-model';
 import { createByokProvider } from '../../forms/ai/src/providers/byok';
 

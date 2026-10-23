@@ -26,8 +26,7 @@ import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { createContributionSurface } from '../../forms/ai/src/session/contributions';
 import { createResourceRouter } from '../../forms/ai/src/session/resources';
-import { createEditorToolRegistry } from '../ai/src/tools';
-import { createFileToolRegistry } from '../ai/src/tools/files';
+import { createEditorToolRegistry, createFileToolRegistry } from '../ai/src/tools/registry';
 import { reformerApplication } from './application';
 
 /** Собранное приложение над закрытым проектом — как сразу после запуска. */

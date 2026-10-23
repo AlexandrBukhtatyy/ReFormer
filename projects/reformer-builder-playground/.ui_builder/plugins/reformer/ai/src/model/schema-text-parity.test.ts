@@ -40,7 +40,7 @@ import {
   subpathSchema,
   wizardSchema,
 } from '../../../core/testing';
-import { createEditorToolRegistry } from '../tools';
+import { createEditorToolRegistry } from '../tools/registry';
 import { applyChangeSet } from '../stack/land';
 import { createFakeDocuments } from '../stack/testing';
 import { createChangeSet, withOutcome } from './changeset';

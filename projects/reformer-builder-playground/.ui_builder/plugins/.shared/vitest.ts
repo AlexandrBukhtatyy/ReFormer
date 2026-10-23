@@ -30,6 +30,7 @@ export const sourceAliases = {
     'packages/reformer-builder-plugin-api/src/tooling.ts'
   ),
   '@reformer/builder-plugin-api': source('packages/reformer-builder-plugin-api/src/index.ts'),
+  '@reformer/builder-toolkit/registry': source('packages/reformer-builder-toolkit/src/registry.ts'),
   '@reformer/builder-toolkit': source('packages/reformer-builder-toolkit/src/index.ts'),
   '@reformer/rjsf-kit-theme': source('packages/rjsf-kit-theme/src/index.ts'),
 };

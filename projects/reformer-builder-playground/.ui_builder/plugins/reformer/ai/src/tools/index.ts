@@ -20,7 +20,6 @@
 
 import type { FormToolSlot } from '@reformer/builder-plugin-api';
 import type { KnowledgeLoader } from '../knowledge';
-import { createToolRegistry, type ToolRegistry } from './registry';
 import type { AgentTool } from '../model/types';
 import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
@@ -109,22 +108,4 @@ export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
  */
 export function structuredSlots(options: ToolsOptions = {}): readonly FormToolSlot[] {
   return [...readOnlyTools(options), 'ask_user', ...WRITE_TOOLS, 'generate_code', 'create_form'];
-}
-
-/**
- * Реестры инструментов стека — для тестов и замеров, которые зовут инструменты без ассистента.
- *
- * Фабрики реестра живут здесь, а не отдельным барелем: собрать реестр — это выбрать НАБОР
- * инструментов, и набор объявлен строкой выше. Прежний `core/index.ts` держал их вместе
- * с реэкспортом всего ядра, и «взять реестр» означало притащить ядро целиком.
- */
-export type { ToolRegistry };
-
-export function createEditorToolRegistry(options: ToolsOptions = {}): ToolRegistry {
-  return createToolRegistry(allTools(options));
-}
-
-/** Только чтение — для сценариев, где правки запрещены. */
-export function createReadOnlyToolRegistry(options: ToolsOptions = {}): ToolRegistry {
-  return createToolRegistry(readOnlyTools(options));
 }

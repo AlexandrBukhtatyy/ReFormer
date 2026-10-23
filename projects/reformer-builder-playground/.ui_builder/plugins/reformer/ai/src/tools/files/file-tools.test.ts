@@ -12,7 +12,8 @@ import {
   type FakeFiles,
 } from '../../stack/testing';
 import { describeComponentTool } from '../describe-component';
-import { createFileToolRegistry, describeComponentFileTool } from './index';
+import { describeComponentFileTool } from './index';
+import { createFileToolRegistry } from '../registry';
 
 // Проверка кода правил — построчная проверка API из MCP; здесь подменена, чтобы тест проверял
 // политику гейта (новое — отказ, старое — не вменяется), а не корпус знаний, которого в CI нет.

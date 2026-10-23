@@ -8,7 +8,7 @@ import { P, sampleSchema } from '../core/testing';
 import { createFakeProvider, type FakeStep } from '../../forms/ai/src/providers/fake';
 import type { AiProvider, AiRequest, AiUsage } from '../../forms/ai/src/providers/types';
 import { describeChangeSet } from '../ai/src/model/changeset';
-import { createEditorToolRegistry } from '../ai/src/tools';
+import { createEditorToolRegistry } from '../ai/src/tools/registry';
 import { runAgentTurn, type TurnEvent } from './assistant-turn';
 import { buildOutline } from '../ai/src/model/outline';
 import { listComponents } from '../ai/src/model/catalog-digest';

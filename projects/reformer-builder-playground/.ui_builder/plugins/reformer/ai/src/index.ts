@@ -20,7 +20,12 @@ export { applyChangeSet, type ApplyDeps, type ApplyOptions, type ApplyOutcome } 
 
 // Черновик хода и инструменты стека — для тестов и замеров, которые зовут их без ассистента.
 export { createChangeSet, describeChangeSet, hasChanges, type ChangeSet } from './model/changeset';
-export { createEditorToolRegistry, createReadOnlyToolRegistry, structuredSlots } from './tools';
+export { structuredSlots } from './tools';
+export {
+  createEditorToolRegistry,
+  createFileToolRegistry,
+  createReadOnlyToolRegistry,
+} from './tools/registry';
 export { fileModeSlots } from './tools/files';
 export type { ToolRegistry } from './tools/registry';
 export type { ChangeOp, ChangeOpKind, ToolError, ToolErrorCode } from './model/types';

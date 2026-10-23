@@ -22,7 +22,8 @@ import type {
   FormToolOutcome,
   FormToolSlot,
 } from '@reformer/builder-plugin-api';
-import { createToolRegistry, type ToolRegistry } from '@reformer/builder-toolkit';
+import type { ToolRegistry } from '@reformer/builder-toolkit';
+import { createToolRegistry } from '@reformer/builder-toolkit/registry';
 
 /** Реестр инструментов хода, каким его видит ассистент. */
 export type StackToolRegistry = ToolRegistry<FormToolContext, FormToolOutcome>;

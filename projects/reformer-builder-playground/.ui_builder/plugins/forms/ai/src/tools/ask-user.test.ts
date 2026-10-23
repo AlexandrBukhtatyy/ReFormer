@@ -14,7 +14,7 @@ import type {
   FormToolOutcome,
   FormTurnScope,
 } from '@reformer/builder-plugin-api';
-import { createToolRegistry } from '@reformer/builder-toolkit';
+import { createToolRegistry } from '@reformer/builder-toolkit/registry';
 import { askUserTool, describeAnswers } from './ask-user';
 
 const registry = createToolRegistry<FormToolContext, FormToolOutcome>([askUserTool]);

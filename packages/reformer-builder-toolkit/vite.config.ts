@@ -16,7 +16,12 @@ export default defineConfig({
   plugins: [dts({ insertTypesEntry: true, exclude: TEST_FILES })],
   build: {
     lib: {
-      entry: { index: resolve(__dirname, 'src/index.ts') },
+      // Реестр — своим входом: загрузку ajv в нём сборщик плагина выносит в чанк каждому, кто
+      // импортирует модуль с ней (см. `src/registry.ts`).
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        registry: resolve(__dirname, 'src/registry.ts'),
+      },
       formats: ['es'],
     },
     rollupOptions: {

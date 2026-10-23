@@ -38,6 +38,10 @@ export default defineConfig({
         '../../packages/reformer-builder-plugin-api/src/index.ts'
       ),
       // Нейтральные помощники печати стеков — в исходники тем же доводом.
+      '@reformer/builder-toolkit/registry': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-toolkit/src/registry.ts'
+      ),
       '@reformer/builder-toolkit': path.resolve(
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
