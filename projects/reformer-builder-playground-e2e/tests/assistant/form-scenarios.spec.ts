@@ -60,6 +60,8 @@ interface FormScenario {
   readonly schema?: readonly (string | RegExp)[];
   /** Фрагменты файла правил формы. */
   readonly rules?: readonly string[];
+  /** Фрагменты прочих файлов модуля после хода: путь от корня проекта → фрагменты. */
+  readonly files?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Ход заказал генерацию кода — её исход должен быть строкой успеха. */
@@ -209,8 +211,8 @@ const SCENARIOS: readonly FormScenario[] = [
     ],
   },
   {
-    ids: '7.1, 7.3, 7.4',
-    title: 'обязательность и формат, кросс-полевая и условная проверки',
+    ids: '7.1, 7.3, 7.4, 7.9',
+    title: 'обязательность и формат со своим текстом, кросс-полевая и условная проверки',
     request: 'Почта обязательна, пароли совпадают, ИНН обязателен для юрлица.',
     replies: [
       call('insert_node', {
@@ -225,7 +227,8 @@ const SCENARIOS: readonly FormScenario[] = [
       }),
       call('set_form_rules', {
         validation: [
-          { target: 'email', rules: ['required', 'email'] },
+          { target: 'email', rules: ['required'], message: 'Укажите почту' },
+          { target: 'email', rules: ['email'] },
           {
             target: 'passwordConfirm',
             cross: 'values.password === values.passwordConfirm',
@@ -238,7 +241,13 @@ const SCENARIOS: readonly FormScenario[] = [
       say('Правила заданы.'),
     ],
     labels: ['Повтор пароля', 'ИНН'],
-    rules: ['"email"', '"values.password === values.passwordConfirm"', '"Пароли не совпадают"'],
+    rules: [
+      "required({ code: 'email.required' })",
+      '"values.password === values.passwordConfirm"',
+      '"Пароли не совпадают"',
+    ],
+    // Текст обычного правила доходит до словаря формы, который печатает генерация.
+    files: { [`${FORM_B_MODULE}/validation/messages.ts`]: ["'email.required'", 'Укажите почту'] },
   },
   {
     ids: '8.1, 8.3',
@@ -406,6 +415,11 @@ test.describe('Ассистент: сценарии разработки фор�
         await builder.openFile(RULES_B);
         const text = await savedText(builder, disk, RULES_B);
         for (const fragment of scenario.rules) expect(text).toContain(fragment);
+      }
+      for (const [path, fragments] of Object.entries(scenario.files ?? {})) {
+        await builder.openFile(path);
+        const text = await savedText(builder, disk, path);
+        for (const fragment of fragments) expect(text).toContain(fragment);
       }
     });
   }
