@@ -15,9 +15,9 @@
  * @module plugins/reformer/ai/tools/generate-code
  */
 
-import { fail, ok, type AgentTool } from '../model/types';
+import { formToolFail, formToolOk, type FormAgentTool } from '@reformer/builder-plugin-api';
 
-export const generateCodeTool: AgentTool = {
+export const generateCodeTool: FormAgentTool = {
   name: 'generate_code',
   description:
     'Generate the form module code (types, model, validation, page) once this turn ' +
@@ -28,10 +28,10 @@ export const generateCodeTool: AgentTool = {
   run(_params, ctx) {
     const generate = ctx.turn?.generate;
     if (generate === undefined) {
-      return fail('UNAVAILABLE', 'Code generation is not available in this builder.');
+      return formToolFail('UNAVAILABLE', 'Code generation is not available in this builder.');
     }
     generate();
-    return ok(
+    return formToolOk(
       'Scheduled: the code is generated after your edits apply, and the user sees the result. ' +
         'Do not call again.'
     );

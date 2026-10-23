@@ -39,7 +39,7 @@ import {
   measureToolSurface,
   type ToolRegistry,
 } from '@reformer/builder-toolkit';
-import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../model/types';
+import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../budgets';
 
 /** Режим хода — у каждого свой набор встроенных и своя память. */
 export type SurfaceMode = 'structured' | 'files';

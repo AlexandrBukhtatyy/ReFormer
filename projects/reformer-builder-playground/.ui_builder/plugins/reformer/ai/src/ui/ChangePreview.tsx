@@ -19,12 +19,15 @@ import { Alert, AlertDescription } from '@reformer/ui-kit/alert';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import type { ChangeOp } from '../model/types';
 import type { Translate } from '../host';
 import type { PendingChanges } from '../session/session';
+import type { FormChangeOp } from '@reformer/builder-plugin-api';
 
 /** Знак и цвет операции по её виду. */
-const OP_STYLE: Record<ChangeOp['kind'], { readonly mark: string; readonly className: string }> = {
+const OP_STYLE: Record<
+  FormChangeOp['kind'],
+  { readonly mark: string; readonly className: string }
+> = {
   add: { mark: '+', className: 'text-emerald-600 dark:text-emerald-400' },
   update: { mark: '~', className: 'text-amber-600 dark:text-amber-400' },
   remove: { mark: '−', className: 'text-rose-600 dark:text-rose-400' },

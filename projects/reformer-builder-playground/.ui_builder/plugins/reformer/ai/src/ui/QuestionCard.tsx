@@ -20,15 +20,15 @@ import { Input } from '@reformer/ui-kit/input';
 import { Label } from '@reformer/ui-kit/label';
 import { RadioGroup, RadioGroupItem } from '@reformer/ui-kit/radio-group';
 import type { Translate } from '../host';
-import type { AskAnswer, AskQuestion } from '../model/types';
 import type { AskCard } from '../session/session';
+import type { FormAskAnswer, FormAskQuestion } from '@reformer/builder-plugin-api';
 
 export interface QuestionCardProps {
   readonly card: AskCard;
   /** Карточка ждёт ответа: варианты можно выбирать. */
   readonly open: boolean;
   readonly t: Translate;
-  readonly onAnswer: (answers: readonly AskAnswer[]) => void;
+  readonly onAnswer: (answers: readonly FormAskAnswer[]) => void;
 }
 
 /** Что выбрано в вопросе, пока не отвечено. */
@@ -49,13 +49,13 @@ const answered = (draft: Draft): boolean =>
   draft.selected.length > 0 || (draft.own && draft.text.trim() !== '');
 
 /** Ответ на вопрос из того, что выбрано. */
-const answerOf = (draft: Draft): AskAnswer => ({
+const answerOf = (draft: Draft): FormAskAnswer => ({
   selected: draft.selected,
   ...(draft.own && draft.text.trim() !== '' ? { text: draft.text.trim() } : {}),
 });
 
 /** Ответ человека словами — для карточки после ответа. */
-function shownAnswer(answer: AskAnswer): string {
+function shownAnswer(answer: FormAskAnswer): string {
   return [answer.selected.join(', '), answer.text ?? ''].filter(Boolean).join(' — ');
 }
 
@@ -108,9 +108,9 @@ export function QuestionCard({ card, open, t, onAnswer }: QuestionCardProps): Re
 }
 
 interface QuestionBlockProps {
-  readonly question: AskQuestion;
+  readonly question: FormAskQuestion;
   readonly draft: Draft;
-  readonly answer: AskAnswer | undefined;
+  readonly answer: FormAskAnswer | undefined;
   readonly open: boolean;
   readonly t: Translate;
   readonly onChange: (change: (draft: Draft) => Draft) => void;

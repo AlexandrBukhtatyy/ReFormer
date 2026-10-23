@@ -27,11 +27,11 @@ import { Message, MessageContent, MessageGroup } from '@reformer/ui-kit/message'
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Spinner } from '@reformer/ui-kit/spinner';
 import type { Translate } from '../host';
-import type { AskAnswer } from '../model/types';
 import type { ChatEntry } from '../session/session';
 import { AttachmentChips } from './AttachmentChips';
 import { QuestionCard } from './QuestionCard';
 import { useStickToBottom } from './useStickToBottom';
+import type { FormAskAnswer } from '@reformer/builder-plugin-api';
 
 export interface MessageListProps {
   readonly entries: readonly ChatEntry[];
@@ -43,7 +43,7 @@ export interface MessageListProps {
   /** Карточка вопросов, ждущая ответа, — по ней карточка становится формой. */
   readonly openAsk: string | null;
   /** Ответить на карточку вопросов модели. */
-  readonly onAnswer: (cardId: string, answers: readonly AskAnswer[]) => void;
+  readonly onAnswer: (cardId: string, answers: readonly FormAskAnswer[]) => void;
 }
 
 /** Сколько символов запроса показывать в подсказке кнопки восстановления. */

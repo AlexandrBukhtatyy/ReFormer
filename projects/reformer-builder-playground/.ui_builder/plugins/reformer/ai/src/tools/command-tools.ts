@@ -32,7 +32,8 @@
  * @module plugins/reformer/ai/tools/command-tools
  */
 
-import { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET, type AgentTool } from '../model/types';
+import type { FormAgentTool } from '@reformer/builder-plugin-api';
+import { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-toolkit';
 
 /** Как команда выглядит для модели. Структурная копия `CommandAgentSpec` платформы. */
 export interface AgentCommandSpec {
@@ -75,7 +76,7 @@ export interface CommandRejection {
 
 /** Итог проекции: что стало инструментами и что не стало. */
 export interface CommandProjection {
-  readonly tools: readonly AgentTool[];
+  readonly tools: readonly FormAgentTool[];
   readonly rejected: readonly CommandRejection[];
 }
 
@@ -127,7 +128,7 @@ export function commandTools(
   execute: ExecuteCommand,
   taken: readonly string[] = []
 ): CommandProjection {
-  const tools: AgentTool[] = [];
+  const tools: FormAgentTool[] = [];
   const rejected: CommandRejection[] = [];
   const used = new Set(taken);
 

@@ -49,8 +49,8 @@ import { systemPrompt } from '../loop/prompt';
 import { measureToolSurface } from '@reformer/builder-toolkit';
 import { allTools } from '../tools';
 import { fileModeTools } from './files';
+import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../budgets';
 import {
-  CONTRIBUTED_TOOL_SURFACE_BUDGET,
   FILE_TOOL_SURFACE_BUDGET,
   PROMPT_BUDGET,
   TOOL_DESCRIPTION_BUDGET,

@@ -18,6 +18,7 @@ import type { ResourceId } from '@reformer/builder-plugin-api';
 import { fileRoleOf, isCanonicalSchemaName, schemaDirOf } from '../../../core/codegen/layout';
 import type { AiFiles, FileScope } from '../host';
 import { fail, type ToolOutcome } from '../model/types';
+import { pathWithin } from '@reformer/builder-toolkit';
 
 /** Сегменты, в которые модели заходить нечего: чужой код и служебные данные билдера. */
 const FORBIDDEN_SEGMENTS: readonly string[] = Object.freeze(['node_modules', '.ui_builder']);
@@ -82,10 +83,7 @@ export function relInScope(
   scope: FileScope,
   id: ResourceId
 ): string | null {
-  const path = files.pathOf(id);
-  const root = scope.rootPath.replace(/\/+$/, '');
-  if (root === '') return path;
-  return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : null;
+  return pathWithin(files.pathOf(id), scope.rootPath);
 }
 
 /** Отказ ли это, а не файл. */

@@ -15,24 +15,26 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type {
-  FormAgentTool,
-  FormAskAnswer,
-  FormAskOption,
-  FormAskOutcome,
-  FormAskQuestion,
-  FormChangeOp,
-  FormChangeOpKind,
-  FormCreateOutcome,
-  FormCreateRequest,
-  FormResourceReadResult,
-  FormTemplateInfo,
-  FormToolContext,
-  FormToolError,
-  FormToolErrorCode,
-  FormToolOutcome,
-  FormTurnScope,
-  FormTurnWriteResult,
+import {
+  type FormAgentTool,
+  type FormAskAnswer,
+  type FormAskOption,
+  type FormAskOutcome,
+  type FormAskQuestion,
+  type FormChangeOp,
+  type FormChangeOpKind,
+  type FormCreateOutcome,
+  type FormCreateRequest,
+  type FormResourceReadResult,
+  type FormTemplateInfo,
+  type FormToolContext,
+  type FormToolError,
+  type FormToolErrorCode,
+  type FormToolOutcome,
+  type FormTurnScope,
+  type FormTurnWriteResult,
+  formToolFail,
+  formToolOk,
 } from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '../../../core/catalog';
 import type { FormRules } from '../../../core/form-model';
@@ -44,11 +46,8 @@ import type { ValidateFormSchema } from './validate';
  */
 export { TOOL_TEXT_BUDGET } from '@reformer/builder-toolkit';
 
-/** Бюджет имени инструмента (символы). Проверяется тестом, а не в рантайме. */
-export const TOOL_NAME_BUDGET = 30;
-
-/** Бюджет описания инструмента (символы). Проверяется тестом, а не в рантайме. */
-export const TOOL_DESCRIPTION_BUDGET = 500;
+/** Бюджеты имени и описания инструмента — общие для всех инструментов, в toolkit. */
+export { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-toolkit';
 
 /**
  * Бюджет ВСЕЙ поверхности инструментов: имена, описания и схемы аргументов вместе (символы).
@@ -178,16 +177,6 @@ export const TOOL_DESCRIPTION_BUDGET = 500;
 export const TOOL_SURFACE_BUDGET = 12838;
 
 /**
- * Потолок поверхности ВКЛАДОВ плагинов (символы): инструменты плагинов, команды с блоком `agent`
- * и `read_resource` вместе. Один на оба режима — вклады одинаковы в обоих.
- *
- * Не храповик встроенных: здесь не «равно достигнутому», а запас под несколько инструментов
- * плагинов. Что в него не влезло, мост отбрасывает по порядку вкладов и пишет в консоль — ход при
- * этом идёт, потому что вклад чужого плагина не повод отказать пользователю в ассистенте.
- */
-export const CONTRIBUTED_TOOL_SURFACE_BUDGET = 3000;
-
-/**
  * Бюджет системного промпта (символы) — вторая половина постоянной части запроса.
  *
  * Тот же храповик, что и у поверхности: промпт отправляется на каждом шаге, поэтому строка,
@@ -241,22 +230,6 @@ export const FILE_READ_BUDGET = 6000;
  * без документа в затравке первым вызовом почти любого хода был бы `read_file` корня.
  */
 export const FILE_SEED_BUDGET = 8000;
-
-/**
- * Бюджет каталога ресурсов в затравке хода (символы): по строке на провайдера — как выглядят его
- * адреса. Уходит в каждый ход, поэтому короче любой страницы.
- */
-export const RESOURCE_SEED_BUDGET = 1000;
-
-/** Бюджет ответа `read_resource` — страница ресурса, тот же размер, что у страницы файла. */
-export const RESOURCE_READ_BUDGET = FILE_READ_BUDGET;
-
-/**
- * Бюджет вложений реплики (символы): первые страницы всех прикреплённых ресурсов вместе. Уходит
- * только в свой ход — дальше в истории остаются ссылки, — поэтому шире затравки, но конечен:
- * восемь больших файлов не должны выдавить из окна модели саму форму.
- */
-export const ATTACHMENT_BUDGET = 12000;
 
 /**
  * Код ошибки, ошибка и правка инструмента — контракт стека форм в SDK
@@ -365,14 +338,10 @@ export interface AgentTool<P = never, C extends ToolContext = ToolContext> exten
 
 /** Успешный ответ read-only инструмента. */
 export function ok(text: string): ToolOutcome {
-  return { ok: true, text };
+  return formToolOk(text);
 }
 
 /** Ответ с ошибкой. */
 export function fail(code: ToolErrorCode, message: string, suggestions?: string[]): ToolOutcome {
-  return {
-    ok: false,
-    text: suggestions?.length ? `${message} Did you mean: ${suggestions.join(', ')}.` : message,
-    error: { code, message, ...(suggestions?.length ? { suggestions } : {}) },
-  };
+  return formToolFail(code, message, suggestions);
 }

@@ -19,17 +19,13 @@ import {
   parseAssistantResourceUri,
   type AssistantResourceEntry,
   type AssistantResourceProvider,
+  type FormResourceReadResult,
 } from '@reformer/builder-plugin-api';
 import { pageOf, joinWithinBudget, similarNames } from '@reformer/builder-toolkit';
 import { toolErrorCodeOf } from '../tools/contributed-tools';
-import {
-  ATTACHMENT_BUDGET,
-  RESOURCE_READ_BUDGET,
-  RESOURCE_SEED_BUDGET,
-  type ResourceReadResult,
-} from '../model/types';
 import type { AiMessage } from '../providers/types';
 import type { AttachmentRef } from './session';
+import { ATTACHMENT_BUDGET, RESOURCE_READ_BUDGET, RESOURCE_SEED_BUDGET } from '../budgets';
 
 /** Вклад в точку ресурсов. Структурная копия `Contribution<AssistantResourceProvider>`. */
 export interface ResourceProviderEntry {
@@ -61,7 +57,7 @@ export interface ResourceRouter {
   /** Каталог для затравки хода; пустая строка — провайдеров нет. */
   catalog(): string;
   /** Чтение в пределах одного хода: повтор того же адреса берётся из памяти хода. */
-  reader(signal: AbortSignal): (uri: string) => Promise<ResourceReadResult>;
+  reader(signal: AbortSignal): (uri: string) => Promise<FormResourceReadResult>;
   /** Умеет ли хоть один провайдер искать — иначе пикеру нечего показать. */
   canSearch(): boolean;
   /** Поиск для пикера — по провайдерам, умеющим искать. Отказ провайдера — пустая группа. */
@@ -111,7 +107,7 @@ export function createResourceRouter(
     return byScheme;
   };
 
-  const read = async (uri: string, signal: AbortSignal): Promise<ResourceReadResult> => {
+  const read = async (uri: string, signal: AbortSignal): Promise<FormResourceReadResult> => {
     const byScheme = accepted();
     const parsed = parseAssistantResourceUri(uri);
     const provider = parsed === null ? undefined : byScheme.get(parsed.scheme);
@@ -163,7 +159,7 @@ export function createResourceRouter(
     },
 
     reader(signal) {
-      const cache = new Map<string, Promise<ResourceReadResult>>();
+      const cache = new Map<string, Promise<FormResourceReadResult>>();
       return (uri) => {
         const known = cache.get(uri);
         if (known !== undefined) return known;
@@ -222,7 +218,7 @@ export interface ResolvedAttachments {
  */
 export async function resolveAttachments(
   refs: readonly AttachmentRef[],
-  read: (uri: string) => Promise<ResourceReadResult>,
+  read: (uri: string) => Promise<FormResourceReadResult>,
   budget: number = ATTACHMENT_BUDGET
 ): Promise<ResolvedAttachments> {
   if (refs.length === 0) return { message: null, refs };

@@ -23,13 +23,13 @@
  */
 
 import {
-  fail,
-  ok,
-  type AgentTool,
-  type AskAnswer,
-  type AskQuestion,
-  type ToolOutcome,
-} from '../model/types';
+  formToolFail,
+  formToolOk,
+  type FormAgentTool,
+  type FormAskAnswer,
+  type FormAskQuestion,
+  type FormToolOutcome,
+} from '@reformer/builder-plugin-api';
 
 interface Params {
   questions: {
@@ -40,7 +40,7 @@ interface Params {
   }[];
 }
 
-export const askUserTool: AgentTool<Params> = {
+export const askUserTool: FormAgentTool<Params> = {
   name: 'ask_user',
   description:
     'Ask the user before editing when the request is ambiguous in a way that changes the ' +
@@ -87,7 +87,7 @@ export const askUserTool: AgentTool<Params> = {
   async run(params, ctx) {
     // Длины режутся здесь, а не схемой: пределы в схеме уходили бы модели в каждом запросе, а
     // слишком длинный вопрос — не повод отказать, его достаточно укоротить.
-    const questions: AskQuestion[] = params.questions.map((spec) => {
+    const questions: FormAskQuestion[] = params.questions.map((spec) => {
       const header = clip(spec.header, LIMIT.header);
       return {
         question: clip(spec.question, LIMIT.question),
@@ -107,19 +107,22 @@ export const askUserTool: AgentTool<Params> = {
 
     const ask = ctx.turn?.ask;
     if (ask === undefined) {
-      return fail('UNAVAILABLE', 'No one to ask right now. Proceed and state your assumptions.');
+      return formToolFail(
+        'UNAVAILABLE',
+        'No one to ask right now. Proceed and state your assumptions.'
+      );
     }
     const outcome = await ask(questions);
     if (outcome === 'limit') {
-      return fail(
+      return formToolFail(
         'REFUSED',
         'Question limit for this turn reached. Proceed and state your assumptions.'
       );
     }
     if (outcome === 'cancelled') {
-      return fail('UNAVAILABLE', 'The user stopped the turn without answering.');
+      return formToolFail('UNAVAILABLE', 'The user stopped the turn without answering.');
     }
-    return ok(describeAnswers(questions, outcome));
+    return formToolOk(describeAnswers(questions, outcome));
   },
 };
 
@@ -136,15 +139,18 @@ function clip(value: string | undefined, max: number): string {
  * Что схема не выражает: разные вопросы и разные варианты внутри вопроса. Два одинаковых
  * варианта человек не различит, а ответ с одинаковыми метками модель не поймёт.
  */
-function invalidQuestions(questions: readonly AskQuestion[]): ToolOutcome | null {
+function invalidQuestions(questions: readonly FormAskQuestion[]): FormToolOutcome | null {
   const texts = questions.map((question) => question.question);
   if (texts.some((text) => text === '') || new Set(texts).size !== texts.length) {
-    return fail('INVALID_PARAMS', 'Each question must be non-empty and different from the others.');
+    return formToolFail(
+      'INVALID_PARAMS',
+      'Each question must be non-empty and different from the others.'
+    );
   }
   for (const [index, question] of questions.entries()) {
     const labels = question.options.map((option) => option.label);
     if (labels.some((label) => label === '') || new Set(labels).size !== labels.length) {
-      return fail(
+      return formToolFail(
         'INVALID_PARAMS',
         `questions[${index}]: option labels must be non-empty and different.`
       );
@@ -155,8 +161,8 @@ function invalidQuestions(questions: readonly AskQuestion[]): ToolOutcome | null
 
 /** Ответы для модели — строкой на вопрос, словами человека как есть. */
 export function describeAnswers(
-  questions: readonly AskQuestion[],
-  answers: readonly AskAnswer[]
+  questions: readonly FormAskQuestion[],
+  answers: readonly FormAskAnswer[]
 ): string {
   const lines = questions.map((question, index) => {
     const answer = answers[index] ?? { selected: [] };
@@ -166,7 +172,7 @@ export function describeAnswers(
 }
 
 /** Ответ на вопрос одной строкой: выбранное, свои слова или то и другое. */
-export function answerText(answer: AskAnswer): string {
+export function answerText(answer: FormAskAnswer): string {
   const chosen = answer.selected.map((label) => `"${label}"`).join(', ');
   const own = answer.text?.trim();
   if (chosen === '') return own ? `own words: "${own}"` : '(no answer)';

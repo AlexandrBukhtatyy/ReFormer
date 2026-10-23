@@ -27,8 +27,9 @@ import type {
   FormChangeSet,
   FormLoaded,
   ResourceId,
+  FormAskAnswer,
+  FormAskQuestion,
 } from '@reformer/builder-plugin-api';
-import type { AskAnswer, AskQuestion } from '../model/types';
 
 /** Что делает ассистент прямо сейчас. */
 export type AgentStatus =
@@ -140,9 +141,9 @@ export type AttachOutcome = 'attached' | 'duplicate' | 'limit';
  */
 export interface AskCard {
   readonly id: string;
-  readonly questions: readonly AskQuestion[];
+  readonly questions: readonly FormAskQuestion[];
   /** Ответы по порядку вопросов — когда человек ответил. */
-  readonly answers?: readonly AskAnswer[];
+  readonly answers?: readonly FormAskAnswer[];
   /** Ход остановили, не дождавшись ответа. */
   readonly cancelled?: true;
 }
@@ -272,7 +273,7 @@ export interface AiSession {
   /** Карточка вопросов модели — в текущую реплику ассистента. */
   askQuestions(card: AskCard): void;
   /** Ответ человека на карточку. `false` — карточки нет или на неё уже ответили. */
-  answerAsk(id: string, answers: readonly AskAnswer[]): boolean;
+  answerAsk(id: string, answers: readonly FormAskAnswer[]): boolean;
   /** Снять неотвеченные карточки текущей реплики: ход остановлен, ответа не будет. */
   cancelAsks(): void;
   /** Ход завершён: набор (если остался) уходит на подтверждение, замечание — в статус ошибки. */

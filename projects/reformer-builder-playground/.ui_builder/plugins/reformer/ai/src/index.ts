@@ -54,13 +54,8 @@ export {
 
 // Мост: ход агента поверх рабочей области — то, ради чего плагин существует.
 export { createAgentBridge, type AgentBridge, type BridgeDeps } from './session/bridge';
-export {
-  applyChangeSet,
-  isStale,
-  type ApplyDeps,
-  type ApplyOptions,
-  type ApplyOutcome,
-} from './session/apply';
+export { isStale } from './session/apply';
+export { applyChangeSet, type ApplyDeps, type ApplyOptions, type ApplyOutcome } from './stack/land';
 export {
   createAiSession,
   type AgentStatus,

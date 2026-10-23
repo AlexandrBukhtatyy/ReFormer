@@ -41,7 +41,7 @@ import {
   wizardSchema,
 } from '../../../core/testing';
 import { createEditorToolRegistry } from '../index';
-import { applyChangeSet } from '../session/apply';
+import { applyChangeSet } from '../stack/land';
 import { createFakeHost } from '../testing';
 import { createChangeSet, withOutcome } from './changeset';
 import { parseSchemaText, printSchemaText } from './schema-text';

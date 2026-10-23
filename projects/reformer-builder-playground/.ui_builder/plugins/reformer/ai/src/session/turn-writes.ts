@@ -18,11 +18,10 @@
  * @module plugins/reformer/ai/session/turn-writes
  */
 
-import type { ResourceId } from '@reformer/builder-plugin-api';
+import type { ResourceId, FormTurnWriteResult } from '@reformer/builder-plugin-api';
 import type { AiFiles, WriteMark } from '../host';
 import type { FileJournal } from '../files/journal';
 import { changedLines } from '@reformer/builder-toolkit';
-import type { TurnWriteResult } from '../model/types';
 
 /** Файл, записанный дверью мимо журнала модуля: чем был и чем стал. */
 export interface WrittenFile {
@@ -54,7 +53,7 @@ export interface TurnWrites {
     id: ResourceId,
     text: string,
     caller: { readonly readOnly: boolean }
-  ): Promise<TurnWriteResult>;
+  ): Promise<FormTurnWriteResult>;
   /** Ход кончился: дальше дверь отказывает. */
   close(): void;
   /** Записи мимо журнала модуля, в порядке первого касания. */
@@ -72,11 +71,15 @@ export function createTurnWrites(options: TurnWritesOptions): TurnWrites {
   let queue: Promise<unknown> = Promise.resolve();
 
   const refusal = (
-    code: Extract<TurnWriteResult, { ok: false }>['code'],
+    code: Extract<FormTurnWriteResult, { ok: false }>['code'],
     message: string
-  ): TurnWriteResult => ({ ok: false, code, message });
+  ): FormTurnWriteResult => ({ ok: false, code, message });
 
-  const commit = async (id: ResourceId, text: string, port: AiFiles): Promise<TurnWriteResult> => {
+  const commit = async (
+    id: ResourceId,
+    text: string,
+    port: AiFiles
+  ): Promise<FormTurnWriteResult> => {
     if (closed) return refusal('turn-ended', 'The assistant turn has already ended.');
     let before: string | null;
     try {

@@ -15,7 +15,7 @@
  * @module plugins/reformer/ai/tools/create-form
  */
 
-import { fail, ok, type AgentTool } from '../model/types';
+import { formToolFail, formToolOk, type FormAgentTool } from '@reformer/builder-plugin-api';
 
 /** Имя модуля — имя его каталога и основа имён в коде: латиница в kebab-case. */
 const MODULE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
@@ -23,7 +23,7 @@ const MODULE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** Предел описания шаблона в списке: список — для выбора, а не для чтения. */
 const DESCRIPTION_LIMIT = 160;
 
-export const listTemplatesTool: AgentTool = {
+export const listTemplatesTool: FormAgentTool = {
   name: 'list_templates',
   description: 'Form templates create_form can start from.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -31,18 +31,18 @@ export const listTemplatesTool: AgentTool = {
   async run(_params, ctx) {
     const templates = ctx.turn?.templates;
     if (templates === undefined) {
-      return fail('UNAVAILABLE', 'Templates are not available in this builder.');
+      return formToolFail('UNAVAILABLE', 'Templates are not available in this builder.');
     }
     const list = await templates();
     if (list.length === 0)
-      return ok('No templates: create_form without template makes an empty form.');
+      return formToolOk('No templates: create_form without template makes an empty form.');
     const lines = list.map((item) => {
       const about = item.description?.trim() ?? '';
       const short =
         about.length > DESCRIPTION_LIMIT ? `${about.slice(0, DESCRIPTION_LIMIT - 1)}…` : about;
       return `- "${item.id}" ${item.name}${short === '' ? '' : `: ${short}`}`;
     });
-    return ok(lines.join('\n'));
+    return formToolOk(lines.join('\n'));
   },
 };
 
@@ -52,7 +52,7 @@ interface CreateParams {
   folder?: string;
 }
 
-export const createFormTool: AgentTool<CreateParams> = {
+export const createFormTool: FormAgentTool<CreateParams> = {
   name: 'create_form',
   description:
     'New form module; the turn continues on it. Only when asked for a new form. No ' +
@@ -72,19 +72,22 @@ export const createFormTool: AgentTool<CreateParams> = {
   async run(params, ctx) {
     const create = ctx.turn?.createForm;
     if (create === undefined) {
-      return fail('UNAVAILABLE', 'Creating forms is not available in this builder.');
+      return formToolFail('UNAVAILABLE', 'Creating forms is not available in this builder.');
     }
     const name = params.name.trim();
     if (!MODULE_NAME.test(name)) {
-      return fail('INVALID_PARAMS', `name "${name}": kebab-case latin, e.g. credit-application.`);
+      return formToolFail(
+        'INVALID_PARAMS',
+        `name "${name}": kebab-case latin, e.g. credit-application.`
+      );
     }
     const outcome = await create({
       name,
       ...(params.template === undefined ? {} : { template: params.template }),
       ...(params.folder === undefined ? {} : { folder: params.folder }),
     });
-    if (!outcome.ok) return fail(outcome.code, outcome.message, outcome.suggestions);
+    if (!outcome.ok) return formToolFail(outcome.code, outcome.message, outcome.suggestions);
     const from = outcome.template === null ? 'empty' : `from template "${outcome.template}"`;
-    return ok(`Created ${outcome.path} (${from}). This turn continues on it — stop here.`);
+    return formToolOk(`Created ${outcome.path} (${from}). This turn continues on it — stop here.`);
   },
 };

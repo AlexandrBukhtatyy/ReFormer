@@ -22,15 +22,14 @@
  */
 
 import {
-  fail,
-  ok,
-  TOOL_DESCRIPTION_BUDGET,
-  TOOL_NAME_BUDGET,
-  type AgentTool,
-  type ChangeOp,
-  type ToolErrorCode,
-  type ToolOutcome,
-} from '../model/types';
+  formToolFail,
+  formToolOk,
+  type FormAgentTool,
+  type FormChangeOp,
+  type FormToolErrorCode,
+  type FormToolOutcome,
+} from '@reformer/builder-plugin-api';
+import { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-toolkit';
 
 /** Итог записи, каким его видит инструмент плагина. Структурная копия `AssistantWriteResult`. */
 export type ContributedWriteResult =
@@ -113,21 +112,25 @@ const KNOWN_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /** Код ошибки плагина — в код ядра. Неизвестный и `FAILED` значат одно: инструмент не справился. */
-export function toolErrorCodeOf(code: string): ToolErrorCode {
-  return KNOWN_CODES.has(code) ? (code as ToolErrorCode) : 'TOOL_FAILED';
+export function toolErrorCodeOf(code: string): FormToolErrorCode {
+  return KNOWN_CODES.has(code) ? (code as FormToolErrorCode) : 'TOOL_FAILED';
 }
 
 /** Ответ плагина — в исход вызова. Ответ неизвестной формы — отказ, а не молчаливый успех. */
-function outcomeOf(name: string, result: ContributedResult): ToolOutcome {
-  if (typeof result === 'string') return ok(result);
+function outcomeOf(name: string, result: ContributedResult): FormToolOutcome {
+  if (typeof result === 'string') return formToolOk(result);
   if (typeof result === 'object' && result !== null) {
-    if (result.ok) return ok(typeof result.text === 'string' ? result.text : '');
+    if (result.ok) return formToolOk(typeof result.text === 'string' ? result.text : '');
     if (typeof result.error === 'object' && result.error !== null) {
       const { code, message, suggestions } = result.error;
-      return fail(toolErrorCodeOf(code), message, suggestions ? [...suggestions] : undefined);
+      return formToolFail(
+        toolErrorCodeOf(code),
+        message,
+        suggestions ? [...suggestions] : undefined
+      );
     }
   }
-  return fail('TOOL_FAILED', `Tool ${name} returned an answer of an unknown shape.`);
+  return formToolFail('TOOL_FAILED', `Tool ${name} returned an answer of an unknown shape.`);
 }
 
 /**
@@ -139,7 +142,7 @@ function outcomeOf(name: string, result: ContributedResult): ToolOutcome {
 export function contributedTool(
   tool: ContributedTool,
   lookup: () => ContributedTool | undefined
-): AgentTool {
+): FormAgentTool {
   const { name } = tool;
   return {
     name,
@@ -150,11 +153,11 @@ export function contributedTool(
       const live = lookup();
       const turn = ctx.turn;
       if (live === undefined || turn === undefined) {
-        return fail('UNAVAILABLE', `Tool ${name} is not available right now.`);
+        return formToolFail('UNAVAILABLE', `Tool ${name} is not available right now.`);
       }
 
       // Записи вызова становятся строками журнала панели — как у записи файла моделью.
-      const ops: ChangeOp[] = [];
+      const ops: FormChangeOp[] = [];
       const result = await live.run(params, {
         signal: turn.signal,
         write: async (resource, text) => {

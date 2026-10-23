@@ -12,7 +12,8 @@
  */
 
 import { pageOf } from '@reformer/builder-toolkit';
-import { fail, ok, RESOURCE_READ_BUDGET, type AgentTool } from '../model/types';
+import { formToolFail, formToolOk, type FormAgentTool } from '@reformer/builder-plugin-api';
+import { RESOURCE_READ_BUDGET } from '../budgets';
 
 /** Параметры вызова. */
 interface Params {
@@ -23,7 +24,7 @@ interface Params {
 /** Запас бюджета под заголовок и хвост страницы. */
 const FRAME_RESERVE = 200;
 
-export const readResourceTool: AgentTool<Params> = {
+export const readResourceTool: FormAgentTool<Params> = {
   name: 'read_resource',
   description:
     'Read a resource listed under Resources in the turn data, by its URI. Long ones come in ' +
@@ -40,9 +41,10 @@ export const readResourceTool: AgentTool<Params> = {
   readOnly: true,
   textBudget: RESOURCE_READ_BUDGET,
   async run(params, ctx) {
-    if (ctx.turn === undefined) return fail('UNAVAILABLE', 'Resources are not available here.');
+    if (ctx.turn === undefined)
+      return formToolFail('UNAVAILABLE', 'Resources are not available here.');
     const read = await ctx.turn.readResource(params.uri);
-    if (!read.ok) return fail(read.error.code, read.error.message, read.error.suggestions);
+    if (!read.ok) return formToolFail(read.error.code, read.error.message, read.error.suggestions);
 
     const page = pageOf(
       read.text,
@@ -51,12 +53,12 @@ export const readResourceTool: AgentTool<Params> = {
       RESOURCE_READ_BUDGET - FRAME_RESERVE
     );
     const head = `${params.uri} — ${page.total} lines (${read.mediaType})`;
-    if (read.text === '') return ok(`${head}\n(empty)`);
-    if (page.to < page.from) return ok(`${head}\n(no lines from ${page.from})`);
+    if (read.text === '') return formToolOk(`${head}\n(empty)`);
+    if (page.to < page.from) return formToolOk(`${head}\n(no lines from ${page.from})`);
     const tail =
       page.to < page.total
         ? `\n… lines ${page.from}-${page.to} of ${page.total}. Continue: read_resource offset=${page.to + 1}`
         : '';
-    return ok(`${head}\n${page.body}${tail}`);
+    return formToolOk(`${head}\n${page.body}${tail}`);
   },
 };

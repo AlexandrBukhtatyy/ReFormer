@@ -33,7 +33,7 @@ import { parseSchemaText } from '../model/schema-text';
 import type { ToolContext, ToolOutcome } from '../model/types';
 import type { LoadValidateForm, ValidateFormSchema } from '../model/validate';
 import { systemPrompt } from '../loop/prompt';
-import { applyChangeSet } from '../session/apply';
+import { applyChangeSet } from './land';
 import {
   readRulesFile,
   rulesTextBefore,

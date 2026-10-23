@@ -52,19 +52,17 @@ import {
   type GenerateReport,
   type ModuleGeneratorService,
   type ResourceId,
+  type FormAskAnswer,
+  type FormAskOutcome,
+  type FormChangeOp,
+  type FormCreateOutcome,
+  type FormCreateRequest,
+  type FormTurnScope,
 } from '@reformer/builder-plugin-api';
-import { createToolRegistry } from '@reformer/builder-toolkit';
+import { createToolRegistry, pathWithin } from '@reformer/builder-toolkit';
 import type { AgentCommand, ExecuteCommand } from '../tools/command-tools';
 import type { ContributedToolEntry } from '../tools/contributed-tools';
 import { runTurn, type ActiveForm } from '../loop/run-turn';
-import type {
-  AskAnswer,
-  AskOutcome,
-  ChangeOp,
-  CreateFormOutcome,
-  CreateFormRequest,
-  TurnScope,
-} from '../model/types';
 import { askUserTool } from '../tools/ask-user';
 import { generateCodeTool } from '../tools/generate-code';
 import { createFormTool, listTemplatesTool } from '../tools/create-form';
@@ -90,7 +88,6 @@ import {
   type TurnSnapshot,
 } from './session';
 import { createFileJournal, type FileJournal } from '../files/journal';
-import { relInScope } from '../files/scope';
 import type { StreamEnd, TurnStats, TurnStepEvent } from '../loop/drive';
 import {
   createStackSet,
@@ -251,7 +248,7 @@ export interface AgentBridge {
    * карточка уже закрыта или не та, число ответов не совпало с вопросами, или на какой-то вопрос
    * не выбран ни вариант, ни свой ответ.
    */
-  answer(cardId: string, answers: readonly AskAnswer[]): boolean;
+  answer(cardId: string, answers: readonly FormAskAnswer[]): boolean;
   /**
    * Новый разговор: лента очищается, а вместе с ней — отмена хода и точки восстановления прошлого
    * разговора. Пока идёт ход, отказывает (`false`): обрыв ленты посреди хода оставил бы его
@@ -597,7 +594,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   let asking: {
     readonly id: string;
     readonly count: number;
-    readonly settle: (answers: readonly AskAnswer[]) => void;
+    readonly settle: (answers: readonly FormAskAnswer[]) => void;
   } | null = null;
   /** Счётчик карточек — для их идентификаторов, уникальных в пределах моста. */
   let asks = 0;
@@ -606,15 +603,15 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * Спросить человека от имени хода: карточка уходит в ленту, а ход ждёт ответа. Остановка хода
    * снимает карточку — ход кончается, и ответ на неё некому принять.
    */
-  const askerOf = (signal: AbortSignal): NonNullable<TurnScope['ask']> => {
+  const askerOf = (signal: AbortSignal): NonNullable<FormTurnScope['ask']> => {
     let asked = 0;
     return (questions) => {
-      if (asked >= MAX_ASKS_PER_TURN) return Promise.resolve<AskOutcome>('limit');
+      if (asked >= MAX_ASKS_PER_TURN) return Promise.resolve<FormAskOutcome>('limit');
       asked += 1;
       asks += 1;
       const id = `ask${String(asks)}`;
       session.askQuestions({ id, questions });
-      return new Promise<AskOutcome>((resolve) => {
+      return new Promise<FormAskOutcome>((resolve) => {
         const cancel = (): void => {
           asking = null;
           session.cancelAsks();
@@ -647,7 +644,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     signal: AbortSignal,
     order: GenerationOrder,
     creation?: Creation
-  ): TurnScope => {
+  ): FormTurnScope => {
     const creator = deps.formCreator?.();
     return {
       signal,
@@ -696,8 +693,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const createForm = async (
     creator: FormCreatorService,
     creation: Creation,
-    request: CreateFormRequest
-  ): Promise<CreateFormOutcome> => {
+    request: FormCreateRequest
+  ): Promise<FormCreateOutcome> => {
     if (creation.created !== null) {
       return {
         ok: false,
@@ -986,7 +983,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   };
 
   /** Одна строка журнала для вызова, принёсшего несколько правок. */
-  const summaryOf = (ops: readonly ChangeOp[]): string => {
+  const summaryOf = (ops: readonly FormChangeOp[]): string => {
     const shown = ops.slice(0, OPS_IN_LOG).map((op) => op.summary);
     const rest = ops.length - shown.length;
     return `${shown.join('; ')}${rest > 0 ? ` +${rest}` : ''}`;
@@ -1022,7 +1019,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     target: Target,
     messages: readonly AiMessage[],
     signal: AbortSignal,
-    scope: TurnScope,
+    scope: FormTurnScope,
     activeForm: ActiveForm
   ): Promise<TurnOutcome> => {
     // Пределы хода читаются здесь, а не в канале: это свойства ХОДА, а не соединения с моделью,
@@ -1475,7 +1472,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       files,
       mark,
       refuse: (id) => stack.session.refuseWrite(id, { resource: scope.document }),
-      module: { journal, relOf: (id) => relInScope(files, scope, id) },
+      module: { journal, relOf: (id) => pathWithin(files.pathOf(id), scope.rootPath) },
     });
     const io = { journal, mark };
     const order: GenerationOrder = { requested: false };
@@ -1718,7 +1715,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
     answer(cardId, answers) {
       if (asking === null || asking.id !== cardId || answers.length !== asking.count) return false;
-      const clean: AskAnswer[] = answers.map((answer) => {
+      const clean: FormAskAnswer[] = answers.map((answer) => {
         const own = answer.text?.trim().slice(0, ANSWER_TEXT_LIMIT) ?? '';
         return { selected: [...answer.selected], ...(own !== '' ? { text: own } : {}) };
       });
