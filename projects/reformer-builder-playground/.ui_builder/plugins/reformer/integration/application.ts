@@ -10,8 +10,8 @@ import { withDomainPlugins, type DomainPlugin } from '../../.shared/application'
 import { formsApplication } from '../../forms/integration/application';
 import { createSchemaStackPlugin } from '../ai/src';
 import aiSchemaManifest from '../ai/src/manifest.json';
-import { createCodegenPlugin } from '../codegen/src';
-import codegenManifest from '../codegen/src/manifest.json';
+import { createCodegenStackPlugin } from '../codegen/src';
+import codegenSchemaManifest from '../codegen/src/manifest.json';
 import { createSchemaEditorPlugin } from '../editor/src';
 import editorManifest from '../editor/src/manifest.json';
 import { createPreviewRuntimePlugin } from '../render/src';
@@ -30,7 +30,7 @@ export const REFORMER_PLUGINS: readonly DomainPlugin[] = [
   },
   { manifest: renderManifest, create: () => createPreviewRuntimePlugin() },
   { manifest: aiSchemaManifest, create: () => createSchemaStackPlugin() },
-  { manifest: codegenManifest, create: () => createCodegenPlugin() },
+  { manifest: codegenSchemaManifest, create: () => createCodegenStackPlugin() },
   { manifest: templatesManifest, create: () => createTemplatesPlugin() },
 ];
 

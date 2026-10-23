@@ -17,8 +17,7 @@ import {
   missingKeys,
   type Dictionary,
 } from '@/shell/platform/services/i18n/dictionary-checks';
-import { CODEGEN_MESSAGES } from '../codegen/src/messages';
-import { CODEGEN_STACK_MESSAGES } from '../codegen/src/stack/messages';
+import { CODEGEN_STACK_MESSAGES } from '../codegen/src/messages';
 import { SCHEMA_EDITOR_MESSAGES } from '../editor/src/messages';
 import { PREVIEW_RUNTIME_MESSAGES } from '../render/src/messages';
 import { TEMPLATES_MESSAGES } from '../templates/src/messages';
@@ -26,8 +25,7 @@ import { SCHEMA_VALIDATOR_MESSAGES } from '../validator/src/messages';
 
 /** Словари плагинов домена. Имя владельца — каталог плагина в домене. */
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
-  ['codegen', CODEGEN_MESSAGES],
-  ['codegen/stack', CODEGEN_STACK_MESSAGES],
+  ['codegen', CODEGEN_STACK_MESSAGES],
   ['editor', SCHEMA_EDITOR_MESSAGES],
   ['render', PREVIEW_RUNTIME_MESSAGES],
   ['templates', TEMPLATES_MESSAGES],
@@ -68,8 +66,6 @@ describe('словари: список проверяемых не отстаё�
       )
       .sort();
 
-    // Владелец — каталог плагина; словарей у плагина бывает больше одного (`codegen/stack`).
-    const owners = new Set(DICTIONARIES.map(([owner]) => owner.split('/')[0]));
-    expect(withMessages).toEqual([...owners].sort());
+    expect(withMessages).toEqual(DICTIONARIES.map(([owner]) => owner).sort());
   });
 });

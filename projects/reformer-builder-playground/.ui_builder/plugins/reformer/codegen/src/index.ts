@@ -1,129 +1,44 @@
 /**
- * Публичная поверхность плагина генерации: то, что берёт композиция, и ничего больше.
- *
- * ## Что нужно от композиции
- *
- * ```ts
- * createCodegenPlugin({
- *   host: codegenHost,                    // порт платформы, см. ниже
- *   i18n: i18n.forPlugin('codegen'),      // пока в PluginContext нет своего i18n
- *   // targetPoint: CodegenTargetPoint,   // когда точка появится в @reformer/builder-plugin-api — подставить её
- *   // slot: 'panel.right',               // раскладка — дело композиции
- * });
- * ```
- *
- * Порт (`app/codegen-host.ts` по образцу `app/preview-host.ts`) обязан дать:
- *
- * - **документ и активную вкладку** — `documentOf`, `useActiveDocument`: рабочей области
- *   в `@reformer/builder-plugin-api` нет, а без ответа «на что смотрят сейчас» экспортировать нечего;
- * - **кит двумя вещами** — `catalog()` (какие имена бывают) и `kit()` (как их резолвить и откуда
- *   импортировать) плюс `onDidChangeKit`. Обе берутся из `services.get(KitsServiceToken)` ЛЕНИВО,
- *   на каждый вызов. Namespace кита кодогену не нужен: он печатает имена, а не рисует;
- * - **адреса и запись** — `parentOf`, `resolve`, `exists`, `readText`, `writeText` поверх
- *   Workspace. Арифметика путей платформенная (`dirname`/`joinPath` живут в
- *   `host/primitives/resource`), решение «куда класть модуль» — наше;
- * - **возможности источника** — `sourceOf(id)`: по `SourceCapabilities.write` и только по нему
- *   решается, начинать ли доставку.
- *
- * Необязательное, и цена каждого названа в порту: `save` (без него файлы остаются несохранённой
- * рабочей копией), `openResource`, `format` (без него текст уезжает как напечатан) и `rulesOf`
- * (рабочая область читает файл правил рядом с документом — `./pipeline/rules`; двойник без него
- * печатает `validation/*.ts` и `behavior/index.ts` заготовками).
- *
- * ## Чего в плагине нет и почему
- *
- * **Своего выбора каталога.** В v1 доставка звала собственный `showDirectoryPicker()` и писала
- * мимо рабочей копии и мимо источника. Здесь такого канала нет вовсе: запись идёт через рабочую
- * область, а куда именно — решает источник. Это граница прав, а не недоделка.
- *
- * **Форматирования.** `prettier` в зависимостях v2 не объявлен, а брать неявно доступный пакет
- * в этом монорепо — известный способ получить сборку, которая работает только у себя.
- *
- * Бочка — для тестов и соседей по монорепозиторию. Оболочка грузит плагин из `./main`.
+ * Стек ReFormer в генерации кода — публичная поверхность: то, что берут композиция и тесты.
+ * Оболочка грузит плагин из `./main`.
  *
  * @module plugins/reformer/codegen/index
  */
 
 export {
-  createCodegenPlugin,
-  codegenCommands,
-  codegenDocumentMenuItems,
-  codegenPanel,
-  userTargetCommands,
-  CODEGEN_PANEL_ID,
-  CODEGEN_PLUGIN_ID,
-  DEFAULT_CODEGEN_SLOT,
-  EJECT_TEMPLATE_COMMAND_ID,
-  GENERATE_COMMAND_ID,
-  REFRESH_TARGETS_COMMAND_ID,
-  type CodegenPluginOptions,
+  activateCodegenStack,
+  createCodegenStackPlugin,
+  CODEGEN_STACK_PLUGIN_ID,
+  fixtureCommand,
+  stackDocumentActive,
+  CREATE_FIXTURE_COMMAND_ID,
+  type CodegenStackActivation,
 } from './plugin';
-
+export { createCodegenStack, CODEGEN_STACK_KINDS, type CodegenStackOptions } from './stack/stack';
 export {
-  codegenContextCommands,
-  generateInto,
-  generateIntoArgs,
-  notifyLayout,
-  notifyOutcome,
+  BUILTIN_TARGETS,
+  CODEGEN_STACK_ID,
+  RETIRED_TARGETS,
+  staleOverride,
+} from './pipeline/targets';
+export { generateModule } from './pipeline/generate';
+export type { CodegenTarget, Formatter, GeneratedModule, ModuleFile } from './pipeline/generate';
+export {
+  codegenContextMenuItems,
+  CODEGEN_CONTEXT_SUBMENU,
   GENERATE_INTO_COMMAND_ID,
-} from './commands/generate-into';
-export type {
-  GenerateIntoArgs,
-  GenerateIntoDeps,
-  GenerateIntoOutcome,
-} from './commands/generate-into';
-export { ejectTemplate, slugOf, type EjectOutcome } from './commands/eject';
-
-export { CodegenStackPoint, CodegenTargetPoint } from './contract';
-export type { CodegenStack, CodegenTarget } from './contract';
-
+} from './commands/menu';
+export { findSchemaIn, schemaCandidates, schemaOf, type FoundSchema } from './stack/find';
+export { kitMismatchOf, notesOf, registryKitOf } from './stack/disk';
+export { asFormSchema, formSourceOf, loadFormSource, StepPartsError } from './pipeline/source';
+export { readFormRules, RulesFileError } from './pipeline/rules';
+export { createFixture, type FixtureHost, type FixtureOutcome } from './commands/fixture-command';
 export {
-  overrideProblems,
-  stackById,
-  stackDocumentVisible,
-  stackFor,
-  stackOfKind,
-  stackText,
-  targetsFor,
-  type StackEntry,
-  type Stacks,
-} from './stacks';
-
-export { deliverInto, DeliveryRefusedError, SourceReadOnlyError } from './pipeline/deliver';
-export type { DeliveryOptions, DeliveryResult, LegacyFile, SkipReason } from './pipeline/deliver';
-
-export { runCodegen, stackError, type RunOptions } from './pipeline/run';
-export { generateFor } from './pipeline/generate-for';
-export type {
-  GenerateReport,
-  GenerateRequest,
-  GenerateSkipReason,
-  GenerateWrite,
-} from './pipeline/generate-for';
-export { createCodegenSessions } from './pipeline/state';
-export type {
-  CodegenError,
-  CodegenSessions,
-  CodegenState,
-  CodegenStore,
-  ReportedFile,
-} from './pipeline/state';
-export { discoverUserTargets, USER_TARGETS_DIR, type UserTarget } from './pipeline/user-targets';
-
-export { CODEGEN_MESSAGES } from './messages';
-
-export type {
-  CodegenDocument,
-  CodegenHost,
-  CodegenSourceCapabilities,
-  MessageSink,
-  Translate,
-} from './host';
-
-// Рабочая область генерации собирается из возможностей ЕЮ САМОЙ; композиции остаются
-// названные дыры (`CodegenGaps`) — см. шапку `./workspace`.
-export { asCodegenDocument, codegenWorkspace } from './workspace';
-export type { CodegenGaps } from './workspace';
-
-// Стек ReFormer — пока в этом же пакете (шаг 2b раскола).
-export * from './stack';
+  ModulePrinterCapability,
+  modulePrinter,
+  type ModulePrinterService,
+  type PrintedFile,
+  type PrintSeed,
+} from './printer';
+export { codegenStackWorkspace, type CodegenStackWorkspace } from './workspace';
+export { CODEGEN_STACK_MESSAGES } from './messages';

@@ -1,147 +1,93 @@
 /**
- * Рабочая область генерации, собранная из ВОЗМОЖНОСТЕЙ — а не полученная портом.
+ * Рабочая область стека генерации: кит ReFormer и то, чем пишет команда фикстуры.
  *
- * ## Что изменилось
+ * Модуль формы пишет хозяин генерации — у стека записи модуля нет. Своё стеку нужно на три вещи:
  *
- * Раньше весь {@link CodegenHost} собирала композиция (`shell/boot/ports/codegen`): она знала,
- * что генерации нужны документы, листинг каталога и путевая арифметика, — и подставляла всё это
- * параметром. Плагину из каталога проекта такой порт не соберёт никто, поэтому написать «второй
- * кодоген» было нельзя в принципе.
+ * - **кит** — ReFormer-проекция сырого каталога службы китов: служба нейтральна, а узлы по
+ *   умолчанию и синтетика билдера — знание стека. Спрашивается на каждый вызов: кит переключают
+ *   без перезагрузки, и захваченный дескриптор дал бы импорты от предыдущего кита;
+ * - **печать по заказу** — возможность `reformer.codegen.printer` (шаблоны форм) печатает тем же
+ *   китом;
+ * - **фикстура предпросмотра** — артефакт превью, а не файл модуля: её пишет команда стека по
+ *   явной просьбе, тем же маркером происхождения, что и модуль.
  *
- * Теперь тот же объект собирается ЗДЕСЬ, из служб контекста активации. Ни одна из них
- * не является привилегированной, кроме сохранения: документы, записи рабочей области, служба
- * китов и словарь видны любому плагину через `ctx`.
- *
- * ## Чего здесь нет
- *
- * Каталога кита и правил формы: оба — знание стека, и их читает стек (`CodegenStack`). Кит
- * здесь — только подпись в панели, прямо у службы китов SDK.
- *
- * ## Что осталось порту и почему
- *
- * Один член — `format`. Это не остаток переноса, а названная неполнота: форматирование требует
- * конфигурации prettier из открытого проекта, а её чтение не написано.
- *
- * `save` — привилегированная служба (`WorkspaceSaveServiceToken`): плагин просит право
- * `workspace.save` манифестом, а человек его подтверждает.
+ * Службы берутся `require`, а не `get`: документы и записи рабочей области даёт САМА оболочка,
+ * они существуют с запуска и без проекта отвечают `null`, `false` и пустым списком. Кит и
+ * сохранение — `get` на каждый вызов: плагин кита вправе подняться позже, а право сохранения —
+ * быть подтверждённым позже, чем собрана рабочая область.
  *
  * @module plugins/reformer/codegen/workspace
  */
 
+import { projectCatalog, type CatalogEntry } from '../../core/catalog';
 import {
-  KitsCapability,
   DocumentsServiceToken,
-  useActiveDocument,
-  useTranslate,
+  KitsCapability,
   WorkspaceFilesServiceToken,
   WorkspaceSaveServiceToken,
   type Disposable,
-  type Document,
   type KitDescriptor,
   type ModelDocument,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './host';
+import type { FixtureHost } from './commands/fixture-command';
 
-/**
- * Возможность «сгенерировать код формы» — прогон панели экспорта по заказу другого плагина.
- * Контракт — в SDK: заказчик (ассистент) живёт в другом домене (`./pipeline/generate-for`).
- */
-export { ModuleGeneratorCapability } from '@reformer/builder-plugin-api';
-export type { ModuleGeneratorService } from '@reformer/builder-plugin-api';
+/** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
+const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
-/** То, чему в возможностях места пока нет. Всё остальное собирается из служб. */
-export type CodegenGaps = Pick<CodegenHost, 'format'>;
-
-/**
- * Документ службы в объёме генерации.
- *
- * Переходник, а не приведение типа: у документа службы модель — `getModel()` модельного вида,
- * а генерации нужна модель, СОГЛАСОВАННАЯ с буфером (`model()`), раскладка составного документа
- * и вид ресурса, по которому выбирается стек. Вид — тот же, что оболочка кладёт в
- * `activeResourceKind`: провайдер модели у модельного документа, тип содержимого у текстового.
- */
-export function asCodegenDocument(document: Document): CodegenDocument {
-  const modelDocument = document.kind === 'model' ? (document as ModelDocument) : null;
-  return {
-    id: document.id,
-    ref: document.ref,
-    resourceKind: modelDocument?.providerId ?? document.ref.mediaType,
-    getText: () => document.getText(),
-    model: () =>
-      modelDocument !== null && modelDocument.getSyncState() === 'synced'
-        ? modelDocument.getModel()
-        : undefined,
-    composition: () => modelDocument?.getComposition?.(),
-  };
+/** Рабочая область стека. */
+export interface CodegenStackWorkspace extends FixtureHost {
+  /** Дескриптор активного кита; `null` — кита нет. */
+  kit(): KitDescriptor | null;
+  /** Кит сменился. */
+  onDidChangeKit(cb: () => void): Disposable;
+  /** Показать ресурс — открыть вкладку записанной фикстуры. */
+  openResource(id: ResourceId): void;
+  /** Ресурс активной вкладки — команде фикстуры без аргументов. */
+  activeResource(): ResourceId | null;
 }
 
-/**
- * Собирает рабочую область генерации.
- *
- * Службы берутся `require`, а не `get`: документы и записи рабочей области даёт САМА оболочка
- * (`platform/services/host-capabilities`), они существуют с запуска и без проекта отвечают
- * `null`, `false` и пустым списком. Правило «сервис ищется в момент использования» касается
- * сервисов ЧУЖИХ плагинов; кит поэтому и берётся `get` — его плагин вправе подняться позже
- * или не подняться вовсе.
- */
-export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): CodegenHost {
+/** Собрать рабочую область стека из служб контекста активации. */
+export function codegenStackWorkspace(ctx: PluginContext): CodegenStackWorkspace {
   const documents = ctx.services.require(DocumentsServiceToken);
   const files = ctx.services.require(WorkspaceFilesServiceToken);
   const kits = () => ctx.services.get(KitsCapability);
+  const projection = () => {
+    const service = kits();
+    return service === undefined ? undefined : projectCatalog(service.catalogJson());
+  };
 
   return {
-    // Именованные функции: правила хуков опознают хук по имени объявления, а метод
-    // в литерале для них — обычная функция.
-    useTranslate: function useCodegenTranslate() {
-      return useTranslate(ctx.i18n);
-    },
-    useActiveDocument: function useCodegenActiveDocument() {
-      return useActiveDocument(documents);
-    },
+    kit: () => projection()?.descriptor ?? null,
+    catalog: () => projection()?.entries ?? NO_CATALOG,
+    onDidChangeKit: (cb) => kits()?.onDidChange(cb) ?? { dispose: () => {} },
 
-    documentOf: (id: ResourceId): CodegenDocument | null => {
+    // Модель — только СОГЛАСОВАННАЯ с буфером: по устаревшей фикстура описала бы форму, которой
+    // в тексте перед человеком уже нет.
+    documentOf: (id) => {
       const document = documents.documentOf(id);
-      return document === null ? null : asCodegenDocument(document);
+      if (document === null) return null;
+      const model = document.kind === 'model' ? (document as ModelDocument) : null;
+      return {
+        id: document.id,
+        ref: document.ref,
+        model: () =>
+          model !== null && model.getSyncState() === 'synced' ? model.getModel() : undefined,
+      };
     },
-
-    // Право на запись объявляет ИСТОЧНИК, а не билдер: сгенерированные файлы уезжают туда же,
-    // откуда приехала схема, и сказать «сюда писать нельзя» надо ДО первого файла.
-    sourceOf: (id: ResourceId): CodegenSourceCapabilities | null =>
-      documents.hasProject() ? { write: files.canWrite(id) } : null,
-
-    kit: (): KitDescriptor | null => kits()?.descriptor() ?? null,
-    onDidChangeKit: (cb: () => void): Disposable =>
-      kits()?.onDidChange(cb) ?? { dispose: () => {} },
-
-    parentOf: files.parentOf,
-    resolve: files.resolve,
-    projectRoot: files.projectRoot,
-    exists: files.exists,
-    list: files.list,
+    sourceOf: (id) => (documents.hasProject() ? { write: files.canWrite(id) } : null),
+    resolveFromRoot: files.fromRoot,
     readText: files.readText,
-
-    // Запись — ОДНОЙ дверью, той же, которой правит человек и ассистент: пометка происхождения
-    // живёт у неё, и второй путь означал бы записи, не попавшие в журнал как чужие.
-    writeText: (id: ResourceId, text: string) => documents.writeText(id, text),
-
-    openResource: (id: ResourceId) => {
+    // Запись — той же дверью, которой правит человек и ассистент: пометка происхождения живёт у
+    // неё, и второй путь означал бы записи, не попавшие в журнал как чужие.
+    writeText: (id, text) => documents.writeText(id, text),
+    save: async (ids) => (await ctx.services.get(WorkspaceSaveServiceToken)?.save(ids)) ?? false,
+    activeResource: () => documents.activeResource(),
+    openResource: (id) => {
       void documents.open(id, { preview: false }).catch((error: unknown) => {
         console.error(`[codegen] открыть «${id}» не удалось`, error);
       });
     },
-
-    /**
-     * Сохранение — ПРИВИЛЕГИРОВАННАЯ служба, и спрашивается она на каждый вызов.
-     *
-     * `get`, а не `require`, и не разовый захват в замыкание: право может быть не подтверждено
-     * (тогда службы нет вовсе), а подтверждено — позже, чем собрана рабочая область. Отказ
-     * сохранения — названная деградация: файлы остаются в рабочей копии, и это ровно то же
-     * поведение, что было у плагина без порта.
-     */
-    save: async (ids) => (await ctx.services.get(WorkspaceSaveServiceToken)?.save(ids)) ?? false,
-
-    ...gaps,
   };
 }

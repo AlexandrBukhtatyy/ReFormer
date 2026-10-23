@@ -8,6 +8,7 @@
     "forms/kits",
     "forms/preview",
     "forms/ai",
+    "forms/codegen",
     "reformer/editor",
     "reformer/render",
     "reformer/validator",

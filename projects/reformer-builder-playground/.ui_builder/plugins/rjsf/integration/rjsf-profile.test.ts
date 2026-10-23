@@ -143,6 +143,7 @@ describe('boot с плагинами домена RJSF', () => {
     const statuses = started.plugins.statuses();
     expect(statuses.map((s) => s.id).sort()).toEqual([
       'reformer.ai',
+      'reformer.codegen',
       'reformer.editor-markdown',
       'reformer.editor-monaco',
       'reformer.files',
@@ -168,19 +169,25 @@ describe('boot с плагинами домена RJSF', () => {
     expect(owners(PreviewSurfacePoint)).toEqual(['reformer.rjsf.render']);
   });
 
-  it('свойства поля — панелью правого дока; рядом с ней только ассистент платформы форм', async () => {
+  it('свойства поля — панелью правого дока; рядом с ней только панели платформы форм', async () => {
     const started = await start();
     const panels = started.extensions.get(PanelPoint);
 
     const right = panels.filter((contribution) => contribution.value.slot === 'panel.right');
-    // Ассистент — платформа форм: стека форм RJSF у него нет, и на форме RJSF он честно скажет
-    // об этом словами, но панель с настройками канала остаётся.
+    // Ассистент и экспорт — платформа форм: стека форм RJSF у них нет. Ассистент на форме RJSF
+    // честно скажет об этом словами, но панель с настройками канала остаётся; экспорт на ней не
+    // виден вовсе — печатать нечем.
     expect(
       right.map((contribution) => [contribution.pluginId, contribution.value.id]).sort()
     ).toEqual([
       ['reformer.ai', 'ai.chat'],
+      ['reformer.codegen', 'codegen.panel'],
       [RJSF_EDITOR_PLUGIN_ID, RJSF_INSPECTOR_PANEL_ID],
     ]);
+    const exportPanel = right.find((contribution) => contribution.value.id === 'codegen.panel');
+    expect(
+      exportPanel!.value.when?.({ ...started.whenContext.get(), activeResourceKind: 'rjsf.form' })
+    ).toBe(false);
     // Вне формы домена панели свойств нет: показывать в ней нечего.
     const inspector = right.find(
       (contribution) => contribution.value.id === RJSF_INSPECTOR_PANEL_ID

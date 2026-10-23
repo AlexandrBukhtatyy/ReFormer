@@ -1,20 +1,12 @@
 {
-  "id": "reformer.codegen",
-  "name": "Генерация кода",
+  "id": "reformer.codegen-schema",
+  "name": "Генерация кода: формы ReFormer",
   "version": "0.1.0",
   "apiVersion": "^1",
   "main": "main.ts",
-  "styles": {
-    "file": "styles.css",
-    "isolation": "scoped"
-  },
   "provides": [
     {
       "id": "reformer.codegen.printer",
-      "version": "1.0.0"
-    },
-    {
-      "id": "reformer.codegen.generator",
       "version": "1.0.0"
     }
   ],

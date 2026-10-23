@@ -11,6 +11,7 @@
     "reformer.preview-runtime",
     "reformer.validator-schema",
     "reformer.codegen",
+    "reformer.codegen-schema",
     "reformer.templates",
     "reformer.ai",
     "reformer.ai-schema",
@@ -20,6 +21,7 @@
   "workspace.plugins.permissions": {
     "reformer.files": ["workspace.resources"],
     "reformer.codegen": ["workspace.save"],
+    "reformer.codegen-schema": ["workspace.save"],
     "reformer.templates": ["workspace.save"],
     "reformer.rjsf.editor": ["workspace.save"]
   }

@@ -49,10 +49,10 @@ import type {
 } from '@reformer/builder-plugin-api';
 import { kitMismatchOf, notesOf } from './disk';
 import { findSchemaIn, schemaOf } from './find';
-import { generateModule } from './generate';
-import { readFormRules, RulesFileError } from './rules';
-import { formSourceOf, loadFormSource, StepPartsError, type FormSource } from './source';
-import { CODEGEN_STACK_ID, staleOverride } from './targets';
+import { generateModule } from '../pipeline/generate';
+import { readFormRules, RulesFileError } from '../pipeline/rules';
+import { formSourceOf, loadFormSource, StepPartsError, type FormSource } from '../pipeline/source';
+import { CODEGEN_STACK_ID, staleOverride } from '../pipeline/targets';
 
 /**
  * Виды ресурса, чьи документы печатает стек.

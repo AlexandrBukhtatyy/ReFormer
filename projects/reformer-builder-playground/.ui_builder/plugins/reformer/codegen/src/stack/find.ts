@@ -22,7 +22,7 @@ import type {
   ResourceId,
   ResourceRef,
 } from '@reformer/builder-plugin-api';
-import { asFormSchema } from './source';
+import { asFormSchema } from '../pipeline/source';
 
 /**
  * Схема документа: сначала модель, потом текст.
