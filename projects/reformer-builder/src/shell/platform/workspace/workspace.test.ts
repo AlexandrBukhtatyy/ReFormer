@@ -743,6 +743,45 @@ describe('Workspace: свойства и листинг', () => {
     expect(entries.map((entry) => entry.name)).toEqual(['a.ts', 'new.ts']);
   });
 
+  it('файл, созданный в новом каталоге, показывается каталогом — и на два уровня глубже', async () => {
+    // Генерация модуля впервые пишет `types/`, `model/`: до сохранения этих каталогов на диске
+    // нет, и без строки каталога до файлов было не добраться.
+    const h = makeWorkspace({ 'src/a.ts': 'a' });
+    await h.ws.writeText(h.rid('src/types/form.ts'), 'тип');
+    await h.ws.writeText(h.rid('src/deep/er/x.ts'), 'x');
+
+    const src = await h.ws.list(h.rid('src'));
+    expect(src.map((entry) => `${entry.kind}:${entry.name}`)).toEqual([
+      'directory:deep',
+      'directory:types',
+      'file:a.ts',
+    ]);
+    expect(src[1].id).toBe(h.rid('src/types'));
+
+    // Каталог, которого нет в источнике вовсе, раскрывается, а не отказывает «не найдено».
+    const deep = await h.ws.list(h.rid('src/deep'));
+    expect(deep.map((entry) => `${entry.kind}:${entry.name}`)).toEqual(['directory:er']);
+    expect((await h.ws.list(h.rid('src/deep/er'))).map((entry) => entry.name)).toEqual(['x.ts']);
+  });
+
+  it('stat видит каталог, созданный записью: exists отвечает «есть» до сохранения', async () => {
+    const h = makeWorkspace({ 'src/a.ts': 'a' });
+    await h.ws.writeText(h.rid('src/types/form.ts'), 'тип');
+
+    expect(await h.ws.stat(h.rid('src/types'))).toEqual({ kind: 'directory' });
+    expect(await h.ws.stat(h.rid('src/other'))).toBeNull();
+  });
+
+  it('копия файла источника каталог не держит: удалённый снаружи каталог не воскресает', async () => {
+    const h = makeWorkspace({ 'src/old/a.ts': 'a' });
+    await h.ws.open(h.rid('src/old/a.ts'));
+    await h.ws.writeText(h.rid('src/old/a.ts'), 'правка');
+    h.source.remove('src/old/a.ts');
+
+    const src = await h.ws.list(h.rid('src')).catch(() => []);
+    expect(src.map((entry) => entry.name)).not.toContain('old');
+  });
+
   it('list каталога, которого нет ни в источнике, ни локально — отказ источника', async () => {
     const h = makeWorkspace({ 'src/a.ts': 'a' });
 

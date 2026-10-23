@@ -439,6 +439,22 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     mediaType: entry.mediaType,
   });
 
+  /**
+   * Каталог, которого в источнике ещё нет, но который держит файл, созданный локально: генерация
+   * модуля впервые пишет `types/`, `model/`, `validation/`, и до сохранения эти каталоги
+   * существуют только в рабочей копии.
+   *
+   * Держит только файл без базы (`hasBase: false`) — созданный здесь. Копия файла, который
+   * удалили снаружи, каталог не держит: иначе он жил бы в дереве после того, как исчез с диска.
+   */
+  const createdBelow = (path: string): boolean => {
+    const prefix = path === '' ? '' : `${path}/`;
+    for (const entry of materialized.values()) {
+      if (!entry.hasBase && entry.path.startsWith(prefix) && entry.path !== path) return true;
+    }
+    return false;
+  };
+
   /*
    * ─────────────────────────  пакет изменений  ─────────────────────────
    */
@@ -1068,7 +1084,8 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         };
       }
       const found = await source.stat(path);
-      if (found === null) return null;
+      // Каталог, созданный записью и ещё не сохранённый, существует — как и в листинге.
+      if (found === null) return createdBelow(path) ? { kind: 'directory' } : null;
       return {
         kind: found.kind,
         revision: found.revision,
@@ -1103,10 +1120,27 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         });
       }
       // Локально созданный файл обязан появиться в дереве до сохранения: иначе он есть
-      // в рабочей копии, но его «нет» в интерфейсе, и пользователь правит невидимку.
+      // в рабочей копии, но его «нет» в интерфейсе, и пользователь правит невидимку. Файл
+      // глубже — в каталоге, которого в источнике нет, — показывается этим каталогом: без него
+      // до файла не добраться, пока его не сохранят (см. `createdBelow`).
+      const prefix = base === '' ? '' : `${base}/`;
       for (const entry of materialized.values()) {
-        if (dirname(entry.path) !== base || refs.has(entry.path)) continue;
-        refs.set(entry.path, refOf(entry));
+        if (dirname(entry.path) === base) {
+          if (!refs.has(entry.path)) refs.set(entry.path, refOf(entry));
+          continue;
+        }
+        if (entry.hasBase || !entry.path.startsWith(prefix)) continue;
+        const name = entry.path.slice(prefix.length).split('/')[0];
+        const path = `${prefix}${name}`;
+        if (refs.has(path)) continue;
+        refs.set(path, {
+          id: idOf(path),
+          sourceId: source.id,
+          path,
+          name,
+          kind: 'directory',
+          mediaType: mediaTypeFor(path),
+        });
       }
 
       // Каталога нет ни в источнике, ни локально — отказ источника уходит наверх как есть.
