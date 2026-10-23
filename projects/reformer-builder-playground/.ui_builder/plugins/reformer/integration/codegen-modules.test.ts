@@ -22,6 +22,7 @@ import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
 import {
   applyTemplate,
   createBuiltinStore,
+  createTemplateStack,
   SIMPLE_TEMPLATE_ID,
   WIZARD_TEMPLATE_ID,
   type ModulePrinter,
@@ -81,7 +82,9 @@ async function builtinTemplateFiles(
   return applyTemplate(
     template,
     template.files.map((file) => file.path),
-    formName
+    formName,
+    // Стек ReFormer у хозяина: токены имён модуля и документ формы.
+    { stacks: [createTemplateStack({ kit: () => null })] }
   );
 }
 

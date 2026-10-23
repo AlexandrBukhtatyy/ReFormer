@@ -1,6 +1,14 @@
+/**
+ * Создание формы по заказу у хозяина: пустая форма и место — ответы двойника стека. Со стеком
+ * ReFormer — `../cross/create-for.test`.
+ *
+ * @module plugins/reformer/templates/content/create-for.test
+ */
+
 import { describe, expect, it } from 'vitest';
+import type { TemplateStack } from '@reformer/builder-plugin-api';
 import type { FormTemplate, TemplateStore } from '../contract';
-import { createFakeTemplatesHost } from '../testing';
+import { createFakeTemplateStack, createFakeTemplatesHost, FAKE_DOCUMENT } from '../testing';
 import { createFormFor, templateSummaries, type CreateFormRequest } from './create-for';
 
 const CREDIT: FormTemplate = {
@@ -9,7 +17,7 @@ const CREDIT: FormTemplate = {
   description: 'Заявка на кредит',
   source: 'project',
   files: [
-    { path: 'schema/form.schema.json', content: '{"format":2,"root":{"component":"$html(div)"}}' },
+    { path: FAKE_DOCUMENT, content: '{}' },
     { path: 'model.ts', content: 'export const __formName__Model = 1;' },
   ],
 };
@@ -20,8 +28,27 @@ const store: TemplateStore = {
   list: async () => [CREDIT],
 };
 
-function create(request: CreateFormRequest, files: Record<string, string> = {}, root?: null) {
-  const host = createFakeTemplatesHost({ files, ...(root === null ? { projectRoot: null } : {}) });
+/** Двойник стека: пустая форма — один документ в `doc/`, документ модуля — в его папке `doc/`. */
+const stack = createFakeTemplateStack({
+  empty: () => ({
+    id: 'empty',
+    name: 'empty',
+    source: 'builtin',
+    files: [{ path: `doc/${FAKE_DOCUMENT}`, content: '{"empty":true}' }],
+  }),
+  moduleDepthOf: (path) => (path.endsWith(`/doc/${FAKE_DOCUMENT}`) ? 1 : null),
+});
+
+function create(
+  request: CreateFormRequest,
+  files: Record<string, string> = {},
+  options: { readonly root?: null; readonly stacks?: readonly TemplateStack[] } = {}
+) {
+  const host = createFakeTemplatesHost({
+    files,
+    stacks: options.stacks ?? [stack],
+    ...(options.root === null ? { projectRoot: null } : {}),
+  });
   const deps = {
     host,
     stores: () => [store],
@@ -32,41 +59,45 @@ function create(request: CreateFormRequest, files: Record<string, string> = {}, 
 }
 
 describe('создание формы по заказу', () => {
-  it('без шаблона — пустая форма: один документ в schema/, в корне проекта', async () => {
+  it('без шаблона — пустая форма стека, в корне проекта', async () => {
     const { host, report } = create({ formName: 'credit' });
     expect(await report).toEqual({
       ok: true,
-      documentId: 'project/credit/schema/form.schema.json',
-      path: 'project/credit/schema/form.schema.json',
+      documentId: `project/credit/doc/${FAKE_DOCUMENT}`,
+      path: `project/credit/doc/${FAKE_DOCUMENT}`,
       template: null,
     });
-    expect([...host.files.keys()]).toEqual(['project/credit/schema/form.schema.json']);
-    const schema = JSON.parse(host.files.get('project/credit/schema/form.schema.json') ?? '');
-    expect(schema).toMatchObject({ format: 2, root: { children: [] } });
+    expect([...host.files.entries()]).toEqual([
+      [`project/credit/doc/${FAKE_DOCUMENT}`, '{"empty":true}'],
+    ]);
+  });
+
+  it('стека с пустой формой нет — создавать без шаблона нечем, и это отказ', async () => {
+    const { host, report } = create({ formName: 'credit' }, {}, { stacks: [] });
+    expect(await report).toMatchObject({ ok: false, error: 'error.no-empty-form' });
+    expect(host.files.size).toBe(0);
   });
 
   it('каталог форм проекта — место по умолчанию', async () => {
     const { report } = create({ formName: 'credit' }, { 'project/forms/README.md': '' });
-    expect(await report).toMatchObject({
-      documentId: 'project/forms/credit/schema/form.schema.json',
-    });
+    expect(await report).toMatchObject({ documentId: `project/forms/credit/doc/${FAKE_DOCUMENT}` });
   });
 
-  it('рядом с открытым документом — рядом с его модулем, а не внутри', async () => {
-    const near = 'project/src/forms/contact/schema/form.schema.json';
+  it('рядом с открытым документом — рядом с его модулем, на глубину, названную стеком', async () => {
+    const near = `project/src/forms/contact/doc/${FAKE_DOCUMENT}`;
     const { report } = create(
       { formName: 'credit', near: near as never },
       { [near]: '{}', 'project/forms/README.md': '' }
     );
     expect(await report).toMatchObject({
-      documentId: 'project/src/forms/credit/schema/form.schema.json',
+      documentId: `project/src/forms/credit/doc/${FAKE_DOCUMENT}`,
     });
   });
 
   it('названный каталог — от корня проекта', async () => {
     const { report } = create({ formName: 'credit', folder: 'src/pages/' });
     expect(await report).toMatchObject({
-      documentId: 'project/src/pages/credit/schema/form.schema.json',
+      documentId: `project/src/pages/credit/doc/${FAKE_DOCUMENT}`,
     });
   });
 
@@ -86,17 +117,9 @@ describe('создание формы по заказу', () => {
       message: 'error.unknown-template {"template":"нет такого"}',
     });
     expect(await create({ formName: ' !' }).report).toMatchObject({ error: 'error.no-form-name' });
-    expect(await create({ formName: 'loan' }, {}, null).report).toMatchObject({
+    expect(await create({ formName: 'loan' }, {}, { root: null }).report).toMatchObject({
       error: 'error.no-project',
     });
-  });
-
-  it('занятое имя не перезаписывается — форма ложится рядом', async () => {
-    const { report } = create(
-      { formName: 'credit' },
-      { 'project/credit/schema/form.schema.json': 'old' }
-    );
-    expect(await report).toMatchObject({ documentId: 'project/credit-2/schema/form.schema.json' });
   });
 });
 

@@ -10,8 +10,9 @@
  *
  * Встроенные шаблоны — образцы: в «Простой форме» по полю каждого вида, что есть в ките. Форме по
  * описанию они мешают — каждое лишнее поле пришлось бы убрать. Поэтому без шаблона создаётся
- * пустая форма: один документ `schema/form.schema.json` с пустым корнем. Код модуля по нему
- * печатает генерация — тогда, когда форма собрана.
+ * пустая форма — её шаблон даёт стек (`TemplateStack.empty`; у ReFormer — один документ
+ * `schema/form.schema.json` с пустым корнем). Код модуля по нему печатает генерация — тогда, когда
+ * форма собрана. Стека с пустой формой нет — создавать без шаблона нечем, и это отказ.
  *
  * @module plugins/reformer/templates/content/create-for
  */
@@ -23,12 +24,11 @@ import {
   type ResourceId,
   type TemplateSummary,
 } from '@reformer/builder-plugin-api';
-import { emptySchema } from '../../../core/form-model';
-import { printJson } from '../../../core/codegen/print/js';
 import type { FormTemplate, TemplateStore } from '../contract';
 import type { TemplatesHost } from '../host';
 import { isUsableFormName } from '../render/placeholders';
 import { generateFormFromTemplate, listTemplates, suggestedFolderOf } from './operations';
+import { emptyTemplateOf } from './stacks';
 
 // Заказ, список и отчёт — контракт возможности создания формы в SDK: его берёт заказчик.
 export type {
@@ -39,16 +39,6 @@ export type {
 
 /** Где лежат формы, если каталог не назван и открытого документа нет. */
 const FORMS_DIR = 'forms';
-
-/** Пустая форма — шаблон из одного документа. */
-function emptyTemplate(): FormTemplate {
-  return {
-    id: 'empty',
-    name: 'empty',
-    source: 'builtin',
-    files: [{ path: 'schema/form.schema.json', content: printJson(emptySchema()) }],
-  };
-}
 
 /** Шаблоны всех хранилищ сводкой — без файлов: заказчику они не нужны. */
 export async function templateSummaries(
@@ -86,7 +76,9 @@ export async function createFormFor(
 
   let template: FormTemplate;
   if (request.template === undefined) {
-    template = emptyTemplate();
+    const empty = emptyTemplateOf(host.stacks());
+    if (empty === null) return refuse('error.no-empty-form');
+    template = empty;
   } else {
     const wanted = request.template.trim().toLowerCase();
     const all = await listTemplates(deps.stores());

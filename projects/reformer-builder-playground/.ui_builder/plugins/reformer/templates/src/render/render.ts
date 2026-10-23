@@ -13,9 +13,10 @@
  *
  * ## Почему схема, а не отдельная настройка
  *
- * Искать её не нужно: `formSchemaFileOf` уже ищет схему в наборе — по ней решают, какой файл
- * открыть после генерации. Тот же ответ служит и здесь, и это не совпадение: «шаблон, у
+ * Искать её не нужно: стек шаблона уже находит документ формы в наборе — по нему решают, какой
+ * файл открыть после генерации. Тот же ответ служит и здесь, и это не совпадение: «шаблон, у
  * которого есть схема» и «шаблон, про который есть что рассказать» — одно и то же множество.
+ * Вид собирает стек (`TemplateStack.view`): что такое поля, визард и компоненты кита, знает он.
  *
  * ## Токены и движок не смешиваются
  *
@@ -27,17 +28,11 @@
  * @module plugins/reformer/templates/render/render
  */
 
-import {
-  buildView,
-  modulePlacementOf,
-  prepare,
-  type CodegenView,
-  type KitView,
-} from '../../../core/codegen';
+import type { TemplateStack } from '@reformer/builder-plugin-api';
 import { renderTemplate } from '@reformer/builder-toolkit';
 import { nameVariants } from './placeholders';
 import type { FormTemplate, TemplateFile } from '../contract';
-import { formSchemaFileOf } from '../content/files';
+import { templateStackOf } from '../content/stacks';
 
 /** Что видит шаблон формы как `it`. */
 export interface FormTemplateView {
@@ -51,18 +46,19 @@ export interface FormTemplateView {
   /** Про сам шаблон: подписать сгенерированное его именем — обычная нужда. */
   readonly template: { readonly id: string; readonly name: string };
   /**
-   * Полный вид генерации — когда шаблон несёт схему формы и кит активен.
+   * Вид формы от стека шаблона — когда шаблон несёт документ формы и стеку есть что рассказать
+   * (у ReFormer — полный вид генерации под активный кит).
    *
-   * `null` в двух случаях, и различать их шаблону не нужно: схемы в наборе нет либо кита
-   * не выбрали. В обоих рассказывать о форме нечего, и ветвление `it.form !== null` —
-   * ровно тот вопрос, который автор шаблона и должен задать.
+   * `null`, когда рассказывать нечего, и различать причины шаблону не нужно: документа в наборе
+   * нет, стека нет, кита не выбрали. Ветвление `it.form !== null` — ровно тот вопрос, который
+   * автор шаблона и должен задать.
    */
-  readonly form: CodegenView | null;
+  readonly form: object | null;
 }
 
 export interface TemplateViewOptions {
-  /** Активный кит. Без него вид формы не собрать — импортировать компоненты неоткуда. */
-  readonly kit?: KitView | null;
+  /** Стеки шаблонов: вид формы собирает стек шаблона. Без них вида формы нет. */
+  readonly stacks?: readonly TemplateStack[];
 }
 
 export function buildTemplateView(
@@ -71,8 +67,7 @@ export function buildTemplateView(
   options: TemplateViewOptions = {}
 ): FormTemplateView {
   const variants = nameVariants(formName);
-  const kit = options.kit ?? null;
-  const found = kit === null ? null : formSchemaFileOf(template.files);
+  const stack = templateStackOf(options.stacks ?? [], template.files);
 
   return {
     name: formName,
@@ -81,20 +76,8 @@ export function buildTemplateView(
     kebab: variants.kebab,
     snake: variants.snake,
     template: { id: template.id, name: template.name },
-    form:
-      found === null || kit === null
-        ? null
-        : buildView(
-            prepare({
-              schema: found.schema,
-              origins: found.origins,
-              formName,
-              kit,
-              // Пути вида считаются от места документа В ШАБЛОНЕ: схема в `schema/` — папки ролей,
-              // схема в корне — шаблон, снятый с формы прежней раскладки.
-              schemaPath: modulePlacementOf(found.file.path).schemaPath,
-            })
-          ),
+    // Вид — по файлам шаблона ДО отрисовки: документ формы в них уже лежит.
+    form: stack?.view?.(template.files, formName) ?? null,
   };
 }
 

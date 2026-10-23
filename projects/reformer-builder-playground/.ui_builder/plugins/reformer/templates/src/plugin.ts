@@ -1,5 +1,6 @@
 /**
- * Плагин шаблонов форм: точка расширения хранилищ, три встроенных хранилища и панель.
+ * Плагин шаблонов форм: хранилища проекта и браузера, панель, команды дерева и создание формы
+ * по заказу.
  *
  * **Почему это плагин, а не часть Host.** Шаблон формы — предметная сущность: он знает, что
  * у формы есть схема, что имена внутри файлов параметризуются, что среди файлов надо найти тот,
@@ -9,6 +10,10 @@
  * интерфейса, а шестью свободными функциями с суффиксами в имени и четырьмя `if (source ===
  * 'project')` на стороне вызывающего. Здесь вид хранилища — это вклад, и четвёртый источник
  * (общий репозиторий команды, HTTP-каталог) добавляется, не трогая ни одной существующей строки.
+ *
+ * **Формат формы — у стека.** Документ формы среди файлов шаблона, вид для шаблона на движке, токены
+ * имён модуля, пустая форма и место модуля — вопросы к `TemplateStackPoint`; встроенные шаблоны —
+ * хранилище, которое вносит стек. До раскола стек ReFormer активируется здесь же (`./stack`).
  *
  * @module plugins/reformer/templates/plugin
  */
@@ -26,7 +31,7 @@ import {
   type SlotId,
   type WhenContext,
 } from '@reformer/builder-plugin-api';
-import { TemplateStorePoint, type ExtensionPointRef, type TemplateStore } from './contract';
+import { TemplateStorePoint, type TemplateStore } from './contract';
 import {
   createTemplateSnapshot,
   templatesContextMenuItems,
@@ -35,14 +40,9 @@ import {
 import type { TemplatesHost } from './host';
 import { TEMPLATES_MESSAGES } from './messages';
 import { createTemplatesRefresh, type TemplatesRefresh } from './content/refresh';
-import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
-import {
-  FormCreatorCapability,
-  hasPrinter,
-  templatesPrinter,
-  templatesWorkspace,
-  type TemplatesGaps,
-} from './workspace';
+import { activateTemplateStack } from './stack/activate';
+import type { ModulePrinter } from './stack/builtin';
+import { FormCreatorCapability, templatesWorkspace, type TemplatesGaps } from './workspace';
 import { createFormFor, templateSummaries } from './content/create-for';
 import { createLocalStore } from './stores/local';
 import { createProjectStore } from './stores/project';
@@ -109,17 +109,12 @@ export interface TemplatesPluginOptions {
   /** То, чему в возможностях места пока нет: сохранение. Подставляет композиция. */
   readonly gaps?: TemplatesGaps;
   /**
-   * Печатник модуля формы для встроенных шаблонов — только для теста.
+   * Печатник модуля формы для встроенных шаблонов стека — только для теста и только до раскола.
    *
-   * В приложении он берётся возможностью `codegen.modules` у генерации кода, в момент
-   * печати: плагины друг друга не импортируют, а оба ленивые, и порядок активации незначим.
+   * В приложении стек берёт его возможностью `reformer.codegen.printer` у генерации кода, в
+   * момент печати: плагины друг друга не импортируют, а оба ленивые, и порядок активации незначим.
    */
   readonly print?: ModulePrinter;
-  /**
-   * Точка расширения хранилищ. Параметром по той же причине, что точка целей у кодогена:
-   * вклад обязан уходить в ТОТ объект, который дала композиция.
-   */
-  readonly storePoint?: ExtensionPointRef<TemplateStore>;
   /** Слот панели; по умолчанию {@link DEFAULT_TEMPLATES_SLOT}. */
   readonly slot?: SlotId;
 }
@@ -127,12 +122,10 @@ export interface TemplatesPluginOptions {
 /**
  * Собирает плагин.
  *
- * Три встроенных хранилища вносятся вкладами наравне с чужими — это и делает правило
- * «хранилище одно, бэкендов сколько угодно» проверяемым: наши не имеют никаких привилегий,
- * кроме порядка.
+ * Хранилища вносятся вкладами наравне с чужими — это и делает правило «хранилище одно, бэкендов
+ * сколько угодно» проверяемым: наши не имеют никаких привилегий, кроме порядка.
  */
 export function createTemplatesPlugin(options: TemplatesPluginOptions = {}): Plugin {
-  const point = options.storePoint ?? TemplateStorePoint;
   const slot = options.slot ?? DEFAULT_TEMPLATES_SLOT;
 
   return definePlugin({
@@ -145,29 +138,27 @@ export function createTemplatesPlugin(options: TemplatesPluginOptions = {}): Plu
         ctx.i18n.contribute(locale, messages);
       }
 
-      // Печатник спрашивается у возможности на каждый вызов, а «есть ли он» — отдельным
-      // вопросом: оба плагина ленивые, и генерация кода вправе подняться позже шаблонов.
-      // Кит — тоже на каждую печать: затравка кладёт только то, что есть в его каталоге, а кит
-      // переключают.
-      const builtin = createBuiltinStore({
-        print: options.print ?? templatesPrinter(ctx),
-        ...(options.print === undefined ? { ready: () => hasPrinter(ctx) } : {}),
-        catalog: () => host.catalog(),
-        kit: () => host.kit(),
-      });
+      // Стек ReFormer — до раскола здесь же: сам стек и встроенные шаблоны (порядок 10).
+      activateTemplateStack(ctx, options.print === undefined ? {} : { print: options.print });
+
       const project = createProjectStore(host);
       const local = createLocalStore(host.local);
 
       ctx.subscriptions.push(
-        ctx.extensions.contribute(point, builtin, { id: 'templates.store.builtin', order: 10 }),
-        ctx.extensions.contribute(point, project, { id: 'templates.store.project', order: 20 }),
-        ctx.extensions.contribute(point, local, { id: 'templates.store.local', order: 30 })
+        ctx.extensions.contribute(TemplateStorePoint, project, {
+          id: 'templates.store.project',
+          order: 20,
+        }),
+        ctx.extensions.contribute(TemplateStorePoint, local, {
+          id: 'templates.store.local',
+          order: 30,
+        })
       );
 
       // Список читается ЛЕНИВО: хранилища вносят и снимают, и захваченный массив показывал бы
       // состав на момент активации.
       const stores = (): readonly TemplateStore[] =>
-        ctx.extensions.get(point).map((contribution) => contribution.value);
+        ctx.extensions.get(TemplateStorePoint).map((contribution) => contribution.value);
 
       // Создание формы по заказу — наружу возможностью: её берёт ассистент. Путь тот же, что у
       // окна «Создать форму», поэтому и модуль ложится так же.
@@ -193,7 +184,7 @@ export function createTemplatesPlugin(options: TemplatesPluginOptions = {}): Plu
       };
       // Список шаблонов для подменю держится готовым: сборка меню синхронна, а хранилища
       // отвечают обещанием. Перечитывается тем же событием, что и панель, — смена кита меняет
-      // ВЫВОД встроенных шаблонов, потому что печатает их кодоген под активный кит.
+      // ВЫВОД встроенных шаблонов, потому что стек печатает их под активный кит.
       const snapshot = createTemplateSnapshot(stores);
       snapshot.refresh();
       ctx.subscriptions.push(

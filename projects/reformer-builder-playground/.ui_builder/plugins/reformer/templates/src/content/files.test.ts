@@ -1,3 +1,13 @@
+/**
+ * Файлы шаблона у хозяина: отбор, снимок каталога, подстановка имени, печать под имя и вопросы к
+ * стеку шаблона (токены модуля, перевод документа) — на двойнике стека.
+ *
+ * Документ формы ReFormer и перевод его формата — `../stack/document.test`; встроенные шаблоны,
+ * разложенные хозяином, — `../cross/builtin.test`.
+ *
+ * @module plugins/reformer/templates/content/files.test
+ */
+
 import { describe, expect, it, vi } from 'vitest';
 import { isGenerated, originOf, withMarker } from '@reformer/builder-toolkit';
 import type { FormTemplate } from '../contract';
@@ -5,14 +15,13 @@ import {
   applyTemplate,
   buildTemplateFiles,
   commonDirPrefix,
-  formSchemaFileOf,
   isTextFile,
-  keepOrigin,
   materializeFiles,
   resolvePicked,
   suggestBaseName,
   templateSlug,
 } from './files';
+import { createFakeTemplateStack, FAKE_DOCUMENT } from '../testing';
 
 describe('отбор файлов', () => {
   it('бинарные в шаблон не берутся, а файл без расширения — берётся', () => {
@@ -103,89 +112,12 @@ describe('подготовка файлов формы', () => {
     );
     expect(files).toEqual([{ path: 'user-profile.ts', content: 'UserProfile' }]);
   });
-
-  it('схему для открытия ищет среди json и отличает её от прочего json', () => {
-    const files = [
-      { path: 'package.json', content: '{"name":"x"}' },
-      { path: 'form.schema.json', content: '{"format":2,"root":{"component":"$html(div)"}}' },
-    ];
-    expect(formSchemaFileOf(files)?.file.path).toBe('form.schema.json');
-    expect(formSchemaFileOf([{ path: 'x.json', content: 'не json' }])).toBeNull();
-  });
-
-  it('корневой form.schema.json важнее под-схемы шага и прежнего имени, где бы ни стоял', () => {
-    const schema = '{"format":2,"root":{"component":"$html(div)"}}';
-    const files = [
-      { path: 'steps/dannye/form.schema.json', content: schema },
-      { path: 'renderer.schema.json', content: schema },
-      { path: 'loan.schema.json', content: schema },
-      { path: 'form.schema.json', content: schema },
-    ];
-    expect(formSchemaFileOf(files)?.file.path).toBe('form.schema.json');
-    // Без канона — прежнее имя, затем прочие корневые; вложенные — последними.
-    expect(formSchemaFileOf(files.slice(0, 3))?.file.path).toBe('renderer.schema.json');
-    expect(formSchemaFileOf([files[0], files[2]])?.file.path).toBe('loan.schema.json');
-  });
-
-  it('документ модуля в папке ролей важнее схемы в корне и под-схем шагов', () => {
-    const schema = '{"format":2,"root":{"component":"$html(div)"}}';
-    const files = [
-      { path: 'schema/steps/dannye/form.schema.json', content: schema },
-      { path: 'loan.schema.json', content: schema },
-      { path: 'form.schema.json', content: schema },
-      { path: 'schema/renderer.schema.json', content: schema },
-      { path: 'schema/form.schema.json', content: schema },
-    ];
-    // Канон раскладки «папки по ролям» — `schema/form.schema.json`: его и открывают.
-    expect(formSchemaFileOf(files)?.file.path).toBe('schema/form.schema.json');
-    expect(formSchemaFileOf(files.slice(0, 4))?.file.path).toBe('schema/renderer.schema.json');
-    // Шаблон, снятый с формы прежней плоской раскладки, держит схему в корне — и она находится.
-    expect(formSchemaFileOf(files.slice(0, 3))?.file.path).toBe('form.schema.json');
-  });
-
-  it('схема в `schema/`, разбитая по шагам, собирается: ссылки считаются от её файла', () => {
-    const step = (model: string) => ({
-      node: {
-        component: '$component(Step)',
-        children: [{ model: `$model(${model})`, component: '$component(Input)' }],
-      },
-    });
-    const files = [
-      {
-        path: 'schema/form.schema.json',
-        content: JSON.stringify({
-          format: 2,
-          root: {
-            component: '$component(Wizard)',
-            children: [
-              { $ref: './steps/dannye/form.schema.json' },
-              { $ref: './steps/kontakty/form.schema.json' },
-            ],
-          },
-        }),
-      },
-      { path: 'schema/steps/dannye/form.schema.json', content: JSON.stringify(step('lastName')) },
-      { path: 'schema/steps/kontakty/form.schema.json', content: JSON.stringify(step('email')) },
-    ];
-
-    const found = formSchemaFileOf(files);
-
-    // Файлы шагов лежат рядом с корневым документом — в `schema/steps/`, а не в корне шаблона.
-    expect(found?.file.path).toBe('schema/form.schema.json');
-    expect(found?.schema).toMatchObject({
-      root: { children: [step('lastName').node, step('email').node] },
-    });
-    expect([...(found?.origins?.values() ?? [])].map((origin) => origin.ref)).toEqual([
-      './steps/dannye/form.schema.json',
-      './steps/kontakty/form.schema.json',
-    ]);
-  });
 });
 
 describe('происхождение файла переживает подстановку', () => {
   // Маркер `// @reformer-generated <хэш>` считается от тела файла, а подстановка имени тело
-  // меняет. Без перевыставления файл, только что напечатанный кодогеном, выглядел бы «правленным
-  // руками», и билдер отказался бы перегенерировать его из правил формы.
+  // меняет. Без перевыставления файл, только что напечатанный генератором, выглядел бы
+  // «правленным руками», и билдер отказался бы перегенерировать его из правил формы.
   const tokenTemplate = (files: FormTemplate['files']): FormTemplate => ({
     id: 't',
     name: 'T',
@@ -196,20 +128,20 @@ describe('происхождение файла переживает подст�
   it('нетронутый сгенерированный файл остаётся сгенерированным', () => {
     const [file] = materializeFiles(
       tokenTemplate([
-        { path: 'types/__form-dir__.ts', content: withMarker('export type __FormType__ = {};\n') },
+        { path: 'types/__form-name__.ts', content: withMarker('export type __FormName__ = {};\n') },
       ]),
-      ['types/__form-dir__.ts'],
+      ['types/__form-name__.ts'],
       'loan request'
     );
 
     expect(file.path).toBe('types/loan-request.ts');
-    // Ровно то, что кодоген напечатал бы для этой формы сам: тело и маркер от него.
-    expect(file.content).toBe(withMarker('export type LoanRequestForm = {};\n'));
+    // Ровно то, что генератор напечатал бы для этой формы сам: тело и маркер от него.
+    expect(file.content).toBe(withMarker('export type LoanRequest = {};\n'));
     expect(isGenerated(file.content)).toBe(true);
   });
 
   it('правленный руками файл остаётся правленным: хэш у него и не должен сходиться', () => {
-    const stamped = withMarker('export type __FormType__ = {};\n');
+    const stamped = withMarker('export type __FormName__ = {};\n');
     const edited = `${stamped}// правка человека\n`;
 
     const [file] = materializeFiles(
@@ -224,7 +156,14 @@ describe('происхождение файла переживает подст�
   });
 
   it('файл без маркера маркера не получает', () => {
-    expect(keepOrigin('export const a = 1;', 'export const b = 1;')).toBe('export const b = 1;');
+    const [file] = materializeFiles(
+      tokenTemplate([{ path: 'a.ts', content: 'export const __formName__ = 1;' }]),
+      ['a.ts'],
+      'loan request'
+    );
+
+    expect(file.content).toBe('export const loanRequest = 1;');
+    expect(isGenerated(file.content)).toBe(false);
   });
 
   it('снимок каталога: сгенерированный файл формы остаётся сгенерированным и в шаблоне', () => {
@@ -244,12 +183,12 @@ describe('шаблон, который печатается под имя фор
   // имя формы шаблон печатается заново; файлы с токенами остаются списком выбора и запасным
   // текстом.
   const files: FormTemplate['files'] = [
-    { path: '__FormType__.tsx', content: 'export default function __FormType__() {}\n' },
-    { path: 'types/__form-dir__.ts', content: withMarker('export type __FormType__ = {};\n') },
-    { path: 'README.md', content: '# __FormTitle__\n' },
+    { path: '__FormName__Form.tsx', content: 'export default function __FormName__Form() {}\n' },
+    { path: 'types/__form-name__.ts', content: withMarker('export type __FormName__Form = {};\n') },
+    { path: 'README.md', content: '# __FormName__\n' },
     { path: 'fixture.ts', content: 'export const fixture = {};\n', scope: 'fixture' },
   ];
-  const requires = { '__FormType__.tsx': ['types/__form-dir__.ts'] };
+  const requires = { '__FormName__Form.tsx': ['types/__form-name__.ts'] };
   /** Печать под имя: раскладка другая — перенос, которого в тексте шаблона нет. */
   const printed = (formName: string): FormTemplate['files'] => {
     const type = formName === 'loan request' ? 'LoanRequestForm' : 'OtherForm';
@@ -314,7 +253,7 @@ describe('шаблон, который печатается под имя фор
   it('отбор и зависимости решает шаблон, а не печать: лишнего напечатанного в наборе нет', async () => {
     const applied = await applyTemplate(
       template(async (name) => printed(name)),
-      ['__FormType__.tsx'],
+      ['__FormName__Form.tsx'],
       'loan request'
     );
 
@@ -334,7 +273,7 @@ describe('шаблон, который печатается под имя фор
 
     expect(applied[0].content).toBe('export default function LoanRequestForm(\n) {}\n');
     expect(applied[1].content).toBe(withMarker('export type LoanRequestForm = {};\n'));
-    expect(applied[2].content).toBe('# Loan request\n');
+    expect(applied[2].content).toBe('# LoanRequest\n');
   });
 
   it('печатать нечем — форма раскладывается подстановкой: пустой ответ и отказ печати', async () => {
@@ -366,203 +305,98 @@ describe('шаблон, который печатается под имя фор
   });
 });
 
-describe('шаблон со схемой прежнего формата', () => {
-  // Шаблон в каталоге проекта — снимок файлов, и снят он мог быть до формата 2: привязка в
-  // `value` / `array`, шаги визарда в `componentProps.steps`.
-  const legacy = {
-    version: '1.0',
-    root: {
-      component: '$component(Box)',
-      children: [
-        {
-          component: '$component(Wizard)',
-          componentProps: {
-            className: 'wizard',
-            steps: [
-              {
-                component: '$component(Step)',
-                componentProps: { title: 'Данные' },
-                children: [
-                  {
-                    value: '$model(lastName)',
-                    component: '$component(Input)',
-                    componentProps: { label: 'Фамилия' },
-                  },
-                  {
-                    array: '$model(phones)',
-                    item: {
-                      $template: { value: '$model(number)', component: '$component(Input)' },
-                    },
-                  },
-                ],
-              },
-            ],
-          },
-        },
-      ],
-    },
-  };
-
-  const migrated = {
-    format: 2,
-    version: '1.0',
-    root: {
-      component: '$component(Box)',
-      children: [
-        {
-          component: '$component(Wizard)',
-          // Прочие пропсы визарда остаются пропсами — уезжают только шаги.
-          componentProps: { className: 'wizard' },
-          children: [
-            {
-              component: '$component(Step)',
-              componentProps: { title: 'Данные' },
-              children: [
-                {
-                  model: '$model(lastName)',
-                  component: '$component(Input)',
-                  componentProps: { label: 'Фамилия' },
-                },
-                {
-                  model: '$model(phones)',
-                  item: { $template: { model: '$model(number)', component: '$component(Input)' } },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
-
-  // Тот же визард, но шаги вынесены в файлы — и корень, и шаги прежнего формата.
-  const legacySkeleton = {
-    version: '1.0',
-    root: {
-      component: '$component(Wizard)',
-      componentProps: {
-        steps: [
-          { $ref: './steps/dannye/form.schema.json' },
-          { $ref: './steps/kontakty/form.schema.json' },
-        ],
-      },
-    },
-  };
-  const legacyStep = (title: string, model: string) => ({
-    $schema: '../../form-step.schema.json',
-    node: {
-      component: '$component(Step)',
-      componentProps: { title },
-      children: [{ value: `$model(${model})`, component: '$component(Input)' }],
-    },
-  });
-  const migratedStep = (title: string, model: string) => ({
-    $schema: '../../form-step.schema.json',
-    node: {
-      component: '$component(Step)',
-      componentProps: { title },
-      children: [{ model: `$model(${model})`, component: '$component(Input)' }],
-    },
-  });
-  const splitFiles = [
-    { path: 'form.schema.json', content: JSON.stringify(legacySkeleton) },
-    {
-      path: 'steps/dannye/form.schema.json',
-      content: JSON.stringify(legacyStep('Данные', 'lastName')),
-    },
-    {
-      path: 'steps/kontakty/form.schema.json',
-      content: JSON.stringify(legacyStep('Контакты', 'email')),
-    },
-  ];
-
-  const tokenTemplate = (files: FormTemplate['files']): FormTemplate => ({
+describe('вопросы к стеку шаблона', () => {
+  // Хозяин не знает формата формы: токены модуля и перевод документа — ответы стека шаблона, того,
+  // чей `owns` узнал набор. Двойник стека узнаёт набор по своему документу.
+  const document = { path: `doc/${FAKE_DOCUMENT}`, content: '{}' };
+  const template = (files: FormTemplate['files']): FormTemplate => ({
     id: 't',
     name: 'T',
     source: 'project',
     files,
   });
-  const contentOf = (files: readonly { path: string; content: string }[], path: string): unknown =>
-    JSON.parse(files.find((f) => f.path === path)?.content ?? 'null');
-
-  it('найденная схема отдаётся формата 2: дальше она уходит в вид шаблона как схема', () => {
-    const found = formSchemaFileOf([{ path: 'form.schema.json', content: JSON.stringify(legacy) }]);
-    expect(found?.schema).toEqual(migrated);
+  const tokens = (prefix: string) => (formName: string) => ({
+    __ModuleName__: `${prefix}-${formName}`,
   });
 
-  it('прежняя схема, разбитая по шагам, собирается: ссылки найдены, шаги переведены', () => {
-    const found = formSchemaFileOf(splitFiles);
-
-    // Ссылки лежали в `componentProps.steps` — без перевода корня их бы не нашлось, и схема
-    // осталась бы скелетом без единого поля.
-    expect(found?.schema).toMatchObject({
-      format: 2,
-      root: {
-        component: '$component(Wizard)',
-        children: [migratedStep('Данные', 'lastName').node, migratedStep('Контакты', 'email').node],
-      },
-    });
-    expect((found?.schema.root as { componentProps?: unknown }).componentProps).toBeUndefined();
-    expect([...(found?.origins?.values() ?? [])].map((origin) => origin.ref)).toEqual([
-      './steps/dannye/form.schema.json',
-      './steps/kontakty/form.schema.json',
-    ]);
-  });
-
-  it('файлы формы выходят формата 2 — и схема, и файлы шагов', () => {
-    const one = materializeFiles(
-      tokenTemplate([{ path: 'form.schema.json', content: JSON.stringify(legacy) }]),
-      ['form.schema.json'],
-      'Профиль'
-    );
-    expect(contentOf(one, 'form.schema.json')).toEqual(migrated);
-
-    const split = materializeFiles(
-      tokenTemplate(splitFiles),
-      splitFiles.map((f) => f.path),
-      'Профиль'
-    );
-    // Корень остаётся скелетом со ссылками: разбиение по шагам — решение автора шаблона.
-    expect(contentOf(split, 'form.schema.json')).toEqual({
-      format: 2,
-      version: '1.0',
-      root: {
-        component: '$component(Wizard)',
-        children: [
-          { $ref: './steps/dannye/form.schema.json' },
-          { $ref: './steps/kontakty/form.schema.json' },
-        ],
-      },
-    });
-    expect(contentOf(split, 'steps/dannye/form.schema.json')).toEqual(
-      migratedStep('Данные', 'lastName')
-    );
-    expect(contentOf(split, 'steps/kontakty/form.schema.json')).toEqual(
-      migratedStep('Контакты', 'email')
-    );
-    // Записанное читается обратно той же сборкой, что и исходный шаблон.
-    expect(formSchemaFileOf(split)?.schema).toMatchObject({
-      root: { children: [migratedStep('Данные', 'lastName').node, {}] },
-    });
-  });
-
-  it('текст файла формата 2 и чужого json не перепечатывается', () => {
-    // Перевод отдаёт документ формата 2 той же ссылкой — и перепечатка стёрла бы отступы и
-    // порядок ключей, которыми файл написал человек.
-    const files = [
-      { path: 'form.schema.json', content: '{"root":{"component":"$html(div)"},\t"format":2}' },
+  it('токены имён модуля подставляет стек шаблона — и в путь, и в текст', () => {
+    const files = materializeFiles(
+      template([document, { path: '__ModuleName__.ts', content: 'name = __ModuleName__' }]),
+      ['__ModuleName__.ts'],
+      'loan',
       {
-        path: 'steps/a/form.schema.json',
-        content: '{"node":{"model":"$model(a)",   "component":"$component(Input)"}}',
+        stacks: [
+          createFakeTemplateStack({ id: 'other', owns: () => false, tokens: tokens('other') }),
+          createFakeTemplateStack({ tokens: tokens('own') }),
+        ],
+      }
+    );
+
+    expect(files).toEqual([{ path: 'own-loan.ts', content: 'name = own-loan' }]);
+  });
+
+  it('у ничьего шаблона токены модуля — от первого стека, где они есть', () => {
+    const files = materializeFiles(
+      template([{ path: 'styles/__ModuleName__.css', content: '' }]),
+      ['styles/__ModuleName__.css'],
+      'loan',
+      {
+        stacks: [
+          createFakeTemplateStack({ id: 'silent' }),
+          createFakeTemplateStack({ id: 'named', tokens: tokens('named') }),
+        ],
+      }
+    );
+
+    expect(files.map((file) => file.path)).toEqual(['styles/named-loan.css']);
+  });
+
+  it('без стеков подставляются только написания имени, токены модуля остаются', () => {
+    const files = materializeFiles(
+      template([{ path: '__ModuleName__/__form-name__.ts', content: '' }]),
+      ['__ModuleName__/__form-name__.ts'],
+      'loan request'
+    );
+
+    expect(files.map((file) => file.path)).toEqual(['__ModuleName__/loan-request.ts']);
+  });
+
+  it('готовые файлы переводит стек, которому они принадлежат, — после подстановки', () => {
+    const seen: string[][] = [];
+    const stack = createFakeTemplateStack({
+      upgrade: (files) => {
+        seen.push(files.map((file) => file.content));
+        return files.map((file) => ({ ...file, content: `${file.content}!` }));
       },
-      { path: 'package.json', content: '{"name":"x",  "value":"$model(a)"}' },
-    ];
-    expect(
-      materializeFiles(
-        tokenTemplate(files),
-        files.map((f) => f.path),
-        'Профиль'
-      )
-    ).toEqual(files);
+    });
+
+    const files = materializeFiles(
+      template([document, { path: 'a.ts', content: '__FormName__' }]),
+      [document.path, 'a.ts'],
+      'loan',
+      { stacks: [stack] }
+    );
+
+    expect(seen).toEqual([['{}', 'Loan']]);
+    expect(files.map((file) => file.content)).toEqual(['{}!', 'Loan!']);
+  });
+
+  it('ничьи файлы стек не переводит', () => {
+    const upgrade = vi.fn((files: FormTemplate['files']) => files);
+    materializeFiles(template([{ path: 'a.ts', content: '' }]), ['a.ts'], 'loan', {
+      stacks: [createFakeTemplateStack({ upgrade })],
+    });
+
+    expect(upgrade).not.toHaveBeenCalled();
+  });
+
+  it('снимок каталога не съедает токены модуля: имя, совпавшее с их словами, не токенизируется', () => {
+    const files = buildTemplateFiles(
+      [{ path: 'x/a.ts', content: '__ModuleName__ module-name' }],
+      'module name',
+      ['__ModuleName__']
+    );
+
+    expect(files).toEqual([{ path: 'a.ts', content: '__ModuleName__ module-name' }]);
   });
 });

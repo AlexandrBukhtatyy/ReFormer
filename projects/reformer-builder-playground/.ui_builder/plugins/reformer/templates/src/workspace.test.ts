@@ -1,11 +1,6 @@
 /**
- * Сборка рабочей области шаблонов и печатник, взятый у СОСЕДНЕГО плагина.
- *
- * Главное здесь — второе. Печатает встроенный шаблон генерация кода, и до сих пор переходник
- * жил в композиции: она тянула кодоген динамическим импортом мимо состава, поэтому профиль
- * без генерации всё равно печатал бы её кодом. Теперь это возможность, и у неё три состояния,
- * каждое из которых ломается молча: её нет (печатать нечем), она появилась ПОЗЖЕ активации
- * шаблонов (оба плагина ленивые, порядок незначим), она есть.
+ * Сборка рабочей области шаблонов из служб контекста. Печатник встроенных шаблонов — у стека
+ * (`./stack/workspace.test`).
  *
  * @module plugins/reformer/templates/workspace.test
  */
@@ -14,29 +9,21 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   DocumentsServiceToken,
+  TemplateStackPoint,
   WorkspaceFilesServiceToken,
   type PluginContext,
   type ResourceId,
+  type TemplateStack,
 } from '@reformer/builder-plugin-api';
-import {
-  hasPrinter,
-  ModulePrinterCapability,
-  templatesPrinter,
-  templatesWorkspace,
-} from './workspace';
+import { createFakeTemplateStack } from './testing';
+import { templatesWorkspace } from './workspace';
 
 const FORM = 'fs:forms/credit/form.json';
 
-/** Схема в объёме подписи печатника: её содержимое здесь ни на что не влияет. */
-const SCHEMA = {
-  format: 2,
-  version: '1.0',
-  root: { component: '$html(div)' },
-} as unknown as Parameters<ReturnType<typeof templatesPrinter>>[0];
 const DIR = 'fs:forms/credit';
 
 /** Службы в объёме раскладки: каждая помнит, о чём её спросили. */
-function harness(options: { readonly printer?: boolean } = {}) {
+function harness() {
   const calls: string[] = [];
   const ref = { id: FORM, name: 'form.json' };
 
@@ -70,9 +57,7 @@ function harness(options: { readonly printer?: boolean } = {}) {
     },
   };
 
-  const print = vi.fn(() => Promise.resolve([{ path: 'model.ts', content: 'export {};' }]));
-  let printer: { print: typeof print } | undefined =
-    options.printer === false ? undefined : { print };
+  const stacks: { point: string; value: TemplateStack }[] = [];
 
   const ctx = {
     id: 'templates',
@@ -83,9 +68,11 @@ function harness(options: { readonly printer?: boolean } = {}) {
       contribute: () => {},
       onDidChangeLocale: () => ({ dispose: () => {} }),
     },
+    extensions: {
+      get: (point: { id: string }) => stacks.filter((item) => item.point === point.id),
+    },
     services: {
-      get: (token: { id: string }) =>
-        token.id === ModulePrinterCapability.id ? printer : undefined,
+      get: () => undefined,
       require: (token: { id: string }) => {
         if (token.id === DocumentsServiceToken.id) return documents;
         if (token.id === WorkspaceFilesServiceToken.id) return files;
@@ -97,44 +84,10 @@ function harness(options: { readonly printer?: boolean } = {}) {
   return {
     ctx,
     calls,
-    print,
     ref,
-    raise: () => {
-      printer = { print };
-    },
+    contribute: (value: TemplateStack) => stacks.push({ point: TemplateStackPoint.id, value }),
   };
 }
-
-describe('печатник берётся возможностью соседа', () => {
-  it('печать уходит в возможность, а не в собственную копию конвейера', async () => {
-    const h = harness();
-
-    const files = await templatesPrinter(h.ctx)(SCHEMA, 'credit');
-
-    expect(files.map((file) => file.path)).toEqual(['model.ts']);
-    expect(h.print).toHaveBeenCalledTimes(1);
-  });
-
-  it('без возможности печатать нечем — пустой список, а не падение', async () => {
-    // Профиль без генерации кода законен: раздел встроенных шаблонов просто не показывается.
-    const h = harness({ printer: false });
-
-    await expect(templatesPrinter(h.ctx)(SCHEMA, 'credit')).resolves.toEqual([]);
-    expect(hasPrinter(h.ctx)).toBe(false);
-  });
-
-  it('возможность, появившаяся ПОЗЖЕ, доходит до раздела: оба плагина ленивые', async () => {
-    // Ответ, снятый при активации, оставил бы встроенные шаблоны недоступными навсегда —
-    // порядок активации плагинов объявлен незначимым.
-    const h = harness({ printer: false });
-    expect(hasPrinter(h.ctx)).toBe(false);
-
-    h.raise();
-
-    expect(hasPrinter(h.ctx)).toBe(true);
-    await expect(templatesPrinter(h.ctx)(SCHEMA, 'credit')).resolves.toHaveLength(1);
-  });
-});
 
 describe('раскладка по службам', () => {
   it('ссылка ресурса берётся у открытого документа', () => {
@@ -185,5 +138,18 @@ describe('раскладка по службам', () => {
 
     expect(w.local).toBeUndefined();
     expect(w.remove).toBeUndefined();
+  });
+});
+
+describe('стеки шаблонов', () => {
+  it('читаются из точки на каждый вопрос: стек вправе подняться позже хозяина', () => {
+    const h = harness();
+    const workspace = templatesWorkspace(h.ctx);
+    expect(workspace.stacks()).toEqual([]);
+
+    const stack = createFakeTemplateStack();
+    h.contribute(stack);
+
+    expect(workspace.stacks()).toEqual([stack]);
   });
 });

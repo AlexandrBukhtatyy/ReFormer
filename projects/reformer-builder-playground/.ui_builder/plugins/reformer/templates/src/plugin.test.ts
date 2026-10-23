@@ -17,7 +17,7 @@ import {
   TEMPLATES_PLUGIN_ID,
 } from './plugin';
 import { createTemplatesRefresh } from './content/refresh';
-import { createFakeTemplatesHost } from './testing';
+import { createFakeTemplateStack, createFakeTemplatesHost, FAKE_DOCUMENT } from './testing';
 import type { FormCreatorService } from './workspace';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
@@ -77,14 +77,23 @@ function fakeContext() {
 describe('возможность «создать форму»', () => {
   it('создаёт форму по заказу тем же путём, что окно, и отдаёт список шаблонов', async () => {
     const { ctx, services } = fakeContext();
-    const host = createFakeTemplatesHost();
+    // Пустую форму даёт стек: без шаблона создаётся его документ с пустым корнем.
+    const stack = createFakeTemplateStack({
+      empty: () => ({
+        id: 'empty',
+        name: 'empty',
+        source: 'builtin',
+        files: [{ path: `doc/${FAKE_DOCUMENT}`, content: '{}' }],
+      }),
+    });
+    const host = createFakeTemplatesHost({ stacks: [stack] });
     createTemplatesPlugin({ host }).activate(ctx);
     const creator = services.get('reformer.templates.creator') as FormCreatorService;
 
     expect(await creator.templates()).toEqual([]);
     const report = await creator.create({ formName: 'credit' });
-    expect(report).toMatchObject({ ok: true, path: 'project/credit/schema/form.schema.json' });
-    expect(host.files.has('project/credit/schema/form.schema.json')).toBe(true);
+    expect(report).toMatchObject({ ok: true, path: `project/credit/doc/${FAKE_DOCUMENT}` });
+    expect(host.files.has(`project/credit/doc/${FAKE_DOCUMENT}`)).toBe(true);
   });
 });
 
@@ -105,13 +114,12 @@ describe('activate', () => {
     ]);
   });
 
-  it('вклад уходит в ТУ точку, которую дала композиция', () => {
+  it('до раскола вносит и стек ReFormer — в точку стеков шаблонов', () => {
     const { ctx, contributed } = fakeContext();
-    createTemplatesPlugin({
-      host: createFakeTemplatesHost(),
-      storePoint: { id: 'templates.store.v2' },
-    }).activate(ctx);
-    expect(contributed.filter((item) => item.point === 'templates.store.v2')).toHaveLength(3);
+    createTemplatesPlugin({ host: createFakeTemplatesHost() }).activate(ctx);
+    expect(
+      contributed.filter((item) => item.point === 'templates.stack').map((item) => item.id)
+    ).toEqual(['reformer']);
   });
 
   it('вносит панель', () => {

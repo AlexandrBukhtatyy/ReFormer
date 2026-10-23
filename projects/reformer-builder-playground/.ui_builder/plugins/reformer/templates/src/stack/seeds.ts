@@ -45,7 +45,7 @@
  * берёт заготовку узла у фабрики и дописывает своё. Так «пошаговая форма» остаётся пошаговой,
  * даже когда изменится внутреннее устройство узла-визарда.
  *
- * @module plugins/reformer/templates/stores/seeds
+ * @module plugins/reformer/templates/stack/seeds
  */
 
 import type { KitDescriptor } from '@reformer/builder-plugin-api';

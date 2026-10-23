@@ -15,8 +15,9 @@
  *   подсветкой;
  * - **каталог формы выбирают в окне.** Раньше он молча брался у активной вкладки, и положить
  *   форму в другое место было нечем;
- * - **у документа из модуля формы «рядом» — это рядом с модулем.** Документ лежит в папке
- *   `schema/` своего модуля, и форма, созданная в его каталоге, стала бы частью чужой;
+ * - **у документа из модуля формы «рядом» — это рядом с модулем.** Документ лежит в папке своего
+ *   модуля (у ReFormer — `schema/`; глубину называет стек), и форма, созданная в его каталоге,
+ *   стала бы частью чужой;
  * - **отметка файла снимается по цепочке.** Реэкспорты держатся за страницу, страница — за ядро
  *   модуля: сними мы один уровень, оставшийся владелец вернул бы снятое при создании формы;
  * - **имя формы с кириллицей ПРИНИМАЕТСЯ.** Правило первой версии («латиница, цифры, дефис»)
@@ -34,7 +35,12 @@ import { renderReact } from '../../../../.shared/render';
 import type { FormTemplate, TemplateStore } from '../contract';
 import type { TemplatesHost } from '../host';
 import { createTemplatesRefresh, type TemplatesRefresh } from '../content/refresh';
-import { createFakeTemplatesHost, type FakeTemplatesHost } from '../testing';
+import {
+  createFakeTemplateStack,
+  createFakeTemplatesHost,
+  FAKE_DOCUMENT,
+  type FakeTemplatesHost,
+} from '../testing';
 import { TemplatesActions } from './TemplatesActions';
 import { TemplatesPanel } from './TemplatesPanel';
 
@@ -135,6 +141,12 @@ async function mount(options: MountOptions = {}): Promise<Fixture> {
   const active = options.active ?? ACTIVE;
   const host = createFakeTemplatesHost({
     files: { [active]: '{}', 'project/pages/index.tsx': '', 'project/lib/util.ts': '' },
+    // Двойник стека: документ модуля лежит в папке `doc/` своего модуля.
+    stacks: [
+      createFakeTemplateStack({
+        moduleDepthOf: (path) => (path.endsWith(`/doc/${FAKE_DOCUMENT}`) ? 1 : null),
+      }),
+    ],
   });
   // Активная вкладка — то, рядом с чем создаётся форма; двойник по умолчанию её не имеет.
   const withDocument: FakeTemplatesHost = { ...host, useActiveDocument: () => active };
@@ -387,11 +399,11 @@ describe('выбор каталога формы', () => {
     fixture.unmount();
   });
 
-  it('у документа из модуля формы предлагается каталог рядом с МОДУЛЕМ, а не его `schema/`', async () => {
-    // Открыт документ формы «папки по ролям». Его каталог — `loan/schema`: форма, созданная там,
-    // оказалась бы внутри чужого модуля.
+  it('у документа из модуля формы предлагается каталог рядом с МОДУЛЕМ, а не его папка', async () => {
+    // Открыт документ модуля формы. Его каталог — `loan/doc`: форма, созданная там, оказалась бы
+    // внутри чужого модуля.
     const fixture = await mount({
-      active: 'project/forms/loan/schema/form.schema.json' as ResourceId,
+      active: `project/forms/loan/doc/${FAKE_DOCUMENT}` as ResourceId,
     });
 
     await userEvent.click(row('builtin', 'simple')!);

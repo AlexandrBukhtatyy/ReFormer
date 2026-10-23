@@ -22,7 +22,7 @@
  * `model/`, `validation/`, `behavior/`, … Часть путей зависит от имени формы, и вывести их из
  * написаний имени нельзя: тип формы и каталог считает `makeNames`. Поэтому затравка печатается
  * под базовое имя, а имена модуля в напечатанном заменяются токенами имён модуля
- * (`../render/placeholders`): при создании формы на их место встаёт то же, что кодоген напечатал бы
+ * (`./names`): при создании формы на их место встаёт то же, что кодоген напечатал бы
  * для неё сам. Разойдись они — первая же генерация из билдера положила бы свои файлы рядом
  * с файлами шаблона, и в модуле остались бы сироты.
  *
@@ -42,19 +42,23 @@
  *
  * Затравки — в `./seeds`: состав анкеты, её правила и данные.
  *
- * @module plugins/reformer/templates/stores/builtin
+ * @module plugins/reformer/templates/stack/builtin
  */
 
-import type { KitDescriptor } from '@reformer/builder-plugin-api';
+import type {
+  FormTemplate,
+  FormTemplateFile,
+  FormTemplateStore,
+  KitDescriptor,
+} from '@reformer/builder-plugin-api';
+import { keepOrigin } from '@reformer/builder-toolkit';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '../../../core/catalog';
 import { makeNames, moduleFilesOf, valueTypesOf, type FormMock } from '../../../core/codegen';
 import { emitFixture, FIXTURE_FILE } from '../../../core/form-fixture';
 import { synthMock, type ValueTypeOf } from '../../../core/form-mock';
 import type { FormRules } from '../../../core/form-model';
-import { keepOrigin } from '../content/files';
-import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
-import { tokenizeModuleNames } from '../render/placeholders';
+import { tokenizeModuleNames } from './names';
 import {
   hasWizard,
   seedData,
@@ -94,7 +98,7 @@ export type ModulePrinter = (
   schema: JsonFormSchema,
   formName: string,
   seed?: SeedExtras
-) => Promise<readonly TemplateFile[]>;
+) => Promise<readonly FormTemplateFile[]>;
 
 /**
  * Чем затравка дополняет схему.
@@ -188,7 +192,7 @@ const tokenized = (text: string): string => tokenizeModuleNames(text, BUILTIN_BA
  * (страница работает и без них), а также фикстура: она идёт сверх модуля, и тянуть её за
  * страницей значило бы навязать данные предпросмотра тому, кто их не просил.
  */
-function requiresOf(files: readonly TemplateFile[]): Record<string, string[]> {
+function requiresOf(files: readonly FormTemplateFile[]): Record<string, string[]> {
   const layout = moduleFilesOf(makeNames(BUILTIN_BASE_NAME));
   const page = tokenized(layout.page);
   const entry = tokenized(layout.entry);
@@ -235,7 +239,7 @@ export interface BuiltinStoreOptions {
  * Хранилище встроенных шаблонов. Только чтение: встроенное нельзя ни переименовать,
  * ни удалить — оно приезжает вместе с билдером.
  */
-export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore {
+export function createBuiltinStore(options: BuiltinStoreOptions): FormTemplateStore {
   return {
     source: 'builtin',
     available: () => options.ready?.() ?? options.print !== undefined,
@@ -263,7 +267,7 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
           // Печатник ответил пустотой — кита нет, печатать нечем. Шаблон из одной фикстуры
           // выглядел бы созданной формой, у которой нечего открыть.
           if (printed.length === 0) continue;
-          const files: TemplateFile[] = printed.map((file) => ({
+          const files: FormTemplateFile[] = printed.map((file) => ({
             path: tokenized(file.path),
             // Маркер происхождения считается от тела файла, а тело после замены имён другое:
             // без перевыставления каждый файл шаблона выглядел бы «правленным руками».

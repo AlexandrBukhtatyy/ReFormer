@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeNames } from '../../../core/codegen';
-import {
-  hasTokens,
-  materialize,
-  moduleNames,
-  nameVariants,
-  splitWords,
-  toCase,
-  tokenize,
-  tokenizeModuleNames,
-} from './placeholders';
+import { hasTokens, materialize, nameVariants, splitWords, toCase, tokenize } from './placeholders';
 
 describe('написания имени', () => {
   it('разбирает kebab, snake, camel и Pascal одинаково', () => {
@@ -97,74 +87,26 @@ describe('подстановка', () => {
   });
 });
 
-describe('имена модуля — как их выводит кодоген', () => {
-  it('токены модуля подставляются именами кодогена, а не написаниями имени', () => {
-    const template = '__FormType__ / __formType__ / __form-dir__ / __FormTitle__';
-    expect(materialize(template, 'loan request')).toBe(
-      'LoanRequestForm / loanRequestForm / loan-request / Loan request'
+describe('токены модуля стека', () => {
+  it('подставляются значениями, которые дал стек', () => {
+    expect(materialize('__Type__/__form-name__', 'loan request', { __Type__: 'Loan' })).toBe(
+      'Loan/loan-request'
     );
   });
 
-  it('значения считает makeNames: шаблон и кодоген называют форму одинаково', () => {
-    for (const name of ['loan request', 'Профиль пользователя', 'contact form', 'ABCForm']) {
-      const names = makeNames(name);
-      expect(moduleNames(name)).toEqual({
-        type: names.TypeName,
-        typeCamel: names.entryConst.replace(/Entry$/, ''),
-        dir: names.dir,
-        title: names.title,
-      });
-    }
+  it('пустое имя оставляет нетронутыми и их', () => {
+    expect(materialize('__Type__', '', { __Type__: 'Loan' })).toBe('__Type__');
   });
 
-  it('имя, оканчивающееся на Form, суффикса типа не удваивает', () => {
-    // Ради этого у типа свой токен: «имя в PascalCase плюс Form» дало бы `ContactFormForm`,
-    // а кодоген для той же формы печатает `ContactForm` — и страница легла бы в другой файл.
-    expect(materialize('__FormType__.tsx', 'contact form')).toBe('ContactForm.tsx');
-    expect(materialize('__FormName__Form.tsx', 'contact form')).toBe('ContactFormForm.tsx');
+  it('видны как параметризация, только когда их назвали', () => {
+    expect(hasTokens('__Type__.ts', ['__Type__'])).toBe(true);
+    expect(hasTokens('__Type__.ts')).toBe(false);
   });
 
-  it('каталог — kebab билдера, а не склейка слов имени', () => {
-    // Заглавные подряд `kebab` билдера словами не считает; написания имени — считают.
-    expect(materialize('types/__form-dir__.ts', 'ABCForm')).toBe('types/abcform.ts');
-    expect(materialize('types/__form-name__.ts', 'ABCForm')).toBe('types/abc-form.ts');
-  });
-
-  it('текст кодогена токенизируется по именам модуля — и раскладывается под новое имя', () => {
-    const printed =
-      "export const loanRequestFormEntry: FormEntry<LoanRequestForm> = { id: 'loan-request', " +
-      "meta: { name: 'Loan request' }, model: createLoanRequestFormModel };";
-
-    const tokenized = tokenizeModuleNames(printed, 'loan request');
-
-    expect(tokenized).toBe(
-      "export const __formType__Entry: FormEntry<__FormType__> = { id: '__form-dir__', " +
-        "meta: { name: '__FormTitle__' }, model: create__FormType__Model };"
+  it('имя, совпавшее со словами названного токена, не токенизируется', () => {
+    expect(tokenize('__ModuleType__ module-type', 'module type', ['__ModuleType__'])).toBe(
+      '__ModuleType__ module-type'
     );
-    expect(materialize(tokenized, 'Профиль пользователя')).toBe(
-      'export const profilPolzovatelyaFormEntry: FormEntry<ProfilPolzovatelyaForm> = { id: ' +
-        "'profil-polzovatelya', meta: { name: 'Profil polzovatelya' }, model: " +
-        'createProfilPolzovatelyaFormModel };'
-    );
-  });
-
-  it('токенизация имён модуля идемпотентна', () => {
-    const once = tokenizeModuleNames('LoanRequestForm in loan-request', 'loan request');
-    expect(tokenizeModuleNames(once, 'loan request')).toBe(once);
-  });
-
-  it('токены модуля — тоже параметризация', () => {
-    expect(hasTokens('types/__form-dir__.ts')).toBe(true);
-    expect(hasTokens('__FormType__.tsx')).toBe(true);
-  });
-
-  it('имя, совпавшее со словами токена модуля, не токенизируется', () => {
-    // Иначе второй проход съел бы сам токен: `__FormType__` содержит `FormType`.
-    expect(tokenize('__FormType__ form-type', 'form type')).toBe('__FormType__ form-type');
-  });
-
-  it('пустое имя оставляет токены модуля нетронутыми', () => {
-    expect(materialize('__FormType__', '')).toBe('__FormType__');
-    expect(tokenizeModuleNames('Form', '')).toBe('Form');
+    expect(tokenize('module-type', 'module type')).toBe('__form-name__');
   });
 });

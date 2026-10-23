@@ -8,26 +8,20 @@
  * @module plugins/reformer/templates/content/files
  */
 
-import {
-  ensureSchema,
-  isFormSchema,
-  isFormStepSchema,
-  joinFormSchema,
-  migrateNodeFormat,
-  stepRefsOf,
-  type StepOrigins,
-} from '../../../core/form-model';
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { TemplateStack } from '@reformer/builder-plugin-api';
+import { keepOrigin } from '@reformer/builder-toolkit';
 import type { FormTemplate, TemplateFile } from '../contract';
-import { LEGACY_SCHEMA_FILE, SCHEMA_DIR, SCHEMA_FILE, type KitView } from '../../../core/codegen';
-import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import { materialize, tokenize } from '../render/placeholders';
 import { buildTemplateView, renderTemplateFile } from '../render/render';
+import { moduleTokensOf, templateStackOf } from './stacks';
 
-/** Чем дополняется подстановка, когда шаблон её просит. */
+/** Чем дополняется подстановка. */
 export interface MaterializeOptions {
-  /** Активный кит: без него шаблон не увидит вида формы, даже неся схему. */
-  readonly kit?: KitView | null;
+  /**
+   * Стеки шаблонов: токены имён модуля, вид формы для шаблона на движке и перевод документа в
+   * текущий формат — у стека шаблона. Без них подставляются только написания имени.
+   */
+  readonly stacks?: readonly TemplateStack[];
 }
 
 /** Прочитанный файл проекта: путь от корня проекта и текст. */
@@ -110,35 +104,31 @@ export function suggestBaseName(paths: readonly string[]): string {
 }
 
 /**
- * Текст после подстановки — с тем же происхождением, что было у него до неё.
- *
- * Маркер происхождения (`// @reformer-generated <хэш>`) считается от ТЕЛА файла, а подстановка
- * имени тело меняет: файл, только что напечатанный кодогеном, после неё выглядел бы «правленным
- * руками», и билдер отказался бы перегенерировать его из правил формы. Поэтому у нетронутого
- * сгенерированного файла маркер выставляется заново. Файл без маркера и файл, который человек
- * правил, остаются как есть: первый — написан руками, у второго хэш и не должен сходиться.
- *
- * @param before - Текст до подстановки: по нему решается, был ли файл нетронутым выводом кодогена.
- * @param after - Тот же текст после подстановки.
- */
-export function keepOrigin(before: string, after: string): string {
-  return isGenerated(before) ? withMarker(after) : after;
-}
-
-/**
  * Файлы шаблона из прочитанных файлов проекта: путь — относительно общего каталога и
  * с плейсхолдерами, содержимое — токенизировано. Порядок сохраняется, дубли отбрасываются.
+ *
+ * Происхождение переживает токенизацию (`keepOrigin`): нетронутый вывод генератора остаётся
+ * сгенерированным и в шаблоне — иначе после подстановки его не перегенерировали бы из правил.
+ *
+ * @param reserved - Токены модуля у стеков: базовое имя, совпавшее с их словами, не токенизируется.
  */
-export function buildTemplateFiles(files: readonly SourceFile[], baseName: string): TemplateFile[] {
+export function buildTemplateFiles(
+  files: readonly SourceFile[],
+  baseName: string,
+  reserved: readonly string[] = []
+): TemplateFile[] {
   const prefix = commonDirPrefix(files.map((f) => f.path));
   const cut = prefix === '' ? 0 : prefix.length + 1;
   const seen = new Set<string>();
   const out: TemplateFile[] = [];
   for (const file of files) {
-    const path = tokenize(file.path.slice(cut), baseName);
+    const path = tokenize(file.path.slice(cut), baseName, reserved);
     if (path === '' || seen.has(path)) continue;
     seen.add(path);
-    out.push({ path, content: keepOrigin(file.content, tokenize(file.content, baseName)) });
+    out.push({
+      path,
+      content: keepOrigin(file.content, tokenize(file.content, baseName, reserved)),
+    });
   }
   return out;
 }
@@ -190,8 +180,9 @@ export function resolvePicked(
  * Это новый класс отказа, и он обязан быть назван вызывающему, а не проглочен: шаблон,
  * молча отдавший половину файлов, хуже шаблона, который честно не применился.
  *
- * Схема и файлы шагов выходят отсюда формата 2, каким бы ни был шаблон
- * ({@link upgradeSchemaFiles}), — по той же причине в одном месте: применений два, а дверь одна.
+ * Документ формы выходит отсюда в текущем формате стека, каким бы ни был шаблон
+ * (`TemplateStack.upgrade`: шаблон проекта — снимок файлов, и схема в нём могла быть написана до
+ * формата 2), — по той же причине в одном месте: применений два, а дверь одна.
  *
  * Это ПОДСТАНОВКА: шаблон, который печатается, раскладывается под имя через {@link applyTemplate}
  * — та зовёт подстановку ради отбора и путей, а текст берёт у печати.
@@ -202,21 +193,38 @@ export function materializeFiles(
   formName: string,
   options: MaterializeOptions = {}
 ): TemplateFile[] {
+  const stacks = options.stacks ?? [];
   const keep = resolvePicked(picked, template.requires);
   const files = template.files.filter((f) => keep.has(f.path));
 
   if (template.engine !== 'eta') {
-    return upgradeSchemaFiles(
+    const tokens = moduleTokensOf(stacks, template.files, formName);
+    return upgraded(
+      stacks,
       files.map((f) => ({
         ...f,
-        path: materialize(f.path, formName),
-        content: keepOrigin(f.content, materialize(f.content, formName)),
+        path: materialize(f.path, formName, tokens),
+        content: keepOrigin(f.content, materialize(f.content, formName, tokens)),
       }))
     );
   }
 
-  const view = buildTemplateView(template, formName, { kit: options.kit ?? null });
-  return upgradeSchemaFiles(files.map((f) => renderTemplateFile(template, f, view)));
+  const view = buildTemplateView(template, formName, { stacks });
+  return upgraded(
+    stacks,
+    files.map((f) => renderTemplateFile(template, f, view))
+  );
+}
+
+/**
+ * Готовые файлы — в текущем формате стека, которому они принадлежат; ничьи — как есть.
+ *
+ * Стек выбирается по ГОТОВЫМ файлам: у шаблона на движке документ до отрисовки может вовсе не быть
+ * разбираемым.
+ */
+function upgraded(stacks: readonly TemplateStack[], files: TemplateFile[]): TemplateFile[] {
+  const stack = templateStackOf(stacks, files);
+  return stack?.upgrade === undefined ? files : [...stack.upgrade(files)];
 }
 
 /**
@@ -261,152 +269,4 @@ export async function applyTemplate(
     const text = (file.scope ?? 'form') === 'form' ? texts.get(file.path) : undefined;
     return text === undefined ? file : { ...file, content: text };
   });
-}
-
-/**
- * Файлы схемы прежнего формата — в формат 2; остальные файлы возвращаются теми же объектами.
- *
- * Шаблон из каталога проекта — снимок файлов, и схема в нём могла быть написана до формата 2:
- * привязка в `value` / `array`, шаги визарда в `componentProps.steps`. Форма же, созданная по
- * шаблону, — новый документ билдера, а на диск документ уходит форматом 2 (`normalize` ядра).
- * Запиши мы схему как есть, свежесозданная форма оказалась бы прежнего формата рядом с модулем,
- * вид которого собран уже по переведённой схеме ({@link formSchemaFileOf}).
- *
- * Переводятся и корневая схема, и файлы шагов — каждый сам по себе: у файла шага нет ни `root`,
- * ни `format`, и перевод документа до него не дотягивается.
- *
- * Текст файла формата 2 НЕ трогается вовсе: перевод отдаёт такой документ той же ссылкой, и
- * перепечатывать его незачем — пропали бы отступы и порядок, которыми файл написал человек.
- * Переведённый файл печатается так же, как схему печатает кодоген (два пробела, перевод строки).
- *
- * Работает по ГОТОВЫМ файлам, после подстановки: у шаблона на движке схема до отрисовки может
- * вовсе не быть JSON.
- */
-function upgradeSchemaFiles(files: readonly TemplateFile[]): TemplateFile[] {
-  return files.map((file) => {
-    if (!file.path.endsWith('.json')) return file;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(file.content);
-    } catch {
-      // Не JSON — не схема: файл уходит как есть.
-      return file;
-    }
-    const next = upgraded(parsed);
-    return next === parsed ? file : { ...file, content: `${JSON.stringify(next, null, 2)}\n` };
-  });
-}
-
-/** Значение формата 2; не схема и не шаг либо уже формат 2 — та же ссылка. */
-function upgraded(parsed: unknown): unknown {
-  if (isFormSchema(parsed)) return ensureSchema(parsed);
-  if (isFormStepSchema(parsed)) {
-    const node = migrateNodeFormat(parsed.node);
-    return node === parsed.node ? parsed : { ...parsed, node };
-  }
-  return parsed;
-}
-
-/** Канонические имена документа формы: новое первым, затем прежнее. */
-const CANONICAL_SCHEMA_NAMES: readonly string[] = [SCHEMA_FILE, LEGACY_SCHEMA_FILE];
-
-/**
- * Ранг файла в поиске схемы — меньше значит раньше:
- *
- * 1. документ модуля в папке ролей — `schema/form.schema.json` (затем прежнее имя);
- * 2. документ в корне шаблона — `form.schema.json` (затем прежнее имя): так лежит схема у
- *    шаблона, снятого с формы прежней плоской раскладки;
- * 3. прочие файлы корня;
- * 4. вложенные.
- *
- * Порядок, а не фильтр: в пользовательском шаблоне схема может называться как угодно
- * (`__FormName__.schema.json`), и её надо найти. Но у визарда по шагам есть и под-схемы шагов
- * (`schema/steps/<шаг>/form.schema.json`) — открыть после генерации нужно корневую, а не первую
- * попавшуюся по порядку набора.
- */
-function schemaRank(path: string): number {
-  const segments = path.split('/');
-  const canonical = CANONICAL_SCHEMA_NAMES.indexOf(segments[segments.length - 1] ?? '');
-  const names = CANONICAL_SCHEMA_NAMES.length;
-  if (segments.length === 2 && segments[0] === SCHEMA_DIR && canonical !== -1) return canonical;
-  if (segments.length === 1) return canonical === -1 ? names * 2 : names + canonical;
-  return names * 2 + 1;
-}
-
-/**
- * Какой из файлов открыть после генерации: `.json`, распознанный как схема формы, — документ
- * модуля первым (см. {@link schemaRank}), дальше в порядке набора.
- * `null` — в наборе схемы нет, и тогда после генерации ничего не открывается.
- */
-export function formSchemaFileOf(files: readonly TemplateFile[]): {
-  readonly file: TemplateFile;
-  readonly schema: JsonFormSchema;
-  /** Шаги, вынесенные в свои файлы шаблона; нет — схема одним файлом. */
-  readonly origins?: StepOrigins;
-} | null {
-  // Сортировка устойчива: при равном ранге порядок набора сохраняется.
-  const ordered = [...files].sort((a, b) => schemaRank(a.path) - schemaRank(b.path));
-  for (const file of ordered) {
-    if (!file.path.endsWith('.json')) continue;
-    try {
-      const parsed: unknown = JSON.parse(file.content);
-      // Проба узнаёт документ ЛЮБОГО формата, а дальше значение уходит схемой — в вид шаблона
-      // и в раскладку модуля. Поэтому сначала перевод: без него у прежнего документа не
-      // нашлись бы ни привязки полей (`model`), ни ссылки на файлы шагов (`children` визарда).
-      if (isFormSchema(parsed)) {
-        return { file, ...composed(files, file.path, ensureSchema(parsed)) };
-      }
-    } catch {
-      /* не JSON — не схема */
-    }
-  }
-  return null;
-}
-
-/** Путь файла шаблона по ссылке из файла `from`: `./` и `../` разрешаются, наружу — `null`. */
-function resolveInside(from: string, ref: string): string | null {
-  const segments = from.split('/').slice(0, -1);
-  for (const segment of ref.split('/')) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') {
-      if (segments.length === 0) return null;
-      segments.pop();
-    } else {
-      segments.push(segment);
-    }
-  }
-  return segments.join('/');
-}
-
-/**
- * Схема визарда, разбитого по шагам, — собранной: вид шаблона и раскладка модуля видят шаги
- * узлами, а не ссылками. Файла шага нет среди файлов шаблона — схема остаётся как есть.
- *
- * Схема приходит уже формата 2: ссылки на файлы шагов ищутся в `children` визарда, и у
- * непереведённого документа их бы не нашлось. Файлы шагов прежнего формата переводит сама
- * сборка (`joinFormSchema`).
- */
-function composed(
-  files: readonly TemplateFile[],
-  path: string,
-  schema: JsonFormSchema
-): { readonly schema: JsonFormSchema; readonly origins?: StepOrigins } {
-  const refs = stepRefsOf(schema);
-  if (refs.length === 0) return { schema };
-  const parts = new Map<string, unknown>();
-  for (const ref of refs) {
-    const target = resolveInside(path, ref);
-    const file = target === null ? undefined : files.find((f) => f.path === target);
-    if (file === undefined) return { schema };
-    try {
-      parts.set(ref, JSON.parse(file.content) as unknown);
-    } catch {
-      return { schema };
-    }
-  }
-  try {
-    return joinFormSchema(schema, parts);
-  } catch {
-    return { schema };
-  }
 }

@@ -1,16 +1,15 @@
 /**
- * Шаблон формы на движке: что видит `it` и что из этого следует.
+ * Шаблон формы на движке: что видит `it` и что из этого следует. Вид формы — от двойника стека;
+ * вид стека ReFormer — `../cross/view.test`.
  *
  * @module plugins/reformer/templates/render/render.test
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit, plainSchema, wizardSchema } from '../../../core/testing';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { materializeFiles } from '../content/files';
+import { createFakeTemplateStack, FAKE_DOCUMENT } from '../testing';
 import { buildTemplateView } from './render';
-
-const kit = () => builtinKit();
 
 function template(files: readonly TemplateFile[], over: Partial<FormTemplate> = {}): FormTemplate {
   return {
@@ -23,11 +22,6 @@ function template(files: readonly TemplateFile[], over: Partial<FormTemplate> = 
   };
 }
 
-const schemaFile = (schema: object): TemplateFile => ({
-  path: 'form.schema.json',
-  content: JSON.stringify(schema, null, 2),
-});
-
 describe('вид шаблона формы', () => {
   it('несёт имя формы во всех четырёх написаниях', () => {
     const view = buildTemplateView(template([]), 'профиль пользователя');
@@ -39,93 +33,48 @@ describe('вид шаблона формы', () => {
     });
   });
 
-  it('без схемы в наборе вид формы отсутствует — и это отдельный вопрос к шаблону', () => {
-    const view = buildTemplateView(template([{ path: 'a.ts', content: '' }]), 'Форма', {
-      kit: kit(),
+  it('вид формы даёт стек шаблона — по файлам ДО отрисовки', () => {
+    const seen: string[][] = [];
+    const stack = createFakeTemplateStack({
+      view: (files, formName) => {
+        seen.push(files.map((file) => file.path));
+        return { title: formName };
+      },
     });
-    expect(view.form).toBeNull();
+    const files = [
+      { path: FAKE_DOCUMENT, content: '<%= it.form.title %>' },
+      { path: 'a.ts', content: '' },
+    ];
+
+    const view = buildTemplateView(template(files), 'Анкета', { stacks: [stack] });
+
+    expect(view.form).toEqual({ title: 'Анкета' });
+    expect(seen).toEqual([[FAKE_DOCUMENT, 'a.ts']]);
   });
 
-  it('без кита вид формы отсутствует, даже когда схема есть', () => {
-    // Кит называет и спецификатор импорта, и символы компонентов. Умолчание здесь вернуло бы
-    // ровно тот дефект, ради которого дескриптор кита и заводился, только молча.
-    const view = buildTemplateView(template([schemaFile(plainSchema())]), 'Форма', { kit: null });
-    expect(view.form).toBeNull();
+  it('ничей шаблон и стек без вида — вида формы нет', () => {
+    const viewing = createFakeTemplateStack({ owns: () => false, view: () => ({}) });
+    const silent = createFakeTemplateStack();
+    const document = [{ path: FAKE_DOCUMENT, content: '' }];
+
+    expect(buildTemplateView(template(document), 'Форма', { stacks: [viewing] }).form).toBeNull();
+    expect(buildTemplateView(template(document), 'Форма', { stacks: [silent] }).form).toBeNull();
+    expect(buildTemplateView(template(document), 'Форма').form).toBeNull();
   });
 
-  it('со схемой и китом отдаёт полный вид генерации', () => {
-    const view = buildTemplateView(template([schemaFile(plainSchema())]), 'Заявка на кредит', {
-      kit: kit(),
-    });
-    expect(view.form?.names.TypeName).toBe('ZayavkaNaKreditForm');
-    expect(view.form?.registry.kitSymbols).toContain('Input');
-    // Вид формы решает схема: без узла с шагами это простая форма, и визарда в реестре нет.
-    expect(view.form?.layout.isWizard).toBe(false);
-    expect(view.form?.registry.wizard).toBeNull();
-  });
-
-  it('визард в схеме виден шаблону — на нём и строится ветвление', () => {
-    const view = buildTemplateView(template([schemaFile(wizardSchema())]), 'Анкета', {
-      kit: kit(),
-    });
-    expect(view.form?.layout.isWizard).toBe(true);
-    // Чем визард регистрируется, говорит кит: его адаптер, а не переходник приложения.
-    expect(view.form?.registry.wizard?.symbol).toBe('FormWizard');
-  });
-
-  it('пути вида считаются от места схемы в шаблоне', () => {
-    // Шаблон, снятый с формы прежней раскладки, держит схему в корне; модуль «папки по ролям» —
-    // в `schema/`. Импорты и место файлов шагов шаблон берёт из вида, и они обязаны сходиться
-    // с тем, где схема лежит на самом деле.
-    const flat = buildTemplateView(template([schemaFile(plainSchema())]), 'Анкета', { kit: kit() });
-    const nested = buildTemplateView(
-      template([{ ...schemaFile(plainSchema()), path: 'schema/form.schema.json' }]),
-      'Анкета',
-      { kit: kit() }
+  it('вид стека доступен шаблону как it.form', () => {
+    const stack = createFakeTemplateStack({ view: () => ({ fields: ['a', 'b'] }) });
+    const files = materializeFiles(
+      template([
+        { path: FAKE_DOCUMENT, content: '' },
+        { path: 'f.ts', content: '<%= it.form.fields.join(",") %>' },
+      ]),
+      ['f.ts'],
+      'Форма',
+      { stacks: [stack] }
     );
 
-    expect(flat.form?.layout.files.schema).toBe('form.schema.json');
-    expect(flat.form?.rel('create', 'schema')).toBe('../form.schema.json');
-    expect(nested.form?.layout.files.schema).toBe('schema/form.schema.json');
-    expect(nested.form?.rel('create', 'schema')).toBe('../schema/form.schema.json');
-  });
-
-  it('схема прежнего формата рассказывает о форме то же: и визард, и поля', () => {
-    // Шаблон проекта мог быть снят до формата 2: привязка в `value`, шаги в
-    // `componentProps.steps`. Вид собирается по переведённой схеме — непереведённая отдала бы
-    // форму без визарда и без единого поля, и шаблон молча напечатал бы пустой модуль.
-    const legacy = {
-      version: '1.0',
-      root: {
-        component: '$component(Box)',
-        children: [
-          {
-            component: '$component(Wizard)',
-            componentProps: {
-              steps: [
-                {
-                  component: '$component(Step)',
-                  componentProps: { title: 'Шаг 1' },
-                  children: [
-                    {
-                      value: '$model(email)',
-                      component: '$component(Input)',
-                      componentProps: { label: 'Почта', required: true },
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        ],
-      },
-    };
-
-    const view = buildTemplateView(template([schemaFile(legacy)]), 'Анкета', { kit: kit() });
-
-    expect(view.form?.layout.isWizard).toBe(true);
-    expect(view.form?.registry.wizard?.symbol).toBe('FormWizard');
-    expect(view.form?.required).toEqual(['email']);
+    expect(files[0].content).toBe('a,b');
   });
 });
 
@@ -161,45 +110,6 @@ describe('подстановка выбирается шаблоном, а не 
       'Профиль'
     );
     expect(files[0].content).toBe('__FormName__');
-  });
-});
-
-describe('то, чего токены не умели', () => {
-  it('цикл по полям формы', () => {
-    const files = materializeFiles(
-      template([
-        schemaFile(plainSchema()),
-        {
-          path: 'fields.ts',
-          content:
-            '<% for (const c of it.form.registry.components) { -%>\n// <%= c.name %>\n<% } -%>',
-        },
-      ]),
-      ['fields.ts'],
-      'Заявка',
-      { kit: kit() }
-    );
-    // Состав приезжает из СХЕМЫ, а не из имени формы: ровно это и было недостижимо.
-    expect(files[0].content).toContain('// Input');
-    expect(files[0].content).toContain('// Checkbox');
-  });
-
-  it('ветвление по наличию визарда', () => {
-    const body = '<% if (it.form.layout.isWizard) { %>ШАГИ<% } else { %>ОДИН ЭКРАН<% } %>';
-    const withWizard = materializeFiles(
-      template([schemaFile(wizardSchema()), { path: 'a.ts', content: body }]),
-      ['a.ts'],
-      'Анкета',
-      { kit: kit() }
-    );
-    const without = materializeFiles(
-      template([schemaFile(plainSchema()), { path: 'a.ts', content: body }]),
-      ['a.ts'],
-      'Анкета',
-      { kit: kit() }
-    );
-    expect(withWizard[0].content).toBe('ШАГИ');
-    expect(without[0].content).toBe('ОДИН ЭКРАН');
   });
 });
 

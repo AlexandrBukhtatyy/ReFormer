@@ -17,9 +17,12 @@
  * @module plugins/reformer/templates/host
  */
 
-import type { CatalogEntry } from '../../core/catalog';
-import type { KitDescriptor } from '@reformer/builder-plugin-api';
-import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import type {
+  Disposable,
+  ResourceId,
+  ResourceRef,
+  TemplateStack,
+} from '@reformer/builder-plugin-api';
 
 /** Перевод: ключ и параметры. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -117,12 +120,13 @@ export interface TemplatesHost {
   /** Локальное хранилище. Без него локальных шаблонов просто нет. */
   readonly local?: TemplateKeyValue;
 
-  /** Каталог активного кита — нужен встроенным шаблонам, которые печатает кодоген. */
-  catalog(): readonly CatalogEntry[];
+  /**
+   * Стеки шаблонов — вклады в `TemplateStackPoint`, читаются на каждый вопрос: стек вправе
+   * подняться позже хозяина. Всё, что зависит от формата формы (документ, вид для движка, токены
+   * модуля, пустая форма, место модуля и фикстуры), хозяин спрашивает у них.
+   */
+  stacks(): readonly TemplateStack[];
 
-  /** Дескриптор активного кита. `null` — встроенных шаблонов не будет: печатать нечем. */
-  kit(): KitDescriptor | null;
-
-  /** Кит сменился: встроенные шаблоны надо перечитать — они печатаются под кит. */
+  /** Кит сменился: встроенные шаблоны надо перечитать — стек печатает их под кит. */
   onDidChangeKit(cb: () => void): Disposable;
 }

@@ -30,6 +30,7 @@
   "error.no-form-name": "Enter a form name.",
   "error.no-name": "Enter a template name.",
   "error.no-project": "No project is open — there is nowhere to create the form.",
+  "error.no-empty-form": "There is no form stack to create an empty form with. Pick a template.",
   "error.no-remove": "Deleting is unavailable: the workspace cannot remove resources.",
   "error.nothing-picked": "No files selected.",
   "error.nothing-to-save": "Nothing to save: the directory has no text files.",

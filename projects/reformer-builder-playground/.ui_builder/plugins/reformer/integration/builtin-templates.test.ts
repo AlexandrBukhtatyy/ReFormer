@@ -41,6 +41,7 @@ import {
   applyTemplate,
   BUILTIN_BASE_NAME,
   createBuiltinStore,
+  createTemplateStack,
   materializeFiles,
   MODULE_TOKENS,
   SIMPLE_TEMPLATE_ID,
@@ -103,6 +104,12 @@ function hexaKit(): KitView {
   return { kit: built.descriptor, catalog: built.entries };
 }
 
+/**
+ * Стек ReFormer у хозяина шаблонов: токены имён модуля и документ формы. Кит стеку здесь не нужен —
+ * вид формы получает только шаблон на движке, а встроенные шаблоны токенные.
+ */
+const OPTIONS = { stacks: [createTemplateStack({ kit: () => null })] };
+
 /** Страница модуля в шаблоне: имя файла — токен типа формы. */
 const PAGE = `${MODULE_TOKENS.type}.tsx`;
 
@@ -127,7 +134,8 @@ describe('форма по встроенному шаблону открывае
       const files = await applyTemplate(
         template,
         template.files.map((file) => file.path),
-        'test'
+        'test',
+        OPTIONS
       );
       // Документ формы лежит в папке ролей — его билдер и открывает после создания формы.
       const schema = files.find((file) => file.path === moduleFilesOf(makeNames('test')).schema);
@@ -148,7 +156,7 @@ describe('форма по встроенному шаблону открывае
       if (template === undefined) throw new Error(`нет шаблона ${id}`);
       // Отмечена только точка входа — страница (в шаблоне её имя стоит токеном типа формы).
       // Остальное обязано приехать зависимостями, включая поток, правила и схемы шагов.
-      return materializeFiles(template, [PAGE], 'test').map((file) => file.path);
+      return materializeFiles(template, [PAGE], 'test', OPTIONS).map((file) => file.path);
     };
 
     const wizard = pathsOf(WIZARD_TEMPLATE_ID);
@@ -185,8 +193,12 @@ describe('форма по встроенному шаблону открывае
     const layout = moduleFilesOf(makeNames('test'));
 
     for (const template of templates) {
-      const picked = materializeFiles(template, [layout.barrel], 'test').map((f) => f.path);
-      const all = materializeFiles(template, modulePaths(template), 'test').map((f) => f.path);
+      const picked = materializeFiles(template, [layout.barrel], 'test', OPTIONS).map(
+        (f) => f.path
+      );
+      const all = materializeFiles(template, modulePaths(template), 'test', OPTIONS).map(
+        (f) => f.path
+      );
 
       // Всё, кроме README: модулю он не нужен.
       expect([...picked].sort(), template.name).toEqual(
@@ -204,7 +216,7 @@ describe('шаблон раскладывается так же, как печа
     for (const [index, template] of templates.entries()) {
       // Пути — ПОДСТАНОВКОЙ в пути шаблона: их показывает окно создания формы, и по ним же
       // текст, напечатанный под имя, находит своё место.
-      const applied = materializeFiles(template, modulePaths(template), formName);
+      const applied = materializeFiles(template, modulePaths(template), formName, OPTIONS);
       const direct = await generate(view, inputs[index].schema, formName, inputs[index].seed);
 
       // Расхождение здесь — сироты после первой же генерации из билдера: шаблон положил бы
@@ -224,7 +236,7 @@ describe('шаблон раскладывается так же, как печа
 
       for (const [index, template] of templates.entries()) {
         // Так форму создаёт операция: шаблон печатается под её имя.
-        const applied = await applyTemplate(template, modulePaths(template), formName);
+        const applied = await applyTemplate(template, modulePaths(template), formName, OPTIONS);
         const direct = await generate(view, inputs[index].schema, formName, inputs[index].seed);
 
         // Целиком, а не по списку имён: импорты, заголовок, идентификатор формы в реестре, маршрут,
@@ -255,12 +267,12 @@ describe('шаблон раскладывается так же, как печа
     const tooLong = (text: string): string[] =>
       text.split('\n').filter((line) => line.length > 100);
 
-    const substituted = textOf(materializeFiles(simple, modulePaths(simple), formName));
+    const substituted = textOf(materializeFiles(simple, modulePaths(simple), formName, OPTIONS));
     expect(tooLong(substituted)).toEqual([
       "import { CITY_LIST, GENDERS, POSITIONS, SKILLS, REFERENCE_LABEL } from '../constants/profil-polzovatelya';",
     ]);
 
-    const printed = textOf(await applyTemplate(simple, modulePaths(simple), formName));
+    const printed = textOf(await applyTemplate(simple, modulePaths(simple), formName, OPTIONS));
     expect(tooLong(printed)).toEqual([]);
     expect(printed).toBe(textOf(await generate(view, inputs[0].schema, formName, inputs[0].seed)));
   });
@@ -285,8 +297,18 @@ describe('шаблон раскладывается так же, как печа
       // перегенерирует из правил формы — то есть форма, только что созданная по шаблону, сразу
       // теряла бы связь с правилами.
       const ways = {
-        печать: await applyTemplate(template, modulePaths(template), 'Профиль пользователя'),
-        подстановка: materializeFiles(template, modulePaths(template), 'Профиль пользователя'),
+        печать: await applyTemplate(
+          template,
+          modulePaths(template),
+          'Профиль пользователя',
+          OPTIONS
+        ),
+        подстановка: materializeFiles(
+          template,
+          modulePaths(template),
+          'Профиль пользователя',
+          OPTIONS
+        ),
       };
       for (const [way, applied] of Object.entries(ways)) {
         for (const path of marked) {
@@ -323,8 +345,8 @@ describe('встроенный шаблон материализуется бе�
       // обязано исчезнуть и из путей, и из текстов. Оба пути создания формы: печать под имя и
       // подстановка — запасной путь, когда печатника нет.
       const ways = {
-        печать: await applyTemplate(template, all, 'Профиль пользователя'),
-        подстановка: materializeFiles(template, all, 'Профиль пользователя'),
+        печать: await applyTemplate(template, all, 'Профиль пользователя', OPTIONS),
+        подстановка: materializeFiles(template, all, 'Профиль пользователя', OPTIONS),
       };
 
       for (const [way, files] of Object.entries(ways)) {
@@ -350,7 +372,7 @@ describe('встроенный шаблон материализуется бе�
     const { templates } = await templatesUnder(builtinKit());
 
     for (const template of templates) {
-      const files = await applyTemplate(template, modulePaths(template), 'test');
+      const files = await applyTemplate(template, modulePaths(template), 'test', OPTIONS);
       const constants = files.find((f) => f.path === moduleFilesOf(makeNames('test')).constants);
 
       expect(constants?.content, template.name).toContain('Москва');
@@ -367,7 +389,7 @@ describe('шаблон под внешним китом HexaUI', () => {
     const layout = moduleFilesOf(makeNames('test'));
     return Promise.all(
       templates.map(async (template) => {
-        const files = await applyTemplate(template, modulePaths(template), 'test');
+        const files = await applyTemplate(template, modulePaths(template), 'test', OPTIONS);
         const registry = files.find((file) => file.path === layout.registry)?.content ?? '';
         return { template, files, registry };
       })
@@ -448,7 +470,7 @@ describe('шаблон под внешним китом HexaUI', () => {
     // У ui-kit провайдера нет — его страница не меняется.
     const { templates } = await templatesUnder(builtinKit());
     for (const template of templates) {
-      const files = await applyTemplate(template, modulePaths(template), 'test');
+      const files = await applyTemplate(template, modulePaths(template), 'test', OPTIONS);
       const page = files.find((file) => file.path === layout.page)?.content ?? '';
       expect(page, template.name).not.toContain('KitProvider');
     }

@@ -18,7 +18,7 @@
  * @module plugins/reformer/templates/content/operations
  */
 
-import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import type { ResourceId, ResourceRef, TemplateStack } from '@reformer/builder-plugin-api';
 import {
   canRemove,
   canSave,
@@ -31,14 +31,12 @@ import {
 import {
   applyTemplate,
   buildTemplateFiles,
-  formSchemaFileOf,
   isTextFile,
   templateSlug,
   type SourceFile,
 } from './files';
 import type { TemplatesHost } from '../host';
-import { modulePlacementOf } from '../../../core/codegen';
-import { fixtureDirOf } from '../../../core/form-fixture';
+import { moduleDepthOf, moduleTokenNames, templateStackOf } from './stacks';
 
 /** Чем кончилась операция. `params` подставляются в сообщение. */
 export interface OperationResult {
@@ -162,26 +160,26 @@ export async function listFolders(
  * Каталог, который предлагается для новой формы, когда открыт документ.
  *
  * Форму почти всегда кладут рядом с тем, над чем работают, — но «рядом» зависит от того, что
- * открыто. Свободно названный документ (`forms/credit.schema.json`) лежит среди форм, и его
- * каталог и есть нужное место. Документ МОДУЛЯ формы (`form.schema.json` в папке `schema/` либо,
- * у формы прежней раскладки, в корне модуля) лежит ВНУТРИ своего модуля: его каталог — это
- * `<модуль>/schema` или сам модуль, и новая форма там оказалась бы частью чужой. Ей место рядом
- * с модулем — в каталоге, где модуль лежит.
+ * открыто. Документ без модуля (у ReFormer — свободно названный, `forms/credit.schema.json`)
+ * лежит среди форм, и его каталог и есть нужное место. Документ МОДУЛЯ формы лежит ВНУТРИ своего
+ * модуля — в его корне или в папке (у ReFormer — `schema/`), и новая форма там оказалась бы частью
+ * чужой. Ей место рядом с модулем — в каталоге, где модуль лежит.
  *
- * Где модуль относительно документа, решает раскладка кодогена ({@link modulePlacementOf}), а не
- * разбор пути здесь: правило у них обязано быть одно.
+ * Где модуль относительно документа, решает стек (`TemplateStack.moduleDepthOf` — по раскладке его
+ * генерации), а не разбор пути здесь: правило у них обязано быть одно.
  */
 export function suggestedFolderOf(
-  host: Pick<TemplatesHost, 'refOf' | 'parentOf' | 'projectRoot'>,
+  host: Pick<TemplatesHost, 'refOf' | 'parentOf' | 'projectRoot' | 'stacks'>,
   documentId: ResourceId
 ): ResourceId {
   const dir = host.parentOf(documentId);
   const path = host.refOf(documentId)?.path;
   if (path === undefined) return dir;
 
-  const placement = modulePlacementOf(path);
-  if (placement.kind === 'detached') return dir;
-  const moduleDir = placement.kind === 'nested' ? host.parentOf(dir) : dir;
+  const depth = moduleDepthOf(host.stacks(), path);
+  if (depth === null) return dir;
+  let moduleDir = dir;
+  for (let level = 0; level < depth; level += 1) moduleDir = host.parentOf(moduleDir);
   // Модуль в корне проекта: подниматься выше некуда — новая форма встаёт в сам корень.
   return moduleDir === host.projectRoot() ? moduleDir : host.parentOf(moduleDir);
 }
@@ -256,7 +254,7 @@ export async function createTemplateFromDirectory(
       name,
       description: options.description?.trim() || undefined,
       source: store.source,
-      files: buildTemplateFiles(files, baseName),
+      files: buildTemplateFiles(files, baseName, moduleTokenNames(host.stacks())),
       createdAt: new Date().toISOString(),
     };
     const saved = await store.save(template, baseName);
@@ -271,7 +269,7 @@ export async function createTemplateFromDirectory(
 }
 
 export interface GenerateFormResult extends OperationResult {
-  /** Схема, которую стоит открыть; `null` — в наборе схемы не было. */
+  /** Документ формы, который стоит открыть; `null` — в наборе его не было. */
   readonly openId: ResourceId | null;
 }
 
@@ -281,25 +279,24 @@ function moduleFilesOf(files: readonly TemplateFile[]): readonly TemplateFile[] 
 }
 
 /**
- * Файлы фикстуры — те, что идут СВЕРХ вывода кодогена.
+ * Файлы фикстуры — те, что идут СВЕРХ вывода генератора.
  *
  * Ложатся в корень модуля формы. Отдельным `scope` они помечены не ради адреса, а ради
- * происхождения — контракт каталога модуля (`06-form-directory-layout`) фикстуру не перечисляет,
- * и генерация модуля её не пишет.
+ * происхождения — каталог модуля фикстуру не перечисляет, и генерация модуля её не пишет.
  */
 function fixtureFilesOf(files: readonly TemplateFile[]): readonly TemplateFile[] {
   return files.filter((file) => file.scope === 'fixture');
 }
 
 /**
- * Каталог фикстуры внутри каталога формы — корень МОДУЛЯ, которому принадлежит схема.
+ * Каталог фикстуры внутри каталога формы — корень МОДУЛЯ, которому принадлежит документ.
  *
- * Считается от пути схемы тем же правилом, каким фикстуру ищет превью (`fixtureDirOf`): схема
- * в `schema/form.schema.json` даёт корень формы, схема в корне — его же. Без схемы в наборе
- * считать не от чего, и фикстура ложится в корень формы.
+ * Считает стек от пути документа тем же правилом, каким фикстуру ищет превью
+ * (`TemplateStack.fixtureDirOf`). Без документа в наборе или без ответа стека считать не от чего,
+ * и фикстура ложится в корень формы.
  */
-function fixtureDirIn(schemaPath: string | null): readonly string[] {
-  const dir = schemaPath === null ? null : fixtureDirOf(schemaPath);
+function fixtureDirIn(stack: TemplateStack | null, documentPath: string | null): readonly string[] {
+  const dir = documentPath === null ? null : (stack?.fixtureDirOf?.(documentPath) ?? null);
   return dir === null || dir === '' ? [] : dir.split('/');
 }
 
@@ -338,15 +335,13 @@ export async function generateFormFromTemplate(
     return { ...fail('error.generate-failed', { message: messageOf(error) }), openId: null };
   }
 
-  // Кит нужен шаблону с движком: без него он не увидит вида формы, даже неся схему.
-  // Токенному шаблону кит безразличен, поэтому его отсутствие — не отказ операции.
-  // Шаблон, который печатается (встроенный), печатается здесь под имя каталога формы.
-  const kit = host.kit();
+  // Стеки — на одну операцию: токены модуля, вид формы для шаблона на движке и документ формы
+  // спрашиваются у одного и того же состава. Шаблон, который печатается (встроенный), печатается
+  // здесь под имя каталога формы.
+  const stacks = host.stacks();
   let files: readonly TemplateFile[];
   try {
-    files = await applyTemplate(template, picked, folder, {
-      kit: kit === null ? null : { kit, catalog: host.catalog() },
-    });
+    files = await applyTemplate(template, picked, folder, { stacks });
   } catch (error) {
     // Новый класс отказа: у токенной подстановки его не могло быть, а шаблон на движке
     // бросает — и сообщение Eta несёт номер строки, то есть ответ «где чинить».
@@ -356,7 +351,8 @@ export async function generateFormFromTemplate(
 
   try {
     const dir = host.resolve(parent, folder);
-    const schema = formSchemaFileOf(files);
+    const stack = templateStackOf(stacks, files);
+    const document = stack?.documentOf(files) ?? null;
     const ids: ResourceId[] = [];
     let openId: ResourceId | null = null;
 
@@ -364,12 +360,12 @@ export async function generateFormFromTemplate(
       const id = host.resolve(dir, ...file.path.split('/'));
       await host.writeText(id, file.content);
       ids.push(id);
-      if (schema !== null && file.path === schema.file.path) openId = id;
+      if (document !== null && file.path === document.path) openId = id;
     }
 
-    // Фикстура — в корень модуля, которому принадлежит схема. Отдельным проходом её пишем
-    // потому, что происхождение у неё другое — не вывод кодогена (см. `fixtureFilesOf`).
-    const fixtureDir = fixtureDirIn(schema === null ? null : schema.file.path);
+    // Фикстура — в корень модуля, которому принадлежит документ. Отдельным проходом её пишем
+    // потому, что происхождение у неё другое — не вывод генератора (см. `fixtureFilesOf`).
+    const fixtureDir = fixtureDirIn(stack, document === null ? null : document.path);
     for (const file of fixtureFilesOf(files)) {
       const id = host.resolve(dir, ...fixtureDir, ...file.path.split('/'));
       await host.writeText(id, file.content);

@@ -1,15 +1,18 @@
 /**
- * Двойники порта и локального хранилища для тестов шаблонов.
+ * Двойники порта, стека и локального хранилища для тестов шаблонов.
  *
  * Отдельным модулем, а не в файле теста: порт проверяют и хранилища, и операции, и панель.
  *
  * @module plugins/reformer/templates/testing
  */
 
-import { builtinKit } from '../../core/testing';
-import type { CatalogEntry } from '../../core/catalog';
-import type { KitDescriptor } from '@reformer/builder-plugin-api';
-import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import type {
+  Disposable,
+  ResourceId,
+  ResourceRef,
+  TemplateStack,
+} from '@reformer/builder-plugin-api';
+import type { TemplateFile } from './contract';
 import type { TemplateKeyValue, TemplatesHost } from './host';
 
 const noop: Disposable = { dispose: () => {} };
@@ -29,13 +32,32 @@ export function createMemoryStorage(seed?: Record<string, unknown>): TemplateKey
   };
 }
 
+/** Имя документа формы у двойника стека. */
+export const FAKE_DOCUMENT = 'form.json';
+
+/**
+ * Двойник стека: документ формы — файл `form.json` в любом каталоге набора. Остальные ответы
+ * (токены модуля, пустая форма, место модуля и фикстуры, вид, перевод формата) тест дописывает
+ * сам — у двойника их нет, и хозяин обязан жить без них.
+ */
+export function createFakeTemplateStack(patch: Partial<TemplateStack> = {}): TemplateStack {
+  const documentOf = (files: readonly TemplateFile[]): TemplateFile | null =>
+    files.find((file) => file.path.split('/').pop() === FAKE_DOCUMENT) ?? null;
+  return {
+    id: 'fake',
+    owns: (files) => documentOf(files) !== null,
+    documentOf,
+    ...patch,
+  };
+}
+
 export interface FakeTemplatesHostOptions {
   /** Плоская карта «адрес → текст». Каталоги выводятся из адресов. */
   readonly files?: Record<string, string>;
   readonly projectRoot?: string | null;
   readonly write?: boolean;
-  readonly kit?: KitDescriptor | null;
-  readonly catalog?: readonly CatalogEntry[];
+  /** Стеки шаблонов; по умолчанию — ни одного. */
+  readonly stacks?: readonly TemplateStack[];
   readonly local?: TemplateKeyValue;
   readonly withRemove?: boolean;
 }
@@ -61,7 +83,6 @@ function refOf(id: string, kind: 'file' | 'directory'): ResourceRef {
 
 /** Порт-двойник: плоская карта адресов, каталоги выводятся из префиксов. */
 export function createFakeTemplatesHost(options: FakeTemplatesHostOptions = {}): FakeTemplatesHost {
-  const view = builtinKit();
   const files = new Map<string, string>(Object.entries(options.files ?? {}));
   const opened: ResourceId[] = [];
   const invalidated: ResourceId[] = [];
@@ -102,8 +123,7 @@ export function createFakeTemplatesHost(options: FakeTemplatesHostOptions = {}):
       invalidated.push(dir);
     },
     openResource: (id) => opened.push(id),
-    catalog: () => options.catalog ?? view.catalog,
-    kit: () => (options.kit === undefined ? view.kit : options.kit),
+    stacks: () => options.stacks ?? [],
     onDidChangeKit: () => noop,
     ...(options.local === undefined ? {} : { local: options.local }),
   };

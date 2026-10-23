@@ -4,7 +4,7 @@
  * Проверяется то, ради чего затравки стали содержательными: по одному образцу каждого вида поля,
  * правила, которые указывают в существующие узлы, и состав, следующий каталогу кита.
  *
- * @module plugins/reformer/templates/stores/seeds.test
+ * @module plugins/reformer/templates/stack/seeds.test
  */
 
 import { describe, expect, it } from 'vitest';

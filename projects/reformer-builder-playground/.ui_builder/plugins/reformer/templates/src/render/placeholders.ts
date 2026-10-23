@@ -13,7 +13,6 @@
  */
 
 import { translit } from '@reformer/builder-toolkit';
-import { makeNames } from '../../../core/codegen';
 
 /** Токены-плейсхолдеры по написаниям. */
 export const TOKENS = {
@@ -91,64 +90,19 @@ export function nameVariants(name: string): Record<NameCase, string> {
 }
 
 /**
- * Токены имён МОДУЛЯ — того, как форму называет кодоген (`makeNames`), а не её имя в четырёх
- * написаниях.
- *
- * Написания имени кодоген не повторяют: тип формы — не «имя в PascalCase плюс `Form`» (имя,
- * уже оканчивающееся на `Form`, суффикса не получает), каталог — `kebab` билдера, а не склейка
- * слов (`ABCForm` даёт `abcform`), заголовок — пятое написание, которого среди четырёх нет вовсе.
- * Шаблон, напечатанный кодогеном, обязан разложиться в ТЕ ЖЕ пути и имена, которые кодоген
- * напечатает для новой формы, — иначе первая же генерация из билдера оставит рядом сирот
- * (`types/myForm.ts` шаблона против `types/my-form.ts` кодогена). Поэтому у такого шаблона свои
- * токены, и значения для них считает сам `makeNames`.
- *
- * | токен           | значение                                   | пример            |
- * | --------------- | ------------------------------------------ | ----------------- |
- * | `__FormType__`  | тип формы, он же имя файла страницы        | `LoanRequestForm` |
- * | `__formType__`  | он же со строчной — приставка имён записей | `loanRequestForm` |
- * | `__form-dir__`  | каталог модуля и имя файлов ролей          | `loan-request`    |
- * | `__FormTitle__` | заголовок для человека                     | `Loan request`    |
- *
- * Токены действуют в любом токенном шаблоне: шаблон проекта, написанный руками, вправе назвать
- * файл `types/__form-dir__.ts` и получить имя, с которым согласится кодоген.
+ * Слово, из которого сложен токен: `__FormName__` → `form-name`. Имя формы-источника, совпавшее с
+ * ним, съело бы токен вторым проходом токенизации.
  */
-export const MODULE_TOKENS = {
-  type: '__FormType__',
-  typeCamel: '__formType__',
-  dir: '__form-dir__',
-  title: '__FormTitle__',
-} as const;
-
-/** Имя модуля, производное от имени формы. */
-export type ModuleNameRole = keyof typeof MODULE_TOKENS;
-
-const MODULE_ROLES: readonly ModuleNameRole[] = ['type', 'typeCamel', 'dir', 'title'];
-
-/** Имена модуля для формы — те же, что выведет кодоген. */
-export function moduleNames(formName: string): Record<ModuleNameRole, string> {
-  const names = makeNames(formName);
-  return {
-    type: names.TypeName,
-    typeCamel: names.TypeName.charAt(0).toLowerCase() + names.TypeName.slice(1),
-    dir: names.dir,
-    title: names.title,
-  };
-}
-
-/** Слова, из которых сложены сами токены: имя, совпавшее с ними, съело бы токен вторым проходом. */
-const TOKEN_WORDS: ReadonlySet<string> = new Set([
-  'form-name',
-  'form-type',
-  'form-dir',
-  'form-title',
-]);
+const tokenWord = (token: string): string => toCase(token, 'kebab');
 
 /**
  * Само базовое имя уже равно плейсхолдеру («form name» во всех написаниях) — токенизировать
  * нельзя, иначе второй проход съел бы собственные токены (`__FormName__` содержит `FormName`).
+ * То же — с токенами модуля, которые стеки подставляют в токенных шаблонах (`reserved`).
  */
-function isTokenLike(baseName: string): boolean {
-  return TOKEN_WORDS.has(toCase(baseName, 'kebab'));
+function isTokenLike(baseName: string, reserved: readonly string[]): boolean {
+  const word = toCase(baseName, 'kebab');
+  return [...Object.values(TOKENS), ...reserved].some((token) => tokenWord(token) === word);
 }
 
 /** Пары «что искать → на что заменить», отсортированные для безопасной последовательной замены. */
@@ -169,10 +123,17 @@ function replacements(baseName: string): Array<{ value: string; token: string }>
 /**
  * Заменить имя формы-источника на плейсхолдеры. Пустое и односимвольное базовое имя, а также
  * имя, совпадающее с самим плейсхолдером, оставляют текст нетронутым. Идемпотентна.
+ *
+ * @param reserved - Токены модуля у стеков ({@link materialize}): имя, совпавшее со словами
+ *   одного из них, тоже не токенизируется.
  */
-export function tokenize(text: string, baseName: string): string {
+export function tokenize(text: string, baseName: string, reserved: readonly string[] = []): string {
   const words = splitWords(baseName);
-  if (words.length === 0 || toCase(baseName, 'kebab').length < 2 || isTokenLike(baseName)) {
+  if (
+    words.length === 0 ||
+    toCase(baseName, 'kebab').length < 2 ||
+    isTokenLike(baseName, reserved)
+  ) {
     return text;
   }
   let out = text;
@@ -181,38 +142,25 @@ export function tokenize(text: string, baseName: string): string {
 }
 
 /**
- * Заменить имена модуля формы-источника на токены {@link MODULE_TOKENS}.
- *
- * Для текста, напечатанного КОДОГЕНОМ под имя `baseName`: все имена в нём — производные
- * `makeNames`, и других написаний там нет. Базовое имя обязано давать четыре разных, не вложенных
- * друг в друга значения (так выбрано базовое имя встроенных шаблонов): иначе замена одного
- * значения задела бы другое. Длинные значения идут первыми — на случай имени, у которого
- * каталог совпал с началом заголовка.
- */
-export function tokenizeModuleNames(text: string, baseName: string): string {
-  if (!isUsableFormName(baseName)) return text;
-  const names = moduleNames(baseName);
-  const pairs = MODULE_ROLES.map((role) => ({ value: names[role], token: MODULE_TOKENS[role] }))
-    .filter((pair) => pair.value !== '')
-    .sort((a, b) => b.value.length - a.value.length);
-  let out = text;
-  for (const { value, token } of pairs) out = out.split(value).join(token);
-  return out;
-}
-
-/**
  * Подставить имя новой формы вместо плейсхолдеров. Пустое имя оставляет текст нетронутым.
  *
- * Плейсхолдеров два вида, и подставляются оба: написания имени ({@link TOKENS}) и имена модуля
- * ({@link MODULE_TOKENS}). Друг друга они не задевают — ни один токен не входит в другой.
+ * Плейсхолдеров два вида, и подставляются оба: написания имени ({@link TOKENS}) и имена модуля —
+ * токены стека со значениями для этой формы (`TemplateStack.tokens`): тип формы, каталог модуля,
+ * заголовок так, как их выведет генерация. Друг друга они не задевают — ни один токен не входит в
+ * другой.
+ *
+ * @param tokens - Токены модуля и их значения; без стека — пусто.
  */
-export function materialize(text: string, formName: string): string {
+export function materialize(
+  text: string,
+  formName: string,
+  tokens: Readonly<Record<string, string>> = {}
+): string {
   const variants = nameVariants(formName);
   if (variants.kebab === '') return text;
   let out = text;
   for (const kind of VARIANT_ORDER) out = out.split(TOKENS[kind]).join(variants[kind]);
-  const names = moduleNames(formName);
-  for (const role of MODULE_ROLES) out = out.split(MODULE_TOKENS[role]).join(names[role]);
+  for (const [token, value] of Object.entries(tokens)) out = out.split(token).join(value);
   return out;
 }
 
@@ -229,10 +177,14 @@ export function isUsableFormName(name: string): boolean {
   return splitWords(name).length > 0;
 }
 
-/** Есть ли в тексте хотя бы один плейсхолдер — для отметки «шаблон параметризован». */
-export function hasTokens(text: string): boolean {
+/**
+ * Есть ли в тексте хотя бы один плейсхолдер — для отметки «шаблон параметризован».
+ *
+ * @param reserved - Токены модуля у стеков: они тоже параметризация.
+ */
+export function hasTokens(text: string, reserved: readonly string[] = []): boolean {
   return (
     VARIANT_ORDER.some((kind) => text.includes(TOKENS[kind])) ||
-    MODULE_ROLES.some((role) => text.includes(MODULE_TOKENS[role]))
+    reserved.some((token) => text.includes(token))
   );
 }

@@ -31,8 +31,11 @@ import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import type { PluginContext } from '@reformer/builder-plugin-api/internal';
+import { TemplateStackPoint } from '@reformer/builder-plugin-api';
+import { builtinKit } from '../core/testing';
 import type { FormTemplate } from '../templates/src';
 import {
+  createTemplateStack,
   generateFormFromTemplate,
   TEMPLATES_PLUGIN_ID,
   templatesWorkspace,
@@ -127,9 +130,15 @@ function harness(files: Readonly<Record<string, string>>) {
   // Сохранение — привилегированная служба: здесь она есть, потому что тест проверяет путь
   // ДО источника. Отказ по праву проверяется отдельно, на реестре и каталоге.
   services.register(WorkspaceSaveServiceToken, createWorkspaceSaveService({ project }));
+  // Стек ReFormer — вкладом в точку стеков, как его вносит плагин: документ формы, место модуля.
+  const stack = createTemplateStack({ kit: () => builtinKit() });
   const ctx = {
     id: TEMPLATES_PLUGIN_ID,
     services,
+    extensions: {
+      get: (point: { id: string }) =>
+        point.id === TemplateStackPoint.id ? [{ value: stack }] : [],
+    },
     i18n: {
       locale: 'ru',
       t: (key: string) => key,
