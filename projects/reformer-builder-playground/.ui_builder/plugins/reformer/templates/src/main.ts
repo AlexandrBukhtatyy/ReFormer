@@ -4,6 +4,6 @@
  * @module plugins/reformer/templates/main
  */
 
-import { createTemplatesPlugin } from './plugin';
+import { createTemplateStackPlugin } from './plugin';
 
-export default createTemplatesPlugin();
+export default createTemplateStackPlugin();

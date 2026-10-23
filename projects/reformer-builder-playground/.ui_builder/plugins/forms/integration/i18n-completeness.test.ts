@@ -20,12 +20,14 @@ import { AI_MESSAGES } from '../ai/src/messages';
 import { CODEGEN_MESSAGES } from '../codegen/src/messages';
 import { KITS_MESSAGES } from '../kits/src/messages';
 import { PREVIEW_MESSAGES } from '../preview/src/messages';
+import { TEMPLATES_MESSAGES } from '../templates/src/messages';
 
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['ai', AI_MESSAGES],
   ['codegen', CODEGEN_MESSAGES],
   ['kits', KITS_MESSAGES],
   ['preview', PREVIEW_MESSAGES],
+  ['templates', TEMPLATES_MESSAGES],
 ];
 
 describe('словари: наборы ключей совпадают во всех локалях', () => {

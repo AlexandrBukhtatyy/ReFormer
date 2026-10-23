@@ -1,0 +1,26 @@
+{
+  "id": "reformer.templates",
+  "name": "Шаблоны",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "styles": {
+    "file": "styles.css",
+    "isolation": "scoped"
+  },
+  "provides": [
+    {
+      "id": "reformer.templates.creator",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": ["workspace.save"],
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
+      }
+    ]
+  }
+}

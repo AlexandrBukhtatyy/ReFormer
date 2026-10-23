@@ -1,7 +1,7 @@
 /**
  * Состав приложения с плагинами домена forms — для интеграционных тестов.
  *
- * Киты, превью-хост, ассистент и генерация кода — платформа форм: ими пользуются оба движка
+ * Киты, превью-хост, ассистент, генерация кода и шаблоны — платформа форм: ими пользуются оба движка
  * (ReFormer и RJSF), поэтому
  * стенды доменов-движков строят свой состав ПОВЕРХ этого. В приложении их поднимает слой
  * плагинов приложения; здесь они встают в состав тем же способом, что встроенные
@@ -21,6 +21,8 @@ import { createKitsPlugin } from '../kits/src';
 import kitsManifest from '../kits/src/manifest.json';
 import { createPreviewPlugin } from '../preview/src';
 import previewManifest from '../preview/src/manifest.json';
+import { createTemplatesPlugin } from '../templates/src';
+import templatesManifest from '../templates/src/manifest.json';
 
 /** Плагины домена — по пакету на плагин. */
 export const FORMS_PLUGINS: readonly DomainPlugin[] = [
@@ -28,6 +30,7 @@ export const FORMS_PLUGINS: readonly DomainPlugin[] = [
   { manifest: previewManifest, create: () => createPreviewPlugin() },
   { manifest: aiManifest, create: () => createAiPlugin() },
   { manifest: codegenManifest, create: () => createCodegenPlugin() },
+  { manifest: templatesManifest, create: () => createTemplatesPlugin() },
 ];
 
 /**

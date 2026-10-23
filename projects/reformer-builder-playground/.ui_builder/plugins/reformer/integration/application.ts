@@ -16,8 +16,8 @@ import { createSchemaEditorPlugin } from '../editor/src';
 import editorManifest from '../editor/src/manifest.json';
 import { createPreviewRuntimePlugin } from '../render/src';
 import renderManifest from '../render/src/manifest.json';
-import { createTemplatesPlugin } from '../templates/src';
-import templatesManifest from '../templates/src/manifest.json';
+import { createTemplateStackPlugin } from '../templates/src';
+import templatesSchemaManifest from '../templates/src/manifest.json';
 import { createSchemaValidatorPlugin } from '../validator/src';
 import validatorManifest from '../validator/src/manifest.json';
 
@@ -31,7 +31,7 @@ export const REFORMER_PLUGINS: readonly DomainPlugin[] = [
   { manifest: renderManifest, create: () => createPreviewRuntimePlugin() },
   { manifest: aiSchemaManifest, create: () => createSchemaStackPlugin() },
   { manifest: codegenSchemaManifest, create: () => createCodegenStackPlugin() },
-  { manifest: templatesManifest, create: () => createTemplatesPlugin() },
+  { manifest: templatesSchemaManifest, create: () => createTemplateStackPlugin() },
 ];
 
 /**

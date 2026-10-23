@@ -155,6 +155,7 @@ describe('boot с плагинами домена RJSF', () => {
       'reformer.project',
       'reformer.rjsf.editor',
       'reformer.rjsf.render',
+      'reformer.templates',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });

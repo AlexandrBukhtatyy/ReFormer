@@ -1,139 +1,105 @@
 /**
- * Двойники порта, стека и локального хранилища для тестов шаблонов.
+ * Двойники стека шаблонов: печатники встроенных шаблонов и стек ReFormer с китом.
  *
- * Отдельным модулем, а не в файле теста: порт проверяют и хранилища, и операции, и панель.
+ * Отдельным модулем, а не в файле теста: печатники нужны и тестам встроенного хранилища, и тестам
+ * обеих сторон (`../cross`) — там шаблон раскладывается хозяином.
  *
  * @module plugins/reformer/templates/testing
  */
 
-import type {
-  Disposable,
-  ResourceId,
-  ResourceRef,
-  TemplateStack,
-} from '@reformer/builder-plugin-api';
-import type { TemplateFile } from './contract';
-import type { TemplateKeyValue, TemplatesHost } from './host';
+import type { FormTemplate, FormTemplateFile, TemplateStack } from '@reformer/builder-plugin-api';
+import { renderTemplate, withMarker } from '@reformer/builder-toolkit';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import {
+  apiTemplate,
+  barrelTemplate,
+  buildView,
+  createTemplate,
+  entryTemplate,
+  makeNames,
+  messagesTemplate,
+  modelTemplate,
+  moduleFilesOf,
+  pageTemplate,
+  prepare,
+  typesTemplate,
+  type KitView,
+} from '../../core/codegen';
+import { builtinKit } from '../../core/testing';
+import { BUILTIN_BASE_NAME, type ModulePrinter } from './builtin';
+import { createTemplateStack } from './stack';
 
-const noop: Disposable = { dispose: () => {} };
-
-/** Хранилище «ключ-значение» в памяти. */
-export function createMemoryStorage(seed?: Record<string, unknown>): TemplateKeyValue {
-  const data = new Map<string, unknown>(Object.entries(seed ?? {}));
-  return {
-    keys: async () => [...data.keys()],
-    get: async (key) => data.get(key),
-    put: async (key, value) => {
-      data.set(key, value);
-    },
-    remove: async (key) => {
-      data.delete(key);
-    },
-  };
-}
-
-/** Имя документа формы у двойника стека. */
-export const FAKE_DOCUMENT = 'form.json';
+/** Имена и пути модуля под базовое имя — то, что печатник получает и по чему печатает. */
+export const BASE = makeNames(BUILTIN_BASE_NAME);
+export const LAYOUT = moduleFilesOf(BASE);
 
 /**
- * Двойник стека: документ формы — файл `form.json` в любом каталоге набора. Остальные ответы
- * (токены модуля, пустая форма, место модуля и фикстуры, вид, перевод формата) тест дописывает
- * сам — у двойника их нет, и хозяин обязан жить без них.
+ * Печатник-двойник: шесть файлов в раскладке кодогена, с именами модуля в путях и текстах.
+ *
+ * Состав подобран по ролям: страница, две части ядра (модель и тип), запись реестра форм,
+ * реэкспорты и README — на них и держатся зависимости файлов шаблона.
  */
-export function createFakeTemplateStack(patch: Partial<TemplateStack> = {}): TemplateStack {
-  const documentOf = (files: readonly TemplateFile[]): TemplateFile | null =>
-    files.find((file) => file.path.split('/').pop() === FAKE_DOCUMENT) ?? null;
-  return {
-    id: 'fake',
-    owns: (files) => documentOf(files) !== null,
-    documentOf,
-    ...patch,
-  };
-}
+export const fakePrinter: ModulePrinter = async () => [
+  { path: LAYOUT.page, content: `export default function ${BASE.TypeName}() {}` },
+  { path: LAYOUT.model, content: `export const ${BASE.modelFactory} = 1;` },
+  { path: LAYOUT.types, content: `export type ${BASE.TypeName} = {};` },
+  { path: LAYOUT.entry, content: `export const ${BASE.entryConst} = '${BASE.exampleId}';` },
+  { path: LAYOUT.barrel, content: `export { default } from './${BASE.TypeName}';` },
+  { path: LAYOUT.readme, content: `# ${BASE.title}` },
+];
 
-export interface FakeTemplatesHostOptions {
-  /** Плоская карта «адрес → текст». Каталоги выводятся из адресов. */
-  readonly files?: Record<string, string>;
-  readonly projectRoot?: string | null;
-  readonly write?: boolean;
-  /** Стеки шаблонов; по умолчанию — ни одного. */
-  readonly stacks?: readonly TemplateStack[];
-  readonly local?: TemplateKeyValue;
-  readonly withRemove?: boolean;
-}
-
-export interface FakeTemplatesHost extends TemplatesHost {
-  readonly files: Map<string, string>;
-  readonly opened: ResourceId[];
-  /** Уровни, о которых порт попросили забыть: их перечитывает дерево. */
-  readonly invalidated: ResourceId[];
-}
-
-function refOf(id: string, kind: 'file' | 'directory'): ResourceRef {
-  const name = id.slice(id.lastIndexOf('/') + 1);
-  return {
-    id: id as ResourceId,
-    sourceId: 'fake',
-    path: id,
-    name,
-    kind,
-    mediaType: name.endsWith('.json') ? 'application/json' : 'text/plain',
-  };
-}
-
-/** Порт-двойник: плоская карта адресов, каталоги выводятся из префиксов. */
-export function createFakeTemplatesHost(options: FakeTemplatesHostOptions = {}): FakeTemplatesHost {
-  const files = new Map<string, string>(Object.entries(options.files ?? {}));
-  const opened: ResourceId[] = [];
-  const invalidated: ResourceId[] = [];
-
-  const host: FakeTemplatesHost = {
-    files,
-    opened,
-    invalidated,
-    useTranslate: () => (key) => key,
-    useActiveDocument: () => null,
-    refOf: (id) => (files.has(id) ? refOf(id, 'file') : null),
-    projectRoot: () =>
-      options.projectRoot === undefined
-        ? ('project' as ResourceId)
-        : (options.projectRoot as ResourceId | null),
-    parentOf: (id) => id.slice(0, id.lastIndexOf('/')) as ResourceId,
-    resolve: (dir, ...segments) =>
-      [dir, ...segments].filter((s) => s !== '').join('/') as ResourceId,
-    list: async (dir) => {
-      const prefix = `${dir}/`;
-      const names = new Map<string, 'file' | 'directory'>();
-      for (const path of files.keys()) {
-        if (!path.startsWith(prefix)) continue;
-        const rest = path.slice(prefix.length);
-        const slash = rest.indexOf('/');
-        if (slash === -1) names.set(rest, 'file');
-        else names.set(rest.slice(0, slash), 'directory');
-      }
-      return [...names].map(([name, kind]) => refOf(`${prefix}${name}`, kind));
+/** Файлы модуля, как их напечатал бы кодоген для формы с таким именем — НАСТОЯЩИМИ эмиттерами. */
+export function emitted(schema: JsonFormSchema, formName: string): FormTemplateFile[] {
+  const view = buildView(prepare({ schema, formName, kit: builtinKit() }));
+  const files = view.layout.files;
+  const stamped = (path: string, key: string, body: string): FormTemplateFile => ({
+    path,
+    // Производные файлы кодоген метит маркером происхождения; авторские (`api`) — нет.
+    content: withMarker(renderTemplate(`test.builtin.${key}`, body, view)),
+  });
+  return [
+    stamped(files.types, 'types', typesTemplate),
+    stamped(files.model, 'model', modelTemplate),
+    stamped(files.create, 'create', createTemplate),
+    stamped(files.entry, 'entry', entryTemplate),
+    stamped(files.page, 'page', pageTemplate),
+    stamped(files.barrel, 'barrel', barrelTemplate),
+    { path: files.api, content: renderTemplate('test.builtin.api', apiTemplate, view) },
+    // Словарь замечаний — авторский, как и запросы: маркера не несёт и не регенерируется.
+    {
+      path: files.messages,
+      content: renderTemplate('test.builtin.messages', messagesTemplate, view),
     },
-    exists: async (id) => files.has(id) || [...files.keys()].some((p) => p.startsWith(`${id}/`)),
-    readText: async (id) => files.get(id) ?? null,
-    writeText: async (id, text) => {
-      files.set(id, text);
-    },
-    sourceOf: () => ({ write: options.write ?? true }),
-    invalidate: async (dir) => {
-      invalidated.push(dir);
-    },
-    openResource: (id) => opened.push(id),
-    stacks: () => options.stacks ?? [],
-    onDidChangeKit: () => noop,
-    ...(options.local === undefined ? {} : { local: options.local }),
-  };
+  ];
+}
 
-  if (options.withRemove === true) {
-    host.remove = async (id) => {
-      for (const path of [...files.keys()]) {
-        if (path === id || path.startsWith(`${id}/`)) files.delete(path);
-      }
-    };
-  }
-  return host;
+/**
+ * Печатник на НАСТОЯЩИХ эмиттерах домена.
+ *
+ * Ради него встроенные шаблоны и переписаны: пока это были «рыбы», проверить, что шаблон
+ * совпадает с выводом кодогена, было нечем — совпадение держалось на внимательности автора.
+ */
+export const realPrinter: ModulePrinter = async (schema, formName) => emitted(schema, formName);
+
+/** Пути файлов МОДУЛЯ шаблона: всё, кроме фикстуры, — её кодоген не печатает. */
+export const modulePaths = (template: FormTemplate): string[] =>
+  template.files.filter((f) => (f.scope ?? 'form') === 'form').map((f) => f.path);
+
+/** Имена форм, на которых написания имени расходятся с именами кодогена. */
+export const FORM_NAMES = [
+  // Несколько слов: каталог — kebab, тип — PascalCase, запись реестра — camelCase.
+  'my form',
+  // Кириллица с пробелом: транслитерация участвует в каждом имени.
+  'Профиль пользователя',
+  // Имя уже оканчивается на `Form`: суффикс типа не удваивается.
+  'contact form',
+  // Заглавные подряд: `kebab` билдера слова не разбивает.
+  'ABCForm',
+  'loan-request-2',
+];
+
+/** Стек ReFormer с китом; `kit: null` — кита нет. По умолчанию — встроенный кит. */
+export function reformerStack(options: { readonly kit?: KitView | null } = {}): TemplateStack {
+  const view = options.kit === undefined ? builtinKit() : options.kit;
+  return createTemplateStack({ kit: () => view });
 }

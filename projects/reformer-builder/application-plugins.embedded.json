@@ -10,6 +10,7 @@
     "forms/preview",
     "forms/ai",
     "forms/codegen",
+    "forms/templates",
     "reformer/editor",
     "reformer/validator",
     "reformer/codegen",

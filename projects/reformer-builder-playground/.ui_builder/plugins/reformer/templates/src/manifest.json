@@ -1,20 +1,9 @@
 {
-  "id": "reformer.templates",
-  "name": "Шаблоны",
+  "id": "reformer.templates-schema",
+  "name": "Шаблоны форм: формы ReFormer",
   "version": "0.1.0",
   "apiVersion": "^1",
   "main": "main.ts",
-  "styles": {
-    "file": "styles.css",
-    "isolation": "scoped"
-  },
-  "provides": [
-    {
-      "id": "reformer.templates.creator",
-      "version": "1.0.0"
-    }
-  ],
-  "permissions": ["workspace.save"],
   "requires": {
     "optional": [
       {

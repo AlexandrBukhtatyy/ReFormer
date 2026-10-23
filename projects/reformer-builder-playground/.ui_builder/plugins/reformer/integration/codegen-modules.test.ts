@@ -19,8 +19,8 @@ import { createPluginModules } from '@/shell/boot/plugin-modules';
 import { buildView, makeNames, moduleFilesOf, prepare, STEP_IMPORT } from '../core/codegen';
 import { BUILTIN_CATALOG, builtinKit, subpathSchema, wizardSchema } from '../core/testing';
 import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
+import { applyTemplate } from '../../forms/templates/src';
 import {
-  applyTemplate,
   createBuiltinStore,
   createTemplateStack,
   SIMPLE_TEMPLATE_ID,

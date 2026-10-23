@@ -33,13 +33,13 @@ import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal
 import type { PluginContext } from '@reformer/builder-plugin-api/internal';
 import { TemplateStackPoint } from '@reformer/builder-plugin-api';
 import { builtinKit } from '../core/testing';
-import type { FormTemplate } from '../templates/src';
+import type { FormTemplate } from '../../forms/templates/src';
 import {
-  createTemplateStack,
   generateFormFromTemplate,
   TEMPLATES_PLUGIN_ID,
   templatesWorkspace,
-} from '../templates/src';
+} from '../../forms/templates/src';
+import { createTemplateStack } from '../templates/src';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import {

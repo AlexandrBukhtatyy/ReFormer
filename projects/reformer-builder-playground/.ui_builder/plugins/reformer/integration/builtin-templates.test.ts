@@ -39,15 +39,17 @@ import { BUILTIN_TARGETS, generateModule } from '../codegen/src';
 import { looksLikeFormSchema } from '../editor/src/model/provider';
 import {
   applyTemplate,
+  materializeFiles,
+  TOKENS,
+  type FormTemplate,
+} from '../../forms/templates/src';
+import {
   BUILTIN_BASE_NAME,
   createBuiltinStore,
   createTemplateStack,
-  materializeFiles,
   MODULE_TOKENS,
   SIMPLE_TEMPLATE_ID,
   WIZARD_TEMPLATE_ID,
-  TOKENS,
-  type FormTemplate,
   type ModulePrinter,
   type SeedExtras,
 } from '../templates/src';

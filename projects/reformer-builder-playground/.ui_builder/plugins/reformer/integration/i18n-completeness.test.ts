@@ -20,7 +20,6 @@ import {
 import { CODEGEN_STACK_MESSAGES } from '../codegen/src/messages';
 import { SCHEMA_EDITOR_MESSAGES } from '../editor/src/messages';
 import { PREVIEW_RUNTIME_MESSAGES } from '../render/src/messages';
-import { TEMPLATES_MESSAGES } from '../templates/src/messages';
 import { SCHEMA_VALIDATOR_MESSAGES } from '../validator/src/messages';
 
 /** Словари плагинов домена. Имя владельца — каталог плагина в домене. */
@@ -28,7 +27,6 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['codegen', CODEGEN_STACK_MESSAGES],
   ['editor', SCHEMA_EDITOR_MESSAGES],
   ['render', PREVIEW_RUNTIME_MESSAGES],
-  ['templates', TEMPLATES_MESSAGES],
   ['validator', SCHEMA_VALIDATOR_MESSAGES],
 ];
 

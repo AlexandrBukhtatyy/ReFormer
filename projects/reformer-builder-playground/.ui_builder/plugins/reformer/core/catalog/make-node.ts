@@ -11,6 +11,15 @@ import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
 import { LEAF_COMPONENT_NAMES } from '../kits/defaults';
 
+/**
+ * Ритм корня формы, которую собирает сам билдер, — затравки встроенных шаблонов.
+ *
+ * Здесь, а не у затравок, по той же причине, что `defaultClass` тегов: класс попадает в превью
+ * ДАННЫМИ, а не разметкой плагина, и правило для него везёт таблица стилей превью, которая
+ * сканирует ядро (`--with ../core`).
+ */
+export const FORM_ROOT_CLASS = 'space-y-6';
+
 export function fieldNode(name: string): JsonNode {
   return {
     model: '$model(newField)',

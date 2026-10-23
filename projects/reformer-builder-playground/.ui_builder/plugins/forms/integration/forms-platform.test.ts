@@ -82,7 +82,7 @@ function probe(started: BuilderApp): {
 }
 
 describe('boot с платформой форм и без движка', () => {
-  it('поднимается: встроенные, киты, превью-хост, ассистент и генерация кода — все активны', async () => {
+  it('поднимается: встроенные, киты, превью-хост, ассистент, генерация и шаблоны — все активны', async () => {
     const started = await start();
 
     const statuses = started.plugins.statuses();
@@ -98,6 +98,7 @@ describe('boot с платформой форм и без движка', () => {
       'reformer.preview',
       'reformer.profile-switch',
       'reformer.project',
+      'reformer.templates',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });
