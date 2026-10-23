@@ -41,6 +41,7 @@ reformer-builder-playground/
 │       │   ├── preview/                 reformer.preview — хост превью: живой вид, поверхности
 │       │   ├── ai/                      reformer.ai — ассистент: каналы к моделям, лента, мост
 │       │   ├── codegen/                 reformer.codegen — экспорт кода: панель, запись, цели проекта
+│       │   ├── templates/               reformer.templates — шаблоны форм: панель, хранилища, создание
 │       │   └── integration/             проверки: платформа форм без единого движка
 │       ├── reformer/                    ДОМЕН: движок форм ReFormer
 │       │   ├── core/                    ядро домена — общий предметный код его плагинов
@@ -48,7 +49,7 @@ reformer-builder-playground/
 │       │   ├── render/                  reformer.preview-runtime — превью формы
 │       │   ├── validator/               reformer.validator-schema — проверки схемы
 │       │   ├── codegen/                 reformer.codegen-schema — стек ReFormer в генерации кода
-│       │   ├── templates/               reformer.templates — шаблоны форм
+│       │   ├── templates/               reformer.templates-schema — стек ReFormer в шаблонах
 │       │   ├── ai/                      reformer.ai-schema — стек ReFormer в ассистенте
 │       │   └── integration/             проверки: плагины домена в собранном приложении
 │       ├── rjsf/                        ДОМЕН: движок форм RJSF
@@ -102,8 +103,8 @@ Chromium-браузер (File System Access API). Оба запуска отда
 `presetChoices`, `plugins` и `defaults` применяются только на уровне запуска: разойдись они
 в конфиге проекта с конфигом запуска, билдер при открытии предупредит, что эти поля не сработали.
 
-`settings.json` называет включённые плагины (`workspace.plugins.enabled`) — все десять, оба движка
-целиком — и права, выданные заранее (`workspace.plugins.permissions`): генерации кода, шаблонам
+`settings.json` называет включённые плагины (`workspace.plugins.enabled`) — основу, платформу форм
+и оба движка целиком — и права, выданные заранее (`workspace.plugins.permissions`): генерации кода, шаблонам
 и редактору RJSF нужно писать файлы проекта (`workspace.save`). Без этой записи билдер спросил бы
 права диалогом при первом открытии.
 
@@ -209,11 +210,14 @@ done
 (`reformer.kits`: активный кит как служба, его выбор ячейкой строки состояния и палитрой,
 встроенный кит `@reformer/ui-kit`) и хост превью (`reformer.preview`: живой вид, выбор
 поверхности), а также ассистент (`reformer.ai`: канал к модели, лента разговора, мост к форме)
-и генерация кода (`reformer.codegen`: панель «Экспорт формы», запись модуля, цели проекта).
+генерация кода (`reformer.codegen`: панель «Экспорт формы», запись модуля, цели проекта) и шаблоны
+(`reformer.templates`: панель «Шаблоны», хранилища проекта и браузера, создание формы).
 Что такое форма, какие у модели инструменты и как правка ложится в документ, ассистенту приносит
 стек движка — вкладом в точку `FormAssistantStackPoint`; у ReFormer это `reformer.ai-schema`.
 Так же и в генерации: форму документа, место модуля и его файлы приносит стек — точками
-`CodegenStackPoint` и `CodegenTargetPoint`; у ReFormer это `reformer.codegen-schema`. Раньше оба были встроенными плагинами билдера; теперь билдер про формы не знает
+`CodegenStackPoint` и `CodegenTargetPoint`; у ReFormer это `reformer.codegen-schema`. В шаблонах —
+документ формы, имена модуля и встроенные шаблоны: точками `TemplateStackPoint` и
+`TemplateStorePoint`; у ReFormer это `reformer.templates-schema`. Раньше оба были встроенными плагинами билдера; теперь билдер про формы не знает
 ничего, а пакеты, общие для исполняемого кода форм (`@reformer/core`, рендереры, кит), отдаёт
 плагинам его слой приложения. Движок без платформы не работает: проект, включающий движок,
 включает и её.

@@ -282,7 +282,8 @@ projects/reformer-builder-playground/.ui_builder/plugins/
 │   ├── validator/             reformer.validator-schema (флат — размер позволяет)
 │   ├── codegen/               reformer.codegen-schema — стек ReFormer в генерации кода:
 │   │                          pipeline/ (+ __golden__) stack/ commands/ (хозяин — forms/codegen)
-│   ├── templates/             reformer.templates: content/ render/ commands/ stores/ ui/
+│   ├── templates/             reformer.templates-schema — стек ReFormer в шаблонах: документ
+│   │                          формы, имена модуля, встроенные шаблоны (хозяин — forms/templates)
 │   ├── ai/                    reformer.ai-schema — стек ReFormer в ассистенте: stack/ model/
 │   │                          loop/ tools/ files/ knowledge/ (сам ассистент — forms/ai)
 │   └── integration/           плагины домена в собранном приложении — проверки, не плагин
@@ -372,10 +373,10 @@ projects/reformer-builder-playground/.ui_builder/plugins/
 `DocumentRef.providerId` — провайдеру, который его разобрал, — а не по расширению: `.json`
 бывает схемой любого стека. Сегодня стеков два:
 
-| Стек               | Ядро            | Плагины                                                                  | Чем включается      |
-| ------------------ | --------------- | ------------------------------------------------------------------------ | ------------------- |
-| ReFormer           | `reformer/core` | validator-schema, editor-schema, preview-runtime, ai, codegen, templates | настройками проекта |
-| RJSF `rjsf-form/1` | `rjsf/core`     | rjsf.editor, rjsf.render                                                 | настройками проекта |
+| Стек               | Ядро            | Плагины                                                                                       | Чем включается      |
+| ------------------ | --------------- | --------------------------------------------------------------------------------------------- | ------------------- |
+| ReFormer           | `reformer/core` | validator-schema, editor-schema, preview-runtime, ai-schema, codegen-schema, templates-schema | настройками проекта |
+| RJSF `rjsf-form/1` | `rjsf/core`     | rjsf.editor, rjsf.render                                                                      | настройками проекта |
 
 Оба — плагины: под собранным билдером они едут слоем плагинов приложения, под `vite dev` каждый
 включается отдельно, списком `workspace.plugins.enabled` в `.ui_builder/settings.json`.
@@ -593,7 +594,7 @@ plugins/base/project/
 | `kits/` (активный кит)             | `plugins/forms/kits/` (каталог плагинов образца)                                  |
 | `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/reformer/render/`                            |
 | `codegen/`                         | `reformer/core/codegen/` + `plugins/forms/codegen/` + `plugins/reformer/codegen/` |
-| `templates/`, `app/*-templates.ts` | `plugins/reformer/templates/`                                                     |
+| `templates/`, `app/*-templates.ts` | `plugins/forms/templates/` + `plugins/reformer/templates/`                        |
 | `canvas/`, `panels/`               | `plugins/editor-*/`                                                               |
 | `agent/core/`                      | `plugins/forms/ai/` + `plugins/reformer/ai/`                                      |
 | `io/fs-*`, `discovery`             | `shell/platform/source/`                                                          |

@@ -70,21 +70,21 @@ npx reformer-builder --plugins ./my-plugins
 открытие проекта и сохранение, управление плагинами, выбор профиля.
 Остальное приносят плагины: основу (дерево файлов, журнал, операции над записями,
 редактор кода, предпросмотр markdown),
-платформу форм (реестр китов, превью-хост, ассистент и генерация кода — то, чем пользуется любой
-движок) и сами движки — формат схемы, её редактор, поверхности превью, валидатор, шаблоны, свой
-стек в ассистенте и в генерации кода. Едут они вместе с приложением (см. выше) или лежат в `.ui_builder/plugins/`
+платформу форм (реестр китов, превью-хост, ассистент, генерация кода и шаблоны — то, чем
+пользуется любой движок) и сами движки — формат схемы, её редактор, поверхности превью, валидатор,
+свой стек в ассистенте, в генерации кода и в шаблонах. Едут они вместе с приложением (см. выше) или лежат в `.ui_builder/plugins/`
 открытого проекта. Без них файл формы открывается текстом.
 
 Четыре готовых домена лежат в проекте-образце
 ([`projects/reformer-builder-playground`](../../reformer-builder-playground/README.md)), по пакету
 на плагин:
 
-| Домен    | Каталог                         | Плагины (идентификаторы)                                                                                                                                                                                                    |
-| -------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base     | `.ui_builder/plugins/base/`     | `reformer.files` — дерево файлов, операции над записями; `reformer.journal` — журнал: проблемы и события; `reformer.editor-monaco` — редактор кода; `reformer.editor-markdown` — предпросмотр markdown                      |
-| forms    | `.ui_builder/plugins/forms/`    | `reformer.kits`, `reformer.preview`, `reformer.ai` (ассистент), `reformer.codegen` (генерация кода) — платформа форм, общая для движков                                                                                     |
-| ReFormer | `.ui_builder/plugins/reformer/` | `reformer.editor-schema`, `reformer.preview-runtime`, `reformer.validator-schema`, `reformer.codegen-schema` (стек ReFormer в генерации кода), `reformer.templates`, `reformer.ai-schema` (стек форм ReFormer в ассистенте) |
-| RJSF     | `.ui_builder/plugins/rjsf/`     | `reformer.rjsf.editor`, `reformer.rjsf.render`                                                                                                                                                                              |
+| Домен    | Каталог                         | Плагины (идентификаторы)                                                                                                                                                                                                                                      |
+| -------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base     | `.ui_builder/plugins/base/`     | `reformer.files` — дерево файлов, операции над записями; `reformer.journal` — журнал: проблемы и события; `reformer.editor-monaco` — редактор кода; `reformer.editor-markdown` — предпросмотр markdown                                                        |
+| forms    | `.ui_builder/plugins/forms/`    | `reformer.kits`, `reformer.preview`, `reformer.ai` (ассистент), `reformer.codegen` (генерация кода), `reformer.templates` (шаблоны форм) — платформа форм, общая для движков                                                                                  |
+| ReFormer | `.ui_builder/plugins/reformer/` | `reformer.editor-schema`, `reformer.preview-runtime`, `reformer.validator-schema`, `reformer.codegen-schema` (стек ReFormer в генерации кода), `reformer.templates-schema` (стек ReFormer в шаблонах), `reformer.ai-schema` (стек форм ReFormer в ассистенте) |
+| RJSF     | `.ui_builder/plugins/rjsf/`     | `reformer.rjsf.editor`, `reformer.rjsf.render`                                                                                                                                                                                                                |
 
 Каталог плагинов допускает один уровень вложенности. Подкаталог без `manifest.json`
 и без `package.json` — **домен**; его подкаталоги с манифестом — плагины, а прочие (`core/` —
@@ -108,7 +108,8 @@ npx reformer-builder --plugins ./my-plugins
     "reformer.validator-schema",
     "reformer.codegen",
     "reformer.codegen-schema",
-    "reformer.templates"
+    "reformer.templates",
+    "reformer.templates-schema"
   ],
   "workspace.plugins.permissions": {
     "reformer.files": ["workspace.resources"],
@@ -126,7 +127,9 @@ npx reformer-builder --plugins ./my-plugins
 любому движку: без `reformer.kits` форму нечем рисовать, без `reformer.preview` её негде показать. Остальное включается по одному: проекту без ассистента
 достаточно не называть `reformer.ai` (стеку движка в нём, `reformer.ai-schema`, без самого
 ассистента делать нечего), проекту без экспорта кода — `reformer.codegen` (стек ReFormer в нём,
-`reformer.codegen-schema`, без хозяина печатает только модуль для шаблонов форм),
+`reformer.codegen-schema`, без хозяина печатает только модуль для шаблонов форм), проекту без
+шаблонов — `reformer.templates` (стек ReFormer в нём, `reformer.templates-schema`, без хозяина
+ничего не показывает),
 проекту с формами RJSF — назвать `reformer.rjsf.editor` и `reformer.rjsf.render`. Права, которых
 просит плагин (`workspace.save` — писать файлы проекта), записываются туда же; без записи билдер
 спросит их диалогом при первом включении.
