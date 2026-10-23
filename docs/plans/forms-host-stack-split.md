@@ -230,15 +230,46 @@ SDK + поверхности из `reformer/render` и `rjsf/render`): **общ�
   сторон — в `reformer/integration/codegen-*`; чек-лист ссылок; документы.
 - Необязательно 2d: RJSF вносит цель `Form.tsx` — второй потребитель доказывает нейтральность.
 
-## Этап 3 — шаблоны (эскиз)
+## Этап 3 — шаблоны
 
-- SDK: `TemplateStorePoint` (`'templates.store'`, приоритеты 10/20/30), типы `FormTemplate`,
-  `TemplateStackPoint`: `{id, owns(files), empty(formName), folderFor(formName, near?),
-  tokens(formName), view(files), upgrade?(files), formDocumentOf(files)}`.
-- `forms/templates` (`reformer.templates`, `workspace.save`, отдаёт `reformer.templates.creator`):
-  хранилища проекта и локальное, оболочки `files`/`operations`/`create-for`/`render`, UI, команды.
-- `reformer/templates` (`reformer.templates-schema`): `stores/builtin.ts`, `seeds.ts`, хуки стека;
-  `requires.optional` printer ^1 и kit ^2.
+Уточнено после этапа 2 и чтения плагина (`reformer/templates`, ~4,6 тыс. строк кода и ~4,3 тыс.
+строк тестов). Нейтральны: хранилища проекта (`.ui_builder/templates/`) и локальное, панель и
+диалоги, команды и меню дерева, снимок каталога в шаблон и его токены имени, отбор файлов,
+запись новой формы. Знание ReFormer — в семи местах: встроенные шаблоны (затравки + печать
+кодогеном), имена модуля в токенах (`makeNames`), вид формы для шаблона на Eta (`it.form`),
+перевод схемы в формат 2, поиск документа формы среди файлов шаблона, место новой формы рядом с
+модулем документа и каталог фикстуры, пустая форма для создания без шаблона.
+
+**Контракт SDK** `services/form-templates.ts` (рядом с `form-authoring.ts`):
+
+- `FormTemplate`, `TemplateFile`, `TemplateStore`, `TemplateSource`, `TemplatePrint` — нынешние
+  типы; `TemplateStorePoint` (`'templates.store'`) — настоящая точка вместо структурной копии.
+- `TemplateStackPoint` (`'templates.stack'`), `TemplateStack`: `{id, owns(files),
+  documentOf(files), upgrade?(files), view?(files, formName), tokens?(formName), empty?(),
+  moduleDepthOf?(path), fixtureDirOf?(path)}`. Стек шаблона — тот, чей `owns` узнал набор
+  файлов; токены имён модуля у шаблона без стека — от первого стека, где они есть.
+
+**Toolkit**: `keepOrigin` (перевыставить маркер после подстановки) — нужен хозяину (снимок,
+подстановка) и стеку (встроенные шаблоны).
+
+**Контракт внутри ReFormer**: возможность печати `reformer.codegen.printer` — в
+`reformer/core/contracts/printer.ts` (её отдаёт `reformer.codegen-schema`, берёт стек шаблонов);
+структурная копия в шаблонах снимается.
+
+**`forms/templates`** (`reformer.templates`, пакет `@reformer/builder-forms-templates`, право
+`workspace.save`, отдаёт `reformer.templates.creator`): хранилища проекта и локальное, `content/`
+(файлы, операции, создание по заказу), `render/` (токены имени, отрисовка Eta с видом от стека),
+UI, команды, рабочая область без каталога кита.
+
+**`reformer/templates`** (`reformer.templates-schema`, необязательно printer ^1 и kit ^2):
+встроенное хранилище с затравками (`stores/builtin.ts`, `seeds.ts`), стек шаблонов (вид формы,
+документ, перевод в формат 2, токены имён модуля, пустая форма, место модуля и фикстуры), свой
+словарь, если понадобится.
+
+**Шаги** — как на этапе 2: **3a** SDK + toolkit + контракт печати в ядре; **3b** шов на месте
+(хозяйская часть ходит в стек только через `TemplateStack`, стек — в `src/stack/`, тест чистоты);
+**3c** раскол, тесты обеих сторон — в `reformer/integration/templates-*`, чек-лист ссылок,
+документы.
 
 ## Чек-лист ссылок (каждый этап)
 

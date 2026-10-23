@@ -8,48 +8,22 @@
  * стало честной деградацией вместо тихого исключения из правил.
  *
  * Возможность — стека, а не хозяина генерации: печать знает схему ReFormer, его цели и кит, а
- * записи в ней нет вовсе.
+ * записи в ней нет вовсе. Контракт — в ядре домена (`core/contracts/printer`): его берёт и стек
+ * шаблонов.
  *
  * @module plugins/reformer/codegen/printer
  */
 
 import type { CodegenInput } from '../../core/codegen';
 import { ensureSchema } from '../../core/form-model';
-import { defineCapability, type KitDescriptor } from '@reformer/builder-plugin-api';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
+import type { ModulePrinterService } from '../../core/contracts/printer';
 import type { CatalogEntry } from '../../core/catalog';
 import { generateModule } from './pipeline/generate';
 import { BUILTIN_TARGETS } from './pipeline/targets';
 
-/**
- * Один файл напечатанного модуля: путь от КОРНЯ МОДУЛЯ формы и содержимое.
- *
- * Модуль разложен по папкам ролей: документ формы — `schema/form.schema.json`, страница —
- * `<Тип>.tsx`, реэкспорты — `index.ts`, остальное — в `application/`, `model/`, `validation/`,
- * `behavior/`, … Потребитель кладёт файлы как есть, от каталога формы.
- */
-export interface PrintedFile {
-  readonly path: string;
-  readonly content: string;
-}
-
-/** Чем затравка дополняет схему: правила формы и мок источников данных. */
-export interface PrintSeed {
-  readonly rules?: unknown;
-  readonly mock?: unknown;
-  /** Вынести шаги визарда в свои файлы — шаблон «Пошаговая форма». */
-  readonly splitSteps?: boolean;
-}
-
-/** Версия `1.0.0` — исходная. */
-export const ModulePrinterCapability = defineCapability<ModulePrinterService>({
-  id: 'reformer.codegen.printer',
-  version: '1.0.0',
-});
-
-export interface ModulePrinterService {
-  /** Схема и имя формы — набор файлов модуля. Пустой список означает «печатать нечем». */
-  print(schema: unknown, formName: string, seed?: PrintSeed): Promise<readonly PrintedFile[]>;
-}
+export { ModulePrinterCapability } from '../../core/contracts/printer';
+export type { ModulePrinterService, PrintedFile, PrintSeed } from '../../core/contracts/printer';
 
 /** Кит и каталог — спрашиваются в момент печати. */
 export interface PrinterKit {
