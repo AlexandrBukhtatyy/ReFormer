@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   acceptsMarker,
   isGenerated,
+  keepOrigin,
   MARKER_PREFIX,
   originOf,
   withMarker,
@@ -48,5 +49,20 @@ describe(`где маркер допустим`, () => {
     expect(acceptsMarker(`README.md`)).toBe(false);
     // Неизвестный формат безопаснее оставить без пометки, чем испортить.
     expect(acceptsMarker(`LICENSE`)).toBe(false);
+  });
+});
+
+describe('происхождение после подстановки', () => {
+  it('нетронутый вывод генератора остаётся «сгенерированным» и после замены имени', () => {
+    const before = withMarker('export const fooForm = 1;\n');
+    const after = before.replace('fooForm', 'barForm');
+    expect(isGenerated(after)).toBe(false);
+    expect(isGenerated(keepOrigin(before, after))).toBe(true);
+  });
+
+  it('файл человека и правленный — как есть: маркер им не выдумывается и не чинится', () => {
+    expect(keepOrigin('мой файл\n', 'мой файл 2\n')).toBe('мой файл 2\n');
+    const edited = `${withMarker('x\n')}// правка\n`;
+    expect(keepOrigin(edited, `${edited}// ещё\n`)).toBe(`${edited}// ещё\n`);
   });
 });

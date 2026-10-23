@@ -95,3 +95,19 @@ export function originOf(text: string | null | undefined): FileOrigin {
 export function isGenerated(text: string | null | undefined): boolean {
   return originOf(text) === 'generated';
 }
+
+/**
+ * Текст после подстановки — с тем же происхождением, что было у него до неё.
+ *
+ * Маркер считается от ТЕЛА файла, а подстановка имени тело меняет: файл, только что напечатанный
+ * генератором, после неё выглядел бы «правленным руками», и билдер отказался бы перегенерировать
+ * его. Поэтому у нетронутого сгенерированного файла маркер выставляется заново. Файл без маркера
+ * и файл, который человек правил, остаются как есть: первый — написан руками, у второго хэш и не
+ * должен сходиться.
+ *
+ * @param before - Текст до подстановки: по нему решается, был ли файл нетронутым выводом генератора.
+ * @param after - Тот же текст после подстановки.
+ */
+export function keepOrigin(before: string, after: string): string {
+  return isGenerated(before) ? withMarker(after) : after;
+}
