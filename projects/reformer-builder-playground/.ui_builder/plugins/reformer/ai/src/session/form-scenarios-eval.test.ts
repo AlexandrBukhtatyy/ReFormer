@@ -404,6 +404,8 @@ interface EvalResult {
   readonly seconds: number;
   readonly error: string | null;
   readonly text: string;
+  /** Рассуждение модели (укороченное): по нему видно, ПОЧЕМУ ход выбрал эти вызовы. */
+  readonly reasoning: string;
 }
 
 async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
@@ -538,6 +540,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     seconds: Math.round((Date.now() - started) / 1000),
     error: state.error,
     text: state.text.slice(0, 300),
+    reasoning: (last?.reasoning ?? '').slice(0, 3000),
   };
 }
 
