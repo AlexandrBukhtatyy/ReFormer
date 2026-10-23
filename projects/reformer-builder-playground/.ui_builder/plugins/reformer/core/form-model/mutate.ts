@@ -279,7 +279,22 @@ export function moveNode(
   let insIdx = index;
   if (pathEquals(fromSlot, slotPath) && fromIdx < index) insIdx = index - 1;
 
-  return insertNode(afterRemove, slotPath, insIdx, moving);
+  // Цель — внутри соседа, стоящего ПОСЛЕ узла в том же слоте («поле — в шаг мастера ниже»):
+  // изъятие сдвигает соседа на позицию влево, и путь слота обязан сдвинуться вместе с ним. Без
+  // этого вставка шла по прежнему адресу — в следующий узел или в никуда, и форма ломалась.
+  let target = slotPath;
+  if (slotPath.length > fromSlot.length && isPrefix(fromSlot, slotPath)) {
+    const at = Number(slotPath[fromSlot.length]);
+    if (Number.isInteger(at) && at > fromIdx) {
+      target = [
+        ...slotPath.slice(0, fromSlot.length),
+        at - 1,
+        ...slotPath.slice(fromSlot.length + 1),
+      ];
+    }
+  }
+
+  return insertNode(afterRemove, target, insIdx, moving);
 }
 
 /**

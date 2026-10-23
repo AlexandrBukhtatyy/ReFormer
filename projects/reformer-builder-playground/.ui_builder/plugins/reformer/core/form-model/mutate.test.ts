@@ -147,6 +147,34 @@ describe('moveNode', () => {
     expect((step1[0] as { model?: string }).model).toBe('$model(loanAmount)');
     expect(newPath).toEqual([...P.step1children, 0]);
   });
+
+  it('в поддерево соседа ПОСЛЕ узла: путь назначения сдвигается вместе с соседом', () => {
+    // «Поле — в шаг мастера ниже»: изъятие поля сдвигает мастер на позицию влево, и вставка по
+    // прежнему адресу легла бы мимо — в следующий узел или в несуществующий.
+    const s = {
+      format: 2,
+      root: {
+        component: '$html(div)',
+        children: [
+          field('fullName'),
+          {
+            component: '$component(Wizard)',
+            children: [{ component: '$component(Step)', children: [] }],
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const into = ['root', 'children', 1, 'children', 0, 'children'];
+
+    const { schema, newPath } = moveNode(s, ['root', 'children', 0], into, 0);
+
+    const root = getAt(schema, ['root', 'children']) as JsonNode[];
+    expect(root).toHaveLength(1);
+    expect((root[0] as { component?: string }).component).toBe('$component(Wizard)');
+    const step = getAt(schema, ['root', 'children', 0, 'children', 0, 'children']) as JsonNode[];
+    expect((step[0] as { model?: string }).model).toBe('$model(fullName)');
+    expect(newPath).toEqual(['root', 'children', 0, 'children', 0, 'children', 0]);
+  });
 });
 
 describe('duplicateNode', () => {
