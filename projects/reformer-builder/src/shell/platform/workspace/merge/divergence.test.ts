@@ -244,6 +244,43 @@ describe('наблюдение за расхождениями', () => {
   });
 });
 
+describe('части составных документов', () => {
+  const root = rid('forms/a/schema/form.schema.json');
+  const part = rid('forms/a/schema/steps/one/form.schema.json');
+
+  it('подметание спрашивает и о частях: правка шага снаружи становится расхождением', async () => {
+    // Первый ответ — об открытых (корень совпал), второй — о части (её поправили в IDE).
+    const workspace = fakeWorkspace([
+      [{ id: root, status: 'same', expected: 'r1', actual: 'r1' }],
+      [{ id: part, status: 'diverged', expected: 'r1', actual: 'r2' }],
+    ]);
+    const watch = createDivergenceWatch({ workspace, extra: () => [part] });
+
+    const state = await watch.check('focus');
+
+    expect(workspace.asked).toEqual([undefined, [part]]);
+    expect(state.records.map((record) => record.id)).toEqual([part]);
+  });
+
+  it('часть, открытая ещё и вкладкой, проверяется один раз', async () => {
+    const workspace = fakeWorkspace([[{ id: part, status: 'same', expected: 'r1', actual: 'r1' }]]);
+    const watch = createDivergenceWatch({ workspace, extra: () => [part] });
+
+    await watch.check('focus');
+
+    expect(workspace.asked).toEqual([undefined]);
+  });
+
+  it('проверка по списку частей не добавляет — спрашивают ровно о названных', async () => {
+    const workspace = fakeWorkspace([[]]);
+    const watch = createDivergenceWatch({ workspace, extra: () => [part] });
+
+    await watch.check('open', [root]);
+
+    expect(workspace.asked).toEqual([[root]]);
+  });
+});
+
 describe('проверка при возврате фокуса', () => {
   it('фокус окна и возврат вкладки ведут в одну проверку', () => {
     const watch = { check: vi.fn(() => Promise.resolve(NO_DIVERGENCE)) };

@@ -34,6 +34,15 @@
  * `getFile()` на каждый открытый ресурс, то есть настоящее обращение к диску, повторяемое
  * вечно и в фоне.
  *
+ * ## Части составных документов
+ *
+ * Форма из нескольких файлов открыта одной вкладкой — корнем, а файлы шагов лежат в рабочей
+ * копии без вкладки. Подметание «обо всех открытых» о них не спросило бы, и правка шага в IDE не
+ * доходила бы до собранной формы ни при возврате фокуса, ни при переоткрытии вкладки: части
+ * читаются из рабочей копии. Поэтому подметание спрашивает и о ресурсах сверх открытых
+ * ({@link DivergenceWatchOptions.extra}), а открытие составного документа сверяет его части
+ * сразу (причина `open`).
+ *
  * ## Что здесь хранится
  *
  * Только расхождения. «Всё совпало» — это отсутствие записи, а не запись со статусом: иначе
@@ -100,7 +109,7 @@ export interface ExternalCheck {
 }
 
 /** Откуда узнали о расхождении. Попадает в интерфейс: «когда» объясняет «почему сейчас». */
-export type DivergenceReason = 'save' | 'focus' | 'reopen' | 'command';
+export type DivergenceReason = 'save' | 'focus' | 'reopen' | 'command' | 'open';
 
 /** Расхождение, о котором знаем. Совпадения здесь не хранятся — см. шапку модуля. */
 export interface DivergenceRecord extends ExternalCheck {
@@ -138,6 +147,12 @@ export interface DivergenceWatchOptions {
   readonly now?: () => number;
   /** Куда уходит отказ проверки. Без него — в консоль: молчащая проверка хуже шумной. */
   readonly onError?: (error: unknown) => void;
+  /**
+   * Ресурсы, о которых подметание спрашивает сверх открытых: файлы частей открытых составных
+   * документов. Вкладкой они не открыты, но их содержимое на экране — в собранной форме.
+   * Спрашивается в момент подметания: состав частей меняется вместе с документом.
+   */
+  readonly extra?: () => readonly ResourceId[];
 }
 
 export interface DivergenceWatch extends Disposable {
@@ -215,7 +230,14 @@ export function createDivergenceWatch(options: DivergenceWatchOptions): Divergen
     ids?: readonly ResourceId[]
   ): Promise<DivergenceState> => {
     try {
-      for (const check of await workspace.checkSource(ids)) absorb(check, reason);
+      const checks = [...(await workspace.checkSource(ids))];
+      if (ids === undefined && options.extra !== undefined) {
+        // Файл части, открытый ещё и своей вкладкой, уже проверен вместе с открытыми.
+        const seen = new Set(checks.map((check) => check.id));
+        const more = options.extra().filter((id) => !seen.has(id));
+        if (more.length > 0) checks.push(...(await workspace.checkSource(more)));
+      }
+      for (const check of checks) absorb(check, reason);
     } catch (error) {
       report(error);
     }

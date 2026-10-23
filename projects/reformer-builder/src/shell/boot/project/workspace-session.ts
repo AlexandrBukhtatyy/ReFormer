@@ -308,7 +308,15 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     diagnostics: options.diagnostics,
   });
 
-  const divergence = createDivergenceWatch({ workspace });
+  /**
+   * Файлы частей открытых составных документов. Вкладкой они не открыты, и проверка источника о
+   * них иначе не спрашивала бы: правка шага в IDE не доходила до собранной формы.
+   */
+  const openParts = (): readonly ResourceId[] =>
+    [...models.opened().values()].flatMap(
+      (handle) => handle.document.getComposition?.()?.parts ?? []
+    );
+  const divergence = createDivergenceWatch({ workspace, extra: openParts });
   const models = createDocumentModels({
     workspace,
     // Реестра вкладов нет — значит, провайдеров модели не спрашивают вовсе, и все документы
@@ -392,7 +400,15 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
    * как есть: про модель они не знают и знать не должны.
    */
   const tabsWorkspace: TabsWorkspace = {
-    open: (id) => models.open(id),
+    async open(id) {
+      const document = await models.open(id);
+      // Части прочитаны из рабочей копии, а её могли обогнать правкой снаружи, пока документ был
+      // закрыт. Сверка сразу, не дожидаясь возврата фокуса: разошедшуюся неправленную часть
+      // слияние примет само, и документ пересоберётся.
+      const parts = models.handleOf(id)?.document.getComposition?.()?.parts ?? [];
+      if (parts.length > 0) void divergence.check('open', parts);
+      return document;
+    },
     close: (id) => models.close(id),
     save: (id) => saving.save(id),
     openedResources: () => workspace.openedResources(),
