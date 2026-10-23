@@ -1,5 +1,5 @@
 import { call, say } from './shared/model-mock';
-import { FORM_A, inputNode } from './shared/forms';
+import { FORM_A, inputNode, savedText } from './shared/forms';
 import { expect, test } from './shared/fixtures';
 import type { BuilderApp } from '../shared/builder-app.pom';
 import type { PlaygroundDisk } from '../shared/playground-disk';
@@ -16,15 +16,14 @@ import type { PlaygroundDisk } from '../shared/playground-disk';
 const TYPES = 'forms/contact/types/contact.ts';
 
 /**
- * «Сохранить всё» из палитры — и типы модуля с диска. Генерация пишет в НОВЫЕ папки модуля, а их
- * рабочую копию дерево ресурсов не показывает, поэтому сохранить их можно только всем разом.
+ * Типы модуля — из дерева ресурсов, и с диска после сохранения. Генерация пишет в НОВЫЕ папки
+ * модуля (`types/`), которых на диске ещё нет: дерево показывает их рабочей копией, и файл
+ * открывается до сохранения.
  */
-async function saveAllAndRead(builder: BuilderApp, disk: PlaygroundDisk): Promise<string> {
-  await builder.openPalette('Сохранить всё');
-  // Пункт палитры называет и сочетание клавиш, поэтому выбирается Enter, а не по точному имени.
-  await builder.page.keyboard.press('Enter');
-  await expect.poll(() => disk.readText(TYPES).catch(() => ''), { timeout: 30_000 }).not.toBe('');
-  return disk.readText(TYPES);
+async function typesFromTree(builder: BuilderApp, disk: PlaygroundDisk): Promise<string> {
+  await builder.openFile(TYPES);
+  await expect(builder.dirtyMark(TYPES)).toHaveCount(1);
+  return savedText(builder, disk, TYPES);
 }
 
 test.describe('Ассистент: генерация кода', () => {
@@ -55,7 +54,7 @@ test.describe('Ассистент: генерация кода', () => {
     await expect(panel.failedToolLines(panel.answer(-1))).toHaveCount(0);
 
     // Модуль напечатан из формы ПОСЛЕ правки: в типах есть поле, добавленное этим же ходом.
-    expect(await saveAllAndRead(builder, disk)).toContain('phone');
+    expect(await typesFromTree(builder, disk)).toContain('phone');
   });
 
   test('[F11] режим файлов: модуль печатается из того, что модель записала', async ({
@@ -88,6 +87,6 @@ test.describe('Ассистент: генерация кода', () => {
     await expect(lines.filter({ hasText: 'Код формы сгенерирован в forms/contact' })).toHaveCount(
       1
     );
-    expect(await saveAllAndRead(builder, disk)).toContain('phone');
+    expect(await typesFromTree(builder, disk)).toContain('phone');
   });
 });
