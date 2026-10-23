@@ -166,7 +166,7 @@ const SCENARIOS: readonly FormScenario[] = [
       call('duplicate_node', { ref: '/root/children/1' }),
       call('remove_node', { refs: ['/root/children/2'] }),
       // [ФИО, почта, телефон, город] → город наверх → [город, ФИО, почта, телефон]
-      call('move_node', { ref: '/root/children/3', parent: '/root', index: 0 }),
+      call('move_node', { refs: ['/root/children/3'], parent: '/root', index: 0 }),
       call('group_nodes', { refs: ['/root/children/2', '/root/children/3'], direction: 'row' }),
       say('Переставил и сгруппировал.'),
     ],
@@ -174,21 +174,26 @@ const SCENARIOS: readonly FormScenario[] = [
     schema: [/"\$model\(city\)"[\s\S]*"\$model\(fullName\)"[\s\S]*"\$model\(email\)"/],
   },
   {
-    ids: '5.3, 3.4',
-    title: 'мастер: поле в шаг, новый шаг, переименование шага',
-    request: 'Сделай мастер: ФИО — в первом шаге «Заявитель», почта — во втором «Контакты».',
+    ids: '5.1, 5.3, 3.4',
+    title: 'форма → мастер: поля пачкой по шагам, новый шаг, переименование шага',
+    request: 'Сделай мастер: ФИО — в шаге «Заявитель», почта и телефон — в шаге «Контакты».',
     replies: [
-      call('insert_node', { parent: '/root', nodes: [{ component: 'Wizard' }] }),
-      call('move_node', { ref: '/root/children/0', parent: '/root/children/1/children/0' }),
-      // Поле ушло в шаг: мастер теперь первый ребёнок корня.
       call('insert_node', {
-        parent: '/root/children/0',
+        parent: '/root',
+        nodes: [inputNode('email', 'Почта'), inputNode('phone', 'Телефон')],
+      }),
+      // [ФИО, почта, телефон] → мастер с шагом «Шаг 1» в конце корня.
+      call('insert_node', { parent: '/root', nodes: [{ component: 'Wizard' }] }),
+      call('insert_node', {
+        parent: '/root/children/3',
         nodes: [{ component: 'Step', props: { title: 'Контакты' } }],
       }),
-      call('insert_node', {
-        parent: '/root/children/0/children/1',
-        nodes: [inputNode('email', 'Почта')],
+      // Пачкой и по адресам ДО переноса: почта и телефон — во второй шаг, ФИО — в первый.
+      call('move_node', {
+        refs: ['/root/children/1', '/root/children/2'],
+        parent: '/root/children/3/children/1',
       }),
+      call('move_node', { refs: ['/root/children/0'], parent: '/root/children/1/children/0' }),
       call('set_node_prop', {
         refs: ['/root/children/0/children/0'],
         props: { title: 'Заявитель' },
@@ -196,8 +201,12 @@ const SCENARIOS: readonly FormScenario[] = [
       call('generate_code', {}),
       say('Мастер собран.'),
     ],
-    labels: [FORM_B_FIELD, 'Почта'],
-    schema: ['$component(Wizard)', '"title": "Заявитель"', '"title": "Контакты"'],
+    labels: [FORM_B_FIELD, 'Почта', 'Телефон'],
+    schema: [
+      '$component(Wizard)',
+      '"title": "Заявитель"',
+      /"title": "Контакты"[\s\S]*"\$model\(email\)"[\s\S]*"\$model\(phone\)"/,
+    ],
   },
   {
     ids: '7.1, 7.3, 7.4',
