@@ -54,7 +54,7 @@ const echoTranslate: Translate = (key, params) =>
 /** Собрать двойник платформы. */
 export function createFakeHost(
   catalog: readonly CatalogEntry[] = builtinEntries(),
-  files?: AiFiles
+  files?: FakeFiles
 ): FakeHost {
   const texts = new Map<ResourceId, string>();
   const listeners = new Map<ResourceId, Set<(text: string) => void>>();
@@ -75,7 +75,7 @@ export function createFakeHost(
       kind: 'file',
       mediaType: 'application/json',
     },
-    getText: () => texts.get(id) ?? '',
+    getText: () => texts.get(id) ?? files?.text(id) ?? '',
     onDidChangeContent(cb): Disposable {
       let set = listeners.get(id);
       if (set === undefined) {
@@ -96,7 +96,9 @@ export function createFakeHost(
     translate: echoTranslate,
 
     activeResource: () => active,
-    documentOf: (id) => (texts.has(id) ? documentFor(id) : null),
+    // Файл проекта, который не открывали двойником, — вкладка с буфером файла: в приложении
+    // активная вкладка всегда открыта, а её буфер и есть то, что читает порт файлов.
+    documentOf: (id) => (texts.has(id) || files?.text(id) !== undefined ? documentFor(id) : null),
 
     writeText(id, text, mark) {
       if (failure !== null) return Promise.reject(failure);

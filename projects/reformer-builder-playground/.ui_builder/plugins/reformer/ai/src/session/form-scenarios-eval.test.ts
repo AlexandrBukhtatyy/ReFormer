@@ -33,6 +33,7 @@ import { createProviderRegistry } from '../providers/registry';
 import { createByokProvider } from '../providers/byok';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';
 import { createFakeFiles, createFakeHost } from '../testing';
+import { createSchemaFormStack } from '../stack';
 import type { AiAssistant } from '../plugin';
 import type { FormCreatorService, ModuleGeneratorService } from '@reformer/builder-plugin-api';
 
@@ -471,13 +472,18 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
   } as unknown as AiAssistant;
 
   const session = createAiSession();
+  const stack = createSchemaFormStack({
+    catalog: () => host.catalog(),
+    validateForm: () => Promise.resolve(validateFormSchema),
+    scopeOf: (id) => files.scopeOf(id),
+  });
   const bridge = createAgentBridge({
     assistant,
     host,
     session,
     agentCommands: () => [],
     executeCommand: () => Promise.resolve(undefined),
-    validateForm: () => Promise.resolve(validateFormSchema),
+    stacks: () => [stack],
     generator: () => generator,
     formCreator: () => creator,
   });

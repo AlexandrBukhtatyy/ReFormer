@@ -63,6 +63,7 @@ import type { AgentCommand } from './tools/command-tools';
 import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 import type { AiHost } from './host';
 import { aiWorkspace } from './workspace';
+import { createSchemaFormStack } from './stack';
 import { createKnowledgeLoader, type KnowledgeLoader } from './knowledge';
 import { AI_MESSAGES } from './messages';
 import { activateProvider, fetchModels, restoreProvider } from './providers/load';
@@ -373,11 +374,20 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
       const assistant = createAiAssistant(host, ctx);
       const session = createAiSession();
       const validateForm = createValidateFormLoader();
+      // Стек форм ReFormer — пока в этом же плагине; ассистент берёт его так же, как возьмёт
+      // вклад точки стеков: по документу, на каждый ход.
+      const files = host.files;
+      const stack = createSchemaFormStack({
+        catalog: () => host.catalog(),
+        validateForm,
+        knowledge: assistant.knowledge,
+        ...(files === undefined ? {} : { scopeOf: (id) => files.scopeOf(id) }),
+      });
       const bridge = createAgentBridge({
         assistant,
         host,
         session,
-        validateForm,
+        stacks: () => [stack],
         // Читается ЛЕНИВО, на каждый ход: команды приходят и уходят вместе с плагинами,
         // а захваченный на активации список описывал бы набор, которого уже нет.
         agentCommands: () => ctx.commands.agentCommands() as readonly AgentCommand[],

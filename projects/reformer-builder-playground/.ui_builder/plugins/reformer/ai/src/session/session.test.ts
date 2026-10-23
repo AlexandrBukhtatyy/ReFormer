@@ -5,10 +5,19 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { emptyRules } from '../../../core/form-model';
+import type { FormLoaded } from '@reformer/builder-plugin-api';
 import { ATTACHMENT_LIMIT, createAiSession, type TurnSnapshot, openAskOf } from './session';
 
-const SNAPSHOT: TurnSnapshot = { resource: 'form.json', text: '{}', rules: emptyRules() };
+/** Документ, разобранный стеком: сессия его только носит. */
+const LOADED: FormLoaded = {
+  stack: 'test',
+  resource: 'form.json',
+  path: 'form.json',
+  text: '{}',
+  state: null,
+  companions: [],
+};
+const SNAPSHOT: TurnSnapshot = { resource: 'form.json', text: '{}', loaded: LOADED };
 
 describe('снимок состояния', () => {
   it('ссылка стабильна, пока ничего не менялось', () => {
@@ -87,15 +96,8 @@ describe('ход', () => {
 
     session.startTurn('b');
     session.finishTurn({
-      set: {
-        base: {},
-        baseRules: emptyRules(),
-        draft: {},
-        draftRules: emptyRules(),
-        ops: [],
-      } as never,
-      resource: 'form.json',
-      baseText: '{}',
+      set: { ops: [] },
+      loaded: LOADED,
     });
     expect(session.get().status).toBe('review');
   });

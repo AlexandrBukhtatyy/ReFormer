@@ -21,7 +21,7 @@ import {
   type StopCondition,
   type ToolSet,
 } from 'ai';
-import type { ToolOutcome } from '../model/types';
+import type { FormToolOutcome as ToolOutcome } from '@reformer/builder-plugin-api';
 import { dropReasoning, pruneSupersededReads } from './context';
 import { textualCallOf } from './textual-call';
 import type { AiEvent, AiRequest, AiStop, AiUsage } from './types';

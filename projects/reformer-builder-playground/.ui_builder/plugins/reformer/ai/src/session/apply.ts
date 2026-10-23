@@ -37,12 +37,13 @@
  * @module plugins/reformer/ai/session/apply
  */
 
+import type { ResourceId } from '@reformer/builder-plugin-api';
+import type { CatalogEntry } from '../../../core/catalog';
 import { hasChanges, type ChangeSet } from '../model/changeset';
 import { validateSchema, type LoadValidateForm } from '../model/validate';
-import type { AiHost } from '../host';
+import type { AiFiles, AiHost } from '../host';
 import { printSchemaText } from '../model/schema-text';
-import type { PendingChanges } from './session';
-import { rulesTextToWrite } from './rules-file';
+import { rulesTextToWrite, type RulesFileBase } from './rules-file';
 
 /** Исход применения. */
 export type ApplyOutcome =
@@ -68,6 +69,21 @@ export type ApplyOutcome =
    */
   | { readonly status: 'failed'; readonly error: unknown };
 
+/** Набор изменений и то, к чему его применять. */
+export interface ApplyRequest {
+  readonly set: ChangeSet;
+  readonly resource: ResourceId;
+  /** Текст буфера на начало хода: с ним сверяется расхождение перед применением. */
+  readonly baseText: string;
+  /** Идентификатор хода — он же `txId` записи журнала. */
+  readonly txId?: string;
+  /**
+   * Файл правил формы на начало хода — куда писать правила набора и с чем сверять расхождение.
+   * Нет — у платформы нет файлового доступа, и правила живут только в памяти стека.
+   */
+  readonly rulesFile?: RulesFileBase;
+}
+
 /** Настройки применения. */
 export interface ApplyOptions {
   /** Применить, несмотря на расхождение с буфером (осознанный выбор пользователя). */
@@ -76,7 +92,12 @@ export interface ApplyOptions {
 
 /** Что нужно применению от платформы. */
 export interface ApplyDeps {
-  readonly host: Pick<AiHost, 'documentOf' | 'writeText' | 'catalog' | 'files'>;
+  readonly host: {
+    documentOf(id: ResourceId): { getText(): string } | null;
+    readonly writeText: AiHost['writeText'];
+    catalog(): readonly CatalogEntry[];
+    readonly files?: Pick<AiFiles, 'read' | 'write'>;
+  };
   /**
    * Заказ проверки по мета-схеме. ЗАКАЗ, а не сама функция: применение асинхронно и уже ждёт
    * записи, поэтому дождаться загрузки здесь ничего не стоит, а вызывающему не приходится
@@ -96,15 +117,18 @@ export interface ApplyDeps {
  * решается сравнением строк, и требовать ради него загрузчик проверки значило бы заставить
  * панель держать то, чем она не пользуется, — и грузить 120 кБ ради подписи на кнопке.
  */
-export function isStale(deps: Pick<ApplyDeps, 'host'>, pending: PendingChanges): boolean {
-  const document = deps.host.documentOf(pending.resource);
-  return document === null || document.getText() !== pending.baseText;
+export function isStale(
+  deps: { readonly host: Pick<ApplyDeps['host'], 'documentOf'> },
+  base: { readonly resource: ResourceId; readonly text: string }
+): boolean {
+  const document = deps.host.documentOf(base.resource);
+  return document === null || document.getText() !== base.text;
 }
 
 /** Применить набор изменений к рабочей копии. */
 export async function applyChangeSet(
   deps: ApplyDeps,
-  pending: PendingChanges,
+  pending: ApplyRequest,
   options: ApplyOptions = {}
 ): Promise<ApplyOutcome> {
   const set: ChangeSet = pending.set;

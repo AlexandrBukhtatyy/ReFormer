@@ -12,6 +12,7 @@
   "command.undoTurn": "Assistant: undo the last turn",
   "turn.noProvider": "No model channel is configured: pick a provider and connect it.",
   "turn.noForm": "Open a form — the assistant edits the schema of the active tab.",
+  "turn.noStack": "No plugin edits forms — enable a form stack.",
   "turn.error": "The turn ended with an error.",
   "turn.notApplied.invalid": "Changes not applied — they would make the form invalid: {errors}",
   "turn.notApplied.closed": "Changes not applied: the form is closed.",

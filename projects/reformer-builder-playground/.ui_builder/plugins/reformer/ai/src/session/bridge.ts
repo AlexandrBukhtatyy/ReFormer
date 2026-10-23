@@ -1,15 +1,16 @@
 /**
  * Мост ассистента: единственное место, где ход агента встречается с рабочей областью.
  *
- * Ядро (`core/`) чистое: оно получает схему входом и возвращает набор изменений, никуда его
- * не применяя. Здесь решается всё остальное — что считать текущей формой, откуда взять историю
- * диалога, куда деть результат и что сказать, если сказать нечего.
+ * Что такое форма, что видит модель и как правка ложится в документ, знает стек форм (`./stacks`,
+ * точка `FormAssistantStackPoint`): мост берёт его по документу активной вкладки. Здесь решается
+ * всё остальное — что считать текущей формой, откуда взять историю диалога, когда писать
+ * результат, как его отменить и что сказать, если сказать нечего.
  *
  * ## Что изменилось против v1
  *
  * В v1 этим занимался `agent/run.ts`, и он читал `editorStore` — состояние приложения. Здесь
  * нет ни стора, ни модульных синглтонов: активная вкладка приходит портом (`./host`), правки
- * уходят через `Workspace.writeText` (`./apply`), а каталог — входом хода.
+ * уходят через `Workspace.writeText` дверью, которую стек получил от моста, а каталог — у стека.
  *
  * Два урока живых прогонов, физически лежавших в `run.ts`, вынесены в `./history` и там же
  * покрыты тестами: сводка молчаливого хода (урок 7) и бюджет истории в символах (урок 8).
@@ -31,21 +32,30 @@
  * @module plugins/reformer/ai/session/bridge
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emptyRules, emptySchema, type FormRules } from '../../../core/form-model';
 import {
   parseAssistantResourceUri,
   type CommandContribution,
+  type DocumentRef,
+  type FormAgentTool,
+  type FormAssistantStack,
+  type FormChangeSet,
   type FormCreatorService,
+  type FormHostToolName,
+  type FormLandedCompanion,
+  type FormLandOutcome,
+  type FormLoaded,
+  type FormStackHost,
+  type FormToolContext,
+  type FormToolOutcome,
+  type FormTurn,
   type GenerateReport,
   type ModuleGeneratorService,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import { applyChangeSet } from './apply';
-import { createChangeSet, hasChanges, type ChangeSet } from '../model/changeset';
+import { createToolRegistry } from '@reformer/builder-toolkit';
 import type { AgentCommand, ExecuteCommand } from '../tools/command-tools';
 import type { ContributedToolEntry } from '../tools/contributed-tools';
-import { runAgentTurn, type ActiveForm, type TurnEvent, type TurnStats } from '../loop/loop';
+import { runTurn, type ActiveForm } from '../loop/run-turn';
 import type {
   AskAnswer,
   AskOutcome,
@@ -57,7 +67,6 @@ import type {
 import { askUserTool } from '../tools/ask-user';
 import { generateCodeTool } from '../tools/generate-code';
 import { createFormTool, listTemplatesTool } from '../tools/create-form';
-import { createToolRegistry } from '../tools/registry';
 import { createContributionSurface } from './contributions';
 import {
   createResourceRouter,
@@ -67,30 +76,29 @@ import {
   type ResourceSearchGroup,
 } from './resources';
 import { createTurnWrites, type TurnWrites } from './turn-writes';
-import { readRulesFile, rulesTextBefore, rulesTextToWrite, type RulesFileBase } from './rules-file';
-import type { LoadValidateForm } from '../model/validate';
-import type { AiFiles, AiHost, FileScope, WriteMark } from '../host';
+import type { AiFiles, AiHost, WriteMark } from '../host';
 import { historyFor } from './history';
 import type { AiAssistant } from '../plugin';
 import type { AiMessage, AiProvider, AiStop } from '../providers/types';
-import { parseSchemaText, printSchemaText } from '../model/schema-text';
 import {
   isFilesSnapshot,
   type AiSession,
   type AttachOutcome,
   type PendingChanges,
+  type TurnSnapshot,
 } from './session';
-import { fileRoleOf } from '../../../core/codegen/layout';
-import { printJson } from '../../../core/codegen/print/js';
-import { composeForm } from '../files/compose';
 import { createFileJournal, type FileJournal } from '../files/journal';
 import { relInScope } from '../files/scope';
-import { createFileTurn } from '../files/turn';
-import { runFileTurn } from '../loop/file-loop';
-import type { TurnStepEvent } from '../loop/drive';
+import type { StreamEnd, TurnStats, TurnStepEvent } from '../loop/drive';
+import {
+  createStackSet,
+  type ConnectedStack,
+  type StackMode,
+  type StackToolRegistry,
+} from './stacks';
 
 /** Исход хода, каким его сообщает цикл. */
-type TurnReason = Extract<TurnEvent, { type: 'done' }>['reason'];
+type TurnReason = StreamEnd['reason'];
 
 /**
  * Подсказка для второй попытки после обрыва на недописанном вызове.
@@ -180,15 +188,11 @@ export interface BridgeDeps {
   /** Провайдеры ресурсов — вклады точки `reformer.assistant.resource`. */
   readonly resourceProviders?: () => readonly ResourceProviderEntry[];
   /**
-   * Заказ проверки по мета-схеме (`core/validate`). Мост — единственное место, где её ждут:
-   * ход и применение асинхронны, а инструменты внутри хода синхронны, и просить их ждать сеть
-   * значило бы задерживать каждый шаг.
-   *
-   * Загрузку ЗАКАЗЫВАЕТ владелец при активации плагина, так что к первому ходу она давно
-   * приехала; ожидание здесь — страховка на случай очень быстрого первого вопроса, а не
-   * рабочий режим.
+   * Стеки форм — вклады точки `FormAssistantStackPoint`. Функция по той же причине, что
+   * {@link agentCommands}: стек приходит и уходит вместе со своим плагином. Нет ни одного —
+   * ассистенту нечем править формы, и ход говорит об этом словами.
    */
-  readonly validateForm: LoadValidateForm;
+  readonly stacks: () => readonly FormAssistantStack[];
   /**
    * Генерация кода формы — возможность плагина генерации (`../generator`). Функция, а не служба:
    * плагин вправе подняться позже ассистента или не подняться вовсе. Без неё `generate_code`
@@ -333,21 +337,25 @@ export function aiUndoTurnCommand(bridge: AgentBridge): CommandContribution {
   };
 }
 
-/** Активная форма на момент вопроса: адрес, текст буфера и разобранная схема. */
+/** Форма хода: стек, который за неё взялся, и документ, как он его разобрал. */
 interface Target {
-  readonly resource: ResourceId;
-  /** Путь документа от корня проекта — для модели и для подписи реплики. */
-  readonly path: string;
-  readonly baseText: string;
-  readonly base: JsonFormSchema;
-  readonly rules: FormRules;
-  /** Файл правил на начало хода; нет — файлового доступа нет, правила живут в памяти моста. */
-  readonly rulesFile?: RulesFileBase;
+  readonly stack: ConnectedStack;
+  readonly loaded: FormLoaded;
 }
+
+/** Набор без правок — у хода, упавшего до первой попытки. */
+const NO_CHANGES: FormChangeSet = { ops: [] };
+
+/** Инструменты ассистента, которые стек ставит в свой список по имени. */
+const HOST_TOOLS: Readonly<Record<FormHostToolName, FormAgentTool<never, never>>> = {
+  ask_user: askUserTool,
+  generate_code: generateCodeTool,
+  create_form: createFormTool,
+};
 
 /** Чем кончилась одна попытка: всё, что нужно, чтобы её закрыть или продолжить. */
 interface TurnOutcome {
-  readonly changeSet: ChangeSet;
+  readonly set: FormChangeSet;
   readonly reason: TurnReason;
   readonly message?: string;
   readonly stop?: AiStop;
@@ -462,9 +470,15 @@ interface LandedTurn {
   /** Идентификатор хода — он же `txId` пометки записи. */
   readonly txId: string;
   readonly files: ReadonlyMap<ResourceId, LandedFile>;
-  /** Правила до хода — у структурного хода: ход, изменивший только их, иначе не отменялся бы. */
-  readonly rules?: { readonly resource: ResourceId; readonly before: FormRules };
+  /**
+   * Документ до хода — у структурного хода: по нему стек возвращает сопутствующее состояние формы
+   * (у ReFormer — правила в памяти), которое файлами не отменяется.
+   */
+  readonly rewind?: FormLoaded;
 }
+
+/** Чем кончилось применение набора: исход стека или отказ, который ассистент видит сам. */
+type Applied = FormLandOutcome | { readonly status: 'empty' } | { readonly status: 'no-form' };
 
 export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const { assistant, host, session } = deps;
@@ -485,14 +499,29 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     session.setUndoable(turn !== null);
   };
 
-  /**
-   * Правила формы по документам — запасной путь для платформы без файлового доступа.
-   *
-   * Правила формы — сайдкар: файл рядом со схемой (`./rules-file`). Ход читает его на старте и
-   * пишет в конце, а эта память нужна только там, где файлов нет (`host.files` не дан), — иначе
-   * ассистенту пришлось бы отказать в правилах совсем. Перезагрузка страницы такую память забудет.
-   */
-  const rulesByResource = new Map<ResourceId, FormRules>();
+  /** Двери рабочей области для стеков форм — без интерфейса и переводов. */
+  const stackHost: FormStackHost = {
+    documentOf: (id) => host.documentOf(id),
+    writeText: (id, text, mark) => host.writeText(id, text, mark),
+    ...(host.files === undefined ? {} : { files: host.files }),
+  };
+  /** Стеки форм: какой берётся за документ и чем его править — см. `./stacks`. */
+  const stacks = createStackSet({
+    stacks: deps.stacks,
+    host: stackHost,
+    hostTool: (name) => HOST_TOOLS[name],
+  });
+
+  /** Стек документа — по провайдеру его модели, как у поверхностей превью; `null` — ничей. */
+  const stackOfDocument = (id: ResourceId): ConnectedStack | null => {
+    const document = host.documentOf(id);
+    if (document === null) return null;
+    const ref: DocumentRef =
+      document.providerId === undefined
+        ? { id, ref: document.ref, kind: 'text' }
+        : { id, ref: document.ref, kind: 'model', providerId: document.providerId };
+    return stacks.forDocument(ref);
+  };
 
   /** Ресурсы плагинов: кого спросить по адресу и что сказать модели в затравке. */
   const resources = createResourceRouter(deps.resourceProviders ?? (() => []));
@@ -504,8 +533,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     assistantTools: deps.assistantTools ?? (() => []),
     hasResources: () => resources.schemes().length > 0,
   });
-  const toolsForTurn = () => surface.registryFor('structured', assistant.tools);
-  const fileToolsForTurn = () => surface.registryFor('files', assistant.fileTools);
+  const toolsFor = (builtin: StackToolRegistry, mode: StackMode) =>
+    surface.registryFor(mode, builtin);
 
   /**
    * Ходы, лёгшие в рабочую копию мимо набора изменений, — по порядку: ходы режима файлов и
@@ -523,25 +552,6 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const txId = newTurnId();
     turnOrder.set(txId, turnOrder.size);
     return txId;
-  };
-
-  /**
-   * Почему ход не отдаёт ресурс инструменту плагина: документ формы и его шаги ход правит своим
-   * механизмом, и вторая дверь к ним разошлась бы с первой. `null` — отдаёт.
-   */
-  const formPartRefusal = (
-    id: ResourceId,
-    form: ResourceId,
-    scope: FileScope | null
-  ): string | null => {
-    const reason = 'The assistant edits the form document itself; a plugin tool cannot write it.';
-    if (id === form) return reason;
-    if (scope === null || host.files === undefined) return null;
-    const rel = relInScope(host.files, scope, id);
-    if (rel === null) return null;
-    const role = fileRoleOf(rel, scope.schemaPath);
-    // Файл правил ход тоже пишет сам — из черновика правил вместе со схемой.
-    return role === 'form' || role === 'step' || role === 'rules' ? reason : null;
   };
 
   /** Карточка, ждущая ответа, и как вернуть ответ ходу; `null` — никто не ждёт. */
@@ -777,44 +787,42 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * действием и целиком — ровно тот довод, по которому `txId` заводится до первой попытки.
    * По той же причине запись того же хода не теряет файлов, которые в нём записали инструменты
    * плагинов: они легли раньше применения набора и отменяются вместе с ним.
+   *
+   * @param companions - Сопутствующие файлы, которые записал стек (у ReFormer — файл правил): они
+   *   часть хода, и отмена обязана вернуть и их.
    */
-  const rememberTurn = async (pending: PendingChanges): Promise<void> => {
+  const rememberTurn = (
+    pending: PendingChanges,
+    companions: readonly FormLandedCompanion[]
+  ): void => {
     const txId = pending.txId;
     // Без идентификатора хода отменять нечего: сложить две такие правки в один шаг не по чему,
     // и «отмена» сняла бы половину. Сегодня его проставляет `send`, то есть он есть всегда.
     if (txId === undefined) return;
-    const document = host.documentOf(pending.resource);
+    const { resource } = pending.loaded;
+    const document = host.documentOf(resource);
     if (document === null) return;
-    // Файл правил — часть хода, если ход его изменил: отмена обязана вернуть и его.
-    const rulesFile = pending.rulesFile;
-    const rulesAfter =
-      rulesFile !== undefined && host.files !== undefined
-        ? await host.files.read(rulesFile.id)
-        : null;
 
     const previous = lastTurn !== null && lastTurn.txId === txId ? lastTurn : null;
-    const earlier = previous?.files.get(pending.resource);
+    const earlier = previous?.files.get(resource);
     const files = new Map(previous?.files ?? []);
-    files.set(pending.resource, {
-      before: earlier ? earlier.before : pending.baseText,
+    files.set(resource, {
+      before: earlier ? earlier.before : pending.loaded.text,
       after: document.getText(),
       access: 'document',
     });
-    if (rulesFile !== undefined && rulesAfter !== null && rulesAfter !== rulesFile.text) {
-      const earlierRules = previous?.files.get(rulesFile.id);
-      files.set(rulesFile.id, {
-        before: earlierRules ? earlierRules.before : rulesTextBefore(rulesFile),
-        after: rulesAfter,
+    for (const companion of companions) {
+      const earlierCompanion = previous?.files.get(companion.id);
+      files.set(companion.id, {
+        before: earlierCompanion ? earlierCompanion.before : companion.before,
+        after: companion.after,
         access: 'files',
       });
     }
     setLastTurn({
       txId,
       files,
-      rules: {
-        resource: pending.resource,
-        before: earlier && previous?.rules ? previous.rules.before : pending.set.baseRules,
-      },
+      rewind: earlier && previous?.rewind ? previous.rewind : pending.loaded,
     });
   };
 
@@ -840,27 +848,55 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const pathOfResource = (id: ResourceId): string =>
     host.documentOf(id)?.ref.path ?? host.files?.pathOf(id) ?? String(id);
 
-  /**
-   * Вернуть файл правил формы к правилам снимка — для «Восстановить». Без пометки хода, как и
-   * текст формы: восстановление заказал человек. Файла не было и правил в снимке нет — писать
-   * нечего; битый файл не трогается, как и при ходе.
-   */
-  const restoreRulesFile = async (resource: ResourceId, rules: FormRules): Promise<void> => {
-    const files = host.files;
-    const document = host.documentOf(resource);
-    if (files === undefined || document === null) return;
-    const current = await readRulesFile(files, resource, document.ref.path);
-    if (current.broken !== undefined) return;
-    const text = rulesTextToWrite(current, rules);
-    if (text !== null) await files.write(current.id, text);
-  };
+  /** Замечание: сопутствующий файл (файл правил) не записан, потому что он не разбирается. */
+  const brokenNote = (broken: { readonly id: ResourceId; readonly error: string }): string =>
+    t('turn.rules.broken', { path: pathOfResource(broken.id), error: broken.error });
 
-  /** Замечание: правила хода не записаны, потому что файл правил не разбирается. */
-  const brokenRulesNote = (pending: PendingChanges): string =>
-    t('turn.rules.broken', {
-      path: pending.rulesFile === undefined ? '' : pathOfResource(pending.rulesFile.id),
-      error: pending.rulesFile?.broken ?? '',
-    });
+  /** Замечание к набору, который не лёг и ждёт решения. */
+  const notAppliedNote = (
+    applied: Extract<Applied, { status: 'invalid' | 'failed' | 'no-form' }>
+  ): string =>
+    applied.status === 'invalid'
+      ? t('turn.notApplied.invalid', { errors: applied.errors.slice(0, 2).join('; ') })
+      : applied.status === 'failed'
+        ? t('turn.notApplied.failed', { error: messageOf(applied.error) })
+        : t('turn.notApplied.closed');
+
+  /**
+   * Применить набор — только что собранный ходом или ждавший решения.
+   *
+   * Дешёвые проверки делает сам ассистент и до стека: применять нечего, форму закрыли (или сняли
+   * стек, который её разобрал), текст разошёлся с базой хода. Расхождение снимает только `force` —
+   * кнопка, которую нажал человек, увидев предупреждение. Остальное знает стек: сопутствующие
+   * файлы, строгий гейт, печать документа.
+   *
+   * Запись уходит с `origin: 'agent'` и `txId` хода — единственное место, где ассистент называет
+   * себя рабочей области: без пометки журнал считал бы автором человека.
+   */
+  const landPending = async (pending: PendingChanges, force: boolean): Promise<Applied> => {
+    const stack = stacks.byId(pending.loaded.stack);
+    if (stack === null) return { status: 'no-form' };
+    const structured = stack.session.structured;
+    if (!structured.hasChanges(pending.set)) return { status: 'empty' };
+    const document = host.documentOf(pending.loaded.resource);
+    if (document === null) return { status: 'no-form' };
+    if (document.getText() !== pending.loaded.text && !force) return { status: 'conflict' };
+    let outcome: FormLandOutcome;
+    try {
+      outcome = await structured.land({
+        loaded: pending.loaded,
+        set: pending.set,
+        mark: { origin: 'agent', ...(pending.txId === undefined ? {} : { txId: pending.txId }) },
+        force,
+      });
+    } catch (error) {
+      outcome = { status: 'failed', error };
+    }
+    // Отложенное применение — тот же ход, просто приземлившийся позже: `txId` набор пережил
+    // ровно ради этого, и отменяться такой ход обязан так же, как обычный.
+    if (outcome.status === 'applied') rememberTurn(pending, outcome.companions);
+    return outcome;
+  };
 
   /** Чтение и запись файла хода — той дверью, которой ход его писал. */
   const accessOf = (file: LandedFile) =>
@@ -872,7 +908,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         };
 
   /**
-   * Форма хода или `null`: вкладки нет, документа нет либо текст — не схема формы.
+   * Форма хода или `null`: вкладки нет, документа нет, ни один стек за него не берётся либо
+   * стек его не разобрал.
    *
    * Без адреса — форма АКТИВНОЙ вкладки: так начинается ход. С адресом — та же форма, что у
    * первой попытки: вторая попытка продолжает ход, и правки обязаны лечь туда же, куда легли
@@ -885,28 +922,14 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     if (host.documentOf(resource) !== null) await host.flush?.(resource);
     const document = host.documentOf(resource);
     if (document === null) return null;
-    const baseText = document.getText();
-    let base: JsonFormSchema;
-    try {
-      base = parseSchemaText(baseText);
-    } catch {
-      // Не диагностика, а ответ «править нечего»: про синтаксис скажет валидатор того, кто
-      // за файл взялся, а ассистент правит только разбирающуюся схему.
-      return null;
-    }
-    const files = host.files;
-    if (files === undefined) {
-      return {
-        resource,
-        path: document.ref.path,
-        baseText,
-        base,
-        rules: rulesByResource.get(resource) ?? emptyRules(),
-      };
-    }
-    // Файл правил читается на каждом ходу заново: его правят и мимо ассистента.
-    const { rules, ...rulesFile } = await readRulesFile(files, resource, document.ref.path);
-    return { resource, path: document.ref.path, baseText, base, rules, rulesFile };
+    const stack = stackOfDocument(resource);
+    if (stack === null) return null;
+    const loaded = await stack.session.structured.load({
+      resource,
+      path: document.ref.path,
+      text: document.getText(),
+    });
+    return loaded === null ? null : { stack, loaded };
   };
 
   /**
@@ -957,7 +980,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const runOnce = async (
     provider: AiProvider,
     target: Target,
-    messages: Parameters<typeof runAgentTurn>[0]['messages'],
+    messages: readonly AiMessage[],
     signal: AbortSignal,
     scope: TurnScope,
     activeForm: ActiveForm
@@ -968,26 +991,22 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const maxSteps = config?.maxSteps;
     const maxInputTokens = config?.maxInputTokens;
 
-    // Здесь же, одним ожиданием на ход: инструменты внутри хода синхронны, и гейт обязан
-    // получить УЖЕ загруженную функцию. Отказ загрузки поднимается наружу — его ловит `send`
-    // и показывает строкой ошибки: ход без гейта провести нельзя, а сделать вид можно.
-    const validateForm = await deps.validateForm();
+    // Здесь же, одним ожиданием на ход: стек готовит то, без чего ход не провести (у ReFormer —
+    // проверку по мета-схеме для гейта). Отказ поднимается наружу — его ловит `send` и показывает
+    // строкой ошибки: ход без гейта провести нельзя, а сделать вид можно.
+    const { session: stackSession } = target.stack;
+    await stackSession.prepare();
+    const turn = stackSession.structured.begin(target.loaded);
 
-    // Значение по умолчанию на случай, если цикл почему-то не дошёл до `done`: штатно не бывает —
-    // `runAgentTurn` выдаёт его даже поверх исключения, — но исход попытки должен быть объектом,
-    // а не «объектом или undefined», иначе каждый читатель обязан помнить про этот случай.
-    let outcome: TurnOutcome = {
-      changeSet: createChangeSet(target.base, target.rules),
-      reason: 'complete',
-    };
+    // Значение по умолчанию на случай, если цикл почему-то не дошёл до `end`: штатно не бывает —
+    // поток выдаёт его даже поверх исключения, — но исход попытки должен быть объектом, а не
+    // «объектом или undefined», иначе каждый читатель обязан помнить про этот случай.
+    let outcome: TurnOutcome = { set: turn.result(), reason: 'complete' };
 
-    for await (const event of runAgentTurn({
+    for await (const event of runTurn({
       provider,
-      registry: toolsForTurn(),
-      catalog: host.catalog(),
-      validateForm,
-      base: target.base,
-      baseRules: target.rules,
+      registry: toolsFor(target.stack.registry('structured'), 'structured'),
+      turn,
       messages,
       ...(maxSteps !== undefined ? { maxSteps } : {}),
       ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
@@ -996,13 +1015,13 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       resourceSeed: resources.catalog(),
       activeForm,
     })) {
-      if (event.type !== 'done') {
+      if (event.type !== 'end') {
         consume(event);
         continue;
       }
       report(event.stats, event.stop);
       outcome = {
-        changeSet: event.changeSet,
+        set: turn.result(),
         reason: event.reason,
         ...(event.message ? { message: event.message } : {}),
         ...(event.stop ? { stop: event.stop } : {}),
@@ -1023,38 +1042,22 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * должен одним действием, а не по одной попытке.
    */
   const land = async (outcome: TurnOutcome, target: Target, txId: string): Promise<Landing> => {
-    const set = outcome.changeSet;
-    if (!hasChanges(set)) return { status: 'nothing' };
-
-    const pending: PendingChanges = {
-      set,
-      resource: target.resource,
-      baseText: target.baseText,
-      txId,
-      ...(target.rulesFile === undefined ? {} : { rulesFile: target.rulesFile }),
-    };
-    const applied = await applyChangeSet({ host, validateForm: deps.validateForm }, pending);
-    if (applied.status === 'applied') {
-      // Правила уезжают в память вместе с применением, а не раньше: набор, который не лёг,
-      // не должен менять то, от чего пойдёт следующий ход.
-      rulesByResource.set(target.resource, set.draftRules);
-      await rememberTurn(pending);
-      return applied.rulesBroken === true
-        ? { status: 'applied', note: brokenRulesNote(pending) }
-        : { status: 'applied' };
+    const pending: PendingChanges = { set: outcome.set, loaded: target.loaded, txId };
+    const applied = await landPending(pending, false);
+    switch (applied.status) {
+      case 'applied':
+        return applied.broken === undefined
+          ? { status: 'applied' }
+          : { status: 'applied', note: brokenNote(applied.broken) };
+      case 'empty':
+        return { status: 'nothing' };
+      // Расхождение замечания не получает намеренно: набор уходит в предпросмотр с кнопками
+      // решения, и это не отказ, а развилка. Красная строка перевела бы реплику в статус ошибки.
+      case 'conflict':
+        return { status: 'stuck', pending, conflict: true };
+      default:
+        return { status: 'stuck', pending, conflict: false, note: notAppliedNote(applied) };
     }
-    if (applied.status === 'empty') return { status: 'nothing' };
-    // Расхождение замечания не получает намеренно: набор уходит в предпросмотр с кнопками
-    // решения, и это не отказ, а развилка. Красная строка перевела бы реплику в статус ошибки.
-    if (applied.status === 'conflict') return { status: 'stuck', pending, conflict: true };
-
-    const note =
-      applied.status === 'invalid'
-        ? t('turn.notApplied.invalid', { errors: applied.errors.slice(0, 2).join('; ') })
-        : applied.status === 'failed'
-          ? t('turn.notApplied.failed', { error: messageOf(applied.error) })
-          : t('turn.notApplied.closed');
-    return { status: 'stuck', pending, conflict: false, note };
   };
 
   /**
@@ -1175,18 +1178,19 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       session.finishTurn(null, t('turn.noForm'));
       return;
     }
-    const activeForm: ActiveForm = { path: target.path, previousPath: previousFormPath() };
+    const { loaded } = target;
+    const activeForm: ActiveForm = { path: loaded.path, previousPath: previousFormPath() };
 
     // Идентификатор хода заводится ДО первой попытки и один на обе: логический шаг —
     // это ход, а не попытка. Он же уедет в журнал как `txId` записи ассистента, а в снимке
     // реплики по нему «Восстановить» найдёт записи инструментов плагинов этого хода и следующих.
     const txId = resume?.txId ?? beginTurn();
     // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
-    const snapshot = {
-      resource: target.resource,
-      path: target.path,
-      text: target.baseText,
-      rules: target.rules,
+    const snapshot: TurnSnapshot = {
+      resource: loaded.resource,
+      path: loaded.path,
+      text: loaded.text,
+      loaded,
       txId,
     };
     if (resume === undefined) session.startTurn(message, snapshot, attached.refs);
@@ -1197,15 +1201,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       ...(resume === undefined ? [] : [{ role: 'user' as const, content: resume.hint }]),
     ];
 
-    const formScope = host.files?.scopeOf(target.resource) ?? null;
     const writes = createTurnWrites({
       files: host.files,
       mark: { origin: 'agent', txId },
-      refuse: (id) =>
-        // Файл правил хода закрыт и у формы без модуля, где роль по пути не определить.
-        id === target.rulesFile?.id
-          ? 'The assistant writes the form rules itself; a plugin tool cannot write them.'
-          : formPartRefusal(id, target.resource, formScope),
+      // Документ формы, его части и сопутствующие файлы ход правит своим механизмом — стека.
+      refuse: (id) => target.stack.session.refuseWrite(id, { resource: loaded.resource, loaded }),
     });
     const order: GenerationOrder = { requested: false };
     const creation = creationFor(signal);
@@ -1220,7 +1220,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const generate = async (outcome: TurnOutcome, landed: Landing): Promise<void> => {
       if (signal.aborted || outcome.reason === 'aborted' || outcome.reason === 'error') return;
       const blocked = landed.status === 'stuck' ? t('turn.generate.pending') : undefined;
-      await generateOrdered(order, target.resource, writes, blocked);
+      await generateOrdered(order, loaded.resource, writes, blocked);
     };
 
     try {
@@ -1244,7 +1244,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // База берётся заново: правки первой попытки уже в буфере, и второй ход должен идти от
       // них — это ровно то, что делает пользователь, когда пишет «продолжай». Форма — та же,
       // что у первой попытки, а не активная: человек мог открыть другую, пока модель думала.
-      const next = await resolveTarget(target.resource);
+      const next = await resolveTarget(loaded.resource);
       if (next === null) {
         closeTurn(first, landed, writes.count > 0);
         return;
@@ -1265,11 +1265,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // Ход не должен уметь оставить панель в «running» навсегда: цикл ошибки не бросает,
       // но чтение настроек и запись в буфер — могут.
       closeTurn(
-        {
-          changeSet: createChangeSet(target.base, target.rules),
-          reason: 'error',
-          message: messageOf(error),
-        },
+        { set: NO_CHANGES, reason: 'error', message: messageOf(error) },
         { status: 'nothing' },
         writes.count > 0
       );
@@ -1305,7 +1301,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   };
 
   /** Инструменты хода без открытой формы: создать её, посмотреть шаблоны, спросить человека. */
-  const creationTools = createToolRegistry([listTemplatesTool, createFormTool, askUserTool]);
+  const creationTools = createToolRegistry<FormToolContext, FormToolOutcome>([
+    listTemplatesTool,
+    createFormTool,
+    askUserTool,
+  ]);
 
   /**
    * Ход без открытой формы: у модели только создание формы. Создала — ход продолжается на новой
@@ -1331,16 +1331,16 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const scope = scopeOf(writes, creation.signal, { requested: false }, creation);
     try {
       const config = await assistant.loadConfig();
-      const validateForm = await deps.validateForm();
+      // Промпт — у первого стека: какую форму создать, решают шаблоны, а говорить о ней модели
+      // всё равно на языке стека. Формы ещё нет — показывать в затравке нечего.
+      const prompt = stacks.first()?.session.creationPrompt() ?? '';
+      const turn: FormTurn = { system: () => prompt, seed: () => '', context: () => ({}) };
       let reason: TurnReason = 'complete';
       let failure: string | undefined;
-      for await (const event of runAgentTurn({
+      for await (const event of runTurn({
         provider,
         registry: creationTools,
-        catalog: host.catalog(),
-        validateForm,
-        base: emptySchema(),
-        baseRules: emptyRules(),
+        turn,
         messages: [
           ...historyFor(session.get().entries),
           ...(attached.message ? [attached.message] : []),
@@ -1352,7 +1352,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         scope,
         resourceSeed: resources.catalog(),
       })) {
-        if (event.type !== 'done') {
+        if (event.type !== 'end') {
           consume(event);
           continue;
         }
@@ -1378,12 +1378,6 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     }
   };
 
-  /** Чтение файла модуля по пути от его корня. */
-  const readerOf =
-    (files: AiFiles, scope: FileScope) =>
-    (rel: string): Promise<string | null> =>
-      files.read(files.resolve(scope.root, ...rel.split('/')));
-
   /**
    * Ход режима файлов: модель правит файлы модуля формы, каждая принятая запись — сразу в
    * рабочую копию.
@@ -1401,16 +1395,19 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     resume?: Resume
   ): Promise<boolean> => {
     const resource = resume?.resource ?? host.activeResource();
-    const scope = resource === null ? null : files.scopeOf(resource);
+    const stack = resource === null ? null : stackOfDocument(resource);
+    const mode = stack?.session.files;
+    const builtin = stack?.registry('files') ?? null;
+    if (resource === null || stack === null || mode === undefined || builtin === null) return false;
+    const scope = mode.scopeOf(resource);
     if (scope === null) {
-      if (resource !== null && host.documentOf(resource) !== null) {
+      if (host.documentOf(resource) !== null) {
         console.info('[plugins/reformer/ai] у документа нет папки модуля — ход идёт структурным');
       }
       return false;
     }
 
-    const read = readerOf(files, scope);
-    const start = await composeForm(read, scope.schemaPath);
+    const start = await mode.baseline(scope);
     if (!start.ok) {
       // Ход по форме, которая не собирается, начинать нельзя: гейт сравнивает каждую запись с
       // формой на начало хода, и сравнивать было бы не с чем.
@@ -1437,35 +1434,27 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const writes = createTurnWrites({
       files,
       mark,
-      refuse: (id) => formPartRefusal(id, scope.document, scope),
+      refuse: (id) => stack.session.refuseWrite(id, { resource: scope.document }),
       module: { journal, relOf: (id) => relInScope(files, scope, id) },
     });
+    const io = { journal, mark };
     const order: GenerationOrder = { requested: false };
     const creation = creationFor(signal);
     const turnScope = scopeOf(writes, creation.signal, order, creation);
 
     try {
       const config = await assistant.loadConfig();
-      const validateForm = await deps.validateForm();
+      await stack.session.prepare();
       const attempt = async (
-        base: JsonFormSchema,
+        base: unknown,
         messages: readonly AiMessage[]
       ): Promise<FileOutcome> => {
-        const turn = createFileTurn({
-          files,
-          scope,
-          journal,
-          mark,
-          base,
-          knowledge: assistant.knowledge,
-        });
+        const turn = mode.begin(scope, base, io);
         let outcome: FileOutcome = { reason: 'complete' };
-        for await (const event of runFileTurn({
+        for await (const event of runTurn({
           provider,
-          registry: fileToolsForTurn(),
+          registry: toolsFor(builtin, 'files'),
           turn,
-          catalog: host.catalog(),
-          validateForm,
           messages,
           ...(config?.maxSteps !== undefined ? { maxSteps: config.maxSteps } : {}),
           ...(config?.maxInputTokens !== undefined
@@ -1476,7 +1465,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           resourceSeed: resources.catalog(),
           activeForm,
         })) {
-          if (event.type === 'done') {
+          if (event.type === 'end') {
             report(event.stats, event.stop);
             outcome = {
               reason: event.reason,
@@ -1488,12 +1477,12 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         return outcome;
       };
 
-      let last = await attempt(start.schema, withAttached());
+      let last = await attempt(start.state, withAttached());
       if (creation.created === null && needsFileSecondPass(last, signal)) {
         // База — заново из файлов: записи первой попытки уже лежат в рабочей копии.
-        const next = await composeForm(read, scope.schemaPath);
+        const next = await mode.baseline(scope);
         if (next.ok) {
-          last = await attempt(next.schema, [
+          last = await attempt(next.state, [
             ...withAttached(),
             { role: 'user', content: secondPassHint(last.stop) },
           ]);
@@ -1502,7 +1491,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // Форма создана — модуль этой формы дописан, ход продолжается на новой.
       if (creation.created !== null && !signal.aborted) {
         writes.close();
-        await normalizeSchemas(files, scope, journal, mark);
+        await mode.normalize(scope, io);
         await continueOn(creation.created, message, provider, signal, attached, txId);
         return true;
       }
@@ -1513,7 +1502,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       }
       // Дверь плагинов закрывается ДО нормализации: перепечатка — последняя запись хода.
       writes.close();
-      await normalizeSchemas(files, scope, journal, mark);
+      await mode.normalize(scope, io);
 
       const error = last.reason === 'error' ? (last.message ?? t('turn.error')) : undefined;
       const silent = journal.size === 0 && writes.count === 0;
@@ -1561,42 +1550,6 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   /** Вторая попытка хода режима файлов — по тем же признакам обрыва, что у структурного. */
   const needsFileSecondPass = (outcome: FileOutcome, signal: AbortSignal): boolean =>
     !signal.aborted && outcome.reason !== 'aborted' && missedEdit(outcome.stop);
-
-  /**
-   * Перепечатать схемы, которые ход записал, принтером документа формы — один раз, в конце хода.
-   *
-   * Не после каждой записи: перепечатка меняет текст, который модель держит в контексте, и её
-   * следующий `old_string` не нашёлся бы. Гейт проверяет смысл и от форматирования не зависит,
-   * поэтому в пределах хода текст остаётся таким, каким его написала модель, а в конце хода —
-   * таким, каким его пишут редактор и кодоген: иначе ход давал бы diff на весь файл.
-   *
-   * Файл, который после хода правил человек, не трогается: перепечатка стёрла бы его правку.
-   */
-  const normalizeSchemas = async (
-    files: AiFiles,
-    scope: FileScope,
-    journal: FileJournal,
-    mark: WriteMark
-  ): Promise<void> => {
-    for (const [id, entry] of journal.entries()) {
-      const role = fileRoleOf(entry.rel, scope.schemaPath);
-      if (role !== 'form' && role !== 'step') continue;
-      const current = await files.read(id);
-      if (current !== entry.after) continue;
-      let printed: string;
-      try {
-        printed =
-          role === 'form'
-            ? printSchemaText(parseSchemaText(current))
-            : printJson(JSON.parse(current));
-      } catch {
-        continue;
-      }
-      if (printed === current) continue;
-      await files.write(id, printed, mark);
-      journal.record(id, entry.rel, entry.before, printed);
-    }
-  };
 
   /**
    * Откатить записи хода `txId` и всех ходов после него, лёгшие мимо набора изменений.
@@ -1670,6 +1623,12 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         session.finishTurn(null, t('turn.noProvider'));
         return;
       }
+      // Стека форм нет — править нечем, и создать форму тоже: говорить с моделью не о чем.
+      if (!stacks.any()) {
+        session.startTurn(message, undefined, session.get().attachments);
+        session.finishTurn(null, t('turn.noStack'));
+        return;
+      }
 
       // Новый запрос при неприменённом наборе прошлого хода — решение «двигаться дальше»: набор
       // отбрасывается, и об этом остаётся строка в реплике, которая его принесла. Молча он терялся
@@ -1740,16 +1699,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // Во время хода набор прошлого хода уже отброшен (`send`), а поверх идущего хода его
       // черновик записал бы форму, от которой ход давно ушёл.
       if (pending === null || current !== null) return;
-      const outcome = await applyChangeSet({ host, validateForm: deps.validateForm }, pending, {
-        force,
-      });
+      const outcome = await landPending(pending, force);
       switch (outcome.status) {
         case 'applied':
-          rulesByResource.set(pending.resource, pending.set.draftRules);
-          // Отложенное применение — тот же ход, просто приземлившийся позже: `txId` набор
-          // пережил ровно ради этого, и отменяться такой ход обязан так же, как обычный.
-          await rememberTurn(pending);
-          if (outcome.rulesBroken === true) session.finishTurn(null, brokenRulesNote(pending));
+          if (outcome.broken !== undefined) session.finishTurn(null, brokenNote(outcome.broken));
           else session.resolvePending();
           break;
         case 'empty':
@@ -1758,20 +1711,8 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         case 'conflict':
           session.setConflict(true);
           break;
-        case 'no-form':
-          session.finishTurn(pending, t('turn.notApplied.closed'));
-          break;
-        case 'invalid':
-          session.finishTurn(
-            pending,
-            t('turn.notApplied.invalid', { errors: outcome.errors.slice(0, 2).join('; ') })
-          );
-          break;
-        case 'failed':
-          session.finishTurn(
-            pending,
-            t('turn.notApplied.failed', { error: messageOf(outcome.error) })
-          );
+        default:
+          session.finishTurn(pending, notAppliedNote(outcome));
           break;
       }
     },
@@ -1797,8 +1738,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // кнопку, — и в журнале оно обязано выглядеть его правкой, а не ходом ассистента.
       try {
         await host.writeText(snapshot.resource, snapshot.text);
-        rulesByResource.set(snapshot.resource, snapshot.rules);
-        await restoreRulesFile(snapshot.resource, snapshot.rules);
+        // Сопутствующее состояние формы (правила) возвращает стек, который её разобрал.
+        await stacks
+          .byId(snapshot.loaded.stack)
+          ?.session.structured.rewind(snapshot.loaded, { files: true });
         // Отменять после этого нечего: форма вернулась к состоянию ДО хода, и та же отмена,
         // применённая поверх, вернула бы её к состоянию до какого-то другого хода.
         setLastTurn(null);
@@ -1848,7 +1791,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         note(t('turn.undo.failed', { error: messageOf(error) }));
         return 'failed';
       }
-      if (turn.rules) rulesByResource.set(turn.rules.resource, turn.rules.before);
+      if (turn.rewind !== undefined) {
+        await stacks
+          .byId(turn.rewind.stack)
+          ?.session.structured.rewind(turn.rewind, { files: false });
+      }
       // Созданный ходом файл удалить нечем: удаления в рабочей копии у плагинов нет. Он
       // остаётся, и об этом сказано словами — молча оставленный файл выглядел бы отменённым.
       if (created.length > 0) {

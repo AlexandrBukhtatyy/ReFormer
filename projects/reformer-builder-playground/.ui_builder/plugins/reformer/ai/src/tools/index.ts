@@ -18,6 +18,7 @@
  * @module plugins/reformer/ai/tools/index
  */
 
+import type { FormToolSlot } from '@reformer/builder-plugin-api';
 import type { KnowledgeLoader } from '../knowledge';
 import { createToolRegistry, type ToolRegistry } from './registry';
 import type { AgentTool } from '../model/types';
@@ -112,6 +113,22 @@ export const PROJECT_TOOLS: readonly AgentTool[] = [generateCodeTool, createForm
 /** Полная поверхность редактора. */
 export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
   return [...readOnlyTools(options), ...WRITE_TOOLS, ...PROJECT_TOOLS];
+}
+
+/**
+ * Инструменты структурного режима стека — в том же порядке, что {@link allTools}. Вопрос
+ * человеку, генерацию кода и новую форму исполняет ассистент: здесь стоят их имена — порядок
+ * инструментов модель видит, и он не должен зависеть от того, кто инструмент исполняет.
+ */
+export function structuredSlots(options: ToolsOptions = {}): readonly FormToolSlot[] {
+  return allTools(options).map((tool) => hostSlotOf(tool) ?? tool);
+}
+
+/** Имя инструмента ассистента, если это он, — см. {@link structuredSlots}. */
+export function hostSlotOf(tool: AgentTool<never, never>): FormToolSlot | undefined {
+  return tool === askUserTool || tool === generateCodeTool || tool === createFormTool
+    ? (tool.name as FormToolSlot)
+    : undefined;
 }
 
 /**

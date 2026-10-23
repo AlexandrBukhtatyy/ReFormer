@@ -137,7 +137,7 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
       {state.pending !== null && !running && (
         <ChangePreview
           pending={state.pending}
-          conflict={state.conflict || isStale({ host }, state.pending)}
+          conflict={state.conflict || isStale({ host }, state.pending.loaded)}
           t={t}
           onApply={() => {
             void bridge.applyPending(false);

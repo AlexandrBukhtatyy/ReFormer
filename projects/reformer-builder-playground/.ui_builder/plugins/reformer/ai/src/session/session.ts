@@ -22,11 +22,13 @@
  * @module plugins/reformer/ai/session/session
  */
 
-import type { FormRules } from '../../../core/form-model';
-import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
-import type { ChangeSet } from '../model/changeset';
+import type {
+  Disposable,
+  FormChangeSet,
+  FormLoaded,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import type { AskAnswer, AskQuestion } from '../model/types';
-import type { RulesFileBase } from './rules-file';
 
 /** Что делает ассистент прямо сейчас. */
 export type AgentStatus =
@@ -69,10 +71,11 @@ export interface TurnSnapshot {
   /** Текст буфера на начало хода. Им же проверяется конфликт при применении. */
   readonly text: string;
   /**
-   * Правила на начало хода. Отдельно от текста, потому что и живут отдельно: ход, изменивший
-   * ТОЛЬКО правила, иначе кнопкой «Восстановить» не отменялся бы вовсе.
+   * Документ на начало хода, как его разобрал стек. Сопутствующее состояние формы (у ReFormer —
+   * правила) возвращает стек по нему: ход, изменивший ТОЛЬКО правила, иначе кнопкой
+   * «Восстановить» не отменялся бы вовсе.
    */
-  readonly rules: FormRules;
+  readonly loaded: FormLoaded;
   /**
    * Идентификатор хода. Форму возвращает текст, а записи инструментов плагинов этого хода и
    * следующих мост находит по нему. Нет — у реплик, начатых до того, как ход его получил.
@@ -176,12 +179,14 @@ export function openAskOf(state: AiSessionState): AskCard | null {
   return last.asks?.find((card) => card.answers === undefined && card.cancelled !== true) ?? null;
 }
 
-/** Набор изменений, ждущий решения, вместе с адресом, к которому его применять. */
+/** Набор изменений, ждущий решения, вместе с документом, к которому его применять. */
 export interface PendingChanges {
-  readonly set: ChangeSet;
-  readonly resource: ResourceId;
-  /** Текст буфера на начало хода: с ним сверяется расхождение перед применением. */
-  readonly baseText: string;
+  readonly set: FormChangeSet;
+  /**
+   * Документ на начало хода: стек, который вернёт набор в документ, адрес и текст, с которым
+   * сверяется расхождение перед применением.
+   */
+  readonly loaded: FormLoaded;
   /**
    * Идентификатор хода — он же `txId` записи журнала.
    *
@@ -190,11 +195,6 @@ export interface PendingChanges {
    * него запись отложенного применения принадлежала бы неизвестно какому ходу.
    */
   readonly txId?: string;
-  /**
-   * Файл правил формы на начало хода — куда писать правила набора и с чем сверять расхождение.
-   * Нет — у платформы нет файлового доступа, и правила живут только в памяти моста.
-   */
-  readonly rulesFile?: RulesFileBase;
 }
 
 /**

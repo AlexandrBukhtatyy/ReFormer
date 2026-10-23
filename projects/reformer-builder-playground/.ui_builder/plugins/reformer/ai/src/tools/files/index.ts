@@ -13,6 +13,7 @@
  * @module plugins/reformer/ai/tools/files
  */
 
+import type { FormToolSlot } from '@reformer/builder-plugin-api';
 import type { KnowledgeLoader } from '../../knowledge';
 import type { FileToolContext } from '../../files/turn';
 import type { AgentTool } from '../../model/types';
@@ -23,6 +24,7 @@ import { createDescribeComponentTool } from '../describe-component';
 import { listComponentsTool } from '../list-components';
 import { createReformerDocsTool } from '../reformer-docs';
 import { createToolRegistry, type ToolRegistry } from '../registry';
+import { hostSlotOf } from '../index';
 import { editFileTool } from './edit-file';
 import { listFilesTool } from './list-files';
 import { readFileTool } from './read-file';
@@ -56,6 +58,13 @@ export function fileModeTools(
     generateCodeTool,
     createFormTool,
   ];
+}
+
+/** Инструменты режима файлов стека — в порядке {@link fileModeTools}, см. `structuredSlots`. */
+export function fileModeSlots(
+  options: { knowledge?: KnowledgeLoader } = {}
+): readonly FormToolSlot[] {
+  return fileModeTools(options).map((tool) => hostSlotOf(tool) ?? tool);
 }
 
 /** Реестр режима файлов. */

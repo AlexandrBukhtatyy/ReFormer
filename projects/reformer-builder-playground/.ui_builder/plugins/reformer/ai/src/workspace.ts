@@ -141,11 +141,24 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     documentOf: (id: ResourceId): AiDocument | null => {
       const document = documents.documentOf(id);
       if (document === null) return null;
+      // Провайдер — у ручки модельного документа: у текстового её нет, и провайдера тоже.
+      const providerId = ctx.services.get(DocumentModelsCapability)?.handleOf(id)
+        ?.document.providerId;
+      const provider = providerId === undefined ? {} : { providerId };
       const handle = compositeOf(id);
-      if (handle === null) return document;
+      if (handle === null) {
+        if (providerId === undefined) return document;
+        return {
+          ref: document.ref,
+          ...provider,
+          getText: () => document.getText(),
+          onDidChangeContent: (cb) => document.onDidChangeContent(cb),
+        };
+      }
       const text = (): string => printSchemaText(handle.document.getModel() as JsonFormSchema);
       return {
         ref: document.ref,
+        ...provider,
         getText: text,
         onDidChangeContent: (cb) => handle.document.onDidChangeModel(() => cb(text())),
       };

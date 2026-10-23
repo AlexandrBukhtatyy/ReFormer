@@ -19,7 +19,8 @@
  * ## Память — по подписи состава
  *
  * Набор собирается на каждый ход, а пересобирается — только когда состав изменился: иначе каждый
- * ход заново компилировал бы схемы аргументов. Подпись — всё, что уходит модели.
+ * ход заново компилировал бы схемы аргументов. Подпись — всё, что уходит модели, и встроенный
+ * реестр: у каждого стека форм свой, и документ другого стека меняет набор целиком.
  *
  * @module plugins/reformer/ai/session/contributions
  */
@@ -32,9 +33,13 @@ import {
   type ContributionRejectionCode,
 } from '../tools/contributed-tools';
 import { readResourceTool } from '../tools/read-resource';
-import { createToolRegistry, type ToolRegistry } from '../tools/registry';
-import { measureToolSurface } from '@reformer/builder-toolkit';
-import { CONTRIBUTED_TOOL_SURFACE_BUDGET, type AgentTool, type ToolContext } from '../model/types';
+import type { FormAgentTool, FormToolContext, FormToolOutcome } from '@reformer/builder-plugin-api';
+import {
+  createToolRegistry,
+  measureToolSurface,
+  type ToolRegistry,
+} from '@reformer/builder-toolkit';
+import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../model/types';
 
 /** Режим хода — у каждого свой набор встроенных и своя память. */
 export type SurfaceMode = 'structured' | 'files';
@@ -58,9 +63,15 @@ export interface ContributionSurfaceDeps {
   readonly hasResources: () => boolean;
 }
 
+/** Инструмент вклада — в объёме, нужном набору. */
+type AnyTool = FormAgentTool<never, never>;
+
 export interface ContributionSurface {
   /** Реестр хода: встроенные режима плюс принятые вклады. */
-  registryFor<C extends ToolContext>(mode: SurfaceMode, builtin: ToolRegistry<C>): ToolRegistry<C>;
+  registryFor<C extends FormToolContext>(
+    mode: SurfaceMode,
+    builtin: ToolRegistry<C, FormToolOutcome>
+  ): ToolRegistry<C, FormToolOutcome>;
   /** Отвергнутые при последней сборке режима — для тестов и диагностики. */
   dropped(mode: SurfaceMode): readonly DroppedContribution[];
 }
@@ -68,14 +79,19 @@ export interface ContributionSurface {
 /** Кандидат в набор: инструмент и то, чем назвать его в диагностике. */
 interface Candidate {
   readonly source: string;
-  readonly tool: AgentTool;
+  readonly tool: AnyTool;
 }
 
 export function createContributionSurface(deps: ContributionSurfaceDeps): ContributionSurface {
-  /** Память режима: подпись состава, собранный реестр и отказы. */
+  /** Память режима: подпись состава, встроенный реестр, собранный реестр и отказы. */
   const memo = new Map<
     SurfaceMode,
-    { signature: string; registry: ToolRegistry<never>; dropped: DroppedContribution[] }
+    {
+      signature: string;
+      builtin: unknown;
+      registry: ToolRegistry<never, FormToolOutcome>;
+      dropped: DroppedContribution[];
+    }
   >();
 
   const signatureOf = (
@@ -95,18 +111,18 @@ export function createContributionSurface(deps: ContributionSurfaceDeps): Contri
       commands.map((command) => [command.id, command.agent.description, command.agent.schema]),
     ]);
 
-  const build = <C extends ToolContext>(
-    builtin: ToolRegistry<C>,
+  const build = <C extends FormToolContext>(
+    builtin: ToolRegistry<C, FormToolOutcome>,
     commands: readonly AgentCommand[],
     tools: readonly ContributedToolEntry[],
     resources: boolean
-  ): { registry: ToolRegistry<C>; dropped: DroppedContribution[] } => {
+  ): { registry: ToolRegistry<C, FormToolOutcome>; dropped: DroppedContribution[] } => {
     const own = builtin.list();
     const taken = new Set(own.map((tool) => tool.name));
     const dropped: DroppedContribution[] = [];
     const candidates: Candidate[] = [];
 
-    const claim = (source: string, tool: AgentTool): void => {
+    const claim = (source: string, tool: AnyTool): void => {
       if (taken.has(tool.name)) {
         // Молчаливая подмена хуже отказа: модель звала бы одно, а получала другое.
         dropped.push({ source, name: tool.name, code: 'name-taken' });
@@ -116,7 +132,7 @@ export function createContributionSurface(deps: ContributionSurfaceDeps): Contri
       candidates.push({ source, tool });
     };
 
-    if (resources) claim('reformer.ai', readResourceTool as AgentTool);
+    if (resources) claim('reformer.ai', readResourceTool as AnyTool);
     for (const { pluginId, value } of tools) {
       const problem = contributedToolProblem(value);
       if (problem !== null) {
@@ -142,7 +158,7 @@ export function createContributionSurface(deps: ContributionSurfaceDeps): Contri
     for (const tool of projection.tools) candidates.push({ source: tool.name, tool });
 
     // Первый подходящий по порядку: вклад, переполнивший потолок, не закрывает дорогу меньшим.
-    const admitted: AgentTool[] = [];
+    const admitted: AnyTool[] = [];
     for (const candidate of candidates) {
       if (measureToolSurface([...admitted, candidate.tool]) > CONTRIBUTED_TOOL_SURFACE_BUDGET) {
         dropped.push({ source: candidate.source, name: candidate.tool.name, code: 'over-budget' });
@@ -151,8 +167,8 @@ export function createContributionSurface(deps: ContributionSurfaceDeps): Contri
       admitted.push(candidate.tool);
     }
 
-    const all = [...own, ...(admitted as AgentTool<never, C>[])];
-    return { registry: createToolRegistry<C>(all), dropped };
+    const all = [...own, ...admitted];
+    return { registry: createToolRegistry<C, FormToolOutcome>(all), dropped };
   };
 
   const report = (mode: SurfaceMode, dropped: readonly DroppedContribution[]): void => {
@@ -168,7 +184,10 @@ export function createContributionSurface(deps: ContributionSurfaceDeps): Contri
   };
 
   return {
-    registryFor<C extends ToolContext>(mode: SurfaceMode, builtin: ToolRegistry<C>) {
+    registryFor<C extends FormToolContext>(
+      mode: SurfaceMode,
+      builtin: ToolRegistry<C, FormToolOutcome>
+    ) {
       const commands = deps.agentCommands();
       const tools = deps.assistantTools();
       const resources = deps.hasResources();
@@ -181,13 +200,14 @@ export function createContributionSurface(deps: ContributionSurfaceDeps): Contri
 
       const signature = signatureOf(commands, tools, resources);
       const known = memo.get(mode);
-      if (known !== undefined && known.signature === signature) {
-        return known.registry as unknown as ToolRegistry<C>;
+      if (known !== undefined && known.signature === signature && known.builtin === builtin) {
+        return known.registry as unknown as ToolRegistry<C, FormToolOutcome>;
       }
       const built = build(builtin, commands, tools, resources);
       memo.set(mode, {
         signature,
-        registry: built.registry as unknown as ToolRegistry<never>,
+        builtin,
+        registry: built.registry as unknown as ToolRegistry<never, FormToolOutcome>,
         dropped: built.dropped,
       });
       report(mode, built.dropped);

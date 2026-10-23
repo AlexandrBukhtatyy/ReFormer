@@ -8,10 +8,9 @@ import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { emptyRules } from '../../../core/form-model';
-import { applyChangeSet, isStale, type ApplyDeps } from './apply';
+import { applyChangeSet, isStale, type ApplyDeps, type ApplyRequest } from './apply';
 import { createChangeSet, type ChangeSet } from '../model/changeset';
 import { printSchemaText } from '../model/schema-text';
-import type { PendingChanges } from './session';
 import { createFakeFiles, createFakeHost } from '../testing';
 import { printRulesText } from '../../../core/codegen/rules-file';
 
@@ -55,7 +54,7 @@ function setup(baseLabel = 'Почта', draftLabel = 'Email') {
   const base = schema(baseLabel);
   const baseText = printSchemaText(base);
   host.openDocument(RESOURCE, baseText);
-  const pending: PendingChanges = {
+  const pending: ApplyRequest = {
     set: changed(base, schema(draftLabel)),
     resource: RESOURCE,
     baseText,
@@ -108,7 +107,7 @@ describe('применение набора', () => {
   it('пустой набор ничего не пишет', async () => {
     const { host } = setup();
     const base = schema('Почта');
-    const pending: PendingChanges = {
+    const pending: ApplyRequest = {
       set: createChangeSet(base, emptyRules()),
       resource: RESOURCE,
       baseText: printSchemaText(base),
@@ -150,7 +149,7 @@ describe('применение набора', () => {
         children: [{ model: '$model(email)', component: '$component(НетТакого)' }],
       },
     } as unknown as JsonFormSchema;
-    const pending: PendingChanges = {
+    const pending: ApplyRequest = {
       set: changed(base, draft),
       resource: RESOURCE,
       baseText: printSchemaText(base),
@@ -169,17 +168,22 @@ describe('применение набора', () => {
 });
 
 describe('расхождение спрашивается заранее', () => {
+  const baseOf = (pending: ApplyRequest) => ({
+    resource: pending.resource,
+    text: pending.baseText,
+  });
+
   it('нетронутый буфер расхождением не считается', () => {
     const { host, pending } = setup();
-    expect(isStale({ host }, pending)).toBe(false);
+    expect(isStale({ host }, baseOf(pending))).toBe(false);
   });
 
   it('правка снаружи и закрытая вкладка — оба расхождение', () => {
     const { host, pending } = setup();
     host.editOutside(RESOURCE, printSchemaText(schema('Другое')));
-    expect(isStale({ host }, pending)).toBe(true);
+    expect(isStale({ host }, baseOf(pending))).toBe(true);
     host.closeDocument(RESOURCE);
-    expect(isStale({ host }, pending)).toBe(true);
+    expect(isStale({ host }, baseOf(pending))).toBe(true);
   });
 });
 
@@ -197,7 +201,7 @@ describe('файл правил формы — вторая запись тог�
     const base = schema('Почта');
     const baseText = printSchemaText(base);
     host.openDocument(RESOURCE, baseText);
-    const pending: PendingChanges = {
+    const pending: ApplyRequest = {
       set: { ...changed(base, schema('Email')), draftRules: REQUIRED },
       resource: RESOURCE,
       baseText,

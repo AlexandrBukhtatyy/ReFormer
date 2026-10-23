@@ -47,6 +47,11 @@ export type Translate = (key: string, params?: Record<string, unknown>) => strin
  */
 export interface AiDocument {
   readonly ref: ResourceRef;
+  /**
+   * Провайдер модели, который взялся за документ (`DocumentRef.providerId`); нет — документ открыт
+   * текстом. По нему ассистент выбирает стек форм — тем же признаком, что поверхности превью.
+   */
+  readonly providerId?: string;
   getText(): string;
   onDidChangeContent(cb: (text: string) => void): Disposable;
 }

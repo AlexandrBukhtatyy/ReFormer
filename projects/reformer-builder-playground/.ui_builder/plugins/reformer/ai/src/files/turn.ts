@@ -60,7 +60,7 @@ export interface FileToolContext extends ToolContext {
 
 /** Из чего собирается попытка. */
 export interface FileTurnOptions {
-  readonly files: AiFiles;
+  readonly files: Omit<AiFiles, 'scopeOf'>;
   readonly scope: FileScope;
   /** Журнал ХОДА — общий для обеих попыток. */
   readonly journal: FileJournal;

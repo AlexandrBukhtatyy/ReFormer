@@ -34,6 +34,7 @@ import type { AiMessage, AiProvider } from '../providers/types';
 import { printSchemaText } from '../model/schema-text';
 import { createAiSession, openAskOf, type AiSession, type AskCard } from './session';
 import { createFakeFiles, createFakeHost, type FakeFiles, type FakeHost } from '../testing';
+import { createSchemaFormStack } from '../stack';
 import { emptyRulesText, printRulesText } from '../../../core/codegen/rules-file';
 import type { ContributedTool, ContributedToolEntry } from '../tools/contributed-tools';
 import type { ResourceProviderEntry } from './resources';
@@ -50,6 +51,19 @@ const EMPTY_FORM: JsonFormSchema = {
   version: '1.0',
   root: { component: '$component(Box)', children: [] },
 } as unknown as JsonFormSchema;
+
+/**
+ * Стек форм ReFormer — каким его собирает плагин: модуль формы различим, только когда у платформы
+ * есть файлы. Настоящая проверка, а не двойник: гейт — то, ради чего мост зовёт применение, и
+ * подменять его здесь значило бы проверять подмену.
+ */
+function schemaStack(files?: FakeFiles) {
+  return createSchemaFormStack({
+    catalog: () => catalog,
+    validateForm: () => Promise.resolve(validateFormSchema),
+    ...(files === undefined ? {} : { scopeOf: (id: ResourceId) => files.scopeOf(id) }),
+  });
+}
 
 /**
  * Провайдер, отыгрывающий РАЗНЫЕ сценарии на разных обращениях.
@@ -136,6 +150,7 @@ function harness(
 
   const session = createAiSession();
   const execute = vi.fn().mockResolvedValue('готово');
+  const stack = schemaStack(options.files);
   const bridge = createAgentBridge({
     assistant,
     host,
@@ -146,9 +161,7 @@ function harness(
     resourceProviders: () => options.resourceProviders ?? [],
     generator: () => options.generator,
     formCreator: () => options.formCreator,
-    // Настоящая проверка, а не двойник: гейт — то, ради чего мост зовёт применение,
-    // и подменять его здесь значило бы проверять подмену.
-    validateForm: () => Promise.resolve(validateFormSchema),
+    stacks: () => [stack],
   });
   return { host, session, bridge, assistant, execute };
 }
@@ -743,6 +756,7 @@ function filesHarness(
     restore: () => Promise.resolve(null),
   };
   const session = createAiSession();
+  const stack = schemaStack(files);
   const bridge = createAgentBridge({
     assistant,
     host,
@@ -750,7 +764,7 @@ function filesHarness(
     agentCommands: () => [],
     executeCommand: () => Promise.resolve(undefined),
     assistantTools: () => options.assistantTools ?? [],
-    validateForm: () => Promise.resolve(validateFormSchema),
+    stacks: () => [stack],
     generator: () => options.generator,
     formCreator: () => options.formCreator?.(files),
   });

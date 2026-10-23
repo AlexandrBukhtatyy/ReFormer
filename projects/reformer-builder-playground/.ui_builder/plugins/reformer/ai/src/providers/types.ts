@@ -11,7 +11,7 @@
  * @module plugins/reformer/ai/providers/types
  */
 
-import type { ToolOutcome } from '../model/types';
+import type { FormToolOutcome as ToolOutcome } from '@reformer/builder-plugin-api';
 
 /** Реплика диалога. */
 export interface AiMessage {

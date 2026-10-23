@@ -32,7 +32,7 @@ export interface RulesFileRead extends RulesFileBase {
 
 /** Адрес файла правил документа формы — рядом с ним. */
 export function rulesFileOf(
-  files: AiFiles,
+  files: Pick<AiFiles, 'resolve' | 'parentOf'>,
   document: ResourceId,
   documentPath: string
 ): ResourceId {
@@ -41,7 +41,7 @@ export function rulesFileOf(
 
 /** Прочитать файл правил документа формы. */
 export async function readRulesFile(
-  files: AiFiles,
+  files: Pick<AiFiles, 'read' | 'resolve' | 'parentOf'>,
   document: ResourceId,
   documentPath: string
 ): Promise<RulesFileRead> {

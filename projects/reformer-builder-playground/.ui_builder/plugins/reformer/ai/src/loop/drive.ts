@@ -10,8 +10,13 @@
  * @module plugins/reformer/ai/loop/drive
  */
 
-import type { ToolRegistry } from '../tools/registry';
-import type { ChangeOp, ToolContext, ToolError, ToolOutcome } from '../model/types';
+import type { ToolRegistry } from '@reformer/builder-toolkit';
+import type {
+  FormChangeOp,
+  FormToolContext,
+  FormToolError,
+  FormToolOutcome,
+} from '@reformer/builder-plugin-api';
 import type { AiProvider, AiRequest, AiStop, AiToolDef, AiUsage } from '../providers/types';
 
 /**
@@ -48,8 +53,8 @@ export type TurnStepEvent =
       type: 'tool';
       name: string;
       ok: boolean;
-      ops?: readonly ChangeOp[];
-      error?: ToolError;
+      ops?: readonly FormChangeOp[];
+      error?: FormToolError;
       /** Инструмент только читает — его отказ форму не задевает. */
       readOnly?: true;
     };
@@ -86,10 +91,10 @@ export interface StreamEnd {
  *   вызов записал свой результат: каждый следующий инструмент видит правку предыдущего.
  * @param after - Учесть исход вызова — тоже внутри очереди, до следующего вызова.
  */
-export function queuedTools<C extends ToolContext>(
-  registry: ToolRegistry<C>,
+export function queuedTools<C extends FormToolContext>(
+  registry: ToolRegistry<C, FormToolOutcome>,
   contextOf: () => C,
-  after?: (outcome: ToolOutcome) => void
+  after?: (outcome: FormToolOutcome) => void
 ): AiToolDef[] {
   let queue: Promise<unknown> = Promise.resolve();
   return registry.list().map((tool) => ({

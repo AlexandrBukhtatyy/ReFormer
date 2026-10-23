@@ -11,7 +11,6 @@
 
 import { describe, expect, it } from 'vitest';
 import { assistantContent, historyFor, HISTORY_BUDGET, userContent } from './history';
-import { emptyRules } from '../../../core/form-model';
 import type { ChatEntry } from './session';
 
 function entry(patch: Partial<ChatEntry> & Pick<ChatEntry, 'role'>): ChatEntry {
@@ -124,7 +123,21 @@ describe('форма хода в истории', () => {
       text,
       ...(path === undefined
         ? {}
-        : { snapshot: { resource: path, path, text: '', rules: emptyRules() } }),
+        : {
+            snapshot: {
+              resource: path,
+              path,
+              text: '',
+              loaded: {
+                stack: 'test',
+                resource: path,
+                path,
+                text: '',
+                state: null,
+                companions: [],
+              },
+            },
+          }),
     });
 
   it('форма названа у первой реплики и там, где пользователь переключился', () => {
