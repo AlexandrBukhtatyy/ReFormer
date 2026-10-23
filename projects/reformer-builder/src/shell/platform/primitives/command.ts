@@ -21,6 +21,7 @@ import {
   type CommandErrorInfo,
   type CommandRegistry,
   type CommandRegistryOptions,
+  type CommandRunErrorInfo,
   type Disposable,
   type PluginCommandRegistry,
   type WhenContext,
@@ -30,6 +31,14 @@ import { CommandError } from '@reformer/builder-plugin-api/internal';
 
 function defaultOnError(error: unknown, info: CommandErrorInfo): void {
   console.error(`[command] «${info.commandId}»: ошибка в ${info.phase}`, error);
+}
+
+/** Отмена, а не сбой: так `fetch`, запросы к человеку и `AbortSignal` сообщают «передумали». */
+function isAbort(error: unknown): boolean {
+  // По имени, а не `instanceof Error`: `DOMException` наследует `Error` не во всех средах.
+  return (
+    typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
+  );
 }
 
 /** Результат проверки предиката вместе с причиной отказа, если предикат сам упал. */
@@ -78,6 +87,21 @@ function createRegistryOver(
 ): CommandRegistry {
   const getContext = options.getContext ?? (() => NEUTRAL_WHEN_CONTEXT);
   const onError = options.onError ?? defaultOnError;
+
+  /**
+   * Сообщает об отказе `run` тому, кто собирает сбои.
+   *
+   * Упавший колбэк не должен подменить собой отказ команды: вызывающий ждёт ИСХОДНУЮ ошибку,
+   * а сломанный журнал — это ещё одна поломка, а не та.
+   */
+  function reportRunError(error: unknown, info: CommandRunErrorInfo): void {
+    if (options.onRunError === undefined) return;
+    try {
+      options.onRunError(error, info);
+    } catch (failure) {
+      console.error(`[command] «${info.commandId}»: сбор отказа упал`, failure);
+    }
+  }
 
   /**
    * Сообщает об изменении набора: сбрасывает снимок и зовёт наблюдателей.
@@ -221,7 +245,19 @@ function createRegistryOver(
         );
       }
 
-      return await command.run(args);
+      try {
+        return await command.run(args);
+      } catch (error) {
+        // Отказ уходит вызывающему как был; колбэк только узнаёт о нём. Отмена — не сбой:
+        // человек закрыл запрос, и записывать это в журнал отказов значило бы его засорить.
+        if (!isAbort(error)) {
+          reportRunError(error, {
+            commandId: id,
+            ...(command.pluginId === undefined ? {} : { pluginId: command.pluginId }),
+          });
+        }
+        throw error;
+      }
     },
 
     agentCommands(): readonly AgentVisibleCommand[] {

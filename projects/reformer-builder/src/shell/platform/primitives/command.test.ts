@@ -296,6 +296,75 @@ describe('execute', () => {
   });
 });
 
+describe('execute: отказ run уходит в onRunError', () => {
+  it('сообщает об отказе с владельцем команды и всё равно пробрасывает ошибку', async () => {
+    const onRunError = vi.fn();
+    const registry = createCommandRegistry({ onRunError });
+    const failure = new Error('команда сломалась');
+    registry.forPlugin('acme').register(
+      command({
+        id: 'a',
+        run: () => Promise.reject(failure),
+      })
+    );
+
+    await expect(registry.execute('a')).rejects.toBe(failure);
+    expect(onRunError).toHaveBeenCalledWith(failure, { commandId: 'a', pluginId: 'acme' });
+  });
+
+  it('у команды оболочки владельца нет', async () => {
+    const onRunError = vi.fn();
+    const registry = createCommandRegistry({ onRunError });
+    const failure = new Error('сломалось');
+    registry.register(
+      command({
+        id: 'a',
+        run: () => {
+          throw failure;
+        },
+      })
+    );
+
+    await expect(registry.execute('a')).rejects.toBe(failure);
+    expect(onRunError).toHaveBeenCalledWith(failure, { commandId: 'a' });
+  });
+
+  it('отмена — не сбой: AbortError в колбэк не попадает', async () => {
+    const onRunError = vi.fn();
+    const registry = createCommandRegistry({ onRunError });
+    const abort = new DOMException('передумали', 'AbortError');
+    registry.register(command({ id: 'a', run: () => Promise.reject(abort) }));
+
+    await expect(registry.execute('a')).rejects.toBe(abort);
+    expect(onRunError).not.toHaveBeenCalled();
+  });
+
+  it('отказы самого реестра — не сбой команды', async () => {
+    const onRunError = vi.fn();
+    const registry = createCommandRegistry({ onRunError });
+    registry.register(command({ id: 'off', enabled: () => false }));
+
+    await expectRejectedWith(registry.execute('нет такой'));
+    await expectRejectedWith(registry.execute('off'));
+    expect(onRunError).not.toHaveBeenCalled();
+  });
+
+  it('упавший колбэк не подменяет исходную ошибку', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const registry = createCommandRegistry({
+      onRunError: () => {
+        throw new Error('журнал сломан');
+      },
+    });
+    const failure = new Error('команда сломалась');
+    registry.register(command({ id: 'a', run: () => Promise.reject(failure) }));
+
+    await expect(registry.execute('a')).rejects.toBe(failure);
+    expect(error).toHaveBeenCalledOnce();
+    error.mockRestore();
+  });
+});
+
 describe('agentCommands', () => {
   it('отдаёт только команды с блоком agent', () => {
     const registry = createCommandRegistry();

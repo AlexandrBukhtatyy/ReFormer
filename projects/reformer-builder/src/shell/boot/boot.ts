@@ -110,6 +110,8 @@ import {
   NotificationsServiceToken,
   type NotificationsService,
 } from '@reformer/builder-plugin-api/internal';
+import { createLogService } from '@/shell/platform/services/log';
+import { errorDetail, LogServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createIdbSettingsBackend } from '@/shell/platform/services/settings-idb';
 import { createLayeredSettingsBackend } from '@/shell/platform/services/settings-layers';
 import { createProjectSettingsBackend } from '@/shell/platform/services/settings-project';
@@ -209,6 +211,9 @@ export const ENABLED_PLUGINS_SETTINGS_KEY = 'workspace.plugins.enabled';
 
 /** Локаль, на которой инструмент открывается, пока не выбрано иное. */
 const DEFAULT_LOCALE = 'ru';
+
+/** Подпись записей журнала о самой оболочке: у её команд и шагов запуска нет плагина-владельца. */
+const SHELL_LOG_SOURCE = 'shell';
 
 /**
  * Потолок кэша транспиляции на рабочую область.
@@ -442,7 +447,21 @@ export function boot(options: BootOptions): BuilderApp {
   const extensions = createExtensionRegistry();
   const events = createEventBus();
   const whenContext = createWhenContextStore();
-  const commands = createCommandRegistry({ getContext: () => whenContext.get() });
+  // Журнал — раньше реестра команд: отказ команды плагина записывается в него, и писать
+  // должно быть куда с первой же команды.
+  const log = createLogService();
+  const commands = createCommandRegistry({
+    getContext: () => whenContext.get(),
+    onRunError: (error, info) => {
+      log.append({
+        level: 'error',
+        source: info.pluginId ?? SHELL_LOG_SOURCE,
+        messageKey: 'log.command.failed',
+        params: { commandId: info.commandId },
+        detail: errorDetail(error),
+      });
+    },
+  });
   // Читатель условий `when`. Пять полей контекста остаются единственной истиной — служба
   // их не копирует, а делегирует стору; своё у неё только то, что объявили плагины.
   // Стек областей: какое окно сейчас сверху. Читается условиями как ключи scope и scopes.
@@ -515,6 +534,7 @@ export function boot(options: BootOptions): BuilderApp {
   services.register(ThemeServiceToken, theme);
   services.register(NotificationsServiceToken, notifications);
   services.register(DiagnosticsServiceToken, diagnostics);
+  services.register(LogServiceToken, log);
   services.register(SelectionServiceToken, selection);
   services.register(PromptServiceToken, prompt);
   services.register(ResourceClipboardServiceToken, clipboard);
@@ -664,6 +684,18 @@ export function boot(options: BootOptions): BuilderApp {
     // Память сессии: постоянное хранилище плагинов — часть рабочей области (Э2), и до неё
     // плагину лучше не иметь хранилища вовсе, чем иметь исчезающее незаметно.
     storage: createMemoryStorageBackend(),
+    // Отказ плагина — в консоль разработчику и в журнал человеку: список плагинов покажет
+    // состояние, а журнал — когда и с каким исключением это случилось.
+    onError: (failure) => {
+      console.error(`[plugin] «${failure.pluginId}»: отказ в ${failure.phase}`, failure.error);
+      log.append({
+        level: 'error',
+        source: failure.pluginId,
+        messageKey: 'log.plugin.failed',
+        params: { id: failure.pluginId, phase: failure.phase, message: failure.message },
+        detail: errorDetail(failure.error),
+      });
+    },
   });
 
   /**
@@ -811,10 +843,31 @@ export function boot(options: BootOptions): BuilderApp {
     dir: INSTALLED_ROOT_DIR,
   });
 
-  /** Что о плагине говорит каталог человеку: тост называет плагин, подробности — в консоли. */
+  /** Что о плагине говорит каталог человеку: тост называет плагин, подробности — в журнале. */
   const reportPluginProblem = (id: string, problem: PluginProblem): void => {
     console.error(`[plugins] «${id}»: ${problem.code} — ${problem.message}`, problem.cause);
+    log.append({
+      level: 'error',
+      source: id,
+      messageKey: 'log.plugin.problem',
+      params: { id, code: problem.code, message: problem.message },
+      detail: errorDetail(problem.cause),
+    });
     notifications.error('plugins.problem', { params: { id, message: problem.message } });
+  };
+
+  /**
+   * Не загрузился целый слой плагинов. Тост об этом говорит по-прежнему «подробности в консоли»:
+   * панель журнала — сама плагин приложения, и при отказе слоя её может не быть.
+   */
+  const logLoadFailure = (layer: 'builtins' | 'application', error: unknown): void => {
+    log.append({
+      level: 'error',
+      source: SHELL_LOG_SOURCE,
+      messageKey: 'log.plugins.load-failed',
+      params: { layer },
+      detail: errorDetail(error),
+    });
   };
 
   // 3б. Плагины ПРИЛОЖЕНИЯ — преемники встроенных: приехали вместе с приложением и работают
@@ -1146,6 +1199,7 @@ export function boot(options: BootOptions): BuilderApp {
         }
       } catch (error) {
         console.error('[boot] встроенные плагины не загрузились', error);
+        logLoadFailure('builtins', error);
         notifications.error('plugins.lazy-failed');
       }
     })
@@ -1173,6 +1227,7 @@ export function boot(options: BootOptions): BuilderApp {
         }
       } catch (error) {
         console.error('[boot] плагины приложения не загрузились', error);
+        logLoadFailure('application', error);
         notifications.error('plugins.lazy-failed');
       }
     })
