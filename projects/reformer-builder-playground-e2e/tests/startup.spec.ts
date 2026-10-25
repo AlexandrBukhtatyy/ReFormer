@@ -146,7 +146,9 @@ test.describe('Запуск собранного билдера', () => {
     // markdown и формы, база знаний ассистента стоят за отложенным импортом. До чтения по
     // требованию каталог плагина читался целиком — одиннадцать мегабайт на каждый запуск.
     const heavy = report.pluginFiles.filter((path) =>
-      /\/chunks\/(monaco-runtime-|MarkdownPreview-|RjsfPreview-|knowledge-|byok-)/.test(path)
+      /\/chunks\/(monaco-runtime-|MarkdownPreview-|RjsfPreview-|knowledge-|mcp-reference-|byok-)/.test(
+        path
+      )
     );
     expect(heavy).toEqual([]);
     // Порог по байтам, а не по времени: он не зависит от машины. Сейчас до первого кадра
