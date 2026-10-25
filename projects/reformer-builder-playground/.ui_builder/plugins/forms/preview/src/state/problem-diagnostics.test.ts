@@ -61,7 +61,7 @@ describe('toDiagnostic', () => {
   });
 
   it('код несёт владельца: текст читается словарём плагина по ключу errors.build.<фаза>', () => {
-    for (const phase of ['schema', 'resolve', 'transpile', 'evaluate', 'render'] as const) {
+    for (const phase of ['schema', 'resolve', 'transpile', 'evaluate', 'bind', 'render'] as const) {
       expect(buildCode(phase)).toBe(`reformer.preview:build.${phase}`);
       // И текст на месте: кода без строки в словаре человек увидел бы самим кодом.
       for (const locale of ['ru', 'en']) {

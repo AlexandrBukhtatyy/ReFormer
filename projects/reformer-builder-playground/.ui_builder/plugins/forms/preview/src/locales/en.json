@@ -1,4 +1,5 @@
 {
+  "errors.build.bind": "A behavior did not attach: {message}",
   "errors.build.evaluate": "The file threw while executing: {message}",
   "errors.build.render": "The form did not render: {message}",
   "errors.build.resolve": "An import could not be resolved: {message}",

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './shared/fixtures';
@@ -86,6 +87,37 @@ test.describe('Журнал', () => {
     // Отказ по сценарию: плагин пишет его ещё и в консоль разработчику.
     expect(pageErrors.some((message) => message.includes('log.rename.failed'))).toBe(true);
     pageErrors.length = 0;
+  });
+
+  test('отправка не нашла свой узел: форма нарисована, находка — о привязке, а не об отрисовке', async ({
+    builder,
+    disk,
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    // Шаблон «Простая форма», у которого кнопку отправки переименовали: `application/submit.ts`
+    // по-прежнему вешает обработчик на узел «submit». Так выглядела форма, переделанная в мастер.
+    const dir = 'forms/templates/reformer-simple-form';
+    const schema = readFileSync(
+      `../reformer-builder-playground/${dir}/schema/form.schema.json`,
+      'utf8'
+    ).replace('"selector": "submit"', '"selector": "send"');
+    await builder.goto();
+    await disk.seed();
+    await disk.writeText(`${dir}/schema/form.schema.json`, schema);
+    await builder.openFolder();
+    await builder.openFile(`${dir}/schema/form.schema.json`);
+
+    const editor = page.getByRole('main', { name: 'Редактор' });
+    await editor.getByRole('button', { name: 'Форма', exact: true }).click();
+    await expect(editor.getByRole('textbox', { name: 'Фамилия' })).toBeVisible({ timeout: 30_000 });
+
+    await openJournal(page);
+    await expect(page.getByText(/^Поведение не подключилось: .*«submit»/)).toBeVisible({
+      timeout: 30_000,
+    });
+    // Прежняя подпись говорила «Форма не отрисовалась» — про форму, которая стоит на экране.
+    await expect(page.getByText(/Форма не отрисовалась/)).toHaveCount(0);
   });
 
   test('выбор вида переживает свёртку дока', async ({ builder, page }) => {

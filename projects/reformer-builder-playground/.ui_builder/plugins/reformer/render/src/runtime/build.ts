@@ -344,10 +344,11 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
       validation: input.validation,
       flow: input.flow,
     });
+    // Форма собрана: сломана не отрисовка, а привязка отправки — и подпись должна сказать это.
     for (const selector of missingSubmitNodes(form, submitNodes)) {
       problems.push({
         file: submitFile,
-        phase: 'render',
+        phase: 'bind',
         message: `отправка привязана к узлу «${selector}», которого нет в схеме: событие отправки не подключено`,
       });
     }

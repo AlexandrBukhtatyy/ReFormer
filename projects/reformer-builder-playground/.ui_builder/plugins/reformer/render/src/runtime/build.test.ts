@@ -363,7 +363,7 @@ describe('buildRuntimeBundle — поведение модуля двумя по
     expect(bundle.problems).toEqual([
       {
         file: 'application/submit.ts',
-        phase: 'render',
+        phase: 'bind',
         message: expect.stringContaining('«wizard»') as string,
       },
     ]);
