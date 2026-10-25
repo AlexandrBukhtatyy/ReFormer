@@ -19,7 +19,7 @@ import type { CatalogEntry } from '../../../core/catalog';
 import { fileRoleOf } from '../../../core/codegen/layout';
 import { FORM_SCHEMA_PROVIDER_ID } from '../../../core/form-model';
 import type { FileScope } from '../files/scope';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import { systemPrompt } from '../loop/prompt';
 import { parseSchemaText } from '../model/schema-text';
 import type { LoadValidateForm, ValidateFormSchema } from '../model/validate';
@@ -49,8 +49,12 @@ export interface SchemaFormStackOptions {
   readonly catalog: () => readonly CatalogEntry[];
   /** Заказ проверки по мета-схеме — его ждёт подготовка хода и строгий гейт записи. */
   readonly validateForm: LoadValidateForm;
-  /** Корпус знаний о библиотеке; без него `ask_reformer` отвечает «недоступно». */
-  readonly knowledge?: KnowledgeLoader;
+  /**
+   * Справка по библиотеке — встроенная либо плагина-поставщика (`../reference`). Без неё
+   * `ask_reformer` отвечает «недоступно», а код правил в режиме файлов пишется с замечанием, что
+   * проверить его нечем.
+   */
+  readonly reference?: ResolveLibraryReference;
   /**
    * Модуль формы документа. Нет — у платформы нет файлов: режима файлов нет, а частей модуля стек
    * не различает.
@@ -62,9 +66,9 @@ export interface SchemaFormStackOptions {
 
 /** Собрать стек форм ReFormer. */
 export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssistantStack {
-  const knowledge = options.knowledge === undefined ? {} : { knowledge: options.knowledge };
-  const structuredTools = structuredSlots(knowledge);
-  const fileTools = fileModeSlots(knowledge);
+  const reference = options.reference === undefined ? {} : { reference: options.reference };
+  const structuredTools = structuredSlots(reference);
+  const fileTools = fileModeSlots(reference);
   return {
     id: SCHEMA_FORM_STACK_ID,
     // Документ без провайдера модели (открыт текстом) стек тоже пробует: разберётся — это схема.
@@ -94,7 +98,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
               tools: fileTools,
               catalog: options.catalog,
               prepared,
-              ...knowledge,
+              ...reference,
               scopeOf: options.scopeOf,
             });
 

@@ -23,7 +23,7 @@ import { fileRoleOf } from '../../../core/codegen/layout';
 import { printJson } from '../../../core/codegen/print/js';
 import { emptyRules } from '../../../core/form-model';
 import type { FileScope } from '../files/scope';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import { composeForm } from '../files/compose';
 import type { FileJournal } from '@reformer/builder-toolkit';
 import { createFileTurn, type FileToolContext, type FileTurn } from '../files/turn';
@@ -67,7 +67,8 @@ export interface FilesModeOptions {
   readonly catalog: () => readonly CatalogEntry[];
   /** Проверка, загруженная подготовкой сеанса — на ней стоит гейт записи. */
   readonly prepared: () => ValidateFormSchema;
-  readonly knowledge?: KnowledgeLoader;
+  /** Справка по библиотеке — на ней стоит проверка кода правил в гейте записи. */
+  readonly reference?: ResolveLibraryReference;
   readonly scopeOf: (id: string) => FileScope | null;
 }
 
@@ -99,7 +100,7 @@ export function createFilesMode(options: FilesModeOptions): FormFilesMode {
         journal: io.journal as FileJournal,
         mark: io.mark,
         base: base as JsonFormSchema,
-        ...(options.knowledge === undefined ? {} : { knowledge: options.knowledge }),
+        ...(options.reference === undefined ? {} : { reference: options.reference }),
       });
       return createFilesTurn(turn, options.catalog(), options.prepared());
     },

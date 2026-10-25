@@ -19,7 +19,7 @@ import {
   modulePlacementOf,
 } from '../../../core/codegen/layout';
 import type { FileScope } from '../files/scope';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import { composeForm } from '../files/compose';
 import { createFileTurn, type FileTurn } from '../files/turn';
 
@@ -63,7 +63,7 @@ export async function createTestFileTurn(
   files: FakeFiles,
   options: {
     readonly documentPath?: string;
-    readonly knowledge?: KnowledgeLoader;
+    readonly reference?: ResolveLibraryReference;
     readonly journal?: FileJournal;
     readonly txId?: string;
   } = {}
@@ -81,6 +81,6 @@ export async function createTestFileTurn(
     journal: options.journal ?? createFileJournal(),
     mark: { origin: 'agent', txId: options.txId ?? 'turn-1' },
     base: composed.schema,
-    ...(options.knowledge ? { knowledge: options.knowledge } : {}),
+    ...(options.reference ? { reference: options.reference } : {}),
   });
 }

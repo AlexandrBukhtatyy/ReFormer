@@ -9,6 +9,10 @@
       {
         "id": "reformer.kit.catalog",
         "range": "^2"
+      },
+      {
+        "id": "reformer.ai-schema.reference",
+        "range": "^1"
       }
     ]
   }

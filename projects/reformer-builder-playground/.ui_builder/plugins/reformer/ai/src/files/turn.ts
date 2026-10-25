@@ -19,7 +19,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormStackFiles, FormWriteMark } from '@reformer/builder-plugin-api';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import type { ToolContext } from '../model/types';
 import type { FileJournal } from '@reformer/builder-toolkit';
 import { moduleFileOf, type FileScope, type ModuleFile } from './scope';
@@ -30,8 +30,8 @@ import type { ToolOutcome } from '../model/types';
 export interface FileTurn {
   readonly scope: FileScope;
   readonly journal: FileJournal;
-  /** Корпус знаний — для проверки кода правил; `undefined` — проверять нечем. */
-  readonly knowledge?: KnowledgeLoader;
+  /** Справка по библиотеке — для проверки кода правил; `undefined` — проверять нечем. */
+  readonly reference?: ResolveLibraryReference;
   /** Файл модуля по пути модели либо отказ `PATH_REFUSED`. */
   file(path: string): ModuleFile | ToolOutcome;
   /** Текст файла сейчас; `null` — файла нет. */
@@ -68,7 +68,7 @@ export interface FileTurnOptions {
   readonly mark: FormWriteMark;
   /** Форма из файлов на начало попытки. */
   readonly base: JsonFormSchema;
-  readonly knowledge?: KnowledgeLoader;
+  readonly reference?: ResolveLibraryReference;
 }
 
 export function createFileTurn(options: FileTurnOptions): FileTurn {
@@ -79,7 +79,7 @@ export function createFileTurn(options: FileTurnOptions): FileTurn {
   return {
     scope,
     journal,
-    ...(options.knowledge ? { knowledge: options.knowledge } : {}),
+    ...(options.reference ? { reference: options.reference } : {}),
     file: (path) => moduleFileOf(files, scope, path),
     read: (file) => files.read(file.id),
     readPath: (rel) => files.read(files.resolve(scope.root, ...rel.split('/'))),

@@ -52,7 +52,7 @@ import { makeNames } from '../core/codegen';
 import { emptyRules, emptySchema, type FormRules, type StepOrigins } from '../core/form-model';
 import { builtinEntries, builtinKit } from '../core/testing';
 import { composeForm } from '../ai/src/files/compose';
-import { createKnowledgeLoader } from '../ai/src/knowledge';
+import { createMcpReference } from '../ai/src/knowledge/mcp-reference';
 import type { TurnStats } from '../../forms/ai/src/loop/drive';
 import { runFileTurn } from './assistant-file-turn';
 import { runAgentTurn } from './assistant-turn';
@@ -102,7 +102,9 @@ const SPEC_FORM = 'credit-application';
 type Mode = 'structured' | 'files';
 
 const catalog = builtinEntries();
-const knowledge = createKnowledgeLoader();
+// Встроенная справка — та, что действует у стека без плагина-поставщика.
+const libraryReference = createMcpReference();
+const reference = () => libraryReference;
 
 /** Итог одного прогона — строка отчёта; она же `meta.json` модуля в стенде. */
 interface RunReport {
@@ -373,7 +375,7 @@ async function structuredTurn(
   };
   for await (const event of runAgentTurn({
     provider: provider(),
-    registry: createEditorToolRegistry({ knowledge }),
+    registry: createEditorToolRegistry({ reference }),
     catalog,
     validateForm: validateFormSchema,
     base,
@@ -409,7 +411,7 @@ async function filesTurn(
 ): Promise<Turn & { touched: readonly string[] }> {
   const started = Date.now();
   const record = recorder();
-  const turn = await createTestFileTurn(files, { documentPath, knowledge });
+  const turn = await createTestFileTurn(files, { documentPath, reference });
   let result = { reason: 'none', stats: EMPTY_STATS, touched: [] } as {
     reason: string;
     stop?: unknown;
@@ -419,7 +421,7 @@ async function filesTurn(
   };
   for await (const event of runFileTurn({
     provider: provider(),
-    registry: createFileToolRegistry({ knowledge }),
+    registry: createFileToolRegistry({ reference }),
     turn,
     catalog,
     validateForm: validateFormSchema,
@@ -462,14 +464,13 @@ async function composedFrom(
 
 /** Проверка кода правил модуля после хода — те же правила, что у гейта. */
 async function codeErrors(files: ReadonlyMap<string, string>): Promise<number> {
-  const source = await knowledge();
-  if (!source) return -1;
-  const { validateCode } = await import('@reformer/mcp/dist/core/validate/code.js');
+  // Пустой текст проверяется мгновенно и отвечает одно: есть ли корпус, которым проверять.
+  if ((await libraryReference.checkCode('', {})) === null) return -1;
   let errors = 0;
   for (const [path, text] of files) {
     if (!/^(validation|behavior)\/.*\.ts$/.test(path)) continue;
-    const { diagnostics } = await validateCode(source.knowledge, text);
-    errors += diagnostics.filter((d) => d.severity === 'error').length;
+    const checked = await libraryReference.checkCode(text, { path });
+    errors += (checked?.findings ?? []).filter((finding) => finding.severity === 'error').length;
   }
   return errors;
 }

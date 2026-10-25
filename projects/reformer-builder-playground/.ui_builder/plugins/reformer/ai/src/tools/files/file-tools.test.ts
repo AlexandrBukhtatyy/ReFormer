@@ -1,9 +1,9 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { emptyRules, emptySchema } from '../../../../core/form-model';
 import { builtinEntries } from '../../../../core/testing';
 import type { FileToolContext } from '../../files/turn';
-import type { KnowledgeLoader, KnowledgeSource } from '../../knowledge';
+import type { CodeFinding, LibraryReferenceService } from '../../reference';
 import { printSchemaText } from '../../model/schema-text';
 import {
   createFakeFiles,
@@ -15,14 +15,20 @@ import { describeComponentTool } from '../describe-component';
 import { describeComponentFileTool } from './index';
 import { createFileToolRegistry } from '../registry';
 
-// Проверка кода правил — построчная проверка API из MCP; здесь подменена, чтобы тест проверял
-// политику гейта (новое — отказ, старое — не вменяется), а не корпус знаний, которого в CI нет.
-vi.mock('@reformer/mcp/dist/core/validate/code.js', () => ({
-  validateCode: (_knowledge: unknown, code: string) => {
-    const diagnostics: Array<Record<string, unknown>> = [];
+/** Запросы к проверке кода — так видно, с чем гейт её зовёт. */
+const checkRequests: Array<{ code: string; path?: string }> = [];
+
+// Проверка кода правил — справка по библиотеке; здесь поддельная построчная проверка, чтобы тест
+// проверял политику гейта (новое — отказ, старое — не вменяется), а не корпус знаний, которого в
+// CI нет.
+const reference: LibraryReferenceService = {
+  ask: () => Promise.resolve(null),
+  checkCode(code, request) {
+    checkRequests.push({ code, ...(request.path !== undefined ? { path: request.path } : {}) });
+    const findings: CodeFinding[] = [];
     code.split('\n').forEach((line, index) => {
       if (line.includes('inventedOperator')) {
-        diagnostics.push({
+        findings.push({
           code: 'RF002',
           severity: 'error',
           message: 'inventedOperator is not exported by @reformer/core',
@@ -31,7 +37,7 @@ vi.mock('@reformer/mcp/dist/core/validate/code.js', () => ({
         });
       }
       if (line.includes('deprecatedOperator')) {
-        diagnostics.push({
+        findings.push({
           code: 'RF010',
           severity: 'warning',
           message: 'deprecated',
@@ -39,22 +45,29 @@ vi.mock('@reformer/mcp/dist/core/validate/code.js', () => ({
         });
       }
     });
-    return Promise.resolve({ diagnostics, limitations: [] });
+    return Promise.resolve({ findings });
   },
-}));
+};
+
+/** Справка, которой проверить нечем: метод есть и отвечает `null`. */
+const uncheckable: LibraryReferenceService = {
+  ask: () => Promise.resolve(null),
+  checkCode: () => Promise.resolve(null),
+};
 
 const catalog = builtinEntries();
-const knowledge: KnowledgeLoader = () =>
-  Promise.resolve({ knowledge: {}, origin: 'bundle', versions: {} } as unknown as KnowledgeSource);
 
 const EMPTY = printSchemaText(emptySchema());
 const RULES = "import { required } from '@reformer/core/validators';\n\nexport const rules = [];\n";
 
 const registry = createFileToolRegistry();
 
-const setup = async (extra: Record<string, string> = {}, withKnowledge = true) => {
+const setup = async (
+  extra: Record<string, string> = {},
+  checker: LibraryReferenceService | null = reference
+) => {
   const files = createFakeFiles({ [FORM_PATH]: EMPTY, ...extra });
-  const turn = await createTestFileTurn(files, withKnowledge ? { knowledge } : {});
+  const turn = await createTestFileTurn(files, checker ? { reference: () => checker } : {});
   const ctx = (): FileToolContext => ({
     draft: turn.draft(),
     base: turn.base,
@@ -283,14 +296,53 @@ describe('гейт кода правил', () => {
     expect(outcome.text).toMatch(/Heads up: line 3: RF010/);
   });
 
-  it('без корпуса знаний — запись проходит с пометкой', async () => {
-    const { call } = await setup({ 'forms/loan/validation/form.ts': RULES }, false);
+  it('без справки — запись проходит с пометкой', async () => {
+    const { call } = await setup({ 'forms/loan/validation/form.ts': RULES }, null);
     const outcome = await call('edit_file', {
       path: 'validation/form.ts',
       edits: [{ old_string: 'export const rules = [];', new_string: 'inventedOperator();' }],
     });
     expect(outcome.ok).toBe(true);
     expect(outcome.text).toMatch(/Code check unavailable/);
+  });
+
+  it('справке проверить нечем (`null`) — запись проходит с той же пометкой', async () => {
+    const { call } = await setup({ 'forms/loan/validation/form.ts': RULES }, uncheckable);
+    const outcome = await call('edit_file', {
+      path: 'validation/form.ts',
+      edits: [{ old_string: 'export const rules = [];', new_string: 'inventedOperator();' }],
+    });
+    expect(outcome.ok).toBe(true);
+    expect(outcome.text).toMatch(/Code check unavailable/);
+  });
+
+  it('проверка получает путь файла и оба текста — после правки и до неё', async () => {
+    checkRequests.length = 0;
+    const { call } = await setup({ 'forms/loan/validation/form.ts': RULES });
+    await call('edit_file', {
+      path: 'validation/form.ts',
+      edits: [{ old_string: 'export const rules = [];', new_string: 'export const rules = [1];' }],
+    });
+    expect(checkRequests.map((request) => request.path)).toEqual([
+      'validation/form.ts',
+      'validation/form.ts',
+    ]);
+    expect(checkRequests[1]?.code).toBe(RULES);
+  });
+
+  it('бросок проверки — запись отвергается и НЕ пишется', async () => {
+    // Барьер, который не смог проверить, отказывает, а не пропускает.
+    const broken: LibraryReferenceService = {
+      ask: () => Promise.resolve(null),
+      checkCode: () => Promise.reject(new Error('справка недоступна по сети')),
+    };
+    const { files, call } = await setup({ 'forms/loan/validation/form.ts': RULES }, broken);
+    const outcome = await call('edit_file', {
+      path: 'validation/form.ts',
+      edits: [{ old_string: 'export const rules = [];', new_string: 'inventedOperator();' }],
+    });
+    expect(outcome.error?.code).toBe('TOOL_FAILED');
+    expect(at(files, 'validation/form.ts')).toBe(RULES);
   });
 });
 

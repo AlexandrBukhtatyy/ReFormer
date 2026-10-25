@@ -17,9 +17,10 @@
  *   мета-схема form-DSL, имена компонентов против каталога кита, props против схем каталога;
  * - **файл шага, на который корень ещё не ссылается** — разбор и проверка узла шага; так шаг
  *   создаётся ДО ссылки на него, и сборка формы не падает между двумя записями;
- * - **код (`.ts`, `.tsx`)** — проверка API `@reformer/*` из MCP: неизвестный символ, импорт не из
- *   того пакета, оператор вне своей схемы, снятое API. Это проверка по строкам, не компилятор, —
- *   типов она не видит, и о её пределах сказано честно;
+ * - **код (`.ts`, `.tsx`)** — проверка API `@reformer/*` справкой по библиотеке (`../reference`;
+ *   встроенная — из MCP): неизвестный символ, импорт не из того пакета, оператор вне своей схемы,
+ *   снятое API. Это проверка по строкам, не компилятор, — типов она не видит, и о её пределах
+ *   сказано честно;
  * - **прочий JSON** — только разбор; остальное — без проверки.
  *
  * Отдельно от отказов — замечания по РОЛИ файла: правка производного файла выглядит успешной и
@@ -38,6 +39,7 @@ import { validateSchema } from '../model/validate';
 import { countErrors, introduced } from '../loop/introduced';
 import { MAX_REPORTED } from '../loop/gate';
 import { fail, type ToolOutcome } from '../model/types';
+import type { CodeFinding } from '../reference';
 import { composeForm, jsonError } from './compose';
 import type { ModuleFile } from './scope';
 import type { FileToolContext } from './turn';
@@ -81,7 +83,7 @@ export async function gateWrite(
     if (!parsed.ok) return refuse('SCHEMA_INVALID', `${file.rel}: ${parsed.error}`);
     return { ok: true, notes };
   }
-  if (/\.tsx?$/.test(file.rel)) return codeGate(ctx, next, before, notes);
+  if (/\.tsx?$/.test(file.rel)) return codeGate(ctx, file, next, before, notes);
   if (file.rel.endsWith('.json')) {
     try {
       JSON.parse(next);
@@ -181,30 +183,43 @@ function newErrors(
  */
 const priorErrors = new WeakMap<JsonFormSchema, ReadonlyMap<string, number>>();
 
-/** Код правил: проверка API `@reformer/*`. */
+/**
+ * Код правил: проверка API `@reformer/*` справкой по библиотеке (`../reference`).
+ *
+ * Находки отдаёт справка — встроенная на MCP или плагина-поставщика; что из них НОВОЕ, решает
+ * гейт. Справка, которой проверить нечем (`null` по одному из текстов), запись не держит: прошлые
+ * находки, принятые за пустые, вменили бы правке чужие старые ошибки. Бросок справки поднимается
+ * наружу: барьер, который не смог проверить, отказывает, а не пропускает.
+ */
 async function codeGate(
   ctx: FileToolContext,
+  file: ModuleFile,
   next: string,
   before: string | null,
   notes: string[]
 ): Promise<GateVerdict> {
-  const source = await ctx.files.knowledge?.();
-  if (!source) {
+  const reference = ctx.files.reference?.();
+  const request = { path: file.rel, ...(ctx.turn ? { signal: ctx.turn.signal } : {}) };
+  // Метод зовётся через справку, а не вынутым из неё: реализация-класс опирается на `this`.
+  const check = async (text: string) => (await reference?.checkCode?.(text, request)) ?? null;
+  const checked = await check(next);
+  // Текст «до» проверяется, только если проверка вообще состоялась: удалённой справке это
+  // второй запрос, и делать его ради отказа незачем.
+  const checkedBefore =
+    checked === null ? null : before === null ? { findings: [] } : await check(before);
+  if (checked === null || checkedBefore === null) {
     notes.push('Code check unavailable — the ReFormer knowledge base is not loaded.');
     return { ok: true, notes };
   }
-  // Динамический импорт: таблицы проверки кода не нужны тому, кто ассистентом не пользуется,
-  // и не должны лежать в главном чанке плагина.
-  const { validateCode } = await import('@reformer/mcp/dist/core/validate/code.js');
-  const after = (await validateCode(source.knowledge, next)).diagnostics;
-  const prior = before === null ? [] : (await validateCode(source.knowledge, before)).diagnostics;
+  const after = checked.findings;
+  const prior = checkedBefore.findings;
 
   // Номер строки в ключ не входит: правка выше старой находки сдвигает её строку, и та же
   // находка выглядела бы новой.
-  const keyOf = (d: (typeof after)[number]): string => `${d.code} ${d.message}`;
-  const describe = (d: (typeof after)[number]): string =>
-    `${d.line !== undefined ? `line ${d.line}: ` : ''}${d.code} ${d.message}` +
-    (d.suggestion ? ` — ${d.suggestion}` : '');
+  const keyOf = (finding: CodeFinding): string => `${finding.code} ${finding.message}`;
+  const describe = (finding: CodeFinding): string =>
+    `${finding.line !== undefined ? `line ${finding.line}: ` : ''}${finding.code} ${finding.message}` +
+    (finding.suggestion ? ` — ${finding.suggestion}` : '');
 
   const fresh = (severity: 'error' | 'warning'): string[] => {
     const base = countErrors(prior.filter((d) => d.severity === severity).map(keyOf), (k) => k);

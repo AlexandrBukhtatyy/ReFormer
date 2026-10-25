@@ -4,9 +4,12 @@
  * Ассистент — общий плагин (`plugins/forms/ai`, `reformer.ai`): канал к модели, лента, вопросы
  * человеку, отмена хода. Что такое форма ReFormer, какие у модели инструменты, что она видит и
  * как правка ложится в документ — здесь: стек (`./stack`) со своими инструментами (`./tools`),
- * промптом (`./loop`), корпусом знаний о библиотеке (`./knowledge`) и рабочей областью
- * (`./stack/workspace`). Ассистент спрашивает точку на каждый ход, поэтому порядок активации
- * плагинов не важен.
+ * промптом (`./loop`), справкой по библиотеке (`./reference`, встроенная — `./knowledge`) и
+ * рабочей областью (`./stack/workspace`). Ассистент спрашивает точку на каждый ход, поэтому
+ * порядок активации плагинов не важен.
+ *
+ * Справку стек отдаёт заменить: другой плагин регистрирует службу по `LibraryReferenceCapability`,
+ * и стек берёт её вместо встроенной — тоже на каждый вызов, см. `./reference`.
  *
  * @module plugins/reformer/ai/plugin
  */
@@ -18,8 +21,9 @@ import {
   type PluginContext,
 } from '@reformer/builder-plugin-api';
 import manifest from './manifest.json';
-import { createKnowledgeLoader } from './knowledge';
+import { chooseReference, createBuiltinReference } from './knowledge/builtin';
 import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
+import { LibraryReferenceCapability } from './reference';
 import { createSchemaFormStack } from './stack';
 import { schemaStackWorkspace, type SchemaStackWorkspace } from './stack/workspace';
 
@@ -83,10 +87,14 @@ export function createSchemaStackPlugin(options: SchemaStackPluginOptions = {}):
     activate(ctx: PluginContext) {
       const workspace = options.workspace ?? schemaStackWorkspace(ctx);
       const validateForm = createValidateFormLoader();
+      const builtinReference = createBuiltinReference(() => workspace.projectFiles());
       const stack = createSchemaFormStack({
         catalog: () => workspace.catalog(),
         validateForm,
-        knowledge: createKnowledgeLoader(() => workspace.projectFiles()),
+        // Слот спрашивается на каждый вызов, а не берётся здесь: `activate` ничего не знает о
+        // порядке активации, и поставщик вправе подняться позже стека или уйти со своим плагином.
+        reference: () =>
+          chooseReference(ctx.services.get(LibraryReferenceCapability), builtinReference),
         scopeOf: (id) => workspace.scopeOf(id),
         door: (id) => workspace.door(id),
       });

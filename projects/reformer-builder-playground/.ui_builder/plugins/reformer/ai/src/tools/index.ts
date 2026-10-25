@@ -7,11 +7,12 @@
  *
  * ## Почему набор собирается функцией, а не лежит константой
  *
- * Ровно один инструмент зависит от того, чего у ядра нет: `ask_reformer` смотрит в корпус знаний,
- * а корпус читает файлы открытого проекта — знание Host'а. Остальные четырнадцать — чистые
- * функции над схемой и каталогом, и каталог им приходит контекстом вызова.
+ * Ровно один инструмент зависит от того, чего у ядра нет: `ask_reformer` спрашивает справку по
+ * библиотеке (`../reference`) — встроенную, которая читает файлы открытого проекта, или плагина-
+ * поставщика. Остальные четырнадцать — чистые функции над схемой и каталогом, и каталог им
+ * приходит контекстом вызова.
  *
- * Набор при этом ПОСТОЯНЕН по составу: `ask_reformer` в нём есть всегда, даже когда корпуса нет —
+ * Набор при этом ПОСТОЯНЕН по составу: `ask_reformer` в нём есть всегда, даже когда справки нет —
  * тогда он честно отвечает «справка недоступна». Иначе поверхность инструментов зависела бы от
  * состояния сборки, а храповик (`core/tool-surface.test.ts`) мерил бы разное в разных запусках.
  *
@@ -19,7 +20,7 @@
  */
 
 import type { FormToolSlot } from '@reformer/builder-plugin-api';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import type { AgentTool } from '../model/types';
 import { describeComponentTool } from './describe-component';
 import { duplicateNodeTool } from './duplicate-node';
@@ -61,8 +62,8 @@ export {
 
 /** Чем ядру приходится снабдить набор инструментов. */
 export interface ToolsOptions {
-  /** Корпус знаний о библиотеке; без него `ask_reformer` отвечает «недоступно». */
-  knowledge?: KnowledgeLoader;
+  /** Справка по библиотеке; без неё `ask_reformer` отвечает «недоступно». */
+  reference?: ResolveLibraryReference;
 }
 
 /** Инструменты, не меняющие схему. */
@@ -73,7 +74,7 @@ export function readOnlyTools(options: ToolsOptions = {}): readonly AgentTool[] 
     listComponentsTool,
     describeComponentTool,
     validateForm,
-    createReformerDocsTool(options.knowledge),
+    createReformerDocsTool(options.reference),
   ];
 }
 

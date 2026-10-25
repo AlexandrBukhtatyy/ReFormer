@@ -32,5 +32,16 @@ export type { ChangeOp, ChangeOpKind, ToolError, ToolErrorCode } from './model/t
 // Проверка по мета-схеме: грузится по требованию, приходит параметром — см. `core/validate`.
 export type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 
-// Корпус знаний: стек отдаёт ему чтение файлов проекта.
+// Справка по библиотеке: контракт, которым её заменяет плагин-поставщик, и встроенная на MCP.
+export {
+  LibraryReferenceCapability,
+  type CodeFinding,
+  type LibraryReferenceService,
+  type ReferenceRequest,
+  type ResolveLibraryReference,
+} from './reference';
+export { chooseReference, createBuiltinReference } from './knowledge/builtin';
+export { createMcpReference } from './knowledge/mcp-reference';
+
+// Корпус знаний встроенной справки: стек отдаёт ему чтение файлов проекта.
 export { createKnowledgeLoader, type KnowledgeLoader, type PackageFiles } from './knowledge';

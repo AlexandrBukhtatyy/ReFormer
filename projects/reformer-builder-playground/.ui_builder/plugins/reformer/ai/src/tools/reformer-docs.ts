@@ -11,36 +11,33 @@
  * это размен: фасад отстаёт от набора на 8 п.п. first-pass, выигрывая 87 % поверхности. Выбор
  * идёт не между «фасад и набор», а между «фасад и ничего».
  *
- * Каскад (`choose_api` → рецепт → полнотекст) исполняется внутри `askReformer` — кодом, а не
- * моделью. Промежуточные промахи в контекст не попадают: наружу уходит только собранный ответ.
- *
- * Корпус приходит ЗАГРУЗЧИКОМ, а не читается модулем: в v1 `loadKnowledge()` сама лезла в стор
- * проекта, а плагин так не может — «какой проект открыт» знает Host. Умолчание — «корпуса нет»:
- * инструмент при этом остаётся в наборе и честно говорит, что справка недоступна. Убирать его
- * было бы хуже — поверхность инструментов менялась бы от состояния сборки, а модель, не видя
- * справки, идёт выдумывать API вместо того, чтобы спросить.
+ * Отвечает не инструмент, а СПРАВКА (`../reference`): встроенная на `@reformer/mcp`
+ * (`../knowledge/mcp-reference`) либо плагина-поставщика. Инструмент о ней знает только контракт —
+ * поэтому её можно заменить, не трогая ни его описания, ни поверхности инструментов. Умолчание —
+ * «справки нет»: инструмент при этом остаётся в наборе и честно говорит, что справка недоступна.
+ * Убирать его было бы хуже — поверхность инструментов менялась бы от состояния сборки, а модель,
+ * не видя справки, идёт выдумывать API вместо того, чтобы спросить.
  *
  * @module plugins/reformer/ai/tools/reformer-docs
  */
 
-import { askReformer } from '@reformer/mcp/dist/core/facade.js';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import { ok, TOOL_TEXT_BUDGET, type AgentTool } from '../model/types';
 
 interface Params {
   question: string;
 }
 
-/** Корпуса нет — законное состояние: справка не собрана либо проект не открыт. */
-const NO_KNOWLEDGE: KnowledgeLoader = () => Promise.resolve(null);
+/** Справки нет — законное состояние: корпус не собран либо стек собран без неё. */
+const NO_REFERENCE: ResolveLibraryReference = () => undefined;
 
 /**
  * Собрать инструмент справки.
  *
- * @param loadKnowledge - Откуда брать корпус; по умолчанию — ниоткуда.
+ * @param reference - Какая справка действует сейчас; по умолчанию — никакой.
  */
 export function createReformerDocsTool(
-  loadKnowledge: KnowledgeLoader = NO_KNOWLEDGE
+  reference: ResolveLibraryReference = NO_REFERENCE
 ): AgentTool<Params> {
   return {
     name: 'ask_reformer',
@@ -59,42 +56,22 @@ export function createReformerDocsTool(
     },
     readOnly: true,
 
-    async run(params) {
-      const source = await loadKnowledge();
-      if (!source) {
-        // Корпус не собран — это состояние сборки, и молчать о нём нельзя: агент решил бы, что
+    async run(params, ctx) {
+      // Бюджет передаётся справке, а не оставляется реестру: реестр режет по символам, посреди
+      // блока кода, и модель дописывает оборванный вызов сама. Справка знает, что резать первым.
+      const answer = await reference()?.ask(params.question, {
+        maxChars: TOOL_TEXT_BUDGET,
+        ...(ctx.turn ? { signal: ctx.turn.signal } : {}),
+      });
+      if (!answer) {
+        // Справки нет — это состояние сборки, и молчать о нём нельзя: агент решил бы, что
         // библиотека такого не умеет, и пошёл выдумывать API.
         return ok(
           'Library reference is unavailable in this build. Answer from the form and the component ' +
             'catalog only; do not guess ReFormer API names.'
         );
       }
-
-      // Источник называется в ответе, когда знания взяты из проекта: агент должен понимать, что
-      // это версии ПОЛЬЗОВАТЕЛЯ, а не те, с которыми собран билдер. Для вшитого корпуса строки
-      // нет — она стоила бы символов в каждом ответе, не добавляя выбора.
-      const suffix = source.origin === 'project' ? sourceLine(source.versions) : '';
-
-      // Бюджет передаётся сюда, а не оставляется реестру: реестр режет по символам, посреди блока
-      // кода, и модель дописывает оборванный вызов сама. Внутри известно, что резать первым.
-      //
-      // Приписка вычитается ДО нарезки, а не дописывается после. Иначе ответ у верхней границы
-      // бюджета вместе с ней перевалит за неё, и `clamp` в реестре срежет хвост — то есть саму
-      // приписку. Замер: 5 ответов из 6 упирались в границу, и источник терялся ровно там, где
-      // он важнее всего.
-      const answer = await askReformer(source.knowledge, params.question, {
-        maxChars: TOOL_TEXT_BUDGET - suffix.length,
-      });
-
-      return ok(suffix ? `${answer.text}${suffix}` : answer.text);
+      return ok(answer.text);
     },
   };
-}
-
-/** Строка про источник знаний — считается заранее, потому что её длина входит в бюджет ответа. */
-function sourceLine(versions: Record<string, string>): string {
-  const list = Object.entries(versions)
-    .map(([pkg, v]) => `${pkg.replace('@reformer/', '')}@${v}`)
-    .join(', ');
-  return `\n\n_Источник: node_modules проекта${list ? ` (${list})` : ''}._`;
 }

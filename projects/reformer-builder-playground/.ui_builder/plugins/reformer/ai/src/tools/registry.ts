@@ -18,7 +18,7 @@ import type {
   ToolRegistryOptions,
 } from '@reformer/builder-toolkit';
 import { createToolRegistry as createGenericRegistry } from '@reformer/builder-toolkit/registry';
-import type { KnowledgeLoader } from '../knowledge';
+import type { ResolveLibraryReference } from '../reference';
 import type { FileToolContext } from '../files/turn';
 import type { AgentTool, ToolContext, ToolOutcome } from '../model/types';
 import { allTools, readOnlyTools, type ToolsOptions } from './index';
@@ -49,7 +49,7 @@ export function createReadOnlyToolRegistry(options: ToolsOptions = {}): ToolRegi
 
 /** Реестр режима файлов. */
 export function createFileToolRegistry(
-  options: { knowledge?: KnowledgeLoader } = {}
+  options: { reference?: ResolveLibraryReference } = {}
 ): ToolRegistry<FileToolContext> {
   return createToolRegistry<FileToolContext>(fileModeTools(options));
 }

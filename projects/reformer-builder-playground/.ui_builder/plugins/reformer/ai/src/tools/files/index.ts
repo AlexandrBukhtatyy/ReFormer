@@ -14,7 +14,7 @@
  */
 
 import type { FormToolSlot } from '@reformer/builder-plugin-api';
-import type { KnowledgeLoader } from '../../knowledge';
+import type { ResolveLibraryReference } from '../../reference';
 import type { FileToolContext } from '../../files/turn';
 import type { AgentTool } from '../../model/types';
 import { createDescribeComponentTool } from '../describe-component';
@@ -39,7 +39,7 @@ export const describeComponentFileTool = createDescribeComponentTool({
 
 /** Полный набор режима файлов. */
 export function fileModeTools(
-  options: { knowledge?: KnowledgeLoader } = {}
+  options: { reference?: ResolveLibraryReference } = {}
 ): readonly AgentTool<never, FileToolContext>[] {
   return [
     listFilesTool,
@@ -48,7 +48,7 @@ export function fileModeTools(
     writeFileTool,
     listComponentsTool,
     describeComponentFileTool,
-    createReformerDocsTool(options.knowledge),
+    createReformerDocsTool(options.reference),
   ];
 }
 
@@ -57,7 +57,7 @@ export function fileModeTools(
  * инструменты ассистента по имени (см. `structuredSlots`).
  */
 export function fileModeSlots(
-  options: { knowledge?: KnowledgeLoader } = {}
+  options: { reference?: ResolveLibraryReference } = {}
 ): readonly FormToolSlot[] {
   return [...fileModeTools(options), 'ask_user', 'generate_code', 'create_form'];
 }
