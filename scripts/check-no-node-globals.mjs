@@ -17,15 +17,21 @@ import { join, relative } from 'node:path';
  * `@reformer/form-registry` — потому что его грузят голым ESM (import map, web-component,
  * Module Federation), где `process` не определён.
  *
- * `@reformer/mcp` проверяется НЕ целиком, а двумя частями — `dist/core` и `dist/platform/browser`:
- * сервер запускается под Node и
+ * `@reformer/mcp` проверяется НЕ целиком, а частями — `dist/core`, `dist/platform/browser` и
+ * `dist/platform/worker`: сервер запускается под Node и
  * node-глобали в `platform/cli` законны. Смысл гейта в том, что ядро знаний обязано собираться
  * в браузер, а «обязано» без проверки живёт ровно до следующего удобного `readFileSync`.
+ *
+ * Бандл воркера (`dist/worker/server.js`) здесь НЕ проверяется: в него вложены зависимости SDK, и
+ * ajv несёт в генерируемом коде строку `require("ajv/dist/runtime/…")` — регулярка видела бы
+ * ложное срабатывание. Бандл проверяет тест пакета, исполняя его в контексте без `process` и
+ * `require` (`tests/worker-bundle.test.ts`).
  */
 const TARGETS = [
   { name: '@reformer/form-registry', dir: 'packages/reformer-form-registry/dist' },
   { name: '@reformer/mcp (core)', dir: 'packages/reformer-mcp/dist/core' },
   { name: '@reformer/mcp (platform/browser)', dir: 'packages/reformer-mcp/dist/platform/browser' },
+  { name: '@reformer/mcp (platform/worker)', dir: 'packages/reformer-mcp/dist/platform/worker' },
 ];
 
 /** Что ищем. Строки в комментариях не в счёт — комментарии вырезаются заранее. */

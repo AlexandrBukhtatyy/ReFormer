@@ -143,7 +143,45 @@ node scripts/generate-llms-txt packages/reformer-cdk --audit
 node packages/reformer-mcp/dist/index.js
 ```
 
-`build` пакета сначала вызывает `npm run generate:llms` (свой `llms.txt`), затем `tsc`. На свежем checkout этого достаточно — отдельно `npm run generate:llms` запускать не нужно.
+`build` пакета сначала вызывает `npm run generate:llms` (свой `llms.txt`), затем `tsc`, а последним
+собирает бандл для Web Worker (см. ниже). На свежем checkout этого достаточно — отдельно
+`npm run generate:llms` запускать не нужно.
+
+## Браузер и Web Worker
+
+Тот же сервер работает в браузерном Web Worker: `dist/worker/server.js` — один самодостаточный
+скрипт (около 4,5 МБ), в который вшит корпус знаний. Хост запускает его воркером и говорит с ним по
+MCP через `postMessage`: одно сообщение — один кадр JSON-RPC, без конверта.
+
+Так его подключает ассистент ReFormer Builder — положите бандл в каталог сервера проекта:
+
+```bash
+mkdir -p .ui_builder/mcp/reformer
+cp node_modules/@reformer/mcp/dist/worker/server.js .ui_builder/mcp/reformer/
+```
+
+Отличия от сервера под Node:
+
+- нет `report_issue` (отчёт некуда сохранить) и `debug`;
+- у `plan_form` нет `specPath` — план строится от `description`;
+- нет промптов: они рендерятся шаблонами с диска и просят sampling у клиента;
+- ресурсы — те же (`reformer://guide`, `reformer://catalog`, `reformer://docs/…`).
+
+Корпус разбирается на первый вызов, которому он нужен: `initialize` и `tools/list` отвечают сразу.
+
+Свой хост может взять транспорт из пакета — тот же модуль, что использует сам сервер:
+
+```ts
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { createPortTransport } from '@reformer/mcp/dist/platform/worker/port-transport.js';
+
+const worker = new Worker(serverScriptUrl);
+const client = new Client({ name: 'my-host', version: '1.0.0' });
+await client.connect(createPortTransport(worker, { onClose: () => worker.terminate() }));
+```
+
+Пересобрать только бандл (нужен собранный `dist`): `npm run build:worker -w @reformer/mcp`;
+`-- --out <каталог>` — положить копию ещё и туда.
 
 ## Environment variables
 

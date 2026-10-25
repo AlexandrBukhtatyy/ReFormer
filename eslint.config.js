@@ -118,6 +118,9 @@ export default defineConfig([
     'projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks',
     // Корпус знаний плагина ИИ — выход генератора (`npm run generate:knowledge`)
     'projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/knowledge/generated',
+    // Серверы-бандлы MCP проекта-образца (`npm run mcp:build`): 4 МБ собранного кода в одну
+    // строку, исключены вложенным .gitignore каталога сервера
+    'projects/reformer-builder-playground/.ui_builder/mcp/*/server.js',
   ]),
 
   // Базовая конфигурация для всего TS/JS

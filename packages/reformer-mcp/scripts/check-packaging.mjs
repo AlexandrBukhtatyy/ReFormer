@@ -99,6 +99,8 @@ try {
   // (createRequire от установленного пакета), и docs/llms сиблингов лежат в
   // node_modules, а не в исходниках монорепо.
   const runner = `
+import { existsSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { getFullDocs } from '@reformer/mcp/dist/utils/docs-parser.js';
 import { findRecipeTool } from '@reformer/mcp/dist/core/tools/find-recipe.js';
 import { cliKnowledge } from '@reformer/mcp/dist/platform/cli/knowledge.js';
@@ -144,6 +146,16 @@ if (!dl.includes('docs/llms/') || !dl.includes('form-directory-layout')) {
   );
 }
 
+// 4. Бандл воркера — его копируют в .ui_builder/mcp/<имя>/server.js проекта, и без него
+// браузерный сервер у потребителя просто не из чего взять. Размер — признак вшитого корпуса:
+// бандл без корпуса собрался бы, но отвечал бы пустотой.
+const bundle = createRequire(import.meta.url).resolve('@reformer/mcp/dist/worker/server.js');
+if (!existsSync(bundle)) {
+  failures.push('dist/worker/server.js нет в пакете (build не собрал бандл воркера?)');
+} else if (statSync(bundle).size < 1024 * 1024) {
+  failures.push('dist/worker/server.js меньше 1 МБ — корпус знаний не вшит?');
+}
+
 console.log(JSON.stringify({ failures }));
 `;
   writeFileSync(path.join(consumer, 'smoke.mjs'), runner);
@@ -169,7 +181,7 @@ console.log(JSON.stringify({ failures }));
     failed = true;
   } else {
     console.log(
-      '✓ @reformer/mcp: guide и файловые рецепты (project-structure, form-field) доступны у потребителя'
+      '✓ @reformer/mcp: guide, файловые рецепты (project-structure, form-field) и бандл воркера доступны у потребителя'
     );
   }
 } finally {

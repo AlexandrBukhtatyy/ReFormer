@@ -54,3 +54,6 @@ projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks/
 projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/src/knowledge/generated/
 # Таблицы стилей плагинов-движков — выход генератора (`npm run generate:styles`), в git не едут
 projects/reformer-builder-playground/.ui_builder/plugins/*/*/src/styles.css
+# Серверы-бандлы MCP проекта-образца (`npm run mcp:build`) — собранный код, исключён вложенным
+# .gitignore каталога сервера, которого prettier не читает
+projects/reformer-builder-playground/.ui_builder/mcp/*/server.js

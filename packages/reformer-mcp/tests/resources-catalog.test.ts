@@ -13,37 +13,34 @@
  *  - каталог перечисляет ровно те слаги, что отдаёт listSections, и заметно дешевле
  *    старого листинга.
  *
- * Сервер поднимать не нужно: проверяем те же docs-parser примитивы, на которых построены
- * оба хендлера в src/index.ts.
+ * Сервер поднимать не нужно: проверяется сам каталог ресурсов (`core/server/resource-catalog`),
+ * который сервер вешает на `resources/list` и `resources/read` — под Node и в воркере одинаково.
  */
 
 import { describe, it, expect } from 'vitest';
+import { createResourceCatalog } from '../src/core/server/resource-catalog';
+import { cliKnowledge } from '../src/platform/cli/knowledge';
 import { listAvailablePackages, listSections, getSectionBySlug } from '../src/utils/docs-parser';
 
 const packages = listAvailablePackages();
 const hasDocs = packages.length > 0;
+const resources = createResourceCatalog(cliKnowledge);
 
 interface Catalog {
   packages: Array<{ id: string; sections: Array<[string, string]> }>;
 }
 
-/** Точная копия того, что отдаёт ReadResource на `reformer://catalog` (src/index.ts). */
+/** То, что отдаёт `resources/read` на `reformer://catalog`. */
 function buildCatalog(): string {
-  return JSON.stringify({
-    readSection: 'reformer://docs/<package>/<slug>',
-    sectionShape: '[slug, title]',
-    hint: 'Prefer search_docs(query) — it returns ready URIs. Scan this catalog only when you need the full map.',
-    packages: packages.map((pkg) => ({
-      id: pkg.replace(/^@reformer\//, ''),
-      sections: listSections(pkg).map((s) => [s.slug, s.title]),
-    })),
-  });
+  const [content] = resources.read('reformer://catalog').contents;
+  return (content as { text: string }).text;
 }
 
 describe('resources — каталог вместо перечисления секций', () => {
   it.runIf(hasDocs)('перечисление остаётся коротким: guide + catalog + по одному на пакет', () => {
-    // Ровно та арифметика, что в ListResources: 2 фиксированных + N пакетов (debug — вне CI).
-    const listed = 2 + packages.length;
+    // 2 фиксированных + N пакетов (debug — вне CI).
+    const listed = resources.list().length;
+    expect(listed).toBe(2 + packages.length);
     expect(listed).toBeLessThanOrEqual(16);
 
     // Секций на порядок больше — именно их и не должно быть в списке.
@@ -80,8 +77,16 @@ describe('resources — каталог вместо перечисления с�
     const broken: string[] = [];
     for (const { id, sections } of catalog.packages) {
       for (const [slug] of sections) {
+        const uri = `reformer://docs/${id}/${slug}`;
         if (getSectionBySlug(`@reformer/${id}`, slug) === null) {
-          broken.push(`reformer://docs/${id}/${slug}`);
+          broken.push(uri);
+          continue;
+        }
+        // Читается и через сам каталог — тем же путём, что `resources/read` сервера.
+        try {
+          resources.read(uri);
+        } catch {
+          broken.push(uri);
         }
       }
     }

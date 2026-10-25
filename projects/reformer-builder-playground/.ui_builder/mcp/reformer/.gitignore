@@ -1,0 +1,2 @@
+# Бандл MCP-сервера ReFormer собирается из packages/reformer-mcp: npm run mcp:build
+/server.js
