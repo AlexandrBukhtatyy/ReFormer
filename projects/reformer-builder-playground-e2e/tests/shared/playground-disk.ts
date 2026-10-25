@@ -54,11 +54,12 @@ const PLUGIN_SOURCES = 'src';
  * Остальные плагины проекта лежат там всегда.
  *
  * Сборка кита HexaUI весит около 5 МБ, стек форм ReFormer в ассистенте с корпусом знаний — около
- * 8 МБ, сам ассистент с каналами к моделям — ещё мегабайт: в каждой копии они стоили бы секунд
- * каждому тесту. Без теста, который такой плагин просит, его каталога в копии нет вовсе —
- * включённый настройкой, но отсутствующий плагин билдер пропускает молча.
+ * 8 МБ, сам ассистент с каналами к моделям — ещё мегабайт, MCP-серверы ассистента с клиентом MCP —
+ * ещё 0,7: в каждой копии они стоили бы секунд каждому тесту. Без теста, который такой плагин
+ * просит, его каталога в копии нет вовсе — включённый настройкой, но отсутствующий плагин билдер
+ * пропускает молча.
  */
-const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai', 'forms/ai'];
+const OPTIONAL_PLUGINS = ['kit-hexa-ui', 'reformer/ai', 'forms/ai', 'forms/mcp'];
 
 /**
  * Спутники необязательных плагинов: просьба положить плагин кладёт и их. Стек форм в ассистенте
@@ -69,10 +70,19 @@ const OPTIONAL_COMPANIONS: Readonly<Record<string, readonly string[]>> = {
   'reformer/ai': ['forms/ai'],
 };
 
+/** Каталог MCP-серверов-бандлов проекта: `<имя>/server.js` — сборка, в git она не едет. */
+const MCP_SERVERS_DIR = `${UI_BUILDER_DIR}/mcp`;
+
 /** Что положить на «диск» сверх обычной копии. */
 export interface SeedOptions {
   /** Плагины из числа необязательных — каталогами: `['kit-hexa-ui']`. */
   readonly plugins?: readonly string[];
+  /**
+   * MCP-серверы-бандлы — именами каталогов: `['reformer']`. Их `server.js` — сборка
+   * (`npm run mcp:build -w reformer-builder-playground`), git его не видит, и без просьбы в копии
+   * лежат только `server.json` и `README.md`: сервер «не собран», ассистенту звать некого.
+   */
+  readonly mcpServers?: readonly string[];
   /**
    * `false` — проект без каталога плагинов вовсе: так выглядит чужой проект, открытый билдером.
    * Всё, что в нём работает, приехало с приложением (слой плагинов приложения).
@@ -191,6 +201,18 @@ export function readPluginBuild(root: string, pluginDir: string): DiskFile[] {
   ].map((file) => readFile(root, `${pluginDir}/${file}`));
 }
 
+/** Собранный сервер-бандл MCP: его `server.js`, которого нет в git. */
+function readMcpServer(root: string, name: string): DiskFile {
+  const scriptPath = `${MCP_SERVERS_DIR}/${name}/server.js`;
+  if (!existsSync(path.join(root, scriptPath))) {
+    throw new Error(
+      `в playground нет «${scriptPath}»: сервер не собран. ` +
+        'Бандл сервера ReFormer собирает «npm run mcp:build -w reformer-builder-playground»'
+    );
+  }
+  return readFile(root, scriptPath);
+}
+
 export class PlaygroundDisk {
   /** Имя каталога проекта. Его же билдер показывает подписью проекта в «Недавно открытых». */
   readonly name = path.basename(PLAYGROUND_DIR);
@@ -262,6 +284,9 @@ export class PlaygroundDisk {
         .filter((filePath) => !filePath.startsWith(`${PLUGINS_DIR}/`) || inPlugin(filePath))
         .map((filePath) => readFile(PLAYGROUND_DIR, filePath)),
       ...plugins.flatMap((dir) => readPluginBuild(PLAYGROUND_DIR, dir)),
+      ...(withUiBuilder ? (options.mcpServers ?? []) : []).map((name) =>
+        readMcpServer(PLAYGROUND_DIR, name)
+      ),
     ];
     await this.page.evaluate(
       async ({ mount, name, files }) => {

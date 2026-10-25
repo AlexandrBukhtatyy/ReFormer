@@ -143,10 +143,11 @@ test.describe('Запуск собранного билдера', () => {
     expect(report.pluginFiles).toContain('base/files/main.js');
 
     // Тяжёлое не читается, пока до него не дошло дело: движок редактора кода, предпросмотр
-    // markdown и формы, база знаний ассистента стоят за отложенным импортом. До чтения по
-    // требованию каталог плагина читался целиком — одиннадцать мегабайт на каждый запуск.
+    // markdown и формы, база знаний ассистента и клиент MCP-серверов стоят за отложенным
+    // импортом. До чтения по требованию каталог плагина читался целиком — одиннадцать мегабайт
+    // на каждый запуск.
     const heavy = report.pluginFiles.filter((path) =>
-      /\/chunks\/(monaco-runtime-|MarkdownPreview-|RjsfPreview-|knowledge-|mcp-reference-|byok-)/.test(
+      /\/chunks\/(monaco-runtime-|MarkdownPreview-|RjsfPreview-|knowledge-|mcp-reference-|mcp-client-|byok-)/.test(
         path
       )
     );
