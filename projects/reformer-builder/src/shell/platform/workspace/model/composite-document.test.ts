@@ -142,7 +142,11 @@ interface Bench {
   settle(): Promise<void>;
 }
 
-function makeBench(root: string, parts: Record<string, string>): Bench {
+function makeBench(
+  root: string,
+  parts: Record<string, string>,
+  options: { readonly removed?: readonly ResourceId[] } = {}
+): Bench {
   const base = createLinesProvider();
   const provider: DocumentModelProvider<LinesModel> = {
     ...base,
@@ -163,6 +167,7 @@ function makeBench(root: string, parts: Record<string, string>): Bench {
   const handle = createModelDocument<LinesModel>({
     document: buffer.document,
     provider,
+    removed: options.removed,
     writeText: (text, mark) => {
       rootWrites.push(text);
       marks.push(mark?.origin);
@@ -316,6 +321,22 @@ describe('составной документ', () => {
 
     await bench.touch('a.lines', 'n2 alpha\nn3 gamma');
     expect(texts(bench.handle)).toEqual(['intro', 'alpha', 'gamma', 'outro']);
+  });
+
+  it('выпавшие части прежней надстройки ждут сохранения и у новой', () => {
+    // Документ надстроен заново (перезагрузили плагин формата), а «собрать» сделали до того:
+    // удалить файл части обещала прежняя надстройка, и без передачи он остался бы сиротой.
+    const bench = makeBench('n1 intro', {}, { removed: [idOfPath('a.lines')] });
+    expect(bench.handle.removedParts()).toEqual([idOfPath('a.lines')]);
+
+    bench.handle.forgetRemoved([idOfPath('a.lines')]);
+    expect(bench.handle.removedParts()).toEqual([]);
+  });
+
+  it('унаследованная часть, на которую ссылается новая модель, не выпавшая', () => {
+    const bench = makeBench(ROOT, { 'a.lines': PART_A }, { removed: [idOfPath('a.lines')] });
+    // Файл снова в документе: удалить его сохранением — потерять узлы, которые видит редактор.
+    expect(bench.handle.removedParts()).toEqual([]);
   });
 
   it('битая часть — расхождение; починка его снимает', async () => {

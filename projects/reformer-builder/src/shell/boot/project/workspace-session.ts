@@ -18,6 +18,7 @@ import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/inte
 import type { EventBus } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/internal';
+import type { Document } from '@reformer/builder-plugin-api/internal';
 import type { Source } from '@/shell/platform/source/types';
 import type { ValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';
 import {
@@ -161,12 +162,17 @@ export function watchOpenDocuments(
   documents: DocumentTabsStore,
   validation: ValidationOrchestrator
 ): Disposable {
-  const watches = new Map<ResourceId, Disposable>();
+  const watches = new Map<
+    ResourceId,
+    { readonly document: Document; readonly watch: Disposable }
+  >();
 
   const sync = (): void => {
     const open = new Set(documents.get().tabs.map((tab) => tab.ref.id));
-    for (const [id, watch] of [...watches]) {
-      if (open.has(id)) continue;
+    for (const [id, { document, watch }] of [...watches]) {
+      // Документ вкладки подменили (надстроен заново) — наблюдение прежнего снимается: его
+      // валидаторы выбирались по виду документа, а вид мог смениться.
+      if (open.has(id) && documents.documentOf(id) === document) continue;
       // `dispose` наблюдения убирает и опубликованное им: находки, которые никто больше
       // не обновляет, — это ровно тот случай «исправленная ошибка висит».
       watch.dispose();
@@ -176,7 +182,7 @@ export function watchOpenDocuments(
       if (watches.has(id)) continue;
       const document = documents.documentOf(id);
       if (document === null) continue;
-      watches.set(id, validation.watch(document));
+      watches.set(id, { document, watch: validation.watch(document) });
     }
   };
 
@@ -185,7 +191,7 @@ export function watchOpenDocuments(
 
   return toDisposable(() => {
     subscription.dispose();
-    for (const watch of watches.values()) watch.dispose();
+    for (const { watch } of watches.values()) watch.dispose();
     watches.clear();
   });
 }
@@ -258,7 +264,8 @@ export interface WorkspaceSessionOptions {
    * как если бы провайдера не внёс никто. Это законное состояние (см. `./document-models`),
    * поэтому параметр необязателен, а тесты, которым модель не нужна, его не передают.
    */
-  readonly extensions?: Pick<ExtensionRegistry, 'get'>;
+  readonly extensions?: Pick<ExtensionRegistry, 'get'> &
+    Partial<Pick<ExtensionRegistry, 'observe'>>;
   /**
    * В фокусе ли текстовый редактор этого документа.
    *
@@ -270,6 +277,8 @@ export interface WorkspaceSessionOptions {
   readonly isTextEditorFocused?: (id: ResourceId) => boolean;
   /** Сложился ли состав провайдеров модели — см. `DocumentModelsOptions.providersReady`. */
   readonly modelProvidersReady?: () => Promise<void>;
+  /** Выдержка до снятия модели, чей провайдер ушёл, — см. `DocumentModelsOptions.providerGraceMs`. */
+  readonly modelProviderGraceMs?: number;
   readonly events?: EventBus;
   readonly diagnostics?: DiagnosticsSink;
   /** Оркестратор валидации приложения. Без него сессия работает, но находок не будет. */
@@ -330,6 +339,9 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     diagnostics: options.diagnostics,
     isTextEditorFocused: options.isTextEditorFocused,
     providersReady: options.modelProvidersReady,
+    ...(options.modelProviderGraceMs === undefined
+      ? {}
+      : { providerGraceMs: options.modelProviderGraceMs }),
   });
 
   // Операции над записями идут К ИСТОЧНИКУ напрямую (см. `host/workspace/resource-ops`),
@@ -430,6 +442,8 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
   };
 
   const documents = createDocumentTabsStore({ workspace: tabsWorkspace, whenContext });
+  // Документ, надстроенный заново (сменился провайдер модели), подменяется во вкладке.
+  const reattached = models.onDidReattach((id, document) => documents.replace(id, document));
   const tree = createResourceTreeStore({
     workspace,
     // Корень показа — корень источника: `<sourceId>:`. Сам он строкой в дерево не попадает.
@@ -437,7 +451,7 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
   });
   const status = createWorkspaceStatusSource(workspace, divergence);
 
-  const subscriptions: Disposable[] = [];
+  const subscriptions: Disposable[] = [reattached];
   if (options.validation !== undefined) {
     subscriptions.push(watchOpenDocuments(documents, options.validation));
   }

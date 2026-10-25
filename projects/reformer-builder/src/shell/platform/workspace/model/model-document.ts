@@ -163,7 +163,21 @@ export interface ModelDocumentOptions<M> {
    * провайдер умеет больше: читать части ему нечем.
    */
   readonly parts?: ModelPartsPort;
+  /**
+   * Части, выпавшие из документа у ПРЕЖНЕЙ надстройки и ещё не удалённые: документ надстроен
+   * заново (сменился провайдер модели), а удалить их файлы обещал прежний. Без передачи
+   * сохранение оставило бы их на диске сиротами. Часть, на которую новая модель ссылается, сюда
+   * не попадает — она снова в документе.
+   */
+  readonly removed?: readonly ResourceId[];
 }
+
+/**
+ * Приставка ключа выпавшей части, унаследованной от прежней надстройки: спецификатора у неё нет,
+ * и ключом служит адрес. Со спецификаторами не пересекается: спецификатор ссылки — относительный
+ * путь, и с `#` он не начинается.
+ */
+const INHERITED_PART = '#inherited:';
 
 /** Модель вместе с раскладкой по файлам — единица истории отмены. */
 interface Laid<M> {
@@ -268,6 +282,16 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
     throw new ModelParseError(toFailure(provider.id, err));
   }
 
+  // Выпавшие у прежней надстройки — под своим адресом: спецификатора ссылки у них больше нет.
+  if (composite !== undefined) {
+    const present = new Set(
+      [...partTexts.keys()].map((spec) => String(composite.port.resolve(spec)))
+    );
+    for (const id of options.removed ?? []) {
+      if (!present.has(String(id))) removed.set(`${INHERITED_PART}${id}`, id);
+    }
+  }
+
   let selection: readonly NodeId[] = options.selection ?? [];
   /**
    * Отказ разбора — ЕДИНСТВЕННЫЙ носитель расхождения: `syncState` из него выводится.
@@ -363,6 +387,17 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
   };
 
   /**
+   * Часть снова в документе: из выпавших она уходит — и под своим спецификатором, и под адресом,
+   * которым её передала прежняя надстройка ({@link ModelDocumentOptions.removed}).
+   */
+  const reinstate = (spec: string): void => {
+    removed.delete(spec);
+    if (composite === undefined) return;
+    const id = composite.port.resolve(spec);
+    removed.delete(`${INHERITED_PART}${id}`);
+  };
+
+  /**
    * Раскладывает модель по файлам: части пишутся сразу (их редактор человек сейчас не держит),
    * выпавшие ждут сохранения. Возвращает модель корня.
    */
@@ -374,7 +409,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
     const stale = new Set(partTexts.keys());
     for (const [spec, text] of laid.parts) {
       stale.delete(spec);
-      removed.delete(spec);
+      reinstate(spec);
       unavailable.delete(spec);
       const known = partTexts.get(spec);
       if (known === text) continue;
@@ -703,8 +738,13 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
 
 /** Документ и, если он модельный, ручки к нему. */
 export type Attached<M = unknown> =
-  | { readonly document: TextDocument; readonly handle?: undefined }
-  | { readonly document: ModelDocument<M>; readonly handle: ModelDocumentHandle<M> };
+  | { readonly document: TextDocument; readonly handle?: undefined; readonly provider?: undefined }
+  | {
+      readonly document: ModelDocument<M>;
+      readonly handle: ModelDocumentHandle<M>;
+      /** Чей разбор: по нему держатель узнаёт, что провайдер сменился. */
+      readonly provider: DocumentModelProvider<M>;
+    };
 
 export interface AttachOptions {
   /** Документ из `workspace.open`. */
@@ -717,6 +757,10 @@ export interface AttachOptions {
   readonly historyLimit?: number;
   /** Части составного документа — из {@link preloadParts}. */
   readonly parts?: ModelPartsPort;
+  /** Выделение, с которым документ откроется, — у надстройки заново. */
+  readonly selection?: readonly NodeId[];
+  /** Выпавшие части прежней надстройки — см. {@link ModelDocumentOptions.removed}. */
+  readonly removed?: readonly ResourceId[];
 }
 
 /** Доступ к файлам частей без прочитанных текстов — их дочитывает {@link preloadParts}. */
@@ -795,9 +839,11 @@ export function attachDocumentModel(options: AttachOptions): Attached<unknown> {
       diagnostics: options.diagnostics,
       historyLimit: options.historyLimit,
       parts: options.parts,
+      ...(options.selection === undefined ? {} : { selection: options.selection }),
+      ...(options.removed === undefined ? {} : { removed: options.removed }),
     });
     options.diagnostics?.publish(document.id, PARSE_DIAGNOSTIC_SOURCE, []);
-    return { document: handle.document, handle };
+    return { document: handle.document, handle, provider };
   } catch (err) {
     if (!(err instanceof ModelParseError)) throw err;
     options.diagnostics?.publish(document.id, PARSE_DIAGNOSTIC_SOURCE, [

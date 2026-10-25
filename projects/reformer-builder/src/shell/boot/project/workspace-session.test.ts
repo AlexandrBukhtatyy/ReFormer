@@ -245,6 +245,11 @@ describe('итог по рабочей области', () => {
 function fakeTabs() {
   let ids: ResourceId[] = [];
   const listeners = new Set<() => void>();
+  // Документ вкладки — один объект, пока его не подменили: так держит их и настоящее хранилище.
+  const documents = new Map<ResourceId, Document>();
+  const notify = (): void => {
+    for (const listener of [...listeners]) listener();
+  };
   const store = {
     get: () => ({ tabs: ids.map((id) => ({ ref: { id } })), activeId: ids[0] ?? null }),
     subscribe(listener: () => void): Disposable {
@@ -253,13 +258,26 @@ function fakeTabs() {
         listeners.delete(listener);
       });
     },
-    documentOf: (id: ResourceId) => ({ id }) as unknown as Document,
+    documentOf(id: ResourceId): Document | null {
+      if (!ids.includes(id)) return null;
+      let document = documents.get(id);
+      if (document === undefined) {
+        document = { id } as unknown as Document;
+        documents.set(id, document);
+      }
+      return document;
+    },
   } as unknown as DocumentTabsStore;
   return {
     store,
     set(next: readonly ResourceId[]) {
       ids = [...next];
-      for (const listener of [...listeners]) listener();
+      notify();
+    },
+    /** Документ вкладки надстроен заново: тот же ресурс, другой объект. */
+    replace(id: ResourceId) {
+      documents.set(id, { id } as unknown as Document);
+      notify();
     },
   };
 }
@@ -316,6 +334,19 @@ describe('наблюдение валидации за открытыми вкл
     tabs.set(['s:b']);
 
     expect(validation.released).toEqual(['s:a']);
+  });
+
+  it('подменённый документ вкладки наблюдается заново, прежний — снимается', () => {
+    const tabs = fakeTabs();
+    const validation = fakeValidation();
+    watchOpenDocuments(tabs.store, validation.orchestrator);
+    tabs.set(['s:a']);
+
+    // Провайдер модели перезагрузили: валидаторы выбирались по виду прежнего документа.
+    tabs.replace('s:a');
+
+    expect(validation.released).toEqual(['s:a']);
+    expect(validation.watched).toEqual(['s:a', 's:a']);
   });
 
   it('снятие подписки убирает все наблюдения разом', () => {

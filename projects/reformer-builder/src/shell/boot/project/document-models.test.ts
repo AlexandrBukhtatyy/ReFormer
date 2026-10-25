@@ -12,7 +12,7 @@
  * @module shell/boot/project/document-models.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
@@ -44,6 +44,7 @@ function harness(
   options: {
     readonly withProvider?: boolean;
     readonly providersReady?: () => Promise<void>;
+    readonly providerGraceMs?: number;
   } = {}
 ) {
   seq += 1;
@@ -62,9 +63,10 @@ function harness(
   });
   const whenContext = createWhenContextStore();
   const extensions = createExtensionRegistry();
-  if (options.withProvider !== false) {
-    extensions.forPlugin('lines').contribute(DocumentModelPoint, createLinesProvider());
-  }
+  let provider =
+    options.withProvider === false
+      ? undefined
+      : extensions.forPlugin('lines').contribute(DocumentModelPoint, createLinesProvider());
 
   const published: Published[] = [];
   const focused = new Set<ResourceId>();
@@ -78,6 +80,7 @@ function harness(
     extensions,
     isTextEditorFocused: (id) => focused.has(id),
     modelProvidersReady: options.providersReady,
+    modelProviderGraceMs: options.providerGraceMs,
     diagnostics: {
       publish: (resource, diagnosticSource, items) =>
         published.push({ resource, source: diagnosticSource, items }),
@@ -93,6 +96,17 @@ function harness(
     id: (path: string): ResourceId => `${source.id}:${path}`,
     /** Правка «руками в редакторе»: рабочая копия меняется мимо модели. */
     type: (path: string, text: string) => session.workspace.writeText(`${source.id}:${path}`, text),
+    /** Плагин формата выключили: вклад провайдера снят. */
+    unloadProvider: () => {
+      provider?.dispose();
+      provider = undefined;
+    },
+    /** Плагин формата включили (или перечитали): провайдер — новый объект. */
+    loadProvider: (providerOptions?: Parameters<typeof createLinesProvider>[0]) => {
+      provider = extensions
+        .forPlugin('lines')
+        .contribute(DocumentModelPoint, createLinesProvider(providerOptions));
+    },
     dispose: () => {
       session.dispose();
       meta.dispose();
@@ -280,6 +294,139 @@ describe('модель и рабочая копия', () => {
 
     await h.type('form.lines', 'n1 gamma');
     expect(handle.document.getSyncState()).toBe('synced');
+    h.dispose();
+  });
+});
+
+describe('смена состава провайдеров', () => {
+  /** Сверка по изменению реестра ставится микрозадачей; эта ждёт и её, и всё, что за ней. */
+  const settle = async (h: ReturnType<typeof harness>): Promise<void> => {
+    await Promise.resolve();
+    await h.session.models.reconcile();
+  };
+  const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+  it('перечитанный провайдер переразбирает открытый документ — несохранённая правка остаётся', async () => {
+    const h = harness();
+    const id = h.id('form.lines');
+    await h.session.documents.open(id);
+    const before = h.session.models.handleOf(id);
+    if (before === null) throw new Error('ожидалась ручка модели');
+    before.apply(setLineText('n1', 'ALPHA'));
+    await before.flush();
+
+    // Перезагрузка плагина в каталоге: вклад снят, перечитан, внесён — уже другим объектом.
+    h.unloadProvider();
+    await Promise.resolve();
+    h.loadProvider();
+
+    // Сверку здесь никто не зовёт: её ставит сама подписка на реестр вкладов.
+    await vi.waitFor(() => expect(h.session.models.handleOf(id)).not.toBe(before));
+    const after = h.session.models.handleOf(id);
+    expect(after).not.toBeNull();
+    // Вкладка показывает новый документ: старый смотрел бы в модель, которую разбирал мёртвый код.
+    expect(h.session.documents.documentOf(id)).toBe(after?.document);
+    expect(after?.document.getText()).toBe('n1 ALPHA\nn2 beta');
+    expect(h.session.workspace.isDirty(id)).toBe(true);
+    // История отмены — снимки прежнего формата: к новому разбору её не перенести.
+    expect(after?.canUndo()).toBe(false);
+    h.dispose();
+  });
+
+  it('текстовый документ становится модельным, когда за него взялся включённый провайдер', async () => {
+    const h = harness(undefined, { withProvider: false });
+    const id = h.id('form.lines');
+    await h.session.documents.open(id);
+    expect(h.session.documents.documentOf(id)?.kind).toBe('text');
+
+    h.loadProvider();
+    await settle(h);
+
+    expect(h.session.documents.documentOf(id)?.kind).toBe('model');
+    expect(h.whenContext.get().activeResourceKind).toBe('test.lines');
+    h.dispose();
+  });
+
+  it('провайдер ушёл без замены — после выдержки документ становится текстовым', async () => {
+    const h = harness(undefined, { providerGraceMs: 20 });
+    const id = h.id('form.lines');
+    await h.session.documents.open(id);
+
+    h.unloadProvider();
+    await settle(h);
+    // Посреди выдержки модель на месте: перезагрузка вернёт провайдер через мгновение.
+    expect(h.session.models.handleOf(id)).not.toBeNull();
+
+    await wait(40);
+    await settle(h);
+    expect(h.session.models.handleOf(id)).toBeNull();
+    expect(h.session.documents.documentOf(id)?.kind).toBe('text');
+    expect(h.session.documents.documentOf(id)?.getText()).toBe('n1 alpha\nn2 beta');
+    h.dispose();
+  });
+
+  it('провайдер вернулся внутри выдержки — переразбор один, в текст документ не уходит', async () => {
+    const h = harness(undefined, { providerGraceMs: 20 });
+    const id = h.id('form.lines');
+    await h.session.documents.open(id);
+    const kinds: string[] = [];
+    h.session.models.onDidReattach((_id, document) => kinds.push(document.kind));
+
+    // Перечитывание плагина асинхронно: между снятием и вкладом проходит не одна задача.
+    h.unloadProvider();
+    await settle(h);
+    h.loadProvider();
+    await settle(h);
+    await wait(40);
+    await settle(h);
+
+    expect(kinds).toEqual(['model']);
+    expect(h.session.documents.documentOf(id)?.kind).toBe('model');
+    h.dispose();
+  });
+
+  it('выделение переносится к провайдеру того же формата и не переносится к чужому', async () => {
+    const h = harness();
+    const id = h.id('form.lines');
+    await h.session.documents.open(id);
+    h.session.models.handleOf(id)?.setSelection(['n2']);
+
+    h.unloadProvider();
+    h.loadProvider();
+    await settle(h);
+    expect(h.session.models.handleOf(id)?.document.getSelection()).toEqual(['n2']);
+
+    // Адреса узлов — формат провайдера: у другого формата `n2` может значить что угодно.
+    h.unloadProvider();
+    h.loadProvider({ id: 'test.other' });
+    await settle(h);
+    expect(h.session.models.handleOf(id)?.document.providerId).toBe('test.other');
+    expect(h.session.models.handleOf(id)?.document.getSelection()).toEqual([]);
+    h.dispose();
+  });
+
+  it('пока человек печатает в отстающем буфере, переразбор ждёт ухода фокуса', async () => {
+    const h = harness();
+    const id = h.id('form.lines');
+    await h.session.documents.open(id);
+    const before = h.session.models.handleOf(id);
+    if (before === null) throw new Error('ожидалась ручка модели');
+    h.focused.add(id);
+    before.apply(setLineText('n1', 'ALPHA'));
+    await Promise.resolve();
+
+    h.unloadProvider();
+    h.loadProvider();
+    await settle(h);
+    // Переразбор по буферу потерял бы правку, которая ещё в модели, а не в тексте.
+    expect(h.session.models.handleOf(id)).toBe(before);
+
+    h.focused.delete(id);
+    await before.flush();
+    await settle(h);
+    const after = h.session.models.handleOf(id);
+    expect(after).not.toBe(before);
+    expect(after?.document.getText()).toBe('n1 ALPHA\nn2 beta');
     h.dispose();
   });
 });

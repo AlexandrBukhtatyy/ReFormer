@@ -335,6 +335,13 @@ export interface DocumentTabsStore extends Disposable {
   requestClose(id: ResourceId): CloseDecision;
   /** Закрывает вкладку; `save` — сначала сохранить. Отказ сохранения отменяет закрытие. */
   close(id: ResourceId, options?: { readonly save?: boolean }): Promise<void>;
+  /**
+   * Подменить документ открытой вкладки: его надстроили заново (сменился провайдер модели).
+   * Вкладка остаётся на месте, а подписчики узнают о смене, — по ней центр пересоздаёт редактор,
+   * а вид ресурса в контексте применимости становится видом нового документа. Не открытый
+   * ресурс не трогается.
+   */
+  replace(id: ResourceId, document: Document): void;
 }
 
 function defaultOnStoreError(error: unknown): void {
@@ -458,6 +465,14 @@ export function createDocumentTabsStore(options: DocumentTabsStoreOptions): Docu
       // Рабочая область узнаёт последней: `close` снимает закрепление, и его отказ
       // не должен возвращать вкладку, которую человек уже закрыл.
       await workspace.close(id);
+    },
+
+    replace(id, document) {
+      if (!documents.has(id) || documents.get(id) === document) return;
+      documents.set(id, document);
+      // Состояние вкладок то же, а документ другой: новый снимок — то, по чему подписчики
+      // (центр, служба документов) узнают о смене, а `commit` заодно пересчитает вид ресурса.
+      commit({ ...state });
     },
 
     dispose() {

@@ -127,7 +127,8 @@ export interface ProjectHostOptions {
   readonly meta: WorkspaceMetaStore;
   readonly whenContext: Pick<WhenContextStore, 'set'>;
   /** Реестр вкладов приложения: из него сессия берёт провайдеров модели документа. */
-  readonly extensions?: Pick<ExtensionRegistry, 'get'>;
+  readonly extensions?: Pick<ExtensionRegistry, 'get'> &
+    Partial<Pick<ExtensionRegistry, 'observe'>>;
   /** В фокусе ли текстовый редактор документа — см. {@link WorkspaceSessionOptions}. */
   readonly isTextEditorFocused?: (id: ResourceId) => boolean;
   /** Сложился ли состав провайдеров модели — см. {@link WorkspaceSessionOptions}. */

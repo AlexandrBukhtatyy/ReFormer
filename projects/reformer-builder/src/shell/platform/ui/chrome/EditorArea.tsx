@@ -99,6 +99,27 @@ function EmptyState({ title, description }: { title: string; description?: strin
   );
 }
 
+/** Поколение документа по ссылке: у документа, надстроенного заново, оно другое. */
+const generations = new WeakMap<Document, number>();
+let nextGeneration = 0;
+
+/**
+ * Ключ документа для пересоздания тела редактора.
+ *
+ * Вкладка с тем же адресом может получить ДРУГОЙ документ — его надстроили заново, когда сменился
+ * провайдер модели (`DocumentTabsStore.replace`). Тело редактора, построенное над прежним
+ * документом, держит его модель и подписки, поэтому пара «редактор + документ» пересоздаётся.
+ */
+function generationOf(document: Document): number {
+  let generation = generations.get(document);
+  if (generation === undefined) {
+    nextGeneration += 1;
+    generation = nextGeneration;
+    generations.set(document, generation);
+  }
+  return generation;
+}
+
 /**
  * Тело активной вкладки.
  *
@@ -147,7 +168,10 @@ function ActiveEditor({
   // Ключ переехал на обёртку: пересоздаётся пара «редактор + документ» целиком, вместе
   // с контейнером скоупа, — иначе тело меняло бы плагина под неизменным контейнером.
   return (
-    <PluginScope key={`${entry.value.id} ${activeId}`} pluginId={entry.pluginId}>
+    <PluginScope
+      key={`${entry.value.id} ${activeId} ${generationOf(document)}`}
+      pluginId={entry.pluginId}
+    >
       <Body documentId={activeId} />
     </PluginScope>
   );

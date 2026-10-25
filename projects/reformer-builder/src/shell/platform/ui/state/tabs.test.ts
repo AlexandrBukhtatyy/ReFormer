@@ -390,6 +390,30 @@ describe('createDocumentTabsStore', () => {
     store.dispose();
   });
 
+  it('замена документа вкладки уведомляет подписчиков и не трогает чужие ресурсы', async () => {
+    const fake = fakeWorkspace({ 'a.json': '{}' });
+    const store = createDocumentTabsStore({
+      workspace: fake.workspace,
+      whenContext: createWhenContextStore(),
+    });
+    await store.open(A.id);
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    // Документ переразобран другим провайдером: вкладка та же, документ под ней — новый.
+    const next = createDocument(A, '{}', false).document;
+    store.replace(A.id, next);
+    expect(store.documentOf(A.id)).toBe(next);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // Тот же документ и закрытый ресурс — подменять нечего.
+    store.replace(A.id, next);
+    store.replace(B.id, createDocument(B, '{}', false).document);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.documentOf(B.id)).toBeNull();
+    store.dispose();
+  });
+
   it('повторное открытие не идёт в рабочую область второй раз', async () => {
     const fake = fakeWorkspace({ 'a.json': '{}' });
     const store = createDocumentTabsStore({
