@@ -123,10 +123,13 @@ test.describe('Ассистент: режим файлов — шаги в св�
     );
     await panel.ask('Сделай мастер.');
     await expect(panel.message(panel.answer(0))).toHaveText('Готово: мастер с шагом.');
+    // Файл шага вкладки не имеет, но он несохранённый — и строка состояния считает и его.
+    await expect(builder.statusBar).toContainText('2 несохранённых файла');
 
     await builder.activateTab(FORM_B);
     await builder.save();
     await expect(builder.dirtyMark(FORM_B)).toHaveCount(0);
+    await expect(builder.statusBar).toContainText('Всё сохранено');
 
     await expect.poll(() => disk.exists(STEP_FILE)).toBe(true);
     expect(await disk.readText(STEP_FILE)).toContain('$model(lastName)');

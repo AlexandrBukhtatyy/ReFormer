@@ -142,6 +142,21 @@ describe('рабочая сессия', () => {
     h.dispose();
   });
 
+  it('файл без вкладки тоже в счёте: «Всё сохранено» — только когда сохранено всё', async () => {
+    // Так пишут ход ассистента в режиме файлов и генерация кода: вкладки у файла нет, а
+    // строка состояния, считавшая только открытые, говорила «Всё сохранено».
+    const h = harness({ 'a.txt': 'привет', 'b.txt': 'b' });
+    await h.session.documents.open(h.id('a.txt'));
+
+    await h.session.workspace.writeText(h.id('b.txt'), 'правка');
+    await h.session.workspace.writeText(h.id('generated/c.ts'), 'export {};');
+    await vi.waitFor(() => expect(h.session.status.get().dirtyCount).toBe(2));
+
+    await h.session.workspace.save();
+    await vi.waitFor(() => expect(h.session.status.get().dirtyCount).toBe(0));
+    h.dispose();
+  });
+
   it('сохранение возвращает правку в источник и гасит счётчик', async () => {
     const h = harness();
     await h.session.documents.open(h.id('a.txt'));
@@ -161,12 +176,10 @@ function fakeStatusWorkspace(): StatusWorkspace & {
   markDirty(id: ResourceId): void;
   change(): void;
 } {
-  const open: ResourceId[] = ['s:a', 's:b'];
   const dirty = new Set<ResourceId>();
   const listeners = new Set<(event: WorkspaceChange) => void>();
   return {
-    openedResources: () => open,
-    isDirty: (id?: ResourceId) => (id === undefined ? dirty.size > 0 : dirty.has(id)),
+    dirtyResources: () => [...dirty],
     onDidChange(cb) {
       listeners.add(cb);
       return toDisposable(() => {
@@ -183,7 +196,7 @@ function fakeStatusWorkspace(): StatusWorkspace & {
 }
 
 describe('итог по рабочей области', () => {
-  it('считает несохранённые среди открытых', () => {
+  it('считает несохранённые рабочей области', () => {
     const workspace = fakeStatusWorkspace();
     const status = createWorkspaceStatusSource(workspace);
 
@@ -326,8 +339,7 @@ describe('счётчик расхождений в строке состояни
     const listeners = new Set<() => void>();
     const status = createWorkspaceStatusSource(
       {
-        isDirty: () => false,
-        openedResources: () => [],
+        dirtyResources: () => [],
         onDidChange: () => ({ dispose: () => {} }),
       },
       {
@@ -349,8 +361,7 @@ describe('счётчик расхождений в строке состояни
 
   it('без наблюдения счётчик ноль: «никто не смотрел», а не «расхождений нет»', () => {
     const status = createWorkspaceStatusSource({
-      isDirty: () => false,
-      openedResources: () => [],
+      dirtyResources: () => [],
       onDidChange: () => ({ dispose: () => {} }),
     });
 
@@ -363,8 +374,7 @@ describe('счётчик расхождений в строке состояни
     const listeners = new Set<() => void>();
     const status = createWorkspaceStatusSource(
       {
-        isDirty: () => false,
-        openedResources: () => [],
+        dirtyResources: () => [],
         onDidChange: () => ({ dispose: () => {} }),
       },
       {

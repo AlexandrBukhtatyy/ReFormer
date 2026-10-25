@@ -59,7 +59,7 @@ import { watchOpenedTabs } from './opened-tabs';
  * с настоящей рабочей областью буква в букву, иначе расхождение вскроется на композиции,
  * а не на типах.
  */
-export type StatusWorkspace = Pick<Workspace, 'isDirty' | 'openedResources' | 'onDidChange'>;
+export type StatusWorkspace = Pick<Workspace, 'dirtyResources' | 'onDidChange'>;
 
 /** Источник итога, который умеет отписаться от рабочей области при закрытии проекта. */
 export interface DisposableStatusSource extends WorkspaceStatusSource, Disposable {}
@@ -76,6 +76,10 @@ export interface DisposableStatusSource extends WorkspaceStatusSource, Disposabl
  * Наблюдение НЕОБЯЗАТЕЛЬНО: без него счётчик ноль — не «расхождений нет», а «никто не смотрел».
  * Разница видна человеку одинаково, но второе честнее, и потому умолчание именно такое.
  *
+ * Несохранённые считаются ВСЕ, а не только открытые: рабочую копию правят и без вкладки (ход
+ * ассистента в режиме файлов, генерация кода, части составного документа), и «Всё сохранено» при
+ * таком файле — неправда, которую человек проверит только потерей правки.
+ *
  * Снимок пересчитывается на каждый пакет изменений, но ССЫЛКА меняется только вместе
  * со значением: `useSyncExternalStore` сравнивает снимки по ссылке, а пакет приходит и на
  * материализацию соседей по импорту, которая для строки состояния не значит ничего.
@@ -86,7 +90,7 @@ export function createWorkspaceStatusSource(
 ): DisposableStatusSource {
   const compute = (): WorkspaceStatusSnapshot => ({
     hasWorkspace: true,
-    dirtyCount: workspace.openedResources().filter((id) => workspace.isDirty(id)).length,
+    dirtyCount: workspace.dirtyResources().length,
     externallyChangedCount: divergence?.get().count ?? 0,
   });
 

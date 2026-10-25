@@ -827,6 +827,52 @@ describe('Workspace: свойства в хранилище', () => {
   });
 });
 
+describe('Workspace: несохранённое', () => {
+  it('dirtyResources называет и файлы без вкладки, сохранённое из него уходит', async () => {
+    const h = makeWorkspace({ 'a.ts': 'a', 'b.ts': 'b' });
+    await h.ws.open(h.rid('a.ts'));
+
+    await h.ws.writeText(h.rid('a.ts'), 'правка');
+    // Так пишут ход ассистента в режиме файлов и генерация кода: вкладки у файла нет.
+    await h.ws.writeText(h.rid('b.ts'), 'правка');
+    await h.ws.writeText(h.rid('new/c.ts'), 'новый');
+
+    expect([...h.ws.dirtyResources()].sort()).toEqual(
+      [h.rid('a.ts'), h.rid('b.ts'), h.rid('new/c.ts')].sort()
+    );
+
+    await h.ws.save(h.rid('b.ts'));
+    expect(h.ws.dirtyResources()).not.toContain(h.rid('b.ts'));
+    await h.ws.save();
+    expect(h.ws.dirtyResources()).toEqual([]);
+  });
+
+  it('несохранённое, пережившее перезагрузку, объявляется событием, как только поднято', async () => {
+    const h = makeWorkspace({ 'a.ts': 'a', 'b.ts': 'b' });
+    await h.ws.writeText(h.rid('a.ts'), 'правка');
+    await h.ws.readText(h.rid('b.ts'));
+    await settle();
+
+    // Вторая рабочая область над теми же хранилищами — то же, что вкладка после перезагрузки.
+    const reloaded = createWorkspace({
+      id: h.wsId,
+      source: h.source,
+      files: createWorkspaceFileStore(h.wsId, { directory: h.opfs.directory }),
+      meta: h.meta,
+    });
+    const events: WorkspaceChange[] = [];
+    reloaded.onDidChange((event) => events.push(event));
+
+    await reloaded.stat(h.rid('b.ts'));
+    await settle();
+
+    expect(reloaded.dirtyResources()).toEqual([h.rid('a.ts')]);
+    // Без события строка состояния узнала бы о правке только с первой записью после перезагрузки.
+    // Чистая запись события не даёт: для наблюдателей она ничего не меняет.
+    expect(allChanges(events)).toEqual([{ id: h.rid('a.ts'), type: 'materialized' }]);
+  });
+});
+
 describe('Workspace: деградация', () => {
   it('работает без метаданных: теряется восстановление набора, а не содержимое', async () => {
     const errors: unknown[] = [];

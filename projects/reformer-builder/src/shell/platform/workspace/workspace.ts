@@ -286,6 +286,15 @@ export interface Workspace {
   acceptExternal(id: ResourceId, text: string, revision?: string): Promise<void>;
 
   isDirty(id?: ResourceId): boolean;
+  /**
+   * Все ресурсы с несохранёнными правками — открытые и нет.
+   *
+   * Без вкладки рабочую копию правят часто: ход ассистента в режиме файлов, генерация кода
+   * (модуль остаётся рабочей копией — сохранить решает человек), части составного документа.
+   * Тот, кто отвечает человеку «всё сохранено», обязан считать их все, — иначе «Сохранить всё»
+   * отправит в источник файлы, о которых строка состояния молчала.
+   */
+  dirtyResources(): readonly ResourceId[];
   onDidChange(cb: (e: WorkspaceChange) => void): Disposable;
 }
 
@@ -473,6 +482,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     bus.emit(WorkspaceDidChange, { changes: pendingChanges.splice(0, pendingChanges.length) });
   };
 
+  /** Запланировать отправку накопленного — микрозадачей, когда ни одна операция не идёт. */
+  const scheduleFlush = (): void => {
+    if (batchDepth === 0 && !flushScheduled) {
+      flushScheduled = true;
+      queueMicrotask(flushChanges);
+    }
+  };
+
   /**
    * Обёртка операции: пока она идёт, изменения копятся, а не рассылаются.
    *
@@ -486,10 +503,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       return await body();
     } finally {
       batchDepth -= 1;
-      if (batchDepth === 0 && !flushScheduled) {
-        flushScheduled = true;
-        queueMicrotask(flushChanges);
-      }
+      scheduleFlush();
     }
   };
 
@@ -625,7 +639,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           materializedAt: record.materializedAt,
           lastUsedAt: record.lastUsedAt,
         });
+        // Поднятая несохранённая правка меняет видимое: {@link Workspace.isDirty} и
+        // {@link Workspace.dirtyResources} отвечают иначе, чем до гидратации. Без события
+        // строка состояния говорила бы «всё сохранено» до первой правки после перезагрузки.
+        // Чистые записи — нет: для наблюдателей они ничего не меняют.
+        if (record.dirty) note(record.path, 'materialized');
       }
+      scheduleFlush();
     });
     return hydration;
   };
@@ -1334,6 +1354,12 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         return false;
       }
       return materialized.get(pathOf(resource))?.dirty ?? false;
+    },
+
+    dirtyResources() {
+      const out: ResourceId[] = [];
+      for (const entry of materialized.values()) if (entry.dirty) out.push(idOf(entry.path));
+      return out;
     },
 
     onDidChange(cb) {
