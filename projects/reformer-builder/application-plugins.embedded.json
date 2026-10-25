@@ -9,6 +9,7 @@
     "forms/kits",
     "forms/preview",
     "forms/ai",
+    "forms/mcp",
     "forms/codegen",
     "forms/templates",
     "reformer/editor",

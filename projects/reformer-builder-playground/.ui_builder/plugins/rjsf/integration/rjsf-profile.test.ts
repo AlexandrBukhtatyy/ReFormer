@@ -149,6 +149,7 @@ describe('boot с плагинами домена RJSF', () => {
       'reformer.files',
       'reformer.journal',
       'reformer.kits',
+      'reformer.mcp',
       'reformer.plugin-manager',
       'reformer.preview',
       'reformer.profile-switch',
@@ -175,14 +176,15 @@ describe('boot с плагинами домена RJSF', () => {
     const panels = started.extensions.get(PanelPoint);
 
     const right = panels.filter((contribution) => contribution.value.slot === 'panel.right');
-    // Ассистент и экспорт — платформа форм: стека форм RJSF у них нет. Ассистент на форме RJSF
-    // честно скажет об этом словами, но панель с настройками канала остаётся; экспорт на ней не
-    // виден вовсе — печатать нечем.
+    // Ассистент, его MCP-серверы и экспорт — платформа форм: стека форм RJSF у них нет. Ассистент
+    // на форме RJSF честно скажет об этом словами, но панели с настройками канала и серверов
+    // проекта остаются; экспорт на ней не виден вовсе — печатать нечем.
     expect(
       right.map((contribution) => [contribution.pluginId, contribution.value.id]).sort()
     ).toEqual([
       ['reformer.ai', 'ai.chat'],
       ['reformer.codegen', 'codegen.panel'],
+      ['reformer.mcp', 'mcp.servers'],
       [RJSF_EDITOR_PLUGIN_ID, RJSF_INSPECTOR_PANEL_ID],
     ]);
     const exportPanel = right.find((contribution) => contribution.value.id === 'codegen.panel');

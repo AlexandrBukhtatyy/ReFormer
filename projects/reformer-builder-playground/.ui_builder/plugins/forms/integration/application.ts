@@ -1,7 +1,8 @@
 /**
  * Состав приложения с плагинами домена forms — для интеграционных тестов.
  *
- * Киты, превью-хост, ассистент, генерация кода и шаблоны — платформа форм: ими пользуются оба движка
+ * Киты, превью-хост, ассистент с MCP-серверами, генерация кода и шаблоны — платформа форм: ими
+ * пользуются оба движка
  * (ReFormer и RJSF), поэтому
  * стенды доменов-движков строят свой состав ПОВЕРХ этого. В приложении их поднимает слой
  * плагинов приложения; здесь они встают в состав тем же способом, что встроенные
@@ -19,6 +20,8 @@ import { createCodegenPlugin } from '../codegen/src';
 import codegenManifest from '../codegen/src/manifest.json';
 import { createKitsPlugin } from '../kits/src';
 import kitsManifest from '../kits/src/manifest.json';
+import { createMcpPlugin } from '../mcp/src';
+import mcpManifest from '../mcp/src/manifest.json';
 import { createPreviewPlugin } from '../preview/src';
 import previewManifest from '../preview/src/manifest.json';
 import { createTemplatesPlugin } from '../templates/src';
@@ -29,6 +32,7 @@ export const FORMS_PLUGINS: readonly DomainPlugin[] = [
   { manifest: kitsManifest, create: () => createKitsPlugin({}) },
   { manifest: previewManifest, create: () => createPreviewPlugin() },
   { manifest: aiManifest, create: () => createAiPlugin() },
+  { manifest: mcpManifest, create: () => createMcpPlugin() },
   { manifest: codegenManifest, create: () => createCodegenPlugin() },
   { manifest: templatesManifest, create: () => createTemplatesPlugin() },
 ];

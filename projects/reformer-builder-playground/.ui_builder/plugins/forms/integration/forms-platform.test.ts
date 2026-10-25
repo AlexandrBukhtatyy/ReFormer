@@ -82,7 +82,7 @@ function probe(started: BuilderApp): {
 }
 
 describe('boot с платформой форм и без движка', () => {
-  it('поднимается: встроенные, киты, превью-хост, ассистент, генерация и шаблоны — все активны', async () => {
+  it('поднимается: встроенные, киты, превью-хост, ассистент, MCP-серверы, генерация и шаблоны — все активны', async () => {
     const started = await start();
 
     const statuses = started.plugins.statuses();
@@ -94,6 +94,7 @@ describe('boot с платформой форм и без движка', () => {
       'reformer.files',
       'reformer.journal',
       'reformer.kits',
+      'reformer.mcp',
       'reformer.plugin-manager',
       'reformer.preview',
       'reformer.profile-switch',

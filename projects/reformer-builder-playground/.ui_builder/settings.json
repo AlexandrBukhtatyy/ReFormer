@@ -16,6 +16,7 @@
     "reformer.templates-schema",
     "reformer.ai",
     "reformer.ai-schema",
+    "reformer.mcp",
     "reformer.rjsf.editor",
     "reformer.rjsf.render"
   ],
