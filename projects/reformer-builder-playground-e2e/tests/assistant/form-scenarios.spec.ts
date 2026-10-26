@@ -15,7 +15,7 @@ import { expect, test } from './shared/fixtures';
  * Каталог `SCENARIOS.md` проверяет МЕХАНИКУ хода (попытки, отмена, вопросы); здесь — что обвязка
  * билдера выдерживает каждый сценарий разработки формы, доступный структурному режиму: ответы
  * модели — вызовы настоящих инструментов в том виде, в каком их пишет модель, а проверка — то,
- * что легло в форму, в файл правил и в дерево структуры. Номер в заголовке — номер сценария
+ * что легло в форму, в код правил и в дерево структуры. Номер в заголовке — номер сценария
  * документа.
  *
  * Все сценарии идут на форме B (вложенная раскладка, одно поле `fullName`): её корень — `/root`,
@@ -23,7 +23,8 @@ import { expect, test } from './shared/fixtures';
  * связи, массив, части), ход заказывает и генерацию кода — она тоже должна выдержать.
  */
 
-const RULES_B = `${FORM_B_MODULE}/schema/form.rules.json`;
+/** Код правил формы B: валидация и поведение — правила хода ложатся сюда. */
+const RULES_CODE_B = [`${FORM_B_MODULE}/validation/form.ts`, `${FORM_B_MODULE}/behavior/index.ts`];
 
 /** Узел поля с вариантами выбора. */
 function choiceNode(component: string, model: string, label: string): Record<string, unknown> {
@@ -58,7 +59,7 @@ interface FormScenario {
   readonly gone?: readonly string[];
   /** Фрагменты сохранённого документа формы. */
   readonly schema?: readonly (string | RegExp)[];
-  /** Фрагменты файла правил формы. */
+  /** Фрагменты кода правил формы — `validation/form.ts` и `behavior/index.ts` вместе. */
   readonly rules?: readonly string[];
   /** Фрагменты прочих файлов модуля после хода: путь от корня проекта → фрагменты. */
   readonly files?: Readonly<Record<string, readonly string[]>>;
@@ -241,13 +242,15 @@ const SCENARIOS: readonly FormScenario[] = [
       say('Правила заданы.'),
     ],
     labels: ['Повтор пароля', 'ИНН'],
-    rules: [
-      "required({ code: 'email.required' })",
-      '"values.password === values.passwordConfirm"',
-      '"Пароли не совпадают"',
-    ],
-    // Текст обычного правила доходит до словаря формы, который печатает генерация.
-    files: { [`${FORM_B_MODULE}/validation/messages.ts`]: ["'email.required'", 'Укажите почту'] },
+    rules: ["required({ code: 'email.required' })", 'values.password === values.passwordConfirm'],
+    // Тексты замечаний доходят до словаря формы.
+    files: {
+      [`${FORM_B_MODULE}/validation/messages.ts`]: [
+        "'email.required'",
+        'Укажите почту',
+        'Пароли не совпадают',
+      ],
+    },
   },
   {
     ids: '8.1, 8.3',
@@ -279,7 +282,7 @@ const SCENARIOS: readonly FormScenario[] = [
       say('Связи заданы.'),
     ],
     labels: ['Сумма', 'Есть комментарий'],
-    rules: ['"computeFrom"', '"price * qty"', '"enableWhen"'],
+    rules: ['computeFrom(', 'price * qty', 'enableWhen(model.$.comment'],
   },
   {
     ids: '8.4',
@@ -296,7 +299,7 @@ const SCENARIOS: readonly FormScenario[] = [
       say('Скрываю без согласия.'),
     ],
     labels: ['Подробности'],
-    rules: ['"hideWhen"', '"model.agree !== true"'],
+    rules: ['hideWhen(', 'model.agree !== true'],
   },
   {
     ids: '9.1, 9.3, 7.6, 8.7',
@@ -328,7 +331,7 @@ const SCENARIOS: readonly FormScenario[] = [
     ],
     labels: ['Имя ребёнка', 'Основной'],
     schema: ['$component(FieldArray)', '"initialValue"'],
-    rules: ['"exclusiveFlag"', '"children.childName"'],
+    rules: ['exclusiveFlag(', 'childName'],
   },
   {
     ids: '10.2',
@@ -412,8 +415,11 @@ test.describe('Ассистент: сценарии разработки фор�
         }
       }
       if (scenario.rules !== undefined) {
-        await builder.openFile(RULES_B);
-        const text = await savedText(builder, disk, RULES_B);
+        let text = '';
+        for (const path of RULES_CODE_B) {
+          await builder.openFile(path);
+          text += await savedText(builder, disk, path);
+        }
         for (const fragment of scenario.rules) expect(text).toContain(fragment);
       }
       for (const [path, fragments] of Object.entries(scenario.files ?? {})) {
