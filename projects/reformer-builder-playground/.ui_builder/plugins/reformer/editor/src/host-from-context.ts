@@ -26,6 +26,7 @@ import {
   type Disposable,
   type DocumentsService,
   type HostMessagesService,
+  type ModuleGeneratorService,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
@@ -33,7 +34,7 @@ import { projectCatalog, type CatalogEntry } from '../../core/catalog';
 import { SCHEMA_MODEL_PROVIDER_ID } from './contract';
 import type { SchemaEditorHost, SchemaModelHandle, SchemaRulesPort, Translate } from './host';
 import type { RulesCache } from '../../core/codegen/rules-cache';
-import { printRulesText } from '../../core/codegen/rules-file';
+import { RULE_TARGET_IDS, rulesStackInput } from '../../core/codegen/rules-code';
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 const NOOP: Disposable = Object.freeze({ dispose: () => {} });
@@ -110,15 +111,20 @@ export function schemaHostFromContext(
 }
 
 /**
- * Порт правил формы над файлом правил рядом с документом (`core/codegen/rules-file`).
+ * Порт правил формы над кодом её модуля (`core/codegen/rules-code`).
  *
- * Чтение — из кэша (порт синхронный: им отвечает применимость быстрого исправления), запись —
- * обычной правкой рабочей копии без пометки: снятие правила заказал человек. Свою запись кэш
- * помнит сразу, чтобы следующий вопрос не видел правило, которое только что убрали.
+ * Чтение — из кэша (порт синхронный: им отвечает применимость быстрого исправления). Запись —
+ * генерацией кода (`ModuleGeneratorCapability`): только файлы правил, с правилами вместо
+ * прочитанных из кода. Своего принтера правил у редактора нет намеренно — второй разошёлся бы с
+ * генерацией. Пометки нет: снятие правила заказал человек. Новые правила кэш прочтёт сам, по
+ * событию рабочей области.
+ *
+ * @param generator - Спрашивается на каждую запись: плагин генерации выключаем на ходу.
  */
 export function schemaRulesPort(
   cache: RulesCache,
-  documents: Pick<DocumentsService, 'documentOf' | 'writeText'>
+  documents: Pick<DocumentsService, 'documentOf'>,
+  generator: () => ModuleGeneratorService | undefined
 ): SchemaRulesPort {
   const pathOf = (id: ResourceId): string | null => documents.documentOf(id)?.ref.path ?? null;
   return {
@@ -127,13 +133,25 @@ export function schemaRulesPort(
       return path === null ? null : (cache.get(id, path) ?? null);
     },
     set(id, rules) {
-      const path = pathOf(id);
-      if (path === null) return;
-      const text = printRulesText(rules);
-      cache.remember(id, path, text);
-      void documents.writeText(cache.fileOf(id, path), text).catch((error: unknown) => {
-        console.error('[schema-editor] файл правил не записан', error);
-      });
+      const service = generator();
+      if (service === undefined || pathOf(id) === null) return false;
+      void service
+        .generate(id, { stackInput: rulesStackInput(rules), only: RULE_TARGET_IDS })
+        .then((report) => {
+          if (!report.ok) {
+            console.error('[schema-editor] правила не записаны', report.message);
+            return;
+          }
+          // Правленный руками файл правил генерация не перепечатывает — правило в нём осталось.
+          const kept = report.skipped.filter((file) => file.reason === 'edited');
+          if (kept.length > 0) {
+            console.warn(
+              '[schema-editor] файлы правил правлены руками и не перепечатаны:',
+              kept.map((file) => file.path).join(', ')
+            );
+          }
+        });
+      return true;
     },
   };
 }

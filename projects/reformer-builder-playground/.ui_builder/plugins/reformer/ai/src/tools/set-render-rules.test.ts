@@ -6,7 +6,7 @@
  * только при экспорте и только секциям, массивам и submit-кнопке. Правило на обычное поле
  * записывалось, отчёт был успешным, а в рантайме `schema.node('…')` не находил ничего — ни ошибки,
  * ни эффекта. Поэтому инструмент обязан проставлять селектор сам и возвращать ОБЕ половины правки:
- * схему с селектором и сайдкар с правилом.
+ * схему с селектором и правила формы с правилом.
  */
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
@@ -156,6 +156,21 @@ describe('set_render_rules', () => {
     expect(res.rules?.render).toHaveLength(1);
     expect(res.rules?.render[0]).toMatchObject({ condition: 'new' });
   });
+
+  it.each(['merge', 'replace'] as const)(
+    '%s не стирает значения источников данных',
+    async (mode) => {
+      const regions = [{ value: 'msk', label: 'Москва' }];
+      const before: FormRules = { ...emptyRules(), dataSources: { REGIONS: regions } };
+      const res = await reg.invoke(
+        'set_render_rules',
+        { mode, rules: [{ ref: FIELD, kind: 'hideWhen', condition: 'x' }] },
+        ctx(before)
+      );
+      expect(res.ok).toBe(true);
+      expect(res.rules?.dataSources).toEqual({ REGIONS: regions });
+    }
+  );
 
   it('осиротевшее правило из прошлых ходов называется в ответе', async () => {
     const before: FormRules = {

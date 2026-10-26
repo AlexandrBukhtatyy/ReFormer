@@ -185,7 +185,16 @@ export async function deliverInto(
       }
       if (file.cls === 'user' && (await host.exists(id))) {
         if (!file.regenerable) {
-          skipped.push({ path: file.path, reason: 'authored' });
+          // Файл человека не перепечатывается — но точечная правка стека в него доезжает.
+          const current = file.merge === undefined ? null : await host.readText(id);
+          const merged = current === null ? null : (file.merge?.(current) ?? null);
+          if (merged === null || merged === current) {
+            skipped.push({ path: file.path, reason: 'authored' });
+            continue;
+          }
+          await host.writeText(id, merged);
+          written.push(file.path);
+          touched.push(id);
           continue;
         }
         const current = await host.readText(id);

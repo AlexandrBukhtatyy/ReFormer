@@ -4,7 +4,7 @@
  *
  * e2e (`form-scenarios.spec.ts`) проверяет, что обвязка выдерживает сценарий, когда модель зовёт
  * инструменты правильно. Здесь — зовёт ли их правильно сама модель: запрос словами пользователя,
- * полный ход моста (затравка, вторая попытка, файл правил, создание формы), и критерий по тому,
+ * полный ход моста (затравка, вторая попытка, правила в коде модуля, создание формы), и критерий по тому,
  * что легло в форму и в правила. Рабочая область — двойник: интерфейса замер не касается.
  *
  * По умолчанию НЕ запускается: нужен живой канал. Запуск из каталога плагина ассистента —
@@ -23,8 +23,9 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../core/testing';
 import { emptyRules, type FormRules } from '../core/form-model';
-import { parseRulesText, printRulesText } from '../core/codegen/rules-file';
-import { rulesSidecarNameOf } from '../core/codegen/layout';
+import { rulesStackInput } from '../core/codegen/rules-code';
+import { readRuleCode } from '../ai/src/stack/rule-code';
+import { generatorOver } from './codegen-harness';
 import { createAgentBridge } from '../../forms/ai/src/session/bridge';
 import { createAiSession, openAskOf, type ToolLogEntry } from '../../forms/ai/src/session/session';
 import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
@@ -410,11 +411,18 @@ interface EvalResult {
 async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
   const files = createFakeFiles();
   const host = createFakeHost(files);
+  // Генерация — настоящая: ею ход пишет правила в код модуля.
+  const codegen = generatorOver({ files, documentOf: (id) => host.documentOf(id) });
   if (scenario.form !== 'none') {
     const schema = scenario.form === 'client' ? CLIENT : EMPTY;
+    files.put(DOCUMENT, printSchemaText(schema));
     host.openDocument(DOCUMENT, printSchemaText(schema));
     if (scenario.form === 'client') {
-      files.put(rulesPath(DOCUMENT), printRulesText(CLIENT_RULES));
+      // Правила анкеты уже в коде — как после прошлых ходов.
+      const seeded = await codegen.generate(DOCUMENT, {
+        stackInput: rulesStackInput(CLIENT_RULES),
+      });
+      if (!seeded.ok) throw new Error(seeded.message);
     }
   }
 
@@ -471,6 +479,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     catalog: () => builtinEntries(),
     validateForm: () => Promise.resolve(validateFormSchema),
     scopeOf: (id) => files.scopeOf(id),
+    generator: () => codegen,
   });
   const bridge = createAgentBridge({
     assistant,
@@ -511,9 +520,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
   } catch {
     schema = null;
   }
-  const rulesText = active === null ? undefined : files.text(rulesPath(active));
-  const parsed = rulesText === undefined ? null : parseRulesText(rulesText);
-  const rules = parsed?.ok === true ? parsed.rules : emptyRules();
+  const rules = active === null ? emptyRules() : (await readRuleCode(files, active, active)).rules;
   const last = session.get().entries.at(-1);
   const state: EvalState = {
     schema,
@@ -542,12 +549,6 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     text: state.text.slice(0, 300),
     reasoning: (last?.reasoning ?? '').slice(0, 3000),
   };
-}
-
-/** Файл правил рядом с документом — путь от корня проекта. */
-function rulesPath(document: string): string {
-  const dir = document.slice(0, document.lastIndexOf('/'));
-  return `${dir}/${rulesSidecarNameOf(document)}`;
 }
 
 describe.skipIf(!MODEL)('замер: сценарии разработки форм на живой модели', () => {

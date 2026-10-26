@@ -27,7 +27,7 @@ import {
   SCHEMA_VALIDATOR_PLUGIN_ID,
 } from './plugin';
 import type { ValidateFormSchema } from './check';
-import { printRulesText } from '../../core/codegen/rules-file';
+import { withMarker } from '@reformer/builder-toolkit';
 
 function docRef(
   kind: 'text' | 'model',
@@ -690,16 +690,19 @@ describe('проверка по мета-схеме грузится по тре
   });
 });
 
-describe('правила формы — файл рядом с документом', () => {
-  it('правило на несуществующее поле находится, когда файл дочитан, — с просьбой перепроверить', async () => {
+describe('правила формы — код модуля', () => {
+  it('правило на несуществующее поле находится, когда код дочитан, — с просьбой перепроверить', async () => {
     const texts = new Map([
       [
-        'fs:forms/credit.rules.json',
-        printRulesText({
-          validation: [{ target: 'nope', rules: ['required'] }],
-          behavior: [],
-          render: [],
-        }),
+        // Документ со свободным именем: модуль — подкаталог по имени формы рядом с ним.
+        'fs:forms/credit/validation/form.ts',
+        withMarker(
+          "import { defineValidation, validate } from '@reformer/core/validation';\n" +
+            "import { required } from '@reformer/core/validators';\n\n" +
+            'export const formRules = defineValidation<CreditForm>(({ model }) => {\n' +
+            '  validate(model.$.nope, [required()]);\n' +
+            '});\n'
+        ),
       ],
     ]);
     const files = {

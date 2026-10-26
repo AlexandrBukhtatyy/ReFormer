@@ -48,6 +48,41 @@ describe('доставка модуля', () => {
     expect(host.written.get('src/pages/my-form/api/index.ts')).toBe('мой бэкенд\n');
   });
 
+  it('авторский файл с точечной правкой стека — правится, а не пропускается', async () => {
+    const host = createFakeHost({
+      files: { 'src/pages/my-form/validation/messages.ts': 'было\n' },
+    });
+    const result = await deliverInto(host, MODULE, [
+      file({
+        path: 'validation/messages.ts',
+        cls: 'user',
+        merge: (current) => `${current}новая запись\n`,
+      }),
+    ]);
+    expect(result.written).toEqual(['validation/messages.ts']);
+    expect(host.written.get('src/pages/my-form/validation/messages.ts')).toBe(
+      'было\nновая запись\n'
+    );
+  });
+
+  it('правка не нужна или невозможна (null, тот же текст) — файл человека пропускается', async () => {
+    const host = createFakeHost({
+      files: {
+        'src/pages/my-form/validation/messages.ts': 'было\n',
+        'src/pages/my-form/constants/my-form.ts': 'своё\n',
+      },
+    });
+    const result = await deliverInto(host, MODULE, [
+      file({ path: 'validation/messages.ts', cls: 'user', merge: (current) => current }),
+      file({ path: 'constants/my-form.ts', cls: 'user', merge: () => null }),
+    ]);
+    expect(result.written).toEqual([]);
+    expect(result.skipped).toEqual([
+      { path: 'validation/messages.ts', reason: 'authored' },
+      { path: 'constants/my-form.ts', reason: 'authored' },
+    ]);
+  });
+
   it('выводимый из правил файл перезаписывается, пока маркер сходится', async () => {
     const host = createFakeHost({
       files: { 'src/pages/my-form/validation/form.ts': withMarker('старое\n') },

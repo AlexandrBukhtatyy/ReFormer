@@ -91,6 +91,8 @@ export async function generateFor(
       store,
       formName: request.formName ?? store.get().formName,
       problems: options.problems,
+      ...(request.only === undefined ? {} : { only: request.only }),
+      ...(request.stackInput === undefined ? {} : { stackInput: request.stackInput }),
     });
   } catch (error) {
     // Непредвиденное: прогон положил в состояние `error.failed`, заказчику — текст поломки.

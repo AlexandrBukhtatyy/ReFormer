@@ -20,8 +20,8 @@
  * **Ход — ОДНА запись документа.** Не потому, что кто-то завёл транзакцию, а потому, что вся
  * правка схемы приземляется одним `writeText`: инструменты копят черновик (`core/changeset`), а в
  * буфер уходит его итог. Отсюда «отменить ход» — одно действие и в журнале, и в истории редактора,
- * который увидит правку буфера целиком. Правила формы живут другим файлом (`./rules-file`) и,
- * если ход их изменил, ложатся второй записью с тем же `txId`.
+ * который увидит правку буфера целиком. Правила формы живут кодом модуля и ложатся после
+ * документа — генерацией кода (`./rule-code`), записями того же хода.
  *
  * **Строгий гейт — барьер.** Ни один выход агента не попадает в буфер, минуя `validateSchema`
  * в строгом режиме. Гейт на каждой правке (`core/gate`) существует ради обратной связи модели,
@@ -45,20 +45,12 @@ import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '../../../core/catalog';
 import { hasChanges, type ChangeSet } from '../model/changeset';
 import { validateSchema, type LoadValidateForm } from '../model/validate';
-import type { FormStackFiles, FormStackHost } from '@reformer/builder-plugin-api';
+import type { FormStackHost } from '@reformer/builder-plugin-api';
 import { printSchemaText } from '../model/schema-text';
-import { rulesTextToWrite, type RulesFileBase } from '../session/rules-file';
 
 /** Исход применения. */
 export type ApplyOutcome =
-  | {
-      readonly status: 'applied';
-      /**
-       * Правила хода изменились, но файл правил не разбирается — записывать поверх него нельзя:
-       * затёрлось бы то, что в нём правили руками. Схема при этом легла.
-       */
-      readonly rulesBroken?: true;
-    }
+  | { readonly status: 'applied' }
   /** Применять нечего. */
   | { readonly status: 'empty' }
   /** Документа больше нет: вкладку закрыли или проект закрыли. */
@@ -82,10 +74,10 @@ export interface ApplyRequest {
   /** Идентификатор хода — он же `txId` записи журнала. */
   readonly txId?: string;
   /**
-   * Файл правил формы на начало хода — куда писать правила набора и с чем сверять расхождение.
-   * Нет — у платформы нет файлового доступа, и правила живут только в памяти стека.
+   * Не разошлись ли с базой хода сопутствующие файлы, которые ход запишет после документа (файлы
+   * правил). Нет — сверять нечего.
    */
-  readonly rulesFile?: RulesFileBase;
+  readonly companionsUnchanged?: () => Promise<boolean>;
 }
 
 /** Настройки применения. */
@@ -99,7 +91,6 @@ export interface ApplyDeps {
   readonly host: {
     documentOf(id: ResourceId): { getText(): string } | null;
     readonly writeText: FormStackHost['writeText'];
-    readonly files?: Pick<FormStackFiles, 'read' | 'write'>;
   };
   /** Каталог активного кита — словарь строгого гейта. */
   readonly catalog: () => readonly CatalogEntry[];
@@ -126,12 +117,10 @@ export async function applyChangeSet(
   if (document.getText() !== pending.baseText && options.force !== true) {
     return { status: 'conflict' };
   }
-  // Файл правил сверяется так же, как документ: его правят и мимо хода, и набор, собранный от
+  // Файлы правил сверяются так же, как документ: их правят и мимо хода, и набор, собранный от
   // старых правил, затёр бы чужую правку.
-  const files = deps.host.files;
-  const rulesBase = files !== undefined ? pending.rulesFile : undefined;
-  if (rulesBase !== undefined && files !== undefined && options.force !== true) {
-    if ((await files.read(rulesBase.id)) !== rulesBase.text) return { status: 'conflict' };
+  if (pending.companionsUnchanged !== undefined && options.force !== true) {
+    if (!(await pending.companionsUnchanged())) return { status: 'conflict' };
   }
 
   // Загрузка заказывается ПОСЛЕ дешёвых проверок: набору, который и так не ляжет (нечего
@@ -167,16 +156,6 @@ export async function applyChangeSet(
       ...(pending.txId === undefined ? {} : { txId: pending.txId }),
     };
     await deps.host.writeText(pending.resource, printSchemaText(set.draft), mark);
-    // Правила — вторая запись того же хода, с тем же `txId`: схема и правила — два файла, и
-    // одной записью их не положить. Порядок — схема первой: правила без узлов, на которые они
-    // ссылаются, хуже, чем узлы без правил.
-    if (rulesBase !== undefined && files !== undefined) {
-      const text = rulesTextToWrite(rulesBase, set.draftRules);
-      if (text !== null) {
-        if (rulesBase.broken !== undefined) return { status: 'applied', rulesBroken: true };
-        await files.write(rulesBase.id, text, mark);
-      }
-    }
   } catch (error) {
     return { status: 'failed', error };
   }

@@ -115,12 +115,12 @@ export interface SchemaCheckOptions {
    */
   readonly catalog: readonly CatalogEntry[];
   /**
-   * Правила-сайдкар, если они у документа есть.
+   * Правила формы, если они у документа есть.
    *
-   * Правила живут ОТДЕЛЬНЫМ файлом рядом со схемой (`JsonFormSchema` — закрытый контракт
-   * рендерера, положить их внутрь нельзя), а `ValidateContext` описывает ОДИН документ.
-   * Поэтому сайдкар приходит параметром: дотянуться до соседнего ресурса валидатору сегодня
-   * нечем — см. заметку в `plugin.ts`.
+   * Правила живут кодом модуля формы (`JsonFormSchema` — закрытый контракт рендерера, положить
+   * их внутрь нельзя), а `ValidateContext` описывает ОДИН документ. Поэтому правила приходят
+   * параметром: дотянуться до соседних ресурсов валидатору сегодня нечем — см. заметку в
+   * `plugin.ts`.
    */
   readonly rules?: FormRules;
   /**
@@ -467,7 +467,13 @@ function orphanRules(
     const fix: QuickFix = {
       titleKey: QUICKFIX.REMOVE_ORPHAN_RULE,
       commandId: COMMANDS.REMOVE_RULE,
-      args: { resource: input.resource, list: problem.list, index: problem.index },
+      // Ключ — само правило: по нему команда узнаёт его, даже если список сдвинулся.
+      args: {
+        resource: input.resource,
+        list: problem.list,
+        index: problem.index,
+        key: JSON.stringify(rules[problem.list][problem.index]),
+      },
     };
     if (problem.list === 'validation') {
       return make(

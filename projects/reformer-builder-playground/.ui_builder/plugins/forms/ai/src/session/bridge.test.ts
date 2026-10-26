@@ -16,6 +16,8 @@ import type {
   DocumentRef,
   FormAssistantStack,
   FormCreatorService,
+  ModuleGeneratorService,
+  ResourceId,
 } from '@reformer/builder-plugin-api';
 import { createAgentBridge } from './bridge';
 import type { AiAssistant } from '../plugin';
@@ -109,6 +111,7 @@ interface HarnessOptions {
   readonly commands?: readonly AgentCommand[];
   readonly assistantTools?: readonly ContributedToolEntry[];
   readonly formCreator?: FormCreatorService;
+  readonly generator?: ModuleGeneratorService;
 }
 
 /** Мост с каналом к модели, двойником платформы и стеками. */
@@ -137,6 +140,7 @@ function harness(script: readonly FakeStep[], options: HarnessOptions = {}) {
     executeCommand: execute as (id: string, args?: unknown) => Promise<unknown>,
     assistantTools: () => options.assistantTools ?? [],
     formCreator: () => options.formCreator,
+    generator: () => options.generator,
     stacks: options.stacks ?? (() => [stack]),
   });
   return { host, session, bridge, stack, execute };
@@ -412,6 +416,35 @@ describe('отмена и «Восстановить» с сопутствующ
     expect(host.writes.at(-1)?.mark).toBeUndefined();
     // Состояние формы, которое знает только стек, он возвращает сам — без файлов: их вернула отмена.
     expect(stack.rewinds).toEqual([{ path: FORM, files: false }]);
+  });
+
+  it('генерация в том же ходе поверх сопутствующего файла — отмена возвращает текст до хода', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY, 'forms/notes.txt': 'было\n' });
+    // Генерация по заказу пишет дверью хода уже после того, как стек положил свой файл.
+    const generator: ModuleGeneratorService = {
+      async generate(_document, request) {
+        await request?.write?.('forms/notes.txt' as ResourceId, 'сгенерировано\n');
+        return {
+          ok: true,
+          formName: 'a',
+          dir: 'forms',
+          written: ['notes.txt'],
+          skipped: [],
+          failed: [],
+        };
+      },
+    };
+    const { bridge } = harness([addField('email'), { tool: 'generate_code', args: {} }], {
+      files,
+      generator,
+    });
+
+    await bridge.send('добавь поле и сгенерируй код');
+    expect(files.text('forms/notes.txt')).toBe('сгенерировано\n');
+
+    await expect(bridge.undoLastTurn()).resolves.toBe('undone');
+
+    expect(files.text('forms/notes.txt')).toBe('было\n');
   });
 
   it('сопутствующий файл, созданный ходом, остаётся — и об этом сказано', async () => {

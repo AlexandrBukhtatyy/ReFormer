@@ -12,7 +12,8 @@ import {
   modulePlacementOf,
   moduleRootOfDocument,
   moduleRootPathOf,
-  rulesSidecarNameOf,
+  legacyRulesNameOf,
+  legacyRulesPathOf,
   schemaDirOf,
   schemaPathInModule,
   stepSchemaPath,
@@ -255,17 +256,25 @@ describe('isCanonicalSchemaName', () => {
   });
 });
 
-describe('rulesSidecarNameOf — имя файла правил рядом с документом', () => {
+describe('legacyRulesNameOf — имя прежнего файла правил рядом с документом', () => {
   it('у канонического имени документа — form.rules.json, и у прежнего тоже', () => {
-    expect(rulesSidecarNameOf('forms/loan/schema/form.schema.json')).toBe('form.rules.json');
-    expect(rulesSidecarNameOf('forms/loan/form.schema.json')).toBe('form.rules.json');
-    expect(rulesSidecarNameOf('forms/loan/renderer.schema.json')).toBe('form.rules.json');
+    expect(legacyRulesNameOf('forms/loan/schema/form.schema.json')).toBe('form.rules.json');
+    expect(legacyRulesNameOf('forms/loan/form.schema.json')).toBe('form.rules.json');
+    expect(legacyRulesNameOf('forms/loan/renderer.schema.json')).toBe('form.rules.json');
   });
 
   it('у свободного имени — основа до первой точки, без окончаний документа формы', () => {
-    expect(rulesSidecarNameOf('forms/credit.schema.json')).toBe('credit.rules.json');
-    expect(rulesSidecarNameOf('forms/credit.form.json')).toBe('credit.rules.json');
-    expect(rulesSidecarNameOf('credit.json')).toBe('credit.rules.json');
+    expect(legacyRulesNameOf('forms/credit.schema.json')).toBe('credit.rules.json');
+    expect(legacyRulesNameOf('forms/credit.form.json')).toBe('credit.rules.json');
+    expect(legacyRulesNameOf('credit.json')).toBe('credit.rules.json');
+  });
+});
+
+describe('legacyRulesPathOf — путь прежнего файла правил от корня модуля', () => {
+  it('рядом с документом; у свободного имени — уровнем выше модуля', () => {
+    expect(legacyRulesPathOf('forms/loan/schema/form.schema.json')).toBe('schema/form.rules.json');
+    expect(legacyRulesPathOf('forms/loan/form.schema.json')).toBe('form.rules.json');
+    expect(legacyRulesPathOf('forms/credit.schema.json')).toBe('../credit.rules.json');
   });
 });
 
@@ -280,9 +289,9 @@ describe('fileRoleOf — роль файла модуля для правки м
     expect(fileRoleOf('schema/steps/a/b/form.schema.json', DEFAULT_SCHEMA_PATH)).toBe('other');
   });
 
-  it('файл правил — рядом с документом, в любой раскладке', () => {
-    expect(fileRoleOf('schema/form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('rules');
-    expect(fileRoleOf('form.rules.json', 'form.schema.json')).toBe('rules');
+  it('прежний файл правил — рядом с документом, в любой раскладке, — устарел', () => {
+    expect(fileRoleOf('schema/form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('obsolete');
+    expect(fileRoleOf('form.rules.json', 'form.schema.json')).toBe('obsolete');
     // Не рядом с документом — не его правила.
     expect(fileRoleOf('form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('other');
     expect(fileRoleOf('schema/steps/a/form.rules.json', DEFAULT_SCHEMA_PATH)).toBe('other');

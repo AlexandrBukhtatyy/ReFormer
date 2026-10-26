@@ -7,7 +7,8 @@
 import { describe, expect, it } from 'vitest';
 import { plainSchema } from '../core/testing';
 import type { ResourceId } from '@reformer/builder-plugin-api';
-import { printRulesText } from '../core/codegen/rules-file';
+import { originOf, withMarker } from '@reformer/builder-toolkit';
+import { legacyRulesText as printRulesText } from '../core/testing';
 import type { KitView } from '../core/codegen';
 import { runCodegen } from '../../forms/codegen/src/pipeline/run';
 import { createCodegenSessions } from '../../forms/codegen/src/pipeline/state';
@@ -75,6 +76,104 @@ describe('прогон генерации', () => {
 
     expect(store.get().error).toBeNull();
     expect(host.written.get('src/forms/credit/validation/form.ts')).toContain('required');
+    // Перенесли — и назвали файл устаревшим: правила дальше живут в коде.
+    expect(store.get().delivery?.notes.map((note) => note.id)).toContain('legacy-rules');
+    expect(store.get().delivery?.notes.find((note) => note.id === 'legacy-rules')?.paths).toEqual([
+      '../credit.rules.json',
+    ]);
+  });
+
+  it('правила живут в коде: следующая генерация берёт их из модуля, без файла правил', async () => {
+    const { host, store, run } = setup();
+    host.written.set(
+      'src/forms/credit.rules.json',
+      printRulesText({
+        validation: [{ target: 'fullName', rules: ['required', 'minLength(3)'] }],
+        behavior: [],
+        render: [],
+      })
+    );
+    await run();
+    const printed = host.written.get('src/forms/credit/validation/form.ts');
+    expect(printed).toContain('minLength(3)');
+
+    // Прежний файл правил ушёл — правила остались в коде, и генерация печатает их снова.
+    host.written.delete('src/forms/credit.rules.json');
+    await run();
+
+    expect(store.get().error).toBeNull();
+    expect(host.written.get('src/forms/credit/validation/form.ts')).toBe(printed);
+  });
+
+  it('прежний файл правил не перебивает правила кода', async () => {
+    const { host, run } = setup();
+    const rules = (check: string) =>
+      printRulesText({
+        validation: [{ target: 'fullName', rules: [check] }],
+        behavior: [],
+        render: [],
+      });
+    host.written.set('src/forms/credit.rules.json', rules('minLength(3)'));
+    await run();
+    host.written.set('src/forms/credit.rules.json', rules('maxLength(9)'));
+    await run();
+
+    const printed = host.written.get('src/forms/credit/validation/form.ts') ?? '';
+    expect(printed).toContain('minLength(3)');
+    expect(printed).not.toContain('maxLength(9)');
+  });
+
+  it('файл правил, который не читается обратно, не пишется — и это сказано', async () => {
+    const { host, store } = setup();
+    host.written.set(
+      'src/forms/credit.rules.json',
+      printRulesText({
+        validation: [{ target: 'fullName', rules: ['required'] }],
+        behavior: [],
+        render: [],
+      })
+    );
+    // Цель проекта печатает правила своей записью — читатель её не знает.
+    const targets = BUILTIN_TARGETS.map((target) =>
+      target.id === 'codegen.validation'
+        ? {
+            ...target,
+            template: undefined,
+            emit: () => 'export const formRules = defineValidation<T>(() => { custom(); });\n',
+          }
+        : target
+    );
+    await runCodegen({
+      host,
+      stacks: reformerStacks(),
+      targets,
+      documentId: DOC,
+      store,
+    });
+
+    expect(host.written.has('src/forms/credit/validation/form.ts')).toBe(false);
+    expect(store.get().problems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'validation/form.ts', targetId: 'codegen.validation' }),
+      ])
+    );
+  });
+
+  it('нетронутый осиротевший файл правил шага получает заглушку без правил', async () => {
+    const { host, run } = setup();
+    const orphan = 'src/forms/credit/validation/staryi-shag.ts';
+    host.written.set(
+      orphan,
+      withMarker(
+        'export const stepRules = defineValidation<T>(({ model }) => {\n' +
+          '  validate(model.$.fullName, [required()]);\n});\n'
+      )
+    );
+    await run();
+
+    expect(host.written.get(orphan)).toContain('export {};');
+    expect(host.written.get(orphan)).not.toContain('validate(');
+    expect(originOf(host.written.get(orphan))).toBe('generated');
   });
 
   it('битый файл правил — отказ стека с адресом файла, ничего не записано', async () => {

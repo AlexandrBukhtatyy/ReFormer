@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyRules, type FormRules } from '../form-model/rules';
-import { emptyRulesText, parseRulesText, printRulesText } from './rules-file';
+import { parseRulesText } from './rules-file';
+import { legacyRulesText } from '../testing';
 
 const RULES: FormRules = {
   validation: [{ target: 'email', rules: ['required', 'email'] }],
@@ -8,21 +9,16 @@ const RULES: FormRules = {
   render: [{ kind: 'hideWhen', selector: 'extra', condition: 'model.kind !== "pro"' }],
 };
 
-describe('файл правил формы', () => {
-  it('печать и разбор — круг без потерь', () => {
-    const parsed = parseRulesText(printRulesText(RULES));
-    expect(parsed).toEqual({ ok: true, rules: RULES });
+describe('прежний файл правил формы', () => {
+  it('разбирается без потерь', () => {
+    expect(parseRulesText(legacyRulesText(RULES))).toEqual({ ok: true, rules: RULES });
   });
 
-  it('печать детерминирована и несёт версию формата', () => {
-    const text = printRulesText(RULES);
-    expect(printRulesText(structuredClone(RULES))).toBe(text);
-    expect(JSON.parse(text)).toMatchObject({ version: 1 });
-    expect(text.endsWith('\n')).toBe(true);
-  });
-
-  it('пустой набор — отдельный текст, и он разбирается в пустые правила', () => {
-    expect(parseRulesText(emptyRulesText())).toEqual({ ok: true, rules: emptyRules() });
+  it('без правил — пустые правила', () => {
+    expect(parseRulesText(legacyRulesText(emptyRules()))).toEqual({
+      ok: true,
+      rules: emptyRules(),
+    });
   });
 
   it('битый JSON и корень не-объект — отказ, а не «правил нет»', () => {
@@ -39,15 +35,12 @@ describe('файл правил формы', () => {
       { kind: 'hideWhen', selector: 'extra', condition: 'model.a' },
     ]);
   });
-});
 
-describe('значения источников данных в файле правил', () => {
-  it('печатаются и читаются; пустой набор источников в файл не попадает', () => {
+  it('значения источников данных читаются', () => {
     const rules: FormRules = {
       ...emptyRules(),
       dataSources: { CITIES: [{ value: 'msk', label: 'Москва' }] },
     };
-    expect(parseRulesText(printRulesText(rules))).toEqual({ ok: true, rules });
-    expect(printRulesText({ ...emptyRules(), dataSources: {} })).toBe(emptyRulesText());
+    expect(parseRulesText(legacyRulesText(rules))).toEqual({ ok: true, rules });
   });
 });

@@ -47,11 +47,15 @@ const OUTLINE_SEED_LEAD =
  * Затравка формы: карта и правила; `''` — показывать нечего. Пустая форма описывалась бы одной
  * строкой про корень — сообщать нечего, а шаг всё равно не сэкономить.
  */
-export function formSeed(base: JsonFormSchema, rules?: FormRules): string {
+export function formSeed(
+  base: JsonFormSchema,
+  rules?: FormRules,
+  locks: readonly string[] = []
+): string {
   const entries = buildOutline(base, rules);
   const rulesText = rules ? renderRulesSeed(rules) : '';
   const map = entries.length > 1 ? renderOutline(entries, OUTLINE_SEED_BUDGET) : '';
-  const form = [map, rulesText].filter(Boolean).join('\n\n');
+  const form = [map, rulesText, renderLocksSeed(locks)].filter(Boolean).join('\n\n');
   return form ? `${OUTLINE_SEED_LEAD}\n${form}` : '';
 }
 
@@ -98,6 +102,16 @@ export async function fileSeed(turn: FileTurn, budget: number = FILE_SEED_BUDGET
       ? `\n… lines 1-${page.to} of ${page.total}. Continue: read_file offset=${page.to + 1}`
       : '';
   return `${head}${frame}${page.body}${tail}`;
+}
+
+/**
+ * Правила, которые ход не сможет записать (`./rule-code`), — заранее: иначе модель узнала бы об
+ * этом отказом инструмента и потратила бы на него шаг.
+ */
+function renderLocksSeed(locks: readonly string[]): string {
+  const unique = [...new Set(locks)];
+  if (unique.length === 0) return '';
+  return ['Rules this turn cannot change:', ...unique.map((lock) => `  ${lock}`)].join('\n');
 }
 
 /**

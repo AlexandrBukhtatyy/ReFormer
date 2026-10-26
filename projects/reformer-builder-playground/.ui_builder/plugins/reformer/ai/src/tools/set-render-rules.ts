@@ -12,7 +12,7 @@
  * не хватало раньше: `set_form_rules` отказывался принимать видимость, потому что «задать селектор
  * не умеет ни один инструмент агента», и принятое правило оказалось бы no-op.
  *
- * Один вызов меняет и схему (проставленный селектор), и сайдкар правил. Это представимо без правок
+ * Один вызов меняет и схему (проставленный селектор), и правила формы. Это представимо без правок
  * машинерии: `ToolOutcome` держит `schema` и `rules` независимо, `withOutcome` берёт оба, а
  * `applyChangeSet` кладёт их в ОДИН `pushHistory` — то есть один Ctrl+Z отменяет правку целиком.
  *
@@ -60,7 +60,7 @@ function missingField(rule: ParamRule): string | null {
   return null;
 }
 
-/** Параметр → правило сайдкара с уже разрешённым селектором. */
+/** Параметр → правило формы с уже разрешённым селектором. */
 function toRule(rule: ParamRule, selector: string): RenderRuleIntent {
   switch (rule.kind) {
     case 'hideWhen':
@@ -130,11 +130,16 @@ export const setRenderRulesTool: AgentTool<Params> = {
     if (incoming.length === 0) {
       return fail('INVALID_PARAMS', 'No rules given.');
     }
+    // Правила узлов живут в файле поведения: ход, который не сможет его записать, отказывает сразу.
+    const locked = ctx.rulesLock?.behavior;
+    if (locked !== undefined) return fail(locked.code, locked.message);
 
     let schema = ctx.draft;
+    // `replace` заменяет только правила узлов: валидация, связи и значения источников — чужие
+    // разделы набора, и этот инструмент их не касается.
     const next: FormRules =
       params.mode === 'replace'
-        ? { validation: [...ctx.rules.validation], behavior: [...ctx.rules.behavior], render: [] }
+        ? { ...structuredCloneRules(ctx.rules), render: [] }
         : { ...emptyRules(), ...structuredCloneRules(ctx.rules) };
 
     const entries: { ref: string; kind: 'update'; summary: string; report: string }[] = [];
@@ -178,11 +183,15 @@ export const setRenderRulesTool: AgentTool<Params> = {
   },
 };
 
-/** Копия набора: массивы нельзя делить между черновиком хода и вкладкой. */
+/**
+ * Копия набора: массивы нельзя делить между черновиком хода и вкладкой. Значения источников
+ * данных переходят в копию — без них правило узла молча стирало бы варианты полей формы.
+ */
 function structuredCloneRules(rules: FormRules): FormRules {
   return {
     validation: [...rules.validation],
     behavior: [...rules.behavior],
     render: [...rules.render],
+    ...(rules.dataSources === undefined ? {} : { dataSources: { ...rules.dataSources } }),
   };
 }

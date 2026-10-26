@@ -366,6 +366,22 @@ function readRuleList(args: unknown): 'validation' | 'behavior' | 'render' | nul
   return list === 'validation' || list === 'behavior' || list === 'render' ? list : null;
 }
 
+/**
+ * Место правила, которое назвала находка. Ключ — само правило (`JSON.stringify`): правила читаются
+ * из кода модуля заново после каждой правки, и индекс мог сдвинуться, а правило — нет. Без ключа —
+ * индекс, если он в пределах списка.
+ */
+function ruleIndexOf(
+  list: readonly unknown[],
+  index: number | null,
+  key: string | undefined
+): number | null {
+  if (key === undefined) return index !== null && index < list.length ? index : null;
+  if (index !== null && JSON.stringify(list[index]) === key) return index;
+  const found = list.findIndex((rule) => JSON.stringify(rule) === key);
+  return found < 0 ? null : found;
+}
+
 /** Целое неотрицательное по ключу. Дробное и отрицательное — не индекс списка. */
 /** Путь внутри узла: непустой список ключей и индексов. */
 function pathAt(args: unknown, key: string): (string | number)[] | null {
@@ -387,10 +403,10 @@ function indexAt(args: unknown, key: string): number | null {
 /**
  * Команды быстрых исправлений.
  *
- * `rules.remove` вносится ТОЛЬКО когда композиция дала сайдкар правил ({@link
+ * `rules.remove` вносится ТОЛЬКО когда композиция дала порт правил ({@link
  * SchemaEditorHost.rules}), и это не осторожность, а тот же довод, ради которого исправления
  * стали отбираться по реестру: команда, которой нечем работать, — это кнопка, обещающая то,
- * чего не сделает. Пока сайдкара нет, `usableFixes` уберёт исправление у находки, а валидатор
+ * чего не сделает. Пока порта нет, `usableFixes` уберёт исправление у находки, а валидатор
  * назовёт причину в консоли — то есть дефект останется видимым, а не превратится в тишину.
  */
 export function schemaFixCommands(host: SchemaEditorHost): readonly CommandContribution[] {
@@ -449,17 +465,20 @@ export function schemaFixCommands(host: SchemaEditorHost): readonly CommandContr
         const resource = stringAt(args, 'resource');
         const list = readRuleList(args);
         const index = indexAt(args, 'index');
-        if (resource === undefined || list === null || index === null) return false;
+        const key = stringAt(args, 'key');
+        if (resource === undefined || list === null || (index === null && key === undefined)) {
+          return false;
+        }
         const current = rules.get(resource);
-        // Индекс за пределами списка — не «удалить последнее», а промах: правило могли
-        // убрать между показом находки и нажатием, и молча стереть соседнее было бы худшим
-        // из возможных ответов.
-        if (current === null || index >= current[list].length) return false;
-        rules.set(resource, {
+        if (current === null) return false;
+        const at = ruleIndexOf(current[list], index, key);
+        // Не нашли — не «удалить последнее», а промах: правило могли убрать между показом
+        // находки и нажатием, и молча стереть соседнее было бы худшим из возможных ответов.
+        if (at === null) return false;
+        return rules.set(resource, {
           ...current,
-          [list]: current[list].filter((_, at) => at !== index),
+          [list]: current[list].filter((_, item) => item !== at),
         });
-        return true;
       },
     });
   }

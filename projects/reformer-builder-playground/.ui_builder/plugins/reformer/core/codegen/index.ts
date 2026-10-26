@@ -29,8 +29,9 @@ export {
   VALIDATION_DIR,
   FORM_RULES_NAME,
   MESSAGES_NAME,
-  RULES_SIDECAR_FILE,
-  rulesSidecarNameOf,
+  LEGACY_RULES_FILE,
+  legacyRulesNameOf,
+  legacyRulesPathOf,
   RESERVED_STEP_NAMES,
   FLAT_LAYOUT_FILES,
   FLAT_STEPS_DIR,
@@ -56,13 +57,31 @@ export {
   type ModuleRootPort,
 } from './layout';
 export { layoutOf, type ModuleLayout, type StepInfo } from './steps';
+export { parseRulesText, type RulesTextResult } from './rules-file';
 export {
-  RULES_FILE_VERSION,
-  parseRulesText,
-  printRulesText,
-  emptyRulesText,
-  type RulesTextResult,
-} from './rules-file';
+  callValidator,
+  inferSources,
+  isRuleCodePath,
+  loadRulesFromModule,
+  lockedRuleFiles,
+  normalizeRules,
+  readRulesFromCode,
+  regenerableRules,
+  RULE_TARGET_IDS,
+  RULES_CODEGEN_STACK,
+  ruleFileTombstone,
+  rulesStackInput,
+  SCAFFOLD_NOTE,
+  type ExpectedRuleFiles,
+  type FileOrigin,
+  type ForeignCode,
+  type ModuleFileText,
+  type ModuleRuleCode,
+  type ModuleRuleSource,
+  type RuleFileRead,
+  type RulesFromCode,
+} from './rules-code';
+export { patchConstants, patchMessages, type PatchResult } from './rules-code/patch';
 export { stepDirName } from '../form-model/step-dir';
 export { makeNames, pascal, camel, humanize, stepRulesAlias, type Names } from './naming';
 export { assignSelectors, type AssignResult, type SelectorInfo } from './selectors';

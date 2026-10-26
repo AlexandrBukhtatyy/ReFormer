@@ -1,9 +1,10 @@
 /**
  * Правила формы: валидация, реактивные связи, условная видимость.
  *
- * Единственный write-инструмент, который правит НЕ схему. Правила — сайдкар (`@/plugins/reformer/core/form-model`):
- * в `JsonFormSchema` их положить некуда, контракт `@reformer/renderer-json` закрыт. Из них
- * генерируются `validation/` и `behavior/` модуля формы, которые до сих пор были заглушками с TODO.
+ * Единственный write-инструмент, который правит НЕ схему. В `JsonFormSchema` правила положить
+ * некуда, контракт `@reformer/renderer-json` закрыт: они живут в коде модуля формы —
+ * `validation/` и `behavior/`, — и в конце хода их туда печатает генерация кода
+ * (`../stack/rule-code`).
  *
  * Гейт здесь строже, чем у правок раскладки, и не случайно. Неверная раскладка видна на канвасе
  * сразу; неверное правило выглядит правдоподобно и ломается у пользователя — при сборке его
@@ -29,7 +30,14 @@ import { findCycle } from '@reformer/mcp/dist/core/utils/graph.js';
 import { collectModelPaths } from '../../../core/form-model';
 import { similarNames } from '@reformer/builder-toolkit';
 import { emptyRules, type FormRules } from '../../../core/form-model';
-import { fail, ok, type AgentTool, type ToolOutcome } from '../model/types';
+import {
+  fail,
+  ok,
+  type AgentTool,
+  type RulesLock,
+  type RulesRefusal,
+  type ToolOutcome,
+} from '../model/types';
 
 /** Виды реактивных связей — те же десять, что понимает `@reformer/core/behaviors`. */
 const BEHAVIOR_KINDS = [
@@ -141,6 +149,8 @@ export const setFormRulesTool: AgentTool<Params> = {
   readOnly: false,
 
   run(params, ctx): ToolOutcome {
+    const locked = lockedBy(params, ctx.rulesLock);
+    if (locked !== undefined) return fail(locked.code, locked.message);
     const known = new Set(collectModelPaths(ctx.draft));
     const next: FormRules = params.mode === 'replace' ? emptyRules() : cloneRules(ctx.rules);
 
@@ -226,6 +236,23 @@ export const setFormRulesTool: AgentTool<Params> = {
     };
   },
 };
+
+/**
+ * Отказ, если вызов меняет правила, которые ход не сможет записать (`../stack/rule-code`):
+ * `replace` меняет все виды, `merge` — те, что в нём названы.
+ */
+function lockedBy(params: Params, lock: RulesLock | undefined): RulesRefusal | undefined {
+  if (lock === undefined) return undefined;
+  const all = params.mode === 'replace';
+  if (all || (params.validation?.length ?? 0) > 0) {
+    if (lock.validation !== undefined) return lock.validation;
+  }
+  if (all || (params.behavior?.length ?? 0) > 0) {
+    if (lock.behavior !== undefined) return lock.behavior;
+  }
+  if (all || Object.keys(params.dataSources ?? {}).length > 0) return lock.dataSources;
+  return undefined;
+}
 
 /** Имя источника — то, что стоит в `$dataSource(NAME)`: идентификатор. */
 const SOURCE_NAME = /^[A-Za-z_$][\w$]*$/;

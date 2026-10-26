@@ -237,6 +237,22 @@ export const FILE_SEED_BUDGET = 8000;
  * для стеков, а пишут инструменты стека.
  */
 export type ToolErrorCode = FormToolErrorCode;
+
+/** Почему инструмент правил не вправе менять этот вид правил: код отказа и фраза для модели. */
+export interface RulesRefusal {
+  readonly code: Extract<ToolErrorCode, 'REFUSED' | 'UNAVAILABLE'>;
+  readonly message: string;
+}
+
+/** Какие правила ход не сможет записать — по файлам, в которых они живут. */
+export interface RulesLock {
+  /** Правила валидации: `validation/*.ts`. */
+  readonly validation?: RulesRefusal;
+  /** Связи поведения и правила узлов: оба живут в `behavior/index.ts`. */
+  readonly behavior?: RulesRefusal;
+  /** Значения источников данных: константы модуля. */
+  readonly dataSources?: RulesRefusal;
+}
 export type ToolError = FormToolError;
 export type ChangeOpKind = FormChangeOpKind;
 export type ChangeOp = FormChangeOp;
@@ -282,6 +298,12 @@ export interface ToolContext extends FormToolContext {
    * одного поля и не дал бы ничего сверх.
    */
   readonly validateForm: ValidateFormSchema;
+  /**
+   * Какие правила ход не сможет записать (`../stack/rule-code`). Правила живут в коде модуля и
+   * ложатся генерацией кода: её нет либо файл правил правлен руками — и инструмент правил
+   * отказывает сразу, а не тем, что правила тихо не лягут в конце хода. Нет — записать можно всё.
+   */
+  readonly rulesLock?: RulesLock;
   /**
    * Ход, внутри которого идёт вызов: сигнал остановки, дверь записи и чтение ресурсов.
    *

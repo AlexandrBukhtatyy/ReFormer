@@ -7,6 +7,7 @@ import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
 
 /** Правила шага «Адреса»: их проверяет «Далее». */
 export const stepRules = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
+  // Заготовка: обязательные поля схемы — правила формы заменят её.
   validate(model.$.home.city, [required()]);
   validate(model.$.work.city, [required()]);
 });

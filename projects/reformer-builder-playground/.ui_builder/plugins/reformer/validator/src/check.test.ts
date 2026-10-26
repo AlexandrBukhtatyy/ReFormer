@@ -540,13 +540,19 @@ describe('целостность правил', () => {
   it('исправление предлагается, но не применяется само: правило — работа пользователя', () => {
     const schema = schemaOf(box([field('$component(Input)', { label: 'Сумма' })]));
 
-    const found = check(schema, withValidation('несуществующее'));
+    const rules = withValidation('несуществующее');
+    const found = check(schema, rules);
 
     const problem = found.find((item) => item.code === CODES.RULE_VALIDATION_TARGET_MISSING);
     expect(problem?.fixes?.[0]).toEqual({
       titleKey: QUICKFIX.REMOVE_ORPHAN_RULE,
       commandId: COMMANDS.REMOVE_RULE,
-      args: { resource, list: 'validation', index: 0 },
+      args: {
+        resource,
+        list: 'validation',
+        index: 0,
+        key: JSON.stringify(rules.validation[0]),
+      },
     });
   });
 

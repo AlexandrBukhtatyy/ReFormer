@@ -11,7 +11,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { isGenerated } from '@reformer/builder-toolkit';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { makeNames, moduleFilesOf } from '../core/codegen';
+import { makeNames, moduleFilesOf, normalizeRules, readRulesFromCode } from '../core/codegen';
+import type { FormRules } from '../core/form-model';
+import { builtinKit } from '../core/testing';
+import { generateModule } from '../codegen/src/pipeline/generate';
+import { BUILTIN_TARGETS } from './codegen-harness';
 import type { TemplateFile } from '../../forms/templates/src/contract';
 import {
   applyTemplate,
@@ -143,5 +147,47 @@ describe('встроенный шаблон, разложенный под им�
     }
     expect(text.toLowerCase()).not.toContain('template seed');
     expect(text.toLowerCase()).not.toContain('templateseed');
+  });
+
+  it('правила шаблона живут в его коде: следующая генерация прочтёт их, а не заготовку', async () => {
+    // Правила шаблон печатает в файлы правил и больше нигде не хранит — их источник теперь код.
+    // Печатник — вся генерация, как у плагина: тестовый печатает только файлы без правил.
+    let seeded: FormRules | undefined;
+    const print: ModulePrinter = async (schema, name, extras) => {
+      seeded ??= extras?.rules;
+      const module = await generateModule(BUILTIN_TARGETS, {
+        schema,
+        formName: name,
+        kit: builtinKit(),
+        ...(extras?.rules === undefined ? {} : { rules: extras.rules }),
+        ...(extras?.mock === undefined ? {} : { mock: extras.mock }),
+      });
+      return module.files.map(({ path, content }) => ({ path, content }));
+    };
+    const [simple] = await createBuiltinStore({ print }).list();
+    const files = await applyTemplate(simple, modulePaths(simple), 'Анкета', OPTIONS);
+    const at = (path: string) => files.find((file) => file.path === path);
+    const behavior = at('behavior/index.ts');
+    const read = readRulesFromCode({
+      validation: files
+        .filter(
+          (file) =>
+            file.path.startsWith('validation/') &&
+            file.path.split('/').length === 2 &&
+            file.path !== 'validation/messages.ts'
+        )
+        .map((file) => ({ path: file.path, text: file.content })),
+      ...(behavior === undefined
+        ? {}
+        : { behavior: { path: behavior.path, text: behavior.content } }),
+      constants: [],
+    });
+
+    expect(seeded?.validation.length).toBeGreaterThan(0);
+    const expected = normalizeRules(seeded!);
+    const sorted = (list: readonly unknown[]) => list.map((item) => JSON.stringify(item)).sort();
+    expect(sorted(read.rules.validation)).toEqual(sorted(expected.validation));
+    expect(sorted(read.rules.behavior)).toEqual(sorted(expected.behavior));
+    expect(read.files.every((file) => file.origin === 'generated')).toBe(true);
   });
 });

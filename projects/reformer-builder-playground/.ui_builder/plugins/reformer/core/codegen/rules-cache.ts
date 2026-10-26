@@ -1,57 +1,68 @@
 /**
- * Кэш файлов правил для тех, кто спрашивает правила синхронно, — валидатора и редактора схемы.
+ * Кэш правил формы из кода её модуля — для тех, кто спрашивает правила синхронно: валидатора и
+ * редактора схемы.
  *
- * Их порты синхронные (проход валидатора, применимость команды), а файл правил читается
- * асинхронно. Поэтому промах кэша заказывает чтение и отвечает «пока не знаю», а когда текст
- * доехал или файл изменился (`onDidChange` рабочей области), кэш зовёт подписчиков — и те
- * перепроверяют документ. Плагины друг друга не импортируют, и у каждого свой экземпляр кэша:
- * дублируется только чтение маленького файла.
+ * Их порты синхронные (проход валидатора, применимость команды), а код модуля читается
+ * асинхронно. Поэтому промах кэша заказывает чтение и отвечает «пока не знаю», а когда тексты
+ * доехали или файл правил изменился (`onDidChange` рабочей области), кэш зовёт подписчиков — и
+ * те перепроверяют документ. Плагины друг друга не импортируют, и у каждого свой экземпляр кэша:
+ * дублируется только чтение нескольких маленьких файлов.
  *
- * Битый файл кэш отдаёт как «правил нет» — осиротевших правил в нём искать нечего, а о том, что
- * он не разбирается, говорят те, кто в него пишет (ассистент, генерация).
+ * Читает кэш код правил модуля (`./rules-code`) — тот же, что генерация и ассистент. Перечитывает
+ * модуль, когда меняется прочитанный файл либо в прочитанном каталоге появляется новый: файл шага
+ * называется заголовком шага, и переименованный шаг — это новый файл.
  *
  * @module plugins/reformer/core/codegen/rules-cache
  */
 
-import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
+import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { FormRules } from '../form-model/rules';
-import { rulesSidecarNameOf } from './layout';
-import { parseRulesText } from './rules-file';
+import { FORM_RULES_NAME, moduleRootOfDocument, VALIDATION_DIR } from './layout';
+import { loadRulesFromModule } from './rules-code';
 
 /** Что кэшу нужно от рабочей области. */
 export interface RulesCachePort {
   parentOf(id: ResourceId): ResourceId;
   resolve(dir: ResourceId, ...segments: readonly string[]): ResourceId;
   readText(id: ResourceId): Promise<string | null>;
+  /** Один уровень каталога; нет — читается только файл правил формы. */
+  list?(dir: ResourceId): Promise<readonly ResourceRef[]>;
   onDidChange(cb: (changed: readonly ResourceId[]) => void): Disposable;
 }
 
 export interface RulesCache {
-  /** Адрес файла правил документа формы. */
-  fileOf(document: ResourceId, documentPath: string): ResourceId;
+  /** Корень модуля формы документа — там живёт её код. */
+  rootOf(document: ResourceId, documentPath: string): ResourceId;
   /**
-   * Правила документа из кэша. Промах заказывает чтение и отвечает `undefined`; файла нет или он
-   * битый — `null`.
+   * Правила документа из кэша. Промах заказывает чтение и отвечает `undefined`; правил в коде
+   * нет (или модуля нет) — `null`.
    */
   get(document: ResourceId, documentPath: string): FormRules | null | undefined;
-  /** Записали сами — кэш знает новый текст сразу, не дожидаясь события рабочей области. */
-  remember(document: ResourceId, documentPath: string, text: string): void;
   /** Правила какого-то документа прочитаны заново и изменились. */
   onDidChange(cb: () => void): Disposable;
   dispose(): void;
 }
 
 interface Entry {
-  /** Текст, по которому разобраны правила; `undefined` — чтение ещё в пути. */
-  text: string | null | undefined;
-  rules: FormRules | null;
+  /** Правила; `undefined` — чтение ещё в пути. */
+  rules: FormRules | null | undefined;
+  /** Слепок правил — им сравнивается перечитанное. */
+  key: string | undefined;
+  /** Прочитанные файлы — их правка перечитывает модуль. */
+  read: Set<ResourceId>;
+  /** Прочитанные каталоги — новый файл в них перечитывает модуль. */
+  dirs: Set<ResourceId>;
+  /** Номер чтения: доехавшее старое чтение не затирает новое. */
+  generation: number;
 }
 
-const rulesOfText = (text: string | null): FormRules | null => {
-  if (text === null) return null;
-  const parsed = parseRulesText(text);
-  return parsed.ok ? parsed.rules : null;
-};
+/** В правилах нет ни одного правила и значения — для подписчиков это «правил нет». */
+function isEmpty(rules: FormRules): boolean {
+  return (
+    rules.validation.length + rules.behavior.length + rules.render.length === 0 &&
+    Object.keys(rules.dataSources ?? {}).length === 0
+  );
+}
 
 export function createRulesCache(port: RulesCachePort): RulesCache {
   const entries = new Map<ResourceId, Entry>();
@@ -62,46 +73,89 @@ export function createRulesCache(port: RulesCachePort): RulesCache {
     for (const listener of [...listeners]) listener();
   };
 
-  const settle = (id: ResourceId, text: string | null): void => {
-    const entry = entries.get(id);
-    if (disposed || entry === undefined || entry.text === text) return;
-    const first = entry.text === undefined;
-    entry.text = text;
-    entry.rules = rulesOfText(text);
-    // Первое чтение без правил ничего не меняет для подписчиков: до него они видели «правил
-    // нет», и перепроверять документ ради того же ответа незачем.
-    if (first && entry.rules === null) return;
-    emit();
-  };
-
-  const load = (id: ResourceId): void => {
-    void port.readText(id).then(
-      (text) => settle(id, text),
-      () => settle(id, null)
+  const load = (root: ResourceId, entry: Entry): void => {
+    entry.generation += 1;
+    const generation = entry.generation;
+    const read = new Set<ResourceId>();
+    const dirs = new Set<ResourceId>();
+    const at = (path: string) => port.resolve(root, ...path.split('/'));
+    const list = port.list;
+    void loadRulesFromModule(
+      {
+        read: async (path) => {
+          const id = at(path);
+          read.add(id);
+          return port.readText(id).catch(() => null);
+        },
+        ...(list === undefined
+          ? {}
+          : {
+              list: async (dir: string) => {
+                const id = at(dir);
+                dirs.add(id);
+                const children = await list(id).catch(() => null);
+                return children === null
+                  ? null
+                  : children
+                      .filter((child) => child.kind !== 'directory')
+                      .map((child) => child.name);
+              },
+            }),
+      },
+      { validation: [`${VALIDATION_DIR}/${FORM_RULES_NAME}.ts`] }
+    ).then(
+      (code) => settle(entry, generation, read, dirs, isEmpty(code.rules) ? null : code.rules),
+      () => settle(entry, generation, read, dirs, null)
     );
   };
 
-  const fileOf = (document: ResourceId, documentPath: string): ResourceId =>
-    port.resolve(port.parentOf(document), rulesSidecarNameOf(documentPath));
+  const settle = (
+    entry: Entry,
+    generation: number,
+    read: Set<ResourceId>,
+    dirs: Set<ResourceId>,
+    rules: FormRules | null
+  ): void => {
+    if (disposed || entry.generation !== generation) return;
+    entry.read = read;
+    entry.dirs = dirs;
+    const key = JSON.stringify(rules);
+    const first = entry.rules === undefined;
+    if (!first && entry.key === key) return;
+    entry.rules = rules;
+    entry.key = key;
+    // Первое чтение без правил ничего не меняет для подписчиков: до него они видели «правил
+    // нет», и перепроверять документ ради того же ответа незачем.
+    if (first && rules === null) return;
+    emit();
+  };
+
+  const rootOf = (document: ResourceId, documentPath: string): ResourceId =>
+    moduleRootOfDocument(port, document, documentPath);
 
   const watch = port.onDidChange((changed) => {
-    for (const id of changed) if (entries.has(id)) load(id);
+    for (const [root, entry] of entries) {
+      const touched = changed.some((id) => entry.read.has(id) || entry.dirs.has(port.parentOf(id)));
+      if (touched) load(root, entry);
+    }
   });
 
   return {
-    fileOf,
+    rootOf,
     get(document, documentPath) {
-      const id = fileOf(document, documentPath);
-      const entry = entries.get(id);
-      if (entry !== undefined) return entry.text === undefined ? undefined : entry.rules;
-      entries.set(id, { text: undefined, rules: null });
-      load(id);
+      const root = rootOf(document, documentPath);
+      const entry = entries.get(root);
+      if (entry !== undefined) return entry.rules;
+      const fresh: Entry = {
+        rules: undefined,
+        key: undefined,
+        read: new Set(),
+        dirs: new Set(),
+        generation: 0,
+      };
+      entries.set(root, fresh);
+      load(root, fresh);
       return undefined;
-    },
-    remember(document, documentPath, text) {
-      const id = fileOf(document, documentPath);
-      if (!entries.has(id)) entries.set(id, { text: undefined, rules: null });
-      settle(id, text);
     },
     onDidChange(cb) {
       listeners.add(cb);

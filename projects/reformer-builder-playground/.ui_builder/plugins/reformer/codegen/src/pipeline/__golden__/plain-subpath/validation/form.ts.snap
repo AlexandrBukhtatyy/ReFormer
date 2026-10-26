@@ -8,6 +8,7 @@ import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
 
 /** Правила формы: проверяются при отправке и живой проверкой. */
 export const formRules = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
+  // Заготовка: обязательные поля схемы — правила формы заменят её.
   validate(model.$.fullName, [required()]);
 });
 

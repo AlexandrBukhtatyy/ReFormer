@@ -5,7 +5,7 @@
  * формата формы и спрашивает стек точкой `CodegenStackPoint`. Здесь — всё, что знает ReFormer:
  *
  * - **форма документа** — схема формата 2 из модели или текста, визард, разбитый по файлам шагов,
- *   файл правил рядом с документом;
+ *   правила из кода модуля (`../pipeline/rules`);
  * - **кит** — без него неизвестно, откуда импортировать компоненты, и умолчание вернуло бы ровно
  *   тот дефект, ради которого дескриптор кита и заводился, только молча;
  * - **место модуля** — функция адреса документа (раскладка домена), а не введённого имени формы:
@@ -19,7 +19,7 @@
  * ## Отказы названы, а не брошены
  *
  * Документ не разбирается в схему — `null` («не моя форма»); файлы шагов не собираются, кита нет,
- * файл правил битый — отказ ключом словаря стека. Битый файл правил — именно отказ, а не
+ * прежний файл правил битый — отказ ключом словаря стека. Битый файл — именно отказ, а не
  * заготовки на месте правил, которые человек видит в файле: это была бы молчаливая потеря.
  * Исключением наружу уходит только то, чего мы не предвидели.
  *
@@ -34,7 +34,6 @@ import {
   moduleRootPathOf,
 } from '../../../core/codegen';
 import type { CatalogEntry } from '../../../core/catalog';
-import type { FormRules } from '../../../core/form-model';
 import type {
   CodegenDocument,
   CodegenForm,
@@ -50,7 +49,13 @@ import type {
 import { kitMismatchOf, notesOf } from './disk';
 import { findSchemaIn, schemaOf } from './find';
 import { generateModule } from '../pipeline/generate';
-import { readFormRules, RulesFileError } from '../pipeline/rules';
+import {
+  guardRuleFiles,
+  orphanTombstones,
+  rulesOverrideOf,
+  withRuleMerges,
+} from '../pipeline/rule-files';
+import { readModuleRules, RulesFileError, type ModuleRules } from '../pipeline/rules';
 import { formSourceOf, loadFormSource, StepPartsError, type FormSource } from '../pipeline/source';
 import { CODEGEN_STACK_ID, staleOverride } from '../pipeline/targets';
 
@@ -86,7 +91,7 @@ interface PreparedForm {
   readonly reader: CodegenReader;
   readonly source: FormSource;
   readonly kit: KitDescriptor;
-  readonly rules: FormRules | undefined;
+  readonly rules: ModuleRules;
   readonly root: ResourceId;
   readonly rootPath: string;
   readonly formName: string;
@@ -95,16 +100,17 @@ interface PreparedForm {
 }
 
 /**
- * Правила формы — файл правил рядом с документом. Читаются на каждый прогон, кэша нет: их правят
- * ассистент, человек и быстрые исправления, и прогон обязан видеть последний текст.
+ * Правила формы — из кода её модуля. Читаются на каждый прогон, кэша нет: их правят ассистент,
+ * человек и быстрые исправления, и прогон обязан видеть последний текст.
  */
 async function rulesOf(
   reader: CodegenReader,
+  root: ResourceId,
   id: ResourceId,
   path: string
-): Promise<{ readonly rules: FormRules | undefined } | CodegenRefusal> {
+): Promise<{ readonly rules: ModuleRules } | CodegenRefusal> {
   try {
-    return { rules: (await readFormRules(reader, id, path)) ?? undefined };
+    return { rules: await readModuleRules(reader, root, id, path) };
   } catch (error) {
     if (!(error instanceof RulesFileError)) throw error;
     return refused('error.rules-file', error.message);
@@ -119,6 +125,9 @@ function formOf(options: CodegenStackOptions, prepared: PreparedForm): CodegenFo
     rootPath: prepared.rootPath,
     formName: prepared.formName,
     async print(request: CodegenPrintRequest): Promise<CodegenModule> {
+      // Заказчик (ассистент) подаёт правила вместо правил кода — так правила хода ложатся в код.
+      const override = rulesOverrideOf(request.input);
+      const input = override ?? rules.rules;
       const module = await generateModule(
         request.targets,
         {
@@ -127,19 +136,28 @@ function formOf(options: CodegenStackOptions, prepared: PreparedForm): CodegenFo
           formName: request.formName,
           schemaPath,
           kit: { kit, catalog: options.catalog() },
-          rules,
+          rules: input,
         },
         request.format
       );
+      // Код — источник правил: файл правил, который не читается обратно, не пишется. Новые
+      // тексты и значения источников доезжают до файлов человека точечной правкой.
+      const printed =
+        override === null ? module.files : withRuleMerges(module.files, rules.code, override);
+      const guarded = guardRuleFiles(
+        [...printed, ...orphanTombstones(rules.code, module.files)],
+        input
+      );
       return {
-        files: module.files,
-        problems: module.problems,
+        files: guarded.files,
+        problems: [...module.problems, ...guarded.problems],
         view: module.view,
         // Сниппет регистрации — не файл модуля: он вставляется в ЧУЖОЕ приложение, и записать
         // его за человека нельзя. Поэтому он не цель, а часть отчёта.
         snippet: appSnippet(module.context.names),
-        check: () => kitMismatchOf(reader, root, module.files),
-        inspect: () => notesOf(reader, root, module.files, schemaPath),
+        // Запись части модуля (правила) кит модуля не задевает: проверяется то, что пишется.
+        check: (delivered) => kitMismatchOf(reader, root, delivered ?? module.files),
+        inspect: () => notesOf(reader, root, module.files, schemaPath, rules.legacyFile),
       };
     },
   };
@@ -172,7 +190,8 @@ export function createCodegenStack(options: CodegenStackOptions): CodegenStack {
       if (kit === null) return refused('error.no-kit');
 
       const path = document.ref.path;
-      const rules = await rulesOf(reader, document.id, path);
+      const root = moduleRootOfDocument(reader, document.id, path);
+      const rules = await rulesOf(reader, root, document.id, path);
       if ('refusal' in rules) return rules;
 
       return formOf(options, {
@@ -180,7 +199,7 @@ export function createCodegenStack(options: CodegenStackOptions): CodegenStack {
         source,
         kit,
         rules: rules.rules,
-        root: moduleRootOfDocument(reader, document.id, path),
+        root,
         rootPath: moduleRootPathOf(path),
         formName: formNameOfSchemaPath(path),
         schemaPath: modulePlacementOf(path).schemaPath,
@@ -205,7 +224,7 @@ export function createCodegenStack(options: CodegenStackOptions): CodegenStack {
         return refused('error.step-parts', error.message);
       }
 
-      const rules = await rulesOf(reader, found.ref.id, found.ref.path);
+      const rules = await rulesOf(reader, found.root, found.ref.id, found.ref.path);
       if ('refusal' in rules) return rules;
 
       return formOf(options, {

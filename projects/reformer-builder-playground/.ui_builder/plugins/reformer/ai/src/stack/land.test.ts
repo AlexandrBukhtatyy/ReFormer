@@ -1,7 +1,7 @@
 /**
  * Применение набора изменений: одна запись, строгий гейт и отказ вместо тихой перезаписи.
  *
- * @module plugins/reformer/ai/session/apply.test
+ * @module plugins/reformer/ai/stack/land.test
  */
 
 import { describe, expect, it } from 'vitest';
@@ -11,15 +11,11 @@ import { emptyRules } from '../../../core/form-model';
 import { applyChangeSet, type ApplyDeps, type ApplyRequest } from './land';
 import { createChangeSet, type ChangeSet } from '../model/changeset';
 import { printSchemaText } from '../model/schema-text';
-import { createFakeDocuments, createFakeFiles, type FakeFiles } from './testing';
+import { createFakeDocuments } from './testing';
 
-/** Документы и, если даны, файлы проекта — то, что запись набора берёт у рабочей области. */
-const createFakeHost = (files?: FakeFiles) => ({
-  ...createFakeDocuments(files),
-  ...(files === undefined ? {} : { files }),
-});
+/** Документы — то, что запись набора берёт у рабочей области. */
+const createFakeHost = () => createFakeDocuments();
 import { builtinEntries } from '../../../core/testing';
-import { printRulesText } from '../../../core/codegen/rules-file';
 
 const RESOURCE = 'form.json';
 
@@ -175,72 +171,42 @@ describe('применение набора', () => {
   });
 });
 
-describe('файл правил формы — вторая запись того же хода', () => {
-  const RULES_FILE = 'form.rules.json';
-  const REQUIRED = {
-    validation: [{ target: 'email', rules: ['required'] }],
-    behavior: [],
-    render: [],
-  };
-
-  function withRules(rulesText: string | null, options: { broken?: string } = {}) {
-    const files = createFakeFiles(rulesText === null ? {} : { [RULES_FILE]: rulesText });
-    const host = createFakeHost(files);
-    const base = schema('Почта');
-    const baseText = printSchemaText(base);
-    host.openDocument(RESOURCE, baseText);
-    const pending: ApplyRequest = {
-      set: { ...changed(base, schema('Email')), draftRules: REQUIRED },
-      resource: RESOURCE,
-      baseText,
-      txId: 'tx-1',
-      rulesFile: {
-        id: RULES_FILE,
-        text: rulesText,
-        ...(options.broken === undefined ? {} : { broken: options.broken }),
-      },
-    };
-    return { host, files, pending };
-  }
-
-  it('правила ложатся файлом рядом с той же пометкой хода, что схема', async () => {
-    const { host, files, pending } = withRules(null);
-    expect(await applyChangeSet(deps(host), pending)).toEqual({ status: 'applied' });
-    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
-    expect(files.writes[0].mark).toEqual(host.writes[0].mark);
-    expect(host.writes[0].mark?.txId).toBe('tx-1');
-  });
-
-  it('правила не менялись — файл не трогается и не заводится', async () => {
-    const { host, files, pending } = withRules(printRulesText(REQUIRED));
-    await applyChangeSet(deps(host), pending);
-    expect(files.writes).toEqual([]);
-
-    const empty = withRules(null);
-    const noRules = { ...empty.pending, set: { ...empty.pending.set, draftRules: emptyRules() } };
-    await applyChangeSet(deps(empty.host), noRules);
-    expect(empty.files.writes).toEqual([]);
-  });
-
-  it('файл правил правили после начала хода — расхождение; «всё равно» пишет', async () => {
-    const { host, files, pending } = withRules(null);
-    files.put(RULES_FILE, printRulesText(emptyRules()));
-    expect(await applyChangeSet(deps(host), pending)).toEqual({ status: 'conflict' });
+describe('сопутствующие файлы хода — сверяются до записи', () => {
+  it('разошлись — расхождение, и документ не записан', async () => {
+    const { host, pending } = setup();
+    const outcome = await applyChangeSet(deps(host), {
+      ...pending,
+      companionsUnchanged: () => Promise.resolve(false),
+    });
+    expect(outcome).toEqual({ status: 'conflict' });
     expect(host.writes).toEqual([]);
-
-    expect(await applyChangeSet(deps(host), pending, { force: true })).toEqual({
-      status: 'applied',
-    });
-    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
   });
 
-  it('битый файл правил не перезаписывается: схема легла, исход говорит о правилах', async () => {
-    const { host, files, pending } = withRules('{ broken', { broken: 'Unexpected token' });
-    expect(await applyChangeSet(deps(host), pending)).toEqual({
-      status: 'applied',
-      rulesBroken: true,
+  it('«применить всё равно» их не сверяет', async () => {
+    const { host, pending } = setup();
+    let asked = false;
+    const outcome = await applyChangeSet(
+      deps(host),
+      {
+        ...pending,
+        companionsUnchanged: () => {
+          asked = true;
+          return Promise.resolve(false);
+        },
+      },
+      { force: true }
+    );
+    expect(outcome).toEqual({ status: 'applied' });
+    expect(asked).toBe(false);
+  });
+
+  it('не разошлись — ход ложится одной записью документа', async () => {
+    const { host, pending } = setup();
+    const outcome = await applyChangeSet(deps(host), {
+      ...pending,
+      companionsUnchanged: () => Promise.resolve(true),
     });
-    expect(files.text(RULES_FILE)).toBe('{ broken');
+    expect(outcome).toEqual({ status: 'applied' });
     expect(host.writes).toHaveLength(1);
   });
 });

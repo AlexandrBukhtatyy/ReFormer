@@ -65,10 +65,11 @@ export const FORM_RULES_NAME = 'form';
 export const MESSAGES_NAME = 'messages';
 
 /**
- * Файл правил формы (валидация, поведение, правила узлов) рядом с её документом — сайдкар,
- * см. `core/form-model/rules`. Разметка его не знает: правила живут отдельно от схемы.
+ * Прежний файл правил формы — JSON рядом с документом, каким правила жили до правил в коде
+ * модуля (`./rules-code`). Сам не пишется никем: модуль, в коде которого правил ещё нет, получает
+ * правила из него один раз, а генерация называет его устаревшим (`./rules-file`).
  */
-export const RULES_SIDECAR_FILE = 'form.rules.json';
+export const LEGACY_RULES_FILE = 'form.rules.json';
 
 /**
  * Имена, которые шаг визарда занять не может: под ними в `validation/` лежат файлы формы.
@@ -235,20 +236,30 @@ export function schemaPathInModule(path: string): string {
 }
 
 /**
- * Имя файла правил для документа формы — он лежит в том же каталоге.
+ * Имя прежнего файла правил документа формы — он лежит в том же каталоге.
  *
- * У канонических имён документа — всегда {@link RULES_SIDECAR_FILE}, в том числе у прежнего
- * `renderer.schema.json`: доставка переименует документ в `form.schema.json`, и правила обязаны
- * пережить это без второго переименования. У свободного имени — его основа до первой точки:
- * `credit.schema.json` → `credit.rules.json`. Окончания `.schema.json` и `.form.json` файл правил
- * не получает никогда — по ним поиск формы в каталоге принял бы его за документ.
+ * У канонических имён документа — всегда {@link LEGACY_RULES_FILE}, в том числе у прежнего
+ * `renderer.schema.json`. У свободного имени — его основа до первой точки:
+ * `credit.schema.json` → `credit.rules.json`.
  */
-export function rulesSidecarNameOf(documentPath: string): string {
+export function legacyRulesNameOf(documentPath: string): string {
   const name = baseName(normalize(documentPath));
-  if (isCanonicalSchemaName(name)) return RULES_SIDECAR_FILE;
+  if (isCanonicalSchemaName(name)) return LEGACY_RULES_FILE;
   const dot = name.indexOf('.');
   const stem = dot === -1 ? name : name.slice(0, dot);
-  return stem === '' ? RULES_SIDECAR_FILE : `${stem}.rules.json`;
+  return stem === '' ? LEGACY_RULES_FILE : `${stem}.rules.json`;
+}
+
+/**
+ * Путь прежнего файла правил от корня модуля. У документа со свободным именем модуль — подкаталог
+ * рядом с ним, и файл лежит уровнем выше корня модуля.
+ */
+export function legacyRulesPathOf(documentPath: string): string {
+  const placement = modulePlacementOf(documentPath);
+  const name = legacyRulesNameOf(documentPath);
+  return placement.kind === 'detached'
+    ? `../${name}`
+    : `${schemaDirOf(placement.schemaPath)}${name}`;
 }
 
 /** Где модуль формы лежит относительно её документа. */
@@ -360,8 +371,8 @@ export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path:
  * Роль файла модуля формы — то, что правка этого файла значит для кодогена.
  *
  * - `form` — документ формы; `step` — файл шага разбитого визарда;
- * - `rules` — файл правил формы рядом с документом ({@link rulesSidecarNameOf}): из него кодоген
- *   печатает `regenerable`-файлы;
+ * - `obsolete` — прежний файл правил рядом с документом ({@link legacyRulesNameOf}): правила
+ *   живут в коде модуля, и писать в него незачем;
  * - `derived` — производный: генерация кода перепечатывает его ВСЕГДА, ручная правка не доживёт
  *   до следующего прогона;
  * - `regenerable` — авторский, но печатается из правил формы, пока несёт маркер кодогена: правка
@@ -373,7 +384,7 @@ export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path:
 export type ModuleFileRole =
   | 'form'
   | 'step'
-  | 'rules'
+  | 'obsolete'
   | 'derived'
   | 'regenerable'
   | 'user'
@@ -413,7 +424,7 @@ const USER_FILES: readonly string[] = Object.freeze([
 export function fileRoleOf(path: string, schemaPath: string): ModuleFileRole {
   const file = normalize(path);
   if (file === normalize(schemaPath)) return 'form';
-  if (file === `${schemaDirOf(schemaPath)}${rulesSidecarNameOf(schemaPath)}`) return 'rules';
+  if (file === `${schemaDirOf(schemaPath)}${legacyRulesNameOf(schemaPath)}`) return 'obsolete';
 
   const stepsDir = `${schemaDirOf(schemaPath)}${STEP_SCHEMAS_DIR}/`;
   if (file.startsWith(stepsDir)) {

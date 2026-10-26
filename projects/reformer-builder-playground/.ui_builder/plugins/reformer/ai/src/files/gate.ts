@@ -33,8 +33,12 @@
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { originOf } from '@reformer/builder-toolkit';
 import { isFormStepSchema, migrateNodeFormat } from '../../../core/form-model';
-import { fileRoleOf, type ModuleFileRole } from '../../../core/codegen/layout';
-import { parseRulesText } from '../../../core/codegen/rules-file';
+import {
+  fileRoleOf,
+  FORM_RULES_NAME,
+  VALIDATION_DIR,
+  type ModuleFileRole,
+} from '../../../core/codegen/layout';
 import { validateSchema } from '../model/validate';
 import { countErrors, introduced } from '../loop/introduced';
 import { MAX_REPORTED } from '../loop/gate';
@@ -76,12 +80,15 @@ export async function gateWrite(
   if (roleNote) notes.push(roleNote);
 
   if (role === 'form' || role === 'step') return schemaGate(ctx, file, next, before, role, notes);
-  if (role === 'rules') {
-    // Файл правил разбирается так же, как его читают ход и кодоген: битый файл они примут за
-    // отказ, а не за «правил нет», — значит, и записать его нельзя.
-    const parsed = parseRulesText(next);
-    if (!parsed.ok) return refuse('SCHEMA_INVALID', `${file.rel}: ${parsed.error}`);
-    return { ok: true, notes };
+  if (role === 'obsolete') {
+    // Правила живут в коде модуля, а прежний файл правил билдер больше не читает, кроме одного
+    // переноса: правило, записанное сюда, не сработало бы нигде.
+    return refuse(
+      'REFUSED',
+      `${file.rel} is obsolete: form rules live in the module code — ` +
+        `${VALIDATION_DIR}/${FORM_RULES_NAME}.ts, ${VALIDATION_DIR}/<step>.ts and behavior/index.ts. ` +
+        'Write the rules there.'
+    );
   }
   if (/\.tsx?$/.test(file.rel)) return codeGate(ctx, file, next, before, notes);
   if (file.rel.endsWith('.json')) {
@@ -280,6 +287,6 @@ function list(items: readonly string[]): string {
   return `${shown}${rest > 0 ? ` (and ${rest} more)` : ''}`;
 }
 
-function refuse(code: 'SCHEMA_INVALID' | 'CODE_INVALID', message: string): GateVerdict {
+function refuse(code: 'SCHEMA_INVALID' | 'CODE_INVALID' | 'REFUSED', message: string): GateVerdict {
   return { ok: false, outcome: fail(code, message) };
 }

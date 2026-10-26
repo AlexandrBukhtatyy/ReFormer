@@ -337,8 +337,8 @@ export function createSchemaValidatorPlugin(options: SchemaValidatorOptions): Pl
         ctx.i18n.contribute(locale, messages);
       }
       const deferred = createDeferredSchemaCheck();
-      // Правила — файл рядом с документом (`core/codegen/rules-file`); проход синхронный,
-      // поэтому через кэш: доехавший или изменившийся файл перепроверяет документ.
+      // Правила — код модуля формы (`core/codegen/rules-code`); проход синхронный, поэтому
+      // через кэш: доехавший или изменившийся файл правил перепроверяет документ.
       const files =
         options.rules === undefined ? ctx.services.get(WorkspaceFilesServiceToken) : undefined;
       const rulesCache = files === undefined ? undefined : createRulesCache(files);

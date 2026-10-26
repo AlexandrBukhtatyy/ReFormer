@@ -56,6 +56,7 @@ import {
   quote,
 } from '../print/js';
 import { PRINT_WIDTH, widthOf } from '../print/doc';
+import { SCAFFOLD_NOTE } from '../rules-code/validation';
 import { behaviorView, mentions, type BehaviorView } from './behavior';
 import { messagesView, type MessagesView } from './messages';
 import { kitEntryOf, registryView, type RegistryView } from './registry';
@@ -325,6 +326,10 @@ function blockOf(code: ValidationCode): RulesBlockView {
  * Обязательность здесь — флаг `required` узла схемы. Печатается только там, где правил формы
  * нет вовсе: с правилами обязательность задают ПРАВИЛА, и печатать оба значило бы проверять
  * поле дважды и расходиться при правке одного из них.
+ *
+ * Первая строка тела — пометка заготовки ({@link SCAFFOLD_NOTE}). Правила живут в коде модуля, и
+ * без пометки нетронутая заготовка читалась бы правилами (`../rules-code`): обязательность
+ * перестала бы следовать за флагом схемы, как только модуль сгенерирован.
  */
 function scaffoldBlock(required: readonly string[]): RulesBlockView {
   if (required.length === 0) {
@@ -336,7 +341,10 @@ function scaffoldBlock(required: readonly string[]): RulesBlockView {
       "import { required } from '@reformer/core/validators';",
     ],
     body: formatBody(
-      required.map((path) => `validate(model.$.${path}, [required()]);`),
+      [
+        `// ${SCAFFOLD_NOTE}`,
+        ...required.map((path) => `validate(model.$.${path}, [required()]);`),
+      ],
       { indent: BODY_INDENT }
     ),
     usesModel: true,

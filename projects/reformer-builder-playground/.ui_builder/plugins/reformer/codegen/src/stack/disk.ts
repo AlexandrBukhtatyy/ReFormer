@@ -79,7 +79,9 @@ function at(reader: CodegenReader, dir: ResourceId, path: string): ResourceId {
  * реестре на диске и в свежем — то есть кит модуля и кит, под который он печатается сейчас.
  *
  * По полному модулю: запись одной цели (типы из меню дерева) реестра среди доставляемых не
- * несёт, а кит у модуля тот же.
+ * несёт, а кит у модуля тот же. Заказ части модуля (`GenerateRequest.only`) — другое дело: файлы
+ * правил кит не импортируют, и запись правил хода в модуль другого кита ему не мешает. Поэтому
+ * хозяин подаёт сюда то, что пишется, и без реестра среди них проверять нечего.
  */
 export async function kitMismatchOf(
   reader: CodegenReader,
@@ -174,7 +176,8 @@ async function flatOf(
 }
 
 /**
- * Заметки о модуле на диске после записи: сироты шагов и файлы прежней раскладки.
+ * Заметки о модуле на диске после записи: сироты шагов, файлы прежней раскладки и прежний файл
+ * правил.
  *
  * `module` — весь модуль, а не только записанное: при записи одной цели (типы из меню дерева)
  * среди записанного файлов шагов нет вовсе, и без полного состава КАЖДЫЙ файл шага выглядел бы
@@ -184,7 +187,8 @@ export async function notesOf(
   reader: CodegenReader,
   dir: ResourceId,
   module: readonly CodegenFile[],
-  schemaPath: string
+  schemaPath: string,
+  legacyRules: string | null = null
 ): Promise<readonly CodegenNote[]> {
   const notes: CodegenNote[] = [];
   const orphans = await orphansOf(reader, dir, module, schemaPath);
@@ -208,6 +212,16 @@ export async function notesOf(
       title: { key: 'flat.title' },
       detail: { key: 'flat.detail' },
       notify: { key: 'notify.flat', params: { count: flat.length, files: flat.join(', ') } },
+    });
+  }
+  // Прежний файл правил: правила живут в коде модуля, и файл больше не нужен.
+  if (legacyRules !== null) {
+    notes.push({
+      id: 'legacy-rules',
+      paths: [legacyRules],
+      title: { key: 'legacy-rules.title' },
+      detail: { key: 'legacy-rules.detail' },
+      notify: { key: 'notify.legacy-rules', params: { file: legacyRules } },
     });
   }
   return notes;

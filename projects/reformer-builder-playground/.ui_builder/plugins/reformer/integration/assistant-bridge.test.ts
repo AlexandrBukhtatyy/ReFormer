@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '../core/testing';
+import type { FormRules } from '../core/form-model';
 import { listComponents } from '../ai/src/model/catalog-digest';
 import type {
   FormCreatorService,
@@ -43,7 +44,8 @@ import {
 import { createFakeHost, type FakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles, type FakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
-import { emptyRulesText, printRulesText } from '../core/codegen/rules-file';
+import { legacyRulesText as printRulesText } from '../core/testing';
+import { generatorOver } from './codegen-harness';
 import type {
   ContributedTool,
   ContributedToolEntry,
@@ -68,11 +70,12 @@ const EMPTY_FORM: JsonFormSchema = {
  * есть файлы. Настоящая проверка, а не двойник: гейт — то, ради чего мост зовёт применение, и
  * подменять его здесь значило бы проверять подмену.
  */
-function schemaStack(files?: FakeFiles) {
+function schemaStack(files?: FakeFiles, generator?: () => ModuleGeneratorService | undefined) {
   return createSchemaFormStack({
     catalog: () => catalog,
     validateForm: () => Promise.resolve(validateFormSchema),
     ...(files === undefined ? {} : { scopeOf: (id: ResourceId) => files.scopeOf(id) }),
+    ...(generator === undefined ? {} : { generator }),
   });
 }
 
@@ -134,11 +137,29 @@ function harness(
     readonly assistantTools?: readonly ContributedToolEntry[];
     readonly resourceProviders?: readonly ResourceProviderEntry[];
     readonly generator?: ModuleGeneratorService;
+    /**
+     * Генерация — настоящая, поверх файлов и вкладок хода (`generatorOver`): ею ход пишет
+     * правила в код модуля. Заменяет `generator`.
+     */
+    readonly codegen?: boolean;
     readonly formCreator?: FormCreatorService;
+    /** Документ формы, открытый на старте; по умолчанию — {@link RESOURCE}. */
+    readonly resource?: ResourceId;
+    /** Текст открытого документа; по умолчанию — пустая форма. */
+    readonly formText?: string;
   } = {}
 ): Harness {
   const host = createFakeHost(options.files);
-  if (options.openForm !== false) host.openDocument(RESOURCE, printSchemaText(EMPTY_FORM));
+  if (options.openForm !== false) {
+    host.openDocument(
+      options.resource ?? RESOURCE,
+      options.formText ?? printSchemaText(EMPTY_FORM)
+    );
+  }
+  const generator =
+    options.codegen === true && options.files !== undefined
+      ? generatorOver({ files: options.files, documentOf: (id) => host.documentOf(id) })
+      : options.generator;
 
   const providers = createProviderRegistry();
   if (options.withProvider !== false) {
@@ -157,7 +178,7 @@ function harness(
 
   const session = createAiSession();
   const execute = vi.fn().mockResolvedValue('готово');
-  const stack = schemaStack(options.files);
+  const stack = schemaStack(options.files, () => generator);
   const bridge = createAgentBridge({
     assistant,
     host,
@@ -166,7 +187,7 @@ function harness(
     executeCommand: execute as (id: string, args?: unknown) => Promise<unknown>,
     assistantTools: () => options.assistantTools ?? [],
     resourceProviders: () => options.resourceProviders ?? [],
-    generator: () => options.generator,
+    generator: () => generator,
     formCreator: () => options.formCreator,
     stacks: () => [stack],
   });
@@ -1526,45 +1547,114 @@ describe('вопросы модели (ask_user)', () => {
   });
 });
 
-describe('файл правил формы', () => {
-  const RULES_FILE = 'form.rules.json';
-  const insertEmail: FakeStep = {
-    tool: 'insert_node',
-    args: {
-      parent: '/root',
-      nodes: [{ component: FIELD, model: 'email', props: { label: 'Почта' } }],
+describe('правила формы — в коде модуля', () => {
+  const DOC = 'forms/login/schema/form.schema.json';
+  const MODULE = 'forms/login';
+  const FORM_RULES = `${MODULE}/validation/form.ts`;
+  const MESSAGES = `${MODULE}/validation/messages.ts`;
+  const TYPES = `${MODULE}/types/login.ts`;
+  /** Форма с полем почты — от неё ход ставит правила, не вставляя полей. */
+  const EMAIL_TEXT = printSchemaText({
+    format: 2,
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      children: [
+        {
+          model: '$model(email)',
+          component: `$component(${FIELD})`,
+          componentProps: { label: 'Почта' },
+        },
+      ],
     },
-  };
+  } as unknown as JsonFormSchema);
   const requireEmail: FakeStep = {
     tool: 'set_form_rules',
     args: { validation: [{ target: 'email', rules: ['required'] }] },
   };
-  const REQUIRED = {
-    validation: [{ target: 'email', rules: ['required'] }],
-    behavior: [],
-    render: [],
+  const longEmail: FakeStep = {
+    tool: 'set_form_rules',
+    args: { validation: [{ target: 'email', rules: ['minLength(5)'] }] },
   };
 
-  it('правила хода ложатся файлом рядом с документом той же пометкой хода', async () => {
-    const files = createFakeFiles();
-    const { host, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], { files });
-    await bridge.send('добавь обязательную почту');
+  /** Ход по форме логина с настоящей генерацией поверх тех же файлов. */
+  function loginHarness(
+    script: readonly FakeStep[],
+    options: { readonly files?: FakeFiles; readonly provider?: AiProvider } = {}
+  ) {
+    const files = options.files ?? createFakeFiles({ [DOC]: EMAIL_TEXT });
+    const h = harness(script, {
+      files,
+      codegen: true,
+      resource: DOC,
+      formText: files.text(DOC) ?? EMAIL_TEXT,
+      ...(options.provider === undefined ? {} : { provider: options.provider }),
+    });
+    return { ...h, files };
+  }
 
-    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
-    expect(files.writes.at(-1)?.mark).toEqual(host.writes.at(-1)?.mark);
+  /** Модуль уже сгенерирован — как после «Сгенерировать код» в панели. */
+  async function generatedModule(rules?: FormRules): Promise<FakeFiles> {
+    const files = createFakeFiles({ [DOC]: EMAIL_TEXT });
+    const generator = generatorOver({
+      files,
+      documentOf: (id) => (id === DOC ? { getText: () => EMAIL_TEXT } : null),
+    });
+    const report = await generator.generate(
+      DOC,
+      rules === undefined ? {} : { stackInput: { stack: 'reformer', value: { rules } } }
+    );
+    if (!report.ok) throw new Error(report.message);
+    return files;
+  }
+
+  const wrote = (files: FakeFiles) => files.writes.map((write) => write.path);
+
+  it('форма без кода: ход генерирует модуль целиком, правило — в validation/form.ts', async () => {
+    const { host, files, bridge } = loginHarness([requireEmail, { text: 'Готово.' }]);
+    await bridge.send('сделай почту обязательной');
+
+    expect(files.text(FORM_RULES)).toContain('validate(model.$.email');
+    expect(files.text(TYPES)).toBeDefined();
+    // Файла правил рядом с документом больше нет — правила живут кодом.
+    expect(wrote(files).some((path) => path.endsWith('.rules.json'))).toBe(false);
+    // Документ ход пишет сам, а генерацию в него не пускает.
+    expect(wrote(files)).not.toContain(DOC);
+    // Записи генерации — записи хода: та же пометка, что у документа.
+    const mark = host.writes.at(-1)?.mark;
+    expect(mark?.txId).toBeDefined();
+    expect(files.writes.every((write) => write.mark?.txId === mark?.txId)).toBe(true);
   });
 
-  it('новый мост — как после перезагрузки — показывает модели правила из файла', async () => {
-    const files = createFakeFiles({ [RULES_FILE]: printRulesText(REQUIRED) });
-    const { provider, requests } = recordingSequence([[{ text: 'Правило одно.' }]]);
-    const { bridge } = harness([], { files, provider });
-    await bridge.send('какие правила?');
+  it('модуль с кодом: ход пишет только файлы правил, правка человека в типах цела', async () => {
+    const files = await generatedModule();
+    files.put(TYPES, `${files.text(TYPES)}// правка человека\n`);
+    const before = files.writes.length;
+    const { bridge } = loginHarness([requireEmail, { text: 'Готово.' }], { files });
+    await bridge.send('сделай почту обязательной');
+
+    const turn = files.writes.slice(before).map((write) => write.path);
+    expect(turn).toContain(FORM_RULES);
+    expect(turn.every((path) => /\/(validation|behavior|constants)\//.test(path))).toBe(true);
+    expect(files.text(TYPES)).toContain('// правка человека');
+    expect(files.text(FORM_RULES)).toContain('validate(model.$.email');
+  });
+
+  it('следующий ход — как после перезагрузки — видит правила из кода и дописывает к ним', async () => {
+    const files = await generatedModule();
+    await loginHarness([requireEmail, { text: 'Готово.' }], { files }).bridge.send('обязательна');
+
+    const { provider, requests } = recordingSequence([[longEmail, { text: 'Готово.' }]]);
+    const { bridge } = loginHarness([], { files, provider });
+    await bridge.send('почта не короче пяти');
 
     expect(JSON.stringify(requests[0])).toContain('validate email: required');
+    expect(files.text(FORM_RULES)).toContain('required');
+    expect(files.text(FORM_RULES)).toContain('minLength(5)');
   });
 
-  it('текст обычного правила виден модели, служебный код — нет', async () => {
-    const coded = {
+  it('текст правила виден модели, служебный код — нет', async () => {
+    const files = await generatedModule({
       validation: [
         {
           target: 'email',
@@ -1575,60 +1665,130 @@ describe('файл правил формы', () => {
       ],
       behavior: [],
       render: [],
-    };
-    const files = createFakeFiles({ [RULES_FILE]: printRulesText(coded) });
+    });
+    expect(files.text(MESSAGES)).toContain('Укажите почту');
     const { provider, requests } = recordingSequence([[{ text: 'Правило одно.' }]]);
-    const { bridge } = harness([], { files, provider });
-    await bridge.send('какие правила?');
+    await loginHarness([], { files, provider }).bridge.send('какие правила?');
 
     const sent = JSON.stringify(requests[0]);
     expect(sent).toContain('validate email: required \\"Укажите почту\\"');
     expect(sent).not.toContain('email.required');
   });
 
-  it('отмена хода возвращает файл правил: созданный ходом — очищается', async () => {
-    const files = createFakeFiles();
-    const { host, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], { files });
-    await bridge.send('добавь обязательную почту');
+  it('отмена хода возвращает файлы правил тем, чем они были', async () => {
+    const files = await generatedModule();
+    const original = files.text(FORM_RULES);
+    // Генерация панели печатает и документ — ход начинается с напечатанного.
+    const form = files.text(DOC);
+    const { host, bridge } = loginHarness([requireEmail, { text: 'Готово.' }], { files });
+    await bridge.send('сделай почту обязательной');
 
     expect(await bridge.undoLastTurn()).toBe('undone');
-    expect(files.text(RULES_FILE)).toBe(emptyRulesText());
-    expect(host.documentOf(RESOURCE)?.getText()).toBe(printSchemaText(EMPTY_FORM));
+    expect(files.text(FORM_RULES)).toBe(original);
+    expect(host.documentOf(DOC)?.getText()).toBe(form);
   });
 
-  it('«Восстановить» на реплике возвращает и правила', async () => {
-    const files = createFakeFiles();
-    const { session, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], {
-      files,
-    });
-    await bridge.send('добавь обязательную почту');
+  it('отмена хода, создавшего модуль: файл правил — печать без правил хода, а не с ними', async () => {
+    const { files, bridge } = loginHarness([requireEmail, { text: 'Готово.' }]);
+    await bridge.send('сделай почту обязательной');
+
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    // Удалить созданный файл нечем — он остаётся, но правила хода из него ушли.
+    expect(files.text(FORM_RULES)).toBeDefined();
+    expect(files.text(FORM_RULES)).not.toContain('validate(model.$.email');
+  });
+
+  it('«Восстановить» на реплике возвращает и правила кода', async () => {
+    const files = await generatedModule();
+    const original = files.text(FORM_RULES);
+    const { session, bridge } = loginHarness([requireEmail, { text: 'Готово.' }], { files });
+    await bridge.send('сделай почту обязательной');
     await bridge.restoreTo(session.get().entries[0].id);
 
-    expect(files.text(RULES_FILE)).toBe(emptyRulesText());
+    expect(files.text(FORM_RULES)).toBe(original);
   });
 
-  it('битый файл правил: разметка легла, файл не тронут, замечание называет файл', async () => {
-    const files = createFakeFiles({ [RULES_FILE]: '{ broken' });
-    const { host, session, bridge } = harness([insertEmail, requireEmail, { text: 'Готово.' }], {
+  it('generate_code в том же ходе перепечатывает файлы правил, и отмена снимает всё', async () => {
+    const files = await generatedModule();
+    const original = files.text(FORM_RULES);
+    const { bridge } = loginHarness([requireEmail, { tool: 'generate_code', args: {} }], {
       files,
     });
-    await bridge.send('добавь обязательную почту');
+    await bridge.send('обязательная почта и код');
 
-    expect(files.text(RULES_FILE)).toBe('{ broken');
-    expect(host.documentOf(RESOURCE)?.getText()).toContain('Почта');
-    expect(session.get().error).toContain('turn.rules.broken');
-    expect(session.get().error).toContain(RULES_FILE);
+    expect(files.text(FORM_RULES)).toContain('validate(model.$.email');
+    expect(await bridge.undoLastTurn()).toBe('undone');
+    expect(files.text(FORM_RULES)).toBe(original);
   });
 
-  it('инструменту плагина файл правил не отдаётся', async () => {
-    const files = createFakeFiles({ [RULES_FILE]: printRulesText(REQUIRED) });
-    const { bridge } = harness([writeNote, { text: 'Готово.' }], {
+  it('файл правил переписали посреди хода — расхождение; «применить всё равно» пишет правила', async () => {
+    const files = await generatedModule();
+    const foreign = `${files.text(FORM_RULES)}// чужая запись\n`;
+    const h = harness([writeNote, requireEmail, { text: 'Готово.' }], {
       files,
-      assistantTools: [writerTool(RULES_FILE, '{}')],
+      codegen: true,
+      resource: DOC,
+      formText: files.text(DOC) ?? EMAIL_TEXT,
+      assistantTools: [writerTool(FORM_RULES, foreign)],
     });
-    await bridge.send('перепиши правила');
+    await h.bridge.send('сделай почту обязательной');
 
-    expect(files.text(RULES_FILE)).toBe(printRulesText(REQUIRED));
+    expect(h.session.get().conflict).toBe(true);
+    expect(files.text(FORM_RULES)).toBe(foreign);
+
+    // Чужая запись сделала файл правленым руками: генерация его не перепечатает и скажет об этом.
+    await h.bridge.applyPending(true);
+    expect(files.text(FORM_RULES)).toBe(foreign);
+    expect(h.session.get().error).toContain('turn.rules.broken');
+  });
+
+  it('файл правил правлен руками: инструмент отказывает сразу, затравка называет файл', async () => {
+    const files = await generatedModule();
+    const edited = `${files.text(FORM_RULES)}// правка человека\n`;
+    files.put(FORM_RULES, edited);
+    const { provider, requests } = recordingSequence([[requireEmail, { text: 'Не могу.' }]]);
+    const { session, bridge } = loginHarness([], { files, provider });
+    await bridge.send('сделай почту обязательной');
+
+    expect(JSON.stringify(requests[0])).toContain('validation/form.ts was edited by hand');
+    expect(session.get().entries.at(-1)?.tools[0]).toMatchObject({
+      name: 'set_form_rules',
+      ok: false,
+    });
+    expect(files.text(FORM_RULES)).toBe(edited);
+  });
+
+  it('без генерации кода правила записать нечем — инструмент отказывает', async () => {
+    const files = createFakeFiles({ [DOC]: EMAIL_TEXT });
+    const { session, bridge } = harness([requireEmail, { text: 'Не могу.' }], {
+      files,
+      resource: DOC,
+      formText: EMAIL_TEXT,
+    });
+    await bridge.send('сделай почту обязательной');
+
+    expect(session.get().entries.at(-1)?.tools[0]).toMatchObject({
+      name: 'set_form_rules',
+      ok: false,
+    });
+    expect(files.writes).toEqual([]);
+  });
+
+  it('прежний form.rules.json: правила хода начинаются с него и ложатся в код', async () => {
+    const legacy = {
+      validation: [{ target: 'email', rules: ['required'] }],
+      behavior: [],
+      render: [],
+    };
+    const files = createFakeFiles({
+      [DOC]: EMAIL_TEXT,
+      [`${MODULE}/schema/form.rules.json`]: printRulesText(legacy),
+    });
+    const { bridge } = loginHarness([longEmail, { text: 'Готово.' }], { files });
+    await bridge.send('почта не короче пяти');
+
+    expect(files.text(FORM_RULES)).toContain('required');
+    expect(files.text(FORM_RULES)).toContain('minLength(5)');
   });
 });
 

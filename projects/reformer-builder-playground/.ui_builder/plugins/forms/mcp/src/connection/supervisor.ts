@@ -95,13 +95,13 @@ export interface SessionStatus {
 
 /** Почему аренду не выдали. */
 export class SupervisorError extends Error {
-  constructor(
-    /** `stopped` — слот закрыли, пока сессия открывалась (смена проекта). */
-    readonly reason: 'halted' | 'backoff' | 'open-failed' | 'stopped',
-    message: string
-  ) {
+  /** `stopped` — слот закрыли, пока сессия открывалась (смена проекта). */
+  readonly reason: 'halted' | 'backoff' | 'open-failed' | 'stopped';
+
+  constructor(reason: SupervisorError['reason'], message: string) {
     super(message);
     this.name = 'SupervisorError';
+    this.reason = reason;
   }
 }
 

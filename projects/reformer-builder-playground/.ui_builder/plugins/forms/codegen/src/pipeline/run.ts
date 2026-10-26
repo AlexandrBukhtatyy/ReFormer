@@ -47,6 +47,19 @@ export interface RunOptions {
    * объясниться именно там, а не в исчезнувшем тосте.
    */
   readonly problems?: readonly CodegenProblem[];
+  /**
+   * Записать только файлы этих целей (`GenerateRequest.only`); цель проекта, заменяющая одну из
+   * них, считается ею. Нет — весь модуль.
+   */
+  readonly only?: readonly string[];
+  /** Вход стеку документа (`GenerateRequest.stackInput`): передаётся, только если стек — его. */
+  readonly stackInput?: { readonly stack: string; readonly value: unknown };
+}
+
+/** Цель, которой считается файл: своя либо та, которую цель проекта заменяет. */
+function effectiveTargetOf(targets: readonly CodegenTarget[]): (targetId: string) => string {
+  const replaced = new Map(targets.map((target) => [target.id, target.overrides ?? target.id]));
+  return (targetId) => replaced.get(targetId) ?? targetId;
 }
 
 /** Отказ стека — отказом прогона, ключом его словаря. */
@@ -88,11 +101,19 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   const formName = (options.formName ?? '').trim() || opened.formName;
   store.patch({ phase: 'running', error: null, delivery: null, stack: stack.id });
 
+  const input = options.stackInput?.stack === stack.id ? options.stackInput.value : undefined;
   const module = await opened.print({
     targets: targetsFor(options.targets, stack),
     formName,
     format: host.format,
+    ...(input === undefined ? {} : { input }),
   });
+  // Часть модуля — фильтром при записи: печатается он целиком, и имена в файле от состава записи
+  // не зависят.
+  const only = options.only === undefined ? null : new Set(options.only);
+  const targetOf = effectiveTargetOf(options.targets);
+  const delivered =
+    only === null ? module.files : module.files.filter((file) => only.has(targetOf(file.targetId)));
 
   const problems = [...(options.problems ?? []), ...module.problems];
   const files = module.files.map((file) => ({
@@ -112,7 +133,17 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   };
 
   try {
-    const delivery = await deliverInto(host, opened.root, module.files, module);
+    const delivery = await deliverInto(
+      host,
+      opened.root,
+      delivered,
+      only === null
+        ? module
+        : {
+            check: () => module.check?.(delivered) ?? Promise.resolve(null),
+            inspect: () => module.inspect?.() ?? Promise.resolve([]),
+          }
+    );
     store.patch({ ...report, delivery, error: null });
   } catch (error) {
     store.patch({

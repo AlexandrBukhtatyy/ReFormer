@@ -422,6 +422,7 @@ describe('быстрые исправления', () => {
         get: (id: string) => byResource.get(id) ?? null,
         set: (id: string, rules: FormRules) => {
           byResource.set(id, rules);
+          return true;
         },
       },
       read: () => byResource.get(DOCUMENT),
@@ -520,6 +521,34 @@ describe('быстрые исправления', () => {
 
     expect(done).toBe(true);
     expect(rules.read()?.validation.map((item) => item.target)).toEqual(['b']);
+  });
+
+  it('ключ находит названное правило, даже если список сдвинулся', () => {
+    const { host, registry } = harness();
+    const rules = rulesPort({ validation: [rule('new'), rule('a')], behavior: [], render: [] });
+    const commands = new Map(
+      schemaEditorCommands(registry, { ...host, rules: rules.port }).map((c) => [c.id, c])
+    );
+    const remove = commands.get(REMOVE_RULE_COMMAND_ID);
+
+    expect(
+      remove?.run({
+        resource: DOCUMENT,
+        list: 'validation',
+        index: 0,
+        key: JSON.stringify(rule('a')),
+      })
+    ).toBe(true);
+    expect(rules.read()?.validation.map((item) => item.target)).toEqual(['new']);
+    // Правила по ключу больше нет — промах, а не снятие соседнего.
+    expect(
+      remove?.run({
+        resource: DOCUMENT,
+        list: 'validation',
+        index: 0,
+        key: JSON.stringify(rule('a')),
+      })
+    ).toBe(false);
   });
 
   it('индекс за пределами списка — отказ: правило могли убрать до нажатия', () => {

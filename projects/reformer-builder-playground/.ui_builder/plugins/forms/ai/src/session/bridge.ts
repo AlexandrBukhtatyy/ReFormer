@@ -470,6 +470,35 @@ interface LandedFile {
 }
 
 /**
+ * Две записи одного хода о том же файле — одной: текст до первой из них и после последней.
+ *
+ * Какая была раньше, говорит цепочка текстов, а не порядок, в котором их запомнили: стек
+ * запоминает свои записи при применении набора, а дверь хода — в конце хода, хотя писала и до
+ * применения (инструмент плагина), и после (генерация по заказу). Взять одну запись целиком
+ * значило бы отменить ход до середины: правка генерации поверх файла правил вернулась бы к тексту
+ * после применения, и правила пережили бы отмену. Цепочка не сошлась — берётся поздняя запись,
+ * как раньше.
+ */
+function chainLanded(older: LandedFile, newer: LandedFile): LandedFile {
+  if (newer.before === older.after) return { ...older, after: newer.after };
+  if (older.before === newer.after) return { ...newer, after: older.after };
+  return newer;
+}
+
+/** Записи хода, сложенные по файлам ({@link chainLanded}). */
+function mergeLanded(
+  older: ReadonlyMap<ResourceId, LandedFile>,
+  newer: ReadonlyMap<ResourceId, LandedFile>
+): Map<ResourceId, LandedFile> {
+  const merged = new Map(older);
+  for (const [id, file] of newer) {
+    const earlier = merged.get(id);
+    merged.set(id, earlier === undefined ? file : chainLanded(earlier, file));
+  }
+  return merged;
+}
+
+/**
  * Ход ассистента, лёгший в рабочую копию, — всё, чем его можно отменить.
  *
  * Карта файлов, а не один текст: ход режима файлов правит сколько угодно файлов модуля, и
@@ -824,7 +853,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    * По той же причине запись того же хода не теряет файлов, которые в нём записали инструменты
    * плагинов: они легли раньше применения набора и отменяются вместе с ним.
    *
-   * @param companions - Сопутствующие файлы, которые записал стек (у ReFormer — файл правил): они
+   * @param companions - Сопутствующие файлы, которые записал стек (у ReFormer — код правил): они
    *   часть хода, и отмена обязана вернуть и их.
    */
   const rememberTurn = (
@@ -874,7 +903,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     );
     landedTurns.push({ txId, files });
     if (lastTurn !== null && lastTurn.txId === txId) {
-      setLastTurn({ ...lastTurn, files: new Map([...lastTurn.files, ...files]) });
+      setLastTurn({ ...lastTurn, files: mergeLanded(lastTurn.files, files) });
     } else {
       setLastTurn({ txId, files });
     }
@@ -884,7 +913,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const pathOfResource = (id: ResourceId): string =>
     host.documentOf(id)?.ref.path ?? host.files?.pathOf(id) ?? String(id);
 
-  /** Замечание: сопутствующий файл (файл правил) не записан, потому что он не разбирается. */
+  /** Замечание: сопутствующий файл (у ReFormer — файл правил) не записан, и стек назвал причину. */
   const brokenNote = (broken: { readonly id: ResourceId; readonly error: string }): string =>
     t('turn.rules.broken', { path: pathOfResource(broken.id), error: broken.error });
 
@@ -1637,7 +1666,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     landedTurns.push(turn);
     // Продолжение того же хода (на созданной форме) запомнилось раньше — его файлы остаются.
     if (lastTurn !== null && lastTurn.txId === txId) {
-      setLastTurn({ ...lastTurn, files: new Map([...files, ...lastTurn.files]) });
+      setLastTurn({ ...lastTurn, files: mergeLanded(lastTurn.files, files) });
     } else {
       setLastTurn(turn);
     }

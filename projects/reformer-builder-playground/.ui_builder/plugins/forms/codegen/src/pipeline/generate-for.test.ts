@@ -26,6 +26,76 @@ function setup(open: CodegenRefusal | null | 'form' = 'form') {
   return { host, store, options };
 }
 
+/** Хозяин с целью проекта, заменяющей встроенную, и стек, который запоминает заказы печати. */
+function partial(stackId = 'fake') {
+  const document = createFakeDocument(DOC, '{}', 'credit.schema.json');
+  const host = createFakeHost({ document });
+  const checked: (readonly string[] | undefined)[] = [];
+  const stack = createFakeStack({
+    id: stackId,
+    root: 'src/forms/credit',
+    formName: 'credit',
+    onCheck: (delivered) => checked.push(delivered?.map((file) => file.path)),
+  });
+  const targets: readonly CodegenTarget[] = [
+    ...TARGETS,
+    {
+      id: 't.validation',
+      path: 'validation/form.ts',
+      cls: 'user',
+      regenerable: true,
+      template: '',
+    },
+    {
+      id: 'project.validation',
+      overrides: 't.validation',
+      origin: 'user',
+      path: 'validation/form.ts',
+      cls: 'user',
+      regenerable: true,
+      template: '',
+    },
+  ];
+  const options = {
+    host,
+    stacks: stacksOf(stack),
+    targets,
+    store: createCodegenSessions().storeFor(DOC),
+    translate: (key: string) => key,
+  };
+  return { host, stack, options, checked };
+}
+
+describe('генерация части модуля и вход стеку (1.1)', () => {
+  it('only — пишутся только файлы этих целей; цель проекта считается той, что заменяет', async () => {
+    const { host, options, checked } = partial();
+    const report = await generateFor(options, DOC, { only: ['t.validation'] });
+
+    expect(report.ok && report.written).toEqual(['validation/form.ts']);
+    expect(host.written.has('src/forms/credit/types/credit.ts')).toBe(false);
+    // Проверка перед записью — по тому, что пишется, а не по всему модулю.
+    expect(checked).toEqual([['validation/form.ts']]);
+  });
+
+  it('без only проверка — по всему модулю', async () => {
+    const { options, checked } = partial();
+    await generateFor(options, DOC);
+    expect(checked).toEqual([undefined]);
+  });
+
+  it('вход стеку доезжает до печати своего стека и не доезжает до чужого', async () => {
+    const own = partial('reformer');
+    await generateFor(own.options, DOC, { stackInput: { stack: 'reformer', value: { rules: 1 } } });
+    expect(own.stack.printed[0]?.input).toEqual({ rules: 1 });
+
+    const other = partial('rjsf');
+    await generateFor(other.options, DOC, {
+      stackInput: { stack: 'reformer', value: { rules: 1 } },
+    });
+    expect(other.stack.printed[0]?.input).toBeUndefined();
+  });
+});
+
 describe('генерация по заказу', () => {
   it('пишет дверью заказчика и не сохраняет', async () => {
     const { host, options } = setup();

@@ -34,3 +34,11 @@ export {
   wizardSlugsSchema,
   wizardSplitSource,
 } from './codegen/__fixtures__/kit';
+
+/**
+ * Текст прежнего файла правил (`form.rules.json`) — таким его писали до правил в коде модуля.
+ * Нужен тестам переноса: билдер этот файл больше не пишет, только читает один раз.
+ */
+export function legacyRulesText(rules: import('./form-model/rules').FormRules): string {
+  return `${JSON.stringify({ version: 1, ...rules }, null, 2)}\n`;
+}

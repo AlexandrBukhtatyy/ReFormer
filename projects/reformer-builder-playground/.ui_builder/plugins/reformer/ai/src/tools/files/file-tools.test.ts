@@ -235,6 +235,17 @@ describe('write_file', () => {
     expect(at(files, 'api/index.ts')).toBe('export {};\n');
   });
 
+  it('прежний файл правил рядом с документом не заводится: правила живут в коде', async () => {
+    const { files, call } = await setup();
+    const outcome = await call('write_file', {
+      path: 'schema/form.rules.json',
+      content: '{ "validation": [] }\n',
+    });
+    expect(outcome.error?.code).toBe('REFUSED');
+    expect(outcome.error?.message).toContain('validation/form.ts');
+    expect(at(files, 'schema/form.rules.json')).toBeUndefined();
+  });
+
   it('существующий файл без чтения не заменяется', async () => {
     const { call } = await setup({ 'forms/loan/x.ts': 'old\n' });
     const blind = await call('write_file', { path: 'x.ts', content: 'new\n' });

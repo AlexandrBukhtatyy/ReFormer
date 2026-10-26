@@ -30,5 +30,8 @@
   "flat.title": "Files of the old layout",
   "flat.detail": "Code of the old contract: the module no longer imports these. Move your edits into the new files and delete them.",
   "notify.orphans": "Files of steps no longer in the form: {dirs}. They were left alone — move your edits and delete them.",
-  "notify.flat": "Files of the old layout remain in the form directory ({count}): {files}. The module does not import them — move your edits into the new files and delete them."
+  "notify.flat": "Files of the old layout remain in the form directory ({count}): {files}. The module does not import them — move your edits into the new files and delete them.",
+  "legacy-rules.title": "Obsolete rules file",
+  "legacy-rules.detail": "Form rules live in the module code — in validation/ and behavior/. The builder no longer reads this file: move anything you still need into the code, then delete the file.",
+  "notify.legacy-rules": "The rules file {file} is obsolete: form rules live in the module code. Delete it."
 }

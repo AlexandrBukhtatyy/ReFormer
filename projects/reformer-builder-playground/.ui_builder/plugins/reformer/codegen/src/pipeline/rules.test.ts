@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { printRulesText } from '../../../core/codegen/rules-file';
+import { legacyRulesText as printRulesText } from '../../../core/testing';
 import { readFormRules, RulesFileError, type RulesFilePort } from './rules';
 
 const RULES = {

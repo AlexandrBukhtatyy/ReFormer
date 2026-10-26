@@ -123,6 +123,8 @@ export interface FakeStackOptions {
   readonly find?: CodegenRefusal | null | 'form';
   /** Отказ записи (`CodegenModule.check`). */
   readonly check?: CodegenRefusal;
+  /** Видит, по каким файлам хозяин спросил `check`: `undefined` — по всему модулю. */
+  readonly onCheck?: (delivered: readonly CodegenFile[] | undefined) => void;
   readonly notes?: readonly CodegenNote[];
   readonly snippet?: string;
   readonly staleOverride?: CodegenStack['staleOverride'];
@@ -157,7 +159,14 @@ export function createFakeStack(options: FakeStackOptions = {}): FakeStack {
         problems: [],
         view: { formName: request.formName },
         snippet: options.snippet ?? '',
-        ...(options.check === undefined ? {} : { check: async () => options.check ?? null }),
+        ...(options.check === undefined && options.onCheck === undefined
+          ? {}
+          : {
+              check: async (delivered?: readonly CodegenFile[]) => {
+                options.onCheck?.(delivered);
+                return options.check ?? null;
+              },
+            }),
         ...(options.notes === undefined ? {} : { inspect: async () => options.notes ?? [] }),
       };
     },

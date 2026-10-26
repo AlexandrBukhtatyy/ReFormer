@@ -18,8 +18,8 @@ import type { NodeId, ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewContext } from '@reformer/builder-plugin-api';
 import { ensureSchema, isFormSchema } from '../../../core/form-model';
 import type { PreviewHost } from '../host';
-import { rulesSidecarNameOf } from '../../../core/codegen/layout';
-import { parseRulesText } from '../../../core/codegen/rules-file';
+import { moduleRootPathOf } from '../../../core/codegen/layout';
+import { loadDataSourcesFromModule } from '../../../core/codegen/rules-code';
 
 /** Перевод документа прежнего формата — по одному на объект: снимок обязан быть стабильным. */
 const migrated = new WeakMap<object, JsonFormSchema>();
@@ -155,36 +155,53 @@ export function formKeyOf(form: object): number {
   return key;
 }
 
-/** Путь файла правил документа от корня проекта: рядом с документом. */
-function rulesPathOf(documentPath: string): string {
-  const slash = documentPath.lastIndexOf('/');
-  const dir = slash < 0 ? '' : documentPath.slice(0, slash + 1);
-  return `${dir}${rulesSidecarNameOf(documentPath)}`;
-}
-
 /**
- * Значения источников данных из файла правил рядом с документом — их превью показывает вместо
- * выдуманных вариантов. Файл перечитывается, когда его правят в рабочей копии.
+ * Значения источников данных из кода модуля формы (`constants/`) — их превью показывает вместо
+ * выдуманных вариантов. Константы перечитываются, когда их правят в рабочей копии или в каталоге
+ * появляется новый файл.
  *
- * Без адреса по пути (`resolveFromRoot`) файл не читается, и превью остаётся с выдуманными
- * вариантами — так же, как без файла правил. Битый файл — тоже «значений нет»: о нём говорят те,
- * кто в него пишет.
+ * Без адреса по пути (`resolveFromRoot`) или листинга (`list`) модуль не читается, и превью
+ * остаётся с выдуманными вариантами — так же, как без констант.
  */
 export function useRuleDataSources(
-  host: Pick<PreviewHost, 'readText' | 'resolveFromRoot' | 'onDidChangeFiles'>,
+  host: Pick<
+    PreviewHost,
+    'readText' | 'resolveFromRoot' | 'list' | 'parentOf' | 'onDidChangeFiles'
+  >,
   doc: { readonly id: ResourceId; readonly ref: { readonly path: string } }
 ): Readonly<Record<string, unknown>> | undefined {
   const [sources, setSources] = useState<Readonly<Record<string, unknown>> | undefined>();
   useEffect(() => {
-    const resolve = host.resolveFromRoot;
-    if (resolve === undefined) return undefined;
-    const id = resolve(doc.id, rulesPathOf(doc.ref.path));
+    const { resolveFromRoot: resolve, list } = host;
+    if (resolve === undefined || list === undefined) return undefined;
+    const rootPath = moduleRootPathOf(doc.ref.path);
+    const at = (path: string) => resolve(doc.id, rootPath === '' ? path : `${rootPath}/${path}`);
+    let read = new Set<ResourceId>();
+    let dirs = new Set<ResourceId>();
     let live = true;
     const load = (): void => {
-      host.readText(id).then(
-        (text) => {
-          const parsed = parseRulesText(text);
-          if (live) setSources(parsed.ok ? parsed.rules.dataSources : undefined);
+      const seen = new Set<ResourceId>();
+      const listed = new Set<ResourceId>();
+      loadDataSourcesFromModule({
+        read: (path) => {
+          const id = at(path);
+          seen.add(id);
+          return host.readText(id).catch(() => null);
+        },
+        list: async (dir) => {
+          const id = at(dir);
+          listed.add(id);
+          const entries = await list(id).catch(() => null);
+          return entries === null
+            ? null
+            : entries.filter((entry) => entry.kind !== 'directory').map((entry) => entry.name);
+        },
+      }).then(
+        (values) => {
+          if (!live) return;
+          read = seen;
+          dirs = listed;
+          setSources(Object.keys(values).length > 0 ? values : undefined);
         },
         () => {
           if (live) setSources(undefined);
@@ -193,7 +210,11 @@ export function useRuleDataSources(
     };
     load();
     const subscription = host.onDidChangeFiles?.((changed) => {
-      if (changed.includes(id)) load();
+      const touched = changed.some((id) => {
+        const parent = host.parentOf?.(id);
+        return read.has(id) || (parent !== undefined && dirs.has(parent));
+      });
+      if (touched) load();
     });
     return () => {
       live = false;

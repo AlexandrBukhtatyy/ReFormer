@@ -35,6 +35,7 @@ import {
   DocumentsServiceToken,
   EditorPoint,
   MenuPoint,
+  ModuleGeneratorCapability,
   PanelPoint,
   PreviewLiveCapability,
   SelectionServiceToken,
@@ -308,8 +309,9 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
       // провайдер поднимается отдельным плагином и может быть выключен человеком на ходу.
       // Режим исходника обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
       // Живой вид — возможность превью, тем же приёмом: превью выключаемо на ходу.
-      // Правила формы — файл рядом с документом; без них команда снятия осиротевшего правила
-      // не регистрируется (`./editing/commands`). Двойник хоста приходит со своими.
+      // Правила формы — код модуля; без них команда снятия осиротевшего правила не
+      // регистрируется (`./editing/commands`). Пишет их генерация кода — тоже возможность
+      // соседа, спрашиваемая на каждую запись. Двойник хоста приходит со своими.
       const files =
         options.host === undefined ? ctx.services.get(WorkspaceFilesServiceToken) : undefined;
       const documents = ctx.services.get(DocumentsServiceToken);
@@ -320,7 +322,11 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         textEditor: () => ctx.services.get(TextEditorCapability),
         live: () => ctx.services.get(PreviewLiveCapability),
         ...(rulesCache !== undefined && documents !== undefined
-          ? { rules: schemaRulesPort(rulesCache, documents) }
+          ? {
+              rules: schemaRulesPort(rulesCache, documents, () =>
+                ctx.services.get(ModuleGeneratorCapability)
+              ),
+            }
           : {}),
       };
       bound = host;

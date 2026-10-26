@@ -23,6 +23,7 @@ import {
 } from '../__fixtures__/kit';
 import { prepare, type CodegenInput } from '../context';
 import { createTemplate, flowTemplate, submitTemplate, validationTemplate } from '../templates';
+import { SCAFFOLD_NOTE } from '../rules-code';
 import { buildView, stepView } from './index';
 
 function ctxOf(input: Partial<CodegenInput> = {}) {
@@ -89,7 +90,11 @@ describe('валидация: простая форма против визар�
   it('простая форма без правил — заготовка formRules из required схемы, поле rules', () => {
     const { validation } = viewOf().rules;
     expect(validation).toMatchObject({ rulesName: 'formRules', field: 'rules' });
-    expect(validation.block?.body).toEqual(['validate(model.$.fullName, [required()]);']);
+    // Пометка первой строкой: по ней читатель кода отличает заготовку от правил формы.
+    expect(validation.block?.body).toEqual([
+      `// ${SCAFFOLD_NOTE}`,
+      'validate(model.$.fullName, [required()]);',
+    ]);
   });
 
   it('простая форма с правилами — тело из правил; required из схемы не дублируется', () => {
