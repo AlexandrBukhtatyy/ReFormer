@@ -144,12 +144,36 @@ function clamp(text: string, budget: number): string {
   return `${text.slice(0, Math.max(0, budget - suffix.length))}${suffix}`;
 }
 
-/** ajv-ошибки → одна человекочитаемая строка. */
-function formatErrors(validate: ValidateFunction): string {
-  const parts = (validate.errors ?? []).map((e) =>
-    `${e.instancePath || '/'} ${e.message ?? 'invalid'}`.trim()
-  );
-  return parts.length ? parts.join('; ') : 'arguments do not match the schema';
+/**
+ * ajv-ошибки → одна человекочитаемая строка, без повторов.
+ *
+ * Лишнее свойство называется по имени, вместе с допустимыми: «must NOT have additional
+ * properties» не говорит, ЧТО лишнее, и модель тратила целый запрос на догадку — в живом прогоне
+ * она положила подпись поля в сам узел вместо `props`, и отказ повторился дважды одной строкой.
+ */
+function formatErrors(validate: ValidateFunction, schema: unknown): string {
+  const parts = (validate.errors ?? []).map((e) => {
+    const at = e.instancePath || '/';
+    const extra = (e.params as { additionalProperty?: unknown } | undefined)?.additionalProperty;
+    if (e.keyword === 'additionalProperties' && typeof extra === 'string') {
+      const allowed = propertiesAt(schema, e.instancePath);
+      return `${at}: unknown property "${extra}"${allowed.length ? ` (allowed: ${allowed.join(', ')})` : ''}`;
+    }
+    return `${at} ${e.message ?? 'invalid'}`.trim();
+  });
+  return parts.length ? [...new Set(parts)].join('; ') : 'arguments do not match the schema';
+}
+
+/** Имена свойств, которые схема разрешает объекту по адресу `pointer` (`/nodes/0`). */
+function propertiesAt(schema: unknown, pointer: string): string[] {
+  let node = schema as { properties?: Record<string, unknown>; items?: unknown } | undefined;
+  for (const segment of pointer.split('/').slice(1)) {
+    if (node === undefined) return [];
+    node = (
+      /^\d+$/.test(segment) && node.items !== undefined ? node.items : node.properties?.[segment]
+    ) as typeof node;
+  }
+  return node?.properties === undefined ? [] : Object.keys(node.properties);
 }
 
 /**
@@ -259,7 +283,7 @@ export function createToolRegistry<C = unknown, O extends RegistryOutcome = Regi
       if (!validate(args)) {
         return refuse<O>(
           'INVALID_PARAMS',
-          `Invalid arguments for ${name}: ${formatErrors(validate)}.`
+          `Invalid arguments for ${name}: ${formatErrors(validate, tool.inputSchema)}.`
         );
       }
 

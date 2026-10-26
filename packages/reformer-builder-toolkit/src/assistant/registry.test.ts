@@ -66,6 +66,44 @@ describe('invoke', () => {
     expect(res.error?.code).toBe('INVALID_PARAMS');
   });
 
+  it('лишнее свойство названо по имени вместе с допустимыми, повторов нет', async () => {
+    // Живой прогон: модель положила подпись поля в сам узел, а не в props, и отказ «must NOT have
+    // additional properties» не говорил, что именно лишнее.
+    const insert: RegistryTool = {
+      ...tool('insert', () => done('ok')),
+      inputSchema: {
+        type: 'object',
+        properties: {
+          nodes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { component: { type: 'string' }, props: { type: 'object' } },
+              additionalProperties: false,
+            },
+          },
+        },
+        additionalProperties: false,
+      },
+    };
+
+    const res = await createToolRegistry([insert]).invoke(
+      'insert',
+      {
+        nodes: [
+          { component: 'Input', label: 'Имя', mask: '9' },
+          { component: 'Input', label: 'Б' },
+        ],
+      },
+      undefined
+    );
+
+    expect(res.text).toContain('/nodes/0: unknown property "label" (allowed: component, props)');
+    expect(res.text).toContain('/nodes/0: unknown property "mask"');
+    expect(res.text).toContain('/nodes/1: unknown property "label"');
+    expect(res.text?.split('/nodes/1:')).toHaveLength(2);
+  });
+
   it('инструмент без обязательных полей вызывается без аргументов', async () => {
     const reg = createToolRegistry([tool('list', () => done('пусто'))]);
     expect((await reg.invoke('list', undefined, undefined)).ok).toBe(true);
