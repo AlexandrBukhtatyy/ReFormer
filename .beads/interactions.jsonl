@@ -949,3 +949,4 @@
 {"id":"int-789e4d9e8298400dd99447722a0fb11a","kind":"field_change","created_at":"2026-10-25T19:33:49.8418926Z","actor":"AlexMayak","issue_id":"ReFormer-hpjm.7","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
 {"id":"int-2d8632a354eb6ef3769a931984056498","kind":"field_change","created_at":"2026-10-25T19:49:34.4977506Z","actor":"AlexMayak","issue_id":"ReFormer-hpjm.8","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
 {"id":"int-844abe599de05a2df65f2bc274693ade","kind":"field_change","created_at":"2026-10-25T19:49:50.230854Z","actor":"AlexMayak","issue_id":"ReFormer-hpjm","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
+{"id":"int-8322c0c713cb8a37d7b3b2a3bd418d7b","kind":"field_change","created_at":"2026-10-26T17:43:51.1187194Z","actor":"AlexMayak","issue_id":"ReFormer-t7qr","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
