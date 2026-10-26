@@ -299,8 +299,9 @@ describe('маркеры происхождения', () => {
     expect(isGenerated(by('application/create.ts'))).toBe(true);
     expect(isGenerated(by('validation/form.ts'))).toBe(true);
     expect(isGenerated(by('behavior/index.ts'))).toBe(true);
+    // Отправка выводится из схемы (узел отправки, визард ли форма) — и перепечатывается.
+    expect(isGenerated(by('application/submit.ts'))).toBe(true);
     expect(originOf(by('api/index.ts'))).toBe('handwritten');
-    expect(originOf(by('application/submit.ts'))).toBe('handwritten');
     expect(originOf(by('constants/zayavka-na-kredit.ts'))).toBe('handwritten');
   });
 

@@ -14,9 +14,13 @@
  *   `steps/<шаг>/form.validation.ts`, …) — код ПРЕЖНЕГО контракта сборки. Под новые имена он не
  *   переносится: контракт другой (`createJsonForm` и слой рендера против `createForm` и единого
  *   поведения), и правленный файл, положенный на новое место, не собрался бы. Новый модуль их не
- *   импортирует; перенести свои правки и удалить их — решение человека.
+ *   импортирует; перенести свои правки и удалить их — решение человека;
+ * - **устаревшая отправка** — `application/submit.ts` без маркера (напечатанный прежними версиями)
+ *   либо правленный руками, подключённый к узлу, которого у формы больше нет: простая форма
+ *   стала визардом или сменила кнопку отправки.
  *
- * Сирот и файлы прежней раскладки запись не трогает — только называет заметками.
+ * Сирот, файлы прежней раскладки и устаревшую отправку запись не трогает — только называет
+ * заметками.
  *
  * @module plugins/reformer/codegen/stack/disk
  */
@@ -43,6 +47,9 @@ import type {
 
 /** Цель, печатающая реестр компонентов: по нему узнаётся кит модуля. */
 const REGISTRY_TARGET_ID = 'codegen.registry';
+
+/** Цель, печатающая отправку: по ней узнаётся, к какому узлу схемы отправка подключена. */
+const SUBMIT_TARGET_ID = 'codegen.submit';
 
 /** Пакет по спецификатору импорта: `@scope/name/sub` → `@scope/name`, `name/sub` → `name`. */
 function packageOf(specifier: string): string {
@@ -175,9 +182,55 @@ async function flatOf(
   return found;
 }
 
+/** Подключение отправки: узел схемы и событие (`onClick` кнопки либо `onSubmit` визарда). */
+interface SubmitWiring {
+  readonly selector: string;
+  readonly event: string;
+}
+
 /**
- * Заметки о модуле на диске после записи: сироты шагов, файлы прежней раскладки и прежний файл
- * правил.
+ * Подключение отправки в тексте `application/submit.ts` — первый вызов
+ * `onComponentEvent(schema.node('<узел>'), '<событие>', …)`. Так его печатала каждая версия
+ * шаблона. `null` — вызова нет: файл написан по-своему, и судить о нём не по чему.
+ */
+function submitWiringOf(text: string): SubmitWiring | null {
+  const match =
+    /onComponentEvent\(\s*schema\.node\(\s*(['"`])(.*?)\1\s*\)\s*,\s*(['"`])(\w+)\3/.exec(text);
+  return match === null ? null : { selector: match[2], event: match[4] };
+}
+
+/**
+ * Отправка на диске подключена не к тому узлу, что у формы сейчас.
+ *
+ * `application/submit.ts` перепечатывается, пока несёт маркер, — но файл, напечатанный прежними
+ * версиями (без маркера), и правленный руками запись оставляет как есть. Форма тем временем
+ * могла стать визардом (событие `onSubmit` узла визарда вместо `onClick` кнопки) или сменить
+ * узел отправки: тогда оставленный файл слушает узел, которого в схеме нет, и форма не
+ * отправляется. Сравнивается подключение в файле на диске и в свежем тексте; файл, в котором
+ * подключения не найти, не называется.
+ */
+async function staleSubmitOf(
+  reader: CodegenReader,
+  dir: ResourceId,
+  module: readonly CodegenFile[]
+): Promise<string | null> {
+  const printed = module.find((file) => file.targetId === SUBMIT_TARGET_ID);
+  if (printed === undefined) return null;
+  const wanted = submitWiringOf(printed.content);
+  if (wanted === null) return null;
+  const id = at(reader, dir, printed.path);
+  if (!(await reader.exists(id))) return null;
+  const current = await reader.readText(id).catch(() => null);
+  // Нетронутый файл с маркером запись перепечатывает сама — устареть ему не дадут.
+  if (current === null || originOf(current) === 'generated') return null;
+  const found = submitWiringOf(current);
+  if (found === null) return null;
+  return found.selector === wanted.selector && found.event === wanted.event ? null : printed.path;
+}
+
+/**
+ * Заметки о модуле на диске после записи: сироты шагов, файлы прежней раскладки, прежний файл
+ * правил и устаревшая отправка.
  *
  * `module` — весь модуль, а не только записанное: при записи одной цели (типы из меню дерева)
  * среди записанного файлов шагов нет вовсе, и без полного состава КАЖДЫЙ файл шага выглядел бы
@@ -222,6 +275,17 @@ export async function notesOf(
       title: { key: 'legacy-rules.title' },
       detail: { key: 'legacy-rules.detail' },
       notify: { key: 'notify.legacy-rules', params: { file: legacyRules } },
+    });
+  }
+  // Отправка, оставленная записью, слушает узел, которого у формы больше нет.
+  const staleSubmit = await staleSubmitOf(reader, dir, module);
+  if (staleSubmit !== null) {
+    notes.push({
+      id: 'stale-submit',
+      paths: [staleSubmit],
+      title: { key: 'stale-submit.title' },
+      detail: { key: 'stale-submit.detail' },
+      notify: { key: 'notify.stale-submit', params: { file: staleSubmit } },
     });
   }
   return notes;

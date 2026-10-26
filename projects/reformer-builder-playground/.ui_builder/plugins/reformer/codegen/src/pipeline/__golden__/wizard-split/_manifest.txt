@@ -14,6 +14,6 @@ behavior/index.ts	user	regenerable
 validation/form.ts	user	regenerable
 validation/messages.ts	user
 validation/shag-1.ts	user	regenerable
-application/submit.ts	user
+application/submit.ts	user	regenerable
 api/index.ts	user
 README.md	derived

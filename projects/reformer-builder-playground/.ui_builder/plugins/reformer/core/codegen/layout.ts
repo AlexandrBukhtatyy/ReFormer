@@ -375,8 +375,8 @@ export function moduleRootOfDocument<Id>(port: ModuleRootPort<Id>, id: Id, path:
  *   живут в коде модуля, и писать в него незачем;
  * - `derived` — производный: генерация кода перепечатывает его ВСЕГДА, ручная правка не доживёт
  *   до следующего прогона;
- * - `regenerable` — авторский, но печатается из правил формы, пока несёт маркер кодогена: правка
- *   без маркера останавливает перепечатку;
+ * - `regenerable` — авторский, но печатается из правил формы и её схемы, пока несёт маркер
+ *   кодогена: правка без маркера останавливает перепечатку;
  * - `user` — авторский, кодоген его не трогает;
  * - `legacy` — файл прежней плоской раскладки ({@link FLAT_LAYOUT_FILES});
  * - `other` — всё прочее.
@@ -405,9 +405,18 @@ const DERIVED_FILES: readonly string[] = Object.freeze([
 /** Авторские файлы с постоянным путём, которые кодоген не перепечатывает. */
 const USER_FILES: readonly string[] = Object.freeze([
   `${VALIDATION_DIR}/${MESSAGES_NAME}.ts`,
-  'application/submit.ts',
   'api/index.ts',
   'fixture.ts',
+]);
+
+/**
+ * Авторские файлы с постоянным путём, которые кодоген перепечатывает, пока они несут маркер:
+ * поведение — из правил формы, отправка — из схемы (узел отправки, визард ли форма). Правила
+ * формы и шагов (`validation/<имя>.ts`) разбираются отдельно — их имена зависят от шагов.
+ */
+const REGENERABLE_FILES: readonly string[] = Object.freeze([
+  'behavior/index.ts',
+  'application/submit.ts',
 ]);
 
 /**
@@ -435,9 +444,9 @@ export function fileRoleOf(path: string, schemaPath: string): ModuleFileRole {
   if (isFlatLayoutPath(file)) return 'legacy';
   if (DERIVED_FILES.includes(file)) return 'derived';
   if (USER_FILES.includes(file)) return 'user';
+  if (REGENERABLE_FILES.includes(file)) return 'regenerable';
 
   const segments = file.split('/');
-  if (file === 'behavior/index.ts') return 'regenerable';
   if (segments.length === 2 && segments[0] === VALIDATION_DIR && file.endsWith('.ts')) {
     return 'regenerable';
   }

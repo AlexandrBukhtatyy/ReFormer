@@ -314,14 +314,15 @@ describe('fileRoleOf — роль файла модуля для правки м
     }
   });
 
-  it('правила формы и шагов перепечатываются из правил, пока несут маркер', () => {
+  it('правила, поведение и отправка перепечатываются из правил и схемы, пока несут маркер', () => {
     expect(fileRoleOf(files.validation, DEFAULT_SCHEMA_PATH)).toBe('regenerable');
     expect(fileRoleOf(stepValidationPath('kontakty'), DEFAULT_SCHEMA_PATH)).toBe('regenerable');
     expect(fileRoleOf(files.behavior, DEFAULT_SCHEMA_PATH)).toBe('regenerable');
+    expect(fileRoleOf(files.submit, DEFAULT_SCHEMA_PATH)).toBe('regenerable');
   });
 
   it('авторские файлы кодоген не трогает', () => {
-    for (const path of [files.messages, files.submit, files.api, files.constants, 'fixture.ts']) {
+    for (const path of [files.messages, files.api, files.constants, 'fixture.ts']) {
       expect(fileRoleOf(path, DEFAULT_SCHEMA_PATH), path).toBe('user');
     }
   });

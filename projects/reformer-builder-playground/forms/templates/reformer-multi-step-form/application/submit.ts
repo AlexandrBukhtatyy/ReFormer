@@ -1,5 +1,7 @@
+// @reformer-generated 42978bc8434a
 // application/submit.ts — отправка формы: запрос → исход → текст для человека.
-// Ваш файл: пишется один раз и при регенерации не затирается.
+// Пока файл не правили руками, билдер перегенерирует его из схемы (узел отправки, визард ли
+// форма); правленный не трогает.
 
 import { onComponentEvent, type BehaviorScope } from '@reformer/core/behaviors';
 import { submitForm } from '../api';

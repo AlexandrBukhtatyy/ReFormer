@@ -1,13 +1,17 @@
 /**
- * Модуль на диске против напечатанного: кит модуля, сироты шагов, файлы прежней раскладки.
+ * Модуль на диске против напечатанного: кит модуля, сироты шагов, файлы прежней раскладки,
+ * устаревшая отправка.
  *
  * @module plugins/reformer/codegen/stack/disk.test
  */
 
 import { describe, expect, it } from 'vitest';
-import { withMarker } from '@reformer/builder-toolkit';
+import { MARKER_PREFIX, withMarker } from '@reformer/builder-toolkit';
 import type { CodegenFile, ResourceId } from '@reformer/builder-plugin-api';
 import { createFakeReader } from '../../../../.shared/codegen-fakes';
+import { builtinKit, plainSchema, wizardSchema } from '../../../core/testing';
+import { generateModule } from '../pipeline/generate';
+import { BUILTIN_TARGETS } from '../pipeline/targets';
 import { kitMismatchOf, notesOf, registryKitOf } from './disk';
 
 const DIR = 'src/pages/my-form' as ResourceId;
@@ -47,7 +51,7 @@ const registryFile = (kit: string): CodegenFile =>
 async function noted(
   files: Record<string, string>,
   module: readonly CodegenFile[],
-  id: 'orphans' | 'flat',
+  id: 'orphans' | 'flat' | 'stale-submit',
   schemaPath = SCHEMA
 ): Promise<readonly string[]> {
   const notes = await notesOf(createFakeReader(files), DIR, module, schemaPath);
@@ -223,5 +227,87 @@ describe('файлы прежней плоской раскладки', () => {
   it('документ формы и README прежними не считаются: они живут под теми же именами', async () => {
     const files = { [`${DIR}/form.schema.json`]: '{}', [`${DIR}/README.md`]: '# старое\n' };
     expect(await noted(files, [file({ path: 'types/x.ts' })], 'flat')).toEqual([]);
+  });
+});
+
+describe('устаревшая отправка', () => {
+  const SUBMIT = 'application/submit.ts';
+
+  /** Отправка, подключённая к узлу `selector` событием `event`, — так её печатает шаблон. */
+  const wiring = (selector: string, event: string, quote = "'"): string =>
+    [
+      "import { onComponentEvent, type BehaviorScope } from '@reformer/core/behaviors';",
+      '',
+      'export function wireSubmit({ schema }: BehaviorScope<F>): void {',
+      `  onComponentEvent(schema.node(${quote}${selector}${quote}), ${quote}${event}${quote}, async () => {`,
+      '    await send();',
+      '  });',
+      '}',
+      '',
+    ].join('\n');
+
+  /** Свежая отправка модуля — цель `codegen.submit`; шаблон без форматтера печатает `"`. */
+  const printed = (selector: string, event: string): CodegenFile =>
+    file({
+      path: SUBMIT,
+      targetId: 'codegen.submit',
+      cls: 'user',
+      regenerable: true,
+      content: withMarker(wiring(selector, event, '"')),
+    });
+
+  it('файл без маркера под простую форму, а форма стала визардом, — называется', async () => {
+    const files = { [`${DIR}/${SUBMIT}`]: wiring('submit', 'onClick') };
+    const notes = await notesOf(
+      createFakeReader(files),
+      DIR,
+      [printed('wizard', 'onSubmit')],
+      SCHEMA
+    );
+    expect(notes).toEqual([
+      {
+        id: 'stale-submit',
+        paths: [SUBMIT],
+        title: { key: 'stale-submit.title' },
+        detail: { key: 'stale-submit.detail' },
+        notify: { key: 'notify.stale-submit', params: { file: SUBMIT } },
+      },
+    ]);
+  });
+
+  it('правленный руками файл, подключённый к прежнему узлу, — тоже', async () => {
+    const files = {
+      [`${DIR}/${SUBMIT}`]: `${withMarker(wiring('submit', 'onClick'))}// моя правка\n`,
+    };
+    expect(await noted(files, [printed('submit-2', 'onClick')], 'stale-submit')).toEqual([SUBMIT]);
+  });
+
+  it('подключение то же — заметки нет, как бы файл ни правили', async () => {
+    const files = { [`${DIR}/${SUBMIT}`]: `${wiring('submit', 'onClick')}// моя правка\n` };
+    expect(await noted(files, [printed('submit', 'onClick')], 'stale-submit')).toEqual([]);
+  });
+
+  it('нетронутый файл с маркером запись перепечатывает сама — его не называют', async () => {
+    const files = { [`${DIR}/${SUBMIT}`]: withMarker(wiring('submit', 'onClick')) };
+    expect(await noted(files, [printed('wizard', 'onSubmit')], 'stale-submit')).toEqual([]);
+  });
+
+  it('файл, написанный по-своему, и отсутствующий файл не называются: судить не по чему', async () => {
+    const own = { [`${DIR}/${SUBMIT}`]: 'export function wireSubmit(): void {}\n' };
+    expect(await noted(own, [printed('wizard', 'onSubmit')], 'stale-submit')).toEqual([]);
+    expect(await noted({}, [printed('wizard', 'onSubmit')], 'stale-submit')).toEqual([]);
+  });
+
+  it('по настоящему выводу: отправка простой формы без маркера в модуле визарда', async () => {
+    // Оба варианта шаблона — каким его печатают прогон и прежние версии: подключение узнаётся
+    // в обоих, и простая форма, ставшая визардом, называется.
+    const input = { formName: 'Заявка', kit: builtinKit() };
+    const plain = await generateModule(BUILTIN_TARGETS, { ...input, schema: plainSchema() });
+    const wizard = await generateModule(BUILTIN_TARGETS, { ...input, schema: wizardSchema() });
+    const old = plain.files.find((f) => f.path === SUBMIT)?.content ?? '';
+    expect(old.startsWith(MARKER_PREFIX)).toBe(true);
+    const files = { [`${DIR}/${SUBMIT}`]: old.slice(old.indexOf('\n') + 1) };
+    expect(await noted(files, wizard.files, 'stale-submit')).toEqual([SUBMIT]);
+    expect(await noted(files, plain.files, 'stale-submit')).toEqual([]);
   });
 });

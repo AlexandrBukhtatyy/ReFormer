@@ -33,5 +33,8 @@
   "notify.flat": "Files of the old layout remain in the form directory ({count}): {files}. The module does not import them — move your edits into the new files and delete them.",
   "legacy-rules.title": "Obsolete rules file",
   "legacy-rules.detail": "Form rules live in the module code — in validation/ and behavior/. The builder no longer reads this file: move anything you still need into the code, then delete the file.",
-  "notify.legacy-rules": "The rules file {file} is obsolete: form rules live in the module code. Delete it."
+  "notify.legacy-rules": "The rules file {file} is obsolete: form rules live in the module code. Delete it.",
+  "stale-submit.title": "Outdated submit file",
+  "stale-submit.detail": "The file was printed for an earlier shape of the form (for example, a plain form that has since become a wizard) and listens to a submit node the schema no longer has: the form will not submit. It was not regenerated — it has no marker or was edited by hand. Delete it so the next generation prints a fresh one, then move your edits into it.",
+  "notify.stale-submit": "The submit file {file} is out of date: it is wired to a node the form no longer has, so the form will not submit. It was left alone — delete it and generate the module again."
 }

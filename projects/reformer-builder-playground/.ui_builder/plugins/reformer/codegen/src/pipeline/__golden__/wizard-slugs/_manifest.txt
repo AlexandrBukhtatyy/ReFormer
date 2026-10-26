@@ -15,6 +15,6 @@ validation/messages.ts	user
 validation/kontakty.ts	user	regenerable
 validation/kontakty-2.ts	user	regenerable
 validation/step-3.ts	user	regenerable
-application/submit.ts	user
+application/submit.ts	user	regenerable
 api/index.ts	user
 README.md	derived

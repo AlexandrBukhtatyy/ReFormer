@@ -79,8 +79,8 @@ reformer-multi-step-form/
 - **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `schema/steps/dannye/form.schema.json`, `schema/steps/kontakty/form.schema.json`, `schema/steps/dopolnitelno/form.schema.json`, `types/reformer-multi-step-form.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ReformerMultiStepForm.tsx`, `index.ts`, `flow/reformer-multi-step-form-flow.ts`, `README.md`.
 - **Ваши** (пишутся один раз, не затираются): `constants/reformer-multi-step-form.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/messages.ts`, `validation/dannye.ts`, `validation/kontakty.ts`, `validation/dopolnitelno.ts`, `application/submit.ts`, `api/index.ts`.
 
-Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
-поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
+Из ваших файлов билдер перегенерирует только те, что выводятся из правил и схемы формы (валидация,
+поведение и отправка), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
 
 Схема лежит в `schema/form.schema.json` — допустимый вариант канона («схема как данные»), выбранный
 ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на

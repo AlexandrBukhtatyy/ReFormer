@@ -67,8 +67,8 @@ reformer-simple-form/
 - **Регенерируемые** (перезаписываются при повторной генерации): `schema/form.schema.json`, `types/reformer-simple-form.ts`, `model/initial-value.ts`, `model/model.ts`, `schema/registry.ts`, `application/create.ts`, `application/entry.ts`, `ReformerSimpleForm.tsx`, `index.ts`, `README.md`.
 - **Ваши** (пишутся один раз, не затираются): `constants/reformer-simple-form.ts`, `behavior/index.ts`, `validation/form.ts`, `validation/messages.ts`, `application/submit.ts`, `api/index.ts`.
 
-Из ваших файлов билдер перегенерирует только те, что выводятся из правил формы (валидация и
-поведение), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
+Из ваших файлов билдер перегенерирует только те, что выводятся из правил и схемы формы (валидация,
+поведение и отправка), и только пока вы их не правили: правленный файл он не трогает и говорит об этом.
 
 Схема лежит в `schema/form.schema.json` — допустимый вариант канона («схема как данные»), выбранный
 ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на

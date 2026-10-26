@@ -234,16 +234,21 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       order: 105,
       template: stepValidationTemplate,
     },
-    // Отправка и бэкенд: перевыводить их не из чего, поэтому маркера они не несут.
     {
+      // Отправка выводится из схемы: узел отправки и то, визард ли форма (визард зовёт `onSubmit`
+      // сам — после полной проверки, простая форма слушает `onClick` кнопки и проверяет себя
+      // сама). Поэтому файл несёт маркер и перепечатывается, пока его не правили руками:
+      // напечатанный однажды, он ломал бы форму, ставшую визардом, — узла `submit` в ней нет.
       id: 'codegen.submit',
       stack: CODEGEN_STACK_ID,
       titleKey: 'target.submit',
       path: 'application/submit.ts',
       cls: 'user',
+      regenerable: true,
       order: 108,
       template: submitTemplate,
     },
+    // Бэкенд: перевыводить его не из чего, поэтому маркера он не несёт.
     {
       id: 'codegen.api',
       stack: CODEGEN_STACK_ID,
