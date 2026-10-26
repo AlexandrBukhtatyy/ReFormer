@@ -130,6 +130,14 @@ export interface CodegenFile {
   /** Прежние имена этого файла (токены подставлены) — для переноса под новое имя. */
   readonly legacyPaths?: readonly string[];
   readonly origin: CodegenTargetOrigin;
+  /**
+   * Точечная правка авторского файла, который уже лежит на диске: текст после правки либо
+   * `null` — не трогать. Без неё такой файл пропускается (`authored`), как всегда.
+   *
+   * Так новые записи доезжают до файла человека, не перепечатывая его: текст замечания — в его
+   * словарь, значение источника — в его константы.
+   */
+  readonly merge?: (current: string) => string | null;
 }
 
 /** Почему цель не напечатала файл либо почему замена не действует. */
@@ -223,6 +231,11 @@ export interface CodegenPrintRequest {
   /** Имя формы — непустое: введённое человеком либо {@link CodegenForm.formName}. */
   readonly formName: string;
   readonly format?: CodegenFormatter;
+  /**
+   * Вход заказчика генерации для этого стека (`GenerateRequest.stackInput`) — как есть; форму
+   * его определяет и проверяет сам стек. Нет — печать по одному документу и диску.
+   */
+  readonly input?: unknown;
 }
 
 /** Напечатанный модуль. */
@@ -233,8 +246,13 @@ export interface CodegenModule {
   readonly view: object | null;
   /** Сниппет регистрации формы в приложении: вставляет человек, не запись. Пусто — нет. */
   readonly snippet: string;
-  /** Перед записью: отказ, если запись испортила бы модуль на диске. */
-  check?(): Promise<CodegenRefusal | null>;
+  /**
+   * Перед записью: отказ, если запись испортила бы модуль на диске.
+   *
+   * @param delivered - Файлы, которые пишутся в этот раз, когда пишется не весь модуль
+   *   (`GenerateRequest.only`); нет — пишется весь.
+   */
+  check?(delivered?: readonly CodegenFile[]): Promise<CodegenRefusal | null>;
   /** После записи: заметки о файлах на диске, которых в модуле нет. */
   inspect?(): Promise<readonly CodegenNote[]>;
 }

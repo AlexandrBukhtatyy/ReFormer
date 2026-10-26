@@ -29,6 +29,21 @@ export interface GenerateRequest {
   readonly write?: GenerateWrite;
   /** Имя формы; по умолчанию — введённое в панели либо выведенное из пути документа. */
   readonly formName?: string;
+  /**
+   * Записать только файлы этих целей — по `CodegenTarget.id`; цель из проекта, заменяющая одну
+   * из них (`overrides`), считается ею. Нет — весь модуль.
+   *
+   * Печатается модуль всё равно целиком: имена и импорты файла не зависят от того, какие ещё
+   * файлы пишутся в этот раз.
+   */
+  readonly only?: readonly string[];
+  /**
+   * Вход стеку, который печатает документ, — непрозрачный для хозяина: его форму описывает сам
+   * стек (`stack` — его `CodegenStack.id`). Стеку другого формата он не передаётся.
+   *
+   * @since 1.1.0
+   */
+  readonly stackInput?: { readonly stack: string; readonly value: unknown };
 }
 
 /** Почему файл не записан: правки человека (как у панели) либо отказ записи заказчика. */
@@ -69,10 +84,11 @@ export interface ModuleGeneratorService {
 /**
  * Возможность «сгенерировать код формы» — прогон панели экспорта по заказу другого плагина.
  *
- * Версия `1.0.0` — исходная.
+ * Версия `1.0.0` — исходная. `1.1.0` — заказ части модуля ({@link GenerateRequest.only}) и вход
+ * стеку ({@link GenerateRequest.stackInput}): так ассистент пишет правила формы в её код.
  */
 export const ModuleGeneratorCapability: Capability<ModuleGeneratorService> =
-  defineCapability<ModuleGeneratorService>({ id: 'reformer.codegen.generator', version: '1.0.0' });
+  defineCapability<ModuleGeneratorService>({ id: 'reformer.codegen.generator', version: '1.1.0' });
 
 /** Откуда шаблон: встроенный, из проекта (`.ui_builder/templates`) или локальный. */
 export type TemplateSourceKind = 'builtin' | 'project' | 'local';

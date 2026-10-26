@@ -321,7 +321,10 @@ export type FormLandOutcome =
   | {
       readonly status: 'applied';
       readonly companions: readonly FormLandedCompanion[];
-      /** Сопутствующий файл не записан: он не разбирается, и запись затёрла бы правку руками. */
+      /**
+       * Сопутствующий файл не записан, и `error` говорит почему: запись затёрла бы правку руками
+       * либо её нечем сделать. Документ при этом записан.
+       */
       readonly broken?: { readonly id: ResourceId; readonly error: string };
     }
   /** Сопутствующий файл разошёлся с базой хода. */
