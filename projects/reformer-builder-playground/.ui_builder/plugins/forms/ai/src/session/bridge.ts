@@ -390,6 +390,8 @@ interface CreatedForm {
   readonly path: string;
   /** Имя шаблона; `null` — пустая форма. */
   readonly template: string | null;
+  /** Форма только в рабочей копии: отправить её в проект не удалось — почему, словами. */
+  readonly unsaved?: string;
 }
 
 /**
@@ -423,8 +425,14 @@ const NO_FORM_SEED =
 /** Подсказка продолжения: модель видит, на какой форме она теперь и откуда та взялась. */
 function resumeHint(created: CreatedForm): string {
   const from = created.template === null ? 'empty' : `from template "${created.template}"`;
+  // Несохранённая форма — не повод останавливаться: всё, что ход правит, и так ложится в рабочую
+  // копию. Но человек должен узнать, что форму осталось сохранить, — модель скажет об этом.
+  const unsaved =
+    created.unsaved === undefined
+      ? ''
+      : ' It is not saved to the project yet; tell the user to save it when the work is done.';
   return (
-    `The form ${created.path} was created (${from}) and is open now. ` +
+    `The form ${created.path} was created (${from}) and is open now.${unsaved} ` +
     "Carry out the user's request on this form."
   );
 }
@@ -759,14 +767,21 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       resource: report.documentId,
       path: report.path,
       template: report.template,
+      ...(report.unsaved === undefined ? {} : { unsaved: report.unsaved }),
     };
+    const done = t('turn.create.done', { path: report.path });
     session.logTool({
       name: createFormTool.name,
       ok: true,
-      summary: t('turn.create.done', { path: report.path }),
+      summary: report.unsaved === undefined ? done : `${done}. ${report.unsaved}`,
     });
     creation.stop.abort();
-    return { ok: true, path: report.path, template: report.template };
+    return {
+      ok: true,
+      path: report.path,
+      template: report.template,
+      ...(report.unsaved === undefined ? {} : { unsaved: report.unsaved }),
+    };
   };
 
   /**

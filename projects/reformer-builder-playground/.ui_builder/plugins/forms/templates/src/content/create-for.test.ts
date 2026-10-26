@@ -42,13 +42,20 @@ const stack = createFakeTemplateStack({
 function create(
   request: CreateFormRequest,
   files: Record<string, string> = {},
-  options: { readonly root?: null; readonly stacks?: readonly TemplateStack[] } = {}
+  options: {
+    readonly root?: null;
+    readonly stacks?: readonly TemplateStack[];
+    readonly save?: () => Promise<boolean>;
+  } = {}
 ) {
-  const host = createFakeTemplatesHost({
-    files,
-    stacks: options.stacks ?? [stack],
-    ...(options.root === null ? { projectRoot: null } : {}),
-  });
+  const host = {
+    ...createFakeTemplatesHost({
+      files,
+      stacks: options.stacks ?? [stack],
+      ...(options.root === null ? { projectRoot: null } : {}),
+    }),
+    ...(options.save === undefined ? {} : { save: options.save }),
+  };
   const deps = {
     host,
     stores: () => [store],
@@ -108,6 +115,19 @@ describe('создание формы по заказу', () => {
 
     const byId = create({ formName: 'loan', template: 'credit' });
     expect(await byId.report).toMatchObject({ ok: true, template: 'Кредит' });
+  });
+
+  it('в проект не сохранилась — форма всё равно создана рабочей копией, с пометкой', async () => {
+    // Заказчик (ассистент) и так пишет только в рабочую копию: отказ сохранения не повод бросать
+    // ход, а повод сказать человеку, что форму осталось сохранить.
+    const { report } = create({ formName: 'credit' }, {}, { save: async () => false });
+    expect(await report).toEqual({
+      ok: true,
+      documentId: `project/credit/doc/${FAKE_DOCUMENT}`,
+      path: `project/credit/doc/${FAKE_DOCUMENT}`,
+      template: null,
+      unsaved: 'error.save-failed',
+    });
   });
 
   it('неизвестный шаблон, пустое имя, нет проекта — отказ ключом и текстом', async () => {

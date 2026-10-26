@@ -381,7 +381,10 @@ export async function generateFormFromTemplate(
     // перезагрузку. Сообщать об успехе здесь нельзя: именно так дефект и выглядел
     // снаружи — «создано», а в проекте пусто. Отсутствие `save` у порта — другое дело:
     // это законная сборка без отправки, а не отказ.
-    if (stored === false) return { ...fail('error.save-failed'), openId: null };
+    //
+    // Документ при этом назван: форма в рабочей копии есть, и заказчик, который и так пишет
+    // только туда (ассистент), вправе её открыть (`./create-for`).
+    if (stored === false) return { ...fail('error.save-failed'), openId };
 
     return {
       ...done('result.generated', { folder, template: template.name }),

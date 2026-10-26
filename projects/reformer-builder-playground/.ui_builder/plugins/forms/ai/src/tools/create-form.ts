@@ -88,6 +88,10 @@ export const createFormTool: FormAgentTool<CreateParams> = {
     });
     if (!outcome.ok) return formToolFail(outcome.code, outcome.message, outcome.suggestions);
     const from = outcome.template === null ? 'empty' : `from template "${outcome.template}"`;
-    return formToolOk(`Created ${outcome.path} (${from}). This turn continues on it — stop here.`);
+    // Несохранённая форма открыта и правится так же: ход пишет только в рабочую копию.
+    const unsaved = outcome.unsaved === undefined ? '' : ' Not saved to the project yet.';
+    return formToolOk(
+      `Created ${outcome.path} (${from}).${unsaved} This turn continues on it — stop here.`
+    );
   },
 };

@@ -87,6 +87,8 @@ describe('создание формы по шаблону', () => {
 
     expect(result.ok).toBe(false);
     expect(result.messageKey).toBe('error.save-failed');
+    // Форма в рабочей копии при этом есть — документ назван для заказчика, который откроет её сам.
+    expect(result.openId).not.toBeNull();
   });
 
   it('порт без отправки в источник — законная сборка, а не отказ', async () => {

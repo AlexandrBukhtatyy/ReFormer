@@ -99,13 +99,16 @@ export async function createFormFor(
     template,
     template.files.map((file) => file.path)
   );
-  if (!created.ok) return refuse(created.messageKey, created.params);
-  if (created.openId === null) return refuse('error.nothing-picked');
+  // Не сохранилась — не отказ: форма лежит в рабочей копии, а заказчик пишет только туда.
+  const unsaved = !created.ok && created.messageKey === 'error.save-failed';
+  if (!created.ok && !unsaved) return refuse(created.messageKey, created.params);
+  if (created.openId === null) return refuse(unsaved ? created.messageKey : 'error.nothing-picked');
   return {
     ok: true,
     documentId: created.openId,
     path: pathOf(host, created.openId),
     template: request.template === undefined ? null : template.name,
+    ...(unsaved ? { unsaved: translate(created.messageKey, created.params) } : {}),
   };
 }
 

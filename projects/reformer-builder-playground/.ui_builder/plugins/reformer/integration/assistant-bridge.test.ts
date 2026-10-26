@@ -1957,7 +1957,7 @@ describe('генерация кода (generate_code) — режим файло�
  * Шаблоны-двойник: кладут пустую форму файлом `forms/<имя>/schema/form.schema.json` — как
  * настоящие, мимо двойника документов; открывает её мост.
  */
-function fakeCreator(files: FakeFiles) {
+function fakeCreator(files: FakeFiles, options: { readonly unsaved?: string } = {}) {
   const requests: Parameters<FormCreatorService['create']>[0][] = [];
   const creator: FormCreatorService = {
     templates: async () => [{ id: 'simple', name: 'Простая форма', source: 'builtin' }],
@@ -1968,7 +1968,13 @@ function fakeCreator(files: FakeFiles) {
       }
       const path = `forms/${request.formName}/schema/form.schema.json`;
       files.put(path, EMPTY_TEXT);
-      return { ok: true, documentId: path, path, template: request.template ?? null };
+      return {
+        ok: true,
+        documentId: path,
+        path,
+        template: request.template ?? null,
+        ...(options.unsaved === undefined ? {} : { unsaved: options.unsaved }),
+      };
     },
   };
   return { creator, requests };
@@ -2012,6 +2018,38 @@ describe('новая форма (create_form) — структурный реж�
     expect(second).toContain('was created (empty)');
     // Первая попытка видела только создание: править было нечего.
     expect(JSON.stringify(requests[0])).toContain('No form is open');
+  });
+
+  it('форму не удалось сохранить в проект — ход всё равно продолжается на ней', async () => {
+    // Так выглядел отказ: шаблоны положили форму в рабочую копию, сохранение не удалось, и ход
+    // оставался без формы — модель звала инструменты правки, которых у хода создания нет.
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files, {
+      unsaved: 'Файлы формы не удалось отправить в проект',
+    });
+    const { provider, requests } = recordingSequence([
+      [createCredit],
+      [insertField, { text: 'Анкета готова, сохраните её.' }],
+    ]);
+    const { host, session, bridge } = harness([], {
+      files,
+      provider,
+      openForm: false,
+      formCreator: creator,
+    });
+    await bridge.send('сделай анкету на кредит');
+
+    expect(host.activeResource()).toBe(NEW_FORM);
+    expect(host.documentOf(NEW_FORM)?.getText()).toContain('Почта');
+    expect(session.get().error).toBeNull();
+    // Человек видит, что форму осталось сохранить, — строкой создания.
+    const tools = session.get().entries.at(-1)?.tools ?? [];
+    expect(tools.find((tool) => tool.name === 'create_form')).toMatchObject({
+      ok: true,
+      summary: expect.stringContaining('Файлы формы не удалось отправить в проект'),
+    });
+    // И модель — подсказкой продолжения: скажет об этом сама.
+    expect(JSON.stringify(requests[1])).toContain('not saved to the project yet');
   });
 
   it('модель ответила словами, не создав формы, — ответ стоит, замечания нет', async () => {
