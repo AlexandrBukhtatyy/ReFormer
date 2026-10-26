@@ -44,9 +44,14 @@ const OUTLINE_SEED_LEAD =
   'required, by its property or a rule; a field without the mark is optional.';
 
 /**
- * Затравка формы: карта и правила; `''` — показывать нечего. Пустая форма описывалась бы одной
- * строкой про корень — сообщать нечего, а шаг всё равно не сэкономить.
+ * Затравка пустой формы. Без неё ход по пустой форме — а это каждое продолжение после
+ * `create_form` — начинался с `get_form_outline`: модель не знала, куда вставлять, и шла
+ * спрашивать. Одна строка вместо целого обращения к модели.
  */
+const EMPTY_FORM_SEED =
+  'The form is empty at the start of this turn: insert the first nodes into /root, the form root.';
+
+/** Затравка формы: карта и правила. */
 export function formSeed(
   base: JsonFormSchema,
   rules?: FormRules,
@@ -54,9 +59,11 @@ export function formSeed(
 ): string {
   const entries = buildOutline(base, rules);
   const rulesText = rules ? renderRulesSeed(rules) : '';
-  const map = entries.length > 1 ? renderOutline(entries, OUTLINE_SEED_BUDGET) : '';
-  const form = [map, rulesText, renderLocksSeed(locks)].filter(Boolean).join('\n\n');
-  return form ? `${OUTLINE_SEED_LEAD}\n${form}` : '';
+  const locksText = renderLocksSeed(locks);
+  if (entries.length <= 1)
+    return [EMPTY_FORM_SEED, rulesText, locksText].filter(Boolean).join('\n\n');
+  const map = renderOutline(entries, OUTLINE_SEED_BUDGET);
+  return `${OUTLINE_SEED_LEAD}\n${[map, rulesText, locksText].filter(Boolean).join('\n\n')}`;
 }
 
 /** Пометка, отделяющая содержимое модуля от инструкций. */

@@ -9,7 +9,8 @@
  *
  * По умолчанию НЕ запускается: нужен живой канал. Запуск из каталога плагина ассистента —
  * `EVAL_MODEL=qwen3.8:27b-32k npx vitest run src/session/form-scenarios-eval.test.ts`;
- * `EVAL_ONLY=7.1,8.1` — только эти сценарии, `EVAL_BASE_URL` — другой OpenAI-совместимый канал.
+ * `EVAL_ONLY=7.1,8.1` — только эти сценарии, `EVAL_BASE_URL` — другой OpenAI-совместимый канал,
+ * `EVAL_REASONING=off|low|medium|high` — рассуждение модели (настройка канала `reasoning`).
  * Итог — таблицей в консоль и JSON в `.tmp/eval/` корня репозитория. Отчёт —
  * `docs/mcp-eval/builder-form-scenarios.md`.
  *
@@ -30,15 +31,19 @@ import { createAgentBridge } from '../../forms/ai/src/session/bridge';
 import { createAiSession, openAskOf, type ToolLogEntry } from '../../forms/ai/src/session/session';
 import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
 import { createByokProvider } from '../../forms/ai/src/providers/byok';
+import type { ReasoningLevel } from '../../forms/ai/src/session/config';
 import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
 import { createFakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
 import type { AiAssistant } from '../../forms/ai/src/plugin';
 import type { FormCreatorService, ModuleGeneratorService } from '@reformer/builder-plugin-api';
+import type { TurnTelemetry } from '../../forms/ai/src/session/telemetry';
 
 const MODEL = process.env.EVAL_MODEL;
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:11434/v1';
+/** Рассуждение модели для A/B; нет — по умолчанию канала. */
+const REASONING = process.env.EVAL_REASONING as ReasoningLevel | undefined;
 const ONLY = (process.env.EVAL_ONLY ?? '')
   .split(',')
   .map((id) => id.trim())
@@ -273,6 +278,25 @@ const SCENARIOS: readonly EvalScenario[] = [
     },
   },
   {
+    id: '5.4',
+    title: 'пошаговая форма из трёх шагов без открытой формы',
+    form: 'none',
+    request:
+      'Сделай пошаговую форму из трёх шагов: «Имя» — поле имени, «Контакты» — почта, ' +
+      '«Согласие» — флажок согласия на обработку данных.',
+    check: (s) => {
+      if (s.created.length !== 1) return `создано форм: ${s.created.length}`;
+      const wizard = nodesOf(s.schema).find((n) => nameOf(n.component) === 'Wizard');
+      if (wizard === undefined) return 'нет мастера';
+      const steps = (wizard.children ?? []).filter((c) => nameOf(c.component) === 'Step');
+      if (steps.length !== 3) return `шагов ${steps.length}`;
+      const empty = steps.findIndex(
+        (step) => fieldsOf({ root: step } as unknown as JsonFormSchema).length === 0
+      );
+      return empty < 0 ? null : `шаг ${empty + 1} без полей`;
+    },
+  },
+  {
     id: '7.1',
     title: 'обязательность и формат',
     form: 'client',
@@ -406,6 +430,61 @@ interface EvalResult {
   readonly text: string;
   /** Рассуждение модели (укороченное): по нему видно, ПОЧЕМУ ход выбрал эти вызовы. */
   readonly reasoning: string;
+  /** Запросов к модели за ход — сквозь попытки, с оборванными. */
+  readonly requests: number;
+  /** Секунд в запросах к модели. */
+  readonly modelSeconds: number;
+  /** Среднее время до первого куска, с: чтение контекста сервером. */
+  readonly firstChunkSeconds: number | null;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly reasoningTokens: number;
+  readonly reasoningChars: number;
+  /** Фазы обвязки: имя → секунды. */
+  readonly phases: Readonly<Record<string, number>>;
+  /** Файлы, которые ход записал в проект (пути от корня проекта). */
+  readonly written: readonly string[];
+}
+
+/** Строка моста о коде, напечатанном записью хода, — не вызов модели. */
+function isCodeLine(tool: ToolLogEntry): boolean {
+  return (
+    tool.name === 'generate_code' &&
+    /turn\.code\.updated|Код модуля обновлён/.test(tool.summary ?? '')
+  );
+}
+
+/** Поля замера хода — из сводки моста. */
+function telemetryOf(summary: TurnTelemetry | null) {
+  if (summary === null) {
+    return {
+      requests: 0,
+      modelSeconds: 0,
+      firstChunkSeconds: null,
+      inputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      reasoningChars: 0,
+      phases: {},
+    };
+  }
+  const firsts = summary.requests
+    .map((request) => request.firstChunkMs)
+    .filter((ms): ms is number => ms !== undefined);
+  const round = (ms: number) => Math.round(ms / 100) / 10;
+  return {
+    requests: summary.requests.length,
+    modelSeconds: round(summary.modelMs),
+    firstChunkSeconds:
+      firsts.length === 0 ? null : round(firsts.reduce((a, b) => a + b, 0) / firsts.length),
+    inputTokens: summary.inputTokens,
+    outputTokens: summary.outputTokens,
+    reasoningTokens: summary.reasoningTokens,
+    reasoningChars: summary.reasoningChars,
+    phases: Object.fromEntries(
+      Object.entries(summary.phases).map(([name, phase]) => [name, round(phase.ms)])
+    ),
+  };
 }
 
 async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
@@ -461,6 +540,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
       baseUrl: BASE_URL,
       model: MODEL!,
       apiKey: 'ollama',
+      ...(REASONING === undefined ? {} : { reasoning: REASONING }),
     })
   );
   const assistant: AiAssistant = {
@@ -475,6 +555,7 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
   } as unknown as AiAssistant;
 
   const session = createAiSession();
+  let telemetry: TurnTelemetry | null = null;
   const stack = createSchemaFormStack({
     catalog: () => builtinEntries(),
     validateForm: () => Promise.resolve(validateFormSchema),
@@ -490,6 +571,9 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     stacks: () => [stack],
     generator: () => generator,
     formCreator: () => creator,
+    telemetry: (summary) => {
+      telemetry = summary;
+    },
   });
 
   // Вопросы модели получают первый вариант: замер идёт без человека, а ход — до конца. Ответ —
@@ -538,7 +622,11 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     title: scenario.title,
     pass: reason === null,
     reason,
-    tools: state.tools.map((tool) => `${tool.name}${tool.ok ? '' : '✗'}`),
+    // Строку моста о напечатанном коде (`turn.code.updated`) журнал пишет под именем
+    // `generate_code`, но модель её не вызывала — в списке вызовов она подписана отдельно.
+    tools: state.tools.map((tool) =>
+      isCodeLine(tool) ? '(код модуля)' : `${tool.name}${tool.ok ? '' : '✗'}`
+    ),
     failedTools: state.tools.filter((tool) => !tool.ok).length,
     failures: state.tools
       .filter((tool) => !tool.ok)
@@ -548,6 +636,8 @@ async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
     error: state.error,
     text: state.text.slice(0, 300),
     reasoning: (last?.reasoning ?? '').slice(0, 3000),
+    ...telemetryOf(telemetry),
+    written: [...new Set(files.writes.map((write) => write.path))].sort(),
   };
 }
 
@@ -561,7 +651,10 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
       results.push(result);
       console.info(
         `[eval] ${result.id} ${result.pass ? 'OK' : `FAIL (${result.reason})`} · ` +
-          `${result.seconds}s · ${result.tools.join(' → ')}`
+          `${result.seconds}s · запросов ${result.requests}, модель ${result.modelSeconds}s, ` +
+          `до 1-го куска ${result.firstChunkSeconds ?? '—'}s, выход ${result.outputTokens}, ` +
+          `рассуждение ${result.reasoningTokens || `${result.reasoningChars} симв.`} · ` +
+          `${result.tools.join(' → ')}`
       );
       // Неудача сценария — данные замера, а не поломка теста: итог считает отчёт.
       expect(result.id).toBe(scenario.id);
@@ -575,7 +668,7 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
     mkdirSync(root, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     writeFileSync(
-      `${root}form-scenarios-${(MODEL ?? 'model').replace(/[^\w.-]/g, '_')}-${stamp}.json`,
+      `${root}form-scenarios-${(MODEL ?? 'model').replace(/[^\w.-]/g, '_')}${REASONING === undefined ? '' : `-reasoning-${REASONING}`}-${stamp}.json`,
       JSON.stringify(
         { model: MODEL, baseUrl: BASE_URL, passed, total: results.length, results },
         null,

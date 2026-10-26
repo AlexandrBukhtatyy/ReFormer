@@ -12,6 +12,19 @@
  * (`./rule-code`). Записанное генерацией — сопутствующие файлы хода: их отменяют и возвращают
  * вместе с формой.
  *
+ * ## Модуль — после каждого хода
+ *
+ * Ход, изменивший форму, кончается печатью модуля целиком: производные файлы зависят от схемы, и
+ * модуль, отставший от документа, не собирается. Перед записью черновик нормализуется той же
+ * функцией, что генерация нормализует свою копию (`core/codegen/selectors`): документ получает
+ * селекторы шагов и кнопку отправки, на которые сошлётся напечатанный код.
+ *
+ * ## Визард хода — по файлам шагов
+ *
+ * Визард, появившийся в этом ходе, ложится по файлам шагов, как у шаблона «Пошаговая форма»:
+ * запись идёт ручкой модели с разбиением (`./workspace`, `splitWriter`), одной записью истории.
+ * Визард, который был до хода и лежит одним файлом, не трогается: его могли собрать намеренно.
+ *
  * @module plugins/reformer/ai/stack/structured
  */
 
@@ -28,8 +41,9 @@ import type {
   ResourceId,
 } from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '../../../core/catalog';
-import { FORM_RULES_NAME, VALIDATION_DIR } from '../../../core/codegen/layout';
-import { emptyRules, type FormRules } from '../../../core/form-model';
+import { FORM_RULES_NAME, modulePlacementOf, VALIDATION_DIR } from '../../../core/codegen/layout';
+import { assignSelectors } from '../../../core/codegen/selectors';
+import { emptyRules, firstWizardStepRefs, type FormRules } from '../../../core/form-model';
 import { createChangeSet, hasChanges, withOutcome, type ChangeSet } from '../model/changeset';
 import { parseSchemaText } from '../model/schema-text';
 import type { RulesLock, ToolContext, ToolOutcome } from '../model/types';
@@ -41,10 +55,11 @@ import {
   ruleFilesUnchanged,
   rulesLockOf,
   sameRules,
-  writeRuleCode,
+  writeModuleCode,
   type RuleCodeBase,
 } from './rule-code';
 import { formSeed } from './seed';
+import type { FormSplitWriter } from './workspace';
 
 /** Документ формы, как его разобрал стек: схема и правила на начало хода. */
 export interface SchemaState {
@@ -83,6 +98,21 @@ export interface SchemaTurnOptions {
   readonly rulesLock?: RulesLock;
   /** Переопределение системного промпта (тесты). */
   readonly system?: string;
+}
+
+/**
+ * Черновик с селекторами и кнопкой отправки — теми же, что генерация поставит на своей копии.
+ * Кнопка вставляется, только если она есть в ките: узел, которого кит не знает, строгий гейт не
+ * пропустил бы вместе со всем ходом.
+ */
+function normalized(set: ChangeSet, catalog: readonly CatalogEntry[]): ChangeSet {
+  const injectSubmit = catalog.some((entry) => entry.name === 'Button');
+  return { ...set, draft: assignSelectors(set.draft, { injectSubmit }).schema };
+}
+
+/** Визард появился в этом ходе: на начало хода шагов не было, в черновике — есть. */
+function wizardAppears(set: ChangeSet): boolean {
+  return firstWizardStepRefs(set.base).length === 0 && firstWizardStepRefs(set.draft).length > 0;
 }
 
 /** Фразы отказов запертых правил — для затравки. */
@@ -128,6 +158,8 @@ export interface StructuredModeOptions {
   readonly prepared: () => ValidateFormSchema;
   /** Своя дверь документа (составная форма); `null` — документ пишется как есть. */
   readonly door: (id: ResourceId) => FormDocumentDoor | null;
+  /** Запись с разнесением шагов по файлам; нет или `null` — разносить нечем. */
+  readonly splitWriter?: (id: ResourceId) => FormSplitWriter | null;
   /**
    * Генерация кода — ею правила ложатся в код модуля. Функция: плагин генерации вправе подняться
    * позже стека и уйти раньше. Нет — правила хода записать нечем, и инструменты правил отказывают.
@@ -197,16 +229,36 @@ export function createStructuredMode(options: StructuredModeOptions): FormStruct
 
     async land({ loaded, set, mark, force }): Promise<FormLandOutcome> {
       const state = stateOf(loaded);
-      const changes = set as ChangeSet;
       const files = host.files;
       const ruleCode = files === undefined ? undefined : state.ruleCode;
-      const rulesChanged = !sameRules(changes.draftRules, state.rules);
+      const rulesChanged = !sameRules((set as ChangeSet).draftRules, state.rules);
+      const generator = options.generator?.();
+      // Модуль печатается после каждого хода, изменившего форму. Документ со свободным именем без
+      // кода — исключение: каталог модуля ему заводит генерация, и заводить его на каждую правку
+      // разметки незачем — только когда появились правила, которым без кода негде жить.
+      const prints =
+        files !== undefined &&
+        ruleCode !== undefined &&
+        generator !== undefined &&
+        (rulesChanged || ruleCode.hasCode || modulePlacementOf(loaded.path).kind !== 'detached');
+      const changes = prints ? normalized(set as ChangeSet, options.catalog()) : (set as ChangeSet);
+      // Документ одним файлом, а визард появился в этом ходе — шаги ложатся по своим файлам.
+      const splits =
+        files !== undefined && options.door(loaded.resource) === null && wizardAppears(changes);
+      const split = splits ? (options.splitWriter?.(loaded.resource) ?? null) : null;
+      if (splits && split === null) {
+        console.info(
+          '[plugins/reformer/ai] визард хода остаётся одним файлом: разносить шаги нечем'
+        );
+      }
       const applied = await applyChangeSet(
         {
           host: {
             documentOf: (id) => options.door(id) ?? host.documentOf(id),
             writeText: (id, text, writeMark) =>
-              options.door(id)?.write(text, writeMark) ?? host.writeText(id, text, writeMark),
+              split !== null && id === loaded.resource
+                ? split(text, writeMark)
+                : (options.door(id)?.write(text, writeMark) ?? host.writeText(id, text, writeMark)),
           },
           catalog: options.catalog,
           validateForm: options.validateForm,
@@ -243,33 +295,34 @@ export function createStructuredMode(options: StructuredModeOptions): FormStruct
         rulesByResource.set(loaded.resource, changes.draftRules);
         return { status: 'applied', companions: [] };
       }
-      if (!rulesChanged) return { status: 'applied', companions: [] };
-
-      // Правила — после документа: правила без узлов, на которые они ссылаются, хуже, чем узлы
-      // без правил. Инструменты правил отказывают заранее, если записать нечем, — сюда без
-      // генерации доходит лишь тот, у кого она пропала посреди хода.
-      const generator = options.generator?.();
-      const formRules = files.resolve(ruleCode.root, VALIDATION_DIR, `${FORM_RULES_NAME}.ts`);
-      if (generator === undefined) {
+      if (!prints) {
+        if (!rulesChanged) return { status: 'applied', companions: [] };
+        // Инструменты правил отказывают заранее, если записать нечем, — сюда без генерации
+        // доходит лишь тот, у кого она пропала посреди хода.
+        const formRules = files.resolve(ruleCode.root, VALIDATION_DIR, `${FORM_RULES_NAME}.ts`);
         return {
           status: 'applied',
           companions: [],
           broken: { id: formRules, error: 'code generation is not available' },
         };
       }
-      const written = await writeRuleCode(
+
+      // Модуль — после документа: правила без узлов, на которые они ссылаются, хуже, чем узлы
+      // без правил, а генерация печатает модуль из записанного документа.
+      const written = await writeModuleCode(
         { files, generator, refuse: (id) => options.refuse(id, loaded.resource) },
         {
           document: loaded.resource,
           base: ruleCode,
           rules: changes.draftRules,
-          before: state.rules,
+          rulesChanged,
           mark,
         }
       );
       return {
         status: 'applied',
         companions: written.companions,
+        ...(written.code === undefined ? {} : { code: written.code }),
         ...(written.problem === undefined ? {} : { broken: written.problem }),
       };
     },
@@ -277,24 +330,29 @@ export function createStructuredMode(options: StructuredModeOptions): FormStruct
     async rewind(loaded, { files }) {
       const state = stateOf(loaded);
       rulesByResource.set(loaded.resource, state.rules);
-      // Код правил возвращается только «Восстановить»: отмена хода уже вернула файлы сама. Без
-      // пометки хода, как и текст формы: восстановление заказал человек. Правила в коде те же,
-      // что в снимке, — писать нечего.
+      // Модуль печатается заново и после отмены, и после «Восстановить»: созданные ходом файлы
+      // отмена не удаляет, и правила хода в них пережили бы её, а производные файлы остались бы
+      // от формы после хода (`./rule-code`). Без пометки хода, как и текст формы: возврат
+      // заказал человек. Файлы, которые отмена уже вернула, генерация печатает теми же — и не
+      // пишет.
       const port = host.files;
-      if (!files || port === undefined || state.ruleCode === undefined) return;
+      if (port === undefined || state.ruleCode === undefined) return;
       if (host.documentOf(loaded.resource) === null) return;
       const current = await readRuleCode(port, loaded.resource, loaded.path);
-      if (sameRules(current.rules, state.rules)) return;
       const generator = options.generator?.();
       if (generator === undefined) {
-        // Печатать нечем — файлы правил возвращаются текстами снимка.
+        // Печатать нечем — файлы правил возвращаются текстами снимка; после отмены они уже
+        // возвращены ею самой.
+        if (!files || sameRules(current.rules, state.rules)) return;
         for (const [id, text] of state.ruleCode.texts)
           if (text !== null) await port.write(id, text);
         return;
       }
-      await writeRuleCode(
+      // Кода у модуля нет и после хода — сверять с формой нечего.
+      if (!current.hasCode) return;
+      await writeModuleCode(
         { files: port, generator, refuse: (id) => options.refuse(id, loaded.resource) },
-        { document: loaded.resource, base: current, rules: state.rules }
+        { document: loaded.resource, base: current, rules: state.rules, rulesChanged: false }
       );
     },
   };

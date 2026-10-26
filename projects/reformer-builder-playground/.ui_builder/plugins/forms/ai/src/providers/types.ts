@@ -77,6 +77,11 @@ export interface AiUsage {
   cachedInputTokens?: number;
   cacheWriteTokens?: number;
   outputTokens?: number;
+  /**
+   * Из вывода — рассуждение. У think-моделей это главная доля времени хода: на локальном канале
+   * вывод идёт единицами токенов в секунду, и рассуждение в сотни токенов стоит минуты.
+   */
+  reasoningTokens?: number;
 }
 
 /**
@@ -140,6 +145,12 @@ export type AiEvent =
    * выглядит зависшей, а обрыв на пределе длины — беспричинным. `start` — как у `delta`.
    */
   | { type: 'reasoning'; text: string; start?: true }
+  /**
+   * Пошёл ответ на запрос шага. Отметка — конец ожидания ответа: до неё сервер читал контекст,
+   * после — модель пишет. Без неё «модель думала» неотличимо от «сервер долго читал контекст».
+   * Канал шлёт её на первом куске ответа, не при отправке запроса (так делает AI SDK).
+   */
+  | { type: 'step_start' }
   | { type: 'tool_call'; id: string; name: string; args: unknown }
   | { type: 'tool_result'; id: string; result: ToolOutcome }
   /** Шаг закончен: расход токенов. Провайдер, не сообщающий его, просто не шлёт событие. */

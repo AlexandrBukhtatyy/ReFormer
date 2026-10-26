@@ -98,6 +98,7 @@ export function createSchemaStackPlugin(options: SchemaStackPluginOptions = {}):
           chooseReference(ctx.services.get(LibraryReferenceCapability), builtinReference),
         scopeOf: (id) => workspace.scopeOf(id),
         door: (id) => workspace.door(id),
+        splitWriter: (id) => workspace.splitWriter?.(id) ?? null,
         // Генерация — тоже на каждый ход: правила формы ложатся в код модуля ею.
         generator: () => ctx.services.get(ModuleGeneratorCapability),
       });

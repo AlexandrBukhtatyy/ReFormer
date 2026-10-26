@@ -6,6 +6,11 @@
  * менять. Пользовательские селекторы сохраняются — с появлением `lib/form-model/selectors`
  * селектор стал управляемым и переживает экспорт, поэтому дедуп идёт ПОВЕРХ них, а не вместо.
  *
+ * Исключение — ход ассистента (`ai/stack/structured`): он форму и так меняет и прогоняет через эту
+ * функцию свой черновик. Документ получает те же селекторы и ту же кнопку отправки, что и копия
+ * генерации, — иначе напечатанные после хода поток шагов и отправка ссылались бы на узлы, которых
+ * в документе нет. Функция идемпотентна: на уже нормализованной схеме она ничего не меняет.
+ *
  * Зачем это вообще: поведение формы цепляется к узлам по селектору (отправка, `hideWhen`), а
  * поток шагов называет шаг селектором его узла (`flow.steps[].id`). Узел без селектора адресовать
  * нечем: правило видимости на нём стало бы no-op, а шаг потока не нашёл бы свою разметку — ни
@@ -59,8 +64,17 @@ export interface AssignResult {
   readonly info: SelectorInfo;
 }
 
+export interface AssignOptions {
+  /**
+   * Вставить кнопку отправки, если триггера в схеме нет; по умолчанию — да. `false` — для
+   * нормализации документа там, где вставлять нечем: узел `Button`, которого нет в ките, строгий
+   * гейт хода не пропустил бы вместе со всеми правками.
+   */
+  readonly injectSubmit?: boolean;
+}
+
 /** Проставить селекторы и submit-триггер на копии схемы. */
-export function assignSelectors(input: JsonFormSchema): AssignResult {
+export function assignSelectors(input: JsonFormSchema, options: AssignOptions = {}): AssignResult {
   const schema = structuredClone(input);
   // Занятые имена берём тем же обходом, которым `schema.node()` ищет узел в рантайме: свой
   // обход был бы вторым ответом на вопрос «какие селекторы есть».
@@ -168,6 +182,9 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
   if (submitSelector === '') {
     const root = schema.root as unknown as AnyNode;
     if (Array.isArray(root.children)) {
+      if (options.injectSubmit === false) {
+        return { schema, info: { sections, arrays, submitSelector, submitEvent, injectedSubmit } };
+      }
       submitSelector = uniq('submit');
       // Подпись — в `children` УЗЛА, а не в `componentProps`: рендерер отдаёт компоненту
       // содержимое из `children[]` и затирает им `componentProps.children`, поэтому кнопка

@@ -12,36 +12,36 @@
  * правил у хода нет намеренно: второй принтер разошёлся бы с генерацией, и следующая генерация
  * переписала бы файлы правил по-своему.
  *
- * ## Объём записи — гибрид
+ * ## Объём записи — модуль целиком
  *
- * Код у модуля уже есть (`validation/form.ts`) — ход пишет только файлы правил
- * (`GenerateRequest.only`): производные файлы обновляет «Сгенерировать код», и правка правила не
- * должна молча перепечатывать страницу. Кода нет — генерируется модуль целиком: файлам правил без
- * модуля не на чем стоять.
+ * После хода, изменившего форму, генерация печатает модуль ЦЕЛИКОМ, а не только файлы правил:
+ * производные файлы (`create.ts`, поток шагов, реестр, типы, модель) зависят от схемы, и модуль,
+ * в котором обновлены одни правила, собирался бы из устаревших частей — новый шаг визарда ронял
+ * приложение. Авторские файлы генерация правит точечно, правленные руками не трогает; файлы с
+ * тем же текстом не пишутся вовсе.
  *
- * ## Отмена созданного файла правил
+ * ## Отмена созданных файлов
  *
- * Удаления у плагинов нет, и созданный ходом файл отмена оставляет. Для файла правил это значило
- * бы, что правила хода пережили отмену: следующий ход прочёл бы их из кода. Поэтому «до хода» у
- * созданного файла правил — не пустота, а текст без правил хода: у модуля без кода — печать
- * генерации с правилами на начало хода (сухой прогон, он ничего не пишет), у модуля с кодом —
- * заглушка файла шага без правил.
+ * Удаления у плагинов нет, и созданный ходом файл отмена оставляет. Чтобы правила хода не пережили
+ * отмену (следующий ход прочёл бы их из кода), стек после отмены и «Восстановить» печатает модуль
+ * заново — с правилами снимка (`./structured`, `rewind`). Поэтому «до хода» у созданного файла —
+ * честная пустота, и сухой прогон ради неё не нужен.
  *
  * @module plugins/reformer/ai/stack/rule-code
  */
 
 import type {
+  FormLandCode,
   FormLandedCompanion,
   FormStackFiles,
   FormWriteMark,
+  GenerateReport,
   ModuleGeneratorService,
   ResourceId,
 } from '@reformer/builder-plugin-api';
-import { pathWithin } from '@reformer/builder-toolkit';
 import {
   FORM_RULES_NAME,
   legacyRulesNameOf,
-  MESSAGES_NAME,
   moduleRootOfDocument,
   VALIDATION_DIR,
 } from '../../../core/codegen/layout';
@@ -51,8 +51,6 @@ import {
   loadRulesFromModule,
   lockedRuleFiles,
   normalizeRules,
-  RULE_TARGET_IDS,
-  ruleFileTombstone,
   rulesStackInput,
 } from '../../../core/codegen/rules-code';
 import { hasRules, type FormRules } from '../../../core/form-model';
@@ -60,11 +58,7 @@ import type { RulesLock, RulesRefusal } from '../model/types';
 
 /** Файл правил формы — по нему видно, что код модуля уже генерировали. */
 const FORM_RULES_FILE = `${VALIDATION_DIR}/${FORM_RULES_NAME}.ts`;
-const MESSAGES_FILE = `${VALIDATION_DIR}/${MESSAGES_NAME}.ts`;
 const BEHAVIOR_FILE = 'behavior/index.ts';
-
-/** Отказ записи сухого прогона: он только печатает. */
-const DRY_RUN = 'dry run';
 
 /** Код правил модуля на начало хода: с чем сверять расхождение и как писать. */
 export interface RuleCodeBase {
@@ -207,98 +201,91 @@ export interface RuleWriteDeps {
 }
 
 /** Что записать. */
-export interface RuleWriteRequest {
+export interface ModuleWriteRequest {
   readonly document: ResourceId;
   readonly base: RuleCodeBase;
   readonly rules: FormRules;
   /**
-   * Правила на начало хода: из них печатается «до» созданного файла правил у модуля без кода.
-   * Нет — запись не отменяют («Восстановить»), и печатать «до» незачем.
+   * Правила ход поменял. Только тогда правленный руками файл правил — отказ: правила хода в нём
+   * не легли. Без новых правил генерация такой файл и не должна трогать.
    */
-  readonly before?: FormRules;
+  readonly rulesChanged: boolean;
   /** Пометка записей хода; нет — запись заказал человек. */
   readonly mark?: FormWriteMark;
 }
 
-/** Чем кончилась запись правил. */
-export interface RuleWriteOutcome {
+/** Чем кончилась запись модуля. */
+export interface ModuleWriteOutcome {
   /** Записанные файлы — сопутствующие файлы хода. */
   readonly companions: readonly FormLandedCompanion[];
+  /** Что напечатала генерация; нет — она отказала целиком. */
+  readonly code?: FormLandCode;
   /** Правила легли не все: почему и в каком файле. */
   readonly problem?: { readonly id: ResourceId; readonly error: string };
 }
 
-/** Записать правила формы в код её модуля — генерацией кода. Ничего не бросает. */
-export async function writeRuleCode(
+/** Напечатать модуль формы с правилами `request.rules` — генерацией, целиком. Ничего не бросает. */
+export async function writeModuleCode(
   deps: RuleWriteDeps,
-  request: RuleWriteRequest
-): Promise<RuleWriteOutcome> {
+  request: ModuleWriteRequest
+): Promise<ModuleWriteOutcome> {
   const { files, generator } = deps;
   const { base, document } = request;
   const at = (path: string) => files.resolve(base.root, ...path.split('/'));
-  const relOf = (id: ResourceId) => pathWithin(files.pathOf(id), base.rootPath);
-  const isRuleFile = (id: ResourceId) => {
-    const rel = relOf(id);
-    return rel !== null && isRuleCodePath(rel);
-  };
-  const only = base.hasCode ? { only: RULE_TARGET_IDS } : {};
-
-  // Сухой прогон — до настоящего: открытая панель экспорта показывает последний прогон, и им
-  // должен быть тот, что записал.
-  const printedBefore = new Map<ResourceId, string>();
-  if (!base.hasCode && request.before !== undefined) {
-    await generator.generate(document, {
-      write: async (id, text) => {
-        if (isRuleFile(id)) printedBefore.set(id, text);
-        return DRY_RUN;
-      },
-      stackInput: rulesStackInput(request.before),
-    });
-  }
-  const createdBefore = (id: ResourceId): string | null => {
-    const printed = printedBefore.get(id);
-    if (printed !== undefined) return printed;
-    const rel = relOf(id);
-    return rel !== null &&
-      rel.startsWith(`${VALIDATION_DIR}/`) &&
-      isRuleCodePath(rel) &&
-      rel !== MESSAGES_FILE
-      ? ruleFileTombstone(rel)
-      : null;
-  };
 
   const companions: FormLandedCompanion[] = [];
-  const report = await generator.generate(document, {
-    write: async (id, text) => {
-      const refused = deps.refuse(id);
-      if (refused !== null) return refused;
-      const was = await files.read(id);
-      await files.write(id, text, request.mark);
-      companions.push({ id, before: was ?? createdBefore(id), after: text });
-      return null;
-    },
-    stackInput: rulesStackInput(request.rules),
-    ...only,
-  });
+  let report: GenerateReport;
+  try {
+    report = await generator.generate(document, {
+      write: async (id, text) => {
+        const refused = deps.refuse(id);
+        if (refused !== null) return refused;
+        const was = await files.read(id).catch(() => null);
+        // Тот же текст не пишется и в сопутствующие не идёт: отменять в нём нечего, а запись без
+        // перемены — лишняя пересборка превью. После хода таких файлов большинство.
+        if (was === text) return null;
+        await files.write(id, text, request.mark);
+        companions.push({ id, before: was, after: text });
+        return null;
+      },
+      stackInput: rulesStackInput(request.rules),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { companions, problem: { id: at(FORM_RULES_FILE), error: message } };
+  }
   if (!report.ok)
     return { companions, problem: { id: at(FORM_RULES_FILE), error: report.message } };
 
+  const code: FormLandCode = {
+    dir: report.dir,
+    written: companions.length,
+    kept: report.skipped.filter((file) => file.reason === 'edited').map((file) => file.path),
+  };
+  for (const file of report.failed.filter((failed) => !isRuleCodePath(failed.path))) {
+    console.warn(
+      `[plugins/reformer/ai] генерация после хода не записала ${file.path}: ${file.message}`
+    );
+  }
   const failed = report.failed.find((file) => isRuleCodePath(file.path));
   if (failed !== undefined) {
-    return { companions, problem: { id: at(failed.path), error: failed.message } };
+    return { companions, code, problem: { id: at(failed.path), error: failed.message } };
   }
   // Правленный руками файл правил генерация не перепечатывает — правила хода в нём не легли.
   // Пропуск словаря и констант (`authored`) — не отказ: их правят точечно, и пропущены они,
   // когда править в них нечего.
-  const kept = report.skipped.find((file) => file.reason === 'edited' && isRuleCodePath(file.path));
+  const kept = request.rulesChanged
+    ? report.skipped.find((file) => file.reason === 'edited' && isRuleCodePath(file.path))
+    : undefined;
   if (kept !== undefined) {
     return {
       companions,
+      code,
       problem: {
         id: at(kept.path),
         error: 'the file was edited by hand, code generation keeps it',
       },
     };
   }
-  return { companions };
+  return { companions, code };
 }

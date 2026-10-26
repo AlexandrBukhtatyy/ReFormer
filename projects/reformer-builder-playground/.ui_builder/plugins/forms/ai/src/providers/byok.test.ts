@@ -137,6 +137,23 @@ describe('чем канал удешевляет ход', () => {
     expect(tuningOf({ kind: 'openai' }).chunkTimeoutMs).toBeUndefined();
   });
 
+  it('рассуждение: по умолчанию канала не трогается, выключенное — «none»', () => {
+    for (const kind of ['anthropic', 'openai', 'openai-compatible'] as const) {
+      expect(tuningOf({ kind }).reasoning).toBeUndefined();
+      expect(tuningOf({ kind, reasoning: 'default' }).reasoning).toBeUndefined();
+    }
+    expect(tuningOf({ kind: 'openai-compatible', reasoning: 'off' }).reasoning).toEqual({
+      effort: 'none',
+      via: 'openai-compatible',
+    });
+    expect(tuningOf({ kind: 'openai', reasoning: 'low' }).reasoning).toEqual({
+      effort: 'low',
+      via: 'call',
+    });
+    // Anthropic: рассуждение по умолчанию выключено, а включённое не сочетается с temperature 0.
+    expect(tuningOf({ kind: 'anthropic', reasoning: 'high' }).reasoning).toBeUndefined();
+  });
+
   it('потолок ответа по умолчанию не задан — его ставит пользователь, а не мы', () => {
     // Зашитое число обрывало ответ think-модели на полуслове: рассуждение съедало вывод целиком,
     // и ход заканчивался по `length`, не дойдя до правок.

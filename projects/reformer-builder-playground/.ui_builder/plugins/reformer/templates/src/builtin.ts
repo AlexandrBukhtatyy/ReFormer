@@ -240,67 +240,103 @@ export interface BuiltinStoreOptions {
  * ни удалить — оно приезжает вместе с билдером.
  */
 export function createBuiltinStore(options: BuiltinStoreOptions): FormTemplateStore {
+  /**
+   * Напечатанный список — на кит. Печать встроенных шаблонов — две полные генерации модуля, а
+   * список спрашивают часто: окно шаблонов, создание формы, ассистент. Перепечатывается, когда
+   * сменился кит или его каталог. Список, в котором какой-то шаблон не напечатался, не
+   * запоминается: печатник мог ещё не подняться, и следующий вопрос спросит его заново.
+   */
+  let memo: { readonly key: string; readonly list: Promise<readonly FormTemplate[]> } | null = null;
   return {
     source: 'builtin',
     available: () => options.ready?.() ?? options.print !== undefined,
-    async list(): Promise<readonly FormTemplate[]> {
+    list(): Promise<readonly FormTemplate[]> {
       const print = options.print;
-      if (print === undefined) return [];
+      if (print === undefined) return Promise.resolve([]);
       const catalog = options.catalog?.() ?? [];
-      const kit = seedKitOf(catalog, options.kit?.() ?? null);
-      // Вид значения поля — из того же каталога, что и состав затравки (см. `seedMock`).
-      const valueTypeOf = valueTypesOf(catalog);
-      const out: FormTemplate[] = [];
-      for (const seed of SEEDS) {
-        if (!seed.available(kit)) continue;
-        // Отказ печати ОДНОГО шаблона не должен уносить остальные: печатник чужой,
-        // а «список пуст» неотличимо от «встроенных шаблонов нет».
-        try {
-          const schema = seed.schema(kit);
-          const data = seedData(kit);
-          const extras: SeedExtras = {
-            rules: seed.rules(kit),
-            mock: seedMock(schema, data, valueTypeOf),
-            ...(seed.splitSteps === true ? { splitSteps: true } : {}),
-          };
-          const printed = await print(schema, BUILTIN_BASE_NAME, extras);
-          // Печатник ответил пустотой — кита нет, печатать нечем. Шаблон из одной фикстуры
-          // выглядел бы созданной формой, у которой нечего открыть.
-          if (printed.length === 0) continue;
-          const files: FormTemplateFile[] = printed.map((file) => ({
-            path: tokenized(file.path),
-            // Маркер происхождения считается от тела файла, а тело после замены имён другое:
-            // без перевыставления каждый файл шаблона выглядел бы «правленным руками».
-            content: keepOrigin(file.content, tokenized(file.content)),
-          }));
-          // Фикстура идёт СВЕРХ вывода кодогена: контракт каталога модуля её не перечисляет,
-          // и целью генерации она не выражается, хотя ложится в корень того же модуля.
-          // Отсюда `scope`.
-          files.push({
-            path: FIXTURE_FILE,
-            content: emitFixture(schema, data, valueTypeOf),
-            scope: 'fixture',
-          });
-          out.push({
-            id: seed.id,
-            name: seed.name,
-            description: seed.description,
-            source: 'builtin',
-            files,
-            requires: requiresOf(files),
-            // Под имя формы — та же затравка тем же печатником: раскладка строк зависит от
-            // имён модуля, и подстановка токенов её не воспроизводит (см. шапку модуля).
-            print: async (formName) =>
-              (await print(schema, formName, extras)).map(({ path, content }) => ({
-                path,
-                content,
-              })),
-          });
-        } catch (error) {
-          console.warn(`[templates] встроенный шаблон «${seed.id}» не напечатался`, error);
-        }
-      }
-      return out;
+      const descriptor = options.kit?.() ?? null;
+      const key = JSON.stringify([descriptor, catalog]);
+      if (memo?.key === key) return memo.list;
+      const printing = printSeeds(print, catalog, descriptor);
+      const list = printing.then(({ templates }) => templates);
+      memo = { key, list };
+      const forget = (): void => {
+        if (memo?.list === list) memo = null;
+      };
+      printing.then(({ complete }) => {
+        if (!complete) forget();
+      }, forget);
+      return list;
     },
   };
+}
+
+/**
+ * Напечатать встроенные шаблоны под кит. `complete` — каждый доступный киту шаблон напечатался
+ * (печатник не упал и не ответил пустотой).
+ */
+async function printSeeds(
+  print: ModulePrinter,
+  catalog: readonly CatalogEntry[],
+  descriptor: KitDescriptor | null
+): Promise<{ readonly templates: readonly FormTemplate[]; readonly complete: boolean }> {
+  const kit = seedKitOf(catalog, descriptor);
+  // Вид значения поля — из того же каталога, что и состав затравки (см. `seedMock`).
+  const valueTypeOf = valueTypesOf(catalog);
+  const out: FormTemplate[] = [];
+  let complete = true;
+  for (const seed of SEEDS) {
+    if (!seed.available(kit)) continue;
+    // Отказ печати ОДНОГО шаблона не должен уносить остальные: печатник чужой,
+    // а «список пуст» неотличимо от «встроенных шаблонов нет».
+    try {
+      const schema = seed.schema(kit);
+      const data = seedData(kit);
+      const extras: SeedExtras = {
+        rules: seed.rules(kit),
+        mock: seedMock(schema, data, valueTypeOf),
+        ...(seed.splitSteps === true ? { splitSteps: true } : {}),
+      };
+      const printed = await print(schema, BUILTIN_BASE_NAME, extras);
+      // Печатник ответил пустотой — кита нет, печатать нечем. Шаблон из одной фикстуры
+      // выглядел бы созданной формой, у которой нечего открыть.
+      if (printed.length === 0) {
+        complete = false;
+        continue;
+      }
+      const files: FormTemplateFile[] = printed.map((file) => ({
+        path: tokenized(file.path),
+        // Маркер происхождения считается от тела файла, а тело после замены имён другое:
+        // без перевыставления каждый файл шаблона выглядел бы «правленным руками».
+        content: keepOrigin(file.content, tokenized(file.content)),
+      }));
+      // Фикстура идёт СВЕРХ вывода кодогена: контракт каталога модуля её не перечисляет,
+      // и целью генерации она не выражается, хотя ложится в корень того же модуля.
+      // Отсюда `scope`.
+      files.push({
+        path: FIXTURE_FILE,
+        content: emitFixture(schema, data, valueTypeOf),
+        scope: 'fixture',
+      });
+      out.push({
+        id: seed.id,
+        name: seed.name,
+        description: seed.description,
+        source: 'builtin',
+        files,
+        requires: requiresOf(files),
+        // Под имя формы — та же затравка тем же печатником: раскладка строк зависит от
+        // имён модуля, и подстановка токенов её не воспроизводит (см. шапку модуля).
+        print: async (formName) =>
+          (await print(schema, formName, extras)).map(({ path, content }) => ({
+            path,
+            content,
+          })),
+      });
+    } catch (error) {
+      complete = false;
+      console.warn(`[templates] встроенный шаблон «${seed.id}» не напечатался`, error);
+    }
+  }
+  return { templates: out, complete };
 }

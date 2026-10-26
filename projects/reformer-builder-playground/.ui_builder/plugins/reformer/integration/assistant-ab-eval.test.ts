@@ -318,6 +318,8 @@ const EMPTY_STATS: TurnStats = {
   cachedInputTokens: 0,
   outputTokens: 0,
   peakStepInputTokens: 0,
+  reasoningTokens: 0,
+  requests: [],
 };
 
 /** Счётчик вызовов, отказов и ответа модели по событиям хода. */

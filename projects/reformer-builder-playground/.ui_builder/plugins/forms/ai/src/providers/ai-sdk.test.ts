@@ -644,6 +644,30 @@ describe('чем зовём модель', () => {
     expect(lastCall().providerOptions).toEqual({ openai: { promptCacheKey: 'rb-abc' } });
   });
 
+  it('рассуждение локального канала — полем OpenAI-совместимого запроса, и выключенное тоже', async () => {
+    // Верхнее `reasoning: 'none'` OpenAI-совместимый провайдер теряет — выключить им нельзя.
+    await play(finish, {
+      cacheBreakpoints: false,
+      pruneContext: true,
+      maxRetries: 1,
+      reasoning: { effort: 'none', via: 'openai-compatible' },
+    });
+    expect(lastCall().providerOptions).toEqual({ openaiCompatible: { reasoningEffort: 'none' } });
+    expect(lastCall().reasoning).toBeUndefined();
+  });
+
+  it('рассуждение OpenAI — верхним параметром вызова, рядом с ключом кэша', async () => {
+    await play(finish, {
+      cacheBreakpoints: false,
+      promptCacheKey: 'rb-abc',
+      pruneContext: false,
+      maxRetries: 2,
+      reasoning: { effort: 'low', via: 'call' },
+    });
+    expect(lastCall().reasoning).toBe('low');
+    expect(lastCall().providerOptions).toEqual({ openai: { promptCacheKey: 'rb-abc' } });
+  });
+
   it('пределы и таймауты выставлены всегда', async () => {
     await play(finish);
     // temperature 0 — не вкусовщина: выдуманное имя компонента стоит отказа гейта, то есть шага.

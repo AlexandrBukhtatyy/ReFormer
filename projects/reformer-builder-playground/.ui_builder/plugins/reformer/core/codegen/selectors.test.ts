@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
 import { partsSchema, plainSchema, wizardSchema } from './__fixtures__/kit';
+import { emptySchema } from '../form-model';
 import { assignSelectors } from './selectors';
 
 describe('assignSelectors', () => {
@@ -108,6 +109,25 @@ describe('assignSelectors', () => {
       'lichnye-dannye-section',
       'lichnye-dannye-section-2',
     ]);
+  });
+});
+
+describe('нормализация документа ходом ассистента', () => {
+  it('повторный прогон ничего не меняет: нормализованный документ стабилен', () => {
+    const once = assignSelectors(sampleSchema()).schema;
+    const twice = assignSelectors(once);
+
+    expect(twice.schema).toEqual(once);
+    expect(twice.info.injectedSubmit).toBe(false);
+  });
+
+  it('injectSubmit: false — кнопку не вставляет, селекторы ставит', () => {
+    const schema = emptySchema();
+    const { schema: out, info } = assignSelectors(schema, { injectSubmit: false });
+
+    expect(info.injectedSubmit).toBe(false);
+    expect(info.submitSelector).toBe('');
+    expect((out.root as { children?: unknown[] }).children ?? []).toEqual([]);
   });
 });
 

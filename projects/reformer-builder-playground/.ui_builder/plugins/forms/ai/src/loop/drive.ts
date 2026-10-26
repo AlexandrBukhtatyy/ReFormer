@@ -41,7 +41,39 @@ export interface TurnStats {
    * сколько весит ОДИН шаг. Это единственная цифра, по которой видно, хватает ли `num_ctx`.
    */
   peakStepInputTokens: number;
+  /** Из вывода — рассуждение, у think-моделей главная доля времени. Ноль — канал не сообщил. */
+  reasoningTokens: number;
+  /** Запросы к модели по порядку: сколько шли и во что обошлись. */
+  requests: RequestStats[];
 }
+
+/**
+ * Один запрос к модели — шаг хода.
+ *
+ * Время меряется здесь, а не у канала: канал отдаёт события, и только тот, кто их читает, знает,
+ * когда пришёл первый кусок и когда шаг кончился. Время до первого куска отделяет чтение контекста
+ * сервером от вывода модели: на локальном канале это два разных рычага.
+ */
+export interface RequestStats {
+  /** Сколько шёл запрос, мс. */
+  ms: number;
+  /** Сколько прошло до первого куска ответа, рассуждения или вызова; нет — кусков не было. */
+  firstChunkMs?: number;
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  /** Символов рассуждения — мера, когда канал не сообщает токены рассуждения. */
+  reasoningChars: number;
+  /** Запрос оборвали, не дождавшись конца шага (остановка попытки после `create_form`). */
+  cut?: true;
+}
+
+/** Часы хода — подменяются в тестах. */
+export type Clock = () => number;
+
+const defaultClock: Clock = () =>
+  typeof performance === 'undefined' ? Date.now() : performance.now();
 
 /** Событие хода, общее для обоих режимов: всё, кроме итога. */
 export type TurnStepEvent =
@@ -126,7 +158,8 @@ export function queuedTools<C extends FormToolContext>(
 export async function* streamTurn(
   provider: AiProvider,
   request: AiRequest,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  clock: Clock = defaultClock
 ): AsyncGenerator<TurnStepEvent | StreamEnd> {
   let reason: StreamEnd['reason'] = 'complete';
   let message: string | undefined;
@@ -137,6 +170,20 @@ export async function* streamTurn(
     cachedInputTokens: 0,
     outputTokens: 0,
     peakStepInputTokens: 0,
+    reasoningTokens: 0,
+    requests: [],
+  };
+  // Открытый запрос. Первый начинается с потока, следующий — там, где кончился предыдущий: вызовы
+  // инструментов шага исполняются до конца шага, так что между шагами — только новый запрос.
+  // Отметка начала шага запрос НЕ начинает: AI SDK шлёт её на первом куске ответа, а чтение
+  // контекста сервером (у локальной модели — главная задержка) идёт до него.
+  let open: { start: number; firstChunk?: number; reasoningChars: number; marked: boolean } = {
+    start: clock(),
+    reasoningChars: 0,
+    marked: false,
+  };
+  const touch = (): void => {
+    open.firstChunk ??= clock();
   };
   // Имя вызова известно из `tool_call`, а показать его нужно на `tool_result`. Карта живёт в
   // пределах хода: на уровне модуля два параллельных хода затирали бы записи друг друга.
@@ -146,11 +193,22 @@ export async function* streamTurn(
   try {
     for await (const event of provider.stream(request, signal)) {
       switch (event.type) {
+        case 'step_start':
+          open.marked = true;
+          touch();
+          break;
         case 'delta':
-          if (event.text) yield { type: 'text', text: event.text, ...startOf(event) };
+          if (event.text) {
+            touch();
+            yield { type: 'text', text: event.text, ...startOf(event) };
+          }
           break;
         case 'reasoning':
-          if (event.text) yield { type: 'reasoning', text: event.text, ...startOf(event) };
+          if (event.text) {
+            touch();
+            open.reasoningChars += event.text.length;
+            yield { type: 'reasoning', text: event.text, ...startOf(event) };
+          }
           break;
         case 'tool_result': {
           const name = callNames.get(event.id) ?? 'tool';
@@ -164,9 +222,13 @@ export async function* streamTurn(
           };
           break;
         }
-        case 'step_usage':
+        case 'step_usage': {
           addUsage(stats, event.usage);
+          const end = clock();
+          stats.requests.push(requestOf(open, end, event.usage));
+          open = { start: end, reasoningChars: 0, marked: false };
           break;
+        }
         case 'error':
           reason = 'error';
           message = event.message;
@@ -180,6 +242,7 @@ export async function* streamTurn(
         // tool_call самостоятельного смысла для интерфейса не несёт: показывать нечего до
         // результата, а «вызывается…» без исхода только мигает в панели.
         case 'tool_call':
+          touch();
           callNames.set(event.id, event.name);
           break;
       }
@@ -187,6 +250,12 @@ export async function* streamTurn(
   } catch (e) {
     reason = 'error';
     message = e instanceof Error ? e.message : String(e);
+  }
+  // Начатый и не законченный шагом запрос: его время тоже ушло на ход. Оборванный — если поток
+  // кончился не штатно; штатно — канал просто не сообщил расход последнего шага.
+  if (open.marked || open.firstChunk !== undefined) {
+    const last = requestOf(open, clock(), {});
+    stats.requests.push(reason === 'complete' ? last : { ...last, cut: true });
   }
 
   yield {
@@ -210,5 +279,25 @@ function addUsage(stats: TurnStats, usage: AiUsage): void {
   stats.inputTokens += usage.inputTokens ?? 0;
   stats.cachedInputTokens += usage.cachedInputTokens ?? 0;
   stats.outputTokens += usage.outputTokens ?? 0;
+  stats.reasoningTokens += usage.reasoningTokens ?? 0;
   stats.peakStepInputTokens = Math.max(stats.peakStepInputTokens, usage.inputTokens ?? 0);
+}
+
+/** Запрос в наш вид: время от начала, время до первого куска и расход шага. */
+function requestOf(
+  open: { readonly start: number; readonly firstChunk?: number; readonly reasoningChars: number },
+  end: number,
+  usage: AiUsage
+): RequestStats {
+  return {
+    ms: Math.max(0, end - open.start),
+    ...(open.firstChunk === undefined ? {} : { firstChunkMs: open.firstChunk - open.start }),
+    ...(usage.inputTokens === undefined ? {} : { inputTokens: usage.inputTokens }),
+    ...(usage.cachedInputTokens === undefined
+      ? {}
+      : { cachedInputTokens: usage.cachedInputTokens }),
+    ...(usage.outputTokens === undefined ? {} : { outputTokens: usage.outputTokens }),
+    ...(usage.reasoningTokens === undefined ? {} : { reasoningTokens: usage.reasoningTokens }),
+    reasoningChars: open.reasoningChars,
+  };
 }

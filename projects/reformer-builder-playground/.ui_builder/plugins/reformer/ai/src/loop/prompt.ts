@@ -11,6 +11,7 @@
  * @module plugins/reformer/ai/loop/prompt
  */
 
+import { isStepsHostName } from '../../../core/form-model';
 import { commonProps, listComponents, type Catalog } from '../model/catalog-digest';
 
 /** Сколько контейнеров назвать в промпте: остальные модель добирает через `list_components`. */
@@ -42,8 +43,25 @@ export function systemPrompt(catalog: Catalog): string {
   return built;
 }
 
+/**
+ * Визард кита и его шаг — для правила «визард одной вставкой»; `null` — визарда в ките нет.
+ *
+ * Список контейнеров промпта их не называет (он короткий, а узлы визарда стоят в каталоге в
+ * конце), и в живых прогонах модель шла за ними в `list_components`, а то и вставляла шаг без
+ * компонента. Визард узнаётся по имени (`isStepsHostName`), шаг — запись той же категории:
+ * узлы визарда билдер добавляет к каталогу любого кита одной группой.
+ */
+function wizardNames(catalog: Catalog): { readonly wizard: string; readonly step: string } | null {
+  const containers = listComponents(catalog, { role: 'container' });
+  const wizard = containers.find((c) => isStepsHostName(c.name));
+  if (wizard?.category === undefined) return null;
+  const step = containers.find((c) => c.category === wizard.category && !isStepsHostName(c.name));
+  return step === undefined ? null : { wizard: wizard.name, step: step.name };
+}
+
 function buildPrompt(catalog: Catalog): string {
   const fields = listComponents(catalog, { role: 'field' }).map((c) => c.name);
+  const wizard = wizardNames(catalog);
   const containers = listComponents(catalog, { role: 'container' })
     .slice(0, CONTAINERS_IN_PROMPT)
     .map((c) => c.name);
@@ -57,17 +75,14 @@ You never write JSON schemas. You change forms only through the provided tools. 
 the schema format, node placement rules, model bindings and history — you own intent.
 
 Nodes are addressed by JSON Pointer: /root/children/0, /root/children/1/children/0.
-A turn starts with the form map when the form is not empty; after that, addresses come from the
-tools themselves. After structural changes you may call validate_form for a cross-node check.
+A turn starts with the form map; after that, addresses come from the tools themselves. After structural changes you may call validate_form for a cross-node check.
 
 A turn has a limited number of steps. Spend them on edits: a successful edit already reports the
 address it created and what appeared inside it, so re-reading the whole form after every edit is
 wasted budget. If the work does not fit, do part of it and say what is left.
 
 Edit in bulk: insert_node, set_node_prop, move_node and remove_node take several items at once.
-Twelve fields across
-three steps is three calls, not twelve. A batch is all-or-nothing: if one item is wrong, nothing is
-applied and the answer names which one.
+A batch is all-or-nothing: if one item is wrong, nothing is applied and the answer names which one.
 
 Independent edits into DIFFERENT parents belong in one step too. They run in order against a form
 that is already changing, so an address read before the step may have shifted: pass "expect".
@@ -92,10 +107,10 @@ call with every component name you need.
 - Write model paths bare (applicant.email), never wrapped in $model(...).
 - When removing or moving a single node, pass "expect" so the edit cannot land on the wrong node
   if the address is stale.
-- Composite components (tabs, cards, wizards, tables…) are inserted already assembled. Use the
-  addresses insert_node reports; never build their parts a second time.
-- A wizard holds steps, and a step is a container. Put a step into the wizard first, then put
-  fields inside that step.
+- Composite components (tabs, cards, wizards, tables…) arrive assembled unless you pass their
+  children. Use the addresses insert_node reports; never build their parts a second time.
+- A wizard${wizard ? ` (${wizard.wizard})` : ''} holds steps${wizard ? ` (${wizard.step})` : ''}, a step holds fields. Insert a whole
+  wizard with ONE insert_node: steps in its children, each step's fields in that step's children.
 - Visible content of a node (tab caption, button text, heading) is set through set_node_prop with
   the property "text". A field's caption is its "label" property instead.
 

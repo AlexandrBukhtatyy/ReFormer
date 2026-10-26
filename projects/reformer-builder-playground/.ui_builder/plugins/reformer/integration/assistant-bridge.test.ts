@@ -1553,6 +1553,7 @@ describe('правила формы — в коде модуля', () => {
   const FORM_RULES = `${MODULE}/validation/form.ts`;
   const MESSAGES = `${MODULE}/validation/messages.ts`;
   const TYPES = `${MODULE}/types/login.ts`;
+  const BEHAVIOR = `${MODULE}/behavior/index.ts`;
   /** Форма с полем почты — от неё ход ставит правила, не вставляя полей. */
   const EMAIL_TEXT = printSchemaText({
     format: 2,
@@ -1626,18 +1627,73 @@ describe('правила формы — в коде модуля', () => {
     expect(files.writes.every((write) => write.mark?.txId === mark?.txId)).toBe(true);
   });
 
-  it('модуль с кодом: ход пишет только файлы правил, правка человека в типах цела', async () => {
+  it('модуль с кодом: ход печатает модуль целиком, правленный руками файл цел', async () => {
     const files = await generatedModule();
-    files.put(TYPES, `${files.text(TYPES)}// правка человека\n`);
+    // Перегенерируемый файл, правленный руками, генерация не трогает; производный (типы) —
+    // перепечатывает: правка в нём не доживает до следующей генерации по определению.
+    files.put(BEHAVIOR, `${files.text(BEHAVIOR)}// правка человека\n`);
     const before = files.writes.length;
-    const { bridge } = loginHarness([requireEmail, { text: 'Готово.' }], { files });
+    const { session, bridge } = loginHarness([requireEmail, { text: 'Готово.' }], { files });
     await bridge.send('сделай почту обязательной');
 
     const turn = files.writes.slice(before).map((write) => write.path);
     expect(turn).toContain(FORM_RULES);
-    expect(turn.every((path) => /\/(validation|behavior|constants)\//.test(path))).toBe(true);
-    expect(files.text(TYPES)).toContain('// правка человека');
+    // Модуль печатается целиком, но тот же текст не пишется: записаны только изменившиеся файлы.
+    expect(turn.every((path) => path.startsWith(`${MODULE}/`) && path !== DOC)).toBe(true);
+    expect(new Set(turn).size).toBe(turn.length);
+    expect(files.text(BEHAVIOR)).toContain('// правка человека');
     expect(files.text(FORM_RULES)).toContain('validate(model.$.email');
+    // Человек узнаёт, что стало с кодом, — одной строкой, с правленным руками файлом.
+    const lines = session
+      .get()
+      .entries.at(-1)
+      ?.tools.filter((tool) => tool.name === 'generate_code');
+    expect(lines).toHaveLength(1);
+    expect(lines?.[0].summary).toContain('behavior/index.ts');
+  });
+
+  it('форма без кода: ход по разметке печатает модуль целиком, документ — с кнопкой отправки', async () => {
+    const addPhone: FakeStep = {
+      tool: 'insert_node',
+      args: {
+        parent: '/root',
+        nodes: [{ component: FIELD, model: 'phone', props: { label: 'Телефон' } }],
+      },
+    };
+    const { host, files, bridge } = loginHarness([addPhone, { text: 'Готово.' }]);
+    await bridge.send('добавь телефон');
+
+    for (const file of [
+      'application/create.ts',
+      'application/submit.ts',
+      'model/model.ts',
+      'validation/form.ts',
+    ]) {
+      expect(files.text(`${MODULE}/${file}`), file).toBeDefined();
+    }
+    // Отправка напечатана на кнопку, которая есть и в документе: нормализация черновика — та же,
+    // что у копии генерации.
+    const document = host.documentOf(DOC)?.getText() ?? '';
+    expect(document).toContain('"selector": "submit"');
+    expect(files.text(`${MODULE}/application/submit.ts`)).toContain("schema.node('submit')");
+  });
+
+  it('ход по разметке без правил тоже печатает модуль: производные файлы не отстают', async () => {
+    const files = await generatedModule();
+    const before = files.writes.length;
+    const addPhone: FakeStep = {
+      tool: 'insert_node',
+      args: {
+        parent: '/root',
+        nodes: [{ component: FIELD, model: 'phone', props: { label: 'Телефон' } }],
+      },
+    };
+    const { bridge } = loginHarness([addPhone, { text: 'Готово.' }], { files });
+    await bridge.send('добавь телефон');
+
+    const turn = files.writes.slice(before).map((write) => write.path);
+    expect(turn.length).toBeGreaterThan(0);
+    expect(files.text(TYPES)).toContain('phone');
   });
 
   it('следующий ход — как после перезагрузки — видит правила из кода и дописывает к ним', async () => {

@@ -145,6 +145,7 @@ export function createFakeProvider(
           return;
         }
         step += 1;
+        yield { type: 'step_start' };
 
         const calls = 'parallel' in item ? item.parallel : [item];
         const targets: { id: string; call: FakeToolCall; tool: AiToolDef }[] = [];

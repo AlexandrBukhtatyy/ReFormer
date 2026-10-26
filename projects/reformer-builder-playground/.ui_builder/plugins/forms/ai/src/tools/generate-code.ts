@@ -12,6 +12,13 @@
  * Исход прогона модели не возвращается — ход к тому времени кончается; его видит человек строкой
  * журнала.
  *
+ * ## Нужен редко
+ *
+ * Ход, изменивший форму, и так кончается печатью модуля: её проводит стек вместе с записью правок
+ * (`FormLandOutcome.code`), и заказ того же хода второго прогона не даёт. Поэтому описание прямо
+ * говорит модели: звать, только когда просят код, а форму не меняют, — вызов ради уже
+ * напечатанного стоил бы целого обращения к модели.
+ *
  * @module plugins/forms/ai/tools/generate-code
  */
 
@@ -20,8 +27,8 @@ import { formToolFail, formToolOk, type FormAgentTool } from '@reformer/builder-
 export const generateCodeTool: FormAgentTool = {
   name: 'generate_code',
   description:
-    'Generate the form module code (types, model, validation, page) once this turn ' +
-    'ends. Only when the user asks for code.',
+    'Regenerate the module code. Edits regenerate it anyway: call only when the user asks ' +
+    'for code and changes nothing.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   // Схему не меняет: записи генерации идут дверью хода после правок, а не в черновик.
   readOnly: true,

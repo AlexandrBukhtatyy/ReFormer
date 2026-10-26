@@ -160,6 +160,8 @@ export const setFormRulesTool: AgentTool<Params> = {
       !known.has(path) &&
       ![...known].some((k) => path.startsWith(`${k}.`) || k.startsWith(`${path}.`));
 
+    /** Что инструмент сделал за модель — дописывается к ответу, чтобы она могла поправить. */
+    const notes: string[] = [];
     for (const raw of params.validation ?? []) {
       // Правило строки адресует поле строки, и модель пишет его путь от строки (`name`): хранится
       // он полным путём, как у связей строк, — иначе правило не находило своего поля.
@@ -173,9 +175,13 @@ export const setFormRulesTool: AgentTool<Params> = {
       }
       const refused = checkValidationParam(rule);
       if (refused) return fail('INVALID_PARAMS', refused);
-      const coded = withMessageCode(rule);
-      if (typeof coded === 'string') return fail('INVALID_PARAMS', coded);
-      next.validation.push(validationIntent(coded));
+      const split = splitMessage(rule);
+      if (split.note !== undefined) notes.push(split.note);
+      for (const entry of split.entries) {
+        const coded = withMessageCode(entry);
+        if (typeof coded === 'string') return fail('INVALID_PARAMS', coded);
+        next.validation.push(validationIntent(coded));
+      }
     }
 
     for (const [name, value] of Object.entries(params.dataSources ?? {})) {
@@ -230,7 +236,7 @@ export const setFormRulesTool: AgentTool<Params> = {
     }
 
     return {
-      ...ok(summarize(next)),
+      ...ok([summarize(next), ...notes].join('\n')),
       rules: next,
       ops: [{ kind: 'update', ref: '/rules', summary: summarize(next) }],
     };
@@ -332,6 +338,45 @@ const VALIDATOR_CALL = /^\s*([A-Za-z_$][\w$]*)\s*(?:\((.*)\))?\s*$/s;
 
 /** Свой код в опциях валидатора: `required({ code: 'phone.required' })`. */
 const OPTION_CODE = /\bcode\s*:\s*(['"])((?:(?!\1).)+)\1/;
+
+/**
+ * Один текст на несколько проверок — разнести по записям, а не отказать.
+ *
+ * Замер на живой модели: модель пишет `{ rules: ['required', 'email'], message: 'Введите корректный
+ * email' }`, получала отказ и тратила целое обращение на повтор. Текст почти всегда описывает
+ * проверку, отличную от `required`, — она его и получает; остальные проверки ложатся отдельными
+ * записями с текстом по умолчанию. Что сделано, модель узнаёт из ответа и может поправить.
+ */
+function splitMessage(rule: ValidationParam): {
+  readonly entries: readonly ValidationParam[];
+  readonly note?: string;
+} {
+  const checks = rule.rules ?? [];
+  if (
+    rule.message === undefined ||
+    rule.cross !== undefined ||
+    rule.async !== undefined ||
+    checks.length < 2
+  ) {
+    return { entries: [rule] };
+  }
+  const nameOf = (check: string) => VALIDATOR_CALL.exec(check)?.[1] ?? check;
+  const worded = checks.reduce(
+    (found, check, index) => (nameOf(check) === 'required' ? found : index),
+    checks.length - 1
+  );
+  const { message: _message, code: _code, ...bare } = rule;
+  const entries = checks.map((check, index) =>
+    index === worded ? { ...rule, rules: [check] } : { ...bare, rules: [check] }
+  );
+  const others = checks.filter((_, index) => index !== worded).map(nameOf);
+  return {
+    entries,
+    note:
+      `The message on "${rule.target}" went to ${nameOf(checks[worded])}; ${others.join(', ')} ` +
+      'keep the default text — word them with entries of their own.',
+  };
+}
 
 /**
  * Текст обычного правила — через свой код его проверки.

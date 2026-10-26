@@ -84,6 +84,13 @@ export function createTurnWrites(options: TurnWritesOptions): TurnWrites {
     let before: string | null;
     try {
       before = await port.read(id);
+      // Тот же текст не пишется: генерация модуля печатает его целиком, а большая часть файлов
+      // от хода к ходу не меняется. Запись без перемены — лишняя строка журнала, лишняя отмена и
+      // лишняя пересборка превью.
+      if (before === text) {
+        const path = port.pathOf(id);
+        return { ok: true, op: { kind: 'update', ref: path, summary: `${path} (без изменений)` } };
+      }
       await port.write(id, text, mark);
     } catch (error) {
       return refusal('failed', error instanceof Error ? error.message : String(error));

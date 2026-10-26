@@ -120,9 +120,10 @@ function harness(script: readonly FakeStep[], options: HarnessOptions = {}) {
   if (options.openForm !== false) host.openDocument(FORM, EMPTY);
   const providers = createProviderRegistry();
   providers.register(options.provider ?? createFakeProvider(script));
+  const loadConfig = vi.fn(() => Promise.resolve({ kind: 'anthropic' as const }));
   const assistant: AiAssistant = {
     providers,
-    loadConfig: () => Promise.resolve({ kind: 'anthropic' as const }),
+    loadConfig,
     saveConfig: () => Promise.resolve(),
     clearConfig: () => Promise.resolve(),
     models: () => Promise.resolve([]),
@@ -143,7 +144,7 @@ function harness(script: readonly FakeStep[], options: HarnessOptions = {}) {
     generator: () => options.generator,
     stacks: options.stacks ?? (() => [stack]),
   });
-  return { host, session, bridge, stack, execute };
+  return { host, session, bridge, stack, execute, loadConfig };
 }
 
 /** Стек, который берётся только за документы своего провайдера, а сеанс не открывает. */
@@ -447,6 +448,81 @@ describe('отмена и «Восстановить» с сопутствующ
     expect(files.text('forms/notes.txt')).toBe('было\n');
   });
 
+  it('стек напечатал модуль при записи — generate_code того же хода не печатает его второй раз', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    let generations = 0;
+    const generator: ModuleGeneratorService = {
+      async generate() {
+        generations += 1;
+        return { ok: true, formName: 'a', dir: 'forms', written: [], skipped: [], failed: [] };
+      },
+    };
+    const stack = createFakeFormStack({ moduleFiles: ['create.ts', 'flow.ts'] });
+    const { session, bridge } = harness([addField('email'), { tool: 'generate_code', args: {} }], {
+      files,
+      generator,
+      stacks: () => [stack],
+    });
+
+    await bridge.send('добавь поле и сгенерируй код');
+
+    expect(generations).toBe(0);
+    const lines = session
+      .get()
+      .entries.at(-1)
+      ?.tools.filter((tool) => tool.name === 'generate_code');
+    expect(lines).toHaveLength(1);
+    expect(lines?.[0]).toMatchObject({ ok: true });
+    expect(lines?.[0].summary).toContain('turn.code.updated');
+  });
+
+  it('модуль напечатан без заказа — одна строка о коде, без заказа генерации', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const stack = createFakeFormStack({ moduleFiles: ['create.ts'] });
+    const { session, bridge } = harness([addField('email')], { files, stacks: () => [stack] });
+
+    await bridge.send('добавь поле');
+
+    const lines = session
+      .get()
+      .entries.at(-1)
+      ?.tools.filter((tool) => tool.name === 'generate_code');
+    expect(lines?.map((line) => line.summary)).toEqual([
+      expect.stringContaining('turn.code.updated'),
+    ]);
+  });
+
+  it('отмена хода, создавшего модуль, называет оставшиеся файлы числом и каталогом', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const stack = createFakeFormStack({
+      moduleFiles: ['create.ts', 'flow.ts', 'model.ts', 'types.ts', 'validation/form.ts'],
+    });
+    const { session, bridge } = harness([addField('email')], { files, stacks: () => [stack] });
+
+    await bridge.send('добавь поле');
+    await expect(bridge.undoLastTurn()).resolves.toBe('undone');
+
+    expect(session.get().error).toContain('turn.undo.createdMany');
+    expect(session.get().error).not.toContain('validation/form.ts');
+  });
+
+  it('отмена хода по форме, которой нет на экране, называет её и при созданных файлах', async () => {
+    // Ход, напечатавший модуль, создаёт файлы почти всегда — заметка о другой форме не пропадает.
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const stack = createFakeFormStack({ moduleFiles: ['a.ts', 'b.ts', 'c.ts', 'd.ts'] });
+    const { host, session, bridge } = harness([addField('email')], {
+      files,
+      stacks: () => [stack],
+    });
+
+    await bridge.send('добавь поле');
+    host.setActive(null);
+    await expect(bridge.undoLastTurn()).resolves.toBe('undone');
+
+    expect(session.get().error).toContain('turn.undo.otherForm');
+    expect(session.get().error).toContain('turn.undo.createdMany');
+  });
+
   it('сопутствующий файл, созданный ходом, остаётся — и об этом сказано', async () => {
     const files = createFakeFiles({ [FORM]: EMPTY });
     const { session, bridge } = harness([addField('email')], { files });
@@ -618,10 +694,15 @@ describe('вопросы модели', () => {
 });
 
 /** Шаблоны-двойник: кладут пустую форму двойника файлом `forms/<имя>.fake.json`. */
-function fakeCreator(files: FakeFiles) {
+function fakeCreator(
+  files: FakeFiles,
+  templates: Awaited<ReturnType<FormCreatorService['templates']>> = [
+    { id: 'simple', name: 'Простая', source: 'builtin' },
+  ]
+) {
   const requests: Parameters<FormCreatorService['create']>[0][] = [];
   const creator: FormCreatorService = {
-    templates: async () => [{ id: 'simple', name: 'Простая', source: 'builtin' }],
+    templates: async () => templates,
     async create(request) {
       requests.push(request);
       if (request.template !== undefined && request.template !== 'simple') {
@@ -663,6 +744,64 @@ describe('создание формы', () => {
     expect(requests[1].tools).toContain('add_field');
   });
 
+  it('шаблоны — в затравке попытки создания, а не лишним вызовом list_templates', async () => {
+    // Замер на живой модели: попытка создания тратила целый запрос на list_templates.
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const { provider, requests } = recordingSequence([
+      [{ tool: 'create_form', args: { name: 'credit' } }],
+      [{ text: 'Готово.' }],
+    ]);
+    const { bridge } = harness([], { files, provider, openForm: false, formCreator: creator });
+
+    await bridge.send('сделай анкету на кредит');
+
+    expect([...requests[0].tools].sort()).toEqual(['ask_user', 'create_form']);
+    const seed = JSON.stringify(requests[0].messages);
+    expect(seed).toContain('\\"simple\\" Простая');
+    // Продолжение знает, что вызовов надо поменьше.
+    expect(JSON.stringify(requests[1].messages)).toContain('as few calls');
+  });
+
+  it('шаблонов больше, чем влезает в затравку, — остальные через list_templates', async () => {
+    const files = createFakeFiles();
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      id: `t${i}`,
+      name: `Шаблон ${i}`,
+      source: 'builtin' as const,
+    }));
+    const { creator } = fakeCreator(files, many);
+    const { provider, requests } = recordingSequence([[{ text: 'Какую форму?' }]]);
+    const { bridge } = harness([], { files, provider, openForm: false, formCreator: creator });
+
+    await bridge.send('сделай форму');
+
+    expect(requests[0].tools).toContain('list_templates');
+    const seed = JSON.stringify(requests[0].messages);
+    expect(seed).toContain('t7');
+    expect(seed).not.toContain('t8');
+    expect(seed).toContain('2 more');
+  });
+
+  it('шаблоны не получены — затравка отсылает к list_templates, ход идёт', async () => {
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const broken: FormCreatorService = {
+      ...creator,
+      templates: () => Promise.reject(new Error('печатник не поднялся')),
+    };
+    const { provider, requests } = recordingSequence([
+      [{ tool: 'create_form', args: { name: 'credit' } }],
+      [{ text: 'Готово.' }],
+    ]);
+    const { host, bridge } = harness([], { files, provider, openForm: false, formCreator: broken });
+
+    await bridge.send('сделай анкету');
+
+    expect(requests[0].tools).toContain('list_templates');
+    expect(host.activeResource()).toBe('forms/credit.fake.json');
+  });
+
   it('неизвестный шаблон — отказ модели, формы нет', async () => {
     const files = createFakeFiles({ [FORM]: EMPTY });
     const { creator } = fakeCreator(files);
@@ -679,6 +818,57 @@ describe('создание формы', () => {
       ?.tools.find((tool) => tool.name === 'create_form');
     expect(failed?.ok).toBe(false);
     expect(files.text('forms/credit.fake.json')).toBeUndefined();
+  });
+
+  it('настройки канала читаются один раз за ход — и на создание, и на продолжение', async () => {
+    // Чтение настроек идёт через хранилище и секреты; ход создания — две попытки и больше.
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const { provider } = recordingSequence([
+      [{ tool: 'create_form', args: { name: 'credit' } }],
+      [addField('amount'), { text: 'Готово.' }],
+    ]);
+    const { bridge, loadConfig } = harness([], {
+      files,
+      provider,
+      openForm: false,
+      formCreator: creator,
+    });
+
+    await bridge.send('сделай анкету на кредит');
+    expect(loadConfig).toHaveBeenCalledTimes(1);
+
+    // Следующий ход читает заново: настройки могли поменять между ходами.
+    await bridge.send('добавь поле');
+    expect(loadConfig).toHaveBeenCalledTimes(2);
+  });
+
+  it('второй create_form в продолжении — отказ: форма хода уже создана', async () => {
+    // Запрет на вторую форму жил в попытке создания и не переживал продолжение: модель,
+    // не увидев форму, создавала ещё одну.
+    const files = createFakeFiles();
+    const { creator } = fakeCreator(files);
+    const { provider } = recordingSequence([
+      [{ tool: 'create_form', args: { name: 'credit' } }],
+      [{ tool: 'create_form', args: { name: 'credit-2' } }, { text: 'Готово.' }],
+    ]);
+    const { session, bridge } = harness([], {
+      files,
+      provider,
+      openForm: false,
+      formCreator: creator,
+    });
+
+    await bridge.send('сделай анкету на кредит');
+
+    const second = session
+      .get()
+      .entries.at(-1)
+      ?.tools.filter((tool) => tool.name === 'create_form')
+      .at(-1);
+    expect(second?.ok).toBe(false);
+    expect(files.text('forms/credit-2.fake.json')).toBeUndefined();
+    expect(files.text('forms/credit.fake.json')).toBeDefined();
   });
 
   it('без открытой формы и без шаблонов — «откройте форму»', async () => {

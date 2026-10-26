@@ -170,6 +170,11 @@ export interface FakeFormStackOptions {
   readonly companion?: string;
   /** Инструменты ассистента в наборе стека (по имени); по умолчанию — все три. */
   readonly hostTools?: readonly FormHostToolName[];
+  /**
+   * Код модуля, который применение печатает вместе с документом (так делает ReFormer): файлы —
+   * пути от каталога документа, пишутся портом файлов и возвращаются в исходе как `code`.
+   */
+  readonly moduleFiles?: readonly string[];
 }
 
 /** Двойник стека и то, что он запомнил. */
@@ -252,6 +257,22 @@ export function createFakeFormStack(options: FakeFormStackOptions = {}): FakeFor
               const after = `fields: ${fields.join(',')}\n`;
               await host.files.write(companion, after, mark);
               companions.push({ id: companion, before, after });
+            }
+            if (options.moduleFiles !== undefined && host.files !== undefined) {
+              const dir = host.files.parentOf(loaded.resource);
+              for (const file of options.moduleFiles) {
+                const id = host.files.resolve(dir, ...file.split('/'));
+                const before = await host.files.read(id).catch(() => null);
+                const after = `// ${file}: ${fields.join(',')}\n`;
+                await host.files.write(id, after, mark);
+                companions.push({ id, before, after });
+              }
+              const code = {
+                dir: host.files.pathOf(dir),
+                written: options.moduleFiles.length,
+                kept: [],
+              };
+              return { status: 'applied', companions, code };
             }
             return { status: 'applied', companions };
           },

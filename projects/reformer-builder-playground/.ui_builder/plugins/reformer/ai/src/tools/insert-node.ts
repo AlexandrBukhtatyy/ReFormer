@@ -11,15 +11,24 @@
  * вставленный ассистентом массив рисовался без заголовка и кнопок «добавить» / «удалить», а тот
  * же массив из палитры — с ними.
  *
+ * ## Вложенная вставка
+ *
+ * Узел пакета может нести `children` — узлы внутри него, той же формы. Визард с тремя шагами и
+ * полями в каждом — один вызов, а не четыре: на локальной модели каждый лишний вызов — это весь
+ * контекст ещё раз и десятки секунд. Переданные дети ЗАМЕНЯЮТ то, что компонент приносит сам
+ * (шаг «Шаг 1» у визарда): модель описала содержимое целиком. Схема параметров рекурсии не
+ * описывает (`$ref` на себя понимают не все каналы), поэтому форма детей проверяется здесь, с
+ * адресом элемента в отказе: `nodes[0].children[2]`.
+ *
  * @module plugins/reformer/ai/tools/insert-node
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
-import { insertNode } from '../../../core/form-model';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import { insertNode, updateAt } from '../../../core/form-model';
 import { catalogEntry, componentNames, type Catalog } from '../model/catalog-digest';
 import { commitBatch, type BatchEntry, type OpDescription } from '../loop/gate';
 import { isResolved, nodeRef, resolveRef } from '../model/node-ref';
-import { insertSlotOf } from '../model/slots';
+import { insertSlotOf, type InsertSlot } from '../model/slots';
 import { similarNames } from '@reformer/builder-toolkit';
 import { fail, type AgentTool, type ToolOutcome } from '../model/types';
 import { REF_PROP } from './params';
@@ -33,7 +42,18 @@ interface NodeSpec {
   props?: Record<string, unknown>;
   /** Имя части документа — узел подключает её разметку к группе `model`. */
   part?: string;
+  /** Узлы внутри этого: шаги визарда, поля шага. Заменяют содержимое по умолчанию. */
+  children?: NodeSpec[];
 }
+
+/** Глубина вложения в одном вызове: визард → шаг → поле. */
+export const INSERT_MAX_DEPTH = 3;
+
+/**
+ * Узлов в одном вызове вместе с вложенными. Длинный вызов модель пишет долго, а оборванный на
+ * середине не применится вовсе (см. правило «группируй» в промпте).
+ */
+export const INSERT_MAX_NODES = 40;
 
 /** Параметры вызова. */
 interface Params {
@@ -48,7 +68,7 @@ export const insertNodeTool: AgentTool<Params> = {
   // каждый запрос дважды. Здесь остаётся то, чего из схемы не видно, — что считается контейнером.
   description:
     'Insert a component into a container: a step, a section or the form root. ' +
-    'A composite component arrives already assembled.',
+    'A composite arrives assembled; children replace its default content.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -72,6 +92,11 @@ export const insertNodeTool: AgentTool<Params> = {
               type: 'object',
               description: 'Props; see describe_component. $disabled, $newRow: as in set_node_prop',
             },
+            children: {
+              type: 'array',
+              description: "Nodes inside, same shape: a wizard's steps, a step's fields",
+              items: { type: 'object' },
+            },
           },
           additionalProperties: false,
         },
@@ -93,38 +118,133 @@ export const insertNodeTool: AgentTool<Params> = {
       );
     }
 
+    const total = countNodes(params.nodes);
+    if (total > INSERT_MAX_NODES) {
+      return fail(
+        'INVALID_PARAMS',
+        `${total} nodes in one call, at most ${INSERT_MAX_NODES}. Split it into several calls.`
+      );
+    }
+
     // Пакет применяется к черновику по одному узлу, но гейт проходит один раз в конце: проверка
     // схемы стоит дороже самой вставки, а промежуточные состояния пакета модели не видны.
-    let draft = ctx.draft;
-    const entries: BatchEntry[] = [];
+    const batch: Batch = {
+      catalog: ctx.catalog,
+      parts: documentParts(ctx.draft),
+      draft: ctx.draft,
+      entries: [],
+    };
     let at = params.index ?? Number.MAX_SAFE_INTEGER;
-
-    const parts = documentParts(ctx.draft);
+    // Индекс элемента называется прямо: без него «поле нельзя класть в мастер» на пакете из
+    // двенадцати узлов не говорит, какой именно узел виноват. У одиночной вставки без детей
+    // приписывать нечего.
+    const single = params.nodes.length === 1 && params.nodes[0].children === undefined;
     for (const [i, spec] of params.nodes.entries()) {
-      const prepared =
-        spec.part !== undefined
-          ? preparePartMount(spec, parts)
-          : prepareNode(ctx.catalog, spec, slot.kind, params.parent);
-      // Индекс элемента называется прямо: без него «поле нельзя класть в мастер» на пакете из
-      // двенадцати узлов не говорит, какой именно узел виноват.
-      if ('error' in prepared) return withIndex(prepared.error, params.nodes.length, i);
-
-      const result = insertNode(draft, slot.path, at, prepared.node);
-      draft = result.schema;
+      const refused = insertTree(batch, {
+        slot,
+        at,
+        spec,
+        label: single ? '' : `nodes[${i}]`,
+        depth: 1,
+        parentRef: params.parent,
+      });
+      if (refused !== null) return refused;
       // Следующий узел встаёт сразу за предыдущим: иначе пакет с явным index уложил бы узлы в
       // обратном порядке — каждый следующий перед уже вставленным.
       at = params.index === undefined ? Number.MAX_SAFE_INTEGER : at + 1;
-      entries.push({ ref: nodeRef(result.newPath), ...prepared.describe });
     }
 
-    return commitBatch(ctx, draft, entries);
+    return commitBatch(ctx, batch.draft, batch.entries);
   },
 };
 
-/** Приписать к отказу номер элемента пакета — у одиночной вставки приписывать нечего. */
-function withIndex(outcome: ToolOutcome, total: number, index: number): ToolOutcome {
-  if (total === 1) return outcome;
-  return { ...outcome, text: `nodes[${index}]: ${outcome.text}` };
+/** Пакет вставки по ходу сборки: черновик и вставленные узлы в порядке вставки. */
+interface Batch {
+  readonly catalog: Catalog;
+  readonly parts: ReadonlyMap<string, JsonNode>;
+  draft: JsonFormSchema;
+  readonly entries: BatchEntry[];
+}
+
+/** Куда и что вставить: узел пакета вместе с местом. */
+interface TreeStep {
+  readonly slot: InsertSlot;
+  readonly at: number;
+  readonly spec: NodeSpec;
+  /** Адрес элемента в параметрах для отказа: `nodes[0].children[2]`; `''` — не нужен. */
+  readonly label: string;
+  readonly depth: number;
+  readonly parentRef: string;
+}
+
+/** Вставить узел пакета и его детей. Отказ — `ToolOutcome` с адресом элемента, иначе `null`. */
+function insertTree(batch: Batch, step: TreeStep): ToolOutcome | null {
+  const { spec, label } = step;
+  const refuse = (outcome: ToolOutcome): ToolOutcome =>
+    label === '' ? outcome : { ...outcome, text: `${label}: ${outcome.text}` };
+  if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) {
+    return refuse(fail('INVALID_PARAMS', 'A node is an object: { component, model, props }.'));
+  }
+  if (spec.children !== undefined && !Array.isArray(spec.children)) {
+    return refuse(fail('INVALID_PARAMS', 'children is an array of nodes.'));
+  }
+  const prepared =
+    spec.part !== undefined
+      ? preparePartMount(spec, batch.parts)
+      : prepareNode(batch.catalog, spec, step.slot.kind, step.parentRef);
+  if ('error' in prepared) return refuse(prepared.error);
+
+  const children = spec.children ?? [];
+  let node = prepared.node;
+  let own: InsertSlot | null = null;
+  if (children.length > 0) {
+    if (step.depth >= INSERT_MAX_DEPTH) {
+      return refuse(
+        fail(
+          'INVALID_PARAMS',
+          `children nest at most ${INSERT_MAX_DEPTH} levels deep in one call; insert deeper ` +
+            'nodes with another call into the address this one reports.'
+        )
+      );
+    }
+    own = insertSlotOf(node, []);
+    if (own === null) {
+      return refuse(fail('INVALID_PARENT', `${prepared.describe.report} does not hold children.`));
+    }
+    // Содержимое по умолчанию (шаг «Шаг 1» у визарда) заменяется переданным.
+    node = updateAt(node, own.path, () => []);
+  }
+
+  const result = insertNode(batch.draft, step.slot.path, step.at, node);
+  batch.draft = result.schema;
+  const ref = nodeRef(result.newPath);
+  batch.entries.push({ ref, ...prepared.describe });
+  if (own === null) return null;
+
+  const inner: InsertSlot = { path: [...result.newPath, ...own.path], kind: own.kind };
+  for (const [j, child] of children.entries()) {
+    const refused = insertTree(batch, {
+      slot: inner,
+      at: Number.MAX_SAFE_INTEGER,
+      spec: child,
+      label: `${label === '' ? 'nodes[0]' : label}.children[${j}]`,
+      depth: step.depth + 1,
+      parentRef: ref,
+    });
+    if (refused !== null) return refused;
+  }
+  return null;
+}
+
+/** Узлов в пакете вместе с вложенными; кривые `children` разбирает `insertTree`. */
+function countNodes(nodes: readonly unknown[]): number {
+  let total = 0;
+  for (const node of nodes) {
+    total += 1;
+    const children = (node as NodeSpec | null)?.children;
+    if (Array.isArray(children)) total += countNodes(children);
+  }
+  return total;
 }
 
 /**
@@ -165,7 +285,15 @@ function prepareNode(
   parentRef: string
 ): { node: JsonNode; describe: OpDescription } | { error: ToolOutcome } {
   if (spec.component === undefined) {
-    return { error: fail('INVALID_PARAMS', 'A node needs component — or part to mount a part.') };
+    // Что пришло вместо — называется: вложенный узел схема параметров не проверяет, и без этого
+    // модель не видела, что шаг визарда она прислала одними props.
+    const got = Object.keys(spec);
+    return {
+      error: fail(
+        'INVALID_PARAMS',
+        `A node needs component — or part to mount a part. Got: ${got.length ? got.join(', ') : 'nothing'}.`
+      ),
+    };
   }
   const entry = catalogEntry(catalog, spec.component);
   if (!entry) {

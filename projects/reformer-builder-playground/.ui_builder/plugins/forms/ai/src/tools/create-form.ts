@@ -23,6 +23,26 @@ const MODULE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** Предел описания шаблона в списке: список — для выбора, а не для чтения. */
 const DESCRIPTION_LIMIT = 160;
 
+/** Шаблон, каким его видит модель. */
+export interface TemplateListing {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+}
+
+/**
+ * Строки списка шаблонов: `- "<id>" имя: описание`. Одна форма у `list_templates` и у затравки
+ * хода без формы — модель читает их одинаково.
+ */
+export function templateLines(list: readonly TemplateListing[]): string[] {
+  return list.map((item) => {
+    const about = item.description?.trim() ?? '';
+    const short =
+      about.length > DESCRIPTION_LIMIT ? `${about.slice(0, DESCRIPTION_LIMIT - 1)}…` : about;
+    return `- "${item.id}" ${item.name}${short === '' ? '' : `: ${short}`}`;
+  });
+}
+
 export const listTemplatesTool: FormAgentTool = {
   name: 'list_templates',
   description: 'Form templates create_form can start from.',
@@ -36,13 +56,7 @@ export const listTemplatesTool: FormAgentTool = {
     const list = await templates();
     if (list.length === 0)
       return formToolOk('No templates: create_form without template makes an empty form.');
-    const lines = list.map((item) => {
-      const about = item.description?.trim() ?? '';
-      const short =
-        about.length > DESCRIPTION_LIMIT ? `${about.slice(0, DESCRIPTION_LIMIT - 1)}…` : about;
-      return `- "${item.id}" ${item.name}${short === '' ? '' : `: ${short}`}`;
-    });
-    return formToolOk(lines.join('\n'));
+    return formToolOk(templateLines(list).join('\n'));
   },
 };
 

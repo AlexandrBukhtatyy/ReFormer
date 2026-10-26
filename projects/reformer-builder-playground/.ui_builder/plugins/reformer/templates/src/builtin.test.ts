@@ -196,6 +196,48 @@ describe('встроенные шаблоны', () => {
     ]);
   });
 
+  it('напечатанное запоминается на кит: повторный список не печатает заново', async () => {
+    // Печать встроенного шаблона — полная генерация модуля, а список спрашивают окно шаблонов,
+    // создание формы и ассистент.
+    let printed = 0;
+    const counting: ModulePrinter = (schema, formName, extras) => {
+      printed += 1;
+      return fakePrinter(schema, formName, extras);
+    };
+    let catalog = builtinEntries();
+    const store = createBuiltinStore({ print: counting, catalog: () => [...catalog] });
+
+    const first = await store.list();
+    expect(printed).toBe(2);
+    expect(await store.list()).toBe(first);
+    expect(printed).toBe(2);
+
+    // Каталог другой — печать заново.
+    catalog = builtinEntries().filter((entry) => ['Box', 'Input'].includes(entry.name));
+    expect((await store.list()).map((t) => t.id)).toEqual(['builtin-simple-form']);
+    expect(printed).toBe(3);
+  });
+
+  it('список с ненапечатанным шаблоном не запоминается: следующий вопрос печатает заново', async () => {
+    let calls = 0;
+    const store = createBuiltinStore({
+      print: async (schema, formName, extras) => {
+        calls += 1;
+        if (calls === 1) throw new Error('печатник ещё не поднялся');
+        return fakePrinter(schema, formName, extras);
+      },
+    });
+
+    expect((await store.list()).map((t) => t.id)).toEqual(['builtin-wizard-form']);
+    expect((await store.list()).map((t) => t.id)).toEqual([
+      'builtin-simple-form',
+      'builtin-wizard-form',
+    ]);
+    expect(calls).toBe(4);
+    await store.list();
+    expect(calls).toBe(4);
+  });
+
   it('у кита без адаптера визарда пошаговой формы нет, простая остаётся', async () => {
     // Каталог тот же — узлы визарда билдер добавляет к каталогу любого кита. Отличает кит
     // дескриптор: рисовать визард ему нечем.

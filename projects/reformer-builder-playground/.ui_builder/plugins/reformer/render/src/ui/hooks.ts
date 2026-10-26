@@ -99,23 +99,47 @@ export function useKitVersion(host: Pick<PreviewHost, 'onDidChangeKit'>): number
   return version;
 }
 
+/** Тишина в рабочих копиях, после которой правки считаются законченными, мс. */
+export const FILES_SETTLE_MS = 200;
+
+/** Дольше этого серия правок пересборку не откладывает, мс. */
+const FILES_SETTLE_LIMIT_MS = 1000;
+
 /**
- * Счётчик правок рабочих копий.
+ * Счётчик правок рабочих копий — серия правок считается одной.
  *
  * Отдельно от подписки на документ схемы: сайдкары формы правят в соседних вкладках, и
  * `onDidChangeContent` про них ничего не знает. Порт вправе такого канала не дать — тогда
  * счётчик остаётся нулём, и компиляция пересобирается только на смене схемы.
+ *
+ * Счётчик растёт после `settleMs` тишины, а не на каждую правку: генерация кода пишет модуль
+ * десятком файлов подряд, и компиляция на каждый из них собирала бы полуготовый модуль. Серия
+ * дольше секунды всё же даёт пересборку — превью не должно замирать на длинной записи.
  */
-export function useFilesVersion(host: Pick<PreviewHost, 'onDidChangeFiles'>): number {
+export function useFilesVersion(
+  host: Pick<PreviewHost, 'onDidChangeFiles'>,
+  settleMs = FILES_SETTLE_MS
+): number {
   const [version, setVersion] = useState(0);
   useEffect(() => {
-    const subscription = host.onDidChangeFiles?.(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let first = 0;
+    const bump = (): void => {
+      timer = undefined;
       setVersion((previous) => previous + 1);
+    };
+    const subscription = host.onDidChangeFiles?.(() => {
+      const now = Date.now();
+      if (timer === undefined) first = now;
+      else clearTimeout(timer);
+      const limit = first + Math.max(settleMs, FILES_SETTLE_LIMIT_MS) - now;
+      timer = setTimeout(bump, Math.max(0, Math.min(settleMs, limit)));
     });
     return () => {
       subscription?.dispose();
+      if (timer !== undefined) clearTimeout(timer);
     };
-  }, [host]);
+  }, [host, settleMs]);
   return version;
 }
 

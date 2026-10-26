@@ -1,6 +1,7 @@
 /**
  * Значения источников данных превью — из констант модуля формы, в настоящем браузере: хук
- * перечитывает их, когда константы правят в рабочей копии.
+ * перечитывает их, когда константы правят в рабочей копии. И счётчик правок рабочих копий, по
+ * которому превью пересобирает модуль.
  *
  * @module plugins/reformer/render/ui/hooks.browser.test
  */
@@ -9,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import { renderReact } from '../../../../.shared/render';
 import type { PreviewHost } from '../host';
-import { useRuleDataSources } from './hooks';
+import { useFilesVersion, useRuleDataSources } from './hooks';
 
 let unmount: (() => void) | undefined;
 
@@ -93,5 +94,33 @@ describe('значения источников данных превью', () =
     unmount = mounted.unmount;
 
     await vi.waitFor(() => expect(shown(mounted.container)).toBe('null'));
+  });
+});
+
+function Version(props: { readonly host: Parameters<typeof useFilesVersion>[0] }) {
+  return <pre data-testid="version">{useFilesVersion(props.host, 30)}</pre>;
+}
+
+const version = (container: HTMLElement) =>
+  container.querySelector('[data-testid="version"]')?.textContent ?? '';
+
+describe('счётчик правок рабочих копий', () => {
+  it('серия правок — одна пересборка: модуль пишут десятком файлов подряд', async () => {
+    const { host, change } = workspace({});
+    const mounted = renderReact(<Version host={host} />);
+    unmount = mounted.unmount;
+    await vi.waitFor(() => expect(version(mounted.container)).toBe('0'));
+    // Подписка — в эффекте, он идёт после отрисовки.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    for (let i = 0; i < 10; i += 1) change(`fs:forms/loan/file-${i}.ts`, 'x');
+    // Пока правки идут, счётчик стоит.
+    expect(version(mounted.container)).toBe('0');
+    await vi.waitFor(() => expect(version(mounted.container)).toBe('1'));
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(version(mounted.container)).toBe('1');
+
+    change(CONSTANTS, 'y');
+    await vi.waitFor(() => expect(version(mounted.container)).toBe('2'));
   });
 });

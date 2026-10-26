@@ -21,7 +21,7 @@ import { fileRoleOf } from '../../../core/codegen/layout';
 import { FORM_SCHEMA_PROVIDER_ID } from '../../../core/form-model';
 import type { FileScope } from '../files/scope';
 import type { ResolveLibraryReference } from '../reference';
-import { systemPrompt } from '../loop/prompt';
+import { creationPrompt } from '../loop/creation-prompt';
 import { parseSchemaText } from '../model/schema-text';
 import type { LoadValidateForm, ValidateFormSchema } from '../model/validate';
 import { relInScope } from '../files/scope';
@@ -29,6 +29,7 @@ import { structuredSlots } from '../tools';
 import { fileModeSlots } from '../tools/files';
 import { createFilesMode } from './files-mode';
 import { createStructuredMode } from './structured';
+import type { FormSplitWriter } from './workspace';
 
 /** Идентификатор стека — им помечены разобранные им документы. */
 export const SCHEMA_FORM_STACK_ID = 'reformer.form-schema';
@@ -59,6 +60,11 @@ export interface SchemaFormStackOptions {
   readonly scopeOf?: (id: ResourceId) => FileScope | null;
   /** Дверь составной формы (`./workspace`); нет — каждая форма пишется текстом как есть. */
   readonly door?: (id: ResourceId) => FormDocumentDoor | null;
+  /**
+   * Запись формы с разнесением шагов по файлам (`./workspace`); нет — визард, собранный ходом,
+   * остаётся одним файлом.
+   */
+  readonly splitWriter?: (id: ResourceId) => FormSplitWriter | null;
   /**
    * Генерация кода — ею правила хода ложатся в код модуля (`./rule-code`). Нет — правила
    * структурного хода записать нечем, и инструменты правил отказывают.
@@ -106,6 +112,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
         validateForm: options.validateForm,
         prepared,
         door,
+        ...(options.splitWriter === undefined ? {} : { splitWriter: options.splitWriter }),
         ...(options.generator === undefined ? {} : { generator: options.generator }),
         refuse: formPartRefusal,
       });
@@ -136,7 +143,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
             return false;
           }
         },
-        creationPrompt: () => systemPrompt(options.catalog()),
+        creationPrompt,
         // Файлы правил плагинам открыты: их пишет генерация, и `generate_code` того же хода
         // обязан их перепечатать.
         refuseWrite: (id, form) => formPartRefusal(id, form.resource),

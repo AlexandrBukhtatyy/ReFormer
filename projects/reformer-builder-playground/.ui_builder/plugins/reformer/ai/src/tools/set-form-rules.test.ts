@@ -238,15 +238,28 @@ describe('set_form_rules — кросс-полевые и асинхронные
     });
   });
 
-  it('один текст на две проверки и опции без кода — отказы с починкой', async () => {
+  it('один текст на две проверки — разнесён: текст у проверки, отличной от required', async () => {
+    // Замер на живой модели: отказ здесь стоил целого обращения к модели в половине ходов.
     const two = await reg.invoke(
       'set_form_rules',
-      { validation: [{ target: 'price', rules: ['required', 'min(1)'], message: 'Цена?' }] },
+      { validation: [{ target: 'price', rules: ['required', 'min(1)'], message: 'Минимум 1' }] },
       ctx()
     );
-    expect(two.error?.code).toBe('INVALID_PARAMS');
-    expect(two.error?.message).toContain('separate entries');
+    expect(two.ok).toBe(true);
+    expect(two.rules?.validation).toEqual([
+      { target: 'price', rules: ['required'] },
+      {
+        target: 'price',
+        rules: ["min(1, { code: 'price.min' })"],
+        code: 'price.min',
+        message: 'Минимум 1',
+      },
+    ]);
+    // Что сделано за модель — в ответе: поправить она может сама.
+    expect(two.text).toContain('went to min');
+  });
 
+  it('опции без кода — отказ с починкой', async () => {
     const options = await reg.invoke(
       'set_form_rules',
       { validation: [{ target: 'price', rules: ['min(1, { params: {} })'], message: 'Цена?' }] },

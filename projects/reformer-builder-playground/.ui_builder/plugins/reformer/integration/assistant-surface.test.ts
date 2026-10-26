@@ -52,6 +52,7 @@ import { commandTools, type AgentCommand } from '../../forms/ai/src/tools/comman
 import { readResourceTool } from '../../forms/ai/src/tools/read-resource';
 import { fileSystemPrompt } from '../ai/src/loop/file-prompt';
 import { systemPrompt } from '../ai/src/loop/prompt';
+import { creationPrompt } from '../ai/src/loop/creation-prompt';
 import { measureToolSurface } from '@reformer/builder-toolkit';
 import { structuredSlots } from '../ai/src/tools';
 import { fileModeSlots } from '../ai/src/tools/files';
@@ -110,6 +111,21 @@ describe('поверхность инструментов', () => {
 
   it('системный промпт — вторая половина постоянной части — укладывается в свой потолок', () => {
     expect(systemPrompt(builtinEntries()).length).toBeLessThanOrEqual(PROMPT_BUDGET);
+  });
+});
+
+/**
+ * Постоянная часть запроса попытки создания формы: её промпт и два инструмента — `create_form`
+ * и `ask_user`. Храповик, как у {@link TOOL_SURFACE_BUDGET}: равенство, а не «не больше».
+ * Раньше попытка несла промпт структурного режима и `list_templates` — около 5600 символов.
+ */
+const CREATION_SURFACE = 1970;
+
+describe('попытка создания формы — своя постоянная часть', () => {
+  it('промпт создания и два инструмента — ровно потолок', () => {
+    const surface =
+      creationPrompt().length + measureToolSurface([createFormTool, askUserTool] as AgentTool[]);
+    expect(surface).toBe(CREATION_SURFACE);
   });
 });
 

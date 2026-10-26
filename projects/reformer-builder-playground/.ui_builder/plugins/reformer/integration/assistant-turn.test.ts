@@ -168,9 +168,12 @@ describe('карта формы, приложенная к ходу', () => {
     expect(messages).toHaveLength(2);
   });
 
-  it('пустой форме карта не прикладывается — сообщать нечего', async () => {
+  it('пустой форме — одна строка про корень: продолжение после create_form не идёт за картой', async () => {
     const { messages } = await requestOf(emptySchema());
-    expect(messages).toEqual([{ role: 'user', content: 'сделай' }]);
+    expect(messages[0]).toEqual({ role: 'user', content: 'сделай' });
+    expect(messages).toHaveLength(2);
+    expect(messages[1].content).toContain('/root');
+    expect(messages[1].content).not.toContain('Form map');
   });
 });
 
@@ -394,14 +397,17 @@ describe('эталонная задача — мастер из 3 шагов п�
         usagePerStep: { inputTokens: 100, cachedInputTokens: 60, outputTokens: 7 },
       })
     );
-    expect(stats).toEqual({
+    expect(stats).toMatchObject({
       steps: 2,
       inputTokens: 200,
       cachedInputTokens: 120,
       outputTokens: 14,
       // Пик, а не сумма: об окне модели говорит вес ОДНОГО шага, и упирается запрос именно в него.
       peakStepInputTokens: 100,
+      reasoningTokens: 0,
     });
+    // Каждый запрос — отдельной записью замера.
+    expect(stats.requests).toHaveLength(2);
   });
 
   it('провайдер, молчащий про токены, всё равно даёт число шагов', async () => {

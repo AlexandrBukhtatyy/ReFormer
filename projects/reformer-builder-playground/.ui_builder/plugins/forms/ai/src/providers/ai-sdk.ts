@@ -76,6 +76,16 @@ export interface AiSdkTuning {
    * такой ход на разведке, не дав дойти до первой правки (ReFormer-6zxe).
    */
   chunkTimeoutMs?: number | null;
+  /**
+   * Глубина рассуждения модели; нет — по умолчанию канала. `via` — как её передать: верхним
+   * параметром вызова (`reasoning`) или полем OpenAI-совместимого запроса (`reasoning_effort`).
+   * Второй путь нужен локальному серверу: OpenAI-совместимый провайдер AI SDK теряет верхнее
+   * `reasoning: 'none'`, и выключить рассуждение им нельзя.
+   */
+  reasoning?: {
+    readonly effort: 'none' | 'low' | 'medium' | 'high';
+    readonly via: 'call' | 'openai-compatible';
+  };
 }
 
 /** Значения по умолчанию: ничего провайдер-специфичного, только разумные пределы. */
@@ -367,9 +377,7 @@ export async function* streamViaAiSdk(
     temperature: 0,
     ...(tuning.maxOutputTokens ? { maxOutputTokens: tuning.maxOutputTokens } : {}),
     maxRetries: tuning.maxRetries,
-    ...(tuning.promptCacheKey
-      ? { providerOptions: { openai: { promptCacheKey: tuning.promptCacheKey } } }
-      : {}),
+    ...requestOptionsOf(tuning),
   });
 
   try {
@@ -380,6 +388,7 @@ export async function* streamViaAiSdk(
           stepSaidSomething = false;
           stepText = '';
           stepCalledTool = false;
+          yield { type: 'step_start' };
           break;
         // Начало блока помечается на первом НЕПУСТОМ куске после него: пустой кусок до ленты не
         // доходит, и метка на нём потерялась бы вместе с разрывом между блоками.
@@ -598,6 +607,20 @@ function isTimeout(error: unknown): boolean {
  * Каналы, не понимающие `providerOptions.anthropic`, молча его игнорируют — деградация корректная,
  * поэтому отдельной ветки «а вдруг не поддержит» здесь нет.
  */
+/** Параметры запроса, которые задаёт канал: ключ кэша OpenAI и глубина рассуждения. */
+function requestOptionsOf(tuning: AiSdkTuning) {
+  const providerOptions: Record<string, Record<string, string>> = {
+    ...(tuning.promptCacheKey ? { openai: { promptCacheKey: tuning.promptCacheKey } } : {}),
+    ...(tuning.reasoning?.via === 'openai-compatible'
+      ? { openaiCompatible: { reasoningEffort: tuning.reasoning.effort } }
+      : {}),
+  };
+  return {
+    ...(Object.keys(providerOptions).length > 0 ? { providerOptions } : {}),
+    ...(tuning.reasoning?.via === 'call' ? { reasoning: tuning.reasoning.effort } : {}),
+  };
+}
+
 function instructionsOf(system: string, tuning: AiSdkTuning) {
   if (!tuning.cacheBreakpoints) return system;
   return {
@@ -625,6 +648,9 @@ function usageOf(usage: LanguageModelUsage): AiUsage {
       ? { cacheWriteTokens: details.cacheWriteTokens }
       : {}),
     ...(usage.outputTokens !== undefined ? { outputTokens: usage.outputTokens } : {}),
+    ...(usage.outputTokenDetails?.reasoningTokens !== undefined
+      ? { reasoningTokens: usage.outputTokenDetails.reasoningTokens }
+      : {}),
   };
 }
 

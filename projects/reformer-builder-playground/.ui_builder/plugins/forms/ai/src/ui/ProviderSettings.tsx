@@ -43,6 +43,7 @@ import {
   PROVIDER_LABEL_KEY,
   PROVIDER_ORIGIN,
   type EditMode,
+  type ReasoningLevel,
   type ProviderConfig,
   type ProviderKind,
 } from '../session/config';
@@ -52,6 +53,7 @@ import type { AiAssistant } from '../plugin';
 const KINDS: readonly ProviderKind[] = ['anthropic', 'openai', 'openai-compatible'];
 
 const EDIT_MODES: readonly EditMode[] = ['structured', 'files'];
+const REASONING_LEVELS: readonly ReasoningLevel[] = ['default', 'off', 'low', 'medium', 'high'];
 
 /** Ключ пояснения о том, куда уходит запрос: пользователь должен это видеть, а не догадываться. */
 const ORIGIN_KEY: Record<'browser' | 'loopback', string> = {
@@ -99,6 +101,7 @@ export function ProviderSettings({
   const [editMode, setEditMode] = useState<EditMode>('structured');
   // Режим, с которым канал подключён сейчас: с ним сравнивается выбранный при подключении.
   const [savedMode, setSavedMode] = useState<EditMode>('structured');
+  const [reasoning, setReasoning] = useState<ReasoningLevel>('default');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,6 +120,7 @@ export function ProviderSettings({
       if (stored.maxInputTokens !== undefined) setMaxInputTokens(String(stored.maxInputTokens));
       setEditMode(stored.editMode ?? 'structured');
       setSavedMode(stored.editMode ?? 'structured');
+      setReasoning(stored.reasoning ?? 'default');
     });
     return () => {
       alive = false;
@@ -131,6 +135,8 @@ export function ProviderSettings({
     ...limitsFrom({ maxSteps, maxOutputTokens, maxInputTokens }),
     // Режим по умолчанию не записывается: отсутствие поля и есть structured.
     ...(editMode === 'files' ? { editMode } : {}),
+    // Как и режим: значение по умолчанию не записывается.
+    ...(reasoning !== 'default' ? { reasoning } : {}),
   });
 
   const loadModels = async (): Promise<void> => {
@@ -309,6 +315,34 @@ export function ProviderSettings({
         </Select>
         <p className="text-muted-foreground text-[11px] leading-4">{t('settings.mode.hint')}</p>
       </div>
+
+      {kind !== 'anthropic' && (
+        <div className="space-y-1.5">
+          <Label htmlFor="ai-reasoning" className="text-muted-foreground text-[11.5px]">
+            {t('settings.reasoning')}
+          </Label>
+          <Select
+            value={reasoning}
+            onValueChange={(value) => {
+              setReasoning(value as ReasoningLevel);
+            }}
+          >
+            <SelectTrigger id="ai-reasoning" size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {REASONING_LEVELS.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {t(`settings.reasoning.${item}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-muted-foreground text-[11px] leading-4">
+            {t('settings.reasoning.hint')}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">

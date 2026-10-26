@@ -20,6 +20,9 @@
  * видит собранной схемой, а записывает операцией через ручку модели: раскладку по файлам делает
  * документ, и ход остаётся одной записью истории. Форма одним файлом идёт обычной дверью — текстом.
  *
+ * Той же ручкой ход и РАЗБИВАЕТ форму (`splitWriter`): визард, собранный ассистентом, ложится по
+ * файлам шагов, как у шаблона «Пошаговая форма», — операция и раскладка одной записью истории.
+ *
  * @module plugins/reformer/ai/stack/workspace
  */
 
@@ -30,6 +33,7 @@ import {
   KitsCapability,
   WorkspaceFilesServiceToken,
   type FormDocumentDoor,
+  type FormWriteMark,
   type ModelDocumentHandle,
   type PluginContext,
   type ResourceId,
@@ -59,7 +63,15 @@ export interface SchemaStackWorkspace {
   scopeOf(id: ResourceId): FileScope | null;
   /** Дверь составной формы; `null` — форма одним файлом, и ход правит её текст как есть. */
   door(id: ResourceId): FormDocumentDoor | null;
+  /**
+   * Запись формы, разносящая её шаги по файлам; `null` — разносить нечем: у документа нет модели
+   * или его провайдер не умеет составную раскладку. Нет метода — то же самое.
+   */
+  splitWriter?(id: ResourceId): FormSplitWriter | null;
 }
+
+/** Записать текст формы и разнести её шаги по файлам — одной записью истории. */
+export type FormSplitWriter = (text: string, mark?: FormWriteMark) => Promise<void>;
 
 /**
  * Собрать рабочую область стека. Службы рабочей области берутся `require` — их даёт сама
@@ -128,6 +140,22 @@ export function schemaStackWorkspace(ctx: PluginContext): SchemaStackWorkspace {
             ? Promise.resolve()
             : Promise.reject(new Error(`форма не принимает правку: ${outcome.reason}`));
         },
+      };
+    },
+
+    splitWriter(id) {
+      const handle = ctx.services.get(DocumentModelsCapability)?.handleOf(id) ?? null;
+      if (handle === null || handle.restructure === undefined) return null;
+      return async (text, mark) => {
+        const outcome = handle.apply(
+          { type: 'replace-schema', params: { schema: parseSchemaText(text) } },
+          { ...(mark === undefined ? {} : { write: mark }), restructure: 'split' }
+        );
+        if (outcome.status !== 'applied') {
+          throw new Error(`форма не принимает правку: ${outcome.reason}`);
+        }
+        // Файлы шагов пишутся отложенно; генерация после хода читает их — дождаться записи.
+        await handle.flush();
       };
     },
   };

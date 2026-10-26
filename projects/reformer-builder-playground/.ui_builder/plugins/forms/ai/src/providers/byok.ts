@@ -19,6 +19,7 @@ import {
   PROVIDER_ORIGIN,
   type ProviderConfig,
   type ProviderKind,
+  type ReasoningLevel,
 } from '../session/config';
 import { streamViaAiSdk, type AiSdkTuning } from './ai-sdk';
 import type { AiCapabilities, AiDetection, AiProvider } from './types';
@@ -120,7 +121,10 @@ function modelOf(config: ProviderConfig): LanguageModel {
 export function tuningOf(config: ProviderConfig): AiSdkTuning {
   // Потолок вывода задаёт пользователь; по умолчанию его нет — см. ProviderConfig.maxOutputTokens.
   const limit = config.maxOutputTokens ? { maxOutputTokens: config.maxOutputTokens } : {};
+  const effort = effortOf(config.reasoning);
   switch (config.kind) {
+    // Рассуждение Anthropic не трогается: по умолчанию оно выключено, а включённое не сочетается
+    // с `temperature: 0`, на которой идёт ход.
     case 'anthropic':
       return { cacheBreakpoints: true, pruneContext: false, maxRetries: 2, ...limit };
     case 'openai':
@@ -130,6 +134,7 @@ export function tuningOf(config: ProviderConfig): AiSdkTuning {
         pruneContext: false,
         maxRetries: 2,
         ...limit,
+        ...(effort === undefined ? {} : { reasoning: { effort, via: 'call' as const } }),
       };
     case 'openai-compatible':
       // Единственный канал, где полоть выгодно: кэша префикса нет, зато контекст упирается в
@@ -147,8 +152,19 @@ export function tuningOf(config: ProviderConfig): AiSdkTuning {
         maxRetries: 1,
         chunkTimeoutMs: null,
         ...limit,
+        ...(effort === undefined
+          ? {}
+          : { reasoning: { effort, via: 'openai-compatible' as const } }),
       };
   }
+}
+
+/** Глубина рассуждения для запроса; `undefined` — по умолчанию канала. */
+function effortOf(
+  level: ReasoningLevel | undefined
+): 'none' | 'low' | 'medium' | 'high' | undefined {
+  if (level === undefined || level === 'default') return undefined;
+  return level === 'off' ? 'none' : level;
 }
 
 /** Идентификатор сессии редактора: один на всё время работы вкладки. */

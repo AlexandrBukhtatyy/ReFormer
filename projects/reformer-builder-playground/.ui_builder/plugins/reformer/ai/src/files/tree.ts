@@ -14,6 +14,7 @@
 
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { fileRoleOf, type ModuleFileRole } from '../../../core/codegen/layout';
+import { isRuleCodePath } from '../../../core/codegen/rules-code';
 import type { FormStackFiles } from '@reformer/builder-plugin-api';
 import type { FileScope } from './scope';
 import type { FileJournal } from '@reformer/builder-toolkit';
@@ -66,7 +67,10 @@ export async function moduleFiles(
 export function renderTree(paths: readonly string[], scope: FileScope): string {
   return paths
     .map((rel) => {
-      const tag = ROLE_TAG[fileRoleOf(rel, scope.schemaPath)];
+      const role = fileRoleOf(rel, scope.schemaPath);
+      // Метка `[rules]` — у файлов правил. Перегенерируемый файл вне правил (отправка) идёт без
+      // метки, как авторский: промпт режима файлов объясняет `[rules]` как код валидации.
+      const tag = role === 'regenerable' && !isRuleCodePath(rel) ? undefined : ROLE_TAG[role];
       return tag ? `${rel} ${tag}` : rel;
     })
     .join('\n');

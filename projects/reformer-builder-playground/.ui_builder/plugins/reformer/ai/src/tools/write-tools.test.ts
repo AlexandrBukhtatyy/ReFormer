@@ -540,6 +540,137 @@ describe('insert_node пакетом', () => {
   });
 });
 
+describe('insert_node с вложенными узлами', () => {
+  const field = (name: string) => ({
+    component: FIELD,
+    model: `form.${name}`,
+    props: { label: name },
+  });
+  const step = (title: string, ...children: object[]) => ({
+    component: 'Step',
+    props: { title },
+    children,
+  });
+
+  it('визард с шагами и полями — одним вызовом; шаг по умолчанию заменён переданными', async () => {
+    const res = await reg.invoke(
+      'insert_node',
+      {
+        parent: '/root',
+        nodes: [
+          {
+            component: 'Wizard',
+            children: [
+              step('Имя', field('name')),
+              step('Контакты', field('email')),
+              step('Согласие', field('agree')),
+            ],
+          },
+        ],
+      },
+      ctxOf(emptySchema())
+    );
+    const schema = expectOk(res);
+
+    const wizard = getAt(schema, ['root', 'children', 0]) as {
+      children: { componentProps?: { title?: string }; children?: unknown[] }[];
+    };
+    // Ровно три шага — посеянного «Шаг 1» среди них нет.
+    expect(wizard.children.map((s) => s.componentProps?.title)).toEqual([
+      'Имя',
+      'Контакты',
+      'Согласие',
+    ]);
+    expect(wizard.children.map((s) => s.children?.length)).toEqual([1, 1, 1]);
+    // Ответ называет адрес каждого вставленного узла — визарда, шагов и полей.
+    expect(res.text).toContain('/root/children/0/children/2/children/0');
+    expect(res.ops).toHaveLength(7);
+  });
+
+  it('негодный вложенный узел отменяет весь вызов и называет свой адрес', async () => {
+    const res = await reg.invoke(
+      'insert_node',
+      {
+        parent: '/root',
+        nodes: [
+          {
+            component: 'Wizard',
+            children: [step('Имя', field('name'), { component: 'НетТакого' })],
+          },
+        ],
+      },
+      ctxOf(emptySchema())
+    );
+    expect(res.error?.code).toBe('UNKNOWN_COMPONENT');
+    expect(res.text).toContain('nodes[0].children[0].children[1]');
+    expect(res.schema).toBeUndefined();
+  });
+
+  it('поле прямо в визарде среди детей — отказ правилом «в визарде только шаги»', async () => {
+    const res = await reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: 'Wizard', children: [field('name')] }] },
+      ctxOf(emptySchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.text).toContain('nodes[0].children[0]');
+  });
+
+  it('у поля детей нет — отказ, а не молчаливая потеря', async () => {
+    const res = await reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ ...field('name'), children: [field('other')] }] },
+      ctxOf(emptySchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.text).toContain('nodes[0]');
+  });
+
+  it('пределы: глубина и число узлов в одном вызове', async () => {
+    const deep = await reg.invoke(
+      'insert_node',
+      {
+        parent: '/root',
+        nodes: [
+          {
+            component: 'Box',
+            children: [
+              { component: 'Box', children: [{ component: 'Box', children: [field('x')] }] },
+            ],
+          },
+        ],
+      },
+      ctxOf(emptySchema())
+    );
+    expect(deep.error?.code).toBe('INVALID_PARAMS');
+    expect(deep.text).toContain('nodes[0].children[0].children[0]');
+
+    const many = await reg.invoke(
+      'insert_node',
+      {
+        parent: '/root',
+        nodes: [
+          { component: 'Box', children: Array.from({ length: 40 }, (_, i) => field(`f${i}`)) },
+        ],
+      },
+      ctxOf(emptySchema())
+    );
+    expect(many.error?.code).toBe('INVALID_PARAMS');
+    expect(many.text).toContain('41 nodes');
+  });
+
+  it('children — не массив: отказ с адресом', async () => {
+    const res = await reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: 'Box', children: field('x') }] },
+      ctxOf(emptySchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARAMS');
+    // Форму верхнего уровня ловит схема параметров — её отказ тоже с адресом.
+    expect(res.text).toContain('/nodes/0/children');
+  });
+});
+
 describe('set_node_prop пакетом', () => {
   const step0 = '/root/children/0';
 

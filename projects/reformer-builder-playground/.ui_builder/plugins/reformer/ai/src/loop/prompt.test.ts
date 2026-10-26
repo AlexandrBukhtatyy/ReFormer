@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { builtinEntries } from '../../../core/testing';
 import { commonProps, listComponents } from '../model/catalog-digest';
 import { systemPrompt } from './prompt';
-import { PROMPT_BUDGET } from '../model/types';
+import { CREATION_PROMPT_BUDGET, PROMPT_BUDGET } from '../model/types';
+import { creationPrompt } from './creation-prompt';
+import { createEditorToolRegistry } from '../tools/registry';
 
 const catalog = builtinEntries();
 
@@ -32,6 +34,16 @@ describe('системный промпт', () => {
     expect(fields.filter((name) => !text.includes(name))).toEqual([]);
   });
 
+  it('называет визард кита и его шаг — их не надо искать перед вставкой визарда', () => {
+    // Живой прогон: без имён модель шла в list_components, а то и вставляла шаг без компонента.
+    expect(systemPrompt(catalog)).toContain('A wizard (Wizard) holds steps (Step)');
+  });
+
+  it('кит без визарда — правило без имён', () => {
+    const noWizard = catalog.filter((entry) => !['Wizard', 'Step'].includes(entry.name));
+    expect(systemPrompt(noWizard)).toContain('A wizard holds steps, a step holds fields');
+  });
+
   it('называет свойства, общие для всех полей кита', () => {
     const text = systemPrompt(catalog);
     const shared = commonProps(catalog, 'field');
@@ -48,5 +60,23 @@ describe('системный промпт', () => {
     const names = listComponents(catalog).map((c) => c.name);
     const hardcoded = names.filter((name) => new RegExp(`\\b${name}\\b`).test(source));
     expect(hardcoded).toEqual([]);
+  });
+});
+
+describe('промпт попытки создания формы', () => {
+  it('короткий: у попытки одна задача — create_form', () => {
+    expect(creationPrompt().length).toBeLessThanOrEqual(CREATION_PROMPT_BUDGET);
+    expect(creationPrompt()).toContain('create_form');
+    expect(creationPrompt()).toContain('ask_user');
+  });
+
+  it('не называет инструментов правки: у попытки их нет, и модель позвала бы их', () => {
+    // Замер на живой модели: в попытке создания модель звала list_components и получала
+    // AI_NoSuchToolError — его называл полный промпт структурного режима.
+    const editing = createEditorToolRegistry()
+      .list()
+      .map((tool) => tool.name);
+    expect(editing.length).toBeGreaterThan(5);
+    expect(editing.filter((name) => creationPrompt().includes(name))).toEqual([]);
   });
 });
