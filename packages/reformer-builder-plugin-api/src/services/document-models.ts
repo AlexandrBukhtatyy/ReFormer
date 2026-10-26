@@ -54,7 +54,8 @@ export interface DocumentModelsService {
  * Возможность «модели документов». Провайдер — оболочка (`platform/services/host-capabilities`):
  * модели заводит она, и без проекта служба честно отвечает `null`.
  *
- * Версия `1.0.0` — исходная.
+ * Версия `1.0.0` — исходная. `1.2.0` — раскладка вместе с операцией
+ * (`ApplyOptions.restructure`): ход ассистента разносит шаги визарда по файлам одной записью.
  */
 export const DocumentModelsCapability: Capability<DocumentModelsService> =
-  defineCapability<DocumentModelsService>({ id: 'reformer.workspace.models', version: '1.1.0' });
+  defineCapability<DocumentModelsService>({ id: 'reformer.workspace.models', version: '1.2.0' });

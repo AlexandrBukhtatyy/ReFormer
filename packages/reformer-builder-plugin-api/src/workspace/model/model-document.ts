@@ -103,6 +103,15 @@ export interface ApplyOptions {
    * лёг бы в журнал как правка человека.
    */
   readonly write?: WriteOptions;
+  /**
+   * Перестроить раскладку составного документа вместе с операцией — той же записью истории и с
+   * той же пометкой (см. {@link ModelDocumentHandle.restructure}). Так ход ассистента, собравший
+   * визард, разносит его шаги по файлам и отменяется одним шагом. Документ без составной раскладки
+   * опцию не замечает.
+   *
+   * @since 1.2.0 возможности моделей документов (`DocumentModelsCapability`)
+   */
+  readonly restructure?: CompositionRestructure;
 }
 
 /**
