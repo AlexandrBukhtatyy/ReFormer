@@ -187,7 +187,13 @@ export interface FormCreateRequest {
 
 /** Исход `create_form`. */
 export type FormCreateOutcome =
-  | { readonly ok: true; readonly path: string; readonly template: string | null }
+  | {
+      readonly ok: true;
+      readonly path: string;
+      readonly template: string | null;
+      /** Форма только в рабочей копии: отправить её в проект не удалось — почему, словами. */
+      readonly unsaved?: string;
+    }
   | {
       readonly ok: false;
       readonly code: FormToolErrorCode;

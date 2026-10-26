@@ -123,6 +123,16 @@ export type CreateFormReport =
       readonly path: string;
       /** Имя шаблона; `null` — пустая форма. */
       readonly template: string | null;
+      /**
+       * Форма лежит только в рабочей копии: отправить её в проект не удалось. Текст — словами
+       * действующей локали. Нет — форма сохранена либо сохранять было некуда.
+       *
+       * Не отказ: форма создана и открывается, а сохранить её — решение человека, как и всё,
+       * что заказчик пишет в рабочую копию.
+       *
+       * @since 1.1.0
+       */
+      readonly unsaved?: string;
     }
   | {
       readonly ok: false;
@@ -142,7 +152,8 @@ export interface FormCreatorService {
 /**
  * Возможность «создать форму» — так же, как из окна «Создать форму» шаблонов.
  *
- * Версия `1.0.0` — исходная.
+ * Версия `1.0.0` — исходная. `1.1.0` — форма, которую не удалось сохранить в проект, создаётся
+ * рабочей копией с пометкой ({@link CreateFormReport} `unsaved`), а не отказом.
  */
 export const FormCreatorCapability: Capability<FormCreatorService> =
-  defineCapability<FormCreatorService>({ id: 'reformer.templates.creator', version: '1.0.0' });
+  defineCapability<FormCreatorService>({ id: 'reformer.templates.creator', version: '1.1.0' });
