@@ -640,6 +640,11 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
       history.record(snapshot(), { mergeKey: applyOptions?.mergeKey });
       mark = applyOptions?.write;
       model = result.model;
+      // Раскладка — той же записью истории и с той же пометкой: ход ассистента, собравший визард,
+      // разносит его шаги по файлам и обязан отменяться одним шагом вместе с правкой.
+      if (composite !== undefined && applyOptions?.restructure !== undefined) {
+        layout = composite.composition.decompose(model, layout, applyOptions.restructure).layout;
+      }
       // «Куда смотреть после операции» знает только сама операция: вставка родила узел,
       // перемещение сместило его, удаление оставило соседа.
       if (result.focus !== undefined) selection = [result.focus];

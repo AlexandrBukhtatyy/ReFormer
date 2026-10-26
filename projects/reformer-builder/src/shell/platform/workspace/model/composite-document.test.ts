@@ -300,6 +300,25 @@ describe('составной документ', () => {
     expect(bench.rootWrites.at(-1)).toBe('r1 @new.lines');
   });
 
+  it('«разбить» вместе с операцией — одна запись истории, части с пометкой правки', async () => {
+    // Так ход ассистента, собравший визард, разносит шаги по файлам: отмена — одним шагом.
+    const bench = makeBench('n1 intro', {});
+    const outcome = bench.handle.apply(setLineText('n1', 'INTRO'), {
+      write: { origin: 'agent' },
+      restructure: 'split',
+    });
+    await bench.settle();
+
+    expect(outcome.status).toBe('applied');
+    expect(bench.files.get('new.lines')).toBe('n1 INTRO');
+    expect(bench.rootWrites.at(-1)).toBe('r1 @new.lines');
+    expect(bench.marks.every((mark) => mark === 'agent')).toBe(true);
+
+    expect(bench.handle.undo()).toBe(true);
+    expect(texts(bench.handle)).toEqual(['intro']);
+    expect(bench.handle.canUndo()).toBe(false);
+  });
+
   it('forgetRemoved снимает удалённое сохранением', async () => {
     const bench = makeBench(ROOT, { 'a.lines': PART_A });
     bench.handle.restructure?.('join');
