@@ -1,5 +1,5 @@
 import { call, say } from './shared/model-mock';
-import { inputNode, savedText } from './shared/forms';
+import { FORM_A, inputNode, savedText } from './shared/forms';
 import { expect, test } from './shared/fixtures';
 
 /**
@@ -7,7 +7,8 @@ import { expect, test } from './shared/fixtures';
  * сценариев — `SCENARIOS.md`, группа T.
  *
  * Ход видит форму собранной — с шагами на месте ссылок `$ref`, — а запись раскладывается обратно
- * по файлам: правка шага ложится в файл шага, корень остаётся со ссылками.
+ * по файлам: правка шага ложится в файл шага, корень остаётся со ссылками. Визард, собранный самим
+ * ходом, ложится по файлам шагов сразу — как у шаблона «Пошаговая форма».
  */
 
 const MODULE = 'forms/templates/reformer-multi-step-form/schema';
@@ -42,5 +43,56 @@ test.describe('Ассистент: шаги в отдельных файлах',
     const root = await savedText(builder, disk, ROOT);
     expect(root).not.toContain('Телеграм');
     expect(root).toContain('"$ref": "./steps/kontakty/form.schema.json"');
+  });
+
+  test('[T18] визард, собранный ходом, ложится по файлам шагов; отмена — одним шагом', async ({
+    builder,
+    disk,
+    model,
+    panel,
+  }) => {
+    await builder.openPlayground({ plugins: ['reformer/ai'] });
+    await builder.openFile(FORM_A);
+    await panel.connect();
+
+    model.reply(
+      call('insert_node', {
+        parent: '/root',
+        nodes: [
+          {
+            component: 'Wizard',
+            children: [
+              {
+                component: 'Step',
+                props: { title: 'First' },
+                children: [inputNode('telegramE2e', 'Телеграм E2E')],
+              },
+              {
+                component: 'Step',
+                props: { title: 'Second' },
+                children: [inputNode('cityE2e', 'Город E2E')],
+              },
+            ],
+          },
+        ],
+      }),
+      say('Собрал мастер из двух шагов.')
+    );
+    await panel.ask('Сделай мастер из двух шагов: телефон и город.');
+    await expect(panel.failedToolLines(panel.answer(-1))).toHaveCount(0);
+
+    // Корень — со ссылками на файлы шагов, поля — в файлах шагов, а не в корне.
+    const root = await savedText(builder, disk, FORM_A);
+    const refs = [...root.matchAll(/"\$ref": "\.\/(steps\/[^"]+)"/g)].map((match) => match[1]);
+    expect(refs).toHaveLength(2);
+    expect(root).not.toContain('Телеграм E2E');
+    const firstStep = `forms/contact/${refs[0]}`;
+    await builder.openFile(firstStep);
+    expect(await savedText(builder, disk, firstStep)).toContain('Телеграм E2E');
+
+    // Отмена хода возвращает форму одним шагом: ссылок на шаги в корне больше нет.
+    await panel.undoTurnButton.click();
+    await expect(panel.undoTurnButton).toBeDisabled();
+    expect(await savedText(builder, disk, FORM_A)).not.toContain('$ref');
   });
 });

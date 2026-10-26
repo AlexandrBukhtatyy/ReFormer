@@ -24,7 +24,8 @@ test.describe('Ассистент: структурный ход', () => {
     await panel.ask('Добавь телефон.');
 
     await expect(panel.message(panel.answer(0))).toHaveText('Добавил поле «Телефон».');
-    await expect(panel.toolLines(panel.answer(0))).toHaveCount(1);
+    // Строка о напечатанном модуле — сообщение моста, а не вызов: её не считаем.
+    await expect(panel.callLines(panel.answer(0))).toHaveCount(1);
     await expect(panel.failedToolLines(panel.answer(0))).toHaveCount(0);
     await expect(panel.restoreButton(panel.request(0))).toBeVisible();
     await expect(page.getByText('Телефон', { exact: true })).toBeVisible();
@@ -100,7 +101,7 @@ test.describe('Ассистент: структурный ход — ответ�
     );
     await panel.ask('Добавь телефон и город.');
 
-    await expect(panel.toolLines(panel.answer(0))).toHaveCount(2);
+    await expect(panel.callLines(panel.answer(0))).toHaveCount(2);
     await expect(panel.failedToolLines(panel.answer(0))).toHaveCount(0);
     await expect(page.getByText('Телефон', { exact: true })).toBeVisible();
     await expect(page.getByText('Город', { exact: true })).toBeVisible();

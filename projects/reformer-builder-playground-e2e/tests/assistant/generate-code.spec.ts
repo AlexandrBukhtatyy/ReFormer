@@ -46,11 +46,10 @@ test.describe('Ассистент: генерация кода', () => {
     );
     await panel.ask('Добавь телефон и сгенерируй код формы.');
 
-    // Строка журнала — одна, с исходом прогона: заказ генерации отдельной строки не даёт.
+    // Строка журнала — одна: модуль напечатала запись хода, и заказ второго прогона не дал.
     const lines = panel.toolLines(panel.answer(-1));
-    await expect(lines.filter({ hasText: 'Код формы сгенерирован в forms/contact' })).toHaveCount(
-      1
-    );
+    await expect(lines.filter({ hasText: 'Код модуля обновлён в forms/contact' })).toHaveCount(1);
+    await expect(lines.filter({ hasText: 'Код формы сгенерирован' })).toHaveCount(0);
     await expect(panel.failedToolLines(panel.answer(-1))).toHaveCount(0);
 
     // Модуль напечатан из формы ПОСЛЕ правки: в типах есть поле, добавленное этим же ходом.

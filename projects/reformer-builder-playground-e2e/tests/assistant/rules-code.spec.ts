@@ -101,9 +101,14 @@ test.describe('Ассистент: правила формы в коде мод�
       .getByRole('main', { name: 'Редактор' })
       .getByRole('button', { name: 'Форма', exact: true })
       .click();
-    await page.getByRole('combobox', { name: 'Как связаться' }).click();
-    // Превью показывает значения из констант, а не выдуманные «Channels 1, 2, 3».
-    await expect(page.getByRole('option', { name: 'Телеграм' })).toBeVisible();
+    // Превью показывает значения из констант, а не выдуманные «Channels 1, 2, 3». Ход печатает
+    // модуль целиком, и превью пересобирается после серии записей: открытый до пересборки список
+    // закрылся бы вместе с прежней формой — поэтому открывается заново, пока вариант не появится.
+    await expect(async () => {
+      await page.keyboard.press('Escape');
+      await page.getByRole('combobox', { name: 'Как связаться' }).click();
+      await expect(page.getByRole('option', { name: 'Телеграм' })).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.getByRole('option', { name: 'Почта' })).toBeVisible();
   });
 });

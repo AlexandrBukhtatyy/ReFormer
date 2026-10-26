@@ -161,6 +161,14 @@ export class AssistantPanel {
   }
 
   /** Строки журнала инструментов реплики ассистента. */
+  /**
+   * Строки вызовов модели — без строки моста о напечатанном модуле («Код модуля обновлён»): её
+   * пишет запись хода, а не вызов.
+   */
+  callLines(entry: Locator): Locator {
+    return this.toolLines(entry).filter({ hasNotText: 'Код модуля обновлён' });
+  }
+
   toolLines(entry: Locator): Locator {
     return entry.getByTestId('ai-tool-line');
   }

@@ -205,11 +205,21 @@ const SCENARIOS: readonly FormScenario[] = [
       say('Мастер собран.'),
     ],
     labels: [FORM_B_FIELD, 'Почта', 'Телефон'],
+    // Мастер, собранный ходом, лежит по файлам шагов: в корне — ссылки, заголовки и поля — в
+    // файлах шагов.
     schema: [
       '$component(Wizard)',
-      '"title": "Заявитель"',
-      /"title": "Контакты"[\s\S]*"\$model\(email\)"[\s\S]*"\$model\(phone\)"/,
+      '"$ref": "./steps/zayavitel/form.schema.json"',
+      '"$ref": "./steps/kontakty/form.schema.json"',
     ],
+    files: {
+      [`${FORM_B_MODULE}/schema/steps/zayavitel/form.schema.json`]: ['"title": "Заявитель"'],
+      [`${FORM_B_MODULE}/schema/steps/kontakty/form.schema.json`]: [
+        '"title": "Контакты"',
+        '$model(email)',
+        '$model(phone)',
+      ],
+    },
   },
   {
     ids: '7.1, 7.3, 7.4, 7.9',
@@ -398,7 +408,8 @@ test.describe('Ассистент: сценарии разработки фор�
       await expect(panel.errorAlert).toBeHidden();
       if (generates(scenario)) {
         const lines = panel.toolLines(panel.answer(-1));
-        await expect(lines.filter({ hasText: 'Код формы сгенерирован' })).toHaveCount(1);
+        // Модуль печатает запись хода — строка о коде одна, заказ второго прогона не даёт.
+        await expect(lines.filter({ hasText: 'Код модуля обновлён' })).toHaveCount(1);
       }
 
       for (const label of scenario.labels ?? []) {

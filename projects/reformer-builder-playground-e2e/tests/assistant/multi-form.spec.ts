@@ -294,8 +294,9 @@ test.describe('Ассистент: несколько форм', () => {
     await builder.openFile(FORM_B);
     await panel.undoTurnButton.click();
 
-    expect(await savedText(builder, disk, FORM_A)).not.toContain('Поле для отмены');
-    // Отмена правит не ту форму, что на экране, — об этом надо сказать (D7).
+    // Отмена правит не ту форму, что на экране, — об этом надо сказать (D7). Заметка приходит,
+    // когда отмена кончилась: она возвращает и модуль, напечатанный ходом.
     await expect(panel.errorAlert).toContainText(FORM_A);
+    expect(await savedText(builder, disk, FORM_A)).not.toContain('Поле для отмены');
   });
 });
