@@ -289,6 +289,42 @@ describe('перевод потока AI SDK', () => {
       });
     });
 
+    it('вывод без рассуждения, не дошедший до хода, — потерянный, а не обрыв', async () => {
+      // gemma4 в Ollama: модель вывела токены вызова, сервер его не разобрал и выбросил целиком.
+      const events = await play([
+        { type: 'start-step' },
+        {
+          type: 'finish-step',
+          usage: { inputTokens: 4465, inputTokenDetails: {}, outputTokens: 55 },
+        },
+        { type: 'finish', finishReason: 'stop' },
+      ]);
+
+      const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+      expect(error?.message).toContain('сервер не разобрал её вывод');
+      expect(error?.message).toContain('55');
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        reason: 'error',
+        stop: { emptyFinish: true, lostOutput: 55 },
+      });
+    });
+
+    it('пустой шаг с рассуждением потерянным не считается — его вывод и есть рассуждение', async () => {
+      const events = await play([
+        { type: 'start-step' },
+        { type: 'reasoning-delta', id: 'r0', text: 'Let me insert these into' },
+        {
+          type: 'finish-step',
+          usage: { inputTokens: 900, inputTokenDetails: {}, outputTokens: 400 },
+        },
+        { type: 'finish', finishReason: 'stop' },
+      ]);
+
+      const done = events.at(-1) as { stop?: { lostOutput?: number } };
+      expect(done.stop?.lostOutput).toBeUndefined();
+    });
+
     it('ответ текстом пустотой не считается', async () => {
       const events = await play([
         { type: 'start-step' },

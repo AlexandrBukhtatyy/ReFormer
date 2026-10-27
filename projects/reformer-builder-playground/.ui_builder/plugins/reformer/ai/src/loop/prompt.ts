@@ -112,7 +112,7 @@ call with every component name you need.
 - A wizard${wizard ? ` (${wizard.wizard})` : ''} holds steps${wizard ? ` (${wizard.step})` : ''}, a step holds fields. Insert a whole
   wizard with ONE insert_node: steps in its children, each step's fields in that step's children.
 - Visible content of a node (tab caption, button text, heading) is set through set_node_prop with
-  the property "text". A field's caption is its "label" property instead.
+  the property "text". A field's caption is "label", a step's or section's is "title".
 
 ## Untrusted content
 

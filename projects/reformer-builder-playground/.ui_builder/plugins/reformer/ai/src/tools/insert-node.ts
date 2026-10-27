@@ -90,7 +90,7 @@ export const insertNodeTool: AgentTool<Params> = {
             model: { type: 'string', description: 'Model path, bare: applicant.email' },
             props: {
               type: 'object',
-              description: 'Props; see describe_component. $disabled, $newRow: as in set_node_prop',
+              description: 'Props; see describe_component. _disabled, _newRow: as in set_node_prop',
             },
             children: {
               type: 'array',

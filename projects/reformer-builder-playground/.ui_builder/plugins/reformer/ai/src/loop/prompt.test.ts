@@ -39,6 +39,11 @@ describe('системный промпт', () => {
     expect(systemPrompt(catalog)).toContain('A wizard (Wizard) holds steps (Step)');
   });
 
+  it('подпись шага и секции — title, а не text', () => {
+    // Замер gemma4: правило «видимое содержимое — text» уводило заголовки шагов в text.
+    expect(systemPrompt(catalog)).toContain(`a step's or section's is "title"`);
+  });
+
   it('кит без визарда — правило без имён', () => {
     const noWizard = catalog.filter((entry) => !['Wizard', 'Step'].includes(entry.name));
     expect(systemPrompt(noWizard)).toContain('A wizard holds steps, a step holds fields');

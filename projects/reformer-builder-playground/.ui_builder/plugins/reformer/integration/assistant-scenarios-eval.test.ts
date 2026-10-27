@@ -10,7 +10,9 @@
  * По умолчанию НЕ запускается: нужен живой канал. Запуск из каталога плагина ассистента —
  * `EVAL_MODEL=qwen3.8:27b-32k npx vitest run src/session/form-scenarios-eval.test.ts`;
  * `EVAL_ONLY=7.1,8.1` — только эти сценарии, `EVAL_BASE_URL` — другой OpenAI-совместимый канал,
- * `EVAL_REASONING=off|low|medium|high` — рассуждение модели (настройка канала `reasoning`).
+ * `EVAL_REASONING=off|low|medium|high` — рассуждение модели (настройка канала `reasoning`),
+ * `EVAL_DUMP=<каталог>` — тело каждого запроса к модели и сырой ответ сервера файлами: по ним
+ * видно то, что до хода не дошло (вызов, который сервер не разобрал).
  * Итог — таблицей в консоль и JSON в `.tmp/eval/` корня репозитория. Отчёт —
  * `docs/mcp-eval/builder-form-scenarios.md`.
  *
@@ -44,6 +46,34 @@ const MODEL = process.env.EVAL_MODEL;
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:11434/v1';
 /** Рассуждение модели для A/B; нет — по умолчанию канала. */
 const REASONING = process.env.EVAL_REASONING as ReasoningLevel | undefined;
+/** Куда писать сырые запросы и ответы; нет — не писать. */
+const DUMP = process.env.EVAL_DUMP;
+
+/**
+ * Записывать каждый обмен с моделью: запрос — JSON, ответ — сырой поток SSE. Обёртка ставится на
+ * `globalThis.fetch`: канал AI SDK берёт его в момент запроса.
+ */
+function dumpExchanges(dir: string, label: () => string): () => void {
+  mkdirSync(dir, { recursive: true });
+  const original = globalThis.fetch;
+  let n = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input);
+    const response = await original(input, init);
+    if (!url.startsWith(BASE_URL)) return response;
+    n += 1;
+    const base = `${dir}/${label()}-${String(n).padStart(2, '0')}`;
+    writeFileSync(`${base}.request.json`, typeof init?.body === 'string' ? init.body : '');
+    void response
+      .clone()
+      .text()
+      .then((text) => writeFileSync(`${base}.response.txt`, text));
+    return response;
+  }) as typeof fetch;
+  return () => {
+    globalThis.fetch = original;
+  };
+}
 const ONLY = (process.env.EVAL_ONLY ?? '')
   .split(',')
   .map((id) => id.trim())
@@ -304,11 +334,14 @@ const SCENARIOS: readonly EvalScenario[] = [
     check: (s) => {
       const on = (target: string) =>
         s.rules.validation.filter((r) => r.target === target).flatMap((r) => r.rules);
-      if (!on('phone').some((r) => r.startsWith('required'))) return 'телефон не обязателен';
+      // Обязательность — правилом или свойством `required` поля: генерация выводит проверку из
+      // обоих, и карта формы называет модели оба пути.
+      const required = (target: string) =>
+        on(target).some((r) => r.startsWith('required')) ||
+        fieldsOf(s.schema).find((f) => modelOf(f) === target)?.componentProps?.required === true;
+      if (!required('phone')) return 'телефон не обязателен';
       if (!on('email').some((r) => r.startsWith('email'))) return 'почта без проверки формата';
-      return on('email').some((r) => r.startsWith('required'))
-        ? null
-        : 'обязательность почты потеряна';
+      return required('email') ? null : 'обязательность почты потеряна';
     },
   },
   {
@@ -488,6 +521,18 @@ function telemetryOf(summary: TurnTelemetry | null) {
 }
 
 async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
+  const undump =
+    DUMP === undefined
+      ? () => undefined
+      : dumpExchanges(DUMP, () => scenario.id.replace(/\W/g, '_'));
+  try {
+    return await runScenarioOnce(scenario);
+  } finally {
+    undump();
+  }
+}
+
+async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
   const files = createFakeFiles();
   const host = createFakeHost(files);
   // Генерация — настоящая: ею ход пишет правила в код модуля.

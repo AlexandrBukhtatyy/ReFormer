@@ -315,6 +315,23 @@ describe('вторая попытка', () => {
     expect(session.get().entries.at(-1)?.text).toContain('Дописал.');
   });
 
+  it('пустой ответ — вторая попытка со своей подсказкой: делать меньшими вызовами', async () => {
+    // Просьба «маленькими пачками» после пустого ответа gemma4 не останавливала: вызов, который
+    // сервер выбросил, модель писала снова целиком.
+    const { provider, requests } = recordingSequence([
+      [{ lost: { tokens: 300 } }],
+      [addField('email'), { text: 'Готово.' }],
+    ]);
+    const { host, bridge } = harness([], { provider });
+
+    await bridge.send('добавь поле почты');
+
+    expect(host.writes).toHaveLength(1);
+    const hint = JSON.stringify(requests[1].messages);
+    expect(hint).toContain('reached the editor empty');
+    expect(hint).not.toContain('was cut off');
+  });
+
   it('обрыв дважды — третьей попытки нет', async () => {
     const provider = sequenceProvider([
       [{ truncated: { tool: 'add_field' } }],

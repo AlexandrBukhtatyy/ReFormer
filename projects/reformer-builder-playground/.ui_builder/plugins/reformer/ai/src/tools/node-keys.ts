@@ -3,14 +3,17 @@
  *
  * Два ключа узла модели в структурном режиме иначе задать нечем:
  *
- * - `$disabled` → ключ `disabled` поля: поле создаётся выключенным и остаётся таким. Свойство
+ * - `_disabled` → ключ `disabled` поля: поле создаётся выключенным и остаётся таким. Свойство
  *   компонента `disabled` состояния поля не меняет — оно только рисует, и модель путала одно с
  *   другим;
- * - `$newRow` → ключ `initialValue` массива: шаблон новой строки (объект). Начальные строки
+ * - `_newRow` → ключ `initialValue` массива: шаблон новой строки (объект). Начальные строки
  *   массива — данные модели, а не узла, и этим ключом не задаются.
  *
- * Знак `$` отделяет их от свойств компонента так же, как `$model(...)` отделяет привязку от
- * строки: свойство с таким именем у компонента кита не бывает.
+ * Подчёркивание отделяет их от свойств компонента: свойство с таким именем у компонента кита не
+ * бывает. Прежде это был знак `$`, как у `$model(...)`, но ключ объекта модель пишет в вызове
+ * сама, и не всякий сервер его разбирает: gemma4 пишет ключи без кавычек, и Ollama выбрасывала
+ * вызов с `$disabled` целиком — ход кончался пустым ответом (ReFormer-qsm8.11). Ключ из букв,
+ * цифр и подчёркивания проходит у всех.
  *
  * @module plugins/reformer/ai/tools/node-keys
  */
@@ -22,8 +25,8 @@ import { kindOf, setNodeKey, type JsonPath } from '../../../core/form-model';
 const NODE_KEYS: Readonly<
   Record<string, { readonly key: string; readonly kind: 'field' | 'array' }>
 > = {
-  $disabled: { key: 'disabled', kind: 'field' },
-  $newRow: { key: 'initialValue', kind: 'array' },
+  _disabled: { key: 'disabled', kind: 'field' },
+  _newRow: { key: 'initialValue', kind: 'array' },
 };
 
 /** Особый ли это ключ узла. */
@@ -39,9 +42,9 @@ export function nodeKeyRefusal(node: JsonNode, name: string, value: unknown): st
   if (spec === undefined) return `${name} is not a node key.`;
   if (kindOf(node) !== spec.kind) return `${name} applies to ${spec.kind} nodes only.`;
   if (value === null) return null;
-  if (name === '$disabled' && typeof value !== 'boolean') return '$disabled takes true or false.';
-  if (name === '$newRow' && (typeof value !== 'object' || Array.isArray(value))) {
-    return '$newRow takes an object — the values of a new row.';
+  if (name === '_disabled' && typeof value !== 'boolean') return '_disabled takes true or false.';
+  if (name === '_newRow' && (typeof value !== 'object' || Array.isArray(value))) {
+    return '_newRow takes an object — the values of a new row.';
   }
   return null;
 }

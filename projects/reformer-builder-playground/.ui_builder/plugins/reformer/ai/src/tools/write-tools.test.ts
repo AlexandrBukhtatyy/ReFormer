@@ -729,7 +729,12 @@ describe('set_node_prop пакетом', () => {
     const schema = expectOk(
       await reg.invoke(
         'set_node_prop',
-        { edits: { [first]: { label: 'Первое' }, [second]: { label: 'Второе' } } },
+        {
+          edits: [
+            { ref: first, props: { label: 'Первое' } },
+            { ref: second, props: { label: 'Второе' } },
+          ],
+        },
         ctxOf(sampleSchema())
       )
     );
@@ -747,7 +752,7 @@ describe('set_node_prop пакетом', () => {
         {
           refs: [first, second],
           props: { required: true },
-          edits: { [second]: { label: 'Своё' } },
+          edits: [{ ref: second, props: { label: 'Своё' } }],
         },
         ctxOf(sampleSchema())
       )
@@ -757,8 +762,25 @@ describe('set_node_prop пакетом', () => {
     expect(outline.find((e) => e.ref === second)).toMatchObject({ required: true, label: 'Своё' });
   });
 
+  it('адрес и в refs, и в edits без общих props — повтор, а не узел без свойств', async () => {
+    // Замер gemma4: модель перечисляла узлы в refs и давала им свойства в edits.
+    const first = `${step0}/children/0`;
+    const schema = expectOk(
+      await reg.invoke(
+        'set_node_prop',
+        { refs: [first], edits: [{ ref: first, props: { label: 'Своё' } }] },
+        ctxOf(sampleSchema())
+      )
+    );
+    expect(buildOutline(schema).find((e) => e.ref === first)?.label).toBe('Своё');
+  });
+
   it('вызов без refs/props и без edits отвергается', async () => {
-    for (const params of [{}, { refs: [`${step0}/children/0`] }, { edits: { [step0]: {} } }]) {
+    for (const params of [
+      {},
+      { refs: [`${step0}/children/0`] },
+      { edits: [{ ref: step0, props: {} }] },
+    ]) {
       const res = await reg.invoke('set_node_prop', params, ctxOf(sampleSchema()));
       expect(res.error?.code).toBe('INVALID_PARAMS');
       expect(res.schema).toBeUndefined();
@@ -1334,36 +1356,36 @@ describe('замечания к успешной правке — вдогонк
   });
 });
 
-describe('особые ключи узла: $disabled и $newRow', () => {
+describe('особые ключи узла: _disabled и _newRow', () => {
   const ref = '/root/children/0/children/0';
 
-  it('$disabled кладётся в сам узел поля, а не в componentProps', async () => {
+  it('_disabled кладётся в сам узел поля, а не в componentProps', async () => {
     const schema = expectOk(
       await reg.invoke(
         'set_node_prop',
-        { refs: [ref], props: { $disabled: true } },
+        { refs: [ref], props: { _disabled: true } },
         ctxOf(sampleSchema())
       )
     );
     const node = getAt(schema, ['root', 'children', 0, 'children', 0]) as Record<string, unknown>;
     expect(node.disabled).toBe(true);
-    expect((node.componentProps as Record<string, unknown> | undefined)?.$disabled).toBeUndefined();
+    expect((node.componentProps as Record<string, unknown> | undefined)?._disabled).toBeUndefined();
 
     const cleared = expectOk(
-      await reg.invoke('set_node_prop', { refs: [ref], props: { $disabled: null } }, ctxOf(schema))
+      await reg.invoke('set_node_prop', { refs: [ref], props: { _disabled: null } }, ctxOf(schema))
     );
     expect(
       (getAt(cleared, ['root', 'children', 0, 'children', 0]) as Record<string, unknown>).disabled
     ).toBeUndefined();
   });
 
-  it('$newRow задаёт шаблон новой строки массива при вставке; у поля — отказ', async () => {
+  it('_newRow задаёт шаблон новой строки массива при вставке; у поля — отказ', async () => {
     const schema = expectOk(
       await reg.invoke(
         'insert_node',
         {
           parent: '/root',
-          nodes: [{ component: 'FieldArray', model: 'phones', props: { $newRow: { number: '' } } }],
+          nodes: [{ component: 'FieldArray', model: 'phones', props: { _newRow: { number: '' } } }],
         },
         ctxOf(emptySchema())
       )
@@ -1373,7 +1395,7 @@ describe('особые ключи узла: $disabled и $newRow', () => {
 
     const onField = await reg.invoke(
       'set_node_prop',
-      { refs: [ref], props: { $newRow: {} } },
+      { refs: [ref], props: { _newRow: {} } },
       ctxOf(sampleSchema())
     );
     expect(onField.error?.code).toBe('INVALID_PARAMS');

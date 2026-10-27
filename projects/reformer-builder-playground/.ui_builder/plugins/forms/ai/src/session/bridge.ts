@@ -149,13 +149,30 @@ const TEXTUAL_ASK_HINT =
   'Call the ask_user tool itself, or ask in plain words. ' +
   "Reply in the same language as the user's own messages.";
 
+/**
+ * Подсказка второй попытки после пустого ответа (`AiStop.emptyFinish`).
+ *
+ * Своя, а не {@link CONTINUE_HINT}: пустой ответ у локальной модели — чаще не обрыв, а вызов,
+ * который сервер не разобрал и выбросил (gemma4 в Ollama — на ключе объекта не из букв и цифр,
+ * ReFormer-qsm8.11). Просьба «маленькими пачками» модель не останавливала — она снова писала тот же
+ * вызов. Помогает назвать причину и то, что писать иначе: вызовы короче, ключи — простые имена.
+ */
+const EMPTY_HINT =
+  'Your previous answer reached the editor empty: no text and no tool call arrived, so the ' +
+  'server could not read the call you wrote. Write it again in a simpler form: plain names as ' +
+  'object keys, and smaller calls — insert a container with its direct children first (a wizard ' +
+  'with its steps), then fill each child with a separate insert_node call. Reply in the same ' +
+  "language as the user's own messages.";
+
 /** Подсказка второй попытки по признаку, который её вызвал. */
 const secondPassHint = (stop: AiStop | undefined): string =>
-  stop?.textualCall === undefined
-    ? CONTINUE_HINT
-    : stop.textualCall === 'ask_user'
+  stop?.textualCall !== undefined
+    ? stop.textualCall === 'ask_user'
       ? TEXTUAL_ASK_HINT
-      : textualCallHint(stop.textualCall);
+      : textualCallHint(stop.textualCall)
+    : stop?.emptyFinish === true && stop.truncatedCall === undefined
+      ? EMPTY_HINT
+      : CONTINUE_HINT;
 
 /**
  * Модель знала, что делать, и правка до формы не дошла: вызов оборван, ход пуст или вызов

@@ -43,7 +43,12 @@ export type FakeStep =
    * Отдельный шаг по той же причине, что `truncated`: настоящий признак ставит адаптер SDK по
    * тексту шага, а сценарию нужен его исход — текст в ленте, ошибка и диагностика в `done`.
    */
-  | { textual: { tool: string } };
+  | { textual: { tool: string } }
+  /**
+   * Модель что-то вывела, а до хода не дошло ничего (`AiStop.lostOutput`): сервер не разобрал её
+   * вывод. Так gemma4 в Ollama теряет вызов, который сервер не смог разобрать (ReFormer-qsm8.11).
+   */
+  | { lost: { tokens: number } };
 
 /** Настройки сценарного провайдера. */
 export interface FakeProviderOptions {
@@ -115,6 +120,19 @@ export function createFakeProvider(
             type: 'done',
             reason: 'error',
             stop: { reason: 'other', truncatedCall: item.truncated.tool },
+          };
+          return;
+        }
+        if ('lost' in item) {
+          yield {
+            type: 'error',
+            message: `Модель написала ответ (${item.lost.tokens} ток.), но до ассистента не дошло ничего.`,
+            retryable: false,
+          };
+          yield {
+            type: 'done',
+            reason: 'error',
+            stop: { reason: 'stop', emptyFinish: true, lostOutput: item.lost.tokens },
           };
           return;
         }

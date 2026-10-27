@@ -64,7 +64,7 @@
   "settings.reasoning.low": "Short",
   "settings.reasoning.medium": "Medium",
   "settings.reasoning.high": "Thorough",
-  "settings.reasoning.hint": "Reasoning is what the model writes before it answers, and on a local model it takes most of each turn. For a local model we recommend Off: turns run 2–5 times faster. If the assistant starts making more mistakes, switch back to Model default. The server may ignore this setting.",
+  "settings.reasoning.hint": "Reasoning is what the model writes before it answers, and on a local model it takes most of each turn. Try Off: with some models turns run 2–5 times faster. If the assistant starts giving empty answers or making more mistakes, switch back to Model default: not every model handles a complex form without reasoning. The server may ignore this setting.",
   "settings.maxSteps": "Steps per turn",
   "settings.maxOutput": "Output per step, tokens",
   "settings.maxInput": "Input per turn, tokens",

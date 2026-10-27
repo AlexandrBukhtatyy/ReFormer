@@ -33,11 +33,15 @@ interface Params {
   refs?: string[];
   props?: Record<string, PropValue>;
   /**
-   * Свои свойства каждому узлу: адрес → свойства. Без них разные значения (заголовки семи шагов)
-   * шли семью вызовами: `props` одни на все `refs`, и модель упиралась в форму инструмента, а не
-   * нарушала просьбу промпта править пачкой (ReFormer-kuj).
+   * Свои свойства каждому узлу. Без них разные значения (заголовки семи шагов) шли семью
+   * вызовами: `props` одни на все `refs`, и модель упиралась в форму инструмента, а не нарушала
+   * просьбу промпта править пачкой (ReFormer-kuj).
+   *
+   * Списком, а не словарём «адрес → свойства»: ключ объекта модель пишет в вызове сама, gemma4 —
+   * без кавычек, и адрес со слешами в ключе Ollama не разбирала, выбрасывая вызов целиком. Ход
+   * кончался пустым ответом, а из параллельных вызовов терялся один этот (ReFormer-qsm8.11).
    */
-  edits?: Record<string, Record<string, PropValue>>;
+  edits?: Array<{ ref: string; props: Record<string, PropValue> }>;
   expect?: NodeExpectation;
 }
 
@@ -55,8 +59,8 @@ export const setNodePropTool: AgentTool<Params> = {
   description:
     'Set component properties (label, placeholder, required, …). props go to every node in refs; ' +
     "edits gives each node its own props. The special key text sets the node's own content " +
-    'instead: a tab caption, a button label, a heading. $disabled locks a field for good; ' +
-    '$newRow is the object a new array row starts from.',
+    'instead: a tab caption, a button label, a heading. _disabled locks a field for good; ' +
+    '_newRow is the object a new array row starts from.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -73,9 +77,16 @@ export const setNodePropTool: AgentTool<Params> = {
         additionalProperties: PROP_VALUES,
       },
       edits: {
-        type: 'object',
-        description: 'address → its own props',
-        additionalProperties: { type: 'object', additionalProperties: PROP_VALUES },
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            ref: { type: 'string' },
+            props: { type: 'object', additionalProperties: PROP_VALUES },
+          },
+          required: ['ref', 'props'],
+          additionalProperties: false,
+        },
       },
       expect: EXPECT_PROP,
     },
@@ -85,14 +96,24 @@ export const setNodePropTool: AgentTool<Params> = {
   run(params, ctx) {
     // Пары «узел → свойства»: общие props на каждый адрес refs, затем свои — из edits.
     const shared = params.props ?? {};
+    // Адрес и в refs, и в edits без общих props — повтор, а не узел без свойств: так модель
+    // перечисляет узлы правки (gemma4, ReFormer-qsm8.11), и отказ здесь терял саму правку.
+    const own = new Set((params.edits ?? []).map((edit) => edit.ref));
+    const refs = (params.refs ?? []).filter(
+      (ref) => Object.keys(shared).length > 0 || !own.has(ref)
+    );
     const pairs: Array<[string, Record<string, PropValue>]> = [
-      ...(params.refs ?? []).map((ref): [string, Record<string, PropValue>] => [ref, shared]),
-      ...Object.entries(params.edits ?? {}),
+      ...refs.map((ref): [string, Record<string, PropValue>] => [ref, shared]),
+      ...(params.edits ?? []).map((edit): [string, Record<string, PropValue>] => [
+        edit.ref,
+        edit.props,
+      ]),
     ];
     if (pairs.length === 0 || pairs.some(([, props]) => Object.keys(props).length === 0)) {
       return fail(
         'INVALID_PARAMS',
-        'Pass refs with props (same props for every node) and/or edits (address → its own props).'
+        'Pass refs with props (same props for every node) and/or edits (each node with its own ' +
+          'props).'
       );
     }
     // Сверка ожидания имеет смысл только при одном узле: она описывает ОДИН узел, и на списке

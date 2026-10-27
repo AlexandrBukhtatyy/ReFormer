@@ -199,9 +199,21 @@ const NO_FINISH =
  * доходил до панели как штатно завершённый, то есть как «модель решила ничего не делать».
  */
 const EMPTY_FINISH =
-  'Модель закончила ответ, не сказав ни слова и не вызвав ни одного инструмента, — почти всегда ' +
-  'это обрыв на полуслове. У локальной модели помогает контекстное окно побольше (num_ctx / ' +
-  'OLLAMA_CONTEXT_LENGTH), а задачу стоит разбить на части поменьше.';
+  'Модель закончила ответ, не сказав ни слова и не вызвав ни одного инструмента: ответ оборвался ' +
+  'на полуслове или сервер не разобрал вызов инструмента. У локальной модели помогает контекстное ' +
+  'окно побольше (num_ctx / OLLAMA_CONTEXT_LENGTH) и задача поменьше; если не помогает — другая ' +
+  'модель.';
+
+/**
+ * Модель вывела токены, а до хода не дошло ничего (`AiStop.lostOutput`): сервер не разобрал её
+ * запись вызова. Окно контекста тут не поможет. У gemma4 в Ollama так терялся вызов с ключом
+ * объекта не из букв и цифр — адресом узла, `$disabled` (ReFormer-qsm8.11). Свои инструменты
+ * таких ключей больше не просят, но ключи пишет модель, и другими словами просьба часто проходит.
+ */
+const lostOutputNote = (tokens: number): string =>
+  `Модель написала ответ (${tokens} ток.), но до ассистента не дошло ни слова и ни одного вызова: ` +
+  'сервер не разобрал её вывод. Так бывает у локальных моделей — повторите просьбу другими ' +
+  'словами или смените модель.';
 
 /**
  * Ход израсходовал все шаги.
@@ -313,6 +325,9 @@ export async function* streamViaAiSdk(
   // (`./textual-call`). Сбрасываются там же, где флаг выше, и по той же причине.
   let stepText = '';
   let stepCalledTool = false;
+  // Рассуждение шага и вывод шага в токенах — материал признака «вывод потерян» (`lostOutput`).
+  let stepReasoned = false;
+  let stepOutputTokens = 0;
   // Начался ли новый блок текста или рассуждения, чей первый кусок ещё не отдан, — см. `AiEvent`.
   let textStart = false;
   let reasoningStart = false;
@@ -388,6 +403,8 @@ export async function* streamViaAiSdk(
           stepSaidSomething = false;
           stepText = '';
           stepCalledTool = false;
+          stepReasoned = false;
+          stepOutputTokens = 0;
           yield { type: 'step_start' };
           break;
         // Начало блока помечается на первом НЕПУСТОМ куске после него: пустой кусок до ленты не
@@ -407,6 +424,7 @@ export async function* streamViaAiSdk(
           break;
         case 'reasoning-delta':
           if (part.text === '') break;
+          stepReasoned = true;
           yield {
             type: 'reasoning',
             text: part.text,
@@ -431,6 +449,7 @@ export async function* streamViaAiSdk(
           yield { type: 'tool_call', id: part.toolCallId, name: part.toolName, args: part.input };
           break;
         case 'finish-step':
+          stepOutputTokens = part.usage.outputTokens ?? 0;
           yield { type: 'step_usage', usage: usageOf(part.usage) };
           break;
         case 'tool-result':
@@ -479,11 +498,17 @@ export async function* streamViaAiSdk(
           // prepareStep — единственный оставшийся признак, что работать было ещё над чем.
           const truncated = firstOpenCall(openCalls);
           const empty = !stepSaidSomething;
+          // Пусто, а токены были и рассуждения не было — значит, вывод выбросил сервер.
+          const lost =
+            empty && !stepReasoned && stepOutputTokens > 0 ? stepOutputTokens : undefined;
           // На последнем разрешённом шаге инструменты запрещены (`prepareStep`), и вызов текстом
           // там — ожидаемый исход, а не сбой: признак повёл бы мост на повтор поверх предела.
           const textual =
             stepCalledTool || reachedStepLimit ? undefined : textualCallOf(stepText, req.tools);
-          const stop = stopOf(part.finishReason, part.rawFinishReason, truncated, empty, textual);
+          const stop = {
+            ...stopOf(part.finishReason, part.rawFinishReason, truncated, empty, textual),
+            ...(lost === undefined ? {} : { lostOutput: lost }),
+          };
           // Бюджет проверяется первым: он тоже выглядит как остановка на пределе шагов, но
           // причина у неё другая, и лечится она другой настройкой. Признаки обрыва идут следом,
           // раньше таблицы причин: они видны ВСЕГДА, а таблица знает только класс отказа — и для
@@ -500,7 +525,9 @@ export async function* streamViaAiSdk(
                   : textual
                     ? textualCallNote(textual)
                     : empty
-                      ? EMPTY_FINISH
+                      ? lost === undefined
+                        ? EMPTY_FINISH
+                        : lostOutputNote(lost)
                       : null));
           if (broken) {
             // Повтор того же запроса упрётся в тот же предел — чинится настройкой, а не кнопкой.
