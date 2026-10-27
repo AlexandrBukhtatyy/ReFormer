@@ -330,7 +330,7 @@ const SCENARIOS: readonly FormScenario[] = [
       }),
       call('set_node_prop', {
         refs: ['/root/children/1'],
-        props: { $newRow: { childName: '', childBirth: null, primary: false } },
+        props: { _newRow: { childName: '', childBirth: null, primary: false } },
       }),
       call('set_form_rules', {
         validation: [{ each: 'children', target: 'childName', rules: ['required'] }],
@@ -380,7 +380,7 @@ const SCENARIOS: readonly FormScenario[] = [
     title: 'поле заблокировано всегда',
     request: 'Сделай ФИО недоступным для правки.',
     replies: [
-      call('set_node_prop', { refs: ['/root/children/0'], props: { $disabled: true } }),
+      call('set_node_prop', { refs: ['/root/children/0'], props: { _disabled: true } }),
       say('Поле заблокировано.'),
     ],
     labels: [FORM_B_FIELD],
