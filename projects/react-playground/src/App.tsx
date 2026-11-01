@@ -21,6 +21,7 @@ import TreeDemo from './pages/demo/tree/TreeDemo';
 import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
 import BuilderAbBench from './pages/debug/builder-ab';
+import CleanTestPage from './pages/debug/clean-test';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
@@ -398,6 +399,7 @@ function Layout() {
             <Route path="/demo/tree" element={<TreeDemo />} />
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/debug/builder-ab" element={<BuilderAbBench />} />
+            <Route path="/debug/clean-test" element={<CleanTestPage />} />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />
             <Route path="/" element={<Navigate to="/demo/simple" replace />} />
             <Route path="*" element={<Navigate to="/demo/simple" replace />} />
