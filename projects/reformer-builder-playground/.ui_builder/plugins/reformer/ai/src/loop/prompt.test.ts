@@ -39,6 +39,15 @@ describe('системный промпт', () => {
     expect(systemPrompt(catalog)).toContain('A wizard (Wizard) holds steps (Step)');
   });
 
+  it('визард — с шагами одним вызовом, поля шагов — следующим ответом', () => {
+    // Замер gemma4 (ReFormer-qsm8.12): визард с шагами и полями одним вызовом — три уровня
+    // children — модель записывала с лишней скобкой, и сервер выбрасывал вызов целиком.
+    const text = systemPrompt(catalog);
+    expect(text).toContain('Insert a wizard and its steps (no fields)');
+    expect(text).toContain('fill all steps in the next answer, one insert_node per step');
+    expect(text).not.toContain("each step's fields in that step's children");
+  });
+
   it('подпись шага и секции — title, а не text', () => {
     // Замер gemma4: правило «видимое содержимое — text» уводило заголовки шагов в text.
     expect(systemPrompt(catalog)).toContain(`a step's or section's is "title"`);

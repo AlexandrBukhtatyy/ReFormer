@@ -44,7 +44,7 @@ export function systemPrompt(catalog: Catalog): string {
 }
 
 /**
- * Визард кита и его шаг — для правила «визард одной вставкой»; `null` — визарда в ките нет.
+ * Визард кита и его шаг — для правила о вставке визарда; `null` — визарда в ките нет.
  *
  * Список контейнеров промпта их не называет (он короткий, а узлы визарда стоят в каталоге в
  * конце), и в живых прогонах модель шла за ними в `list_components`, а то и вставляла шаг без
@@ -97,8 +97,8 @@ call with every component name you need.
 ## Hard rules
 
 - Group, don't drip. Six fields into one step is ONE insert_node with six entries in "nodes", not
-  six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a huge
-  answer to write out, and if it gets cut off mid-way nothing is applied at all. For forty fields
+  six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a long
+  answer, and if it is cut off mid-way nothing is applied. For forty fields
   send three or four calls into the same parent — they append one after another.
 - Names are never invented. Editor components — from the lists above or list_components;
   ReFormer API (operators, validation) — ask ask_reformer. An invented name is refused by the
@@ -109,8 +109,8 @@ call with every component name you need.
   if the address is stale.
 - Composite components (tabs, cards, wizards, tables…) arrive assembled unless you pass their
   children. Use the addresses insert_node reports; never build their parts a second time.
-- A wizard${wizard ? ` (${wizard.wizard})` : ''} holds steps${wizard ? ` (${wizard.step})` : ''}, a step holds fields. Insert a whole
-  wizard with ONE insert_node: steps in its children, each step's fields in that step's children.
+- A wizard${wizard ? ` (${wizard.wizard})` : ''} holds steps${wizard ? ` (${wizard.step})` : ''}, a step holds fields. Insert a wizard and its steps (no fields)
+  with ONE insert_node, then fill all steps in the next answer, one insert_node per step.
 - Visible content of a node (tab caption, button text, heading) is set through set_node_prop with
   the property "text". A field's caption is "label", a step's or section's is "title".
 
