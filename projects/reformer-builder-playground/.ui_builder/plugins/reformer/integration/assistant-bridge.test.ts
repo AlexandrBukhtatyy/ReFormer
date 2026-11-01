@@ -44,6 +44,7 @@ import {
 import { createFakeHost, type FakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles, type FakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
+import { projectFormsOf } from './project-forms-harness';
 import { legacyRulesText as printRulesText } from '../core/testing';
 import { generatorOver } from './codegen-harness';
 import type {
@@ -70,12 +71,17 @@ const EMPTY_FORM: JsonFormSchema = {
  * есть файлы. Настоящая проверка, а не двойник: гейт — то, ради чего мост зовёт применение, и
  * подменять его здесь значило бы проверять подмену.
  */
-function schemaStack(files?: FakeFiles, generator?: () => ModuleGeneratorService | undefined) {
+function schemaStack(
+  files?: FakeFiles,
+  generator?: () => ModuleGeneratorService | undefined,
+  projectForms = false
+) {
   return createSchemaFormStack({
     catalog: () => catalog,
     validateForm: () => Promise.resolve(validateFormSchema),
     ...(files === undefined ? {} : { scopeOf: (id: ResourceId) => files.scopeOf(id) }),
     ...(generator === undefined ? {} : { generator }),
+    ...(files === undefined || !projectForms ? {} : projectFormsOf(files)),
   });
 }
 
@@ -760,6 +766,10 @@ function filesHarness(
     readonly assistantTools?: readonly ContributedToolEntry[];
     readonly generator?: ModuleGeneratorService;
     readonly formCreator?: (files: FakeFiles) => FormCreatorService;
+    /** Стек знает формы проекта и форму файла модуля — как в плагине. */
+    readonly projectForms?: boolean;
+    /** Режим правки; по умолчанию — файлы. */
+    readonly editMode?: 'files' | 'structured';
   } = {}
 ) {
   const files = createFakeFiles(
@@ -772,7 +782,8 @@ function filesHarness(
   providers.register(options.provider ?? createFakeProvider(script));
   const assistant: AiAssistant = {
     providers,
-    loadConfig: () => Promise.resolve({ kind: 'anthropic' as const, editMode: 'files' as const }),
+    loadConfig: () =>
+      Promise.resolve({ kind: 'anthropic' as const, editMode: options.editMode ?? 'files' }),
     saveConfig: () => Promise.resolve(),
     clearConfig: () => Promise.resolve(),
     models: () => Promise.resolve([]),
@@ -780,7 +791,7 @@ function filesHarness(
     restore: () => Promise.resolve(null),
   };
   const session = createAiSession();
-  const stack = schemaStack(files);
+  const stack = schemaStack(files, undefined, options.projectForms === true);
   const bridge = createAgentBridge({
     assistant,
     host,
@@ -2188,5 +2199,57 @@ describe('новая форма (create_form) — режим файлов', () =
     const users = session.get().entries.filter((entry) => entry.role === 'user');
     expect(users).toHaveLength(1);
     expect(users[0].snapshot?.path).toBe(NEW_FORM);
+  });
+});
+
+// ── Форма хода — не только активная вкладка (ReFormer-vypu) ─────────────────────────────────
+
+/** Файл шага разбитого визарда: `form.schema.json` без корня — шаг, а не форма. */
+const STEP_FILE = 'forms/loan/schema/steps/contacts/form.schema.json';
+
+describe('форма хода — файл модуля на вкладке ведёт к своей форме', () => {
+  it('структурный ход с вкладки файла правил правит форму модуля, а не создаёт новую', async () => {
+    const { host, session, bridge } = filesHarness([insertField, { text: 'Готово.' }], {
+      active: RULES_FILE,
+      projectForms: true,
+      editMode: 'structured',
+    });
+
+    await bridge.send('добавь поле почты');
+
+    expect(session.get()).toMatchObject({ status: 'idle', error: null });
+    expect(host.documentOf(FORM_FILE)?.getText()).toContain('Почта');
+    expect(host.activeResource()).toBe(RULES_FILE);
+    const users = session.get().entries.filter((entry) => entry.role === 'user');
+    expect(users[0].snapshot?.path).toBe(FORM_FILE);
+  });
+
+  it('режим файлов с вкладки файла правил: ход идёт по модулю его формы', async () => {
+    const { files, session, bridge } = filesHarness([rulesEdit, { text: 'Готово.' }], {
+      active: RULES_FILE,
+      projectForms: true,
+    });
+
+    await bridge.send('поправь правила');
+
+    expect(session.get()).toMatchObject({ status: 'idle', error: null });
+    expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
+  });
+
+  it('режим файлов с вкладки шага: ход идёт от корня формы, а не «форма не собирается»', async () => {
+    const { files, session, bridge } = filesHarness([rulesEdit, { text: 'Готово.' }], {
+      initial: {
+        [FORM_FILE]: EMPTY_TEXT,
+        [RULES_FILE]: RULES_TEXT,
+        [STEP_FILE]: '{"node":{"component":"$component(Box)","children":[]}}',
+      },
+      active: STEP_FILE,
+      projectForms: true,
+    });
+
+    await bridge.send('поправь правила');
+
+    expect(session.get().error).toBeNull();
+    expect(files.text(RULES_FILE)).toBe('export const rules = [1];\n');
   });
 });

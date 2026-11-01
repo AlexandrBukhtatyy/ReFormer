@@ -13,21 +13,27 @@
  * префикса), а список шаблонов меняется с китом. Имён инструментов правки здесь нет намеренно —
  * модель позвала бы их, а их у попытки нет.
  *
+ * ## Существующая форма — в затравке, не здесь
+ *
+ * Попытка идёт и тогда, когда человек просит править существующую форму, не стоя на её вкладке:
+ * тогда у неё есть `choose_form` (выбирает человек). Но только если формы в проекте есть — поэтому
+ * указание «существующая форма → choose_form» и список форм приходят затравкой моста, а промпт
+ * говорит общее: реши, о какой форме просьба, и остановись.
+ *
  * @module plugins/reformer/ai/loop/creation-prompt
  */
 
 /** Промпт попытки создания формы. */
-export const CREATION_PROMPT = `You are the assistant of the ReFormer form builder. No form is open yet, so this step has one job:
-create the form the user asks for with create_form, then stop.
+export const CREATION_PROMPT = `You are the assistant of the ReFormer form builder. The user is not on a form, so this step has one
+job: settle which form the request is about, then stop. For a new form call create_form:
 
 - name: the module folder, kebab-case Latin, taken from the request (credit-application).
 - template: only when the user names a template or asks for a ready-made one. A form described in
   words starts empty.
-- Do not plan or describe the fields now and do not answer in words: right after create_form the
-  turn continues on the new form, with the editing tools and the same request. Fields, steps and
+- Do not plan or describe the fields now and do not answer in words: right after this step the
+  turn continues on the form, with the editing tools and the same request. Fields, steps and
   rules are added there.
-- If the request is about an existing form, or it is unclear what to create, call ask_user. Ask in
-  the language the user writes in.`;
+- If it is unclear what to create, call ask_user. Ask in the language the user writes in.`;
 
 /** Промпт попытки создания формы — функцией, как {@link systemPrompt}. */
 export function creationPrompt(): string {

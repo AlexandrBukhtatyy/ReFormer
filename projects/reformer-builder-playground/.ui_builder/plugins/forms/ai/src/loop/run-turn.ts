@@ -25,6 +25,13 @@ export interface ActiveForm {
   readonly path: string;
   /** Путь формы прошлого хода — если с тех пор пользователь переключился на другую. */
   readonly previousPath?: string;
+  /**
+   * Путь файла этой формы, открытого у человека, — когда форма хода взята по нему, а не по
+   * вкладке самой формы. Просьба «поправь этот файл» иначе осталась бы без адреса.
+   */
+  readonly viewing?: string;
+  /** Форма закреплена человеком в контексте ассистента — не по вкладке. */
+  readonly pinned?: boolean;
 }
 
 /**
@@ -36,6 +43,12 @@ export interface ActiveForm {
  */
 export function activeFormLines(form: ActiveForm): string {
   const lines = [`Active form: ${form.path}`];
+  if (form.pinned === true) {
+    lines.push('The user picked this form in the assistant panel; it may not be the open tab.');
+  }
+  if (form.viewing !== undefined) {
+    lines.push(`The user is looking at ${form.viewing}, a file of this form.`);
+  }
   if (form.previousPath !== undefined && form.previousPath !== form.path) {
     lines.push(
       `The user switched to this form from ${form.previousPath}. Earlier messages are about ` +

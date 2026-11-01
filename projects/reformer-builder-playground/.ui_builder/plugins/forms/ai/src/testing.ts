@@ -20,6 +20,7 @@ import {
   type FormChangeSet,
   type FormHostToolName,
   type FormLandedCompanion,
+  type FormListing,
   type FormStackHost,
   type FormToolContext,
   type ResourceId,
@@ -40,6 +41,8 @@ export interface FakeHost
   /** Положить (или заменить) содержимое документа и сделать его активным. */
   openDocument(id: ResourceId, text: string): void;
   setActive(id: ResourceId | null): void;
+  /** Открытия вкладок через `open` — по порядку, с режимом. */
+  readonly opened: readonly { readonly id: ResourceId; readonly background: boolean }[];
 }
 
 /** Ключ и параметры одной строкой: тест сверяет КЛЮЧ, а не перевод. */
@@ -50,8 +53,10 @@ const echoTranslate: Translate = (key, params) =>
 export function createFakeHost(files?: FakeFiles): FakeHost {
   const documents = createFakeDocuments(files);
   let active: ResourceId | null = null;
+  const opened: { id: ResourceId; background: boolean }[] = [];
 
   return {
+    opened,
     useTranslate: () => echoTranslate,
     translate: echoTranslate,
 
@@ -62,10 +67,14 @@ export function createFakeHost(files?: FakeFiles): FakeHost {
     ...(files ? { files } : {}),
 
     // Открыть документ, созданный мимо двойника (файлом): текст берётся из файлов, если они есть.
-    async open(id) {
+    // В фоне — активной остаётся прежняя вкладка, как у настоящих вкладок.
+    async open(id, options) {
+      const background = options?.background === true;
+      opened.push({ id, background });
+      const keep = active;
       const text = files === undefined ? null : await files.read(id);
       documents.openDocument(id, text ?? documents.documentOf(id)?.getText() ?? '');
-      active = id;
+      active = background && keep !== null ? keep : id;
     },
 
     openDocument(id, text) {
@@ -175,6 +184,10 @@ export interface FakeFormStackOptions {
    * пути от каталога документа, пишутся портом файлов и возвращаются в исходе как `code`.
    */
   readonly moduleFiles?: readonly string[];
+  /** Формы проекта (`FormStackSession.forms`); нет — у стека нет метода. */
+  readonly forms?: () => readonly FormListing[];
+  /** Форма файла модуля (`FormStackSession.formOf`); нет — у стека нет метода. */
+  readonly formOf?: (id: ResourceId) => ResourceId | null;
 }
 
 /** Двойник стека и то, что он запомнил. */
@@ -212,9 +225,12 @@ export function createFakeFormStack(options: FakeFormStackOptions = {}): FakeFor
     applies: (document) => document.ref.path.endsWith(suffix),
     connect(host) {
       connections += 1;
+      const { forms, formOf } = options;
       return {
         prepare: () => Promise.resolve(),
         recognizes: (text) => fieldsOf(text) !== null,
+        ...(forms === undefined ? {} : { forms: () => Promise.resolve(forms()) }),
+        ...(formOf === undefined ? {} : { formOf: (id) => Promise.resolve(formOf(id)) }),
         creationPrompt: () => 'Fake forms: create one with create_form.',
         refuseWrite: (id, form) =>
           id === form.resource ? 'The form document is written by the form tools.' : null,

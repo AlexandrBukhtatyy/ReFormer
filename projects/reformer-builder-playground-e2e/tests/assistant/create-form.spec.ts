@@ -38,8 +38,9 @@ test.describe('Ассистент: новая форма', () => {
     await expect(lines.filter({ hasText: `Создана форма ${created}` })).toHaveCount(1);
     await expect(panel.message(panel.answer(-1))).toHaveText('Анкета готова.');
 
-    // Первая попытка видела только создание; продолжение — карту новой формы.
-    expect(JSON.stringify(model.requests[0])).toContain('No form is open');
+    // Первая попытка — выбор формы: формы в проекте есть, вкладки формы нет; продолжение — карта
+    // новой формы.
+    expect(JSON.stringify(model.requests[0])).toContain("The user is not on a form's tab");
     expect(JSON.stringify(model.requests[1])).toContain(`Active form: ${created}`);
 
     // Модуль положили шаблоны — он на диске; правка хода — в рабочей копии поверх него.

@@ -93,9 +93,11 @@ export function activeTab(state: TabsState): Tab | null {
   return state.activeId === null ? null : findTab(state, state.activeId);
 }
 
-/** Как открывать: временной вкладкой (по умолчанию) или сразу закреплённой. */
+/** Как открывать: временной вкладкой (по умолчанию) или сразу закреплённой; активной или в фоне. */
 export interface OpenTabOptions {
   readonly preview?: boolean;
+  /** Не делать вкладку активной — см. {@link openTab}. */
+  readonly background?: boolean;
 }
 
 /**
@@ -108,13 +110,25 @@ export interface OpenTabOptions {
  *   клик в дереве закрыл бы то, что человек оставил открытым намеренно;
  * - новая временная — **заменяет прежнюю временную на её месте**, а не добавляется рядом;
  * - новая закреплённая — добавляется в конец.
+ *
+ * `background` — открыть, не отнимая у человека его вкладку: так ассистент открывает форму, над
+ * которой идёт ход. Фоновая вкладка всегда закреплённая и встаёт в конец: временная заняла бы
+ * место временной вкладки человека. Открытую вкладку фон не трогает вовсе. Активной вкладки нет —
+ * новая становится активной: иначе вкладка есть, а редактор пуст.
  */
 export function openTab(
   state: TabsState,
   ref: ResourceRef,
   options: OpenTabOptions = {}
 ): TabsState {
-  const preview = options.preview ?? true;
+  if (options.background === true && state.activeId !== null) {
+    if (tabIndex(state, ref.id) >= 0) return state;
+    return {
+      tabs: [...state.tabs, { ref, preview: false, dirty: false }],
+      activeId: state.activeId,
+    };
+  }
+  const preview = options.background === true ? false : (options.preview ?? true);
   const existing = tabIndex(state, ref.id);
 
   if (existing >= 0) {

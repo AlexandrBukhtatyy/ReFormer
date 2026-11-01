@@ -58,6 +58,7 @@ import { structuredSlots } from '../ai/src/tools';
 import { fileModeSlots } from '../ai/src/tools/files';
 import { askUserTool } from '../../forms/ai/src/tools/ask-user';
 import { createFormTool } from '../../forms/ai/src/tools/create-form';
+import { chooseFormTool } from '../../forms/ai/src/tools/choose-form';
 import { generateCodeTool } from '../../forms/ai/src/tools/generate-code';
 import { CONTRIBUTED_TOOL_SURFACE_BUDGET } from '../../forms/ai/src/budgets';
 import {
@@ -118,14 +119,30 @@ describe('поверхность инструментов', () => {
  * Постоянная часть запроса попытки создания формы: её промпт и два инструмента — `create_form`
  * и `ask_user`. Храповик, как у {@link TOOL_SURFACE_BUDGET}: равенство, а не «не больше».
  * Раньше попытка несла промпт структурного режима и `list_templates` — около 5600 символов.
+ *
+ * 1970 → 1947: промпт говорит «реши, о какой форме просьба», а указание про существующую форму
+ * ушло в затравку — его получает только попытка, у которой есть `choose_form` (ReFormer-vypu).
  */
-const CREATION_SURFACE = 1970;
+const CREATION_SURFACE = 1947;
+
+/**
+ * Попытка выбора формы — та же попытка, когда в проекте есть формы: плюс `choose_form`. Свой
+ * храповик: инструмент идёт в каждый такой запрос.
+ */
+const CHOICE_SURFACE = 2160;
 
 describe('попытка создания формы — своя постоянная часть', () => {
   it('промпт создания и два инструмента — ровно потолок', () => {
     const surface =
       creationPrompt().length + measureToolSurface([createFormTool, askUserTool] as AgentTool[]);
     expect(surface).toBe(CREATION_SURFACE);
+  });
+
+  it('попытка выбора: тот же промпт и choose_form сверху — ровно свой потолок', () => {
+    const surface =
+      creationPrompt().length +
+      measureToolSurface([createFormTool, chooseFormTool, askUserTool] as AgentTool[]);
+    expect(surface).toBe(CHOICE_SURFACE);
   });
 });
 

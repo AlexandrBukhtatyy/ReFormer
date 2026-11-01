@@ -31,6 +31,7 @@ import { EditorArea } from './EditorArea';
 import { EditorPoint, type EditorContribution } from '@reformer/builder-plugin-api/internal';
 import { EDITOR_TITLE_MENU, whenEditor } from '@reformer/builder-plugin-api/internal';
 import { MenuPoint, type MenuContribution } from '@reformer/builder-plugin-api/internal';
+import { ResourceDecorationPoint } from '@reformer/builder-plugin-api/internal';
 import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/state/tabs';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 
@@ -101,9 +102,14 @@ function fakeWorkspace(files: Readonly<Record<string, string>>): TabsWorkspace {
 }
 
 const Preview = (): ReactElement => <span data-testid="icon">◐</span>;
+const Working = (): ReactElement => <span data-testid="working">✦</span>;
 
-async function mountArea(path: string): Promise<{ readonly unmount: () => void }> {
+async function mountArea(
+  path: string,
+  setup?: (extensions: ReturnType<typeof createExtensionRegistry>) => void
+): Promise<{ readonly unmount: () => void }> {
   const extensions = createExtensionRegistry();
+  setup?.(extensions);
   const commands = createCommandRegistry({ getContext: () => whenContext({ focus: 'editable' }) });
 
   commands.forPlugin('markdown').register({
@@ -137,6 +143,7 @@ async function mountArea(path: string): Promise<{ readonly unmount: () => void }
   });
   await i18n.setLocale('ru');
   i18n.forPlugin('markdown').contribute('ru', PLUGIN_MESSAGES);
+  i18n.forPlugin('ai').contribute('ru', { 'decoration.working': 'Ассистент правит эту форму' });
 
   const workspace = fakeWorkspace({ 'README.md': '# привет', 'notes.txt': 'текст' });
   const documents = createDocumentTabsStore({
@@ -178,6 +185,46 @@ describe('ряд действий в полосе вкладок', () => {
     const fixture = await mountArea('notes.txt');
 
     expect(document.body.textContent).not.toContain('Показать предпросмотр');
+
+    fixture.unmount();
+  });
+});
+
+describe('пометки ресурсов на вкладках', () => {
+  it('пометка вклада видна на вкладке и уходит по его сигналу', async () => {
+    // Так ассистент помечает форму, которую правит в фоне: человек остаётся на своей вкладке,
+    // и только пометка говорит, над какой из открытых идёт ход.
+    let working = true;
+    const listeners = new Set<() => void>();
+    const fixture = await mountArea('README.md', (extensions) => {
+      extensions.forPlugin('ai').contribute(
+        ResourceDecorationPoint,
+        {
+          id: 'ai.working',
+          decorate: (candidate) =>
+            working && candidate.name === 'README.md'
+              ? { icon: Working, tone: 'accent', tooltipKey: 'decoration.working' }
+              : null,
+          onDidChange(cb) {
+            listeners.add(cb);
+            return toDisposable(() => {
+              listeners.delete(cb);
+            });
+          },
+        },
+        { id: 'ai.working' }
+      );
+    });
+
+    const tab = page.getByRole('tab', { name: /^README\.md/ });
+    await expect.element(tab.getByTestId('working')).toBeVisible();
+    // Подсказка — у значка; подсказка вкладки остаётся её путём: по нему вкладку находят.
+    await expect.element(tab.getByTitle('Ассистент правит эту форму')).toBeVisible();
+    await expect.element(tab).toHaveAttribute('title', 'README.md');
+
+    working = false;
+    for (const listener of [...listeners]) listener();
+    await expect.element(tab.getByTestId('working')).not.toBeInTheDocument();
 
     fixture.unmount();
   });

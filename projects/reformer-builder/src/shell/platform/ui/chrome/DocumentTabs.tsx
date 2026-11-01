@@ -8,6 +8,14 @@
  * вкладка станет активной после закрытия» — это правила, они в `./tabs` и проверяются
  * без браузера.
  *
+ * ## Пометки ресурсов — те же, что в дереве
+ *
+ * Вклад `ResourceDecorationPoint` помечает ресурс один раз, а видно пометку и в строке дерева, и
+ * на вкладке: значок вклада стоит перед именем, счётчик — после, подсказка — у значка (подсказка
+ * вкладки — её путь: по нему вкладку и находят).
+ * Ради вкладки это и понадобилось: ассистент правит форму в фоне, и человек должен видеть, над
+ * какой из открытых вкладок идёт ход.
+ *
  * ## Вопрос о несохранённом — модальное окно кита
  *
  * `@reformer/ui-kit/alert-dialog`: он тянет только `radix-ui`, который в сборке уже есть
@@ -25,6 +33,7 @@
 
 import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { Badge } from '@reformer/ui-kit/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,15 +47,30 @@ import {
 import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea, ScrollBar } from '@reformer/ui-kit/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@reformer/ui-kit/tabs';
-import type { I18nService } from '@/shell/platform/services/i18n/i18n';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { findTab, type DocumentTabsStore, type Tab } from '@/shell/platform/ui/state/tabs';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
+import {
+  decorationTooltip,
+  mergeDecorations,
+  type DecorationEntry,
+  type MergedDecoration,
+} from '@/shell/platform/ui/contributions/decorations';
+import {
+  createLazyEditorProbe,
+  createUnreadableProbe,
+} from '@/shell/platform/ui/contributions/editors';
+import { PluginScope } from './PluginScope';
+import type { ExtensionReader } from './usePanels';
+import { DECORATION_BADGE_VARIANT, useResourceDecorations } from './useResourceDecorations';
 import { useDocumentTabs } from './useWorkspaceViews';
 
 export interface DocumentTabsProps {
   readonly tabs: DocumentTabsStore;
-  readonly i18n: I18nService;
+  readonly i18n: RootI18nService;
+  /** Вклады — ради пометок ресурсов на вкладках (см. шапку). */
+  readonly extensions: ExtensionReader;
   /**
    * Что показать справа от ряда — сегодня это выбор редактора («открыть с помощью»).
    *
@@ -61,8 +85,65 @@ function reportTabError(error: unknown): void {
   console.error('[shell] действие над вкладкой не выполнено', error);
 }
 
-export function DocumentTabs({ tabs, i18n, trailing }: DocumentTabsProps): ReactElement | null {
+/**
+ * Пометка вкладки. Проба читает открытый документ: у вкладки он всегда есть, а дерево ради той же
+ * пробы ходило бы в источник.
+ */
+function tabDecoration(
+  entries: readonly DecorationEntry[],
+  tabs: DocumentTabsStore,
+  tab: Tab
+): MergedDecoration | null {
+  if (entries.length === 0) return null;
+  const document = tabs.documentOf(tab.ref.id);
+  const probe =
+    document === null
+      ? createUnreadableProbe(tab.ref)
+      : createLazyEditorProbe(() => Promise.resolve(document.getText()));
+  return mergeDecorations(entries, tab.ref, probe);
+}
+
+/**
+ * Значок вклада перед именем — в контейнере его плагина, как в строке дерева.
+ *
+ * Подсказка — у самого значка, а не у вкладки: подсказка вкладки — её путь, и по нему вкладку
+ * находят. Значок скрыт от доступного имени: имя вкладки начинается с имени файла.
+ */
+function DecorationIcon({
+  decoration,
+  tooltip,
+}: {
+  decoration: MergedDecoration;
+  tooltip: string | null;
+}): ReactElement | null {
+  const Icon = decoration.icon;
+  if (Icon === undefined) return null;
+  const icon = (
+    <span
+      aria-hidden="true"
+      title={tooltip ?? undefined}
+      className="flex size-3.5 flex-none items-center [&_svg]:size-3.5"
+    >
+      <Icon />
+    </span>
+  );
+  return decoration.iconPluginId === undefined ? (
+    icon
+  ) : (
+    <PluginScope pluginId={decoration.iconPluginId} as="span">
+      {icon}
+    </PluginScope>
+  );
+}
+
+export function DocumentTabs({
+  tabs,
+  i18n,
+  extensions,
+  trailing,
+}: DocumentTabsProps): ReactElement | null {
   const state = useDocumentTabs(tabs);
+  const decorations = useResourceDecorations(extensions);
   /** Вкладка, о которой задан вопрос. `null` — вопроса нет. */
   const [asked, setAsked] = useState<Tab | null>(null);
 
@@ -124,55 +205,74 @@ export function DocumentTabs({ tabs, i18n, trailing }: DocumentTabsProps): React
               // иначе он сожмётся до ширины окна и прокручивать станет нечего.
               className="h-[34px] w-max justify-start gap-0 rounded-none px-1"
             >
-              {state.tabs.map((tab) => (
-                <div
-                  key={tab.ref.id}
-                  // Подчёркивание активной вкладки рисует обёртка, а не сам триггер: полоса идёт
-                  // под всей вкладкой вместе с крестиком, а крестик — сосед триггера, а не его
-                  // содержимое (внутри триггера это была бы кнопка в кнопке). `self-stretch`
-                  // и `-bottom-[3px]` кладут полосу на нижний край ряда — на отступ `TabsList`.
-                  className="group/tab relative flex flex-none items-center self-stretch after:absolute after:inset-x-0 after:-bottom-[3px] after:h-0.5 after:bg-foreground after:opacity-0 after:transition-opacity has-[[data-state=active]]:after:opacity-100"
-                >
-                  <TabsTrigger
-                    value={tab.ref.id}
-                    title={tab.ref.path}
-                    onDoubleClick={() => {
-                      tabs.pin(tab.ref.id);
-                    }}
-                    onAuxClick={(event) => {
-                      // Средняя кнопка закрывает — привычка из редакторов кода; правая
-                      // оставлена контекстному меню, которого здесь пока нет.
-                      if (event.button === 1) requestClose(tab.ref.id);
-                    }}
-                    // `after:hidden` — своё подчёркивание кита выключено, его рисует обёртка.
-                    className={
-                      tab.preview
-                        ? 'flex-none pr-1 text-[12px] italic after:hidden'
-                        : 'flex-none pr-1 text-[12px] not-italic after:hidden'
-                    }
+              {state.tabs.map((tab) => {
+                const decoration = tabDecoration(decorations, tabs, tab);
+                const tooltip = decoration === null ? null : decorationTooltip(i18n, decoration);
+                return (
+                  <div
+                    key={tab.ref.id}
+                    // Подчёркивание активной вкладки рисует обёртка, а не сам триггер: полоса идёт
+                    // под всей вкладкой вместе с крестиком, а крестик — сосед триггера, а не его
+                    // содержимое (внутри триггера это была бы кнопка в кнопке). `self-stretch`
+                    // и `-bottom-[3px]` кладут полосу на нижний край ряда — на отступ `TabsList`.
+                    className="group/tab relative flex flex-none items-center self-stretch after:absolute after:inset-x-0 after:-bottom-[3px] after:h-0.5 after:bg-foreground after:opacity-0 after:transition-opacity has-[[data-state=active]]:after:opacity-100"
                   >
-                    {tab.ref.name}
-                    {tab.dirty && (
-                      <span aria-label={t('shell.tabs.dirty')} title={t('shell.tabs.dirty')}>
-                        •
-                      </span>
-                    )}
-                  </TabsTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={t('shell.tabs.close', { name: tab.ref.name })}
-                    title={t('shell.tabs.close', { name: tab.ref.name })}
-                    onClick={() => {
-                      requestClose(tab.ref.id);
-                    }}
-                  >
-                    {/* Поштучный импорт из `lucide-react`: `@reformer/ui-kit/icon` объявляет себя
+                    <TabsTrigger
+                      value={tab.ref.id}
+                      title={tab.ref.path}
+                      data-decorated={
+                        decoration === null ? undefined : (decoration.tone ?? 'default')
+                      }
+                      onDoubleClick={() => {
+                        tabs.pin(tab.ref.id);
+                      }}
+                      onAuxClick={(event) => {
+                        // Средняя кнопка закрывает — привычка из редакторов кода; правая
+                        // оставлена контекстному меню, которого здесь пока нет.
+                        if (event.button === 1) requestClose(tab.ref.id);
+                      }}
+                      // `after:hidden` — своё подчёркивание кита выключено, его рисует обёртка.
+                      className={
+                        tab.preview
+                          ? 'flex-none pr-1 text-[12px] italic after:hidden'
+                          : 'flex-none pr-1 text-[12px] not-italic after:hidden'
+                      }
+                    >
+                      {decoration !== null && (
+                        <DecorationIcon decoration={decoration} tooltip={tooltip} />
+                      )}
+                      {tab.ref.name}
+                      {decoration?.badge !== undefined && (
+                        <Badge
+                          variant={DECORATION_BADGE_VARIANT[decoration.tone ?? 'default']}
+                          title={decoration.icon === undefined ? (tooltip ?? undefined) : undefined}
+                          className="h-4 px-1.5 py-0 text-[10px]"
+                        >
+                          {decoration.badge}
+                        </Badge>
+                      )}
+                      {tab.dirty && (
+                        <span aria-label={t('shell.tabs.dirty')} title={t('shell.tabs.dirty')}>
+                          •
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t('shell.tabs.close', { name: tab.ref.name })}
+                      title={t('shell.tabs.close', { name: tab.ref.name })}
+                      onClick={() => {
+                        requestClose(tab.ref.id);
+                      }}
+                    >
+                      {/* Поштучный импорт из `lucide-react`: `@reformer/ui-kit/icon` объявляет себя
                     opt-in, потому что тянет весь набор значков разом. */}
-                    <X aria-hidden="true" className="size-3.5" />
-                  </Button>
-                </div>
-              ))}
+                      <X aria-hidden="true" className="size-3.5" />
+                    </Button>
+                  </div>
+                );
+              })}
             </TabsList>
             <ScrollBar orientation="horizontal" size="xs" />
           </ScrollArea>

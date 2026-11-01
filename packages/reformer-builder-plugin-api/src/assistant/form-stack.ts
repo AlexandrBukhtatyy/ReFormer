@@ -202,6 +202,29 @@ export type FormCreateOutcome =
     };
 
 /**
+ * Исход `choose_form`: форма, с которой продолжится ход, или отказ — человек ответил своим текстом,
+ * и он не совпал ни с одной формой, вопросов хода не осталось, ход остановили.
+ */
+export type FormChooseOutcome =
+  | { readonly ok: true; readonly path: string }
+  | {
+      readonly ok: false;
+      readonly code: FormToolErrorCode;
+      readonly message: string;
+      readonly suggestions?: string[];
+    };
+
+/** Форма проекта — для выбора формы хода. */
+export interface FormListing {
+  /** Документ формы — корень её схемы. */
+  readonly resource: ResourceId;
+  /** Путь от корня проекта. */
+  readonly path: string;
+  /** Имя модуля — каталог формы; им форму называют человеку. */
+  readonly name: string;
+}
+
+/**
  * Ход, внутри которого идёт вызов: остановка, дверь записи, ресурсы, вопросы человеку и заказы
  * генерации и создания формы. Даёт его ассистент; методов, которых нет, в сборке нечем исполнить.
  */
@@ -227,6 +250,11 @@ export interface FormTurnScope {
   templates?(): Promise<readonly FormTemplateInfo[]>;
   /** Создать форму: ассистент открывает её и продолжает ход на ней. */
   createForm?(request: FormCreateRequest): Promise<FormCreateOutcome>;
+  /**
+   * Выбрать существующую форму: одна в проекте — она, несколько — спрашивает человека. Ассистент
+   * открывает выбранную в фоне и продолжает ход на ней.
+   */
+  chooseForm?(): Promise<FormChooseOutcome>;
 }
 
 /** Контекст вызова: стек добавляет своё (черновик, каталог), ассистент — {@link turn}. */
@@ -500,6 +528,16 @@ export interface FormStackSession {
   ): string | null;
   /** Своя дверь документа; `null` — ассистент читает и пишет документ как есть. */
   door?(id: ResourceId): FormDocumentDoor | null;
+  /**
+   * Форма модуля, которому принадлежит файл: файл правил, шага, кода → документ формы. `null` —
+   * файл ни одной форме не принадлежит. Нет метода — ход берёт форму только по её вкладке.
+   */
+  formOf?(id: ResourceId): Promise<ResourceId | null>;
+  /**
+   * Формы проекта — для выбора формы хода и списка в панели. Нет метода — ход без формы на вкладке
+   * идёт в создание, как раньше.
+   */
+  forms?(): Promise<readonly FormListing[]>;
   readonly structured: FormStructuredMode;
   readonly files?: FormFilesMode;
 }

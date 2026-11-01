@@ -32,7 +32,9 @@ import {
   DocumentsServiceToken,
   KitsCapability,
   WorkspaceFilesServiceToken,
+  resourceNameOf,
   type FormDocumentDoor,
+  type FormListing,
   type FormWriteMark,
   type ModelDocumentHandle,
   type PluginContext,
@@ -40,6 +42,7 @@ import {
 } from '@reformer/builder-plugin-api';
 import { projectCatalog, type CatalogEntry } from '../../../core/catalog';
 import {
+  formNameOfSchemaPath,
   moduleRootOfDocument,
   moduleRootPathOf,
   modulePlacementOf,
@@ -47,6 +50,7 @@ import {
 import type { FileScope } from '../files/scope';
 import type { PackageFiles } from '../knowledge';
 import { parseSchemaText, printSchemaText } from '../model/schema-text';
+import { formPathOf, projectFormPaths, type ProjectFilesView } from './project-forms';
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
@@ -68,6 +72,13 @@ export interface SchemaStackWorkspace {
    * или его провайдер не умеет составную раскладку. Нет метода — то же самое.
    */
   splitWriter?(id: ResourceId): FormSplitWriter | null;
+  /** Документ формы, которой принадлежит файл (`./project-forms`); `null` — ни одной. */
+  formOf?(id: ResourceId): Promise<ResourceId | null>;
+  /**
+   * Формы проекта (`./project-forms`); пусто — проекта нет. `recognizes` — разбор стека: форма ли
+   * это, решает он, а не имя файла.
+   */
+  forms?(recognizes: (text: string) => boolean): Promise<readonly FormListing[]>;
 }
 
 /** Записать текст формы и разнести её шаги по файлам — одной записью истории. */
@@ -86,6 +97,37 @@ export function schemaStackWorkspace(ctx: PluginContext): SchemaStackWorkspace {
     const handle = ctx.services.get(DocumentModelsCapability)?.handleOf(id) ?? null;
     const parts = handle?.document.getComposition?.()?.parts.length ?? 0;
     return handle !== null && parts > 0 ? handle : null;
+  };
+
+  /**
+   * Файлы проекта путями от корня — для `./project-forms`; `null` — проекта нет. Путь ресурса
+   * считается от корня проекта, а не источника: проект может быть папкой внутри источника.
+   */
+  const projectView = (): {
+    readonly view: ProjectFilesView;
+    readonly idOf: (path: string) => ResourceId;
+    readonly pathOf: (id: ResourceId) => string | null;
+  } | null => {
+    const root = files.projectRoot();
+    if (root === null) return null;
+    const rootPath = resourceNameOf(root).path;
+    const idOf = (path: string): ResourceId => files.fromRoot(root, path);
+    const pathOf = (id: ResourceId): string | null => {
+      const path = resourceNameOf(id).path;
+      if (rootPath === '') return path;
+      if (path === rootPath) return '';
+      return path.startsWith(`${rootPath}/`) ? path.slice(rootPath.length + 1) : null;
+    };
+    return {
+      idOf,
+      pathOf,
+      view: {
+        list: async (dir) =>
+          (await files.list(idOf(dir))).map((ref) => ({ name: ref.name, kind: ref.kind })),
+        exists: (path) => files.exists(idOf(path)),
+        read: (path) => files.readText(idOf(path)),
+      },
+    };
   };
 
   return {
@@ -157,6 +199,25 @@ export function schemaStackWorkspace(ctx: PluginContext): SchemaStackWorkspace {
         // Файлы шагов пишутся отложенно; генерация после хода читает их — дождаться записи.
         await handle.flush();
       };
+    },
+
+    async formOf(id) {
+      const project = projectView();
+      const path = project?.pathOf(id) ?? null;
+      if (project === null || path === null) return null;
+      const form = await formPathOf(path, project.view);
+      return form === null ? null : project.idOf(form);
+    },
+
+    async forms(recognizes) {
+      const project = projectView();
+      if (project === null) return [];
+      const paths = await projectFormPaths(project.view, recognizes);
+      return paths.map((path) => ({
+        resource: project.idOf(path),
+        path,
+        name: formNameOfSchemaPath(path),
+      }));
     },
   };
 }

@@ -12,6 +12,7 @@
 import type {
   FormAssistantStack,
   FormDocumentDoor,
+  FormListing,
   FormStackSession,
   ModuleGeneratorService,
   ResourceId,
@@ -70,6 +71,10 @@ export interface SchemaFormStackOptions {
    * структурного хода записать нечем, и инструменты правил отказывают.
    */
   readonly generator?: () => ModuleGeneratorService | undefined;
+  /** Форма файла модуля (`./workspace`); нет — ход берёт форму только по её вкладке. */
+  readonly formOf?: (id: ResourceId) => Promise<ResourceId | null>;
+  /** Формы проекта (`./workspace`); нет — ход без формы на вкладке идёт в создание. */
+  readonly forms?: (recognizes: (text: string) => boolean) => Promise<readonly FormListing[]>;
 }
 
 /** Собрать стек форм ReFormer. */
@@ -128,6 +133,16 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
               scopeOf: options.scopeOf,
             });
 
+      const recognizes = (text: string): boolean => {
+        try {
+          parseSchemaText(text);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const { formOf, forms } = options;
+
       return {
         async prepare() {
           // Одним ожиданием на ход: инструменты внутри хода синхронны, и гейт обязан получить
@@ -135,14 +150,9 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
           // нельзя, а сделать вид можно.
           validate = await options.validateForm();
         },
-        recognizes(text) {
-          try {
-            parseSchemaText(text);
-            return true;
-          } catch {
-            return false;
-          }
-        },
+        recognizes,
+        ...(formOf === undefined ? {} : { formOf }),
+        ...(forms === undefined ? {} : { forms: () => forms(recognizes) }),
         creationPrompt,
         // Файлы правил плагинам открыты: их пишет генерация, и `generate_code` того же хода
         // обязан их перепечатать.

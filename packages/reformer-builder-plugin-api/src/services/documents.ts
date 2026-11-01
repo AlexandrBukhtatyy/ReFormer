@@ -72,6 +72,12 @@ export interface OpenDocumentOptions {
    * займёт её место. `false` — закрепить: человек пришёл править, а не посмотреть.
    */
   readonly preview?: boolean;
+  /**
+   * Открыть, не делая вкладку активной: человек остаётся на своей. Так ассистент открывает форму,
+   * над которой идёт ход. Фоновая вкладка закреплённая; уже открытую фон не трогает; активной
+   * вкладки нет — открытая становится активной.
+   */
+  readonly background?: boolean;
 }
 
 export interface DocumentsService {
@@ -106,7 +112,10 @@ export interface DocumentsService {
    * попадает в журнал как правка человека.
    */
   writeText(id: ResourceId, text: string, options?: WriteOptions): Promise<void>;
-  /** Открывает вкладку и делает её активной. Без проекта — отказ, как у записи. */
+  /**
+   * Открывает вкладку и делает её активной (с `background` — нет). Без проекта — отказ, как у
+   * записи.
+   */
   open(id: ResourceId, options?: OpenDocumentOptions): Promise<void>;
   /**
    * Выполнить отложенную перерисовку буфера по модели. Зовётся на уходе фокуса.

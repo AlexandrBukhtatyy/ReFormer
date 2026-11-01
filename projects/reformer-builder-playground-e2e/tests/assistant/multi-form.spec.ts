@@ -95,8 +95,9 @@ test.describe('Ассистент: несколько форм', () => {
     await expect(panel.entryTargets).toHaveText([`Форма: ${FORM_A}`, `Форма: ${FORM_B}`]);
     await expect(panel.entryTarget(panel.request(1))).toHaveCount(0);
 
+    // Вкладка не форма и не её файл — ход спросит, с какой формой работать.
     await builder.openFile('README.md');
-    await expect(panel.composerTarget).toHaveText(/Нет открытой формы/);
+    await expect(panel.composerTarget).toHaveText(/Форма не выбрана/);
   });
 
   test('[M2] режим файлов: путь из прошлой формы не создаёт файл в модуле B', async ({

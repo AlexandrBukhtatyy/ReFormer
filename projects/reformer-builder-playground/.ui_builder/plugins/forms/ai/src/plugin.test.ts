@@ -14,7 +14,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { ASSISTANT_ATTACH_COMMAND_ID } from '@reformer/builder-plugin-api';
 
 import { AI_UNDO_TURN_COMMAND_ID, type AgentBridge } from './session/bridge';
-import { aiChatPanel, aiCommands, AI_RESET_COMMAND_ID, AI_STOP_COMMAND_ID } from './plugin';
+import {
+  aiChatPanel,
+  aiCommands,
+  AI_PIN_FORM_COMMAND_ID,
+  AI_RESET_COMMAND_ID,
+  AI_STOP_COMMAND_ID,
+} from './plugin';
 import { createAiSession } from './session/session';
 import { createFakeHost } from './testing';
 
@@ -36,7 +42,10 @@ function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
     detach: () => {},
     canSearchResources: () => false,
     searchResources: () => Promise.resolve([]),
-    activeForm: () => null,
+    targetForm: () => null,
+    onDidChangeTarget: () => ({ dispose: () => {} }),
+    forms: () => Promise.resolve([]),
+    pin: () => Promise.resolve(false),
     isPendingStale: () => false,
     prepare: () => Promise.resolve(),
     ...overrides,
@@ -44,7 +53,7 @@ function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
 }
 
 describe('команды плагина', () => {
-  it('отмена хода и прикрепление внесены в реестр наравне с остановкой и новым разговором', () => {
+  it('отмена хода, прикрепление и выбор формы внесены в реестр наравне с остановкой и новым разговором', () => {
     const commands = aiCommands(fakeBridge());
 
     expect(commands.map((command) => command.id)).toEqual([
@@ -52,7 +61,30 @@ describe('команды плагина', () => {
       AI_RESET_COMMAND_ID,
       AI_UNDO_TURN_COMMAND_ID,
       ASSISTANT_ATTACH_COMMAND_ID,
+      AI_PIN_FORM_COMMAND_ID,
     ]);
+  });
+
+  it('«работать с формой»: форма уходит мосту, о результате сказано тостом', async () => {
+    const pin = vi.fn().mockResolvedValue(true);
+    const notify = vi.fn();
+    const bridge = fakeBridge({
+      pin,
+      targetForm: () => ({ resource: 'f', path: 'forms/a/schema/form.schema.json', via: 'pinned' }),
+    });
+    const command = aiCommands(bridge, notify).find((c) => c.id === AI_PIN_FORM_COMMAND_ID);
+
+    expect(await command?.run({ resourceId: 'mem:forms/a/schema/form.schema.json' })).toBe(true);
+    expect(pin).toHaveBeenCalledWith('mem:forms/a/schema/form.schema.json');
+    expect(notify).toHaveBeenCalledWith(
+      'command.pinForm.done',
+      { path: 'forms/a/schema/form.schema.json' },
+      'info'
+    );
+
+    pin.mockResolvedValue(false);
+    expect(await command?.run({ resourceId: 'mem:README.md' })).toBe(false);
+    expect(notify).toHaveBeenLastCalledWith('command.pinForm.notForm', {}, 'warning');
   });
 
   it('прикрепление: адрес уходит мосту, о результате сказано тостом', () => {

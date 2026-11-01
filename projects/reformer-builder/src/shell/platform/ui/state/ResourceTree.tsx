@@ -52,7 +52,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useState,
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
@@ -78,14 +77,8 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   decorationTooltip,
   mergeDecorations,
-  observeDecorations,
-  type DecorationEntry,
   type MergedDecoration,
 } from '@/shell/platform/ui/contributions/decorations';
-import {
-  ResourceDecorationPoint,
-  type DecorationTone,
-} from '@reformer/builder-plugin-api/internal';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import {
   createLazyEditorProbe,
@@ -105,37 +98,12 @@ import {
   type ResourceTreeStore,
 } from './resource-tree';
 import { useContributions, type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
+import {
+  DECORATION_BADGE_VARIANT,
+  useResourceDecorations,
+} from '@/shell/platform/ui/chrome/useResourceDecorations';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
 import { useResourceTree } from '@/shell/platform/ui/chrome/useWorkspaceViews';
-
-/** Тон пометки → вариант значка кита. Соответствие визуальное, поэтому живёт в отрисовке. */
-const BADGE_VARIANT: Readonly<
-  Record<DecorationTone, 'default' | 'secondary' | 'destructive' | 'outline'>
-> = Object.freeze({
-  default: 'secondary',
-  accent: 'default',
-  warning: 'outline',
-  danger: 'destructive',
-});
-
-/**
- * Перерисовка дерева по сигналу вклада декорации.
- *
- * `useReducer` вместо `useSyncExternalStore`: у сигнала нет снимка — он не несёт значения
- * вовсе, а требование стабильности снимка при этом никуда не девается, и подсовывать ему
- * счётчик значило бы заводить состояние ради того, чтобы его не читать. Функция-диспетчер
- * стабильна по контракту React, поэтому эффект переподписывается только при смене состава
- * вкладов.
- */
-function useDecorationRevision(entries: readonly DecorationEntry[]): void {
-  const [, bump] = useReducer((revision: number) => revision + 1, 0);
-  useEffect(() => {
-    const subscription = observeDecorations(entries, bump);
-    return () => {
-      subscription.dispose();
-    };
-  }, [entries]);
-}
 
 /**
  * Снимок хранилища → узлы дерева кита; попутно собирает адреса обратно в ссылки.
@@ -221,9 +189,8 @@ export function ResourceTree({
   whenContext,
 }: ResourceTreeProps): ReactElement {
   const state = useResourceTree(tree);
-  const decorations = useContributions(extensions, ResourceDecorationPoint);
+  const decorations = useResourceDecorations(extensions);
   const menus = useContributions(extensions, MenuPoint);
-  useDecorationRevision(decorations);
   useLocale(i18n);
   const { t } = i18n;
 
@@ -296,7 +263,7 @@ export function ResourceTree({
       if (decoration?.badge === undefined) return null;
       const label = (
         <Badge
-          variant={BADGE_VARIANT[decoration.tone ?? 'default']}
+          variant={DECORATION_BADGE_VARIANT[decoration.tone ?? 'default']}
           className="h-4 px-1.5 py-0 text-[10px]"
         >
           {decoration.badge}

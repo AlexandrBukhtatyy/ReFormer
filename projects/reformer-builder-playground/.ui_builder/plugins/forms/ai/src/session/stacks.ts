@@ -53,6 +53,11 @@ export interface StackSet {
   byId(id: string): ConnectedStack | null;
   /** Первый стек — его промпт у хода без открытой формы. */
   first(): ConnectedStack | null;
+  /**
+   * Все стеки — их спрашивают о том, что не привязано к открытому документу: какой форме
+   * принадлежит файл и какие формы есть в проекте.
+   */
+  all(): readonly ConnectedStack[];
 }
 
 /** Из чего собирается набор. */
@@ -104,6 +109,19 @@ export function createStackSet(deps: StackSetDeps): StackSet {
     first() {
       const [stack] = deps.stacks();
       return stack === undefined ? null : connect(stack);
+    },
+    all() {
+      // Стек, который не подключился, пропускается: вопрос «чья это форма» не должен ронять ход,
+      // который поведёт другой стек или попытка выбора формы.
+      const connectedAll: ConnectedStack[] = [];
+      for (const stack of deps.stacks()) {
+        try {
+          connectedAll.push(connect(stack));
+        } catch (error) {
+          console.warn(`[plugins/forms/ai] стек «${stack.id}» не подключился`, error);
+        }
+      }
+      return connectedAll;
     },
   };
 }

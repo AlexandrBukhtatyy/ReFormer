@@ -27,8 +27,8 @@ import { AttachmentChips } from './AttachmentChips';
 import { ChangePreview } from './ChangePreview';
 import { MessageList } from './MessageList';
 import { ProviderSettings } from './ProviderSettings';
+import { FormTargetPicker } from './FormTargetPicker';
 import { ResourcePicker } from './ResourcePicker';
-import { useActiveForm } from './useActiveForm';
 import { useAiSession } from './useSession';
 
 export interface ChatPanelProps {
@@ -42,7 +42,6 @@ export interface ChatPanelProps {
 export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps): ReactElement {
   const t = host.useTranslate();
   const state = useAiSession(session);
-  const activeForm = useActiveForm(host, bridge);
   const [draft, setDraft] = useState('');
   // Реестр каналов — обычный объект, а не хранилище с подпиской: перерисовку после подключения
   // панель запрашивает сама. Заводить ради этого второе наблюдаемое состояние не за что —
@@ -159,17 +158,9 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
           }}
           className="mb-1.5 gap-1.5 py-0"
         />
-        {/* Какую форму правит следующий ход — до отправки: переключение на другую форму между
-            ходами иначе выглядело как «ассистент пишет не туда». */}
-        <div
-          data-testid="ai-composer-target"
-          title={activeForm ?? undefined}
-          className="text-muted-foreground mb-1 truncate text-[10.5px] leading-4"
-        >
-          {activeForm !== null
-            ? t('chat.target.active', { path: activeForm })
-            : t('chat.target.none')}
-        </div>
+        {/* Какую форму правит следующий ход — до отправки и с выбором: переключение на другую
+            форму между ходами иначе выглядело как «ассистент пишет не туда». */}
+        <FormTargetPicker bridge={bridge} t={t} disabled={running} />
         <div className="flex items-end gap-1.5">
           <ResourcePicker bridge={bridge} t={t} disabled={running} />
           <Textarea

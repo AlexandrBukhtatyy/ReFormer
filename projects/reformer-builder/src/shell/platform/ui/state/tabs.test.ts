@@ -106,6 +106,37 @@ describe('openTab — режим предпросмотра', () => {
   });
 });
 
+describe('openTab — в фоне', () => {
+  it('новая вкладка встаёт в конец закреплённой, активная остаётся прежней', () => {
+    const state = openTab(openTab(EMPTY_TABS, A), B, { background: true });
+    expect(ids(state)).toEqual([A.id, B.id]);
+    expect(state.tabs[1].preview).toBe(false);
+    expect(state.activeId).toBe(A.id);
+  });
+
+  it('временную вкладку человека не заменяет, даже если просили временную', () => {
+    // Ассистент открывает форму хода, пока человек смотрит файл одиночным щелчком: заменить его
+    // вкладку значило бы закрыть то, что он смотрит.
+    const viewing = openTab(EMPTY_TABS, A);
+    const state = openTab(viewing, B, { background: true, preview: true });
+    expect(ids(state)).toEqual([A.id, B.id]);
+    expect(state.tabs[0].preview).toBe(true);
+    expect(state.activeId).toBe(A.id);
+  });
+
+  it('открытую вкладку не трогает: ни активации, ни закрепления', () => {
+    const state = openTab(openTab(openTab(EMPTY_TABS, A), B), C, { preview: false });
+    expect(openTab(state, B, { background: true })).toBe(state);
+  });
+
+  it('без активной вкладки открытая в фоне становится активной', () => {
+    const state = openTab(EMPTY_TABS, A, { background: true });
+    expect(ids(state)).toEqual([A.id]);
+    expect(state.activeId).toBe(A.id);
+    expect(state.tabs[0].preview).toBe(false);
+  });
+});
+
 describe('activateTab и moveTab — порядок вкладок', () => {
   it('неизвестная и повторная активация снимок не пересоздают', () => {
     const state = openTab(EMPTY_TABS, A);

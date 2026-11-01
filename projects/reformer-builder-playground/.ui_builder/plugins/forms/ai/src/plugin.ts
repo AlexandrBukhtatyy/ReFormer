@@ -35,21 +35,28 @@
 import { createElement, type ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
+  argsOfResource,
   ASSISTANT_ATTACH_COMMAND_ID,
   AssistantResourcePoint,
   AssistantToolPoint,
   definePlugin,
   FormAssistantStackPoint,
   FormCreatorCapability,
+  MenuPoint,
   ModuleGeneratorCapability,
   NotificationsServiceToken,
   PanelPoint,
   pluginMessageKey,
+  RESOURCE_CONTEXT_MENU,
+  ResourceDecorationPoint,
+  whenResource,
   type AssistantAttachArgs,
   type CommandContribution,
+  type MenuContribution,
   type PanelContribution,
   type Plugin,
   type PluginContext,
+  type ResourceId,
 } from '@reformer/builder-plugin-api';
 import { aiUndoTurnCommand, createAgentBridge, type AgentBridge } from './session/bridge';
 import {
@@ -69,6 +76,7 @@ import type { AiProvider } from './providers/types';
 import { ATTACHMENT_LIMIT, createAiSession, type AiSession } from './session/session';
 import { ChatActions } from './ui/ChatActions';
 import { ChatPanel } from './ui/ChatPanel';
+import { TURN_FORM_DECORATION_ID, turnFormDecoration } from './ui/turn-form-decoration';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
@@ -235,7 +243,64 @@ export function aiCommands(
     },
     aiUndoTurnCommand(bridge),
     aiAttachCommand(bridge, notify),
+    aiPinFormCommand(bridge, notify),
   ];
+}
+
+/** «Работать с формой в ассистенте» — закрепить форму в контексте ассистента. */
+export const AI_PIN_FORM_COMMAND_ID = 'ai.pinForm';
+
+/** Пункт меню дерева для {@link AI_PIN_FORM_COMMAND_ID}. */
+export const AI_PIN_FORM_MENU_ITEM_ID = 'ai.context.pinForm';
+
+/**
+ * Файл ли это формы — по имени, без чтения: условие пункта меню зовут на каждый показ меню.
+ * Документ формы и файл шага называются `*.schema.json` или `*.form.json`; что это именно форма,
+ * проверяет закрепление (`AgentBridge.pin`).
+ */
+const isFormFileName = (name: string): boolean =>
+  name.endsWith('.schema.json') || name.endsWith('.form.json');
+
+/**
+ * Команда «работать с формой в ассистенте»: ход будет править эту форму, какая бы вкладка ни была
+ * активна. Аргумент — документ формы или файл её модуля (`{ resourceId }`); без него — подсказка.
+ */
+export function aiPinFormCommand(bridge: AgentBridge, notify: AttachNotify): CommandContribution {
+  return {
+    id: AI_PIN_FORM_COMMAND_ID,
+    titleKey: 'command.pinForm',
+    // Во время хода форма хода не меняется — закрепление сбило бы с толку.
+    enabled: () => !bridge.isRunning(),
+    run: async (args) => {
+      const id =
+        typeof args === 'object' && args !== null
+          ? (args as { resourceId?: unknown }).resourceId
+          : undefined;
+      if (typeof id !== 'string' || id === '') {
+        notify('command.pinForm.howTo', {}, 'info');
+        return false;
+      }
+      const pinned = await bridge.pin(id as ResourceId);
+      if (pinned) notify('command.pinForm.done', { path: bridge.targetForm()?.path ?? '' }, 'info');
+      else notify('command.pinForm.notForm', {}, 'warning');
+      return pinned;
+    },
+  };
+}
+
+/** Пункт меню дерева: на файле формы — закрепить её в ассистенте. */
+export function aiPinFormMenuItem(): MenuContribution {
+  return {
+    kind: 'item',
+    menu: RESOURCE_CONTEXT_MENU,
+    command: AI_PIN_FORM_COMMAND_ID,
+    titleKey: 'command.pinForm',
+    group: '4_assistant',
+    when: whenResource((target) => target.ref?.kind === 'file' && isFormFileName(target.ref.name)),
+    argsOf: argsOfResource((target) =>
+      target.ref === null ? undefined : { resourceId: target.ref.id }
+    ),
+  };
 }
 
 /** Сообщение человеку о прикреплении: ключ словаря плагина, параметры и уровень тоста. */
@@ -344,6 +409,16 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         ctx.extensions.contribute(PanelPoint, aiChatPanel(host, session, bridge, assistant), {
           id: AI_PANEL_ID,
         })
+      );
+      // Форма хода открывается в фоне — пометка на её вкладке и в дереве говорит, над какой
+      // работает ассистент.
+      ctx.subscriptions.push(
+        ctx.extensions.contribute(ResourceDecorationPoint, turnFormDecoration(session), {
+          id: TURN_FORM_DECORATION_ID,
+        })
+      );
+      ctx.subscriptions.push(
+        ctx.extensions.contribute(MenuPoint, aiPinFormMenuItem(), { id: AI_PIN_FORM_MENU_ITEM_ID })
       );
 
       // Заказ, а не ожидание: `activate` только регистрирует, и держать на себе сеть ей нельзя.

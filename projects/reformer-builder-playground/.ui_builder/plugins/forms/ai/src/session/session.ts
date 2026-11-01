@@ -224,6 +224,20 @@ export interface AiSessionState {
    * спрашивавшая мост в момент перерисовки, оставалась недоступной до случайной перерисовки.
    */
   readonly undoable: boolean;
+  /**
+   * Форма, закреплённая в контексте ассистента: ход работает с ней, какая бы вкладка ни была
+   * активна. `null` — форма хода выбирается по вкладке. Снимается «Новым разговором».
+   */
+  readonly pinned: PinnedForm | null;
+}
+
+/** Форма, закреплённая в контексте ассистента. */
+export interface PinnedForm {
+  /** Документ формы — корень её схемы. */
+  readonly resource: ResourceId;
+  readonly path: string;
+  /** Имя модуля — им форму называет панель. */
+  readonly name: string;
 }
 
 const INITIAL: AiSessionState = Object.freeze({
@@ -235,6 +249,7 @@ const INITIAL: AiSessionState = Object.freeze({
   error: null,
   attachments: Object.freeze([]),
   undoable: false,
+  pinned: null,
 });
 
 /** Хранилище сессии. Живёт вне React — как и остальные хранилища проекта. */
@@ -244,6 +259,8 @@ export interface AiSession {
   subscribe(listener: () => void): Disposable;
 
   setSettingsOpen(open: boolean): void;
+  /** Закрепить форму в контексте ассистента; `null` — снять. См. {@link AiSessionState.pinned}. */
+  pin(form: PinnedForm | null): void;
   /** Есть ли ход, который можно отменить, — ставит мост, см. {@link AiSessionState.undoable}. */
   setUndoable(undoable: boolean): void;
   /** Прикрепить ресурс к следующей реплике. Тот же адрес второй раз не прикрепляется. */
@@ -367,6 +384,11 @@ export function createAiSession(): AiSession {
 
     setSettingsOpen(settingsOpen) {
       commit({ ...state, settingsOpen });
+    },
+
+    pin(pinned) {
+      if (pinned?.resource === state.pinned?.resource) return;
+      commit({ ...state, pinned });
     },
 
     setUndoable(undoable) {

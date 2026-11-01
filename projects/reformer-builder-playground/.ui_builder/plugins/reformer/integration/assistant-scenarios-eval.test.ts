@@ -29,6 +29,7 @@ import { emptyRules, type FormRules } from '../core/form-model';
 import { rulesStackInput } from '../core/codegen/rules-code';
 import { readRuleCode } from '../ai/src/stack/rule-code';
 import { generatorOver } from './codegen-harness';
+import { projectFormsOf } from './project-forms-harness';
 import { createAgentBridge } from '../../forms/ai/src/session/bridge';
 import { createAiSession, openAskOf, type ToolLogEntry } from '../../forms/ai/src/session/session';
 import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
@@ -80,6 +81,17 @@ const ONLY = (process.env.EVAL_ONLY ?? '')
   .filter(Boolean);
 /** Предел шагов хода: сценарии в десяток полей укладываются, зацикливание — нет. */
 const MAX_STEPS = 24;
+
+/**
+ * Предел времени сценария: ход останавливается, как кнопкой «Стоп», и сценарий не засчитывается.
+ *
+ * Предел шагов от зацикливания внутри ОДНОГО запроса не спасает: gemma4 с рассуждением писала
+ * ответ больше часа (88 тыс. токенов). Таймаут теста ход не обрывал — запрос продолжал занимать
+ * Ollama, и следующие сценарии стояли в её очереди до своих таймаутов. Предел меньше таймаута
+ * теста: остановленному ходу нужно время закрыться и записать результат. И с запасом над самым
+ * долгим законным ходом: qwen3.8 с рассуждением провёл 22.1 за 1288 с.
+ */
+const SCENARIO_LIMIT_MS = 1_500_000;
 
 const DOCUMENT = 'forms/eval/schema/form.schema.json';
 
@@ -178,7 +190,15 @@ interface EvalState {
   readonly created: readonly string[];
   readonly generated: number;
   readonly asked: number;
+  /** Форма, которую правил ход, — по снимку реплики человека; нет снимка — активная вкладка. */
+  readonly target: string | null;
 }
+
+/** Формы проекта сценариев выбора формы — пустые и не открытые вкладками. */
+const OTHER_FORMS: readonly string[] = [
+  'forms/order/schema/form.schema.json',
+  'forms/profile/schema/form.schema.json',
+];
 
 /** Правки, а не чтение: вызовы, которые меняют форму, правила или проект. */
 const edits = (state: EvalState): ToolLogEntry[] =>
@@ -189,6 +209,13 @@ interface EvalScenario {
   readonly id: string;
   readonly title: string;
   readonly form: 'none' | 'empty' | 'client';
+  /**
+   * Файл, открытый активной вкладкой перед ходом, — путь от корня проекта; нет файла — кладётся
+   * пустой. Нет поля — активна вкладка формы (или никакая, если формы нет).
+   */
+  readonly tab?: string;
+  /** Другие формы проекта — пустые документы, не открытые вкладками. */
+  readonly otherForms?: readonly string[];
   readonly request: string;
   /** Почему не прошёл, или `null`. */
   readonly check: (state: EvalState) => string | null;
@@ -444,6 +471,52 @@ const SCENARIOS: readonly EvalScenario[] = [
     // Мерится, что ход не падает; спросил ли он или поправил сам — пишется в отчёт.
     check: (s) => (s.error === null ? null : `ошибка хода: ${s.error}`),
   },
+  {
+    id: '21.3',
+    title: 'правка из файла модуля, а не со вкладки формы',
+    form: 'client',
+    tab: 'forms/eval/validation/form.ts',
+    request: 'Сделай телефон обязательным.',
+    check: (s) => {
+      if (s.created.length > 0) return `создана форма: ${s.created.join(', ')}`;
+      const required =
+        s.rules.validation.some(
+          (r) => r.target === 'phone' && r.rules.some((x) => x.startsWith('required'))
+        ) ||
+        fieldsOf(s.schema).find((f) => modelOf(f) === 'phone')?.componentProps?.required === true;
+      return required ? null : 'телефон не обязателен';
+    },
+  },
+  {
+    id: '21.4',
+    title: 'правка без вкладки при двух формах — выбор формы',
+    form: 'none',
+    otherForms: OTHER_FORMS,
+    request: 'Добавь в форму поле телефона.',
+    check: (s) => {
+      if (s.created.length > 0) return `создана форма: ${s.created.join(', ')}`;
+      if (!s.tools.some((t) => t.name === 'choose_form' && t.ok)) return 'форма не выбрана';
+      if (s.target === null || !OTHER_FORMS.includes(s.target)) return `правил ${s.target}`;
+      return fieldsOf(s.schema).some((f) => /phone|tel/i.test(modelOf(f)))
+        ? null
+        : 'нет поля телефона';
+    },
+  },
+  {
+    id: '21.4b',
+    title: 'новая форма без вкладки при двух формах — без карточки выбора',
+    form: 'none',
+    otherForms: OTHER_FORMS,
+    request: 'Сделай новую форму обратной связи: имя, почта и сообщение.',
+    check: (s) =>
+      s.tools.some((t) => t.name === 'choose_form')
+        ? 'выбрана существующая форма'
+        : s.created.length !== 1
+          ? `создано форм: ${s.created.length}`
+          : fieldsOf(s.schema).length < 3
+            ? `полей ${fieldsOf(s.schema).length} из 3`
+            : null,
+  },
 ];
 
 // ── Ход ──
@@ -459,6 +532,8 @@ interface EvalResult {
   readonly failures: readonly string[];
   readonly asked: number;
   readonly seconds: number;
+  /** Ход остановлен по пределу времени сценария ({@link SCENARIO_LIMIT_MS}). */
+  readonly timedOut: boolean;
   readonly error: string | null;
   readonly text: string;
   /** Рассуждение модели (укороченное): по нему видно, ПОЧЕМУ ход выбрал эти вызовы. */
@@ -549,6 +624,12 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
       if (!seeded.ok) throw new Error(seeded.message);
     }
   }
+  for (const path of scenario.otherForms ?? []) files.put(path, printSchemaText(EMPTY));
+  if (scenario.tab !== undefined) {
+    const text = files.text(scenario.tab) ?? '';
+    files.put(scenario.tab, text);
+    host.openDocument(scenario.tab, text);
+  }
 
   const created: string[] = [];
   const creator: FormCreatorService = {
@@ -606,6 +687,8 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
     validateForm: () => Promise.resolve(validateFormSchema),
     scopeOf: (id) => files.scopeOf(id),
     generator: () => codegen,
+    // Как в плагине: форма файла модуля и формы проекта — для выбора формы хода.
+    ...projectFormsOf(files),
   });
   const bridge = createAgentBridge({
     assistant,
@@ -638,30 +721,44 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
   });
 
   const started = Date.now();
+  let timedOut = false;
+  const limit = setTimeout(() => {
+    timedOut = true;
+    bridge.abort();
+  }, SCENARIO_LIMIT_MS);
   await bridge.send(scenario.request);
+  clearTimeout(limit);
   answering.dispose();
 
-  const active = host.activeResource();
-  const text = active === null ? null : (host.documentOf(active)?.getText() ?? null);
+  // Форма хода — из снимка реплики человека: ход правит форму в фоне, и активной может остаться
+  // вкладка файла модуля, а не формы.
+  const entries = session.get().entries;
+  const target =
+    entries.find((entry) => entry.role === 'user')?.snapshot?.resource ?? host.activeResource();
+  const text = target === null ? null : (host.documentOf(target)?.getText() ?? null);
   let schema: JsonFormSchema | null = null;
   try {
     schema = text === null ? null : parseSchemaText(text);
   } catch {
     schema = null;
   }
-  const rules = active === null ? emptyRules() : (await readRuleCode(files, active, active)).rules;
-  const last = session.get().entries.at(-1);
+  const rules = target === null ? emptyRules() : (await readRuleCode(files, target, target)).rules;
+  const last = entries.at(-1);
   const state: EvalState = {
     schema,
     rules,
-    tools: last?.tools ?? [],
+    // Все реплики ассистента: выбор формы и правки после него могут лечь в разные.
+    tools: entries.filter((entry) => entry.role === 'assistant').flatMap((entry) => entry.tools),
     text: last?.text ?? '',
     error: session.get().error,
     created,
     generated,
     asked: answered.size,
+    target,
   };
-  const reason = scenario.check(state);
+  const reason = timedOut
+    ? `остановлен через ${SCENARIO_LIMIT_MS / 60_000} мин`
+    : scenario.check(state);
   return {
     id: scenario.id,
     title: scenario.title,
@@ -678,6 +775,7 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
       .map((tool) => `${tool.name}: ${(tool.error ?? '').slice(0, 200)}`),
     asked: answered.size,
     seconds: Math.round((Date.now() - started) / 1000),
+    timedOut,
     error: state.error,
     text: state.text.slice(0, 300),
     reasoning: (last?.reasoning ?? '').slice(0, 3000),

@@ -99,6 +99,10 @@ export function createSchemaStackPlugin(options: SchemaStackPluginOptions = {}):
         scopeOf: (id) => workspace.scopeOf(id),
         door: (id) => workspace.door(id),
         splitWriter: (id) => workspace.splitWriter?.(id) ?? null,
+        // Форма хода не только по вкладке: файл модуля ведёт к своей форме, а без формы на
+        // вкладке ход выбирает из форм проекта.
+        ...(workspace.formOf === undefined ? {} : { formOf: workspace.formOf.bind(workspace) }),
+        ...(workspace.forms === undefined ? {} : { forms: workspace.forms.bind(workspace) }),
         // Генерация — тоже на каждый ход: правила формы ложатся в код модуля ею.
         generator: () => ctx.services.get(ModuleGeneratorCapability),
       });

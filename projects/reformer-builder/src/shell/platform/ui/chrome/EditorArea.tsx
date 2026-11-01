@@ -252,6 +252,7 @@ function DocumentSurface({
       <DocumentTabs
         tabs={documents}
         i18n={i18n}
+        extensions={extensions}
         trailing={
           <EditorActions
             extensions={extensions}
