@@ -50,3 +50,7 @@ coverage/
 # Конфиг запуска разработчика для `npm run dev` билдера (dev-эндпоинт runtime.json в vite.config):
 # у каждого свой состав и свои умолчания — в репозиторий не едет.
 projects/reformer-builder/.ui_builder/
+
+# Формы стенда калибровки MCP (`npm run mcp:calibrate -- --e2e`): вывод стенда, пересоздаётся при
+# запуске. В репозитории — только `index.tsx`, который находит их маршруты.
+projects/react-playground/src/pages/debug/mcp-calibration/*/

@@ -53,7 +53,7 @@ Windows идут тем же вызовом через SDK-клиент (`lib/cl
 - **T2 intent → бандл** (`generate_form`): кросс-проверка C1–C10, `tsc` бандла, `validate_form`
   `code`/`layout`; intent из `plan_form` и эталонная, три таргета.
 - **T3 рантайм**: бандлы эталонных intent монтируются в playground
-  (`src/pages/debug/mcp-calibration/`), и по ним гоняются e2e эталонов: кредит — проекты `iter-*`
+  (`src/pages/debug/mcp-calibration/`; папки форм — вывод стенда, в git не лежат), и по ним гоняются e2e эталонов: кредит — проекты `iter-*`
   с `MCP_ITER_VERSION=cal`, регистрация — свой спек с `REG_FORM_PATH`.
 - **T4 подбор API**: `choose_api` по `operators.json` в обоих каналах, `askReformer` с бюджетом
   `ask_reformer`, `get_symbol_docs` по символам эталонов, рецепты.
