@@ -137,14 +137,42 @@ export async function validateJsonSchemaTool(
     propSchemas,
   });
 
-  if (valid) {
+  // Незнакомый проп в `componentProps` — замечание, а не ошибка формата: компоненты кита
+  // передают незнакомые свойства дальше в DOM (`title`, `data-testid`), и рабочие схемы —
+  // эталон регистрации, наборы кодогенерации конструктора — объявлялись invalid (калибровка,
+  // трек T5). Опечатка остаётся видна предупреждением; `data-*` — штатный атрибут, не замечание.
+  const unknownProp = (e: string) => /\.?componentProps has unknown property "/.test(e);
+  // Шаг, вынесенный в свой файл (`{ "$ref": "steps/<slug>" }`), — раскладка, а не ошибка схемы:
+  // корень собирают с шагами `composeJsonFormSchema` в коде. Проверка одного корня объявляла
+  // рабочие наборы кодогенерации invalid (калибровка, `__golden__/wizard-split*`).
+  const stepRef = (e: string) => /step reference "[^"]*" is not resolved/.test(e);
+  const blocking = valid ? [] : errors.filter((e) => !unknownProp(e) && !stepRef(e));
+  const propWarnings = errors.filter((e) => unknownProp(e) && !/unknown property "data-/.test(e));
+  const stepWarnings = errors.filter(stepRef);
+  const warningsBlock =
+    (propWarnings.length > 0
+      ? '\n\n## Warnings\n' +
+        propWarnings.map((e) => `- ${e}`).join('\n') +
+        '\n\n_Проп не объявлен в контракте компонента ui-kit: опечатку исправьте; свойство, которое ' +
+        'компонент передаёт в DOM, можно оставить._'
+      : '') +
+    (stepWarnings.length > 0
+      ? `\n\n## Не проверено: шаги в отдельных файлах (${stepWarnings.length})\n` +
+        stepWarnings.map((e) => `- ${e}`).join('\n') +
+        '\n\n_Проверен корень без шагов. Схему каждого шага проверьте отдельно (`kind="json-schema"`), ' +
+        'а целиком — после `composeJsonFormSchema(schema, stepSchemas)`._'
+      : '');
+
+  if (blocking.length === 0) {
     return text(
-      '# JSON schema — ✅ valid\n\nNo structural, operator-syntax, or unknown-name errors.'
+      '# JSON schema — ✅ valid\n\nNo structural, operator-syntax, or unknown-name errors.' +
+        warningsBlock
     );
   }
   return text(
-    `# JSON schema — ❌ invalid (${errors.length} error${errors.length === 1 ? '' : 's'})\n\n` +
-      errors.map((e) => `- ${e}`).join('\n')
+    `# JSON schema — ❌ invalid (${blocking.length} error${blocking.length === 1 ? '' : 's'})\n\n` +
+      blocking.map((e) => `- ${e}`).join('\n') +
+      warningsBlock
   );
 }
 

@@ -44,8 +44,18 @@ export interface ResourceCatalogOptions {
   readonly debug?: boolean;
 }
 
+/** Запись `resources/templates/list`. */
+export interface ResourceTemplateEntry {
+  readonly uriTemplate: string;
+  readonly name: string;
+  readonly description: string;
+  readonly mimeType: string;
+}
+
 export interface ResourceCatalog {
   list(): ResourceEntry[];
+  /** Шаблоны адресов — схема `reformer://docs/{package}/{slug}`. */
+  templates(): ResourceTemplateEntry[];
   /** Прочитать ресурс. Неизвестный адрес — исключение с перечнем того, что есть. */
   read(uri: string): ReadResourceResult;
 }
@@ -140,6 +150,18 @@ export function createResourceCatalog(
     });
 
   return {
+    templates() {
+      const packages = docs().packages().map(packageShortName).join(', ');
+      return [
+        {
+          uriTemplate: 'reformer://docs/{package}/{slug}',
+          name: 'ReFormer docs section',
+          description: `One documentation section. package: ${packages}; slug: from reformer://catalog or search_docs.`,
+          mimeType: 'text/markdown',
+        },
+      ];
+    },
+
     list() {
       const resources: ResourceEntry[] = [
         {

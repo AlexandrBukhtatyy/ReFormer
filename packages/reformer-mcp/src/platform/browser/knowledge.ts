@@ -6,7 +6,7 @@
  * | | CLI | браузер |
  * | --- | --- | --- |
  * | индекс, документация | с диска, у установленного пакета | из артефакта сборки |
- * | рецепты (`docs/llms/*.md`) | есть | нет — топик уходит в каскад по секциям |
+ * | рецепты (`docs/llms/*.md`) | с диска | восстановлены из `llms.txt` артефакта |
  * | разбор AST для пакетов без индекса | есть (`typescript` как opt-peer) | нет |
  * | отчёты `report_issue` | файл в проекте | память вкладки |
  *
@@ -25,6 +25,7 @@ import { createMemoryIssueSink, type MemoryIssueSink } from './issue-sink.js';
 import {
   createBundleDocsSource,
   createBundleIndexSource,
+  createBundleRecipeSource,
   createMemorySpecSource,
 } from './sources.js';
 
@@ -52,10 +53,13 @@ export function createBrowserKnowledge(input: BrowserKnowledgeInput): BrowserKno
   const knowledge = createKnowledge({
     docs: createBundleDocsSource(input.docs ?? null),
     index: createBundleIndexSource(input.index),
+    // Рецепты — файлы `docs/llms`, восстановленные из тех же текстов `llms.txt`: без них
+    // `find_recipe` в браузере отвечал случайной секцией (калибровка, паритет каналов).
+    recipes: createBundleRecipeSource(input.docs ?? null),
     spec: createMemorySpecSource(input.specs ?? new Map()),
     issues,
-    // `recipes` и `symbolsFallback` не передаются намеренно — ядро подставит заглушки,
-    // а деградация будет видна в ответах инструментов, а не спрятана.
+    // `symbolsFallback` не передаётся намеренно — разбора AST в браузере нет, ядро подставит
+    // заглушку, а деградация будет видна в ответах инструментов, а не спрятана.
   });
   return { knowledge, issues };
 }

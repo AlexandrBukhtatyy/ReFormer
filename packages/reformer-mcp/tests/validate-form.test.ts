@@ -130,6 +130,88 @@ describe('validate_form kind=code', () => {
     expect(rf005[0].line).toBe(3);
   });
 
+  // Калибровка, трек T5: рабочий код эталонов получал ложные находки.
+  it.runIf(hasSymbols)(
+    'оператор в функции-помощнике — не RF005: он выполнится в схеме',
+    async () => {
+      const code = [
+        "import { onChange, type ReadonlySignal } from '@reformer/core/behaviors';",
+        '',
+        'export function clearWhenOff(flag: ReadonlySignal<boolean>, array: { clear(): void }): void {',
+        '  onChange(flag, (enabled) => {',
+        '    if (!enabled) array.clear();',
+        '  });',
+        '}',
+        '',
+        'export const resetOnUnset = (flag: ReadonlySignal<boolean>, reset: () => void) => {',
+        '  onChange(flag, (on) => {',
+        '    if (!on) reset();',
+        '  });',
+        '};',
+        '',
+        'onChange(flagAtTopLevel, () => {});',
+      ].join('\n');
+      const rf005 = (await validateCode(k, code)).diagnostics.filter((d) => d.code === 'RF005');
+      // Остаётся только вызов на верхнем уровне модуля.
+      expect(rf005.map((d) => d.line)).toEqual([15]);
+    }
+  );
+
+  it('json-schema: незнакомый проп компонента — замечание, data-* — не замечание', async () => {
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        componentProps: { title: 'Заявка', 'data-testid': 'form-root' },
+        children: [
+          { component: '$component(Button)', componentProps: { 'data-testid': 'submit' } },
+        ],
+      },
+    };
+    const { content } = await validateFormTool({ kind: 'json-schema', schema }, k);
+    const out = content[0].text;
+    // Рабочая схема — не invalid (калибровка: так отвергались эталон регистрации и наборы
+    // кодогенерации конструктора).
+    expect(out).toMatch(/✅ valid/);
+    expect(out).not.toMatch(/"data-testid"/);
+  });
+
+  it('json-schema: шаг в отдельном файле — не ошибка корня, а «не проверено»', async () => {
+    // Корень раскладки с вынесенными шагами (наборы кодогенерации `wizard-split*`): шаг — `$ref`,
+    // собирает их `composeJsonFormSchema` в коде.
+    const schema = {
+      format: 2,
+      root: {
+        component: '$component(Box)',
+        children: [
+          {
+            component: '$component(Wizard)',
+            selector: 'wizard',
+            children: [{ $ref: './steps/shag-1/form.schema.json' }],
+          },
+        ],
+      },
+    };
+    const out = (await validateFormTool({ kind: 'json-schema', schema }, k)).content[0].text;
+    expect(out).toMatch(/✅ valid/);
+    expect(out).toMatch(/Не проверено: шаги в отдельных файлах \(1\)/);
+    expect(out).toMatch(/composeJsonFormSchema/);
+  });
+
+  it.runIf(hasSymbols)(
+    'реэкспорт сигналов, глубокий подпуть и пакет вне корпуса — не RF002',
+    async () => {
+      const code = [
+        "import { signal, computed, type Signal } from '@reformer/core/signals';",
+        "import { ru } from '@reformer/ui-kit/locale/ru';",
+        "import { getFormRegistry, type FormEntry } from '@reformer/form-registry';",
+      ].join('\n');
+      const { diagnostics, limitations } = await validateCode(k, code);
+      expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+      expect(limitations.join(' ')).toMatch(/@reformer\/form-registry не проверялись/);
+    }
+  );
+
   it.runIf(hasSymbols)('ограничения печатаются даже когда ошибок нет', async () => {
     // Чистый отчёт не должен читаться как «код верен»: проверка построчная и видит не всё.
     const { content } = await validateFormTool(

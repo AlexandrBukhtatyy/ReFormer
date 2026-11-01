@@ -98,6 +98,8 @@ describe('спека → intent: читается то, что в спеке н�
 
   it('условное правило даёт и `when`, и `enableWhen` — это разные слои', () => {
     expect(rule('propertyValue')!.when).toBe("model.loanType === 'mortgage'");
+    // «Условное» — третье значение обязательности: обязательно, пока условие истинно.
+    expect(rule('propertyValue')!.rules).toEqual(['required()', 'min(1000000)']);
     expect(intent.behavior).toContainEqual({
       kind: 'enableWhen',
       target: 'propertyValue',
@@ -120,6 +122,164 @@ describe('спека → intent: читается то, что в спеке н�
     expect(parsed.unparsed).toEqual(['min: 20% от стоимости']);
     // Прочерк — это «правил нет», а не нераспознанное правило.
     expect(parseValidationCell('-')).toEqual({ rules: [], unparsed: [] });
+  });
+
+  // Калибровка, трек T1 (форма регистрации): регулярка с квантификатором `{3,20}` резалась
+  // запятой на два бессмысленных фрагмента, а неразобранное отсылало «перенести вручную».
+  it('pattern с запятой внутри регулярки — одно правило pattern(/…/)', () => {
+    const parsed = parseValidationCell('Обязательное, minLength: 3, pattern: ^[a-zA-Z0-9_]{3,20}$');
+    expect(parsed.rules).toEqual(['required()', 'minLength(3)', 'pattern(/^[a-zA-Z0-9_]{3,20}$/)']);
+    expect(parsed.unparsed).toEqual([]);
+  });
+
+  it('варианты одного шага — секции внутри одного шага, без копий полей', () => {
+    const table = (rows: string[]) =>
+      ['| Ключ в форме | Тип поля |', '| --- | --- |', ...rows.map((r) => `| ${r} | Input |`)].join(
+        '\n'
+      );
+    const intent = intentFromSpec(
+      [
+        '### Шаг 1: Тип',
+        table(['kind']),
+        '### Шаг 2: Объект - Авто',
+        table(['car.vin', 'car.brand']),
+        '### Шаг 2: Объект - Дом',
+        table(['house.area']),
+        '### Шаг 3: Итог',
+        table(['agree']),
+      ].join('\n\n'),
+      'core'
+    );
+    const root = intent.layoutRoot as { children: Array<Record<string, unknown>> };
+    expect(root.children.map((s) => s.title)).toEqual(['Тип', 'Объект', 'Итог']);
+    const second = root.children[1] as {
+      children: Array<{ selector?: string; children?: unknown[] }>;
+    };
+    expect(second.children.map((c) => c.selector)).toEqual(['step2-variant1', 'step2-variant2']);
+    // Каждое поле — ровно в одном месте разметки (раньше — в каждом варианте, C10).
+    const refs = JSON.stringify(root).match(/"ref":"[^"]+"/g) ?? [];
+    expect(refs.length).toBe(new Set(refs).size);
+    expect(intent.warnings.join(' ')).toMatch(/Шаг 2 описан в 2 вариантах/);
+  });
+
+  it('условие по короткому имени — полный путь поля и литерал его типа', () => {
+    const intent = intentFromSpec(
+      [
+        '| Ключ в форме | Тип поля | Значение | Валидация |',
+        '| --- | --- | --- | --- |',
+        '| vehicle.hasAlarm | Checkbox | false | - |',
+        "| vehicle.alarmBrand | Input | '' | Условное (при hasAlarm=true), minLength: 2 |",
+        '| vehicle.year | Input[number] | null | Обязательное |',
+        "| vehicle.oldCarNote | Input | '' | Условное (при year=1990) |",
+      ].join('\n'),
+      'core'
+    );
+    const rule = intent.validation.find((v) => v.target === 'vehicle.alarmBrand');
+    expect(rule?.when).toBe('model.vehicle.hasAlarm === true');
+    const enable = intent.behavior.find((b) => b.target === 'vehicle.alarmBrand');
+    expect(enable?.expr).toBe('model.vehicle.hasAlarm === true');
+    expect(enable?.sources).toEqual(['vehicle.hasAlarm']);
+    expect(intent.behavior.find((b) => b.target === 'vehicle.oldCarNote')?.expr).toBe(
+      'model.vehicle.year === 1990'
+    );
+    // Ячейка из одного «Условное (…)» — не пустая: поле обязательно при условии.
+    expect(intent.validation.find((v) => v.target === 'vehicle.oldCarNote')?.rules).toEqual([
+      'required()',
+    ]);
+  });
+
+  it('таблица зависимостей: однозначное — в поведение, остальное — предупреждением с оператором', () => {
+    const intent = intentFromSpec(
+      [
+        '| Ключ в форме | Тип поля | Значение | Валидация |',
+        '| --- | --- | --- | --- |',
+        '| hasItems | Checkbox | false | - |',
+        "| items[].name | Input | '' | Обязательное |",
+        "| email | Input | '' | Обязательное |",
+        "| emailCopy | Input | '' | - |",
+        '| sameEmail | Checkbox | false | - |',
+        "| backupEmail | Input | '' | - |",
+        "| carBrand | Input | '' | - |",
+        "| carModel | Input | '' | - |",
+        '',
+        '| Статус | Управляющее поле | Зависимые поля / Действие | Тип поведения | Условие | Описание |',
+        '| --- | --- | --- | --- | --- | --- |',
+        '| ✅ | `hasItems` | items[] | Управление массивом | hasItems=false | Очищает массив |',
+        '| ✅ | `email` | emailCopy | Копирование | sameEmail=true | Копирование email |',
+        '| ✅ | `email` | backupEmail | Копирование | phantom=true | Флага в модели нет |',
+        '| 🆕 | `carBrand` | Очистка carModel | Сброс зависимых | При изменении марки | Очистка модели |',
+        '| ✅ | `price, qty` | total | Вычисляемое поле | - | Сумма |',
+        '| ✅ | `price` | Цепочка | Каскадный эффект | - | Пояснение |',
+      ].join('\n'),
+      'core'
+    );
+    expect(intent.behavior).toContainEqual({
+      kind: 'onChange',
+      target: 'hasItems',
+      sources: [],
+      expr: 'if (!value) model.items.clear();',
+    });
+    expect(intent.behavior).toContainEqual({
+      kind: 'copyFrom',
+      target: 'emailCopy',
+      sources: ['email', 'sameEmail'],
+      expr: 'model.sameEmail === true',
+    });
+    expect(intent.behavior).toContainEqual({
+      kind: 'onChange',
+      target: 'carBrand',
+      sources: [],
+      expr: "model.carModel = '';",
+    });
+    // Условие по необъявленному флагу не печатается: `model.phantom` не собрался бы.
+    expect(intent.behavior.some((b) => b.target === 'backupEmail')).toBe(false);
+    const warnings = intent.warnings.join('\n');
+    expect(warnings).toMatch(/«Копирование» \(1\): «email → backupEmail».*`copyFrom`/);
+    expect(warnings).toMatch(/«Вычисляемое поле» \(1\).*`computeFrom`/);
+    expect(warnings).toMatch(/прочие виды: «Каскадный эффект» \(1\)/);
+  });
+
+  it('маска даёт проп InputMask и правило pattern полного значения', () => {
+    const intent = intentFromSpec(
+      [
+        '| Ключ в форме | Тип поля | Значение | Валидация |',
+        '| --- | --- | --- | --- |',
+        "| phone | InputMask | '' | Обязательное, mask: '+7 (999) 999-99-99' |",
+        "| series | InputMask | '' | Условное (при hasPassport=true), mask: '99 99' |",
+        '| hasPassport | Checkbox | false | - |',
+      ].join('\n'),
+      'core'
+    );
+    const phone = intent.fields.find((f) => f.name === 'phone');
+    expect(phone?.componentProps).toEqual({ mask: '+7 (999) 999-99-99' });
+    const rules = intent.validation.find((v) => v.target === 'phone')?.rules ?? [];
+    expect(rules).toEqual(['required()', 'pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/)']);
+    // Регулярка из правила принимает заполненную маску и не принимает неполный ввод.
+    const re = new RegExp(rules[1].slice('pattern(/'.length, -'/)'.length));
+    expect(re.test('+7 (999) 123-45-67')).toBe(true);
+    expect(re.test('+7 (999) 123-45')).toBe(false);
+    expect(intent.validation.find((v) => v.target === 'series')?.rules).toEqual([
+      'required()',
+      'pattern(/^\\d{2} \\d{2}$/)',
+    ]);
+    // Маска — не «неразобранный фрагмент».
+    expect(intent.warnings.join('\n')).not.toMatch(/mask/);
+  });
+
+  it('неразобранное правило названо оператором, которым пишется', () => {
+    const intent = intentFromSpec(
+      [
+        '| Ключ в форме | Тип поля | Валидация |',
+        '| --- | --- | --- |',
+        '| password | InputPassword | Обязательное |',
+        '| confirm | InputPassword | Обязательное, должно совпадать с паролем |',
+        '| login | Input | Обязательное, асинхронная проверка занятости на сервере |',
+      ].join('\n'),
+      'core'
+    );
+    const warnings = intent.warnings.join('\n');
+    expect(warnings).toMatch(/«должно совпадать с паролем».*`cross`/);
+    expect(warnings).toMatch(/«асинхронная проверка занятости на сервере».*`async`/);
   });
 
   /**

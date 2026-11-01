@@ -1990,6 +1990,19 @@ export interface ModelFieldRenderNode extends SchemaFieldNode {
 
 _Source: src/core/types.ts_
 
+### NodeLifecycleHooks
+
+**Kind:** `type`
+
+Реэкспорт `NodeLifecycleHooks` из `@reformer/core`.
+
+**Signature:**
+```typescript
+export type { NodeLifecycleHooks } from '@reformer/core';
+```
+
+_Source: src/core/render-schema-proxy.ts_
+
 ### onComponentEvent
 
 **Kind:** `function`

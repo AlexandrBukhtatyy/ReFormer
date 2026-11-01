@@ -24,8 +24,13 @@ export interface SpecField {
   initialValue?: unknown;
   /** Валидаторы как фрагменты кода: `required()`, `min(50000)`. Пусто, если правил нет. */
   rules: string[];
-  /** Условие активности правил — выражение над `model`. Из «Условное (при X='Y')». */
+  /**
+   * Условие активности правил — выражение над `model`. Из «Условное (при X='Y')»; такая ячейка
+   * означает «обязательно при условии», поэтому `rules` начинается с `required()`.
+   */
   when?: string;
+  /** Маска из «Валидации» (`mask: '99 99'`) — проп `mask` компонента `InputMask`. */
+  mask?: string;
   /** Фрагменты колонки «Валидация», которые распознать не удалось. Уходят в `warnings`. */
   unparsedRules: string[];
   /**
@@ -33,6 +38,12 @@ export interface SpecField {
    * строка стоит до первого из них.
    */
   step?: number;
+  /**
+   * Индекс заголовка шага в `stepList`. Номер шага может повторяться — «Шаг 3: Объект —
+   * Транспорт», «Шаг 3: Объект — Недвижимость»: это варианты одного шага, и строка обязана
+   * помнить свой вариант, иначе раскладка печатала поля всех вариантов в каждом.
+   */
+  stepHeading?: number;
 }
 
 /**
@@ -46,6 +57,8 @@ export interface SpecArray {
   label?: string;
   /** Шаг, на котором массив впервые встретился. */
   step?: number;
+  /** Индекс заголовка шага (вариант шага), под которым массив впервые встретился. */
+  stepHeading?: number;
   itemFields: SpecField[];
 }
 
@@ -74,6 +87,8 @@ export interface SpecAnalysis {
   order: SpecEntry[];
   conditionalFields: string[];
   computedFields: string[];
+  /** Строки таблицы зависимостей (см. {@link extractDependencies}). */
+  dependencies: SpecDependency[];
   /**
    * Имена массивов. Если массив в спеке упомянут, но строк элемента нет, — подсказка
    * «(см. секцию массивов в спеке)».
@@ -408,6 +423,77 @@ const FLAG_VALIDATORS: Array<[RegExp, string]> = [
 const ARG_VALIDATORS = ['minLength', 'maxLength', 'min', 'max'] as const;
 
 /**
+ * Делить колонку на правила только по запятым и точкам с запятой ВНЕ скобок: в регулярке
+ * `pattern: ^[a-z_]{3,20}$` запятая — часть квантификатора, и прежнее `split(/[,;]/)` резало
+ * правило на два бессмысленных фрагмента (калибровка, форма регистрации).
+ */
+function splitRules(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of text) {
+    if ('([{'.includes(ch)) depth++;
+    else if (')]}'.includes(ch)) depth = Math.max(0, depth - 1);
+    if ((ch === ',' || ch === ';') && depth === 0) {
+      out.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out;
+}
+
+/**
+ * Какой оператор выражает неразобранное требование — подсказка в предупреждении `plan_form`.
+ *
+ * Разобрать прозу надёжно нельзя («должно совпадать с паролем»), но назвать, ЧЕМ это пишется, —
+ * можно. Без подсказки агент получал «перенесите вручную» и шёл искать сам (калибровка, T1).
+ */
+export function ruleHint(chunk: string): string | null {
+  const c = chunk.toLowerCase();
+  if (/совпада|совпад|равн|match|подтвержд/.test(c)) {
+    return 'кросс-полевое правило: `cross` в intent — выражение над `values` (`values.confirm === values.password`)';
+  }
+  if (/асинхрон|на сервере|сервер|занят|уникальн|существу|async|backend|api/.test(c)) {
+    return 'проверка на сервере: `async` в intent — функция `async (value, { signal }) => issue | null`';
+  }
+  if (/возраст|лет|age/.test(c)) return 'возраст по дате рождения: `minAge(n)` / `maxAge(n)`';
+  if (/раньше|позже|не ранее|не позднее|before|after/.test(c)) {
+    return 'сравнение дат: `cross` между полями или `minDate`/`maxDate` с порогом';
+  }
+  if (/формат|маск|шаблон|pattern|регуляр|вид\s|format/.test(c)) {
+    return 'формат строки: `pattern(/^…$/)` (для телефона и почты есть `phone()` и `email()`)';
+  }
+  if (/%|процент|от\s+\S+/.test(c)) {
+    return 'порог от другого поля: `cross` с выражением над `values`';
+  }
+  if (/значени|равно|только|должн|must/.test(c)) {
+    return 'своё правило: функция `(value) => (ok ? null : { code })` в `rules` intent';
+  }
+  return null;
+}
+
+/**
+ * Маска `InputMask` → тело регулярки полного значения: `9` — цифра, остальное — литералы
+ * (`'+7 (999) 999-99-99'` → `^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$`).
+ */
+export function maskPattern(mask: string): string {
+  const parts = [...mask].map((ch) =>
+    ch === '9' ? '\\d' : ch.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+  );
+  let body = '';
+  for (let i = 0; i < parts.length; ) {
+    let run = 1;
+    while (parts[i] === '\\d' && parts[i + run] === '\\d') run++;
+    body += parts[i] === '\\d' && run > 1 ? `\\d{${run}}` : parts[i];
+    i += run;
+  }
+  return `^${body}$`;
+}
+
+/**
  * Колонка «Валидация» → правила, условие и нераспознанный остаток.
  *
  * Нераспознанное НЕ отбрасывается. `min: 20% от стоимости` — настоящее требование спеки,
@@ -416,6 +502,8 @@ const ARG_VALIDATORS = ['minLength', 'maxLength', 'min', 'max'] as const;
 export function parseValidationCell(cell: string | undefined): {
   rules: string[];
   when?: string;
+  /** Маска `mask: '…'` — проп `InputMask`; формат значения она же даёт правилом `pattern`. */
+  mask?: string;
   unparsed: string[];
 } {
   const raw = (cell ?? '').replace(/<[^>]+>/g, '').trim();
@@ -425,6 +513,7 @@ export function parseValidationCell(cell: string | undefined): {
   const rules: string[] = [];
   const unparsed: string[] = [];
   let when: string | undefined;
+  let mask: string | undefined;
 
   // «Условное (при loanType='mortgage')» — вырезается до разбиения, внутри есть запятые.
   // `\S*`, а не `\w*`: `\w` в JS — только латиница, и на «Условное» разбор обрывался
@@ -440,11 +529,39 @@ export function parseValidationCell(cell: string | undefined): {
       : `'${value.trim().replace(/'/g, "\\'")}'`;
     when = `model.${field} === ${literal}`;
     rest = raw.replace(full, '');
+    // «Условное» стоит в колонке на месте «Обязательное»/«Необязательное» — это третье значение
+    // обязательности: поле обязательно, пока условие истинно. Без `required()` от ячейки
+    // «Условное (при employmentStatus='employed')» не оставалось ни одного правила, и поле
+    // принималось пустым (калибровка: в эталоне кредита все такие поля — `required` под
+    // `validateWhen`).
+    if (!/необязательн|не\s+обязательн|опционал|optional/i.test(rest)) rules.push('required()');
   }
 
-  for (const chunkRaw of rest.split(/[,;]/)) {
+  for (const chunkRaw of splitRules(rest)) {
     const chunk = chunkRaw.trim();
     if (!chunk) continue;
+
+    // `mask: '99 99'`. Маска `InputMask` литералы не вставляет и неполный ввод не держит — она
+    // подсказка в placeholder. Формат значения проверяет только `pattern`, поэтому маска даёт и
+    // проп, и правило (в эталоне кредита у каждой маски — свой `pattern`).
+    const maskCell = chunk.match(/^(?:mask|маска)\s*[:=]\s*['"`]?(.+?)['"`]?$/i);
+    if (maskCell) {
+      mask = maskCell[1];
+      rules.push(`pattern(/${maskPattern(mask)}/)`);
+      continue;
+    }
+
+    // `pattern: ^…$` — регулярка как есть; `/` внутри экранируется, чтобы литерал собрался.
+    const pattern = chunk.match(/^(?:pattern|шаблон|регулярк\S*)\s*[:=]\s*\/?(.+?)\/?$/i);
+    if (pattern) {
+      try {
+        new RegExp(pattern[1]);
+        rules.push(`pattern(/${pattern[1].replace(/(?<!\\)\//g, '\\/')}/)`);
+      } catch {
+        unparsed.push(chunk);
+      }
+      continue;
+    }
 
     // «Необязательное» содержит «обязательн» подстрокой, а `\b` в JS работает только по
     // латинице (`\w` кириллицу не включает) — без явного отрицания спека с колонкой
@@ -478,7 +595,7 @@ export function parseValidationCell(cell: string | undefined): {
     unparsed.push(chunk);
   }
 
-  return { rules, when, unparsed };
+  return { rules, when, ...(mask ? { mask } : {}), unparsed };
 }
 
 /** Тип и компонент по имени поля и его описанию — грубая, но полезная эвристика. */
@@ -642,6 +759,79 @@ function hasKeyColumn(headers: Record<string, number> | null): boolean {
   return headers !== null && KEY_COLUMN.some((n) => n in headers);
 }
 
+/**
+ * Строка таблицы зависимостей: «Управляющее поле | Зависимые поля / Действие | Тип поведения |
+ * Условие | Описание».
+ */
+export interface SpecDependency {
+  /** Пути из колонки управляющих полей, как в спеке: `carBrand`, `coBorrowers[].monthlyIncome`. */
+  controllers: string[];
+  /** «Зависимые поля / Действие» как есть: `Очистка carModel`, `properties[]`. */
+  action: string;
+  /** Пути, упомянутые в {@link action}. */
+  dependents: string[];
+  /** «Тип поведения»: `Копирование`, `Управление массивом`, `Вычисляемое поле`, … */
+  kind: string;
+  /** «Условие» как есть; прочерк — пустая строка. */
+  condition: string;
+  description: string;
+}
+
+const CONTROLLER_COLUMN = ['управляющее поле', 'controller', 'trigger field'];
+const DEPENDENT_COLUMN = [
+  'зависимые поля / действие',
+  'зависимые поля',
+  'действие',
+  'dependents',
+  'effect',
+];
+const BEHAVIOR_KIND_COLUMN = ['тип поведения', 'behavior type', 'behaviour type'];
+const CONDITION_COLUMN = ['условие', 'condition'];
+const DESCRIPTION_COLUMN = ['описание', 'description'];
+
+/** Пути полей в ячейке: `` `a.b` ``, `c[]`, `personalData.\*` → `a.b`, `c[]`, `personalData.*`. */
+function pathsIn(cell: string): string[] {
+  return cell
+    .replace(/\\\*/g, '*')
+    .replace(/\._(?=[\s,]|$)/g, '.*')
+    .split(/[\s,`]+/)
+    .filter((t) => /^[A-Za-z_$][\w$]*(?:\[\])?(?:\.(?:[A-Za-z_$][\w$]*(?:\[\])?|\*))*$/.test(t));
+}
+
+/**
+ * Таблица зависимостей спеки — по шапке с колонками управляющего поля и типа поведения.
+ *
+ * Раньше её не читал никто: копирование по флагу, очистка массивов, сброс зависимых полей,
+ * загрузка опций — вся вторая половина требований формы — не доходили ни до intent, ни до
+ * предупреждений (калибровка, кредитная заявка).
+ */
+export function extractDependencies(content: string): SpecDependency[] {
+  const out: SpecDependency[] = [];
+  for (const table of readTables(content)) {
+    const headers = table.headers;
+    if (!headers) continue;
+    if (!CONTROLLER_COLUMN.some((n) => n in headers)) continue;
+    if (!BEHAVIOR_KIND_COLUMN.some((n) => n in headers)) continue;
+    for (const { cells } of table.rows) {
+      const cell = (names: string[]) =>
+        (cellByHeader(cells, headers, names) ?? '').replace(/`/g, '').trim();
+      const kind = cell(BEHAVIOR_KIND_COLUMN);
+      if (!kind) continue;
+      const action = cell(DEPENDENT_COLUMN);
+      const condition = cell(CONDITION_COLUMN);
+      out.push({
+        controllers: pathsIn(cell(CONTROLLER_COLUMN)),
+        action,
+        dependents: pathsIn(action),
+        kind,
+        condition: /^[-–—]?$/.test(condition) ? '' : condition,
+        description: cell(DESCRIPTION_COLUMN),
+      });
+    }
+  }
+  return out;
+}
+
 /** Поля и массивы спеки — результат `extractEntries`. */
 export interface SpecEntries {
   fields: SpecField[];
@@ -665,6 +855,15 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
   const seen = new Set<string>();
   const steps = stepHeadings(content);
   const stepAt = (offset: number) => steps.filter((s) => s.offset <= offset).pop()?.number;
+  const headingAt = (offset: number): number | undefined => {
+    let found: number | undefined;
+    steps.forEach((s, i) => {
+      if (s.offset <= offset) found = i;
+    });
+    return found;
+  };
+  /** Вариант шага текущей строки таблицы — его помнят поля и массивы, созданные из неё. */
+  let heading: number | undefined;
 
   const build = (
     name: string,
@@ -682,15 +881,22 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
       initialValue: extra?.initialValue,
       rules: extra?.rules ?? [],
       when: extra?.when,
+      ...(extra?.mask ? { mask: extra.mask } : {}),
       unparsedRules: extra?.unparsedRules ?? [],
       ...(step !== undefined ? { step } : {}),
+      ...(heading !== undefined ? { stepHeading: heading } : {}),
     };
   };
 
   const arrayOf = (name: string, step: number | undefined): SpecArray => {
     let array = arrays.get(name);
     if (!array) {
-      array = { name, ...(step !== undefined ? { step } : {}), itemFields: [] };
+      array = {
+        name,
+        ...(step !== undefined ? { step } : {}),
+        ...(heading !== undefined ? { stepHeading: heading } : {}),
+        itemFields: [],
+      };
       arrays.set(name, array);
       order.push({ kind: 'array', name });
     }
@@ -708,8 +914,9 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
     const array = arrayOf(arrayName, field.step);
     if (!array.label && section) array.label = section;
     if (array.itemFields.some((f) => f.name === field.name)) return;
-    const { step: _step, ...item } = field;
+    const { step: _step, stepHeading: _heading, ...item } = field;
     void _step;
+    void _heading;
     array.itemFields.push(item);
   };
 
@@ -726,6 +933,7 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
 
     for (const { offset, cells } of table.rows) {
       const step = stepAt(offset);
+      heading = headingAt(offset);
 
       if (headers && hasKeyColumn(headers)) {
         const key = cellByHeader(cells, headers, KEY_COLUMN);
@@ -751,6 +959,7 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
             initialValue: parseInitialCell(cellByHeader(cells, headers, VALUE_COLUMN), type),
             rules: validation.rules,
             when: validation.when,
+            mask: validation.mask,
             unparsedRules: validation.unparsed,
           });
         };
@@ -873,8 +1082,10 @@ export function analyzeSpec(content: string): SpecAnalysis {
       // Формулировка нейтральная сознательно: в этой колонке встречаются и правила, которые
       // нечем выразить (`min: 20% от стоимости`), и вовсе не правила (`mask: '+7 (999)…'`).
       // Совет «допишите валидатор» был бы для второго случая прямо неверным.
+      const hint = ruleHint(chunk);
       warnings.push(
-        `Поле \`${path}\`: фрагмент «${chunk}» не разобран как правило валидации — перенесите его в intent вручную.`
+        `Поле \`${path}\`: фрагмент «${chunk}» не разобран как правило валидации — ` +
+          (hint ? `это ${hint}.` : 'перенесите его в intent вручную.')
       );
     }
   }
@@ -895,6 +1106,7 @@ export function analyzeSpec(content: string): SpecAnalysis {
     order,
     conditionalFields: extractConditionalFields(content),
     computedFields: extractComputedFields(content),
+    dependencies: extractDependencies(content),
     arrays,
     apiEndpoints: extractApiEndpoints(content),
     hasCanonicalLabels: /## Canonical user-facing strings/i.test(content),

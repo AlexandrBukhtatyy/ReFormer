@@ -6,8 +6,10 @@ import { fileURLToPath } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
+  ErrorCode,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { cliKnowledge } from './platform/cli/knowledge.js';
@@ -101,7 +103,8 @@ type AnyPromptDefinition =
   | typeof toRendererPromptDefinition
   | typeof discoverContextPromptDefinition;
 
-server.setRequestHandler(ListPromptsRequestSchema, async () => {
+/** Промпты, которые видит клиент: `debug` — только в отладочном режиме. */
+function listedPrompts(): AnyPromptDefinition[] {
   const prompts: AnyPromptDefinition[] = [
     startHerePromptDefinition,
     discoverContextPromptDefinition,
@@ -114,17 +117,37 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
   if (isDebugMode) {
     prompts.push(debugPromptDefinition);
   }
-  return { prompts };
-});
+  return prompts;
+}
+
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({ prompts: listedPrompts() }));
 
 server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
+  // Неизвестное имя и пропущенный обязательный аргумент — ошибка параметров (-32602), как требует
+  // спецификация MCP. Раньше `review` без `code` молча рендерился с пустым блоком кода, а
+  // неизвестный промпт давал -32603 «внутренняя ошибка» (калибровка, smoke S11).
+  const definition = listedPrompts().find((p) => p.name === name);
+  if (!definition) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${name}`);
+  const provided = (arg: string): string =>
+    String(
+      args?.[arg] ?? (name === 'add-feature' && arg === 'requirements' ? args?.steps : '') ?? ''
+    ).trim();
+  const missing = (
+    (definition.arguments ?? []) as ReadonlyArray<{ name: string; required?: boolean }>
+  )
+    .filter((a) => a.required && !provided(a.name))
+    .map((a) => `\`${a.name}\``);
+  if (missing.length > 0) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `Prompt ${name}: missing required argument(s) ${missing.join(', ')}.`
+    );
+  }
+
   switch (name) {
     case 'debug':
-      if (!isDebugMode) {
-        throw new Error(`Unknown prompt: ${name}`);
-      }
       return await getDebugPrompt(args as { code: string });
 
     case 'start-here':
@@ -160,7 +183,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
       return await getToRendererPrompt(args as { code?: string; target?: string });
 
     default:
-      throw new Error(`Unknown prompt: ${name}`);
+      throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${name}`);
   }
 });
 

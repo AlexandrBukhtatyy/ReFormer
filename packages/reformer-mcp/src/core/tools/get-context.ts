@@ -15,6 +15,7 @@
 
 import { buildContext } from '../context/builder.js';
 import type { Knowledge } from '../knowledge.js';
+import { invalidCall } from './tool-result.js';
 
 export const getContextToolDefinition = {
   name: 'get_context',
@@ -60,7 +61,7 @@ export async function getContextTool(
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const task = typeof args.task === 'string' ? args.task.trim() : '';
   if (!task) {
-    return text(
+    return invalidCall(
       'Argument "task" is required: describe what you are building in plain words, e.g. "async check that email is not taken".'
     );
   }

@@ -11,6 +11,7 @@
 
 import type { Knowledge } from '../knowledge.js';
 import { fileStamp, slugifyIssue } from '../issues/sink.js';
+import { invalidCall } from './tool-result.js';
 
 export const reportIssueToolDefinition = {
   name: 'report_issue',
@@ -131,16 +132,10 @@ export async function reportIssueTool(
   // и по нему потом ищут. Молча записать отчёт без него значило бы создать мусор.
   const error = typeof a.error === 'string' ? a.error.trim() : '';
   if (!error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text:
-            'Аргумент `error` обязателен и должен быть непустой строкой — это описание проблемы, ' +
-            'по нему отчёт именуется и ищется. Отчёт не записан.',
-        },
-      ],
-    };
+    return invalidCall(
+      'Аргумент `error` обязателен и должен быть непустой строкой — это описание проблемы, ' +
+        'по нему отчёт именуется и ищется. Отчёт не записан.'
+    );
   }
 
   // Половина ценности отчёта — в `solution`: без неё остаётся жалоба без ответа. Раньше

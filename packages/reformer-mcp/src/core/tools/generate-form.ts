@@ -29,6 +29,7 @@ import { crossCheckBundle } from '../generate/cross-check.js';
 import { intentFromAnalysis } from '../generate/from-spec.js';
 import { analyzeSpec } from '../spec/analyze.js';
 import type { Knowledge } from '../knowledge.js';
+import { invalidCall } from './tool-result.js';
 
 export const planFormToolDefinition = {
   name: 'plan_form',
@@ -92,6 +93,9 @@ function resolveTarget(value: unknown): FormIntent['target'] {
   return readTargetStack(value) ?? 'core';
 }
 
+/** Сколько предупреждений `plan_form` печатает перед intent; остальные — в его `warnings`. */
+const PLAN_WARNINGS_SHOWN = 8;
+
 /** Строка проблемы: место — что не так — какой вид ожидается. */
 function renderProblem(p: IntentProblem): string {
   return `- \`${p.at}\` — ${p.message}. Ожидается: ${p.expected}`;
@@ -103,14 +107,14 @@ export async function planFormTool(
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const spec = args.specPath ? k.spec.read(args.specPath) : null;
   if (args.specPath && spec === null) {
-    return text(
+    return invalidCall(
       `# plan_form — спека не найдена\n\nПуть \`${args.specPath}\` не существует ни как абсолютный, ` +
         `ни относительно \`${k.spec.describe?.() ?? 'рабочего каталога'}\`. Передайте путь от корня репозитория.`
     );
   }
   const source = spec ?? String(args.description ?? '').trim();
   if (!source) {
-    return text(
+    return invalidCall(
       'Нужен либо `specPath` (markdown-спека), либо `description`. Без источника план строить не из чего.'
     );
   }
@@ -148,15 +152,24 @@ export async function planFormTool(
   // бегло, результат — внимательно, и именно на этом шаге агент решает, какие файлы заводить.
   // Имена берутся из `FORM_LAYOUT_CANON` общим хелпером, чтобы копия не разошлась с каноном.
   lines.push(renderLayoutLine(intent.target));
+  // Что не разобралось — ДО intent, а не после. Intent крупной спеки — десятки тысяч символов, и
+  // клиент с бюджетом ответа (фасад `mcp_call` ассистента конструктора режет на 1400) видел
+  // счётчики и начало JSON, а перечень того, что надо дописать руками, — никогда. Полный список
+  // остаётся в `warnings` самого intent.
+  if (intent.warnings.length > 0) {
+    lines.push('');
+    lines.push(`## Warnings — что дописать в intent руками (${intent.warnings.length})`);
+    for (const w of intent.warnings.slice(0, PLAN_WARNINGS_SHOWN)) lines.push(`- ${w}`);
+    if (intent.warnings.length > PLAN_WARNINGS_SHOWN) {
+      lines.push(
+        `- … ещё ${intent.warnings.length - PLAN_WARNINGS_SHOWN} — полный список в поле \`warnings\` intent ниже.`
+      );
+    }
+  }
   lines.push('');
   lines.push('```json');
   lines.push(JSON.stringify(intent, null, 2));
   lines.push('```');
-  if (intent.warnings.length > 0) {
-    lines.push('');
-    lines.push('## Warnings');
-    for (const w of intent.warnings) lines.push(`- ${w}`);
-  }
   return text(lines.join('\n'));
 }
 
@@ -173,7 +186,9 @@ export async function generateFormTool(
   args: GenerateFormArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   if (args?.intent === undefined || args.intent === null) {
-    return text('Нужен аргумент `intent` (объект FormIntent). Получить его можно из `plan_form`.');
+    return invalidCall(
+      'Нужен аргумент `intent` (объект FormIntent). Получить его можно из `plan_form`.'
+    );
   }
   try {
     return buildManifest(args);
@@ -211,7 +226,7 @@ function buildManifest(args: GenerateFormArgs): {
   // Читать было нечего: печатать пустой каркас поверх нераспознанного входа — значит выдать
   // за результат то, чего консумент не просил. Вместо этого — что именно не прочиталось.
   if (problems.length > 0 && intent.fields.length === 0 && intent.arrays.length === 0) {
-    return text(
+    return invalidCall(
       [
         '# generate_form — intent прочитать не удалось',
         '',

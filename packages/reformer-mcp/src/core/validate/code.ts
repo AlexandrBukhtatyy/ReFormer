@@ -238,6 +238,38 @@ function rangesInside(code: string, fnName: string): Array<[number, number]> {
 const inAnyRange = (line: number, ranges: Array<[number, number]>) =>
   ranges.some(([from, to]) => line >= from && line <= to);
 
+/**
+ * Строки внутри тела какой-либо функции — объявленной, стрелочной или метода.
+ *
+ * Оператор в теле функции выполняется, когда функцию позовут, — из `defineFormBehavior` /
+ * `defineValidation` это и есть композиция (`loadOptionsOn(...)`, `addressRules(...)`). Ошибка —
+ * только вызов на верхнем уровне модуля: он срабатывает при импорте, вне схемы. Раньше
+ * предупреждение получал каждый помощник рабочей формы (калибровка, трек T5).
+ *
+ * Тело узнаётся по `{` после `)` (с типом результата или без) либо после `=>`, в том числе
+ * перенесённой на следующую строку.
+ */
+function functionBodyLines(code: string): Set<number> {
+  const lines = code.split('\n');
+  const out = new Set<number>();
+  const stack: boolean[] = [];
+  const opensBody = (before: string) => /(=>|\))\s*(:\s*[^={};]+)?$/.test(before.trimEnd());
+  for (let i = 0; i < lines.length; i++) {
+    if (stack.includes(true)) out.add(i + 1);
+    const text = lines[i];
+    for (let j = 0; j < text.length; j++) {
+      const ch = text[j];
+      if (ch === '{') {
+        const before = text.slice(0, j);
+        stack.push(before.trim() === '' && i > 0 ? opensBody(lines[i - 1]) : opensBody(before));
+      } else if (ch === '}') {
+        stack.pop();
+      }
+    }
+  }
+  return out;
+}
+
 export interface ValidateCodeOptions {
   /** Целевой стек — влияет на то, какой пакет считается «своим» для импорта. */
   target?: string;
@@ -263,8 +295,15 @@ export async function validateCode(
   const reformerImports = imports.filter((i) => i.from.startsWith('@reformer/'));
 
   // --- RF002 / RF003 / RF010: имена, импортированные из @reformer/* -----------
+  const outOfCorpus = new Set<string>();
   for (const imp of reformerImports) {
     const basePackage = imp.from.split('/').slice(0, 2).join('/');
+    // Пакет вне корпуса знания (`@reformer/form-registry`): его символов в индексе нет, и
+    // «не существует ни в одном пакете» было бы неправдой о рабочем коде (калибровка, трек T5).
+    if (!(KNOWN_PACKAGES as readonly string[]).includes(basePackage)) {
+      outOfCorpus.add(basePackage);
+      continue;
+    }
     for (const { imported } of imp.names) {
       // Переименованное семейство компонента массива — не опечатка (RF002) и не «живёт в другом
       // пакете» (RF003), а прежнее имя с известным новым: называем его прямо.
@@ -388,6 +427,7 @@ export async function validateCode(
   // --- RF004 / RF005: оператор вне своей схемы --------------------------------
   const validationRanges = rangesInside(source, 'defineValidation');
   const behaviorRanges = rangesInside(source, 'defineFormBehavior');
+  const inFunction = functionBodyLines(source);
   const importedLocals = new Set(reformerImports.flatMap((i) => i.names.map((n) => n.local)));
   // Имя → модуль импорта: им разводятся одноимённые операторы двух слоёв (`apply`, `applyEach`).
   const moduleOf = new Map<string, string>();
@@ -404,7 +444,7 @@ export async function validateCode(
     for (const op of VALIDATION_OPERATORS) {
       if (!isFrom(op, VALIDATION_MODULE, BEHAVIOR_MODULE)) continue;
       if (!new RegExp(`(^|[^.\\w])${op}\\s*\\(`).test(text)) continue;
-      if (inAnyRange(lineNo, validationRanges)) continue;
+      if (inAnyRange(lineNo, validationRanges) || inFunction.has(lineNo)) continue;
       diagnostics.push({
         code: 'RF004',
         severity: 'warning',
@@ -421,7 +461,7 @@ export async function validateCode(
       // пишутся в функции `(schema) => …`, и вне `defineFormBehavior` им самое место.
       if (NODE_OPERATORS.has(op) && moduleOf.get(op) !== BEHAVIOR_MODULE) continue;
       if (!new RegExp(`(^|[^.\\w])${op}\\s*\\(`).test(text)) continue;
-      if (inAnyRange(lineNo, behaviorRanges)) continue;
+      if (inAnyRange(lineNo, behaviorRanges) || inFunction.has(lineNo)) continue;
       diagnostics.push({
         code: 'RF005',
         severity: 'warning',
@@ -509,6 +549,12 @@ export async function validateCode(
       'но вложенные фабрики и динамические вызовы — нет.',
     'Проверка «оператор внутри своей схемы» считает баланс скобок и может ошибиться на коде ' +
       'со скобками в строках — поэтому это warning, а не error.',
+    ...(outOfCorpus.size > 0
+      ? [
+          `Импорты из ${[...outOfCorpus].join(', ')} не проверялись: пакета нет в корпусе знания ` +
+            'сервера, о его символах сказать нечего.',
+        ]
+      : []),
   ];
   return { diagnostics, limitations };
 }

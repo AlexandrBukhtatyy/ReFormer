@@ -2,6 +2,7 @@ import type { PublicSymbol } from '../index/public-symbol.js';
 import { findSymbols } from '../index/symbols.js';
 import { normalizePackage } from '../docs/packages.js';
 import type { Knowledge } from '../knowledge.js';
+import { invalidCall } from './tool-result.js';
 
 export const getSymbolDocsToolDefinition = {
   name: 'get_symbol_docs',
@@ -34,6 +35,13 @@ export async function getSymbolDocsTool(
   args: GetSymbolDocsArgs,
   k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  // Без проверки пропущенный аргумент уходил в поиск строкой "undefined" и возвращался ответом
+  // «Symbol "undefined" not found» — не называя, чего не хватает.
+  if (typeof args.symbol !== 'string' || !args.symbol.trim()) {
+    return invalidCall(
+      'Argument "symbol" is required: the exported name to document, e.g. "useFormControl" or "FieldArray".'
+    );
+  }
   const matches = await findSymbols(k, args.symbol, normalizePackage(args.package) ?? '*');
   if (matches.length === 0) {
     return {

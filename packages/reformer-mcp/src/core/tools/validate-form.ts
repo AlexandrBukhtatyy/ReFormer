@@ -24,6 +24,7 @@ import { findCycle, type Dependency } from '../utils/graph.js';
 import { crossCheckBundle } from '../generate/cross-check.js';
 import { normalizeIntent, type FormIntent } from '../generate/form-intent.js';
 import { validateJsonSchemaTool } from './validate-json-schema.js';
+import { invalidCall } from './tool-result.js';
 
 export const validateFormToolDefinition = {
   name: 'validate_form',
@@ -48,7 +49,10 @@ export const validateFormToolDefinition = {
           'kind=layout: core | renderer-react | renderer-json; inferred from files when omitted.',
       },
       code: { type: 'string', description: 'kind=code: the TypeScript to check.' },
+      // Тип объявлен явно: схема без ключевых слов принимает что угодно, и `tools/list --strict`
+      // MCP Inspector отмечал её как непереносимую (калибровка, smoke S02).
       schema: {
+        anyOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }],
         description: 'kind=json-schema | bundle: the layout schema (object or JSON string).',
       },
       dependencies: {
@@ -138,7 +142,7 @@ export async function validateFormTool(
   switch (kind) {
     case 'code': {
       if (typeof args.code !== 'string' || !args.code.trim()) {
-        return text(
+        return invalidCall(
           'Для `kind: "code"` нужен непустой аргумент `code` — текст проверяемого модуля.'
         );
       }
@@ -149,7 +153,7 @@ export async function validateFormTool(
     case 'behaviors': {
       const deps = Array.isArray(args.dependencies) ? args.dependencies : [];
       if (deps.length === 0) {
-        return text(
+        return invalidCall(
           'Для `kind: "behaviors"` нужен непустой массив `dependencies` — `{ target, reads[] }`.'
         );
       }
@@ -160,7 +164,7 @@ export async function validateFormTool(
           d.reads.some((r) => typeof r !== 'string')
       );
       if (malformed) {
-        return text('Каждая зависимость — строковый `target` и массив строк `reads`.');
+        return invalidCall('Каждая зависимость — строковый `target` и массив строк `reads`.');
       }
       const diagnostics: Diagnostic[] = [];
       for (const d of deps) {
@@ -188,7 +192,7 @@ export async function validateFormTool(
 
     case 'json-schema': {
       if (args.schema === undefined) {
-        return text('Для `kind: "json-schema"` нужен аргумент `schema`.');
+        return invalidCall('Для `kind: "json-schema"` нужен аргумент `schema`.');
       }
       // Структурную проверку делает ajv внутри @reformer/renderer-json — переиспользуем её
       // как есть, а не переписываем: источник истины о формате DSL находится там.
@@ -201,7 +205,7 @@ export async function validateFormTool(
 
     case 'bundle': {
       if (!args.intent || args.schema === undefined) {
-        return text(
+        return invalidCall(
           'Для `kind: "bundle"` нужны и `intent`, и `schema` — проверка сверяет их между собой.'
         );
       }
@@ -210,7 +214,9 @@ export async function validateFormTool(
         try {
           schema = JSON.parse(schema);
         } catch (e) {
-          return text(`Аргумент \`schema\` — строка, но не валидный JSON: ${(e as Error).message}`);
+          return invalidCall(
+            `Аргумент \`schema\` — строка, но не валидный JSON: ${(e as Error).message}`
+          );
         }
       }
       const intent = normalizeIntent(args.intent);
@@ -237,7 +243,7 @@ export async function validateFormTool(
         (f): f is string => typeof f === 'string' && f.trim().length > 0
       );
       if (files.length === 0) {
-        return text(
+        return invalidCall(
           'Для `kind: "layout"` нужен непустой массив `files` — имена или пути файлов модуля формы ' +
             '(`["index.tsx", "types.ts", "model.ts", "form.schema.ts", …]`) и `target` — ' +
             '`core` | `renderer-react` | `renderer-json`.'
@@ -248,7 +254,7 @@ export async function validateFormTool(
       const guess = explicit ? null : inferLayoutTarget(files);
       const target = explicit ?? guess?.target ?? null;
       if (!target) {
-        return text(
+        return invalidCall(
           'Для `kind: "layout"` нужен `target`: `core` | `renderer-react` | `renderer-json`. ' +
             'Канон раскладки у таргетов разный, а по одному этому списку файлов таргет не определяется.'
         );
@@ -275,7 +281,7 @@ export async function validateFormTool(
     }
 
     default:
-      return text(
+      return invalidCall(
         'Аргумент `kind` обязателен: `code` | `json-schema` | `behaviors` | `bundle` | `layout`. ' +
           'Что именно проверять — зависит от того, что у вас на руках: текст модуля, layout-схема, ' +
           'объявленные зависимости, целый бандл или список файлов модуля.'

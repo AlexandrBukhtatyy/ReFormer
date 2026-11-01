@@ -189,6 +189,9 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
           selector: node.selector ?? a.name,
           model: `$model(${scope ? node.ref : (a.modelPath ?? a.name)})`,
           component: `$component(${a.component ?? 'FieldArray'})`,
+          ...(a.componentProps && Object.keys(a.componentProps).length > 0
+            ? { componentProps: a.componentProps }
+            : {}),
           item: `$part(${rowPart(a)})`,
         };
       }

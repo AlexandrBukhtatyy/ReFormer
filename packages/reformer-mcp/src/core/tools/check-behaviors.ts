@@ -12,6 +12,7 @@
  */
 
 import { findCycle, type Dependency } from '../utils/graph.js';
+import { invalidCall } from './tool-result.js';
 
 export const checkBehaviorsToolDefinition = {
   name: 'check_behaviors',
@@ -54,7 +55,7 @@ export async function checkBehaviorsTool(
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const deps = Array.isArray(args.dependencies) ? args.dependencies : [];
   if (deps.length === 0) {
-    return text('Argument "dependencies" is required and must be a non-empty array.');
+    return invalidCall('Argument "dependencies" is required and must be a non-empty array.');
   }
   // MCP Server не валидирует args по inputSchema — вход приходит как cast. Проверяем форму каждого
   // элемента, иначе `d.reads.includes(...)` / `list.push(...d.reads)` падают на отсутствующем/не-массиве.

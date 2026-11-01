@@ -266,7 +266,11 @@ function findEntriesWithSpecifier(pkg) {
     const pkgJson = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json'), 'utf8'));
     for (const [key, val] of Object.entries(pkgJson.exports ?? {})) {
       if (key === '.') continue;
-      if (key.split('/').length > 2) continue;
+      // Глубокие подпути (`./locale/ru`, `./validators/required`) — тоже публичный API: `ru` из
+      // `@reformer/ui-kit/locale/ru` только так и импортируется. Раньше они отбрасывались, и
+      // validate_form объявлял рабочий импорт несуществующим (RF002; калибровка MCP, трек T5).
+      // Шаблоны `*` и JSON-локали — не модули с символами.
+      if (key.includes('*') || key.endsWith('.json')) continue;
       const imp = typeof val === 'string' ? val : val?.import;
       if (!imp) continue;
       const sub = imp
@@ -434,7 +438,16 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
       ts.isStringLiteral(stmt.moduleSpecifier)
     ) {
       const target = resolveModule(filePath, stmt.moduleSpecifier.text);
-      if (!target) continue;
+      if (!target) {
+        // Реэкспорт из сторонней зависимости (`export { signal } from '@preact/signals-core'`) —
+        // публичный API пакета, хоть объявлен не здесь. Без записи такие имена выпадали из
+        // индекса целиком: validate_form объявлял рабочий `signal` из `@reformer/core/signals`
+        // несуществующим (RF002), а get_symbol_docs его не находил (калибровка MCP, трек T5).
+        if (!stmt.moduleSpecifier.text.startsWith('.')) {
+          addExternalReexports(collected, stmt, aliasFilter, filePath);
+        }
+        continue;
+      }
       // Локальное имя в целевом модуле → имя, под которым символ должен выйти наружу.
       const names = new Map();
       for (const el of stmt.exportClause.elements) {
@@ -461,7 +474,39 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
         if (finalName === null) continue;
         const localName = (el.propertyName ?? el.name).text;
         const decl = findLocalDeclaration(sf, localName);
-        if (decl) addSymbol(collected, finalName, decl, sf, filePath);
+        if (decl) {
+          addSymbol(collected, finalName, decl, sf, filePath);
+          continue;
+        }
+        // Имя не объявлено, а импортировано и отдано дальше (`import type { ReadonlySignal } from
+        // '@preact/signals-core'; export type { ReadonlySignal }`) — идём по импорту. Без этого
+        // `ReadonlySignal` из `@reformer/core/behaviors` числился только за `./signals`, и
+        // validate_form отвечал RF003 на рабочий импорт (калибровка MCP, трек T5).
+        const imported = findImport(sf, localName);
+        if (!imported) continue;
+        const target = imported.from.startsWith('.')
+          ? resolveModule(filePath, imported.from)
+          : null;
+        if (target) {
+          collectFromFile(target, visited, collected, new Map([[imported.name, finalName]]));
+        } else if (!imported.from.startsWith('.') && !collected.has(finalName)) {
+          const typeOnly = stmt.isTypeOnly || el.isTypeOnly || imported.typeOnly;
+          collected.set(finalName, {
+            name: finalName,
+            kind: typeOnly ? 'type' : /^[A-Z]/.test(imported.name) ? 'class' : 'function',
+            signature:
+              'export ' +
+              (typeOnly ? 'type ' : '') +
+              '{ ' +
+              (imported.name === finalName ? finalName : imported.name + ' as ' + finalName) +
+              " } from '" +
+              imported.from +
+              "';",
+            description: 'Реэкспорт `' + imported.name + '` из `' + imported.from + '`.',
+            tags: [],
+            sourcePath: filePath,
+          });
+        }
       }
       continue;
     }
@@ -522,6 +567,50 @@ function findLocalDeclaration(sf, name) {
     }
   }
   return null;
+}
+
+/**
+ * Именованный импорт локального имени: `import { A as B } from 'x'` → для `B`
+ * `{ from: 'x', name: 'A', typeOnly }`; `null` — имя не импортировано именованно.
+ */
+function findImport(sf, localName) {
+  for (const stmt of sf.statements) {
+    if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+    const bindings = stmt.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const el of bindings.elements) {
+      if (el.name.text !== localName) continue;
+      return {
+        from: stmt.moduleSpecifier.text,
+        name: (el.propertyName ?? el.name).text,
+        typeOnly: Boolean(stmt.importClause.isTypeOnly || el.isTypeOnly),
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Имена, реэкспортированные из сторонней зависимости. Объявления под рукой нет (оно в чужом
+ * пакете), поэтому вид угадывается: только-тип → `type`, PascalCase → `class`, прочее →
+ * `function`; описание называет источник.
+ */
+function addExternalReexports(map, stmt, aliasFilter, filePath) {
+  const from = stmt.moduleSpecifier.text;
+  for (const el of stmt.exportClause.elements) {
+    const name = resolveExposed(aliasFilter, el.name.text);
+    if (name === null || map.has(name)) continue;
+    const local = (el.propertyName ?? el.name).text;
+    const typeOnly = stmt.isTypeOnly || el.isTypeOnly;
+    map.set(name, {
+      name,
+      kind: typeOnly ? 'type' : /^[A-Z]/.test(local) ? 'class' : 'function',
+      signature: `export ${typeOnly ? 'type ' : ''}{ ${local === name ? name : `${local} as ${name}`} } from '${from}';`,
+      description: 'Реэкспорт `' + local + '` из `' + from + '`.',
+      tags: [],
+      sourcePath: filePath,
+    });
+  }
 }
 
 function addSymbol(map, name, decl, sf, filePath, kind) {

@@ -53,6 +53,13 @@ export interface DecisionRule {
 }
 
 /**
+ * Предел поля зависит от другого поля: «максимальный срок зависит от возраста», «верхняя граница
+ * берётся из другого поля». Общий для признака `dynamic-props` и исключения `derive-value`.
+ */
+const DYNAMIC_LIMIT =
+  /(максимальн|минимальн|предельн|предел|верхн\S*\s+границ|нижн\S*\s+границ|лимит|upper bound|lower bound|\bmax(imum)?\b|\bmin(imum)?\b)\S*[\s\S]{0,40}(завис\S*\s+от|бер[её]т\S*\s+из|из\s+друг|depends on|from (another|other) field)/i;
+
+/**
  * Таблица правил. Порядок значения не имеет — выбор идёт по счёту совпавших сигналов.
  * Каждое правило описывает ОДНО решение; близкие решения разведены через `unless`.
  */
@@ -94,9 +101,16 @@ export const DECISION_RULES: DecisionRule[] = [
     intent: 'значение поля выводится из других полей',
     cues: [
       /вычисл|расч[ёе]т|производн|сумм|итог|total|computed?|derive|calculate|sum\b|multiply/i,
-      /из\s+(других|двух|полей)|from\s+(other|another|two)\s+field/i,
+      // «ставка зависит от типа и срока» — то же вычисление, сказанное через зависимость
+      // ЗНАЧЕНИЯ (не доступности: «доступно, если» — enableWhen).
+      /из\s+(других|двух|полей)|from\s+(other|another|two)\s+field|(ставк|сумм|цен|плат[её]ж|итог|значени|rate|price|amount|value)\w*[\s\S]{0,25}(завис\w*\s+от|depends on)/i,
     ],
-    unless: [/копиру|copy\b|такой же|same as/i],
+    unless: [
+      /копиру|copy\b|такой же|same as/i,
+      // «максимальная сумма зависит от дохода» — от источника зависит ПРЕДЕЛ поля, а не его
+      // значение: это пропсы узла (`dynamic-props`), а не вычисление.
+      DYNAMIC_LIMIT,
+    ],
     recommend: 'computeFrom',
     because:
       'target вычисляется из ЯВНО перечисленных источников: computeFrom(sources, fn) — зависимости видны в сигнатуре и попадают в проверку циклов',
@@ -199,7 +213,8 @@ export const DECISION_RULES: DecisionRule[] = [
     intent: 'значение поля очищается, пока держится УСЛОВИЕ',
     // `очи(ст|щ)` вместо `очист`: «поле очищается» — самая частая формулировка требования,
     // и на ней правило раньше не срабатывало вовсе (уходило в фолбэк-поиск).
-    cues: [/сброс|очи(ст|щ)|обнул|reset\b|clear\b|wipe/i],
+    // `сбр[оа]с`: «сбрасывать» — не «сброс», и на этой форме глагола правило не срабатывало.
+    cues: [/сбр[оа]с|очи(ст|щ)|обнул|reset\b|clear\b|wipe/i],
     unless: [
       /после отправки|after submit|всю форму|whole form|entire form/i,
       // «сбросить ПРИ ИЗМЕНЕНИИ другого поля» — это факт изменения, а не предикат: resetWhen
@@ -228,12 +243,12 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [
       // Конъюнкция намеренно в одном регэкспе: по отдельности «очистить» — это resetWhen,
       // а «при изменении» — side-effect. Решение даёт только их сочетание.
-      /(?=[\s\S]*(сброс|очи(ст|щ)|обнул|clear\b|reset\b))[\s\S]*(при\s+(изменени|смене)|при\s+кажд\w*\s+измен|когда\s+(пользователь\s+)?\w*\s*(мен|измен)|как только\s+\w*\s*(мен|измен)|on\s+change\s+of|when\s+\w+\s+changes|whenever\s+\w+\s+changes)/i,
+      /(?=[\s\S]*(сбр[оа]с|очи(ст|щ)|обнул|clear\b|reset\b))[\s\S]*(при\s+(изменени|смене)|при\s+кажд\w*\s+измен|когда\s+(пользователь\s+)?\w*\s*(мен|измен)|как только\s+\w*\s*(мен|измен)|on\s+change\s+of|when\s+\w+\s+changes|whenever\s+\w+\s+changes)/i,
       /зависим\w*\s+пол|dependent field|дочерн\w*\s+пол|child field|управляющ|parent (field|choice|select)/i,
     ],
     unless: [
       // Без слова про очистку это не наше решение: «при изменении X загрузить Y» — side-effect.
-      /^(?![\s\S]*(сброс|очи(ст|щ)|обнул|clear\b|reset\b))/i,
+      /^(?![\s\S]*(сбр[оа]с|очи(ст|щ)|обнул|clear\b|reset\b))/i,
       /побочн|side effect/i,
     ],
     recommend: 'onChange',
@@ -250,10 +265,24 @@ export const DECISION_RULES: DecisionRule[] = [
 
   // --- реакции ---------------------------------------------------------------
   {
+    // Калибровка, кредитная заявка: «Динамическая загрузка» и «Динамические лимиты» таблицы
+    // зависимостей. Эталон делает оба `onChange` + `form.<поле>.updateComponentProps(...)`, а
+    // `choose_api` отвечал `computeFrom` или не отвечал вовсе.
+    id: 'dynamic-props',
+    intent: 'пропсы поля (варианты выбора, пределы ввода) зависят от значений других полей',
+    cues: [
+      /(опци|вариант|список|options|choices)\S*[\s\S]{0,40}(загруж|подгруж|по\s+выбранн|завис\S*\s+от|load|depend)/i,
+      DYNAMIC_LIMIT,
+    ],
+    recommend: 'onChange',
+    because:
+      'реакция на источник меняет пропсы узла: `form.<поле>.updateComponentProps({ options })` или `({ max })`; у загрузки `debounce` и `signal` (отмена устаревшего запроса) — из коробки',
+  },
+  {
     id: 'side-effect',
     intent: 'на изменение поля нужен побочный эффект',
     cues: [
-      /побочн|side effect|при изменении .* (вызв|запрос|загруз)|react to .* change|on change|дёрну|fetch when/i,
+      /побочн|side effect|при изменении .* (вызв|запрос|загруз)|react to .* change|on change|дёрну|fetch when|подгру[зж]|загрузи\w*[\s\S]{0,40}(сервер|API|бэкенд)|запроси\w*[\s\S]{0,30}сервер|load [\s\S]{0,30}from (the )?(server|api)/i,
     ],
     unless: [/вычисл|computed?|копиру|copy\b/i],
     recommend: 'onChange',
@@ -290,7 +319,12 @@ export const DECISION_RULES: DecisionRule[] = [
       /(?=[\s\S]*(очи(ст|щ)|сброс|обнул|clear\b|empty\b|reset\b))[\s\S]*(масс?ив|array\b|список|list\b|строк[иу]|items?\b)/i,
       /флаг|чекбокс|checkbox|галочк|toggle|сня(т|л)|unchecked|выключ|off\b/i,
     ],
-    unless: [/^(?![\s\S]*(масс?ив|array\b|список|list\b|строк[иу]|items?\b))/i],
+    unless: [
+      /^(?![\s\S]*(масс?ив|array\b|список|list\b|строк[иу]|items?\b))/i,
+      // «флаг только у одной строки» — про взаимное исключение (exclusiveFlag), а не про очистку:
+      // слова «флаг» и «строки списка» здесь те же, решение — другое.
+      /только\s+(у\s+|в\s+|для\s+)?одн|лишь\s+(у\s+)?одн|exclusive|основн/i,
+    ],
     recommend: 'onChange',
     because:
       'документированный ARRAY CLEANUP PATTERN: `onChange(model.$.hasItems, (on) => { if (!on) model.items.clear(); })` — колбэк выполняется вне effect-контекста, поэтому мутировать массив безопасно',
@@ -306,7 +340,7 @@ export const DECISION_RULES: DecisionRule[] = [
     id: 'exclusive-flag',
     intent: 'из группы активен ровно один',
     cues: [
-      /только один|единственн|ровно один|one of|only one|mutually exclusive|взаимн(о|ое) исключ|single[- ]selection/i,
+      /только один|единственн|ровно один|one of|only one|mutually exclusive|взаимн(о|ое) исключ|single[- ]selection|только\s+(у\s+|в\s+|для\s+)?одн(ой|ого|ому|у|а)\b|лишь\s+(у\s+)?одн|не более одн/i,
     ],
     recommend: 'exclusiveFlag',
     because:
@@ -327,7 +361,12 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [
       /сервер|бэкенд|async|асинхрон|занят|доступн(ость|о) (email|логин)|availability|remote check|API check/i,
     ],
-    unless: [/только на клиенте|client[- ]only/i],
+    unless: [
+      /только на клиенте|client[- ]only/i,
+      // «подгрузить данные с сервера» — загрузка, а не проверка: слово «сервер» здесь то же,
+      // а решение — onChange (side-effect).
+      /подгру[зж]|загрузи|автозаполн|prefill|\bload\b|fetch (data|the data|company)/i,
+    ],
     recommend: 'validateAsync',
     because:
       'асинхронное правило с отменой предыдущего запроса; дебаунс задаётся опцией, вручную его писать не нужно',
@@ -336,7 +375,9 @@ export const DECISION_RULES: DecisionRule[] = [
     id: 'validate-conditional',
     intent: 'правило действует только при условии',
     cues: [
-      /обязательн(о|ы|ое) только|только если|только когда|conditional(ly)? (required|valid)|required (if|when)|validate only when/i,
+      // `обязател\w*` — «обязателен», «обязательна», «обязательно»: прежний `обязательн(о|ы|ое)`
+      // не ловил ни «ИНН обязателен, если…», ни «обязательна только для…».
+      /обязател\w*,?\s+(только\s+)?(если|когда|при|для)\b|обязател\w*\s+только|только если|только когда|conditional(ly)? (required|valid)|required (only )?(if|when|for)|validate only when/i,
     ],
     recommend: 'validateWhen',
     because:
@@ -349,7 +390,11 @@ export const DECISION_RULES: DecisionRule[] = [
     id: 'validate-cross',
     intent: 'правило сравнивает несколько полей',
     cues: [
-      /совпада|сравн|подтвержд|confirm|match(es)? (the )?(password|other)|cross[- ]field|two fields/i,
+      /совпада|сравн|подтвержд|confirm|match(es)? (the )?(password|other)|cross[- ]field|two fields|не\s+(раньше|позже)|later than|earlier than|not (before|after)|(окончани|конц|end)\w*[\s\S]{0,40}(начал|start)/i,
+    ],
+    // «снять ошибку подтверждения» — реакция на изменение, а не новое правило сравнения.
+    unless: [
+      /(сним|снима|убира|убер|убра|гас)\w*[\s\S]{0,30}(ошибк|замечани)|clear[\s\S]{0,20}(error|issue)/i,
     ],
     recommend: 'cross',
     declaredIn: 'ValidationScope',
@@ -368,6 +413,172 @@ export const DECISION_RULES: DecisionRule[] = [
       '  cross(model.$.confirm, passwordsMatch); // ошибка вешается на confirm',
       '});',
     ].join('\n'),
+  },
+  {
+    id: 'validate-required',
+    intent: 'поле обязательно заполнить (галочку — отметить)',
+    cues: [
+      /обязател\w*\s+(отметить|заполн|указа|выбра|приня|ввест)|обязательн\w*\s+пол|(галочк|флаж|чекбокс|checkbox)\w*[\s\S]{0,40}обязател|обязател\w*[\s\S]{0,40}(галочк|флаж|чекбокс)|required field|must be (checked|filled|provided)/i,
+    ],
+    // Условная обязательность — validateWhen.
+    unless: [/если|когда|только|при услови|\bif\b|\bwhen\b|\bonly\b/i],
+    recommend: 'required',
+    because:
+      '`required()` требует непустое значение; у boolean пустым считается всё, кроме `true`, поэтому галочку «принимаю условия» проверяет он же — своё правило не нужно',
+    usage: [
+      "import { defineValidation, validate } from '@reformer/core/validation';",
+      "import { required } from '@reformer/core/validators';",
+      '',
+      'export const formValidation = defineValidation<Signup>(({ model }) => {',
+      "  validate(model.$.acceptTerms, [required({ code: 'acceptTerms.required' })]);",
+      '});',
+    ].join('\n'),
+    alternatives: [{ symbol: 'validateWhen', when: 'поле обязательно только при условии' }],
+  },
+  /**
+   * Формат строки. Без своего правила требование «телефон в формате +7…» уходило в поиск по
+   * символам, и выдача начиналась с мета-схем renderer-json (калибровка, трек T4).
+   */
+  {
+    id: 'validate-format',
+    intent: 'строка обязана соответствовать формату',
+    cues: [
+      /в\s+формате|формат\w*\s+(номер|телефон|email|почт|индекс|ИНН|СНИЛС|паспорт)|по\s+шаблону|регулярн\w*\s+выражени|\bregex|regular expression|\bpattern\b|format of|must match the format/i,
+    ],
+    // Приведение вводимого — transformValue; маска ввода — компонент, а не правило.
+    unless: [
+      /привод|нормализ|к\s+(верхн|нижн)|\btrim|uppercase|lowercase|маск\w*\s+ввода|input mask/i,
+    ],
+    recommend: 'pattern',
+    because:
+      'формат строки проверяет `pattern(regex)` из `@reformer/core/validators`; для типовых форматов есть готовые `email()` и `phone()`. Маска `InputMask` ввод не проверяет — нужны и маска (подсказка вводу), и правило',
+    usage: [
+      "import { defineValidation, validate } from '@reformer/core/validation';",
+      "import { pattern, required } from '@reformer/core/validators';",
+      '',
+      'export const formValidation = defineValidation<Profile>(({ model }) => {',
+      '  validate(model.$.phone, [required(), pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/)]);',
+      '});',
+    ].join('\n'),
+    alternatives: [
+      { symbol: 'phone', when: 'телефон по встроенному правилу, без своего шаблона' },
+      { symbol: 'email', when: 'адрес электронной почты' },
+    ],
+  },
+  {
+    id: 'validate-age',
+    intent: 'по дате рождения возраст не меньше (не больше) порога',
+    cues: [
+      /(?=[\s\S]*(возраст|\bлет\b|\bгод(а|ов)?\b|\bage\b|years?\s+old))(?=[\s\S]*(не\s+(меньше|менее|младше|моложе)|минимум|как\s+минимум|старше|at least|≥|>=|older than|of age))/i,
+    ],
+    // «возраст вычисляется из даты» — вычисление (computeFrom), а «срок не меньше года» — не возраст.
+    unless: [/вычисл|рассчит|считает|compute|derive|calculat|срок|period|term\b/i],
+    recommend: 'minAge',
+    because:
+      '`minAge(n)` проверяет поле даты рождения: полных лет не меньше n; верхний порог — `maxAge(n)`. Поле — дата (строка `Input type="date"` или `Date` из `DatePicker`)',
+    alternatives: [{ symbol: 'maxAge', when: 'ограничен верхний порог возраста' }],
+  },
+  {
+    id: 'issue-messages',
+    intent: 'у замечания свой текст',
+    cues: [
+      /(сво\w*|собственн\w*|друг\w*|понятн\w*|человеческ\w*|custom)\s+(текст|сообщени)\w*|текст\w*\s+(ошибк|замечани)|error\s+(text|message)s?|message (for|of) (the )?(error|rule)|(перевести|локализ\w*)\s+(ошибк|замечани|сообщени)/i,
+    ],
+    recommend: 'defineIssueMessages',
+    because:
+      'правило несёт КОД замечания, строку по коду даёт словарь формы: `defineIssueMessages({ "phone.required": "Укажите телефон" })` под `<ValidationMessagesProvider messages={…}>` (`@reformer/cdk`). Код задаётся в вызове валидатора — `required({ code: "phone.required" })`; без словаря пользователь видит сам код',
+    usage: [
+      "// form.messages.ts — import { defineIssueMessages } from '@reformer/core/i18n';",
+      "export const formMessages = defineIssueMessages({ 'phone.required': 'Укажите телефон' });",
+      '',
+      "// form.validation.ts — import { required } from '@reformer/core/validators';",
+      "validate(model.$.phone, [required({ code: 'phone.required' })]);",
+      '',
+      "// index.tsx — import { ValidationMessagesProvider } from '@reformer/cdk';",
+      '<ValidationMessagesProvider messages={formMessages}>{/* форма */}</ValidationMessagesProvider>',
+    ].join('\n'),
+    alternatives: [
+      {
+        symbol: 'ValidationMessagesProvider',
+        when: 'словарь уже есть — его нужно подключить над формой',
+      },
+    ],
+  },
+  {
+    id: 'options-source',
+    intent: 'варианты поля выбора — справочник',
+    cues: [
+      /справочник|из\s+(каталога|словаря|словарей)|вариант\w*[\s\S]{0,40}(из\s|берут|загружа|приход)|options?\s+(from|source)|lookup (table|list)|dictionary/i,
+    ],
+    // Загрузка вариантов при смене другого поля — реакция (onChange), а не статичный справочник.
+    unless: [/при\s+(смене|изменени)|каскад|завис\w*\s+от|depends on|on change/i],
+    recommend: 'defineRegistry',
+    because:
+      'варианты — данные, а не разметка: в JSON-схеме — ссылка `$dataSource(NAME)` в `componentProps.options`, значение регистрируется в реестре (`reg.dataSource(NAME, values)`); в TS-схеме — массив в `componentProps.options`',
+    usage: [
+      '// renderer-json: registry.ts',
+      "reg.dataSource('REGIONS', [{ value: 'msk', label: 'Москва' }]);",
+      '// form.schema — { "component": "$component(Select)", "componentProps": { "options": "$dataSource(REGIONS)" } }',
+      '',
+      '// TS-схема (core, renderer-react)',
+      '{ model: model.$.region, component: Select, componentProps: { options: REGIONS } }',
+    ].join('\n'),
+  },
+  {
+    id: 'wizard-steps',
+    intent: 'форма раскладывается по шагам мастера',
+    cues: [
+      /(разлож|раздел|разби|распредел)\w*[\s\S]{0,40}(шаг|этап)|пошагов\w*\s+форм|(мастер|визард)\w*|multi-?step|\bwizard\b|split [\s\S]{0,30}into steps/i,
+    ],
+    // Условный шаг — hideWhen; проверка шага — поток (step-check); узел шага в схеме — wizard-node.
+    unless: [
+      /скрыт|спрят|показыва|\bhide|условн\w*\s+шаг|conditional step|(далее|next)[\s\S]{0,60}(провер|валид|validat)|(провер|валид)\w*[\s\S]{0,40}(текущ|сво)\w*\s+шаг|узл\w*\s+схем|schema node/i,
+    ],
+    recommend: 'FormWizard',
+    because:
+      'мастер — узел схемы `FormWizard`, его шаги — узлы в `children` (у шага `selector`); порядок, переходы и проверку шагов держит поток сборки `createForm({ flow })`, где `id` шага = его `selector`',
+    usage: [
+      '{ component: FormWizard, children: [',
+      "  { selector: 'loan', component: Section, componentProps: { title: 'Кредит' }, children: [/* поля */] },",
+      "  { selector: 'contacts', component: Section, componentProps: { title: 'Контакты' }, children: [/* поля */] },",
+      '] }',
+      '',
+      "createForm({ model, schema, validation, flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] } });",
+    ].join('\n'),
+    alternatives: [
+      { symbol: 'FormFlowConfig', when: 'вопрос про порядок и проверку шагов, а не про разметку' },
+    ],
+  },
+  {
+    id: 'step-check',
+    intent: '«Далее» проверяет только текущий шаг',
+    cues: [
+      /(далее|next)[\s\S]{0,60}(провер|валид|validat)|(провер|валид)\w*[\s\S]{0,40}(только\s+)?(текущ|сво|этого)\w*\s+шаг|validate (only )?(the )?current step|per-step validation/i,
+    ],
+    recommend: 'FormFlowConfig',
+    because:
+      'правила шага живут в потоке: `flow: { steps: [{ id: <selector шага>, rules: <схема правил шага> }] }`; «Далее» (`flow.next()`) проверяет только `rules` текущего шага, правила вне шагов — при отправке',
+    usage: [
+      "import type { FormFlowConfig } from '@reformer/core';",
+      '',
+      'export const formFlow: FormFlowConfig<Loan> = {',
+      "  steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }],",
+      '};',
+      '// createForm({ …, flow: formFlow })',
+    ].join('\n'),
+  },
+  {
+    id: 'clear-issues-on-change',
+    intent: 'правка поля снимает устаревшее замечание',
+    cues: [
+      /(сним|снима|убира|убер|убра|гас)\w*[\s\S]{0,30}(ошибк|замечани)|clear[\s\S]{0,20}(stale\s+)?(error|issue)s?/i,
+    ],
+    recommend: 'onChange',
+    because:
+      'снять замечание — реакция на ФАКТ изменения: `onChange(model.$.password, () => form.confirmPassword.clearIssues())`; `form` берётся из области поведения `defineFormBehavior(({ model, form }) => …)`',
+    alternatives: [
+      { symbol: 'revalidateWhen', when: 'замечание надо не снять, а пересчитать правилом заново' },
+    ],
   },
   {
     id: 'validate-each',
@@ -407,7 +618,7 @@ export const DECISION_RULES: DecisionRule[] = [
     intent: 'одна группа полей (подформа) подключается к под-модели, возможно в нескольких местах',
     cues: [
       /подформ|под-форм|вложенн(ая|ую|ой|ые) (форм|групп)|sub-?form|nested (form|group)/i,
-      /переиспольз.{0,40}(групп|блок|част|адрес|правил)|(один|одна|одни) и (тот|та|те) же .{0,40}(в двух|в нескольких|дважды|к двум|к нескольким|для двух|для нескольких)|reus(e|able|ing) .{0,40}(group|part|block|rules|fragment)/i,
+      /переиспольз.{0,40}(групп|блок|част|адрес|правил)|(один|одна|одни) и (тот|та|те) же .{0,40}(в двух|в нескольких|дважды|к двум|к нескольким|для двух|для нескольких)|reus(e|able|ing) .{0,40}(group|part|block|rules|fragment)|(одн[аиуо]|общ\w+)\s+(разметк|част|блок|подформ|форм|групп)\w*[\s\S]{0,60}\s(для|в)\s[\s\S]{0,40}\sи\s/i,
     ],
     unless: [/кажд(ой|ый|ую|ого) (строк|элемент)|per[- ](item|row)|each (row|item)/i],
     recommend: 'apply',
@@ -452,7 +663,7 @@ export const DECISION_RULES: DecisionRule[] = [
     id: 'declare-array',
     intent: 'в форме появляется массив под-форм: его надо объявить и дать шаблон нового элемента',
     cues: [
-      /объявить.{0,30}массив|массив (объектов|под-?форм)|declare .{0,30}array|array of (objects|sub-?forms)/i,
+      /объявить.{0,30}массив|массив (объектов|под-?форм)|declare .{0,30}array|array of (objects|sub-?forms)|(список|массив|перечень)\s+однотипн|повторяющ\w*\s+(блок|групп|строк|секци)|(добавлени\w*|добавлять)\s+и\s+(удалени\w*|удалять)\s+(строк|блок|элемент)|repeat(ing|able)\s+(group|block|section)|add and remove (rows|items)/i,
       /шаблон нов(ого|ой) (элемент|строк)|(template|blank) .{0,20}(new )?(array )?(item|row)|new (row|item) template/i,
     ],
     unless: [/валид|validat|кажд(ой|ый|ую|ого)|each |per[- ](item|row)|очист|clear/i],
@@ -651,14 +862,36 @@ export interface ApiChoice {
  * сознательно грубо: различия здесь бинарные («в обе стороны» или нет), и тонкая шкала
  * добавила бы ложной точности.
  */
+/** Буква слова — латиница, цифры, `_` и кириллица. */
+const WORD = '[\\wА-Яа-яЁё]';
+const BOUNDARY = `(?:(?<=${WORD})(?!${WORD})|(?<!${WORD})(?=${WORD}))`;
+const cyrillicCache = new WeakMap<RegExp, RegExp>();
+
+/**
+ * Сигнал правила, в котором `\w` и `\b` понимают кириллицу.
+ *
+ * В регулярках JS `\w` и `\b` — только ASCII: `зависим\w*\s+пол` не находил «зависимое поле», а
+ * `обязател\w*,?\s+если` — «обязателен, если» (окончание кириллицей `\w*` не съедает). Сигналы
+ * пишутся по-человечески, со словообразованием, поэтому переписываются здесь, один раз на правило,
+ * а не в каждом литерале таблицы.
+ */
+function cyrillic(re: RegExp): RegExp {
+  let out = cyrillicCache.get(re);
+  if (!out) {
+    out = new RegExp(re.source.replace(/\\w/g, WORD).replace(/\\b/g, BOUNDARY), re.flags);
+    cyrillicCache.set(re, out);
+  }
+  return out;
+}
+
 export function chooseApi(requirement: string): ApiChoice[] {
   const text = String(requirement ?? '');
   if (!text.trim()) return [];
 
   const out: ApiChoice[] = [];
   for (const rule of DECISION_RULES) {
-    if (rule.unless?.some((re) => re.test(text))) continue;
-    const matches = rule.cues.filter((re) => re.test(text)).length;
+    if (rule.unless?.some((re) => cyrillic(re).test(text))) continue;
+    const matches = rule.cues.filter((re) => cyrillic(re).test(text)).length;
     if (matches > 0) out.push({ rule, matches });
   }
   out.sort((a, b) => b.matches - a.matches || a.rule.id.localeCompare(b.rule.id));

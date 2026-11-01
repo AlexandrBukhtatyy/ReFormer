@@ -7840,6 +7840,19 @@ export type AsyncRule<TField> = (
 
 _Source: src/form/validation/types.ts_
 
+### batch
+
+**Kind:** `function`
+
+Реэкспорт `batch` из `@preact/signals-core`.
+
+**Signature:**
+```typescript
+export { batch } from '@preact/signals-core';
+```
+
+_Source: src/signals.ts_
+
 ### BehaviorCleanup
 
 **Kind:** `type`
@@ -8216,6 +8229,19 @@ export function compute<R>(
 ```
 
 _Source: src/form/behaviors/operators.ts_
+
+### computed
+
+**Kind:** `function`
+
+Реэкспорт `computed` из `@preact/signals-core`.
+
+**Signature:**
+```typescript
+export { computed } from '@preact/signals-core';
+```
+
+_Source: src/signals.ts_
 
 ### computeFrom
 
@@ -9188,6 +9214,17 @@ validate(model.$.email, [required(), email({ code: 'email.email' })]);
 ```
 
 _Source: src/form/validators/email.ts_
+
+### en
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const en: FormLocale
+```
+
+_Source: src/locale/en.ts_
 
 ### enableWhen
 
@@ -12851,6 +12888,19 @@ export interface PhoneValidatorOptions extends RuleOptions {
 
 _Source: src/form/validators/phone.ts_
 
+### ReadonlySignal
+
+**Kind:** `type`
+
+Реэкспорт `ReadonlySignal` из `@preact/signals-core`.
+
+**Signature:**
+```typescript
+export type { ReadonlySignal } from '@preact/signals-core';
+```
+
+_Source: src/signals.ts_
+
 ### registerSignalNode
 
 **Kind:** `function`
@@ -13091,6 +13141,17 @@ revalidateWhen([model.$.maxAmount], () => void validateModel(model, schema));
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### ru
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const ru: FormLocale
+```
+
+_Source: src/locale/ru.ts_
 
 ### Rule
 
@@ -13717,6 +13778,32 @@ export type SchemaValueHandle = Signal<any> & { readonly __path: string };
 
 _Source: src/form/types/schema-node.ts_
 
+### signal
+
+**Kind:** `function`
+
+Реэкспорт `signal` из `@preact/signals-core`.
+
+**Signature:**
+```typescript
+export { signal } from '@preact/signals-core';
+```
+
+_Source: src/signals.ts_
+
+### Signal
+
+**Kind:** `class`
+
+Реэкспорт `Signal` из `@preact/signals-core`.
+
+**Signature:**
+```typescript
+export { Signal } from '@preact/signals-core';
+```
+
+_Source: src/signals.ts_
+
 ### SubmissionDependencies
 
 **Kind:** `interface`
@@ -13923,6 +14010,19 @@ onDispose(() => unmarkDerived(model.$.total)); // при снятии compute с
 - {@link markDerived} - пометить сигнал производным
 
 _Source: src/model/derived-registry.ts_
+
+### untracked
+
+**Kind:** `function`
+
+Реэкспорт `untracked` из `@preact/signals-core`.
+
+**Signature:**
+```typescript
+export { untracked } from '@preact/signals-core';
+```
+
+_Source: src/signals.ts_
 
 ### url
 

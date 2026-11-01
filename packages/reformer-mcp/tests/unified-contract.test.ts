@@ -59,6 +59,7 @@ function loanIntent(target: Target): FormIntent {
       { name: 'registration.street', type: 'string', component: 'Input', label: 'Улица' },
       { name: 'residence.city', type: 'string', component: 'Input', label: 'Город' },
       { name: 'residence.street', type: 'string', component: 'Input', label: 'Улица' },
+      { name: 'sameAddress', type: 'boolean', component: 'Checkbox', label: 'Совпадает' },
       { name: 'agree', type: 'boolean', component: 'Checkbox', label: 'Согласен' },
     ],
     arrays: [
@@ -102,6 +103,7 @@ function loanIntent(target: Target): FormIntent {
             { kind: 'part', ref: 'registration', part: 'address' },
             { kind: 'part', ref: 'residence', part: 'address', selector: 'residence' },
             { kind: 'array', ref: 'properties' },
+            'sameAddress',
           ],
         },
         { kind: 'step', title: 'Согласие', selector: 'confirm', children: ['agree'] },
@@ -120,6 +122,13 @@ function loanIntent(target: Target): FormIntent {
         target: 'propertyValue',
         sources: ['loanType'],
         expr: "model.loanType === 'mortgage'",
+      },
+      // Условное копирование: `when` — синоним `expr`, у copyFrom это условие.
+      {
+        kind: 'copyFrom',
+        target: 'residence.city',
+        sources: ['registration.city', 'sameAddress'],
+        when: 'model.sameAddress === true',
       },
     ],
     visibility: [{ selector: 'mortgage', condition: "model.loanType !== 'mortgage'" }],
@@ -329,6 +338,10 @@ describe('form.behavior.ts — единственное поведение', () 
     );
     expect(content).toContain(
       "hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');"
+    );
+    // Условие копирования — функцией в опциях: через JSON-опции его было не передать.
+    expect(content).toContain(
+      'copyFrom(model.$.registration.city, model.$.residence.city, { when: () => model.sameAddress === true });'
     );
     expect(content).toContain("from '@reformer/core/behaviors';");
     expect(warnings).toEqual([]);

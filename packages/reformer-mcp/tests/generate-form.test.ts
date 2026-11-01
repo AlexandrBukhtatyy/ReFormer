@@ -13,11 +13,13 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeIntent,
   readIntent,
+  deriveComponentName,
   deriveInterfaceName,
   type FormIntent,
   type ValidationRuleIntent,
 } from '../src/core/generate/form-intent.js';
 import {
+  buildAssemblyTsx,
   buildBundle,
   buildModelTs,
   buildValidationTs,
@@ -68,11 +70,16 @@ function goodIntent(): FormIntent {
 }
 
 describe('form-intent', () => {
-  it('имя интерфейса выводится из имени формы, кириллица даёт честный дефолт', () => {
+  it('имя интерфейса выводится из имени формы, кириллица — транслитом, как в конструкторе', () => {
     expect(deriveInterfaceName('Credit application')).toBe('CreditApplicationShape');
-    // `slugify`-подобная латинизация вырезала бы кириллицу в пустую строку — лучше дефолт,
-    // чем идентификатор-огрызок.
-    expect(deriveInterfaceName('Заявка на кредит')).toBe('FormShape');
+    // Прежний дефолт `FormShape` для любого кириллического названия давал безликие имена и
+    // компонент `FormShapeForm` (калибровка, трек T2). Таблица — та же, что у кодогенерации
+    // конструктора: «Заявка на кредит» там — `ZayavkaNaKreditForm`.
+    expect(deriveInterfaceName('Заявка на кредит')).toBe('ZayavkaNaKreditShape');
+    expect(deriveComponentName('Заявка на кредит')).toBe('ZayavkaNaKreditForm');
+    expect(deriveComponentName('RegistrationForm')).toBe('RegistrationForm');
+    // Название без букв — по-прежнему дефолт, а не огрызок.
+    expect(deriveInterfaceName('—')).toBe('FormShape');
   });
 
   it('массив без initialValue получает пустой и говорит об этом', () => {
@@ -628,6 +635,167 @@ describe('builders', () => {
     expect(out).toContain('steps/index.ts');
     expect(out).toContain('steps/<slug>/');
   });
+
+  // Калибровка по форме регистрации (eval/calibration): без словаря форма показывала пользователю
+  // код замечания (`passwords-mismatch`) — `message` из intent принимался и терялся.
+  it('тексты замечаний из intent — словарь form.messages.ts и провайдер в образце сборки', () => {
+    const intent = normalizeIntent({
+      formName: 'Signup',
+      target: 'renderer-react',
+      fields: [
+        { name: 'phone', type: 'string', component: 'Input' },
+        { name: 'password', type: 'string', component: 'InputPassword' },
+        { name: 'confirm', type: 'string', component: 'InputPassword' },
+        { name: 'nick', type: 'string', component: 'Input' },
+      ],
+      validation: [
+        {
+          target: 'phone',
+          rules: ["required({ code: 'phone.required' })"],
+          message: 'Укажите телефон',
+        },
+        {
+          target: 'confirm',
+          rules: [],
+          cross: 'values.confirm === values.password',
+          code: 'passwords-mismatch',
+          message: 'Пароли не совпадают',
+        },
+        // Текст без кода, и в вызовах кодов два — привязать не к чему.
+        {
+          target: 'nick',
+          rules: ["required({ code: 'a' })", "minLength(2, { code: 'b' })"],
+          message: 'Ник?',
+        },
+      ],
+    });
+    const bundle = buildBundle(intent);
+    const messages = bundle.files.find((f) => f.path === 'form.messages.ts')?.content ?? '';
+    expect(messages).toContain('export const formMessages = defineIssueMessages({');
+    expect(messages).toContain("'phone.required': 'Укажите телефон'");
+    expect(messages).toContain("'passwords-mismatch': 'Пароли не совпадают'");
+    expect(bundle.warnings.join(' ')).toMatch(/«Ник\?».*задайте правилу `code`/);
+
+    const assembly = buildAssemblyTsx(intent);
+    expect(assembly).toContain("import { formMessages } from './form.messages';");
+    expect(assembly).toContain('<ValidationMessagesProvider messages={formMessages}>');
+    // Без текстов — ни файла, ни провайдера.
+    const plain = normalizeIntent({
+      ...intent,
+      validation: [{ target: 'phone', rules: ['required()'] }],
+    });
+    expect(buildBundle(plain).files.map((f) => f.path)).not.toContain('form.messages.ts');
+    expect(buildAssemblyTsx(plain)).not.toContain('ValidationMessagesProvider');
+  });
+
+  it('выражение поведения видит form, когда к нему обращается', () => {
+    const intent = normalizeIntent({
+      formName: 'Signup',
+      target: 'renderer-react',
+      fields: [
+        { name: 'password', type: 'string', component: 'InputPassword' },
+        { name: 'confirm', type: 'string', component: 'InputPassword' },
+      ],
+      behavior: [
+        {
+          kind: 'onChange',
+          target: 'password',
+          sources: ['password'],
+          expr: 'form.confirm.clearIssues();',
+        },
+      ],
+    });
+    const behavior = buildBundle(intent).files.find((f) => f.path === 'form.behavior.ts')?.content;
+    expect(behavior).toContain('defineFormBehavior<');
+    expect(behavior).toMatch(/\(\(\{ model, form \}\) =>/);
+    // Без обращения — прежняя область, без неиспользуемых параметров.
+    const plain = normalizeIntent({
+      ...intent,
+      behavior: [{ ...intent.behavior[0], expr: 'void value;' }],
+    });
+    expect(buildBundle(plain).files.find((f) => f.path === 'form.behavior.ts')?.content).toMatch(
+      /\(\(\{ model \}\) =>/
+    );
+  });
+
+  it('составной путь в строке массива — вложенный объект в типе элемента и в шаблоне', () => {
+    const model = buildModelTs(
+      normalizeIntent({
+        formName: 'Loan',
+        fields: [{ name: 'amount', type: 'number', component: 'InputNumber' }],
+        arrays: [
+          {
+            name: 'coBorrowers',
+            itemInterfaceName: 'CoBorrower',
+            initialValue: [],
+            itemFields: [
+              { name: 'personalData.lastName', type: 'string', component: 'Input' },
+              { name: 'personalData.firstName', type: 'string', component: 'Input' },
+              { name: 'monthlyIncome', type: 'number', component: 'InputNumber' },
+            ],
+          },
+        ],
+      })
+    );
+    // Прежде печаталось `personalData.lastName: string;` — не TypeScript.
+    expect(model).not.toMatch(/personalData\.lastName/);
+    expect(model).toMatch(
+      /export type CoBorrower = \{\n {2}personalData: \{\n {4}lastName: string;/
+    );
+    expect(model).toMatch(
+      /const blankCoBorrower = \(\): CoBorrower => \(\{\n {2}personalData: \{\n {4}lastName: '',/
+    );
+  });
+
+  it('onChange объявляет value, только когда выражение его читает', () => {
+    const files = (expr: string) =>
+      buildBundle(
+        normalizeIntent({
+          formName: 'Flags',
+          target: 'renderer-react',
+          fields: [
+            { name: 'hasCar', type: 'boolean', component: 'Checkbox' },
+            { name: 'carBrand', type: 'string', component: 'Input' },
+          ],
+          behavior: [{ kind: 'onChange', target: 'hasCar', sources: ['hasCar'], expr }],
+        })
+      ).files.find((f) => f.path === 'form.behavior.ts')?.content ?? '';
+    expect(files("model.carBrand = '';")).toContain('onChange(model.$.hasCar, () => {');
+    expect(files("if (!value) model.carBrand = '';")).toContain(
+      'onChange(model.$.hasCar, (value) => {'
+    );
+    // Загрузка по значению: `await` — колбэк async, `signal` — второй параметр отмены.
+    expect(
+      files(
+        'const r = await fetch(`/api?x=${value}`, { signal }); if (!signal.aborted) model.carBrand = await r.text();'
+      )
+    ).toContain('onChange(model.$.hasCar, async (value, { signal }) => {');
+    expect(files('await Promise.resolve(); if (!signal.aborted) model.carBrand = "";')).toContain(
+      'onChange(model.$.hasCar, async (_value, { signal }) => {'
+    );
+  });
+
+  it('дата: тип модели совпадает со значением компонента, пустое начальное — по типу', () => {
+    const model = buildModelTs(
+      normalizeIntent({
+        formName: 'Dates',
+        fields: [
+          // Нативное поле даты — строка `YYYY-MM-DD`, как в рабочей кредитной форме.
+          { name: 'birthDate', type: 'date', component: 'Input', initialValue: '' },
+          // Календарь кита — `Date`; пустая строка из спеки — «даты нет».
+          { name: 'startDate', type: 'date', component: 'DatePicker', initialValue: '' },
+          { name: 'endDate', type: 'date', component: 'DatePicker', initialValue: '2026-01-31' },
+          { name: 'shipDate', type: 'date', component: 'DatePicker' },
+        ],
+      })
+    );
+    expect(model).toMatch(/birthDate: string;/);
+    expect(model).toMatch(/birthDate: ""/);
+    expect(model).toMatch(/startDate: Date \| null;/);
+    expect(model).toMatch(/startDate: null/);
+    expect(model).toMatch(/endDate: new Date\("2026-01-31"\)/);
+    expect(model).toMatch(/shipDate: null/);
+  });
 });
 
 describe('cross-check', () => {
@@ -690,6 +858,24 @@ describe('tools plan_form / generate_form', () => {
     expect(content[0].text).toMatch(/specPath|description/);
   });
 
+  it('plan_form: что дописать руками — до intent, в пределах бюджета ответа клиента', async () => {
+    // Фасад `mcp_call` ассистента конструктора режет ответ на 1400 символов: перечень после
+    // JSON крупной спеки модель не видела никогда (калибровка, трек T6).
+    const { content } = await planFormTool(
+      {
+        description:
+          '| Ключ в форме | Тип поля | Валидация |\n| --- | --- | --- |\n' +
+          '| login | Input | Обязательное, должно быть уникальным на сервере |',
+      },
+      k
+    );
+    const text = content[0].text;
+    const warnings = text.indexOf('## Warnings');
+    expect(warnings).toBeGreaterThan(0);
+    expect(warnings).toBeLessThan(text.indexOf('```json'));
+    expect(warnings).toBeLessThan(1400);
+  });
+
   it('plan_form с несуществующим путём не притворяется, что разобрал', async () => {
     const { content } = await planFormTool({ specPath: 'нет/такого/файла.md' }, k);
     expect(content[0].text).toMatch(/не найдена/);
@@ -716,10 +902,50 @@ describe('tools plan_form / generate_form', () => {
     const text = content[0].text;
     const row = (name: string) =>
       new RegExp(`\\| \`${name.replace(/\./g, '\\.')}\` \\|[^\\n]*создайте сами`);
-    for (const name of ['index.tsx', 'types.ts', 'data-sources.ts', 'api.ts']) {
+    for (const name of ['index.tsx', 'types.ts', 'api.ts']) {
       expect(text, `${name} не назван в чек-листе раскладки`).toMatch(row(name));
     }
     expect(text).toMatch(/\| `model\.ts` \|[^\n]*сгенерирован ниже/);
+    // У формы со справочником файл справочников печатает сам генератор (калибровка: раньше
+    // схема импортировала из `./data-sources`, которого в бандле не было).
+    expect(text).toMatch(/\| `data-sources\.ts` \|[^\n]*сгенерирован ниже/);
+  });
+
+  it('справочники: значения из intent — в data-sources.ts и в реестр renderer-json', () => {
+    const intent = goodIntent();
+    intent.dataSources = [
+      { name: 'CURRENCIES', values: [{ value: 'rub', label: 'Рубль' }, 'usd'] },
+      { name: 'EMPTY' },
+    ];
+    const bundle = buildBundle(intent);
+    const sources = bundle.files.find((f) => f.path === 'data-sources.ts')?.content ?? '';
+    expect(sources).toContain('export const CURRENCIES = [');
+    expect(sources).toContain('"label": "Рубль"');
+    expect(sources).toContain('"value": "usd"');
+    expect(sources).toContain('export const EMPTY: Array<{ value: string; label: string }> = [];');
+    expect(bundle.warnings.join(' ')).toMatch(/Справочник `EMPTY` без значений/);
+    const registry = bundle.files.find((f) => f.path === 'registry.ts')?.content ?? '';
+    expect(registry).toContain("import { CURRENCIES, EMPTY } from './data-sources';");
+    expect(registry).toContain("reg.dataSource('CURRENCIES', CURRENCIES);");
+    expect(registry).not.toContain('TODO: reg.dataSource');
+  });
+
+  it('пропсы массива из intent доходят до узла FieldArray', () => {
+    const intent = goodIntent();
+    intent.arrays[0].componentProps = { addButtonLabel: '+ Добавить позицию', title: 'Позиции' };
+    const layout = JSON.parse(buildBundle(intent).layoutJson);
+    const find = (n: Record<string, unknown>): Record<string, unknown> | null => {
+      if (n.component === '$component(FieldArray)') return n;
+      for (const c of (n.children as Record<string, unknown>[] | undefined) ?? []) {
+        const hit = find(c);
+        if (hit) return hit;
+      }
+      return null;
+    };
+    expect(find(layout.root)?.componentProps).toEqual({
+      addButtonLabel: '+ Добавить позицию',
+      title: 'Позиции',
+    });
   });
 
   it('generate_form отдаёт файлы ДАЖЕ при ошибках, но не скрывает их', async () => {

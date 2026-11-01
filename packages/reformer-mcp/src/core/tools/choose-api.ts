@@ -17,6 +17,7 @@ import { findOneSymbol } from '../index/symbols.js';
 import { searchSymbols, renderSymbolHits } from '../index/search.js';
 import type { Knowledge } from '../knowledge.js';
 import type { IndexedAntiPattern } from '../index/types.js';
+import { invalidCall } from './tool-result.js';
 
 export const chooseApiToolDefinition = {
   name: 'choose_api',
@@ -68,13 +69,24 @@ function antiPatternsFor(k: Knowledge, symbol: string): IndexedAntiPattern[] {
   const re = new RegExp(`\\b${symbol}\\b`);
   for (const topic of k.index.topics) {
     for (const ap of topic.antiPatterns) {
-      const haystack = [ap.why, ap.correctNote, ap.bad, ap.correct, ap.note]
+      // У примечания — только заголовок: символ, упомянутый где-то в его теле, не делает
+      // антипаттерн «про этот выбор». Раньше к `onChange` цеплялись «Input с type number» и
+      // «маска не форматирует ввод» — они лишь мимоходом называли onChange (калибровка, T4).
+      const haystack = [ap.why, ap.correctNote, ap.bad, ap.correct, noteTitle(ap.note)]
         .filter(Boolean)
         .join('\n');
       if (re.test(haystack)) out.push(ap);
     }
   }
   return out.slice(0, 2);
+}
+
+/** Первая строка примечания без маркера списка: примечание само бывает пунктом «- **…**». */
+function noteTitle(note: string | undefined): string {
+  return (note ?? '')
+    .split('\n')[0]
+    .replace(/^\s*[-*]\s+/, '')
+    .trim();
 }
 
 async function renderChoice(
@@ -137,7 +149,7 @@ async function renderChoice(
     for (const ap of antiPatterns) {
       if (ap.why) lines.push(`- ❌ ${ap.why}`);
       if (ap.correctNote) lines.push(`  ✅ ${ap.correctNote}`);
-      if (!ap.why && ap.note) lines.push(`- ${ap.note.split('\n')[0]}`);
+      if (!ap.why && ap.note) lines.push(`- ${noteTitle(ap.note)}`);
     }
   }
 
@@ -150,7 +162,7 @@ export async function chooseApiTool(
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const requirement = typeof args.requirement === 'string' ? args.requirement.trim() : '';
   if (!requirement) {
-    return text(
+    return invalidCall(
       'Argument "requirement" is required: state ONE requirement in plain words, e.g. "поле B доступно только когда A заполнено".'
     );
   }

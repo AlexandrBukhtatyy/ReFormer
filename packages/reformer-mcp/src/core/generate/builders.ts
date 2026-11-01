@@ -20,6 +20,7 @@ import type {
   ReformerTargetStack,
   ValidationRuleIntent,
 } from './form-intent.js';
+import { deriveComponentName } from './form-intent.js';
 import { UI_KIT_CONTAINER_EXPORTS, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
 import {
   buildFormSchemaJson,
@@ -54,13 +55,28 @@ const TS_TYPE: Record<string, string> = {
  * компилировался бы сам по себе: `initialFormModel` присваивал бы `null` полю `number`.
  */
 function fieldTsType(field: FieldIntent): string {
-  const base = TS_TYPE[field.type] ?? 'unknown';
+  const base =
+    field.type === 'date' && !isDatePicker(field) ? 'string' : (TS_TYPE[field.type] ?? 'unknown');
   if (field.initialValue !== null) return base;
   return base.includes('null') ? base : `${base} | null`;
 }
 
+/**
+ * Дата под календарём кита (`DatePicker`, значение — `Date`) или под полем ввода (`Input` с
+ * `type: 'date'`, значение — строка `YYYY-MM-DD`). Тип модели обязан совпасть со значением
+ * компонента: прежний `Date | null` для любой даты при начальном `''` из спеки давал `model.ts`,
+ * который не компилируется (`Type 'string' is not assignable to type 'Date'`).
+ */
+function isDatePicker(field: FieldIntent): boolean {
+  return /DatePicker/.test(field.component);
+}
+
 /** Литерал начального значения по типу поля. */
 function initialLiteral(field: FieldIntent): string {
+  if (field.type === 'date' && isDatePicker(field) && typeof field.initialValue === 'string') {
+    // Пустая строка у календаря — «даты нет»; непустая — дата, которую надо построить.
+    return field.initialValue === '' ? 'null' : `new Date(${JSON.stringify(field.initialValue)})`;
+  }
   if (field.initialValue !== undefined) return JSON.stringify(field.initialValue);
   switch (field.type) {
     case 'number':
@@ -68,7 +84,7 @@ function initialLiteral(field: FieldIntent): string {
     case 'boolean':
       return 'false';
     case 'date':
-      return 'null';
+      return isDatePicker(field) ? 'null' : "''";
     case 'array':
       return '[]';
     case 'object':
@@ -102,10 +118,7 @@ export function buildModelTs(intent: FormIntent): string {
   // допустим — но генератор печатает одно и то же, чтобы снимки и примеры не расходились.
   for (const arr of intent.arrays) {
     lines.push(`export type ${arr.itemInterfaceName} = {`);
-    for (const f of arr.itemFields) {
-      if (f.label) lines.push(`  /** ${f.label} */`);
-      lines.push(`  ${f.name}: ${fieldTsType(f)};`);
-    }
+    lines.push(...renderShape(fieldTree(arr.itemFields), 1));
     lines.push('};');
     lines.push('');
   }
@@ -125,9 +138,7 @@ export function buildModelTs(intent: FormIntent): string {
     lines.push(`const ${blankName(arr)} = (): ${arr.itemInterfaceName} => ({`);
     // Значения — те же, что дал бы тип поля в корне модели: шаблон обязан подходить под
     // тип элемента, а `null` для числа без `| null` в типе не собрался бы.
-    for (const f of arr.itemFields) {
-      lines.push(`  ${objectKey(f.name)}: ${initialLiteral(f)},`);
-    }
+    lines.push(...renderInitial(fieldTree(arr.itemFields), 1));
     lines.push('});');
     lines.push('');
   }
@@ -148,9 +159,16 @@ export function buildModelTs(intent: FormIntent): string {
 // index.tsx — сборка
 // ---------------------------------------------------------------------------
 
-/** Имя React-компонента формы: `LoanRequest` → `LoanRequestForm`, без удвоения `FormForm`. */
+/**
+ * Имя React-компонента формы — из её названия (`Регистрация` → `RegistratsiyaForm`,
+ * `RegistrationForm` → `RegistrationForm`), а не из типа модели: от `RegistrationFormData`
+ * получалось `RegistrationFormDataForm`. Название без букв — по типу, без удвоения `FormForm`.
+ */
 function formComponentName(intent: FormIntent): string {
-  return /Form$/.test(intent.interfaceName) ? intent.interfaceName : `${intent.interfaceName}Form`;
+  return (
+    deriveComponentName(intent.formName) ??
+    (/Form$/.test(intent.interfaceName) ? intent.interfaceName : `${intent.interfaceName}Form`)
+  );
 }
 
 /**
@@ -167,15 +185,20 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   const name = formComponentName(intent);
   const withSteps = collectSteps(intent.layoutRoot).length > 0;
   const json = intent.target === 'renderer-json';
+  // Словарь подключается провайдером над разметкой; у `core` разметку пишет консумент, поэтому
+  // там — подсказка в комментарии, а не импорты, которые образец не использовал бы.
+  const withMessages = buildMessagesTs(intent).content !== null && intent.target !== 'core';
   const lines: string[] = [];
 
   lines.push("import { createForm } from '@reformer/core';");
   lines.push("import { useFormBundle } from '@reformer/core/react';");
+  if (withMessages) lines.push("import { ValidationMessagesProvider } from '@reformer/cdk';");
   if (intent.target !== 'core')
     lines.push("import { FormRenderer } from '@reformer/renderer-react';");
   if (intent.target === 'renderer-react')
     lines.push("import { FormField } from '@reformer/ui-kit';");
   lines.push("import { formBehavior } from './form.behavior';");
+  if (withMessages) lines.push("import { formMessages } from './form.messages';");
   lines.push("import { formSchema } from './form.schema';");
   if (withSteps) lines.push("import { formFlow } from './form.flow';");
   lines.push("import { formValidation } from './form.validation';");
@@ -206,12 +229,25 @@ export function buildAssemblyTsx(intent: FormIntent): string {
     lines.push('  // Разметку рисуете сами: поля — `bundle.form.<путь>`, например');
     lines.push('  // <FormField control={bundle.form.email} />. Правила узлов схемы (`hideWhen`)');
     lines.push('  // исполняет только рендерер — видимость здесь остаётся условием в JSX.');
+    if (buildMessagesTs(intent).content !== null) {
+      lines.push('  // Тексты замечаний — `formMessages` из ./form.messages: оберните разметку в');
+      lines.push('  // <ValidationMessagesProvider messages={formMessages}> (`@reformer/cdk`).');
+    }
     lines.push('  return null;');
-  } else if (json) {
-    lines.push('  // Обёртка поля приходит из реестра (`FIELD_WRAPPER`).');
-    lines.push('  return <FormRenderer form={bundle} />;');
   } else {
-    lines.push('  return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;');
+    const renderer = json
+      ? '<FormRenderer form={bundle} />'
+      : '<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />';
+    if (json) lines.push('  // Обёртка поля приходит из реестра (`FIELD_WRAPPER`).');
+    if (withMessages) {
+      lines.push('  return (');
+      lines.push('    <ValidationMessagesProvider messages={formMessages}>');
+      lines.push(`      ${renderer}`);
+      lines.push('    </ValidationMessagesProvider>');
+      lines.push('  );');
+    } else {
+      lines.push(`  return ${renderer};`);
+    }
   }
   lines.push('}');
   return lines.join('\n') + '\n';
@@ -241,6 +277,19 @@ type ModelNode =
   | { kind: 'group'; children: Map<string, ModelNode> };
 
 function modelTree(intent: FormIntent): Map<string, ModelNode> {
+  return fieldTree(intent.fields, intent.arrays);
+}
+
+/**
+ * Дерево полей — корня модели или ЭЛЕМЕНТА массива. У строки массива пути тоже бывают
+ * составными (`coBorrowers[].personalData.lastName`): раньше тип элемента печатался плоско —
+ * `personalData.lastName: string;`, не TypeScript, — а кросс-проверка при этом отвечала ✅
+ * (калибровка, кредитная заявка).
+ */
+function fieldTree(
+  fields: readonly FieldIntent[],
+  arrays: readonly ArrayIntent[] = []
+): Map<string, ModelNode> {
   const root = new Map<string, ModelNode>();
 
   const put = (path: string, leaf: ModelNode) => {
@@ -264,9 +313,9 @@ function modelTree(intent: FormIntent): Map<string, ModelNode> {
   };
 
   // Массивы объявляются первыми: путь массива тоже может быть составным.
-  for (const a of intent.arrays) put(a.modelPath ?? a.name, { kind: 'array', array: a });
+  for (const a of arrays) put(a.modelPath ?? a.name, { kind: 'array', array: a });
   // Путь берётся тот же, что уходит в `$model(...)` разметки, иначе привязка ведёт в никуда.
-  for (const f of intent.fields) put(f.modelPath ?? f.name, { kind: 'field', field: f });
+  for (const f of fields) put(f.modelPath ?? f.name, { kind: 'field', field: f });
 
   return root;
 }
@@ -277,17 +326,17 @@ function renderShape(level: Map<string, ModelNode>, depth: number): string[] {
   const out: string[] = [];
   for (const [key, node] of level) {
     if (node.kind === 'group') {
-      out.push(`${pad}${key}: {`);
+      out.push(`${pad}${objectKey(key)}: {`);
       out.push(...renderShape(node.children, depth + 1));
       out.push(`${pad}};`);
       continue;
     }
     if (node.kind === 'array') {
-      out.push(`${pad}${key}: ${node.array.itemInterfaceName}[];`);
+      out.push(`${pad}${objectKey(key)}: ${node.array.itemInterfaceName}[];`);
       continue;
     }
     if (node.field.label) out.push(`${pad}/** ${node.field.label} */`);
-    out.push(`${pad}${key}: ${fieldTsType(node.field)};`);
+    out.push(`${pad}${objectKey(key)}: ${fieldTsType(node.field)};`);
   }
   return out;
 }
@@ -298,7 +347,7 @@ function renderInitial(level: Map<string, ModelNode>, depth: number): string[] {
   const out: string[] = [];
   for (const [key, node] of level) {
     if (node.kind === 'group') {
-      out.push(`${pad}${key}: {`);
+      out.push(`${pad}${objectKey(key)}: {`);
       out.push(...renderInitial(node.children, depth + 1));
       out.push(`${pad}},`);
       continue;
@@ -306,10 +355,10 @@ function renderInitial(level: Map<string, ModelNode>, depth: number): string[] {
     if (node.kind === 'array') {
       const rows = node.array.initialValue;
       const initial = rows.length > 0 ? `, ${JSON.stringify(rows)}` : '';
-      out.push(`${pad}${key}: arrayOf(${blankName(node.array)}${initial}),`);
+      out.push(`${pad}${objectKey(key)}: arrayOf(${blankName(node.array)}${initial}),`);
       continue;
     }
-    out.push(`${pad}${key}: ${initialLiteral(node.field)},`);
+    out.push(`${pad}${objectKey(key)}: ${initialLiteral(node.field)},`);
   }
   return out;
 }
@@ -392,6 +441,138 @@ const DEFAULT_CROSS_CODE = 'cross';
  * Скобки вокруг выражения — чтобы `a || b` не связался с тернарным оператором иначе, чем написано.
  * Код — в одинарных кавычках, как строки во всём напечатанном модуле (`prettier --check`).
  */
+// ---------------------------------------------------------------------------
+// data-sources.ts — справочники
+// ---------------------------------------------------------------------------
+
+/** Имена справочников формы: объявленные в intent и названные полями (`optionsSource`). */
+function dataSourceNames(intent: FormIntent): string[] {
+  const names = new Set(intent.dataSources.map((d) => d.name));
+  const visit = (f: FieldIntent) => {
+    if (f.optionsSource) names.add(f.optionsSource);
+  };
+  intent.fields.forEach(visit);
+  intent.arrays.forEach((a) => a.itemFields.forEach(visit));
+  return [...names];
+}
+
+/**
+ * `data-sources.ts` — значения справочников.
+ *
+ * TS-схема и раньше импортировала их отсюда (`componentProps.options: LOAN_TYPES`), а реестр
+ * renderer-json — обещал (`// TODO: reg.dataSource(…)`), но самого файла генератор не печатал:
+ * бандл с полем выбора не собирался, а под renderer-json поле рисовалось без вариантов
+ * (калибровка, кредитная заявка). Теперь значения приходят в intent (`dataSources[].values`).
+ */
+export function buildDataSourcesTs(intent: FormIntent): {
+  content: string | null;
+  warnings: string[];
+} {
+  const names = dataSourceNames(intent);
+  if (names.length === 0) return { content: null, warnings: [] };
+  const warnings: string[] = [];
+  const lines = [
+    '/**',
+    ` * Справочники формы «${intent.formName}» — варианты полей выбора. TS-схема кладёт их в`,
+    ' * `componentProps.options`, реестр renderer-json регистрирует под теми же именами',
+    ' * (`$dataSource(NAME)` в схеме).',
+    ' */',
+  ];
+  for (const name of names) {
+    const ds = intent.dataSources.find((d) => d.name === name);
+    lines.push('');
+    if (ds?.note) lines.push(`/** ${ds.note} */`);
+    if (ds?.values && ds.values.length > 0) {
+      // Примитив — вариант с подписью из самого значения: поля выбора кита ждут `{ value, label }`.
+      const options = ds.values.map((v) =>
+        v !== null && typeof v === 'object' ? v : { value: v, label: String(v) }
+      );
+      lines.push(`export const ${name} = ${JSON.stringify(options, null, 2)};`);
+    } else {
+      lines.push(`// TODO: значения справочника ${name}.`);
+      lines.push(`export const ${name}: Array<{ value: string; label: string }> = [];`);
+      warnings.push(
+        `Справочник \`${name}\` без значений — в data-sources.ts пустой массив, поле выбора ` +
+          'останется без вариантов: передайте `values` в `dataSources` intent или впишите их в файл.'
+      );
+    }
+  }
+  return { content: lines.join('\n') + '\n', warnings };
+}
+
+// ---------------------------------------------------------------------------
+// form.messages.ts — тексты замечаний
+// ---------------------------------------------------------------------------
+
+/**
+ * Код замечания, к которому относится `message` правила: явный `code`, у `cross` — код по
+ * умолчанию, иначе код из вызова валидатора (`required({ code: 'phone.required' })`), если он там
+ * один. Два кода в одном правиле — непонятно, к какой проверке текст, и тогда `null`.
+ */
+function messageCode(rule: ValidationRuleIntent): string | null {
+  if (rule.code) return rule.code;
+  if (rule.cross) return DEFAULT_CROSS_CODE;
+  const codes = new Set(
+    rule.rules.flatMap((r) => [...r.matchAll(/\bcode:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))
+  );
+  return codes.size === 1 ? [...codes][0] : null;
+}
+
+/** Строковый литерал TS в одинарных кавычках. */
+function tsString(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+}
+
+/**
+ * `form.messages.ts` — словарь «код → текст» из `message` правил intent.
+ *
+ * Правило несёт код, строку по коду даёт словарь (`defineIssueMessages`) через
+ * `ValidationMessagesProvider`. Без словаря форма показывает пользователю сам код
+ * (`passwords-mismatch`), а `message` из intent пропадал молча — его просто некуда было печатать.
+ *
+ * @returns `content: null` — текстов нет; предупреждения — тексты, которые не к чему привязать.
+ */
+export function buildMessagesTs(intent: FormIntent): {
+  content: string | null;
+  warnings: string[];
+} {
+  const entries = new Map<string, string>();
+  const warnings: string[] = [];
+  for (const rule of intent.validation) {
+    if (!rule.message) continue;
+    const code = messageCode(rule);
+    if (!code) {
+      warnings.push(
+        `Текст «${rule.message}» у правила на \`${rule.target}\` не попал в form.messages.ts: ` +
+          'не понять, к какому коду он относится — задайте правилу `code` (одно правило — один код).'
+      );
+      continue;
+    }
+    const previous = entries.get(code);
+    if (previous !== undefined && previous !== rule.message) {
+      warnings.push(
+        `Код \`${code}\` получил два текста — в словаре оставлен первый: «${previous}».`
+      );
+      continue;
+    }
+    entries.set(code, rule.message);
+  }
+  if (entries.size === 0) return { content: null, warnings };
+
+  const lines = [
+    '/**',
+    ` * Тексты замечаний формы «${intent.formName}»: правило несёт код, строку по коду даёт словарь.`,
+    ' * Подключение: `<ValidationMessagesProvider messages={formMessages}>` (`@reformer/cdk`) над формой.',
+    ' */',
+    "import { defineIssueMessages } from '@reformer/core/i18n';",
+    '',
+    'export const formMessages = defineIssueMessages({',
+    ...[...entries].map(([code, text]) => `  ${tsString(code)}: ${tsString(text)},`),
+    '});',
+  ];
+  return { content: lines.join('\n') + '\n', warnings };
+}
+
 function crossLine(ref: string, rule: ValidationRuleIntent): string {
   const code = (rule.code ?? DEFAULT_CROSS_CODE).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `cross(${ref}, (values) => ((${rule.cross}) ? null : { code: '${code}' }));`;
@@ -938,12 +1119,32 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'):
           : '';
       return `${note}  computeFrom([${sources}], ${target}, (${params.join(', ')}) => ${b.expr ?? 'undefined'});`;
     }
-    case 'copyFrom':
-      return `  copyFrom(${scope}.$.${path(b.sources[0] ?? 'source')}, ${target}${opts});`;
+    case 'copyFrom': {
+      // `expr` копирования — его условие (`{ when }`; в intent его пишут и ключом `when`). Через
+      // `options` функцию не передать — они печатаются JSON, и «копировать, пока стоит флаг»
+      // было невыразимо (калибровка, кредитная заявка: `sameEmail`).
+      const when = b.expr ? `when: () => ${b.expr}` : '';
+      const rest = b.options ? JSON.stringify(b.options).slice(1, -1) : '';
+      const all = [when, rest].filter(Boolean).join(', ');
+      return `  copyFrom(${scope}.$.${path(b.sources[0] ?? 'source')}, ${target}${all ? `, { ${all} }` : ''});`;
+    }
     case 'syncFields':
       return `  syncFields(${target}, ${scope}.$.${path(b.sources[0] ?? 'other')}${opts});`;
-    case 'onChange':
-      return `  onChange(${target}, (value) => { ${b.expr ?? '/* эффект */'} }${opts});`;
+    case 'onChange': {
+      // Параметр — только если выражение его читает: неиспользованный `value` не собирается под
+      // `noUnusedParameters` (калибровка, кредитная заявка: три связи обходили это `void value;`).
+      // Загрузка по значению (опции, префилл) — асинхронная реакция: `await` делает колбэк
+      // `async`, а `signal` отменяет устаревший запрос, когда источник меняется снова.
+      const expr = b.expr ?? '/* эффект */';
+      const usesValue = /\bvalue\b/.test(expr);
+      const params = /\bsignal\b/.test(expr)
+        ? `${usesValue ? 'value' : '_value'}, { signal }`
+        : usesValue
+          ? 'value'
+          : '';
+      const async = /\bawait\b/.test(expr) ? 'async ' : '';
+      return `  onChange(${target}, ${async}(${params}) => { ${expr} }${opts});`;
+    }
     case 'enableWhen':
     case 'disableWhen':
       return `  ${b.kind}(${target}, () => ${b.expr ?? 'true'}${opts});`;
@@ -998,6 +1199,27 @@ export function buildBehaviorTs(intent: FormIntent): string {
  *
  * @returns Содержимое файла и предупреждения (правила видимости, опущенные для `core`).
  */
+/**
+ * Что колбэк поведения берёт из области: `model` — всегда, `schema` — для правил узлов, `form` —
+ * когда выражение обращается к узлам формы (`form.confirmPassword.clearIssues()`).
+ *
+ * Раньше область была только `{ model }`, и выражение, которое снимает замечания или меняет
+ * свойства узла, давало `Cannot find name 'form'` — бандл не собирался, хотя intent описал ровно
+ * то, что делает рабочая форма.
+ */
+function behaviorParams(intent: FormIntent, withNodes: boolean): string[] {
+  const sources = [
+    ...intent.behavior.map((b) => b.expr ?? ''),
+    ...(withNodes ? intent.visibility.map((v) => v.condition) : []),
+  ];
+  const uses = (name: string) => sources.some((s) => new RegExp(`(^|[^\\w$.])${name}\\.`).test(s));
+  return [
+    'model',
+    ...(uses('form') ? ['form'] : []),
+    ...(withNodes || uses('schema') ? ['schema'] : []),
+  ];
+}
+
 export function buildFormBehaviorTs(intent: FormIntent): { content: string; warnings: string[] } {
   const warnings: string[] = [];
   const withNodes = intent.visibility.length > 0 && intent.target !== 'core';
@@ -1031,9 +1253,10 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
   lines.push(`import type { ${intent.interfaceName} } from './model';`);
   lines.push('');
   lines.push(
-    `export const formBehavior = defineFormBehavior<${intent.interfaceName}>(({ ${
-      withNodes ? 'model, schema' : 'model'
-    } }) => {`
+    `export const formBehavior = defineFormBehavior<${intent.interfaceName}>(({ ${behaviorParams(
+      intent,
+      withNodes
+    ).join(', ')} }) => {`
   );
   if (intent.behavior.length === 0 && !withNodes) {
     lines.push('  // Поведения в intent не было — добавьте его здесь.');
@@ -1131,6 +1354,9 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
   lines.push(
     "import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';"
   );
+  const sources = dataSourceNames(intent);
+  if (sources.length > 0)
+    lines.push(`import { ${[...sources].sort().join(', ')} } from './data-sources';`);
   lines.push('');
   lines.push('export function createRegistry(): ComponentRegistry {');
   lines.push('  return defineRegistry((reg) => {');
@@ -1139,9 +1365,8 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
   for (const c of extra) lines.push(`    reg.component('${c}', ${c});`);
   for (const c of known) lines.push(`    reg.component('${c}', ${COMPONENT_IMPORTS[c]});`);
   for (const c of unknown) lines.push(`    // TODO: reg.component('${c}', /* импорт */);`);
-  for (const ds of intent.dataSources) {
-    lines.push(`    // TODO: reg.dataSource('${ds.name}', /* значения */);`);
-  }
+  // Значения — из `data-sources.ts` того же бандла (`buildDataSourcesTs`), под тем же именем.
+  for (const name of dataSourceNames(intent)) lines.push(`    reg.dataSource('${name}', ${name});`);
   lines.push('  });');
   lines.push('}');
   return { content: lines.join('\n') + '\n', warnings };
@@ -1468,6 +1693,14 @@ export function buildBundle(intent: FormIntent): {
   ];
   const flow = buildFormFlowTs(intent);
   if (flow !== null) files.push({ path: 'form.flow.ts', content: flow });
+  const messages = buildMessagesTs(intent);
+  if (messages.content !== null)
+    files.push({ path: 'form.messages.ts', content: messages.content });
+  warnings.push(...messages.warnings);
+  const dataSources = buildDataSourcesTs(intent);
+  if (dataSources.content !== null)
+    files.push({ path: 'data-sources.ts', content: dataSources.content });
+  warnings.push(...dataSources.warnings);
 
   if (intent.target === 'renderer-json') {
     // Отдаём канонический `.ts` (`defineJsonSchema<T>`), а не чистый `.json`: только он держит

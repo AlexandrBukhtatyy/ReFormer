@@ -20,6 +20,7 @@ import { KNOWN_PACKAGES, normalizePackage } from '../docs/packages.js';
 import type { SectionMeta } from '../docs/sections.js';
 import { rankSymbolsForQuery, renderSymbolHits } from '../index/search.js';
 import { memoize, type Knowledge } from '../knowledge.js';
+import { invalidCall } from './tool-result.js';
 
 export const searchDocsToolDefinition = {
   name: 'search_docs',
@@ -446,7 +447,7 @@ export async function searchDocsTool(
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const query = typeof args.query === 'string' ? args.query.trim() : '';
   if (!query) {
-    return text(
+    return invalidCall(
       'Pass a non-empty `query` describing what you are looking for (e.g. "conditional required validation").'
     );
   }

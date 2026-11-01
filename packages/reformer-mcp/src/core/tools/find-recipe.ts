@@ -9,6 +9,7 @@ import {
 import type { Knowledge } from '../knowledge.js';
 import { searchSections, renderSectionHits } from './search-docs.js';
 import { rankSymbolsForQuery, renderSymbolHits } from '../index/search.js';
+import { invalidCall } from './tool-result.js';
 
 export const findRecipeToolDefinition = {
   name: 'find_recipe',
@@ -178,11 +179,11 @@ export async function findRecipeTool(
   // отсутствующим/не-строкой. Защищаемся до .trim(), иначе — необработанный TypeError
   // (ср. паттерн в check-behaviors.ts).
   if (typeof args.topic !== 'string') {
-    return text('Argument "topic" is required and must be a non-empty string.');
+    return invalidCall('Argument "topic" is required and must be a non-empty string.');
   }
   const topic = args.topic.trim();
   if (!topic) {
-    return text('Argument "topic" is required and must be non-empty.');
+    return invalidCall('Argument "topic" is required and must be non-empty.');
   }
   const only = normalizePackage(args.package);
   const targets: ReformerPackage[] = only ? [only] : [...KNOWN_PACKAGES];

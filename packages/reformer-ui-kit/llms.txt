@@ -4869,6 +4869,19 @@ export interface AsyncBoundaryProps<T = unknown> {
 
 _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 
+### AsyncStatus
+
+**Kind:** `type`
+
+Реэкспорт `AsyncStatus` из `@reformer/cdk/async-boundary`.
+
+**Signature:**
+```typescript
+export type { AsyncStatus } from '@reformer/cdk/async-boundary';
+```
+
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
+
 ### Attachment
 
 **Kind:** `function`
@@ -8199,6 +8212,17 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<'div'>)
 ```
 
 _Source: src/components/empty/variants/base/empty-base.tsx_
+
+### en
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const en: FormLocale
+```
+
+_Source: src/locale/en.ts_
 
 ### ExampleCard
 
@@ -12467,6 +12491,17 @@ export interface RowRange {
 
 _Source: src/components/tree/variants/base/use-virtual-rows.ts_
 
+### ru
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const ru: FormLocale
+```
+
+_Source: src/locale/ru.ts_
+
 ### RuntimePropDoc
 
 **Kind:** `interface`
@@ -14217,6 +14252,19 @@ export const textValueAdapter: KitFieldAdapter
 
 _Source: src/fields/adapters.ts_
 
+### toast
+
+**Kind:** `function`
+
+Реэкспорт `toast` из `sonner`.
+
+**Signature:**
+```typescript
+export { toast } from 'sonner';
+```
+
+_Source: src/components/sonner/index.ts_
+
 ### Toaster
 
 **Kind:** `const`
@@ -14227,6 +14275,19 @@ const Toaster
 ```
 
 _Source: src/components/sonner/variants/base/sonner-base.tsx_
+
+### ToasterProps
+
+**Kind:** `type`
+
+Реэкспорт `ToasterProps` из `sonner`.
+
+**Signature:**
+```typescript
+export type { ToasterProps } from 'sonner';
+```
+
+_Source: src/components/sonner/index.ts_
 
 ### Toggle
 
@@ -14956,6 +15017,24 @@ export interface TreeProps {
 
 _Source: src/components/tree/variants/base/tree-base.tsx_
 
+### TreeRenderState
+
+**Kind:** `interface`
+
+Состояние строки, которое видят рендер-слоты.
+
+**Signature:**
+```typescript
+export interface TreeRenderState {
+  readonly branch: boolean;
+  readonly expanded: boolean;
+  readonly selected: boolean;
+  readonly checked: boolean;
+}
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
 ### TreeRow
 
 **Kind:** `interface`
@@ -15356,6 +15435,45 @@ export interface UseFieldTooltipResult {
 ```
 
 _Source: src/fields/field-tooltip.tsx_
+
+### useMessageScroller
+
+**Kind:** `function`
+
+Реэкспорт `useMessageScroller` из `@shadcn/react/message-scroller`.
+
+**Signature:**
+```typescript
+export { useMessageScroller } from '@shadcn/react/message-scroller';
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### useMessageScrollerScrollable
+
+**Kind:** `function`
+
+Реэкспорт `useMessageScrollerScrollable` из `@shadcn/react/message-scroller`.
+
+**Signature:**
+```typescript
+export { useMessageScrollerScrollable } from '@shadcn/react/message-scroller';
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### useMessageScrollerVisibility
+
+**Kind:** `function`
+
+Реэкспорт `useMessageScrollerVisibility` из `@shadcn/react/message-scroller`.
+
+**Signature:**
+```typescript
+export { useMessageScrollerVisibility } from '@shadcn/react/message-scroller';
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
 
 ### useSidebar
 

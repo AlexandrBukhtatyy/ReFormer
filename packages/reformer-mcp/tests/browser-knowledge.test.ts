@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { BUNDLE_SCHEMA_VERSION, type IndexBundle, type DocsBundle } from '../src/core/bundle.js';
 import { KNOWN_PACKAGES, packageDirName } from '../src/core/docs/packages.js';
@@ -109,13 +109,27 @@ describeWithBundle('ядро на браузерных источниках', ()
     expect(out).toContain('RF003');
   });
 
-  it('find_recipe без файлов рецептов не молчит, а уходит в каскад', async () => {
-    // Первая стадия (подбор по имени файла в docs/llms) в браузере невозможна. Инструмент
-    // обязан ответить кандидатами из полнотекстового поиска, а не «не найдено».
-    expect(k.recipes.list('@reformer/core')).toEqual([]);
-    const out = textOf(await findRecipeTool({ topic: 'copy-from' }, k));
-    expect(out).not.toContain('No recipe found');
-    expect(out.length).toBeGreaterThan(200);
+  it('рецепты восстановлены из llms.txt — те же файлы, что docs/llms на диске', () => {
+    // Раньше рецептов в браузере не было, и `find_recipe wizard` отвечал секцией
+    // «FormWizard.Indicator» вместо рецепта визарда (калибровка, паритет каналов).
+    for (const pkg of KNOWN_PACKAGES) {
+      const dir = resolve(repoRoot, 'packages', packageDirName(pkg), 'docs', 'llms');
+      if (!existsSync(dir) || !bundles!.docs.packages[pkg]) continue;
+      const onDisk = readdirSync(dir)
+        .filter((f) => f.endsWith('.md'))
+        .sort();
+      expect(k.recipes.list(pkg).slice().sort(), pkg).toEqual(onDisk);
+    }
+    const wizard = k.recipes.read('@reformer/ui-kit', '07-form-wizard.md') ?? '';
+    expect(wizard.startsWith('# FormWizard — multi-step форма')).toBe(true);
+    expect(wizard).toContain('FormFlow');
+  });
+
+  it('find_recipe в браузере отвечает рецептом, как под Node', async () => {
+    const out = textOf(await findRecipeTool({ topic: 'wizard' }, k));
+    expect(out).toMatch(/^# Recipe: FormWizard — multi-step форма/);
+    const layout = textOf(await findRecipeTool({ topic: 'directory-layout' }, k));
+    expect(layout).toMatch(/^# Recipe: Form directory layout/);
   });
 
   it('report_issue сохраняет в память вкладки и говорит куда', async () => {

@@ -3054,6 +3054,17 @@ defaultToError({});                                  // 'Unknown error'
 
 _Source: src/components/async-boundary/async-resource.ts_
 
+### en
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const en: FormLocale
+```
+
+_Source: src/locale/en.ts_
+
 ### FieldArray
 
 **Kind:** `const`
@@ -7004,6 +7015,17 @@ export type ResourceStrategy = 'static' | 'preload' | 'partial';
 ```
 
 _Source: src/components/option-source/option-source.ts_
+
+### ru
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const ru: FormLocale
+```
+
+_Source: src/locale/ru.ts_
 
 ### selectFiles
 

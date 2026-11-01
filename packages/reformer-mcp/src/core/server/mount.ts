@@ -11,6 +11,7 @@ import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -34,4 +35,9 @@ export function mountReformerServer(server: Server, catalogs: ReformerServerCata
   server.setRequestHandler(ReadResourceRequestSchema, (request) =>
     catalogs.resources.read(request.params.uri)
   );
+  // Схема адресов секций — шаблоном: клиент с поддержкой шаблонов видит её без чтения каталога.
+  // Раньше метода не было вовсе (-32601; калибровка, smoke S08).
+  server.setRequestHandler(ListResourceTemplatesRequestSchema, () => ({
+    resourceTemplates: catalogs.resources.templates(),
+  }));
 }

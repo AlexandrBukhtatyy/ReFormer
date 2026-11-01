@@ -1956,6 +1956,19 @@ export function FormSlot<T extends object = Record<string, unknown>>({
 
 _Source: src/react/form-outlet.tsx_
 
+### FormValidation
+
+**Kind:** `type`
+
+Реэкспорт `FormValidation` из `@reformer/core`.
+
+**Signature:**
+```typescript
+export type { FormValidation } from '@reformer/core';
+```
+
+_Source: src/types.ts_
+
 ### getFormRegistry
 
 **Kind:** `function`

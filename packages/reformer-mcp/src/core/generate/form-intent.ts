@@ -51,6 +51,12 @@ export interface ArrayIntent {
   initialValue: unknown[];
   /** Компонент, рисующий строки (`FieldArray` из ui-kit либо свой). */
   component?: string;
+  /**
+   * Пропсы компонента массива: у `FieldArray` — `title`, `addButtonLabel` («+ Добавить
+   * имущество»), `itemLabel`, `emptyMessage`, `reorderable`. Без них кнопка добавления — с
+   * подписью по умолчанию, и пользователь (и e2e по подписи) её не узнаёт.
+   */
+  componentProps?: Record<string, unknown>;
 }
 
 /** Правило валидации над одним путём модели. */
@@ -108,7 +114,10 @@ export interface BehaviorIntent {
   each?: string;
   /** Поля, которые оно ЧИТАЕТ. Из них строится проверка циклов. */
   sources: string[];
-  /** Тело выражения на TS — вставляется как есть. */
+  /**
+   * Тело выражения на TS — вставляется как есть. У `copyFrom` — условие копирования
+   * (`{ when: () => expr }`), например `model.sameEmail === true`.
+   */
   expr?: string;
   options?: Record<string, unknown>;
 }
@@ -125,6 +134,12 @@ export interface DataSourceIntent {
   name: string;
   /** Комментарий-подсказка, откуда берутся значения. */
   note?: string;
+  /**
+   * Значения справочника — варианты поля выбора: `{ value, label }` либо примитивы (станут
+   * `{ value: x, label: String(x) }`). Печатаются в `data-sources.ts`; без них справочник —
+   * пустой массив с пометкой, и поле выбора рисуется без вариантов.
+   */
+  values?: unknown[];
 }
 
 export interface WizardIntent {
@@ -179,8 +194,58 @@ export interface FormIntent {
 }
 
 /** Слова произвольной строки → `PascalCase`-идентификатор (нелатиница отбрасывается). */
+/**
+ * Транслитерация кириллицы — та же таблица, что у кодогенерации конструктора
+ * (`@reformer/builder-toolkit`, `naming.ts`): «Заявка на кредит» даёт `ZayavkaNaKredit…` и здесь,
+ * и там. Без неё кириллическое имя формы вырезалось в пустую строку, и интерфейс получал
+ * безликое `FormShape`, а компонент сборки — `FormShapeForm` (калибровка, трек T2).
+ */
+const TRANSLIT: Readonly<Record<string, string>> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+};
+
+function translit(source: string): string {
+  return source.replace(/[а-яё]/gi, (ch) => {
+    const lower = ch.toLowerCase();
+    const mapped = TRANSLIT[lower] ?? ch;
+    return ch === lower ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1);
+  });
+}
+
 function toPascal(source: string): string {
-  return String(source)
+  return translit(String(source))
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .split(/\s+/)
@@ -190,11 +255,18 @@ function toPascal(source: string): string {
     .replace(/[^A-Za-z0-9]/g, '');
 }
 
-/** `Заявка на кредит` → `CreditApplicationForm`-подобное имя интерфейса. */
+/** `Заявка на кредит` → `ZayavkaNaKreditShape`, `Credit application` → `CreditApplicationShape`. */
 export function deriveInterfaceName(formName: string): string {
   const pascal = toPascal(formName);
-  // Кириллическое имя формы даёт пустой идентификатор — тогда честный дефолт лучше огрызка.
+  // Имя без букв и цифр («—», пусто) даёт пустой идентификатор — тогда дефолт лучше огрызка.
   return pascal.length >= 2 ? `${pascal}Shape` : 'FormShape';
+}
+
+/** Имя компонента формы из её названия: `Заявка на кредит` → `ZayavkaNaKreditForm`. */
+export function deriveComponentName(formName: string): string | null {
+  const pascal = toPascal(formName);
+  if (pascal.length < 2) return null;
+  return /Form$/.test(pascal) ? pascal : `${pascal}Form`;
 }
 
 /**
@@ -638,6 +710,7 @@ function readArray(
   );
   const initialValue = take(raw, 'initialValue', ['initialRows', 'rows', 'defaultValue'], ctx);
   const component = asName(take(raw, 'component', ['componentName'], ctx));
+  const componentProps = take(raw, 'componentProps', ['props'], ctx);
 
   // `itemInterfaceName` и `initialValue` доводит до контракта `normalizeIntent` — она же и
   // предупреждает о подстановке, поэтому здесь они передаются как пришли.
@@ -649,6 +722,7 @@ function readArray(
       itemFields,
       initialValue: initialValue as unknown[],
       ...(component ? { component } : {}),
+      ...(isRecord(componentProps) ? { componentProps } : {}),
     },
     required,
   };
@@ -796,7 +870,8 @@ function readDataSource(raw: unknown, at: string, ctx: ReadCtx): DataSourceInten
     return null;
   }
   const note = asName(take(raw, 'note', ['description', 'comment'], ctx));
-  return { name, ...(note ? { note } : {}) };
+  const values = take(raw, 'values', ['options', 'items', 'data'], ctx);
+  return { name, ...(note ? { note } : {}), ...(Array.isArray(values) ? { values } : {}) };
 }
 
 function readStep(
