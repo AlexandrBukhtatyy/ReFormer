@@ -3,6 +3,9 @@
 Харнесс: [packages/reformer-mcp/eval/](../../packages/reformer-mcp/eval/). Запуск — `npm run mcp:evaluate`.
 Baseline: [baseline.json](baseline.json).
 
+Получится ли через сервер рабочая форма (спека → intent → бандл → e2e эталона), меряет отдельный
+стенд — [calibration.md](calibration.md), `npm run mcp:calibrate`.
+
 ## Что он меряет и чего не меряет
 
 Один вопрос: **отдаёт ли сервер знание, нужное для задачи, за сколько вызовов и токенов.**

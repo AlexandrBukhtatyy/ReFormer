@@ -1,0 +1,255 @@
+{
+  "formName": "RegistrationForm",
+  "interfaceName": "RegistrationFormData",
+  "target": "renderer-json",
+  "layout": "minimalist",
+  "fields": [
+    {
+      "name": "username",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя пользователя",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "Логин (латиница)",
+        "testId": "username"
+      }
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "your@email.com",
+        "type": "email",
+        "testId": "email"
+      }
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "Минимум 8 символов",
+        "testId": "password"
+      }
+    },
+    {
+      "name": "confirmPassword",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Подтвердите пароль",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "Повторите пароль",
+        "testId": "confirmPassword"
+      }
+    },
+    {
+      "name": "fullName",
+      "type": "string",
+      "component": "Input",
+      "label": "Полное имя",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "Иван Иванов",
+        "testId": "fullName"
+      }
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "+7 (999) 123-45-67",
+        "mask": "+7 (999) 999-99-99",
+        "testId": "phone"
+      }
+    },
+    {
+      "name": "captcha",
+      "type": "string",
+      "component": "Input",
+      "label": "Введите captcha",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "Подсказка: ABC123",
+        "testId": "captcha"
+      }
+    },
+    {
+      "name": "acceptTerms",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Я принимаю условия использования",
+      "initialValue": false,
+      "componentProps": {
+        "testId": "acceptTerms"
+      }
+    }
+  ],
+  "arrays": [],
+  "validation": [
+    {
+      "target": "username",
+      "rules": ["required({ code: 'username.required' })"],
+      "message": "Имя пользователя обязательно"
+    },
+    {
+      "target": "username",
+      "rules": ["minLength(3, { code: 'username.minLength' })"],
+      "message": "Минимум 3 символа"
+    },
+    {
+      "target": "username",
+      "rules": ["pattern(/^[a-zA-Z0-9_]{3,20}$/, { code: 'username.pattern' })"],
+      "message": "Латиница, цифры, _ (3-20)"
+    },
+    {
+      "target": "username",
+      "rules": [],
+      "async": "async (value, { signal }) => { if (!value || value.length < 3) return null; try { const res = await fetch(`/api/v1/auth/check-username?username=${encodeURIComponent(value)}`, { signal }); const json = await res.json(); return json.available ? null : { code: 'username-taken', params: { serverMessage: json.message } }; } catch { return null; } }",
+      "code": "username-taken",
+      "message": "Имя пользователя уже занято"
+    },
+    {
+      "target": "email",
+      "rules": ["required({ code: 'email.required' })"],
+      "message": "Email обязателен"
+    },
+    {
+      "target": "email",
+      "rules": ["email({ code: 'email.email' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "email",
+      "rules": [],
+      "async": "async (value, { signal }) => { if (!value || !value.includes('@')) return null; try { const res = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(value)}`, { signal }); const json = await res.json(); return json.available ? null : { code: 'email-taken', message: json.message || 'Email занят' }; } catch { return null; } }",
+      "code": "email-taken",
+      "message": "Email занят"
+    },
+    {
+      "target": "password",
+      "rules": ["required({ code: 'password.required' })"],
+      "message": "Пароль обязателен"
+    },
+    {
+      "target": "password",
+      "rules": ["minLength(8, { code: 'password.minLength' })"],
+      "message": "Минимум 8 символов"
+    },
+    {
+      "target": "password",
+      "rules": [
+        "(value) => (!value || (/[A-Z]/.test(value) && /[a-z]/.test(value) && /\\d/.test(value)) ? null : { code: 'weak-password' })"
+      ],
+      "code": "weak-password",
+      "message": "Нужны заглавные, строчные буквы и цифры"
+    },
+    {
+      "target": "confirmPassword",
+      "rules": ["required({ code: 'confirmPassword.required' })"],
+      "message": "Подтвердите пароль"
+    },
+    {
+      "target": "confirmPassword",
+      "rules": [],
+      "cross": "!values.confirmPassword || !values.password || values.confirmPassword === values.password",
+      "code": "passwords-mismatch",
+      "message": "Пароли не совпадают"
+    },
+    {
+      "target": "fullName",
+      "rules": ["required({ code: 'fullName.required' })"],
+      "message": "Полное имя обязательно"
+    },
+    {
+      "target": "fullName",
+      "rules": ["minLength(2, { code: 'fullName.minLength' })"],
+      "message": "Минимум 2 символа"
+    },
+    {
+      "target": "phone",
+      "rules": ["required({ code: 'phone.required' })"],
+      "message": "Телефон обязателен"
+    },
+    {
+      "target": "phone",
+      "rules": ["pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/, { code: 'phone.pattern' })"],
+      "message": "Формат +7 (999) 123-45-67"
+    },
+    {
+      "target": "captcha",
+      "rules": ["required({ code: 'captcha.required' })"],
+      "message": "Введите captcha"
+    },
+    {
+      "target": "captcha",
+      "rules": ["(value) => (value !== 'ABC123' ? { code: 'invalid-captcha' } : null)"],
+      "code": "invalid-captcha",
+      "message": "Неверная captcha. Попробуйте ABC123"
+    },
+    {
+      "target": "acceptTerms",
+      "rules": ["(value) => (value ? null : { code: 'terms-required' })"],
+      "code": "terms-required",
+      "message": "Необходимо принять условия"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "onChange",
+      "target": "password",
+      "sources": ["password"],
+      "expr": "form.confirmPassword.clearIssues();"
+    }
+  ],
+  "visibility": [],
+  "dataSources": [],
+  "layoutRoot": {
+    "kind": "container",
+    "component": "Box",
+    "children": [
+      {
+        "kind": "field",
+        "ref": "username"
+      },
+      {
+        "kind": "field",
+        "ref": "email"
+      },
+      {
+        "kind": "field",
+        "ref": "password"
+      },
+      {
+        "kind": "field",
+        "ref": "confirmPassword"
+      },
+      {
+        "kind": "field",
+        "ref": "fullName"
+      },
+      {
+        "kind": "field",
+        "ref": "phone"
+      },
+      {
+        "kind": "field",
+        "ref": "captcha"
+      },
+      {
+        "kind": "field",
+        "ref": "acceptTerms"
+      }
+    ]
+  },
+  "warnings": []
+}

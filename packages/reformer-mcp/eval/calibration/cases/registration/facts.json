@@ -1,0 +1,190 @@
+{
+  "case": "registration",
+  "source": "projects/react-playground/src/pages/demo/registration-form-renderer-json/",
+  "steps": [],
+  "fields": [
+    {
+      "path": "username",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя пользователя",
+      "testId": "username",
+      "options": "none"
+    },
+    {
+      "path": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "testId": "email",
+      "options": "none"
+    },
+    {
+      "path": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "testId": "password",
+      "options": "none"
+    },
+    {
+      "path": "confirmPassword",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Подтвердите пароль",
+      "testId": "confirmPassword",
+      "options": "none"
+    },
+    {
+      "path": "fullName",
+      "type": "string",
+      "component": "Input",
+      "label": "Полное имя",
+      "testId": "fullName",
+      "options": "none"
+    },
+    {
+      "path": "phone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон",
+      "testId": "phone",
+      "options": "none"
+    },
+    {
+      "path": "captcha",
+      "type": "string",
+      "component": "Input",
+      "label": "Введите captcha",
+      "testId": "captcha",
+      "options": "none"
+    },
+    {
+      "path": "acceptTerms",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Я принимаю условия использования",
+      "testId": "acceptTerms",
+      "options": "none"
+    }
+  ],
+  "computed": [],
+  "arrays": [],
+  "validation": [
+    {
+      "target": "username",
+      "rule": "required"
+    },
+    {
+      "target": "username",
+      "rule": "minLength",
+      "arg": 3
+    },
+    {
+      "target": "username",
+      "rule": "pattern",
+      "arg": "^[a-zA-Z0-9_]{3,20}$"
+    },
+    {
+      "target": "username",
+      "rule": "async",
+      "note": "usernameAvailable: GET /api/v1/auth/check-username"
+    },
+    {
+      "target": "email",
+      "rule": "required"
+    },
+    {
+      "target": "email",
+      "rule": "email"
+    },
+    {
+      "target": "email",
+      "rule": "async",
+      "note": "emailAvailable: GET /api/v1/auth/check-email"
+    },
+    {
+      "target": "password",
+      "rule": "required"
+    },
+    {
+      "target": "password",
+      "rule": "minLength",
+      "arg": 8
+    },
+    {
+      "target": "password",
+      "rule": "custom",
+      "note": "passwordStrength: заглавные, строчные, цифры"
+    },
+    {
+      "target": "confirmPassword",
+      "rule": "required"
+    },
+    {
+      "target": "confirmPassword",
+      "rule": "cross",
+      "note": "passwordsMatch: confirmPassword === password"
+    },
+    {
+      "target": "fullName",
+      "rule": "required"
+    },
+    {
+      "target": "fullName",
+      "rule": "minLength",
+      "arg": 2
+    },
+    {
+      "target": "phone",
+      "rule": "required"
+    },
+    {
+      "target": "phone",
+      "rule": "pattern",
+      "arg": "^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$"
+    },
+    {
+      "target": "captcha",
+      "rule": "required"
+    },
+    {
+      "target": "captcha",
+      "rule": "custom",
+      "note": "captchaCode: значение ABC123"
+    },
+    {
+      "target": "acceptTerms",
+      "rule": "required",
+      "note": "в эталоне — свой Rule termsAccepted (value ? null : terms-required); для boolean required() равносилен: пустым считается всё, кроме true"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "onChange",
+      "target": "password",
+      "sources": ["password"],
+      "note": "правка пароля снимает замечания подтверждения (form.confirmPassword.clearIssues)"
+    }
+  ],
+  "visibility": [],
+  "dataSources": [],
+  "outOfIntent": [
+    {
+      "what": "префилл через AsyncBoundary: onComponentEvent(prefill-boundary, load/onSuccess) + model.captureInitial",
+      "ref": "form.behavior.ts:99-141"
+    },
+    {
+      "what": "submit/reset: onComponentEvent(submit-button/reset-button, onClick), POST /api/v1/auth/register, статус отправки",
+      "ref": "form.behavior.ts:43-97"
+    },
+    {
+      "what": "панель состояния: onInit(form-state) + patchProps({ form })",
+      "ref": "form.behavior.ts:136-138"
+    },
+    {
+      "what": "PendingButton по ui.pending — свой компонент реестра",
+      "ref": "registry.tsx"
+    }
+  ]
+}

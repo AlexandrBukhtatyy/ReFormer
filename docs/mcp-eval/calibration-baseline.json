@@ -1,0 +1,591 @@
+{
+  "date": "2026-10-27",
+  "inspector": "2.12.0",
+  "channels": ["node", "worker"],
+  "note": "T3 — прогон с --e2e (after-3); остальные треки — финальный прогон без e2e, два прогона подряд дают одинаковые метрики.",
+  "smoke": {
+    "pass": 55,
+    "fail": [],
+    "info": 1
+  },
+  "t1": {
+    "registration": {
+      "counts": {
+        "fields": 8,
+        "arrays": 0,
+        "rules": 13,
+        "behavior": 0,
+        "visibility": 0,
+        "warnings": 7
+      },
+      "parity": true,
+      "fields": "8/8",
+      "fieldsExtra": 0,
+      "typeMismatch": 0,
+      "componentMismatch": 0,
+      "steps": "0/0",
+      "placement": "0/0",
+      "arrays": "0/0",
+      "itemFields": "0/0",
+      "validation": "13/19",
+      "byRule": {
+        "required": "8/8",
+        "minLength": "3/3",
+        "pattern": "1/2",
+        "async": "0/2",
+        "email": "1/1",
+        "custom": "0/2",
+        "cross": "0/1"
+      },
+      "conditional": "0/0",
+      "behavior": "0/1",
+      "behaviorExpressible": "0/1",
+      "visibility": "0/0",
+      "dataSources": "0/0",
+      "unparsed": 6
+    },
+    "credit": {
+      "counts": {
+        "fields": 67,
+        "arrays": 3,
+        "rules": 104,
+        "behavior": 19,
+        "visibility": 0,
+        "warnings": 17
+      },
+      "parity": true,
+      "fields": "67/75",
+      "fieldsExtra": 0,
+      "typeMismatch": 0,
+      "componentMismatch": 9,
+      "steps": "6/6",
+      "placement": "70/81",
+      "arrays": "3/3",
+      "itemFields": "14/18",
+      "validation": "103/191",
+      "byRule": {
+        "required": "63/72",
+        "min": "15/16",
+        "max": "4/8",
+        "minLength": "3/24",
+        "maxLength": "3/28",
+        "cross": "0/15",
+        "pattern": "12/19",
+        "minAge": "0/2",
+        "maxAge": "0/2",
+        "pastDate": "0/1",
+        "email": "3/3",
+        "async": "0/1"
+      },
+      "conditional": "25/56",
+      "behavior": "18/44",
+      "behaviorExpressible": "18/36",
+      "visibility": "0/11",
+      "dataSources": "0/11",
+      "unparsed": 2
+    },
+    "insurance": {
+      "counts": {
+        "fields": 119,
+        "arrays": 4,
+        "rules": 115,
+        "behavior": 25,
+        "visibility": 0,
+        "warnings": 42
+      },
+      "parity": true
+    },
+    "loan": {
+      "counts": {
+        "fields": 11,
+        "arrays": 1,
+        "rules": 16,
+        "behavior": 2,
+        "visibility": 0,
+        "warnings": 2
+      },
+      "parity": true
+    }
+  },
+  "t2": [
+    {
+      "run": "registration/planned/core",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 7,
+      "files": 4,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "registration/planned/renderer-react",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 7,
+      "files": 4,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "registration/planned/renderer-json",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 7,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "registration/golden/core",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 0,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "registration/golden/renderer-react",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 0,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "registration/golden/renderer-json",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 0,
+      "files": 6,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "credit/planned/core",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 17,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "credit/planned/renderer-react",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 17,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "credit/planned/renderer-json",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 17,
+      "files": 6,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "credit/golden/core",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 1,
+      "files": 7,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "credit/golden/renderer-react",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 0,
+      "files": 7,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "credit/golden/renderer-json",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 0,
+      "files": 8,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "insurance/planned/core",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 42,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "insurance/planned/renderer-react",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 42,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "insurance/planned/renderer-json",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 42,
+      "files": 6,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "loan/planned/core",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 2,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "loan/planned/renderer-react",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 2,
+      "files": 5,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    },
+    {
+      "run": "loan/planned/renderer-json",
+      "status": "ok",
+      "crossCheckErrors": 0,
+      "intentProblems": 0,
+      "warnings": 2,
+      "files": 6,
+      "tscErrors": 0,
+      "layoutErrors": 0,
+      "codeErrors": 0
+    }
+  ],
+  "t4": {
+    "chooseApi": {
+      "node": {
+        "hit": "35/35",
+        "mentions": "35/35"
+      },
+      "worker": {
+        "hit": "35/35",
+        "mentions": "35/35"
+      }
+    },
+    "askReformer": "35/35",
+    "symbolDocs": "87/88",
+    "recipes": {
+      "node": [
+        "wizard: # Recipe: FormWizard — multi-step форма",
+        "form-array: # Recipe: FieldArray",
+        "copy-from: # Recipe: copyFrom — Копирование значений между полями",
+        "json-schema: # Recipe: JSON Schema",
+        "directory-layout: # Recipe: Form directory layout (core / renderer-react / renderer-json)",
+        "validation: # Recipe: useFormValidation — Единый выбор стратегии валидации",
+        "computed: # Recipe: compute-vs-watch"
+      ],
+      "worker": [
+        "wizard: # Recipe: FormWizard — multi-step форма",
+        "form-array: # Recipe: FieldArray",
+        "copy-from: # Recipe: copyFrom — Копирование значений между полями",
+        "json-schema: # Recipe: JSON Schema",
+        "directory-layout: # Recipe: Form directory layout (core / renderer-react / renderer-json)",
+        "validation: # Recipe: useFormValidation — Единый выбор стратегии валидации",
+        "computed: # Recipe: compute-vs-watch"
+      ]
+    }
+  },
+  "t5": {
+    "code": {
+      "node": {
+        "playground/registration": {
+          "files": 8,
+          "withErrors": 0
+        },
+        "playground/credit": {
+          "files": 97,
+          "withErrors": 0
+        },
+        "__golden__": {
+          "files": 265,
+          "withErrors": 0
+        }
+      },
+      "worker": {
+        "playground/registration": {
+          "files": 8,
+          "withErrors": 0
+        },
+        "playground/credit": {
+          "files": 97,
+          "withErrors": 0
+        },
+        "__golden__": {
+          "files": 265,
+          "withErrors": 0
+        }
+      }
+    },
+    "layout": {
+      "playground/registration": {
+        "errors": 5,
+        "codes": ["RF011 LAYOUT_FILE_NAME", "RF012 LAYOUT_FILE_MISSING", "RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "playground/credit": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/parts-rules": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/parts-wizard": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/parts-wizard-rules": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/plain-builtin": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/plain-foreign": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/plain-provider": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/plain-rules": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/plain-subpath": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/rich-builtin": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/rows-rules": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-builtin": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-foreign": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-no-adapter": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-rules": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-slugs": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-split": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      },
+      "__golden__/wizard-split-source": {
+        "errors": 0,
+        "codes": ["RF013 LAYOUT_FILE_EXTRA"]
+      }
+    },
+    "jsonSchema": {
+      "playground/credit-renderer-json": {
+        "errors": 0,
+        "codes": []
+      },
+      "playground/registration": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/parts-rules": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/parts-wizard": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/parts-wizard-rules": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/plain-builtin": {
+        "errors": 0,
+        "codes": ["has unknown property \"…\""]
+      },
+      "__golden__/plain-foreign": {
+        "errors": 0,
+        "codes": ["has unknown property \"…\""]
+      },
+      "__golden__/plain-provider": {
+        "errors": 0,
+        "codes": ["has unknown property \"…\""]
+      },
+      "__golden__/plain-rules": {
+        "errors": 0,
+        "codes": ["has unknown property \"…\""]
+      },
+      "__golden__/plain-subpath": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/rich-builtin": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/rows-rules": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/wizard-builtin": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/wizard-foreign": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/wizard-no-adapter": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/wizard-rules": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/wizard-slugs": {
+        "errors": 0,
+        "codes": []
+      },
+      "__golden__/wizard-split": {
+        "errors": 0,
+        "codes": [
+          "step reference \"…\" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating."
+        ]
+      },
+      "__golden__/wizard-split-source": {
+        "errors": 0,
+        "codes": [
+          "step reference \"…\" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating."
+        ]
+      }
+    }
+  },
+  "t6": {
+    "plan_form": {
+      "n": 8,
+      "keyInBudget": "100%",
+      "fits": "0%",
+      "medianChars": 45768
+    },
+    "generate_form": {
+      "n": 18,
+      "keyInBudget": "100%",
+      "fits": "0%",
+      "medianChars": 45465
+    },
+    "validate_form": {
+      "n": 895,
+      "keyInBudget": "100%",
+      "fits": "95.9%",
+      "medianChars": 357
+    },
+    "choose_api": {
+      "n": 70,
+      "keyInBudget": "100%",
+      "fits": "91.4%",
+      "medianChars": 855
+    },
+    "askReformer": {
+      "n": 35,
+      "keyInBudget": "100%",
+      "fits": "14.3%",
+      "medianChars": 1461
+    },
+    "get_symbol_docs": {
+      "n": 88,
+      "keyInBudget": "98.9%",
+      "fits": "81.8%",
+      "medianChars": 803
+    },
+    "find_recipe": {
+      "n": 14,
+      "keyInBudget": "100%",
+      "fits": "0%",
+      "medianChars": 7616
+    },
+    "plan_form_warnings": {
+      "beyondBudget": "0/8"
+    }
+  },
+  "t3": {
+    "iter-core": "107/145",
+    "iter-renderer-react": "123/145",
+    "iter-renderer-json": "123/145",
+    "registration/core": "5/12",
+    "registration/renderer-react": "5/12",
+    "registration/renderer-json": "5/12"
+  }
+}

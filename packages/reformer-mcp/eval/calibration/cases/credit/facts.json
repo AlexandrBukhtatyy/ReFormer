@@ -1,0 +1,2575 @@
+{
+  "case": "credit",
+  "source": "projects/react-playground/src/pages/demo/complex-multy-step-form/",
+  "steps": [
+    {
+      "id": "loan",
+      "title": "Кредит",
+      "fields": [
+        "loanType",
+        "loanAmount",
+        "loanTerm",
+        "loanPurpose",
+        "propertyValue",
+        "initialPayment",
+        "carBrand",
+        "carModel",
+        "carYear",
+        "carPrice",
+        "businessType",
+        "businessInn",
+        "businessActivity"
+      ]
+    },
+    {
+      "id": "applicant",
+      "title": "Данные",
+      "fields": [
+        "personalData.lastName",
+        "personalData.firstName",
+        "personalData.middleName",
+        "personalData.birthDate",
+        "personalData.gender",
+        "personalData.birthPlace",
+        "passportData.series",
+        "passportData.number",
+        "passportData.issuedBy",
+        "passportData.issueDate",
+        "passportData.departmentCode",
+        "inn",
+        "snils"
+      ]
+    },
+    {
+      "id": "contacts",
+      "title": "Контакты",
+      "fields": [
+        "phoneMain",
+        "phoneAdditional",
+        "email",
+        "emailAdditional",
+        "sameEmail",
+        "registrationAddress.region",
+        "registrationAddress.city",
+        "registrationAddress.street",
+        "registrationAddress.house",
+        "registrationAddress.apartment",
+        "registrationAddress.postalCode",
+        "sameAsRegistration",
+        "residenceAddress.region",
+        "residenceAddress.city",
+        "residenceAddress.street",
+        "residenceAddress.house",
+        "residenceAddress.apartment",
+        "residenceAddress.postalCode"
+      ]
+    },
+    {
+      "id": "employment",
+      "title": "Работа",
+      "fields": [
+        "employmentStatus",
+        "companyName",
+        "companyInn",
+        "companyPhone",
+        "companyAddress",
+        "position",
+        "workExperienceTotal",
+        "workExperienceCurrent",
+        "businessType",
+        "businessInn",
+        "businessActivity",
+        "monthlyIncome",
+        "additionalIncome",
+        "additionalIncomeSource"
+      ]
+    },
+    {
+      "id": "additional",
+      "title": "Доп. инфо",
+      "fields": [
+        "maritalStatus",
+        "dependents",
+        "education",
+        "documents",
+        "hasProperty",
+        "hasExistingLoans",
+        "hasCoBorrower",
+        "properties",
+        "existingLoans",
+        "coBorrowers"
+      ]
+    },
+    {
+      "id": "confirmation",
+      "title": "Подтверждение",
+      "fields": [
+        "agreePersonalData",
+        "agreeCreditHistory",
+        "agreeTerms",
+        "confirmAccuracy",
+        "agreeMarketing",
+        "electronicSignature",
+        "interestRate",
+        "monthlyPayment",
+        "fullName",
+        "age",
+        "totalIncome",
+        "paymentToIncomeRatio",
+        "coBorrowersIncome"
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "path": "loanType",
+      "type": "string",
+      "component": "Select",
+      "label": "Тип кредита",
+      "step": "loan",
+      "testId": "loanType",
+      "options": "dataSource:LOAN_TYPES"
+    },
+    {
+      "path": "loanAmount",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Сумма кредита (₽)",
+      "step": "loan",
+      "testId": "loanAmount",
+      "options": "none"
+    },
+    {
+      "path": "loanTerm",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Срок кредита (месяцев)",
+      "step": "loan",
+      "testId": "loanTerm",
+      "options": "none"
+    },
+    {
+      "path": "loanPurpose",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Цель кредита",
+      "step": "loan",
+      "testId": "loanPurpose",
+      "options": "none"
+    },
+    {
+      "path": "propertyValue",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Стоимость недвижимости (₽)",
+      "step": "loan",
+      "testId": "propertyValue",
+      "options": "none"
+    },
+    {
+      "path": "initialPayment",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Первоначальный взнос (₽)",
+      "step": "loan",
+      "testId": "initialPayment",
+      "options": "none"
+    },
+    {
+      "path": "carBrand",
+      "type": "string",
+      "component": "Input",
+      "label": "Марка автомобиля",
+      "step": "loan",
+      "testId": "carBrand",
+      "options": "none"
+    },
+    {
+      "path": "carModel",
+      "type": "string",
+      "component": "Select",
+      "label": "Модель автомобиля",
+      "step": "loan",
+      "testId": "carModel",
+      "options": "dataSource:carModels"
+    },
+    {
+      "path": "carYear",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Год выпуска",
+      "step": "loan",
+      "testId": "carYear",
+      "options": "none"
+    },
+    {
+      "path": "carPrice",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Стоимость автомобиля (₽)",
+      "step": "loan",
+      "testId": "carPrice",
+      "options": "none"
+    },
+    {
+      "path": "personalData.lastName",
+      "type": "string",
+      "component": "Input",
+      "label": "Фамилия",
+      "step": "applicant",
+      "testId": "personalData-lastName",
+      "options": "none"
+    },
+    {
+      "path": "personalData.firstName",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя",
+      "step": "applicant",
+      "testId": "personalData-firstName",
+      "options": "none"
+    },
+    {
+      "path": "personalData.middleName",
+      "type": "string",
+      "component": "Input",
+      "label": "Отчество",
+      "step": "applicant",
+      "testId": "personalData-middleName",
+      "options": "none"
+    },
+    {
+      "path": "personalData.birthDate",
+      "type": "date",
+      "component": "Input",
+      "label": "Дата рождения",
+      "step": "applicant",
+      "testId": "personalData-birthDate",
+      "options": "none"
+    },
+    {
+      "path": "personalData.gender",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Пол",
+      "step": "applicant",
+      "testId": "personalData-gender",
+      "options": "dataSource:GENDERS"
+    },
+    {
+      "path": "personalData.birthPlace",
+      "type": "string",
+      "component": "Input",
+      "label": "Место рождения",
+      "step": "applicant",
+      "testId": "personalData-birthPlace",
+      "options": "none"
+    },
+    {
+      "path": "passportData.series",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Серия паспорта",
+      "step": "applicant",
+      "testId": "passportData-series",
+      "options": "none"
+    },
+    {
+      "path": "passportData.number",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Номер паспорта",
+      "step": "applicant",
+      "testId": "passportData-number",
+      "options": "none"
+    },
+    {
+      "path": "passportData.issuedBy",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Кем выдан",
+      "step": "applicant",
+      "testId": "passportData-issuedBy",
+      "options": "none"
+    },
+    {
+      "path": "passportData.issueDate",
+      "type": "date",
+      "component": "Input",
+      "label": "Дата выдачи",
+      "step": "applicant",
+      "testId": "passportData-issueDate",
+      "options": "none"
+    },
+    {
+      "path": "passportData.departmentCode",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Код подразделения",
+      "step": "applicant",
+      "testId": "passportData-departmentCode",
+      "options": "none"
+    },
+    {
+      "path": "inn",
+      "type": "string",
+      "component": "InputMask",
+      "label": "ИНН",
+      "step": "applicant",
+      "testId": "inn",
+      "options": "none"
+    },
+    {
+      "path": "snils",
+      "type": "string",
+      "component": "InputMask",
+      "label": "СНИЛС",
+      "step": "applicant",
+      "testId": "snils",
+      "options": "none"
+    },
+    {
+      "path": "phoneMain",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Основной телефон",
+      "step": "contacts",
+      "testId": "phoneMain",
+      "options": "none"
+    },
+    {
+      "path": "phoneAdditional",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Дополнительный телефон",
+      "step": "contacts",
+      "testId": "phoneAdditional",
+      "options": "none"
+    },
+    {
+      "path": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "step": "contacts",
+      "testId": "email",
+      "options": "none"
+    },
+    {
+      "path": "emailAdditional",
+      "type": "string",
+      "component": "Input",
+      "label": "Дополнительный email",
+      "step": "contacts",
+      "testId": "emailAdditional",
+      "options": "none"
+    },
+    {
+      "path": "sameEmail",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Дублировать email",
+      "step": "contacts",
+      "testId": "sameEmail",
+      "options": "none"
+    },
+    {
+      "path": "registrationAddress.region",
+      "type": "string",
+      "component": "Input",
+      "label": "Регион",
+      "step": "contacts",
+      "testId": "registrationAddress-region",
+      "options": "none"
+    },
+    {
+      "path": "registrationAddress.city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "step": "contacts",
+      "testId": "registrationAddress-city",
+      "options": "dataSource:cities"
+    },
+    {
+      "path": "registrationAddress.street",
+      "type": "string",
+      "component": "Input",
+      "label": "Улица",
+      "step": "contacts",
+      "testId": "registrationAddress-street",
+      "options": "none"
+    },
+    {
+      "path": "registrationAddress.house",
+      "type": "string",
+      "component": "Input",
+      "label": "Дом",
+      "step": "contacts",
+      "testId": "registrationAddress-house",
+      "options": "none"
+    },
+    {
+      "path": "registrationAddress.apartment",
+      "type": "string",
+      "component": "Input",
+      "label": "Квартира",
+      "step": "contacts",
+      "testId": "registrationAddress-apartment",
+      "options": "none"
+    },
+    {
+      "path": "registrationAddress.postalCode",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Индекс",
+      "step": "contacts",
+      "testId": "registrationAddress-postalCode",
+      "options": "none"
+    },
+    {
+      "path": "sameAsRegistration",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Адрес проживания совпадает с адресом регистрации",
+      "step": "contacts",
+      "testId": "sameAsRegistration",
+      "options": "none"
+    },
+    {
+      "path": "residenceAddress.region",
+      "type": "string",
+      "component": "Input",
+      "label": "Регион",
+      "step": "contacts",
+      "testId": "residenceAddress-region",
+      "options": "none"
+    },
+    {
+      "path": "residenceAddress.city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "step": "contacts",
+      "testId": "residenceAddress-city",
+      "options": "dataSource:cities"
+    },
+    {
+      "path": "residenceAddress.street",
+      "type": "string",
+      "component": "Input",
+      "label": "Улица",
+      "step": "contacts",
+      "testId": "residenceAddress-street",
+      "options": "none"
+    },
+    {
+      "path": "residenceAddress.house",
+      "type": "string",
+      "component": "Input",
+      "label": "Дом",
+      "step": "contacts",
+      "testId": "residenceAddress-house",
+      "options": "none"
+    },
+    {
+      "path": "residenceAddress.apartment",
+      "type": "string",
+      "component": "Input",
+      "label": "Квартира",
+      "step": "contacts",
+      "testId": "residenceAddress-apartment",
+      "options": "none"
+    },
+    {
+      "path": "residenceAddress.postalCode",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Индекс",
+      "step": "contacts",
+      "testId": "residenceAddress-postalCode",
+      "options": "none"
+    },
+    {
+      "path": "employmentStatus",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Статус занятости",
+      "step": "employment",
+      "testId": "employmentStatus",
+      "options": "dataSource:EMPLOYMENT_STATUSES"
+    },
+    {
+      "path": "companyName",
+      "type": "string",
+      "component": "Input",
+      "label": "Название компании",
+      "step": "employment",
+      "testId": "companyName",
+      "options": "none"
+    },
+    {
+      "path": "companyInn",
+      "type": "string",
+      "component": "InputMask",
+      "label": "ИНН компании",
+      "step": "employment",
+      "testId": "companyInn",
+      "options": "none"
+    },
+    {
+      "path": "companyPhone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон компании",
+      "step": "employment",
+      "testId": "companyPhone",
+      "options": "none"
+    },
+    {
+      "path": "companyAddress",
+      "type": "string",
+      "component": "Input",
+      "label": "Адрес компании",
+      "step": "employment",
+      "testId": "companyAddress",
+      "options": "none"
+    },
+    {
+      "path": "position",
+      "type": "string",
+      "component": "Input",
+      "label": "Должность",
+      "step": "employment",
+      "testId": "position",
+      "options": "none"
+    },
+    {
+      "path": "workExperienceTotal",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Общий стаж работы (месяцев)",
+      "step": "employment",
+      "testId": "workExperienceTotal",
+      "options": "none"
+    },
+    {
+      "path": "workExperienceCurrent",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Стаж на текущем месте (месяцев)",
+      "step": "employment",
+      "testId": "workExperienceCurrent",
+      "options": "none"
+    },
+    {
+      "path": "businessType",
+      "type": "string",
+      "component": "Input",
+      "label": "Тип бизнеса",
+      "step": "employment",
+      "testId": "businessType",
+      "options": "none"
+    },
+    {
+      "path": "businessInn",
+      "type": "string",
+      "component": "InputMask",
+      "label": "ИНН ИП",
+      "step": "employment",
+      "testId": "businessInn",
+      "options": "none"
+    },
+    {
+      "path": "businessActivity",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Вид деятельности",
+      "step": "employment",
+      "testId": "businessActivity",
+      "options": "none"
+    },
+    {
+      "path": "monthlyIncome",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Ежемесячный доход (₽)",
+      "step": "employment",
+      "testId": "monthlyIncome",
+      "options": "none"
+    },
+    {
+      "path": "additionalIncome",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Дополнительный доход (₽)",
+      "step": "employment",
+      "testId": "additionalIncome",
+      "options": "none"
+    },
+    {
+      "path": "additionalIncomeSource",
+      "type": "string",
+      "component": "Input",
+      "label": "Источник дополнительного дохода",
+      "step": "employment",
+      "testId": "additionalIncomeSource",
+      "options": "none"
+    },
+    {
+      "path": "maritalStatus",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Семейное положение",
+      "step": "additional",
+      "testId": "maritalStatus",
+      "options": "dataSource:MARITAL_STATUSES"
+    },
+    {
+      "path": "dependents",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Количество иждивенцев",
+      "step": "additional",
+      "testId": "dependents",
+      "options": "none"
+    },
+    {
+      "path": "education",
+      "type": "string",
+      "component": "Select",
+      "label": "Образование",
+      "step": "additional",
+      "testId": "education",
+      "options": "dataSource:EDUCATIONS"
+    },
+    {
+      "path": "documents",
+      "type": "array",
+      "component": "FileUploadDropzone",
+      "label": "Документы",
+      "step": "additional",
+      "testId": "documents",
+      "options": "none"
+    },
+    {
+      "path": "hasProperty",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "У меня есть имущество",
+      "step": "additional",
+      "testId": "hasProperty",
+      "options": "none"
+    },
+    {
+      "path": "hasExistingLoans",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "У меня есть другие кредиты",
+      "step": "additional",
+      "testId": "hasExistingLoans",
+      "options": "none"
+    },
+    {
+      "path": "hasCoBorrower",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Добавить созаемщика",
+      "step": "additional",
+      "testId": "hasCoBorrower",
+      "options": "none"
+    },
+    {
+      "path": "agreePersonalData",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие на обработку персональных данных",
+      "step": "confirmation",
+      "testId": "agreePersonalData",
+      "options": "none"
+    },
+    {
+      "path": "agreeCreditHistory",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие на проверку кредитной истории",
+      "step": "confirmation",
+      "testId": "agreeCreditHistory",
+      "options": "none"
+    },
+    {
+      "path": "agreeTerms",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие с условиями кредитования",
+      "step": "confirmation",
+      "testId": "agreeTerms",
+      "options": "none"
+    },
+    {
+      "path": "confirmAccuracy",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Подтверждаю точность введенных данных",
+      "step": "confirmation",
+      "testId": "confirmAccuracy",
+      "options": "none"
+    },
+    {
+      "path": "agreeMarketing",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие на получение маркетинговых материалов",
+      "step": "confirmation",
+      "testId": "agreeMarketing",
+      "options": "none"
+    },
+    {
+      "path": "electronicSignature",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Код подтверждения из СМС",
+      "step": "confirmation",
+      "testId": "electronicSignature",
+      "options": "none"
+    },
+    {
+      "path": "interestRate",
+      "type": "number",
+      "component": "LoanSummarySection",
+      "label": "Процентная ставка",
+      "step": "confirmation",
+      "testId": "interestRate",
+      "options": "none"
+    },
+    {
+      "path": "monthlyPayment",
+      "type": "number",
+      "component": "LoanSummarySection",
+      "label": "Ежемесячный платеж",
+      "step": "confirmation",
+      "testId": "monthlyPayment",
+      "options": "none"
+    },
+    {
+      "path": "fullName",
+      "type": "string",
+      "component": "ApplicantSummarySection",
+      "label": "ФИО",
+      "step": "confirmation",
+      "testId": "fullName",
+      "options": "none"
+    },
+    {
+      "path": "age",
+      "type": "number",
+      "component": "ApplicantSummarySection",
+      "label": "Возраст",
+      "step": "confirmation",
+      "testId": "age",
+      "options": "none"
+    },
+    {
+      "path": "totalIncome",
+      "type": "number",
+      "component": "ApplicantSummarySection",
+      "label": "Общий доход",
+      "step": "confirmation",
+      "testId": "totalIncome",
+      "options": "none"
+    },
+    {
+      "path": "paymentToIncomeRatio",
+      "type": "number",
+      "component": "ApplicantSummarySection",
+      "label": "Платеж/Доход",
+      "step": "confirmation",
+      "testId": "paymentToIncomeRatio",
+      "options": "none"
+    },
+    {
+      "path": "coBorrowersIncome",
+      "type": "number",
+      "component": "ApplicantSummarySection",
+      "label": "Доход созаемщиков",
+      "step": "confirmation",
+      "testId": "coBorrowersIncome",
+      "options": "none"
+    }
+  ],
+  "computed": [
+    {
+      "path": "interestRate",
+      "sources": ["loanType", "registrationAddress.region", "hasProperty", "properties"]
+    },
+    {
+      "path": "monthlyPayment",
+      "sources": ["loanAmount", "loanTerm", "interestRate"]
+    },
+    {
+      "path": "initialPayment",
+      "sources": ["propertyValue", "loanType"]
+    },
+    {
+      "path": "fullName",
+      "sources": ["personalData.lastName", "personalData.firstName", "personalData.middleName"]
+    },
+    {
+      "path": "age",
+      "sources": ["personalData.birthDate"]
+    },
+    {
+      "path": "coBorrowersIncome",
+      "sources": ["coBorrowers.monthlyIncome"]
+    },
+    {
+      "path": "totalIncome",
+      "sources": ["monthlyIncome", "additionalIncome", "coBorrowersIncome"]
+    },
+    {
+      "path": "paymentToIncomeRatio",
+      "sources": ["monthlyPayment", "totalIncome"]
+    }
+  ],
+  "arrays": [
+    {
+      "name": "properties",
+      "step": "additional",
+      "itemFields": [
+        {
+          "name": "type",
+          "type": "string",
+          "component": "Select",
+          "label": "Тип имущества",
+          "testId": "property-type",
+          "options": "static"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "component": "Textarea",
+          "label": "Описание",
+          "testId": "property-description",
+          "options": "none"
+        },
+        {
+          "name": "estimatedValue",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Оценочная стоимость",
+          "testId": "property-estimatedValue",
+          "options": "none"
+        },
+        {
+          "name": "hasEncumbrance",
+          "type": "boolean",
+          "component": "Checkbox",
+          "label": "Имеется обременение (залог)",
+          "testId": "property-hasEncumbrance",
+          "options": "none"
+        }
+      ]
+    },
+    {
+      "name": "existingLoans",
+      "step": "additional",
+      "itemFields": [
+        {
+          "name": "bank",
+          "type": "string",
+          "component": "Input",
+          "label": "Банк",
+          "testId": "existingLoan-bank",
+          "options": "dataSource:dictionaries.banks"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "component": "Select",
+          "label": "Тип кредита",
+          "testId": "existingLoan-type",
+          "options": "dataSource:EXISTING_LOAN_TYPES"
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Сумма кредита (₽)",
+          "testId": "existingLoan-amount",
+          "options": "none"
+        },
+        {
+          "name": "remainingAmount",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Остаток долга (₽)",
+          "testId": "existingLoan-remainingAmount",
+          "options": "none"
+        },
+        {
+          "name": "monthlyPayment",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Ежемесячный платеж (₽)",
+          "testId": "existingLoan-monthlyPayment",
+          "options": "none"
+        },
+        {
+          "name": "maturityDate",
+          "type": "date",
+          "component": "Input",
+          "label": "Дата погашения",
+          "testId": "existingLoan-maturityDate",
+          "options": "none"
+        }
+      ]
+    },
+    {
+      "name": "coBorrowers",
+      "step": "additional",
+      "itemFields": [
+        {
+          "name": "personalData.lastName",
+          "type": "string",
+          "component": "Input",
+          "label": "Фамилия",
+          "testId": "coBorrower-lastName",
+          "options": "none"
+        },
+        {
+          "name": "personalData.firstName",
+          "type": "string",
+          "component": "Input",
+          "label": "Имя",
+          "testId": "coBorrower-firstName",
+          "options": "none"
+        },
+        {
+          "name": "personalData.middleName",
+          "type": "string",
+          "component": "Input",
+          "label": "Отчество",
+          "testId": "coBorrower-middleName",
+          "options": "none"
+        },
+        {
+          "name": "personalData.birthDate",
+          "type": "date",
+          "component": "Input",
+          "label": "Дата рождения",
+          "testId": "coBorrower-birthDate",
+          "options": "none"
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "component": "InputMask",
+          "label": "Телефон",
+          "testId": "coBorrower-phone",
+          "options": "none"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "component": "Input",
+          "label": "Email",
+          "testId": "coBorrower-email",
+          "options": "none"
+        },
+        {
+          "name": "relationship",
+          "type": "string",
+          "component": "Select",
+          "label": "Отношение к заемщику",
+          "testId": "coBorrower-relationship",
+          "options": "dataSource:RELATIONSHIPS"
+        },
+        {
+          "name": "monthlyIncome",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Ежемесячный доход (₽)",
+          "testId": "coBorrower-monthlyIncome",
+          "options": "none"
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "target": "loanType",
+      "rule": "required",
+      "step": "loan"
+    },
+    {
+      "target": "loanAmount",
+      "rule": "required",
+      "step": "loan"
+    },
+    {
+      "target": "loanAmount",
+      "rule": "min",
+      "arg": 50000,
+      "step": "loan"
+    },
+    {
+      "target": "loanAmount",
+      "rule": "max",
+      "arg": 10000000,
+      "step": "loan"
+    },
+    {
+      "target": "loanTerm",
+      "rule": "required",
+      "step": "loan"
+    },
+    {
+      "target": "loanTerm",
+      "rule": "min",
+      "arg": 6,
+      "step": "loan"
+    },
+    {
+      "target": "loanTerm",
+      "rule": "max",
+      "arg": 240,
+      "step": "loan"
+    },
+    {
+      "target": "loanPurpose",
+      "rule": "required",
+      "step": "loan"
+    },
+    {
+      "target": "loanPurpose",
+      "rule": "minLength",
+      "arg": 10,
+      "step": "loan"
+    },
+    {
+      "target": "loanPurpose",
+      "rule": "maxLength",
+      "arg": 500,
+      "step": "loan"
+    },
+    {
+      "target": "loanAmount",
+      "rule": "cross",
+      "arg": "loanAmountExceedsMax",
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "propertyValue",
+      "rule": "required",
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "propertyValue",
+      "rule": "min",
+      "arg": 1000000,
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "initialPayment",
+      "rule": "required",
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "initialPayment",
+      "rule": "min",
+      "arg": 0,
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "initialPayment",
+      "rule": "cross",
+      "arg": "initialPaymentTooHigh",
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "initialPayment",
+      "rule": "cross",
+      "arg": "initialPaymentTooLow",
+      "when": "loanType === 'mortgage'",
+      "step": "loan"
+    },
+    {
+      "target": "carBrand",
+      "rule": "required",
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carBrand",
+      "rule": "minLength",
+      "arg": 2,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carBrand",
+      "rule": "maxLength",
+      "arg": 50,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carModel",
+      "rule": "required",
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carModel",
+      "rule": "minLength",
+      "arg": 1,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carModel",
+      "rule": "maxLength",
+      "arg": 50,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carYear",
+      "rule": "required",
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carYear",
+      "rule": "min",
+      "arg": 2000,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carYear",
+      "rule": "max",
+      "arg": "CURRENT_YEAR + 1",
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carPrice",
+      "rule": "required",
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carPrice",
+      "rule": "min",
+      "arg": 300000,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "carPrice",
+      "rule": "max",
+      "arg": 10000000,
+      "when": "loanType === 'car'",
+      "step": "loan"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "minLength",
+      "arg": 2,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "maxLength",
+      "arg": 50,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "pattern",
+      "arg": "/^[А-ЯЁа-яё\\s-]+$/",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "minLength",
+      "arg": 2,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "maxLength",
+      "arg": 50,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "pattern",
+      "arg": "/^[А-ЯЁа-яё\\s-]+$/",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "minLength",
+      "arg": 2,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "maxLength",
+      "arg": 50,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "pattern",
+      "arg": "/^[А-ЯЁа-яё\\s-]+$/",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rule": "minAge",
+      "arg": 18,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rule": "maxAge",
+      "arg": 70,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.gender",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.birthPlace",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.birthPlace",
+      "rule": "minLength",
+      "arg": 5,
+      "step": "applicant"
+    },
+    {
+      "target": "personalData.birthPlace",
+      "rule": "maxLength",
+      "arg": 100,
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.series",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.series",
+      "rule": "pattern",
+      "arg": "/^\\d{2}\\s\\d{2}$/",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.number",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.number",
+      "rule": "pattern",
+      "arg": "/^\\d{6}$/",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.issueDate",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.issueDate",
+      "rule": "pastDate",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.issueDate",
+      "rule": "cross",
+      "arg": "passportIssuedBeforeMinAge",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.issuedBy",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.issuedBy",
+      "rule": "minLength",
+      "arg": 10,
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.issuedBy",
+      "rule": "maxLength",
+      "arg": 200,
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.departmentCode",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "passportData.departmentCode",
+      "rule": "pattern",
+      "arg": "/^\\d{3}-\\d{3}$/",
+      "step": "applicant"
+    },
+    {
+      "target": "inn",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "inn",
+      "rule": "pattern",
+      "arg": "/^\\d{12}$/",
+      "step": "applicant"
+    },
+    {
+      "target": "snils",
+      "rule": "required",
+      "step": "applicant"
+    },
+    {
+      "target": "snils",
+      "rule": "pattern",
+      "arg": "/^\\d{3}-\\d{3}-\\d{3}\\s\\d{2}$/",
+      "step": "applicant"
+    },
+    {
+      "target": "phoneMain",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "phoneMain",
+      "rule": "pattern",
+      "arg": "/^\\+7\\s\\(\\d{3}\\)\\s\\d{3}-\\d{2}-\\d{2}$/",
+      "step": "contacts"
+    },
+    {
+      "target": "phoneAdditional",
+      "rule": "pattern",
+      "arg": "/^\\+7\\s\\(\\d{3}\\)\\s\\d{3}-\\d{2}-\\d{2}$/",
+      "step": "contacts"
+    },
+    {
+      "target": "phoneAdditional",
+      "rule": "cross",
+      "arg": "phoneDuplicate",
+      "step": "contacts"
+    },
+    {
+      "target": "email",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "email",
+      "rule": "email",
+      "step": "contacts"
+    },
+    {
+      "target": "emailAdditional",
+      "rule": "email",
+      "step": "contacts"
+    },
+    {
+      "target": "emailAdditional",
+      "rule": "cross",
+      "arg": "emailDuplicate",
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.region",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.region",
+      "rule": "minLength",
+      "arg": 2,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.region",
+      "rule": "maxLength",
+      "arg": 100,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.city",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.city",
+      "rule": "minLength",
+      "arg": 2,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.city",
+      "rule": "maxLength",
+      "arg": 100,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.street",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.street",
+      "rule": "minLength",
+      "arg": 3,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.street",
+      "rule": "maxLength",
+      "arg": 200,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.house",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.house",
+      "rule": "maxLength",
+      "arg": 10,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.apartment",
+      "rule": "maxLength",
+      "arg": 10,
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.postalCode",
+      "rule": "required",
+      "step": "contacts"
+    },
+    {
+      "target": "registrationAddress.postalCode",
+      "rule": "pattern",
+      "arg": "/^\\d{6}$/",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.region",
+      "rule": "required",
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.region",
+      "rule": "minLength",
+      "arg": 2,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.region",
+      "rule": "maxLength",
+      "arg": 100,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.city",
+      "rule": "required",
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.city",
+      "rule": "minLength",
+      "arg": 2,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.city",
+      "rule": "maxLength",
+      "arg": 100,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.street",
+      "rule": "required",
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.street",
+      "rule": "minLength",
+      "arg": 3,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.street",
+      "rule": "maxLength",
+      "arg": 200,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.house",
+      "rule": "required",
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.house",
+      "rule": "maxLength",
+      "arg": 10,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.apartment",
+      "rule": "maxLength",
+      "arg": 10,
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.postalCode",
+      "rule": "required",
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "residenceAddress.postalCode",
+      "rule": "pattern",
+      "arg": "/^\\d{6}$/",
+      "when": "sameAsRegistration === false",
+      "step": "contacts"
+    },
+    {
+      "target": "employmentStatus",
+      "rule": "required",
+      "step": "employment"
+    },
+    {
+      "target": "companyName",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyName",
+      "rule": "minLength",
+      "arg": 3,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyName",
+      "rule": "maxLength",
+      "arg": 200,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyInn",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyInn",
+      "rule": "pattern",
+      "arg": "/^\\d{10}$/",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyPhone",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyPhone",
+      "rule": "pattern",
+      "arg": "/^\\+7\\s\\(\\d{3}\\)\\s\\d{3}-\\d{2}-\\d{2}$/",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyAddress",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyAddress",
+      "rule": "minLength",
+      "arg": 10,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "companyAddress",
+      "rule": "maxLength",
+      "arg": 300,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "position",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "position",
+      "rule": "minLength",
+      "arg": 3,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "position",
+      "rule": "maxLength",
+      "arg": 100,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "workExperienceTotal",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "workExperienceTotal",
+      "rule": "min",
+      "arg": 0,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rule": "required",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rule": "min",
+      "arg": 0,
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rule": "cross",
+      "arg": "currentExperienceExceedsTotal",
+      "when": "employmentStatus === 'employed'",
+      "step": "employment"
+    },
+    {
+      "target": "businessType",
+      "rule": "required",
+      "when": "employmentStatus === 'selfEmployed'",
+      "step": "employment"
+    },
+    {
+      "target": "businessInn",
+      "rule": "required",
+      "when": "employmentStatus === 'selfEmployed'",
+      "step": "employment"
+    },
+    {
+      "target": "businessInn",
+      "rule": "pattern",
+      "arg": "/^\\d{12}$/",
+      "when": "employmentStatus === 'selfEmployed'",
+      "step": "employment"
+    },
+    {
+      "target": "businessActivity",
+      "rule": "required",
+      "when": "employmentStatus === 'selfEmployed'",
+      "step": "employment"
+    },
+    {
+      "target": "businessActivity",
+      "rule": "minLength",
+      "arg": 10,
+      "when": "employmentStatus === 'selfEmployed'",
+      "step": "employment"
+    },
+    {
+      "target": "businessActivity",
+      "rule": "maxLength",
+      "arg": 300,
+      "when": "employmentStatus === 'selfEmployed'",
+      "step": "employment"
+    },
+    {
+      "target": "monthlyIncome",
+      "rule": "required",
+      "step": "employment"
+    },
+    {
+      "target": "monthlyIncome",
+      "rule": "min",
+      "arg": 10000,
+      "step": "employment"
+    },
+    {
+      "target": "monthlyIncome",
+      "rule": "max",
+      "arg": 10000000,
+      "step": "employment"
+    },
+    {
+      "target": "additionalIncome",
+      "rule": "min",
+      "arg": 0,
+      "step": "employment"
+    },
+    {
+      "target": "additionalIncome",
+      "rule": "max",
+      "arg": 10000000,
+      "step": "employment"
+    },
+    {
+      "target": "additionalIncomeSource",
+      "rule": "cross",
+      "arg": "additionalIncomeSourceRequired",
+      "step": "employment"
+    },
+    {
+      "target": "maritalStatus",
+      "rule": "required",
+      "step": "additional"
+    },
+    {
+      "target": "dependents",
+      "rule": "required",
+      "step": "additional"
+    },
+    {
+      "target": "dependents",
+      "rule": "min",
+      "arg": 0,
+      "step": "additional"
+    },
+    {
+      "target": "dependents",
+      "rule": "max",
+      "arg": 10,
+      "step": "additional"
+    },
+    {
+      "target": "education",
+      "rule": "required",
+      "step": "additional"
+    },
+    {
+      "target": "hasProperty",
+      "rule": "cross",
+      "arg": "properties.arrayEmpty",
+      "step": "additional"
+    },
+    {
+      "target": "hasExistingLoans",
+      "rule": "cross",
+      "arg": "existingLoans.arrayEmpty",
+      "step": "additional"
+    },
+    {
+      "target": "hasCoBorrower",
+      "rule": "cross",
+      "arg": "coBorrowers.arrayEmpty",
+      "step": "additional"
+    },
+    {
+      "target": "type",
+      "rule": "required",
+      "each": "properties",
+      "step": "additional"
+    },
+    {
+      "target": "description",
+      "rule": "required",
+      "each": "properties",
+      "step": "additional"
+    },
+    {
+      "target": "description",
+      "rule": "minLength",
+      "arg": 10,
+      "each": "properties",
+      "step": "additional"
+    },
+    {
+      "target": "description",
+      "rule": "maxLength",
+      "arg": 500,
+      "each": "properties",
+      "step": "additional"
+    },
+    {
+      "target": "estimatedValue",
+      "rule": "required",
+      "each": "properties",
+      "step": "additional"
+    },
+    {
+      "target": "estimatedValue",
+      "rule": "min",
+      "arg": 10000,
+      "each": "properties",
+      "step": "additional"
+    },
+    {
+      "target": "bank",
+      "rule": "required",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "bank",
+      "rule": "minLength",
+      "arg": 3,
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "bank",
+      "rule": "maxLength",
+      "arg": 100,
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "type",
+      "rule": "required",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "amount",
+      "rule": "required",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "amount",
+      "rule": "min",
+      "arg": 1000,
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "amount",
+      "rule": "max",
+      "arg": 100000000,
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "remainingAmount",
+      "rule": "required",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "remainingAmount",
+      "rule": "min",
+      "arg": 0,
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "remainingAmount",
+      "rule": "cross",
+      "arg": "remainingExceedsAmount",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "monthlyPayment",
+      "rule": "required",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "monthlyPayment",
+      "rule": "min",
+      "arg": 100,
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "maturityDate",
+      "rule": "required",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "maturityDate",
+      "rule": "cross",
+      "arg": "maturityDateInPast",
+      "each": "existingLoans",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "minLength",
+      "arg": 2,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "maxLength",
+      "arg": 50,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.lastName",
+      "rule": "pattern",
+      "arg": "/^[А-ЯЁа-яё\\s-]+$/",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "minLength",
+      "arg": 2,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "maxLength",
+      "arg": 50,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.firstName",
+      "rule": "pattern",
+      "arg": "/^[А-ЯЁа-яё\\s-]+$/",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "minLength",
+      "arg": 2,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "maxLength",
+      "arg": 50,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.middleName",
+      "rule": "pattern",
+      "arg": "/^[А-ЯЁа-яё\\s-]+$/",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rule": "minAge",
+      "arg": 18,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rule": "maxAge",
+      "arg": 80,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "phone",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "email",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "email",
+      "rule": "email",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "relationship",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "monthlyIncome",
+      "rule": "required",
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "monthlyIncome",
+      "rule": "min",
+      "arg": 10000,
+      "each": "coBorrowers",
+      "step": "additional"
+    },
+    {
+      "target": "agreePersonalData",
+      "rule": "required",
+      "step": "confirmation"
+    },
+    {
+      "target": "agreeCreditHistory",
+      "rule": "required",
+      "step": "confirmation"
+    },
+    {
+      "target": "agreeTerms",
+      "rule": "required",
+      "step": "confirmation"
+    },
+    {
+      "target": "confirmAccuracy",
+      "rule": "required",
+      "step": "confirmation"
+    },
+    {
+      "target": "electronicSignature",
+      "rule": "required",
+      "step": "confirmation"
+    },
+    {
+      "target": "electronicSignature",
+      "rule": "minLength",
+      "arg": 6,
+      "step": "confirmation"
+    },
+    {
+      "target": "electronicSignature",
+      "rule": "maxLength",
+      "arg": 6,
+      "step": "confirmation"
+    },
+    {
+      "target": "electronicSignature",
+      "rule": "pattern",
+      "arg": "/^\\d{6}$/",
+      "step": "confirmation"
+    },
+    {
+      "target": "electronicSignature",
+      "rule": "async",
+      "arg": "invalidSmsCode",
+      "step": "confirmation"
+    },
+    {
+      "target": "monthlyPayment",
+      "rule": "cross",
+      "arg": "paymentTooHigh",
+      "step": "extras"
+    },
+    {
+      "target": "age",
+      "rule": "cross",
+      "arg": "ageTooYoung",
+      "step": "extras"
+    },
+    {
+      "target": "age",
+      "rule": "cross",
+      "arg": "ageTooOld",
+      "step": "extras"
+    },
+    {
+      "target": "age",
+      "rule": "cross",
+      "arg": "seniorAge",
+      "severity": "warning",
+      "step": "extras"
+    },
+    {
+      "target": "paymentToIncomeRatio",
+      "rule": "cross",
+      "arg": "highDebtLoad",
+      "severity": "warning",
+      "step": "extras"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rule": "cross",
+      "arg": "lowWorkExperience",
+      "severity": "warning",
+      "step": "extras"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "compute",
+      "target": "interestRate",
+      "sources": ["loanType", "registrationAddress.region", "hasProperty", "properties"],
+      "note": "behavior/derived.ts:17-24 — базовая ставка по типу ±0.5 (Москва для ипотеки, имущество)"
+    },
+    {
+      "kind": "compute",
+      "target": "monthlyPayment",
+      "sources": ["loanAmount", "loanTerm", "interestRate"],
+      "note": "derived.ts:25 — аннуитет"
+    },
+    {
+      "kind": "compute",
+      "target": "initialPayment",
+      "sources": ["propertyValue", "loanType"],
+      "note": "derived.ts:27-29 — 20% стоимости, опция when: isMortgage(loanType)"
+    },
+    {
+      "kind": "compute",
+      "target": "fullName",
+      "sources": ["personalData.lastName", "personalData.firstName", "personalData.middleName"],
+      "note": "derived.ts:30"
+    },
+    {
+      "kind": "compute",
+      "target": "age",
+      "sources": ["personalData.birthDate"],
+      "note": "derived.ts:31 — полных лет"
+    },
+    {
+      "kind": "compute",
+      "target": "coBorrowersIncome",
+      "sources": ["coBorrowers.monthlyIncome"],
+      "note": "derived.ts:32-34 — сумма по строкам"
+    },
+    {
+      "kind": "compute",
+      "target": "totalIncome",
+      "sources": ["monthlyIncome", "additionalIncome", "coBorrowersIncome"],
+      "note": "derived.ts:35"
+    },
+    {
+      "kind": "compute",
+      "target": "paymentToIncomeRatio",
+      "sources": ["monthlyPayment", "totalIncome"],
+      "note": "derived.ts:36 — %"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "emailAdditional",
+      "sources": ["email"],
+      "note": "synchronization.ts:11 — when: sameEmail === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress",
+      "sources": ["registrationAddress"],
+      "note": "synchronization.ts:12-14 — копия группы, when: sameAsRegistration === true"
+    },
+    {
+      "kind": "onChange",
+      "target": "emailAdditional",
+      "sources": ["sameEmail"],
+      "note": "synchronization.ts:16 — resetOnUnset: снятие флага (true→false) сбрасывает в ''"
+    },
+    {
+      "kind": "onChange",
+      "target": "residenceAddress",
+      "sources": ["sameAsRegistration"],
+      "note": "synchronization.ts:17 — resetOnUnset: снятие флага сбрасывает группу в blankAddress()"
+    },
+    {
+      "kind": "onChange",
+      "target": "properties",
+      "sources": ["hasProperty"],
+      "note": "synchronization.ts:19 — clearWhenOff: .clear() при снятом флаге"
+    },
+    {
+      "kind": "onChange",
+      "target": "existingLoans",
+      "sources": ["hasExistingLoans"],
+      "note": "synchronization.ts:20 — clearWhenOff"
+    },
+    {
+      "kind": "onChange",
+      "target": "coBorrowers",
+      "sources": ["hasCoBorrower"],
+      "note": "synchronization.ts:21 — clearWhenOff"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "propertyValue",
+      "sources": ["loanType"],
+      "note": "conditions.ts:28-30 — loanType === 'mortgage', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "initialPayment",
+      "sources": ["loanType"],
+      "note": "conditions.ts:28-30 — loanType === 'mortgage', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carBrand",
+      "sources": ["loanType"],
+      "note": "conditions.ts:33-35 — loanType === 'car', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carModel",
+      "sources": ["loanType"],
+      "note": "conditions.ts:33-35 — loanType === 'car', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carYear",
+      "sources": ["loanType"],
+      "note": "conditions.ts:33-35 — loanType === 'car', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carPrice",
+      "sources": ["loanType"],
+      "note": "conditions.ts:33-35 — loanType === 'car', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyName",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:38-48 — employmentStatus === 'employed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyInn",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:38-48 — employmentStatus === 'employed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyPhone",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:38-48 — employmentStatus === 'employed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyAddress",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:38-48 — employmentStatus === 'employed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "position",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:38-48 — employmentStatus === 'employed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "businessType",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:53-55 — employmentStatus === 'selfEmployed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "businessInn",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:53-55 — employmentStatus === 'selfEmployed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "businessActivity",
+      "sources": ["employmentStatus"],
+      "note": "conditions.ts:53-55 — employmentStatus === 'selfEmployed', resetOnDisable"
+    },
+    {
+      "kind": "enableWhen",
+      "target": "residenceAddress",
+      "sources": ["sameAsRegistration"],
+      "note": "conditions.ts:63 — группа целиком, sameAsRegistration === false, без сброса"
+    },
+    {
+      "kind": "loadOptionsOn",
+      "target": "carModel",
+      "sources": ["carBrand"],
+      "note": "dynamic-options.ts:8 — fetchCarModels(brand, signal) → options; resetTarget: true; debounce 300"
+    },
+    {
+      "kind": "onChange",
+      "target": "loanAmount",
+      "sources": ["totalIncome"],
+      "note": "dynamic-options.ts:11-15 — updateComponentProps({ max: min(totalIncome*12*10, 10 000 000) })"
+    },
+    {
+      "kind": "onChange",
+      "target": "loanTerm",
+      "sources": ["age"],
+      "note": "dynamic-options.ts:17-21 — updateComponentProps({ max: min(max(70-age,1)*12, 240) })"
+    },
+    {
+      "kind": "apply",
+      "target": "registrationAddress",
+      "sources": [],
+      "note": "behavior/index.ts:28 — apply([registrationAddress, residenceAddress], addressBehavior)"
+    },
+    {
+      "kind": "apply",
+      "target": "residenceAddress",
+      "sources": [],
+      "note": "behavior/index.ts:28"
+    },
+    {
+      "kind": "loadOptionsOn",
+      "target": "registrationAddress.city",
+      "sources": ["registrationAddress.region"],
+      "note": "address-behavior.ts:12 — fetchCities(region) → options города (Input, список вспомогательный)"
+    },
+    {
+      "kind": "onChange",
+      "target": "registrationAddress.city",
+      "sources": ["registrationAddress.region"],
+      "note": "address-behavior.ts:16-20 — смена НЕПУСТОГО региона очищает город (замыкание previousRegion)"
+    },
+    {
+      "kind": "transformValue",
+      "target": "registrationAddress.postalCode",
+      "sources": [],
+      "note": "address-behavior.ts:23 — только цифры, ≤ 6"
+    },
+    {
+      "kind": "loadOptionsOn",
+      "target": "residenceAddress.city",
+      "sources": ["residenceAddress.region"],
+      "note": "address-behavior.ts:12 — fetchCities(region) → options города (Input, список вспомогательный)"
+    },
+    {
+      "kind": "onChange",
+      "target": "residenceAddress.city",
+      "sources": ["residenceAddress.region"],
+      "note": "address-behavior.ts:16-20 — смена НЕПУСТОГО региона очищает город (замыкание previousRegion)"
+    },
+    {
+      "kind": "transformValue",
+      "target": "residenceAddress.postalCode",
+      "sources": [],
+      "note": "address-behavior.ts:23 — только цифры, ≤ 6"
+    },
+    {
+      "kind": "renderEffect",
+      "target": "flow",
+      "sources": ["loanType"],
+      "note": "application/renderer.ts:70-72 — isMortgage → flow.goTo('loan')"
+    },
+    {
+      "kind": "onMount",
+      "target": "data-boundary",
+      "sources": [],
+      "note": "application/renderer.ts:46-62 — загрузка заявки + справочников, статус AsyncBoundary"
+    },
+    {
+      "kind": "onComponentEvent",
+      "target": "wizard",
+      "sources": [],
+      "note": "application/renderer.ts:65-67 — onSubmit → sendCreditApplication"
+    }
+  ],
+  "visibility": [
+    {
+      "selector": "mortgage-section",
+      "dependsOn": ["loanType"],
+      "condition": "loanType !== 'mortgage'"
+    },
+    {
+      "selector": "car-section",
+      "dependsOn": ["loanType"],
+      "condition": "loanType !== 'car'"
+    },
+    {
+      "selector": "employer-section",
+      "dependsOn": ["employmentStatus"],
+      "condition": "employmentStatus !== 'employed'"
+    },
+    {
+      "selector": "loan-business-section",
+      "dependsOn": ["loanType"],
+      "condition": "loanType !== 'business'"
+    },
+    {
+      "selector": "business-section",
+      "dependsOn": ["employmentStatus"],
+      "condition": "employmentStatus !== 'selfEmployed'"
+    },
+    {
+      "selector": "income-section",
+      "dependsOn": ["employmentStatus"],
+      "condition": "employmentStatus === 'unemployed'"
+    },
+    {
+      "selector": "unemployed-warning",
+      "dependsOn": ["employmentStatus"],
+      "condition": "employmentStatus !== 'unemployed'"
+    },
+    {
+      "selector": "residence-address-section",
+      "dependsOn": ["sameAsRegistration"],
+      "condition": "sameAsRegistration !== false"
+    },
+    {
+      "selector": "properties-array",
+      "dependsOn": ["hasProperty"],
+      "condition": "!hasProperty"
+    },
+    {
+      "selector": "existing-loans-array",
+      "dependsOn": ["hasExistingLoans"],
+      "condition": "!hasExistingLoans"
+    },
+    {
+      "selector": "co-borrowers-array",
+      "dependsOn": ["hasCoBorrower"],
+      "condition": "!hasCoBorrower"
+    }
+  ],
+  "dataSources": [
+    {
+      "name": "LOAN_TYPES",
+      "fields": ["loanType"],
+      "kind": "static"
+    },
+    {
+      "name": "GENDERS",
+      "fields": ["personalData.gender"],
+      "kind": "static"
+    },
+    {
+      "name": "EMPLOYMENT_STATUSES",
+      "fields": ["employmentStatus"],
+      "kind": "static"
+    },
+    {
+      "name": "MARITAL_STATUSES",
+      "fields": ["maritalStatus"],
+      "kind": "static"
+    },
+    {
+      "name": "EDUCATIONS",
+      "fields": ["education"],
+      "kind": "static"
+    },
+    {
+      "name": "EXISTING_LOAN_TYPES",
+      "fields": ["existingLoans.type"],
+      "kind": "static"
+    },
+    {
+      "name": "RELATIONSHIPS",
+      "fields": ["coBorrowers.relationship"],
+      "kind": "static"
+    },
+    {
+      "name": "carModels",
+      "fields": ["carModel"],
+      "kind": "remote"
+    },
+    {
+      "name": "cities",
+      "fields": ["registrationAddress.city", "residenceAddress.city"],
+      "kind": "remote"
+    },
+    {
+      "name": "dictionaries.banks",
+      "fields": ["existingLoans.bank"],
+      "kind": "remote"
+    },
+    {
+      "name": "dictionaries.propertyTypes",
+      "fields": ["properties.type"],
+      "kind": "remote"
+    }
+  ]
+}

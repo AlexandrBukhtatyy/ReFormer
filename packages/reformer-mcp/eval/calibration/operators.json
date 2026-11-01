@@ -1,0 +1,222 @@
+{
+  "description": "Требование словами пользователя → оператор, который должен назвать сервер. Формулировки — из каталога сценариев ассистента (projects/reformer-builder/docs/assistant-form-scenarios.md §5–10) и эталонных форм калибровки; английские дубли корпуса eval (eval/corpus/*.json) сюда не входят. expectAny — имена, любое из которых засчитывает ответ: у choose_api — оператор заголовка, у askReformer — упоминание в ответе.",
+  "items": [
+    {
+      "id": "5.1-wizard",
+      "source": "сценарий 5.1",
+      "requirement": "разложи поля формы по шагам мастера",
+      "expectAny": ["FormWizard", "flow"]
+    },
+    {
+      "id": "5.6-step-check",
+      "source": "сценарий 5.6",
+      "requirement": "кнопка «Далее» проверяет только поля текущего шага",
+      "expectAny": ["flow", "FormFlow", "steps"]
+    },
+    {
+      "id": "5.6-conditional-step",
+      "source": "сценарий 5.6",
+      "requirement": "шаг «Залог» показывать только для ипотеки",
+      "expectAny": ["hideWhen", "setHidden"]
+    },
+    {
+      "id": "6.2-data-source",
+      "source": "сценарий 6.2",
+      "requirement": "варианты выбора региона берутся из справочника",
+      "expectAny": ["defineRegistry", "$dataSource", "dataSource", "options"],
+      "note": "справочник регистрируется в реестре: reg.dataSource(NAME, values) + $dataSource(NAME)"
+    },
+    {
+      "id": "6.4-cascade-reset",
+      "source": "сценарий 6.4",
+      "requirement": "при смене региона сбрасывать выбранный город",
+      "expectAny": ["onChange", "resetWhen"],
+      "note": "сброс на ФАКТ смены — onChange (семантика choose_api: resetWhen держится условием); эталон credit сбрасывает город через onChange (loadOptionsOn resetTarget)"
+    },
+    {
+      "id": "7.1-format",
+      "source": "сценарий 7.1",
+      "requirement": "телефон обязателен и в формате +7 (999) 123-45-67",
+      "expectAny": ["pattern", "phone", "required"]
+    },
+    {
+      "id": "7.2-age",
+      "source": "сценарий 7.2",
+      "requirement": "возраст заявителя по дате рождения не меньше 18 лет",
+      "expectAny": ["minAge"]
+    },
+    {
+      "id": "7.3-password",
+      "source": "сценарий 7.3, registration",
+      "requirement": "повтор пароля должен совпадать с паролем",
+      "expectAny": ["cross"]
+    },
+    {
+      "id": "7.3-dates",
+      "source": "сценарий 7.3",
+      "requirement": "дата окончания не раньше даты начала",
+      "expectAny": ["cross"]
+    },
+    {
+      "id": "7.4-conditional-required",
+      "source": "сценарий 7.4",
+      "requirement": "ИНН обязателен, если клиент — юрлицо",
+      "expectAny": ["validateWhen"]
+    },
+    {
+      "id": "7.5-async",
+      "source": "сценарий 7.5, registration",
+      "requirement": "проверять на сервере, что логин не занят",
+      "expectAny": ["validateAsync"]
+    },
+    {
+      "id": "7.6-row-rules",
+      "source": "сценарий 7.6",
+      "requirement": "у каждой строки списка телефонов номер обязателен",
+      "expectAny": ["applyEach"]
+    },
+    {
+      "id": "7.9-messages",
+      "source": "сценарий 7.9",
+      "requirement": "свой текст ошибки «Укажите телефон» для обязательного телефона",
+      "expectAny": ["defineIssueMessages", "ValidationMessagesProvider"]
+    },
+    {
+      "id": "8.1-sum",
+      "source": "сценарий 8.1",
+      "requirement": "сумма равна цене, умноженной на количество",
+      "expectAny": ["computeFrom", "compute"]
+    },
+    {
+      "id": "8.1-age",
+      "source": "сценарий 8.1",
+      "requirement": "возраст вычисляется из даты рождения",
+      "expectAny": ["computeFrom", "compute"]
+    },
+    {
+      "id": "8.2-copy",
+      "source": "сценарий 8.2, credit",
+      "requirement": "адрес проживания совпадает с адресом регистрации, если отмечен флажок",
+      "expectAny": ["copyFrom"]
+    },
+    {
+      "id": "8.2-sync",
+      "source": "сценарий 8.2",
+      "requirement": "email и логин синхронизируются в обе стороны",
+      "expectAny": ["syncFields"]
+    },
+    {
+      "id": "8.3-enable",
+      "source": "сценарий 8.3",
+      "requirement": "поле ИНН доступно только для юрлица",
+      "expectAny": ["enableWhen", "disableWhen"]
+    },
+    {
+      "id": "8.4-hide",
+      "source": "сценарий 8.4, credit",
+      "requirement": "скрыть блок «Залог», если кредит не ипотека",
+      "expectAny": ["hideWhen", "setHidden"]
+    },
+    {
+      "id": "8.5-reset",
+      "source": "сценарий 8.5, credit",
+      "requirement": "сбросить модель автомобиля при смене марки",
+      "expectAny": ["onChange", "resetWhen"],
+      "note": "то же, что 6.4: эталон credit — loadOptionsOn с resetTarget поверх onChange"
+    },
+    {
+      "id": "8.5-transform",
+      "source": "сценарий 8.5",
+      "requirement": "приводить ФИО к верхнему регистру и обрезать пробелы",
+      "expectAny": ["transformValue"]
+    },
+    {
+      "id": "8.6-load",
+      "source": "сценарий 8.6",
+      "requirement": "при вводе ИНН подгрузить данные компании с сервера",
+      "expectAny": ["onChange"]
+    },
+    {
+      "id": "8.7-exclusive",
+      "source": "сценарий 8.7",
+      "requirement": "флаг «основной» может стоять только у одной строки списка",
+      "expectAny": ["exclusiveFlag"]
+    },
+    {
+      "id": "8.7-aggregate",
+      "source": "сценарий 8.7",
+      "requirement": "итог по строкам — сумма всех позиций списка",
+      "expectAny": ["compute", "aggregateInto", "computeFrom"],
+      "note": "итог по строкам переменной длины — compute по value-proxy (правило aggregate-array-into-field)"
+    },
+    {
+      "id": "9.1-array",
+      "source": "сценарий 9.1, credit",
+      "requirement": "список однотипных блоков «дети» с добавлением и удалением строк",
+      "expectAny": ["arrayOf", "FieldArray"]
+    },
+    {
+      "id": "10.2-part",
+      "source": "сценарий 10.2, credit",
+      "requirement": "одна разметка адреса для регистрации и для проживания",
+      "expectAny": ["$part", "part", "apply"]
+    },
+    {
+      "id": "credit-rate",
+      "source": "credit",
+      "requirement": "процентная ставка зависит от типа кредита и срока",
+      "expectAny": ["computeFrom", "compute"]
+    },
+    {
+      "id": "credit-employment",
+      "source": "credit",
+      "requirement": "если клиент безработный, поля места работы недоступны и очищаются",
+      "expectAny": ["enableWhen", "disableWhen"]
+    },
+    {
+      "id": "credit-mortgage-required",
+      "source": "credit",
+      "requirement": "стоимость недвижимости обязательна только для ипотеки",
+      "expectAny": ["validateWhen"]
+    },
+    {
+      "id": "registration-clear-issue",
+      "source": "registration",
+      "requirement": "правка пароля снимает устаревшую ошибку подтверждения пароля",
+      "expectAny": ["onChange", "revalidateWhen", "clearIssues"]
+    },
+    {
+      "id": "registration-terms",
+      "source": "registration",
+      "requirement": "галочку «принимаю условия» обязательно отметить",
+      "expectAny": ["required"],
+      "note": "required() считает boolean false пустым — галочку проверяет он же"
+    },
+    {
+      "id": "credit-dynamic-options",
+      "source": "credit",
+      "requirement": "при вводе марки подгружается список моделей автомобиля",
+      "expectAny": ["onChange", "updateComponentProps"],
+      "note": "эталон: loadOptionsOn = onChange + form.carModel.updateComponentProps({ options })"
+    },
+    {
+      "id": "credit-dynamic-options-region",
+      "source": "credit",
+      "requirement": "города подгружаются по выбранному региону",
+      "expectAny": ["onChange", "updateComponentProps"]
+    },
+    {
+      "id": "credit-dynamic-limit-age",
+      "source": "credit",
+      "requirement": "максимальный срок кредита зависит от возраста заёмщика",
+      "expectAny": ["onChange", "updateComponentProps"],
+      "note": "эталон: onChange(age) → form.loanTerm.updateComponentProps({ max })"
+    },
+    {
+      "id": "credit-dynamic-limit-income",
+      "source": "credit",
+      "requirement": "максимальная сумма кредита зависит от дохода",
+      "expectAny": ["onChange", "updateComponentProps"]
+    }
+  ]
+}
