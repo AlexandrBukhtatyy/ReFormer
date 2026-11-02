@@ -24,10 +24,15 @@ import { buildBundle, buildRegistryTs } from '../src/core/generate/builders';
 import { normalizeIntent, readIntent } from '../src/core/generate/form-intent';
 import { validateCode } from '../src/core/validate/code';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const catalogPath = resolve(repoRoot, 'packages/reformer-ui-kit/component-catalog.json');
-const hasCatalog = existsSync(catalogPath);
+const hasCatalog = precondition(
+  'component-catalog.json ui-kit',
+  existsSync(catalogPath),
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 interface CatalogEntry {
   name: string;

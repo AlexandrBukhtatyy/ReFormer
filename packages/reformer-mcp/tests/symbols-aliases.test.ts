@@ -23,8 +23,13 @@ import { describe, it, expect } from 'vitest';
 import { findSymbol, getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { KNOWN_PACKAGES } from '../src/utils/docs-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
+import { precondition } from './support/preconditions';
 
-const hasSymbols = getPublicSymbols('@reformer/core').length > 0;
+const hasSymbols = precondition(
+  'символы @reformer/core',
+  getPublicSymbols('@reformer/core').length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 describe('symbols-parser — переименовывающие реэкспорты', () => {
   it.runIf(hasSymbols)(

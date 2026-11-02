@@ -20,6 +20,7 @@ import {
   type MessageEventLike,
   type MessagePortLike,
 } from '../src/platform/worker/port-transport';
+import { precondition } from './support/preconditions';
 
 const bundleFile = resolve(__dirname, '../dist/worker/server.js');
 
@@ -70,7 +71,9 @@ function startBundle(): MessagePortLike {
   };
 }
 
-describe.runIf(existsSync(bundleFile))('бандл воркера без Node', () => {
+describe.runIf(
+  precondition('бандл воркера', existsSync(bundleFile), 'npm run build -w @reformer/mcp')
+)('бандл воркера без Node', () => {
   it('в контексте нет node-глобалей — проверка не подложена', () => {
     const probe = vm.createContext({});
     expect(vm.runInContext('typeof process + typeof require + typeof Buffer', probe)).toBe(

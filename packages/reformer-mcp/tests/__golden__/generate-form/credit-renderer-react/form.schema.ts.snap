@@ -1,0 +1,1415 @@
+/**
+ * Схема формы «Заявка на кредит» — одно дерево узлов на все способы реализации.
+ *
+ * Узел привязан к модели ключом `model`: поле, массив под-форм (`item`) или подформа
+ * (`part`). По этому дереву сборка `createForm` строит форму, а `FormRenderer` рисует
+ * разметку. Кто рисует разметку сам, в JSX, берёт из схемы только поля.
+ */
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import { Step } from '@reformer/cdk/form-wizard';
+import {
+  Box,
+  CheckboxWithLabel,
+  FieldArray,
+  FileUploadDropzone,
+  FormWizard,
+  Input,
+  InputMask,
+  InputNumber,
+  RadioGroupOptions,
+  Section,
+  SelectAsync,
+  Textarea,
+} from '@reformer/ui-kit';
+import {
+  EDUCATIONS,
+  EMPLOYMENT_STATUSES,
+  EXISTING_LOAN_TYPES,
+  GENDERS,
+  LOAN_TYPES,
+  MARITAL_STATUSES,
+  RELATIONSHIPS,
+} from './data-sources';
+import type { CreditApplicationForm, Property, ExistingLoan, CoBorrower } from './model';
+
+/** Подформа: пути — от группы, к которой часть подключена. */
+const address = (model: FormModel<CreditApplicationForm['registrationAddress']>): FormSchemaNode => ({
+  component: Box,
+  componentProps: { className: 'space-y-4' },
+  children: [
+    {
+      component: Box,
+      componentProps: { className: 'grid grid-cols-2 gap-4' },
+      children: [
+        {
+          selector: 'region',
+          model: model.$.region,
+          component: Input,
+          componentProps: { placeholder: 'Введите регион', label: 'Регион' },
+        },
+        {
+          selector: 'city',
+          model: model.$.city,
+          component: Input,
+          componentProps: { placeholder: 'Введите город', label: 'Город' },
+        },
+      ],
+    },
+    {
+      selector: 'street',
+      model: model.$.street,
+      component: Input,
+      componentProps: { placeholder: 'Введите улицу', label: 'Улица' },
+    },
+    {
+      component: Box,
+      componentProps: { className: 'grid grid-cols-3 gap-4' },
+      children: [
+        {
+          selector: 'house',
+          model: model.$.house,
+          component: Input,
+          componentProps: { placeholder: '№', label: 'Дом' },
+        },
+        {
+          selector: 'apartment',
+          model: model.$.apartment,
+          component: Input,
+          componentProps: { placeholder: '№', label: 'Квартира' },
+        },
+        {
+          selector: 'postalCode',
+          model: model.$.postalCode,
+          component: InputMask,
+          componentProps: { placeholder: '000000', mask: '999999', label: 'Индекс' },
+        },
+      ],
+    },
+  ],
+});
+
+/** Строка массива: пути — от элемента. Шаблон нового элемента объявлен в `model.ts`. */
+const propertiesRow = (model: FormModel<Property>): FormSchemaNode => ({
+  component: 'div',
+  children: [
+    {
+      selector: 'type',
+      model: model.$.type,
+      component: SelectAsync,
+      componentProps: {
+        placeholder: 'Выберите тип',
+        options: [
+          { value: 'apartment', label: 'Квартира' },
+          { value: 'house', label: 'Дом' },
+          { value: 'land', label: 'Земельный участок' },
+          { value: 'commercial', label: 'Коммерческая недвижимость' },
+          { value: 'car', label: 'Автомобиль' },
+          { value: 'other', label: 'Другое' },
+        ],
+        testId: 'property-type',
+        label: 'Тип имущества',
+      },
+    },
+    {
+      selector: 'description',
+      model: model.$.description,
+      component: Textarea,
+      componentProps: {
+        placeholder: 'Опишите имущество',
+        rows: 2,
+        testId: 'property-description',
+        label: 'Описание',
+      },
+    },
+    {
+      selector: 'estimatedValue',
+      model: model.$.estimatedValue,
+      component: InputNumber,
+      componentProps: {
+        placeholder: '0',
+        min: 0,
+        step: 1000,
+        testId: 'property-estimatedValue',
+        label: 'Оценочная стоимость',
+      },
+    },
+    {
+      selector: 'hasEncumbrance',
+      model: model.$.hasEncumbrance,
+      component: CheckboxWithLabel,
+      componentProps: {
+        testId: 'property-hasEncumbrance',
+        label: 'Имеется обременение (залог)',
+      },
+    },
+  ],
+});
+
+/** Строка массива: пути — от элемента. Шаблон нового элемента объявлен в `model.ts`. */
+const existingLoansRow = (model: FormModel<ExistingLoan>): FormSchemaNode => ({
+  component: 'div',
+  children: [
+    {
+      selector: 'bank',
+      model: model.$.bank,
+      component: Input,
+      componentProps: {
+        placeholder: 'Название банка',
+        testId: 'existingLoan-bank',
+        label: 'Банк',
+      },
+    },
+    {
+      selector: 'type',
+      model: model.$.type,
+      component: SelectAsync,
+      componentProps: {
+        placeholder: 'Выберите тип',
+        testId: 'existingLoan-type',
+        label: 'Тип кредита',
+        options: EXISTING_LOAN_TYPES,
+      },
+    },
+    {
+      selector: 'amount',
+      model: model.$.amount,
+      component: InputNumber,
+      componentProps: {
+        placeholder: '0',
+        min: 0,
+        step: 1000,
+        testId: 'existingLoan-amount',
+        label: 'Сумма кредита (₽)',
+      },
+    },
+    {
+      selector: 'remainingAmount',
+      model: model.$.remainingAmount,
+      component: InputNumber,
+      componentProps: {
+        placeholder: '0',
+        min: 0,
+        step: 1000,
+        testId: 'existingLoan-remainingAmount',
+        label: 'Остаток долга (₽)',
+      },
+    },
+    {
+      selector: 'monthlyPayment',
+      model: model.$.monthlyPayment,
+      component: InputNumber,
+      componentProps: {
+        placeholder: '0',
+        min: 0,
+        step: 100,
+        testId: 'existingLoan-monthlyPayment',
+        label: 'Ежемесячный платеж (₽)',
+      },
+    },
+    {
+      selector: 'maturityDate',
+      model: model.$.maturityDate,
+      component: Input,
+      componentProps: {
+        type: 'date',
+        testId: 'existingLoan-maturityDate',
+        label: 'Дата погашения',
+      },
+    },
+  ],
+});
+
+/** Строка массива: пути — от элемента. Шаблон нового элемента объявлен в `model.ts`. */
+const coBorrowersRow = (model: FormModel<CoBorrower>): FormSchemaNode => ({
+  component: 'div',
+  children: [
+    {
+      selector: 'personalData.lastName',
+      model: model.$.personalData.lastName,
+      component: Input,
+      componentProps: {
+        placeholder: 'Введите фамилию',
+        testId: 'coBorrower-lastName',
+        label: 'Фамилия',
+      },
+    },
+    {
+      selector: 'personalData.firstName',
+      model: model.$.personalData.firstName,
+      component: Input,
+      componentProps: {
+        placeholder: 'Введите имя',
+        testId: 'coBorrower-firstName',
+        label: 'Имя',
+      },
+    },
+    {
+      selector: 'personalData.middleName',
+      model: model.$.personalData.middleName,
+      component: Input,
+      componentProps: {
+        placeholder: 'Введите отчество',
+        testId: 'coBorrower-middleName',
+        label: 'Отчество',
+      },
+    },
+    {
+      selector: 'personalData.birthDate',
+      model: model.$.personalData.birthDate,
+      component: Input,
+      componentProps: { type: 'date', testId: 'coBorrower-birthDate', label: 'Дата рождения' },
+    },
+    {
+      selector: 'phone',
+      model: model.$.phone,
+      component: InputMask,
+      componentProps: {
+        placeholder: '+7 (___) ___-__-__',
+        mask: '+7 (999) 999-99-99',
+        testId: 'coBorrower-phone',
+        label: 'Телефон',
+      },
+    },
+    {
+      selector: 'email',
+      model: model.$.email,
+      component: Input,
+      componentProps: {
+        placeholder: 'example@mail.com',
+        type: 'email',
+        testId: 'coBorrower-email',
+        label: 'Email',
+      },
+    },
+    {
+      selector: 'relationship',
+      model: model.$.relationship,
+      component: SelectAsync,
+      componentProps: {
+        placeholder: 'Выберите отношение',
+        testId: 'coBorrower-relationship',
+        label: 'Отношение к заемщику',
+        options: RELATIONSHIPS,
+      },
+    },
+    {
+      selector: 'monthlyIncome',
+      model: model.$.monthlyIncome,
+      component: InputNumber,
+      componentProps: {
+        placeholder: '0',
+        min: 0,
+        step: 1000,
+        testId: 'coBorrower-monthlyIncome',
+        label: 'Ежемесячный доход (₽)',
+      },
+    },
+  ],
+});
+
+export const formSchema = (model: FormModel<CreditApplicationForm>): FormSchemaNode => ({
+  selector: 'wizard',
+  component: FormWizard,
+  componentProps: {
+    className: 'bg-white p-8 rounded-lg shadow-md',
+    submitLabel: 'Отправить заявку',
+  },
+  children: [
+    {
+      selector: 'loan',
+      component: Step,
+      componentProps: { title: 'Кредит' },
+      children: [
+        {
+          component: Box,
+          componentProps: { className: 'space-y-6' },
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Основная информация о кредите',
+                titleAs: 'h2',
+                titleClassName: 'text-xl font-bold',
+                className: 'space-y-6',
+              },
+              children: [
+                {
+                  selector: 'loanType',
+                  model: model.$.loanType,
+                  component: SelectAsync,
+                  componentProps: {
+                    placeholder: 'Выберите тип кредита',
+                    testId: 'loanType',
+                    label: 'Тип кредита',
+                    options: LOAN_TYPES,
+                  },
+                },
+                {
+                  selector: 'loanAmount',
+                  model: model.$.loanAmount,
+                  component: InputNumber,
+                  componentProps: {
+                    placeholder: 'Введите сумму',
+                    min: 50000,
+                    max: 10000000,
+                    step: 10000,
+                    testId: 'loanAmount',
+                    label: 'Сумма кредита (₽)',
+                  },
+                },
+                {
+                  selector: 'loanTerm',
+                  model: model.$.loanTerm,
+                  component: InputNumber,
+                  componentProps: {
+                    placeholder: 'Введите срок',
+                    min: 6,
+                    max: 240,
+                    testId: 'loanTerm',
+                    label: 'Срок кредита (месяцев)',
+                  },
+                },
+                {
+                  selector: 'loanPurpose',
+                  model: model.$.loanPurpose,
+                  component: Textarea,
+                  componentProps: {
+                    placeholder: 'Опишите, на что планируете потратить средства',
+                    rows: 4,
+                    maxLength: 500,
+                    testId: 'loanPurpose',
+                    label: 'Цель кредита',
+                  },
+                },
+              ],
+            },
+            {
+              selector: 'mortgage-section',
+              component: Section,
+              componentProps: {
+                title: 'Информация о недвижимости',
+                titleClassName: 'text-lg font-semibold mt-4',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'propertyValue',
+                  model: model.$.propertyValue,
+                  component: InputNumber,
+                  componentProps: {
+                    placeholder: 'Введите стоимость',
+                    min: 1000000,
+                    step: 100000,
+                    testId: 'propertyValue',
+                    label: 'Стоимость недвижимости (₽)',
+                  },
+                },
+                {
+                  selector: 'initialPayment',
+                  model: model.$.initialPayment,
+                  component: InputNumber,
+                  componentProps: {
+                    placeholder: 'Введите сумму',
+                    min: 0,
+                    step: 10000,
+                    testId: 'initialPayment',
+                    label: 'Первоначальный взнос (₽)',
+                  },
+                },
+              ],
+            },
+            {
+              selector: 'car-section',
+              component: Section,
+              componentProps: {
+                title: 'Информация об автомобиле',
+                titleClassName: 'text-lg font-semibold mt-4',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'carBrand',
+                  model: model.$.carBrand,
+                  component: Input,
+                  componentProps: {
+                    placeholder: 'Например: Toyota',
+                    testId: 'carBrand',
+                    label: 'Марка автомобиля',
+                  },
+                },
+                {
+                  selector: 'carModel',
+                  model: model.$.carModel,
+                  component: SelectAsync,
+                  componentProps: {
+                    placeholder: 'Например: Camry',
+                    testId: 'carModel',
+                    label: 'Модель автомобиля',
+                  },
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'carYear',
+                      model: model.$.carYear,
+                      component: InputNumber,
+                      componentProps: {
+                        placeholder: '2020',
+                        min: 2000,
+                        testId: 'carYear',
+                        label: 'Год выпуска',
+                      },
+                    },
+                    {
+                      selector: 'carPrice',
+                      model: model.$.carPrice,
+                      component: InputNumber,
+                      componentProps: {
+                        placeholder: 'Введите стоимость',
+                        min: 300000,
+                        step: 10000,
+                        testId: 'carPrice',
+                        label: 'Стоимость автомобиля (₽)',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      selector: 'applicant',
+      component: Step,
+      componentProps: { title: 'Данные' },
+      children: [
+        {
+          component: Section,
+          componentProps: {
+            title: 'Персональные данные',
+            titleAs: 'h2',
+            titleClassName: 'text-xl font-bold',
+            className: 'space-y-6',
+          },
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Личные данные',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-3 gap-4' },
+                  children: [
+                    {
+                      selector: 'personalData.lastName',
+                      model: model.$.personalData.lastName,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'Введите фамилию',
+                        testId: 'personalData-lastName',
+                        label: 'Фамилия',
+                      },
+                    },
+                    {
+                      selector: 'personalData.firstName',
+                      model: model.$.personalData.firstName,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'Введите имя',
+                        testId: 'personalData-firstName',
+                        label: 'Имя',
+                      },
+                    },
+                    {
+                      selector: 'personalData.middleName',
+                      model: model.$.personalData.middleName,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'Введите отчество',
+                        testId: 'personalData-middleName',
+                        label: 'Отчество',
+                      },
+                    },
+                  ],
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'personalData.birthDate',
+                      model: model.$.personalData.birthDate,
+                      component: Input,
+                      componentProps: {
+                        type: 'date',
+                        testId: 'personalData-birthDate',
+                        label: 'Дата рождения',
+                      },
+                    },
+                    {
+                      selector: 'personalData.gender',
+                      model: model.$.personalData.gender,
+                      component: RadioGroupOptions,
+                      componentProps: { testId: 'personalData-gender', label: 'Пол', options: GENDERS },
+                    },
+                  ],
+                },
+                {
+                  selector: 'personalData.birthPlace',
+                  model: model.$.personalData.birthPlace,
+                  component: Input,
+                  componentProps: {
+                    placeholder: 'Введите место рождения',
+                    testId: 'personalData-birthPlace',
+                    label: 'Место рождения',
+                  },
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Паспортные данные',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'passportData.series',
+                      model: model.$.passportData.series,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '00 00',
+                        mask: '99 99',
+                        testId: 'passportData-series',
+                        label: 'Серия паспорта',
+                      },
+                    },
+                    {
+                      selector: 'passportData.number',
+                      model: model.$.passportData.number,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '000000',
+                        mask: '999999',
+                        testId: 'passportData-number',
+                        label: 'Номер паспорта',
+                      },
+                    },
+                  ],
+                },
+                {
+                  selector: 'passportData.issuedBy',
+                  model: model.$.passportData.issuedBy,
+                  component: Textarea,
+                  componentProps: {
+                    placeholder: 'Введите наименование органа',
+                    rows: 3,
+                    testId: 'passportData-issuedBy',
+                    label: 'Кем выдан',
+                  },
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'passportData.issueDate',
+                      model: model.$.passportData.issueDate,
+                      component: Input,
+                      componentProps: { type: 'date', testId: 'passportData-issueDate', label: 'Дата выдачи' },
+                    },
+                    {
+                      selector: 'passportData.departmentCode',
+                      model: model.$.passportData.departmentCode,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '000-000',
+                        mask: '999-999',
+                        testId: 'passportData-departmentCode',
+                        label: 'Код подразделения',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Дополнительные документы',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'inn',
+                      model: model.$.inn,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '123456789012',
+                        mask: '999999999999',
+                        testId: 'inn',
+                        label: 'ИНН',
+                      },
+                    },
+                    {
+                      selector: 'snils',
+                      model: model.$.snils,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '123-456-789 00',
+                        mask: '999-999-999 99',
+                        testId: 'snils',
+                        label: 'СНИЛС',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      selector: 'contacts',
+      component: Step,
+      componentProps: { title: 'Контакты' },
+      children: [
+        {
+          component: Section,
+          componentProps: {
+            title: 'Контактная информация',
+            titleAs: 'h2',
+            titleClassName: 'text-xl font-bold',
+            className: 'space-y-6',
+          },
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Контакты',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'phoneMain',
+                      model: model.$.phoneMain,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '+7 (___) ___-__-__',
+                        mask: '+7 (999) 999-99-99',
+                        testId: 'phoneMain',
+                        label: 'Основной телефон',
+                      },
+                    },
+                    {
+                      selector: 'phoneAdditional',
+                      model: model.$.phoneAdditional,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '+7 (___) ___-__-__',
+                        mask: '+7 (999) 999-99-99',
+                        testId: 'phoneAdditional',
+                        label: 'Дополнительный телефон',
+                      },
+                    },
+                  ],
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'email',
+                      model: model.$.email,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'example@mail.com',
+                        type: 'email',
+                        testId: 'email',
+                        label: 'Email',
+                      },
+                    },
+                    {
+                      selector: 'emailAdditional',
+                      model: model.$.emailAdditional,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'example@mail.com',
+                        type: 'email',
+                        testId: 'emailAdditional',
+                        label: 'Дополнительный email',
+                      },
+                    },
+                  ],
+                },
+                {
+                  selector: 'sameEmail',
+                  model: model.$.sameEmail,
+                  component: CheckboxWithLabel,
+                  componentProps: { testId: 'sameEmail', label: 'Дублировать email' },
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Адрес регистрации',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                { model: model.$.registrationAddress, part: address },
+              ],
+            },
+            {
+              selector: 'sameAsRegistration',
+              model: model.$.sameAsRegistration,
+              component: CheckboxWithLabel,
+              componentProps: {
+                testId: 'sameAsRegistration',
+                label: 'Адрес проживания совпадает с адресом регистрации',
+              },
+            },
+            {
+              selector: 'residence-address-section',
+              component: Box,
+              children: [
+                {
+                  component: Section,
+                  componentProps: {
+                    title: 'Адрес проживания',
+                    className: 'space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200',
+                  },
+                  children: [
+                    { model: model.$.residenceAddress, part: address },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      selector: 'employment',
+      component: Step,
+      componentProps: { title: 'Работа' },
+      children: [
+        {
+          component: Section,
+          componentProps: {
+            title: 'Информация о занятости',
+            titleAs: 'h2',
+            titleClassName: 'text-xl font-bold',
+            className: 'space-y-6',
+          },
+          children: [
+            {
+              component: Box,
+              componentProps: { className: 'space-y-4' },
+              children: [
+                {
+                  selector: 'employmentStatus',
+                  model: model.$.employmentStatus,
+                  component: RadioGroupOptions,
+                  componentProps: {
+                    testId: 'employmentStatus',
+                    label: 'Статус занятости',
+                    options: EMPLOYMENT_STATUSES,
+                  },
+                },
+              ],
+            },
+            {
+              selector: 'employer-section',
+              component: Section,
+              componentProps: {
+                title: 'Информация о работодателе',
+                titleClassName: 'text-lg font-semibold mt-6',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'companyName',
+                  model: model.$.companyName,
+                  component: Input,
+                  componentProps: {
+                    placeholder: 'Введите название',
+                    testId: 'companyName',
+                    label: 'Название компании',
+                  },
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'companyInn',
+                      model: model.$.companyInn,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '1234567890',
+                        mask: '9999999999',
+                        testId: 'companyInn',
+                        label: 'ИНН компании',
+                      },
+                    },
+                    {
+                      selector: 'companyPhone',
+                      model: model.$.companyPhone,
+                      component: InputMask,
+                      componentProps: {
+                        placeholder: '+7 (___) ___-__-__',
+                        mask: '+7 (999) 999-99-99',
+                        testId: 'companyPhone',
+                        label: 'Телефон компании',
+                      },
+                    },
+                  ],
+                },
+                {
+                  selector: 'companyAddress',
+                  model: model.$.companyAddress,
+                  component: Input,
+                  componentProps: {
+                    placeholder: 'Полный адрес',
+                    testId: 'companyAddress',
+                    label: 'Адрес компании',
+                  },
+                },
+                {
+                  component: Section,
+                  componentProps: {
+                    title: 'Должность и стаж',
+                    titleClassName: 'text-lg font-semibold mt-6',
+                    className: 'space-y-4',
+                  },
+                  children: [
+                    {
+                      selector: 'position',
+                      model: model.$.position,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'Ваша должность',
+                        testId: 'position',
+                        label: 'Должность',
+                      },
+                    },
+                    {
+                      component: Box,
+                      componentProps: { className: 'grid grid-cols-2 gap-4' },
+                      children: [
+                        {
+                          selector: 'workExperienceTotal',
+                          model: model.$.workExperienceTotal,
+                          component: InputNumber,
+                          componentProps: {
+                            placeholder: '0',
+                            min: 0,
+                            testId: 'workExperienceTotal',
+                            label: 'Общий стаж работы (месяцев)',
+                          },
+                        },
+                        {
+                          selector: 'workExperienceCurrent',
+                          model: model.$.workExperienceCurrent,
+                          component: InputNumber,
+                          componentProps: {
+                            placeholder: '0',
+                            min: 0,
+                            testId: 'workExperienceCurrent',
+                            label: 'Стаж на текущем месте (месяцев)',
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              selector: 'business-section',
+              component: Section,
+              componentProps: {
+                title: 'Информация о бизнесе',
+                titleClassName: 'text-lg font-semibold mt-6',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'businessType',
+                  model: model.$.businessType,
+                  component: Input,
+                  componentProps: {
+                    placeholder: 'ИП, ООО и т.д.',
+                    testId: 'businessType',
+                    label: 'Тип бизнеса',
+                  },
+                },
+                {
+                  selector: 'businessInn',
+                  model: model.$.businessInn,
+                  component: InputMask,
+                  componentProps: {
+                    placeholder: '123456789012',
+                    mask: '999999999999',
+                    testId: 'businessInn',
+                    label: 'ИНН ИП',
+                  },
+                },
+                {
+                  selector: 'businessActivity',
+                  model: model.$.businessActivity,
+                  component: Textarea,
+                  componentProps: {
+                    placeholder: 'Опишите вид деятельности',
+                    rows: 3,
+                    testId: 'businessActivity',
+                    label: 'Вид деятельности',
+                  },
+                },
+              ],
+            },
+            {
+              selector: 'income-section',
+              component: Section,
+              componentProps: {
+                title: 'Доход',
+                titleClassName: 'text-lg font-semibold mt-6',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'monthlyIncome',
+                  model: model.$.monthlyIncome,
+                  component: InputNumber,
+                  componentProps: {
+                    placeholder: '0',
+                    min: 10000,
+                    step: 1000,
+                    testId: 'monthlyIncome',
+                    label: 'Ежемесячный доход (₽)',
+                  },
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'additionalIncome',
+                      model: model.$.additionalIncome,
+                      component: InputNumber,
+                      componentProps: {
+                        placeholder: '0',
+                        min: 0,
+                        step: 1000,
+                        testId: 'additionalIncome',
+                        label: 'Дополнительный доход (₽)',
+                      },
+                    },
+                    {
+                      selector: 'additionalIncomeSource',
+                      model: model.$.additionalIncomeSource,
+                      component: Input,
+                      componentProps: {
+                        placeholder: 'Опишите источник',
+                        testId: 'additionalIncomeSource',
+                        label: 'Источник дополнительного дохода',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              selector: 'unemployed-warning',
+              component: 'div',
+              componentProps: {
+                'data-testid': 'unemployed-warning',
+                className: 'mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md',
+              },
+              children: [
+                {
+                  component: Section,
+                  componentProps: {
+                    title: 'Обратите внимание: для получения кредита без подтвержденного дохода могут потребоваться дополнительные документы и поручители.',
+                    titleAs: 'h4',
+                    titleClassName: 'text-sm font-normal text-yellow-800',
+                  },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      selector: 'additional',
+      component: Step,
+      componentProps: { title: 'Доп. инфо' },
+      children: [
+        {
+          component: Section,
+          componentProps: {
+            title: 'Дополнительная информация',
+            titleAs: 'h2',
+            titleClassName: 'text-xl font-bold',
+            className: 'space-y-6',
+          },
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Общая информация',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'maritalStatus',
+                  model: model.$.maritalStatus,
+                  component: RadioGroupOptions,
+                  componentProps: {
+                    testId: 'maritalStatus',
+                    label: 'Семейное положение',
+                    options: MARITAL_STATUSES,
+                  },
+                },
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'dependents',
+                      model: model.$.dependents,
+                      component: InputNumber,
+                      componentProps: {
+                        placeholder: '0',
+                        min: 0,
+                        max: 10,
+                        testId: 'dependents',
+                        label: 'Количество иждивенцев',
+                      },
+                    },
+                    {
+                      selector: 'education',
+                      model: model.$.education,
+                      component: SelectAsync,
+                      componentProps: {
+                        placeholder: 'Выберите уровень образования',
+                        testId: 'education',
+                        label: 'Образование',
+                        options: EDUCATIONS,
+                      },
+                    },
+                  ],
+                },
+                {
+                  selector: 'documents',
+                  model: model.$.documents,
+                  component: FileUploadDropzone,
+                  componentProps: {
+                    placeholder: 'Перетащите файлы или нажмите для выбора',
+                    hint: 'Паспорт, справка о доходах — изображения или PDF, до 10 МБ, максимум 5 файлов',
+                    accept: 'image/*,.pdf',
+                    multiple: true,
+                    maxFiles: 5,
+                    maxFileSize: 10485760,
+                    testId: 'documents',
+                    label: 'Документы',
+                  },
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: { className: 'space-y-4' },
+              children: [
+                {
+                  selector: 'hasProperty',
+                  model: model.$.hasProperty,
+                  component: CheckboxWithLabel,
+                  componentProps: { testId: 'hasProperty', label: 'У меня есть имущество' },
+                },
+                {
+                  selector: 'properties-array',
+                  model: model.$.properties,
+                  component: FieldArray,
+                  componentProps: {
+                    title: 'Имущество',
+                    reorderable: true,
+                    itemLabel: 'Имущество',
+                    addButtonLabel: '+ Добавить имущество',
+                    emptyMessage: 'Нажмите "Добавить имущество" для добавления информации',
+                  },
+                  item: propertiesRow,
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: { className: 'space-y-4' },
+              children: [
+                {
+                  selector: 'hasExistingLoans',
+                  model: model.$.hasExistingLoans,
+                  component: CheckboxWithLabel,
+                  componentProps: { testId: 'hasExistingLoans', label: 'У меня есть другие кредиты' },
+                },
+                {
+                  selector: 'existing-loans-array',
+                  model: model.$.existingLoans,
+                  component: FieldArray,
+                  componentProps: {
+                    title: 'Существующие кредиты',
+                    reorderable: true,
+                    itemLabel: 'Кредит',
+                    addButtonLabel: '+ Добавить кредит',
+                    emptyMessage: 'Нажмите "Добавить кредит" для добавления информации',
+                  },
+                  item: existingLoansRow,
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: { className: 'space-y-4' },
+              children: [
+                {
+                  selector: 'hasCoBorrower',
+                  model: model.$.hasCoBorrower,
+                  component: CheckboxWithLabel,
+                  componentProps: { testId: 'hasCoBorrower', label: 'Добавить созаемщика' },
+                },
+                {
+                  selector: 'co-borrowers-array',
+                  model: model.$.coBorrowers,
+                  component: FieldArray,
+                  componentProps: {
+                    title: 'Созаемщики',
+                    reorderable: true,
+                    itemLabel: 'Созаемщик',
+                    addButtonLabel: '+ Добавить созаемщика',
+                    emptyMessage: 'Нажмите "Добавить созаемщика" для добавления информации',
+                  },
+                  item: coBorrowersRow,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      selector: 'confirmation',
+      component: Step,
+      componentProps: { title: 'Подтверждение' },
+      children: [
+        {
+          component: Section,
+          componentProps: {
+            title: 'Подтверждение и согласия',
+            titleAs: 'h2',
+            titleClassName: 'text-xl font-bold',
+            className: 'space-y-6',
+          },
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Итого',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'interestRate',
+                      model: model.$.interestRate,
+                      component: InputNumber,
+                      componentProps: { readOnly: true, testId: 'interestRate', label: 'Процентная ставка' },
+                    },
+                    {
+                      selector: 'monthlyPayment',
+                      model: model.$.monthlyPayment,
+                      component: InputNumber,
+                      componentProps: {
+                        readOnly: true,
+                        testId: 'monthlyPayment',
+                        label: 'Ежемесячный платеж',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Данные заявителя',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  component: Box,
+                  componentProps: { className: 'grid grid-cols-2 gap-4' },
+                  children: [
+                    {
+                      selector: 'fullName',
+                      model: model.$.fullName,
+                      component: Input,
+                      componentProps: { readOnly: true, testId: 'fullName', label: 'ФИО' },
+                    },
+                    {
+                      selector: 'age',
+                      model: model.$.age,
+                      component: InputNumber,
+                      componentProps: { readOnly: true, testId: 'age', label: 'Возраст' },
+                    },
+                    {
+                      selector: 'totalIncome',
+                      model: model.$.totalIncome,
+                      component: InputNumber,
+                      componentProps: { readOnly: true, testId: 'totalIncome', label: 'Общий доход' },
+                    },
+                    {
+                      selector: 'paymentToIncomeRatio',
+                      model: model.$.paymentToIncomeRatio,
+                      component: InputNumber,
+                      componentProps: {
+                        readOnly: true,
+                        testId: 'paymentToIncomeRatio',
+                        label: 'Платеж/Доход',
+                      },
+                    },
+                    {
+                      selector: 'coBorrowersIncome',
+                      model: model.$.coBorrowersIncome,
+                      component: InputNumber,
+                      componentProps: {
+                        readOnly: true,
+                        testId: 'coBorrowersIncome',
+                        label: 'Доход созаемщиков',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Обязательные согласия',
+                titleClassName: 'text-lg font-semibold',
+                className: 'space-y-3',
+              },
+              children: [
+                {
+                  selector: 'agreePersonalData',
+                  model: model.$.agreePersonalData,
+                  component: CheckboxWithLabel,
+                  componentProps: {
+                    testId: 'agreePersonalData',
+                    label: 'Согласие на обработку персональных данных',
+                  },
+                },
+                {
+                  selector: 'agreeCreditHistory',
+                  model: model.$.agreeCreditHistory,
+                  component: CheckboxWithLabel,
+                  componentProps: {
+                    testId: 'agreeCreditHistory',
+                    label: 'Согласие на проверку кредитной истории',
+                  },
+                },
+                {
+                  selector: 'agreeTerms',
+                  model: model.$.agreeTerms,
+                  component: CheckboxWithLabel,
+                  componentProps: { testId: 'agreeTerms', label: 'Согласие с условиями кредитования' },
+                },
+                {
+                  selector: 'confirmAccuracy',
+                  model: model.$.confirmAccuracy,
+                  component: CheckboxWithLabel,
+                  componentProps: {
+                    testId: 'confirmAccuracy',
+                    label: 'Подтверждаю точность введенных данных',
+                  },
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Опциональные согласия',
+                titleClassName: 'text-lg font-semibold mt-6',
+              },
+              children: [
+                {
+                  selector: 'agreeMarketing',
+                  model: model.$.agreeMarketing,
+                  component: CheckboxWithLabel,
+                  componentProps: {
+                    testId: 'agreeMarketing',
+                    label: 'Согласие на получение маркетинговых материалов',
+                  },
+                },
+              ],
+            },
+            {
+              component: Section,
+              componentProps: {
+                title: 'Электронная подпись',
+                titleClassName: 'text-lg font-semibold mt-6',
+                className: 'space-y-4',
+              },
+              children: [
+                {
+                  selector: 'electronicSignature',
+                  model: model.$.electronicSignature,
+                  component: InputMask,
+                  componentProps: {
+                    placeholder: '123456',
+                    mask: '999999',
+                    testId: 'electronicSignature',
+                    label: 'Код подтверждения из СМС',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+});

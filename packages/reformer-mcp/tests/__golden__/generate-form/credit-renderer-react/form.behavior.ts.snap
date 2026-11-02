@@ -1,0 +1,70 @@
+/**
+ * Поведение формы «Заявка на кредит» — связи над моделью и правила узлов схемы.
+ * Скрытие узла НЕ убирает поле из модели: чтобы оно перестало валидироваться,
+ * рядом нужен enableWhen.
+ */
+import { defineFormBehavior, compute, enableWhen, hideWhen, onChange, transformValue } from '@reformer/core/behaviors';
+import type { CreditApplicationForm } from './model';
+
+export const formBehavior = defineFormBehavior<CreditApplicationForm>(({ model, form, schema }) => {
+  compute(model.$.interestRate, () => Math.max((({ consumer: 15.5, mortgage: 8.5, car: 12, business: 18, refinancing: 14 } as Record<string, number>)[model.loanType] ?? 15) + (model.loanType === 'mortgage' && model.registrationAddress.region === 'moscow' ? 0.5 : 0) - (model.hasProperty && model.properties.length > 0 ? 0.5 : 0), 0));
+  compute(model.$.monthlyPayment, () => !model.loanAmount || !model.loanTerm ? 0 : model.interestRate === 0 ? model.loanAmount / model.loanTerm : Math.round((model.loanAmount * ((model.interestRate / 12 / 100) * Math.pow(1 + model.interestRate / 12 / 100, model.loanTerm))) / (Math.pow(1 + model.interestRate / 12 / 100, model.loanTerm) - 1)));
+  compute(model.$.fullName, () => [model.personalData.lastName, model.personalData.firstName, model.personalData.middleName].filter(Boolean).join(' '));
+  compute(model.$.age, () => (() => { const birthDate = model.personalData.birthDate; if (!birthDate) return null; const today = new Date(); const birth = new Date(birthDate); let age = today.getFullYear() - birth.getFullYear(); const monthDifference = today.getMonth() - birth.getMonth(); if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) age--; return age; })());
+  compute(model.$.coBorrowersIncome, () => model.coBorrowers.map((coBorrower) => coBorrower.monthlyIncome).reduce((total, monthlyIncome) => total + (monthlyIncome || 0), 0));
+  compute(model.$.totalIncome, () => (model.monthlyIncome ?? 0) + (model.additionalIncome ?? 0) + model.coBorrowersIncome);
+  compute(model.$.paymentToIncomeRatio, () => !model.monthlyPayment || !model.totalIncome ? 0 : Math.round((model.monthlyPayment / model.totalIncome) * 100));
+  onChange(model.$.propertyValue, (value) => { if (model.loanType === 'mortgage') model.initialPayment = value ? Math.round(value * 0.2) : 0; });
+  onChange(model.$.loanType, (value) => { if (value === 'mortgage') model.initialPayment = model.propertyValue ? Math.round(model.propertyValue * 0.2) : 0; });
+  onChange(model.$.email, (value) => { if (model.sameEmail) model.emailAdditional = value; });
+  onChange(model.$.sameEmail, (value) => { model.emailAdditional = value ? model.email : ''; });
+  onChange(model.$.registrationAddress.region, (value) => { if (model.sameAsRegistration) model.residenceAddress.region = value; });
+  onChange(model.$.registrationAddress.city, (value) => { if (model.sameAsRegistration) model.residenceAddress.city = value; });
+  onChange(model.$.registrationAddress.street, (value) => { if (model.sameAsRegistration) model.residenceAddress.street = value; });
+  onChange(model.$.registrationAddress.house, (value) => { if (model.sameAsRegistration) model.residenceAddress.house = value; });
+  onChange(model.$.registrationAddress.apartment, (value) => { if (model.sameAsRegistration) model.residenceAddress.apartment = value; });
+  onChange(model.$.registrationAddress.postalCode, (value) => { if (model.sameAsRegistration) model.residenceAddress.postalCode = value; });
+  onChange(model.$.sameAsRegistration, (value) => { model.residenceAddress.region = value ? model.registrationAddress.region : ''; model.residenceAddress.city = value ? model.registrationAddress.city : ''; model.residenceAddress.street = value ? model.registrationAddress.street : ''; model.residenceAddress.house = value ? model.registrationAddress.house : ''; model.residenceAddress.apartment = value ? model.registrationAddress.apartment : ''; model.residenceAddress.postalCode = value ? model.registrationAddress.postalCode : ''; });
+  onChange(model.$.hasProperty, (value) => { if (!value) model.properties.clear(); });
+  onChange(model.$.hasExistingLoans, (value) => { if (!value) model.existingLoans.clear(); });
+  onChange(model.$.hasCoBorrower, (value) => { if (!value) model.coBorrowers.clear(); });
+  enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {"resetOnDisable":true});
+  enableWhen(model.$.initialPayment, () => model.loanType === 'mortgage', {"resetOnDisable":true});
+  enableWhen(model.$.carBrand, () => model.loanType === 'car', {"resetOnDisable":true});
+  enableWhen(model.$.carModel, () => model.loanType === 'car', {"resetOnDisable":true});
+  enableWhen(model.$.carYear, () => model.loanType === 'car', {"resetOnDisable":true});
+  enableWhen(model.$.carPrice, () => model.loanType === 'car', {"resetOnDisable":true});
+  enableWhen(model.$.companyName, () => model.employmentStatus === 'employed', {"resetOnDisable":true});
+  enableWhen(model.$.companyInn, () => model.employmentStatus === 'employed', {"resetOnDisable":true});
+  enableWhen(model.$.companyPhone, () => model.employmentStatus === 'employed', {"resetOnDisable":true});
+  enableWhen(model.$.companyAddress, () => model.employmentStatus === 'employed', {"resetOnDisable":true});
+  enableWhen(model.$.position, () => model.employmentStatus === 'employed', {"resetOnDisable":true});
+  enableWhen(model.$.businessType, () => model.employmentStatus === 'selfEmployed', {"resetOnDisable":true});
+  enableWhen(model.$.businessInn, () => model.employmentStatus === 'selfEmployed', {"resetOnDisable":true});
+  enableWhen(model.$.businessActivity, () => model.employmentStatus === 'selfEmployed', {"resetOnDisable":true});
+  enableWhen(model.$.residenceAddress.region, () => model.sameAsRegistration === false);
+  enableWhen(model.$.residenceAddress.city, () => model.sameAsRegistration === false);
+  enableWhen(model.$.residenceAddress.street, () => model.sameAsRegistration === false);
+  enableWhen(model.$.residenceAddress.house, () => model.sameAsRegistration === false);
+  enableWhen(model.$.residenceAddress.apartment, () => model.sameAsRegistration === false);
+  enableWhen(model.$.residenceAddress.postalCode, () => model.sameAsRegistration === false);
+  onChange(model.$.carBrand, async (value, { signal }) => { form.carModel.reset(); if (!value) { form.carModel.updateComponentProps({ options: [] }); return; } try { const res = await fetch(`/api/v1/car-models?brand=${encodeURIComponent(value)}`, { signal }); const options = await res.json(); if (!signal.aborted) form.carModel.updateComponentProps({ options }); } catch { if (!signal.aborted) form.carModel.updateComponentProps({ options: [] }); } }, {"debounce":300});
+  onChange(model.$.age, (value) => { if (value !== null && value >= 18) form.loanTerm.updateComponentProps({ max: Math.min(Math.max(70 - value, 1) * 12, 240) }); });
+  onChange(model.$.totalIncome, (value) => { if (value > 0) form.loanAmount.updateComponentProps({ max: Math.min(value * 12 * 10, 10_000_000) }); });
+  onChange(model.$.registrationAddress.region, (value) => { void value; model.registrationAddress.city = ''; });
+  onChange(model.$.residenceAddress.region, (value) => { void value; if (!model.sameAsRegistration) model.residenceAddress.city = ''; });
+  transformValue(model.$.registrationAddress.postalCode, (value) => (value ?? '').replace(/\D/g, '').slice(0, 6));
+  transformValue(model.$.residenceAddress.postalCode, (value) => (value ?? '').replace(/\D/g, '').slice(0, 6));
+
+  // Видимость узлов схемы — по `selector`.
+  hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+  hideWhen(schema.node('car-section'), () => model.loanType !== 'car');
+  hideWhen(schema.node('employer-section'), () => model.employmentStatus !== 'employed');
+  hideWhen(schema.node('business-section'), () => model.employmentStatus !== 'selfEmployed');
+  hideWhen(schema.node('income-section'), () => model.employmentStatus === 'unemployed');
+  hideWhen(schema.node('unemployed-warning'), () => model.employmentStatus !== 'unemployed');
+  hideWhen(schema.node('residence-address-section'), () => model.sameAsRegistration !== false);
+  hideWhen(schema.node('properties-array'), () => !model.hasProperty);
+  hideWhen(schema.node('existing-loans-array'), () => !model.hasExistingLoans);
+  hideWhen(schema.node('co-borrowers-array'), () => !model.hasCoBorrower);
+});

@@ -1,0 +1,100 @@
+/**
+ * Схема формы «RegistrationForm» — документ JSON-DSL формата 2.
+ *
+ * Обёртка `defineJsonSchema<T>` — не украшение: она типизирует литерал по модели,
+ * поэтому опечатка внутри `$model(...)` не собирается, а не всплывает в рантайме.
+ * Пути внутри частей (`parts`) относительны под-модели и типом не проверяются.
+ */
+import { defineJsonSchema } from '@reformer/renderer-json';
+
+import type { RegistrationFormData } from './model';
+
+export const formSchema = defineJsonSchema<RegistrationFormData>({
+  "format": 2,
+  "root": {
+    "component": "$component(Box)",
+    "children": [
+      {
+        "selector": "username",
+        "model": "$model(username)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "placeholder": "Логин (латиница)",
+          "testId": "username",
+          "label": "Имя пользователя"
+        }
+      },
+      {
+        "selector": "email",
+        "model": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "placeholder": "your@email.com",
+          "type": "email",
+          "testId": "email",
+          "label": "Email"
+        }
+      },
+      {
+        "selector": "password",
+        "model": "$model(password)",
+        "component": "$component(InputPassword)",
+        "componentProps": {
+          "placeholder": "Минимум 8 символов",
+          "testId": "password",
+          "label": "Пароль"
+        }
+      },
+      {
+        "selector": "confirmPassword",
+        "model": "$model(confirmPassword)",
+        "component": "$component(InputPassword)",
+        "componentProps": {
+          "placeholder": "Повторите пароль",
+          "testId": "confirmPassword",
+          "label": "Подтвердите пароль"
+        }
+      },
+      {
+        "selector": "fullName",
+        "model": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "placeholder": "Иван Иванов",
+          "testId": "fullName",
+          "label": "Полное имя"
+        }
+      },
+      {
+        "selector": "phone",
+        "model": "$model(phone)",
+        "component": "$component(InputMask)",
+        "componentProps": {
+          "placeholder": "+7 (999) 123-45-67",
+          "mask": "+7 (999) 999-99-99",
+          "testId": "phone",
+          "label": "Телефон"
+        }
+      },
+      {
+        "selector": "captcha",
+        "model": "$model(captcha)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "placeholder": "Подсказка: ABC123",
+          "testId": "captcha",
+          "label": "Введите captcha"
+        }
+      },
+      {
+        "selector": "acceptTerms",
+        "model": "$model(acceptTerms)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "testId": "acceptTerms",
+          "label": "Я принимаю условия использования"
+        }
+      }
+    ]
+  }
+});

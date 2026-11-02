@@ -12,7 +12,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error — харнесс намеренно на .mjs (запускается без сборки, как остальные scripts/)
 import { matched, isEmptyAnswer, assertStrongExpectations } from '../eval/lib/match.mjs';
 
 /** Реальный хвост тупикового ответа find_recipe (сокращённый). */

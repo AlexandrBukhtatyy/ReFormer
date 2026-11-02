@@ -28,6 +28,10 @@ describe('reportIssueTool (defect 77)', () => {
     base = mkdtempSync(join(tmpdir(), 'reformer-issue-'));
     cwdBefore = process.cwd();
     envBefore = process.env[ISSUE_REPORTS_DIR_ENV];
+    // По умолчанию отчёты — во временный каталог. Без этого тест, не задавший переменную, пишет в
+    // настоящий <cwd>/.reformer/issue_reports: так там накопилось 228 файлов. Тест умолчания
+    // снимает переменную сам и работает из временного каталога.
+    process.env[ISSUE_REPORTS_DIR_ENV] = join(base, 'default-reports');
   });
 
   afterEach(() => {

@@ -1,0 +1,37 @@
+/**
+ * Валидация формы «Заявка на кредит (сокращённая)» — правила над МОДЕЛЬЮ, не в схеме разметки.
+ * Правила шагов уходят в поток `formFlow` (form.flow.ts), правила вне шагов — сюда.
+ * Подключение: createForm({ …, validation: formValidation, flow: formFlow }).
+ */
+import type { FormValidation } from '@reformer/core';
+import { applyEach, defineValidation, validate, validateWhen } from '@reformer/core/validation';
+import { email, max, maxLength, min, minLength, required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditSokraschennayaShape, CoBorrowersItem } from './model';
+
+/** Правила строки массива `coBorrowers`: пути — от элемента. */
+const coBorrowersRowRules = defineValidation<CoBorrowersItem>(({ model }) => {
+  validate(model.$.monthlyIncome, [required(), min(0)]);
+});
+
+/** Правила шага `step1` — их проверяет `next()` потока. */
+export const step1Rules = defineValidation<ZayavkaNaKreditSokraschennayaShape>(({ model }) => {
+  validate(model.$.loanType, [required()]);
+  validate(model.$.loanAmount, [required(), min(50000), max(10000000)]);
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    validate(model.$.propertyValue, [required(), min(1000000)]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carBrand, [required(), minLength(2)]);
+  });
+});
+
+/** Правила шага `step2` — их проверяет `next()` потока. */
+export const step2Rules = defineValidation<ZayavkaNaKreditSokraschennayaShape>(({ model }) => {
+  validate(model.$.firstName, [required(), minLength(2), maxLength(50)]);
+  validate(model.$.email, [required(), email()]);
+  validate(model.$.middleName, [maxLength(50)]);
+  applyEach(model.$.coBorrowers, coBorrowersRowRules);
+});
+
+/** Правил вне шагов нет: все правила — у шагов потока. */
+export const formValidation: FormValidation<ZayavkaNaKreditSokraschennayaShape> = {};

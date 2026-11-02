@@ -1,0 +1,159 @@
+/**
+ * Схема формы «Заявка на кредит (сокращённая)» — документ JSON-DSL формата 2.
+ *
+ * Обёртка `defineJsonSchema<T>` — не украшение: она типизирует литерал по модели,
+ * поэтому опечатка внутри `$model(...)` не собирается, а не всплывает в рантайме.
+ * Пути внутри частей (`parts`) относительны под-модели и типом не проверяются.
+ */
+import { defineJsonSchema } from '@reformer/renderer-json';
+
+import type { ZayavkaNaKreditSokraschennayaShape } from './model';
+
+export const formSchema = defineJsonSchema<ZayavkaNaKreditSokraschennayaShape>({
+  "format": 2,
+  "parts": {
+    "coBorrowersRow": {
+      "component": "$html(div)",
+      "children": [
+        {
+          "selector": "monthlyIncome",
+          "model": "$model(monthlyIncome)",
+          "component": "$component(InputNumber)",
+          "componentProps": {
+            "label": "Доход созаёмщика",
+            "testId": "coBorrowers-monthlyIncome"
+          }
+        }
+      ]
+    }
+  },
+  "root": {
+    "selector": "wizard",
+    "component": "$component(FormWizard)",
+    "children": [
+      {
+        "selector": "step1",
+        "component": "$component(Step)",
+        "componentProps": {
+          "title": "Параметры кредита"
+        },
+        "children": [
+          {
+            "selector": "loanType",
+            "model": "$model(loanType)",
+            "component": "$component(Select)",
+            "componentProps": {
+              "label": "Тип кредита",
+              "testId": "loanType"
+            }
+          },
+          {
+            "selector": "loanAmount",
+            "model": "$model(loanAmount)",
+            "component": "$component(InputNumber)",
+            "componentProps": {
+              "label": "Сумма кредита (₽)",
+              "testId": "loanAmount"
+            }
+          },
+          {
+            "selector": "propertyValue",
+            "model": "$model(propertyValue)",
+            "component": "$component(InputNumber)",
+            "componentProps": {
+              "label": "Стоимость недвижимости (₽)",
+              "testId": "propertyValue"
+            }
+          },
+          {
+            "selector": "carBrand",
+            "model": "$model(carBrand)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Марка автомобиля",
+              "testId": "carBrand"
+            }
+          },
+          {
+            "selector": "monthlyPayment",
+            "model": "$model(monthlyPayment)",
+            "component": "$component(InputNumber)",
+            "componentProps": {
+              "label": "Ежемесячный платёж (₽)",
+              "testId": "monthlyPayment"
+            }
+          }
+        ]
+      },
+      {
+        "selector": "step2",
+        "component": "$component(Step)",
+        "componentProps": {
+          "title": "Заявитель"
+        },
+        "children": [
+          {
+            "selector": "firstName",
+            "model": "$model(firstName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "testId": "firstName"
+            }
+          },
+          {
+            "selector": "email",
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Электронная почта",
+              "testId": "email"
+            }
+          },
+          {
+            "selector": "hasCoBorrower",
+            "model": "$model(hasCoBorrower)",
+            "component": "$component(Checkbox)",
+            "componentProps": {
+              "label": "Есть созаёмщик",
+              "testId": "hasCoBorrower"
+            }
+          },
+          {
+            "selector": "comment",
+            "model": "$model(comment)",
+            "component": "$component(Textarea)",
+            "componentProps": {
+              "label": "Комментарий",
+              "testId": "comment"
+            }
+          },
+          {
+            "selector": "middleName",
+            "model": "$model(middleName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Отчество",
+              "testId": "middleName"
+            }
+          },
+          {
+            "selector": "coBorrowers",
+            "model": "$model(coBorrowers)",
+            "component": "$component(FieldArray)",
+            "item": "$part(coBorrowersRow)"
+          },
+          {
+            "selector": "totalIncome",
+            "model": "$model(totalIncome)",
+            "component": "$component(InputNumber)",
+            "componentProps": {
+              "label": "Совокупный доход",
+              "testId": "totalIncome"
+            }
+          }
+        ]
+      }
+    ]
+  }
+});

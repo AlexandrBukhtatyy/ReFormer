@@ -57,3 +57,5 @@ projects/reformer-builder-playground/.ui_builder/plugins/*/*/src/styles.css
 # Серверы-бандлы MCP проекта-образца (`npm run mcp:build`) — собранный код, исключён вложенным
 # .gitignore каталога сервера, которого prettier не читает
 projects/reformer-builder-playground/.ui_builder/mcp/*/server.js
+# снимки сравниваются побайтно: форматирование при коммите сломало бы их
+packages/reformer-mcp/tests/__golden__/

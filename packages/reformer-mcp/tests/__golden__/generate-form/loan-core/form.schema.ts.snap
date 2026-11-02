@@ -1,0 +1,125 @@
+/**
+ * Схема формы «Заявка на кредит (сокращённая)» — одно дерево узлов на все способы реализации.
+ *
+ * Узел привязан к модели ключом `model`: поле, массив под-форм (`item`) или подформа
+ * (`part`). По этому дереву сборка `createForm` строит форму, а `FormRenderer` рисует
+ * разметку. Кто рисует разметку сам, в JSX, берёт из схемы только поля.
+ */
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import { Step } from '@reformer/cdk/form-wizard';
+import {
+  CheckboxWithLabel,
+  FieldArray,
+  FormWizard,
+  Input,
+  InputNumber,
+  SelectAsync,
+  Textarea,
+} from '@reformer/ui-kit';
+import type { ZayavkaNaKreditSokraschennayaShape, CoBorrowersItem } from './model';
+
+/** Строка массива: пути — от элемента. Шаблон нового элемента объявлен в `model.ts`. */
+const coBorrowersRow = (model: FormModel<CoBorrowersItem>): FormSchemaNode => ({
+  component: 'div',
+  children: [
+    {
+      selector: 'monthlyIncome',
+      model: model.$.monthlyIncome,
+      component: InputNumber,
+      componentProps: { label: 'Доход созаёмщика', testId: 'coBorrowers-monthlyIncome' },
+    },
+  ],
+});
+
+export const formSchema = (model: FormModel<ZayavkaNaKreditSokraschennayaShape>): FormSchemaNode => ({
+  selector: 'wizard',
+  component: FormWizard,
+  children: [
+    {
+      selector: 'step1',
+      component: Step,
+      componentProps: { title: 'Параметры кредита' },
+      children: [
+        {
+          selector: 'loanType',
+          model: model.$.loanType,
+          component: SelectAsync,
+          componentProps: { label: 'Тип кредита', testId: 'loanType' },
+        },
+        {
+          selector: 'loanAmount',
+          model: model.$.loanAmount,
+          component: InputNumber,
+          componentProps: { label: 'Сумма кредита (₽)', testId: 'loanAmount' },
+        },
+        {
+          selector: 'propertyValue',
+          model: model.$.propertyValue,
+          component: InputNumber,
+          componentProps: { label: 'Стоимость недвижимости (₽)', testId: 'propertyValue' },
+        },
+        {
+          selector: 'carBrand',
+          model: model.$.carBrand,
+          component: Input,
+          componentProps: { label: 'Марка автомобиля', testId: 'carBrand' },
+        },
+        {
+          selector: 'monthlyPayment',
+          model: model.$.monthlyPayment,
+          component: InputNumber,
+          componentProps: { label: 'Ежемесячный платёж (₽)', testId: 'monthlyPayment' },
+        },
+      ],
+    },
+    {
+      selector: 'step2',
+      component: Step,
+      componentProps: { title: 'Заявитель' },
+      children: [
+        {
+          selector: 'firstName',
+          model: model.$.firstName,
+          component: Input,
+          componentProps: { label: 'Имя', testId: 'firstName' },
+        },
+        {
+          selector: 'email',
+          model: model.$.email,
+          component: Input,
+          componentProps: { label: 'Электронная почта', testId: 'email' },
+        },
+        {
+          selector: 'hasCoBorrower',
+          model: model.$.hasCoBorrower,
+          component: CheckboxWithLabel,
+          componentProps: { label: 'Есть созаёмщик', testId: 'hasCoBorrower' },
+        },
+        {
+          selector: 'comment',
+          model: model.$.comment,
+          component: Textarea,
+          componentProps: { label: 'Комментарий', testId: 'comment' },
+        },
+        {
+          selector: 'middleName',
+          model: model.$.middleName,
+          component: Input,
+          componentProps: { label: 'Отчество', testId: 'middleName' },
+        },
+        {
+          selector: 'coBorrowers',
+          model: model.$.coBorrowers,
+          component: FieldArray,
+          item: coBorrowersRow,
+        },
+        {
+          selector: 'totalIncome',
+          model: model.$.totalIncome,
+          component: InputNumber,
+          componentProps: { label: 'Совокупный доход', testId: 'totalIncome' },
+        },
+      ],
+    },
+  ],
+});

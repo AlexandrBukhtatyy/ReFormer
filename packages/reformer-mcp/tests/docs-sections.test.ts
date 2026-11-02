@@ -27,9 +27,14 @@ import {
   extractSectionByMeta,
 } from '../src/core/docs/sections';
 import { listAvailablePackages, listSections, getFullDocs } from '../src/utils/docs-parser';
+import { precondition } from './support/preconditions';
 
 const packages = listAvailablePackages();
-const hasDocs = packages.length > 0;
+const hasDocs = precondition(
+  'документация пакетов',
+  packages.length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 /** Тело секции по её заголовку — как это делает `sectionBySlug`, но без корпуса. */
 function bodyOf(docs: string, title: string): string {

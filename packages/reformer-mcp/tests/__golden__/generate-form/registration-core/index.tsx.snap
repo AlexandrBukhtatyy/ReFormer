@@ -1,0 +1,25 @@
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { formBehavior } from './form.behavior';
+import { formSchema } from './form.schema';
+import { formValidation } from './form.validation';
+import { createFormModel, type RegistrationFormData } from './model';
+
+export function RegistrationForm() {
+  // Фабрика выполняется один раз: `useMemo` здесь неверен — React вправе сбросить кэш.
+  const bundle = useFormBundle(() =>
+    createForm<RegistrationFormData>({
+      model: createFormModel(),
+      schema: formSchema,
+      behavior: formBehavior,
+      validation: formValidation,
+    })
+  );
+
+  // Разметку рисуете сами: поля — `bundle.form.<путь>`, например
+  // <FormField control={bundle.form.email} />. Правила узлов схемы (`hideWhen`)
+  // исполняет только рендерер — видимость здесь остаётся условием в JSX.
+  // Тексты замечаний — `formMessages` из ./form.messages: оберните разметку в
+  // <ValidationMessagesProvider messages={formMessages}> (`@reformer/cdk`).
+  return null;
+}

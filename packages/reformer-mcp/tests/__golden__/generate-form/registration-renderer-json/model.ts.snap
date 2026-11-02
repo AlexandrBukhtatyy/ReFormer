@@ -1,0 +1,37 @@
+/**
+ * Модель формы «RegistrationForm» — источник истины для всех остальных файлов.
+ * Валидация, поведение и схема ссылаются на ЭТИ пути; менять их надо здесь.
+ */
+import { createModel } from '@reformer/core';
+
+export type RegistrationFormData = {
+  /** Имя пользователя */
+  username: string;
+  /** Email */
+  email: string;
+  /** Пароль */
+  password: string;
+  /** Подтвердите пароль */
+  confirmPassword: string;
+  /** Полное имя */
+  fullName: string;
+  /** Телефон */
+  phone: string;
+  /** Введите captcha */
+  captcha: string;
+  /** Я принимаю условия использования */
+  acceptTerms: boolean;
+};
+
+/** Модель формы — по одной на сборку: `createForm({ model: createFormModel(), … })`. */
+export const createFormModel = () =>
+  createModel<RegistrationFormData>({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    fullName: "",
+    phone: "",
+    captcha: "",
+    acceptTerms: false,
+  });

@@ -1,0 +1,15 @@
+/**
+ * Поток шагов формы «Заявка на кредит (сокращённая)»: идентификатор шага — `selector` узла шага в схеме,
+ * `next()` потока проверяет правила текущего шага.
+ * Подключение: createForm({ …, flow: formFlow }).
+ */
+import type { FormFlowConfig } from '@reformer/core';
+import { step1Rules, step2Rules } from './form.validation';
+import type { ZayavkaNaKreditSokraschennayaShape } from './model';
+
+export const formFlow: FormFlowConfig<ZayavkaNaKreditSokraschennayaShape> = {
+  steps: [
+    { id: 'step1', rules: step1Rules },
+    { id: 'step2', rules: step2Rules },
+  ],
+};

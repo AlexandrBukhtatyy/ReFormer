@@ -1,0 +1,28 @@
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { FormRenderer } from '@reformer/renderer-react';
+import { FormField } from '@reformer/ui-kit';
+import { formBehavior } from './form.behavior';
+import { formMessages } from './form.messages';
+import { formSchema } from './form.schema';
+import { formValidation } from './form.validation';
+import { createFormModel, type RegistrationFormData } from './model';
+
+export function RegistrationForm() {
+  // Фабрика выполняется один раз: `useMemo` здесь неверен — React вправе сбросить кэш.
+  const bundle = useFormBundle(() =>
+    createForm<RegistrationFormData>({
+      model: createFormModel(),
+      schema: formSchema,
+      behavior: formBehavior,
+      validation: formValidation,
+    })
+  );
+
+  return (
+    <ValidationMessagesProvider messages={formMessages}>
+      <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />
+    </ValidationMessagesProvider>
+  );
+}

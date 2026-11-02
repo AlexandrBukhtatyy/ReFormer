@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { listSections, KNOWN_PACKAGES } from '../src/utils/docs-parser';
 import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
+import { precondition } from './support/preconditions';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -62,9 +63,13 @@ function loadIndex(pkg: string): Index | null {
 }
 
 const indexed = KNOWN_PACKAGES.map((pkg) => [pkg, loadIndex(pkg)] as const).filter(
-  (e): e is readonly [string, Index] => e[1] !== null
+  (e): e is readonly [(typeof KNOWN_PACKAGES)[number], Index] => e[1] !== null
 );
-const hasIndexes = indexed.length > 0;
+const hasIndexes = precondition(
+  'llms-index.json',
+  indexed.length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 describe('llms-index.json — артефакт билда', () => {
   it.runIf(hasIndexes)('есть у каждого пакета с документацией', () => {

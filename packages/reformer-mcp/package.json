@@ -29,7 +29,8 @@
     "start": "node dist/index.js",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch",
-    "check:packaging": "node scripts/check-packaging.mjs"
+    "check:packaging": "node scripts/check-packaging.mjs",
+    "typecheck:tests": "tsc -p tests/tsconfig.json"
   },
   "keywords": [
     "mcp",
@@ -84,6 +85,8 @@
   },
   "devDependencies": {
     "esbuild": "^0.27.1",
+    "fast-check": "^4.10.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.0"
   },
   "engines": {

@@ -1,0 +1,34 @@
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { FormRenderer } from '@reformer/renderer-react';
+import { formBehavior } from './form.behavior';
+import { formMessages } from './form.messages';
+import { formSchema } from './form.schema';
+import { formFlow } from './form.flow';
+import { formValidation } from './form.validation';
+import { createFormModel, type CreditApplicationForm } from './model';
+import { createRegistry } from './registry';
+
+const registry = createRegistry();
+
+export function ZayavkaNaKreditForm() {
+  // Фабрика выполняется один раз: `useMemo` здесь неверен — React вправе сбросить кэш.
+  const bundle = useFormBundle(() =>
+    createForm<CreditApplicationForm>({
+      model: createFormModel(),
+      schema: formSchema,
+      registry,
+      behavior: formBehavior,
+      validation: formValidation,
+      flow: formFlow,
+    })
+  );
+
+  // Обёртка поля приходит из реестра (`FIELD_WRAPPER`).
+  return (
+    <ValidationMessagesProvider messages={formMessages}>
+      <FormRenderer form={bundle} />
+    </ValidationMessagesProvider>
+  );
+}

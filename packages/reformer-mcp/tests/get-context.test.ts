@@ -18,11 +18,16 @@ import { buildContext } from '../src/core/context/builder';
 import { getContextTool, getContextToolDefinition } from '../src/core/tools/get-context';
 import { listAvailablePackages } from '../src/utils/docs-parser';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
 const k = cliKnowledge();
 
-const hasDocs = listAvailablePackages().length > 0;
+const hasDocs = precondition(
+  'документация пакетов',
+  listAvailablePackages().length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 describe('get_context', () => {
   it('пустая задача → внятное сообщение, а не падение', async () => {

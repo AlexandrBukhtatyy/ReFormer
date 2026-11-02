@@ -1,0 +1,58 @@
+/**
+ * Модель формы «Заявка на кредит (сокращённая)» — источник истины для всех остальных файлов.
+ * Валидация, поведение и схема ссылаются на ЭТИ пути; менять их надо здесь.
+ */
+import { arrayOf, createModel } from '@reformer/core';
+
+export type CoBorrowersItem = {
+  /** Доход созаёмщика */
+  monthlyIncome: number;
+};
+
+export type ZayavkaNaKreditSokraschennayaShape = {
+  coBorrowers: CoBorrowersItem[];
+  /** Тип кредита */
+  loanType: string;
+  /** Сумма кредита (₽) */
+  loanAmount: number | null;
+  /** Стоимость недвижимости (₽) */
+  propertyValue: number | null;
+  /** Марка автомобиля */
+  carBrand: string;
+  /** Ежемесячный платёж (₽) */
+  monthlyPayment: number | null;
+  /** Имя */
+  firstName: string;
+  /** Электронная почта */
+  email: string;
+  /** Есть созаёмщик */
+  hasCoBorrower: boolean;
+  /** Комментарий */
+  comment: string;
+  /** Отчество */
+  middleName: string;
+  /** Совокупный доход */
+  totalIncome: number;
+};
+
+/** Шаблон нового элемента массива `coBorrowers`. */
+const blankCoBorrowersItem = (): CoBorrowersItem => ({
+  monthlyIncome: 0,
+});
+
+/** Модель формы — по одной на сборку: `createForm({ model: createFormModel(), … })`. */
+export const createFormModel = () =>
+  createModel<ZayavkaNaKreditSokraschennayaShape>({
+    coBorrowers: arrayOf(blankCoBorrowersItem),
+    loanType: "consumer",
+    loanAmount: null,
+    propertyValue: null,
+    carBrand: "",
+    monthlyPayment: null,
+    firstName: "",
+    email: "",
+    hasCoBorrower: false,
+    comment: "",
+    middleName: "",
+    totalIncome: 0,
+  });

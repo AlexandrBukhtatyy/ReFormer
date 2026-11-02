@@ -19,6 +19,7 @@ import { describe, it, expect } from 'vitest';
 import { findRecipeTool } from '../src/core/tools/find-recipe';
 import { getSectionBySlug, listAvailablePackages } from '../src/utils/docs-parser';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
 const k = cliKnowledge();
@@ -50,7 +51,11 @@ function extractUris(text: string): Array<{ short: string; slug: string }> {
   return out;
 }
 
-const hasDocs = listAvailablePackages().length > 0;
+const hasDocs = precondition(
+  'документация пакетов',
+  listAvailablePackages().length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 describe('find_recipe — каскад в полнотекстовый поиск', () => {
   it.runIf(hasDocs)('ни одна естественная формулировка не даёт "No recipe found"', async () => {
@@ -78,6 +83,13 @@ describe('find_recipe — каскад в полнотекстовый поис�
     // `wizard` резолвится алиасом в multi-step на шаге 1 — каскад не должен его перехватывать.
     const { content } = await findRecipeTool({ topic: 'wizard' }, k);
     expect(content[0].text).toMatch(/^# Recipe: /);
+  });
+
+  it.runIf(hasDocs)('алиас wizard с фильтром пакета ведёт в рецепт этого пакета', async () => {
+    // Без алиаса топик с фильтром уходил в каскад: один абзац про конфиг вместо рецепта
+    // (найдено мутантом recipe-alias-wizard: без этой проверки потеря алиаса не была видна).
+    const { content } = await findRecipeTool({ topic: 'wizard', package: 'core' }, k);
+    expect(content[0].text).toMatch(/^# Recipe: multi-step/);
   });
 
   it('заведомо бессмысленный топик доходит до фолбэка со списком алиасов', async () => {

@@ -1,0 +1,272 @@
+[
+  {
+    "name": "get_context",
+    "description": "Assembled context for one step of building a ReFormer form: operator + signature + one example + rules, anti-patterns and links, deduplicated and budgeted. For a single \"which API\" question choose_api is cheaper and sharper.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string",
+          "description": "The task in plain words (Russian or English)."
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Topic ids from reformer://catalog; inferred from the task when omitted."
+        },
+        "target": {
+          "type": "string",
+          "description": "core | cdk | ui-kit | renderer-react | renderer-json."
+        },
+        "profile": {
+          "type": "string",
+          "description": "minimal (~400 tok) | implementation (default, ~1000) | debug (~1800) | full."
+        },
+        "maxTokens": {
+          "type": "number",
+          "description": "Hard cap, overrides the profile."
+        }
+      },
+      "required": [
+        "task"
+      ]
+    }
+  },
+  {
+    "name": "choose_api",
+    "description": "Pick the right ReFormer operator for a requirement, stated in your own words (\"field B is only available when A is filled\", \"shipping address copies billing\", \"clear the field when the parent choice changes\"). Answers the question the docs search cannot: which of two similar operators applies — computeFrom vs copyFrom, copyFrom vs syncFields, enableWhen vs hideWhen, resetWhen vs enableWhen, validateWhen vs enableWhen, apply vs applyEach (one sub-model vs every array row), and resetWhen vs onChange (a predicate that holds vs the bare fact that a field changed — including clearing an array, which uses onChange + .clear(), never resetValue). Returns the recommended symbol with its signature, a canonical example, why it fits, the alternatives it is commonly confused with, and any anti-pattern the docs record for that choice. Deterministic — same requirement, same answer.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requirement": {
+          "type": "string",
+          "description": "One requirement in plain words, Russian or English. E.g. \"поле B доступно только когда A заполнено\", \"total = price * quantity\", \"confirmPassword must match password\"."
+        },
+        "target": {
+          "type": "string",
+          "description": "Optional stack hint: \"core\" | \"renderer-react\" | \"renderer-json\". Narrows the fallback search when no rule matches."
+        }
+      },
+      "required": [
+        "requirement"
+      ]
+    }
+  },
+  {
+    "name": "get_symbol_docs",
+    "description": "Full JSDoc for one public @reformer/* symbol: description, signature, params, examples, source.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Symbol name (e.g. \"useFormControl\", \"getReformerForm\", \"FieldArray\", \"createRenderSchema\")."
+        },
+        "package": {
+          "type": "string",
+          "description": "Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all."
+        }
+      },
+      "required": [
+        "symbol"
+      ]
+    }
+  },
+  {
+    "name": "find_recipe",
+    "description": "A worked recipe for a scenario keyword (\"wizard\", \"form-array\", \"copy-from\", \"json-schema\") or the @example of a symbol. An unknown topic falls through to full-text search, so it returns candidates rather than nothing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "Topic keyword. Matches docs/llms/ filenames (with or without NN- prefix), `## ` section headings inside those files, or a public symbol name across all @reformer/* packages."
+        },
+        "package": {
+          "type": "string",
+          "description": "Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all."
+        }
+      },
+      "required": [
+        "topic"
+      ]
+    }
+  },
+  {
+    "name": "search_docs",
+    "description": "Full-text search over all @reformer/* docs, for when you can describe the task but cannot name it. Returns ranked sections with their reformer://docs/… URI, a matched snippet, and the relevant API names.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Words describing what you are looking for (e.g. \"conditional required validation\", \"wizard step guard\"). Matched case-insensitively against section titles and bodies; multiple words are AND-preferred but not required."
+        },
+        "package": {
+          "type": "string",
+          "description": "Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max results to return (default 10, max 25)."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "list_symbols",
+    "description": "List public symbols, filtered by kind, package or nameContains. Output is capped — narrow the filter. To find API by TASK rather than by name, choose_api and search_docs answer instead of listing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Filter by declaration kind. Omit to include all kinds.",
+          "enum": [
+            "function",
+            "class",
+            "interface",
+            "type",
+            "const",
+            "enum"
+          ]
+        },
+        "package": {
+          "type": "string",
+          "description": "Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all."
+        },
+        "nameContains": {
+          "type": "string",
+          "description": "Case-insensitive substring the symbol name must contain (e.g. \"validate\", \"FileUpload\"). Strongly recommended: the unfiltered list is 800+ symbols in one response."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "validate_form",
+    "description": "Check a ReFormer form before running it. kind=\"code\": generated TS — unknown or wrongly imported @reformer symbols, operators called outside their schema, deprecated API. kind=\"json-schema\": the layout DSL. kind=\"behaviors\": compute cycles. kind=\"bundle\": a whole FormIntent + layout, cross-checked against each other. kind=\"layout\": form-module FILE NAMES against the canonical per-target set (files[] + target) — catches schema.ts / render-behavior.ts drift, accepts the optional steps/<slug>/ wizard folders, flags former renderer.* names as warnings, and names the expected file; run it before writing them. Returns RF0xx diagnostics with line, what to do and the next call to make.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "code | json-schema | behaviors | bundle | layout"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "kind=layout: file names or paths of the form module (a common leading directory is stripped)."
+        },
+        "target": {
+          "type": "string",
+          "description": "kind=layout: core | renderer-react | renderer-json; inferred from files when omitted."
+        },
+        "code": {
+          "type": "string",
+          "description": "kind=code: the TypeScript to check."
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": true
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "kind=json-schema | bundle: the layout schema (object or JSON string)."
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "kind=behaviors: one entry per computed field — { target, reads[] }.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string"
+              },
+              "reads": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "target",
+              "reads"
+            ]
+          }
+        },
+        "intent": {
+          "type": "object",
+          "description": "kind=bundle: the FormIntent behind the schema."
+        },
+        "componentNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Registry component names."
+        },
+        "dataSourceNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Registry data-source names."
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    }
+  },
+  {
+    "name": "plan_form",
+    "description": "Turn a form spec (markdown file) or a description into a FormIntent: the machine-readable plan — fields, arrays, validation rules, behaviours, layout — that generate_form compiles into a file bundle. Review and edit the intent before generating. Form-module file names are fixed by convention: the result lists them; full rule — find_recipe directory-layout, check yours with validate_form kind=\"layout\".",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Free-form description, when there is no spec file."
+        },
+        "target": {
+          "type": "string",
+          "description": "core | renderer-react | renderer-json (default core)."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "generate_form",
+    "description": "Compile a FormIntent into a form bundle (model.ts, form.schema.ts, form.validation.ts, form.behavior.ts, plus registry.ts for renderer-json) and cross-check the files against each other: every $model path exists in the model, every $component is registered, every $part is declared, every rule and behaviour targets a real path, no compute cycles. The contract is the same for every target: one schema tree, one behavior, one assembly — the manifest also prints the index.tsx assembly (createForm + useFormBundle). Returns a manifest — you write the files yourself, under the canonical file names it prints for the target (rule: find_recipe directory-layout).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "object",
+          "description": "FormIntent, typically from plan_form. Partial input is normalised with warnings. Reusable sub-form: declare its layout once in `parts: { <name>: LayoutNode }` and mount it with a layout node `{ kind: \"part\", ref: \"<group path>\", part: \"<name>\" }`; field refs inside a part are relative to the group."
+        },
+        "target": {
+          "type": "string",
+          "description": "Overrides intent.target."
+        }
+      },
+      "required": [
+        "intent"
+      ]
+    }
+  }
+]

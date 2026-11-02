@@ -7,9 +7,8 @@
  */
 
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
-import { pkgDir } from './inspector.mjs';
+import { typecheckFiles } from '../../lib/typecheck.mjs';
 
 /** intent из ответа `plan_form`; `null`, если блока нет или он не разбирается. */
 export function extractIntent(text) {
@@ -79,44 +78,14 @@ export function writeBundle(dir, parsed) {
   if (parsed.indexSample) writeFileSync(path.join(dir, 'index.tsx'), parsed.indexSample);
 }
 
-let ts = null;
-function typescript() {
-  ts ??= createRequire(path.join(pkgDir, 'package.json'))('typescript');
-  return ts;
-}
-
 /**
- * Проверка типов бандла с настоящими типами `@reformer/*` — как `tests/form-from-spec.test.ts`.
- * Каталог обязан лежать внутри репозитория: пакеты резолвятся через его `node_modules`.
+ * Проверка типов бандла с настоящими типами `@reformer/*`.
  *
  * @returns {{ file: string, line: number|null, message: string }[]}
  */
 export function typecheck(dir, parsed) {
-  const tsc = typescript();
-  const entries = [
+  return typecheckFiles(dir, [
     ...parsed.files.filter((f) => /\.tsx?$/.test(f.path)).map((f) => path.join(dir, f.path)),
     ...(parsed.indexSample ? [path.join(dir, 'index.tsx')] : []),
-  ];
-  const program = tsc.createProgram(entries, {
-    strict: true,
-    noEmit: true,
-    skipLibCheck: true,
-    esModuleInterop: true,
-    resolveJsonModule: true,
-    jsx: tsc.JsxEmit.ReactJSX,
-    module: tsc.ModuleKind.ESNext,
-    moduleResolution: tsc.ModuleResolutionKind.Bundler,
-    target: tsc.ScriptTarget.ES2022,
-  });
-  return program
-    .getSyntacticDiagnostics()
-    .concat(program.getSemanticDiagnostics())
-    .map((d) => {
-      const file = d.file ? path.relative(dir, d.file.fileName) : '';
-      const line =
-        d.file && d.start !== undefined
-          ? d.file.getLineAndCharacterOfPosition(d.start).line + 1
-          : null;
-      return { file, line, message: tsc.flattenDiagnosticMessageText(d.messageText, ' ') };
-    });
+  ]);
 }

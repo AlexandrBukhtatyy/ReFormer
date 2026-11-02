@@ -1,0 +1,90 @@
+/**
+ * Схема формы «RegistrationForm» — одно дерево узлов на все способы реализации.
+ *
+ * Узел привязан к модели ключом `model`: поле, массив под-форм (`item`) или подформа
+ * (`part`). По этому дереву сборка `createForm` строит форму, а `FormRenderer` рисует
+ * разметку. Кто рисует разметку сам, в JSX, берёт из схемы только поля.
+ */
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import { Box, CheckboxWithLabel, Input, InputMask, InputPassword } from '@reformer/ui-kit';
+import type { RegistrationFormData } from './model';
+
+export const formSchema = (model: FormModel<RegistrationFormData>): FormSchemaNode => ({
+  component: Box,
+  children: [
+    {
+      selector: 'username',
+      model: model.$.username,
+      component: Input,
+      componentProps: {
+        placeholder: 'Логин (латиница)',
+        testId: 'username',
+        label: 'Имя пользователя',
+      },
+    },
+    {
+      selector: 'email',
+      model: model.$.email,
+      component: Input,
+      componentProps: {
+        placeholder: 'your@email.com',
+        type: 'email',
+        testId: 'email',
+        label: 'Email',
+      },
+    },
+    {
+      selector: 'password',
+      model: model.$.password,
+      component: InputPassword,
+      componentProps: {
+        placeholder: 'Минимум 8 символов',
+        testId: 'password',
+        label: 'Пароль',
+      },
+    },
+    {
+      selector: 'confirmPassword',
+      model: model.$.confirmPassword,
+      component: InputPassword,
+      componentProps: {
+        placeholder: 'Повторите пароль',
+        testId: 'confirmPassword',
+        label: 'Подтвердите пароль',
+      },
+    },
+    {
+      selector: 'fullName',
+      model: model.$.fullName,
+      component: Input,
+      componentProps: { placeholder: 'Иван Иванов', testId: 'fullName', label: 'Полное имя' },
+    },
+    {
+      selector: 'phone',
+      model: model.$.phone,
+      component: InputMask,
+      componentProps: {
+        placeholder: '+7 (999) 123-45-67',
+        mask: '+7 (999) 999-99-99',
+        testId: 'phone',
+        label: 'Телефон',
+      },
+    },
+    {
+      selector: 'captcha',
+      model: model.$.captcha,
+      component: Input,
+      componentProps: {
+        placeholder: 'Подсказка: ABC123',
+        testId: 'captcha',
+        label: 'Введите captcha',
+      },
+    },
+    {
+      selector: 'acceptTerms',
+      model: model.$.acceptTerms,
+      component: CheckboxWithLabel,
+      componentProps: { testId: 'acceptTerms', label: 'Я принимаю условия использования' },
+    },
+  ],
+});

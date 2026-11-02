@@ -1,0 +1,22 @@
+/**
+ * Реестр компонентов формы «Заявка на кредит (сокращённая)»: что рендерить под каждый
+ * `$component(...)` из layout-схемы. Новый компонент в схеме → регистрация здесь.
+ */
+import { Step } from '@reformer/cdk/form-wizard';
+import { FormField, CheckboxWithLabel, FieldArray, FormWizard, Input, InputNumber, SelectAsync, Textarea } from '@reformer/ui-kit';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    // Системная обёртка листа: label + ошибки. Сборка кладёт её в бандл формы.
+    reg.component(FIELD_WRAPPER, FormField);
+    reg.component('Step', Step);
+    reg.component('Checkbox', CheckboxWithLabel);
+    reg.component('FieldArray', FieldArray);
+    reg.component('FormWizard', FormWizard);
+    reg.component('Input', Input);
+    reg.component('InputNumber', InputNumber);
+    reg.component('Select', SelectAsync);
+    reg.component('Textarea', Textarea);
+  });
+}

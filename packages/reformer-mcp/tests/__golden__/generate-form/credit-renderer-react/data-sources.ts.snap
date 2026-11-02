@@ -1,0 +1,157 @@
+/**
+ * Справочники формы «Заявка на кредит» — варианты полей выбора. TS-схема кладёт их в
+ * `componentProps.options`, реестр renderer-json регистрирует под теми же именами
+ * (`$dataSource(NAME)` в схеме).
+ */
+
+/** consumer | mortgage | car | business | refinancing — constants/credit-application.ts LOAN_TYPES */
+export const LOAN_TYPES = [
+  {
+    "value": "consumer",
+    "label": "Потребительский кредит"
+  },
+  {
+    "value": "mortgage",
+    "label": "Ипотека"
+  },
+  {
+    "value": "car",
+    "label": "Автокредит"
+  },
+  {
+    "value": "business",
+    "label": "Кредит для бизнеса"
+  },
+  {
+    "value": "refinancing",
+    "label": "Рефинансирование"
+  }
+];
+
+/** male | female — constants/credit-application.ts GENDERS */
+export const GENDERS = [
+  {
+    "value": "male",
+    "label": "Мужской"
+  },
+  {
+    "value": "female",
+    "label": "Женский"
+  }
+];
+
+/** employed | selfEmployed | unemployed | retired | student — constants EMPLOYMENT_STATUSES */
+export const EMPLOYMENT_STATUSES = [
+  {
+    "value": "employed",
+    "label": "Работаю по найму"
+  },
+  {
+    "value": "selfEmployed",
+    "label": "Индивидуальный предприниматель"
+  },
+  {
+    "value": "unemployed",
+    "label": "Не работаю"
+  },
+  {
+    "value": "retired",
+    "label": "Пенсионер"
+  },
+  {
+    "value": "student",
+    "label": "Студент"
+  }
+];
+
+/** single | married | divorced | widowed — constants MARITAL_STATUSES */
+export const MARITAL_STATUSES = [
+  {
+    "value": "single",
+    "label": "Холост/не замужем"
+  },
+  {
+    "value": "married",
+    "label": "Женат/Замужем"
+  },
+  {
+    "value": "divorced",
+    "label": "Разведен(а)"
+  },
+  {
+    "value": "widowed",
+    "label": "Вдовец/Вдова"
+  }
+];
+
+/** secondary | specialized | higher | postgraduate — constants EDUCATIONS */
+export const EDUCATIONS = [
+  {
+    "value": "secondary",
+    "label": "Среднее"
+  },
+  {
+    "value": "specialized",
+    "label": "Среднее специальное"
+  },
+  {
+    "value": "higher",
+    "label": "Высшее"
+  },
+  {
+    "value": "postgraduate",
+    "label": "Послевузовское"
+  }
+];
+
+/** consumer | mortgage | car | creditCard | other — constants EXISTING_LOAN_TYPES */
+export const EXISTING_LOAN_TYPES = [
+  {
+    "value": "consumer",
+    "label": "Потребительский кредит"
+  },
+  {
+    "value": "mortgage",
+    "label": "Ипотека"
+  },
+  {
+    "value": "car",
+    "label": "Автокредит"
+  },
+  {
+    "value": "creditCard",
+    "label": "Кредитная карта"
+  },
+  {
+    "value": "other",
+    "label": "Другое"
+  }
+];
+
+/** spouse | parent | child | sibling | relative | other — constants RELATIONSHIPS */
+export const RELATIONSHIPS = [
+  {
+    "value": "spouse",
+    "label": "Супруг(а)"
+  },
+  {
+    "value": "parent",
+    "label": "Родитель"
+  },
+  {
+    "value": "child",
+    "label": "Ребенок"
+  },
+  {
+    "value": "sibling",
+    "label": "Брат/Сестра"
+  },
+  {
+    "value": "relative",
+    "label": "Другой родственник"
+  },
+  {
+    "value": "other",
+    "label": "Другое"
+  }
+];

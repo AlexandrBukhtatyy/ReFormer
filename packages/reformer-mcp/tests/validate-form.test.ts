@@ -18,11 +18,16 @@ import { validateCode } from '../src/core/validate/code';
 import { CODE_TITLES } from '../src/core/validate/codes.js';
 import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
 const k = cliKnowledge();
 
-const hasSymbols = getPublicSymbols('@reformer/core').length > 0;
+const hasSymbols = precondition(
+  'символы @reformer/core',
+  getPublicSymbols('@reformer/core').length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 const codes = (text: string) => [...text.matchAll(/\*\*(RF\d{3})\*\*/g)].map((m) => m[1]);
 
 describe('validate_form — диспетчер', () => {

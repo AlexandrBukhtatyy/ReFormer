@@ -17,6 +17,7 @@ import {
 } from '../src/core/tools/search-docs';
 import { getSectionBySlug, listAvailablePackages } from '../src/utils/docs-parser';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
 const k = cliKnowledge();
@@ -92,7 +93,11 @@ describe('search_docs', () => {
 describe('search_docs — понижение самодокументации и исключение из него', () => {
   beforeEach(() => __resetSearchDocsIndex(k));
 
-  const hasDocs = listAvailablePackages().length > 0;
+  const hasDocs = precondition(
+    'документация пакетов',
+    listAvailablePackages().length > 0,
+    'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+  );
 
   it.runIf(hasDocs)('каждый префикс исключения резолвится в секцию mcp', () => {
     // Слаги считаются из ЗАГОЛОВКОВ гайда. Переименование заголовка молча выключило бы
@@ -157,7 +162,11 @@ describe('search_docs — понижение самодокументации и
 describe('search_docs — исключение из штрафа действует только на layout-запросах', () => {
   beforeEach(() => __resetSearchDocsIndex(k));
 
-  const hasDocs = listAvailablePackages().length > 0;
+  const hasDocs = precondition(
+    'документация пакетов',
+    listAvailablePackages().length > 0,
+    'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+  );
 
   /** Ровно те запросы, на которых безусловное исключение вытеснило библиотечный ответ. */
   const HIJACKED = [

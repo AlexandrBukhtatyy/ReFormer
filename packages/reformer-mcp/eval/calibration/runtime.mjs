@@ -16,9 +16,9 @@
  * регистрация — проект `registration-form-json` с `REG_FORM_PATH`.
  */
 
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { flattenReport as flatten, runPlaywright as playwright } from '../lib/playwright.mjs';
 import { parseGenerateForm } from './lib/bundle.mjs';
 import { inspect, repoRoot } from './lib/inspector.mjs';
 import { CASES, TARGETS } from './tracks.mjs';
@@ -165,45 +165,6 @@ export async function mountForms({
   }
   writeFileSync(path.join(outDir, 't3-mounted.json'), JSON.stringify(mounted, null, 2));
   return mounted;
-}
-
-function playwright(args, env, reportFile) {
-  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const r = spawnSync(npx, ['playwright', 'test', ...args, '--reporter=json'], {
-    cwd: E2E_DIR,
-    env: { ...process.env, ...env, PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile },
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-    maxBuffer: 256 * 1024 * 1024,
-    timeout: 60 * 60 * 1000,
-  });
-  return { status: r.status, stderr: (r.stderr ?? '').slice(-4000) };
-}
-
-/** JSON-отчёт playwright → список `{ project, file, title, status, error }`. */
-function flatten(report) {
-  const out = [];
-  const walk = (suite, file) => {
-    for (const spec of suite.specs ?? []) {
-      for (const test of spec.tests ?? []) {
-        const last = test.results?.at(-1);
-        out.push({
-          project: test.projectName,
-          file: path.basename(suite.file ?? file ?? ''),
-          title: spec.title,
-          status: last?.status ?? 'skipped',
-          error: (last?.error?.message ?? '')
-            // eslint-disable-next-line no-control-regex -- снимаются ANSI-коды из вывода playwright
-            .replace(/\u001b\[[0-9;]*m/g, '')
-            .split('\n')[0]
-            .slice(0, 240),
-        });
-      }
-    }
-    for (const child of suite.suites ?? []) walk(child, suite.file ?? file);
-  };
-  for (const s of report.suites ?? []) walk(s, s.file);
-  return out;
 }
 
 /** Прогнать e2e эталонов по смонтированным формам. */

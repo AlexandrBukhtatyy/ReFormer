@@ -1,0 +1,357 @@
+/**
+ * Валидация формы «Заявка на кредит» — правила над МОДЕЛЬЮ, не в схеме разметки.
+ * Правила шагов уходят в поток `formFlow` (form.flow.ts), правила вне шагов — сюда.
+ * Подключение: createForm({ …, validation: formValidation, flow: formFlow }).
+ */
+import type { FormValidation } from '@reformer/core';
+import { applyEach, defineValidation, validate, validateAsync, validateWhen } from '@reformer/core/validation';
+import { email, max, maxAge, maxLength, min, minAge, minLength, pastDate, pattern, required } from '@reformer/core/validators';
+import type { CreditApplicationForm, Property, ExistingLoan, CoBorrower } from './model';
+
+/** Правила строки массива `properties`: пути — от элемента. */
+const propertiesRowRules = defineValidation<Property>(({ model }) => {
+  validate(model.$.type, [required({ code: 'property.type.required' })]);
+  validate(model.$.description, [required({ code: 'property.description.required' })]);
+  validate(model.$.description, [minLength(10, { code: 'property.description.minLength' })]);
+  validate(model.$.description, [maxLength(500, { code: 'property.description.maxLength' })]);
+  validate(model.$.estimatedValue, [required({ code: 'property.estimatedValue.required' })]);
+  validate(model.$.estimatedValue, [min(10000, { code: 'property.estimatedValue.min' })]);
+});
+
+/** Правила строки массива `existingLoans`: пути — от элемента. */
+const existingLoansRowRules = defineValidation<ExistingLoan>(({ model, cross }) => {
+  validate(model.$.bank, [required({ code: 'existingLoan.bank.required' })]);
+  validate(model.$.bank, [minLength(3, { code: 'existingLoan.bank.minLength' })]);
+  validate(model.$.bank, [maxLength(100, { code: 'existingLoan.bank.maxLength' })]);
+  validate(model.$.type, [required({ code: 'existingLoan.type.required' })]);
+  validate(model.$.amount, [required({ code: 'existingLoan.amount.required' })]);
+  validate(model.$.amount, [min(1000, { code: 'existingLoan.amount.min' })]);
+  validate(model.$.amount, [max(100000000, { code: 'existingLoan.amount.max' })]);
+  validate(model.$.remainingAmount, [required({ code: 'existingLoan.remainingAmount.required' })]);
+  validate(model.$.remainingAmount, [min(0, { code: 'nonNegative.min' })]);
+  cross(model.$.remainingAmount, (values) => ((values.remainingAmount <= values.amount) ? null : { code: 'remainingExceedsAmount' }));
+  validate(model.$.monthlyPayment, [required({ code: 'existingLoan.monthlyPayment.required' })]);
+  validate(model.$.monthlyPayment, [min(100, { code: 'existingLoan.monthlyPayment.min' })]);
+  validate(model.$.maturityDate, [required({ code: 'existingLoan.maturityDate.required' })]);
+  cross(model.$.maturityDate, (values) => ((!values.maturityDate || new Date(values.maturityDate).getTime() >= new Date().setHours(0, 0, 0, 0)) ? null : { code: 'maturityDateInPast' }));
+});
+
+/** Правила строки массива `coBorrowers`: пути — от элемента. */
+const coBorrowersRowRules = defineValidation<CoBorrower>(({ model }) => {
+  validate(model.$.personalData.lastName, [required({ code: 'lastName.required' })]);
+  validate(model.$.personalData.lastName, [minLength(2, { code: 'ruName.minLength' })]);
+  validate(model.$.personalData.lastName, [maxLength(50, { code: 'ruName.maxLength' })]);
+  validate(model.$.personalData.lastName, [pattern(/^[А-ЯЁа-яё\s-]+$/, { code: 'ruName.pattern' })]);
+  validate(model.$.personalData.firstName, [required({ code: 'firstName.required' })]);
+  validate(model.$.personalData.firstName, [minLength(2, { code: 'ruName.minLength' })]);
+  validate(model.$.personalData.firstName, [maxLength(50, { code: 'ruName.maxLength' })]);
+  validate(model.$.personalData.firstName, [pattern(/^[А-ЯЁа-яё\s-]+$/, { code: 'ruName.pattern' })]);
+  validate(model.$.personalData.middleName, [required({ code: 'middleName.required' })]);
+  validate(model.$.personalData.middleName, [minLength(2, { code: 'ruName.minLength' })]);
+  validate(model.$.personalData.middleName, [maxLength(50, { code: 'ruName.maxLength' })]);
+  validate(model.$.personalData.middleName, [pattern(/^[А-ЯЁа-яё\s-]+$/, { code: 'ruName.pattern' })]);
+  validate(model.$.personalData.birthDate, [required({ code: 'coBorrower.birthDate.required' })]);
+  validate(model.$.personalData.birthDate, [minAge(18, { code: 'coBorrower.birthDate.minAge' })]);
+  validate(model.$.personalData.birthDate, [maxAge(80, { code: 'coBorrower.birthDate.maxAge' })]);
+  validate(model.$.phone, [required({ code: 'coBorrower.phone.required' })]);
+  validate(model.$.email, [required({ code: 'emailRequired.required' })]);
+  validate(model.$.email, [email({ code: 'emailFormat.email' })]);
+  validate(model.$.relationship, [required({ code: 'coBorrower.relationship.required' })]);
+  validate(model.$.monthlyIncome, [required({ code: 'coBorrower.monthlyIncome.required' })]);
+  validate(model.$.monthlyIncome, [min(10000, { code: 'coBorrower.monthlyIncome.min' })]);
+});
+
+/** Правила шага `loan` — их проверяет `next()` потока. */
+export const loanRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.loanType, [required({ code: 'loanType.required' })]);
+  validate(model.$.loanAmount, [required({ code: 'loanAmount.required' })]);
+  validate(model.$.loanAmount, [min(50000, { code: 'loanAmount.min' })]);
+  validate(model.$.loanAmount, [max(10000000, { code: 'max10mRub.max' })]);
+  validate(model.$.loanTerm, [required({ code: 'loanTerm.required' })]);
+  validate(model.$.loanTerm, [min(6, { code: 'loanTerm.min' })]);
+  validate(model.$.loanTerm, [max(240, { code: 'loanTerm.max' })]);
+  validate(model.$.loanPurpose, [required({ code: 'loanPurpose.required' })]);
+  validate(model.$.loanPurpose, [minLength(10, { code: 'loanPurpose.minLength' })]);
+  validate(model.$.loanPurpose, [maxLength(500, { code: 'loanPurpose.maxLength' })]);
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    cross(model.$.loanAmount, (values) => ((!values.loanAmount || !values.propertyValue || !values.initialPayment || values.loanAmount <= values.propertyValue - values.initialPayment) ? null : { code: 'loanAmountExceedsMax' }));
+  });
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    validate(model.$.propertyValue, [required({ code: 'propertyValue.required' })]);
+  });
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    validate(model.$.propertyValue, [min(1000000, { code: 'propertyValue.min' })]);
+  });
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    validate(model.$.initialPayment, [required({ code: 'initialPayment.required' })]);
+  });
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    validate(model.$.initialPayment, [min(0, { code: 'nonNegative.min' })]);
+  });
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    cross(model.$.initialPayment, (values) => ((!values.initialPayment || !values.propertyValue || values.initialPayment <= values.propertyValue) ? null : { code: 'initialPaymentTooHigh' }));
+  });
+  validateWhen(() => model.loanType === 'mortgage', () => {
+    cross(model.$.initialPayment, (values) => ((!values.initialPayment || !values.propertyValue || values.initialPayment > values.propertyValue || values.initialPayment >= values.propertyValue * 0.2) ? null : { code: 'initialPaymentTooLow' }));
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carBrand, [required({ code: 'carBrand.required' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carBrand, [minLength(2, { code: 'carBrand.minLength' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carBrand, [maxLength(50, { code: 'carBrand.maxLength' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carModel, [required({ code: 'carModel.required' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carModel, [minLength(1, { code: 'carModel.minLength' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carModel, [maxLength(50, { code: 'carModel.maxLength' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carYear, [required({ code: 'carYear.required' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carYear, [min(2000, { code: 'carYear.min' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carYear, [max(new Date().getFullYear() + 1, { code: 'carYear.max' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carPrice, [required({ code: 'carPrice.required' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carPrice, [min(300000, { code: 'carPrice.min' })]);
+  });
+  validateWhen(() => model.loanType === 'car', () => {
+    validate(model.$.carPrice, [max(10000000, { code: 'max10mRub.max' })]);
+  });
+});
+
+/** Правила шага `applicant` — их проверяет `next()` потока. */
+export const applicantRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.personalData.lastName, [required({ code: 'lastName.required' })]);
+  validate(model.$.personalData.lastName, [minLength(2, { code: 'ruName.minLength' })]);
+  validate(model.$.personalData.lastName, [maxLength(50, { code: 'ruName.maxLength' })]);
+  validate(model.$.personalData.lastName, [pattern(/^[А-ЯЁа-яё\s-]+$/, { code: 'ruName.pattern' })]);
+  validate(model.$.personalData.firstName, [required({ code: 'firstName.required' })]);
+  validate(model.$.personalData.firstName, [minLength(2, { code: 'ruName.minLength' })]);
+  validate(model.$.personalData.firstName, [maxLength(50, { code: 'ruName.maxLength' })]);
+  validate(model.$.personalData.firstName, [pattern(/^[А-ЯЁа-яё\s-]+$/, { code: 'ruName.pattern' })]);
+  validate(model.$.personalData.middleName, [required({ code: 'middleName.required' })]);
+  validate(model.$.personalData.middleName, [minLength(2, { code: 'ruName.minLength' })]);
+  validate(model.$.personalData.middleName, [maxLength(50, { code: 'ruName.maxLength' })]);
+  validate(model.$.personalData.middleName, [pattern(/^[А-ЯЁа-яё\s-]+$/, { code: 'ruName.pattern' })]);
+  validate(model.$.personalData.birthDate, [required({ code: 'birthDate.required' })]);
+  validate(model.$.personalData.birthDate, [minAge(18, { code: 'birthDate.minAge' })]);
+  validate(model.$.personalData.birthDate, [maxAge(70, { code: 'birthDate.maxAge' })]);
+  validate(model.$.personalData.gender, [required({ code: 'gender.required' })]);
+  validate(model.$.personalData.birthPlace, [required({ code: 'birthPlace.required' })]);
+  validate(model.$.personalData.birthPlace, [minLength(5, { code: 'birthPlace.minLength' })]);
+  validate(model.$.personalData.birthPlace, [maxLength(100, { code: 'birthPlace.maxLength' })]);
+  validate(model.$.passportData.series, [required({ code: 'passportSeries.required' })]);
+  validate(model.$.passportData.series, [pattern(/^\d{2}\s\d{2}$/, { code: 'passportSeries.pattern' })]);
+  validate(model.$.passportData.number, [required({ code: 'passportNumber.required' })]);
+  validate(model.$.passportData.number, [pattern(/^\d{6}$/, { code: 'passportNumber.pattern' })]);
+  validate(model.$.passportData.issueDate, [required({ code: 'passportIssueDate.required' })]);
+  validate(model.$.passportData.issueDate, [pastDate({ code: 'passportIssueDate.pastDate' })]);
+  cross(model.$.passportData.issueDate, (values) => ((!values.personalData.birthDate || !values.passportData.issueDate || new Date(values.passportData.issueDate).getTime() >= new Date(values.personalData.birthDate).setFullYear(new Date(values.personalData.birthDate).getFullYear() + 14)) ? null : { code: 'passportIssuedBeforeMinAge' }));
+  validate(model.$.passportData.issuedBy, [required({ code: 'passportIssuedBy.required' })]);
+  validate(model.$.passportData.issuedBy, [minLength(10, { code: 'passportIssuedBy.minLength' })]);
+  validate(model.$.passportData.issuedBy, [maxLength(200, { code: 'passportIssuedBy.maxLength' })]);
+  validate(model.$.passportData.departmentCode, [required({ code: 'passportDepartmentCode.required' })]);
+  validate(model.$.passportData.departmentCode, [pattern(/^\d{3}-\d{3}$/, { code: 'passportDepartmentCode.pattern' })]);
+  validate(model.$.inn, [required({ code: 'inn.required' })]);
+  validate(model.$.inn, [pattern(/^\d{12}$/, { code: 'inn.pattern' })]);
+  validate(model.$.snils, [required({ code: 'snils.required' })]);
+  validate(model.$.snils, [pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { code: 'snils.pattern' })]);
+});
+
+/** Правила шага `contacts` — их проверяет `next()` потока. */
+export const contactsRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.phoneMain, [required({ code: 'phoneMain.required' })]);
+  validate(model.$.phoneMain, [pattern(/^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, { code: 'phoneFormat.pattern' })]);
+  validate(model.$.phoneAdditional, [pattern(/^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, { code: 'phoneFormat.pattern' })]);
+  cross(model.$.phoneAdditional, (values) => ((!values.phoneAdditional || values.phoneMain !== values.phoneAdditional) ? null : { code: 'phoneDuplicate' }));
+  validate(model.$.email, [required({ code: 'emailRequired.required' })]);
+  validate(model.$.email, [email({ code: 'emailFormat.email' })]);
+  validate(model.$.emailAdditional, [email({ code: 'emailFormat.email' })]);
+  cross(model.$.emailAdditional, (values) => ((!values.emailAdditional || values.email.toLowerCase() !== values.emailAdditional.toLowerCase()) ? null : { code: 'emailDuplicate' }));
+  validate(model.$.registrationAddress.region, [required({ code: 'address.region.required' })]);
+  validate(model.$.registrationAddress.region, [minLength(2, { code: 'address.region.minLength' })]);
+  validate(model.$.registrationAddress.region, [maxLength(100, { code: 'address.region.maxLength' })]);
+  validate(model.$.registrationAddress.city, [required({ code: 'address.city.required' })]);
+  validate(model.$.registrationAddress.city, [minLength(2, { code: 'address.city.minLength' })]);
+  validate(model.$.registrationAddress.city, [maxLength(100, { code: 'address.city.maxLength' })]);
+  validate(model.$.registrationAddress.street, [required({ code: 'address.street.required' })]);
+  validate(model.$.registrationAddress.street, [minLength(3, { code: 'address.street.minLength' })]);
+  validate(model.$.registrationAddress.street, [maxLength(200, { code: 'address.street.maxLength' })]);
+  validate(model.$.registrationAddress.house, [required({ code: 'address.house.required' })]);
+  validate(model.$.registrationAddress.house, [maxLength(10, { code: 'address.house.maxLength' })]);
+  validate(model.$.registrationAddress.apartment, [maxLength(10, { code: 'address.apartment.maxLength' })]);
+  validate(model.$.registrationAddress.postalCode, [required({ code: 'address.postalCode.required' })]);
+  validate(model.$.registrationAddress.postalCode, [pattern(/^\d{6}$/, { code: 'address.postalCode.pattern' })]);
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.region, [required({ code: 'address.region.required' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.region, [minLength(2, { code: 'address.region.minLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.region, [maxLength(100, { code: 'address.region.maxLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.city, [required({ code: 'address.city.required' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.city, [minLength(2, { code: 'address.city.minLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.city, [maxLength(100, { code: 'address.city.maxLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.street, [required({ code: 'address.street.required' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.street, [minLength(3, { code: 'address.street.minLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.street, [maxLength(200, { code: 'address.street.maxLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.house, [required({ code: 'address.house.required' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.house, [maxLength(10, { code: 'address.house.maxLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.apartment, [maxLength(10, { code: 'address.apartment.maxLength' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.postalCode, [required({ code: 'address.postalCode.required' })]);
+  });
+  validateWhen(() => model.sameAsRegistration === false, () => {
+    validate(model.$.residenceAddress.postalCode, [pattern(/^\d{6}$/, { code: 'address.postalCode.pattern' })]);
+  });
+});
+
+/** Правила шага `employment` — их проверяет `next()` потока. */
+export const employmentRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.employmentStatus, [required({ code: 'employmentStatus.required' })]);
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyName, [required({ code: 'companyName.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyName, [minLength(3, { code: 'companyName.minLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyName, [maxLength(200, { code: 'companyName.maxLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyInn, [required({ code: 'companyInn.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyInn, [pattern(/^\d{10}$/, { code: 'companyInn.pattern' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyPhone, [required({ code: 'companyPhone.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyPhone, [pattern(/^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, { code: 'phoneFormat.pattern' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyAddress, [required({ code: 'companyAddress.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyAddress, [minLength(10, { code: 'companyAddress.minLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.companyAddress, [maxLength(300, { code: 'companyAddress.maxLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.position, [required({ code: 'position.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.position, [minLength(3, { code: 'position.minLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.position, [maxLength(100, { code: 'position.maxLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.workExperienceTotal, [required({ code: 'workExperienceTotal.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.workExperienceTotal, [min(0, { code: 'nonNegative.min' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.workExperienceCurrent, [required({ code: 'workExperienceCurrent.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    validate(model.$.workExperienceCurrent, [min(0, { code: 'nonNegative.min' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'employed', () => {
+    cross(model.$.workExperienceCurrent, (values) => ((!values.workExperienceCurrent || !values.workExperienceTotal || values.workExperienceCurrent <= values.workExperienceTotal) ? null : { code: 'currentExperienceExceedsTotal' }));
+  });
+  validateWhen(() => model.employmentStatus === 'selfEmployed', () => {
+    validate(model.$.businessType, [required({ code: 'businessType.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'selfEmployed', () => {
+    validate(model.$.businessInn, [required({ code: 'businessInn.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'selfEmployed', () => {
+    validate(model.$.businessInn, [pattern(/^\d{12}$/, { code: 'businessInn.pattern' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'selfEmployed', () => {
+    validate(model.$.businessActivity, [required({ code: 'businessActivity.required' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'selfEmployed', () => {
+    validate(model.$.businessActivity, [minLength(10, { code: 'businessActivity.minLength' })]);
+  });
+  validateWhen(() => model.employmentStatus === 'selfEmployed', () => {
+    validate(model.$.businessActivity, [maxLength(300, { code: 'businessActivity.maxLength' })]);
+  });
+  validate(model.$.monthlyIncome, [required({ code: 'monthlyIncome.required' })]);
+  validate(model.$.monthlyIncome, [min(10000, { code: 'monthlyIncome.min' })]);
+  validate(model.$.monthlyIncome, [max(10000000, { code: 'max10mRub.max' })]);
+  validate(model.$.additionalIncome, [min(0, { code: 'nonNegative.min' })]);
+  validate(model.$.additionalIncome, [max(10000000, { code: 'max10mRub.max' })]);
+  cross(model.$.additionalIncomeSource, (values) => ((!(values.additionalIncome && values.additionalIncome > 0) || !!values.additionalIncomeSource) ? null : { code: 'additionalIncomeSourceRequired' }));
+});
+
+/** Правила шага `additional` — их проверяет `next()` потока. */
+export const additionalRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.maritalStatus, [required({ code: 'maritalStatus.required' })]);
+  validate(model.$.dependents, [required({ code: 'dependents.required' })]);
+  validate(model.$.dependents, [min(0, { code: 'nonNegative.min' })]);
+  validate(model.$.dependents, [max(10, { code: 'dependents.max' })]);
+  validate(model.$.education, [required({ code: 'education.required' })]);
+  cross(model.$.hasProperty, (values) => ((!values.hasProperty || values.properties.length > 0) ? null : { code: 'properties.arrayEmpty' }));
+  cross(model.$.hasExistingLoans, (values) => ((!values.hasExistingLoans || values.existingLoans.length > 0) ? null : { code: 'existingLoans.arrayEmpty' }));
+  cross(model.$.hasCoBorrower, (values) => ((!values.hasCoBorrower || values.coBorrowers.length > 0) ? null : { code: 'coBorrowers.arrayEmpty' }));
+  applyEach(model.$.properties, propertiesRowRules);
+  applyEach(model.$.existingLoans, existingLoansRowRules);
+  applyEach(model.$.coBorrowers, coBorrowersRowRules);
+});
+
+/** Правила шага `confirmation` — их проверяет `next()` потока. */
+export const confirmationRules = defineValidation<CreditApplicationForm>(({ model, cross }) => {
+  validate(model.$.agreePersonalData, [required({ code: 'agreePersonalData.required' })]);
+  validate(model.$.agreeCreditHistory, [required({ code: 'agreeCreditHistory.required' })]);
+  validate(model.$.agreeTerms, [required({ code: 'agreeTerms.required' })]);
+  validate(model.$.confirmAccuracy, [required({ code: 'confirmAccuracy.required' })]);
+  validate(model.$.electronicSignature, [required({ code: 'electronicSignature.required' })]);
+  validate(model.$.electronicSignature, [minLength(6, { code: 'electronicSignature.minLength' })]);
+  validate(model.$.electronicSignature, [maxLength(6, { code: 'electronicSignature.maxLength' })]);
+  validate(model.$.electronicSignature, [pattern(/^\d{6}$/, { code: 'electronicSignature.pattern' })]);
+  validateAsync(model.$.electronicSignature, [async (value) => { if (!value || value.length !== 6) return null; await new Promise((resolve) => setTimeout(resolve, 200)); return value !== '123456' ? { code: 'invalidSmsCode' } : null; }]);
+  cross(model.$.monthlyPayment, (values) => ((values.paymentToIncomeRatio <= 50) ? null : { code: 'paymentTooHigh' }));
+  cross(model.$.age, (values) => ((!values.age || values.age >= 18) ? null : { code: 'ageTooYoung' }));
+  cross(model.$.age, (values) => ((!values.age || values.age <= 70) ? null : { code: 'ageTooOld' }));
+});
+
+/** Правил вне шагов нет: все правила — у шагов потока. */
+export const formValidation: FormValidation<CreditApplicationForm> = {};

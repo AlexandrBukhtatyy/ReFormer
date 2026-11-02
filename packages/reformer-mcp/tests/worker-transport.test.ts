@@ -19,6 +19,7 @@ import {
   type MessagePortLike,
 } from '../src/platform/worker/port-transport';
 import { startWorkerServer } from '../src/platform/worker/server';
+import { precondition } from './support/preconditions';
 
 const repoRoot = resolve(__dirname, '../../..');
 
@@ -36,7 +37,7 @@ function loadBundles(): { index: IndexBundle; docs: DocsBundle } | null {
 }
 
 const bundles = loadBundles();
-const textOf = (result: { content: unknown }) =>
+const textOf = (result: Record<string, unknown>) =>
   (result.content as Array<{ type: string; text?: string }>)
     .map((part) => part.text ?? '')
     .join('\n');
@@ -59,7 +60,13 @@ async function connect(corpus: () => { index: IndexBundle; docs: DocsBundle }) {
   return client;
 }
 
-describe.runIf(bundles !== null)('сервер воркера через postMessage', () => {
+describe.runIf(
+  precondition(
+    'корпус пакетов',
+    bundles !== null,
+    'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+  )
+)('сервер воркера через postMessage', () => {
   it('initialize и tools/list — без разбора корпуса', async () => {
     const corpus = vi.fn(() => bundles!);
     const client = await connect(corpus);

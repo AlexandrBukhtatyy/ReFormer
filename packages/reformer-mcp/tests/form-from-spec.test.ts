@@ -26,6 +26,8 @@ import { buildBundle } from '../src/core/generate/builders.js';
 import { readIntent } from '../src/core/generate/form-intent.js';
 import { intentFromSpec } from '../src/core/generate/from-spec';
 import { analyzeSpec, MAX_FIELDS, parseValidationCell } from '../src/core/spec/analyze';
+import { checkAllRules, loadFormModule, tick } from '../eval/lib/form-runtime.mjs';
+import { precondition } from './support/preconditions';
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/spec-loan-request.md');
 const spec = readFileSync(FIXTURE, 'utf-8');
@@ -53,18 +55,19 @@ try {
 } catch {
   core = null;
 }
-const hasCore = core !== null;
+const hasCore = precondition(
+  '@reformer/core',
+  core !== null,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 // Узлы формы типизированы структурно — ровно как в тестах ядра: тест смотрит на две
 // наблюдаемые величины, а не на весь публичный тип узла.
 type Node = {
   disabled: { value: boolean };
-  errors: { value: Array<{ code?: string; message?: string }> };
+  issues: { value: Array<{ code?: string; message?: string }> };
 };
 const node = (n: unknown) => n as Node;
-
-/** Дать эффектам ядра сработать: реактивные связи применяются не синхронно. */
-const tick = () => new Promise((r) => setTimeout(r, 0));
 
 // ---------------------------------------------------------------------------
 
@@ -523,21 +526,14 @@ describe.runIf(hasCore)('сгенерированная форма работа�
     sandbox = mkdtempSync(join(process.cwd(), '.tmp', 'form-from-spec-run-'));
     for (const f of bundle.files) writeFileSync(join(sandbox, f.path), f.content);
 
-    const url = (p: string) => pathToFileURL(join(sandbox, p)).href;
-    createFormModel = (await import(/* @vite-ignore */ url('model.ts'))).createFormModel;
-    const { formValidation } = await import(/* @vite-ignore */ url('form.validation.ts'));
-    // Спека с шагами даёт визард: правила шагов уходят в поток (`form.flow.ts`), а
-    // `formValidation` держит только правила вне шагов (`extras`). Форма проверяется целиком —
-    // всеми схемами сразу.
-    const hasFlow = bundle.files.some((f) => f.path === 'form.flow.ts');
-    const flowSteps: Array<{ rules?: unknown }> = hasFlow
-      ? (await import(/* @vite-ignore */ url('form.flow.ts'))).formFlow.steps
-      : [];
-    ruleSchemas = [
-      ...flowSteps.map((s) => s.rules),
-      typeof formValidation === 'function' ? formValidation : formValidation?.extras,
-    ].filter((s) => typeof s === 'function');
-    formBehavior = (await import(/* @vite-ignore */ url('form.behavior.ts'))).formBehavior;
+    // form.schema.ts здесь не нужен: кейсы смотрят на модель и узлы, без разметки.
+    const formModule = await loadFormModule(
+      (file: string) => import(/* @vite-ignore */ pathToFileURL(join(sandbox, file)).href),
+      bundle.files.map((f) => f.path).filter((file) => file !== 'form.schema.ts')
+    );
+    createFormModel = formModule.createFormModel;
+    ruleSchemas = formModule.ruleSchemas;
+    formBehavior = formModule.formBehavior;
   });
 
   afterAll(() => {
@@ -551,13 +547,9 @@ describe.runIf(hasCore)('сгенерированная форма работа�
     return { model, form };
   }
 
-  /** Проходит ли модель все правила формы. Схемы гоняются все, без раннего выхода. */
-  const check = async (model: unknown) => {
-    const results = await Promise.all(
-      ruleSchemas.map((s) => validation!.validateModel(model, s) as Promise<boolean>)
-    );
-    return results.every(Boolean);
-  };
+  /** Проходит ли модель все правила формы. */
+  const check = (model: unknown): Promise<boolean> =>
+    checkAllRules(validation!.validateModel, model, ruleSchemas);
 
   /** Минимально валидное заполнение — база, от которой кейсы отклоняются в одну сторону. */
   function fill(model: Record<string, unknown>) {

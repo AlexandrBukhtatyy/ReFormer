@@ -1,0 +1,8 @@
+[
+  {
+    "name": "ReFormer docs section",
+    "uriTemplate": "reformer://docs/{package}/{slug}",
+    "description": "One documentation section. package: core, cdk, ui-kit, renderer-react, renderer-json, mcp; slug: from reformer://catalog or search_docs.",
+    "mimeType": "text/markdown"
+  }
+]

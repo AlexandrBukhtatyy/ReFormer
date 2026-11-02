@@ -13,11 +13,16 @@ import { scoreDocFileMatch, pickBestDocFile, findRecipeTool } from '../src/core/
 import type { FindRecipeArgs } from '../src/core/tools/find-recipe';
 import { normalizeTopic, listAvailablePackages } from '../src/utils/docs-parser';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
 const k = cliKnowledge();
 
-const hasDocs = listAvailablePackages().length > 0;
+const hasDocs = precondition(
+  'документация пакетов',
+  listAvailablePackages().length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 describe('scoreDocFileMatch / pickBestDocFile — ranked matching (defect 78)', () => {
   it('prefers an exact stem match over an earlier loose substring match', () => {

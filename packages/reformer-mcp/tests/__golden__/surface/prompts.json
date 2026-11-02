@@ -1,0 +1,113 @@
+[
+  {
+    "name": "start-here",
+    "description": "START HERE. Entry-point for building a form with ReFormer using ONLY this MCP server. Returns the canonical workflow of the unified form contract (model → one schema → one assembly `createForm` → validation → the one behavior → wizard → draw), a map of which prompt/tool/resource to use at each step, and the reading order. Call this first when asked to build or modify a ReFormer form.",
+    "arguments": []
+  },
+  {
+    "name": "discover-context",
+    "description": "Собирает контекст проекта (target stack, UI-компоненты, стили, валидация, async-паттерны) одним batched sampling-запросом к клиенту. Возвращает JSON-рекомендацию для последующих prompts (create-form / add-* / plan-form). Если клиент не поддерживает sampling — возвращает шаблон вопросов для ручного ответа пользователя.",
+    "arguments": [
+      {
+        "name": "description",
+        "description": "Описание формы (что нужно построить).",
+        "required": true
+      },
+      {
+        "name": "projectPath",
+        "description": "Путь к каталогу проекта для auto-detection стека.",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "review",
+    "description": "Cross-package review of ReFormer code. Slim+ prompt that points the model at MCP resources for full anti-pattern lists; only critical inline rules stay in the message body.",
+    "arguments": [
+      {
+        "name": "code",
+        "description": "The code to review (paste the relevant snippet).",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "plan-form",
+    "description": "Прочитать спеку формы (markdown), проанализировать поля/шаги/behaviors/arrays/API, и вернуть структурированный markdown-план разработки: roadmap из 7 sub-agent стадий, рекомендуемая последовательность других MCP-промптов, risk matrix (cycle-prevention, plain-leaves, hide-vs-disable), verification scenarios для playwright, test fixtures.",
+    "arguments": [
+      {
+        "name": "specPath",
+        "description": "Абсолютный или относительный путь к markdown-спеке формы. Например: docs/specs/credit-application-form.md",
+        "required": true
+      },
+      {
+        "name": "target",
+        "description": "Целевой стек: \"core\" | \"renderer-react\" | \"renderer-json\". По умолчанию \"core\".",
+        "required": false
+      },
+      {
+        "name": "projectPath",
+        "description": "Путь к каталогу проекта для auto-detection стека (как в create-form). По умолчанию process.cwd().",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "create-form",
+    "description": "Create a form on @reformer/* from a textual description. Slim+ prompt — points the model at MCP resources for full FormSchema/Quick-Start/imports references; only critical inline rules and the auto-detected stack block stay in the message body.",
+    "arguments": [
+      {
+        "name": "description",
+        "description": "Свободное описание формы: какие поля, типы, начальные значения, связи. Например: \"Регистрация пользователя: email, password, confirmPassword (сверка), age (число 18+)\".",
+        "required": true
+      },
+      {
+        "name": "target",
+        "description": "Целевой стек: \"core\" (разметка руками в JSX), \"renderer-react\" (разметку рисует FormRenderer по TS-схеме), \"renderer-json\" (схема — JSON-документ + реестр). Контракт формы один на все три; различается только вид схемы и то, кто рисует. По умолчанию \"core\".",
+        "required": false
+      },
+      {
+        "name": "projectPath",
+        "description": "Абсолютный или относительный путь к каталогу проекта, чей `package.json` нужно использовать для auto-detection (UI kit + Tailwind). По умолчанию — `process.cwd()` MCP-сервера.",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "add-feature",
+    "description": "Add one capability to an existing @reformer form: validation rules, behavior (links over the model and rules for schema nodes), an array of sub-forms, or wizard steps. The result is the same for every way of drawing the form. Pick the stage with `feature`.",
+    "arguments": [
+      {
+        "name": "feature",
+        "description": "validation | behavior | array | wizard",
+        "required": true
+      },
+      {
+        "name": "code",
+        "description": "Текущий код формы.",
+        "required": true
+      },
+      {
+        "name": "requirements",
+        "description": "Что нужно добавить. Для `feature: wizard` — перечень шагов и полей на каждом.",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "to-renderer",
+    "description": "Change who draws an existing @reformer form: FormRenderer over the same TS schema (renderer-react) or the schema as a JSON document of format 2 + registry (renderer-json). Model, validation, behavior and the createForm call stay.",
+    "arguments": [
+      {
+        "name": "code",
+        "description": "Текущий код формы.",
+        "required": true
+      },
+      {
+        "name": "target",
+        "description": "renderer-react (по умолчанию) | renderer-json",
+        "required": false
+      }
+    ]
+  }
+]

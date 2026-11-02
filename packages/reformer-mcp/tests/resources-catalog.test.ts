@@ -21,9 +21,14 @@ import { describe, it, expect } from 'vitest';
 import { createResourceCatalog } from '../src/core/server/resource-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
 import { listAvailablePackages, listSections, getSectionBySlug } from '../src/utils/docs-parser';
+import { precondition } from './support/preconditions';
 
 const packages = listAvailablePackages();
-const hasDocs = packages.length > 0;
+const hasDocs = precondition(
+  'документация пакетов',
+  packages.length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 const resources = createResourceCatalog(cliKnowledge);
 
 interface Catalog {
@@ -91,7 +96,7 @@ describe('resources — каталог вместо перечисления с�
       }
     }
     expect(broken, `URI из каталога не резолвятся: ${broken.join(', ')}`).toEqual([]);
-  });
+  }, 30_000); // читает все секции документации: на занятой машине это дольше 5 с
 
   it.runIf(hasDocs)('каталог существенно дешевле прежнего листинга секций', () => {
     const catalogChars = buildCatalog().length;

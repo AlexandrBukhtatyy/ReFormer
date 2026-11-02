@@ -1,0 +1,18 @@
+/**
+ * Реестр компонентов формы «RegistrationForm»: что рендерить под каждый
+ * `$component(...)` из layout-схемы. Новый компонент в схеме → регистрация здесь.
+ */
+import { FormField, Box, CheckboxWithLabel, Input, InputMask, InputPassword } from '@reformer/ui-kit';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    // Системная обёртка листа: label + ошибки. Сборка кладёт её в бандл формы.
+    reg.component(FIELD_WRAPPER, FormField);
+    reg.component('Box', Box);
+    reg.component('Checkbox', CheckboxWithLabel);
+    reg.component('Input', Input);
+    reg.component('InputMask', InputMask);
+    reg.component('InputPassword', InputPassword);
+  });
+}

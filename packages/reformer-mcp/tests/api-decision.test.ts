@@ -19,11 +19,16 @@ import { findOneSymbol } from '../src/index/symbols';
 import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { KNOWN_PACKAGES, getFullDocs } from '../src/utils/docs-parser';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+import { precondition } from './support/preconditions';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
 const k = cliKnowledge();
 
-const hasSymbols = getPublicSymbols('@reformer/core').length > 0;
+const hasSymbols = precondition(
+  'символы @reformer/core',
+  getPublicSymbols('@reformer/core').length > 0,
+  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
+);
 
 /** Требование → ожидаемый оператор. Пары подобраны так, чтобы ловить именно подмены. */
 const CASES: Array<[string, string]> = [

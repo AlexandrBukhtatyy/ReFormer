@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true,
+    "rootDir": "..",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "allowJs": false,
+    "types": ["node"]
+  },
+  "include": ["../src/**/*", "./**/*.ts"],
+  "exclude": ["../node_modules", "../dist", "../src/prompts/templates/**"]
+}

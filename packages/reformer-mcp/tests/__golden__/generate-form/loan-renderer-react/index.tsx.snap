@@ -1,0 +1,24 @@
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
+import { FormField } from '@reformer/ui-kit';
+import { formBehavior } from './form.behavior';
+import { formSchema } from './form.schema';
+import { formFlow } from './form.flow';
+import { formValidation } from './form.validation';
+import { createFormModel, type ZayavkaNaKreditSokraschennayaShape } from './model';
+
+export function ZayavkaNaKreditSokraschennayaForm() {
+  // Фабрика выполняется один раз: `useMemo` здесь неверен — React вправе сбросить кэш.
+  const bundle = useFormBundle(() =>
+    createForm<ZayavkaNaKreditSokraschennayaShape>({
+      model: createFormModel(),
+      schema: formSchema,
+      behavior: formBehavior,
+      validation: formValidation,
+      flow: formFlow,
+    })
+  );
+
+  return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;
+}

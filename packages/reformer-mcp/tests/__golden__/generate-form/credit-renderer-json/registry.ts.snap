@@ -1,0 +1,35 @@
+/**
+ * Реестр компонентов формы «Заявка на кредит»: что рендерить под каждый
+ * `$component(...)` из layout-схемы. Новый компонент в схеме → регистрация здесь.
+ */
+import { Step } from '@reformer/cdk/form-wizard';
+import { FormField, Box, CheckboxWithLabel, FieldArray, FileUploadDropzone, FormWizard, Input, InputMask, InputNumber, RadioGroupOptions, Section, SelectAsync, Textarea } from '@reformer/ui-kit';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+import { EDUCATIONS, EMPLOYMENT_STATUSES, EXISTING_LOAN_TYPES, GENDERS, LOAN_TYPES, MARITAL_STATUSES, RELATIONSHIPS } from './data-sources';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    // Системная обёртка листа: label + ошибки. Сборка кладёт её в бандл формы.
+    reg.component(FIELD_WRAPPER, FormField);
+    reg.component('Step', Step);
+    reg.component('Box', Box);
+    reg.component('Checkbox', CheckboxWithLabel);
+    reg.component('FieldArray', FieldArray);
+    reg.component('FileUploadDropzone', FileUploadDropzone);
+    reg.component('FormWizard', FormWizard);
+    reg.component('Input', Input);
+    reg.component('InputMask', InputMask);
+    reg.component('InputNumber', InputNumber);
+    reg.component('RadioGroup', RadioGroupOptions);
+    reg.component('Section', Section);
+    reg.component('Select', SelectAsync);
+    reg.component('Textarea', Textarea);
+    reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+    reg.dataSource('GENDERS', GENDERS);
+    reg.dataSource('EMPLOYMENT_STATUSES', EMPLOYMENT_STATUSES);
+    reg.dataSource('MARITAL_STATUSES', MARITAL_STATUSES);
+    reg.dataSource('EDUCATIONS', EDUCATIONS);
+    reg.dataSource('EXISTING_LOAN_TYPES', EXISTING_LOAN_TYPES);
+    reg.dataSource('RELATIONSHIPS', RELATIONSHIPS);
+  });
+}

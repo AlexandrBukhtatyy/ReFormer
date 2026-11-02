@@ -1,0 +1,9 @@
+/**
+ * Поведение формы «RegistrationForm» — реактивные связи над моделью.
+ */
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+import type { RegistrationFormData } from './model';
+
+export const formBehavior = defineFormBehavior<RegistrationFormData>(({ model, form }) => {
+  onChange(model.$.password, () => { form.confirmPassword.clearIssues(); });
+});

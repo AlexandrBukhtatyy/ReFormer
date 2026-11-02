@@ -163,6 +163,7 @@ describe('builders', () => {
           {
             name: 'items',
             itemInterfaceName: 'OrderItem',
+            initialValue: [],
             itemFields: [{ name: 'sku', type: 'string', component: 'Input' }],
           },
         ],
@@ -186,11 +187,13 @@ describe('builders', () => {
           {
             name: 'properties',
             itemInterfaceName: 'PropertyItem',
+            initialValue: [],
             itemFields: [{ name: 'type', type: 'string', component: 'Select' }],
           },
           {
             name: 'existingLoans',
             itemInterfaceName: 'LoanItem',
+            initialValue: [],
             itemFields: [{ name: 'type', type: 'string', component: 'Select' }],
           },
         ],
@@ -253,6 +256,7 @@ describe('builders', () => {
           {
             name: 'properties',
             itemInterfaceName: 'PropertyItem',
+            initialValue: [],
             itemFields: [
               { name: 'type', type: 'string', component: 'Select', initialValue: 'apartment' },
               { name: 'estimatedValue', type: 'number', component: 'Input', initialValue: 0 },
