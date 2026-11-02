@@ -92,7 +92,7 @@ describe('команды', () => {
 
     await command.run();
 
-    expect(save).toHaveBeenCalledWith(['fs:b.txt']);
+    expect(save).toHaveBeenCalledWith(['fs:b.txt'], { companions: true });
   });
 
   it('исчезнувшая между проверкой и запуском вкладка не приводит к записи не того файла', async () => {

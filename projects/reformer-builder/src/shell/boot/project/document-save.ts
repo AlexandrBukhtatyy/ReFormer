@@ -13,27 +13,45 @@
  * за ней (Ctrl+S следом за выбором в инспекторе), записало бы прежний текст и сообщило бы, что
  * всё сохранено. Поэтому перед записью модель догоняет буфер (`flush`).
  *
+ * Сопутствующие файлы (`DocumentModelProvider.companionsDir`) уезжают только по просьбе человека
+ * ({@link DocumentSaveOptions}): его Ctrl+S на форме значит «сохрани форму», а форма без кода
+ * модуля на диске не работает. На звёздочку вкладки они не влияют: она говорит о правках самого
+ * документа, а правка в файле модуля помечается на его собственной вкладке и в строке состояния.
+ *
  * @module shell/boot/project/document-save
  */
 
 import {
+  isInside,
+  parseResourceId,
   toDisposable,
   type Disposable,
   type ResourceId,
+  type WorkspaceSaveOptions,
 } from '@reformer/builder-plugin-api/internal';
 import type { ResourceOperations } from '@/shell/platform/workspace/resource-ops';
 import type { SaveResult, Workspace } from '@/shell/platform/workspace/workspace';
 import type { DocumentModels } from './document-models';
 
+export type DocumentSaveOptions = WorkspaceSaveOptions;
+
 export interface DocumentSaveDeps {
-  readonly workspace: Pick<Workspace, 'save' | 'isDirty' | 'readBase' | 'revert' | 'forget'>;
+  readonly workspace: Pick<
+    Workspace,
+    'save' | 'isDirty' | 'readBase' | 'revert' | 'forget' | 'dirtyResources'
+  >;
   readonly models: Pick<DocumentModels, 'handleOf' | 'opened'>;
   readonly resources: Pick<ResourceOperations, 'remove'>;
+  /**
+   * Каталог сопутствующих файлов документа — ответ его провайдера модели; `null` — их нет.
+   * Необязателен: сборке без провайдеров спрашивать не у кого.
+   */
+  readonly companionsDirOf?: (id: ResourceId) => string | null;
 }
 
 export interface DocumentSave {
   /** Сохранить ресурс вместе с частями его документа; без аргумента — всё изменённое. */
-  save(id?: ResourceId): Promise<SaveResult>;
+  save(id?: ResourceId, options?: DocumentSaveOptions): Promise<SaveResult>;
   /** Изменён ли ресурс — вместе с частями и с частями, ждущими удаления. */
   isDirty(id: ResourceId): boolean;
   /**
@@ -101,8 +119,18 @@ export function createDocumentSave(deps: DocumentSaveDeps): DocumentSave {
     }
   };
 
+  /**
+   * Изменённые сопутствующие файлы документа. Каталог `''` — документ в корне проекта: сопутствующим
+   * оказался бы весь проект, а это уже «Сохранить всё», о котором человек не просил.
+   */
+  const companionsOf = (id: ResourceId): readonly ResourceId[] => {
+    const dir = deps.companionsDirOf?.(id) ?? null;
+    if (dir === null || dir === '') return [];
+    return workspace.dirtyResources().filter((one) => isInside(parseResourceId(one).path, dir));
+  };
+
   return {
-    async save(id) {
+    async save(id, options) {
       if (id === undefined) {
         for (const handle of models.opened().values()) await settle(handle);
         const result = await workspace.save();
@@ -111,8 +139,12 @@ export function createDocumentSave(deps: DocumentSaveDeps): DocumentSave {
       }
       await settle(models.handleOf(id));
       const parts = models.handleOf(id)?.parts() ?? [];
+      const companions = options?.companions === true ? companionsOf(id) : [];
       const results: SaveResult[] = [];
-      for (const one of [id, ...parts]) results.push(await workspace.save(one));
+      // Части лежат и в каталоге сопутствующих: каждый файл пишется один раз.
+      for (const one of new Set([id, ...parts, ...companions])) {
+        results.push(await workspace.save(one));
+      }
       await removeParts(id);
       return merged(results);
     },

@@ -101,7 +101,9 @@ export function projectCommands(deps: ProjectCommandsDeps): readonly CommandCont
         // Применимость уже проверена реестром, но между проверкой и запуском вкладку могли
         // закрыть: сохранять «активный документ», которого нет, — это записать не тот файл.
         if (active === null) return Promise.resolve(false);
-        return deps.saving()?.save([active]) ?? Promise.resolve(false);
+        // Сохраняет человек, поэтому документ уезжает с сопутствующими файлами: форма — с кодом
+        // модуля, который напечатал ход ассистента. Сама правка на диск не пишет ничего.
+        return deps.saving()?.save([active], { companions: true }) ?? Promise.resolve(false);
       },
     },
     {

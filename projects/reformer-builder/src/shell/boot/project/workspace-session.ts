@@ -354,21 +354,34 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     invalidate: (dir) => tree.refresh(dir),
   });
 
-  const plainSaving = createDocumentSave({ workspace, models, resources });
+  /** Провайдер модели открытого документа: ручка знает, чей разбор. Текстовому — никто. */
+  const providerOf = (id: ResourceId) => {
+    const providerId = models.handleOf(id)?.document.providerId;
+    if (providerId === undefined) return undefined;
+    return (options.extensions?.get(DocumentModelPoint) ?? []).find(
+      (contribution) => contribution.value.id === providerId
+    )?.value;
+  };
+
+  const plainSaving = createDocumentSave({
+    workspace,
+    models,
+    resources,
+    companionsDirOf: (id) => {
+      const ref = models.handleOf(id)?.document.ref;
+      return ref === undefined ? null : (providerOf(id)?.companionsDir?.(ref) ?? null);
+    },
+  });
 
   /**
    * Повторный разбор текста ресурса — его же провайдером модели.
    *
    * У текстового документа разбирать нечем, и это не заглушка: у markdown и сайдкара разбора
    * действительно нет. Провайдер ищется по ручке открытого документа: слияние идёт только
-   * у открытых, а ручка знает, чей разбор.
+   * у открытых.
    */
   const verifyOf = (id: ResourceId): VerifyText => {
-    const providerId = models.handleOf(id)?.document.providerId;
-    if (providerId === undefined) return ALWAYS_PARSES;
-    const provider = (options.extensions?.get(DocumentModelPoint) ?? []).find(
-      (contribution) => contribution.value.id === providerId
-    )?.value;
+    const provider = providerOf(id);
     if (provider === undefined) return ALWAYS_PARSES;
     return (text) => {
       try {
@@ -398,8 +411,8 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
    */
   const saving: DocumentSave = {
     ...plainSaving,
-    async save(id) {
-      const result = await plainSaving.save(id);
+    async save(id, saveOptions) {
+      const result = await plainSaving.save(id, saveOptions);
       if (result.conflicts.length > 0) {
         divergence.noteConflicts(result.conflicts);
         void merge.ask(result.conflicts.map((conflict) => conflict.id));
@@ -426,7 +439,8 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
       return document;
     },
     close: (id) => models.close(id),
-    save: (id) => saving.save(id),
+    // Закрытие вкладки с «Сохранить» — то же решение человека, что и Ctrl+S.
+    save: (id) => saving.save(id, { companions: true }),
     openedResources: () => workspace.openedResources(),
     isDirty: (id) => (id === undefined ? workspace.isDirty() : saving.isDirty(id)),
     // Удаление частей составного документа меняет его изменённость без записи в рабочую

@@ -247,10 +247,10 @@ ctx.services.get(LogServiceToken)?.append({
 
 Привилегированные службы отдаются только плагину с подтверждённым правом:
 
-| Возможность                                                     | Право                 | Что даёт                                                                               |
-| --------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------- |
-| `WorkspaceSaveCapability` (`reformer.workspace.save`)           | `workspace.save`      | `save(ids)`; с версии 1.1 — `saveAll()` и `isDirty()`                                  |
-| `WorkspaceResourcesCapability` (`reformer.workspace.resources`) | `workspace.resources` | правка записей и открытие каталога; с версии 1.1 — `recentProjects` (недавние проекты) |
+| Возможность                                                     | Право                 | Что даёт                                                                                   |
+| --------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------ |
+| `WorkspaceSaveCapability` (`reformer.workspace.save`)           | `workspace.save`      | `save(ids)`; с версии 1.1 — `saveAll()` и `isDirty()`; с 1.2 — `save(ids, { companions })` |
+| `WorkspaceResourcesCapability` (`reformer.workspace.resources`) | `workspace.resources` | правка записей и открытие каталога; с версии 1.1 — `recentProjects` (недавние проекты)     |
 
 Портов от оболочки не получает ни один плагин, встроенный в том числе: дерево файлов, редактор
 кода и предпросмотр markdown собирают всё нужное из этих же служб.

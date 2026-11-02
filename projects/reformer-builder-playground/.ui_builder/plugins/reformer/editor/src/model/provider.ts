@@ -82,6 +82,7 @@ import {
 } from '../../../core/form-model';
 import type { CatalogEntry } from '../../../core/catalog';
 import { printJson } from '../../../core/codegen/print/js';
+import { moduleRootPathOf } from '../../../core/codegen/layout';
 import type { Disposable, EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
 import { completeModelPath, formJsonSchema, formStepJsonSchema } from './hints';
@@ -211,5 +212,7 @@ export function createSchemaModelProvider(
       // Подсказки в файле шага — схема шага из того же каталога кита.
       ...(catalog === undefined ? {} : { partJsonSchema: () => formStepJsonSchema(catalog()) }),
     },
+    // Модуль формы: Ctrl+S на форме сохраняет и код, который напечатал ход ассистента.
+    companionsDir: (ref) => moduleRootPathOf(ref.path),
   };
 }

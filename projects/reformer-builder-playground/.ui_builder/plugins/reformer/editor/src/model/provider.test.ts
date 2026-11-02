@@ -180,6 +180,14 @@ describe('вклад', () => {
     expect(createSchemaModelProvider().id).toBe(SCHEMA_MODEL_PROVIDER_ID);
   });
 
+  it('сопутствующие файлы формы — её модуль, для всех трёх раскладок', () => {
+    const dirOf = (path: string) =>
+      createSchemaModelProvider().companionsDir?.({ path } as ResourceRef);
+    expect(dirOf('forms/credit/schema/form.schema.json')).toBe('forms/credit');
+    expect(dirOf('forms/contact/form.schema.json')).toBe('forms/contact');
+    expect(dirOf('forms/credit.schema.json')).toBe('forms/credit');
+  });
+
   it('применяет операции тем же генератором адресов, что и разбор', () => {
     const provider = createSchemaModelProvider({ newId: sequentialIds('a') });
     const model = provider.parse(SCHEMA_TEXT);

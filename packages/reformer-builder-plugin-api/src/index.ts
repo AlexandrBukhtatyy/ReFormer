@@ -305,7 +305,7 @@ export type {
 export { WorkspaceTreeCapability } from './services/workspace-tree.js';
 export type { WorkspaceTreeService } from './services/workspace-tree.js';
 export { WorkspaceSaveServiceToken, WorkspaceSaveCapability } from './services/workspace-save.js';
-export type { WorkspaceSaveService } from './services/workspace-save.js';
+export type { WorkspaceSaveOptions, WorkspaceSaveService } from './services/workspace-save.js';
 // Имена прав — чтобы манифест писался против типа, а не против строки в документации.
 export { PLUGIN_PERMISSIONS } from './plugin/permissions.js';
 export type { PluginPermission } from './plugin/permissions.js';

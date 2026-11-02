@@ -26,6 +26,17 @@
 import { defineCapability, type Capability } from '../primitives/capability.js';
 import type { ResourceId } from '../primitives/resource.js';
 
+/** Что сохранить сверх названных ресурсов. */
+export interface WorkspaceSaveOptions {
+  /**
+   * Вместе с документом — изменения его сопутствующих файлов (`DocumentModelProvider.companionsDir`).
+   *
+   * Просит только сохранение от лица человека. Плагин, сохраняющий записанные им файлы, этого
+   * не просит: чужие несохранённые правки рядом с ними — не его решение.
+   */
+  readonly companions?: boolean;
+}
+
 export interface WorkspaceSaveService {
   /**
    * Сохраняет перечисленные ресурсы в источник проекта.
@@ -33,7 +44,7 @@ export interface WorkspaceSaveService {
    * `false` — проекта нет или хотя бы один ресурс не сохранился. Причины по одному ресурсу
    * наружу не отдаются: показать их некому, кроме рабочей области, а она о них знает и так.
    */
-  save(ids: readonly ResourceId[]): Promise<boolean>;
+  save(ids: readonly ResourceId[], options?: WorkspaceSaveOptions): Promise<boolean>;
   /**
    * Сохраняет всё изменённое. `false` — проекта нет или что-то не сохранилось.
    *
@@ -50,9 +61,10 @@ export interface WorkspaceSaveService {
  * `workspace.save` перед тем, как отдать её плагину.
  *
  * `1.1.0` — минор: {@link WorkspaceSaveService.saveAll} и {@link WorkspaceSaveService.isDirty}.
+ * `1.2.0` — минор: {@link WorkspaceSaveOptions.companions}.
  */
 export const WorkspaceSaveCapability: Capability<WorkspaceSaveService> =
-  defineCapability<WorkspaceSaveService>({ id: 'reformer.workspace.save', version: '1.1.0' });
+  defineCapability<WorkspaceSaveService>({ id: 'reformer.workspace.save', version: '1.2.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const WorkspaceSaveServiceToken = WorkspaceSaveCapability;
