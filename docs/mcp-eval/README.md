@@ -6,6 +6,10 @@ Baseline: [baseline.json](baseline.json).
 Получится ли через сервер рабочая форма (спека → intent → бандл → e2e эталона), меряет отдельный
 стенд — [calibration.md](calibration.md), `npm run mcp:calibrate`.
 
+Что получится, если задание получит настоящий агент (Claude Code, локальная модель), меряют
+сценарии — [scenarios.md](scenarios.md), `npm run mcp:scenarios`. Записи прогонов всех стендов и их
+сравнение — [eval/runs/](../../packages/reformer-mcp/eval/runs/README.md).
+
 ## Что он меряет и чего не меряет
 
 Один вопрос: **отдаёт ли сервер знание, нужное для задачи, за сколько вызовов и токенов.**

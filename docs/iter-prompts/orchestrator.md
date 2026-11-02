@@ -1,5 +1,10 @@
 # Orchestrator — iter-N MCP regression run
 
+> **Устарело (2026-11-02).** Ручной iter-цикл заменён автоматическим стендом сценариев: задачу
+> «агент делает форму по спеке только через MCP» решает сценарий `L5-credit` — `npm run mcp:scenarios`,
+> метод и итоги в [docs/mcp-eval/scenarios.md](../mcp-eval/scenarios.md). Ссылки ниже на
+> `docs/iter-summaries/` и `proud-pondering-jellyfish.md` мёртвые. Файл оставлен для истории.
+
 > Главный промт для запуска одной полной итерации MCP regression-цикла.
 > Полный план: [docs/plans/proud-pondering-jellyfish.md](../plans/proud-pondering-jellyfish.md).
 >

@@ -201,6 +201,10 @@ Closes: #12
 
 ## Iter prompt system — MCP regression cycle
 
+> **Устарело (2026-11-02).** Автоматическая замена — стенд сценариев: `npm run mcp:scenarios`, метод и
+> итоги — [docs/mcp-eval/scenarios.md](docs/mcp-eval/scenarios.md). Новые замеры делай им. Проекты
+> `iter-*` и POM `CreditFormPage` остаются для e2e эталона: `npm run mcp:calibrate -- --e2e`.
+
 Для повторяемой проверки качества MCP-сервера (на каждой итерации генерим форму через MCP, обнаруживаем gaps, готовим патчи) используется orchestrator + 3 параллельных sub-agent'а.
 
 - **Главный промт**: [docs/iter-prompts/orchestrator.md](docs/iter-prompts/orchestrator.md)
