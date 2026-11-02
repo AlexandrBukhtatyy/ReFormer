@@ -1,5 +1,5 @@
 /**
- * Гейт калибровки: метрики прогона (`metrics.json`) против `docs/mcp-eval/calibration-baseline.json`.
+ * Гейт калибровки: метрики прогона (`metrics.json`) против `packages/reformer-mcp/eval/baselines/calibration-baseline.json`.
  *
  * Сравнивается только то, что имеет направление: дроби `x/y`, счётчики ошибок, проценты, упавшие
  * проверки smoke. Сравниваются лишь треки, которые есть в обоих наборах: прогон без `--e2e` не имеет

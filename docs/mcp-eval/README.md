@@ -1,7 +1,7 @@
 # Eval `@reformer/mcp` — метод и baseline
 
 Харнесс: [packages/reformer-mcp/eval/](../../packages/reformer-mcp/eval/). Запуск — `npm run mcp:evaluate`.
-Baseline: [baseline.json](baseline.json).
+Baseline: [baseline.json](../../packages/reformer-mcp/eval/baselines/baseline.json).
 
 Получится ли через сервер рабочая форма (спека → intent → бандл → e2e эталона), меряет отдельный
 стенд — [calibration.md](calibration.md), `npm run mcp:calibrate`.
@@ -204,7 +204,7 @@ first-pass rate   95.7%
 npm run mcp:evaluate                                   # прогон (стратегия v6-choose) + сравнение
 npm run mcp:evaluate -- --strategy v6                   # A/B: тот же корпус без decision-слоя
 npm run mcp:evaluate -- --json .tmp/eval.json          # полный отчёт с трассами
-npm run mcp:evaluate -- --save docs/mcp-eval/baseline.json   # обновить baseline
+npm run mcp:evaluate -- --save packages/reformer-mcp/eval/baselines/baseline.json   # обновить baseline
 npm run mcp:evaluate -- --server <path/to/dist/index.js>        # померить другую сборку
 ```
 

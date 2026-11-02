@@ -127,7 +127,10 @@ const { local, published } = writeRecords([record], {
 });
 console.log(`Запись прогона: ${path.relative(repoRoot, published ?? local)}`);
 
-const baselineFile = path.join(repoRoot, 'docs/mcp-eval/calibration-baseline.json');
+const baselineFile = path.join(
+  repoRoot,
+  'packages/reformer-mcp/eval/baselines/calibration-baseline.json'
+);
 let gateFailed = false;
 if (has('save-baseline')) {
   const note = {

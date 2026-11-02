@@ -142,7 +142,7 @@ jobs:
 
       - name: MCP retrieval eval
         # 61 задача через живой stdio-сервер: отдаёт ли он знание, нужное для задачи, за
-        # сколько вызовов и токенов. Гейт против docs/mcp-eval/baseline.json — падает,
+        # сколько вызовов и токенов. Гейт против packages/reformer-mcp/eval/baselines/baseline.json — падает,
         # если упал hit/first-pass или выросли статическая поверхность либо медиана
         # токенов/вызовов. Метод и вскрытые ограничения — docs/mcp-eval/README.md.
         run: npm run mcp:evaluate

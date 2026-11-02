@@ -51,7 +51,10 @@ function flag(name, fallback = null) {
 const strategyName = flag('strategy', 'v6-choose');
 const savePath = flag('save');
 const jsonPath = flag('json');
-const baselinePath = flag('baseline', path.join(repoRoot, 'docs', 'mcp-eval', 'baseline.json'));
+const baselinePath = flag(
+  'baseline',
+  path.join(repoRoot, 'packages/reformer-mcp/eval/baselines', 'baseline.json')
+);
 const compare = !savePath && existsSync(baselinePath);
 // `--server` позволяет померить ДРУГУЮ сборку сервера тем же корпусом и стратегией —
 // так снимается baseline с прошлой ревизии, которая своего харнесса ещё не содержит.
@@ -293,7 +296,9 @@ if (!compare) {
     `\n  baseline не найден (${path.relative(repoRoot, baselinePath)}) — сравнение пропущено.`
   );
   console.log('  Записать текущий результат как baseline:');
-  console.log('    npm run mcp:evaluate -- --save docs/mcp-eval/baseline.json');
+  console.log(
+    '    npm run mcp:evaluate -- --save packages/reformer-mcp/eval/baselines/baseline.json'
+  );
   process.exit(0);
 }
 
@@ -354,7 +359,9 @@ if (regressions.length > 0) {
   console.error(`\n✗ eval: ${regressions.length} регресс(ов) против baseline:`);
   for (const r of regressions) console.error(`  - ${r}`);
   console.error('\n  Если регресс осознанный — обновите baseline:');
-  console.error('    npm run mcp:evaluate -- --save docs/mcp-eval/baseline.json');
+  console.error(
+    '    npm run mcp:evaluate -- --save packages/reformer-mcp/eval/baselines/baseline.json'
+  );
   process.exit(1);
 }
 console.log('\n✓ eval: регрессов против baseline нет');

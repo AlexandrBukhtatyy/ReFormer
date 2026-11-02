@@ -2,7 +2,7 @@
 
 > Замер 2026-10-27. Стенд — [packages/reformer-mcp/eval/calibration/](../../packages/reformer-mcp/eval/calibration/),
 > запуск — `npm run mcp:calibrate` (с рантайм-проверкой — `npm run mcp:calibrate -- --e2e`).
-> Метрики последнего прогона — [calibration-baseline.json](calibration-baseline.json).
+> Метрики последнего прогона — [calibration-baseline.json](../../packages/reformer-mcp/eval/baselines/calibration-baseline.json).
 > Задачи — эпик `ReFormer-j356` в bd.
 
 ## Зачем
