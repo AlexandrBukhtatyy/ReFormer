@@ -552,23 +552,11 @@
   "arrays": [
     {
       "path": "properties",
-      "itemFields": [
-        "type",
-        "description",
-        "estimatedValue",
-        "hasEncumbrance"
-      ]
+      "itemFields": ["type", "description", "estimatedValue", "hasEncumbrance"]
     },
     {
       "path": "existingLoans",
-      "itemFields": [
-        "bank",
-        "type",
-        "amount",
-        "remainingAmount",
-        "monthlyPayment",
-        "maturityDate"
-      ]
+      "itemFields": ["bank", "type", "amount", "remainingAmount", "monthlyPayment", "maturityDate"]
     },
     {
       "path": "coBorrowers",
@@ -587,62 +575,35 @@
   "computed": [
     {
       "path": "interestRate",
-      "sources": [
-        "loanType",
-        "registrationAddress.region",
-        "hasProperty",
-        "properties"
-      ]
+      "sources": ["loanType", "registrationAddress.region", "hasProperty", "properties"]
     },
     {
       "path": "monthlyPayment",
-      "sources": [
-        "loanAmount",
-        "loanTerm",
-        "interestRate"
-      ]
+      "sources": ["loanAmount", "loanTerm", "interestRate"]
     },
     {
       "path": "initialPayment",
-      "sources": [
-        "propertyValue",
-        "loanType"
-      ]
+      "sources": ["propertyValue", "loanType"]
     },
     {
       "path": "fullName",
-      "sources": [
-        "personalData.lastName",
-        "personalData.firstName",
-        "personalData.middleName"
-      ]
+      "sources": ["personalData.lastName", "personalData.firstName", "personalData.middleName"]
     },
     {
       "path": "age",
-      "sources": [
-        "personalData.birthDate"
-      ]
+      "sources": ["personalData.birthDate"]
     },
     {
       "path": "coBorrowersIncome",
-      "sources": [
-        "coBorrowers.monthlyIncome"
-      ]
+      "sources": ["coBorrowers.monthlyIncome"]
     },
     {
       "path": "totalIncome",
-      "sources": [
-        "monthlyIncome",
-        "additionalIncome",
-        "coBorrowersIncome"
-      ]
+      "sources": ["monthlyIncome", "additionalIncome", "coBorrowersIncome"]
     },
     {
       "path": "paymentToIncomeRatio",
-      "sources": [
-        "monthlyPayment",
-        "totalIncome"
-      ]
+      "sources": ["monthlyPayment", "totalIncome"]
     }
   ],
   "sample": {
@@ -667,9 +628,7 @@
         "loanAmount": 49999
       },
       "expect": {
-        "invalid": [
-          "loanAmount"
-        ]
+        "invalid": ["loanAmount"]
       }
     },
     {
@@ -678,9 +637,7 @@
         "loanAmount": 10000001
       },
       "expect": {
-        "invalid": [
-          "loanAmount"
-        ]
+        "invalid": ["loanAmount"]
       }
     },
     {
@@ -690,18 +647,14 @@
         "loanTerm": 5
       },
       "expect": {
-        "invalid": [
-          "loanTerm"
-        ]
+        "invalid": ["loanTerm"]
       }
     },
     {
       "id": "rate-computed",
       "gate": true,
       "expect": {
-        "positive": [
-          "interestRate"
-        ]
+        "positive": ["interestRate"]
       }
     },
     {

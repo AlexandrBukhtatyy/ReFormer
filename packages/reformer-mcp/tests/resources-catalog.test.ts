@@ -77,26 +77,30 @@ describe('resources — каталог вместо перечисления с�
     }
   });
 
-  it.runIf(hasDocs)('каждый слаг из каталога читается через getSectionBySlug', () => {
-    const catalog = JSON.parse(buildCatalog()) as Catalog;
-    const broken: string[] = [];
-    for (const { id, sections } of catalog.packages) {
-      for (const [slug] of sections) {
-        const uri = `reformer://docs/${id}/${slug}`;
-        if (getSectionBySlug(`@reformer/${id}`, slug) === null) {
-          broken.push(uri);
-          continue;
-        }
-        // Читается и через сам каталог — тем же путём, что `resources/read` сервера.
-        try {
-          resources.read(uri);
-        } catch {
-          broken.push(uri);
+  it.runIf(hasDocs)(
+    'каждый слаг из каталога читается через getSectionBySlug',
+    () => {
+      const catalog = JSON.parse(buildCatalog()) as Catalog;
+      const broken: string[] = [];
+      for (const { id, sections } of catalog.packages) {
+        for (const [slug] of sections) {
+          const uri = `reformer://docs/${id}/${slug}`;
+          if (getSectionBySlug(`@reformer/${id}`, slug) === null) {
+            broken.push(uri);
+            continue;
+          }
+          // Читается и через сам каталог — тем же путём, что `resources/read` сервера.
+          try {
+            resources.read(uri);
+          } catch {
+            broken.push(uri);
+          }
         }
       }
-    }
-    expect(broken, `URI из каталога не резолвятся: ${broken.join(', ')}`).toEqual([]);
-  }, 30_000); // читает все секции документации: на занятой машине это дольше 5 с
+      expect(broken, `URI из каталога не резолвятся: ${broken.join(', ')}`).toEqual([]);
+    },
+    30_000
+  ); // читает все секции документации: на занятой машине это дольше 5 с
 
   it.runIf(hasDocs)('каталог существенно дешевле прежнего листинга секций', () => {
     const catalogChars = buildCatalog().length;

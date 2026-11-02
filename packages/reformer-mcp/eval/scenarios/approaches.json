@@ -12,8 +12,6 @@
   },
   "no-generate": {
     "description": "Без generate_form: сколько на самом деле даёт генератор.",
-    "withoutTools": [
-      "generate_form"
-    ]
+    "withoutTools": ["generate_form"]
   }
 }
