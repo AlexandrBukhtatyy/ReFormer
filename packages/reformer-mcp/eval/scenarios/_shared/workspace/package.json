@@ -1,0 +1,13 @@
+{
+  "name": "mcp-scenario-workspace",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@reformer/cdk": "*",
+    "@reformer/core": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/renderer-react": "*",
+    "@reformer/ui-kit": "*",
+    "react": "^19.0.0"
+  }
+}

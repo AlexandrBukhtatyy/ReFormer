@@ -1,0 +1,51 @@
+{
+  "formName": "EventSignup",
+  "fields": [
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": ""
+    },
+    {
+      "name": "tickets",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Количество билетов",
+      "initialValue": null
+    },
+    {
+      "name": "promoCode",
+      "type": "string",
+      "component": "Input",
+      "label": "Промокод",
+      "initialValue": ""
+    },
+    {
+      "name": "agree",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласен с правилами",
+      "initialValue": false
+    }
+  ],
+  "validation": [
+    {
+      "target": "email",
+      "rules": ["required()", "email()"]
+    },
+    {
+      "target": "tickets",
+      "rules": ["required()", "integer()", "min(1)", "max(10)"]
+    },
+    {
+      "target": "promoCode",
+      "rules": ["maxLength(12)"]
+    },
+    {
+      "target": "agree",
+      "rules": ["required()"]
+    }
+  ]
+}

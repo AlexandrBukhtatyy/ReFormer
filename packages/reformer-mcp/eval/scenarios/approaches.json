@@ -1,0 +1,19 @@
+{
+  "bare": {
+    "description": "Задание и правила сдачи результата, без подсказок."
+  },
+  "start-here": {
+    "description": "Задание с указанием начать с вводной сервера.",
+    "promptPrefix": "Прежде чем писать код, прочитай ресурс reformer://guide на MCP-сервере reformer.\n\n"
+  },
+  "prompt-create-form": {
+    "description": "Раннер сам берёт промпт create-form у сервера и отдаёт его текст агенту.",
+    "serverPrompt": "create-form"
+  },
+  "no-generate": {
+    "description": "Без generate_form: сколько на самом деле даёт генератор.",
+    "withoutTools": [
+      "generate_form"
+    ]
+  }
+}

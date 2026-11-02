@@ -1,0 +1,58 @@
+{
+  "formName": "Registration",
+  "fields": [
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": ""
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "initialValue": ""
+    },
+    {
+      "name": "confirmPassword",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Повтор пароля",
+      "initialValue": ""
+    },
+    {
+      "name": "age",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Возраст",
+      "initialValue": null
+    }
+  ],
+  "validation": [
+    {
+      "target": "email",
+      "rules": ["required()", "email()"]
+    },
+    {
+      "target": "password",
+      "rules": ["required()", "minLength(8)"]
+    },
+    {
+      "target": "confirmPassword",
+      "rules": ["required()"]
+    },
+    {
+      "target": "confirmPassword",
+      "rules": [],
+      "cross": "values.confirmPassword === values.password",
+      "code": "passwordsMatch",
+      "message": "Пароли не совпадают"
+    },
+    {
+      "target": "age",
+      "rules": ["required()", "min(18)", "max(120)"]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L1-callback",
+  "fields": [
+    {
+      "id": "name",
+      "bind": {
+        "paths": ["name", "fullName", "firstName", "clientName"],
+        "label": "/имя/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/имя/i"
+      }
+    },
+    {
+      "id": "phone",
+      "bind": {
+        "paths": ["phone", "phoneNumber", "tel"],
+        "label": "/телефон/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/телефон/i"
+      }
+    }
+  ],
+  "sample": {
+    "name": "Иван Петров",
+    "phone": "+7 (999) 123-45-67"
+  },
+  "probes": [
+    {
+      "id": "fields-writable",
+      "gate": true,
+      "expect": {
+        "values": {
+          "name": "Иван Петров",
+          "phone": "+7 (999) 123-45-67"
+        }
+      }
+    },
+    {
+      "id": "filled-form-valid",
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

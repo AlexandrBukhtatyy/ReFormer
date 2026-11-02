@@ -1,0 +1,10 @@
+{
+  "description": "Роли полей ui-kit в снимке доступности: сняты ariaSnapshot() на эталонах сценариев (mcp:verify --golden --browser). Опора для ролей в контрактах.",
+  "roles": {
+    "Input": "textbox",
+    "InputPassword": "textbox",
+    "Textarea": "textbox",
+    "InputNumber": "spinbutton",
+    "Select": "combobox"
+  }
+}

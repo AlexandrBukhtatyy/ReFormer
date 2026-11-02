@@ -1,0 +1,16 @@
+{
+  "id": "L5-insurance",
+  "level": 5,
+  "title": "Форма по спецификации: страховая заявка",
+  "targets": ["renderer-react"],
+  "spec": "docs/specs/insurance-application-form.md",
+  "reference": "plan_form",
+  "tags": ["spec", "wizard", "heavy"],
+  "budget": {
+    "timeoutMs": 2400000,
+    "maxUsd": 8,
+    "maxSteps": 80
+  },
+  "contaminated": "partial",
+  "note": "Калибровка гоняет plan_form по этой спеке, и по ней уже была правка (ReFormer-j356.4.20). Чистый holdout — задания, которые пишет пользователь."
+}

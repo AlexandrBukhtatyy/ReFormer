@@ -1,0 +1,13 @@
+{
+  "id": "L3-order-total",
+  "level": 3,
+  "title": "Вычисляемое поле",
+  "targets": ["core"],
+  "reference": "reference.intent.json",
+  "tags": ["computed"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  }
+}

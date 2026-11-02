@@ -1,0 +1,108 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L4-wizard-3steps",
+  "fields": [
+    {
+      "id": "name",
+      "bind": {
+        "path": "name"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/имя/i"
+      }
+    },
+    {
+      "id": "email",
+      "bind": {
+        "path": "email"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/email|почт/i"
+      }
+    },
+    {
+      "id": "city",
+      "bind": {
+        "path": "city"
+      },
+      "type": "string"
+    },
+    {
+      "id": "street",
+      "bind": {
+        "path": "street"
+      },
+      "type": "string"
+    },
+    {
+      "id": "agree",
+      "bind": {
+        "path": "agree"
+      },
+      "type": "boolean"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Личные данные"
+    },
+    {
+      "title": "Адрес"
+    },
+    {
+      "title": "Подтверждение"
+    }
+  ],
+  "sample": {
+    "name": "Иван",
+    "email": "ivan@example.com",
+    "city": "Москва",
+    "street": "Тверская",
+    "agree": true
+  },
+  "probes": [
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "step-one-required",
+      "gate": true,
+      "set": {
+        "name": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["name"]
+      }
+    },
+    {
+      "id": "step-two-required",
+      "gate": true,
+      "set": {
+        "street": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["street"]
+      }
+    },
+    {
+      "id": "step-three-required",
+      "gate": true,
+      "set": {
+        "agree": false
+      },
+      "expect": {
+        "valid": false
+      }
+    }
+  ]
+}

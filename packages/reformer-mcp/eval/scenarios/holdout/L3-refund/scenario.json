@@ -1,0 +1,15 @@
+{
+  "id": "L3-refund",
+  "level": 3,
+  "title": "Заявка на возврат: условие и вычисление",
+  "targets": ["renderer-react"],
+  "reference": "reference.intent.json",
+  "tags": ["conditional", "computed", "visibility"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  },
+  "contaminated": "authored",
+  "note": "Задание написал агент, знающий сервер, по просьбе пользователя. Правок сервера под него не было."
+}

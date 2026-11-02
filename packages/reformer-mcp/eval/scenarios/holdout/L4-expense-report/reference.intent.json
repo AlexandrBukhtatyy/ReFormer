@@ -1,0 +1,102 @@
+{
+  "formName": "ExpenseReport",
+  "fields": [
+    {
+      "name": "city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "initialValue": ""
+    },
+    {
+      "name": "purpose",
+      "type": "string",
+      "component": "Input",
+      "label": "Цель поездки",
+      "initialValue": ""
+    }
+  ],
+  "arrays": [
+    {
+      "name": "expenses",
+      "itemInterfaceName": "Expense",
+      "initialValue": [
+        {
+          "title": "",
+          "amount": null
+        }
+      ],
+      "component": "FieldArray",
+      "componentProps": {
+        "title": "Расходы",
+        "addButtonLabel": "Добавить расход"
+      },
+      "itemFields": [
+        {
+          "name": "title",
+          "type": "string",
+          "component": "Input",
+          "label": "Название",
+          "initialValue": ""
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Сумма",
+          "initialValue": null
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "target": "city",
+      "rules": ["required()"]
+    },
+    {
+      "target": "purpose",
+      "rules": ["required()"]
+    },
+    {
+      "target": "expenses.title",
+      "each": "expenses",
+      "rules": ["required()"]
+    },
+    {
+      "target": "expenses.amount",
+      "each": "expenses",
+      "rules": ["required()", "min(1)"]
+    }
+  ],
+  "layoutRoot": {
+    "kind": "container",
+    "component": "FormWizard",
+    "children": [
+      {
+        "kind": "step",
+        "title": "Поездка",
+        "children": [
+          {
+            "kind": "field",
+            "ref": "city"
+          },
+          {
+            "kind": "field",
+            "ref": "purpose"
+          }
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Расходы",
+        "children": [
+          {
+            "kind": "array",
+            "ref": "expenses"
+          }
+        ]
+      }
+    ]
+  }
+}

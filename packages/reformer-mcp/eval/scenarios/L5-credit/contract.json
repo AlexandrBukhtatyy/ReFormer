@@ -1,0 +1,749 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L5-credit",
+  "fields": [
+    {
+      "id": "loanType",
+      "bind": {
+        "path": "loanType"
+      },
+      "type": "string",
+      "aria": {
+        "role": "combobox",
+        "name": "/тип кредита/i"
+      }
+    },
+    {
+      "id": "loanAmount",
+      "bind": {
+        "path": "loanAmount"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/сумма кредита/i"
+      }
+    },
+    {
+      "id": "loanTerm",
+      "bind": {
+        "path": "loanTerm"
+      },
+      "type": "number"
+    },
+    {
+      "id": "loanPurpose",
+      "bind": {
+        "path": "loanPurpose"
+      },
+      "type": "string"
+    },
+    {
+      "id": "propertyValue",
+      "bind": {
+        "path": "propertyValue"
+      },
+      "type": "number"
+    },
+    {
+      "id": "initialPayment",
+      "bind": {
+        "path": "initialPayment"
+      },
+      "type": "number"
+    },
+    {
+      "id": "carBrand",
+      "bind": {
+        "path": "carBrand"
+      },
+      "type": "string"
+    },
+    {
+      "id": "carModel",
+      "bind": {
+        "path": "carModel"
+      },
+      "type": "string"
+    },
+    {
+      "id": "carYear",
+      "bind": {
+        "path": "carYear"
+      },
+      "type": "number"
+    },
+    {
+      "id": "carPrice",
+      "bind": {
+        "path": "carPrice"
+      },
+      "type": "number"
+    },
+    {
+      "id": "personalData.lastName",
+      "bind": {
+        "path": "personalData.lastName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "personalData.firstName",
+      "bind": {
+        "path": "personalData.firstName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "personalData.middleName",
+      "bind": {
+        "path": "personalData.middleName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "personalData.birthDate",
+      "bind": {
+        "path": "personalData.birthDate"
+      },
+      "type": "date"
+    },
+    {
+      "id": "personalData.gender",
+      "bind": {
+        "path": "personalData.gender"
+      },
+      "type": "string"
+    },
+    {
+      "id": "personalData.birthPlace",
+      "bind": {
+        "path": "personalData.birthPlace"
+      },
+      "type": "string"
+    },
+    {
+      "id": "passportData.series",
+      "bind": {
+        "path": "passportData.series"
+      },
+      "type": "string"
+    },
+    {
+      "id": "passportData.number",
+      "bind": {
+        "path": "passportData.number"
+      },
+      "type": "string"
+    },
+    {
+      "id": "passportData.issuedBy",
+      "bind": {
+        "path": "passportData.issuedBy"
+      },
+      "type": "string"
+    },
+    {
+      "id": "passportData.issueDate",
+      "bind": {
+        "path": "passportData.issueDate"
+      },
+      "type": "date"
+    },
+    {
+      "id": "passportData.departmentCode",
+      "bind": {
+        "path": "passportData.departmentCode"
+      },
+      "type": "string"
+    },
+    {
+      "id": "inn",
+      "bind": {
+        "path": "inn"
+      },
+      "type": "string"
+    },
+    {
+      "id": "snils",
+      "bind": {
+        "path": "snils"
+      },
+      "type": "string"
+    },
+    {
+      "id": "phoneMain",
+      "bind": {
+        "path": "phoneMain"
+      },
+      "type": "string"
+    },
+    {
+      "id": "phoneAdditional",
+      "bind": {
+        "path": "phoneAdditional"
+      },
+      "type": "string"
+    },
+    {
+      "id": "email",
+      "bind": {
+        "path": "email"
+      },
+      "type": "string"
+    },
+    {
+      "id": "emailAdditional",
+      "bind": {
+        "path": "emailAdditional"
+      },
+      "type": "string"
+    },
+    {
+      "id": "sameEmail",
+      "bind": {
+        "path": "sameEmail"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "registrationAddress.region",
+      "bind": {
+        "path": "registrationAddress.region"
+      },
+      "type": "string"
+    },
+    {
+      "id": "registrationAddress.city",
+      "bind": {
+        "path": "registrationAddress.city"
+      },
+      "type": "string"
+    },
+    {
+      "id": "registrationAddress.street",
+      "bind": {
+        "path": "registrationAddress.street"
+      },
+      "type": "string"
+    },
+    {
+      "id": "registrationAddress.house",
+      "bind": {
+        "path": "registrationAddress.house"
+      },
+      "type": "string"
+    },
+    {
+      "id": "registrationAddress.apartment",
+      "bind": {
+        "path": "registrationAddress.apartment"
+      },
+      "type": "string"
+    },
+    {
+      "id": "registrationAddress.postalCode",
+      "bind": {
+        "path": "registrationAddress.postalCode"
+      },
+      "type": "string"
+    },
+    {
+      "id": "sameAsRegistration",
+      "bind": {
+        "path": "sameAsRegistration"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "residenceAddress.region",
+      "bind": {
+        "path": "residenceAddress.region"
+      },
+      "type": "string"
+    },
+    {
+      "id": "residenceAddress.city",
+      "bind": {
+        "path": "residenceAddress.city"
+      },
+      "type": "string"
+    },
+    {
+      "id": "residenceAddress.street",
+      "bind": {
+        "path": "residenceAddress.street"
+      },
+      "type": "string"
+    },
+    {
+      "id": "residenceAddress.house",
+      "bind": {
+        "path": "residenceAddress.house"
+      },
+      "type": "string"
+    },
+    {
+      "id": "residenceAddress.apartment",
+      "bind": {
+        "path": "residenceAddress.apartment"
+      },
+      "type": "string"
+    },
+    {
+      "id": "residenceAddress.postalCode",
+      "bind": {
+        "path": "residenceAddress.postalCode"
+      },
+      "type": "string"
+    },
+    {
+      "id": "employmentStatus",
+      "bind": {
+        "path": "employmentStatus"
+      },
+      "type": "string"
+    },
+    {
+      "id": "companyName",
+      "bind": {
+        "path": "companyName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "companyInn",
+      "bind": {
+        "path": "companyInn"
+      },
+      "type": "string"
+    },
+    {
+      "id": "companyPhone",
+      "bind": {
+        "path": "companyPhone"
+      },
+      "type": "string"
+    },
+    {
+      "id": "companyAddress",
+      "bind": {
+        "path": "companyAddress"
+      },
+      "type": "string"
+    },
+    {
+      "id": "position",
+      "bind": {
+        "path": "position"
+      },
+      "type": "string"
+    },
+    {
+      "id": "workExperienceTotal",
+      "bind": {
+        "path": "workExperienceTotal"
+      },
+      "type": "number"
+    },
+    {
+      "id": "workExperienceCurrent",
+      "bind": {
+        "path": "workExperienceCurrent"
+      },
+      "type": "number"
+    },
+    {
+      "id": "businessType",
+      "bind": {
+        "path": "businessType"
+      },
+      "type": "string"
+    },
+    {
+      "id": "businessInn",
+      "bind": {
+        "path": "businessInn"
+      },
+      "type": "string"
+    },
+    {
+      "id": "businessActivity",
+      "bind": {
+        "path": "businessActivity"
+      },
+      "type": "string"
+    },
+    {
+      "id": "monthlyIncome",
+      "bind": {
+        "path": "monthlyIncome"
+      },
+      "type": "number"
+    },
+    {
+      "id": "additionalIncome",
+      "bind": {
+        "path": "additionalIncome"
+      },
+      "type": "number"
+    },
+    {
+      "id": "additionalIncomeSource",
+      "bind": {
+        "path": "additionalIncomeSource"
+      },
+      "type": "string"
+    },
+    {
+      "id": "maritalStatus",
+      "bind": {
+        "path": "maritalStatus"
+      },
+      "type": "string"
+    },
+    {
+      "id": "dependents",
+      "bind": {
+        "path": "dependents"
+      },
+      "type": "number"
+    },
+    {
+      "id": "education",
+      "bind": {
+        "path": "education"
+      },
+      "type": "string"
+    },
+    {
+      "id": "hasProperty",
+      "bind": {
+        "path": "hasProperty"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "hasExistingLoans",
+      "bind": {
+        "path": "hasExistingLoans"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "hasCoBorrower",
+      "bind": {
+        "path": "hasCoBorrower"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "agreePersonalData",
+      "bind": {
+        "path": "agreePersonalData"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "agreeCreditHistory",
+      "bind": {
+        "path": "agreeCreditHistory"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "agreeTerms",
+      "bind": {
+        "path": "agreeTerms"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "confirmAccuracy",
+      "bind": {
+        "path": "confirmAccuracy"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "agreeMarketing",
+      "bind": {
+        "path": "agreeMarketing"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "electronicSignature",
+      "bind": {
+        "path": "electronicSignature"
+      },
+      "type": "string"
+    },
+    {
+      "id": "interestRate",
+      "bind": {
+        "path": "interestRate"
+      },
+      "type": "number"
+    },
+    {
+      "id": "monthlyPayment",
+      "bind": {
+        "path": "monthlyPayment"
+      },
+      "type": "number"
+    },
+    {
+      "id": "fullName",
+      "bind": {
+        "path": "fullName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "age",
+      "bind": {
+        "path": "age"
+      },
+      "type": "number"
+    },
+    {
+      "id": "totalIncome",
+      "bind": {
+        "path": "totalIncome"
+      },
+      "type": "number"
+    },
+    {
+      "id": "paymentToIncomeRatio",
+      "bind": {
+        "path": "paymentToIncomeRatio"
+      },
+      "type": "number"
+    },
+    {
+      "id": "coBorrowersIncome",
+      "bind": {
+        "path": "coBorrowersIncome"
+      },
+      "type": "number"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Кредит"
+    },
+    {
+      "title": "Данные"
+    },
+    {
+      "title": "Контакты"
+    },
+    {
+      "title": "Работа"
+    },
+    {
+      "title": "Доп. инфо"
+    },
+    {
+      "title": "Подтверждение"
+    }
+  ],
+  "arrays": [
+    {
+      "path": "properties",
+      "itemFields": [
+        "type",
+        "description",
+        "estimatedValue",
+        "hasEncumbrance"
+      ]
+    },
+    {
+      "path": "existingLoans",
+      "itemFields": [
+        "bank",
+        "type",
+        "amount",
+        "remainingAmount",
+        "monthlyPayment",
+        "maturityDate"
+      ]
+    },
+    {
+      "path": "coBorrowers",
+      "itemFields": [
+        "personalData.lastName",
+        "personalData.firstName",
+        "personalData.middleName",
+        "personalData.birthDate",
+        "phone",
+        "email",
+        "relationship",
+        "monthlyIncome"
+      ]
+    }
+  ],
+  "computed": [
+    {
+      "path": "interestRate",
+      "sources": [
+        "loanType",
+        "registrationAddress.region",
+        "hasProperty",
+        "properties"
+      ]
+    },
+    {
+      "path": "monthlyPayment",
+      "sources": [
+        "loanAmount",
+        "loanTerm",
+        "interestRate"
+      ]
+    },
+    {
+      "path": "initialPayment",
+      "sources": [
+        "propertyValue",
+        "loanType"
+      ]
+    },
+    {
+      "path": "fullName",
+      "sources": [
+        "personalData.lastName",
+        "personalData.firstName",
+        "personalData.middleName"
+      ]
+    },
+    {
+      "path": "age",
+      "sources": [
+        "personalData.birthDate"
+      ]
+    },
+    {
+      "path": "coBorrowersIncome",
+      "sources": [
+        "coBorrowers.monthlyIncome"
+      ]
+    },
+    {
+      "path": "totalIncome",
+      "sources": [
+        "monthlyIncome",
+        "additionalIncome",
+        "coBorrowersIncome"
+      ]
+    },
+    {
+      "path": "paymentToIncomeRatio",
+      "sources": [
+        "monthlyPayment",
+        "totalIncome"
+      ]
+    }
+  ],
+  "sample": {
+    "loanAmount": 1000000,
+    "loanTerm": 12
+  },
+  "probes": [
+    {
+      "id": "defaults",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "loanType": "consumer"
+        }
+      }
+    },
+    {
+      "id": "amount-lower-bound",
+      "gate": true,
+      "set": {
+        "loanAmount": 49999
+      },
+      "expect": {
+        "invalid": [
+          "loanAmount"
+        ]
+      }
+    },
+    {
+      "id": "amount-upper-bound",
+      "set": {
+        "loanAmount": 10000001
+      },
+      "expect": {
+        "invalid": [
+          "loanAmount"
+        ]
+      }
+    },
+    {
+      "id": "term-lower-bound",
+      "gate": true,
+      "set": {
+        "loanTerm": 5
+      },
+      "expect": {
+        "invalid": [
+          "loanTerm"
+        ]
+      }
+    },
+    {
+      "id": "rate-computed",
+      "gate": true,
+      "expect": {
+        "positive": [
+          "interestRate"
+        ]
+      }
+    },
+    {
+      "id": "monthly-payment-computed",
+      "gate": true,
+      "expect": {
+        "expressions": [
+          {
+            "id": "monthlyPayment",
+            "expression": "((rate, term) => (model.loanAmount * (rate * (1 + rate) ** term)) / ((1 + rate) ** term - 1))(model.interestRate / 12 / 100, model.loanTerm)",
+            "tolerance": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "full-name-computed",
+      "gate": true,
+      "set": {
+        "personalData.lastName": "Иванов",
+        "personalData.firstName": "Иван",
+        "personalData.middleName": "Иванович"
+      },
+      "expect": {
+        "values": {
+          "fullName": "Иванов Иван Иванович"
+        }
+      }
+    },
+    {
+      "id": "array-grows",
+      "gate": true,
+      "set": {
+        "properties": {
+          "push": {}
+        }
+      },
+      "expect": {
+        "arrayLength": {
+          "properties": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "formName": "OrderLine",
+  "fields": [
+    {
+      "name": "price",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Цена",
+      "initialValue": 0
+    },
+    {
+      "name": "quantity",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Количество",
+      "initialValue": 1
+    },
+    {
+      "name": "discount",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Скидка, %",
+      "initialValue": 0
+    },
+    {
+      "name": "total",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Итог",
+      "initialValue": 0,
+      "componentProps": {
+        "readOnly": true
+      }
+    }
+  ],
+  "validation": [
+    {
+      "target": "discount",
+      "rules": ["min(0)", "max(50)"]
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "computeFrom",
+      "target": "total",
+      "sources": ["price", "quantity", "discount"],
+      "expr": "price * quantity * (1 - discount / 100)"
+    }
+  ]
+}

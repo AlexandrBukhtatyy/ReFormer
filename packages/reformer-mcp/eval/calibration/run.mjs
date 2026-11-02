@@ -15,12 +15,15 @@
  *   npm run mcp:calibrate -- --no-smoke         — без этапа 0
  *   npm run mcp:calibrate -- --e2e              — с T3: формы из эталонных intent под e2e эталонов
  *   npm run mcp:calibrate -- --out <dir>        — каталог прогона (по умолчанию .tmp/mcp-calibration/<время>)
+ *   npm run mcp:calibrate -- --gate             — код 1 при ухудшении против calibration-baseline.json
+ *   npm run mcp:calibrate -- --save-baseline    — записать метрики прогона как baseline
+ *   npm run mcp:calibrate -- --publish          — положить запись прогона в packages/reformer-mcp/eval/runs/
  *
  * Перед запуском: собранный пакет (`npm --prefix packages/reformer-mcp run build`) и бандл
  * конструктора (`npm --prefix projects/reformer-builder-playground run mcp:build`).
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   CHANNELS,
@@ -29,6 +32,9 @@ import {
   repoRoot,
   tmpDir,
 } from './lib/inspector.mjs';
+import { calibrationRecord } from '../records/adapters.mjs';
+import { writeRecords } from '../records/record.mjs';
+import { compareCalibration } from './compare.mjs';
 import { buildMetrics, renderReport } from './report.mjs';
 import { runSmoke } from './smoke.mjs';
 import { mountForms, runE2e, summarizeE2e } from './runtime.mjs';
@@ -71,7 +77,8 @@ ensureInspector();
 console.log(`Калибровка @reformer/mcp → ${path.relative(repoRoot, outDir)}`);
 console.log(`Каналы: ${channels.map((c) => `${c} — ${CHANNELS[c].label}`).join('; ')}\n`);
 
-const meta = { startedAt: new Date().toISOString(), channels, inspector: INSPECTOR_VERSION };
+const startedAt = new Date();
+const meta = { startedAt: startedAt.toISOString(), channels, inspector: INSPECTOR_VERSION };
 // T3 (браузерные e2e по собранным формам) идёт десятки минут — только по `--e2e` или `--tracks`.
 const defaultTracks = has('smoke') ? '' : `T1,T2,${has('e2e') ? 'T3,' : ''}T4,T5,T6`;
 const tracks = (flag('tracks', defaultTracks) ?? '').split(',').filter(Boolean);
@@ -106,7 +113,43 @@ writeFileSync(path.join(outDir, 'metrics.json'), JSON.stringify(metrics, null, 2
 writeFileSync(path.join(outDir, 'report.md'), renderReport(results, meta));
 console.log(`\nСводка: ${path.relative(repoRoot, path.join(outDir, 'report.md'))}`);
 console.log(`Метрики: ${path.relative(repoRoot, path.join(outDir, 'metrics.json'))}`);
-process.exitCode = results.smoke?.some((c) => c.status === 'fail') ? 1 : 0;
+
+const record = await calibrationRecord(results, metrics, {
+  startedAt,
+  serverPath: CHANNELS.node.script,
+  channels,
+});
+const { local, published } = writeRecords([record], {
+  batchId: record.batchId,
+  harness: 'calibration',
+  label: channels.join('-'),
+  publish: has('publish'),
+});
+console.log(`Запись прогона: ${path.relative(repoRoot, published ?? local)}`);
+
+const baselineFile = path.join(repoRoot, 'docs/mcp-eval/calibration-baseline.json');
+let gateFailed = false;
+if (has('save-baseline')) {
+  const note = {
+    date: startedAt.toISOString().slice(0, 10),
+    inspector: INSPECTOR_VERSION,
+    channels,
+  };
+  writeFileSync(baselineFile, `${JSON.stringify({ ...note, ...metrics }, null, 2)}\n`);
+  console.log(`Baseline записан: ${path.relative(repoRoot, baselineFile)}`);
+} else if (has('gate')) {
+  const baseline = JSON.parse(readFileSync(baselineFile, 'utf8'));
+  const { regressions, improvements, incomparable } = compareCalibration(metrics, baseline);
+  console.log(
+    `\n## Против baseline: улучшений ${improvements.length}, ухудшений ${regressions.length}`
+  );
+  for (const line of improvements) console.log(`+ ${line}`);
+  for (const line of incomparable) console.log(`· не сравнимо: ${line}`);
+  for (const line of regressions) console.error(`✗ ${line}`);
+  gateFailed = regressions.length > 0;
+}
+
+process.exitCode = gateFailed || results.smoke?.some((c) => c.status === 'fail') ? 1 : 0;
 
 function printChecks(title, checks) {
   const icon = { pass: '✓', fail: '✗', info: '·' };

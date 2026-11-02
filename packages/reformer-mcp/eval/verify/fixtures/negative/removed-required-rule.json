@@ -1,0 +1,13 @@
+{
+  "description": "Снято правило обязательности адреса: условное поле перестаёт проверяться.",
+  "scenario": "L3-delivery",
+  "target": "renderer-react",
+  "expectFailure": "runtime.probe.delivery-requires-address",
+  "mutations": [
+    {
+      "file": "form.validation.ts",
+      "find": "required()",
+      "replace": "minLength(0)"
+    }
+  ]
+}

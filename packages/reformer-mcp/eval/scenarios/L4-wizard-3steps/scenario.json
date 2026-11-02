@@ -1,0 +1,13 @@
+{
+  "id": "L4-wizard-3steps",
+  "level": 4,
+  "title": "Мастер из трёх шагов",
+  "targets": ["renderer-react"],
+  "reference": "reference.intent.json",
+  "tags": ["wizard"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  }
+}

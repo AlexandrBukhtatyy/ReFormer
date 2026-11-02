@@ -1,0 +1,110 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L2-profile-json",
+  "fields": [
+    {
+      "id": "fullName",
+      "bind": {
+        "paths": ["fullName", "fio", "name"],
+        "label": "/фио/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/фио/i"
+      }
+    },
+    {
+      "id": "phone",
+      "bind": {
+        "paths": ["phone"],
+        "label": "/телефон/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/телефон/i"
+      }
+    },
+    {
+      "id": "birthDate",
+      "bind": {
+        "paths": ["birthDate", "dateOfBirth", "birthday"],
+        "label": "/рожден/i"
+      },
+      "type": "date",
+      "aria": {
+        "name": "/рожден/i"
+      }
+    },
+    {
+      "id": "city",
+      "bind": {
+        "paths": ["city"],
+        "label": "/город/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "combobox",
+        "name": "/город/i"
+      }
+    }
+  ],
+  "sample": {
+    "fullName": "Иванов Иван",
+    "phone": "+7 (999) 123-45-67",
+    "birthDate": "1990-05-20",
+    "city": "Москва"
+  },
+  "probes": [
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "full-name-too-short",
+      "gate": true,
+      "set": {
+        "fullName": "И"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["fullName"]
+      }
+    },
+    {
+      "id": "phone-format",
+      "gate": true,
+      "set": {
+        "phone": "12345"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["phone"]
+      }
+    },
+    {
+      "id": "city-required",
+      "set": {
+        "city": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["city"]
+      }
+    },
+    {
+      "id": "birth-date-required",
+      "set": {
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["birthDate"]
+      }
+    }
+  ]
+}

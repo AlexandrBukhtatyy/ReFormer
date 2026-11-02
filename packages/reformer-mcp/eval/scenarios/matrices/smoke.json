@@ -1,0 +1,11 @@
+{
+  "description": "Без модели: эталонные решения проходят весь путь раннера. Годится для CI.",
+  "agents": [
+    {
+      "kind": "replay"
+    }
+  ],
+  "approaches": ["bare"],
+  "scenarios": "*",
+  "repeats": 1
+}

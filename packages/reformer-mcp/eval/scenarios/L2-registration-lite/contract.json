@@ -1,0 +1,141 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L2-registration-lite",
+  "fields": [
+    {
+      "id": "email",
+      "bind": {
+        "paths": ["email"],
+        "label": "/email|почт/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/email|почт/i"
+      }
+    },
+    {
+      "id": "password",
+      "bind": {
+        "paths": ["password"],
+        "label": "/^парол/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/^парол/i"
+      }
+    },
+    {
+      "id": "confirm",
+      "bind": {
+        "paths": ["confirmPassword", "passwordConfirm", "repeatPassword", "passwordRepeat"],
+        "label": "/повтор|подтверд/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/повтор|подтверд/i"
+      }
+    },
+    {
+      "id": "age",
+      "bind": {
+        "paths": ["age"],
+        "label": "/возраст/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/возраст/i"
+      }
+    }
+  ],
+  "sample": {
+    "email": "ivan@example.com",
+    "password": "secret123",
+    "confirm": "secret123",
+    "age": 30
+  },
+  "probes": [
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "email-required",
+      "gate": true,
+      "set": {
+        "email": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "email-format",
+      "set": {
+        "email": "без-собаки"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "password-too-short",
+      "gate": true,
+      "set": {
+        "password": "short",
+        "confirm": "short"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["password"]
+      }
+    },
+    {
+      "id": "passwords-must-match",
+      "gate": true,
+      "set": {
+        "confirm": "другой-пароль"
+      },
+      "expect": {
+        "valid": false
+      }
+    },
+    {
+      "id": "age-lower-bound",
+      "set": {
+        "age": 17
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["age"]
+      }
+    },
+    {
+      "id": "age-upper-bound",
+      "set": {
+        "age": 121
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["age"]
+      }
+    },
+    {
+      "id": "age-at-bounds",
+      "set": {
+        "age": 18
+      },
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

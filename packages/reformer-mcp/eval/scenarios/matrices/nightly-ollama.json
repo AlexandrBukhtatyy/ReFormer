@@ -1,0 +1,17 @@
+{
+  "description": "Локальные модели, по три повтора: не дорого, но есть разброс.",
+  "agents": [
+    {
+      "kind": "ollama",
+      "model": "qwen3.8:27b-32k"
+    },
+    {
+      "kind": "ollama",
+      "model": "gemma4:26b"
+    }
+  ],
+  "approaches": ["bare"],
+  "scenarios": "L1-feedback,L2-registration-lite,L3-delivery,L3-order-total,L4-contacts-array,L5-loan",
+  "repeats": 3,
+  "concurrency": 1
+}

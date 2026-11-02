@@ -1,0 +1,106 @@
+{
+  "formName": "SignupWizard",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя",
+      "initialValue": ""
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": ""
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "initialValue": ""
+    },
+    {
+      "name": "street",
+      "type": "string",
+      "component": "Input",
+      "label": "Улица",
+      "initialValue": ""
+    },
+    {
+      "name": "agree",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие",
+      "initialValue": false
+    }
+  ],
+  "validation": [
+    {
+      "target": "name",
+      "rules": ["required()"]
+    },
+    {
+      "target": "email",
+      "rules": ["required()", "email()"]
+    },
+    {
+      "target": "city",
+      "rules": ["required()"]
+    },
+    {
+      "target": "street",
+      "rules": ["required()"]
+    },
+    {
+      "target": "agree",
+      "rules": ["required()"]
+    }
+  ],
+  "layoutRoot": {
+    "kind": "container",
+    "component": "FormWizard",
+    "children": [
+      {
+        "kind": "step",
+        "title": "Личные данные",
+        "children": [
+          {
+            "kind": "field",
+            "ref": "name"
+          },
+          {
+            "kind": "field",
+            "ref": "email"
+          }
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Адрес",
+        "children": [
+          {
+            "kind": "field",
+            "ref": "city"
+          },
+          {
+            "kind": "field",
+            "ref": "street"
+          }
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Подтверждение",
+        "children": [
+          {
+            "kind": "field",
+            "ref": "agree"
+          }
+        ]
+      }
+    ]
+  }
+}

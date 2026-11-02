@@ -1,0 +1,13 @@
+{
+  "id": "L2-registration-lite",
+  "level": 2,
+  "title": "Поля с правилами и кросс-проверкой",
+  "targets": ["renderer-react"],
+  "reference": "reference.intent.json",
+  "tags": ["validation", "cross"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  }
+}

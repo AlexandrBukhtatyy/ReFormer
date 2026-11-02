@@ -1,0 +1,61 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L4-contacts-array",
+  "fields": [
+    {
+      "id": "contacts",
+      "bind": {
+        "path": "contacts"
+      }
+    }
+  ],
+  "arrays": [
+    {
+      "path": "contacts",
+      "itemFields": ["name", "phone"]
+    }
+  ],
+  "sample": {},
+  "probes": [
+    {
+      "id": "row-add",
+      "gate": true,
+      "set": {
+        "contacts": {
+          "push": {
+            "name": "",
+            "phone": ""
+          }
+        }
+      },
+      "expect": {
+        "arrayLength": {
+          "contacts": 2
+        }
+      }
+    },
+    {
+      "id": "row-required",
+      "gate": true,
+      "set": {
+        "contacts.0.name": "",
+        "contacts.0.phone": "+7 999"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["contacts.0.name"]
+      }
+    },
+    {
+      "id": "row-filled-valid",
+      "gate": true,
+      "set": {
+        "contacts.0.name": "Иван",
+        "contacts.0.phone": "+7 999"
+      },
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

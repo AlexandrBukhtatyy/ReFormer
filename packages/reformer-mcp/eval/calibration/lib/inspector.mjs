@@ -45,7 +45,10 @@ const ARGV_JSON_LIMIT = 24_000;
 export const CHANNELS = {
   node: {
     label: 'stdio dist/index.js (профиль node)',
-    script: path.join(pkgDir, 'dist', 'index.js'),
+    // Другая сборка сервера — например мутант из `eval/mutations`.
+    script: process.env.REFORMER_MCP_SERVER
+      ? path.resolve(process.env.REFORMER_MCP_SERVER)
+      : path.join(pkgDir, 'dist', 'index.js'),
   },
   worker: {
     label: 'бандл воркера через worker-stdio (профиль browser)',

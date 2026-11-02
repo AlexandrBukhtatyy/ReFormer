@@ -1,0 +1,13 @@
+{
+  "id": "L3-delivery",
+  "level": 3,
+  "title": "Условные поля",
+  "targets": ["renderer-react"],
+  "reference": "reference.intent.json",
+  "tags": ["conditional", "visibility"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  }
+}

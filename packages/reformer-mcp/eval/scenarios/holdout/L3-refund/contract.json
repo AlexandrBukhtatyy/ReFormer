@@ -1,0 +1,168 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L3-refund",
+  "fields": [
+    {
+      "id": "reason",
+      "bind": {
+        "path": "reason"
+      },
+      "type": "string",
+      "aria": {
+        "role": "combobox|radiogroup",
+        "name": "/причин/i"
+      }
+    },
+    {
+      "id": "comment",
+      "bind": {
+        "path": "comment"
+      },
+      "type": "string",
+      "aria": {
+        "name": "/коммент/i"
+      }
+    },
+    {
+      "id": "amount",
+      "bind": {
+        "path": "amount"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/сумм/i"
+      }
+    },
+    {
+      "id": "feePercent",
+      "bind": {
+        "path": "feePercent"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/удержан|процент/i"
+      }
+    },
+    {
+      "id": "refund",
+      "bind": {
+        "path": "refund"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/возврат/i"
+      }
+    }
+  ],
+  "computed": [
+    {
+      "path": "refund",
+      "sources": ["amount", "feePercent"]
+    }
+  ],
+  "sample": {
+    "amount": 1000,
+    "feePercent": 10
+  },
+  "probes": [
+    {
+      "id": "default-reason",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "reason": "defect",
+          "feePercent": 0
+        }
+      }
+    },
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "refund-from-inputs",
+      "gate": true,
+      "expect": {
+        "values": {
+          "refund": 900
+        }
+      }
+    },
+    {
+      "id": "refund-reacts",
+      "gate": true,
+      "set": {
+        "amount": 2000,
+        "feePercent": 0
+      },
+      "expect": {
+        "values": {
+          "refund": 2000
+        }
+      }
+    },
+    {
+      "id": "fee-upper-bound",
+      "gate": true,
+      "set": {
+        "feePercent": 31
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["feePercent"]
+      }
+    },
+    {
+      "id": "amount-lower-bound",
+      "set": {
+        "amount": 0
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["amount"]
+      }
+    },
+    {
+      "id": "other-requires-comment",
+      "gate": true,
+      "set": {
+        "reason": "other"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["comment"]
+      }
+    },
+    {
+      "id": "other-filled-valid",
+      "set": {
+        "reason": "other",
+        "comment": "Не подошёл размер"
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "comment-hidden-by-default",
+      "where": "browser",
+      "expect": {
+        "hidden": ["comment"]
+      }
+    },
+    {
+      "id": "refund-not-editable",
+      "where": "browser",
+      "expect": {
+        "readonly": ["refund"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "L5-loan",
+  "level": 5,
+  "title": "Форма по спецификации: сокращённая заявка",
+  "targets": ["core"],
+  "spec": "packages/reformer-mcp/tests/fixtures/spec-loan-request.md",
+  "reference": "plan_form",
+  "tags": ["spec"],
+  "budget": {
+    "timeoutMs": 1200000,
+    "maxUsd": 3,
+    "maxSteps": 40
+  }
+}

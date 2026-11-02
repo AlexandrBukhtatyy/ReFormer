@@ -1,0 +1,49 @@
+{
+  "formName": "Contacts",
+  "fields": [],
+  "arrays": [
+    {
+      "name": "contacts",
+      "itemInterfaceName": "Contact",
+      "initialValue": [
+        {
+          "name": "",
+          "phone": ""
+        }
+      ],
+      "componentProps": {
+        "addButtonLabel": "Добавить контакт",
+        "title": "Контакты",
+        "maxItems": 5
+      },
+      "itemFields": [
+        {
+          "name": "name",
+          "type": "string",
+          "component": "Input",
+          "label": "Имя",
+          "initialValue": ""
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "component": "Input",
+          "label": "Телефон",
+          "initialValue": ""
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "target": "contacts.name",
+      "each": "contacts",
+      "rules": ["required()"]
+    },
+    {
+      "target": "contacts.phone",
+      "each": "contacts",
+      "rules": ["required()"]
+    }
+  ]
+}

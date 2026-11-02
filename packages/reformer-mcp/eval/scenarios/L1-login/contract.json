@@ -1,0 +1,65 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L1-login",
+  "fields": [
+    {
+      "id": "login",
+      "bind": {
+        "paths": ["login", "username", "userName", "email"],
+        "label": "/логин/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/логин/i"
+      }
+    },
+    {
+      "id": "password",
+      "bind": {
+        "paths": ["password"],
+        "label": "/парол/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/парол/i"
+      }
+    }
+  ],
+  "sample": {
+    "login": "ivan.petrov",
+    "password": "Secret-123456"
+  },
+  "probes": [
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "login-required",
+      "gate": true,
+      "set": {
+        "login": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["login"]
+      }
+    },
+    {
+      "id": "password-required",
+      "gate": true,
+      "set": {
+        "password": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["password"]
+      }
+    }
+  ]
+}

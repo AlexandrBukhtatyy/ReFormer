@@ -1,0 +1,14 @@
+{
+  "description": "Claude Code на всей лестнице. Тратит лимит подписки: запускать осознанно.",
+  "agents": [
+    {
+      "kind": "claude-code",
+      "model": "sonnet"
+    }
+  ],
+  "approaches": ["bare", "start-here"],
+  "scenarios": "*",
+  "repeats": 5,
+  "concurrency": 2,
+  "maxUsdBatch": 40
+}

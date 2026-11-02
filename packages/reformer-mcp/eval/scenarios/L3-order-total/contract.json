@@ -1,0 +1,116 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L3-order-total",
+  "fields": [
+    {
+      "id": "price",
+      "bind": {
+        "path": "price"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/цена/i"
+      }
+    },
+    {
+      "id": "quantity",
+      "bind": {
+        "path": "quantity"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/количеств/i"
+      }
+    },
+    {
+      "id": "discount",
+      "bind": {
+        "path": "discount"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/скидк/i"
+      }
+    },
+    {
+      "id": "total",
+      "bind": {
+        "path": "total"
+      },
+      "type": "number",
+      "readonly": true,
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/итог/i"
+      }
+    }
+  ],
+  "computed": [
+    {
+      "path": "total",
+      "sources": ["price", "quantity", "discount"]
+    }
+  ],
+  "sample": {
+    "price": 100,
+    "quantity": 3,
+    "discount": 10
+  },
+  "probes": [
+    {
+      "id": "total-from-inputs",
+      "gate": true,
+      "expect": {
+        "values": {
+          "total": 270
+        }
+      }
+    },
+    {
+      "id": "total-reacts",
+      "gate": true,
+      "set": {
+        "quantity": 5,
+        "discount": 0
+      },
+      "expect": {
+        "values": {
+          "total": 500
+        }
+      }
+    },
+    {
+      "id": "discount-upper-bound",
+      "gate": true,
+      "set": {
+        "discount": 51
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["discount"]
+      }
+    },
+    {
+      "id": "discount-at-bound",
+      "set": {
+        "discount": 50
+      },
+      "expect": {
+        "valid": true,
+        "values": {
+          "total": 150
+        }
+      }
+    },
+    {
+      "id": "total-not-editable",
+      "where": "browser",
+      "expect": {
+        "readonly": ["total"]
+      }
+    }
+  ]
+}

@@ -26,10 +26,11 @@ export class McpClient {
   /** Накопленная статистика вызовов за прогон. */
   stats = { calls: 0, chars: 0, ms: 0 };
 
-  constructor(serverPath, { env = {} } = {}) {
+  constructor(serverPath, { env = {}, cwd } = {}) {
     this.#child = spawn(process.execPath, [serverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, ...env },
+      cwd,
     });
     // stderr сервера — его логи; в stdout только JSON-RPC.
     this.#child.stderr.on('data', () => {});

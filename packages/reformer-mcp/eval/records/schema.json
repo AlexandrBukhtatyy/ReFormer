@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "reformer-mcp-run/1",
+  "title": "Запись одного прогона любого стенда качества @reformer/mcp",
+  "type": "object",
+  "required": [
+    "schema",
+    "runId",
+    "batchId",
+    "harness",
+    "startedAt",
+    "durationMs",
+    "source",
+    "server",
+    "agent",
+    "approach",
+    "scenario",
+    "repeat",
+    "verdict",
+    "gates",
+    "checks",
+    "metrics",
+    "host"
+  ],
+  "properties": {
+    "schema": { "enum": ["reformer-mcp-run/1"] },
+    "runId": { "type": "string" },
+    "batchId": { "type": "string" },
+    "harness": { "enum": ["retrieval", "calibration", "builder", "scenario"] },
+    "startedAt": { "type": "string" },
+    "durationMs": { "type": "number" },
+    "source": {
+      "type": "object",
+      "required": ["gitSha", "dirty"],
+      "properties": {
+        "gitSha": { "type": "string" },
+        "branch": { "type": "string" },
+        "dirty": { "type": "boolean" },
+        "dirtyDigest": { "type": ["string", "null"] },
+        "provenance": { "type": "string" }
+      }
+    },
+    "server": {
+      "type": "object",
+      "required": ["channel"],
+      "properties": {
+        "channel": { "type": "string" },
+        "version": { "type": ["string", "null"] },
+        "surfaceDigest": { "type": ["string", "null"] },
+        "buildDigest": { "type": ["string", "null"] },
+        "knowledgeDigest": { "type": ["string", "null"] },
+        "staticTokens": { "type": ["number", "null"] }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["none", "replay", "ollama", "claude-code", "builder-bridge"] },
+        "model": { "type": ["string", "null"] },
+        "auth": { "type": ["string", "null"] },
+        "settings": { "type": "object" }
+      }
+    },
+    "approach": {
+      "type": "object",
+      "required": ["id"],
+      "properties": { "id": { "type": "string" } }
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "level": { "type": ["number", "null"] },
+        "target": { "type": ["string", "null"] },
+        "split": { "enum": ["tuned", "holdout", null] },
+        "contractDigest": { "type": ["string", "null"] }
+      }
+    },
+    "repeat": {
+      "type": "object",
+      "required": ["index", "of"],
+      "properties": { "index": { "type": "number" }, "of": { "type": "number" } }
+    },
+    "verdict": { "enum": ["pass", "fail", "invalid"] },
+    "exitReason": { "type": ["string", "null"] },
+    "score": { "type": ["number", "null"] },
+    "gates": { "type": "array", "items": { "type": "string" } },
+    "checks": { "type": "object" },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "better"],
+        "properties": {
+          "id": { "type": "string" },
+          "value": { "type": "number" },
+          "hit": { "type": "number" },
+          "total": { "type": "number" },
+          "better": { "enum": ["higher", "lower", "none"] }
+        }
+      }
+    },
+    "usage": { "type": ["object", "null"] },
+    "toolSequence": { "type": ["string", "null"] },
+    "artifacts": { "type": ["object", "null"] },
+    "host": { "type": "object", "required": ["os", "node"] }
+  }
+}

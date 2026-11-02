@@ -1,0 +1,169 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L5-registration",
+  "fields": [
+    {
+      "id": "username",
+      "bind": {
+        "path": "username"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/имя пользователя/i"
+      }
+    },
+    {
+      "id": "email",
+      "bind": {
+        "path": "email"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/email/i"
+      }
+    },
+    {
+      "id": "password",
+      "bind": {
+        "path": "password"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/^пароль/i"
+      }
+    },
+    {
+      "id": "confirmPassword",
+      "bind": {
+        "path": "confirmPassword"
+      },
+      "type": "string"
+    },
+    {
+      "id": "fullName",
+      "bind": {
+        "path": "fullName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "phone",
+      "bind": {
+        "path": "phone"
+      },
+      "type": "string"
+    },
+    {
+      "id": "captcha",
+      "bind": {
+        "path": "captcha"
+      },
+      "type": "string"
+    },
+    {
+      "id": "acceptTerms",
+      "bind": {
+        "path": "acceptTerms"
+      },
+      "type": "boolean"
+    }
+  ],
+  "sample": {
+    "username": "ivan_petrov",
+    "email": "ivan@example.com",
+    "password": "Secret123",
+    "confirmPassword": "Secret123",
+    "fullName": "Иван Петров",
+    "phone": "+7 (999) 123-45-67",
+    "captcha": "ABC123",
+    "acceptTerms": true
+  },
+  "probes": [
+    {
+      "id": "username-required",
+      "gate": true,
+      "set": {
+        "username": ""
+      },
+      "expect": {
+        "invalid": ["username"]
+      }
+    },
+    {
+      "id": "email-format",
+      "gate": true,
+      "set": {
+        "email": "без-собаки"
+      },
+      "expect": {
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "password-too-short",
+      "gate": true,
+      "set": {
+        "password": "Ab1",
+        "confirmPassword": "Ab1"
+      },
+      "expect": {
+        "invalid": ["password"]
+      }
+    },
+    {
+      "id": "passwords-must-match",
+      "gate": true,
+      "set": {
+        "confirmPassword": "Другой123"
+      },
+      "expect": {
+        "invalid": ["confirmPassword"]
+      }
+    },
+    {
+      "id": "full-name-too-short",
+      "set": {
+        "fullName": "И"
+      },
+      "expect": {
+        "invalid": ["fullName"]
+      }
+    },
+    {
+      "id": "phone-format",
+      "set": {
+        "phone": "12345"
+      },
+      "expect": {
+        "invalid": ["phone"]
+      }
+    },
+    {
+      "id": "captcha-wrong",
+      "set": {
+        "captcha": "XXX"
+      },
+      "expect": {
+        "invalid": ["captcha"]
+      }
+    },
+    {
+      "id": "terms-required",
+      "set": {
+        "acceptTerms": false
+      },
+      "expect": {
+        "invalid": ["acceptTerms"]
+      }
+    },
+    {
+      "id": "filled-has-no-sync-issues",
+      "expect": {
+        "noIssues": ["fullName", "phone", "captcha", "acceptTerms"]
+      }
+    }
+  ]
+}

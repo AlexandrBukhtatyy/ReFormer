@@ -1,0 +1,70 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L1-feedback",
+  "fields": [
+    {
+      "id": "name",
+      "bind": {
+        "paths": ["name", "fullName", "firstName", "userName"],
+        "label": "/имя/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/имя/i"
+      }
+    },
+    {
+      "id": "email",
+      "bind": {
+        "paths": ["email", "mail"],
+        "label": "/email|почт/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/email|почт/i"
+      }
+    },
+    {
+      "id": "message",
+      "bind": {
+        "paths": ["message", "text", "comment", "body"],
+        "label": "/сообщен|текст/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/сообщен|текст/i"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "fields-writable",
+      "gate": true,
+      "set": {
+        "name": "Иван Петров",
+        "email": "ivan@example.com",
+        "message": "Подскажите, пожалуйста, сроки доставки заказа."
+      },
+      "expect": {
+        "values": {
+          "name": "Иван Петров",
+          "message": "Подскажите, пожалуйста, сроки доставки заказа."
+        }
+      }
+    },
+    {
+      "id": "filled-form-valid",
+      "set": {
+        "name": "Иван Петров",
+        "email": "ivan@example.com",
+        "message": "Подскажите, пожалуйста, сроки доставки заказа."
+      },
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

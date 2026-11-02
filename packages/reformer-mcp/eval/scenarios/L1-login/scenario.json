@@ -1,0 +1,13 @@
+{
+  "id": "L1-login",
+  "level": 1,
+  "title": "Простая форма на core",
+  "targets": ["core"],
+  "reference": "reference.intent.json",
+  "tags": ["simple"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  }
+}

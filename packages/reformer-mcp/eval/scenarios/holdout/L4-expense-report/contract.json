@@ -1,0 +1,151 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L4-expense-report",
+  "fields": [
+    {
+      "id": "city",
+      "bind": {
+        "path": "city"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/город/i"
+      }
+    },
+    {
+      "id": "purpose",
+      "bind": {
+        "path": "purpose"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/цел/i"
+      }
+    },
+    {
+      "id": "expenses",
+      "bind": {
+        "path": "expenses"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "title": "Поездка"
+    },
+    {
+      "title": "Расходы"
+    }
+  ],
+  "arrays": [
+    {
+      "path": "expenses",
+      "itemFields": ["title", "amount"]
+    }
+  ],
+  "sample": {
+    "city": "Казань",
+    "purpose": "Конференция",
+    "expenses.0.title": "Билеты",
+    "expenses.0.amount": 5000
+  },
+  "probes": [
+    {
+      "id": "starts-with-one-row",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "arrayLength": {
+          "expenses": 1
+        }
+      }
+    },
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "city-required",
+      "gate": true,
+      "set": {
+        "city": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["city"]
+      }
+    },
+    {
+      "id": "row-title-required",
+      "gate": true,
+      "set": {
+        "expenses.0.title": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["expenses.0.title"]
+      }
+    },
+    {
+      "id": "row-amount-lower-bound",
+      "gate": true,
+      "set": {
+        "expenses.0.amount": 0
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["expenses.0.amount"]
+      }
+    },
+    {
+      "id": "row-add",
+      "set": {
+        "expenses": {
+          "push": {
+            "title": "Отель",
+            "amount": 3000
+          }
+        }
+      },
+      "expect": {
+        "valid": true,
+        "arrayLength": {
+          "expenses": 2
+        }
+      }
+    },
+    {
+      "id": "new-row-is-validated",
+      "set": {
+        "expenses": {
+          "push": {
+            "title": "",
+            "amount": 100
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["expenses.1.title"]
+      }
+    },
+    {
+      "id": "row-remove",
+      "set": {
+        "expenses": {
+          "removeAt": 0
+        }
+      },
+      "expect": {
+        "arrayLength": {
+          "expenses": 0
+        }
+      }
+    }
+  ]
+}

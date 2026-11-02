@@ -1,0 +1,23 @@
+{
+  "description": "Поле согласованно названо иначе, чем в задании: форма рабочая, но контракт его не находит.",
+  "scenario": "L3-order-total",
+  "target": "core",
+  "expectFailure": "runtime.structure.fields",
+  "mutations": [
+    {
+      "file": "model.ts",
+      "find": "total",
+      "replace": "sum"
+    },
+    {
+      "file": "form.behavior.ts",
+      "find": "model.$.total",
+      "replace": "model.$.sum"
+    },
+    {
+      "file": "form.schema.ts",
+      "find": "model.$.total",
+      "replace": "model.$.sum"
+    }
+  ]
+}

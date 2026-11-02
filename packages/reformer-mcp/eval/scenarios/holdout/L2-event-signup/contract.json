@@ -1,0 +1,167 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L2-event-signup",
+  "fields": [
+    {
+      "id": "email",
+      "bind": {
+        "paths": ["email"],
+        "label": "/email|почт/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/email|почт/i"
+      }
+    },
+    {
+      "id": "tickets",
+      "bind": {
+        "paths": ["tickets", "ticketCount", "ticketsCount", "quantity", "count"],
+        "label": "/билет/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/билет/i"
+      }
+    },
+    {
+      "id": "promo",
+      "bind": {
+        "paths": ["promoCode", "promocode", "promo"],
+        "label": "/промокод/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/промокод/i"
+      }
+    },
+    {
+      "id": "agree",
+      "bind": {
+        "paths": [
+          "agree",
+          "agreement",
+          "consent",
+          "acceptRules",
+          "acceptTerms",
+          "rulesAccepted",
+          "agreeToRules"
+        ],
+        "label": "/соглас|правил/i"
+      },
+      "type": "boolean",
+      "aria": {
+        "role": "checkbox",
+        "name": "/соглас|правил/i"
+      }
+    }
+  ],
+  "sample": {
+    "email": "ivan@example.com",
+    "tickets": 2,
+    "agree": true
+  },
+  "probes": [
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "email-required",
+      "gate": true,
+      "set": {
+        "email": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "email-format",
+      "set": {
+        "email": "без-собаки"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "tickets-lower-bound",
+      "gate": true,
+      "set": {
+        "tickets": 0
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["tickets"]
+      }
+    },
+    {
+      "id": "tickets-upper-bound",
+      "gate": true,
+      "set": {
+        "tickets": 11
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["tickets"]
+      }
+    },
+    {
+      "id": "tickets-at-upper-bound",
+      "set": {
+        "tickets": 10
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "tickets-integer",
+      "set": {
+        "tickets": 2.5
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["tickets"]
+      }
+    },
+    {
+      "id": "promo-too-long",
+      "set": {
+        "promo": "ДЛИННЫЙ-ПРОМОКОД"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["promo"]
+      }
+    },
+    {
+      "id": "promo-optional-filled",
+      "set": {
+        "promo": "ВЕСНА"
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "agree-required",
+      "gate": true,
+      "set": {
+        "agree": false
+      },
+      "expect": {
+        "valid": false
+      }
+    }
+  ]
+}

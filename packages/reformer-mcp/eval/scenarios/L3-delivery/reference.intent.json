@@ -1,0 +1,71 @@
+{
+  "formName": "Checkout",
+  "fields": [
+    {
+      "name": "deliveryMethod",
+      "type": "string",
+      "component": "Select",
+      "label": "Способ получения",
+      "initialValue": "pickup",
+      "optionsSource": "DELIVERY_METHODS"
+    },
+    {
+      "name": "address",
+      "type": "string",
+      "component": "Input",
+      "label": "Адрес",
+      "initialValue": ""
+    },
+    {
+      "name": "deliveryDate",
+      "type": "string",
+      "component": "Input",
+      "label": "Желаемая дата",
+      "initialValue": "",
+      "componentProps": {
+        "type": "date"
+      }
+    }
+  ],
+  "validation": [
+    {
+      "target": "deliveryMethod",
+      "rules": ["required()"]
+    },
+    {
+      "target": "address",
+      "when": "model.deliveryMethod === 'delivery'",
+      "rules": ["required()"]
+    },
+    {
+      "target": "deliveryDate",
+      "when": "model.deliveryMethod === 'delivery'",
+      "rules": ["required()"]
+    }
+  ],
+  "visibility": [
+    {
+      "selector": "address",
+      "condition": "model.deliveryMethod !== 'delivery'"
+    },
+    {
+      "selector": "deliveryDate",
+      "condition": "model.deliveryMethod !== 'delivery'"
+    }
+  ],
+  "dataSources": [
+    {
+      "name": "DELIVERY_METHODS",
+      "values": [
+        {
+          "value": "pickup",
+          "label": "Самовывоз"
+        },
+        {
+          "value": "delivery",
+          "label": "Доставка"
+        }
+      ]
+    }
+  ]
+}

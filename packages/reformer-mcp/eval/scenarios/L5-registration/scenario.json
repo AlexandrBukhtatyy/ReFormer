@@ -1,0 +1,14 @@
+{
+  "id": "L5-registration",
+  "level": 5,
+  "title": "Форма по спецификации: регистрация",
+  "targets": ["renderer-json"],
+  "spec": "packages/reformer-mcp/eval/calibration/cases/registration/spec.md",
+  "reference": "../../calibration/cases/registration/intent.json",
+  "tags": ["spec", "cross", "async"],
+  "budget": {
+    "timeoutMs": 1200000,
+    "maxUsd": 3,
+    "maxSteps": 40
+  }
+}

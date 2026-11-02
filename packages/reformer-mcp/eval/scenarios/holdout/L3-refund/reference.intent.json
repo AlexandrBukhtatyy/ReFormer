@@ -1,0 +1,92 @@
+{
+  "formName": "Refund",
+  "fields": [
+    {
+      "name": "reason",
+      "type": "string",
+      "component": "Select",
+      "label": "Причина",
+      "initialValue": "defect",
+      "optionsSource": "REASONS"
+    },
+    {
+      "name": "comment",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Комментарий",
+      "initialValue": ""
+    },
+    {
+      "name": "amount",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Сумма покупки",
+      "initialValue": 0
+    },
+    {
+      "name": "feePercent",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Удержание, %",
+      "initialValue": 0
+    },
+    {
+      "name": "refund",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "К возврату",
+      "initialValue": 0,
+      "componentProps": {
+        "readOnly": true
+      }
+    }
+  ],
+  "validation": [
+    {
+      "target": "reason",
+      "rules": ["required()"]
+    },
+    {
+      "target": "comment",
+      "when": "model.reason === 'other'",
+      "rules": ["required()"]
+    },
+    {
+      "target": "amount",
+      "rules": ["required()", "min(1)"]
+    },
+    {
+      "target": "feePercent",
+      "rules": ["min(0)", "max(30)"]
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "computeFrom",
+      "target": "refund",
+      "sources": ["amount", "feePercent"],
+      "expr": "amount * (1 - feePercent / 100)"
+    }
+  ],
+  "visibility": [
+    {
+      "selector": "comment",
+      "condition": "model.reason !== 'other'"
+    }
+  ],
+  "dataSources": [
+    {
+      "name": "REASONS",
+      "values": [
+        {
+          "value": "defect",
+          "label": "Брак"
+        },
+        {
+          "value": "other",
+          "label": "Другое"
+        }
+      ]
+    }
+  ]
+}

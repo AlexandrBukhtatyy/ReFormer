@@ -1,0 +1,14 @@
+{
+  "id": "L5-credit",
+  "level": 5,
+  "title": "Форма по спецификации: кредитная заявка, шесть шагов",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "spec": "docs/specs/credit-application-form.md",
+  "reference": "../../calibration/cases/credit/intent.json",
+  "tags": ["spec", "wizard", "array", "computed", "heavy"],
+  "budget": {
+    "timeoutMs": 2400000,
+    "maxUsd": 8,
+    "maxSteps": 80
+  }
+}

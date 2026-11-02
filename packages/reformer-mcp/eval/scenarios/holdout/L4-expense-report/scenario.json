@@ -1,0 +1,15 @@
+{
+  "id": "L4-expense-report",
+  "level": 4,
+  "title": "Авансовый отчёт: мастер и массив в JSON-схеме",
+  "targets": ["renderer-json"],
+  "reference": "reference.intent.json",
+  "tags": ["wizard", "array", "json-schema"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  },
+  "contaminated": "authored",
+  "note": "Задание написал агент, знающий сервер, по просьбе пользователя. Правок сервера под него не было."
+}

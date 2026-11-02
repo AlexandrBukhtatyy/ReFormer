@@ -1,0 +1,78 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L3-delivery",
+  "fields": [
+    {
+      "id": "deliveryMethod",
+      "bind": {
+        "path": "deliveryMethod"
+      },
+      "type": "string",
+      "aria": {
+        "role": "combobox|radiogroup",
+        "name": "/способ|получени/i"
+      }
+    },
+    {
+      "id": "address",
+      "bind": {
+        "path": "address"
+      },
+      "type": "string",
+      "aria": {
+        "name": "/адрес/i"
+      }
+    },
+    {
+      "id": "deliveryDate",
+      "bind": {
+        "path": "deliveryDate"
+      },
+      "type": "date",
+      "aria": {
+        "name": "/дата/i"
+      }
+    }
+  ],
+  "sample": {
+    "deliveryMethod": "pickup"
+  },
+  "probes": [
+    {
+      "id": "pickup-ignores-address",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "delivery-requires-address",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "delivery"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["address", "deliveryDate"]
+      }
+    },
+    {
+      "id": "delivery-filled-valid",
+      "set": {
+        "deliveryMethod": "delivery",
+        "address": "Москва, Тверская 1",
+        "deliveryDate": "2030-01-15"
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "pickup-hides-address",
+      "where": "browser",
+      "expect": {
+        "hidden": ["address", "deliveryDate"]
+      }
+    }
+  ]
+}

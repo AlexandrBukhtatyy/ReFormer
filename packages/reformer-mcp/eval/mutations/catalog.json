@@ -1,0 +1,78 @@
+{
+  "description": "Намеренные поломки собранного сервера: каждый прибор обязан их заметить. Правки — в копии dist, исходники не трогаются. Якорь `find` не найден — ошибка каталога (stale), а не тихий пропуск.",
+  "mutants": [
+    {
+      "id": "recipe-alias-wizard",
+      "description": "find_recipe теряет алиас wizard",
+      "file": "core/tools/find-recipe.js",
+      "find": "wizard: ['multi-step', 'form-navigation'],",
+      "replace": "",
+      "expectRedIn": ["unit:find-recipe-cascade"]
+    },
+    {
+      "id": "choose-api-swap",
+      "description": "choose_api советует copyFrom вместо computeFrom",
+      "file": "core/decide/api-decision.js",
+      "find": "recommend: 'computeFrom',",
+      "replace": "recommend: 'copyFrom',",
+      "expectRedIn": ["calibration:T4"]
+    },
+    {
+      "id": "search-docs-empty",
+      "description": "search_docs перестаёт искать: выдача обрезана до нуля",
+      "file": "core/tools/search-docs.js",
+      "find": "return scored.slice(0, clampLimit(limit)).map(",
+      "replace": "return scored.slice(0, 0).map(",
+      "expectRedIn": ["retrieval"]
+    },
+    {
+      "id": "generator-no-required",
+      "description": "Генератор теряет правило required",
+      "file": "core/generate/builders.js",
+      "find": "rule.rules.map(callValidator)",
+      "replace": "rule.rules.filter((item) => !/required/.test(item)).map(callValidator)",
+      "expectRedIn": ["golden"]
+    },
+    {
+      "id": "generator-broken-compute",
+      "description": "Генератор ломает выражение computeFrom",
+      "file": "core/generate/builders.js",
+      "find": "(${params.join(', ')}) => ${b.expr ?? 'undefined'});`",
+      "replace": "(${params.join(', ')}) => 0);`",
+      "expectRedIn": ["golden"]
+    },
+    {
+      "id": "plan-form-loses-bounds",
+      "description": "plan_form перестаёт разбирать числовые границы",
+      "file": "core/spec/analyze.js",
+      "find": "const ARG_VALIDATORS = ['minLength', 'maxLength', 'min', 'max'];",
+      "replace": "const ARG_VALIDATORS = [];",
+      "expectRedIn": ["calibration:T1"]
+    },
+    {
+      "id": "validate-code-false-errors",
+      "description": "validate_form считает каждый импорт из @reformer/* несуществующим",
+      "file": "core/validate/code.js",
+      "find": "if (matches.length === 0) {\n                const suggestions = await suggestNames(k, imported);",
+      "replace": "if (true) {\n                const suggestions = await suggestNames(k, imported);",
+      "expectRedIn": ["calibration:T5"]
+    },
+    {
+      "id": "schema-loses-labels",
+      "description": "Схема формы теряет подписи полей: видит только браузерная стадия",
+      "file": "core/generate/schema-emit.js",
+      "find": "props.label = f.label;",
+      "replace": "void f.label;",
+      "expectRedIn": ["golden-browser"]
+    },
+    {
+      "id": "schema-loses-testid",
+      "description": "Схема теряет testId. Контракт судит по ролям и подписям и намеренно не зависит от testId: выживает, ловят только e2e эталона (проекты iter-*).",
+      "file": "core/generate/schema-emit.js",
+      "find": "props.testId = [testIdScope.prefix, path].filter(Boolean).join('.').replace(/\\./g, '-');",
+      "replace": "void path;",
+      "expectRedIn": [],
+      "documentedSurvivor": true
+    }
+  ]
+}

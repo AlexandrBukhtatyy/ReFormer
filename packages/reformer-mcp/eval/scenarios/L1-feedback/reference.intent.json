@@ -1,0 +1,32 @@
+{
+  "formName": "Feedback",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя",
+      "initialValue": ""
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": ""
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Сообщение",
+      "initialValue": ""
+    }
+  ],
+  "validation": [
+    {
+      "target": "email",
+      "rules": ["email()"]
+    }
+  ]
+}

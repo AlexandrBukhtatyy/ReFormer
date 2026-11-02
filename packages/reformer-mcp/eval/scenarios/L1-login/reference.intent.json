@@ -1,0 +1,29 @@
+{
+  "formName": "Login",
+  "fields": [
+    {
+      "name": "login",
+      "type": "string",
+      "component": "Input",
+      "label": "Логин",
+      "initialValue": ""
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "initialValue": ""
+    }
+  ],
+  "validation": [
+    {
+      "target": "login",
+      "rules": ["required()"]
+    },
+    {
+      "target": "password",
+      "rules": ["required()"]
+    }
+  ]
+}

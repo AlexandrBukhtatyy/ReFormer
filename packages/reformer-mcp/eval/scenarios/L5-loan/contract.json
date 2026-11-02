@@ -1,0 +1,203 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "L5-loan",
+  "fields": [
+    {
+      "id": "loanType",
+      "bind": {
+        "path": "loanType"
+      },
+      "type": "string",
+      "aria": {
+        "role": "combobox",
+        "name": "/тип кредита/i"
+      }
+    },
+    {
+      "id": "loanAmount",
+      "bind": {
+        "path": "loanAmount"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/сумма/i"
+      }
+    },
+    {
+      "id": "firstName",
+      "bind": {
+        "path": "firstName"
+      },
+      "type": "string"
+    },
+    {
+      "id": "email",
+      "bind": {
+        "path": "email"
+      },
+      "type": "string"
+    },
+    {
+      "id": "hasCoBorrower",
+      "bind": {
+        "path": "hasCoBorrower"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "comment",
+      "bind": {
+        "path": "comment"
+      },
+      "type": "string"
+    },
+    {
+      "id": "propertyValue",
+      "bind": {
+        "path": "propertyValue"
+      },
+      "type": "number"
+    },
+    {
+      "id": "carBrand",
+      "bind": {
+        "path": "carBrand"
+      },
+      "type": "string"
+    }
+  ],
+  "sample": {
+    "loanAmount": 100000,
+    "firstName": "Иван",
+    "email": "ivan@example.com"
+  },
+  "probes": [
+    {
+      "id": "defaults",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "loanType": "consumer",
+          "hasCoBorrower": false
+        }
+      }
+    },
+    {
+      "id": "empty-invalid",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "valid": false
+      }
+    },
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "amount-lower-bound",
+      "gate": true,
+      "set": {
+        "loanAmount": 49999
+      },
+      "expect": {
+        "valid": false,
+        "errorCode": {
+          "loanAmount": "min"
+        }
+      }
+    },
+    {
+      "id": "amount-at-lower-bound",
+      "set": {
+        "loanAmount": 50000
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "amount-upper-bound",
+      "set": {
+        "loanAmount": 10000001
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["loanAmount"]
+      }
+    },
+    {
+      "id": "first-name-length",
+      "set": {
+        "firstName": "И"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["firstName"]
+      }
+    },
+    {
+      "id": "email-format",
+      "set": {
+        "email": "без-собаки"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "mortgage-rule",
+      "gate": true,
+      "set": {
+        "loanType": "mortgage",
+        "propertyValue": 500000
+      },
+      "expect": {
+        "valid": false
+      }
+    },
+    {
+      "id": "mortgage-rule-passes",
+      "set": {
+        "loanType": "mortgage",
+        "propertyValue": 5000000
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "consumer-fields-disabled",
+      "gate": true,
+      "expect": {
+        "disabled": ["propertyValue", "carBrand"]
+      }
+    },
+    {
+      "id": "mortgage-enables-property",
+      "set": {
+        "loanType": "mortgage"
+      },
+      "expect": {
+        "enabled": ["propertyValue"],
+        "disabled": ["carBrand"]
+      }
+    },
+    {
+      "id": "car-enables-brand",
+      "set": {
+        "loanType": "car"
+      },
+      "expect": {
+        "enabled": ["carBrand"],
+        "disabled": ["propertyValue"]
+      }
+    }
+  ]
+}

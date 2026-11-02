@@ -1,0 +1,13 @@
+{
+  "id": "L4-contacts-array",
+  "level": 4,
+  "title": "Массив строк",
+  "targets": ["renderer-react"],
+  "reference": "reference.intent.json",
+  "tags": ["array"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  }
+}

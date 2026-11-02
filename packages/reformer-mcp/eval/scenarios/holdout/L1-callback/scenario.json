@@ -1,0 +1,15 @@
+{
+  "id": "L1-callback",
+  "level": 1,
+  "title": "Заказ обратного звонка",
+  "targets": ["renderer-json"],
+  "reference": "reference.intent.json",
+  "tags": ["simple", "json-schema"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  },
+  "contaminated": "authored",
+  "note": "Задание написал агент, знающий сервер, по просьбе пользователя. Правок сервера под него не было."
+}

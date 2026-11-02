@@ -20,6 +20,7 @@
  *   npm run mcp:evaluate -- --strategy v6     — выбрать стратегию извлечения
  *   npm run mcp:evaluate -- --json <file>     — выгрузить полный отчёт (с трассами)
  *   npm run mcp:evaluate -- --server <path>   — померить другую сборку сервера
+ *   npm run mcp:evaluate -- --publish         — положить запись прогона в packages/reformer-mcp/eval/runs/
  */
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -28,6 +29,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { McpClient, estimateTokens } from './lib/client.mjs';
 import { assertStrongExpectations } from './lib/match.mjs';
 import { auditExpectations } from './lib/corpus-audit.mjs';
+import { retrievalRecord } from './records/adapters.mjs';
+import { writeRecords } from './records/record.mjs';
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(evalDir, '..');
@@ -118,6 +121,7 @@ function quantile(sorted, q) {
 }
 
 const client = new McpClient(serverPath);
+const startedAt = new Date();
 let report;
 try {
   const init = await client.initialize();
@@ -260,6 +264,17 @@ if (jsonPath) {
   mkdirSync(path.dirname(path.resolve(jsonPath)), { recursive: true });
   writeFileSync(path.resolve(jsonPath), JSON.stringify(report, null, 2));
   console.log(`\n  полный отчёт → ${jsonPath}`);
+}
+
+{
+  const record = await retrievalRecord(report, { startedAt, serverPath });
+  const { local, published } = writeRecords([record], {
+    batchId: record.batchId,
+    harness: 'retrieval',
+    label: strategyName,
+    publish: argv.includes('--publish'),
+  });
+  console.log(`\n  запись прогона → ${path.relative(repoRoot, published ?? local)}`);
 }
 
 if (savePath) {

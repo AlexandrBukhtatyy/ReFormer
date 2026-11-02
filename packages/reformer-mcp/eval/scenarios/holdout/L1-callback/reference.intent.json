@@ -1,0 +1,29 @@
+{
+  "formName": "Callback",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя",
+      "initialValue": ""
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "component": "Input",
+      "label": "Телефон",
+      "initialValue": ""
+    }
+  ],
+  "validation": [
+    {
+      "target": "name",
+      "rules": ["required()"]
+    },
+    {
+      "target": "phone",
+      "rules": ["required()"]
+    }
+  ]
+}

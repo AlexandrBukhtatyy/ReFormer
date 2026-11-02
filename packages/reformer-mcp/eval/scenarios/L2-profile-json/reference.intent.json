@@ -1,0 +1,64 @@
+{
+  "formName": "Profile",
+  "fields": [
+    {
+      "name": "fullName",
+      "type": "string",
+      "component": "Input",
+      "label": "ФИО",
+      "initialValue": ""
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон",
+      "initialValue": "",
+      "componentProps": {
+        "mask": "+7 (999) 999-99-99"
+      }
+    },
+    {
+      "name": "birthDate",
+      "type": "string",
+      "component": "Input",
+      "label": "Дата рождения",
+      "initialValue": "",
+      "componentProps": {
+        "type": "date"
+      }
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "component": "Select",
+      "label": "Город",
+      "initialValue": "",
+      "optionsSource": "CITIES"
+    }
+  ],
+  "validation": [
+    {
+      "target": "fullName",
+      "rules": ["required()", "minLength(2)", "maxLength(100)"]
+    },
+    {
+      "target": "phone",
+      "rules": ["required()", "pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/)"]
+    },
+    {
+      "target": "birthDate",
+      "rules": ["required()"]
+    },
+    {
+      "target": "city",
+      "rules": ["required()"]
+    }
+  ],
+  "dataSources": [
+    {
+      "name": "CITIES",
+      "values": ["Москва", "Санкт-Петербург", "Казань"]
+    }
+  ]
+}
