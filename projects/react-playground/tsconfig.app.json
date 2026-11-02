@@ -53,5 +53,5 @@
     "../reformer-builder-playground/.ui_builder/plugins/reformer/core/form-inspect",
     "../reformer-builder-playground/.ui_builder/plugins/reformer/core/form-mock"
   ],
-  "exclude": ["src/mocks/_generated"]
+  "exclude": ["src/mocks/_generated", "src/pages/debug/mcp-scenarios/*/**"]
 }

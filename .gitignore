@@ -54,3 +54,6 @@ projects/reformer-builder/.ui_builder/
 # Формы стенда калибровки MCP (`npm run mcp:calibrate -- --e2e`): вывод стенда, пересоздаётся при
 # запуске. В репозитории — только `index.tsx`, который находит их маршруты.
 projects/react-playground/src/pages/debug/mcp-calibration/*/
+
+# Формы стенда сценариев MCP (`npm run mcp:scenarios`, `npm run mcp:verify`): вывод стенда.
+projects/react-playground/src/pages/debug/mcp-scenarios/*/

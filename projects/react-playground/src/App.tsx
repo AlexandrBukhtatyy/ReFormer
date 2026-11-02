@@ -23,6 +23,7 @@ import UiBuilderDemo from './pages/debug/ui_builder';
 import BuilderAbBench from './pages/debug/builder-ab';
 import CleanTestPage from './pages/debug/clean-test';
 import { calibrationRoutes } from './pages/debug/mcp-calibration';
+import { scenarioRoutes } from './pages/debug/mcp-scenarios';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
@@ -403,6 +404,9 @@ function Layout() {
             <Route path="/debug/clean-test" element={<CleanTestPage />} />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />
             {calibrationRoutes.map(({ id, path, Component }) => (
+              <Route key={id} path={path} element={<Component />} />
+            ))}
+            {scenarioRoutes.map(({ id, path, Component }) => (
               <Route key={id} path={path} element={<Component />} />
             ))}
             <Route path="/" element={<Navigate to="/demo/simple" replace />} />

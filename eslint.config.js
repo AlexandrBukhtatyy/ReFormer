@@ -94,6 +94,8 @@ const DOMAIN_CORE_NO_REACT = ['react', 'react/jsx-runtime', 'react-dom', 'react-
 
 export default defineConfig([
   globalIgnores([
+    // Формы стенда сценариев MCP: код агента, а не проекта (packages/reformer-mcp/eval/verify/browser.mjs).
+    'projects/react-playground/src/pages/debug/mcp-scenarios/*/',
     '**/dist',
     '**/node_modules',
     '**/coverage',
