@@ -148,7 +148,9 @@ function processMetrics(traceFile, toolCalls) {
     : [];
   const digests = entries.map((entry) => `${entry.name}:${entry.argumentsDigest}`);
   const lastWrite = toolCalls.findLastIndex((call) => /^(write_file|Write|Edit)$/.test(call.name));
-  const lastValidate = toolCalls.findLastIndex((call) => call.name === 'validate_form');
+  const lastValidate = toolCalls.findLastIndex((call) =>
+    ['validate_form', 'form_build'].includes(call.name)
+  );
   const metrics = [
     { id: 'process.mcpCalls', value: entries.length, better: 'none' },
     {

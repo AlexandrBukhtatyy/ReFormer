@@ -13,6 +13,7 @@
  *
  * - нет `report_issue`: отчёт лёг бы в память воркера и пропал, а инструмент ответил бы
  *   «сохранено» — обещание, которое никто не выполнит;
+ * - нет `form_build`: он записывает файлы формы в проект, а проекта на диске тут нет;
  * - нет `debug`;
  * - у `plan_form` нет `specPath`: спеку по пути воркеру прочитать неоткуда, работает
  *   `description`.
@@ -29,6 +30,7 @@ import { checkBehaviorsTool } from '../tools/check-behaviors.js';
 import { chooseApiTool, chooseApiToolDefinition } from '../tools/choose-api.js';
 import { debugTool, debugToolDefinition } from '../tools/debug.js';
 import { findRecipeTool, findRecipeToolDefinition } from '../tools/find-recipe.js';
+import { formBuildTool, formBuildToolDefinition } from '../tools/form-build.js';
 import {
   generateFormTool,
   generateFormToolDefinition,
@@ -108,7 +110,7 @@ export function createToolCatalog(
         browser ? planFormWithoutSpecPath : planFormToolDefinition,
         generateFormToolDefinition,
       ];
-      if (!browser) tools.push(reportIssueToolDefinition);
+      if (!browser) tools.push(formBuildToolDefinition, reportIssueToolDefinition);
       if (debug) tools.push(debugToolDefinition);
       return tools;
     },
@@ -121,6 +123,10 @@ export function createToolCatalog(
           // которой нет — клиент вправе прислать что угодно, и половина отчётов приезжала
           // без `solution`, а сервер отвечал «successfully».
           return await reportIssueTool(args, knowledge());
+
+        case 'form_build':
+          if (browser) break;
+          return await formBuildTool(args ?? {}, knowledge());
 
         case 'debug':
           if (!debug) break;

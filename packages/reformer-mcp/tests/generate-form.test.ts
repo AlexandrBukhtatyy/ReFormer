@@ -29,6 +29,7 @@ import {
   renderLayoutChecklist,
 } from '../src/core/generate/builders.js';
 import { crossCheckBundle } from '../src/core/generate/cross-check.js';
+import { groupUiKitImports } from '../src/core/generate/ui-kit-components.js';
 import { buildFormSchemaJson } from '../src/core/generate/schema-emit.js';
 import { generateFormTool, planFormTool } from '../src/core/tools/generate-form';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
@@ -853,6 +854,32 @@ describe('cross-check', () => {
     const report = run(intent);
     expect(report.ok).toBe(true);
     expect(report.warnings.map((w) => w.code)).toContain('C9');
+  });
+
+  it('C11 — ссылка раскладки в никуда: генератор выбрасывает узел, поэтому C1 её не видит', () => {
+    const intent = goodIntent();
+    intent.layoutRoot = {
+      kind: 'container',
+      component: 'Box',
+      children: [
+        { kind: 'field', ref: 'ghost' },
+        { kind: 'array', ref: 'ghostRows' },
+        { kind: 'part', ref: 'group', part: 'ghostPart' },
+      ],
+    };
+    const messages = run(intent).errors.filter((e) => e.code === 'C11');
+    expect(messages.map((e) => e.message).join()).toMatch(/ghost.*ghostRows.*ghostPart/);
+  });
+});
+
+describe('импорты кита', () => {
+  it('компонент только в подпути импортируется из подпути, а не из корня', () => {
+    const groups = groupUiKitImports(['DatePicker', 'FormField', 'Input', 'Combobox']);
+    expect(groups).toEqual([
+      ['@reformer/ui-kit', ['FormField', 'Input']],
+      ['@reformer/ui-kit/combobox', ['Combobox']],
+      ['@reformer/ui-kit/date-picker', ['DatePicker']],
+    ]);
   });
 });
 

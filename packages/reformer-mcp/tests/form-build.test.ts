@@ -1,0 +1,501 @@
+/**
+ * `form_build` на настоящем диске и с настоящим компилятором: только так видно, что запись идёт «всё
+ * или ничего», а проверка типов действительно ловит ошибки в `expr`. Проект лежит вне репозитория,
+ * пакеты резолвятся через `REFORMER_TYPECHECK_ROOT`, как у стенда сценариев.
+ */
+
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import * as prettier from 'prettier';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { GRAMMAR_EXAMPLE, INTENT_GRAMMAR } from '../src/core/generate/intent-grammar';
+import { originOf, withMarker } from '../src/core/generate/generated-marker';
+import { UI_KIT_FIELD_EXPORTS } from '../src/core/generate/ui-kit-components';
+import type { Knowledge } from '../src/core/knowledge';
+import { formBuildTool, INTENT_FILE } from '../src/core/tools/form-build';
+import { createCliFormWorkspace, TYPECHECK_ROOT_ENV } from '../src/platform/cli/form-workspace';
+import { cliKnowledge } from '../src/platform/cli/knowledge';
+
+const repoRoot = resolve(__dirname, '../../..');
+const SLOW = 120_000;
+
+let project: string;
+let knowledge: Knowledge;
+const previousRoot = process.env[TYPECHECK_ROOT_ENV];
+
+const formFile = (name: string) => join(project, 'form', name);
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+function writeIntent(intent: unknown): void {
+  mkdirSync(join(project, 'form'), { recursive: true });
+  writeFileSync(formFile(INTENT_FILE), JSON.stringify(intent));
+}
+
+async function build(dir?: string): Promise<{ text: string; isError: boolean }> {
+  const result = await formBuildTool(dir === undefined ? {} : { dir }, knowledge);
+  return { text: result.content[0].text, isError: result.isError === true };
+}
+
+/** Каталог формы содержит только исходник: отказ не оставил следов. */
+function expectNothingWritten(): void {
+  expect(readdirSync(join(project, 'form'))).toEqual([INTENT_FILE]);
+}
+
+beforeAll(() => {
+  process.env[TYPECHECK_ROOT_ENV] = repoRoot;
+});
+
+afterAll(() => {
+  if (previousRoot === undefined) delete process.env[TYPECHECK_ROOT_ENV];
+  else process.env[TYPECHECK_ROOT_ENV] = previousRoot;
+});
+
+beforeEach(() => {
+  project = mkdtempSync(join(tmpdir(), 'form-build-'));
+  writeFileSync(
+    join(project, 'package.json'),
+    JSON.stringify({ name: 'consumer', dependencies: { '@reformer/core': '*' } })
+  );
+  knowledge = { ...cliKnowledge(), forms: createCliFormWorkspace(project) };
+});
+
+afterEach(() => {
+  rmSync(project, { recursive: true, force: true });
+});
+
+describe('form_build: путь без ошибок', () => {
+  it('без исходника отдаёт грамматику и ничего не создаёт', async () => {
+    const { text, isError } = await build();
+    expect(isError).toBe(false);
+    expect(text).toBe(INTENT_GRAMMAR);
+    expect(existsSync(join(project, 'form'))).toBe(false);
+  });
+
+  it(
+    'форма из грамматики собирается, и ответ не содержит файлов',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      const { text, isError } = await build();
+      expect(text).toContain('✓ form_build');
+      expect(isError).toBe(false);
+      expect(text).toContain('Типы проверены');
+      expect(text).not.toContain('import ');
+      expect(text.length).toBeLessThan(1500);
+      expect(readdirSync(join(project, 'form')).sort()).toEqual(
+        [
+          'api.ts',
+          'data-sources.ts',
+          'form.behavior.ts',
+          'form.flow.ts',
+          INTENT_FILE,
+          'form.messages.ts',
+          'form.schema.ts',
+          'form.validation.ts',
+          'index.tsx',
+          'model.ts',
+          'types.ts',
+        ].sort()
+      );
+      expect(originOf(readFileSync(formFile('model.ts'), 'utf-8'))).toBe('generated');
+      expect(originOf(readFileSync(formFile('types.ts'), 'utf-8'))).toBe('handwritten');
+    },
+    SLOW
+  );
+
+  it(
+    'та же форма собирается под renderer-json',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, target: 'renderer-json' });
+      const { text, isError } = await build();
+      expect(text).toContain('✓ form_build');
+      expect(isError).toBe(false);
+      expect(existsSync(formFile('registry.ts'))).toBe(true);
+    },
+    SLOW
+  );
+
+  it(
+    'форма кредита на 75 полей собирается',
+    async () => {
+      const credit = JSON.parse(
+        readFileSync(resolve(__dirname, '../eval/calibration/cases/credit/intent.json'), 'utf-8')
+      );
+      writeIntent({ ...credit, target: 'renderer-react' });
+      const { text, isError } = await build();
+      expect(text).toContain('✓ form_build');
+      expect(isError).toBe(false);
+    },
+    SLOW
+  );
+
+  it(
+    'повторная сборка ничего не переписывает',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      const { text } = await build();
+      expect(text).toContain('записано 0');
+    },
+    SLOW
+  );
+
+  it(
+    'каждый компонент кита компилируется на обоих таргетах',
+    async () => {
+      const names = Object.keys(UI_KIT_FIELD_EXPORTS);
+      const fields = names.map((component, index) => ({
+        name: `field${index}`,
+        type: 'string',
+        component,
+        label: component,
+      }));
+      for (const target of ['renderer-react', 'renderer-json']) {
+        writeIntent({
+          formName: 'Все компоненты',
+          interfaceName: 'AllComponents',
+          target,
+          fields,
+          layoutRoot: {
+            kind: 'container',
+            component: 'Box',
+            children: fields.map((field) => field.name),
+          },
+        });
+        const { text } = await build();
+        expect(text).not.toContain('has no exported member');
+      }
+    },
+    SLOW
+  );
+});
+
+describe('form_build: при ошибке диск не меняется', () => {
+  it('нераспознаваемый JSON', async () => {
+    mkdirSync(join(project, 'form'));
+    writeFileSync(formFile(INTENT_FILE), '{ нет');
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('не разбирается');
+    expectNothingWritten();
+  });
+
+  it('ссылка раскладки в никуда', async () => {
+    writeIntent({
+      ...GRAMMAR_EXAMPLE,
+      layoutRoot: { kind: 'container', component: 'Box', children: ['ghostField'] },
+    });
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('C11');
+    expect(text).toContain('ghostField');
+    expectNothingWritten();
+  });
+
+  it('поле не стоит в раскладке', async () => {
+    const intent = clone(GRAMMAR_EXAMPLE);
+    intent.fields.push({
+      name: 'forgotten',
+      type: 'string',
+      component: 'Input',
+      label: 'Забытое',
+      initialValue: '',
+    });
+    writeIntent(intent);
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('forgotten');
+    expectNothingWritten();
+  });
+
+  it('потерянный текст ошибки: один message на два кода', async () => {
+    const intent = clone(GRAMMAR_EXAMPLE);
+    intent.validation[0].rules = [
+      "required({ code: 'price.required' })",
+      "min(1, { code: 'price.min' })",
+    ];
+    writeIntent(intent);
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('тексты ошибок потеряны');
+    expectNothingWritten();
+  });
+
+  it(
+    'выдуманный метод массива в expr',
+    async () => {
+      const intent = clone(GRAMMAR_EXAMPLE);
+      intent.behavior[5].expr = 'model.contacts.reduce((sum, row) => sum + (row.income || 0), 0)';
+      writeIntent(intent);
+      const { text, isError } = await build();
+      expect(isError).toBe(true);
+      expect(text).toContain("Property 'reduce' does not exist");
+      expect(text).toContain('в строке:');
+      expectNothingWritten();
+    },
+    SLOW
+  );
+
+  it(
+    'неизвестный валидатор',
+    async () => {
+      const intent = clone(GRAMMAR_EXAMPLE);
+      intent.validation[0].rules = ["notARealValidator({ code: 'price.required' })"];
+      writeIntent(intent);
+      const { text, isError } = await build();
+      expect(isError).toBe(true);
+      expect(text).toContain('notARealValidator');
+      expectNothingWritten();
+    },
+    SLOW
+  );
+
+  it(
+    'неразбираемый expr',
+    async () => {
+      const intent = clone(GRAMMAR_EXAMPLE);
+      intent.behavior[0].expr = 'model.price + (';
+      writeIntent(intent);
+      const { isError } = await build();
+      expect(isError).toBe(true);
+      expectNothingWritten();
+    },
+    SLOW
+  );
+});
+
+describe('form_build: границы каталога', () => {
+  it('путь вне проекта и родитель проекта отклоняются', async () => {
+    for (const dir of ['../outside', '..', resolve(project, '../outside')]) {
+      const { isError, text } = await build(dir);
+      expect(isError, dir).toBe(true);
+      expect(text).toContain('внутри проекта');
+    }
+  });
+
+  it('в node_modules и .git писать нельзя', async () => {
+    for (const dir of ['node_modules/x', '.git/hooks']) {
+      const { isError, text } = await build(dir);
+      expect(isError, dir).toBe(true);
+      expect(text).toContain('писать нельзя');
+    }
+  });
+
+  it('символическая ссылка не выводит за границу проекта', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'form-build-outside-'));
+    try {
+      symlinkSync(outside, join(project, 'escape'), 'junction');
+      const { isError, text } = await build('escape/form');
+      expect(isError).toBe(true);
+      expect(text).toContain('внутри проекта');
+      expect(readdirSync(outside)).toEqual([]);
+    } finally {
+      rmSync(join(project, 'escape'), { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('без проекта отказывает, а не пишет наугад', async () => {
+    const bare = mkdtempSync(join(tmpdir(), 'form-build-bare-'));
+    try {
+      const noProject = createCliFormWorkspace(bare).open('form');
+      // Выше временного каталога может лежать настоящий package.json: тогда отказа не будет.
+      if (!noProject.ok) expect(noProject.reason).toContain('package.json');
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('form_build: чей файл', () => {
+  it(
+    'правка руками отсоединяет файл, а удаление возвращает его под сборку',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      const edited = `${readFileSync(formFile('form.behavior.ts'), 'utf-8')}\n// правка человека\n`;
+      writeFileSync(formFile('form.behavior.ts'), edited);
+
+      const rebuilt = await build();
+      expect(rebuilt.text).toContain('Правлены вручную');
+      expect(rebuilt.text).toContain('form.behavior.ts');
+      expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).toBe(edited);
+
+      rmSync(formFile('form.behavior.ts'));
+      const returned = await build();
+      expect(returned.text).not.toContain('Правлены вручную');
+      expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).not.toContain('правка человека');
+    },
+    SLOW
+  );
+
+  it(
+    'файл, написанный до сборки, не затирается',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      const own = readFileSync(formFile('form.flow.ts'), 'utf-8').split('\n').slice(1).join('\n');
+      writeFileSync(formFile('form.flow.ts'), own);
+      const { text } = await build();
+      expect(text).toContain('form.flow.ts');
+      expect(readFileSync(formFile('form.flow.ts'), 'utf-8')).toBe(own);
+    },
+    SLOW
+  );
+
+  it(
+    'свои types.ts и api.ts сборка не трогает',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      writeFileSync(formFile('api.ts'), 'export const load = () => null;\n');
+      await build();
+      expect(readFileSync(formFile('api.ts'), 'utf-8')).toBe('export const load = () => null;\n');
+    },
+    SLOW
+  );
+
+  it(
+    'форматирование prettier не отсоединяет файлы',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      for (const name of readdirSync(join(project, 'form'))) {
+        if (!/\.tsx?$/.test(name)) continue;
+        const text = readFileSync(formFile(name), 'utf-8');
+        const formatted = await prettier.format(text, {
+          parser: 'typescript',
+          singleQuote: false,
+          trailingComma: 'all',
+          printWidth: 60,
+        });
+        expect(originOf(formatted), name).toBe(originOf(text));
+      }
+    },
+    SLOW
+  );
+
+  it('маркер отличает правку кода от правки оформления', () => {
+    const file = withMarker("const name = 'a';\n");
+    expect(originOf(file)).toBe('generated');
+    expect(originOf(file.replace("'a'", '"a"'))).toBe('generated');
+    expect(originOf(file.replace("'a'", "'b'"))).toBe('edited');
+    expect(originOf("const name = 'a';\n")).toBe('handwritten');
+  });
+
+  it(
+    'точка входа подхватывает тексты, появившиеся после первой сборки',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, validation: [] });
+      await build();
+      expect(readFileSync(formFile('index.tsx'), 'utf-8')).not.toContain(
+        'ValidationMessagesProvider'
+      );
+      expect(existsSync(formFile('form.messages.ts'))).toBe(false);
+
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('ValidationMessagesProvider');
+      expect(existsSync(formFile('form.messages.ts'))).toBe(true);
+    },
+    SLOW
+  );
+
+  it(
+    'необязательный файл исчезает вместе с причиной',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      expect(existsSync(formFile('form.messages.ts'))).toBe(true);
+      writeIntent({ ...GRAMMAR_EXAMPLE, validation: [] });
+      await build();
+      expect(existsSync(formFile('form.messages.ts'))).toBe(false);
+    },
+    SLOW
+  );
+});
+
+describe('form_build: таргет core', () => {
+  const coreIntent = { ...GRAMMAR_EXAMPLE, target: 'core', visibility: [] };
+
+  it(
+    'собирает всё, кроме разметки, и не тянет рендерер',
+    async () => {
+      writeIntent(coreIntent);
+      const { text, isError } = await build();
+      expect(text).toContain('✓ form_build');
+      expect(isError).toBe(false);
+      expect(text).toContain('Разметки ещё нет');
+      expect(originOf(readFileSync(formFile('index.tsx'), 'utf-8'))).toBe('handwritten');
+      expect(existsSync(formFile('model.ts'))).toBe(true);
+      for (const name of readdirSync(join(project, 'form'))) {
+        if (!/\.tsx?$/.test(name)) continue;
+        expect(readFileSync(formFile(name), 'utf-8'), name).not.toMatch(/@reformer\/renderer-/);
+      }
+    },
+    SLOW
+  );
+
+  it(
+    'разметка агента переживает пересборку, а её типы проверяются',
+    async () => {
+      writeIntent(coreIntent);
+      await build();
+      const stub = readFileSync(formFile('index.tsx'), 'utf-8');
+      const withField = (control: string) =>
+        `import { FormField } from '@reformer/ui-kit';\n${stub.replace(
+          'return null;',
+          `return <FormField control={${control}} />;`
+        )}`;
+
+      writeFileSync(formFile('index.tsx'), withField('bundle.form.price'));
+      const passed = await build();
+      expect(passed.text).toContain('✓ form_build');
+      expect(passed.text).not.toContain('Разметки ещё нет');
+      expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('bundle.form.price');
+
+      writeFileSync(formFile('index.tsx'), withField('bundle.form.noSuchField'));
+      const failed = await build();
+      expect(failed.isError).toBe(true);
+      expect(failed.text).toContain('noSuchField');
+    },
+    SLOW
+  );
+});
+
+describe('form_build: компилятор недоступен', () => {
+  const noRoot = () => {
+    delete process.env[TYPECHECK_ROOT_ENV];
+  };
+  const restoreRoot = () => {
+    process.env[TYPECHECK_ROOT_ENV] = repoRoot;
+  };
+
+  it('говорит, что типы не проверены, и всё равно ловит несуществующий импорт', async () => {
+    noRoot();
+    try {
+      writeIntent(GRAMMAR_EXAMPLE);
+      const passed = await build();
+      expect(passed.text).toContain('✓ form_build');
+      expect(passed.text).toContain('Типы НЕ проверены');
+
+      const intent = clone(GRAMMAR_EXAMPLE);
+      intent.validation[0].rules = ["notARealValidator({ code: 'price.required' })"];
+      writeIntent(intent);
+      const failed = await build();
+      expect(failed.isError).toBe(true);
+      expect(failed.text).toContain('notARealValidator');
+    } finally {
+      restoreRoot();
+    }
+  });
+});

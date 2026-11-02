@@ -289,7 +289,7 @@ export async function validateFormTool(
   }
 }
 
-/** Коды кросс-проверки C1..C9 → коды диагностик RF0xx. */
+/** Коды кросс-проверки C1..C11 → коды диагностик RF0xx. */
 function toDiagnostic(code: string, severity: 'error' | 'warning', message: string): Diagnostic {
   const map: Record<string, Diagnostic['code']> = {
     C1: 'RF001',
@@ -301,6 +301,7 @@ function toDiagnostic(code: string, severity: 'error' | 'warning', message: stri
     C7: 'RF006',
     C8: 'RF007',
     C9: 'RF001',
+    C11: 'RF007',
   };
   return { code: map[code] ?? 'RF001', severity, message };
 }

@@ -24,9 +24,10 @@ const NODE_TOOLS = [
   'validate_form',
   'plan_form',
   'generate_form',
+  'form_build',
   'report_issue',
 ];
-const WORKER_TOOLS = NODE_TOOLS.filter((name) => name !== 'report_issue');
+const WORKER_TOOLS = NODE_TOOLS.filter((name) => name !== 'report_issue' && name !== 'form_build');
 const NODE_PROMPTS = [
   'start-here',
   'discover-context',

@@ -61,6 +61,14 @@ async function protocolError(call: Promise<unknown>): Promise<McpError> {
   return error as McpError;
 }
 
+describe('сервер под Node: инструкции', () => {
+  it('ведут агента к form_build, не к чтению справки', async () => {
+    const client = await connect();
+    expect(client.getInstructions()).toContain('form_build');
+    expect(client.getInstructions()?.length).toBeLessThan(500);
+  });
+});
+
 describe('сервер под Node: промпты', () => {
   it('prompts/list отдаёт семь промптов в порядке объявления', async () => {
     const client = await connect();

@@ -21,7 +21,11 @@ import type {
   ValidationRuleIntent,
 } from './form-intent.js';
 import { deriveComponentName } from './form-intent.js';
-import { UI_KIT_CONTAINER_EXPORTS, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+import {
+  groupUiKitImports,
+  UI_KIT_CONTAINER_EXPORTS,
+  UI_KIT_FIELD_EXPORTS,
+} from './ui-kit-components.js';
 import {
   buildFormSchemaJson,
   buildFormSchemaJsonTs,
@@ -521,6 +525,14 @@ function messageCode(rule: ValidationRuleIntent): string | null {
 /** Строковый литерал TS в одинарных кавычках. */
 function tsString(value: string): string {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+}
+
+/**
+ * Предупреждение `buildMessagesTs` о потерянном тексте замечания. `generate_form` только печатает
+ * его, а для `form_build` это ошибка: агенты заканчивали работу на ✓, теряя тексты.
+ */
+export function isLostMessageWarning(warning: string): boolean {
+  return /^Текст «|^Код `[^`]*` получил два текста/.test(warning);
 }
 
 /**
@@ -1350,7 +1362,9 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
   lines.push(' * `$component(...)` из layout-схемы. Новый компонент в схеме → регистрация здесь.');
   lines.push(' */');
   for (const c of extra) lines.push(`import { ${c} } from '${EXTRA_REGISTRY_IMPORTS[c]}';`);
-  lines.push(`import { ${['FormField', ...imports].join(', ')} } from '@reformer/ui-kit';`);
+  for (const [from, names] of groupUiKitImports(['FormField', ...imports])) {
+    lines.push(`import { ${names.join(', ')} } from '${from}';`);
+  }
   lines.push(
     "import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';"
   );
@@ -1446,6 +1460,11 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
+    {
+      path: 'form.intent.json',
+      role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
+      optional: true,
+    },
   ],
   'renderer-react': [
     { path: 'index.tsx', role: 'точка входа: сборка `createForm` и `FormRenderer`' },
@@ -1462,6 +1481,11 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
+    {
+      path: 'form.intent.json',
+      role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
+      optional: true,
+    },
   ],
   'renderer-json': [
     { path: 'index.tsx', role: 'точка входа: сборка `createForm` и `FormRenderer`' },
@@ -1478,6 +1502,11 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
+    {
+      path: 'form.intent.json',
+      role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
+      optional: true,
+    },
     { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },
   ],
 };

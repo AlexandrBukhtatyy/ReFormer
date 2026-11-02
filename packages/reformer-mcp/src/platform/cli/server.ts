@@ -79,6 +79,10 @@ export function createNodeServer(options: NodeServerOptions): Server {
         resources: {},
         prompts: {},
       },
+      // Без этого агенты на больших формах шли за справкой и писали код вручную: выбор пути
+      // без подсказки в задании проверен прогонами (docs/plans/mcp-misty-graham.md).
+      instructions:
+        'To create or change a ReFormer form: author <dir>/form.intent.json and call form_build. It compiles, type-checks and writes the module to disk, so do not write module files yourself. Call form_build first to get the intent grammar. Keep the requested stack: on @reformer/core you also write the JSX markup in index.tsx. Use the documentation tools only for custom code or an unclear form_build error.',
     }
   );
 

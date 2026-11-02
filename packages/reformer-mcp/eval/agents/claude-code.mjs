@@ -103,6 +103,8 @@ export function runAgent(input) {
           env: {
             REFORMER_TRACE_FILE: input.traceFile,
             REFORMER_ISSUE_REPORTS_DIR: path.join(runDirectory, 'issue-reports'),
+            // Агент вне репозитория, а типы формы form_build проверяет с настоящими пакетами.
+            REFORMER_TYPECHECK_ROOT: repoRoot,
           },
         },
       },

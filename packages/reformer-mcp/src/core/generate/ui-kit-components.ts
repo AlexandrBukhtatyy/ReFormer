@@ -54,6 +54,29 @@ export const UI_KIT_CONTAINER_EXPORTS: Readonly<Record<string, string>> = {
   FieldArray: 'FieldArray',
 };
 
+/** Экспорты кита, которых нет в его корне: только подпуть. Импорт из корня не компилируется. */
+const UI_KIT_SUBPATH_IMPORTS: Readonly<Record<string, string>> = {
+  CalendarSingle: '@reformer/ui-kit/calendar',
+  Combobox: '@reformer/ui-kit/combobox',
+  ComboboxMulti: '@reformer/ui-kit/combobox',
+  ComboboxTree: '@reformer/ui-kit/combobox',
+  ComboboxTreeMulti: '@reformer/ui-kit/combobox',
+  InputOTPDefault: '@reformer/ui-kit/input-otp',
+  DatePicker: '@reformer/ui-kit/date-picker',
+  DatePickerMulti: '@reformer/ui-kit/date-picker',
+  DatePickerRange: '@reformer/ui-kit/date-picker',
+};
+
+/** Разложить экспорты кита по модулям: сначала корень пакета, затем подпути по алфавиту. */
+export function groupUiKitImports(names: readonly string[]): Array<[string, string[]]> {
+  const byModule = new Map<string, string[]>();
+  for (const name of names) {
+    const from = UI_KIT_SUBPATH_IMPORTS[name] ?? '@reformer/ui-kit';
+    byModule.set(from, [...(byModule.get(from) ?? []), name]);
+  }
+  return [...byModule].sort(([first], [second]) => first.localeCompare(second));
+}
+
 /**
  * Удалённые `*Field`-экспорты → registry-имя поля, которое их заменило.
  *

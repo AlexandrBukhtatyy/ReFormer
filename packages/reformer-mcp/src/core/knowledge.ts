@@ -17,6 +17,7 @@ import { mergeIndex, type IndexSource } from './index/merge.js';
 import { EMPTY_RECIPE_SOURCE, type RecipeSource } from './docs/recipes.js';
 import { EMPTY_SPEC_SOURCE, type SpecSource } from './spec/source.js';
 import { UNAVAILABLE_ISSUE_SINK, type IssueSink } from './issues/sink.js';
+import { UNAVAILABLE_FORM_WORKSPACE, type FormWorkspace } from './workspace/form-workspace.js';
 import type { PublicSymbol } from './index/public-symbol.js';
 import type { MergedIndex } from './index/types.js';
 
@@ -44,6 +45,8 @@ export interface KnowledgeSources {
   spec?: SpecSource;
   /** Куда сохранять отчёты `report_issue`. Отсутствует — инструмент честно откажет. */
   issues?: IssueSink;
+  /** Куда `form_build` записывает модуль формы. Отсутствует — инструмент откажет. */
+  forms?: FormWorkspace;
   /** Отсутствует — пакеты без индекса просто не дадут символов. */
   symbolsFallback?: SymbolsFallback;
 }
@@ -59,6 +62,8 @@ export interface Knowledge {
   readonly spec: SpecSource;
   /** Сток отчётов; в средах без записи — {@link UNAVAILABLE_ISSUE_SINK}. */
   readonly issues: IssueSink;
+  /** Каталоги форм; в средах без записи — {@link UNAVAILABLE_FORM_WORKSPACE}. */
+  readonly forms: FormWorkspace;
   /** См. {@link SymbolsFallback}. */
   readonly symbolsFallback?: SymbolsFallback;
   /**
@@ -84,6 +89,7 @@ export function createKnowledge(sources: KnowledgeSources): Knowledge {
     recipes: sources.recipes ?? EMPTY_RECIPE_SOURCE,
     spec: sources.spec ?? EMPTY_SPEC_SOURCE,
     issues: sources.issues ?? UNAVAILABLE_ISSUE_SINK,
+    forms: sources.forms ?? UNAVAILABLE_FORM_WORKSPACE,
     ...(sources.symbolsFallback ? { symbolsFallback: sources.symbolsFallback } : {}),
     memo: new Map(),
   };

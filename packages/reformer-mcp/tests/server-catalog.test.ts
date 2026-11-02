@@ -23,8 +23,12 @@ const NODE_TOOLS = [
   'validate_form',
   'plan_form',
   'generate_form',
+  'form_build',
   'report_issue',
 ];
+
+/** Инструменты, которым нужен диск: в воркере их нет. */
+const NODE_ONLY_TOOLS = ['form_build', 'report_issue'];
 
 const names = (catalog: ReturnType<typeof createToolCatalog>) =>
   catalog.list().map((tool) => tool.name);
@@ -70,8 +74,12 @@ describe('каталог инструментов — профиль node', () =
 describe('каталог инструментов — профиль browser', () => {
   const catalog = createToolCatalog(cliKnowledge, { profile: 'browser', debug: true });
 
-  it('без report_issue и debug, даже по флагу', () => {
-    expect(names(catalog)).toEqual(NODE_TOOLS.filter((name) => name !== 'report_issue'));
+  it('без инструментов диска и debug, даже по флагу', () => {
+    expect(names(catalog)).toEqual(NODE_TOOLS.filter((name) => !NODE_ONLY_TOOLS.includes(name)));
+  });
+
+  it('form_build не вызывается: записывать форму там некуда', async () => {
+    await expect(catalog.call('form_build', {})).rejects.toThrow('Unknown tool: form_build');
   });
 
   it('report_issue не вызывается: отчёт в памяти воркера пропал бы', async () => {

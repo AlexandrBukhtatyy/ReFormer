@@ -15,6 +15,7 @@ import { createCliIndexSource } from './index-source.js';
 import { createCliRecipeSource } from './recipe-source.js';
 import { createCliSpecSource } from './spec-source.js';
 import { createCliIssueSink } from './issue-sink.js';
+import { createCliFormWorkspace } from './form-workspace.js';
 
 /**
  * Разбор AST — только как фолбэк для пакета без индекса.
@@ -38,6 +39,7 @@ export function cliKnowledge(): Knowledge {
     recipes: createCliRecipeSource(),
     spec: createCliSpecSource(),
     issues: createCliIssueSink(),
+    forms: createCliFormWorkspace(),
     symbolsFallback: parseSymbolsFallback,
   }));
 }

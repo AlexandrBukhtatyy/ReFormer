@@ -274,6 +274,20 @@
     }
   },
   {
+    "name": "form_build",
+    "description": "Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit. Nothing is written while errors remain. Call it before the intent file exists to get the intent grammar. Keep the requested stack in \"target\": on core you also write the JSX markup in index.tsx.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Form folder inside the project (default \"form\")."
+        }
+      },
+      "required": []
+    }
+  },
+  {
     "name": "report_issue",
     "description": "Record a ReFormer problem and its fix as a JSON report on disk (`<project>/.reformer/issue_reports`, override REFORMER_ISSUE_REPORTS_DIR). Not aggregated, not fed back into other tools.",
     "inputSchema": {

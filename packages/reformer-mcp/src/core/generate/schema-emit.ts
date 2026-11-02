@@ -18,7 +18,11 @@
  */
 
 import type { ArrayIntent, FieldIntent, FormIntent, LayoutNode } from './form-intent.js';
-import { UI_KIT_CONTAINER_EXPORTS, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+import {
+  groupUiKitImports,
+  UI_KIT_CONTAINER_EXPORTS,
+  UI_KIT_FIELD_EXPORTS,
+} from './ui-kit-components.js';
 
 /** Узел документа формата 2. Чем он является, решают ключи: `item` — массив, `part` — подформа. */
 export interface SchemaDocNode {
@@ -454,8 +458,8 @@ export function buildFormSchemaTs(intent: FormIntent): { content: string; warnin
       `import { ${[...imports.cdkWizard].sort().join(', ')} } from '@reformer/cdk/form-wizard';`
     );
   }
-  if (imports.uiKit.size > 0) {
-    lines.push(importLine([...imports.uiKit].sort(), '@reformer/ui-kit'));
+  for (const [from, names] of groupUiKitImports([...imports.uiKit].sort())) {
+    lines.push(importLine(names, from));
   }
   for (const name of [...imports.unknownComponents].sort()) {
     lines.push(`// TODO: импортируйте компонент \`${name}\` — его нет в таблице импортов ui-kit.`);

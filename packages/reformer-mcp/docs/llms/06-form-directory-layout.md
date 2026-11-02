@@ -278,3 +278,12 @@ the render layer and the app shim of the wizard. Modules written the old way kee
 Fix it when you next touch the module; new code uses the canonical names only. `core` and
 `renderer-react` share one file set, so the files alone no longer tell these targets apart — pass
 `target` to `validate_form kind="layout"` explicitly.
+
+## 8. `form.intent.json` — the source for `form_build`
+
+An optional addition to the module. Author and edit only this file: `form_build` compiles it,
+type-checks the result and writes the module. Files it wrote start with a `// @reformer-form-build`
+marker. Editing such a file by hand detaches it: the build keeps your version and says so; delete
+the file to bring it back. `types.ts` and `api.ts` stay yours. On the `core` target `index.tsx` is
+yours too: the build creates a stub once, you write the JSX markup there, and the build type-checks
+it.

@@ -13,11 +13,22 @@
  */
 
 import { findCycle, type Dependency } from '../utils/graph.js';
-import { modelPaths, type FormIntent } from './form-intent.js';
+import { modelPaths, type FormIntent, type LayoutNode } from './form-intent.js';
 import { collectUsedComponents } from './builders.js';
 
 /** Код проверки. Стабилен: на него ссылаются сообщения и тесты. */
-export type CrossCheckCode = 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7' | 'C8' | 'C9' | 'C10';
+export type CrossCheckCode =
+  | 'C1'
+  | 'C2'
+  | 'C3'
+  | 'C4'
+  | 'C5'
+  | 'C6'
+  | 'C7'
+  | 'C8'
+  | 'C9'
+  | 'C10'
+  | 'C11';
 
 export interface CrossCheckIssue {
   code: CrossCheckCode;
@@ -403,7 +414,63 @@ export function crossCheckBundle(
     }
   }
 
+  // C11 — ссылки раскладки ведут в объявленное. Генератор выбрасывает такой узел молча, поэтому
+  // C1 его уже не видит: документ приходит без него, а форма — без поля.
+  for (const message of inspectLayoutRefs(intent).unknown) err('C11', message);
+
   return { ok: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Обойти дерево раскладки intent: на что оно ссылается и что из этого не объявлено.
+ *
+ * Обход идёт по intent, а не по документу схемы: в документе ссылки на необъявленное уже нет.
+ *
+ * @returns `placed` — пути полей и массивов, стоящих в раскладке; `unknown` — сообщения о ссылках в
+ *   никуда.
+ */
+export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; unknown: string[] } {
+  const placed = new Set<string>();
+  const unknown: string[] = [];
+  const declared = (entities: ReadonlyArray<{ name: string; modelPath?: string }>) =>
+    new Set(entities.flatMap((entity) => [entity.name, entity.modelPath ?? entity.name]));
+  const fields = declared(intent.fields);
+  const arrays = declared(intent.arrays);
+
+  const walk = (node: LayoutNode, scope: string | null, parts: readonly string[]): void => {
+    const absolute = (ref: string): string => (scope ? `${scope}.${ref}` : ref);
+    switch (node.kind) {
+      case 'field':
+        placed.add(absolute(node.ref));
+        if (!fields.has(absolute(node.ref))) {
+          unknown.push(
+            `Раскладка ссылается на поле \`${absolute(node.ref)}\` — такого нет в fields.`
+          );
+        }
+        return;
+      case 'array':
+        placed.add(absolute(node.ref));
+        if (!arrays.has(absolute(node.ref))) {
+          unknown.push(
+            `Раскладка ссылается на массив \`${absolute(node.ref)}\` — такого нет в arrays.`
+          );
+        }
+        return;
+      case 'part': {
+        const part = intent.parts?.[node.part];
+        if (!part) {
+          unknown.push(`Раскладка подключает часть \`${node.part}\` — такой нет в parts.`);
+        } else if (!parts.includes(node.part)) {
+          walk(part, absolute(node.ref), [...parts, node.part]);
+        }
+        return;
+      }
+      default:
+        for (const child of node.children) walk(child, scope, parts);
+    }
+  };
+  walk(intent.layoutRoot, null, []);
+  return { placed, unknown };
 }
 
 /**
