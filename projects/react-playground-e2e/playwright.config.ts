@@ -232,6 +232,17 @@ export default defineConfig({
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md
     // и docs/plans/proud-pondering-jellyfish.md.
+    // Браузерная стадия верификатора MCP: формы и ожидания приходят манифестом, см.
+    // packages/reformer-mcp/eval/verify/browser.mjs.
+    ...(process.env.MCP_SCENARIO_MANIFEST
+      ? [
+          {
+            name: 'mcp-scenarios',
+            testDir: './tests/mcp-scenarios',
+            use: { ...devices['Desktop Chrome'] },
+          },
+        ]
+      : []),
     ...(MCP_ITER_VERSION
       ? [
           {
