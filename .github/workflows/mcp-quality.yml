@@ -1,0 +1,50 @@
+name: MCP quality
+
+# Приборы качества @reformer/mcp, которым тесно в обычном CI: калибровка по эталонным формам, эталоны
+# сценариев и сценарии без модели. Живые прогоны с моделью здесь не идут: они тратят лимит и не
+# детерминированы. Метод — docs/mcp-eval/scenarios.md.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  mcp-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Build MCP worker bundle for the builder
+        run: npm run mcp:build -w reformer-builder-playground
+
+      # Отдельным шагом: компилятор на десяти формах грузит процессор, и соседние тесты упирались бы в тайм-аут.
+      - name: Slow generator properties
+        env:
+          REFORMER_TEST_SLOW: '1'
+        run: npm run test -w @reformer/mcp -- tests/generate-form-property.test.ts
+
+      - name: Calibration against baseline
+        run: npm run mcp:calibrate -- --gate
+
+      - name: Scenario references satisfy their contracts
+        run: npm run mcp:verify -- --golden
+
+      - name: Verifier catches broken forms
+        run: npm run mcp:verify -- --negative
+
+      - name: Scenarios end to end, without a model
+        run: npm run mcp:scenarios -- --matrix smoke

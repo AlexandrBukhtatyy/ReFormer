@@ -121,7 +121,14 @@ jobs:
         run: npm run build -w @reformer/mcp
 
       - name: Run @reformer/mcp tests
+        # Строгий режим: пропуск теста из-за отсутствующего артефакта (документация, индекс, dist)
+        # здесь ошибка, а не тихо выключенный тест. См. tests/support/preconditions.ts.
+        env:
+          REFORMER_TEST_STRICT: '1'
         run: npm run test -w @reformer/mcp
+
+      - name: Typecheck @reformer/mcp tests
+        run: npm run typecheck:tests -w @reformer/mcp
 
       - name: MCP prompts render
         # Каждый зарегистрированный промпт обязан отрендериться, а шаблоны — не содержать
@@ -134,8 +141,8 @@ jobs:
         run: npm run check:mcp-render
 
       - name: MCP retrieval eval
-        # 46 задач через живой stdio-сервер: отдаёт ли он знание, нужное для задачи, за
-        # сколько вызовов и токенов. Гейт против docs/mcp-eval/baseline-v6.json — падает,
+        # 61 задача через живой stdio-сервер: отдаёт ли он знание, нужное для задачи, за
+        # сколько вызовов и токенов. Гейт против docs/mcp-eval/baseline.json — падает,
         # если упал hit/first-pass или выросли статическая поверхность либо медиана
         # токенов/вызовов. Метод и вскрытые ограничения — docs/mcp-eval/README.md.
         run: npm run mcp:evaluate
