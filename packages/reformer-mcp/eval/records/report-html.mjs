@@ -244,7 +244,11 @@ if (isCli) {
     outIndex >= 0 ? argv[outIndex + 1] : path.join(repoRoot, '.tmp/mcp-eval/report/index.html')
   );
   const files = [...jsonlFiles(publishedDirectory)];
-  if (argv.includes('--local')) files.push(...jsonlFiles(runsDirectory));
+  // В каталоге прогона лежат и другие .jsonl (server-trace, transcript): записи — только records.jsonl.
+  if (argv.includes('--local'))
+    files.push(
+      ...jsonlFiles(runsDirectory).filter((file) => path.basename(file) === 'records.jsonl')
+    );
   const seen = new Set();
   const records = files.flatMap(readRecords).filter((record) => {
     if (seen.has(record.runId)) return false;
