@@ -49,6 +49,7 @@ import { parseSchemaText } from '../model/schema-text';
 import type { RulesLock, ToolContext, ToolOutcome } from '../model/types';
 import type { LoadValidateForm, ValidateFormSchema } from '../model/validate';
 import { systemPrompt } from '../loop/prompt';
+import { buildFormGrammar } from '../tools/build-form/grammar';
 import { applyChangeSet } from './land';
 import {
   readRuleCode,
@@ -58,7 +59,7 @@ import {
   writeModuleCode,
   type RuleCodeBase,
 } from './rule-code';
-import { formSeed } from './seed';
+import { buildFormEmptySeed, formSeed } from './seed';
 import type { FormSplitWriter } from './workspace';
 
 /** Документ формы, как его разобрал стек: схема и правила на начало хода. */
@@ -98,6 +99,8 @@ export interface SchemaTurnOptions {
   readonly rulesLock?: RulesLock;
   /** Переопределение системного промпта (тесты). */
   readonly system?: string;
+  /** В наборе инструментов есть `build_form`: промпт и затравка пустой формы говорят о нём. */
+  readonly buildForm?: boolean;
 }
 
 /**
@@ -127,8 +130,17 @@ function lockMessages(lock: RulesLock | undefined): string[] {
 export function createSchemaTurn(options: SchemaTurnOptions): SchemaTurn {
   let set = createChangeSet(options.base, options.rules);
   return {
-    system: () => options.system ?? systemPrompt(options.catalog),
-    seed: () => formSeed(options.base, options.rules, lockMessages(options.rulesLock)),
+    system: () =>
+      options.system ?? systemPrompt(options.catalog, { buildForm: options.buildForm === true }),
+    seed: () =>
+      formSeed(
+        options.base,
+        options.rules,
+        lockMessages(options.rulesLock),
+        ...(options.buildForm === true
+          ? [buildFormEmptySeed(buildFormGrammar(options.catalog))]
+          : [])
+      ),
     context: (): ToolContext => ({
       draft: set.draft,
       base: options.base,
@@ -170,6 +182,8 @@ export interface StructuredModeOptions {
    * сам. `null` — можно.
    */
   readonly refuse: (id: ResourceId, form: ResourceId) => string | null;
+  /** В наборе инструментов есть `build_form` (`../tools`, флаг эксперимента). */
+  readonly buildForm?: boolean;
 }
 
 /** Структурный режим одного сеанса стека. */
@@ -222,6 +236,7 @@ export function createStructuredMode(options: StructuredModeOptions): FormStruct
         catalog: options.catalog(),
         validateForm: options.prepared(),
         ...(rulesLock === undefined ? {} : { rulesLock }),
+        ...(options.buildForm === true ? { buildForm: true } : {}),
       });
     },
 

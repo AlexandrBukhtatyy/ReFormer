@@ -58,6 +58,8 @@ export interface AgentTurnOptions {
   base: JsonFormSchema;
   /** Правила вкладки на начало хода — см. `SchemaTurnOptions.rules`. */
   baseRules?: FormRules;
+  /** `build_form` в наборе: промпт и затравка говорят о нём (`SchemaTurnOptions.buildForm`). */
+  buildForm?: boolean;
   /** История диалога, включая новое сообщение пользователя. */
   messages: readonly AiMessage[];
   /** Предел шагов; по умолчанию его нет — см. {@link DEFAULT_MAX_STEPS}. */
@@ -103,6 +105,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
     catalog: opts.catalog,
     validateForm: opts.validateForm,
     ...(opts.system === undefined ? {} : { system: opts.system }),
+    ...(opts.buildForm === true ? { buildForm: true } : {}),
   });
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
 

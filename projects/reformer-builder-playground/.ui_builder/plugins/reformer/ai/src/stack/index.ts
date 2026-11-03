@@ -75,12 +75,18 @@ export interface SchemaFormStackOptions {
   readonly formOf?: (id: ResourceId) => Promise<ResourceId | null>;
   /** Формы проекта (`./workspace`); нет — ход без формы на вкладке идёт в создание. */
   readonly forms?: (recognizes: (text: string) => boolean) => Promise<readonly FormListing[]>;
+  /**
+   * `build_form` в структурном режиме — эксперимент плана mcp-misty-graham (этап 2). Нет — набор,
+   * промпт и затравка прежние.
+   */
+  readonly buildForm?: boolean;
 }
 
 /** Собрать стек форм ReFormer. */
 export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssistantStack {
   const reference = options.reference === undefined ? {} : { reference: options.reference };
-  const structuredTools = structuredSlots(reference);
+  const buildForm = options.buildForm === true;
+  const structuredTools = structuredSlots({ ...reference, ...(buildForm ? { buildForm } : {}) });
   const fileTools = fileModeSlots(reference);
   return {
     id: SCHEMA_FORM_STACK_ID,
@@ -120,6 +126,7 @@ export function createSchemaFormStack(options: SchemaFormStackOptions): FormAssi
         ...(options.splitWriter === undefined ? {} : { splitWriter: options.splitWriter }),
         ...(options.generator === undefined ? {} : { generator: options.generator }),
         refuse: formPartRefusal,
+        ...(buildForm ? { buildForm } : {}),
       });
       const files =
         host.files === undefined || options.scopeOf === undefined

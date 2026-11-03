@@ -19,6 +19,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { isCompoundPart, partNamesOf } from '../../../core/catalog';
 import type { CatalogEntry, CatalogRole } from '../../../core/catalog';
 import { toInspectorProps } from '../../../core/catalog';
+import { isStepsHostName } from '../../../core/form-model';
 import { buildOutline, renderOutline } from './outline';
 import { joinWithinBudget } from '@reformer/builder-toolkit';
 import { printJson } from '../../../core/codegen/print/js';
@@ -91,6 +92,28 @@ export interface ListComponentsFilter {
 /** Все каталожные имена — для проверок и подсказок. */
 export function componentNames(catalog: Catalog): string[] {
   return catalog.map((e) => e.name);
+}
+
+/**
+ * Визард кита и его шаг; `null` — визарда в ките нет.
+ *
+ * Визард узнаётся по имени (`isStepsHostName`), шаг — запись той же категории: узлы визарда
+ * билдер добавляет к каталогу любого кита одной группой. Нужен промпту (правило о вставке
+ * визарда) и `build_form`, который переводит библиотечные `FormWizard`/`Step` intent в имена кита.
+ */
+export function wizardNames(
+  catalog: Catalog
+): { readonly wizard: string; readonly step: string } | null {
+  const containers = listComponents(catalog, { role: 'container' });
+  const wizard = containers.find((c) => isStepsHostName(c.name));
+  if (wizard?.category === undefined) return null;
+  const step = containers.find((c) => c.category === wizard.category && !isStepsHostName(c.name));
+  return step === undefined ? null : { wizard: wizard.name, step: step.name };
+}
+
+/** Компонент, которым кит рисует массив; `undefined` — массива в каталоге нет. */
+export function arrayName(catalog: Catalog): string | undefined {
+  return catalog.find((e) => e.role === 'array')?.name;
 }
 
 /**

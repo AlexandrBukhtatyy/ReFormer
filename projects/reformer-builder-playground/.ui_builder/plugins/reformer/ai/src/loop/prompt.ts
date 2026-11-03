@@ -11,8 +11,7 @@
  * @module plugins/reformer/ai/loop/prompt
  */
 
-import { isStepsHostName } from '../../../core/form-model';
-import { commonProps, listComponents, type Catalog } from '../model/catalog-digest';
+import { commonProps, listComponents, wizardNames, type Catalog } from '../model/catalog-digest';
 
 /** Сколько контейнеров назвать в промпте: остальные модель добирает через `list_components`. */
 const CONTAINERS_IN_PROMPT = 12;
@@ -26,6 +25,18 @@ const CONTAINERS_IN_PROMPT = 12;
  */
 const cache = new WeakMap<object, string>();
 
+/** Тот же кэш для промпта с `build_form`: другой набор инструментов — другой промпт. */
+const buildFormCache = new WeakMap<object, string>();
+
+/** Чем промпт отличается от набора к набору инструментов. */
+export interface PromptOptions {
+  /**
+   * В наборе есть `build_form` (план mcp-misty-graham, этап 2): крупная сборка идёт одним intent,
+   * а не пакетами `insert_node`. Без флага промпт побайтово прежний — на нём снята база замера.
+   */
+  readonly buildForm?: boolean;
+}
+
 /**
  * Системный промпт для хода агента.
  *
@@ -34,44 +45,47 @@ const cache = new WeakMap<object, string>();
  * кэш на каждом шаге — то есть ровно там, где он и должен был окупиться.
  *
  * @param catalog - Каталог активного кита; он же ключ кэша.
+ * @param options - Набор инструментов, под который написан промпт.
  */
-export function systemPrompt(catalog: Catalog): string {
-  const known = cache.get(catalog);
+export function systemPrompt(catalog: Catalog, options: PromptOptions = {}): string {
+  const store = options.buildForm === true ? buildFormCache : cache;
+  const known = store.get(catalog);
   if (known !== undefined) return known;
-  const built = buildPrompt(catalog);
-  cache.set(catalog, built);
+  const built = buildPrompt(catalog, options.buildForm === true);
+  store.set(catalog, built);
   return built;
 }
 
-/**
- * Визард кита и его шаг — для правила о вставке визарда; `null` — визарда в ките нет.
- *
- * Список контейнеров промпта их не называет (он короткий, а узлы визарда стоят в каталоге в
- * конце), и в живых прогонах модель шла за ними в `list_components`, а то и вставляла шаг без
- * компонента. Визард узнаётся по имени (`isStepsHostName`), шаг — запись той же категории:
- * узлы визарда билдер добавляет к каталогу любого кита одной группой.
- */
-function wizardNames(catalog: Catalog): { readonly wizard: string; readonly step: string } | null {
-  const containers = listComponents(catalog, { role: 'container' });
-  const wizard = containers.find((c) => isStepsHostName(c.name));
-  if (wizard?.category === undefined) return null;
-  const step = containers.find((c) => c.category === wizard.category && !isStepsHostName(c.name));
-  return step === undefined ? null : { wizard: wizard.name, step: step.name };
-}
-
-function buildPrompt(catalog: Catalog): string {
+function buildPrompt(catalog: Catalog, buildForm: boolean): string {
   const fields = listComponents(catalog, { role: 'field' }).map((c) => c.name);
   const wizard = wizardNames(catalog);
   const containers = listComponents(catalog, { role: 'container' })
     .slice(0, CONTAINERS_IN_PROMPT)
     .map((c) => c.name);
   const shared = commonProps(catalog, 'field');
+  const wizardRule = `A wizard${wizard ? ` (${wizard.wizard})` : ''} holds steps${wizard ? ` (${wizard.step})` : ''}, a step holds fields.`;
+  const intro = buildForm
+    ? 'You never write JSON schemas, except the intent you pass to build_form.'
+    : 'You never write JSON schemas.';
+  const bulk = buildForm
+    ? `- Build, don't drip. A whole form, a wizard step or a block of more than about five fields,
+  with their rules, is ONE build_form call (its grammar: call it once without intent). A big
+  wizard (over ~15 fields): build_form with the steps and empty "fields" first, then one build_form
+  per step, parent = the step address it reported. Point edits: the other tools.`
+    : `- Group, don't drip. Six fields into one step is ONE insert_node with six entries in "nodes", not
+  six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a long
+  answer, and if it is cut off mid-way nothing is applied. For forty fields
+  send three or four calls into the same parent — they append one after another.`;
+  const wizardBullet = buildForm
+    ? `- ${wizardRule}`
+    : `- ${wizardRule.slice(0, -1)}. Insert a wizard and its steps (no fields)
+  with ONE insert_node, then fill all steps in the next answer, one insert_node per step.`;
 
   return `You are the assistant of the ReFormer form builder. You help the user create and edit forms.
 
 ## How you work
 
-You never write JSON schemas. You change forms only through the provided tools. The builder owns
+${intro} You change forms only through the provided tools. The builder owns
 the schema format, node placement rules, model bindings and history — you own intent.
 
 Nodes are addressed by JSON Pointer: /root/children/0, /root/children/1/children/0.
@@ -96,10 +110,7 @@ call with every component name you need.
 
 ## Hard rules
 
-- Group, don't drip. Six fields into one step is ONE insert_node with six entries in "nodes", not
-  six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a long
-  answer, and if it is cut off mid-way nothing is applied. For forty fields
-  send three or four calls into the same parent — they append one after another.
+${bulk}
 - Names are never invented. Editor components — from the lists above or list_components;
   ReFormer API (operators, validation) — ask ask_reformer. An invented name is refused by the
   editor, and the refusal costs you a step.
@@ -109,8 +120,7 @@ call with every component name you need.
   if the address is stale.
 - Composite components (tabs, cards, wizards, tables…) arrive assembled unless you pass their
   children. Use the addresses insert_node reports; never build their parts a second time.
-- A wizard${wizard ? ` (${wizard.wizard})` : ''} holds steps${wizard ? ` (${wizard.step})` : ''}, a step holds fields. Insert a wizard and its steps (no fields)
-  with ONE insert_node, then fill all steps in the next answer, one insert_node per step.
+${wizardBullet}
 - Visible content of a node (tab caption, button text, heading) is set through set_node_prop with
   the property "text". A field's caption is "label", a step's or section's is "title".
 

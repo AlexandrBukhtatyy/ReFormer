@@ -30,6 +30,7 @@ import { getFormOutline } from './get-form-outline';
 import { groupNodesTool } from './group-nodes';
 import { insertNodeTool } from './insert-node';
 import { listComponentsTool } from './list-components';
+import { buildFormTool } from './build-form';
 import { createReformerDocsTool } from './reformer-docs';
 import { moveNodeTool } from './move-node';
 import { removeNodeTool } from './remove-node';
@@ -41,6 +42,7 @@ import { setNodePropTool } from './set-node-prop';
 import { validateForm } from './validate-form';
 
 export {
+  buildFormTool,
   createReformerDocsTool,
   describeComponentTool,
   duplicateNodeTool,
@@ -64,6 +66,11 @@ export {
 export interface ToolsOptions {
   /** Справка по библиотеке; без неё `ask_reformer` отвечает «недоступно». */
   reference?: ResolveLibraryReference;
+  /**
+   * `build_form` в наборе — эксперимент плана mcp-misty-graham (этап 2): крупная сборка одним
+   * intent. Без флага набор прежний: на нём снята база замера.
+   */
+  buildForm?: boolean;
 }
 
 /** Инструменты, не меняющие схему. */
@@ -95,7 +102,12 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
 
 /** Инструменты стека: чтение и запись черновика. */
 export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
-  return [...readOnlyTools(options), ...WRITE_TOOLS];
+  return [...readOnlyTools(options), ...writeTools(options)];
+}
+
+/** Инструменты записи набора: с `build_form` первым, если он включён. */
+function writeTools(options: ToolsOptions): readonly AgentTool[] {
+  return options.buildForm === true ? [buildFormTool, ...WRITE_TOOLS] : WRITE_TOOLS;
 }
 
 /**
@@ -108,5 +120,11 @@ export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
  * неизвестный шаблон `create_form` и так отвергает со списком.
  */
 export function structuredSlots(options: ToolsOptions = {}): readonly FormToolSlot[] {
-  return [...readOnlyTools(options), 'ask_user', ...WRITE_TOOLS, 'generate_code', 'create_form'];
+  return [
+    ...readOnlyTools(options),
+    'ask_user',
+    ...writeTools(options),
+    'generate_code',
+    'create_form',
+  ];
 }

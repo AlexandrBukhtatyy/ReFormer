@@ -51,17 +51,32 @@ const OUTLINE_SEED_LEAD =
 const EMPTY_FORM_SEED =
   'The form is empty at the start of this turn: insert the first nodes into /root, the form root.';
 
-/** Затравка формы: карта и правила. */
+/**
+ * Затравка пустой формы с `build_form`: грамматика intent сразу, чтобы ход создания не тратил
+ * обращение к модели на вызов без intent.
+ */
+export function buildFormEmptySeed(grammar: string): string {
+  return (
+    'The form is empty at the start of this turn: build it with ONE build_form call, no parent. ' +
+    `Its intent grammar:\n\n${grammar}`
+  );
+}
+
+/**
+ * Затравка формы: карта и правила.
+ *
+ * @param empty - Затравка пустой формы вместо обычной (`build_form`, {@link buildFormEmptySeed}).
+ */
 export function formSeed(
   base: JsonFormSchema,
   rules?: FormRules,
-  locks: readonly string[] = []
+  locks: readonly string[] = [],
+  empty: string = EMPTY_FORM_SEED
 ): string {
   const entries = buildOutline(base, rules);
   const rulesText = rules ? renderRulesSeed(rules) : '';
   const locksText = renderLocksSeed(locks);
-  if (entries.length <= 1)
-    return [EMPTY_FORM_SEED, rulesText, locksText].filter(Boolean).join('\n\n');
+  if (entries.length <= 1) return [empty, rulesText, locksText].filter(Boolean).join('\n\n');
   const map = renderOutline(entries, OUTLINE_SEED_BUDGET);
   return `${OUTLINE_SEED_LEAD}\n${[map, rulesText, locksText].filter(Boolean).join('\n\n')}`;
 }
