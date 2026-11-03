@@ -26,8 +26,8 @@
  * Переменные: `EVAL_KIND` (`openai-compatible` | `anthropic` | `openai`), `EVAL_BASE_URL`,
  * `EVAL_API_KEY`, `EVAL_MODES` (`structured,files`), `EVAL_SCENARIOS` (`spec,rules`),
  * `EVAL_RUNS` (1), `EVAL_SPEC`, `EVAL_OUT` (`.tmp/ab-eval`), `EVAL_DRY` (`1` — без модели),
- * `EVAL_PAGES` (`1` — печатать модули в стенд; `0` — только счёт), `EVAL_BUILD_FORM` (`1` — структурный
- * режим с `build_form`, план mcp-misty-graham, этап 2).
+ * `EVAL_PAGES` (`1` — печатать модули в стенд; `0` — только счёт), `EVAL_BUILD_FORM` (`0` — структурный
+ * режим без `build_form`, база замера плана mcp-misty-graham, этап 2; по умолчанию он в наборе).
  *
  * @module plugins/reformer/integration/assistant-ab-eval.test
  */
@@ -75,8 +75,8 @@ const MODES = (process.env.EVAL_MODES ?? 'structured,files').split(',') as Mode[
 const SCENARIOS = (process.env.EVAL_SCENARIOS ?? 'spec,rules').split(',');
 const RUNS = Number(process.env.EVAL_RUNS ?? 1);
 const PAGES = process.env.EVAL_PAGES !== '0';
-/** `build_form` в структурном режиме — `EVAL_BUILD_FORM=1`. */
-const BUILD_FORM = process.env.EVAL_BUILD_FORM === '1';
+/** `build_form` в структурном режиме; `EVAL_BUILD_FORM=0` — без него. */
+const BUILD_FORM = process.env.EVAL_BUILD_FORM !== '0';
 /** Сухой прогон без модели — `EVAL_DRY=1`. */
 const DRY = process.env.EVAL_DRY === '1';
 
@@ -408,12 +408,12 @@ async function structuredTurn(
   };
   for await (const event of runAgentTurn({
     provider: provider(),
-    registry: createEditorToolRegistry({ reference, ...(BUILD_FORM ? { buildForm: true } : {}) }),
+    registry: createEditorToolRegistry({ reference, buildForm: BUILD_FORM }),
     catalog,
     validateForm: validateFormSchema,
     base,
     baseRules,
-    ...(BUILD_FORM ? { buildForm: true } : {}),
+    buildForm: BUILD_FORM,
     messages: [{ role: 'user', content: task }],
   })) {
     if (event.type !== 'done') record.event(event);

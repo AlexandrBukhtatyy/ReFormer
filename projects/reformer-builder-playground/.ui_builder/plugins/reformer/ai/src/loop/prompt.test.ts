@@ -41,8 +41,9 @@ describe('системный промпт', () => {
 
   it('визард — с шагами одним вызовом, поля шагов — следующим ответом', () => {
     // Замер gemma4 (ReFormer-qsm8.12): визард с шагами и полями одним вызовом — три уровня
-    // children — модель записывала с лишней скобкой, и сервер выбрасывал вызов целиком.
-    const text = systemPrompt(catalog);
+    // children — модель записывала с лишней скобкой, и сервер выбрасывал вызов целиком. Правило —
+    // набора без `build_form`; с ним визард тоже идёт шагами, а поля — в шаг (`build-form.test`).
+    const text = systemPrompt(catalog, { buildForm: false });
     expect(text).toContain('Insert a wizard and its steps (no fields)');
     expect(text).toContain('fill all steps in the next answer, one insert_node per step');
     expect(text).not.toContain("each step's fields in that step's children");

@@ -68,7 +68,7 @@ async function turn(script: readonly FakeStep[], buildForm = true) {
     validateForm: () => Promise.resolve(validateFormSchema),
     scopeOf: (id) => files.scopeOf(id),
     generator: () => codegen,
-    ...(buildForm ? { buildForm: true } : {}),
+    buildForm,
   });
   const bridge = createAgentBridge({
     assistant,

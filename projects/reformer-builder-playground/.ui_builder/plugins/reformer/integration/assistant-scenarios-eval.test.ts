@@ -13,7 +13,8 @@
  * умолчанию, `anthropic`, `openai`), `EVAL_BASE_URL` — адрес OpenAI-совместимого канала,
  * `EVAL_API_KEY` — ключ облачного канала (у Ollama не нужен),
  * `EVAL_REASONING=off|low|medium|high` — рассуждение модели (настройка канала `reasoning`),
- * `EVAL_BUILD_FORM=1` — структурный режим с `build_form` (план mcp-misty-graham, этап 2),
+ * `EVAL_BUILD_FORM=0` — структурный режим без `build_form`, как до него (база замера плана
+ * mcp-misty-graham, этап 2; по умолчанию `build_form` в наборе, как в билдере),
  * `EVAL_DUMP=<каталог>` — тело каждого запроса к модели и сырой ответ сервера файлами: по ним
  * видно то, что до хода не дошло (вызов, который сервер не разобрал).
  * Итог — таблицей в консоль и JSON в `.tmp/eval/` корня репозитория. Отчёт —
@@ -53,7 +54,7 @@ const API_KEY = process.env.EVAL_API_KEY ?? (KIND === 'openai-compatible' ? 'oll
 /** Рассуждение модели для A/B; нет — по умолчанию канала. */
 const REASONING = process.env.EVAL_REASONING as ReasoningLevel | undefined;
 /** `build_form` в наборе структурного режима; нет — набор прежний. */
-const BUILD_FORM = process.env.EVAL_BUILD_FORM === '1';
+const BUILD_FORM = process.env.EVAL_BUILD_FORM !== '0';
 /** Куда писать сырые запросы и ответы; нет — не писать. */
 const DUMP = process.env.EVAL_DUMP;
 
@@ -915,7 +916,7 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
     generator: () => codegen,
     // Как в плагине: форма файла модуля и формы проекта — для выбора формы хода.
     ...projectFormsOf(files),
-    ...(BUILD_FORM ? { buildForm: true } : {}),
+    buildForm: BUILD_FORM,
   });
   const bridge = createAgentBridge({
     assistant,

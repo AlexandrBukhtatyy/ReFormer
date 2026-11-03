@@ -7,7 +7,11 @@ import { buildOutline } from '../model/outline';
 import { wizardNames } from '../model/catalog-digest';
 import type { ToolContext, ToolOutcome } from '../model/types';
 import { buildFormTool } from './build-form';
-import { BUILD_FORM_EXAMPLE } from './build-form/grammar';
+import {
+  BUILD_FORM_EXAMPLE,
+  BUILD_FORM_STEPS_EXAMPLE,
+  buildFormGrammar,
+} from './build-form/grammar';
 import { liftInline } from './build-form/lift';
 import { insertNodeTool } from './insert-node';
 import { structuredSlots } from '.';
@@ -49,9 +53,8 @@ describe('build_form', () => {
     expect(out.text).toContain('InputNumber');
   });
 
-  it('пример грамматики собирается: шаги, поля, строки массива, правила, видимость', async () => {
+  it('пример грамматики собирается: поля, строки массива, правила, видимость', async () => {
     const { schema, out } = expectBuilt(await build({ intent: BUILD_FORM_EXAMPLE }));
-    expect(stepsOf(schema)).toHaveLength(2);
     const paths = collectModelPaths(schema);
     for (const name of ['email', 'kind', 'inn', 'price', 'qty', 'total', 'billingEmail']) {
       expect(paths).toContain(name);
@@ -65,27 +68,101 @@ describe('build_form', () => {
       expect.objectContaining({ kind: 'hideWhen', condition: 'model.sameEmail === true' }),
     ]);
     expect(out.rules?.dataSources?.KINDS).toHaveLength(2);
-    expect(out.text).toContain('Steps: "Client" /root/children/0/children/0');
   });
 
-  it('шаги из сокращённой записи ложатся в визард кита, а не в FormWizard', async () => {
-    const { schema } = expectBuilt(
-      await build({
-        intent: {
-          fields: [
-            { name: 'a', component: 'Input', label: 'A' },
-            { name: 'b', component: 'Input', label: 'B' },
-          ],
-          steps: [
-            { title: 'One', fields: ['a'] },
-            { title: 'Two', fields: ['b'] },
-          ],
-        },
-      })
-    );
+  it('пример шагов грамматики — визард кита с пустыми шагами и их адресами', async () => {
+    const { schema, out } = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
     const wizard = getAt(schema, ['root', 'children', 0]) as { component: string };
     expect(wizard.component).toBe(`$component(${kit?.wizard})`);
     expect(stepsOf(schema)).toHaveLength(2);
+    expect(out.text).toContain(
+      'Steps: "Client" /root/children/0/children/0; "Order" /root/children/0/children/1.'
+    );
+  });
+
+  it('форма из нескольких шагов с полями сразу — отказ с первым вызовом по шагам', async () => {
+    const out = await build({
+      intent: {
+        fields: [
+          { name: 'a', component: 'Input', label: 'A' },
+          { name: 'b', component: 'Input', label: 'B' },
+        ],
+        steps: [
+          { title: 'One', fields: ['a'] },
+          { title: 'Two', fields: ['b'] },
+        ],
+      },
+    });
+    expect(out.ok).toBe(false);
+    expect(out.schema).toBeUndefined();
+    expect(out.text).toContain('{"steps":[{"title":"One"},{"title":"Two"}]}');
+  });
+
+  it('форма по шагам: шаги, затем поля и правила каждого шага в его адрес', async () => {
+    const steps = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
+    const [client, order] = stepsOf(steps.schema).map((entry) => entry.ref);
+    const { fields, arrays, validation, behavior, visibility, dataSources } = BUILD_FORM_EXAMPLE;
+    const first = expectBuilt(
+      await build(
+        {
+          parent: client,
+          intent: {
+            fields: fields.slice(0, 3),
+            validation: validation.slice(0, 2),
+            behavior: [behavior[2]],
+            dataSources,
+          },
+        },
+        ctxOf(steps.schema, emptySchema(), steps.out.rules)
+      )
+    );
+    const second = expectBuilt(
+      await build(
+        {
+          parent: order,
+          intent: {
+            fields: fields.slice(3),
+            arrays,
+            validation: validation.slice(2),
+            behavior: behavior.slice(0, 2),
+            visibility,
+          },
+        },
+        ctxOf(first.schema, emptySchema(), first.out.rules)
+      )
+    );
+    expect(stepsOf(second.schema)).toHaveLength(2);
+    expect(collectModelPaths(second.schema)).toEqual(
+      expect.arrayContaining(['email', 'kind', 'inn', 'price', 'total', 'billingEmail'])
+    );
+    // Правило второго шага называет поле первого: inn построен раньше.
+    expect(second.out.rules?.validation.map((r) => r.target)).toEqual(
+      expect.arrayContaining(['email', 'inn', 'qty', 'billingEmail'])
+    );
+    expect(second.out.rules?.behavior.map((b) => b.kind)).toEqual([
+      'enableWhen',
+      'compute',
+      'copyFrom',
+    ]);
+  });
+
+  it('один шаг с полями собирается сразу — и в готовый визард', async () => {
+    const steps = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
+    const wizard = '/root/children/0';
+    const { schema } = expectBuilt(
+      await build(
+        {
+          parent: wizard,
+          intent: {
+            fields: [{ name: 'city', component: 'Input', label: 'City' }],
+            steps: [{ title: 'Delivery', fields: ['city'] }],
+          },
+        },
+        ctxOf(steps.schema, emptySchema(), steps.out.rules)
+      )
+    );
+    expect(stepsOf(schema)).toHaveLength(3);
+    expect(collectModelPaths(schema)).toEqual(['city']);
   });
 
   it('форма без шагов: корневой Box intent разворачивается в корень формы', async () => {
@@ -342,21 +419,24 @@ describe('build_form: поля, описанные на месте', () => {
   });
 
   it('описание поля в шаге сокращённой записи поднимается в fields', async () => {
-    const { schema } = expectBuilt(
+    const { schema, out } = expectBuilt(
       await build({
         intent: {
           steps: [
-            { title: 'One', fields: [{ name: 'a', component: 'Input', label: 'A' }] },
             {
-              title: 'Two',
-              fields: [{ name: 'b', component: 'Input', label: 'B', required: true }],
+              title: 'One',
+              fields: [
+                { name: 'a', component: 'Input', label: 'A' },
+                { name: 'b', component: 'Input', label: 'B', required: true },
+              ],
             },
           ],
         },
       })
     );
-    expect(stepsOf(schema)).toHaveLength(2);
+    expect(stepsOf(schema)).toHaveLength(1);
     expect(collectModelPaths(schema)).toEqual(['a', 'b']);
+    expect(out.rules?.validation.map((r) => r.target)).toEqual(['b']);
   });
 
   it('узел поля с компонентом в разметке — объявление, а не ссылка на необъявленное', async () => {
@@ -507,25 +587,35 @@ describe('build_form: поля, описанные на месте', () => {
   });
 });
 
-describe('build_form за флагом', () => {
-  it('промпт с флагом укладывается в потолок и называет build_form', () => {
-    const text = systemPrompt(catalog, { buildForm: true });
+describe('build_form по умолчанию', () => {
+  it('промпт укладывается в потолок, называет build_form и сборку визарда по шагам', () => {
+    const text = systemPrompt(catalog);
     expect(text.length).toBeLessThanOrEqual(PROMPT_BUDGET);
     expect(text).toContain('ONE build_form call');
-    expect(systemPrompt(catalog)).not.toContain('build_form');
+    expect(text).toContain('build_form with only the steps first, then one build_form per step');
+    expect(systemPrompt(catalog, { buildForm: false })).not.toContain('build_form');
   });
 
-  it('затравка пустой формы с флагом несёт грамматику', () => {
+  it('затравка пустой формы несёт грамматику и порядок сборки визарда', () => {
     const seed = formSeed(emptySchema(), undefined, [], buildFormEmptySeed('GRAMMAR'));
-    expect(seed).toContain('build_form call, no parent');
+    expect(seed).toContain('build it with build_form, no parent');
+    expect(seed).toContain('first only the steps, then one call per step');
     expect(seed).toContain('GRAMMAR');
   });
 
-  it('build_form стоит в наборе перед insert_node только с флагом', () => {
+  it('build_form стоит в наборе перед insert_node; buildForm: false — набор без него', () => {
     const names = (options: { buildForm?: boolean }) =>
       structuredSlots(options).map((slot) => (typeof slot === 'string' ? slot : slot.name));
-    expect(names({})).not.toContain('build_form');
-    const flagged = names({ buildForm: true });
+    const flagged = names({});
     expect(flagged.indexOf('build_form')).toBe(flagged.indexOf('insert_node') - 1);
+    expect(names({ buildForm: false })).not.toContain('build_form');
+  });
+
+  it('грамматика называет сборку по шагам, а её пример шагов собирается', () => {
+    const grammar = buildFormGrammar(catalog);
+    expect(grammar).toContain(
+      `1. Only the steps, no fields: ${JSON.stringify(BUILD_FORM_STEPS_EXAMPLE)}`
+    );
+    expect(grammar).not.toContain('Big form');
   });
 });

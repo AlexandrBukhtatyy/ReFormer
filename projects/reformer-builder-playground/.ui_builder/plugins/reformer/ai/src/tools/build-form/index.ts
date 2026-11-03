@@ -115,6 +115,9 @@ export const buildFormTool: AgentTool<Params> = {
     if (intent.fields.length + intent.arrays.length === 0 && steps === 0) {
       return fail('INVALID_PARAMS', emptyIntentMessage(raw));
     }
+    if (steps > 1 && intent.fields.length + intent.arrays.length > 0) {
+      return fail('INVALID_PARAMS', multiStepMessage(intent));
+    }
 
     const layout = inspectLayoutRefs(intent);
     if (layout.unknown.length > 0) {
@@ -434,6 +437,23 @@ function safeParse(text: string): unknown {
   } catch {
     return null;
   }
+}
+
+/**
+ * Отказ формы из нескольких шагов, присланной целиком: какие шаги поставить первым вызовом.
+ *
+ * Целиком такую форму локальная модель писала одним ответом, и ход молчал десятки минут (замер
+ * 2026-11-03, форма на 82 поля: 32 минуты рассуждения до первого вызова и 16 — сам вызов). По
+ * шагам каждый ответ модели несёт один шаг. Один шаг с полями — в том числе в готовый визард —
+ * собирается сразу.
+ */
+function multiStepMessage(intent: FormIntent): string {
+  const steps = collectSteps(intent.layoutRoot).map((step) => ({ title: step.title }));
+  return (
+    `A form of ${steps.length} steps is built step by step, nothing was changed. First call: ` +
+    `only the steps — {"steps":${JSON.stringify(steps)}}. Then one build_form per step: parent = ` +
+    "the step address from the reply, intent = that step's fields, arrays and rules."
+  );
 }
 
 /**

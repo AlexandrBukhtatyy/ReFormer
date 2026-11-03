@@ -67,8 +67,8 @@ export interface ToolsOptions {
   /** Справка по библиотеке; без неё `ask_reformer` отвечает «недоступно». */
   reference?: ResolveLibraryReference;
   /**
-   * `build_form` в наборе — эксперимент плана mcp-misty-graham (этап 2): крупная сборка одним
-   * intent. Без флага набор прежний: на нём снята база замера.
+   * `build_form` в наборе (план mcp-misty-graham, этап 2): крупная сборка одним intent. По
+   * умолчанию включён; `false` — набор без него, на нём снята база замера.
    */
   buildForm?: boolean;
 }
@@ -105,9 +105,9 @@ export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
   return [...readOnlyTools(options), ...writeTools(options)];
 }
 
-/** Инструменты записи набора: с `build_form` первым, если он включён. */
+/** Инструменты записи набора: с `build_form` первым, если он не выключен. */
 function writeTools(options: ToolsOptions): readonly AgentTool[] {
-  return options.buildForm === true ? [buildFormTool, ...WRITE_TOOLS] : WRITE_TOOLS;
+  return options.buildForm === false ? WRITE_TOOLS : [buildFormTool, ...WRITE_TOOLS];
 }
 
 /**

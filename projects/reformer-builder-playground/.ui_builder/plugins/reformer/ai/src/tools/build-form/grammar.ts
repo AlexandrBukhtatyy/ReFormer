@@ -13,7 +13,11 @@
 
 import { arrayName, listComponents, type Catalog } from '../../model/catalog-digest';
 
-/** Рабочая форма, на которой показана вся грамматика. Имена компонентов есть в обоих китах. */
+/**
+ * Рабочая форма без шагов, на которой показана вся грамматика. Имена компонентов есть в обоих
+ * китах. Шагов в ней нет намеренно: форма из двух и больше шагов собирается по шагам
+ * ({@link BUILD_FORM_STEPS_EXAMPLE}), и intent с шагами и полями сразу `build_form` отклоняет.
+ */
 export const BUILD_FORM_EXAMPLE = {
   fields: [
     { name: 'email', component: 'Input', label: 'Email', required: true },
@@ -31,10 +35,6 @@ export const BUILD_FORM_EXAMPLE = {
       componentProps: { title: 'Children' },
       itemFields: [{ name: 'name', component: 'Input', label: 'Name', required: true }],
     },
-  ],
-  steps: [
-    { title: 'Client', fields: ['email', 'kind', 'inn'] },
-    { title: 'Order', fields: ['price', 'qty', 'total', 'sameEmail', 'billingEmail', 'children'] },
   ],
   validation: [
     { target: 'email', rules: ['email'] },
@@ -74,6 +74,14 @@ export const BUILD_FORM_EXAMPLE = {
   ],
 };
 
+/**
+ * Первый вызов формы из нескольких шагов — одни шаги, без полей. Поля и правила каждого шага
+ * приходят следующими вызовами в адрес шага из ответа: так ни один ответ модели не несёт форму
+ * целиком. Целиком форма на 82 поля шла 32 минуты рассуждения и ещё 16 — одним вызовом, и всё это
+ * время ход молчал (замер 2026-11-03, qwen3.8:27b).
+ */
+export const BUILD_FORM_STEPS_EXAMPLE = { steps: [{ title: 'Client' }, { title: 'Order' }] };
+
 const json = (value: unknown): string => JSON.stringify(value);
 
 /** Грамматика для кита: имена его полей и, если кит рисует массив, строка про массивы. */
@@ -93,8 +101,6 @@ One object — fields, layout and rules of a whole form, a step or a block. Comp
 Where it lands: no parent — the whole form, only if the form was empty at the start of the turn
 (call again to rebuild it from a corrected intent). parent = a step or section address — appended
 there. parent = the wizard — new steps.
-Big form: first the steps with empty "fields", then one build_form per step, parent = the step
-address from the reply. Rules may name fields built earlier.
 
 ## fields
 ${json(BUILD_FORM_EXAMPLE.fields[0])}
@@ -102,9 +108,13 @@ ${json(BUILD_FORM_EXAMPLE.fields[1])}
 - component: ${fields.join(' ')}.
 - A group field has a dotted name: "address.city". Other props go to "componentProps".
 ${arrays}
-## steps — a wizard; omit for a form without steps
-${json(BUILD_FORM_EXAMPLE.steps[0])}
-Every field and array stands in exactly one step. Sections without a wizard: "layoutRoot"
+## steps — a wizard of two or more steps is built step by step
+1. Only the steps, no fields: ${json(BUILD_FORM_STEPS_EXAMPLE)}
+2. Then one build_form per step: parent = the step address from the reply, intent = that step's
+fields, arrays and rules. Rules may name fields built earlier.
+One step with its fields into an existing wizard: parent = the wizard,
+{"steps":[{"title":"Delivery","fields":["city"]}],"fields":[…]}.
+Sections without a wizard: "layoutRoot"
 {"kind":"container","component":"Box","children":["email",{"kind":"container","component":"Section","componentProps":{"title":"Passport"},"children":["series","number"]}]}
 
 ## validation

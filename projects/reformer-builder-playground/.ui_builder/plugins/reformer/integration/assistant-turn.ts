@@ -105,7 +105,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
     catalog: opts.catalog,
     validateForm: opts.validateForm,
     ...(opts.system === undefined ? {} : { system: opts.system }),
-    ...(opts.buildForm === true ? { buildForm: true } : {}),
+    ...(opts.buildForm === undefined ? {} : { buildForm: opts.buildForm }),
   });
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
 

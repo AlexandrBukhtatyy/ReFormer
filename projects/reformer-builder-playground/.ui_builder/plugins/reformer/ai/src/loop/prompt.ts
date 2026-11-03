@@ -32,7 +32,8 @@ const buildFormCache = new WeakMap<object, string>();
 export interface PromptOptions {
   /**
    * В наборе есть `build_form` (план mcp-misty-graham, этап 2): крупная сборка идёт одним intent,
-   * а не пакетами `insert_node`. Без флага промпт побайтово прежний — на нём снята база замера.
+   * а не пакетами `insert_node`. По умолчанию да; `false` — промпт без него, на нём снята база
+   * замера.
    */
   readonly buildForm?: boolean;
 }
@@ -48,10 +49,11 @@ export interface PromptOptions {
  * @param options - Набор инструментов, под который написан промпт.
  */
 export function systemPrompt(catalog: Catalog, options: PromptOptions = {}): string {
-  const store = options.buildForm === true ? buildFormCache : cache;
+  const buildForm = options.buildForm !== false;
+  const store = buildForm ? buildFormCache : cache;
   const known = store.get(catalog);
   if (known !== undefined) return known;
-  const built = buildPrompt(catalog, options.buildForm === true);
+  const built = buildPrompt(catalog, buildForm);
   store.set(catalog, built);
   return built;
 }
@@ -68,10 +70,10 @@ function buildPrompt(catalog: Catalog, buildForm: boolean): string {
     ? 'You never write JSON schemas, except the intent you pass to build_form.'
     : 'You never write JSON schemas.';
   const bulk = buildForm
-    ? `- Build, don't drip. A whole form, a wizard step or a block of more than about five fields,
-  with their rules, is ONE build_form call (its grammar: call it once without intent). A big
-  wizard (over ~15 fields): build_form with the steps and empty "fields" first, then one build_form
-  per step, parent = the step address it reported. Point edits: the other tools.`
+    ? `- Build, don't drip. A form without steps, a wizard step or a block of more than about five
+  fields, with their rules, is ONE build_form call (its grammar: call it once without intent). A
+  wizard of two or more steps: build_form with only the steps first, then one build_form per step,
+  parent = the step address it reported. Point edits: the other tools.`
     : `- Group, don't drip. Six fields into one step is ONE insert_node with six entries in "nodes", not
   six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a long
   answer, and if it is cut off mid-way nothing is applied. For forty fields

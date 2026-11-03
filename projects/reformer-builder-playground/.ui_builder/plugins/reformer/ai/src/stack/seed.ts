@@ -57,8 +57,9 @@ const EMPTY_FORM_SEED =
  */
 export function buildFormEmptySeed(grammar: string): string {
   return (
-    'The form is empty at the start of this turn: build it with ONE build_form call, no parent. ' +
-    `Its intent grammar:\n\n${grammar}`
+    'The form is empty at the start of this turn: build it with build_form, no parent — ONE call ' +
+    'for a form without steps; for two or more steps, first only the steps, then one call per ' +
+    `step. Its intent grammar:\n\n${grammar}`
   );
 }
 

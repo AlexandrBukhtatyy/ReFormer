@@ -99,7 +99,10 @@ export interface SchemaTurnOptions {
   readonly rulesLock?: RulesLock;
   /** Переопределение системного промпта (тесты). */
   readonly system?: string;
-  /** В наборе инструментов есть `build_form`: промпт и затравка пустой формы говорят о нём. */
+  /**
+   * В наборе инструментов есть `build_form`: промпт и затравка пустой формы говорят о нём. По
+   * умолчанию да.
+   */
   readonly buildForm?: boolean;
 }
 
@@ -131,15 +134,15 @@ export function createSchemaTurn(options: SchemaTurnOptions): SchemaTurn {
   let set = createChangeSet(options.base, options.rules);
   return {
     system: () =>
-      options.system ?? systemPrompt(options.catalog, { buildForm: options.buildForm === true }),
+      options.system ?? systemPrompt(options.catalog, { buildForm: options.buildForm !== false }),
     seed: () =>
       formSeed(
         options.base,
         options.rules,
         lockMessages(options.rulesLock),
-        ...(options.buildForm === true
-          ? [buildFormEmptySeed(buildFormGrammar(options.catalog))]
-          : [])
+        ...(options.buildForm === false
+          ? []
+          : [buildFormEmptySeed(buildFormGrammar(options.catalog))])
       ),
     context: (): ToolContext => ({
       draft: set.draft,
@@ -182,7 +185,7 @@ export interface StructuredModeOptions {
    * сам. `null` — можно.
    */
   readonly refuse: (id: ResourceId, form: ResourceId) => string | null;
-  /** В наборе инструментов есть `build_form` (`../tools`, флаг эксперимента). */
+  /** В наборе инструментов есть `build_form` (`../tools`); по умолчанию да. */
   readonly buildForm?: boolean;
 }
 
@@ -236,7 +239,7 @@ export function createStructuredMode(options: StructuredModeOptions): FormStruct
         catalog: options.catalog(),
         validateForm: options.prepared(),
         ...(rulesLock === undefined ? {} : { rulesLock }),
-        ...(options.buildForm === true ? { buildForm: true } : {}),
+        ...(options.buildForm === false ? { buildForm: false } : {}),
       });
     },
 

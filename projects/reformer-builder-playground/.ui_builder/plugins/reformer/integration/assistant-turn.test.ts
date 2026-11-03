@@ -131,7 +131,7 @@ describe('ход агента — создание формы с нуля', () =
 
 describe('карта формы, приложенная к ходу', () => {
   /** Перехватить запрос, который цикл отдаёт провайдеру. */
-  async function requestOf(base: JsonFormSchema): Promise<AiRequest> {
+  async function requestOf(base: JsonFormSchema, buildForm?: boolean): Promise<AiRequest> {
     let seen: AiRequest | undefined;
     const inner = createFakeProvider([{ text: 'ок' }]);
     const provider: AiProvider = {
@@ -148,6 +148,7 @@ describe('карта формы, приложенная к ходу', () => {
       validateForm: validateFormSchema,
       base,
       messages: [{ role: 'user', content: 'сделай' }],
+      ...(buildForm === undefined ? {} : { buildForm }),
     })) {
       void _;
     }
@@ -169,10 +170,18 @@ describe('карта формы, приложенная к ходу', () => {
   });
 
   it('пустой форме — одна строка про корень: продолжение после create_form не идёт за картой', async () => {
-    const { messages } = await requestOf(emptySchema());
+    const { messages } = await requestOf(emptySchema(), false);
     expect(messages[0]).toEqual({ role: 'user', content: 'сделай' });
     expect(messages).toHaveLength(2);
     expect(messages[1].content).toContain('/root');
+    expect(messages[1].content).not.toContain('Form map');
+  });
+
+  it('пустой форме с build_form — его грамматика вместо карты: ход не тратит вызов на неё', async () => {
+    const { messages } = await requestOf(emptySchema());
+    expect(messages).toHaveLength(2);
+    expect(messages[1].content).toContain('build it with build_form, no parent');
+    expect(messages[1].content).toContain('# build_form intent');
     expect(messages[1].content).not.toContain('Form map');
   });
 });
