@@ -8,6 +8,7 @@
     ".": "./dist/index.js",
     "./core": "./dist/core/knowledge.js",
     "./browser": "./dist/platform/browser/knowledge.js",
+    "./intent": "./dist/core/intent.js",
     "./package.json": "./package.json",
     "./*": "./*"
   },

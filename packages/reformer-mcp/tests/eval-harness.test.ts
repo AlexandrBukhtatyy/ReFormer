@@ -313,3 +313,48 @@ describe('изоляция агентов', () => {
     expect(findTextualCall('other_tool({ a: 1 })', tools)).toBeNull();
   });
 });
+
+describe('импорт прогона ассистента с build_form', () => {
+  const report = {
+    model: 'qwen3.8:27b-32k',
+    buildForm: true,
+    results: [
+      {
+        id: 'B.1',
+        pass: true,
+        reason: null,
+        tools: ['create_form', 'build_form'],
+        failedTools: 0,
+        seconds: 90,
+        timedOut: false,
+        error: null,
+        requests: 3,
+        inputTokens: 2_000_000,
+        outputTokens: 100_000,
+        coverage: { fields: [24, 25], rules: [8, 9] },
+      },
+    ],
+  };
+  const [record] = builderRecords(report, {
+    batchId: '20261103T000000Z-bbbb',
+    startedAt: new Date('2026-11-03T00:00:00Z'),
+    source: { gitSha: 'abc', branch: 'develop', dirty: false, dirtyDigest: null },
+    price: { input: 3, output: 15 },
+  });
+
+  it('подход отличает эксперимент от базы, покрытие и запросы — метриками', () => {
+    expect(validateRecord(record)).toEqual([]);
+    expect(record.approach.id).toBe('structured-default-build-form');
+    expect(record.metrics).toEqual(
+      expect.arrayContaining([
+        { id: 'process.requests', value: 3, better: 'lower' },
+        { id: 'quality.fields', hit: 24, total: 25, better: 'higher' },
+        { id: 'quality.rules', hit: 8, total: 9, better: 'higher' },
+      ])
+    );
+  });
+
+  it('цена — по тарифу за миллион токенов', () => {
+    expect(record.usage.costUsd).toBeCloseTo(2 * 3 + 0.1 * 15);
+  });
+});
