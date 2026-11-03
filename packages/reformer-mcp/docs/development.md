@@ -14,14 +14,13 @@ packages/reformer-mcp/
 ├── src/
 │   ├── index.ts              # Server entry point (registers tools/prompts/resources)
 │   ├── tools/                # MCP tools
-│   │   ├── index.ts
 │   │   ├── debug.ts          # Debug tool (REFORMER_DEBUG only)
 │   │   └── report-issue.ts   # Issue reporting tool
 │   ├── prompts/              # MCP prompts — TS modules pair with .md templates
 │   │   ├── index.ts          # Re-exports all *PromptDefinition / get*Prompt pairs
 │   │   ├── create-form.ts    # Each module: definition + getter that renders its template
-│   │   ├── add-validation.ts
-│   │   ├── …                 # 10 prompts total
+│   │   ├── add-feature.ts
+│   │   ├── …                 # 8 prompts total
 │   │   └── templates/        # Prompt bodies as markdown with {{var}} placeholders
 │   │       ├── create-form.md
 │   │       ├── add-validation.md
@@ -169,8 +168,7 @@ export async function myTool() {
 }
 ```
 
-2. Export from `src/tools/index.ts`
-3. Register in `src/index.ts`
+2. Register in `src/core/server/tool-catalog.ts`: the definition in `list()`, the call in `call()`
 
 ## Resources & Sampling Architecture (2.0)
 
@@ -274,7 +272,6 @@ below for the rationale.
 2. Create `src/prompts/my-prompt.ts`:
 
    ```typescript
-   import { getSection } from '../utils/docs-parser.js';
    import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 
    export const myPromptDefinition = {
@@ -288,7 +285,7 @@ below for the rationale.
    } {
      const text = renderPromptTemplate('my-prompt', {
        task: args.task,
-       referenceDocs: getSection('Quick Start', '@reformer/core'),
+       referenceDocs: 'Quick Start: …',
      });
      return {
        messages: [{ role: 'user', content: { type: 'text', text } }],

@@ -14,22 +14,10 @@
  */
 
 import { cliKnowledge } from '../platform/cli/knowledge.js';
-import type { SectionName } from '../core/docs/sections.js';
 import { DEFAULT_PACKAGE, type ReformerPackage } from '../core/docs/packages.js';
 
-export {
-  KNOWN_PACKAGES,
-  DEFAULT_PACKAGE,
-  normalizePackage,
-  type ReformerPackage,
-} from '../core/docs/packages.js';
-export {
-  normalizeTopic,
-  slugify,
-  type SectionMeta,
-  type SectionName,
-} from '../core/docs/sections.js';
-export { packageRoot } from '../platform/cli/docs-source.js';
+export { KNOWN_PACKAGES, type ReformerPackage } from '../core/docs/packages.js';
+export { normalizeTopic } from '../core/docs/sections.js';
 
 /**
  * Корпус берётся из знания процесса, а не создаётся здесь: иначе у сервера было бы два
@@ -40,11 +28,6 @@ const corpus = () => cliKnowledge().docs;
 /** Полная документация одного пакета. */
 export function getFullDocs(pkg: string = DEFAULT_PACKAGE): string {
   return corpus().full(pkg);
-}
-
-/** Склейка `llms.txt` всех доступных пакетов. */
-export function getAllDocs(): string {
-  return corpus().all();
 }
 
 /** Пакеты, у которых `llms.txt` доступен. */
@@ -60,9 +43,4 @@ export function listSections(pkg: string) {
 /** Тело секции по слагу; `null` — слаг неизвестен. */
 export function getSectionBySlug(pkg: string, slug: string): string | null {
   return corpus().sectionBySlug(pkg, slug);
-}
-
-/** Секция по имени заголовка; при промахе — объясняющий текст. */
-export function getSection(name: SectionName | string, pkg: string = DEFAULT_PACKAGE): string {
-  return corpus().section(name, pkg);
 }

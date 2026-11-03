@@ -44,24 +44,19 @@ const cases = [
     mod.getCreateFormPrompt,
     { description: FIXTURES.description, target: FIXTURES.target, projectPath: repoRoot },
   ],
+  // `add-feature` и `to-renderer` — по снимку на каждый шаблон, который они выбирают.
+  ...['validation', 'behavior', 'array'].map((feature) => [
+    `add-feature-${feature}`,
+    mod.getAddFeaturePrompt,
+    { feature, code: FIXTURES.code, requirements: FIXTURES.requirements },
+  ]),
   [
-    'add-validation',
-    mod.getAddValidationPrompt,
-    { code: FIXTURES.code, requirements: FIXTURES.requirements },
+    'add-feature-wizard',
+    mod.getAddFeaturePrompt,
+    { feature: 'wizard', code: FIXTURES.code, requirements: FIXTURES.steps },
   ],
-  [
-    'add-behavior',
-    mod.getAddBehaviorPrompt,
-    { code: FIXTURES.code, requirements: FIXTURES.requirements },
-  ],
-  [
-    'add-form-array',
-    mod.getAddFormArrayPrompt,
-    { code: FIXTURES.code, requirements: FIXTURES.requirements },
-  ],
-  ['add-wizard', mod.getAddWizardPrompt, { code: FIXTURES.code, steps: FIXTURES.steps }],
   ['to-renderer', mod.getToRendererPrompt, { code: FIXTURES.code }],
-  ['to-renderer-json', mod.getToRendererJsonPrompt, { code: FIXTURES.code }],
+  ['to-renderer-json', mod.getToRendererPrompt, { code: FIXTURES.code, target: 'renderer-json' }],
   [
     'discover-context',
     mod.getDiscoverContextPrompt,

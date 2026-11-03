@@ -1024,11 +1024,6 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
   };
 }
 
-/** Поля спеки — `extractEntries` без массивов. */
-export function extractFields(content: string, dropped?: string[]): SpecField[] {
-  return extractEntries(content, dropped).fields;
-}
-
 export function analyzeSpec(content: string): SpecAnalysis {
   const fieldsPerStep = countFieldsPerStep(content);
   const droppedRows: string[] = [];

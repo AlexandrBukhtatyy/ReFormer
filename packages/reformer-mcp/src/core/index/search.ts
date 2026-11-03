@@ -241,8 +241,3 @@ export function renderSymbolHits(hits: SymbolHit[]): string {
     })
     .join('\n');
 }
-
-/** Только для тестов — сбросить кэш документов. */
-export function __resetSymbolSearchCache(k: Knowledge): void {
-  k.memo.delete('search:symbol-corpus');
-}

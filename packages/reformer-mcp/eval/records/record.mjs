@@ -232,9 +232,8 @@ export function validateRecord(record) {
   return problems;
 }
 
-/** Статус проверки и причина из значения `checks`. */
+/** Статус проверки из значения `checks`. */
 export const checkStatus = (check) => (Array.isArray(check) ? check[0] : check);
-export const checkReason = (check) => (Array.isArray(check) ? check[1] : null);
 
 /**
  * Дописать записи батча и, по `publish`, положить копию в репозиторий.

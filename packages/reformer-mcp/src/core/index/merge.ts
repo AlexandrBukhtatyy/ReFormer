@@ -21,7 +21,7 @@
  * @module reformer-mcp/core/index/merge
  */
 
-import { KNOWN_PACKAGES, type ReformerPackage } from '../docs/packages.js';
+import { KNOWN_PACKAGES } from '../docs/packages.js';
 import {
   SUPPORTED_INDEX_SCHEMA,
   type IndexedSymbol,
@@ -85,14 +85,6 @@ export function mergeIndex(source: IndexSource): MergedIndex {
   }
 
   return { packages, withoutIndex, symbols, topics, byName };
-}
-
-/**
- * Символы одного пакета. Пустой массив означает «индекса нет» — вызывающий обязан решить,
- * падать ли на прежний разбор AST.
- */
-export function symbolsOfPackage(index: MergedIndex, pkg: ReformerPackage): IndexedSymbol[] {
-  return index.symbols.filter((s) => s.package === pkg);
 }
 
 /** Все варианты символа по имени (по одному на пакет), в порядке {@link KNOWN_PACKAGES}. */

@@ -31,8 +31,3 @@ export function findOneSymbol(name: string, pkg = '*'): Promise<PublicSymbol | n
 export function indexCoverageWarning(): string {
   return core.indexCoverageWarning(cliKnowledge());
 }
-
-/** Только для тестов — сбросить кэш фолбэка. */
-export function __resetSymbolFallbackCache(): void {
-  cliKnowledge().memo.delete('symbols:fallback');
-}

@@ -144,11 +144,6 @@ const EXPORT_TO_REGISTRY: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(UI_KIT_FIELD_EXPORTS).map(([registry, exp]) => [exp, registry])
 );
 
-/** Экспорт ui-kit, регистрируемый под registry-именем; `undefined` — имя не из кита. */
-export function uiKitExportFor(registryName: string): string | undefined {
-  return UI_KIT_FIELD_EXPORTS[registryName] ?? UI_KIT_CONTAINER_EXPORTS[registryName];
-}
-
 /** Замена удалённого `*Field`-экспорта в TS-коде: экспорт нового компонента. */
 export function replacementExportFor(removed: string): string | undefined {
   const registry = REMOVED_FIELD_EXPORTS[removed];
