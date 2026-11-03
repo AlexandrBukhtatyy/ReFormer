@@ -211,6 +211,14 @@ export const GRAMMAR_EXAMPLE = {
       code: 'bad',
       message: 'Неверный код',
     },
+    {
+      target: 'income',
+      each: 'contacts',
+      rules: [],
+      cross: '(values.income ?? 0) >= 0',
+      code: 'contact.income.negative',
+      message: 'Доход не может быть отрицательным',
+    },
   ],
   behavior: [
     {
@@ -270,7 +278,7 @@ const behaviorRow = (index: number): string => json(behavior[index]);
 
 export const INTENT_GRAMMAR = `# form.intent.json — грамматика
 
-Ты пишешь только этот файл, остальные файлы модуля записывает form_build. Экономь токены: JSON компактный, одна запись на строку. Большую форму пиши частями: поля и раскладка → form_build → Edit: правила → form_build → Edit: поведение → form_build.
+Ты пишешь только этот файл, остальные файлы модуля записывает form_build. Сам файл формы не создаёт: работа закончена только после ответа ✓ от form_build. Экономь токены: JSON компактный, одна запись на строку. Большую форму пиши частями: поля и раскладка → form_build → Edit: правила → form_build → Edit: поведение → form_build.
 
 {"formName":"Заявка","interfaceName":"Application","target":"renderer-react","fields":[…],"arrays":[…],"parts":{…},"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…]}
 
@@ -302,6 +310,7 @@ ${json(validation[0])}
 - Условие: ${json(validation[2])}
 - Строка массива: ${json(validation[3])}
 - Между полями (выражение ИСТИННО, когда всё верно): ${json(validation[4])}
+- Между полями строки массива (values — снимок строки): ${json(validation[6])}
 - Асинхронно: ${json(validation[5])}
 
 ## behavior — expr это TS, sources это поля, которые оно читает
