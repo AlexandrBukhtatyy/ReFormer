@@ -7,6 +7,8 @@
  * (`$model/$component/$dataSource`) + неизвестные имена компонентов/data-source.
  */
 
+import { loadUiKitPropSchemas } from '../generate/ui-kit-props.js';
+
 /**
  * Тип модуля `@reformer/renderer-json/validate` из источника истины (`typeof import`).
  * `import type`/`typeof import` не грузят рантайм (ajv остаётся ленивым), но дрейф контракта
@@ -15,36 +17,19 @@
 type ValidateMod = typeof import('@reformer/renderer-json/validate');
 
 /**
- * Форма модуля `@reformer/ui-kit/meta` (React-free): карта дефолтных props-схем + слияние с враппером.
- * Опциональная зависимость — грузится лениво, при отсутствии пакета фаза props-валидации пропускается.
- */
-interface UiKitMetaMod {
-  defaultPropSchemas?: Record<string, Record<string, unknown>>;
-  mergeFieldPropsSchema?: (schema: Record<string, unknown>) => Record<string, unknown>;
-}
-
-/**
- * Ленивая подгрузка карты `componentProps`-схем из `@reformer/ui-kit/meta` (optional dependency).
- * Каждая дефолтная схема варианта сливается с контрактом враппера через `mergeFieldPropsSchema`
- * (иначе `label`/`required`/`testId` в реальном `componentProps` дали бы ложные срабатывания).
- * Нет пакета / не собран → `undefined` (props не проверяем, graceful fallback).
+ * Карта `componentProps`-схем кита (optional dependency, см. `loadUiKitPropSchemas`). Каждая
+ * дефолтная схема варианта сливается с контрактом враппера (иначе `label`/`required`/`testId` в
+ * реальном `componentProps` дали бы ложные срабатывания). Нет пакета / не собран → `undefined`
+ * (props не проверяем, graceful fallback).
  */
 async function loadComponentPropSchemas(): Promise<
   Record<string, Record<string, unknown>> | undefined
 > {
-  try {
-    const meta = (await import('@reformer/ui-kit/meta')) as UiKitMetaMod;
-    const defaults = meta.defaultPropSchemas;
-    if (!defaults || typeof defaults !== 'object') return undefined;
-    const merge = meta.mergeFieldPropsSchema;
-    const out: Record<string, Record<string, unknown>> = {};
-    for (const [name, schema] of Object.entries(defaults)) {
-      out[name] = typeof merge === 'function' ? merge(schema) : schema;
-    }
-    return Object.keys(out).length > 0 ? out : undefined;
-  } catch {
-    return undefined;
-  }
+  const kit = await loadUiKitPropSchemas();
+  if (!kit) return undefined;
+  return Object.fromEntries(
+    Object.entries(kit.defaults).map(([name, schema]) => [name, kit.mergeField(schema)])
+  );
 }
 
 export interface ValidateJsonSchemaArgs {

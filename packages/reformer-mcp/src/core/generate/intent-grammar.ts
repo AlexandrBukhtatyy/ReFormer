@@ -8,6 +8,8 @@
  * @module reformer-mcp/core/generate/intent-grammar
  */
 
+import { UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+
 /** Рабочая форма, на которой показана вся грамматика. */
 export const GRAMMAR_EXAMPLE = {
   formName: 'Заявка',
@@ -289,7 +291,8 @@ target — стек из задания, не меняй его: core | renderer
 ${json(fields[1])}
 - Поле группы — имя через точку: "registrationAddress.city".
 - type: string | number | boolean | date | array (атомарное значение файлов у FileUpload*).
-- component: Input InputNumber InputMask InputPassword InputSuggest Textarea Select SelectMulti NativeSelect RadioGroup Checkbox Switch Toggle ToggleGroup Slider DatePicker Combobox FileUpload FileUploadDropzone FileUploadInput InputOTP.
+- component: ${Object.keys(UI_KIT_FIELD_EXPORTS).join(' ')}.
+- componentProps — свойства компонента; незнакомое form_build назовёт и перечислит, какие есть.
 - Варианты выбора: "optionsSource":"LOAN_TYPES" и запись в dataSources либо componentProps.options:[{"value":"a","label":"А"}].
 - Дата строкой: ${json(fields[8])}. DatePicker хранит Date.
 - Маска: "component":"InputMask","componentProps":${json(fields[9].componentProps)}.

@@ -18,6 +18,7 @@ import { crossCheckBundle, inspectLayoutRefs } from '../generate/cross-check.js'
 import { readIntent } from '../generate/form-intent.js';
 import { originOf, withMarker } from '../generate/generated-marker.js';
 import { INTENT_GRAMMAR } from '../generate/intent-grammar.js';
+import { checkComponentProps, loadUiKitPropSchemas } from '../generate/ui-kit-props.js';
 import type { Knowledge } from '../knowledge.js';
 import { validateCode } from '../validate/code.js';
 import type { FormDirectory, FormFile, TypeDiagnostic } from '../workspace/form-workspace.js';
@@ -225,8 +226,10 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   for (const file of plan.writes) directory.write(file.path, file.content);
   for (const name of plan.removes) directory.remove(name);
 
+  const kit = await loadUiKitPropSchemas();
   const notes = [
     ...intent.warnings,
+    ...(kit ? checkComponentProps(intent, kit) : []),
     ...warnings,
     ...report.warnings.map((warning) => `${warning.code}: ${warning.message}`),
   ];

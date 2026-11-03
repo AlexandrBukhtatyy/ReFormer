@@ -125,6 +125,23 @@ describe('form_build: путь без ошибок', () => {
   );
 
   it(
+    'незнакомое свойство компонента — предупреждение со свойствами, которые есть',
+    async () => {
+      const intent = clone(GRAMMAR_EXAMPLE);
+      Object.assign(intent.fields[1].componentProps!, { minValue: 1 });
+      for (const target of ['renderer-react', 'renderer-json']) {
+        writeIntent({ ...intent, target });
+        // Компилятор чужой ключ не ловит и на renderer-react: `componentProps` узла схемы не
+        // сверяется с пропсами компонента, так что сказать о нём может только сборка.
+        const { text, isError } = await build();
+        expect(isError).toBe(false);
+        expect(text).toContain('поле «price»: у InputNumber нет свойства «minValue»');
+      }
+    },
+    SLOW
+  );
+
+  it(
     'форма кредита на 75 полей собирается',
     async () => {
       const credit = JSON.parse(

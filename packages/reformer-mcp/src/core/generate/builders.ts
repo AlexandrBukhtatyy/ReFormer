@@ -32,6 +32,7 @@ import {
   buildFormSchemaTs,
   buildSchemaLayout,
   collectSteps,
+  isWizardContainer,
   stepKeyOf,
 } from './schema-emit.js';
 
@@ -1319,10 +1320,7 @@ export function collectUsedComponents(intent: FormIntent): Set<string> {
   }
   const walk = (node: LayoutNode) => {
     if (node.kind === 'container') {
-      const steps = node.children.filter((c) => c.kind === 'step');
-      // Контейнер из одних шагов — визард: его рисует библиотечный `FormWizard`, а не компонент
-      // из intent (см. `buildSchemaLayout`).
-      if (steps.length > 0 && steps.length === node.children.length) used.add('FormWizard');
+      if (isWizardContainer(node)) used.add('FormWizard');
       // `htmlTag` рендерится через `$html(...)` и регистрации не требует.
       else if (!node.htmlTag) used.add(node.component);
       node.children.forEach(walk);

@@ -74,6 +74,17 @@ export function stepKeyOf(step: { selector?: string }, index: number): string {
   return step.selector?.trim() || `step${index + 1}`;
 }
 
+/**
+ * Контейнер, все дети которого — шаги, и есть визард: его рисует библиотечный `FormWizard`, а не
+ * компонент из intent. Библиотечный `FormWizard` строит шаги из узлов-детей, а форму и валидацию
+ * берёт из сборки сам.
+ */
+export function isWizardContainer(node: LayoutNode): boolean {
+  if (node.kind !== 'container') return false;
+  const steps = node.children.filter((c) => c.kind === 'step');
+  return steps.length > 0 && steps.length === node.children.length;
+}
+
 /** Шаги визарда в порядке обхода разметки. */
 export function collectSteps(root: LayoutNode): Array<Extract<LayoutNode, { kind: 'step' }>> {
   const steps: Array<Extract<LayoutNode, { kind: 'step' }>> = [];
@@ -218,11 +229,7 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
         };
       }
       default: {
-        const stepChildren = node.children.filter((c) => c.kind === 'step');
-        // Контейнер, все дети которого — шаги, и есть визард: библиотечный `FormWizard` строит
-        // шаги из узлов-детей, а форму и валидацию берёт из сборки сам.
-        const isWizard = stepChildren.length > 0 && stepChildren.length === node.children.length;
-        if (isWizard) {
+        if (isWizardContainer(node)) {
           return {
             selector: node.selector ?? 'wizard',
             component: '$component(FormWizard)',
