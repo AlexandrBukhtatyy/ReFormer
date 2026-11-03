@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildBehaviorTs,
-  buildValidationSchemaTs,
-} from '@reformer/mcp/dist/core/generate/builders.js';
-import { normalizeIntent } from '@reformer/mcp/dist/core/generate/form-intent.js';
+import { buildBehaviorTs, buildValidationSchemaTs, normalizeIntent } from '@reformer/mcp/intent';
 import {
   seededRules,
   wizardRules,

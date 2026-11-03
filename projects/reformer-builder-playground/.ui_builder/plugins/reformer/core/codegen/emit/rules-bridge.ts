@@ -21,11 +21,7 @@
  * @module plugins/reformer/core/codegen/emit/rules-bridge
  */
 
-import {
-  buildBehaviorTs,
-  buildValidationSchemaTs,
-} from '@reformer/mcp/dist/core/generate/builders.js';
-import { normalizeIntent } from '@reformer/mcp/dist/core/generate/form-intent.js';
+import { buildBehaviorTs, buildValidationSchemaTs, normalizeIntent } from '@reformer/mcp/intent';
 import { visibilityFromRules, type FormRules } from '../../form-model/rules';
 import type { Names } from '../naming';
 import type { ModuleLayout, StepInfo } from '../steps';

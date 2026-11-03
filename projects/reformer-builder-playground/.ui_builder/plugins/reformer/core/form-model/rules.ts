@@ -29,11 +29,7 @@
  * @module plugins/reformer/core/form-model/rules
  */
 
-import type {
-  BehaviorIntent,
-  ValidationRuleIntent,
-  VisibilityIntent,
-} from '@reformer/mcp/dist/core/generate/form-intent.js';
+import type { BehaviorIntent, ValidationRuleIntent, VisibilityIntent } from '@reformer/mcp/intent';
 
 export type { BehaviorIntent, ValidationRuleIntent, VisibilityIntent };
 

@@ -26,7 +26,7 @@
  * @module plugins/reformer/ai/tools/set-form-rules
  */
 
-import { findCycle } from '@reformer/mcp/dist/core/utils/graph.js';
+import { findCycle } from '@reformer/mcp/intent';
 import { collectModelPaths } from '../../../core/form-model';
 import { similarNames } from '@reformer/builder-toolkit';
 import { emptyRules, type FormRules } from '../../../core/form-model';
