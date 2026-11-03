@@ -221,6 +221,13 @@ function compareExpectations(expect, { model, form, valid }, resolve) {
     if (node === undefined) problems.push(`${id}: в форме нет такого узла`);
     else if (!issuesOf(node)?.length) problems.push(`${id}: ожидалось замечание`);
   }
+  // Межполевое правило автор вправе повесить на любое из его полей: контракт этого не решает.
+  if (expect.anyInvalid?.length) {
+    const nodes = expect.anyInvalid.map((id) => formNode(form, resolve(id)));
+    if (!nodes.some((node) => issuesOf(node)?.length)) {
+      problems.push(`ожидалось замечание на одном из: ${expect.anyInvalid.join(', ')}`);
+    }
+  }
   for (const id of expect.noIssues ?? []) {
     const issues = issuesOf(formNode(form, resolve(id)));
     if (issues?.length) problems.push(`${id}: лишнее замечание ${issues[0].code}`);
@@ -296,7 +303,7 @@ export async function runProbes({ contract, bound, createInstance }) {
       applyValues(instance.model, probe.set, resolve);
       await tick();
       await tick();
-      const needsValidation = ['valid', 'invalid', 'errorCode', 'noIssues'].some(
+      const needsValidation = ['valid', 'invalid', 'anyInvalid', 'errorCode', 'noIssues'].some(
         (key) => probe.expect?.[key] !== undefined
       );
       const valid = needsValidation ? await instance.validate() : null;

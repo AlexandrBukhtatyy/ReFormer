@@ -1,0 +1,13 @@
+{
+  "description": "Форма потеряла межполевое правило спеки: остаток долга больше суммы кредита проходит.",
+  "scenario": "L5-credit",
+  "target": "renderer-react",
+  "expectFailure": "runtime.probe.rule-remaining-amount",
+  "mutations": [
+    {
+      "file": "form.validation.ts",
+      "find": "values.remainingAmount <= values.amount",
+      "replace": "true"
+    }
+  ]
+}

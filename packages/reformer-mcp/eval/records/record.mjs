@@ -263,6 +263,18 @@ export function writeRecords(records, { batchId, harness, label, publish = false
   return { local, published };
 }
 
+/** Заменить записи в уже существующих файлах батча: новая оценка тех же прогонов. */
+export function rewriteRecords(records, files) {
+  for (const record of records) {
+    const problems = validateRecord(record);
+    if (problems.length > 0) {
+      throw new Error(`Запись ${record.runId} не годится:\n  ${problems.join('\n  ')}`);
+    }
+  }
+  const lines = records.map((record) => `${JSON.stringify(record)}\n`).join('');
+  for (const file of files) writeFileSync(file, lines);
+}
+
 /** Записи из `.jsonl`; пустые строки пропускаются. */
 export function readRecords(file) {
   return readFileSync(file, 'utf8')

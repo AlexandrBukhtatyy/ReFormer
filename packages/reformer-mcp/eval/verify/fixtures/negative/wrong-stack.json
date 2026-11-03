@@ -1,0 +1,13 @@
+{
+  "description": "Форма на чужом стеке: поведение совпадает, а стек из задания подменён.",
+  "scenario": "L1-feedback",
+  "target": "renderer-react",
+  "expectFailure": "static.stack",
+  "mutations": [
+    {
+      "file": "index.tsx",
+      "find": "@reformer/renderer-react",
+      "replace": "@reformer/renderer-json"
+    }
+  ]
+}

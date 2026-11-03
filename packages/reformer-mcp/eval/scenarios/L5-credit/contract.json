@@ -697,6 +697,61 @@
           "properties": 1
         }
       }
+    },
+    {
+      "id": "rule-work-experience",
+      "set": {
+        "employmentStatus": "employed",
+        "workExperienceTotal": 5,
+        "workExperienceCurrent": 10
+      },
+      "expect": {
+        "anyInvalid": ["workExperienceCurrent", "workExperienceTotal"]
+      }
+    },
+    {
+      "id": "rule-remaining-amount",
+      "set": {
+        "hasExistingLoans": true,
+        "existingLoans": {
+          "push": {
+            "amount": 100000,
+            "remainingAmount": 200000
+          }
+        }
+      },
+      "expect": {
+        "anyInvalid": ["existingLoans.0.remainingAmount", "existingLoans.0.amount"]
+      }
+    },
+    {
+      "id": "rule-additional-income-source",
+      "set": {
+        "additionalIncome": 5000,
+        "additionalIncomeSource": ""
+      },
+      "expect": {
+        "invalid": ["additionalIncomeSource"]
+      }
+    },
+    {
+      "id": "rule-additional-income-source-optional",
+      "set": {
+        "additionalIncome": 0,
+        "additionalIncomeSource": ""
+      },
+      "expect": {
+        "noIssues": ["additionalIncomeSource"]
+      }
+    },
+    {
+      "id": "rule-payment-to-income",
+      "set": {
+        "monthlyIncome": 10000
+      },
+      "expect": {
+        "anyInvalid": ["paymentToIncomeRatio", "monthlyPayment", "loanAmount", "monthlyIncome"]
+      }
     }
   ]
 }

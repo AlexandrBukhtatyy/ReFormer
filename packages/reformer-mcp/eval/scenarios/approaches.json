@@ -10,14 +10,6 @@
     "description": "Раннер сам берёт промпт create-form у сервера и отдаёт его текст агенту.",
     "serverPrompt": "create-form"
   },
-  "intent-file": {
-    "description": "Фаза 0 form_build: агент пишет только form/form.intent.json, остальные файлы записывает сервер (docs/plans/mcp-misty-graham.md).",
-    "promptPrefix": "Модуль формы собирается инструментом form_build сервера reformer. Вызови его первым: пока нет файла form/form.intent.json, он вернёт грамматику. Затем пиши и правь только этот файл и вызывай form_build, пока он не ответит ✓. Все остальные файлы модуля он записывает сам, поэтому не создавай и не правь их, что бы ни говорилось ниже о записи файлов. plan_form и generate_form не вызывай. Справку читай, только если ошибка form_build непонятна.\n\n"
-  },
-  "intent-adoption": {
-    "description": "Шаг 4 фазы 0 form_build: без подсказки о пути, только снимает фразу соглашения о ручной записи; выбор агент делает по instructions сервера.",
-    "promptPrefix": "Фразу ниже о записи файлов понимай так: результат должен оказаться в form/, а кто его записал, неважно.\n\n"
-  },
   "no-generate": {
     "description": "Без generate_form: сколько на самом деле даёт генератор.",
     "withoutTools": ["generate_form"]

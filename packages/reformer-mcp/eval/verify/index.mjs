@@ -5,12 +5,14 @@
  *   npm run mcp:verify -- --dir <каталог> --contract <файл> [--target core]
  *   npm run mcp:verify -- --golden [--scenario 'L3-*']   эталон каждого сценария обязан пройти
  *   npm run mcp:verify -- --negative                     заведомо сломанные формы обязаны упасть
+ *   npm run mcp:verify -- --reverify <батч>[,<батч>]     новая оценка сохранённых форм без модели
  *
  * Эталон доказывает, что контракт выполним; негативные фикстуры — что верификатор способен увидеть
  * ошибку. Без этого красный и зелёный вердикт верификатора ничего не значат.
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -26,9 +28,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { typecheckFiles } from '../lib/typecheck.mjs';
 import { McpClient } from '../lib/client.mjs';
 import { parseValidate } from '../calibration/tracks.mjs';
-import { checkStatus, packageDirectory, repoRoot } from '../records/record.mjs';
+import {
+  checkStatus,
+  packageDirectory,
+  publishedDirectory,
+  readRecords,
+  repoRoot,
+  rewriteRecords,
+  runsDirectory,
+} from '../records/record.mjs';
 import { loadScenarios, writeReferenceBundle } from '../scenarios/catalog.mjs';
 import { verifyInBrowser } from './browser.mjs';
+import { stackProblem } from './stack.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_TIMEOUT_MS = 60_000;
@@ -42,8 +53,14 @@ function listFiles(directory, prefix = '') {
   });
 }
 
-/** Стадия static: точка входа, раскладка, типы, проверка кода сервером. */
-export async function verifyStatic({ directory, target, client }) {
+/**
+ * Стадия static: точка входа, стек, раскладка, типы, проверка кода сервером.
+ *
+ * @param {object} options
+ * @param {boolean} [options.reference] - эталон: на `core` он рисуется `FormRenderer` только ради
+ *   браузерной стадии (`drawCoreForm`), поэтому стек у него на этом таргете не проверяется.
+ */
+export async function verifyStatic({ directory, target, client, reference = false }) {
   const checks = {};
   const files = existsSync(directory) ? listFiles(directory) : [];
   const entry = path.join(directory, 'index.tsx');
@@ -60,6 +77,14 @@ export async function verifyStatic({ directory, target, client }) {
   if (sources.length === 0) {
     checks['static.tsc'] = ['fail', 'нет исходников'];
     return checks;
+  }
+
+  if (!(reference && target === 'core')) {
+    const problem = stackProblem(
+      target,
+      sources.map((file) => readFileSync(path.join(directory, file), 'utf8'))
+    );
+    checks['static.stack'] = problem ? ['fail', problem] : 'pass';
   }
 
   const diagnostics = typecheckFiles(
@@ -129,8 +154,9 @@ export function gatesFor(contract, checks) {
   for (const probe of contract.probes ?? []) {
     if (probe.gate && probe.where !== 'browser') gates.push(`runtime.probe.${probe.id}`);
   }
-  // Пропущенная проверка не гейт: контракт мог не задавать снимок доступности.
-  for (const id of ['browser.render', 'browser.aria', 'browser.axe']) {
+  // Пропущенная проверка не гейт: контракт мог не задавать снимок доступности, у эталона на core
+  // стек не проверяется.
+  for (const id of ['static.stack', 'browser.render', 'browser.aria', 'browser.axe']) {
     if (checks[id] !== undefined && checkStatus(checks[id]) !== 'skip') gates.push(id);
   }
   return gates;
@@ -151,9 +177,9 @@ export function summarize(contract, checks) {
 }
 
 /** Полная проверка каталога: static + headless. */
-export async function verifyBundle({ directory, contractFile, target, client }) {
+export async function verifyBundle({ directory, contractFile, target, client, reference }) {
   const contract = JSON.parse(readFileSync(contractFile, 'utf8'));
-  const checks = await verifyStatic({ directory, target, client });
+  const checks = await verifyStatic({ directory, target, client, reference });
   const runtime = verifyRuntime({ directory, contractFile });
   Object.assign(checks, runtime.checks);
   return { checks, bound: runtime.bound ?? null, ...summarize(contract, checks) };
@@ -183,6 +209,7 @@ async function runGolden(client, pattern, workDirectory, withBrowser) {
         contractFile: scenario.contractFile,
         target,
         client,
+        reference: true,
       });
       printResult(`${scenario.id} / ${target}`, result);
       if (result.verdict !== 'pass') failed++;
@@ -229,6 +256,7 @@ async function runNegative(client, workDirectory) {
       contractFile: scenario.contractFile,
       target: fixture.target,
       client,
+      reference: true,
     });
     const status = checkStatus(result.checks[fixture.expectFailure]);
     const caught = status === 'fail';
@@ -238,6 +266,81 @@ async function runNegative(client, workDirectory) {
     if (!caught) failed++;
   }
   return failed;
+}
+
+/**
+ * Оценить сохранённые формы батчей нынешним прибором, не запуская модель: без этого прогоны до и после
+ * правки контракта сравнивать нельзя. Браузерные проверки остаются из прогона. Holdout показан только
+ * агрегатом, как в остальных отчётах: разбор его провалов превратил бы его в настроечный набор.
+ */
+async function runReverify(client, batchIds) {
+  const scenarios = new Map(
+    loadScenarios({ includeHoldout: true }).map((scenario) => [scenario.id, scenario])
+  );
+  for (const batchId of batchIds) {
+    const local = path.join(runsDirectory, batchId, 'records.jsonl');
+    const flips = [];
+    const holdout = { before: 0, after: 0, total: 0 };
+    const records = [];
+    for (const record of readRecords(local)) {
+      const scenario = scenarios.get(record.scenario?.id);
+      const directory = record.artifacts?.runDir
+        ? path.join(repoRoot, record.artifacts.runDir, 'bundle')
+        : null;
+      if (record.verdict === 'invalid' || !scenario || !directory || !existsSync(directory)) {
+        records.push(record);
+        continue;
+      }
+      const contractText = readFileSync(scenario.contractFile, 'utf8');
+      const result = await verifyBundle({
+        directory,
+        contractFile: scenario.contractFile,
+        target: record.scenario.target,
+        client,
+        reference: record.agent?.kind === 'replay',
+      });
+      const browser = Object.entries(record.checks).filter(([id]) => id.startsWith('browser.'));
+      const checks = { ...result.checks, ...Object.fromEntries(browser) };
+      const { verdict, score, gates, failedGates } = summarize(JSON.parse(contractText), checks);
+      if (scenario.split === 'holdout') {
+        holdout.total += 1;
+        if (record.verdict === 'pass') holdout.before += 1;
+        if (verdict === 'pass') holdout.after += 1;
+      } else if (verdict !== record.verdict) {
+        const why = failedGates.length ? `: ${failedGates.join(', ')}` : '';
+        flips.push(
+          `${record.runId.split('.').slice(1).join('.')} ${record.verdict} → ${verdict}${why}`
+        );
+      }
+      records.push({
+        ...record,
+        verdict,
+        score,
+        gates,
+        checks,
+        source: { ...record.source, provenance: 'reverified' },
+        scenario: {
+          ...record.scenario,
+          contractDigest: createHash('sha256').update(contractText).digest('hex').slice(0, 16),
+        },
+      });
+    }
+    const year = path.join(publishedDirectory, batchId.slice(0, 4));
+    const published = existsSync(year)
+      ? readdirSync(year)
+          .filter((name) => name.startsWith(`${batchId}-`))
+          .map((name) => path.join(year, name))
+      : [];
+    rewriteRecords(records, [local, ...published]);
+    const passed = records.filter((record) => record.verdict === 'pass').length;
+    console.log(`${batchId}: прошло ${passed}/${records.length}`);
+    for (const flip of flips) console.log(`  ${flip}`);
+    if (holdout.total > 0) {
+      console.log(
+        `  holdout, агрегат: было ${holdout.before}/${holdout.total}, стало ${holdout.after}/${holdout.total}`
+      );
+    }
+  }
 }
 
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
@@ -260,6 +363,8 @@ if (isCli) {
       failed = await runGolden(client, flag('scenario', '*'), workDirectory, has('browser'));
     } else if (has('negative')) {
       failed = await runNegative(client, workDirectory);
+    } else if (has('reverify')) {
+      await runReverify(client, flag('reverify', '').split(',').filter(Boolean));
     } else {
       const directory = path.resolve(flag('dir', ''));
       const result = await verifyBundle({

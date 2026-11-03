@@ -341,6 +341,7 @@ async function runCell(cell) {
     contractFile: scenario.contractFile,
     target,
     client: verifyClient,
+    reference: agent.kind === 'replay',
   });
   writeFileSync(path.join(runDirectory, 'verify.json'), JSON.stringify(verification, null, 2));
   console.log(

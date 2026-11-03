@@ -107,9 +107,7 @@
       },
       "expect": {
         "valid": false,
-        "errorCode": {
-          "loanAmount": "min"
-        }
+        "invalid": ["loanAmount"]
       }
     },
     {
