@@ -198,6 +198,14 @@ const isEmptyRule = (rule: unknown): boolean =>
   rule.cross === undefined &&
   rule.async === undefined;
 
+/** Запись правила валидации в списке полей: цель и проверки, но ни имени поля, ни компонента. */
+const isMisplacedRule = (item: unknown): boolean =>
+  isRecord(item) &&
+  typeof item.target === 'string' &&
+  (Array.isArray(item.rules) || item.cross !== undefined || item.async !== undefined) &&
+  nameOf(item) === undefined &&
+  item.component === undefined;
+
 /** Раскладка списком — дети корневого контейнера. */
 const asRoot = (value: unknown): unknown =>
   Array.isArray(value) ? { kind: 'container', component: 'Box', children: value } : value;
@@ -227,8 +235,8 @@ export interface LiftResult {
  *
  * Сверх подъёма — записи, которые `readIntent` отклоняет или читает пустыми: раскладка списком
  * (дети корня), intent, который сам узел разметки (`{ kind: "step", title, children }`), один
- * шаг ключом `step` или объектом вместо списка `steps`, правило валидации без проверок и тип
- * поля, который на деле имя компонента.
+ * шаг ключом `step` или объектом вместо списка `steps`, правило валидации без проверок или среди
+ * полей и тип поля, который на деле имя компонента.
  *
  * @param components Имена компонентов кита — для типа, который на деле компонент.
  */
@@ -269,6 +277,18 @@ export function liftInline(raw: unknown, components: readonly string[] = []): Li
       intent = { ...intent, validation: kept };
       changed = true;
     }
+  }
+
+  // Правило среди полей (`fields: [{ target, rules }]`) — в `validation`: без имени `readIntent`
+  // отклонял весь intent (замер 2026-11-03, сценарий 21.4).
+  if (Array.isArray(intent.fields) && intent.fields.some(isMisplacedRule)) {
+    const rules = intent.fields.filter(isMisplacedRule);
+    intent = {
+      ...intent,
+      fields: intent.fields.filter((item) => !isMisplacedRule(item)),
+      validation: [...(Array.isArray(intent.validation) ? intent.validation : []), ...rules],
+    };
+    changed = true;
   }
 
   const lift: Lift = { fields: [], arrays: [], problems: [] };

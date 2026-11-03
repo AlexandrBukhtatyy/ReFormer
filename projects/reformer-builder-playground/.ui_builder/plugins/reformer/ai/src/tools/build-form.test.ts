@@ -146,6 +146,26 @@ describe('build_form', () => {
     ]);
   });
 
+  it('поля без шага в визард — один шаг с заголовком intent (запись B.2)', async () => {
+    const steps = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
+    const { schema, out } = expectBuilt(
+      await build(
+        {
+          parent: '/root/children/0',
+          intent: {
+            title: 'Доставка',
+            fields: [{ label: 'Город', model: 'city', required: true, type: 'text' }],
+          },
+        },
+        ctxOf(steps.schema, emptySchema(), steps.out.rules)
+      )
+    );
+    expect(stepsOf(schema)).toHaveLength(3);
+    expect(collectModelPaths(schema)).toEqual(['city']);
+    expect(out.text).toContain('Steps: "Доставка" /root/children/0/children/2.');
+    expect(out.text).not.toContain('компонент не указан');
+  });
+
   it('один шаг с полями собирается сразу — и в готовый визард', async () => {
     const steps = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
     const wizard = '/root/children/0';
@@ -559,6 +579,21 @@ describe('build_form: поля, описанные на месте', () => {
     });
     expect(out.ok).toBe(false);
     expect(out.text).toContain('steps[0].fields[0]: a field without "name"');
+  });
+
+  it('правило среди полей переносится в validation — запись 21.4 из замера', async () => {
+    const { schema, out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'phone', component: 'Input', label: 'Телефон' },
+            { target: 'phone', rules: ['required'] },
+          ],
+        },
+      })
+    );
+    expect(collectModelPaths(schema)).toEqual(['phone']);
+    expect(out.rules?.validation.map((r) => r.target)).toEqual(['phone']);
   });
 
   it('правило без валидаторов отбрасывается, а не валит весь intent', async () => {

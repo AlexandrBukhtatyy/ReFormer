@@ -184,7 +184,7 @@ export const buildFormTool: AgentTool<Params> = {
       blocks: [],
       step: wizardNames(ctx.catalog)?.step,
     };
-    const top = topNodes(plan, slot.kind, state);
+    const top = asStepIfWizard(topNodes(plan, slot.kind, state), slot.kind, state, raw);
     const placed = await place(state, parentRef, top, params.index, true);
     if (placed !== null) return placed;
 
@@ -275,6 +275,28 @@ function topNodes(root: PlanNode, slotKind: string, state: PlaceState): readonly
       ? node.children
       : [node]
   );
+}
+
+/**
+ * Поля без шага в визард — один шаг с ними. В визарде лежат только шаги, а модель, добавляя шаг,
+ * пишет intent самим шагом: `{ "title": "Доставка", "fields": [ … ] }` с `parent` = визард. Отказ
+ * `insert_node` стоил ей ещё двух вызовов (замер 2026-11-03, сценарий B.2). Заголовок — из
+ * `title` intent, без него — «Step».
+ */
+function asStepIfWizard(
+  nodes: readonly PlanNode[],
+  slotKind: string,
+  state: PlaceState,
+  raw: unknown
+): readonly PlanNode[] {
+  if (slotKind !== 'steps' || state.step === undefined) return nodes;
+  if (nodes.length === 0 || nodes.some((node) => node.component === state.step)) return nodes;
+  const source = typeof raw === 'string' ? safeParse(raw) : raw;
+  const title =
+    source !== null && typeof source === 'object' && 'title' in source
+      ? String((source as { title: unknown }).title)
+      : 'Step';
+  return [{ component: state.step, props: { title }, children: nodes, rows: [] }];
 }
 
 /** Сколько детей узла уходит в один вызов вместе с ним. */
@@ -515,10 +537,12 @@ function ruleParamsOf(intent: FormIntent): Parameters<typeof setFormRulesTool.ru
 /**
  * Предупреждения MCP, которые относятся к печати модуля, а не к документу билдера. Тип поля
  * документу не нужен — значение задаёт компонент; замечание «тип не указан» на каждое поле модель
- * принимала за сбой и шла проверять сборку (замер 2026-11-03, сценарий 3.6).
+ * принимала за сбой и шла проверять сборку (замер 2026-11-03, сценарий 3.6). Тот же шум — выбор
+ * компонента по типу и перенос `required` в правила: оба на каждое поле и оба про то, что сборка
+ * сделала как надо.
  */
 const MODULE_ONLY_WARNING =
-  /itemInterfaceName|initialValue|interfaceName|Ключи приведены|пришёл строкой|ни одного поля|тип не указан/;
+  /itemInterfaceName|initialValue|interfaceName|Ключи приведены|пришёл строкой|ни одного поля|тип не указан|компонент не указан|Обязательность живёт/;
 
 /** Ответ модели: что собрано, адреса шагов, что не взято, замечания и напоминание о задании. */
 function reply(intent: FormIntent, warnings: readonly string[], state: PlaceState): string {

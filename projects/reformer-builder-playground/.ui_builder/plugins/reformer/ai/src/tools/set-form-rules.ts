@@ -131,7 +131,11 @@ export const setFormRulesTool: AgentTool<Params> = {
               items: { type: 'string' },
               description: 'Paths it READS; cycles checked over these',
             },
-            expr: { type: 'string' },
+            expr: {
+              type: 'string',
+              description:
+                'compute: the value; copyFrom: copy only while true; *When: the condition',
+            },
             each: { type: 'string', description: 'Array path: a link of every row' },
           },
           required: ['kind', 'target'],

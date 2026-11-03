@@ -184,6 +184,10 @@ export { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-too
  * времени и 56% входных токенов, форма на 82 поля — 23 → 60 ключей при входе 524 → 66 тыс.
  * 504 символа в каждом запросе против десятков вызовов `insert_node` и `set_form_rules` на форму.
  *
+ * Повышение — 13554 → 13643: описание `expr` у связи `set_form_rules` (ReFormer-qsm8.19). Без него
+ * модель искала у `copyFrom` поле `when`, получала отказ схемы и теряла условное копирование:
+ * сценарий B.3 на qwen3.8:27b — 0 из 3 прогонов, где форма шла мимо `build_form`.
+ *
  * **Потолок — только встроенным.** У поверхности есть второе слагаемое — вклады плагинов:
  * инструменты точки `reformer.assistant.tool`, команды с блоком `agent` и `read_resource`, который
  * появляется вместе с провайдером ресурсов. У них свой потолок,
@@ -192,7 +196,7 @@ export { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-too
  * ломает тест, которого его автор даже не видит. Обе стороны считает одна функция
  * `measureToolSurface`.
  */
-export const TOOL_SURFACE_BUDGET = 13554;
+export const TOOL_SURFACE_BUDGET = 13643;
 
 /**
  * Бюджет системного промпта (символы) — вторая половина постоянной части запроса.
