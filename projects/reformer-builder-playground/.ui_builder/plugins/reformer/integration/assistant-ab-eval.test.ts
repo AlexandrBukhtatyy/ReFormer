@@ -26,7 +26,8 @@
  * Переменные: `EVAL_KIND` (`openai-compatible` | `anthropic` | `openai`), `EVAL_BASE_URL`,
  * `EVAL_API_KEY`, `EVAL_MODES` (`structured,files`), `EVAL_SCENARIOS` (`spec,rules`),
  * `EVAL_RUNS` (1), `EVAL_SPEC`, `EVAL_OUT` (`.tmp/ab-eval`), `EVAL_DRY` (`1` — без модели),
- * `EVAL_PAGES` (`1` — печатать модули в стенд; `0` — только счёт).
+ * `EVAL_PAGES` (`1` — печатать модули в стенд; `0` — только счёт), `EVAL_BUILD_FORM` (`1` — структурный
+ * режим с `build_form`, план mcp-misty-graham, этап 2).
  *
  * @module plugins/reformer/integration/assistant-ab-eval.test
  */
@@ -74,6 +75,8 @@ const MODES = (process.env.EVAL_MODES ?? 'structured,files').split(',') as Mode[
 const SCENARIOS = (process.env.EVAL_SCENARIOS ?? 'spec,rules').split(',');
 const RUNS = Number(process.env.EVAL_RUNS ?? 1);
 const PAGES = process.env.EVAL_PAGES !== '0';
+/** `build_form` в структурном режиме — `EVAL_BUILD_FORM=1`. */
+const BUILD_FORM = process.env.EVAL_BUILD_FORM === '1';
 /** Сухой прогон без модели — `EVAL_DRY=1`. */
 const DRY = process.env.EVAL_DRY === '1';
 
@@ -122,8 +125,12 @@ interface RunReport {
   calls: Record<string, number>;
   refusals: Record<string, number>;
   form: { valid: boolean; errors: number; steps: number; fields: number; firstErrors: string[] };
-  /** Сценарий spec: сколько ключей спеки нашлось среди путей модели формы. */
-  coverage?: { expected: number; found: number };
+  /**
+   * Сценарий spec: сколько ключей спеки нашлось среди путей модели формы. `found` не видит ключи
+   * строк массивов (`properties[].type`): в шаблоне строки путь записан от строки (`$model(type)`).
+   * Их считает `rows` — ключ найден, если шаблон строки массива несёт его путь.
+   */
+  coverage?: { expected: number; found: number; rows?: { expected: number; found: number } };
   /** Сценарий rules: попала ли каждая просьба в форму. */
   rules?: { required: boolean; visibility: boolean; codeErrors?: number };
   /** Режим файлов: какие файлы записаны. */
@@ -286,6 +293,30 @@ function formFacts(schema: JsonFormSchema | null): RunReport['form'] & { paths: 
   };
 }
 
+/** Ключи строк массивов спеки (`arr[].x`), чей путь несёт шаблон строки массива `arr`. */
+function rowCoverage(
+  schema: JsonFormSchema | null,
+  expected: readonly string[]
+): { expected: number; found: number } {
+  const keys = expected.filter((key) => key.includes('[].'));
+  const templates = new Map<string, string>();
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (node === null || typeof node !== 'object') return;
+    const record = node as Record<string, unknown>;
+    const model = typeof record.model === 'string' ? /^\$model\((.+)\)$/.exec(record.model) : null;
+    if (model && record.item !== undefined) templates.set(model[1], JSON.stringify(record.item));
+    Object.values(record).forEach(walk);
+  };
+  walk(schema);
+  const found = keys.filter((key) => {
+    const [array, row] = key.split('[].');
+    const template = templates.get(array);
+    return template !== undefined && new RegExp(`\\$model\\(${row}[.)]`).test(template);
+  });
+  return { expected: keys.length, found: found.length };
+}
+
 interface Turn {
   seconds: number;
   reason: string;
@@ -377,11 +408,12 @@ async function structuredTurn(
   };
   for await (const event of runAgentTurn({
     provider: provider(),
-    registry: createEditorToolRegistry({ reference }),
+    registry: createEditorToolRegistry({ reference, ...(BUILD_FORM ? { buildForm: true } : {}) }),
     catalog,
     validateForm: validateFormSchema,
     base,
     baseRules,
+    ...(BUILD_FORM ? { buildForm: true } : {}),
     messages: [{ role: 'user', content: task }],
   })) {
     if (event.type !== 'done') record.event(event);
@@ -553,6 +585,9 @@ function save(report: RunReport): void {
       `вход ${report.stats.inputTokens}, вызовы ${JSON.stringify(report.calls)}, отказы ` +
       `${JSON.stringify(report.refusals)}, форма ${JSON.stringify(report.form)}` +
       (report.coverage ? `, ключей ${report.coverage.found}/${report.coverage.expected}` : '') +
+      (report.coverage?.rows
+        ? `, из них строк массивов ${report.coverage.rows.found}/${report.coverage.rows.expected}`
+        : '') +
       (report.rules ? `, правила ${JSON.stringify(report.rules)}` : '') +
       (report.message ? `, ошибка: ${report.message}` : '')
   );
@@ -614,6 +649,7 @@ describe.skipIf(!MODEL && !DRY)('A/B ассистента: структурны�
             coverage: {
               expected: expected.length,
               found: expected.filter((key) => paths.includes(key)).length,
+              rows: rowCoverage(result?.schema ?? null, expected),
             },
             ...(touched ? { touched } : {}),
           };

@@ -7,10 +7,13 @@
  * полный ход моста (затравка, вторая попытка, правила в коде модуля, создание формы), и критерий по тому,
  * что легло в форму и в правила. Рабочая область — двойник: интерфейса замер не касается.
  *
- * По умолчанию НЕ запускается: нужен живой канал. Запуск из каталога плагина ассистента —
- * `EVAL_MODEL=qwen3.8:27b-32k npx vitest run src/session/form-scenarios-eval.test.ts`;
- * `EVAL_ONLY=7.1,8.1` — только эти сценарии, `EVAL_BASE_URL` — другой OpenAI-совместимый канал,
+ * По умолчанию НЕ запускается: нужен живой канал. Запуск из каталога этого файла —
+ * `EVAL_MODEL=qwen3.8:27b-32k npx vitest run assistant-scenarios-eval.test.ts`;
+ * `EVAL_ONLY=7.1,8.1` — только эти сценарии, `EVAL_KIND` — канал (`openai-compatible` по
+ * умолчанию, `anthropic`, `openai`), `EVAL_BASE_URL` — адрес OpenAI-совместимого канала,
+ * `EVAL_API_KEY` — ключ облачного канала (у Ollama не нужен),
  * `EVAL_REASONING=off|low|medium|high` — рассуждение модели (настройка канала `reasoning`),
+ * `EVAL_BUILD_FORM=1` — структурный режим с `build_form` (план mcp-misty-graham, этап 2),
  * `EVAL_DUMP=<каталог>` — тело каждого запроса к модели и сырой ответ сервера файлами: по ним
  * видно то, что до хода не дошло (вызов, который сервер не разобрал).
  * Итог — таблицей в консоль и JSON в `.tmp/eval/` корня репозитория. Отчёт —
@@ -34,7 +37,7 @@ import { createAgentBridge } from '../../forms/ai/src/session/bridge';
 import { createAiSession, openAskOf, type ToolLogEntry } from '../../forms/ai/src/session/session';
 import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
 import { createByokProvider } from '../../forms/ai/src/providers/byok';
-import type { ReasoningLevel } from '../../forms/ai/src/session/config';
+import type { ProviderKind, ReasoningLevel } from '../../forms/ai/src/session/config';
 import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
 import { createFakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles } from '../ai/src/stack/testing';
@@ -44,9 +47,13 @@ import type { FormCreatorService, ModuleGeneratorService } from '@reformer/build
 import type { TurnTelemetry } from '../../forms/ai/src/session/telemetry';
 
 const MODEL = process.env.EVAL_MODEL;
+const KIND = (process.env.EVAL_KIND ?? 'openai-compatible') as ProviderKind;
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:11434/v1';
+const API_KEY = process.env.EVAL_API_KEY ?? (KIND === 'openai-compatible' ? 'ollama' : '');
 /** Рассуждение модели для A/B; нет — по умолчанию канала. */
 const REASONING = process.env.EVAL_REASONING as ReasoningLevel | undefined;
+/** `build_form` в наборе структурного режима; нет — набор прежний. */
+const BUILD_FORM = process.env.EVAL_BUILD_FORM === '1';
 /** Куда писать сырые запросы и ответы; нет — не писать. */
 const DUMP = process.env.EVAL_DUMP;
 
@@ -137,6 +144,36 @@ const CLIENT: JsonFormSchema = {
   },
 } as unknown as JsonFormSchema;
 
+/** Мастер из двух шагов: в него добавляют шаг целиком. */
+const WIZARD: JsonFormSchema = {
+  format: 2,
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    componentProps: { className: 'space-y-4' },
+    children: [
+      {
+        component: '$component(Wizard)',
+        selector: 'wizard',
+        children: [
+          {
+            component: '$component(Step)',
+            componentProps: { title: 'Клиент' },
+            selector: 'klient-section',
+            children: [field('Input', 'name', 'Имя'), field('Input', 'phone', 'Телефон')],
+          },
+          {
+            component: '$component(Step)',
+            componentProps: { title: 'Контакты' },
+            selector: 'kontakty-section',
+            children: [field('Input', 'email', 'Почта')],
+          },
+        ],
+      },
+    ],
+  },
+} as unknown as JsonFormSchema;
+
 /** Правила анкеты на начало хода: почта уже обязательна. */
 const CLIENT_RULES: FormRules = {
   ...emptyRules(),
@@ -208,7 +245,7 @@ interface EvalScenario {
   /** Номер сценария документа. */
   readonly id: string;
   readonly title: string;
-  readonly form: 'none' | 'empty' | 'client';
+  readonly form: 'none' | 'empty' | 'client' | 'wizard';
   /**
    * Файл, открытый активной вкладкой перед ходом, — путь от корня проекта; нет файла — кладётся
    * пустой. Нет поля — активна вкладка формы (или никакая, если формы нет).
@@ -219,6 +256,99 @@ interface EvalScenario {
   readonly request: string;
   /** Почему не прошёл, или `null`. */
   readonly check: (state: EvalState) => string | null;
+  /**
+   * Сколько формы собрано — у сценариев крупной сборки. Вердикт «прошёл / нет» на них грубый: ход,
+   * собравший 20 полей из 25, и ход, не собравший ничего, падают одинаково.
+   */
+  readonly coverage?: (state: EvalState) => Coverage;
+}
+
+/** Собранное против заказанного: поля и правила. */
+interface Coverage {
+  readonly fields: readonly [hit: number, total: number];
+  readonly rules: readonly [hit: number, total: number];
+}
+
+/** Правила проверки поля — строками, как их хранит `FormRules`. */
+const rulesOn = (s: EvalState, target: string): string[] =>
+  s.rules.validation.filter((r) => r.target === target).flatMap((r) => r.rules);
+
+/** Обязательность — правилом или свойством `required` поля: генерация выводит проверку из обоих. */
+const requiredOn = (s: EvalState, target: string): boolean =>
+  rulesOn(s, target).some((r) => r.startsWith('required')) ||
+  fieldsOf(s.schema).find((f) => modelOf(f) === target)?.componentProps?.required === true;
+
+/** Шаги мастера формы; нет мастера — `null`. */
+function stepsOf(schema: JsonFormSchema | null): Node[] | null {
+  const wizard = nodesOf(schema).find((n) => nameOf(n.component) === 'Wizard');
+  return wizard === undefined
+    ? null
+    : (wizard.children ?? []).filter((c) => nameOf(c.component) === 'Step');
+}
+
+const stepFields = (step: Node): Node[] => fieldsOf({ root: step } as unknown as JsonFormSchema);
+
+/** Ключи полей B.1 — по шагам. Ключи названы в запросе, чтобы покрытие считалось по ним. */
+const B1_STEPS: readonly (readonly string[])[] = [
+  ['lastName', 'firstName', 'middleName', 'birthDate', 'email', 'phone', 'company', 'position'],
+  [
+    'ticketType',
+    'studentId',
+    'arrivalDate',
+    'departureDate',
+    'needHotel',
+    'hotelNights',
+    'mealPreference',
+    'promoCode',
+  ],
+  [
+    'payerType',
+    'inn',
+    'payerCompany',
+    'billingEmail',
+    'basePrice',
+    'discount',
+    'total',
+    'comment',
+    'acceptTerms',
+  ],
+];
+
+/** Последний сегмент пути модели: ключ запроса, даже если модель положила поле в группу шага. */
+const keyOf = (path: string): string => path.split('.').at(-1) ?? path;
+
+/** Путь модели поля с этим ключом; нет поля — сам ключ (тогда правило не найдётся). */
+const pathOf = (s: EvalState, key: string): string =>
+  fieldsOf(s.schema)
+    .map(modelOf)
+    .find((path) => keyOf(path) === key) ?? key;
+
+/** Правила B.1: имя → выполнено ли. */
+function b1Rules(s: EvalState): Record<string, boolean> {
+  const path = (key: string) => pathOf(s, key);
+  const behavior = (key: string, kind: RegExp) =>
+    s.rules.behavior.some((b) => b.target === path(key) && kind.test(b.kind));
+  const conditionalRequired = (key: string) =>
+    s.rules.validation.some(
+      (r) => r.target === path(key) && r.rules.some((x) => x.startsWith('required')) && r.when
+    );
+  const discount = rulesOn(s, path('discount'));
+  return {
+    required: ['lastName', 'firstName', 'email', 'phone', 'ticketType', 'acceptTerms'].every(
+      (key) => requiredOn(s, path(key))
+    ),
+    emailFormat: rulesOn(s, path('email')).some((r) => r.startsWith('email')),
+    studentIdWhen: conditionalRequired('studentId'),
+    datesCross: s.rules.validation.some((r) => r.cross !== undefined),
+    hotelNightsWhen:
+      behavior('hotelNights', /When$/) ||
+      s.rules.render.some((r) => r.kind === 'hideWhen' && /hotel-?nights/i.test(r.selector)),
+    innWhen: conditionalRequired('inn'),
+    billingEmailCopy: behavior('billingEmail', /^copyFrom/),
+    totalCompute: behavior('total', /^compute/),
+    discountBounds:
+      discount.some((r) => r.startsWith('min')) && discount.some((r) => r.startsWith('max')),
+  };
 }
 
 const SCENARIOS: readonly EvalScenario[] = [
@@ -517,7 +647,101 @@ const SCENARIOS: readonly EvalScenario[] = [
             ? `полей ${fieldsOf(s.schema).length} из 3`
             : null,
   },
+  // ── Крупная сборка: форма целиком, шаг, блок (план mcp-misty-graham, этап 2) ──
+  {
+    id: 'B.1',
+    title: 'пошаговая форма средней спеки: 25 полей, 3 шага, 9 правил',
+    form: 'none',
+    request: [
+      'Сделай пошаговую форму регистрации участника конференции, ключи полей — в скобках.',
+      'Шаг «Участник»: фамилия (lastName), имя (firstName), отчество (middleName), дата рождения',
+      '(birthDate), почта (email), телефон (phone), компания (company), должность (position).',
+      'Шаг «Участие»: тип билета (ticketType: стандарт, VIP, студенческий), номер студенческого',
+      '(studentId), дата приезда (arrivalDate), дата отъезда (departureDate), нужна гостиница',
+      '(needHotel, флажок), число ночей (hotelNights), питание (mealPreference: обычное,',
+      'вегетарианское, без глютена), промокод (promoCode).',
+      'Шаг «Оплата»: плательщик (payerType: физлицо, юрлицо), ИНН (inn), название организации',
+      '(payerCompany), почта для счёта (billingEmail), базовая цена (basePrice), скидка в',
+      'процентах (discount), итого (total), комментарий (comment), согласие с условиями',
+      '(acceptTerms, флажок).',
+      'Правила: фамилия, имя, почта, телефон, тип билета и согласие обязательны; почта —',
+      'корректный email; номер студенческого обязателен только для студенческого билета; дата',
+      'отъезда не раньше даты приезда; число ночей доступно только при отмеченной гостинице; ИНН',
+      'обязателен только для юрлица; почта для счёта копируется из почты участника; итого =',
+      'базовая цена × (1 − скидка / 100); скидка от 0 до 50.',
+    ].join(' '),
+    check: (s) => {
+      if (s.created.length !== 1) return `создано форм: ${s.created.length}`;
+      const steps = stepsOf(s.schema);
+      if (steps === null) return 'нет мастера';
+      if (steps.length !== 3) return `шагов ${steps.length}`;
+      const { fields, rules } = b1Coverage(s);
+      if (fields[0] < 23) return `полей ${fields[0]} из ${fields[1]}`;
+      return rules[0] < 7 ? `правил ${rules[0]} из ${rules[1]}` : null;
+    },
+    coverage: (s) => b1Coverage(s),
+  },
+  {
+    id: 'B.2',
+    title: 'шаг целиком в существующий мастер',
+    form: 'wizard',
+    request:
+      'Добавь в мастер третий шаг «Доставка»: город, улица, дом, квартира, дата доставки и ' +
+      'комментарий курьеру. Город, улица и дом — обязательные.',
+    check: (s) => {
+      const steps = stepsOf(s.schema);
+      if (steps === null) return 'мастер пропал';
+      if (steps.length !== 3) return `шагов ${steps.length}`;
+      const before = fieldsOf(s.schema).map(modelOf);
+      if (!['name', 'phone', 'email'].every((path) => before.includes(path))) {
+        return 'поля прежних шагов потеряны';
+      }
+      const added = stepFields(steps[2]);
+      if (added.length < 6) return `полей третьего шага ${added.length} из 6`;
+      const required = added.filter((f) => requiredOn(s, modelOf(f))).length;
+      return required >= 3 ? null : `обязательных ${required} из 3`;
+    },
+    coverage: (s) => {
+      const added = stepsOf(s.schema)?.[2];
+      const fields = added === undefined ? [] : stepFields(added);
+      return {
+        fields: [Math.min(fields.length, 6), 6],
+        rules: [Math.min(fields.filter((f) => requiredOn(s, modelOf(f))).length, 3), 3],
+      };
+    },
+  },
+  {
+    id: 'B.3',
+    title: 'два блока адреса с копированием',
+    form: 'client',
+    request:
+      'Добавь блок «Адрес регистрации» (город, улица, дом) и блок «Адрес проживания» с теми же ' +
+      'полями, а между ними флажок «Совпадает с адресом регистрации»: когда он отмечен, адрес ' +
+      'проживания копируется из адреса регистрации.',
+    check: (s) => {
+      const added = fieldsOf(s.schema).length - 11;
+      if (added < 7) return `новых полей ${added} из 7`;
+      return s.rules.behavior.some((b) => b.kind.startsWith('copyFrom'))
+        ? null
+        : 'нет копирования адреса';
+    },
+    coverage: (s) => ({
+      fields: [Math.max(0, Math.min(fieldsOf(s.schema).length - 11, 7)), 7],
+      rules: [s.rules.behavior.some((b) => b.kind.startsWith('copyFrom')) ? 1 : 0, 1],
+    }),
+  },
 ];
+
+/** Покрытие B.1: поля по ключам запроса, правила — по списку {@link b1Rules}. */
+function b1Coverage(s: EvalState): Coverage {
+  const present = new Set(fieldsOf(s.schema).map((f) => keyOf(modelOf(f))));
+  const keys = B1_STEPS.flat();
+  const rules = Object.values(b1Rules(s));
+  return {
+    fields: [keys.filter((key) => present.has(key)).length, keys.length],
+    rules: [rules.filter(Boolean).length, rules.length],
+  };
+}
 
 // ── Ход ──
 
@@ -552,6 +776,8 @@ interface EvalResult {
   readonly phases: Readonly<Record<string, number>>;
   /** Файлы, которые ход записал в проект (пути от корня проекта). */
   readonly written: readonly string[];
+  /** Собранное против заказанного — у сценариев крупной сборки, иначе `null`. */
+  readonly coverage: Coverage | null;
 }
 
 /** Строка моста о коде, напечатанном записью хода, — не вызов модели. */
@@ -613,7 +839,8 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
   // Генерация — настоящая: ею ход пишет правила в код модуля.
   const codegen = generatorOver({ files, documentOf: (id) => host.documentOf(id) });
   if (scenario.form !== 'none') {
-    const schema = scenario.form === 'client' ? CLIENT : EMPTY;
+    const schema =
+      scenario.form === 'client' ? CLIENT : scenario.form === 'wizard' ? WIZARD : EMPTY;
     files.put(DOCUMENT, printSchemaText(schema));
     host.openDocument(DOCUMENT, printSchemaText(schema));
     if (scenario.form === 'client') {
@@ -662,17 +889,16 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
   const providers = createProviderRegistry();
   providers.register(
     createByokProvider({
-      kind: 'openai-compatible',
-      baseUrl: BASE_URL,
+      kind: KIND,
+      ...(KIND === 'openai-compatible' ? { baseUrl: BASE_URL } : {}),
       model: MODEL!,
-      apiKey: 'ollama',
+      ...(API_KEY ? { apiKey: API_KEY } : {}),
       ...(REASONING === undefined ? {} : { reasoning: REASONING }),
     })
   );
   const assistant: AiAssistant = {
     providers,
-    loadConfig: () =>
-      Promise.resolve({ kind: 'openai-compatible' as const, model: MODEL!, maxSteps: MAX_STEPS }),
+    loadConfig: () => Promise.resolve({ kind: KIND, model: MODEL!, maxSteps: MAX_STEPS }),
     saveConfig: () => Promise.resolve(),
     clearConfig: () => Promise.resolve(),
     models: () => Promise.resolve([]),
@@ -689,6 +915,7 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
     generator: () => codegen,
     // Как в плагине: форма файла модуля и формы проекта — для выбора формы хода.
     ...projectFormsOf(files),
+    ...(BUILD_FORM ? { buildForm: true } : {}),
   });
   const bridge = createAgentBridge({
     assistant,
@@ -781,6 +1008,7 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
     reasoning: (last?.reasoning ?? '').slice(0, 3000),
     ...telemetryOf(telemetry),
     written: [...new Set(files.writes.map((write) => write.path))].sort(),
+    coverage: scenario.coverage?.(state) ?? null,
   };
 }
 
@@ -792,8 +1020,12 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
     it(`[${scenario.id}] ${scenario.title}`, async () => {
       const result = await runScenario(scenario);
       results.push(result);
+      const coverage =
+        result.coverage === null
+          ? ''
+          : ` · поля ${result.coverage.fields.join('/')}, правила ${result.coverage.rules.join('/')}`;
       console.info(
-        `[eval] ${result.id} ${result.pass ? 'OK' : `FAIL (${result.reason})`} · ` +
+        `[eval] ${result.id} ${result.pass ? 'OK' : `FAIL (${result.reason})`}${coverage} · ` +
           `${result.seconds}s · запросов ${result.requests}, модель ${result.modelSeconds}s, ` +
           `до 1-го куска ${result.firstChunkSeconds ?? '—'}s, выход ${result.outputTokens}, ` +
           `рассуждение ${result.reasoningTokens || `${result.reasoningChars} симв.`} · ` +
@@ -811,9 +1043,17 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
     mkdirSync(root, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     writeFileSync(
-      `${root}form-scenarios-${(MODEL ?? 'model').replace(/[^\w.-]/g, '_')}${REASONING === undefined ? '' : `-reasoning-${REASONING}`}-${stamp}.json`,
+      `${root}form-scenarios-${(MODEL ?? 'model').replace(/[^\w.-]/g, '_')}${REASONING === undefined ? '' : `-reasoning-${REASONING}`}${BUILD_FORM ? '-build-form' : ''}-${stamp}.json`,
       JSON.stringify(
-        { model: MODEL, baseUrl: BASE_URL, passed, total: results.length, results },
+        {
+          model: MODEL,
+          kind: KIND,
+          baseUrl: BASE_URL,
+          buildForm: BUILD_FORM,
+          passed,
+          total: results.length,
+          results,
+        },
         null,
         2
       )
