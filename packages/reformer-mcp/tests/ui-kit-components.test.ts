@@ -1,5 +1,5 @@
 /**
- * Поля ui-kit в генераторе и валидаторе: registry-имя ↔ экспорт, удалённые `*Field`.
+ * Поля ui-kit в генераторе и валидаторе: registry-имя ↔ экспорт, компонент вместо пропа.
  *
  * Зачем. `*Field`-версии компонентов ui-kit удалены без алиасов: в `component` поля кладётся
  * сам компонент, а число, подсказки и варианты загрузки файлов стали отдельными компонентами
@@ -17,7 +17,6 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   normalizeFieldComponent,
-  REMOVED_FIELD_EXPORTS,
   UI_KIT_FIELD_EXPORTS,
 } from '../src/core/generate/ui-kit-components';
 import { buildBundle, buildRegistryTs } from '../src/core/generate/builders';
@@ -52,13 +51,6 @@ describe('таблица полей ui-kit', () => {
     );
     expect({ ...UI_KIT_FIELD_EXPORTS }).toEqual(fromCatalog);
   });
-
-  it('каждый удалённый *Field ведёт в существующее registry-имя', () => {
-    const dangling = Object.entries(REMOVED_FIELD_EXPORTS).filter(
-      ([, registry]) => !UI_KIT_FIELD_EXPORTS[registry]
-    );
-    expect(dangling).toEqual([]);
-  });
 });
 
 describe('normalizeFieldComponent', () => {
@@ -84,16 +76,23 @@ describe('normalizeFieldComponent', () => {
     const dz = normalizeFieldComponent('FileUpload', 'object', { variant: 'dropzone' });
     expect(dz.component).toBe('FileUploadDropzone');
     expect(dz.componentProps).not.toHaveProperty('variant');
-    expect(
-      normalizeFieldComponent('FileUploadField', 'object', { variant: 'input' }).component
-    ).toBe('FileUploadInput');
+    expect(normalizeFieldComponent('FileUpload', 'object', { variant: 'input' }).component).toBe(
+      'FileUploadInput'
+    );
   });
 
-  it('удалённый *Field и имя экспорта приводятся к registry-имени', () => {
-    expect(normalizeFieldComponent('CheckboxField', 'boolean').component).toBe('Checkbox');
+  it('имя экспорта приводится к registry-имени', () => {
+    expect(normalizeFieldComponent('CheckboxWithLabel', 'boolean').component).toBe('Checkbox');
     expect(normalizeFieldComponent('SelectAsync', 'string').component).toBe('Select');
-    expect(normalizeFieldComponent('InputField', 'number').component).toBe('InputNumber');
     expect(normalizeFieldComponent('Textarea', 'string').notes).toEqual([]);
+  });
+
+  it('чужое имя не подменяется: его называет сборка', () => {
+    expect(normalizeFieldComponent('CheckboxField', 'boolean')).toEqual({
+      component: 'CheckboxField',
+      componentProps: {},
+      notes: [],
+    });
   });
 });
 
@@ -105,7 +104,7 @@ describe('генератор', () => {
       fields: [
         { name: 'qty', type: 'number' },
         { name: 'price', type: 'number', component: 'Input', componentProps: { type: 'number' } },
-        { name: 'agree', type: 'boolean', component: 'CheckboxField' },
+        { name: 'agree', type: 'boolean', component: 'CheckboxWithLabel' },
       ],
     });
     expect(intent.fields.map((f) => f.component)).toEqual([
@@ -115,7 +114,7 @@ describe('генератор', () => {
     ]);
     expect(intent.fields[1].componentProps ?? {}).not.toHaveProperty('type');
     expect(intent.warnings.join('\n')).toMatch(/InputNumber/);
-    expect(intent.warnings.join('\n')).toMatch(/CheckboxField.*удалён/);
+    expect(intent.warnings.join('\n')).toMatch(/CheckboxWithLabel.*имя экспорта/);
   });
 
   it('registry.ts импортирует сами компоненты, а не *Field', () => {
@@ -146,15 +145,12 @@ describe('генератор', () => {
 describe('validate_form kind=code', () => {
   const k = cliKnowledge();
 
-  it('удалённый *Field — RF010 с названной заменой', async () => {
+  it('прежние *Field и withFormControl — обычное «не существует»', async () => {
     const { diagnostics } = await validateCode(
       k,
-      "import { CheckboxField, InputField } from '@reformer/ui-kit';\n"
+      "import { CheckboxField, withFormControl } from '@reformer/ui-kit';\n"
     );
-    const rf010 = diagnostics.filter((d) => d.code === 'RF010');
-    expect(rf010.map((d) => d.message).join('\n')).toMatch(/CheckboxField/);
-    expect(rf010.map((d) => d.suggestion).join('\n')).toMatch(/CheckboxWithLabel/);
-    expect(diagnostics.some((d) => d.code === 'RF002')).toBe(false);
+    expect(diagnostics.map((d) => d.code)).toEqual(['RF002', 'RF002']);
   });
 
   it('прежнее имя компонента массива — RF010 с новым именем, а не «не существует»', async () => {

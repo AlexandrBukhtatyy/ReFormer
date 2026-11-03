@@ -77,78 +77,10 @@ export function groupUiKitImports(names: readonly string[]): Array<[string, stri
   return [...byModule].sort(([first], [second]) => first.localeCompare(second));
 }
 
-/**
- * Удалённые `*Field`-экспорты → registry-имя поля, которое их заменило.
- *
- * `InputField` был диспетчером (`type: 'number'` → число, `suggestions` → подсказки), поэтому он
- * ведёт в `Input`, а уточнение по пропсам делает {@link normalizeFieldComponent}. То же у
- * `FileUploadField` с его `variant`.
- */
-export const REMOVED_FIELD_EXPORTS: Readonly<Record<string, string>> = {
-  InputField: 'Input',
-  InputBaseField: 'Input',
-  InputNumberField: 'InputNumber',
-  InputSuggestField: 'InputSuggest',
-  TextareaField: 'Textarea',
-  TextareaBaseField: 'Textarea',
-  SelectField: 'Select',
-  SelectAsyncField: 'Select',
-  SelectMultiField: 'SelectMulti',
-  CheckboxField: 'Checkbox',
-  CheckboxBaseField: 'Checkbox',
-  SwitchField: 'Switch',
-  SwitchBaseField: 'Switch',
-  ToggleField: 'Toggle',
-  ToggleBaseField: 'Toggle',
-  RadioGroupField: 'RadioGroup',
-  RadioGroupBaseField: 'RadioGroup',
-  ToggleGroupField: 'ToggleGroup',
-  ToggleGroupBaseField: 'ToggleGroup',
-  ToggleGroupMultiField: 'ToggleGroupMulti',
-  NativeSelectField: 'NativeSelect',
-  NativeSelectBaseField: 'NativeSelect',
-  NativeSelectMultiField: 'NativeSelectMulti',
-  SliderField: 'Slider',
-  SliderBaseField: 'Slider',
-  CalendarField: 'Calendar',
-  CalendarBaseField: 'Calendar',
-  DatePickerField: 'DatePicker',
-  DatePickerBaseField: 'DatePicker',
-  InputMaskField: 'InputMask',
-  InputMaskBaseField: 'InputMask',
-  InputPasswordField: 'InputPassword',
-  InputPasswordBaseField: 'InputPassword',
-  InputOTPField: 'InputOTP',
-  InputOTPBaseField: 'InputOTP',
-  ComboboxField: 'Combobox',
-  ComboboxBaseField: 'Combobox',
-  ComboboxMultiField: 'ComboboxMulti',
-  ComboboxTreeField: 'ComboboxTree',
-  ComboboxTreeMultiField: 'ComboboxTreeMulti',
-  FileUploadField: 'FileUpload',
-  FileUploadBaseField: 'FileUpload',
-  FileUploadDropzoneField: 'FileUploadDropzone',
-  FileUploadInputField: 'FileUploadInput',
-  FileUploadAvatarField: 'FileUploadAvatar',
-};
-
-/** Прочие удалённые символы ui-kit и то, чем их заменить (для диагностики кода). */
-export const REMOVED_UI_KIT_SYMBOLS: Readonly<Record<string, string>> = {
-  withFormControl: '`defineFieldControl(Component, { adapter })` из `@reformer/ui-kit/fields`',
-  stripWrapperProps: 'ничего — пропсы обёртки срезает `bindFieldProps` из `@reformer/core/react`',
-  SwitchControlProps: '`SwitchWithLabelProps`',
-};
-
 /** Экспорт ui-kit → registry-имя (обратная таблица). */
 const EXPORT_TO_REGISTRY: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(UI_KIT_FIELD_EXPORTS).map(([registry, exp]) => [exp, registry])
 );
-
-/** Замена удалённого `*Field`-экспорта в TS-коде: экспорт нового компонента. */
-export function replacementExportFor(removed: string): string | undefined {
-  const registry = REMOVED_FIELD_EXPORTS[removed];
-  return registry ? UI_KIT_FIELD_EXPORTS[registry] : undefined;
-}
 
 export interface NormalizedFieldComponent {
   /** Registry-имя компонента. */
@@ -162,7 +94,7 @@ export interface NormalizedFieldComponent {
 /**
  * Привести компонент поля к актуальному registry-имени.
  *
- * - удалённый `*Field` (`CheckboxField`) или имя экспорта (`CheckboxWithLabel`) → registry-имя;
+ * - имя экспорта (`CheckboxWithLabel`) → registry-имя;
  * - `Input` для числового поля или с `type: 'number'` → `InputNumber` (у `Input` больше нет
  *   `type: 'number'`: схема `additionalProperties: false`, а значение ушло бы в модель строкой);
  * - `Input` с `suggestions` → `InputSuggest`;
@@ -178,11 +110,7 @@ export function normalizeFieldComponent(
   const componentProps = { ...props };
   let name = component;
 
-  const fromRemoved = REMOVED_FIELD_EXPORTS[name];
-  if (fromRemoved) {
-    notes.push(`\`${name}\` удалён из ui-kit — принят \`${fromRemoved}\`.`);
-    name = fromRemoved;
-  } else if (!UI_KIT_FIELD_EXPORTS[name] && EXPORT_TO_REGISTRY[name]) {
+  if (!UI_KIT_FIELD_EXPORTS[name] && EXPORT_TO_REGISTRY[name]) {
     // Имя экспорта вместо registry-имени: в JSON-DSL `$component(...)` ссылается на ключ реестра.
     notes.push(
       `\`${name}\` — имя экспорта; в реестре он зарегистрирован как \`${EXPORT_TO_REGISTRY[name]}\`.`

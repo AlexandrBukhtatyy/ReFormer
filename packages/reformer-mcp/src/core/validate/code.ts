@@ -21,7 +21,6 @@ import { symbolsByName } from '../index/merge.js';
 import { KNOWN_PACKAGES } from '../docs/packages.js';
 import type { Knowledge } from '../knowledge.js';
 import type { Diagnostic } from './codes.js';
-import { REMOVED_UI_KIT_SYMBOLS, replacementExportFor } from '../generate/ui-kit-components.js';
 
 /** Один разобранный импорт. */
 interface ParsedImport {
@@ -319,19 +318,6 @@ export async function validateCode(
         continue;
       }
       const matches = await findSymbolAnywhere(k, imported);
-      // Удалённые `*Field`-обёртки ui-kit и `withFormControl` — не опечатка (RF002), а снятое
-      // API с известной заменой: называем её прямо, а не угадываем похожие имена.
-      const removed = matches.length === 0 ? removedUiKitReplacement(imported) : undefined;
-      if (removed) {
-        diagnostics.push({
-          code: 'RF010',
-          severity: 'error',
-          message: `\`${imported}\` удалён из @reformer/ui-kit: field-версий компонентов больше нет.`,
-          line: imp.line,
-          suggestion: `Замена: ${removed}.`,
-        });
-        continue;
-      }
       const removedEntry =
         matches.length === 0
           ? REMOVED_BY_PACKAGE.find(([pkg]) => imp.from.startsWith(pkg))
@@ -615,13 +601,6 @@ const LEGACY_KEYS: ReadonlyArray<{ re: RegExp; message: string; suggestion: stri
       'Правила узлов пишутся в единственном поведении формы: `defineFormBehavior(({ model, schema }) => { hideWhen(schema.node(selector), …) })`.',
   },
 ];
-
-/** Замена удалённого символа ui-kit (`*Field`, `withFormControl`); `undefined` — не удалён. */
-function removedUiKitReplacement(name: string): string | undefined {
-  const exp = replacementExportFor(name);
-  if (exp) return `\`${exp}\` — в \`component\` поля кладётся сам компонент`;
-  return REMOVED_UI_KIT_SYMBOLS[name];
-}
 
 /** Пакеты, где семейство компонента массива сменило имя: `FormArray*` → `FieldArray*`. */
 const FIELD_ARRAY_PACKAGES: ReadonlySet<string> = new Set(['@reformer/cdk', '@reformer/ui-kit']);
