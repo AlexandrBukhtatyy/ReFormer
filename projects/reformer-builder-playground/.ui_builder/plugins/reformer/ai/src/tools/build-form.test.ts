@@ -581,6 +581,38 @@ describe('build_form: поля, описанные на месте', () => {
     expect(out.text).toContain('steps[0].fields[0]: a field without "name"');
   });
 
+  it('голое имя в разметке — ссылка на поле, а не пустой контейнер (запись B.3)', async () => {
+    const { schema } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'city', component: 'Input', label: 'Город' },
+            { name: 'same', component: 'Checkbox', label: 'Совпадает' },
+          ],
+          layoutRoot: [
+            { kind: 'container', component: 'Box', children: ['city'] },
+            { name: 'same' },
+          ],
+        },
+      })
+    );
+    expect(collectModelPaths(schema)).toEqual(['city', 'same']);
+  });
+
+  it('неразмещённое поле без шагов — отказ про разметку, а не про шаги', async () => {
+    const out = await build({
+      intent: {
+        fields: [
+          { name: 'a', component: 'Input', label: 'A' },
+          { name: 'b', component: 'Input', label: 'B' },
+        ],
+        layoutRoot: { kind: 'container', component: 'Box', children: ['a'] },
+      },
+    });
+    expect(out.ok).toBe(false);
+    expect(out.text).toContain('Not placed in the layout: b.');
+  });
+
   it('правило среди полей переносится в validation — запись 21.4 из замера', async () => {
     const { schema, out } = expectBuilt(
       await build({

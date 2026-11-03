@@ -80,6 +80,10 @@ function describesField(node: Json): boolean {
   return FIELD_KEYS.some((key) => node[key] !== undefined);
 }
 
+/** Узел из одних ключей имени: ни детей, ни компонента, ни свойств. */
+const isBareReference = (node: Json): boolean =>
+  Object.keys(node).every((key) => (NAME_KEYS as readonly string[]).includes(key));
+
 /**
  * Массив, описанный на месте или полем: `{ kind: "array", name, itemFields }` либо
  * `{ name, type: "array", fields: [ … ] }`. Полем `readField` читает его как поле типа `array` и
@@ -148,6 +152,11 @@ function liftNode(node: unknown, lift: Lift): unknown {
   }
   if (name !== undefined && describesField(node)) {
     lift.fields.push(declarationOf(node, name));
+    return { kind: 'field', ref: name };
+  }
+  // Голое имя (`{ "name": "sameAddress" }`) — ссылка на поле. `readIntent` читал его контейнером,
+  // и поле оставалось неразмещённым (замер 2026-11-03, сценарий B.3).
+  if (name !== undefined && kindOf(node) === undefined && isBareReference(node)) {
     return { kind: 'field', ref: name };
   }
   const next: Json = { ...node };

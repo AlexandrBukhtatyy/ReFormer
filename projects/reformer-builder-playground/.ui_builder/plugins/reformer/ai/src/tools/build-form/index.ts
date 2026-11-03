@@ -131,9 +131,12 @@ export const buildFormTool: AgentTool<Params> = {
       .filter((e) => !layout.placed.has(e.name) && !layout.placed.has(e.modelPath ?? e.name))
       .map((e) => e.name);
     if (unplaced.length > 0) {
+      // Без шагов «шаг» в отказе путал модель: раскладка была узлами layoutRoot (сценарий B.3).
+      const where = steps > 0 ? 'any step' : 'the layout';
       return fail(
         'INVALID_PARAMS',
-        `Not placed in any step: ${unplaced.join(', ')}. Every field and array stands in one step.`
+        `Not placed in ${where}: ${unplaced.join(', ')}. Every field and array stands once in ` +
+          `${steps > 0 ? 'a step' : '"layoutRoot" — by name: "sameAddress"'}.`
       );
     }
 
