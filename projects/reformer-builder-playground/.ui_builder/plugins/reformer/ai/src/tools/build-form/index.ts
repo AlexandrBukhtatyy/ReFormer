@@ -73,7 +73,12 @@ export const buildFormTool: AgentTool<Params> = {
   inputSchema: {
     type: 'object',
     properties: {
-      intent: { type: 'object', description: 'The form as one intent; omit to get the grammar' },
+      // Строкой — тоже: модель шлёт intent JSON-строкой, и проверка аргументов отклоняла вызов до
+      // `readIntent`, который строку разбирает (замер 2026-11-03, сценарий 21.4: два отказа подряд).
+      intent: {
+        type: ['object', 'string'],
+        description: 'The form as one intent; omit to get the grammar',
+      },
       parent: { ...REF_PROP, description: 'Step or section to add to; omit for an empty form' },
       index: { type: 'integer', minimum: 0 },
     },

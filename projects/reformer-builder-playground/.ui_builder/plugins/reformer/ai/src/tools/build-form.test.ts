@@ -14,6 +14,7 @@ import {
 } from './build-form/grammar';
 import { liftInline } from './build-form/lift';
 import { insertNodeTool } from './insert-node';
+import { createEditorToolRegistry } from './registry';
 import { structuredSlots } from '.';
 import { systemPrompt } from '../loop/prompt';
 import { buildFormEmptySeed, formSeed } from '../stack/seed';
@@ -626,6 +627,17 @@ describe('build_form: поля, описанные на месте', () => {
     );
     expect(collectModelPaths(schema)).toEqual(['phone']);
     expect(out.rules?.validation.map((r) => r.target)).toEqual(['phone']);
+  });
+
+  it('intent JSON-строкой проходит проверку аргументов реестра (запись 21.4)', async () => {
+    const registry = createEditorToolRegistry();
+    const out = await registry.invoke(
+      'build_form',
+      { intent: JSON.stringify({ fields: [{ name: 'a', component: 'Input', label: 'A' }] }) },
+      ctxOf(emptySchema())
+    );
+    expect(out.error?.code, out.text).toBeUndefined();
+    expect(collectModelPaths(out.schema as JsonFormSchema)).toEqual(['a']);
   });
 
   it('правило без валидаторов отбрасывается, а не валит весь intent', async () => {

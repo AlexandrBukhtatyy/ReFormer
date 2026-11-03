@@ -48,12 +48,12 @@ describe('реестр инструментов ReFormer', () => {
     // Ключ словаря модель пишет в вызове сама, а gemma4 пишет ключи без кавычек: адрес узла, путь
     // модели или имя со знаком в ключе Ollama не разбирала и выбрасывала вызов целиком — ход
     // кончался пустым ответом (ReFormer-qsm8.11). Здесь ключи — имена свойств, полей узла и
-    // источников данных. Данные с другими ключами передаются списком, как `edits`. У intent
-    // `build_form` ключи — слова грамматики (fields, steps, validation), а поля и шаги — списки.
+    // источников данных. Данные с другими ключами передаются списком, как `edits`. Intent
+    // `build_form` (объект или строка) сюда не входит: его ключи — слова грамматики (fields, steps,
+    // validation), а поля и шаги — списки.
     const maps: string[] = [];
     for (const tool of allTools()) freeMaps(tool.inputSchema, tool.name, maps);
     expect(maps).toEqual([
-      'build_form.intent',
       'insert_node.nodes[].props',
       'insert_node.nodes[].children[]',
       'set_node_prop.props',
