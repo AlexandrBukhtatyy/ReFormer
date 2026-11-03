@@ -164,6 +164,30 @@ export const formBehavior = defineFormBehavior<Form>(behaviorRules);
   });
 });
 
+describe('копирование с условием', () => {
+  const BEHAVIOR = `
+export function behaviorRules({ model }: BehaviorScope<Form>): void {
+  copyFrom(model.$.email, model.$.billing, { when: () => model.same === true });
+  copyFrom(model.$.city, model.$.residence);
+}
+
+export const formBehavior = defineFormBehavior<Form>(behaviorRules);
+`;
+
+  it('условие when читается обратно в expr связи — так его печатает генерация', () => {
+    const read = readRulesFromCode({
+      validation: [],
+      behavior: { path: 'behavior/index.ts', text: BEHAVIOR },
+      constants: [],
+    });
+    expect(read.files[0]?.foreign).toEqual([]);
+    expect(read.rules.behavior).toEqual([
+      { kind: 'copyFrom', target: 'billing', sources: ['email'], expr: 'model.same === true' },
+      { kind: 'copyFrom', target: 'residence', sources: ['city'] },
+    ]);
+  });
+});
+
 describe('значения источников данных', () => {
   it('варианты и скаляры — значениями, подписи-функции пропускаются', () => {
     const constants = `// constants/anketa.ts

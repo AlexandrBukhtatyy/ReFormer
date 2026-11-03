@@ -123,6 +123,26 @@ function optionsOf(text: string | undefined): Record<string, unknown> | undefine
   return read.value as Record<string, unknown>;
 }
 
+/**
+ * Условие копирования — `{ when: () => expr }` → `expr`; `undefined` — условия нет; `null` —
+ * запись незнакомая.
+ *
+ * Так условие `copyFrom` печатает генерация (`buildBehaviorTs` MCP — из `expr` связи). Литералом
+ * опций оно не читается: в нём функция. Пока условие сюда не возвращалось, файл поведения со
+ * связью «копировать, когда…» не читался обратно, и сторож записи (`guardRuleFiles`) не писал ни
+ * одного файла правил формы: ход сообщал об успехе, а правила пропадали.
+ */
+function whenOf(text: string | undefined): string | null | undefined {
+  if (text === undefined) return undefined;
+  const props = objectProperties(text);
+  const when = props?.find((prop) => prop.key === 'when');
+  if (props === null || when === undefined || when.value === null) return undefined;
+  // Не стрелка — литерал опций (`{ when: 'always' }`): его читает `optionsOf`, как и раньше.
+  const expr = expressionOf(when.value, '()');
+  if (expr === null) return undefined;
+  return props.length === 1 ? expr : null;
+}
+
 /** Связь с обёрткой области и выражением, если оно не по умолчанию. */
 function link(
   kind: Kind,
@@ -168,9 +188,11 @@ function linkOf(callee: string, args: readonly string[], scope: Scope): Behavior
       const [targetRef, sourceRef] = kind === 'copyFrom' ? [b, a] : [a, b];
       const target = pathOf(targetRef, scope);
       const source = pathOf(sourceRef, scope);
-      const options = optionsOf(c);
-      if (target === null || source === null || options === null || args.length > 3) return null;
-      return link(kind, target, [source], scope, undefined, options);
+      const when = kind === 'copyFrom' ? whenOf(c) : undefined;
+      const options = when === undefined ? optionsOf(c) : undefined;
+      if (target === null || source === null || when === null || options === null) return null;
+      if (args.length > 3) return null;
+      return link(kind, target, [source], scope, when, options);
     }
     case 'onChange': {
       const target = pathOf(a, scope);
