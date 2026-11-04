@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initProblems } from '../eval/agents/claude-code.mjs';
+import { KEEP_WHOLE_TOOLS, truncateOldResults } from '../eval/agents/ollama.mjs';
 import { findTextualCall } from '../eval/agents/textual-call.mjs';
 import { resolveInside, runWorkspaceTool } from '../eval/agents/workspace-tools.mjs';
 import { compareCalibration } from '../eval/calibration/compare.mjs';
@@ -356,5 +357,31 @@ describe('импорт прогона ассистента с build_form', () =>
 
   it('цена — по тарифу за миллион токенов', () => {
     expect(record.usage.costUsd).toBeCloseTo(2 * 3 + 0.1 * 15);
+  });
+});
+
+describe('адаптер Ollama: усечение старых ответов', () => {
+  const tool = (name: string, chars: number) => ({
+    role: 'tool',
+    tool_name: name,
+    content: 'x'.repeat(chars),
+  });
+
+  it('ответ генератора не усекается, прочие старые ответы — да [ReFormer-qo9b.31]', () => {
+    const bundle = tool('generate_form', 9000);
+    const messages = [
+      { role: 'user', content: 'задача' },
+      tool('find_recipe', 5000),
+      bundle,
+      tool('plan_form', 6000),
+      ...Array.from({ length: 4 }, () => tool('search_docs', 3000)),
+    ];
+    expect(truncateOldResults(messages)).toBe(1);
+    expect(messages[1].content).toContain('ответ усечён стендом');
+    expect(bundle.content).toHaveLength(9000);
+    expect(messages[3].content).toHaveLength(6000);
+    // Последние ответы остаются целыми: их модель читает прямо сейчас.
+    expect(messages.slice(-4).every((m) => m.content.length === 3000)).toBe(true);
+    expect([...KEEP_WHOLE_TOOLS].sort()).toEqual(['form_build', 'generate_form', 'plan_form']);
   });
 });

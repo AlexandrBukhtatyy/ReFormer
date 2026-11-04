@@ -4,8 +4,9 @@
  * Нативный `POST /api/chat` без AI SDK: в корне репозитория лежит `ai@5`, у конструктора — `ai@7`, и
  * импорт отсюда разрешился бы не в ту версию. Токены — точные, из ответа Ollama.
  *
- * Контекст модели ограничен, поэтому старые ответы инструментов усекаются. Это вмешательство прибора:
- * число усечений попадает в запись прогона.
+ * Контекст модели ограничен, поэтому старые ответы инструментов усекаются — кроме ответов генератора
+ * ({@link KEEP_WHOLE_TOOLS}). Это вмешательство прибора: число усечений и длина ответов генератора
+ * попадают в запись прогона.
  */
 
 import { createWriteStream } from 'node:fs';
@@ -73,9 +74,19 @@ const toFunction = (tool) => ({
   function: { name: tool.name, description: tool.description, parameters: tool.inputSchema },
 });
 
+/**
+ * Ответы, которые модель переносит в файлы целиком: бандл `generate_form`, intent `plan_form`,
+ * грамматика `form_build`. Усечённый бандл модель дописывала бы по памяти, и замер судил бы стенд, а
+ * не сервер (ReFormer-qo9b.31: прогон qwen L1-feedback, 135 усечений при контексте 32k). Их длина
+ * попадает в запись прогона: ответ длиннее контекста модели виден там, а не теряется молча.
+ */
+export const KEEP_WHOLE_TOOLS = new Set(['generate_form', 'plan_form', 'form_build']);
+
 /** Усечь старые ответы инструментов; возвращает число усечённых за этот шаг. */
-function truncateOldResults(messages) {
-  const results = messages.filter((message) => message.role === 'tool');
+export function truncateOldResults(messages) {
+  const results = messages.filter(
+    (message) => message.role === 'tool' && !KEEP_WHOLE_TOOLS.has(message.tool_name)
+  );
   let truncated = 0;
   for (const message of results.slice(0, -KEEP_FULL_LAST_RESULTS)) {
     if (message.content.length > OLD_RESULT_CHARS) {
@@ -99,7 +110,7 @@ export async function runAgent(input) {
   });
   const toolCalls = [];
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0, turns: 0, modelMs: 0 };
-  const harness = { truncations: 0, textualCalls: 0 };
+  const harness = { truncations: 0, textualCalls: 0, keptWhole: 0, keptWholeMaxChars: 0 };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
   let exitReason = 'maxSteps';
@@ -181,6 +192,10 @@ export async function runAgent(input) {
         }
         toolCalls.push({ name, ok: result.ok });
         log({ step, role: 'tool', name, ok: result.ok, chars: result.text.length });
+        if (KEEP_WHOLE_TOOLS.has(name)) {
+          harness.keptWhole++;
+          harness.keptWholeMaxChars = Math.max(harness.keptWholeMaxChars, result.text.length);
+        }
         messages.push({ role: 'tool', tool_name: name, content: result.text });
       }
     }
