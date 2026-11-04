@@ -530,6 +530,12 @@ const NOTICE_TEXT: Partial<Record<IntentWarningCode, string>> = {
   'inline-fields': 'fields described inside steps or layout nodes, declared in "fields"',
   'inline-arrays': 'arrays described inside steps or layout nodes, declared in "arrays"',
   'bare-refs': 'layout nodes holding only a name, read as field references',
+  'reset-as-on-change':
+    'resetWhen whose condition reads no field never sees its sources change; written as onChange ' +
+    'on each source that resets the field',
+  'computed-toggle-replaced':
+    'enableWhen would make this computed field editable; replaced with a reset while the ' +
+    'condition is false, the field stays locked',
 };
 
 const noticeText = (notice: IntentWarning): string => {
