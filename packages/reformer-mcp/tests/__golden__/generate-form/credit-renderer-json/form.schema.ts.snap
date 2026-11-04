@@ -1348,6 +1348,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "interestRate",
                         "model": "$model(interestRate)",
+                        "disabled": true,
                         "component": "$component(InputNumber)",
                         "componentProps": {
                           "readOnly": true,
@@ -1358,6 +1359,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "monthlyPayment",
                         "model": "$model(monthlyPayment)",
+                        "disabled": true,
                         "component": "$component(InputNumber)",
                         "componentProps": {
                           "readOnly": true,
@@ -1386,6 +1388,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "fullName",
                         "model": "$model(fullName)",
+                        "disabled": true,
                         "component": "$component(Input)",
                         "componentProps": {
                           "readOnly": true,
@@ -1396,6 +1399,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "age",
                         "model": "$model(age)",
+                        "disabled": true,
                         "component": "$component(InputNumber)",
                         "componentProps": {
                           "readOnly": true,
@@ -1406,6 +1410,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "totalIncome",
                         "model": "$model(totalIncome)",
+                        "disabled": true,
                         "component": "$component(InputNumber)",
                         "componentProps": {
                           "readOnly": true,
@@ -1416,6 +1421,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "paymentToIncomeRatio",
                         "model": "$model(paymentToIncomeRatio)",
+                        "disabled": true,
                         "component": "$component(InputNumber)",
                         "componentProps": {
                           "readOnly": true,
@@ -1426,6 +1432,7 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
                       {
                         "selector": "coBorrowersIncome",
                         "model": "$model(coBorrowersIncome)",
+                        "disabled": true,
                         "component": "$component(InputNumber)",
                         "componentProps": {
                           "readOnly": true,

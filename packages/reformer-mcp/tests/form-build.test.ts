@@ -516,3 +516,247 @@ describe('form_build: компилятор недоступен', () => {
     }
   });
 });
+
+describe('form_build: запись intent не теряет часть формы', () => {
+  // Пробник на рабочем сервере 2026-11-04 (ReFormer-j356.5): каждая из этих записей давала ✓ —
+  // на пустой форме, на плоской вместо мастера и с Input вместо выбора.
+  const base = { formName: 'Заявка', interfaceName: 'Application', target: 'renderer-react' };
+
+  it(
+    'поля, описанные прямо в шагах, собираются мастером из двух шагов',
+    async () => {
+      writeIntent({
+        ...base,
+        steps: [
+          { title: 'Клиент', fields: [{ name: 'fullName', component: 'Input', label: 'ФИО' }] },
+          { title: 'Заказ', fields: [{ name: 'comment', component: 'Textarea', label: 'Отзыв' }] },
+        ],
+      });
+      const { text, isError } = await build();
+      expect(isError).toBe(false);
+      expect(text).toContain('Полей 2');
+      const schema = readFileSync(formFile('form.schema.ts'), 'utf-8');
+      expect(schema).toContain('Клиент');
+      expect(schema).toContain('Заказ');
+      expect(schema).toContain('Step');
+    },
+    SLOW
+  );
+
+  it('поле вне шагов сокращения steps — отказ с подсказкой, куда его поставить', async () => {
+    writeIntent({
+      ...base,
+      fields: [
+        { name: 'a', component: 'Input', label: 'A' },
+        { name: 'b', component: 'Input', label: 'B' },
+      ],
+      steps: [{ title: 'Первый', fields: ['a'] }, { title: 'Второй' }],
+    });
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('не стоят в layoutRoot');
+    expect(text).toContain('`steps[i].fields`');
+    expectNothingWritten();
+  });
+
+  it(
+    'type: "Select" собирается выбором, а не полем ввода',
+    async () => {
+      writeIntent({
+        ...base,
+        fields: [
+          {
+            name: 'city',
+            type: 'Select',
+            label: 'Город',
+            options: [{ value: 'msk', label: 'Москва' }],
+          },
+        ],
+      });
+      const { isError } = await build();
+      expect(isError).toBe(false);
+      // Registry-имя `Select` на renderer-react — экспорт `SelectAsync`.
+      const schema = readFileSync(formFile('form.schema.ts'), 'utf-8');
+      expect(schema).toContain('component: SelectAsync');
+      expect(schema).not.toMatch(/component: Input\b/);
+    },
+    SLOW
+  );
+
+  it('второе объявление поля — отказ о дубле, а не о testId', async () => {
+    writeIntent({
+      ...base,
+      fields: [
+        { name: 'email', component: 'Input', label: 'Почта' },
+        { name: 'email', component: 'Input', label: 'Почта ещё раз' },
+      ],
+    });
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('объявлено второй раз');
+    expect(text).not.toContain('C10');
+    expectNothingWritten();
+  });
+});
+
+describe('form_build: пустое текстовое поле — null', () => {
+  it(
+    'метод строки по необязательному полю — ошибка типов, а не падение в браузере [ReFormer-b464]',
+    async () => {
+      // Текстовые компоненты кита пишут `null` в стёртое поле. С типом `string` сборка
+      // принимала `model.promo.trim()`, и стёртый промокод ронял форму.
+      const intent = {
+        formName: 'Промокод',
+        interfaceName: 'Promo',
+        target: 'renderer-react',
+        fields: [
+          { name: 'promo', type: 'string', component: 'Input', label: 'Промокод' },
+          { name: 'code', type: 'string', component: 'Input', label: 'Код' },
+        ],
+        behavior: [
+          { kind: 'compute', target: 'code', sources: ['promo'], expr: 'model.promo.trim()' },
+        ],
+      };
+      writeIntent(intent);
+      const failed = await build();
+      expect(failed.isError).toBe(true);
+      expect(failed.text).toContain('ошибки типов');
+      expectNothingWritten();
+
+      intent.behavior[0].expr = "(model.promo ?? '').trim()";
+      writeIntent(intent);
+      const passed = await build();
+      expect(passed.isError).toBe(false);
+      expect(readFileSync(formFile('model.ts'), 'utf-8')).toContain('promo: string | null;');
+    },
+    SLOW
+  );
+});
+
+describe('form_build: подсказки из справочника', () => {
+  it(
+    'suggestionsSource собирается InputSuggest с подсказками из data-sources [ReFormer-3yx2]',
+    async () => {
+      writeIntent({
+        formName: 'Доставка',
+        interfaceName: 'Delivery',
+        target: 'renderer-react',
+        fields: [{ name: 'city', type: 'string', label: 'Город', suggestionsSource: 'CITIES' }],
+        dataSources: [{ name: 'CITIES', values: ['Москва', 'Казань'] }],
+      });
+      const { text, isError } = await build();
+      expect(text).toContain('Типы проверены');
+      expect(isError).toBe(false);
+      const schema = readFileSync(formFile('form.schema.ts'), 'utf-8');
+      expect(schema).toContain('component: InputSuggest');
+      expect(schema).toContain('suggestions: CITIES');
+    },
+    SLOW
+  );
+});
+
+describe('form_build: замечание cross — предупреждение с параметрами', () => {
+  it(
+    'severity и params собираются и проходят проверку типов [ReFormer-j356.4.21: A13, A15]',
+    async () => {
+      writeIntent({
+        formName: 'Кредит',
+        interfaceName: 'Loan',
+        target: 'renderer-react',
+        fields: [
+          { name: 'amount', type: 'number', component: 'InputNumber', label: 'Сумма' },
+          { name: 'income', type: 'number', component: 'InputNumber', label: 'Доход' },
+        ],
+        validation: [
+          {
+            target: 'amount',
+            rules: [],
+            cross: 'values.amount <= values.income * 10',
+            code: 'amount.tooHigh',
+            message: 'Сумма больше {maximum}',
+            severity: 'warning',
+            params: { maximum: 'values.income * 10' },
+          },
+        ],
+      });
+      const { text, isError } = await build();
+      expect(text).toContain('Типы проверены');
+      expect(isError).toBe(false);
+      const validation = readFileSync(formFile('form.validation.ts'), 'utf-8');
+      expect(validation).toContain(
+        "{ code: 'amount.tooHigh', severity: 'warning', params: { maximum: values.income * 10 } }"
+      );
+    },
+    SLOW
+  );
+});
+
+describe('form_build: условие вычисления', () => {
+  it(
+    'when у compute и computeFrom печатается { when } и проходит проверку типов [ReFormer-j356.4.21: A8]',
+    async () => {
+      writeIntent({
+        formName: 'Ипотека',
+        interfaceName: 'Mortgage',
+        target: 'renderer-react',
+        fields: [
+          { name: 'loanType', type: 'string', component: 'Input', label: 'Тип' },
+          { name: 'propertyValue', type: 'number', component: 'InputNumber', label: 'Стоимость' },
+          { name: 'initialPayment', type: 'number', component: 'InputNumber', label: 'Взнос' },
+          { name: 'fee', type: 'number', component: 'InputNumber', label: 'Комиссия' },
+        ],
+        behavior: [
+          {
+            kind: 'computeFrom',
+            target: 'initialPayment',
+            sources: ['propertyValue'],
+            expr: 'propertyValue * 0.2',
+            when: "model.loanType === 'mortgage'",
+          },
+          {
+            kind: 'compute',
+            target: 'fee',
+            sources: ['propertyValue'],
+            expr: 'model.propertyValue * 0.01',
+            options: { when: "model.loanType === 'mortgage'" },
+          },
+        ],
+      });
+      const { text, isError } = await build();
+      expect(text).toContain('Типы проверены');
+      expect(isError).toBe(false);
+      const behavior = readFileSync(formFile('form.behavior.ts'), 'utf-8');
+      expect(behavior).toContain("{ when: () => model.loanType === 'mortgage' }");
+      expect(behavior.match(/when: \(\) =>/g)).toHaveLength(2);
+    },
+    SLOW
+  );
+});
+
+describe('form_build: включение группы', () => {
+  it(
+    'enableWhen на группу проходит кросс-проверку и типы [ReFormer-j356.4.21: A9]',
+    async () => {
+      writeIntent({
+        formName: 'Адрес',
+        interfaceName: 'Address',
+        target: 'renderer-react',
+        fields: [
+          { name: 'other', type: 'boolean', component: 'Checkbox', label: 'Другой адрес' },
+          { name: 'residence.city', type: 'string', component: 'Input', label: 'Город' },
+          { name: 'residence.street', type: 'string', component: 'Input', label: 'Улица' },
+        ],
+        behavior: [
+          { kind: 'enableWhen', target: 'residence', sources: ['other'], expr: 'model.other' },
+        ],
+      });
+      const { text, isError } = await build();
+      expect(text).toContain('Типы проверены');
+      expect(isError).toBe(false);
+      expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).toContain(
+        'enableWhen(model.$.residence, () => model.other);'
+      );
+    },
+    SLOW
+  );
+});

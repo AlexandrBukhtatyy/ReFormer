@@ -13,7 +13,12 @@
  */
 
 import { findCycle, type Dependency } from '../utils/graph.js';
-import { modelPaths, type FormIntent, type LayoutNode } from './form-intent.js';
+import {
+  modelPaths,
+  type BehaviorIntent,
+  type FormIntent,
+  type LayoutNode,
+} from './form-intent.js';
 import { collectUsedComponents } from './builders.js';
 
 /** Код проверки. Стабилен: на него ссылаются сообщения и тесты. */
@@ -289,8 +294,20 @@ export function crossCheckBundle(
     b.each !== undefined && !path.startsWith(`${b.each}.`) && path !== b.each
       ? `${b.each}.${path}`
       : path;
+  // Включение и выключение ядро принимает и на группу: `enableWhen(model.$.residenceAddress, …)`
+  // включает все её поля разом (калибровка кредитной заявки, A9: без этого — по записи на лист).
+  const groups = new Set(
+    [...paths].flatMap((p) =>
+      p
+        .split('.')
+        .slice(0, -1)
+        .map((_, i, a) => a.slice(0, i + 1).join('.'))
+    )
+  );
+  const togglesGroup = (b: BehaviorIntent): boolean =>
+    (b.kind === 'enableWhen' || b.kind === 'disableWhen') && groups.has(fullOf(b, b.target));
   for (const b of intent.behavior) {
-    if (!paths.has(fullOf(b, b.target))) {
+    if (!paths.has(fullOf(b, b.target)) && !togglesGroup(b)) {
       err('C5', `Поведение \`${b.kind}\` пишет в \`${b.target}\` — такого поля в модели нет.`);
     }
     for (const s of b.sources) {

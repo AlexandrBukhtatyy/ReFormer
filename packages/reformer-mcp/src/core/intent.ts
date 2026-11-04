@@ -14,6 +14,7 @@
  */
 
 export {
+  MODULE_ONLY_WARNINGS,
   modelPaths,
   normalizeIntent,
   readIntent,
@@ -25,7 +26,10 @@ export {
   type FormIntent,
   type IntentProblem,
   type IntentReading,
+  type IntentWarning,
+  type IntentWarningCode,
   type LayoutNode,
+  type ReadIntentOptions,
   type ValidationRuleIntent,
   type VisibilityIntent,
   type WizardIntent,

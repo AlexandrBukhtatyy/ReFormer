@@ -1254,12 +1254,14 @@ export const formSchema = (model: FormModel<CreditApplicationForm>): FormSchemaN
                     {
                       selector: 'interestRate',
                       model: model.$.interestRate,
+                      disabled: true,
                       component: InputNumber,
                       componentProps: { readOnly: true, testId: 'interestRate', label: 'Процентная ставка' },
                     },
                     {
                       selector: 'monthlyPayment',
                       model: model.$.monthlyPayment,
+                      disabled: true,
                       component: InputNumber,
                       componentProps: {
                         readOnly: true,
@@ -1286,24 +1288,28 @@ export const formSchema = (model: FormModel<CreditApplicationForm>): FormSchemaN
                     {
                       selector: 'fullName',
                       model: model.$.fullName,
+                      disabled: true,
                       component: Input,
                       componentProps: { readOnly: true, testId: 'fullName', label: 'ФИО' },
                     },
                     {
                       selector: 'age',
                       model: model.$.age,
+                      disabled: true,
                       component: InputNumber,
                       componentProps: { readOnly: true, testId: 'age', label: 'Возраст' },
                     },
                     {
                       selector: 'totalIncome',
                       model: model.$.totalIncome,
+                      disabled: true,
                       component: InputNumber,
                       componentProps: { readOnly: true, testId: 'totalIncome', label: 'Общий доход' },
                     },
                     {
                       selector: 'paymentToIncomeRatio',
                       model: model.$.paymentToIncomeRatio,
+                      disabled: true,
                       component: InputNumber,
                       componentProps: {
                         readOnly: true,
@@ -1314,6 +1320,7 @@ export const formSchema = (model: FormModel<CreditApplicationForm>): FormSchemaN
                     {
                       selector: 'coBorrowersIncome',
                       model: model.$.coBorrowersIncome,
+                      disabled: true,
                       component: InputNumber,
                       componentProps: {
                         readOnly: true,

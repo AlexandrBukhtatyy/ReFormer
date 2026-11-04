@@ -28,6 +28,8 @@ import {
 export interface SchemaDocNode {
   selector?: string;
   model?: string;
+  /** Постоянная блокировка поля — ключ узла, а не проп компонента. */
+  disabled?: boolean;
   component?: string;
   componentProps?: Record<string, unknown>;
   /** Шаблон строки массива: `$part(name)`. */
@@ -109,9 +111,14 @@ export function collectSteps(root: LayoutNode): Array<Extract<LayoutNode, { kind
 function fieldNode(
   f: FieldIntent,
   path: string,
-  testIdScope: { prefix?: string } | 'derived'
+  testIdScope: { prefix?: string } | 'derived',
+  locked = false
 ): SchemaDocNode {
   const props: Record<string, unknown> = { ...(f.componentProps ?? {}) };
+  // `componentProps.disabled` обёртка поля затирает состоянием узла: поле оставалось
+  // редактируемым (L3-order-total на core, 3 из 3). Блокирует ключ узла.
+  const disabled = locked || props.disabled === true;
+  delete props.disabled;
   if (f.label) props.label = f.label;
   if (f.componentProps?.testId !== undefined) {
     props.testId = f.componentProps.testId;
@@ -119,12 +126,36 @@ function fieldNode(
     props.testId = [testIdScope.prefix, path].filter(Boolean).join('.').replace(/\./g, '-');
   }
   if (f.optionsSource) props.options = `$dataSource(${f.optionsSource})`;
+  if (f.suggestionsSource) props.suggestions = `$dataSource(${f.suggestionsSource})`;
   return {
     selector: f.selector ?? f.name,
     model: `$model(${path})`,
+    ...(disabled ? { disabled: true } : {}),
     component: `$component(${f.component})`,
     ...(Object.keys(props).length > 0 ? { componentProps: props } : {}),
   };
+}
+
+/** Виды поведения, чья цель — вычисляемое поле: вводить в него нечего. */
+const COMPUTED_KINDS = new Set(['compute', 'computeFrom']);
+
+/**
+ * Пути вычисляемых полей: корня — путь, строки массива — `массив[].путь`. Поле, которое правило
+ * включает (`enableWhen`/`disableWhen`), блокирует оно само, а не узел.
+ */
+function lockedPaths(intent: FormIntent): Set<string> {
+  const key = (target: string, each?: string) => (each ? `${each}[].${target}` : target);
+  const toggled = new Set(
+    intent.behavior
+      .filter((b) => b.kind === 'enableWhen' || b.kind === 'disableWhen')
+      .map((b) => key(b.target, b.each))
+  );
+  return new Set(
+    intent.behavior
+      .filter((b) => COMPUTED_KINDS.has(b.kind))
+      .map((b) => key(b.target, b.each))
+      .filter((path) => !toggled.has(path))
+  );
 }
 
 /** Имя части, не занятое другой частью документа. */
@@ -145,6 +176,7 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
   const steps = collectSteps(intent.layoutRoot);
   const stepKeys = steps.map(stepKeyOf);
   const rowPartOf = new Map<ArrayIntent, string>();
+  const locked = lockedPaths(intent);
 
   /** Часть-строка массива: создаётся один раз на массив. */
   const rowPart = (a: ArrayIntent): string => {
@@ -154,7 +186,10 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
     rowPartOf.set(a, name);
     parts[name] = {
       component: '$html(div)',
-      children: a.itemFields.map((f) => fieldNode(f, f.modelPath ?? f.name, { prefix: a.name })),
+      children: a.itemFields.map((f) => {
+        const path = f.modelPath ?? f.name;
+        return fieldNode(f, path, { prefix: a.name }, locked.has(`${a.name}[].${path}`));
+      }),
     };
     partInfo[name] = { itemInterfaceName: a.itemInterfaceName };
     return name;
@@ -188,11 +223,12 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
         if (!f) return null;
         // В части селектор — от группы: часть стоит в документе несколько раз, и полный путь
         // первого подключения был бы неверен для остальных. Свой селектор поля сохраняется.
+        const isLocked = locked.has(f.modelPath ?? f.name);
         if (scope) {
           const own = f.selector && f.selector !== f.name ? f.selector : node.ref;
-          return { ...fieldNode(f, node.ref, 'derived'), selector: own };
+          return { ...fieldNode(f, node.ref, 'derived', isLocked), selector: own };
         }
-        return fieldNode(f, f.modelPath ?? f.name, {});
+        return fieldNode(f, f.modelPath ?? f.name, {}, isLocked);
       }
       case 'array': {
         const path = absolute(node.ref);
@@ -224,7 +260,8 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
         return {
           selector: stepKeyOf(node, index),
           component: '$component(Step)',
-          componentProps: { title: node.title },
+          // Значок шага читает индикатор мастера — тот же проп, что у узла `Step` (A19).
+          componentProps: { title: node.title, ...(node.icon ? { icon: node.icon } : {}) },
           children: childrenOf(node.children, scope),
         };
       }
@@ -381,6 +418,7 @@ function ordered(node: SchemaDocNode): Record<string, unknown> {
   return {
     selector: node.selector,
     model: node.model,
+    disabled: node.disabled,
     component: node.component,
     componentProps: node.componentProps,
     item: node.item,

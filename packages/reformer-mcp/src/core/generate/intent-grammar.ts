@@ -294,6 +294,7 @@ ${json(fields[1])}
 - component: ${Object.keys(UI_KIT_FIELD_EXPORTS).join(' ')}.
 - componentProps — свойства компонента; незнакомое form_build назовёт и перечислит, какие есть.
 - Варианты выбора: "optionsSource":"LOAN_TYPES" и запись в dataSources либо componentProps.options:[{"value":"a","label":"А"}].
+- Свободный ввод с подсказками: "suggestionsSource":"CITIES" и запись в dataSources — поле рисует InputSuggest.
 - Дата строкой: ${json(fields[8])}. DatePicker хранит Date.
 - Маска: "component":"InputMask","componentProps":${json(fields[9].componentProps)}.
 
@@ -302,7 +303,7 @@ ${json(arrays[0])}
 
 ## layoutRoot — каждое поле и массив должны в нём стоять
 ${json(GRAMMAR_EXAMPLE.layoutRoot.children[0])}
-- Корень с шагами: {"kind":"container","component":"Box","selector":"wizard","componentProps":{"submitLabel":"Отправить"},"children":[шаги]}. Форма без шагов — те же контейнеры без узлов step.
+- Корень с шагами: {"kind":"container","component":"Box","selector":"wizard","componentProps":{"submitLabel":"Отправить"},"children":[шаги]}. Форма без шагов — те же контейнеры без узлов step. Значок шага: "icon":"💰".
 - Строка в children — ссылка на поле. Массив: {"kind":"array","ref":"contacts"}.
 - Подформа: parts ${json(GRAMMAR_EXAMPLE.parts)}, узел {"kind":"part","ref":"registrationAddress","part":"address"}; ссылки в части — от группы.
 
@@ -315,6 +316,7 @@ ${json(validation[0])}
 - Между полями (выражение ИСТИННО, когда всё верно): ${json(validation[4])}
 - Между полями строки массива (values — снимок строки): ${json(validation[6])}
 - Асинхронно: ${json(validation[5])}
+- У cross: "severity":"warning" — предупреждение, отправку не блокирует; "params":{"max":"values.income * 10"} — числа для {max} в message.
 
 ## behavior — expr это TS, sources это поля, которые оно читает
 ${behaviorRow(0)}
@@ -322,7 +324,7 @@ ${behaviorRow(1)}
 ${behaviorRow(2)} — value: новое значение target.
 ${behaviorRow(3)}
 ${behaviorRow(4)} — expr: условие копирования.
-target и sources — только листовые поля и массивы: группа не путь, опиши каждое её поле отдельно. В compute проверяй null: у числа без значения тип number | null.
+target и sources — только листовые поля и массивы; enableWhen и disableWhen принимают и группу ("target":"residenceAddress"). В compute проверяй null: у числа без значения тип number | null, у необязательного текста — string | null. Условие пересчёта у compute и computeFrom: "when":"model.loanType === 'mortgage'". Цель compute заблокирована для ввода сама.
 Ещё kind: disableWhen computeFrom syncFields resetWhen revalidateWhen exclusiveFlag aggregateInto — детали в find_recipe.
 Поведение строки массива: "each":"contacts", строка в expr — item.
 

@@ -18,7 +18,7 @@ export type ZayavkaNaKreditSokraschennayaShape = {
   /** Стоимость недвижимости (₽) */
   propertyValue: number | null;
   /** Марка автомобиля */
-  carBrand: string;
+  carBrand: string | null;
   /** Ежемесячный платёж (₽) */
   monthlyPayment: number | null;
   /** Имя */
@@ -28,9 +28,9 @@ export type ZayavkaNaKreditSokraschennayaShape = {
   /** Есть созаёмщик */
   hasCoBorrower: boolean;
   /** Комментарий */
-  comment: string;
+  comment: string | null;
   /** Отчество */
-  middleName: string;
+  middleName: string | null;
   /** Совокупный доход */
   totalIncome: number;
 };

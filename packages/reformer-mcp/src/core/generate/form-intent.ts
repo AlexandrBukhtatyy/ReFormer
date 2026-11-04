@@ -16,7 +16,8 @@
  * пришлось бы заменить надеждой.
  */
 
-import { normalizeFieldComponent } from './ui-kit-components.js';
+import { liftInline } from './intent-lift.js';
+import { normalizeFieldComponent, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
 
 /** Тип значения поля в модели. */
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
@@ -34,6 +35,11 @@ export interface FieldIntent {
   initialValue?: unknown;
   /** Имя `$dataSource(...)` для полей выбора. */
   optionsSource?: string;
+  /**
+   * Имя `$dataSource(...)` подсказок поля со свободным вводом: значение остаётся текстом, подсказка
+   * его только подставляет. Поле рисует `InputSuggest` (проп `suggestions`).
+   */
+  suggestionsSource?: string;
   /** Селектор узла для render-поведения; по умолчанию — `name`. */
   selector?: string;
 }
@@ -84,6 +90,16 @@ export interface ValidationRuleIntent {
   code?: string;
   /** Текст замечания с кодом {@link code} — для словаря формы (`defineIssueMessages`). */
   message?: string;
+  /**
+   * Замечание `cross` — предупреждение: показывается, но отправку не блокирует. По умолчанию —
+   * ошибка.
+   */
+  severity?: 'error' | 'warning';
+  /**
+   * Параметры замечания `cross`: имя → выражение над снимком `values`. Текст словаря подставляет
+   * их по имени: `{max}` в «не больше {max}».
+   */
+  params?: Record<string, string>;
 }
 
 /** Реактивная связь над моделью. */
@@ -119,6 +135,12 @@ export interface BehaviorIntent {
    * (`{ when: () => expr }`), например `model.sameEmail === true`.
    */
   expr?: string;
+  /**
+   * Условие вычисления у `compute` и `computeFrom` → `{ when: () => … }`: пока оно ложно, поле не
+   * пересчитывается и хранит то, что в нём есть. Пример: первоначальный взнос считается только
+   * для ипотеки — `model.loanType === 'mortgage'`.
+   */
+  when?: string;
   options?: Record<string, unknown>;
 }
 
@@ -143,7 +165,7 @@ export interface DataSourceIntent {
 }
 
 export interface WizardIntent {
-  steps: Array<{ title: string; fields: string[] }>;
+  steps: Array<{ title: string; icon?: string; fields: string[] }>;
 }
 
 /** Узел layout-дерева. Листья ссылаются на поля/массивы ПО ИМЕНИ, не встраивают их. */
@@ -165,7 +187,7 @@ export type LayoutNode =
       selector?: string;
       children: LayoutNode[];
     }
-  | { kind: 'step'; title: string; selector?: string; children: LayoutNode[] };
+  | { kind: 'step'; title: string; icon?: string; selector?: string; children: LayoutNode[] };
 
 export type ReformerTargetStack = 'core' | 'renderer-react' | 'renderer-json';
 
@@ -291,7 +313,21 @@ function usableName(entity: { name?: string; modelPath?: string }): string | nul
  * сказать, чего у формы не хватает, а не молча выдать полуфабрикат как готовый результат.
  */
 export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
-  const warnings = [...(partial.warnings ?? [])];
+  const notices: IntentWarning[] = [];
+  const intent = normalizeWith(partial, notices);
+  return {
+    ...intent,
+    warnings: [...(partial.warnings ?? []), ...notices.map((notice) => notice.message)],
+  };
+}
+
+/** Нормализация, которая пишет свои предупреждения с кодами в `notices`. */
+function normalizeWith(partial: Partial<FormIntent>, notices: IntentWarning[]): FormIntent {
+  const warnings = {
+    add(code: IntentWarningCode, message: string, at?: string): void {
+      notices.push({ code, message, ...(at === undefined ? {} : { at }) });
+    },
+  };
   const formName = partial.formName?.trim() || 'Form';
 
   // Безымянная запись — единственное, чего нормализация исправить не может: под именем поле
@@ -308,10 +344,18 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
 
   // Компонент поля — к актуальному registry-имени ui-kit: удалённые `*Field`, `Input` для
   // числа (`InputNumber`), `FileUpload` + `variant`. Исправление видно в warnings.
-  const withComponent = <T extends FieldIntent>(f: T, at: string): T => {
+  const withComponent = <T extends FieldIntent>(f: T, label: string, at: string): T => {
     if (typeof f.component !== 'string') return f;
-    const fixed = normalizeFieldComponent(f.component, f.type, f.componentProps);
-    for (const note of fixed.notes) warnings.push(`${at}: ${note}`);
+    // Подсказки из справочника (`suggestionsSource`) — тот же признак `InputSuggest`, что и
+    // `componentProps.suggestions`: проп появится в схеме, а нормализации его покажет заглушка.
+    const stub = f.suggestionsSource !== undefined && f.componentProps?.suggestions === undefined;
+    const fixed = normalizeFieldComponent(
+      f.component,
+      f.type,
+      stub ? { ...f.componentProps, suggestions: [] } : f.componentProps
+    );
+    if (stub) delete fixed.componentProps.suggestions;
+    for (const note of fixed.notes) warnings.add('component-normalized', `${label}: ${note}`, at);
     if (fixed.notes.length === 0 && fixed.component === f.component) return f;
     const { componentProps: _drop, ...rest } = f;
     void _drop;
@@ -328,7 +372,8 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
     const name = usableName(f) as string;
     return withComponent(
       { ...f, name, modelPath: f.modelPath ?? name, selector: f.selector ?? name },
-      `Поле \`${name}\``
+      `Поле \`${name}\``,
+      name
     );
   });
 
@@ -336,8 +381,10 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
     const name = usableName(a) as string;
     const declared = typeof a.itemInterfaceName === 'string' ? a.itemInterfaceName.trim() : '';
     if (!declared) {
-      warnings.push(
-        `Массив \`${name}\` без itemInterfaceName — интерфейс элемента назван по умолчанию.`
+      warnings.add(
+        'item-interface-default',
+        `Массив \`${name}\` без itemInterfaceName — интерфейс элемента назван по умолчанию.`,
+        name
       );
     }
     return {
@@ -354,7 +401,8 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
             modelPath: f.modelPath ?? fieldName,
             selector: f.selector ?? fieldName,
           },
-          `Поле \`${name}[].${fieldName}\``
+          `Поле \`${name}[].${fieldName}\``,
+          `${name}[].${fieldName}`
         );
       }),
       // Массив без начального значения падает на первом добавлении строки.
@@ -363,7 +411,8 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
   });
   for (const what of new Set(dropped)) {
     const count = dropped.filter((d) => d === what).length;
-    warnings.push(
+    warnings.add(
+      'unnamed-dropped',
       `Без имени, поэтому выброшено (${what}): ${count}. У записи обязателен \`name\`.`
     );
   }
@@ -372,7 +421,11 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
     // без `name` (только `modelPath`), и поиск по `x.name` объявлял бы её «без initialValue».
     const source = (partial.arrays ?? []).find((x) => x && usableName(x) === a.name);
     if (!Array.isArray(source?.initialValue)) {
-      warnings.push(`Массив \`${a.name}\` без initialValue — подставлен пустой массив.`);
+      warnings.add(
+        'initial-value-default',
+        `Массив \`${a.name}\` без initialValue — подставлен пустой массив.`,
+        a.name
+      );
     }
   }
 
@@ -386,7 +439,7 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
   ];
 
   if (fields.length === 0 && arrays.length === 0) {
-    warnings.push('В intent нет ни одного поля — бандл будет пустым каркасом.');
+    warnings.add('no-fields', 'В intent нет ни одного поля — бандл будет пустым каркасом.');
   }
 
   return {
@@ -412,7 +465,7 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
     visibility: partial.visibility ?? [],
     dataSources,
     wizard: partial.wizard,
-    warnings,
+    warnings: notices.map((notice) => notice.message),
   };
 }
 
@@ -459,15 +512,84 @@ export interface IntentProblem {
   expected: string;
 }
 
+/**
+ * Стабильный код предупреждения чтения. Текст предупреждения — по-русски и может меняться, а
+ * потребитель со своим языком (ассистент билдера отвечает модели по-английски) выбирает и
+ * переводит по коду.
+ */
+export type IntentWarningCode =
+  /** Свои предупреждения intent (`warnings` из `plan_form`), прочитанные как есть. */
+  | 'consumer'
+  | 'intent-string'
+  | 'keys-renamed'
+  | 'target-unknown'
+  | 'type-default'
+  | 'type-unknown'
+  | 'type-is-component'
+  | 'component-default'
+  | 'component-normalized'
+  | 'array-as-field'
+  | 'array-duplicate'
+  | 'layout-kind-unknown'
+  | 'required-lifted'
+  | 'item-interface-default'
+  | 'initial-value-default'
+  | 'unnamed-dropped'
+  | 'no-fields'
+  | 'intent-as-node'
+  | 'step-as-key'
+  | 'steps-as-object'
+  | 'layout-as-list'
+  | 'rules-in-fields'
+  | 'rules-on-fields'
+  | 'inline-fields'
+  | 'inline-arrays'
+  | 'bare-refs';
+
+export interface IntentWarning {
+  code: IntentWarningCode;
+  /** Текст, тот же, что в `FormIntent.warnings`. */
+  message: string;
+  /** Место в присланном объекте (`fields[2]`) или имя сущности, когда оно есть. */
+  at?: string;
+}
+
+/**
+ * Предупреждения о печати модуля: интерфейсы модели, начальные значения, тип значения, таргет,
+ * а также подстановки, сделанные как надо. Документу формы (ассистент билдера хранит JSON-схему,
+ * а не модуль) они не нужны, и модель принимала их за сбой (замер 2026-11-03).
+ */
+export const MODULE_ONLY_WARNINGS: ReadonlySet<IntentWarningCode> = new Set<IntentWarningCode>([
+  'intent-string',
+  'keys-renamed',
+  'target-unknown',
+  'type-default',
+  'component-default',
+  'required-lifted',
+  'item-interface-default',
+  'initial-value-default',
+  'no-fields',
+]);
+
+export interface ReadIntentOptions {
+  /**
+   * Intent читается для документа формы, а не для модуля: предупреждения
+   * {@link MODULE_ONLY_WARNINGS} не попадают ни в `notices`, ни в `intent.warnings`.
+   */
+  forDocument?: boolean;
+}
+
 export interface IntentReading {
   /** Нормализованный intent из того, что прочитать удалось. */
   intent: FormIntent;
   /** Выброшенные записи. Пусто — вход прочитан целиком. */
   problems: IntentProblem[];
+  /** Предупреждения с кодами, в порядке `intent.warnings`. */
+  notices: IntentWarning[];
 }
 
 interface ReadCtx {
-  warnings: string[];
+  warnings: IntentWarning[];
   problems: IntentProblem[];
   /** `path → name`: печатается одной строкой, а не по разу на каждое поле. */
   renames: Set<string>;
@@ -475,6 +597,16 @@ interface ReadCtx {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function withoutKey(record: Record<string, unknown>, key: string): Record<string, unknown> {
+  const { [key]: _drop, ...rest } = record;
+  void _drop;
+  return rest;
+}
+
+function warn(ctx: ReadCtx, code: IntentWarningCode, message: string, at?: string): void {
+  ctx.warnings.push({ code, message, ...(at === undefined ? {} : { at }) });
 }
 
 /** Значение канонического ключа либо первого из синонимов; переименование запоминается. */
@@ -559,6 +691,33 @@ const DEFAULT_COMPONENT: Record<FieldType, string> = {
   object: 'Input',
 };
 
+/** Тип значения компонента, когда его имя пришло в `type`; не названный здесь — `string`. */
+const COMPONENT_VALUE_TYPE: Readonly<Record<string, FieldType>> = {
+  Calendar: 'date',
+  Checkbox: 'boolean',
+  ComboboxMulti: 'array',
+  ComboboxTreeMulti: 'array',
+  DatePicker: 'date',
+  DatePickerMulti: 'array',
+  InputNumber: 'number',
+  NativeSelectMulti: 'array',
+  SelectMulti: 'array',
+  Slider: 'number',
+  Switch: 'boolean',
+  Toggle: 'boolean',
+  ToggleGroupMulti: 'array',
+};
+
+const COMPONENT_BY_KEY = new Map(
+  Object.keys(UI_KIT_FIELD_EXPORTS).map((name) => [name.toLowerCase(), name])
+);
+
+/** Компонент ui-kit, чьё имя пришло в `type`; `null` — это тип значения или неизвестное имя. */
+function componentOfType(value: unknown): string | null {
+  const raw = asName(value);
+  return raw ? (COMPONENT_BY_KEY.get(raw.toLowerCase()) ?? null) : null;
+}
+
 const BEHAVIOR_KINDS: ReadonlyArray<BehaviorIntent['kind']> = [
   'compute',
   'computeFrom',
@@ -594,14 +753,17 @@ export function readTargetStack(value: unknown): ReformerTargetStack | null {
 function readFieldType(value: unknown, at: string, ctx: ReadCtx): FieldType {
   const raw = asName(value);
   if (!raw) {
-    ctx.warnings.push(`${at}: тип не указан — принят \`string\`.`);
+    warn(ctx, 'type-default', `${at}: тип не указан — принят \`string\`.`, at);
     return 'string';
   }
   const hit = FIELD_TYPE_ALIASES[raw.toLowerCase()];
   if (hit) return hit;
-  ctx.warnings.push(
+  warn(
+    ctx,
+    'type-unknown',
     `${at}: тип \`${raw}\` контракту неизвестен — принят \`string\` ` +
-      '(допустимы string | number | boolean | date | array | object).'
+      '(допустимы string | number | boolean | date | array | object).',
+    at
   );
   return 'string';
 }
@@ -631,15 +793,31 @@ function readField(
     return null;
   }
 
-  const type = readFieldType(
-    take(raw, 'type', ['fieldType', 'valueType', 'dataType'], ctx),
-    at,
-    ctx
-  );
-  const component = asName(take(raw, 'component', ['componentName', 'widget', 'control'], ctx));
-  if (!component) {
-    ctx.warnings.push(
-      `${at}: компонент не указан — принят \`${DEFAULT_COMPONENT[type]}\` по типу \`${type}\`.`
+  const rawType = take(raw, 'type', ['fieldType', 'valueType', 'dataType'], ctx);
+  const named = asName(take(raw, 'component', ['componentName', 'widget', 'control'], ctx));
+  // `type: "Select"` — имя компонента, а не тип значения. По типу `select` → `string` поле
+  // рисовал `Input`, и выбор из вариантов пропадал с ✓ (ReFormer-j356.5).
+  const typeComponent = named ? null : componentOfType(rawType);
+  const type = typeComponent
+    ? (FIELD_TYPE_ALIASES[typeComponent.toLowerCase()] ??
+      COMPONENT_VALUE_TYPE[typeComponent] ??
+      'string')
+    : readFieldType(rawType, at, ctx);
+  const component = named ?? typeComponent;
+  if (typeComponent) {
+    warn(
+      ctx,
+      'type-is-component',
+      `${at}: \`type: "${String(rawType)}"\` — имя компонента: принят компонент ` +
+        `\`${typeComponent}\`, тип значения \`${type}\`. Компонент пиши в \`component\`.`,
+      at
+    );
+  } else if (!component) {
+    warn(
+      ctx,
+      'component-default',
+      `${at}: компонент не указан — принят \`${DEFAULT_COMPONENT[type]}\` по типу \`${type}\`.`,
+      at
     );
   }
 
@@ -649,10 +827,14 @@ function readField(
   // готовые значения, и им место в пропсах компонента, а не в реестре источников.
   const options = take(raw, 'optionsSource', ['dataSource', 'optionsRef', 'options'], ctx);
   if (Array.isArray(options)) componentProps.options = options;
+  // Та же двусмысленность у подсказок: строка — справочник, массив — готовые подсказки.
+  const suggestions = take(raw, 'suggestionsSource', ['suggestionsRef', 'suggestions'], ctx);
+  if (Array.isArray(suggestions)) componentProps.suggestions = suggestions;
 
   const label = asName(take(raw, 'label', ['title', 'caption'], ctx));
   const selector = asName(take(raw, 'selector', ['nodeSelector'], ctx));
   const optionsSource = asName(options);
+  const suggestionsSource = asName(suggestions);
   const initialValue = take(raw, 'initialValue', ['defaultValue', 'default'], ctx);
 
   return {
@@ -664,11 +846,52 @@ function readField(
       ...(label ? { label } : {}),
       ...(selector ? { selector } : {}),
       ...(optionsSource ? { optionsSource } : {}),
+      ...(suggestionsSource ? { suggestionsSource } : {}),
       ...(Object.keys(componentProps).length > 0 ? { componentProps } : {}),
       ...(initialValue !== undefined ? { initialValue } : {}),
     },
     required: take(raw, 'required', ['isRequired', 'mandatory'], ctx) === true,
   };
+}
+
+/** Синонимы `itemFields`: так строки массива называют и в `arrays`, и в записи поля. */
+const ITEM_FIELDS_ALIASES = ['fields', 'columns', 'items'] as const;
+
+/**
+ * Массив, записанный полем: со строками `itemFields` либо с типом `array` и строками под
+ * синонимом. Полем `readField` его читал без строк и без отказа: модуль собирался с пустым
+ * массивом и ✓ (ReFormer-gxv6, форма на 82 поля: три массива без строк). Тип `array` без строк —
+ * обычное поле: атомарное значение у `FileUpload*`, `*Multi`.
+ */
+function isArrayAsField(raw: unknown): raw is Record<string, unknown> {
+  if (!isRecord(raw)) return false;
+  if (raw.itemFields !== undefined) return true;
+  const type = asName(raw.type ?? raw.fieldType ?? raw.valueType ?? raw.dataType);
+  return (
+    type !== null &&
+    FIELD_TYPE_ALIASES[type.toLowerCase()] === 'array' &&
+    ITEM_FIELDS_ALIASES.some((key) => Array.isArray(raw[key]) || isRecord(raw[key]))
+  );
+}
+
+/**
+ * Ссылки раскладки на поле, которые называют массив, — узлами массива. Строка в `children`
+ * читается ссылкой на поле, а массив, записанный полем, раскладка и ставит строкой; без этого
+ * сборка отказывала бы «такого поля нет» (C11) за запись, смысл которой однозначен. Обходится
+ * только `layoutRoot`: в частях ссылки относительны группы, и имя верхнего уровня там не то.
+ */
+function refArrays(
+  node: LayoutNode,
+  arrays: ReadonlySet<string>,
+  fields: ReadonlySet<string>
+): LayoutNode {
+  if (node.kind === 'field') {
+    return arrays.has(node.ref) && !fields.has(node.ref) ? { kind: 'array', ref: node.ref } : node;
+  }
+  if (node.kind === 'container' || node.kind === 'step') {
+    return { ...node, children: node.children.map((child) => refArrays(child, arrays, fields)) };
+  }
+  return node;
 }
 
 function readArray(
@@ -698,7 +921,7 @@ function readArray(
 
   const itemFields: FieldIntent[] = [];
   const required: string[] = [];
-  asList(take(raw, 'itemFields', ['fields', 'columns'], ctx)).forEach((item, i) => {
+  asList(take(raw, 'itemFields', ITEM_FIELDS_ALIASES, ctx)).forEach((item, i) => {
     const read = readField(item, `${at}.itemFields[${i}]`, ctx);
     if (!read) return;
     itemFields.push(read.field);
@@ -710,7 +933,14 @@ function readArray(
   );
   const initialValue = take(raw, 'initialValue', ['initialRows', 'rows', 'defaultValue'], ctx);
   const component = asName(take(raw, 'component', ['componentName'], ctx));
-  const componentProps = take(raw, 'componentProps', ['props'], ctx);
+  const props = take(raw, 'componentProps', ['props'], ctx);
+  const componentProps: Record<string, unknown> = isRecord(props) ? { ...props } : {};
+  // Подпись массива, записанного как поле, — заголовок `FieldArray`; у своего компонента её
+  // некуда положить, не угадывая его пропсы.
+  const label = asName(take(raw, 'label', ['title', 'caption'], ctx));
+  if (label && (component ?? 'FieldArray') === 'FieldArray' && componentProps.title === undefined) {
+    componentProps.title = label;
+  }
 
   // `itemInterfaceName` и `initialValue` доводит до контракта `normalizeIntent` — она же и
   // предупреждает о подстановке, поэтому здесь они передаются как пришли.
@@ -722,7 +952,7 @@ function readArray(
       itemFields,
       initialValue: initialValue as unknown[],
       ...(component ? { component } : {}),
-      ...(isRecord(componentProps) ? { componentProps } : {}),
+      ...(isRecord(props) || label ? { componentProps } : {}),
     },
     required,
   };
@@ -764,6 +994,16 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
   const each = asName(take(raw, 'each', ['array', 'arrayPath'], ctx));
   const code = asName(take(raw, 'code', ['issue', 'errorCode'], ctx));
   const message = asName(take(raw, 'message', ['text', 'errorMessage'], ctx));
+  const level = asName(take(raw, 'severity', ['level'], ctx))?.toLowerCase();
+  const severity = level === 'warning' || level === 'warn' ? 'warning' : undefined;
+  const paramsRaw = take(raw, 'params', ['messageParams', 'issueParams'], ctx);
+  const params = isRecord(paramsRaw)
+    ? Object.fromEntries(
+        Object.entries(paramsRaw).filter((entry): entry is [string, string] => {
+          return typeof entry[1] === 'string' && entry[1].trim() !== '';
+        })
+      )
+    : undefined;
   return {
     target,
     rules,
@@ -771,6 +1011,8 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
     ...(cross ? { cross } : {}),
     ...(code ? { code } : {}),
     ...(message ? { message } : {}),
+    ...(severity ? { severity } : {}),
+    ...(params && Object.keys(params).length > 0 ? { params } : {}),
     ...(when ? { when } : {}),
     ...(each ? { each } : {}),
   };
@@ -811,10 +1053,24 @@ function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | 
     return null;
   }
 
+  // У вычисления `when` — своё условие рядом с формулой (A8 калибровки), а не формула: читать его
+  // синонимом `expr` значило бы посчитать поле условием.
+  const computed = kind === 'compute' || kind === 'computeFrom';
   const expr = asName(
-    take(raw, 'expr', ['expression', 'formula', 'code', 'when', 'condition'], ctx)
+    take(
+      raw,
+      'expr',
+      computed
+        ? ['expression', 'formula', 'code']
+        : ['expression', 'formula', 'code', 'when', 'condition'],
+      ctx
+    )
   );
   const options = take(raw, 'options', ['opts'], ctx);
+  // Условие вычисления — ключом `when` или внутри `options` (так оно выглядит в коде ядра).
+  const optionWhen = isRecord(options) ? asName(options.when) : null;
+  const when = computed ? (asName(take(raw, 'when', ['condition'], ctx)) ?? optionWhen) : null;
+  const rest = isRecord(options) && optionWhen && computed ? withoutKey(options, 'when') : options;
   const each = asName(take(raw, 'each', ['array', 'arrayPath', 'row'], ctx));
   return {
     kind,
@@ -822,7 +1078,11 @@ function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | 
     ...(each ? { each } : {}),
     sources: asNames(take(raw, 'sources', ['reads', 'deps', 'dependsOn', 'from', 'source'], ctx)),
     ...(expr ? { expr } : {}),
-    ...(isRecord(options) ? { options } : {}),
+    ...(when ? { when } : {}),
+    // Пустые `options` после снятия `when` не печатаются; присланные пустыми — как были.
+    ...(isRecord(rest) && (rest === options || Object.keys(rest).length > 0)
+      ? { options: rest }
+      : {}),
   };
 }
 
@@ -878,7 +1138,7 @@ function readStep(
   raw: unknown,
   at: string,
   ctx: ReadCtx
-): { title: string; fields: string[] } | null {
+): { title: string; icon?: string; fields: string[] } | null {
   const plain = asName(raw);
   if (plain) return { title: plain, fields: [] };
   if (!isRecord(raw)) {
@@ -889,9 +1149,35 @@ function readStep(
     });
     return null;
   }
+  const icon = asName(take(raw, 'icon', ['emoji'], ctx));
   return {
     title: asName(take(raw, 'title', ['label', 'name', 'caption'], ctx)) ?? at,
+    ...(icon ? { icon } : {}),
     fields: asNames(take(raw, 'fields', ['fieldNames', 'items', 'refs'], ctx)),
+  };
+}
+
+/**
+ * Корень мастера из сокращённой записи шагов: контейнер `wizard` (его рисует `FormWizard`) с узлом
+ * шага на каждый шаг и ссылками на его поля. Поле, не названное ни в одном шаге, остаётся вне
+ * раскладки — это видит проверка размещения, а не догадка, в какой шаг его поставить.
+ */
+function stepsLayout(
+  steps: ReadonlyArray<{ title: string; icon?: string; fields: string[] }>,
+  arrays: ReadonlySet<string>
+): LayoutNode {
+  return {
+    kind: 'container',
+    component: 'Box',
+    selector: 'wizard',
+    children: steps.map((step) => ({
+      kind: 'step' as const,
+      title: step.title,
+      ...(step.icon ? { icon: step.icon } : {}),
+      children: step.fields.map(
+        (ref): LayoutNode => (arrays.has(ref) ? { kind: 'array', ref } : { kind: 'field', ref })
+      ),
+    })),
   };
 }
 
@@ -945,18 +1231,23 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
     .filter((child): child is LayoutNode => child !== null);
 
   if (kind === 'step') {
+    const icon = asName(take(raw, 'icon', ['emoji'], ctx));
     return {
       kind: 'step',
       title: asName(take(raw, 'title', ['label'], ctx)) ?? 'Шаг',
+      ...(icon ? { icon } : {}),
       ...(selector ? { selector } : {}),
       children,
     };
   }
 
   if (kind && kind !== 'container' && kind !== 'group') {
-    ctx.warnings.push(
+    warn(
+      ctx,
+      'layout-kind-unknown',
       `${at}: вид узла \`${kind}\` контракту неизвестен — прочитан как контейнер ` +
-        '(допустимы field | array | part | container | step).'
+        '(допустимы field | array | part | container | step).',
+      at
     );
   }
   const htmlTag = asName(take(raw, 'htmlTag', ['tag', 'html'], ctx));
@@ -979,14 +1270,14 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
  * что пришлось выбросить. Бросать исключение здесь нельзя: у MCP оно превращается в `-32603`,
  * который консументу не сообщает ничего.
  */
-export function readIntent(raw: unknown): IntentReading {
+export function readIntent(raw: unknown, options: ReadIntentOptions = {}): IntentReading {
   const ctx: ReadCtx = { warnings: [], problems: [], renames: new Set() };
 
   let source: unknown = raw;
   if (typeof source === 'string') {
     try {
       source = JSON.parse(source);
-      ctx.warnings.push('`intent` пришёл строкой — разобран как JSON.');
+      warn(ctx, 'intent-string', '`intent` пришёл строкой — разобран как JSON.');
     } catch (e) {
       ctx.problems.push({
         at: 'intent',
@@ -1004,12 +1295,17 @@ export function readIntent(raw: unknown): IntentReading {
     });
     source = {};
   }
-  const src = source as Record<string, unknown>;
+  const canonical = liftInline(source as Record<string, unknown>);
+  const src = canonical.source;
+  ctx.warnings.push(...canonical.notes);
+  ctx.problems.push(...canonical.problems);
 
   const declaredTarget = take(src, 'target', ['stack', 'renderer'], ctx);
   const target = readTargetStack(declaredTarget);
   if (declaredTarget !== undefined && !target) {
-    ctx.warnings.push(
+    warn(
+      ctx,
+      'target-unknown',
       `Таргет \`${String(declaredTarget)}\` не распознан — принят \`core\` ` +
         '(допустимы core | renderer-react | renderer-json).'
     );
@@ -1017,24 +1313,67 @@ export function readIntent(raw: unknown): IntentReading {
 
   const fields: FieldIntent[] = [];
   const requiredTargets: Array<{ target: string; each?: string }> = [];
+  const arraysAsFields: Array<{ raw: Record<string, unknown>; at: string }> = [];
+  const declaredAt = new Map<string, number>();
   asList(take(src, 'fields', ['formFields', 'inputs'], ctx)).forEach((item, i) => {
+    if (isArrayAsField(item)) {
+      arraysAsFields.push({ raw: item, at: `fields[${i}]` });
+      return;
+    }
     const read = readField(item, `fields[${i}]`, ctx);
     if (!read) return;
+    // Второе объявление того же пути — не поле: сборка отказывала про дубль testId (C10), и
+    // причина терялась (так читалось правило валидации, записанное в `fields`).
+    const path = read.field.modelPath ?? read.field.name;
+    const first = declaredAt.get(path);
+    if (first !== undefined) {
+      ctx.problems.push({
+        at: `fields[${i}]`,
+        message: `поле \`${path}\` объявлено второй раз (первое — fields[${first}])`,
+        expected: 'одно объявление на путь модели; проверки — записями `validation`',
+      });
+      return;
+    }
+    declaredAt.set(path, i);
     fields.push(read.field);
     if (read.required) requiredTargets.push({ target: read.field.modelPath ?? read.field.name });
   });
 
   const arrays: ArrayIntent[] = [];
+  const addArray = (read: { array: ArrayIntent; required: string[] }): void => {
+    arrays.push(read.array);
+    for (const path of read.required) {
+      requiredTargets.push({ target: path, each: read.array.name });
+    }
+  };
   asList(take(src, 'arrays', ['formArrays', 'collections', 'repeatables'], ctx)).forEach(
     (item, i) => {
       const read = readArray(item, `arrays[${i}]`, ctx);
-      if (!read) return;
-      arrays.push(read.array);
-      for (const path of read.required) {
-        requiredTargets.push({ target: path, each: read.array.name });
-      }
+      if (read) addArray(read);
     }
   );
+  // Массив из `fields` — после объявленных в `arrays`: одноимённая запись там побеждает.
+  for (const { raw, at } of arraysAsFields) {
+    const read = readArray(raw, at, ctx);
+    if (!read) continue;
+    if (arrays.some((a) => a.name === read.array.name)) {
+      warn(
+        ctx,
+        'array-duplicate',
+        `${at}: массив \`${read.array.name}\` записан и в fields, и в arrays — взята запись из arrays.`,
+        at
+      );
+      continue;
+    }
+    warn(
+      ctx,
+      'array-as-field',
+      `${at}: у поля \`${read.array.name}\` есть строки — прочитано как массив. ` +
+        'Массив пиши в `arrays`, в раскладке — `{"kind":"array","ref":"…"}`.',
+      at
+    );
+    addArray(read);
+  }
 
   const validation: ValidationRuleIntent[] = [];
   asList(take(src, 'validation', ['validations', 'validationRules', 'rules'], ctx)).forEach(
@@ -1062,7 +1401,9 @@ export function readIntent(raw: unknown): IntentReading {
     });
   }
   if (lifted.length > 0) {
-    ctx.warnings.push(
+    warn(
+      ctx,
+      'required-lifted',
       `Полей с \`required: true\`: ${lifted.length} — им добавлено правило \`required()\` ` +
         'в validation. Обязательность живёт там: в описании поля её держать негде.'
     );
@@ -1098,16 +1439,23 @@ export function readIntent(raw: unknown): IntentReading {
     take(src, 'steps', ['pages', 'wizardSteps'], ctx);
   const steps = asList(stepsRaw)
     .map((item, i) => readStep(item, `steps[${i}]`, ctx))
-    .filter((step): step is { title: string; fields: string[] } => step !== null);
+    .filter((step): step is { title: string; icon?: string; fields: string[] } => step !== null);
 
   // `layout` в контракте — режим раскладки ФАЙЛОВ (строка), но модели кладут туда и дерево.
   const declaredLayout = src.layout;
-  const layoutRoot = readLayoutNode(
+  const readRoot = readLayoutNode(
     take(src, 'layoutRoot', ['root', 'tree'], ctx) ??
       (isRecord(declaredLayout) ? declaredLayout : undefined),
     'layoutRoot',
     ctx
   );
+  const namesOf = (entities: ReadonlyArray<{ name: string; modelPath?: string }>) =>
+    new Set(entities.flatMap((entity) => [entity.name, entity.modelPath ?? entity.name]));
+  // Сокращение `steps: [{ title, fields }]` без своей раскладки — корень мастера из узлов шагов.
+  // Раньше шаги оставались в `wizard`, а форма собиралась плоской с ✓ (ReFormer-j356.5).
+  const layoutRoot =
+    (readRoot && refArrays(readRoot, namesOf(arrays), namesOf(fields))) ??
+    (steps.length > 0 ? stepsLayout(steps, namesOf(arrays)) : null);
 
   // Именованные части разметки (подформы): словарь «имя → узел».
   const parts: Record<string, LayoutNode> = {};
@@ -1125,22 +1473,19 @@ export function readIntent(raw: unknown): IntentReading {
     });
   }
 
-  if (steps.length > 0 && !layoutRoot) {
-    // Честнее сказать, чем достроить: раскладка шагов по разметке — прикладное решение
-    // (у core и renderer-react шаги живут инлайном в `index.tsx`), и угадывать её тут нечем.
-    ctx.warnings.push(
-      `Шагов в intent: ${steps.length} — они сохранены в \`wizard\`, но разметка собрана ` +
-        'плоской: генератор шаги по узлам не раскладывает. Разложите поля сами — инлайном в ' +
-        '`index.tsx` либо узлами `{ "kind": "step", "children": [ … ] }` в `layoutRoot`.'
-    );
-  }
-
-  const notes: string[] = [];
+  // Свои предупреждения консумента (например, из `plan_form`) сохраняем: intent ходит
+  // туда-обратно, и терять их на каждом круге — значит терять разбор спеки.
+  const notes: IntentWarning[] = asNames(src.warnings).map((message) => ({
+    code: 'consumer' as const,
+    message,
+  }));
   if (ctx.renames.size > 0) {
-    notes.push(
-      `Ключи приведены к контракту FormIntent: ${[...ctx.renames].sort().join(', ')}. ` +
-        'Intent без переименований отдаёт `plan_form`.'
-    );
+    notes.push({
+      code: 'keys-renamed',
+      message:
+        `Ключи приведены к контракту FormIntent: ${[...ctx.renames].sort().join(', ')}. ` +
+        'Intent без переименований отдаёт `plan_form`.',
+    });
   }
   notes.push(...ctx.warnings);
 
@@ -1149,24 +1494,32 @@ export function readIntent(raw: unknown): IntentReading {
     take(src, 'interfaceName', ['modelName', 'modelInterface', 'interface'], ctx)
   );
 
-  const intent = normalizeIntent({
-    ...(formName ? { formName } : {}),
-    ...(interfaceName ? { interfaceName } : {}),
-    target: target ?? 'core',
-    layout: asName(declaredLayout) === 'folders' ? 'folders' : 'minimalist',
-    ...(layoutRoot ? { layoutRoot } : {}),
-    ...(Object.keys(parts).length > 0 ? { parts } : {}),
-    fields,
-    arrays,
-    validation,
-    behavior,
-    visibility,
-    dataSources,
-    ...(steps.length > 0 ? { wizard: { steps } } : {}),
-    // Свои предупреждения консумента (например, из `plan_form`) сохраняем: intent ходит
-    // туда-обратно, и терять их на каждом круге — значит терять разбор спеки.
-    warnings: [...asNames(src.warnings), ...notes],
-  });
+  const normalized: IntentWarning[] = [];
+  const intent = normalizeWith(
+    {
+      ...(formName ? { formName } : {}),
+      ...(interfaceName ? { interfaceName } : {}),
+      target: target ?? 'core',
+      layout: asName(declaredLayout) === 'folders' ? 'folders' : 'minimalist',
+      ...(layoutRoot ? { layoutRoot } : {}),
+      ...(Object.keys(parts).length > 0 ? { parts } : {}),
+      fields,
+      arrays,
+      validation,
+      behavior,
+      visibility,
+      dataSources,
+      ...(steps.length > 0 ? { wizard: { steps } } : {}),
+    },
+    normalized
+  );
 
-  return { intent, problems: ctx.problems };
+  const notices = [...notes, ...normalized].filter(
+    (notice) => !options.forDocument || !MODULE_ONLY_WARNINGS.has(notice.code)
+  );
+  return {
+    intent: { ...intent, warnings: notices.map((notice) => notice.message) },
+    problems: ctx.problems,
+    notices,
+  };
 }

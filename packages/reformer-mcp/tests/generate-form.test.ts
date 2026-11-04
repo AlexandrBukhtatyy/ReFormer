@@ -16,6 +16,7 @@ import {
   deriveComponentName,
   deriveInterfaceName,
   type FormIntent,
+  type LayoutNode,
   type ValidationRuleIntent,
 } from '../src/core/generate/form-intent.js';
 import {
@@ -581,10 +582,56 @@ describe('builders', () => {
     );
     const ts = buildBehaviorTs(intent);
 
-    expect(ts).toContain("resetWhen(model.$.currency, () => !model.price, { resetValue: '' });");
+    // `currency` необязательна: в её типе есть `null` (ReFormer-b464), и `resetValue` не нужен.
+    expect(ts).toContain('resetWhen(model.$.currency, () => !model.price);');
     expect(ts).toContain('resetWhen(model.$.quantity, () => !model.price, { resetValue: 0 });');
     expect(ts).toContain('resetWhen(model.$.note, () => !model.price);');
     expect(ts).toContain('resetWhen(model.$.price, () => false, {"resetValue":1});');
+  });
+
+  it('цель compute — узел disabled, componentProps.disabled переезжает на узел [ReFormer-j356.6]', () => {
+    // Обёртка поля затирает componentProps.disabled состоянием узла: на core вычисляемый `total`
+    // оставался редактируемым в 3 из 3 прогонов. Блокирует ключ узла.
+    const intent = normalizeIntent({
+      formName: 'Order',
+      fields: [
+        { name: 'price', type: 'number', component: 'InputNumber' },
+        { name: 'total', type: 'number', component: 'InputNumber' },
+        { name: 'note', type: 'string', component: 'Input', componentProps: { disabled: true } },
+        { name: 'discount', type: 'number', component: 'InputNumber' },
+      ],
+      arrays: [
+        {
+          name: 'rows',
+          itemInterfaceName: 'Row',
+          initialValue: [],
+          itemFields: [
+            { name: 'qty', type: 'number', component: 'InputNumber' },
+            { name: 'sum', type: 'number', component: 'InputNumber' },
+          ],
+        },
+      ],
+      behavior: [
+        { kind: 'computeFrom', target: 'total', sources: ['price'], expr: 'price * 2' },
+        { kind: 'compute', target: 'sum', each: 'rows', sources: [], expr: 'model.qty * 2' },
+        // Вычисляемое, но включаемое правилом — блокирует правило, а не узел.
+        { kind: 'compute', target: 'discount', sources: [], expr: '0' },
+        { kind: 'enableWhen', target: 'discount', sources: [], expr: 'model.price > 10' },
+      ],
+    });
+    const json = JSON.parse(buildFormSchemaJson(intent));
+    const node = (selector: string) =>
+      json.root.children.find((c: { selector?: string }) => c.selector === selector);
+    expect(node('total').disabled).toBe(true);
+    expect(node('note')).toMatchObject({ disabled: true });
+    expect(node('note').componentProps).not.toHaveProperty('disabled');
+    expect(node('price')).not.toHaveProperty('disabled');
+    expect(node('discount')).not.toHaveProperty('disabled');
+    const row = Object.values(
+      json.parts as Record<string, { children: { selector: string }[] }>
+    )[0];
+    expect(row.children.find((c) => c.selector === 'sum')).toMatchObject({ disabled: true });
+    expect(row.children.find((c) => c.selector === 'qty')).not.toHaveProperty('disabled');
   });
 
   it('layout получает testId на каждом листе — этого ждёт e2e POM', () => {
@@ -745,7 +792,7 @@ describe('builders', () => {
     // Прежде печаталось `personalData.lastName: string;` — не TypeScript.
     expect(model).not.toMatch(/personalData\.lastName/);
     expect(model).toMatch(
-      /export type CoBorrower = \{\n {2}personalData: \{\n {4}lastName: string;/
+      /export type CoBorrower = \{\n {2}personalData: \{\n {4}lastName: string \| null;/
     );
     expect(model).toMatch(
       /const blankCoBorrower = \(\): CoBorrower => \(\{\n {2}personalData: \{\n {4}lastName: '',/
@@ -780,6 +827,46 @@ describe('builders', () => {
     );
   });
 
+  it('необязательное текстовое поле — string | null, обязательное — string [ReFormer-b464]', () => {
+    // Текстовые компоненты кита пишут `null` в пустое поле. С типом `string` агент писал
+    // `model.promo.trim()`, tsc молчал, а стёртый промокод ронял шаг.
+    const model = buildModelTs(
+      normalizeIntent({
+        formName: 'Promo',
+        fields: [
+          { name: 'email', type: 'string', component: 'Input' },
+          { name: 'promo', type: 'string', component: 'Input' },
+          { name: 'inn', type: 'string', component: 'Input' },
+          { name: 'age', type: 'number', component: 'InputNumber' },
+        ],
+        arrays: [
+          {
+            name: 'phones',
+            itemInterfaceName: 'Phone',
+            initialValue: [],
+            itemFields: [
+              { name: 'number', type: 'string', component: 'Input' },
+              { name: 'note', type: 'string', component: 'Input' },
+            ],
+          },
+        ],
+        validation: [
+          { target: 'email', rules: ['required()', 'email()'] },
+          // Условная обязательность — поле бывает пустым.
+          { target: 'inn', rules: ['required()'], when: 'model.isCompany' },
+          { target: 'number', each: 'phones', rules: ['required()'] },
+        ],
+      })
+    );
+    expect(model).toMatch(/email: string;/);
+    expect(model).toMatch(/promo: string \| null;/);
+    expect(model).toMatch(/inn: string \| null;/);
+    expect(model).toMatch(/age: number;/);
+    expect(model).toMatch(/export type Phone = \{\n {2}number: string;\n {2}note: string \| null;/);
+    // Начальное значение прежнее: пустая строка подходит под оба типа.
+    expect(model).toMatch(/promo: '',/);
+  });
+
   it('дата: тип модели совпадает со значением компонента, пустое начальное — по типу', () => {
     const model = buildModelTs(
       normalizeIntent({
@@ -794,7 +881,8 @@ describe('builders', () => {
         ],
       })
     );
-    expect(model).toMatch(/birthDate: string;/);
+    // Необязательное текстовое поле: компонент пишет `null` в пустое (ReFormer-b464).
+    expect(model).toMatch(/birthDate: string \| null;/);
     expect(model).toMatch(/birthDate: ""/);
     expect(model).toMatch(/startDate: Date \| null;/);
     expect(model).toMatch(/startDate: null/);
@@ -1117,11 +1205,21 @@ describe('readIntent — вход не из plan_form', () => {
     expect(intent.warnings.join(' ')).toMatch(/required: true/);
   });
 
-  it('шаги сохраняются, и о плоской разметке сказано прямо', () => {
-    // Генератор шаги по узлам не раскладывает. Промолчать здесь — значит отдать форму, где
-    // деление на шаги пропало, с отметкой «✅ кросс-проверка пройдена».
+  it('сокращение steps без своей раскладки становится узлами шагов мастера', () => {
+    // Раньше шаги оставались в `wizard`, а разметка собиралась плоской: форма без деления на
+    // шаги с отметкой ✓ (ReFormer-j356.5).
     const { intent } = readIntent(intuitiveIntent());
-    expect(intent.warnings.join(' ')).toMatch(/Шагов в intent: 2/);
+    const root = intent.layoutRoot as Extract<LayoutNode, { kind: 'container' }>;
+    expect(root.selector).toBe('wizard');
+    expect(root.children).toEqual([
+      {
+        kind: 'step',
+        title: 'Личные данные',
+        children: [{ kind: 'field', ref: 'personal.lastName' }],
+      },
+      { kind: 'step', title: 'Кредит', children: [{ kind: 'field', ref: 'loanAmount' }] },
+    ]);
+    expect(intent.warnings.join(' ')).not.toMatch(/плоской/);
   });
 
   it('таргет читается в любом написании и не становится core молча', () => {

@@ -181,7 +181,10 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
     .map((entity) => entity.modelPath ?? entity.name)
     .filter((name) => !placed.has(name));
   if (unplaced.length > 0) {
-    return failure('не стоят в layoutRoot', [unplaced.join(', ')]);
+    // Раскладку из сокращения `steps` строит чтение intent: там поле ставится в `steps[i].fields`,
+    // а `layoutRoot` агент мог и не писать.
+    const hint = intent.wizard ? ['В сокращении `steps` имя поля — в `steps[i].fields`.'] : [];
+    return failure('не стоят в layoutRoot', [unplaced.join(', '), ...hint]);
   }
 
   const lostMessages = warnings.filter(isLostMessageWarning);

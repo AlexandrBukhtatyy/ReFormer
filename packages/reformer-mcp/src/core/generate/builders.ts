@@ -59,11 +59,44 @@ const TS_TYPE: Record<string, string> = {
  * обязательность даёт `required()`. Без расширения типа сгенерированный `model.ts` не
  * компилировался бы сам по себе: `initialFormModel` присваивал бы `null` полю `number`.
  */
-function fieldTsType(field: FieldIntent): string {
-  const base =
-    field.type === 'date' && !isDatePicker(field) ? 'string' : (TS_TYPE[field.type] ?? 'unknown');
-  if (field.initialValue !== null) return base;
+function fieldTsType(field: FieldIntent, optional: ReadonlySet<FieldIntent> = NONE): string {
+  const base = baseTsType(field);
+  if (field.initialValue !== null && !optional.has(field)) return base;
   return base.includes('null') ? base : `${base} | null`;
+}
+
+const NONE: ReadonlySet<FieldIntent> = new Set();
+
+function baseTsType(field: FieldIntent): string {
+  return field.type === 'date' && !isDatePicker(field)
+    ? 'string'
+    : (TS_TYPE[field.type] ?? 'unknown');
+}
+
+/**
+ * Текстовые поля без безусловного `required()` — `string | null` в модели, по конвенции ядра
+ * (`08-form-types.md`: необязательное поле — `null`, «пользователь очистил»). Текстовые
+ * компоненты кита пустой ввод так и пишут: `e.target.value || null`. С типом `string` агент писал
+ * `model.promo.trim()`, `tsc` молчал, а стёртый промокод ронял шаг (ReFormer-b464). Обязательное
+ * поле остаётся `string`: пустым его не пропускает валидация.
+ */
+function optionalText(intent: FormIntent): Set<FieldIntent> {
+  const required = new Set(
+    intent.validation
+      .filter((v) => v.when === undefined && v.rules.some((rule) => /^required\b/.test(rule)))
+      .map((v) => (v.each ? `${v.each}[].${rowPath(v.target, v.each)}` : v.target))
+  );
+  const out = new Set<FieldIntent>();
+  const text = (f: FieldIntent) => baseTsType(f) === 'string';
+  for (const f of intent.fields) {
+    if (text(f) && !required.has(f.modelPath ?? f.name)) out.add(f);
+  }
+  for (const a of intent.arrays) {
+    for (const f of a.itemFields) {
+      if (text(f) && !required.has(`${a.name}[].${f.modelPath ?? f.name}`)) out.add(f);
+    }
+  }
+  return out;
 }
 
 /**
@@ -105,6 +138,7 @@ function initialLiteral(field: FieldIntent): string {
 
 export function buildModelTs(intent: FormIntent): string {
   const lines: string[] = [];
+  const optional = optionalText(intent);
   lines.push('/**');
   lines.push(` * Модель формы «${intent.formName}» — источник истины для всех остальных файлов.`);
   lines.push(' * Валидация, поведение и схема ссылаются на ЭТИ пути; менять их надо здесь.');
@@ -123,7 +157,7 @@ export function buildModelTs(intent: FormIntent): string {
   // допустим — но генератор печатает одно и то же, чтобы снимки и примеры не расходились.
   for (const arr of intent.arrays) {
     lines.push(`export type ${arr.itemInterfaceName} = {`);
-    lines.push(...renderShape(fieldTree(arr.itemFields), 1));
+    lines.push(...renderShape(fieldTree(arr.itemFields), 1, optional));
     lines.push('};');
     lines.push('');
   }
@@ -131,7 +165,7 @@ export function buildModelTs(intent: FormIntent): string {
   const tree = modelTree(intent);
 
   lines.push(`export type ${intent.interfaceName} = {`);
-  lines.push(...renderShape(tree, 1));
+  lines.push(...renderShape(tree, 1, optional));
   lines.push('};');
   lines.push('');
 
@@ -326,13 +360,17 @@ function fieldTree(
 }
 
 /** Тело интерфейса: группы разворачиваются во вложенные объекты. */
-function renderShape(level: Map<string, ModelNode>, depth: number): string[] {
+function renderShape(
+  level: Map<string, ModelNode>,
+  depth: number,
+  optional: ReadonlySet<FieldIntent>
+): string[] {
   const pad = '  '.repeat(depth);
   const out: string[] = [];
   for (const [key, node] of level) {
     if (node.kind === 'group') {
       out.push(`${pad}${objectKey(key)}: {`);
-      out.push(...renderShape(node.children, depth + 1));
+      out.push(...renderShape(node.children, depth + 1, optional));
       out.push(`${pad}};`);
       continue;
     }
@@ -341,7 +379,7 @@ function renderShape(level: Map<string, ModelNode>, depth: number): string[] {
       continue;
     }
     if (node.field.label) out.push(`${pad}/** ${node.field.label} */`);
-    out.push(`${pad}${objectKey(key)}: ${fieldTsType(node.field)};`);
+    out.push(`${pad}${objectKey(key)}: ${fieldTsType(node.field, optional)};`);
   }
   return out;
 }
@@ -450,11 +488,15 @@ const DEFAULT_CROSS_CODE = 'cross';
 // data-sources.ts — справочники
 // ---------------------------------------------------------------------------
 
-/** Имена справочников формы: объявленные в intent и названные полями (`optionsSource`). */
+/**
+ * Имена справочников формы: объявленные в intent и названные полями (`optionsSource`,
+ * `suggestionsSource`).
+ */
 function dataSourceNames(intent: FormIntent): string[] {
   const names = new Set(intent.dataSources.map((d) => d.name));
   const visit = (f: FieldIntent) => {
     if (f.optionsSource) names.add(f.optionsSource);
+    if (f.suggestionsSource) names.add(f.suggestionsSource);
   };
   intent.fields.forEach(visit);
   intent.arrays.forEach((a) => a.itemFields.forEach(visit));
@@ -588,7 +630,18 @@ export function buildMessagesTs(intent: FormIntent): {
 
 function crossLine(ref: string, rule: ValidationRuleIntent): string {
   const code = (rule.code ?? DEFAULT_CROSS_CODE).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `cross(${ref}, (values) => ((${rule.cross}) ? null : { code: '${code}' }));`;
+  // Предупреждение и параметры замечания — те же поля `ValidationIssue`, что у валидаторов ядра
+  // (калибровка кредитной заявки, A13 и A15: без них предупреждения становились ошибками, а
+  // тексты — без чисел).
+  const params = Object.entries(rule.params ?? {}).map(
+    ([name, expr]) => `${/^[A-Za-z_$][\w$]*$/.test(name) ? name : tsString(name)}: ${expr}`
+  );
+  const issue = [
+    `code: '${code}'`,
+    ...(rule.severity === 'warning' ? ["severity: 'warning'"] : []),
+    ...(params.length > 0 ? [`params: { ${params.join(', ')} }`] : []),
+  ];
+  return `cross(${ref}, (values) => ((${rule.cross}) ? null : { ${issue.join(', ')} }));`;
 }
 
 /**
@@ -1045,11 +1098,19 @@ function resetWhenOptions(b: BehaviorIntent, intent: FormIntent): string {
     (f) => (f.modelPath ?? f.name) === b.target || f.name === b.target
   );
   const given = b.options !== undefined && 'resetValue' in b.options;
-  if (field === undefined || given || fieldTsType(field).includes('null')) {
+  if (field === undefined || given || fieldTsType(field, optionalText(intent)).includes('null')) {
     return json ? `, ${json}` : '';
   }
   const resetValue = `resetValue: ${initialLiteral(field)}`;
   return json && json !== '{}' ? `, ${json.slice(0, -1)}, ${resetValue} }` : `, { ${resetValue} }`;
+}
+
+/**
+ * Условие вычисления: `, { when: () => … }`. Выражение читает модель, как и формула; у
+ * `computeFrom` условие без параметров — ядро принимает и такую функцию.
+ */
+function computeWhen(b: BehaviorIntent): string {
+  return b.when ? `, { when: () => ${b.when} }` : '';
 }
 
 /** Путь поля строки — от строки: `items.qty` при `each: 'items'` → `qty`. */
@@ -1120,7 +1181,7 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'):
   const opts = b.options ? `, ${JSON.stringify(b.options)}` : '';
   switch (b.kind) {
     case 'compute':
-      return `  compute(${target}, () => ${b.expr ?? 'undefined'});`;
+      return `  compute(${target}, () => ${b.expr ?? 'undefined'}${computeWhen(b)});`;
     case 'computeFrom': {
       // У связи строки параметры — по путям от строки: `items.qty` переименованием не считается.
       const { params, renamed } = callbackParams(b.sources.map(path));
@@ -1130,7 +1191,7 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'):
         renamed.length > 0
           ? `  // параметры названы по последнему сегменту: ${renamed.join(', ')}\n`
           : '';
-      return `${note}  computeFrom([${sources}], ${target}, (${params.join(', ')}) => ${b.expr ?? 'undefined'});`;
+      return `${note}  computeFrom([${sources}], ${target}, (${params.join(', ')}) => ${b.expr ?? 'undefined'}${computeWhen(b)});`;
     }
     case 'copyFrom': {
       // `expr` копирования — его условие (`{ when }`; в intent его пишут и ключом `when`). Через

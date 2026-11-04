@@ -13,6 +13,7 @@ import {
   collectSteps,
   findCycle,
   inspectLayoutRefs,
+  MODULE_ONLY_WARNINGS,
   modelPaths,
   normalizeFieldComponent,
   normalizeIntent,
@@ -61,6 +62,45 @@ describe('@reformer/mcp/intent', () => {
     ).toContain('required');
     expect(buildBehaviorTs(intent)).toContain('total');
     expect(findCycle([{ target: 'a', reads: ['a'] }])).not.toBeNull();
+  });
+
+  it('предупреждения несут код, forDocument снимает те, что про печать модуля', () => {
+    const raw = {
+      fields: [
+        { name: 'email', label: 'Email', required: true },
+        { name: 'city', type: 'Select', label: 'City' },
+      ],
+      arrays: [{ name: 'kids', itemFields: [{ name: 'name', component: 'Input' }] }],
+    };
+    const module = readIntent(raw);
+    const codes = module.notices.map((notice) => notice.code);
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        'type-default',
+        'component-default',
+        'type-is-component',
+        'required-lifted',
+        'item-interface-default',
+        'initial-value-default',
+      ])
+    );
+    expect(module.intent.warnings).toEqual(module.notices.map((notice) => notice.message));
+    expect(module.notices.find((n) => n.code === 'type-is-component')?.at).toBe('fields[1]');
+
+    const document = readIntent(raw, { forDocument: true });
+    expect(document.notices.map((notice) => notice.code)).toEqual(['type-is-component']);
+    expect(document.intent.warnings).toHaveLength(1);
+    expect(document.intent.fields.map((f) => f.component)).toEqual(
+      module.intent.fields.map((f) => f.component)
+    );
+    for (const code of MODULE_ONLY_WARNINGS) {
+      expect(document.notices.some((notice) => notice.code === code)).toBe(false);
+    }
+  });
+
+  it('свои предупреждения intent сохраняются кодом consumer и в начале списка', () => {
+    const { notices } = readIntent({ warnings: ['из спеки'], fields: [] });
+    expect(notices[0]).toEqual({ code: 'consumer', message: 'из спеки' });
   });
 
   it('нормализация компонента и intent доступны отдельно', () => {
