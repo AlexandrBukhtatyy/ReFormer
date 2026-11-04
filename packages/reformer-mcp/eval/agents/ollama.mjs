@@ -13,6 +13,7 @@ import { createWriteStream } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { McpClient } from '../lib/client.mjs';
+import { repoRoot } from '../records/record.mjs';
 import { findTextualCall } from './textual-call.mjs';
 import { runWorkspaceTool, WORKSPACE_TOOLS } from './workspace-tools.mjs';
 
@@ -105,7 +106,13 @@ export async function runAgent(input) {
   const transcript = createWriteStream(transcriptPath);
   const log = (entry) => transcript.write(`${JSON.stringify(entry)}\n`);
   const client = new McpClient(input.serverPath, {
-    env: { REFORMER_TRACE_FILE: input.traceFile },
+    env: {
+      REFORMER_TRACE_FILE: input.traceFile,
+      // Как у claude-code: агент вне репозитория, а типы формы form_build проверяет с настоящими
+      // пакетами. Без этого проверка типов недоступна, и запасная проверка импортов на снимке
+      // сервера без соседних пакетов отвергает собственный код генератора (батч f7d3).
+      REFORMER_TYPECHECK_ROOT: repoRoot,
+    },
     cwd: input.workspaceDirectory,
   });
   const toolCalls = [];
