@@ -157,17 +157,33 @@ function withoutCode(check: string): string {
  */
 function renderRulesSeed(rules: FormRules): string {
   const lines: string[] = [];
+  // Проверки одного поля — одной строкой, как их печатает код (`mergeFieldChecks`). Чтение
+  // раскладывает `validate` с несколькими проверками на правило с проверкой, чтобы у каждой был
+  // свой текст, и без группировки модель видела бы два правила там, где в коде одно.
+  const groups: Array<{ target: string; parts: string[]; when?: string }> = [];
+  const byField = new Map<string, (typeof groups)[number]>();
   for (const r of rules.validation) {
+    const plain = r.rules.length > 0 && !r.cross && !r.async && !r.call;
     const checks = [
       ...r.rules.map(withoutCode),
       ...(r.cross ? [`cross ${r.cross}`] : []),
       ...(r.async ? ['async check'] : []),
     ];
-    // Текст обычного правила — после проверок: модель должна видеть, что он уже задан.
-    const text = r.message !== undefined && !r.cross && !r.async ? ` "${r.message}"` : '';
-    lines.push(
-      `  validate ${r.target}: ${checks.join(', ')}${text}${r.when ? ` when ${r.when}` : ''}`
-    );
+    // Текст обычного правила — после его проверок: модель должна видеть, что он уже задан.
+    const text = plain && r.message !== undefined ? ` "${r.message}"` : '';
+    const part = `${checks.join(', ')}${text}`;
+    const key = plain ? JSON.stringify([r.each ?? '', r.when?.trim() ?? '', r.target]) : '';
+    const group = plain ? byField.get(key) : undefined;
+    if (group) {
+      group.parts.push(part);
+      continue;
+    }
+    const own = { target: r.target, parts: [part], when: r.when };
+    groups.push(own);
+    if (plain) byField.set(key, own);
+  }
+  for (const g of groups) {
+    lines.push(`  validate ${g.target}: ${g.parts.join(', ')}${g.when ? ` when ${g.when}` : ''}`);
   }
   for (const b of rules.behavior) {
     lines.push(`  ${b.kind} ${b.target}${b.sources.length ? ` <- ${b.sources.join(', ')}` : ''}`);

@@ -32,6 +32,27 @@ describe('затравка формы', () => {
     expect(seed).toContain('validation: edited by hand');
   });
 
+  it('проверки одного поля — одной строкой, как в коде; текст — у своей проверки', () => {
+    // Чтение кладёт `validate(model.$.email, [required, email])` правилом на проверку
+    // (ReFormer-p4bi), а модель должна видеть одно правило поля, как в файле правил.
+    const rules = {
+      ...emptyRules(),
+      validation: [
+        { target: 'email', rules: ['required'], message: 'Введите почту' },
+        { target: 'email', rules: ["email({ code: 'email.email' })"] },
+        { target: 'email', rules: ['maxLength(80)'], when: 'values.agree' },
+        { target: 'email', rules: [], cross: 'values.email !== values.name' },
+      ],
+    };
+
+    const seed = formSeed(emptySchema(), rules);
+
+    expect(seed).toContain('  validate email: required "Введите почту", email\n');
+    expect(seed).toContain('  validate email: maxLength(80) when values.agree');
+    expect(seed).toContain('  validate email: cross values.email !== values.name');
+    expect(seed.match(/validate email/g)).toHaveLength(3);
+  });
+
   it('непустая форма — карта с адресами узлов', () => {
     const seed = formSeed(sampleSchema());
 
