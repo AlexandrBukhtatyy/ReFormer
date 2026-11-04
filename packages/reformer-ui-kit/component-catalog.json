@@ -11576,6 +11576,14 @@
               "type": "ArrayItemSlot[]"
             }
           },
+          "maxItems": {
+            "type": "number",
+            "description": "Максимум элементов: на пределе кнопка «Добавить» скрыта, как у `FieldArraySection`. Предел для данных задаёт правило `maxLength(n)` на массив (замечание `maxItems`), а этот проп только не даёт его превысить из разметки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
           "onAdd": {
             "description": "Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла).",
             "x-doc": {
