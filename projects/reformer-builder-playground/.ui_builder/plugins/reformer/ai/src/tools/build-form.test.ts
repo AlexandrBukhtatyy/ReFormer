@@ -71,6 +71,23 @@ describe('build_form', () => {
     expect(out.rules?.dataSources?.KINDS).toHaveLength(2);
   });
 
+  it('цель compute встаёт выключенным полем, прочие поля — нет', async () => {
+    // MCP блокирует вычисляемое поле ключом узла `disabled` (ReFormer-j356.6).
+    const { schema } = expectBuilt(await build({ intent: BUILD_FORM_EXAMPLE }));
+    const nodes: Array<Record<string, unknown>> = [];
+    const walk = (value: unknown): void => {
+      if (Array.isArray(value)) value.forEach(walk);
+      else if (value !== null && typeof value === 'object') {
+        nodes.push(value as Record<string, unknown>);
+        Object.values(value).forEach(walk);
+      }
+    };
+    walk(schema);
+    const fieldNode = (path: string) => nodes.find((n) => n.model === `$model(${path})`);
+    expect(fieldNode('total')).toMatchObject({ disabled: true });
+    expect(fieldNode('price')).not.toHaveProperty('disabled');
+  });
+
   it('пример шагов грамматики — визард кита с пустыми шагами и их адресами', async () => {
     const { schema, out } = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
     const wizard = getAt(schema, ['root', 'children', 0]) as { component: string };
@@ -425,6 +442,22 @@ describe('build_form', () => {
     });
     expectBuilt(out);
     expect(out.text).not.toContain('Шагов в intent');
+  });
+
+  it('замечания чтения — по-английски, по коду MCP, без замечаний о печати модуля', async () => {
+    const out = await build({
+      intent: {
+        fields: [
+          { name: 'a', label: 'A', required: true },
+          { name: 'b', component: 'Input', label: 'B', type: 'money2' },
+        ],
+        layoutRoot: { kind: 'container', component: 'Box', children: ['a', 'b'] },
+      },
+    });
+    expectBuilt(out);
+    expect(out.text).toContain('fields[1]: unknown value type, taken as string');
+    // Подстановка компонента, перенос required и тип по умолчанию — про модуль, не про документ.
+    expect(out.text).not.toMatch(/[а-яё]{4}/i);
   });
 });
 

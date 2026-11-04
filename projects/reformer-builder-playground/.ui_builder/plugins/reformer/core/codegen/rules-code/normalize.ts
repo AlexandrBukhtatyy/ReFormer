@@ -150,12 +150,15 @@ function normalizeLink(link: BehaviorIntent): BehaviorIntent {
   const fullTarget = kind === 'revalidateWhen' ? (sources[0] ?? '') : full(target, each);
   const options =
     PRINTED_OPTIONS.has(kind) && link.options !== undefined ? { ...link.options } : undefined;
+  // Условие пересчёта печатает `buildBehaviorTs` MCP только у вычислений (`{ when }`).
+  const when = kind === 'compute' || kind === 'computeFrom' ? trimmed(link.when) : undefined;
   return {
     kind,
     target: fullTarget,
     ...(each === undefined ? {} : { each }),
     sources,
     ...(expr === undefined ? {} : { expr }),
+    ...(when === undefined ? {} : { when }),
     ...(options === undefined ? {} : { options }),
   };
 }

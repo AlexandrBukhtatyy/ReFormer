@@ -25,7 +25,8 @@ import {
   modelPaths,
   readIntent,
   type FormIntent,
-  type LayoutNode,
+  type IntentWarning,
+  type IntentWarningCode,
 } from '@reformer/mcp/intent';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { collectModelPaths, emptyRules, type FormRules } from '../../../../core/form-model';
@@ -104,7 +105,9 @@ export const buildFormTool: AgentTool<Params> = {
       );
     }
     const raw = lifted.intent;
-    const read = readIntent(raw);
+    // Документ, а не модуль: предупреждения о печати модуля (интерфейсы, типы значений, начальные
+    // значения) MCP не пишет — модель принимала их за сбой (замер 2026-11-03, сценарий 3.6).
+    const read = readIntent(raw, { forDocument: true });
     if (read.problems.length > 0) {
       const lines = read.problems
         .slice(0, MAX_PROBLEMS)
@@ -115,7 +118,7 @@ export const buildFormTool: AgentTool<Params> = {
           'Call build_form without intent for the grammar.'
       );
     }
-    const intent = withStepsLayout(read.intent, raw);
+    const intent = read.intent;
     const steps = collectSteps(intent.layoutRoot).length;
     if (intent.fields.length + intent.arrays.length === 0 && steps === 0) {
       return fail('INVALID_PARAMS', emptyIntentMessage(raw));
@@ -227,8 +230,7 @@ export const buildFormTool: AgentTool<Params> = {
     }
 
     return {
-      // Замечания — после раскладки шагов: замечание MCP о плоской разметке к ней уже не относится.
-      ...ok(reply(intent, intent.warnings, state)),
+      ...ok(reply(intent, read.notices, state)),
       schema: state.draft,
       rules: state.rules,
       ops: [...state.ops, { kind: 'update', ref: '/rules', summary: 'правила формы' }],
@@ -419,48 +421,6 @@ function record(state: PlaceState, node: PlanNode, ref: string): void {
   }
 }
 
-/**
- * Шаги сокращённой записью (`steps: [{ title, fields }]`) — в раскладку узлами `step`.
- *
- * MCP шаги из `wizard` по узлам не раскладывает (у core и renderer-react разметку шагов пишет
- * автор), а документу билдера раскладка нужна. Заданный `layoutRoot` побеждает: раскладку модель
- * написала сама.
- */
-function withStepsLayout(intent: FormIntent, raw: unknown): FormIntent {
-  const steps = intent.wizard?.steps ?? [];
-  if (steps.length === 0 || collectSteps(intent.layoutRoot).length > 0 || declaresLayout(raw)) {
-    return intent;
-  }
-  const arrays = new Set(intent.arrays.map((a) => a.name));
-  const layoutRoot: LayoutNode = {
-    kind: 'container',
-    component: 'Box',
-    children: steps.map((step) => ({
-      kind: 'step' as const,
-      title: step.title,
-      children: step.fields.map((ref) =>
-        arrays.has(ref) ? { kind: 'array' as const, ref } : { kind: 'field' as const, ref }
-      ),
-    })),
-  };
-  return {
-    ...intent,
-    layoutRoot,
-    warnings: intent.warnings.filter((w) => !w.startsWith('Шагов в intent')),
-  };
-}
-
-/** Задал ли intent раскладку сам — теми же ключами, что читает `readIntent`. */
-function declaresLayout(raw: unknown): boolean {
-  const source = typeof raw === 'string' ? safeParse(raw) : raw;
-  if (source === null || typeof source !== 'object') return false;
-  const keys = source as Record<string, unknown>;
-  return (
-    ['layoutRoot', 'root', 'tree'].some((key) => keys[key] !== undefined) ||
-    (typeof keys.layout === 'object' && keys.layout !== null)
-  );
-}
-
 function safeParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -543,17 +503,37 @@ function ruleParamsOf(intent: FormIntent): Parameters<typeof setFormRulesTool.ru
 }
 
 /**
- * Предупреждения MCP, которые относятся к печати модуля, а не к документу билдера. Тип поля
- * документу не нужен — значение задаёт компонент; замечание «тип не указан» на каждое поле модель
- * принимала за сбой и шла проверять сборку (замер 2026-11-03, сценарий 3.6). Тот же шум — выбор
- * компонента по типу и перенос `required` в правила: оба на каждое поле и оба про то, что сборка
- * сделала как надо.
+ * Замечания чтения intent по-английски — по стабильному коду MCP: текст MCP русский, а ответ
+ * инструмента модель читает на языке грамматики. Код без перевода — текстом MCP как есть.
  */
-const MODULE_ONLY_WARNING =
-  /itemInterfaceName|initialValue|interfaceName|Ключи приведены|пришёл строкой|ни одного поля|тип не указан|компонент не указан|Обязательность живёт/;
+const NOTICE_TEXT: Partial<Record<IntentWarningCode, string>> = {
+  'type-unknown': 'unknown value type, taken as string',
+  'type-is-component':
+    'a component name in "type", taken as the component; write it in "component"',
+  'component-normalized': 'component replaced with the kit name for it',
+  'array-as-field': 'a field with rows, read as an array; declare arrays in "arrays"',
+  'array-duplicate': 'declared in both "fields" and "arrays", the "arrays" entry is used',
+  'layout-kind-unknown': 'unknown layout node kind, read as a container',
+  'unnamed-dropped': 'records without "name" were dropped',
+  'intent-as-node': 'the intent is a layout node, read as "layoutRoot"',
+  'step-as-key': 'one step under "step", read as "steps" of one',
+  'steps-as-object': '"steps" is an object, read as a list of one step',
+  'layout-as-list': 'the layout is a list, read as the root children',
+  'rules-in-fields': 'validation rules listed in "fields", moved to "validation"',
+  'rules-on-fields': 'checks written on fields, moved to "validation"',
+  'inline-fields': 'fields described inside steps or layout nodes, declared in "fields"',
+  'inline-arrays': 'arrays described inside steps or layout nodes, declared in "arrays"',
+  'bare-refs': 'layout nodes holding only a name, read as field references',
+};
+
+const noticeText = (notice: IntentWarning): string => {
+  const text = NOTICE_TEXT[notice.code];
+  if (text === undefined) return notice.message;
+  return notice.at === undefined ? text : `${notice.at}: ${text}`;
+};
 
 /** Ответ модели: что собрано, адреса шагов, что не взято, замечания и напоминание о задании. */
-function reply(intent: FormIntent, warnings: readonly string[], state: PlaceState): string {
+function reply(intent: FormIntent, notices: readonly IntentWarning[], state: PlaceState): string {
   const rows = intent.arrays.reduce((sum, a) => sum + a.itemFields.length, 0);
   const counts = [
     state.steps.length > 0 ? `${state.steps.length} steps` : '',
@@ -576,7 +556,7 @@ function reply(intent: FormIntent, warnings: readonly string[], state: PlaceStat
   }
   const lost = notKept(intent);
   if (lost.length > 0) lines.push(`Not kept: ${lost.join('; ')}.`);
-  const notes = warnings.filter((w) => !MODULE_ONLY_WARNING.test(w)).slice(0, MAX_NOTES);
+  const notes = notices.slice(0, MAX_NOTES).map(noticeText);
   if (notes.length > 0) lines.push(`Notes:\n${notes.map((n) => `- ${n}`).join('\n')}`);
   lines.push(
     'The build checks the intent, not the task: compare it with the request — every field, ' +

@@ -73,6 +73,8 @@ export function planOf(document: SchemaDocument, catalog: Catalog): PlanNode | {
     const props = Object.fromEntries(
       Object.entries(node.componentProps ?? {}).filter(([key]) => !DERIVED_PROPS.has(key))
     );
+    // Вычисляемое поле MCP блокирует ключом узла; у `insert_node` тот же ключ — `_disabled`.
+    if (node.disabled === true) props._disabled = true;
     const model = operand(node.model, 'model');
     return {
       component: componentOf(node),

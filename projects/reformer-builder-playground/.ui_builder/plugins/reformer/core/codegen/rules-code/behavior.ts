@@ -150,7 +150,8 @@ function link(
   sources: readonly string[],
   scope: Scope,
   expr: string | undefined,
-  options?: Record<string, unknown>
+  options?: Record<string, unknown>,
+  when?: string
 ): BehaviorIntent {
   const own = expr !== undefined && expr !== DEFAULT_EXPR[kind] ? expr : undefined;
   return {
@@ -159,6 +160,7 @@ function link(
     ...(scope.each === undefined ? {} : { each: scope.each }),
     sources: [...sources],
     ...(own === undefined ? {} : { expr: own }),
+    ...(when === undefined ? {} : { when }),
     ...(options === undefined ? {} : { options }),
   };
 }
@@ -169,19 +171,27 @@ function linkOf(callee: string, args: readonly string[], scope: Scope): Behavior
   const kind = callee as Kind;
   const [a = '', b = '', c] = args;
   switch (kind) {
+    // Условие пересчёта — `{ when: () => … }` третьим аргументом (`computeFrom` — четвёртым): так
+    // его печатает `buildBehaviorTs` MCP из `when` связи. Без чтения его здесь файл поведения
+    // с условным вычислением не читался бы обратно, и сторож записи отказал бы ему.
     case 'compute': {
       const target = pathOf(a, scope);
       const expr = expressionOf(b, '()');
-      if (target === null || expr === null || args.length !== 2) return null;
-      return link(kind, target, [], scope, expr);
+      const when = whenOf(c);
+      if (target === null || expr === null || when === null || args.length > 3) return null;
+      if (args.length === 3 && when === undefined) return null;
+      return link(kind, target, [], scope, expr, undefined, when);
     }
     case 'computeFrom': {
       const sources = arrayItems(a)?.map((item) => pathOf(item, scope));
       const target = pathOf(b, scope);
       const arrow = c === undefined ? null : arrowOf(c);
       if (sources === undefined || sources.some((s) => s === null) || target === null) return null;
-      if (arrow === null || arrow.block || arrow.async || args.length !== 3) return null;
-      return link(kind, target, sources as string[], scope, arrow.body.trim());
+      const when = whenOf(args[3]);
+      if (arrow === null || arrow.block || arrow.async || args.length > 4 || when === null)
+        return null;
+      if (args.length === 4 && when === undefined) return null;
+      return link(kind, target, sources as string[], scope, arrow.body.trim(), undefined, when);
     }
     case 'copyFrom':
     case 'syncFields': {

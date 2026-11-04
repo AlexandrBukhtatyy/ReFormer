@@ -188,6 +188,47 @@ export const formBehavior = defineFormBehavior<Form>(behaviorRules);
   });
 });
 
+describe('вычисление с условием', () => {
+  // MCP печатает `when` связи вычисления третьим (у computeFrom — четвёртым) аргументом
+  // (ReFormer-j356.4.21, A8); без чтения его обратно сторож записи не пустил бы файл правил.
+  const BEHAVIOR = `
+export function behaviorRules({ model }: BehaviorScope<Form>): void {
+  compute(model.$.fee, () => model.price * 0.01, { when: () => model.kind === 'm' });
+  computeFrom([model.$.price], model.$.down, (price) => price * 0.2, { when: () => model.kind === 'm' });
+  compute(model.$.total, () => model.price * 2);
+}
+
+export const formBehavior = defineFormBehavior<Form>(behaviorRules);
+`;
+
+  it('when читается обратно в when связи, без него — как было', () => {
+    const read = readRulesFromCode({
+      validation: [],
+      behavior: { path: 'behavior/index.ts', text: BEHAVIOR },
+      constants: [],
+    });
+    expect(read.files[0]?.foreign).toEqual([]);
+    expect(read.rules.behavior).toEqual([
+      {
+        kind: 'compute',
+        target: 'fee',
+        sources: ['price'],
+        expr: 'model.price * 0.01',
+        when: "model.kind === 'm'",
+      },
+      {
+        kind: 'computeFrom',
+        target: 'down',
+        sources: ['price'],
+        expr: 'price * 0.2',
+        when: "model.kind === 'm'",
+      },
+      // Источники вычисления выводятся из выражения.
+      { kind: 'compute', target: 'total', sources: ['price'], expr: 'model.price * 2' },
+    ]);
+  });
+});
+
 describe('значения источников данных', () => {
   it('варианты и скаляры — значениями, подписи-функции пропускаются', () => {
     const constants = `// constants/anketa.ts
