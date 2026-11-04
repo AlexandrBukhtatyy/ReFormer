@@ -65,7 +65,7 @@
     "@reformer/core": "*",
     "@reformer/renderer-react": "*",
     "@reformer/ui-kit": "*",
-    "typescript": ">=5.0.0 <=5.7.0"
+    "typescript": ">=5.0.0 <6"
   },
   "peerDependenciesMeta": {
     "@reformer/core": {
