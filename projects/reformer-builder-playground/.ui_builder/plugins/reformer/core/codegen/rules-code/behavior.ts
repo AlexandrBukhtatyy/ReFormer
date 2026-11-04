@@ -251,6 +251,9 @@ function linkOf(callee: string, args: readonly string[], scope: Scope): Behavior
       if (target === null || expr === null) return null;
       return link(kind, target, [], scope, expr);
     }
+    // Вызов своего оператора из `operators` intent: его имени нет в `KINDS`, и связью он не читается.
+    case 'call':
+      return null;
   }
 }
 
