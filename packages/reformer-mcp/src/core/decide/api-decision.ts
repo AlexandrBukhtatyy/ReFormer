@@ -436,6 +436,42 @@ export const DECISION_RULES: DecisionRule[] = [
     alternatives: [{ symbol: 'validateWhen', when: 'поле обязательно только при условии' }],
   },
   /**
+   * Число строк массива. Без своего правила «минимум один контакт, максимум пять» отвечало «No
+   * decision rule matched», и агенты угадывали несуществующие `minItems`/`maxItems`-валидаторы
+   * (ReFormer-qo9b.29). Валидаторы длины те же, что у строки: у массива они считают элементы.
+   */
+  {
+    id: 'array-length',
+    intent: 'в массиве не меньше и/или не больше N строк',
+    cues: [
+      /(минимум|максимум|не\s+(меньше|более|больше)|хотя\s+бы|от\s+\d+\s+до\s+\d+|до\s+\d+)[\s\S]{0,40}(строк|элемент|запис|контакт|позиц|телефон|созаёмщик|участник|пункт)|(строк|элемент|запис|позиц)\w*[\s\S]{0,30}(минимум|максимум|не\s+(меньше|более|больше))|\b(min|max)(imum)?\b[\s\S]{0,30}\b(rows|items|entries)\b|at (least|most) \w+ (rows?|items?|entries|contacts?)|\b(min|max)Items\b/i,
+    ],
+    recommend: 'minLength',
+    because:
+      '`minLength(n)` и `maxLength(n)` на массив проверяют число элементов, замечания `minItems` и `maxItems`; их показывает `FieldArray.Error`. Валидаторов `minItems`/`maxItems` нет. Чтобы «Добавить» пропадала на пределе, узлу `FieldArray` дают проп `maxItems`',
+    usage: [
+      "import { defineValidation, validate } from '@reformer/core/validation';",
+      "import { minLength, maxLength } from '@reformer/core/validators';",
+      '',
+      'export const formValidation = defineValidation<Contacts>(({ model }) => {',
+      '  validate(model.$.contacts, [',
+      "    minLength(1, { code: 'contacts.minItems', message: 'Добавьте хотя бы один контакт' }),",
+      "    maxLength(5, { code: 'contacts.maxItems', message: 'Не больше пяти контактов' }),",
+      '  ]);',
+      '});',
+      '',
+      '// form.schema.ts — кнопка «Добавить» скрыта на пределе',
+      '{ model: model.$.contacts, component: FieldArray, item: contactRow, componentProps: { maxItems: 5 } }',
+    ].join('\n'),
+    alternatives: [
+      { symbol: 'applyEach', when: 'проверяется не число строк, а поля КАЖДОЙ строки' },
+      {
+        symbol: 'required',
+        when: 'массив просто не должен быть пустым — это и есть `minLength(1)`',
+      },
+    ],
+  },
+  /**
    * Формат строки. Без своего правила требование «телефон в формате +7…» уходило в поиск по
    * символам, и выдача начиналась с мета-схем renderer-json (калибровка, трек T4).
    */
@@ -584,7 +620,7 @@ export const DECISION_RULES: DecisionRule[] = [
     id: 'validate-each',
     intent: 'валидируется каждый элемент массива',
     cues: [
-      /кажд(ый|ого) элемент.*валид|валид.*кажд(ый|ого) элемент|each (array )?item|per[- ]row validation|validate .* array item/i,
+      /кажд(ый|ого|ую|ой) (элемент|строк).*валид|валид.*кажд(ый|ого|ую|ой) (элемент|строк)|each (array )?(item|row)|per[- ]row validation|validate .* array (item|row)/i,
     ],
     recommend: 'applyEach',
     because:

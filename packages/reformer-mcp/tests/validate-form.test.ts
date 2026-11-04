@@ -210,12 +210,23 @@ describe('validate_form kind=code', () => {
         "import { signal, computed, type Signal } from '@reformer/core/signals';",
         "import { ru } from '@reformer/ui-kit/locale/ru';",
         "import { getFormRegistry, type FormEntry } from '@reformer/form-registry';",
+        "import { createAssistant } from '@reformer/builder-toolkit';",
       ].join('\n');
       const { diagnostics, limitations } = await validateCode(k, code);
       expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-      expect(limitations.join(' ')).toMatch(/@reformer\/form-registry не проверялись/);
+      expect(limitations.join(' ')).toMatch(/@reformer\/builder-toolkit не проверялись/);
+      // `form-registry` в корпусе (ReFormer-j356.4.29): его импорты проверяются по-настоящему.
+      expect(limitations.join(' ')).not.toMatch(/form-registry/);
     }
   );
+
+  it.runIf(hasSymbols)('выдуманное имя из @reformer/form-registry — RF002', async () => {
+    const { diagnostics } = await validateCode(
+      k,
+      "import { registerFormEntry } from '@reformer/form-registry';"
+    );
+    expect(diagnostics.map((d) => d.code)).toContain('RF002');
+  });
 
   it.runIf(hasSymbols)('ограничения печатаются даже когда ошибок нет', async () => {
     // Чистый отчёт не должен читаться как «код верен»: проверка построчная и видит не всё.

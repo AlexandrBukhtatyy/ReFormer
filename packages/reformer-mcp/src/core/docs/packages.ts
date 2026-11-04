@@ -17,6 +17,10 @@ export const KNOWN_PACKAGES = [
   '@reformer/ui-kit',
   '@reformer/renderer-react',
   '@reformer/renderer-json',
+  // Подключение формы к приложению (`FormEntry`, кэш, предварительная загрузка). Без него
+  // `get_symbol_docs` не знал `FormEntry` эталона регистрации, а `validate_form` не проверял
+  // импорты пакета (калибровка T4/T5, ReFormer-j356.4.29).
+  '@reformer/form-registry',
   '@reformer/mcp',
 ] as const;
 

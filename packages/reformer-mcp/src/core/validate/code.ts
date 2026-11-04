@@ -297,8 +297,9 @@ export async function validateCode(
   const outOfCorpus = new Set<string>();
   for (const imp of reformerImports) {
     const basePackage = imp.from.split('/').slice(0, 2).join('/');
-    // Пакет вне корпуса знания (`@reformer/form-registry`): его символов в индексе нет, и
-    // «не существует ни в одном пакете» было бы неправдой о рабочем коде (калибровка, трек T5).
+    // Пакет вне корпуса знания (`@reformer/builder-toolkit` и прочие служебные): его символов в
+    // индексе нет, и «не существует ни в одном пакете» было бы неправдой о рабочем коде
+    // (калибровка, трек T5).
     if (!(KNOWN_PACKAGES as readonly string[]).includes(basePackage)) {
       outOfCorpus.add(basePackage);
       continue;

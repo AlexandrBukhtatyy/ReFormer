@@ -17,6 +17,8 @@
  * который сервер вешает на `resources/list` и `resources/read` — под Node и в воркере одинаково.
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { createResourceCatalog } from '../src/core/server/resource-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
@@ -101,6 +103,31 @@ describe('resources — каталог вместо перечисления с�
     },
     30_000
   ); // читает все секции документации: на занятой машине это дольше 5 с
+
+  it.runIf(hasDocs)('каждый адрес из документа ресурсов открывается', () => {
+    // Примеры документа — имена файлов docs/llms; раньше они отвечали «Unknown section»
+    // (ReFormer-pihy), потому что сервер знал только слаги заголовков.
+    const doc = readFileSync(resolve(__dirname, '../docs/llms/04-resources.md'), 'utf8');
+    const uris = [...doc.matchAll(/`(reformer:\/\/docs\/[a-z-]+\/[a-z0-9-]+)`/g)].map((m) => m[1]);
+    expect(uris.length).toBeGreaterThan(8);
+    const broken = uris.filter((uri) => {
+      try {
+        resources.read(uri);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    expect(broken, `не открываются: ${broken.join(', ')}`).toEqual([]);
+  });
+
+  it.runIf(hasDocs)('файл открывается по имени без номера, слаг секции важнее', () => {
+    const [file] = resources.read('reformer://docs/cdk/field-array').contents;
+    expect((file as { text: string }).text).toMatch(/^# /m);
+    const [section] = resources.read('reformer://docs/cdk/usefieldarray-hook').contents;
+    expect((section as { text: string }).text).toContain('useFieldArray');
+    expect(() => resources.read('reformer://docs/cdk/field-arr')).toThrow(/Files: .*field-array/);
+  });
 
   it.runIf(hasDocs)('каталог существенно дешевле прежнего листинга секций', () => {
     const catalogChars = buildCatalog().length;

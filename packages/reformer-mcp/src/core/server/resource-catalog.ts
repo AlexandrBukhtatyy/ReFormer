@@ -29,6 +29,7 @@
 
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { OWN_PACKAGE } from '../docs/packages.js';
+import { listRecipeNames } from '../docs/recipes.js';
 import type { Knowledge } from '../knowledge.js';
 
 /** Запись `resources/list`. */
@@ -118,6 +119,22 @@ export function createResourceCatalog(
     if (!short) return null;
     const full = `@reformer/${short}`;
     return (docs().packages() as readonly string[]).includes(full) ? full : null;
+  };
+
+  /**
+   * Файл рецепта по имени без номера (`cdk/field-array` → `02-field-array.md`). Секции
+   * адресуются слагом заголовка, а `find_recipe` в строке Source печатает имя файла, и документ
+   * ресурсов приводит адреса файлов: без этого они отвечали «Unknown section» (ReFormer-pihy).
+   * Совпадение только точное: близкие имена подбирает `find_recipe`, а не чтение по адресу.
+   */
+  const recipeFile = (pkg: string, name: string): string | null => {
+    const recipes = knowledge().recipes;
+    const stem = name.replace(/\.md$/i, '').toLowerCase();
+    const fileName = recipes.list(pkg).find((file) => {
+      const own = file.replace(/\.md$/i, '').toLowerCase();
+      return own === stem || own.replace(/^\d+-/, '') === stem;
+    });
+    return fileName ? recipes.read(pkg, fileName) : null;
   };
 
   /**
@@ -250,13 +267,17 @@ export function createResourceCatalog(
         return { contents: [{ uri, mimeType: 'text/markdown', text: docs().full(pkg) }] };
       }
 
-      const text = docs().sectionBySlug(pkg, slug);
+      const text = docs().sectionBySlug(pkg, slug) ?? recipeFile(pkg, slug);
       if (text === null) {
         const available = docs()
           .sections(pkg)
           .map((section) => section.slug)
           .join(', ');
-        throw new Error(`Unknown section "${slug}" in ${pkg}. Available: ${available}.`);
+        const files = listRecipeNames(knowledge().recipes, pkg);
+        throw new Error(
+          `Unknown section "${slug}" in ${pkg}. Available: ${available}.` +
+            (files.length > 0 ? ` Files: ${files.join(', ')}.` : '')
+        );
       }
       return { contents: [{ uri, mimeType: 'text/markdown', text }] };
     },
