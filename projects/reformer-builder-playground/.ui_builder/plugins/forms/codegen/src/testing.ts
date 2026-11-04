@@ -19,6 +19,7 @@ import {
   type CodegenNote,
   type CodegenOpenResult,
   type CodegenPrintRequest,
+  type CodegenProblem,
   type CodegenReader,
   type CodegenRefusal,
   type CodegenStack,
@@ -117,6 +118,8 @@ export interface FakeStackOptions {
   readonly formName?: string;
   /** Что печатает форма. По умолчанию — один производный файл на каждую поданную цель. */
   readonly files?: readonly CodegenFile[];
+  /** Отказы печати (`CodegenModule.problems`), например задержанный сторожем файл. */
+  readonly problems?: readonly CodegenProblem[];
   /** Ответ `open`: отказ, `null` («не моя форма») либо форма по умолчанию. */
   readonly open?: CodegenRefusal | null | 'form';
   /** Ответ `find`; `undefined` — стек из дерева не генерирует. */
@@ -156,7 +159,7 @@ export function createFakeStack(options: FakeStackOptions = {}): FakeStack {
         );
       return {
         files,
-        problems: [],
+        problems: options.problems ?? [],
         view: { formName: request.formName },
         snippet: options.snippet ?? '',
         ...(options.check === undefined && options.onCheck === undefined

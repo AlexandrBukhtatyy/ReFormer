@@ -140,6 +140,41 @@ describe('генерация по заказу', () => {
     expect(host.written.has('src/forms/credit/model/model.ts')).toBe(false);
   });
 
+  it('файл, задержанный стеком, — в failed, а не тихий успех [ReFormer-qsm8.18]', async () => {
+    const document = createFakeDocument(DOC, '{}', 'credit.schema.json');
+    const host = createFakeHost({ document });
+    const stack = createFakeStack({
+      root: 'src/forms/credit',
+      formName: 'credit',
+      problems: [
+        {
+          targetId: 't.model',
+          path: 'form.behavior.ts',
+          reason: 'threw',
+          message: 'файл правил напечатан записью, которой билдер не читает',
+        },
+      ],
+    });
+    const options = {
+      host,
+      stacks: stacksOf(stack),
+      targets: TARGETS,
+      store: createCodegenSessions().storeFor(DOC),
+      translate: (key: string) => key,
+    };
+
+    const report = await generateFor(options, DOC);
+
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    expect(report.failed).toEqual([
+      {
+        path: 'form.behavior.ts',
+        message: 'файл правил напечатан записью, которой билдер не читает',
+      },
+    ]);
+  });
+
   it('без двери пишет в рабочую копию — и тоже не сохраняет', async () => {
     const { host, options } = setup();
     const report = await generateFor(options, DOC);

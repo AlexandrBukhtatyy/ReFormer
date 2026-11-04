@@ -118,6 +118,14 @@ export async function generateFor(
     if (reason === undefined) failed.push(file);
     else skipped.push({ path: file.path, reason: 'refused', message: reason });
   }
+  // Файл, который стек напечатал и сам же не пустил в запись (сторож файлов правил), в доставку не
+  // попадает — его отказ живёт в `problems` прогона. Без него заказчик видел «записано» и не знал,
+  // что правила хода потерялись (ReFormer-qsm8.18).
+  for (const problem of state.problems) {
+    if (problem.reason !== 'threw' || problem.path === '') continue;
+    if (failed.some((file) => file.path === problem.path)) continue;
+    failed.push({ path: problem.path, message: problem.message });
+  }
   return {
     ok: true,
     formName: state.formName,
