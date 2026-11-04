@@ -16,6 +16,7 @@
  * пришлось бы заменить надеждой.
  */
 
+import { repairBehavior } from './behavior-repair.js';
 import { liftInline } from './intent-lift.js';
 import {
   MODEL_BEHAVIOR_KINDS,
@@ -591,7 +592,9 @@ export type IntentWarningCode =
   | 'rules-on-fields'
   | 'inline-fields'
   | 'inline-arrays'
-  | 'bare-refs';
+  | 'bare-refs'
+  | 'reset-as-on-change'
+  | 'computed-toggle-replaced';
 
 export interface IntentWarning {
   code: IntentWarningCode;
@@ -1657,7 +1660,7 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
   );
 
   const normalized: IntentWarning[] = [];
-  const intent = normalizeWith(
+  const normalizedIntent = normalizeWith(
     {
       ...(formName ? { formName } : {}),
       ...(interfaceName ? { interfaceName } : {}),
@@ -1678,6 +1681,10 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     normalized,
     ctx.uiKit
   );
+  // Связи, которые собрались бы и молча не работали, — после нормализации: начальные значения
+  // полей уже проставлены, и сброс берёт их.
+  const behaviorRead = repairBehavior(normalizedIntent, normalized, ctx.problems);
+  const intent = { ...normalizedIntent, behavior: behaviorRead };
 
   const notices = [...notes, ...normalized].filter(
     (notice) => !options.forDocument || !MODULE_ONLY_WARNINGS.has(notice.code)

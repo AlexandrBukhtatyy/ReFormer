@@ -755,12 +755,14 @@ describe('builders', () => {
           code: 'passwords-mismatch',
           message: 'Пароли не совпадают',
         },
-        // Текст без кода, и в вызовах кодов два — привязать не к чему.
+        // Текст правила с двумя кодами получают оба (ReFormer-j356.10).
         {
           target: 'nick',
           rules: ["required({ code: 'a' })", "minLength(2, { code: 'b' })"],
           message: 'Ник?',
         },
+        // У проверок нет кода — привязать текст не к чему.
+        { target: 'password', rules: ['required()'], message: 'Пароль?' },
       ],
     });
     const bundle = buildBundle(intent, CATALOGS);
@@ -768,7 +770,10 @@ describe('builders', () => {
     expect(messages).toContain('export const formMessages = defineIssueMessages({');
     expect(messages).toContain("'phone.required': 'Укажите телефон'");
     expect(messages).toContain("'passwords-mismatch': 'Пароли не совпадают'");
-    expect(bundle.warnings.join(' ')).toMatch(/«Ник\?».*задайте правилу `code`/);
+    expect(messages).toContain("'a': 'Ник?'");
+    expect(messages).toContain("'b': 'Ник?'");
+    expect(bundle.warnings.join(' ')).not.toMatch(/Ник/);
+    expect(bundle.warnings.join(' ')).toMatch(/«Пароль\?».*нет кода/);
 
     const assembly = buildAssemblyTsx(intent);
     expect(assembly).toContain("import { formMessages } from './form.messages';");

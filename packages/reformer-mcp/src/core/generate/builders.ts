@@ -629,17 +629,18 @@ export function buildDataSourcesTs(intent: FormIntent): {
 // ---------------------------------------------------------------------------
 
 /**
- * Код замечания, к которому относится `message` правила: явный `code`, у `cross` — код по
- * умолчанию, иначе код из вызова валидатора (`required({ code: 'phone.required' })`), если он там
- * один. Два кода в одном правиле — непонятно, к какой проверке текст, и тогда `null`.
+ * Коды замечаний, к которым относится `message` правила: явный `code`, у `cross` — код по
+ * умолчанию, иначе коды из вызовов валидаторов (`required({ code: 'phone.required' })`). Пусто —
+ * у проверок правила нет кода, и тексту не к чему привязаться.
  */
-function messageCode(rule: ValidationRuleIntent): string | null {
-  if (rule.code) return rule.code;
-  if (rule.cross) return DEFAULT_CROSS_CODE;
-  const codes = new Set(
-    rule.rules.flatMap((r) => [...r.matchAll(/\bcode:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))
-  );
-  return codes.size === 1 ? [...codes][0] : null;
+function messageCodes(rule: ValidationRuleIntent): string[] {
+  if (rule.code) return [rule.code];
+  if (rule.cross) return [DEFAULT_CROSS_CODE];
+  return [
+    ...new Set(
+      rule.rules.flatMap((r) => [...r.matchAll(/\bcode:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))
+    ),
+  ];
 }
 
 /** Строковый литерал TS в одинарных кавычках. */
@@ -662,6 +663,11 @@ export function isLostMessageWarning(warning: string): boolean {
  * `ValidationMessagesProvider`. Без словаря форма показывает пользователю сам код
  * (`passwords-mismatch`), а `message` из intent пропадал молча — его просто некуда было печатать.
  *
+ * Текст правила с несколькими кодами (`[required, email]` и «Укажите корректный email») получает
+ * каждый его код: так пишут и модели, и люди, а отказ стоил агенту круга правок на каждое такое
+ * правило (ReFormer-j356.10: 13 из 27 первых intent локальных моделей, 19 правил у sonnet). Свой
+ * текст кода — строка правила с одним этим кодом — главнее общего, в каком бы порядке ни шли строки.
+ *
  * @returns `content: null` — текстов нет; предупреждения — тексты, которые не к чему привязать.
  */
 export function buildMessagesTs(intent: FormIntent): {
@@ -670,16 +676,22 @@ export function buildMessagesTs(intent: FormIntent): {
 } {
   const entries = new Map<string, string>();
   const warnings: string[] = [];
+  const shared: Array<{ codes: string[]; message: string }> = [];
   for (const rule of intent.validation) {
     if (!rule.message) continue;
-    const code = messageCode(rule);
-    if (!code) {
+    const codes = messageCodes(rule);
+    if (codes.length === 0) {
       warnings.push(
         `Текст «${rule.message}» у правила на \`${rule.target}\` не попал в form.messages.ts: ` +
-          'не понять, к какому коду он относится — задайте правилу `code` (одно правило — один код).'
+          "у его проверок нет кода — задайте его в вызове: required({ code: 'price.required' })."
       );
       continue;
     }
+    if (codes.length > 1) {
+      shared.push({ codes, message: rule.message });
+      continue;
+    }
+    const [code] = codes;
     const previous = entries.get(code);
     if (previous !== undefined && previous !== rule.message) {
       warnings.push(
@@ -688,6 +700,9 @@ export function buildMessagesTs(intent: FormIntent): {
       continue;
     }
     entries.set(code, rule.message);
+  }
+  for (const { codes, message } of shared) {
+    for (const code of codes) if (!entries.has(code)) entries.set(code, message);
   }
   if (entries.size === 0) return { content: null, warnings };
 

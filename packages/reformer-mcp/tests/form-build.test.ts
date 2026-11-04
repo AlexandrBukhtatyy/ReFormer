@@ -241,16 +241,14 @@ describe('form_build: при ошибке диск не меняется', () =>
     expectNothingWritten();
   });
 
-  it('потерянный текст ошибки: один message на два кода', async () => {
+  it('потерянный текст ошибки: у проверок правила нет кода', async () => {
     const intent = clone(GRAMMAR_EXAMPLE);
-    intent.validation[0].rules = [
-      "required({ code: 'price.required' })",
-      "min(1, { code: 'price.min' })",
-    ];
+    intent.validation[0].rules = ['required()', 'min(1)'];
     writeIntent(intent);
     const { text, isError } = await build();
     expect(isError).toBe(true);
     expect(text).toContain('тексты ошибок потеряны');
+    expect(text).toContain("required({ code: 'price.required' })");
     expectNothingWritten();
   });
 
