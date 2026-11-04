@@ -13,7 +13,13 @@
  * @module reformer-mcp/core/tools/form-build
  */
 
-import { buildAssemblyTsx, buildBundle, isLostMessageWarning } from '../generate/builders.js';
+import {
+  buildAssemblyTsx,
+  buildBundle,
+  buildOperatorStubs,
+  isLostMessageWarning,
+  OPERATOR_STUB_MARK,
+} from '../generate/builders.js';
 import { crossCheckBundle, inspectLayoutRefs } from '../generate/cross-check.js';
 import { readIntent } from '../generate/form-intent.js';
 import { originOf, withMarker } from '../generate/generated-marker.js';
@@ -200,9 +206,14 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   // модуль вручную и теряет канон.
   const assembly: FormFile = { path: 'index.tsx', content: buildAssemblyTsx(intent) };
   const handMarkup = intent.target === 'core';
+  // Заготовка своих операторов — производный файл: пока её не правили, сборка держит её в ладу с
+  // intent (форму пишут частями, и оператор из `operators` становится правилом позже). Первая
+  // правка — тела операторов — отсоединяет файл, дальше он принадлежит автору.
+  const stubs = buildOperatorStubs(intent);
   const derived: FormFile[] = [
     ...files,
     ...(handMarkup ? [] : [assembly]),
+    ...stubs,
     ...(files.some((file) => file.path === 'data-sources.ts')
       ? []
       : [{ path: 'data-sources.ts', content: '// Справочники формы.\nexport {};\n' }]),
@@ -211,7 +222,7 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
     ...(handMarkup ? [assembly] : []),
     { path: 'types.ts', content: '// Локальные типы модуля.\nexport {};\n' },
     { path: 'api.ts', content: '// Загрузка и отправка данных.\nexport {};\n' },
-  ];
+  ].filter((file) => !stubs.some((stub) => stub.path === file.path));
   const plan = planBuild(directory, derived, owned);
 
   const types = await directory.typecheck(plan.module);
@@ -257,9 +268,22 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
         'сборка этот файл не перезаписывает и проверит его типы.'
     );
   }
-  if (plan.detached.length > 0) {
+  const unwritten = stubs
+    .map((stub) => plan.module.find((file) => file.path === stub.path))
+    .filter((file): file is FormFile => file?.content.includes(OPERATOR_STUB_MARK) === true)
+    .map((file) => file.path);
+  if (unwritten.length > 0) {
     lines.push(
-      `Правлены вручную и оставлены как есть: ${plan.detached.join(', ')}. Сборка их больше не ` +
+      `⚠️ Свои операторы — ещё заготовки: ${unwritten.join(', ')}. Правило в заготовке пропускает ` +
+        'любое значение, оператор ничего не делает. Напиши тела там сам (Edit), убери метки ' +
+        `${OPERATOR_STUB_MARK} и собери снова: после правки сборка файл не трогает, но проверяет его типы.`
+    );
+  }
+  // Файл своих операторов и должен быть правлен руками — о нём это не новость.
+  const detached = plan.detached.filter((path) => !stubs.some((stub) => stub.path === path));
+  if (detached.length > 0) {
+    lines.push(
+      `Правлены вручную и оставлены как есть: ${detached.join(', ')}. Сборка их больше не ` +
         'обновляет; чтобы вернуть файл под сборку, удали его.'
     );
   }

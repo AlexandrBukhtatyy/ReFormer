@@ -8,6 +8,7 @@
  * @module reformer-mcp/core/generate/intent-grammar
  */
 
+import { renderValidatorList, VALIDATION_OPERATORS } from './operator-catalog.js';
 import { UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
 
 /** Рабочая форма, на которой показана вся грамматика. */
@@ -34,6 +35,7 @@ export const GRAMMAR_EXAMPLE = {
     },
     { name: 'quantity', type: 'number', component: 'InputNumber', label: 'Штук', initialValue: 1 },
     { name: 'total', type: 'number', component: 'InputNumber', label: 'Итог', initialValue: 0 },
+    { name: 'vat', type: 'number', component: 'InputNumber', label: 'НДС', initialValue: 0 },
     {
       name: 'propertyValue',
       type: 'number',
@@ -108,6 +110,8 @@ export const GRAMMAR_EXAMPLE = {
       label: 'Сумма дохода',
       initialValue: 0,
     },
+    { name: 'email', type: 'string', component: 'Input', label: 'Email', initialValue: '' },
+    { name: 'login', type: 'string', component: 'Input', label: 'Логин', initialValue: '' },
   ],
   arrays: [
     {
@@ -124,6 +128,13 @@ export const GRAMMAR_EXAMPLE = {
           component: 'InputNumber',
           label: 'Доход',
           initialValue: 0,
+        },
+        {
+          name: 'primary',
+          type: 'boolean',
+          component: 'Checkbox',
+          label: 'Основной',
+          initialValue: false,
         },
       ],
     },
@@ -146,6 +157,7 @@ export const GRAMMAR_EXAMPLE = {
           'price',
           'quantity',
           'total',
+          'vat',
           {
             kind: 'container',
             component: 'Section',
@@ -171,6 +183,8 @@ export const GRAMMAR_EXAMPLE = {
           { kind: 'part', ref: 'residenceAddress', part: 'address' },
           'hasContacts',
           'income',
+          'email',
+          'login',
           { kind: 'array', ref: 'contacts' },
         ],
       },
@@ -221,6 +235,17 @@ export const GRAMMAR_EXAMPLE = {
       code: 'contact.income.negative',
       message: 'Доход не может быть отрицательным',
     },
+    {
+      target: 'postalCode',
+      rules: ["postalCodeRu({ code: 'postalCode.format' })"],
+      message: 'Индекс — 6 цифр',
+    },
+    {
+      target: 'phone',
+      call: 'phoneOrEmail(model.$.phone, model.$.email)',
+      code: 'contact.missing',
+      message: 'Укажите телефон или email',
+    },
   ],
   behavior: [
     {
@@ -260,7 +285,64 @@ export const GRAMMAR_EXAMPLE = {
       sources: ['contacts', 'contacts.income'],
       expr: 'model.contacts.map((row) => row.income).reduce((sum, income) => sum + (income || 0), 0)',
     },
+    {
+      kind: 'disableWhen',
+      target: 'residenceAddress',
+      sources: ['sameAddress'],
+      expr: 'model.sameAddress === true',
+    },
+    { kind: 'computeFrom', target: 'vat', sources: ['total'], expr: 'Math.round(total * 0.2)' },
+    { kind: 'syncFields', target: 'login', sources: ['email'] },
+    {
+      kind: 'resetWhen',
+      target: 'smsCode',
+      sources: ['phone'],
+      expr: '!model.phone',
+      options: { resetValue: '' },
+    },
+    {
+      kind: 'revalidateWhen',
+      target: 'confirm',
+      sources: ['password'],
+      expr: 'form.confirm.markAsTouched()',
+    },
+    { kind: 'exclusiveFlag', target: 'primary', each: 'contacts', sources: [] },
+    {
+      kind: 'aggregateInto',
+      target: 'contacts',
+      sources: [],
+      expr: 'rows.length === 0 || rows.some((row) => row.primary) ? [] : [{ index: 0, patch: { primary: true } }]',
+    },
+    { kind: 'call', target: 'price', sources: [], expr: 'roundTo(model.$.price, 100)' },
+    {
+      kind: 'onComponentEvent',
+      selector: 'wizard',
+      event: 'onSubmit',
+      expr: 'await submitApplication(model.get())',
+    },
+    {
+      kind: 'renderEffect',
+      expr: "if (model.loanType === 'mortgage') schema.node('mortgage-section').getRef<HTMLElement>().current?.scrollIntoView();",
+    },
+    {
+      kind: 'onInit',
+      selector: 'mortgage-section',
+      expr: "schema.node('mortgage-section').patchProps({ title: 'Ипотечный кредит' })",
+    },
+    {
+      kind: 'onMount',
+      selector: 'wizard',
+      expr: 'const timer = setInterval(() => saveDraft(model.get()), 30000); return () => clearInterval(timer);',
+    },
+    { kind: 'onUnmount', selector: 'wizard', expr: 'saveDraft(model.get())' },
   ],
+  operators: {
+    postalCodeRu: './operators',
+    phoneOrEmail: './operators',
+    roundTo: './operators',
+    saveDraft: './operators',
+    submitApplication: './api',
+  },
   visibility: [{ selector: 'mortgage-section', condition: "model.loanType !== 'mortgage'" }],
   dataSources: [
     {
@@ -276,27 +358,42 @@ export const GRAMMAR_EXAMPLE = {
 const json = (value: unknown): string => JSON.stringify(value);
 const { fields, arrays, validation, behavior } = GRAMMAR_EXAMPLE;
 
-const behaviorRow = (index: number): string => json(behavior[index]);
+/** Поле примера по имени: индекс сдвигается, когда в пример добавляют поле. */
+const field = (name: string) => {
+  const found = fields.find((f) => f.name === name);
+  if (!found) throw new Error(`В GRAMMAR_EXAMPLE нет поля ${name}`);
+  return found;
+};
+
+/** Запись `behavior` примера по её `kind` (у `compute` — первая). */
+const behaviorRow = (kind: string, nth = 0): string =>
+  json(behavior.filter((row) => row.kind === kind)[nth]);
+
+/** Ключи правила intent → операторы схемы валидации ядра. */
+const validationKeys = Object.entries(VALIDATION_OPERATORS)
+  .filter(([, key]) => !key.includes(' '))
+  .map(([operator, key]) => `${key} → ${operator}`)
+  .join(', ');
 
 export const INTENT_GRAMMAR = `# form.intent.json — грамматика
 
 Ты пишешь только этот файл, остальные файлы модуля записывает form_build. Сам файл формы не создаёт: работа закончена только после ответа ✓ от form_build. Экономь токены: JSON компактный, одна запись на строку. Большую форму пиши частями: поля и раскладка → form_build → Edit: правила → form_build → Edit: поведение → form_build.
 
-{"formName":"Заявка","interfaceName":"Application","target":"renderer-react","fields":[…],"arrays":[…],"parts":{…},"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…]}
+{"formName":"Заявка","interfaceName":"Application","target":"renderer-react","fields":[…],"arrays":[…],"parts":{…},"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…],"operators":{…}}
 
 target — стек из задания, не меняй его: core | renderer-react | renderer-json.
 На core сборка пишет всё, кроме разметки: в index.tsx будет заглушка, её замени своим JSX и собери снова. Поле: <FormField control={bundle.form.price} /> из @reformer/ui-kit. visibility там не работает — условие пиши в JSX. Массив и шаги: find_recipe.
 
 ## fields
-${json(fields[1])}
+${json(field('price'))}
 - Поле группы — имя через точку: "registrationAddress.city".
 - type: string | number | boolean | date | array (атомарное значение файлов у FileUpload*).
 - component: ${Object.keys(UI_KIT_FIELD_EXPORTS).join(' ')}.
 - componentProps — свойства компонента; незнакомое form_build назовёт и перечислит, какие есть.
 - Варианты выбора: "optionsSource":"LOAN_TYPES" и запись в dataSources либо componentProps.options:[{"value":"a","label":"А"}].
 - Свободный ввод с подсказками: "suggestionsSource":"CITIES" и запись в dataSources — поле рисует InputSuggest.
-- Дата строкой: ${json(fields[8])}. DatePicker хранит Date.
-- Маска: "component":"InputMask","componentProps":${json(fields[9].componentProps)}.
+- Дата строкой: ${json(field('birthDate'))}. DatePicker хранит Date.
+- Маска: "component":"InputMask","componentProps":${json(field('phone').componentProps)}.
 
 ## arrays
 ${json(arrays[0])}
@@ -309,7 +406,8 @@ ${json(GRAMMAR_EXAMPLE.layoutRoot.children[0])}
 
 ## validation — одна строка на правило, текст в message
 ${json(validation[0])}
-- rules: required, email, minLength(n), maxLength(n), min(n), max(n), pattern(/re/); последний аргумент — { code: '…' }.
+- rules — фабрики @reformer/core/validators: ${renderValidatorList()}. Последний аргумент — { code: '…' }.
+- Ключи правила — операторы схемы ядра: ${validationKeys}; правило поля группы — путь через точку.
 - Одна строка — один код: иначе текст не к чему привязать, и сборка откажет.
 - Условие: ${json(validation[2])}
 - Строка массива: ${json(validation[3])}
@@ -317,19 +415,41 @@ ${json(validation[0])}
 - Между полями строки массива (values — снимок строки): ${json(validation[6])}
 - Асинхронно: ${json(validation[5])}
 - У cross: "severity":"warning" — предупреждение, отправку не блокирует; "params":{"max":"values.income * 10"} — числа для {max} в message.
+- Своё правило — имя из operators: ${json(validation[7])}
+- Свой оператор валидации — вызов печатается в схему как есть: ${json(validation[8])}. В правиле с each model в вызове — строка.
 
-## behavior — expr это TS, sources это поля, которые оно читает
-${behaviorRow(0)}
-${behaviorRow(1)}
-${behaviorRow(2)} — value: новое значение target.
-${behaviorRow(3)}
-${behaviorRow(4)} — expr: условие копирования.
+## behavior — kind это оператор ядра, expr это TS, sources это поля, которые оно читает
+${behaviorRow('compute')}
+${behaviorRow('computeFrom')} — параметры expr — sources по последнему сегменту пути.
+${behaviorRow('enableWhen')}
+${behaviorRow('disableWhen')} — группа целиком.
+${behaviorRow('onChange')} — value: новое значение target.
+${behaviorRow('transformValue')}
+${behaviorRow('copyFrom')} — expr: условие копирования.
+${behaviorRow('syncFields')} — в обе стороны.
+${behaviorRow('resetWhen')} — без resetValue поле сбрасывается в null.
+${behaviorRow('revalidateWhen')} — expr: что сделать при смене sources. Перезапуск своей схемы — void validateModel(model, схема): validateModel сборка импортирует сама, схему объяви в operators.
+${behaviorRow('exclusiveFlag')} — флаг true только у одной строки.
+${behaviorRow('aggregateInto')} — rows: снимок строк, ответ — [{ index, patch }].
+${behaviorRow('call')} — свой оператор поведения из operators, вызов как есть.
 target и sources — только листовые поля и массивы; enableWhen и disableWhen принимают и группу ("target":"residenceAddress"). В compute проверяй null: у числа без значения тип number | null, у необязательного текста — string | null. Условие пересчёта у compute и computeFrom: "when":"model.loanType === 'mortgage'". Цель compute заблокирована для ввода сама.
-Ещё kind: disableWhen computeFrom syncFields resetWhen revalidateWhen exclusiveFlag aggregateInto — детали в find_recipe.
-Поведение строки массива: "each":"contacts", строка в expr — item.
+Поведение строки массива: "each":"contacts", строка в expr — item. Узел формы (снять замечания, пометить тронутым) — form.<поле>.
 
 Массив в модели — НЕ обычный массив: есть length, at(i), map(fn), forEach(fn), toArray(), push(), removeAt(i), clear(); нет get, reduce, filter — сначала map(...) или toArray(). Сумма:
-${behaviorRow(5)}
+${behaviorRow('compute', 1)}
+
+## Узлы схемы — тоже behavior: узел по selector из layoutRoot, в expr есть schema; на core не печатаются
+${behaviorRow('onComponentEvent')} — событие компонента, аргументы — args. Так подключается отправка.
+${behaviorRow('renderEffect')} — эффект после монтирования схемы, ref узла — getRef().
+${behaviorRow('onInit')} — до первого рендера.
+${behaviorRow('onMount')} — тело может вернуть очистку.
+${behaviorRow('onUnmount')}
+С await обработчик асинхронный.
+
+## operators — свои операторы: имя → модуль импорта
+${json(GRAMMAR_EXAMPLE.operators)}
+- Модуль каталога формы ("./operators" → operators.ts, "./api" → api.ts) form_build пишет заготовкой: сигнатура принимает любые аргументы, тело пустое. Тела напиши сам (Edit): правка делает файл твоим — сборка его больше не трогает, но проверяет типы. Модуль проекта ("@/shared/validators") подключается как есть.
+- Правило — функция, возвращающая Rule<T> из @reformer/core/validation; оператор валидации — на validate, cross, validateWhen; оператор поведения — на операторах @reformer/core/behaviors или effect + onDispose.
 
 ## visibility и dataSources
 ${json(GRAMMAR_EXAMPLE.visibility[0])} — узел СКРЫТ, когда условие истинно; selector задан в layoutRoot.

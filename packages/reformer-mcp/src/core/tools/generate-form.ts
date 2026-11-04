@@ -22,6 +22,7 @@ import {
 import {
   buildAssemblyTsx,
   buildBundle,
+  buildOperatorStubs,
   renderLayoutChecklist,
   renderLayoutLine,
 } from '../generate/builders.js';
@@ -310,6 +311,24 @@ function buildManifest(args: GenerateFormArgs): {
     lines.push('```' + (file.path.endsWith('.json') ? 'json' : 'typescript'));
     lines.push(file.content.trimEnd());
     lines.push('```');
+  }
+
+  // Свои операторы из `operators`: бандл их импортирует, а тела пишет автор формы.
+  const stubs = buildOperatorStubs(intent);
+  if (stubs.length > 0) {
+    lines.push('');
+    lines.push('## Свои операторы — заготовки (пишете сами)');
+    lines.push(
+      '_Бандл импортирует их отсюда. Сигнатуры принимают любые аргументы, тела пустые: правило ' +
+        'пропускает любое значение, пока вы не напишете проверку._'
+    );
+    for (const stub of stubs) {
+      lines.push('');
+      lines.push(`### \`${stub.path}\``);
+      lines.push('```typescript');
+      lines.push(stub.content.trimEnd());
+      lines.push('```');
+    }
   }
 
   // Сборка — единственный файл, который консумент пишет целиком сам, и ровно в нём живут

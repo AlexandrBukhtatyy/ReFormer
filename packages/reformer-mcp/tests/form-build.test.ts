@@ -103,11 +103,18 @@ describe('form_build: путь без ошибок', () => {
           'form.validation.ts',
           'index.tsx',
           'model.ts',
+          'operators.ts',
           'types.ts',
         ].sort()
       );
       expect(originOf(readFileSync(formFile('model.ts'), 'utf-8'))).toBe('generated');
       expect(originOf(readFileSync(formFile('types.ts'), 'utf-8'))).toBe('handwritten');
+      // Свои операторы: заготовка — файл сборки, пока её не правили, и ответ о ней напоминает.
+      expect(originOf(readFileSync(formFile('operators.ts'), 'utf-8'))).toBe('generated');
+      expect(readFileSync(formFile('api.ts'), 'utf-8')).toContain(
+        'export function submitApplication'
+      );
+      expect(text).toContain('Свои операторы — ещё заготовки: operators.ts, api.ts');
     },
     SLOW
   );
@@ -271,10 +278,23 @@ describe('form_build: при ошибке диск не меняется', () =>
       const { text, isError } = await build();
       expect(isError).toBe(true);
       expect(text).toContain('notARealValidator');
+      expect(text).toContain('объяви в operators');
       expectNothingWritten();
     },
     SLOW
   );
+
+  it('вызов необъявленного оператора — отказ с подсказкой про operators', async () => {
+    const intent = clone(GRAMMAR_EXAMPLE);
+    const { roundTo: _undeclared, ...operators } = intent.operators;
+    void _undeclared;
+    writeIntent({ ...intent, operators });
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    expect(text).toContain('C12');
+    expect(text).toContain('`roundTo` не объявлен в operators');
+    expectNothingWritten();
+  });
 
   it(
     'неразбираемый expr',
@@ -410,6 +430,52 @@ describe('form_build: чей файл', () => {
   });
 
   it(
+    'тела своих операторов переживают пересборку, а напоминание остаётся только о заготовках',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      await build();
+      const own = [
+        "import type { Rule } from '@reformer/core/validation';",
+        '',
+        'export const postalCodeRu =',
+        '  (options: { code?: string } = {}): Rule<string | null> =>',
+        '  (value) =>',
+        "    !value || /^\\d{6}$/.test(value) ? null : { code: options.code ?? 'postalCode' };",
+        'export function phoneOrEmail(..._args: unknown[]): void {}',
+        'export function roundTo(..._args: unknown[]): void {}',
+        'export function saveDraft(..._args: unknown[]): void {}',
+        '',
+      ].join('\n');
+      writeFileSync(formFile('operators.ts'), own);
+
+      const rebuilt = await build();
+      expect(rebuilt.isError).toBe(false);
+      expect(readFileSync(formFile('operators.ts'), 'utf-8')).toBe(own);
+      expect(rebuilt.text).not.toContain('Правлены вручную');
+      expect(rebuilt.text).toContain('Свои операторы — ещё заготовки: api.ts.');
+    },
+    SLOW
+  );
+
+  it(
+    'заготовка следует за intent, пока её не правили: оператор становится правилом позже',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, validation: [] });
+      await build();
+      expect(readFileSync(formFile('operators.ts'), 'utf-8')).toContain(
+        'export function postalCodeRu(..._args: unknown[]): void'
+      );
+      writeIntent(GRAMMAR_EXAMPLE);
+      const { text, isError } = await build();
+      expect(isError, text).toBe(false);
+      expect(readFileSync(formFile('operators.ts'), 'utf-8')).toContain(
+        'export function postalCodeRu(..._args: unknown[]): Rule<string | null>'
+      );
+    },
+    SLOW
+  );
+
+  it(
     'точка входа подхватывает тексты, появившиеся после первой сборки',
     async () => {
       writeIntent({ ...GRAMMAR_EXAMPLE, validation: [] });
@@ -452,6 +518,9 @@ describe('form_build: таргет core', () => {
       expect(text).toContain('✓ form_build');
       expect(isError).toBe(false);
       expect(text).toContain('Разметки ещё нет');
+      // Правила узлов исполняет рендерер: на core их нет в поведении, и сборка об этом говорит.
+      expect(text).toContain('Правил узлов схемы');
+      expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).not.toContain('onMount');
       expect(originOf(readFileSync(formFile('index.tsx'), 'utf-8'))).toBe('handwritten');
       expect(existsSync(formFile('model.ts'))).toBe(true);
       for (const name of readdirSync(join(project, 'form'))) {

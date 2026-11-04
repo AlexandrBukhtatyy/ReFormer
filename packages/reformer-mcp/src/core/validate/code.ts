@@ -19,6 +19,7 @@
 import { publicSymbols } from '../index/symbols.js';
 import { symbolsByName } from '../index/merge.js';
 import { KNOWN_PACKAGES } from '../docs/packages.js';
+import { CORE_VALIDATORS } from '../generate/operator-catalog.js';
 import type { Knowledge } from '../knowledge.js';
 import type { Diagnostic } from './codes.js';
 
@@ -579,7 +580,9 @@ const LEGACY_KEYS: ReadonlyArray<{ re: RegExp; message: string; suggestion: stri
       'В формате 2 массив — `"model": "$model(path)"` + `"item"`; документ целиком переводит `migrateJsonSchema`.',
   },
   {
-    re: /\b(?:required|email|url|phone|pattern|minLength|maxLength|min|max|isNumber|integer|multipleOf|nonNegative|nonZero|isDate|minDate|maxDate|pastDate|futureDate|minAge|maxAge|fileType|maxFileSize|minFileSize|maxFiles|minFiles|maxTotalFileSize)\([^)]*\{[^}]*\bmessage(?:Key)?\s*:/,
+    re: new RegExp(
+      `\\b(?:${Object.keys(CORE_VALIDATORS).join('|')})\\([^)]*\\{[^}]*\\bmessage(?:Key)?\\s*:`
+    ),
     message: 'Текст в опциях правила: у `RuleOptions` нет `message` и `messageKey`.',
     suggestion:
       "Правило несёт код: `required({ code: 'phone.required' })`; текст — в словаре формы `defineIssueMessages` (`@reformer/core/i18n`), подключённом через `<ValidationMessagesProvider messages>`.",

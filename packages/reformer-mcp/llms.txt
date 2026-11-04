@@ -782,12 +782,14 @@ The separator is a **dot**, never a dash and never a collapsed word: `form.behav
 ├── form.flow.ts        # optional, wizard: steps of the flow — [{ id: <step selector>, rules }]
 ├── form.messages.ts    # optional: issue texts by code — defineIssueMessages({ 'email.required': '…' })
 ├── data-sources.ts     # options + async loaders (dataSources)
-└── api.ts              # submit + prefill / load
+├── api.ts              # submit + prefill / load
+└── operators.ts        # optional: own operators — rules, validation and behavior operators
 ```
 
 **Optional files.** `form.flow.ts` — `formFlow: FormFlowConfig<T>`, steps `[{ id: <step selector>, rules }]`
 (rules imported from `form.validation.ts`) → `createForm({ flow })`. `form.messages.ts` — issue texts by
 code, `defineIssueMessages({ 'loanAmount.required': '…' })` → `<ValidationMessagesProvider messages>`.
+`operators.ts` — the form's own operators (§8).
 
 **`form.schema.*` — one tree, two notations:**
 
@@ -972,6 +974,7 @@ The contract of a form is the same for every way of drawing, so almost every fil
 | `form.behavior.ts`                  | the one behavior: model links + node rules           |        ✅         |       reuse       |            reuse             |
 | `data-sources.ts`                   | options + async loaders (dataSources)                |        ✅         |       reuse       |            reuse             |
 | `api.ts`                            | submit + prefill/load                                |        ✅         |       reuse       |            reuse             |
+| `operators.ts`                      | own rules and validation / behavior operators        |     optional      |     optional      |           optional           |
 | `form.schema.ts`                    | the one schema tree: TS builder / JSON document      |        ✅         |       reuse       | the same tree as a document  |
 | `form.schema.tsx`                   | same file when the schema contains JSX               |      variant      |      variant      |           variant            |
 | `form.schema.json`                  | same DSL as raw data — no `$model` typing            |         —         |         —         |           variant            |
@@ -1014,6 +1017,15 @@ marker. Editing such a file by hand detaches it: the build keeps your version an
 the file to bring it back. `types.ts` and `api.ts` stay yours. On the `core` target `index.tsx` is
 yours too: the build creates a stub once, you write the JSX markup there, and the build type-checks
 it.
+
+Own operators are built on the core ones: a rule factory returning `Rule<T>`, a validation operator
+over `validate` / `cross` / `validateWhen`, a behavior operator over the `@reformer/core/behaviors`
+operators or `effect` + `onDispose`. The intent declares them in `operators` — name → module
+(`"./operators"`) — and `form.validation.ts` / `form.behavior.ts` import them like the core ones. For
+a module in the form folder the build writes a stub (`operators.ts`): signatures that accept any
+arguments, empty bodies, `TODO(form_build)` marks. Until you edit it, the stub follows the intent;
+writing the bodies detaches it like any built file, and the build keeps reminding you while marks
+remain.
 
 ## 43. API Reference
 

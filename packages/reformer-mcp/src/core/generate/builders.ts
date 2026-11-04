@@ -17,10 +17,12 @@ import type {
   FieldIntent,
   FormIntent,
   LayoutNode,
+  NodeRuleIntent,
   ReformerTargetStack,
   ValidationRuleIntent,
 } from './form-intent.js';
 import { deriveComponentName } from './form-intent.js';
+import { CORE_VALIDATORS } from './operator-catalog.js';
 import {
   groupUiKitImports,
   UI_KIT_CONTAINER_EXPORTS,
@@ -425,15 +427,65 @@ function callValidator(rule: string): string {
   return /[()]/.test(trimmed) ? trimmed : `${trimmed}()`;
 }
 
-function collectValidators(rules: ValidationRuleIntent[]): string[] {
+/** Имя фабрики правила: `minLength(2)` → `minLength`. */
+export function ruleName(rule: string): string | null {
+  return rule.trim().match(/^([A-Za-z_$][\w$]*)/)?.[1] ?? null;
+}
+
+/**
+ * Валидаторы ядра, которые вызывают правила. Свои правила (`operators`) импортируются из своего
+ * модуля, а не из `@reformer/core/validators`: раньше любое имя уходило в импорт ядра, и правило,
+ * которого в ядре нет, давало только ошибку компилятора.
+ */
+function collectValidators(
+  rules: readonly ValidationRuleIntent[],
+  operators: Readonly<Record<string, string>> = {}
+): string[] {
   const used = new Set<string>();
   for (const rule of rules) {
     for (const r of rule.rules) {
-      const name = r.match(/^([A-Za-z_$][\w$]*)/)?.[1];
-      if (name) used.add(name);
+      const name = ruleName(r);
+      if (name && Object.hasOwn(CORE_VALIDATORS, name) && !Object.hasOwn(operators, name)) {
+        used.add(name);
+      }
     }
   }
   return [...used].sort();
+}
+
+/**
+ * Код ссылается на имя `name` — само по себе, а не на свойство `model.name`: вызов своего оператора
+ * или схема, переданная аргументом (`validateModel(model, passwordRules)`).
+ */
+export function mentionsName(code: string, name: string): boolean {
+  return new RegExp(`(^|[^\\w$.])${name.replace(/\$/g, '\\$')}(?![\\w$])`).test(code);
+}
+
+/**
+ * Импорты своих операторов, на которые ссылается код файла: по строке `import { … } from '<модуль>'`
+ * на модуль. Импортируется только нужное — проекты собираются с `noUnusedLocals`.
+ */
+export function operatorImportLines(
+  operators: Readonly<Record<string, string>> | undefined,
+  code: readonly string[]
+): string[] {
+  const byModule = new Map<string, string[]>();
+  for (const [name, module] of Object.entries(operators ?? {})) {
+    if (!code.some((part) => mentionsName(part, name))) continue;
+    byModule.set(module, [...(byModule.get(module) ?? []), name]);
+  }
+  return [...byModule].map(
+    ([module, names]) => `import { ${names.sort().join(', ')} } from '${module}';`
+  );
+}
+
+/** Код правил, в котором могут встретиться вызовы своих операторов. */
+function validationCode(rules: readonly ValidationRuleIntent[]): string[] {
+  return rules.flatMap((rule) => [
+    ...rule.rules,
+    ...[rule.call, rule.cross, rule.async, rule.when].filter((part): part is string => !!part),
+    ...Object.values(rule.params ?? {}),
+  ]);
 }
 
 /** Параметры `buildValidationSchemaTs`: всё, что модуль берёт не из правил. */
@@ -453,6 +505,11 @@ export interface ValidationSchemaTsOptions {
    * Без него модуль печатается без шапки.
    */
   header?: string;
+  /**
+   * Свои операторы, которые могут вызывать правила: имя → спецификатор модуля, как его импортирует
+   * этот файл (`FormIntent.operators` у файла в корне модуля).
+   */
+  operators?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -462,9 +519,14 @@ export interface ValidationSchemaTsOptions {
  * «на всякий случай» не даст форме скомпилироваться. Поэтому набор считается по ТОМУ
  * подмножеству правил, которое печатается в модуль, — у файла шага он свой.
  */
-function validationImports(rules: readonly ValidationRuleIntent[]): {
+function validationImports(
+  rules: readonly ValidationRuleIntent[],
+  operators?: Readonly<Record<string, string>>
+): {
   ops: string[];
   validators: string[];
+  /** Импорты своих операторов — готовыми строками. */
+  custom: string[];
 } {
   // `validate` нужен правилам с валидаторами; набор из одних кросс-полевых и асинхронных проверок
   // его не зовёт. Пустой набор оставляет его: заготовка предлагает дописать правила им.
@@ -473,7 +535,11 @@ function validationImports(rules: readonly ValidationRuleIntent[]): {
   if (rules.some((r) => r.async)) ops.push('validateAsync');
   if (rules.some((r) => r.when)) ops.push('validateWhen');
   if (rules.some((r) => r.each)) ops.push('applyEach');
-  return { ops, validators: collectValidators([...rules]) };
+  return {
+    ops,
+    validators: collectValidators(rules, operators),
+    custom: operatorImportLines(operators, validationCode(rules)),
+  };
 }
 
 /** Код замечания кросс-полевой проверки, если правило его не назвало. */
@@ -628,6 +694,182 @@ export function buildMessagesTs(intent: FormIntent): {
   return { content: lines.join('\n') + '\n', warnings };
 }
 
+// ---------------------------------------------------------------------------
+// operators.ts — заготовка своих операторов
+// ---------------------------------------------------------------------------
+
+/** Метка заготовки: пока она в файле своих операторов, `form_build` напоминает дописать тела. */
+export const OPERATOR_STUB_MARK = 'TODO(form_build)';
+
+/** Модули каталога формы, которые пишет сборка: свои операторы в них жить не могут. */
+const DERIVED_MODULES = new Set(['model', 'data-sources', 'registry', 'index']);
+
+/**
+ * Файл каталога формы, в котором живёт модуль своих операторов: `./operators` → `operators.ts`.
+ * Модуль вне каталога (`@/shared/validators`, `../common/rules`) — `null`: его пишет проект, и
+ * заготовки для него нет. Модуль сборки (`./model`) — тоже `null`, о нём говорит кросс-проверка.
+ */
+export function operatorModuleFile(module: string): string | null {
+  const name = module.match(/^\.\/([A-Za-z0-9_-]+)(?:\.(?:js|ts))?$/)?.[1];
+  return name && !DERIVED_MODULES.has(name) ? `${name}.ts` : null;
+}
+
+/** Модуль, который пишет сборка: свои операторы оттуда не импортировать. */
+export function isDerivedModule(module: string): boolean {
+  const name = module.match(/^\.\/([A-Za-z0-9_.-]+?)(?:\.(?:js|ts|tsx))?$/)?.[1];
+  return name !== undefined && (DERIVED_MODULES.has(name) || name.startsWith('form.'));
+}
+
+/** Как intent пользуется своим оператором — от этого зависит его заготовка. */
+type OperatorRole = 'rule' | 'validation' | 'behavior' | 'schema' | 'function';
+
+/** Тип значения поля, к которому относится правило; `null` — поле не найдено. */
+function ruleFieldType(
+  intent: FormIntent,
+  rule: ValidationRuleIntent,
+  optional: ReadonlySet<FieldIntent>
+): string | null {
+  const matches = (path: string) => (f: FieldIntent) =>
+    (f.modelPath ?? f.name) === path || f.name === path;
+  if (rule.each !== undefined) {
+    const array = intent.arrays.find(
+      (a) => a.name === rule.each || (a.modelPath ?? a.name) === rule.each
+    );
+    const field = array?.itemFields.find(matches(rowPath(rule.target, rule.each)));
+    return field ? fieldTsType(field, optional) : null;
+  }
+  const field = intent.fields.find(matches(rule.target));
+  return field ? fieldTsType(field, optional) : null;
+}
+
+/** Роль каждого своего оператора и, у правила, типы значений полей, к которым оно применено. */
+function operatorRoles(intent: FormIntent): Map<string, { role: OperatorRole; types: string[] }> {
+  const roles = new Map<string, { role: OperatorRole; types: string[] }>();
+  const optional = optionalText(intent);
+  const behavior = behaviorCode(intent, true);
+  for (const name of Object.keys(intent.operators ?? {})) {
+    const ruled = intent.validation.filter((v) => v.rules.some((r) => ruleName(r) === name));
+    if (ruled.length > 0) {
+      const types = ruled.map((rule) => ruleFieldType(intent, rule, optional) ?? 'unknown');
+      roles.set(name, { role: 'rule', types });
+    } else if (intent.validation.some((v) => v.call && ruleName(v.call) === name)) {
+      roles.set(name, { role: 'validation', types: [] });
+    } else if (intent.behavior.some((b) => b.kind === 'call' && ruleName(b.expr ?? '') === name)) {
+      roles.set(name, { role: 'behavior', types: [] });
+    } else if (
+      behavior.some((code) => new RegExp(`validateModel\\(\\s*\\w+\\s*,\\s*${name}\\b`).test(code))
+    ) {
+      roles.set(name, { role: 'schema', types: [] });
+    } else {
+      roles.set(name, { role: 'function', types: [] });
+    }
+  }
+  return roles;
+}
+
+/** Типы значений одним объединением: `string | null` и `string` → `string | null`. */
+function unionOf(types: readonly string[]): string {
+  if (types.includes('unknown')) return 'unknown';
+  const parts = new Set(types.flatMap((type) => type.split(' | ')));
+  return [...parts].join(' | ') || 'unknown';
+}
+
+function operatorStub(
+  name: string,
+  role: OperatorRole,
+  types: readonly string[],
+  intent: FormIntent
+): string[] {
+  const mark = OPERATOR_STUB_MARK;
+  switch (role) {
+    case 'rule':
+      return [
+        `/** ${mark}: правило — верни замечание \`{ code }\`, когда значение неверно, иначе \`null\`. */`,
+        `export function ${name}(..._args: unknown[]): Rule<${unionOf(types)}> {`,
+        '  return (_value) => null;',
+        '}',
+      ];
+    case 'validation':
+      return [
+        '/**',
+        ` * ${mark}: оператор валидации, его вызывает схема формы. Пиши его на \`validate\`, \`cross\`,`,
+        " * `validateWhen` из '@reformer/core/validation'.",
+        ' */',
+        `export function ${name}(..._args: unknown[]): void {`,
+        `  // ${mark}: правила оператора.`,
+        '}',
+      ];
+    case 'behavior':
+      return [
+        '/**',
+        ` * ${mark}: оператор поведения, его вызывает поведение формы. Пиши его на операторах`,
+        " * '@reformer/core/behaviors' (`onChange`, `transformValue`, …) или на `effect` + `onDispose`.",
+        ' */',
+        `export function ${name}(..._args: unknown[]): void {`,
+        `  // ${mark}: связи оператора.`,
+        '}',
+      ];
+    case 'schema':
+      return [
+        `/** ${mark}: своя схема валидации — её перезапускает \`validateModel\` из поведения. */`,
+        `export const ${name} = defineValidation<${intent.interfaceName}>(() => {`,
+        `  // ${mark}: правила схемы.`,
+        '});',
+      ];
+    default:
+      return [
+        `/** ${mark}: функция, которую читают выражения intent, — задай ей параметры и результат. */`,
+        `export function ${name}(..._args: unknown[]): void {`,
+        `  // ${mark}: тело функции.`,
+        '}',
+      ];
+  }
+}
+
+/**
+ * Заготовки модулей своих операторов, лежащих в каталоге формы (`./operators` → `operators.ts`).
+ *
+ * Тела пишет автор формы. Пока заготовку не правили, `form_build` пересобирает её под intent (роль
+ * оператора меняется, когда форму пишут частями); правка отсоединяет файл, как любой файл сборки.
+ * Сигнатуры заготовок принимают любые аргументы — вызов из intent компилируется сразу, а точные
+ * параметры автор задаёт, когда пишет тело. Тело заготовки ничего не делает: правило всегда
+ * пропускает значение, — поэтому `form_build` напоминает о каждой оставшейся метке.
+ */
+export function buildOperatorStubs(intent: FormIntent): BundleFile[] {
+  const roles = operatorRoles(intent);
+  const byFile = new Map<string, string[]>();
+  for (const [name, module] of Object.entries(intent.operators ?? {})) {
+    const file = operatorModuleFile(module);
+    if (file) byFile.set(file, [...(byFile.get(file) ?? []), name]);
+  }
+  return [...byFile].map(([path, names]) => {
+    const used = names.map((name) => ({
+      name,
+      ...(roles.get(name) ?? { role: 'function' as const, types: [] }),
+    }));
+    const rules = used.some((op) => op.role === 'rule');
+    const schemas = used.some((op) => op.role === 'schema');
+    const core = [...(schemas ? ['defineValidation'] : []), ...(rules ? ['type Rule'] : [])];
+    const lines = [
+      '/**',
+      ` * Свои операторы формы «${intent.formName}» — их вызывает \`form.intent.json\` (раздел`,
+      ' * `operators`). Пока файл не правлен, сборка обновляет заготовку под intent; первая правка',
+      ' * делает его твоим. Допиши тела: пока в файле остаются метки заготовки, form_build напоминает.',
+      ' */',
+      ...(core.length > 0
+        ? [
+            core.length === 1 && rules
+              ? "import type { Rule } from '@reformer/core/validation';"
+              : `import { ${core.join(', ')} } from '@reformer/core/validation';`,
+          ]
+        : []),
+      ...(schemas ? [`import type { ${intent.interfaceName} } from './model';`] : []),
+      ...used.flatMap((op) => ['', ...operatorStub(op.name, op.role, op.types, intent)]),
+    ];
+    return { path, content: lines.join('\n') + '\n' };
+  });
+}
+
 function crossLine(ref: string, rule: ValidationRuleIntent): string {
   const code = (rule.code ?? DEFAULT_CROSS_CODE).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   // Предупреждение и параметры замечания — те же поля `ValidationIssue`, что у валидаторов ядра
@@ -684,6 +926,8 @@ function validationRuleBlock(rule: ValidationRuleIntent): string {
     lines.push(`validateAsync(${ref}, [${rule.async}]);`);
   }
   if (rule.cross) lines.push(crossLine(ref, rule));
+  // Свой оператор валидации — вызов как есть: что и как он проверяет, знает только он.
+  if (rule.call) lines.push(`${rule.call.replace(/;\s*$/, '')};`);
   if (each !== undefined) {
     // Правила строки — схема над элементом, записанная на месте: `applyEach` отдаёт ей под-модель
     // и свой `cross` — над снимком строки.
@@ -719,7 +963,7 @@ export function buildValidationSchemaTs(
   rules: readonly ValidationRuleIntent[],
   opts: ValidationSchemaTsOptions
 ): string {
-  const { ops, validators } = validationImports(rules);
+  const { ops, validators, custom } = validationImports(rules, opts.operators);
 
   const lines: string[] = [];
   if (opts.header !== undefined) {
@@ -731,6 +975,7 @@ export function buildValidationSchemaTs(
   if (validators.length > 0) {
     lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
   }
+  lines.push(...custom);
   lines.push(`import type { ${opts.interfaceName} } from '${opts.typeImport}';`);
   lines.push('');
   lines.push(
@@ -755,6 +1000,7 @@ export function buildValidationTs(intent: FormIntent): string {
     header:
       `Валидация формы «${intent.formName}» — правила над МОДЕЛЬЮ, не в layout-схеме.\n` +
       'Запуск: validateModel(model, formValidation).',
+    operators: intent.operators,
   });
 }
 
@@ -898,7 +1144,11 @@ export function buildFormValidationTs(intent: FormIntent): string {
   const withSteps = steps.length > 0;
 
   // `applyEach` в списке уже есть, когда у формы есть правила строк: его добавляет `validationImports`.
-  const { ops: operators, validators } = validationImports(formRules.concat(rowRules));
+  const {
+    ops: operators,
+    validators,
+    custom,
+  } = validationImports(formRules.concat(rowRules), intent.operators);
 
   const itemTypes = [...new Set(rowSchemas.map((row) => row.itemType))].filter(
     (type) => type !== 'Record<string, unknown>'
@@ -935,6 +1185,7 @@ export function buildFormValidationTs(intent: FormIntent): string {
   if (validators.length > 0) {
     lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
   }
+  lines.push(...custom);
   lines.push(`import type { ${[intent.interfaceName, ...itemTypes].join(', ')} } from './model';`);
   lines.push('');
 
@@ -1167,11 +1418,59 @@ function renderBehaviors(intent: FormIntent): string[] {
   );
 }
 
-/** Операторы поведения, которые печатает набор: виды связей и `applyEach` для связей строк. */
+/**
+ * Операторы поведения, которые печатает набор: виды связей и `applyEach` для связей строк. Вызов
+ * своего оператора (`call`) импортирует его модуль, а не ядро.
+ */
 function behaviorOps(intent: FormIntent): string[] {
-  const ops = new Set<string>(intent.behavior.map((b) => b.kind));
+  const ops = new Set<string>(intent.behavior.filter((b) => b.kind !== 'call').map((b) => b.kind));
   if (intent.behavior.some(isRowBehavior)) ops.add('applyEach');
   return [...ops];
+}
+
+/** Код поведения, в котором могут встретиться свои операторы и функции ядра. */
+function behaviorCode(intent: FormIntent, withNodes: boolean): string[] {
+  return [
+    ...intent.behavior.flatMap((b) => [b.expr ?? '', b.when ?? '']),
+    ...(withNodes ? (intent.nodes ?? []).map((rule) => rule.expr) : []),
+    ...(withNodes ? intent.visibility.map((v) => v.condition) : []),
+  ];
+}
+
+/**
+ * Импорты поведения сверх операторов ядра: свои операторы и `validateModel` — перезапуск своей
+ * схемы (`revalidateWhen`). Без него выражение `void validateModel(model, rules)` не собиралось бы.
+ */
+function behaviorExtraImports(intent: FormIntent, withNodes: boolean): string[] {
+  const code = behaviorCode(intent, withNodes);
+  return [
+    ...(code.some((part) => /(^|[^\w$.])validateModel\s*\(/.test(part))
+      ? ["import { validateModel } from '@reformer/core/validation';"]
+      : []),
+    ...operatorImportLines(intent.operators, code),
+  ];
+}
+
+/** Тело хука: с `await` — асинхронная обёртка, чтобы хук вернул `void`, а не промис. */
+function hookBody(expr: string): string {
+  return /\bawait\b/.test(expr) ? `void (async () => { ${expr} })();` : expr;
+}
+
+/** Правило узла схемы → строка тела поведения. Узел — `schema.node(selector)`. */
+function renderNodeRule(rule: NodeRuleIntent): string {
+  const node = `schema.node(${tsString(rule.selector ?? '')})`;
+  switch (rule.kind) {
+    case 'onComponentEvent': {
+      // Аргументы события — только если обработчик их читает: `noUnusedParameters`.
+      const params = /\bargs\b/.test(rule.expr) ? '...args' : '';
+      const async = /\bawait\b/.test(rule.expr) ? 'async ' : '';
+      return `  onComponentEvent(${node}, ${tsString(rule.event ?? '')}, ${async}(${params}) => { ${rule.expr} });`;
+    }
+    case 'renderEffect':
+      return `  renderEffect(schema, () => { ${hookBody(rule.expr)} });`;
+    default:
+      return `  ${rule.kind}(${node}, () => { ${hookBody(rule.expr)} });`;
+  }
 }
 
 function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'): string {
@@ -1235,6 +1534,9 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'):
     }
     case 'aggregateInto':
       return `  aggregateInto(model.$.${b.target}, (rows) => ${b.expr ?? '[]'});`;
+    case 'call':
+      // Свой оператор — вызов как есть: оператор из `operators` сам регистрирует свои связи.
+      return `  ${(b.expr ?? '').replace(/;\s*$/, '')};`;
     default:
       return `  // неизвестный вид поведения: ${String(b.kind)}`;
   }
@@ -1249,6 +1551,7 @@ export function buildBehaviorTs(intent: FormIntent): string {
   lines.push(
     `import { defineFormBehavior${ops.length ? `, ${ops.join(', ')}` : ''} } from '@reformer/core/behaviors';`
   );
+  lines.push(...behaviorExtraImports(intent, false));
   lines.push(`import type { ${intent.interfaceName} } from './model';`);
   lines.push('');
   lines.push(
@@ -1282,10 +1585,7 @@ export function buildBehaviorTs(intent: FormIntent): string {
  * то, что делает рабочая форма.
  */
 function behaviorParams(intent: FormIntent, withNodes: boolean): string[] {
-  const sources = [
-    ...intent.behavior.map((b) => b.expr ?? ''),
-    ...(withNodes ? intent.visibility.map((v) => v.condition) : []),
-  ];
+  const sources = behaviorCode(intent, withNodes);
   const uses = (name: string) => sources.some((s) => new RegExp(`(^|[^\\w$.])${name}\\.`).test(s));
   return [
     'model',
@@ -1296,7 +1596,9 @@ function behaviorParams(intent: FormIntent, withNodes: boolean): string[] {
 
 export function buildFormBehaviorTs(intent: FormIntent): { content: string; warnings: string[] } {
   const warnings: string[] = [];
-  const withNodes = intent.visibility.length > 0 && intent.target !== 'core';
+  const nodeRules = intent.nodes ?? [];
+  const withNodes =
+    (intent.visibility.length > 0 || nodeRules.length > 0) && intent.target !== 'core';
   if (intent.visibility.length > 0 && !withNodes) {
     warnings.push(
       `Правил видимости: ${intent.visibility.length} — для таргета \`core\` они не напечатаны: ` +
@@ -1304,9 +1606,17 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
         'компонентах шагов; чтобы поле при этом перестало валидироваться — `enableWhen`.'
     );
   }
+  if (nodeRules.length > 0 && !withNodes) {
+    warnings.push(
+      `Правил узлов схемы (${[...new Set(nodeRules.map((rule) => rule.kind))].join(', ')}): ` +
+        `${nodeRules.length} — для таргета \`core\` они не напечатаны: их исполняет рендерер. ` +
+        'Обработчики и хуки запишите в JSX-разметке.'
+    );
+  }
 
   const ops = behaviorOps(intent);
-  if (withNodes) ops.push('hideWhen');
+  if (withNodes && intent.visibility.length > 0) ops.push('hideWhen');
+  if (withNodes) ops.push(...new Set(nodeRules.map((rule) => rule.kind)));
   ops.sort();
 
   const lines: string[] = [];
@@ -1316,7 +1626,7 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
       ? ` * Поведение формы «${intent.formName}» — связи над моделью и правила узлов схемы.`
       : ` * Поведение формы «${intent.formName}» — реактивные связи над моделью.`
   );
-  if (withNodes) {
+  if (withNodes && intent.visibility.length > 0) {
     lines.push(' * Скрытие узла НЕ убирает поле из модели: чтобы оно перестало валидироваться,');
     lines.push(' * рядом нужен enableWhen.');
   }
@@ -1324,6 +1634,7 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
   lines.push(
     `import { defineFormBehavior${ops.length ? `, ${ops.join(', ')}` : ''} } from '@reformer/core/behaviors';`
   );
+  lines.push(...behaviorExtraImports(intent, withNodes));
   lines.push(`import type { ${intent.interfaceName} } from './model';`);
   lines.push('');
   lines.push(
@@ -1336,12 +1647,17 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
     lines.push('  // Поведения в intent не было — добавьте его здесь.');
   }
   lines.push(...renderBehaviors(intent));
-  if (withNodes) {
+  if (withNodes && intent.visibility.length > 0) {
     if (intent.behavior.length > 0) lines.push('');
     lines.push('  // Видимость узлов схемы — по `selector`.');
     for (const v of intent.visibility) {
       lines.push(`  hideWhen(schema.node('${v.selector}'), () => ${v.condition});`);
     }
+  }
+  if (withNodes && nodeRules.length > 0) {
+    if (intent.behavior.length > 0 || intent.visibility.length > 0) lines.push('');
+    lines.push('  // События компонентов, эффекты рендера и хуки узлов схемы — по `selector`.');
+    lines.push(...nodeRules.map(renderNodeRule));
   }
   lines.push('});');
   return { content: lines.join('\n') + '\n', warnings };
@@ -1498,6 +1814,11 @@ const FLOW_ROLE =
   'поток шагов визарда: `FormFlowConfig` — шаги (`id` = `selector` узла шага) и их правила; ' +
   'подключается `createForm({ flow })`';
 
+/** Роль файла своих операторов — одна строка на все таргеты. */
+const OPERATORS_ROLE =
+  'свои операторы: правила, операторы валидации и поведения, которые вызывает intent ' +
+  '(`operators`); заготовку пишет `form_build`, тела — автор формы';
+
 /** Роль файла словаря текстов замечаний — одна строка на все таргеты. */
 const MESSAGES_ROLE =
   'словарь текстов замечаний (`defineIssueMessages`): код правила → текст; подключается ' +
@@ -1519,6 +1840,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
+    { path: 'operators.ts', role: OPERATORS_ROLE, optional: true },
     {
       path: 'form.intent.json',
       role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
@@ -1540,6 +1862,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
+    { path: 'operators.ts', role: OPERATORS_ROLE, optional: true },
     {
       path: 'form.intent.json',
       role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
@@ -1561,6 +1884,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'form.messages.ts', role: MESSAGES_ROLE, optional: true },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
+    { path: 'operators.ts', role: OPERATORS_ROLE, optional: true },
     {
       path: 'form.intent.json',
       role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',

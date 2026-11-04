@@ -17,6 +17,12 @@
  */
 
 import { liftInline } from './intent-lift.js';
+import {
+  MODEL_BEHAVIOR_KINDS,
+  NODE_BEHAVIOR_KINDS,
+  type ModelBehaviorKind,
+  type NodeBehaviorKind,
+} from './operator-catalog.js';
 import { normalizeFieldComponent, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
 
 /** Тип значения поля в модели. */
@@ -86,6 +92,12 @@ export interface ValidationRuleIntent {
    * даёт замечание {@link code}. Пример: `values.confirmPassword === values.password`.
    */
   cross?: string;
+  /**
+   * Вызов своего оператора валидации — печатается в схему как есть:
+   * `phoneOrEmail(model.$.phone, model.$.email)`. Оператор объявлен в {@link FormIntent.operators};
+   * у правила строки массива строку читают как `item`.
+   */
+  call?: string;
   /** Код замечания кросс-полевой или асинхронной проверки. По умолчанию у `cross` — `cross`. */
   code?: string;
   /** Текст замечания с кодом {@link code} — для словаря формы (`defineIssueMessages`). */
@@ -102,24 +114,16 @@ export interface ValidationRuleIntent {
   params?: Record<string, string>;
 }
 
-/** Реактивная связь над моделью. */
+/**
+ * Реактивная связь над моделью: оператор ядра (`kind` — его имя) либо вызов своего оператора
+ * (`kind: 'call'`, вызов — в `expr`, оператор объявлен в {@link FormIntent.operators}).
+ */
 export interface BehaviorIntent {
-  kind:
-    | 'compute'
-    | 'computeFrom'
-    | 'copyFrom'
-    | 'syncFields'
-    | 'onChange'
-    | 'enableWhen'
-    | 'disableWhen'
-    | 'resetWhen'
-    | 'transformValue'
-    | 'revalidateWhen'
-    | 'exclusiveFlag'
-    | 'aggregateInto';
+  kind: ModelBehaviorKind | 'call';
   /**
    * Поле, которое поведение ПИШЕТ. У `exclusiveFlag` — флаг строки (`contacts.primary`), у
-   * `aggregateInto` — сам массив, в строки которого пишется итог.
+   * `aggregateInto` — сам массив, в строки которого пишется итог, у `call` — поле, которое меняет
+   * свой оператор.
    */
   target: string;
   /**
@@ -142,6 +146,25 @@ export interface BehaviorIntent {
    */
   when?: string;
   options?: Record<string, unknown>;
+}
+
+/**
+ * Правило узла схемы: событие компонента, реактивный эффект или хук жизненного цикла. В
+ * `form.intent.json` пишется записью `behavior` со своим `kind`; узел — по `selector` из
+ * `layoutRoot`. Исполняет рендерер, поэтому на таргете `core` правило не печатается.
+ */
+export interface NodeRuleIntent {
+  kind: NodeBehaviorKind;
+  /** Узел схемы. У `renderEffect` его нет: эффект живёт, пока смонтирована схема. */
+  selector?: string;
+  /** Проп-событие компонента у `onComponentEvent`: `onSubmit`, `onChange`, … */
+  event?: string;
+  /**
+   * Тело обработчика на TS — вставляется как есть. `await` делает обработчик асинхронным; у
+   * `onComponentEvent` аргументы события — `args`, у `onMount` и `renderEffect` тело может
+   * вернуть очистку: `return () => clearInterval(timer);`.
+   */
+  expr: string;
 }
 
 /** Правило видимости в render-слое. */
@@ -208,8 +231,17 @@ export interface FormIntent {
   arrays: ArrayIntent[];
   validation: ValidationRuleIntent[];
   behavior: BehaviorIntent[];
+  /** Правила узлов схемы: события компонентов, эффекты рендера, хуки жизненного цикла. */
+  nodes?: NodeRuleIntent[];
   visibility: VisibilityIntent[];
   dataSources: DataSourceIntent[];
+  /**
+   * Свои операторы: имя → модуль, из которого его импортирует сборка (`./operators` — файл
+   * `operators.ts` каталога формы). Так подключаются свои правила (`rules`), свои операторы
+   * валидации (`call` правила), свои операторы поведения (`kind: 'call'`) и функции, которые
+   * читают выражения. Модулю каталога формы `form_build` пишет заготовку, пока её не правили.
+   */
+  operators?: Record<string, string>;
   wizard?: WizardIntent;
   /** Всё, чего не хватило для полного бандла, — видно потребителю. */
   warnings: string[];
@@ -462,8 +494,13 @@ function normalizeWith(partial: Partial<FormIntent>, notices: IntentWarning[]): 
     arrays,
     validation: partial.validation ?? [],
     behavior: partial.behavior ?? [],
+    // Как и `parts`: ключ — только когда в нём что-то есть.
+    ...(partial.nodes && partial.nodes.length > 0 ? { nodes: partial.nodes } : {}),
     visibility: partial.visibility ?? [],
     dataSources,
+    ...(partial.operators && Object.keys(partial.operators).length > 0
+      ? { operators: partial.operators }
+      : {}),
     wizard: partial.wizard,
     warnings: notices.map((notice) => notice.message),
   };
@@ -718,22 +755,16 @@ function componentOfType(value: unknown): string | null {
   return raw ? (COMPONENT_BY_KEY.get(raw.toLowerCase()) ?? null) : null;
 }
 
-const BEHAVIOR_KINDS: ReadonlyArray<BehaviorIntent['kind']> = [
-  'compute',
-  'computeFrom',
-  'copyFrom',
-  'syncFields',
-  'onChange',
-  'enableWhen',
-  'disableWhen',
-  'resetWhen',
-  'transformValue',
-  'revalidateWhen',
-  'exclusiveFlag',
-  'aggregateInto',
+const BEHAVIOR_KINDS: ReadonlyArray<BehaviorIntent['kind'] | NodeRuleIntent['kind']> = [
+  ...MODEL_BEHAVIOR_KINDS,
+  'call',
+  ...NODE_BEHAVIOR_KINDS,
 ];
 
 const BEHAVIOR_BY_KEY = new Map(BEHAVIOR_KINDS.map((kind) => [kind.toLowerCase(), kind]));
+
+const isNodeKind = (kind: string): kind is NodeRuleIntent['kind'] =>
+  (NODE_BEHAVIOR_KINDS as readonly string[]).includes(kind);
 
 /**
  * Целевой стек по любому написанию: `react`, `renderer_react`, `@reformer/renderer-react`.
@@ -981,11 +1012,14 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
   const rules = asNames(take(raw, 'rules', ['rule', 'validators', 'checks'], ctx));
   const async = asName(take(raw, 'async', ['asyncValidator', 'asyncRule'], ctx));
   const cross = asName(take(raw, 'cross', ['crossCheck', 'check'], ctx));
-  if (rules.length === 0 && !async && !cross) {
+  const call = asName(take(raw, 'call', ['operator', 'invoke'], ctx));
+  if (rules.length === 0 && !async && !cross && !call) {
     ctx.problems.push({
       at: `${at}.rules`,
       message: `у правила на \`${target}\` нет ни одного валидатора`,
-      expected: '`rules`: ["required()", "minLength(2)"] — фабрики из `@reformer/core/validators`',
+      expected:
+        '`rules`: ["required()", "minLength(2)"] — фабрики из `@reformer/core/validators` ' +
+        'или свои из `operators`',
     });
     return null;
   }
@@ -1009,6 +1043,7 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
     rules,
     ...(async ? { async } : {}),
     ...(cross ? { cross } : {}),
+    ...(call ? { call } : {}),
     ...(code ? { code } : {}),
     ...(message ? { message } : {}),
     ...(severity ? { severity } : {}),
@@ -1018,7 +1053,57 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
   };
 }
 
-function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | null {
+/**
+ * Правило узла схемы из записи `behavior`. Узел — `selector` из `layoutRoot` (его пишут и в
+ * `target`, как у связей над моделью); у `renderEffect` узла нет.
+ */
+function readNodeRule(
+  raw: Record<string, unknown>,
+  kind: NodeRuleIntent['kind'],
+  at: string,
+  ctx: ReadCtx
+): NodeRuleIntent | null {
+  const selector = asName(take(raw, 'selector', ['node', 'target'], ctx));
+  if (kind !== 'renderEffect' && !selector) {
+    ctx.problems.push({
+      at: `${at}.selector`,
+      message: `\`${kind}\` не говорит, к какому узлу схемы относится`,
+      expected:
+        '`selector` узла из layoutRoot: { "kind": "onMount", "selector": "wizard", "expr": "…" }',
+    });
+    return null;
+  }
+  const event = asName(take(raw, 'event', ['prop', 'eventName'], ctx));
+  if (kind === 'onComponentEvent' && !event) {
+    ctx.problems.push({
+      at: `${at}.event`,
+      message: '`onComponentEvent` не называет событие компонента',
+      expected: '`event` — проп-событие компонента узла: "onSubmit"',
+    });
+    return null;
+  }
+  const expr = asName(take(raw, 'expr', ['expression', 'code', 'handler', 'body'], ctx));
+  if (!expr) {
+    ctx.problems.push({
+      at: `${at}.expr`,
+      message: `у \`${kind}\` нет тела обработчика`,
+      expected: '`expr` — тело на TS, вставляется как есть',
+    });
+    return null;
+  }
+  return {
+    kind,
+    ...(selector && kind !== 'renderEffect' ? { selector } : {}),
+    ...(event && kind === 'onComponentEvent' ? { event } : {}),
+    expr,
+  };
+}
+
+function readBehavior(
+  raw: unknown,
+  at: string,
+  ctx: ReadCtx
+): BehaviorIntent | NodeRuleIntent | null {
   if (!isRecord(raw)) {
     ctx.problems.push({
       at,
@@ -1042,6 +1127,7 @@ function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | 
     });
     return null;
   }
+  if (isNodeKind(kind)) return readNodeRule(raw, kind, at, ctx);
 
   const target = asName(take(raw, 'target', ['field', 'path', 'to', 'writes'], ctx));
   if (!target) {
@@ -1066,6 +1152,14 @@ function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | 
       ctx
     )
   );
+  if (kind === 'call' && !expr) {
+    ctx.problems.push({
+      at: `${at}.expr`,
+      message: '`call` не называет вызов своего оператора',
+      expected: '`expr` — вызов оператора из `operators`: "roundTo(model.$.price, 100)"',
+    });
+    return null;
+  }
   const options = take(raw, 'options', ['opts'], ctx);
   // Условие вычисления — ключом `when` или внутри `options` (так оно выглядит в коде ядра).
   const optionWhen = isRecord(options) ? asName(options.when) : null;
@@ -1084,6 +1178,47 @@ function readBehavior(raw: unknown, at: string, ctx: ReadCtx): BehaviorIntent | 
       ? { options: rest }
       : {}),
   };
+}
+
+/** Модуль своих операторов по умолчанию — файл `operators.ts` каталога формы. */
+export const DEFAULT_OPERATORS_MODULE = './operators';
+
+/**
+ * Свои операторы: словарь `{ "имя": "модуль" }`; список имён — все из
+ * {@link DEFAULT_OPERATORS_MODULE}, запись списка — `{ "name": "…", "from": "…" }`.
+ */
+function readOperators(raw: unknown, ctx: ReadCtx): Record<string, string> {
+  const operators: Record<string, string> = {};
+  if (raw === undefined || raw === null) return operators;
+  const moduleOf = (value: unknown): unknown =>
+    isRecord(value) ? (value.from ?? value.module) : value;
+  const entries: Array<[string, unknown, unknown]> = isRecord(raw)
+    ? Object.entries(raw).map(([name, value]) => [`operators.${name}`, name, moduleOf(value)])
+    : asList(raw).map((item, i) => [
+        `operators[${i}]`,
+        isRecord(item) ? item.name : item,
+        isRecord(item) ? moduleOf(item) : undefined,
+      ]);
+  for (const [at, name, module] of entries) {
+    if (typeof name !== 'string' || !/^[A-Za-z_$][\w$]*$/.test(name.trim())) {
+      ctx.problems.push({
+        at,
+        message: `имя оператора \`${String(name)}\` не идентификатор TS`,
+        expected: '{ "operators": { "innChecksum": "./operators" } }',
+      });
+      continue;
+    }
+    if (module !== undefined && module !== null && typeof module !== 'string') {
+      ctx.problems.push({
+        at,
+        message: `модуль оператора \`${name}\` не строка`,
+        expected: 'путь модуля, как в import: "./operators", "@/shared/validators"',
+      });
+      continue;
+    }
+    operators[name.trim()] = asName(module) ?? DEFAULT_OPERATORS_MODULE;
+  }
+  return operators;
 }
 
 function readVisibility(raw: unknown, at: string, ctx: ReadCtx): VisibilityIntent | null {
@@ -1410,12 +1545,17 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
   }
 
   const behavior: BehaviorIntent[] = [];
+  const nodes: NodeRuleIntent[] = [];
   asList(take(src, 'behavior', ['behaviors', 'behaviours', 'behaviour', 'reactions'], ctx)).forEach(
     (item, i) => {
       const read = readBehavior(item, `behavior[${i}]`, ctx);
-      if (read) behavior.push(read);
+      if (!read) return;
+      if (isNodeKind(read.kind)) nodes.push(read as NodeRuleIntent);
+      else behavior.push(read as BehaviorIntent);
     }
   );
+
+  const operators = readOperators(take(src, 'operators', ['customOperators'], ctx), ctx);
 
   const visibility: VisibilityIntent[] = [];
   asList(take(src, 'visibility', ['visibilityRules', 'hidden', 'hideWhen'], ctx)).forEach(
@@ -1507,8 +1647,10 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       arrays,
       validation,
       behavior,
+      nodes,
       visibility,
       dataSources,
+      operators,
       ...(steps.length > 0 ? { wizard: { steps } } : {}),
     },
     normalized

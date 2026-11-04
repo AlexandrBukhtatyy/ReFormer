@@ -29,6 +29,7 @@ export {
   type IntentWarning,
   type IntentWarningCode,
   type LayoutNode,
+  type NodeRuleIntent,
   type ReadIntentOptions,
   type ValidationRuleIntent,
   type VisibilityIntent,
