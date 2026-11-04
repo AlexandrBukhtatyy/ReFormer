@@ -272,6 +272,20 @@ export interface Workspace {
    * «призраком»: `list` показывает рабочую копию вместе с источником.
    */
   forget(id: ResourceId): Promise<void>;
+  /**
+   * Переносит несохранённое под ресурсом (и всё под ним, если это каталог) на новый адрес —
+   * вслед за переносом или переименованием у источника.
+   *
+   * Без этого переименование теряло правки: источник переносил файл, а рабочую копию старого
+   * адреса забывали вместе с ними (ReFormer-bvsl). Едут оба слоя — правка и BASE, от которого
+   * она сделана, иначе слиянию не с чем будет сравнивать. Ревизия едет тоже: перенос
+   * у файловой системы её сохраняет, а если не сохранил — сохранение кончится вопросом
+   * о слиянии, а не тихой перезаписью.
+   *
+   * Чистые записи не едут: это кэш источника, под новым адресом он перечитается сам. Их
+   * и вкладки старого адреса убирает вызывающий — теми же `forget` и `close`.
+   */
+  relocate(from: ResourceId, to: ResourceId): Promise<void>;
 
   /**
    * Принимает версию источника как свою: рабочая копия, BASE и ревизия становятся её.
@@ -1226,6 +1240,22 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
           const expected = options?.expected ?? entry.revision;
           try {
+            // Файл создан здесь, а по его адресу снаружи появился тёзка (IDE, git pull).
+            // Сравнивать ревизии не с чем, и источник без `expected` перезаписывает по контракту,
+            // поэтому спросить обязана рабочая область: та же развилка, что в `classifyDivergence`
+            // (BASE нет, а в источнике файл есть — расхождение). Без этой проверки «Сохранить всё»
+            // отвечало «всё сохранено» и молча затирало чужой файл (ReFormer-obou).
+            //
+            // С `expected` спрашивать незачем: это разрешение расхождения, и ревизию проверит сам
+            // источник. Источник без ревизий конфликтов не ловит вовсе — разрешение не смогло бы
+            // назвать ему ревизию, и вопрос повторялся бы на каждом сохранении.
+            if (!entry.hasBase && options?.expected === undefined) {
+              const found = await source.stat(path);
+              if (found?.kind === 'file' && found.revision !== undefined) {
+                conflicts.push({ id: idOf(path), actual: found.revision });
+                continue;
+              }
+            }
             // Каталог под НОВЫЙ файл создаёт рабочая область, а не тот, кто её позвал.
             //
             // `Source.write` пишет файл, а не путь: у файлового источника он требует готовый
@@ -1298,6 +1328,42 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           dirtyStats.delete(path);
           droppedStats.add(path);
           note(path, 'removed');
+          changed = true;
+        }
+        if (changed) await persist();
+      });
+    },
+
+    relocate(from, to) {
+      return batched(async () => {
+        await ready();
+        const gone = pathOf(from);
+        const target = pathOf(to);
+        if (gone === target) return;
+        let changed = false;
+        for (const entry of [...materialized.values()]) {
+          if (!entry.dirty || !isInside(entry.path, gone)) continue;
+          const text = await store.readText('files', entry.path);
+          // Рабочую копию стёр браузер — переносить нечего, запись врёт (см. `workingText`).
+          if (text === null) continue;
+          const base = entry.hasBase ? await store.readText('base', entry.path) : null;
+          const path = `${target}${entry.path.slice(gone.length)}`;
+          // Запись по новому адресу, если она есть, — только кэш: имя проверено свободным
+          // до переноса, и несохранённого там быть не может.
+          await store.removePair(path);
+          await store.writeText('files', path, text);
+          if (base !== null) await store.writeText('base', path, base);
+          await store.removePair(entry.path);
+
+          materialized.delete(entry.path);
+          dirtyStats.delete(entry.path);
+          droppedStats.add(entry.path);
+          note(entry.path, 'removed');
+          // Потерянный BASE — это файл без основания: сохранение тогда спросит, а не затрёт.
+          materialized.set(path, { ...entry, path, hasBase: base !== null });
+          droppedStats.delete(path);
+          dirtyStats.add(path);
+          note(path, 'materialized');
           changed = true;
         }
         if (changed) await persist();

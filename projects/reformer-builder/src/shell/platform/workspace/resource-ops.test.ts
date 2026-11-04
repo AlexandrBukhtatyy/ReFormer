@@ -73,6 +73,33 @@ function harness(
   return { ops, source, textOf: (path) => controls.textOf(path), invalidated };
 }
 
+let seq = 0;
+
+/** Настоящая рабочая область над тем же источником: несохранённое живёт в ней, а не в двойнике. */
+function withWorkspace(files: Readonly<Record<string, string>> = FILES) {
+  seq += 1;
+  const name = `ops-${seq}`;
+  const { root, controls } = createFakeDirectory(files);
+  const source = createFsAccessSource(root, { id: SOURCE_ID });
+  const workspace = createWorkspace({
+    id: name,
+    source,
+    files: createWorkspaceFileStore(name, { directory: createMemoryOpfs().directory }),
+    meta: createWorkspaceMetaStore({
+      factory: createMemoryIndexedDb().factory,
+      databaseName: name,
+    }),
+  });
+  const ops = createResourceOperations({ source, workspace });
+  return {
+    ops,
+    workspace,
+    textOf: (path: string) => controls.textOf(path),
+    /** Имена уровня так, как их видит дерево: источник вместе с рабочей копией. */
+    names: async (dir: string) => (await workspace.list(id(dir))).map((entry) => entry.name),
+  };
+}
+
 describe('создание', () => {
   it('создаёт файл и сообщает его адрес', async () => {
     const { ops, textOf } = harness();
@@ -210,28 +237,16 @@ describe('удаление', () => {
   });
 
   it('несохранённый файл настоящей рабочей области исчезает из списка уровня', async () => {
-    const { root } = createFakeDirectory(FILES);
-    const source = createFsAccessSource(root, { id: SOURCE_ID });
-    const workspace = createWorkspace({
-      id: 'ops-local',
-      source,
-      files: createWorkspaceFileStore('ops-local', { directory: createMemoryOpfs().directory }),
-      meta: createWorkspaceMetaStore({
-        factory: createMemoryIndexedDb().factory,
-        databaseName: 'ops-local',
-      }),
-    });
-    const ops = createResourceOperations({ source, workspace });
+    const { ops, workspace, names } = withWorkspace();
     const local = id('src/contact.rjsf.json');
     await workspace.writeText(local, '{}');
     await workspace.open(local);
-    const names = async () => (await workspace.list(id('src'))).map((entry) => entry.name);
-    expect(await names()).toContain('contact.rjsf.json');
+    expect(await names('src')).toContain('contact.rjsf.json');
 
     const result = await ops.remove([local]);
 
     expect(result).toEqual({ done: [local], failed: [] });
-    expect(await names()).not.toContain('contact.rjsf.json');
+    expect(await names('src')).not.toContain('contact.rjsf.json');
     expect(workspace.openedResources()).not.toContain(local);
     expect(await workspace.stat(local)).toBeNull();
   });
@@ -300,5 +315,139 @@ describe('копирование', () => {
     await ops.copy([id('package.json')], id('src'));
 
     expect(writeBytes).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('несохранённое в рабочей копии', () => {
+  it('переименование файла с правкой: правка переезжает на новый адрес', async () => {
+    // ReFormer-bvsl: источник переносил файл, рабочая копия старого адреса забывалась —
+    // на диске под новым именем прежний текст, правки нет нигде.
+    const { ops, workspace, textOf } = withWorkspace();
+    const old = id('src/shared/util.ts');
+    await workspace.open(old);
+    await workspace.writeText(old, 'export const util = 3;');
+
+    const next = await ops.rename(old, 'helpers.ts');
+
+    expect(textOf('src/shared/helpers.ts')).toBe('export const util = 2;');
+    expect(workspace.dirtyResources()).toEqual([next]);
+    expect(await workspace.readText(next)).toBe('export const util = 3;');
+    expect(workspace.openedResources()).not.toContain(old);
+    // Ревизия переехала вместе с правкой: сохранение по новому адресу проходит без вопроса.
+    expect((await workspace.save()).ok).toBe(true);
+    expect(textOf('src/shared/helpers.ts')).toBe('export const util = 3;');
+  });
+
+  it('перенос каталога несёт правки всего, что внутри', async () => {
+    const { ops, workspace, textOf, names } = withWorkspace();
+    await workspace.writeText(id('src/forms/credit/model.ts'), 'export const model = 9;');
+
+    const target = await ops.move(id('src/forms/credit'), id('src/shared'));
+
+    expect(target).toBe(id('src/shared/credit'));
+    expect(await names('src/forms')).toEqual([]);
+    expect(textOf('src/shared/credit/model.ts')).toBe('export const model = 1;');
+    expect(workspace.dirtyResources()).toEqual([id('src/shared/credit/model.ts')]);
+    expect(await workspace.readText(id('src/shared/credit/model.ts'))).toBe(
+      'export const model = 9;'
+    );
+  });
+
+  it('файл, которого у источника нет, переименовывается в рабочей копии', async () => {
+    // ReFormer-13j2: F2 на несохранённом файле кончался отказом источника «нет <путь>».
+    const { ops, workspace, textOf, names } = withWorkspace();
+    const local = id('src/forms/credit/types.ts');
+    await workspace.writeText(local, 'export type Credit = {};');
+
+    const next = await ops.rename(local, 'credit.types.ts');
+
+    expect(next).toBe(id('src/forms/credit/credit.types.ts'));
+    expect(textOf('src/forms/credit/credit.types.ts')).toBeUndefined();
+    expect(await workspace.readText(next)).toBe('export type Credit = {};');
+    expect(await names('src/forms/credit')).toEqual(['credit.types.ts', 'model.ts', 'schema.json']);
+  });
+
+  it('каталог, которого у источника нет, переименовывается со всем содержимым', async () => {
+    const { ops, workspace, names } = withWorkspace();
+    await workspace.writeText(id('src/forms/loan/schema.json'), '{}');
+    await workspace.writeText(id('src/forms/loan/model/index.ts'), 'export {};');
+
+    await ops.rename(id('src/forms/loan'), 'mortgage');
+
+    expect(await names('src/forms')).toEqual(['credit', 'mortgage']);
+    expect([...workspace.dirtyResources()].sort()).toEqual([
+      id('src/forms/mortgage/model/index.ts'),
+      id('src/forms/mortgage/schema.json'),
+    ]);
+  });
+
+  it('имя, занятое несохранённым файлом, занято', async () => {
+    const { ops, workspace, textOf } = withWorkspace();
+    await workspace.writeText(id('src/shared/helpers.ts'), 'export {};');
+
+    await expect(ops.rename(id('src/shared/util.ts'), 'helpers.ts')).rejects.toMatchObject({
+      kind: 'name-taken',
+    });
+    expect(textOf('src/shared/util.ts')).toBe('export const util = 2;');
+    expect(await workspace.readText(id('src/shared/helpers.ts'))).toBe('export {};');
+  });
+
+  it('файл с диска переносится в каталог, который есть только в рабочей копии', async () => {
+    const { ops, workspace, textOf, names } = withWorkspace();
+    await workspace.writeText(id('src/forms/loan/schema.json'), '{}');
+
+    await ops.move(id('src/shared/util.ts'), id('src/forms/loan'));
+
+    expect(textOf('src/forms/loan/util.ts')).toBe('export const util = 2;');
+    expect(textOf('src/shared/util.ts')).toBeUndefined();
+    expect(await names('src/forms/loan')).toEqual(['schema.json', 'util.ts']);
+  });
+
+  it('каталог, которого у источника нет, копируется в рабочую копию', async () => {
+    // ReFormer-13j2: «нечего копировать» на модуле, напечатанном ходом ассистента до сохранения.
+    const { ops, workspace, textOf } = withWorkspace();
+    await workspace.writeText(id('src/forms/loan/schema.json'), '{"root":{}}');
+
+    const result = await ops.copy([id('src/forms/loan')], id('src/shared'));
+
+    expect(result).toEqual({ done: [id('src/shared/loan')], failed: [] });
+    expect(textOf('src/shared/loan/schema.json')).toBeUndefined();
+    expect(await workspace.readText(id('src/shared/loan/schema.json'))).toBe('{"root":{}}');
+    // Оригинал на месте: копирование не перенос.
+    expect(workspace.isDirty(id('src/forms/loan/schema.json'))).toBe(true);
+  });
+
+  it('копия частично сохранённого каталога повторяет и сохранённое, и несохранённое', async () => {
+    const { ops, workspace, textOf } = withWorkspace();
+    await workspace.writeText(id('src/forms/credit/model.ts'), 'export const model = 9;');
+    await workspace.writeText(id('src/forms/credit/types.ts'), 'export type Credit = {};');
+
+    const result = await ops.copy([id('src/forms/credit')], id('src/shared'));
+
+    expect(result.done).toEqual([id('src/shared/credit')]);
+    // Диск получает то, что на диске и было.
+    expect(textOf('src/shared/credit/schema.json')).toBe('{"root":{}}');
+    expect(textOf('src/shared/credit/model.ts')).toBe('export const model = 1;');
+    expect(textOf('src/shared/credit/types.ts')).toBeUndefined();
+    // Несохранённое остаётся несохранённым: правка — поверх скопированного основания.
+    expect(await workspace.readText(id('src/shared/credit/model.ts'))).toBe(
+      'export const model = 9;'
+    );
+    expect(await workspace.readBase(id('src/shared/credit/model.ts'))).toBe(
+      'export const model = 1;'
+    );
+    expect(await workspace.readText(id('src/shared/credit/types.ts'))).toBe(
+      'export type Credit = {};'
+    );
+    expect(workspace.isDirty(id('src/shared/credit/types.ts'))).toBe(true);
+  });
+
+  it('копия подбирает номер мимо имени, занятого несохранённым файлом', async () => {
+    const { ops, workspace } = withWorkspace();
+    await workspace.writeText(id('src/shared/util-2.ts'), 'export {};');
+
+    const result = await ops.copy([id('src/shared/util.ts')], id('src/shared'));
+
+    expect(result.done).toEqual([id('src/shared/util-3.ts')]);
   });
 });

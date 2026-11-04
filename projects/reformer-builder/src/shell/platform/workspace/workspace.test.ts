@@ -461,6 +461,74 @@ describe('Workspace: сохранение', () => {
     expect(result.failures[0]).toMatchObject({ id: h.rid('a.ts'), kind: 'network' });
     expect(h.ws.isDirty()).toBe(true);
   });
+
+  it('созданный здесь файл не затирает тёзку, появившегося в источнике: конфликт', async () => {
+    // ReFormer-obou: ревизии у созданного здесь файла нет, а источник без `expected`
+    // перезаписывает — «Сохранить всё» отвечало «всё сохранено» и стирало чужой файл.
+    const h = makeWorkspace();
+    await h.ws.writeText(h.rid('notes.ts'), 'наше');
+    h.source.put('notes.ts', 'чужое');
+
+    const result = await h.ws.save();
+
+    expect(result.saved).toEqual([]);
+    expect(result.conflicts).toEqual([
+      { id: h.rid('notes.ts'), actual: h.source.revisionOf('notes.ts') },
+    ]);
+    expect(h.source.textOf('notes.ts')).toBe('чужое');
+    expect(h.ws.isDirty(h.rid('notes.ts'))).toBe(true);
+
+    // «Переписать своей версией» сохраняет с ревизией источника — и проходит.
+    const resolved = await h.ws.save(h.rid('notes.ts'), {
+      expected: h.source.revisionOf('notes.ts'),
+    });
+    expect(resolved.ok).toBe(true);
+    expect(h.source.textOf('notes.ts')).toBe('наше');
+    expect(h.ws.isDirty(h.rid('notes.ts'))).toBe(false);
+  });
+});
+
+describe('Workspace: перенос несохранённого', () => {
+  it('правка и её BASE переезжают на новый адрес вместе с ревизией', async () => {
+    const h = makeWorkspace({ 'src/a.ts': 'было', 'src/b.ts': 'чисто' });
+    await h.ws.writeText(h.rid('src/a.ts'), 'стало');
+    await h.ws.readText(h.rid('src/b.ts'));
+    const revision = h.source.revisionOf('src/a.ts');
+
+    await h.ws.relocate(h.rid('src'), h.rid('lib'));
+    await settle();
+
+    expect(h.layer('files', 'lib/a.ts')).toBe('стало');
+    expect(h.layer('base', 'lib/a.ts')).toBe('было');
+    expect(h.layer('files', 'src/a.ts')).toBeUndefined();
+    expect(h.layer('base', 'src/a.ts')).toBeUndefined();
+    expect(h.ws.dirtyResources()).toEqual([h.rid('lib/a.ts')]);
+    // Ревизия — та, от которой правили: сохранение по новому адресу сверится с ней.
+    expect((await h.ws.stat(h.rid('lib/a.ts')))?.revision).toBe(revision);
+    // Чистая запись — кэш источника: она не едет, её забывает вызывающий.
+    expect(h.layer('files', 'lib/b.ts')).toBeUndefined();
+    // Перезагрузка поднимет правку по новому адресу, а не по старому.
+    const stored = (await h.meta.listStats(h.wsId)).map((record) => record.path).sort();
+    expect(stored).toEqual(['lib/a.ts', 'src/b.ts']);
+    expect(allChanges(h.events)).toEqual(
+      expect.arrayContaining([
+        { id: h.rid('src/a.ts'), type: 'removed' },
+        { id: h.rid('lib/a.ts'), type: 'materialized' },
+      ])
+    );
+  });
+
+  it('созданное здесь едет без основания и остаётся несохранённым', async () => {
+    const h = makeWorkspace();
+    await h.ws.writeText(h.rid('forms/loan/model.ts'), 'm');
+
+    await h.ws.relocate(h.rid('forms/loan'), h.rid('forms/mortgage'));
+
+    expect(h.layer('files', 'forms/mortgage/model.ts')).toBe('m');
+    expect(await h.ws.readBase(h.rid('forms/mortgage/model.ts'))).toBeNull();
+    expect(h.ws.dirtyResources()).toEqual([h.rid('forms/mortgage/model.ts')]);
+    expect((await h.ws.list(h.rid('forms'))).map((entry) => entry.name)).toEqual(['mortgage']);
+  });
 });
 
 describe('Workspace: бюджет догрузки', () => {

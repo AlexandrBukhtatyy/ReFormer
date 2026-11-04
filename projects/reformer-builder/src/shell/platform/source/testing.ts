@@ -138,7 +138,12 @@ function fileHandleFor(node: FakeFileNode, parent: FakeDirNode, state: FakeState
   };
 }
 
-function directoryHandleFor(node: FakeDirNode, state: FakeState): FsDirectoryHandle {
+function directoryHandleFor(
+  node: FakeDirNode,
+  state: FakeState,
+  /** Где каталог лежит; у корня родителя нет. Без него перенос оставлял копию на старом месте. */
+  parent?: FakeDirNode
+): FsDirectoryHandle {
   const handle: FsDirectoryHandle = {
     kind: 'directory',
     name: node.name,
@@ -167,12 +172,12 @@ function directoryHandleFor(node: FakeDirNode, state: FakeState): FsDirectoryHan
       state.lookups += 1;
       const child = node.children.get(name);
       if (child !== undefined && child.kind === 'directory')
-        return directoryHandleFor(child, state);
+        return directoryHandleFor(child, state, node);
       if (child !== undefined) throw new FakeDomError('TypeMismatchError', `файл: ${name}`);
       if (options?.create !== true) throw new FakeDomError('NotFoundError', `нет каталога ${name}`);
       const created: FakeDirNode = { kind: 'directory', name, children: new Map() };
       node.children.set(name, created);
-      return directoryHandleFor(created, state);
+      return directoryHandleFor(created, state, node);
     },
 
     async removeEntry(name, options) {
@@ -191,7 +196,7 @@ function directoryHandleFor(node: FakeDirNode, state: FakeState): FsDirectoryHan
       for (const child of node.children.values()) {
         yield child.kind === 'file'
           ? fileHandleFor(child, node, state)
-          : directoryHandleFor(child, state);
+          : directoryHandleFor(child, state, node);
       }
     },
 
@@ -199,6 +204,7 @@ function directoryHandleFor(node: FakeDirNode, state: FakeState): FsDirectoryHan
       throwArmedFault(state);
       const destination = state.nodes.get(target);
       if (destination === undefined) throw new FakeDomError('NotFoundError', 'чужой каталог');
+      parent?.children.delete(node.name);
       node.name = name ?? node.name;
       destination.children.set(node.name, node);
     },

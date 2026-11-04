@@ -16,6 +16,14 @@
  * Порядок здесь несущий — сначала источник, потом последствия: закрыть вкладку и получить
  * отказ на удалении значило бы потерять несохранённые правки файла, который остался на месте.
  *
+ * ## Несохранённое едет вместе с записью
+ *
+ * Дерево показывает источник вместе с рабочей копией, поэтому перенос и копирование обязаны
+ * видеть и её: файл, созданный здесь и ещё не сохранённый, переносится без обращения
+ * к источнику, правка поверх сохранённого файла переезжает на его новый адрес, копия повторяет
+ * несохранённое несохранённым. Само несохранённое в источник не уходит — граница «наружу только
+ * через `save`» держится (см. {@link OperationsWorkspace}).
+ *
  * ## Одиночные операции бросают, пакетные отчитываются
  *
  * Разделение не стилистическое. «Переименовать» — одно решение человека, и его отказ
@@ -72,10 +80,17 @@ export type OperationsSource = Pick<
 >;
 
 /**
- * Рабочая область в объёме последствий.
+ * Рабочая область в объёме последствий и несохранённого.
  *
- * Закрытие и одна справка: операции ничего не пишут в рабочую копию и содержимого из неё
- * не читают.
+ * Человек видит в дереве источник вместе с рабочей копией: файлы, созданные здесь и ещё
+ * не сохранённые, и правки поверх сохранённых. Операция, которая знает только источник,
+ * с таким деревом расходится: F2 на несохранённом файле кончался отказом «нет <путь>»,
+ * а переименование файла с правкой их теряло (ReFormer-13j2, ReFormer-bvsl). Поэтому
+ * несохранённое операции читают и переносят — но в источник не пишут: оно остаётся
+ * несохранённым и по новому адресу, сохранить его решает человек.
+ *
+ * Все члены, кроме закрытия, необязательны: без рабочей области (тест, сценарий до её
+ * восстановления) операции работают с одним источником, как раньше.
  */
 export interface OperationsWorkspace {
   openedResources(): readonly ResourceId[];
@@ -87,6 +102,14 @@ export interface OperationsWorkspace {
    * не сохранённого: у источника его нет, а человек его видит — в дереве и во вкладке.
    */
   stat?(id: ResourceId): Promise<ResourceStat | null>;
+  /** Уровень каталога вместе с созданным локально: имя, занятое рабочей копией, тоже занято. */
+  list?(dir: ResourceId): Promise<readonly { readonly name: string }[]>;
+  /** Перенести несохранённое вслед за переносом у источника — см. `Workspace.relocate`. */
+  relocate?(from: ResourceId, to: ResourceId): Promise<void>;
+  /** Копированию: что под копируемой записью не сохранено. */
+  dirtyResources?(): readonly ResourceId[];
+  readText?(id: ResourceId): Promise<string>;
+  writeText?(id: ResourceId, text: string): Promise<void>;
 }
 
 /** Почему операция не состоялась. Код, а не фраза: текст строит интерфейс на своём языке. */
@@ -229,10 +252,15 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
   const { source, workspace, invalidate } = deps;
   const budget = deps.copyBudget ?? DEFAULT_COPY_BUDGET;
 
-  /** Имена уровня одним обращением. Отсутствующий каталог — пустой набор: его сейчас создадут. */
+  /**
+   * Имена уровня одним обращением — вместе с созданными в рабочей копии: иначе переименование
+   * и вставка выбирали имя, которое в дереве уже занято несохранённым файлом.
+   * Отсутствующий каталог — пустой набор: его сейчас создадут.
+   */
   const namesOf = async (dir: ResourceId): Promise<ReadonlySet<string>> => {
     try {
-      const entries = await source.list(pathOf(dir));
+      const entries =
+        workspace?.list === undefined ? await source.list(pathOf(dir)) : await workspace.list(dir);
       return new Set(entries.map((entry) => entry.name));
     } catch {
       return new Set<string>();
@@ -258,6 +286,75 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
       // Справка не должна подменить исходный отказ своим: не ответила — значит, файла нет.
       const local = await workspace?.stat?.(id).catch(() => null);
       if (local == null) throw error;
+    }
+  };
+
+  /**
+   * Переносит запись у источника — если она там есть.
+   *
+   * Записи, созданной в рабочей копии и ни разу не сохранённой, у источника нет, и переносить
+   * там нечего: переедет одна рабочая копия (`relocate`). Каталог назначения, которого
+   * у источника ещё нет (он тоже живёт только в рабочей копии), создаётся — иначе файл с диска
+   * некуда положить. Записи нет нигде — отказ источника, как раньше.
+   */
+  const moveAtSource = async (id: ResourceId, target: ResourceId): Promise<void> => {
+    const from = pathOf(id);
+    if ((await source.stat(from)) === null) {
+      // Справка не должна подменить исходный отказ своим: не ответила — значит, записи нет.
+      const local = await workspace?.stat?.(id).catch(() => null);
+      if (local != null) return;
+    }
+    if (source.move === undefined) {
+      throw new ResourceOperationError('unsupported', 'источник не умеет переносить');
+    }
+    const dir = dirname(pathOf(target));
+    if (dir !== '' && source.mkdir !== undefined && (await source.stat(dir)) === null) {
+      await source.mkdir(dir);
+    }
+    await source.move(from, pathOf(target));
+  };
+
+  /**
+   * Перенос целиком: источник, затем несохранённое, затем последствия.
+   *
+   * Порядок несущий. Несохранённое переезжает ДО того, как старый адрес забывается: в обратном
+   * порядке `forget` стирал правки раньше, чем их было куда нести (ReFormer-bvsl). Упал перенос
+   * рабочей копии — старый адрес не забывается вовсе: правки остаются там, где были, и вкладка
+   * с ними — открытой.
+   */
+  const moveEntry = async (id: ResourceId, target: ResourceId): Promise<void> => {
+    await moveAtSource(id, target);
+    await workspace?.relocate?.(id, target);
+    await closeGone(id);
+  };
+
+  /** Несохранённое под записью (или она сама), в порядке рабочей области. */
+  const unsavedBelow = (id: ResourceId): readonly ResourceId[] => {
+    const root = pathOf(id);
+    return (workspace?.dirtyResources?.() ?? []).filter((one) => isInside(pathOf(one), root));
+  };
+
+  /**
+   * Копирует несохранённое в рабочую копию по адресу копии — не в источник.
+   *
+   * Копия повторяет состояние оригинала: сохранённое лежит у источника (его скопировал
+   * `copyEntry`), несохранённое остаётся несохранённым. Запись поверх только что
+   * скопированного файла берёт его основанием, поэтому правка видна как правка, а не как
+   * новый файл.
+   */
+  const copyUnsaved = async (
+    unsaved: readonly ResourceId[],
+    from: string,
+    to: ResourceId
+  ): Promise<void> => {
+    if (workspace?.readText === undefined || workspace.writeText === undefined) return;
+    const { sourceId, path } = parseResourceId(to);
+    for (const one of unsaved) {
+      const text = await workspace.readText(one);
+      await workspace.writeText(
+        makeResourceId(sourceId, `${path}${pathOf(one).slice(from.length)}`),
+        text
+      );
     }
   };
 
@@ -383,10 +480,10 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
       const dir = parentOf(id);
       await requireFree(dir, name);
       const next = child(dir, name);
-      await source.move(path, pathOf(next));
-      // Вкладка ссылается на путь, а путь изменился: её содержимое больше не принадлежит
-      // этому адресу. Закрываем ПОСЛЕ переноса — иначе отказ источника стоил бы правок.
-      await closeGone(id);
+      // Вкладка ссылается на путь, а путь изменился: её буфер больше не принадлежит этому
+      // адресу, и она закрывается — ПОСЛЕ переноса, иначе отказ источника стоил бы правок.
+      // Сами правки переезжают на новый адрес (см. `moveEntry`).
+      await moveEntry(id, next);
       await refresh(dir);
       return next;
     },
@@ -408,8 +505,7 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
         });
       }
       await requireFree(dir, name);
-      await source.move(path, pathOf(target));
-      await closeGone(id);
+      await moveEntry(id, target);
       await refresh(parentOf(id), dir);
       return target;
     },
@@ -458,7 +554,13 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
           }
           const name = uniqueName(taken, basename(from));
           const target = child(dir, name);
-          await copyEntry(from, pathOf(target), { n: 0 });
+          const unsaved = unsavedBelow(id);
+          // Записи только в рабочей копии у источника копировать нечего; запись, которой нет
+          // нигде, — по-прежнему отказ `copyEntry` «нечего копировать».
+          if (unsaved.length === 0 || (await source.stat(from)) !== null) {
+            await copyEntry(from, pathOf(target), { n: 0 });
+          }
+          await copyUnsaved(unsaved, from, target);
           taken.add(name);
           done.push(target);
         } catch (error) {
