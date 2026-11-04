@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import { buildAssemblyTsx, buildBundle } from '../src/core/generate/builders';
 import { intentFromSpec } from '../src/core/generate/from-spec';
 import { readIntent, type ReformerTargetStack } from '../src/core/generate/form-intent';
@@ -32,7 +33,7 @@ describe.each(Object.keys(SOURCES))('снимок generate_form: %s', (name) => 
   it.each(TARGETS)('%s', async (target) => {
     const { intent, problems } = readIntent(SOURCES[name](target));
     expect(problems).toEqual([]);
-    const { files } = buildBundle(intent);
+    const { files } = buildBundle(intent, CATALOGS);
     for (const file of files) {
       await expect(file.content).toMatchFileSnapshot(
         `__golden__/generate-form/${name}-${target}/${file.path}.snap`

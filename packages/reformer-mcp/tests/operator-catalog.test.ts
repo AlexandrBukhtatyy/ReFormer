@@ -1,27 +1,29 @@
 /**
- * Таблицы операторов ядра в MCP сверены с исходниками ядра.
+ * Операторы ядра в MCP сверены с исходниками ядра.
  *
- * Сервер публикуется отдельно от `@reformer/core` и его экспортов в рантайме не видит, поэтому
- * таблицы продублированы в `operator-catalog.ts`. Без этой сверки новый оператор ядра не попадал
- * ни в грамматику `form_build`, ни в кросс-проверку: грамматика называла 7 правил из 27, а
- * поведение `exclusiveFlag` описывала одним словом. Экспорты читает компилятор по исходникам —
- * собранный `dist` ядра для теста не нужен.
+ * Два разных случая:
+ * - ключи intent (`operator-catalog.ts`) — язык intent, за каждым стоит печать в генераторе. Новый
+ *   оператор ядра без ключа агент не сможет записать, поэтому сверка с исходниками — красный тест;
+ * - фабрики правил сервер читает из `llms-index.json` ядра. Сверка индекса с исходниками ловит
+ *   индекс, не перегенерированный после новой фабрики: такую фабрику грамматика не назвала бы.
+ *
+ * Без этой сверки грамматика называла 7 правил из 27, а поведение `exclusiveFlag` описывала одним
+ * словом. Экспорты читает компилятор по исходникам — собранный `dist` ядра для теста не нужен.
  */
 
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import {
-  BEHAVIOR_AUTHORING,
   BEHAVIOR_KEY_OPERATORS,
-  CORE_VALIDATORS,
   MODEL_BEHAVIOR_KINDS,
   NODE_BEHAVIOR_KINDS,
   VALIDATION_OPERATORS,
-  VALIDATOR_HELPERS,
 } from '../src/core/generate/operator-catalog';
-import { INTENT_GRAMMAR } from '../src/core/generate/intent-grammar';
+import { intentGrammar } from '../src/core/generate/intent-grammar';
+import { cliKnowledge } from '../src/platform/cli/knowledge';
 
 const formSrc = resolve(dirname(fileURLToPath(import.meta.url)), '../../reformer/src/form');
 const ENTRIES = {
@@ -66,15 +68,45 @@ function operatorsOf(entry: string, modules: readonly string[]): string[] {
     .sort();
 }
 
-describe('таблицы операторов совпадают с ядром', () => {
+/** Экспорты точки входа — функции, которые возвращают `Rule<…>`: фабрики правил. */
+function ruleFactories(entry: string): string[] {
+  const checker = programOf().getTypeChecker();
+  const source = programOf().getSourceFile(entry);
+  const module = source && checker.getSymbolAtLocation(source);
+  if (!module) throw new Error(`не прочитан модуль ${entry}`);
+  return checker
+    .getExportsOfModule(module)
+    .filter((symbol) => {
+      const target =
+        symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+      const declaration = target.declarations?.[0];
+      if (!declaration || !ts.isFunctionDeclaration(declaration)) return false;
+      const signature = checker.getSignatureFromDeclaration(declaration);
+      return !!signature && checker.typeToString(signature.getReturnType()).startsWith('Rule<');
+    })
+    .map((symbol) => symbol.name)
+    .sort();
+}
+
+describe('операторы MCP совпадают с ядром', () => {
   it(
-    'фабрики правил @reformer/core/validators',
+    'индекс ядра называет все фабрики правил @reformer/core/validators',
     () => {
-      const exported = [...valueExports(ENTRIES.validators).keys()].sort();
-      expect(exported).toEqual([...Object.keys(CORE_VALIDATORS), ...VALIDATOR_HELPERS].sort());
+      // Красный тест — индекс устарел: `npm run generate:llms` в packages/reformer.
+      expect([...CATALOGS.core.rules.keys()].sort()).toEqual(ruleFactories(ENTRIES.validators));
     },
     SLOW
   );
+
+  it('у каждой фабрики правила в индексе есть группа @appliesTo', () => {
+    // Без тега группа выводится из `Rule<T>`, а у `Rule<unknown>` это «любые значения»: файловое
+    // правило оказалось бы рядом с `required`. Новой фабрике ядра нужен тег в JSDoc.
+    const untagged = cliKnowledge()
+      .index.symbols.filter((symbol) => CATALOGS.core.rules.has(symbol.name))
+      .filter((symbol) => symbol.package === '@reformer/core' && !symbol.appliesTo)
+      .map((symbol) => symbol.name);
+    expect(untagged).toEqual([]);
+  });
 
   it(
     'операторы схемы валидации',
@@ -90,17 +122,17 @@ describe('таблицы операторов совпадают с ядром',
   it(
     'операторы поведения: у каждого есть запись в intent',
     () => {
+      // `behaviors/context.ts` — основа своих операторов (`defineFormBehavior`, `effect`, …): в intent
+      // их не пишут, ими написан оператор, который intent вызывает через `kind: "call"`.
       const exported = operatorsOf(ENTRIES.behaviors, [
         'behaviors/operators.ts',
         'behaviors/collections.ts',
         'behaviors/schema-operators.ts',
-        'behaviors/context.ts',
       ]);
       const tabled = [
         ...MODEL_BEHAVIOR_KINDS,
         ...NODE_BEHAVIOR_KINDS,
         ...Object.keys(BEHAVIOR_KEY_OPERATORS),
-        ...BEHAVIOR_AUTHORING,
       ];
       expect(exported).toEqual([...new Set(tabled)].sort());
     },
@@ -109,13 +141,16 @@ describe('таблицы операторов совпадают с ядром',
 });
 
 describe('грамматика называет каждый оператор', () => {
-  it('каждое правило ядра', () => {
-    for (const spec of Object.values(CORE_VALIDATORS)) expect(INTENT_GRAMMAR).toContain(spec.call);
+  const grammar = intentGrammar(CATALOGS);
+
+  it('каждое правило ядра — образцом из индекса', () => {
+    expect(CATALOGS.core.rules.size).toBeGreaterThan(0);
+    for (const rule of CATALOGS.core.rules.values()) expect(grammar).toContain(rule.call);
   });
 
   it('каждый kind поведения — строкой примера', () => {
     for (const kind of [...MODEL_BEHAVIOR_KINDS, ...NODE_BEHAVIOR_KINDS, 'call']) {
-      expect(INTENT_GRAMMAR, kind).toContain(`"kind":"${kind}"`);
+      expect(grammar, kind).toContain(`"kind":"${kind}"`);
     }
   });
 });

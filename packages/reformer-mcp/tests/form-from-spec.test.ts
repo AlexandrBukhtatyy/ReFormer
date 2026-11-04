@@ -21,6 +21,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 
 import { buildBundle } from '../src/core/generate/builders.js';
 import { readIntent } from '../src/core/generate/form-intent.js';
@@ -33,7 +34,7 @@ const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/spec-loa
 const spec = readFileSync(FIXTURE, 'utf-8');
 const analysis = analyzeSpec(spec);
 const intent = intentFromSpec(spec, 'core');
-const bundle = buildBundle(intent);
+const bundle = buildBundle(intent, CATALOGS);
 
 const field = (name: string) => analysis.fields.find((f) => f.name === name);
 const rule = (target: string) => intent.validation.find((r) => r.target === target);
@@ -724,6 +725,6 @@ describe('круг «спека → intent → повторное чтение»
     const source = readFileSync(FIXTURE, 'utf-8');
     const planned = intentFromSpec(source, 'core');
     const { intent: reread } = readIntent(JSON.parse(JSON.stringify(planned)));
-    expect(buildBundle(reread).files).toEqual(buildBundle(planned).files);
+    expect(buildBundle(reread, CATALOGS).files).toEqual(buildBundle(planned, CATALOGS).files);
   });
 });

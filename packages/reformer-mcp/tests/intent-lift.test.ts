@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import { buildBundle } from '../src/core/generate/builders';
 import { crossCheckBundle, inspectLayoutRefs } from '../src/core/generate/cross-check';
 import { readIntent, type LayoutNode } from '../src/core/generate/form-intent';
@@ -30,7 +31,7 @@ function stepsOf(root: LayoutNode): Array<{ title: string; refs: string[] }> {
 function expectBuilds(raw: unknown): void {
   const { intent, problems } = readIntent(raw);
   expect(problems).toEqual([]);
-  const { layoutJson } = buildBundle(intent);
+  const { layoutJson } = buildBundle(intent, CATALOGS);
   const report = crossCheckBundle(intent, JSON.parse(layoutJson));
   expect(report.errors).toEqual([]);
   const { placed } = inspectLayoutRefs(intent);
@@ -233,22 +234,28 @@ describe('readIntent: проверки в списке полей', () => {
 
 describe('readIntent: тип, который на деле компонент', () => {
   it('type: "Select" — компонент Select, тип значения string', () => {
-    const { intent } = readIntent({
-      fields: [{ name: 'city', type: 'Select', label: 'Город', options: [{ value: 'msk' }] }],
-    });
+    const { intent } = readIntent(
+      {
+        fields: [{ name: 'city', type: 'Select', label: 'Город', options: [{ value: 'msk' }] }],
+      },
+      { uiKit: CATALOGS.uiKit }
+    );
     expect(intent.fields[0]).toMatchObject({ component: 'Select', type: 'string' });
     expect(notes(intent.warnings)).toContain('имя компонента: принят компонент `Select`');
   });
 
   it('тип значения берётся из компонента; явный component побеждает type', () => {
-    const { intent } = readIntent({
-      fields: [
-        { name: 'agree', type: 'switch' },
-        { name: 'tags', type: 'SelectMulti' },
-        { name: 'note', type: 'Textarea' },
-        { name: 'city', type: 'select', component: 'Combobox' },
-      ],
-    });
+    const { intent } = readIntent(
+      {
+        fields: [
+          { name: 'agree', type: 'switch' },
+          { name: 'tags', type: 'SelectMulti' },
+          { name: 'note', type: 'Textarea' },
+          { name: 'city', type: 'select', component: 'Combobox' },
+        ],
+      },
+      { uiKit: CATALOGS.uiKit }
+    );
     expect(intent.fields.map((f) => [f.name, f.component, f.type])).toEqual([
       ['agree', 'Switch', 'boolean'],
       ['tags', 'SelectMulti', 'array'],
@@ -273,7 +280,7 @@ describe('readIntent: подсказки из справочника [ReFormer-3
       suggestionsSource: 'CITIES',
     });
     expect(intent.fields[0].componentProps?.suggestions).toBeUndefined();
-    const { layoutJson } = buildBundle(intent);
+    const { layoutJson } = buildBundle(intent, CATALOGS);
     expect(layoutJson).toContain('"suggestions": "$dataSource(CITIES)"');
     expect(crossCheckBundle(intent, JSON.parse(layoutJson)).errors).toEqual([]);
   });
@@ -287,7 +294,7 @@ describe('readIntent: подсказки из справочника [ReFormer-3
       componentProps: { suggestions: ['Москва'] },
     });
     const { intent } = readIntent({ ...raw, dataSources: [] });
-    const { layoutJson } = buildBundle(intent);
+    const { layoutJson } = buildBundle(intent, CATALOGS);
     const codes = crossCheckBundle(intent, JSON.parse(layoutJson)).errors.map((e) => e.code);
     expect(codes).toContain('C3');
   });
@@ -310,7 +317,7 @@ describe('readIntent: значок шага [ReFormer-j356.4.21: A19]', () => {
       },
     ]) {
       const { intent } = readIntent(raw);
-      const { layoutJson } = buildBundle(intent);
+      const { layoutJson } = buildBundle(intent, CATALOGS);
       const step = JSON.parse(layoutJson).root.children[0];
       expect(step.componentProps).toEqual({ title: 'Кредит', icon: '💰' });
     }

@@ -28,7 +28,9 @@ import {
   renameSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +57,35 @@ if (!existsSync(serverModule)) {
   process.exit(1);
 }
 
+/**
+ * Каталог компонентов кита для генератора — урезанный до полей, которые он читает: целиком
+ * `component-catalog.json` весит около 1 МБ (props-схемы, превью), а генератору нужны имена,
+ * роли, экспорты и подпути. Кита нет — воркер собирается без каталога, генератор не сверяет имена.
+ *
+ * @returns Путь `.txt`-файла каталога либо `null`.
+ */
+function writeUiKitCatalog(dir) {
+  let catalog;
+  try {
+    const file = createRequire(path.join(pkgDir, 'package.json')).resolve(
+      '@reformer/ui-kit/catalog'
+    );
+    catalog = JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    console.warn('⚠️ @reformer/ui-kit/catalog не найден — воркер без каталога компонентов.');
+    return null;
+  }
+  const components = catalog.components.map(({ name, role, exportName, subpath }) => ({
+    name,
+    role,
+    ...(exportName ? { exportName } : {}),
+    ...(subpath ? { subpath } : {}),
+  }));
+  const out = path.join(dir, 'ui-kit-catalog.txt');
+  writeFileSync(out, JSON.stringify({ components }));
+  return out;
+}
+
 // Корпус — во временный каталог ВНЕ репозитория: это промежуточный файл сборки, а не артефакт.
 const corpusDir = mkdtempSync(path.join(os.tmpdir(), 'reformer-mcp-worker-'));
 try {
@@ -76,14 +107,20 @@ try {
   };
   const indexFile = asText('knowledge-index');
   const docsFile = asText('knowledge-docs');
+  const catalogFile = writeUiKitCatalog(corpusDir);
   const entry = [
     `import { startWorkerServer } from ${JSON.stringify(importPath(serverModule))};`,
     `import indexText from ${JSON.stringify(importPath(indexFile))};`,
     `import docsText from ${JSON.stringify(importPath(docsFile))};`,
+    ...(catalogFile ? [`import catalogText from ${JSON.stringify(importPath(catalogFile))};`] : []),
     'startWorkerServer({',
     '  port: self,',
     `  version: ${JSON.stringify(version)},`,
-    '  corpus: () => ({ index: JSON.parse(indexText), docs: JSON.parse(docsText) }),',
+    '  corpus: () => ({',
+    '    index: JSON.parse(indexText),',
+    '    docs: JSON.parse(docsText),',
+    ...(catalogFile ? ['    uiKitCatalog: JSON.parse(catalogText),'] : []),
+    '  }),',
     '});',
   ].join('\n');
 

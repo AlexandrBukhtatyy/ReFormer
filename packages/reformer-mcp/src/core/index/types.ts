@@ -74,6 +74,11 @@ export interface IndexedSymbol {
    * проекта потребителя.
    */
   entries?: string[];
+  /**
+   * Какие значения проверяет фабрика правила (`@appliesTo` в JSDoc): `any`, `text`, `number`,
+   * `date`, `file`. Только у фабрик `@reformer/core/validators`.
+   */
+  appliesTo?: string;
   sourcePath: string;
   package: string;
 }

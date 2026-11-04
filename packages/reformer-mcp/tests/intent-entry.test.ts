@@ -6,6 +6,7 @@
  * правил), проходит на intent с шагами, массивом и правилами.
  */
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import {
   buildBehaviorTs,
   buildSchemaLayout,
@@ -72,7 +73,7 @@ describe('@reformer/mcp/intent', () => {
       ],
       arrays: [{ name: 'kids', itemFields: [{ name: 'name', component: 'Input' }] }],
     };
-    const module = readIntent(raw);
+    const module = readIntent(raw, { uiKit: CATALOGS.uiKit });
     const codes = module.notices.map((notice) => notice.code);
     expect(codes).toEqual(
       expect.arrayContaining([
@@ -87,7 +88,7 @@ describe('@reformer/mcp/intent', () => {
     expect(module.intent.warnings).toEqual(module.notices.map((notice) => notice.message));
     expect(module.notices.find((n) => n.code === 'type-is-component')?.at).toBe('fields[1]');
 
-    const document = readIntent(raw, { forDocument: true });
+    const document = readIntent(raw, { forDocument: true, uiKit: CATALOGS.uiKit });
     expect(document.notices.map((notice) => notice.code)).toEqual(['type-is-component']);
     expect(document.intent.warnings).toHaveLength(1);
     expect(document.intent.fields.map((f) => f.component)).toEqual(

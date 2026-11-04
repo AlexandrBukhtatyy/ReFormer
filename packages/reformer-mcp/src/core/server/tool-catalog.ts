@@ -145,7 +145,8 @@ export function createToolCatalog(
 
         case 'generate_form':
           return await generateFormTool(
-            args as { intent: Record<string, unknown>; target?: string }
+            args as { intent: Record<string, unknown>; target?: string },
+            knowledge()
           );
 
         case 'get_context':

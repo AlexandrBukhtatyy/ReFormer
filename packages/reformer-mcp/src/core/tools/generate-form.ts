@@ -26,6 +26,7 @@ import {
   renderLayoutChecklist,
   renderLayoutLine,
 } from '../generate/builders.js';
+import { catalogsOf, type FormCatalogs } from '../generate/catalogs.js';
 import { crossCheckBundle } from '../generate/cross-check.js';
 import { intentFromAnalysis } from '../generate/from-spec.js';
 import { analyzeSpec } from '../spec/analyze.js';
@@ -121,7 +122,8 @@ export async function planFormTool(
   }
 
   const analysis = analyzeSpec(source);
-  const intent = intentFromAnalysis(analysis, resolveTarget(args.target));
+  const { uiKit } = await catalogsOf(k);
+  const intent = intentFromAnalysis(analysis, resolveTarget(args.target), uiKit);
 
   const lines: string[] = [];
   lines.push(`# plan_form: ${intent.formName}`);
@@ -184,7 +186,8 @@ export async function planFormTool(
  * остальное: любой дефект сборки выходит объяснённым текстом, а не кодом ошибки протокола.
  */
 export async function generateFormTool(
-  args: GenerateFormArgs
+  args: GenerateFormArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   if (args?.intent === undefined || args.intent === null) {
     return invalidCall(
@@ -192,7 +195,7 @@ export async function generateFormTool(
     );
   }
   try {
-    return buildManifest(args);
+    return buildManifest(args, await catalogsOf(k));
   } catch (e) {
     return text(
       [
@@ -209,10 +212,13 @@ export async function generateFormTool(
   }
 }
 
-function buildManifest(args: GenerateFormArgs): {
+function buildManifest(
+  args: GenerateFormArgs,
+  catalogs: FormCatalogs
+): {
   content: Array<{ type: 'text'; text: string }>;
 } {
-  const { intent, problems } = readIntent(args.intent);
+  const { intent, problems } = readIntent(args.intent, { uiKit: catalogs.uiKit });
   if (args.target) {
     const override = readTargetStack(args.target);
     if (override) intent.target = override;
@@ -241,12 +247,12 @@ function buildManifest(args: GenerateFormArgs): {
     );
   }
 
-  const { files, warnings, layoutJson } = buildBundle(intent);
+  const { files, warnings, layoutJson } = buildBundle(intent, catalogs);
 
   // Проверяем layout как ДАННЫЕ, а не файл с расширением `.json`. Для renderer-json схема
   // теперь отдаётся каноничным `form.schema.ts`, и поиск по расширению молча выключил бы
   // кросс-проверку: манифест печатал бы «✅ пройдена», не проверив ничего.
-  const report = crossCheckBundle(intent, JSON.parse(layoutJson));
+  const report = crossCheckBundle(intent, JSON.parse(layoutJson), { core: catalogs.core });
 
   const lines: string[] = [];
   lines.push(`# generate_form: ${intent.formName} (${intent.target})`);

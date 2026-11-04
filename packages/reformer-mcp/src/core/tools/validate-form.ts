@@ -21,6 +21,7 @@ import {
 import type { Knowledge } from '../knowledge.js';
 import { renderDiagnostics, type Diagnostic } from '../validate/codes.js';
 import { findCycle, type Dependency } from '../utils/graph.js';
+import { catalogsOf } from '../generate/catalogs.js';
 import { crossCheckBundle } from '../generate/cross-check.js';
 import { normalizeIntent, type FormIntent } from '../generate/form-intent.js';
 import { validateJsonSchemaTool } from './validate-json-schema.js';
@@ -219,11 +220,13 @@ export async function validateFormTool(
           );
         }
       }
-      const intent = normalizeIntent(args.intent);
+      const catalogs = await catalogsOf(k);
+      const intent = normalizeIntent(args.intent, { uiKit: catalogs.uiKit });
       // componentNames/dataSourceNames — реальные ключи реестра. Раньше при kind="bundle"
       // они игнорировались, и контейнерные компоненты (Wizard, Box, Section) объявлялись
       // неизвестными: объявить их в FormIntent негде, он описывает поля, а не разметку.
       const cross = crossCheckBundle(intent, schema, {
+        core: catalogs.core,
         ...(Array.isArray(args.componentNames) ? { componentNames: args.componentNames } : {}),
         ...(Array.isArray(args.dataSourceNames) ? { dataSourceNames: args.dataSourceNames } : {}),
       });

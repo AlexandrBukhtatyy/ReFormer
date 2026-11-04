@@ -15,7 +15,7 @@
 
 import type { FieldIntent, FormIntent, LayoutNode } from './form-intent.js';
 import { isWizardContainer } from './schema-emit.js';
-import { UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+import type { UiKitComponents } from './ui-kit-components.js';
 
 /** Props-схема компонента в форме JSON Schema: здесь нужны только имена свойств и строгость. */
 export type PropsSchema = Record<string, unknown>;
@@ -104,17 +104,24 @@ function collectSites(intent: FormIntent): PropsSite[] {
  * Ключи `componentProps`, которых нет в props-схеме компонента.
  *
  * Проверяются только строгие схемы (`additionalProperties: false`) — у остальных незнакомый ключ
- * законен. Компонент без схемы в ките (свой, `FieldArray`) пропускается.
+ * законен. Компонент без схемы в ките (свой, `FieldArray`) пропускается. Без каталога кита не
+ * проверяется ничего: не отличить поле (его схема сливается с пропсами обёртки) от контейнера, и
+ * `label` поля стал бы ложным замечанием.
  *
  * @returns По строке на место с чужими ключами: что не так и какие свойства у компонента есть.
  */
-export function checkComponentProps(intent: FormIntent, kit: UiKitPropSchemas): string[] {
+export function checkComponentProps(
+  intent: FormIntent,
+  kit: UiKitPropSchemas,
+  components: UiKitComponents
+): string[] {
   const notes: string[] = [];
+  if (!components.found) return notes;
   for (const site of collectSites(intent)) {
     if (!site.props) continue;
     const own = kit.defaults[site.component];
     if (!own || own.additionalProperties !== false) continue;
-    const schema = UI_KIT_FIELD_EXPORTS[site.component] ? kit.mergeField(own) : own;
+    const schema = components.fields[site.component] ? kit.mergeField(own) : own;
     const known = Object.keys((schema.properties as Record<string, unknown> | undefined) ?? {});
     const unknown = Object.keys(site.props).filter(
       (key) => !known.includes(key) && !DOM_ATTRIBUTE.test(key)

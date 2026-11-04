@@ -19,7 +19,8 @@
 import { publicSymbols } from '../index/symbols.js';
 import { symbolsByName } from '../index/merge.js';
 import { KNOWN_PACKAGES } from '../docs/packages.js';
-import { CORE_VALIDATORS } from '../generate/operator-catalog.js';
+import { coreOperatorsOf } from '../generate/catalogs.js';
+import type { CoreOperators } from '../generate/core-operators.js';
 import type { Knowledge } from '../knowledge.js';
 import type { Diagnostic } from './codes.js';
 
@@ -497,10 +498,11 @@ export async function validateCode(
   // --- RF010: ключи и поля прежнего контракта формы ------------------------------------
   // Код с ними пока работает (ключи принимаются, фабрики помечены `@deprecated`), поэтому это
   // предупреждения: назвать замену дешевле, чем дать прежней записи разойтись по новым формам.
+  const legacyKeys = [...LEGACY_KEYS, ...ruleOptionsKeys(coreOperatorsOf(k))];
   for (let i = 0; i < lines.length; i++) {
     const text = lines[i];
     if (/^\s*(\/\/|\*|\/\*)/.test(text)) continue;
-    for (const legacy of LEGACY_KEYS) {
+    for (const legacy of legacyKeys) {
       if (!legacy.re.test(text)) continue;
       diagnostics.push({
         code: 'RF010',
@@ -552,6 +554,26 @@ const LEGACY_SUBMIT =
   /\b(?:bundle|level|form|[A-Za-z_$][\w$]*(?:Bundle|Form))\.(?:submit\(\s*[^)\s]|submitting\b)/;
 
 /**
+ * Текст в опциях фабрики правила ядра: `required({ message: '…' })`. Фабрики — из индекса ядра;
+ * без индекса проверки нет: по одному имени не отличить фабрику ядра от своей функции.
+ */
+function ruleOptionsKeys(
+  core: CoreOperators
+): Array<{ re: RegExp; message: string; suggestion: string }> {
+  if (!core.found) return [];
+  return [
+    {
+      re: new RegExp(
+        `\\b(?:${[...core.rules.keys()].join('|')})\\([^)]*\\{[^}]*\\bmessage(?:Key)?\\s*:`
+      ),
+      message: 'Текст в опциях правила: у `RuleOptions` нет `message` и `messageKey`.',
+      suggestion:
+        "Правило несёт код: `required({ code: 'phone.required' })`; текст — в словаре формы `defineIssueMessages` (`@reformer/core/i18n`), подключённом через `<ValidationMessagesProvider messages>`.",
+    },
+  ];
+}
+
+/**
  * Ключи и поля прежнего контракта в коде схемы и сборки: что найдено → чем заменить.
  * Разбор построчный, поэтому шаблоны узкие: привязка обязана стоять рядом с ключом.
  */
@@ -578,14 +600,6 @@ const LEGACY_KEYS: ReadonlyArray<{ re: RegExp; message: string; suggestion: stri
     message: 'Ключ `"array"` у узла JSON-схемы — прежний формат документа.',
     suggestion:
       'В формате 2 массив — `"model": "$model(path)"` + `"item"`; документ целиком переводит `migrateJsonSchema`.',
-  },
-  {
-    re: new RegExp(
-      `\\b(?:${Object.keys(CORE_VALIDATORS).join('|')})\\([^)]*\\{[^}]*\\bmessage(?:Key)?\\s*:`
-    ),
-    message: 'Текст в опциях правила: у `RuleOptions` нет `message` и `messageKey`.',
-    suggestion:
-      "Правило несёт код: `required({ code: 'phone.required' })`; текст — в словаре формы `defineIssueMessages` (`@reformer/core/i18n`), подключённом через `<ValidationMessagesProvider messages>`.",
   },
   {
     re: /\{\s*code:\s*['"][^'"]*['"]\s*,\s*message:/,

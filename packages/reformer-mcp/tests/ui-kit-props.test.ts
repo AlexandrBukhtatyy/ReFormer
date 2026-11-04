@@ -11,9 +11,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import { readIntent } from '../src/core/generate/form-intent';
-import { GRAMMAR_EXAMPLE, INTENT_GRAMMAR } from '../src/core/generate/intent-grammar';
-import { UI_KIT_FIELD_EXPORTS } from '../src/core/generate/ui-kit-components';
+import { GRAMMAR_EXAMPLE, intentGrammar } from '../src/core/generate/intent-grammar';
 import {
   checkComponentProps,
   loadUiKitPropSchemas,
@@ -73,7 +73,7 @@ describe('checkComponentProps', () => {
         },
       ],
     });
-    expect(checkComponentProps(intent, fakeKit)).toEqual([
+    expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([
       'поле «price»: у InputNumber нет свойства «minValue» в componentProps. ' +
         'Есть: label, testId, placeholder, min, max.',
     ]);
@@ -89,7 +89,7 @@ describe('checkComponentProps', () => {
         children: [],
       },
     });
-    expect(checkComponentProps(intent, fakeKit)).toEqual([
+    expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([
       'контейнер «main»: у Section нет свойства «label» в componentProps. Есть: title.',
     ]);
   });
@@ -116,7 +116,7 @@ describe('checkComponentProps', () => {
         },
       },
     });
-    expect(checkComponentProps(intent, fakeKit)).toEqual([
+    expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([
       'поле «qty» массива «items»: у InputNumber нет свойства «step» в componentProps. ' +
         'Есть: label, testId, placeholder, min, max.',
       'контейнер «Box»: у Box нет свойства «gap» в componentProps. Есть: className.',
@@ -160,15 +160,17 @@ describe('checkComponentProps', () => {
         ],
       },
     });
-    expect(checkComponentProps(intent, fakeKit)).toEqual([]);
+    expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([]);
   });
 });
 
 describe('грамматика intent', () => {
-  it('перечисляет каждый компонент поля из таблицы ui-kit', () => {
-    const line = INTENT_GRAMMAR.split('\n').find((l) => l.startsWith('- component: '));
+  it('перечисляет каждый компонент поля из каталога ui-kit', () => {
+    const line = intentGrammar(CATALOGS)
+      .split('\n')
+      .find((l) => l.startsWith('- component: '));
     expect(line?.slice('- component: '.length, -1).split(' ')).toEqual(
-      Object.keys(UI_KIT_FIELD_EXPORTS)
+      Object.keys(CATALOGS.uiKit.fields)
     );
   });
 });
@@ -187,7 +189,7 @@ describe.runIf(hasKit)('настоящие схемы кита', () => {
       readFileSync(resolve(here, '../eval/calibration/cases/credit/intent.json'), 'utf-8')
     );
     for (const raw of [GRAMMAR_EXAMPLE, credit]) {
-      expect(checkComponentProps(readIntent(raw).intent, kit!)).toEqual([]);
+      expect(checkComponentProps(readIntent(raw).intent, kit!, CATALOGS.uiKit)).toEqual([]);
     }
   });
 
@@ -203,7 +205,7 @@ describe.runIf(hasKit)('настоящие схемы кита', () => {
         },
       ],
     });
-    const [note] = checkComponentProps(intent, kit!);
+    const [note] = checkComponentProps(intent, kit!, CATALOGS.uiKit);
     expect(note).toContain('у InputNumber нет свойства «minValue»');
     expect(note).toMatch(/Есть: .*\bmin\b/);
   });

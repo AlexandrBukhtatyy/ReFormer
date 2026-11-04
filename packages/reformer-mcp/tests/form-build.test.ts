@@ -18,9 +18,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import * as prettier from 'prettier';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { GRAMMAR_EXAMPLE, INTENT_GRAMMAR } from '../src/core/generate/intent-grammar';
+import { CATALOGS } from './support/catalogs';
+import { GRAMMAR_EXAMPLE, intentGrammar } from '../src/core/generate/intent-grammar';
 import { originOf, withMarker } from '../src/core/generate/generated-marker';
-import { UI_KIT_FIELD_EXPORTS } from '../src/core/generate/ui-kit-components';
 import type { Knowledge } from '../src/core/knowledge';
 import { formBuildTool, INTENT_FILE } from '../src/core/tools/form-build';
 import { createCliFormWorkspace, TYPECHECK_ROOT_ENV } from '../src/platform/cli/form-workspace';
@@ -77,7 +77,7 @@ describe('form_build: путь без ошибок', () => {
   it('без исходника отдаёт грамматику и ничего не создаёт', async () => {
     const { text, isError } = await build();
     expect(isError).toBe(false);
-    expect(text).toBe(INTENT_GRAMMAR);
+    expect(text).toBe(intentGrammar(CATALOGS));
     expect(existsSync(join(project, 'form'))).toBe(false);
   });
 
@@ -176,7 +176,7 @@ describe('form_build: путь без ошибок', () => {
   it(
     'каждый компонент кита компилируется на обоих таргетах',
     async () => {
-      const names = Object.keys(UI_KIT_FIELD_EXPORTS);
+      const names = Object.keys(CATALOGS.uiKit.fields);
       const fields = names.map((component, index) => ({
         name: `field${index}`,
         type: 'string',

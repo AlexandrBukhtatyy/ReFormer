@@ -20,10 +20,11 @@ import {
   isLostMessageWarning,
   OPERATOR_STUB_MARK,
 } from '../generate/builders.js';
+import { catalogsOf } from '../generate/catalogs.js';
 import { crossCheckBundle, inspectLayoutRefs } from '../generate/cross-check.js';
 import { readIntent } from '../generate/form-intent.js';
 import { originOf, withMarker } from '../generate/generated-marker.js';
-import { INTENT_GRAMMAR } from '../generate/intent-grammar.js';
+import { intentGrammar } from '../generate/intent-grammar.js';
 import { checkComponentProps, loadUiKitPropSchemas } from '../generate/ui-kit-props.js';
 import type { Knowledge } from '../knowledge.js';
 import { validateCode } from '../validate/code.js';
@@ -148,10 +149,12 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   const opened = k.forms.open(dir);
   if (!opened.ok) return failure(`каталог «${dir}»`, [opened.reason]);
   const { directory } = opened;
+  // Компоненты и правила — из каталога установленного кита и индекса установленного ядра.
+  const catalogs = await catalogsOf(k);
 
   const source = directory.read(INTENT_FILE);
   if (source === null) {
-    return { content: [{ type: 'text', text: INTENT_GRAMMAR }] };
+    return { content: [{ type: 'text', text: intentGrammar(catalogs) }] };
   }
 
   let raw: unknown;
@@ -163,7 +166,7 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
     ]);
   }
 
-  const { intent, problems } = readIntent(raw);
+  const { intent, problems } = readIntent(raw, { uiKit: catalogs.uiKit });
   if (problems.length > 0) {
     return failure(
       'intent прочитан не целиком',
@@ -171,8 +174,8 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
     );
   }
 
-  const { files, warnings, layoutJson } = buildBundle(intent);
-  const report = crossCheckBundle(intent, JSON.parse(layoutJson));
+  const { files, warnings, layoutJson } = buildBundle(intent, catalogs);
+  const report = crossCheckBundle(intent, JSON.parse(layoutJson), { core: catalogs.core });
   if (!report.ok) {
     return failure(
       'кросс-проверка',
@@ -243,7 +246,7 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   const kit = await loadUiKitPropSchemas();
   const notes = [
     ...intent.warnings,
-    ...(kit ? checkComponentProps(intent, kit) : []),
+    ...(kit ? checkComponentProps(intent, kit, catalogs.uiKit) : []),
     ...warnings,
     ...report.warnings.map((warning) => `${warning.code}: ${warning.message}`),
   ];

@@ -15,6 +15,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 
 import {
   buildAssemblyTsx,
@@ -139,7 +140,7 @@ function loanIntent(target: Target): FormIntent {
 }
 
 const fileOf = (target: Target, path: string): string => {
-  const file = buildBundle(loanIntent(target)).files.find((f) => f.path === path);
+  const file = buildBundle(loanIntent(target), CATALOGS).files.find((f) => f.path === path);
   expect(file, `${path} не напечатан для ${target}`).toBeDefined();
   return file!.content;
 };
@@ -147,7 +148,7 @@ const fileOf = (target: Target, path: string): string => {
 describe('набор файлов', () => {
   for (const target of TARGETS) {
     it(`${target}: схема, поведение и валидация — по одному файлу`, () => {
-      const paths = buildBundle(loanIntent(target)).files.map((f) => f.path);
+      const paths = buildBundle(loanIntent(target), CATALOGS).files.map((f) => f.path);
       expect(paths).toEqual(
         expect.arrayContaining([
           'model.ts',
@@ -189,7 +190,7 @@ describe('model.ts', () => {
 });
 
 describe('form.schema.ts — TS-таргеты', () => {
-  const ts = buildFormSchemaTs(loanIntent('renderer-react')).content;
+  const ts = buildFormSchemaTs(loanIntent('renderer-react'), CATALOGS.uiKit).content;
 
   it('узел привязан ключом `model` и ручкой `model.$.…`', () => {
     expect(ts).toContain('model: model.$.loanType,');
@@ -226,7 +227,7 @@ describe('form.schema.ts — TS-таргеты', () => {
   });
 
   it('core получает ту же схему, что renderer-react', () => {
-    expect(buildFormSchemaTs(loanIntent('core')).content).toBe(ts);
+    expect(buildFormSchemaTs(loanIntent('core'), CATALOGS.uiKit).content).toBe(ts);
   });
 });
 
@@ -280,7 +281,7 @@ describe('form.schema.ts — документ формата 2', () => {
 });
 
 describe('form.validation.ts', () => {
-  const ts = buildFormValidationTs(loanIntent('renderer-react'));
+  const ts = buildFormValidationTs(loanIntent('renderer-react'), CATALOGS.core);
 
   it('массив валидируется через applyEach с под-схемой строки', () => {
     expect(ts).toContain('const propertiesRowRules = defineValidation<PropertyItem>');
@@ -313,7 +314,9 @@ describe('form.validation.ts', () => {
       fields: [{ name: 'email', type: 'string', component: 'Input' }],
     });
     expect(buildFormFlowTs(intent)).toBeNull();
-    expect(buildBundle(intent).files.map((file) => file.path)).not.toContain('form.flow.ts');
+    expect(buildBundle(intent, CATALOGS).files.map((file) => file.path)).not.toContain(
+      'form.flow.ts'
+    );
   });
 
   it('условное правило остаётся в своём шаге', () => {
@@ -323,7 +326,8 @@ describe('form.validation.ts', () => {
   });
 
   it('одинакова для всех таргетов', () => {
-    for (const target of TARGETS) expect(buildFormValidationTs(loanIntent(target))).toBe(ts);
+    for (const target of TARGETS)
+      expect(buildFormValidationTs(loanIntent(target), CATALOGS.core)).toBe(ts);
   });
 });
 
@@ -398,7 +402,10 @@ describe('сборка — index.tsx', () => {
   });
 
   it('манифест печатает образец сборки', async () => {
-    const { content } = await generateFormTool({ intent: loanIntent('renderer-json') });
+    const { content } = await generateFormTool(
+      { intent: loanIntent('renderer-json') },
+      cliKnowledge()
+    );
     const text = content[0].text;
     expect(text).toContain('## Сборка — `index.tsx` (пишете сами)');
     expect(text).toContain('createForm<LoanRequest>({');
@@ -452,7 +459,7 @@ describe('validate_form kind=code — прежний контракт', () => {
 
   it('сгенерированные файлы проходят без диагностик', async () => {
     for (const target of TARGETS) {
-      for (const file of buildBundle(loanIntent(target)).files) {
+      for (const file of buildBundle(loanIntent(target), CATALOGS).files) {
         const { diagnostics } = await validateCode(k, file.content);
         expect(
           diagnostics.map((d) => `${d.code} ${d.message}`),
@@ -609,7 +616,7 @@ describe('бандл компилируется с реальными типам
             writeFileSync(file, content);
             entries.push(file);
           };
-          for (const file of buildBundle(intent).files) write(file.path, file.content);
+          for (const file of buildBundle(intent, CATALOGS).files) write(file.path, file.content);
           // Справочник пишет консумент — в бандл он не входит.
           write(
             'data-sources.ts',

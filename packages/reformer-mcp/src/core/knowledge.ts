@@ -32,6 +32,13 @@ import type { MergedIndex } from './index/types.js';
  */
 export type SymbolsFallback = (pkg: string) => Promise<PublicSymbol[]>;
 
+/**
+ * Каталог компонентов кита (`@reformer/ui-kit/catalog`) — разобранный JSON либо `undefined`, если
+ * кит не установлен. В CLI его ищут от корня проекта, затем рядом с сервером; в браузере каталог
+ * уже загружен хостом.
+ */
+export type UiKitCatalogSource = () => Promise<unknown>;
+
 /** Что платформа обязана предоставить ядру. */
 export interface KnowledgeSources {
   docs: DocsSource;
@@ -49,6 +56,8 @@ export interface KnowledgeSources {
   forms?: FormWorkspace;
   /** Отсутствует — пакеты без индекса просто не дадут символов. */
   symbolsFallback?: SymbolsFallback;
+  /** Отсутствует — генератор работает без каталога кита: имена компонентов не сверяются. */
+  uiKitCatalog?: UiKitCatalogSource;
 }
 
 export interface Knowledge {
@@ -66,6 +75,8 @@ export interface Knowledge {
   readonly forms: FormWorkspace;
   /** См. {@link SymbolsFallback}. */
   readonly symbolsFallback?: SymbolsFallback;
+  /** См. {@link UiKitCatalogSource}. */
+  readonly uiKitCatalog?: UiKitCatalogSource;
   /**
    * Ленивые производные, общие на экземпляр: разобранные символы фолбэка, поисковые корпуса.
    *
@@ -91,6 +102,7 @@ export function createKnowledge(sources: KnowledgeSources): Knowledge {
     issues: sources.issues ?? UNAVAILABLE_ISSUE_SINK,
     forms: sources.forms ?? UNAVAILABLE_FORM_WORKSPACE,
     ...(sources.symbolsFallback ? { symbolsFallback: sources.symbolsFallback } : {}),
+    ...(sources.uiKitCatalog ? { uiKitCatalog: sources.uiKitCatalog } : {}),
     memo: new Map(),
   };
 }

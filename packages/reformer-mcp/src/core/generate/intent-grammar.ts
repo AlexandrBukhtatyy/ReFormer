@@ -5,11 +5,16 @@
  * Текст-образец без такой проверки уже подводил: пример `copyFrom` на группу выглядел правдоподобно,
  * и агенты споткнулись о него в каждом прогоне прототипа.
  *
+ * Компоненты и правила грамматика называет по справочникам ({@link FormCatalogs}): поля — из
+ * каталога установленного кита, правила — из индекса установленного ядра. Чего не нашлось, о том
+ * грамматика говорит прямо, а не подставляет список, которого у потребителя нет.
+ *
  * @module reformer-mcp/core/generate/intent-grammar
  */
 
-import { renderValidatorList, VALIDATION_OPERATORS } from './operator-catalog.js';
-import { UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+import type { FormCatalogs } from './catalogs.js';
+import { renderRuleList } from './core-operators.js';
+import { VALIDATION_OPERATORS } from './operator-catalog.js';
 
 /** Рабочая форма, на которой показана вся грамматика. */
 export const GRAMMAR_EXAMPLE = {
@@ -375,7 +380,24 @@ const validationKeys = Object.entries(VALIDATION_OPERATORS)
   .map(([operator, key]) => `${key} → ${operator}`)
   .join(', ');
 
-export const INTENT_GRAMMAR = `# form.intent.json — грамматика
+/** Строка о компонентах полей: поля кита из его каталога. */
+function componentLine({ uiKit }: FormCatalogs): string {
+  return uiKit.found
+    ? `- component: ${Object.keys(uiKit.fields).join(' ')}.`
+    : '- component: каталог @reformer/ui-kit не найден — пиши имя компонента из своего реестра.';
+}
+
+/** Строка о правилах: фабрики ядра из его индекса. */
+function rulesLine({ core }: FormCatalogs): string {
+  const list = core.found
+    ? renderRuleList(core)
+    : 'индекс @reformer/core не найден — имена правил не сверяются';
+  return `- rules — фабрики @reformer/core/validators: ${list}. Последний аргумент — { code: '…' }.`;
+}
+
+/** Грамматика intent для установленных кита и ядра. */
+export function intentGrammar(catalogs: FormCatalogs): string {
+  return `# form.intent.json — грамматика
 
 Ты пишешь только этот файл, остальные файлы модуля записывает form_build. Сам файл формы не создаёт: работа закончена только после ответа ✓ от form_build. Экономь токены: JSON компактный, одна запись на строку. Большую форму пиши частями: поля и раскладка → form_build → Edit: правила → form_build → Edit: поведение → form_build.
 
@@ -388,7 +410,7 @@ target — стек из задания, не меняй его: core | renderer
 ${json(field('price'))}
 - Поле группы — имя через точку: "registrationAddress.city".
 - type: string | number | boolean | date | array (атомарное значение файлов у FileUpload*).
-- component: ${Object.keys(UI_KIT_FIELD_EXPORTS).join(' ')}.
+${componentLine(catalogs)}
 - componentProps — свойства компонента; незнакомое form_build назовёт и перечислит, какие есть.
 - Варианты выбора: "optionsSource":"LOAN_TYPES" и запись в dataSources либо componentProps.options:[{"value":"a","label":"А"}].
 - Свободный ввод с подсказками: "suggestionsSource":"CITIES" и запись в dataSources — поле рисует InputSuggest.
@@ -406,7 +428,7 @@ ${json(GRAMMAR_EXAMPLE.layoutRoot.children[0])}
 
 ## validation — одна строка на правило, текст в message
 ${json(validation[0])}
-- rules — фабрики @reformer/core/validators: ${renderValidatorList()}. Последний аргумент — { code: '…' }.
+${rulesLine(catalogs)}
 - Ключи правила — операторы схемы ядра: ${validationKeys}; правило поля группы — путь через точку.
 - Одна строка — один код: иначе текст не к чему привязать, и сборка откажет.
 - Условие: ${json(validation[2])}
@@ -455,3 +477,4 @@ ${json(GRAMMAR_EXAMPLE.operators)}
 ${json(GRAMMAR_EXAMPLE.visibility[0])} — узел СКРЫТ, когда условие истинно; selector задан в layoutRoot.
 ${json(GRAMMAR_EXAMPLE.dataSources[0])}
 `;
+}

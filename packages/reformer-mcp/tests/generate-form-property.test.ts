@@ -11,6 +11,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import { typecheckFiles } from '../eval/lib/typecheck.mjs';
 import { buildBundle } from '../src/core/generate/builders';
 import { crossCheckBundle } from '../src/core/generate/cross-check';
@@ -152,7 +153,7 @@ if (process.env.REFORMER_TEST_SLOW === '1') {
           const moduleDirectory = join(directory, `form-${index}`);
           mkdirSync(moduleDirectory);
           const intent = normalizeIntent(partial);
-          const files = buildBundle(intent).files;
+          const files = buildBundle(intent, CATALOGS).files;
           for (const file of files) writeFileSync(join(moduleDirectory, file.path), file.content);
           const diagnostics = typecheckFiles(
             moduleDirectory,
@@ -174,7 +175,7 @@ describe('свойства generate_form на случайных intent', () => 
     fc.assert(
       fc.property(intentArbitrary, (partial) => {
         const intent = normalizeIntent(partial);
-        const { layoutJson } = buildBundle(intent);
+        const { layoutJson } = buildBundle(intent, CATALOGS);
         const report = crossCheckBundle(intent, JSON.parse(layoutJson));
         expect(report.errors).toEqual([]);
       }),
@@ -188,7 +189,7 @@ describe('свойства generate_form на случайных intent', () => 
         const intent = normalizeIntent(partial);
         const { intent: again, problems } = readIntent(JSON.parse(JSON.stringify(intent)));
         expect(problems).toEqual([]);
-        expect(buildBundle(again).files).toEqual(buildBundle(intent).files);
+        expect(buildBundle(again, CATALOGS).files).toEqual(buildBundle(intent, CATALOGS).files);
       }),
       { numRuns: RUNS }
     );
@@ -197,8 +198,8 @@ describe('свойства generate_form на случайных intent', () => 
   it('вывод детерминирован', () => {
     fc.assert(
       fc.property(intentArbitrary, (partial) => {
-        expect(buildBundle(normalizeIntent(partial)).files).toEqual(
-          buildBundle(normalizeIntent(partial)).files
+        expect(buildBundle(normalizeIntent(partial), CATALOGS).files).toEqual(
+          buildBundle(normalizeIntent(partial), CATALOGS).files
         );
       }),
       { numRuns: RUNS }

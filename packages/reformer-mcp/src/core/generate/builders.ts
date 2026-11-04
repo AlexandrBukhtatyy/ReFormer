@@ -22,11 +22,13 @@ import type {
   ValidationRuleIntent,
 } from './form-intent.js';
 import { deriveComponentName } from './form-intent.js';
-import { CORE_VALIDATORS } from './operator-catalog.js';
+import type { FormCatalogs } from './catalogs.js';
+import { NO_CORE_OPERATORS, type CoreOperators } from './core-operators.js';
 import {
   groupUiKitImports,
-  UI_KIT_CONTAINER_EXPORTS,
-  UI_KIT_FIELD_EXPORTS,
+  NO_UI_KIT_WARNING,
+  uiKitExportOf,
+  type UiKitComponents,
 } from './ui-kit-components.js';
 import {
   buildFormSchemaJson,
@@ -436,18 +438,21 @@ export function ruleName(rule: string): string | null {
  * Валидаторы ядра, которые вызывают правила. Свои правила (`operators`) импортируются из своего
  * модуля, а не из `@reformer/core/validators`: раньше любое имя уходило в импорт ядра, и правило,
  * которого в ядре нет, давало только ошибку компилятора.
+ *
+ * Без индекса ядра (`core.found === false`) сверять не с чем: любое имя, не объявленное в
+ * `operators`, импортируется из ядра, а несуществующее назовёт компилятор.
  */
 function collectValidators(
   rules: readonly ValidationRuleIntent[],
-  operators: Readonly<Record<string, string>> = {}
+  operators: Readonly<Record<string, string>> = {},
+  core: CoreOperators = NO_CORE_OPERATORS
 ): string[] {
   const used = new Set<string>();
   for (const rule of rules) {
     for (const r of rule.rules) {
       const name = ruleName(r);
-      if (name && Object.hasOwn(CORE_VALIDATORS, name) && !Object.hasOwn(operators, name)) {
-        used.add(name);
-      }
+      if (name === null || Object.hasOwn(operators, name)) continue;
+      if (!core.found || core.rules.has(name)) used.add(name);
     }
   }
   return [...used].sort();
@@ -510,6 +515,11 @@ export interface ValidationSchemaTsOptions {
    * этот файл (`FormIntent.operators` у файла в корне модуля).
    */
   operators?: Readonly<Record<string, string>>;
+  /**
+   * Операторы ядра из его индекса: какие имена правил — валидаторы `@reformer/core/validators`.
+   * Без них импортируется из ядра любое имя, не объявленное в `operators`.
+   */
+  core?: CoreOperators;
 }
 
 /**
@@ -521,7 +531,8 @@ export interface ValidationSchemaTsOptions {
  */
 function validationImports(
   rules: readonly ValidationRuleIntent[],
-  operators?: Readonly<Record<string, string>>
+  operators: Readonly<Record<string, string>> | undefined,
+  core: CoreOperators
 ): {
   ops: string[];
   validators: string[];
@@ -537,7 +548,7 @@ function validationImports(
   if (rules.some((r) => r.each)) ops.push('applyEach');
   return {
     ops,
-    validators: collectValidators(rules, operators),
+    validators: collectValidators(rules, operators, core),
     custom: operatorImportLines(operators, validationCode(rules)),
   };
 }
@@ -963,7 +974,11 @@ export function buildValidationSchemaTs(
   rules: readonly ValidationRuleIntent[],
   opts: ValidationSchemaTsOptions
 ): string {
-  const { ops, validators, custom } = validationImports(rules, opts.operators);
+  const { ops, validators, custom } = validationImports(
+    rules,
+    opts.operators,
+    opts.core ?? NO_CORE_OPERATORS
+  );
 
   const lines: string[] = [];
   if (opts.header !== undefined) {
@@ -992,8 +1007,9 @@ export function buildValidationSchemaTs(
 }
 
 /** `form.validation.ts` формы целиком: одна схема `formValidation` над всеми правилами intent. */
-export function buildValidationTs(intent: FormIntent): string {
+export function buildValidationTs(intent: FormIntent, core: CoreOperators): string {
   return buildValidationSchemaTs(intent.validation, {
+    core,
     interfaceName: intent.interfaceName,
     exportName: 'formValidation',
     typeImport: './model',
@@ -1104,7 +1120,7 @@ function applyRowSchema(row: RowSchema): string {
  *   (`form.flow.ts`, {@link buildFormFlowTs}) берёт их по шагу; правила вне шагов — в `extras`
  *   объекта `formValidation` (проверяются целиком, при отправке).
  */
-export function buildFormValidationTs(intent: FormIntent): string {
+export function buildFormValidationTs(intent: FormIntent, core: CoreOperators): string {
   const taken = new Set<string>(['formValidation']);
   const rowRules = intent.validation.filter((rule) => rule.each);
   const formRules = intent.validation.filter((rule) => !rule.each);
@@ -1148,7 +1164,7 @@ export function buildFormValidationTs(intent: FormIntent): string {
     ops: operators,
     validators,
     custom,
-  } = validationImports(formRules.concat(rowRules), intent.operators);
+  } = validationImports(formRules.concat(rowRules), intent.operators, core);
 
   const itemTypes = [...new Set(rowSchemas.map((row) => row.itemType))].filter(
     (type) => type !== 'Record<string, unknown>'
@@ -1668,18 +1684,6 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
 // ---------------------------------------------------------------------------
 
 /**
- * Имя в схеме → импорт из ui-kit. Таблица полей сверена с `x-exportName` каталога ui-kit
- * (см. `ui-kit-components.ts`); неизвестное имя даёт TODO + warning.
- */
-const COMPONENT_IMPORTS: Readonly<Record<string, string>> = {
-  ...UI_KIT_FIELD_EXPORTS,
-  ...UI_KIT_CONTAINER_EXPORTS,
-  // Визард — библиотечный компонент ui-kit: шаги он берёт из узлов-детей, форму и валидацию —
-  // из сборки. Прикладной шим под именем `Wizard` больше не нужен.
-  FormWizard: 'FormWizard',
-};
-
-/**
  * Все имена `$component(...)`, которые появятся в layout.
  *
  * Обходит дерево, а не только список полей: контейнеры (`Box`, `Section`) и шаги задаются
@@ -1716,28 +1720,36 @@ const EXTRA_REGISTRY_IMPORTS: Readonly<Record<string, string>> = {
   Step: '@reformer/cdk/form-wizard',
 };
 
-export function buildRegistryTs(intent: FormIntent): { content: string; warnings: string[] } {
+/**
+ * `registry.ts`: под каждый `$component(...)` схемы — экспорт кита из его каталога. Визард —
+ * библиотечный `FormWizard` кита: шаги он берёт из узлов-детей, форму и валидацию — из сборки.
+ * Имя вне каталога даёт TODO + warning.
+ */
+export function buildRegistryTs(
+  intent: FormIntent,
+  kit: UiKitComponents
+): { content: string; warnings: string[] } {
   const warnings: string[] = [];
   const used = collectUsedComponents(intent);
   const extra = [...used].filter((c) => EXTRA_REGISTRY_IMPORTS[c]).sort();
   for (const c of extra) used.delete(c);
 
-  const known = [...used].filter((c) => COMPONENT_IMPORTS[c]).sort();
-  const unknown = [...used].filter((c) => !COMPONENT_IMPORTS[c]).sort();
+  const exportOf = (c: string) => uiKitExportOf(kit, c);
+  const known = [...used].filter((c) => exportOf(c)).sort();
+  const unknown = [...used].filter((c) => !exportOf(c)).sort();
+  if (!kit.found) warnings.push(NO_UI_KIT_WARNING);
   for (const c of unknown) {
-    warnings.push(
-      `Компонент \`${c}\` не в курируемой таблице импортов — в registry.ts стоит TODO.`
-    );
+    warnings.push(`Компонент \`${c}\` не из каталога ui-kit — в registry.ts стоит TODO.`);
   }
 
-  const imports = [...new Set(known.map((c) => COMPONENT_IMPORTS[c]))].sort();
+  const imports = [...new Set(known.map((c) => exportOf(c) as string))].sort();
   const lines: string[] = [];
   lines.push('/**');
   lines.push(` * Реестр компонентов формы «${intent.formName}»: что рендерить под каждый`);
   lines.push(' * `$component(...)` из layout-схемы. Новый компонент в схеме → регистрация здесь.');
   lines.push(' */');
   for (const c of extra) lines.push(`import { ${c} } from '${EXTRA_REGISTRY_IMPORTS[c]}';`);
-  for (const [from, names] of groupUiKitImports(['FormField', ...imports])) {
+  for (const [from, names] of groupUiKitImports(['FormField', ...imports], kit)) {
     lines.push(`import { ${names.join(', ')} } from '${from}';`);
   }
   lines.push(
@@ -1752,7 +1764,7 @@ export function buildRegistryTs(intent: FormIntent): { content: string; warnings
   lines.push('    // Системная обёртка листа: label + ошибки. Сборка кладёт её в бандл формы.');
   lines.push('    reg.component(FIELD_WRAPPER, FormField);');
   for (const c of extra) lines.push(`    reg.component('${c}', ${c});`);
-  for (const c of known) lines.push(`    reg.component('${c}', ${COMPONENT_IMPORTS[c]});`);
+  for (const c of known) lines.push(`    reg.component('${c}', ${exportOf(c)});`);
   for (const c of unknown) lines.push(`    // TODO: reg.component('${c}', /* импорт */);`);
   // Значения — из `data-sources.ts` того же бандла (`buildDataSourcesTs`), под тем же именем.
   for (const name of dataSourceNames(intent)) lines.push(`    reg.dataSource('${name}', ${name});`);
@@ -2087,7 +2099,10 @@ export function renderLayoutChecklist(
  * `renderLayoutChecklist` — без неё манифест читался как «файлов ровно столько», и имена
  * расходились с каноном.
  */
-export function buildBundle(intent: FormIntent): {
+export function buildBundle(
+  intent: FormIntent,
+  catalogs: FormCatalogs
+): {
   files: BundleFile[];
   warnings: string[];
   /** Схема как чистый JSON (документ формата 2) — для кросс-проверки. */
@@ -2100,7 +2115,7 @@ export function buildBundle(intent: FormIntent): {
 
   const files: BundleFile[] = [
     { path: 'model.ts', content: buildModelTs(intent) },
-    { path: 'form.validation.ts', content: buildFormValidationTs(intent) },
+    { path: 'form.validation.ts', content: buildFormValidationTs(intent, catalogs.core) },
     { path: 'form.behavior.ts', content: behavior.content },
   ];
   const flow = buildFormFlowTs(intent);
@@ -2119,14 +2134,14 @@ export function buildBundle(intent: FormIntent): {
     // compile-time проверку путей `$model(...)` — ни ajv, ни обход реестра опечатку в пути не
     // ловят.
     files.push({ path: 'form.schema.ts', content: buildFormSchemaJsonTs(intent) });
-    const registry = buildRegistryTs(intent);
+    const registry = buildRegistryTs(intent, catalogs.uiKit);
     files.push({ path: 'registry.ts', content: registry.content });
     warnings.push(...registry.warnings);
     warnings.push(...buildSchemaLayout(intent).warnings);
   } else {
     // core и renderer-react получают ту же схему в TS: узлы держат ручки модели (`model.$.…`)
     // и сами компоненты, а не их имена.
-    const schema = buildFormSchemaTs(intent);
+    const schema = buildFormSchemaTs(intent, catalogs.uiKit);
     files.push({ path: 'form.schema.ts', content: schema.content });
     warnings.push(...schema.warnings);
   }

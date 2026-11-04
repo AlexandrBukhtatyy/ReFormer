@@ -20,10 +20,9 @@ import {
   type LayoutNode,
 } from './form-intent.js';
 import { collectUsedComponents, isDerivedModule, mentionsName, ruleName } from './builders.js';
+import { NO_CORE_OPERATORS, type CoreOperators } from './core-operators.js';
 import {
-  BEHAVIOR_AUTHORING,
   BEHAVIOR_KEY_OPERATORS,
-  CORE_VALIDATORS,
   MODEL_BEHAVIOR_KINDS,
   NODE_BEHAVIOR_KINDS,
   VALIDATION_OPERATORS,
@@ -226,7 +225,12 @@ const BUILTIN_COMPONENTS = new Set([
 export function crossCheckBundle(
   intent: FormIntent,
   layoutJson: unknown,
-  opts?: { componentNames?: string[]; dataSourceNames?: string[] }
+  opts?: {
+    componentNames?: string[];
+    dataSourceNames?: string[];
+    /** Операторы ядра из его индекса. Без них C12 не сверяет правила с валидаторами ядра. */
+    core?: CoreOperators;
+  }
 ): CrossCheckReport {
   const errors: CrossCheckIssue[] = [];
   const warnings: CrossCheckIssue[] = [];
@@ -454,42 +458,42 @@ export function crossCheckBundle(
   // C1 его уже не видит: документ приходит без него, а форма — без поля.
   for (const message of inspectLayoutRefs(intent).unknown) err('C11', message);
 
-  checkOperators(intent, err, warn);
+  checkOperators(intent, opts?.core ?? NO_CORE_OPERATORS, err, warn);
 
   return { ok: errors.length === 0, errors, warnings };
 }
 
-/** Имена ядра, которые свой оператор не может носить: импорт ядра и свой импорт столкнутся. */
-const CORE_NAMES = new Set([
-  ...Object.keys(CORE_VALIDATORS),
+/** Ключи intent для операторов ядра: язык intent, они есть и без индекса ядра. */
+const INTENT_OPERATOR_NAMES = [
   ...Object.keys(VALIDATION_OPERATORS),
   ...MODEL_BEHAVIOR_KINDS,
   ...NODE_BEHAVIOR_KINDS,
   ...Object.keys(BEHAVIOR_KEY_OPERATORS),
-  ...BEHAVIOR_AUTHORING,
-  'defineValidation',
-  'validateModel',
-]);
+];
 
 /**
  * C12 — свои операторы объявлены и подключаемы.
  *
  * Без этой проверки правило с именем, которого нет в ядре, уходило в импорт
  * `@reformer/core/validators`, и агент получал от компилятора «has no exported member» — без
- * подсказки, что своё правило объявляется в `operators`.
+ * подсказки, что своё правило объявляется в `operators`. Валидаторы и имена операторов ядра — из
+ * его индекса; без индекса правило с незнакомым именем не отвергается — его назовёт компилятор.
  */
 function checkOperators(
   intent: FormIntent,
+  core: CoreOperators,
   err: (code: CrossCheckCode, message: string) => void,
   warn: (code: CrossCheckCode, message: string) => void
 ): void {
   const operators = intent.operators ?? {};
   const declared = (name: string) => Object.hasOwn(operators, name);
+  // Имена ядра, которые свой оператор не может носить: импорт ядра и свой импорт столкнутся.
+  const coreNames = new Set([...INTENT_OPERATOR_NAMES, ...core.names]);
 
   for (const rule of intent.validation) {
     for (const r of rule.rules) {
       const name = ruleName(r);
-      if (name === null || declared(name) || Object.hasOwn(CORE_VALIDATORS, name)) continue;
+      if (name === null || declared(name) || !core.found || core.rules.has(name)) continue;
       err(
         'C12',
         `Правило \`${r}\` на \`${rule.target}\`: \`${name}\` — не валидатор @reformer/core/validators. ` +
@@ -528,7 +532,7 @@ function checkOperators(
     ...intent.visibility.map((v) => v.condition),
   ];
   for (const [name, module] of Object.entries(operators)) {
-    if (CORE_NAMES.has(name)) {
+    if (coreNames.has(name)) {
       err(
         'C12',
         `Свой оператор \`${name}\` носит имя оператора ядра — импорты столкнутся. Назови его иначе.`

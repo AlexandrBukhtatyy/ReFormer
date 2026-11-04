@@ -40,6 +40,12 @@ export interface BrowserKnowledgeInput {
   docs?: DocsBundle | null;
   /** Спеки, уже прочитанные хостом: имя файла → текст. */
   specs?: ReadonlyMap<string, string>;
+  /**
+   * Каталог компонентов кита (`@reformer/ui-kit/catalog` или любой `{ components }` с `name`,
+   * `role`, `exportName`, `subpath`), уже загруженный хостом. Без него генератор не сверяет
+   * имена компонентов.
+   */
+  uiKitCatalog?: unknown;
 }
 
 export interface BrowserKnowledge {
@@ -58,6 +64,7 @@ export function createBrowserKnowledge(input: BrowserKnowledgeInput): BrowserKno
     recipes: createBundleRecipeSource(input.docs ?? null),
     spec: createMemorySpecSource(input.specs ?? new Map()),
     issues,
+    ...(input.uiKitCatalog === undefined ? {} : { uiKitCatalog: async () => input.uiKitCatalog }),
     // `symbolsFallback` не передаётся намеренно — разбора AST в браузере нет, ядро подставит
     // заглушку, а деградация будет видна в ответах инструментов, а не спрятана.
   });

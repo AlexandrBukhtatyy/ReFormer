@@ -20,8 +20,9 @@
 import type { ArrayIntent, FieldIntent, FormIntent, LayoutNode } from './form-intent.js';
 import {
   groupUiKitImports,
-  UI_KIT_CONTAINER_EXPORTS,
-  UI_KIT_FIELD_EXPORTS,
+  NO_UI_KIT_WARNING,
+  uiKitExportOf,
+  type UiKitComponents,
 } from './ui-kit-components.js';
 
 /** Узел документа формата 2. Чем он является, решают ключи: `item` — массив, `part` — подформа. */
@@ -312,18 +313,13 @@ export function buildFormSchemaJson(intent: FormIntent): string {
 // TS-печать
 // ---------------------------------------------------------------------------
 
-/** Имя в схеме → экспорт `@reformer/ui-kit`. */
-const UI_KIT_IMPORTS: Readonly<Record<string, string>> = {
-  ...UI_KIT_FIELD_EXPORTS,
-  ...UI_KIT_CONTAINER_EXPORTS,
-  FormWizard: 'FormWizard',
-};
-
 const OPERATOR = /^\$(model|component|html|dataSource|part)\(([^)]*)\)$/;
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 /** Что файлу схемы нужно импортировать — собирается по ходу печати. */
 interface TsImports {
+  /** Каталог кита: имя в схеме → экспорт и модуль импорта. */
+  kit: UiKitComponents;
   uiKit: Set<string>;
   cdkWizard: Set<string>;
   dataSources: Set<string>;
@@ -369,7 +365,7 @@ function tsExpression(value: unknown, imports: TsImports): string | null {
         imports.cdkWizard.add('Step');
         return 'Step';
       }
-      const exported = UI_KIT_IMPORTS[arg];
+      const exported = uiKitExportOf(imports.kit, arg);
       if (exported) {
         imports.uiKit.add(exported);
         return exported;
@@ -450,11 +446,16 @@ function partModelType(info: PartInfo | undefined, interfaceName: string): strin
  * `form.schema.ts` — разметка формы в TS: одно дерево, по которому сборка `createForm` строит
  * форму, а `FormRenderer` рисует разметку. Вариант «React руками» берёт из неё только поля.
  *
- * @returns Содержимое файла и предупреждения (компонент вне таблицы импортов ui-kit).
+ * @param kit - Каталог кита: из него имена компонентов и модули импорта.
+ * @returns Содержимое файла и предупреждения (компонент вне каталога ui-kit).
  */
-export function buildFormSchemaTs(intent: FormIntent): { content: string; warnings: string[] } {
+export function buildFormSchemaTs(
+  intent: FormIntent,
+  kit: UiKitComponents
+): { content: string; warnings: string[] } {
   const { document, partInfo, warnings } = buildSchemaLayout(intent);
   const imports: TsImports = {
+    kit,
     uiKit: new Set(),
     cdkWizard: new Set(),
     dataSources: new Set(),
@@ -503,14 +504,13 @@ export function buildFormSchemaTs(intent: FormIntent): { content: string; warnin
       `import { ${[...imports.cdkWizard].sort().join(', ')} } from '@reformer/cdk/form-wizard';`
     );
   }
-  for (const [from, names] of groupUiKitImports([...imports.uiKit].sort())) {
+  for (const [from, names] of groupUiKitImports([...imports.uiKit].sort(), kit)) {
     lines.push(importLine(names, from));
   }
+  if (!kit.found && imports.uiKit.size > 0) warnings.push(NO_UI_KIT_WARNING);
   for (const name of [...imports.unknownComponents].sort()) {
-    lines.push(`// TODO: импортируйте компонент \`${name}\` — его нет в таблице импортов ui-kit.`);
-    warnings.push(
-      `Компонент \`${name}\` не в курируемой таблице импортов — в form.schema.ts стоит TODO.`
-    );
+    lines.push(`// TODO: импортируйте компонент \`${name}\` — его нет в каталоге ui-kit.`);
+    warnings.push(`Компонент \`${name}\` не из каталога ui-kit — в form.schema.ts стоит TODO.`);
   }
   if (imports.dataSources.size > 0) {
     lines.push(importLine([...imports.dataSources].sort(), './data-sources'));

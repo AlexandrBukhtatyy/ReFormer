@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import {
   normalizeIntent,
   readIntent,
@@ -284,7 +285,7 @@ describe('builders', () => {
   });
 
   it('validation.ts импортирует ТОЛЬКО использованные валидаторы', () => {
-    const ts = buildValidationTs(goodIntent());
+    const ts = buildValidationTs(goodIntent(), CATALOGS.core);
     expect(ts).toContain("from '@reformer/core/validators'");
     expect(ts).toContain('required');
     expect(ts).toContain('min');
@@ -307,7 +308,8 @@ describe('builders', () => {
       // билдер кладёт этот файл в проекты пользователей, и любая «косметика» в нём — дифф
       // у каждого, кто перегенерирует форму.
       const ts = buildValidationTs(
-        normalizeIntent({ formName: 'Mix', interfaceName: 'MixForm', validation: MIX })
+        normalizeIntent({ formName: 'Mix', interfaceName: 'MixForm', validation: MIX }),
+        CATALOGS.core
       );
       expect(ts).toBe(
         [
@@ -335,7 +337,8 @@ describe('builders', () => {
         ].join('\n')
       );
       const empty = buildValidationTs(
-        normalizeIntent({ formName: 'Empty', interfaceName: 'EmptyForm', validation: [] })
+        normalizeIntent({ formName: 'Empty', interfaceName: 'EmptyForm', validation: [] }),
+        CATALOGS.core
       );
       expect(empty).toBe(
         [
@@ -368,7 +371,7 @@ describe('builders', () => {
           'Валидация формы «Mix» — правила над МОДЕЛЬЮ, не в layout-схеме.\n' +
           'Запуск: validateModel(model, formValidation).',
       });
-      expect(viaSchema).toBe(buildValidationTs(intent));
+      expect(viaSchema).toBe(buildValidationTs(intent, CATALOGS.core));
     });
 
     it('модуль шага: своё имя экспорта, свой путь до типа, импорты ровно под свои правила', () => {
@@ -650,7 +653,7 @@ describe('builders', () => {
   });
 
   it('бандл для renderer-json содержит реестр, для core — нет', () => {
-    const json = buildBundle(goodIntent());
+    const json = buildBundle(goodIntent(), CATALOGS);
     expect(json.files.map((f) => f.path)).toContain('registry.ts');
     // Валидация — тоже артефакт формы: `form.validation.ts`, прежний `validation.ts` не печатается.
     expect(json.files.map((f) => f.path)).toContain('form.validation.ts');
@@ -661,7 +664,7 @@ describe('builders', () => {
     expect(schema, 'схема renderer-json отдаётся как form.schema.ts').toBeDefined();
     expect(schema?.content).toContain(`defineJsonSchema<${deriveInterfaceName('Order')}>(`);
     expect(json.files.map((f) => f.path)).not.toContain('form.schema.json');
-    const core = buildBundle(normalizeIntent({ ...goodIntent(), target: 'core' }));
+    const core = buildBundle(normalizeIntent({ ...goodIntent(), target: 'core' }), CATALOGS);
     expect(core.files.map((f) => f.path)).not.toContain('registry.ts');
     // Схема одна на все таргеты: `core` получает ту же `form.schema.ts`, а не `layout.json`
     // с просьбой перенести разметку руками.
@@ -721,7 +724,7 @@ describe('builders', () => {
         },
       ],
     });
-    const bundle = buildBundle(intent);
+    const bundle = buildBundle(intent, CATALOGS);
     const messages = bundle.files.find((f) => f.path === 'form.messages.ts')?.content ?? '';
     expect(messages).toContain('export const formMessages = defineIssueMessages({');
     expect(messages).toContain("'phone.required': 'Укажите телефон'");
@@ -736,7 +739,7 @@ describe('builders', () => {
       ...intent,
       validation: [{ target: 'phone', rules: ['required()'] }],
     });
-    expect(buildBundle(plain).files.map((f) => f.path)).not.toContain('form.messages.ts');
+    expect(buildBundle(plain, CATALOGS).files.map((f) => f.path)).not.toContain('form.messages.ts');
     expect(buildAssemblyTsx(plain)).not.toContain('ValidationMessagesProvider');
   });
 
@@ -757,7 +760,9 @@ describe('builders', () => {
         },
       ],
     });
-    const behavior = buildBundle(intent).files.find((f) => f.path === 'form.behavior.ts')?.content;
+    const behavior = buildBundle(intent, CATALOGS).files.find(
+      (f) => f.path === 'form.behavior.ts'
+    )?.content;
     expect(behavior).toContain('defineFormBehavior<');
     expect(behavior).toMatch(/\(\(\{ model, form \}\) =>/);
     // Без обращения — прежняя область, без неиспользуемых параметров.
@@ -765,9 +770,9 @@ describe('builders', () => {
       ...intent,
       behavior: [{ ...intent.behavior[0], expr: 'void value;' }],
     });
-    expect(buildBundle(plain).files.find((f) => f.path === 'form.behavior.ts')?.content).toMatch(
-      /\(\(\{ model \}\) =>/
-    );
+    expect(
+      buildBundle(plain, CATALOGS).files.find((f) => f.path === 'form.behavior.ts')?.content
+    ).toMatch(/\(\(\{ model \}\) =>/);
   });
 
   it('составной путь в строке массива — вложенный объект в типе элемента и в шаблоне', () => {
@@ -810,7 +815,8 @@ describe('builders', () => {
             { name: 'carBrand', type: 'string', component: 'Input' },
           ],
           behavior: [{ kind: 'onChange', target: 'hasCar', sources: ['hasCar'], expr }],
-        })
+        }),
+        CATALOGS
       ).files.find((f) => f.path === 'form.behavior.ts')?.content ?? '';
     expect(files("model.carBrand = '';")).toContain('onChange(model.$.hasCar, () => {');
     expect(files("if (!value) model.carBrand = '';")).toContain(
@@ -962,7 +968,10 @@ describe('cross-check', () => {
 
 describe('импорты кита', () => {
   it('компонент только в подпути импортируется из подпути, а не из корня', () => {
-    const groups = groupUiKitImports(['DatePicker', 'FormField', 'Input', 'Combobox']);
+    const groups = groupUiKitImports(
+      ['DatePicker', 'FormField', 'Input', 'Combobox'],
+      CATALOGS.uiKit
+    );
     expect(groups).toEqual([
       ['@reformer/ui-kit', ['FormField', 'Input']],
       ['@reformer/ui-kit/combobox', ['Combobox']],
@@ -1001,12 +1010,12 @@ describe('tools plan_form / generate_form', () => {
   });
 
   it('generate_form без intent объясняет, что нужно', async () => {
-    const { content } = await generateFormTool({ intent: undefined as never });
+    const { content } = await generateFormTool({ intent: undefined as never }, cliKnowledge());
     expect(content[0].text).toMatch(/intent/);
   });
 
   it('generate_form отдаёт манифест и НЕ пишет на диск', async () => {
-    const { content } = await generateFormTool({ intent: goodIntent() });
+    const { content } = await generateFormTool({ intent: goodIntent() }, cliKnowledge());
     const text = content[0].text;
     expect(text).toMatch(/Кросс-проверка пройдена/);
     expect(text).toContain('### `model.ts`');
@@ -1017,7 +1026,7 @@ describe('tools plan_form / generate_form', () => {
   it('манифест печатает полный набор имён, а не только сгенерированные файлы', async () => {
     // Раньше манифест отдавал 5 файлов из 10 без единого признака неполноты, и консумент
     // достраивал остальные под своими именами. Молчание читается как «файлов ровно столько».
-    const { content } = await generateFormTool({ intent: goodIntent() });
+    const { content } = await generateFormTool({ intent: goodIntent() }, cliKnowledge());
     const text = content[0].text;
     const row = (name: string) =>
       new RegExp(`\\| \`${name.replace(/\./g, '\\.')}\` \\|[^\\n]*создайте сами`);
@@ -1036,7 +1045,7 @@ describe('tools plan_form / generate_form', () => {
       { name: 'CURRENCIES', values: [{ value: 'rub', label: 'Рубль' }, 'usd'] },
       { name: 'EMPTY' },
     ];
-    const bundle = buildBundle(intent);
+    const bundle = buildBundle(intent, CATALOGS);
     const sources = bundle.files.find((f) => f.path === 'data-sources.ts')?.content ?? '';
     expect(sources).toContain('export const CURRENCIES = [');
     expect(sources).toContain('"label": "Рубль"');
@@ -1052,7 +1061,7 @@ describe('tools plan_form / generate_form', () => {
   it('пропсы массива из intent доходят до узла FieldArray', () => {
     const intent = goodIntent();
     intent.arrays[0].componentProps = { addButtonLabel: '+ Добавить позицию', title: 'Позиции' };
-    const layout = JSON.parse(buildBundle(intent).layoutJson);
+    const layout = JSON.parse(buildBundle(intent, CATALOGS).layoutJson);
     const find = (n: Record<string, unknown>): Record<string, unknown> | null => {
       if (n.component === '$component(FieldArray)') return n;
       for (const c of (n.children as Record<string, unknown>[] | undefined) ?? []) {
@@ -1070,7 +1079,7 @@ describe('tools plan_form / generate_form', () => {
   it('generate_form отдаёт файлы ДАЖЕ при ошибках, но не скрывает их', async () => {
     const intent = goodIntent();
     intent.validation.push({ target: 'ghost', rules: ['required()'] });
-    const { content } = await generateFormTool({ intent });
+    const { content } = await generateFormTool({ intent }, cliKnowledge());
     expect(content[0].text).toMatch(/Кросс-проверка не пройдена/);
     expect(content[0].text).toContain('**C4**');
     expect(content[0].text).toContain('### `model.ts`');
@@ -1280,7 +1289,7 @@ describe('readIntent — вход не из plan_form', () => {
 
 describe('generate_form на неполном intent', () => {
   it('падавший вход собирается в манифест, а не в -32603', async () => {
-    const { content } = await generateFormTool({ intent: intuitiveIntent() });
+    const { content } = await generateFormTool({ intent: intuitiveIntent() }, cliKnowledge());
     const text = content[0].text;
     expect(text).toMatch(/Кросс-проверка пройдена/);
     expect(text).toContain('### `model.ts`');
@@ -1292,19 +1301,22 @@ describe('generate_form на неполном intent', () => {
   it('составной путь даёт валидный параметр колбэка computeFrom', async () => {
     // `(personal.lastName) => …` не парсится вовсе: манифест отдавал бы файл, который не
     // собирается. Имя берётся по последнему сегменту, и переименование названо на месте.
-    const { content } = await generateFormTool({ intent: intuitiveIntent() });
+    const { content } = await generateFormTool({ intent: intuitiveIntent() }, cliKnowledge());
     expect(content[0].text).toContain('(lastName) =>');
     expect(content[0].text).toMatch(/параметры названы по последнему сегменту/);
   });
 
   it('выброшенные записи видны в заголовке и разобраны поимённо', async () => {
-    const { content } = await generateFormTool({
-      intent: {
-        formName: 'Z',
-        fields: [{ name: 'a', type: 'string', component: 'Input' }],
-        validation: [{ field: 'a' }],
+    const { content } = await generateFormTool(
+      {
+        intent: {
+          formName: 'Z',
+          fields: [{ name: 'a', type: 'string', component: 'Input' }],
+          validation: [{ field: 'a' }],
+        },
       },
-    });
+      cliKnowledge()
+    );
     const text = content[0].text;
     expect(text).toMatch(/Из intent выброшено записей: 1/);
     expect(text).toContain('`validation[0].rules`');
@@ -1312,7 +1324,7 @@ describe('generate_form на неполном intent', () => {
   });
 
   it('когда читать нечего — диагностика и адрес готового intent, а не пустой каркас', async () => {
-    const { content } = await generateFormTool({ intent: 'не json' });
+    const { content } = await generateFormTool({ intent: 'не json' }, cliKnowledge());
     const text = content[0].text;
     expect(text).toMatch(/прочитать не удалось/);
     expect(text).toMatch(/не разбирается как JSON/);
@@ -1321,7 +1333,10 @@ describe('generate_form на неполном intent', () => {
   });
 
   it('intent строкой с валидным JSON читается', async () => {
-    const { content } = await generateFormTool({ intent: JSON.stringify(intuitiveIntent()) });
+    const { content } = await generateFormTool(
+      { intent: JSON.stringify(intuitiveIntent()) },
+      cliKnowledge()
+    );
     expect(content[0].text).toContain('### `model.ts`');
     expect(content[0].text).toMatch(/пришёл строкой/);
   });
@@ -1341,7 +1356,7 @@ describe('generate_form на неполном intent', () => {
       { steps: 'первый', wizard: { steps: [{}] } },
     ];
     for (const intent of hostile) {
-      const { content } = await generateFormTool({ intent });
+      const { content } = await generateFormTool({ intent }, cliKnowledge());
       expect(content[0].text, JSON.stringify(intent)).toMatch(/generate_form/);
       expect(content[0].text, JSON.stringify(intent)).not.toMatch(/Внутренняя ошибка/);
     }

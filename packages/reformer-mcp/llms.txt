@@ -1063,6 +1063,12 @@ export interface BrowserKnowledgeInput {
   docs?: DocsBundle | null;
   /** Спеки, уже прочитанные хостом: имя файла → текст. */
   specs?: ReadonlyMap<string, string>;
+  /**
+   * Каталог компонентов кита (`@reformer/ui-kit/catalog` или любой `{ components }` с `name`,
+   * `role`, `exportName`, `subpath`), уже загруженный хостом. Без него генератор не сверяет
+   * имена компонентов.
+   */
+  uiKitCatalog?: unknown;
 }
 ```
 
@@ -1117,6 +1123,8 @@ export interface Knowledge {
   readonly forms: FormWorkspace;
   /** См. {@link SymbolsFallback}. */
   readonly symbolsFallback?: SymbolsFallback;
+  /** См. {@link UiKitCatalogSource}. */
+  readonly uiKitCatalog?: UiKitCatalogSource;
   /**
    * Ленивые производные, общие на экземпляр: разобранные символы фолбэка, поисковые корпуса.
    *
@@ -1153,6 +1161,8 @@ export interface KnowledgeSources {
   forms?: FormWorkspace;
   /** Отсутствует — пакеты без индекса просто не дадут символов. */
   symbolsFallback?: SymbolsFallback;
+  /** Отсутствует — генератор работает без каталога кита: имена компонентов не сверяются. */
+  uiKitCatalog?: UiKitCatalogSource;
 }
 ```
 
@@ -1186,6 +1196,21 @@ _Source: src/core/knowledge.ts_
 **Signature:**
 ```typescript
 export type SymbolsFallback = (pkg: string) => Promise<PublicSymbol[]>;
+```
+
+_Source: src/core/knowledge.ts_
+
+### UiKitCatalogSource
+
+**Kind:** `type`
+
+Каталог компонентов кита (`@reformer/ui-kit/catalog`) — разобранный JSON либо `undefined`, если
+кит не установлен. В CLI его ищут от корня проекта, затем рядом с сервером; в браузере каталог
+уже загружен хостом.
+
+**Signature:**
+```typescript
+export type UiKitCatalogSource = () => Promise<unknown>;
 ```
 
 _Source: src/core/knowledge.ts_

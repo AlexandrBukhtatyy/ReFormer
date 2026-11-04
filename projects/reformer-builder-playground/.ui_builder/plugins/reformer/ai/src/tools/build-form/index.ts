@@ -24,6 +24,7 @@ import {
   inspectLayoutRefs,
   modelPaths,
   readIntent,
+  uiKitFromCatalog,
   type FormIntent,
   type IntentWarning,
   type IntentWarningCode,
@@ -107,7 +108,12 @@ export const buildFormTool: AgentTool<Params> = {
     const raw = lifted.intent;
     // Документ, а не модуль: предупреждения о печати модуля (интерфейсы, типы значений, начальные
     // значения) MCP не пишет — модель принимала их за сбой (замер 2026-11-03, сценарий 3.6).
-    const read = readIntent(raw, { forDocument: true });
+    // Каталог активного кита: по нему имя экспорта приводится к имени реестра, а имя компонента
+    // в `type` узнаётся как компонент.
+    const read = readIntent(raw, {
+      forDocument: true,
+      uiKit: uiKitFromCatalog({ components: ctx.catalog }),
+    });
     if (read.problems.length > 0) {
       const lines = read.problems
         .slice(0, MAX_PROBLEMS)

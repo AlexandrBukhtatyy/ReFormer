@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { CATALOGS } from './support/catalogs';
 import { buildBundle } from '../src/core/generate/builders';
 import { crossCheckBundle, inspectLayoutRefs } from '../src/core/generate/cross-check';
 import { readIntent } from '../src/core/generate/form-intent';
@@ -96,7 +97,7 @@ describe('ссылка раскладки на массив строкой', () 
       unknown: [],
     });
 
-    const { files, layoutJson } = buildBundle(intent);
+    const { files, layoutJson } = buildBundle(intent, CATALOGS);
     expect(crossCheckBundle(intent, JSON.parse(layoutJson)).errors).toEqual([]);
     const model = files.find((file) => file.path === 'model.ts')?.content ?? '';
     expect(model).toMatch(/properties: PropertiesItem\[\]/);

@@ -45,5 +45,16 @@ export {
 } from './generate/schema-emit.js';
 export { inspectLayoutRefs } from './generate/cross-check.js';
 export { buildBehaviorTs, buildValidationSchemaTs } from './generate/builders.js';
-export { normalizeFieldComponent } from './generate/ui-kit-components.js';
+export {
+  NO_UI_KIT,
+  normalizeFieldComponent,
+  uiKitFromCatalog,
+  type UiKitComponents,
+} from './generate/ui-kit-components.js';
+export {
+  coreOperatorsFromIndex,
+  NO_CORE_OPERATORS,
+  type CoreOperators,
+  type CoreRule,
+} from './generate/core-operators.js';
 export { findCycle, type Dependency } from './utils/graph.js';

@@ -23,6 +23,7 @@ import {
   type ReformerTargetStack,
   type ValidationRuleIntent,
 } from './form-intent.js';
+import type { UiKitComponents } from './ui-kit-components.js';
 
 /**
  * Условие вида `model.loanType === 'mortgage'` → поле, от которого зависит правило.
@@ -149,7 +150,8 @@ function layoutOf(analysis: SpecAnalysis, warnings: string[]): LayoutNode {
 
 export function intentFromAnalysis(
   analysis: SpecAnalysis,
-  target: ReformerTargetStack
+  target: ReformerTargetStack,
+  uiKit?: UiKitComponents
 ): FormIntent {
   const validation: ValidationRuleIntent[] = [];
   const behavior: BehaviorIntent[] = [];
@@ -224,16 +226,19 @@ export function intentFromAnalysis(
     initialValue: [],
   }));
 
-  return normalizeIntent({
-    formName: analysis.formName,
-    target,
-    layoutRoot: layoutOf(analysis, warnings),
-    fields: analysis.fields.map(fieldIntentOf),
-    arrays,
-    validation,
-    behavior,
-    warnings,
-  });
+  return normalizeIntent(
+    {
+      formName: analysis.formName,
+      target,
+      layoutRoot: layoutOf(analysis, warnings),
+      fields: analysis.fields.map(fieldIntentOf),
+      arrays,
+      validation,
+      behavior,
+      warnings,
+    },
+    { uiKit }
+  );
 }
 
 /**
@@ -450,6 +455,10 @@ function resolveCondition(
 }
 
 /** Полный путь: текст спеки (или свободное описание) → нормализованный intent. */
-export function intentFromSpec(source: string, target: ReformerTargetStack): FormIntent {
-  return intentFromAnalysis(analyzeSpec(source), target);
+export function intentFromSpec(
+  source: string,
+  target: ReformerTargetStack,
+  uiKit?: UiKitComponents
+): FormIntent {
+  return intentFromAnalysis(analyzeSpec(source), target, uiKit);
 }

@@ -23,7 +23,7 @@ import {
   type ModelBehaviorKind,
   type NodeBehaviorKind,
 } from './operator-catalog.js';
-import { normalizeFieldComponent, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
+import { normalizeFieldComponent, NO_UI_KIT, type UiKitComponents } from './ui-kit-components.js';
 
 /** Тип значения поля в модели. */
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
@@ -343,10 +343,15 @@ function usableName(entity: { name?: string; modelPath?: string }): string | nul
  * Ничего не выдумывает сверх умолчаний, которые нельзя не иметь (`selector = name`,
  * `modelPath = name`). Всё остальное недостающее попадает в `warnings` — генератор обязан
  * сказать, чего у формы не хватает, а не молча выдать полуфабрикат как готовый результат.
+ *
+ * `opts.uiKit` — каталог кита: по нему имя экспорта компонента приводится к registry-имени.
  */
-export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
+export function normalizeIntent(
+  partial: Partial<FormIntent>,
+  opts: { uiKit?: UiKitComponents } = {}
+): FormIntent {
   const notices: IntentWarning[] = [];
-  const intent = normalizeWith(partial, notices);
+  const intent = normalizeWith(partial, notices, opts.uiKit ?? NO_UI_KIT);
   return {
     ...intent,
     warnings: [...(partial.warnings ?? []), ...notices.map((notice) => notice.message)],
@@ -354,7 +359,11 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
 }
 
 /** Нормализация, которая пишет свои предупреждения с кодами в `notices`. */
-function normalizeWith(partial: Partial<FormIntent>, notices: IntentWarning[]): FormIntent {
+function normalizeWith(
+  partial: Partial<FormIntent>,
+  notices: IntentWarning[],
+  uiKit: UiKitComponents
+): FormIntent {
   const warnings = {
     add(code: IntentWarningCode, message: string, at?: string): void {
       notices.push({ code, message, ...(at === undefined ? {} : { at }) });
@@ -374,8 +383,8 @@ function normalizeWith(partial: Partial<FormIntent>, notices: IntentWarning[]): 
       return false;
     });
 
-  // Компонент поля — к актуальному registry-имени ui-kit: удалённые `*Field`, `Input` для
-  // числа (`InputNumber`), `FileUpload` + `variant`. Исправление видно в warnings.
+  // Компонент поля — к актуальному registry-имени ui-kit: имя экспорта (по каталогу кита), `Input`
+  // для числа (`InputNumber`), `FileUpload` + `variant`. Исправление видно в warnings.
   const withComponent = <T extends FieldIntent>(f: T, label: string, at: string): T => {
     if (typeof f.component !== 'string') return f;
     // Подсказки из справочника (`suggestionsSource`) — тот же признак `InputSuggest`, что и
@@ -384,7 +393,8 @@ function normalizeWith(partial: Partial<FormIntent>, notices: IntentWarning[]): 
     const fixed = normalizeFieldComponent(
       f.component,
       f.type,
-      stub ? { ...f.componentProps, suggestions: [] } : f.componentProps
+      stub ? { ...f.componentProps, suggestions: [] } : f.componentProps,
+      uiKit
     );
     if (stub) delete fixed.componentProps.suggestions;
     for (const note of fixed.notes) warnings.add('component-normalized', `${label}: ${note}`, at);
@@ -614,6 +624,11 @@ export interface ReadIntentOptions {
    * {@link MODULE_ONLY_WARNINGS} не попадают ни в `notices`, ни в `intent.warnings`.
    */
   forDocument?: boolean;
+  /**
+   * Каталог кита: по нему имя экспорта приводится к registry-имени, а имя компонента в `type`
+   * узнаётся как компонент. Без него имена компонентов не сверяются.
+   */
+  uiKit?: UiKitComponents;
 }
 
 export interface IntentReading {
@@ -630,6 +645,8 @@ interface ReadCtx {
   problems: IntentProblem[];
   /** `path → name`: печатается одной строкой, а не по разу на каждое поле. */
   renames: Set<string>;
+  /** Каталог кита — см. {@link ReadIntentOptions.uiKit}. */
+  uiKit: UiKitComponents;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -745,14 +762,14 @@ const COMPONENT_VALUE_TYPE: Readonly<Record<string, FieldType>> = {
   ToggleGroupMulti: 'array',
 };
 
-const COMPONENT_BY_KEY = new Map(
-  Object.keys(UI_KIT_FIELD_EXPORTS).map((name) => [name.toLowerCase(), name])
-);
-
-/** Компонент ui-kit, чьё имя пришло в `type`; `null` — это тип значения или неизвестное имя. */
-function componentOfType(value: unknown): string | null {
-  const raw = asName(value);
-  return raw ? (COMPONENT_BY_KEY.get(raw.toLowerCase()) ?? null) : null;
+/**
+ * Поле кита, чьё имя пришло в `type` (в любом регистре); `null` — это тип значения, неизвестное
+ * имя или каталога кита нет.
+ */
+function componentOfType(value: unknown, uiKit: UiKitComponents): string | null {
+  const key = asName(value)?.toLowerCase();
+  if (!key) return null;
+  return Object.keys(uiKit.fields).find((name) => name.toLowerCase() === key) ?? null;
 }
 
 const BEHAVIOR_KINDS: ReadonlyArray<BehaviorIntent['kind'] | NodeRuleIntent['kind']> = [
@@ -828,7 +845,7 @@ function readField(
   const named = asName(take(raw, 'component', ['componentName', 'widget', 'control'], ctx));
   // `type: "Select"` — имя компонента, а не тип значения. По типу `select` → `string` поле
   // рисовал `Input`, и выбор из вариантов пропадал с ✓ (ReFormer-j356.5).
-  const typeComponent = named ? null : componentOfType(rawType);
+  const typeComponent = named ? null : componentOfType(rawType, ctx.uiKit);
   const type = typeComponent
     ? (FIELD_TYPE_ALIASES[typeComponent.toLowerCase()] ??
       COMPONENT_VALUE_TYPE[typeComponent] ??
@@ -1406,7 +1423,12 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
  * который консументу не сообщает ничего.
  */
 export function readIntent(raw: unknown, options: ReadIntentOptions = {}): IntentReading {
-  const ctx: ReadCtx = { warnings: [], problems: [], renames: new Set() };
+  const ctx: ReadCtx = {
+    warnings: [],
+    problems: [],
+    renames: new Set(),
+    uiKit: options.uiKit ?? NO_UI_KIT,
+  };
 
   let source: unknown = raw;
   if (typeof source === 'string') {
@@ -1653,7 +1675,8 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       operators,
       ...(steps.length > 0 ? { wizard: { steps } } : {}),
     },
-    normalized
+    normalized,
+    ctx.uiKit
   );
 
   const notices = [...notes, ...normalized].filter(

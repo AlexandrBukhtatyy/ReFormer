@@ -1,5 +1,6 @@
 /**
- * Поля ui-kit в генераторе и валидаторе: registry-имя ↔ экспорт, компонент вместо пропа.
+ * Поля ui-kit в генераторе и валидаторе: registry-имя ↔ экспорт ↔ модуль импорта, компонент вместо
+ * пропа.
  *
  * Зачем. `*Field`-версии компонентов ui-kit удалены без алиасов: в `component` поля кладётся
  * сам компонент, а число, подсказки и варианты загрузки файлов стали отдельными компонентами
@@ -7,49 +8,106 @@
  * печатает `import { InputField }` или `$component(Input)` с `type: 'number'`, выдаёт код,
  * который не собирается либо молча пишет в модель строку вместо числа.
  *
- * Таблица registry → экспорт продублирована в MCP (ui-kit — опциональный peer, в рантайме
- * сервера его каталога может не быть), поэтому её сверка с `component-catalog.json` — здесь.
+ * Имена, экспорты и подпути генератор берёт из `component-catalog.json` кита (`uiKitFromCatalog`):
+ * своей таблицы у сервера нет. Без каталога имена идут в код как есть.
  */
 
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { CATALOGS } from './support/catalogs';
 import {
+  groupUiKitImports,
+  NO_UI_KIT,
   normalizeFieldComponent,
-  UI_KIT_FIELD_EXPORTS,
+  uiKitFromCatalog,
 } from '../src/core/generate/ui-kit-components';
 import { buildBundle, buildRegistryTs } from '../src/core/generate/builders';
+import { buildFormSchemaTs } from '../src/core/generate/schema-emit';
 import { normalizeIntent, readIntent } from '../src/core/generate/form-intent';
 import { validateCode } from '../src/core/validate/code';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
-import { precondition } from './support/preconditions';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const catalogPath = resolve(repoRoot, 'packages/reformer-ui-kit/component-catalog.json');
-const hasCatalog = precondition(
-  'component-catalog.json ui-kit',
-  existsSync(catalogPath),
-  'npm run build в пакетах (нужны llms.txt и llms-index.json)'
-);
+const kit = CATALOGS.uiKit;
 
-interface CatalogEntry {
-  name: string;
-  role?: string;
-  exportName?: string;
-}
+describe('каталог кита', () => {
+  const fixture = uiKitFromCatalog({
+    components: [
+      { name: 'Input', role: 'field', propsSchema: {} },
+      { name: 'Checkbox', role: 'field', exportName: 'CheckboxWithLabel' },
+      { name: 'Calendar', role: 'field', exportName: 'CalendarSingle', subpath: 'calendar' },
+      { name: 'Box', role: 'container' },
+      { name: 'Carousel', role: 'container', subpath: 'carousel' },
+      { role: 'field' },
+    ],
+  });
 
-describe('таблица полей ui-kit', () => {
-  it.runIf(hasCatalog)('совпадает с x-registryName / x-exportName каталога ui-kit', () => {
-    const catalog = JSON.parse(readFileSync(catalogPath, 'utf8')) as {
-      components: CatalogEntry[];
-    };
-    const fromCatalog = Object.fromEntries(
-      catalog.components
-        .filter((c) => c.role === 'field')
-        .map((c) => [c.name, c.exportName ?? c.name])
-    );
-    expect({ ...UI_KIT_FIELD_EXPORTS }).toEqual(fromCatalog);
+  it('поля, экспорты и подпути — из записей каталога', () => {
+    expect(fixture.found).toBe(true);
+    expect(fixture.fields).toEqual({
+      Input: 'Input',
+      Checkbox: 'CheckboxWithLabel',
+      Calendar: 'CalendarSingle',
+    });
+    expect(fixture.exports).toMatchObject({ Box: 'Box', Carousel: 'Carousel' });
+    expect(fixture.subpaths).toEqual({ CalendarSingle: 'calendar', Carousel: 'carousel' });
+  });
+
+  it('не каталог — пустой справочник', () => {
+    for (const value of [undefined, null, 'x', {}, { components: 'x' }, { components: [] }]) {
+      expect(uiKitFromCatalog(value)).toBe(NO_UI_KIT);
+    }
+  });
+
+  it('каталог монорепо: поля кита и подпути тяжёлых компонентов', () => {
+    expect(kit.fields).toMatchObject({ Checkbox: 'CheckboxWithLabel', Select: 'SelectAsync' });
+    expect(groupUiKitImports(['CalendarSingle', 'Input', 'Carousel'], kit)).toEqual([
+      ['@reformer/ui-kit', ['Input']],
+      ['@reformer/ui-kit/calendar', ['CalendarSingle']],
+      ['@reformer/ui-kit/carousel', ['Carousel']],
+    ]);
+  });
+});
+
+describe('без каталога кита', () => {
+  const intent = () =>
+    normalizeIntent({
+      formName: 'Order',
+      target: 'renderer-json',
+      fields: [{ name: 'day', type: 'date', component: 'Calendar' }],
+    });
+
+  it('имена идут в код как есть, из корня пакета, с одним предупреждением', () => {
+    const { content, warnings } = buildRegistryTs(intent(), NO_UI_KIT);
+    expect(content).toContain("reg.component('Calendar', Calendar);");
+    expect(content).toContain("from '@reformer/ui-kit';");
+    expect(content).not.toContain('TODO');
+    expect(warnings).toEqual([expect.stringMatching(/Каталог @reformer\/ui-kit не найден/)]);
+  });
+
+  it('с каталогом то же поле импортируется из подпути', () => {
+    const { content } = buildFormSchemaTs({ ...intent(), target: 'renderer-react' }, kit);
+    expect(content).toContain("import { CalendarSingle } from '@reformer/ui-kit/calendar';");
+  });
+
+  it('имя компонента в type узнаётся только по каталогу', () => {
+    const raw = { fields: [{ name: 'city', type: 'Select' }] };
+    expect(readIntent(raw, { uiKit: kit }).intent.fields[0].component).toBe('Select');
+    expect(readIntent(raw).intent.fields[0].component).not.toBe('Select');
+  });
+
+  it('контейнер кита в раскладке получает импорт, а не TODO', () => {
+    const withCard = normalizeIntent({
+      formName: 'Order',
+      target: 'renderer-json',
+      fields: [{ name: 'title', type: 'string', component: 'Input' }],
+      layoutRoot: {
+        kind: 'container',
+        component: 'Card',
+        children: [{ kind: 'field', ref: 'title' }],
+      },
+    });
+    const { content, warnings } = buildRegistryTs(withCard, kit);
+    expect(content).toContain("reg.component('Card', Card);");
+    expect(warnings).toEqual([]);
   });
 });
 
@@ -82,9 +140,11 @@ describe('normalizeFieldComponent', () => {
   });
 
   it('имя экспорта приводится к registry-имени', () => {
-    expect(normalizeFieldComponent('CheckboxWithLabel', 'boolean').component).toBe('Checkbox');
-    expect(normalizeFieldComponent('SelectAsync', 'string').component).toBe('Select');
-    expect(normalizeFieldComponent('Textarea', 'string').notes).toEqual([]);
+    expect(normalizeFieldComponent('CheckboxWithLabel', 'boolean', {}, kit).component).toBe(
+      'Checkbox'
+    );
+    expect(normalizeFieldComponent('SelectAsync', 'string', {}, kit).component).toBe('Select');
+    expect(normalizeFieldComponent('Textarea', 'string', {}, kit).notes).toEqual([]);
   });
 
   it('чужое имя не подменяется: его называет сборка', () => {
@@ -98,15 +158,18 @@ describe('normalizeFieldComponent', () => {
 
 describe('генератор', () => {
   it('поле number без компонента и с Input рисует InputNumber, и это видно в warnings', () => {
-    const { intent } = readIntent({
-      formName: 'Order',
-      target: 'renderer-json',
-      fields: [
-        { name: 'qty', type: 'number' },
-        { name: 'price', type: 'number', component: 'Input', componentProps: { type: 'number' } },
-        { name: 'agree', type: 'boolean', component: 'CheckboxWithLabel' },
-      ],
-    });
+    const { intent } = readIntent(
+      {
+        formName: 'Order',
+        target: 'renderer-json',
+        fields: [
+          { name: 'qty', type: 'number' },
+          { name: 'price', type: 'number', component: 'Input', componentProps: { type: 'number' } },
+          { name: 'agree', type: 'boolean', component: 'CheckboxWithLabel' },
+        ],
+      },
+      { uiKit: kit }
+    );
     expect(intent.fields.map((f) => f.component)).toEqual([
       'InputNumber',
       'InputNumber',
@@ -128,7 +191,7 @@ describe('генератор', () => {
         { name: 'scan', type: 'object', component: 'FileUploadDropzone' },
       ],
     });
-    const { content, warnings } = buildRegistryTs(intent);
+    const { content, warnings } = buildRegistryTs(intent, CATALOGS.uiKit);
     expect(warnings).toEqual([]);
     expect(content).toContain("reg.component('InputNumber', InputNumber);");
     expect(content).toContain("reg.component('Checkbox', CheckboxWithLabel);");
@@ -136,7 +199,7 @@ describe('генератор', () => {
     expect(content).toContain("reg.component('FileUploadDropzone', FileUploadDropzone);");
     expect(content).not.toMatch(/\w+Field\b(?<!FormField)/);
 
-    const layout = buildBundle(intent).layoutJson;
+    const layout = buildBundle(intent, CATALOGS).layoutJson;
     expect(layout).toContain('$component(InputNumber)');
     expect(layout).not.toMatch(/"type":\s*"number"/);
   });
