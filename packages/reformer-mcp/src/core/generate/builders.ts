@@ -911,6 +911,59 @@ function wrapBlock(head: string, lines: readonly string[]): string[] {
 }
 
 /**
+ * Цель правила так, как её адресует схема. Правило строки адресует поле ЭЛЕМЕНТА: цель пишут и от
+ * строки (`name`), и полным путём (`items.name`) — второе дало бы `item.$.items.name`, которого у
+ * строки нет.
+ */
+function rowTarget(rule: ValidationRuleIntent): string {
+  const each = rule.each;
+  return each !== undefined && rule.target.startsWith(`${each}.`)
+    ? rule.target.slice(each.length + 1)
+    : rule.target;
+}
+
+/**
+ * Проверки одного поля — одним `validate`.
+ *
+ * Строка intent несёт один код и один текст, поэтому две проверки поля со своими текстами — две
+ * строки с одним `target`. Раньше каждая печаталась своим `validate(model.$.price, […])`, и правка
+ * «добавь полю проверку» давала второй оператор рядом с первым, а не валидатор в его списке.
+ * Теперь проверки строк с тем же полем, массивом `each` и условием `when` уходят в список первой
+ * из них; повтор той же проверки отбрасывается. Строка, у которой кроме проверок ничего не было,
+ * исчезает, а её `async`, `cross` и `call` печатаются на своём месте.
+ *
+ * Только печать: тексты замечаний словарь берёт из строк intent, как они записаны.
+ */
+export function mergeFieldChecks(rules: readonly ValidationRuleIntent[]): ValidationRuleIntent[] {
+  const holders = new Map<string, ValidationRuleIntent>();
+  const out: ValidationRuleIntent[] = [];
+  const add = (checks: string[], extra: readonly string[]) => {
+    for (const check of extra) {
+      const call = callValidator(check);
+      if (!checks.some((have) => callValidator(have) === call)) checks.push(check);
+    }
+  };
+  for (const rule of rules) {
+    if (rule.rules.length === 0) {
+      out.push(rule);
+      continue;
+    }
+    const key = JSON.stringify([rule.each ?? '', rule.when?.trim() ?? '', rowTarget(rule)]);
+    const holder = holders.get(key);
+    if (holder === undefined) {
+      const own = { ...rule, rules: [] as string[] };
+      add(own.rules, rule.rules);
+      holders.set(key, own);
+      out.push(own);
+      continue;
+    }
+    add(holder.rules, rule.rules);
+    if (rule.async || rule.cross || rule.call) out.push({ ...rule, rules: [] });
+  }
+  return out;
+}
+
+/**
  * Одно правило intent → строки тела схемы (с отступом тела).
  *
  * Обёртки вкладываются снаружи внутрь: условие → строки массива → проверки. Условие `when`
@@ -921,12 +974,7 @@ function wrapBlock(head: string, lines: readonly string[]): string[] {
  */
 function validationRuleBlock(rule: ValidationRuleIntent): string {
   const each = rule.each;
-  // Правило строки адресует поле ЭЛЕМЕНТА: цель пишут и от строки (`name`), и полным путём
-  // (`items.name`) — второе даёт `item.$.items.name`, которого у строки нет.
-  const target =
-    each !== undefined && rule.target.startsWith(`${each}.`)
-      ? rule.target.slice(each.length + 1)
-      : rule.target;
+  const target = rowTarget(rule);
   const ref = each !== undefined ? `item.$.${target}` : `model.$.${target}`;
 
   let lines: string[] = [];
@@ -1000,7 +1048,7 @@ export function buildValidationSchemaTs(
   if (rules.length === 0) {
     lines.push('  // Правил в intent не было — добавьте их здесь.');
   }
-  for (const rule of rules) lines.push(validationRuleBlock(rule));
+  for (const rule of mergeFieldChecks(rules)) lines.push(validationRuleBlock(rule));
 
   lines.push('});');
   return lines.join('\n') + '\n';
@@ -1072,7 +1120,7 @@ function stepOfPath(
 
 /** Тело схемы формы или шага: правила как есть. */
 function ruleLines(rules: readonly ValidationRuleIntent[]): string[] {
-  return rules.map((rule) => validationRuleBlock({ ...rule, each: undefined }));
+  return mergeFieldChecks(rules).map((rule) => validationRuleBlock({ ...rule, each: undefined }));
 }
 
 /**
@@ -1081,7 +1129,7 @@ function ruleLines(rules: readonly ValidationRuleIntent[]): string[] {
  * подключение схемы (см. `applyRowSchema`).
  */
 function rowRuleLines(rules: readonly ValidationRuleIntent[], each: string): string[] {
-  return rules.map((rule) =>
+  return mergeFieldChecks(rules).map((rule) =>
     validationRuleBlock({
       ...rule,
       each: undefined,

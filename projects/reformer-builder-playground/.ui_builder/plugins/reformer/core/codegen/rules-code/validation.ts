@@ -11,10 +11,10 @@
  * - `applyEach(model.$.массив, ({ model: item }) => { … })` — правила строки, пути от `item`;
  * - `validateWhen(() => условие, () => { … })`.
  *
- * Правило собирается «атомом»: одна проверка — одно правило. Генерация печатает правило с
- * несколькими проверками без условия теми же отдельными операторами, и различить «одно правило
- * из двух проверок» и «два правила» по коду нельзя — поэтому читатель и нормализация
- * (`./normalize`) режут одинаково.
+ * Правило собирается «атомом»: одна проверка — одно правило. Генерация печатает все проверки
+ * поля одним `validate` (`mergeFieldChecks` `@reformer/mcp`), и различить «одно правило из двух
+ * проверок» и «два правила» по коду нельзя — поэтому читатель и нормализация (`./normalize`) режут
+ * одинаково. У атома свой код, а с ним и свой текст в словаре.
  *
  * Оператор, которого читатель не знает, — чужой: он возвращается текстом и строкой, а не
  * отбрасывается молча.
@@ -156,10 +156,13 @@ function readStatement(
       const target = targetOf(first, scope);
       const checks = arrayItems(second);
       if (target === null || checks === null || call.args.length !== 2) return false;
-      const code = codeOfChecks(checks);
-      out.rules.push(
-        atom(target, scope, { rules: checks, ...(code === undefined ? {} : { code }) })
-      );
+      // Правило на проверку: код и текст у каждой свои, а одним `validate` поле печатает генерация.
+      for (const check of checks) {
+        const code = codeOfChecks([check]);
+        out.rules.push(
+          atom(target, scope, { rules: [check], ...(code === undefined ? {} : { code }) })
+        );
+      }
       return true;
     }
     case 'validateAsync': {

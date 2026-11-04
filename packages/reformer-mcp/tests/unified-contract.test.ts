@@ -329,6 +329,27 @@ describe('form.validation.ts', () => {
     for (const target of TARGETS)
       expect(buildFormValidationTs(loanIntent(target), CATALOGS.core)).toBe(ts);
   });
+
+  it('проверки поля из нескольких строк intent — одним validate, в шаге и в строке массива', () => {
+    const intent = loanIntent('renderer-react');
+    const merged = buildFormValidationTs(
+      {
+        ...intent,
+        validation: [
+          ...intent.validation,
+          { target: 'amount', rules: ["max(5000000, { code: 'amount.max' })"], message: 'Много' },
+          { target: 'properties.type', each: 'properties', rules: ['minLength(2)'] },
+        ],
+      },
+      CATALOGS.core
+    );
+    expect(merged).toContain(
+      "validate(model.$.amount, [required(), min(1000), max(5000000, { code: 'amount.max' })]);"
+    );
+    // Схема строки — отдельное объявление над элементом: путь от строки идёт через её `model`.
+    expect(merged).toContain('validate(model.$.type, [required(), minLength(2)]);');
+    expect(merged.match(/validate\(model\.\$\.amount/g)).toHaveLength(1);
+  });
 });
 
 describe('form.behavior.ts — единственное поведение', () => {

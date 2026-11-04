@@ -461,6 +461,45 @@ describe('builders', () => {
       expect(buildValidationSchemaTs([MIX[0]], opts)).toContain('(({ model }) => {');
     });
 
+    it('проверки одного поля — одним validate, а не оператором на строку intent', () => {
+      // Строка intent несёт один код и один текст, поэтому у поля с двумя текстами две строки.
+      // Раньше каждая печаталась своим validate: «добавь полю проверку» давало второй оператор
+      // рядом с первым вместо валидатора в его списке.
+      const ts = buildValidationSchemaTs(
+        [
+          { target: 'price', rules: ["required({ code: 'price.required' })"], message: 'Цена' },
+          { target: 'name', rules: ['required'] },
+          { target: 'price', rules: ["min(1, { code: 'price.min' })"], message: 'Не меньше 1' },
+          { target: 'price', rules: ["required({ code: 'price.required' })"], async: 'checkPrice' },
+          { target: 'name', rules: ['required', 'maxLength(5)'] },
+          { target: 'inn', when: 'model.legal', rules: ['required'] },
+          { target: 'inn', when: 'model.legal', rules: ['minLength(10)'] },
+          { target: 'inn', rules: ['maxLength(12)'] },
+          { target: 'items.qty', each: 'items', rules: ['required'] },
+          { target: 'qty', each: 'items', rules: ['min(1)'] },
+        ],
+        { interfaceName: 'T', exportName: 'v', typeImport: './types' }
+      );
+      expect(ts).toContain(
+        [
+          // Повтор той же проверки отброшен; её асинхронная проверка осталась на своём месте.
+          "  validate(model.$.price, [required({ code: 'price.required' }), min(1, { code: 'price.min' })]);",
+          '  validate(model.$.name, [required(), maxLength(5)]);',
+          '  validateAsync(model.$.price, [checkPrice]);',
+          '  validateWhen(() => model.legal, () => {',
+          '    validate(model.$.inn, [required(), minLength(10)]);',
+          '  });',
+          // Безусловная проверка того же поля — другой оператор: условие у неё своё.
+          '  validate(model.$.inn, [maxLength(12)]);',
+          '  applyEach(model.$.items, ({ model: item }) => {',
+          '    validate(item.$.qty, [required(), min(1)]);',
+          '  });',
+          '});',
+        ].join('\n')
+      );
+      expect(ts.match(/validate\(model\.\$\.price/g)).toHaveLength(1);
+    });
+
     it('кросс-полевое правило строки: свой cross у applyEach, код по умолчанию', () => {
       const ts = buildValidationSchemaTs(
         [{ target: 'items.to', each: 'items', rules: [], cross: 'values.to >= values.from' }],

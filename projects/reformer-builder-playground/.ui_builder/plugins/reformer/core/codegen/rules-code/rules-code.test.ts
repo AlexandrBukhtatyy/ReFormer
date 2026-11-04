@@ -55,9 +55,39 @@ describe('валидация', () => {
         cross: 'values.confirm === values.email',
         code: 'confirm.mismatch',
       },
-      { target: 'phone', when: 'model.hasPhone', rules: ['required()', 'minLength(5)'] },
+      // Несколько проверок одного validate — правило на проверку: у каждой свой код и текст.
+      { target: 'phone', when: 'model.hasPhone', rules: ['required()'] },
+      { target: 'phone', when: 'model.hasPhone', rules: ['minLength(5)'] },
     ]);
     expect(read.files[0]?.foreign).toEqual([]);
+  });
+
+  it('тексты проверок одного validate — у каждой свой, из словаря по её коду', () => {
+    const text = `export const formRules = defineValidation<Form>(({ model }) => {
+  validate(model.$.price, [required({ code: 'price.required' }), min(1, { code: 'price.min' }), max(9)]);
+});`;
+    const messages = `export const formMessages = defineIssueMessages({
+  'price.required': 'Укажите цену',
+  'price.min': 'Не меньше 1',
+});`;
+    const read = readRulesFromCode(
+      code(text, { messages: { path: 'validation/messages.ts', text: messages } })
+    );
+    expect(read.rules.validation).toEqual([
+      {
+        target: 'price',
+        rules: ["required({ code: 'price.required' })"],
+        code: 'price.required',
+        message: 'Укажите цену',
+      },
+      {
+        target: 'price',
+        rules: ["min(1, { code: 'price.min' })"],
+        code: 'price.min',
+        message: 'Не меньше 1',
+      },
+      { target: 'price', rules: ['max(9)'] },
+    ]);
   });
 
   it('текст правила — из словаря по его коду', () => {
@@ -72,6 +102,7 @@ describe('валидация', () => {
     expect(read.rules.validation.map((rule) => rule.message)).toEqual([
       'Укажите email',
       'Почты не совпадают',
+      undefined,
       undefined,
     ]);
   });
@@ -93,7 +124,7 @@ describe('валидация', () => {
     expect(readRulesFromCode(code(generated)).files[0]?.origin).toBe('generated');
     const read = readRulesFromCode(code(edited));
     expect(read.files[0]?.origin).toBe('edited');
-    expect(read.rules.validation).toHaveLength(3);
+    expect(read.rules.validation).toHaveLength(4);
     expect(regenerableRules(read).validation).toEqual([]);
   });
 });

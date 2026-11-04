@@ -44,7 +44,7 @@ export {
   type SchemaLayout,
 } from './generate/schema-emit.js';
 export { inspectLayoutRefs } from './generate/cross-check.js';
-export { buildBehaviorTs, buildValidationSchemaTs } from './generate/builders.js';
+export { buildBehaviorTs, buildValidationSchemaTs, mergeFieldChecks } from './generate/builders.js';
 export {
   NO_UI_KIT,
   normalizeFieldComponent,

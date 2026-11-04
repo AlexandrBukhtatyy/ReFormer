@@ -123,6 +123,33 @@ function corpus(): FormRules {
   };
 }
 
+/**
+ * Проверка, добавленная полю второй записью, — так её кладёт `set_form_rules` в режиме `merge`.
+ * У каждой свой текст, поэтому записи две, а оператор в коде — один.
+ */
+function fieldChecks(): FormRules {
+  return {
+    validation: [
+      {
+        target: 'fullName',
+        rules: ["required({ code: 'fullName.required' })"],
+        code: 'fullName.required',
+        message: 'Укажите ФИО',
+      },
+      { target: 'email', rules: ['required'] },
+      {
+        target: 'fullName',
+        rules: ["minLength(3, { code: 'fullName.minLength' })"],
+        code: 'fullName.minLength',
+        message: 'Не короче трёх букв',
+      },
+      { target: 'fullName', rules: ['maxLength(80)', "required({ code: 'fullName.required' })"] },
+    ],
+    behavior: [],
+    render: [],
+  };
+}
+
 interface Case {
   readonly name: string;
   readonly input: CodegenInput;
@@ -135,6 +162,7 @@ const CASES: readonly Case[] = [
   { name: 'parts-wizard-rules', input: { schema: partsWizardSchema(), rules: partsRules() } },
   { name: 'wizard-rules', input: { schema: wizardRulesSchema(), rules: wizardRules() } },
   { name: 'corpus', input: { schema: rowRulesSchema(), rules: corpus() } },
+  { name: 'field-checks', input: { schema: plainSchema(), rules: fieldChecks() } },
 ].map((c) => ({
   name: c.name,
   input: { ...c.input, formName: FORM_NAME, kit: builtinKit() } as CodegenInput,
@@ -194,6 +222,32 @@ describe.each(CASES)('правила в коде: $name', ({ input }) => {
   });
 });
 
+describe('правила в коде: проверки одного поля', () => {
+  it('вторая запись на поле — проверка в его validate, а не второй оператор', async () => {
+    const module = await generateModule(BUILTIN_TARGETS, {
+      schema: plainSchema(),
+      formName: FORM_NAME,
+      kit: builtinKit(),
+      rules: fieldChecks(),
+    });
+    expect(module.problems).toEqual([]);
+    const code = ruleCodeOf(module.files);
+    const text = code.validation.map((file) => file.text).join('\n');
+
+    expect(text.match(/validate\(model\.\$\.fullName\b/g)).toHaveLength(1);
+    // Повтор `required` отброшен: проверка поля одна, как бы её ни прислали.
+    expect(text.replace(/\s+/g, ' ')).toContain(
+      "validate(model.$.fullName, [ required({ code: 'fullName.required' }), minLength(3, { code: 'fullName.minLength' }), maxLength(80), ]);"
+    );
+    // Тексты обеих проверок переживают чтение: у каждой проверки свой код.
+    expect(
+      readRulesFromCode(ruleCodeOf(module.files))
+        .rules.validation.filter((rule) => rule.target === 'fullName')
+        .map((rule) => rule.message)
+    ).toEqual(['Укажите ФИО', 'Не короче трёх букв', undefined]);
+  });
+});
+
 describe('правила в коде: заготовка', () => {
   it.each([
     ['простая форма', plainSchema()],
@@ -234,7 +288,8 @@ describe('правила в коде: заготовка', () => {
 
     expect(read.files[0]?.origin).toBe('edited');
     expect(read.rules.validation).toEqual([
-      { target: 'fullName', rules: ['required()', 'minLength(3)'] },
+      { target: 'fullName', rules: ['required()'] },
+      { target: 'fullName', rules: ['minLength(3)'] },
     ]);
   });
 });

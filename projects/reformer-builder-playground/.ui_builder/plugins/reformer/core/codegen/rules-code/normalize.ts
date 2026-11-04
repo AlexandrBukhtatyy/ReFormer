@@ -9,7 +9,8 @@
  *
  * Что теряется (и закреплено тестом):
  *
- * - правило из нескольких проверок без условия режется на правила по проверке;
+ * - правило из нескольких проверок режется на правила по проверке, а проверки правил одного поля
+ *   (с тем же массивом и условием) сходятся в порядке печати, без повторов;
  * - источники связей, у которых их нет в коде, выводятся из выражения ({@link inferSources});
  * - код асинхронной проверки и код обычного правила, не вписанный в его единственную проверку;
  * - опции у связей, которые их не печатают.
@@ -17,6 +18,7 @@
  * @module plugins/reformer/core/codegen/rules-code/normalize
  */
 
+import { mergeFieldChecks } from '@reformer/mcp/intent';
 import type {
   BehaviorIntent,
   FormRules,
@@ -44,46 +46,78 @@ const trimmed = (text: string | undefined): string | undefined => {
   return t === undefined || t === '' ? undefined : t;
 };
 
-/** Правило валидации → правила по проверке, как их прочтёт код. */
-function validationAtoms(rule: ValidationRuleIntent): ValidationRuleIntent[] {
+/** Правило валидации в записи, которую печатает генерация: без пробелов по краям, проверки — вызовами. */
+function printedRule(rule: ValidationRuleIntent): ValidationRuleIntent {
   const each = trimmed(rule.each);
   const when = trimmed(rule.when);
-  const base = {
+  const async = trimmed(rule.async);
+  const cross = trimmed(rule.cross);
+  const code = trimmed(rule.code);
+  const message = trimmed(rule.message);
+  return {
     target: full(rule.target.trim(), each),
     ...(each === undefined ? {} : { each }),
     ...(when === undefined ? {} : { when }),
+    rules: rule.rules
+      .map((check) => check.trim())
+      .filter(Boolean)
+      .map(callValidator),
+    ...(async === undefined ? {} : { async }),
+    ...(cross === undefined ? {} : { cross }),
+    ...(code === undefined ? {} : { code }),
+    ...(message === undefined ? {} : { message }),
   };
-  const atoms: ValidationRuleIntent[] = [];
-  const checks = rule.rules
-    .map((check) => check.trim())
-    .filter(Boolean)
-    .map(callValidator);
-  if (checks.length > 0) {
-    const code = codeOfChecks(checks);
-    // Текст словарь формы держит под кодом правила: код в проверке и код правила — один код.
-    const message = code !== undefined && rule.code === code ? trimmed(rule.message) : undefined;
-    atoms.push({
-      ...base,
-      rules: checks,
-      ...(code === undefined ? {} : { code }),
-      ...(message === undefined ? {} : { message }),
-    });
+}
+
+/**
+ * Правила валидации → правила по проверке, как их прочтёт код.
+ *
+ * Проверки одного поля генерация печатает одним `validate` ({@link mergeFieldChecks}), поэтому
+ * сливаются они и здесь — тем же кодом, в том же порядке, с тем же отбросом повторов. Текст
+ * словарь формы держит под кодом проверки: он доходит до атома своей проверки, из какого бы
+ * правила та ни пришла.
+ */
+function validationAtoms(rules: readonly ValidationRuleIntent[]): ValidationRuleIntent[] {
+  const printed = rules.map(printedRule);
+  const messages = new Map<string, string>();
+  for (const rule of printed) {
+    for (const check of rule.rules) {
+      const code = codeOfChecks([check]);
+      // Код в проверке и код правила — один код: только тогда текст правила — текст проверки.
+      if (code !== undefined && rule.code === code && rule.message !== undefined) {
+        messages.set(code, rule.message);
+      }
+    }
   }
-  const async = trimmed(rule.async);
-  if (async !== undefined) atoms.push({ ...base, rules: [], async });
-  const cross = trimmed(rule.cross);
-  if (cross !== undefined) {
-    const code = trimmed(rule.code) ?? DEFAULT_CROSS_CODE;
-    const message = trimmed(rule.message);
-    atoms.push({
-      ...base,
-      rules: [],
-      cross,
-      ...(code === DEFAULT_CROSS_CODE ? {} : { code }),
-      ...(message === undefined ? {} : { message }),
+  return mergeFieldChecks(printed).flatMap((rule) => {
+    const base = {
+      target: rule.target,
+      ...(rule.each === undefined ? {} : { each: rule.each }),
+      ...(rule.when === undefined ? {} : { when: rule.when }),
+    };
+    const atoms: ValidationRuleIntent[] = rule.rules.map((check) => {
+      const code = codeOfChecks([check]);
+      const message = code === undefined ? undefined : messages.get(code);
+      return {
+        ...base,
+        rules: [check],
+        ...(code === undefined ? {} : { code }),
+        ...(message === undefined ? {} : { message }),
+      };
     });
-  }
-  return atoms;
+    if (rule.async !== undefined) atoms.push({ ...base, rules: [], async: rule.async });
+    if (rule.cross !== undefined) {
+      const code = rule.code ?? DEFAULT_CROSS_CODE;
+      atoms.push({
+        ...base,
+        rules: [],
+        cross: rule.cross,
+        ...(code === DEFAULT_CROSS_CODE ? {} : { code }),
+        ...(rule.message === undefined ? {} : { message: rule.message }),
+      });
+    }
+    return atoms;
+  });
 }
 
 /** Цепочка поля в выражении: `model.price`, `item.qty`; `model.$.x` — ручка, её путь — `x`. */
@@ -233,7 +267,7 @@ function normalizeRender(rule: RenderRuleIntent): RenderRuleIntent {
 export function normalizeRules(rules: FormRules): FormRules {
   const dataSources = rules.dataSources ?? {};
   return {
-    validation: rules.validation.flatMap(validationAtoms),
+    validation: validationAtoms(rules.validation),
     behavior: inPrintOrder(rules.behavior.map(normalizeLink)),
     render: rules.render.map(normalizeRender),
     ...(Object.keys(dataSources).length > 0 ? { dataSources: { ...dataSources } } : {}),
