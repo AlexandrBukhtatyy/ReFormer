@@ -22,6 +22,7 @@ import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
 import BuilderAbBench from './pages/debug/builder-ab';
 import CleanTestPage from './pages/debug/clean-test';
+import { ZayavkaNaKreditForm as CleanTest2Form } from './pages/debug/clean-test-2';
 import { calibrationRoutes } from './pages/debug/mcp-calibration';
 import { scenarioRoutes } from './pages/debug/mcp-scenarios';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
@@ -402,6 +403,14 @@ function Layout() {
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/debug/builder-ab" element={<BuilderAbBench />} />
             <Route path="/debug/clean-test" element={<CleanTestPage />} />
+            <Route
+              path="/debug/clean-test-2"
+              element={
+                <div className="p-6 max-w-4xl">
+                  <CleanTest2Form />
+                </div>
+              }
+            />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />
             {calibrationRoutes.map(({ id, path, Component }) => (
               <Route key={id} path={path} element={<Component />} />
