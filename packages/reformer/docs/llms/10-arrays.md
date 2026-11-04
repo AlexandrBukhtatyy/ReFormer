@@ -162,6 +162,15 @@ form.items.keyAt(index);                             // стабильный к�
 Формы строк держатся за под-модели элементов и при `move` / `swap` не пересоздаются; ключ строки
 (`keyAt`) не меняется при перестановке — его и берут для React `key`.
 
+> **`ModelArray` — не массив.** У него нет `reduce`, `filter`, `some` и `get`: TypeScript их не
+> пропустит. Агрегат по строкам — через `map`, он отдаёт обычный массив и внутри `compute`
+> реактивен (длина и поля строк отслеживаются):
+>
+> ```typescript
+> compute(model.$.total, () => model.items.map((item) => item.price * item.qty).reduce((a, b) => a + b, 0));
+> const filled = model.items.toArray().filter((item) => item.name !== ''); // снимок значений
+> ```
+
 > **Плоские значения при push.** В `push`/`insertAt` передавай payload из **плоских значений**
 > (`{ id, name, price }`), а НЕ FieldConfig-шаблон (`{ value, component }`). Component/componentProps
 > берутся из `item`-фабрики схемы автоматически.

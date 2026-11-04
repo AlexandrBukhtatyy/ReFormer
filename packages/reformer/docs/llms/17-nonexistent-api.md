@@ -20,6 +20,7 @@
 | `validateModelSync`              | `await validateModel(model, schema)`             | Синхронного раннера нет — прогон асинхронный (`Promise<boolean>`) |
 | `applyWhen`                      | `validateWhen(() => cond, () => { … })`          | Условная валидация — оператором `validateWhen`, не узлом `{ when, children }` |
 | `validateItems`, `validateGroup`, `validateTree` | `applyEach(model.$.arr, rowRules)` / `apply(model.$.group, groupRules)` | Правила строк и подформы — отдельные схемы, подключённые привязкой |
+| `model.items.reduce(…)`, `.filter(…)`, `.some(…)`, `.get(i)` | `model.items.map((r) => r.amount).reduce((a, b) => a + b, 0)`, `model.items.toArray().filter(…)`, `model.items.at(i)` | `ModelArray` — не массив: у него `map`, `forEach`, `at`, `toArray`, `length` и мутации. `map` внутри `compute` реактивен |
 | `ValidationSchemaFn`, `BehaviorSchemaFn` | `ValidationDefinition<T>` (`defineValidation`) / `defineFormBehavior` | Типы path-схем удалены |
 | `equalTo`, `custom`, `notEmpty` (validators) | inline `Rule<T>` `(value) => issue \| null` в `validate(sig, [...])`; сравнение полей — `cross(sig, fn)` | Таких фабрик нет; кастомное правило — обычная функция значения, cross-field — `cross` |
 | `FieldPath`, `FieldPathNode`     | `model.$.field` (`PathAwareSignal`)              | Пути заменены сигналами                         |
