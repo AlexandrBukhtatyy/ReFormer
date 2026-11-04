@@ -208,8 +208,12 @@ defineRegistry((reg) => {
 
 Пропы `FieldArray` (узел схемы) — те же `title`, `itemLabel` (строка либо
 `(rowModel, index) => string`), `addButtonLabel`, `removeButtonLabel`, `emptyMessage`,
-`emptyMessageHint`, `reorderable`, `showRemoveOnSingle`, `className`, `cardClassName`; `items` и
-колбэки передаёт рендерер.
+`emptyMessageHint`, `reorderable`, `showRemoveOnSingle`, `maxItems`, `className`, `cardClassName`;
+`items` и колбэки передаёт рендерер.
+
+Число строк проверяет валидация, а не проп: `validate(model.$.contacts, [minLength(1),
+maxLength(5)])` — у массива замечания `minItems` и `maxItems`, их показывает `FieldArray.Error`.
+`maxItems` на узле только скрывает «Добавить» на пределе.
 
 ## Critical: `initialValue` — PLAIN LEAVES ONLY
 

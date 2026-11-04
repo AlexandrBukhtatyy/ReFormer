@@ -47,6 +47,12 @@ export interface FieldArrayProps extends ArrayComponentProps {
   reorderable?: boolean;
   /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
   showRemoveOnSingle?: boolean;
+  /**
+   * Максимум элементов: на пределе кнопка «Добавить» скрыта, как у `FieldArraySection`. Предел
+   * для данных задаёт правило `maxLength(n)` на массив (замечание `maxItems`), а этот проп только
+   * не даёт его превысить из разметки.
+   */
+  maxItems?: number;
   /** Внешний className секции. */
   className?: string;
   /** Класс card-обёртки элемента. */
@@ -73,11 +79,13 @@ export function FieldArray({
   emptyMessageHint,
   reorderable = false,
   showRemoveOnSingle = false,
+  maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
 }: FieldArrayProps): ReactNode {
   const t = useKitMessages();
   const length = items.length;
+  const atMaxItems = maxItems != null && length >= maxItems;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getItemLabel = (model: any, index: number): string =>
@@ -85,11 +93,12 @@ export function FieldArray({
       ? itemLabel(model, index)
       : `${(itemLabel as string) ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
 
-  const addBtn = (cls: string) => (
-    <button type="button" data-testid="array-add" className={cls} onClick={onAdd}>
-      {addButtonLabel ?? t('kit.fieldArray.add')}
-    </button>
-  );
+  const addBtn = (cls: string) =>
+    atMaxItems ? null : (
+      <button type="button" data-testid="array-add" className={cls} onClick={onAdd}>
+        {addButtonLabel ?? t('kit.fieldArray.add')}
+      </button>
+    );
 
   return (
     <section className={className} data-slot="field-array">

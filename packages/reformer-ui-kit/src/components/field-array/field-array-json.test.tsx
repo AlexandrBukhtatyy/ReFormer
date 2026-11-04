@@ -64,6 +64,15 @@ describe('FieldArray (ui-kit, renderer-json)', () => {
     expect(html).toContain('array-item-0-move-down');
   });
 
+  it('maxItems достигнут — кнопка добавления скрыта, ниже предела — на месте', () => {
+    const full = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', maxItems: 2 }));
+    expect(full).not.toContain('data-testid="array-add"');
+    const free = render(faNode([{ name: 'a' }], { title: 'T', maxItems: 2 }));
+    expect(free).toContain('data-testid="array-add"');
+    const footer = render(faNode([{ name: 'a' }], { maxItems: 1 }));
+    expect(footer).not.toContain('data-testid="array-add"');
+  });
+
   it('emptyMessage при пустом массиве', () => {
     const html = render(faNode([], { title: 'T', emptyMessage: 'Пусто пока' }));
     expect(html).toContain('Пусто пока');
