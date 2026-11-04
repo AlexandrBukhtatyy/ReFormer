@@ -359,6 +359,9 @@ export function buildSymbolEntry(sym, pkg, topicsByFile, pkgDir = process.cwd())
     examplesCount: examples.length,
     deprecated:
       tag('deprecated').length > 0 ? tag('deprecated')[0].text || '(no message)' : undefined,
+    // Какие значения проверяет фабрика правила (`@appliesTo number`): по этому полю MCP группирует
+    // правила ядра в грамматике intent. У `Rule<unknown>` сигнатура этого не говорит.
+    appliesTo: tag('appliesTo')[0]?.text || undefined,
     related: related.length > 0 ? [...new Set(related)] : undefined,
     topics: topicsByFile.get(sym.name) ?? undefined,
     sourcePath: relSource,

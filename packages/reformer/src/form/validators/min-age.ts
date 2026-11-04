@@ -22,6 +22,7 @@ import { validationIssue } from './validation-issue';
  * @param minAgeValue - Минимально допустимый возраст (в полных годах)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minAge` и `currentAge`.
+ * @appliesTo date
  * @returns Правило {@link Rule} для поля даты рождения (`string | Date`)
  *
  * @example Минимальный возраст

@@ -19,6 +19,7 @@ import { validationIssue } from './validation-issue';
  * и `NaN` — это его задача.
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
+ * @appliesTo number
  * @returns Правило {@link Rule} для числового поля
  *
  * @example Проверка, что значение — число

@@ -18,6 +18,7 @@ import { validationIssue } from './validation-issue';
  * Пустые и невалидные даты пропускаются (используйте {@link required} и {@link isDate}).
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
+ * @appliesTo date
  * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Дата не в прошлом

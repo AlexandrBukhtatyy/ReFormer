@@ -26,6 +26,7 @@ import { validationIssue } from './validation-issue';
  * @param maxLen - Максимально допустимая длина (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxLength` и `actualLength`.
+ * @appliesTo text
  * @returns Правило {@link Rule} для строки или массива
  *
  * @example Максимальная длина строки

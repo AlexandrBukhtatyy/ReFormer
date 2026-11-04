@@ -19,6 +19,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * (`''`/`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
+ * @appliesTo text
  * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка формата email

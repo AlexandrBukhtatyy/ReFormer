@@ -16,6 +16,7 @@ import { validationIssue } from './validation-issue';
  * Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
+ * @appliesTo number
  * @returns Правило {@link Rule} для числового поля
  *
  * @example Проверка «не ноль»

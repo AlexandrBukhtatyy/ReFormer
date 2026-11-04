@@ -19,6 +19,7 @@ import { validationIssue } from './validation-issue';
  * @param maxValue - Максимально допустимое значение (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `max` и `actual`.
+ * @appliesTo number
  * @returns Правило {@link Rule} для числового поля
  *
  * @example Максимальное значение числового поля

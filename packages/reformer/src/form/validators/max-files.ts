@@ -21,6 +21,7 @@ import { validationIssue } from './validation-issue';
  * @param max - Максимально допустимое количество файлов (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxFiles` и `actualCount`.
+ * @appliesTo file
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Не более трёх вложений

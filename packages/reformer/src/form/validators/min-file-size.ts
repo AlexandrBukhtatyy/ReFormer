@@ -23,6 +23,7 @@ import { validationIssue } from './validation-issue';
  * @param minSize - Минимально допустимый размер файла в байтах (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minFileSize`, `fileName` и `actualSize`.
+ * @appliesTo file
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Отсев пустых файлов

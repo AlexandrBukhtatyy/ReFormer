@@ -19,6 +19,7 @@ import { validationIssue } from './validation-issue';
  * (`''`/`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
+ * @appliesTo date
  * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Проверка валидности даты

@@ -19,6 +19,7 @@ import { validationIssue } from './validation-issue';
  * @param minValue - Минимально допустимое значение (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `min` и `actual`.
+ * @appliesTo number
  * @returns Правило {@link Rule} для числового поля
  *
  * @example Минимальное значение числового поля

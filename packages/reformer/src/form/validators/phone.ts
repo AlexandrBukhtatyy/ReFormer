@@ -46,6 +46,7 @@ export interface PhoneValidatorOptions extends RuleOptions {
  *
  * @param options - Опции валидатора {@link PhoneValidatorOptions}. В `params` ошибки
  *   автоматически попадает выбранный `format`.
+ * @appliesTo text
  * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка номера телефона

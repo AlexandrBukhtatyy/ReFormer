@@ -23,6 +23,7 @@ import { validationIssue } from './validation-issue';
  * @param maxAgeValue - Максимально допустимый возраст (в полных годах)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxAge` и `currentAge`.
+ * @appliesTo date
  * @returns Правило {@link Rule} для поля даты рождения (`string | Date`)
  *
  * @example Максимальный возраст

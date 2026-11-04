@@ -19,6 +19,7 @@ import { validationIssue } from './validation-issue';
  *   иначе ошибка конфигурации (`RangeError`) при создании правила: кратность нулю вырождена.
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадает `multipleOf` (делитель).
+ * @appliesTo number
  * @returns Правило {@link Rule} для числового поля
  *
  * @example Проверка кратности

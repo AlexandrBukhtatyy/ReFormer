@@ -22,6 +22,7 @@ import { validationIssue } from './validation-issue';
  * @param min - Минимально допустимое количество файлов (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minFiles` и `actualCount`.
+ * @appliesTo file
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Не менее двух документов

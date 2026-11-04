@@ -21,6 +21,7 @@ import { validationIssue } from './validation-issue';
  * @param maxTotal - Максимально допустимый суммарный размер в байтах (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `maxTotalFileSize` и `actualTotal`.
+ * @appliesTo file
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Суммарно не более 20 МБ

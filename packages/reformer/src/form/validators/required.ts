@@ -21,6 +21,7 @@ import { validationIssue } from './validation-issue';
  * Для boolean полей требуется значение `true`.
  *
  * @param options - Опции валидатора ({@link RuleOptions}): `code`, `params`
+ * @appliesTo any
  * @returns Правило {@link Rule} для поля схемы
  *
  * @example Обязательные поля в схеме формы

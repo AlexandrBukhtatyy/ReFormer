@@ -26,6 +26,7 @@ import { validationIssue } from './validation-issue';
  * @param accept - Accept-строка допустимых типов, например `'image/*,.pdf'`
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `accept` и `fileName` (первый нарушивший файл).
+ * @appliesTo file
  * @returns Правило {@link Rule} для файла или массива файлов
  *
  * @example Только изображения и PDF

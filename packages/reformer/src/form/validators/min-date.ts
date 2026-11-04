@@ -20,6 +20,7 @@ import { validationIssue } from './validation-issue';
  * @param minDateValue - Минимально допустимая дата (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадает `minDate`.
+ * @appliesTo date
  * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Минимальная дата

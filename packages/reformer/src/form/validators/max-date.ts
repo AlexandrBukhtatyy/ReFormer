@@ -20,6 +20,7 @@ import { validationIssue } from './validation-issue';
  * @param maxDateValue - Максимально допустимая дата (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадает `maxDate`.
+ * @appliesTo date
  * @returns Правило {@link Rule} для поля даты (`string | Date`)
  *
  * @example Максимальная дата

@@ -101,6 +101,7 @@ function isWellFormed(address: string, schemeLength: number): boolean {
  * `params.allowedProtocols`. Свой `code` из опций заменяет оба встроенных кода.
  *
  * @param options - Опции валидатора {@link UrlValidatorOptions}
+ * @appliesTo text
  * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка URL

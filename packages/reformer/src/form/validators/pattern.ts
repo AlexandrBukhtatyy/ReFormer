@@ -19,6 +19,7 @@ import { validationIssue } from './validation-issue';
  * @param regex - Регулярное выражение для проверки значения
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадает `pattern` (строка-источник regex).
+ * @appliesTo text
  * @returns Правило {@link Rule} для строкового поля
  *
  * @example Проверка по регулярному выражению

@@ -26,6 +26,7 @@ import { validationIssue } from './validation-issue';
  * @param minLen - Минимально допустимая длина (включительно)
  * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
  *   попадают `minLength` и `actualLength`.
+ * @appliesTo text
  * @returns Правило {@link Rule} для строки или массива
  *
  * @example Минимальная длина строки
