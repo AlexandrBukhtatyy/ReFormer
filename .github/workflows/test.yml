@@ -261,6 +261,13 @@ jobs:
           -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
           -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf
 
+      - name: Бандл MCP-сервера ReFormer для проекта-образца
+        # e2e ассистента [P1] подключает сервер-бандл ReFormer из `.ui_builder/mcp/reformer/server.js`
+        # проекта-образца. В git файла нет (`.gitignore` рядом с ним), его собирает из dist
+        # @reformer/mcp тот же скрипт, что в ночном mcp-quality.yml. Без шага тест в CI падал с
+        # «сервер не собран», а локально проходил: файл оставался от прошлой сборки.
+        run: npm run mcp:build -w reformer-builder-playground
+
       - name: e2e собранного билдера
         # Ровно то, что получает человек из `npx reformer-builder`: собранный билдер с плагинами
         # приложения под лаунчером, проект-образец открыт рабочим каталогом. Цель `dist` — без vite
