@@ -55,6 +55,7 @@
   "settings.loadModels": "Load the model list",
   "settings.model": "Model",
   "settings.emptyModels": "The provider returned an empty model list.",
+  "settings.localUnreachable": "The local server did not respond to {origin} ({error}). Check that the server is running and the address is correct. Ollama only responds to allowed pages: set the environment variable OLLAMA_ORIGINS={origin} and restart Ollama. In LM Studio, enable CORS in the server settings. If the browser asked for access to devices on your local network, allow it.",
   "settings.mode": "How the assistant edits the form",
   "settings.mode.structured": "Through editor operations",
   "settings.mode.files": "Directly in the form files",

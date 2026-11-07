@@ -49,6 +49,7 @@ import {
 } from '../session/config';
 import type { Translate } from '../host';
 import type { AiAssistant } from '../plugin';
+import { modelsErrorText } from './models-error';
 
 const KINDS: readonly ProviderKind[] = ['anthropic', 'openai', 'openai-compatible'];
 
@@ -148,7 +149,7 @@ export function ProviderSettings({
       if (list.length > 0 && !list.includes(model)) setModel(list[0]);
       if (list.length === 0) setError(t('settings.emptyModels'));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(modelsErrorText(cause, kind, window.location.origin, t));
       setModels([]);
     } finally {
       setBusy(false);
