@@ -16,8 +16,13 @@
  *
  * Вшитый устаревает молча — пользователь видит выбор, которого уже нет.
  *
- * Собрано на `@reformer/ui-kit`: `Select`, `Input`, `Label`, `Checkbox`, `Button`, `Alert`,
- * `Spinner`, `Separator`.
+ * ## Пояснения — в тултипах у подписей
+ *
+ * Панель узкая, а пояснения длиннее самих полей и нужны не при каждом открытии. Поэтому они
+ * спрятаны в `InfoHint` рядом с подписью поля, а не стоят абзацами под ним.
+ *
+ * Собрано на `@reformer/ui-kit`: `Select`, `Input`, `Label`, `InfoHint`, `Checkbox`, `Button`,
+ * `Alert`, `Spinner`, `Separator`.
  *
  * @module plugins/forms/ai/ui/ProviderSettings
  */
@@ -26,6 +31,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { Alert, AlertDescription } from '@reformer/ui-kit/alert';
 import { Button } from '@reformer/ui-kit/button';
 import { Checkbox } from '@reformer/ui-kit/checkbox';
+import { InfoHint } from '@reformer/ui-kit/info-hint';
 import { Input } from '@reformer/ui-kit/input';
 import { Label } from '@reformer/ui-kit/label';
 import {
@@ -61,6 +67,41 @@ const ORIGIN_KEY: Record<'browser' | 'loopback', string> = {
   browser: 'settings.origin.browser',
   loopback: 'settings.origin.loopback',
 };
+
+/** id скрытого дубля подсказки — на него ссылается `aria-describedby` контрола. */
+const hintIdOf = (controlId: string): string => `${controlId}-hint`;
+
+/**
+ * Подпись поля со значком подсказки.
+ *
+ * Значок стоит вне `Label`: внутри подписи щелчок по нему уводил бы фокус в поле. Контрол
+ * ссылается на текст подсказки через `aria-describedby={hintIdOf(controlId)}`: сам тултип
+ * живёт в портале и в DOM появляется, только пока открыт.
+ */
+function FieldLabel({
+  controlId,
+  label,
+  hint,
+  t,
+}: {
+  controlId: string;
+  label: string;
+  hint: string;
+  t: Translate;
+}): ReactElement {
+  return (
+    <div className="flex items-center gap-1">
+      <Label htmlFor={controlId} className="text-muted-foreground text-[11.5px]">
+        {label}
+      </Label>
+      <InfoHint
+        content={hint}
+        descriptionId={hintIdOf(controlId)}
+        aria-label={t('settings.hint', { label })}
+      />
+    </div>
+  );
+}
 
 export interface ProviderSettingsProps {
   readonly assistant: AiAssistant;
@@ -186,9 +227,13 @@ export function ProviderSettings({
   return (
     <div className="space-y-3 px-3 py-3">
       <div className="space-y-1.5">
-        <Label htmlFor="ai-provider" className="text-muted-foreground text-[11.5px]">
-          {t('settings.provider')}
-        </Label>
+        {/* Куда уходит запрос, зависит от провайдера — поэтому пояснение висит на его подписи. */}
+        <FieldLabel
+          controlId="ai-provider"
+          label={t('settings.provider')}
+          hint={t(ORIGIN_KEY[PROVIDER_ORIGIN[kind]])}
+          t={t}
+        />
         <Select
           value={kind}
           onValueChange={(value) => {
@@ -197,7 +242,12 @@ export function ProviderSettings({
             setModel('');
           }}
         >
-          <SelectTrigger id="ai-provider" size="sm" className="w-full">
+          <SelectTrigger
+            id="ai-provider"
+            aria-describedby={hintIdOf('ai-provider')}
+            size="sm"
+            className="w-full"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -244,18 +294,19 @@ export function ProviderSettings({
         <div className="flex items-center gap-2">
           <Checkbox
             id="ai-remember-key"
+            aria-describedby={hintIdOf('ai-remember-key')}
             checked={rememberKey}
             onCheckedChange={(value) => {
               setRememberKey(value === true);
             }}
           />
-          <Label htmlFor="ai-remember-key" className="text-muted-foreground text-[11.5px]">
-            {t('settings.rememberKey')}
-          </Label>
+          <FieldLabel
+            controlId="ai-remember-key"
+            label={t('settings.rememberKey')}
+            hint={t('settings.rememberKey.hint')}
+            t={t}
+          />
         </div>
-        <p className="text-muted-foreground text-[11px] leading-4">
-          {t('settings.rememberKey.hint')}
-        </p>
       </div>
 
       <Button
@@ -294,16 +345,24 @@ export function ProviderSettings({
       <Separator />
 
       <div className="space-y-1.5">
-        <Label htmlFor="ai-edit-mode" className="text-muted-foreground text-[11.5px]">
-          {t('settings.mode')}
-        </Label>
+        <FieldLabel
+          controlId="ai-edit-mode"
+          label={t('settings.mode')}
+          hint={t('settings.mode.hint')}
+          t={t}
+        />
         <Select
           value={editMode}
           onValueChange={(value) => {
             setEditMode(value as EditMode);
           }}
         >
-          <SelectTrigger id="ai-edit-mode" size="sm" className="w-full">
+          <SelectTrigger
+            id="ai-edit-mode"
+            aria-describedby={hintIdOf('ai-edit-mode')}
+            size="sm"
+            className="w-full"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -314,21 +373,28 @@ export function ProviderSettings({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-muted-foreground text-[11px] leading-4">{t('settings.mode.hint')}</p>
       </div>
 
       {kind !== 'anthropic' && (
         <div className="space-y-1.5">
-          <Label htmlFor="ai-reasoning" className="text-muted-foreground text-[11.5px]">
-            {t('settings.reasoning')}
-          </Label>
+          <FieldLabel
+            controlId="ai-reasoning"
+            label={t('settings.reasoning')}
+            hint={t('settings.reasoning.hint')}
+            t={t}
+          />
           <Select
             value={reasoning}
             onValueChange={(value) => {
               setReasoning(value as ReasoningLevel);
             }}
           >
-            <SelectTrigger id="ai-reasoning" size="sm" className="w-full">
+            <SelectTrigger
+              id="ai-reasoning"
+              aria-describedby={hintIdOf('ai-reasoning')}
+              size="sm"
+              className="w-full"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -339,19 +405,22 @@ export function ProviderSettings({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-muted-foreground text-[11px] leading-4">
-            {t('settings.reasoning.hint')}
-          </p>
         </div>
       )}
 
+      {/* Пояснение к пределам общее для трёх полей и висит на каждом: тултип читают у того поля,
+          которое заполняют, и искать его у соседнего никто не станет. */}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <Label htmlFor="ai-max-steps" className="text-muted-foreground text-[11.5px]">
-            {t('settings.maxSteps')}
-          </Label>
+          <FieldLabel
+            controlId="ai-max-steps"
+            label={t('settings.maxSteps')}
+            hint={t('settings.limits.hint')}
+            t={t}
+          />
           <Input
             id="ai-max-steps"
+            aria-describedby={hintIdOf('ai-max-steps')}
             type="number"
             min={1}
             value={maxSteps}
@@ -363,11 +432,15 @@ export function ProviderSettings({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="ai-max-output" className="text-muted-foreground text-[11.5px]">
-            {t('settings.maxOutput')}
-          </Label>
+          <FieldLabel
+            controlId="ai-max-output"
+            label={t('settings.maxOutput')}
+            hint={t('settings.limits.hint')}
+            t={t}
+          />
           <Input
             id="ai-max-output"
+            aria-describedby={hintIdOf('ai-max-output')}
             type="number"
             min={256}
             value={maxOutputTokens}
@@ -381,11 +454,15 @@ export function ProviderSettings({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ai-max-input" className="text-muted-foreground text-[11.5px]">
-          {t('settings.maxInput')}
-        </Label>
+        <FieldLabel
+          controlId="ai-max-input"
+          label={t('settings.maxInput')}
+          hint={t('settings.limits.hint')}
+          t={t}
+        />
         <Input
           id="ai-max-input"
+          aria-describedby={hintIdOf('ai-max-input')}
           type="number"
           min={1000}
           value={maxInputTokens}
@@ -397,17 +474,11 @@ export function ProviderSettings({
         />
       </div>
 
-      <p className="text-muted-foreground text-[11px] leading-4">{t('settings.limits.hint')}</p>
-
       {error !== null && (
         <Alert variant="destructive">
           <AlertDescription className="text-[11.5px] leading-4">{error}</AlertDescription>
         </Alert>
       )}
-
-      <p className="text-muted-foreground text-[11px] leading-4">
-        {t(ORIGIN_KEY[PROVIDER_ORIGIN[kind]])}
-      </p>
 
       {turnRunning && (
         <p className="text-muted-foreground text-[11px] leading-4">{t('settings.busy')}</p>

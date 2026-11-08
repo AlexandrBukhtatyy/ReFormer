@@ -46,6 +46,7 @@
   "changes.applyAnyway": "Применить всё равно",
   "changes.reject": "Отклонить",
   "changes.conflict": "Форму изменили, пока ассистент работал. Применение перезапишет эти правки.",
+  "settings.hint": "Подсказка: {label}",
   "settings.provider": "Провайдер",
   "settings.baseUrl": "Адрес сервера",
   "settings.apiKey": "Ключ API",

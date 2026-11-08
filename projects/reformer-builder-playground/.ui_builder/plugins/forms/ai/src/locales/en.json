@@ -46,6 +46,7 @@
   "changes.applyAnyway": "Apply anyway",
   "changes.reject": "Discard",
   "changes.conflict": "The form was edited while the assistant was working. Applying will overwrite those edits.",
+  "settings.hint": "Hint: {label}",
   "settings.provider": "Provider",
   "settings.baseUrl": "Server address",
   "settings.apiKey": "API key",
