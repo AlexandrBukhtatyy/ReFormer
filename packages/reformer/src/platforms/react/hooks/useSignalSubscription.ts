@@ -114,8 +114,15 @@ export function useSignalSubscription<
         const currentSignals = signalsRef.current;
         // Подписка — только на сигналы из configs: сигнал вне них снапшот всё равно не
         // пересобирает, а будил бы effect впустую.
+        //
+        // Чтение — ВЫЗОВОМ `valueOf()`, а не выражением `void signal?.value`. Terser с
+        // `pure_getters: "strict"` (умолчание webpack и Docusaurus) считает чтение через `?.`
+        // чистым и выбрасывает его: effect оставался без единой зависимости, и в production-сборке
+        // потребителя компонент не узнавал о замечаниях, касании, доступности — значения нод
+        // были верны, интерфейс стоял (ReFormer-34j). Вызов метода минификатор не выбрасывает,
+        // а `valueOf()` читает тот же отслеживаемый `value`.
         for (const { key } of configsRef.current) {
-          void currentSignals[key]?.value;
+          currentSignals[key]?.valueOf();
         }
 
         if (isFirstRun) {
