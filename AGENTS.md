@@ -6,14 +6,15 @@
 
 ### Где искать документацию по пакету
 
-| Пакет                      | docs/llms/                                                                                 | Что внутри                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| `@reformer/core`           | [packages/reformer/docs/llms/](packages/reformer/docs/llms/)                               | API, валидаторы, behaviors, типы, hooks.      |
-| `@reformer/cdk`            | [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/)                       | Headless: FieldArray, FormWizard, FormField.  |
-| `@reformer/ui-kit`         | [packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/)                 | Стилизованные компоненты на Tailwind + Radix. |
-| `@reformer/renderer-react` | [packages/reformer-renderer-react/docs/llms/](packages/reformer-renderer-react/docs/llms/) | Рендерер схем для React.                      |
-| `@reformer/renderer-json`  | [packages/reformer-renderer-json/docs/llms/](packages/reformer-renderer-json/docs/llms/)   | JSON-схема, реестр компонентов.               |
-| `@reformer/mcp`            | [packages/reformer-mcp/](packages/reformer-mcp/)                                           | MCP-сервер: tools, resources, prompts.        |
+| Пакет                      | docs/llms/                                                                                 | Что внутри                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `@reformer/core`           | [packages/reformer/docs/llms/](packages/reformer/docs/llms/)                               | API, валидаторы, behaviors, типы, hooks. Обзор — `39-overview.md`.           |
+| `@reformer/cdk`            | [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/)                       | Headless: FieldArray, FormWizard, FormField, FileUpload, Autocomplete, List. |
+| `@reformer/ui-kit`         | [packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/)                 | Стилизованные компоненты на Tailwind + Radix.                                |
+| `@reformer/renderer-react` | [packages/reformer-renderer-react/docs/llms/](packages/reformer-renderer-react/docs/llms/) | Рендерер схем для React.                                                     |
+| `@reformer/renderer-json`  | [packages/reformer-renderer-json/docs/llms/](packages/reformer-renderer-json/docs/llms/)   | JSON-схема, реестр компонентов.                                              |
+| `@reformer/form-registry`  | [packages/reformer-form-registry/docs/llms/](packages/reformer-form-registry/docs/llms/)   | Реестр форм для микрофронтендов: запись, монтирование, кэш, предпроверка.    |
+| `@reformer/mcp`            | [packages/reformer-mcp/docs/llms/](packages/reformer-mcp/docs/llms/)                       | MCP-сервер: tools, resources, prompts, встраивание.                          |
 
 ### MCP-сервер
 
@@ -23,7 +24,7 @@
 claude mcp add --transport stdio reformer -- reformer-mcp
 ```
 
-Доступно: resources `reformer://docs|api|examples|troubleshooting`; tools `report_issue`, `debug` (под `REFORMER_DEBUG=true`); prompt `debug`. Расширения см. в [PROMT.md](PROMT.md), задачи T1.x.
+Доступно: 11 tools (`choose_api`, `get_context`, `get_symbol_docs`, `find_recipe`, `search_docs`, `list_symbols`, `plan_form`, `generate_form`, `form_build`, `validate_form`, `report_issue`; `debug` — под `REFORMER_DEBUG=true`); resources `reformer://guide`, `reformer://catalog`, `reformer://docs/<пакет>[/<раздел>]`; prompts `start-here`, `discover-context`, `plan-form`, `create-form`, `add-feature`, `to-renderer`, `review`. Подробно — [packages/reformer-mcp/README.md](packages/reformer-mcp/README.md).
 
 ### Эталонные примеры
 
@@ -48,7 +49,6 @@ claude mcp add --transport stdio reformer -- reformer-mcp
 
 ### Связанные документы
 
-- [PROMT.md](PROMT.md) — бриф проекта (зачем).
 - [docs/llms-convention.md](docs/llms-convention.md) — формальные правила документации.
 
 ---

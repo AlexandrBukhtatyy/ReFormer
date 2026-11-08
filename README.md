@@ -55,14 +55,15 @@ E2E визуального билдера — отдельный проект: [
 
 ## Пакеты
 
-| Пакет                                                          | Описание                                                                 | Версия                                                                                                                      |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| [@reformer/core](./packages/reformer)                          | Ядро управления состоянием форм на сигнальной архитектуре                | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
-| [@reformer/cdk](./packages/reformer-cdk)                       | Headless-составные компоненты — `FieldArray`, `FormWizard`, `FormField`  | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
-| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | 72 компонента на shadcn/ui (new-york, Tailwind CSS v4), готовые для форм | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
-| [@reformer/renderer-react](./packages/reformer-renderer-react) | React-рендерер сборки — TS-дерево схемы формы → JSX                      | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
-| [@reformer/renderer-json](./packages/reformer-renderer-json)   | Рендерер на основе JSON — `JsonFormSchema` + реестр компонентов          | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
-| [@reformer/mcp](./packages/reformer-mcp)                       | MCP-сервер — отдаёт документацию, рецепты и JSDoc-символы ИИ-ассистентам | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
+| Пакет                                                          | Описание                                                                                                      | Версия                                                                                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [@reformer/core](./packages/reformer)                          | Ядро управления состоянием форм на сигнальной архитектуре                                                     | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
+| [@reformer/cdk](./packages/reformer-cdk)                       | Headless-компоненты — `FieldArray`, `FormWizard`, `FormField`, `FileUpload`, `Autocomplete`, `List`           | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
+| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | 76 компонентов на shadcn/ui (new-york, Tailwind CSS v4), готовые для форм                                     | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
+| [@reformer/renderer-react](./packages/reformer-renderer-react) | React-рендерер сборки — TS-дерево схемы формы → JSX                                                           | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
+| [@reformer/renderer-json](./packages/reformer-renderer-json)   | Рендерер на основе JSON — `JsonFormSchema` + реестр компонентов                                               | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
+| [@reformer/form-registry](./packages/reformer-form-registry)   | Реестр форм для микрофронтендов: один бандл регистрирует форму, другой монтирует её по id, слоту или маршруту | [![npm](https://img.shields.io/npm/v/@reformer/form-registry.svg)](https://www.npmjs.com/package/@reformer/form-registry)   |
+| [@reformer/mcp](./packages/reformer-mcp)                       | MCP-сервер — отдаёт документацию, рецепты и JSDoc-символы ИИ-ассистентам                                      | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
 
 ## Возможности
 
@@ -74,7 +75,7 @@ E2E визуального билдера — отдельный проект: [
 - **Tree-shaking** — импортируйте только то, что нужно
 - **Многошаговые формы** — поддержка мастера с валидацией по шагам
 - **Динамические массивы** — добавление/удаление элементов формы через FieldArray
-- **React с 16.8 по 19** — широкая совместимость
+- **React** — ядро и его привязка работают с React с 16.8 по 19; cdk, ui-kit и рендереры — с 18 и 19
 
 ## Установка
 
@@ -91,6 +92,9 @@ npm install @reformer/cdk
 # Опционально: рендеринг на основе схемы (выберите один — см. «Рендеринг: три подхода»)
 npm install @reformer/renderer-react   # разметка как типобезопасное TS-дерево
 npm install @reformer/renderer-json    # разметка как чистый JSON + реестр
+
+# Опционально: формы микрофронтендов — регистрация в одном бандле, монтирование в другом
+npm install @reformer/form-registry
 ```
 
 ## Быстрый старт
@@ -696,7 +700,8 @@ function LoginPage() {
 > Голые строки не разрешаются: нужны операторы — `component: '$component(Input)'`,
 > `model: '$model(email)'`. `selector` — идентификатор узла для правил узлов в поведении, а не путь
 > к полю. Документ прежнего формата переводит `migrateJsonSchema`. Полный язык (`$dataSource`, `$fn`,
-> `$part`, массивы) — [обзор @reformer/renderer-json](./packages/reformer-renderer-json/README.md).
+> `$part`, массивы) — [формат документа](./packages/reformer-renderer-json/docs/llms/02-json-schema.md)
+> и [обзор @reformer/renderer-json](./packages/reformer-renderer-json/README.md).
 
 ## MCP-сервер (интеграция с ИИ)
 
