@@ -4,7 +4,7 @@ import { icons, type LucideProps } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Презентационная иконка: рендерит иконку lucide по имени (`iconName`, PascalCase — напр. `Home`,
+ * Презентационная иконка: рендерит иконку lucide по имени (`iconName`, PascalCase — напр. `House`,
  * `ArrowRight`). Имя сериализуемо (строка в `componentProps`), поэтому компонент годится для
  * JSON-DSL/renderer-json и билдера. Неизвестное имя → ничего не рисуется (без падения).
  *
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 const REGISTRY = icons as unknown as Record<string, React.ComponentType<LucideProps>>;
 
 export interface IconProps {
-  /** Имя иконки lucide (PascalCase, напр. `Home`, `ArrowRight`). */
+  /** Имя иконки lucide (PascalCase, напр. `House`, `ArrowRight`). */
   iconName?: string;
   /** Размер в пикселях. */
   size?: number;

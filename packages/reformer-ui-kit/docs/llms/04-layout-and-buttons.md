@@ -7,7 +7,7 @@ playground-демонстраций.
 
 ## Button
 
-Кнопка на shadcn/Radix `Slot`. Поддерживает 6 вариантов внешнего вида, 6
+Кнопка на shadcn/Radix `Slot`. Поддерживает 6 вариантов внешнего вида, 8
 размеров и режим `asChild` для замены DOM-узла (типичный кейс — превратить
 кнопку в `<a>` или `<Link>` без потери стилей).
 
@@ -16,7 +16,7 @@ playground-демонстраций.
 ```typescript
 interface ButtonProps extends React.ComponentProps<'button'> {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  size?: 'default' | 'sm' | 'lg' | 'icon' | 'icon-sm' | 'icon-lg';
+  size?: 'default' | 'xs' | 'sm' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg';
   asChild?: boolean;
 }
 ```
@@ -33,9 +33,11 @@ interface ButtonProps extends React.ComponentProps<'button'> {
 | Size      | Высота    | Использование                          |
 | --------- | --------- | -------------------------------------- |
 | `default` | `h-9`     | Дефолтный размер для большинства форм. |
+| `xs`      | `h-6`     | Мини-кнопка: чипы, строки таблиц.      |
 | `sm`      | `h-8`     | Компактные toolbar-ы, фильтры.         |
 | `lg`      | `h-10`    | Финальный CTA, оплата.                 |
 | `icon`    | `size-9`  | Только иконка, default-размер.         |
+| `icon-xs` | `size-6`  | Мини-иконка внутри строки.             |
 | `icon-sm` | `size-8`  | Иконка в toolbar.                      |
 | `icon-lg` | `size-10` | Иконка hero.                           |
 
@@ -342,7 +344,7 @@ interface TreeNode {
 | `onRowClick` / `onRowDoubleClick`                           | `(node, event) => void`                           | —                 | ДО правил дерева; `preventDefault()` забирает строку себе.                        |
 | `onContextMenu` / `getRowProps`                             | функция                                           | —                 | Правый щелчок по дереву; свои атрибуты строки.                                    |
 | `search`                                                    | `string`                                          | —                 | Поисковый запрос (подстрока в `label`, регистр не важен).                         |
-| `emptyText`                                                 | `string`                                          | `'Пусто'`         | Текст пустого дерева.                                                             |
+| `emptyText`                                                 | `string`                                          | локаль            | Текст пустого дерева; умолчание — `kit.tree.empty` (без провайдера `'Empty'`).    |
 | `rowHeight` / `indent` / `indentBase`                       | `number`                                          | `24` / `12` / `8` | Высота строки и отступы уровней, px.                                              |
 | `maxRows`                                                   | `number`                                          | —                 | Сколько строк показать до появления прокрутки.                                    |
 | `virtualized`                                               | `boolean`                                         | `true`            | Виртуальный скролл.                                                               |
@@ -448,7 +450,7 @@ interface ExampleCardProps {
 | `title`       | `string` | —            | Заголовок карточки.                      |
 | `description` | `string` | —            | Описание под заголовком.                 |
 | `code`        | `string` | —            | Текст исходника, копируется в clipboard. |
-| `bgColor`     | `string` | `'bg-white'` | Tailwind-класс фона карточки.            |
+| `bgColor`     | `string` | `'bg-card'`  | Tailwind-класс фона карточки.            |
 
 ### Common Patterns
 

@@ -331,13 +331,29 @@ function App() {
 | `AsyncBoundary*`                | `kit.asyncBoundary.loadingTitle`, `loadingSubtitle`, `errorTitle`, `retry`, `emptyTitle`                                                                 |
 | `Select`, `SelectMulti`         | `kit.select.placeholder`, `placeholderMulti`, `search`, `searchLabel`, `loading`, `loadingMore`, `loadError`, `retry`, `empty`, `selected`, `clear`      |
 | `Combobox*`                     | `kit.combobox.placeholder`, `placeholderMulti`, `search`, `empty`, `create`, `selected`, `clear`, `treePlaceholder`, `treePlaceholderMulti`, `treeEmpty` |
+| `InputPassword`                 | `kit.inputPassword.placeholder`, `show`, `hide`                                                                                                          |
+| `DatePicker*`                   | `kit.datePicker.placeholder`, `placeholderRange`, `placeholderMulti`, `selected`, `clear`                                                                |
+| `Calendar`                      | `kit.calendar.nav`, `previousMonth`, `nextMonth`, `monthDropdown`, `yearDropdown`, `weekNumber`, `weekNumberHeader`, `today`, `selected`                 |
+| `Table`, `DataGrid`             | `kit.table.loadError`, `selectAll`, `selectRow`, `empty`                                                                                                 |
+| `Tree`                          | `kit.tree.empty`                                                                                                                                         |
+| `Pagination`                    | `kit.pagination.label`, `previousLabel`, `previous`, `nextLabel`, `next`, `more`                                                                         |
+| `Breadcrumb`                    | `kit.breadcrumb.label`, `more`                                                                                                                           |
+| `InfoHint`                      | `kit.infoHint.label`                                                                                                                                     |
+| `Spinner`                       | `kit.spinner.label`                                                                                                                                      |
+| `Dialog`                        | `kit.dialog.close`                                                                                                                                       |
+| `Sheet`                         | `kit.sheet.close`                                                                                                                                        |
+| `CommandDialog`                 | `kit.command.title`, `description`                                                                                                                       |
+| `Sidebar`                       | `kit.sidebar.title`, `description`, `toggle`                                                                                                             |
+| `Carousel`                      | `kit.carousel.previous`, `next`                                                                                                                          |
+| `MessageScroller`               | `kit.messageScroller.toEnd`, `toStart`                                                                                                                   |
+| `ExampleCard`                   | `kit.exampleCard.showPreview`, `showCode`, `copied`, `copy`                                                                                              |
 
 Сообщения — строки ICU: `"kit.select.selected": "Selected: {count}"`. В каталоге компонентов у
 текстового пропа рядом с английским `default` стоит `x-messageKey` — ключ, по которому это
 умолчание переводится.
 
-Остальные компоненты кита (`Table`, `Tree`, `Pagination`, `Dialog`, `DatePicker`, `Calendar`
-и др.) на словарь ещё не переведены: их подписи пока зашиты и задаются пропсами.
+Словарь покрывает все подписи, которые кит рисует сам: зашитых строк в компонентах нет. Полный
+список ключей — `@reformer/ui-kit/locale/en.json`.
 
 ## See also
 

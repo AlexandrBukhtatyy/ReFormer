@@ -54,11 +54,12 @@ const contactSchema = (model: FormModel<ContactForm>): FormSchemaNode => ({
   ],
 });
 
-// Правила — отдельной validation-схемой (@reformer/core/validation); тексты — по кодам в словаре
+// Правила — отдельной validation-схемой (@reformer/core/validation); тексты — по кодам в словаре.
+// InputMask литералы не вставляет: правило принимает и `+7 (495) 123-45-67`, и `74951234567`.
 const contactRules = defineValidation<ContactForm>(({ model }) => {
   validate(model.$.phone, [
     required({ code: 'field.required' }),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
+    pattern(/^\+?7[\s()-]*(?:\d[\s()-]*){10}$/, { code: 'phone.pattern' }),
   ]);
   validate(model.$.passport, [required()]);
   validate(model.$.inn, [required(), pattern(/^\d{12}$/, { code: 'inn.pattern' })]);
@@ -107,22 +108,26 @@ const { form } = contact;
 
 ## Validation
 
-`InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
+`InputMask` пишет в значение **то, что ввёл пользователь**: литералы маски попадают в значение,
+только если пользователь набрал их сам. Наберёт `74951234567` — уйдёт без скобок и дефисов, поэтому
+правило не должно требовать литералов (или нормализуй значение сам).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
 внутри `defineValidation` (см. схему выше), а не в схему формы. Опции правила — только
 `{ code?, params? }`; текст замечания берётся по коду из словаря `defineIssueMessages`
 (`ValidationMessagesProvider messages` из `@reformer/cdk`):
 
 - `required({ code: 'phone.required' })` — на пустоту;
-- `minLength(18)` — для проверки длины с literal-символами (телефон ровно 18 символов);
-- `pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' })` — точный формат.
+- `pattern(/^\+?7[\s()-]*(?:\d[\s()-]*){10}$/, { code: 'phone.pattern' })` — `7` и 10 цифр,
+  литералы маски необязательны;
+- `minLength` / точный шаблон с литералами (`/^\+7 \(\d{3}\) …$/`) — только для строгой маски,
+  которая сама вставляет литералы (см. ниже).
 
 ```ts
 import { defineIssueMessages } from '@reformer/core/i18n';
 
 export const contactMessages = defineIssueMessages({
   'field.required': 'Обязательное поле',
-  'phone.pattern': 'Телефон в формате +7 (999) 999-99-99',
+  'phone.pattern': 'Телефон: +7 и 10 цифр',
   'inn.pattern': 'ИНН — 12 цифр',
 });
 
@@ -142,20 +147,26 @@ Cross-field правила (например, «доп. телефон отли�
 ## Advanced — strict mask через FormField + children slot
 
 Если нужна автоматическая вставка literal-символов (true input-mask), используй
-библиотеку типа `react-input-mask` или `imask` как кастомный child в FormField:
+библиотеку типа `react-input-mask` или `imask` как кастомный child в FormField. Такой input эмитит
+DOM-событие (`onChange(event)`), поэтому объяви его диалект адаптером — без адаптера `FormField`
+привяжет value-based `onChange(value)` и запишет в модель само событие:
 
 ```tsx
+import ReactInputMask from 'react-input-mask';
 import { FormField } from '@reformer/ui-kit';
-import InputMask from 'react-input-mask';
+import { defineFieldControl, nativeInputAdapter } from '@reformer/ui-kit/fields';
+
+// onChange(event) → event.target.value; пустая строка → null
+const StrictMask = defineFieldControl(ReactInputMask, { adapter: nativeInputAdapter });
 
 <FormField control={form.phone} testId="phone">
-  <InputMask mask="+7 (999) 999-99-99" maskChar="_" />
+  <StrictMask mask="+7 (999) 999-99-99" maskChar="_" />
 </FormField>;
 ```
 
 `FormField` оборачивает child в `CdkFormField.Control asChild` и прокидывает
-`value` / `onChange` / `onBlur` / `aria-invalid`. См. рецепт
-[05-form-field-integration.md → Pattern 3](05-form-field-integration.md).
+`value` / `onChange` / `onBlur` / `aria-invalid` в диалекте ребёнка (его `reformerAdapter`). См.
+рецепт [05-form-field-integration.md → Pattern 3](05-form-field-integration.md).
 
 ## See also
 

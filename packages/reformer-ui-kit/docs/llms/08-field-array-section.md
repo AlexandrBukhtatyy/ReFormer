@@ -200,7 +200,7 @@ defineRegistry((reg) => {
 | `initialValue`       | `Partial<T>`                                                 | —                                    | Запасной шаблон нового item; основной — `arrayOf(blank)` в модели  |
 | `showRemoveOnSingle` | `boolean`                                                    | `false`                              | Показывать «Удалить» при одном item                                |
 | `reorderable`        | `boolean`                                                    | `false`                              | Показывать кнопки ↑/↓ для перестановки элементов                   |
-| `maxItems`           | `number`                                                     | —                                    | Максимум items (кнопка «Добавить» отключается при достижении)      |
+| `maxItems`           | `number`                                                     | —                                    | Максимум items (кнопка «Добавить» скрывается при достижении)       |
 | `className`          | `string`                                                     | `'space-y-3 mt-2'`                   | Класс `<section>`-обёртки                                          |
 | `cardClassName`      | `string`                                                     | `'mb-4 p-4 bg-card text-card-foreground rounded border'` | Класс card-обёртки каждого item                                    |
 | `form`               | `FormGroup<unknown>`                                         | авто-инъекция                        | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |

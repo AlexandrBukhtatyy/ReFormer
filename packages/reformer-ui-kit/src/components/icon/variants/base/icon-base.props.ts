@@ -13,7 +13,7 @@ export const iconBasePropsSchema = {
     iconName: {
       type: 'string',
       default: 'Circle',
-      description: 'Имя иконки lucide (PascalCase, напр. Home, ArrowRight).',
+      description: 'Имя иконки lucide (PascalCase, напр. House, ArrowRight).',
       'x-doc': { group: 'Control', type: 'string' },
     },
     size: {

@@ -11759,7 +11759,7 @@
           },
           "maxItems": {
             "type": "number",
-            "description": "Максимум items — AddButton отключается при достижении.",
+            "description": "Максимум items — на пределе AddButton скрывается (не отключается).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
@@ -13950,7 +13950,7 @@
           "iconName": {
             "type": "string",
             "default": "Circle",
-            "description": "Имя иконки lucide (PascalCase, напр. Home, ArrowRight).",
+            "description": "Имя иконки lucide (PascalCase, напр. House, ArrowRight).",
             "x-doc": {
               "group": "Control",
               "type": "string"

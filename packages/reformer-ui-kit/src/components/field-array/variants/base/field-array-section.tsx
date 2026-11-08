@@ -94,7 +94,7 @@ export interface FieldArraySectionProps<T extends object> {
    */
   reorderable?: boolean;
 
-  /** Максимум items — AddButton отключается при достижении. */
+  /** Максимум items — на пределе AddButton скрывается (не отключается). */
   maxItems?: number;
 
   /** Внешний className секции. */
