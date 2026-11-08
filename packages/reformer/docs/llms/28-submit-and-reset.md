@@ -243,7 +243,8 @@ try {
 - `level.dispose()` у `FormLevel` (уровень без сборки, `createFormLevel`) снимает только уровень —
   живую проверку и идущие проверки; форму не трогает.
 - Форму из `createFormFromModel` снимает `disposeForm(form)` — поведение и подписки нод.
-- `useFormBundle` сборку при размонтировании не снимает.
+- `useFormBundle` снимает сборку сам: `bundle.dispose()` вызывается микрозадачей после
+  размонтирования компонента.
 
 ## Anti-patterns
 

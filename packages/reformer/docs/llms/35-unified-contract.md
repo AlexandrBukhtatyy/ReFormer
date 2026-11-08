@@ -273,7 +273,7 @@ const credit = useFormBundle(() =>
   `flow` — поток шагов (`next` / `previous` / `goTo`). См. `38-form-flow.md`.
 - `dispose()` снимает сборку: поведение формы, подписки нод, живую проверку; идущие проверки
   получают `cancelled`, значения модели остаются. Вне React владелец сборки зовёт его сам;
-  `useFormBundle` сборку при размонтировании не снимает.
+  `useFormBundle` снимает сборку сам — микрозадачей после размонтирования компонента.
 - `render` — `{ tree, controller, node(selector) }`: скомпилированная схема (`CompiledSchema`, см.
   `37-compiled-schema.md`) и схема-контроллер сборки.
 - JSON: `createForm({ model, schema: document, registry })` — дерево собирает

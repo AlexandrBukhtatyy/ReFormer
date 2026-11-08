@@ -110,11 +110,15 @@ function RegistrationPage() {
 Когда нужен низкоуровневый input, которого нет в ui-kit (маска, особый combobox):
 
 ```tsx
+import ReactInputMask from 'react-input-mask';
 import { FormField } from '@reformer/ui-kit';
-import { InputMask } from 'react-input-mask';
+import { defineFieldControl, nativeInputAdapter } from '@reformer/ui-kit/fields';
+
+// DOM-событие в onChange → адаптер; без него в модель уйдёт само событие
+const StrictMask = defineFieldControl(ReactInputMask, { adapter: nativeInputAdapter });
 
 <FormField control={form.phone} testId="phone">
-  <InputMask mask="+7 (999) 999-99-99" />
+  <StrictMask mask="+7 (999) 999-99-99" />
 </FormField>;
 ```
 

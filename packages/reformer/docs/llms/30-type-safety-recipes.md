@@ -148,9 +148,14 @@ compute(model.$.fullName, () =>
 export interface CreditForm {
   loanAmount: number | null;   // validate(model.$.loanAmount, [min(50000)]) — ок
   loanPurpose: string | null;  // minLength — ок
-  birthDate: string | null;    // minAge — ок
+  birthDate: string | null;    // minAge — ок для строк `YYYY-MM-DD`
 }
 ```
+
+Правила дат (`minAge`, `maxAge`, `minDate`, `maxDate`) разбирают только `Date` и строку
+`YYYY-MM-DD` (значение `<input type="date">`). Строку в другом формате (`'01.02.1990'`, ISO со
+временем) правило считает «не датой» и пропускает без замечания — проверку формата даёт
+`isDate()`.
 
 ### Recipe 7 — Нода поля для кастомных компонентов
 

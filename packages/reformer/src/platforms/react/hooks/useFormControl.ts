@@ -192,7 +192,7 @@ export function useFormControl<T>(control: FormControl<T>): FieldControlState<T>
  *     issues,
  *     pending
  *   } = useFormControl(control);
- *   // Текст ошибки даёт резолвер: у правил без своего сообщения `message` пуст.
+ *   // У замечания нет текста — только `code` и `params`; текст по коду даёт резолвер.
  *   const message = useIssueMessage();
  *
  *   return (

@@ -4,169 +4,109 @@
 [![npm downloads](https://img.shields.io/npm/dm/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Reactive form state management on signals: a UI-agnostic core with React bindings in
-`@reformer/core/react`.
+Reactive form state on signals. The root entry is UI-agnostic (works on a server and in tests);
+React bindings live in `@reformer/core/react`.
 
-## Playground
+A form is four parts bound to the model's handles (`model.$.<field>`): the **model** (values),
+the **form schema** (a tree of nodes), the **validation** (rules over the model, separate from
+the schema) and the **behavior** (computed values, links between fields). `createForm` assembles
+them in one call.
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz_small.svg)](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx)
-
-## Documentation
-
-Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer/](https://alexandrbukhtatyy.github.io/ReFormer/)
-
-## Features
-
-- Signals-based reactive state management
-- Declarative form validation with typed rules and status results
-- Validation issues without text: codes and params, texts from a form dictionary and the locale
-- Dynamic form behaviors
-- Multi-step flows: step rules, transitions, `submit` with a result object
-- TypeScript support
-- Tree-shakeable exports; the root entry has no React dependency
 
 ## Installation
 
 ```bash
-npm install @reformer/core@beta # Active development is underway, so you can try beta
+npm install @reformer/core
 ```
 
-## Quick Start
+`react` and `react-dom` are optional peers — needed only for `@reformer/core/react`.
 
-A reactive `FormModel` owns the values, a form schema — a tree of nodes — binds field config
-(component / props) to the model's handles (`model.$.<field>`), and `createForm` assembles the
-model, the form and the form level (`validate`, `submission`, step flow) in one call. Validation is a
-**separate** contract — `defineValidation` — so the form schema carries no validators. A rule
-reports a code, not a text: the text comes from a form dictionary (`defineIssueMessages`) on top of
-the locale.
+## Quick start
 
 ```tsx
-import {
-  createForm,
-  type FormControl,
-  type FormModel,
-  type FormSchemaNode,
-  type ValidationIssue,
-} from '@reformer/core';
-import { useFormBundle, useFormControl, useIssueMessage } from '@reformer/core/react';
-import { defineIssueMessages } from '@reformer/core/i18n';
-import { validate, defineValidation } from '@reformer/core/validation';
-import { required, email, minLength } from '@reformer/core/validators';
-import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+import { createForm, type FormControl, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle, useFormControl } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, email } from '@reformer/core/validators';
 
-// 1. Form data type — `interface` or `type`, both work
-interface RegistrationForm {
-  username: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
+type Contact = { email: string };
 
-// 2. Issue texts by code — the form dictionary (built-in codes fall back to the locale)
-const messages = defineIssueMessages({
-  'username.required': 'Enter a username',
-  'confirmPassword.mismatch': 'Passwords do not match',
+// Form schema: a tree of nodes bound to model handles. No rules here.
+const schema = (model: FormModel<Contact>): FormSchemaNode => ({
+  children: [{ model: model.$.email }],
 });
 
-// 3. Simple FormField component: the issue text comes from the resolver
-function FormField({ label, control }: { label: string; control: FormControl<string> }) {
-  const { value, issues, shouldShowError } = useFormControl(control);
-  const message = useIssueMessage(messages);
+// Validation is a separate contract. A rule reports a code, not a text.
+const rules = defineValidation<Contact>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+});
 
+const createContact = () =>
+  createForm<Contact>({ initial: { email: '' }, schema, validation: rules });
+
+function EmailInput({ control }: { control: FormControl<string> }) {
+  const { value, shouldShowError, issues } = useFormControl(control);
   return (
-    <div>
-      <label>{label}</label>
+    <label>
+      Email
       <input
-        value={value ?? ''}
+        value={value}
         onChange={(e) => control.setValue(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {shouldShowError && issues[0] && <span className="error">{message(issues[0])}</span>}
-    </div>
+      {shouldShowError && <span role="alert">{issues[0]?.code}</span>}
+    </label>
   );
 }
 
-// 4. Form schema — a tree of nodes. A field node binds field config (component / props)
-//    to a model handle (`model: model.$.<field>`); nested nodes live in `children`.
-//    The schema carries NO validators; rules live in the validation schema below.
-const schema = (model: FormModel<RegistrationForm>): FormSchemaNode => ({
-  children: [
-    { model: model.$.username, component: 'input' },
-    { model: model.$.email, component: 'input' },
-    { model: model.$.password, component: 'input' },
-    { model: model.$.confirmPassword, component: 'input' },
-  ],
-});
-
-// 5. Validation schema — a separate contract from `@reformer/core/validation`.
-//    Field rules go through `validate(sig, [rules])`; cross-field rules through
-//    `cross(sig, snapshot => issue | null)` taken from the schema argument — the snapshot is the
-//    model value, its type is inferred. Rule factories come from `@reformer/core/validators`.
-const passwordsMatch = (form: RegistrationForm): ValidationIssue | null =>
-  form.confirmPassword && form.password && form.confirmPassword !== form.password
-    ? { code: 'confirmPassword.mismatch' }
-    : null;
-
-const validation = defineValidation<RegistrationForm>(({ model, cross }) => {
-  validate(model.$.username, [required({ code: 'username.required' }), minLength(2)]);
-  validate(model.$.email, [required(), email()]);
-  validate(model.$.password, [required(), minLength(8)]);
-  validate(model.$.confirmPassword, [required()]);
-  cross(model.$.confirmPassword, passwordsMatch);
-});
-
-// 6. Behavior — declarative reactive logic, run by `createForm({ behavior })`.
-//    Validation runs on demand, so the stale cross-field issue on `confirmPassword`
-//    is cleared the moment `password` changes.
-const behavior = defineFormBehavior<RegistrationForm>(({ model, form }) => {
-  onChange(model.$.password, () => {
-    form.confirmPassword.clearIssues();
-  });
-});
-
-// 7. One assembly: model, form, behavior, validation and the form level
-const createRegistration = () =>
-  createForm<RegistrationForm>({
-    initial: { username: '', email: '', password: '', confirmPassword: '' },
-    schema,
-    behavior,
-    validation,
-  });
-
-function RegistrationFormExample() {
-  // useFormBundle calls the factory exactly once and keeps the bundle stable between renders
-  const bundle = useFormBundle(createRegistration);
-  const { form } = bundle;
-
-  const handleSubmit = async (event: React.FormEvent) => {
+export function ContactForm() {
+  // The factory runs once; the bundle stays stable between renders.
+  const bundle = useFormBundle(createContact);
+  const send = async (event: React.FormEvent) => {
     event.preventDefault();
-    // One run of all the rules (sync + async). Issues land on the form nodes and, on a refusal,
-    // the whole form is marked touched; the handler is called only when the status is 'valid'.
-    const outcome = await bundle.submission.submit((values) => console.log('Form data:', values));
-    if (outcome.status === 'error') console.warn('Could not check the form, try again');
+    // One run of all rules; the handler is called only when the form is valid.
+    await bundle.submission.submit((values) => console.log(values));
   };
-
   return (
-    <form onSubmit={handleSubmit}>
-      <FormField label="Username" control={form.username} />
-      <FormField label="Email" control={form.email} />
-      <FormField label="Password" control={form.password} />
-      <FormField label="Confirm Password" control={form.confirmPassword} />
-      <button type="submit">Register</button>
+    <form onSubmit={send}>
+      <EmailInput control={bundle.form.email} />
+      <button type="submit">Send</button>
     </form>
   );
 }
 ```
 
-Submission is a separate object of the bundle: `bundle.submission.submit(handler)` returns a
-`SubmitResult`: `submitted` (with the handler's result), `invalid` / `error` / `cancelled` (with
-the validation result; the handler was not called) or `failed` (the handler threw). The handler
-receives the whole model, disabled fields included; `bundle.submission.submitting` is `true` while
-it runs. Multi-step forms declare their steps in the same call —
-`createForm({ flow: { steps: [{ id, rules }] } })` — and navigate with `bundle.flow.next()`.
-Outside React, the owner of the bundle releases it with `bundle.dispose()` when the form is no
-longer needed: the behavior, the node subscriptions and the live validation stop, the model keeps
-its values.
+Issue texts come from the locale (`I18nProvider`) and a form dictionary
+(`defineIssueMessages`, `useIssueMessage`). Ready-made fields with a label and an error —
+`FormField` from [`@reformer/ui-kit`](https://www.npmjs.com/package/@reformer/ui-kit).
+
+## Package entries
+
+| Import                                             | Contains                                                                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@reformer/core`                                   | `createForm`, `createModel`, `arrayOf`, `compileSchema`, `createFormFlow`, `createSubmission`, node types        |
+| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormFlow`, `useFormValidation`, `I18nProvider`, `useIssueMessage`         |
+| `@reformer/core/validation`                        | `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`, `validateModel`           |
+| `@reformer/core/validators`                        | rule factories: `required`, `min`, `max`, `minLength`, `email`, `pattern`, `url`, `phone`, numbers, dates, files |
+| `@reformer/core/validators/<name>`                 | one rule per entry (`required`, `email`, `min-length`, `is-date`, `min-age`, …)                                  |
+| `@reformer/core/behaviors`                         | `defineFormBehavior`, `compute`, `copyFrom`, `onChange`, `enableWhen`, `resetWhen`, `hideWhen`, …                |
+| `@reformer/core/model`                             | the low-level model without forms: `createModel`, `arrayOf`, `modelOf`, value operations                         |
+| `@reformer/core/signals`                           | `signal`, `computed`, `effect`, `batch`, `untracked` — the single copy of the reactive runtime                   |
+| `@reformer/core/i18n`                              | localization without React: `defineIssueMessages`, `createLocaleLoader`, `createI18n`, `msg`                     |
+| `@reformer/core/locale`                            | `loadCoreLocale` — built-in locales (`en`, `ru`), one chunk per language                                         |
+| `@reformer/core/locale/en`, `/locale/ru`           | synchronous locale modules (SSR, tests)                                                                          |
+| `@reformer/core/locale/en.json`, `/locale/ru.json` | dictionaries as JSON                                                                                             |
+
+## Links
+
+- Documentation: [quick start](https://alexandrbukhtatyy.github.io/ReFormer/docs/getting-started/quick-start),
+  [validation](https://alexandrbukhtatyy.github.io/ReFormer/docs/validation/overview),
+  [behaviors](https://alexandrbukhtatyy.github.io/ReFormer/docs/behaviors/overview),
+  [API reference](https://alexandrbukhtatyy.github.io/ReFormer/docs/api)
+- Recipes for AI assistants: [`docs/llms`](./docs/llms) (start with
+  [`39-overview.md`](./docs/llms/39-overview.md)); they ship in the package together with `llms.txt`
+- MCP server for AI assistants: [`@reformer/mcp`](https://www.npmjs.com/package/@reformer/mcp)
 
 ## License
 

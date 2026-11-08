@@ -65,11 +65,12 @@ compute(model.$.coBorrowersIncome, () =>
   агрегата не подходит.
 
 Если нужен только **счётчик** (пересчёт лишь на изменение длины, без чтения полей элементов) —
-`model.<array>.map(() => null)` (длина трекается, значения — нет):
+читай `model.<array>.length`: длина value-proxy массива реактивна сама, значения элементов не
+читаются:
 
 ```typescript
 // зависит только от КОЛИЧЕСТВА элементов, не от их полей
-compute(model.$.interestRate, () => computeRate(model.properties.map(() => null).length));
+compute(model.$.interestRate, () => computeRate(model.properties.length));
 ```
 
 > **Не агрегируй через `model.get()` / `model.<array>.peek()`** в `compute` — это нереактивный
