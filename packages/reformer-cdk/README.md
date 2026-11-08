@@ -1,14 +1,9 @@
 # @reformer/cdk
 
-Headless UI components for `@reformer/core` - build accessible, fully customizable form interfaces.
-
-## Features
-
-- **Headless** - No default styles, complete design freedom
-- **Compound Components** - Declarative, composable API
-- **Render Props** - Full control over rendering
-- **TypeScript** - Fully typed with generics support
-- **Tree-shakable** - Import only what you need
+Headless components for [`@reformer/core`](https://www.npmjs.com/package/@reformer/core) forms:
+behavior, state and accessibility without markup or styles. Compound components (`FieldArray.Root`,
+`FieldArray.List`, …), render props and hooks — you write the markup. Styled versions built on
+them live in [`@reformer/ui-kit`](https://www.npmjs.com/package/@reformer/ui-kit).
 
 ## Installation
 
@@ -16,158 +11,87 @@ Headless UI components for `@reformer/core` - build accessible, fully customizab
 npm install @reformer/cdk @reformer/core
 ```
 
-## Components
+Peers: `@reformer/core`, `react` and `react-dom` 18 or 19.
 
-### FieldArray
+## Quick start
 
-Manage dynamic form arrays with add/remove functionality.
+A dynamic array of sub-forms: the cdk keeps the rows, keys and actions, the markup is yours.
 
 ```tsx
+import type { FormArray, FormGroup } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
 import { FieldArray } from '@reformer/cdk/field-array';
 
-<FieldArray.Root control={form.items}>
-  <FieldArray.Empty>
-    <p>No items yet</p>
-  </FieldArray.Empty>
+type Phone = { number: string };
 
-  <FieldArray.List>
-    {({ control, index, remove }) => (
-      <div>
-        <span>Item #{index + 1}</span>
-        <ItemForm control={control} />
-        <button onClick={remove}>Remove</button>
-      </div>
-    )}
-  </FieldArray.List>
-
-  <FieldArray.AddButton>Add Item</FieldArray.AddButton>
-</FieldArray.Root>;
-```
-
-### FormWizard
-
-Build multi-step form wizards with validation. The wizard renders the step flow of the form bundle:
-`createForm({ flow })` declares the steps and their rules, the wizard draws them and calls the
-flow's transitions.
-
-```tsx
-import { createForm } from '@reformer/core';
-import { useFormBundle } from '@reformer/core/react';
-import { defineValidation, validate } from '@reformer/core/validation';
-import { required, min, email } from '@reformer/core/validators';
-import { FormWizard } from '@reformer/cdk/form-wizard';
-
-type Root = { loanAmount: number; email: string };
-
-const loanRules = defineValidation<Root>(({ model }) => {
-  validate(model.$.loanAmount, [required({ code: 'loanAmount.required' }), min(50000)]);
-});
-const contactsRules = defineValidation<Root>(({ model }) => {
-  validate(model.$.email, [required(), email()]);
-});
-
-function CreditWizard() {
-  const bundle = useFormBundle(() =>
-    createForm<Root>({
-      initial: { loanAmount: 0, email: '' },
-      flow: {
-        steps: [
-          { id: 'loan', rules: loanRules },
-          { id: 'contacts', rules: contactsRules },
-        ],
-      },
-    })
-  );
-
+function PhoneRow({ control }: { control: FormGroup<Phone> }) {
+  const { value } = useFormControl(control.number);
   return (
-    <FormWizard form={bundle.form} flow={bundle.flow}>
-      <FormWizard.Indicator steps={STEPS}>
-        {({ steps, goToStep }) => (
-          <nav>
-            {steps.map((step) => (
-              <button
-                key={step.number}
-                onClick={() => goToStep(step.number)}
-                disabled={!step.canNavigate}
-              >
-                {step.title}
-              </button>
-            ))}
-          </nav>
+    <input
+      aria-label="Phone"
+      value={value}
+      onChange={(e) => control.number.setValue(e.target.value)}
+    />
+  );
+}
+
+export function Phones({ control }: { control: FormArray<Phone> }) {
+  return (
+    <FieldArray.Root control={control}>
+      <FieldArray.Empty>
+        <p>No phones yet</p>
+      </FieldArray.Empty>
+      {/* The generic types the row: List has no control of its own to infer it from. */}
+      <FieldArray.List<Phone>>
+        {({ control: row, index, remove }) => (
+          <div>
+            <span>#{index + 1}</span>
+            <PhoneRow control={row} />
+            <button type="button" onClick={remove}>
+              Remove
+            </button>
+          </div>
         )}
-      </FormWizard.Indicator>
-
-      <FormWizard.Step component={LoanStep} control={bundle.form} />
-      <FormWizard.Step component={ContactsStep} control={bundle.form} />
-
-      {/* Outside the bundle context onSubmit runs on click: check via bundle.submission. */}
-      <FormWizard.Actions
-        onSubmit={async () => {
-          await bundle.submission.submit(api.send);
-        }}
-      >
-        <FormWizard.Prev>Back</FormWizard.Prev>
-        <FormWizard.Next>Next</FormWizard.Next>
-        <FormWizard.Submit>Submit</FormWizard.Submit>
-      </FormWizard.Actions>
-    </FormWizard>
+      </FieldArray.List>
+      <FieldArray.AddButton>Add phone</FieldArray.AddButton>
+    </FieldArray.Root>
   );
 }
 ```
 
-#### Steps and validation
+`control` is the form node of the array (`bundle.form.phones`); a new row is built from the
+model's row template (`arrayOf`).
 
-- **Next** runs `flow.next()`: the current step's `rules` are checked; on blocking issues the
-  wizard stays on the step, and the checked fields of the step are marked touched. A step without
-  `rules` passes without a check.
-- **Submit** — `bundle.submission.submit(handler)`: one run of the full rule set (every step's
-  `rules` plus `validation.extras`, or `validation.rules` when given), then the handler with the
-  model values. It resolves to a `SubmitResult`: `{ status: 'submitted', result }`,
-  `{ status: 'invalid' | 'error' | 'cancelled', validation }` or `{ status: 'failed', error }`;
-  `bundle.submission.submitting` is `true` while the handler runs. Inside the bundle context
-  (`FormRenderer`) the wizard submits through `bundle.submission.submit` itself and calls
-  `onSubmit` only after the check passed. Outside it the wizard runs `onSubmit` through its own
-  submission without a check, and `isSubmitting` is `true` while `onSubmit` runs.
-- **Where the flow comes from:** the `flow` prop, otherwise the bundle in `FormBundleContext`,
-  otherwise a positional flow by the number of `FormWizard.Step` children — without any rules.
-- **External control** — the flow itself, not a ref: `bundle.flow.next()`,
-  `bundle.flow.goTo('contacts')`, `bundle.flow.previous()`; state for rendering —
-  `useFormFlow(bundle.flow)` from `@reformer/core/react`.
+## Package entries
 
-The previous contract (`config` prop with `FormWizardConfig`, `ref` with `FormWizardHandle`,
-`defineSteps`, `useWizardStepValidation`) is removed — see
-[docs/llms/03-form-navigation.md](docs/llms/03-form-navigation.md).
+| Import                                            | Contains                                                                                                  |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `@reformer/cdk`                                   | everything below except the locale entries, plus `ValidationMessagesProvider`, `useIssueMessageResolver`  |
+| `@reformer/cdk/field-array`                       | `FieldArray` (`Root`, `List`, `AddButton`, `RemoveButton`, `Empty`, `Count`, `Error`, …), `useFieldArray` |
+| `@reformer/cdk/list`                              | `List` (`Root`, `Items`, `Empty`), `useList` — display-only iteration over a model array                  |
+| `@reformer/cdk/form-wizard`                       | `FormWizard` (`Step`, `Indicator`, `Actions`, `Prev`, `Next`, `Submit`, `Progress`), `useFormWizard`      |
+| `@reformer/cdk/form-field`                        | `FormField` (`Root`, `Label`, `Control`, `Error`, `Description`, `Hint`), `useFormField`                  |
+| `@reformer/cdk/file-upload`                       | `FileUpload` (`Root`, `Trigger`, `Dropzone`, `ItemGroup`, `Item`, …), `useFileUpload`                     |
+| `@reformer/cdk/autocomplete`                      | `Autocomplete` (`Root`, `Input`, `Listbox`, `Option`, `Loading`), `useAutocomplete`                       |
+| `@reformer/cdk/option-source`                     | `ResourceConfig`, `useResourceOptions` — async options source with search and pages                       |
+| `@reformer/cdk/async-boundary`                    | `AsyncBoundary` (`Loading`, `Content`, `Empty`, `Error`, `Retry`, …), `useAsyncResource`                  |
+| `@reformer/cdk/locale`                            | `loadCdkLocale` — cdk strings on top of the core locale (`en`, `ru`)                                      |
+| `@reformer/cdk/locale/en`, `/locale/ru`           | synchronous locale modules                                                                                |
+| `@reformer/cdk/locale/en.json`, `/locale/ru.json` | dictionaries as JSON                                                                                      |
 
-### Validation messages
+Validation issues carry a code, not a text: `FormField.Error` and `FieldArray.Error` take the text
+from the locale (`I18nProvider` from `@reformer/core/react`) and a form dictionary
+(`<ValidationMessagesProvider messages={defineIssueMessages(…)}>`).
 
-Issues carry a `code`, not text. `FormField.Error` and `FieldArray.Error` show the text from the
-locale (`I18nProvider` from `@reformer/core/react`); form-specific texts come from a dictionary:
+## Links
 
-```tsx
-import { defineIssueMessages } from '@reformer/core/i18n';
-import { ValidationMessagesProvider } from '@reformer/cdk';
-
-const messages = defineIssueMessages({
-  'loanAmount.required': 'Enter the loan amount',
-  minLength: 'At least {minLength} characters',
-});
-
-<ValidationMessagesProvider messages={messages}>
-  <CreditWizard />
-</ValidationMessagesProvider>;
-```
-
-`<ValidationMessagesProvider resolver={(issue) => …}>` replaces the text source for the subtree
-completely; `useIssueMessageResolver()` returns the active resolver for custom rendering.
-
-## Hooks
-
-For full customization, use the hooks directly:
-
-```tsx
-import { useFieldArray } from '@reformer/cdk/field-array';
-import { useFormWizard } from '@reformer/cdk/form-wizard';
-```
+- Documentation: [CDK overview](https://alexandrbukhtatyy.github.io/ReFormer/docs/cdk/overview),
+  [FieldArray](https://alexandrbukhtatyy.github.io/ReFormer/docs/cdk/field-array),
+  [FormWizard](https://alexandrbukhtatyy.github.io/ReFormer/docs/cdk/form-wizard),
+  [FileUpload](https://alexandrbukhtatyy.github.io/ReFormer/docs/cdk/file-upload)
+- Recipes for AI assistants: [`docs/llms`](./docs/llms) — `field-array`, `form-navigation`,
+  `form-field`, `async-boundary`, `autocomplete`, `file-upload`, `list`, `option-source`
+- MCP server for AI assistants: [`@reformer/mcp`](https://www.npmjs.com/package/@reformer/mcp)
 
 ## License
 

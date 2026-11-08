@@ -13,6 +13,9 @@
 - 06-recipes.md — Advanced Recipes
 - 07-troubleshooting.md — Troubleshooting / FAQ
 - 08-autocomplete.md — Autocomplete
+- 09-file-upload.md — FileUpload
+- 10-list.md — List
+- 11-option-source.md — Option source — ResourceConfig и useResourceOptions
 - API Reference (auto-generated from JSDoc)
 
 ## 1. Key Concepts
@@ -1824,7 +1827,378 @@ React-free, пригодны для своих обёрток и тестов б
 - Передавать новый массив `suggestions` на каждый рендер — нормализация пересчитывается по ссылке;
   выносите статический список в константу или `useMemo`.
 
-## 61. API Reference
+## 61. Значение, отбор файлов, слоты и доступность
+
+**FileUpload**
+
+Headless-компонент выбора и загрузки файлов: кнопка, зона drag-and-drop, вставка из буфера,
+список файлов с прогрессом, повтором и удалением. Разметки и стилей не рендерит — кроме скрытого
+`<input type="file">` и `aria-live`-региона статусов. Готовые поля формы на его основе —
+`FileUploadBase`, `FileUploadDropzone`, `FileUploadInput`, `FileUploadAvatar` из
+`@reformer/ui-kit/file-upload`.
+
+```typescript
+import { FileUpload, useFileUpload, type FileUploadHandle } from '@reformer/cdk/file-upload';
+```
+
+### Два режима значения
+
+| Режим         | Когда                 | Значение поля                                                         |
+| ------------- | --------------------- | --------------------------------------------------------------------- |
+| **deferred**  | `uploader` не задан   | `File[]`; отправить файлы на сервер — забота приложения при отправке  |
+| **immediate** | `uploader` задан      | `RemoteFileRef[]` — только успешно загруженные, сериализуются в JSON  |
+
+Пустой список отдаётся как `null`, поэтому `required()` работает без доработок.
+`RemoteFileRef` — `{ id, name, url?, size?, type?, meta? }`: его переживают черновики, JSON-схема
+и восстановление формы при редактировании.
+
+Загрузчик — функция приложения, своей реализации у пакета нет:
+
+```typescript
+type FileUploadUploader = (
+  file: File,
+  ctx: { onProgress: (percent: number) => void; signal: AbortSignal }
+) => Promise<RemoteFileRef>;
+```
+
+Загрузчик обязан прерывать запрос по `signal` (удаление файла и `abort()` его отменяют).
+
+### Связь с полем формы
+
+`FileUpload.Root` принимает шов поля — `value`, `onChange`, `onBlur`, `disabled`. В схеме формы
+обычно стоит готовое поле ui-kit; с cdk напрямую шов подключают через `useFormControl`:
+
+```tsx
+import type { FormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
+import { FileUpload, type FileUploadValue } from '@reformer/cdk/file-upload';
+
+function DocumentsField({ control }: { control: FormControl<FileUploadValue> }) {
+  const { value, disabled } = useFormControl(control);
+  return (
+    <FileUpload.Root
+      value={value}
+      onChange={(next) => control.setValue(next)}
+      onBlur={() => control.markAsTouched()}
+      disabled={disabled}
+      accept=".pdf,image/*"
+      multiple
+      maxFiles={3}
+      maxFileSize={10 * 1024 * 1024}
+    >
+      <FileUpload.Dropzone aria-label="Документы: PDF или изображение, до 10 МБ, не больше 3">
+        Перетащите файлы или нажмите
+      </FileUpload.Dropzone>
+      <FileUpload.ItemGroup>
+        {(item) => (
+          <FileUpload.Item key={item.key} item={item}>
+            <FileUpload.ItemName />
+            <FileUpload.ItemSize />
+            <FileUpload.ItemDeleteTrigger>×</FileUpload.ItemDeleteTrigger>
+          </FileUpload.Item>
+        )}
+      </FileUpload.ItemGroup>
+    </FileUpload.Root>
+  );
+}
+```
+
+Правила на значение поля — обычные правила ядра из `@reformer/core/validators`: `required()`,
+`maxFiles(n)`, `minFiles(n)`, `maxFileSize(bytes)`, `minFileSize(bytes)`,
+`maxTotalFileSize(bytes)`, `fileType(accept)`.
+
+### Отбор файлов
+
+Опции `Root` (они же — опции `useFileUpload`):
+
+| Опция                                                   | Что делает                                                                        |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `accept`                                                | Типы в синтаксисе нативного `accept`; действует и на drop/paste                   |
+| `multiple`                                              | Несколько файлов. Без него новый выбор заменяет текущий (`@default false`)        |
+| `maxFiles`, `maxFileSize`, `minFileSize`, `maxTotalFileSize` | Лимиты; размеры в байтах                                                     |
+| `preventDuplicates`                                     | Отклонять файл с тем же `name` и `size` (`@default true`)                         |
+| `validate(file, { existing })`                          | Своя проверка: массив ошибок или `null`                                           |
+| `allowDrop` / `allowPaste`                              | Каналы ввода (`@default true` / `false`)                                          |
+| `capture`                                               | Камера мобильного пикера: `'user'` или `'environment'`                            |
+| `uploader`, `autoUpload`                                | Загрузка при выборе (`autoUpload` — `@default true`)                              |
+
+Отклонённые файлы в значение не попадают: они уходят в `onReject(rejections)` и в
+`rejections` хука. Ошибка — `ValidationIssue` с кодом, без текста: `fileType`, `maxFileSize`,
+`minFileSize`, `maxFiles`, `maxTotalFileSize`, `fileExists`, `uploadFailed`, `uploadAborted` или
+код своей `validate`. Текст даёт `useIssueMessageResolver()` — тот же резолвер, что у замечаний
+валидации; в локали ядра есть ключи `validation.<код>`.
+
+События: `onFilesChange(items)`, `onAccept(files)`, `onReject(rejections)`,
+`onUploadSuccess(item)`, `onUploadError(item)`.
+
+### Слоты
+
+| Слот                       | Что рендерит                                                                |
+| -------------------------- | --------------------------------------------------------------------------- |
+| `FileUpload.Root`          | Контекст, скрытый `<input type="file">`, `aria-live`-регион                 |
+| `FileUpload.Trigger`       | `<button>`, открывает пикер (`asChild` — свой элемент)                      |
+| `FileUpload.Dropzone`      | `<div>`: drop и одновременно кнопка (клик, Enter, Space); `data-dragging`   |
+| `FileUpload.ItemGroup`     | `<ul>`; `children` — функция `(item) => ReactNode`                          |
+| `FileUpload.Item`          | `<li data-status="local / uploading / uploaded / error">`, проп `item`      |
+| `FileUpload.ItemPreview`   | `<img>` для изображений, иначе `children` (фолбэк)                          |
+| `FileUpload.ItemName`      | Имя файла                                                                   |
+| `FileUpload.ItemSize`      | Размер по активной локали; без известного размера не рендерится             |
+| `FileUpload.ItemProgress`  | Только в статусе `uploading`: `role="progressbar"`, `children(progress)`    |
+| `FileUpload.ItemDeleteTrigger` | Удаляет файл, идущую загрузку прерывает                                 |
+| `FileUpload.ItemRetryTrigger`  | Только в статусе `error`: повторяет загрузку                            |
+| `FileUpload.ClearTrigger`  | Очищает список, прерывает загрузки; заблокирован на пустом списке           |
+
+`<FileUpload>` — то же, что `<FileUpload.Root>`. Элемент списка (тип `FileUploadItemData`) —
+объединение по `status`:
+`local` (`file`), `uploading` (`file`, `progress`), `uploaded` (`remote`, `file?`), `error`
+(`file`, `error`, `progress?`). `key` — стабильный ключ элемента, не индекс.
+
+### Управление снаружи — ref
+
+`ref` на `FileUpload.Root` даёт `FileUploadHandle`: `openFilePicker()`, `addFiles(files)`,
+`removeItem(key)`, `clear()`, `retry(key)`, `abort(key?)`, `focus()`.
+
+```tsx
+const uploadRef = useRef<FileUploadHandle>(null);
+
+<button type="button" onClick={() => uploadRef.current?.openFilePicker()}>Добавить</button>
+<FileUpload.Root ref={uploadRef} value={value} onChange={setValue}>…</FileUpload.Root>;
+```
+
+### Хук без разметки
+
+Хук без разметки — для своего набора элементов. Принимает те же опции, что `Root`, и отдаёт
+состояние (`items`, `rejections`, `dragging`, `maxFilesReached`, `uploading`, `liveMessage`),
+действия (`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `abort`, `focus`,
+`getPreviewUrl`) и prop-getters (`getRootProps`, `getDropzoneProps`, `getTriggerProps`,
+`getHiddenInputProps`, `getItemProps`, …). `uploading` — признак незавершённых загрузок: по нему
+блокируют отправку формы.
+
+### Доступность и локализация
+
+- Скрытый `<input type="file">` — настоящий: `label`, клик и `focus()` работают нативно.
+- Зона drop — ещё и кнопка: перетаскивание никогда не единственный способ выбрать файл.
+- Ограничения в `aria-label` зоны пишет приложение — хук их текстом не формулирует.
+- Статусы в `aria-live` (файл добавлен, отклонён, загружен, загрузка не удалась) и подписи кнопок
+  удаления и повтора идут через локаль (`cdk.fileUpload.*`, см. Localization в обзоре cdk). Без
+  `I18nProvider` — по-английски.
+
+### Anti-patterns
+
+- Класть `File` в модель формы, которую сохраняют черновиком или отправляют JSON: `File` не
+  сериализуется. Нужна сериализация — задайте `uploader`, значением станут `RemoteFileRef`.
+- Ждать, что отклонённый файл окажется в значении и правило `fileType` его покажет: отбор
+  отклоняет файл до значения, ошибки — в `onReject` / `rejections`.
+- Загрузчик без `signal`: удаление файла и `abort()` не прервут сетевой запрос — он дойдёт до
+  сервера впустую.
+
+## 62. List vs FieldArray
+
+**List**
+
+Headless-перебор массива модели **только для показа**: на каждый элемент — своя разметка, без
+кнопок добавления, удаления и перестановки. Это read-only брат `FieldArray`. Подходит для
+списков, которые пользователь не правит, а поведение формы наполняет и чистит само: уведомления,
+предупреждения, итоги по строкам.
+
+```typescript
+import { List, useList } from '@reformer/cdk/list';
+```
+
+| Нужно                                                        | Брать        |
+| ------------------------------------------------------------ | ------------ |
+| Пользователь добавляет, удаляет, переставляет строки         | `FieldArray` |
+| Список только показывается; меняет его поведение или сервер  | `List`       |
+
+Оба принимают один и тот же узел массива формы (`FormArray<T>`, например `form.alerts`). `List`
+читает из него только `length`, `value`, `map` и `keyAt` — изменить массив через `List` нельзя.
+
+## 63. Compound API
+
+```tsx
+import type { FormArray } from '@reformer/core';
+import { List } from '@reformer/cdk/list';
+
+type Alert = { level: 'info' | 'warning'; text: string };
+
+function AlertsView({ control }: { control: FormArray<Alert> }) {
+  return (
+    <List.Root control={control}>
+      <List.Empty>
+        <p>Уведомлений нет</p>
+      </List.Empty>
+      <List.Items className="space-y-2">
+        {/* ключ строки List.Items ставит сам */}
+        {({ control: row, index }) => <AlertRow control={row} index={index} />}
+      </List.Items>
+    </List.Root>
+  );
+}
+```
+
+| Часть        | Что делает                                                                           |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `List.Root`  | Провайдер контекста, проп `control` — узел массива                                   |
+| `List.Items` | Перебирает элементы; `children` — функция `({ control, index, id }) => ReactNode`    |
+| `List.Empty` | Рендерит `children`, только когда список пуст                                        |
+
+`<List>` — то же, что `<List.Root>`. Без `className` элементы `List.Items` рендерятся во
+фрагменте; с `className` — в контейнере `as` (по умолчанию `div`). `control` элемента —
+`FormGroup<T>` строки, `id` — стабильный ключ строки (`control.keyAt(index)`): перестановка и
+фильтрация сохраняют состояние элементов. Ключ React у каждого элемента `List.Items` ставит сам.
+
+## 64. useList
+
+```tsx
+import { useList } from '@reformer/cdk/list';
+
+function AlertsSummary({ control }: { control: FormArray<Alert> }) {
+  const { items, length, isEmpty } = useList(control);
+  if (isEmpty) return null;
+  return (
+    <ul aria-label={`Уведомления: ${length}`}>
+      {items.map(({ control: row, id }) => (
+        <AlertRow key={id} control={row} />
+      ))}
+    </ul>
+  );
+}
+```
+
+Хук подписан на длину и значение массива: список перерисовывается при добавлении, удалении и
+перестановке строк модели, в том числе из поведения формы.
+
+Контекст для своих частей — `ListContext` / `useListContext()` (внутри `List.Root`) и
+`ListItemContext` / `useListItemContext()` (внутри `List.Items`). Вне провайдера хуки бросают
+исключение с подсказкой.
+
+## 65. Anti-patterns
+
+- Рисовать через `List` редактируемый список с самодельными кнопками «добавить» и «удалить»:
+  у `List` нет ни действий, ни их доступности — для этого `FieldArray`.
+- Ключ строки по индексу (`key={index}`): при удалении из середины состояние элементов съедет.
+  Ключ — `id` из render-prop или `useList`.
+
+## 66. ResourceConfig
+
+**Option source — ResourceConfig и useResourceOptions**
+
+Асинхронный источник вариантов для списочных полей: откуда брать опции, искать ли на сервере,
+догружать ли страницы. Один контракт `ResourceConfig` понимают `SelectAsync` и `SelectMulti` из
+`@reformer/ui-kit` (проп `resource`), `InputSuggest` (проп `suggestions`) и headless
+`useAutocomplete` (см. рецепт Autocomplete). Свой выпадающий список строят на хуке
+`useResourceOptions`.
+
+```typescript
+import { useResourceOptions, type ResourceConfig } from '@reformer/cdk/option-source';
+```
+
+```typescript
+interface ResourceConfig<T> {
+  type: 'static' | 'preload' | 'partial';
+  load: (params?: { search?: string; page?: number; pageSize?: number }) => Promise<{
+    items: { id: string | number; label: string; value: T; group?: string }[];
+    totalCount: number;
+  }>;
+  pageSize?: number;
+}
+```
+
+| `type`    | Загрузка                                   | Поиск                                  | Страницы                          |
+| --------- | ------------------------------------------ | -------------------------------------- | --------------------------------- |
+| `static`  | один `load({})` при монтировании           | нет                                    | нет                               |
+| `preload` | один `load({})` — сервер отдаёт всё        | на клиенте, по подстроке `label`       | нет                               |
+| `partial` | `load({ search, page: 1, pageSize })`      | на сервере, с задержкой 300 мс         | `loadMore()` до `totalCount`      |
+
+`value` опции приводится к строке (`NormalizedOption.value`), `id` — ключ опции: при догрузке
+страниц повторы по `id` отбрасываются.
+
+## 67. Источник в поле формы
+
+Источник — константа модуля (или значение из `useMemo`): хук перезагружает опции, когда меняется
+ссылка на `resource`.
+
+```tsx
+import type { FormModel, FormSchemaNode } from '@reformer/core';
+import type { ResourceConfig } from '@reformer/cdk/option-source';
+import { SelectAsync } from '@reformer/ui-kit';
+
+// Серверный поиск: сервер фильтрует и режет на страницы.
+const cityResource: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: async ({ search = '', page = 1, pageSize = 20 } = {}) => {
+    const query = new URLSearchParams({ q: search, page: String(page), size: String(pageSize) });
+    const res = await fetch(`/api/cities?${query}`);
+    const body: { items: { code: string; name: string }[]; total: number } = await res.json();
+    return {
+      items: body.items.map((c) => ({ id: c.code, label: c.name, value: c.code })),
+      totalCount: body.total,
+    };
+  },
+};
+
+const schema = (model: FormModel<{ city: string | null }>): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.city,
+      component: SelectAsync,
+      componentProps: { label: 'Город', resource: cityResource },
+    },
+  ],
+});
+```
+
+Опции, которые зависят от значения другого поля (регион → города), меняет поведение формы —
+рецепт `async-options-loading` в `@reformer/core`.
+
+## 68. useResourceOptions
+
+Хук для своего списка: стратегии, задержка поиска и догрузка — внутри, разметка — ваша.
+
+```tsx
+import { isNearBottom, useResourceOptions } from '@reformer/cdk/option-source';
+
+function CityList() {
+  const ro = useResourceOptions(cityResource);
+  return (
+    <div>
+      {ro.flags.searchable && (
+        <input value={ro.searchInput} onChange={(e) => ro.setSearchInput(e.target.value)} />
+      )}
+      {ro.loading && <p>Загрузка…</p>}
+      {ro.error && <button onClick={ro.reload}>Повторить</button>}
+      <ul onScroll={(e) => isNearBottom(e.currentTarget) && ro.loadMore()}>
+        {ro.options.map((o) => (
+          <li key={o.id}>{o.label}</li>
+        ))}
+      </ul>
+      {ro.loadingMore && <p>Ещё…</p>}
+    </div>
+  );
+}
+```
+
+Возвращает `options`, `loading`, `loadingMore`, `error`, `hasMore`, `loadMore()`, `reload()`,
+`searchInput`, `setSearchInput(text)` и `flags` — `{ serverSearch, paginated, searchable }` для
+текущего `type`. Без `resource` хук ничего не загружает и отдаёт пустой список.
+
+## 69. Чистое ядро
+
+Те же стратегии без React — для тестов и своих обёрток: `resolveStrategyFlags(type)`,
+`normalizeItems(items)`, `mergeOptions(prev, next)`, `filterClient(options, query)`,
+`resourceReducer(state, action)` и `initialResourceState()`, `hasMore(state)`,
+`isNearBottom({ scrollTop, clientHeight, scrollHeight }, threshold?)` (порог по умолчанию — 48 px).
+
+## 70. Anti-patterns
+
+- Объект `resource` прямо в JSX или в теле компонента без `useMemo`: новая ссылка на каждый
+  рендер — новая загрузка на каждый рендер.
+- `partial`, когда сервер не умеет искать: поиск уйдёт на сервер и вернёт всё. Для полного
+  списка, который фильтруют на клиенте, — `preload`.
+- `totalCount` меньше реального числа записей: догрузка остановится раньше конца списка.
+
+## 71. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -6875,7 +7249,10 @@ export interface ResourceConfig<T> {
   type: ResourceStrategy;
   /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
-  /** Размер страницы для стратегии `partial`. По умолчанию 20. */
+  /**
+   * Размер страницы для стратегии `partial` — передаётся в `load({ pageSize })` как есть. Умолчания
+   * нет: без него `pageSize` в `load` приходит `undefined`, и размер страницы выбирает сама `load`.
+   */
   pageSize?: number;
 }
 ```
@@ -8520,7 +8897,7 @@ _Source: src/components/list/useList.ts_
 **Kind:** `function`
 
 Хук управления асинхронным источником опций по стратегии {@link ResourceConfig.type}.
-Тонкая React-обёртка над чистым reducer из `select-resource.ts` (вся логика стратегий — там).
+Тонкая React-обёртка над чистым reducer из `option-source.ts` (вся логика стратегий — там).
 
 **Signature:**
 ```typescript

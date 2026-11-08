@@ -34,7 +34,7 @@ export interface UseResourceOptionsResult {
 
 /**
  * Хук управления асинхронным источником опций по стратегии {@link ResourceConfig.type}.
- * Тонкая React-обёртка над чистым reducer из `select-resource.ts` (вся логика стратегий — там).
+ * Тонкая React-обёртка над чистым reducer из `option-source.ts` (вся логика стратегий — там).
  */
 export function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptionsResult {
   const flags = React.useMemo(() => resolveStrategyFlags(resource?.type), [resource?.type]);

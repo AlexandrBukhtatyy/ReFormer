@@ -58,7 +58,10 @@ export interface ResourceConfig<T> {
   type: ResourceStrategy;
   /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
-  /** Размер страницы для стратегии `partial`. По умолчанию 20. */
+  /**
+   * Размер страницы для стратегии `partial` — передаётся в `load({ pageSize })` как есть. Умолчания
+   * нет: без него `pageSize` в `load` приходит `undefined`, и размер страницы выбирает сама `load`.
+   */
   pageSize?: number;
 }
 

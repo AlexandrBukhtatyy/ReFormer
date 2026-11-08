@@ -135,7 +135,8 @@ export function useFieldArray<T extends object>(
     items,
     length,
     isEmpty: length === 0,
-    // Модель берёт значение как есть: недостающие ключи частичного элемента она не достраивает.
+    // Частичный элемент модель достраивает из шаблона массива (`arrayOf(blank)`): недостающие
+    // ключи — из шаблона. Без шаблона значение уходит как есть — тогда передавайте элемент целиком.
     add: (value?: Partial<T>) => control.push(value as T | undefined),
     clear: () => control.clear(),
     insert: (index: number, value?: Partial<T>) => control.insert(index, value as T | undefined),
