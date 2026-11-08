@@ -8,12 +8,19 @@ RJSF рисуются полями кита, поле — в рамке поля
 Пакет рантаймовый: его берут и превью билдера (домен `rjsf`), и форма в приложении. От пакетов
 билдера он не зависит.
 
+## Установка
+
+Пакет живёт в монорепо и в npm не публикуется (`private`): его подключают как пакет рабочей
+области. Peer-зависимости: `react`, `@rjsf/core`, `@rjsf/utils`, `@reformer/core` (адаптеры полей).
+
+## Быстрый старт
+
 ```tsx
 import { withTheme } from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { createKitTheme } from '@reformer/rjsf-kit-theme';
 import * as kit from '@reformer/ui-kit';
-import catalog from '@reformer/ui-kit/component-catalog.json';
+import catalog from '@reformer/ui-kit/catalog';
 
 const { theme, problems } = createKitTheme({
   namespace: kit,
@@ -25,8 +32,6 @@ const Form = withTheme(theme);
 
 <Form schema={schema} uiSchema={uiSchema} validator={validator} />;
 ```
-
-Peer-зависимости: `react`, `@rjsf/core`, `@rjsf/utils`, `@reformer/core` (адаптеры полей).
 
 ## Как кит становится темой
 
@@ -65,14 +70,7 @@ Peer-зависимости: `react`, `@rjsf/core`, `@rjsf/utils`, `@reformer/co
 **Свойства контрола — `ui:options`.** Собственные пропсы поля кита задаются подсказками отрисовки
 RJSF — теми, что запись объявила в `propsSchema` каталога:
 
-```json
-{
-  "phone": {
-    "ui:widget": "InputMask",
-    "ui:options": { "mask": "+7 (999) 999-99-99", "tooltip": "Мобильный" }
-  }
-}
-```
+`{ "phone": { "ui:widget": "InputMask", "ui:options": { "mask": "+7 (999) 999-99-99" } } }`.
 
 Ключ, которого запись не объявляла, контролу не уходит. Не уходят и закрытые для подсказок пропсы
 (`RESERVED_OPTION_PROPS`): подпись, описание, обязательность и варианты — это `title`,
@@ -84,33 +82,15 @@ RJSF — теми, что запись объявила в `propsSchema` кат�
 `ui:options.min`, `max` и `step` их перекрывают — для контрола, но не для проверки значения.
 
 Редактору формы тот же ответ дают чистые функции над каталогом, без пространства имён:
-
-```ts
-import { kitWidgetTarget, registryWidgetName, widgetOptionProps } from '@reformer/rjsf-kit-theme';
-
-const widget = registryWidgetName(fieldSchema, uiSchema['ui:widget']); // 'TextWidget', 'Switch'…
-const target = widget && kitWidgetTarget(widget, { components: catalog.components });
-const editable = target ? widgetOptionProps(target.record, target.props) : [];
-```
+`registryWidgetName(fieldSchema, uiWidget)` → имя виджета, `kitWidgetTarget(widget, { components })`
+→ запись кита, `widgetOptionProps(record, props)` → пропсы, доступные в `ui:options`.
 
 **Шаблоны.** Поле — рамка кита (`kit.infra.fieldFrame`, пропсы `KitFieldFrameProps`), объект —
 `Box`, отправка — `Button`. Кит без рамки получает минимальную собственную: стандартный шаблон RJSF
 подписал бы флажок кита дважды.
 
-**Уточнения кита** — блок `kit.renderers.rjsf` каталога (контракт `2.1`):
-
-```json
-{
-  "kit": {
-    "renderers": {
-      "rjsf": {
-        "widgets": { "CheckboxWidget": "Switch" },
-        "templates": { "object": "Stack", "submit": "PrimaryButton" }
-      }
-    }
-  }
-}
-```
+**Уточнения кита** — блок `kit.renderers.rjsf` каталога (контракт `2.1`): `widgets` (роль RJSF →
+запись кита, например `{ "CheckboxWidget": "Switch" }`) и `templates` (`object`, `submit` → компонент).
 
 ## Расхождения
 
@@ -124,3 +104,18 @@ const editable = target ? widgetOptionProps(target.record, target.props) : [];
 | `component-missing` | кит назвал компонент, а в каталоге или пространстве имён его нет |
 
 Пустое пространство имён — кита нет: тема пустая, то есть стандартная тема RJSF, без расхождений.
+
+## Входы пакета
+
+| Импорт                     | Что внутри                                                                                                                                                                                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@reformer/rjsf-kit-theme` | `createKitTheme`; чистые функции над каталогом (`kitWidgetTarget`, `registryWidgetName`, `widgetOptionProps`, `RESERVED_OPTION_PROPS`); `kitWidget`; шаблоны (`createFieldTemplate`, `createObjectTemplate`, `createSubmitButton`, `PlainFieldFrame`) |
+
+## Ссылки
+
+- Документация: [киты и движки билдера](https://alexandrbukhtatyy.github.io/ReFormer/docs/builder/kits-and-engines)
+- Каталог кита и адаптеры полей: [`@reformer/ui-kit`](../reformer-ui-kit/README.md)
+
+## Лицензия
+
+MIT

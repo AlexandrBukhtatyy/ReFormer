@@ -62,7 +62,7 @@ function acceptsOptions(record: KitThemeRecord | undefined): boolean | undefined
  * import { withTheme } from '@rjsf/core';
  * import validator from '@rjsf/validator-ajv8';
  * import * as kit from '@reformer/ui-kit';
- * import catalog from '@reformer/ui-kit/component-catalog.json';
+ * import catalog from '@reformer/ui-kit/catalog';
  *
  * const { theme } = createKitTheme({
  *   namespace: kit,
