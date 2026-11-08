@@ -1,254 +1,101 @@
 # @reformer/mcp
 
-MCP (Model Context Protocol) server для библиотеки `@reformer/*`. Снабжает ИИ-ассистентов (Claude Code, Cursor, другие MCP-клиенты) per-package документацией, JSDoc-индексом публичных символов и эталонными примерами форм.
+MCP-сервер (Model Context Protocol) для библиотеки `@reformer/*`. Даёт ИИ-ассистентам (Claude Code,
+Cursor и другим MCP-клиентам) документацию пакетов, рецепты, индекс публичных символов, проверку
+кода формы и сборку модуля формы из описания.
 
-См. сопутствующие документы:
-
-- [docs/llms-convention.md](../../docs/llms-convention.md) — конвенция документации.
-- [AGENTS.md](../../AGENTS.md) — инструкции для агентов.
-
-## Installation
+## Установка
 
 ```bash
-# Глобально
-npm install -g @reformer/mcp
-
-# Или через npx без установки
-npx @reformer/mcp
+npm install -g @reformer/mcp   # глобально
+npx @reformer/mcp              # или без установки
 ```
 
-## Регистрация в Claude Code
+## Подключение
 
 ```bash
-# Глобальный install
-claude mcp add --transport stdio reformer -- reformer-mcp
-
-# Через npx
+# Claude Code
 claude mcp add --transport stdio reformer -- npx @reformer/mcp
-
-# Локальная сборка из монорепо (для разработки сервера)
-claude mcp add --transport stdio reformer -- node /absolute/path/to/ReFormer/packages/reformer-mcp/dist/index.js
-
-# Локальная сборка с debug-режимом
-claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /absolute/path/to/ReFormer/packages/reformer-mcp/dist/index.js
-```
-
-Проверить:
-
-```bash
 claude mcp list
 ```
 
-## Available Tools
+Знания о пакетах сервер берёт из их `llms.txt`, `llms-index.json` и `docs/llms` — эти файлы
+публикуются в npm вместе с пакетами. Начинать работу агенту — с ресурса `reformer://guide`:
+порядок шагов и раскладка файлов формы.
 
-| Tool              | Always                           | Description                                                                                                                                                                                        |
-| ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_symbol_docs` | ✅                               | Полный JSDoc публичного символа любого `@reformer/*` (description, signature, params, type params, returns, все `@example`, deprecated, see, source).                                              |
-| `find_recipe`     | ✅                               | Найти рецепт по `topic` в библиотечной документации (`docs/llms/` всех `@reformer/*`) или fallback в `@example` JSDoc публичного символа. Поиск каскадный: имя файла → `## ` секция → имя символа. |
-| `report_issue`    | ✅                               | Сохранить найденную проблему и её решение отдельным JSON-отчётом в `<корень проекта>/.reformer/issue_reports` (каталог переопределяется `REFORMER_ISSUE_REPORTS_DIR`).                             |
-| `debug`           | под флагом `REFORMER_DEBUG=true` | Внутренний инструмент для разработки самого сервера.                                                                                                                                               |
-
-### `get_symbol_docs`
+Пример вызова инструмента:
 
 ```jsonc
-{
-  "symbol": "useFormControl",
-  "package": "@reformer/core", // optional: '*' (default) — поиск во всех пакетах
-}
+// find_recipe — рецепт по теме из docs/llms пакетов либо @example символа
+{ "topic": "copy-from", "package": "core" } // package необязателен: без него — все пакеты
 ```
 
-### `find_recipe`
+## Инструменты
 
-```jsonc
-{
-  "topic": "copy-from", // имя файла docs/llms/, заголовок секции, или имя символа
-  "package": "@reformer/core", // optional, '*' (default) — все пакеты
-}
-```
+| Tool              | Для чего                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| `choose_api`      | Какой оператор решает требование, сформулированное своими словами                         |
+| `get_context`     | Собранный контекст под один шаг работы: оператор, сигнатура, пример, правила              |
+| `get_symbol_docs` | Полный JSDoc публичного символа любого `@reformer/*`                                      |
+| `find_recipe`     | Рецепт по теме из `docs/llms/` пакетов либо `@example` символа                            |
+| `search_docs`     | Полнотекстовый поиск по документации всех пакетов                                         |
+| `list_symbols`    | Публичные символы по виду, пакету или части имени                                         |
+| `plan_form`       | Спека или описание → `FormIntent`                                                         |
+| `generate_form`   | `FormIntent` → файлы формы (манифест; пишет клиент)                                       |
+| `form_build`      | `form.intent.json` → модуль формы на диске (пишет сервер)                                 |
+| `validate_form`   | Проверка до запуска: код, JSON-схема, циклы поведения, весь набор, имена файлов модуля    |
+| `report_issue`    | Сохранить проблему и её решение JSON-отчётом в `<корень проекта>/.reformer/issue_reports` |
+| `debug`           | Только при `REFORMER_DEBUG=true` — внутренний инструмент для разработки самого сервера    |
 
-Возвращает markdown с источником: `## Source: <pkg> · <file>` + содержимое рецепта/секции/`@example`. Если ничего не найдено — fallback со списком всех доступных рецептов и публичных символов.
+По умолчанию — 11 инструментов; `debug` добавляется в режиме отладки. Аргументы каждого — в
+[docs/llms/02-tools.md](./docs/llms/02-tools.md).
 
-### `report_issue`
+**Ресурсы:** `reformer://guide` (самодокументация сервера), `reformer://catalog` (карта разделов),
+`reformer://docs/<пакет>` и `reformer://docs/<пакет>/<раздел>` — подробно в
+[docs/llms/04-resources.md](./docs/llms/04-resources.md). **Промпты:** `start-here`, `plan-form`, `create-form`,
+`add-feature`, `to-renderer`, `review` и другие — [docs/llms/03-prompts.md](./docs/llms/03-prompts.md).
 
-Параметры: `error` (required), `solution` (required), `tags` (e.g. `category:behavior`, `agent:claude`, `severity:critical`), `context` (`examples`, `relatedFiles`, `notes`).
+## Входы пакета
 
-Каждый вызов пишет **отдельный файл** `<timestamp>-<slug>.json` в каталог отчётов — по умолчанию
-`<корень проекта>/.reformer/issue_reports`. Корень проекта — ближайший вверх от cwd `package.json`
-с зависимостями; если такого нет, каталог создаётся прямо в cwd. Переопределяется переменной
-окружения `REFORMER_ISSUE_REPORTS_DIR` — абсолютный путь, ведущая `~` разворачивается в домашний
-каталог, относительный отклоняется (он отсчитывался бы от cwd сервера) — см.
-[Environment variables](#environment-variables).
+| Импорт                                          | Что внутри                                                                                                      |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `@reformer/mcp`                                 | сервер stdio (`bin`: `reformer-mcp`); для запуска, не для импорта                                               |
+| `@reformer/mcp/core`                            | `createKnowledge`, `memoize` и типы знаний сервера                                                              |
+| `@reformer/mcp/browser`                         | `createBrowserKnowledge` — знания из уже загруженных данных, для браузера                                       |
+| `@reformer/mcp/intent`                          | компилятор описания формы чистыми функциями: `readIntent`, `normalizeIntent`, `buildBehaviorTs`, `findCycle`, … |
+| `@reformer/mcp/package.json`, `@reformer/mcp/*` | файлы пакета: `llms.txt`, `docs/llms/*.md`, бандл воркера `dist/worker/server.js`                               |
 
-## Available Resources
+Тот же сервер работает в браузерном Web Worker (`dist/worker/server.js`, корпус знаний вшит; нет
+`form_build`, `report_issue` и промптов). Подключение воркера и входы для встраивания —
+[docs/llms/07-embedding.md](./docs/llms/07-embedding.md).
 
-URI-шаблон: `reformer://docs[/<short-package>][/<section-slug>]` (плюс `reformer://guide` и `reformer://debug`).
+## Переменные окружения
 
-`<short-package>` — без префикса `@reformer/`: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `mcp`. Опционален — без него возвращается агрегированное по всем пакетам.
+| Переменная                   | По умолчанию                               | Что делает                                                                                          |
+| ---------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `REFORMER_ISSUE_REPORTS_DIR` | `<корень проекта>/.reformer/issue_reports` | Каталог отчётов `report_issue`; абсолютный путь (`~` — домашний каталог), относительный отклоняется |
+| `REFORMER_FORM_LAYOUT`       | `minimalist`                               | Раскладка файлов формы в промпте `create-form`: `minimalist` или `folders`                          |
+| `REFORMER_DEBUG`             | не задана                                  | `true` — режим отладки: инструмент и промпт `debug`, ресурс `reformer://debug`                      |
+| `REFORMER_TRACE_FILE`        | не задана                                  | Журнал вызовов для замеров: строка JSON на вызов (размеры, отпечаток аргументов, начало ответа)     |
+| `REFORMER_TYPECHECK_ROOT`    | не задана                                  | Откуда `validate_form` и `form_build` берут `@reformer/*` и `typescript` для проверки типов         |
 
-| URI                               | Что внутри                                                                                                      |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `reformer://guide`                | Полная самодокументация сервера (workflow + tools + prompts + resources).                                       |
-| `reformer://docs`                 | Документация всех `@reformer/*` пакетов, склеенная.                                                             |
-| `reformer://docs/cdk`             | Только `@reformer/cdk`: overview, FieldArray, FormWizard, FormField, recipes, troubleshooting.                  |
-| `reformer://docs/ui-kit`          | Только `@reformer/ui-kit`: text-fields, choice-fields, layout/buttons, form-field-integration, troubleshooting. |
-| `reformer://docs/renderer-json`   | Только `@reformer/renderer-json`: JSON schema, registry, cookbook, troubleshooting.                             |
-| `reformer://docs/<pkg>/<section>` | Отдельная H2-секция пакета по slug'у (точные URI — через ListResources).                                        |
-| `reformer://debug`                | Только в debug-режиме.                                                                                          |
+Задаются при регистрации (`claude mcp add … -e REFORMER_DEBUG=true`) или в `env` конфига клиента.
 
-> Списка символов и сигнатур в ресурсах нет — используй инструменты `list_symbols` / `get_symbol_docs`; для рецептов по сценарию — `find_recipe`.
-
-## Available Prompts
-
-Промпты делятся на **assist** (помогают создавать/менять код) и **analyze** (проверяют существующий код). Каждый подгружает только релевантные секции из `docs/llms/` через шаблоны промптов — агенту не нужно тянуть всю документацию.
-
-### Assist (всегда доступны)
-
-| Prompt        | Аргументы                                                                                                          | Что делает                                                                                                                                                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `create-form` | `description` (required), `target` (`core` / `renderer-react` / `renderer-json`, default `core`)                   | Спроектировать и сгенерировать новую форму по описанию полей. Подгружает quick-start, FormSchema, импорты + при `target=renderer-*` соответствующий обвязочный пакет.                                                                                        |
-| `add-feature` | `feature` (required: `validation` / `behavior` / `array` / `wizard`), `code` (required), `requirements` (required) | Добавить в существующую форму одну возможность: правила валидации, поведение, массив под-форм или шаги мастера. Схлопывает прежние `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`: шаблоны те же, стадия выбирается аргументом `feature`. |
-| `to-renderer` | `code` (required), `target` (`renderer-react` / `renderer-json`, default `renderer-react`)                         | Сменить способ отрисовки формы: `FormRenderer` по той же TS-схеме или JSON-документ формата 2 с реестром. Модель, валидация, поведение и вызов `createForm` остаются. Схлопывает прежние `to-renderer` и `to-renderer-json`.                                 |
-
-### Analyze
-
-| Prompt   | Always                           | Аргументы         | Что делает                                                                                                                                                   |
-| -------- | -------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `review` | ✅                               | `code` (required) | Кросс-пакетный чек-лист код-ревью: state setup, React integration, CDK/UI-kit/renderers, errors. Подгружает anti-patterns и troubleshooting из всех пакетов. |
-| `debug`  | под флагом `REFORMER_DEBUG=true` | `code` (required) | Анализ кода формы по чек-листу из `@reformer/core` troubleshooting.                                                                                          |
-
-## Development
-
-Из корня монорепо:
+## Разработка
 
 ```bash
-# Установить зависимости
-npm install
-
-# Собрать только MCP-сервер (включает npm run generate:llms перед tsc)
-npm run build -w @reformer/mcp
-
-# Регенерировать llms.txt всех пакетов вручную
-npm run generate:llms
-
-# Аудит JSDoc-покрытия пакета
-node scripts/generate-llms-txt packages/reformer --audit
-node scripts/generate-llms-txt packages/reformer-cdk --audit
-# ... и т.д. для остальных пакетов
-
-# Запустить сервер локально
-node packages/reformer-mcp/dist/index.js
-```
-
-`build` пакета сначала вызывает `npm run generate:llms` (свой `llms.txt`), затем `tsc`, а последним
-собирает бандл для Web Worker (см. ниже). На свежем checkout этого достаточно — отдельно
-`npm run generate:llms` запускать не нужно.
-
-## Браузер и Web Worker
-
-Тот же сервер работает в браузерном Web Worker: `dist/worker/server.js` — один самодостаточный
-скрипт (около 4,5 МБ), в который вшит корпус знаний. Хост запускает его воркером и говорит с ним по
-MCP через `postMessage`: одно сообщение — один кадр JSON-RPC, без конверта.
-
-Так его подключает ассистент ReFormer Builder — положите бандл в каталог сервера проекта:
-
-```bash
-mkdir -p .ui_builder/mcp/reformer
-cp node_modules/@reformer/mcp/dist/worker/server.js .ui_builder/mcp/reformer/
-```
-
-Отличия от сервера под Node:
-
-- нет `report_issue` (отчёт некуда сохранить) и `debug`;
-- у `plan_form` нет `specPath` — план строится от `description`;
-- нет промптов: они рендерятся шаблонами с диска и просят sampling у клиента;
-- ресурсы — те же (`reformer://guide`, `reformer://catalog`, `reformer://docs/…`).
-
-Корпус разбирается на первый вызов, которому он нужен: `initialize` и `tools/list` отвечают сразу.
-
-Свой хост может взять транспорт из пакета — тот же модуль, что использует сам сервер:
-
-```ts
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { createPortTransport } from '@reformer/mcp/dist/platform/worker/port-transport.js';
-
-const worker = new Worker(serverScriptUrl);
-const client = new Client({ name: 'my-host', version: '1.0.0' });
-await client.connect(createPortTransport(worker, { onClose: () => worker.terminate() }));
-```
-
-Пересобрать только бандл (нужен собранный `dist`): `npm run build:worker -w @reformer/mcp`;
-`-- --out <каталог>` — положить копию ещё и туда.
-
-## Environment variables
-
-| Переменная                   | Значение по умолчанию                      | Что делает                                                                                                                |
-| ---------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `REFORMER_ISSUE_REPORTS_DIR` | `<корень проекта>/.reformer/issue_reports` | Каталог, куда `report_issue` складывает JSON-отчёты. Абсолютный путь (`~` — домашний каталог); относительный отклоняется. |
-| `REFORMER_FORM_LAYOUT`       | `minimalist`                               | Какую раскладку файлов формы предлагает prompt `create-form`: `minimalist` (плоский набор файлов) или `folders`.          |
-| `REFORMER_DEBUG`             | не задана                                  | `true` включает debug-режим (см. ниже).                                                                                   |
-
-Задаются при регистрации сервера через `-e` (`claude mcp add … -e REFORMER_ISSUE_REPORTS_DIR=/path/to/dir`)
-либо в `env` MCP-конфига клиента.
-
-## Debug Mode
-
-Активируется переменной окружения `REFORMER_DEBUG=true`:
-
-```bash
-REFORMER_DEBUG=true node packages/reformer-mcp/dist/index.js
-```
-
-Что добавляется:
-
-| Type     | Name               | Description                                                          |
-| -------- | ------------------ | -------------------------------------------------------------------- |
-| Tool     | `debug`            | Внутренний tool для тестирования сервера (читает любую секцию docs). |
-| Resource | `reformer://debug` | Список доступных пакетов (что нашёл парсер).                         |
-| Prompt   | `debug`            | Чек-лист анализа кода форм.                                          |
-
-В обычном режиме эти три отсутствуют в `listTools` / `listResources` / `listPrompts`.
-
-## Verification: MCP Inspector
-
-После сборки можно визуально проверить сервер через официальный Inspector:
-
-```bash
-# Из корня монорепо
-npm run build -w @reformer/mcp
-
-# Запустить Inspector с нашим сервером
+npm run build -w @reformer/mcp      # llms.txt пакета → tsc → бандл воркера
+npm run test -w @reformer/mcp
+npm run mcp:evaluate                # замер качества ответов против базовой линии (гейт CI)
 npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
-
-# Опционально с debug-режимом
-REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
 ```
 
-В терминале появится URL вида `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=…`. Открой в браузере — три вкладки.
+## Ссылки
 
-### Чек-лист ручной проверки
-
-**Resources** (`guide` + `docs` aggregated + per-package + per-section):
-
-- `reformer://docs` — длинный markdown с разделителями `# ===== @reformer/<pkg> =====`.
-- `reformer://docs/cdk` — содержит `FieldArray` и новые секции `04-form-field`, `05-recipes`, `06-troubleshooting`.
-- `reformer://docs/ui-kit` — содержит `02-text-fields` … `06-troubleshooting`.
-- `reformer://guide` — самодокументация сервера (mirror `reformer://docs/mcp`).
-
-**Tools:**
-
-- `get_symbol_docs` → `{ "symbol": "copyFrom" }` → ответ содержит ≥ 2 блока `@example`.
-- `find_recipe` → `{ "topic": "copy-from" }` → ответ содержит секцию из `@reformer/core` `23-copy-from.md`.
-- `find_recipe` → `{ "topic": "wizard" }` → возвращает рецепт wizard'а из `@reformer/cdk` (по имени файла либо секции).
-- `find_recipe` → `{ "topic": "useFormControl" }` → JSDoc-`@example` из `@reformer/core`.
-- `find_recipe` → `{ "topic": "unknown-xyz" }` → fallback со списком доступных рецептов.
-- `report_issue` → можно отправить тестовый — появится файл в `<корень проекта>/.reformer/issue_reports/`.
-
-**Prompts:**
-
-- `review` → render с любым кодом → messages с кросс-пакетным чек-листом.
-- `debug` (только в debug-режиме) → render с кодом формы → анализ по `@reformer/core` troubleshooting.
-
-Закрытие — `Ctrl+C` в терминале.
+- Документация: [обзор MCP](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/overview),
+  [инструменты](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/tools)
+- Справка сервера (она же `reformer://guide`): [`docs/llms`](./docs/llms)
+- Конвенция документации пакетов: [docs/llms-convention.md](../../docs/llms-convention.md)
 
 ## License
 

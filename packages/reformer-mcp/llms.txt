@@ -11,6 +11,7 @@
 - 04-resources.md — Resources
 - 05-m1-workflow.md — Form-building workflow
 - 06-form-directory-layout.md — Form directory layout (core / renderer-react / renderer-json)
+- 07-embedding.md — Embedding — package entries and the browser worker
 - API Reference (auto-generated from JSDoc)
 
 ## 1. How to use it (recommended order)
@@ -49,16 +50,17 @@ This MCP server gives you everything needed to build a form with the ReFormer li
 
 The full self-doc of this server is one resource — `reformer://guide` (aka `reformer://docs/mcp`) —
 covering: **Tools** (callable lookup + validation), **Prompts** (one per workflow step),
-**Resources** (`reformer://docs/<pkg>[/<section>]` for the 5 library packages), and the **workflow**.
+**Resources** (`reformer://docs/<pkg>[/<section>]` for the 6 library packages), and the **workflow**.
 Individual sections are addressable per-heading (slug from the H2 title); enumerate exact URIs with ListResources.
 
-## 3. The 5 library packages (read their docs via resources)
+## 3. The 6 library packages (read their docs via resources)
 
 - `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
 - `@reformer/cdk` — headless FieldArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
 - `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
 - `@reformer/renderer-react` — `FormRenderer`: draws the schema tree (`reformer://docs/renderer-react`).
 - `@reformer/renderer-json` — the schema as a JSON document + registry (`reformer://docs/renderer-json`).
+- `@reformer/form-registry` — one bundle registers a form (`FormEntry`), another renders it by id (`<FormOutlet id>`); built for micro-frontends (`reformer://docs/form-registry`).
 
 ## 4. Golden rules
 
@@ -239,7 +241,22 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 - `intent` (object, required) — обычно из `plan_form`; неполный нормализуется с warnings.
 - `target` (string, optional) — перекрывает `intent.target`.
 
-## 14. report_issue
+## 14. form_build
+
+Модуль формы на диске из одного файла — `<dir>/form.intent.json`. Агент пишет и правит только
+этот файл своим Write/Edit; `form_build` компилирует его, сверяет, проверяет типы результата и сам
+записывает все файлы модуля, возвращая только диагностику. В отличие от `generate_form`, сервер
+пишет файлы сам, поэтому инструмента нет во встроенном (браузерном) профиле.
+
+- `dir` (string, optional) — каталог формы внутри проекта, по умолчанию `form`.
+
+Пока есть ошибки, на диск не пишется ничего. Вызов до появления `form.intent.json` возвращает
+грамматику intent. Собранные файлы начинаются с метки `// @reformer-form-build`; файл, правленный
+руками, отсоединяется — сборка его не трогает и сообщает об этом. `types.ts` и `api.ts` — файлы
+потребителя; на таргете `core` им же принадлежит `index.tsx` (сборка создаёт заготовку один раз).
+Подробно — `06-form-directory-layout`, раздел «`form.intent.json`».
+
+## 15. report_issue
 
 Record a ReFormer problem + its fix as a JSON report on disk — one file per report,
 `<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`.
@@ -258,7 +275,7 @@ Use when you discover and fix a non-obvious ReFormer error, to help future runs.
 
 _A `debug` tool exists only when the server runs with `REFORMER_DEBUG=true`; ignore it in normal use._
 
-## 15. start-here
+## 16. start-here
 
 **Prompts**
 
@@ -286,14 +303,14 @@ assembly `createForm`, one behavior), the map of prompts/tools/resources, and th
 its opening lines carry the file-layout rule — which is the one thing worth reading before you
 create any file.
 
-## 16. discover-context
+## 17. discover-context
 
 - `description` (required), `projectPath` (optional).
 
 Detects the target stack (ui-kit / Tailwind / which renderer) from the consumer project and
 recommends a render target. Optional first step when the target isn't given.
 
-## 17. plan-form
+## 18. plan-form
 
 - `specPath` (required), `target` (optional: core | renderer-react | renderer-json), `projectPath` (optional).
 
@@ -301,14 +318,14 @@ Reads and parses a markdown spec file, then returns a roadmap: steps, fields, co
 behaviors, API endpoints, a risk matrix, and verification scenarios. Use when the form comes
 from a written spec.
 
-## 18. create-form
+## 19. create-form
 
 - `description` (required), `target` (optional, default core), `projectPath` (optional).
 
 Turns a free-text form description into build instructions for the chosen target (quick-start,
 FormSchema reference, imports, stack-aware skeleton). Use for the initial form when there is no spec file.
 
-## 19. add-feature
+## 20. add-feature
 
 Добавить одну возможность в существующую форму. Стадия выбирается аргументом:
 - `feature: "validation"` — правила валидации;
@@ -323,7 +340,7 @@ FormSchema reference, imports, stack-aware skeleton). Use for the initial form w
 у всех четырёх одна форма аргументов, поэтому слияние не создаёт путаницы, а перечисление
 из четырёх записей стоило каждому клиенту токенов при подключении.
 
-## 20. to-renderer
+## 21. to-renderer
 
 Сменить способ отрисовки формы. Модель, валидация, поведение и вызов `createForm` остаются —
 меняется только то, кто рисует. Целевой стек — аргумент:
@@ -333,7 +350,7 @@ FormSchema reference, imports, stack-aware skeleton). Use for the initial form w
 Аргументы: `code`, опционально `target`. Схлопывает прежние `to-renderer` и
 `to-renderer-json`.
 
-## 21. review
+## 22. review
 
 - `code` (required).
 
@@ -343,7 +360,7 @@ Cross-package review checklist (state setup, integration, anti-patterns) for exi
 
 _A `debug` prompt exists only with `REFORMER_DEBUG=true`._
 
-## 22. URI scheme
+## 23. URI scheme
 
 **Resources**
 
@@ -365,7 +382,7 @@ Section URIs themselves are unchanged and read exactly as before.
 
 `<pkg>` is a short name: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `form-registry`, `mcp`.
 
-## 23. Self-documentation (this server)
+## 24. Self-documentation (this server)
 
 - `reformer://guide` — the whole self-doc in one document (guide + tools + prompts + resources + workflow).
   Equivalent to `reformer://docs/mcp` (the full mcp `llms.txt`).
@@ -374,7 +391,7 @@ Section URIs themselves are unchanged and read exactly as before.
   `reformer://docs/mcp/form-intent-json-the-source-for-form-build`,
   `reformer://docs/mcp/schema-one-tree-of-nodes`, `reformer://docs/mcp/checklist-before-you-finish`.
 
-## 24. Library docs (the 6 packages)
+## 25. Library docs (the 6 packages)
 
 Each package's sections come from its `docs/llms/*.md`. Discover exact slugs via `reformer://catalog`
 or `search_docs`. The examples below are file names, one whole file each:
@@ -385,7 +402,7 @@ or `search_docs`. The examples below are file names, one whole file each:
 - `reformer://docs/renderer-react/render-schema`, `reformer://docs/renderer-react/render-behavior` — the schema tree drawn by `FormRenderer`.
 - `reformer://docs/renderer-json/json-schema`, `reformer://docs/renderer-json/registry` — JSON DSL + registry.
 
-## 25. How this relates to tools
+## 26. How this relates to tools
 
 `find_recipe` reads the same `docs/llms/*.md` directly (with alias resolution) and, when no curated
 recipe matches, cascades into the same full-text search `search_docs` uses — so an unknown topic
@@ -393,7 +410,7 @@ returns ranked `reformer://docs/…` candidates instead of a dead end. Resources
 sections when you want to browse or read a whole package. When you know the scenario, `find_recipe`
 is faster; when you want the full section text, read the resource.
 
-## 26. 0. Choose who draws the markup
+## 27. 0. Choose who draws the markup
 
 **Form-building workflow**
 
@@ -455,7 +472,7 @@ const credit = useFormBundle(() =>
 Steps 1–6 are the same for all three. They differ only in the shape of the schema passed to the
 assembly (a builder or a document + `registry`) and in step 7.
 
-## 27. 1. Model — `createModel<T>(initial)`
+## 28. 1. Model — `createModel<T>(initial)`
 
 The model owns all values. Decisions: the data shape as a `type` (NOT `interface` — see
 `find_recipe type-safety-recipes`), and full initial values.
@@ -476,7 +493,7 @@ export const createRegModel = () =>
 // model.email (value) · model.$.email (binding handle) · model.get() · model.set(full)
 ```
 
-## 28. 2. Schema — one tree of nodes
+## 29. 2. Schema — one tree of nodes
 
 ONE schema: a field is described once and stands right where it is drawn. The schema is a builder
 `(model) => node`; a node is bound to the model by the key `model` and the handle `model.$.…` —
@@ -527,7 +544,7 @@ Traps:
 - Containers are optional: whoever writes the markup in JSX keeps only field nodes in the schema.
 - `selector` is a node id for rules of the behavior (step 5), not a model path.
 
-## 29. 3. Assemble — ONE call, `createForm`
+## 30. 3. Assemble — ONE call, `createForm`
 
 The model, the schema tree, the form, the behavior and the validation are built in a single pass.
 The call is the same for every way of drawing; a JSON document goes in as `schema` together with
@@ -558,7 +575,7 @@ once, while `useMemo` may drop its cache and rebuild the form, losing typed inpu
 `createFormFromModel({ model, schema })` remains public for special cases; `createLegacyForm`
 (both overloads) has been removed.
 
-## 30. 4. Validation — `defineValidation`
+## 31. 4. Validation — `defineValidation`
 
 Validation is its **own ambient schema** — a plain function over the model, imported from
 `@reformer/core/validation`, separate from the form schema (step 2) and from the behavior (step 5).
@@ -622,7 +639,7 @@ Trap: the old `ModelValidator (value, scope, root)` placed in a leaf's `validato
 `validateFormModel` → `{ valid, errors }` is replaced by `validateModel` → `Promise<boolean>` that routes
 errors into the nodes itself.
 
-## 31. 5. Behavior — the ONLY behavior of the form (optional)
+## 32. 5. Behavior — the ONLY behavior of the form (optional)
 
 One function, one file (`form.behavior.ts`), one `behavior` field of the assembly. Next to the model
 and the form it gets the schema, so links over the model and rules for schema nodes stand side by
@@ -668,7 +685,7 @@ through `validate_form kind="behaviors"`; see `find_recipe cycle`.
 Bridge to validation (the only overlap between the layers): a behavior can _trigger_ a re-run —
 `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.
 
-## 32. 6. Arrays & Wizard (when needed)
+## 33. 6. Arrays & Wizard (when needed)
 
 - **Array of sub-forms**: `arrayOf(blank)` in the model + the node
   `{ model: model.$.items, component: FieldArray, item: itemRow }`; `itemRow` is a part
@@ -686,7 +703,7 @@ Bridge to validation (the only overlap between the layers): a behavior can _trig
   of it is the former contract; the behavior navigates with `flow.goTo(id)`. In JSX `FormWizard`
   takes `form`, `flow={bundle.flow}` and `steps` as props. `find_recipe wizard`.
 
-## 33. 7. Draw
+## 34. 7. Draw
 
 The bundle from step 3 goes to whoever draws.
 
@@ -715,7 +732,7 @@ artifacts over one model, the same for every way of drawing: the **schema** (`fo
 stay independent: a layout pushed from the server changes display without touching the rules, and
 vice versa.
 
-## 34. Checklist before you finish
+## 35. Checklist before you finish
 
 1. The model initialises every field; arrays of sub-forms are `arrayOf(blank)`. 2. Nodes are
 `{ model: model.$.x, component, ... }` — the key is `model`, no `validators:` on a node. 3. One
@@ -725,7 +742,7 @@ assembly: `createForm` in `useFormBundle`. 4. Validation is a separate `defineVa
 7. A JSON document has `"format": 2` and passed `validate_form kind="json-schema"`. 8. The code
 passed `validate_form kind="code"` — it reports keys and factories of the former contract.
 
-## 35. 1. Minimalist (default) — flat, one file per concern
+## 36. 1. Minimalist (default) — flat, one file per concern
 
 **Form directory layout (core / renderer-react / renderer-json)**
 
@@ -872,7 +889,7 @@ Rules:
 - **The set is the whole module.** A concern with no file of its own does not get a new file — it
   belongs inside one of these. The documented exception is the `steps/` folders above.
 
-## 36. 2. App-level infrastructure (renderer-json only) — recommendation, not a conformance bar
+## 37. 2. App-level infrastructure (renderer-json only) — recommendation, not a conformance bar
 
 > **Status: aspirational.** Nothing in this repository implements the layout below: no example has a
 > `src/renderer-json/` directory, and the meta-schema generator is currently wired to one specific
@@ -902,7 +919,7 @@ workaround.
 > Raw (non-ui-kit) controls are bound by name the same way, but need a `resolveFieldAdapter` in the
 > renderer **settings** (see `@reformer/renderer-react`), not in the registry itself.
 
-## 37. 3. Scale up: folders (large forms)
+## 38. 3. Scale up: folders (large forms)
 
 When a form grows large (many steps, sub-forms reused across steps, several ways of drawing), the
 flat module becomes **role folders** — the layout of the reference credit application
@@ -936,7 +953,7 @@ flow })`. `validation/form.ts` keeps only the rules outside steps (`{ extras }`)
 - `validate_form kind="layout"` recognises this layout by its role folders: it checks the top-level
   folders and the entry, not the file names inside them.
 
-## 38. 4. Scaling
+## 39. 4. Scaling
 
 | Complexity               | Structure                                                                                                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -944,7 +961,7 @@ flow })`. `validation/form.ts` keeps only the rules outside steps (`{ extras }`)
 | **Default (minimalist)** | flat files (§1) — plain-named base + `form.schema` / `form.behavior` / `form.validation`; wizard steps in the root schema or in `steps/<slug>/`; identical across targets |
 | Large                    | folders (§3): role folders `model/` `schema/` `validation/` `behavior/` `flow/` `application/` (+ app-level registry/meta-schema for renderer-json)                       |
 
-## 39. 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
+## 40. 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
 
 Which layout the **`create-form` prompt leads with** is configurable via the `REFORMER_FORM_LAYOUT`
 environment variable, set in the MCP server registration `env` of your client's `.mcp.json` — the
@@ -960,7 +977,7 @@ same mechanism as `REFORMER_DEBUG`:
 Values: `minimalist` (default when unset/unrecognized) | `folders`. This guide documents both
 layouts regardless; the env var only changes which one `create-form` steers toward by default.
 
-## 40. 6. Reuse map
+## 41. 6. Reuse map
 
 The contract of a form is the same for every way of drawing, so almost every file is written once.
 
@@ -991,7 +1008,7 @@ Renaming any of these is a defect in itself: the stems above are the contract th
 and `find_recipe directory-layout` key on. Older example directories in this repository predate the
 contract and are **not** naming references.
 
-## 41. 7. Former names (`form.render.ts`, `wizard.tsx`, `renderer.*`, `validation.ts`)
+## 42. 7. Former names (`form.render.ts`, `wizard.tsx`, `renderer.*`, `validation.ts`)
 
 The canon was aligned twice. First the render layer lost its `renderer.` prefix and validation got
 the `form.` prefix. Then the unified contract removed two roles altogether: the separate behavior of
@@ -1009,7 +1026,7 @@ Fix it when you next touch the module; new code uses the canonical names only. `
 `renderer-react` share one file set, so the files alone no longer tell these targets apart — pass
 `target` to `validate_form kind="layout"` explicitly.
 
-## 42. 8. `form.intent.json` — the source for `form_build`
+## 43. 8. `form.intent.json` — the source for `form_build`
 
 An optional addition to the module. Author and edit only this file: `form_build` compiles it,
 type-checks the result and writes the module. Files it wrote start with a `// @reformer-form-build`
@@ -1027,7 +1044,84 @@ arguments, empty bodies, `TODO(form_build)` marks. Until you edit it, the stub f
 writing the bodies detaches it like any built file, and the build keeps reminding you while marks
 remain.
 
-## 43. API Reference
+## 44. Package entries
+
+**Embedding — package entries and the browser worker**
+
+How to use `@reformer/mcp` without spawning the CLI server: the package entries for a host
+application (an editor, a builder plugin, a test) and the self-contained Web Worker bundle.
+An agent that only calls the server's tools does not need this file.
+
+| Entry                 | Contents                                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `@reformer/mcp`       | the stdio server (`bin`: `reformer-mcp`); not meant to be imported                                 |
+| `@reformer/mcp/core`  | `createKnowledge(sources)`, `memoize`; types `Knowledge`, `KnowledgeSources`, `SymbolsFallback`, `UiKitCatalogSource` |
+| `@reformer/mcp/browser` | `createBrowserKnowledge(input)` → `{ knowledge, issues }` — knowledge from already loaded data   |
+| `@reformer/mcp/intent`  | the form-intent compiler as pure functions — no server, no disk                                  |
+| `@reformer/mcp/package.json`, `@reformer/mcp/*` | raw files of the package (`llms.txt`, `docs/llms/*.md`, `dist/worker/server.js`) |
+
+`core/` holds no Node globals (`npm run check:no-node-globals` guards it), so `./core`,
+`./browser` and `./intent` load in a browser.
+
+## 45. `@reformer/mcp/intent` — compile a form intent in-process
+
+The same pipeline that `generate_form` and `form_build` run, for a host that keeps its own form
+document (the ReFormer Builder assistant uses it in its `build_form` tool):
+
+| Function                                         | What it does                                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `readIntent(raw, options?)`                      | parse an untrusted JSON value → `{ intent, problems, notices }`                 |
+| `normalizeIntent(partial, { uiKit? })`           | fill the defaults of a partial `FormIntent`                                     |
+| `buildSchemaLayout(intent)`, `collectSteps`, `stepKeyOf` | the schema layout and wizard steps of the intent                        |
+| `buildValidationSchemaTs(rules, options)`, `buildBehaviorTs(intent)` | print `form.validation.ts` / `form.behavior.ts` source      |
+| `mergeFieldChecks`, `inspectLayoutRefs`, `modelPaths` | merge per-field checks, cross-check layout references, list model paths    |
+| `findCycle(deps)`                                | a cycle in `{ target, reads }[]` dependencies, or `null` (as `check_behaviors`) |
+| `uiKitFromCatalog`, `normalizeFieldComponent`, `NO_UI_KIT` | component names from a kit catalog                                   |
+| `coreOperatorsFromIndex`, `NO_CORE_OPERATORS`    | operators of the installed `@reformer/core`, read from its `llms-index.json`    |
+
+Types: `FormIntent`, `FieldIntent`, `ArrayIntent`, `WizardIntent`, `ValidationRuleIntent`,
+`BehaviorIntent`, `VisibilityIntent`, `NodeRuleIntent`, `LayoutNode`, `SchemaDocument`,
+`IntentProblem`, `IntentWarning`.
+
+```typescript
+import { findCycle, readIntent } from '@reformer/mcp/intent';
+
+const { intent, problems } = readIntent(JSON.parse(text));
+if (problems.length > 0) throw new Error(problems.map((p) => p.message).join('\n'));
+
+const cycle = findCycle([
+  { target: 'total', reads: ['price', 'quantity'] },
+  { target: 'price', reads: ['total'] },
+]); // ['total', 'price', 'total']
+```
+
+## 46. Browser worker
+
+`dist/worker/server.js` is one self-contained script (about 4.5 MB) with the knowledge corpus
+built in. The host starts it as a Web Worker and speaks MCP over `postMessage`: one message —
+one JSON-RPC frame, no envelope. The corpus is parsed on the first call that needs it;
+`initialize` and `tools/list` answer immediately.
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { createPortTransport } from '@reformer/mcp/dist/platform/worker/port-transport.js';
+
+const worker = new Worker(serverScriptUrl);
+const client = new Client({ name: 'my-host', version: '1.0.0' });
+await client.connect(createPortTransport(worker, { onClose: () => worker.terminate() }));
+```
+
+Differences from the Node server:
+
+- no `form_build` and `report_issue` — they write to disk; no `debug`;
+- `plan_form` has no `specPath` — the plan is built from `description`;
+- no prompts: they are rendered from template files and ask the client for sampling;
+- the same resources: `reformer://guide`, `reformer://catalog`, `reformer://docs/…`.
+
+Rebuild only the worker bundle (needs a built `dist`): `npm run build:worker -w @reformer/mcp`;
+`-- --out <dir>` also copies it there.
+
+## 47. API Reference
 
 _Auto-generated from JSDoc on public exports._
 

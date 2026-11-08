@@ -34,16 +34,17 @@ This MCP server gives you everything needed to build a form with the ReFormer li
 
 The full self-doc of this server is one resource — `reformer://guide` (aka `reformer://docs/mcp`) —
 covering: **Tools** (callable lookup + validation), **Prompts** (one per workflow step),
-**Resources** (`reformer://docs/<pkg>[/<section>]` for the 5 library packages), and the **workflow**.
+**Resources** (`reformer://docs/<pkg>[/<section>]` for the 6 library packages), and the **workflow**.
 Individual sections are addressable per-heading (slug from the H2 title); enumerate exact URIs with ListResources.
 
-## The 5 library packages (read their docs via resources)
+## The 6 library packages (read their docs via resources)
 
 - `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
 - `@reformer/cdk` — headless FieldArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
 - `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
 - `@reformer/renderer-react` — `FormRenderer`: draws the schema tree (`reformer://docs/renderer-react`).
 - `@reformer/renderer-json` — the schema as a JSON document + registry (`reformer://docs/renderer-json`).
+- `@reformer/form-registry` — one bundle registers a form (`FormEntry`), another renders it by id (`<FormOutlet id>`); built for micro-frontends (`reformer://docs/form-registry`).
 
 ## Golden rules
 

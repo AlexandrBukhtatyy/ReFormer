@@ -168,6 +168,21 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 - `intent` (object, required) — обычно из `plan_form`; неполный нормализуется с warnings.
 - `target` (string, optional) — перекрывает `intent.target`.
 
+## form_build
+
+Модуль формы на диске из одного файла — `<dir>/form.intent.json`. Агент пишет и правит только
+этот файл своим Write/Edit; `form_build` компилирует его, сверяет, проверяет типы результата и сам
+записывает все файлы модуля, возвращая только диагностику. В отличие от `generate_form`, сервер
+пишет файлы сам, поэтому инструмента нет во встроенном (браузерном) профиле.
+
+- `dir` (string, optional) — каталог формы внутри проекта, по умолчанию `form`.
+
+Пока есть ошибки, на диск не пишется ничего. Вызов до появления `form.intent.json` возвращает
+грамматику intent. Собранные файлы начинаются с метки `// @reformer-form-build`; файл, правленный
+руками, отсоединяется — сборка его не трогает и сообщает об этом. `types.ts` и `api.ts` — файлы
+потребителя; на таргете `core` им же принадлежит `index.tsx` (сборка создаёт заготовку один раз).
+Подробно — `06-form-directory-layout`, раздел «`form.intent.json`».
+
 ## report_issue
 
 Record a ReFormer problem + its fix as a JSON report on disk — one file per report,
