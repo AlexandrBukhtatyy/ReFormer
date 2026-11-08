@@ -14,7 +14,7 @@ export const getSymbolDocsToolDefinition = {
       symbol: {
         type: 'string',
         description:
-          'Symbol name (e.g. "useFormControl", "getReformerForm", "FieldArray", "createRenderSchema").',
+          'Symbol name (e.g. "useFormControl", "createForm", "FieldArray", "createRenderSchema").',
       },
       package: {
         type: 'string',

@@ -190,3 +190,92 @@ describe('findRecipeTool — missing / invalid topic guard (defect 79)', () => {
     expect(res.content[0].text).toMatch(/topic.*required/i);
   });
 });
+
+describe('findRecipeTool — маршрутизация общих топиков', () => {
+  /** Файл, которым ответил шаг 1 каскада, — из строки `**Source:** <pkg> · `docs/llms/<file>``. */
+  async function sourceOf(topic: string, pkg?: string): Promise<string> {
+    const { content } = await findRecipeTool({ topic, package: pkg }, k);
+    const m = content[0].text.match(/\*\*Source:\*\* (@reformer\/[\w-]+) · `docs\/llms\/([^`]+)`/);
+    return m ? `${m[1]}/${m[2]}` : `(нет файла) ${content[0].text.slice(0, 80)}`;
+  }
+
+  it.runIf(hasDocs)(
+    '`validation` и его семья ведут в рецепт правил, а не в стратегию',
+    async () => {
+      // core/33-validation-strategy.md совпадал по слову в имени и, будучи в первом пакете,
+      // перехватывал `validation` у точного `06-validation.md`; `validate` уходил в
+      // 27-revalidate-when.md по буквам «validate» внутри «revalidate».
+      for (const topic of ['validation', 'validate', 'cross-field', 'validate-async']) {
+        expect(await sourceOf(topic), `топик "${topic}"`).toBe(
+          '@reformer/renderer-react/06-validation.md'
+        );
+      }
+      // В ядре — второй алиас, ради которого он и заведён.
+      expect(await sourceOf('cross-field', 'core')).toBe('@reformer/core/04-common-patterns.md');
+      expect(await sourceOf('validate-async', 'core')).toBe(
+        '@reformer/core/31-async-validator-debounce.md'
+      );
+      // Стратегия по-прежнему находится своим именем.
+      expect(await sourceOf('validation-strategy')).toBe(
+        '@reformer/core/33-validation-strategy.md'
+      );
+    }
+  );
+
+  it.runIf(hasDocs)('локализация под любым названием ведёт в i18n ядра', async () => {
+    for (const topic of ['i18n', 'locale', 'localization', 'translation', 'l10n']) {
+      expect(await sourceOf(topic), `топик "${topic}"`).toBe('@reformer/core/34-i18n.md');
+    }
+    expect(await sourceOf('i18n', 'renderer-json')).toBe('@reformer/renderer-json/08-i18n.md');
+  });
+
+  it.runIf(hasDocs)('разбор проблем: troubleshooting, faq и частые ошибки', async () => {
+    expect(await sourceOf('troubleshooting')).toBe('@reformer/core/06-troubleshooting.md');
+    expect(await sourceOf('faq')).toBe('@reformer/core/06-troubleshooting.md');
+    expect(await sourceOf('faq', 'cdk')).toBe('@reformer/cdk/07-troubleshooting.md');
+    for (const topic of ['pitfalls', 'anti-patterns']) {
+      expect(await sourceOf(topic), `топик "${topic}"`).toBe(
+        '@reformer/core/05-common-mistakes.md'
+      );
+    }
+  });
+
+  it.runIf(hasDocs)('имя пакета ведёт в обзор этого пакета', async () => {
+    const expected: Array<[string, string]> = [
+      ['core', '@reformer/core/39-overview.md'],
+      ['cdk', '@reformer/cdk/01-overview.md'],
+      ['ui-kit', '@reformer/ui-kit/01-overview.md'],
+      ['renderer-react', '@reformer/renderer-react/01-overview.md'],
+      ['renderer-json', '@reformer/renderer-json/01-overview.md'],
+      ['form-registry', '@reformer/form-registry/01-overview.md'],
+      ['mcp', '@reformer/mcp/01-guide.md'],
+    ];
+    for (const [topic, file] of expected) {
+      expect(await sourceOf(topic), `топик "${topic}"`).toBe(file);
+    }
+    // Кандидат `<пакет>/<имя>` вне фильтра package не находится — каскад идёт дальше.
+    expect(await sourceOf('renderer-json', 'core')).not.toContain('renderer-json/');
+    // Тот же адрес можно передать топиком напрямую.
+    expect(await sourceOf('cdk/list')).toBe('@reformer/cdk/10-list.md');
+  });
+
+  it.runIf(hasDocs)('новые рецепты cdk и обзор ядра находятся своими именами', async () => {
+    expect(await sourceOf('file-upload')).toBe('@reformer/cdk/09-file-upload.md');
+    expect(await sourceOf('list')).toBe('@reformer/cdk/10-list.md');
+    expect(await sourceOf('option-source')).toBe('@reformer/cdk/11-option-source.md');
+    expect(await sourceOf('resource-config')).toBe('@reformer/cdk/11-option-source.md');
+    expect(await sourceOf('overview')).toBe('@reformer/core/39-overview.md');
+    expect(await sourceOf('install')).toBe('@reformer/core/39-overview.md');
+    expect(await sourceOf('embedding')).toBe('@reformer/mcp/07-embedding.md');
+  });
+
+  it.runIf(hasDocs)(
+    'точное имя в позднем пакете не перебивает сегмент, если точного нет',
+    async () => {
+      // `wizard` — сегмент имени в ui-kit/renderer-*; алиас `multi-step` совпадает с файлом ядра
+      // точно, но сам топик совпал не подстрокой, поэтому остаётся первым.
+      expect(await sourceOf('wizard')).toBe('@reformer/ui-kit/07-form-wizard.md');
+      expect(await sourceOf('recipes')).toBe('@reformer/cdk/06-recipes.md');
+    }
+  );
+});

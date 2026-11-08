@@ -163,12 +163,133 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   'async-validation': ['validation', 'async-validator-debounce'],
   cross: ['validation', 'common-patterns'],
   'cross-field': ['validation', 'common-patterns'],
+  // Локализация. Общий рецепт — core 34-i18n.md. Замерено: `translation` давал «No recipe
+  // found» и ~3.5k символов списка, `locale` — секцию одного символа (`bundledLocaleSource`),
+  // `localization` — раздел локали cdk вместо локали ядра.
+  locale: ['i18n'],
+  locales: ['i18n'],
+  localization: ['i18n'],
+  localisation: ['i18n'],
+  l10n: ['i18n'],
+  translation: ['i18n'],
+  translations: ['i18n'],
+  translate: ['i18n'],
+  language: ['i18n'],
+  // Разбор проблем: файлы `troubleshooting` есть у каждого библиотечного пакета, частые ошибки
+  // ядра — в 05-common-mistakes.md. `anti-patterns` без алиаса попадал в первый попавшийся
+  // одноимённый раздел.
+  faq: ['troubleshooting'],
+  debugging: ['troubleshooting'],
+  pitfalls: ['common-mistakes', 'troubleshooting'],
+  gotchas: ['common-mistakes', 'troubleshooting'],
+  'anti-patterns': ['common-mistakes', 'troubleshooting'],
+  antipatterns: ['common-mistakes', 'troubleshooting'],
+  // Установка и входы пакета — в обзоре (у ядра — 39-overview.md, у остальных — 01-overview.md).
+  install: ['overview'],
+  installation: ['overview'],
+  setup: ['overview'],
+  // Имя пакета как топик — обзор ЭТОГО пакета. Без алиаса `renderer-json` и `renderer-react`
+  // уходили в одноимённый раздел ui-kit, а `mcp` и `form-registry` — в шапку llms.txt (~150
+  // символов без содержания). Кандидат `<пакет>/<имя>` ищется только в своём пакете.
+  core: ['core/overview'],
+  cdk: ['cdk/overview'],
+  'ui-kit': ['ui-kit/overview'],
+  'renderer-react': ['renderer-react/overview'],
+  'renderer-json': ['renderer-json/overview'],
+  'form-registry': ['form-registry/overview'],
+  'micro-frontend': ['form-registry/overview'],
+  microfrontend: ['form-registry/overview'],
+  mcp: ['mcp/guide'],
+  // Источник опций списочных полей (cdk 11-option-source.md): `ResourceConfig`, стратегии.
+  // Голый `resource` не алиасится: он по праву уходит в ресурсы сервера (mcp 04-resources.md).
+  'resource-config': ['option-source'],
+  'async-select': ['option-source', 'async-options-loading'],
+  'server-search': ['option-source'],
 };
+
+/**
+ * Оценка имени файла, начиная с которой попадание точное: 100 — имя целиком, 90 — то же без
+ * дефисов и регистра.
+ */
+const EXACT_MATCH = 90;
+
+/** Ниже — попадание подстрокой («validate» внутри «revalidate-when»). */
+const WEAK_MATCH = 60;
 
 function resolveAliases(topic: string): string[] {
   const key = topic.toLowerCase();
   const aliases = RECIPE_ALIASES[key];
   return aliases && aliases.length > 0 ? [topic, ...aliases] : [topic];
+}
+
+interface FileHit {
+  pkg: ReformerPackage;
+  fileName: string;
+  score: number;
+}
+
+/**
+ * Лучший файл рецепта для одного кандидата среди пакетов.
+ *
+ * Порядок пакетов — приоритет (ядро первым), с одним исключением: точное имя файла в позднем
+ * пакете бьёт частичное в раннем. Без него `validation` отдавал core/33-validation-strategy.md
+ * (про МОМЕНТ запуска проверки) вместо рецепта правил `06-validation.md`: ядро шло первым и
+ * совпадало по слову в имени. Внутри пакета то же правило уже действует (дефект 78).
+ *
+ * Кандидат вида `<пакет>/<имя>` (`cdk/overview`) ищется только в своём пакете — так алиас
+ * называет файл, имя которого повторяется в нескольких пакетах.
+ */
+function bestFileHit(
+  k: Knowledge,
+  candidate: string,
+  targets: readonly ReformerPackage[]
+): FileHit | null {
+  let topic = candidate;
+  let scope = targets;
+  const scoped = candidate.match(/^([a-z][a-z-]*)\/([^/]+)$/i);
+  if (scoped) {
+    const pkg = normalizePackage(scoped[1]);
+    if (!pkg) return null;
+    if (!targets.includes(pkg)) return null;
+    topic = scoped[2];
+    scope = [pkg];
+  }
+
+  let hit: FileHit | null = null;
+  for (const pkg of scope) {
+    const fileName = pickBestDocFile(
+      k.recipes.list(pkg).filter((f) => f.endsWith('.md')),
+      topic
+    );
+    if (!fileName) continue;
+    const score = scoreDocFileMatch(fileName, topic);
+    if (!hit || (score >= EXACT_MATCH && hit.score < EXACT_MATCH)) hit = { pkg, fileName, score };
+  }
+  return hit;
+}
+
+/**
+ * Какой кандидат отвечает на топик именем файла.
+ *
+ * Сам топик идёт первым, как и раньше. Исключение — когда он совпал лишь подстрокой, а алиас
+ * совпадает точно: `validate` иначе уходил в `27-revalidate-when.md` по буквам «validate» внутри
+ * «revalidate». Алиас, совпавший тоже частично, такого топика не перебивает.
+ */
+function pickRecipeCandidate(
+  k: Knowledge,
+  candidates: string[],
+  targets: readonly ReformerPackage[]
+): { candidate: string; hit: FileHit } | null {
+  const [own, ...aliases] = candidates.map((candidate) => ({
+    candidate,
+    hit: bestFileHit(k, candidate, targets),
+  }));
+  if (own.hit && own.hit.score >= WEAK_MATCH) return { candidate: own.candidate, hit: own.hit };
+  const exactAlias = aliases.find((a) => a.hit && a.hit.score >= EXACT_MATCH);
+  if (exactAlias?.hit) return { candidate: exactAlias.candidate, hit: exactAlias.hit };
+  if (own.hit) return { candidate: own.candidate, hit: own.hit };
+  const anyAlias = aliases.find((a) => a.hit);
+  return anyAlias?.hit ? { candidate: anyAlias.candidate, hit: anyAlias.hit } : null;
 }
 
 export async function findRecipeTool(
@@ -191,36 +312,38 @@ export async function findRecipeTool(
   const candidates = resolveAliases(topic);
 
   // 1. Match by docs/llms/ filename (with or without NN- prefix).
-  //    Tries the original topic first, then registered aliases.
-  for (const candidate of candidates) {
-    for (const pkg of targets) {
-      const file = findDocFile(k.recipes, pkg, candidate);
-      if (file) {
-        const body = file.body;
-        const aliasNote =
-          candidate !== topic
-            ? `\n\n> _Note: searched for \`${topic}\`, matched alias → \`${candidate}\`. ` +
-              `Use \`${candidate}\` directly to suppress this hint._`
-            : '';
-        // Рецепт возвращался ЦЕЛИКОМ, без потолка: замерено 17 130 символов (~4 283 токена)
-        // у `cookbook`. Это ответ инструмента, а не явный `resources/read`, — агент получает
-        // его не глядя, поэтому потолок обязателен. Обрезка всегда помечена и говорит, где
-        // дочитать: молча усечённый рецепт агент дописал бы сам.
-        const { text: bodyText, truncated, dropped } = capRecipe(body.trim(), RECIPE_MAX_CHARS);
-        const droppedNote =
-          dropped.length > 0 ? ` Не поместились разделы: ${dropped.join(' · ')}.` : '';
-        const more = truncated
-          ? `\n\n> _Рецепт обрезан по бюджету.${droppedNote} Полный текст — \`reformer://docs/${pkg.replace(/^@reformer\//, '')}\` ` +
-            `или \`docs/llms/${file.fileName}\` в пакете._`
-          : '';
-        return text(
-          `# Recipe: ${file.title}\n\n` +
-            `**Source:** ${pkg} · \`docs/llms/${file.fileName}\`${aliasNote}\n\n` +
-            bodyText +
-            more
-        );
-      }
-    }
+  //    The original topic first, then registered aliases (see pickRecipeCandidate).
+  const picked = pickRecipeCandidate(k, candidates, targets);
+  // Полное имя файла с номером совпадает только с самим файлом (оценка 100).
+  const file = picked
+    ? findDocFile(k.recipes, picked.hit.pkg, picked.hit.fileName.replace(/\.md$/i, ''))
+    : null;
+  if (picked && file) {
+    const { candidate } = picked;
+    const { pkg } = picked.hit;
+    const body = file.body;
+    const aliasNote =
+      candidate !== topic
+        ? `\n\n> _Note: searched for \`${topic}\`, matched alias → \`${candidate}\`. ` +
+          `Use \`${candidate}\` directly to suppress this hint._`
+        : '';
+    // Рецепт возвращался ЦЕЛИКОМ, без потолка: замерено 17 130 символов (~4 283 токена)
+    // у `cookbook`. Это ответ инструмента, а не явный `resources/read`, — агент получает
+    // его не глядя, поэтому потолок обязателен. Обрезка всегда помечена и говорит, где
+    // дочитать: молча усечённый рецепт агент дописал бы сам.
+    const { text: bodyText, truncated, dropped } = capRecipe(body.trim(), RECIPE_MAX_CHARS);
+    const droppedNote =
+      dropped.length > 0 ? ` Не поместились разделы: ${dropped.join(' · ')}.` : '';
+    const more = truncated
+      ? `\n\n> _Рецепт обрезан по бюджету.${droppedNote} Полный текст — \`reformer://docs/${pkg.replace(/^@reformer\//, '')}\` ` +
+        `или \`docs/llms/${file.fileName}\` в пакете._`
+      : '';
+    return text(
+      `# Recipe: ${file.title}\n\n` +
+        `**Source:** ${pkg} · \`docs/llms/${file.fileName}\`${aliasNote}\n\n` +
+        bodyText +
+        more
+    );
   }
 
   // 2. Match by `## ` section heading.
@@ -377,11 +500,10 @@ async function buildFallbackHint(
   // нет (docs/llms не был опубликован). Хвост алиаса резолвится → это и есть «известная тема».
   const resolvableAliases = Object.keys(RECIPE_ALIASES)
     .filter((key) =>
-      resolveAliases(key).some((cand) =>
-        targets.some((pkg) => {
-          if (pickBestDocFile(k.recipes.list(pkg), cand)) return true;
-          return !k.docs.section(cand, pkg).startsWith('Section "');
-        })
+      resolveAliases(key).some(
+        (cand) =>
+          bestFileHit(k, cand, targets) !== null ||
+          targets.some((pkg) => !k.docs.section(cand, pkg).startsWith('Section "'))
       )
     )
     .sort();

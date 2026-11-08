@@ -60,9 +60,9 @@ function rendererPrereqsFor(target: ReformerTarget): string {
       '- `reformer://docs/renderer-json/key-concepts`',
       '- `reformer://docs/renderer-json/components-and-exports`',
       '- `reformer://docs/renderer-json/builder-api`',
-      '- `reformer://docs/renderer-json/template-template-arrays`',
-      '- `reformer://docs/renderer-json/source`',
-      '- `reformer://docs/renderer-json/control`',
+      '- `reformer://docs/renderer-json/shablon-stroki-massiva-template-arrays`',
+      '- `reformer://docs/renderer-json/datasource-znacheniya-i-funktsii-datasource`',
+      '- `reformer://docs/renderer-json/rantaym-suschnosti-i-propsy-uzla-form-potok-status-inject-runtime`',
       '- `reformer://docs/renderer-json/anti-patterns`',
     ].join('\n');
   }

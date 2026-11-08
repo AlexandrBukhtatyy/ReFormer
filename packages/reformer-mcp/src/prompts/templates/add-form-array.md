@@ -135,11 +135,11 @@ There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…}
 - `find_recipe unified-contract`
 - `reformer://docs/core/array-operations`
 - `reformer://docs/core/array-cleanup-pattern`
-- `reformer://docs/cdk/formarrayhandle-api`
-- `reformer://docs/cdk/useformarray-hook`
+- `reformer://docs/cdk/fieldarrayhandle-api`
+- `reformer://docs/cdk/usefieldarray-hook`
 - `reformer://docs/cdk/list-render-props`
 - `reformer://docs/cdk/external-control-via-ref`
-- `reformer://docs/cdk/nested-formarray`
+- `reformer://docs/cdk/nested-fieldarray`
 - `reformer://docs/cdk/custom-addbutton`
 
 ## Task

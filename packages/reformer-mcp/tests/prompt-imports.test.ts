@@ -12,9 +12,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { symbolsByName } from '../src/core/index/merge';
+import { cliKnowledge } from '../src/platform/cli/knowledge';
 import { findSymbol } from '../src/platform/cli/symbols-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 
@@ -82,6 +84,111 @@ describe('промпты не противоречат резолверу сим
           `но остался в промпте (как validateFormModel в P0). Обнови шаблон на живой контракт ` +
           `или проверь имя.\nНе резолвятся:\n  ${unresolved.join('\n  ')}`
       ).toEqual([]);
+    },
+    AST_HEAVY_TIMEOUT_MS
+  );
+});
+
+// ---------------------------------------------------------------------------------------------
+// Рецепты docs/llms. `find_recipe` отдаёт их агенту целиком, как промпт, поэтому импорт в рецепте —
+// такое же обещание API. Здесь проверяется и ПОДПУТЬ: `import { useFormControl } from
+// '@reformer/core'` резолвится по имени, но у потребителя упадёт — хуки живут в
+// `@reformer/core/react`. Спецификаторы берутся из индекса (`llms-index.json`), как у validate_form.
+
+const packagesDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
+/** Рецепты всех пакетов и шаблоны промптов. */
+function recipeFiles(): string[] {
+  const out: string[] = [];
+  for (const dir of readdirSync(packagesDir)) {
+    const llms = resolve(packagesDir, dir, 'docs/llms');
+    if (!existsSync(llms)) continue;
+    for (const file of readdirSync(llms).filter((f) => f.endsWith('.md'))) {
+      out.push(resolve(llms, file));
+    }
+  }
+  for (const file of readdirSync(templatesDir).filter((f) => f.endsWith('.md'))) {
+    out.push(resolve(templatesDir, file));
+  }
+  return out;
+}
+
+/**
+ * Импорт показан как ошибка: строка таблицы «нет → есть» или пометка `❌` / `NO!` / `WRONG` на
+ * самой строке импорта либо на строке над ним (`// ❌ Импорт из главной бочки`).
+ */
+function isCounterExample(lines: string[], first: number, last: number): boolean {
+  if (/^\s*\|/.test(lines[first])) return true;
+  const context = lines.slice(Math.max(0, first - 1), last + 1).join('\n');
+  return /❌|NO!|WRONG|не существует/i.test(context);
+}
+
+interface RecipeImport {
+  name: string;
+  from: string;
+  where: string;
+}
+
+function collectRecipeImports(): RecipeImport[] {
+  const out: RecipeImport[] = [];
+  for (const file of recipeFiles()) {
+    const content = readFileSync(file, 'utf-8');
+    const lines = content.split('\n');
+    let m: RegExpExecArray | null;
+    IMPORT_RE.lastIndex = 0;
+    while ((m = IMPORT_RE.exec(content)) !== null) {
+      const [, names, from] = m;
+      // Собственные входы MCP-сервера — не API форм. К тому же символы `@reformer/mcp/intent`
+      // в индекс не попадают: генератор llms не резолвит реэкспорт с суффиксом `.js`.
+      if (from.startsWith('@reformer/mcp')) continue;
+      const first = content.slice(0, m.index).split('\n').length - 1;
+      const last = content.slice(0, m.index + m[0].length).split('\n').length - 1;
+      if (isCounterExample(lines, first, last)) continue;
+      const where = `${file.slice(packagesDir.length + 1)}:${first + 1}`;
+      for (const raw of names.split(',')) {
+        const name = raw
+          .trim()
+          .replace(/^type\s+/, '')
+          .split(/\s+as\s+/)[0]
+          .trim();
+        if (IDENT_RE.test(name)) out.push({ name, from, where });
+      }
+    }
+  }
+  return out;
+}
+
+describe('рецепты docs/llms импортируют существующее API с правильного входа', () => {
+  const recipeImports = collectRecipeImports();
+
+  it('в рецептах есть @reformer-импорты для проверки', () => {
+    expect(recipeImports.length).toBeGreaterThan(50);
+  });
+
+  it(
+    'каждое имя существует и экспортируется тем входом, из которого его импортируют',
+    () => {
+      const k = cliKnowledge();
+      const problems: string[] = [];
+      for (const { name, from, where } of recipeImports) {
+        const base = from.split('/').slice(0, 2).join('/');
+        const subpath = from.slice(base.length); // '' либо '/react'
+        const hit = symbolsByName(k.index, name, base)[0];
+        if (!hit) {
+          if (!findSymbol(name, '*'))
+            problems.push(`${where}: ${name} из ${from} — нет такого символа`);
+          continue;
+        }
+        const entries = (hit.entries ?? []).map((e) => (e === '.' ? '' : e.replace(/^\./, '')));
+        if (entries.length > 0 && !entries.includes(subpath)) {
+          problems.push(
+            `${where}: ${name} из ${from} — экспортируется из ${entries.map((e) => base + e).join(', ')}`
+          );
+        }
+      }
+      expect(problems, `Рецепты учат несуществующему импорту:\n  ${problems.join('\n  ')}`).toEqual(
+        []
+      );
     },
     AST_HEAVY_TIMEOUT_MS
   );

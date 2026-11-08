@@ -8,16 +8,16 @@
 Перед стадиями 2–6 (см. roadmap ниже) каждый sub-agent обязан прочитать:
 
 - `reformer://docs/core/quick-start-minimal-working-form`
-- `reformer://docs/core/formschema-format-critically-important`
+- `reformer://docs/core/schema-format-critically-important`
 - `reformer://docs/core/array-schema-format`
 - `reformer://docs/core/multi-step-form-validation`
-- `reformer://docs/core/cycle-detection-prevention-checklist` (КРИТИЧНО для стадии Behaviors)
+- `reformer://docs/core/cycle-detection` (КРИТИЧНО для стадии Behaviors)
 - `reformer://docs/core/common-patterns`
 - `reformer://docs/core/common-mistakes`
 - `reformer://docs/core/extended-common-mistakes`
 - `reformer://docs/cdk/formwizard-indicator`
 - `reformer://docs/cdk/formwizard-actions`
-- `reformer://docs/cdk/formarrayhandle-api`
+- `reformer://docs/cdk/fieldarrayhandle-api`
 - Directory layout — `find_recipe directory-layout` (раскладка и **имена** файлов формы для `{{target}}`; читать ДО написания первого файла — переименовывать потом дороже)
   {{rendererPrereqs}}
 

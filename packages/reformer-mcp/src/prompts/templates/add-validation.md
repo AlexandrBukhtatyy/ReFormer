@@ -36,7 +36,7 @@ document) carries **no** validators — the rules live in this standalone schema
 - `reformer://docs/core/common-patterns` (cross-field via the `cross` snapshot, conditional `validateWhen`, `revalidateWhen` bridge)
 - `reformer://docs/core/common-mistakes`
 - `reformer://docs/core/extended-common-mistakes`
-- `reformer://docs/core/async-watchfield-critically-important` (async validation pattern)
+- `reformer://docs/core/async-reaction-onchange-critically-important` (async validation pattern)
 - `reformer://docs/core/api-reference` (full validator catalogue)
 
 ## Task

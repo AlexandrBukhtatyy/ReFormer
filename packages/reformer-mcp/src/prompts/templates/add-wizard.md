@@ -185,7 +185,7 @@ What is NOT needed any more — all of it is the former contract, ❌ do not emi
 
 **Conditional sub-sections inside steps** (mortgage, residence, …) get their own `selector` and a rule in the behavior: `hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage')`. The condition reads the MODEL (`model.loanType`), not `form.loanType.value.value`.
 
-**A conditional STEP** (a step that exists only under a condition) is NOT a node rule: the library wizard builds its steps from all child nodes, so `hideWhen` on a step node hides the step's content but leaves the step in the indicator and in navigation. A form with a dynamic step count keeps the wizard in JSX (B1) and renders the step conditionally — see `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`.
+**A conditional STEP** (a step that exists only under a condition) is NOT a node rule: the library wizard builds its steps from all child nodes, so `hideWhen` on a step node hides the step's content but leaves the step in the indicator and in navigation. A form with a dynamic step count keeps the wizard in JSX (B1) and renders the step conditionally — see `reformer://docs/cdk/conditional-step-in-formwizard`.
 
 **Scopes are isolated.** `schema.node(selector)` in the root behavior sees the root tree only — not the nodes inside an array `item` or a sub-form `part`. Reach those from the sub-behavior passed to `applyEach(model.$.items, itemBehavior)` / `apply(model.$.group, groupBehavior)`: it receives its own `schema`.
 
@@ -208,7 +208,7 @@ What is NOT needed any more — all of it is the former contract, ❌ do not emi
 
 - always: `find_recipe unified-contract`, `find_recipe wizard`.
 - **A1 / A2**: the wrapper's docs (ui-kit `reformer://docs/ui-kit/...` if A1, project README if A2).
-- **A3**: `reformer://docs/cdk/formwizard-indicator`, `reformer://docs/cdk/formwizard-actions`, `reformer://docs/cdk/formwizard-progress`, `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`, `reformer://docs/cdk/multi-step-submit`.
+- **A3**: `reformer://docs/cdk/formwizard-indicator`, `reformer://docs/cdk/formwizard-actions`, `reformer://docs/cdk/formwizard-progress`, `reformer://docs/cdk/conditional-step-in-formwizard`, `reformer://docs/cdk/validation-and-submit`.
 - **A4**: `reformer://docs/core/multi-step-form-validation` for `validateModel(model, schema)` semantics.
 - **B2**: `reformer://docs/renderer-react` (the bundle and node rules); for `renderer-json` also `reformer://docs/renderer-json/quick-start`.
 

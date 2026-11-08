@@ -261,10 +261,10 @@ Don't cast on simple forms — only when TS2589 actually appears.
 
 **You MUST read these BEFORE writing behaviors. Skipping = browser hang risk.**
 
-- `reformer://docs/core/cycle-detection-prevention-checklist` (КРИТИЧНО — full checklist)
-- `reformer://docs/core/cycle-detected-error` (how the runtime reports it)
-- `reformer://docs/core/compute-from-vs-watch-field` (which to choose)
-- `reformer://docs/core/async-watchfield-critically-important` (async, debounce, guards)
+- `reformer://docs/core/cycle-detection` (КРИТИЧНО — full checklist)
+- `reformer://docs/core/kogda-vse-taki-voznikaet-cycle-detected` (how the runtime reports it)
+- `reformer://docs/core/compute-vs-onchange` (which to choose)
+- `reformer://docs/core/async-reaction-onchange-critically-important` (async, debounce, guards)
 - `reformer://docs/core/common-patterns` (apply, copyFrom recipes)
 - `reformer://docs/core/common-mistakes`
 - `reformer://docs/core/extended-common-mistakes`
