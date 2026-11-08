@@ -1,71 +1,110 @@
+import { useState } from 'react';
 import { CheckboxWithLabel, checkboxBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
+
+/** Вне формы чекбокс говорит на языке Radix: checked + onCheckedChange. */
+function NewsletterCheckbox() {
+  const [checked, setChecked] = useState(true);
+  return (
+    <CheckboxWithLabel
+      checked={checked}
+      onCheckedChange={(c) => setChecked(c === true)}
+      label="Получать новости"
+    />
+  );
+}
+
+const NEWSLETTER_CODE = `import { useState } from 'react';
+import { CheckboxWithLabel } from '@reformer/ui-kit';
+
+function NewsletterCheckbox() {
+  const [checked, setChecked] = useState(true);
+  return (
+    <CheckboxWithLabel
+      checked={checked}
+      onCheckedChange={(c) => setChecked(c === true)}
+      label="Получать новости"
+    />
+  );
+}`;
+
+// Пропсы панели API — из props-схемы варианта. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(checkboxBasePropsSchema), {
+  omit: ['label'],
+});
 
 export const checkboxDocConfig: ComponentDocConfig = {
   name: 'Checkbox',
   importFrom: '@reformer/ui-kit',
   description:
-    'Чекбокс на Radix (button role=checkbox + CheckIcon). Значение — boolean. Inline-раскладка: подпись рисуется справа от контрола, поэтому FormField верхнюю подпись не дублирует.',
+    'Флажок «да или нет». В форму — CheckboxWithLabel: значение boolean, подпись справа от флажка.',
   variants: [
-    {
+    fieldVariant({
       id: 'consent',
-      title: 'Согласие (подпись справа)',
+      title: 'Согласие',
       description:
-        'Значение — boolean. Подпись из componentProps.label рендерится справа от чекбокса.',
-      render: makeFieldVariant({
-        initial: false,
-        component: CheckboxWithLabel,
-        componentProps: { label: 'Согласен с условиями обработки данных' },
-      }),
-      code: `{
-  model: model.$.agree,
-  component: CheckboxWithLabel,
-  componentProps: { label: 'Согласен с условиями обработки данных' },
-}`,
-    },
-    {
+        'Значение — boolean. Подпись из label стоит справа от флажка, клик по ней тоже переключает.',
+      field: 'agree',
+      component: CheckboxWithLabel,
+      componentName: 'CheckboxWithLabel',
+      initial: false,
+      props: { label: 'Согласен с условиями обработки данных' },
+    }),
+    fieldVariant({
       id: 'checked',
-      title: 'Предустановленное значение',
-      description: 'initial: true — чекбокс отмечен на маунте.',
-      render: makeFieldVariant({
-        initial: true,
-        component: CheckboxWithLabel,
-        componentProps: { label: 'Получать уведомления' },
-      }),
-      code: `{
-  model: model.$.subscribe, // initial: true
-  component: CheckboxWithLabel,
-  componentProps: { label: 'Получать уведомления' },
-}`,
+      title: 'Отмечен заранее',
+      description: 'Начальное значение true — флажок отмечен сразу.',
+      field: 'subscribe',
+      component: CheckboxWithLabel,
+      componentName: 'CheckboxWithLabel',
+      initial: true,
+      showInitial: true,
+      props: { label: 'Получать уведомления' },
+    }),
+    {
+      id: 'standalone',
+      title: 'Вне формы',
+      description:
+        'Без формы CheckboxWithLabel — обычный Radix-чекбокс: checked и onCheckedChange вместо value и onChange.',
+      render: NewsletterCheckbox,
+      code: NEWSLETTER_CODE,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательное согласие (валидатор required)',
+      title: 'Обязательное согласие',
       description:
-        'required() для boolean требует значение true. touched-поле со снятым чекбоксом показывает ошибку.',
-      render: makeFieldVariant({
-        initial: false,
-        component: CheckboxWithLabel,
-        componentProps: { label: 'Принимаю оферту' },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Необходимо принять условия' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.acceptTerms,
-  component: CheckboxWithLabel,
-  componentProps: { label: 'Принимаю оферту' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.acceptTerms, [required({ code: 'acceptTerms.required' })]);`,
-    },
+        'Для boolean правило required требует true. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'acceptTerms',
+      component: CheckboxWithLabel,
+      componentName: 'CheckboxWithLabel',
+      initial: false,
+      props: { label: 'Принимаю условия оферты' },
+      validators: [required({ code: 'acceptTerms.required' })],
+      rules: "required({ code: 'acceptTerms.required' })",
+      messages: { 'acceptTerms.required': 'Без согласия продолжить нельзя' },
+      touched: true,
+    }),
+    fieldVariant({
+      id: 'hints',
+      title: 'Пояснение и подсказка',
+      description:
+        'description — текст под флажком, tooltip — иконка после подписи. Клик по иконке флажок не переключает.',
+      field: 'marketing',
+      component: CheckboxWithLabel,
+      componentName: 'CheckboxWithLabel',
+      initial: false,
+      props: {
+        label: 'Получать предложения банка',
+        description: 'Не чаще раза в неделю',
+        tooltip: 'Отписаться можно в личном кабинете',
+      },
+    }),
   ],
   api: {
     component: CheckboxWithLabel,
@@ -77,21 +116,15 @@ validate(model.$.acceptTerms, [required({ code: 'acceptTerms.required' })]);`,
       { label: 'Отмечен (true)', value: true },
       { label: 'Снят (false)', value: false },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label — задаётся baseComponentProps (иначе перетрёт initialValue undefined-ом).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(checkboxBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.agree,
-  component: CheckboxWithLabel,
-  componentProps: {
-    label: 'Согласен с условиями',${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.agree, [required()]);`,
+      fieldSnippet({
+        field: 'agree',
+        component: 'CheckboxWithLabel',
+        props: { label: 'Согласен с условиями' },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

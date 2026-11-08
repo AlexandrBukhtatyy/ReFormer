@@ -2,6 +2,7 @@
 id: bubble
 title: Bubble
 sidebar_label: Bubble
+description: Пузырь реплики чата с оформлением, стороной и реакциями.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,72 @@ import { bubbleDocConfig } from '@site/src/components/demo/examples/bubble';
 
 # Bubble
 
-AI-примитив пузыря сообщения чата на shadcn / Radix `Slot`. Стиль задаётся через
-`variant`, сторона — через `align` (`start` — входящее, `end` — исходящее). Фон и
-паддинги живут на `BubbleContent`, а `BubbleReactions` — плавающая пилюля реакций
-поверх пузыря. `BubbleGroup` держит вертикальный стек сообщений.
+Пузырь с текстом одной реплики чата. Оформление задаёт `variant`, сторону — `align`. Это часть
+набора для чата с ассистентом: пузырь обычно стоит внутри [Message](./message.mdx).
+
+## Когда брать
+
+- **Bubble** — текст реплики: вопрос пользователя, ответ ассистента, короткое системное сообщение.
+- [Message](./message.mdx) — строка сообщения целиком: аватар, имя, время. Пузыри кладут внутрь
+  неё.
+- [Attachment](./attachment.mdx) — файл, приложенный к реплике, а не её текст.
+- [Marker](./marker.mdx) — служебная строка между репликами: «Источники», «Ход рассуждения».
+- [Card](./card.mdx) — самостоятельный блок с заголовком и действиями, не реплика диалога.
+
+## Анатомия
+
+```tsx
+import { BubbleGroup, Bubble, BubbleContent, BubbleReactions } from '@reformer/ui-kit';
+// или '@reformer/ui-kit/bubble'
+
+<BubbleGroup>
+  <Bubble align="start" variant="muted">
+    <BubbleContent>Чем могу помочь?</BubbleContent>
+  </Bubble>
+  <Bubble align="end">
+    <BubbleContent>Собери форму заявки.</BubbleContent>
+    <BubbleReactions>👍</BubbleReactions>
+  </Bubble>
+</BubbleGroup>;
+```
+
+| Часть             | Что это                                                      | Ключевые пропсы    |
+| ----------------- | ------------------------------------------------------------ | ------------------ |
+| `BubbleGroup`     | Колонка пузырей с отступом между ними.                       | `className`        |
+| `Bubble`          | Обёртка одного пузыря: выбирает оформление и сторону.        | `variant`, `align` |
+| `BubbleContent`   | Тело пузыря: фон, скругление, отступы, перенос длинных слов. | `asChild`          |
+| `BubbleReactions` | Плашка реакций на краю пузыря.                               | `side`, `align`    |
+
+- `variant` ставится на `Bubble`, а цвет получает `BubbleContent`. Варианты: `default`
+  (основной цвет темы), `secondary`, `muted`, `tinted` (светлый оттенок основного цвета),
+  `outline`, `ghost` (без фона и отступов, на всю ширину — для длинного ответа ассистента) и
+  `destructive` (ошибка).
+- `align` прижимает пузырь к краю колонки — `BubbleGroup` или `MessageContent`. Вне колонки он не
+  действует. Внутри [Message](./message.mdx) с `align="end"` пузырь встаёт вправо сам.
+- Пузырь занимает не больше 80 % ширины колонки; `ghost` — всю ширину.
+
+## Примеры
 
 <ComponentDoc config={bubbleDocConfig} />
+
+## Доступность
+
+- Все части — обычные `div`: своих ролей и клавиатуры у пузыря нет, текст читается по порядку.
+- Кликабельный пузырь делайте через `BubbleContent asChild` с `<button>` или `<a>` внутри: так он
+  попадает в порядок `Tab`, а оформление добавляет подсветку при наведении и кольцо фокуса.
+- Чья реплика — пользователя или ассистента — видно только по стороне и цвету. Для скринридера
+  подпишите автора текстом, например в `MessageHeader` у [Message](./message.mdx), или скрытой
+  подписью (`className="sr-only"`).
+- В `BubbleReactions` эмодзи без подписи читается как название символа. Если реакция — кнопка,
+  дайте ей `aria-label` («Нравится, 3»).
+
+## Локализация
+
+Своих строк компонент не рисует: текст пузыря и реакций — ваш.
+
+## См. также
+
+- [Message](./message.mdx) — строка сообщения с аватаром, заголовком и подвалом.
+- [MessageScroller](./message-scroller.mdx) — прокручиваемая лента сообщений.
+- [Attachment](./attachment.mdx) — вложения в реплике.
+- [Marker](./marker.mdx) — служебные строки ответа.

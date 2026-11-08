@@ -2,6 +2,7 @@
 id: menubar
 title: Menubar
 sidebar_label: Menubar
+description: Строка меню, как в настольном приложении — «Файл», «Правка», «Вид».
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,12 +10,99 @@ import { menubarDocConfig } from '@site/src/components/demo/examples/menubar';
 
 # Menubar
 
-Горизонтальная строка меню на shadcn / Radix `Menubar` — как строка меню десктоп-приложения
-(`Файл` / `Правка` / `Вид`). Собирается из частей: `Menubar` (корневая панель), нескольких
-`MenubarMenu` (по одному пункту панели), `MenubarTrigger` (заголовок-открытие), `MenubarContent`
-(список в Portal) и пунктов — `MenubarItem`, `MenubarCheckboxItem`, `MenubarRadioItem`
-(+ `RadioGroup`), `MenubarLabel`, `MenubarSeparator`, `MenubarShortcut`, `MenubarGroup` и вложенного
-подменю `MenubarSub` / `SubTrigger` / `SubContent`. Все части несут свой `data-slot`, поэтому стиль
-правится через `className` (tailwind-merge).
+Строка меню, как в настольном приложении: «Файл», «Правка», «Вид». Каждый пункт строки открывает
+своё меню команд. Построен на Radix Menubar, это не поле формы.
+
+## Когда брать
+
+- **Menubar** — постоянная строка команд над рабочей областью: редактор, конструктор, панель
+  администратора.
+- [DropdownMenu](./dropdown-menu.mdx) — одно меню по кнопке, например «⋯» у строки таблицы.
+- [ContextMenu](./context-menu.mdx) — меню по правому щелчку на элементе.
+- [NavigationMenu](./navigation-menu.mdx) — пункты ведут на страницы сайта, а не выполняют команды.
+
+## Анатомия
+
+```tsx
+import {
+  Menubar,
+  MenubarMenu,
+  MenubarTrigger,
+  MenubarContent,
+  MenubarItem,
+  MenubarSeparator,
+  MenubarShortcut,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/menubar'
+
+<Menubar>
+  <MenubarMenu>
+    <MenubarTrigger>Файл</MenubarTrigger>
+    <MenubarContent>
+      <MenubarItem onSelect={createFile}>
+        Новый файл
+        <MenubarShortcut>⌘N</MenubarShortcut>
+      </MenubarItem>
+      <MenubarSeparator />
+      <MenubarItem variant="destructive">Удалить</MenubarItem>
+    </MenubarContent>
+  </MenubarMenu>
+</Menubar>;
+```
+
+| Часть                                                  | Что это                                                         | Ключевые пропсы                                     |
+| ------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------------------------- |
+| `Menubar`                                              | Строка меню с рамкой.                                           | `value` / `defaultValue`, `loop`, `dir`             |
+| `MenubarMenu`                                          | Один пункт строки вместе с его меню.                            | `value`                                             |
+| `MenubarTrigger`                                       | Кнопка в строке, открывает меню.                                | `children` — подпись                                |
+| `MenubarContent`                                       | Выпадающее меню. Рисуется в портале поверх страницы.            | `align`, `sideOffset`, `alignOffset`                |
+| `MenubarItem`                                          | Команда.                                                        | `onSelect`, `variant`, `inset`, `disabled`          |
+| `MenubarCheckboxItem`                                  | Пункт-флажок.                                                   | `checked`, `onCheckedChange`                        |
+| `MenubarRadioGroup`, `MenubarRadioItem`                | Выбор одного варианта из нескольких.                            | `value`, `onValueChange` у группы; `value` у пункта |
+| `MenubarLabel`, `MenubarGroup`, `MenubarSeparator`     | Подпись, группа и разделитель внутри меню.                      | `inset` у подписи                                   |
+| `MenubarShortcut`                                      | Подпись сочетания клавиш справа в пункте.                       | `children`                                          |
+| `MenubarSub`, `MenubarSubTrigger`, `MenubarSubContent` | Подменю, которое открывается сбоку.                             | `inset` у `MenubarSubTrigger`                       |
+| `MenubarPortal`                                        | Портал. `MenubarContent` уже обёрнут в него, отдельно не нужен. | —                                                   |
+
+`MenubarShortcut` — только подпись. Само сочетание клавиш компонент не слушает: обработчик вешаете
+вы.
+
+## Примеры
 
 <ComponentDoc config={menubarDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix Menubar:
+
+| Клавиша                    | Действие                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `Tab`                      | Фокус на строку меню; в строке одна остановка, дальше `Tab` уходит со строки. |
+| `→` / `←`                  | Соседний пункт строки. Если меню открыто — открывается меню соседнего пункта. |
+| `Enter` / `Space` / `↓`    | На пункте строки — открыть меню и перевести фокус в него.                     |
+| `↓` / `↑`                  | Следующая / предыдущая команда в открытом меню.                               |
+| `Home` / `End`             | Первая / последняя команда в меню.                                            |
+| `Enter` / `Space`          | Выполнить команду, переключить флажок или выбрать вариант.                    |
+| `→` на `MenubarSubTrigger` | Открыть подменю; `←` — закрыть его и вернуться.                               |
+| `Escape`                   | Закрыть меню, фокус возвращается на пункт строки.                             |
+| буква                      | Перейти к команде, которая начинается с этой буквы.                           |
+
+- Строка — `role="menubar"`; пункт строки — `role="menuitem"` с `aria-haspopup="menu"`,
+  `aria-expanded` и `aria-controls`; меню — `role="menu"` с `aria-labelledby` на свой пункт.
+- Команда — `role="menuitem"`, флажок — `menuitemcheckbox`, вариант — `menuitemradio`; оба с
+  `aria-checked`. Разделитель — `role="separator"`, группа — `role="group"`.
+- Стрелки ←/→ по пунктам строки ходят по кругу (`loop`). Внутри меню ↑/↓ останавливаются на
+  первой и последней команде.
+- Недоступные команды (`disabled`) пропускаются стрелками.
+- При `dir="rtl"` стрелки ←/→ меняются местами, и подменю открывается клавишей `←`.
+
+## Локализация
+
+Своих строк компонент не рисует: подписи пунктов, команд и сочетаний клавиш — ваш текст.
+
+## См. также
+
+- [DropdownMenu](./dropdown-menu.mdx) — меню по одной кнопке.
+- [ContextMenu](./context-menu.mdx) — меню по правому щелчку.
+- [Kbd](./kbd.mdx) — оформление клавиш в тексте.
+- [Radix Menubar](https://www.radix-ui.com/primitives/docs/components/menubar) — полный список
+  пропсов примитива.

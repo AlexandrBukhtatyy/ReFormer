@@ -2,6 +2,7 @@
 id: dropdown-menu
 title: DropdownMenu
 sidebar_label: DropdownMenu
+description: Список действий за кнопкой — пункты, флажки, выбор одного, подменю.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,11 +10,110 @@ import { dropdownMenuDocConfig } from '@site/src/components/demo/examples/dropdo
 
 # DropdownMenu
 
-Выпадающее меню на shadcn / Radix `DropdownMenu`. Собирается из частей: `DropdownMenu` (корень),
-`DropdownMenuTrigger` (открытие), `DropdownMenuContent` (список в Portal) и пунктов —
-`DropdownMenuItem`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem` (+ `RadioGroup`),
-`DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuShortcut`, `DropdownMenuGroup` и вложенное
-подменю `DropdownMenuSub` / `SubTrigger` / `SubContent`. Все части несут свой `data-slot`, поэтому
-стиль правится через `className` (tailwind-merge).
+Меню, которое открывается кнопкой: список действий, флажков или вариантов на выбор. По пунктам
+ходят стрелками. Построено на Radix DropdownMenu и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **DropdownMenu** — несколько действий за одной кнопкой: «Ещё…» в строке таблицы, меню аккаунта,
+  настройки вида списка.
+- [ContextMenu](./context-menu.mdx) — то же меню, но по правому щелчку на области.
+- [Menubar](./menubar.mdx) — постоянная строка меню, как в настольном приложении.
+- [Select](./select.mdx) — выбор значения поля формы. Меню выполняет действия, а не хранит
+  значение формы.
+- [Command](./command.mdx) — длинный список команд с поиском.
+- [Popover](./popover.mdx) — панель с полями и кнопками, а не список пунктов.
+
+## Анатомия
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/dropdown-menu'
+
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="ghost" size="icon" aria-label="Действия с заявкой">
+      <MoreHorizontal />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuLabel>Заявка №1024</DropdownMenuLabel>
+    <DropdownMenuItem onSelect={openApplication}>
+      Открыть
+      <DropdownMenuShortcut>⌘O</DropdownMenuShortcut>
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem variant="destructive" onSelect={removeApplication}>
+      Удалить
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>;
+```
+
+| Часть                                           | Что это                                         | Ключевые пропсы                            |
+| ----------------------------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| `DropdownMenu`                                  | Корень: открыто ли меню.                        | `open` + `onOpenChange`, `modal` (`true`)  |
+| `DropdownMenuTrigger`                           | Кнопка, которая открывает меню.                 | `asChild`                                  |
+| `DropdownMenuContent`                           | Список пунктов в портале.                       | `align`, `side`, `sideOffset` (`4`)        |
+| `DropdownMenuItem`                              | Пункт-действие.                                 | `onSelect`, `variant`, `disabled`, `inset` |
+| `DropdownMenuCheckboxItem`                      | Пункт-флажок с галочкой.                        | `checked`, `onCheckedChange`               |
+| `DropdownMenuRadioGroup` / `RadioItem`          | Выбор одного значения из нескольких.            | `value` + `onValueChange` / `value`        |
+| `DropdownMenuLabel`                             | Подпись группы, не выбирается.                  | `inset`                                    |
+| `DropdownMenuGroup`                             | Группа связанных пунктов.                       | —                                          |
+| `DropdownMenuSeparator`                         | Линия между группами.                           | —                                          |
+| `DropdownMenuShortcut`                          | Подпись сочетания клавиш у правого края пункта. | —                                          |
+| `DropdownMenuSub` / `SubTrigger` / `SubContent` | Подменю второго уровня.                         | `inset` у `SubTrigger`                     |
+
+- Действие вешайте на `onSelect`, а не на `onClick`: `onSelect` срабатывает и от клавиатуры.
+- Выбор пункта закрывает меню. Чтобы меню осталось открытым (например, при переключении нескольких
+  флажков подряд), вызовите `event.preventDefault()` в `onSelect`.
+- `DropdownMenuShortcut` — только подпись. Сочетание клавиш он не обрабатывает; обработчик
+  клавиатуры приложение вешает само.
+- `inset` сдвигает пункт без иконки, чтобы он стоял ровно с пунктами, у которых иконка есть.
+- Пока меню открыто (`modal` по умолчанию), страница под ним не реагирует на мышь и скрыта от
+  скринридера.
+
+## Примеры
 
 <ComponentDoc config={dropdownMenuDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix DropdownMenu:
+
+| Клавиша                 | Действие                                           |
+| ----------------------- | -------------------------------------------------- |
+| `Enter` / `Space` / `↓` | На триггере — открыть меню, фокус на первый пункт. |
+| `↓` / `↑`               | Следующий / предыдущий пункт.                      |
+| `Home` / `End`          | Первый / последний пункт.                          |
+| `Enter` / `Space`       | Выбрать пункт.                                     |
+| `→` / `←`               | Открыть / закрыть подменю.                         |
+| Буква                   | Перейти к пункту, который начинается с неё.        |
+| `Esc`                   | Закрыть меню, фокус вернётся на триггер.           |
+
+- У триггера `aria-haspopup="menu"` и `aria-expanded`; у списка `role="menu"`, у пунктов —
+  `menuitem`, `menuitemcheckbox` или `menuitemradio` с `aria-checked`.
+- Недоступный пункт (`disabled`) пропускается стрелками.
+- Триггеру-иконке нужен `aria-label` («Действия с заявкой»), иначе скринридер назовёт его просто
+  «кнопка».
+- `variant="destructive"` отличается только цветом — напишите действие словом («Удалить»).
+
+## Локализация
+
+Своих строк компонент не рисует: пункты, подписи групп и сочетания клавиш — ваши.
+
+## См. также
+
+- [ContextMenu](./context-menu.mdx) — меню по правому щелчку.
+- [Menubar](./menubar.mdx) — строка меню.
+- [Command](./command.mdx) — список команд с поиском.
+- [Radix DropdownMenu](https://www.radix-ui.com/primitives/docs/components/dropdown-menu) — полный
+  список пропсов примитива.

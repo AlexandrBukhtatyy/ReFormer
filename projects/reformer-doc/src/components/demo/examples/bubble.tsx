@@ -2,90 +2,96 @@ import { BubbleGroup, Bubble, BubbleContent, BubbleReactions } from '@reformer/u
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Bubble — не form-control: AI-примитив пузыря сообщения чата (compound: BubbleGroup / Bubble /
- * BubbleContent / BubbleReactions). Таб Variants показывает cva-пресеты стиля (variant) и
- * выравнивание (align), Examples — приёмы (диалог, интерактивный пузырь через asChild, реакции).
- * Form-bound таба (api) нет.
+ * Bubble — не поле формы: пузырь реплики чата (BubbleGroup / Bubble / BubbleContent /
+ * BubbleReactions). Variants — оформление (variant) и сторона (align), Examples — диалог,
+ * пузырь-кнопка и реакции, API — таблица props. Обёртка `<div style>` в render — рамка демо,
+ * в `code` её нет.
  */
 export const bubbleDocConfig: ComponentDocConfig = {
   name: 'Bubble',
   importFrom: '@reformer/ui-kit',
   description:
-    'Пузырь сообщения чата на shadcn / Radix Slot. Стиль задаётся через variant, сторона через align (start — входящее, end — исходящее). Фон/паддинги живут на BubbleContent, а BubbleReactions — плавающая пилюля реакций поверх пузыря.',
+    'Пузырь реплики чата. Оформление — variant, сторона — align. Фон и отступы рисует BubbleContent.',
   variants: [
     {
       id: 'variants',
-      title: 'Варианты стиля',
+      title: 'Оформление (variant)',
       description:
-        'variant: default / secondary / muted / tinted / outline / ghost / destructive. Стиль применяется к вложенному BubbleContent.',
+        'variant: default / secondary / muted / tinted / outline / ghost / destructive. Цвет получает вложенный BubbleContent.',
       render: () => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
-          <Bubble variant="default">
-            <BubbleContent>default</BubbleContent>
-          </Bubble>
-          <Bubble variant="secondary">
-            <BubbleContent>secondary</BubbleContent>
-          </Bubble>
-          <Bubble variant="muted">
-            <BubbleContent>muted</BubbleContent>
-          </Bubble>
-          <Bubble variant="tinted">
-            <BubbleContent>tinted</BubbleContent>
-          </Bubble>
-          <Bubble variant="outline">
-            <BubbleContent>outline</BubbleContent>
-          </Bubble>
-          <Bubble variant="ghost">
-            <BubbleContent>ghost</BubbleContent>
-          </Bubble>
-          <Bubble variant="destructive">
-            <BubbleContent>destructive</BubbleContent>
-          </Bubble>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <BubbleGroup>
+            <Bubble variant="default">
+              <BubbleContent>default</BubbleContent>
+            </Bubble>
+            <Bubble variant="secondary">
+              <BubbleContent>secondary</BubbleContent>
+            </Bubble>
+            <Bubble variant="muted">
+              <BubbleContent>muted</BubbleContent>
+            </Bubble>
+            <Bubble variant="tinted">
+              <BubbleContent>tinted</BubbleContent>
+            </Bubble>
+            <Bubble variant="outline">
+              <BubbleContent>outline</BubbleContent>
+            </Bubble>
+            <Bubble variant="ghost">
+              <BubbleContent>ghost</BubbleContent>
+            </Bubble>
+            <Bubble variant="destructive">
+              <BubbleContent>destructive</BubbleContent>
+            </Bubble>
+          </BubbleGroup>
         </div>
       ),
-      code: `<Bubble variant="default">
-  <BubbleContent>default</BubbleContent>
-</Bubble>
-<Bubble variant="secondary">
-  <BubbleContent>secondary</BubbleContent>
-</Bubble>
-<Bubble variant="muted">
-  <BubbleContent>muted</BubbleContent>
-</Bubble>
-<Bubble variant="tinted">
-  <BubbleContent>tinted</BubbleContent>
-</Bubble>
-<Bubble variant="outline">
-  <BubbleContent>outline</BubbleContent>
-</Bubble>
-<Bubble variant="ghost">
-  <BubbleContent>ghost</BubbleContent>
-</Bubble>
-<Bubble variant="destructive">
-  <BubbleContent>destructive</BubbleContent>
-</Bubble>`,
+      code: `<BubbleGroup>
+  <Bubble variant="default">
+    <BubbleContent>default</BubbleContent>
+  </Bubble>
+  <Bubble variant="secondary">
+    <BubbleContent>secondary</BubbleContent>
+  </Bubble>
+  <Bubble variant="muted">
+    <BubbleContent>muted</BubbleContent>
+  </Bubble>
+  <Bubble variant="tinted">
+    <BubbleContent>tinted</BubbleContent>
+  </Bubble>
+  <Bubble variant="outline">
+    <BubbleContent>outline</BubbleContent>
+  </Bubble>
+  <Bubble variant="ghost">
+    <BubbleContent>ghost</BubbleContent>
+  </Bubble>
+  <Bubble variant="destructive">
+    <BubbleContent>destructive</BubbleContent>
+  </Bubble>
+</BubbleGroup>`,
     },
     {
       id: 'align',
-      title: 'Выравнивание (align)',
+      title: 'Сторона (align)',
       description:
-        'align="start" прижимает пузырь влево (входящее сообщение), align="end" — вправо (исходящее). Оборачивайте в BubbleGroup, чтобы получить вертикальный стек.',
+        'align="start" — пузырь у левого края, align="end" — у правого. Работает внутри колонки: BubbleGroup или MessageContent.',
       render: () => (
-        <BubbleGroup style={{ width: '100%', maxWidth: 420 }}>
-          <Bubble align="start" variant="muted">
-            <BubbleContent>Входящее — слева</BubbleContent>
-          </Bubble>
-          <Bubble align="end" variant="default">
-            <BubbleContent>Исходящее — справа</BubbleContent>
-          </Bubble>
-        </BubbleGroup>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <BubbleGroup>
+            <Bubble align="start" variant="muted">
+              <BubbleContent>Входящая реплика — слева</BubbleContent>
+            </Bubble>
+            <Bubble align="end">
+              <BubbleContent>Своя реплика — справа</BubbleContent>
+            </Bubble>
+          </BubbleGroup>
+        </div>
       ),
       code: `<BubbleGroup>
   <Bubble align="start" variant="muted">
-    <BubbleContent>Входящее — слева</BubbleContent>
+    <BubbleContent>Входящая реплика — слева</BubbleContent>
   </Bubble>
-  <Bubble align="end" variant="default">
-    <BubbleContent>Исходящее — справа</BubbleContent>
+  <Bubble align="end">
+    <BubbleContent>Своя реплика — справа</BubbleContent>
   </Bubble>
 </BubbleGroup>`,
     },
@@ -93,27 +99,29 @@ export const bubbleDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'conversation',
-      title: 'Диалог (BubbleGroup + чередование align)',
+      title: 'Диалог',
       description:
-        'Стек сообщений: ассистент слева (muted), пользователь справа (default). BubbleGroup держит колонку с отступами.',
+        'BubbleGroup держит колонку пузырей с отступом. Реплики ассистента — слева (muted), пользователя — справа.',
       render: () => (
-        <BubbleGroup style={{ width: '100%', maxWidth: 420 }}>
-          <Bubble align="start" variant="muted">
-            <BubbleContent>Чем могу помочь?</BubbleContent>
-          </Bubble>
-          <Bubble align="end" variant="default">
-            <BubbleContent>Собери форму заявки на кредит.</BubbleContent>
-          </Bubble>
-          <Bubble align="start" variant="muted">
-            <BubbleContent>Готово — открываю мастер из четырёх шагов.</BubbleContent>
-          </Bubble>
-        </BubbleGroup>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <BubbleGroup>
+            <Bubble align="start" variant="muted">
+              <BubbleContent>Чем могу помочь?</BubbleContent>
+            </Bubble>
+            <Bubble align="end">
+              <BubbleContent>Собери форму заявки на кредит.</BubbleContent>
+            </Bubble>
+            <Bubble align="start" variant="muted">
+              <BubbleContent>Готово — открываю мастер из четырёх шагов.</BubbleContent>
+            </Bubble>
+          </BubbleGroup>
+        </div>
       ),
       code: `<BubbleGroup>
   <Bubble align="start" variant="muted">
     <BubbleContent>Чем могу помочь?</BubbleContent>
   </Bubble>
-  <Bubble align="end" variant="default">
+  <Bubble align="end">
     <BubbleContent>Собери форму заявки на кредит.</BubbleContent>
   </Bubble>
   <Bubble align="start" variant="muted">
@@ -123,105 +131,98 @@ export const bubbleDocConfig: ComponentDocConfig = {
     },
     {
       id: 'as-child',
-      title: 'Интерактивный пузырь (BubbleContent asChild)',
+      title: 'Пузырь-кнопка (BubbleContent asChild)',
       description:
-        'asChild сливает стили BubbleContent на единственный дочерний элемент вместо <div> — напр. <button>. Активируются интерактивные стили ([button,a] — hover/focus).',
+        'asChild отдаёт оформление BubbleContent дочернему элементу. С <button> пузырь получает подсветку при наведении и кольцо фокуса.',
       render: () => (
-        <Bubble variant="secondary" align="end" style={{ maxWidth: 420 }}>
-          <BubbleContent asChild>
-            <button type="button" onClick={() => {}}>
-              Повторить запрос
-            </button>
-          </BubbleContent>
-        </Bubble>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <BubbleGroup>
+            <Bubble variant="secondary" align="end">
+              <BubbleContent asChild>
+                <button type="button" onClick={() => {}}>
+                  Повторить запрос
+                </button>
+              </BubbleContent>
+            </Bubble>
+          </BubbleGroup>
+        </div>
       ),
-      code: `<Bubble variant="secondary" align="end">
-  <BubbleContent asChild>
-    <button type="button" onClick={retry}>
-      Повторить запрос
-    </button>
-  </BubbleContent>
-</Bubble>`,
+      code: `<BubbleGroup>
+  <Bubble variant="secondary" align="end">
+    <BubbleContent asChild>
+      <button type="button" onClick={retry}>
+        Повторить запрос
+      </button>
+    </BubbleContent>
+  </Bubble>
+</BubbleGroup>`,
     },
     {
       id: 'reactions',
       title: 'Реакции (BubbleReactions)',
       description:
-        'BubbleReactions — плавающая пилюля поверх пузыря (absolute относительно Bubble). side (top/bottom) и align (start/end) задают позицию.',
+        'BubbleReactions — плашка на краю пузыря. side (top / bottom) и align (start / end) выбирают угол.',
       render: () => (
-        <Bubble variant="default" align="end" style={{ maxWidth: 420, marginBottom: 16 }}>
-          <BubbleContent>Отчёт отправлен на согласование.</BubbleContent>
-          <BubbleReactions side="bottom" align="end">
-            <span>👍 3</span>
-          </BubbleReactions>
-        </Bubble>
+        <div style={{ width: '100%', maxWidth: 420, paddingBottom: 16 }}>
+          <BubbleGroup>
+            <Bubble align="end">
+              <BubbleContent>Отчёт отправлен на согласование.</BubbleContent>
+              <BubbleReactions side="bottom" align="end">
+                <span>👍 3</span>
+              </BubbleReactions>
+            </Bubble>
+          </BubbleGroup>
+        </div>
       ),
-      code: `<Bubble variant="default" align="end">
-  <BubbleContent>Отчёт отправлен на согласование.</BubbleContent>
-  <BubbleReactions side="bottom" align="end">
-    <span>👍 3</span>
-  </BubbleReactions>
-</Bubble>`,
+      code: `<BubbleGroup>
+  <Bubble align="end">
+    <BubbleContent>Отчёт отправлен на согласование.</BubbleContent>
+    <BubbleReactions side="bottom" align="end">
+      <span>👍 3</span>
+    </BubbleReactions>
+  </Bubble>
+</BubbleGroup>`,
     },
   ],
   props: [
     {
-      name: 'BubbleGroup',
-      type: 'div',
-      description: 'Контейнер-стек сообщений (flex-колонка, gap-2). Держит выравнивание пузырей.',
-    },
-    {
-      name: 'Bubble',
-      type: 'div',
-      description:
-        'Обёртка одного пузыря: несёт variant (стиль вложенного BubbleContent) и align (сторона).',
-    },
-    {
       name: 'Bubble.variant',
       type: "'default' | 'secondary' | 'muted' | 'tinted' | 'outline' | 'ghost' | 'destructive'",
-      default: 'default',
-      description: 'Вариант стиля пузыря (применяется к BubbleContent через data-slot).',
+      default: "'default'",
+      description:
+        'Оформление пузыря. Цвет и рамку получает вложенный BubbleContent. ghost — без фона и отступов, на всю ширину.',
     },
     {
       name: 'Bubble.align',
       type: "'start' | 'end'",
-      default: 'start',
-      description: 'Сторона: start — входящее (влево), end — исходящее (вправо).',
-    },
-    {
-      name: 'BubbleContent',
-      type: 'div',
+      default: "'start'",
       description:
-        'Само тело пузыря: фон, скругление, паддинги, перенос слов. Здесь виден variant.',
+        'Край, к которому прижат пузырь. Действует внутри колонки (BubbleGroup, MessageContent). Внутри Message с align="end" пузырь встаёт вправо сам.',
     },
     {
       name: 'BubbleContent.asChild',
       type: 'boolean',
       default: 'false',
       description:
-        'Слить стили на дочерний элемент (Radix Slot) вместо <div> — напр. <button>/<a>.',
-    },
-    {
-      name: 'BubbleReactions',
-      type: 'div',
-      description: 'Плавающая пилюля реакций поверх пузыря (absolute относительно Bubble).',
+        'Отдать оформление дочернему элементу вместо <div>: например, <button> или <a> — тогда появляются наведение и кольцо фокуса.',
     },
     {
       name: 'BubbleReactions.side',
       type: "'top' | 'bottom'",
-      default: 'bottom',
-      description: 'Вертикальная привязка пилюли реакций к краю пузыря.',
+      default: "'bottom'",
+      description: 'У какого края пузыря висит плашка реакций.',
     },
     {
       name: 'BubbleReactions.align',
       type: "'start' | 'end'",
-      default: 'end',
-      description: 'Горизонтальная привязка пилюли реакций (left-3 / right-3).',
+      default: "'end'",
+      description: 'Плашка у левого (start) или правого (end) угла пузыря.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

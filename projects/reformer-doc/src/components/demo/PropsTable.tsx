@@ -1,4 +1,5 @@
 import type { PropRow } from './types';
+import { demoText } from './messages';
 
 /** Таблица props компонента (таб API). Использует дефолтную стилизацию таблиц Infima. */
 export function PropsTable({ rows }: { rows: PropRow[] }) {
@@ -6,10 +7,10 @@ export function PropsTable({ rows }: { rows: PropRow[] }) {
     <table>
       <thead>
         <tr>
-          <th>Prop</th>
-          <th>Тип</th>
-          <th>По умолчанию</th>
-          <th>Описание</th>
+          <th>{demoText.propsName()}</th>
+          <th>{demoText.propsType()}</th>
+          <th>{demoText.propsDefault()}</th>
+          <th>{demoText.propsDescription()}</th>
         </tr>
       </thead>
       <tbody>

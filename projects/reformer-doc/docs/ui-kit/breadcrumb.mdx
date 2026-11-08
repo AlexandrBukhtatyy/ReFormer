@@ -2,6 +2,7 @@
 id: breadcrumb
 title: Breadcrumb
 sidebar_label: Breadcrumb
+description: Путь к текущей странице — ссылки на предыдущие уровни и название текущего.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,14 +10,103 @@ import { breadcrumbDocConfig } from '@site/src/components/demo/examples/breadcru
 
 # Breadcrumb
 
-Хлебные крошки на shadcn/ui. Compound-набор:
-`Breadcrumb` / `BreadcrumbList` / `BreadcrumbItem` / `BreadcrumbLink` /
-`BreadcrumbPage` / `BreadcrumbSeparator` / `BreadcrumbEllipsis`.
+Путь к текущей странице: «Главная › Каталог › Товар». Предыдущие уровни — ссылки, текущий —
+просто название. Это семантическая разметка (`nav`, `ol`, `li`, `a`) со стилями, без Radix.
 
-Предыдущие уровни пути — кликабельные `BreadcrumbLink`, текущая (неактивная)
-страница — `BreadcrumbPage`. Разделитель по умолчанию — иконка-шеврон, но
-`BreadcrumbSeparator` принимает произвольный `children`. Длинный путь можно
-свернуть через `BreadcrumbEllipsis`. Для интеграции со ссылками роутера у
-`BreadcrumbLink` есть проп `asChild`.
+## Когда брать
+
+- **Breadcrumb** — страница лежит глубоко в иерархии, и читателю нужно видеть, где он, и
+  подниматься на уровень выше.
+- [NavigationMenu](./navigation-menu.mdx) — главная навигация по разделам сайта, а не путь к
+  текущей странице.
+- [FormWizard](./form-navigation.mdx) — шаги многошаговой формы. Хлебные крошки не показывают,
+  какой шаг пройден и можно ли идти дальше.
+- [Pagination](./pagination.mdx) — переход между страницами одного списка.
+
+## Анатомия
+
+```tsx
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/breadcrumb'
+
+<Breadcrumb>
+  <BreadcrumbList>
+    <BreadcrumbItem>
+      <BreadcrumbLink href="/">Главная</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbPage>Каталог</BreadcrumbPage>
+    </BreadcrumbItem>
+  </BreadcrumbList>
+</Breadcrumb>;
+```
+
+| Часть                 | Что это                                                    | Ключевые пропсы          |
+| --------------------- | ---------------------------------------------------------- | ------------------------ |
+| `Breadcrumb`          | Корень — `<nav>` с подписью для скринридера.               | `aria-label`             |
+| `BreadcrumbList`      | Нумерованный список уровней (`<ol>`).                      | `className`              |
+| `BreadcrumbItem`      | Один уровень (`<li>`).                                     | `className`              |
+| `BreadcrumbLink`      | Ссылка на предыдущий уровень (`<a>`).                      | `href`, `asChild`        |
+| `BreadcrumbPage`      | Название текущей страницы, не ссылка.                      | `children`               |
+| `BreadcrumbSeparator` | Разделитель между уровнями (`<li>`), по умолчанию стрелка. | `children` — свой значок |
+| `BreadcrumbEllipsis`  | Значок «…» на месте свёрнутых уровней.                     | `className`              |
+
+Разделитель — отдельный элемент списка, его ставят между `BreadcrumbItem` руками. Для ссылок
+роутера используйте `asChild`: стили перейдут на вашу ссылку, а переход пойдёт без перезагрузки
+страницы.
+
+## Примеры
 
 <ComponentDoc config={breadcrumbDocConfig} />
+
+## Доступность
+
+- Корень — `<nav>` с `aria-label` из локали кита («Навигационная цепочка» в русской локали).
+  Скринридер объявляет его как отдельную область навигации.
+- Уровни — нумерованный список: скринридер называет число уровней.
+- Текущая страница — `aria-current="page"` (а также `role="link"` и `aria-disabled="true"`):
+  её называют, но перейти по ней нельзя.
+- Разделители скрыты от скринридера (`role="presentation"`, `aria-hidden`).
+- `BreadcrumbEllipsis` скрыт от скринридера целиком, вместе со своей подписью «Ещё». Если
+  свёрнутые уровни должны быть доступны, сделайте многоточие кнопкой, которая открывает
+  [DropdownMenu](./dropdown-menu.mdx) со ссылками, и дайте кнопке свой `aria-label`.
+- Клавиатура — обычная: `Tab` переходит по ссылкам, текущая страница фокус не получает.
+
+## Локализация
+
+| Ключ                   | English      | Русский                 | Чем заменить в компоненте                  |
+| ---------------------- | ------------ | ----------------------- | ------------------------------------------ |
+| `kit.breadcrumb.label` | `Breadcrumb` | `Навигационная цепочка` | проп `aria-label` у `Breadcrumb`           |
+| `kit.breadcrumb.more`  | `More`       | `Ещё`                   | пропа нет; скрыта от скринридера, см. выше |
+
+Строки берутся из локали, которую задаёт `I18nProvider` из `@reformer/core/react`; без провайдера
+— английские. Русский набор кита — `ru` из `@reformer/ui-kit/locale/ru` или загрузчик
+`loadKitLocale` из `@reformer/ui-kit/locale`. Свой текст для всех экземпляров — ключом в своей
+локали:
+
+```tsx
+import { extendLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+const appRu = extendLocale(ru, {
+  messages: { 'kit.breadcrumb.label': 'Вы здесь' },
+});
+
+<I18nProvider locale={appRu}>{/* приложение */}</I18nProvider>;
+```
+
+Для одного экземпляра проще передать проп: `<Breadcrumb aria-label="Путь к документу">`.
+
+## См. также
+
+- [NavigationMenu](./navigation-menu.mdx) — навигация по разделам сайта.
+- [DropdownMenu](./dropdown-menu.mdx) — меню для свёрнутых уровней.
+- [Pagination](./pagination.mdx) — страницы одного списка.

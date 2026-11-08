@@ -9,9 +9,69 @@ import { sliderDocConfig } from '@site/src/components/demo/examples/slider';
 
 # Slider
 
-Слайдер на Radix (`Track` / `Range` / `Thumb`, role=slider). Значение — скаляр `number | null`:
-одно-thumb режим сводит контракт формы к числу через `sliderAdapter` (`number` → Radix `[n]`,
-`onValueChange(number[])` → `arr[0]`). Диапазон и шаг задаются `min` / `max` / `step`. Раскладка
-обычная — верхнюю подпись рисует `FormField` (не inline). В форме `Slider` кладётся в `component` как есть.
+Ползунок для выбора числа из диапазона. Значение поля — `number | null`, границы и шаг задают
+`min`, `max` и `step`. В `component` [узла схемы](../reference/glossary.md#форма-и-данные)
+`Slider` кладётся как есть.
+
+## Когда брать
+
+- Число, которое удобнее «прикинуть», чем набрать: громкость, оценка, процент скидки.
+- Шкала короткая или шаг крупный, и точное значение не критично.
+
+Соседи:
+
+- точное число, особенно большое (сумма, срок) — [Input](./input.mdx), компонент `InputNumber`;
+- выбор из нескольких фиксированных значений — [RadioGroup](./radio-group.mdx) или
+  [ToggleGroup](./toggle-group.mdx).
+
+## Анатомия
+
+| Компонент | Значение поля    | Ключевые пропсы      |
+| --------- | ---------------- | -------------------- |
+| `Slider`  | `number \| null` | `min`, `max`, `step` |
+
+Внутри — Radix Slider: дорожка (`Track`), заполненная часть (`Range`) и ручка (`Thumb`). В форме
+ручка одна: значение — одно число. По умолчанию шкала `0…100` с шагом `1`. Текущее число
+слайдер не подписывает — если оно важно, выводите его рядом или берите `InputNumber`.
+
+```tsx
+{
+  model: model.$.rating,
+  component: Slider,
+  componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
+}
+```
+
+Подпись над слайдером рисует [FormField](./form-field.mdx), как у текстовых полей. Общие пропсы
+полей (`label`, `required`, `description`, `tooltip` и другие) —
+в [описании FormField](./form-field.mdx#общие-пропсы-полей).
+
+Вне формы `Slider` — обычный Radix Slider: значение массивом, `value={[n]}` и
+`onValueChange={([n]) => …}`.
+
+## Примеры и API
 
 <ComponentDoc config={sliderDocConfig} />
+
+## Доступность
+
+- Ручка — элемент с `role="slider"` и `aria-valuemin`, `aria-valuemax`, `aria-valuenow`; её
+  ставит Radix.
+- Клавиатура (Radix): ←/↓ и →/↑ — на один шаг, Shift + стрелка и PageUp/PageDown — на десять
+  шагов, Home/End — к минимуму и максимуму.
+- Уход фокуса с ручки отмечает поле [тронутым](../reference/glossary.md#валидация).
+- Ограничение: подпись и связи от `FormField` (`aria-labelledby`, `aria-describedby`,
+  `aria-invalid`) ложатся на корневой элемент слайдера, а не на ручку с `role="slider"`. Скринридер
+  может не назвать ручку по подписи поля.
+
+## Локализация
+
+Слайдер текста не рисует. Встроенная строка одна — подпись кнопки-иконки `tooltip` для
+скринридера, ключ `kit.infoHint.label`. Как подключить русскую локаль кита — в
+[обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Input](./input.mdx) — `InputNumber` для точного ввода числа.
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+- [Встроенные правила](../validation/built-in.md) — `min`, `max`, `required`.

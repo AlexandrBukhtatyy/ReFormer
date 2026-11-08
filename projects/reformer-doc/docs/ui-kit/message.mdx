@@ -2,6 +2,7 @@
 id: message
 title: Message
 sidebar_label: Message
+description: Строка сообщения чата — аватар, заголовок, содержимое и подвал.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,90 @@ import { messageDocConfig } from '@site/src/components/demo/examples/message';
 
 # Message
 
-Сообщение чата с ИИ на shadcn. Compound-набор:
-`MessageGroup` / `Message` / `MessageAvatar` / `MessageContent` / `MessageHeader` / `MessageFooter`.
-Сторона реплики задаётся через `align` (`"start"` — ассистент слева, `"end"` — пользователь справа),
-а `MessageGroup` собирает реплики в вертикальный тред.
+Строка одного сообщения в чате с ассистентом: аватар автора, подпись, содержимое и подвал со
+временем. Сама реплика, вложения и статусы — это другие компоненты набора, они кладутся внутрь
+`MessageContent`. Сторону задаёт `align`.
+
+## Когда брать
+
+- **Message** — раскладка одного сообщения в ленте: кто написал, с какой стороны, когда.
+- [Bubble](./bubble.mdx) — пузырь с текстом. Стоит внутри Message; без аватара и подписей пузыри
+  можно собрать и одной колонкой `BubbleGroup`.
+- [Attachment](./attachment.mdx) и [Marker](./marker.mdx) — вложения и служебные строки внутри
+  того же сообщения.
+- [MessageScroller](./message-scroller.mdx) — прокручиваемая лента, в которую ставят сообщения.
+- [Item](./item.mdx) — строка обычного списка (контакт, файл, настройка), а не реплика.
+
+## Анатомия
+
+```tsx
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+  MessageHeader,
+  MessageFooter,
+  Avatar,
+  AvatarFallback,
+  Bubble,
+  BubbleContent,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/message'
+
+<Message align="start">
+  <MessageAvatar>
+    <Avatar>
+      <AvatarFallback>ИИ</AvatarFallback>
+    </Avatar>
+  </MessageAvatar>
+  <MessageContent>
+    <MessageHeader>Ассистент</MessageHeader>
+    <Bubble variant="muted">
+      <BubbleContent>Опишите задачу — предложу решение.</BubbleContent>
+    </Bubble>
+    <MessageFooter>14:32</MessageFooter>
+  </MessageContent>
+</Message>;
+```
+
+| Часть            | Что это                                                           | Ключевые пропсы |
+| ---------------- | ----------------------------------------------------------------- | --------------- |
+| `MessageGroup`   | Колонка сообщений с отступом между ними.                          | `className`     |
+| `Message`        | Строка сообщения: аватар и колонка содержимого рядом.             | `align`         |
+| `MessageAvatar`  | Круглая ячейка для [Avatar](./avatar.mdx), прижата к низу строки. | `children`      |
+| `MessageContent` | Колонка содержимого: подписи, пузыри, вложения, маркеры.          | `children`      |
+| `MessageHeader`  | Мелкая подпись над содержимым: имя или роль автора.               | `children`      |
+| `MessageFooter`  | Мелкая подпись под содержимым: время, статус доставки.            | `children`      |
+
+Как части подстраиваются друг под друга:
+
+- `align="end"` зеркалит строку: аватар уходит вправо, а всё внутри `MessageContent` — пузыри,
+  вложения, подписи — прижимается к правому краю. Отдельный `align` у `Bubble` не нужен.
+- При `MessageFooter` аватар поднимается и встаёт напротив последнего пузыря, а не подвала.
+- Если внутри есть пузырь `variant="ghost"`, подписи теряют боковой отступ и выравниваются по
+  тексту ответа.
+
+## Примеры
 
 <ComponentDoc config={messageDocConfig} />
+
+## Доступность
+
+- Все части — обычные `div` без ролей и клавиатуры. Сообщение читается по порядку разметки:
+  аватар, подпись, содержимое, подвал.
+- Сторона и цвет не видны скринридеру. Подписывайте автора текстом в `MessageHeader` или
+  скрытым текстом (`className="sr-only"`).
+- У [Avatar](./avatar.mdx) с картинкой задайте `alt`, у инициалов в `AvatarFallback` — понятный
+  текст или `aria-hidden`, если автор уже назван в `MessageHeader`.
+- Ленту, в которой новые сообщения должны озвучиваться, собирайте в
+  [MessageScroller](./message-scroller.mdx): его содержимое — живой регион `role="log"`.
+
+## Локализация
+
+Своих строк компонент не рисует: подписи, время и текст сообщений — ваши.
+
+## См. также
+
+- [Bubble](./bubble.mdx) — пузырь с текстом реплики.
+- [Attachment](./attachment.mdx) — вложения в сообщении.
+- [Marker](./marker.mdx) — служебные строки.
+- [MessageScroller](./message-scroller.mdx) — лента сообщений с автопрокруткой.

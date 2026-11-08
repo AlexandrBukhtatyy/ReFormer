@@ -10,32 +10,29 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * NavigationMenu — не form-control: навигационный compound поверх Radix NavigationMenu
- * (NavigationMenu / NavigationMenuList / NavigationMenuItem / NavigationMenuTrigger /
- * NavigationMenuContent / NavigationMenuLink / NavigationMenuIndicator / NavigationMenuViewport).
- * Триггер раскрывает выпадающую панель (Content); панель показывается в общем слое Viewport
- * (viewport=true) либо инлайн под пунктом (viewport=false). navigationMenuTriggerStyle — cva-стиль
- * триггера, применим к NavigationMenuLink, чтобы простая ссылка выглядела как пункт-триггер.
- * Таб Variants — стили меню, Examples — типовые композиции, props — таблица частей.
+ * NavigationMenu — не поле формы: навигация сайта поверх Radix NavigationMenu. Пункт-кнопка
+ * раскрывает панель со ссылками, пункт-ссылка ведёт сразу на страницу. Variants — виды меню,
+ * Examples — типовые панели, API — таблица props. Ссылки в демо — якоря `#…`, чтобы щелчок не
+ * уводил со страницы документации.
  */
 export const navigationMenuDocConfig: ComponentDocConfig = {
   name: 'NavigationMenu',
   importFrom: '@reformer/ui-kit',
   description:
-    'Горизонтальное навигационное меню на shadcn / Radix NavigationMenu. Compound: NavigationMenu (корень) + NavigationMenuList / NavigationMenuItem / NavigationMenuTrigger / NavigationMenuContent / NavigationMenuLink / NavigationMenuIndicator / NavigationMenuViewport. Клавиатурная навигация и aria — из Radix.',
+    'Навигация сайта: ряд пунктов, часть из них раскрывает панель со ссылками. Клавиатура и aria — из Radix.',
   variants: [
     {
       id: 'with-dropdown',
-      title: 'Меню с выпадающей панелью (viewport)',
+      title: 'Пункт с панелью и пункт-ссылка',
       description:
-        'Пункт-триггер раскрывает панель Content. По умолчанию (viewport=true) панель показывается в общем слое Viewport под меню. Наведите на «Товары».',
+        'NavigationMenuTrigger раскрывает панель NavigationMenuContent; панель показывается в общем слое под меню. Наведите на «Продукты».',
       render: () => (
-        <NavigationMenu>
+        <NavigationMenu aria-label="Основная навигация">
           <NavigationMenuList>
             <NavigationMenuItem>
-              <NavigationMenuTrigger>Товары</NavigationMenuTrigger>
+              <NavigationMenuTrigger>Продукты</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul style={{ display: 'grid', gap: 4, width: 220, padding: 4 }}>
+                <ul className="grid w-64 gap-1 p-1">
                   <li>
                     <NavigationMenuLink href="#analytics">Аналитика</NavigationMenuLink>
                   </li>
@@ -56,15 +53,21 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
           </NavigationMenuList>
         </NavigationMenu>
       ),
-      code: `<NavigationMenu>
+      code: `<NavigationMenu aria-label="Основная навигация">
   <NavigationMenuList>
     <NavigationMenuItem>
-      <NavigationMenuTrigger>Товары</NavigationMenuTrigger>
+      <NavigationMenuTrigger>Продукты</NavigationMenuTrigger>
       <NavigationMenuContent>
-        <ul className="grid w-[220px] gap-1 p-1">
-          <li><NavigationMenuLink href="#analytics">Аналитика</NavigationMenuLink></li>
-          <li><NavigationMenuLink href="#reports">Отчёты</NavigationMenuLink></li>
-          <li><NavigationMenuLink href="#integrations">Интеграции</NavigationMenuLink></li>
+        <ul className="grid w-64 gap-1 p-1">
+          <li>
+            <NavigationMenuLink href="#analytics">Аналитика</NavigationMenuLink>
+          </li>
+          <li>
+            <NavigationMenuLink href="#reports">Отчёты</NavigationMenuLink>
+          </li>
+          <li>
+            <NavigationMenuLink href="#integrations">Интеграции</NavigationMenuLink>
+          </li>
         </ul>
       </NavigationMenuContent>
     </NavigationMenuItem>
@@ -78,14 +81,14 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
     },
     {
       id: 'links-only',
-      title: 'Только ссылки (без выпадашки)',
+      title: 'Только ссылки',
       description:
-        'Простое горизонтальное меню из ссылок. navigationMenuTriggerStyle() задаёт каждой ссылке вид пункта меню.',
+        'Меню без панелей. navigationMenuTriggerStyle() даёт ссылке вид пункта меню; active помечает текущую страницу.',
       render: () => (
-        <NavigationMenu>
+        <NavigationMenu aria-label="Разделы">
           <NavigationMenuList>
             <NavigationMenuItem>
-              <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#home">
+              <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#home" active>
                 Главная
               </NavigationMenuLink>
             </NavigationMenuItem>
@@ -102,10 +105,10 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
           </NavigationMenuList>
         </NavigationMenu>
       ),
-      code: `<NavigationMenu>
+      code: `<NavigationMenu aria-label="Разделы">
   <NavigationMenuList>
     <NavigationMenuItem>
-      <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#home">
+      <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#home" active>
         Главная
       </NavigationMenuLink>
     </NavigationMenuItem>
@@ -124,16 +127,16 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
     },
     {
       id: 'inline-viewport-false',
-      title: 'Инлайн-панель (viewport={false})',
+      title: 'Панель под своим пунктом (viewport={false})',
       description:
-        'viewport={false} — панель Content раскрывается прямо под своим пунктом, без общего слоя Viewport. Удобно для компактных меню.',
+        'viewport={false} — панель раскрывается прямо под пунктом, а не в общем слое под всем меню.',
       render: () => (
-        <NavigationMenu viewport={false}>
+        <NavigationMenu viewport={false} aria-label="Ресурсы">
           <NavigationMenuList>
             <NavigationMenuItem>
               <NavigationMenuTrigger>Ресурсы</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul style={{ display: 'grid', gap: 4, width: 200, padding: 4 }}>
+                <ul className="grid w-64 gap-1 p-1">
                   <li>
                     <NavigationMenuLink href="#blog">Блог</NavigationMenuLink>
                   </li>
@@ -146,14 +149,18 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
           </NavigationMenuList>
         </NavigationMenu>
       ),
-      code: `<NavigationMenu viewport={false}>
+      code: `<NavigationMenu viewport={false} aria-label="Ресурсы">
   <NavigationMenuList>
     <NavigationMenuItem>
       <NavigationMenuTrigger>Ресурсы</NavigationMenuTrigger>
       <NavigationMenuContent>
-        <ul className="grid w-[200px] gap-1 p-1">
-          <li><NavigationMenuLink href="#blog">Блог</NavigationMenuLink></li>
-          <li><NavigationMenuLink href="#guides">Руководства</NavigationMenuLink></li>
+        <ul className="grid w-64 gap-1 p-1">
+          <li>
+            <NavigationMenuLink href="#blog">Блог</NavigationMenuLink>
+          </li>
+          <li>
+            <NavigationMenuLink href="#guides">Руководства</NavigationMenuLink>
+          </li>
         </ul>
       </NavigationMenuContent>
     </NavigationMenuItem>
@@ -166,38 +173,26 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
       id: 'rich-panel',
       title: 'Панель с описаниями',
       description:
-        'NavigationMenuLink рендерит вертикальный блок (заголовок + описание) — типовая «богатая» панель навигации.',
+        'NavigationMenuLink выстраивает содержимое в колонку: заголовок и строка пояснения под ним.',
       render: () => (
-        <NavigationMenu>
+        <NavigationMenu aria-label="Платформа">
           <NavigationMenuList>
             <NavigationMenuItem>
               <NavigationMenuTrigger>Платформа</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul style={{ display: 'grid', gap: 4, width: 300, padding: 4 }}>
+                <ul className="grid w-72 gap-1 p-1">
                   <li>
                     <NavigationMenuLink href="#builder">
-                      <div style={{ fontWeight: 500 }}>Конструктор форм</div>
-                      <p
-                        style={{
-                          fontSize: 12,
-                          lineHeight: 1.4,
-                          color: 'var(--muted-foreground, #666)',
-                        }}
-                      >
+                      <div className="font-medium">Конструктор форм</div>
+                      <p className="text-sm text-muted-foreground">
                         Собирайте формы из готовых блоков без кода.
                       </p>
                     </NavigationMenuLink>
                   </li>
                   <li>
                     <NavigationMenuLink href="#validation">
-                      <div style={{ fontWeight: 500 }}>Валидация</div>
-                      <p
-                        style={{
-                          fontSize: 12,
-                          lineHeight: 1.4,
-                          color: 'var(--muted-foreground, #666)',
-                        }}
-                      >
+                      <div className="font-medium">Валидация</div>
+                      <p className="text-sm text-muted-foreground">
                         Правила, зависимости и асинхронные проверки.
                       </p>
                     </NavigationMenuLink>
@@ -208,16 +203,16 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
           </NavigationMenuList>
         </NavigationMenu>
       ),
-      code: `<NavigationMenu>
+      code: `<NavigationMenu aria-label="Платформа">
   <NavigationMenuList>
     <NavigationMenuItem>
       <NavigationMenuTrigger>Платформа</NavigationMenuTrigger>
       <NavigationMenuContent>
-        <ul className="grid w-[300px] gap-1 p-1">
+        <ul className="grid w-72 gap-1 p-1">
           <li>
             <NavigationMenuLink href="#builder">
               <div className="font-medium">Конструктор форм</div>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 Собирайте формы из готовых блоков без кода.
               </p>
             </NavigationMenuLink>
@@ -225,7 +220,7 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
           <li>
             <NavigationMenuLink href="#validation">
               <div className="font-medium">Валидация</div>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 Правила, зависимости и асинхронные проверки.
               </p>
             </NavigationMenuLink>
@@ -236,101 +231,93 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
   </NavigationMenuList>
 </NavigationMenu>`,
     },
-    {
-      id: 'active-link',
-      title: 'Активная ссылка (data-active)',
-      description:
-        'NavigationMenuLink подсвечивает активный пункт через проп active (data-active=true) — для отметки текущего раздела.',
-      render: () => (
-        <NavigationMenu>
-          <NavigationMenuList>
-            <NavigationMenuItem>
-              <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#overview" active>
-                Обзор
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#settings">
-                Настройки
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-          </NavigationMenuList>
-        </NavigationMenu>
-      ),
-      code: `<NavigationMenu>
-  <NavigationMenuList>
-    <NavigationMenuItem>
-      <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#overview" active>
-        Обзор
-      </NavigationMenuLink>
-    </NavigationMenuItem>
-    <NavigationMenuItem>
-      <NavigationMenuLink className={navigationMenuTriggerStyle()} href="#settings">
-        Настройки
-      </NavigationMenuLink>
-    </NavigationMenuItem>
-  </NavigationMenuList>
-</NavigationMenu>`,
-    },
   ],
   props: [
     {
-      name: 'NavigationMenu',
-      type: 'Radix NavigationMenu.Root',
-      default: 'viewport=true',
+      name: 'aria-label',
+      type: 'string',
+      default: "'Main'",
       description:
-        'Корень меню. viewport — рендерить общий слой Viewport для панелей (true) или раскрывать инлайн под пунктом (false). value / onValueChange — управляемое состояние открытого пункта.',
+        'Подпись области навигации для скринридера. Radix ставит английское "Main" — задайте свою на языке страницы.',
     },
     {
-      name: 'NavigationMenuList',
-      type: 'Radix NavigationMenu.List',
-      description: 'Список пунктов (ul). Горизонтальный ряд с gap.',
-    },
-    {
-      name: 'NavigationMenuItem',
-      type: 'Radix NavigationMenu.Item',
-      description: 'Пункт меню (li) — контейнер для триггера/ссылки и его панели.',
-    },
-    {
-      name: 'NavigationMenuTrigger',
-      type: 'Radix NavigationMenu.Trigger',
+      name: 'viewport',
+      type: 'boolean',
+      default: 'true',
       description:
-        'Кнопка, раскрывающая панель Content. Включает chevron-иконку, поворачивающуюся при открытии.',
+        'true — панели показываются в общем слое под всем меню; false — каждая под своим пунктом.',
     },
     {
-      name: 'NavigationMenuContent',
-      type: 'Radix NavigationMenu.Content',
+      name: 'value',
+      type: 'string',
       description:
-        'Выпадающая панель пункта. Монтируется при открытии; показывается в Viewport или инлайн (зависит от viewport на корне).',
+        'Какой пункт раскрыт (value его NavigationMenuItem), когда состоянием управляете вы. Пустая строка — все свёрнуты.',
     },
     {
-      name: 'NavigationMenuLink',
-      type: 'Radix NavigationMenu.Link',
+      name: 'defaultValue',
+      type: 'string',
+      description: 'Пункт, раскрытый при первом рендере.',
+    },
+    {
+      name: 'onValueChange',
+      type: '(value: string) => void',
+      description: 'Вызывается при раскрытии и сворачивании пунктов.',
+    },
+    {
+      name: 'orientation',
+      type: "'horizontal' | 'vertical'",
+      default: "'horizontal'",
       description:
-        'Ссылка (a). active (data-active=true) подсвечивает текущий пункт. С navigationMenuTriggerStyle() выглядит как пункт-триггер.',
+        'Раскладка для клавиатуры: в какую сторону стрелка уводит фокус в открытую панель (↓ или →).',
     },
     {
-      name: 'NavigationMenuIndicator',
-      type: 'Radix NavigationMenu.Indicator',
-      description: 'Индикатор-«стрелка», указывающий на активный пункт под меню (опциональный).',
-    },
-    {
-      name: 'NavigationMenuViewport',
-      type: 'Radix NavigationMenu.Viewport',
+      name: 'dir',
+      type: "'ltr' | 'rtl'",
       description:
-        'Общий слой, куда проецируются панели Content (при viewport=true). Рендерится корнем автоматически.',
+        'Направление текста: при rtl стрелки ←/→ меняются местами. По умолчанию берётся из DirectionProvider.',
+    },
+    {
+      name: 'delayDuration',
+      type: 'number',
+      default: '200',
+      description: 'Задержка открытия панели при наведении мыши, мс.',
+    },
+    {
+      name: 'skipDelayDuration',
+      type: 'number',
+      default: '300',
+      description:
+        'Сколько миллисекунд после ухода с пункта соседний пункт открывается без задержки.',
+    },
+    {
+      name: 'NavigationMenuItem.value',
+      type: 'string',
+      description: 'Идентификатор пункта для value корня. Если не задан, создаётся автоматически.',
+    },
+    {
+      name: 'NavigationMenuLink.active',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'Текущая страница: ссылка получает aria-current="page". Подсветка в ките сейчас не срабатывает — см. раздел «Доступность».',
+    },
+    {
+      name: 'NavigationMenuLink.onSelect',
+      type: '(event: Event) => void',
+      description:
+        'Вызывается при переходе по ссылке. event.preventDefault() оставляет панель открытой.',
     },
     {
       name: 'navigationMenuTriggerStyle',
       type: '() => string',
       description:
-        'cva-стиль пункта-триггера. Применяется к NavigationMenuLink, чтобы простая ссылка выглядела как пункт меню.',
+        'Классы пункта меню. Передайте их в className ссылки верхнего уровня, чтобы она выглядела как NavigationMenuTrigger.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

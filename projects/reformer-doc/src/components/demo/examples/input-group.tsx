@@ -11,24 +11,74 @@ import { SearchIcon, EyeIcon, EyeOffIcon, XIcon, InfoIcon } from 'lucide-react';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * InputGroup — не form-control: презентационная композиция контрола (input/textarea) с аддонами.
- * Compound-набор: InputGroup / InputGroupAddon / InputGroupButton / InputGroupText /
- * InputGroupInput / InputGroupTextarea. Таб Variants показывает типы аддонов (иконка / текст /
- * кнопка), Examples — рецепты (поиск, пароль, textarea с футером), props — таблица.
+ * InputGroup — не поле формы, а раскладка: поле ввода и аддоны (иконки, текст, кнопки) по его
+ * краям. Поэтому у страницы таблица props, а не вкладка API с формой.
  */
+
+const BOX = { width: '100%', maxWidth: 360 } as const;
+
+function SearchClearExample() {
+  const [value, setValue] = useState('reformer');
+  return (
+    <div style={BOX}>
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon />
+        </InputGroupAddon>
+        <InputGroupInput
+          placeholder="Поиск по каталогу"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        {value && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton size="icon-xs" aria-label="Очистить" onClick={() => setValue('')}>
+              <XIcon />
+            </InputGroupButton>
+          </InputGroupAddon>
+        )}
+      </InputGroup>
+    </div>
+  );
+}
+
+function PasswordToggleExample() {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={BOX}>
+      <InputGroup>
+        <InputGroupInput
+          type={visible ? 'text' : 'password'}
+          placeholder="Пароль"
+          defaultValue="secret42"
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            size="icon-xs"
+            aria-label={visible ? 'Скрыть пароль' : 'Показать пароль'}
+            onClick={() => setVisible((v) => !v)}
+          >
+            {visible ? <EyeOffIcon /> : <EyeIcon />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+    </div>
+  );
+}
+
 export const inputGroupDocConfig: ComponentDocConfig = {
   name: 'InputGroup',
   importFrom: '@reformer/ui-kit',
   description:
-    'Обёртка контрола с аддонами на shadcn. Compound-набор: InputGroup + InputGroupAddon (иконки/кнопки/текст по краям) + InputGroupInput / InputGroupTextarea. Выравнивание аддона — через align, единый фокус-ринг и состояние ошибки — на всей группе.',
+    'Поле ввода с аддонами по краям: иконкой, текстом или кнопкой. Рамка, фокус и ошибка — общие на всю группу.',
   variants: [
     {
       id: 'icon-addon',
-      title: 'Иконка-аддон',
+      title: 'Иконка',
       description:
-        'InputGroupAddon с иконкой. align="inline-start" ставит аддон слева, "inline-end" — справа.',
+        'InputGroupAddon с иконкой. По умолчанию аддон слева (align="inline-start"), "inline-end" ставит его справа.',
       render: () => (
-        <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={BOX}>
           <InputGroup>
             <InputGroupAddon>
               <SearchIcon />
@@ -48,11 +98,10 @@ export const inputGroupDocConfig: ComponentDocConfig = {
     },
     {
       id: 'text-addon',
-      title: 'Текстовый префикс / суффикс',
-      description:
-        'InputGroupText внутри аддона — статичный текст по краю поля (протокол, домен, единицы).',
+      title: 'Текст до и после',
+      description: 'InputGroupText — неизменяемый текст у края поля: протокол, домен, единицы.',
       render: () => (
-        <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={BOX}>
           <InputGroup>
             <InputGroupAddon>
               <InputGroupText>https://</InputGroupText>
@@ -76,11 +125,11 @@ export const inputGroupDocConfig: ComponentDocConfig = {
     },
     {
       id: 'button-addon',
-      title: 'Кнопка-аддон',
+      title: 'Кнопка',
       description:
-        'InputGroupButton — кнопка внутри аддона (по умолчанию variant="ghost", size="xs"). Клик по кнопке не фокусирует поле.',
+        'InputGroupButton — кнопка внутри аддона. По умолчанию variant="ghost", size="xs", type="button".',
       render: () => (
-        <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={BOX}>
           <InputGroup>
             <InputGroupInput placeholder="Промокод" />
             <InputGroupAddon align="inline-end">
@@ -104,41 +153,14 @@ export const inputGroupDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'search-clear',
-      title: 'Поиск: иконка слева + кнопка очистки справа',
+      title: 'Поиск с кнопкой очистки',
       description:
-        'Комбинация двух аддонов: неинтерактивная иконка (inline-start) и icon-кнопка сброса (inline-end).',
-      render: () => {
-        // eslint-disable-next-line react-hooks/rules-of-hooks -- VariantGallery рендерит render как <Render/> (компонент), useState безопасен
-        const [value, setValue] = useState('reformer');
-        return (
-          <div style={{ width: '100%', maxWidth: 360 }}>
-            <InputGroup>
-              <InputGroupAddon>
-                <SearchIcon />
-              </InputGroupAddon>
-              <InputGroupInput
-                placeholder="Поиск по каталогу"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-              />
-              {value && (
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label="Очистить"
-                    onClick={() => setValue('')}
-                  >
-                    <XIcon />
-                  </InputGroupButton>
-                </InputGroupAddon>
-              )}
-            </InputGroup>
-          </div>
-        );
-      },
-      code: `import { SearchIcon, XIcon } from 'lucide-react';
+        'Два аддона: иконка слева и кнопка-иконка справа. У кнопки без текста обязателен aria-label.',
+      render: SearchClearExample,
+      code: `import { useState } from 'react';
+import { SearchIcon, XIcon } from 'lucide-react';
 
-const [value, setValue] = useState('');
+const [value, setValue] = useState('reformer');
 
 <InputGroup>
   <InputGroupAddon>
@@ -160,38 +182,21 @@ const [value, setValue] = useState('');
     },
     {
       id: 'password-toggle',
-      title: 'Пароль с переключателем видимости',
-      description: 'Кнопка-аддон переключает type поля между "password" и "text".',
-      render: () => {
-        // eslint-disable-next-line react-hooks/rules-of-hooks -- VariantGallery рендерит render как <Render/> (компонент), useState безопасен
-        const [visible, setVisible] = useState(false);
-        return (
-          <div style={{ width: '100%', maxWidth: 360 }}>
-            <InputGroup>
-              <InputGroupInput
-                type={visible ? 'text' : 'password'}
-                placeholder="Пароль"
-                defaultValue="secret42"
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  size="icon-xs"
-                  aria-label={visible ? 'Скрыть пароль' : 'Показать пароль'}
-                  onClick={() => setVisible((v) => !v)}
-                >
-                  {visible ? <EyeOffIcon /> : <EyeIcon />}
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-          </div>
-        );
-      },
-      code: `import { EyeIcon, EyeOffIcon } from 'lucide-react';
+      title: 'Своя кнопка «показать пароль»',
+      description:
+        'Кнопка переключает type между "password" и "text". Для поля формы есть готовый InputPassword.',
+      render: PasswordToggleExample,
+      code: `import { useState } from 'react';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
 
 const [visible, setVisible] = useState(false);
 
 <InputGroup>
-  <InputGroupInput type={visible ? 'text' : 'password'} placeholder="Пароль" />
+  <InputGroupInput
+    type={visible ? 'text' : 'password'}
+    placeholder="Пароль"
+    defaultValue="secret42"
+  />
   <InputGroupAddon align="inline-end">
     <InputGroupButton
       size="icon-xs"
@@ -205,18 +210,18 @@ const [visible, setVisible] = useState(false);
     },
     {
       id: 'textarea-footer',
-      title: 'Textarea с нижним аддоном (block-end)',
+      title: 'Textarea с панелью снизу',
       description:
-        'align="block-start" / "block-end" переводят группу в колонку — аддон рендерится над/под многострочным полем.',
+        'align="block-end" (или "block-start") ставит группу в колонку: аддон занимает строку под полем (или над ним).',
       render: () => (
-        <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={BOX}>
           <InputGroup>
             <InputGroupTextarea placeholder="Опишите проблему..." rows={3} />
             <InputGroupAddon align="block-end">
               <InputGroupText>
-                <InfoIcon /> Markdown поддерживается
+                <InfoIcon /> Поддерживается Markdown
               </InputGroupText>
-              <InputGroupButton size="sm" variant="default" style={{ marginLeft: 'auto' }}>
+              <InputGroupButton size="sm" variant="default" className="ml-auto">
                 Отправить
               </InputGroupButton>
             </InputGroupAddon>
@@ -229,51 +234,85 @@ const [visible, setVisible] = useState(false);
   <InputGroupTextarea placeholder="Опишите проблему..." rows={3} />
   <InputGroupAddon align="block-end">
     <InputGroupText>
-      <InfoIcon /> Markdown поддерживается
+      <InfoIcon /> Поддерживается Markdown
     </InputGroupText>
-    <InputGroupButton size="sm" variant="default" style={{ marginLeft: 'auto' }}>
+    <InputGroupButton size="sm" variant="default" className="ml-auto">
       Отправить
     </InputGroupButton>
+  </InputGroupAddon>
+</InputGroup>`,
+    },
+    {
+      id: 'invalid',
+      title: 'Состояние ошибки',
+      description:
+        'aria-invalid на InputGroupInput красит рамку всей группы. Текст ошибки выводите сами рядом с группой.',
+      render: () => (
+        <div style={BOX}>
+          <InputGroup>
+            <InputGroupInput placeholder="example" aria-invalid defaultValue="my site" />
+            <InputGroupAddon align="inline-end">
+              <InputGroupText>.ru</InputGroupText>
+            </InputGroupAddon>
+          </InputGroup>
+        </div>
+      ),
+      code: `<InputGroup>
+  <InputGroupInput placeholder="example" aria-invalid defaultValue="my site" />
+  <InputGroupAddon align="inline-end">
+    <InputGroupText>.ru</InputGroupText>
   </InputGroupAddon>
 </InputGroup>`,
     },
   ],
   props: [
     {
+      name: 'InputGroup',
+      type: "React.ComponentProps<'div'>",
+      description:
+        'Контейнер с role="group": рисует общую рамку, кольцо фокуса и красную рамку при aria-invalid у поля. Для приглушённых аддонов выключенной группы поставьте data-disabled="true".',
+    },
+    {
       name: 'InputGroupAddon · align',
       type: "'inline-start' | 'inline-end' | 'block-start' | 'block-end'",
-      default: 'inline-start',
+      default: "'inline-start'",
       description:
-        'Расположение аддона. inline-* — по горизонтальным краям; block-* переводят группу в колонку (для textarea).',
+        'Где стоит аддон. inline-* — слева или справа от поля; block-* ставят группу в колонку — аддон над полем или под ним. Клик по аддону (не по кнопке) переводит фокус в однострочное поле.',
     },
     {
       name: 'InputGroupButton · size',
       type: "'xs' | 'sm' | 'icon-xs' | 'icon-sm'",
-      default: 'xs',
-      description: 'Размер кнопки-аддона (icon-* — квадратные под одну иконку).',
+      default: "'xs'",
+      description: 'Размер кнопки. icon-* — квадратная кнопка под одну иконку.',
     },
     {
       name: 'InputGroupButton · variant',
-      type: "'ghost' | 'default' | 'secondary' | 'outline' | 'destructive' | 'link'",
-      default: 'ghost',
-      description: 'Вариант стиля кнопки (проброс в Button).',
+      type: "'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'",
+      default: "'ghost'",
+      description: 'Вид кнопки — те же варианты, что у Button.',
+    },
+    {
+      name: 'InputGroupButton · type',
+      type: "'button' | 'submit' | 'reset'",
+      default: "'button'",
+      description: 'HTML-тип кнопки. По умолчанию button: кнопка внутри формы её не отправляет.',
     },
     {
       name: 'InputGroupInput / InputGroupTextarea',
-      type: "React.ComponentProps<'input' | 'textarea'>",
+      type: "React.ComponentProps<'input'> / React.ComponentProps<'textarea'>",
       description:
-        'Контрол группы. Проставляет data-slot="input-group-control" (единый фокус-ринг и состояние ошибки на группе). Принимает все нативные props (value, onChange, placeholder, aria-invalid, ...).',
+        'Поле группы на основе Input и Textarea кита, без своей рамки. Принимает все свойства нативного поля: value, onChange(event), placeholder, aria-invalid и другие.',
     },
     {
       name: 'InputGroupText',
       type: "React.ComponentProps<'span'>",
-      description: 'Статичный текст-аддон (префикс/суффикс, подпись).',
+      description: 'Неизменяемый текст в аддоне: префикс, суффикс, подпись.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы (tailwind-merge — класс вызывающего перекрывает). Есть у всех под-компонентов.',
+        'Дополнительные классы Tailwind. Есть у всех частей; при конфликте побеждает переданный класс.',
     },
   ],
 };

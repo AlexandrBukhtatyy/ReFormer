@@ -2,84 +2,79 @@ import { AspectRatio } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * AspectRatio — не form-control: обёртка над Radix AspectRatio. Держит вложенный контент
- * (картинка, видео, плейсхолдер) в заданной пропорции `ratio` при resize контейнера.
- * Variants — типовые пропорции (16/9, 1/1), Examples — рецепты (медиа-карточка).
+ * AspectRatio — не поле формы: обёртка над Radix AspectRatio. Держит содержимое в пропорции
+ * `ratio`, ширину берёт у родителя. Variants — типовые пропорции, Examples — карточка с обложкой,
+ * API — таблица props. Обёртка `<div style>` в render — рамка демо (задаёт ширину), в `code` её нет.
  */
-
-// Плейсхолдер «картинки» — блок с CSS-градиентом (в доке нет реальных ассетов).
-const placeholderStyle = {
-  height: '100%',
-  width: '100%',
-  borderRadius: 8,
-  background: 'linear-gradient(135deg, hsl(220 70% 60%), hsl(280 65% 55%))',
-} as const;
 
 export const aspectRatioDocConfig: ComponentDocConfig = {
   name: 'AspectRatio',
   importFrom: '@reformer/ui-kit',
   description:
-    'Обёртка над Radix AspectRatio: держит вложенный контент в фиксированной пропорции (ratio) независимо от ширины контейнера. Ширину задаёт родитель; высота считается автоматически.',
+    'Держит содержимое в заданной пропорции ширины к высоте. Ширину задаёт родитель, высота считается сама.',
   variants: [
     {
       id: 'widescreen',
       title: 'Широкий формат (16 / 9)',
-      description:
-        'ratio={16 / 9} — типовая пропорция для превью видео и обложек. Ширину задаёт контейнер.',
+      description: 'ratio={16 / 9} — превью видео и обложки. Ширину задаёт родитель (здесь 320px).',
       render: () => (
         <div style={{ width: 320 }}>
-          <AspectRatio ratio={16 / 9}>
-            <div style={placeholderStyle} />
+          <AspectRatio ratio={16 / 9} className="rounded-md bg-muted">
+            <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
+              16 : 9
+            </div>
           </AspectRatio>
         </div>
       ),
-      code: `<div style={{ width: 320 }}>
-  <AspectRatio ratio={16 / 9}>
-    <img src="/cover.jpg" alt="Обложка" className="h-full w-full rounded-md object-cover" />
-  </AspectRatio>
-</div>`,
+      code: `<AspectRatio ratio={16 / 9} className="rounded-md bg-muted">
+  <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
+    16 : 9
+  </div>
+</AspectRatio>`,
     },
     {
       id: 'square',
       title: 'Квадрат (1 / 1)',
-      description: 'ratio={1} — квадрат: аватары, миниатюры товаров, иконки-плитки.',
+      description: 'ratio={1} — миниатюры товаров и плитки. Значение по умолчанию.',
       render: () => (
         <div style={{ width: 200 }}>
-          <AspectRatio ratio={1}>
-            <div style={placeholderStyle} />
+          <AspectRatio ratio={1} className="rounded-md bg-muted">
+            <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
+              1 : 1
+            </div>
           </AspectRatio>
         </div>
       ),
-      code: `<div style={{ width: 200 }}>
-  <AspectRatio ratio={1}>
-    <img src="/thumb.jpg" alt="Миниатюра" className="h-full w-full rounded-md object-cover" />
-  </AspectRatio>
-</div>`,
+      code: `<AspectRatio ratio={1} className="rounded-md bg-muted">
+  <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
+    1 : 1
+  </div>
+</AspectRatio>`,
     },
   ],
   examples: [
     {
       id: 'media-card',
-      title: 'Медиа-карточка (превью + подпись)',
+      title: 'Карточка с обложкой',
       description:
-        'Обложка в пропорции 16/9 сверху, под ней заголовок и описание — контент не «прыгает» при загрузке картинки.',
+        'Место под обложку зарезервировано пропорцией: текст под ней не сдвигается, пока картинка грузится.',
       render: () => (
-        <div style={{ width: 280, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <AspectRatio ratio={16 / 9}>
-            <div style={placeholderStyle} />
-          </AspectRatio>
-          <div style={{ fontWeight: 600 }}>Заголовок статьи</div>
-          <div style={{ fontSize: 14, opacity: 0.7 }}>
-            Короткое описание материала в две строки для примера.
+        <div style={{ width: 280 }}>
+          <div className="flex flex-col gap-2">
+            <AspectRatio ratio={16 / 9} className="rounded-md bg-muted" />
+            <div className="font-medium">Заголовок статьи</div>
+            <div className="text-sm text-muted-foreground">
+              Короткое описание материала в две строки для примера.
+            </div>
           </div>
         </div>
       ),
-      code: `<div className="flex flex-col gap-2 w-70">
-  <AspectRatio ratio={16 / 9}>
-    <img src="/cover.jpg" alt="" className="h-full w-full rounded-md object-cover" />
-  </AspectRatio>
-  <div className="font-semibold">Заголовок статьи</div>
-  <div className="text-sm text-muted-foreground">Короткое описание материала.</div>
+      code: `<div className="flex flex-col gap-2">
+  <AspectRatio ratio={16 / 9} className="rounded-md bg-muted" />
+  <div className="font-medium">Заголовок статьи</div>
+  <div className="text-sm text-muted-foreground">
+    Короткое описание материала в две строки для примера.
+  </div>
 </div>`,
     },
   ],
@@ -89,24 +84,30 @@ export const aspectRatioDocConfig: ComponentDocConfig = {
       type: 'number',
       default: '1',
       description:
-        'Пропорция ширина/высота (напр. 16 / 9, 4 / 3, 1). Высота контейнера считается от ширины через padding.',
+        'Отношение ширины к высоте: 16 / 9, 4 / 3, 1. Высота считается от ширины родителя.',
     },
     {
       name: 'children',
-      type: 'React.ReactNode',
+      type: 'ReactNode',
       description:
-        'Контент (img / video / div). Растягивается на весь контейнер — обычно h-full w-full object-cover.',
+        'Содержимое: img, video, iframe. Растягивайте его на всю область — классы h-full w-full, для картинок ещё object-cover.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы на корне примитива (tailwind-merge — класс вызывающего перекрывает).',
+        'Классы внутренней области, которая держит пропорцию: фон, скругление, overflow-hidden.',
+    },
+    {
+      name: 'style',
+      type: 'CSSProperties',
+      description:
+        'Стили внутренней области. position и отступы до краёв компонент задаёт сам — их не перекрыть.',
     },
     {
       name: '...props',
-      type: 'React.ComponentProps<typeof AspectRatioPrimitive.Root>',
-      description: 'Любые атрибуты (style, data-*, aria-*) прокидываются на корень AspectRatio.',
+      type: "ComponentProps<'div'>",
+      description: 'Остальные атрибуты (data-*, aria-*, id) попадают на внутреннюю область.',
     },
   ],
 };

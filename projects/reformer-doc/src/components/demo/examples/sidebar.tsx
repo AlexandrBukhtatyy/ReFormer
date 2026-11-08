@@ -1,3 +1,4 @@
+import { useState, type CSSProperties } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -18,12 +19,13 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
+  SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
 } from '@reformer/ui-kit/sidebar';
 import {
   Calendar,
-  ChevronDown,
+  Folder,
   GalleryVerticalEnd,
   Home,
   Inbox,
@@ -34,31 +36,78 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Sidebar — не form-control: крупная композиция shadcn для навигационной боковой панели
- * приложения. `SidebarProvider` держит состояние (expanded / collapsed, персист в cookie,
- * горячая клавиша Cmd/Ctrl+B, мобильный режим через Sheet) и раздаёт его через контекст
- * `useSidebar`. `Sidebar` — сама панель (side / variant / collapsible), `SidebarInset` — основная
- * область рядом с ней, `SidebarTrigger` сворачивает/разворачивает. Внутри: Header / Content /
- * Footer, группы (Group / GroupLabel / GroupAction), меню (Menu / MenuItem / MenuButton /
- * MenuAction / MenuBadge / MenuSub…). Все части несут свой data-slot.
+ * Sidebar — не поле формы: боковая панель навигации приложения из частей shadcn. Импорт только из
+ * `@reformer/ui-kit/sidebar`. Variants — статичная панель (collapsible="none") и части меню,
+ * Examples — сворачивание и группы, API — таблица props.
  *
- * Тяжёлый компонент — импортируется из отдельного subpath `@reformer/ui-kit/sidebar`.
- * В превью док используется collapsible="none" (плоская панель без fixed-позиционирования) —
- * так композиция аккуратно ложится в карточку; реальное сворачивание показано в Examples.
+ * Рамка демо (`<div style>`) есть только в render. В приложении панель занимает высоту окна
+ * (`fixed`, `h-svh`), поэтому в рамке провайдеру задан `className="h-full min-h-0"`, а для
+ * сворачиваемых примеров у рамки стоит `transform`: он делает её точкой отсчёта для `fixed`.
  */
+
+const frame: CSSProperties = { width: '100%', height: 420, overflow: 'hidden' };
+const fixedFrame: CSSProperties = { ...frame, position: 'relative', transform: 'translateZ(0)' };
+
+function ControlledIconSidebar() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-lg border" style={fixedFrame}>
+      <SidebarProvider className="h-full min-h-0" open={open} onOpenChange={setOpen}>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Меню</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive tooltip="Главная">
+                      <Home />
+                      <span>Главная</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton tooltip="Поиск">
+                      <Search />
+                      <span>Поиск</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton tooltip="Настройки">
+                      <Settings />
+                      <span>Настройки</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        <SidebarInset>
+          <header className="flex h-12 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+            <span className="text-sm font-medium">
+              Панель {open ? 'развёрнута' : 'свёрнута до иконок'}
+            </span>
+          </header>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
+  );
+}
+
 export const sidebarDocConfig: ComponentDocConfig = {
   name: 'Sidebar',
   importFrom: '@reformer/ui-kit/sidebar',
   description:
-    'Навигационная боковая панель приложения на shadcn. SidebarProvider держит состояние (свёрнута/развёрнута, персист в cookie, Cmd/Ctrl+B, мобильный режим через Sheet), Sidebar — панель, SidebarInset — основная область, SidebarTrigger переключает. Импортируется из отдельного subpath @reformer/ui-kit/sidebar.',
+    'Боковая панель навигации приложения: провайдер состояния, панель, меню и основная область рядом с ней.',
   variants: [
     {
-      id: 'app-shell',
-      title: 'Каркас приложения',
+      id: 'flat',
+      title: 'Статичная панель (collapsible="none")',
       description:
-        'SidebarProvider + Sidebar (шапка-бренд, меню с иконками и активным пунктом, подвал) + SidebarInset с верхней панелью и SidebarTrigger. В превью — collapsible="none" (плоская панель).',
+        'Шапка, меню с активным пунктом и счётчиком, подвал и основная область. collapsible="none" — панель не сворачивается и стоит в потоке страницы.',
       render: () => (
-        <div className="h-[420px] w-full overflow-hidden rounded-lg border">
+        <div className="rounded-lg border" style={frame}>
           <SidebarProvider className="h-full min-h-0">
             <Sidebar collapsible="none">
               <SidebarHeader>
@@ -98,12 +147,6 @@ export const sidebarDocConfig: ComponentDocConfig = {
                           <span>Календарь</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton>
-                          <Settings />
-                          <span>Настройки</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -112,7 +155,8 @@ export const sidebarDocConfig: ComponentDocConfig = {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton>
-                      <span>Иван Петров</span>
+                      <Settings />
+                      <span>Настройки</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -120,7 +164,6 @@ export const sidebarDocConfig: ComponentDocConfig = {
             </Sidebar>
             <SidebarInset>
               <header className="flex h-12 items-center gap-2 border-b px-4">
-                <SidebarTrigger />
                 <span className="text-sm font-medium">Главная</span>
               </header>
               <div className="p-4 text-sm text-muted-foreground">Основная область страницы.</div>
@@ -128,8 +171,8 @@ export const sidebarDocConfig: ComponentDocConfig = {
           </SidebarProvider>
         </div>
       ),
-      code: `<SidebarProvider>
-  <Sidebar>
+      code: `<SidebarProvider className="h-full min-h-0">
+  <Sidebar collapsible="none">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
@@ -161,6 +204,12 @@ export const sidebarDocConfig: ComponentDocConfig = {
               </SidebarMenuButton>
               <SidebarMenuBadge>4</SidebarMenuBadge>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Calendar />
+                <span>Календарь</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -168,17 +217,19 @@ export const sidebarDocConfig: ComponentDocConfig = {
     <SidebarFooter>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton>Иван Петров</SidebarMenuButton>
+          <SidebarMenuButton>
+            <Settings />
+            <span>Настройки</span>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarFooter>
   </Sidebar>
   <SidebarInset>
     <header className="flex h-12 items-center gap-2 border-b px-4">
-      <SidebarTrigger />
       <span className="text-sm font-medium">Главная</span>
     </header>
-    <div className="p-4">Основная область страницы.</div>
+    <div className="p-4 text-sm text-muted-foreground">Основная область страницы.</div>
   </SidebarInset>
 </SidebarProvider>`,
     },
@@ -186,9 +237,9 @@ export const sidebarDocConfig: ComponentDocConfig = {
       id: 'menu-parts',
       title: 'Части меню',
       description:
-        'Строительные блоки меню: MenuButton с действием (MenuAction) и счётчиком (MenuBadge), вложенное подменю (MenuSub / MenuSubItem / MenuSubButton) и загрузочные скелетоны (MenuSkeleton).',
+        'Пункт с кнопкой-действием (SidebarMenuAction) и счётчиком (SidebarMenuBadge), вложенное подменю (SidebarMenuSub) и заглушки на время загрузки (SidebarMenuSkeleton).',
       render: () => (
-        <div className="h-[420px] w-56 overflow-hidden rounded-lg border">
+        <div className="rounded-lg border" style={{ ...frame, maxWidth: 256 }}>
           <SidebarProvider className="h-full min-h-0">
             <Sidebar collapsible="none">
               <SidebarContent>
@@ -198,23 +249,26 @@ export const sidebarDocConfig: ComponentDocConfig = {
                     <SidebarMenu>
                       <SidebarMenuItem>
                         <SidebarMenuButton>
-                          <ChevronDown />
+                          <Folder />
                           <span>Дизайн-система</span>
                         </SidebarMenuButton>
-                        <SidebarMenuAction aria-label="Добавить">
+                        <SidebarMenuAction aria-label="Добавить раздел">
                           <Plus />
                         </SidebarMenuAction>
                         <SidebarMenuSub>
                           <SidebarMenuSubItem>
-                            <SidebarMenuSubButton isActive>Компоненты</SidebarMenuSubButton>
+                            <SidebarMenuSubButton href="#components" isActive>
+                              Компоненты
+                            </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                           <SidebarMenuSubItem>
-                            <SidebarMenuSubButton>Токены</SidebarMenuSubButton>
+                            <SidebarMenuSubButton href="#tokens">Токены</SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </SidebarMenuItem>
                       <SidebarMenuItem>
                         <SidebarMenuButton>
+                          <Folder />
                           <span>Маркетинг</span>
                         </SidebarMenuButton>
                         <SidebarMenuBadge>9</SidebarMenuBadge>
@@ -240,47 +294,68 @@ export const sidebarDocConfig: ComponentDocConfig = {
           </SidebarProvider>
         </div>
       ),
-      code: `<SidebarMenu>
-  <SidebarMenuItem>
-    <SidebarMenuButton>
-      <ChevronDown />
-      <span>Дизайн-система</span>
-    </SidebarMenuButton>
-    <SidebarMenuAction aria-label="Добавить">
-      <Plus />
-    </SidebarMenuAction>
-    <SidebarMenuSub>
-      <SidebarMenuSubItem>
-        <SidebarMenuSubButton isActive>Компоненты</SidebarMenuSubButton>
-      </SidebarMenuSubItem>
-      <SidebarMenuSubItem>
-        <SidebarMenuSubButton>Токены</SidebarMenuSubButton>
-      </SidebarMenuSubItem>
-    </SidebarMenuSub>
-  </SidebarMenuItem>
-  <SidebarMenuItem>
-    <SidebarMenuButton>Маркетинг</SidebarMenuButton>
-    <SidebarMenuBadge>9</SidebarMenuBadge>
-  </SidebarMenuItem>
-</SidebarMenu>
-
-{/* Загрузка */}
-<SidebarMenuItem>
-  <SidebarMenuSkeleton showIcon />
-</SidebarMenuItem>`,
+      code: `<SidebarProvider className="h-full min-h-0">
+  <Sidebar collapsible="none">
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupLabel>Проекты</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Folder />
+                <span>Дизайн-система</span>
+              </SidebarMenuButton>
+              <SidebarMenuAction aria-label="Добавить раздел">
+                <Plus />
+              </SidebarMenuAction>
+              <SidebarMenuSub>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton href="#components" isActive>
+                    Компоненты
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton href="#tokens">Токены</SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              </SidebarMenuSub>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Folder />
+                <span>Маркетинг</span>
+              </SidebarMenuButton>
+              <SidebarMenuBadge>9</SidebarMenuBadge>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      <SidebarGroup>
+        <SidebarGroupLabel>Загрузка</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuSkeleton showIcon />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuSkeleton showIcon />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  </Sidebar>
+</SidebarProvider>`,
     },
   ],
   examples: [
     {
-      id: 'collapsible',
-      title: 'Сворачиваемая панель (offcanvas)',
+      id: 'offcanvas',
+      title: 'Панель, которая уезжает за край (offcanvas)',
       description:
-        'Полноценный каркас: Sidebar с collapsible="offcanvas" уезжает за край при сворачивании, SidebarTrigger переключает (и глобальная горячая клавиша Cmd/Ctrl+B). Состояние сохраняется в cookie. В превью панель ограничена рамкой контейнера.',
+        'collapsible="offcanvas": SidebarTrigger или Ctrl/Cmd+B прячут панель целиком, основная область занимает освободившееся место. SidebarRail — полоса у края панели, щелчок по ней тоже переключает.',
       render: () => (
-        <div
-          className="relative h-[440px] w-full overflow-hidden rounded-lg border"
-          style={{ transform: 'translateZ(0)' }}
-        >
+        <div className="rounded-lg border" style={fixedFrame}>
           <SidebarProvider className="h-full min-h-0">
             <Sidebar collapsible="offcanvas">
               <SidebarHeader>
@@ -292,27 +367,22 @@ export const sidebarDocConfig: ComponentDocConfig = {
                   <SidebarGroupContent>
                     <SidebarMenu>
                       <SidebarMenuItem>
-                        <SidebarMenuButton isActive tooltip="Главная">
+                        <SidebarMenuButton isActive>
                           <Home />
                           <span>Главная</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                       <SidebarMenuItem>
-                        <SidebarMenuButton tooltip="Поиск">
+                        <SidebarMenuButton>
                           <Search />
                           <span>Поиск</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton tooltip="Настройки">
-                          <Settings />
-                          <span>Настройки</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
               </SidebarContent>
+              <SidebarRail />
             </Sidebar>
             <SidebarInset>
               <header className="flex h-12 items-center gap-2 border-b px-4">
@@ -320,59 +390,106 @@ export const sidebarDocConfig: ComponentDocConfig = {
                 <span className="text-sm font-medium">Дашборд</span>
               </header>
               <div className="p-4 text-sm text-muted-foreground">
-                Нажмите на кнопку слева (или Cmd/Ctrl+B), чтобы свернуть панель.
+                Нажмите кнопку слева или Ctrl/Cmd+B, чтобы спрятать панель.
               </div>
             </SidebarInset>
           </SidebarProvider>
         </div>
       ),
-      code: `function AppShell() {
-  return (
-    <SidebarProvider>
-      <Sidebar collapsible="offcanvas">
-        <SidebarHeader>
-          <SidebarGroupLabel>Acme Inc</SidebarGroupLabel>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Меню</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive tooltip="Главная">
-                    <Home />
-                    <span>Главная</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton tooltip="Настройки">
-                    <Settings />
-                    <span>Настройки</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        <header className="flex h-12 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
-          <span className="text-sm font-medium">Дашборд</span>
-        </header>
-        <div className="p-4">Контент страницы…</div>
-      </SidebarInset>
-    </SidebarProvider>
-  );
-}`,
+      code: `<SidebarProvider className="h-full min-h-0">
+  <Sidebar collapsible="offcanvas">
+    <SidebarHeader>
+      <SidebarGroupLabel>Acme Inc</SidebarGroupLabel>
+    </SidebarHeader>
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupLabel>Меню</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive>
+                <Home />
+                <span>Главная</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Search />
+                <span>Поиск</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+    <SidebarRail />
+  </Sidebar>
+  <SidebarInset>
+    <header className="flex h-12 items-center gap-2 border-b px-4">
+      <SidebarTrigger />
+      <span className="text-sm font-medium">Дашборд</span>
+    </header>
+    <div className="p-4 text-sm text-muted-foreground">
+      Нажмите кнопку слева или Ctrl/Cmd+B, чтобы спрятать панель.
+    </div>
+  </SidebarInset>
+</SidebarProvider>`,
+    },
+    {
+      id: 'icon-controlled',
+      title: 'Сворачивание до иконок и своё состояние',
+      description:
+        'collapsible="icon" сужает панель до колонки иконок; подсказка tooltip у пункта видна только в свёрнутом виде. open + onOpenChange — состояние держит ваш компонент.',
+      render: ControlledIconSidebar,
+      code: `const [open, setOpen] = useState(true);
+
+<SidebarProvider className="h-full min-h-0" open={open} onOpenChange={setOpen}>
+  <Sidebar collapsible="icon">
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupLabel>Меню</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive tooltip="Главная">
+                <Home />
+                <span>Главная</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Поиск">
+                <Search />
+                <span>Поиск</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Настройки">
+                <Settings />
+                <span>Настройки</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  </Sidebar>
+  <SidebarInset>
+    <header className="flex h-12 items-center gap-2 border-b px-4">
+      <SidebarTrigger />
+      <span className="text-sm font-medium">
+        Панель {open ? 'развёрнута' : 'свёрнута до иконок'}
+      </span>
+    </header>
+  </SidebarInset>
+</SidebarProvider>`,
     },
     {
       id: 'groups',
-      title: 'Секции с заголовками и действиями',
+      title: 'Группы с заголовками и действиями',
       description:
-        'Несколько SidebarGroup, каждая с SidebarGroupLabel и SidebarGroupAction (кнопка в углу секции); SidebarSeparator разделяет области. Так навигация разбивается на смысловые блоки.',
+        'Несколько SidebarGroup, у каждой заголовок SidebarGroupLabel; SidebarGroupAction — кнопка в углу группы, SidebarSeparator разделяет группы.',
       render: () => (
-        <div className="h-[420px] w-64 overflow-hidden rounded-lg border">
+        <div className="rounded-lg border" style={{ ...frame, maxWidth: 256 }}>
           <SidebarProvider className="h-full min-h-0">
             <Sidebar collapsible="none">
               <SidebarContent>
@@ -423,129 +540,167 @@ export const sidebarDocConfig: ComponentDocConfig = {
           </SidebarProvider>
         </div>
       ),
-      code: `<SidebarContent>
-  <SidebarGroup>
-    <SidebarGroupLabel>Избранное</SidebarGroupLabel>
-    <SidebarGroupAction aria-label="Добавить в избранное">
-      <Plus />
-    </SidebarGroupAction>
-    <SidebarGroupContent>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton>
-            <Home />
-            <span>Обзор</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarGroupContent>
-  </SidebarGroup>
-  <SidebarSeparator />
-  <SidebarGroup>
-    <SidebarGroupLabel>Прочее</SidebarGroupLabel>
-    <SidebarGroupContent>{/* … */}</SidebarGroupContent>
-  </SidebarGroup>
-</SidebarContent>`,
+      code: `<SidebarProvider className="h-full min-h-0">
+  <Sidebar collapsible="none">
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupLabel>Избранное</SidebarGroupLabel>
+        <SidebarGroupAction aria-label="Добавить в избранное">
+          <Plus />
+        </SidebarGroupAction>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Home />
+                <span>Обзор</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Inbox />
+                <span>Входящие</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      <SidebarSeparator />
+      <SidebarGroup>
+        <SidebarGroupLabel>Прочее</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Calendar />
+                <span>Календарь</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Settings />
+                <span>Настройки</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  </Sidebar>
+</SidebarProvider>`,
     },
   ],
   props: [
     {
-      name: 'SidebarProvider',
-      type: 'div + context',
-      default: 'defaultOpen=true',
+      name: 'SidebarProvider.defaultOpen',
+      type: 'boolean',
+      default: 'true',
+      description: 'Развёрнута ли панель при первом рендере, если состоянием управляет провайдер.',
+    },
+    {
+      name: 'SidebarProvider.open',
+      type: 'boolean',
       description:
-        'Корень. Держит состояние (open / onOpenChange для управляемого режима, defaultOpen для неуправляемого), персист в cookie, горячую клавишу Cmd/Ctrl+B и мобильный режим. Раздаёт всё через useSidebar. Задаёт CSS-переменные ширины.',
+        'Развёрнута ли панель, когда состоянием управляете вы. Используется с onOpenChange.',
     },
     {
-      name: 'Sidebar',
-      type: 'div | Sheet',
-      default: 'side=left, variant=sidebar, collapsible=offcanvas',
+      name: 'SidebarProvider.onOpenChange',
+      type: '(open: boolean) => void',
       description:
-        'Сама панель. side: left | right; variant: sidebar | floating | inset; collapsible: offcanvas (уезжает за край) | icon (сжимается до иконок) | none (не сворачивается). На мобиле — Sheet.',
+        'Вызывается при сворачивании и разворачивании на широком экране (кнопка, полоса, Ctrl/Cmd+B).',
     },
     {
-      name: 'SidebarTrigger',
-      type: 'Button',
+      name: 'SidebarProvider.style',
+      type: 'CSSProperties',
       description:
-        'Кнопка-переключатель (иконка PanelLeft). Вызывает toggleSidebar из контекста. Обычно ставится в SidebarInset.',
+        'Ширина панели — переменные --sidebar-width (16rem) и --sidebar-width-icon (3rem); ваши значения перекрывают встроенные.',
     },
     {
-      name: 'SidebarRail',
-      type: 'button',
+      name: 'Sidebar.side',
+      type: "'left' | 'right'",
+      default: "'left'",
+      description: 'С какой стороны окна стоит панель.',
+    },
+    {
+      name: 'Sidebar.variant',
+      type: "'sidebar' | 'floating' | 'inset'",
+      default: "'sidebar'",
       description:
-        'Тонкая полоса у края панели — клик/перетаскивание сворачивает-разворачивает. Ставится внутри Sidebar.',
+        'sidebar — панель с границей; floating — карточка с тенью и отступом; inset — основная область становится карточкой рядом с панелью.',
     },
     {
-      name: 'SidebarInset',
-      type: 'main',
+      name: 'Sidebar.collapsible',
+      type: "'offcanvas' | 'icon' | 'none'",
+      default: "'offcanvas'",
       description:
-        'Основная область страницы рядом с панелью. Для variant="inset" получает скруглённый «остров».',
+        'offcanvas — свёрнутая панель уезжает за край; icon — сужается до колонки иконок; none — не сворачивается и стоит в потоке страницы.',
     },
     {
-      name: 'SidebarHeader / SidebarFooter / SidebarContent',
-      type: 'div',
+      name: 'SidebarMenuButton.isActive',
+      type: 'boolean',
+      default: 'false',
       description:
-        'Верхняя / нижняя закреплённые зоны и прокручиваемое тело панели соответственно.',
+        'Подсветить пункт как текущий (data-active). Для скринридера добавьте aria-current="page" сами.',
     },
     {
-      name: 'SidebarGroup / SidebarGroupLabel / SidebarGroupAction / SidebarGroupContent',
-      type: 'div (+ asChild у Label/Action)',
+      name: 'SidebarMenuButton.tooltip',
+      type: 'string | TooltipContent props',
+      description: 'Подсказка справа от пункта. Видна только в свёрнутой до иконок панели.',
+    },
+    {
+      name: 'SidebarMenuButton.variant',
+      type: "'default' | 'outline'",
+      default: "'default'",
+      description: 'outline — пункт с рамкой и фоном.',
+    },
+    {
+      name: 'SidebarMenuButton.size',
+      type: "'default' | 'sm' | 'lg'",
+      default: "'default'",
+      description: 'Высота пункта: 32, 28 или 48 px. lg — для шапки с названием и подписью.',
+    },
+    {
+      name: 'asChild',
+      type: 'boolean',
+      default: 'false',
       description:
-        'Секция навигации: обёртка, заголовок, кнопка-действие в углу секции и контейнер содержимого. Label/Action прячутся при collapsible="icon".',
+        'У SidebarMenuButton, SidebarMenuAction, SidebarMenuSubButton, SidebarGroupLabel и SidebarGroupAction: стили части переносятся на единственного ребёнка, например ссылку роутера.',
     },
     {
-      name: 'SidebarInput',
-      type: 'Input',
-      description: 'Поле поиска, стилизованное под панель (компактнее и без тени).',
+      name: 'SidebarMenuAction.showOnHover',
+      type: 'boolean',
+      default: 'false',
+      description: 'На широком экране кнопка видна только при наведении или фокусе внутри пункта.',
     },
     {
-      name: 'SidebarSeparator',
-      type: 'Separator',
-      description: 'Горизонтальный разделитель между областями панели.',
+      name: 'SidebarMenuSubButton.size',
+      type: "'sm' | 'md'",
+      default: "'md'",
+      description: 'Размер текста пункта подменю. Сама часть — ссылка <a>.',
     },
     {
-      name: 'SidebarMenu / SidebarMenuItem',
-      type: 'ul / li',
-      description: 'Список пунктов навигации и его элемент.',
+      name: 'SidebarMenuSubButton.isActive',
+      type: 'boolean',
+      default: 'false',
+      description: 'Подсветить пункт подменю как текущий.',
     },
     {
-      name: 'SidebarMenuButton',
-      type: 'button (asChild)',
-      default: 'variant=default, size=default',
+      name: 'SidebarMenuSkeleton.showIcon',
+      type: 'boolean',
+      default: 'false',
+      description: 'Добавить к заглушке квадрат иконки. Ширина полосы текста случайная.',
+    },
+    {
+      name: 'useSidebar()',
+      type: '{ state, open, setOpen, openMobile, setOpenMobile, isMobile, toggleSidebar }',
       description:
-        'Пункт меню. isActive подсвечивает активный; variant: default | outline; size: default | sm | lg; tooltip (строка или пропсы TooltipContent) показывается при свёрнутой панели; asChild оборачивает ссылку.',
+        'Состояние панели для своих частей. state — "expanded" | "collapsed". Вне SidebarProvider бросает ошибку.',
     },
     {
-      name: 'SidebarMenuAction',
-      type: 'button (asChild)',
-      default: 'showOnHover=false',
+      name: 'className',
+      type: 'string',
       description:
-        'Вторичная кнопка-действие у пункта (в правом верхнем углу). showOnHover проявляет её только при наведении на пункт.',
-    },
-    {
-      name: 'SidebarMenuBadge',
-      type: 'div',
-      description: 'Счётчик/бейдж у пункта (напр. число непрочитанных). Чисто визуальный.',
-    },
-    {
-      name: 'SidebarMenuSkeleton',
-      type: 'div',
-      default: 'showIcon=false',
-      description:
-        'Скелетон пункта на время загрузки. showIcon добавляет плейсхолдер иконки; ширина текста случайная.',
-    },
-    {
-      name: 'SidebarMenuSub / SidebarMenuSubItem / SidebarMenuSubButton',
-      type: 'ul / li / a (asChild)',
-      default: 'size=md',
-      description:
-        'Вложенное подменю: контейнер, элемент и ссылка-кнопка (size: sm | md, isActive). Скрывается при collapsible="icon".',
-    },
-    {
-      name: 'useSidebar',
-      type: '() => SidebarContext',
-      description:
-        'Хук доступа к состоянию: { state, open, setOpen, openMobile, setOpenMobile, isMobile, toggleSidebar }. Только внутри SidebarProvider.',
+        'Есть у всех частей. Сливается через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

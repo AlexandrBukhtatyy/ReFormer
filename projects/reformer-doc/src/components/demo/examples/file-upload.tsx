@@ -11,18 +11,13 @@ import {
   fileUploadBasePropsSchema,
 } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-/**
- * FileUpload — поле выбора/загрузки файлов. Значение поля — АТОМАРНЫЙ массив
- * (File[] | RemoteFileRef[] | null), а не форма-массив; пустой список эмитится
- * как null (required() работает без изменений). Поведение целиком в headless
- * @reformer/cdk/file-upload, варианты ui-kit — только представление.
- */
+const MB = 1024 * 1024;
 
-/** Детерминированный mock-загрузчик: прогресс каждые 200 мс; имя с «fail» — падает. */
+/** Имитация сервера: прогресс каждые 200 мс; файл с «fail» в имени падает на 60 %. */
 const mockUploader: FileUploadUploader = (file, { onProgress, signal }) =>
   new Promise<RemoteFileRef>((resolve, reject) => {
     let percent = 0;
@@ -47,39 +42,45 @@ const mockUploader: FileUploadUploader = (file, { onProgress, signal }) =>
     });
   });
 
-/** Ранее загруженные дескрипторы (редактирование формы). */
+/** Так загрузчик выглядит в коде примеров: сеть — ваша, компонент только зовёт функцию. */
+const UPLOADER_CODE = raw(
+  '(file, { onProgress, signal }) => api.upload(file, { onProgress, signal })'
+);
+
+/** Ранее загруженные файлы — дескрипторы с сервера (редактирование формы). */
 const PRELOADED: RemoteFileRef[] = [
   { id: 'doc-1', name: 'договор.pdf', size: 245_760, type: 'application/pdf' },
   { id: 'doc-2', name: 'паспорт.jpg', size: 1_048_576, type: 'image/jpeg' },
 ];
 
+const PRELOADED_PROPS = {
+  label: 'Ранее загруженные',
+  placeholder: 'Добавить документ',
+  multiple: true,
+};
+
 /**
- * Preloaded-демо на nullable-поле: initial в модели — null, дескрипторы кладутся в сигнал поля
- * после сборки формы. Поле-массив с дескрипторами прямо в initial работает так же — узел поля
- * `{ model: model.$.<массив>, component }` делает массив одним значением поля.
+ * Поле с файлами, пришедшими с сервера позже сборки формы: начальное значение — null,
+ * дескрипторы записываются в сигнал поля после создания формы.
  */
 function PreloadedDemo() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<any>(null);
   if (ref.current === null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const model = createModel<any>({ field: null });
+    const model = createModel<any>({ documents: null });
     const schema = {
-      model: model.$.field,
+      model: model.$.documents,
       component: FileUploadBase,
-      componentProps: {
-        label: 'Ранее загруженные',
-        placeholder: 'Добавить документ',
-        multiple: true,
-        uploader: mockUploader,
-      },
+      componentProps: { ...PRELOADED_PROPS, uploader: mockUploader },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const form = createFormFromModel<any>({ model, schema });
-    model.$.field.value = PRELOADED;
+    // Ответ сервера пришёл — дескрипторы в сигнал поля.
+    model.$.documents.value = PRELOADED;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ref.current = (form as any).field;
+    ref.current = (form as any).documents;
   }
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
@@ -88,256 +89,195 @@ function PreloadedDemo() {
   );
 }
 
+const PRELOADED_CODE = `${fieldSnippet({
+  field: 'documents',
+  component: 'FileUploadBase',
+  props: { ...PRELOADED_PROPS, uploader: UPLOADER_CODE },
+})}
+
+// ответ сервера пришёл — дескрипторы в сигнал поля:
+model.$.documents.value = [
+  { id: 'doc-1', name: 'договор.pdf', size: 245760, type: 'application/pdf' },
+  { id: 'doc-2', name: 'паспорт.jpg', size: 1048576, type: 'image/jpeg' },
+];`;
+
+// Пропсы панели API — из props-схемы варианта. Числовые лимиты, label и загрузчик — постоянные
+// (числовой контрол без умолчания дал бы 0 и отклонял бы любой файл). allowDrop/allowPaste
+// не показываем: у кнопки нет зоны, на которую можно бросить или вставить файл.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(fileUploadBasePropsSchema), {
+  omit: [
+    'label',
+    'maxFiles',
+    'maxFileSize',
+    'minFileSize',
+    'maxTotalFileSize',
+    'capture',
+    'allowDrop',
+    'allowPaste',
+  ],
+});
+
 export const fileUploadDocConfig: ComponentDocConfig = {
   name: 'FileUpload',
   importFrom: '@reformer/ui-kit',
   description:
-    'Поле выбора и загрузки файлов. Значение — File[] (deferred, файлы уходят на submit через FormData) либо сериализуемые дескрипторы RemoteFileRef[] (immediate — при заданном uploader). Отбор (accept / maxFiles / maxFileSize / дубликаты) выполняет сам компонент; FileUploadBase (кнопка) / FileUploadDropzone / FileUploadInput — один контракт, разное представление, отдельные компоненты без пропа variant; single-изображение — отдельный FileUploadAvatar.',
+    'Поле выбора и загрузки файлов: кнопка, зона перетаскивания, строка ввода или аватар. Значение — File[] или дескрипторы загруженных файлов.',
   variants: [
-    {
+    fieldVariant({
       id: 'button',
-      title: 'Кнопка (по умолчанию)',
+      title: 'Кнопка',
       description:
-        'Компактный триггер + список выбранных файлов на Attachment. Отклонённые отбором файлы показываются под списком.',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadBase,
-        componentProps: {
-          label: 'Документы',
-          hint: 'Изображения или PDF, до 5 МБ',
-          accept: 'image/*,.pdf',
-          multiple: true,
-          maxFileSize: 5 * 1024 * 1024,
-        },
-      }),
-      code: `{
-  model: model.$.documents,
-  component: FileUploadBase,
-  componentProps: {
-    label: 'Документы',
-    hint: 'Изображения или PDF, до 5 МБ',
-    accept: 'image/*,.pdf',
-    multiple: true,
-    maxFileSize: 5 * 1024 * 1024,
-  },
-}`,
-    },
-    // Порядок = раскладка галереи (2 колонки): компактные пары (button + input),
-    // затем высокие зоны (dropzone + invalid), avatar — последним.
-    {
+        'FileUploadBase: кнопка выбора и список файлов под ней. Отклонённые отбором файлы показываются под списком.',
+      field: 'documents',
+      component: FileUploadBase,
+      componentName: 'FileUploadBase',
+      initial: null,
+      props: {
+        label: 'Документы',
+        hint: 'Изображения или PDF, до 5 МБ',
+        accept: 'image/*,.pdf',
+        multiple: true,
+        maxFileSize: 5 * MB,
+      },
+      codeProps: { maxFileSize: raw('5 * 1024 * 1024') },
+    }),
+    fieldVariant({
       id: 'input',
-      title: 'Input с кнопкой-иконкой',
+      title: 'Строка ввода',
       description:
-        'Выглядит как текстовое поле: имена файлов строкой, скрепка открывает пикер, крестик очищает. Списка-превью нет — для форм, где вложения второстепенны.',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadInput,
-        componentProps: {
-          label: 'Вложения',
-          placeholder: 'Прикрепите файлы…',
-          multiple: true,
-          maxFiles: 3,
-        },
-      }),
-      code: `{
-  model: model.$.attachments,
-  component: FileUploadInput,
-  componentProps: {
-    label: 'Вложения',
-    placeholder: 'Прикрепите файлы…',
-    multiple: true,
-    maxFiles: 3,
-  },
-}`,
-    },
-    {
+        'FileUploadInput: имена файлов строкой, скрепка открывает выбор, крестик очищает. Списка с превью нет — для форм, где вложения второстепенны.',
+      field: 'attachments',
+      component: FileUploadInput,
+      componentName: 'FileUploadInput',
+      initial: null,
+      props: { label: 'Вложения', placeholder: 'Прикрепите файлы…', multiple: true, maxFiles: 3 },
+    }),
+    fieldVariant({
       id: 'dropzone',
-      title: 'Dropzone',
+      title: 'Зона перетаскивания',
       description:
-        'Зона drag-and-drop: клик и Enter/Space открывают пикер, drop и paste (allowPaste) принимают файлы. Подсветка перетаскивания — data-dragging.',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadDropzone,
-        componentProps: {
-          label: 'Документы',
-          hint: 'До 10 файлов, любые типы',
-          multiple: true,
-          maxFiles: 10,
-          allowPaste: true,
-        },
-        fullWidth: true, // дроп-зона занимает всю ширину превью
-      }),
-      code: `{
-  model: model.$.documents,
-  component: FileUploadDropzone,
-  componentProps: {
-    label: 'Документы',
-    multiple: true,
-    maxFiles: 10,
-    allowPaste: true,
-  },
-}`,
-    },
-    {
+        'FileUploadDropzone: щелчок, Enter и пробел открывают выбор файлов, перетаскивание и вставка из буфера (allowPaste) добавляют файлы.',
+      field: 'documents',
+      component: FileUploadDropzone,
+      componentName: 'FileUploadDropzone',
+      initial: null,
+      props: {
+        label: 'Документы',
+        hint: 'До 10 файлов, любые типы',
+        multiple: true,
+        maxFiles: 10,
+        allowPaste: true,
+      },
+      fullWidth: true,
+    }),
+    fieldVariant({
       id: 'invalid',
-      title: 'Invalid-состояние',
+      title: 'Ошибка',
       description:
-        'Под FormField aria-invalid приходит от обёртки при ошибке валидации (здесь — required на touched-поле): dropzone/input/avatar подсвечивают рамку, button показывает ошибку текстом. Вне формы то же состояние задаётся пропом invalid.',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadDropzone,
-        componentProps: { label: 'Документы', multiple: true },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Приложите хотя бы один файл' },
-        touched: true,
-        fullWidth: true,
-      }),
-      code: `// в форме — рамку подсвечивает aria-invalid от FormField:
-validate(model.$.documents, [required({ code: 'documents.required' })]);
-
-// вне формы — явный проп:
-<FileUploadDropzone invalid />`,
-    },
-    {
+        'При замечании FormField ставит aria-invalid, и зона, строка ввода и аватар подсвечивают рамку. Кнопка показывает ошибку только текстом. Вне формы то же состояние задаёт проп invalid.',
+      field: 'documents',
+      component: FileUploadDropzone,
+      componentName: 'FileUploadDropzone',
+      initial: null,
+      props: { label: 'Документы', multiple: true, required: true },
+      validators: [required({ code: 'documents.required' })],
+      rules: "required({ code: 'documents.required' })",
+      messages: { 'documents.required': 'Приложите хотя бы один файл' },
+      touched: true,
+      fullWidth: true,
+    }),
+    fieldVariant({
       id: 'avatar',
-      title: 'Avatar (single image)',
+      title: 'Аватар',
       description:
-        'Одно изображение с превью: клик/drop по зоне — выбрать или заменить, крестик — удалить. Отдельный компонент FileUploadAvatar: значение single (File | RemoteFileRef | null).',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadAvatar,
-        componentProps: { label: 'Аватар' },
-      }),
-      code: `{
-  model: model.$.avatar,
-  component: FileUploadAvatar, // значение: File | RemoteFileRef | null
-  componentProps: { shape: 'circle', maxFileSize: 2 * 1024 * 1024 },
-}`,
-    },
+        'FileUploadAvatar: одно изображение с превью. Щелчок или перетаскивание — выбрать или заменить, крестик — удалить. Значение — File | RemoteFileRef | null.',
+      field: 'avatar',
+      component: FileUploadAvatar,
+      componentName: 'FileUploadAvatar',
+      initial: null,
+      props: { label: 'Фото профиля', shape: 'circle', maxFileSize: 2 * MB },
+      codeProps: { maxFileSize: raw('2 * 1024 * 1024') },
+    }),
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'immediate',
-      title: 'Immediate upload (uploader)',
+      title: 'Загрузка сразу при выборе',
       description:
-        'Задан uploader — файлы уходят на сервер при выборе (прогресс, retry по ошибке, abort при удалении), а значением поля становятся сериализуемые дескрипторы {id, name, size, type}: черновики и JSON-формы работают. Файл с «fail» в имени — упадёт (кнопка повтора). Живое значение поля смотрите в табе API — панель «Value» (Form data) под превью.',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadDropzone,
-        componentProps: {
-          label: 'Документы',
-
-          placeholder: 'Файлы уходят на сервер сразу',
-          hint: 'Имя с «fail» — упадёт (retry)',
-          multiple: true,
-          uploader: mockUploader,
-        },
-        fullWidth: true,
-      }),
-      code: `{
-  model: model.$.documents,
-  component: FileUploadDropzone,
-  componentProps: {
-
-    multiple: true,
-    // единственная точка подключения транспорта (XHR / tus / presigned S3 — на выбор):
-    uploader: (file, { onProgress, signal }) =>
-      api.upload(file, { onProgress, signal }), // => Promise<RemoteFileRef>
-  },
-}
-// значение поля: RemoteFileRef[] — только успешно загруженные`,
-    },
+        'С uploader файлы уходят на сервер при выборе: прогресс, повтор после ошибки, отмена при удалении. Значение поля — дескрипторы { id, name, size, type } успешно загруженных файлов. В демо сервер имитирован: файл с «fail» в имени упадёт, появится кнопка повтора.',
+      field: 'documents',
+      component: FileUploadDropzone,
+      componentName: 'FileUploadDropzone',
+      initial: null,
+      props: {
+        label: 'Документы',
+        placeholder: 'Файлы уходят на сервер сразу',
+        multiple: true,
+        uploader: mockUploader,
+      },
+      codeProps: { uploader: UPLOADER_CODE },
+      fullWidth: true,
+    }),
     {
       id: 'preloaded',
-      title: 'Preloaded — редактирование с ранее загруженными файлами',
+      title: 'Редактирование: файлы уже загружены',
       description:
-        'Начальное значение — RemoteFileRef[] с сервера: элементы показываются как uploaded (имя/размер из дескриптора), их можно удалять и добавлять новые. Дескрипторы можно положить прямо в initial модели либо записать в сигнал поля позже, когда ответ сервера придёт.',
+        'Значение — дескрипторы с сервера: файлы показываются загруженными, их можно удалить и добавить новые. Дескрипторы кладут в начальное значение модели или записывают в сигнал поля, когда придёт ответ сервера.',
       render: PreloadedDemo,
-      code: `const model = createModel<FormShape>({ documents: [] });
-const form = createFormFromModel({ model, schema });
-// префилл с сервера — в сигнал поля, когда ответ придёт:
-model.$.documents.value = [
-  { id: 'doc-1', name: 'договор.pdf', size: 245760, type: 'application/pdf' },
-];`,
+      code: PRELOADED_CODE,
     },
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'File-валидаторы core',
+      title: 'Правила для файлов',
       description:
-        'Отбор при выборе делает сам компонент (componentProps), а на submit те же правила проверяют значение поля: maxFiles / minFiles / maxFileSize / minFileSize / maxTotalFileSize / fileType. Работают и с File, и с RemoteFileRef (duck-typing). Правила вешаются на сигнал поля model.$.documents — массив проверяется целиком, одним значением.',
-      render: makeFieldVariant({
-        initial: null,
-        component: FileUploadBase,
-        componentProps: {
-          label: 'Документы',
-          accept: 'image/*,.pdf',
-          multiple: true,
-          maxFiles: 2,
-        },
-        validators: [
-          required({ code: 'field.required' }),
-          maxFiles(2),
-          maxFileSize(5 * 1024 * 1024),
-          fileType('image/*,.pdf'),
-        ],
-        messages: { 'field.required': 'Приложите хотя бы один файл' },
-        touched: true,
-      }),
-      code: `import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.documents, [
-  required({ code: 'field.required' }),
-  maxFiles(2),
-  maxFileSize(5 * 1024 * 1024),
-  fileType('image/*,.pdf'),
-]);`,
-    },
+        'Компонент отсеивает файлы при выборе по своим пропсам, а правила проверяют значение поля целиком перед отправкой. Правила работают и с File, и с дескрипторами.',
+      field: 'documents',
+      component: FileUploadBase,
+      componentName: 'FileUploadBase',
+      initial: null,
+      props: { label: 'Документы', accept: 'image/*,.pdf', multiple: true, maxFiles: 2 },
+      validators: [
+        required({ code: 'documents.required' }),
+        maxFiles(2),
+        maxFileSize(5 * MB),
+        fileType('image/*,.pdf'),
+      ],
+      rules:
+        "required({ code: 'documents.required' }), maxFiles(2), maxFileSize(5 * 1024 * 1024), fileType('image/*,.pdf')",
+      messages: { 'documents.required': 'Приложите хотя бы один файл' },
+      touched: true,
+    }),
   ],
   api: {
     component: FileUploadBase,
     initialValue: null,
-    // Числовые лимиты и label — фиксированные (number-контрол без default дал бы 0 и
-    // отклонял бы любой выбор); настраиваются пропы представления и каналов ввода.
-    // uploader (mock) — чтобы панель «Value» (Form data) показывала настоящее
-    // сериализуемое значение поля: RemoteFileRef[] вместо несериализуемых File.
+    // С загрузчиком панель «Value» показывает настоящее значение поля — дескрипторы, а не File.
     baseComponentProps: {
       label: 'Документы',
       maxFiles: 5,
-      maxFileSize: 5 * 1024 * 1024,
+      maxFileSize: 5 * MB,
       uploader: mockUploader,
     },
     validators: [required({ code: 'field.required' })],
     messages: { 'field.required': 'Приложите хотя бы один файл' },
     valuePresets: [
       { label: 'Пусто (null)', value: null },
-      {
-        label: 'Загруженные дескрипторы',
-        value: [
-          { id: 'doc-1', name: 'договор.pdf', size: 245_760, type: 'application/pdf' },
-          { id: 'doc-2', name: 'паспорт.jpg', size: 1_048_576, type: 'image/jpeg' },
-        ],
-      },
+      { label: 'Загруженные дескрипторы', value: PRELOADED },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(fileUploadBasePropsSchema), {
-      omit: ['label', 'maxFiles', 'maxFileSize', 'minFileSize', 'maxTotalFileSize', 'capture'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.documents,
-  component: FileUploadBase,
-  componentProps: {
-    label: 'Документы',${v.placeholder ? `\n    placeholder: '${v.placeholder}',` : ''}${v.hint ? `\n    hint: '${v.hint}',` : ''}${v.accept ? `\n    accept: '${v.accept}',` : ''}${v.multiple ? '\n    multiple: true,' : ''}
-    maxFiles: 5,
-    maxFileSize: 5 * 1024 * 1024,${v.allowPaste ? '\n    allowPaste: true,' : ''}${v.invalid ? '\n    invalid: true,' : ''}
-    // immediate-режим: значение поля — сериализуемые RemoteFileRef[]
-    uploader: (file, { onProgress, signal }) =>
-      api.upload(file, { onProgress, signal }),
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.documents, [required({ code: 'documents.required' })]);`,
+      fieldSnippet({
+        field: 'documents',
+        component: 'FileUploadBase',
+        props: {
+          label: 'Документы',
+          maxFiles: 5,
+          maxFileSize: raw('5 * 1024 * 1024'),
+          uploader: UPLOADER_CODE,
+        },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

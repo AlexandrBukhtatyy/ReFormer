@@ -1,34 +1,68 @@
+import { useEffect, useState } from 'react';
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselPrevious,
   CarouselNext,
+  type CarouselApi,
 } from '@reformer/ui-kit/carousel';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Carousel — не form-control: compound на embla-carousel-react (Carousel / CarouselContent /
- * CarouselItem / CarouselPrevious / CarouselNext). Корень раздаёт контекст (ref эмблы, api,
- * scrollPrev/Next, canScrollPrev/Next); стрелки — outline/icon Button, авто-disabled на краях;
- * навигация клавишами ←/→. embla — optional peer (тяжёлая dep, external в сборке). Таб Variants —
- * готовые раскладки, Examples — приёмы (несколько на экран, вертикаль, loop), API — части и props.
+ * Carousel — не поле формы: части на embla-carousel-react (Carousel / CarouselContent /
+ * CarouselItem / CarouselPrevious / CarouselNext). embla — необязательная peer-зависимость, поэтому
+ * импорт только из `@reformer/ui-kit/carousel`. Variants — базовая карусель, Examples — приёмы
+ * (несколько слайдов, вертикаль, loop, счётчик через setApi). Обёртка `<div className="px-12">` в
+ * render — место под стрелки в рамке демо, в `code` её нет.
  */
 
-// Плитка-заглушка слайда (в реальном приложении — Card / изображение / произвольный контент).
-function Slide({ label }: { label: string }) {
+const SLIDE = 'flex aspect-square items-center justify-center rounded-lg border bg-muted text-4xl';
+
+/** Счётчик «Слайд N из M»: api карусели приходит через setApi. */
+function CarouselWithCounter() {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(1);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const update = () => {
+      setCount(api.scrollSnapList().length);
+      setCurrent(api.selectedScrollSnap() + 1);
+    };
+    update();
+    api.on('select', update);
+    return () => {
+      api.off('select', update);
+    };
+  }, [api]);
+
   return (
-    <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted p-6 text-4xl font-semibold">
-      {label}
+    <div className="px-12">
+      <Carousel setApi={setApi} className="w-full max-w-xs">
+        <CarouselContent>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <CarouselItem key={n} aria-label={`${n} из 5`}>
+              <div className={SLIDE}>{n}</div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious />
+        <CarouselNext />
+      </Carousel>
+      <p aria-live="polite" className="py-2 text-center text-sm text-muted-foreground">
+        Слайд {current} из {count}
+      </p>
     </div>
   );
 }
 
 export const carouselDocConfig: ComponentDocConfig = {
   name: 'Carousel',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/carousel',
   description:
-    'Карусель на shadcn / embla-carousel-react. Compound: Carousel (корень с контекстом) + CarouselContent (вьюпорт эмблы) + CarouselItem (слайд) + CarouselPrevious / CarouselNext (стрелки-Button, авто-disabled на краях). Навигация ←/→ и свайпом. embla-carousel-react — optional peer dependency.',
+    'Лента слайдов со стрелками, свайпом и клавишами ← / →. Импорт — @reformer/ui-kit/carousel, нужен пакет embla-carousel-react.',
   variants: [
     {
       id: 'basic',
@@ -41,7 +75,7 @@ export const carouselDocConfig: ComponentDocConfig = {
             <CarouselContent>
               {[1, 2, 3, 4, 5].map((n) => (
                 <CarouselItem key={n}>
-                  <Slide label={String(n)} />
+                  <div className={SLIDE}>{n}</div>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -53,7 +87,11 @@ export const carouselDocConfig: ComponentDocConfig = {
       code: `<Carousel className="w-full max-w-xs">
   <CarouselContent>
     {[1, 2, 3, 4, 5].map((n) => (
-      <CarouselItem key={n}>{/* содержимое слайда */}</CarouselItem>
+      <CarouselItem key={n}>
+        <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted text-4xl">
+          {n}
+        </div>
+      </CarouselItem>
     ))}
   </CarouselContent>
   <CarouselPrevious />
@@ -66,14 +104,14 @@ export const carouselDocConfig: ComponentDocConfig = {
       id: 'multiple-per-view',
       title: 'Несколько слайдов на экран',
       description:
-        'Ширина слайда задаётся классом basis-* на CarouselItem (напр. basis-1/3 — три в ряд). basis-full по умолчанию — один на экран.',
+        'Ширину слайда задаёт класс basis-* на CarouselItem: basis-1/3 — три в ряд. По умолчанию basis-full — один на экран.',
       render: () => (
         <div className="px-12">
           <Carousel className="w-full max-w-sm">
             <CarouselContent>
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <CarouselItem key={n} className="basis-1/3">
-                  <Slide label={String(n)} />
+                  <div className={SLIDE}>{n}</div>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -84,9 +122,11 @@ export const carouselDocConfig: ComponentDocConfig = {
       ),
       code: `<Carousel className="w-full max-w-sm">
   <CarouselContent>
-    {items.map((n) => (
+    {[1, 2, 3, 4, 5, 6].map((n) => (
       <CarouselItem key={n} className="basis-1/3">
-        {/* содержимое слайда */}
+        <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted text-4xl">
+          {n}
+        </div>
       </CarouselItem>
     ))}
   </CarouselContent>
@@ -96,16 +136,16 @@ export const carouselDocConfig: ComponentDocConfig = {
     },
     {
       id: 'vertical',
-      title: 'Вертикальная ориентация',
+      title: 'Вертикальная лента',
       description:
-        'orientation="vertical" переключает ось прокрутки; стрелки встают сверху/снизу. Требует фиксированной высоты у CarouselContent.',
+        'orientation="vertical" листает сверху вниз, стрелки встают сверху и снизу. CarouselContent нужна фиксированная высота.',
       render: () => (
         <div className="py-12">
           <Carousel orientation="vertical" className="w-full max-w-xs">
             <CarouselContent className="h-[300px]">
               {[1, 2, 3, 4, 5].map((n) => (
                 <CarouselItem key={n} className="basis-1/2">
-                  <Slide label={String(n)} />
+                  <div className={SLIDE}>{n}</div>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -116,9 +156,11 @@ export const carouselDocConfig: ComponentDocConfig = {
       ),
       code: `<Carousel orientation="vertical" className="w-full max-w-xs">
   <CarouselContent className="h-[300px]">
-    {items.map((n) => (
+    {[1, 2, 3, 4, 5].map((n) => (
       <CarouselItem key={n} className="basis-1/2">
-        {/* содержимое слайда */}
+        <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted text-4xl">
+          {n}
+        </div>
       </CarouselItem>
     ))}
   </CarouselContent>
@@ -128,16 +170,16 @@ export const carouselDocConfig: ComponentDocConfig = {
     },
     {
       id: 'loop',
-      title: 'Бесконечная прокрутка (loop)',
+      title: 'Бесконечная лента (loop)',
       description:
-        'opts прокидываются в embla. { loop: true } зацикливает карусель — стрелки никогда не блокируются.',
+        'opts передаются в embla как есть. { loop: true } зацикливает ленту — стрелки не блокируются.',
       render: () => (
         <div className="px-12">
           <Carousel opts={{ loop: true }} className="w-full max-w-xs">
             <CarouselContent>
               {[1, 2, 3, 4, 5].map((n) => (
                 <CarouselItem key={n}>
-                  <Slide label={String(n)} />
+                  <div className={SLIDE}>{n}</div>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -148,53 +190,116 @@ export const carouselDocConfig: ComponentDocConfig = {
       ),
       code: `<Carousel opts={{ loop: true }} className="w-full max-w-xs">
   <CarouselContent>
-    {items.map((n) => (
-      <CarouselItem key={n}>{/* содержимое слайда */}</CarouselItem>
+    {[1, 2, 3, 4, 5].map((n) => (
+      <CarouselItem key={n}>
+        <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted text-4xl">
+          {n}
+        </div>
+      </CarouselItem>
     ))}
   </CarouselContent>
   <CarouselPrevious />
   <CarouselNext />
 </Carousel>`,
     },
+    {
+      id: 'api',
+      title: 'Счётчик слайдов (setApi)',
+      description:
+        'setApi отдаёт api embla: номер текущего слайда, их число, подписка на смену. Счётчик в aria-live объявляет переход скринридеру.',
+      render: () => <CarouselWithCounter />,
+      code: `import { useEffect, useState } from 'react';
+import { type CarouselApi } from '@reformer/ui-kit/carousel';
+
+function CarouselWithCounter() {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(1);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const update = () => {
+      setCount(api.scrollSnapList().length);
+      setCurrent(api.selectedScrollSnap() + 1);
+    };
+    update();
+    api.on('select', update);
+    return () => {
+      api.off('select', update);
+    };
+  }, [api]);
+
+  return (
+    <div>
+      <Carousel setApi={setApi} className="w-full max-w-xs">
+        <CarouselContent>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <CarouselItem key={n} aria-label={\`\${n} из 5\`}>
+              <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted text-4xl">
+                {n}
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious />
+        <CarouselNext />
+      </Carousel>
+      <p aria-live="polite" className="py-2 text-center text-sm text-muted-foreground">
+        Слайд {current} из {count}
+      </p>
+    </div>
+  );
+}`,
+    },
   ],
   props: [
     {
-      name: 'Carousel',
-      type: 'div + embla context',
-      default: 'orientation="horizontal"',
+      name: 'Carousel.orientation',
+      type: "'horizontal' | 'vertical'",
+      default: "'horizontal'",
+      description: 'Направление ленты. Стрелки переезжают по бокам или сверху и снизу.',
+    },
+    {
+      name: 'Carousel.opts',
+      type: 'EmblaOptionsType',
+      description: 'Настройки embla: loop, align, slidesToScroll, startIndex и др.',
+    },
+    {
+      name: 'Carousel.plugins',
+      type: 'EmblaPluginType[]',
+      description: 'Плагины embla, например автопрокрутка (пакет embla-carousel-autoplay).',
+    },
+    {
+      name: 'Carousel.setApi',
+      type: '(api: CarouselApi) => void',
       description:
-        'Корень: инициализирует embla, раздаёт контекст (api, scrollPrev/Next, canScrollPrev/Next). Props: orientation, opts (EmblaOptionsType), plugins, setApi (получить api-инстанс). Навигация ←/→ — на корне.',
+        'Получить api embla: scrollTo, selectedScrollSnap, scrollSnapList, подписки on / off.',
     },
     {
       name: 'CarouselContent',
-      type: 'div (вьюпорт эмблы)',
+      type: 'div',
       description:
-        'Обёртка-вьюпорт (overflow-hidden) с внутренним flex-треком. className вешается на трек (напр. высота для vertical).',
+        'Окно ленты с обрезкой по краям. className попадает на внутреннюю ленту — например, высота для вертикали.',
     },
     {
       name: 'CarouselItem',
-      type: 'div[role=group]',
+      type: 'div',
       default: 'basis-full',
       description:
-        'Слайд. Ширину/высоту на экране задаёт basis-* (basis-1/3, basis-1/2). role="group" + aria-roledescription="slide".',
+        'Слайд. Сколько слайдов видно сразу, задаёт класс basis-* (basis-1/2, basis-1/3).',
     },
     {
       name: 'CarouselPrevious / CarouselNext',
-      type: 'Button (outline / icon)',
+      type: 'Button',
+      default: "variant='outline', size='icon'",
       description:
-        'Стрелки навигации. Авто-disabled, когда прокрутка в соответствующую сторону невозможна (кроме loop). variant / size / className переопределяемы.',
-    },
-    {
-      name: 'CarouselApi',
-      type: 'type (embla api)',
-      description:
-        'Тип api-инстанса embla (setApi даёт к нему доступ — программная прокрутка, подписки на события).',
+        'Стрелки. Сами блокируются, когда листать некуда. Принимают пропсы Button (variant, size, className).',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

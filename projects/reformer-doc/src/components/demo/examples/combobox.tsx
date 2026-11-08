@@ -1,4 +1,5 @@
 import { useState } from 'react';
+// Тяжёлый компонент (cmdk) — только из своего подпути, не из главного входа кита.
 import {
   Combobox,
   ComboboxMulti,
@@ -8,10 +9,10 @@ import {
 } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
-import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
+import { required, maxLength } from '@reformer/core/validators';
 import { controlsFromPropsSchema } from '../controls-from-schema';
-import type { ComponentDocConfig } from '../types';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
+import type { ComponentDocConfig, VariantDef } from '../types';
 
 const FRAMEWORKS = [
   { value: 'next', label: 'Next.js' },
@@ -29,9 +30,8 @@ const COUNTRIES = [
 ];
 
 /**
- * Дерево файлов для вариантов ComboboxTree. Плоского `options` тут не хватает: у выбора есть
- * иерархия, а значением поля становится `id` узла — для файла это полный путь, поэтому он же
- * годится и адресом узла в дереве.
+ * Дерево файлов для вариантов ComboboxTree. Значением поля становится id узла — для файла это
+ * полный путь, поэтому он же служит адресом узла в дереве.
  */
 const FILES: TreeNode[] = [
   {
@@ -56,21 +56,45 @@ const FILES: TreeNode[] = [
   { id: 'README.md', label: 'README.md' },
 ];
 
-/* ─── Ручная сборка base (управляемый Combobox с локальным состоянием) ─── */
+/** Как выглядит FILES в коде примера: в сниппете узла поля дерево подставлено именем константы. */
+const FILES_CODE = `const FILES: TreeNode[] = [
+  {
+    id: 'src',
+    label: 'src',
+    kind: 'branch',
+    children: [
+      { id: 'src/index.ts', label: 'index.ts' },
+      { id: 'src/theme.css', label: 'theme.css' },
+      // …
+    ],
+  },
+  { id: 'package.json', label: 'package.json' },
+];`;
 
-function ControlledComboboxVariant() {
+/** Сниппет варианта с объявлением дерева над узлом поля. */
+function withFiles(variant: VariantDef): VariantDef {
+  return { ...variant, code: `${FILES_CODE}\n\n${variant.code}` };
+}
+
+// Пропсы панели API — из props-схемы варианта. label и options задаются baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(comboboxBasePropsSchema), {
+  omit: ['label', 'options'],
+});
+
+/* ─── Combobox вне формы: свой стейт ─── */
+
+function StandaloneCombobox() {
   const [value, setValue] = useState<string | null>(null);
   return (
-    <div style={{ maxWidth: 380, width: '100%' }}>
+    <div className="w-full max-w-sm">
       <Combobox
         value={value}
         onChange={setValue}
         options={FRAMEWORKS}
         placeholder="Выберите фреймворк"
-        searchPlaceholder="Поиск фреймворка..."
         clearable
       />
-      <p style={{ marginTop: 8, fontSize: 13, color: '#6b7280' }}>Выбрано: {value ?? '—'}</p>
+      <p className="mt-2 text-sm text-muted-foreground">Выбрано: {value ?? '—'}</p>
     </div>
   );
 }
@@ -79,223 +103,172 @@ export const comboboxDocConfig: ComponentDocConfig = {
   name: 'Combobox',
   importFrom: '@reformer/ui-kit/combobox',
   description:
-    'Автодополнение на композиции Popover + Command + Button: триггер-кнопка с текущим label открывает список опций с поиском. Value-based (value: string | null) — в форме Combobox кладётся в component как есть.',
+    'Выбор из списка с поиском: кнопка открывает всплывающий список, над которым поле поиска. Есть варианты для нескольких значений и для выбора из дерева.',
   variants: [
-    {
+    fieldVariant({
       id: 'single',
-      title: 'Одиночный выбор с поиском (options)',
-      description:
-        'Список inline-опций с поиском по label. Значение — строка (value: string | null).',
-      render: makeFieldVariant({
-        initial: null,
-        component: Combobox,
-        componentProps: {
-          label: 'Фреймворк',
-          placeholder: 'Выберите фреймворк',
-          searchPlaceholder: 'Поиск...',
-          options: FRAMEWORKS,
-        },
-      }),
-      code: `{
-  model: model.$.framework,
-  component: Combobox,
-  componentProps: {
-    label: 'Фреймворк',
-    placeholder: 'Выберите фреймворк',
-    searchPlaceholder: 'Поиск...',
-    options: [
-      { value: 'next', label: 'Next.js' },
-      { value: 'remix', label: 'Remix' },
-    ],
-  },
-}`,
-    },
-    {
+      title: 'Одно значение',
+      description: 'Поиск по подписи опции. Значение поля — value выбранной опции: string | null.',
+      field: 'framework',
+      component: Combobox,
+      componentName: 'Combobox',
+      initial: null,
+      props: { label: 'Фреймворк', placeholder: 'Выберите фреймворк', options: FRAMEWORKS },
+    }),
+    fieldVariant({
       id: 'clearable',
-      title: 'С очисткой (clearable)',
+      title: 'С очисткой',
       description:
-        'clearable=true добавляет крестик; клик по нему (или повторный выбор опции) сбрасывает значение в null через onChange(null).',
-      render: makeFieldVariant({
-        initial: 'by',
-        component: Combobox,
-        componentProps: {
-          label: 'Страна',
-          placeholder: 'Выберите страну',
-          options: COUNTRIES,
-          clearable: true,
-        },
-      }),
-      code: `componentProps: {
-  label: 'Страна',
-  options: COUNTRIES,
-  clearable: true,
-}`,
-    },
-    {
-      id: 'controlled-base',
-      title: 'Ручная сборка (base, управляемый)',
+        'clearable добавляет крестик. Он и повторный выбор той же опции сбрасывают значение в null.',
+      field: 'country',
+      component: Combobox,
+      componentName: 'Combobox',
+      initial: 'by',
+      showInitial: true,
+      props: { label: 'Страна', options: COUNTRIES, clearable: true },
+    }),
+    fieldVariant({
+      id: 'creatable',
+      title: 'Своё значение',
       description:
-        'Форма вне схемы: чистый Combobox варианта base с локальным состоянием (value / onChange). Собран из Popover + Command + Button.',
-      render: ControlledComboboxVariant,
-      code: `import { Combobox } from '@reformer/ui-kit/combobox';
-
-const [value, setValue] = useState<string | null>(null);
-
-<Combobox
-  value={value}
-  onChange={setValue}
-  options={FRAMEWORKS}
-  placeholder="Выберите фреймворк"
-  searchPlaceholder="Поиск фреймворка..."
-  clearable
-/>`,
-    },
-    {
+        'creatable: если введённого текста нет среди опций, в списке появляется пункт создания, и значением поля становится сам текст.',
+      field: 'city',
+      component: Combobox,
+      componentName: 'Combobox',
+      initial: null,
+      props: {
+        label: 'Город',
+        options: [
+          { value: 'Москва', label: 'Москва' },
+          { value: 'Казань', label: 'Казань' },
+        ],
+        creatable: true,
+      },
+    }),
+    fieldVariant({
       id: 'multi',
-      title: 'Множественный выбор (ComboboxMulti)',
+      title: 'Несколько значений',
       description:
-        'Тот же рецепт Popover + Command, но со списком-чекбоксами и чипами в триггере. Список НЕ закрывается после выбора и не сбрасывает поиск — иначе отметить несколько подряд было бы нельзя.',
-      render: makeFieldVariant({
-        initial: null,
-        component: ComboboxMulti,
-        componentProps: {
-          label: 'Фреймворки',
-          options: FRAMEWORKS,
-          placeholder: 'Выберите фреймворки',
-          clearable: true,
-        },
-      }),
-      code: `{
-  model: model.$.frameworks,
-  component: ComboboxMulti,
-  componentProps: { options: FRAMEWORKS, clearable: true },
-}`,
-    },
-    {
-      id: 'tree',
-      title: 'Выбор узла иерархии (ComboboxTree)',
-      description:
-        'Вместо плоского options — дерево (nodes); значение поля это id выбранного узла, для файла — его полный путь. По умолчанию selectable="leaf": щелчок по каталогу раскрывает его, а не выбирает. Список в поповере — Tree кита, а не Command: cmdk при поиске размонтирует несовпавшие строки вместе с детьми, чего иерархия не переживает.',
-      render: makeFieldVariant({
-        initial: null,
+        'ComboboxMulti: значение — string[] | null, выбранное — чипами в кнопке. Список после выбора не закрывается и поиск не сбрасывает.',
+      field: 'frameworks',
+      component: ComboboxMulti,
+      componentName: 'ComboboxMulti',
+      initial: null,
+      props: {
+        label: 'Фреймворки',
+        placeholder: 'Выберите фреймворки',
+        options: FRAMEWORKS,
+        clearable: true,
+      },
+    }),
+    withFiles(
+      fieldVariant({
+        id: 'tree',
+        title: 'Узел дерева',
+        description:
+          'ComboboxTree: вместо options — дерево nodes, значение поля — id выбранного узла. Щелчок по каталогу раскрывает его, а не выбирает (selectable="leaf").',
+        field: 'file',
         component: ComboboxTree,
-        componentProps: {
-          label: 'Файл',
-          nodes: FILES,
-          placeholder: 'Выберите файл',
-          clearable: true,
-        },
-      }),
-      code: `{
-  model: model.$.file,
-  component: ComboboxTree,
-  componentProps: {
-    label: 'Файл',
-    nodes: FILES,
-    placeholder: 'Выберите файл',
-    clearable: true,
-  },
-}`,
-    },
-    {
-      id: 'tree-multi',
-      title: 'Несколько узлов иерархии (ComboboxTreeMulti)',
-      description:
-        'Тот же список-дерево, но с чипами в триггере и набором адресов в значении (массив адресов; пустой выбор контрол отдаёт как null, а не []). Поповер после выбора не закрывается и поиск не сбрасывает — иначе отметить несколько файлов подряд было бы нельзя.',
-      render: makeFieldVariant({
+        componentName: 'ComboboxTree',
         initial: null,
+        props: { label: 'Файл', placeholder: 'Выберите файл', nodes: FILES, clearable: true },
+        codeProps: { nodes: raw('FILES') },
+      })
+    ),
+    withFiles(
+      fieldVariant({
+        id: 'tree-multi',
+        title: 'Несколько узлов дерева',
+        description:
+          'ComboboxTreeMulti: значение — массив id узлов, пустой выбор приходит как null. Обязательность — правило required(), а не minLength(1).',
+        field: 'files',
         component: ComboboxTreeMulti,
-        componentProps: {
-          label: 'Файлы',
-          nodes: FILES,
-          placeholder: 'Выберите файлы',
-          clearable: true,
-        },
-      }),
-      code: `{
-  model: model.$.files,
-  component: ComboboxTreeMulti,
-  componentProps: {
-    label: 'Файлы',
-    nodes: FILES,
-    placeholder: 'Выберите файлы',
-    clearable: true,
-  },
-}
+        componentName: 'ComboboxTreeMulti',
+        initial: null,
+        props: { label: 'Файлы', placeholder: 'Выберите файлы', nodes: FILES, clearable: true },
+        codeProps: { nodes: raw('FILES') },
+        validators: [required()],
+        rules: 'required()',
+      })
+    ),
+    {
+      id: 'standalone',
+      title: 'Вне формы',
+      description:
+        'Combobox уже говорит на языке формы (value и onChange со значением), поэтому вне формы подключается так же.',
+      render: StandaloneCombobox,
+      code: `import { useState } from 'react';
+import { Combobox } from '@reformer/ui-kit/combobox';
 
-// обязательность — required(): ловит пустой выбор и как [], и как null.
-validate(model.$.files, [required()]);`,
+const FRAMEWORKS = [
+  { value: 'next', label: 'Next.js' },
+  { value: 'remix', label: 'Remix' },
+  // …
+];
+
+function StandaloneCombobox() {
+  const [value, setValue] = useState<string | null>(null);
+  return (
+    <div className="w-full max-w-sm">
+      <Combobox
+        value={value}
+        onChange={setValue}
+        options={FRAMEWORKS}
+        placeholder="Выберите фреймворк"
+        clearable
+      />
+      <p className="mt-2 text-sm text-muted-foreground">Выбрано: {value ?? '—'}</p>
+    </div>
+  );
+}`,
     },
   ],
   examples: [
-    {
-      id: 'search-placeholder',
-      title: 'Кастомный текст поиска (searchPlaceholder)',
+    fieldVariant({
+      id: 'texts',
+      title: 'Свои тексты',
       description:
-        'searchPlaceholder задаёт подсказку в поле ввода поиска внутри выпадающего списка.',
-      render: makeFieldVariant({
-        initial: null,
-        component: Combobox,
-        componentProps: {
-          label: 'Фреймворк',
-          placeholder: 'Выберите фреймворк',
-          searchPlaceholder: 'Начните вводить название...',
-          options: FRAMEWORKS,
-        },
-      }),
-      code: `componentProps: {
-  label: 'Фреймворк',
-  searchPlaceholder: 'Начните вводить название...',
-  options: FRAMEWORKS,
-}`,
-    },
-    {
-      id: 'empty-state',
-      title: 'Пустое состояние (emptyText)',
+        'placeholder, searchPlaceholder и emptyText заменяют строки из словаря кита для одного поля. Наберите в поиске что-нибудь несуществующее.',
+      field: 'framework',
+      component: Combobox,
+      componentName: 'Combobox',
+      initial: null,
+      props: {
+        label: 'Фреймворк',
+        placeholder: 'Не выбран',
+        searchPlaceholder: 'Начните вводить название…',
+        emptyText: 'Такого фреймворка нет',
+        options: FRAMEWORKS,
+      },
+    }),
+    fieldVariant({
+      id: 'max-items',
+      title: 'Не больше двух',
       description:
-        'Когда по запросу ничего не найдено (или список опций пуст) — показывается emptyText.',
-      render: makeFieldVariant({
-        initial: null,
-        component: Combobox,
-        componentProps: {
-          label: 'Фреймворк',
-          placeholder: 'Список пуст',
-          emptyText: 'Ничего не найдено',
-          options: [],
-        },
-      }),
-      code: `componentProps: {
-  label: 'Фреймворк',
-  emptyText: 'Ничего не найдено',
-  options: [],
-}`,
-    },
-    {
+        'maxItems выключает невыбранные опции, когда выбрано два. Это подсказка интерфейса; правило формы — maxLength(2) в схеме валидации.',
+      field: 'frameworks',
+      component: ComboboxMulti,
+      componentName: 'ComboboxMulti',
+      initial: null,
+      props: { label: 'Два фреймворка', options: FRAMEWORKS, maxItems: 2 },
+      validators: [maxLength(2)],
+      rules: 'maxLength(2)',
+    }),
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательный выбор (валидатор)',
+      title: 'Обязательный выбор',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: Combobox,
-        componentProps: {
-          label: 'Фреймворк',
-          placeholder: 'Выберите фреймворк',
-          options: FRAMEWORKS,
-        },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите фреймворк' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.framework,
-  component: Combobox,
-  componentProps: { label: 'Фреймворк', options: FRAMEWORKS },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.framework, [required({ code: 'framework.required' })]);`,
-    },
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'framework',
+      component: Combobox,
+      componentName: 'Combobox',
+      initial: null,
+      props: { label: 'Фреймворк', options: FRAMEWORKS, required: true },
+      validators: [required({ code: 'framework.required' })],
+      rules: "required({ code: 'framework.required' })",
+      messages: { 'framework.required': 'Выберите фреймворк' },
+      touched: true,
+    }),
   ],
   api: {
     component: Combobox,
@@ -308,24 +281,15 @@ validate(model.$.framework, [required({ code: 'framework.required' })]);`,
       { label: 'Remix', value: 'remix' },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label/options — задаются baseComponentProps (иначе перетрут initialValues undefined-ами).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(comboboxBasePropsSchema), {
-      omit: ['label', 'options'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.framework,
-  component: Combobox,
-  componentProps: {
-    label: 'Фреймворк',
-    options: FRAMEWORKS,
-    placeholder: '${v.placeholder}',
-    searchPlaceholder: '${v.searchPlaceholder}',${v.clearable ? '\n    clearable: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.framework, [required()]);`,
+      fieldSnippet({
+        field: 'framework',
+        component: 'Combobox',
+        props: { label: 'Фреймворк', options: raw('FRAMEWORKS') },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

@@ -2,6 +2,7 @@
 id: drawer
 title: Drawer
 sidebar_label: Drawer
+description: Шторка снизу экрана, которую смахивают пальцем, — для телефона.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,11 +10,110 @@ import { drawerDocConfig } from '@site/src/components/demo/examples/drawer';
 
 # Drawer
 
-Выезжающая панель на shadcn / vaul. Это compound-компонент: корень `Drawer`
-(управляет состоянием и стороной выезда `direction`), `DrawerTrigger` (открывает),
-`DrawerContent` (тело в `Portal` с оверлеем и «ручкой» перетаскивания),
-`DrawerHeader` + `DrawerTitle` / `DrawerDescription`, `DrawerFooter` и `DrawerClose`.
-Жест drag-to-dismiss, focus-trap, закрытие по `Esc`, `aria-labelledby` /
-`aria-describedby` — из vaul «из коробки».
+Шторка, которая выезжает снизу экрана поверх страницы. Её тянут и смахивают пальцем, как
+системные панели телефона. Построена на [vaul](https://vaul.emilkowal.ski/) и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+Шторка тянет внешнюю библиотеку, поэтому в общий импорт `@reformer/ui-kit` не входит. Поставьте
+зависимость и импортируйте из отдельного входа:
+
+```bash
+npm install vaul
+```
+
+```tsx
+import { Drawer, DrawerContent, DrawerTrigger } from '@reformer/ui-kit/drawer';
+```
+
+## Когда брать
+
+- **Drawer** — короткий выбор или действие на телефоне: выбрать вариант, подтвердить, посмотреть
+  сведения. Шторка у нижнего края — там, куда дотягивается большой палец.
+- [Sheet](./sheet.mdx) — панель у края на десктопе: фильтры, настройки, редактирование. Жестов
+  нет, зато нет и случайного смахивания.
+- [Dialog](./dialog.mdx) — окно в центре экрана.
+- [AlertDialog](./alert-dialog.mdx) — подтверждение необратимого действия; смахнуть его нельзя.
+
+Частый приём — одно и то же содержимое в [Dialog](./dialog.mdx) на широком экране и в Drawer на
+узком: выбор по медиазапросу делает приложение.
+
+## Анатомия
+
+```tsx
+import {
+  Drawer,
+  DrawerTrigger,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerClose,
+} from '@reformer/ui-kit/drawer';
+
+<Drawer>
+  <DrawerTrigger asChild>
+    <Button variant="outline">Способ доставки</Button>
+  </DrawerTrigger>
+  <DrawerContent>
+    <DrawerHeader>
+      <DrawerTitle>Способ доставки</DrawerTitle>
+      <DrawerDescription>Курьер привезёт заказ завтра.</DrawerDescription>
+    </DrawerHeader>
+    <DrawerFooter>
+      <Button>Выбрать</Button>
+      <DrawerClose asChild>
+        <Button variant="outline">Отмена</Button>
+      </DrawerClose>
+    </DrawerFooter>
+  </DrawerContent>
+</Drawer>;
+```
+
+| Часть               | Что это                                                  | Ключевые пропсы                                                                       |
+| ------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `Drawer`            | Корень: открытость, край и поведение жестов.             | `open` + `onOpenChange`, `direction` (`bottom`), `dismissible` (`true`), `handleOnly` |
+| `DrawerTrigger`     | Кнопка, которая открывает шторку.                        | `asChild`                                                                             |
+| `DrawerContent`     | Шторка в портале с затемнением. У нижней — ручка сверху. | `className`                                                                           |
+| `DrawerHeader`      | Шапка; у нижней и верхней шторки — текст по центру.      | —                                                                                     |
+| `DrawerTitle`       | Заголовок. Обязателен.                                   | —                                                                                     |
+| `DrawerDescription` | Пояснение под заголовком.                                | —                                                                                     |
+| `DrawerFooter`      | Кнопки столбиком.                                        | —                                                                                     |
+| `DrawerClose`       | Закрывает шторку.                                        | `asChild`                                                                             |
+
+- `direction` — край: `bottom` (по умолчанию), `top`, `left`, `right`. Нижняя и верхняя шторка
+  занимают по высоте не больше 80% экрана, боковые — 3/4 ширины.
+- Шторку закрывают свайп к краю, щелчок по фону, `Esc` и `DrawerClose`. `dismissible={false}`
+  отключает всё, кроме ваших кнопок, — тогда открытием управляйте сами (`open` + `onOpenChange`).
+- `handleOnly` — тянуть только за ручку: нужно, если внутри шторки есть прокрутка или слайдер.
+- Остальные пропсы vaul (`snapPoints`, `repositionInputs` и др.) передаются корню как есть.
+
+## Примеры
 
 <ComponentDoc config={drawerDocConfig} />
+
+## Доступность
+
+vaul построен на Radix Dialog, поэтому шторка ведёт себя как модальное окно:
+
+| Клавиша             | Действие                                                    |
+| ------------------- | ----------------------------------------------------------- |
+| `Enter` / `Space`   | На триггере — открыть шторку.                               |
+| `Tab` / `Shift+Tab` | Перейти по элементам шторки; фокус не уходит за её пределы. |
+| `Esc`               | Закрыть шторку (если не `dismissible={false}`).             |
+
+- При открытии фокус переходит в шторку, при закрытии возвращается на триггер.
+- У шторки `role="dialog"`; заголовок и описание связаны с ней через `aria-labelledby` и
+  `aria-describedby`. `DrawerTitle` обязателен — скрыть его можно классом `sr-only`.
+- Свайп — не единственный способ закрыть: оставьте видимую кнопку `DrawerClose`. Жест доступен не
+  всем, а ручка — просто полоска без подписи.
+
+## Локализация
+
+Своих строк компонент не рисует: заголовок, описание и кнопки — ваши.
+
+## См. также
+
+- [Sheet](./sheet.mdx) — панель у края без жестов.
+- [Dialog](./dialog.mdx) — окно в центре экрана.
+- [Документация vaul](https://vaul.emilkowal.ski/) — все пропсы корня.

@@ -1,82 +1,67 @@
 import { InputPassword, inputPasswordBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required, minLength } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-/**
- * InputPassword — form-control (ReFormer-custom, не shadcn): поле пароля с тумблером видимости
- * (eye/eye-off). Value-based (`string | null`); тумблер появляется при непустом значении.
- */
+// Пропсы панели API — из props-схемы компонента. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(inputPasswordBasePropsSchema), {
+  omit: ['label'],
+});
+
 export const inputPasswordDocConfig: ComponentDocConfig = {
   name: 'InputPassword',
   importFrom: '@reformer/ui-kit',
   description:
-    'Поле ввода пароля с переключателем видимости (иконка eye/eye-off). Значение — string | null (пустой ввод → null). Иконка показывается при showToggle (по умолчанию) и непустом value.',
+    'Поле пароля с кнопкой «показать / скрыть». Значение — string | null: пустой ввод даёт null.',
   variants: [
-    {
+    fieldVariant({
       id: 'with-toggle',
-      title: 'С переключателем видимости',
+      title: 'С кнопкой «показать»',
       description:
-        'showToggle по умолчанию true — иконка eye/eye-off появляется при непустом значении.',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputPassword,
-        componentProps: { label: 'Пароль', placeholder: 'Введите пароль' },
-      }),
-      code: `{
-  model: model.$.password,
-  component: InputPassword,
-  componentProps: { label: 'Пароль', placeholder: 'Введите пароль' },
-}`,
-    },
-    {
+        'showToggle включён по умолчанию. Кнопка-глаз появляется, как только в поле есть текст.',
+      field: 'password',
+      component: InputPassword,
+      componentName: 'InputPassword',
+      initial: '',
+      props: { label: 'Пароль', placeholder: 'Введите пароль' },
+    }),
+    fieldVariant({
       id: 'no-toggle',
-      title: 'Без переключателя (подтверждение пароля)',
-      description: 'showToggle=false скрывает иконку — например, для поля «Повторите пароль».',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputPassword,
-        componentProps: {
-          label: 'Повторите пароль',
-          placeholder: 'Повторите пароль',
-          showToggle: false,
-        },
-      }),
-      code: `{
-  model: model.$.confirmPassword,
-  component: InputPassword,
-  componentProps: { label: 'Повторите пароль', showToggle: false },
-}`,
-    },
+      title: 'Без кнопки',
+      description: 'showToggle: false — например, для поля «Повторите пароль».',
+      field: 'confirmPassword',
+      component: InputPassword,
+      componentName: 'InputPassword',
+      initial: '',
+      props: { label: 'Повторите пароль', placeholder: 'Повторите пароль', showToggle: false },
+    }),
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Валидатор required + minLength',
+      title: 'Правила required и minLength',
       description:
-        'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым/коротким паролем показывает ошибку.',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputPassword,
-        componentProps: { label: 'Пароль' },
-        validators: [
-          required({ code: 'field.required' }),
-          minLength(8, { code: 'field.minLength' }),
-        ],
-        messages: { 'field.required': 'Укажите пароль', 'field.minLength': 'Минимум 8 символов' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.password,
-  component: InputPassword,
-  componentProps: { label: 'Пароль' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.password, [required(), minLength(8)]);`,
-    },
+        'Правила живут в схеме валидации, а не в узле поля. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'password',
+      component: InputPassword,
+      componentName: 'InputPassword',
+      initial: 'qwerty',
+      showInitial: true,
+      props: { label: 'Пароль', required: true, description: 'Не меньше 8 символов' },
+      validators: [
+        required({ code: 'password.required' }),
+        minLength(8, { code: 'password.minLength' }),
+      ],
+      rules:
+        "required({ code: 'password.required' }), minLength(8, { code: 'password.minLength' })",
+      messages: {
+        'password.required': 'Придумайте пароль',
+        'password.minLength': 'Пароль короче 8 символов',
+      },
+      touched: true,
+    }),
   ],
   api: {
     component: InputPassword,
@@ -88,21 +73,15 @@ validate(model.$.password, [required(), minLength(8)]);`,
       { label: 'secret42', value: 'secret42' },
       { label: 'Очистить', value: '' },
     ],
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(inputPasswordBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.password,
-  component: InputPassword,
-  componentProps: {
-    label: 'Пароль',
-    placeholder: '${v.placeholder}',
-    showToggle: ${v.showToggle},${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.password, [required()]);`,
+      fieldSnippet({
+        field: 'password',
+        component: 'InputPassword',
+        props: { label: 'Пароль' },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

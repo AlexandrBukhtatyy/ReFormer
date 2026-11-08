@@ -2,15 +2,15 @@ import { ScrollArea, ScrollBar } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * ScrollArea — не form-control: compound поверх Radix ScrollArea (ScrollArea / ScrollBar).
- * Кастомная область прокрутки с тонкими полосами вместо нативного скроллбара. Таб Variants
- * показывает вертикальную и горизонтальную прокрутку, Examples — рецепты (список, текстовый блок),
- * props — таблица.
+ * ScrollArea — не поле формы: compound поверх Radix ScrollArea (ScrollArea / ScrollBar). Область
+ * фиксированного размера с тонкими полосами прокрутки темы. Variants — вертикальная,
+ * горизонтальная и тонкая прокрутка, Examples — длинный текст, API — таблица props.
+ * Классы в render и code одни и те же: все они есть в исходниках кита, поэтому сайт их собирает.
  */
 
 const TAGS = Array.from({ length: 24 }, (_, i) => `Тег ${i + 1}`);
 
-const ARTIFACTS = [
+const VERSIONS = [
   'v1.0.0',
   'v1.1.0',
   'v1.2.0',
@@ -27,35 +27,30 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
   name: 'ScrollArea',
   importFrom: '@reformer/ui-kit',
   description:
-    'Кастомная область прокрутки на shadcn / Radix ScrollArea. Тонкие полосы вместо нативного скроллбара, стилизуются токенами темы. Compound-набор: ScrollArea (обёртка + вертикальная полоса) и ScrollBar (доп. полоса, напр. горизонтальная).',
+    'Область фиксированного размера с тонкими полосами прокрутки в цветах темы вместо системных.',
   variants: [
     {
       id: 'vertical',
       title: 'Вертикальная прокрутка',
       description:
-        'Фиксированная высота через className (h-*): контент выше области прокручивается, справа появляется тонкая полоса.',
+        'Размер области задают классы h-* и w-*. Вертикальная полоса у ScrollArea есть всегда.',
       render: () => (
-        <ScrollArea className="h-52 w-64 rounded-md border" style={{ height: 208, width: 256 }}>
-          <div style={{ padding: 16 }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600 }}>Список тегов</h4>
+        <ScrollArea className="h-40 w-72 rounded-md border">
+          <div className="p-4">
+            <div className="mb-2 text-sm font-medium">Список тегов</div>
             {TAGS.map((tag) => (
-              <div
-                key={tag}
-                style={{
-                  padding: '6px 0',
-                  fontSize: 14,
-                  borderTop: '1px solid var(--border, #e5e7eb)',
-                }}
-              >
+              <div key={tag} className="border-t py-1.5 text-sm">
                 {tag}
               </div>
             ))}
           </div>
         </ScrollArea>
       ),
-      code: `<ScrollArea className="h-52 w-64 rounded-md border">
+      code: `const tags = Array.from({ length: 24 }, (_, i) => \`Тег \${i + 1}\`);
+
+<ScrollArea className="h-40 w-72 rounded-md border">
   <div className="p-4">
-    <h4 className="mb-2 text-sm font-medium">Список тегов</h4>
+    <div className="mb-2 text-sm font-medium">Список тегов</div>
     {tags.map((tag) => (
       <div key={tag} className="border-t py-1.5 text-sm">
         {tag}
@@ -68,38 +63,32 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
       id: 'horizontal',
       title: 'Горизонтальная прокрутка',
       description:
-        'Для горизонтальной полосы добавьте <ScrollBar orientation="horizontal" /> внутрь ScrollArea, а контенту задайте ряд с шириной больше области.',
+        'Горизонтальную полосу добавляют вручную: <ScrollBar orientation="horizontal" />. Без неё лишнее по ширине обрезается.',
       render: () => (
-        <ScrollArea className="w-72 rounded-md border whitespace-nowrap" style={{ width: 288 }}>
-          <div style={{ display: 'flex', gap: 12, padding: 16 }}>
-            {ARTIFACTS.map((v) => (
+        <ScrollArea className="w-72 rounded-md border whitespace-nowrap">
+          <div className="flex gap-3 p-4">
+            {VERSIONS.map((version) => (
               <div
-                key={v}
-                style={{
-                  flex: '0 0 auto',
-                  width: 96,
-                  height: 96,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 13,
-                  borderRadius: 8,
-                  border: '1px solid var(--border, #e5e7eb)',
-                  background: 'var(--muted, #f4f4f5)',
-                }}
+                key={version}
+                className="flex size-20 flex-none items-center justify-center rounded-md border bg-muted text-sm"
               >
-                {v}
+                {version}
               </div>
             ))}
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       ),
-      code: `<ScrollArea className="w-72 rounded-md border whitespace-nowrap">
+      code: `const versions = ['v1.0.0', 'v1.1.0', 'v1.2.0', 'v2.0.0-rc.1', 'v2.0.0', 'v2.1.0', 'v2.2.0', 'v3.0.0'];
+
+<ScrollArea className="w-72 rounded-md border whitespace-nowrap">
   <div className="flex gap-3 p-4">
-    {versions.map((v) => (
-      <div key={v} className="flex size-24 flex-none items-center justify-center rounded-md border bg-muted text-sm">
-        {v}
+    {versions.map((version) => (
+      <div
+        key={version}
+        className="flex size-20 flex-none items-center justify-center rounded-md border bg-muted text-sm"
+      >
+        {version}
       </div>
     ))}
   </div>
@@ -108,28 +97,14 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
     },
     {
       id: 'compact',
-      title: 'Тонкие полосы — size="xs"',
+      title: 'Тонкие полосы (size="xs")',
       description:
-        'В плотных рядах (вкладки редактора, панели инструментов) полоса в 10px спорит с содержимым: у ряда высотой 34px это треть высоты. size="xs" делает полосу 6px — область и содержимое остаются прежними, полоса рисуется поверх. Размерность области наследует её собственная вертикальная полоса; добавленной вручную ScrollBar размер задаётся отдельно.',
+        'size="xs" — полоса 6px вместо 10px для плотных рядов: вкладок, панелей инструментов. На ScrollArea он действует на её вертикальную полосу; добавленной ScrollBar размер задают отдельно.',
       render: () => (
-        <ScrollArea
-          type="always"
-          size="xs"
-          className="w-72 rounded-md border whitespace-nowrap"
-          style={{ width: 288 }}
-        >
-          <div style={{ display: 'flex', gap: 4, padding: 4, height: 34, alignItems: 'center' }}>
+        <ScrollArea type="always" size="xs" className="w-72 rounded-md border whitespace-nowrap">
+          <div className="flex items-center gap-1 p-1">
             {FILES.map((file) => (
-              <div
-                key={file}
-                style={{
-                  flex: '0 0 auto',
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  borderRadius: 6,
-                  border: '1px solid var(--border, #e5e7eb)',
-                }}
-              >
+              <div key={file} className="flex-none rounded-md border px-2 py-1 text-xs">
                 {file}
               </div>
             ))}
@@ -137,8 +112,10 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
           <ScrollBar orientation="horizontal" size="xs" />
         </ScrollArea>
       ),
-      code: `<ScrollArea type="always" size="xs" className="w-72 rounded-md border whitespace-nowrap">
-  <div className="flex h-[34px] items-center gap-1 p-1">
+      code: `const files = ['model.ts', 'validation.ts', 'form.behavior.ts', 'layout.tsx', 'registry.tsx'];
+
+<ScrollArea type="always" size="xs" className="w-72 rounded-md border whitespace-nowrap">
+  <div className="flex items-center gap-1 p-1">
     {files.map((file) => (
       <div key={file} className="flex-none rounded-md border px-2 py-1 text-xs">
         {file}
@@ -152,37 +129,39 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'text-block',
-      title: 'Прокручиваемый текстовый блок',
+      title: 'Длинный текст в блоке фиксированной высоты',
       description:
-        'Длинный текст (соглашение, changelog) в области фиксированной высоты — типовой сценарий.',
+        'Соглашение или журнал изменений внутри формы: блок не растягивает страницу, полоса видна всегда (type="always").',
       render: () => (
-        <ScrollArea className="h-48 w-80 rounded-md border" style={{ height: 192, width: 320 }}>
-          <div style={{ padding: 16, fontSize: 14, lineHeight: 1.6 }}>
-            <h4 style={{ margin: '0 0 8px', fontWeight: 600 }}>Условия использования</h4>
-            <p style={{ margin: '0 0 12px' }}>
-              Настоящее соглашение регулирует порядок использования библиотеки для построения форм
-              со связанной реактивностью полей.
+        <ScrollArea type="always" className="h-40 w-72 rounded-md border">
+          <div className="p-4 text-sm leading-relaxed">
+            <div className="mb-2 font-medium">Условия использования</div>
+            <p className="mb-3">
+              Соглашение описывает, как обрабатываются данные, которые вы вводите в форму.
             </p>
-            <p style={{ margin: '0 0 12px' }}>
-              Компоненты ui-kit построены на shadcn / Radix с сохранением data-slot и дословным
-              портом стилей. Темизация выполняется через токены темы (CSS-переменные).
+            <p className="mb-3">
+              Данные хранятся только на время рассмотрения заявки и не передаются третьим лицам.
             </p>
-            <p style={{ margin: '0 0 12px' }}>
-              Область прокрутки заменяет нативный скроллбар тонкими полосами, которые появляются при
-              наведении и адаптируются к тёмной теме автоматически.
+            <p className="mb-3">
+              Вы можете отозвать согласие в любой момент, написав в службу поддержки.
             </p>
-            <p style={{ margin: 0 }}>
-              Прокрутите блок, чтобы увидеть, как полоса реагирует на положение содержимого.
-            </p>
+            <p>Прокрутите блок до конца, чтобы прочитать все условия.</p>
           </div>
         </ScrollArea>
       ),
-      code: `<ScrollArea className="h-48 w-80 rounded-md border">
+      code: `<ScrollArea type="always" className="h-40 w-72 rounded-md border">
   <div className="p-4 text-sm leading-relaxed">
-    <h4 className="mb-2 font-medium">Условия использования</h4>
-    <p className="mb-3">Настоящее соглашение регулирует…</p>
-    <p className="mb-3">Компоненты ui-kit построены на shadcn / Radix…</p>
-    <p>Прокрутите блок, чтобы увидеть полосу прокрутки.</p>
+    <div className="mb-2 font-medium">Условия использования</div>
+    <p className="mb-3">
+      Соглашение описывает, как обрабатываются данные, которые вы вводите в форму.
+    </p>
+    <p className="mb-3">
+      Данные хранятся только на время рассмотрения заявки и не передаются третьим лицам.
+    </p>
+    <p className="mb-3">
+      Вы можете отозвать согласие в любой момент, написав в службу поддержки.
+    </p>
+    <p>Прокрутите блок до конца, чтобы прочитать все условия.</p>
   </div>
 </ScrollArea>`,
     },
@@ -192,39 +171,51 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
       name: 'className',
       type: 'string',
       description:
-        'Классы обёртки (ScrollArea.Root) — здесь задаётся размер области (h-*, w-*), рамка, скругление. tailwind-merge: класс вызывающего перекрывает.',
+        'Классы корня: размер области (h-*, w-*), рамка, скругление. Без высоты вертикальной прокрутки не будет.',
     },
     {
       name: 'children',
       type: 'ReactNode',
-      description:
-        'Прокручиваемое содержимое. Рендерится внутри Viewport; область скроллится, когда контент превышает её размеры.',
+      description: 'Прокручиваемое содержимое. Оно рисуется во внутренней области прокрутки.',
     },
     {
       name: 'type',
-      type: "'auto' | 'always' | 'scroll' | 'hover'",
+      type: "'hover' | 'scroll' | 'auto' | 'always'",
       default: "'hover'",
       description:
-        'Когда показывать полосы (проп Radix Root): "hover" — при наведении, "always" — всегда, "scroll" — при прокрутке, "auto" — при переполнении.',
+        'Когда видны полосы: hover — при наведении и прокрутке, scroll — только во время прокрутки, auto — когда содержимое не помещается, always — всегда.',
     },
     {
-      name: 'dir',
-      type: "'ltr' | 'rtl'",
-      description: 'Направление текста — влияет на сторону вертикальной полосы (проп Radix Root).',
+      name: 'scrollHideDelay',
+      type: 'number',
+      default: '600',
+      description: 'Через сколько миллисекунд скрыть полосы для type="hover" и type="scroll".',
     },
     {
       name: 'size',
       type: "'default' | 'xs'",
       default: "'default'",
       description:
-        'Толщина полос: "default" — 10px апстрима, "xs" — 6px для плотных рядов. На ScrollArea задаёт размер её собственной вертикальной полосы, на ScrollBar — размер этой полосы.',
+        'Толщина полос: default — 10px, xs — 6px. На ScrollArea — для её вертикальной полосы.',
     },
     {
-      name: 'orientation (ScrollBar)',
+      name: 'dir',
+      type: "'ltr' | 'rtl'",
+      description:
+        'Направление текста. При rtl вертикальная полоса стоит слева. По умолчанию берётся из DirectionProvider.',
+    },
+    {
+      name: 'ScrollBar.orientation',
       type: "'vertical' | 'horizontal'",
       default: "'vertical'",
       description:
-        'Ориентация дополнительной полосы. Для горизонтальной прокрутки добавьте <ScrollBar orientation="horizontal" /> внутрь ScrollArea.',
+        'Ориентация добавленной полосы. Для горизонтальной прокрутки нужна ScrollBar с orientation="horizontal".',
+    },
+    {
+      name: 'ScrollBar.size',
+      type: "'default' | 'xs'",
+      default: "'default'",
+      description: 'Толщина добавленной полосы. Размер ScrollArea на неё не переходит.',
     },
   ],
 };

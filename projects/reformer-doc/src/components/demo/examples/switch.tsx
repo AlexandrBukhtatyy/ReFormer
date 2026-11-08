@@ -1,82 +1,98 @@
+import { useState } from 'react';
 import { SwitchWithLabel, switchBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
+
+/** Вне формы переключатель говорит на языке Radix: checked + onCheckedChange. */
+function DarkModeSwitch() {
+  const [dark, setDark] = useState(false);
+  return <SwitchWithLabel checked={dark} onCheckedChange={setDark} label="Тёмная тема" />;
+}
+
+const DARK_MODE_CODE = `import { useState } from 'react';
+import { SwitchWithLabel } from '@reformer/ui-kit';
+
+function DarkModeSwitch() {
+  const [dark, setDark] = useState(false);
+  return <SwitchWithLabel checked={dark} onCheckedChange={setDark} label="Тёмная тема" />;
+}`;
+
+// Пропсы панели API — из props-схемы варианта. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(switchBasePropsSchema), {
+  omit: ['label'],
+});
 
 export const switchDocConfig: ComponentDocConfig = {
   name: 'Switch',
   importFrom: '@reformer/ui-kit',
   description:
-    'Переключатель on/off на Radix (button role=switch). Значение — boolean. Для форм — SwitchWithLabel с inline-раскладкой: подпись рисуется справа из componentProps.label, верхнюю метку FormField не дублирует.',
+    'Выключатель «вкл / выкл». В форму — SwitchWithLabel: значение boolean, подпись справа.',
   variants: [
-    {
+    fieldVariant({
       id: 'basic',
-      title: 'Переключатель on/off',
-      description: 'Значение — boolean. По умолчанию выключен (false); подпись справа из label.',
-      render: makeFieldVariant({
-        initial: false,
-        component: SwitchWithLabel,
-        componentProps: { label: 'Push-уведомления' },
-      }),
-      code: `{
-  model: model.$.notifications,
-  component: SwitchWithLabel,
-  componentProps: { label: 'Push-уведомления' },
-}`,
-    },
-    {
+      title: 'Выключен',
+      description:
+        'Значение — boolean. Подпись из label стоит справа, клик по ней тоже переключает.',
+      field: 'notifications',
+      component: SwitchWithLabel,
+      componentName: 'SwitchWithLabel',
+      initial: false,
+      props: { label: 'Push-уведомления' },
+    }),
+    fieldVariant({
       id: 'checked',
-      title: 'Включён по умолчанию',
-      description: 'initial: true — переключатель в положении «включено».',
-      render: makeFieldVariant({
-        initial: true,
-        component: SwitchWithLabel,
-        componentProps: { label: 'Автосохранение' },
-      }),
-      code: `{
-  model: model.$.autosave, // initial: true
-  component: SwitchWithLabel,
-  componentProps: { label: 'Автосохранение' },
-}`,
+      title: 'Включён',
+      description: 'Начальное значение true — выключатель включён сразу.',
+      field: 'autosave',
+      component: SwitchWithLabel,
+      componentName: 'SwitchWithLabel',
+      initial: true,
+      showInitial: true,
+      props: { label: 'Автосохранение' },
+    }),
+    {
+      id: 'standalone',
+      title: 'Вне формы',
+      description:
+        'Без формы SwitchWithLabel — обычный Radix-переключатель: checked и onCheckedChange.',
+      render: DarkModeSwitch,
+      code: DARK_MODE_CODE,
     },
   ],
   examples: [
-    {
-      id: 'no-label',
-      title: 'Без подписи (метка снаружи)',
+    fieldVariant({
+      id: 'hints',
+      title: 'Пояснение и подсказка',
       description:
-        'Без label контрол рендерит только сам переключатель — подпись остаётся на потребителе.',
-      render: makeFieldVariant({
-        initial: true,
-        component: SwitchWithLabel,
-        componentProps: {},
-      }),
-      code: `componentProps: {} // подпись рисуется рядом вручную`,
-    },
-    {
+        'description — текст под выключателем, tooltip — иконка после подписи. Клик по иконке выключатель не трогает.',
+      field: 'twoFactor',
+      component: SwitchWithLabel,
+      componentName: 'SwitchWithLabel',
+      initial: true,
+      props: {
+        label: 'Вход по коду из СМС',
+        description: 'Код приходит при каждом входе с нового устройства',
+        tooltip: 'Защищает аккаунт, даже если пароль узнали',
+      },
+    }),
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательное включение (валидатор)',
+      title: 'Обязательное включение',
       description:
-        'required() на boolean требует значение true. touched-поле в положении «выкл» показывает ошибку.',
-      render: makeFieldVariant({
-        initial: false,
-        component: SwitchWithLabel,
-        componentProps: { label: 'Согласен с условиями' },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Необходимо принять условия' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.agree,
-  component: SwitchWithLabel,
-  componentProps: { label: 'Согласен с условиями' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.agree, [required({ code: 'agree.required' })]);`,
-    },
+        'Для boolean правило required требует true. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'agree',
+      component: SwitchWithLabel,
+      componentName: 'SwitchWithLabel',
+      initial: false,
+      props: { label: 'Согласен с условиями' },
+      validators: [required({ code: 'agree.required' })],
+      rules: "required({ code: 'agree.required' })",
+      messages: { 'agree.required': 'Без согласия продолжить нельзя' },
+      touched: true,
+    }),
   ],
   api: {
     component: SwitchWithLabel,
@@ -86,18 +102,14 @@ validate(model.$.agree, [required({ code: 'agree.required' })]);`,
       { label: 'Включить (true)', value: true },
       { label: 'Выключить (false)', value: false },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label задаётся baseComponentProps (иначе перетрёт initialValues undefined-ом).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(switchBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.notifications,
-  component: SwitchWithLabel,
-  componentProps: {
-    label: 'Push-уведомления',${v.required ? '\n    required: true,' : ''}
-  },
-}`,
+      fieldSnippet({
+        field: 'notifications',
+        component: 'SwitchWithLabel',
+        props: { label: 'Push-уведомления' },
+        controls: API_CONTROLS,
+        values: v,
+      }),
   },
 };

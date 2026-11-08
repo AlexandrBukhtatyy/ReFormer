@@ -6,17 +6,24 @@ sidebar_label: 'renderer-react'
 
 # @reformer/renderer-react
 
-> Рендерер: сборка `createForm` с деревом схемы → React-дерево формы.
+`@reformer/renderer-react` рисует форму целиком по её [схеме формы](/docs/reference/glossary) — дереву
+узлов «какое поле, каким компонентом, в какой секции». Разметку полей писать не нужно: рендерер
+обходит дерево и сам связывает каждый компонент с нодой поля — значением, замечаниями и
+доступностью.
 
-`@reformer/renderer-react` рисует форму по её **схеме** — тому же дереву узлов, по которому
-`createForm` строит ноды. Каждый узел-поле привязан к сигналу модели (`model.$.<field>`) и к своему
-компоненту, а состояние поля (значение, замечания, доступность) доходит до компонента без ручного
-проброса `value` / `onChange`.
+## Когда нужен
 
-В отличие от разметки руками с `<FormField control={form.x} />`, где каждое поле пишут в JSX, здесь
-форма описывается **как данные**: одно дерево задаёт и вёрстку, и конфиг полей. Сборка общая для
-всех способов реализации — `createForm` из `@reformer/core`; рендерер получает готовый бандл и
-исполняет записанные поведением правила узлов (`hideWhen`, `onComponentEvent`, …).
+- Форма большая, а вёрстка однотипная: поля, секции, шаги удобнее держать деревом данных, чем JSX.
+- Разметкой нужно управлять из поведения формы: прятать секцию по условию (`hideWhen`), ловить
+  событие компонента (`onComponentEvent`).
+- Нужен мастер: `FormWizard` из `@reformer/ui-kit` рисует шаги по узлам схемы.
+- Та же форма описывается JSON-документом: [`@reformer/renderer-json`](./renderer-json.mdx) рисует
+  через этот же рендерер.
+
+**Когда достаточно `FormField` руками.** Полей немного, вёрстка своя, каждый блок пишется в JSX.
+Схема при этом всё равно задаётся — она говорит, каким компонентом рисовать поле, — а разметку вы
+собираете сами: `<FormField control={form.email} />`. Так устроен
+[быстрый старт](/docs/getting-started/quick-start). Рендерер можно подключить позже: схема та же.
 
 ## Установка
 
@@ -24,71 +31,104 @@ sidebar_label: 'renderer-react'
 npm install @reformer/renderer-react @reformer/core
 ```
 
-## Быстрый пример
+Пакет — один вход `@reformer/renderer-react`. Готовые компоненты полей — в `@reformer/ui-kit`.
+
+## Минимальный пример
 
 ```tsx
-import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { createForm, type FormModel } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
-import { FormRenderer } from '@reformer/renderer-react';
-import { FormField, Input } from '@reformer/ui-kit';
+import { FormRenderer, type RenderNode } from '@reformer/renderer-react';
+import { FormField, Input, Section } from '@reformer/ui-kit';
 
-interface MyForm {
-  email: string;
-}
+type SignIn = { email: string; password: string };
 
-// Дерево схемы: узлы-поля привязаны к сигналам модели (`model.$.<field>`).
-const buildSchema = (model: FormModel<MyForm>): FormSchemaNode => ({
-  children: [{ model: model.$.email, component: Input, componentProps: { label: 'Email' } }],
+// Схема: дерево узлов. Поле привязано к сигналу модели model.$.<поле>.
+const signInSchema = (model: FormModel<SignIn>): RenderNode<SignIn> => ({
+  component: Section,
+  componentProps: { title: 'Вход' },
+  children: [
+    { model: model.$.email, component: Input, componentProps: { label: 'Email' } },
+    {
+      model: model.$.password,
+      component: Input,
+      componentProps: { label: 'Пароль', type: 'password' },
+    },
+  ],
 });
 
-export function MyFormPage() {
-  // Модель, форма и дерево — одной сборкой. useFormBundle зовёт фабрику ровно один раз.
-  const myForm = useFormBundle(() =>
-    createForm<MyForm>({ initial: { email: '' }, schema: buildSchema })
+export function SignInPage() {
+  // Модель, ноды и скомпилированная схема — одной сборкой. useFormBundle зовёт фабрику один раз.
+  const signIn = useFormBundle(() =>
+    createForm<SignIn>({ initial: { email: '', password: '' }, schema: signInSchema })
   );
 
-  return <FormRenderer form={myForm} settings={{ fieldWrapper: FormField }} />;
+  // Рендерер получает сборку целиком; FormField — обёртка поля: подпись и замечания.
+  return <FormRenderer form={signIn} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-Билдер схемы `(model) => узел` сборка вызывает один раз и компилирует дерево (`bundle.render.tree`);
-ноды формы и рендерер читают одно и то же скомпилированное дерево. Форма рендереру в схеме не нужна:
-визард и другие компоненты, которым нужна сборка, берут её из контекста `FormBundleContext`, который
-ставит `FormRenderer`.
+Что здесь происходит:
 
-## Что внутри
+1. Схема — функция `(model) => узел`. [Сборка формы](/docs/reference/glossary) (`createForm`) вызывает
+   её один раз и компилирует дерево.
+2. `FormRenderer` получает всю сборку пропом `form` и рисует скомпилированное дерево.
+3. `settings.fieldWrapper` оборачивает каждое поле. Без обёртки компонент рисуется голым — без
+   подписи и текста замечания.
 
-- **FormRenderer** — главный компонент. Принимает бандл `createForm` пропом `form` плюс `settings`,
-  обходит скомпилированное дерево и рисует форму, связывая каждое поле с его нодой.
-- **settings.fieldWrapper** — обёртка вокруг каждого поля (label + control + ошибка), обычно
-  `FormField` из `@reformer/ui-kit`. У JSON-варианта обёртку кладёт в бандл реестр.
-- **settings.resolveFieldAdapter** — диалект «чужого» контрола (`checked` вместо `value`, событие
-  вместо значения), на который нельзя повесить статику `reformerAdapter`.
-- **Правила узлов** — пишутся в поведении формы (`defineFormBehavior` из `@reformer/core/behaviors`)
-  над узлами своей области `schema.node(selector)`: `hideWhen` (условное скрытие), `renderEffect`
-  (реактивный эффект, пока форма отрисована), `onComponentEvent` (событие компонента узла),
-  `onInit` / `onMount` / `onUnmount` (жизненный цикл узла). Исполняет их рендерер.
-- **Управление снаружи** — `bundle.render.node(selector)`: `setHidden` / `resetHidden`,
-  `patchProps` / `resetProps`, `getRef` для узлов корневой области.
-- **RenderNodeComponent** — отрисовка отдельного узла; его получают компоненты с
-  `__selfManagedChildren` (визард, табы) вместе с узлами-детьми.
+Правила проверки в узлы не пишутся: у узла нет поля `validators`. Правила — отдельная схема над
+моделью, она уходит в сборку полем `validation`. См. [Обзор валидации](/docs/validation/overview).
 
-```typescript
-import { defineFormBehavior, hideWhen, onComponentEvent } from '@reformer/core/behaviors';
+## Что делает рендерер
 
-export const creditBehavior = defineFormBehavior<CreditForm>(({ model, schema }) => {
-  hideWhen(schema.node('mortgage'), () => model.loanType !== 'mortgage');
-  onComponentEvent(schema.node('wizard'), 'onSubmit', (values: CreditForm) => api.send(values));
-});
-```
+- Рисует узел по его виду: поле, массив под-форм, подформа, контейнер, текст. Виды узлов описаны
+  на странице [Схема формы](/docs/core-concepts/schemas/form-schema).
+- Связывает поле с нодой. Компонент получает `value`, `onChange(value)`, `onBlur` и `disabled`;
+  обёртка поля получает саму ноду (`control`).
+- Исполняет правила узлов из поведения формы: `hideWhen`, `onComponentEvent`, `renderEffect`,
+  `onMount` и другие.
+- Ставит контекст сборки: из него `FormWizard` берёт форму, поток шагов и отправку. Свой компонент
+  читает его хуком `useFormBundleContext()` из `@reformer/core/react`.
 
-:::info Низкоуровневый путь
-Проп `render` с функцией-схемой (`createRenderSchema`, `RenderSchemaFn`) рисует дерево без сборки —
-для особых случаев. Формы собираются `createForm` + `useFormBundle`, а правила узлов пишутся в
-`behavior` сборки.
-:::
+## Разделы
 
-## Дальше
+| Страница                                                        | О чём                                                                            |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Поля: обёртка и адаптеры](./renderer-react/fields.md)          | что получает компонент поля, своя обёртка, компоненты сторонних библиотек        |
+| [Вёрстка: контейнеры, HTML и текст](./renderer-react/layout.md) | контейнеры, HTML-теги в схеме, живой текст из сигналов                           |
+| [Массивы и подформы](./renderer-react/arrays-and-parts.md)      | узел массива, `FieldArray`, свой компонент списка, повторяемые части схемы       |
+| [Управление узлами](./renderer-react/node-control.md)           | правила узлов, управление снаружи, свои контейнеры и компоненты с детьми-данными |
 
-- [@reformer/renderer-json](./renderer-json) — та же форма из JSON
-- [Core API Reference](../api)
+## Главное в пакете
+
+| Экспорт                                                   | Зачем                                                                    |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `FormRenderer`                                            | рисует сборку формы: пропы `form` и `settings`                           |
+| `RenderNode`, `ContainerRenderNode`, `ArrayRenderNode`, … | типы узлов схемы с React-компонентами                                    |
+| `RendererSettings`, `FieldWrapperProps`, `FieldAdapter`   | настройки рендерера, пропы обёртки поля, адаптер компонента              |
+| `ArrayComponentProps`, `ArrayItemSlot`                    | пропы компонента, который рисует массив                                  |
+| `RenderNodeFn`, `ContainerComponentProps`                 | пропы своих контейнеров                                                  |
+| `RenderNodeComponent`, `useRenderContext`                 | отрисовка отдельного узла и настройки рендерера внутри своего компонента |
+
+Полный список — в README пакета и в справке MCP (`get_symbol_docs`).
+
+## Подводные камни
+
+- **`children` контейнера — на самом узле**, а не в `componentProps`. В `componentProps.children`
+  вложенные узлы не отрисуются.
+- **`FormRenderer: в бандле нет дерева`** — у сборки не задана `schema`. Без схемы поля рисуют
+  руками: `<FormField control={form.email} />`.
+- **Поле отрисовано как пустое место**, а в консоли `No form node for signal` — дерево рисуется не
+  той сборкой или поле привязано к сигналу другой модели. Берите `model.$.<поле>` из аргумента
+  функции-схемы.
+- **Сборку создавайте через `useFormBundle`, а не `useMemo`.** React вправе сбросить кэш `useMemo`,
+  и форма пересоберётся вместе с потерей введённого.
+- **Не передавайте сразу `form` и `render`.** Проп `render` — низкоуровневый путь без сборки; если
+  он задан, сборка игнорируется целиком вместе с правилами узлов.
+
+## См. также
+
+- [Схема формы](/docs/core-concepts/schemas/form-schema) — виды узлов и `selector`.
+- [@reformer/renderer-json](./renderer-json.mdx) — та же форма из JSON-документа.
+- [Поведение формы](/docs/behaviors/overview) — где пишутся правила узлов.
+- [Свои компоненты полей](/docs/react/custom-fields) — как подключить свой контрол.

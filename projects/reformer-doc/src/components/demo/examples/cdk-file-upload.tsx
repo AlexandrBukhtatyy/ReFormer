@@ -160,9 +160,9 @@ function HookDemo() {
           </li>
         ))}
       </ul>
-      <span aria-live="polite" style={MUTED}>
-        {upload.liveMessage}
-      </span>
+      {/* Статус для скринридера: регион визуально скрыт. Видимая копия — только для демо. */}
+      <div {...upload.getLiveRegionProps()}>{upload.liveMessage}</div>
+      <p style={MUTED}>Статус: {upload.liveMessage || '—'}</p>
     </div>
   );
 }
@@ -243,7 +243,9 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       <FileUpload.Item key={item.key} item={item}>
         <FileUpload.ItemName />
         <FileUpload.ItemSize />
-        <FileUpload.ItemDeleteTrigger>×</FileUpload.ItemDeleteTrigger>
+        <FileUpload.ItemDeleteTrigger asChild>
+          <Button variant="ghost" size="sm">×</Button>
+        </FileUpload.ItemDeleteTrigger>
       </FileUpload.Item>
     )}
   </FileUpload.ItemGroup>
@@ -267,8 +269,14 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       <FileUpload.Item key={item.key} item={item}>
         <FileUpload.ItemName />
         <FileUpload.ItemProgress />
-        {item.status === 'error' && <FileUpload.ItemRetryTrigger>Повторить</FileUpload.ItemRetryTrigger>}
-        <FileUpload.ItemDeleteTrigger>×</FileUpload.ItemDeleteTrigger>
+        {item.status === 'error' && (
+          <FileUpload.ItemRetryTrigger asChild>
+            <Button variant="outline" size="sm">Повторить</Button>
+          </FileUpload.ItemRetryTrigger>
+        )}
+        <FileUpload.ItemDeleteTrigger asChild>
+          <Button variant="ghost" size="sm">×</Button>
+        </FileUpload.ItemDeleteTrigger>
       </FileUpload.Item>
     )}
   </FileUpload.ItemGroup>
@@ -280,7 +288,7 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       id: 'hook',
       title: 'Хук useFileUpload',
       description:
-        'Те же возможности без слотов: prop-getters навешивают обработчики, роли и aria на вашу разметку. Скрытый input и aria-live-регион вы рисуете сами.',
+        'Те же возможности без слотов: prop-getters навешивают обработчики, роли и aria на вашу разметку. Скрытый input и регион статусов (getLiveRegionProps) рисуете вы — слоты делают это за вас.',
       render: HookDemo,
       code: `const upload = useFileUpload({ value, onChange: setValue, multiple: true });
 
@@ -297,7 +305,8 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       </li>
     ))}
   </ul>
-  <span aria-live="polite">{upload.liveMessage}</span>
+  {/* статус для скринридера — визуально скрытый регион */}
+  <div {...upload.getLiveRegionProps()}>{upload.liveMessage}</div>
 </div>`,
     },
     {
@@ -397,11 +406,11 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       name: 'FileUpload.Item + ItemPreview / ItemName / ItemSize / ItemProgress / ItemDeleteTrigger / ItemRetryTrigger',
       type: 'item; children?',
       description:
-        'Строка (role="listitem", data-status) и её части. ItemPreview — управляемый object URL изображения (revoke при удалении), ItemProgress — role="progressbar".',
+        'Строка (role="listitem", data-status) и её части. ItemPreview — управляемый object URL изображения (revoke при удалении), ItemProgress — role="progressbar" (только во время загрузки), ItemRetryTrigger — только у строки с ошибкой. Кнопки удаления и повтора получают aria-label с именем файла.',
     },
     {
       name: 'useFileUpload(options)',
-      type: '→ { items, rejections, dragging, uploading, liveMessage, …, getRootProps, getDropzoneProps, getTriggerProps, getHiddenInputProps, getItemGroupProps, getItemProps, getItemDeleteTriggerProps }',
+      type: '→ { items, rejections, dragging, uploading, maxFilesReached, liveMessage, openFilePicker, addFiles, removeItem, clear, retry, abort, getPreviewUrl, getRootProps, getDropzoneProps, getTriggerProps, getHiddenInputProps, getItemGroupProps, getItemProps, getItemDeleteTriggerProps, getItemRetryTriggerProps, getClearTriggerProps, getLiveRegionProps }',
       description: 'Всё поведение компонента для своей разметки.',
     },
     {

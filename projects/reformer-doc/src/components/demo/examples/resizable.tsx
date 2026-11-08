@@ -2,110 +2,122 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@reformer/
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Resizable — не form-control: compound поверх react-resizable-panels
- * (ResizablePanelGroup / ResizablePanel / ResizableHandle). Тяжёлая внешняя
- * зависимость — external в бандле ui-kit, у потребителя ставится как optional peer.
- * Таб Variants показывает ориентацию (horizontal / vertical), вложенность и вариант
- * разделителя (withHandle), Examples — прикладные раскладки, props — таблица.
+ * Resizable — не поле формы: compound поверх react-resizable-panels v4 (ResizablePanelGroup /
+ * ResizablePanel / ResizableHandle). Размеры: число — пиксели, строка — проценты ("50%").
+ * Variants — ориентация и вид разделителя, Examples — прикладные раскладки, API — таблица props.
+ * Обёртка `<div style>` в render — рамка демо (группе нужна высота), в `code` её нет.
  */
 export const resizableDocConfig: ComponentDocConfig = {
   name: 'Resizable',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/resizable',
   description:
-    'Изменяемые размеры панелей на shadcn / react-resizable-panels. Compound-набор: ResizablePanelGroup / ResizablePanel / ResizableHandle. Ориентация задаётся пропом orientation ("horizontal" | "vertical") на группе, стартовые размеры — defaultSize на панелях.',
+    'Панели, размер которых меняют перетаскиванием разделителя или с клавиатуры. Ориентация — orientation на группе, стартовые размеры — defaultSize на панелях.',
   variants: [
     {
       id: 'horizontal',
-      title: 'Горизонтально (orientation="horizontal")',
+      title: 'Панели рядом (orientation="horizontal")',
       description:
-        'Две панели рядом; разделитель тянется мышью или клавиатурой. defaultSize задаёт стартовое соотношение.',
+        'Разделитель тянется мышью или стрелками ←/→. defaultSize="50%" — половина группы: строка с % — проценты, число — пиксели.',
       render: () => (
         <div style={{ height: 200, width: '100%', maxWidth: 480 }}>
           <ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
-            <ResizablePanel defaultSize={50}>
+            <ResizablePanel defaultSize="50%">
               <div className="flex h-full items-center justify-center p-4">Левая</div>
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel defaultSize={50}>
+            <ResizablePanel defaultSize="50%">
               <div className="flex h-full items-center justify-center p-4">Правая</div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
       ),
       code: `<ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
-  <ResizablePanel defaultSize={50}>Левая</ResizablePanel>
+  <ResizablePanel defaultSize="50%">
+    <div className="flex h-full items-center justify-center p-4">Левая</div>
+  </ResizablePanel>
   <ResizableHandle />
-  <ResizablePanel defaultSize={50}>Правая</ResizablePanel>
+  <ResizablePanel defaultSize="50%">
+    <div className="flex h-full items-center justify-center p-4">Правая</div>
+  </ResizablePanel>
 </ResizablePanelGroup>`,
     },
     {
       id: 'vertical',
-      title: 'Вертикально (orientation="vertical")',
-      description: 'Панели друг над другом; разделитель тянется по вертикали.',
+      title: 'Панели друг над другом (orientation="vertical")',
+      description:
+        'Разделитель горизонтальный, тянется вверх и вниз, с клавиатуры — стрелками ↑/↓.',
       render: () => (
         <div style={{ height: 240, width: '100%', maxWidth: 480 }}>
           <ResizablePanelGroup orientation="vertical" className="rounded-lg border">
-            <ResizablePanel defaultSize={40}>
+            <ResizablePanel defaultSize="40%">
               <div className="flex h-full items-center justify-center p-4">Верх</div>
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel defaultSize={60}>
+            <ResizablePanel defaultSize="60%">
               <div className="flex h-full items-center justify-center p-4">Низ</div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
       ),
       code: `<ResizablePanelGroup orientation="vertical" className="rounded-lg border">
-  <ResizablePanel defaultSize={40}>Верх</ResizablePanel>
+  <ResizablePanel defaultSize="40%">
+    <div className="flex h-full items-center justify-center p-4">Верх</div>
+  </ResizablePanel>
   <ResizableHandle />
-  <ResizablePanel defaultSize={60}>Низ</ResizablePanel>
+  <ResizablePanel defaultSize="60%">
+    <div className="flex h-full items-center justify-center p-4">Низ</div>
+  </ResizablePanel>
 </ResizablePanelGroup>`,
     },
     {
       id: 'with-handle',
-      title: 'Разделитель с «хватом» (withHandle)',
+      title: 'Видимый «хват» (withHandle)',
       description:
-        'withHandle рисует видимую рукоятку (GripVerticalIcon) — подсказывает, что границу можно тянуть.',
+        'withHandle рисует на разделителе значок-рукоятку — подсказку, что границу можно тянуть.',
       render: () => (
         <div style={{ height: 200, width: '100%', maxWidth: 480 }}>
           <ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
-            <ResizablePanel defaultSize={35}>
+            <ResizablePanel defaultSize="35%">
               <div className="flex h-full items-center justify-center p-4">Меню</div>
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={65}>
-              <div className="flex h-full items-center justify-center p-4">Контент</div>
+            <ResizablePanel defaultSize="65%">
+              <div className="flex h-full items-center justify-center p-4">Содержимое</div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
       ),
-      code: `<ResizablePanelGroup orientation="horizontal">
-  <ResizablePanel defaultSize={35}>Меню</ResizablePanel>
+      code: `<ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
+  <ResizablePanel defaultSize="35%">
+    <div className="flex h-full items-center justify-center p-4">Меню</div>
+  </ResizablePanel>
   <ResizableHandle withHandle />
-  <ResizablePanel defaultSize={65}>Контент</ResizablePanel>
+  <ResizablePanel defaultSize="65%">
+    <div className="flex h-full items-center justify-center p-4">Содержимое</div>
+  </ResizablePanel>
 </ResizablePanelGroup>`,
     },
   ],
   examples: [
     {
-      id: 'ide-layout',
+      id: 'editor-layout',
       title: 'Раскладка редактора (вложенные группы)',
       description:
-        'Группы можно вкладывать: горизонтальный сплит боковой панели и рабочей области, внутри которой — вертикальный сплит на редактор и терминал.',
+        'Группы вкладываются: слева проводник, справа рабочая область, разделённая по вертикали на редактор и терминал.',
       render: () => (
         <div style={{ height: 280, width: '100%', maxWidth: 560 }}>
           <ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
-            <ResizablePanel defaultSize={30}>
+            <ResizablePanel defaultSize="30%">
               <div className="flex h-full items-center justify-center p-4">Проводник</div>
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={70}>
+            <ResizablePanel defaultSize="70%">
               <ResizablePanelGroup orientation="vertical">
-                <ResizablePanel defaultSize={70}>
+                <ResizablePanel defaultSize="70%">
                   <div className="flex h-full items-center justify-center p-4">Редактор</div>
                 </ResizablePanel>
                 <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={30}>
+                <ResizablePanel defaultSize="30%">
                   <div className="flex h-full items-center justify-center p-4">Терминал</div>
                 </ResizablePanel>
               </ResizablePanelGroup>
@@ -113,83 +125,149 @@ export const resizableDocConfig: ComponentDocConfig = {
           </ResizablePanelGroup>
         </div>
       ),
-      code: `<ResizablePanelGroup orientation="horizontal">
-  <ResizablePanel defaultSize={30}>Проводник</ResizablePanel>
+      code: `<ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
+  <ResizablePanel defaultSize="30%">
+    <div className="flex h-full items-center justify-center p-4">Проводник</div>
+  </ResizablePanel>
   <ResizableHandle withHandle />
-  <ResizablePanel defaultSize={70}>
+  <ResizablePanel defaultSize="70%">
     <ResizablePanelGroup orientation="vertical">
-      <ResizablePanel defaultSize={70}>Редактор</ResizablePanel>
+      <ResizablePanel defaultSize="70%">
+        <div className="flex h-full items-center justify-center p-4">Редактор</div>
+      </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={30}>Терминал</ResizablePanel>
+      <ResizablePanel defaultSize="30%">
+        <div className="flex h-full items-center justify-center p-4">Терминал</div>
+      </ResizablePanel>
     </ResizablePanelGroup>
   </ResizablePanel>
 </ResizablePanelGroup>`,
     },
     {
       id: 'constrained',
-      title: 'Ограничения размера (minSize / maxSize / collapsible)',
+      title: 'Границы размера и сворачивание',
       description:
-        'Панель можно ограничить по размеру (minSize / maxSize) и сделать сворачиваемой (collapsible) — удобно для боковых панелей.',
+        'Боковая панель: от 15% до 40% группы. collapsible — если потянуть её меньше minSize, она свернётся до collapsedSize (0 по умолчанию). Enter на разделителе сворачивает и разворачивает её.',
       render: () => (
         <div style={{ height: 200, width: '100%', maxWidth: 480 }}>
           <ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
-            <ResizablePanel defaultSize={25} minSize={15} maxSize={40} collapsible>
+            <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%" collapsible>
               <div className="flex h-full items-center justify-center p-4">Боковая</div>
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={75}>
+            <ResizablePanel defaultSize="75%">
               <div className="flex h-full items-center justify-center p-4">Основная</div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
       ),
-      code: `<ResizablePanelGroup orientation="horizontal">
-  <ResizablePanel defaultSize={25} minSize={15} maxSize={40} collapsible>
-    Боковая
+      code: `<ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
+  <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%" collapsible>
+    <div className="flex h-full items-center justify-center p-4">Боковая</div>
   </ResizablePanel>
   <ResizableHandle withHandle />
-  <ResizablePanel defaultSize={75}>Основная</ResizablePanel>
+  <ResizablePanel defaultSize="75%">
+    <div className="flex h-full items-center justify-center p-4">Основная</div>
+  </ResizablePanel>
 </ResizablePanelGroup>`,
     },
   ],
   props: [
     {
-      name: 'orientation (ResizablePanelGroup)',
+      name: 'ResizablePanelGroup.orientation',
       type: "'horizontal' | 'vertical'",
-      default: 'horizontal',
-      description: 'Направление раскладки панелей и оси изменения размера.',
+      default: "'horizontal'",
+      description: 'horizontal — панели рядом, vertical — друг над другом.',
     },
     {
-      name: 'defaultSize (ResizablePanel)',
-      type: 'number',
-      description: 'Стартовый размер панели (в процентах группы).',
+      name: 'ResizablePanelGroup.defaultLayout',
+      type: 'Layout',
+      description:
+        'Стартовая раскладка { [id панели]: размер }. Обычно приходит из useDefaultLayout — для сохранения между перезагрузками.',
     },
     {
-      name: 'minSize / maxSize (ResizablePanel)',
-      type: 'number',
-      description: 'Нижняя и верхняя граница размера панели (в процентах).',
+      name: 'ResizablePanelGroup.onLayoutChanged',
+      type: '(layout: Layout, meta: { isUserInteraction: boolean }) => void',
+      description:
+        'Вызывается, когда раскладка изменилась: при перетаскивании — после отпускания. Подходит для сохранения.',
     },
     {
-      name: 'collapsible (ResizablePanel)',
+      name: 'ResizablePanelGroup.onLayoutChange',
+      type: '(layout: Layout) => void',
+      description:
+        'Вызывается на каждом шаге перетаскивания. Для сохранения берите onLayoutChanged.',
+    },
+    {
+      name: 'ResizablePanelGroup.disabled',
       type: 'boolean',
       default: 'false',
-      description: 'Разрешает свернуть панель до collapsedSize.',
+      description: 'Запретить менять размеры во всей группе.',
     },
     {
-      name: 'withHandle (ResizableHandle)',
+      name: 'ResizablePanelGroup.id',
+      type: 'string | number',
+      description: 'Идентификатор группы. Он же попадает в атрибуты id и data-testid.',
+    },
+    {
+      name: 'ResizablePanel.defaultSize',
+      type: 'number | string',
+      description:
+        'Стартовый размер. Число — пиксели (200), строка без единиц или с % — проценты ("50", "50%"). Без него размеры делятся поровну.',
+    },
+    {
+      name: 'ResizablePanel.minSize',
+      type: 'number | string',
+      default: '"0%"',
+      description: 'Нижняя граница размера. Единицы — как у defaultSize.',
+    },
+    {
+      name: 'ResizablePanel.maxSize',
+      type: 'number | string',
+      default: '"100%"',
+      description: 'Верхняя граница размера. Единицы — как у defaultSize.',
+    },
+    {
+      name: 'ResizablePanel.collapsible',
       type: 'boolean',
       default: 'false',
-      description: 'Рисует видимую рукоятку (GripVerticalIcon) на разделителе.',
+      description: 'Панель сворачивается до collapsedSize, если её потянуть меньше minSize.',
     },
     {
-      name: 'onLayoutChange (ResizablePanelGroup)',
-      type: '(layout: number[]) => void',
-      description: 'Колбэк изменения раскладки — для сохранения размеров.',
+      name: 'ResizablePanel.collapsedSize',
+      type: 'number | string',
+      default: '"0%"',
+      description: 'Размер свёрнутой панели.',
+    },
+    {
+      name: 'ResizablePanel.id',
+      type: 'string | number',
+      description:
+        'Идентификатор панели. Нужен, чтобы сохранённая раскладка нашла свою панель после перезагрузки.',
+    },
+    {
+      name: 'ResizablePanel.panelRef',
+      type: 'Ref<PanelImperativeHandle>',
+      description:
+        'Управление из кода: collapse(), expand(), resize(size), getSize(), isCollapsed(). Хук usePanelRef — из react-resizable-panels.',
+    },
+    {
+      name: 'ResizableHandle.withHandle',
+      type: 'boolean',
+      default: 'false',
+      description: 'Нарисовать на разделителе значок-рукоятку.',
+    },
+    {
+      name: 'ResizableHandle.disabled',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'Разделитель не тянется и не получает фокус. Соседние панели всё ещё могут меняться от других разделителей.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Доп. классы части. У ResizablePanel класс ложится на внутренний div, а не на элемент панели.',
     },
   ],
 };

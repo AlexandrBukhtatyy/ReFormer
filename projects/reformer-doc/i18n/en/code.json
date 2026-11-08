@@ -1,0 +1,395 @@
+{
+  "demo.loading": {
+    "message": "Loading demo…"
+  },
+  "demo.preview": {
+    "message": "Preview"
+  },
+  "demo.code": {
+    "message": "Code"
+  },
+  "demo.codeFormat": {
+    "message": "Code format"
+  },
+  "demo.darkMode": {
+    "message": "Dark mode"
+  },
+  "demo.background": {
+    "message": "Background"
+  },
+  "demo.hint": {
+    "message": "Hint"
+  },
+  "demo.resize.title": {
+    "message": "Drag to change the preview width. Double-click to reset."
+  },
+  "demo.resize.label": {
+    "message": "Change preview width"
+  },
+  "demo.tab.variants": {
+    "message": "Variants"
+  },
+  "demo.tab.examples": {
+    "message": "Examples"
+  },
+  "demo.tab.api": {
+    "message": "API"
+  },
+  "demo.tabs.label": {
+    "message": "{name} documentation"
+  },
+  "demo.tabs.hint.label": {
+    "message": "Variants vs. examples"
+  },
+  "demo.tabs.hint.variants": {
+    "message": "ready-made configurations of the component: the same component with different props. A showcase of states — for example, a plain Select and a Select with extra details."
+  },
+  "demo.tabs.hint.examples": {
+    "message": "techniques in code: how to solve a task. For example, how different data sources work with the component."
+  },
+  "demo.noPlayground": {
+    "message": "This component has no interactive example."
+  },
+  "demo.props.type": {
+    "message": "Type"
+  },
+  "demo.props.default": {
+    "message": "Default"
+  },
+  "demo.props.description": {
+    "message": "Description"
+  },
+  "demo.api.value": {
+    "message": "Value"
+  },
+  "demo.api.formData": {
+    "message": "Form data"
+  },
+  "demo.api.reset": {
+    "message": "Reset"
+  },
+  "demo.api.submit": {
+    "message": "Submit"
+  },
+  "demo.api.valid": {
+    "message": "✅ no errors"
+  },
+  "demo.api.invalid": {
+    "message": "❌ has errors"
+  },
+  "diagram.packages.title": {
+    "message": "ReFormer packages and their dependencies"
+  },
+  "diagram.packages.caption": {
+    "message": "An arrow means “builds on”. @reformer/core is enough for a form; add the rest as needed."
+  },
+  "diagram.packages.mcp": {
+    "message": "docs and form generation for AI"
+  },
+  "diagram.packages.formRegistry": {
+    "message": "forms across micro-frontends"
+  },
+  "diagram.packages.uiKit": {
+    "message": "ready-made styled fields"
+  },
+  "diagram.packages.rendererJson": {
+    "message": "a form from a JSON document"
+  },
+  "diagram.packages.cdk": {
+    "message": "headless components: field, array, wizard"
+  },
+  "diagram.packages.rendererReact": {
+    "message": "renders a form from its schema tree"
+  },
+  "diagram.packages.core": {
+    "message": "model, form, validation, behavior, React hooks"
+  },
+  "diagram.builder.shell.title": {
+    "message": "Builder window layout"
+  },
+  "diagram.builder.shell.caption": {
+    "message": "Rails open the left and right panels. Plugins decide which panels exist: a ReFormer form adds \"Components\" and \"Properties\", a markdown file does not."
+  },
+  "diagram.builder.shell.rail": {
+    "message": "rail: panel buttons"
+  },
+  "diagram.builder.shell.toolbar": {
+    "message": "Toolbar: application title, \"File\" and \"Help\" menus"
+  },
+  "diagram.builder.shell.left": {
+    "message": "Left panel"
+  },
+  "diagram.builder.shell.left.project": {
+    "message": "\"Project\" — file tree"
+  },
+  "diagram.builder.shell.left.components": {
+    "message": "\"Components\" — palette"
+  },
+  "diagram.builder.shell.left.templates": {
+    "message": "\"Form templates\""
+  },
+  "diagram.builder.shell.tabs": {
+    "message": "Document tabs and view buttons"
+  },
+  "diagram.builder.shell.editor": {
+    "message": "Editor"
+  },
+  "diagram.builder.shell.editor.line1": {
+    "message": "the open document in the chosen view:"
+  },
+  "diagram.builder.shell.editor.line2": {
+    "message": "\"Tree\" — form nodes as a list"
+  },
+  "diagram.builder.shell.editor.line3": {
+    "message": "\"Schematic\" — layout as blocks"
+  },
+  "diagram.builder.shell.editor.line4": {
+    "message": "\"Form\" — the live form"
+  },
+  "diagram.builder.shell.editor.line5": {
+    "message": "\"Source\" — the file text"
+  },
+  "diagram.builder.shell.bottom": {
+    "message": "Bottom panel"
+  },
+  "diagram.builder.shell.bottom.journal": {
+    "message": "\"Log\" — \"Problems\" and \"Events\" views"
+  },
+  "diagram.builder.shell.bottom.model": {
+    "message": "\"Model\" — live form values"
+  },
+  "diagram.builder.shell.right": {
+    "message": "Right panel"
+  },
+  "diagram.builder.shell.right.inspector": {
+    "message": "Node \"Properties\""
+  },
+  "diagram.builder.shell.right.codegen": {
+    "message": "\"Export form\""
+  },
+  "diagram.builder.shell.right.assistant": {
+    "message": "\"Assistant\""
+  },
+  "diagram.builder.shell.right.mcp": {
+    "message": "\"MCP servers\""
+  },
+  "diagram.builder.shell.right.preview": {
+    "message": "\"Preview\" (inside an app)"
+  },
+  "diagram.builder.shell.status": {
+    "message": "Status bar"
+  },
+  "diagram.builder.shell.status.line": {
+    "message": "left: \"All saved\" or the number of unsaved files, language · right: profile and kit"
+  },
+  "diagram.builder.embedding.title": {
+    "message": "Builder inside an app: nested documents"
+  },
+  "diagram.builder.embedding.caption": {
+    "message": "The builder is a separate document in a frame over the page. The app itself renders the form in the preview; the builder writes project files straight to disk."
+  },
+  "diagram.builder.embedding.page": {
+    "message": "App page in the browser"
+  },
+  "diagram.builder.embedding.app": {
+    "message": "App"
+  },
+  "diagram.builder.embedding.app.line": {
+    "message": "your pages, providers, API"
+  },
+  "diagram.builder.embedding.button": {
+    "message": "\"Builder\" button"
+  },
+  "diagram.builder.embedding.shell": {
+    "message": "Shell frame — the builder itself"
+  },
+  "diagram.builder.embedding.formView": {
+    "message": "Tab \"Form\" view"
+  },
+  "diagram.builder.embedding.stand": {
+    "message": "Preview frame: stand"
+  },
+  "diagram.builder.embedding.stand.line1": {
+    "message": "one form — the component"
+  },
+  "diagram.builder.embedding.stand.line2": {
+    "message": "exported by default from index.ts"
+  },
+  "diagram.builder.embedding.stand.line3": {
+    "message": "of its module; the app renders it"
+  },
+  "diagram.builder.embedding.panel": {
+    "message": "\"Preview\" panel"
+  },
+  "diagram.builder.embedding.pageFrame": {
+    "message": "Preview frame: page"
+  },
+  "diagram.builder.embedding.pageFrame.line1": {
+    "message": "the whole app,"
+  },
+  "diagram.builder.embedding.pageFrame.line2": {
+    "message": "with an address bar;"
+  },
+  "diagram.builder.embedding.pageFrame.line3": {
+    "message": "↗ — in a separate tab"
+  },
+  "diagram.builder.embedding.server": {
+    "message": "Vite dev server"
+  },
+  "diagram.builder.embedding.server.line1": {
+    "message": "serves the builder UI,"
+  },
+  "diagram.builder.embedding.server.line2": {
+    "message": "launch config and plugins"
+  },
+  "diagram.builder.embedding.server.line3": {
+    "message": "at /__reformer-builder/"
+  },
+  "diagram.builder.embedding.disk": {
+    "message": "Project folder on disk"
+  },
+  "diagram.builder.embedding.disk.line1": {
+    "message": "app and form sources,"
+  },
+  "diagram.builder.embedding.disk.line2": {
+    "message": ".ui_builder/ directory"
+  },
+  "diagram.builder.embedding.serves": {
+    "message": "serves"
+  },
+  "diagram.builder.embedding.writes": {
+    "message": "Ctrl+S"
+  },
+  "diagram.builder.embedding.reloads": {
+    "message": "sees the change"
+  },
+  "demo.props.name": {
+    "message": "Prop"
+  },
+  "diagram.bundle.title": {
+    "message": "What a form bundle is made of"
+  },
+  "diagram.bundle.caption": {
+    "message": "Parts of the object returned by createForm. An arrow points to the part another one uses. Dashed — the part exists only if the config describes it."
+  },
+  "diagram.bundle.render": {
+    "message": "schema tree for the renderer"
+  },
+  "diagram.bundle.flow": {
+    "message": "steps: next(), goTo()"
+  },
+  "diagram.bundle.submission": {
+    "message": "submit(handler), submitting"
+  },
+  "diagram.bundle.form": {
+    "message": "nodes: touched, issues, availability"
+  },
+  "diagram.bundle.validate": {
+    "message": "checks the form and a step against the rules"
+  },
+  "diagram.bundle.model": {
+    "message": "form values and field signals model.$.x"
+  },
+  "diagram.bundle.arrowDraws": {
+    "message": "draws fields"
+  },
+  "diagram.bundle.arrowStepRules": {
+    "message": "step rules"
+  },
+  "diagram.bundle.arrowCheckFirst": {
+    "message": "checks first"
+  },
+  "diagram.bundle.arrowIssues": {
+    "message": "sets issues"
+  },
+  "diagram.bundle.arrowValues": {
+    "message": "reads and writes values"
+  },
+  "diagram.bundle.arrowReads": {
+    "message": "reads values"
+  },
+  "diagram.jsonRender.title": {
+    "message": "How a JSON form gets onto the page"
+  },
+  "diagram.jsonRender.caption": {
+    "message": "The document is data; the registry links names in the document to code. createForm builds the form and FormRenderer renders it — the same ones used for a TypeScript schema."
+  },
+  "diagram.jsonRender.document": {
+    "message": "JSON document"
+  },
+  "diagram.jsonRender.registry": {
+    "message": "Registry"
+  },
+  "diagram.jsonRender.registryHint": {
+    "message": "names → components and data"
+  },
+  "diagram.jsonRender.code": {
+    "message": "Form code"
+  },
+  "diagram.jsonRender.codeHint": {
+    "message": "model, rules, behavior"
+  },
+  "diagram.jsonRender.createFormHint": {
+    "message": "builds the tree and nodes"
+  },
+  "diagram.jsonRender.rendererHint": {
+    "message": "renders the form bundle"
+  },
+  "diagram.jsonRender.page": {
+    "message": "Form on the page"
+  },
+  "diagram.jsonRender.pageHint": {
+    "message": "fields, issues, steps"
+  },
+  "homepage.title": {
+    "message": "Reactive Forms Library"
+  },
+  "homepage.tagline": {
+    "message": "Reactive forms library with signals"
+  },
+  "homepage.lead": {
+    "message": "A signal-based model is the single source of truth. One schema ties together fields, rules and form behavior. Render the form by hand, from a schema or from JSON."
+  },
+  "homepage.getStarted": {
+    "message": "Get Started"
+  },
+  "homepage.examples": {
+    "message": "Examples"
+  },
+  "homepage.tryPlayground": {
+    "message": "Try Playground"
+  },
+  "homepage.packages.title": {
+    "message": "Packages"
+  },
+  "homepage.quickstart.title": {
+    "message": "A form in a minute"
+  },
+  "homepage.pkg.core": {
+    "message": "Reactive core on signals: model, schema, rules, behavior, React hooks."
+  },
+  "homepage.pkg.cdk": {
+    "message": "Headless components: dynamic arrays, wizards, field anatomy."
+  },
+  "homepage.pkg.uikit": {
+    "message": "Styled controls (Tailwind + Radix) bound to form fields."
+  },
+  "homepage.pkg.rrender": {
+    "message": "Renders a form from a declarative schema and a reactive model."
+  },
+  "homepage.pkg.jrender": {
+    "message": "A whole form from JSON: $model / $component operators and a registry."
+  },
+  "homepage.pkg.mcp": {
+    "message": "MCP server: docs and form generation for AI assistants."
+  },
+  "homepage.pkg.formRegistry": {
+    "message": "Forms an app receives from micro-frontends: by link and on demand."
+  },
+  "homepage.pkg.builder": {
+    "message": "Visual form editor with an AI assistant and code export (in development)."
+  },
+  "homepage.feature.validation.description": {
+    "message": "28 built-in rules for strings, numbers, dates and files, async validation and your own rules. Rules live separately from the markup."
+  }
+}

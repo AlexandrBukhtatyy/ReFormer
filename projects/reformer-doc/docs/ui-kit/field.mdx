@@ -1,0 +1,95 @@
+---
+id: field
+title: Field
+sidebar_label: Field
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { fieldDocConfig } from '@site/src/components/demo/examples/field';
+
+# Field
+
+Части раскладки поля: подпись, контрол, пояснение, ошибка, группа полей с заголовком. Это
+вёрстка без формы — значение, проверку и связи для скринридера вы задаёте сами. `FieldFrame`
+собирает эти части в готовую рамку поля.
+
+## Когда брать
+
+- **`Field` и его части** — вёрстка поля, которое не связано с формой ReFormer: фильтр, поиск,
+  настройки на `useState`.
+- **`FieldSet` и `FieldLegend`** — заголовок над группой полей, в том числе вокруг полей формы.
+- **`FieldFrame`** — рамка для контрола, которым управляет не ReFormer: значение и ошибки приходят
+  пропсами. На нём, например, построен шаблон поля темы RJSF.
+
+Соседи:
+
+- поле формы ReFormer — [FormField](./form-field.mdx): та же раскладка, но всё берётся из ноды
+  поля, а подпись, пояснение и ошибка уже связаны с контролом;
+- одна подпись без остальной раскладки — [Label](./label.mdx);
+- отступы между полями и секции формы — [Box](./box.mdx) и [Section](./section.mdx).
+
+## Анатомия
+
+| Часть              | Элемент            | Что делает                                                              |
+| ------------------ | ------------------ | ----------------------------------------------------------------------- |
+| `Field`            | `div role="group"` | Поле целиком. `orientation`: `vertical`, `horizontal`, `responsive`     |
+| `FieldLabel`       | `label`            | Подпись — [Label](./label.mdx) кита                                     |
+| `FieldTitle`       | `div`              | Заголовок в стиле подписи, но не `label`                                |
+| `FieldContent`     | `div`              | Колонка подписи и пояснения рядом с контролом                           |
+| `FieldDescription` | `p`                | Пояснение приглушённым цветом                                           |
+| `FieldError`       | `div role="alert"` | Ошибка: `errors` — список `{ message }` или свой текст в `children`     |
+| `FieldSet`         | `fieldset`         | Группа связанных полей                                                  |
+| `FieldLegend`      | `legend`           | Заголовок группы, `variant`: `legend` или `label`                       |
+| `FieldGroup`       | `div`              | Колонка полей; для `responsive` задаёт ширину, от которой поле — строка |
+| `FieldSeparator`   | `div`              | Линия между полями, с текстом или без                                   |
+
+`Field` с `data-invalid` красит поле цветом ошибки. Рамку контрола даёт его собственный
+`aria-invalid`.
+
+```tsx
+import { Field, FieldDescription, FieldLabel, Input } from '@reformer/ui-kit';
+
+<Field>
+  <FieldLabel htmlFor="email">Email</FieldLabel>
+  <Input id="email" type="email" />
+  <FieldDescription>Пришлём на него чек.</FieldDescription>
+</Field>;
+```
+
+`FieldFrame` принимает `id`, `label`, `description`, `required`, `errors` (строки),
+`inlineLabel` и `hidden` и рисует ту же разметку, что [FormField](./form-field.mdx):
+
+```tsx
+<FieldFrame id="nick" label="Ник" required errors={nick.length < 3 ? ['Не короче 3 символов'] : []}>
+  <Input id="nick" value={nick} onChange={(e) => setNick(e.target.value)} />
+</FieldFrame>
+```
+
+## Примеры и API
+
+<ComponentDoc config={fieldDocConfig} />
+
+## Доступность
+
+- `FieldLabel` — настоящий `<label>`: свяжите его с контролом через `htmlFor` и `id`, и клик по
+  подписи переведёт фокус в контрол.
+- `FieldSet` и `FieldLegend` — настоящие `<fieldset>` и `<legend>`: скринридер прочитает заголовок
+  группы, когда фокус войдёт в любое её поле.
+- `FieldError` и ошибка `FieldFrame` выводятся с `role="alert"` — скринридер объявит их сразу.
+- Остальные связи части не ставят. Пояснение и ошибку свяжите с контролом сами:
+  `aria-describedby` с их `id`, `aria-invalid` при ошибке. `FieldFrame` подписывает контрол через
+  `htmlFor`, но `aria-describedby`, `aria-invalid` и `aria-required` тоже оставляет вам.
+- Звёздочка `required` у `FieldFrame` скрыта от скринридера (`aria-hidden`).
+
+Если поле принадлежит форме ReFormer, берите [FormField](./form-field.mdx): он ставит все эти
+атрибуты сам.
+
+## Локализация
+
+Своих строк части не рисуют: подпись, пояснение и тексты ошибок задаёте вы.
+
+## См. также
+
+- [FormField](./form-field.mdx) — та же раскладка для поля формы.
+- [Label](./label.mdx) — подпись отдельно.
+- [Section](./section.mdx) — группы и секции формы.

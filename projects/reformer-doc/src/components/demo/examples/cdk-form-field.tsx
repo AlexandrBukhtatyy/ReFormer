@@ -1,30 +1,73 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { ValidationMessagesProvider } from '@reformer/cdk';
-import { FormField as FieldRoot } from '@reformer/cdk/form-field';
-import { InfoHint, Input } from '@reformer/ui-kit';
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { defineIssueMessages } from '@reformer/core/i18n';
-import { required, email } from '@reformer/core/validators';
-import { useDemoField } from '../harness';
+import { email, required } from '@reformer/core/validators';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { FormField as FieldRoot, useFormField } from '@reformer/cdk/form-field';
+import { FormField, InfoHint, Input } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
-/** Тексты замечаний демо: правило несёт код, строку по коду даёт словарь формы. */
-const EMAIL_MESSAGES = defineIssueMessages({ 'field.required': 'Введите email' });
+type EmailForm = { email: string };
+
+/** Узел поля: компонент и его пропсы. `required: true` даёт «*» у подписи и aria-required. */
+const emailSchema = (model: FormModel<EmailForm>): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.email,
+      component: Input,
+      componentProps: {
+        label: 'Email',
+        type: 'email',
+        placeholder: 'you@example.com',
+        required: true,
+      },
+    },
+  ],
+});
+
+const emailRules = defineValidation<EmailForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' }), email()]);
+});
+
+/** Тексты замечаний: правило несёт код, строку по коду даёт словарь формы. */
+const EMAIL_MESSAGES = defineIssueMessages({
+  'email.required': 'Введите email',
+  email: 'Неверный формат email',
+});
+
+/** Проверка при уходе из поля — ошибка видна после первого blur. */
+function useEmailForm() {
+  return useFormBundle(() =>
+    createForm<EmailForm>({
+      initial: { email: '' },
+      schema: emailSchema,
+      validation: { rules: emailRules, strategy: 'blur' },
+    })
+  );
+}
+
+const ERROR: React.CSSProperties = {
+  color: 'var(--ifm-color-danger)',
+  fontSize: 13,
+  margin: '4px 0 0',
+};
+const LABEL: React.CSSProperties = { display: 'block', fontSize: 14, fontWeight: 500 };
+const DESCRIPTION: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--ifm-color-emphasis-600)',
+  margin: '4px 0 0',
+};
 
 function AutoRender() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ code: 'field.required' }), email()],
-    messages: EMAIL_MESSAGES,
-  });
+  const { form } = useEmailForm();
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
       <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
-        <FieldRoot.Root control={control as any}>
-          <FieldRoot.Label className="block mb-1 text-sm font-medium" />
+        <FieldRoot.Root control={form.email}>
+          <FieldRoot.Label style={{ ...LABEL, marginBottom: 4 }} />
           <FieldRoot.Control />
-          <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+          <FieldRoot.Error style={ERROR} />
         </FieldRoot.Root>
       </ValidationMessagesProvider>
     </div>
@@ -32,17 +75,11 @@ function AutoRender() {
 }
 
 function CustomLayout() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ code: 'field.required' }), email()],
-    messages: EMAIL_MESSAGES,
-  });
+  const { form } = useEmailForm();
   return (
     <div style={{ maxWidth: 460, width: '100%' }}>
       <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
-        <FieldRoot.Root control={control as any} hasDescription>
+        <FieldRoot.Root control={form.email} hasDescription>
           <div
             style={{
               display: 'grid',
@@ -51,15 +88,13 @@ function CustomLayout() {
               alignItems: 'start',
             }}
           >
-            <FieldRoot.Label className="text-sm font-medium" style={{ paddingTop: 8 }} />
+            <FieldRoot.Label style={{ ...LABEL, paddingTop: 8 }} />
             <div>
               <FieldRoot.Control />
-              <FieldRoot.Description
-                style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginTop: 4 }}
-              >
+              <FieldRoot.Description style={DESCRIPTION}>
                 Мы не передаём email третьим сторонам.
               </FieldRoot.Description>
-              <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+              <FieldRoot.Error style={ERROR} />
             </div>
           </div>
         </FieldRoot.Root>
@@ -72,26 +107,70 @@ const HINT_TEXT = 'Нужен только для отправки чеков';
 
 /** Подсказка-тултип у подписи: видимый триггер — любой, текст для aria — в FormField.Hint. */
 function HintLayout() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ code: 'field.required' }), email()],
-    messages: EMAIL_MESSAGES,
-  });
+  const { form } = useEmailForm();
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
       <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
-        <FieldRoot.Root control={control as any} hasHint>
-          {/* Триггер — РЯДОМ с Label, не внутри: клик внутри <label htmlFor> активировал бы контрол. */}
+        <FieldRoot.Root control={form.email} hasHint>
+          {/* Триггер — РЯДОМ с Label, не внутри: клик внутри <label htmlFor> активировал бы поле. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <FieldRoot.Label className="text-sm font-medium" />
+            <FieldRoot.Label style={LABEL} />
             <InfoHint content={HINT_TEXT} aria-label="Подсказка: Email" />
           </div>
           <FieldRoot.Hint hidden>{HINT_TEXT}</FieldRoot.Hint>
           <FieldRoot.Control />
-          <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+          <FieldRoot.Error style={ERROR} />
         </FieldRoot.Root>
+      </ValidationMessagesProvider>
+    </div>
+  );
+}
+
+/** Хук без compound-дерева: наборы пропсов раскладываются на свою разметку. */
+function EmailInput() {
+  const { form } = useEmailForm();
+  const { labelProps, controlProps, errorProps, state } = useFormField(form.email);
+  return (
+    <div style={{ maxWidth: 380, width: '100%' }}>
+      <label {...labelProps} style={{ ...LABEL, marginBottom: 4 }}>
+        {state.label}
+      </label>
+      <input
+        {...controlProps}
+        type="email"
+        value={controlProps.value}
+        onChange={(event) => controlProps.onChange(event.target.value)}
+        style={{
+          width: '100%',
+          padding: '6px 10px',
+          borderRadius: 6,
+          border: '1px solid var(--ifm-color-emphasis-400)',
+        }}
+      />
+      {state.shouldShowIssues && state.error && (
+        <p {...errorProps} style={ERROR}>
+          {state.error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Словарь формы ставится выше компонента, который вызывает useFormField. */
+function HookField() {
+  return (
+    <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+      <EmailInput />
+    </ValidationMessagesProvider>
+  );
+}
+
+function UiKitField() {
+  const { form } = useEmailForm();
+  return (
+    <div style={{ maxWidth: 380, width: '100%' }}>
+      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
+        <FormField control={form.email} />
       </ValidationMessagesProvider>
     </div>
   );
@@ -101,13 +180,13 @@ export const cdkFormFieldDocConfig: ComponentDocConfig = {
   name: 'FormField (cdk)',
   importFrom: '@reformer/cdk/form-field',
   description:
-    'Headless-анатомия поля: Root/Label/Control/Error/Description/Hint с автопровязкой id и aria. UI вы строите сами.',
+    'Headless-анатомия поля: Root, Label, Control, Error, Description и Hint со связанными id и aria-атрибутами. Раскладку пишете вы.',
   variants: [
     {
       id: 'auto',
-      title: 'Auto-render',
+      title: 'Части по умолчанию',
       description:
-        'Label и Control сами берут текст/компонент из ноды схемы, Error прячется до touch.',
+        'Label берёт текст из componentProps.label, Control рисует компонент узла схемы, Error появляется после ухода из поля.',
       render: AutoRender,
       code: `import { FormField } from '@reformer/cdk/form-field';
 
@@ -119,13 +198,13 @@ export const cdkFormFieldDocConfig: ComponentDocConfig = {
     },
     {
       id: 'custom',
-      title: 'Кастомная раскладка',
+      title: 'Своя раскладка и описание',
       description:
-        'Горизонтальный layout + Description. hasDescription прописывает aria-describedby.',
+        'Подпись слева, описание под полем. hasDescription на Root добавляет id описания в aria-describedby поля.',
       render: CustomLayout,
       code: `<FormField.Root control={form.email} hasDescription>
-  <div className="grid grid-cols-[110px_1fr] gap-3 items-start">
-    <FormField.Label className="pt-2 text-sm font-medium" />
+  <div className="grid grid-cols-[110px_1fr] items-start gap-3">
+    <FormField.Label />
     <div>
       <FormField.Control />
       <FormField.Description>Мы не передаём email третьим сторонам.</FormField.Description>
@@ -138,7 +217,7 @@ export const cdkFormFieldDocConfig: ComponentDocConfig = {
       id: 'hint',
       title: 'Подсказка-тултип у подписи (FormField.Hint)',
       description:
-        'Контент тултипа живёт в портале и отсутствует в DOM, пока тултип закрыт, — сослаться на него из aria-describedby нельзя. FormField.Hint держит тот же текст в скрытом элементе со стабильным id, а hasHint добавляет этот id в aria-describedby контрола: screen reader зачитывает подсказку при фокусе на поле.',
+        'Текст тултипа рендерится в портале только в открытом состоянии — сослаться на него из aria-describedby нельзя. FormField.Hint держит тот же текст в скрытом элементе, а hasHint добавляет его id в aria-describedby: скринридер прочитает подсказку при фокусе на поле.',
       render: HintLayout,
       code: `import { FormField } from '@reformer/cdk/form-field';
 import { InfoHint } from '@reformer/ui-kit';
@@ -147,7 +226,7 @@ import { InfoHint } from '@reformer/ui-kit';
   {/* триггер — рядом с Label, не внутри <label> */}
   <div className="flex items-center gap-1.5">
     <FormField.Label />
-    <InfoHint content="Нужен только для отправки чеков" />
+    <InfoHint content="Нужен только для отправки чеков" aria-label="Подсказка: Email" />
   </div>
   <FormField.Hint hidden>Нужен только для отправки чеков</FormField.Hint>
   <FormField.Control />
@@ -159,55 +238,81 @@ import { InfoHint } from '@reformer/ui-kit';
   ],
   examples: [
     {
+      id: 'hook',
+      title: 'Хук useFormField',
+      description:
+        'Те же связки без compound-компонентов: labelProps, controlProps и errorProps раскладываются на вашу разметку. controlProps.onChange принимает значение, а не событие.',
+      render: HookField,
+      code: `import { useFormField } from '@reformer/cdk/form-field';
+
+const { labelProps, controlProps, errorProps, state } = useFormField(form.email);
+
+<>
+  <label {...labelProps}>{state.label}</label>
+  <input
+    {...controlProps}
+    type="email"
+    onChange={(event) => controlProps.onChange(event.target.value)}
+  />
+  {state.shouldShowIssues && state.error && <p {...errorProps}>{state.error}</p>}
+</>`,
+    },
+    {
       id: 'ui-kit',
       title: 'Готовый FormField из ui-kit',
       description:
-        'В большинстве форм достаточно ui-kit FormField, собранного на этих блоках — без спуска на уровень cdk.',
-      render: AutoRender,
+        'В большинстве форм хватает FormField из ui-kit: он собран на этих частях и раскладывает их сам.',
+      render: UiKitField,
       code: `import { FormField } from '@reformer/ui-kit';
 
-// Один универсальный компонент вместо ручной анатомии:
 <FormField control={form.email} />`,
     },
   ],
   props: [
     {
       name: 'FormField.Root',
-      type: 'control: FormControl<T>',
-      description: 'Провайдер контекста; подписывается на useFormControl один раз.',
+      type: 'control: FormControl<T>; id?; hasDescription?; hasHint?',
+      description:
+        'Провайдер контекста, подписан на ноду поля один раз. id — предсказуемые id частей (control-<id>, label-<id>…); hasDescription и hasHint включают id описания и подсказки в aria-describedby.',
     },
     {
       name: 'FormField.Label',
-      type: '—',
-      description: '<label> с htmlFor; текст из componentProps.label, «*» при required.',
+      type: 'children?; forceRender?; asChild?',
+      description:
+        '<label htmlFor>. Текст — componentProps.label или children; «*» (aria-hidden) при componentProps.required. Без текста не рендерится, если нет forceRender.',
     },
     {
       name: 'FormField.Control',
-      type: 'asChild?',
+      type: 'asChild?; children?',
       description:
-        'Auto-рендер control.component (value/onChange/onBlur/disabled/aria-*) или Slot в свой элемент.',
+        'Рисует компонент узла схемы с value, onChange, onBlur, disabled и aria-*. С asChild или children добавляет связки своему элементу.',
     },
     {
       name: 'FormField.Error',
-      type: 'multi?, render?',
+      type: 'multi?; render?; children?; asChild?',
       description:
-        '<p role="alert"> с замечанием — ошибкой или предупреждением; скрыт, пока shouldShowIssues=false.',
+        '<p role="alert"> с главным замечанием — первой ошибкой, без ошибок — первым предупреждением. Скрыт, пока поле не тронуто и не изменено.',
     },
     {
       name: 'FormField.Description',
-      type: '—',
-      description: '<p> с id для aria-describedby (нужен hasDescription на Root).',
+      type: 'children; asChild?',
+      description: '<p> со стабильным id для aria-describedby (нужен hasDescription на Root).',
     },
     {
       name: 'FormField.Hint',
-      type: 'asChild?',
+      type: 'children; asChild?',
       description:
-        '<span> с id для aria-describedby (нужен hasHint на Root) — описание, которое не показывается под полем: обычно скрытый (hidden) текст тултипа у иконки (i). Порядок id: hint → description → error.',
+        '<span> со стабильным id для aria-describedby (нужен hasHint на Root) — описание, которое не видно под полем, обычно текст тултипа. Порядок id: hint → description → error.',
     },
     {
       name: 'useFormFieldContext()',
-      type: '→ { control, value, issues, error, shouldShowError, shouldShowIssues, ids, componentProps, pending }',
-      description: 'Доступ к состоянию из произвольных детей.',
+      type: '→ { control, value, issues, error, pending, shouldShowError, shouldShowIssues, ids, label, required, componentProps, … }',
+      description: 'Состояние поля для любых потомков Root.',
+    },
+    {
+      name: 'useFormField(control, id?)',
+      type: '→ { labelProps, controlProps, errorProps, descriptionProps, hintProps, state, actions, ids }',
+      description: 'Все связки без compound-дерева — для полностью своей разметки.',
     },
   ],
 };

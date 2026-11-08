@@ -1,19 +1,26 @@
 import { useState } from 'react';
+// Тяжёлый компонент (react-day-picker) — только из своего подпути, не из главного входа кита.
 import { Calendar, CalendarSingle, calendarBasePropsSchema } from '@reformer/ui-kit/calendar';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-/* ─── Ручная сборка base (управляемый Calendar с локальным состоянием) ─── */
+// Пропсы панели API — из props-схемы. label задаётся baseComponentProps; mode у CalendarSingle
+// зашит (single) и пропом не принимается.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(calendarBasePropsSchema), {
+  omit: ['label', 'mode'],
+});
 
-function ControlledCalendarVariant() {
+/* ─── Календарь вне формы: свой стейт, режим и обработчик ─── */
+
+function StandaloneCalendar() {
   const [date, setDate] = useState<Date | undefined>(undefined);
   return (
-    <div style={{ display: 'inline-block' }}>
+    <div>
       <Calendar mode="single" selected={date} onSelect={setDate} className="rounded-md border" />
-      <p style={{ marginTop: 8, fontSize: 13, color: '#6b7280' }}>
+      <p className="mt-2 text-sm text-muted-foreground">
         Выбрано: {date ? date.toLocaleDateString() : '—'}
       </p>
     </div>
@@ -22,91 +29,81 @@ function ControlledCalendarVariant() {
 
 export const calendarDocConfig: ComponentDocConfig = {
   name: 'Calendar',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/calendar',
   description:
-    'Календарь выбора даты на react-day-picker (v10). Вариант base — чистая обёртка DayPicker (mode single/multiple/range), для форм — CalendarSingle: single-date, value: Date | null; кладётся в component поля как есть.',
+    'Календарь на странице, без всплывающего окна. В форме — CalendarSingle: одна дата, значение Date | null.',
   variants: [
-    {
+    fieldVariant({
       id: 'single',
-      title: 'Выбор даты (single, field)',
+      title: 'Одна дата в форме',
       description:
-        'CalendarSingle привязан к полю формы: значение — Date | null, повторный клик по дате сбрасывает выбор в null.',
-      render: makeFieldVariant({
-        initial: null,
-        component: CalendarSingle,
-        componentProps: { label: 'Дата' },
-      }),
-      code: `{
-  model: model.$.date,
-  component: CalendarSingle,
-  componentProps: { label: 'Дата' },
-}`,
-    },
-    {
+        'CalendarSingle привязан к полю: значение — Date | null, повторный щелчок по выбранной дате сбрасывает его в null.',
+      field: 'date',
+      component: CalendarSingle,
+      componentName: 'CalendarSingle',
+      initial: null,
+      props: { label: 'Дата' },
+    }),
+    fieldVariant({
       id: 'caption-dropdown',
-      title: 'Навигация дропдаунами (captionLayout)',
+      title: 'Месяц и год списками',
       description:
-        'captionLayout="dropdown" заменяет статичную подпись месяца на выпадающие списки месяца и года — быстрый переход к далёким датам.',
-      render: makeFieldVariant({
-        initial: null,
-        component: CalendarSingle,
-        componentProps: { label: 'Дата рождения', captionLayout: 'dropdown' },
-      }),
-      code: `componentProps: { label: 'Дата рождения', captionLayout: 'dropdown' }`,
-    },
+        'captionLayout="dropdown" заменяет подпись месяца выпадающими списками месяца и года — быстрый переход к далёким датам.',
+      field: 'birthDate',
+      component: CalendarSingle,
+      componentName: 'CalendarSingle',
+      initial: null,
+      props: { label: 'Дата рождения', captionLayout: 'dropdown' },
+    }),
     {
-      id: 'controlled-base',
-      title: 'Ручная сборка (base compound, управляемый)',
+      id: 'standalone',
+      title: 'Вне формы',
       description:
-        'Форма вне схемы: чистый Calendar варианта base с локальным состоянием (mode / selected / onSelect). Так же собираются multiple- и range-режимы.',
-      render: ControlledCalendarVariant,
-      code: `import { Calendar } from '@reformer/ui-kit';
+        'Calendar — обёртка DayPicker: режим mode (single, multiple, range), выбранное selected и обработчик onSelect задаёте сами.',
+      render: StandaloneCalendar,
+      code: `import { useState } from 'react';
+import { Calendar } from '@reformer/ui-kit/calendar';
 
-const [date, setDate] = useState<Date>();
-
-<Calendar
-  mode="single"
-  selected={date}
-  onSelect={setDate}
-  className="rounded-md border"
-/>`,
+function StandaloneCalendar() {
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  return (
+    <div>
+      <Calendar mode="single" selected={date} onSelect={setDate} className="rounded-md border" />
+      <p className="mt-2 text-sm text-muted-foreground">
+        Выбрано: {date ? date.toLocaleDateString() : '—'}
+      </p>
+    </div>
+  );
+}`,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'hide-outside-days',
-      title: 'Без дней соседних месяцев (showOutsideDays)',
+      title: 'Без дней соседних месяцев',
       description:
-        'showOutsideDays=false убирает «хвосты» предыдущего и следующего месяцев в первой и последней неделях.',
-      render: makeFieldVariant({
-        initial: null,
-        component: CalendarSingle,
-        componentProps: { label: 'Дата', showOutsideDays: false },
-      }),
-      code: `componentProps: { label: 'Дата', showOutsideDays: false }`,
-    },
-    {
+        'showOutsideDays: false убирает дни предыдущего и следующего месяцев из первой и последней недели.',
+      field: 'date',
+      component: CalendarSingle,
+      componentName: 'CalendarSingle',
+      initial: null,
+      props: { label: 'Дата', showOutsideDays: false },
+    }),
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательная дата (валидатор)',
+      title: 'Обязательная дата',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: CalendarSingle,
-        componentProps: { label: 'Дата' },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите дату' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.date,
-  component: CalendarSingle,
-  componentProps: { label: 'Дата' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.date, [required({ code: 'date.required' })]);`,
-    },
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'date',
+      component: CalendarSingle,
+      componentName: 'CalendarSingle',
+      initial: null,
+      props: { label: 'Дата', required: true },
+      validators: [required({ code: 'date.required' })],
+      rules: "required({ code: 'date.required' })",
+      messages: { 'date.required': 'Выберите дату' },
+      touched: true,
+    }),
   ],
   api: {
     component: CalendarSingle,
@@ -118,22 +115,15 @@ validate(model.$.date, [required({ code: 'date.required' })]);`,
       { label: 'Сегодня', value: new Date() },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label — задаётся baseComponentProps (иначе перетрёт initialValues undefined-ом).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(calendarBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.date,
-  component: CalendarSingle,
-  componentProps: {
-    label: 'Дата',
-    captionLayout: '${v.captionLayout}',${v.showOutsideDays ? '' : '\n    showOutsideDays: false,'}${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.date, [required()]);`,
+      fieldSnippet({
+        field: 'date',
+        component: 'CalendarSingle',
+        props: { label: 'Дата' },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

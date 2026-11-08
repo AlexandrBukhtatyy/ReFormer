@@ -3,43 +3,41 @@ import {
   HoverCardTrigger,
   HoverCardContent,
   Avatar,
-  AvatarImage,
   AvatarFallback,
   Button,
 } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * HoverCard — не form-control: overlay-compound над Radix HoverCard (HoverCard /
- * HoverCardTrigger / HoverCardContent). Карточка-предпросмотр появляется при наведении /
- * фокусе на триггере (обычно ссылке). Таб Variants показывает готовые композиции,
- * Examples — приёмы (сторона появления, управляемое состояние), API — таблицу частей.
+ * HoverCard — не поле формы: превью на Radix HoverCard (HoverCard / HoverCardTrigger /
+ * HoverCardContent) по наведению или фокусу на ссылке. Variants — базовая карточка и стороны,
+ * Examples — задержки, упоминание в тексте. Обёртка `<div style>` в render — рамка демо, в `code`
+ * её нет.
  */
 export const hoverCardDocConfig: ComponentDocConfig = {
   name: 'HoverCard',
   importFrom: '@reformer/ui-kit',
   description:
-    'Всплывающая карточка-предпросмотр на shadcn / Radix. Compound: HoverCard (корень) + HoverCardTrigger (элемент наведения) + HoverCardContent (в Portal). Появляется при наведении курсора или фокусе с клавиатуры — удобно для превью профиля, ссылки, сущности.',
+    'Карточка-превью, которая появляется при наведении на ссылку или фокусе на ней: профиль, документ, ссылка.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая карточка',
       description:
-        'Триггер-ссылка + Content с превью профиля. Наведите курсор (или сфокусируйтесь) на «@reformer».',
+        'Ссылка-триггер и превью профиля. Наведите курсор на «@reformer» или сфокусируйтесь на нём клавишей Tab.',
       render: () => (
         <HoverCard>
           <HoverCardTrigger asChild>
             <Button variant="link">@reformer</Button>
           </HoverCardTrigger>
           <HoverCardContent>
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="flex gap-3">
               <Avatar>
-                <AvatarImage src="" alt="ReFormer" />
                 <AvatarFallback>RF</AvatarFallback>
               </Avatar>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>@reformer</span>
-                <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-semibold">@reformer</span>
+                <span className="text-sm text-muted-foreground">
                   Декларативные формы для React на основе схемы.
                 </span>
               </div>
@@ -54,7 +52,6 @@ export const hoverCardDocConfig: ComponentDocConfig = {
   <HoverCardContent>
     <div className="flex gap-3">
       <Avatar>
-        <AvatarImage src="" alt="ReFormer" />
         <AvatarFallback>RF</AvatarFallback>
       </Avatar>
       <div className="flex flex-col gap-1">
@@ -71,9 +68,9 @@ export const hoverCardDocConfig: ComponentDocConfig = {
       id: 'sides',
       title: 'Сторона появления (side)',
       description:
-        'HoverCardContent принимает side: top / right / bottom / left, а также align и sideOffset.',
+        'side у HoverCardContent — сторона появления: top, right, bottom (по умолчанию), left.',
       render: () => (
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-3">
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <HoverCard key={side}>
               <HoverCardTrigger asChild>
@@ -86,14 +83,18 @@ export const hoverCardDocConfig: ComponentDocConfig = {
           ))}
         </div>
       ),
-      code: `<HoverCard>
-  <HoverCardTrigger asChild>
-    <Button variant="outline">right</Button>
-  </HoverCardTrigger>
-  <HoverCardContent side="right" className="w-auto">
-    Появляюсь справа
-  </HoverCardContent>
-</HoverCard>`,
+      code: `<div className="flex flex-wrap gap-3">
+  {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+    <HoverCard key={side}>
+      <HoverCardTrigger asChild>
+        <Button variant="outline">{side}</Button>
+      </HoverCardTrigger>
+      <HoverCardContent side={side} className="w-auto">
+        Появляюсь со стороны: {side}
+      </HoverCardContent>
+    </HoverCard>
+  ))}
+</div>`,
     },
   ],
   examples: [
@@ -101,7 +102,7 @@ export const hoverCardDocConfig: ComponentDocConfig = {
       id: 'delay',
       title: 'Задержка появления и закрытия',
       description:
-        'openDelay / closeDelay на HoverCard задают паузу (мс) перед показом и скрытием. По умолчанию 700 / 300.',
+        'openDelay и closeDelay у HoverCard — пауза перед показом и скрытием, мс. По умолчанию 700 и 300.',
       render: () => (
         <HoverCard openDelay={200} closeDelay={100}>
           <HoverCardTrigger asChild>
@@ -123,9 +124,9 @@ export const hoverCardDocConfig: ComponentDocConfig = {
       id: 'text-trigger',
       title: 'Триггер-ссылка в тексте',
       description:
-        'Частый приём: превью появляется при наведении на упоминание внутри абзаца (HoverCardTrigger как inline-ссылка).',
+        'Превью при наведении на упоминание внутри абзаца: триггер — ссылка в строке текста.',
       render: () => (
-        <p style={{ maxWidth: 420, fontSize: 14, lineHeight: 1.6 }}>
+        <p className="max-w-md text-sm">
           Проект развивают участники сообщества, включая{' '}
           <HoverCard>
             <HoverCardTrigger asChild>
@@ -134,9 +135,9 @@ export const hoverCardDocConfig: ComponentDocConfig = {
               </Button>
             </HoverCardTrigger>
             <HoverCardContent>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Мейнтейнер</span>
-                <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-semibold">Мейнтейнер</span>
+                <span className="text-sm text-muted-foreground">
                   Отвечает за релизы и код-ревью.
                 </span>
               </div>
@@ -145,7 +146,7 @@ export const hoverCardDocConfig: ComponentDocConfig = {
           — наведите на упоминание, чтобы увидеть карточку.
         </p>
       ),
-      code: `<p>
+      code: `<p className="max-w-md text-sm">
   Проект развивают участники сообщества, включая{' '}
   <HoverCard>
     <HoverCardTrigger asChild>
@@ -170,26 +171,26 @@ export const hoverCardDocConfig: ComponentDocConfig = {
       type: 'Radix HoverCard.Root',
       default: 'openDelay=700, closeDelay=300',
       description:
-        'Корень. Управляемость: open / defaultOpen / onOpenChange. openDelay / closeDelay (мс) — задержка показа и скрытия.',
+        'Корень: open + onOpenChange или defaultOpen. openDelay / closeDelay — задержки показа и скрытия, мс.',
     },
     {
       name: 'HoverCardTrigger',
       type: 'Radix HoverCard.Trigger',
       description:
-        'Элемент, при наведении / фокусе на который появляется карточка (по умолчанию <a>). asChild рендерит переданного потомка (напр. Button variant="link") вместо ссылки.',
+        'Элемент, при наведении или фокусе на котором появляется карточка. По умолчанию <a>; asChild — стать своим элементом.',
     },
     {
       name: 'HoverCardContent',
       type: 'Radix HoverCard.Content',
       default: 'align=center, sideOffset=4',
       description:
-        'Содержимое карточки (рендерится в Portal). Позиция — side (top/right/bottom/left), выравнивание — align (start/center/end), отступ от триггера — sideOffset.',
+        'Карточка в портале, ширина w-64. Положение: side, align (start / center / end), sideOffset.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у HoverCardContent (ширина по умолчанию w-64; tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш (w-auto вместо w-64).',
     },
   ],
 };

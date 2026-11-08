@@ -2,6 +2,7 @@
 id: async-boundary
 title: AsyncBoundary
 sidebar_label: AsyncBoundary
+description: Контейнер состояний загрузки данных с готовыми блоками загрузки и ошибки.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,23 +10,154 @@ import { asyncBoundaryDocConfig } from '@site/src/components/demo/examples/async
 
 # AsyncBoundary
 
-ReFormer-специфичный контейнер состояний загрузки данных: `idle` / `loading` /
-`ready` / `error`. Передайте `load` — и компонент загрузит данные сам: статус,
-отмена устаревшего запроса при смене `loadKey`, повтор и `ref` с `reload()` /
-`abort()` уже внутри. Без `load` работает в controlled-режиме, где состояние
-задаётся пропом `status`.
+Контейнер для части экрана, которая ждёт данные: форма редактирования заявки, справочник, список.
+Показывает спиннер, пока данные грузятся, карточку ошибки с кнопкой «Повторить», если загрузка не
+удалась, и ваше содержимое, когда всё готово. Блоки загрузки и ошибки уже оформлены.
 
-Блоки загрузки и ошибки встроены (спиннер, карточка с кнопкой «Повторить») и
-рисуются на токенах темы, а `loadingSlot` / `errorSlot` заменяют их целиком. Текст
-ошибки в controlled-режиме приходит пропом `error` — оборачивать блоки в отдельные
-компоненты не нужно. В состояниях `ready` и `idle` рендерятся `children`.
+## Когда брать
 
-Доступность обеспечивается контейнером: регион несёт `aria-busy` во время
-загрузки и фонового обновления, блок загрузки — `role="status"` +
-`aria-live="polite"`, блок ошибки — `role="alert"` + `aria-live="assertive"`.
+- **AsyncBoundary из ui-kit** — нужен готовый вид состояний загрузки на токенах темы. Можно
+  заменить отдельный блок слотом.
+- [AsyncBoundary из CDK](../cdk/async-boundary.mdx) — та же логика без оформления. Берите его,
+  когда разметку всех состояний рисуете сами или нужны части `Empty` и `Retry`. ui-kit
+  AsyncBoundary построен на нём.
+- [Spinner](./spinner.mdx) и [Skeleton](./skeleton.mdx) — нужен только индикатор, а статусом
+  загрузки вы управляете сами.
+- [Empty](./empty.mdx) — экран «данных нет» без загрузки.
+- Не путайте с `Suspense` из React: AsyncBoundary не ловит брошенные промисы, это отдельный
+  механизм.
 
-Это **не** Suspense-boundary — ничего не throw'ится.
-Нужен полный контроль над составом состояний — берите headless-версию
-`AsyncBoundary` из [`@reformer/cdk/async-boundary`](../cdk/async-boundary.mdx).
+## Анатомия
+
+Компонент работает в одном из двух режимов.
+
+**Сам загружает данные** — передан `load`. Компонент ведёт статус, прерывает устаревший запрос при
+смене `loadKey` и при размонтировании, даёт кнопку повтора. Ответ уходит в `onSuccess` — например,
+в [модель](../reference/glossary.md) формы:
+
+```tsx
+import { AsyncBoundary } from '@reformer/ui-kit'; // или '@reformer/ui-kit/async-boundary'
+
+<AsyncBoundary
+  load={(signal) => loadApplication(applicationId, signal)}
+  loadKey={applicationId}
+  enabled={applicationId !== null}
+  onSuccess={(data) => bundle.model.patch(data)}
+  delayMs={200}
+>
+  <ApplicationForm form={bundle.form} />
+</AsyncBoundary>;
+```
+
+**Состоянием управляет ваш код** — `load` не передан. Статус приходит пропом `status`, текст ошибки
+— `error`, повтор — `onRetry`:
+
+```tsx
+<AsyncBoundary status={status} error={error} onRetry={reload}>
+  <CountriesList countries={countries} />
+</AsyncBoundary>
+```
+
+| Статус    | Что на экране                                                         |
+| --------- | --------------------------------------------------------------------- |
+| `idle`    | `children`. Загрузки не было — например, форма создания новой записи. |
+| `loading` | Блок загрузки (после `delayMs`), `children` скрыты.                   |
+| `ready`   | `children`.                                                           |
+| `error`   | Блок ошибки: заголовок, текст `error`, кнопка повтора.                |
+
+Ключевые пропсы:
+
+- `load`, `loadKey`, `enabled`, `onSuccess` — режим, в котором компонент грузит сам. `enabled={false}`
+  даёт `idle`: так форма создания не притворяется загруженной.
+- `status`, `error`, `onRetry`, `refreshing` — режим, где статусом управляете вы. В режиме `load`
+  они не действуют.
+- `delayMs` — не показывать блок загрузки первые N мс: быстрый ответ обходится без мелькания.
+- `loadingTitle`, `loadingSubtitle`, `errorTitle`, `retryLabel` — тексты встроенных блоков.
+- `loadingSlot`, `errorSlot` — полная замена блока. `errorSlot` может быть функцией
+  `({ error, retry, canRetry }) => …`.
+- `ref` — `reload()` и `abort()` снаружи. Тип `AsyncBoundaryHandle` импортируется из
+  `@reformer/cdk/async-boundary`.
+
+Блоки экспортируются и отдельно — их можно поставить без контейнера или внутрь своего слота:
+
+| Компонент              | Что рисует                         | Пропсы                                    |
+| ---------------------- | ---------------------------------- | ----------------------------------------- |
+| `AsyncBoundaryLoading` | Спиннер, заголовок и подзаголовок. | `title`, `subtitle` (`null` скрывает)     |
+| `AsyncBoundaryError`   | Карточка ошибки с кнопкой повтора. | `error`, `title`, `onRetry`, `retryLabel` |
+| `AsyncBoundaryEmpty`   | Экран «данных нет» с действием.    | `title`, `description`, `icon`, `action`  |
+
+Пустой результат — это успех, а не ошибка. Статус остаётся `ready`, а `AsyncBoundaryEmpty` вы
+рисуете внутри `children`, когда список пуст. Так блок пустоты не объявляется скринридеру как
+тревога.
+
+## Примеры
 
 <ComponentDoc config={asyncBoundaryDocConfig} />
+
+## Доступность
+
+- Регион-обёртка получает `aria-busy` на время загрузки и фонового обновления (`refreshing`), а
+  также `data-status` с текущим статусом.
+- Блок загрузки — `role="status"` и `aria-live="polite"`: появление индикатора не прерывает
+  чтение. Блок ошибки — `role="alert"` и `aria-live="assertive"`: о сбое скринридер сообщает сразу.
+- `AsyncBoundaryEmpty` роли `alert` не имеет: пустой результат не тревога.
+- Кнопки «Повторить» нет, пока повтор невозможен (нет `onRetry` в режиме `status`). Неработающая
+  кнопка не ловит фокус.
+- Слоты `loadingSlot` и `errorSlot` заменяют блок вместе с его ролью. В своём блоке ошибки
+  поставьте `role="alert"` сами, в блоке загрузки — `role="status"`.
+- Блоки несут постоянные `data-testid`: `loading-state` и `error-state`. На них можно опираться в
+  тестах.
+
+## Локализация
+
+Встроенные блоки рисуют строки из словаря кита:
+
+| Ключ                                | English         | Русский               | Проп-замена                              |
+| ----------------------------------- | --------------- | --------------------- | ---------------------------------------- |
+| `kit.asyncBoundary.loadingTitle`    | Loading data... | Загрузка данных...    | `loadingTitle` (у блока — `title`)       |
+| `kit.asyncBoundary.loadingSubtitle` | Please wait     | Пожалуйста, подождите | `loadingSubtitle` (у блока — `subtitle`) |
+| `kit.asyncBoundary.errorTitle`      | Failed to load  | Ошибка загрузки       | `errorTitle` (у блока — `title`)         |
+| `kit.asyncBoundary.retry`           | Retry           | Повторить             | `retryLabel`                             |
+| `kit.asyncBoundary.emptyTitle`      | No data         | Нет данных            | `title` у `AsyncBoundaryEmpty`           |
+| `kit.spinner.label`                 | Loading         | Загрузка              | — (подпись спиннера для скринридера)     |
+
+Без провайдера локализации строки английские. Русский набор кита подключается провайдером
+`I18nProvider` из `@reformer/core/react`:
+
+```tsx
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+<I18nProvider locale={ru}>
+  <App />
+</I18nProvider>;
+```
+
+Чтобы язык загружался по требованию, передайте провайдеру `lang` и загрузчик
+`createLocaleLoader([loadKitLocale])` — `loadKitLocale` из `@reformer/ui-kit/locale`.
+
+Поменять строку во всём приложении — переопределите ключ в своей локали:
+
+```ts
+import { extendLocale } from '@reformer/core/i18n';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+export const appRu = extendLocale(ru, {
+  messages: { 'kit.asyncBoundary.retry': 'Загрузить снова' },
+});
+```
+
+Явный проп важнее локали: `retryLabel="…"` меняет подпись только у одного компонента.
+
+Текст ошибки — ваш: в режиме `status` это проп `error`, в режиме `load` — результат `toError`. Без
+`toError` берётся текст отказа: `message` у `Error` или сама строка. Для отказа без текста
+показывается фраза из локали — ключ `cdk.asyncBoundary.unknownError` («Unknown error» /
+«Неизвестная ошибка»). Свой текст для таких отказов задаёт `toError`.
+
+## См. также
+
+- [AsyncBoundary из CDK](../cdk/async-boundary.mdx) — та же логика без оформления.
+- [Асинхронная предзагрузка](../patterns/async-preload.md) — загрузка значений формы с
+  AsyncBoundary.
+- [Spinner](./spinner.mdx), [Skeleton](./skeleton.mdx), [Empty](./empty.mdx) — блоки, из которых
+  собраны состояния.

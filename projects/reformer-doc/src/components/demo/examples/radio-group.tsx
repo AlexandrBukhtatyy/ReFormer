@@ -1,10 +1,19 @@
-import { RadioGroupOptions, radioGroupBasePropsSchema } from '@reformer/ui-kit';
+import { useState } from 'react';
+import {
+  Label,
+  RadioGroup,
+  RadioGroupItem,
+  RadioGroupOptions,
+  radioGroupBasePropsSchema,
+} from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
+// У демо в одной вкладке — разные наборы значений: id вариантов RadioGroupOptions строятся из
+// data-testid и value, и одинаковые наборы без testId дали бы на странице одинаковые id.
 const LOAN = [
   { value: 'consumer', label: 'Потребительский' },
   { value: 'mortgage', label: 'Ипотека' },
@@ -17,97 +26,136 @@ const SIZES = [
   { value: 'l', label: 'L' },
 ];
 
+const PLANS = [
+  { value: 'basic', label: 'Базовый', tooltip: 'До трёх пользователей' },
+  { value: 'team', label: 'Команда', tooltip: 'До двадцати пользователей' },
+  { value: 'enterprise', label: 'Компания' },
+];
+
+const DELIVERY = [
+  { value: 'courier', label: 'Курьер' },
+  { value: 'pickup', label: 'Самовывоз' },
+];
+
+/** Вне формы: Radix RadioGroup и пункты с подписями собираются руками. */
+function ThemeRadio() {
+  const [theme, setTheme] = useState('light');
+  return (
+    <RadioGroup value={theme} onValueChange={setTheme}>
+      <div className="flex items-center gap-2">
+        <RadioGroupItem value="light" id="theme-light" />
+        <Label htmlFor="theme-light">Светлая</Label>
+      </div>
+      <div className="flex items-center gap-2">
+        <RadioGroupItem value="dark" id="theme-dark" />
+        <Label htmlFor="theme-dark">Тёмная</Label>
+      </div>
+    </RadioGroup>
+  );
+}
+
+const THEME_RADIO_CODE = `import { useState } from 'react';
+import { Label, RadioGroup, RadioGroupItem } from '@reformer/ui-kit';
+
+function ThemeRadio() {
+  const [theme, setTheme] = useState('light');
+  return (
+    <RadioGroup value={theme} onValueChange={setTheme}>
+      <div className="flex items-center gap-2">
+        <RadioGroupItem value="light" id="theme-light" />
+        <Label htmlFor="theme-light">Светлая</Label>
+      </div>
+      <div className="flex items-center gap-2">
+        <RadioGroupItem value="dark" id="theme-dark" />
+        <Label htmlFor="theme-dark">Тёмная</Label>
+      </div>
+    </RadioGroup>
+  );
+}`;
+
+// Пропсы панели API — из props-схемы варианта. label и options задаются baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(radioGroupBasePropsSchema), {
+  omit: ['label', 'options'],
+});
+
 export const radioGroupDocConfig: ComponentDocConfig = {
   name: 'RadioGroup',
   importFrom: '@reformer/ui-kit',
   description:
-    'Группа радио-кнопок на Radix (контейнер role=radiogroup). Для форм — RadioGroupOptions: рендерит опции из массива options; значение — строка (option.value | null).',
+    'Группа переключателей «один из нескольких». В форму — RadioGroupOptions: пункты из options, значение — string | null.',
   variants: [
-    {
+    fieldVariant({
       id: 'vertical',
-      title: 'Одиночный выбор (options)',
-      description:
-        'Плоский список опций через проп options. Значение — строка (value: string | null). По умолчанию вертикальная раскладка (grid gap-3).',
-      render: makeFieldVariant({
-        initial: null,
-        component: RadioGroupOptions,
-        componentProps: { label: 'Тип кредита', options: LOAN },
-      }),
-      code: `{
-  model: model.$.loanType,
-  component: RadioGroupOptions,
-  componentProps: {
-    label: 'Тип кредита',
-    options: [
-      { value: 'consumer', label: 'Потребительский' },
-      { value: 'mortgage', label: 'Ипотека' },
-      { value: 'auto', label: 'Авто' },
-    ],
-  },
-}`,
-    },
-    {
+      title: 'Один из нескольких',
+      description: 'RadioGroupOptions рисует пункты из options столбцом. Значение — string | null.',
+      field: 'loanType',
+      component: RadioGroupOptions,
+      componentName: 'RadioGroupOptions',
+      initial: null,
+      props: { label: 'Тип кредита', options: LOAN },
+    }),
+    fieldVariant({
       id: 'horizontal',
-      title: 'Горизонтальная раскладка (className)',
+      title: 'В строку',
       description:
-        'className переопределяет раскладку контейнера: grid-flow-col раскладывает варианты в строку.',
-      render: makeFieldVariant({
-        initial: 'm',
-        component: RadioGroupOptions,
-        componentProps: {
-          label: 'Размер',
-          options: SIZES,
-          className: 'grid-flow-col w-fit gap-6',
-        },
-      }),
-      code: `componentProps: {
-  label: 'Размер',
-  options: [
-    { value: 's', label: 'S' },
-    { value: 'm', label: 'M' },
-    { value: 'l', label: 'L' },
-  ],
-  className: 'grid-flow-col w-fit gap-6',
-}`,
+        'className заменяет раскладку контейнера: flex ставит пункты в строку вместо столбца.',
+      field: 'size',
+      component: RadioGroupOptions,
+      componentName: 'RadioGroupOptions',
+      initial: 'm',
+      showInitial: true,
+      props: { label: 'Размер', options: SIZES, className: 'flex flex-wrap gap-6' },
+    }),
+    fieldVariant({
+      id: 'option-hints',
+      title: 'Подсказка у пункта',
+      description:
+        'tooltip в пункте options ставит иконку после его подписи. Клик по иконке пункт не выбирает.',
+      field: 'plan',
+      component: RadioGroupOptions,
+      componentName: 'RadioGroupOptions',
+      initial: 'team',
+      showInitial: true,
+      props: { label: 'Тариф', options: PLANS },
+    }),
+    {
+      id: 'manual',
+      title: 'Ручная сборка',
+      description:
+        'Вне формы RadioGroup и RadioGroupItem собираются руками; подпись пункта связывают через id.',
+      render: ThemeRadio,
+      code: THEME_RADIO_CODE,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательный выбор (валидатор)',
+      title: 'Обязательный выбор',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: RadioGroupOptions,
-        componentProps: { label: 'Тип кредита', options: LOAN },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите тип кредита' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.loanType,
-  component: RadioGroupOptions,
-  componentProps: { label: 'Тип кредита', options: LOAN },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
-    },
-    {
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'loanType',
+      component: RadioGroupOptions,
+      componentName: 'RadioGroupOptions',
+      initial: null,
+      props: { label: 'Тип кредита', options: LOAN, required: true },
+      validators: [required({ code: 'loanType.required' })],
+      rules: "required({ code: 'loanType.required' })",
+      messages: { 'loanType.required': 'Выберите тип кредита' },
+      touched: true,
+    }),
+    fieldVariant({
       id: 'disabled',
-      title: 'Отключённая группа',
+      title: 'Заблокированная группа',
       description:
-        'disabled приходит из состояния узла (control.disable()), а не из componentProps — блокирует все варианты.',
-      render: makeFieldVariant({
-        initial: 'mortgage',
-        component: RadioGroupOptions,
-        componentProps: { label: 'Тип кредита', options: LOAN },
-        disabled: true,
-      }),
-      code: `const control = form.loanType;
-control.disable(); // блокирует всю группу`,
-    },
+        'Блокировка — состоянием поля (disable()), а не пропом: выключаются все пункты вместе с подписями.',
+      field: 'delivery',
+      component: RadioGroupOptions,
+      componentName: 'RadioGroupOptions',
+      initial: 'pickup',
+      showInitial: true,
+      props: { label: 'Доставка', options: DELIVERY },
+      disabled: true,
+    }),
   ],
   api: {
     component: RadioGroupOptions,
@@ -120,22 +168,15 @@ control.disable(); // блокирует всю группу`,
       { label: 'Ипотека', value: 'mortgage' },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label/options — задаются baseComponentProps (иначе перетрут initialValues undefined-ами).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(radioGroupBasePropsSchema), {
-      omit: ['label', 'options'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.loanType,
-  component: RadioGroupOptions,
-  componentProps: {
-    label: 'Тип кредита',
-    options: LOAN,${v.required ? '\n    required: true,' : ''}${v.description ? `\n    description: '${v.description}',` : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required()]);`,
+      fieldSnippet({
+        field: 'loanType',
+        component: 'RadioGroupOptions',
+        props: { label: 'Тип кредита', options: raw('LOAN_TYPES') },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

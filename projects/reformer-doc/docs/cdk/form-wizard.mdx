@@ -9,31 +9,46 @@ import { formWizardDocConfig } from '@site/src/components/demo/examples/cdk-form
 
 # FormWizard
 
-Headless многошаговый визард из `@reformer/cdk`. Шаги и их правила визард не хранит: это
-**поток шагов** сборки — `createForm({ flow: { steps: [{ id, rules }] } })`. Визард рисует поток
-(текущий шаг, пройденные, доступность) и зовёт его переходы. Кнопка «Далее» — это `flow.next()`:
-поток проверяет правила текущего шага и переходит дальше, только если замечаний нет; при
-замечаниях визард помечает поля тронутыми, и ошибки шага становятся видны.
+`FormWizard` рисует многошаговую форму: показывает текущий шаг, индикатор и прогресс, ведёт
+кнопки «Назад», «Далее» и «Отправить». Разметку каждой части вы пишете сами.
 
-<ComponentDoc config={formWizardDocConfig} />
+Шаги и их правила визард не хранит. Это [поток шагов](../reference/glossary.md#поведение-шаги-и-отправка)
+сборки формы: `createForm({ flow: { steps: [{ id, rules }] } })`. Визард рисует поток и зовёт его
+переходы. Как устроены многошаговые формы целиком — в руководстве
+[Многошаговые формы](/docs/guides/multi-step-forms).
 
-## Поток шагов в сборке
+## Когда использовать
 
-Правила шага привязаны к его идентификатору, а не к позиции: перестановка шагов не рассинхронизирует
-правила, а шаг без правил виден в конфиге явно (`{ id: 'confirm' }`). Если визард рисует рендерер
-по схеме, `id` шага — это `selector` узла шага.
+- Длинную анкету нужно разбить на шаги, и «Далее» не должна пускать дальше, пока шаг заполнен с
+  ошибками.
+- Индикатор шагов, прогресс и кнопки нужны в своём дизайне.
+
+Готовый визард с индикатором, прогрессом и кнопками — [FormWizard из ui-kit](../ui-kit/form-navigation.mdx).
+Его же рисует рендерер, когда шаги описаны в схеме.
+
+## Анатомия
+
+| Часть                  | Что делает                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `FormWizard`           | Корень: берёт поток и раздаёт состояние частям.                                                                  |
+| `FormWizard.Step`      | Содержимое шага: `component` + `control` или `children`. N-й `Step` виден, когда поток на N-м шаге.              |
+| `FormWizard.Indicator` | Индикатор шагов через функцию-ребёнка: шаги с `isCurrent`, `isCompleted`, `canNavigate` и переход `goToStep(n)`. |
+| `FormWizard.Progress`  | Прогресс через функцию-ребёнка: `current`, `total`, `percent`.                                                   |
+| `FormWizard.Actions`   | Кнопки: функция-ребёнок с `prev`, `next`, `submit` или готовые `Prev`, `Next`, `Submit` внутри.                  |
+
+Число и порядок `FormWizard.Step` совпадают с шагами потока: шаги сопоставляются по позиции.
+Номера шагов в частях визарда — с единицы.
 
 ```tsx
 import { createForm } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
 import { FormWizard } from '@reformer/cdk/form-wizard';
 
-// loanRules / contactsRules / crossStepRules — ValidationDefinition<CreditForm> (defineValidation)
+// loanRules, contactsRules — defineValidation(...), константы модуля
 function CreditWizard() {
   const bundle = useFormBundle(() =>
     createForm<CreditForm>({
       model: createCreditModel(),
-      validation: { extras: crossStepRules }, // правила вне шагов — только при отправке
       flow: {
         steps: [
           { id: 'loan', rules: loanRules },
@@ -50,7 +65,11 @@ function CreditWizard() {
       <FormWizard.Step component={ContactsStep} control={bundle.form} />
       <FormWizard.Step component={ConfirmStep} control={bundle.form} />
 
-      <FormWizard.Actions onSubmit={() => void bundle.submission.submit(sendApplication)}>
+      <FormWizard.Actions
+        onSubmit={async () => {
+          await bundle.submission.submit(sendApplication);
+        }}
+      >
         <FormWizard.Prev>Назад</FormWizard.Prev>
         <FormWizard.Next>Далее</FormWizard.Next>
         <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
@@ -60,135 +79,88 @@ function CreditWizard() {
 }
 ```
 
-Полный набор правил сборка собирает сама: правила всех шагов плюс `extras`. Его проверяет
-`bundle.validate()` и отправка `bundle.submission.submit(handler)`; один шаг —
-`bundle.validateStep('loan')` (неизвестный шаг — исключение). Правила — стабильные ссылки уровня
-модуля (`defineValidation`).
+### Как ходит поток
 
-Порядок `FormWizard.Step` совпадает с порядком шагов потока. Шаги считаются и в обёртках
-(`<div>` вокруг шагов), render-props-функции визард не трогает.
+«Далее» зовёт `flow.next()`: поток проверяет правила текущего шага и переходит, только если
+блокирующих замечаний нет. Проверенные поля шага помечаются тронутыми — ошибки становятся видны,
+а поля следующих шагов остаются нетронутыми. Назад можно всегда; вперёд по индикатору — только на
+пройденные шаги и на следующий за ними.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> loan
+    loan --> loan: next() — есть замечания
+    loan --> contacts: next() — шаг прошёл
+    contacts --> loan: previous()
+    contacts --> confirm: next() — шаг прошёл
+    confirm --> contacts: previous()
+    confirm --> [*]: submission.submit()
+```
+
+Возврат назад снимает отметку «пройден» с целевого шага и всех следующих: вперёд их снова
+проверит `next()`.
 
 ### Откуда визард берёт поток
 
 1. Проп `flow` — обычно `bundle.flow`.
-2. Сборка в контексте `FormBundleContext` (`@reformer/core/react`) — её ставит `FormRenderer`, а в
-   разметке руками можно поставить самому: `<FormBundleContext.Provider value={bundle}>`. Тогда
-   `form` и `flow` пропами не нужны.
-3. Ни того, ни другого — **позиционный поток без правил** по числу `FormWizard.Step`: переходы
-   работают, но шаги не проверяются.
+2. Сборка в `FormBundleContext` из `@reformer/core/react`. Её ставит `FormRenderer`, а в своей
+   разметке — `<FormBundleContext.Provider value={bundle}>`. Тогда `form` и `flow` пропами не нужны.
+3. Ни того, ни другого — поток по числу `FormWizard.Step` **без правил**: переходы работают, но шаги
+   не проверяются.
 
-## Отправка
+### Отправка
 
-Отправка формы — отдельный объект сборки `bundle.submission`. `bundle.submission.submit(handler)` —
-один прогон всех правил, при успехе — обработчик со значениями модели; сигнал
-`bundle.submission.submitting` — идёт ли обработчик. Результат — `SubmitResult`:
+Отправка — `bundle.submission.submit(handler)`: одна проверка полного набора правил (правила всех
+шагов плюс `validation.extras`), при успехе — обработчик со значениями модели.
 
-```ts
-const outcome = await bundle.submission.submit(sendApplication);
-// { status: 'submitted', result }                             — обработчик отработал
-// { status: 'invalid' | 'error' | 'cancelled', validation }   — проверка не пропустила
-// { status: 'failed', error }                                 — обработчик бросил исключение
-```
+- **Сборка в контексте** — кнопка «Отправить» визарда сама идёт через `bundle.submission` и зовёт
+  `onSubmit` у `Actions` только после успешной проверки.
+- **Поток пропом `flow`** — `onSubmit` зовётся по нажатию, проверку делает ваш обработчик:
+  `bundle.submission.submit(sendApplication)`, как в примере выше. Возвращайте из `onSubmit`
+  промис — тогда флаг `isSubmitting` держится всю отправку.
 
-Как до неё доходит кнопка визарда:
+### Управление снаружи
 
-- **сборка в контексте** (рендерер или `FormBundleContext.Provider`) — `FormWizard.Submit` и кнопка
-  `submit` из render-props зовут `onSubmit` через `bundle.submission`: только после успешной
-  проверки всей формы, а при отказе (`invalid`, `error`) вся форма помечается тронутой;
-- **без контекста** (поток пропом `flow`) — `onSubmit` зовётся по нажатию, проверку делает
-  приложение: `onSubmit={() => void bundle.submission.submit(sendApplication)}`, как в примере выше.
+`ref` у визарда нет. Код вне визарда работает с тем же потоком: `bundle.flow.next()`,
+`previous()`, `goTo(id)`, `canGoTo(id)`, `reset()`. Перерисовку при смене шага даёт
+`useFormFlow(bundle.flow)` из `@reformer/core/react`. Внутри визарда то же доступно хуком
+`useFormWizard()`: `goToNextStep()`, `goToPreviousStep()`, `goToStep(n)`, `submit(handler)`.
 
-Из любого потомка визарда отправку можно вызвать и вручную — `submit` из `useFormWizard()` ведёт себя
-так же и возвращает `SubmitResult`.
+Переходы снаружи не вызывают `onStepChange` и не прокручивают страницу — это визард делает только
+для своих кнопок.
 
-## Управление снаружи визарда
+По умолчанию правила шага проверяются на «Далее», а вся форма — при отправке. Проверку при вводе
+включает стратегия сборки — `createForm({ validation: { strategy: 'blur' } })`, см.
+[Стратегии валидации](../validation/validation-strategies.md).
 
-Ref визарда не нужен: поток — обычный объект сборки, им управляют напрямую. Переходы возвращают
-`FlowTransition` — `{ status: 'moved', from, to }` либо `{ status: 'stayed', step, reason }`, где
-`reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`. `cancelled` у `next()` — проверка
-шага устарела: её сменила следующая, поток перевели либо модель изменилась, пока она шла (поле
-правили во время async-правила) — шаг пройденным не считается, переход повторяют.
+## Примеры
 
-```tsx
-import type { FormBundle } from '@reformer/core';
-import { useFormFlow } from '@reformer/core/react';
+<ComponentDoc config={formWizardDocConfig} />
 
-function WizardToolbar({ bundle }: { bundle: FormBundle<CreditForm> }) {
-  const flow = bundle.flow!;
-  const { current, index, isLast, validating } = useFormFlow(flow); // перерисовка при смене шага
+## Доступность
 
-  return (
-    <div>
-      <span>
-        Шаг {index + 1} из {flow.steps.length}: {current}
-      </span>
-      <button onClick={() => flow.goTo('loan')}>К условиям кредита</button>
-      <button disabled={isLast || validating} onClick={() => void flow.next()}>
-        Далее
-      </button>
-    </div>
-  );
-}
-```
+- При смене шага визард объявляет скринридеру «Шаг N из M» через скрытый регион
+  `role="status"` с `aria-live="polite"`.
+- Фокус после перехода визард не переносит. Переведите его на заголовок шага в `onStepChange`.
+- `scrollToTop` (по умолчанию `true`) прокручивает страницу к началу после переходов визарда.
+  Выключите его, если визард стоит не в начале страницы.
+- `Prev` и `Next` — `<button type="button">`, `Submit` — `<button type="submit">`. Если визард стоит
+  внутри своего `<form>`, отмените нативную отправку в его `onSubmit` (`event.preventDefault()`).
+- Готовые кнопки отключаются сами: «Назад» — на первом шаге, «Далее» — на последнем, «Отправить» —
+  до последнего, все три — пока идёт проверка или отправка. Атрибуты `data-first-step`,
+  `data-last-step`, `data-not-last-step`, `data-submitting` помогают спрятать лишнюю кнопку стилями.
+- `aria-current="step"` у индикатора ставите вы — флаг `isCurrent` приходит в функцию-ребёнка.
 
-| Член потока          | Назначение                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------- |
-| `steps`              | идентификаторы шагов по порядку                                                           |
-| `current` / `index`  | сигналы текущего шага и его номера с нуля                                                 |
-| `completed`          | сигнал пройденных шагов (`ReadonlySet<string>`)                                           |
-| `isFirst` / `isLast` | сигналы крайних шагов                                                                     |
-| `validating`         | идёт ли проверка шага в `next()`                                                          |
-| `next()`             | проверить текущий шаг и перейти дальше — `Promise<FlowTransition>`                        |
-| `previous()`         | шаг назад; пройденными остаются только шаги до него                                       |
-| `goTo(id)`           | перейти на шаг; на непройденный — `stayed` с `reason: 'locked'`, неизвестный — исключение |
-| `canGoTo(id)`        | доступен ли шаг: первый — всегда, остальные — после прохождения предыдущего               |
-| `reset()`            | вернуться на первый шаг и забыть пройденные                                               |
+## Локализация
 
-В поведении формы поток приходит в область: `defineFormBehavior(({ model, flow }) => …)` —
-например, вернуть пользователя на шаг при смене условия:
+Видимый текст — подписи шагов и кнопок — ваш. Сам визард произносит одну строку: статус
+«Шаг N из M» для скринридера, ключ `cdk.formWizard.stepStatus` с параметрами `current` и
+`total`. Язык задаёт `I18nProvider` из `@reformer/core/react`; как подключить строки cdk — на
+странице [Локализация](./locale.md). Тексты замечаний полей шага — [Тексты замечаний](./validation-messages.mdx).
 
-```ts
-import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+## См. также
 
-export const creditBehavior = defineFormBehavior<CreditForm>(({ model, flow }) => {
-  onChange(model.$.loanType, () => {
-    flow?.goTo('loan');
-  });
-});
-```
-
-## Состояние внутри визарда — `useFormWizard`
-
-Потомки визарда читают контекст хуком `useFormWizard()`: `form`, `flow`, `currentStep` (с единицы),
-`totalSteps`, `completedSteps` (номера с единицы), `isFirstStep`, `isLastStep`, `isValidating`,
-`isSubmitting`, переходы `goToNextStep()`, `goToPreviousStep()`, `goToStep(n)` и `submit(handler)`.
-`goToStep(n)` принимает номер шага с единицы и возвращает `false`, если шаг ещё недоступен.
-
-Колбэк `onStepChange(step)` визарда получает номер нового шага с единицы; `scrollToTop` (по
-умолчанию `true`) прокручивает страницу к началу при смене шага.
-
-## Живая проверка
-
-По умолчанию правила шага проверяются только на «Далее», а вся форма — при отправке. Живую
-проверку включает стратегия сборки — `validation.strategy`:
-
-```ts
-createForm<CreditForm>({
-  model: createCreditModel(),
-  validation: { extras: crossStepRules, strategy: 'blur' },
-  flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
-});
-```
-
-Значения — `'submit'` (по умолчанию, живой проверки нет), `'blur'`, `'change'` (с `debounce`) и
-`'afterFirstSubmit'` (тихо до первой попытки отправки, затем по `liveAfterSubmit`; «Далее»,
-`bundle.validate()` и `bundle.validateStep()` живую фазу не включают). Стратегию армирует
-`useFormBundle`. Ошибки видны только у полей, которые трогали или меняли, поэтому поля следующих
-шагов не подсвечиваются раньше времени. Переход «Далее» и отправка от стратегии не зависят.
-
-:::info Прежний контракт
-`config={…}` с `validateStep` / `validateAll`, `defineSteps`, `useWizardStepValidation`,
-`FormWizardConfig`, `FormWizardHandle` и `ref` визарда удалены. Шаги и правила — `createForm({ flow })`,
-отправка — `bundle.submission.submit(handler)`, управление снаружи — `bundle.flow`, живая проверка —
-`validation.strategy` сборки.
-:::
+- [Многошаговые формы](/docs/guides/multi-step-forms) — поток шагов, правила и отправка целиком.
+- [FormWizard в ui-kit](../ui-kit/form-navigation.mdx) — готовый визард.
+- [Стратегии валидации](../validation/validation-strategies.md) — проверка при вводе.

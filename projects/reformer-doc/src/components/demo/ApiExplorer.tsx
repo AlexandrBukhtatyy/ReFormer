@@ -11,12 +11,13 @@ import { ChevronDown } from 'lucide-react';
 import { useDemoField } from './harness';
 import { ApiPreview, type CodeFlavor } from './ApiPreview';
 import type { ApiConfig, ApiControl, ApiValues } from './types';
+import { demoText } from './messages';
 import styles from './styles.module.css';
 
 /** Богатый таб API в стиле TaigaUI. Живой рендер только на клиенте. */
 export function ApiExplorer({ api }: { api: ApiConfig }) {
   return (
-    <BrowserOnly fallback={<div className={styles.fallback}>Загрузка демо…</div>}>
+    <BrowserOnly fallback={<div className={styles.fallback}>{demoText.loading()}</div>}>
       {() => <ApiExplorerInner api={api} />}
     </BrowserOnly>
   );
@@ -24,7 +25,8 @@ export function ApiExplorer({ api }: { api: ApiConfig }) {
 
 function initialValues(controls: ApiControl[]): ApiValues {
   const v: ApiValues = {};
-  for (const c of controls) if (c.kind !== 'readonly') v[c.prop] = c.default;
+  for (const c of controls)
+    if (c.kind !== 'readonly' && c.default !== undefined) v[c.prop] = c.default;
   return v;
 }
 
@@ -40,7 +42,14 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
       ...api.baseComponentProps,
       ...Object.fromEntries(
         api.controls
-          .filter((c) => c.kind !== 'readonly' && c.prop !== 'disabled')
+          .filter(
+            (c) =>
+              c.kind !== 'readonly' &&
+              c.prop !== 'disabled' &&
+              c.default !== undefined &&
+              // Пустой текст — проп не задан: компонент возьмёт своё умолчание (из словаря).
+              !(c.kind === 'text' && c.default === '')
+          )
           .map((c) => [c.prop, c.default])
       ),
     },
@@ -50,8 +59,16 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const value = useFormControlValue(control as any);
 
-  const setControl = (c: ApiControl, raw: string | number | boolean) => {
-    setValues((prev) => ({ ...prev, [c.prop]: raw }));
+  const setControl = (c: ApiControl, input: string | number | boolean | undefined) => {
+    // `undefined` — поле очищено: проп снимается. Число не становится нулём, а пустой текст не
+    // перекрывает умолчание компонента (например, подсказку из словаря кита).
+    const raw = c.kind === 'text' && input === '' ? undefined : input;
+    setValues((prev) => {
+      const next = { ...prev };
+      if (raw === undefined) delete next[c.prop];
+      else next[c.prop] = raw;
+      return next;
+    });
     if (c.prop === 'disabled') {
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       raw ? control.disable() : control.enable();
@@ -69,7 +86,7 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
     control.markAsTouched();
     // Внешний раннер: Promise<boolean>, ошибки сам роутит в ноду поля.
     const ok = await validateModel(model, validation);
-    setStatus(ok ? '✅ valid' : '❌ invalid');
+    setStatus(ok ? demoText.valid() : demoText.invalid());
   };
 
   // Группировка контролов с сохранением порядка появления групп.
@@ -89,7 +106,9 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
     <>
       {/* Form data output (сворачивается кнопкой «Value») */}
       {showData && (
-        <pre className={styles.apiOutput}>Form data: {JSON.stringify({ value }, null, 2)}</pre>
+        <pre className={styles.apiOutput}>
+          {demoText.formData()}: {JSON.stringify({ value }, null, 2)}
+        </pre>
       )}
 
       {/* Value controls */}
@@ -100,7 +119,7 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
           onClick={() => setShowData((s) => !s)}
           aria-expanded={showData}
         >
-          Value
+          {demoText.value()}
           <ChevronDown size={16} className={styles.apiChevron} data-open={showData} />
         </button>
         <div className={styles.apiValueBtns}>
@@ -111,14 +130,14 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
             <ChangeSelect presets={api.valuePresets} onPick={(v) => control.setValue(v)} />
           )} */}
           <button type="button" className={styles.apiBtn} onClick={onReset}>
-            Reset
+            {demoText.reset()}
           </button>
           <button
             type="button"
             className={clsx(styles.apiBtn, styles.apiBtnPrimary)}
             onClick={onSubmit}
           >
-            Submit
+            {demoText.submit()}
           </button>
           {status && <span className={styles.apiStatus}>{status}</span>}
         </div>
@@ -265,7 +284,7 @@ function ControlRow({
 }: {
   control: ApiControl;
   value: string | number | boolean | undefined;
-  onChange: (value: string | number | boolean) => void;
+  onChange: (value: string | number | boolean | undefined) => void;
 }) {
   return (
     <div className={styles.controlRow}>
@@ -288,7 +307,7 @@ function ControlWidget({
 }: {
   control: ApiControl;
   value: string | number | boolean | undefined;
-  onChange: (value: string | number | boolean) => void;
+  onChange: (value: string | number | boolean | undefined) => void;
 }) {
   if (control.kind === 'boolean') {
     return (
@@ -319,11 +338,11 @@ function ControlWidget({
       <input
         className={styles.knobControl}
         type="number"
-        value={Number(value)}
+        value={value === undefined ? '' : Number(value)}
         min={control.min}
         max={control.max}
         step={control.step}
-        onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+        onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
       />
     );
   }

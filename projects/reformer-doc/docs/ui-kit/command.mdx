@@ -2,6 +2,7 @@
 id: command
 title: Command
 sidebar_label: Command
+description: Палитра команд — поле поиска и список, по которому ходят стрелками.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,11 +10,133 @@ import { commandDocConfig } from '@site/src/components/demo/examples/command';
 
 # Command
 
-Командная палитра на shadcn / [cmdk](https://cmdk.paco.me). Корень `Command`
-управляет фильтрацией и клавиатурной навигацией; `CommandInput` фильтрует список
-на лету, `CommandList` прокручивает результаты, а `CommandGroup` / `CommandItem` /
-`CommandSeparator` / `CommandShortcut` / `CommandEmpty` формируют структуру.
-`CommandDialog` оборачивает палитру в модальный `Dialog` — классический паттерн
-`⌘K`. Все части несут свой `data-slot`.
+Палитра команд: поле поиска и список под ним. Ввод сужает список, стрелки выбирают пункт, `Enter`
+выполняет. В окне (`CommandDialog`) получается привычная палитра по `⌘K`. Построена на
+[cmdk](https://cmdk.paco.me) и входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`,
+это не поле формы.
+
+Палитра тянет внешнюю библиотеку, поэтому в общий импорт `@reformer/ui-kit` не входит. Поставьте
+зависимость и импортируйте из отдельного входа:
+
+```bash
+npm install cmdk
+```
+
+```tsx
+import { Command, CommandInput, CommandList, CommandItem } from '@reformer/ui-kit/command';
+```
+
+## Когда брать
+
+- **Command** — много команд или разделов, и найти нужную быстрее поиском: палитра `⌘K`, переход к
+  странице, выбор действия.
+- [DropdownMenu](./dropdown-menu.mdx) — несколько действий за кнопкой, поиск не нужен.
+- [Combobox](./combobox.mdx) — выбрать значение поля формы из списка с поиском. Combobox построен
+  на тех же частях Command и сам связан с формой.
+- [Select](./select.mdx) — значение из короткого списка без поиска.
+
+## Анатомия
+
+```tsx
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+  CommandShortcut,
+} from '@reformer/ui-kit/command';
+
+<CommandDialog open={open} onOpenChange={setOpen}>
+  <CommandInput placeholder="Команда или раздел…" />
+  <CommandList>
+    <CommandEmpty>Ничего не найдено.</CommandEmpty>
+    <CommandGroup heading="Разделы">
+      <CommandItem onSelect={() => navigate('/applications')}>Заявки</CommandItem>
+      <CommandItem keywords={['настройки', 'профиль']} onSelect={() => navigate('/settings')}>
+        Настройки
+        <CommandShortcut>⌘,</CommandShortcut>
+      </CommandItem>
+    </CommandGroup>
+    <CommandSeparator />
+    {/* ещё группы */}
+  </CommandList>
+</CommandDialog>;
+```
+
+| Часть              | Что это                                                         | Ключевые пропсы                                                               |
+| ------------------ | --------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `Command`          | Корень палитры на странице: поиск и выбор стрелками.            | `label`, `filter`, `shouldFilter` (`true`), `loop`, `value` + `onValueChange` |
+| `CommandDialog`    | Та же палитра в модальном окне [Dialog](./dialog.mdx).          | `open` + `onOpenChange`, `title`, `description`, `showCloseButton`            |
+| `CommandInput`     | Поле поиска с лупой.                                            | `placeholder`, `value` + `onValueChange`                                      |
+| `CommandList`      | Список результатов, прокрутка после 300px.                      | —                                                                             |
+| `CommandEmpty`     | Текст, когда поиск ничего не нашёл.                             | —                                                                             |
+| `CommandGroup`     | Группа с заголовком. Прячется, если поиск отсеял все её пункты. | `heading`                                                                     |
+| `CommandItem`      | Пункт.                                                          | `onSelect`, `value`, `keywords`, `disabled`                                   |
+| `CommandSeparator` | Линия между группами.                                           | —                                                                             |
+| `CommandShortcut`  | Подпись сочетания клавиш у правого края пункта.                 | —                                                                             |
+
+- Поиск идёт по тексту пункта (или его `value`) и по `keywords` — синонимам, которых не видно.
+- Действие вешайте на `onSelect`: он срабатывает и по `Enter`, и по щелчку.
+- Сочетание `⌘K` палитра сама не слушает. Повесьте обработчик `keydown` на `document`, как в
+  примере «Палитра команд (⌘K)», а `CommandShortcut` — только подпись.
+- Данные с сервера: отключите встроенный поиск (`shouldFilter={false}`), берите текст из
+  `onValueChange` у `CommandInput` и рисуйте пункты из ответа.
+
+## Примеры
 
 <ComponentDoc config={commandDocConfig} />
+
+## Доступность
+
+Фокус всё время остаётся в поле поиска, клавиши обрабатывает cmdk:
+
+| Клавиша             | Действие                                                  |
+| ------------------- | --------------------------------------------------------- |
+| `↓` / `↑`           | Следующий / предыдущий пункт.                             |
+| `Home` / `End`      | Первый / последний пункт.                                 |
+| `Alt+↓` / `Alt+↑`   | Первый пункт следующей / предыдущей группы.               |
+| `Ctrl+N` / `Ctrl+P` | То же, что `↓` / `↑` (выключается `vimBindings={false}`). |
+| `Enter`             | Выполнить выделенный пункт.                               |
+| `Esc`               | В `CommandDialog` — закрыть окно.                         |
+
+- Поле — `role="combobox"`, список — `listbox`, пункты — `option` с `aria-selected`; выделенный
+  пункт объявляется через `aria-activedescendant`.
+- Дайте палитре на странице имя пропом `label` у `Command` — его прочитает скринридер.
+- У `CommandDialog` заголовок и описание окна скрыты (`sr-only`) и берутся из словаря кита или
+  пропов `title` и `description`. Сейчас эта скрытая шапка стоит в разметке страницы и тогда, когда
+  окно закрыто.
+
+## Локализация
+
+Кит рисует сам только скрытые заголовок и описание `CommandDialog`; поле поиска, пункты и
+`CommandEmpty` — ваш текст.
+
+| Ключ словаря              | English                        | Русский                                |
+| ------------------------- | ------------------------------ | -------------------------------------- |
+| `kit.command.title`       | Command Palette                | Палитра команд                         |
+| `kit.command.description` | Search for a command to run... | Найдите команду, чтобы выполнить её... |
+
+Для одного окна строки задают пропы `title` и `description` у `CommandDialog`. Для всего
+приложения язык берётся из `I18nProvider` (`@reformer/core/react`) с локалью кита `loadKitLocale`
+из `@reformer/ui-kit/locale`; без провайдера строки английские. Свою формулировку задаёт источник
+словаря после `loadKitLocale`:
+
+```tsx
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+const loadLocale = createLocaleLoader([
+  loadKitLocale,
+  (code) => (code === 'ru' ? { 'kit.command.title': 'Быстрый переход' } : null),
+]);
+```
+
+## См. также
+
+- [Combobox](./combobox.mdx) — поле формы с поиском по списку.
+- [DropdownMenu](./dropdown-menu.mdx) — меню действий за кнопкой.
+- [Dialog](./dialog.mdx) — окно, в котором живёт `CommandDialog`.
+- [Документация cmdk](https://github.com/pacocoursey/cmdk) — все пропсы и свой фильтр.

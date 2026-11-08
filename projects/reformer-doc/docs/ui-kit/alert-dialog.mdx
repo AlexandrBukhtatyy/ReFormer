@@ -2,6 +2,7 @@
 id: alert-dialog
 title: AlertDialog
 sidebar_label: AlertDialog
+description: Окно-подтверждение перед необратимым действием — нужен явный ответ.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,13 +10,110 @@ import { alertDialogDocConfig } from '@site/src/components/demo/examples/alert-d
 
 # AlertDialog
 
-Модальное окно-подтверждение на shadcn / Radix AlertDialog. Это compound-компонент:
-корень `AlertDialog` (управляет состоянием), `AlertDialogTrigger` (открывает),
-`AlertDialogContent` (тело в `Portal` с оверлеем), `AlertDialogHeader` +
-`AlertDialogTitle` / `AlertDialogDescription` (+ опц. `AlertDialogMedia` для иконки),
-`AlertDialogFooter` с парой `AlertDialogCancel` / `AlertDialogAction`. В отличие от
-`Dialog`, у окна роль `alertdialog` и нет крестика — закрытие только через явные кнопки.
-`AlertDialogAction` / `AlertDialogCancel` обёрнуты в `Button` и принимают `variant` /
-`size` из `buttonVariants`. Focus-trap и `aria` — из Radix «из коробки».
+Окно, которое задаёт вопрос и ждёт ответа: «Удалить проект?» — «Отмена» или «Удалить». Щелчок мимо
+окна его не закрывает. Построено на Radix AlertDialog и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **AlertDialog** — перед необратимым или дорогим действием: удалить, отозвать, отправить без
+  возможности правки. Человек должен прочитать последствия и ответить.
+- [Dialog](./dialog.mdx) — окно с содержимым или формой, которое можно закрыть в любой момент.
+- [Popover](./popover.mdx) — лёгкое подтверждение рядом с кнопкой, когда ошибка не страшна.
+- [Sonner](./sonner.mdx) с кнопкой «Отменить» — вместо подтверждения: действие выполняется сразу,
+  а отменить его можно несколько секунд.
+
+Не спрашивайте подтверждения по пустякам: если окно появляется на каждое действие, его перестают
+читать.
+
+## Анатомия
+
+```tsx
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/alert-dialog'
+
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="destructive">Удалить проект</Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
+      <AlertDialogDescription>
+        Задачи и файлы удалятся без возможности восстановления.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Отмена</AlertDialogCancel>
+      <AlertDialogAction variant="destructive" onClick={removeProject}>
+        Удалить
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>;
+```
+
+| Часть                    | Что это                                             | Ключевые пропсы                          |
+| ------------------------ | --------------------------------------------------- | ---------------------------------------- |
+| `AlertDialog`            | Корень: хранит, открыто ли окно. Всегда модальный.  | `open` + `onOpenChange`, `defaultOpen`   |
+| `AlertDialogTrigger`     | Кнопка, которая открывает окно.                     | `asChild`                                |
+| `AlertDialogContent`     | Окно в портале с затемнением. Крестика нет.         | `size`: `default`, `sm`                  |
+| `AlertDialogHeader`      | Шапка: иконка, заголовок, описание.                 | —                                        |
+| `AlertDialogMedia`       | Квадрат с иконкой над заголовком.                   | —                                        |
+| `AlertDialogTitle`       | Вопрос. Обязателен.                                 | —                                        |
+| `AlertDialogDescription` | Последствия действия.                               | —                                        |
+| `AlertDialogFooter`      | Ряд кнопок.                                         | —                                        |
+| `AlertDialogCancel`      | «Отмена»: закрывает окно без действия.              | `variant` (`outline`), `size`            |
+| `AlertDialogAction`      | Подтверждение: выполняет действие и закрывает окно. | `variant` (`default`), `size`, `onClick` |
+
+- `AlertDialogAction` и `AlertDialogCancel` — это [Button](./button.mdx): опасному действию дайте
+  `variant="destructive"`.
+- `size="sm"` — узкое окно с текстом по центру и кнопками в две колонки, для коротких вопросов.
+- Окно закрывается сразу по нажатию `AlertDialogAction`. Если действие асинхронное и окно должно
+  дождаться ответа сервера, управляйте открытием сами (`open` + `onOpenChange`) и вызовите
+  `event.preventDefault()` в `onClick` кнопки — тогда Radix окно не закроет.
+- Пишите кнопки глаголом действия («Удалить», «Отозвать»), а не «Да» / «ОК»: ответ понятен без
+  чтения вопроса.
+
+## Примеры
 
 <ComponentDoc config={alertDialogDocConfig} />
+
+## Доступность
+
+Фокус, клавиатуру и атрибуты даёт Radix AlertDialog:
+
+| Клавиша             | Действие                                                 |
+| ------------------- | -------------------------------------------------------- |
+| `Tab` / `Shift+Tab` | Перейти между кнопками; фокус не уходит за пределы окна. |
+| `Enter` / `Space`   | Нажать кнопку под фокусом.                               |
+| `Esc`               | Закрыть окно — то же, что «Отмена».                      |
+
+- При открытии фокус встаёт на `AlertDialogCancel`: случайный `Enter` ничего не удалит. При
+  закрытии фокус возвращается на триггер.
+- У окна `role="alertdialog"`. Заголовок и описание связаны с ним через `aria-labelledby` и
+  `aria-describedby`, скринридер читает их сразу при открытии.
+- Щелчок по затемнению окно не закрывает, остальная страница скрыта от скринридера.
+- `AlertDialogTitle` обязателен, `AlertDialogDescription` очень желателен — без них Radix пишет
+  предупреждение в консоль.
+
+## Локализация
+
+Своих строк компонент не рисует: вопрос, описание и подписи кнопок — ваши.
+
+## См. также
+
+- [Dialog](./dialog.mdx) — окно с содержимым или формой.
+- [Sonner](./sonner.mdx) — уведомление с кнопкой «Отменить».
+- [Button](./button.mdx) — варианты кнопок для действия и отмены.
+- [Radix AlertDialog](https://www.radix-ui.com/primitives/docs/components/alert-dialog) — полный
+  список пропсов примитива.

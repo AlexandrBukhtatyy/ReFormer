@@ -673,3 +673,14 @@
     justify-content: flex-start;
   }
 }
+
+/* ── LiveExample: живой пример на страницах-руководствах ─────────────── */
+.liveExample {
+  margin: 0 0 var(--ifm-leading);
+}
+
+.liveExampleCaption {
+  margin-top: 0.5rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.875rem;
+}

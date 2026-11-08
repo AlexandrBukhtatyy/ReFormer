@@ -6,16 +6,18 @@ import { VariantGallery } from './VariantGallery';
 import { Playground } from './Playground';
 import { ApiExplorer } from './ApiExplorer';
 import { ApiPreview } from './ApiPreview';
+import { DemoLocale } from './DemoLocale';
 import { PropsTable } from './PropsTable';
 import type { ComponentDocConfig } from './types';
+import { demoText } from './messages';
 import styles from './styles.module.css';
 
 type TabId = 'variants' | 'examples' | 'api';
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'variants', label: 'Variants' },
-  { id: 'examples', label: 'Examples' },
-  { id: 'api', label: 'API' },
+const TABS: { id: TabId; label: () => string }[] = [
+  { id: 'variants', label: demoText.tabVariants },
+  { id: 'examples', label: demoText.tabExamples },
+  { id: 'api', label: demoText.tabApi },
 ];
 
 function isTabId(value: string): value is TabId {
@@ -47,83 +49,82 @@ export function ComponentDoc({ config }: { config: ComponentDocConfig }) {
   };
 
   return (
-    <div className={styles.componentDoc}>
-      <div className={styles.tabBar} role="tablist" aria-label={`${config.name} documentation`}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={active === t.id}
-            className={clsx(styles.tab, active === t.id && styles.tabActive)}
-            onClick={() => onTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
+    <DemoLocale>
+      <div className={styles.componentDoc}>
+        <div className={styles.tabBar} role="tablist" aria-label={demoText.tabsLabel(config.name)}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active === t.id}
+              className={clsx(styles.tab, active === t.id && styles.tabActive)}
+              onClick={() => onTab(t.id)}
+            >
+              {t.label()}
+            </button>
+          ))}
 
-        <div className={styles.hint}>
-          <button
-            type="button"
-            className={styles.hintTrigger}
-            aria-label="В чём разница между Variants и Examples"
-            aria-describedby={hintId}
-          >
-            <Info size={16} aria-hidden />
-          </button>
-          <div role="tooltip" id={hintId} className={styles.tooltip}>
-            <p>
-              <strong>Variants</strong> — готовые конфигурации компонента: один и тот же компонент с
-              разными преднастроенными пропсами. Витрина состояний (напр. обычный Select и Select с
-              расширенной информацией — два варианта).
-            </p>
-            <p>
-              <strong>Examples</strong> — приёмы в коде: как решить задачу. Напр. как разные Data
-              Provider’ы работают с компонентом (рецепты использования).
-            </p>
+          <div className={styles.hint}>
+            <button
+              type="button"
+              className={styles.hintTrigger}
+              aria-label={demoText.tabsHintLabel()}
+              aria-describedby={hintId}
+            >
+              <Info size={16} aria-hidden />
+            </button>
+            <div role="tooltip" id={hintId} className={styles.tooltip}>
+              <p>
+                <strong>{demoText.tabVariants()}</strong> — {demoText.tabsHintVariants()}
+              </p>
+              <p>
+                <strong>{demoText.tabExamples()}</strong> — {demoText.tabsHintExamples()}
+              </p>
+            </div>
           </div>
         </div>
+
+        {active === 'variants' && <VariantGallery variants={config.variants} />}
+
+        {active === 'examples' && (
+          <div>
+            {config.examples.map((ex) => {
+              const Render = ex.render;
+              return (
+                <section key={ex.id} className={styles.example}>
+                  <Heading as="h3" id={ex.id} className={styles.exampleTitle}>
+                    {ex.title}
+                  </Heading>
+                  {ex.description && <p className={styles.exampleDesc}>{ex.description}</p>}
+                  <ApiPreview
+                    minimal
+                    showFooter={false}
+                    codeFlavors={[
+                      { id: 'code', label: demoText.code(), language: ex.language, code: ex.code },
+                    ]}
+                  >
+                    <Render />
+                  </ApiPreview>
+                </section>
+              );
+            })}
+          </div>
+        )}
+
+        {active === 'api' &&
+          (config.api ? (
+            <ApiExplorer api={config.api} />
+          ) : config.playground ? (
+            <Playground playground={config.playground} props={config.props} />
+          ) : config.props && config.props.length > 0 ? (
+            <div className={styles.propsTableWrap}>
+              <PropsTable rows={config.props} />
+            </div>
+          ) : (
+            <p>{demoText.noPlayground()}</p>
+          ))}
       </div>
-
-      {active === 'variants' && <VariantGallery variants={config.variants} />}
-
-      {active === 'examples' && (
-        <div>
-          {config.examples.map((ex) => {
-            const Render = ex.render;
-            return (
-              <section key={ex.id} className={styles.example}>
-                <Heading as="h3" id={ex.id} className={styles.exampleTitle}>
-                  {ex.title}
-                </Heading>
-                {ex.description && <p className={styles.exampleDesc}>{ex.description}</p>}
-                <ApiPreview
-                  minimal
-                  showFooter={false}
-                  codeFlavors={[
-                    { id: 'code', label: 'Code', language: ex.language, code: ex.code },
-                  ]}
-                >
-                  <Render />
-                </ApiPreview>
-              </section>
-            );
-          })}
-        </div>
-      )}
-
-      {active === 'api' &&
-        (config.api ? (
-          <ApiExplorer api={config.api} />
-        ) : config.playground ? (
-          <Playground playground={config.playground} props={config.props} />
-        ) : config.props && config.props.length > 0 ? (
-          <div className={styles.propsTableWrap}>
-            <PropsTable rows={config.props} />
-          </div>
-        ) : (
-          <p>Для этого компонента нет интерактивного playground.</p>
-        ))}
-    </div>
+    </DemoLocale>
   );
 }

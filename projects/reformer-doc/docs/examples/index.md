@@ -1,58 +1,92 @@
 ---
 id: index
 title: Примеры
-sidebar_label: Обзор
+sidebar_label: Примеры
 ---
 
 # Примеры
 
-Живые примеры запускаются в песочнице [react-playground](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx).
-Интерактивную документацию отдельных компонентов смотрите в разделе
-[@reformer/ui-kit](/docs/ui-kit/overview) (Variants / Examples / API у каждого компонента).
+Где посмотреть ReFormer в работе: живые примеры прямо в документации, демо-стенд репозитория с
+большими формами и интерактивные страницы компонентов.
 
-## Одна форма — три подхода
+## Живые примеры в документации
 
-Флагманский пример — многошаговая **заявка на кредит** — реализован тремя способами
-на одной и той же сборке `createForm`. Это лучший способ понять, чем отличаются слои экосистемы.
+Работающая форма и её код в одной карточке: вкладка «Код» показывает тот же файл, что работает в
+превью.
 
-<div className="api-grid">
+| Пример                             | Что показывает                                                     | Страница                                            |
+| ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------- |
+| Форма обратной связи               | модель, схема, правила, отправка и сброс — весь путь за пять минут | [Быстрый старт](/docs/getting-started/quick-start)  |
+| Регистрация с переключателем языка | `I18nProvider`, словари кита, перевод подписей и замечаний на лету | [Локализация](/docs/guides/localization)            |
+| Мастер на три шага                 | поток шагов, правила шага, `FormWizard` из `@reformer/ui-kit`      | [Многошаговые формы](/docs/guides/multi-step-forms) |
 
-<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx">
-  <h3>🧱 Core + ручной JSX</h3>
-  <p>createForm + FormWizard, поля выведены как &lt;FormField control={form.x} /&gt;. Максимум контроля.</p>
-  <span className="api-count">/demo/complex</span>
-</a>
+Компоненты [UI Kit](/docs/ui-kit/overview) и [CDK](/docs/cdk/overview) показаны на своих
+страницах: варианты, примеры и пропсы у каждого компонента.
 
-<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx">
-  <h3>🖼️ renderer-react</h3>
-  <p>Та же сборка, форму рисует FormRenderer по дереву схемы. Форма как данные.</p>
-  <span className="api-count">/demo/complex-renderer</span>
-</a>
+## Демо-стенд репозитория
 
-<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson.tsx">
-  <h3>📄 renderer-json</h3>
-  <p>Та же сборка, схема — документ JSON + реестр компонентов. Форма приходит данными с бэкенда.</p>
-  <span className="api-count">/demo/json-renderer</span>
-</a>
+Большие формы и отдельные возможности собраны в приложении
+[`projects/react-playground`](https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground).
+Открыть его можно двумя способами:
 
-</div>
+- **В браузере** —
+  [в StackBlitz](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx),
+  без установки.
+- **Локально** — в корне репозитория `npm install`, затем `npm run dev`. Страницы ниже открываются
+  по адресам `/demo/...` этого приложения.
 
-### Чем отличаются подходы
+### Одна форма — три способа
 
-| Подход             | Форма описана                                  | Когда выбирать                                                                 |
-| ------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Core + JSX**     | React-кодом (`<FormField control={form.x} />`) | Нужен полный контроль над разметкой и логикой шага.                            |
-| **renderer-react** | TS-схемой (`(model) => FormSchemaNode`)        | Форма — данные; хочется декларативности без ручного JSX на каждое поле.        |
-| **renderer-json**  | JSON-документом + реестром                     | Форма приходит с бэкенда/CMS, генерируется или конфигурируется без пересборки. |
+Флагманский пример — многошаговая заявка на кредит. Она сделана тремя способами на одной сборке
+`createForm`: модель, правила, поведение и шаги общие, меняется только то, чем описана схема и кто её
+рисует.
 
-Все три собираются одним `createForm` (`application/create.ts` примера): модель, правила, поведение и
-поток шагов общие — меняется только то, чем описана схема и кто её рисует. Раскладка примера по
-папкам разобрана в [Структуре проекта](/docs/patterns/project-structure#масштабирование-папки).
+| Страница стенда          | Способ                                                                                   | Код                                                                                                                                                                                                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/demo/complex`          | разметка руками: `FormWizard` и `<FormField control={form.x} />`                         | [CreditApplicationForm.tsx](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx)                                       |
+| `/demo/complex-renderer` | `FormRenderer` рисует форму по схеме на TypeScript                                       | [CreditApplicationFormRenderer.tsx](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx)              |
+| `/demo/json-renderer`    | схема — JSON-документ и реестр компонентов                                               | [CreditApplicationFormRendererJson.tsx](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson.tsx) |
+| `/demo/form-registry`    | тот же JSON-документ, форма подключена по идентификатору через `@reformer/form-registry` | —                                                                                                                                                                                                                                                                     |
 
-## Фокусные примеры
+Какой способ выбрать:
 
-- **Валидация** — встроенные валидаторы (`/demo/validation`).
-- **Behaviors** — реактивные вычисления и условная видимость (`/demo/behaviors`).
-- **Регистрация** — async-валидация + behaviors + маска телефона (`/demo/simple`).
-- **Реестр форм** — та же JSON-форма заявки, смонтированная по id через `@reformer/form-registry`
-  (`/demo/form-registry`).
+| Способ          | Форма описана                                  | Когда выбирать                                                          |
+| --------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| разметка руками | React-кодом (`<FormField control={form.x} />`) | нужен полный контроль над разметкой шага                                |
+| renderer-react  | схемой на TypeScript (`(model) => узел`)       | форма — данные, а писать JSX на каждое поле не хочется                  |
+| renderer-json   | JSON-документом и реестром                     | форма приходит с сервера или из CMS, меняется без пересборки приложения |
+
+Подробно о рендерерах — [@reformer/renderer-react](/docs/packages/renderer-react) и
+[@reformer/renderer-json](/docs/packages/renderer-json). Раскладка примера по файлам разобрана в
+[Структуре проекта](/docs/patterns/project-structure).
+
+### Остальные страницы стенда
+
+| Адрес                      | Что показывает                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `/demo/validation`         | встроенные правила валидации                                                                 |
+| `/demo/behaviors`          | поведение формы: вычисляемые поля, условная доступность                                      |
+| `/demo/simple`             | регистрация: async-проверка, поведение, маска телефона                                       |
+| `/demo/file-upload`        | загрузка файлов: кнопка, область перетаскивания, поле, аватар                                |
+| `/demo/multi-select`       | множественный выбор: `SelectMulti`, `ComboboxMulti`, `NativeSelectMulti`, `ToggleGroupMulti` |
+| `/demo/date-picker`        | выбор дат: одна дата, период, несколько дат                                                  |
+| `/demo/input-suggest`      | свободный ввод со списком подсказок (`InputSuggest`)                                         |
+| `/demo/field-tooltips`     | подсказки-иконки у подписи и в самом контроле                                                |
+| `/demo/tree`               | дерево и выбор файла из дерева                                                               |
+| `/demo/imperative-handles` | управление живыми компонентами по селектору узла                                             |
+| `/demo/html-nodes`         | нативные теги и текст прямо в схеме                                                          |
+| `/demo/registration-json`  | экран целиком из JSON: загрузка данных, провайдер и рендерер                                 |
+| `/demo/alerts-json`        | список из массива модели в JSON-документе (`$component(List)`)                               |
+
+Тесты этих страниц на Playwright — в
+[`projects/react-playground-e2e`](https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground-e2e):
+пример того, как проверять формы в браузере (см. [Тестирование форм](/docs/guides/testing)).
+
+## Билдер
+
+Визуальный конструктор форм открывается из меню сайта — пункт [Builder](pathname:///builder/).
+
+## ИИ-ассистент
+
+Как сгенерировать форму через MCP-сервер `@reformer/mcp` — на странице
+[Примеры MCP](/docs/mcp/examples).

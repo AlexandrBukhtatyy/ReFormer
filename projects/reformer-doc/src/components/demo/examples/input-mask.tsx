@@ -1,71 +1,76 @@
 import { InputMask, inputMaskBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
-import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
+import { required, pattern } from '@reformer/core/validators';
 import { controlsFromPropsSchema } from '../controls-from-schema';
-import type { ComponentDocConfig } from '../types';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
+import type { ApiControl, ComponentDocConfig } from '../types';
+
+const API_MASK = '+7 (999) 999-99-99';
+
+// У mask в схеме нет значения по умолчанию: без него демо открылось бы пустым полем без подсказки.
+function withMaskDefault(c: ApiControl): ApiControl {
+  return c.prop === 'mask' && c.kind === 'text' ? { ...c, default: API_MASK } : c;
+}
+
+// Пропсы панели API — из props-схемы компонента. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(inputMaskBasePropsSchema), {
+  omit: ['label'],
+}).map(withMaskDefault);
+
+// Формат телефона, который проверяет правило: ровно как в шаблоне, со скобками и дефисами.
+const PHONE_FORMAT = /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/;
 
 export const inputMaskDocConfig: ComponentDocConfig = {
   name: 'InputMask',
   importFrom: '@reformer/ui-kit',
   description:
-    'Текстовое поле с маской-подсказкой поверх shadcn Input. Шаблон mask показывается в placeholder (символ «9» = цифра, прочие символы — литералы); автовставки литералов нет — компонент помечает формат. Значение — string | null (пустой ввод → null). Для форм — InputMask.',
+    'Поле с шаблоном ввода в подсказке: «9» — цифра, остальные символы — как есть. Ввод не переформатируется; значение — string | null.',
   variants: [
-    {
+    fieldVariant({
       id: 'phone',
-      title: 'Маска телефона',
+      title: 'Телефон',
       description:
-        "mask='+7 (999) 999-99-99'. placeholder подсвечивает формат, значение — string | null.",
-      render: makeFieldVariant({
-        initial: '',
-        component: InputMask,
-        componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-      }),
-      code: `{
-  model: model.$.phone,
-  component: InputMask,
-  componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-}`,
-    },
-    {
+        'mask показывается в пустом поле вместо placeholder. В модель уходит ровно то, что набрал человек.',
+      field: 'phone',
+      component: InputMask,
+      componentName: 'InputMask',
+      initial: '',
+      props: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
+    }),
+    fieldVariant({
       id: 'date',
-      title: 'Маска даты',
-      description: "mask='99.99.9999' с собственным placeholder — формат DD.MM.YYYY.",
-      render: makeFieldVariant({
-        initial: '',
-        component: InputMask,
-        componentProps: { label: 'Дата рождения', mask: '99.99.9999', placeholder: 'ДД.ММ.ГГГГ' },
-      }),
-      code: `{
-  model: model.$.birthDate,
-  component: InputMask,
-  componentProps: { label: 'Дата рождения', mask: '99.99.9999', placeholder: 'ДД.ММ.ГГГГ' },
-}`,
-    },
+      title: 'Дата со своей подсказкой',
+      description: 'Свой placeholder заменяет шаблон в пустом поле.',
+      field: 'birthDate',
+      component: InputMask,
+      componentName: 'InputMask',
+      initial: '',
+      props: { label: 'Дата рождения', mask: '99.99.9999', placeholder: 'ДД.ММ.ГГГГ' },
+    }),
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Валидатор required',
+      title: 'Проверка формата правилом',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputMask,
-        componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Укажите телефон' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.phone,
-  component: InputMask,
-  componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.phone, [required()]);`,
-    },
+        'Шаблон формат не проверяет — это делает правило pattern в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'phone',
+      component: InputMask,
+      componentName: 'InputMask',
+      initial: '8 900 123',
+      showInitial: true,
+      props: { label: 'Телефон', mask: '+7 (999) 999-99-99', required: true },
+      validators: [
+        required({ code: 'phone.required' }),
+        pattern(PHONE_FORMAT, { code: 'phone.format' }),
+      ],
+      rules: `required({ code: 'phone.required' }), pattern(/${PHONE_FORMAT.source}/, { code: 'phone.format' })`,
+      messages: {
+        'phone.required': 'Укажите телефон',
+        'phone.format': 'Телефон в формате +7 (999) 999-99-99',
+      },
+      touched: true,
+    }),
   ],
   api: {
     component: InputMask,
@@ -77,20 +82,16 @@ validate(model.$.phone, [required()]);`,
       { label: '+7 (900) 000-00-00', value: '+7 (900) 000-00-00' },
       { label: 'Очистить', value: '' },
     ],
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(inputMaskBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.phone,
-  component: InputMask,
-  componentProps: {
-    label: 'Телефон',
-    mask: '${v.mask}',${v.placeholder ? `\n    placeholder: '${v.placeholder}',` : ''}${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.phone, [required()]);`,
+      fieldSnippet({
+        field: 'phone',
+        component: 'InputMask',
+        // mask печатается всегда: его значение по умолчанию задано только для демо.
+        props: { label: 'Телефон', mask: v.mask },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

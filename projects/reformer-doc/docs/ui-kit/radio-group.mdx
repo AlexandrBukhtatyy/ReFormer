@@ -9,9 +9,99 @@ import { radioGroupDocConfig } from '@site/src/components/demo/examples/radio-gr
 
 # RadioGroup
 
-Группа радио-кнопок на Radix. Вариант **base** — чистый примитив (`RadioGroup` — контейнер
-`role="radiogroup"`, `RadioGroupItem` — `role="radio"`) для ручной сборки. Для форм —
-`RadioGroupOptions` (registry `RadioGroup`): рендерит опции из массива `options` (`{ value, label }`);
-значение — строка (`option.value | null`), каждый вариант получает per-option `data-testid`.
+Группа переключателей, в которой выбирают ровно один вариант из нескольких, и все варианты видны
+сразу. В форму ставят `RadioGroupOptions`: он рисует пункты из массива `options`.
+
+## Когда брать
+
+- **`RadioGroupOptions`** — два-пять вариантов, которые человеку стоит сравнить, не открывая
+  список: тип кредита, способ доставки, тариф.
+- **`RadioGroup` и `RadioGroupItem`** — ручная вёрстка вне формы: своя разметка пункта, карточки
+  вместо кружков.
+
+Соседи:
+
+- вариантов больше пяти или мало места — [Select](./select.mdx);
+- короткие варианты в виде сегментов-кнопок — [ToggleGroup](./toggle-group.mdx);
+- можно выбрать несколько — [Checkbox](./checkbox.mdx) на каждый пункт или `ToggleGroupMulti`;
+- ответ «да или нет» — [Checkbox](./checkbox.mdx) или [Switch](./switch.mdx).
+
+## Анатомия
+
+| Компонент           | Значение поля    | Ключевые пропсы        |
+| ------------------- | ---------------- | ---------------------- |
+| `RadioGroupOptions` | `string \| null` | `options`, `className` |
+
+- Пункт `options` — `{ value, label, tooltip? }`. `value` — строка: в разметке значение пункта
+  всегда строковое. Нужно число — преобразуйте значение в [поведении](../reference/glossary.md#поведение-шаги-и-отправка)
+  формы.
+- `tooltip` в пункте ставит иконку-подсказку после его подписи. Общий `tooltip` поля — справа от
+  группы.
+- Пункты стоят столбцом (контейнер — сетка `grid gap-3`). В строку — `className="flex flex-wrap gap-6"`:
+  классы сливаются, и `flex` заменяет `grid`.
+- Подпись группы рисует [FormField](./form-field.mdx) сверху, у каждого пункта — своя подпись
+  справа, клик по ней выбирает пункт.
+
+```tsx
+{
+  model: model.$.loanType,
+  component: RadioGroupOptions,
+  componentProps: { label: 'Тип кредита', options: LOAN_TYPES },
+}
+```
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). В форме из JSON
+`RadioGroupOptions` зарегистрирован под именем `RadioGroup`. Пункты получают `data-testid`
+вида `input-<testId>-<value>`.
+
+Корень `RadioGroup` в `component` поля не ставят: пункты у него — дочерние `RadioGroupItem`, и
+по схеме он отрисуется пустым. Вне формы части собирают так:
+
+```tsx
+<RadioGroup value={theme} onValueChange={setTheme}>
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="light" id="theme-light" />
+    <Label htmlFor="theme-light">Светлая</Label>
+  </div>
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="dark" id="theme-dark" />
+    <Label htmlFor="theme-dark">Тёмная</Label>
+  </div>
+</RadioGroup>
+```
+
+## Примеры и API
 
 <ComponentDoc config={radioGroupDocConfig} />
+
+## Доступность
+
+- Группа построена на Radix RadioGroup: контейнер `role="radiogroup"`, пункты — кнопки
+  `role="radio"` с `aria-checked`.
+- Tab ставит фокус на выбранный пункт (или на первый, если выбора нет) и следующим нажатием уходит
+  из группы. Стрелки переводят фокус по пунктам и сразу выбирают их, пробел выбирает пункт в
+  фокусе.
+- Подпись группы связана с контейнером через `aria-labelledby`, пояснение и замечание — через
+  `aria-describedby`. Пока замечание показано, у группы стоят `aria-invalid` и
+  `aria-errormessage`.
+- Подпись пункта — `<label>`, связанный с ним по `id`. Иконка `tooltip` пункта стоит вне
+  подписи, её текст привязан к пункту через `aria-describedby`.
+
+## Локализация
+
+Пункты и подписи задаёте вы. Компонент рисует только подписи иконок-подсказок для скринридера:
+
+| Ключ                      | Где                                             |
+| ------------------------- | ----------------------------------------------- |
+| `kit.formField.hintLabel` | иконка `tooltip` пункта: «Подсказка: \{label\}» |
+| `kit.infoHint.label`      | иконка `tooltip` всей группы                    |
+
+Тексты замечаний берутся из [словаря сообщений](../reference/glossary.md#валидация) формы. Как
+подключить русскую локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [ToggleGroup](./toggle-group.mdx) — тот же выбор в виде кнопок.
+- [Select](./select.mdx) — выбор из длинного списка.
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.

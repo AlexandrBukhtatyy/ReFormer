@@ -19,14 +19,12 @@ import { Copy, Scissors, ClipboardPaste, Star, Trash2 } from 'lucide-react';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * ContextMenu — не form-control: overlay поверх Radix ContextMenu. В отличие от DropdownMenu
- * открывается правым кликом (contextmenu) по области-триггеру, а не кнопкой. Меню (ContextMenuContent)
- * уходит в Portal и позиционируется у курсора. Пункты бывают обычные (Item), с флажком (CheckboxItem),
- * радио-группой (RadioItem) и вложенным подменю (Sub*). Таб Variants показывает готовые конфигурации,
- * Examples — приёмы (иконки + destructive, группы).
+ * ContextMenu — не поле формы: меню на Radix ContextMenu. В отличие от DropdownMenu открывается
+ * правым щелчком (или долгим касанием) по области и встаёт у курсора. Variants — виды пунктов,
+ * Examples — иконки и группы.
  */
 
-// Общий стиль области-триггера для превью (по клику правой кнопкой открывается меню).
+// Класс области-триггера: правый щелчок по ней открывает меню. В `code` он выписан полностью.
 const triggerBox =
   'flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none';
 
@@ -34,13 +32,13 @@ export const contextMenuDocConfig: ComponentDocConfig = {
   name: 'ContextMenu',
   importFrom: '@reformer/ui-kit',
   description:
-    'Контекстное меню на shadcn / Radix ContextMenu. Открывается правым кликом по области-триггеру; список уходит в Portal и позиционируется у курсора. Пункты — обычные, с флажком (CheckboxItem), радио-выбором (RadioItem) или вложенным подменю (Sub). Все части несут свой data-slot.',
+    'Меню по правому щелчку на области: пункты, флажки, выбор одного, подменю. Встаёт у курсора.',
   variants: [
     {
       id: 'basic',
       title: 'Базовое меню',
       description:
-        'Правый клик по области открывает меню с пунктами, разделителем и горячей клавишей (Shortcut).',
+        'Правый щелчок или долгое касание по области открывает меню у курсора. Shortcut — только подпись клавиш.',
       render: () => (
         <ContextMenu>
           <ContextMenuTrigger className={triggerBox}>Кликни правой кнопкой</ContextMenuTrigger>
@@ -63,7 +61,7 @@ export const contextMenuDocConfig: ComponentDocConfig = {
         </ContextMenu>
       ),
       code: `<ContextMenu>
-  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm">
+  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none">
     Кликни правой кнопкой
   </ContextMenuTrigger>
   <ContextMenuContent className="w-52">
@@ -88,7 +86,7 @@ export const contextMenuDocConfig: ComponentDocConfig = {
       id: 'checkbox-items',
       title: 'Пункты с флажком (CheckboxItem)',
       description:
-        'CheckboxItem с checked / onCheckedChange — переключение видимости панелей и т.п.',
+        'CheckboxItem с checked / onCheckedChange — включить или выключить режим. Меню при выборе закрывается.',
       render: () => {
         function CheckboxMenu() {
           const [bookmarks, setBookmarks] = useState(true);
@@ -115,7 +113,9 @@ export const contextMenuDocConfig: ComponentDocConfig = {
 const [urls, setUrls] = useState(false);
 
 <ContextMenu>
-  <ContextMenuTrigger className="...">Кликни правой кнопкой</ContextMenuTrigger>
+  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none">
+    Кликни правой кнопкой
+  </ContextMenuTrigger>
   <ContextMenuContent className="w-52">
     <ContextMenuLabel>Панель</ContextMenuLabel>
     <ContextMenuSeparator />
@@ -132,7 +132,7 @@ const [urls, setUrls] = useState(false);
       id: 'radio-group',
       title: 'Радио-выбор (RadioGroup)',
       description:
-        'ContextMenuRadioGroup + RadioItem — взаимоисключающий выбор одного значения (value / onValueChange).',
+        'RadioGroup с value / onValueChange и RadioItem внутри — выбор одного значения из нескольких.',
       render: () => {
         function RadioMenu() {
           const [person, setPerson] = useState('pedro');
@@ -155,7 +155,9 @@ const [urls, setUrls] = useState(false);
       code: `const [person, setPerson] = useState('pedro');
 
 <ContextMenu>
-  <ContextMenuTrigger className="...">Кликни правой кнопкой</ContextMenuTrigger>
+  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none">
+    Кликни правой кнопкой
+  </ContextMenuTrigger>
   <ContextMenuContent className="w-52">
     <ContextMenuLabel>Ответственный</ContextMenuLabel>
     <ContextMenuSeparator />
@@ -170,7 +172,7 @@ const [urls, setUrls] = useState(false);
       id: 'submenu',
       title: 'Вложенное подменю (Sub)',
       description:
-        'ContextMenuSub / SubTrigger / SubContent разворачивают второй уровень пунктов сбоку от родительского.',
+        'Sub / SubTrigger / SubContent — второй уровень пунктов сбоку. Открывается наведением или стрелкой →.',
       render: () => (
         <ContextMenu>
           <ContextMenuTrigger className={triggerBox}>Кликни правой кнопкой</ContextMenuTrigger>
@@ -189,7 +191,9 @@ const [urls, setUrls] = useState(false);
         </ContextMenu>
       ),
       code: `<ContextMenu>
-  <ContextMenuTrigger className="...">Кликни правой кнопкой</ContextMenuTrigger>
+  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none">
+    Кликни правой кнопкой
+  </ContextMenuTrigger>
   <ContextMenuContent className="w-52">
     <ContextMenuItem>Открыть</ContextMenuItem>
     <ContextMenuSub>
@@ -210,7 +214,7 @@ const [urls, setUrls] = useState(false);
       id: 'icons',
       title: 'Иконки и destructive-пункт',
       description:
-        'lucide-иконки внутри Item выравниваются автоматически (gap-2); variant="destructive" красит пункт удаления.',
+        'Иконка внутри пункта получает размер и отступ сама. variant="destructive" красит пункт удаления.',
       render: () => (
         <ContextMenu>
           <ContextMenuTrigger className={triggerBox}>Кликни правой кнопкой</ContextMenuTrigger>
@@ -240,18 +244,39 @@ const [urls, setUrls] = useState(false);
       ),
       code: `import { Copy, Scissors, ClipboardPaste, Trash2 } from 'lucide-react';
 
-<ContextMenuContent className="w-52">
-  <ContextMenuItem><Copy />Копировать<ContextMenuShortcut>⌘C</ContextMenuShortcut></ContextMenuItem>
-  <ContextMenuItem><Scissors />Вырезать<ContextMenuShortcut>⌘X</ContextMenuShortcut></ContextMenuItem>
-  <ContextMenuItem><ClipboardPaste />Вставить<ContextMenuShortcut>⌘V</ContextMenuShortcut></ContextMenuItem>
-  <ContextMenuSeparator />
-  <ContextMenuItem variant="destructive"><Trash2 />Удалить</ContextMenuItem>
-</ContextMenuContent>`,
+<ContextMenu>
+  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none">
+    Кликни правой кнопкой
+  </ContextMenuTrigger>
+  <ContextMenuContent className="w-52">
+    <ContextMenuItem>
+      <Copy />
+      Копировать
+      <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+    </ContextMenuItem>
+    <ContextMenuItem>
+      <Scissors />
+      Вырезать
+      <ContextMenuShortcut>⌘X</ContextMenuShortcut>
+    </ContextMenuItem>
+    <ContextMenuItem>
+      <ClipboardPaste />
+      Вставить
+      <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+    </ContextMenuItem>
+    <ContextMenuSeparator />
+    <ContextMenuItem variant="destructive">
+      <Trash2 />
+      Удалить
+    </ContextMenuItem>
+  </ContextMenuContent>
+</ContextMenu>`,
     },
     {
       id: 'groups',
       title: 'Группировка пунктов (Group)',
-      description: 'ContextMenuGroup + Separator визуально разбивают меню на смысловые блоки.',
+      description:
+        'Group объединяет связанные пункты, Label подписывает группу, Separator отделяет её от соседних.',
       render: () => (
         <ContextMenu>
           <ContextMenuTrigger className={triggerBox}>Кликни правой кнопкой</ContextMenuTrigger>
@@ -277,91 +302,107 @@ const [urls, setUrls] = useState(false);
           </ContextMenuContent>
         </ContextMenu>
       ),
-      code: `<ContextMenuContent className="w-52">
-  <ContextMenuGroup>
-    <ContextMenuLabel>Файл</ContextMenuLabel>
-    <ContextMenuItem><Copy />Дублировать</ContextMenuItem>
-    <ContextMenuItem><Star />В избранное</ContextMenuItem>
-  </ContextMenuGroup>
-  <ContextMenuSeparator />
-  <ContextMenuGroup>
-    <ContextMenuLabel>Опасная зона</ContextMenuLabel>
-    <ContextMenuItem variant="destructive"><Trash2 />Удалить</ContextMenuItem>
-  </ContextMenuGroup>
-</ContextMenuContent>`,
+      code: `import { Copy, Star, Trash2 } from 'lucide-react';
+
+<ContextMenu>
+  <ContextMenuTrigger className="flex h-32 w-full max-w-sm items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground select-none">
+    Кликни правой кнопкой
+  </ContextMenuTrigger>
+  <ContextMenuContent className="w-52">
+    <ContextMenuGroup>
+      <ContextMenuLabel>Файл</ContextMenuLabel>
+      <ContextMenuItem>
+        <Copy />
+        Дублировать
+      </ContextMenuItem>
+      <ContextMenuItem>
+        <Star />В избранное
+      </ContextMenuItem>
+    </ContextMenuGroup>
+    <ContextMenuSeparator />
+    <ContextMenuGroup>
+      <ContextMenuLabel>Опасная зона</ContextMenuLabel>
+      <ContextMenuItem variant="destructive">
+        <Trash2 />
+        Удалить
+      </ContextMenuItem>
+    </ContextMenuGroup>
+  </ContextMenuContent>
+</ContextMenu>`,
     },
   ],
   props: [
     {
       name: 'ContextMenu',
       type: 'Radix ContextMenu.Root',
-      description: 'Корень: управляет открытием. Props: onOpenChange / modal / dir.',
+      description:
+        'Корень: onOpenChange, modal (true) — блокировать страницу, пока меню открыто; dir. Свойства open нет.',
     },
     {
       name: 'ContextMenuTrigger',
       type: 'Radix ContextMenu.Trigger',
       description:
-        'Область-триггер (рендерится как <span>). Меню открывается правым кликом (contextmenu). asChild — слить props на дочерний элемент.',
+        'Область, правый щелчок по которой открывает меню. По умолчанию <span>; asChild — стать своим элементом. disabled — отключить меню.',
     },
     {
       name: 'ContextMenuContent',
       type: 'Radix ContextMenu.Content',
-      description:
-        'Список меню в Portal, позиционируется у курсора. Позиционирование: align / alignOffset / collisionPadding.',
+      description: 'Список пунктов в портале, встаёт у курсора. alignOffset, collisionPadding.',
     },
     {
       name: 'ContextMenuItem',
       type: 'Radix ContextMenu.Item',
       default: 'variant="default"',
       description:
-        'Пункт-действие (onSelect). variant: default / destructive; inset — доп. левый отступ под иконки соседей.',
+        'Пункт-действие: onSelect, disabled. variant — default / destructive; inset — отступ слева, чтобы выровнять с пунктами-иконками.',
     },
     {
       name: 'ContextMenuCheckboxItem',
       type: 'Radix ContextMenu.CheckboxItem',
-      description: 'Пункт-флажок: checked / onCheckedChange, индикатор-галочка слева.',
+      description: 'Пункт-флажок: checked / onCheckedChange, галочка слева.',
     },
     {
       name: 'ContextMenuRadioGroup / RadioItem',
       type: 'Radix ContextMenu.RadioGroup',
-      description:
-        'Взаимоисключающий выбор: value / onValueChange у группы, value у каждого RadioItem.',
+      description: 'Выбор одного: value / onValueChange у группы, value у каждого RadioItem.',
     },
     {
       name: 'ContextMenuLabel',
       type: 'Radix ContextMenu.Label',
-      description: 'Заголовок секции (font-medium). inset — левый отступ под иконки.',
+      description: 'Подпись группы пунктов, не выбирается. inset — отступ слева.',
     },
     {
       name: 'ContextMenuSeparator',
       type: 'Radix ContextMenu.Separator',
-      description: 'Горизонтальный разделитель между группами пунктов.',
+      description: 'Линия между группами пунктов.',
     },
     {
       name: 'ContextMenuShortcut',
       type: 'span',
-      description: 'Подпись горячей клавиши, прижатая к правому краю пункта (ml-auto).',
+      description:
+        'Подпись сочетания клавиш у правого края пункта. Только текст: обработчик клавиш вешаете сами.',
     },
     {
       name: 'ContextMenuGroup',
       type: 'Radix ContextMenu.Group',
-      description: 'Семантическая группировка пунктов (для доступности и разметки).',
+      description: 'Группа связанных пунктов (role="group").',
     },
     {
       name: 'ContextMenuSub / SubTrigger / SubContent',
       type: 'Radix ContextMenu.Sub',
-      description: 'Вложенное подменю: SubTrigger разворачивает SubContent сбоку.',
+      description: 'Подменю: SubTrigger — пункт со стрелкой, SubContent — второй уровень сбоку.',
     },
     {
       name: 'ContextMenuPortal',
       type: 'Radix ContextMenu.Portal',
-      description: 'Портал для контента (уже встроен в Content; экспортирован для ручных случаев).',
+      description:
+        'Портал. ContextMenuContent рисует его сам; отдельно нужен только для своей композиции.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

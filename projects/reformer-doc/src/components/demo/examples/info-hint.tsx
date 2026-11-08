@@ -3,20 +3,20 @@ import { InfoHint, Input } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * InfoHint — не form-control: иконка-подсказка (i) с тултипом. Это строительный блок, которым кит
- * рисует подсказки полей (`labelTooltip` у FormField, `tooltip` у контролов); напрямую нужен для
- * заголовков, карточек и своих контролов. В отличие от голого Tooltip приносит свой провайдер и
- * открывается ещё и по клику/тапу.
+ * InfoHint — не поле формы: иконка (i) с подсказкой. Ею кит рисует подсказки полей (`labelTooltip`
+ * у FormField, `tooltip` у контролов); напрямую нужна для заголовков, карточек и своих контролов.
+ * В отличие от Tooltip приносит свой провайдер и открывается ещё и касанием. Обёртка
+ * `<div style>` в render — рамка демо, в `code` её нет.
  */
 function DescribedInput() {
   const hintId = useId();
   return (
-    <div style={{ position: 'relative', maxWidth: 320 }}>
-      <Input aria-describedby={hintId} placeholder="Латиница" style={{ paddingRight: 36 }} />
+    <div className="relative max-w-xs">
+      <Input aria-describedby={hintId} aria-label="Логин" placeholder="Латиница" className="pr-9" />
       <InfoHint
         content="Только латинские буквы и цифры"
         descriptionId={hintId}
-        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}
+        className="absolute top-1/2 right-3 -translate-y-1/2"
       />
     </div>
   );
@@ -26,12 +26,12 @@ export const infoHintDocConfig: ComponentDocConfig = {
   name: 'InfoHint',
   importFrom: '@reformer/ui-kit',
   description:
-    'Иконка-подсказка (i) с тултипом: открывается по наведению, фокусу с клавиатуры и клику/тапу. Приносит свой TooltipProvider — оборачивать ничем не нужно.',
+    'Иконка (i) с подсказкой: открывается наведением, фокусом и касанием. Провайдер не нужен.',
   variants: [
     {
       id: 'basic',
       title: 'Рядом с заголовком',
-      description: 'Наведите, сфокусируйтесь или кликните по иконке.',
+      description: 'Наведите курсор, перейдите клавишей Tab или щёлкните по иконке.',
       render: () => (
         <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
           Паспортные данные <InfoHint content="Как в документе, без сокращений" />
@@ -44,30 +44,36 @@ export const infoHintDocConfig: ComponentDocConfig = {
     {
       id: 'sides',
       title: 'Сторона появления (side)',
-      description: 'side: top (по умолчанию) / right / bottom / left.',
+      description: 'side — сторона появления: top (по умолчанию), right, bottom, left.',
       render: () => (
-        <div style={{ display: 'flex', gap: 24 }}>
+        <div className="flex gap-6">
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-            <span key={side} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span key={side} className="flex items-center gap-1.5">
               {side} <InfoHint content={`Появляюсь: ${side}`} side={side} />
             </span>
           ))}
         </div>
       ),
-      code: `<InfoHint content="Появляюсь справа" side="right" />`,
+      code: `<div className="flex gap-6">
+  {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+    <span key={side} className="flex items-center gap-1.5">
+      {side} <InfoHint content={\`Появляюсь: \${side}\`} side={side} />
+    </span>
+  ))}
+</div>`,
     },
   ],
   examples: [
     {
       id: 'described-control',
-      title: 'Описание для контрола (descriptionId)',
+      title: 'Описание для поля (descriptionId)',
       description:
-        'Контент тултипа живёт в портале и отсутствует в DOM, пока тултип закрыт. descriptionId рендерит скрытый дубль текста — на него ссылается aria-describedby контрола, и screen reader зачитывает подсказку при фокусе на поле.',
+        'Текст подсказки появляется в разметке, только пока она открыта. descriptionId рисует скрытую копию текста — на неё ссылается aria-describedby поля, и скринридер читает подсказку при фокусе на поле.',
       render: () => <DescribedInput />,
       code: `const hintId = useId();
 
-<div className="relative">
-  <Input aria-describedby={hintId} className="pr-9" />
+<div className="relative max-w-xs">
+  <Input aria-describedby={hintId} aria-label="Логин" placeholder="Латиница" className="pr-9" />
   <InfoHint
     content="Только латинские буквы и цифры"
     descriptionId={hintId}
@@ -77,60 +83,63 @@ export const infoHintDocConfig: ComponentDocConfig = {
     },
     {
       id: 'in-fields',
-      title: 'В полях формы — без InfoHint вручную',
+      title: 'В полях кита — проп tooltip',
       description:
-        'У полей кита иконка подключается пропами componentProps: labelTooltip — после подписи (рисует FormField), tooltip — в самом контроле. Свои поля получают tooltip через withFieldTooltip / useFieldTooltip из @reformer/ui-kit/fields.',
+        'Полям кита InfoHint вручную не нужен: проп tooltip ставит иконку внутрь поля, labelTooltip — после подписи (её рисует FormField). В схеме формы те же пропсы пишут в componentProps.',
       render: () => (
-        <code style={{ fontSize: 13 }}>componentProps: {'{ labelTooltip, tooltip }'}</code>
+        <div className="max-w-xs">
+          <Input tooltip="Только корпоративный домен" aria-label="Email" placeholder="Email" />
+        </div>
       ),
-      code: `{
+      code: `// Вне формы — проп tooltip у самого поля:
+<Input tooltip="Только корпоративный домен" aria-label="Email" placeholder="Email" />
+
+// В схеме формы — те же пропсы в componentProps:
+{
   model: model.$.email,
   component: Input,
   componentProps: {
     label: 'Email',
-    labelTooltip: 'Нужен для отправки чеков', // (i) после подписи
-    tooltip: 'Только корпоративный домен',    // (i) внутри инпута
+    labelTooltip: 'Нужен для отправки чеков', // (i) после подписи — рисует FormField
+    tooltip: 'Только корпоративный домен', // (i) внутри поля
   },
-}
-
-// своё поле: подсказка (i) + диалект контрола статикой — компонент кладётся в component как есть
-import { defineFieldControl, withFieldTooltip, INSIDE_INPUT, nativeInputAdapter } from '@reformer/ui-kit/fields';
-export const MyInput = defineFieldControl(withFieldTooltip(MyInputPrimitive, INSIDE_INPUT), {
-  adapter: nativeInputAdapter,
-});`,
+}`,
     },
   ],
   props: [
     {
       name: 'content',
       type: 'string',
-      description: 'Текст подсказки. Пустая строка — компонент ничего не рендерит.',
+      description: 'Текст подсказки. Пустая строка — компонент ничего не рисует.',
     },
     {
       name: 'descriptionId',
       type: 'string',
       description:
-        'id скрытого дубля текста — цель aria-describedby контрола. Без него дубль не рендерится.',
+        'id скрытой копии текста — на неё ссылается aria-describedby поля. Без пропа копии нет.',
     },
     {
       name: 'side',
       type: "'top' | 'right' | 'bottom' | 'left'",
-      description: "Сторона показа тултипа. По умолчанию 'top'.",
+      default: "'top'",
+      description: 'Сторона появления подсказки.',
     },
     {
       name: 'delayDuration',
       type: 'number',
-      description: 'Задержка показа по наведению, мс. По умолчанию 150.',
+      default: '150',
+      description: 'Пауза перед показом по наведению, мс.',
     },
     {
       name: 'aria-label',
       type: 'string',
-      description: "Доступное имя кнопки. По умолчанию 'Подсказка'.",
+      default: 'из словаря кита (kit.infoHint.label)',
+      description: 'Имя кнопки для скринридера: «Hint» / «Подсказка».',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Классы кнопки — обычно позиционирование иконки поверх контрола.',
+      description: 'Классы кнопки — обычно положение иконки поверх поля.',
     },
   ],
 };

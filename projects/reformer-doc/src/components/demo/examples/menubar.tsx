@@ -19,23 +19,64 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Menubar — не form-control: горизонтальная панель меню поверх Radix Menubar (как строка меню
- * десктоп-приложения). Собирается из корня Menubar, набора MenubarMenu (по одному на пункт панели),
- * триггера MenubarTrigger и содержимого MenubarContent (в Portal). Пункты бывают обычные (Item),
- * с флажком (CheckboxItem), радио-группой (RadioItem) и вложенным подменю (Sub*).
- * Таб Variants показывает готовые конфигурации, Examples — приёмы (иконки-shortcut, группы).
+ * Menubar — не поле формы: строка меню поверх Radix Menubar, как в настольном приложении.
+ * Variants — виды пунктов (обычные, флажки, радио, подменю), Examples — типовые сценарии,
+ * API — таблица props. Компоненты со своим состоянием объявлены на уровне модуля.
  */
+
+function CheckboxMenubar() {
+  const [statusBar, setStatusBar] = useState(true);
+  const [activityBar, setActivityBar] = useState(false);
+  return (
+    <Menubar>
+      <MenubarMenu>
+        <MenubarTrigger>Вид</MenubarTrigger>
+        <MenubarContent>
+          <MenubarLabel>Показывать</MenubarLabel>
+          <MenubarSeparator />
+          <MenubarCheckboxItem checked={statusBar} onCheckedChange={setStatusBar}>
+            Строка состояния
+          </MenubarCheckboxItem>
+          <MenubarCheckboxItem checked={activityBar} onCheckedChange={setActivityBar}>
+            Панель активности
+          </MenubarCheckboxItem>
+        </MenubarContent>
+      </MenubarMenu>
+    </Menubar>
+  );
+}
+
+function RadioMenubar() {
+  const [profile, setProfile] = useState('andrey');
+  return (
+    <Menubar>
+      <MenubarMenu>
+        <MenubarTrigger>Профиль</MenubarTrigger>
+        <MenubarContent>
+          <MenubarLabel>Активный профиль</MenubarLabel>
+          <MenubarSeparator />
+          <MenubarRadioGroup value={profile} onValueChange={setProfile}>
+            <MenubarRadioItem value="andrey">Андрей</MenubarRadioItem>
+            <MenubarRadioItem value="maria">Мария</MenubarRadioItem>
+            <MenubarRadioItem value="oleg">Олег</MenubarRadioItem>
+          </MenubarRadioGroup>
+        </MenubarContent>
+      </MenubarMenu>
+    </Menubar>
+  );
+}
+
 export const menubarDocConfig: ComponentDocConfig = {
   name: 'Menubar',
   importFrom: '@reformer/ui-kit',
   description:
-    'Горизонтальная строка меню на shadcn / Radix Menubar (как в десктоп-приложении). Корень Menubar держит несколько MenubarMenu; каждый — триггер + содержимое в Portal. Пункты: обычные (Item), с флажком (CheckboxItem), радио-выбором (RadioItem) и вложенным подменю (Sub). Все части несут свой data-slot.',
+    'Строка меню, как в настольном приложении: «Файл», «Правка», «Вид». Каждый пункт строки открывает своё меню.',
   variants: [
     {
       id: 'basic',
-      title: 'Базовая панель меню',
+      title: 'Строка из нескольких меню',
       description:
-        'Несколько MenubarMenu в строке. Каждый триггер открывает своё меню с пунктами, разделителем и горячими клавишами (Shortcut).',
+        'Несколько MenubarMenu в строке. В меню — пункты, разделитель и подписи горячих клавиш.',
       render: () => (
         <Menubar>
           <MenubarMenu>
@@ -75,50 +116,42 @@ export const menubarDocConfig: ComponentDocConfig = {
   <MenubarMenu>
     <MenubarTrigger>Файл</MenubarTrigger>
     <MenubarContent>
-      <MenubarItem>Новый файл<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
-      <MenubarItem>Открыть<MenubarShortcut>⌘O</MenubarShortcut></MenubarItem>
+      <MenubarItem>
+        Новый файл
+        <MenubarShortcut>⌘N</MenubarShortcut>
+      </MenubarItem>
+      <MenubarItem>
+        Открыть
+        <MenubarShortcut>⌘O</MenubarShortcut>
+      </MenubarItem>
       <MenubarSeparator />
-      <MenubarItem>Сохранить<MenubarShortcut>⌘S</MenubarShortcut></MenubarItem>
+      <MenubarItem>
+        Сохранить
+        <MenubarShortcut>⌘S</MenubarShortcut>
+      </MenubarItem>
     </MenubarContent>
   </MenubarMenu>
   <MenubarMenu>
     <MenubarTrigger>Правка</MenubarTrigger>
     <MenubarContent>
-      <MenubarItem>Отменить<MenubarShortcut>⌘Z</MenubarShortcut></MenubarItem>
-      <MenubarItem>Повторить<MenubarShortcut>⇧⌘Z</MenubarShortcut></MenubarItem>
+      <MenubarItem>
+        Отменить
+        <MenubarShortcut>⌘Z</MenubarShortcut>
+      </MenubarItem>
+      <MenubarItem>
+        Повторить
+        <MenubarShortcut>⇧⌘Z</MenubarShortcut>
+      </MenubarItem>
     </MenubarContent>
   </MenubarMenu>
 </Menubar>`,
     },
     {
       id: 'checkbox-items',
-      title: 'Пункты с флажком (CheckboxItem)',
+      title: 'Пункты-флажки (CheckboxItem)',
       description:
-        'CheckboxItem с checked / onCheckedChange внутри меню панели — переключение видимости панелей.',
-      render: () => {
-        function CheckboxMenubar() {
-          const [statusBar, setStatusBar] = useState(true);
-          const [activityBar, setActivityBar] = useState(false);
-          return (
-            <Menubar>
-              <MenubarMenu>
-                <MenubarTrigger>Вид</MenubarTrigger>
-                <MenubarContent>
-                  <MenubarLabel>Показывать</MenubarLabel>
-                  <MenubarSeparator />
-                  <MenubarCheckboxItem checked={statusBar} onCheckedChange={setStatusBar}>
-                    Строка состояния
-                  </MenubarCheckboxItem>
-                  <MenubarCheckboxItem checked={activityBar} onCheckedChange={setActivityBar}>
-                    Панель активности
-                  </MenubarCheckboxItem>
-                </MenubarContent>
-              </MenubarMenu>
-            </Menubar>
-          );
-        }
-        return <CheckboxMenubar />;
-      },
+        'MenubarCheckboxItem с checked и onCheckedChange — включить или выключить панель. Меню при выборе закрывается.',
+      render: CheckboxMenubar,
       code: `const [statusBar, setStatusBar] = useState(true);
 const [activityBar, setActivityBar] = useState(false);
 
@@ -140,32 +173,11 @@ const [activityBar, setActivityBar] = useState(false);
     },
     {
       id: 'radio-group',
-      title: 'Радио-выбор (RadioGroup)',
+      title: 'Выбор одного варианта (RadioGroup)',
       description:
-        'MenubarRadioGroup + RadioItem — взаимоисключающий выбор одного значения (value / onValueChange).',
-      render: () => {
-        function RadioMenubar() {
-          const [profile, setProfile] = useState('andy');
-          return (
-            <Menubar>
-              <MenubarMenu>
-                <MenubarTrigger>Профиль</MenubarTrigger>
-                <MenubarContent>
-                  <MenubarLabel>Активный профиль</MenubarLabel>
-                  <MenubarSeparator />
-                  <MenubarRadioGroup value={profile} onValueChange={setProfile}>
-                    <MenubarRadioItem value="andy">Андрей</MenubarRadioItem>
-                    <MenubarRadioItem value="benoit">Бенуа</MenubarRadioItem>
-                    <MenubarRadioItem value="luis">Луис</MenubarRadioItem>
-                  </MenubarRadioGroup>
-                </MenubarContent>
-              </MenubarMenu>
-            </Menubar>
-          );
-        }
-        return <RadioMenubar />;
-      },
-      code: `const [profile, setProfile] = useState('andy');
+        'MenubarRadioGroup с value и onValueChange, внутри — MenubarRadioItem. Отмечен всегда один пункт.',
+      render: RadioMenubar,
+      code: `const [profile, setProfile] = useState('andrey');
 
 <Menubar>
   <MenubarMenu>
@@ -174,9 +186,9 @@ const [activityBar, setActivityBar] = useState(false);
       <MenubarLabel>Активный профиль</MenubarLabel>
       <MenubarSeparator />
       <MenubarRadioGroup value={profile} onValueChange={setProfile}>
-        <MenubarRadioItem value="andy">Андрей</MenubarRadioItem>
-        <MenubarRadioItem value="benoit">Бенуа</MenubarRadioItem>
-        <MenubarRadioItem value="luis">Луис</MenubarRadioItem>
+        <MenubarRadioItem value="andrey">Андрей</MenubarRadioItem>
+        <MenubarRadioItem value="maria">Мария</MenubarRadioItem>
+        <MenubarRadioItem value="oleg">Олег</MenubarRadioItem>
       </MenubarRadioGroup>
     </MenubarContent>
   </MenubarMenu>
@@ -184,9 +196,9 @@ const [activityBar, setActivityBar] = useState(false);
     },
     {
       id: 'submenu',
-      title: 'Вложенное подменю (Sub)',
+      title: 'Подменю (Sub)',
       description:
-        'MenubarSub / SubTrigger / SubContent разворачивают второй уровень пунктов сбоку от родительского.',
+        'MenubarSub: MenubarSubTrigger открывает MenubarSubContent сбоку от меню. variant="destructive" — опасное действие.',
       render: () => (
         <Menubar>
           <MenubarMenu>
@@ -228,9 +240,9 @@ const [activityBar, setActivityBar] = useState(false);
   examples: [
     {
       id: 'app-menubar',
-      title: 'Строка меню приложения',
+      title: 'Строка меню редактора',
       description:
-        'Типовой сценарий: панель Файл / Правка / Вид как в десктоп-приложении — пункты с горячими клавишами, разделители и destructive-действие.',
+        'Типовой сценарий: «Файл», «Правка», «Вид» — пункты с подписями клавиш, разделители, опасное действие и недоступный пункт.',
       render: () => (
         <Menubar>
           <MenubarMenu>
@@ -245,7 +257,7 @@ const [activityBar, setActivityBar] = useState(false);
                 <MenubarShortcut>⌘N</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem>
+              <MenubarItem disabled>
                 Печать…
                 <MenubarShortcut>⌘P</MenubarShortcut>
               </MenubarItem>
@@ -276,16 +288,28 @@ const [activityBar, setActivityBar] = useState(false);
   <MenubarMenu>
     <MenubarTrigger>Файл</MenubarTrigger>
     <MenubarContent>
-      <MenubarItem>Новая вкладка<MenubarShortcut>⌘T</MenubarShortcut></MenubarItem>
-      <MenubarItem>Новое окно<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
+      <MenubarItem>
+        Новая вкладка
+        <MenubarShortcut>⌘T</MenubarShortcut>
+      </MenubarItem>
+      <MenubarItem>
+        Новое окно
+        <MenubarShortcut>⌘N</MenubarShortcut>
+      </MenubarItem>
       <MenubarSeparator />
-      <MenubarItem>Печать…<MenubarShortcut>⌘P</MenubarShortcut></MenubarItem>
+      <MenubarItem disabled>
+        Печать…
+        <MenubarShortcut>⌘P</MenubarShortcut>
+      </MenubarItem>
     </MenubarContent>
   </MenubarMenu>
   <MenubarMenu>
     <MenubarTrigger>Правка</MenubarTrigger>
     <MenubarContent>
-      <MenubarItem>Отменить<MenubarShortcut>⌘Z</MenubarShortcut></MenubarItem>
+      <MenubarItem>
+        Отменить
+        <MenubarShortcut>⌘Z</MenubarShortcut>
+      </MenubarItem>
       <MenubarSeparator />
       <MenubarItem>Найти</MenubarItem>
       <MenubarItem variant="destructive">Очистить всё</MenubarItem>
@@ -302,9 +326,9 @@ const [activityBar, setActivityBar] = useState(false);
     },
     {
       id: 'groups',
-      title: 'Группировка пунктов (Group)',
+      title: 'Группы пунктов (Group)',
       description:
-        'MenubarGroup + Separator визуально разбивают содержимое меню на смысловые блоки с заголовками (Label).',
+        'MenubarGroup и MenubarSeparator делят меню на смысловые блоки, MenubarLabel подписывает блок.',
       render: () => (
         <Menubar>
           <MenubarMenu>
@@ -345,84 +369,92 @@ const [activityBar, setActivityBar] = useState(false);
   ],
   props: [
     {
-      name: 'Menubar',
-      type: 'Radix Menubar.Root',
+      name: 'value',
+      type: 'string',
       description:
-        'Корневая панель (role="menubar"). Держит несколько MenubarMenu. Props: value / defaultValue / onValueChange / dir / loop.',
+        'Какое меню открыто (value его MenubarMenu), когда состоянием управляете вы. Пустая строка — все закрыты.',
     },
     {
-      name: 'MenubarMenu',
-      type: 'Radix Menubar.Menu',
+      name: 'defaultValue',
+      type: 'string',
+      description: 'Меню, открытое при первом рендере, если состоянием управляет сам компонент.',
+    },
+    {
+      name: 'onValueChange',
+      type: '(value: string) => void',
+      description: 'Вызывается при открытии и закрытии меню.',
+    },
+    {
+      name: 'loop',
+      type: 'boolean',
+      default: 'true',
       description:
-        'Один пункт панели: обёртка вокруг триггера и его содержимого. value — идентификатор для controlled-режима.',
+        'Переходить стрелками ←/→ с последнего пункта строки на первый и обратно, в том числе при открытом меню.',
     },
     {
-      name: 'MenubarTrigger',
-      type: 'Radix Menubar.Trigger',
+      name: 'dir',
+      type: "'ltr' | 'rtl'",
       description:
-        'Кнопка-заголовок меню в панели (открывает MenubarContent). Активна по фокусу/клику.',
+        'Направление текста: при rtl стрелки ←/→ меняются местами. По умолчанию берётся из DirectionProvider.',
     },
     {
-      name: 'MenubarContent',
-      type: 'Radix Menubar.Content',
-      default: 'align="start", alignOffset={-4}, sideOffset={8}',
+      name: 'MenubarMenu.value',
+      type: 'string',
+      description: 'Идентификатор меню для value корня. Если не задан, создаётся автоматически.',
+    },
+    {
+      name: 'MenubarContent.align',
+      type: "'start' | 'center' | 'end'",
+      default: "'start'",
+      description: 'Выравнивание меню относительно пункта строки.',
+    },
+    {
+      name: 'MenubarContent.sideOffset',
+      type: 'number',
+      default: '8',
+      description: 'Отступ меню от строки, px. Сдвиг вдоль строки — alignOffset (по умолчанию -4).',
+    },
+    {
+      name: 'MenubarItem.onSelect',
+      type: '(event: Event) => void',
       description:
-        'Содержимое меню в Portal. Позиционирование: align (start / center / end), side, sideOffset, alignOffset.',
+        'Действие пункта: щелчок, Enter или пробел. event.preventDefault() оставляет меню открытым.',
     },
     {
-      name: 'MenubarItem',
-      type: 'Radix Menubar.Item',
-      default: 'variant="default"',
+      name: 'MenubarItem.variant',
+      type: "'default' | 'destructive'",
+      default: "'default'",
+      description: 'destructive — красный цвет для опасного действия.',
+    },
+    {
+      name: 'MenubarItem.inset',
+      type: 'boolean',
+      default: 'false',
       description:
-        'Пункт-действие (onSelect). variant: default / destructive; inset — доп. левый отступ под иконки соседей.',
+        'Отступ слева под ширину значка — чтобы текст стоял в одну линию с флажками и радио. Есть также у MenubarLabel и MenubarSubTrigger.',
     },
     {
-      name: 'MenubarCheckboxItem',
-      type: 'Radix Menubar.CheckboxItem',
-      description: 'Пункт-флажок: checked / onCheckedChange, индикатор-галочка слева.',
+      name: 'MenubarItem.disabled',
+      type: 'boolean',
+      default: 'false',
+      description: 'Пункт недоступен: его нельзя выбрать, стрелки его пропускают.',
     },
     {
-      name: 'MenubarRadioGroup / RadioItem',
-      type: 'Radix Menubar.RadioGroup',
+      name: 'MenubarCheckboxItem.checked',
+      type: "boolean | 'indeterminate'",
+      description: 'Состояние флажка. Меняется через onCheckedChange.',
+    },
+    {
+      name: 'MenubarRadioGroup.value',
+      type: 'string',
       description:
-        'Взаимоисключающий выбор: value / onValueChange у группы, value у каждого RadioItem.',
-    },
-    {
-      name: 'MenubarLabel',
-      type: 'Radix Menubar.Label',
-      description: 'Заголовок секции (font-medium). inset — левый отступ под иконки.',
-    },
-    {
-      name: 'MenubarSeparator',
-      type: 'Radix Menubar.Separator',
-      description: 'Горизонтальный разделитель между группами пунктов.',
-    },
-    {
-      name: 'MenubarShortcut',
-      type: 'span',
-      description: 'Подпись горячей клавиши, прижатая к правому краю пункта (ml-auto).',
-    },
-    {
-      name: 'MenubarGroup',
-      type: 'Radix Menubar.Group',
-      description: 'Семантическая группировка пунктов (для доступности и разметки).',
-    },
-    {
-      name: 'MenubarSub / SubTrigger / SubContent',
-      type: 'Radix Menubar.Sub',
-      description: 'Вложенное подменю: SubTrigger разворачивает SubContent сбоку.',
-    },
-    {
-      name: 'MenubarPortal',
-      type: 'Radix Menubar.Portal',
-      description:
-        'Портал для содержимого (уже встроен в Content; экспортирован для ручных случаев).',
+        'Выбранный MenubarRadioItem (по его value). Меняется через onValueChange группы.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

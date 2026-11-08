@@ -4,119 +4,118 @@ sidebar_position: 5
 
 # Реакции на изменения
 
-Побочные эффекты в ответ на изменение поля: загрузка зависимых опций, аналитика, ревалидация.
-Основной оператор — `onChange`; низкоуровневый примитив — `watchField`; для перевалидации схемы —
-`revalidateWhen`.
+Когда меняется поле, форма делает что-то ещё: загружает варианты выбора, обновляет пропсы
+компонента, перепроверяет правила соседнего поля. Это операторы [поведения](../reference/glossary.md)
+`onChange` и `revalidateWhen`; вне формы — функция `watchField`.
 
-## onChange
+## Когда нужно
 
-`onChange(source, cb, { debounce?, immediate? })` вызывает `cb(value, { signal })` при изменении
-поля. Колбэк выполняется **вне effect-контекста** — в нём можно безопасно писать сигналы и ноды
-(`updateComponentProps` / `reset`) без «Cycle detected». Для async-колбэков вторым аргументом
-приходит `{ signal }` (AbortSignal): при следующей смене значения предыдущий вызов аннулируется —
-передавай `signal` в `fetch`.
+- Сменили страну — загрузить города.
+- Сменили сумму — показать подсказку у соседнего поля.
+- Сменили пароль — перепроверить «Повторите пароль».
+
+Значение, которое считается из других полей, — не реакция, а [вычисляемое поле](./computed.mdx).
+
+## Пример
 
 ```typescript
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
-type AddressForm = { country: string; city: string };
+type Address = { country: string; city: string };
 
-const behavior = defineFormBehavior<AddressForm>(({ model, form }) => {
+const addressBehavior = defineFormBehavior<Address>(({ model, form }) => {
   onChange(
     model.$.country,
     async (country, { signal }) => {
+      model.city = ''; // прежний город в новой стране не нужен
       if (!country) {
         form.city.updateComponentProps({ options: [] });
         return;
       }
-      try {
-        const cities = await fetchCities(country, { signal }); // отмена устаревших запросов
-        form.city.updateComponentProps({ options: cities });
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') return;
-        form.city.updateComponentProps({ options: [] });
-      }
+      const cities = await fetchCities(country, { signal }); // signal отменит устаревший запрос
+      form.city.updateComponentProps({ options: cities });
     },
-    { debounce: 300 } // не дёргать сеть на каждый keystroke
+    { debounce: 300 } // не запрашивать на каждое нажатие клавиши
   );
 });
 ```
 
-### Опции
+## onChange
 
-| Опция             | Назначение                                                   |
-| ----------------- | ------------------------------------------------------------ |
-| `debounce: 300`   | не вызывать колбэк на каждое изменение (300–500 мс для сети) |
-| `immediate: true` | вызвать колбэк сразу при регистрации (по умолчанию `false`)  |
+`onChange(поле, колбэк, { debounce?, immediate? })` вызывает `колбэк(значение, { signal })` после
+изменения поля.
 
-`signal` полезен не только для `fetch` — на нём можно чистить любой ресурс при следующей смене
-значения:
+| Опция             | По умолчанию | Что делает                                             |
+| ----------------- | ------------ | ------------------------------------------------------ |
+| `debounce`        | —            | пауза в мс: колбэк ждёт, пока поле перестанет меняться |
+| `immediate: true` | `false`      | вызвать колбэк и сразу при подключении поведения       |
+
+- В колбэке можно писать в модель и ноды: `model.city = ''`, `form.city.updateComponentProps(...)`.
+- `signal` — `AbortSignal`. Он срабатывает при следующем изменении поля: передайте его в `fetch`,
+  и устаревший ответ не перезапишет свежий.
+- Оборванный `fetch` бросает `AbortError`. Ошибку, которую колбэк не поймал, `onChange` глотает и
+  в режиме разработки пишет в консоль. Чтобы отмена не шумела, ловите ошибку и отсекайте её:
+  `catch (error) { if (signal.aborted) return; … }`.
+
+`signal` годится не только для запросов: на нём можно снять любой ресурс при следующем изменении.
 
 ```typescript
 onChange(model.$.livePreview, (enabled, { signal }) => {
   if (!enabled) return;
-  const interval = setInterval(refreshPreview, 1000);
-  // signal аннулируется на следующем изменении — чистим интервал
-  signal.addEventListener('abort', () => clearInterval(interval));
+  const timer = setInterval(refreshPreview, 1000);
+  signal.addEventListener('abort', () => clearInterval(timer));
 });
 ```
-
-## watchField
-
-`watchField(source, cb, { immediate? })` из `@reformer/core/model` — базовая подписка на изменение сигнала
-(без debounce и AbortSignal), поверх которой построен `onChange`. Это **примитив**: возвращает
-cleanup и вызывается императивно. Для простых синхронных реакций:
-
-```typescript
-import { watchField } from '@reformer/core/model';
-
-// вызывается при каждом изменении (по умолчанию НЕ на инициализации)
-const stop = watchField(model.$.country, () => {
-  model.city = ''; // сброс зависимого поля
-});
-// stop() — отписаться
-```
-
-:::info onChange vs watchField
-`onChange` (DSL) — async-реакции с debounce и AbortSignal внутри `defineFormBehavior`. `watchField`
-(примитив) — простая синхронная подписка, когда нужна отписка вручную (например, в `useEffect`).
-:::
 
 ## revalidateWhen
 
-Правила формы проверяются по требованию — на «Далее» визарда, при `bundle.submission.submit()` /
-`bundle.validate()` — либо живой стратегией сборки (`validation: { strategy: 'change' }`), которая
-перепроверяет форму на каждое изменение. Без живой стратегии правило одного поля, зависящее от
-**другого** поля, само не перепроверится: ошибка «Пароли не совпадают» останется на экране, даже
-когда пароль уже исправили. `revalidateWhen(deps, revalidate)` — мост поведение→валидация: вызывает
-колбэк при изменении любой из зависимостей (не на инициализации). Само поведение валидацией не
-владеет — колбэк запускает прогон тех же правил раннером `validateModel` из
-`@reformer/core/validation`.
+Правило над двумя полями (`cross`) проверяет снимок формы и за соседним полем само не следит. Без
+живой [стратегии](../validation/validation-strategies.md) замечание «Пароли не совпадают»
+останется, даже когда пароль уже исправили. `revalidateWhen(поля, колбэк)` вызывает колбэк при
+изменении любого из полей, а колбэк запускает проверку тех же правил:
 
 ```typescript
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 import { validateModel } from '@reformer/core/validation';
-import { registrationRules } from './form.validation'; // те же правила, что в createForm({ validation })
+import { registrationRules } from './registration.validation'; // те же правила, что в createForm
 
-type RegistrationForm = { password: string; confirmPassword: string };
-
-const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
-  // при смене password перегоняем схему — cross-field правило confirmPassword перепроверится
-  revalidateWhen([model.$.password], () => {
-    void validateModel(model, registrationRules); // замечания доедут до нод, устаревший прогон отменится
-  });
+const registrationBehavior = defineFormBehavior<Registration>(({ model }) => {
+  revalidateWhen([model.$.password], () => void validateModel(model, registrationRules));
 });
 ```
 
-:::warning Триггеры — ДРУГИЕ поля
-В `deps` передавай поля, от которых зависит правило, а не само проверяемое поле: мост нужен ровно
-для случая «изменилось другое поле». И убедись, что правило реально читает триггер — это правило над
-несколькими полями `cross(sig, check)` области схемы, где `check` получает снимок модели и сравнивает
-поля между собой (см. [Валидацию](../validation/overview)).
-:::
+- В список передавайте поля, от которых зависит правило, а не само проверяемое поле.
+- При подключении поведения колбэк не вызывается — только при изменениях.
 
-## Дальше
+## watchField — без формы
 
-- [Вычисляемые поля](./computed) — `compute` для производных значений (а не ручной `onChange` + запись).
-- [Синхронизация полей](./sync) — `copyFrom`, `syncFields`.
-- [Валидация](../validation/overview) — правила, стратегии и правила над несколькими полями (`cross`).
+`watchField(сигнал, колбэк, { immediate? })` из `@reformer/core/model` — подписка на изменение без
+паузы и без `signal`. Она возвращает функцию отписки и нужна там, где нет `defineFormBehavior`:
+модель без формы, свой эффект.
+
+```typescript
+import { watchField } from '@reformer/core/model';
+
+const stop = watchField(model.$.country, () => {
+  model.city = '';
+});
+// stop() — отписаться
+```
+
+Источником может быть и группа, и вся модель: `watchField(model.$.address, …)` срабатывает на любое
+поле адреса, `watchField(model.$, …)` — на любое поле формы.
+
+## Подводные камни
+
+- **Производное значение — через `compute`, а не `onChange`.** У `compute` есть защита от лишних
+  записей и циклов.
+- **Сбрасывайте зависимое поле.** Сменили страну — очистите город, иначе останется значение,
+  которого нет в новом списке.
+- **`onChange` не срабатывает при подключении.** Чтобы загрузить варианты для начального значения,
+  передайте `{ immediate: true }`.
+
+## См. также
+
+- [Асинхронная предзагрузка](../patterns/async-preload.md) — загрузка значений и справочников.
+- [Стратегии валидации](../validation/validation-strategies.md) — живая перепроверка правил.
+- [Вычисляемые поля](./computed.mdx) — значение из других полей.

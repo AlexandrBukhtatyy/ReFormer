@@ -1,21 +1,21 @@
 import { Alert, AlertTitle, AlertDescription } from '@reformer/ui-kit';
+import { CircleAlert, Info } from 'lucide-react';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Alert — не form-control: compound-компонент (Alert / AlertTitle / AlertDescription).
- * Таб Variants показывает cva-пресеты (default / destructive), Examples — приёмы
- * (заголовок + описание, иконка через `[>svg]`-сетку), API — таблица props.
+ * Alert — не поле формы: Alert / AlertTitle / AlertDescription. Variants — пресеты `variant`,
+ * Examples — приёмы (иконка, плашка без объявления), API — таблица props. Обёртка `<div style>` в
+ * render — рамка демо, в `code` её нет.
  */
 export const alertDocConfig: ComponentDocConfig = {
   name: 'Alert',
   importFrom: '@reformer/ui-kit',
-  description:
-    'Информационный блок на shadcn. Compound: Alert (контейнер, role="alert") + AlertTitle + AlertDescription. Вариант стиля — через variant.',
+  description: 'Плашка с сообщением: заголовок, описание и необязательная иконка. Вид — variant.',
   variants: [
     {
       id: 'variants',
-      title: 'Варианты стиля',
-      description: 'variant: default / destructive.',
+      title: 'Вид (variant)',
+      description: 'default — сведения, destructive — ошибка.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Alert>
@@ -42,9 +42,8 @@ export const alertDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'title-description',
-      title: 'Заголовок + описание',
-      description:
-        'AlertTitle и AlertDescription раскладываются в сетке контейнера — заголовок сверху, описание ниже.',
+      title: 'Заголовок и описание',
+      description: 'AlertTitle — одна строка сверху, AlertDescription — текст под ней.',
       render: () => (
         <Alert>
           <AlertTitle>Черновик сохранён</AlertTitle>
@@ -60,22 +59,10 @@ export const alertDocConfig: ComponentDocConfig = {
       id: 'with-icon',
       title: 'С иконкой',
       description:
-        'SVG-иконка первым потомком включает двухколоночную сетку (`has-[>svg]`): иконка слева, заголовок и описание справа.',
+        'Иконка первым дочерним элементом включает две колонки: иконка слева, заголовок и описание справа.',
       render: () => (
         <Alert>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4M12 8h.01" />
-          </svg>
+          <CircleAlert />
           <AlertTitle>Требуется подтверждение</AlertTitle>
           <AlertDescription>Подтвердите e-mail, чтобы продолжить.</AlertDescription>
         </Alert>
@@ -88,24 +75,52 @@ export const alertDocConfig: ComponentDocConfig = {
   <AlertDescription>Подтвердите e-mail, чтобы продолжить.</AlertDescription>
 </Alert>`,
     },
+    {
+      id: 'static-note',
+      title: 'Пояснение без объявления (role="note")',
+      description:
+        'Alert по умолчанию — role="alert": скринридер зачитывает его сразу. Постоянному пояснению, которое есть на странице с самого начала, задайте role="note".',
+      render: () => (
+        <Alert role="note">
+          <Info />
+          <AlertTitle>Что будет дальше</AlertTitle>
+          <AlertDescription>Заявку рассмотрят в течение двух рабочих дней.</AlertDescription>
+        </Alert>
+      ),
+      code: `import { Info } from 'lucide-react';
+
+<Alert role="note">
+  <Info />
+  <AlertTitle>Что будет дальше</AlertTitle>
+  <AlertDescription>Заявку рассмотрят в течение двух рабочих дней.</AlertDescription>
+</Alert>`,
+    },
   ],
   props: [
     {
       name: 'variant',
       type: "'default' | 'destructive'",
-      default: 'default',
-      description: 'Вариант стиля контейнера Alert.',
+      default: "'default'",
+      description: 'Вид плашки (проп корня Alert).',
+    },
+    {
+      name: 'role',
+      type: 'string',
+      default: "'alert'",
+      description:
+        'Роль корня. По умолчанию alert — скринридер зачитывает плашку сразу. Для постоянного пояснения — "note".',
     },
     {
       name: 'children',
       type: 'ReactNode',
-      description: 'Содержимое: AlertTitle, AlertDescription и опц. иконка (SVG первым потомком).',
+      description:
+        'Содержимое: AlertTitle, AlertDescription и необязательная иконка первым элементом.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы (tailwind-merge — класс вызывающего перекрывает). Есть у всех трёх частей.',
+        'Дополнительные классы у любой из трёх частей. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

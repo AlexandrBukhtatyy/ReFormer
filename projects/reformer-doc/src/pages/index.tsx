@@ -22,18 +22,18 @@ function HomepageHeader() {
         </p>
         <p className={styles.heroLead}>
           <Translate id="homepage.lead">
-            Модель на сигналах — источник истины. Одна схема связывает поля, валидацию и реактивные
-            behaviors. Рендерите вручную, из схемы или из JSON.
+            Модель на сигналах — источник истины. Одна схема связывает поля, правила и поведение
+            формы. Рисуйте форму вручную, по схеме или из JSON.
           </Translate>
         </p>
         <div className={styles.buttons}>
           <Link className="button button--secondary button--lg" to="/docs/">
-            <Translate id="homepage.getStarted">Get Started</Translate>
+            <Translate id="homepage.getStarted">Начать</Translate>
           </Link>
           <Link
             className="button button--outline button--secondary button--lg"
             style={{ marginLeft: '1rem' }}
-            to="/docs/examples/"
+            to="/docs/examples"
           >
             <Translate id="homepage.examples">Примеры</Translate>
           </Link>
@@ -42,7 +42,7 @@ function HomepageHeader() {
             style={{ marginLeft: '1rem' }}
             href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx"
           >
-            <Translate id="homepage.tryPlayground">Try Playground</Translate>
+            <Translate id="homepage.tryPlayground">Попробовать</Translate>
           </Link>
         </div>
       </div>
@@ -64,7 +64,7 @@ const PACKAGES: PackageCard[] = [
     icon: '⚡',
     to: '/docs/',
     descId: 'homepage.pkg.core',
-    descDefault: 'Реактивное ядро на сигналах: модель, схема, валидаторы, behaviors, хуки.',
+    descDefault: 'Реактивное ядро на сигналах: модель, схема, правила, поведение, хуки React.',
   },
   {
     name: '@reformer/cdk',
@@ -99,7 +99,21 @@ const PACKAGES: PackageCard[] = [
     icon: '🤖',
     to: '/docs/mcp/overview',
     descId: 'homepage.pkg.mcp',
-    descDefault: 'MCP-сервер: документация и генерация форм для AI-ассистентов.',
+    descDefault: 'MCP-сервер: документация и генерация форм для ИИ-ассистентов.',
+  },
+  {
+    name: '@reformer/form-registry',
+    icon: '🔗',
+    to: '/docs/packages/form-registry',
+    descId: 'homepage.pkg.formRegistry',
+    descDefault: 'Формы, которые приложение получает от микрофронтендов: по ссылке и по запросу.',
+  },
+  {
+    name: 'Builder',
+    icon: '🛠️',
+    to: '/docs/builder/overview',
+    descId: 'homepage.pkg.builder',
+    descDefault: 'Визуальный редактор форм с ИИ-ассистентом и выгрузкой кода (в разработке).',
   },
 ];
 
@@ -212,7 +226,7 @@ const FeatureList: FeatureItem[] = [
     titleDefault: 'Declarative Validation',
     descriptionId: 'homepage.feature.validation.description',
     descriptionDefault:
-      '14 built-in validators, async validation, and easy custom validators. Define validation rules once, apply everywhere.',
+      '28 built-in rules for strings, numbers, dates and files, async validation and your own rules. Rules live separately from the markup.',
     icon: '✅',
   },
   {

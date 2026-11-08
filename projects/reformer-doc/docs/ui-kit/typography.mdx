@@ -2,6 +2,7 @@
 id: typography
 title: Typography
 sidebar_label: Typography
+description: Заголовки, абзацы, списки, цитаты и код с готовыми размерами и отступами.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,12 +10,69 @@ import { typographyDocConfig } from '@site/src/components/demo/examples/typograp
 
 # Typography
 
-Набор типографских обёрток на Tailwind-классах по образцу shadcn/ui. Это **не**
-form-control и **не** примитив с Radix — в shadcn типографика оформлена как
-guide-страница, а не registry-компонент. Здесь каждый элемент (`TypographyH1…H4`,
-`TypographyP`, `TypographyBlockquote`, `TypographyList`, `TypographyInlineCode`,
-`TypographyLead`, `TypographyLarge`, `TypographySmall`, `TypographyMuted`) — тонкая
-обёртка над нужным тегом с `data-slot` и мёржем `className` через `cn()` (класс
-вызывающего перекрывает конфликтующие дефолтные).
+Набор компонентов для текста: заголовки, абзацы, списки, цитаты, код. Каждый рисует один тег
+(`h1`, `p`, `ul`…) с готовым размером, весом и отступами. Набор входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поля формы.
+
+## Когда брать
+
+- **Typography** — текстовые страницы и блоки: справка, пояснение к форме, статья, пустое
+  состояние с текстом.
+- [Section](./section.mdx) — заголовок группы полей внутри формы. Уровень заголовка задаёт
+  `titleAs`, вид — `titleClassName`.
+- [FormField](./form-field.mdx) — подпись, пояснение и ошибку поля формы рисует он; вне формы
+  подпись к контролу — компонент `Label`.
+- [Kbd](./kbd.mdx) — клавиши в тексте; `TypographyInlineCode` — фрагмент кода.
+
+## Анатомия
+
+```tsx
+import { TypographyH2, TypographyP, TypographyInlineCode } from '@reformer/ui-kit'; // или '@reformer/ui-kit/typography'
+
+<TypographyH2>Установка</TypographyH2>
+<TypographyP>
+  Выполните <TypographyInlineCode>npm i @reformer/ui-kit</TypographyInlineCode>.
+</TypographyP>;
+```
+
+| Компонент              | Тег          | Вид                                              |
+| ---------------------- | ------------ | ------------------------------------------------ |
+| `TypographyH1`         | `h1`         | Самый крупный заголовок, жирный.                 |
+| `TypographyH2`         | `h2`         | Заголовок раздела с линией снизу.                |
+| `TypographyH3`         | `h3`         | Подраздел.                                       |
+| `TypographyH4`         | `h4`         | Мелкий заголовок.                                |
+| `TypographyP`          | `p`          | Абзац; со второго абзаца подряд — отступ сверху. |
+| `TypographyLead`       | `p`          | Вводный абзац: крупнее, приглушённым цветом.     |
+| `TypographyLarge`      | `div`        | Крупный полужирный текст.                        |
+| `TypographySmall`      | `small`      | Мелкая подпись.                                  |
+| `TypographyMuted`      | `p`          | Приглушённый вспомогательный текст.              |
+| `TypographyList`       | `ul`         | Маркированный список; пункты — обычные `li`.     |
+| `TypographyBlockquote` | `blockquote` | Цитата курсивом с линией слева.                  |
+| `TypographyInlineCode` | `code`       | Код в строке: моноширинный шрифт на сером фоне.  |
+
+Своих пропсов нет: каждый компонент принимает атрибуты своего тега и `className`. При конфликте
+Tailwind-классов побеждает ваш — `className="text-2xl"` у `TypographyH2` заменит его `text-3xl`.
+Цвета берутся из темы, поэтому текст верен и в тёмной теме.
+
+## Примеры
 
 <ComponentDoc config={typographyDocConfig} />
+
+## Доступность
+
+- Компоненты рисуют настоящие теги: `TypographyH2` — это `h2` в структуре заголовков страницы.
+- Уровень выбирайте по структуре документа, а не по размеру. Нужен `h3` размером с `h2` — берите
+  `TypographyH3` и меняйте размер классом.
+- На странице — один `h1`, уровни идут без пропусков: после `h2` — `h3`, а не `h4`.
+- `TypographyMuted` и `TypographyLead` менее контрастны, чем основной текст. Предупреждения и
+  обязательные условия в них не пишите.
+
+## Локализация
+
+Своих строк компоненты не рисуют: весь текст — ваш.
+
+## См. также
+
+- [Section](./section.mdx) — заголовок группы полей в форме.
+- [Card](./card.mdx) — блок с рамкой для текста и действий.
+- [Kbd](./kbd.mdx) — обозначение клавиш.

@@ -9,35 +9,110 @@ import { cdkFileUploadDocConfig } from '@site/src/components/demo/examples/cdk-f
 
 # FileUpload
 
-Headless-компонент выбора и загрузки файлов из `@reformer/cdk`: `Root` / `Trigger` / `Dropzone` /
-`ItemGroup` / `Item` (+ `ItemPreview`, `ItemName`, `ItemSize`, `ItemProgress`, `ItemDeleteTrigger`,
-`ItemRetryTrigger`) / `ClearTrigger`. Видимой разметки и стилей не навязывает — её дают слоты и
-ваша вёрстка. Готовый визуальный вариант — [`FileUpload` из `@reformer/ui-kit`](../ui-kit/file-upload.mdx).
+`FileUpload` — выбор и загрузка файлов: кнопка, зона перетаскивания, список файлов с прогрессом,
+повтором и удалением. Компонент отбирает файлы, ведёт загрузку и связывает всё с полем формы.
+Видимую разметку вы пишете сами.
 
-Работает в двух режимах значения поля:
+## Когда использовать
 
-- **deferred** — `uploader` не задан: значение поля `File[]`, файлы уходят на сервер при отправке
-  формы (обычно `FormData`);
-- **immediate** — задан `uploader`: файлы загружаются сразу при выборе, значение поля —
-  сериализуемые дескрипторы `RemoteFileRef[]` (только успешно загруженные). Они переживают
-  черновики, JSON-схему и повторное открытие формы с уже загруженными файлами.
+- В форме есть поле с файлами — скан паспорта, справка о доходах, вложения к заявке.
+- Файлы нужно загружать сразу при выборе и показывать прогресс.
+- Нужен свой вид зоны и строк файла.
 
-Пустой список эмитится как `null`, поэтому `required()` и валидаторы файлов из
+Готовый вид с зоной, превью и прогрессом — [FileUpload из ui-kit](../ui-kit/file-upload.mdx).
+
+## Анатомия
+
+Значение поля зависит от того, задан ли загрузчик `uploader`:
+
+| Режим         | Значение поля     | Когда файлы уходят на сервер                                                                      |
+| ------------- | ----------------- | ------------------------------------------------------------------------------------------------- |
+| **deferred**  | `File[]`          | при отправке формы, обычно в `FormData`                                                           |
+| **immediate** | `RemoteFileRef[]` | сразу при выборе; в значении только загруженные файлы — `{ id, name, url?, size?, type?, meta? }` |
+
+Дескрипторы `RemoteFileRef` сериализуемы: они переживают черновик, JSON и повторное открытие формы.
+Пустой список приходит как `null`, поэтому `required()` и правила файлов из
 `@reformer/core/validators` работают без изменений.
 
-Что компонент берёт на себя:
+| Часть                                                 | Что делает                                                                                           |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `FileUpload.Root`                                     | Провайдер и владелец поведения. Сам рендерит только скрытый `<input type="file">` и регион статусов. |
+| `FileUpload.Trigger`                                  | Кнопка, открывающая системный выбор файлов.                                                          |
+| `FileUpload.Dropzone`                                 | Зона перетаскивания: `role="button"`, фокус, клик открывает выбор; `data-dragging` во время drag.    |
+| `FileUpload.ItemGroup`                                | Список файлов (`role="list"`); функция-ребёнок получает каждый файл. Пустой список не рендерится.    |
+| `FileUpload.Item`                                     | Строка файла (`role="listitem"`, `data-status`).                                                     |
+| `ItemPreview`, `ItemName`, `ItemSize`, `ItemProgress` | Превью изображения, имя, размер, прогресс загрузки.                                                  |
+| `ItemDeleteTrigger`, `ItemRetryTrigger`               | Удаление строки (с отменой загрузки) и повтор упавшей загрузки.                                      |
+| `FileUpload.ClearTrigger`                             | Очистка списка.                                                                                      |
 
-- **Отбор** — `accept`, `maxFiles`, лимиты размеров, дубликаты и свой `validate` действуют на выбор
-  в пикере, drag-and-drop и вставку из буфера. Отклонённый файл в значение не попадает — уходит в
-  `onReject` со всеми нарушениями сразу. Текста у нарушения нет, только `code` и `params`, как у
-  правил ядра: текст даёт словарь формы через `useIssueMessageResolver`.
-- **Загрузку** — прогресс, повтор упавшей загрузки, отмена через `AbortSignal` при удалении строки
-  и размонтировании. Загрузчик ваш: XHR, tus, presigned S3 — что угодно, возвращающее дескриптор.
-- **Доступность** — настоящий скрытый `<input type="file">` (подпись, клик и `focus()` работают
-  нативно), роли списка и строк, `aria-live`-регион статусов на языке активной локали.
+Файл в списке — объединение по `status`: `local` (выбран), `uploading` (с `progress`), `uploaded`
+(с `remote`), `error` (с `error`).
 
-Для полностью своей разметки есть хук `useFileUpload` с prop-getters, а для тестов и своих обёрток —
-чистое ядро состояния без React: `fileUploadReducer`, `selectFiles`, `projectValue`,
+### Отбор файлов
+
+`accept`, `maxFiles`, `maxFileSize`, `minFileSize`, `maxTotalFileSize`, отсев дубликатов
+(`preventDuplicates`, по умолчанию включён) и свой `validate` действуют на выбор, перетаскивание и
+вставку из буфера (`allowPaste`). Отклонённый файл в значение не попадает: он уходит в `onReject`
+со всеми нарушениями сразу. У нарушения нет текста, только `code` и `params`, как у
+[замечаний](../reference/glossary.md#валидация) ядра: `fileType`, `maxFileSize`, `minFileSize`,
+`maxFiles`, `maxTotalFileSize`, `fileExists`. Текст даёт словарь через `useIssueMessageResolver` —
+см. [Тексты замечаний](./validation-messages.mdx).
+
+### Загрузчик
+
+Загрузчик — ваша функция: XHR, tus, presigned S3, что угодно, что возвращает `RemoteFileRef`.
+Своей реализации у компонента нет.
+
+```ts
+import type { FileUploadUploader } from '@reformer/cdk/file-upload';
+
+const uploader: FileUploadUploader = (file, { onProgress, signal }) =>
+  api.upload(file, { onProgress, signal }); // → { id, name, url?, size? }
+```
+
+`signal` прерывает загрузку, когда строку удалили или компонент размонтирован, — передайте его в
+запрос. Загрузка, прерванная через `abort()`, остаётся в списке с ошибкой `uploadAborted`,
+упавшая — с `uploadFailed`; `ItemRetryTrigger` повторяет её.
+
+Без compound-дерева то же поведение даёт хук `useFileUpload` с наборами пропсов
+(`getRootProps`, `getDropzoneProps`, `getHiddenInputProps`, …). Ref корня — `FileUploadHandle` с
+`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `abort`, `focus`. Для тестов и своих
+обёрток есть чистое ядро без React: `fileUploadReducer`, `selectFiles`, `projectValue`,
 `reconcileItems`.
 
+## Примеры
+
 <ComponentDoc config={cdkFileUploadDocConfig} />
+
+## Доступность
+
+- В основе — настоящий `<input type="file">`, скрытый визуально, но не через `display: none`:
+  подпись, клик и `focus()` работают нативно, `FileUploadHandle.focus()` переводит на него фокус.
+- `Dropzone` доступна с клавиатуры: `role="button"`, `tabIndex`, Enter и пробел открывают выбор.
+  В отключённом состоянии — `aria-disabled` и вне порядка обхода.
+- Список и строки получают роли `list` и `listitem`, прогресс — `role="progressbar"` с
+  `aria-valuenow`.
+- Кнопки удаления и повтора получают `aria-label` с именем файла: «Удалить файл report.pdf».
+- Добавление, отклонение, удаление, загрузка и сбой объявляются через скрытый регион
+  `role="status"` с `aria-live="polite"`. В хуке его рисуете вы — `getLiveRegionProps()`.
+
+## Локализация
+
+Видимый текст — подписи кнопок и зоны — ваш. Сам компонент произносит:
+
+| Что                                    | Ключи                                                                                                 |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Статусы в регионе для скринридера      | `cdk.fileUpload.added`, `rejected`, `removed`, `cleared`, `uploaded`, `uploadAborted`, `uploadFailed` |
+| `aria-label` кнопок удаления и повтора | `cdk.fileUpload.removeFile`, `cdk.fileUpload.retryUpload`                                             |
+| Размер файла в `FileUpload.ItemSize`   | `format.fileSize.*` — словарь ядра: «1,5 КБ» в русской локали, «1.5 KB» без провайдера                |
+
+Язык задаёт `I18nProvider` из `@reformer/core/react`; как подключить строки cdk — на странице
+[Локализация](./locale.md). Статус в регионе хранится ключом, поэтому смена языка переводит и уже
+показанное. Чистая функция `formatFileSize` языка не знает и всегда отдаёт английский; размер по
+языку — `useI18n().fileSize(bytes)`.
+
+## См. также
+
+- [FileUpload в ui-kit](../ui-kit/file-upload.mdx) — готовый вид.
+- [Тексты замечаний](./validation-messages.mdx) — тексты нарушений отбора.
+- [Локализация cdk](./locale.md) — статусы и подписи на других языках.

@@ -1,41 +1,52 @@
-import {
-  DirectionProvider,
-  useDirection,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-  Button,
-} from '@reformer/ui-kit';
+import { useState } from 'react';
+import { Button, DirectionProvider, ScrollArea, useDirection } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Direction — не form-control, provider: тонкая обёртка над Radix Direction.DirectionProvider.
- * Задаёт направление письма (LTR/RTL) через React-контекст для всех Radix-примитивов внутри
- * (Select, Tooltip, Slider, …) — они читают его через useDirection и разворачивают раскладку.
- * Собственную DOM-обёртку не рендерит. Таб Variants показывает эффект dir на разметке,
- * Examples — оборачивание приложения и хук useDirection, API — части провайдера.
+ * DirectionProvider — не поле формы и не разметка: React-контекст направления текста (ltr / rtl)
+ * для компонентов на Radix, плюс хук useDirection. Своего DOM не рисует. Variants — Radix-компонент
+ * в rtl и свой компонент на useDirection, Examples — направление от языка, API — таблица props.
  */
 
-/** Демонстрация: строка, физически разворачивающаяся по текущему направлению из контекста. */
-function DirRow() {
-  const dir = useDirection();
+const LINES = [
+  'Первая строка',
+  'Вторая строка',
+  'Третья строка',
+  'Четвёртая строка',
+  'Пятая строка',
+  'Шестая строка',
+  'Седьмая строка',
+];
+
+/** Свой компонент: читает направление из контекста и ставит его на разметку. */
+function DirectionLabel() {
+  const dir = useDirection(); // 'ltr' | 'rtl'
   return (
-    <div
-      dir={dir}
-      style={{
-        display: 'flex',
-        gap: 8,
-        alignItems: 'center',
-        padding: 12,
-        border: '1px solid var(--ifm-color-emphasis-300, #ccc)',
-        borderRadius: 6,
-      }}
-    >
-      <span style={{ fontWeight: 600 }}>dir = {dir}</span>
+    <div dir={dir} className="flex gap-2 rounded-md border p-2 text-sm">
+      <span className="font-medium">dir = {dir}</span>
       <span>①</span>
       <span>②</span>
       <span>③</span>
+    </div>
+  );
+}
+
+function LanguageSwitch() {
+  const [lang, setLang] = useState<'ru' | 'he'>('ru');
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-fit"
+        onClick={() => setLang(lang === 'ru' ? 'he' : 'ru')}
+      >
+        Язык: {lang}
+      </Button>
+      <DirectionProvider dir={dir}>
+        <DirectionLabel />
+      </DirectionProvider>
     </div>
   );
 }
@@ -44,122 +55,124 @@ export const directionDocConfig: ComponentDocConfig = {
   name: 'DirectionProvider',
   importFrom: '@reformer/ui-kit',
   description:
-    'Провайдер направления письма (LTR/RTL) на shadcn / Radix. Оберните приложение (или поддерево) один раз — вложенные Radix-примитивы (Select, Tooltip, Slider и др.) подхватят направление из контекста через useDirection. Собственной DOM-обёртки не создаёт.',
+    'Задаёт направление текста (ltr / rtl) для компонентов на Radix внутри себя. Своей разметки не рисует.',
   variants: [
     {
-      id: 'rtl',
-      title: 'RTL — справа налево',
+      id: 'radix-rtl',
+      title: 'Компонент на Radix в rtl',
       description:
-        'dir="rtl" разворачивает раскладку потомков. Элементы ①②③ выстраиваются справа налево.',
+        'ScrollArea берёт направление из провайдера: текст прижат вправо, полоса прокрутки встала слева.',
       render: () => (
         <DirectionProvider dir="rtl">
-          <DirRow />
+          <ScrollArea type="always" className="h-40 w-72 rounded-md border">
+            <div className="p-4 text-sm">
+              {LINES.map((line) => (
+                <p key={line} className="mb-3">
+                  {line}
+                </p>
+              ))}
+            </div>
+          </ScrollArea>
         </DirectionProvider>
       ),
-      code: `<DirectionProvider dir="rtl">
-  {/* потомки, читающие направление через useDirection */}
-  <MyRtlAwareComponent />
+      code: `const lines = [
+  'Первая строка',
+  'Вторая строка',
+  'Третья строка',
+  'Четвёртая строка',
+  'Пятая строка',
+  'Шестая строка',
+  'Седьмая строка',
+];
+
+<DirectionProvider dir="rtl">
+  <ScrollArea type="always" className="h-40 w-72 rounded-md border">
+    <div className="p-4 text-sm">
+      {lines.map((line) => (
+        <p key={line} className="mb-3">
+          {line}
+        </p>
+      ))}
+    </div>
+  </ScrollArea>
 </DirectionProvider>`,
     },
     {
-      id: 'ltr',
-      title: 'LTR — слева направо (по умолчанию)',
-      description: 'dir="ltr" — обычная раскладка слева направо.',
+      id: 'use-direction',
+      title: 'Свой компонент (useDirection)',
+      description:
+        'useDirection() возвращает направление из контекста. Атрибут dir на разметку компонент ставит сам.',
       render: () => (
-        <DirectionProvider dir="ltr">
-          <DirRow />
+        <DirectionProvider dir="rtl">
+          <DirectionLabel />
         </DirectionProvider>
       ),
-      code: `<DirectionProvider dir="ltr">
-  <MyRtlAwareComponent />
+      code: `function DirectionLabel() {
+  const dir = useDirection(); // 'ltr' | 'rtl'
+  return (
+    <div dir={dir} className="flex gap-2 rounded-md border p-2 text-sm">
+      <span className="font-medium">dir = {dir}</span>
+      <span>①</span>
+      <span>②</span>
+      <span>③</span>
+    </div>
+  );
+}
+
+<DirectionProvider dir="rtl">
+  <DirectionLabel />
 </DirectionProvider>`,
     },
   ],
   examples: [
     {
-      id: 'wrap-app',
-      title: 'Оборачивание Radix-примитивов',
+      id: 'from-language',
+      title: 'Направление от языка',
       description:
-        'Оберните дерево один раз — вложенные Radix-компоненты (здесь Tooltip) наследуют направление из контекста и позиционируются с учётом RTL.',
-      render: () => (
-        <DirectionProvider dir="rtl">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline">RTL-контекст</Button>
-              </TooltipTrigger>
-              <TooltipContent>Подсказка в RTL-направлении</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </DirectionProvider>
-      ),
-      code: `<DirectionProvider dir="rtl">
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="outline">RTL-контекст</Button>
-      </TooltipTrigger>
-      <TooltipContent>Подсказка в RTL-направлении</TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-</DirectionProvider>`,
-    },
-    {
-      id: 'use-direction',
-      title: 'Хук useDirection',
-      description:
-        'useDirection() возвращает текущее направление из контекста ("ltr" по умолчанию). Позволяет собственным компонентам подстраивать раскладку.',
-      render: () => (
-        <DirectionProvider dir="rtl">
-          <DirRow />
-        </DirectionProvider>
-      ),
-      code: `import { useDirection } from '@reformer/ui-kit';
-
-function MyRtlAwareComponent() {
-  const dir = useDirection(); // 'ltr' | 'rtl'
-  return <div dir={dir}>Направление: {dir}</div>;
+        'Направление выводится из языка интерфейса: иврит и арабский — rtl, остальные — ltr. DirectionLabel — из варианта «Свой компонент». Переключите язык.',
+      render: LanguageSwitch,
+      code: `function LanguageSwitch() {
+  const [lang, setLang] = useState<'ru' | 'he'>('ru');
+  const dir = lang === 'he' ? 'rtl' : 'ltr';
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-fit"
+        onClick={() => setLang(lang === 'ru' ? 'he' : 'ru')}
+      >
+        Язык: {lang}
+      </Button>
+      <DirectionProvider dir={dir}>
+        <DirectionLabel />
+      </DirectionProvider>
+    </div>
+  );
 }`,
-    },
-    {
-      id: 'direction-alias',
-      title: 'Алиас direction (динамический язык)',
-      description:
-        'Проп-алиас direction эквивалентен dir и удобен, когда направление приходит из состояния языка приложения. Если заданы оба — приоритет у direction.',
-      render: () => (
-        <DirectionProvider dir="ltr" direction="rtl">
-          <DirRow />
-        </DirectionProvider>
-      ),
-      code: `const dir = locale === 'ar' ? 'rtl' : 'ltr';
-
-<DirectionProvider direction={dir}>
-  <App />
-</DirectionProvider>`,
     },
   ],
   props: [
     {
-      name: 'DirectionProvider',
-      type: 'Radix Direction.DirectionProvider',
-      description:
-        'Провайдер направления. Рендерит только children (без DOM-обёртки), задавая контекст направления для вложенных Radix-примитивов.',
-    },
-    {
       name: 'dir',
       type: "'ltr' | 'rtl'",
-      description: 'Направление письма для потомков.',
+      description: 'Направление текста для компонентов внутри провайдера.',
     },
     {
       name: 'direction',
       type: "'ltr' | 'rtl'",
-      description: 'Алиас для dir. Если заданы оба — приоритет у direction (direction ?? dir).',
+      description: 'Второе имя того же пропа. Если заданы оба, побеждает direction.',
+    },
+    {
+      name: 'children',
+      type: 'ReactNode',
+      description: 'Поддерево, которое получит направление. Обёртки в DOM провайдер не добавляет.',
     },
     {
       name: 'useDirection',
-      type: '() => "ltr" | "rtl"',
+      type: "(localDir?: 'ltr' | 'rtl') => 'ltr' | 'rtl'",
       description:
-        'Хук: возвращает текущее направление из контекста ("ltr" по умолчанию, если провайдера нет).',
+        'Хук: localDir, если передан, иначе направление из ближайшего провайдера, иначе "ltr".',
     },
   ],
 };

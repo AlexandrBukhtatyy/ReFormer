@@ -2,6 +2,7 @@
 id: dialog
 title: Dialog
 sidebar_label: Dialog
+description: Модальное окно поверх страницы — заголовок, содержимое и кнопки.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,10 +10,130 @@ import { dialogDocConfig } from '@site/src/components/demo/examples/dialog';
 
 # Dialog
 
-Модальное окно на shadcn / Radix Dialog. Это compound-компонент: корень `Dialog`
-(управляет состоянием), `DialogTrigger` (открывает), `DialogContent` (тело в `Portal`
-с оверлеем и крестиком закрытия), `DialogHeader` + `DialogTitle` / `DialogDescription`,
-`DialogFooter` и `DialogClose`. Focus-trap, закрытие по `Esc`, `aria-labelledby` /
-`aria-describedby` — из Radix «из коробки».
+Модальное окно в центре экрана. Пока оно открыто, страница под ним затемнена и недоступна.
+Построено на Radix Dialog и входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`,
+это не поле формы.
+
+## Когда брать
+
+Кит даёт несколько окон и панелей поверх страницы. Выбирайте по задаче:
+
+| Компонент                         | Когда                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Dialog**                        | Короткая отдельная задача: переименовать, заполнить пару полей, посмотреть подробности.      |
+| [AlertDialog](./alert-dialog.mdx) | Подтвердить необратимое действие. Окно не закрывается щелчком мимо — нужен ответ.            |
+| [Sheet](./sheet.mdx)              | Панель у края экрана: фильтры, настройки, навигация. Много содержимого, видно край страницы. |
+| [Drawer](./drawer.mdx)            | Шторка снизу, которую смахивают пальцем, — для телефона.                                     |
+| [Popover](./popover.mdx)          | Небольшая панель рядом с кнопкой, без затемнения страницы.                                   |
+
+Длинную анкету в окно не прячьте: отдельная страница или [FormWizard](./form-navigation.mdx)
+удобнее и не теряет введённое при случайном закрытии.
+
+## Анатомия
+
+```tsx
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/dialog'
+
+<Dialog>
+  <DialogTrigger asChild>
+    <Button variant="outline">Изменить профиль</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Профиль</DialogTitle>
+      <DialogDescription>Изменения увидят другие участники.</DialogDescription>
+    </DialogHeader>
+    {/* содержимое */}
+    <DialogFooter>
+      <DialogClose asChild>
+        <Button variant="outline">Отмена</Button>
+      </DialogClose>
+      <Button>Сохранить</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>;
+```
+
+| Часть               | Что это                                              | Ключевые пропсы                                 |
+| ------------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| `Dialog`            | Корень: хранит, открыто ли окно.                     | `open` + `onOpenChange`, `defaultOpen`, `modal` |
+| `DialogTrigger`     | Кнопка, которая открывает окно.                      | `asChild`                                       |
+| `DialogContent`     | Само окно в портале, с затемнением фона и крестиком. | `showCloseButton` (`true`), `className`         |
+| `DialogHeader`      | Шапка: заголовок и описание.                         | —                                               |
+| `DialogTitle`       | Заголовок окна. Обязателен.                          | —                                               |
+| `DialogDescription` | Пояснение под заголовком.                            | —                                               |
+| `DialogFooter`      | Ряд кнопок; на узком экране — столбиком.             | `showCloseButton` (`false`)                     |
+| `DialogClose`       | Закрывает окно. Обычно оборачивает свою кнопку.      | `asChild`                                       |
+
+- Окно закрывают крестик, `Esc`, щелчок по затемнению и любой `DialogClose`.
+- Чтобы закрыть окно из кода (после сохранения), управляйте им сами: `open` и `onOpenChange`
+  (пример «Закрыть после сохранения»).
+- Ширина по умолчанию — до `max-w-lg`. Другую задайте классом: `<DialogContent className="sm:max-w-md">`.
+- `DialogPortal` и `DialogOverlay` `DialogContent` рисует сам; отдельно они нужны только для своей
+  композиции окна.
+
+## Примеры
 
 <ComponentDoc config={dialogDocConfig} />
+
+## Доступность
+
+Фокус, клавиатуру и атрибуты даёт Radix Dialog:
+
+| Клавиша             | Действие                                                   |
+| ------------------- | ---------------------------------------------------------- |
+| `Enter` / `Space`   | На триггере — открыть окно.                                |
+| `Tab` / `Shift+Tab` | Перейти по элементам окна; фокус не уходит за его пределы. |
+| `Esc`               | Закрыть окно.                                              |
+
+- При открытии фокус переходит на первый интерактивный элемент окна, при закрытии возвращается на
+  триггер.
+- У окна `role="dialog"`; заголовок и описание связаны с ним через `aria-labelledby` и
+  `aria-describedby`. Остальная страница скрыта от скринридера, прокрутка под окном заблокирована.
+- `DialogTitle` обязателен: без него Radix пишет предупреждение в консоль. Если заголовок не нужен
+  глазами, скройте его классом `sr-only`.
+- Если описания нет, передайте `aria-describedby={undefined}` в `DialogContent`, чтобы убрать
+  предупреждение Radix.
+- Крестик — кнопка с иконкой; её имя для скринридера («Закрыть») — скрытая подпись из словаря кита.
+
+## Локализация
+
+Кит рисует сам одну строку — подпись кнопки закрытия. Она служит скрытым именем крестика в
+`DialogContent` и текстом кнопки, которую добавляет `DialogFooter showCloseButton`:
+
+| Ключ словаря       | English | Русский |
+| ------------------ | ------- | ------- |
+| `kit.dialog.close` | Close   | Закрыть |
+
+Язык берётся из `I18nProvider` (`@reformer/core/react`) с локалью кита `loadKitLocale` из
+`@reformer/ui-kit/locale`; без провайдера подпись английская. Пропа для неё нет: для одного окна
+уберите встроенную кнопку (`showCloseButton={false}`) и поставьте свою `DialogClose`, для всего
+приложения — добавьте источник словаря после `loadKitLocale`:
+
+```tsx
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+const loadLocale = createLocaleLoader([
+  loadKitLocale,
+  (code) => (code === 'ru' ? { 'kit.dialog.close': 'Закрыть окно' } : null),
+]);
+```
+
+## См. также
+
+- [AlertDialog](./alert-dialog.mdx) — подтверждение необратимого действия.
+- [Sheet](./sheet.mdx) — панель у края экрана.
+- [Drawer](./drawer.mdx) — шторка для телефона.
+- [Command](./command.mdx) — палитра команд в окне (`CommandDialog`).
+- [Radix Dialog](https://www.radix-ui.com/primitives/docs/components/dialog) — полный список
+  пропсов примитива.

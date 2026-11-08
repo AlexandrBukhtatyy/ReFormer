@@ -4,6 +4,7 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 import CodeBlock from '@theme/CodeBlock';
 import { PropsTable } from './PropsTable';
 import type { KnobDef, KnobValues, PlaygroundDef, PropRow } from './types';
+import { demoText } from './messages';
 import styles from './styles.module.css';
 
 function defaults(knobs: KnobDef[]): KnobValues {
@@ -30,7 +31,7 @@ export function Playground({
       <div className={styles.playground}>
         <div>
           <div className={clsx('reformer-demo', styles.canvas, styles.canvasCenter)}>
-            <BrowserOnly fallback={<span className={styles.fallback}>Загрузка демо…</span>}>
+            <BrowserOnly fallback={<span className={styles.fallback}>{demoText.loading()}</span>}>
               {() => <Render {...values} />}
             </BrowserOnly>
           </div>

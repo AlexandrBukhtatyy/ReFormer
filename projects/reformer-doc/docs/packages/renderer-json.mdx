@@ -1,0 +1,116 @@
+---
+id: renderer-json
+title: '@reformer/renderer-json'
+sidebar_label: 'renderer-json'
+---
+
+import { JsonRenderFlow } from '@site/src/components/diagrams/JsonRenderFlow';
+import JsonFormExample from '@site/src/components/demo/live/rendering/json-form';
+import jsonFormSource from '@site/src/components/demo/live/rendering/json-form.tsx?raw';
+
+# @reformer/renderer-json
+
+`@reformer/renderer-json` описывает [схему формы](/docs/reference/glossary) JSON-документом.
+Документ — чистые данные: привязки к модели и компонентам записаны строками вида `$model(email)` и
+`$component(Input)`. [Реестр](/docs/reference/glossary) сопоставляет эти имена с компонентами,
+данными и функциями из кода. Рисует форму тот же `FormRenderer`, что и схему на TypeScript.
+
+## Когда нужен
+
+- Схема хранится или приходит данными: с сервера, из CMS, из конструктора форм.
+- Одна схема рисуется разными наборами компонентов: меняется реестр, документ — нет.
+- Форму поставляет другое приложение — см. [@reformer/form-registry](./form-registry.md).
+
+**Когда не нужен.** Форма живёт в коде вашего приложения. Тогда проще схема на TypeScript и
+[@reformer/renderer-react](./renderer-react.md): компоненты передаются ссылками, пути полей проверяет
+компилятор, реестр не нужен.
+
+## Как это устроено
+
+<JsonRenderFlow />
+
+- **Документ** — дерево узлов: поля, контейнеры, массивы, HTML-теги. Ссылки на код — только по
+  имени.
+- **Реестр** — `defineRegistry`: имя из документа → React-компонент, данные или функция.
+- **Код формы** — модель, правила, поведение и поток шагов пишутся на TypeScript, как у любой
+  формы. В документ они не попадают.
+- **Сборка** — `createForm({ schema: документ, registry })` из `@reformer/core`. Реестр строит из
+  документа дерево один раз, при сборке. Дальше всё как со схемой на TypeScript.
+
+## Установка
+
+```bash
+npm install @reformer/renderer-json @reformer/renderer-react @reformer/core
+```
+
+`@reformer/ui-kit` — по желанию: готовые компоненты для реестра. Можно регистрировать и свои.
+
+## Пример
+
+Документ, реестр и правила лежат в одном файле, чтобы его было удобно читать. В приложении документ
+обычно отдельный `.json` или приходит с сервера.
+
+<LiveExample
+  component={JsonFormExample}
+  source={jsonFormSource}
+  caption="Что попробовать: отправьте форму пустой — появятся замечания. Введите имя — строка «Получатель» под полями обновится."
+/>
+
+Что в примере:
+
+1. **Документ** типизирован `defineJsonSchema<DeliveryForm>`: пути `$model(...)` проверяются по типу
+   формы. Документ, пришедший строкой, приводят к типу: `raw as unknown as JsonFormSchema<DeliveryForm>`.
+2. **Реестр** регистрирует компоненты под именами из документа. `FIELD_WRAPPER` — обёртка каждого
+   поля: сборка берёт её из реестра, поэтому `settings.fieldWrapper` у `FormRenderer` не нужен.
+3. **Данные** для выпадающего списка — `reg.dataSource` и ссылка `$dataSource(DELIVERY_TYPES)`.
+4. **HTML-узел** `$html(p)` не требует регистрации. `$model(name)` в его тексте обновляется при вводе.
+5. **Правила** — `defineValidation`, как у любой формы. В JSON правил нет.
+
+## Что в документ не входит
+
+| Что                            | Где живёт                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------------- |
+| правила проверки               | `defineValidation` → `createForm({ validation })`, см. [Обзор валидации](/docs/validation/overview) |
+| поведение и правила узлов      | `defineFormBehavior` → `createForm({ behavior })`, см. [Обзор поведения](/docs/behaviors/overview)  |
+| шаги мастера: порядок, правила | поток `createForm({ flow })`; в документе — только узлы шагов                                       |
+| тексты замечаний               | словарь `defineIssueMessages` и `ValidationMessagesProvider`                                        |
+
+Поэтому документ можно поменять, не трогая правила, и наоборот. Связывает их `selector` узла: по
+нему поведение адресует узел, а поток шагов — узел шага.
+
+## Входы пакета
+
+| Вход                               | Что внутри                                                                                     |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `@reformer/renderer-json`          | реестр, типы и гарды документа, разбор операторов, локализация, `SchemaErrorPanel`, мета-схема |
+| `@reformer/renderer-json/validate` | `validateFormSchema` — полная проверка документа; тянет ajv, поэтому вынесен отдельно          |
+
+## Разделы
+
+| Страница                                                     | О чём                                                      |
+| ------------------------------------------------------------ | ---------------------------------------------------------- |
+| [Формат документа](./renderer-json/document-format.md)       | узлы, операторы, HTML и текст, типизация                   |
+| [Реестр](./renderer-json/registry.md)                        | компоненты, данные, функции, локализация, чужие компоненты |
+| [Массивы, части и шаги](./renderer-json/arrays-and-parts.md) | шаблоны строк, именованные части, шаги мастера             |
+| [Проверка документа](./renderer-json/document-check.md)      | `validateFormSchema`, панель ошибок, подсказки в редакторе |
+
+## Подводные камни
+
+- **`Component "X" not found in registry`** — имя из `$component(X)` не зарегистрировано или в
+  сборку ушёл другой реестр. Проверяйте документ заранее — см.
+  [Проверка документа](./renderer-json/document-check.md).
+- **Поля без подписи и ошибок** — в реестре нет записи `FIELD_WRAPPER`.
+- **Строка `$dataSource(X)` дошла до компонента как есть** — источник не зарегистрирован.
+  `validateFormSchema` называет такие имена.
+- **`The document is in the previous JSON schema format`** — у документа нет `format: 2`.
+  Переведите его при загрузке: `migrateJsonSchema(document)`.
+- **Сборку создавайте через `useFormBundle`**, а не `useMemo`: React вправе сбросить кэш `useMemo`,
+  и форма пересоберётся вместе с потерей введённого.
+
+## См. также
+
+- [@reformer/renderer-react](./renderer-react.md) — рендерер, которым рисуется форма.
+- [@reformer/form-registry](./form-registry.md) — формы из JSON между микрофронтендами.
+- [Обзор валидации](/docs/validation/overview) — правила формы.
+- [Обзор поведения](/docs/behaviors/overview) — правила узлов и связи полей.
+- [Локализация](/docs/guides/localization) — языки формы и словари.

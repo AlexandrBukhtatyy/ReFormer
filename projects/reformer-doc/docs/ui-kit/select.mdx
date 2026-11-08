@@ -9,9 +9,149 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
 
 # Select
 
-Выпадающий список на Radix. Вариант **base** — чистый compound для ручной сборки
-(`Select` / `SelectTrigger` / `SelectContent` / `SelectItem`). Вариант **async** — высокоуровневый:
-inline `options` или асинхронный источник `resource` (стратегии `static` / `preload` / `partial`)
-с поиском, пагинацией и очисткой. Для форм — `SelectAsync` (registry `Select`), кладётся в `component` как есть.
+Выпадающий список: поле в одну строку, а пункты открываются поверх страницы. В семействе три
+компонента: `SelectAsync` — одно значение, `SelectMulti` — несколько, `Select` с частями — для
+ручной сборки вне формы.
+
+## Когда брать
+
+- **`SelectAsync`** — одно значение из готового набора: тип кредита, страна, валюта. Пункты
+  задаются массивом `options` или загружаются с сервера (`resource`) — с поиском и подгрузкой
+  страниц.
+- **`SelectMulti`** — несколько значений из набора: города, теги, роли. Выбранное видно чипами
+  в поле.
+- **`Select` и его части** — вне формы, когда пункт нужно нарисовать по-своему: аватар, вторая
+  подпись, иконка.
+
+Соседи:
+
+- нужен поиск по вводу или создание нового значения — [Combobox](./combobox.mdx);
+- вариантов два-пять и их стоит показать сразу — [RadioGroup](./radio-group.mdx) или
+  [ToggleGroup](./toggle-group.mdx);
+- нужен системный выпадающий список браузера (удобен на телефоне) — [NativeSelect](./native-select.mdx);
+- значение — свободный текст, а список только подсказывает — `InputSuggest` из [Input](./input.mdx).
+
+## Анатомия
+
+| Компонент     | Значение поля      | Ключевые пропсы                                                                       |
+| ------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| `SelectAsync` | `string \| null`   | `options`, `resource`, `placeholder`, `clearable`                                     |
+| `SelectMulti` | `string[] \| null` | `options`, `resource`, `selectedOptions`, `maxItems`, `summaryThreshold`, `clearable` |
+
+Пункт `options` — объект `{ value, label, group? }`. У `SelectAsync` пункты с одинаковым `group`
+собираются под общим заголовком. Значение поля — `value` выбранного пункта строкой: число в
+`value` станет строкой.
+
+`resource` — источник пунктов с функцией `load`. Стратегия `type` решает, когда её звать:
+
+| `type`    | Запросы                                    | Поиск                                       |
+| --------- | ------------------------------------------ | ------------------------------------------- |
+| `static`  | один при появлении поля                    | нет                                         |
+| `preload` | один, сервер отдаёт весь список            | по загруженным пунктам, на клиенте          |
+| `partial` | по страницам `pageSize` (20) при прокрутке | на сервере, `load({ search })` через 300 мс |
+
+`load` возвращает `{ items, totalCount }`, пункт — `{ id, label, value, group? }`. Если заданы
+и `options`, и `resource`, берутся `options`. Функцию `load` в JSON не записать, поэтому в форме
+из JSON (`@reformer/renderer-json`) источник передают через [реестр](../reference/glossary.md#рендеринг).
+
+У `SelectMulti`:
+
+- снятие последнего пункта даёт `null`, а не `[]`, поэтому обязательность — правило `required()`;
+- `maxItems` выключает невыбранные пункты, когда выбрано достаточно. Это подсказка интерфейса,
+  а ограничение для формы — правило `maxLength(n)`;
+- `summaryThreshold` (по умолчанию 3) — сколько чипов показать, прежде чем свернуть их в
+  «Выбрано: N»;
+- `selectedOptions` — подписи уже выбранных пунктов, которых нет на загруженной странице
+  `resource`. Без них чип покажет сырое `value`.
+
+```tsx
+{
+  model: model.$.loanType,
+  component: SelectAsync,
+  componentProps: { label: 'Тип кредита', options: LOAN_TYPES, clearable: true },
+}
+```
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). В форме из JSON
+`SelectAsync` зарегистрирован под именем `Select`.
+
+Из части `Select` поле формы не собрать: корень `Select` понимает `onValueChange`, а не
+`onChange`, и значение не дойдёт до [модели](../reference/glossary.md#форма-и-данные). В форму
+ставят `SelectAsync`. Части нужны для своей разметки вне формы:
+
+| Часть                                            | Что это                                          |
+| ------------------------------------------------ | ------------------------------------------------ |
+| `Select`                                         | корень: `value`, `defaultValue`, `onValueChange` |
+| `SelectTrigger`                                  | кнопка поля; `size`: `'default'` или `'sm'`      |
+| `SelectValue`                                    | текст выбранного пункта или `placeholder`        |
+| `SelectContent`                                  | список поверх страницы со стрелками прокрутки    |
+| `SelectItem`                                     | пункт: любая разметка, отметка выбора справа     |
+| `SelectGroup`, `SelectLabel`                     | группа пунктов и её заголовок                    |
+| `SelectSeparator`                                | разделитель                                      |
+| `SelectScrollUpButton`, `SelectScrollDownButton` | стрелки прокрутки; `SelectContent` рисует их сам |
+
+```tsx
+<Select value={size} onValueChange={setSize}>
+  <SelectTrigger className="w-full">
+    <SelectValue placeholder="Размер" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="sm">Малый</SelectItem>
+    <SelectItem value="lg">Большой</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+Список набран тем же размером шрифта, что и поле: чтобы уменьшить оба, достаточно задать шрифт
+полю, например `className="text-xs"`.
+
+`SelectAsync` и `SelectMulti` управляются и снаружи: методы `open`, `close`, `clear`, `reload`,
+`loadMore` (типы `SelectAsyncHandle`, `SelectMultiHandle`). Ссылку на компонент запрашивают в
+поведении формы, до первой отрисовки: `const cityRef = schema.node('city').getRef<SelectAsyncHandle>()`,
+а потом, например, перезагружают список после смены страны: `cityRef.current?.reload()`.
+
+## Примеры и API
 
 <ComponentDoc config={selectDocConfig} />
+
+## Доступность
+
+- `SelectAsync` и части `Select` построены на Radix Select. Поле — кнопка с
+  `role="combobox"` и `aria-expanded`. Открыть список — Enter, пробел, ↓ или ↑. В списке:
+  ↓/↑ и Home/End — по пунктам, ввод букв — переход к пункту по началу подписи, Enter или
+  пробел — выбрать, Esc — закрыть и вернуть фокус в поле.
+- Поле поиска в списке `SelectAsync` перехватывает клавиши: набранный текст идёт в поиск, а не
+  в переход по буквам.
+- `SelectMulti` — кнопка `role="combobox"` с `aria-haspopup="listbox"` и список
+  `role="listbox"` с `aria-multiselectable`. В списке: ↓/↑, Home/End — по пунктам, Enter или
+  пробел — отметить или снять. Пункты, выключенные `maxItems`, помечены `aria-disabled`.
+- `FormField` связывает поле с подписью, пояснением и замечанием: `aria-labelledby`,
+  `aria-describedby`, при показанном замечании — `aria-invalid` и `aria-errormessage`, при
+  `required` — `aria-required`.
+- Крестик `clearable` подписан для скринридера, но в порядок Tab не входит: с клавиатуры значение
+  сбрасывают выбором другого пункта.
+
+## Локализация
+
+Строки, которые компоненты рисуют сами, берутся из словаря кита (ключи `kit.select.*`):
+
+| Ключ                                           | Где                                         | Заменить пропом                     |
+| ---------------------------------------------- | ------------------------------------------- | ----------------------------------- |
+| `kit.select.placeholder`                       | пустое поле `SelectAsync`                   | `placeholder`                       |
+| `kit.select.placeholderMulti`                  | пустое поле `SelectMulti`                   | `placeholder`                       |
+| `kit.select.search`, `kit.select.searchLabel`  | поле поиска и его подпись для скринридера   | `searchPlaceholder` (`SelectMulti`) |
+| `kit.select.empty`                             | «Ничего не найдено»                         | `emptyText` (`SelectMulti`)         |
+| `kit.select.loading`, `kit.select.loadingMore` | первая загрузка и подгрузка страницы        | —                                   |
+| `kit.select.loadError`, `kit.select.retry`     | ошибка загрузки и кнопка повтора            | —                                   |
+| `kit.select.selected`                          | сводка «Выбрано: \{count\}» у `SelectMulti` | —                                   |
+| `kit.select.clear`                             | подпись крестика для скринридера            | —                                   |
+
+Без провайдера локали строки английские. Русский словарь и замена ключа для всего приложения —
+в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Combobox](./combobox.mdx) — выбор с поиском по вводу.
+- [NativeSelect](./native-select.mdx) — системный выпадающий список.
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.

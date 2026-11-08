@@ -9,9 +9,96 @@ import { cdkFormFieldDocConfig } from '@site/src/components/demo/examples/cdk-fo
 
 # FormField
 
-Headless-анатомия поля из `@reformer/cdk`: `Root` / `Label` / `Control` / `Error` /
-`Description` / `Hint` с автоматической провязкой `id` и `aria-*`. В отличие от готового
-`FormField` из [`@reformer/ui-kit`](../ui-kit/overview), cdk-версия ничего не
-рендерит сверх минимума — layout вы задаёте сами.
+`FormField` из cdk — анатомия одного поля формы: подпись, контрол, описание, подсказка и ошибка.
+Компонент связывает их `id` и `aria-*` атрибутами, подписывается на состояние поля и передаёт
+контролу значение и обработчики. Раскладку частей задаёте вы.
+
+## Когда использовать
+
+- Нужна своя раскладка поля: подпись слева, иконка рядом с подписью, ошибка в другом месте.
+- Поле рисуется своей дизайн-системой, а связывать подпись, ошибку и `aria-*` руками не хочется.
+
+В большинстве форм хватает [FormField из ui-kit](../ui-kit/form-field.mdx): он собран на этих
+частях и раскладывает их сам. Их можно смешивать — типовые поля из ui-kit, одно нестандартное из cdk:
+
+```tsx
+import { FormField } from '@reformer/ui-kit';
+import { FormField as FieldRoot } from '@reformer/cdk/form-field';
+
+<>
+  <FormField control={form.email} />
+  <FieldRoot.Root control={form.captcha}>
+    <FieldRoot.Label />
+    <FieldRoot.Control />
+    <FieldRoot.Error />
+  </FieldRoot.Root>
+</>;
+```
+
+## Анатомия
+
+`FormField.Root` получает [ноду](../reference/glossary.md#форма-и-данные) поля — `control={form.email}`.
+Компонент поля и его пропсы части берут из узла схемы: `component` и `componentProps`.
+
+| Часть                   | Что делает                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `FormField.Root`        | Провайдер состояния поля. Без него остальные части бросают исключение.                                                         |
+| `FormField.Label`       | `<label>` с `htmlFor`. Текст — `componentProps.label` или `children`; «\*» добавляется при `componentProps.required`.          |
+| `FormField.Control`     | Рисует компонент узла схемы с `value`, `onChange`, `onBlur`, `disabled` и `aria-*`. С `asChild` отдаёт связки вашему элементу. |
+| `FormField.Error`       | `<p role="alert">` с текстом главного замечания. Скрыт, пока поле не тронуто и не изменено.                                    |
+| `FormField.Description` | `<p>` с описанием под полем. Нужен `hasDescription` на `Root`.                                                                 |
+| `FormField.Hint`        | `<span>` с описанием, которое не видно под полем, — обычно текст тултипа у иконки. Нужен `hasHint` на `Root`.                  |
+
+Главное [замечание](../reference/glossary.md#валидация) — первая ошибка, а если ошибок нет — первое
+предупреждение. Предупреждение видно и у валидного поля: элемент помечен `data-severity="warning"`.
+`multi` выводит все замечания, `render` — свою разметку каждого.
+
+Состояние поля потомкам `Root` отдаёт `useFormFieldContext()`: `value`, `issues`, `error` (текст
+главного замечания), `pending` (идёт асинхронная проверка), `ids` и другое. Без compound-дерева
+те же связки даёт хук `useFormField(control, id?)` — пример «Хук useFormField» ниже.
+
+### Связь контрола с полем
+
+`Control` связывает поле с контролом так же, как рендерер. Форма говорит на языке `value` +
+`onChange(value)` + `onBlur`. Если контрол говорит иначе — `checked` + `onCheckedChange` или
+DOM-событие в `onChange`, — компонент объявляет это статикой `reformerAdapter`
+([адаптер поля](../reference/glossary.md#рендеринг)). Как его описать — в
+[Своих полях](../react/custom-fields.md).
+
+## Примеры
 
 <ComponentDoc config={cdkFormFieldDocConfig} />
+
+## Доступность
+
+`FormField` берёт на себя связки, которые чаще всего забывают:
+
+| Атрибут             | Где               | Когда                                                                                         |
+| ------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
+| `htmlFor` / `id`    | подпись → контрол | всегда                                                                                        |
+| `aria-labelledby`   | контрол           | всегда                                                                                        |
+| `aria-describedby`  | контрол           | `hasHint`, `hasDescription` и показанное замечание; порядок: подсказка → описание → замечание |
+| `aria-invalid`      | контрол           | только при показанной ошибке; предупреждение его не ставит                                    |
+| `aria-errormessage` | контрол           | при показанной ошибке — id элемента ошибки                                                    |
+| `aria-required`     | контрол           | `componentProps.required`                                                                     |
+| `role="alert"`      | ошибка            | текст ошибки объявляется скринридеру при появлении                                            |
+
+- Без `hasDescription` и `hasHint` описание и подсказка есть в DOM, но скринридер их не прочитает.
+  Флаг без самого элемента даёт ссылку в никуда — ставьте их парой.
+- Иконку тултипа ставьте **рядом** с `FormField.Label`, а не внутри: клик внутри `<label>`
+  активирует поле.
+- `id` частей генерирует `useId`. Для предсказуемых id в тестах передайте `id="email"` в `Root`:
+  части получат `control-email`, `label-email`, `error-email`…
+
+## Локализация
+
+Своих строк у `FormField` нет: подпись и описание — ваши. Текст замечания даёт резолвер
+сообщений: словарь активной локали по коду (`validation.<code>`), поверх него — словарь формы из
+`ValidationMessagesProvider`. Язык задаёт `I18nProvider` из `@reformer/core/react`; смена языка
+переводит уже показанные ошибки без повторной проверки. Подробно — [Тексты замечаний](./validation-messages.mdx).
+
+## См. также
+
+- [FormField в ui-kit](../ui-kit/form-field.mdx) — готовая раскладка поля.
+- [Тексты замечаний](./validation-messages.mdx) — словарь формы и свой источник текстов.
+- [Свои поля](../react/custom-fields.md) — компонент поля и адаптер.

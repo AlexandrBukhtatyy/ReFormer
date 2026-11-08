@@ -1,0 +1,101 @@
+---
+id: autocomplete
+title: Autocomplete
+sidebar_label: Autocomplete
+description: Поле со свободным вводом и подсказками из списка или с сервера.
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { cdkAutocompleteDocConfig } from '@site/src/components/demo/examples/cdk-autocomplete';
+
+# Autocomplete
+
+`Autocomplete` — текстовое поле с подсказками. Значение поля — всегда то, что набрано. Подсказки
+помогают набрать быстрее: выбор подсказки подставляет её текст в поле.
+
+## Когда использовать
+
+- Город, улица, должность, название банка: подсказки есть, но пользователь может ввести и своё.
+- Подсказки нужно искать на сервере по мере ввода.
+
+Когда значение обязано быть одним из вариантов — код региона, `id` банка, — нужен выбор из списка:
+`Select` или `Combobox` из ui-kit. Autocomplete подставил бы в поле сам код.
+
+Готовый вид — `InputSuggest` из [ui-kit](../ui-kit/input.mdx): он собран на `Autocomplete` и
+ставится в узел схемы с пропом `suggestions`. cdk-версию берите, когда список подсказок нужен
+в своей разметке.
+
+## Анатомия
+
+| Часть                  | Что делает                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| `Autocomplete.Root`    | Провайдер. Принимает `value`, `onChange`, `suggestions` и остальные опции.      |
+| `Autocomplete.Input`   | Поле ввода с ролями, `aria-*` и клавиатурой. `asChild` отдаёт их вашему полю.   |
+| `Autocomplete.Listbox` | Список подсказок; рендерится, пока раскрыт. Функция-ребёнок получает подсказки. |
+| `Autocomplete.Option`  | Пункт списка: `item` и `index`. Без `children` выводит подпись.                 |
+| `Autocomplete.Loading` | Виден, пока источник грузит подсказки.                                          |
+
+Без compound-компонентов то же даёт хук `useAutocomplete` с наборами пропсов `getInputProps`,
+`getListboxProps`, `getOptionProps`. Позиционирование списка — ваше.
+
+Что можно передать в `suggestions`:
+
+| Форма                                  | Поведение                                                              |
+| -------------------------------------- | ---------------------------------------------------------------------- |
+| `string[]`                             | подсказка и есть текст                                                 |
+| `{ value, label? }[]`                  | в поле уходит `value`, в списке виден `label` (по умолчанию — `value`) |
+| `ResourceConfig` (`static`, `preload`) | один запрос, поиск подстроки на клиенте                                |
+| `ResourceConfig` (`partial`)           | поиск на сервере `load({ search, page })` через 300 мс после ввода     |
+
+`ResourceConfig` — тот же источник, что у `Select` из ui-kit; он описан на странице
+[Источники опций](./option-source.mdx).
+
+Список не раскрывается, когда предлагать нечего: совпадений нет, текст короче `minChars` или
+единственная подсказка совпадает с набранным. `openOnFocus` раскрывает список при фокусе, `filter`
+заменяет встроенный поиск подстроки.
+
+```tsx
+import { Autocomplete } from '@reformer/cdk/autocomplete';
+
+const CITIES = ['Москва', 'Мурманск', 'Казань']; // константа модуля, не новый массив на рендер
+
+<Autocomplete.Root value={city} onChange={setCity} suggestions={CITIES}>
+  <Autocomplete.Input placeholder="Город" aria-label="Город" />
+  <Autocomplete.Listbox>
+    {(items) => items.map((item, i) => <Autocomplete.Option key={item.id} item={item} index={i} />)}
+  </Autocomplete.Listbox>
+</Autocomplete.Root>;
+```
+
+Компонент не привязан к форме: `value` и `onChange` — обычные пропсы. В форме его обычно ставят
+компонентом узла схемы — так сделан `InputSuggest`.
+
+## Примеры
+
+<ComponentDoc config={cdkAutocompleteDocConfig} />
+
+## Доступность
+
+Компонент реализует шаблон combobox со списком:
+
+- у поля — `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls` (пока
+  список открыт), `aria-activedescendant` и `autoComplete="off"`;
+- у списка — `role="listbox"`, у пункта — `role="option"`, `aria-selected` и `data-active` у
+  подсвеченного;
+- ↓ и ↑ ходят по пунктам по кругу и раскрывают список, Enter выбирает подсвеченный пункт, Esc
+  закрывает список. Без подсветки Enter не перехватывается и отправляет форму;
+- нажатие мыши на список не уводит фокус из поля.
+
+Подпись поля — ваша: `aria-label` или `<label htmlFor>` с `id` поля (`ids.input` из хука). Свои
+обработчики передавайте аргументом `getInputProps` — они вызываются первыми, а
+`preventDefault()` в `onKeyDown` отключает встроенную клавиатуру.
+
+## Локализация
+
+Своих строк у `Autocomplete` нет: подсказки, подпись и текст загрузки — ваши.
+
+## См. также
+
+- [Источники опций](./option-source.mdx) — `ResourceConfig` и загрузка с сервера.
+- [Input в ui-kit](../ui-kit/input.mdx) — `InputSuggest`, готовое поле с подсказками.
+- [Select в ui-kit](../ui-kit/select.mdx) — выбор, когда значение обязано быть из списка.

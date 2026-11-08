@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 import { FormField, Input } from '@reformer/ui-kit';
 import { defineIssueMessages } from '@reformer/core/i18n';
-import { required, email } from '@reformer/core/validators';
+import { required } from '@reformer/core/validators';
 import { useDemoField } from '../harness';
+import { fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-// Цвета зон анатомии — насыщенные средние тона, различимые в light и dark.
+// Цвета зон анатомии — насыщенные средние тона, различимые в светлой и тёмной теме.
 const ZONE = {
   label: '#3b82f6',
   input: '#8b5cf6',
@@ -17,11 +18,18 @@ const ZONE = {
 } as const;
 
 /** Тексты замечаний демо: правило несёт код, строку по коду даёт словарь формы. */
-const EMAIL_MESSAGES = defineIssueMessages({ 'field.required': 'Введите email' });
+const EMAIL_MESSAGES = defineIssueMessages({ 'email.required': 'Введите email' });
+
+const ANATOMY_PROPS = {
+  label: 'Email',
+  type: 'email',
+  placeholder: 'you@example.com',
+  description: 'Не передаём email третьим лицам',
+};
 
 /**
- * Обводит одну зону поля тонким пунктиром через `outline` (не влияет на layout —
- * отступы поля остаются «формовыми») и выносит подпись зоны вбок тонким текстом.
+ * Обводит одну зону поля тонким пунктиром через `outline` (не влияет на раскладку) и выносит
+ * подпись зоны вбок.
  */
 function Zone({ name, color, children }: { name: string; color: string; children: ReactNode }) {
   return (
@@ -51,49 +59,40 @@ function Zone({ name, color, children }: { name: string; color: string; children
 }
 
 /**
- * Анатомия поля: живой FormField с обычными «формовыми» отступами, у которого
- * каждая зона лишь помечена тонким пунктиром и подписью сбоку. Порядок сверху
- * вниз ровно как рисует ui-kit FormField — label → input → hint (description) →
- * validation (error).
+ * Анатомия поля: те же зоны, что рисует FormField кита, собраны из слотов cdk и обведены
+ * пунктиром. Порядок сверху вниз — подпись → контрол → пояснение → замечание.
  */
 function AnatomyField() {
   const { control } = useDemoField({
     initial: '',
     component: Input,
-    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ code: 'field.required' }), email()],
+    componentProps: ANATOMY_PROPS,
+    validators: [required({ code: 'email.required' })],
     messages: EMAIL_MESSAGES,
     touched: true,
   });
 
-  const hintText: CSSProperties = { fontSize: 12, color: 'var(--ifm-color-emphasis-600)' };
-
   return (
-    // Ширина как у поля в форме; справа — запас под боковые подписи зон.
-    <div style={{ width: 300, paddingRight: 96 }}>
+    // Ширина как у поля в форме; справа — запас под подписи зон.
+    <div style={{ width: 300, paddingRight: 110 }}>
       <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
         <FieldRoot.Root control={control as any} hasDescription>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <Zone name="label" color={ZONE.label}>
+            <Zone name="подпись" color={ZONE.label}>
               <FieldRoot.Label className="block text-sm font-medium" />
             </Zone>
 
-            <Zone name="input" color={ZONE.input}>
+            <Zone name="контрол" color={ZONE.input}>
               <FieldRoot.Control />
             </Zone>
 
-            <Zone name="hint" color={ZONE.hint}>
-              <FieldRoot.Description>
-                <span
-                  style={{ display: 'flex', justifyContent: 'space-between', gap: 12, ...hintText }}
-                >
-                  <span>Подсказка к полю</span>
-                  <span>слева / справа</span>
-                </span>
+            <Zone name="пояснение" color={ZONE.hint}>
+              <FieldRoot.Description className="text-sm text-muted-foreground">
+                {ANATOMY_PROPS.description}
               </FieldRoot.Description>
             </Zone>
 
-            <Zone name="validation" color={ZONE.validation}>
+            <Zone name="замечание" color={ZONE.validation}>
               <FieldRoot.Error className="text-destructive text-sm block" />
             </Zone>
           </div>
@@ -103,34 +102,10 @@ function AnatomyField() {
   );
 }
 
-/** Обычное использование — тот же компонент без пунктирной разметки. */
-function PlainUsage() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: {
-      label: 'Email',
-      type: 'email',
-      placeholder: 'you@example.com',
-      description: 'Не передаём email третьим сторонам.',
-    },
-    validators: [required({ code: 'field.required' }), email()],
-    messages: EMAIL_MESSAGES,
-    touched: true,
-  });
-  return (
-    <div style={{ maxWidth: 380, width: '100%' }}>
-      <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
-        <FormField control={control as any} />
-      </ValidationMessagesProvider>
-    </div>
-  );
-}
-
 /** Тексты замечаний примера с предупреждением. */
 const PASSWORD_MESSAGES = defineIssueMessages({
   'password.weak': 'Пароль простой — лучше от 8 символов',
-  'field.required': 'Введите пароль',
+  'password.required': 'Введите пароль',
 });
 
 /** Предупреждение не блокирует отправку: слабый пароль — совет, пустой — ошибка. */
@@ -142,16 +117,16 @@ function WarningUsage() {
   const { control: weak } = useDemoField({
     initial: 'qwerty',
     component: Input,
-    componentProps: { label: 'Пароль', type: 'text' },
-    validators: [required({ code: 'field.required' }), weakPassword],
+    componentProps: { label: 'Пароль' },
+    validators: [required({ code: 'password.required' }), weakPassword],
     messages: PASSWORD_MESSAGES,
     touched: true,
   });
   const { control: empty } = useDemoField({
     initial: '',
     component: Input,
-    componentProps: { label: 'Пароль ещё раз', type: 'text' },
-    validators: [required({ code: 'field.required' }), weakPassword],
+    componentProps: { label: 'Пароль ещё раз' },
+    validators: [required({ code: 'password.required' }), weakPassword],
     messages: PASSWORD_MESSAGES,
     touched: true,
   });
@@ -167,29 +142,10 @@ function WarningUsage() {
   );
 }
 
-/** Подсказки-иконки: labelTooltip — после подписи (FormField), tooltip — в самом контроле. */
-function TooltipUsage() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: {
-      label: 'ИНН',
-      placeholder: '7700000000',
-      labelTooltip: 'Нужен для выставления счёта',
-      tooltip: '10 цифр для юрлица, 12 — для ИП',
-    },
-  });
-  return (
-    <div style={{ maxWidth: 380, width: '100%' }}>
-      <FormField control={control as any} />
-    </div>
-  );
-}
+/** Подписи одной ширины: без неё контролы начинались бы каждый со своей позиции. */
+const LABEL_COLUMN = '[&>[data-slot^=field-label]]:w-40';
 
-/**
- * direction="row" — подпись слева от контрола. Подписям задана общая ширина: без неё контролы
- * начинались бы каждый со своей позиции.
- */
+/** direction="row" — подпись слева от контрола. */
 function RowUsage() {
   const { control: emailControl } = useDemoField({
     initial: '',
@@ -198,9 +154,9 @@ function RowUsage() {
       label: 'Email',
       type: 'email',
       placeholder: 'you@example.com',
-      description: 'Не передаём email третьим сторонам.',
+      description: 'Не передаём email третьим лицам',
     },
-    validators: [required({ code: 'field.required' }), email()],
+    validators: [required({ code: 'email.required' })],
     messages: EMAIL_MESSAGES,
     touched: true,
   });
@@ -213,14 +169,13 @@ function RowUsage() {
       labelTooltip: 'Нужен для выставления счёта',
     },
   });
-  const labelColumn = '[&>[data-slot^=field-label]]:w-40';
   return (
     <div
       style={{ maxWidth: 460, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}
     >
       <ValidationMessagesProvider messages={EMAIL_MESSAGES}>
-        <FormField control={emailControl as any} direction="row" className={labelColumn} />
-        <FormField control={innControl as any} direction="row" className={labelColumn} />
+        <FormField control={emailControl as any} direction="row" className={LABEL_COLUMN} />
+        <FormField control={innControl as any} direction="row" className={LABEL_COLUMN} />
       </ValidationMessagesProvider>
     </div>
   );
@@ -230,152 +185,178 @@ export const uiKitFormFieldDocConfig: ComponentDocConfig = {
   name: 'FormField',
   importFrom: '@reformer/ui-kit',
   description:
-    'Готовый wrapper поля: одним компонентом рисует четыре зоны — label, input, hint (description) и validation (error). Анатомия ниже показывает, где что рендерится.',
+    'Обёртка поля: по ноде поля рисует подпись, контрол, пояснение и замечание и связывает их для скринридера.',
   variants: [
     {
       id: 'anatomy',
-      title: 'Анатомия зон',
+      title: 'Анатомия',
       description:
-        'Сверху вниз: label → input → hint → validation. Hint — светлая подсказка под полем (выравнивается слева или справа); ошибка валидации показывается после hint.',
+        'Сверху вниз: подпись → контрол → пояснение → замечание. Замечание появляется у тронутого или изменённого поля.',
       render: AnatomyField,
       code: `import { FormField, Input } from '@reformer/ui-kit';
 
-// Зоны задаются через componentProps узла поля в схеме:
+// Что рисовать — задаёт узел поля в схеме формы:
 {
   model: model.$.email,
-  component: Input,
+  component: Input,                              // → контрол
   componentProps: {
-    label: 'Email',                        // → зона label
-    placeholder: 'you@example.com',        // → зона input
-    description: 'Подсказка под полем',     // → зона hint
+    label: 'Email',                              // → подпись
+    type: 'email',
+    placeholder: 'you@example.com',
+    description: 'Не передаём email третьим лицам', // → пояснение
   },
 }
 
-// Разметка — один компонент рисует все зоны:
-<FormField control={form.email} />
-// validation-зона появляется автоматически из ошибки поля (после touch)`,
-    },
-  ],
-  examples: [
-    {
-      id: 'plain',
-      title: 'Обычное использование',
-      description:
-        'Тот же FormField без пунктирной разметки: label, поле, светлый hint и ошибка валидации под ним.',
-      render: PlainUsage,
-      code: `import { FormField } from '@reformer/ui-kit';
+// Замечание — из правил поля и словаря сообщений:
+validate(model.$.email, [required({ code: 'email.required' })]);
+defineIssueMessages({ 'email.required': 'Введите email' });
 
+// На экране — один компонент:
 <FormField control={form.email} />`,
     },
+    fieldVariant({
+      id: 'required',
+      title: 'Обязательное поле',
+      description:
+        'required: true ставит «*» у подписи и aria-required у контрола. Само правило required() задаётся в схеме валидации.',
+      field: 'name',
+      component: Input,
+      componentName: 'Input',
+      initial: '',
+      props: { label: 'Имя', required: true },
+      validators: [required({ code: 'name.required' })],
+      rules: "required({ code: 'name.required' })",
+      messages: { 'name.required': 'Введите имя' },
+      touched: true,
+    }),
+  ],
+  examples: [
     {
       id: 'warning',
       title: 'Предупреждение — не ошибка',
       description:
-        "Правило вернуло замечание с severity: 'warning' — оно показывается под полем цветом --warning и отправку не блокирует: поле валидно, рамки ошибки и aria-invalid нет. Ниже для сравнения — то же поле с ошибкой. Под полем одно замечание: первая ошибка, а без ошибок — первое предупреждение.",
+        "Правило вернуло замечание с severity: 'warning'. Оно показано под полем своим цветом и не блокирует отправку: рамки ошибки и aria-invalid нет. Ниже для сравнения — поле с ошибкой. Под полем одно замечание: первая ошибка, а без ошибок — первое предупреждение.",
       render: WarningUsage,
-      code: `import { validate } from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
+      code: `const weakPassword = (value: string) =>
+  value !== '' && value.length < 8 ? { code: 'password.weak', severity: 'warning' } : null;
 
-validate(model.$.password, [
-  required({ code: 'field.required' }),
-  // Предупреждение — замечание с severity: 'warning'
-  (value) =>
-    value !== '' && value.length < 8 ? { code: 'password.weak', severity: 'warning' } : null,
-]);
+{ model: model.$.password, component: Input, componentProps: { label: 'Пароль' } }
+{ model: model.$.passwordRepeat, component: Input, componentProps: { label: 'Пароль ещё раз' } }
 
-<FormField control={form.password} />`,
+validate(model.$.password, [required({ code: 'password.required' }), weakPassword]);
+validate(model.$.passwordRepeat, [required({ code: 'password.required' }), weakPassword]);
+
+defineIssueMessages({
+  'password.weak': 'Пароль простой — лучше от 8 символов',
+  'password.required': 'Введите пароль',
+});
+
+<FormField control={form.password} />
+<FormField control={form.passwordRepeat} />`,
     },
-    {
+    fieldVariant({
       id: 'tooltips',
       title: 'Подсказки-иконки (i)',
       description:
-        'Два независимых пропа componentProps: labelTooltip — иконка после подписи (рисует FormField, снаружи <label>), tooltip — иконка в самом контроле. Тултип открывается по наведению, фокусу и клику/тапу; текст попадает в aria-describedby поля.',
-      render: TooltipUsage,
-      code: `{
-  model: model.$.inn,
-  component: Input,
-  componentProps: {
-    label: 'ИНН',
-    labelTooltip: 'Нужен для выставления счёта',     // (i) после подписи
-    tooltip: '10 цифр для юрлица, 12 — для ИП',       // (i) внутри инпута
-  },
-}
-
-<FormField control={form.inn} />`,
-    },
+        'labelTooltip — иконка после подписи, её рисует FormField. tooltip — иконка внутри контрола, её рисует само поле. Подсказка открывается наведением, фокусом и нажатием, её текст попадает в aria-describedby поля.',
+      field: 'inn',
+      component: Input,
+      componentName: 'Input',
+      initial: '',
+      props: {
+        label: 'ИНН',
+        placeholder: '7700000000',
+        labelTooltip: 'Нужен для выставления счёта',
+        tooltip: '10 цифр для юрлица, 12 — для ИП',
+      },
+    }),
     {
       id: 'direction',
       title: 'Подпись слева (direction="row")',
       description:
-        'direction="row" ставит подпись слева от контрола; hint и ошибка остаются под контролом, а не под подписью. Подпись выровнена по базовой линии текста в поле и занимает не больше половины ряда. Общая ширина подписей задана через className — без неё контролы начинались бы каждый со своей позиции.',
+        'Подпись слева от контрола, пояснение и замечание — под контролом. Подпись выровнена по строке текста в поле и занимает не больше половины ряда. Общая ширина подписей задана через className.',
       render: RowUsage,
-      code: `import { FormField } from '@reformer/ui-kit';
+      code: `// direction — проп самого FormField, не componentProps. По умолчанию 'col' — подпись сверху.
+const LABEL_COLUMN = '[&>[data-slot^=field-label]]:w-40'; // подписи одной ширины
 
-// direction — проп самого FormField (не componentProps). По умолчанию 'col' — подпись сверху.
-<FormField control={form.email} direction="row" />
+<FormField control={form.email} direction="row" className={LABEL_COLUMN} />
+<FormField control={form.inn} direction="row" className={LABEL_COLUMN} />
 
-// Подписи одной ширины — контролы встают в колонку:
-const labelColumn = '[&>[data-slot^=field-label]]:w-40';
-<FormField control={form.email} direction="row" className={labelColumn} />
-<FormField control={form.inn} direction="row" className={labelColumn} />
+// В FormRenderer — своей обёрткой поля (константа модуля):
+import type { FieldWrapperProps } from '@reformer/renderer-react';
 
-// В FormRenderer — своей обёрткой (объявляется на уровне модуля):
-const RowField = (props: FieldWrapperProps) => <FormField {...props} direction="row" />;
+const RowField = (props: FieldWrapperProps) => (
+  <FormField {...props} direction="row" className={LABEL_COLUMN} />
+);
 <FormRenderer form={bundle} settings={{ fieldWrapper: RowField }} />`,
     },
   ],
   props: [
     {
-      name: 'label',
-      type: 'string · componentProps',
-      description: 'Зона label — подпись над полем; «*» добавляется при required.',
-    },
-    {
-      name: 'input',
-      type: 'component · componentProps',
-      description:
-        'Зона input — контрол из control.component (Input и т.п.); placeholder/type берутся из componentProps.',
-    },
-    {
-      name: 'description',
-      type: 'string · componentProps',
-      description:
-        'Зона hint — светлая подсказка под полем (text-muted-foreground). Рендерится перед ошибкой.',
-    },
-    {
-      name: 'labelTooltip',
-      type: 'string · componentProps',
-      description:
-        'Иконка (i) с тултипом после подписи, снаружи <label>. У inline-контролов (Checkbox/Switch) — справа от контрола. Текст попадает в aria-describedby контрола. Читается один раз при монтировании, как description.',
-    },
-    {
-      name: 'tooltip',
-      type: 'string · componentProps',
-      description:
-        'Иконка (i) в самом контроле — её рисует не FormField, а поле: у Input/Select внутри справа (крестик → (i) → шеврон/глаз), у Checkbox/Switch/Radio после текста. Независим от labelTooltip.',
-    },
-    {
-      name: 'validation',
-      type: '— (auto)',
-      description:
-        "Зона validation — замечание поля после hint, когда поле touched или dirty: ошибка (text-destructive) либо предупреждение — замечание с severity: 'warning' (text-warning), поле при этом валидно.",
-    },
-    {
       name: 'control',
       type: 'FormControl<T>',
-      description: 'Само поле формы — источник component, componentProps, value и ошибки.',
-    },
-    {
-      name: 'testId',
-      type: 'string',
-      description: 'Префикс data-testid: field-/label-/input-/error-<id>.',
+      description:
+        'Нода поля (form.email). Из неё берутся компонент, его пропсы, значение, замечания и состояние проверки.',
     },
     {
       name: 'direction',
       type: "'col' | 'row'",
       default: "'col'",
       description:
-        'Раскладка подписи и контрола: col — подпись над контролом, row — слева от него (hint и ошибка остаются под контролом). Проп самого FormField, из componentProps не читается. У inline-контролов (Checkbox/Switch) раскладка не меняется.',
+        'Подпись над контролом или слева от него. Пояснение и замечание всегда под контролом. У Checkbox и Switch верхней подписи нет — для них проп ничего не меняет.',
+    },
+    {
+      name: 'testId',
+      type: 'string',
+      default: 'componentProps.testId',
+      description:
+        "Префикс data-testid: field-, label-, input-, error-<id>. Без него и без componentProps.testId — 'unknown'.",
+    },
+    {
+      name: 'className',
+      type: 'string',
+      description: 'Класс корневого элемента поля.',
+    },
+    {
+      name: 'children',
+      type: 'ReactNode',
+      description:
+        'Свой контрол вместо компонента из узла. Получает id и aria-* поля; значение подключается по адаптеру поля этого компонента, у компонента без адаптера onChange должен принимать значение, а не событие.',
+    },
+    {
+      name: 'label',
+      type: 'string · componentProps',
+      description: 'Подпись поля. У Checkbox и Switch её рисует сам контрол справа от себя.',
+    },
+    {
+      name: 'required',
+      type: 'boolean · componentProps',
+      default: 'false',
+      description:
+        'Звёздочка у подписи и aria-required у контрола. Правило required() отдельно — в схеме валидации.',
+    },
+    {
+      name: 'description',
+      type: 'string · componentProps',
+      description:
+        'Пояснение под контролом, над замечанием. Связано с контролом через aria-describedby. Читается при первом показе поля.',
+    },
+    {
+      name: 'labelTooltip',
+      type: 'string · componentProps',
+      description:
+        'Иконка (i) с подсказкой после подписи. У Checkbox и Switch — справа от контрола. Читается при первом показе поля.',
+    },
+    {
+      name: 'tooltip',
+      type: 'string · componentProps',
+      description:
+        'Иконка (i) внутри контрола. Её рисует не FormField, а само поле: у Input и Select — справа внутри, у Checkbox и Switch — после текста.',
+    },
+    {
+      name: 'testId',
+      type: 'string · componentProps',
+      description: 'То же, что проп testId FormField, но задаётся в узле схемы.',
     },
   ],
 };

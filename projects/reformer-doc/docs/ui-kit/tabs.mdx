@@ -2,6 +2,7 @@
 id: tabs
 title: Tabs
 sidebar_label: Tabs
+description: Вкладки — ряд заголовков и одна видимая панель под ними.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,11 +10,81 @@ import { tabsDocConfig } from '@site/src/components/demo/examples/tabs';
 
 # Tabs
 
-Вкладки на shadcn / Radix `Tabs`. Compound-набор:
-`Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`.
-Активная вкладка задаётся через `defaultValue` (uncontrolled) либо через
-`value` + `onValueChange` (controlled). Стиль списка переключается пропом
-`variant` (`"default"` — с заливкой, `"line"` — с подчёркиванием), а `orientation`
-располагает список сверху или сбоку.
+Вкладки: ряд заголовков и под ним одна панель. Выбор заголовка меняет панель. Построен на Radix
+Tabs, это не поле формы.
+
+## Когда брать
+
+- **Tabs** — несколько равноправных разделов одного экрана, и в каждый момент нужен один:
+  настройки профиля, вид «список / плитка».
+- [Accordion](./accordion.mdx) — разделы идут стопкой, читатель раскрывает нужные, и открытыми
+  могут быть несколько сразу.
+- [FormWizard](./form-navigation.mdx) — разделы проходятся по порядку, и перейти дальше нельзя,
+  пока текущий шаг не заполнен. Вкладки такого порядка не держат.
+- [NavigationMenu](./navigation-menu.mdx) — заголовки ведут на другие страницы, а не меняют панель
+  на месте.
+
+## Анатомия
+
+```tsx
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@reformer/ui-kit'; // или '@reformer/ui-kit/tabs'
+
+<Tabs defaultValue="account">
+  <TabsList>
+    <TabsTrigger value="account">Аккаунт</TabsTrigger>
+    <TabsTrigger value="password">Пароль</TabsTrigger>
+  </TabsList>
+  <TabsContent value="account">Настройки аккаунта.</TabsContent>
+  <TabsContent value="password">Смена пароля.</TabsContent>
+</Tabs>;
+```
+
+| Часть         | Что это                                             | Ключевые пропсы                                             |
+| ------------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| `Tabs`        | Корень: хранит, какая вкладка открыта.              | `defaultValue` / `value`, `orientation`, `activationMode`   |
+| `TabsList`    | Ряд заголовков.                                     | `variant` (`'default'` — заливка, `'line'` — линия), `loop` |
+| `TabsTrigger` | Кнопка-заголовок одной вкладки.                     | `value` (обязателен), `disabled`                            |
+| `TabsContent` | Панель вкладки. Видна, только пока вкладка выбрана. | `value` (тот же, что у заголовка), `forceMount`             |
+
+Заголовок и панель связывает одинаковый `value`. Состоянием управляет либо сам компонент
+(`defaultValue`), либо вы (`value` + `onValueChange`).
+
+Неактивная панель удаляется из разметки. Если на вкладках стоят поля формы, их значения от этого не
+теряются: значения хранит [модель](../reference/glossary.md), а не компоненты. Проверка при
+отправке тоже идёт по модели и захватывает поля всех вкладок, а не только открытой.
+
+## Примеры
 
 <ComponentDoc config={tabsDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix Tabs:
+
+| Клавиша           | Действие                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `Tab`             | Фокус на выбранный заголовок, следующее нажатие — на панель.                                           |
+| `→` / `←`         | Следующий / предыдущий заголовок при `orientation="horizontal"`; при `dir="rtl"` направление обратное. |
+| `↓` / `↑`         | То же при `orientation="vertical"`.                                                                    |
+| `Home` / `End`    | Первый / последний заголовок.                                                                          |
+| `Enter` / `Space` | Открыть вкладку под фокусом (нужно при `activationMode="manual"`).                                     |
+
+- С `activationMode="automatic"` (по умолчанию) вкладка открывается сразу, как только на её
+  заголовок пришёл фокус. Если панель тяжёлая или грузит данные, ставьте `"manual"`.
+- Стрелки ходят по кругу, пока у `TabsList` не выключен `loop`, и пропускают недоступные вкладки.
+- Список — `role="tablist"` с `aria-orientation`; заголовок — `role="tab"` с `aria-selected` и
+  `aria-controls`; панель — `role="tabpanel"` с `aria-labelledby` и `tabIndex=0`, чтобы до неё
+  можно было дойти клавишей `Tab`.
+- Фокус обозначен кольцом (`focus-visible:ring`).
+
+## Локализация
+
+Своих строк компонент не рисует: заголовки и содержимое вкладок — ваш текст.
+
+## См. также
+
+- [Accordion](./accordion.mdx) — раскрывающиеся секции стопкой.
+- [FormWizard](./form-navigation.mdx) — многошаговая форма с проверкой шагов.
+- [Direction](./direction.mdx) — направление текста для стрелок.
+- [Radix Tabs](https://www.radix-ui.com/primitives/docs/components/tabs) — полный список пропсов
+  примитива.

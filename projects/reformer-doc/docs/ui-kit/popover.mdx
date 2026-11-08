@@ -2,6 +2,7 @@
 id: popover
 title: Popover
 sidebar_label: Popover
+description: Небольшая панель рядом с кнопкой — открывается щелчком и не блокирует страницу.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,10 +10,97 @@ import { popoverDocConfig } from '@site/src/components/demo/examples/popover';
 
 # Popover
 
-Всплывающая панель на shadcn / Radix `Popover`. `PopoverTrigger` открывает `PopoverContent`
-(рендерится в `Portal`), позиционируемый относительно триггера или отдельного `PopoverAnchor`
-через `align` / `side` / `sideOffset`. Содержимое собирается из презентационных частей
-`PopoverHeader` / `PopoverTitle` / `PopoverDescription` — все части несут свой `data-slot`,
-поэтому стиль правится через `className` (tailwind-merge).
+Небольшая панель, которая открывается щелчком рядом с кнопкой: настройки, короткая форма,
+подробности. Страница под ней остаётся доступной. Построен на Radix Popover и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+Четыре компонента показывают что-то рядом с элементом. Разница — в том, как они открываются и что
+внутри:
+
+| Компонент                     | Открывается                    | Внутри                                          |
+| ----------------------------- | ------------------------------ | ----------------------------------------------- |
+| **Popover**                   | Щелчком по кнопке              | Что угодно, с кнопками и полями.                |
+| [HoverCard](./hover-card.mdx) | Наведением на ссылку           | Превью: профиль, карточка ссылки. Без действий. |
+| [Tooltip](./tooltip.mdx)      | Наведением или фокусом         | Короткий текст-подсказка, одна строка.          |
+| [InfoHint](./info-hint.mdx)   | Наведением, фокусом и касанием | Пояснение к заголовку или полю за иконкой (i).  |
+
+- Список команд за кнопкой — [DropdownMenu](./dropdown-menu.mdx): у него навигация стрелками.
+- Задача, которая требует внимания целиком, — [Dialog](./dialog.mdx).
+- Выбор значения из списка в форме — [Select](./select.mdx) или [Combobox](./combobox.mdx).
+
+## Анатомия
+
+```tsx
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverDescription,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/popover'
+
+<Popover>
+  <PopoverTrigger asChild>
+    <Button variant="outline">Размеры</Button>
+  </PopoverTrigger>
+  <PopoverContent align="start" aria-label="Размеры">
+    <PopoverHeader>
+      <PopoverTitle>Размеры</PopoverTitle>
+      <PopoverDescription>Ширина и высота блока.</PopoverDescription>
+    </PopoverHeader>
+    {/* поля */}
+  </PopoverContent>
+</Popover>;
+```
+
+| Часть                | Что это                                                  | Ключевые пропсы                                 |
+| -------------------- | -------------------------------------------------------- | ----------------------------------------------- |
+| `Popover`            | Корень: хранит, открыта ли панель.                       | `open` + `onOpenChange`, `defaultOpen`, `modal` |
+| `PopoverTrigger`     | Кнопка, которая открывает и закрывает панель.            | `asChild`                                       |
+| `PopoverContent`     | Панель в портале, ширина `w-72`.                         | `side`, `align` (`center`), `sideOffset` (`4`)  |
+| `PopoverAnchor`      | Элемент, рядом с которым встанет панель вместо триггера. | `asChild`                                       |
+| `PopoverHeader`      | Шапка: заголовок и описание.                             | —                                               |
+| `PopoverTitle`       | Заголовок.                                               | —                                               |
+| `PopoverDescription` | Описание приглушённым цветом.                            | —                                               |
+
+- Панель сама сдвигается, если не помещается на экране: `side` — желаемая сторона, а не
+  обязательная.
+- Ширину меняйте классом: `<PopoverContent className="w-56">`.
+- Закрыть панель кнопкой внутри неё можно, только управляя открытием: `open` и `onOpenChange`
+  (пример «Закрыть из кода»).
+
+## Примеры
 
 <ComponentDoc config={popoverDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix Popover:
+
+| Клавиша           | Действие                                                         |
+| ----------------- | ---------------------------------------------------------------- |
+| `Enter` / `Space` | На триггере — открыть или закрыть панель.                        |
+| `Tab`             | По элементам панели; уход фокуса за пределы панели закрывает её. |
+| `Esc`             | Закрыть панель, фокус вернётся на триггер.                       |
+
+- При открытии фокус переходит в панель. Щелчок мимо панели закрывает её.
+- У триггера `aria-expanded` и `aria-controls`, у панели `role="dialog"`.
+- `PopoverTitle` с панелью не связан: это `<div>`, а не заголовок Radix. Дайте панели имя сами —
+  `aria-label` или `aria-labelledby` на `PopoverContent`.
+- `modal={true}` запирает фокус внутри панели и скрывает остальную страницу от скринридера —
+  включайте, если панель содержит форму, которую нельзя бросить на середине.
+
+## Локализация
+
+Своих строк компонент не рисует: весь текст панели — ваш.
+
+## См. также
+
+- [Tooltip](./tooltip.mdx) — короткая подсказка по наведению.
+- [HoverCard](./hover-card.mdx) — превью по наведению.
+- [DropdownMenu](./dropdown-menu.mdx) — меню действий.
+- [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover) — полный список
+  пропсов примитива.

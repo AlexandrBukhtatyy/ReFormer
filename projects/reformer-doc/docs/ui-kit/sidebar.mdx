@@ -2,6 +2,7 @@
 id: sidebar
 title: Sidebar
 sidebar_label: Sidebar
+description: Боковая панель навигации приложения, которая сворачивается и на узком экране выезжает поверх страницы.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,17 +10,182 @@ import { sidebarDocConfig } from '@site/src/components/demo/examples/sidebar';
 
 # Sidebar
 
-Навигационная боковая панель приложения на shadcn. `SidebarProvider` держит
-состояние (свёрнута/развёрнута, персист в cookie, горячая клавиша `Cmd/Ctrl+B`,
-мобильный режим через `Sheet`) и раздаёт его через контекст `useSidebar`. `Sidebar` —
-сама панель (`side` / `variant` / `collapsible`), `SidebarInset` — основная область
-рядом с ней, `SidebarTrigger` сворачивает и разворачивает. Внутри: `SidebarHeader` /
-`SidebarContent` / `SidebarFooter`, секции (`SidebarGroup` / `SidebarGroupLabel` /
-`SidebarGroupAction`) и меню (`SidebarMenu` / `SidebarMenuItem` / `SidebarMenuButton` /
-`SidebarMenuAction` / `SidebarMenuBadge` / `SidebarMenuSub…`). Все части несут свой
-`data-slot`.
+Боковая панель навигации приложения: меню разделов слева или справа от основной области.
+Сворачивается кнопкой или сочетанием `Ctrl+B` (`⌘B` на macOS), на узком экране выезжает поверх
+страницы. Это каркас приложения, а не поле формы.
 
-Тяжёлый компонент — импортируется из отдельного subpath
-`@reformer/ui-kit/sidebar`.
+## Когда брать
+
+- **Sidebar** — постоянная навигация по разделам приложения: панель стоит рядом с содержимым
+  всё время работы.
+- [Sheet](./sheet.mdx) — временная панель поверх страницы для одной задачи: фильтры, карточка
+  записи, форма редактирования. Sidebar сам использует Sheet на узком экране.
+- [NavigationMenu](./navigation-menu.mdx) — навигация по сайту в горизонтальной шапке, с
+  выпадающими блоками ссылок.
+- [Menubar](./menubar.mdx) — строка команд в духе настольного приложения («Файл», «Правка»), а не
+  разделы.
+
+## Анатомия
+
+Sidebar импортируется только из `@reformer/ui-kit/sidebar`: в корневом `@reformer/ui-kit` его
+нет. Внешних зависимостей он не тянет.
+
+```tsx
+import { Inbox } from 'lucide-react';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@reformer/ui-kit/sidebar';
+
+<SidebarProvider>
+  <Sidebar collapsible="icon">
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupLabel>Разделы</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive tooltip="Заявки">
+                <a href="/requests" aria-current="page">
+                  <Inbox />
+                  <span>Заявки</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  </Sidebar>
+  <SidebarInset>
+    <header>
+      <SidebarTrigger />
+    </header>
+    {/* содержимое страницы */}
+  </SidebarInset>
+</SidebarProvider>;
+```
+
+Каркас:
+
+| Часть             | Что это                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `SidebarProvider` | Корень. Хранит состояние панели и отдаёт его частям через `useSidebar`. Занимает высоту окна. |
+| `Sidebar`         | Сама панель: `side`, `variant`, `collapsible`.                                                |
+| `SidebarInset`    | Основная область рядом с панелью, тег `main`.                                                 |
+| `SidebarTrigger`  | Кнопка «свернуть / развернуть». Обычно стоит в шапке основной области.                        |
+| `SidebarRail`     | Узкая полоса у края панели: щелчок по ней тоже переключает панель. Ставится внутрь `Sidebar`. |
+
+Внутри панели:
+
+| Часть                                                          | Что это                                                    |
+| -------------------------------------------------------------- | ---------------------------------------------------------- |
+| `SidebarHeader`, `SidebarFooter`                               | Закреплённые верх и низ панели.                            |
+| `SidebarContent`                                               | Прокручиваемая середина.                                   |
+| `SidebarGroup`, `SidebarGroupLabel`, `SidebarGroupContent`     | Группа пунктов с заголовком.                               |
+| `SidebarGroupAction`                                           | Кнопка в углу группы, например «добавить».                 |
+| `SidebarMenu`, `SidebarMenuItem`                               | Список пунктов (`ul` и `li`).                              |
+| `SidebarMenuButton`                                            | Пункт: иконка и подпись, `isActive`, `tooltip`, `asChild`. |
+| `SidebarMenuAction`, `SidebarMenuBadge`                        | Кнопка и счётчик справа от пункта.                         |
+| `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuSubButton` | Вложенный список ссылок под пунктом.                       |
+| `SidebarMenuSkeleton`                                          | Заглушка пункта на время загрузки.                         |
+| `SidebarInput`, `SidebarSeparator`                             | Поле поиска и разделитель в стиле панели.                  |
+
+Как панель сворачивается, задаёт `collapsible` у `Sidebar`:
+
+- `offcanvas` (по умолчанию) — свёрнутая панель уезжает за край окна целиком.
+- `icon` — панель сужается до колонки иконок. Заголовки групп, счётчики, кнопки действий и
+  подменю прячутся, у пунктов появляется подсказка `tooltip`.
+- `none` — панель не сворачивается и стоит в потоке страницы, без фиксации к окну.
+
+Состояние:
+
+- Сам провайдер хранит его при `defaultOpen`, вы — при `open` и `onOpenChange`. Части читают
+  состояние хуком `useSidebar()`: `state`, `open`, `setOpen`, `isMobile`, `toggleSidebar`.
+- При каждом переключении на широком экране провайдер пишет cookie `sidebar_state` на 7 дней.
+  Сам он её не читает. Чтобы панель открывалась так, как её оставили, прочитайте cookie сами
+  (на сервере или при старте) и передайте значение в `defaultOpen`.
+- При ширине окна меньше `768px` панель рисуется как [Sheet](./sheet.mdx): закрыта, пока её не
+  откроют кнопкой или сочетанием. Отдельное состояние для узкого экрана — `openMobile` в
+  `useSidebar()`.
+- Ширина — CSS-переменные `--sidebar-width` (`16rem`) и `--sidebar-width-icon` (`3rem`). Свои
+  значения задают через `style` у `SidebarProvider`. На узком экране ширина панели — `18rem`, и
+  переменная провайдера на неё не действует.
+
+Панель с `collapsible="offcanvas"` или `"icon"` фиксирована к окну (`position: fixed`, высота
+окна). Она рассчитана на каркас всей страницы, а не на блок внутри неё.
+
+## Примеры
 
 <ComponentDoc config={sidebarDocConfig} />
+
+## Доступность
+
+| Клавиша         | Действие                                                               |
+| --------------- | ---------------------------------------------------------------------- |
+| `Ctrl+B` / `⌘B` | Свернуть или развернуть панель; на узком экране — открыть или закрыть. |
+| `Tab`           | Переход по пунктам меню: это обычные кнопки и ссылки.                  |
+| `Esc`           | Закрыть панель на узком экране (Sheet).                                |
+
+- Сочетание `Ctrl+B` / `⌘B` слушается во всём окне, даже когда фокус в поле ввода, и перехватывает
+  его у браузера и редакторов текста. Каждый `SidebarProvider` на странице слушает его отдельно —
+  держите один провайдер на приложение.
+- `SidebarTrigger` — кнопка со скрытой подписью «Свернуть или развернуть панель». Атрибутов
+  `aria-expanded` и `aria-controls` у неё нет.
+- `SidebarRail` убран из порядка `Tab` (`tabIndex=-1`): с клавиатуры панель переключают кнопкой
+  или сочетанием.
+- Меню — списки `ul`/`li` с кнопками, а не `role="menu"`: по пунктам ходят `Tab`, стрелки не
+  работают.
+- `isActive` только подсвечивает пункт. Скринридеру текущий раздел сообщает
+  `aria-current="page"` на ссылке — добавьте его сами, как в примере выше.
+- В режиме `icon` подпись пункта сжимается, но остаётся в разметке: скринридер её читает.
+- Свёрнутая панель `offcanvas` уезжает за край, но остаётся в разметке: `Tab` проходит по её
+  пунктам, хотя их не видно.
+- На узком экране панель открывается в Sheet: фокус заперт внутри, у панели есть скрытые
+  заголовок и описание.
+
+## Локализация
+
+Компонент рисует сам три строки:
+
+| Ключ                      | English                      | Русский                         | Где                                                                 | Проп-замена                                |
+| ------------------------- | ---------------------------- | ------------------------------- | ------------------------------------------------------------------- | ------------------------------------------ |
+| `kit.sidebar.toggle`      | Toggle Sidebar               | Свернуть или развернуть панель  | скрытая подпись `SidebarTrigger`, подпись и подсказка `SidebarRail` | `aria-label` (у `SidebarRail` ещё `title`) |
+| `kit.sidebar.title`       | Sidebar                      | Боковая панель                  | скрытый заголовок панели на узком экране                            | —                                          |
+| `kit.sidebar.description` | Displays the mobile sidebar. | Боковая панель на узком экране. | скрытое описание панели на узком экране                             | —                                          |
+
+Без провайдера локализации строки английские. Русский набор кита подключает `I18nProvider` из
+`@reformer/core/react` — готовой локалью `ru` из `@reformer/ui-kit/locale/ru` или загрузчиком
+`loadKitLocale` из `@reformer/ui-kit/locale`. Свою формулировку задаёт ключ в локали:
+
+```tsx
+import { extendLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+// Константа модуля: новый объект локали на каждый рендер заново перерисовывал бы все подписи.
+const locale = extendLocale(ru, {
+  messages: { 'kit.sidebar.title': 'Разделы', 'kit.sidebar.toggle': 'Показать или скрыть разделы' },
+});
+
+<I18nProvider locale={locale}>
+  <AppShell />
+</I18nProvider>;
+```
+
+## См. также
+
+- [Sheet](./sheet.mdx) — панель поверх страницы, которой Sidebar становится на узком экране.
+- [Tooltip](./tooltip.mdx) — подсказки у пунктов свёрнутой панели.
+- [NavigationMenu](./navigation-menu.mdx) — навигация в шапке сайта.
+- [Sidebar в shadcn/ui](https://ui.shadcn.com/docs/components/sidebar) — исходный компонент и
+  готовые раскладки.

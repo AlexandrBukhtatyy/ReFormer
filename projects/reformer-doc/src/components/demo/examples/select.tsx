@@ -1,16 +1,23 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import {
+  Avatar,
+  AvatarFallback,
+  Select,
   SelectAsync,
+  SelectContent,
+  SelectItem,
+  SelectMulti,
+  SelectTrigger,
+  SelectValue,
   selectAsyncPropsSchema,
   type ResourceConfig,
-  SelectMulti,
 } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
-import type { ComponentDocConfig } from '../types';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
+import type { ComponentDocConfig, VariantDef } from '../types';
 
 const LOAN = [
   { value: 'consumer', label: 'Потребительский' },
@@ -24,33 +31,22 @@ const GROUPED = [
   { value: 'minsk', label: 'Минск', group: 'Беларусь' },
 ];
 
-/* ─── Кастомный шаблон элемента (ручная сборка base-compound: аватар + ФИО) ─── */
-
-const PEOPLE = [
-  { value: 'ivanov', name: 'Иванов И.И.', role: 'Менеджер', color: '#6366f1' },
-  { value: 'petrov', name: 'Петров П.П.', role: 'Аналитик', color: '#10b981' },
-  { value: 'sidorov', name: 'Сидоров С.С.', role: 'Разработчик', color: '#f59e0b' },
+const CITIES = [
+  { value: 'msk', label: 'Москва' },
+  { value: 'spb', label: 'Санкт-Петербург' },
+  { value: 'kzn', label: 'Казань' },
+  { value: 'nsk', label: 'Новосибирск' },
+  { value: 'ekb', label: 'Екатеринбург' },
 ];
 
-const initials = (name: string) =>
-  name
-    .split(' ')
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-
-/* ─── Презентационный «раскрытый» Select для variant-карточек ─────────────
-   Настоящий Radix Select — модальный (открыт только один) и лочит скролл
-   страницы, пока открыт. Чтобы в галерее вариантов видеть опции всех селектов
-   разом «не тыкая в каждый», рисуем открытое состояние инлайн (без портала) на
-   токенах ui-kit: все карточки показывают опции одновременно, скролл жив, а клик
-   по опции сразу её выбирает (подсветка + галочка переезжают). */
+/* ─── Раскрытый список для карточек вариантов ──────────────────────────────
+   Настоящий список Select открывается поверх страницы, и открытым бывает только один. Чтобы
+   в галерее были видны пункты сразу нескольких полей, раскрытое состояние нарисовано на месте
+   токенами кита: клик по пункту выбирает его. Это иллюстрация, а не компонент кита. */
 interface PreviewOption {
   value: string;
   label: string;
   group?: string;
-  render?: () => ReactNode;
 }
 
 function SelectOpenPreview({
@@ -58,7 +54,7 @@ function SelectOpenPreview({
   options,
   initial,
 }: {
-  label?: string;
+  label: string;
   options: PreviewOption[];
   initial: string;
 }) {
@@ -77,9 +73,9 @@ function SelectOpenPreview({
 
   return (
     <div style={{ maxWidth: 380, width: '100%', fontSize: 14 }}>
-      {label && <div style={{ fontWeight: 500, marginBottom: 6 }}>{label}</div>}
+      <div style={{ fontWeight: 500, marginBottom: 6 }}>{label}</div>
 
-      {/* Триггер с выбранным значением (презентационный). */}
+      {/* Поле с выбранным значением. */}
       <div
         style={{
           display: 'flex',
@@ -92,18 +88,11 @@ function SelectOpenPreview({
           border: '1px solid var(--input)',
         }}
       >
-        {/* Триггер показывает содержимое выбранной опции целиком (у custom-item — с аватаром). */}
-        <span style={{ display: 'inline-flex', alignItems: 'center', minWidth: 0 }}>
-          {selectedOption
-            ? selectedOption.render
-              ? selectedOption.render()
-              : selectedOption.label
-            : ''}
-        </span>
+        <span>{selectedOption?.label ?? ''}</span>
         <ChevronDownIcon size={16} style={{ opacity: 0.5, flexShrink: 0 }} />
       </div>
 
-      {/* Всегда открытый список опций (инлайн, без портала). */}
+      {/* Список пунктов, всегда раскрытый. */}
       <div
         style={{
           marginTop: 4,
@@ -132,9 +121,6 @@ function SelectOpenPreview({
                   onClick={() => setSelected(o.value)}
                   style={{
                     position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
                     padding: '6px 32px 6px 8px',
                     borderRadius: 4,
                     cursor: 'pointer',
@@ -142,18 +128,12 @@ function SelectOpenPreview({
                     color: active ? 'var(--accent-foreground)' : undefined,
                   }}
                 >
-                  {o.render ? o.render() : o.label}
+                  {o.label}
                   {active && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        right: 8,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <CheckIcon size={16} />
-                    </span>
+                    <CheckIcon
+                      size={16}
+                      style={{ position: 'absolute', right: 8, top: '50%', marginTop: -8 }}
+                    />
                   )}
                 </div>
               );
@@ -165,45 +145,103 @@ function SelectOpenPreview({
   );
 }
 
-/** Ряд кастомного шаблона (аватар + ФИО + роль). */
-function personRow(person: (typeof PEOPLE)[number]) {
+/** Карточка с раскрытым списком: код — тот узел SelectAsync, который даёт такой список. */
+function openPreviewVariant(o: {
+  id: string;
+  title: string;
+  description: string;
+  field: string;
+  label: string;
+  options: PreviewOption[];
+  initial: string;
+}): VariantDef {
+  return {
+    id: o.id,
+    title: o.title,
+    description: o.description,
+    render: () => <SelectOpenPreview label={o.label} options={o.options} initial={o.initial} />,
+    code: fieldSnippet({
+      field: o.field,
+      component: 'SelectAsync',
+      props: { label: o.label, options: o.options },
+      initial: o.initial,
+    }),
+  };
+}
+
+/* ─── Своя разметка пункта: ручная сборка из частей Select ─────────────── */
+
+const PEOPLE = [
+  { value: 'ivanov', name: 'Иванов И. И.', initials: 'ИИ', role: 'Менеджер' },
+  { value: 'petrov', name: 'Петров П. П.', initials: 'ПП', role: 'Аналитик' },
+  { value: 'sidorov', name: 'Сидоров С. С.', initials: 'СС', role: 'Разработчик' },
+];
+
+function EmployeeSelect() {
+  const [value, setValue] = useState('petrov');
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 24,
-          height: 24,
-          borderRadius: '50%',
-          background: person.color,
-          color: '#fff',
-          fontSize: 11,
-          fontWeight: 600,
-          flexShrink: 0,
-        }}
-      >
-        {initials(person.name)}
-      </span>
-      <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.2 }}>
-        <span style={{ fontWeight: 500 }}>{person.name}</span>
-        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{person.role}</span>
-      </span>
-    </span>
+    <div style={{ maxWidth: 380, width: '100%' }}>
+      <Select value={value} onValueChange={setValue}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Выберите сотрудника" />
+        </SelectTrigger>
+        <SelectContent>
+          {PEOPLE.map((p) => (
+            <SelectItem key={p.value} value={p.value}>
+              <Avatar size="sm">
+                <AvatarFallback>{p.initials}</AvatarFallback>
+              </Avatar>
+              {p.name}
+              <span className="text-muted-foreground">{p.role}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
-function CustomItemVariant() {
-  return (
-    <SelectOpenPreview
-      initial="petrov"
-      options={PEOPLE.map((p) => ({ value: p.value, label: p.name, render: () => personRow(p) }))}
-    />
-  );
-}
+const EMPLOYEE_SELECT_CODE = `import { useState } from 'react';
+import {
+  Avatar,
+  AvatarFallback,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@reformer/ui-kit';
 
-/* ─── Живые resource-источники для Examples ─────────────────────────────── */
+const PEOPLE = [
+  { value: 'ivanov', name: 'Иванов И. И.', initials: 'ИИ', role: 'Менеджер' },
+  { value: 'petrov', name: 'Петров П. П.', initials: 'ПП', role: 'Аналитик' },
+  { value: 'sidorov', name: 'Сидоров С. С.', initials: 'СС', role: 'Разработчик' },
+];
+
+function EmployeeSelect() {
+  const [value, setValue] = useState('petrov');
+  return (
+    <Select value={value} onValueChange={setValue}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Выберите сотрудника" />
+      </SelectTrigger>
+      <SelectContent>
+        {PEOPLE.map((p) => (
+          <SelectItem key={p.value} value={p.value}>
+            <Avatar size="sm">
+              <AvatarFallback>{p.initials}</AvatarFallback>
+            </Avatar>
+            {p.name}
+            <span className="text-muted-foreground">{p.role}</span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}`;
+
+/* ─── Источники данных для примеров ────────────────────────────────────────
+   Сервер имитируется задержкой: в реальном коде load обращается к API. */
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -255,198 +293,186 @@ const failingResource: ResourceConfig<string> = {
   },
 };
 
+/** Код источника данных над узлом поля. */
+function withSource(def: VariantDef, source: string): VariantDef {
+  return { ...def, code: `${source}\n\n${def.code}` };
+}
+
+const STATIC_SOURCE = `// источник: один запрос при появлении поля
+const countries: ResourceConfig<string> = {
+  type: 'static',
+  load: async () => {
+    const items = await api.countries(); // [{ id, label, value }]
+    return { items, totalCount: items.length };
+  },
+};`;
+
+const PRELOAD_SOURCE = `// источник: загрузить всё сразу, искать среди загруженного
+const countries: ResourceConfig<string> = {
+  type: 'preload',
+  load: async () => {
+    const items = await api.countries();
+    return { items, totalCount: items.length };
+  },
+};`;
+
+const PARTIAL_SOURCE = `// источник: поиск и страницы — на сервере
+const cities: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: async ({ search = '', page = 1, pageSize = 20 } = {}) => {
+    const { rows, total } = await api.cities({ search, page, pageSize });
+    return { items: rows, totalCount: total };
+  },
+};`;
+
+const FAILING_SOURCE = `// источник, у которого падает запрос
+const countries: ResourceConfig<string> = {
+  type: 'static',
+  load: async () => {
+    throw new Error('Network error');
+  },
+};`;
+
+// Пропсы панели API — из props-схемы варианта. label и options задаются baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(selectAsyncPropsSchema), {
+  omit: ['label', 'options'],
+});
+
 export const selectDocConfig: ComponentDocConfig = {
   name: 'Select',
   importFrom: '@reformer/ui-kit',
   description:
-    'Выпадающий список на Radix. Вариант base — чистый compound (ручная сборка), async — inline-опции или асинхронный источник (resource).',
+    'Выпадающий список. SelectAsync — одно значение из options или из загружаемого источника, SelectMulti — несколько значений, Select с частями — ручная сборка вне формы.',
   variants: [
-    {
+    openPreviewVariant({
       id: 'single',
-      title: 'Одиночный выбор (options)',
+      title: 'Одно значение',
       description:
-        'Плоский список inline-опций через проп options. Значение — строка (value: string | null). В галерее список показан раскрытым — видно все опции сразу.',
-      render: () => <SelectOpenPreview label="Тип кредита" options={LOAN} initial="mortgage" />,
-      code: `{
-  model: model.$.loanType,
-  component: SelectAsync,
-  componentProps: {
-    label: 'Тип кредита',
-    placeholder: 'Выберите тип',
-    options: [
-      { value: 'consumer', label: 'Потребительский' },
-      { value: 'mortgage', label: 'Ипотека' },
-    ],
-  },
-}`,
-    },
-    {
+        'SelectAsync с массивом options. Значение — string | null. Список показан раскрытым для наглядности.',
+      field: 'loanType',
+      label: 'Тип кредита',
+      options: LOAN,
+      initial: 'mortgage',
+    }),
+    openPreviewVariant({
       id: 'grouped',
-      title: 'Группировка опций (options + group)',
+      title: 'Группы пунктов',
       description:
-        'Опции с одинаковым group объединяются под заголовком SelectLabel. Список показан раскрытым.',
-      render: () => <SelectOpenPreview label="Город" options={GROUPED} initial="spb" />,
-      code: `componentProps: {
-  label: 'Город',
-  options: [
-    { value: 'msk', label: 'Москва', group: 'Россия' },
-    { value: 'minsk', label: 'Минск', group: 'Беларусь' },
-  ],
-}`,
-    },
+        'Пункты с одинаковым group собираются под общим заголовком. Список показан раскрытым для наглядности.',
+      field: 'city',
+      label: 'Город',
+      options: GROUPED,
+      initial: 'spb',
+    }),
+    fieldVariant({
+      id: 'multi',
+      title: 'Несколько значений',
+      description:
+        'SelectMulti: значение — string[] | null. Выбранное — чипами; когда выбрано больше двух, чипы сворачиваются в «Выбрано: N».',
+      field: 'cities',
+      component: SelectMulti,
+      componentName: 'SelectMulti',
+      initial: ['msk', 'kzn'],
+      showInitial: true,
+      props: { label: 'Города', options: CITIES, clearable: true, summaryThreshold: 2 },
+    }),
     {
       id: 'custom-item',
-      title: 'Кастомный шаблон элемента (ручная сборка base-compound)',
+      title: 'Своя разметка пункта',
       description:
-        'Форма, недостижимая options-пропом: произвольная разметка item (аватар + ФИО + роль). Собирается из Select / SelectTrigger / SelectContent / SelectItem варианта base.',
-      render: CustomItemVariant,
-      code: `import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@reformer/ui-kit';
-
-<Select value={value} onValueChange={onChange}>
-  <SelectTrigger className="w-full">
-    <SelectValue placeholder="Выберите сотрудника" />
-  </SelectTrigger>
-  <SelectContent>
-    {people.map((p) => (
-      <SelectItem key={p.value} value={p.value}>
-        <Avatar>{initials(p.name)}</Avatar>
-        <span>{p.name}</span>
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>`,
-    },
-    {
-      id: 'multi',
-      title: 'Множественный выбор (SelectMulti)',
-      description:
-        'Popover со своим listbox (без cmdk — каталог select лёгкий и едет в главный barrel). Чипы выбранного в триггере, сводка при превышении summaryThreshold, поддержка resource и selectedOptions для лейблов вне текущей страницы.',
-      render: makeFieldVariant({
-        initial: null,
-        component: SelectMulti,
-        componentProps: {
-          label: 'Города',
-          options: GROUPED,
-          clearable: true,
-          summaryThreshold: 2,
-        },
-      }),
-      code: `{
-  model: model.$.cities,
-  component: SelectMulti,
-  componentProps: { options: GROUPED, clearable: true, summaryThreshold: 2 },
-}
-// асинхронно: resource={{ type: 'partial', load }} + selectedOptions для лейблов выбранного`,
+        'Вне формы: Select собирается из частей, в пункте — аватар, имя и должность. Пропом options такой пункт не описать.',
+      render: EmployeeSelect,
+      code: EMPLOYEE_SELECT_CODE,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'clearable',
-      title: 'Очистка выбора (clearable)',
-      description:
-        'clearable=true добавляет крестик; клик сбрасывает выбор в null через onChange(null).',
-      render: makeFieldVariant({
-        initial: 'mortgage',
+      title: 'Кнопка очистки',
+      description: 'clearable добавляет крестик: он сбрасывает значение поля в null.',
+      field: 'loanType',
+      component: SelectAsync,
+      componentName: 'SelectAsync',
+      initial: 'mortgage',
+      showInitial: true,
+      props: { label: 'Тип кредита', options: LOAN, clearable: true },
+    }),
+    withSource(
+      fieldVariant({
+        id: 'resource-static',
+        title: 'Загрузка один раз',
+        description:
+          'resource с type: "static" — один запрос при появлении поля, без поиска и подгрузки.',
+        field: 'country',
         component: SelectAsync,
-        componentProps: { label: 'Тип кредита', options: LOAN, clearable: true },
-      }),
-      code: `componentProps: { label: 'Тип кредита', options: LOAN, clearable: true }`,
-    },
-    {
-      id: 'resource-static',
-      title: 'Resource: static (снимок)',
-      description: 'type="static" — один load({}) при маунте, без поля поиска и пагинации.',
-      render: makeFieldVariant({
+        componentName: 'SelectAsync',
         initial: null,
-        component: SelectAsync,
-        componentProps: {
-          label: 'Страна',
-          placeholder: 'Выберите страну',
-          resource: staticResource,
-        },
+        props: { label: 'Страна', placeholder: 'Выберите страну', resource: staticResource },
+        codeProps: { resource: raw('countries') },
       }),
-      code: `const countries: ResourceConfig<string> = {
-  type: 'static',
-  load: async () => ({ items: await fetchCountries(), totalCount: n }),
-};
-componentProps: { label: 'Страна', resource: countries }`,
-    },
-    {
-      id: 'resource-preload',
-      title: 'Resource: preload + клиентский поиск',
-      description:
-        'type="preload" грузит всё сразу; поле Search фильтрует загруженные опции на клиенте.',
-      render: makeFieldVariant({
+      STATIC_SOURCE
+    ),
+    withSource(
+      fieldVariant({
+        id: 'resource-preload',
+        title: 'Загрузка всего списка и поиск по нему',
+        description:
+          'type: "preload" — один запрос за всем списком; поле поиска в списке фильтрует уже загруженные пункты.',
+        field: 'country',
+        component: SelectAsync,
+        componentName: 'SelectAsync',
         initial: null,
-        component: SelectAsync,
-        componentProps: {
-          label: 'Страна',
-          placeholder: 'Выберите страну',
-          resource: preloadResource,
-        },
+        props: { label: 'Страна', placeholder: 'Выберите страну', resource: preloadResource },
+        codeProps: { resource: raw('countries') },
       }),
-      code: `const countries: ResourceConfig<string> = { type: 'preload', load: async () => ({ items, totalCount }) };`,
-    },
-    {
-      id: 'resource-partial',
-      title: 'Resource: partial (серверные поиск и пагинация)',
-      description:
-        'type="partial" — debounce-поиск на сервер (load({ search })), догрузка страниц по скроллу.',
-      render: makeFieldVariant({
+      PRELOAD_SOURCE
+    ),
+    withSource(
+      fieldVariant({
+        id: 'resource-partial',
+        title: 'Поиск и подгрузка на сервере',
+        description:
+          'type: "partial" — поиск уходит на сервер (load({ search })) через 300 мс после ввода, следующая страница грузится при прокрутке списка.',
+        field: 'city',
+        component: SelectAsync,
+        componentName: 'SelectAsync',
         initial: null,
-        component: SelectAsync,
-        componentProps: {
-          label: 'Город',
-          placeholder: 'Выберите город',
-          resource: partialResource,
-        },
+        props: { label: 'Город', placeholder: 'Выберите город', resource: partialResource },
+        codeProps: { resource: raw('cities') },
       }),
-      code: `const cities: ResourceConfig<string> = {
-  type: 'partial', pageSize: 20,
-  load: async ({ search, page, pageSize }) => {
-    const { rows, total } = await fetchCities(search, page, pageSize);
-    return { items: rows, totalCount: total };
-  },
-};`,
-    },
-    {
-      id: 'resource-error',
-      title: 'Ошибка загрузки + Retry',
-      description:
-        'Когда load() падает и опций нет — дропдаун показывает «Failed to load options» и кнопку Retry.',
-      render: makeFieldVariant({
+      PARTIAL_SOURCE
+    ),
+    withSource(
+      fieldVariant({
+        id: 'resource-error',
+        title: 'Ошибка загрузки',
+        description:
+          'Если load упал и пунктов нет, список показывает сообщение об ошибке и кнопку повтора.',
+        field: 'country',
+        component: SelectAsync,
+        componentName: 'SelectAsync',
         initial: null,
-        component: SelectAsync,
-        componentProps: {
-          label: 'Страна',
-          placeholder: 'Выберите страну',
-          resource: failingResource,
-        },
+        props: { label: 'Страна', placeholder: 'Выберите страну', resource: failingResource },
+        codeProps: { resource: raw('countries') },
       }),
-      code: `const src: ResourceConfig<string> = { type: 'static', load: async () => { throw new Error('Network'); } };`,
-    },
-    {
+      FAILING_SOURCE
+    ),
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательный выбор (валидатор)',
+      title: 'Обязательный выбор',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: SelectAsync,
-        componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите тип кредита' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.loanType,
-  component: SelectAsync,
-  componentProps: { label: 'Тип кредита', options: LOAN },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
-    },
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'loanType',
+      component: SelectAsync,
+      componentName: 'SelectAsync',
+      initial: null,
+      props: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN, required: true },
+      validators: [required({ code: 'loanType.required' })],
+      rules: "required({ code: 'loanType.required' })",
+      messages: { 'loanType.required': 'Выберите тип кредита' },
+      touched: true,
+    }),
   ],
   api: {
     component: SelectAsync,
@@ -459,23 +485,15 @@ validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
       { label: 'Ипотека', value: 'mortgage' },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label/options — задаются baseComponentProps (иначе перетрут initialValues undefined-ами).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(selectAsyncPropsSchema), {
-      omit: ['label', 'options'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.loanType,
-  component: SelectAsync,
-  componentProps: {
-    label: 'Тип кредита',
-    options: LOAN,
-    placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}${v.clearable ? '\n    clearable: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required()]);`,
+      fieldSnippet({
+        field: 'loanType',
+        component: 'SelectAsync',
+        props: { label: 'Тип кредита', options: raw('LOAN_TYPES') },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

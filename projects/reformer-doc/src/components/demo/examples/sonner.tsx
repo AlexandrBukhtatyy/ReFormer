@@ -3,24 +3,22 @@ import { Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Sonner — не form-control: обёртка `Toaster` над пакетом `sonner` + императивный `toast`.
- * `Toaster` монтируется один раз (в реальном приложении — в корне), а тосты вызываются
- * из любого места через `toast(...)` / `toast.success|error|warning|info|promise`.
- * В демо каждый превью содержит собственный `<Toaster />`, чтобы работать автономно.
- * Таб Variants — базовый вызов, Examples — статусы, действие в тосте и `toast.promise`,
- * API — таблица частей и ключевых props обёртки.
+ * Sonner — не поле формы: контейнер `Toaster` над пакетом `sonner` и функция `toast`. sonner —
+ * необязательная peer-зависимость, поэтому импорт только из `@reformer/ui-kit/sonner`.
+ * `toast()` показывает уведомление во всех смонтированных Toaster сразу, поэтому на вкладке
+ * Examples Toaster есть только в первом примере — иначе каждое уведомление появилось бы трижды.
  */
 export const sonnerDocConfig: ComponentDocConfig = {
   name: 'Toaster (Sonner)',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/sonner',
   description:
-    'Тост-уведомления на shadcn / sonner. `Toaster` — контейнер-обёртка (тема статична, иконки статусов из lucide-react), `toast(...)` — императивный API. Монтируйте один `Toaster` в корне приложения и вызывайте `toast` откуда угодно.',
+    'Всплывающие уведомления: один Toaster в корне, вызов toast() откуда угодно. Импорт — @reformer/ui-kit/sonner, нужен пакет sonner.',
   variants: [
     {
       id: 'basic',
       title: 'Базовый тост',
       description:
-        'Смонтированный `Toaster` + кнопка, вызывающая `toast(...)`. Тост появляется в углу и авто-скрывается.',
+        'Toaster смонтирован, кнопка вызывает toast(). Уведомление появляется в правом нижнем углу и через 4 секунды исчезает.',
       render: () => (
         <div className="flex flex-wrap items-center gap-2">
           <Toaster />
@@ -42,7 +40,7 @@ export const sonnerDocConfig: ComponentDocConfig = {
       id: 'statuses',
       title: 'Статусы',
       description:
-        '`toast.success` / `toast.error` / `toast.warning` / `toast.info` — типизированные тосты со своей иконкой и цветом.',
+        'toast.success / error / warning / info — уведомление со своей иконкой. Здесь же смонтирован Toaster для всей вкладки.',
       render: () => (
         <div className="flex flex-wrap items-center gap-2">
           <Toaster />
@@ -62,26 +60,33 @@ export const sonnerDocConfig: ComponentDocConfig = {
       ),
       code: `<Toaster />
 
-<Button onClick={() => toast.success('Сохранено')}>Success</Button>
-<Button onClick={() => toast.error('Не удалось сохранить')}>Error</Button>
-<Button onClick={() => toast.warning('Проверьте данные')}>Warning</Button>
-<Button onClick={() => toast.info('Синхронизация запущена')}>Info</Button>`,
+<Button variant="outline" onClick={() => toast.success('Сохранено')}>
+  Success
+</Button>
+<Button variant="outline" onClick={() => toast.error('Не удалось сохранить')}>
+  Error
+</Button>
+<Button variant="outline" onClick={() => toast.warning('Проверьте данные')}>
+  Warning
+</Button>
+<Button variant="outline" onClick={() => toast.info('Синхронизация запущена')}>
+  Info
+</Button>`,
     },
     {
       id: 'description-action',
       title: 'Описание и действие',
       description:
-        'Второй аргумент `toast(message, opts)` — `description` (второй строкой) и `action` (кнопка, напр. «Отмена»).',
+        'Второй аргумент toast(message, options): description — вторая строка, action — кнопка в уведомлении, например «Отменить».',
       render: () => (
         <div className="flex flex-wrap items-center gap-2">
-          <Toaster />
           <Button
             variant="outline"
             onClick={() =>
               toast('Файл удалён', {
                 description: 'document.pdf перемещён в корзину',
                 action: {
-                  label: 'Отмена',
+                  label: 'Отменить',
                   onClick: () => toast.success('Восстановлено'),
                 },
               })
@@ -91,14 +96,14 @@ export const sonnerDocConfig: ComponentDocConfig = {
           </Button>
         </div>
       ),
-      code: `<Toaster />
-
+      code: `// <Toaster /> уже смонтирован один раз в корне приложения
 <Button
+  variant="outline"
   onClick={() =>
     toast('Файл удалён', {
       description: 'document.pdf перемещён в корзину',
       action: {
-        label: 'Отмена',
+        label: 'Отменить',
         onClick: () => toast.success('Восстановлено'),
       },
     })
@@ -111,10 +116,9 @@ export const sonnerDocConfig: ComponentDocConfig = {
       id: 'promise',
       title: 'Асинхронная операция (toast.promise)',
       description:
-        '`toast.promise` показывает loading-тост и сам переключает его на success/error по завершении промиса.',
+        'toast.promise показывает уведомление «загрузка» и сам меняет его на успех или ошибку, когда промис завершится.',
       render: () => (
         <div className="flex flex-wrap items-center gap-2">
-          <Toaster />
           <Button
             variant="outline"
             onClick={() =>
@@ -129,11 +133,12 @@ export const sonnerDocConfig: ComponentDocConfig = {
           </Button>
         </div>
       ),
-      code: `<Toaster />
-
+      code: `// <Toaster /> уже смонтирован один раз в корне приложения
 <Button
+  variant="outline"
   onClick={() =>
-    toast.promise(saveChanges(), {
+    // запрос к серверу имитирует промис с задержкой
+    toast.promise(new Promise<void>((resolve) => setTimeout(resolve, 1500)), {
       loading: 'Сохраняем изменения…',
       success: 'Изменения сохранены',
       error: 'Не удалось сохранить',
@@ -149,53 +154,72 @@ export const sonnerDocConfig: ComponentDocConfig = {
       name: 'Toaster',
       type: 'sonner Toaster',
       description:
-        'Контейнер тостов (обёртка). Монтируется один раз в корне приложения. Тема захардкожена в «system» (next-themes убран); иконки статусов — из lucide-react.',
+        'Контейнер уведомлений. Один на приложение, у корня. Иконки статусов — из lucide-react, цвета — из темы кита.',
     },
     {
-      name: 'Toaster position',
+      name: 'theme',
+      type: "'light' | 'dark' | 'system'",
+      default: "'system'",
+      description:
+        'Тема уведомлений. У кита — system, по настройке ОС; если тема приложения переключается вручную, передайте её сами.',
+    },
+    {
+      name: 'position',
       type: "'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'",
-      default: 'bottom-right',
-      description: 'Угол экрана, где стопка тостов.',
+      default: "'bottom-right'",
+      description: 'Угол экрана для стопки уведомлений.',
     },
     {
-      name: 'Toaster richColors',
+      name: 'richColors',
       type: 'boolean',
       default: 'false',
-      description: 'Насыщенная заливка по статусу (success/error/...).',
+      description: 'Заливка цветом статуса у success / error / warning / info.',
     },
     {
-      name: 'Toaster expand',
+      name: 'expand',
       type: 'boolean',
       default: 'false',
-      description: 'Разворачивать стопку (показывать несколько тостов раскрытыми).',
+      description: 'Показывать стопку раскрытой, а не только при наведении.',
     },
     {
-      name: 'Toaster closeButton',
+      name: 'closeButton',
       type: 'boolean',
       default: 'false',
-      description: 'Крестик закрытия на каждом тосте.',
+      description: 'Крестик на каждом уведомлении.',
     },
     {
-      name: 'Toaster duration',
-      type: 'number (ms)',
+      name: 'duration',
+      type: 'number',
       default: '4000',
-      description: 'Время авто-скрытия тоста.',
+      description: 'Сколько миллисекунд уведомление на экране.',
     },
     {
-      name: 'toast(message, opts?)',
+      name: 'containerAriaLabel',
+      type: 'string',
+      default: "'Notifications'",
+      description: 'Имя области уведомлений для скринридера. Кит его не переводит.',
+    },
+    {
+      name: 'toastOptions',
+      type: 'ToastOptions',
+      description:
+        'Общие настройки уведомлений: closeButtonAriaLabel (по умолчанию «Close toast»), classNames, duration. Ваш объект заменяет настройки кита целиком.',
+    },
+    {
+      name: 'toast(message, options?)',
       type: 'function',
       description:
-        'Императивный вызов тоста. opts: description, action { label, onClick }, duration, id и др.',
+        'Показать уведомление. options: description, action { label, onClick }, duration, id. Возвращает id для toast.dismiss(id).',
     },
     {
       name: 'toast.success / error / warning / info',
       type: 'function',
-      description: 'Типизированные тосты — иконка и цвет по статусу.',
+      description: 'Уведомление со статусом: своя иконка, при richColors — свой цвет.',
     },
     {
       name: 'toast.promise(promise, { loading, success, error })',
       type: 'function',
-      description: 'Loading-тост, автоматически переключаемый по результату промиса.',
+      description: 'Уведомление «загрузка», которое само сменится на успех или ошибку.',
     },
   ],
 };

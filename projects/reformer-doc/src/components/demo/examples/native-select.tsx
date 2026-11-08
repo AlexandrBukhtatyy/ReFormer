@@ -1,12 +1,14 @@
 import {
+  NativeSelect,
+  NativeSelectOption,
   NativeSelectWithOptions,
   nativeSelectBasePropsSchema,
   NativeSelectMulti,
 } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
 const LOAN = [
@@ -21,96 +23,113 @@ const GROUPED = [
   { value: 'minsk', label: 'Минск', group: 'Беларусь' },
 ];
 
+const PURPOSES = [
+  { value: 'repair', label: 'Ремонт' },
+  { value: 'car', label: 'Автомобиль' },
+  { value: 'education', label: 'Образование' },
+  { value: 'travel', label: 'Путешествие' },
+  { value: 'other', label: 'Другое' },
+];
+
+/** Вне формы: части NativeSelect собираются, как обычные select и option. */
+function SizeSelect() {
+  return (
+    <NativeSelect defaultValue="md" aria-label="Размер">
+      <NativeSelectOption value="sm">Малый</NativeSelectOption>
+      <NativeSelectOption value="md">Средний</NativeSelectOption>
+      <NativeSelectOption value="lg">Большой</NativeSelectOption>
+    </NativeSelect>
+  );
+}
+
+const SIZE_SELECT_CODE = `import { NativeSelect, NativeSelectOption } from '@reformer/ui-kit';
+
+<NativeSelect defaultValue="md" aria-label="Размер">
+  <NativeSelectOption value="sm">Малый</NativeSelectOption>
+  <NativeSelectOption value="md">Средний</NativeSelectOption>
+  <NativeSelectOption value="lg">Большой</NativeSelectOption>
+</NativeSelect>`;
+
+// Пропсы панели API — из props-схемы варианта. label и options задаются baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(nativeSelectBasePropsSchema), {
+  omit: ['label', 'options'],
+});
+
 export const nativeSelectDocConfig: ComponentDocConfig = {
   name: 'NativeSelect',
   importFrom: '@reformer/ui-kit',
   description:
-    'Стилизованный native <select> (не Radix — семантика и клавиатура браузерные). Значение — строка (option.value), пустой выбор → null. Для форм — NativeSelectWithOptions (options → <option>).',
+    'Системный выпадающий список браузера (<select>) в оформлении кита. В форму — NativeSelectWithOptions (одно значение) и NativeSelectMulti (несколько).',
   variants: [
-    {
+    fieldVariant({
       id: 'single',
-      title: 'Одиночный выбор (options)',
+      title: 'Одно значение',
       description:
-        'Плоский список опций через проп options. Значение — строка (value: string | null).',
-      render: makeFieldVariant({
-        initial: null,
-        component: NativeSelectWithOptions,
-        componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-      }),
-      code: `{
-  model: model.$.loanType,
-  component: NativeSelectWithOptions,
-  componentProps: {
-    label: 'Тип кредита',
-    placeholder: 'Выберите тип',
-    options: [
-      { value: 'consumer', label: 'Потребительский' },
-      { value: 'mortgage', label: 'Ипотека' },
-    ],
-  },
-}`,
-    },
-    {
+        'NativeSelectWithOptions строит пункты из options. Значение — string | null; пункт-подсказка placeholder даёт null.',
+      field: 'loanType',
+      component: NativeSelectWithOptions,
+      componentName: 'NativeSelectWithOptions',
+      initial: null,
+      props: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
+    }),
+    fieldVariant({
       id: 'grouped',
-      title: 'Группировка опций (options + group)',
-      description: 'Опции с одинаковым group объединяются в нативный <optgroup>.',
-      render: makeFieldVariant({
-        initial: null,
-        component: NativeSelectWithOptions,
-        componentProps: { label: 'Город', placeholder: 'Выберите город', options: GROUPED },
-      }),
-      code: `componentProps: {
-  label: 'Город',
-  options: [
-    { value: 'msk', label: 'Москва', group: 'Россия' },
-    { value: 'minsk', label: 'Минск', group: 'Беларусь' },
-  ],
-}`,
-    },
-    {
+      title: 'Группы пунктов',
+      description: 'Пункты с одинаковым group собираются в <optgroup> с заголовком.',
+      field: 'city',
+      component: NativeSelectWithOptions,
+      componentName: 'NativeSelectWithOptions',
+      initial: null,
+      props: { label: 'Город', placeholder: 'Выберите город', options: GROUPED },
+    }),
+    fieldVariant({
       id: 'multi',
-      title: 'Множественный выбор (NativeSelectMulti)',
+      title: 'Несколько значений',
       description:
-        'Нативный <select multiple>: no-JS/legacy, клавиатура браузера (Ctrl+клик, Shift+стрелки). Не для тач-устройств. placeholder отсутствует намеренно — в листбоксе он стал бы выбираемым пунктом.',
-      render: makeFieldVariant({
-        initial: null,
-        component: NativeSelectMulti,
-        componentProps: {
-          label: 'Цели кредита',
-          options: LOAN,
-          rows: 5,
-        },
-      }),
-      code: `{
-  model: model.$.purposes,
-  component: NativeSelectMulti,
-  componentProps: { options: LOAN, rows: 5 },
-}`,
+        'NativeSelectMulti — <select multiple>. Значение — string[] | null. Выбор нескольких — Ctrl/Cmd+клик или Shift+стрелки.',
+      field: 'purposes',
+      component: NativeSelectMulti,
+      componentName: 'NativeSelectMulti',
+      initial: null,
+      props: { label: 'Цели кредита', options: PURPOSES, rows: 5 },
+    }),
+    {
+      id: 'manual',
+      title: 'Ручная сборка',
+      description:
+        'Вне формы NativeSelect и NativeSelectOption — обычные <select> и <option> с оформлением кита.',
+      render: SizeSelect,
+      code: SIZE_SELECT_CODE,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательный выбор (валидатор)',
+      title: 'Обязательный выбор',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: NativeSelectWithOptions,
-        componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите тип кредита' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.loanType,
-  component: NativeSelectWithOptions,
-  componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
-    },
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'loanType',
+      component: NativeSelectWithOptions,
+      componentName: 'NativeSelectWithOptions',
+      initial: null,
+      props: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN, required: true },
+      validators: [required({ code: 'loanType.required' })],
+      rules: "required({ code: 'loanType.required' })",
+      messages: { 'loanType.required': 'Выберите тип кредита' },
+      touched: true,
+    }),
+    fieldVariant({
+      id: 'max-items',
+      title: 'Не больше двух целей',
+      description:
+        'maxItems выключает остальные пункты, когда выбрано два. Это подсказка интерфейса; ограничение для формы — правило maxLength(2).',
+      field: 'purposes',
+      component: NativeSelectMulti,
+      componentName: 'NativeSelectMulti',
+      initial: ['repair', 'car'],
+      showInitial: true,
+      props: { label: 'Цели кредита', options: PURPOSES, rows: 5, maxItems: 2 },
+    }),
   ],
   api: {
     component: NativeSelectWithOptions,
@@ -123,23 +142,15 @@ validate(model.$.loanType, [required({ code: 'loanType.required' })]);`,
       { label: 'Ипотека', value: 'mortgage' },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label/options — задаются baseComponentProps (иначе перетрут initialValues undefined-ами).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(nativeSelectBasePropsSchema), {
-      omit: ['label', 'options'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.loanType,
-  component: NativeSelectWithOptions,
-  componentProps: {
-    label: 'Тип кредита',
-    options: LOAN,
-    placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.loanType, [required()]);`,
+      fieldSnippet({
+        field: 'loanType',
+        component: 'NativeSelectWithOptions',
+        props: { label: 'Тип кредита', options: raw('LOAN_TYPES') },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

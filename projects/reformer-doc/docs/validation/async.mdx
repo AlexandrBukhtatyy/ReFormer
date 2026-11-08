@@ -1,0 +1,175 @@
+---
+sidebar_position: 3
+---
+
+import UsernameCheck from '@site/src/components/demo/live/validation/username-check';
+import usernameCheckSource from '@site/src/components/demo/live/validation/username-check.tsx?raw';
+
+# Асинхронная валидация
+
+Асинхронное правило проверяет значение запросом к серверу. Оно пишется оператором `validateAsync`
+и проверяется вместе с остальными [правилами](../reference/glossary.md) формы.
+
+## Когда нужно
+
+- Логин или email уже заняты.
+- ИНН должен быть в реестре, адрес — существовать.
+- Код из СМС проверяет сервер.
+
+Обязательность и формат проверяйте синхронными правилами: они мгновенные и не нагружают сервер.
+
+## Пример
+
+<LiveExample
+  component={UsernameCheck}
+  source={usernameCheckSource}
+  caption="Что попробовать: введите admin, root или reformer — через полсекунды паузы «сервер» ответит, что логин занят. Пока идёт проверка, под полем видно «Проверка…»."
+/>
+
+Что здесь происходит:
+
+1. `usernameFree` — асинхронное правило: `(value, { signal }) => Promise<замечание | null>`.
+2. Для имени короче трёх символов правило сразу возвращает `null`: такое значение отсеет
+   синхронное `minLength(3)`, сервер спрашивать незачем.
+3. `validate` и `validateAsync` стоят на одном поле — это два независимых оператора.
+4. `strategy: 'change', debounce: 500` — проверка запускается через 500 мс после последнего ввода.
+   Новый ввод отменяет прежнюю проверку: её `signal` срабатывает, и «запрос» обрывается.
+5. Пока правило ждёт ответа, нода поля в состоянии `pending`, и `FormField` пишет «Проверка…».
+6. `submission.submit` дожидается асинхронных правил и вызывает обработчик, только если замечаний
+   нет.
+
+## Правило
+
+Тип правила — `AsyncRule<T>` из `@reformer/core/validation`. Второй аргумент — `{ signal }`:
+`AbortSignal` прогона. Передайте его в `fetch`, чтобы устаревший запрос обрывался.
+
+```typescript
+import {
+  defineValidation,
+  validate,
+  validateAsync,
+  type AsyncRule,
+} from '@reformer/core/validation';
+import { minLength, required } from '@reformer/core/validators';
+
+const usernameFree: AsyncRule<string> = async (value, { signal }) => {
+  if (value.length < 3) return null; // короткое имя отсеет minLength(3)
+  const response = await fetch(`/api/username-free?u=${encodeURIComponent(value)}`, { signal });
+  const { free } = (await response.json()) as { free: boolean };
+  return free ? null : { code: 'username.taken', params: { username: value } };
+};
+
+const signupValidation = defineValidation<Signup>(({ model }) => {
+  validate(model.$.username, [required(), minLength(3)]); // мгновенно
+  validateAsync(model.$.username, [usernameFree]); // запрос к серверу
+});
+```
+
+Текст кода `username.taken` — запись в словаре формы `defineIssueMessages`, как у любого своего
+кода (см. [Тексты замечаний](./overview.mdx#тексты-замечаний)).
+
+## Пауза перед запросом
+
+У правила нет своих опций паузы. Когда проверять, решает [стратегия](./validation-strategies.md)
+формы, и пауза задаётся там же:
+
+```typescript
+createForm<Signup>({
+  initial: { username: '' },
+  schema: signupSchema,
+  validation: { rules: signupValidation, strategy: 'change', debounce: 500 },
+});
+```
+
+Если живая проверка всей формы не нужна, а запрос должен уходить только при правке одного поля,
+запустите проверку из [поведения](../behaviors/watch.md): у `onChange` пауза есть из коробки.
+
+```typescript
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+import { validateModel } from '@reformer/core/validation';
+
+const signupBehavior = defineFormBehavior<Signup>(({ model }) => {
+  onChange(model.$.username, () => void validateModel(model, signupValidation), { debounce: 500 });
+});
+```
+
+## Отмена устаревших запросов
+
+Каждая новая проверка тех же модели и правил отменяет предыдущую, если та ещё не закончилась.
+Результат отменённой проверки получает статус `cancelled` и на поля не попадает. Её `signal`
+срабатывает — `fetch` с этим `signal` обрывается сам. Ловить `AbortError` не нужно: отмена сбоем
+не считается.
+
+## Сбой правила
+
+Если правило бросило исключение или его промис отклонён — сеть, ответ 500, — проверка не считает
+это «замечаний нет»:
+
+- статус проверки — `error`, причина — в `result.failures`;
+- на поле ложится блокирующее замечание `ruleFailed` — «Не удалось проверить поле. Повторите
+  попытку»;
+- `submission.submit` не вызывает обработчик и возвращает `{ status: 'error', validation }`.
+
+Если недоступный сервис не должен мешать отправке, решите это в самом правиле: поймайте ошибку и
+верните `null`.
+
+```typescript
+const usernameFreeSoft: AsyncRule<string> = async (value, { signal }) => {
+  if (value.length < 3) return null;
+  try {
+    const response = await fetch(`/api/username-free?u=${encodeURIComponent(value)}`, { signal });
+    return (await response.json()).free ? null : { code: 'username.taken' };
+  } catch {
+    return null; // сервис недоступен — отправку не блокируем
+  }
+};
+```
+
+## Индикатор проверки
+
+- **Поле.** Пока идут асинхронные правила поля, его нода в `pending`:
+  `useFormControl(form.username).pending`. `FormField` из `@reformer/ui-kit` показывает это сам.
+- **Форма.** Сигнал `bundle.validating` истинен, пока идёт проверка формы или шага,
+  `bundle.submission.submitting` — пока работает обработчик отправки. Как читать их в компоненте —
+  в [Индикации отправки](../patterns/submit-and-reset.mdx#индикация-отправки).
+
+## Правило, которому нужны соседние поля
+
+Асинхронное правило получает только значение поля. Соседние поля читайте из модели: напишите правило
+внутри `defineValidation` и возьмите снимок `model.get()` до первого `await`.
+
+```typescript
+const emailValidation = defineValidation<Account>(({ model }) => {
+  validateAsync(model.$.email, [
+    async (value, { signal }) => {
+      if (!value) return null;
+      const { userId } = model.get(); // снимок соседних полей — до await
+      const response = await fetch('/api/check-email', {
+        method: 'POST',
+        body: JSON.stringify({ email: value, userId }),
+        signal,
+      });
+      return (await response.json()).ok ? null : { code: 'email.inUse' };
+    },
+  ]);
+});
+```
+
+## Подводные камни
+
+- **Синхронное замечание не отменяет асинхронное правило.** Оба оператора проверяются в одном
+  прогоне. Пустое и заведомо неверное значение отсеивайте в начале правила, иначе запрос уйдёт и
+  для незаполненного поля.
+- **Ждите результат через `await`.** `bundle.validate()` и `submission.submit()` дожидаются
+  асинхронных правил; без `await` статус ещё неизвестен.
+- **Правила — константа модуля.** Отмена устаревших запросов находит прогон по паре «модель +
+  правила»; новая функция на каждый рендер её ломает.
+- **Сбой сети блокирует отправку.** Это сделано намеренно: форму, которую не удалось проверить,
+  валидной не считают.
+
+## См. также
+
+- [Стратегии валидации](./validation-strategies.md) — когда запускать проверку и показывать
+  замечания.
+- [Кастомные валидаторы](./custom.md) — синхронные правила и правила над несколькими полями.
+- [Обработка ошибок](./error-handling.md) — статус `error`, `failures`, ошибки сервера.

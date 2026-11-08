@@ -4,80 +4,49 @@ sidebar_position: 4
 
 # Кастомные валидаторы
 
-Когда встроенных фабрик недостаточно, правило описывается обычной функцией. Кастомное правило
-кладётся в тот же массив, что и встроенные фабрики — вторым аргументом оператора
-`validate(handle, [rules])` внутри схемы `defineValidation`. Схема валидации живёт **отдельно** от
-схемы формы: она не несёт компонентов, подключается к сборке `createForm({ validation })` и
-прогоняется по требованию (`bundle.validate()`, `bundle.submission.submit(handler)`, шаг
-потока).
+Своё [правило](../reference/glossary.md) — обычная функция: получает значение поля и возвращает
+[замечание](../reference/glossary.md) или `null`. Оно кладётся в тот же массив оператора
+`validate`, что и встроенные фабрики.
 
-## Контракт
+## Когда нужно
 
-Синхронное правило — функция типа `Rule<TField>`: правило видит **только значение поля** и
-возвращает `ValidationIssue` (`{ code, params?, severity? }`) либо `null`, если значение валидно.
+- Проверки нет среди [встроенных валидаторов](./built-in.md): «пароль с заглавной буквой», «ИНН из
+  10 цифр».
+- Поле сравнивается с другим полем: «повтор пароля», «дата окончания позже даты начала».
+- Одна проверка нужна в нескольких формах — её оформляют фабрикой.
 
-```typescript
-type Rule<TField> = (value: TField) => ValidationIssue | null;
-```
-
-Текста в замечании нет: правило отдаёт код и параметры, а текст для пользователя находится по коду
-в словаре формы `defineIssueMessages` или в словаре локали (см.
-[Тексты замечаний](/docs/validation/overview#тексты-замечаний)). Всё, что зависит от соседних
-полей, — это уже [кросс-полевая проверка](#кросс-полевые-проверки) через оператор `cross`.
-
-Пустые значения принято пропускать — обязательность закрывает `required()`.
-
-## Инлайн-валидатор
-
-Простое правило можно записать прямо в массиве оператора `validate`:
+## Пример
 
 ```typescript
 import { createForm } from '@reformer/core';
-import { validate, defineValidation } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 
 type AgeForm = { age: number | null };
 
 const ageValidation = defineValidation<AgeForm>(({ model }) => {
   validate(model.$.age, [
-    (value) => (value != null && value < 18 ? { code: 'age.mustBeAdult' } : null),
+    // Пустое пропускаем: обязательность — дело required().
+    (value) => (value !== null && value < 18 ? { code: 'age.adult' } : null),
   ]);
 });
 
 const ageForm = createForm<AgeForm>({ initial: { age: null }, validation: ageValidation });
-
-// Прогон по требованию: замечания разносятся по нодам формы.
-const result = await ageForm.validate(); // result.status === 'invalid', если меньше 18
+const result = await ageForm.validate(); // status 'invalid', если меньше 18
 ```
 
-## Переиспользуемая фабрика
-
-Чтобы применять правило в нескольких формах, оформите его фабрикой, возвращающей `Rule<T>`.
-Каждое правило возвращает **одно** замечание — сложную проверку разбивают на несколько правил в
-массиве; оператор `validate` выполняет их все и накапливает замечания:
-
-```typescript title="validators/password.ts"
-import type { Rule } from '@reformer/core/validation';
-
-export const hasUppercase = (): Rule<string> => (value) =>
-  !value || /[A-Z]/.test(value) ? null : { code: 'noUppercase' };
-
-export const hasNumber = (): Rule<string> => (value) =>
-  !value || /[0-9]/.test(value) ? null : { code: 'noNumber' };
-```
+Тип правила — `Rule<T>` из `@reformer/core/validation`:
 
 ```typescript
-// Применение в схеме — внутри defineValidation(({ model }) => { … }):
-import { validate } from '@reformer/core/validation';
-import { required, minLength } from '@reformer/core/validators';
-import { hasUppercase, hasNumber } from './validators/password';
-
-validate(model.$.password, [required(), minLength(8), hasUppercase(), hasNumber()]);
+type Rule<T> = (value: T) => ValidationIssue | null;
 ```
 
-## Валидатор с параметрами
+Правило видит только значение своего поля. Текста в замечании нет: текст кода `age.adult` берётся
+из словаря формы `defineIssueMessages` (см. [Тексты замечаний](./overview.mdx#тексты-замечаний)).
 
-Параметризуйте фабрику и прикладывайте данные замечания через `params` — они подставляются в текст.
-По примеру встроенных правил дайте фабрике опции `RuleOptions`, чтобы поле могло задать свой код:
+## Фабрика правила
+
+Чтобы правило работало в нескольких формах, оформите его фабрикой. По примеру встроенных правил
+дайте ей опции `RuleOptions` — тогда поле сможет задать свой код:
 
 ```typescript title="validators/range.ts"
 import type { RuleOptions } from '@reformer/core';
@@ -85,7 +54,7 @@ import type { Rule } from '@reformer/core/validation';
 
 export function range(min: number, max: number, options?: RuleOptions): Rule<number | null> {
   return (value) => {
-    if (value == null) return null; // пропускаем пустое
+    if (value === null) return null; // пустое пропускаем
     if (value < min || value > max) {
       return {
         code: options?.code ?? 'range',
@@ -100,144 +69,110 @@ export function range(min: number, max: number, options?: RuleOptions): Rule<num
 ```typescript title="validation/messages.ts"
 import { defineIssueMessages } from '@reformer/core/i18n';
 
-// Текст своего кода — в словаре формы; параметры правила подставляются в шаблон.
+// Параметры правила подставляются в шаблон.
 export const formMessages = defineIssueMessages({
   range: 'Допустимо от {min} до {max}',
 });
 ```
 
 ```typescript
-// Внутри defineValidation(({ model }) => { … }):
-import { validate } from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
-import { range } from './validators/range';
-
 validate(model.$.quantity, [required(), range(1, 100)]);
 ```
 
-Словарь подключают к форме провайдером `ValidationMessagesProvider messages={formMessages}` из
-`@reformer/cdk` — см. [Обзор валидации](/docs/validation/overview#тексты-замечаний).
+Одно правило — одно замечание. Сложную проверку разбейте на несколько правил: `validate` выполнит
+все и соберёт замечания каждого.
 
-## Кросс-полевые проверки
+```typescript
+const hasUppercase = (): Rule<string> => (value) =>
+  !value || /[A-Z]/.test(value) ? null : { code: 'password.uppercase' };
 
-Правило, зависящее от другого поля, — это оператор `cross(handle, check)`. Он приходит аргументом
-схемы вместе с `model`: `defineValidation(({ model, cross }) => …)`. Функция `check` получает
-**снимок** модели области (`model.get()`) и читает соседние поля прямо из объекта, а замечание `cross`
-вешает на переданную ручку `handle` — то поле, которое должно его нести:
+const hasDigit = (): Rule<string> => (value) =>
+  !value || /[0-9]/.test(value) ? null : { code: 'password.digit' };
+
+validate(model.$.password, [required(), minLength(8), hasUppercase(), hasDigit()]);
+```
+
+## Правило над несколькими полями
+
+Правило, которому нужно другое поле, ставит оператор `cross(поле, check)`. `cross` приходит
+аргументом схемы вместе с `model`. Функция `check` получает снимок значений формы, а замечание
+`cross` вешает на поле из первого аргумента:
 
 ```typescript
 import type { ValidationIssue } from '@reformer/core';
-import { validate, defineValidation } from '@reformer/core/validation';
+import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 
-type PasswordForm = { password: string; confirmPassword: string };
+type Stay = { checkIn: string; checkOut: string };
 
-// confirmPassword должен совпадать с password — правило читает снимок всей формы
-const passwordsMatch = (f: PasswordForm): ValidationIssue | null =>
-  f.confirmPassword && f.password && f.confirmPassword !== f.password
-    ? { code: 'passwordMismatch' }
+// Дата выезда позже даты заезда. Даты в формате YYYY-MM-DD сравниваются как строки.
+const checkOutAfterCheckIn = (stay: Stay): ValidationIssue | null =>
+  stay.checkIn && stay.checkOut && stay.checkOut <= stay.checkIn
+    ? { code: 'checkOut.beforeCheckIn' }
     : null;
 
-const passwordValidation = defineValidation<PasswordForm>(({ model, cross }) => {
-  validate(model.$.password, [required()]);
-  validate(model.$.confirmPassword, [required()]);
-  // замечание несёт confirmPassword — на его ручку и вешаем cross
-  cross(model.$.confirmPassword, passwordsMatch);
+const stayValidation = defineValidation<Stay>(({ model, cross }) => {
+  validate(model.$.checkIn, [required()]);
+  validate(model.$.checkOut, [required()]);
+  cross(model.$.checkOut, checkOutAfterCheckIn); // замечание — у даты выезда
 });
 ```
 
-:::tip Пересчёт зависимого поля
-Прогон валидации сам по себе не реактивен. Чтобы `confirmPassword` перепроверялся при изменении
-`password`, выберите живую стратегию (`validation: { rules, strategy: 'change' }`) или свяжите поля
-через `revalidateWhen` в behavior. См.
-[Стратегии валидации](/docs/validation/validation-strategies#зависимые-поля).
-:::
+`cross` читает снимок и за соседним полем не следит. Чтобы правило пересчитывалось при правке
+`checkIn`, нужна живая стратегия или `revalidateWhen` — см.
+[Стратегии валидации](./validation-strategies.md#зависимые-поля).
 
-## Условная валидация
+## Правила строки массива и группы
 
-Правила, действующие только в части формы, оборачиваются оператором `validateWhen(cond, cb)`. Пока
-`cond()` истинно, вложенные правила активны; когда ложно — они **не выполняются**, а замечания их
-полей гасятся (поле получает `setIssues([])`), так что «прятать» лишние замечания в UI не нужно:
-
-```typescript
-import { validate, validateWhen, defineValidation, type Rule } from '@reformer/core/validation';
-import { required } from '@reformer/core/validators';
-
-type TaxForm = { country: string; taxId: string };
-
-const isNineDigits: Rule<string> = (value) =>
-  !value || /^\d{9}$/.test(value) ? null : { code: 'invalidTaxId' };
-
-const taxValidation = defineValidation<TaxForm>(({ model }) => {
-  validate(model.$.country, [required()]);
-  // ИНН обязателен только для страны US; иначе правила ветки гасятся
-  validateWhen(
-    () => model.country === 'US',
-    () => validate(model.$.taxId, [required(), isNineDigits])
-  );
-});
-```
-
-Условие `cond` читает значения через value-proxy модели (`model.country`), поэтому в момент прогона
-учитывается актуальное состояние формы.
-
-## Валидация строк массива
-
-Для строк массива под-форм служит оператор `applyEach(model.$.<массив>, rowRules)`. Он проходит по
-каждой строке и запускает `rowRules` — обычную схему валидации над типом элемента — в области строки:
-`model` в ней — под-модель строки, а `cross` получает снимок строки, а не корня формы:
+У схемы, подключённой к строке массива (`applyEach`) или к группе (`apply`), своя область: `model`
+в ней — под-модель строки или группы, а `cross` получает снимок строки, а не всей формы.
 
 ```typescript
 import { applyEach, defineValidation, validate } from '@reformer/core/validation';
-import { required, email } from '@reformer/core/validators';
+import { email, required } from '@reformer/core/validators';
 
 type EmailRow = { address: string; confirm: string };
-type ContactForm = { emails: EmailRow[] };
+type Contacts = { emails: EmailRow[] };
 
-// Схема одной строки — правила по под-модели строки
 const emailRowRules = defineValidation<EmailRow>(({ model, cross }) => {
   validate(model.$.address, [required(), email()]);
-  cross(model.$.confirm, (row) => (row.confirm !== row.address ? { code: 'emailMismatch' } : null));
+  cross(model.$.confirm, (row) =>
+    row.confirm !== row.address ? { code: 'email.mismatch' } : null
+  );
 });
 
-const contactValidation = defineValidation<ContactForm>(({ model }) => {
+const contactsValidation = defineValidation<Contacts>(({ model }) => {
   applyEach(model.$.emails, emailRowRules);
 });
 ```
 
-## Предупреждения вместо ошибок
+Подробнее о массивах — в [Массивах и динамических формах](../patterns/arrays.mdx).
 
-Замечание с `severity: 'warning'` показывается пользователю, но **не блокирует** отправку — при
-наличии только предупреждений прогон получает статус `valid`. Используйте для «мягких» подсказок:
+## Предупреждение вместо ошибки
 
-```typescript
-import type { Rule } from '@reformer/core/validation';
-
-const weakButAllowed: Rule<string> = (value) =>
-  value && value.length < 12 ? { code: 'shortPassword', severity: 'warning' } : null;
-```
+Замечание с `severity: 'warning'` показывается, но отправку не блокирует: если других замечаний
+нет, проверка получает статус `valid`.
 
 ```typescript
-// Подключается как обычное правило:
-import { validate } from '@reformer/core/validation';
-import { required, minLength } from '@reformer/core/validators';
+const longerIsSafer: Rule<string> = (value) =>
+  value && value.length < 12 ? { code: 'password.short', severity: 'warning' } : null;
 
-validate(model.$.password, [required(), minLength(8), weakButAllowed]);
+validate(model.$.password, [required(), minLength(8), longerIsSafer]);
 ```
 
-## Советы
+## Подводные камни
 
-- **Возвращайте `null` для валидного значения** — не `undefined` и не `{}`.
-- **Пропускайте пустое** (`if (!value) return null`) — обязательность закрывает `required()`.
-- **Значения — через `validate`, зависимости — через `cross`.** Правило `Rule<T>` видит только
-  `value`; всё, что читает соседние поля, выносите в `cross(handle, (f) => …)` по снимку.
-- **Используйте описательные `code`** (`passwordTooWeak`, а не `invalid`) — по ним находится текст в
-  словаре и удобно фильтровать замечания. Код конкретного поля принято именовать
-  `<поле>.<правило>`.
-- **Кладите контекст в `params`** (`{ max: 100, actual: value.length }`) — он подставляется в текст.
+- **Возвращайте `null`, когда значение верно** — не `undefined` и не `{}`.
+- **Пропускайте пустое значение.** Обязательность проверяет `required()`; иначе пустое поле получит
+  два замечания.
+- **Соседние поля — через `cross`.** `Rule<T>` получает только значение своего поля, а `cross`
+  получает снимок формы и сам вешает замечание на нужное поле.
+- **Каждому своему коду — запись в словаре.** Код без текста показывается как есть. Коды принято
+  называть `<поле>.<правило>`: `password.uppercase`.
+- **Параметры кладите в `params`** — их подставит шаблон текста: `{ min: 1, max: 100, actual }`.
 
-## Дальше
+## См. также
 
-- [Асинхронная валидация](/docs/validation/async) — проверки уникальности через сервер.
-- [Стратегии валидации](/docs/validation/validation-strategies) — пошаговые формы, зависимые поля, момент запуска.
-- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение `ValidationIssue`.
+- [Встроенные валидаторы](./built-in.md) — готовые фабрики.
+- [Асинхронная валидация](./async.mdx) — правило с запросом к серверу.
+- [Обработка ошибок](./error-handling.md) — чтение и показ замечаний.

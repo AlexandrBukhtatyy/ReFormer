@@ -9,22 +9,22 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Avatar — не form-control: compound-набор на Radix Avatar-примитиве (Avatar / AvatarImage /
- * AvatarFallback + презентационные AvatarBadge / AvatarGroup / AvatarGroupCount). Изображение
- * подменяется на fallback (инициалы), пока грузится или если ссылка битая. Таб Variants показывает
- * готовые композиции, Examples — приёмы (статус-бейдж, группа), API — таблицу частей и props.
+ * Avatar — не поле формы: части на Radix Avatar (Avatar / AvatarImage / AvatarFallback) и
+ * презентационные AvatarBadge / AvatarGroup / AvatarGroupCount. Пока картинка грузится или если
+ * ссылка битая, показывается AvatarFallback. Variants — готовые композиции, Examples — приёмы,
+ * API — таблица частей. Обёртка `<div style>` в render — рамка демо, в `code` её нет.
  */
 export const avatarDocConfig: ComponentDocConfig = {
   name: 'Avatar',
   importFrom: '@reformer/ui-kit',
   description:
-    'Аватар на shadcn / Radix Avatar. AvatarImage показывает картинку, AvatarFallback — инициалы (пока грузится или при битой ссылке). Размер задаётся через size (sm / default / lg).',
+    'Круглое фото пользователя с запасным вариантом — инициалами. Размер — size (sm / default / lg).',
   variants: [
     {
       id: 'basic',
-      title: 'Изображение и fallback',
+      title: 'Фото и инициалы',
       description:
-        'AvatarImage грузит картинку; при валидной ссылке видно фото, при битой — AvatarFallback с инициалами.',
+        'AvatarImage грузит картинку. Пока она грузится или если ссылка битая, виден AvatarFallback с инициалами.',
       render: () => (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Avatar>
@@ -50,8 +50,8 @@ export const avatarDocConfig: ComponentDocConfig = {
     },
     {
       id: 'sizes',
-      title: 'Размеры',
-      description: 'size: sm / default / lg.',
+      title: 'Размер (size)',
+      description: 'sm — 24px, default — 32px, lg — 40px.',
       render: () => (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Avatar size="sm">
@@ -79,27 +79,27 @@ export const avatarDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'status-badge',
-      title: 'Статус-бейдж (индикатор онлайна)',
+      title: 'Точка статуса (AvatarBadge)',
       description:
-        'AvatarBadge позиционируется в углу аватара — удобно для индикатора статуса. Здесь зелёная точка «онлайн».',
+        'AvatarBadge встаёт в правый нижний угол, цвет — классом. Точку скринридер не видит: role="img" и aria-label называют человека и статус словами.',
       render: () => (
-        <Avatar>
-          <AvatarImage src="https://github.com/shadcn.png" alt="shadcn" />
+        <Avatar role="img" aria-label="shadcn, в сети">
+          <AvatarImage src="https://github.com/shadcn.png" alt="" />
           <AvatarFallback>SC</AvatarFallback>
           <AvatarBadge className="bg-green-500" />
         </Avatar>
       ),
-      code: `<Avatar>
-  <AvatarImage src="https://github.com/shadcn.png" alt="shadcn" />
+      code: `<Avatar role="img" aria-label="shadcn, в сети">
+  <AvatarImage src="https://github.com/shadcn.png" alt="" />
   <AvatarFallback>SC</AvatarFallback>
   <AvatarBadge className="bg-green-500" />
 </Avatar>`,
     },
     {
       id: 'group',
-      title: 'Группа аватаров с остатком',
+      title: 'Группа с остатком',
       description:
-        'AvatarGroup накладывает аватары друг на друга; AvatarGroupCount показывает «сколько ещё».',
+        'AvatarGroup накладывает аватары друг на друга, AvatarGroupCount показывает, сколько ещё не уместилось.',
       render: () => (
         <AvatarGroup>
           <Avatar>
@@ -111,7 +111,9 @@ export const avatarDocConfig: ComponentDocConfig = {
           <Avatar>
             <AvatarFallback>ДЕ</AvatarFallback>
           </Avatar>
-          <AvatarGroupCount>+5</AvatarGroupCount>
+          <AvatarGroupCount>
+            +5<span className="sr-only"> участников</span>
+          </AvatarGroupCount>
         </AvatarGroup>
       ),
       code: `<AvatarGroup>
@@ -124,38 +126,57 @@ export const avatarDocConfig: ComponentDocConfig = {
   <Avatar>
     <AvatarFallback>ДЕ</AvatarFallback>
   </Avatar>
-  <AvatarGroupCount>+5</AvatarGroupCount>
+  <AvatarGroupCount>
+    +5<span className="sr-only"> участников</span>
+  </AvatarGroupCount>
 </AvatarGroup>`,
     },
   ],
   props: [
     {
-      name: 'size',
+      name: 'Avatar.size',
       type: "'default' | 'sm' | 'lg'",
-      default: 'default',
-      description: 'Размер аватара (Avatar). Маппится в data-size + классы.',
+      default: "'default'",
+      description:
+        'Размер: sm — 24px, default — 32px, lg — 40px. От него зависят шрифт инициалов и точка статуса.',
     },
     {
       name: 'AvatarImage.src',
       type: 'string',
-      description:
-        'URL изображения. При ошибке загрузки автоматически показывается AvatarFallback.',
+      description: 'Адрес картинки. Пока она грузится или при ошибке виден AvatarFallback.',
     },
     {
       name: 'AvatarImage.alt',
       type: 'string',
-      description: 'Альтернативный текст изображения (доступность).',
+      description:
+        'Текст для скринридера — обычно имя человека. Пустая строка, если имя написано рядом.',
     },
     {
       name: 'AvatarFallback.delayMs',
       type: 'number',
       description:
-        'Задержка перед показом fallback (чтобы не мигал при быстрой загрузке картинки).',
+        'Показать инициалы не сразу, а через N мс — чтобы они не мелькали при быстрой загрузке.',
+    },
+    {
+      name: 'AvatarBadge',
+      type: 'span',
+      description: 'Точка или значок в правом нижнем углу. Размер подстраивается под size аватара.',
+    },
+    {
+      name: 'AvatarGroup',
+      type: 'div',
+      description: 'Ряд аватаров внахлёст с обводкой цветом фона.',
+    },
+    {
+      name: 'AvatarGroupCount',
+      type: 'div',
+      description: 'Кружок «+N» в конце группы. Размер следует за size аватаров группы.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

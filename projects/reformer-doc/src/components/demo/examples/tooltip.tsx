@@ -1,22 +1,23 @@
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, Button } from '@reformer/ui-kit';
+import { Info } from 'lucide-react';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Tooltip — не form-control: overlay-compound над Radix Tooltip (TooltipProvider / Tooltip /
- * TooltipTrigger / TooltipContent). Всплывающая подсказка появляется при наведении / фокусе на
- * триггере. Таб Variants показывает готовые композиции (стороны появления), Examples — приёмы
- * (иконочная кнопка, asChild-триггер), API — таблица частей и ключевых props.
+ * Tooltip — не поле формы: подсказка на Radix Tooltip (TooltipProvider / Tooltip / TooltipTrigger /
+ * TooltipContent). Tooltip работает только внутри TooltipProvider. Variants — базовая подсказка и
+ * стороны, Examples — кнопка-иконка, задержка. Обёртка `<div style>` в render — рамка демо, в
+ * `code` её нет.
  */
 export const tooltipDocConfig: ComponentDocConfig = {
   name: 'Tooltip',
   importFrom: '@reformer/ui-kit',
   description:
-    'Всплывающая подсказка на shadcn / Radix. Compound: TooltipProvider (общий контекст задержки) + Tooltip + TooltipTrigger + TooltipContent. Оберните дерево в TooltipProvider один раз на приложение.',
+    'Короткий текст при наведении или фокусе. Нужен TooltipProvider — один на приложение.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая подсказка',
-      description: 'Триггер + Content. Наведите курсор (или сфокусируйтесь) на кнопку.',
+      description: 'Наведите курсор на кнопку или перейдите на неё клавишей Tab.',
       render: () => (
         <TooltipProvider>
           <Tooltip>
@@ -39,55 +40,48 @@ export const tooltipDocConfig: ComponentDocConfig = {
     {
       id: 'sides',
       title: 'Сторона появления (side)',
-      description: 'TooltipContent принимает side: top / right / bottom / left.',
+      description:
+        'side у TooltipContent — сторона появления: top (по умолчанию), right, bottom, left.',
       render: () => (
         <TooltipProvider>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap gap-3">
             {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
               <Tooltip key={side}>
                 <TooltipTrigger asChild>
                   <Button variant="outline">{side}</Button>
                 </TooltipTrigger>
-                <TooltipContent side={side}>Появляюсь сверху/сбоку: {side}</TooltipContent>
+                <TooltipContent side={side}>Появляюсь со стороны: {side}</TooltipContent>
               </Tooltip>
             ))}
           </div>
         </TooltipProvider>
       ),
       code: `<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button variant="outline">right</Button>
-    </TooltipTrigger>
-    <TooltipContent side="right">Появляюсь справа</TooltipContent>
-  </Tooltip>
+  <div className="flex flex-wrap gap-3">
+    {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+      <Tooltip key={side}>
+        <TooltipTrigger asChild>
+          <Button variant="outline">{side}</Button>
+        </TooltipTrigger>
+        <TooltipContent side={side}>Появляюсь со стороны: {side}</TooltipContent>
+      </Tooltip>
+    ))}
+  </div>
 </TooltipProvider>`,
     },
   ],
   examples: [
     {
       id: 'icon-button',
-      title: 'Подсказка у иконочной кнопки',
+      title: 'Подсказка у кнопки-иконки',
       description:
-        'Частый приём: иконка без подписи получает поясняющий текст в Tooltip (доступно с клавиатуры — появляется по фокусу).',
+        'Кнопка без текста: имя для скринридера — aria-label, а Tooltip показывает то же слово глазами. Появляется и по фокусу.',
       render: () => (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Информация">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4M12 8h.01" />
-                </svg>
+                <Info />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Подробнее об этом поле</TooltipContent>
@@ -111,7 +105,7 @@ export const tooltipDocConfig: ComponentDocConfig = {
       id: 'delay',
       title: 'Задержка появления (delayDuration)',
       description:
-        'delayDuration на TooltipProvider (или отдельном Tooltip) задаёт паузу перед показом, мс. По умолчанию 0.',
+        'delayDuration у TooltipProvider (или у отдельного Tooltip) — пауза перед показом, мс. У TooltipProvider кита по умолчанию 0.',
       render: () => (
         <TooltipProvider delayDuration={600}>
           <Tooltip>
@@ -137,31 +131,31 @@ export const tooltipDocConfig: ComponentDocConfig = {
       name: 'TooltipProvider',
       type: 'Radix Tooltip.Provider',
       description:
-        'Общий контекст группы подсказок (единая задержка, порядок). Оберните приложение один раз. Проп delayDuration (мс) задаёт паузу перед показом (по умолчанию 0).',
+        'Общие настройки подсказок. Обязателен: без него Tooltip бросает ошибку. Ставится один раз у корня. delayDuration — пауза перед показом, мс (у кита 0).',
     },
     {
       name: 'Tooltip',
       type: 'Radix Tooltip.Root',
       description:
-        'Обёртка одной подсказки. Управляемость: open / defaultOpen / onOpenChange; локальный delayDuration.',
+        'Одна подсказка: open + onOpenChange или defaultOpen; свой delayDuration перекрывает общий.',
     },
     {
       name: 'TooltipTrigger',
       type: 'Radix Tooltip.Trigger',
       description:
-        'Элемент, при наведении / фокусе на который появляется подсказка. asChild рендерит переданного потомка (напр. Button) вместо <button>.',
+        'Элемент, при наведении или фокусе на котором появляется подсказка. По умолчанию <button>; asChild — стать своим элементом.',
     },
     {
       name: 'TooltipContent',
       type: 'Radix Tooltip.Content',
       description:
-        'Всплывающее содержимое (рендерится в Portal, со стрелкой). Позиция — side (top/right/bottom/left), отступ от триггера — sideOffset (по умолчанию 0).',
+        'Текст подсказки в портале, со стрелкой. side (top по умолчанию), align, sideOffset (0).',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у TooltipContent (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы TooltipContent. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

@@ -2,6 +2,7 @@
 id: direction
 title: DirectionProvider
 sidebar_label: DirectionProvider
+description: Направление текста (ltr / rtl) для компонентов кита на Radix.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,71 @@ import { directionDocConfig } from '@site/src/components/demo/examples/direction
 
 # DirectionProvider
 
-Провайдер направления письма (LTR/RTL) на shadcn / Radix. Оберните приложение или поддерево
-в `DirectionProvider` один раз — вложенные Radix-примитивы (`Select`, `Tooltip`, `Slider` и др.)
-подхватят направление из контекста через `useDirection` и развернут раскладку для RTL-языков.
-Собственной DOM-обёртки провайдер не создаёт.
+Сообщает компонентам на Radix, в какую сторону идёт текст: слева направо (`ltr`) или справа
+налево (`rtl`, иврит и арабский). Своей разметки не рисует — только передаёт направление вниз по
+дереву. Хук `useDirection` читает его в ваших компонентах.
+
+## Когда брать
+
+- **DirectionProvider** — приложение или его часть работает на языке с письмом справа налево.
+  Компоненты кита на Radix развернут поведение: стрелки клавиатуры, сторону подменю, заполнение
+  слайдера, сторону полосы прокрутки.
+- Атрибут `dir` на HTML-элементе — для раскладки и выравнивания текста в CSS. Провайдер его не
+  ставит, поэтому в rtl-приложении нужны оба: `dir="rtl"` на `<html>` (или корне раздела) и
+  DirectionProvider над компонентами.
+- Проп `dir` у отдельного компонента (`Accordion`, `ScrollArea` и других) — направление только для
+  него. Он важнее провайдера.
+
+## Анатомия
+
+```tsx
+import { DirectionProvider, useDirection } from '@reformer/ui-kit'; // или '@reformer/ui-kit/direction'
+
+function App({ lang }: { lang: string }) {
+  const dir = lang === 'he' || lang === 'ar' ? 'rtl' : 'ltr';
+  return (
+    <div dir={dir}>
+      <DirectionProvider dir={dir}>{/* приложение */}</DirectionProvider>
+    </div>
+  );
+}
+
+function Toolbar() {
+  const dir = useDirection(); // 'ltr' | 'rtl'
+  // …
+}
+```
+
+| Часть               | Что это                                                                | Ключевые пропсы                   |
+| ------------------- | ---------------------------------------------------------------------- | --------------------------------- |
+| `DirectionProvider` | React-контекст направления. В DOM ничего не добавляет.                 | `dir` или `direction`, `children` |
+| `useDirection`      | Хук: проп-направление, если передан, иначе из провайдера, иначе `ltr`. | `localDir` — необязательный       |
+
+- `direction` — второе имя пропа `dir`. Если заданы оба, побеждает `direction`.
+- Направление читают компоненты кита на Radix: Accordion, Tabs, Menubar, NavigationMenu,
+  DropdownMenu, ContextMenu, RadioGroup, ToggleGroup, Slider, ScrollArea и базовый Select.
+- Вложенный провайдер переопределяет внешний для своего поддерева.
+
+## Примеры
 
 <ComponentDoc config={directionDocConfig} />
+
+## Доступность
+
+- Скринридер и браузер узнают направление из атрибута `dir` и языка из атрибута `lang` в DOM.
+  Провайдер их не ставит — задайте `dir` и `lang` на `<html>` или корне раздела сами.
+- Провайдер меняет поведение клавиатуры в компонентах на Radix: в горизонтальных списках при `rtl`
+  стрелка `→` ведёт к предыдущему элементу, а `←` — к следующему. Так клавиши совпадают с
+  направлением чтения.
+
+## Локализация
+
+Своих строк компонент не рисует. Направление в локали кита не хранится: выводите его из кода языка
+сами, как в примере «Направление от языка».
+
+## См. также
+
+- [ScrollArea](./scroll-area.mdx) — полоса прокрутки переходит влево при `rtl`.
+- [Accordion](./accordion.mdx) и [Tabs](./tabs.mdx) — стрелки клавиатуры с учётом направления.
+- [Radix Direction](https://www.radix-ui.com/primitives/docs/utilities/direction-provider) —
+  исходный провайдер.

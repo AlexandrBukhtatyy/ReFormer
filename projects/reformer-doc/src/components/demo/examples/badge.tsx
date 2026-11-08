@@ -2,18 +2,18 @@ import { Badge } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Badge — не form-control: таб Variants показывает cva-пресеты стиля (variant), Examples — приёмы
- * (asChild-полиморфизм, счётчик/статус), API — таблица props. Form-bound таба (api) нет.
+ * Badge — не поле формы: вкладка Variants показывает пресеты `variant`, Examples — приёмы (счётчик,
+ * статус, ссылка через asChild), API — таблица props. Обёртка `<div style>` в render — рамка демо,
+ * в `code` её нет.
  */
 export const badgeDocConfig: ComponentDocConfig = {
   name: 'Badge',
   importFrom: '@reformer/ui-kit',
-  description:
-    'Метка/значок на shadcn / Radix Slot. Вариант стиля через variant, asChild для полиморфизма (напр. ссылка).',
+  description: 'Короткая метка: статус, счётчик, тег. Вид — variant, asChild — метка-ссылка.',
   variants: [
     {
       id: 'variants',
-      title: 'Варианты стиля',
+      title: 'Вид (variant)',
       description: 'variant: default / secondary / destructive / outline / ghost / link.',
       render: () => (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -36,23 +36,21 @@ export const badgeDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'as-child',
-      title: 'asChild — полиморфизм (кликабельная метка-ссылка)',
+      title: 'Метка-ссылка (asChild)',
       description:
-        'asChild сливает props на единственный дочерний элемент вместо <span> — напр. <a> или роутер-Link. Ховер-стили ([a&]) активируются на ссылке.',
+        'asChild отдаёт стили единственному дочернему элементу вместо <span> — например, <a> или Link роутера. Подсветка при наведении включается только на ссылке.',
       render: () => (
         <Badge asChild variant="secondary">
-          <a href="#as-child">Открыть тег</a>
+          <a href="#as-child">Новинки</a>
         </Badge>
       ),
-      code: `import { Link } from 'react-router-dom';
-
-<Badge asChild variant="secondary">
-  <Link to="/tags/new">Новинки</Link>
+      code: `<Badge asChild variant="secondary">
+  <a href="#as-child">Новинки</a>
 </Badge>`,
     },
     {
       id: 'counter',
-      title: 'Счётчик / статус',
+      title: 'Счётчик и статус',
       description: 'Метка рядом с текстом — количество, статус или короткий ярлык.',
       render: () => (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -70,19 +68,25 @@ export const badgeDocConfig: ComponentDocConfig = {
     {
       name: 'variant',
       type: "'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'",
-      default: 'default',
-      description: 'Вариант стиля.',
+      default: "'default'",
+      description: 'Вид метки.',
     },
     {
       name: 'asChild',
       type: 'boolean',
       default: 'false',
-      description: 'Слить props на дочерний элемент (Radix Slot) вместо рендера <span>.',
+      description:
+        'Отрисовать вместо <span> единственный дочерний элемент (Radix Slot) — например, <a>.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы (tailwind-merge — класс вызывающего перекрывает).',
+      description: 'Дополнительные классы. При конфликте Tailwind-классов побеждает ваш.',
+    },
+    {
+      name: '...props',
+      type: "React.ComponentProps<'span'>",
+      description: 'Остальные атрибуты <span>: title, aria-*, data-* и т. д.',
     },
   ],
 };

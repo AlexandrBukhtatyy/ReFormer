@@ -2,6 +2,7 @@
 id: spinner
 title: Spinner
 sidebar_label: Spinner
+description: Вращающаяся иконка загрузки с подписью для скринридера.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,83 @@ import { spinnerDocConfig } from '@site/src/components/demo/examples/spinner';
 
 # Spinner
 
-Индикатор загрузки на shadcn — крутящаяся иконка (`lucide` `Loader2Icon`) с
-spin-анимацией. Размер (`size-*`) и цвет (`text-*`) задаются классами через
-`className`; базовые стили (`size-4 animate-spin`) можно перекрыть через
-`tailwind-merge`. Доступность встроена: `role="status"` + `aria-label="Loading"`.
+Вращающаяся иконка: «идёт работа, подождите». Размер и цвет задают классы. Для скринридера у
+спиннера есть роль `status` и подпись «Загрузка», которая переводится вместе с локалью кита.
+
+## Когда брать
+
+- **Spinner** — короткое ожидание без известного прогресса: кнопка «Сохранение…», загрузка
+  небольшого блока, проверка поля.
+- [Progress](./progress.mdx) — известно, какая часть работы сделана: загрузка файла, шаги
+  обработки.
+- [Skeleton](./skeleton.mdx) — серая заглушка в форме будущего содержимого. Лучше спиннера, когда
+  известно, как содержимое будет выглядеть: страница не прыгает после загрузки.
+- [AsyncBoundary](./async-boundary.mdx) — блок, который сам грузит данные. В нём уже есть
+  спиннер, текст загрузки, ошибка и кнопка повтора.
+
+## Анатомия
+
+```tsx
+import { Button, Spinner } from '@reformer/ui-kit'; // или '@reformer/ui-kit/spinner'
+
+<Spinner className="size-6 text-muted-foreground" />;
+
+<Button disabled>
+  <Spinner aria-hidden="true" />
+  Сохранение…
+</Button>;
+```
+
+Spinner — один элемент `svg` (иконка `Loader2Icon` из lucide) с анимацией вращения.
+
+| Проп         | Что делает                                                                            |
+| ------------ | ------------------------------------------------------------------------------------- |
+| `className`  | Размер (`size-*`, по умолчанию `size-4`) и цвет (`text-*`: иконка берёт цвет текста). |
+| `aria-label` | Подпись для скринридера. По умолчанию — из локали кита: Loading / Загрузка.           |
+| остальные    | Любые атрибуты `svg`: `data-testid`, `aria-hidden`, `style`.                          |
+
+## Примеры
 
 <ComponentDoc config={spinnerDocConfig} />
+
+## Доступность
+
+- У спиннера `role="status"` и `aria-label`. Роль `status` — вежливая живая область: скринридер
+  объявит её, когда закончит текущую фразу.
+- Если рядом уже есть видимый текст («Сохранение…», «Загрузка данных…»), спиннер его дублирует.
+  Скройте спиннер (`aria-hidden="true"`), а `role="status"` поставьте на блок с текстом.
+- Анимация не останавливается при системной настройке «уменьшить движение». Нужен такой режим —
+  добавьте в `className` класс `motion-reduce:animate-none`.
+- Кнопке, которая ждёт ответа, ставьте `disabled`: спиннер сам повторное нажатие не блокирует.
+
+## Локализация
+
+Компонент рисует одну строку — подпись для скринридера:
+
+| Ключ                | English | Русский  | Проп-замена  |
+| ------------------- | ------- | -------- | ------------ |
+| `kit.spinner.label` | Loading | Загрузка | `aria-label` |
+
+Порядок выбора подписи: проп `aria-label` → локаль из `I18nProvider` (`@reformer/core/react`) →
+встроенный английский. Русский набор кита — синхронный модуль `@reformer/ui-kit/locale/ru` или
+загрузчик `loadKitLocale` из `@reformer/ui-kit/locale`:
+
+```tsx
+import { extendLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+// Своя подпись для всех спиннеров приложения
+const locale = extendLocale(ru, { messages: { 'kit.spinner.label': 'Подождите' } });
+
+<I18nProvider locale={locale}>
+  <App />
+</I18nProvider>;
+```
+
+## См. также
+
+- [Progress](./progress.mdx) — индикатор с известным процентом.
+- [Skeleton](./skeleton.mdx) — заглушка на месте содержимого.
+- [AsyncBoundary](./async-boundary.mdx) — блок с загрузкой, ошибкой и повтором.
+- [Button](./button.mdx) — кнопка, в которую ставят спиннер.

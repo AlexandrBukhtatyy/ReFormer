@@ -1,236 +1,488 @@
-import { AsyncBoundary, AsyncBoundaryEmpty, Skeleton, Button } from '@reformer/ui-kit';
+import { useState } from 'react';
+import { AsyncBoundary, AsyncBoundaryEmpty, Button, Skeleton } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * AsyncBoundary — не form-control: ReFormer-специфичный контейнер состояний загрузки
- * (idle / loading / ready / error) поверх headless-версии из `@reformer/cdk/async-boundary`.
- * Управляется извне через `status`; блоки загрузки и ошибки встроены и рисуются на токенах
- * темы, а `loadingSlot` / `errorSlot` их полностью заменяют. Это не Suspense-boundary.
- * Таб Variants показывает каждое состояние.
+ * AsyncBoundary — не поле формы: контейнер состояний загрузки (idle / loading / ready / error)
+ * поверх headless-версии из `@reformer/cdk/async-boundary`. Variants — каждое состояние в
+ * управляемом режиме (status), Examples — загрузка самим компонентом (load) и замена блоков,
+ * API — таблица props. Обёртка `<div style>` в render — рамка демо, в `code` её нет.
  */
 
-const ReadyContent = () => (
-  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>
-    <li>Россия</li>
-    <li>Казахстан</li>
-    <li>Армения</li>
-  </ul>
-);
+const COUNTRIES: Record<string, string[]> = {
+  europe: ['Германия', 'Франция', 'Италия'],
+  asia: ['Китай', 'Япония', 'Индия'],
+};
+
+// Вместо запроса к серверу — задержка; signal прерывает ожидание при смене региона.
+function fetchCountries(region: string, fail: boolean, signal: AbortSignal): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (fail) reject(new Error('Сервер не ответил. Попробуйте ещё раз.'));
+      else resolve(COUNTRIES[region] ?? []);
+    }, 800);
+    signal.addEventListener('abort', () => clearTimeout(timer));
+  });
+}
+
+function SelfManagedExample() {
+  const [region, setRegion] = useState('europe');
+  const [fail, setFail] = useState(false);
+  const [countries, setCountries] = useState<string[]>([]);
+  return (
+    <div style={{ width: '100%', maxWidth: 420 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <Button size="sm" variant="outline" onClick={() => setRegion('europe')}>
+          Европа
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setRegion('asia')}>
+          Азия
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setFail((v) => !v)}>
+          {fail ? 'Чинить запрос' : 'Ломать запрос'}
+        </Button>
+      </div>
+      <AsyncBoundary
+        load={(signal) => fetchCountries(region, fail, signal)}
+        loadKey={region}
+        onSuccess={setCountries}
+        delayMs={200}
+      >
+        <ul className="list-disc pl-6 text-sm">
+          {countries.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+      </AsyncBoundary>
+    </div>
+  );
+}
+
+function EmptyResultExample() {
+  const [items, setItems] = useState<string[]>([]);
+  return (
+    <div style={{ width: '100%', maxWidth: 420 }}>
+      <AsyncBoundary status="ready">
+        {items.length === 0 ? (
+          <AsyncBoundaryEmpty
+            title="Заявок нет"
+            description="Создайте первую заявку"
+            action={<Button onClick={() => setItems(['Заявка №1'])}>Создать</Button>}
+          />
+        ) : (
+          <ul className="list-disc pl-6 text-sm">
+            {items.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        )}
+      </AsyncBoundary>
+    </div>
+  );
+}
 
 export const asyncBoundaryDocConfig: ComponentDocConfig = {
   name: 'AsyncBoundary',
   importFrom: '@reformer/ui-kit',
   description:
-    'Контейнер состояний загрузки данных: idle / loading / ready / error. Блоки загрузки и ошибки встроены (спиннер, карточка ошибки с кнопкой «Повторить») и заменяются через loadingSlot / errorSlot. Статусом управляет консумент — это не Suspense-boundary.',
+    'Контейнер состояний загрузки данных: idle / loading / ready / error. Блоки загрузки и ошибки встроены, заменяются слотами.',
   variants: [
     {
       id: 'loading',
-      title: 'Состояние loading',
-      description:
-        'status="loading" → спиннер с подписью, регион помечается aria-busy. children скрыты.',
+      title: 'Загрузка (status="loading")',
+      description: 'Спиннер с подписью, регион помечен aria-busy, содержимое скрыто.',
       render: () => (
-        <AsyncBoundary status="loading">
-          <ReadyContent />
-        </AsyncBoundary>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <AsyncBoundary status="loading">
+            <ul className="list-disc pl-6 text-sm">
+              <li>Германия</li>
+              <li>Франция</li>
+            </ul>
+          </AsyncBoundary>
+        </div>
       ),
       code: `<AsyncBoundary status="loading">
-  <CountriesList />
+  <ul className="list-disc pl-6 text-sm">
+    <li>Германия</li>
+    <li>Франция</li>
+  </ul>
 </AsyncBoundary>`,
     },
     {
       id: 'error',
-      title: 'Состояние error',
+      title: 'Ошибка (status="error")',
       description:
-        'status="error" → карточка ошибки с текстом из пропа error. Кнопка «Повторить» появляется, только если задан onRetry.',
-      render: () => (
-        <AsyncBoundary
-          status="error"
-          error="Проверьте соединение и попробуйте снова."
-          onRetry={() => {}}
-        >
-          <ReadyContent />
-        </AsyncBoundary>
-      ),
+        'Карточка ошибки с текстом из error. Кнопка «Повторить» есть, только если передан onRetry.',
+      render: () => {
+        // В демо повтор ничего не делает: в приложении здесь перезапуск запроса.
+        const reload = () => {};
+        return (
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <AsyncBoundary
+              status="error"
+              error="Проверьте соединение и попробуйте снова."
+              onRetry={reload}
+            >
+              <ul className="list-disc pl-6 text-sm">
+                <li>Германия</li>
+                <li>Франция</li>
+              </ul>
+            </AsyncBoundary>
+          </div>
+        );
+      },
       code: `<AsyncBoundary
   status="error"
   error="Проверьте соединение и попробуйте снова."
   onRetry={reload}
 >
-  <CountriesList />
+  <ul className="list-disc pl-6 text-sm">
+    <li>Германия</li>
+    <li>Франция</li>
+  </ul>
 </AsyncBoundary>`,
     },
     {
       id: 'ready',
-      title: 'Состояние ready',
-      description: 'status="ready" → рендерятся children.',
+      title: 'Данные получены (status="ready")',
+      description: 'Показывается содержимое — children.',
       render: () => (
-        <AsyncBoundary status="ready">
-          <ReadyContent />
-        </AsyncBoundary>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <AsyncBoundary status="ready">
+            <ul className="list-disc pl-6 text-sm">
+              <li>Германия</li>
+              <li>Франция</li>
+            </ul>
+          </AsyncBoundary>
+        </div>
       ),
       code: `<AsyncBoundary status="ready">
-  <ul>
-    <li>Россия</li>
-    <li>Казахстан</li>
-    <li>Армения</li>
+  <ul className="list-disc pl-6 text-sm">
+    <li>Германия</li>
+    <li>Франция</li>
   </ul>
 </AsyncBoundary>`,
     },
     {
       id: 'idle',
-      title: 'Состояние idle',
+      title: 'Загрузки не было (status="idle")',
       description:
-        'status="idle" → загрузка не запускалась (форма создания, id ещё не выбран). Показываются children, а не индикатор: пустая форма и успешно загруженная — разные состояния.',
+        'Грузить нечего — например, форма создания новой записи. Показывается содержимое, а не индикатор.',
       render: () => (
-        <AsyncBoundary status="idle">
-          <ReadyContent />
-        </AsyncBoundary>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <AsyncBoundary status="idle">
+            <p className="text-sm">Новая заявка: заполните поля ниже.</p>
+          </AsyncBoundary>
+        </div>
       ),
-      code: `// applicationId === null → грузить нечего
-<AsyncBoundary status={applicationId ? status : 'idle'}>
-  <ApplicationForm />
+      code: `<AsyncBoundary status="idle">
+  <p className="text-sm">Новая заявка: заполните поля ниже.</p>
 </AsyncBoundary>`,
+    },
+    {
+      id: 'custom-texts',
+      title: 'Свои тексты блоков',
+      description:
+        'errorTitle и retryLabel меняют заголовок и кнопку блока ошибки, loadingTitle и loadingSubtitle — подписи загрузки.',
+      render: () => {
+        // В демо повтор ничего не делает: в приложении здесь перезапуск запроса.
+        const reload = () => {};
+        return (
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <AsyncBoundary
+              status="error"
+              error="Нет связи с сервером."
+              errorTitle="Заявка не загрузилась"
+              retryLabel="Загрузить снова"
+              onRetry={reload}
+            />
+          </div>
+        );
+      },
+      code: `<AsyncBoundary
+  status="error"
+  error="Нет связи с сервером."
+  errorTitle="Заявка не загрузилась"
+  retryLabel="Загрузить снова"
+  onRetry={reload}
+/>`,
     },
   ],
   examples: [
     {
-      id: 'fetch-lifecycle',
-      title: 'Жизненный цикл запроса',
+      id: 'self-managed',
+      title: 'Компонент грузит данные сам (load)',
       description:
-        'status держится в state рядом с данными: loading на старте, ready после ответа, error в catch. Текст ошибки и повтор передаются пропами — оборачивать блоки в отдельные компоненты не нужно.',
-      render: () => (
-        <AsyncBoundary status="ready">
-          <ReadyContent />
-        </AsyncBoundary>
-      ),
-      code: `function CountriesPage() {
-  const [status, setStatus] = useState<AsyncStatus>('loading');
-  const [error, setError] = useState<string | null>(null);
+        'load получает AbortSignal, смена loadKey перезапускает загрузку и прерывает устаревший запрос. «Ломать запрос» действует на следующую загрузку: сломайте и смените регион, потом почините и нажмите «Повторить».',
+      render: SelfManagedExample,
+      code: `const COUNTRIES: Record<string, string[]> = {
+  europe: ['Германия', 'Франция', 'Италия'],
+  asia: ['Китай', 'Япония', 'Индия'],
+};
+
+// Вместо запроса к серверу — задержка; signal прерывает ожидание при смене региона.
+function fetchCountries(region: string, fail: boolean, signal: AbortSignal): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (fail) reject(new Error('Сервер не ответил. Попробуйте ещё раз.'));
+      else resolve(COUNTRIES[region] ?? []);
+    }, 800);
+    signal.addEventListener('abort', () => clearTimeout(timer));
+  });
+}
+
+function Countries() {
+  const [region, setRegion] = useState('europe');
+  const [fail, setFail] = useState(false);
   const [countries, setCountries] = useState<string[]>([]);
-
-  const load = useCallback(() => {
-    setStatus('loading');
-    fetch('/api/countries')
-      .then((r) => r.json())
-      .then((d) => { setCountries(d); setStatus('ready'); })
-      .catch((e) => { setError(String(e)); setStatus('error'); });
-  }, []);
-
-  useEffect(load, [load]);
-
   return (
-    <AsyncBoundary status={status} error={error} onRetry={load} delayMs={200}>
-      <ul>{countries.map((c) => <li key={c}>{c}</li>)}</ul>
-    </AsyncBoundary>
+    <>
+      <Button size="sm" variant="outline" onClick={() => setRegion('europe')}>
+        Европа
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => setRegion('asia')}>
+        Азия
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => setFail((v) => !v)}>
+        {fail ? 'Чинить запрос' : 'Ломать запрос'}
+      </Button>
+      <AsyncBoundary
+        load={(signal) => fetchCountries(region, fail, signal)}
+        loadKey={region}
+        onSuccess={setCountries}
+        delayMs={200}
+      >
+        <ul className="list-disc pl-6 text-sm">
+          {countries.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+      </AsyncBoundary>
+    </>
   );
 }`,
     },
     {
       id: 'skeleton',
-      title: 'Скелетон вместо спиннера',
+      title: 'Скелетон вместо спиннера (loadingSlot)',
       description:
-        'loadingSlot полностью заменяет встроенный блок загрузки — например на строки-скелетоны под будущую таблицу.',
+        'loadingSlot целиком заменяет встроенный блок загрузки — например строками-скелетонами под будущий список.',
       render: () => (
-        <AsyncBoundary
-          status="loading"
-          loadingSlot={
-            <div style={{ display: 'grid', gap: 8 }}>
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-9 w-full" />
-              ))}
-            </div>
-          }
-        >
-          <ReadyContent />
-        </AsyncBoundary>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <AsyncBoundary
+            status="loading"
+            loadingSlot={
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
+            }
+          >
+            <ul className="list-disc pl-6 text-sm">
+              <li>Германия</li>
+              <li>Франция</li>
+            </ul>
+          </AsyncBoundary>
+        </div>
       ),
       code: `<AsyncBoundary
-  status={status}
+  status="loading"
   loadingSlot={
     <div className="space-y-2">
-      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} className="h-9 w-full" />
+      ))}
     </div>
   }
 >
-  <DataTable rows={rows} />
+  <ul className="list-disc pl-6 text-sm">
+    <li>Германия</li>
+    <li>Франция</li>
+  </ul>
 </AsyncBoundary>`,
+    },
+    {
+      id: 'error-slot',
+      title: 'Свой блок ошибки (errorSlot)',
+      description:
+        'errorSlot-функция получает error, retry и canRetry. Роль alert своему блоку ставите сами — встроенную разметку слот заменяет целиком.',
+      render: () => {
+        // В демо повтор ничего не делает: в приложении здесь перезапуск запроса.
+        const reload = () => {};
+        return (
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <AsyncBoundary
+              status="error"
+              error="Таймаут запроса"
+              onRetry={reload}
+              errorSlot={({ error, retry, canRetry }) => (
+                <div role="alert" className="flex items-center gap-2 text-sm">
+                  <span>Не загрузилось: {error}</span>
+                  {canRetry && (
+                    <Button size="sm" variant="link" onClick={retry}>
+                      Ещё раз
+                    </Button>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+        );
+      },
+      code: `<AsyncBoundary
+  status="error"
+  error="Таймаут запроса"
+  onRetry={reload}
+  errorSlot={({ error, retry, canRetry }) => (
+    <div role="alert" className="flex items-center gap-2 text-sm">
+      <span>Не загрузилось: {error}</span>
+      {canRetry && (
+        <Button size="sm" variant="link" onClick={retry}>
+          Ещё раз
+        </Button>
+      )}
+    </div>
+  )}
+/>`,
     },
     {
       id: 'empty',
       title: 'Пустой результат',
       description:
-        'Пустота — не статус, а предикат поверх ready: успешная загрузка нуля записей не должна объявляться как ошибка. Блок собирается из AsyncBoundaryEmpty.',
-      render: () => (
-        <AsyncBoundaryEmpty
-          title="Ничего не найдено"
-          description="Попробуйте изменить условия поиска"
-          action={<Button variant="outline">Сбросить фильтры</Button>}
-        />
-      ),
-      code: `import { AsyncBoundary } from '@reformer/cdk/async-boundary';
-import { AsyncBoundaryEmpty } from '@reformer/ui-kit';
+        'Ноль записей — это успех, а не ошибка: статус ready, пустоту рисует AsyncBoundaryEmpty внутри children.',
+      render: EmptyResultExample,
+      code: `const [items, setItems] = useState<string[]>([]);
 
-<AsyncBoundary.Content>
-  <AsyncBoundary.Empty when={items.length === 0}>
+<AsyncBoundary status="ready">
+  {items.length === 0 ? (
     <AsyncBoundaryEmpty
-      title="Ничего не найдено"
-      description="Попробуйте изменить условия поиска"
-      action={<Button variant="outline">Сбросить фильтры</Button>}
+      title="Заявок нет"
+      description="Создайте первую заявку"
+      action={<Button onClick={() => setItems(['Заявка №1'])}>Создать</Button>}
     />
-  </AsyncBoundary.Empty>
-  {items.map(renderItem)}
-</AsyncBoundary.Content>`,
+  ) : (
+    <ul className="list-disc pl-6 text-sm">
+      {items.map((name) => (
+        <li key={name}>{name}</li>
+      ))}
+    </ul>
+  )}
+</AsyncBoundary>`,
     },
   ],
   props: [
     {
+      name: 'load',
+      type: '(signal: AbortSignal) => Promise<T>',
+      description:
+        'Загрузчик. Если задан, компонент сам ведёт статус, прерывает устаревший запрос и даёт повтор. status, error, refreshing и onRetry тогда не действуют.',
+    },
+    {
+      name: 'loadKey',
+      type: 'unknown',
+      description:
+        'Смена значения запускает новую загрузку, прежний запрос прерывается. Обычно id записи; сравнивается через Object.is — передавайте примитив.',
+    },
+    {
+      name: 'enabled',
+      type: 'boolean',
+      default: 'true',
+      description: 'false — не загружать, статус idle. Например, форма создания записи.',
+    },
+    {
+      name: 'onSuccess',
+      type: '(data: T) => void',
+      description: 'Вызывается с данными после успешной загрузки — например, model.patch(data).',
+    },
+    {
+      name: 'onError',
+      type: '(error: ReactNode) => void',
+      description: 'Вызывается после ошибки загрузки — для лога или уведомления.',
+    },
+    {
+      name: 'toError',
+      type: '(e: unknown) => ReactNode',
+      description:
+        'Как превратить отказ промиса в текст. По умолчанию — message у Error, строка как есть, иначе "Unknown error".',
+    },
+    {
+      name: 'ref',
+      type: 'Ref<AsyncBoundaryHandle<T>>',
+      description:
+        'reload() — перезапустить, abort() — прервать запрос; status, data, error — текущее состояние. Тип — из @reformer/cdk/async-boundary.',
+    },
+    {
       name: 'status',
       type: "'idle' | 'loading' | 'ready' | 'error'",
       description:
-        'Текущее состояние асинхронной операции. Управляется снаружи. idle — загрузка не запускалась (показываются children).',
+        'Состояние, когда загрузкой владеет ваш код (load не задан). idle и ready показывают children.',
     },
     {
       name: 'error',
       type: 'ReactNode | null',
-      description: 'Текст ошибки. Попадает во встроенный блок ошибки и в render-функцию errorSlot.',
+      default: 'null',
+      description: 'Текст ошибки для встроенного блока и для errorSlot.',
     },
     {
       name: 'onRetry',
       type: '() => void',
-      description: 'Повтор загрузки. Без него кнопка «Повторить» не рендерится.',
+      description: 'Повтор загрузки. Без него кнопки «Повторить» нет.',
     },
     {
       name: 'refreshing',
       type: 'boolean',
-      description:
-        'Фоновое обновление: контент остаётся на экране (stale-while-revalidate), регион помечается aria-busy.',
+      default: 'false',
+      description: 'Фоновое обновление: содержимое остаётся на экране, регион помечен aria-busy.',
     },
     {
       name: 'delayMs',
       type: 'number',
+      default: '0',
       description:
-        'Не показывать блок загрузки первые N мс — гасит вспышку спиннера при быстром ответе. По умолчанию 0.',
+        'Не показывать блок загрузки первые N мс. Быстрый ответ обходится без мелькания спиннера.',
+    },
+    {
+      name: 'loadingTitle',
+      type: 'ReactNode',
+      description:
+        'Заголовок блока загрузки. По умолчанию — строка kit.asyncBoundary.loadingTitle.',
+    },
+    {
+      name: 'loadingSubtitle',
+      type: 'ReactNode',
+      description:
+        'Подзаголовок блока загрузки. По умолчанию — kit.asyncBoundary.loadingSubtitle; null скрывает его.',
+    },
+    {
+      name: 'errorTitle',
+      type: 'ReactNode',
+      description: 'Заголовок блока ошибки. По умолчанию — kit.asyncBoundary.errorTitle.',
+    },
+    {
+      name: 'retryLabel',
+      type: 'ReactNode',
+      description: 'Подпись кнопки повтора. По умолчанию — kit.asyncBoundary.retry.',
     },
     {
       name: 'loadingSlot',
       type: 'ReactNode',
-      description: 'Полная замена встроенного блока загрузки — например скелетон.',
+      description: 'Замена всего блока загрузки — например, скелетон.',
     },
     {
       name: 'errorSlot',
-      type: 'ReactNode | ((props: { error; retry; canRetry }) => ReactNode)',
-      description:
-        'Полная замена блока ошибки. Render-функция получает саму ошибку и колбэк повтора.',
-    },
-    {
-      name: 'loadingTitle / loadingSubtitle / errorTitle / retryLabel',
-      type: 'ReactNode',
-      description: 'Тексты встроенных блоков, если заменять их целиком не требуется.',
+      type: 'ReactNode | ((p: { error, retry, canRetry }) => ReactNode)',
+      description: 'Замена всего блока ошибки. Функция получает ошибку и повтор.',
     },
     {
       name: 'children',
       type: 'ReactNode',
-      description: 'Контент, рендерящийся при status="ready" и status="idle".',
+      description: 'Содержимое для состояний ready и idle.',
+    },
+    {
+      name: 'className',
+      type: 'string',
+      description: 'Классы региона-обёртки.',
     },
   ],
 };

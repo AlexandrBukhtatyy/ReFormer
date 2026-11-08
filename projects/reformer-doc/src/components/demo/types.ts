@@ -84,7 +84,8 @@ export type ApiControl =
       description?: string;
       group?: string;
       kind: 'number';
-      default: number;
+      /** Без умолчания проп не задаётся, пока его не ввели: `0` у `maxLength` запер бы поле. */
+      default?: number;
       min?: number;
       max?: number;
       step?: number;
@@ -162,6 +163,10 @@ export interface ComponentDocConfig {
   api?: ApiConfig;
   /** @deprecated Устаревший простой playground. Используйте `api`. */
   playground?: PlaygroundDef;
-  /** @deprecated Таблица props. При `api` не нужна (props — часть `api.controls`). */
+  /**
+   * Таблица пропсов — для компонентов, которые не являются полем формы (Dialog, Tabs, Card…).
+   * Вкладке `api` нужны форма и `initialValue`, поэтому у таких компонентов её не бывает.
+   * У полей формы таблица не нужна: пропсы — часть `api.controls`.
+   */
   props?: PropRow[];
 }

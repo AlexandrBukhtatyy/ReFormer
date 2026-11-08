@@ -2,6 +2,7 @@
 id: accordion
 title: Accordion
 sidebar_label: Accordion
+description: Стопка секций с заголовками, которые раскрываются по щелчку.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,79 @@ import { accordionDocConfig } from '@site/src/components/demo/examples/accordion
 
 # Accordion
 
-Раскрывающиеся секции на shadcn / Radix `Accordion`. Compound-набор:
-`Accordion` / `AccordionItem` / `AccordionTrigger` / `AccordionContent`.
-Режим раскрытия задаётся через `type` (`"single"` — одна секция, `"multiple"` — несколько),
-а `collapsible` позволяет свернуть открытую секцию в режиме `single`.
+Стопка секций с заголовками. Щелчок по заголовку раскрывает или сворачивает содержимое секции.
+Построен на Radix Accordion, это не поле формы.
+
+## Когда брать
+
+- **Accordion** — несколько однотипных секций, из которых читатель открывает нужные: вопросы и
+  ответы, условия тарифа, разделы настроек.
+- [Collapsible](./collapsible.mdx) — один блок «показать / скрыть» без списка секций, например
+  «Дополнительные параметры» под формой.
+- [Tabs](./tabs.mdx) — разделы равноправны и на экране всегда один из них. Заголовки вкладок стоят
+  в ряд, содержимое сменяет друг друга, а не раскрывается под заголовком.
+
+## Анатомия
+
+```tsx
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@reformer/ui-kit'; // или '@reformer/ui-kit/accordion'
+
+<Accordion type="single" collapsible defaultValue="delivery">
+  <AccordionItem value="delivery">
+    <AccordionTrigger>Доставка</AccordionTrigger>
+    <AccordionContent>Отправляем в течение 1–2 рабочих дней.</AccordionContent>
+  </AccordionItem>
+</Accordion>;
+```
+
+| Часть              | Что это                                                  | Ключевые пропсы                                             |
+| ------------------ | -------------------------------------------------------- | ----------------------------------------------------------- |
+| `Accordion`        | Корень: хранит, какие секции открыты.                    | `type`, `collapsible`, `defaultValue` / `value`, `disabled` |
+| `AccordionItem`    | Одна секция с нижней границей.                           | `value` (обязателен, уникален), `disabled`                  |
+| `AccordionTrigger` | Кнопка-заголовок со стрелкой. Обёрнута в заголовок `h3`. | `children` — текст заголовка                                |
+| `AccordionContent` | Раскрываемое содержимое с анимацией высоты.              | `children`, `className` — отступы внутреннего блока         |
+
+Режим задаёт `type`:
+
+- `type="single"` — открыта не больше одной секции, значение — строка. Без `collapsible`
+  открытую секцию нельзя свернуть повторным щелчком: одна секция остаётся открытой всегда.
+- `type="multiple"` — секции раскрываются независимо, значение — массив строк.
+
+Состоянием управляет либо сам компонент (`defaultValue`), либо вы (`value` + `onValueChange`).
+
+## Примеры
 
 <ComponentDoc config={accordionDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix Accordion:
+
+| Клавиша           | Действие                                                                    |
+| ----------------- | --------------------------------------------------------------------------- |
+| `Tab`             | Переход к следующему заголовку и дальше по странице.                        |
+| `Enter` / `Space` | Раскрыть или свернуть секцию под фокусом.                                   |
+| `↓` / `↑`         | Следующий / предыдущий заголовок, по кругу (при `orientation="vertical"`).  |
+| `→` / `←`         | То же при `orientation="horizontal"`; при `dir="rtl"` направление обратное. |
+| `Home` / `End`    | Первый / последний заголовок.                                               |
+
+- Заголовок — кнопка с `aria-expanded` и `aria-controls`; содержимое — `role="region"` с
+  `aria-labelledby` на свой заголовок.
+- Кнопка обёрнута в `h3`, и уровень заголовка в ките не меняется. Если на странице аккордеон стоит
+  под `h3` или глубже, учтите это в структуре заголовков.
+- Недоступная секция (`disabled`) получает атрибут `disabled`: стрелки и `Tab` её пропускают.
+- Открытая секция в режиме `single` без `collapsible` помечается `aria-disabled`: свернуть её
+  нельзя.
+- Фокус обозначен кольцом (`focus-visible:ring`).
+
+## Локализация
+
+Своих строк компонент не рисует: заголовки и содержимое секций — ваш текст.
+
+## См. также
+
+- [Collapsible](./collapsible.mdx) — один раскрываемый блок.
+- [Tabs](./tabs.mdx) — переключение равноправных разделов.
+- [Section](./section.mdx) — группа полей формы с заголовком, без раскрытия.
+- [Radix Accordion](https://www.radix-ui.com/primitives/docs/components/accordion) — полный список
+  пропсов примитива.

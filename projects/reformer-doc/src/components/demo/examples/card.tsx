@@ -11,31 +11,34 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Card — не form-control: compound-набор презентационных блоков (Card / CardHeader / CardTitle /
- * CardDescription / CardAction / CardContent / CardFooter). Таб Variants показывает готовые
- * композиции, Examples — приёмы (header с action-слотом), API — таблица частей и общих props.
+ * Card — не поле формы: набор презентационных блоков (Card / CardHeader / CardTitle /
+ * CardDescription / CardAction / CardContent / CardFooter). Variants — готовые композиции,
+ * Examples — приёмы, API — таблица частей. Обёртка `<div style>` в render — рамка демо, в `code`
+ * её нет.
  */
 export const cardDocConfig: ComponentDocConfig = {
   name: 'Card',
   importFrom: '@reformer/ui-kit',
   description:
-    'Карточка на shadcn — контейнер с шапкой (заголовок / описание / действие), контентом и подвалом. Все части — обычные div со своим data-slot, стиль правится через className.',
+    'Контейнер с рамкой и тенью: шапка (заголовок, описание, действие), содержимое и подвал.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая карточка',
       description: 'Header (title + description), Content и Footer.',
       render: () => (
-        <Card style={{ maxWidth: 360 }}>
-          <CardHeader>
-            <CardTitle>Тариф «Стандарт»</CardTitle>
-            <CardDescription>Помесячная оплата, без комиссии.</CardDescription>
-          </CardHeader>
-          <CardContent>Всё необходимое для старта: 10 проектов, 5 ГБ хранилища.</CardContent>
-          <CardFooter>
-            <Button>Подключить</Button>
-          </CardFooter>
-        </Card>
+        <div style={{ maxWidth: 360 }}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Тариф «Стандарт»</CardTitle>
+              <CardDescription>Помесячная оплата, без комиссии.</CardDescription>
+            </CardHeader>
+            <CardContent>Всё необходимое для старта: 10 проектов, 5 ГБ хранилища.</CardContent>
+            <CardFooter>
+              <Button>Подключить</Button>
+            </CardFooter>
+          </Card>
+        </div>
       ),
       code: `<Card>
   <CardHeader>
@@ -51,21 +54,22 @@ export const cardDocConfig: ComponentDocConfig = {
     {
       id: 'with-action',
       title: 'Шапка с действием (CardAction)',
-      description:
-        'CardAction встаёт в правый край шапки (grid-слот) — кнопка/меню рядом с заголовком.',
+      description: 'CardAction встаёт в правый край шапки — кнопка или меню рядом с заголовком.',
       render: () => (
-        <Card style={{ maxWidth: 360 }}>
-          <CardHeader>
-            <CardTitle>Уведомления</CardTitle>
-            <CardDescription>Настройте, что приходит на почту.</CardDescription>
-            <CardAction>
-              <Button variant="ghost" size="sm">
-                Изменить
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>Сейчас включены: счета, статус доставки, безопасность.</CardContent>
-        </Card>
+        <div style={{ maxWidth: 360 }}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Уведомления</CardTitle>
+              <CardDescription>Настройте, что приходит на почту.</CardDescription>
+              <CardAction>
+                <Button variant="ghost" size="sm">
+                  Изменить
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>Сейчас включены: счета, статус доставки, безопасность.</CardContent>
+          </Card>
+        </div>
       ),
       code: `<Card>
   <CardHeader>
@@ -83,11 +87,13 @@ export const cardDocConfig: ComponentDocConfig = {
     {
       id: 'content-only',
       title: 'Карточка без шапки',
-      description: 'Card можно использовать как простой контейнер — только CardContent.',
+      description: 'Card годится и как простой контейнер — только CardContent.',
       render: () => (
-        <Card style={{ maxWidth: 360 }}>
-          <CardContent>Короткая заметка без заголовка и подвала.</CardContent>
-        </Card>
+        <div style={{ maxWidth: 360 }}>
+          <Card>
+            <CardContent>Короткая заметка без заголовка и подвала.</CardContent>
+          </Card>
+        </div>
       ),
       code: `<Card>
   <CardContent>Короткая заметка без заголовка и подвала.</CardContent>
@@ -95,20 +101,22 @@ export const cardDocConfig: ComponentDocConfig = {
     },
     {
       id: 'bordered-sections',
-      title: 'Разделители секций (border)',
+      title: 'Линии между частями (border-b / border-t)',
       description:
-        'Утилита border-b на CardHeader (или border-t на CardFooter) включает встроенный отступ ([.border-b]:pb-6 / [.border-t]:pt-6).',
+        'Класс border-b на CardHeader или border-t на CardFooter рисует линию, и часть сама добавляет отступ до неё.',
       render: () => (
-        <Card style={{ maxWidth: 360 }}>
-          <CardHeader className="border-b">
-            <CardTitle>Профиль</CardTitle>
-            <CardDescription>Личные данные и контакты.</CardDescription>
-          </CardHeader>
-          <CardContent>Имя, e-mail, телефон.</CardContent>
-          <CardFooter className="border-t">
-            <Button variant="outline">Сохранить</Button>
-          </CardFooter>
-        </Card>
+        <div style={{ maxWidth: 360 }}>
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle>Профиль</CardTitle>
+              <CardDescription>Личные данные и контакты.</CardDescription>
+            </CardHeader>
+            <CardContent>Имя, e-mail, телефон.</CardContent>
+            <CardFooter className="border-t">
+              <Button variant="outline">Сохранить</Button>
+            </CardFooter>
+          </Card>
+        </div>
       ),
       code: `<Card>
   <CardHeader className="border-b">
@@ -126,44 +134,44 @@ export const cardDocConfig: ComponentDocConfig = {
     {
       name: 'Card',
       type: 'div',
-      description: 'Корневой контейнер: рамка, скругление, тень, вертикальный стек секций (gap-6).',
+      description: 'Корень: рамка, скругление, тень, вертикальный стек частей с отступом gap-6.',
     },
     {
       name: 'CardHeader',
       type: 'div',
       description:
-        'Шапка: grid для title / description; при наличии CardAction добавляет колонку под действие.',
+        'Шапка: сетка для заголовка и описания; при CardAction добавляет колонку справа под действие.',
     },
     {
       name: 'CardTitle',
       type: 'div',
-      description: 'Заголовок карточки (font-semibold, leading-none).',
+      description: 'Заголовок карточки. Это <div>, не заголовок документа — см. «Доступность».',
     },
     {
       name: 'CardDescription',
       type: 'div',
-      description: 'Подзаголовок / описание (text-sm, muted-foreground).',
+      description: 'Описание под заголовком: мелкий приглушённый текст.',
     },
     {
       name: 'CardAction',
       type: 'div',
-      description: 'Слот действия в правом краю шапки (кнопка, меню).',
+      description: 'Место для кнопки или меню в правом краю шапки.',
     },
     {
       name: 'CardContent',
       type: 'div',
-      description: 'Основное тело карточки (горизонтальные отступы px-6).',
+      description: 'Содержимое: горизонтальные отступы px-6, вертикальный ритм — ваш (space-y-*).',
     },
     {
       name: 'CardFooter',
       type: 'div',
-      description: 'Подвал: flex-ряд для кнопок/мета-информации.',
+      description: 'Подвал: ряд для кнопок или служебной информации.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

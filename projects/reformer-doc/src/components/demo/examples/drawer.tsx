@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Drawer,
   DrawerTrigger,
@@ -12,23 +13,56 @@ import { Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Drawer — не form-control: обёртка над vaul (Drawer / DrawerTrigger / DrawerPortal /
- * DrawerOverlay / DrawerClose / DrawerContent / DrawerHeader / DrawerFooter / DrawerTitle /
- * DrawerDescription). Выезжающая панель с жестом перетаскивания; контент рендерится в Portal
- * поверх страницы. direction (bottom | top | left | right) задаёт сторону выезда. Таб Variants —
- * готовые композиции, Examples — приёмы (боковая панель, подтверждение), API — таблица частей.
+ * Drawer — не поле формы: шторка на vaul (Drawer / DrawerTrigger / DrawerContent / DrawerHeader /
+ * DrawerTitle / DrawerDescription / DrawerFooter / DrawerClose), которую можно смахнуть. vaul —
+ * необязательная peer-зависимость, поэтому импорт только из `@reformer/ui-kit/drawer`. Variants —
+ * шторка снизу, Examples — сбоку и управляемое состояние.
  */
+
+/** Шторка закрывается сама после выбора. */
+function ControlledDrawer() {
+  const [open, setOpen] = useState(false);
+  const [goal, setGoal] = useState(5);
+
+  return (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
+        <Button variant="outline">Цель: {goal} км</Button>
+      </DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>Дневная цель</DrawerTitle>
+          <DrawerDescription>Сколько километров пройти за день.</DrawerDescription>
+        </DrawerHeader>
+        <div className="flex justify-center gap-2 p-4">
+          {[3, 5, 10].map((km) => (
+            <Button
+              key={km}
+              variant={km === goal ? 'default' : 'outline'}
+              onClick={() => {
+                setGoal(km);
+                setOpen(false);
+              }}
+            >
+              {km} км
+            </Button>
+          ))}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
 export const drawerDocConfig: ComponentDocConfig = {
   name: 'Drawer',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/drawer',
   description:
-    'Выезжающая панель на shadcn / vaul. Compound: Drawer (корень, direction) + DrawerTrigger, DrawerContent (в Portal, с оверлеем и «ручкой» перетаскивания), DrawerHeader / DrawerTitle / DrawerDescription, DrawerFooter, DrawerClose. Жест drag-to-dismiss, focus-trap, Esc и aria — из vaul.',
+    'Шторка снизу (или с другого края), которую смахивают пальцем. Импорт — @reformer/ui-kit/drawer, нужен пакет vaul.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая панель снизу',
       description:
-        'Триггер открывает панель, выезжающую снизу (direction по умолчанию — bottom). Заголовок, описание, подвал с действиями.',
+        'Шторка выезжает снизу (direction по умолчанию — bottom), сверху — полоска-ручка. Закрыть: свайп вниз, щелчок по фону, Esc или кнопка.',
       render: () => (
         <Drawer>
           <DrawerTrigger asChild>
@@ -76,7 +110,7 @@ export const drawerDocConfig: ComponentDocConfig = {
       id: 'side-right',
       title: 'Боковая панель справа',
       description:
-        'direction="right" превращает Drawer в выезжающую сбоку панель — удобно для деталей записи или фильтров.',
+        'direction="right" — шторка сбоку, смахивается вправо. На десктопе для такой панели обычно берут Sheet.',
       render: () => (
         <Drawer direction="right">
           <DrawerTrigger asChild>
@@ -117,50 +151,43 @@ export const drawerDocConfig: ComponentDocConfig = {
 </Drawer>`,
     },
     {
-      id: 'confirm',
-      title: 'Подтверждение действия',
+      id: 'controlled',
+      title: 'Закрыть из кода (open / onOpenChange)',
       description:
-        'Короткая панель с деструктивным действием: описание последствий + кнопки «Отмена» / «Удалить». Закрытие жестом или по кнопке.',
-      render: () => (
-        <Drawer>
-          <DrawerTrigger asChild>
-            <Button variant="destructive">Удалить проект</Button>
-          </DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>Удалить проект?</DrawerTitle>
-              <DrawerDescription>
-                Действие необратимо: все задачи и файлы будут удалены.
-              </DrawerDescription>
-            </DrawerHeader>
-            <DrawerFooter>
-              <Button variant="destructive">Удалить</Button>
-              <DrawerClose asChild>
-                <Button variant="outline">Отмена</Button>
-              </DrawerClose>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-      ),
-      code: `<Drawer>
-  <DrawerTrigger asChild>
-    <Button variant="destructive">Удалить проект</Button>
-  </DrawerTrigger>
-  <DrawerContent>
-    <DrawerHeader>
-      <DrawerTitle>Удалить проект?</DrawerTitle>
-      <DrawerDescription>
-        Действие необратимо: все задачи и файлы будут удалены.
-      </DrawerDescription>
-    </DrawerHeader>
-    <DrawerFooter>
-      <Button variant="destructive">Удалить</Button>
-      <DrawerClose asChild>
-        <Button variant="outline">Отмена</Button>
-      </DrawerClose>
-    </DrawerFooter>
-  </DrawerContent>
-</Drawer>`,
+        'open и onOpenChange отдают состояние вам: шторка закрывается, когда выбор сохранён. Свайп вниз и щелчок по фону по-прежнему работают.',
+      render: () => <ControlledDrawer />,
+      code: `function ControlledDrawer() {
+  const [open, setOpen] = useState(false);
+  const [goal, setGoal] = useState(5);
+
+  return (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
+        <Button variant="outline">Цель: {goal} км</Button>
+      </DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>Дневная цель</DrawerTitle>
+          <DrawerDescription>Сколько километров пройти за день.</DrawerDescription>
+        </DrawerHeader>
+        <div className="flex justify-center gap-2 p-4">
+          {[3, 5, 10].map((km) => (
+            <Button
+              key={km}
+              variant={km === goal ? 'default' : 'outline'}
+              onClick={() => {
+                setGoal(km);
+                setOpen(false);
+              }}
+            >
+              {km} км
+            </Button>
+          ))}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}`,
     },
   ],
   props: [
@@ -169,57 +196,55 @@ export const drawerDocConfig: ComponentDocConfig = {
       type: 'vaul Drawer.Root',
       default: 'direction="bottom"',
       description:
-        'Корень. Управляемое состояние: open / onOpenChange (или неуправляемое). direction — сторона выезда (bottom | top | left | right). shouldScaleBackground — масштаб фона под панелью.',
+        'Корень: open + onOpenChange или defaultOpen. direction — край (bottom | top | left | right). dismissible (true) — закрывать свайпом, щелчком по фону и Esc. handleOnly — тянуть только за ручку.',
     },
     {
       name: 'DrawerTrigger',
       type: 'vaul Drawer.Trigger',
-      description: 'Открывает панель. asChild — прокинуть на собственный элемент (напр. Button).',
+      description: 'Открывает шторку. asChild — стать своим элементом, например Button.',
     },
     {
       name: 'DrawerContent',
       type: 'vaul Drawer.Content',
       description:
-        'Тело панели в Portal: оверлей, «ручка» перетаскивания (для bottom), стили по direction. Жест drag-to-dismiss.',
+        'Шторка в портале с затемнением фона. У нижней — ручка сверху и высота до 80% экрана.',
     },
     {
       name: 'DrawerHeader',
       type: 'div',
-      description:
-        'Шапка: вертикальный стек заголовка и описания (центрирование для bottom/top, слева для боковых).',
+      description: 'Шапка: заголовок и описание; у нижней и верхней шторки — по центру.',
     },
     {
       name: 'DrawerTitle',
       type: 'vaul Drawer.Title',
-      description:
-        'Заголовок (font-semibold). Связывается с панелью через aria-labelledby — обязателен для доступности.',
+      description: 'Заголовок. Связан со шторкой через aria-labelledby. Обязателен.',
     },
     {
       name: 'DrawerDescription',
       type: 'vaul Drawer.Description',
-      description: 'Описание (text-sm, muted). Связывается через aria-describedby.',
+      description: 'Описание под заголовком, связано через aria-describedby.',
     },
     {
       name: 'DrawerFooter',
       type: 'div',
-      description: 'Подвал для действий (вертикальный стек, прижат к низу через mt-auto).',
+      description: 'Кнопки внизу шторки, столбиком.',
     },
     {
       name: 'DrawerClose',
       type: 'vaul Drawer.Close',
-      description: 'Закрывает панель. asChild — прокинуть на собственную кнопку.',
+      description: 'Закрывает шторку. asChild — стать своей кнопкой.',
     },
     {
       name: 'DrawerOverlay / DrawerPortal',
       type: 'vaul Drawer.Overlay / Portal',
       description:
-        'Оверлей-затемнение и Portal-обёртка. Используются внутри DrawerContent; экспортируются для кастомных композиций.',
+        'Затемнение фона и портал. DrawerContent рисует их сам; отдельно нужны только для своей композиции.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

@@ -2,6 +2,7 @@
 id: chart
 title: Chart
 sidebar_label: Chart
+description: Графики recharts в стиле кита — цвета и подписи рядов из одного объекта.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,14 +10,98 @@ import { chartDocConfig } from '@site/src/components/demo/examples/chart';
 
 # Chart
 
-Тонкая обёртка над [recharts](https://recharts.org) в стиле shadcn/ui. `ChartContainer`
-оборачивает единственный recharts-график в `ResponsiveContainer` и инъектит CSS-переменные
-цвета из `config` (`ChartConfig`): каждый ключ ряда даёт `--color-<key>`, который график
-читает через `fill` / `stroke="var(--color-<key>)"`. `ChartTooltipContent` и
-`ChartLegendContent` — стилизованные tooltip и легенда, берущие подписи и цвета из того же
-config.
+Обёртка над [recharts](https://recharts.org): сам график — компоненты recharts (`BarChart`,
+`LineChart`, `Bar`, `XAxis`), а кит даёт контейнер, оформленные подсказку и легенду и единое место
+для цветов и подписей рядов — `ChartConfig`. Входит в [кит](../reference/glossary.md#пакеты)
+`@reformer/ui-kit`, это не поле формы.
 
-recharts — тяжёлая опциональная зависимость (optional peer), поэтому компонент живёт вне
-главного barrel и импортируется по subpath: `import { ChartContainer } from '@reformer/ui-kit/chart'`.
+recharts — тяжёлая библиотека, поэтому график в общий импорт `@reformer/ui-kit` не входит.
+Поставьте зависимость и импортируйте из отдельного входа:
+
+```bash
+npm install recharts
+```
+
+```tsx
+import { ChartContainer, type ChartConfig } from '@reformer/ui-kit/chart';
+```
+
+## Когда брать
+
+- **Chart** — показать динамику или сравнение: платежи по месяцам, доли категорий.
+- [Progress](./progress.mdx) — одно значение «сколько сделано из ста».
+- [Table](./table.mdx) — точные числа, которые читают и сравнивают построчно. Таблица под графиком
+  заодно служит текстовой версией для скринридера.
+- [Badge](./badge.mdx) — одно число-статус рядом с текстом.
+
+## Анатомия
+
+```tsx
+import { Bar, BarChart, XAxis } from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from '@reformer/ui-kit/chart';
+
+const chartConfig = {
+  income: { label: 'Доход', color: 'var(--chart-1)' },
+  expense: { label: 'Расход', color: 'var(--chart-2)' },
+} satisfies ChartConfig;
+
+<ChartContainer config={chartConfig} className="min-h-[220px] w-full">
+  <BarChart accessibilityLayer data={data}>
+    <XAxis dataKey="month" />
+    <ChartTooltip content={<ChartTooltipContent />} />
+    <ChartLegend content={<ChartLegendContent />} />
+    <Bar dataKey="income" fill="var(--color-income)" />
+    <Bar dataKey="expense" fill="var(--color-expense)" />
+  </BarChart>
+</ChartContainer>;
+```
+
+Как связаны части: ключ ряда в `chartConfig` (`income`) совпадает с `dataKey` ряда в recharts.
+`ChartContainer` объявляет для каждого ключа CSS-переменную `--color-income`, ряд красится ею
+(`fill` или `stroke`), а подсказка и легенда берут из того же config подпись «Доход».
+
+| Часть                 | Что это                                                      | Ключевые пропсы                                        |
+| --------------------- | ------------------------------------------------------------ | ------------------------------------------------------ |
+| `ChartContainer`      | Корень: растягивает график по ширине, объявляет цвета рядов. | `config` (обязателен), `className`, `initialDimension` |
+| `ChartTooltip`        | `Tooltip` из recharts без изменений.                         | `content`                                              |
+| `ChartTooltipContent` | Оформленная подсказка.                                       | `indicator`, `hideLabel`, `hideIndicator`, `formatter` |
+| `ChartLegend`         | `Legend` из recharts без изменений.                          | `content`                                              |
+| `ChartLegendContent`  | Оформленная легенда.                                         | `hideIcon`, `nameKey`                                  |
+| `useChart`            | Хук: `config` ближайшего контейнера — для своих подсказок.   | —                                                      |
+
+- Внутри `ChartContainer` — ровно один график recharts.
+- Задайте контейнеру высоту (`min-h-[220px]`, `h-64`): без неё он берёт пропорции 16:9.
+- Цвета берите из темы — `var(--chart-1)` … `var(--chart-5)`: они сами меняются в тёмной теме.
+  Вариант `theme: { light, dark }` в config срабатывает только под классом `.dark` и не реагирует
+  на `[data-theme='dark']`.
+
+## Примеры
 
 <ComponentDoc config={chartDocConfig} />
+
+## Доступность
+
+- График — картинка. Числа из него скринридер не прочитает целиком: дайте рядом текстовую версию —
+  таблицу, вывод одной фразой («Расходы выросли в марте на 30 %»).
+- С `accessibilityLayer` (в recharts 3 он включён по умолчанию) график получает фокус по `Tab`, а
+  `←` / `→` переводят подсказку между точками.
+- Не различайте ряды только цветом: подпишите их легендой или подписями на графике.
+
+## Локализация
+
+Кит своих строк в графике не рисует. Подписи рядов — `label` в `ChartConfig`, подписи осей и формат
+чисел — пропсы recharts (`tickFormatter`) и `formatter` у `ChartTooltipContent`. Числа и даты для
+нужного языка форматируйте через `Intl.NumberFormat` и `Intl.DateTimeFormat`.
+
+## См. также
+
+- [Table](./table.mdx) — точные значения в строках и столбцах.
+- [Progress](./progress.mdx) — одно значение-доля.
+- [Документация recharts](https://recharts.org/en-US/api) — все графики, оси и их пропсы.

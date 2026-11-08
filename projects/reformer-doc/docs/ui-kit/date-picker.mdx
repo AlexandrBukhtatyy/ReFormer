@@ -9,25 +9,108 @@ import { datePickerDocConfig } from '@site/src/components/demo/examples/date-pic
 
 # DatePicker
 
-Выбор даты: [Popover](./popover) с [Calendar](./calendar) (`mode="single"`) и кнопкой-триггером
-([Button](./button) `outline` + иконка + отформатированная дата через
-[date-fns](https://date-fns.org)). Вариант **base** — управляемый композит
-(`value: Date | undefined` / `onChange`), выбор даты сам закрывает поповер. В форме
-`DatePicker` кладётся в `component` как есть: значение поля `Date | null`, к контракту
-композита его сводит обёртка поля по статике `datePickerAdapter`. Формат подписи настраивается через
-`dateFormat`, текст пустого состояния — через `placeholder`.
+Поле даты: кнопка показывает выбранную дату, по щелчку открывается [Calendar](./calendar.mdx) во
+всплывающем окне. Три компонента — одна дата, период и несколько дат, у каждого свой тип
+значения.
 
-Период и несколько дат — отдельные компоненты того же подпути, у каждого свой тип значения:
+## Когда брать
 
-- **`DatePickerRange`** — период, значение `[Date, Date] | null`. Выбор в два клика: начало, затем
-  конец; пока выбрано только начало, значение поля не меняется. Кортеж, а не объект `{ from, to }`:
-  массив модели становится полем при любом начальном значении, в том числе с готовым периодом.
-- **`DatePickerMulti`** — несколько дат, значение `Date[] | null` по возрастанию. Клик добавляет
-  день, повторный — снимает; `maxItems` гасит невыбранные дни (правило формы — `maxLength(n)`).
+- **`DatePicker`** — одна дата в обычной форме: дата выдачи документа, дата начала работы.
+- **`DatePickerRange`** — период: отпуск, срок аренды, фильтр отчёта «с … по …».
+- **`DatePickerMulti`** — несколько отдельных дат: дни встреч, дни дежурств.
 
-У обоих есть `clearable` — крестик сброса у правого края кнопки — и `numberOfMonths`.
+Соседи:
 
-Компонент тяжёлый (тянет `react-day-picker`) — импортируется из подпути
-`@reformer/ui-kit/date-picker`, а не из главного barrel.
+- календарь должен быть виден сразу, без всплывающего окна, — [Calendar](./calendar.mdx)
+  (`CalendarSingle`);
+- дату быстрее набрать, чем выбрать (дата рождения), — [InputMask](./input-mask.mdx) с маской
+  `99.99.9999` или [Input](./input.mdx) с `type: 'date'`.
+
+## Анатомия
+
+| Компонент         | Значение поля          | Ключевые пропсы                                                                            |
+| ----------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
+| `DatePicker`      | `Date \| null`         | `dateFormat`, `placeholder`                                                                |
+| `DatePickerRange` | `[Date, Date] \| null` | `dateFormat`, `placeholder`, `numberOfMonths`, `clearable`                                 |
+| `DatePickerMulti` | `Date[] \| null`       | `dateFormat`, `placeholder`, `numberOfMonths`, `maxItems`, `summaryThreshold`, `clearable` |
+
+Каждый компонент — кнопка-триггер ([Button](./button.mdx) с иконкой календаря) и
+[Popover](./popover.mdx) с [Calendar](./calendar.mdx) внутри. Календарь открывается на месяце
+выбранной даты.
+
+- **`DatePicker`** — выбор дня закрывает календарь. Повторный щелчок по выбранному дню сбрасывает
+  значение в `null`.
+- **`DatePickerRange`** — период выбирается двумя щелчками: начало, затем конец. Пока выбрано
+  только начало, значение поля не меняется. Значение — кортеж `[начало, конец]`, а не объект
+  `{ from, to }`: массив в модели становится значением поля при любом начальном значении, в том
+  числе с готовым периодом. По умолчанию показывает два месяца рядом (`numberOfMonths`).
+- **`DatePickerMulti`** — щелчок добавляет день, повторный снимает; календарь между щелчками не
+  закрывается. Даты в значении идут по возрастанию. Когда выбранных больше `summaryThreshold`
+  (по умолчанию 3), кнопка показывает «Выбрано дат: N». `maxItems` гасит невыбранные дни — это
+  подсказка интерфейса, правило формы — `maxLength(n)`.
+- **`clearable`** у периода и нескольких дат — крестик сброса у правого края кнопки.
+
+Подпись даты на кнопке: `dateFormat` (токены [date-fns](https://date-fns.org), например
+`dd.MM.yyyy`) → `dateFormat` локали → правила языка через `Intl` («16 ноября 2026 г.»).
+
+Компонент тяжёлый. Он не входит в главный вход кита: импорт — из подпути
+`@reformer/ui-kit/date-picker`, рядом нужны необязательные зависимости `react-day-picker` (≥ 10)
+и `date-fns` (≥ 4).
+
+```tsx
+import { DatePickerRange } from '@reformer/ui-kit/date-picker';
+
+{
+  model: model.$.vacation,
+  component: DatePickerRange,
+  componentProps: { label: 'Отпуск', dateFormat: 'dd.MM.yyyy', clearable: true },
+}
+```
+
+Общие пропсы полей (`label`, `required`, `description`, `tooltip` и другие) — в
+[описании FormField](./form-field.mdx#общие-пропсы-полей). Вне формы `DatePicker` работает с
+`Date | undefined`: `undefined` — дата не выбрана.
+
+Из поведения формы календарь открывают программно:
+`schema.node('date').getRef<DatePickerHandle>().current?.open()`; есть и `close()`.
+
+## Примеры и API
 
 <ComponentDoc config={datePickerDocConfig} />
+
+## Доступность
+
+- Триггер — обычная кнопка: Enter или пробел открывают календарь, фокус переходит на выбранный
+  день (или на сегодня). Esc закрывает календарь и возвращает фокус на кнопку.
+- На кнопку [FormField](./form-field.mdx) вешает подпись (`aria-labelledby`), пояснение и
+  замечание (`aria-describedby`, `aria-errormessage`), `aria-invalid` и `aria-required`.
+- Внутри календаря — клавиатура react-day-picker: стрелки — по дням и неделям, PageUp/PageDown —
+  по месяцам, Enter — выбрать день. Подробно — на [странице Calendar](./calendar.mdx#доступность).
+- Крестик сброса у периода и нескольких дат доступен только мышью (`tabIndex={-1}`); с клавиатуры
+  даты снимают в календаре.
+- `DatePickerRange` и `DatePickerMulti` отмечают поле [тронутым](../reference/glossary.md#валидация)
+  при закрытии календаря. `DatePicker` — при уходе фокуса с кнопки, то есть уже при открытии
+  календаря.
+
+## Локализация
+
+| Ключ                              | Где                                    | Проп          |
+| --------------------------------- | -------------------------------------- | ------------- |
+| `kit.datePicker.placeholder`      | кнопка без даты (`DatePicker`)         | `placeholder` |
+| `kit.datePicker.placeholderRange` | кнопка без периода (`DatePickerRange`) | `placeholder` |
+| `kit.datePicker.placeholderMulti` | кнопка без дат (`DatePickerMulti`)     | `placeholder` |
+| `kit.datePicker.selected`         | сводка «Выбрано дат: N»                | —             |
+| `kit.datePicker.clear`            | подпись крестика для скринридера       | —             |
+
+Даты на кнопке и в календаре пишутся на языке `I18nProvider`. Формат для всего приложения
+задают полем `dateFormat` локали, для одного поля — пропом `dateFormat`. С объектом локали
+date-fns (`dateLocale` в локали) токены формата выводят названия месяцев на нужном языке. Подписи
+самого календаря — на [странице Calendar](./calendar.mdx#локализация). Как подключить русскую
+локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Calendar](./calendar.mdx) — календарь на странице и его клавиатура.
+- [InputMask](./input-mask.mdx) — ввод даты с клавиатуры по маске.
+- [Встроенные правила](../validation/built-in.md) — правила для дат: `minDate`, `maxDate`,
+  `pastDate`, `futureDate`.

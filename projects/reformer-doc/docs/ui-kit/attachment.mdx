@@ -2,6 +2,7 @@
 id: attachment
 title: Attachment
 sidebar_label: Attachment
+description: Карточка приложенного файла со значком или миниатюрой, именем и кнопками.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,11 +10,88 @@ import { attachmentDocConfig } from '@site/src/components/demo/examples/attachme
 
 # Attachment
 
-Чип-превью прикреплённого файла на shadcn — AI-примитив для лент вложений и превью
-загрузок. Компонуется из частей: `AttachmentMedia` (иконка или миниатюра),
-`AttachmentContent` с `AttachmentTitle` / `AttachmentDescription`, `AttachmentActions`
-с `AttachmentAction` (кнопки), `AttachmentTrigger` (делает весь чип кликабельным) и
-`AttachmentGroup` (прокручиваемая лента). Стадию загрузки задаёт `state`
-(`idle` / `uploading` / `processing` / `error` / `done`), форму — `size` и `orientation`.
+Карточка приложенного файла: значок или миниатюра, имя, подпись и кнопки. Стадию загрузки
+показывает `state`. Компонент только рисует файл — выбирать и загружать файлы он не умеет.
+
+## Когда брать
+
+- **Attachment** — показать уже выбранный или отправленный файл: во вложениях реплики чата, в
+  списке документов заявки.
+- [FileUpload](./file-upload.mdx) — поле формы, которое само выбирает файлы и хранит их в
+  [модели](../reference/glossary.md). Attachment в форму не подключается: у него нет значения.
+- [Item](./item.mdx) — строка списка с произвольным содержимым, когда это не файл.
+- [Badge](./badge.mdx) — короткая метка-статус без значка файла и кнопок.
+
+## Анатомия
+
+```tsx
+import {
+  Attachment,
+  AttachmentMedia,
+  AttachmentContent,
+  AttachmentTitle,
+  AttachmentDescription,
+  AttachmentActions,
+  AttachmentAction,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/attachment'
+import { FileText, X } from 'lucide-react';
+
+<Attachment state="uploading">
+  <AttachmentMedia>
+    <FileText />
+  </AttachmentMedia>
+  <AttachmentContent>
+    <AttachmentTitle>выписка.pdf</AttachmentTitle>
+    <AttachmentDescription>Загрузка…</AttachmentDescription>
+  </AttachmentContent>
+  <AttachmentActions>
+    <AttachmentAction aria-label="Отменить загрузку">
+      <X />
+    </AttachmentAction>
+  </AttachmentActions>
+</Attachment>;
+```
+
+| Часть                   | Что это                                                      | Ключевые пропсы                 |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------- |
+| `Attachment`            | Карточка с рамкой. Задаёт стадию, размер и раскладку.        | `state`, `size`, `orientation`  |
+| `AttachmentMedia`       | Квадрат слева (или сверху): значок, миниатюра или `Spinner`. | `variant`: `'icon'` / `'image'` |
+| `AttachmentContent`     | Текстовая колонка.                                           | —                               |
+| `AttachmentTitle`       | Имя файла, обрезается многоточием.                           | —                               |
+| `AttachmentDescription` | Подпись под именем: размер, процент, текст ошибки.           | —                               |
+| `AttachmentActions`     | Место для кнопок справа (в плитке — в правом верхнем углу).  | —                               |
+| `AttachmentAction`      | Кнопка-значок на основе [Button](./button.mdx).              | `variant`, `size`, `aria-label` |
+| `AttachmentTrigger`     | Невидимая кнопка на всю карточку: делает её кликабельной.    | `asChild`                       |
+| `AttachmentGroup`       | Ряд карточек с горизонтальной прокруткой.                    | `className`                     |
+
+- `state` меняет только оформление: `idle` — пунктирная рамка, `error` — красные рамка, значок и
+  подпись, а миниатюра `image` приглушена во всех стадиях, кроме `done` и `idle`. Значок загрузки
+  (`Spinner`) и проценты кладёте вы.
+- `orientation="vertical"` превращает карточку в плитку шириной 96 px (120 px с текстом).
+- `AttachmentTrigger` лежит под кнопками `AttachmentActions`: они остаются нажимаемыми поверх него.
+
+## Примеры
 
 <ComponentDoc config={attachmentDocConfig} />
+
+## Доступность
+
+- `Attachment` и его части — обычные `div` и `span`, своих ролей нет.
+- `AttachmentTrigger` — `<button type="button">` без текста. Дайте ему `aria-label` с именем
+  файла и действием: «Открыть договор.pdf». С `asChild` и ссылкой `<a>` — то же самое.
+- `AttachmentAction` рисует только значок: подпись для скринридера задаёт `aria-label`.
+- Когда фокус внутри карточки (на триггере или кнопке), у карточки появляется кольцо.
+- Стадия загрузки видна только по оформлению. Сообщите её текстом: в `AttachmentDescription`
+  («Загрузка…», «Ошибка: …») или через `Spinner` — у него `role="status"` и подпись «Загрузка».
+
+## Локализация
+
+Своих строк компонент не рисует: имя файла, подписи и `aria-label` кнопок — ваш текст. Подпись
+вложенного `Spinner` берётся из локали кита (ключ `kit.spinner.label`), см. [Spinner](./spinner.mdx).
+
+## См. также
+
+- [FileUpload](./file-upload.mdx) — поле формы для выбора и загрузки файлов.
+- [Message](./message.mdx) — реплика чата, в которой стоят вложения.
+- [Bubble](./bubble.mdx) — текст реплики.
+- [Spinner](./spinner.mdx) — значок загрузки для `AttachmentMedia`.

@@ -2,6 +2,7 @@
 id: resizable
 title: Resizable
 sidebar_label: Resizable
+description: Панели, размер которых меняют перетаскиванием разделителя или с клавиатуры.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,13 +10,148 @@ import { resizableDocConfig } from '@site/src/components/demo/examples/resizable
 
 # Resizable
 
-Панели с изменяемым размером на shadcn / `react-resizable-panels`. Compound-набор:
-`ResizablePanelGroup` / `ResizablePanel` / `ResizableHandle`. Ориентация задаётся
-пропом `orientation` (`"horizontal"` — панели рядом, `"vertical"` — друг над другом)
-на группе, стартовое соотношение — `defaultSize` на панелях. `withHandle` на
-`ResizableHandle` рисует видимую рукоятку. Группы можно вкладывать друг в друга.
+Панели с разделителем, который пользователь тянет мышью или двигает с клавиатуры. Так устроены
+рабочие области редактора: дерево файлов, редактор, терминал. Построен на библиотеке
+[react-resizable-panels](https://github.com/bvaughn/react-resizable-panels) четвёртой версии, это не
+поле формы.
 
-Зависимость `react-resizable-panels` не бандлится в `@reformer/ui-kit` (external) —
-у потребителя она ставится как optional peer.
+## Когда брать
+
+- **Resizable** — пользователь сам решает, сколько места отдать каждой части экрана, и решение
+  стоит запомнить.
+- [Sidebar](./sidebar.mdx) — боковая навигация приложения, которая сворачивается кнопкой, а не
+  перетаскиванием.
+- [Box](./box.mdx) — раскладка с постоянными пропорциями, например сетка полей формы.
+- [ScrollArea](./scroll-area.mdx) — содержимое не помещается в панель. Её кладут внутрь
+  `ResizablePanel`.
+
+## Установка
+
+Resizable нет в корневом импорте `@reformer/ui-kit`: библиотека панелей — необязательная
+зависимость кита. Поставьте её и импортируйте компонент из отдельного входа пакета:
+
+```bash
+npm install react-resizable-panels
+```
+
+```tsx
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
+```
+
+Без `react-resizable-panels` вход `@reformer/ui-kit/resizable` не загрузится
+(`ERR_MODULE_NOT_FOUND`).
+
+## Анатомия
+
+```tsx
+<ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
+  <ResizablePanel defaultSize="30%" minSize="15%">
+    Проводник
+  </ResizablePanel>
+  <ResizableHandle withHandle />
+  <ResizablePanel defaultSize="70%">Редактор</ResizablePanel>
+</ResizablePanelGroup>
+```
+
+| Часть                 | Что это                                                    | Ключевые пропсы                                                           |
+| --------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `ResizablePanelGroup` | Группа панелей. Занимает всю высоту и ширину родителя.     | `orientation`, `defaultLayout`, `onLayoutChanged`, `disabled`, `id`       |
+| `ResizablePanel`      | Одна панель.                                               | `defaultSize`, `minSize`, `maxSize`, `collapsible`, `collapsedSize`, `id` |
+| `ResizableHandle`     | Разделитель между соседними панелями — линия шириной 1 px. | `withHandle` — видимая рукоятка, `disabled`                               |
+
+- `orientation="horizontal"` (по умолчанию) ставит панели рядом, `"vertical"` — друг над другом.
+- Группе нужна высота: она растягивается на `100%` родителя. Задайте высоту контейнеру.
+- Панели — прямые дети группы, разделитель стоит между каждой парой панелей. Группы можно
+  вкладывать: внутрь панели кладут новую `ResizablePanelGroup`.
+- Двойной щелчок по разделителю возвращает соседнюю панель к её `defaultSize`. Отключает это
+  `disableDoubleClick` у разделителя.
+
+### Размеры: число — пиксели, строка — проценты
+
+`defaultSize`, `minSize`, `maxSize` и `collapsedSize` принимают число или строку:
+
+| Значение                       | Что означает         |
+| ------------------------------ | -------------------- |
+| `200`                          | 200 пикселей         |
+| `"50"` или `"50%"`             | 50% группы           |
+| `"20rem"`, `"30vh"`, `"300px"` | в указанных единицах |
+
+Частая ошибка — `defaultSize={50}` в расчёте на половину: это 50 пикселей. Для половины пишите
+`defaultSize="50%"`. Без `defaultSize` место делится между панелями поровну.
+
+### Сохранение раскладки
+
+Раскладку между перезагрузками сохраняет хук `useDefaultLayout` из самой библиотеки
+`react-resizable-panels` — кит его не переэкспортирует. Хук читает сохранённую раскладку и
+возвращает её вместе с обработчиком, который записывает новую. Каждой панели нужен `id`: по нему
+сохранённый размер находит свою панель.
+
+```tsx
+import { useDefaultLayout } from 'react-resizable-panels';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
+
+function EditorLayout() {
+  // По умолчанию хранит раскладку в localStorage под ключом с этим id.
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: 'editor-layout' });
+
+  return (
+    <ResizablePanelGroup
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+    >
+      <ResizablePanel id="files" defaultSize="25%">
+        Проводник
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel id="editor" defaultSize="75%">
+        Редактор
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  );
+}
+```
+
+- Хранилище меняется параметром `storage` — любой объект с `getItem` и `setItem`, например
+  `sessionStorage`.
+- При отрисовке на сервере `localStorage` нет: передайте `storage` явно, иначе хук упадёт на
+  сервере. Без сохранённой раскладки группа берёт `defaultSize` панелей.
+- `onlySaveAfterUserInteractions: true` — сохранять только изменения, сделанные пользователем, а не
+  программные (`setLayout`, пересчёт при смене размеров окна).
+
+## Примеры
 
 <ComponentDoc config={resizableDocConfig} />
+
+## Доступность
+
+Разделитель получает от библиотеки `role="separator"` и фокус по `Tab`. Атрибуты
+`aria-valuenow`, `aria-valuemin` и `aria-valuemax` сообщают размер соседней панели в процентах,
+`aria-controls` — какую панель он меняет. `aria-orientation` разделителя перпендикулярен группе:
+у горизонтальной группы разделитель вертикальный.
+
+| Клавиша             | Действие                                                                   |
+| ------------------- | -------------------------------------------------------------------------- |
+| `←` / `→`           | Сдвинуть разделитель на 5% группы (при `orientation="horizontal"`).        |
+| `↑` / `↓`           | То же при `orientation="vertical"`.                                        |
+| `Home` / `End`      | Сжать панель перед разделителем до минимума / растянуть до максимума.      |
+| `Enter`             | Свернуть или развернуть панель перед разделителем, если она `collapsible`. |
+| `F6` / `Shift + F6` | Перейти к следующему / предыдущему разделителю группы.                     |
+
+- Разделитель с `disabled` фокус не получает и с клавиатуры не двигается.
+- Фокус разделителя обозначен кольцом (`focus-visible:ring`).
+- Рукоятка `withHandle` — только подсказка для глаз, на клавиатуру и роли она не влияет.
+- Подписи у разделителя нет. Если по соседним панелям непонятно, что он меняет, задайте
+  `aria-label` — пропсы разделителя передаются на его элемент.
+
+## Локализация
+
+Своих строк компонент не рисует.
+
+## См. также
+
+- [ScrollArea](./scroll-area.mdx) — прокрутка содержимого панели.
+- [Sidebar](./sidebar.mdx) — сворачиваемая боковая навигация.
+- [Tree](./tree.mdx) — дерево файлов для панели-проводника.
+- [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels) — полный список
+  пропсов и примеры хранилищ.

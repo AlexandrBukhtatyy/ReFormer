@@ -2,6 +2,7 @@
 id: collapsible
 title: Collapsible
 sidebar_label: Collapsible
+description: Один блок, который показывается и скрывается по кнопке.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,68 @@ import { collapsibleDocConfig } from '@site/src/components/demo/examples/collaps
 
 # Collapsible
 
-Раскрывающийся блок на shadcn / Radix `Collapsible`. Compound-набор:
-`Collapsible` / `CollapsibleTrigger` / `CollapsibleContent`. Компонент headless —
-управляет только состоянием раскрытия (uncontrolled через `defaultOpen` либо
-controlled через `open` + `onOpenChange`), а оформление задаёт вызывающий код.
+Один блок, который показывается и скрывается по кнопке. Построен на Radix Collapsible. Своих
+стилей у него нет: компонент отвечает только за «открыто / закрыто», вид задаёте вы.
+
+## Когда брать
+
+- **Collapsible** — один необязательный блок: «Дополнительные параметры» под формой, «Показать
+  ещё» под коротким списком, детали заказа.
+- [Accordion](./accordion.mdx) — несколько однотипных секций с заголовками и готовым оформлением.
+- [Tabs](./tabs.mdx) — несколько равноправных разделов, из которых виден один.
+- [Popover](./popover.mdx) — содержимое должно всплыть поверх страницы, а не сдвинуть её вниз.
+
+## Анатомия
+
+```tsx
+import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from '@reformer/ui-kit'; // или '@reformer/ui-kit/collapsible'
+
+<Collapsible className="flex flex-col gap-2">
+  <CollapsibleTrigger asChild>
+    <Button variant="outline">Дополнительные параметры</Button>
+  </CollapsibleTrigger>
+  <CollapsibleContent>{/* поля или текст */}</CollapsibleContent>
+</Collapsible>;
+```
+
+| Часть                | Что это                                     | Ключевые пропсы                                                 |
+| -------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| `Collapsible`        | Корень: хранит, открыт ли блок.             | `defaultOpen` / `open` + `onOpenChange`, `disabled`             |
+| `CollapsibleTrigger` | Кнопка, которая открывает и закрывает блок. | `asChild` — отдать поведение своему элементу, например `Button` |
+| `CollapsibleContent` | Скрываемое содержимое.                      | `forceMount`, `className`                                       |
+
+`CollapsibleTrigger` без `asChild` рисует голую кнопку `<button>` без оформления. Чтобы кнопка
+выглядела как остальные в ките, оберните ей [Button](./button.mdx) через `asChild`.
+
+Закрытое содержимое удаляется из разметки. Поля формы внутри при этом не теряют значений: их хранит
+[модель](../reference/glossary.md), а не компоненты.
+
+## Примеры
 
 <ComponentDoc config={collapsibleDocConfig} />
+
+## Доступность
+
+| Клавиша           | Действие                                                |
+| ----------------- | ------------------------------------------------------- |
+| `Tab`             | Фокус на кнопку, затем на содержимое, если оно открыто. |
+| `Enter` / `Space` | Открыть или закрыть блок (обычное поведение кнопки).    |
+
+- Кнопка — `<button type="button">` с `aria-expanded`; пока блок открыт, у неё есть
+  `aria-controls` со ссылкой на содержимое.
+- При `disabled` кнопка получает атрибут `disabled` и выпадает из порядка `Tab`.
+- Состояние продублировано в `data-state="open" | "closed"` на кнопке и содержимом — по нему
+  удобно поворачивать стрелку или анимировать раскрытие.
+- Подпись кнопки — ваш текст. Если кнопка состоит из одной иконки, задайте ей `aria-label`.
+
+## Локализация
+
+Своих строк компонент не рисует: подпись кнопки и содержимое — ваш текст.
+
+## См. также
+
+- [Accordion](./accordion.mdx) — несколько раскрывающихся секций.
+- [Button](./button.mdx) — кнопка для `CollapsibleTrigger asChild`.
+- [Item](./item.mdx) — строки внутри раскрываемого списка.
+- [Radix Collapsible](https://www.radix-ui.com/primitives/docs/components/collapsible) — полный
+  список пропсов примитива.

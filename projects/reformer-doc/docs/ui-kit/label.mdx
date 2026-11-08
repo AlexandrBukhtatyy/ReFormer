@@ -1,0 +1,64 @@
+---
+id: label
+title: Label
+sidebar_label: Label
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { labelDocConfig } from '@site/src/components/demo/examples/label';
+
+# Label
+
+Подпись к контролу — элемент `<label>` с оформлением кита. Построен на `Label` из Radix UI.
+
+## Когда брать
+
+- Подпись к полю или флажку в вёрстке без формы.
+- Свой контрол, которому нужна подпись в стиле кита.
+
+Соседи:
+
+- поле формы ReFormer — [FormField](./form-field.mdx): подпись он рисует сам из
+  `componentProps.label`;
+- подпись вместе с пояснением и ошибкой — `FieldLabel` из [Field](./field.mdx);
+- флажок или переключатель с подписью в форме — `CheckboxWithLabel` ([Checkbox](./checkbox.mdx)) и
+  `SwitchWithLabel` ([Switch](./switch.mdx)).
+
+## Анатомия
+
+Одна часть — `Label`. Связь с контролом — атрибут `htmlFor`, равный `id` контрола, либо контрол
+внутри подписи:
+
+```tsx
+import { Input, Label } from '@reformer/ui-kit';
+
+<Label htmlFor="name">Имя</Label>
+<Input id="name" />
+```
+
+Подпись гаснет вместе с выключенным контролом в двух случаях: контрол стоит прямо перед ней и
+помечен классом `peer`, или подпись лежит внутри элемента с классом `group` и
+`data-disabled="true"`.
+
+В форме из JSON каталог кита описывает компонент под именем `Label`, из пропсов там доступны
+`htmlFor` и `className`.
+
+## Примеры и API
+
+<ComponentDoc config={labelDocConfig} />
+
+## Доступность
+
+- Это настоящий `<label>`: клик по нему переводит фокус в связанный контрол или переключает
+  флажок, а скринридер читает текст подписи как имя контрола.
+- Двойной клик по подписи не выделяет её текст — это поведение Radix.
+- Без `htmlFor` (или контрола внутри) подпись остаётся просто текстом: имени у контрола не будет.
+
+## Локализация
+
+Своих строк `Label` не рисует: текст подписи — ваш.
+
+## См. также
+
+- [Field](./field.mdx) — подпись в составе поля.
+- [FormField](./form-field.mdx) — подпись поля формы.

@@ -9,12 +9,116 @@ import { fieldArrayDocConfig } from '@site/src/components/demo/examples/cdk-fiel
 
 # FieldArray
 
-Headless compound-компонент для динамических массивов из `@reformer/cdk`. Массив
-принадлежит модели (`model.<field>`), в схеме объявляется узлом
-`{ model: model.$.items, item: (row) => узел }`, а `FieldArray.*` получает ноду массива
-(`control={form.items}`, `FormArray<T>`) и раздаёт состояние и обработчики через render-props —
-разметку и стили вы пишете сами. Ключ строки (`id` в render-props) — `keyAt(index)` ноды: он
-держится за элемент и не меняется при перестановке. Для готового вида используйте
-`FieldArraySection` из [`@reformer/ui-kit`](../ui-kit/field-array).
+`FieldArray` рисует массив строк формы — телефоны, совладельцев, позиции заказа — и даёт кнопки
+добавления, удаления и перестановки. Разметку строки и кнопок вы пишете сами.
+
+## Когда использовать
+
+- Пользователь сам добавляет и удаляет строки, и вид секции массива нужен свой.
+- Нужна своя кнопка добавления: меню с типами строк, шаблоны, вставка в начало.
+
+Готовая секция с заголовком, карточками строк и кнопками — `FieldArraySection` из
+[ui-kit](../ui-kit/field-array.mdx). Если строки только выводятся и не редактируются, возьмите
+[List](./list.mdx).
+
+## Анатомия
+
+Массив принадлежит [модели](../reference/glossary.md#форма-и-данные): в начальных значениях он
+объявляется через `arrayOf(blank)` — `blank` даёт значение новой строки. В схеме массив — узел
+`{ model: model.$.phones, item: (row) => узел }`. `FieldArray.Root` получает
+[ноду](../reference/glossary.md#форма-и-данные) массива — `control={form.phones}` (`FormArray<T>`).
+
+| Часть                     | Что делает                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `FieldArray.Root`         | Провайдер состояния массива. Функция-ребёнок получает `items`, `length`, `add`, `ownIssues`… Принимает `ref`.    |
+| `FieldArray.List`         | Перебирает строки; функция-ребёнок получает `control` строки, `index`, `id`, `remove`, `moveUp`, `moveDown`.     |
+| `FieldArray.AddButton`    | Кнопка `type="button"`: добавляет строку в конец. Значение — из шаблона `arrayOf`, `initialValue` — поверх него. |
+| `FieldArray.RemoveButton` | Удаляет текущую строку. Только внутри `List`.                                                                    |
+| `FieldArray.Empty`        | Показывается, когда строк нет.                                                                                   |
+| `FieldArray.Count`        | Число строк.                                                                                                     |
+| `FieldArray.ItemIndex`    | Номер текущей строки с единицы. Только внутри `List`.                                                            |
+| `FieldArray.Error`        | Замечания самого массива (`minLength`, `maxLength`) без замечаний полей строк.                                   |
+
+Ключ строки — `id`. Он держится за элемент модели и не меняется при удалении соседей и
+перестановке. Ставьте его в `key`, а не `index`, иначе фокус «переедет» на другую строку.
+
+Тип строки через контекст не выводится: пишите его явно — `FieldArray.List<Phone>` — или берите
+функцию-ребёнка `Root` и хук `useFieldArray`: там тип строки выводится из `control`.
+
+```tsx
+import { FieldArray } from '@reformer/cdk/field-array';
+
+<FieldArray.Root control={form.phones}>
+  {({ items, length }) => (
+    <>
+      {items.map(({ control, id, remove }) => (
+        <div key={id}>
+          <FormField control={control.number} />
+          <button onClick={remove}>Удалить</button>
+        </div>
+      ))}
+      <p>Телефонов: {length}</p>
+      <FieldArray.AddButton>Добавить</FieldArray.AddButton>
+    </>
+  )}
+</FieldArray.Root>;
+```
+
+### Предел числа строк
+
+У cdk-компонента нет пропа `maxItems`, а `FieldArray.AddButton` не знает предела: он отключается,
+только когда отключён сам массив. Предел складывается из двух частей:
+
+1. **Данные** ограничивает правило: `maxLength(n)` на массиве даёт замечание `maxItems`,
+   `minLength(n)` — `minItems`. Их показывает `FieldArray.Error`.
+2. **Разметку** вы ограничиваете сами: по `length` из функции-ребёнка `Root` (или из
+   `useFieldArray`) спрячьте кнопку на пределе — пример «Предел числа строк» ниже.
+
+В ui-kit предел уже собран: у `FieldArraySection` и у узла схемы `FieldArray` проп `maxItems`
+**скрывает** кнопку «Добавить», когда строк столько же или больше. Правило `maxLength(n)` для данных
+всё равно нужно — проп ограничивает только разметку.
+
+### Управление снаружи
+
+Кнопка вне дерева `Root` — в шапке страницы, в диалоге — управляет массивом через `ref`:
+
+```tsx
+import { useRef } from 'react';
+import { FieldArray, type FieldArrayHandle } from '@reformer/cdk/field-array';
+
+const phonesRef = useRef<FieldArrayHandle<Phone>>(null);
+
+<button onClick={() => phonesRef.current?.add({ kind: 'Рабочий' })}>+ Рабочий</button>
+<button onClick={() => phonesRef.current?.clear()}>Очистить</button>
+
+<FieldArray.Root ref={phonesRef} control={form.phones}>…</FieldArray.Root>;
+```
+
+`FieldArrayHandle` даёт `add`, `insert`, `removeAt`, `move`, `swap`, `clear`, `at`. Поля `length`
+и `isEmpty` — снимок на момент рендера; для реактивной длины снаружи есть
+`useArrayLength(form.phones)` из `@reformer/core/react`.
+
+## Примеры
 
 <ComponentDoc config={fieldArrayDocConfig} />
+
+## Доступность
+
+- `AddButton` и `RemoveButton` рендерят `<button type="button">`: они не отправляют форму. Через
+  `asChild` поведение отдаётся вашей кнопке.
+- Обе кнопки отключаются, когда массив отключён (`disable()` на массиве или на группе выше).
+- `FieldArray.Error` рендерит элемент с `role="alert"`.
+- Подписи кнопок, особенно у иконок «×» и «↑», задаёте вы: добавьте `aria-label` с номером строки
+  («Удалить телефон 2»). Фокус после удаления строки компонент не переносит.
+
+## Локализация
+
+Своих строк у `FieldArray` нет: тексты кнопок и пустого состояния — ваши. Текст замечаний в
+`FieldArray.Error` даёт локаль (`validation.minItems`, `validation.maxItems`) или словарь формы —
+см. [Тексты замечаний](./validation-messages.mdx).
+
+## См. также
+
+- [Массивы в форме](/docs/patterns/arrays) — модель, схема и правила массива.
+- [FieldArraySection в ui-kit](../ui-kit/field-array.mdx) — готовая секция с `maxItems`.
+- [List](./list.mdx) — вывод массива без редактирования.

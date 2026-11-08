@@ -4,23 +4,19 @@ sidebar_position: 3
 
 # Ноды формы
 
-**Ноды** — строительные блоки формы. Их не создают вручную через `new` — их строит `createForm`
-поверх сигналов модели, а прикладной код работает с ними через интерфейсы:
+[Нода](/docs/reference/glossary) — состояние поля, группы или массива в форме: значение, касание,
+замечания, доступность. Ноды строит `createForm` поверх сигналов [модели](./model.mdx). Сами
+значения хранит модель, нода их только читает и пишет.
 
-| Нода          | Назначение                                       | Пример                        |
-| ------------- | ------------------------------------------------ | ----------------------------- |
-| `FormControl` | одно значение (строка, число, флаг, мультивыбор) | текстовое поле, чекбокс, теги |
-| `FormGroup`   | объект с именованными полями                     | вся форма, секция, адрес      |
-| `FormArray`   | динамический список под-форм                     | телефоны, созаёмщики          |
+## Когда нужно
 
-Все три расширяют общий контракт `FormNode<T>`. Классы реализации — внутренние: типы для
-аннотаций берите из `@reformer/core` (`FormControl`, `FormGroup`, `FormArray`, `FormNode`).
+С нодами работают, когда нужно:
 
-## Доступ к полям
+- показать в компоненте значение и замечания поля — хуки React читают именно ноду;
+- отметить поля тронутыми, выключить поле, поставить замечание от сервера;
+- перебрать и переставить строки массива в разметке.
 
-`createForm` возвращает в сборке корневую группу `form`: к полям обращаются по имени, к вложенным —
-цепочкой. Нода есть у каждого поля модели; вид ноды определяет вид узла модели: лист — поле,
-объект — группа, массив объектов — массив под-форм (если схема описала его строку узлом с `item`).
+## Минимальный пример
 
 ```typescript
 import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
@@ -40,157 +36,147 @@ const { form } = createForm<Profile>({
   schema: profileSchema,
 });
 
-form.firstName; // FormControl<string>
-form.address; // FormGroup<{ city: string }>
-form.address.city; // FormControl<string> — вложенный доступ
+form.firstName; // FormControl<string> — нода поля
+form.address; // FormGroup<{ city: string }> — нода группы
+form.address.city.setValue('Казань'); // запись уходит в модель
+form.address.city.touched.value; // false — состояние читается через сигнал
 ```
 
-### Поля с именами членов ноды — `form.$`
+## Три вида нод
 
-Точкой доступны все поля, кроме тех, чьё имя занято членом `FormNode` (`value`, `issues`, `reset`,
-`disabled`, …). Такое поле достаётся через пространство `form.$`, где перечислены **все** поля
-группы. Остальные имена (`id`, `status`, `fields`, `submit`, …) ничем не затенены.
+| Нода          | Что описывает                                    | Пример                        |
+| ------------- | ------------------------------------------------ | ----------------------------- |
+| `FormControl` | одно значение: строку, число, флаг, список тегов | текстовое поле, чекбокс, теги |
+| `FormGroup`   | объект с именованными полями                     | вся форма, секция, адрес      |
+| `FormArray`   | список строк, каждая строка — `FormGroup`        | телефоны, созаёмщики          |
 
-```typescript
-type Order = { status: string; value: number };
+Вид ноды определяет поле модели и то, как его описала [схема формы](./schemas/form-schema.md):
 
-const { form } = createForm<Order>({ initial: { status: 'new', value: 0 } });
+- простое значение (строка, число, дата) — `FormControl`;
+- вложенный объект — `FormGroup`;
+- массив, строку которого схема описала узлом с `item`, — `FormArray`;
+- массив, к которому схема привязала компонент целиком (теги, мультивыбор), — `FormControl`.
 
-form.status.setValue('paid'); // обычное поле данных
-form.value; // сигнал значения самой группы (член FormNode)
-form.$.value.setValue(100); // поле данных «value» — через form.$
-```
+Типы для аннотаций — `FormControl`, `FormGroup`, `FormArray` и общий `FormNode` из
+`@reformer/core`.
 
-:::warning Проверяйте вид ноды гардами, а не `instanceof`
-Классы нод внутренние, поэтому `node instanceof …` не работает. Используйте
-[type-guards](#type-guards).
-:::
+## Состояние ноды
 
-## Состояние ноды — сигналы
+Состояние ноды — сигналы только для чтения. В React их читают хуком
+[`useFormControl`](/docs/react/hooks), вне React — через `.value`.
 
-Свойства ноды `value`, `valid`, `invalid`, `issues`, `touched`, `dirty`, `disabled`, `pending` —
-**сигналы** (реактивные, только для чтения). В React их удобнее читать через
-[`useFormControl`](../react/hooks); вне React — через `.value` сигнала или методы ниже.
+| Сигнал              | Тип                          | Что значит                                                 |
+| ------------------- | ---------------------------- | ---------------------------------------------------------- |
+| `value`             | `T`                          | текущее значение из модели                                 |
+| `valid` / `invalid` | `boolean`                    | блокирующих замечаний нет / есть                           |
+| `issues`            | `readonly ValidationIssue[]` | замечания; у группы и массива — вместе с замечаниями полей |
+| `ownIssues`         | `readonly ValidationIssue[]` | замечания самой ноды, без полей (например, длина массива)  |
+| `touched`           | `boolean`                    | пользователь трогал поле                                   |
+| `dirty`             | `boolean`                    | значение меняли через поле после создания или сброса       |
+| `disabled`          | `boolean`                    | нода выключена: замечаний нет, в проверку не входит        |
+| `pending`           | `boolean`                    | идёт асинхронная проверка                                  |
 
-| Свойство (сигнал)   | Тип                          | Описание                                                        |
-| ------------------- | ---------------------------- | --------------------------------------------------------------- |
-| `value`             | `T`                          | текущее значение (источник — модель)                            |
-| `valid` / `invalid` | `boolean`                    | нет / есть блокирующие замечания                                |
-| `issues`            | `readonly ValidationIssue[]` | замечания валидации; у группы и массива — свои и всех детей     |
-| `ownIssues`         | `readonly ValidationIssue[]` | только свои замечания: у массива — `minLength` и т.п. без строк |
-| `touched` / `dirty` | `boolean`                    | пользователь взаимодействовал / значение менялось               |
-| `disabled`          | `boolean`                    | нода отключена: замечания сняты, в проверку не входит           |
-| `pending`           | `boolean`                    | идёт асинхронная проверка поля                                  |
+Выключенная нода и нода, у которой идёт асинхронная проверка, — ни `valid`, ни `invalid`: оба
+сигнала `false`. Поэтому кнопка с `disabled={!form.valid.value}` недоступна и у формы, выключенной
+на время отправки. На родителя выключенное поле не влияет: в его `valid` оно не входит.
 
-Статуса-строки у ноды нет: состояние читается флагами `valid` / `invalid` / `pending` /
-`disabled`.
+## Методы
 
-## Методы ноды
-
-Общие для поля, группы и массива:
+Общие для всех нод:
 
 ```typescript
-form.firstName.getValue(); // прочитать значение без подписки
-form.firstName.setValue('John'); // записать значение в модель
-form.firstName.reset(); // вернуть значение и состояние к начальным
-form.firstName.reset('Jane'); // …или к переданному значению
-form.firstName.markAsTouched(); // отметить «тронутым» (у группы — все поля)
+form.firstName.getValue(); // значение без подписки
+form.firstName.setValue('Анна'); // записать значение в модель
+form.firstName.reset(); // значение — к точке отсчёта модели, замечания и касание сняты
+form.firstName.reset('Анна'); // …или к переданному значению
+form.firstName.markAsTouched(); // у группы — все её поля
 form.firstName.markAsUntouched();
-form.firstName.disable(); // отключить
-form.firstName.enable(); // включить
-form.firstName.setIssues([{ code: 'taken' }]); // поставить замечания извне (ответ сервера)
-form.firstName.clearIssues(); // снять замечания
+form.firstName.disable();
+form.firstName.enable();
+form.firstName.setIssues([{ code: 'taken' }]); // замечание извне, например от сервера
+form.firstName.clearIssues();
 ```
 
-Изменение значения через ноду отражается в модели (и наоборот) — это одни и те же сигналы.
-Частичное обновление нескольких полей делается на модели: `model.patch({ ... })` (см.
-[Модель данных](./model#set-против-patch)).
+### Поле — `FormControl`
 
-:::info Нода не проверяет правила
-Правила формы живут в отдельной `ValidationDefinition` и запускаются сборкой — `bundle.validate()`,
-`bundle.submission.submit(handler)` — или раннером
-[`validateModel(model, rules)`](./schemas/validation-schema).
-Раннер сам разносит замечания по нодам (`setIssues`), после чего они видны в сигнале `issues`.
-Метода `validate()` у ноды нет.
-:::
-
-### FormControl
-
-Лист дерева. Дополнительно к общим методам — состояние компонента из узла схемы:
+У поля есть ещё состояние его компонента из узла схемы:
 
 ```typescript
 form.email.component; // компонент из узла схемы
-form.email.componentProps; // сигнал текущих componentProps
-form.email.updateComponentProps({ options: [...] }); // слить правку в пропсы (например, опции Select)
-form.email.shouldShowError; // сигнал: invalid && (touched || dirty) — состояние ошибки
-form.email.shouldShowIssues; // сигнал: есть замечания && (touched || dirty) — показ текстов
+form.email.componentProps.value; // текущие пропсы компонента
+form.email.updateComponentProps({ placeholder: 'name@example.com' }); // дописать пропсы
+form.email.shouldShowError.value; // показывать ли состояние ошибки: invalid и поле трогали или меняли
+form.email.shouldShowIssues.value; // показывать ли тексты замечаний, включая предупреждения
 ```
 
-### FormGroup
+### Массив — `FormArray`
 
-Группирует поля в объект: `form` целиком, вложенные группы (`form.address`), строки массива.
-
-```typescript
-form.address.getValue(); // { city: '...' }
-form.address.markAsTouched(); // отметить все дочерние поля тронутыми
-form.address.issues.value; // замечания группы и всех её полей
-form.$.address; // та же группа через пространство всех полей
-```
-
-### FormArray
-
-Динамический список под-форм: каждая строка — `FormGroup` над элементом массива модели. Данными
-массив не владеет — мутации уходят в массив модели, а формы строк держатся за под-модели и при
-`move` / `swap` не пересоздаются.
+Каждая строка — `FormGroup` над элементом массива модели. Изменения уходят в массив модели, а ноды
+строк при перестановке не пересоздаются.
 
 ```typescript
-form.phones.length; // число строк (чтение в effect/computed подписывает на изменения)
-form.phones.at(0); // FormGroup строки
-form.phones.map((row, i) => row.number); // обход строк
-form.phones.keyAt(0); // стабильный ключ строки для React — не меняется при move/swap
+form.phones.length; // число строк
+form.phones.at(0); // FormGroup первой строки
+form.phones.map((row, index) => row.number); // обход строк
+form.phones.keyAt(0); // ключ строки для React: не меняется при move и swap
 
-form.phones.push(); // добавить строку по шаблону массива модели (arrayOf)
-form.phones.push({ type: 'mobile', number: '' }); // …или значение целиком
-form.phones.insert(0, { type: 'home', number: '' });
+form.phones.push(); // строка по шаблону arrayOf из модели
+form.phones.push({ number: '' }); // …или со значением
+form.phones.insert(0, { number: '' });
 form.phones.removeAt(1);
 form.phones.move(0, 2);
 form.phones.swap(0, 1);
 form.phones.clear();
 ```
 
-В React строки рисуют с ключом `keyAt(index)`, а реактивную длину читают через
-[`useArrayLength`](../react/hooks).
+Строки в React рисуют с ключом `keyAt(index)`, длину читают хуком
+[`useArrayLength`](/docs/react/hooks). Подробнее — в [Массивах](/docs/patterns/arrays).
 
-## Type-guards
+## Поле с именем члена ноды — `form.$`
 
-Вид ноды определяют функции-гарды:
+Через точку доступны все поля, кроме тех, чьё имя совпадает с членом ноды: `value`, `issues`,
+`reset`, `disabled` и т. п. Такое поле берут из `form.$`, где перечислены все поля группы.
 
 ```typescript
-import { isFormNode, isFormControl, isFormGroup, isFormArray } from '@reformer/core';
+type Order = { status: string; value: number };
 
-if (isFormControl(node)) {
-  /* поле */
-}
-if (isFormGroup(node)) {
-  /* группа */
-}
-if (isFormArray(node)) {
-  /* массив под-форм */
-}
+const { form } = createForm<Order>({ initial: { status: 'new', value: 0 } });
+
+form.status.setValue('paid'); // обычное поле
+form.value; // сигнал значения самой группы
+form.$.value.setValue(100); // поле данных с именем value
+```
+
+## Как узнать вид ноды
+
+Классы нод не экспортируются, поэтому `instanceof` не работает. Вид ноды проверяют функциями:
+
+```typescript
+import { isFormArray, isFormControl, isFormGroup, isFormNode } from '@reformer/core';
+
+if (isFormControl(node)) node.updateComponentProps({ hint: 'Обязательно' });
+if (isFormGroup(node)) node.markAsTouched();
+if (isFormArray(node)) node.push();
 isFormNode(value); // любая нода формы
 ```
 
-:::note Прежний контракт нод
-Удалены: классы `FieldNode`, `GroupNode`, `ModelArrayNode` и тип `FormProxy` (→ `FormGroup`),
-`status` / `FieldStatus` (→ флаги `valid` / `invalid` / `pending` / `disabled`), `patchValue`
-(→ `model.patch`), `markAsDirty` / `markAsPristine`, `validate()` ноды (→ `bundle.validate()`),
-`errors` / `setErrors` / `clearErrors` (→ `issues` / `setIssues` / `clearIssues`), гарды
-`isFieldNode` / `isGroupNode` / `isArrayNode` (→ `isFormControl` / `isFormGroup` / `isFormArray`).
-`length` массива — число, а не сигнал.
-:::
+## Подводные камни
 
-## Дальше
+- **Нода не проверяет правила.** Проверку запускает сборка формы: `bundle.validate()`,
+  `bundle.submission.submit(handler)`, шаг потока. Замечания она сама раскладывает по нодам. См.
+  [Обзор валидации](/docs/validation/overview).
+- **У массива без узла в схеме ноды нет.** Если схема не описала массив ни узлом с `item`, ни
+  привязкой компонента, `form.<массив>` в рантайме — `undefined`. Строки такого массива меняют на
+  модели: `model.items.push()`.
+- **Несколько полей сразу — через модель.** У ноды нет частичной записи; для неё есть
+  `model.patch({ … })`.
+- **`dirty` ноды и `model.isDirty()` — разное.** `dirty` ноды ставит запись через поле: ввод
+  пользователя или `setValue`. Запись прямо в модель (`model.name = …`, `model.patch`) его не
+  ставит. `model.isDirty()` сравнивает значения с точкой отсчёта, кто бы их ни записал.
 
-- [Схема формы](./schemas/overview) — как описать структуру и привязать ноды к модели.
-- [React-хуки](../react/hooks) — читать состояние нод в компонентах.
-- [Массивы и динамические формы](../patterns/arrays) — работа с `FormArray` на практике.
+## См. также
+
+- [Модель данных](./model.mdx) — где хранятся значения.
+- [Схема формы](./schemas/form-schema.md) — как поля модели становятся нодами.
+- [React-хуки](/docs/react/hooks) — состояние нод в компонентах.
+- [Массивы и динамические формы](/docs/patterns/arrays) — `FormArray` на практике.

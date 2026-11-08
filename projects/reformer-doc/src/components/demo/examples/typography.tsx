@@ -15,20 +15,20 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Typography — не form-control и не примитив с Radix, а набор prose-обёрток на Tailwind-классах
- * (в shadcn это guide-страница). Таб Variants показывает категории (заголовки / текст / списки-цитаты /
- * код), Examples — приёмы (статья, override className). Form-bound таба (api) нет.
+ * Typography — не поле формы: набор обёрток над тегами текста с готовыми классами. Variants —
+ * группы (заголовки, текст, списки и цитаты, код), Examples — приёмы (статья, замена класса).
+ * Обёртка `<div style>` в render — рамка демо, в `code` её нет.
  */
 export const typographyDocConfig: ComponentDocConfig = {
   name: 'Typography',
   importFrom: '@reformer/ui-kit',
   description:
-    'Набор типографских обёрток на Tailwind-классах по образцу shadcn/ui. Каждый — тонкий wrapper над нужным тегом с data-slot и мёржем className через cn().',
+    'Заголовки, абзацы, списки, цитаты и код с готовыми размерами и отступами. Каждый компонент — один тег.',
   variants: [
     {
       id: 'headings',
       title: 'Заголовки',
-      description: 'TypographyH1 / H2 / H3 / H4 — scroll-m-20 + размер / вес / tracking.',
+      description: 'TypographyH1–H4 рисуют теги h1–h4 с размером, весом и межбуквенным интервалом.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <TypographyH1>Заголовок H1</TypographyH1>
@@ -46,12 +46,12 @@ export const typographyDocConfig: ComponentDocConfig = {
       id: 'text',
       title: 'Текст',
       description:
-        'TypographyP (абзац), TypographyLead (лид), TypographyLarge / Small / Muted — акценты и подписи.',
+        'TypographyLead — вводный абзац, TypographyP — обычный, TypographyLarge / Small / Muted — акценты и подписи.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <TypographyLead>Лид-абзац — крупный вводный текст под заголовком.</TypographyLead>
           <TypographyP>
-            Обычный абзац с leading-7. Второй и последующие абзацы получают верхний отступ.
+            Обычный абзац. Второй и следующие абзацы подряд получают отступ сверху.
           </TypographyP>
           <TypographyLarge>Крупный акцент</TypographyLarge>
           <TypographySmall>Мелкий текст-подпись</TypographySmall>
@@ -59,16 +59,18 @@ export const typographyDocConfig: ComponentDocConfig = {
         </div>
       ),
       code: `<TypographyLead>Лид-абзац — крупный вводный текст под заголовком.</TypographyLead>
-<TypographyP>Обычный абзац с leading-7…</TypographyP>
+<TypographyP>
+  Обычный абзац. Второй и следующие абзацы подряд получают отступ сверху.
+</TypographyP>
 <TypographyLarge>Крупный акцент</TypographyLarge>
 <TypographySmall>Мелкий текст-подпись</TypographySmall>
 <TypographyMuted>Приглушённый вспомогательный текст</TypographyMuted>`,
     },
     {
       id: 'list-quote',
-      title: 'Списки и цитаты',
+      title: 'Список и цитата',
       description:
-        'TypographyList (маркированный список) и TypographyBlockquote (цитата с рамкой).',
+        'TypographyList — маркированный список ul, TypographyBlockquote — цитата с линией слева.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <TypographyList>
@@ -77,93 +79,126 @@ export const typographyDocConfig: ComponentDocConfig = {
             <li>Третий пункт</li>
           </TypographyList>
           <TypographyBlockquote>
-            «Хорошая типографика незаметна, но делает текст читаемым.»
+            «Хорошая типографика незаметна, но делает текст читаемым».
           </TypographyBlockquote>
         </div>
       ),
       code: `<TypographyList>
   <li>Первый пункт</li>
   <li>Второй пункт</li>
+  <li>Третий пункт</li>
 </TypographyList>
-
 <TypographyBlockquote>
-  «Хорошая типографика незаметна…»
+  «Хорошая типографика незаметна, но делает текст читаемым».
 </TypographyBlockquote>`,
     },
     {
       id: 'code',
-      title: 'Код',
-      description: 'TypographyInlineCode — инлайновый код на фоне muted, моноширинный.',
+      title: 'Код в строке',
+      description: 'TypographyInlineCode — моноширинный фрагмент на сером фоне внутри абзаца.',
       render: () => (
         <TypographyP>
-          Установите зависимость командой{' '}
+          Установите пакет командой{' '}
           <TypographyInlineCode>npm i @reformer/ui-kit</TypographyInlineCode> и импортируйте
           компоненты.
         </TypographyP>
       ),
       code: `<TypographyP>
-  Установите командой <TypographyInlineCode>npm i @reformer/ui-kit</TypographyInlineCode>.
+  Установите пакет командой{' '}
+  <TypographyInlineCode>npm i @reformer/ui-kit</TypographyInlineCode> и импортируйте
+  компоненты.
 </TypographyP>`,
     },
   ],
   examples: [
     {
       id: 'article',
-      title: 'Статья — комбинация обёрток',
-      description:
-        'Типографские обёртки комбинируются в связный документ: заголовок, лид, абзацы, список, цитата.',
+      title: 'Статья',
+      description: 'Обёртки складываются в связный текст: заголовок, лид, раздел, список, цитата.',
       render: () => (
         <article>
           <TypographyH1>Начало работы</TypographyH1>
-          <TypographyLead>
-            Короткое введение, объясняющее, о чём раздел, крупным приглушённым текстом.
-          </TypographyLead>
+          <TypographyLead>Коротко о том, что внутри раздела и для кого он.</TypographyLead>
           <TypographyH2>Установка</TypographyH2>
-          <TypographyP>
-            Добавьте пакет и подключите его в проект. Компоненты не требуют дополнительной
-            настройки.
-          </TypographyP>
+          <TypographyP>Добавьте пакет и подключите стили темы.</TypographyP>
           <TypographyList>
             <li>Установить пакет</li>
-            <li>Импортировать нужные обёртки</li>
-            <li>Обернуть контент</li>
+            <li>Импортировать нужные компоненты</li>
+            <li>Обернуть текст</li>
           </TypographyList>
-          <TypographyBlockquote>Совет: используйте H2 для основных разделов.</TypographyBlockquote>
+          <TypographyBlockquote>Совет: делите раздел заголовками H2.</TypographyBlockquote>
         </article>
       ),
       code: `<article>
   <TypographyH1>Начало работы</TypographyH1>
-  <TypographyLead>Короткое введение…</TypographyLead>
+  <TypographyLead>Коротко о том, что внутри раздела и для кого он.</TypographyLead>
   <TypographyH2>Установка</TypographyH2>
-  <TypographyP>Добавьте пакет и подключите его…</TypographyP>
+  <TypographyP>Добавьте пакет и подключите стили темы.</TypographyP>
   <TypographyList>
     <li>Установить пакет</li>
-    <li>Импортировать нужные обёртки</li>
+    <li>Импортировать нужные компоненты</li>
+    <li>Обернуть текст</li>
   </TypographyList>
-  <TypographyBlockquote>Совет: используйте H2…</TypographyBlockquote>
+  <TypographyBlockquote>Совет: делите раздел заголовками H2.</TypographyBlockquote>
 </article>`,
     },
     {
       id: 'class-override',
-      title: 'Override className (tailwind-merge)',
+      title: 'Свой класс поверх готового',
       description:
-        'className вызывающего перекрывает дефолтные классы обёртки: например, выравнивание заголовка по центру.',
-      render: () => <TypographyH2 className="text-center">Заголовок по центру</TypographyH2>,
-      code: `<TypographyH2 className="text-center">Заголовок по центру</TypographyH2>`,
+        'При конфликте Tailwind-классов побеждает ваш: border-b-0 убирает линию под H2, text-2xl заменяет text-3xl.',
+      render: () => (
+        <TypographyH2 className="border-b-0 text-2xl">Заголовок без линии</TypographyH2>
+      ),
+      code: `<TypographyH2 className="border-b-0 text-2xl">Заголовок без линии</TypographyH2>`,
     },
   ],
   props: [
     {
+      name: 'TypographyH1 … H4',
+      type: 'h1 … h4',
+      description: 'Заголовки. H2 рисует линию снизу и не берёт отступ сверху, если стоит первым.',
+    },
+    {
+      name: 'TypographyP',
+      type: 'p',
+      description: 'Абзац с межстрочным интервалом; со второго абзаца подряд — отступ сверху.',
+    },
+    {
+      name: 'TypographyLead',
+      type: 'p',
+      description: 'Вводный абзац: крупнее и приглушённым цветом.',
+    },
+    {
+      name: 'TypographyLarge / TypographySmall / TypographyMuted',
+      type: 'div / small / p',
+      description: 'Крупный полужирный текст, мелкая подпись, приглушённый вспомогательный текст.',
+    },
+    {
+      name: 'TypographyList',
+      type: 'ul',
+      description: 'Маркированный список; пункты — обычные <li>.',
+    },
+    {
+      name: 'TypographyBlockquote',
+      type: 'blockquote',
+      description: 'Цитата курсивом с линией слева.',
+    },
+    {
+      name: 'TypographyInlineCode',
+      type: 'code',
+      description: 'Код в строке: моноширинный шрифт на сером фоне.',
+    },
+    {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы (tailwind-merge — класс вызывающего перекрывает конфликтующие дефолтные).',
+        'Дополнительные классы у любого компонента. При конфликте Tailwind-классов побеждает ваш.',
     },
     {
       name: '...props',
-      type: "React.ComponentProps<'…'>",
-      description:
-        'Любые нативные props соответствующего тега (id, onClick и т.д.) прокидываются как есть.',
+      type: 'атрибуты своего тега',
+      description: 'Остальные атрибуты тега (id, title, aria-*) передаются как есть.',
     },
   ],
 };

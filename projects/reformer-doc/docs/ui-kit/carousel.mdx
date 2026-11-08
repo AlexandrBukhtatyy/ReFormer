@@ -2,6 +2,7 @@
 id: carousel
 title: Carousel
 sidebar_label: Carousel
+description: Лента слайдов со стрелками, свайпом и листанием клавишами.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,11 +10,108 @@ import { carouselDocConfig } from '@site/src/components/demo/examples/carousel';
 
 # Carousel
 
-Карусель на shadcn / [embla-carousel-react](https://www.embla-carousel.com/). Это
-compound-компонент: корень `Carousel` (инициализирует embla и раздаёт контекст),
-`CarouselContent` (вьюпорт с flex-треком), `CarouselItem` (слайд, ширина — через `basis-*`),
-и стрелки `CarouselPrevious` / `CarouselNext` (outline/icon `Button`, авто-`disabled` на краях).
-Навигация клавишами `←` / `→` и свайпом — из embla. `embla-carousel-react` — optional peer
-dependency (ставится в приложении-потребителе).
+Лента слайдов, которую листают стрелками, свайпом или клавишами `←` / `→`. Построена на
+[embla-carousel-react](https://www.embla-carousel.com/) и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+Карусель тянет внешнюю библиотеку, поэтому в общий импорт `@reformer/ui-kit` не входит. Поставьте
+зависимость и импортируйте из отдельного входа:
+
+```bash
+npm install embla-carousel-react
+```
+
+```tsx
+import { Carousel, CarouselContent, CarouselItem } from '@reformer/ui-kit/carousel';
+```
+
+## Когда брать
+
+- **Carousel** — однотипные карточки, которые не помещаются в ширину: фото товара, отзывы,
+  тарифы на узком экране.
+- [Tabs](./tabs.mdx) — разделы с названиями, между которыми переключаются по заголовку.
+- [ScrollArea](./scroll-area.mdx) — просто прокрутить длинный ряд, без постраничного листания.
+- Шаги анкеты — не карусель: их ведёт [FormWizard](./form-navigation.mdx) с проверкой каждого
+  шага.
+
+## Анатомия
+
+```tsx
+<Carousel opts={{ loop: true }} aria-label="Фото товара" className="w-full max-w-xs">
+  <CarouselContent>
+    {photos.map((photo) => (
+      <CarouselItem key={photo.id} className="basis-1/2">
+        <img src={photo.src} alt={photo.alt} />
+      </CarouselItem>
+    ))}
+  </CarouselContent>
+  <CarouselPrevious />
+  <CarouselNext />
+</Carousel>
+```
+
+| Часть              | Что это                                             | Ключевые пропсы                               |
+| ------------------ | --------------------------------------------------- | --------------------------------------------- |
+| `Carousel`         | Корень: запускает embla, ловит клавиши `←` / `→`.   | `orientation`, `opts`, `plugins`, `setApi`    |
+| `CarouselContent`  | Окно ленты с обрезкой по краям.                     | `className` — попадает на саму ленту          |
+| `CarouselItem`     | Слайд. По умолчанию занимает всю ширину окна.       | `className` с `basis-*` — сколько видно сразу |
+| `CarouselPrevious` | Стрелка «назад». Блокируется, когда листать некуда. | пропсы [Button](./button.mdx)                 |
+| `CarouselNext`     | Стрелка «вперёд».                                   | пропсы [Button](./button.mdx)                 |
+
+- `opts` уходят в embla как есть: `loop`, `align`, `slidesToScroll`, `startIndex`.
+- `setApi` отдаёт api embla — для своего счётчика, точек-индикаторов или перехода к слайду
+  (`api.scrollTo(2)`). Тип — `CarouselApi`.
+- Стрелки стоят за краями карусели (`-left-12`, `-right-12`). Оставьте снаружи место — отступ
+  `px-12` у родителя — или передвиньте их своим `className`.
+- У вертикальной ленты (`orientation="vertical"`) задайте `CarouselContent` фиксированную высоту.
+
+## Примеры
 
 <ComponentDoc config={carouselDocConfig} />
+
+## Доступность
+
+| Клавиша           | Действие                                                  |
+| ----------------- | --------------------------------------------------------- |
+| `Tab`             | Фокус на стрелки и на ссылки и кнопки внутри слайдов.     |
+| `←` / `→`         | Предыдущий / следующий слайд, пока фокус внутри карусели. |
+| `Enter` / `Space` | На стрелке — перелистнуть.                                |
+
+- Корень — `role="region"` с `aria-roledescription="carousel"`, слайд — `role="group"` с
+  `aria-roledescription="slide"`. Дайте корню имя (`aria-label="Фото товара"`), а слайдам — номер
+  (`aria-label="2 из 5"`).
+- У вертикальной ленты клавиши те же — `←` и `→`, стрелки `↑` / `↓` она не обрабатывает.
+- У стрелок нет видимого текста; их имя для скринридера — скрытая подпись из словаря кита.
+- Сама карусель не объявляет смену слайда. Если это важно, выведите счётчик «Слайд N из M» в
+  `aria-live="polite"` (пример «Счётчик слайдов»).
+- Автопрокрутки по умолчанию нет. Если включаете её плагином, дайте кнопку паузы.
+
+## Локализация
+
+Кит рисует сам только скрытые подписи стрелок:
+
+| Ключ словаря            | English        | Русский          |
+| ----------------------- | -------------- | ---------------- |
+| `kit.carousel.previous` | Previous slide | Предыдущий слайд |
+| `kit.carousel.next`     | Next slide     | Следующий слайд  |
+
+Язык берётся из `I18nProvider` (`@reformer/core/react`) с локалью кита `loadKitLocale` из
+`@reformer/ui-kit/locale`; без провайдера подписи английские. Для одной карусели подпись меняет
+`aria-label` на стрелке (`<CarouselNext aria-label="Следующее фото" />`), для всего приложения —
+свой источник словаря после `loadKitLocale`:
+
+```tsx
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+const loadLocale = createLocaleLoader([
+  loadKitLocale,
+  (code) => (code === 'ru' ? { 'kit.carousel.next': 'Следующее фото' } : null),
+]);
+```
+
+## См. также
+
+- [Tabs](./tabs.mdx) — переключение разделов с названиями.
+- [ScrollArea](./scroll-area.mdx) — прокрутка без листания.
+- [Документация embla](https://www.embla-carousel.com/api/options/) — все `opts` и методы api.

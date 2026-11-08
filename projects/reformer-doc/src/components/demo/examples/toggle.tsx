@@ -1,111 +1,121 @@
+import { useState } from 'react';
+import { BoldIcon } from 'lucide-react';
 import { Toggle, toggleBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
+
+/** Вне формы: кнопка-иконка с pressed + onPressedChange и подписью для скринридера. */
+function BoldToggle() {
+  const [bold, setBold] = useState(false);
+  return (
+    <Toggle variant="outline" aria-label="Полужирный" pressed={bold} onPressedChange={setBold}>
+      <BoldIcon />
+    </Toggle>
+  );
+}
+
+const BOLD_TOGGLE_CODE = `import { useState } from 'react';
+import { BoldIcon } from 'lucide-react';
+import { Toggle } from '@reformer/ui-kit';
+
+function BoldToggle() {
+  const [bold, setBold] = useState(false);
+  return (
+    <Toggle variant="outline" aria-label="Полужирный" pressed={bold} onPressedChange={setBold}>
+      <BoldIcon />
+    </Toggle>
+  );
+}`;
+
+// Пропсы панели API — из props-схемы варианта. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(toggleBasePropsSchema), {
+  omit: ['label'],
+});
 
 export const toggleDocConfig: ComponentDocConfig = {
   name: 'Toggle',
   importFrom: '@reformer/ui-kit',
   description:
-    'Двухпозиционная кнопка на Radix (button + aria-pressed). Значение — boolean (pressed). В ОТЛИЧИЕ от Checkbox/Switch — НЕ inline-label: подпись поля рисует FormField сверху из componentProps.label, а контент кнопки (иконка/текст) задаётся через children. Стиль — variant (default/outline), размер — size.',
+    'Кнопка, которая остаётся нажатой. Значение — boolean; подпись поля стоит сверху, на кнопке — текст или иконка из children.',
   variants: [
-    {
+    fieldVariant({
       id: 'basic',
-      title: 'Переключатель (нажат/отжат)',
-      description: 'Значение — boolean. Контент кнопки — children; подпись поля — сверху из label.',
-      render: makeFieldVariant({
-        initial: false,
-        component: Toggle,
-        componentProps: { label: 'Форматирование', children: 'Полужирный' },
-      }),
-      code: `{
-  model: model.$.bold,
-  component: Toggle,
-  componentProps: { label: 'Форматирование', children: 'Полужирный' },
-}`,
-    },
-    {
-      id: 'outline',
-      title: 'Вариант outline, включён по умолчанию',
+      title: 'Нажата или нет',
       description:
-        'variant=outline (граница вместо заливки), initial: true — кнопка в положении «нажато».',
-      render: makeFieldVariant({
-        initial: true,
-        component: Toggle,
-        componentProps: { label: 'Курсив', children: 'Курсив', variant: 'outline' },
-      }),
-      code: `{
-  model: model.$.italic, // initial: true
-  component: Toggle,
-  componentProps: { label: 'Курсив', children: 'Курсив', variant: 'outline' },
-}`,
+        'Значение — boolean. Подпись поля рисует FormField сверху, текст на кнопке — children.',
+      field: 'pinned',
+      component: Toggle,
+      componentName: 'Toggle',
+      initial: false,
+      props: { label: 'Закрепить в списке', children: 'Закрепить' },
+    }),
+    fieldVariant({
+      id: 'outline',
+      title: 'С рамкой, нажата заранее',
+      description: 'variant: "outline" — кнопка с рамкой. Начальное значение true — кнопка нажата.',
+      field: 'favorite',
+      component: Toggle,
+      componentName: 'Toggle',
+      initial: true,
+      showInitial: true,
+      props: { label: 'Избранное', children: 'В избранном', variant: 'outline' },
+    }),
+    {
+      id: 'icon',
+      title: 'Кнопка-иконка вне формы',
+      description:
+        'Вне формы Toggle — Radix-кнопка: pressed и onPressedChange. У кнопки без текста нужен aria-label.',
+      render: BoldToggle,
+      code: BOLD_TOGGLE_CODE,
     },
   ],
   examples: [
-    {
-      id: 'sizes',
-      title: 'Размеры (size: sm / default / lg)',
-      description: 'size управляет высотой и минимальной шириной кнопки.',
-      render: makeFieldVariant({
-        initial: false,
-        component: Toggle,
-        componentProps: { label: 'Подчёркнутый', children: 'U', size: 'lg' },
-      }),
-      code: `{
-  model: model.$.underline,
-  component: Toggle,
-  componentProps: { label: 'Подчёркнутый', children: 'U', size: 'lg' },
-}`,
-    },
-    {
+    fieldVariant({
+      id: 'size',
+      title: 'Размер',
+      description: 'size: "sm", "default" или "lg" меняет высоту и минимальную ширину кнопки.',
+      field: 'compact',
+      component: Toggle,
+      componentName: 'Toggle',
+      initial: false,
+      props: { label: 'Компактный вид', children: 'Компактно', size: 'sm', variant: 'outline' },
+    }),
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательное нажатие (валидатор required)',
+      title: 'Обязательное нажатие',
       description:
-        'required() на boolean требует значение true. touched-поле в положении «отжато» показывает ошибку.',
-      render: makeFieldVariant({
-        initial: false,
-        component: Toggle,
-        componentProps: { label: 'Подтверждение', children: 'Готово' },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Необходимо нажать' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.confirmed,
-  component: Toggle,
-  componentProps: { label: 'Подтверждение', children: 'Готово' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.confirmed, [required({ code: 'confirmed.required' })]);`,
-    },
+        'Для boolean правило required требует true. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'confirmed',
+      component: Toggle,
+      componentName: 'Toggle',
+      initial: false,
+      props: { label: 'Данные проверены', children: 'Подтверждаю', required: true },
+      validators: [required({ code: 'confirmed.required' })],
+      rules: "required({ code: 'confirmed.required' })",
+      messages: { 'confirmed.required': 'Подтвердите, что данные проверены' },
+      touched: true,
+    }),
   ],
   api: {
     component: Toggle,
     initialValue: false,
-    // children/label фиксированы (не управляются контролами): children несериализуем, label задаёт подпись.
-    baseComponentProps: { label: 'Форматирование', children: 'Полужирный' },
+    // label и children не управляются панелью: children — содержимое кнопки, а не проп-настройка.
+    baseComponentProps: { label: 'Закрепить в списке', children: 'Закрепить' },
     valuePresets: [
-      { label: 'Нажат (true)', value: true },
-      { label: 'Отжат (false)', value: false },
+      { label: 'Нажата (true)', value: true },
+      { label: 'Отжата (false)', value: false },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label задаётся baseComponentProps (иначе перетрёт initialValues undefined-ом).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(toggleBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.bold,
-  component: Toggle,
-  componentProps: {
-    label: 'Форматирование',
-    children: 'Полужирный',
-    variant: '${v.variant}',
-    size: '${v.size}',${v.required ? '\n    required: true,' : ''}
-  },
-}`,
+      fieldSnippet({
+        field: 'pinned',
+        component: 'Toggle',
+        props: { label: 'Закрепить в списке', children: 'Закрепить' },
+        controls: API_CONTROLS,
+        values: v,
+      }),
   },
 };

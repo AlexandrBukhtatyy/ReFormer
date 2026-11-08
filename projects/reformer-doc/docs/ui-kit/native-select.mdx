@@ -9,9 +9,93 @@ import { nativeSelectDocConfig } from '@site/src/components/demo/examples/native
 
 # NativeSelect
 
-Стилизованный **native** `<select>` (с иконкой-шевроном). В отличие от `Select` — это НЕ Radix:
-разметка, семантика и клавиатурная навигация браузерные, дропдаун нативный. Значение — строка
-(`option.value`), пустой выбор → `null`. Для форм — `NativeSelectWithOptions` (registry `NativeSelect`): строит
-`<option>` из декларативного `options` (одинаковый `group` объединяется в `<optgroup>`).
+Системный выпадающий список браузера — настоящий `<select>` в оформлении кита. Список пунктов,
+клавиатура и вид на телефоне — браузерные. В форму ставят `NativeSelectWithOptions` (одно
+значение) или `NativeSelectMulti` (несколько).
+
+## Когда брать
+
+- **`NativeSelectWithOptions`** — одно значение из короткого набора, когда важнее привычное
+  поведение браузера, чем оформление списка: формы для телефона, простые настройки.
+- **`NativeSelectMulti`** — несколько значений, если подходит браузерный список с выделением
+  через Ctrl/Cmd и Shift. На сенсорных экранах им неудобно пользоваться.
+- **`NativeSelect` и `NativeSelectOption`** — те же `<select>` и `<option>` для ручной вёрстки вне
+  формы.
+
+Соседи:
+
+- оформленный список, загрузка пунктов с сервера, поиск — [Select](./select.mdx);
+- поиск по вводу — [Combobox](./combobox.mdx);
+- несколько значений с удобным выбором на телефоне — `SelectMulti` из [Select](./select.mdx) или
+  [Checkbox](./checkbox.mdx) на каждый пункт;
+- два-пять вариантов, видимых сразу — [RadioGroup](./radio-group.mdx).
+
+## Анатомия
+
+| Компонент                 | Значение поля      | Ключевые пропсы               |
+| ------------------------- | ------------------ | ----------------------------- |
+| `NativeSelectWithOptions` | `string \| null`   | `options`, `placeholder`      |
+| `NativeSelectMulti`       | `string[] \| null` | `options`, `rows`, `maxItems` |
+
+- Пункт `options` — `{ value, label, group? }`. Пункты с одинаковым `group` собираются в
+  `<optgroup>` с этим заголовком. В модель попадает `value` строкой: так работает `<select>`.
+- `placeholder` у `NativeSelectWithOptions` — первый пункт с пустым значением. Его можно выбрать,
+  и тогда значение поля станет `null`.
+- У `NativeSelectMulti` подсказки нет намеренно: в списке с множественным выбором она стала бы
+  обычным выбираемым пунктом. `rows` — сколько строк видно без прокрутки (атрибут `size`), без
+  него браузер показывает четыре.
+- `maxItems` у `NativeSelectMulti` выключает невыбранные пункты, когда выбрано достаточно. Это
+  подсказка интерфейса; ограничение для формы — правило `maxLength(n)`. Снятие всех пунктов даёт
+  `null`.
+
+```tsx
+{
+  model: model.$.loanType,
+  component: NativeSelectWithOptions,
+  componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN_TYPES },
+}
+```
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). В форме из JSON
+`NativeSelectWithOptions` зарегистрирован под именем `NativeSelect`, `NativeSelectMulti` — под
+своим.
+
+Вне формы части собираются как обычная разметка. `NativeSelect` принимает пропсы `<select>` и
+`size`: `'default'` или `'sm'` (ниже высота).
+
+```tsx
+<NativeSelect value={size} onChange={(e) => setSize(e.target.value)}>
+  <NativeSelectOption value="sm">Малый</NativeSelectOption>
+  <NativeSelectOption value="lg">Большой</NativeSelectOption>
+</NativeSelect>
+```
+
+## Примеры и API
 
 <ComponentDoc config={nativeSelectDocConfig} />
+
+## Доступность
+
+- Под капотом настоящие `<select>`, `<option>` и `<optgroup>`: роли, фокус и клавиатуру даёт
+  браузер. Стрелки меняют выбор, ввод букв переходит к пункту по началу подписи; как открыть
+  список, решает браузер (обычно Alt+↓ или пробел).
+- В `NativeSelectMulti` выделение тоже браузерное: стрелки, Shift+стрелки — диапазон,
+  Ctrl/Cmd+клик — добавить пункт. Пункты, выключенные `maxItems`, — обычные `disabled`.
+- `FormField` связывает поле с подписью, пояснением и замечанием: `<label for>`,
+  `aria-describedby`, при показанном замечании — `aria-invalid` и `aria-errormessage`, при
+  `required` — `aria-required`.
+- Шеврон справа — декоративный (`aria-hidden`).
+
+## Локализация
+
+Строк у компонента нет: подпись, `placeholder` и пункты задаёте вы. Встроенная строка одна — подпись
+кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label`. Тексты замечаний берутся из
+[словаря сообщений](../reference/glossary.md#валидация) формы. Как подключить русскую локаль кита
+— в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Select](./select.mdx) — оформленный список с загрузкой и поиском.
+- [RadioGroup](./radio-group.mdx) — все варианты видны сразу.
+- [Встроенные правила](../validation/built-in.md) — `required`, `maxLength` и другие.

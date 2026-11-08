@@ -2,6 +2,7 @@
 id: pagination
 title: Pagination
 sidebar_label: Pagination
+description: Переход по страницам списка — «Назад», номера страниц, «Вперёд».
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,10 +10,120 @@ import { paginationDocConfig } from '@site/src/components/demo/examples/paginati
 
 # Pagination
 
-Постраничная навигация на shadcn. Набор частей: `Pagination` / `PaginationContent` /
-`PaginationItem` / `PaginationLink` / `PaginationPrevious` / `PaginationNext` /
-`PaginationEllipsis`. Активная страница помечается `isActive` на `PaginationLink`
-(`aria-current="page"` + стиль `outline`). Навигация — через `href` (ссылки) или
-`onClick` (controlled-состояние).
+Переход по страницам длинного списка: «Назад», номера, «Вперёд». Это разметка со стилями: какая
+страница текущая и куда ведёт каждая ссылка, решаете вы. Считать страницы компонент не умеет.
+
+## Когда брать
+
+- **Pagination** — список или таблица разбиты на страницы, и пользователь переходит между ними.
+- [Table](./table.mdx) — сама таблица данных; Pagination ставят под ней.
+- [FormWizard](./form-navigation.mdx) — шаги многошаговой формы. Pagination не проверяет шаг перед
+  переходом и не держит их порядок.
+- [Breadcrumb](./breadcrumb.mdx) — путь к текущей странице в иерархии, а не номер страницы.
+
+## Анатомия
+
+```tsx
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/pagination'
+
+<Pagination>
+  <PaginationContent>
+    <PaginationItem>
+      <PaginationPrevious href="?page=1" />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationLink href="?page=2" isActive>
+        2
+      </PaginationLink>
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationEllipsis />
+    </PaginationItem>
+    <PaginationItem>
+      <PaginationNext href="?page=3" />
+    </PaginationItem>
+  </PaginationContent>
+</Pagination>;
+```
+
+| Часть                | Что это                                    | Ключевые пропсы                       |
+| -------------------- | ------------------------------------------ | ------------------------------------- |
+| `Pagination`         | Корень — `<nav>` по центру строки.         | `aria-label`                          |
+| `PaginationContent`  | Ряд ссылок (`<ul>`).                       | `className`                           |
+| `PaginationItem`     | Ячейка ряда (`<li>`).                      | —                                     |
+| `PaginationLink`     | Ссылка на страницу (`<a>`) в стиле кнопки. | `href`, `isActive`, `size`, `onClick` |
+| `PaginationPrevious` | Ссылка «Назад»: стрелка и подпись.         | `href`, `onClick`, `aria-label`       |
+| `PaginationNext`     | Ссылка «Вперёд»: подпись и стрелка.        | `href`, `onClick`, `aria-label`       |
+| `PaginationEllipsis` | Значок «…» на месте пропущенных номеров.   | `className`                           |
+
+Переход делается одним из двух способов:
+
+- **Через адрес.** `href` ведёт на адрес страницы (`?page=3`), роутер приложения показывает нужные
+  данные.
+- **Через состояние.** Страница хранится в `useState`; в `onClick` вызовите `preventDefault()` и
+  поменяйте состояние. `href` при этом всё равно нужен — см. «Доступность».
+
+Отключённого состояния у ссылок нет. На первой и последней странице помечайте «Назад» и «Вперёд»
+через `aria-disabled` и классы `pointer-events-none opacity-50` — как во вкладке «Примеры» — или не
+выводите их.
+
+## Примеры
 
 <ComponentDoc config={paginationDocConfig} />
+
+## Доступность
+
+- Корень — `<nav role="navigation">` с `aria-label` из локали кита («Страницы» в русской локали).
+- Текущая страница — `isActive` ставит `aria-current="page"`.
+- «Назад» и «Вперёд» подписаны для скринридера (`aria-label`), потому что на узком экране видны
+  только стрелки.
+- Все части — ссылки `<a>`. Ссылка без `href` не получает фокус клавишей `Tab` и не нажимается
+  `Enter`, поэтому `href` указывайте всегда, даже при переходе через `onClick`.
+- `aria-disabled` не мешает выполнить переход с клавиатуры. Если ссылка помечена недоступной,
+  проверьте границы в своём `onClick`.
+- `PaginationEllipsis` скрыт от скринридера целиком (`aria-hidden`), вместе со своей подписью
+  «Ещё страницы».
+
+## Локализация
+
+| Ключ                           | English               | Русский                          | Чем заменить в компоненте                |
+| ------------------------------ | --------------------- | -------------------------------- | ---------------------------------------- |
+| `kit.pagination.label`         | `Pagination`          | `Страницы`                       | проп `aria-label` у `Pagination`         |
+| `kit.pagination.previous`      | `Previous`            | `Назад`                          | только ключом локали                     |
+| `kit.pagination.previousLabel` | `Go to previous page` | `Перейти на предыдущую страницу` | проп `aria-label` у `PaginationPrevious` |
+| `kit.pagination.next`          | `Next`                | `Вперёд`                         | только ключом локали                     |
+| `kit.pagination.nextLabel`     | `Go to next page`     | `Перейти на следующую страницу`  | проп `aria-label` у `PaginationNext`     |
+| `kit.pagination.more`          | `More pages`          | `Ещё страницы`                   | пропа нет; скрыта от скринридера         |
+
+Видимые подписи «Назад» и «Вперёд» заменить пропом нельзя: `children` у `PaginationPrevious` и
+`PaginationNext` компонент рисует сам. Меняйте их ключами в локали.
+
+Строки берутся из локали, которую задаёт `I18nProvider` из `@reformer/core/react`; без провайдера
+— английские. Русский набор кита — `ru` из `@reformer/ui-kit/locale/ru` или загрузчик
+`loadKitLocale` из `@reformer/ui-kit/locale`. Свой текст — ключом в своей локали:
+
+```tsx
+import { extendLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+const appRu = extendLocale(ru, {
+  messages: { 'kit.pagination.previous': 'Предыдущая', 'kit.pagination.next': 'Следующая' },
+});
+
+<I18nProvider locale={appRu}>{/* приложение */}</I18nProvider>;
+```
+
+## См. также
+
+- [Table](./table.mdx) — таблица данных, под которой обычно стоит Pagination.
+- [Button](./button.mdx) — варианты и размеры, из которых собраны ссылки.
+- [Breadcrumb](./breadcrumb.mdx) — путь к текущей странице.

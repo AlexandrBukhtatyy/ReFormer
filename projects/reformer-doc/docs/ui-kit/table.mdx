@@ -2,6 +2,7 @@
 id: table
 title: Table
 sidebar_label: Table
+description: Таблица в двух видах — части для разметки руками и DataGrid, который сам запрашивает страницы данных.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,20 +10,211 @@ import { tableDocConfig } from '@site/src/components/demo/examples/table';
 
 # Table
 
-Два уровня. **base** — дословный набор частей shadcn/ui (`Table`, `TableHeader`, `TableBody`,
-`TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`) для ручной вёрстки:
-`Table` оборачивает `<table>` в скролл-контейнер (`overflow-x-auto`), остальные части —
-тонкие стилизованные обёртки над соответствующими тегами.
+Таблица в двух видах. Части `Table…` — стилизованные теги таблицы для разметки руками. `DataGrid`
+— таблица, которая сама запрашивает страницы данных у вашей функции и показывает загрузку, ошибку
+и пустой результат. Это не поле формы.
 
-**DataGrid** — data-driven обёртка поверх `base`. Движок [@tanstack/react-table](https://tanstack.com/table)
-работает в режиме `manualPagination` / `manualSorting` / `manualFiltering`, поэтому реальную
-сортировку, пагинацию и фильтрацию выполняет ваш `dataProvider` (server-driven): грид держит
-только состояние и на каждое изменение `filters` / `sorting` / `pagination` дёргает провайдер.
-Состояния загрузки / ошибки / пустого результата показываются через `AsyncBoundary` + `State`
-(`LoadingState` / `ErrorState`), а навигация по страницам — через компонент `Pagination`.
+## Когда брать
 
-`@tanstack/react-table` — тяжёлая опциональная зависимость (optional peer), поэтому компонент
-живёт вне главного barrel и импортируется по subpath:
-`import { DataGrid } from '@reformer/ui-kit/table'`.
+- **Части Table** — данные уже на руках и их немного: итоги заказа, сравнение тарифов, состав
+  заявки. Строки, ячейки и подписи вы пишете сами.
+- **DataGrid** — данные на сервере и приходят страницами: реестр заявок, список пользователей.
+  Нужны фильтр по колонке, переход по страницам, выбор строк.
+- [List](./list.mdx) — массив [модели](../reference/glossary.md) формы нужно показать списком, без
+  колонок.
+- [Item](./item.mdx) — строка-карточка с иконкой, описанием и кнопками: список настроек или
+  участников, а не табличные данные.
+- [Pagination](./pagination.mdx) — только навигация по страницам у своей разметки. DataGrid
+  ставит её сам.
+
+## Анатомия
+
+Оба вида импортируются только из `@reformer/ui-kit/table`: в корневом `@reformer/ui-kit` таблицы
+нет.
+
+### Части Table
+
+```tsx
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@reformer/ui-kit/table';
+
+<Table>
+  <TableCaption>Последние платежи</TableCaption>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Счёт</TableHead>
+      <TableHead className="text-right">Сумма</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    <TableRow>
+      <TableCell>INV-001</TableCell>
+      <TableCell className="text-right">2 500 ₽</TableCell>
+    </TableRow>
+  </TableBody>
+</Table>;
+```
+
+| Часть          | Тег             | Что это                                                                    |
+| -------------- | --------------- | -------------------------------------------------------------------------- |
+| `Table`        | `div` + `table` | Таблица в контейнере с горизонтальной прокруткой. Узкий экран не ломается. |
+| `TableCaption` | `caption`       | Подпись под таблицей. Скринридер называет ею таблицу.                      |
+| `TableHeader`  | `thead`         | Шапка.                                                                     |
+| `TableBody`    | `tbody`         | Тело. У последней строки нет нижней границы.                               |
+| `TableFooter`  | `tfoot`         | Итоги на приглушённом фоне.                                                |
+| `TableRow`     | `tr`            | Строка с подсветкой при наведении. `data-state="selected"` — выбранная.    |
+| `TableHead`    | `th`            | Ячейка заголовка.                                                          |
+| `TableCell`    | `td`            | Ячейка данных.                                                             |
+
+Каждая часть принимает атрибуты своего тега (`colSpan`, `scope`, `data-*`) и `className`. Классы
+сливаются через `tailwind-merge`: ваш класс побеждает встроенный. Логики у частей нет.
+
+### DataGrid
+
+`DataGrid` построен на `@tanstack/react-table`. Это необязательная зависимость кита, её ставят
+отдельно:
+
+```bash
+npm install @tanstack/react-table
+```
+
+```tsx
+import { DataGrid, type TableSettings } from '@reformer/ui-kit/table';
+
+type User = { id: number; name: string; email: string };
+
+const settings: TableSettings<User> = {
+  columns: [
+    {
+      id: 'name',
+      header: 'Имя',
+      accessor: (u) => u.name,
+      filterable: true,
+      filterPlaceholder: 'Поиск по имени',
+    },
+    { id: 'email', header: 'E-mail', accessor: (u) => u.email },
+  ],
+  pageSize: 20,
+  rowKey: (u) => u.id,
+  // Получает страницу, фильтры и сортировку, возвращает строки страницы и общее число строк.
+  dataProvider: async ({ pagination, filters, sorting }) => {
+    const response = await fetch(buildUsersUrl(pagination, filters, sorting));
+    return response.json(); // { rows: User[], total: number }
+  },
+};
+
+<DataGrid settings={settings} />;
+```
+
+Всё описание таблицы — в одном объекте `settings`:
+
+| Поле           | Что делает                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| `columns`      | Колонки: `id`, `header`, `accessor` (содержимое ячейки), `filterable`, `align`, `className`.        |
+| `dataProvider` | `(query) => Promise<{ rows, total }>`. Сортирует, фильтрует и режет на страницы — он, а не таблица. |
+| `pageSize`     | Строк на странице, по умолчанию `10`.                                                               |
+| `rowKey`       | Стабильный ключ строки. Нужен для выбора строк.                                                     |
+| `selection`    | `'none'`, `'single'` или `'multiple'` — колонка выбора строк.                                       |
+
+Как работает таблица:
+
+- `dataProvider` вызывается при монтировании и при каждой смене страницы, фильтра или
+  сортировки. Пока запрос идёт, вместо таблицы виден блок загрузки. Ответ устаревшего запроса
+  отбрасывается.
+- Колонка с `filterable` получает текстовое поле над таблицей. Его значение уходит в
+  `query.filters[id]` на каждое нажатие клавиши.
+- Отказ промиса показывает блок ошибки с кнопкой «Повторить». Текст ошибки — `message` у `Error`,
+  иначе общий текст «Не удалось загрузить данные».
+- Пустой `rows` — строка «Нет данных» в теле таблицы. Пагинация появляется, когда страниц больше
+  одной.
+- Выбор строк хранится внутри таблицы. Колбэка или ссылки, чтобы прочитать выбранные строки
+  снаружи, у `DataGrid` нет. Без `rowKey` выбор привязан к номеру строки на странице и переезжает
+  на другую страницу вместе с ним.
+
+:::caution Известные ограничения
+
+- `sortable: true` не включает сортировку: кнопка в заголовке колонки не появляется, и
+  `query.sorting` всегда пуст.
+- Смена фильтра не возвращает таблицу на первую страницу. Если результатов стало меньше, чем
+  нужно до текущей страницы, таблица покажет «Нет данных».
+
+:::
+
+## Примеры
 
 <ComponentDoc config={tableDocConfig} />
+
+## Доступность
+
+Части Table — нативные теги таблицы, скринридер читает строки и колонки сам.
+
+- Назовите таблицу: `TableCaption` или `aria-label` у `Table`.
+- `TableHead` не ставит `scope`. Для заголовков строк (первая ячейка — `th`) добавьте
+  `scope="row"` сами.
+
+DataGrid добавляет к этому:
+
+- Блок загрузки объявляется вежливо (`role="status"`, `aria-live="polite"`), блок ошибки —
+  сразу (`role="alert"`). Кнопка «Повторить» — обычная кнопка.
+- Флажки и переключатели выбора — нативные `input` с подписями «Выбрать все» и «Выбрать строку».
+  Переключатели режима `single` не объединены в группу: каждый — отдельная остановка `Tab`.
+- У поля фильтра нет подписи, кроме `placeholder`. Задавайте понятный `filterPlaceholder`: без
+  него подсказкой станет `id` колонки.
+- Пагинация — `nav` с подписью, текущая страница помечена `aria-current="page"`, недоступные
+  «Назад» и «Вперёд» — `aria-disabled`.
+- На время запроса таблица и пагинация заменяются блоком загрузки. Фокус со ссылки страницы
+  при этом теряется, и после загрузки его нужно искать заново.
+
+## Локализация
+
+Части Table своих строк не рисуют. DataGrid рисует строки сам и берёт их из словаря кита:
+
+| Ключ                                | English             | Русский                        |
+| ----------------------------------- | ------------------- | ------------------------------ |
+| `kit.table.empty`                   | No data             | Нет данных                     |
+| `kit.table.loadError`               | Failed to load data | Не удалось загрузить данные    |
+| `kit.table.selectAll`               | Select all          | Выбрать все                    |
+| `kit.table.selectRow`               | Select row          | Выбрать строку                 |
+| `kit.asyncBoundary.loadingTitle`    | Loading data...     | Загрузка данных...             |
+| `kit.asyncBoundary.loadingSubtitle` | Please wait         | Пожалуйста, подождите          |
+| `kit.asyncBoundary.errorTitle`      | Failed to load      | Ошибка загрузки                |
+| `kit.asyncBoundary.retry`           | Retry               | Повторить                      |
+| `kit.pagination.previous` / `next`  | Previous / Next     | Назад / Вперёд                 |
+| `kit.pagination.previousLabel`      | Go to previous page | Перейти на предыдущую страницу |
+| `kit.pagination.nextLabel`          | Go to next page     | Перейти на следующую страницу  |
+| `kit.pagination.label`              | Pagination          | Страницы                       |
+| `kit.pagination.more`               | More pages          | Ещё страницы                   |
+
+Пропсов для этих строк у `DataGrid` нет: свой текст есть только у подсказки фильтра
+(`filterPlaceholder`). Без провайдера локализации строки английские. Русский набор кита
+подключает `I18nProvider` из `@reformer/core/react` — готовой локалью `ru` из
+`@reformer/ui-kit/locale/ru` или загрузчиком `loadKitLocale` из `@reformer/ui-kit/locale`. Свою
+формулировку задаёт ключ в локали:
+
+```tsx
+import { extendLocale } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+// Константа модуля: новый объект локали на каждый рендер заново перерисовывал бы все подписи.
+const locale = extendLocale(ru, { messages: { 'kit.table.empty': 'Заявок пока нет' } });
+
+<I18nProvider locale={locale}>
+  <DataGrid settings={settings} />
+</I18nProvider>;
+```
+
+## См. также
+
+- [Pagination](./pagination.mdx) — навигация по страницам отдельно от таблицы.
+- [AsyncBoundary](./async-boundary.mdx) — блоки загрузки и ошибки, которые использует DataGrid.
+- [List](./list.mdx) и [Item](./item.mdx) — списки вместо таблицы.
+- [TanStack Table](https://tanstack.com/table) — движок DataGrid.

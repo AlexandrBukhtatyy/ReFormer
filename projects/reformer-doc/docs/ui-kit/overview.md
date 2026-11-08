@@ -4,107 +4,87 @@ sidebar_position: 1
 
 # Обзор
 
-`@reformer/ui-kit` — готовый набор стилизованных компонентов на базе
-[shadcn/ui](https://ui.shadcn.com/) (стиль **new-york**, палитра **neutral**, Tailwind CSS v4),
-интегрированный с формами `@reformer/core`.
+`@reformer/ui-kit` — набор готовых оформленных компонентов для форм ReFormer: поля ввода и выбора,
+обёртка поля с подписью и замечанием, массив под-форм, мастер шагов, а также кнопки, диалоги,
+таблица и другие компоненты интерфейса. Внешний вид — [shadcn/ui](https://ui.shadcn.com/) (стиль
+new-york, палитра neutral) на Tailwind CSS v4 и Radix UI.
 
-Там, где [`@reformer/cdk`](../cdk/overview) даёт headless-примитивы без стилей, ui-kit даёт
-стилизованные, доступные (a11y) контролы, которые кладутся в схему формы как есть и привязываются
-к ноде формы через один универсальный `<FormField control={form.x} />`.
+Поле кита кладётся в [схему формы](../reference/glossary.md#форма-и-данные) как есть, без
+обёрток, а на экран его выводит один `<FormField control={form.email} />`. Если оформление не
+подходит, берите компоненты без стилей из [`@reformer/cdk`](../cdk/overview.md) и рисуйте свои.
+
+## Что внутри
+
+| Раздел                | Компоненты                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Текстовые поля        | [Input](./input.mdx), [Textarea](./textarea.mdx), [InputOTP](./input-otp.mdx), [InputGroup](./input-group.mdx), [InputMask](./input-mask.mdx), [InputPassword](./input-password.mdx)                                                                                                                                                                                                        |
+| Выбор                 | [Select](./select.mdx), [NativeSelect](./native-select.mdx), [Checkbox](./checkbox.mdx), [RadioGroup](./radio-group.mdx), [Switch](./switch.mdx), [Toggle](./toggle.mdx), [ToggleGroup](./toggle-group.mdx), [Slider](./slider.mdx), [Calendar](./calendar.mdx), [Combobox](./combobox.mdx), [DatePicker](./date-picker.mdx), [FileUpload](./file-upload.mdx)                               |
+| Поле и форма целиком  | [FormField](./form-field.mdx), [Field](./field.mdx), [Label](./label.mdx), [FieldArraySection](./field-array.mdx), [FormWizard](./form-navigation.mdx)                                                                                                                                                                                                                                      |
+| Действия              | [Button](./button.mdx), [ButtonGroup](./button-group.mdx)                                                                                                                                                                                                                                                                                                                                   |
+| Отображение           | [Badge](./badge.mdx), [Card](./card.mdx), [Alert](./alert.mdx), [Avatar](./avatar.mdx), [Icon](./icon.mdx), [Progress](./progress.mdx), [Skeleton](./skeleton.mdx), [Table](./table.mdx), [Chart](./chart.mdx), [Carousel](./carousel.mdx), [Typography](./typography.mdx), [ExampleCard](./example-card.mdx)                                                                               |
+| Оверлеи               | [Dialog](./dialog.mdx), [AlertDialog](./alert-dialog.mdx), [Sheet](./sheet.mdx), [Drawer](./drawer.mdx), [Popover](./popover.mdx), [HoverCard](./hover-card.mdx), [Tooltip](./tooltip.mdx), [InfoHint](./info-hint.mdx), [DropdownMenu](./dropdown-menu.mdx), [ContextMenu](./context-menu.mdx), [Command](./command.mdx), [Sonner](./sonner.mdx)                                           |
+| Навигация и раскрытие | [Accordion](./accordion.mdx), [Tabs](./tabs.mdx), [Menubar](./menubar.mdx), [NavigationMenu](./navigation-menu.mdx), [Breadcrumb](./breadcrumb.mdx), [Pagination](./pagination.mdx), [Sidebar](./sidebar.mdx), [Tree](./tree.mdx)                                                                                                                                                           |
+| Раскладка и служебные | [Box](./box.mdx), [Section](./section.mdx), [Separator](./separator.mdx), [List](./list.mdx), [Item](./item.mdx), [Collapsible](./collapsible.mdx), [ScrollArea](./scroll-area.mdx), [AspectRatio](./aspect-ratio.mdx), [Resizable](./resizable.mdx), [AsyncBoundary](./async-boundary.mdx), [Empty](./empty.mdx), [Spinner](./spinner.mdx), [Kbd](./kbd.mdx), [Direction](./direction.mdx) |
+| ИИ-чат                | [Message](./message.mdx), [Bubble](./bubble.mdx), [Attachment](./attachment.mdx), [Marker](./marker.mdx), [MessageScroller](./message-scroller.mdx)                                                                                                                                                                                                                                         |
+
+Полный список — в меню слева. На странице каждого компонента есть живые варианты, примеры и
+вкладка API.
 
 ## Установка
 
 ```bash
-npm install @reformer/ui-kit @reformer/core
+npm install @reformer/ui-kit @reformer/core @reformer/cdk
 ```
 
-Peer-зависимости: `@reformer/core`, `@reformer/cdk`, `react`, `react-dom` — npm 7+ установит их
-автоматически. Рендерер по схеме (`@reformer/renderer-react`) киту не нужен: компоненты кладутся и в
-разметку руками, и в схему формы.
+Обязательные peer-зависимости: `@reformer/core`, `@reformer/cdk`, `react`, `react-dom`.
+`@reformer/renderer-react` киту не нужен — ставьте его, только если рисуете форму по схеме через
+`FormRenderer`.
 
-Тяжёлые компоненты (`chart`, `table`, `calendar`, `combobox`, `command`, `date-picker`, `drawer`,
-`carousel`, `input-otp`, `message-scroller`, `resizable`, `sonner`) держат **optional**
-peer-зависимости (recharts, `@tanstack/react-table`, react-day-picker, date-fns, cmdk, vaul,
-embla-carousel-react, input-otp, react-resizable-panels, sonner) — ставьте их только если
-используете соответствующий subpath.
+Двенадцать компонентов построены на внешних библиотеках. Эти библиотеки — необязательные
+peer-зависимости: ставьте ту, чей компонент используете. Такие компоненты не входят в главный
+вход пакета и импортируются только из своего подпути.
 
-### Подключение стилей
+| Вход пакета                                 | Что поставить                  |
+| ------------------------------------------- | ------------------------------ |
+| `@reformer/ui-kit/table`                    | `@tanstack/react-table`        |
+| `@reformer/ui-kit/command`, `/combobox`     | `cmdk`                         |
+| `@reformer/ui-kit/chart`                    | `recharts`                     |
+| `@reformer/ui-kit/calendar`, `/date-picker` | `react-day-picker`, `date-fns` |
+| `@reformer/ui-kit/carousel`                 | `embla-carousel-react`         |
+| `@reformer/ui-kit/drawer`                   | `vaul`                         |
+| `@reformer/ui-kit/input-otp`                | `input-otp`                    |
+| `@reformer/ui-kit/resizable`                | `react-resizable-panels`       |
+| `@reformer/ui-kit/sonner`                   | `sonner`                       |
+| `@reformer/ui-kit/message-scroller`         | `@shadcn/react`                |
 
-Пакет рендерится с **Tailwind CSS v4** — Tailwind должен быть настроен в приложении, иначе
-utility-классы компонентов не будут сгенерированы и контролы окажутся без стилей.
+`@reformer/ui-kit/sidebar` тоже доступен только из подпути, но внешних зависимостей не требует.
 
-Тема — self-contained: subpath-экспорт `@reformer/ui-kit/styles` поставляет oklch-токены shadcn
-(new-york / neutral), dark-вариант и анимации (`tw-animate-css`). Подключается в вашем
-Tailwind-входе:
+## Подключение стилей
+
+Компоненты оформлены классами Tailwind CSS v4, поэтому Tailwind должен быть настроен в приложении.
+Тему — цвета, тёмный вариант, анимации — пакет отдаёт готовой во входе `@reformer/ui-kit/styles`:
 
 ```css
-/* app.css / globals.css — ваш Tailwind v4 entry */
+/* ваш входной CSS для Tailwind v4 */
 @import 'tailwindcss';
 @import '@reformer/ui-kit/styles';
 
-/* Tailwind должен «видеть» классы пакета — укажите @source на его сборку: */
+/* Tailwind должен увидеть классы пакета */
 @source '../node_modules/@reformer/ui-kit/dist';
 ```
 
-Правила подключения:
+- Тему подключайте голым `@import`: обёртка `layer(theme)` ломает её `@custom-variant`.
+- `@import 'tailwindcss'` и `@source` пишете вы — тема их не подключает.
+- Свой `@custom-variant dark` не объявляйте: в теме он уже есть и срабатывает и на `.dark`, и на
+  `[data-theme='dark']`.
+- Сверх набора shadcn тема объявляет цвет `--warning` — им рисуется предупреждение под полем. Если
+  у вас своя тема, задайте его, иначе предупреждение будет цвета ошибки.
 
-- Импортировать тему строго **голым** `@import` — обёртка `layer(theme)` ломает
-  `@custom-variant`.
-- `@import 'tailwindcss'` и `@source` держит consumer: тема отдаёт токены и анимации, но не тянет
-  Tailwind за собой.
-- Не объявляйте собственный `@custom-variant dark` — тема уже содержит вариант, покрывающий и
-  `.dark`, и `[data-theme='dark']` (последний объявленный молча побеждает).
-- Для npm-потребителей `@source` указывает на `dist` (каталог `src` пакета не публикуется, кроме
-  `src/styles`).
+## Как поле кита попадает в форму
 
-## Как устроен кит
-
-Кит собран из трёх слоёв:
-
-### 1. Чистые shadcn-примитивы
-
-`Input`, `Select`, `Checkbox`, `Button`, `Dialog`, … — полный набор примитивов shadcn/ui
-(`data-slot`, unified `radix-ui`, cva). Они **не знают про формы** и работают со своими нативными
-событиями (`Input` — `onChange(event)`, `Checkbox` — `onCheckedChange`, `Slider` —
-`onValueChange`).
-
-Каждый компонент лежит в собственном каталоге с концептом **вариантов**: `variants/base` —
-обязательный чистый shadcn-примитив, функциональные варианты (`async`, `number`, …) — пресеты под
-юзкейс. Например, у `Select` вариант `base` — ручная сборка дропдауна из shadcn-частей, а
-`async` — готовое поле с `options` / `resource` / `clearable`.
-
-### 2. Headless-основа: `@reformer/cdk`
-
-Составные form-компоненты кита — это **визуальный слой поверх headless-компонентов
-[`@reformer/cdk`](../cdk/overview)**. Логика (состояние, render-props, контекст) живёт в cdk,
-ui-kit добавляет к ней разметку и стили:
-
-| Компонент ui-kit                     | Headless-основа                | Роль                                            |
-| ------------------------------------ | ------------------------------ | ----------------------------------------------- |
-| [`FormField`](../cdk/form-field)     | `@reformer/cdk/form-field`     | Обёртка «Label → Control → Error (+ pending)»   |
-| [`FieldArraySection`](./field-array) | `@reformer/cdk/field-array`    | Стилизованная секция динамического массива форм |
-| [`FormWizard`](./form-navigation)    | `@reformer/cdk/form-wizard`    | Многошаговый мастер с индикатором и навигацией  |
-| [`AsyncBoundary`](./async-boundary)  | `@reformer/cdk/async-boundary` | Состояния `loading` / `error` / `ready`         |
-
-В схеме формы массив под-форм рисует `FieldArray` кита — узел
-`{ model: model.$.items, component: FieldArray, item: (row) => узел }`: строки ему отдаёт рендерер.
-Если готовая разметка не подходит — берите headless-версию из cdk напрямую и стройте свой UI.
-
-### 3. Form-интеграция: компонент + `reformerAdapter`
-
-Форма говорит на едином value-based контракте (`value` + `onChange(value)` + `onBlur`), а у
-контролов event-shape разный. Отдельных «field-версий» для этого нет: form-контрол объявляет свой
-диалект **статикой** `reformerAdapter` через `defineFieldControl` (`@reformer/ui-kit/fields`), а
-связывает его с полем **обёртка** — `FormField.Control` из `@reformer/cdk` (его использует
-`<FormField>` кита) или рендерер. Она читает статику, кладёт значение в нужный проп, переводит эмит
-контрола в `onChange(value)`, пробрасывает `disabled` / `aria-*` и строит императивный
-`FieldHandle`.
-
-В `component` поля кладётся **сам компонент**: `Input`, `InputNumber`, `SelectAsync`,
-`CheckboxWithLabel`, `RadioGroupOptions`, `Textarea`, `SwitchWithLabel`, `Slider`, `DatePicker`,
-`FileUploadDropzone`, … Для составных примитивов (Radix-`Select`, `RadioGroup` + `RadioGroupItem`)
-в форму берётся готовый вариант, который рисует пункты из `options`. Числовое поле — `InputNumber`
-(не `Input` с `type: 'number'`).
+В `component` [узла поля](../reference/glossary.md#форма-и-данные) кладётся сам компонент кита.
+Значение, `onChange`, `onBlur` и блокировку ему подставляет обёртка поля: `FormField` кита или
+рендерер схемы.
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -119,7 +99,7 @@ function EmailForm() {
         children: [
           {
             model: model.$.email,
-            component: Input, // ← сам компонент: диалект — в его статике reformerAdapter
+            component: Input,
             componentProps: { label: 'Email', type: 'email' },
           },
         ],
@@ -127,12 +107,31 @@ function EmailForm() {
     })
   );
 
-  // В JSX — один универсальный FormField:
   return <FormField control={form.email} />;
 }
 ```
 
-Свой контрол подключается так же:
+Компоненты говорят на разных языках: `Input` отдаёт DOM-событие, `CheckboxWithLabel` —
+`onCheckedChange(checked)`, `Slider` — массив чисел. Форме нужно одно: значение. Как перевести одно
+в другое, компонент объявляет сам — [адаптером поля](../reference/glossary.md#рендеринг), который
+вешается на него функцией `defineFieldControl` из `@reformer/ui-kit/fields`. Обёртка поля читает
+адаптер и подключает компонент к форме.
+
+У составных компонентов (Radix-`Select`, `RadioGroup` с пунктами `RadioGroupItem`) значения нет,
+пока их не собрали из частей. Для формы у них есть готовые варианты, которые рисуют пункты из
+`options`:
+
+| Вёрстка руками | В форму                   | Вёрстка руками | В форму              |
+| -------------- | ------------------------- | -------------- | -------------------- |
+| `Select`       | `SelectAsync`             | `Checkbox`     | `CheckboxWithLabel`  |
+| `NativeSelect` | `NativeSelectWithOptions` | `Switch`       | `SwitchWithLabel`    |
+| `RadioGroup`   | `RadioGroupOptions`       | `ToggleGroup`  | `ToggleGroupOptions` |
+| `InputOTP`     | `InputOTPDefault`         | `Calendar`     | `CalendarSingle`     |
+
+Множественный выбор — отдельные компоненты: `SelectMulti`, `NativeSelectMulti`, `ComboboxMulti`,
+`ToggleGroupMulti`, `DatePickerMulti`. Число — `InputNumber`, а не `Input` с `type: 'number'`.
+
+Свой компонент подключается тем же способом:
 
 ```tsx
 import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
@@ -141,27 +140,78 @@ export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: chec
 // узел схемы: { model: model.$.agree, component: MyCheckbox }
 ```
 
-Компоненту чужой библиотеки, на который статику не повесить, диалект задаёт
-`RendererSettings.resolveFieldAdapter` рендерера.
+Подробнее — в разделе [Свои компоненты полей](../react/custom-fields.md).
+
+## Локализация
+
+Часть строк кит рисует сам: кнопки мастера и массива, плейсхолдеры списков, статусы загрузки,
+подписи для скринридера. Без настроек они английские. Язык задаёт `I18nProvider` из
+`@reformer/core/react` с загрузчиком локали кита:
+
+```tsx
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { I18nProvider } from '@reformer/core/react';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+// Константа модуля: загрузчик кэширует загруженные языки.
+const loadLocale = createLocaleLoader([loadKitLocale]);
+
+export function App() {
+  return (
+    <I18nProvider lang="ru" load={loadLocale}>
+      <Form />
+    </I18nProvider>
+  );
+}
+```
+
+- Встроены `en` и `ru`. Локаль кита накопительная: в неё уже входят словари ядра (тексты
+  замечаний) и cdk, отдельно их подключать не нужно.
+- Смена `lang` переводит подписи на месте: значения полей, текущий шаг и открытые списки
+  сохраняются.
+- Строка в компоненте берётся в таком порядке: явный проп → словарь активного языка → встроенный
+  английский.
+- Заменить строку в одном месте — пропом компонента (`placeholder`, `addButtonLabel`,
+  `nextLabel`…). Во всём приложении — своим словарём вторым источником загрузчика:
+
+  ```ts
+  const loadLocale = createLocaleLoader([
+    loadKitLocale,
+    () => ({ 'kit.formWizard.submit': 'Оформить заявку' }),
+  ]);
+  ```
+
+| Вид локали        | Импорт                                       | Для чего                                        |
+| ----------------- | -------------------------------------------- | ----------------------------------------------- |
+| загрузчик         | `loadKitLocale` из `@reformer/ui-kit/locale` | основной путь: язык подгружается по запросу     |
+| синхронный модуль | `ru` из `@reformer/ui-kit/locale/ru`         | SSR и тесты: `<I18nProvider locale={ru}>`       |
+| JSON-файл         | `@reformer/ui-kit/locale/ru.json`            | образец для своего языка, правка без пересборки |
+
+Ключи словаря кита — `kit.<компонент>.<имя>`. Какие строки рисует конкретный компонент и какими
+пропсами их заменить, сказано в разделе «Локализация» на его странице. Общая картина — словари
+ядра, cdk и приложения, тексты замечаний, переключение языка — в руководстве
+[Локализация](../guides/localization.mdx).
 
 ## Импорты
 
 ```tsx
-// Из корневого barrel («лёгкие» компоненты)
-import { Input, Select, Checkbox, Button, Box, FormField } from '@reformer/ui-kit';
+// Главный вход: лёгкие компоненты
+import { Button, FormField, Input, SelectAsync } from '@reformer/ui-kit';
 
-// Через subpath отдельного компонента (tree-shaking)
-import { Input } from '@reformer/ui-kit/input';
+// Вход отдельного компонента
+import { InputNumber } from '@reformer/ui-kit/input';
 
-// Тяжёлые компоненты — ТОЛЬКО через subpath (вне barrel)
-import { ChartContainer } from '@reformer/ui-kit/chart';
-import { DataGrid } from '@reformer/ui-kit/table';
+// Компоненты с внешними зависимостями — только из своего подпути
+import { DatePicker } from '@reformer/ui-kit/date-picker';
+import { Combobox } from '@reformer/ui-kit/combobox';
 
-// Props-схемы (React-free) для MCP / renderer-json
+// Описания пропсов без React — для MCP и форм из JSON
 import { defaultPropSchemas } from '@reformer/ui-kit/meta';
 ```
 
-## Дальше
+## См. также
 
-- Интерактивная документация каждого компонента — в разделах слева (Variants / Examples / API)
-- [`@reformer/cdk`](../cdk/overview) — headless-основа кита
+- [FormField](./form-field.mdx) — как поле выводится на экран и какие общие пропсы понимает.
+- [@reformer/cdk](../cdk/overview.md) — те же поле, массив и мастер без оформления.
+- [Свои компоненты полей](../react/custom-fields.md) — подключение стороннего контрола.
+- [Локализация](../guides/localization.mdx) — язык формы и словари.

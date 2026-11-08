@@ -2,6 +2,7 @@
 id: card
 title: Card
 sidebar_label: Card
+description: Контейнер с рамкой и тенью — шапка, содержимое и подвал.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,88 @@ import { cardDocConfig } from '@site/src/components/demo/examples/card';
 
 # Card
 
-Карточка на shadcn — контейнер с шапкой, контентом и подвалом. Собирается из частей:
-`Card` (корень), `CardHeader` + `CardTitle` / `CardDescription` / `CardAction`, `CardContent`
-и `CardFooter`. Все части — обычные `div` со своим `data-slot`, поэтому стиль легко правится
-через `className` (tailwind-merge).
+Контейнер с рамкой, фоном и тенью. Внутри — шапка с заголовком, содержимое и подвал с кнопками.
+Компонент входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **Card** — визуально отделить блок: шаг формы, тариф, карточку записи. Рамку, фон, скругление и
+  тень даёт тема, поэтому карточка верна и в тёмной теме.
+- [Section](./section.mdx) — группа полей с заголовком без рамки, внутри карточки или шага.
+- [Box](./box.mdx) — контейнер только для раскладки: отступы, сетка, без своего вида.
+- [Alert](./alert.mdx) — сообщение или предупреждение, а не блок содержимого.
+- [Item](./item.mdx) — строка списка с иконкой, текстом и действием.
+
+Не собирайте карточку классами (`border rounded-xl shadow-sm bg-white`): ручные цвета ломают
+тёмную тему и расходятся с китом.
+
+## Анатомия
+
+```tsx
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/card'
+
+<Card>
+  <CardHeader>
+    <CardTitle>Параметры кредита</CardTitle>
+    <CardDescription>Сумма и срок можно изменить до подписания.</CardDescription>
+    <CardAction>
+      <Button variant="ghost" size="sm">
+        Изменить
+      </Button>
+    </CardAction>
+  </CardHeader>
+  <CardContent className="space-y-4">{/* поля */}</CardContent>
+  <CardFooter>
+    <Button>Продолжить</Button>
+  </CardFooter>
+</Card>;
+```
+
+| Часть             | Что это                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| `Card`            | Корень: рамка, фон, тень, вертикальный стек частей.             |
+| `CardHeader`      | Шапка. Если в ней есть `CardAction`, справа появляется колонка. |
+| `CardTitle`       | Заголовок карточки.                                             |
+| `CardDescription` | Описание под заголовком, приглушённым цветом.                   |
+| `CardAction`      | Кнопка или меню в правом верхнем углу шапки.                    |
+| `CardContent`     | Содержимое с горизонтальными отступами.                         |
+| `CardFooter`      | Подвал — ряд кнопок или служебной информации.                   |
+
+Все части — обычные `<div>` и принимают любые его атрибуты. Своих пропсов, кроме `className`, у
+них нет. Вертикальный ритм внутри `CardContent` задаёте вы (`space-y-4`, `space-y-6`). Класс
+`border-b` на шапке или `border-t` на подвале рисует линию и сам добавляет отступ до неё.
+
+В [схеме формы](../reference/glossary.md#форма-и-данные) карточка — узел с `component: Card`. Для
+формы из JSON компонент нужно положить в [реестр](../reference/glossary.md#рендеринг):
+`reg.component('Card', Card)`.
+
+## Примеры
 
 <ComponentDoc config={cardDocConfig} />
+
+## Доступность
+
+- Карточка — набор `<div>` без роли: скринридер читает её содержимое по порядку.
+- `CardTitle` — тоже `<div>`, а не заголовок документа. Если заголовок карточки должен попасть в
+  структуру заголовков страницы, положите внутрь `<h2>` или `<h3>` либо задайте
+  `role="heading"` и `aria-level`.
+- Кнопки и ссылки внутри карточки работают как обычно; сама карточка фокус не получает.
+
+## Локализация
+
+Своих строк компонент не рисует: весь текст — ваш.
+
+## См. также
+
+- [Section](./section.mdx) — группа полей с заголовком.
+- [Box](./box.mdx) — контейнер раскладки.
+- [Separator](./separator.mdx) — линия между блоками внутри карточки.
+- [Alert](./alert.mdx) — плашка с сообщением.

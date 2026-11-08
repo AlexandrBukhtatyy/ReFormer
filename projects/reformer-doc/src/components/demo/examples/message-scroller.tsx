@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   MessageScrollerProvider,
   MessageScroller,
@@ -7,332 +7,429 @@ import {
   MessageScrollerItem,
   MessageScrollerButton,
   useMessageScroller,
+  useMessageScrollerScrollable,
 } from '@reformer/ui-kit/message-scroller';
-import { Bubble, BubbleContent, Button } from '@reformer/ui-kit';
+import { Bubble, BubbleContent, Button, Message, MessageContent } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * MessageScroller — не form-control: AI-контейнер авто-скролла списка сообщений (compound
- * поверх headless-примитива @shadcn/react/message-scroller). Части: MessageScrollerProvider /
- * MessageScroller (Root) / MessageScrollerViewport / MessageScrollerContent / MessageScrollerItem /
- * MessageScrollerButton, плюс behaviour-хуки (useMessageScroller и др.). Таб Variants — базовая
- * компоновка и кнопка «вниз»; Examples — диалог и императивный скролл через хук. Form-bound таба (api) нет.
+ * MessageScroller — не поле формы: прокручиваемая лента сообщений чата поверх
+ * `@shadcn/react/message-scroller` (Provider / MessageScroller / Viewport / Content / Item /
+ * Button и хуки). Variants — базовая лента и кнопки перехода к краю, Examples — новая реплика
+ * с якорем и прокрутка из кода, API — таблица props. Обёртка `<div style>` с рамкой в render —
+ * рамка демо, в `code` её нет. `className="left-1/2"` у кнопки — обход класса `inset-s-1/2`,
+ * которого нет в Tailwind 4.1 (см. страницу компонента).
  */
 
-// Демо-контент: короткий диалог ассистент/пользователь.
-const demoDialog: { role: 'assistant' | 'user'; text: string }[] = [
-  { role: 'assistant', text: 'Привет! Чем могу помочь с заявкой?' },
-  { role: 'user', text: 'Нужен кредит на автомобиль.' },
-  { role: 'assistant', text: 'Хорошо. На какой срок и какую сумму рассчитываете?' },
-  { role: 'user', text: 'Полтора миллиона на три года.' },
-  { role: 'assistant', text: 'Принято — собираю форму из четырёх шагов.' },
-  { role: 'user', text: 'Отлично, спасибо.' },
-  { role: 'assistant', text: 'Готово. Открываю первый шаг: параметры кредита.' },
+type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string };
+
+const dialog: ChatMessage[] = [
+  { id: 'm1', role: 'assistant', text: 'Здравствуйте! Чем помочь с заявкой?' },
+  { id: 'm2', role: 'user', text: 'Нужен кредит на автомобиль.' },
+  { id: 'm3', role: 'assistant', text: 'На какую сумму и срок рассчитываете?' },
+  { id: 'm4', role: 'user', text: 'Полтора миллиона на три года.' },
+  { id: 'm5', role: 'assistant', text: 'Принято. Собираю форму из четырёх шагов.' },
+  { id: 'm6', role: 'user', text: 'Отлично, спасибо.' },
+  { id: 'm7', role: 'assistant', text: 'Готово. Открываю первый шаг: параметры кредита.' },
 ];
 
-function DialogItems() {
+const frame = { border: '1px solid var(--border)', borderRadius: 8 } as const;
+
+function ChatLine({ message }: { message: ChatMessage }) {
   return (
-    <>
-      {demoDialog.map((m, i) => (
-        <MessageScrollerItem key={i} scrollAnchor={i === demoDialog.length - 1}>
-          <Bubble
-            align={m.role === 'user' ? 'end' : 'start'}
-            variant={m.role === 'user' ? 'default' : 'muted'}
-          >
-            <BubbleContent>{m.text}</BubbleContent>
-          </Bubble>
-        </MessageScrollerItem>
-      ))}
-    </>
+    <Message align={message.role === 'user' ? 'end' : 'start'}>
+      <MessageContent>
+        <Bubble variant={message.role === 'user' ? 'default' : 'muted'}>
+          <BubbleContent>{message.text}</BubbleContent>
+        </Bubble>
+      </MessageContent>
+    </Message>
   );
 }
 
-// Императивный скролл: кнопка-отправка добавляет сообщение и прокручивает вниз через хук.
-function SendButton({ onSend }: { onSend: () => void }) {
-  const { scrollToEnd } = useMessageScroller();
-  return (
-    <Button
-      type="button"
-      onClick={() => {
-        onSend();
-        // даём разметке обновиться, затем скроллим к последнему сообщению
-        requestAnimationFrame(() => scrollToEnd({ behavior: 'smooth' }));
-      }}
-    >
-      Отправить сообщение
-    </Button>
-  );
-}
+// Новая реплика пользователя — якорь: лента ставит её к верхнему краю, ответ появляется ниже.
+function AnchoredChat() {
+  const [messages, setMessages] = useState<ChatMessage[]>(dialog.slice(0, 3));
+  const nextId = useRef(0);
 
-function ImperativeDemo() {
-  const [messages, setMessages] = useState<string[]>([
-    'Первое сообщение',
-    'Второе сообщение',
-    'Третье сообщение',
-  ]);
+  const ask = () => {
+    const id = ++nextId.current;
+    setMessages((prev) => [...prev, { id: `q${id}`, role: 'user', text: `Вопрос №${id}` }]);
+    // Вместо запроса к модели — задержка: пример работает прямо в браузере.
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        { id: `a${id}`, role: 'assistant', text: `Ответ на вопрос №${id}.` },
+      ]);
+    }, 600);
+  };
+
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 480 }}
+      style={{
+        width: '100%',
+        maxWidth: 480,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 12,
+      }}
     >
-      <MessageScrollerProvider>
-        <div style={{ height: 220, borderRadius: 8, border: '1px solid var(--border, #e5e7eb)' }}>
-          <MessageScroller>
-            <MessageScrollerViewport>
-              <MessageScrollerContent style={{ gap: '0.75rem', padding: '0.75rem' }}>
-                {messages.map((text, i) => (
-                  <MessageScrollerItem key={i} scrollAnchor={i === messages.length - 1}>
-                    <Bubble align="start" variant="muted">
-                      <BubbleContent>{text}</BubbleContent>
-                    </Bubble>
+      <div style={{ ...frame, alignSelf: 'stretch' }}>
+        <MessageScrollerProvider autoScroll>
+          <MessageScroller style={{ height: 240 }}>
+            <MessageScrollerViewport aria-label="Переписка">
+              <MessageScrollerContent className="gap-3 p-3">
+                {messages.map((m) => (
+                  <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === 'user'}>
+                    <ChatLine message={m} />
                   </MessageScrollerItem>
                 ))}
               </MessageScrollerContent>
             </MessageScrollerViewport>
-            <MessageScrollerButton direction="end" />
+            <MessageScrollerButton className="left-1/2" />
           </MessageScroller>
+        </MessageScrollerProvider>
+      </div>
+      <Button onClick={ask}>Задать вопрос</Button>
+    </div>
+  );
+}
+
+// Хуки работают только внутри MessageScrollerProvider.
+function ScrollControls() {
+  const { scrollToStart, scrollToEnd } = useMessageScroller();
+  const scrollable = useMessageScrollerScrollable();
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={!scrollable.start}
+        onClick={() => scrollToStart()}
+      >
+        В начало
+      </Button>
+      <Button size="sm" variant="outline" disabled={!scrollable.end} onClick={() => scrollToEnd()}>
+        В конец
+      </Button>
+    </div>
+  );
+}
+
+function ImperativeScroll() {
+  return (
+    <div style={{ width: '100%', maxWidth: 480 }}>
+      <MessageScrollerProvider>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <ScrollControls />
+          <div style={frame}>
+            <MessageScroller style={{ height: 200 }}>
+              <MessageScrollerViewport aria-label="Переписка">
+                <MessageScrollerContent className="gap-3 p-3">
+                  {dialog.map((m) => (
+                    <MessageScrollerItem key={m.id} messageId={m.id}>
+                      <ChatLine message={m} />
+                    </MessageScrollerItem>
+                  ))}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+            </MessageScroller>
+          </div>
         </div>
-        <SendButton
-          onSend={() => setMessages((prev) => [...prev, `Новое сообщение #${prev.length + 1}`])}
-        />
       </MessageScrollerProvider>
     </div>
   );
 }
 
+const chatLineCode = `type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string };
+
+// dialog: ChatMessage[] — сообщения переписки
+function ChatLine({ message }: { message: ChatMessage }) {
+  return (
+    <Message align={message.role === 'user' ? 'end' : 'start'}>
+      <MessageContent>
+        <Bubble variant={message.role === 'user' ? 'default' : 'muted'}>
+          <BubbleContent>{message.text}</BubbleContent>
+        </Bubble>
+      </MessageContent>
+    </Message>
+  );
+}`;
+
 export const messageScrollerDocConfig: ComponentDocConfig = {
   name: 'MessageScroller',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/message-scroller',
   description:
-    'Авто-скроллящийся контейнер списка сообщений на shadcn / headless-примитиве @shadcn/react/message-scroller. Compound: MessageScrollerProvider / MessageScroller / MessageScrollerViewport / MessageScrollerContent / MessageScrollerItem / MessageScrollerButton. Provider держит поведение (авто-скролл, привязку к якорю, отслеживание видимости), а хук useMessageScroller даёт императивный скролл.',
+    'Прокручиваемая лента сообщений чата: открывается с конца, держит позицию при подгрузке и даёт кнопку перехода к краю.',
   variants: [
     {
       id: 'basic',
-      title: 'Базовая компоновка',
+      title: 'Лента сообщений',
       description:
-        'Минимальный стек: Provider → MessageScroller → Viewport → Content → Item. Viewport берёт на себя overflow, поэтому контейнеру нужна фиксированная высота. Последнему сообщению ставится scrollAnchor — на него ориентируется авто-скролл.',
+        'Provider → MessageScroller → Viewport → Content → Item. Высоту задаёт MessageScroller (или его родитель). По умолчанию лента открывается с конца.',
       render: () => (
-        <div style={{ width: '100%', maxWidth: 480 }}>
+        <div style={{ width: '100%', maxWidth: 480, ...frame }}>
           <MessageScrollerProvider>
-            <div
-              style={{ height: 240, borderRadius: 8, border: '1px solid var(--border, #e5e7eb)' }}
-            >
-              <MessageScroller>
-                <MessageScrollerViewport>
-                  <MessageScrollerContent style={{ gap: '0.75rem', padding: '0.75rem' }}>
-                    <DialogItems />
-                  </MessageScrollerContent>
-                </MessageScrollerViewport>
-              </MessageScroller>
-            </div>
+            <MessageScroller style={{ height: 240 }}>
+              <MessageScrollerViewport aria-label="Переписка">
+                <MessageScrollerContent className="gap-3 p-3">
+                  {dialog.map((m) => (
+                    <MessageScrollerItem key={m.id} messageId={m.id}>
+                      <ChatLine message={m} />
+                    </MessageScrollerItem>
+                  ))}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+            </MessageScroller>
           </MessageScrollerProvider>
         </div>
       ),
-      code: `<MessageScrollerProvider>
-  <div style={{ height: 240 }}>
-    <MessageScroller>
-      <MessageScrollerViewport>
-        <MessageScrollerContent>
-          {messages.map((m, i) => (
-            <MessageScrollerItem key={i} scrollAnchor={i === messages.length - 1}>
-              <Bubble align={m.role === 'user' ? 'end' : 'start'}>
-                <BubbleContent>{m.text}</BubbleContent>
-              </Bubble>
-            </MessageScrollerItem>
-          ))}
-        </MessageScrollerContent>
-      </MessageScrollerViewport>
-    </MessageScroller>
-  </div>
+      code: `${chatLineCode}
+
+<MessageScrollerProvider>
+  <MessageScroller style={{ height: 240 }}>
+    <MessageScrollerViewport aria-label="Переписка">
+      <MessageScrollerContent className="gap-3 p-3">
+        {dialog.map((m) => (
+          <MessageScrollerItem key={m.id} messageId={m.id}>
+            <ChatLine message={m} />
+          </MessageScrollerItem>
+        ))}
+      </MessageScrollerContent>
+    </MessageScrollerViewport>
+  </MessageScroller>
 </MessageScrollerProvider>`,
     },
     {
-      id: 'scroll-button',
-      title: 'Кнопка «прокрутить вниз»',
+      id: 'scroll-buttons',
+      title: 'Кнопки перехода к краю',
       description:
-        'MessageScrollerButton — плавающая кнопка внутри MessageScroller. Появляется, когда список прокручен вверх (data-active), и уводит к последнему сообщению. direction="end" — вниз, "start" — вверх. Стиль берётся у Button (variant/size).',
+        'MessageScrollerButton появляется, только когда к своему краю есть куда прокручивать. direction="end" — вниз, "start" — вверх. Здесь лента открывается с начала (defaultScrollPosition="start").',
       render: () => (
-        <div style={{ width: '100%', maxWidth: 480 }}>
+        <div style={{ width: '100%', maxWidth: 480, ...frame }}>
           <MessageScrollerProvider defaultScrollPosition="start">
-            <div
-              style={{ height: 240, borderRadius: 8, border: '1px solid var(--border, #e5e7eb)' }}
-            >
-              <MessageScroller>
-                <MessageScrollerViewport>
-                  <MessageScrollerContent style={{ gap: '0.75rem', padding: '0.75rem' }}>
-                    <DialogItems />
-                  </MessageScrollerContent>
-                </MessageScrollerViewport>
-                <MessageScrollerButton direction="end" />
-              </MessageScroller>
-            </div>
+            <MessageScroller style={{ height: 240 }}>
+              <MessageScrollerViewport aria-label="Переписка">
+                <MessageScrollerContent className="gap-3 p-3">
+                  {dialog.map((m) => (
+                    <MessageScrollerItem key={m.id} messageId={m.id}>
+                      <ChatLine message={m} />
+                    </MessageScrollerItem>
+                  ))}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton direction="start" className="left-1/2" />
+              <MessageScrollerButton direction="end" className="left-1/2" />
+            </MessageScroller>
           </MessageScrollerProvider>
         </div>
       ),
-      code: `<MessageScroller>
-  <MessageScrollerViewport>
-    <MessageScrollerContent>{/* items */}</MessageScrollerContent>
-  </MessageScrollerViewport>
-  <MessageScrollerButton direction="end" />
-</MessageScroller>`,
+      code: `<MessageScrollerProvider defaultScrollPosition="start">
+  <MessageScroller style={{ height: 240 }}>
+    <MessageScrollerViewport aria-label="Переписка">
+      <MessageScrollerContent className="gap-3 p-3">
+        {dialog.map((m) => (
+          <MessageScrollerItem key={m.id} messageId={m.id}>
+            <ChatLine message={m} />
+          </MessageScrollerItem>
+        ))}
+      </MessageScrollerContent>
+    </MessageScrollerViewport>
+    <MessageScrollerButton direction="start" className="left-1/2" />
+    <MessageScrollerButton direction="end" className="left-1/2" />
+  </MessageScroller>
+</MessageScrollerProvider>`,
     },
   ],
   examples: [
     {
-      id: 'chat-log',
-      title: 'Лог чата (диалог + Bubble)',
+      id: 'anchored-question',
+      title: 'Новый вопрос — к верхнему краю (scrollAnchor)',
       description:
-        'Типовой сценарий: сообщения ассистента (слева, muted) и пользователя (справа, default) в авто-скролл-контейнере. Каждое сообщение — MessageScrollerItem с Bubble внутри; кнопка «вниз» возвращает к концу переписки.',
-      render: () => (
-        <div style={{ width: '100%', maxWidth: 480 }}>
-          <MessageScrollerProvider>
-            <div
-              style={{ height: 260, borderRadius: 8, border: '1px solid var(--border, #e5e7eb)' }}
-            >
-              <MessageScroller>
-                <MessageScrollerViewport>
-                  <MessageScrollerContent style={{ gap: '0.75rem', padding: '0.75rem' }}>
-                    <DialogItems />
-                  </MessageScrollerContent>
-                </MessageScrollerViewport>
-                <MessageScrollerButton direction="end" />
-              </MessageScroller>
-            </div>
-          </MessageScrollerProvider>
-        </div>
-      ),
-      code: `<MessageScrollerProvider>
-  <div style={{ height: 260 }}>
-    <MessageScroller>
-      <MessageScrollerViewport>
-        <MessageScrollerContent>
-          {dialog.map((m, i) => (
-            <MessageScrollerItem key={i} scrollAnchor={i === dialog.length - 1}>
-              <Bubble align={m.role === 'user' ? 'end' : 'start'} variant={m.role === 'user' ? 'default' : 'muted'}>
-                <BubbleContent>{m.text}</BubbleContent>
-              </Bubble>
-            </MessageScrollerItem>
-          ))}
-        </MessageScrollerContent>
-      </MessageScrollerViewport>
-      <MessageScrollerButton direction="end" />
-    </MessageScroller>
-  </div>
-</MessageScrollerProvider>`,
+        'Реплики пользователя помечены scrollAnchor. Новая такая реплика встаёт к верхнему краю ленты, а ответ появляется под ней. autoScroll держит ленту у конца, пока её не прокрутили вручную.',
+      render: AnchoredChat,
+      code: `function AnchoredChat() {
+  const [messages, setMessages] = useState<ChatMessage[]>(dialog.slice(0, 3));
+  const nextId = useRef(0);
+
+  const ask = () => {
+    const id = ++nextId.current;
+    setMessages((prev) => [...prev, { id: \`q\${id}\`, role: 'user', text: \`Вопрос №\${id}\` }]);
+    // Вместо запроса к модели — задержка: пример работает прямо в браузере.
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        { id: \`a\${id}\`, role: 'assistant', text: \`Ответ на вопрос №\${id}.\` },
+      ]);
+    }, 600);
+  };
+
+  return (
+    <>
+      <MessageScrollerProvider autoScroll>
+        <MessageScroller style={{ height: 240 }}>
+          <MessageScrollerViewport aria-label="Переписка">
+            <MessageScrollerContent className="gap-3 p-3">
+              {messages.map((m) => (
+                <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === 'user'}>
+                  <ChatLine message={m} />
+                </MessageScrollerItem>
+              ))}
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton className="left-1/2" />
+        </MessageScroller>
+      </MessageScrollerProvider>
+      <Button onClick={ask}>Задать вопрос</Button>
+    </>
+  );
+}`,
     },
     {
       id: 'imperative-scroll',
-      title: 'Императивный скролл (useMessageScroller)',
+      title: 'Прокрутка из кода (хуки)',
       description:
-        'Хук useMessageScroller() из-под Provider даёт scrollToEnd / scrollToStart / scrollToMessage. Здесь кнопка добавляет сообщение и вручную прокручивает контейнер вниз к новому сообщению.',
-      render: ImperativeDemo,
-      code: `function SendButton({ onSend }: { onSend: () => void }) {
-  const { scrollToEnd } = useMessageScroller();
+        'useMessageScroller даёт scrollToStart / scrollToEnd / scrollToMessage, useMessageScrollerScrollable — есть ли куда прокручивать. Оба хука работают внутри MessageScrollerProvider.',
+      render: ImperativeScroll,
+      code: `function ScrollControls() {
+  const { scrollToStart, scrollToEnd } = useMessageScroller();
+  const scrollable = useMessageScrollerScrollable();
   return (
-    <Button
-      onClick={() => {
-        onSend();
-        requestAnimationFrame(() => scrollToEnd({ behavior: 'smooth' }));
-      }}
-    >
-      Отправить сообщение
-    </Button>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Button size="sm" variant="outline" disabled={!scrollable.start} onClick={() => scrollToStart()}>
+        В начало
+      </Button>
+      <Button size="sm" variant="outline" disabled={!scrollable.end} onClick={() => scrollToEnd()}>
+        В конец
+      </Button>
+    </div>
   );
 }
 
 <MessageScrollerProvider>
-  <MessageScroller>{/* viewport + content + items */}</MessageScroller>
-  <SendButton onSend={appendMessage} />
+  <ScrollControls />
+  <MessageScroller style={{ height: 200 }}>
+    <MessageScrollerViewport aria-label="Переписка">
+      <MessageScrollerContent className="gap-3 p-3">
+        {dialog.map((m) => (
+          <MessageScrollerItem key={m.id} messageId={m.id}>
+            <ChatLine message={m} />
+          </MessageScrollerItem>
+        ))}
+      </MessageScrollerContent>
+    </MessageScrollerViewport>
+  </MessageScroller>
 </MessageScrollerProvider>`,
     },
   ],
   props: [
     {
-      name: 'MessageScrollerProvider',
-      type: 'component',
-      description:
-        'Контекст поведения (без своего DOM): авто-скролл, привязка к якорю, отслеживание видимых сообщений. Оборачивает весь блок скроллера.',
-    },
-    {
-      name: 'MessageScrollerProvider.autoScroll',
-      type: 'boolean',
-      default: 'true',
-      description:
-        'Автоматически удерживать прокрутку у последнего сообщения при добавлении новых (пока пользователь внизу).',
-    },
-    {
-      name: 'MessageScrollerProvider.defaultScrollPosition',
-      type: "'start' | 'end' | 'last-anchor'",
-      description: 'Начальная позиция скролла при монтировании.',
-    },
-    {
-      name: 'MessageScrollerProvider.scrollEdgeThreshold',
-      type: 'number',
-      description:
-        'Порог (px) близости к краю, при котором список считается «внизу» (влияет на авто-скролл и активность кнопки).',
-    },
-    {
-      name: 'MessageScroller',
-      type: 'div',
-      description:
-        'Корневой контейнер (relative, flex-колонка, overflow-hidden). Позиционирует плавающую MessageScrollerButton.',
-    },
-    {
-      name: 'MessageScrollerViewport',
-      type: 'div',
-      description:
-        'Прокручиваемая область (overflow-y-auto, role="region"). Контейнеру-родителю нужна фиксированная высота.',
-    },
-    {
-      name: 'MessageScrollerContent',
-      type: 'div',
-      description:
-        'Внутренний стек сообщений (role="log", flex-колонка). Держит вертикальные отступы между Item.',
-    },
-    {
-      name: 'MessageScrollerItem',
-      type: 'div',
-      description:
-        'Обёртка одного сообщения (content-visibility для длинных списков). Внутрь кладётся любой контент — напр. Bubble.',
-    },
-    {
-      name: 'MessageScrollerItem.scrollAnchor',
+      name: 'Provider.autoScroll',
       type: 'boolean',
       default: 'false',
       description:
-        'Пометить сообщение якорем скролла (обычно — последнее). На него ориентируется авто-скролл.',
+        'Держать ленту у конца, когда содержимое растёт (новые сообщения, потоковый ответ), — пока пользователь не прокрутил её сам.',
     },
     {
-      name: 'MessageScrollerButton',
-      type: 'button',
+      name: 'Provider.defaultScrollPosition',
+      type: "'start' | 'end' | 'last-anchor'",
+      default: "'end'",
       description:
-        'Плавающая кнопка перехода к краю переписки. Активна (data-active) при отходе от края.',
+        'Где открыть ленту при первом показе: в начале, в конце или у последнего элемента с scrollAnchor.',
     },
     {
-      name: 'MessageScrollerButton.direction',
+      name: 'Provider.scrollEdgeThreshold',
+      type: 'number',
+      default: '8',
+      description:
+        'Сколько пикселей до края считаются «у края». От этого зависят useMessageScrollerScrollable и показ кнопок.',
+    },
+    {
+      name: 'Provider.scrollPreviousItemPeek',
+      type: 'number',
+      default: '64',
+      description:
+        'Сколько пикселей предыдущего сообщения оставить видимыми, когда якорь ставится к верхнему краю.',
+    },
+    {
+      name: 'Provider.scrollMargin',
+      type: 'number',
+      default: '0',
+      description: 'Отступ от верхнего края при прокрутке к сообщению.',
+    },
+    {
+      name: 'Viewport.aria-label',
+      type: 'string',
+      default: "'Messages'",
+      description:
+        'Подпись области прокрутки для скринридера. Кит её не переводит — задайте на языке интерфейса.',
+    },
+    {
+      name: 'Viewport.preserveScrollOnPrepend',
+      type: 'boolean',
+      default: 'true',
+      description: 'Не сдвигать видимое при добавлении сообщений в начало (подгрузка истории).',
+    },
+    {
+      name: 'Item.messageId',
+      type: 'string',
+      description:
+        'Идентификатор сообщения. Нужен для scrollToMessage и useMessageScrollerVisibility.',
+    },
+    {
+      name: 'Item.scrollAnchor',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'Якорь: когда такой элемент добавляется, лента ставит его к верхнему краю. Обычно — реплика пользователя.',
+    },
+    {
+      name: 'Button.direction',
       type: "'start' | 'end'",
-      default: 'end',
-      description: 'Куда ведёт: end — к последнему сообщению (низ), start — к первому (верх).',
+      default: "'end'",
+      description: 'К какому краю ведёт кнопка: end — к последнему сообщению, start — к первому.',
     },
     {
-      name: 'MessageScrollerButton.variant / size',
-      type: 'Button variant / size',
-      default: 'secondary / icon-sm',
-      description: 'Стиль кнопки (наследуется у Button из ui-kit).',
+      name: 'Button.variant',
+      type: 'ButtonProps["variant"]',
+      default: "'secondary'",
+      description: 'Вид кнопки — те же значения, что у Button.',
+    },
+    {
+      name: 'Button.size',
+      type: 'ButtonProps["size"]',
+      default: "'icon-sm'",
+      description: 'Размер кнопки — те же значения, что у Button.',
+    },
+    {
+      name: 'Button.children',
+      type: 'ReactNode',
+      description:
+        'Содержимое кнопки. По умолчанию — стрелка и скрытая подпись из локали кита. Свои children заменяют и то и другое.',
     },
     {
       name: 'useMessageScroller()',
-      type: '() => { scrollToEnd; scrollToStart; scrollToMessage }',
-      description: 'Императивный скролл из-под Provider (behaviour-хук).',
+      type: '{ scrollToStart, scrollToEnd, scrollToMessage }',
+      description:
+        'Прокрутка из кода. Каждая функция принимает { align, behavior, scrollMargin }, scrollToMessage — ещё messageId.',
     },
     {
       name: 'useMessageScrollerScrollable()',
-      type: '() => { start: boolean; end: boolean }',
-      description: 'Есть ли куда скроллить вверх/вниз (для собственных индикаторов).',
+      type: '{ start: boolean; end: boolean }',
+      description: 'Есть ли куда прокручивать вверх и вниз — для своих индикаторов и кнопок.',
     },
     {
       name: 'useMessageScrollerVisibility()',
-      type: '() => { currentAnchorId; visibleMessageIds }',
-      description: 'Текущий якорь и id видимых сообщений (для «прочитано»/подгрузки).',
+      type: '{ currentAnchorId: string | null; visibleMessageIds: string[] }',
+      description:
+        'Какие сообщения сейчас видны (по messageId) и какой якорь у верхнего края — для отметок «прочитано».',
+    },
+    {
+      name: 'className',
+      type: 'string',
+      description:
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

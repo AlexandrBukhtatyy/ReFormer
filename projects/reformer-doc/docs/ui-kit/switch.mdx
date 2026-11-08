@@ -9,8 +9,79 @@ import { switchDocConfig } from '@site/src/components/demo/examples/switch';
 
 # Switch
 
-Переключатель on/off на Radix (`button` с `role="switch"`). Значение — `boolean`.
-Для форм — **SwitchWithLabel** (registry `Switch`) с inline-раскладкой: подпись рисуется справа из `componentProps.label`,
-а верхнюю метку `FormField` не дублирует (`reformerLayout = 'inline-label'`).
+Выключатель «вкл / выкл» для настройки, которая по смыслу включается и выключается. В форму ставят
+`SwitchWithLabel` — выключатель с подписью справа. Значение поля — `boolean`.
+
+## Когда брать
+
+- **`SwitchWithLabel`** — настройка, которую человек воспринимает как режим: уведомления,
+  автосохранение, вход по коду.
+- **`Switch`** — голый выключатель без подписи: в строке таблицы, в шапке карточки.
+
+Соседи:
+
+- согласие или опция, которую отмечают перед отправкой («Согласен с условиями») — привычнее
+  [Checkbox](./checkbox.mdx);
+- кнопка, которая остаётся нажатой, с иконкой или текстом на ней — [Toggle](./toggle.mdx);
+- выбор из двух подписанных вариантов («Месяц» / «Год») — [ToggleGroup](./toggle-group.mdx) или
+  [RadioGroup](./radio-group.mdx).
+
+## Анатомия
+
+| Компонент         | Значение поля | Ключевые пропсы     |
+| ----------------- | ------------- | ------------------- |
+| `SwitchWithLabel` | `boolean`     | `label`, `tooltip`  |
+| `Switch`          | `boolean`     | `size`, `className` |
+
+`SwitchWithLabel` сам рисует подпись справа, поэтому [FormField](./form-field.mdx) не ставит над
+ним свою. Клик по подписи переключает выключатель. Звёздочку `required` у такой подписи
+компонент не рисует. У голого `Switch` есть `size`: `'default'` или `'sm'`.
+
+```tsx
+{
+  model: model.$.notifications,
+  component: SwitchWithLabel,
+  componentProps: { label: 'Push-уведомления' },
+}
+```
+
+Пустое значение (`null`) выключатель показывает выключенным, в модель пишет только `true` или
+`false`.
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). В форме из JSON
+`SwitchWithLabel` зарегистрирован под именем `Switch`.
+
+Вне формы выключатель — компонент Radix: `checked` и `onCheckedChange`.
+
+```tsx
+<SwitchWithLabel checked={dark} onCheckedChange={setDark} label="Тёмная тема" />
+```
+
+## Примеры и API
 
 <ComponentDoc config={switchDocConfig} />
+
+## Доступность
+
+- Выключатель — кнопка `role="switch"` с `aria-checked` (Radix Switch). Фокус — по Tab,
+  переключение — пробелом или Enter.
+- Подпись — `<label>`, связанный с выключателем: даёт ему имя для скринридера и переключает по
+  клику. Без `label` выключатель в форме остаётся без имени — задавайте подпись всегда.
+- `FormField` связывает выключатель с пояснением и замечанием (`aria-describedby`), при
+  показанном замечании ставит `aria-invalid` и `aria-errormessage`, при `required` —
+  `aria-required`. Рамкой ошибки выключатель не подсвечивается: видно только текст замечания.
+- Иконка `tooltip` стоит после подписи, вне `<label>`: щелчок по ней выключатель не трогает.
+
+## Локализация
+
+Сам выключатель текста не рисует: подпись и пояснение задаёте вы. Встроенная строка одна — подпись
+кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label`. Тексты замечаний берутся из
+[словаря сообщений](../reference/glossary.md#валидация) формы. Как подключить русскую локаль кита
+— в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Checkbox](./checkbox.mdx) — флажок для согласия и опций.
+- [Toggle](./toggle.mdx) — нажимаемая кнопка.
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.

@@ -3,21 +3,20 @@ import { Progress } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Progress — не form-control: презентационный индикатор прогресса на Radix Progress
- * (Root + Indicator). Значение задаётся пропом `value` (0..100); ширину/высоту/цвет
- * можно перекрыть через `className`. Variants — разные значения, Examples — приёмы
- * (анимация загрузки, неопределённый прогресс).
+ * Progress — не поле формы: полоса прогресса на Radix Progress (Root + Indicator). Заполнение —
+ * `value` в процентах (0–100), высота и цвет — `className`. Variants — значения и размеры,
+ * Examples — приёмы (живое значение, подпись). Обёртка `<div style>` в render — рамка демо, в
+ * `code` её нет.
  */
 export const progressDocConfig: ComponentDocConfig = {
   name: 'Progress',
   importFrom: '@reformer/ui-kit',
-  description:
-    'Индикатор прогресса на shadcn / Radix Progress. Заполнение задаётся числом value (0..100); role="progressbar" и aria-valuenow — из коробки.',
+  description: 'Полоса, заполненная на value процентов (0–100). role="progressbar" ставит Radix.',
   variants: [
     {
       id: 'values',
-      title: 'Разные значения',
-      description: 'value: 0 / 25 / 50 / 75 / 100 — доля заполнения полосы.',
+      title: 'Значение (value)',
+      description: 'value — доля заполнения в процентах: 0, 25, 50, 75, 100.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 320 }}>
           <Progress value={0} />
@@ -35,9 +34,8 @@ export const progressDocConfig: ComponentDocConfig = {
     },
     {
       id: 'custom-size',
-      title: 'Размер и цвет через className',
-      description:
-        'Высоту (h-*), скругление и цвет (bg-*) можно перекрыть через className — базовые классы мёржатся tailwind-merge.',
+      title: 'Высота через className',
+      description: 'Высоту дорожки меняет класс h-*: ваш класс перекрывает базовый h-2.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 320 }}>
           <Progress value={60} className="h-1" />
@@ -53,9 +51,9 @@ export const progressDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'animated',
-      title: 'Анимированная загрузка',
+      title: 'Живое значение',
       description:
-        'value — контролируемый проп: обновляй его из состояния (таймер, прогресс запроса), индикатор плавно доезжает (transition-all).',
+        'value берут из состояния (таймер, прогресс запроса) — полоса плавно доезжает до нового значения.',
       render: () => {
         function AnimatedProgress() {
           const [value, setValue] = useState(10);
@@ -86,24 +84,24 @@ export const progressDocConfig: ComponentDocConfig = {
     },
     {
       id: 'with-label',
-      title: 'С подписью процента',
+      title: 'Подпись и значение для скринридера',
       description:
-        'Progress не рисует текст — подпись добавляй рядом, синхронизируя с тем же value.',
+        'Progress не рисует текст: подпись и процент ставьте рядом. aria-labelledby связывает полосу с подписью, aria-valuenow сообщает значение — компонент сам его не выставляет.',
       render: () => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: 320 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-            <span>Загрузка</span>
+        <div className="flex w-80 flex-col gap-1.5">
+          <div className="flex justify-between text-sm">
+            <span id="upload-label">Загрузка файла</span>
             <span>66%</span>
           </div>
-          <Progress value={66} />
+          <Progress value={66} aria-labelledby="upload-label" aria-valuenow={66} />
         </div>
       ),
-      code: `<div className="flex flex-col gap-1.5">
+      code: `<div className="flex w-80 flex-col gap-1.5">
   <div className="flex justify-between text-sm">
-    <span>Загрузка</span>
+    <span id="upload-label">Загрузка файла</span>
     <span>66%</span>
   </div>
-  <Progress value={66} />
+  <Progress value={66} aria-labelledby="upload-label" aria-valuenow={66} />
 </div>`,
     },
   ],
@@ -112,13 +110,26 @@ export const progressDocConfig: ComponentDocConfig = {
       name: 'value',
       type: 'number',
       description:
-        'Доля заполнения в процентах (0..100). Без value индикатор скрыт (translateX(-100%)) — неопределённый прогресс.',
+        'Заполнение в процентах, 0–100. Без value полоса пустая. В Radix не передаётся — aria-valuenow задайте сами.',
+    },
+    {
+      name: 'max',
+      type: 'number',
+      default: '100',
+      description:
+        'Верх шкалы для Radix (aria-valuemax). На заполнение не влияет: value всегда считается процентом.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Классы для Root (h-*, w-*, rounded-*, bg-*) — мёржатся поверх базовых (h-2 w-full rounded-full bg-primary/20) через tailwind-merge.',
+        'Классы дорожки: h-*, w-*, rounded-*. При конфликте Tailwind-классов побеждает ваш.',
+    },
+    {
+      name: '...props',
+      type: 'Radix Progress.Root',
+      description:
+        'Остальные атрибуты корня: aria-label, aria-labelledby, aria-valuenow, aria-valuetext и т. д.',
     },
   ],
 };

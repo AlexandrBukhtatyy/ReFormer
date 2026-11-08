@@ -8,28 +8,28 @@ import {
   SheetDescription,
   SheetClose,
   Button,
+  Input,
+  Label,
 } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Sheet — не form-control: Radix Dialog, оформленный как выезжающая сбоку панель
- * (Sheet / SheetTrigger / SheetPortal / SheetOverlay / SheetContent / SheetHeader /
- * SheetFooter / SheetTitle / SheetDescription / SheetClose). Контент рендерится в
- * Portal поверх страницы, направление выезда задаёт `side` (top | right | bottom |
- * left). Таб Variants — готовые композиции панели, Examples — приёмы (навигация,
- * подтверждение действий, без крестика), API — таблица частей и общих props.
+ * Sheet — не поле формы: Radix Dialog в виде панели у края экрана (Sheet / SheetTrigger /
+ * SheetContent / SheetHeader / SheetTitle / SheetDescription / SheetFooter / SheetClose).
+ * Край задаёт `side`. Variants — базовая панель и четыре края, Examples — навигация, форма,
+ * панель без крестика.
  */
 export const sheetDocConfig: ComponentDocConfig = {
   name: 'Sheet',
   importFrom: '@reformer/ui-kit',
   description:
-    'Боковая панель на shadcn / Radix Dialog. Compound: Sheet (корень) + SheetTrigger, SheetContent (в Portal, с оверлеем и крестиком закрытия), SheetHeader / SheetTitle / SheetDescription, SheetFooter, SheetClose. Направление выезда — prop side (top / right / bottom / left). Доступность (focus trap, Esc, aria) — из Radix.',
+    'Панель, которая выезжает от края экрана: справа, слева, сверху или снизу. Модальная, как Dialog.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая панель',
       description:
-        'Триггер выдвигает панель справа с заголовком, описанием и подвалом. Крестик закрытия встроен в SheetContent (showCloseButton по умолчанию).',
+        'Панель выезжает справа: заголовок, описание, кнопки внизу. Крестик в углу рисует SheetContent (showCloseButton по умолчанию true).',
       render: () => (
         <Sheet>
           <SheetTrigger asChild>
@@ -75,7 +75,7 @@ export const sheetDocConfig: ComponentDocConfig = {
       id: 'sides',
       title: 'Четыре направления (side)',
       description:
-        'Prop side управляет краем, от которого выезжает панель: right (по умолчанию), left, top, bottom.',
+        'side — край, от которого выезжает панель: right (по умолчанию), left, top, bottom.',
       render: () => (
         <div className="flex flex-wrap gap-2">
           {(['right', 'left', 'top', 'bottom'] as const).map((side) => (
@@ -93,19 +93,21 @@ export const sheetDocConfig: ComponentDocConfig = {
           ))}
         </div>
       ),
-      code: `{(['right', 'left', 'top', 'bottom'] as const).map((side) => (
-  <Sheet key={side}>
-    <SheetTrigger asChild>
-      <Button variant="outline">{side}</Button>
-    </SheetTrigger>
-    <SheetContent side={side}>
-      <SheetHeader>
-        <SheetTitle>Панель: {side}</SheetTitle>
-        <SheetDescription>Панель выезжает от края «{side}».</SheetDescription>
-      </SheetHeader>
-    </SheetContent>
-  </Sheet>
-))}`,
+      code: `<div className="flex flex-wrap gap-2">
+  {(['right', 'left', 'top', 'bottom'] as const).map((side) => (
+    <Sheet key={side}>
+      <SheetTrigger asChild>
+        <Button variant="outline">{side}</Button>
+      </SheetTrigger>
+      <SheetContent side={side}>
+        <SheetHeader>
+          <SheetTitle>Панель: {side}</SheetTitle>
+          <SheetDescription>Панель выезжает от края «{side}».</SheetDescription>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+  ))}
+</div>`,
     },
   ],
   examples: [
@@ -113,7 +115,7 @@ export const sheetDocConfig: ComponentDocConfig = {
       id: 'navigation',
       title: 'Навигационная панель слева',
       description:
-        'side="left" — типичный мобильный «бургер»-навигатор. SheetClose оборачивает пункты, чтобы клик закрывал панель.',
+        'side="left" — меню разделов на узком экране. SheetClose вокруг пункта закрывает панель при переходе.',
       render: () => (
         <Sheet>
           <SheetTrigger asChild>
@@ -158,26 +160,33 @@ export const sheetDocConfig: ComponentDocConfig = {
 </Sheet>`,
     },
     {
-      id: 'confirm',
-      title: 'Подтверждение действия',
+      id: 'form',
+      title: 'Форма в панели',
       description:
-        'Панель с деструктивным действием: описание последствий + кнопки «Отмена» / «Удалить» в подвале.',
+        'Панель справа с полями — редактирование записи без ухода со страницы. Кнопка «Сохранить» обёрнута в SheetClose и закрывает панель.',
       render: () => (
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="destructive">Удалить аккаунт</Button>
+            <Button variant="outline">Изменить контакт</Button>
           </SheetTrigger>
           <SheetContent>
             <SheetHeader>
-              <SheetTitle>Удалить аккаунт?</SheetTitle>
-              <SheetDescription>
-                Действие необратимо: все данные будут удалены без возможности восстановления.
-              </SheetDescription>
+              <SheetTitle>Контакт</SheetTitle>
+              <SheetDescription>Имя и почта для уведомлений.</SheetDescription>
             </SheetHeader>
+            <div className="grid gap-4 px-4">
+              <div className="grid gap-2">
+                <Label htmlFor="sheet-name">Имя</Label>
+                <Input id="sheet-name" defaultValue="Анна Смирнова" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="sheet-email">Email</Label>
+                <Input id="sheet-email" type="email" defaultValue="anna@example.com" />
+              </div>
+            </div>
             <SheetFooter>
-              <Button variant="destructive">Удалить</Button>
               <SheetClose asChild>
-                <Button variant="outline">Отмена</Button>
+                <Button>Сохранить</Button>
               </SheetClose>
             </SheetFooter>
           </SheetContent>
@@ -185,19 +194,26 @@ export const sheetDocConfig: ComponentDocConfig = {
       ),
       code: `<Sheet>
   <SheetTrigger asChild>
-    <Button variant="destructive">Удалить аккаунт</Button>
+    <Button variant="outline">Изменить контакт</Button>
   </SheetTrigger>
   <SheetContent>
     <SheetHeader>
-      <SheetTitle>Удалить аккаунт?</SheetTitle>
-      <SheetDescription>
-        Действие необратимо: все данные будут удалены без возможности восстановления.
-      </SheetDescription>
+      <SheetTitle>Контакт</SheetTitle>
+      <SheetDescription>Имя и почта для уведомлений.</SheetDescription>
     </SheetHeader>
+    <div className="grid gap-4 px-4">
+      <div className="grid gap-2">
+        <Label htmlFor="sheet-name">Имя</Label>
+        <Input id="sheet-name" defaultValue="Анна Смирнова" />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="sheet-email">Email</Label>
+        <Input id="sheet-email" type="email" defaultValue="anna@example.com" />
+      </div>
+    </div>
     <SheetFooter>
-      <Button variant="destructive">Удалить</Button>
       <SheetClose asChild>
-        <Button variant="outline">Отмена</Button>
+        <Button>Сохранить</Button>
       </SheetClose>
     </SheetFooter>
   </SheetContent>
@@ -207,7 +223,7 @@ export const sheetDocConfig: ComponentDocConfig = {
       id: 'without-close-icon',
       title: 'Без крестика (showCloseButton={false})',
       description:
-        'SheetContent по умолчанию рисует крестик в правом верхнем углу; showCloseButton={false} убирает его — закрытие только через явные кнопки.',
+        'showCloseButton={false} убирает крестик. Esc и щелчок по фону панель всё равно закрывают.',
       render: () => (
         <Sheet>
           <SheetTrigger asChild>
@@ -217,7 +233,7 @@ export const sheetDocConfig: ComponentDocConfig = {
             <SheetHeader>
               <SheetTitle>Требуется решение</SheetTitle>
               <SheetDescription>
-                Выберите один из вариантов — закрыть панель крестиком нельзя.
+                Выберите один из вариантов — крестика у панели нет.
               </SheetDescription>
             </SheetHeader>
             <SheetFooter>
@@ -237,7 +253,7 @@ export const sheetDocConfig: ComponentDocConfig = {
     <SheetHeader>
       <SheetTitle>Требуется решение</SheetTitle>
       <SheetDescription>
-        Выберите один из вариантов — закрыть панель крестиком нельзя.
+        Выберите один из вариантов — крестика у панели нет.
       </SheetDescription>
     </SheetHeader>
     <SheetFooter>
@@ -255,58 +271,57 @@ export const sheetDocConfig: ComponentDocConfig = {
       name: 'Sheet',
       type: 'Radix Dialog.Root',
       description:
-        'Корень. Управляемое состояние: open / onOpenChange (или defaultOpen для неуправляемого). modal (по умолчанию true).',
+        'Корень, хранит открытость: open + onOpenChange или defaultOpen. modal (true) — блокировать страницу.',
     },
     {
       name: 'SheetTrigger',
       type: 'Radix Dialog.Trigger',
-      description: 'Открывает панель. asChild — прокинуть на собственный элемент (напр. Button).',
+      description: 'Открывает панель. asChild — стать своим элементом, например Button.',
     },
     {
       name: 'SheetContent',
       type: 'Radix Dialog.Content',
       default: 'side="right", showCloseButton=true',
       description:
-        'Тело панели в Portal: оверлей, выезд от края, анимация. side — край выезда (top / right / bottom / left). showCloseButton — крестик закрытия в углу.',
+        'Панель в портале с затемнением фона. side — край (top / right / bottom / left), showCloseButton — крестик в углу.',
     },
     {
       name: 'SheetHeader',
       type: 'div',
-      description: 'Шапка: вертикальный стек заголовка и описания с отступами.',
+      description: 'Шапка: заголовок и описание столбиком, с отступами 16px.',
     },
     {
       name: 'SheetTitle',
       type: 'Radix Dialog.Title',
       description:
-        'Заголовок (font-semibold). Связывается с панелью через aria-labelledby — обязателен для доступности.',
+        'Заголовок. Radix связывает его с панелью через aria-labelledby. Обязателен; скрыть можно классом sr-only.',
     },
     {
       name: 'SheetDescription',
       type: 'Radix Dialog.Description',
-      description: 'Описание (text-sm, muted). Связывается через aria-describedby.',
+      description: 'Описание под заголовком. Radix связывает его с панелью через aria-describedby.',
     },
     {
       name: 'SheetFooter',
       type: 'div',
-      description:
-        'Подвал для действий (вертикальный стек с отступами, прижат к низу через mt-auto).',
+      description: 'Кнопки внизу панели, столбиком. Прижат к нижнему краю.',
     },
     {
       name: 'SheetClose',
       type: 'Radix Dialog.Close',
-      description: 'Закрывает панель. asChild — прокинуть на собственную кнопку.',
+      description: 'Закрывает панель. asChild — стать своей кнопкой или ссылкой.',
     },
     {
       name: 'SheetOverlay / SheetPortal',
       type: 'Radix Dialog.Overlay / Portal',
       description:
-        'Оверлей-затемнение и Portal-обёртка. Используются внутри SheetContent; экспортируются для кастомных композиций.',
+        'Затемнение фона и портал. SheetContent рисует их сам; отдельно нужны только для своей композиции.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

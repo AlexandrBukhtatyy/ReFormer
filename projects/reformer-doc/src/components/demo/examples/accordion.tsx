@@ -1,46 +1,83 @@
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@reformer/ui-kit';
+import { useState } from 'react';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+  Button,
+} from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Accordion — не form-control: compound поверх Radix Accordion (Accordion / AccordionItem /
- * AccordionTrigger / AccordionContent). Таб Variants показывает режимы раскрытия (single collapsible
- * / multiple), Examples — рецепты (FAQ), props — таблица.
+ * Accordion — не поле формы: compound поверх Radix Accordion (Accordion / AccordionItem /
+ * AccordionTrigger / AccordionContent). Variants — режимы раскрытия, Examples — типовые сценарии,
+ * API — таблица props. Обёртка `<div style>` в render — рамка демо, в `code` её нет.
  */
+
+function ControlledAccordion() {
+  const [open, setOpen] = useState<string[]>(['delivery']);
+  return (
+    <div style={{ width: '100%', maxWidth: 480 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setOpen(['delivery', 'payment', 'return'])}
+        >
+          Раскрыть все
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setOpen([])}>
+          Свернуть все
+        </Button>
+      </div>
+      <Accordion type="multiple" value={open} onValueChange={setOpen}>
+        <AccordionItem value="delivery">
+          <AccordionTrigger>Доставка</AccordionTrigger>
+          <AccordionContent>Отправляем в течение 1–2 рабочих дней.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="payment">
+          <AccordionTrigger>Оплата</AccordionTrigger>
+          <AccordionContent>Картой или переводом при получении.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="return">
+          <AccordionTrigger>Возврат</AccordionTrigger>
+          <AccordionContent>14 дней на возврат без объяснения причин.</AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  );
+}
+
 export const accordionDocConfig: ComponentDocConfig = {
   name: 'Accordion',
   importFrom: '@reformer/ui-kit',
   description:
-    'Раскрывающиеся секции на shadcn / Radix Accordion. Compound-набор: Accordion / AccordionItem / AccordionTrigger / AccordionContent. Режим — через type ("single" | "multiple").',
+    'Стопка секций с заголовками: щелчок по заголовку раскрывает содержимое. Режим — type ("single" | "multiple").',
   variants: [
     {
       id: 'single-collapsible',
-      title: 'Одиночное раскрытие (single, collapsible)',
+      title: 'Одна секция за раз (single, collapsible)',
       description:
-        'type="single" — одновременно открыта только одна секция. collapsible позволяет свернуть все.',
+        'type="single" — открыта не больше одной секции. collapsible разрешает свернуть и её.',
       render: () => (
-        <Accordion
-          type="single"
-          collapsible
-          defaultValue="item-1"
-          style={{ width: '100%', maxWidth: 480 }}
-        >
-          <AccordionItem value="item-1">
-            <AccordionTrigger>Что такое ReFormer?</AccordionTrigger>
-            <AccordionContent>
-              Библиотека для построения форм со связанной реактивностью полей.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-2">
-            <AccordionTrigger>На чём построен ui-kit?</AccordionTrigger>
-            <AccordionContent>
-              На shadcn / Radix — с сохранением data-slot и дословным портом стилей.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-3">
-            <AccordionTrigger>Можно ли темизировать?</AccordionTrigger>
-            <AccordionContent>Да, через Tailwind-токены темы (CSS-переменные).</AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <div style={{ width: '100%', maxWidth: 480 }}>
+          <Accordion type="single" collapsible defaultValue="item-1">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>Что такое ReFormer?</AccordionTrigger>
+              <AccordionContent>
+                Библиотека для построения форм со связанной реактивностью полей.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-2">
+              <AccordionTrigger>На чём построен ui-kit?</AccordionTrigger>
+              <AccordionContent>На shadcn/ui и Radix, стили — Tailwind.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-3">
+              <AccordionTrigger>Можно ли поменять тему?</AccordionTrigger>
+              <AccordionContent>Да, через CSS-переменные темы.</AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
       ),
       code: `<Accordion type="single" collapsible defaultValue="item-1">
   <AccordionItem value="item-1">
@@ -51,35 +88,35 @@ export const accordionDocConfig: ComponentDocConfig = {
   </AccordionItem>
   <AccordionItem value="item-2">
     <AccordionTrigger>На чём построен ui-kit?</AccordionTrigger>
-    <AccordionContent>
-      На shadcn / Radix — с сохранением data-slot и дословным портом стилей.
-    </AccordionContent>
+    <AccordionContent>На shadcn/ui и Radix, стили — Tailwind.</AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-3">
+    <AccordionTrigger>Можно ли поменять тему?</AccordionTrigger>
+    <AccordionContent>Да, через CSS-переменные темы.</AccordionContent>
   </AccordionItem>
 </Accordion>`,
     },
     {
       id: 'multiple',
-      title: 'Множественное раскрытие (multiple)',
-      description: 'type="multiple" — несколько секций могут быть открыты одновременно.',
+      title: 'Несколько секций (multiple)',
+      description: 'type="multiple" — секции раскрываются независимо друг от друга.',
       render: () => (
-        <Accordion
-          type="multiple"
-          defaultValue={['a', 'b']}
-          style={{ width: '100%', maxWidth: 480 }}
-        >
-          <AccordionItem value="a">
-            <AccordionTrigger>Доставка</AccordionTrigger>
-            <AccordionContent>Отправляем в течение 1–2 рабочих дней.</AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="b">
-            <AccordionTrigger>Оплата</AccordionTrigger>
-            <AccordionContent>Картой или переводом при получении.</AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="c">
-            <AccordionTrigger>Возврат</AccordionTrigger>
-            <AccordionContent>14 дней на возврат без объяснения причин.</AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <div style={{ width: '100%', maxWidth: 480 }}>
+          <Accordion type="multiple" defaultValue={['a', 'b']}>
+            <AccordionItem value="a">
+              <AccordionTrigger>Доставка</AccordionTrigger>
+              <AccordionContent>Отправляем в течение 1–2 рабочих дней.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="b">
+              <AccordionTrigger>Оплата</AccordionTrigger>
+              <AccordionContent>Картой или переводом при получении.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="c">
+              <AccordionTrigger>Возврат</AccordionTrigger>
+              <AccordionContent>14 дней на возврат без объяснения причин.</AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
       ),
       code: `<Accordion type="multiple" defaultValue={['a', 'b']}>
   <AccordionItem value="a">
@@ -90,35 +127,65 @@ export const accordionDocConfig: ComponentDocConfig = {
     <AccordionTrigger>Оплата</AccordionTrigger>
     <AccordionContent>Картой или переводом при получении.</AccordionContent>
   </AccordionItem>
+  <AccordionItem value="c">
+    <AccordionTrigger>Возврат</AccordionTrigger>
+    <AccordionContent>14 дней на возврат без объяснения причин.</AccordionContent>
+  </AccordionItem>
+</Accordion>`,
+    },
+    {
+      id: 'disabled-item',
+      title: 'Недоступная секция',
+      description: 'disabled на AccordionItem — секцию нельзя раскрыть, фокус её пропускает.',
+      render: () => (
+        <div style={{ width: '100%', maxWidth: 480 }}>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="basic">
+              <AccordionTrigger>Базовый тариф</AccordionTrigger>
+              <AccordionContent>До трёх форм и 1000 отправок в месяц.</AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="pro" disabled>
+              <AccordionTrigger>Тариф Pro (скоро)</AccordionTrigger>
+              <AccordionContent>Описание появится позже.</AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      ),
+      code: `<Accordion type="single" collapsible>
+  <AccordionItem value="basic">
+    <AccordionTrigger>Базовый тариф</AccordionTrigger>
+    <AccordionContent>До трёх форм и 1000 отправок в месяц.</AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="pro" disabled>
+    <AccordionTrigger>Тариф Pro (скоро)</AccordionTrigger>
+    <AccordionContent>Описание появится позже.</AccordionContent>
+  </AccordionItem>
 </Accordion>`,
     },
   ],
   examples: [
     {
       id: 'faq',
-      title: 'FAQ-блок',
+      title: 'Блок вопросов и ответов',
       description:
-        'Типовой сценарий: список вопросов-ответов. Одна секция раскрыта по умолчанию через defaultValue.',
+        'Типовой сценарий: список вопросов. Первый ответ раскрыт сразу — через defaultValue.',
       render: () => (
-        <Accordion
-          type="single"
-          collapsible
-          defaultValue="q1"
-          style={{ width: '100%', maxWidth: 480 }}
-        >
-          <AccordionItem value="q1">
-            <AccordionTrigger>Как начать работу?</AccordionTrigger>
-            <AccordionContent>
-              Установите пакет и импортируйте нужные компоненты из @reformer/ui-kit.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="q2">
-            <AccordionTrigger>Есть ли поддержка тёмной темы?</AccordionTrigger>
-            <AccordionContent>
-              Да — компоненты используют токены темы и адаптируются автоматически.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <div style={{ width: '100%', maxWidth: 480 }}>
+          <Accordion type="single" collapsible defaultValue="q1">
+            <AccordionItem value="q1">
+              <AccordionTrigger>Как начать работу?</AccordionTrigger>
+              <AccordionContent>
+                Установите пакет и импортируйте нужные компоненты из @reformer/ui-kit.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="q2">
+              <AccordionTrigger>Есть ли тёмная тема?</AccordionTrigger>
+              <AccordionContent>
+                Да — компоненты берут цвета из токенов темы и переключаются вместе с ней.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
       ),
       code: `<Accordion type="single" collapsible defaultValue="q1">
   <AccordionItem value="q1">
@@ -128,10 +195,40 @@ export const accordionDocConfig: ComponentDocConfig = {
     </AccordionContent>
   </AccordionItem>
   <AccordionItem value="q2">
-    <AccordionTrigger>Есть ли поддержка тёмной темы?</AccordionTrigger>
+    <AccordionTrigger>Есть ли тёмная тема?</AccordionTrigger>
     <AccordionContent>
-      Да — компоненты используют токены темы и адаптируются автоматически.
+      Да — компоненты берут цвета из токенов темы и переключаются вместе с ней.
     </AccordionContent>
+  </AccordionItem>
+</Accordion>`,
+    },
+    {
+      id: 'controlled',
+      title: 'Управляемое раскрытие',
+      description:
+        'value + onValueChange: какие секции открыты, решает ваше состояние — например, кнопки «раскрыть / свернуть все».',
+      render: ControlledAccordion,
+      code: `const [open, setOpen] = useState<string[]>(['delivery']);
+
+<Button size="sm" variant="outline" onClick={() => setOpen(['delivery', 'payment', 'return'])}>
+  Раскрыть все
+</Button>
+<Button size="sm" variant="outline" onClick={() => setOpen([])}>
+  Свернуть все
+</Button>
+
+<Accordion type="multiple" value={open} onValueChange={setOpen}>
+  <AccordionItem value="delivery">
+    <AccordionTrigger>Доставка</AccordionTrigger>
+    <AccordionContent>Отправляем в течение 1–2 рабочих дней.</AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="payment">
+    <AccordionTrigger>Оплата</AccordionTrigger>
+    <AccordionContent>Картой или переводом при получении.</AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="return">
+    <AccordionTrigger>Возврат</AccordionTrigger>
+    <AccordionContent>14 дней на возврат без объяснения причин.</AccordionContent>
   </AccordionItem>
 </Accordion>`,
     },
@@ -141,45 +238,68 @@ export const accordionDocConfig: ComponentDocConfig = {
       name: 'type',
       type: "'single' | 'multiple'",
       description:
-        'Режим раскрытия: одна секция ("single") или несколько ("multiple"). Обязательный проп Accordion.',
+        'Обязательный. "single" — открыта не больше одной секции, "multiple" — секции раскрываются независимо.',
     },
     {
       name: 'collapsible',
       type: 'boolean',
       default: 'false',
-      description: 'Для type="single" — разрешить свернуть открытую секцию (все закрыты).',
+      description:
+        'Только для type="single": разрешить свернуть открытую секцию, чтобы закрыты были все.',
     },
     {
       name: 'defaultValue',
       type: 'string | string[]',
       description:
-        'Изначально раскрытая(-ые) секция(-и) (uncontrolled). string для single, string[] для multiple.',
+        'Секции, открытые при первом рендере, если состоянием управляет сам компонент. Строка для single, массив для multiple.',
     },
     {
       name: 'value',
       type: 'string | string[]',
-      description: 'Раскрытая(-ые) секция(-и) в controlled-режиме (с onValueChange).',
+      description: 'Открытые секции, когда состоянием управляете вы. Используется с onValueChange.',
     },
     {
       name: 'onValueChange',
       type: '(value: string | string[]) => void',
-      description: 'Колбэк смены раскрытых секций (controlled-режим).',
+      description:
+        'Вызывается при раскрытии и сворачивании. Тип аргумента — как у value для выбранного type.',
     },
     {
       name: 'disabled',
       type: 'boolean',
       default: 'false',
-      description: 'Отключить весь Accordion (или отдельный AccordionItem через свой disabled).',
+      description: 'Заблокировать все секции. Отдельную секцию блокирует disabled у AccordionItem.',
     },
     {
-      name: 'value (AccordionItem)',
+      name: 'orientation',
+      type: "'vertical' | 'horizontal'",
+      default: "'vertical'",
+      description:
+        'Какими стрелками переходить между заголовками: ↑/↓ для vertical, ←/→ для horizontal. Раскладку не меняет.',
+    },
+    {
+      name: 'dir',
+      type: "'ltr' | 'rtl'",
+      description:
+        'Направление текста для стрелок в horizontal. По умолчанию берётся из DirectionProvider.',
+    },
+    {
+      name: 'AccordionItem.value',
       type: 'string',
-      description: 'Уникальный идентификатор секции (обязателен на каждом AccordionItem).',
+      description:
+        'Обязательный. Уникальный идентификатор секции — его содержат value и defaultValue.',
+    },
+    {
+      name: 'AccordionItem.disabled',
+      type: 'boolean',
+      default: 'false',
+      description: 'Секцию нельзя раскрыть, клавиатура её пропускает.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

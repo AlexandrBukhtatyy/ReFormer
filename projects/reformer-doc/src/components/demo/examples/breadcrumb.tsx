@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -10,31 +11,39 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Breadcrumb — не form-control: презентационный compound-набор семантической разметки
- * (nav / ol / li / a / span), не Radix-примитив. Рендерится инлайн (без Portal).
- * Набор: Breadcrumb / BreadcrumbList / BreadcrumbItem / BreadcrumbLink / BreadcrumbPage /
- * BreadcrumbSeparator / BreadcrumbEllipsis.
+ * Breadcrumb — не поле формы: семантическая разметка пути (nav / ol / li / a / span), не Radix.
+ * Variants — виды пути, Examples — связка со ссылкой роутера, API — таблица props.
+ * Ссылки в демо — якоря `#…`, чтобы щелчок не уводил со страницы документации.
  */
+
+/**
+ * Заглушка ссылки роутера для демо: в приложении её место займёт `Link` из вашего роутера.
+ * Рисует обычный `<a>` с якорем, чтобы демо не уходило со страницы.
+ */
+function Link({ to, ...props }: ComponentProps<'a'> & { to: string }) {
+  return <a href={`#${to}`} {...props} />;
+}
+
 export const breadcrumbDocConfig: ComponentDocConfig = {
   name: 'Breadcrumb',
   importFrom: '@reformer/ui-kit',
   description:
-    'Хлебные крошки на shadcn/ui. Compound-набор: Breadcrumb / BreadcrumbList / BreadcrumbItem / BreadcrumbLink / BreadcrumbPage / BreadcrumbSeparator / BreadcrumbEllipsis. Ссылки — BreadcrumbLink, текущая (неактивная) страница — BreadcrumbPage. Разделитель по умолчанию — ChevronRight.',
+    'Путь к текущей странице: ссылки на предыдущие уровни и название текущего. Разделитель по умолчанию — шеврон.',
   variants: [
     {
       id: 'default',
-      title: 'Базовые крошки',
+      title: 'Путь из ссылок',
       description:
-        'Путь из ссылок (BreadcrumbLink) и текущей страницы (BreadcrumbPage). Между элементами — BreadcrumbSeparator с дефолтной иконкой-шевроном.',
+        'BreadcrumbLink — предыдущие уровни, BreadcrumbPage — текущая страница. Между ними BreadcrumbSeparator со стрелкой.',
       render: () => (
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Главная</BreadcrumbLink>
+              <BreadcrumbLink href="#home">Главная</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Каталог</BreadcrumbLink>
+              <BreadcrumbLink href="#catalog">Каталог</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -46,11 +55,11 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
       code: `<Breadcrumb>
   <BreadcrumbList>
     <BreadcrumbItem>
-      <BreadcrumbLink href="/">Главная</BreadcrumbLink>
+      <BreadcrumbLink href="#home">Главная</BreadcrumbLink>
     </BreadcrumbItem>
     <BreadcrumbSeparator />
     <BreadcrumbItem>
-      <BreadcrumbLink href="/catalog">Каталог</BreadcrumbLink>
+      <BreadcrumbLink href="#catalog">Каталог</BreadcrumbLink>
     </BreadcrumbItem>
     <BreadcrumbSeparator />
     <BreadcrumbItem>
@@ -61,18 +70,17 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
     },
     {
       id: 'custom-separator',
-      title: 'Кастомный разделитель',
-      description:
-        'BreadcrumbSeparator принимает произвольный children — например, слэш вместо шеврона.',
+      title: 'Свой разделитель',
+      description: 'children у BreadcrumbSeparator заменяют стрелку — например, на косую черту.',
       render: () => (
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Главная</BreadcrumbLink>
+              <BreadcrumbLink href="#home">Главная</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Документы</BreadcrumbLink>
+              <BreadcrumbLink href="#documents">Документы</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -84,11 +92,11 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
       code: `<Breadcrumb>
   <BreadcrumbList>
     <BreadcrumbItem>
-      <BreadcrumbLink href="/">Главная</BreadcrumbLink>
+      <BreadcrumbLink href="#home">Главная</BreadcrumbLink>
     </BreadcrumbItem>
     <BreadcrumbSeparator>/</BreadcrumbSeparator>
     <BreadcrumbItem>
-      <BreadcrumbLink href="/docs">Документы</BreadcrumbLink>
+      <BreadcrumbLink href="#documents">Документы</BreadcrumbLink>
     </BreadcrumbItem>
     <BreadcrumbSeparator>/</BreadcrumbSeparator>
     <BreadcrumbItem>
@@ -101,12 +109,12 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
       id: 'with-ellipsis',
       title: 'Свёрнутый путь (многоточие)',
       description:
-        'BreadcrumbEllipsis сворачивает промежуточные уровни в «...» — полезно при длинном пути.',
+        'BreadcrumbEllipsis заменяет промежуточные уровни значком «…», когда путь не помещается.',
       render: () => (
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Главная</BreadcrumbLink>
+              <BreadcrumbLink href="#home">Главная</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -114,7 +122,7 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Настройки</BreadcrumbLink>
+              <BreadcrumbLink href="#settings">Настройки</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -126,7 +134,7 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
       code: `<Breadcrumb>
   <BreadcrumbList>
     <BreadcrumbItem>
-      <BreadcrumbLink href="/">Главная</BreadcrumbLink>
+      <BreadcrumbLink href="#home">Главная</BreadcrumbLink>
     </BreadcrumbItem>
     <BreadcrumbSeparator />
     <BreadcrumbItem>
@@ -134,7 +142,7 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
     </BreadcrumbItem>
     <BreadcrumbSeparator />
     <BreadcrumbItem>
-      <BreadcrumbLink href="/settings">Настройки</BreadcrumbLink>
+      <BreadcrumbLink href="#settings">Настройки</BreadcrumbLink>
     </BreadcrumbItem>
     <BreadcrumbSeparator />
     <BreadcrumbItem>
@@ -147,21 +155,21 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'as-child-router',
-      title: 'Интеграция с роутером (asChild)',
+      title: 'Ссылки роутера (asChild)',
       description:
-        'BreadcrumbLink с asChild схлопывается в переданный элемент — так крошку можно связать со ссылкой роутера (напр. <Link> из react-router), сохранив стили и data-slot.',
+        'asChild у BreadcrumbLink отдаёт стили ссылке роутера — переход идёт без перезагрузки страницы. В демо Link — заглушка, рисующая обычный <a>.',
       render: () => (
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <a href="#">Дашборд</a>
+                <Link to="/">Дашборд</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <a href="#">Проекты</a>
+                <Link to="/projects">Проекты</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -196,47 +204,35 @@ export const breadcrumbDocConfig: ComponentDocConfig = {
   ],
   props: [
     {
-      name: 'Breadcrumb',
-      type: 'React.ComponentProps<"nav">',
-      description: 'Корневой <nav aria-label="breadcrumb">. Обёртка всего пути.',
-    },
-    {
-      name: 'BreadcrumbList',
-      type: 'React.ComponentProps<"ol">',
-      description: 'Упорядоченный список (<ol>) элементов пути.',
-    },
-    {
-      name: 'BreadcrumbItem',
-      type: 'React.ComponentProps<"li">',
+      name: 'aria-label',
+      type: 'string',
+      default: "'Breadcrumb'",
       description:
-        'Один уровень пути (<li>): содержит ссылку, страницу, многоточие или разделитель.',
+        'Подпись области навигации. По умолчанию — строка kit.breadcrumb.label из локали; проп её заменяет.',
     },
     {
-      name: 'BreadcrumbLink',
-      type: 'React.ComponentProps<"a"> & { asChild?: boolean }',
+      name: 'BreadcrumbLink.href',
+      type: 'string',
+      description: 'Адрес предыдущего уровня. BreadcrumbLink — обычная ссылка <a>.',
+    },
+    {
+      name: 'BreadcrumbLink.asChild',
+      type: 'boolean',
+      default: 'false',
       description:
-        'Кликабельная ссылка на предыдущий уровень. asChild — рендер через дочерний элемент (Slot) для интеграции с роутером.',
+        'Не рисовать свой <a>, а передать стили дочернему элементу — например, ссылке роутера.',
     },
     {
-      name: 'BreadcrumbPage',
-      type: 'React.ComponentProps<"span">',
-      description: 'Текущая (неактивная) страница: <span role="link" aria-current="page">.',
-    },
-    {
-      name: 'BreadcrumbSeparator',
-      type: 'React.ComponentProps<"li">',
-      description:
-        'Разделитель между уровнями. По умолчанию — иконка-шеврон; children переопределяет её.',
-    },
-    {
-      name: 'BreadcrumbEllipsis',
-      type: 'React.ComponentProps<"span">',
-      description: 'Многоточие для свёрнутых промежуточных уровней (с sr-only подписью).',
+      name: 'BreadcrumbSeparator.children',
+      type: 'ReactNode',
+      default: '<ChevronRightIcon />',
+      description: 'Значок разделителя. По умолчанию — стрелка вправо.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы для любой части (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

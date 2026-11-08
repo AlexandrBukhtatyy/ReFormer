@@ -1,5 +1,6 @@
 import { ApiPreview } from './ApiPreview';
 import type { VariantDef } from './types';
+import { demoText } from './messages';
 import styles from './styles.module.css';
 
 /** Таб Variants: адаптивный грид карточек-пресетов. */
@@ -22,7 +23,7 @@ function VariantCard({ variant }: { variant: VariantDef }) {
         hint={variant.hint ?? variant.description}
         showFooter={false}
         codeFlavors={[
-          { id: 'code', label: 'Code', language: variant.language, code: variant.code },
+          { id: 'code', label: demoText.code(), language: variant.language, code: variant.code },
         ]}
       >
         <Render />

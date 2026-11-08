@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Dialog,
   DialogTrigger,
@@ -8,27 +9,64 @@ import {
   DialogDescription,
   DialogClose,
   Button,
+  Input,
 } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Dialog — не form-control: Radix Dialog compound (Dialog / DialogTrigger / DialogPortal /
- * DialogOverlay / DialogClose / DialogContent / DialogHeader / DialogFooter / DialogTitle /
- * DialogDescription). Управляемое состояние open/onOpenChange; контент рендерится в Portal
- * поверх страницы. Таб Variants — готовые композиции модалки, Examples — приёмы (footer с
- * действиями, управляемое состояние), API — таблица частей и общих props.
+ * Dialog — не поле формы: части на Radix Dialog (Dialog / DialogTrigger / DialogContent /
+ * DialogHeader / DialogTitle / DialogDescription / DialogFooter / DialogClose; DialogPortal и
+ * DialogOverlay — для своих композиций). Окно рисуется в портале поверх страницы. Variants —
+ * базовое окно, Examples — приёмы (управляемое состояние, кнопка закрытия в подвале, без
+ * крестика), API — таблица частей.
  */
+
+/** Окно закрывается само, когда «запрос» завершился. Сервер имитируется задержкой. */
+function ControlledDialog() {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // имитация запроса
+    setSaving(false);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">Переименовать проект</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Новое название</DialogTitle>
+          <DialogDescription>Название видят все участники проекта.</DialogDescription>
+        </DialogHeader>
+        <Input defaultValue="Кредитная заявка" aria-label="Название проекта" />
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Отмена</Button>
+          </DialogClose>
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Сохраняем…' : 'Сохранить'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 export const dialogDocConfig: ComponentDocConfig = {
   name: 'Dialog',
   importFrom: '@reformer/ui-kit',
   description:
-    'Модальное окно на shadcn / Radix Dialog. Compound: Dialog (корень) + DialogTrigger, DialogContent (в Portal, с оверлеем и кнопкой закрытия), DialogHeader / DialogTitle / DialogDescription, DialogFooter, DialogClose. Доступность (focus trap, Esc, aria) — из Radix.',
+    'Модальное окно поверх страницы: заголовок, содержимое, кнопки. Фокус, Esc и aria-атрибуты — от Radix.',
   variants: [
     {
       id: 'basic',
       title: 'Базовый диалог',
       description:
-        'Триггер открывает модалку с заголовком, описанием и подвалом. Крестик закрытия — встроен в DialogContent (showCloseButton по умолчанию).',
+        'Триггер открывает окно с заголовком, описанием и подвалом. Крестик в углу рисует DialogContent (showCloseButton по умолчанию true).',
       render: () => (
         <Dialog>
           <DialogTrigger asChild>
@@ -73,56 +111,51 @@ export const dialogDocConfig: ComponentDocConfig = {
   ],
   examples: [
     {
-      id: 'confirm',
-      title: 'Подтверждение действия',
+      id: 'controlled',
+      title: 'Закрыть после сохранения (open / onOpenChange)',
       description:
-        'Короткая модалка с деструктивным действием: описание последствий + кнопки «Отмена» / «Удалить».',
-      render: () => (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="destructive">Удалить аккаунт</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Удалить аккаунт?</DialogTitle>
-              <DialogDescription>
-                Действие необратимо: все данные будут удалены без возможности восстановления.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Отмена</Button>
-              </DialogClose>
-              <Button variant="destructive">Удалить</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ),
-      code: `<Dialog>
-  <DialogTrigger asChild>
-    <Button variant="destructive">Удалить аккаунт</Button>
-  </DialogTrigger>
-  <DialogContent className="sm:max-w-md">
-    <DialogHeader>
-      <DialogTitle>Удалить аккаунт?</DialogTitle>
-      <DialogDescription>
-        Действие необратимо: все данные будут удалены без возможности восстановления.
-      </DialogDescription>
-    </DialogHeader>
-    <DialogFooter>
-      <DialogClose asChild>
-        <Button variant="outline">Отмена</Button>
-      </DialogClose>
-      <Button variant="destructive">Удалить</Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>`,
+        'open и onOpenChange отдают состояние вам: окно закрывается, когда сохранение завершилось, а не сразу по нажатию.',
+      render: () => <ControlledDialog />,
+      code: `function ControlledDialog() {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // имитация запроса
+    setSaving(false);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">Переименовать проект</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Новое название</DialogTitle>
+          <DialogDescription>Название видят все участники проекта.</DialogDescription>
+        </DialogHeader>
+        <Input defaultValue="Кредитная заявка" aria-label="Название проекта" />
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Отмена</Button>
+          </DialogClose>
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Сохраняем…' : 'Сохранить'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}`,
     },
     {
       id: 'footer-close-button',
       title: 'Подвал со встроенной кнопкой закрытия',
       description:
-        'DialogFooter принимает showCloseButton — добавляет кнопку «Close» (DialogClose) без ручной разметки.',
+        'showCloseButton у DialogFooter добавляет кнопку «Закрыть» без ручной разметки. Её подпись — из словаря кита.',
       render: () => (
         <Dialog>
           <DialogTrigger asChild>
@@ -159,7 +192,7 @@ export const dialogDocConfig: ComponentDocConfig = {
       id: 'without-close-icon',
       title: 'Без крестика (showCloseButton={false})',
       description:
-        'DialogContent по умолчанию рисует крестик в правом верхнем углу; showCloseButton={false} убирает его — закрытие только через явные кнопки.',
+        'showCloseButton={false} у DialogContent убирает крестик. Esc и щелчок по фону окно всё равно закрывают.',
       render: () => (
         <Dialog>
           <DialogTrigger asChild>
@@ -169,7 +202,7 @@ export const dialogDocConfig: ComponentDocConfig = {
             <DialogHeader>
               <DialogTitle>Требуется решение</DialogTitle>
               <DialogDescription>
-                Выберите один из вариантов — закрыть окно крестиком нельзя.
+                Выберите один из вариантов — крестика у окна нет.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -189,7 +222,7 @@ export const dialogDocConfig: ComponentDocConfig = {
     <DialogHeader>
       <DialogTitle>Требуется решение</DialogTitle>
       <DialogDescription>
-        Выберите один из вариантов — закрыть окно крестиком нельзя.
+        Выберите один из вариантов — крестика у окна нет.
       </DialogDescription>
     </DialogHeader>
     <DialogFooter>
@@ -207,59 +240,59 @@ export const dialogDocConfig: ComponentDocConfig = {
       name: 'Dialog',
       type: 'Radix Dialog.Root',
       description:
-        'Корень. Управляемое состояние: open / onOpenChange (или defaultOpen для неуправляемого). modal (по умолчанию true).',
+        'Корень, хранит открытость: open + onOpenChange или defaultOpen. modal (true) — блокировать страницу под окном.',
     },
     {
       name: 'DialogTrigger',
       type: 'Radix Dialog.Trigger',
-      description: 'Открывает диалог. asChild — прокинуть на собственный элемент (напр. Button).',
+      description: 'Открывает окно. asChild — стать своим элементом, например Button.',
     },
     {
       name: 'DialogContent',
       type: 'Radix Dialog.Content',
       default: 'showCloseButton=true',
       description:
-        'Тело модалки в Portal: оверлей, центрирование, анимация. showCloseButton — крестик закрытия в углу.',
+        'Окно в портале: затемнение фона, центр экрана, ширина до max-w-lg. showCloseButton — крестик в углу.',
     },
     {
       name: 'DialogHeader',
       type: 'div',
-      description: 'Шапка: вертикальный стек заголовка и описания (адаптивное выравнивание).',
+      description: 'Шапка: заголовок и описание столбиком; на узком экране по центру.',
     },
     {
       name: 'DialogTitle',
       type: 'Radix Dialog.Title',
       description:
-        'Заголовок (font-semibold). Связывается с диалогом через aria-labelledby — обязателен для доступности.',
+        'Заголовок. Radix связывает его с окном через aria-labelledby. Обязателен; скрыть можно классом sr-only.',
     },
     {
       name: 'DialogDescription',
       type: 'Radix Dialog.Description',
-      description: 'Описание (text-sm, muted). Связывается через aria-describedby.',
+      description: 'Описание под заголовком. Radix связывает его с окном через aria-describedby.',
     },
     {
       name: 'DialogFooter',
       type: 'div',
       default: 'showCloseButton=false',
       description:
-        'Подвал для действий (реверс-стек на мобильных, ряд справа на десктопе). showCloseButton — добавить кнопку «Close».',
+        'Кнопки действий: ряд справа на широком экране, столбик на узком. showCloseButton — кнопка «Закрыть».',
     },
     {
       name: 'DialogClose',
       type: 'Radix Dialog.Close',
-      description: 'Закрывает диалог. asChild — прокинуть на собственную кнопку.',
+      description: 'Закрывает окно. asChild — стать своей кнопкой.',
     },
     {
       name: 'DialogOverlay / DialogPortal',
       type: 'Radix Dialog.Overlay / Portal',
       description:
-        'Оверлей-затемнение и Portal-обёртка. Используются внутри DialogContent; экспортируются для кастомных композиций.',
+        'Затемнение фона и портал. DialogContent рисует их сам; отдельно нужны только для своей композиции.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

@@ -1,21 +1,29 @@
-import { Kbd, KbdGroup } from '@reformer/ui-kit';
+import {
+  Button,
+  Kbd,
+  KbdGroup,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Kbd — не form-control: презентационная разметка клавиш. Таб Variants показывает готовые
- * пресеты (одиночная клавиша / группа-комбинация), Examples — приёмы (подсказка в тексте,
- * комбинация с разделителем), API — таблица props. Form-bound таба (api) нет.
+ * Kbd — не поле формы: разметка клавиш (`<kbd>`). Kbd — одна клавиша, KbdGroup — сочетание.
+ * Variants — одиночные клавиши и сочетания, Examples — подсказка в тексте, разделитель «+»,
+ * клавиши в Tooltip, API — таблица props.
+ * Обёртка `<div style>` в render — рамка демо (ряд), в `code` её нет.
  */
 export const kbdDocConfig: ComponentDocConfig = {
   name: 'Kbd',
   importFrom: '@reformer/ui-kit',
-  description:
-    'Клавиша/сочетание клавиш на shadcn. Kbd — одна клавиша (<kbd>), KbdGroup — контейнер для комбинации нескольких клавиш.',
+  description: 'Клавиша или сочетание клавиш: Kbd — одна клавиша, KbdGroup — сочетание.',
   variants: [
     {
       id: 'single',
       title: 'Одиночная клавиша',
-      description: 'Kbd рендерит семантический <kbd> — для одной клавиши или короткого ярлыка.',
+      description: 'Kbd рисует элемент <kbd> для одной клавиши или символа.',
       render: () => (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <Kbd>Ctrl</Kbd>
@@ -33,8 +41,8 @@ export const kbdDocConfig: ComponentDocConfig = {
     },
     {
       id: 'group',
-      title: 'Группа клавиш (комбинация)',
-      description: 'KbdGroup выстраивает несколько Kbd в ряд с равным зазором — для сочетаний.',
+      title: 'Сочетание клавиш',
+      description: 'KbdGroup ставит несколько Kbd в ряд с равным зазором.',
       render: () => (
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <KbdGroup>
@@ -52,7 +60,6 @@ export const kbdDocConfig: ComponentDocConfig = {
   <Kbd>Ctrl</Kbd>
   <Kbd>K</Kbd>
 </KbdGroup>
-
 <KbdGroup>
   <Kbd>⌘</Kbd>
   <Kbd>Shift</Kbd>
@@ -64,10 +71,9 @@ export const kbdDocConfig: ComponentDocConfig = {
     {
       id: 'inline-hint',
       title: 'Подсказка в тексте',
-      description:
-        'Kbd встраивается в строку текста как инлайн-элемент — для подсказки о горячей клавише.',
+      description: 'Kbd и KbdGroup — строчные элементы, их ставят прямо в предложение.',
       render: () => (
-        <p style={{ display: 'flex', gap: 6, alignItems: 'center', margin: 0 }}>
+        <p>
           Нажмите{' '}
           <KbdGroup>
             <Kbd>Ctrl</Kbd>
@@ -87,37 +93,84 @@ export const kbdDocConfig: ComponentDocConfig = {
     },
     {
       id: 'combo-separator',
-      title: 'Комбинация с разделителем',
-      description:
-        'Между клавишами можно поставить текстовый разделитель («+» или «then») — он остаётся вне <kbd>.',
+      title: 'Сочетание с разделителем',
+      description: 'Знак «+» между клавишами — обычный текст рядом с Kbd, а не отдельная клавиша.',
       render: () => (
         <KbdGroup>
           <Kbd>Ctrl</Kbd>
-          <span style={{ fontSize: 12, opacity: 0.6 }}>+</span>
+          <span className="text-xs text-muted-foreground">+</span>
           <Kbd>Alt</Kbd>
-          <span style={{ fontSize: 12, opacity: 0.6 }}>+</span>
+          <span className="text-xs text-muted-foreground">+</span>
           <Kbd>Del</Kbd>
         </KbdGroup>
       ),
       code: `<KbdGroup>
   <Kbd>Ctrl</Kbd>
-  <span>+</span>
+  <span className="text-xs text-muted-foreground">+</span>
   <Kbd>Alt</Kbd>
-  <span>+</span>
+  <span className="text-xs text-muted-foreground">+</span>
   <Kbd>Del</Kbd>
 </KbdGroup>`,
+    },
+    {
+      id: 'in-tooltip',
+      title: 'Сочетание в подсказке',
+      description:
+        'Внутри TooltipContent Kbd сам меняет цвета под тёмный фон подсказки. Наведите курсор на кнопку.',
+      render: () => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline">Сохранить</Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Сохранить{' '}
+              <KbdGroup>
+                <Kbd>Ctrl</Kbd>
+                <Kbd>S</Kbd>
+              </KbdGroup>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+      code: `<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="outline">Сохранить</Button>
+    </TooltipTrigger>
+    <TooltipContent>
+      Сохранить{' '}
+      <KbdGroup>
+        <Kbd>Ctrl</Kbd>
+        <Kbd>S</Kbd>
+      </KbdGroup>
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>`,
     },
   ],
   props: [
     {
       name: 'children',
       type: 'ReactNode',
-      description: 'Содержимое клавиши (Kbd) или набор Kbd внутри группы (KbdGroup).',
+      description: 'Kbd — название клавиши или символ, KbdGroup — несколько Kbd и разделители.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Дополнительные классы. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
+    },
+    {
+      name: 'title',
+      type: 'string',
+      description: 'Всплывающее пояснение к символу: title="Command" у ⌘.',
+    },
+    {
+      name: '...props',
+      type: "ComponentProps<'kbd'>",
+      description:
+        'Остальные атрибуты элемента kbd. У KbdGroup тип пропсов — div, хотя рисуется kbd.',
     },
   ],
 };

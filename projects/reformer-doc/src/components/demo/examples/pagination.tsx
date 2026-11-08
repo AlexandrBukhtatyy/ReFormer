@@ -11,13 +11,11 @@ import {
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Pagination — не form-control: презентационный набор (Pagination / PaginationContent /
- * PaginationItem / PaginationLink / PaginationPrevious / PaginationNext / PaginationEllipsis).
- * Активная страница помечается isActive на PaginationLink. Навигация — через href (ссылки)
- * или onClick (controlled-состояние).
+ * Pagination — не поле формы: разметка перехода по страницам (nav / ul / li / a). Текущую
+ * страницу и переходы ведёте вы. Variants — виды, Examples — страница в состоянии компонента,
+ * API — таблица props. Ссылки в демо — якоря `#…`, чтобы щелчок не уводил со страницы документации.
  */
 
-/** Демо controlled-пагинации: текущая страница в локальном состоянии. */
 function ControlledPagination() {
   const total = 5;
   const [page, setPage] = useState(2);
@@ -27,6 +25,8 @@ function ControlledPagination() {
         <PaginationItem>
           <PaginationPrevious
             href="#"
+            aria-disabled={page === 1}
+            className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
             onClick={(e) => {
               e.preventDefault();
               setPage((p) => Math.max(1, p - 1));
@@ -50,6 +50,8 @@ function ControlledPagination() {
         <PaginationItem>
           <PaginationNext
             href="#"
+            aria-disabled={page === total}
+            className={page === total ? 'pointer-events-none opacity-50' : undefined}
             onClick={(e) => {
               e.preventDefault();
               setPage((p) => Math.min(total, p + 1));
@@ -65,35 +67,35 @@ export const paginationDocConfig: ComponentDocConfig = {
   name: 'Pagination',
   importFrom: '@reformer/ui-kit',
   description:
-    'Постраничная навигация на shadcn. Набор частей: Pagination / PaginationContent / PaginationItem / PaginationLink / PaginationPrevious / PaginationNext / PaginationEllipsis. Активная страница — через isActive на PaginationLink.',
+    'Переход по страницам списка: «Назад», номера, «Вперёд». Текущую страницу и адреса ссылок задаёте вы.',
   variants: [
     {
       id: 'default',
-      title: 'Базовая пагинация',
+      title: 'Номера страниц',
       description:
-        'Предыдущая / номера страниц / многоточие / следующая. Активная страница выделяется isActive (стиль outline).',
+        '«Назад», номера, многоточие и «Вперёд». isActive отмечает текущую страницу рамкой.',
       render: () => (
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious href="#" />
+              <PaginationPrevious href="#page-1" />
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href="#">1</PaginationLink>
+              <PaginationLink href="#page-1">1</PaginationLink>
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href="#" isActive>
+              <PaginationLink href="#page-2" isActive>
                 2
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href="#">3</PaginationLink>
+              <PaginationLink href="#page-3">3</PaginationLink>
             </PaginationItem>
             <PaginationItem>
               <PaginationEllipsis />
             </PaginationItem>
             <PaginationItem>
-              <PaginationNext href="#" />
+              <PaginationNext href="#page-3" />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
@@ -101,41 +103,41 @@ export const paginationDocConfig: ComponentDocConfig = {
       code: `<Pagination>
   <PaginationContent>
     <PaginationItem>
-      <PaginationPrevious href="#" />
+      <PaginationPrevious href="#page-1" />
     </PaginationItem>
     <PaginationItem>
-      <PaginationLink href="#">1</PaginationLink>
+      <PaginationLink href="#page-1">1</PaginationLink>
     </PaginationItem>
     <PaginationItem>
-      <PaginationLink href="#" isActive>
+      <PaginationLink href="#page-2" isActive>
         2
       </PaginationLink>
     </PaginationItem>
     <PaginationItem>
-      <PaginationLink href="#">3</PaginationLink>
+      <PaginationLink href="#page-3">3</PaginationLink>
     </PaginationItem>
     <PaginationItem>
       <PaginationEllipsis />
     </PaginationItem>
     <PaginationItem>
-      <PaginationNext href="#" />
+      <PaginationNext href="#page-3" />
     </PaginationItem>
   </PaginationContent>
 </Pagination>`,
     },
     {
       id: 'prev-next',
-      title: 'Только «Назад / Вперёд»',
+      title: 'Только «Назад» и «Вперёд»',
       description:
-        'Минимальный вариант без номеров — для лент и бесконечных списков, где важен только шаг.',
+        'Без номеров — для ленты, где важен только шаг. На узком экране подписи скрываются, остаются стрелки.',
       render: () => (
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious href="#" />
+              <PaginationPrevious href="#page-1" />
             </PaginationItem>
             <PaginationItem>
-              <PaginationNext href="#" />
+              <PaginationNext href="#page-3" />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
@@ -143,10 +145,10 @@ export const paginationDocConfig: ComponentDocConfig = {
       code: `<Pagination>
   <PaginationContent>
     <PaginationItem>
-      <PaginationPrevious href="#" />
+      <PaginationPrevious href="#page-1" />
     </PaginationItem>
     <PaginationItem>
-      <PaginationNext href="#" />
+      <PaginationNext href="#page-3" />
     </PaginationItem>
   </PaginationContent>
 </Pagination>`,
@@ -155,9 +157,9 @@ export const paginationDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'controlled',
-      title: 'Controlled-режим (состояние страницы + onClick)',
+      title: 'Страница в состоянии компонента',
       description:
-        'Текущая страница хранится в состоянии; клик по номеру / стрелкам меняет его. href="#" + preventDefault, чтобы не перезагружать страницу.',
+        'Текущая страница хранится в useState. href="#" и preventDefault — чтобы щелчок не менял адрес; на краях «Назад» и «Вперёд» помечены aria-disabled.',
       render: ControlledPagination,
       code: `const total = 5;
 const [page, setPage] = useState(2);
@@ -167,6 +169,8 @@ const [page, setPage] = useState(2);
     <PaginationItem>
       <PaginationPrevious
         href="#"
+        aria-disabled={page === 1}
+        className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
         onClick={(e) => {
           e.preventDefault();
           setPage((p) => Math.max(1, p - 1));
@@ -190,6 +194,8 @@ const [page, setPage] = useState(2);
     <PaginationItem>
       <PaginationNext
         href="#"
+        aria-disabled={page === total}
+        className={page === total ? 'pointer-events-none opacity-50' : undefined}
         onClick={(e) => {
           e.preventDefault();
           setPage((p) => Math.min(total, p + 1));
@@ -202,26 +208,48 @@ const [page, setPage] = useState(2);
   ],
   props: [
     {
-      name: 'isActive (PaginationLink)',
+      name: 'aria-label',
+      type: 'string',
+      default: "'Pagination'",
+      description:
+        'Подпись области навигации у Pagination. По умолчанию — строка kit.pagination.label из локали; проп её заменяет.',
+    },
+    {
+      name: 'PaginationLink.href',
+      type: 'string',
+      description:
+        'Адрес страницы. Обязателен даже при переходе через onClick: ссылка без href не получает фокус с клавиатуры.',
+    },
+    {
+      name: 'PaginationLink.isActive',
       type: 'boolean',
       default: 'false',
-      description: 'Пометить ссылку как текущую страницу (aria-current="page", стиль outline).',
+      description: 'Текущая страница: рамка вместо прозрачного фона и aria-current="page".',
     },
     {
-      name: 'size (PaginationLink)',
-      type: "'default' | 'sm' | 'lg' | 'icon' | ...",
-      default: 'icon',
-      description: 'Размер ссылки (из buttonVariants). Prev/Next используют "default".',
+      name: 'PaginationLink.size',
+      type: "'default' | 'xs' | 'sm' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg'",
+      default: "'icon'",
+      description: 'Размер из Button. Номера — квадратные (icon), «Назад» и «Вперёд» — default.',
     },
     {
-      name: 'href / onClick (PaginationLink)',
-      type: 'string / (e) => void',
-      description: 'Навигация: ссылка (href) или обработчик клика (controlled-состояние).',
+      name: 'PaginationLink.onClick',
+      type: '(event: MouseEvent) => void',
+      description:
+        'Переход без смены адреса: вызовите event.preventDefault() и поменяйте страницу в своём состоянии.',
+    },
+    {
+      name: 'PaginationPrevious.aria-label',
+      type: 'string',
+      default: "'Go to previous page'",
+      description:
+        'Подпись кнопки для скринридера. То же у PaginationNext ("Go to next page"). По умолчанию — из локали.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Доп. классы (tailwind-merge — класс вызывающего перекрывает).',
+      description:
+        'Дополнительные классы любой части. Сливаются через tailwind-merge: ваш класс побеждает встроенный.',
     },
   ],
 };

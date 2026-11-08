@@ -9,8 +9,72 @@ import { textareaDocConfig } from '@site/src/components/demo/examples/textarea';
 
 # Textarea
 
-Многострочное текстовое поле на pure shadcn `Textarea`. Значение — `string | null`
-(пустой ввод → `null`). В форме `Textarea` кладётся в `component` как есть: DOM-событие
-в значение поля переводит обёртка поля по статике `nativeInputAdapter`.
+Многострочное поле ввода текста. Высота растёт вместе с текстом. В форме `Textarea` кладётся в
+`component` [узла схемы](../reference/glossary.md#форма-и-данные) как есть.
+
+## Когда брать
+
+- Текст в несколько строк: комментарий, описание проблемы, адрес доставки, «о себе».
+- Текст, где важны переносы строк: они сохраняются в значении.
+
+Соседи:
+
+- одна строка — [Input](./input.mdx);
+- кнопка, иконка или счётчик рядом с многострочным полем — `InputGroupTextarea` из
+  [InputGroup](./input-group.mdx).
+
+## Анатомия
+
+| Компонент  | Значение поля    | Ключевые пропсы                                |
+| ---------- | ---------------- | ---------------------------------------------- |
+| `Textarea` | `string \| null` | `placeholder`, `rows`, `maxLength`, `readOnly` |
+
+Пустое поле даёт `null`. Высоту задаёт текст (CSS `field-sizing: content`), минимум — `4rem`.
+Поэтому в браузерах, которые поддерживают `field-sizing`, атрибут `rows` может не влиять на высоту
+пустого поля. Нужна заметная высота сразу — задайте её классом: `className: 'min-h-32'`.
+
+`maxLength` — HTML-атрибут: лишний символ просто не вводится, замечания нет. Чтобы сообщить о
+превышении, нужно правило `maxLength(500)` в [схеме валидации](../reference/glossary.md#валидация).
+
+Кроме своих пропсов, поле понимает общие для всех полей кита: `label`, `required`, `description`,
+`labelTooltip`, `tooltip`, `testId` — см. [FormField](./form-field.mdx#общие-пропсы-полей). Иконка
+`tooltip` встаёт в правый верхний угол, на уровень первой строки.
+
+```tsx
+{
+  model: model.$.comment,
+  component: Textarea,
+  componentProps: { label: 'Комментарий', placeholder: 'Опишите проблему', maxLength: 500 },
+}
+```
+
+`value`, `onChange`, `onBlur` и `disabled` в `componentProps` не пишут: их подставляет обёртка
+поля. Заблокировать поле — `form.comment.disable()`. Вне формы `Textarea` — обычный `<textarea>`:
+его `onChange` получает DOM-событие.
+
+## Примеры и API
 
 <ComponentDoc config={textareaDocConfig} />
+
+## Доступность
+
+- Под капотом настоящий `<textarea>`: фокус по Tab, Enter переносит строку и форму не отправляет.
+- `FormField` связывает поле с подписью (`<label for>`, `aria-labelledby`), пояснением и
+  замечанием (`aria-describedby`). Пока замечание показано, у поля стоят `aria-invalid` и
+  `aria-errormessage`; при `required` — `aria-required`.
+- `readOnly` оставляет поле в порядке обхода по Tab: текст можно выделить и скопировать.
+- Иконка `tooltip` — кнопка с подписью для скринридера, текст подсказки привязан к полю через
+  `aria-describedby`.
+
+## Локализация
+
+Своих строк `Textarea` не рисует: подпись, пояснение и `placeholder` задаёте вы. Встроенная строка
+одна — подпись кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label` («Подсказка»).
+Тексты замечаний берутся из [словаря сообщений](../reference/glossary.md#валидация) формы. Как
+подключить русскую локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Input](./input.mdx) — однострочное поле.
+- [InputGroup](./input-group.mdx) — поле с кнопками и текстом по краям.
+- [Встроенные правила](../validation/built-in.md) — `required`, `maxLength` и другие.

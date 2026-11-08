@@ -11,6 +11,7 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 import { useColorMode } from '@docusaurus/theme-common';
 import CodeBlock from '@theme/CodeBlock';
 import { GripVertical, Info } from 'lucide-react';
+import { demoText } from './messages';
 import styles from './styles.module.css';
 
 /** Один флейвор кода для таба Code (напр. ReFormer-нода vs «сырой» React). */
@@ -43,8 +44,6 @@ export interface ApiPreviewProps {
    */
   hint?: ReactNode;
 }
-
-const FALLBACK = <span className={styles.fallback}>Загрузка демо…</span>;
 
 /**
  * Панель превью в стиле TaigaUI: тулбар (табы Preview/Code + тумблеры темы/фона),
@@ -96,7 +95,7 @@ export function ApiPreview({
             className={clsx(styles.apiViewTab, viewTab === 'preview' && styles.apiViewTabActive)}
             onClick={() => setViewTab('preview')}
           >
-            Preview
+            {demoText.preview()}
           </button>
           {hasCode && (
             <button
@@ -104,7 +103,7 @@ export function ApiPreview({
               className={clsx(styles.apiViewTab, viewTab === 'code' && styles.apiViewTabActive)}
               onClick={() => setViewTab('code')}
             >
-              Code
+              {demoText.code()}
             </button>
           )}
           {viewTab === 'code' && codeFlavors.length > 1 && (
@@ -112,7 +111,7 @@ export function ApiPreview({
               className={styles.knobControl}
               value={flavorId}
               onChange={(e) => setFlavorId(e.target.value)}
-              aria-label="Формат кода"
+              aria-label={demoText.codeFormat()}
             >
               {codeFlavors.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -133,11 +132,11 @@ export function ApiPreview({
                     checked={dark}
                     onChange={(e) => setDark(e.target.checked)}
                   />{' '}
-                  Dark mode
+                  {demoText.darkMode()}
                 </label>
                 <label className={styles.apiToggle}>
                   <input type="checkbox" checked={bg} onChange={(e) => setBg(e.target.checked)} />{' '}
-                  Background
+                  {demoText.background()}
                 </label>
               </>
             )}
@@ -147,7 +146,7 @@ export function ApiPreview({
                 <button
                   type="button"
                   className={styles.hintTrigger}
-                  aria-label="Подсказка"
+                  aria-label={demoText.hint()}
                   aria-describedby={hintId}
                 >
                   <Info size={16} aria-hidden />
@@ -169,7 +168,9 @@ export function ApiPreview({
         <>
           {/* Canvas — ширину тянем ручкой на правом крае (в minimal — edge-to-edge, без ручки) */}
           <ResizableCanvas dark={previewDark} bg={bg} minimal={minimal}>
-            <BrowserOnly fallback={FALLBACK}>{() => children}</BrowserOnly>
+            <BrowserOnly fallback={<span className={styles.fallback}>{demoText.loading()}</span>}>
+              {() => children}
+            </BrowserOnly>
           </ResizableCanvas>
 
           {showFooter && footer}
@@ -252,8 +253,8 @@ function ResizableCanvas({
             className={styles.resizableHandle}
             onPointerDown={onHandleDown}
             onDoubleClick={() => setWidth(null)}
-            title="Потяните, чтобы изменить ширину превью. Двойной клик — сбросить."
-            aria-label="Изменить ширину превью"
+            title={demoText.resizeTitle()}
+            aria-label={demoText.resizeLabel()}
           >
             <GripVertical size={16} aria-hidden />
           </button>

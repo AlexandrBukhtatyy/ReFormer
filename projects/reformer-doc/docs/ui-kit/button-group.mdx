@@ -2,6 +2,7 @@
 id: button-group
 title: ButtonGroup
 sidebar_label: ButtonGroup
+description: Склеивает соседние кнопки, поля и подписи в один сегмент.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,8 +10,70 @@ import { buttonGroupDocConfig } from '@site/src/components/demo/examples/button-
 
 # ButtonGroup
 
-Группа кнопок на shadcn: склеивает соседние элементы в единый сегмент — убирает внутренние
-скругления и двойные границы. Направление задаётся через `orientation`, `ButtonGroupText`
-добавляет неинтерактивную addon-подпись, а `ButtonGroupSeparator` — разделитель между сегментами.
+Контейнер, который склеивает соседние кнопки в один сегмент: у внутренних краёв пропадают
+скругления и двойные границы. В группу можно поставить и поле ввода, и неактивную подпись. Это
+оформление, а не поле формы: выбранного значения у группы нет.
+
+## Когда брать
+
+- **ButtonGroup** — несколько связанных действий рядом: «Сохранить» и меню вариантов, кнопки
+  панели инструментов, поле поиска с кнопкой «Найти».
+- [ToggleGroup](./toggle-group.mdx) — пользователь выбирает один или несколько вариантов, и выбор
+  нужно показать нажатым состоянием. Там же переход между кнопками стрелками.
+- [InputGroup](./input-group.mdx) — значки, подписи и кнопки внутри рамки одного поля ввода.
+- [Tabs](./tabs.mdx) — кнопки переключают разделы страницы.
+
+## Анатомия
+
+```tsx
+import { Button, ButtonGroup, ButtonGroupSeparator, ButtonGroupText } from '@reformer/ui-kit'; // или '@reformer/ui-kit/button-group'
+
+<ButtonGroup aria-label="Адрес сайта">
+  <ButtonGroupText>https://</ButtonGroupText>
+  <Button variant="secondary">example.com</Button>
+  <ButtonGroupSeparator />
+  <Button variant="secondary">Копировать</Button>
+</ButtonGroup>;
+```
+
+| Часть                  | Что это                                                                    | Ключевые пропсы                                     |
+| ---------------------- | -------------------------------------------------------------------------- | --------------------------------------------------- |
+| `ButtonGroup`          | Контейнер `div` с `role="group"`. Склеивает прямых потомков.               | `orientation`, `aria-label`, `className`            |
+| `ButtonGroupText`      | Неинтерактивный блок в стиле сегмента: префикс, единица измерения.         | `asChild` — стиль на свой элемент, например `label` |
+| `ButtonGroupSeparator` | Линия между сегментами. Нужна у кнопок без рамки (`secondary`, `default`). | `orientation` (по умолчанию `vertical`)             |
+
+- `orientation="vertical"` ставит элементы в столбец. Разделителю в такой группе нужен
+  `orientation="horizontal"`.
+- Группа склеивает только прямых потомков. Вложенные `ButtonGroup` не склеиваются друг с другом,
+  а получают между собой зазор — так собирают панель инструментов из нескольких групп.
+- Группа по ширине равна содержимому. Поле `Input` прямым потомком получает `flex-1`: задайте
+  группе ширину (`className="w-full"`), и поле займёт всё свободное место.
+- `buttonGroupVariants` — классы группы (cva) для своего контейнера, если нужен тот же вид.
+
+## Примеры
 
 <ComponentDoc config={buttonGroupDocConfig} />
+
+## Доступность
+
+- Контейнер — `div` с `role="group"`. Имени у группы нет: задайте `aria-label` или
+  `aria-labelledby`, иначе скринридер объявит безымянную группу.
+- Клавиатурой группа не управляет. Каждая кнопка — отдельная остановка `Tab`, переходов стрелками
+  нет. Нужны стрелки и выбранное состояние — берите [ToggleGroup](./toggle-group.mdx).
+- `orientation` ставит только `data-orientation`, `aria-orientation` группа не получает.
+- `ButtonGroupSeparator` по умолчанию декоративный: `role="none"`, скринридер его пропускает.
+  С `decorative={false}` он становится `role="separator"`.
+- Кнопке-иконке (`size="icon"`, символ «⋯») задавайте `aria-label` — текста для скринридера у неё
+  нет.
+- У кнопки под фокусом кольцо фокуса поднимается над соседями и не обрезается их границами.
+
+## Локализация
+
+Своих строк компонент не рисует: подписи кнопок и `aria-label` группы — ваш текст.
+
+## См. также
+
+- [Button](./button.mdx) — варианты и размеры кнопок.
+- [ToggleGroup](./toggle-group.mdx) — группа кнопок с выбранным состоянием.
+- [InputGroup](./input-group.mdx) — дополнения внутри поля ввода.
+- [DropdownMenu](./dropdown-menu.mdx) — меню для кнопки «ещё».

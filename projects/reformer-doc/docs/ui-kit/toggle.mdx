@@ -9,10 +9,75 @@ import { toggleDocConfig } from '@site/src/components/demo/examples/toggle';
 
 # Toggle
 
-Двухпозиционная кнопка на Radix (`button` + `aria-pressed`). Значение — `boolean` (контракт `pressed` /
-`onPressedChange`). В отличие от `Checkbox` / `Switch` раскладка **НЕ inline**: подпись поля рисует
-`FormField` сверху из `componentProps.label`, а контент самой кнопки (иконка или текст) задаётся через
-`children`. Стиль задаётся через `variant` (`default` / `outline`), размер — через `size`.
-В форме `Toggle` кладётся в `component` как есть (статика `pressedAdapter`).
+Кнопка, которая остаётся нажатой после щелчка и отжимается следующим. Значение поля — `boolean`.
+На кнопке — текст или иконка, подпись поля стоит над ней.
+
+## Когда брать
+
+- **`Toggle`** — действие-режим, которое удобно показать кнопкой: «Закрепить», «В избранном»,
+  полужирный шрифт в панели инструментов.
+
+Соседи:
+
+- согласие или опция с подписью рядом — [Checkbox](./checkbox.mdx);
+- настройка «вкл / выкл» — [Switch](./switch.mdx);
+- несколько связанных кнопок, из которых нажата одна или несколько, — [ToggleGroup](./toggle-group.mdx).
+
+## Анатомия
+
+| Компонент | Значение поля | Ключевые пропсы               |
+| --------- | ------------- | ----------------------------- |
+| `Toggle`  | `boolean`     | `children`, `variant`, `size` |
+
+- `children` — что нарисовано на кнопке: текст или иконка. Это не подпись поля.
+- `variant` — `'default'` (без рамки, нажатая кнопка залита) или `'outline'` (с рамкой).
+- `size` — `'sm'`, `'default'` или `'lg'`.
+- Подпись поля (`label`) рисует [FormField](./form-field.mdx) над кнопкой, как у текстовых полей.
+
+```tsx
+{
+  model: model.$.pinned,
+  component: Toggle,
+  componentProps: { label: 'Закрепить в списке', children: 'Закрепить' },
+}
+```
+
+Пустое значение (`null`) кнопка показывает отжатой, в модель пишет только `true` или `false`.
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). Иконка `tooltip` стоит
+справа от кнопки.
+
+Вне формы `Toggle` — компонент Radix: `pressed` и `onPressedChange`.
+
+```tsx
+<Toggle variant="outline" aria-label="Полужирный" pressed={bold} onPressedChange={setBold}>
+  <BoldIcon />
+</Toggle>
+```
+
+## Примеры и API
 
 <ComponentDoc config={toggleDocConfig} />
+
+## Доступность
+
+- Кнопка — `<button>` с `aria-pressed` (Radix Toggle). Фокус — по Tab, нажатие — пробелом или
+  Enter.
+- В форме имя кнопки для скринридера — подпись поля: `FormField` ставит `aria-labelledby`, и
+  текст на кнопке в имя не входит. Подберите `label` так, чтобы он называл действие.
+- Вне формы у кнопки с одной иконкой задайте `aria-label`.
+- Пояснение и замечание `FormField` связывает через `aria-describedby`; при показанном
+  замечании ставит `aria-invalid` и `aria-errormessage`, при `required` — `aria-required`.
+
+## Локализация
+
+Сама кнопка текста не рисует: подпись и содержимое задаёте вы. Встроенная строка одна — подпись
+кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label`. Как подключить русскую
+локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [ToggleGroup](./toggle-group.mdx) — группа таких кнопок.
+- [Switch](./switch.mdx) — выключатель для настроек.
+- [Button](./button.mdx) — обычная кнопка действия.

@@ -4,14 +4,20 @@ sidebar_position: 4
 
 # Асинхронная предзагрузка
 
-Формы часто нужно наполнить данными с сервера: значения редактируемой сущности и справочники для
-селектов. Инструменты: **начальные значения** модели, загрузка через **`model.patch(...)`** после
-запроса и динамические опции через **`form.field.updateComponentProps({ options })`**.
+Форму часто наполняют данными с сервера: значениями редактируемой записи и справочниками для
+списков выбора. Значения пишут в [модель](../reference/glossary.md) — `model.patch(...)`, а варианты
+выбора — в пропсы поля: `form.field.updateComponentProps({ options })`.
+
+## Когда нужно
+
+- Форма редактирования: открыть запись и показать её значения.
+- Варианты выбора приходят с сервера: языки, валюты, города.
+- Варианты одного поля зависят от другого: страна → город.
 
 ## Начальные значения в модели
 
 Начальные значения задаются при создании модели — `createModel(initial)` или `initial` сборки. К ним
-же возвращает `model.reset()`.
+же возвращает сброс, пока точку отсчёта не перенесли (`model.captureInitial()`).
 
 ```typescript
 import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
@@ -43,7 +49,8 @@ export const createProfileForm = () =>
 ## Стабильность сборки
 
 Сборку создавайте **один раз** хуком `useFormBundle(factory)` из `@reformer/core/react`. Иначе
-модель и форма пересоздадутся на каждый рендер, а вместе с ними перезапустится и загрузка.
+модель и форма пересоздадутся на каждый рендер, а вместе с ними перезапустится и загрузка. При
+размонтировании компонента хук снимает сборку сам.
 
 ```tsx
 import { useFormBundle } from '@reformer/core/react';
@@ -61,7 +68,7 @@ function GoodForm() {
 
 ## Загрузка значений — `AsyncBoundary`
 
-Загрузку удобно отдать `AsyncBoundary` (`@reformer/ui-kit` или headless-версия из `@reformer/cdk`):
+Загрузку удобно отдать `AsyncBoundary` (`@reformer/ui-kit` или версия без оформления из `@reformer/cdk`):
 он ведёт статус (`loading` / `error` / `ready`), отменяет устаревший запрос при смене `loadKey` и
 размонтировании и даёт «Повторить» из коробки. Форме остаётся одно — записать ответ в модель.
 
@@ -118,9 +125,9 @@ export function ProfileScreen({ userId }: { userId: string | null }) {
 :::
 
 :::tip `captureInitial` после загрузки
-`model.reset()` возвращает к снимку модели. Чтобы «сброс» возвращал к данным с сервера, вызовите
-`model.captureInitial()` сразу после `model.patch(...)`. Подробнее — в
-[Отправке и сбросе](./submit-and-reset#сброс-формы).
+`form.reset()` и `model.reset()` возвращают к точке отсчёта модели. Чтобы сброс возвращал к данным
+с сервера, а не к пустой форме, вызовите `model.captureInitial()` сразу после `model.patch(...)`. Подробнее — в
+[Отправке и сбросе](./submit-and-reset.mdx#сброс-формы).
 :::
 
 Если форму рисует рендерер по схеме, загрузка записывается правилом узла в поведении формы:
@@ -222,8 +229,8 @@ createForm<AddressForm>({ initial, schema: addressSchema, behavior: addressBehav
 `immediate: false`) — для запуска сразу передайте `{ immediate: true }`.
 :::
 
-## Дальше
+## См. также
 
 - [Модель данных](../core-concepts/model) — `patch` / `set` / `reset` / `captureInitial`.
-- [Реакции на изменения](../behaviors/watch) — `onChange`, debounce и AbortSignal.
-- [Отправка и сброс](./submit-and-reset) — обратная сторона жизненного цикла.
+- [Реакции на изменения](../behaviors/watch.md) — `onChange`, пауза и `AbortSignal`.
+- [Отправка и сброс](./submit-and-reset.mdx) — обратная сторона жизненного цикла.

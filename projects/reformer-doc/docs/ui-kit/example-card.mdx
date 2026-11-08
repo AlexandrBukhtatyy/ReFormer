@@ -2,6 +2,7 @@
 id: example-card
 title: ExampleCard
 sidebar_label: ExampleCard
+description: Карточка для демо-страниц — живой пример и его код с копированием.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,83 @@ import { exampleCardDocConfig } from '@site/src/components/demo/examples/example
 
 # ExampleCard
 
-ReFormer-специфичная playground-обёртка примера: заголовок, описание и область с
-живым примером, а кнопка в шапке переключает карточку в режим «код» (переданный
-текст `code`) с copy-to-clipboard. Утилита для документации и playground — **не**
-для продакшена.
+Карточка для демо-страниц и песочниц: заголовок, описание и живой пример. Кнопка в шапке
+переключает карточку на код примера, а кнопка в углу кода копирует его. Компонент входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **ExampleCard** — каталог компонентов, внутренняя песочница, страница «как это выглядит».
+- В рабочем интерфейсе — нет: переключатель «пример ↔ код» не настраивается, а оформление кода
+  рассчитано на демо. Для блока с рамкой берите [Card](./card.mdx).
+
+## Анатомия
+
+```tsx
+import { ExampleCard, Button } from '@reformer/ui-kit'; // или '@reformer/ui-kit/example-card'
+
+<ExampleCard
+  title="Опасное действие"
+  description="Кнопка удаления"
+  code={`<Button variant="destructive">Удалить</Button>`}
+>
+  <Button variant="destructive">Удалить</Button>
+</ExampleCard>;
+```
+
+| Проп          | Тип         | Что делает                                                 |
+| ------------- | ----------- | ---------------------------------------------------------- |
+| `title`       | `string`    | Заголовок, обязателен. Рисуется тегом `h3`.                |
+| `description` | `string`    | Строка под заголовком.                                     |
+| `children`    | `ReactNode` | Живой пример — виден, пока карточка не переключена на код. |
+| `code`        | `string`    | Текст кода для режима «код» и для копирования.             |
+| `bgColor`     | `string`    | Класс фона, по умолчанию `bg-card`.                        |
+| `className`   | `string`    | Дополнительные классы корня.                               |
+
+`code` — просто строка. Карточка его не выполняет и не сверяет с `children`: следить, чтобы пример
+и код совпадали, приходится вам. Для фона берите цвета темы (`bg-muted`, `bg-accent`) — они верны и
+в тёмной теме.
+
+## Примеры
 
 <ComponentDoc config={exampleCardDocConfig} />
+
+## Доступность
+
+- Заголовок карточки — `h3`. Ставьте карточки под заголовком `h2`, чтобы структура страницы не
+  ломалась.
+- Обе кнопки — иконки без текста; имя для скринридера им даёт атрибут `title` («Показать код»,
+  «Копировать код»).
+- Что код скопирован, видно только по смене иконки — скринридер этого не объявляет.
+- У кнопок карточки не задан `type`, поэтому внутри `<form>` они отправят форму. Не кладите
+  `ExampleCard` внутрь формы — оборачивайте форму карточкой, а не наоборот.
+
+## Локализация
+
+Подписи кнопок кит рисует сам:
+
+| Ключ словаря                  | English      | Русский         |
+| ----------------------------- | ------------ | --------------- |
+| `kit.exampleCard.showCode`    | Show code    | Показать код    |
+| `kit.exampleCard.showPreview` | Show example | Показать пример |
+| `kit.exampleCard.copy`        | Copy code    | Копировать код  |
+| `kit.exampleCard.copied`      | Copied!      | Скопировано!    |
+
+Пропсов для этих подписей нет. Язык берётся из `I18nProvider` (`@reformer/core/react`) с локалью
+кита `loadKitLocale` из `@reformer/ui-kit/locale`; без провайдера подписи английские. Свою
+формулировку задаёт источник словаря после `loadKitLocale`:
+
+```tsx
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+const loadLocale = createLocaleLoader([
+  loadKitLocale,
+  (code) => (code === 'ru' ? { 'kit.exampleCard.showCode': 'Код' } : null),
+]);
+```
+
+## См. также
+
+- [Card](./card.mdx) — блок с рамкой для рабочего интерфейса.
+- [Button](./button.mdx) — кнопки, которые чаще всего показывают в примерах.

@@ -2,6 +2,7 @@
 id: message-scroller
 title: MessageScroller
 sidebar_label: MessageScroller
+description: Прокручиваемая лента сообщений чата с прокруткой к новым репликам и кнопкой к краю.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,13 +10,143 @@ import { messageScrollerDocConfig } from '@site/src/components/demo/examples/mes
 
 # MessageScroller
 
-Авто-скроллящийся контейнер списка сообщений на shadcn / headless-примитиве
-`@shadcn/react/message-scroller`. Compound-набор:
-`MessageScrollerProvider` / `MessageScroller` / `MessageScrollerViewport` /
-`MessageScrollerContent` / `MessageScrollerItem` / `MessageScrollerButton`.
-`Provider` держит поведение — авто-скролл к последнему сообщению, привязку к якорю
-(`scrollAnchor`) и отслеживание видимых сообщений, — а behaviour-хуки
-(`useMessageScroller`, `useMessageScrollerScrollable`, `useMessageScrollerVisibility`)
-дают императивный скролл и статус прокрутки.
+Прокручиваемая лента сообщений чата. Открывается с конца переписки, ставит новую реплику
+пользователя к верхнему краю, держит ленту у конца, пока дописывается ответ, и показывает кнопку
+«к последнему сообщению», когда её прокрутили вверх. Поведение даёт библиотека
+`@shadcn/react`, оформление — кит.
+
+## Когда брать
+
+- **MessageScroller** — лента чата, в которую приходят новые сообщения: ей нужны автопрокрутка,
+  якоря и кнопка к краю.
+- [ScrollArea](./scroll-area.mdx) — просто область с прокруткой и тонкими полосами, без логики
+  ленты: длинный список, панель, текст.
+- [Message](./message.mdx) и [Bubble](./bubble.mdx) — то, что лежит внутри ленты.
+
+## Установка
+
+Компонент построен на внешней библиотеке, поэтому её нужно поставить отдельно. Это необязательная
+зависимость кита: без неё работает весь кит, кроме этого входа.
+
+```bash
+npm install @shadcn/react
+```
+
+Импорт — только из отдельного входа пакета `@reformer/ui-kit/message-scroller`: из корня
+`@reformer/ui-kit` компонент не экспортируется.
+
+## Анатомия
+
+```tsx
+import {
+  MessageScrollerProvider,
+  MessageScroller,
+  MessageScrollerViewport,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerButton,
+} from '@reformer/ui-kit/message-scroller';
+
+<MessageScrollerProvider autoScroll>
+  <MessageScroller style={{ height: 400 }}>
+    <MessageScrollerViewport aria-label="Переписка">
+      <MessageScrollerContent>
+        {messages.map((m) => (
+          <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === 'user'}>
+            <ChatLine message={m} />
+          </MessageScrollerItem>
+        ))}
+      </MessageScrollerContent>
+    </MessageScrollerViewport>
+    <MessageScrollerButton />
+  </MessageScroller>
+</MessageScrollerProvider>;
+```
+
+| Часть                     | Что это                                                                  | Ключевые пропсы                            |
+| ------------------------- | ------------------------------------------------------------------------ | ------------------------------------------ |
+| `MessageScrollerProvider` | Состояние ленты, без разметки. Внутри него работают хуки.                | `autoScroll`, `defaultScrollPosition`      |
+| `MessageScroller`         | Рамка ленты на всю высоту родителя; в ней лежит кнопка.                  | `className`, `style` — высота              |
+| `MessageScrollerViewport` | Область прокрутки.                                                       | `aria-label`, `preserveScrollOnPrepend`    |
+| `MessageScrollerContent`  | Колонка сообщений с отступом между ними.                                 | `className`                                |
+| `MessageScrollerItem`     | Одно сообщение. Должно быть прямым потомком `MessageScrollerContent`.    | `messageId`, `scrollAnchor`                |
+| `MessageScrollerButton`   | Плавающая кнопка к краю ленты. Видна, только когда туда есть куда ехать. | `direction`, `variant`, `size`, `children` |
+
+Как ведёт себя лента:
+
+- **Начальная позиция** — `defaultScrollPosition`: `'end'` (по умолчанию), `'start'` или
+  `'last-anchor'` — у последнего сообщения-якоря.
+- **Якоря.** Сообщение с `scrollAnchor` при появлении встаёт к верхнему краю, а над ним остаётся
+  видна полоска предыдущего (`scrollPreviousItemPeek`, 64 px). Обычно якорь — реплика
+  пользователя: ответ ассистента дописывается под ней.
+- **Автопрокрутка** — `autoScroll`, по умолчанию выключена. Пока лента у конца, она остаётся у
+  конца при росте содержимого. Стоит пользователю прокрутить её сам — колесом, касанием,
+  клавишами — лента перестаёт следовать за концом. Вернулся к концу — следование возобновляется.
+- **Подгрузка истории.** Сообщения, добавленные в начало, не сдвигают видимое
+  (`preserveScrollOnPrepend`, включено по умолчанию).
+- **Прокрутка из кода** — хук `useMessageScroller()`: `scrollToEnd`, `scrollToStart`,
+  `scrollToMessage(messageId)`. Хук `useMessageScrollerScrollable()` говорит, есть ли куда
+  прокручивать, `useMessageScrollerVisibility()` — какие сообщения видны (по `messageId`).
+
+Высоту ленте задаёт родитель или сам `MessageScroller` (`style`, `className`): без неё прокрутки
+не будет.
+
+:::caution Кнопка в Tailwind 4.1
+
+`MessageScrollerButton` центрируется классом `inset-s-1/2`, которого нет в Tailwind 4.1. В таком
+проекте кнопка прижимается к левому краю и обрезается. Добавьте ей `className="left-1/2"`, как в
+примерах ниже.
+
+:::
+
+## Примеры
 
 <ComponentDoc config={messageScrollerDocConfig} />
+
+## Доступность
+
+- `MessageScrollerViewport` — область `role="region"` с `tabIndex={0}`: на неё можно встать с
+  `Tab` и прокручивать стрелками, `PageUp` / `PageDown`, `Home` / `End` и пробелом. Любая из этих
+  клавиш, как и колесо, останавливает автопрокрутку.
+- Подпись области по умолчанию — английское «Messages». Кит её не переводит: задайте
+  `aria-label` на языке интерфейса.
+- `MessageScrollerContent` — живой регион `role="log"` с `aria-relevant="additions"`: скринридер
+  зачитывает новые сообщения, не перечитывая старые.
+- `MessageScrollerButton`, пока прокручивать некуда, недоступна: у неё `inert` и `tabIndex={-1}`,
+  с `Tab` на неё не попасть. После щелчка фокус с неё снимается.
+
+## Локализация
+
+Кнопка рисует скрытую подпись для скринридера из локали кита:
+
+| Ключ                          | English         | Русский             | Когда               |
+| ----------------------------- | --------------- | ------------------- | ------------------- |
+| `kit.messageScroller.toEnd`   | Scroll to end   | Прокрутить в конец  | `direction="end"`   |
+| `kit.messageScroller.toStart` | Scroll to start | Прокрутить в начало | `direction="start"` |
+
+Строки берутся из локали `I18nProvider` (`@reformer/core/react`). Без провайдера — английские.
+Русский набор кита — модуль `@reformer/ui-kit/locale/ru` или загрузчик `loadKitLocale` из
+`@reformer/ui-kit/locale`. Заменить строку можно двумя способами:
+
+- передать свои `children` кнопке — они заменят и стрелку, и подпись;
+- переопределить ключ в локали:
+
+```ts
+import { extendLocale } from '@reformer/core/i18n';
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+const locale = extendLocale(ru, {
+  messages: { 'kit.messageScroller.toEnd': 'К новым сообщениям' },
+});
+// <I18nProvider locale={locale}>…</I18nProvider>
+```
+
+Подпись области прокрутки (`aria-label` у `MessageScrollerViewport`) в локаль не входит — её
+задаёте вы.
+
+## См. также
+
+- [Message](./message.mdx) — сообщение внутри ленты.
+- [Bubble](./bubble.mdx) — пузырь с текстом реплики.
+- [ScrollArea](./scroll-area.mdx) — обычная область прокрутки.
+- [Обзор UI Kit](./overview.md) — установка и необязательные зависимости.

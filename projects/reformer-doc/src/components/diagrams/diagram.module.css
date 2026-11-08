@@ -1,0 +1,82 @@
+/*
+ * Нарисованные схемы. Только переменные темы Infima: одна схема верна в обеих темах.
+ * Подложка блоков — смесь основного цвета с поверхностью страницы, а не фиксированный
+ * оттенок: светлый тон в тёмной теме дал бы светлую плашку с бледным текстом.
+ */
+
+.figure {
+  margin: 1.5rem 0;
+}
+
+.scroller {
+  overflow-x: auto;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--ifm-font-family-base);
+}
+
+.caption {
+  margin-top: 0.5rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.box rect {
+  fill: var(--ifm-background-surface-color);
+  stroke: var(--ifm-color-emphasis-400);
+  stroke-width: 1.5;
+}
+
+.accent rect {
+  fill: color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-surface-color));
+  stroke: var(--ifm-color-primary);
+}
+
+.ghost rect {
+  fill: none;
+  stroke-dasharray: 6 4;
+}
+
+.link {
+  cursor: pointer;
+}
+
+.link:hover rect {
+  stroke: var(--ifm-color-primary);
+  stroke-width: 2;
+}
+
+.boxTitle {
+  fill: var(--ifm-font-color-base);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.boxSubtitle {
+  fill: var(--ifm-color-emphasis-700);
+  font-size: 13px;
+}
+
+.arrow {
+  stroke: var(--ifm-color-emphasis-600);
+  stroke-width: 1.5;
+}
+
+.dashed {
+  stroke-dasharray: 5 4;
+}
+
+.arrowHead {
+  fill: var(--ifm-color-emphasis-600);
+}
+
+.arrowLabel {
+  fill: var(--ifm-color-emphasis-700);
+  font-size: 12px;
+}

@@ -2,15 +2,15 @@ import { Skeleton } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Skeleton — не form-control: презентационный плейсхолдер загрузки (pulse-анимация).
- * Форма и размер задаются классами (width/height/rounded) через className.
- * Variants — типовые формы (строка/круг/блок), Examples — композиции (карточка, профиль).
+ * Skeleton — не поле формы: плейсхолдер загрузки с пульсацией. Форма и размер — классами через
+ * className. Variants — типовые формы, Examples — композиции. Обёртка `<div style>` в render —
+ * рамка демо, в `code` её нет.
  */
 export const skeletonDocConfig: ComponentDocConfig = {
   name: 'Skeleton',
   importFrom: '@reformer/ui-kit',
   description:
-    'Плейсхолдер загрузки на shadcn. Div с pulse-анимацией; форму и размер задаёшь классами (h-*, w-*, rounded-*) через className.',
+    'Серый пульсирующий блок на месте ещё не загруженного содержимого. Размер и форма — классами h-*, w-*, rounded-*.',
   variants: [
     {
       id: 'shapes',
@@ -48,18 +48,21 @@ export const skeletonDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'avatar-row',
-      title: 'Профиль (аватар + две строки)',
-      description: 'Круглый аватар и две строки текста — типовой скелет пользователя/автора.',
+      title: 'Профиль: аватар и две строки',
+      description:
+        'Круг и две строки — скелет карточки пользователя. aria-busy и скрытая подпись сообщают скринридеру, что идёт загрузка: сам Skeleton для него пуст.',
       render: () => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div aria-busy="true" className="flex items-center gap-3">
+          <span className="sr-only">Загружаем профиль…</span>
           <Skeleton className="h-12 w-12 rounded-full" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-4 w-28" />
           </div>
         </div>
       ),
-      code: `<div className="flex items-center gap-3">
+      code: `<div aria-busy="true" className="flex items-center gap-3">
+  <span className="sr-only">Загружаем профиль…</span>
   <Skeleton className="h-12 w-12 rounded-full" />
   <div className="flex flex-col gap-2">
     <Skeleton className="h-4 w-40" />
@@ -69,7 +72,7 @@ export const skeletonDocConfig: ComponentDocConfig = {
     },
     {
       id: 'card',
-      title: 'Карточка (превью + заголовок + текст)',
+      title: 'Карточка: превью, заголовок, текст',
       description: 'Крупный блок-превью сверху, под ним заголовок и строки описания.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 280 }}>
@@ -96,13 +99,12 @@ export const skeletonDocConfig: ComponentDocConfig = {
       name: 'className',
       type: 'string',
       description:
-        'Классы формы/размера (h-*, w-*, rounded-*) — мёржатся поверх базовых (animate-pulse rounded-md bg-accent) через tailwind-merge.',
+        'Размер и форма: h-*, w-*, rounded-*. Ваш класс перекрывает базовый (rounded-md → rounded-full).',
     },
     {
       name: '...props',
       type: "React.ComponentProps<'div'>",
-      description:
-        'Любые атрибуты <div> (напр. style, data-*, aria-hidden) прокидываются на корень.',
+      description: 'Остальные атрибуты <div>: style, data-*, aria-* и т. д.',
     },
   ],
 };

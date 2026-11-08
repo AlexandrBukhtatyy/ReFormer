@@ -2,6 +2,7 @@
 id: navigation-menu
 title: NavigationMenu
 sidebar_label: NavigationMenu
+description: Навигация сайта — ряд пунктов, часть из которых раскрывает панель со ссылками.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,16 +10,106 @@ import { navigationMenuDocConfig } from '@site/src/components/demo/examples/navi
 
 # NavigationMenu
 
-Горизонтальное навигационное меню на shadcn / Radix `NavigationMenu`. Compound-набор:
-`NavigationMenu` (корень) + `NavigationMenuList` / `NavigationMenuItem` /
-`NavigationMenuTrigger` / `NavigationMenuContent` / `NavigationMenuLink` /
-`NavigationMenuIndicator` / `NavigationMenuViewport`.
+Навигация сайта: ряд пунктов в шапке. Пункт-ссылка ведёт на страницу, пункт-кнопка раскрывает
+панель с группой ссылок. Построен на Radix NavigationMenu, это не поле формы.
 
-Пункт-триггер раскрывает выпадающую панель (`NavigationMenuContent`). По умолчанию
-(`viewport={true}`) панель проецируется в общий слой `NavigationMenuViewport` под меню;
-при `viewport={false}` — раскрывается инлайн под своим пунктом. Стиль пункта-триггера
-задаёт `navigationMenuTriggerStyle()` — его же применяют к `NavigationMenuLink`, чтобы
-простая ссылка выглядела как пункт меню. Клавиатурная навигация и `aria` — из Radix
-«из коробки».
+## Когда брать
+
+- **NavigationMenu** — главная навигация сайта или раздела: шапка с пунктами «Продукты»,
+  «Тарифы», «Документация».
+- [Menubar](./menubar.mdx) — строка команд приложения («Файл», «Правка»): пункты выполняют
+  действия, а не ведут на страницы.
+- [Tabs](./tabs.mdx) — разделы переключаются на месте, без перехода на другую страницу.
+- [Breadcrumb](./breadcrumb.mdx) — показать, где находится текущая страница в иерархии.
+- [Sidebar](./sidebar.mdx) — навигация сбоку, длинным списком.
+
+## Анатомия
+
+```tsx
+import {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuTrigger,
+  NavigationMenuContent,
+  NavigationMenuLink,
+  navigationMenuTriggerStyle,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/navigation-menu'
+
+<NavigationMenu aria-label="Основная навигация">
+  <NavigationMenuList>
+    <NavigationMenuItem>
+      <NavigationMenuTrigger>Продукты</NavigationMenuTrigger>
+      <NavigationMenuContent>
+        <NavigationMenuLink href="/analytics">Аналитика</NavigationMenuLink>
+      </NavigationMenuContent>
+    </NavigationMenuItem>
+    <NavigationMenuItem>
+      <NavigationMenuLink className={navigationMenuTriggerStyle()} href="/pricing">
+        Тарифы
+      </NavigationMenuLink>
+    </NavigationMenuItem>
+  </NavigationMenuList>
+</NavigationMenu>;
+```
+
+| Часть                        | Что это                                                                 | Ключевые пропсы                                                     |
+| ---------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `NavigationMenu`             | Корень — элемент `<nav>`. Сам добавляет общий слой для панелей.         | `aria-label`, `viewport`, `value` / `defaultValue`, `delayDuration` |
+| `NavigationMenuList`         | Ряд пунктов (`<ul>`).                                                   | `className`                                                         |
+| `NavigationMenuItem`         | Один пункт (`<li>`): кнопка с панелью или ссылка.                       | `value`                                                             |
+| `NavigationMenuTrigger`      | Кнопка пункта со стрелкой. Раскрывает панель по щелчку и при наведении. | `children` — подпись                                                |
+| `NavigationMenuContent`      | Панель пункта. Вёрстку внутри задаёте вы.                               | `className`                                                         |
+| `NavigationMenuLink`         | Ссылка (`<a>`) — в панели или прямо в ряду.                             | `href`, `active`, `onSelect`                                        |
+| `NavigationMenuViewport`     | Общий слой под меню, где показываются панели. Корень рисует его сам.    | —                                                                   |
+| `NavigationMenuIndicator`    | Необязательный треугольник под раскрытым пунктом.                       | —                                                                   |
+| `navigationMenuTriggerStyle` | Функция, возвращает классы пункта.                                      | —                                                                   |
+
+Ссылка верхнего уровня по умолчанию выглядит как строка панели. Чтобы она стояла в ряду наравне с
+кнопками, передайте ей `className={navigationMenuTriggerStyle()}`.
+
+С `viewport` (по умолчанию) все панели показываются в одном слое под меню, и слой подстраивает
+размер под открытую панель. `viewport={false}` раскрывает каждую панель под своим пунктом.
+
+Чтобы ссылки работали с роутером приложения, передайте в `NavigationMenuLink` свойство `asChild` и
+положите внутрь ссылку роутера.
+
+## Примеры
 
 <ComponentDoc config={navigationMenuDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix NavigationMenu:
+
+| Клавиша               | Действие                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `Tab`                 | Следующий пункт меню; из раскрытого пункта — внутрь его панели.                    |
+| `←` / `→` / `↑` / `↓` | Соседний пункт или соседняя ссылка в панели.                                       |
+| `Home` / `End`        | Первый / последний пункт.                                                          |
+| `Enter` / `Space`     | На кнопке — раскрыть или свернуть панель; на ссылке — перейти.                     |
+| `↓`                   | На раскрытой кнопке — перевести фокус в панель (`→` при `orientation="vertical"`). |
+| `Escape`              | Свернуть панель, фокус возвращается на кнопку пункта.                              |
+
+- Корень — `<nav>` с `aria-label`. Radix подставляет английское `"Main"`: передайте подпись на
+  языке страницы, иначе скринридер прочитает «Main navigation».
+- Кнопка пункта — `aria-expanded` и `aria-controls`; панель — `aria-labelledby` на свою кнопку.
+- Ссылка с `active` получает `aria-current="page"`.
+- Подсветка `active` в ките сейчас не срабатывает: Radix ставит пустой атрибут `data-active`, а
+  стили кита ждут `data-active="true"`. Скринридер текущую страницу узнаёт, но визуально ссылка не
+  выделена — до исправления добавьте свой класс.
+- Стрелка у кнопки скрыта от скринридера (`aria-hidden`).
+
+## Локализация
+
+Своих видимых строк компонент не рисует: подписи пунктов и ссылок — ваш текст. Единственная
+встроенная строка — `aria-label="Main"` у `<nav>` от Radix; в словарь кита она не входит.
+Заменяйте её пропом `aria-label`.
+
+## См. также
+
+- [Menubar](./menubar.mdx) — строка команд приложения.
+- [Breadcrumb](./breadcrumb.mdx) — путь к текущей странице.
+- [Sidebar](./sidebar.mdx) — боковая навигация.
+- [Radix NavigationMenu](https://www.radix-ui.com/primitives/docs/components/navigation-menu) —
+  полный список пропсов примитива.

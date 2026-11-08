@@ -1,5 +1,5 @@
 import { useState } from 'react';
-// heavy subpath: DatePicker тянет Calendar (react-day-picker) — импорт из своего subpath, не из barrel.
+// Тяжёлый компонент (react-day-picker, date-fns) — только из своего подпути, не из главного входа.
 import {
   DatePicker,
   DatePickerRange,
@@ -8,12 +8,12 @@ import {
   type DateRangeValue,
 } from '@reformer/ui-kit/date-picker';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
-import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
+import { required, maxLength } from '@reformer/core/validators';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-/** Период с префиллом: с 10-го по 14-е число текущего месяца. */
+/** Период для демо: с 10-го по 14-е число текущего месяца. */
 function presetRange(): DateRangeValue {
   const today = new Date();
   return [
@@ -22,14 +22,19 @@ function presetRange(): DateRangeValue {
   ];
 }
 
-/* ─── Ручная сборка base (управляемый DatePicker с локальным состоянием) ─── */
+// Пропсы панели API — из props-схемы варианта. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(datePickerBasePropsSchema), {
+  omit: ['label'],
+});
 
-function ControlledDatePickerVariant() {
+/* ─── DatePicker вне формы: свой стейт, значение Date | undefined ─── */
+
+function StandaloneDatePicker() {
   const [date, setDate] = useState<Date | undefined>(undefined);
   return (
-    <div style={{ maxWidth: 280, width: '100%' }}>
+    <div className="w-full max-w-sm">
       <DatePicker value={date} onChange={setDate} dateFormat="dd.MM.yyyy" />
-      <p style={{ marginTop: 8, fontSize: 13, color: '#6b7280' }}>
+      <p className="mt-2 text-sm text-muted-foreground">
         Выбрано: {date ? date.toLocaleDateString() : '—'}
       </p>
     </div>
@@ -40,95 +45,90 @@ export const datePickerDocConfig: ComponentDocConfig = {
   name: 'DatePicker',
   importFrom: '@reformer/ui-kit/date-picker',
   description:
-    'Выбор даты: Popover с Calendar (single) и кнопкой-триггером, показывающей выбранную дату. В форме DatePicker кладётся в component как есть и привязывается к полю значением Date | null. Период — DatePickerRange ([Date, Date] | null), несколько дат — DatePickerMulti (Date[] | null).',
+    'Кнопка с датой, по которой открывается календарь. Одна дата — DatePicker, период — DatePickerRange, несколько дат — DatePickerMulti.',
   variants: [
-    {
+    fieldVariant({
       id: 'single',
-      title: 'Выбор даты (single, field)',
+      title: 'Одна дата',
       description:
-        'DatePicker привязан к полю формы: значение — Date | null. Выбор даты в календаре закрывает поповер.',
-      render: makeFieldVariant({
-        initial: null,
-        component: DatePicker,
-        componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
-      }),
-      code: `{
-  model: model.$.date,
-  component: DatePicker,
-  componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
-}`,
-    },
-    {
+        'Значение поля — Date | null. Выбор дня закрывает календарь. Без dateFormat дата пишется по правилам языка.',
+      field: 'date',
+      component: DatePicker,
+      componentName: 'DatePicker',
+      initial: null,
+      props: { label: 'Дата' },
+    }),
+    fieldVariant({
+      id: 'format',
+      title: 'Свой формат даты',
+      description: 'dateFormat — токены date-fns: dd.MM.yyyy даёт «16.11.2026».',
+      field: 'date',
+      component: DatePicker,
+      componentName: 'DatePicker',
+      initial: null,
+      props: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
+    }),
+    fieldVariant({
       id: 'range',
-      title: 'Период (DatePickerRange)',
+      title: 'Период',
       description:
-        'Значение — кортеж [Date, Date] | null. Два клика: начало, затем конец; пока выбрано только начало, значение поля прежнее. Кортеж в начальном значении — тоже поле.',
-      render: makeFieldVariant({
-        initial: presetRange(),
-        component: DatePickerRange,
-        componentProps: { label: 'Период', dateFormat: 'dd.MM.yyyy', clearable: true },
-      }),
-      code: `{
-  model: model.$.period, // [Date, Date] | null
-  component: DatePickerRange,
-  componentProps: { label: 'Период', dateFormat: 'dd.MM.yyyy', clearable: true },
-}`,
-    },
-    {
+        'DatePickerRange: значение — [Date, Date] | null, в демо период уже выбран. Новый период — два щелчка: начало, затем конец; пока выбрано только начало, значение поля прежнее.',
+      field: 'period',
+      component: DatePickerRange,
+      componentName: 'DatePickerRange',
+      initial: presetRange(),
+      props: { label: 'Период', dateFormat: 'dd.MM.yyyy', clearable: true },
+    }),
+    fieldVariant({
       id: 'multi',
-      title: 'Несколько дат (DatePickerMulti)',
+      title: 'Несколько дат',
       description:
-        'Значение — Date[] | null по возрастанию. Клик добавляет день, повторный — снимает; календарь между кликами не закрывается. maxItems гасит невыбранные дни.',
-      render: makeFieldVariant({
-        initial: [],
-        component: DatePickerMulti,
-        componentProps: { label: 'Даты встреч', dateFormat: 'dd.MM', clearable: true, maxItems: 5 },
-      }),
-      code: `{
-  model: model.$.meetings, // Date[], начальное []
-  component: DatePickerMulti,
-  componentProps: { label: 'Даты встреч', clearable: true, maxItems: 5 },
-}
-
-// потолок как правило формы — в validation-схеме:
-validate(model.$.meetings, [maxLength(5)]);`,
-    },
+        'DatePickerMulti: значение — Date[] | null по возрастанию. Щелчок добавляет день, повторный — снимает; календарь между щелчками не закрывается. maxItems гасит невыбранные дни, правило формы — maxLength(5).',
+      field: 'meetings',
+      component: DatePickerMulti,
+      componentName: 'DatePickerMulti',
+      initial: null,
+      props: { label: 'Даты встреч', dateFormat: 'dd.MM', clearable: true, maxItems: 5 },
+      validators: [maxLength(5)],
+      rules: 'maxLength(5)',
+    }),
     {
-      id: 'controlled-base',
-      title: 'Ручная сборка (base, управляемый)',
-      description:
-        'Форма вне схемы: чистый DatePicker варианта base с локальным состоянием (value / onChange).',
-      render: ControlledDatePickerVariant,
-      code: `import { DatePicker } from '@reformer/ui-kit/date-picker';
+      id: 'standalone',
+      title: 'Вне формы',
+      description: 'Вне формы DatePicker работает с Date | undefined: undefined — дата не выбрана.',
+      render: StandaloneDatePicker,
+      code: `import { useState } from 'react';
+import { DatePicker } from '@reformer/ui-kit/date-picker';
 
-const [date, setDate] = useState<Date | undefined>();
-
-<DatePicker value={date} onChange={setDate} dateFormat="dd.MM.yyyy" />`,
+function StandaloneDatePicker() {
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  return (
+    <div className="w-full max-w-sm">
+      <DatePicker value={date} onChange={setDate} dateFormat="dd.MM.yyyy" />
+      <p className="mt-2 text-sm text-muted-foreground">
+        Выбрано: {date ? date.toLocaleDateString() : '—'}
+      </p>
+    </div>
+  );
+}`,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательная дата (валидатор)',
+      title: 'Обязательная дата',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: DatePicker,
-        componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите дату' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.date,
-  component: DatePicker,
-  componentProps: { label: 'Дата' },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.date, [required({ code: 'date.required' })]);`,
-    },
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'date',
+      component: DatePicker,
+      componentName: 'DatePicker',
+      initial: null,
+      props: { label: 'Дата', dateFormat: 'dd.MM.yyyy', required: true },
+      validators: [required({ code: 'date.required' })],
+      rules: "required({ code: 'date.required' })",
+      messages: { 'date.required': 'Выберите дату' },
+      touched: true,
+    }),
   ],
   api: {
     component: DatePicker,
@@ -140,23 +140,15 @@ validate(model.$.date, [required({ code: 'date.required' })]);`,
       { label: 'Сегодня', value: new Date() },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label — задаётся baseComponentProps (иначе перетрёт initialValues undefined-ом).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(datePickerBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.date,
-  component: DatePicker,
-  componentProps: {
-    label: 'Дата',
-    placeholder: '${v.placeholder}',
-    dateFormat: '${v.dateFormat}',${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.date, [required()]);`,
+      fieldSnippet({
+        field: 'date',
+        component: 'DatePicker',
+        props: { label: 'Дата' },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

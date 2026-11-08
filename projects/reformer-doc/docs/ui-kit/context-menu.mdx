@@ -2,6 +2,7 @@
 id: context-menu
 title: ContextMenu
 sidebar_label: ContextMenu
+description: Меню по правому щелчку на области — встаёт у курсора.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,12 +10,94 @@ import { contextMenuDocConfig } from '@site/src/components/demo/examples/context
 
 # ContextMenu
 
-Контекстное меню на shadcn / Radix `ContextMenu`. В отличие от `DropdownMenu` открывается правым кликом
-(contextmenu) по области-триггеру, а не кнопкой. Собирается из частей: `ContextMenu` (корень),
-`ContextMenuTrigger` (область), `ContextMenuContent` (список в Portal) и пунктов — `ContextMenuItem`,
-`ContextMenuCheckboxItem`, `ContextMenuRadioItem` (+ `RadioGroup`), `ContextMenuLabel`,
-`ContextMenuSeparator`, `ContextMenuShortcut`, `ContextMenuGroup` и вложенное подменю `ContextMenuSub` /
-`SubTrigger` / `SubContent`. Все части несут свой `data-slot`, поэтому стиль правится через `className`
-(tailwind-merge).
+Меню, которое открывается правым щелчком (или долгим касанием) по области и встаёт у курсора: как
+контекстное меню в файловом менеджере. Построено на Radix ContextMenu и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **ContextMenu** — быстрые действия над объектом под курсором: строка таблицы, файл, карточка на
+  доске. Это ускоритель для опытных пользователей.
+- [DropdownMenu](./dropdown-menu.mdx) — то же меню за видимой кнопкой. Его находят все, поэтому
+  основной путь к действиям — он.
+- [Command](./command.mdx) — длинный список команд с поиском.
+
+Правый щелчок мало кто пробует, а с клавиатуры и на телефоне меню открыть трудно. Каждое действие
+из ContextMenu продублируйте кнопкой или в [DropdownMenu](./dropdown-menu.mdx).
+
+## Анатомия
+
+```tsx
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/context-menu'
+
+<ContextMenu>
+  <ContextMenuTrigger asChild>
+    <div className="rounded-md border p-4">Договор.pdf</div>
+  </ContextMenuTrigger>
+  <ContextMenuContent className="w-52">
+    <ContextMenuItem onSelect={download}>
+      Скачать
+      <ContextMenuShortcut>⌘S</ContextMenuShortcut>
+    </ContextMenuItem>
+    <ContextMenuSeparator />
+    <ContextMenuItem variant="destructive" onSelect={remove}>
+      Удалить
+    </ContextMenuItem>
+  </ContextMenuContent>
+</ContextMenu>;
+```
+
+Части те же, что у [DropdownMenu](./dropdown-menu.mdx#анатомия), с приставкой `ContextMenu`:
+`Item`, `CheckboxItem`, `RadioGroup` / `RadioItem`, `Label`, `Group`, `Separator`, `Shortcut`,
+`Sub` / `SubTrigger` / `SubContent`. Отличаются корень и триггер:
+
+| Часть                | Что это                                                                  | Ключевые пропсы                         |
+| -------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| `ContextMenu`        | Корень. Свойства `open` нет — меню открывает только правый щелчок.       | `onOpenChange`, `modal` (`true`), `dir` |
+| `ContextMenuTrigger` | Область, правый щелчок по которой открывает меню. По умолчанию `<span>`. | `asChild`, `disabled`                   |
+| `ContextMenuContent` | Список пунктов в портале, у курсора.                                     | `alignOffset`, `collisionPadding`       |
+
+- Действие вешайте на `onSelect` пункта: он срабатывает и от клавиатуры.
+- На сенсорном экране меню открывается долгим касанием (около 0,7 с).
+- `ContextMenuShortcut` — только подпись; сочетание клавиш приложение обрабатывает само.
+- `disabled` у триггера возвращает обычное меню браузера.
+
+## Примеры
 
 <ComponentDoc config={contextMenuDocConfig} />
+
+## Доступность
+
+Внутри открытого меню клавиатура та же, что у DropdownMenu:
+
+| Клавиша           | Действие                      |
+| ----------------- | ----------------------------- |
+| `↓` / `↑`         | Следующий / предыдущий пункт. |
+| `Home` / `End`    | Первый / последний пункт.     |
+| `Enter` / `Space` | Выбрать пункт.                |
+| `→` / `←`         | Открыть / закрыть подменю.    |
+| `Esc`             | Закрыть меню.                 |
+
+- Открыть меню с клавиатуры можно, только если триггер получает фокус: тогда браузер присылает
+  событие `contextmenu` по `Shift+F10` или клавише меню. Сделайте триггер фокусируемым
+  (`tabIndex={0}`) или дублируйте действия кнопкой.
+- У списка `role="menu"`, у пунктов — `menuitem`, `menuitemcheckbox` или `menuitemradio`.
+- `variant="destructive"` отличается только цветом — пишите действие словом.
+
+## Локализация
+
+Своих строк компонент не рисует: пункты, подписи групп и сочетания клавиш — ваши.
+
+## См. также
+
+- [DropdownMenu](./dropdown-menu.mdx) — меню за кнопкой, с теми же частями.
+- [Command](./command.mdx) — команды с поиском.
+- [Radix ContextMenu](https://www.radix-ui.com/primitives/docs/components/context-menu) — полный
+  список пропсов примитива.

@@ -4,122 +4,110 @@ sidebar_position: 4
 
 # Синхронизация полей
 
-Копирование значений между полями и двусторонняя синхронизация. Три оператора: `copyFrom`,
-`syncFields`, `transformValue`.
+Значение одного поля копируется в другое, два поля держатся одинаковыми, значение нормализуется при
+вводе. Это операторы [поведения](../reference/glossary.md) `copyFrom`, `syncFields` и
+`transformValue`.
+
+## Когда нужно
+
+- «Адрес доставки совпадает с адресом регистрации» — копирование группы по флагу.
+- Одно значение в двух полях разного вида — двусторонняя связь.
+- Код в верхнем регистре, email без пробелов, сумма без копеек — нормализация.
+
+## Пример
+
+```typescript
+import { copyFrom, defineFormBehavior } from '@reformer/core/behaviors';
+
+type Address = { city: string; street: string };
+type Order = { sameAddress: boolean; shipping: Address; billing: Address };
+
+const orderBehavior = defineFormBehavior<Order>(({ model }) => {
+  // Пока флаг включён, адрес оплаты повторяет адрес доставки.
+  copyFrom(model.$.shipping, model.$.billing, { when: () => model.sameAddress });
+});
+```
 
 ## copyFrom
 
-`copyFrom(source, target, { when?, transform? })` копирует значение из `source` в `target` при
-выполнении условия `when`. Источник и цель — **скаляр** (`model.$.field`) или **группа целиком**
-(`model.$.group`). Оператор сам выходит из реактивного контекста, поэтому не порождает «Cycle
-detected».
+`copyFrom(источник, цель, { when?, transform? })` копирует значение источника в цель, пока условие
+`when` истинно. Источник и цель — поле (`model.$.email`) или группа целиком (`model.$.shipping`).
+
+`transform` меняет значение перед записью:
 
 ```typescript
-import { defineFormBehavior, copyFrom } from '@reformer/core/behaviors';
-
-type Address = { street: string; city: string };
-
-type OrderForm = {
-  useShippingAsBilling: boolean;
-  shippingAddress: Address;
-  billingAddress: Address;
-};
-
-const behavior = defineFormBehavior<OrderForm>(({ model }) => {
-  // копирование группы целиком — когда флаг включён
-  copyFrom(model.$.shippingAddress, model.$.billingAddress, {
-    when: () => model.useShippingAsBilling === true,
-  });
+copyFrom(model.$.email, model.$.billingEmail, {
+  when: () => model.sameEmail,
+  transform: (email) => email.trim().toLowerCase(),
 });
 ```
 
-### Copy + transform
-
-`transform` применяется к значению перед записью в target:
-
-```typescript
-import { defineFormBehavior, copyFrom } from '@reformer/core/behaviors';
-
-type ContactForm = { sameEmail: boolean; email: string; emailAdditional: string };
-
-const behavior = defineFormBehavior<ContactForm>(({ model }) => {
-  copyFrom(model.$.email, model.$.emailAdditional, {
-    when: () => model.sameEmail === true,
-    transform: (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
-  });
-});
-```
-
-:::info copyFrom при `when === false` не откатывает
-Когда условие становится ложным, `copyFrom` просто перестаёт писать — значение target остаётся
-последним скопированным. Чтобы очистить target при снятии флага, добавь параллельно `resetWhen`.
-:::
+- Когда условие становится ложным, `copyFrom` перестаёт копировать, но цель не очищает. Очистить
+  её — `resetWhen` с обратным условием.
+- Группы разной формы копируются по общим полям: поля цели, которых нет в источнике, остаются
+  прежними (в режиме разработки — предупреждение). Значение цели целиком собирает `transform`.
 
 ## syncFields
 
-`syncFields(a, b, { transform? })` создаёт **двустороннюю** связь: изменение любого из полей
-переписывает второе. Внутренний guard исключает петли. `transform` **асимметричен** — применяется
-только при движении `a → b`; обратно значение пишется как есть.
+`syncFields(a, b, { transform? })` связывает два поля в обе стороны: правка любого переписывает
+другое. При создании связи `b` получает значение `a`.
 
 ```typescript
 import { defineFormBehavior, syncFields } from '@reformer/core/behaviors';
 
-type DisplayForm = { internalCode: string; displayCode: string };
+type Codes = { internalCode: string; displayCode: string };
 
-const behavior = defineFormBehavior<DisplayForm>(({ model }) => {
-  // internalCode → displayCode: uppercase; обратно значение пишется как есть
+const codesBehavior = defineFormBehavior<Codes>(({ model }) => {
+  // a → b — в верхнем регистре; b → a — как есть.
   syncFields(model.$.internalCode, model.$.displayCode, {
-    transform: (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+    transform: (code) => code.toUpperCase(),
   });
 });
 ```
 
-:::warning Двустороннюю связь делает syncFields, а не пара copyFrom
-Симметричная пара `copyFrom(a, b)` + `copyFrom(b, a)` конфликтует по направлению. Для двусторонней
-связи бери `syncFields`; для одностороннего копирования по условию — `copyFrom`.
-:::
+`transform` применяется только в направлении `a → b`. Пару `copyFrom(a, b)` + `copyFrom(b, a)`
+вместо `syncFields` не собирайте: два копирования спорят о направлении.
 
 ## transformValue
 
-`transformValue(target, transformer)` подписывается на изменение поля и переписывает его
-трансформированной версией: uppercase для кодов, `trim + toLowerCase` для email, округление чисел.
-Применяется ко всем источникам изменения (пользователь, `model.field = …`, `copyFrom`).
+`transformValue(поле, f)` переписывает значение поля результатом `f` после каждого изменения — от
+пользователя, от `model.x = …`, от другого оператора.
 
 ```typescript
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-type ProfileForm = { promoCode: string; email: string; amount: number };
+type Profile = { promoCode: string; email: string; amount: number | null };
 
-const behavior = defineFormBehavior<ProfileForm>(({ model }) => {
-  transformValue(model.$.promoCode, (value) => (value ?? '').toUpperCase());
-  transformValue(model.$.email, (value) => (value ?? '').trim().toLowerCase());
-  transformValue(model.$.amount, (value) =>
-    typeof value === 'number' ? Math.round(value) : value
-  );
+const profileBehavior = defineFormBehavior<Profile>(({ model }) => {
+  transformValue(model.$.promoCode, (code) => code.toUpperCase());
+  transformValue(model.$.email, (email) => email.trim().toLowerCase());
+  transformValue(model.$.amount, (amount) => (amount === null ? null : Math.round(amount)));
 });
 ```
 
-:::warning Трансформер обязан быть идемпотентным
-`transformValue` пишет обратно в то же поле, поэтому `f(f(x)) === f(x)` обязательно — иначе
-бесконечный цикл. Для добавления префикса ставь guard «уже преобразовано»:
+`f` должна быть идемпотентной: `f(f(x))` равно `f(x)`. Иначе запись запускает новую запись без
+конца.
 
 ```typescript
-// ❌ f(f(x)) = "prefix-prefix-x" ≠ f(x)
-transformValue(model.$.field, (v) => `prefix-${v}`);
+// ❌ f(f(x)) = "prefix-prefix-x"
+transformValue(model.$.code, (code) => `prefix-${code}`);
 
-// ✅ guard
-transformValue(model.$.field, (v) => (v?.startsWith('prefix-') ? v : `prefix-${v}`));
+// ✅ уже преобразованное значение не меняется
+transformValue(model.$.code, (code) => (code.startsWith('prefix-') ? code : `prefix-${code}`));
 ```
 
-:::
+`transformValue` видит только своё поле. Значение, которое зависит от других полей, — это
+[`compute`](./computed.mdx#compute).
 
-:::info transformValue vs compute
-`transformValue` нормализует **само** поле — доступа к другим полям у него нет. Если значение
-зависит от других полей, это [`compute`](./computed#compute), а не `transformValue`.
-:::
+## Подводные камни
 
-## Дальше
+- **Условие `when` у `copyFrom` не читает цель.** Иначе копирование запускает само себя.
+- **`copyFrom` не очищает цель**, когда условие выключилось, — добавьте `resetWhen`.
+- **Двусторонняя связь — только `syncFields`.**
+- **Неидемпотентный `transformValue`** зацикливается.
 
-- [Условная логика](./conditional) — `resetWhen` для сброса target.
-- [Вычисляемые поля](./computed) — `compute` для производных значений.
-- [Реакции на изменения](./watch) — `onChange`, `revalidateWhen`.
+## См. также
+
+- [Условная логика](./conditional.md) — `resetWhen` для очистки цели.
+- [Вычисляемые поля](./computed.mdx) — значение из нескольких полей.
+- [Реакции на изменения](./watch.md) — `onChange` для запросов.

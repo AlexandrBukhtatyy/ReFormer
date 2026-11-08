@@ -1,22 +1,22 @@
-import { Spinner } from '@reformer/ui-kit';
+import { Button, Spinner } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Spinner — не form-control: презентационный индикатор загрузки (lucide Loader2Icon
- * со spin-анимацией). Размер и цвет задаются классами (size-*, text-*) через className;
- * доступность встроена (role="status" + aria-label="Loading").
- * Variants — размеры и цвета, Examples — композиции (панель загрузки, кнопка).
+ * Spinner — не поле формы: вращающаяся иконка загрузки (lucide Loader2Icon) с role="status" и
+ * подписью из локали кита. Размер и цвет — классами в className. Variants — размеры и цвета,
+ * Examples — блок загрузки и кнопка, API — таблица props.
+ * Обёртка `<div style>` в render — рамка демо (ряд), в `code` её нет.
  */
 export const spinnerDocConfig: ComponentDocConfig = {
   name: 'Spinner',
   importFrom: '@reformer/ui-kit',
   description:
-    'Индикатор загрузки на shadcn поверх lucide Loader2Icon. Крутящаяся иконка с role="status"; размер (size-*) и цвет (text-*) задаёшь классами через className.',
+    'Вращающаяся иконка загрузки с role="status". Размер и цвет задают классы size-* и text-*.',
   variants: [
     {
       id: 'sizes',
       title: 'Размеры',
-      description: 'Размер — через className (size-*): базовый size-4, крупнее — size-6, size-8.',
+      description: 'По умолчанию size-4 (16px). Крупнее — size-6, size-8.',
       render: () => (
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <Spinner />
@@ -31,7 +31,7 @@ export const spinnerDocConfig: ComponentDocConfig = {
     {
       id: 'colors',
       title: 'Цвета',
-      description: 'Цвет наследуется от text-* (currentColor): акцент, приглушённый, ошибка.',
+      description: 'Иконка берёт цвет текста: классы text-primary, text-muted-foreground и другие.',
       render: () => (
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <Spinner className="size-6 text-primary" />
@@ -47,60 +47,33 @@ export const spinnerDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'loading-panel',
-      title: 'Панель загрузки',
-      description: 'Центрированный спиннер с подписью — заглушка контента во время запроса.',
+      title: 'Блок загрузки',
+      description:
+        'Спиннер с подписью на месте содержимого. Текст виден на экране, поэтому role="status" стоит на блоке, а спиннер скрыт aria-hidden — иначе скринридер прочитал бы подпись дважды.',
       render: () => (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
-            height: 160,
-            width: '100%',
-          }}
-        >
-          <Spinner className="size-8 text-muted-foreground" />
-          <span style={{ fontSize: 14, color: 'var(--muted-foreground, #64748b)' }}>
-            Загрузка данных…
-          </span>
+        <div role="status" className="flex h-40 w-full flex-col items-center justify-center gap-3">
+          <Spinner className="size-8 text-muted-foreground" aria-hidden="true" />
+          <span className="text-sm text-muted-foreground">Загрузка данных…</span>
         </div>
       ),
-      code: `<div className="flex h-40 w-full flex-col items-center justify-center gap-3">
-  <Spinner className="size-8 text-muted-foreground" />
+      code: `<div role="status" className="flex h-40 w-full flex-col items-center justify-center gap-3">
+  <Spinner className="size-8 text-muted-foreground" aria-hidden="true" />
   <span className="text-sm text-muted-foreground">Загрузка данных…</span>
 </div>`,
     },
     {
       id: 'inline-button',
       title: 'Кнопка в состоянии загрузки',
-      description: 'Спиннер рядом с текстом внутри кнопки — операция выполняется (disabled).',
+      description:
+        'Спиннер рядом с текстом кнопки. Текст уже говорит, что происходит, поэтому спиннер скрыт от скринридера (aria-hidden).',
       render: () => (
-        <button
-          type="button"
-          disabled
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            height: 36,
-            padding: '0 16px',
-            borderRadius: 8,
-            border: 'none',
-            background: 'var(--primary, #0f172a)',
-            color: 'var(--primary-foreground, #f8fafc)',
-            fontSize: 14,
-            opacity: 0.7,
-            cursor: 'not-allowed',
-          }}
-        >
-          <Spinner className="size-4" />
+        <Button disabled>
+          <Spinner aria-hidden="true" />
           Сохранение…
-        </button>
+        </Button>
       ),
       code: `<Button disabled>
-  <Spinner className="size-4" />
+  <Spinner aria-hidden="true" />
   Сохранение…
 </Button>`,
     },
@@ -110,13 +83,19 @@ export const spinnerDocConfig: ComponentDocConfig = {
       name: 'className',
       type: 'string',
       description:
-        'Классы размера/цвета (size-*, text-*) — мёржатся поверх базовых (size-4 animate-spin) через tailwind-merge.',
+        'Размер (size-*) и цвет (text-*). Сливаются со встроенными size-4 animate-spin через tailwind-merge.',
+    },
+    {
+      name: 'aria-label',
+      type: 'string',
+      default: 'kit.spinner.label',
+      description:
+        'Подпись для скринридера. По умолчанию из локали кита: Loading / Загрузка. Ваше значение важнее.',
     },
     {
       name: '...props',
-      type: "React.ComponentProps<'svg'>",
-      description:
-        'Любые атрибуты <svg> прокидываются на корень. role="status" и aria-label="Loading" встроены; aria-label можно переопределить.',
+      type: "ComponentProps<'svg'>",
+      description: 'Остальные атрибуты svg: data-testid, aria-hidden, style.',
     },
   ],
 };

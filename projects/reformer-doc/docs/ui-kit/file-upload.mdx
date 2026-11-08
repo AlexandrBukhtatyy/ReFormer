@@ -9,44 +9,127 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 
 # FileUpload
 
-Поле выбора и загрузки файлов. Значение поля — **атомарный массив**, а не
-форма-массив: `File[] | RemoteFileRef[] | null`; пустой список эмитится как
-`null`, поэтому `required()` работает без изменений. В TS-интерфейсе формы поле
-типизируется union-типом `FileUploadValue` из `@reformer/cdk/file-upload`, а
-начальное значение в модели — `null` (leaf-сигнал).
+Поле выбора и загрузки файлов. Четыре компонента с разным видом — кнопка, зона перетаскивания,
+строка ввода и аватар — и одним поведением: отбор файлов, список, загрузка на сервер с
+прогрессом. Поведение даёт headless-слой [`@reformer/cdk/file-upload`](/docs/cdk/file-upload),
+кит добавляет вид.
 
-Два режима значения:
+## Когда брать
 
-- **deferred** (по умолчанию) — значение `File[]`, файлы уходят на submit формы
-  через `FormData`; сети в компоненте нет;
-- **immediate** — при заданном `uploader(file, { onProgress, signal })` файлы
-  загружаются сразу при выборе (прогресс, повтор, abort при удалении), а
-  значением поля становятся сериализуемые дескрипторы `RemoteFileRef`
-  (`{ id, name, url?, size?, type? }`) — черновики, `renderer-json` и
-  восстановление формы при редактировании работают из коробки.
+- **`FileUploadBase`** — кнопка «Выбрать файлы» и список под ней. Подходит по умолчанию.
+- **`FileUploadDropzone`** — файлов много или их удобно перетаскивать: документы к заявке.
+- **`FileUploadInput`** — вложения второстепенны и места мало: имена файлов строкой, как в
+  текстовом поле, без списка с превью.
+- **`FileUploadAvatar`** — одно изображение с превью: фото профиля, логотип.
 
-Отбор кандидатов (`accept` с собственным матчером — нативный `accept` на
-drag-and-drop не действует, `maxFiles`, `maxFileSize`, дубликаты, кастомный
-`validate`) выполняет сам компонент: отклонённые файлы в значение поля не
-попадают, а уходят в `onReject` и показываются под списком; тексты кодов ошибок
-(`fileType`, `maxFileSize`, …) берутся из словаря формы: `ValidationMessagesProvider messages`
-из `@reformer/cdk` со словарём `defineIssueMessages` из `@reformer/core/i18n`.
+Соседи:
 
-Представления — один контракт значения, но **отдельные компоненты** (пропа `variant` нет):
-`FileUploadBase` (кнопка, registry `FileUpload`), `FileUploadDropzone` (зона перетаскивания,
-registry `FileUploadDropzone`), `FileUploadInput` (поле с кнопкой, registry `FileUploadInput`).
-Single-изображение с превью — `FileUploadAvatar` (значение `File | RemoteFileRef | null`,
-registry-имя `FileUploadAvatar`). Каждый кладётся в `component` поля как есть.
+- нужна своя разметка (свой список, своя зона) — headless
+  [FileUpload из CDK](/docs/cdk/file-upload): набор частей `Root`, `Trigger`, `Dropzone`,
+  `ItemGroup`, `Item`, `ItemPreview`, `ItemProgress` и других или хук `useFileUpload`;
+- показать уже прикреплённый файл без выбора — [Attachment](./attachment.mdx), на нём построен
+  список файлов.
 
-Доступность — из headless-слоя: скрытый настоящий `input[type=file]`, зона —
-кнопка (клик и Enter/Space открывают пикер, drop — не единственный канал),
-`aria-live`-регион статусов, у кнопок удаления `aria-label` с именем файла,
-прогресс — `role="progressbar"`. Невалидное состояние dropzone/input/avatar
-подсвечивают рамкой по `aria-invalid` от FormField (или явному пропу `invalid`);
-вариант button показывает ошибку текстом (`FormField.Error`).
+## Анатомия
 
-Нужен полный контроль над разметкой — берите headless compound-набор
-`FileUpload` (Root / Trigger / Dropzone / ItemGroup / Item / ItemPreview /
-ItemProgress / …) или хук `useFileUpload` из `@reformer/cdk/file-upload`.
+| Компонент            | Значение поля                       | Ключевые пропсы                                                       |
+| -------------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `FileUploadBase`     | `File[] \| RemoteFileRef[] \| null` | `accept`, `multiple`, `maxFiles`, `maxFileSize`, `hint`, `uploader`   |
+| `FileUploadDropzone` | `File[] \| RemoteFileRef[] \| null` | то же + `allowDrop`, `allowPaste`                                     |
+| `FileUploadInput`    | `File[] \| RemoteFileRef[] \| null` | то же + `allowDrop`, `allowPaste`                                     |
+| `FileUploadAvatar`   | `File \| RemoteFileRef \| null`     | `shape`, `accept` (по умолчанию `image/*`), `maxFileSize`, `uploader` |
+
+Пропа `variant` нет — каждый вид отдельный компонент. В `component`
+[узла схемы](../reference/glossary.md#форма-и-данные) он кладётся как есть.
+
+**Значение поля — один массив, а не массив вложенных форм.** Пустой список приходит как `null`,
+поэтому `required()` работает без доработок. Начальное значение в модели — `null`; тип поля в
+интерфейсе формы — `FileUploadValue` из `@reformer/cdk/file-upload`.
+
+**Два режима значения:**
+
+- **отложенный** (по умолчанию) — значение `File[]`. Сети в компоненте нет: файлы отправляете
+  вы при отправке формы, например через `FormData`;
+- **сразу при выборе** — задан `uploader(file, { onProgress, signal })`. Файлы уходят на сервер
+  при выборе: прогресс, повтор после ошибки, отмена при удалении. Значение — сериализуемые
+  дескрипторы `RemoteFileRef` (`{ id, name, url?, size?, type? }`) только успешно загруженных
+  файлов. Такое значение переживает черновик, JSON-форму и повторное открытие формы на
+  редактирование. `autoUpload: false` ставит загрузку на паузу: файлы ждут в списке, пока проп
+  снова не станет `true`.
+
+**Отбор файлов** делает сам компонент, до записи в значение: `accept` (свой разбор — нативный
+`accept` на перетаскивание не действует), `maxFiles`, `maxFileSize`, `minFileSize`,
+`maxTotalFileSize`, дубликаты (`preventDuplicates`, по имени и размеру) и своя проверка
+`validate`. Отклонённые файлы в значение не попадают: они приходят в `onReject` и показываются
+под списком. При `multiple: false` новый выбор заменяет текущий файл.
+
+```tsx
+{
+  model: model.$.documents,
+  component: FileUploadDropzone,
+  componentProps: {
+    label: 'Документы',
+    hint: 'PDF, до 10 МБ',
+    accept: '.pdf',
+    multiple: true,
+    maxFileSize: 10 * 1024 * 1024,
+  },
+}
+```
+
+Общие пропсы полей (`label`, `required`, `description`, `tooltip` и другие) — в
+[описании FormField](./form-field.mdx#общие-пропсы-полей). У `FileUploadAvatar` нет видимого
+текста, поэтому `label` у него ещё и подпись зоны для скринридера.
+
+Из поведения формы выбор файлов открывают программно:
+`schema.node('documents').getRef<FileUploadFieldHandle>().current?.openFilePicker()`; есть и
+`clear()`, и `abort()` — прервать активные загрузки.
+
+## Примеры и API
 
 <ComponentDoc config={fileUploadDocConfig} />
+
+## Доступность
+
+Основу даёт headless-слой:
+
+- внутри — скрытый настоящий `<input type="file">`, поэтому подпись поля и `focus()` работают
+  как у обычного поля;
+- зона перетаскивания (и строка ввода) — элемент с `role="button"`: Enter и пробел открывают
+  выбор файлов. Перетаскивание — не единственный способ добавить файл;
+- статусы («файл добавлен», «загрузка завершена», ошибки) объявляет скрытый регион
+  `aria-live`;
+- у кнопки удаления `aria-label` с именем файла, прогресс загрузки — `role="progressbar"`.
+
+[FormField](./form-field.mdx) вешает подпись и замечание на кнопку или зону. При показанном
+замечании зона, строка ввода и аватар подсвечивают рамку по `aria-invalid`; кнопка показывает
+ошибку только текстом под полем. Вне формы рамку включает проп `invalid`.
+
+## Локализация
+
+Строки кита:
+
+| Ключ                              | Где                                               | Проп          |
+| --------------------------------- | ------------------------------------------------- | ------------- |
+| `kit.fileUpload.choose`           | текст кнопки; подпись скрепки у `FileUploadInput` | `placeholder` |
+| `kit.fileUpload.dropzone`         | текст зоны перетаскивания                         | `placeholder` |
+| `kit.fileUpload.inputPlaceholder` | пустая строка ввода                               | `placeholder` |
+| `kit.fileUpload.clear`            | подпись крестика очистки у `FileUploadInput`      | —             |
+| `kit.fileUpload.avatarLabel`      | подпись зоны аватара для скринридера              | `label`       |
+| `kit.fileUpload.error`            | метка ошибки на аватаре                           | —             |
+
+Объявления `aria-live` и подписи кнопок удаления и повтора — строки CDK (`cdk.fileUpload.*`),
+они входят в локаль кита.
+
+Тексты отказов и ошибок загрузки — это замечания с кодами `fileType`, `maxFileSize`,
+`minFileSize`, `maxFiles`, `maxTotalFileSize`, `fileExists`, `uploadFailed`, `uploadAborted`.
+Текст по коду ищется так же, как у правил: [словарь сообщений](../reference/glossary.md#валидация)
+формы (`ValidationMessagesProvider messages`), затем локаль, затем встроенный английский. Как
+подключить русскую локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [FileUpload из CDK](/docs/cdk/file-upload) — части, хук и режимы значения подробно.
+- [Встроенные правила](../validation/built-in.md) — правила для файлов: `maxFiles`,
+  `maxFileSize`, `fileType`.
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.

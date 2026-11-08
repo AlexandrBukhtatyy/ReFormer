@@ -9,11 +9,82 @@ import { inputDocConfig } from '@site/src/components/demo/examples/input';
 
 # Input
 
-Текстовое поле на pure shadcn `Input`. Вариант **base** — `Input`, строковый (`text` / `email` / `tel` /
-`url`); вариант **number** — `InputNumber`: числовой буфер, удерживающий промежуточный ввод (`1.`,
-`0.05`, `-`, ведущие нули), значение `number | null`; вариант **suggest** — `InputSuggest`: свободный
-ввод с подсказками `suggestions`. Это разные компоненты (и разные registry-имена): у `Input` нет
-`type: 'number'` и `suggestions`. В форме каждый кладётся в `component` как есть — `Input` эмитит
-DOM-событие, и в значение поля его переводит обёртка поля (статика `nativeInputAdapter`).
+Однострочное поле ввода текста. В семействе три компонента: `Input` — строка, `InputNumber` —
+число, `InputSuggest` — строка с подсказками из списка. Каждый кладётся в `component`
+[узла схемы](../reference/glossary.md#форма-и-данные) как есть.
+
+## Когда брать
+
+- **`Input`** — короткая строка: имя, email, телефон без маски, адрес сайта.
+- **`InputNumber`** — число: сумма, срок, возраст. Не ставьте `Input` с `type: 'number'`: он
+  отдаёт строку.
+- **`InputSuggest`** — свободный ввод, которому помогают подсказки: город, должность. Значение
+  остаётся тем, что ввёл человек.
+
+Соседи:
+
+- значение строго из списка — [Select](./select.mdx) или [Combobox](./combobox.mdx);
+- телефон, ИНН, дата по шаблону — [InputMask](./input-mask.mdx);
+- пароль с кнопкой «показать» — [InputPassword](./input-password.mdx);
+- несколько строк текста — [Textarea](./textarea.mdx);
+- иконка, кнопка или текст внутри поля — [InputGroup](./input-group.mdx).
+
+## Анатомия
+
+| Компонент      | Значение поля    | Ключевые пропсы                                         |
+| -------------- | ---------------- | ------------------------------------------------------- |
+| `Input`        | `string \| null` | `type`, `placeholder`, `readOnly`                       |
+| `InputNumber`  | `number \| null` | `min`, `max`, `step`, `placeholder`, `readOnly`         |
+| `InputSuggest` | `string \| null` | `suggestions`, `minChars`, `openOnFocus`, `placeholder` |
+
+Пустой ввод во всех трёх даёт `null`. `InputNumber` держит незаконченный ввод («1.», «-»,
+«0.0») у себя и пишет в модель только готовое число. `InputSuggest` принимает подсказки строками,
+объектами `{ value, label }` или источником данных с подгрузкой — так же, как
+[Select](./select.mdx).
+
+Кроме своих пропсов, каждое поле кита понимает общие: `label`, `required`, `description`,
+`labelTooltip`, `tooltip`, `testId`. Их разбирает [FormField](./form-field.mdx).
+
+```tsx
+{
+  model: model.$.email,
+  component: Input,
+  componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+}
+```
+
+`value`, `onChange`, `onBlur` и `disabled` в `componentProps` не пишут: их подставляет обёртка
+поля. Заблокировать поле — `form.email.disable()`.
+
+Вне формы `Input` — обычный `<input>`: его `onChange` получает DOM-событие.
+
+## Примеры и API
 
 <ComponentDoc config={inputDocConfig} />
+
+## Доступность
+
+- Под капотом настоящий `<input>`: фокус по Tab, ввод, автозаполнение браузера работают как
+  обычно.
+- `FormField` связывает поле с подписью (`<label for>`, `aria-labelledby`), пояснением и
+  замечанием (`aria-describedby`). Пока замечание показано, у поля стоят `aria-invalid` и
+  `aria-errormessage`; при `required` — `aria-required`.
+- `InputNumber` рисует `<input type="number">`: стрелки ↑/↓ меняют число на `step`.
+- `InputSuggest` устроен как комбобокс (`role="combobox"`, `aria-expanded`,
+  `aria-activedescendant`). Клавиши: ↓/↑ — по подсказкам, Enter — подставить выделенную,
+  Esc — закрыть список. Фокус всё время остаётся в поле.
+- Иконка `tooltip` — кнопка с подписью для скринридера, текст подсказки привязан к полю через
+  `aria-describedby`.
+
+## Локализация
+
+Сами поля текста не рисуют: подпись, пояснение и `placeholder` задаёте вы. Встроенная строка одна —
+подпись кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label`. Тексты замечаний
+берутся из [словаря сообщений](../reference/glossary.md#валидация) формы. Как подключить русскую
+локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+- [InputMask](./input-mask.mdx) — поле с шаблоном ввода.
+- [Встроенные правила](../validation/built-in.md) — `required`, `min`, `email` и другие.

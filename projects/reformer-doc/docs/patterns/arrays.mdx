@@ -1,0 +1,195 @@
+---
+sidebar_position: 2
+---
+
+import OrderItems from '@site/src/components/demo/live/patterns/order-items';
+import orderItemsSource from '@site/src/components/demo/live/patterns/order-items.tsx?raw';
+
+# Массивы и динамические формы
+
+Список однотипных строк — позиции заказа, телефоны, созаёмщики — хранится в
+[модели](../reference/glossary.md) массивом объектов. Форма строит над ним ноду `FormArray`: по
+форме на каждую строку. Строки добавляют и удаляют методами массива, а правила строки пишут один
+раз — для всех строк.
+
+## Когда нужно
+
+- Пользователь сам решает, сколько строк заполнить: позиции, телефоны, документы.
+- У каждой строки одни и те же поля и правила.
+- Нужен итог по строкам: сумма, количество.
+
+Если массив — одно значение поля (мультивыбор, теги, файлы), строки-формы не нужны: это обычное
+поле `{ model: model.$.tags, component: SelectMulti }`.
+
+## Пример
+
+<LiveExample
+  component={OrderItems}
+  source={orderItemsSource}
+  caption="Что попробовать: добавьте позицию и сразу нажмите «Отправить» — у пустой строки появятся замечания. Удалите строку — её замечания уйдут вместе с ней."
+/>
+
+Что здесь происходит:
+
+1. `arrayOf(blankItem, [...])` — начальные строки и шаблон новой строки. Его получает `push()` без
+   аргумента.
+2. Узел `{ model: model.$.items, item: itemRow }` — массив под-форм. `item` строит разметку одной
+   строки из её под-модели: `row.$.title`, `row.$.amount`.
+3. `applyEach(model.$.items, itemRules)` — правила одной строки для каждой строки, в том числе
+   добавленной позже.
+4. `items.map(...)` рисует строки, `items.keyAt(index)` даёт ключ строки, `items.push()` и
+   `items.removeAt(index)` добавляют и удаляют.
+5. `useArrayLength(items)` перерисовывает список, когда меняется число строк.
+
+## Узел массива
+
+```typescript
+import { arrayOf, createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { Input, InputNumber } from '@reformer/ui-kit';
+
+type Item = { title: string; amount: number | null };
+type Order = { items: Item[] };
+
+const blankItem = (): Item => ({ title: '', amount: null });
+
+const itemRow = (row: FormModel<Item>): FormSchemaNode => ({
+  children: [
+    { model: row.$.title, component: Input, componentProps: { label: 'Позиция' } },
+    { model: row.$.amount, component: InputNumber, componentProps: { label: 'Сумма' } },
+  ],
+});
+
+const order = createForm<Order>({
+  initial: { items: arrayOf(blankItem) }, // пустой список с шаблоном строки
+  schema: (model) => ({ children: [{ model: model.$.items, item: itemRow }] }),
+});
+
+order.form.items; // FormArray<Item>
+order.form.items.at(0); // форма строки — FormGroup<Item>
+```
+
+Чем станет массив, решает схема:
+
+| Узел в схеме                                      | Что получится                              |
+| ------------------------------------------------- | ------------------------------------------ |
+| `{ model: model.$.items, item: itemRow }`         | массив под-форм — `FormArray`              |
+| `{ model: model.$.tags, component: SelectMulti }` | одно поле, значение которого — массив      |
+| узла нет                                          | массив остаётся в модели, нод для него нет |
+
+## Операции
+
+Одни и те же операции есть у массива модели (`model.items`) и у ноды массива (`form.items`). Форма
+отражает любую из них.
+
+| Модель                            | Нода                            | Что делает                                  |
+| --------------------------------- | ------------------------------- | ------------------------------------------- |
+| `model.items.push(value?)`        | `form.items.push(value?)`       | добавить в конец; без значения — по шаблону |
+| `model.items.insertAt(i, value?)` | `form.items.insert(i, value?)`  | вставить по индексу                         |
+| `model.items.removeAt(i)`         | `form.items.removeAt(i)`        | удалить                                     |
+| `model.items.move(from, to)`      | `form.items.move(from, to)`     | переместить                                 |
+| `model.items.swap(a, b)`          | `form.items.swap(a, b)`         | поменять местами                            |
+| `model.items.clear()`             | `form.items.clear()`            | очистить                                    |
+| `model.items.at(i)`               | `form.items.at(i)`              | под-модель строки / форма строки            |
+| `model.items.length`              | `form.items.length`             | число строк                                 |
+| `model.items.map((item, i) => …)` | `form.items.map((row, i) => …)` | обход: значения строк / формы строк         |
+| —                                 | `form.items.keyAt(i)`           | ключ строки для React                       |
+
+В `push` и `insert` передают **значения** строки (`{ title, amount }`), а не узел схемы. Компонент
+и пропсы строки берутся из `item`.
+
+## Правила строк
+
+Правила строки — обычная схема валидации над типом строки. К каждой строке её подключает
+`applyEach`. Правило на весь массив — например, «хотя бы одна строка» — ставится на сигнал самого
+массива:
+
+```typescript
+import { applyEach, defineValidation, validate } from '@reformer/core/validation';
+import { min, minLength, required } from '@reformer/core/validators';
+
+const itemRules = defineValidation<Item>(({ model }) => {
+  validate(model.$.title, [required()]);
+  validate(model.$.amount, [required(), min(1)]);
+});
+
+const orderRules = defineValidation<Order>(({ model }) => {
+  validate(model.$.items, [minLength(1, { code: 'items.empty' })]); // массив целиком
+  applyEach(model.$.items, itemRules); // каждая строка
+});
+```
+
+- Внутри схемы строки `cross` получает снимок строки — так сравнивают поля одной строки.
+- Замечание правила на массиве лежит в `form.items.ownIssues`; `form.items.issues` — замечания
+  массива вместе со строками.
+- Замечания удалённой строки уходят вместе с её формой.
+
+## Отрисовка
+
+- **Своя разметка** — как в примере: `items.map`, ключ `keyAt(index)`, длина `useArrayLength`.
+  Ключ держится за строку и не меняется при `move` и `swap`, поэтому состояние строки не
+  «переезжает» к соседу.
+- **`FieldArraySection`** из `@reformer/ui-kit` — секция с заголовком, кнопками добавления и удаления:
+  `<FieldArraySection control={form.items} itemComponent={ItemRow} />`.
+- **[`FieldArray`](/docs/cdk/field-array)** из `@reformer/cdk` — та же логика без оформления.
+- **Рендерер** (`FormRenderer`) рисует массив сам по узлу `{ model, component: FieldArray, item }` с
+  `FieldArray` из `@reformer/ui-kit`.
+
+`useArrayLength` подписан только на длину. Если строки переставляют, подпишитесь на массив целиком —
+`useFormControl(form.items)`.
+
+## Итог по строкам
+
+Сумма по строкам — вычисляемое поле [поведения](../behaviors/computed.mdx). Читайте строки через
+массив модели `model.items.map(...)`: так оператор следит и за составом массива, и за полями строк.
+
+```typescript
+import { compute, defineFormBehavior } from '@reformer/core/behaviors';
+
+type OrderWithTotal = { items: Item[]; total: number };
+
+const orderBehavior = defineFormBehavior<OrderWithTotal>(({ model }) => {
+  compute(model.$.total, () =>
+    model.items.map((item) => item.amount ?? 0).reduce((sum, amount) => sum + amount, 0)
+  );
+});
+```
+
+Только число строк — `model.items.length`.
+
+## Очистка по условию
+
+Очистить массив, когда снимают флаг, — `onChange` на флаге. Колбэк выполняется вне реактивного
+эффекта, поэтому менять модель в нём можно.
+
+```typescript
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+type Extras = { hasItems: boolean; items: Item[] };
+
+const extrasBehavior = defineFormBehavior<Extras>(({ model }) => {
+  onChange(model.$.hasItems, (hasItems) => {
+    if (!hasItems) model.items.clear();
+  });
+});
+```
+
+Поведение строк (`applyEach`) и формы удалённых строк снимаются сами — вместе со строкой или с
+формой.
+
+## Подводные камни
+
+- **В `push` — значения, а не узел.** `items.push({ title: '', amount: null })`, а не
+  `{ model, component }`.
+- **Ключ строки — `keyAt(index)`, а не индекс.** С индексом после удаления строки её состояние
+  достанется соседке.
+- **Не агрегируйте через `model.get()`** в `compute`: это снимок без подписки, сумма не
+  пересчитается.
+- **`applyEach` без узла массива в схеме** даёт только операции над значениями: у строк нет нод.
+
+## См. также
+
+- [Вычисляемые поля](../behaviors/computed.mdx) — `compute` и сумма по строкам.
+- [Группы, массивы и свои операторы](../behaviors/custom.md) — `applyEach`, `exclusiveFlag`,
+  `aggregateInto`.
+- [Ноды формы](../core-concepts/nodes) — `FormArray` и доступ к строкам.
+- [Отправка и сброс](./submit-and-reset.mdx) — отправка формы со строками.

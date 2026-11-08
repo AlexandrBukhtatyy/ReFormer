@@ -3,11 +3,9 @@ import { useState } from 'react';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * ExampleCard — не form-control: ReFormer-специфичная playground-обёртка примера. Показывает
- * заголовок, описание и область с живым примером; по кнопке в шапке переключается на режим
- * «код» (переданный текст `code`) с copy-to-clipboard. Утилита для документации/playground,
- * не для продакшена. Variants — базовая карточка и вариант с кастомным фоном; Examples —
- * типовое обёртывание живого контрола.
+ * ExampleCard — не поле формы: карточка для демо-страниц и песочниц — заголовок, описание,
+ * живой пример и переключатель «пример ↔ код» с копированием. Variants — базовая карточка и свой
+ * фон, Examples — живой контрол со своим состоянием.
  */
 
 const InputDemo = () => {
@@ -15,17 +13,30 @@ const InputDemo = () => {
   return <Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />;
 };
 
+const CounterDemo = () => {
+  const [n, setN] = useState(0);
+  return (
+    <ExampleCard
+      title="Кнопка"
+      description="Нажмите — состояние живёт в примере"
+      code={`<Button onClick={() => setN((n) => n + 1)}>Кликов: {n}</Button>`}
+    >
+      <Button onClick={() => setN((n) => n + 1)}>Кликов: {n}</Button>
+    </ExampleCard>
+  );
+};
+
 export const exampleCardDocConfig: ComponentDocConfig = {
   name: 'ExampleCard',
   importFrom: '@reformer/ui-kit',
   description:
-    'Playground-обёртка примера: заголовок, описание, область с живым примером и переключение на исходный код (проп code) с copy-to-clipboard. Утилита для документации, не для продакшена.',
+    'Карточка для демо-страниц: заголовок, описание, живой пример и переключатель на код с копированием.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая карточка',
       description:
-        'title + описание + children (живой пример). Кнопка в шапке переключает на режим «код».',
+        'title, description и children — живой пример. Кнопка в шапке переключает карточку на код.',
       render: () => (
         <ExampleCard
           title="Input — базовый"
@@ -47,14 +58,14 @@ export const exampleCardDocConfig: ComponentDocConfig = {
     },
     {
       id: 'bg-color',
-      title: 'Кастомный фон',
+      title: 'Свой фон (bgColor)',
       description:
-        'bgColor задаёт Tailwind-класс фона карточки — удобно подсветить группу примеров (напр. опасное действие).',
+        'bgColor — класс фона карточки вместо bg-card. Берите цвета темы (bg-muted, bg-accent): они верны и в тёмной теме.',
       render: () => (
         <ExampleCard
           title="Destructive button"
           description="Кнопка опасного действия"
-          bgColor="bg-red-50"
+          bgColor="bg-muted"
           code={`<Button variant="destructive">Delete</Button>`}
         >
           <Button variant="destructive">Delete</Button>
@@ -63,7 +74,7 @@ export const exampleCardDocConfig: ComponentDocConfig = {
       code: `<ExampleCard
   title="Destructive button"
   description="Кнопка опасного действия"
-  bgColor="bg-red-50"
+  bgColor="bg-muted"
   code={\`<Button variant="destructive">Delete</Button>\`}
 >
   <Button variant="destructive">Delete</Button>
@@ -73,24 +84,16 @@ export const exampleCardDocConfig: ComponentDocConfig = {
   examples: [
     {
       id: 'wrap-control',
-      title: 'Обёртка живого контрола',
+      title: 'Живой контрол со своим состоянием',
       description:
-        'Типовое применение — показать интерактивный компонент рядом с его исходником: children рендерят живой пример, code хранит копируемый сниппет.',
-      render: () => (
-        <ExampleCard
-          title="Кнопка"
-          description="Нажми — состояние живёт в примере"
-          code={`<Button onClick={() => setN((n) => n + 1)}>Кликов: {n}</Button>`}
-        >
-          <Button>Кнопка</Button>
-        </ExampleCard>
-      ),
+        'children — работающий пример, code — строка, которую покажет и скопирует карточка. Карточка код не выполняет и не сверяет с children.',
+      render: () => <CounterDemo />,
       code: `function Demo() {
   const [n, setN] = useState(0);
   return (
     <ExampleCard
       title="Кнопка"
-      description="Нажми — состояние живёт в примере"
+      description="Нажмите — состояние живёт в примере"
       code={\`<Button onClick={() => setN((n) => n + 1)}>Кликов: {n}</Button>\`}
     >
       <Button onClick={() => setN((n) => n + 1)}>Кликов: {n}</Button>
@@ -103,7 +106,7 @@ export const exampleCardDocConfig: ComponentDocConfig = {
     {
       name: 'title',
       type: 'string',
-      description: 'Заголовок карточки (обязателен).',
+      description: 'Заголовок карточки, обязателен. Рисуется тегом <h3>.',
     },
     {
       name: 'description',
@@ -113,23 +116,23 @@ export const exampleCardDocConfig: ComponentDocConfig = {
     {
       name: 'children',
       type: 'ReactNode',
-      description: 'Контент примера, отображаемый в режиме «пример».',
+      description: 'Живой пример — виден, пока карточка не переключена на код.',
     },
     {
       name: 'code',
       type: 'string',
-      description: 'Текст исходного кода, показываемый в режиме «код» и копируемый в clipboard.',
+      description: 'Текст кода: его показывает режим «код» и копирует кнопка копирования.',
     },
     {
       name: 'bgColor',
       type: 'string',
-      default: "'bg-white'",
-      description: 'Tailwind-класс фона карточки.',
+      default: "'bg-card'",
+      description: 'Класс фона карточки. bg-card следует теме.',
     },
     {
       name: 'className',
       type: 'string',
-      description: 'Дополнительный CSS-класс контейнера (мёржится через tailwind-merge).',
+      description: 'Дополнительные классы корня. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

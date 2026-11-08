@@ -1,9 +1,12 @@
 import type { ComponentType, ReactNode } from 'react';
 import clsx from 'clsx';
 import BrowserOnly from '@docusaurus/BrowserOnly';
+import { demoText } from './messages';
 import styles from './styles.module.css';
 
-const FALLBACK = <span className={styles.fallback}>Загрузка демо…</span>;
+function Fallback() {
+  return <span className={styles.fallback}>{demoText.loading()}</span>;
+}
 
 /**
  * Лёгкая обёртка: рендерит живой компонент только на клиенте (`<BrowserOnly>`),
@@ -12,7 +15,7 @@ const FALLBACK = <span className={styles.fallback}>Загрузка демо…<
 export function Live({ render: Render }: { render: ComponentType }) {
   return (
     <div className="reformer-demo">
-      <BrowserOnly fallback={FALLBACK}>{() => <Render />}</BrowserOnly>
+      <BrowserOnly fallback={<Fallback />}>{() => <Render />}</BrowserOnly>
     </div>
   );
 }
@@ -29,7 +32,7 @@ export function LiveCanvas({
 }) {
   return (
     <div className={clsx('reformer-demo', styles.canvas, center && styles.canvasCenter)}>
-      <BrowserOnly fallback={FALLBACK}>{() => <Render />}</BrowserOnly>
+      <BrowserOnly fallback={<Fallback />}>{() => <Render />}</BrowserOnly>
     </div>
   );
 }
@@ -47,7 +50,7 @@ export function Demo({
 }) {
   return (
     <div className={clsx('reformer-demo', styles.canvas, center && styles.canvasCenter)}>
-      <BrowserOnly fallback={FALLBACK}>
+      <BrowserOnly fallback={<Fallback />}>
         {() => (typeof children === 'function' ? (children as () => ReactNode)() : children)}
       </BrowserOnly>
     </div>

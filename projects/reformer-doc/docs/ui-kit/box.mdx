@@ -2,6 +2,7 @@
 id: box
 title: Box
 sidebar_label: Box
+description: Контейнер раскладки — div с классом для группировки узлов схемы формы.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,103 @@ import { boxDocConfig } from '@site/src/components/demo/examples/box';
 
 # Box
 
-DSL-контейнер: простой `<div>`-обёртка для группировки элементов в `RenderSchema`.
-Layout полностью задаётся через `className` (atomic CSS / Tailwind — `flex`, `grid`, `gap-*`),
-а дочерние ноды перечисляются в `children[]` схемы рендера. Box — не form-control:
-у него нет `value`/`onChange`, единственный сериализуемый проп — `className`.
+Контейнер раскладки: `<div>` с классом. В [схеме формы](../reference/glossary.md) Box
+группирует узлы — ставит поля в колонку, сетку или строку. Раскладку задаёт `className`, своих
+стилей у Box нет.
+
+## Когда брать
+
+- **Box** — нужно расположить узлы: сетка из полей, ряд «поле + кнопка», обёртка с отступами.
+  Заголовка у группы нет.
+- [Section](./section.mdx) — у группы есть заголовок или это смысловой раздел формы
+  («Паспорт», «Адрес»). Section рисует `<section>` и заголовок нужного уровня.
+- [Card](./card.mdx) — группе нужна рамка, фон и тень. Вид даёт компонент, а не классы на Box.
+- [List](./list.mdx) — узлы строит массив модели, а не перечисление в схеме.
+
+## Анатомия
+
+Box — один компонент без частей. В JSX это обычная обёртка:
+
+```tsx
+import { Box, Input } from '@reformer/ui-kit'; // или '@reformer/ui-kit/box'
+
+<Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <Input placeholder="Имя" aria-label="Имя" />
+  <Input placeholder="Фамилия" aria-label="Фамилия" />
+</Box>;
+```
+
+В схеме формы Box — [узел-контейнер](../core-concepts/schemas/form-schema.md): `component`,
+`componentProps` и `children` на самом узле, а не внутри `componentProps`.
+
+```ts
+{
+  component: Box,
+  componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+  children: [
+    { model: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
+    { model: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
+  ],
+}
+```
+
+| Проп        | Что делает                                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `className` | Классы раскладки: `flex`, `grid`, `gap-*`, `space-y-*`. Других пропсов Box не передаёт в разметку. |
+| `children`  | Содержимое. В схеме — массив `children` узла.                                                      |
+
+Правило кита для раскладки: руками пишут только расположение и отступы (`grid`, `flex`, `gap-*`,
+`space-y-*`). Фон, рамку, тень и скругление дают компоненты: [Card](./card.mdx),
+[Alert](./alert.mdx), `Separator`. Классы цвета на Box ломают тёмную тему.
+
+## Примеры
 
 <ComponentDoc config={boxDocConfig} />
+
+### В документе renderer-json
+
+В JSON компонент указывают по имени. Классы те же, что в TS-схеме, меняется только запись узла.
+
+```json
+{
+  "component": "$component(Box)",
+  "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
+  "children": [
+    { "model": "$model(firstName)", "component": "$component(Input)" },
+    { "model": "$model(lastName)", "component": "$component(Input)" }
+  ]
+}
+```
+
+Box нужно зарегистрировать в [реестре](../reference/glossary.md): `reg.component('Box', Box)`.
+Если проверять документ `validateFormSchema` со схемами пропсов кита (`propSchemas:
+defaultPropSchemas` из `@reformer/ui-kit/meta`), любой ключ `componentProps` у Box, кроме
+`className`, — ошибка.
+
+## Доступность
+
+- Box рисует `<div>` без роли: скринридер его не объявляет.
+- `id`, `role`, `aria-*` и `data-testid` Box не передаёт — в разметку попадает только `className`.
+  Нужен такой атрибут — поставьте в схеме HTML-узел: для тега `componentProps` — это атрибуты DOM.
+
+  ```ts
+  {
+    component: 'div',
+    componentProps: { role: 'group', 'aria-label': 'Паспорт', className: 'grid gap-4' },
+    children: [/* узлы полей */],
+  }
+  ```
+
+- Порядок чтения и фокуса — порядок узлов в `children`. Сетка (`grid`) его не меняет, поэтому
+  перечисляйте узлы в том порядке, в каком их надо читать.
+
+## Локализация
+
+Своих строк компонент не рисует.
+
+## См. также
+
+- [Section](./section.mdx) — группа с заголовком.
+- [Card](./card.mdx) — группа с рамкой и фоном.
+- [Схема формы](../core-concepts/schemas/form-schema.md) — виды узлов и контейнеры.
+- [renderer-json](/docs/packages/renderer-json) — формы из JSON-документа и реестр.

@@ -1,0 +1,79 @@
+---
+id: separator
+title: Separator
+sidebar_label: Separator
+description: Тонкая линия между блоками — горизонтальная или вертикальная.
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { separatorDocConfig } from '@site/src/components/demo/examples/separator';
+
+# Separator
+
+Тонкая линия, которая отделяет один блок от другого: разделы настроек, группы полей, пункты в
+строке. Построена на Radix Separator и входит в [кит](../reference/glossary.md#пакеты)
+`@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **Separator** — граница между блоками внутри одного контейнера: между группами полей, между
+  шапкой и содержимым, между ссылками в строке.
+- [Card](./card.mdx) — блок нужно выделить целиком, рамкой и фоном. Линию между шапкой и
+  содержимым карточки даёт и класс `border-b` на `CardHeader`.
+- [Section](./section.mdx) — группа полей с заголовком; часто заголовка достаточно и линия не
+  нужна.
+- `DropdownMenuSeparator`, `ContextMenuSeparator`, `CommandSeparator` — разделители внутри меню
+  ([DropdownMenu](./dropdown-menu.mdx), [ContextMenu](./context-menu.mdx),
+  [Command](./command.mdx)): у них свои отступы.
+
+Не рисуйте линию классами (`border-t border-gray-200`): цвет `Separator` берётся из темы и верен в
+тёмной теме.
+
+## Анатомия
+
+```tsx
+import { Separator } from '@reformer/ui-kit'; // или '@reformer/ui-kit/separator'
+
+<Separator className="my-4" />
+<Separator orientation="vertical" />;
+```
+
+Это один `<div>` цвета рамок темы.
+
+| Проп          | Значения                 | По умолчанию | Что делает                                                            |
+| ------------- | ------------------------ | ------------ | --------------------------------------------------------------------- |
+| `orientation` | `horizontal`, `vertical` | `horizontal` | Горизонтальная — 1px на всю ширину, вертикальная — 1px на всю высоту. |
+| `decorative`  | `boolean`                | `true`       | Украшение (скрыто от скринридера) или смысловая граница.              |
+| `className`   | `string`                 | —            | Отступы (`my-4`, `mx-2`) и при необходимости цвет.                    |
+
+Своих отступов у линии нет — задайте их классом. Вертикальной линии нужен родитель с высотой:
+строка `flex items-center` с `h-5` или растянутые по высоте соседи.
+
+В [схеме формы](../reference/glossary.md#форма-и-данные) линия — узел
+`{ component: Separator, componentProps: { className: 'my-4' } }`. Для формы из JSON положите
+компонент в [реестр](../reference/glossary.md#рендеринг): `reg.component('Separator', Separator)`.
+
+## Примеры
+
+<ComponentDoc config={separatorDocConfig} />
+
+## Доступность
+
+- По умолчанию (`decorative`) линия — украшение: у неё `role="none"`, скринридер её пропускает.
+  Так и нужно, если границу и так видно по заголовкам.
+- `decorative={false}` даёт `role="separator"` (у вертикальной — ещё `aria-orientation`):
+  скринридер сообщит о границе. Берите, когда линия действительно делит содержимое на части, а
+  заголовков нет.
+- Фокус линия не получает.
+
+## Локализация
+
+Своих строк компонент не рисует.
+
+## См. также
+
+- [Card](./card.mdx) — блок с рамкой.
+- [Section](./section.mdx) — группа полей с заголовком.
+- [Box](./box.mdx) — отступы и сетка без своего вида.
+- [Radix Separator](https://www.radix-ui.com/primitives/docs/components/separator) — полный список
+  пропсов примитива.

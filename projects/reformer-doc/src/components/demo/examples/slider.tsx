@@ -1,64 +1,73 @@
 import { Slider, sliderBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
-import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
+import { required, min } from '@reformer/core/validators';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
+
+// Пропсы панели API — из props-схемы варианта. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(sliderBasePropsSchema), {
+  omit: ['label'],
+});
 
 export const sliderDocConfig: ComponentDocConfig = {
   name: 'Slider',
   importFrom: '@reformer/ui-kit',
   description:
-    'Слайдер на Radix (Track / Range / Thumb, role=slider). Значение — скаляр number | null (одно-thumb режим через sliderAdapter: number → Radix [n], onValueChange → arr[0]). Диапазон и шаг задаются min/max/step. Раскладка обычная — верхнюю подпись рисует FormField.',
+    'Ползунок для числа из диапазона. Значение поля — number | null, диапазон и шаг — min, max, step.',
   variants: [
-    {
+    fieldVariant({
       id: 'basic',
-      title: 'Базовый слайдер (0–100)',
-      description: 'Значение — number. Диапазон по умолчанию 0…100, шаг 1.',
-      render: makeFieldVariant({
-        initial: 50,
-        component: Slider,
-        componentProps: { label: 'Громкость', min: 0, max: 100, step: 1 },
-      }),
-      code: `{
-  model: model.$.volume, // initial: 50
-  component: Slider,
-  componentProps: { label: 'Громкость', min: 0, max: 100, step: 1 },
-}`,
-    },
-    {
+      title: 'Диапазон по умолчанию',
+      description: 'Без min/max/step — шкала 0…100 с шагом 1.',
+      field: 'volume',
+      component: Slider,
+      componentName: 'Slider',
+      initial: 50,
+      showInitial: true,
+      props: { label: 'Громкость' },
+    }),
+    fieldVariant({
       id: 'stepped',
       title: 'Шаг и узкий диапазон',
-      description: 'min/max/step задают дискретную шкалу (напр. оценка 0…10 с шагом 2).',
-      render: makeFieldVariant({
-        initial: 6,
-        component: Slider,
-        componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
-      }),
-      code: `{
-  model: model.$.rating, // initial: 6
-  component: Slider,
-  componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
-}`,
-    },
+      description: 'min, max и step задают дискретную шкалу: оценка 0…10 с шагом 2.',
+      field: 'rating',
+      component: Slider,
+      componentName: 'Slider',
+      initial: 6,
+      showInitial: true,
+      props: { label: 'Оценка', min: 0, max: 10, step: 2 },
+    }),
   ],
   examples: [
-    {
-      id: 'range',
-      title: 'Кастомный диапазон (min/max/step)',
+    fieldVariant({
+      id: 'amount',
+      title: 'Сумма кредита',
       description:
-        'Крупная денежная шкала: min/max/step масштабируют слайдер под сумму кредита (шаг 10 000).',
-      render: makeFieldVariant({
-        initial: 300000,
-        component: Slider,
-        componentProps: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
-      }),
-      code: `{
-  model: model.$.amount,
-  component: Slider,
-  componentProps: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
-}`,
-    },
+        'Крупная денежная шкала с шагом 10 000. Подпись не показывает текущее число — выводите его рядом сами или берите InputNumber.',
+      field: 'amount',
+      component: Slider,
+      componentName: 'Slider',
+      initial: 300000,
+      showInitial: true,
+      props: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
+    }),
+    fieldVariant({
+      id: 'validation',
+      title: 'Правило min',
+      description:
+        'Слайдер сам держит значение в границах min…max. Правило нужно, когда допустимый порог строже шкалы: здесь — не меньше 3.',
+      field: 'rating',
+      component: Slider,
+      componentName: 'Slider',
+      initial: 1,
+      showInitial: true,
+      props: { label: 'Оценка', min: 0, max: 10, step: 1 },
+      validators: [min(3, { code: 'rating.min' })],
+      rules: "min(3, { code: 'rating.min' })",
+      messages: { 'rating.min': 'Оценка не ниже 3' },
+      touched: true,
+    }),
   ],
   api: {
     component: Slider,
@@ -71,24 +80,15 @@ export const sliderDocConfig: ComponentDocConfig = {
       { label: 'Середина (50)', value: 50 },
       { label: 'Максимум (100)', value: 100 },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label — задаётся baseComponentProps (иначе перетрёт initialValue undefined-ом).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(sliderBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.volume,
-  component: Slider,
-  componentProps: {
-    label: 'Громкость',
-    min: ${v.min ?? 0},
-    max: ${v.max ?? 100},
-    step: ${v.step ?? 1},${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.volume, [required()]);`,
+      fieldSnippet({
+        field: 'volume',
+        component: 'Slider',
+        props: { label: 'Громкость' },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

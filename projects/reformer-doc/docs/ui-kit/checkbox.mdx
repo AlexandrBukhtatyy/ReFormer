@@ -9,10 +9,83 @@ import { checkboxDocConfig } from '@site/src/components/demo/examples/checkbox';
 
 # Checkbox
 
-Чекбокс на Radix (`button` role=checkbox + `CheckIcon`). Значение — `boolean` (контракт `checked` /
-`onCheckedChange`). Раскладка **inline**: подпись из `componentProps.label` рисуется справа от контрола,
-а `FormField` верхнюю подпись не рендерит (маркер `reformerLayout='inline-label'`), чтобы она не задвоилась.
-Для форм — `CheckboxWithLabel` (registry `Checkbox`): кладётся в `component` как есть, диалект
-`checked` / `onCheckedChange` сводит к значению поля обёртка (статика `checkedAdapter`).
+Флажок для ответа «да или нет»: согласие, подписка, необязательная опция. В форму ставят
+`CheckboxWithLabel` — флажок с подписью справа. Значение поля — `boolean`.
+
+## Когда брать
+
+- **`CheckboxWithLabel`** — одно согласие или опция, которую отмечают перед отправкой формы:
+  «Согласен с условиями», «Запомнить меня».
+- **`Checkbox`** — голый флажок без подписи: в таблице, в строке списка, в своей разметке.
+
+Соседи:
+
+- настройка, которая действует сразу, как выключатель, — [Switch](./switch.mdx);
+- кнопка, которая остаётся нажатой (полужирный, закрепить), — [Toggle](./toggle.mdx);
+- выбор нескольких значений из списка — `SelectMulti` из [Select](./select.mdx) или
+  [ToggleGroup](./toggle-group.mdx) (`ToggleGroupMulti`);
+- один вариант из нескольких — [RadioGroup](./radio-group.mdx).
+
+## Анатомия
+
+| Компонент           | Значение поля | Ключевые пропсы    |
+| ------------------- | ------------- | ------------------ |
+| `CheckboxWithLabel` | `boolean`     | `label`, `tooltip` |
+| `Checkbox`          | `boolean`     | `className`        |
+
+`CheckboxWithLabel` сам рисует подпись справа от флажка, поэтому [FormField](./form-field.mdx)
+не ставит над ним свою: подпись не задваивается. Клик по подписи переключает флажок. Звёздочку
+`required` у такой подписи компонент не рисует — обязательность видна по замечанию.
+
+```tsx
+{
+  model: model.$.agree,
+  component: CheckboxWithLabel,
+  componentProps: { label: 'Согласен с условиями обработки данных' },
+}
+```
+
+Начальное значение поля — `false`. Пустое значение (`null`) флажок показывает снятым, а в модель
+пишет только `true` или `false`.
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). В форме из JSON
+`CheckboxWithLabel` зарегистрирован под именем `Checkbox`.
+
+Вне формы флажок — компонент Radix: `checked` и `onCheckedChange` вместо `value` и `onChange`.
+
+```tsx
+<CheckboxWithLabel
+  checked={agree}
+  onCheckedChange={(c) => setAgree(c === true)}
+  label="Согласен с условиями"
+/>
+```
+
+## Примеры и API
 
 <ComponentDoc config={checkboxDocConfig} />
+
+## Доступность
+
+- Флажок — кнопка `role="checkbox"` с `aria-checked` (Radix Checkbox). Фокус — по Tab,
+  переключение — пробелом.
+- Подпись — `<label>`, связанный с флажком: она даёт ему имя для скринридера и переключает его
+  по клику. Без `label` флажок в форме остаётся без имени — задавайте подпись всегда.
+- `FormField` связывает флажок с пояснением и замечанием (`aria-describedby`), при показанном
+  замечании ставит `aria-invalid` и `aria-errormessage`, при `required` — `aria-required`.
+- Иконка `tooltip` стоит вне `<label>`: щелчок по ней флажок не переключает. Её текст привязан к
+  флажку через `aria-describedby`.
+
+## Локализация
+
+Сам флажок текста не рисует: подпись и пояснение задаёте вы. Встроенная строка одна — подпись
+кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label`. Тексты замечаний берутся из
+[словаря сообщений](../reference/glossary.md#валидация) формы. Как подключить русскую локаль кита
+— в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Switch](./switch.mdx) — выключатель для настроек.
+- [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+- [Встроенные правила](../validation/built-in.md) — `required` для `boolean` требует `true`.

@@ -2,6 +2,7 @@
 id: progress
 title: Progress
 sidebar_label: Progress
+description: Полоса, которая показывает долю выполненной работы.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,8 +10,62 @@ import { progressDocConfig } from '@site/src/components/demo/examples/progress';
 
 # Progress
 
-Индикатор прогресса на shadcn / Radix `Progress` (Root + Indicator). Заполнение задаётся
-числом `value` (0..100); полоса несёт `role="progressbar"` и `aria-valuenow` из коробки.
-Высоту, скругление и цвет можно перекрыть через `className` (мёржатся `tailwind-merge`).
+Горизонтальная полоса, заполненная на `value` процентов: загрузка файла, заполненность профиля,
+доля пройденных шагов. Построена на Radix Progress и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **Progress** — известна доля выполненного: 40 % файла загружено, 3 из 5 разделов заполнено.
+- [Spinner](./spinner.mdx) — ожидание без известной доли: запрос к серверу.
+- [Skeleton](./skeleton.mdx) — загрузка содержимого с известной раскладкой.
+- [Slider](./slider.mdx) — значение, которое человек меняет сам. Progress только показывает.
+- Индикатор шагов многошаговой формы рисует [FormWizard](./form-navigation.mdx).
+
+## Анатомия
+
+```tsx
+import { Progress } from '@reformer/ui-kit'; // или '@reformer/ui-kit/progress'
+
+<Progress value={40} aria-label="Загрузка файла" aria-valuenow={40} />;
+```
+
+Это дорожка (`Progress.Root` Radix) с заполнением внутри. Отдельных частей нет.
+
+| Проп        | Тип      | Что делает                                                                         |
+| ----------- | -------- | ---------------------------------------------------------------------------------- |
+| `value`     | `number` | Заполнение в процентах, 0–100. Без него полоса пустая.                             |
+| `max`       | `number` | Верх шкалы для Radix (`aria-valuemax`, по умолчанию 100). На заполнение не влияет. |
+| `className` | `string` | Классы дорожки: высота `h-*`, ширина `w-*`, скругление.                            |
+
+`value` всегда читается как процент: при `max={200}` и `value={100}` полоса заполнится целиком,
+а не наполовину. Если ваша шкала другая, переведите значение в проценты сами:
+`value={(done / total) * 100}`.
+
+Подпись и число процентов компонент не рисует — ставьте их рядом (пример «Подпись и значение для
+скринридера»).
+
+## Примеры
 
 <ComponentDoc config={progressDocConfig} />
+
+## Доступность
+
+- Radix ставит дорожке `role="progressbar"`, `aria-valuemin` и `aria-valuemax`.
+- Текущее значение компонент в Radix не передаёт, поэтому `aria-valuenow` нет и скринридер
+  считает прогресс неопределённым. Передайте `aria-valuenow={value}` сами (и, если нужно,
+  `aria-valuetext`, например «3 из 5 разделов»).
+- Дайте полосе имя: `aria-label` или `aria-labelledby` со ссылкой на видимую подпись.
+- Фокус полоса не получает. О завершении сообщите текстом или уведомлением — изменение полосы
+  скринридер сам не объявляет.
+
+## Локализация
+
+Своих строк компонент не рисует: подпись, проценты и `aria-valuetext` — ваши.
+
+## См. также
+
+- [Spinner](./spinner.mdx) — ожидание без известной доли.
+- [Skeleton](./skeleton.mdx) — заглушка на месте содержимого.
+- [Radix Progress](https://www.radix-ui.com/primitives/docs/components/progress) — полный список
+  пропсов примитива.

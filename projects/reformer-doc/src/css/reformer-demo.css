@@ -14,6 +14,10 @@
 
 /* Сканируем классы, которые ui-kit прописывает в своих компонентах. */
 @source "../../../../packages/reformer-ui-kit/src";
+/* …и раскладку живых примеров страниц-руководств (`<LiveExample>`). */
+@source "../components/demo/live";
+/* …и конфигов страниц компонентов (`ComponentDoc`): рамки и раскладка демо. */
+@source "../components/demo/examples";
 
 /* Docusaurus переключает тему через `data-theme` на <html>, а не класс `.dark`. */
 @custom-variant dark (&:is([data-theme='dark'] *));

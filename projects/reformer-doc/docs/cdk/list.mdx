@@ -1,0 +1,83 @@
+---
+id: list
+title: List
+sidebar_label: List
+description: Обход массива модели только для вывода — без кнопок добавления и удаления.
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { cdkListDocConfig } from '@site/src/components/demo/examples/cdk-list';
+
+# List
+
+`List` перебирает строки массива [модели](../reference/glossary.md#форма-и-данные) и рисует на
+каждую вашу разметку. Кнопок добавления, удаления и перестановки у него нет: состав массива
+меняет код, а не пользователь.
+
+## Когда использовать
+
+- Форма показывает уведомления, статусы документов, предупреждения, которые добавляет и убирает
+  [поведение](../reference/glossary.md#поведение-шаги-и-отправка) формы.
+- Нужна строка с состоянием поля — значением, замечаниями, — но редактировать состав списка нельзя.
+
+Если пользователь сам добавляет и удаляет строки — [FieldArray](./field-array.mdx). Для формы,
+которую рисует рендерер по схеме, есть [List из ui-kit](../ui-kit/list.mdx): он получает строки уже
+нарисованными и только кладёт их в контейнер.
+
+## Анатомия
+
+`List.Root` получает [ноду](../reference/glossary.md#форма-и-данные) массива — `control={form.notices}`
+(`FormArray<T>`). Строки массива получают свои ноды по узлу схемы с `item`, как у `FieldArray`.
+
+| Часть        | Что делает                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------- |
+| `List.Root`  | Провайдер списка. Подписан на длину и значение массива: строки появляются и исчезают сами.                    |
+| `List.Items` | Перебирает строки; функция-ребёнок получает `control` строки, `index` и `id`. Обёртка — только с `className`. |
+| `List.Empty` | Показывается, когда строк нет.                                                                                |
+
+Хук `useList(control)` даёт то же без compound-компонентов: `items`, `length`, `isEmpty`. Потомкам
+`List.Root` и `List.Items` состояние отдают `useListContext()` и `useListItemContext()`.
+
+Ключ строки — `id`: он держится за элемент модели и не меняется при перестановке и удалении
+соседей. Тип строки через контекст не выводится: пишите его явно — `List.Items<Notice>` — или
+берите `useList`, где тип выводится из `control`.
+
+```tsx
+import { List } from '@reformer/cdk/list';
+import { useFormControlValue } from '@reformer/core/react';
+
+function NoticeRow({ control }: { control: FormGroup<Notice> }) {
+  const text = useFormControlValue(control.text);
+  return <div role="note">{text}</div>;
+}
+
+<List.Root control={form.notices}>
+  <List.Empty>
+    <p>Уведомлений нет</p>
+  </List.Empty>
+  <List.Items<Notice>>{({ control }) => <NoticeRow control={control} />}</List.Items>
+</List.Root>;
+```
+
+Строку выносите в отдельный компонент, который сам читает значения своих полей: тогда правка одной
+строки не перерисовывает остальные.
+
+## Примеры
+
+<ComponentDoc config={cdkListDocConfig} />
+
+## Доступность
+
+`List` не добавляет ни элементов, ни ролей. Роли выбираете по смыслу: `role="list"` и `listitem`
+для перечня, `role="note"` или `role="status"` для уведомлений. Если список меняется без действия
+пользователя и это важно — обновление объявляет регион `aria-live`, который ставите вы.
+
+## Локализация
+
+Своих строк у `List` нет: пустое состояние и содержимое строк — ваши.
+
+## См. также
+
+- [FieldArray](./field-array.mdx) — массив, который редактирует пользователь.
+- [List в ui-kit](../ui-kit/list.mdx) — контейнер для формы из схемы.
+- [Массивы в форме](/docs/patterns/arrays) — модель и схема массива.

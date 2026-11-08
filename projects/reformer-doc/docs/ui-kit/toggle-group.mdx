@@ -9,10 +9,91 @@ import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-
 
 # ToggleGroup
 
-Группа кнопок-переключателей на Radix. Вариант **base** — чистый примитив (`ToggleGroup` —
-контейнер, `ToggleGroupItem` — кнопка) для ручной сборки. В single-режиме (`type="single"`)
-контейнер получает `role="radiogroup"`, а активная кнопка — `data-state="on"`. Для форм —
-`ToggleGroupOptions` (registry `ToggleGroup`): рендерит опции из массива `options` (`{ value, label }`);
-значение — строка (`option.value | null`), каждый вариант получает per-option `data-testid`.
+Ряд кнопок-сегментов, из которых нажата одна или несколько. В форму ставят `ToggleGroupOptions`
+(одно значение) или `ToggleGroupMulti` (несколько): оба рисуют кнопки из массива `options`.
+
+## Когда брать
+
+- **`ToggleGroupOptions`** — один из двух-пяти коротких вариантов, которые удобно показать
+  сегментами: период «Месяц / Квартал / Год», пол, вид списка.
+- **`ToggleGroupMulti`** — несколько коротких значений: дни недели, каналы связи.
+- **`ToggleGroup` и `ToggleGroupItem`** — своя разметка вне формы, например кнопки-иконки панели
+  инструментов.
+
+Соседи:
+
+- варианты с длинными подписями или с пояснениями — [RadioGroup](./radio-group.mdx);
+- вариантов много — [Select](./select.mdx) (`SelectMulti` для нескольких);
+- одна кнопка «нажата / отжата» — [Toggle](./toggle.mdx).
+
+## Анатомия
+
+| Компонент            | Значение поля      | Ключевые пропсы                  |
+| -------------------- | ------------------ | -------------------------------- |
+| `ToggleGroupOptions` | `string \| null`   | `options`, `variant`             |
+| `ToggleGroupMulti`   | `string[] \| null` | `options`, `variant`, `maxItems` |
+
+- Пункт `options` — `{ value, label }`, `value` — строка. `label` — текст на кнопке.
+- `variant` — `'default'` (отдельные кнопки без рамки) или `'outline'` (общая рамка, как у
+  сегментов одного поля).
+- В `ToggleGroupOptions` щелчок по нажатой кнопке снимает выбор: значение поля станет `null`.
+- В `ToggleGroupMulti` снятие последней кнопки тоже даёт `null`. `maxItems` выключает
+  ненажатые кнопки, когда выбрано достаточно. Это подсказка интерфейса; ограничение для формы —
+  правило `maxLength(n)`.
+- Подпись группы рисует [FormField](./form-field.mdx) сверху. Иконка `tooltip` стоит справа от
+  группы.
+
+```tsx
+{
+  model: model.$.period,
+  component: ToggleGroupOptions,
+  componentProps: { label: 'Период', options: PERIODS, variant: 'outline' },
+}
+```
+
+Общие пропсы полей — `label`, `required`, `description`, `labelTooltip`, `tooltip`, `testId` —
+описаны на странице [FormField](./form-field.mdx#общие-пропсы-полей). В форме из JSON
+`ToggleGroupOptions` зарегистрирован под именем `ToggleGroup`, `ToggleGroupMulti` — под своим.
+Кнопки получают `data-testid` вида `input-<testId>-<value>`.
+
+Вне формы части собираются как компонент Radix: `type="single"` или `type="multiple"`, `value`
+и `onValueChange`.
+
+```tsx
+<ToggleGroup type="single" variant="outline" value={align} onValueChange={setAlign}>
+  <ToggleGroupItem value="left" aria-label="По левому краю">
+    <AlignLeftIcon />
+  </ToggleGroupItem>
+  <ToggleGroupItem value="right" aria-label="По правому краю">
+    <AlignRightIcon />
+  </ToggleGroupItem>
+</ToggleGroup>
+```
+
+## Примеры и API
 
 <ComponentDoc config={toggleGroupDocConfig} />
+
+## Доступность
+
+- Группа построена на Radix ToggleGroup. У `ToggleGroupOptions` контейнер — `role="radiogroup"`,
+  кнопки — `role="radio"` с `aria-checked`. У `ToggleGroupMulti` контейнер — `role="toolbar"`,
+  кнопки — с `aria-pressed`.
+- Tab ставит фокус на нажатую кнопку (или на первую) и следующим нажатием уходит из группы.
+  Стрелки переводят фокус между кнопками, пробел или Enter нажимают кнопку в фокусе.
+- Подпись группы связана с контейнером через `aria-labelledby`, пояснение и замечание — через
+  `aria-describedby`; при показанном замечании стоят `aria-invalid` и `aria-errormessage`.
+- У кнопок с одной иконкой (ручная сборка) задайте `aria-label`.
+
+## Локализация
+
+Сам компонент текста не рисует: подписи кнопок — `label` в `options`. Встроенная строка одна —
+подпись кнопки-иконки `tooltip` для скринридера, ключ `kit.infoHint.label`. Тексты замечаний
+берутся из [словаря сообщений](../reference/glossary.md#валидация) формы. Как подключить русскую
+локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [RadioGroup](./radio-group.mdx) — тот же выбор кружками с подписями.
+- [Toggle](./toggle.mdx) — одна нажимаемая кнопка.
+- [Select](./select.mdx) — выбор из длинного списка.

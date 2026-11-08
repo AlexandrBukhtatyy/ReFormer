@@ -41,13 +41,19 @@ function buildControl(
     case 'boolean':
       return { ...head, kind, default: Boolean(def) };
     case 'text':
-      return { ...head, kind, default: def == null ? '' : String(def) };
+      // Умолчание из словаря кита (`x-messageKey`) — английская строка `en.json`. Явно её не
+      // передаём: пустое поле оставляет проп незаданным, и компонент берёт текст локали страницы.
+      return {
+        ...head,
+        kind,
+        default: def == null || schema?.['x-messageKey'] ? '' : String(def),
+      };
     case 'number': {
       const num = schema ?? {};
       return {
         ...head,
         kind,
-        default: def == null ? 0 : Number(def),
+        ...(def == null ? {} : { default: Number(def) }),
         ...(typeof num.minimum === 'number' ? { min: num.minimum } : {}),
         ...(typeof num.maximum === 'number' ? { max: num.maximum } : {}),
         ...(typeof num.multipleOf === 'number' ? { step: num.multipleOf } : {}),

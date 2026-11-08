@@ -1,156 +1,194 @@
-import { ToggleGroupOptions, toggleGroupBasePropsSchema, ToggleGroupMulti } from '@reformer/ui-kit';
+import { useState } from 'react';
+import { AlignCenterIcon, AlignLeftIcon, AlignRightIcon } from 'lucide-react';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+  ToggleGroupOptions,
+  toggleGroupBasePropsSchema,
+  ToggleGroupMulti,
+} from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
+
+const PERIOD = [
+  { value: 'month', label: 'Месяц' },
+  { value: 'quarter', label: 'Квартал' },
+  { value: 'year', label: 'Год' },
+];
 
 const GENDER = [
   { value: 'male', label: 'Мужской' },
   { value: 'female', label: 'Женский' },
 ];
 
-const PLAN = [
-  { value: 'month', label: 'Месяц' },
-  { value: 'quarter', label: 'Квартал' },
-  { value: 'year', label: 'Год' },
+const WEEKDAYS = [
+  { value: 'mon', label: 'Пн' },
+  { value: 'tue', label: 'Вт' },
+  { value: 'wed', label: 'Ср' },
+  { value: 'thu', label: 'Чт' },
+  { value: 'fri', label: 'Пт' },
 ];
+
+/** Вне формы: кнопки-иконки собираются из ToggleGroup и ToggleGroupItem. */
+function AlignToggleGroup() {
+  const [align, setAlign] = useState('left');
+  return (
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      value={align}
+      // повторный щелчок по нажатой кнопке даёт '' — здесь выбор не снимаем
+      onValueChange={(next) => next && setAlign(next)}
+      aria-label="Выравнивание текста"
+    >
+      <ToggleGroupItem value="left" aria-label="По левому краю">
+        <AlignLeftIcon />
+      </ToggleGroupItem>
+      <ToggleGroupItem value="center" aria-label="По центру">
+        <AlignCenterIcon />
+      </ToggleGroupItem>
+      <ToggleGroupItem value="right" aria-label="По правому краю">
+        <AlignRightIcon />
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+}
+
+const ALIGN_CODE = `import { useState } from 'react';
+import { AlignCenterIcon, AlignLeftIcon, AlignRightIcon } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@reformer/ui-kit';
+
+function AlignToggleGroup() {
+  const [align, setAlign] = useState('left');
+  return (
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      value={align}
+      // повторный щелчок по нажатой кнопке даёт '' — здесь выбор не снимаем
+      onValueChange={(next) => next && setAlign(next)}
+      aria-label="Выравнивание текста"
+    >
+      <ToggleGroupItem value="left" aria-label="По левому краю">
+        <AlignLeftIcon />
+      </ToggleGroupItem>
+      <ToggleGroupItem value="center" aria-label="По центру">
+        <AlignCenterIcon />
+      </ToggleGroupItem>
+      <ToggleGroupItem value="right" aria-label="По правому краю">
+        <AlignRightIcon />
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+}`;
+
+// Пропсы панели API — из props-схемы варианта. label и options задаются baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(toggleGroupBasePropsSchema), {
+  omit: ['label', 'options'],
+});
 
 export const toggleGroupDocConfig: ComponentDocConfig = {
   name: 'ToggleGroup',
   importFrom: '@reformer/ui-kit',
   description:
-    'Группа кнопок-переключателей на Radix (single-режим, контейнер role=radiogroup). Для форм — ToggleGroupOptions: рендерит опции из массива options; значение — строка (option.value | null).',
+    'Ряд кнопок-сегментов. ToggleGroupOptions — одно значение (string | null), ToggleGroupMulti — несколько (string[] | null).',
   variants: [
-    {
+    fieldVariant({
       id: 'default',
-      title: 'Одиночный выбор (options)',
+      title: 'Одно значение',
       description:
-        'Плоский список опций через проп options. Значение — строка (value: string | null). variant по умолчанию — сплошные кнопки без рамки.',
-      render: makeFieldVariant({
-        initial: 'male',
-        component: ToggleGroupOptions,
-        componentProps: { label: 'Пол', options: GENDER },
-      }),
-      code: `{
-  model: model.$.gender,
-  component: ToggleGroupOptions,
-  componentProps: {
-    label: 'Пол',
-    options: [
-      { value: 'male', label: 'Мужской' },
-      { value: 'female', label: 'Женский' },
-    ],
-  },
-}`,
-    },
-    {
+        'ToggleGroupOptions рисует кнопки из options. Значение — string | null; щелчок по нажатой кнопке снимает выбор.',
+      field: 'gender',
+      component: ToggleGroupOptions,
+      componentName: 'ToggleGroupOptions',
+      initial: 'male',
+      showInitial: true,
+      props: { label: 'Пол', options: GENDER },
+    }),
+    fieldVariant({
       id: 'outline',
-      title: 'Стиль outline (variant)',
-      description:
-        'variant="outline" рисует кнопки с рамкой (сегментированный контрол). Удобно для более длинных наборов.',
-      render: makeFieldVariant({
-        initial: 'quarter',
-        component: ToggleGroupOptions,
-        componentProps: { label: 'Период', options: PLAN, variant: 'outline' },
-      }),
-      code: `componentProps: {
-  label: 'Период',
-  options: [
-    { value: 'month', label: 'Месяц' },
-    { value: 'quarter', label: 'Квартал' },
-    { value: 'year', label: 'Год' },
-  ],
-  variant: 'outline',
-}`,
-    },
-    {
+      title: 'С рамкой',
+      description: 'variant: "outline" — кнопки с общей рамкой, как сегменты одного поля.',
+      field: 'period',
+      component: ToggleGroupOptions,
+      componentName: 'ToggleGroupOptions',
+      initial: 'quarter',
+      showInitial: true,
+      props: { label: 'Период', options: PERIOD, variant: 'outline' },
+    }),
+    fieldVariant({
       id: 'multi',
-      title: 'Множественный выбор (ToggleGroupMulti)',
+      title: 'Несколько значений',
       description:
-        'Отдельный компонент, а не проп: значение — массив. Пустой выбор контрол отдаёт как null: поле string[] сохранит его как [], поле string[] | null — как null.',
-      render: makeFieldVariant({
-        initial: null,
-        component: ToggleGroupMulti,
-        componentProps: {
-          label: 'Интересы',
-          options: GENDER,
-          maxItems: 2,
-        },
-      }),
-      code: `{
-  model: model.$.interests,
-  component: ToggleGroupMulti,
-  componentProps: { options: GENDER, maxItems: 2 },
-}
-// maxItems — подсказка UI; правило формы задаёт maxLength(2)`,
+        'ToggleGroupMulti: значение — string[] | null, снятие последней кнопки даёт null. maxItems выключает остальные кнопки, когда выбрано три.',
+      field: 'workdays',
+      component: ToggleGroupMulti,
+      componentName: 'ToggleGroupMulti',
+      initial: null,
+      props: { label: 'Дни встреч', options: WEEKDAYS, variant: 'outline', maxItems: 3 },
+    }),
+    {
+      id: 'manual',
+      title: 'Кнопки-иконки вне формы',
+      description:
+        'ToggleGroup и ToggleGroupItem — части Radix для своей разметки. У кнопок без текста нужен aria-label.',
+      render: AlignToggleGroup,
+      code: ALIGN_CODE,
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательный выбор (валидатор)',
+      title: 'Обязательный выбор',
       description:
-        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
-      render: makeFieldVariant({
-        initial: null,
-        component: ToggleGroupOptions,
-        componentProps: { label: 'Пол', options: GENDER },
-        validators: [required({ code: 'field.required' })],
-        messages: { 'field.required': 'Выберите пол' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.gender,
-  component: ToggleGroupOptions,
-  componentProps: { label: 'Пол', options: GENDER },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.gender, [required({ code: 'gender.required' })]);`,
-    },
-    {
+        'Правило required — в схеме валидации. Поле уже тронуто, поэтому замечание видно сразу.',
+      field: 'period',
+      component: ToggleGroupOptions,
+      componentName: 'ToggleGroupOptions',
+      initial: null,
+      props: { label: 'Период', options: PERIOD, variant: 'outline', required: true },
+      validators: [required({ code: 'period.required' })],
+      rules: "required({ code: 'period.required' })",
+      messages: { 'period.required': 'Выберите период' },
+      touched: true,
+    }),
+    fieldVariant({
       id: 'disabled',
-      title: 'Отключённая группа',
+      title: 'Заблокированная группа',
       description:
-        'disabled приходит из состояния узла (control.disable()), а не из componentProps — блокирует все варианты.',
-      render: makeFieldVariant({
-        initial: 'female',
-        component: ToggleGroupOptions,
-        componentProps: { label: 'Пол', options: GENDER },
-        disabled: true,
-      }),
-      code: `const control = form.gender;
-control.disable(); // блокирует всю группу`,
-    },
+        'Блокировка — состоянием поля (disable()), а не пропом: выключаются все кнопки сразу.',
+      field: 'gender',
+      component: ToggleGroupOptions,
+      componentName: 'ToggleGroupOptions',
+      initial: 'female',
+      showInitial: true,
+      props: { label: 'Пол', options: GENDER },
+      disabled: true,
+    }),
   ],
   api: {
     component: ToggleGroupOptions,
     initialValue: null,
-    baseComponentProps: { label: 'Пол', options: GENDER },
+    baseComponentProps: { label: 'Период', options: PERIOD },
     validators: [required({ code: 'field.required' })],
     messages: { 'field.required': 'Выберите вариант' },
     valuePresets: [
-      { label: 'Мужской', value: 'male' },
-      { label: 'Женский', value: 'female' },
+      { label: 'Месяц', value: 'month' },
+      { label: 'Год', value: 'year' },
       { label: 'Очистить (null)', value: null },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label/options — задаются baseComponentProps (иначе перетрут initialValues undefined-ами).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(toggleGroupBasePropsSchema), {
-      omit: ['label', 'options'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.gender,
-  component: ToggleGroupOptions,
-  componentProps: {
-    label: 'Пол',
-    options: GENDER,${v.variant ? `\n    variant: '${v.variant}',` : ''}${v.required ? '\n    required: true,' : ''}${v.description ? `\n    description: '${v.description}',` : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.gender, [required()]);`,
+      fieldSnippet({
+        field: 'period',
+        component: 'ToggleGroupOptions',
+        props: { label: 'Период', options: raw('PERIODS') },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

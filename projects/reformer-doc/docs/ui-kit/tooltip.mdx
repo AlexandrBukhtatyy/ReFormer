@@ -2,6 +2,7 @@
 id: tooltip
 title: Tooltip
 sidebar_label: Tooltip
+description: Короткая подсказка при наведении на элемент или фокусе на нём.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,85 @@ import { tooltipDocConfig } from '@site/src/components/demo/examples/tooltip';
 
 # Tooltip
 
-Всплывающая подсказка на shadcn / Radix `Tooltip`. Compound: `TooltipProvider` (общий контекст
-задержки, оборачивает приложение один раз) + `Tooltip` + `TooltipTrigger` + `TooltipContent`.
-Подсказка появляется при наведении курсора или фокусе с клавиатуры; `Content` рендерится в
-портале со стрелкой, сторона задаётся через `side`.
+Короткий текст, который появляется, когда курсор наведён на элемент или элемент получил фокус с
+клавиатуры. Обычно поясняет кнопку-иконку. Построен на Radix Tooltip и входит в
+[кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **Tooltip** — одна строка к кнопке-иконке или сокращению: «Удалить», «Скопировать ссылку».
+- [InfoHint](./info-hint.mdx) — пояснение к полю или заголовку за иконкой (i). Открывается ещё и
+  касанием на телефоне и не требует провайдера.
+- У полей формы подсказку дают пропсы `labelTooltip` и `tooltip` — их рисует
+  [FormField](./form-field.mdx), Tooltip вручную не нужен.
+- [HoverCard](./hover-card.mdx) — превью с несколькими строками и картинкой.
+- [Popover](./popover.mdx) — панель с кнопками или полями, по щелчку.
+
+На телефоне наведения нет, а касание Tooltip не открывает. Текст, без которого не обойтись, пишите
+на странице или берите InfoHint.
+
+## Анатомия
+
+```tsx
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@reformer/ui-kit'; // или '@reformer/ui-kit/tooltip'
+
+// Один раз у корня приложения:
+<TooltipProvider>
+  <App />
+</TooltipProvider>;
+
+// Где нужна подсказка:
+<Tooltip>
+  <TooltipTrigger asChild>
+    <Button size="icon" variant="ghost" aria-label="Удалить">
+      <Trash2 />
+    </Button>
+  </TooltipTrigger>
+  <TooltipContent>Удалить</TooltipContent>
+</Tooltip>;
+```
+
+| Часть             | Что это                                                           | Ключевые пропсы                                         |
+| ----------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| `TooltipProvider` | Общие настройки подсказок. Обязателен.                            | `delayDuration` (`0`), `skipDelayDuration`              |
+| `Tooltip`         | Одна подсказка.                                                   | `open` + `onOpenChange`, `defaultOpen`, `delayDuration` |
+| `TooltipTrigger`  | Элемент, к которому относится подсказка. По умолчанию `<button>`. | `asChild`                                               |
+| `TooltipContent`  | Текст подсказки в портале, со стрелкой.                           | `side` (`top`), `align`, `sideOffset` (`0`)             |
+
+- `Tooltip` без `TooltipProvider` выше по дереву бросает ошибку. Поставьте провайдер один раз у
+  корня приложения.
+- У `TooltipProvider` кита задержка показа — 0 мс. Чтобы подсказки не всплывали при каждом проезде
+  курсора, задайте `delayDuration` (например, 300).
+- Если не хватает места, подсказка сама переезжает на другую сторону.
+
+## Примеры
 
 <ComponentDoc config={tooltipDocConfig} />
+
+## Доступность
+
+Клавиатуру и атрибуты даёт Radix Tooltip:
+
+| Клавиша           | Действие                                                     |
+| ----------------- | ------------------------------------------------------------ |
+| `Tab`             | Фокус на триггер показывает подсказку, уход фокуса — прячет. |
+| `Esc`             | Спрятать подсказку.                                          |
+| `Enter` / `Space` | Нажать триггер; подсказка при этом прячется.                 |
+
+- Пока подсказка видна, триггер ссылается на неё через `aria-describedby`, у текста —
+  `role="tooltip"`. Скринридер прочитает подсказку как описание элемента.
+- Подсказка — описание, а не имя. Кнопке-иконке всё равно нужен свой `aria-label`.
+- В подсказке не должно быть ссылок и кнопок: до них нельзя дойти клавиатурой.
+- Касанием на сенсорном экране подсказка не открывается.
+
+## Локализация
+
+Своих строк компонент не рисует: текст подсказки — ваш.
+
+## См. также
+
+- [InfoHint](./info-hint.mdx) — иконка (i) с подсказкой, открывается и касанием.
+- [FormField](./form-field.mdx) — подсказки полей формы (`labelTooltip`, `tooltip`).
+- [HoverCard](./hover-card.mdx) — превью по наведению.
+- [Radix Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip) — полный список
+  пропсов примитива.

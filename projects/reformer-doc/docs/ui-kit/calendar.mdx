@@ -9,11 +9,102 @@ import { calendarDocConfig } from '@site/src/components/demo/examples/calendar';
 
 # Calendar
 
-Календарь выбора даты на [react-day-picker](https://daypicker.dev) (v10). Вариант **base** —
-чистая обёртка `DayPicker` (`Calendar` / `CalendarDayButton`) с режимами `single` / `multiple` /
-`range`. Для форм — `CalendarSingle` (registry `Calendar`): single-date, значение `Date | null`;
-кладётся в `component` как есть — `selected` / `onSelect` к `value` / `onChange` сводит обёртка поля
-по статике `dateAdapter`. Навигация настраивается через
-`captionLayout`, дни соседних месяцев — через `showOutsideDays`.
+Календарь месяца прямо на странице, без всплывающего окна. Построен на
+[react-day-picker](https://daypicker.dev) v10. В форме используется `CalendarSingle` — выбор
+одной даты, значение поля `Date | null`.
+
+## Когда брать
+
+- Дата — главное на экране, и календарь должен быть виден сразу: запись на приём, выбор дня
+  доставки.
+- Вне формы — календарь для показа или выбора нескольких дат и периодов (`Calendar` с
+  `mode="multiple"` или `mode="range"`).
+
+Соседи:
+
+- дата в обычной форме, где место дорого, — [DatePicker](./date-picker.mdx): кнопка, по которой
+  открывается этот же календарь;
+- период или несколько дат как значение поля — `DatePickerRange` и `DatePickerMulti`
+  на [странице DatePicker](./date-picker.mdx);
+- дата, которую быстрее набрать с клавиатуры (дата рождения), —
+  [InputMask](./input-mask.mdx) с маской `99.99.9999` или [Input](./input.mdx) с
+  `type: 'date'`.
+
+## Анатомия
+
+| Компонент        | Значение поля  | Ключевые пропсы                                             |
+| ---------------- | -------------- | ----------------------------------------------------------- |
+| `CalendarSingle` | `Date \| null` | `captionLayout`, `showOutsideDays`                          |
+| `Calendar`       | — (вне формы)  | `mode`, `selected`, `onSelect` и остальные пропсы DayPicker |
+
+- **`CalendarSingle`** — компонент для формы. Режим `single` зашит. Повторный щелчок по
+  выбранной дате сбрасывает значение в `null`. Остальные пропсы DayPicker (например,
+  `numberOfMonths`, `showWeekNumber`) проходят как есть.
+- **`Calendar`** — обёртка DayPicker в стиле кита. Режим, выбранное значение и обработчик задаёте
+  сами. Ячейку дня рисует `CalendarDayButton`, её можно заменить через `components`.
+- **`captionLayout`** — шапка месяца: `label` (подпись), `dropdown` (списки месяца и года),
+  `dropdown-months`, `dropdown-years`.
+
+Компонент тяжёлый. Он не входит в главный вход кита: импорт — из подпути
+`@reformer/ui-kit/calendar`, рядом нужна необязательная зависимость `react-day-picker` (≥ 10).
+
+```tsx
+import { CalendarSingle } from '@reformer/ui-kit/calendar';
+
+{
+  model: model.$.deliveryDate,
+  component: CalendarSingle,
+  componentProps: { label: 'День доставки', captionLayout: 'dropdown' },
+}
+```
+
+Общие пропсы полей (`label`, `required`, `description`, `tooltip` и другие) — в
+[описании FormField](./form-field.mdx#общие-пропсы-полей). Заблокировать календарь —
+`form.deliveryDate.disable()`.
+
+## Примеры и API
 
 <ComponentDoc config={calendarDocConfig} />
+
+## Доступность
+
+Разметку и клавиатуру даёт react-day-picker:
+
+- месяц — таблица с `role="grid"`, день — кнопка с подписью вида «понедельник, 16 ноября 2026 г.,
+  сегодня, выбрано»;
+- стрелки ←/→ — на день, ↑/↓ — на неделю, PageUp/PageDown — на месяц, Shift + PageUp/PageDown —
+  на год, Home/End — к началу и концу недели, Enter или пробел — выбрать день;
+- кнопки «Предыдущий месяц» и «Следующий месяц» подписаны для скринридера, смена месяца
+  объявляется через `aria-live`.
+
+Подпись поля связана с календарём через `aria-labelledby`. Ограничение: `aria-invalid` и
+`aria-describedby` от [FormField](./form-field.mdx) DayPicker в разметку не передаёт — замечание
+под календарём видно, но к сетке дней не привязано.
+
+## Локализация
+
+Календарь берёт язык из `I18nProvider`:
+
+- **названия месяцев, дней недели и подпись дня** форматирует `Intl` по коду языка локали;
+- **первый день недели** — `weekStartsOn` локали: у русской локали понедельник, у английской
+  воскресенье. Проп `weekStartsOn` перекрывает локаль;
+- **подписи для скринридера** — из словаря кита:
+
+| Ключ                                                       | Где                                     |
+| ---------------------------------------------------------- | --------------------------------------- |
+| `kit.calendar.nav`                                         | навигация по месяцам                    |
+| `kit.calendar.previousMonth`, `kit.calendar.nextMonth`     | кнопки смены месяца                     |
+| `kit.calendar.monthDropdown`, `kit.calendar.yearDropdown`  | списки месяца и года (`captionLayout`)  |
+| `kit.calendar.weekNumber`, `kit.calendar.weekNumberHeader` | номера недель (`showWeekNumber`)        |
+| `kit.calendar.today`, `kit.calendar.selected`              | хвост подписи дня: «сегодня», «выбрано» |
+
+Если в локали задан `dateLocale` (объект локали date-fns) или передан проп `locale`, подписи и
+даты делает сам react-day-picker по этому объекту, а словарь кита не используется. Свои
+формулировки для одного календаря — пропы `formatters` и `labels` DayPicker. Как подключить
+русскую локаль кита — в [обзоре](./overview.md#локализация).
+
+## См. также
+
+- [DatePicker](./date-picker.mdx) — тот же календарь во всплывающем окне, период и несколько дат.
+- [Popover](./popover.mdx) — всплывающее окно, если собираете свой выбор даты.
+- [Встроенные правила](../validation/built-in.md) — правила для дат.

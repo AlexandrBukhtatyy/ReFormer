@@ -9,10 +9,78 @@ import { inputGroupDocConfig } from '@site/src/components/demo/examples/input-gr
 
 # InputGroup
 
-Обёртка контрола с аддонами на shadcn. Compound-набор: `InputGroup` оборачивает
-`InputGroupInput` / `InputGroupTextarea` и `InputGroupAddon` — контейнер для иконок,
-кнопок (`InputGroupButton`) и статичного текста (`InputGroupText`) по краям поля.
-Выравнивание аддона задаётся через `align`, а фокус-ринг и состояние ошибки применяются
-ко всей группе целиком.
+Поле ввода с аддонами по краям: иконкой, текстом или кнопкой. Рамка, кольцо фокуса и красная
+рамка ошибки рисуются на всю группу, поэтому поле и аддоны выглядят одним элементом.
+
+`InputGroup` — раскладка, а не поле формы: значения он не хранит, и в `component`
+[узла схемы](../reference/glossary.md#форма-и-данные) его не кладут.
+
+## Когда брать
+
+- Иконка поиска слева, кнопка очистки справа.
+- Неизменяемый текст у края: `https://`, `.com`, `₽`, `кг`.
+- Кнопка рядом с полем: «Применить» у промокода, «Отправить» под сообщением.
+
+Соседи:
+
+- подсказка-иконка (i) в поле формы — проп `tooltip` любого поля кита, см.
+  [FormField](./form-field.mdx);
+- пароль с кнопкой «показать» в форме — готовый [InputPassword](./input-password.mdx);
+- поле с шаблоном ввода — [InputMask](./input-mask.mdx);
+- группа кнопок без поля — [ButtonGroup](./button-group.mdx).
+
+## Анатомия
+
+| Часть                | Что это                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `InputGroup`         | Контейнер с общей рамкой, `role="group"`.                                                 |
+| `InputGroupInput`    | Однострочное поле группы — `Input` кита без своей рамки.                                  |
+| `InputGroupTextarea` | Многострочное поле группы — `Textarea` кита без своей рамки.                              |
+| `InputGroupAddon`    | Место для иконки, текста или кнопки. `align` выбирает край: слева, справа, сверху, снизу. |
+| `InputGroupText`     | Неизменяемый текст в аддоне.                                                              |
+| `InputGroupButton`   | Кнопка в аддоне: по умолчанию `variant="ghost"`, `size="xs"`, `type="button"`.            |
+
+```tsx
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@reformer/ui-kit';
+
+<InputGroup>
+  <InputGroupAddon>
+    <InputGroupText>https://</InputGroupText>
+  </InputGroupAddon>
+  <InputGroupInput placeholder="example" />
+</InputGroup>;
+```
+
+`align="block-start"` и `"block-end"` ставят группу в колонку: аддон занимает строку над полем
+или под ним. Так делают панель под `InputGroupTextarea`.
+
+Поля группы — нативные: `onChange` получает DOM-событие, значение держите сами. Чтобы связать
+такую группу с полем формы, сделайте из неё свой компонент поля — см.
+[Свои компоненты полей](../react/custom-fields.md).
+
+## Примеры и API
 
 <ComponentDoc config={inputGroupDocConfig} />
+
+## Доступность
+
+- Контейнер и каждый аддон размечены `role="group"`. Назовите группу, если у неё нет видимой
+  подписи: `aria-label` на `InputGroup` или `<label for>` у поля.
+- Клик по аддону (но не по кнопке в нём) переводит фокус в однострочное поле группы.
+- `InputGroupButton` — настоящая кнопка: фокус по Tab, нажатие Enter и пробелом. У кнопки только с
+  иконкой задайте `aria-label` — иначе скринридер её не назовёт.
+- Состояние ошибки берётся из `aria-invalid` у поля: поставьте его, и красной станет рамка всей
+  группы. Текст ошибки выводите рядом и свяжите с полем через `aria-describedby`.
+- Выключенный вид аддонов включается атрибутом `data-disabled="true"` на `InputGroup`; само поле
+  выключайте его `disabled`.
+
+## Локализация
+
+`InputGroup` своих строк не рисует: тексты аддонов, `placeholder` и `aria-label` кнопок задаёте
+вы.
+
+## См. также
+
+- [Input](./input.mdx) и [Textarea](./textarea.mdx) — поля формы с общими пропсами.
+- [Button](./button.mdx) — варианты и размеры кнопок.
+- [Свои компоненты полей](../react/custom-fields.md) — как подключить свою разметку к форме.

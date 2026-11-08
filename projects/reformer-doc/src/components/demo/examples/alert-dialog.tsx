@@ -15,26 +15,22 @@ import { TriangleAlertIcon } from 'lucide-react';
 import type { ComponentDocConfig } from '../types';
 
 /**
- * AlertDialog — не form-control: Radix AlertDialog compound (AlertDialog / AlertDialogTrigger /
- * AlertDialogPortal / AlertDialogOverlay / AlertDialogContent / AlertDialogHeader / AlertDialogFooter /
- * AlertDialogTitle / AlertDialogDescription / AlertDialogMedia / AlertDialogAction / AlertDialogCancel).
- * В отличие от Dialog — модальное окно с ролью alertdialog: требует явного решения (нельзя закрыть
- * кликом по оверлею / Esc не всегда закрывает), поэтому нет крестика — только Action / Cancel.
- * Action / Cancel стилизуются через buttonVariants (variant / size прокидываются в <Button asChild>).
- * Таб Variants — базовая композиция, Examples — приёмы (деструктив, компактный размер, иконка), API —
- * таблица частей и общих props.
+ * AlertDialog — не поле формы: части на Radix AlertDialog. В отличие от Dialog — окно с ролью
+ * alertdialog: щелчок по фону его не закрывает, крестика нет, ответ — AlertDialogAction или
+ * AlertDialogCancel (Esc равен отмене). Action / Cancel — это Button: принимают variant / size.
+ * Variants — базовое подтверждение, Examples — опасное действие, компактный размер, иконка.
  */
 export const alertDialogDocConfig: ComponentDocConfig = {
   name: 'AlertDialog',
   importFrom: '@reformer/ui-kit',
   description:
-    'Модальное окно-подтверждение на shadcn / Radix AlertDialog. Compound: AlertDialog (корень) + AlertDialogTrigger, AlertDialogContent (в Portal, с оверлеем), AlertDialogHeader / AlertDialogTitle / AlertDialogDescription, AlertDialogFooter, AlertDialogAction / AlertDialogCancel. Роль alertdialog, focus-trap и aria — из Radix; Action / Cancel наследуют стили Button (buttonVariants).',
+    'Окно-подтверждение: вопрос и две кнопки. Щелчок по фону не закрывает, фокус сразу на «Отмене».',
   variants: [
     {
       id: 'basic',
       title: 'Базовое подтверждение',
       description:
-        'Триггер открывает окно с заголовком, описанием и подвалом из двух кнопок. Cancel закрывает без действия (variant="outline" по умолчанию), Action подтверждает.',
+        'Заголовок-вопрос, последствия и две кнопки. AlertDialogCancel закрывает без действия, AlertDialogAction подтверждает и тоже закрывает окно.',
       render: () => (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -78,7 +74,7 @@ export const alertDialogDocConfig: ComponentDocConfig = {
       id: 'destructive',
       title: 'Деструктивное действие',
       description:
-        'Подтверждение необратимого удаления. Action получает variant="destructive" (красная кнопка) — тот же buttonVariants, что и у Button.',
+        'Подтверждение необратимого удаления. AlertDialogAction принимает variant как Button — здесь destructive.',
       render: () => (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -112,7 +108,6 @@ export const alertDialogDocConfig: ComponentDocConfig = {
     </AlertDialogHeader>
     <AlertDialogFooter>
       <AlertDialogCancel>Отмена</AlertDialogCancel>
-      {/* variant прокидывается в Button (buttonVariants) */}
       <AlertDialogAction variant="destructive">Удалить</AlertDialogAction>
     </AlertDialogFooter>
   </AlertDialogContent>
@@ -122,7 +117,7 @@ export const alertDialogDocConfig: ComponentDocConfig = {
       id: 'compact',
       title: 'Компактный размер (size="sm")',
       description:
-        'AlertDialogContent принимает size="sm" — узкая карточка (max-w-xs), подвал раскладывает Cancel / Action в две колонки.',
+        'size="sm" у AlertDialogContent — узкое окно (max-w-xs), текст по центру, кнопки в две равные колонки.',
       render: () => (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -164,7 +159,7 @@ export const alertDialogDocConfig: ComponentDocConfig = {
       id: 'with-media',
       title: 'С иконкой (AlertDialogMedia)',
       description:
-        'AlertDialogMedia — квадратный слот для иконки над заголовком; Header перестраивает сетку, чтобы разместить медиа.',
+        'AlertDialogMedia — квадрат с иконкой над заголовком (в широком окне — слева от него).',
       render: () => (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -214,74 +209,74 @@ export const alertDialogDocConfig: ComponentDocConfig = {
       name: 'AlertDialog',
       type: 'Radix AlertDialog.Root',
       description:
-        'Корень. Управляемое состояние: open / onOpenChange (или defaultOpen для неуправляемого).',
+        'Корень, хранит открытость: open + onOpenChange или defaultOpen. Всегда модальный.',
     },
     {
       name: 'AlertDialogTrigger',
       type: 'Radix AlertDialog.Trigger',
-      description: 'Открывает окно. asChild — прокинуть на собственный элемент (напр. Button).',
+      description: 'Открывает окно. asChild — стать своим элементом, например Button.',
     },
     {
       name: 'AlertDialogContent',
       type: 'Radix AlertDialog.Content',
       default: 'size="default"',
       description:
-        'Тело окна в Portal: оверлей, центрирование, анимация. size="default" | "sm" (узкая карточка + двухколоночный подвал).',
+        'Окно в портале с затемнением фона. size: "default" | "sm" (узкое окно, кнопки в две колонки).',
     },
     {
       name: 'AlertDialogHeader',
       type: 'div',
       description:
-        'Шапка: сетка заголовка и описания (по центру на мобильных, слева для size="default"; перестраивается при наличии AlertDialogMedia).',
+        'Шапка: заголовок и описание; по центру на узком экране и при size="sm", иначе слева.',
     },
     {
       name: 'AlertDialogTitle',
       type: 'Radix AlertDialog.Title',
       description:
-        'Заголовок (font-semibold). Связывается через aria-labelledby — обязателен для доступности.',
+        'Заголовок-вопрос. Radix связывает его с окном через aria-labelledby. Обязателен.',
     },
     {
       name: 'AlertDialogDescription',
       type: 'Radix AlertDialog.Description',
-      description: 'Описание (text-sm, muted). Связывается через aria-describedby.',
+      description:
+        'Последствия действия. Radix связывает описание с окном через aria-describedby — скринридер прочтёт его сразу.',
     },
     {
       name: 'AlertDialogMedia',
       type: 'div',
-      description:
-        'Квадратный слот (size-16, bg-muted) для иконки над заголовком. SVG внутри масштабируется до size-8.',
+      description: 'Квадрат 64px для иконки; иконка внутри получает размер 32px.',
     },
     {
       name: 'AlertDialogFooter',
       type: 'div',
       description:
-        'Подвал с действиями (реверс-стек на мобильных, ряд справа на десктопе; две колонки при size="sm").',
+        'Кнопки: ряд справа на широком экране, столбик на узком, две колонки при size="sm".',
     },
     {
       name: 'AlertDialogAction',
       type: 'Radix AlertDialog.Action',
       default: 'variant="default"',
       description:
-        'Кнопка подтверждения. Обёрнута в <Button asChild> — принимает variant / size из buttonVariants (напр. variant="destructive"). Закрывает окно.',
+        'Кнопка подтверждения — это Button: принимает variant и size. Нажатие закрывает окно; onClick — ваше действие.',
     },
     {
       name: 'AlertDialogCancel',
       type: 'Radix AlertDialog.Cancel',
       default: 'variant="outline"',
       description:
-        'Кнопка отмены. Обёрнута в <Button asChild> (по умолчанию variant="outline"). Закрывает окно без действия; получает фокус при открытии.',
+        'Кнопка отмены — Button с variant="outline". Закрывает окно без действия и получает фокус при открытии.',
     },
     {
       name: 'AlertDialogOverlay / AlertDialogPortal',
       type: 'Radix AlertDialog.Overlay / Portal',
       description:
-        'Оверлей-затемнение и Portal-обёртка. Используются внутри AlertDialogContent; экспортируются для кастомных композиций.',
+        'Затемнение фона и портал. AlertDialogContent рисует их сам; отдельно нужны только для своей композиции.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

@@ -9,11 +9,16 @@ import {
 } from '@reformer/ui-kit/input-otp';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required, minLength } from '@reformer/core/validators';
-import { makeFieldVariant } from '../field-demo';
 import { controlsFromPropsSchema } from '../controls-from-schema';
+import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-/* ─── Кастомная раскладка (ручная сборка base: две группы + сепаратор) ─── */
+// Пропсы панели API — из props-схемы компонента. label задаётся baseComponentProps.
+const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(inputOtpBasePropsSchema), {
+  omit: ['label'],
+});
+
+/* ─── Своя раскладка: части InputOTP собраны вручную, вне формы ─── */
 
 function SplitLayoutVariant() {
   const [value, setValue] = useState('');
@@ -38,45 +43,47 @@ function SplitLayoutVariant() {
 
 export const inputOtpDocConfig: ComponentDocConfig = {
   name: 'InputOTP',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/input-otp',
   description:
-    'Поле ввода одноразового кода (OTP) на input-otp. Дефолтная раскладка разворачивает одну группу из maxLength слотов; кастомная (разбивка на группы + InputOTPSeparator) собирается из base-примитивов. Значение — string | null (пустой ввод → null).',
+    'Поле одноразового кода: каждая цифра — в своей ячейке. Значение — string | null: пустое поле даёт null.',
   variants: [
-    {
+    fieldVariant({
       id: 'six-digits',
-      title: 'Код из 6 цифр',
-      description: 'maxLength=6 (дефолт). Значение — string | null.',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputOTPDefault,
-        componentProps: { label: 'Код подтверждения', maxLength: 6 },
-      }),
-      code: `{
-  model: model.$.otp,
-  component: InputOTPDefault,
-  componentProps: { label: 'Код подтверждения', maxLength: 6 },
-}`,
-    },
-    {
+      title: 'Код из 6 символов',
+      description: 'InputOTPDefault рисует одну группу из maxLength ячеек. По умолчанию — 6.',
+      field: 'otp',
+      component: InputOTPDefault,
+      componentName: 'InputOTPDefault',
+      initial: '',
+      props: { label: 'Код подтверждения', maxLength: 6 },
+    }),
+    fieldVariant({
       id: 'four-digits',
-      title: 'Короткий код из 4 цифр',
-      description: 'maxLength=4 — четыре слота в одной группе.',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputOTPDefault,
-        componentProps: { label: 'PIN', maxLength: 4 },
-      }),
-      code: `componentProps: { label: 'PIN', maxLength: 4 }`,
-    },
+      title: 'PIN из 4 символов',
+      description: 'maxLength={4} — четыре ячейки.',
+      field: 'pin',
+      component: InputOTPDefault,
+      componentName: 'InputOTPDefault',
+      initial: '',
+      props: { label: 'PIN', maxLength: 4 },
+    }),
     {
       id: 'split-layout',
-      title: 'Кастомная раскладка (группы + сепаратор)',
+      title: 'Своя раскладка: 3 + 3',
       description:
-        'Форма, недостижимая дефолтной раскладкой: 3 + 3 слота с InputOTPSeparator. Собирается из InputOTP / InputOTPGroup / InputOTPSlot / InputOTPSeparator варианта base.',
+        'Группы и разделитель собираются из частей InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator. Пример вне формы: значение в useState.',
       render: SplitLayoutVariant,
-      code: `import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@reformer/ui-kit';
+      code: `import { useState } from 'react';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from '@reformer/ui-kit/input-otp';
 
-<InputOTP maxLength={6} value={value} onChange={onChange}>
+const [value, setValue] = useState('');
+
+<InputOTP maxLength={6} value={value} onChange={setValue}>
   <InputOTPGroup>
     <InputOTPSlot index={0} />
     <InputOTPSlot index={1} />
@@ -92,31 +99,32 @@ export const inputOtpDocConfig: ComponentDocConfig = {
     },
   ],
   examples: [
-    {
+    fieldVariant({
       id: 'validation',
-      title: 'Обязательный полный код (required + minLength)',
+      title: 'Код набран целиком',
       description:
-        'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с неполным кодом показывает ошибку до набора всех 6 цифр.',
-      render: makeFieldVariant({
-        initial: '',
-        component: InputOTPDefault,
-        componentProps: { label: 'Код подтверждения', maxLength: 6 },
-        validators: [
-          required({ code: 'field.required' }),
-          minLength(6, { code: 'field.minLength' }),
-        ],
-        messages: { 'field.required': 'Введите код', 'field.minLength': 'Код состоит из 6 цифр' },
-        touched: true,
-      }),
-      code: `{
-  model: model.$.otp,
-  component: InputOTPDefault,
-  componentProps: { label: 'Код подтверждения', maxLength: 6 },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.otp, [required(), minLength(6)]);`,
-    },
+        'required и minLength(6) в схеме валидации: пока набраны не все символы, видно замечание. Поле уже тронуто, поэтому замечание показано сразу.',
+      field: 'otp',
+      component: InputOTPDefault,
+      componentName: 'InputOTPDefault',
+      initial: '',
+      props: { label: 'Код подтверждения', maxLength: 6 },
+      validators: [required({ code: 'otp.required' }), minLength(6, { code: 'otp.minLength' })],
+      rules: "required({ code: 'otp.required' }), minLength(6, { code: 'otp.minLength' })",
+      messages: { 'otp.required': 'Введите код', 'otp.minLength': 'Код состоит из 6 цифр' },
+      touched: true,
+    }),
+    fieldVariant({
+      id: 'digits-only',
+      title: 'Только цифры',
+      description:
+        'Без pattern ячейки принимают любые символы. Регулярное выражение строкой в pattern не даёт набрать или вставить то, что ему не подходит.',
+      field: 'otp',
+      component: InputOTPDefault,
+      componentName: 'InputOTPDefault',
+      initial: '',
+      props: { label: 'Код из СМС', maxLength: 6, pattern: '^\\d+$' },
+    }),
   ],
   api: {
     component: InputOTPDefault,
@@ -128,22 +136,15 @@ validate(model.$.otp, [required(), minLength(6)]);`,
       { label: '123456', value: '123456' },
       { label: 'Очистить', value: '' },
     ],
-    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
-    // omit: label — задаётся baseComponentProps. maxLength оставляем (у него есть default 6).
-    controls: controlsFromPropsSchema(mergeFieldPropsSchema(inputOtpBasePropsSchema), {
-      omit: ['label'],
-    }),
+    controls: API_CONTROLS,
     code: (v) =>
-      `{
-  model: model.$.otp,
-  component: InputOTPDefault,
-  componentProps: {
-    label: 'Код подтверждения',
-    maxLength: ${v.maxLength || 6},${v.required ? '\n    required: true,' : ''}
-  },
-}
-
-// правила — в validation-схеме (@reformer/core/validation):
-validate(model.$.otp, [required()]);`,
+      fieldSnippet({
+        field: 'otp',
+        component: 'InputOTPDefault',
+        props: { label: 'Код подтверждения' },
+        controls: API_CONTROLS,
+        values: v,
+        rules: 'required()',
+      }),
   },
 };

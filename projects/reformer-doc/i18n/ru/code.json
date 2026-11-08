@@ -6,7 +6,7 @@
     "message": "Начать"
   },
   "homepage.tryPlayground": {
-    "message": "Попробовать"
+    "message": "Песочница"
   },
   "homepage.feature.reactive.title": {
     "message": "Реактивность по умолчанию",
@@ -29,11 +29,11 @@
     "description": "Validation feature title"
   },
   "homepage.feature.validation.description": {
-    "message": "14 встроенных валидаторов, асинхронная валидация и простое создание кастомных валидаторов. Определите правила один раз — применяйте везде.",
+    "message": "28 встроенных правил для строк, чисел, дат и файлов, асинхронная проверка и свои правила. Правила живут отдельно от разметки.",
     "description": "Validation feature description"
   },
   "homepage.feature.behaviors.title": {
-    "message": "Умные поведения",
+    "message": "Поведение полей",
     "description": "Behaviors feature title"
   },
   "homepage.feature.behaviors.description": {

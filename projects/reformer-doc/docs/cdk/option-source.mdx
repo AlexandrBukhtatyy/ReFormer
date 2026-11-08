@@ -1,0 +1,107 @@
+---
+id: option-source
+title: Источники опций
+sidebar_label: Источники опций
+description: useResourceOptions и ResourceConfig — загрузка вариантов для списочных полей.
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { cdkOptionSourceDocConfig } from '@site/src/components/demo/examples/cdk-option-source';
+
+# Источники опций
+
+Вход `@reformer/cdk/option-source` грузит варианты для списочных полей: `Select`, `SelectMulti` и
+`InputSuggest` из ui-kit, [Autocomplete](./autocomplete.mdx) из cdk. Откуда брать варианты, описывает
+объект `ResourceConfig`, а хук `useResourceOptions` грузит их, ищет по ним и догружает страницы.
+Разметки у входа нет.
+
+## Когда использовать
+
+- Вы пишете своё списочное поле и хотите принимать тот же `resource`, что `Select` из ui-kit.
+- Вариантов много, и искать по ним нужно на сервере, с догрузкой страниц.
+
+Если нужен готовый выбор из списка — передайте `resource` в `Select` из
+[ui-kit](../ui-kit/select.mdx): он использует этот же хук.
+
+## Анатомия
+
+### Источник — `ResourceConfig`
+
+```ts
+import type { ResourceConfig } from '@reformer/cdk/option-source';
+
+const banks: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: ({ search, page, pageSize } = {}) => api.banks({ search, page, pageSize }),
+  // → { items: [{ id, label, value, group? }], totalCount }
+};
+```
+
+| Стратегия `type` | Запросы                             | Поиск                    | Страницы                   |
+| ---------------- | ----------------------------------- | ------------------------ | -------------------------- |
+| `static`         | один `load({})` при монтировании    | нет                      | нет                        |
+| `preload`        | один `load({})` — сервер отдаёт всё | на клиенте, по подписи   | нет                        |
+| `partial`        | `load({ search, page, pageSize })`  | на сервере, через 300 мс | `loadMore` до `totalCount` |
+
+`value` варианта приводится к строке. `id` — ключ варианта: по нему страницы сливаются без дублей.
+`group` объединяет варианты в группы там, где поле их показывает.
+
+### Хук — `useResourceOptions`
+
+```ts
+const {
+  options,
+  loading,
+  loadingMore,
+  error,
+  hasMore,
+  loadMore,
+  reload,
+  searchInput,
+  setSearchInput,
+  flags,
+} = useResourceOptions(banks);
+```
+
+| Поле                             | Что это                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| `options`                        | Варианты `{ id, label, value, group? }` — уже отфильтрованные по поиску.        |
+| `loading` / `loadingMore`        | Идёт первая загрузка / догрузка страницы.                                       |
+| `error` / `reload`               | Последняя загрузка упала / загрузить заново.                                    |
+| `searchInput` / `setSearchInput` | Строка поиска: в `partial` уходит на сервер, в `preload` фильтрует загруженное. |
+| `hasMore` / `loadMore`           | Есть ли ещё страницы / загрузить следующую (в `partial`).                       |
+| `flags`                          | `serverSearch`, `paginated`, `searchable` — что умеет стратегия.                |
+
+Без `resource` хук ничего не грузит — так его можно вызывать безусловно в поле, которое работает и
+со статическим списком.
+
+Для своих обёрток и тестов без DOM есть чистые функции: `resolveStrategyFlags`, `normalizeItems`,
+`mergeOptions`, `filterClient`, `resourceReducer`, `hasMore`, `isNearBottom`.
+
+## Примеры
+
+<ComponentDoc config={cdkOptionSourceDocConfig} />
+
+## Подводные камни
+
+- **Источник — константа модуля или `useMemo`.** Хук перезапускает загрузку, когда меняется ссылка
+  на `resource`. Объект, созданный в рендере, грузит варианты на каждой перерисовке.
+- **`load` получает `pageSize` только из `ResourceConfig.pageSize`.** Значения по умолчанию хук не
+  подставляет — задайте `pageSize` в источнике или обработайте `undefined` в `load`.
+- **`totalCount` обязателен для `partial`**: по нему хук решает, есть ли ещё страницы.
+
+## Доступность
+
+Разметки у входа нет, поэтому и роли ставите вы: `role="listbox"` у списка, `role="option"` и
+`aria-selected` у варианта, подпись у поля поиска. Состояние загрузки объявите текстом рядом со
+списком — готовые поля ui-kit делают это сами.
+
+## Локализация
+
+Своих строк нет: подписи вариантов приходят из `load`, тексты загрузки и ошибки — ваши.
+
+## См. также
+
+- [Autocomplete](./autocomplete.mdx) — подсказки из `ResourceConfig`.
+- [Select в ui-kit](../ui-kit/select.mdx) — выбор из списка с `resource`.

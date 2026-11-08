@@ -15,23 +15,22 @@ import { Calculator, Calendar, CreditCard, Settings, Smile, User } from 'lucide-
 import type { ComponentDocConfig } from '../types';
 
 /**
- * Command — не form-control: обёртка над cmdk (командная палитра с фильтрацией по вводу).
- * Command (корень) + CommandInput (поле поиска), CommandList (прокручиваемый список),
- * CommandGroup / CommandItem / CommandSeparator / CommandShortcut / CommandEmpty. Фильтрация
- * (по value/keywords), клавиатурная навигация и подсветка — из cmdk. CommandDialog оборачивает
- * палитру в модальный Dialog (паттерн ⌘K). Таб Variants — готовые композиции, Examples — приёмы.
+ * Command — не поле формы: палитра команд на cmdk — поле поиска фильтрует список, стрелки ходят по
+ * пунктам. CommandDialog кладёт палитру в Dialog (приём ⌘K). cmdk — необязательная
+ * peer-зависимость, поэтому импорт только из `@reformer/ui-kit/command`. Variants — палитра на
+ * странице, Examples — палитра в окне, пустой результат.
  */
 export const commandDocConfig: ComponentDocConfig = {
   name: 'Command',
-  importFrom: '@reformer/ui-kit',
+  importFrom: '@reformer/ui-kit/command',
   description:
-    'Командная палитра на shadcn / cmdk. Поле ввода фильтрует список пунктов на лету; группы, разделители и горячие клавиши — для структуры. CommandDialog оборачивает палитру в модалку (паттерн ⌘K). Все части несут свой data-slot; клавиатура и фильтрация — из cmdk.',
+    'Список команд с поиском: ввод сужает список, стрелки выбирают. Импорт — @reformer/ui-kit/command, нужен пакет cmdk.',
   variants: [
     {
       id: 'inline',
-      title: 'Инлайн-палитра',
+      title: 'Палитра на странице',
       description:
-        'Command с полем поиска и списком: ввод фильтрует пункты, стрелки навигируют. Группы разделены CommandSeparator, у пунктов — горячие клавиши (CommandShortcut).',
+        'Поле поиска и список: ввод сужает список, стрелки выбирают пункт. Группы разделяет CommandSeparator; CommandShortcut — только подпись клавиш.',
       render: () => (
         <Command className="rounded-lg border shadow-md md:min-w-[450px]">
           <CommandInput placeholder="Введите команду или поиск…" />
@@ -117,7 +116,7 @@ export const commandDocConfig: ComponentDocConfig = {
       id: 'dialog',
       title: 'Палитра команд (⌘K)',
       description:
-        'CommandDialog оборачивает палитру в модалку. Открывается кнопкой или сочетанием ⌘K / Ctrl+K (глобальный keydown-хэндлер); выбор пункта закрывает диалог.',
+        'CommandDialog кладёт палитру в модальное окно. Сочетание ⌘K / Ctrl+K слушает ваш обработчик keydown на document; выбор пункта закрывает окно через onSelect.',
       render: () => {
         const CommandMenuDemo = () => {
           const [open, setOpen] = useState(false);
@@ -226,7 +225,7 @@ export const commandDocConfig: ComponentDocConfig = {
       id: 'empty',
       title: 'Пустой результат',
       description:
-        'CommandEmpty показывается, когда фильтр не нашёл ни одного пункта. Введите текст, не совпадающий ни с одним пунктом, чтобы увидеть заглушку.',
+        'CommandEmpty виден, когда поиск ничего не нашёл. Наберите «zzz», чтобы его увидеть.',
       render: () => (
         <Command className="rounded-lg border shadow-md md:min-w-[450px]">
           <CommandInput placeholder="Попробуйте набрать «zzz»…" />
@@ -258,59 +257,58 @@ export const commandDocConfig: ComponentDocConfig = {
       name: 'Command',
       type: 'cmdk Command',
       description:
-        'Корень палитры. Управляет фильтрацией и клавиатурной навигацией. Пропсы cmdk: value / onValueChange, filter, shouldFilter, loop.',
+        'Корень: поиск и выбор стрелками. value + onValueChange — выделенный пункт; filter — своя функция поиска; shouldFilter (true); loop — по кругу; label — имя для скринридера.',
     },
     {
       name: 'CommandDialog',
       type: 'Dialog + Command',
       default: 'showCloseButton=true',
       description:
-        'Оборачивает палитру в модальный Dialog (паттерн ⌘K). Пропсы Dialog (open / onOpenChange) + title / description (sr-only, для доступности) + showCloseButton.',
+        'Палитра в модальном окне. Пропсы Dialog (open + onOpenChange), title и description — скрытые заголовок и описание окна, showCloseButton.',
     },
     {
       name: 'CommandInput',
       type: 'cmdk Command.Input',
       description:
-        'Поле поиска с иконкой (SearchIcon). Значение фильтрует список; value / onValueChange для управляемого режима.',
+        'Поле поиска с иконкой лупы. placeholder; value + onValueChange — чтобы управлять текстом поиска.',
     },
     {
       name: 'CommandList',
       type: 'cmdk Command.List',
-      description:
-        'Прокручиваемый контейнер результатов (max-h-[300px]). Содержит группы, пункты и заглушку.',
+      description: 'Список результатов, прокрутка после 300px высоты.',
     },
     {
       name: 'CommandEmpty',
       type: 'cmdk Command.Empty',
-      description: 'Заглушка, отображается когда фильтр не нашёл ни одного пункта.',
+      description: 'Текст, который виден, когда поиск ничего не нашёл.',
     },
     {
       name: 'CommandGroup',
       type: 'cmdk Command.Group',
       description:
-        'Секция пунктов с заголовком (heading). Скрывается, если все её пункты отфильтрованы.',
+        'Группа пунктов с заголовком heading. Прячется, если поиск отсеял все её пункты.',
     },
     {
       name: 'CommandItem',
       type: 'cmdk Command.Item',
       description:
-        'Пункт палитры. onSelect — обработчик выбора; value / keywords влияют на фильтрацию; disabled отключает.',
+        'Пункт: onSelect — действие (Enter или щелчок); value и keywords — по чему искать; disabled.',
     },
     {
       name: 'CommandShortcut',
       type: 'span',
-      description: 'Подпись горячей клавиши, прижата вправо (ml-auto). Чисто визуальная.',
+      description: 'Подпись сочетания клавиш у правого края пункта. Только текст.',
     },
     {
       name: 'CommandSeparator',
       type: 'cmdk Command.Separator',
-      description: 'Разделитель между группами.',
+      description: 'Линия между группами.',
     },
     {
       name: 'className',
       type: 'string',
       description:
-        'Доп. классы у любой части (tailwind-merge — класс вызывающего перекрывает дефолтные).',
+        'Дополнительные классы у любой части. При конфликте Tailwind-классов побеждает ваш.',
     },
   ],
 };

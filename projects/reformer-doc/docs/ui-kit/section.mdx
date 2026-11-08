@@ -2,6 +2,7 @@
 id: section
 title: Section
 sidebar_label: Section
+description: Группа связанных полей формы с заголовком — элемент section и заголовок нужного уровня.
 ---
 
 import { ComponentDoc } from '@site/src/components/demo';
@@ -9,9 +10,121 @@ import { sectionDocConfig } from '@site/src/components/demo/examples/section';
 
 # Section
 
-Семантический `<section>`-контейнер для группировки связанных полей формы с опциональным
-заголовком. `titleAs` управляет уровнем заголовка (`h1`-`h6`), `className` — раскладкой
-контейнера (например, `grid grid-cols-2 gap-4`). Это DSL-контейнер: у него нет seam
-(`value`/`onChange`) — в схеме он оборачивает массив дочерних нод.
+Группа связанных полей формы с заголовком: «Паспорт», «Адрес», «Контакты». Рисует `<section>`
+и, если задан `title`, заголовок выбранного уровня. Своих стилей нет: вес заголовка и отступы
+задают классы.
+
+## Когда брать
+
+- **Section** — у группы есть название, и оно должно попасть в структуру заголовков страницы.
+  Тот же компонент годится для заголовка шага формы (`h2`).
+- [Box](./box.mdx) — нужна только раскладка (сетка, строка, колонка) без заголовка.
+- [Card](./card.mdx) — группе нужна рамка и фон. Section можно положить внутрь `CardContent`.
+- [Accordion](./accordion.mdx) и [Collapsible](./collapsible.mdx) — группу нужно сворачивать.
+  Section всегда раскрыт.
+
+## Анатомия
+
+```tsx
+import { Input, Section } from '@reformer/ui-kit'; // или '@reformer/ui-kit/section'
+
+<Section title="Паспорт" titleAs="h3" titleClassName="text-lg font-semibold" className="space-y-4">
+  <Input placeholder="Серия" aria-label="Серия" />
+  <Input placeholder="Номер" aria-label="Номер" />
+</Section>;
+```
+
+Разметка: `<section data-slot="section">`, внутри заголовок `<h3 data-slot="section-title">` (если
+задан `title`) и ваше содержимое.
+
+| Проп             | Что делает                                                                       | По умолчанию |
+| ---------------- | -------------------------------------------------------------------------------- | ------------ |
+| `title`          | Текст заголовка. Без него заголовка нет.                                         | —            |
+| `titleAs`        | Тег заголовка: `h1` … `h6`. Отвечает за уровень, а не за вид.                    | `'h3'`       |
+| `titleClassName` | Вид заголовка. Своих стилей у заголовка нет — без класса он неотличим от текста. | —            |
+| `className`      | Отступы и раскладка `<section>`.                                                 | —            |
+
+Принятые в ките сочетания классов:
+
+| Что                      | `titleAs` | `titleClassName`        | `className` |
+| ------------------------ | --------- | ----------------------- | ----------- |
+| Заголовок шага формы     | `h2`      | `text-xl font-bold`     | `space-y-6` |
+| Группа полей внутри шага | `h3`      | `text-lg font-semibold` | `space-y-4` |
+
+Цвет заголовку не задают: он берётся из темы. Отступ под заголовком даёт `space-y-*` контейнера,
+`mb-*` не нужен.
+
+В [схеме формы](../reference/glossary.md) Section — узел-контейнер, поля перечисляются в
+`children` узла:
+
+```ts
+{
+  component: Section,
+  componentProps: {
+    title: 'Паспорт',
+    titleAs: 'h3',
+    titleClassName: 'text-lg font-semibold',
+    className: 'space-y-4',
+  },
+  children: [
+    {
+      component: Box,
+      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+      children: [
+        { model: model.$.passport.series, component: Input, componentProps: { label: 'Серия' } },
+        { model: model.$.passport.number, component: Input, componentProps: { label: 'Номер' } },
+      ],
+    },
+    { model: model.$.passport.issuedBy, component: Input, componentProps: { label: 'Кем выдан' } },
+  ],
+}
+```
+
+Пара полей стоит в [Box](./box.mdx) с сеткой, поле на всю ширину — вне сетки.
+
+## Примеры
 
 <ComponentDoc config={sectionDocConfig} />
+
+### В документе renderer-json
+
+```json
+{
+  "component": "$component(Section)",
+  "componentProps": {
+    "title": "Паспорт",
+    "titleAs": "h3",
+    "titleClassName": "text-lg font-semibold",
+    "className": "space-y-4"
+  },
+  "children": [
+    { "model": "$model(passport.series)", "component": "$component(Input)" },
+    { "model": "$model(passport.number)", "component": "$component(Input)" }
+  ]
+}
+```
+
+Компонент регистрируют в [реестре](../reference/glossary.md): `reg.component('Section', Section)`.
+Заголовок можно взять из словаря: `"title": "$locale(form.passport.title)"`.
+
+## Доступность
+
+- Уровень заголовка выбирайте по структуре страницы, а не по размеру шрифта: размер задаёт
+  `titleClassName`. Пропуск уровней (`h2` → `h4`) мешает навигации по заголовкам.
+- Заголовок не связан с `<section>` через `aria-labelledby`. Поэтому скринридеры не объявляют
+  секцию как отдельную область — пользователь находит группу по заголовку.
+- `id`, `role` и `aria-*` Section не принимает — в разметку попадают только `className` и
+  `titleClassName`.
+- Клавиатурой Section не управляет: фокус получают поля внутри.
+
+## Локализация
+
+Своих строк компонент не рисует: заголовок — ваш `title`. В renderer-json его можно задать ключом
+словаря через `$locale(...)`.
+
+## См. также
+
+- [Box](./box.mdx) — раскладка без заголовка.
+- [Card](./card.mdx) — группа с рамкой и фоном.
+- [FieldArray](./field-array.mdx) — секция повторяющихся записей.
+- [Схема формы](../core-concepts/schemas/form-schema.md) — виды узлов и контейнеры.
