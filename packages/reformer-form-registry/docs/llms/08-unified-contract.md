@@ -124,8 +124,11 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 расширением записи. Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и
 рендерер ремоута могут жить в разных бандлах.
 
-`resolveFieldAdapter` для компонентов чужого кита хост задаёт в опциях провайдера реестра —
-`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
+`resolveFieldAdapter` для компонентов чужого кита в опциях провайдера реестра
+(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер опцию
+не передаёт, до `FormOutlet` она не доходит (известный баг). Обход — диалект статикой компонента
+(`defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields`) либо монтирование
+через `useFormResource` + `<MountedForm resolveFieldAdapter={…}>`, см. `03-mounting.md`.
 
 ## Частые ошибки
 

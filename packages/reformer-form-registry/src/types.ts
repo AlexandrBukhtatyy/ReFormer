@@ -124,7 +124,10 @@ export type DegradePolicy =
 export interface FormEntry<T extends object = Record<string, unknown>> {
   /** Стабильный идентификатор. Сверяется со `schema.id`, если тот задан. */
   id: string;
-  /** Версия записи (semver). Сверяется со `schema.version`, если тот задан. */
+  /**
+   * Версия записи (semver). Со `schema.version` не сверяется: preflight проверяет версию схемы
+   * только против диапазона {@link FormEntry.compatibleSchema}.
+   */
   version: string;
   /** Кто зарегистрировал — для диагностики коллизий `id` между микрофронтами. */
   owner: string;
@@ -164,7 +167,10 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   flow?: CodeSource<FormFlowConfig<T>>;
   placement?: FormPlacement;
   access?: FormAccess;
-  /** Политика деградации для ЭТОЙ формы. Дефолт реестра — `'error'`. */
+  /**
+   * Политика деградации для ЭТОЙ формы. Пока не реализована: поле объявлено, но код реестра его
+   * не читает.
+   */
   degrade?: DegradePolicy;
 
   /** Каталожные метаданные: выбор формы в UI, поиск, админка. */

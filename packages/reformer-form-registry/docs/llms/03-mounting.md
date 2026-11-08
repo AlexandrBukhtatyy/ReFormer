@@ -104,9 +104,18 @@ React-контекст не пересекает границу бандла: п
 сборщиком.
 
 Вместе с реестром едет и производная от него обёртка полей (`$fieldWrapper`): её вместе с деревом
-достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда. Резолв адаптеров
-полей чужого кита (`resolveFieldAdapter`) хост задаёт в `options` провайдера реестра —
-`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
+достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда.
+
+Резолв адаптеров полей чужого кита (`resolveFieldAdapter`) в `options` провайдера реестра
+(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер эту
+опцию дальше не передаёт, и `FormOutlet` её не получает (известный баг). Обход:
+
+- объявить диалект статикой компонента до регистрации в `baseRegistry` —
+  `defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields` (или
+  `ForeignInput.reformerAdapter = adapter`): рендерер читает её без `resolveFieldAdapter`;
+- либо монтировать без `FormOutlet`: `useFormResource(entry, baseRegistry)` и
+  `<MountedForm entry={entry} loaded={res.data} resolveFieldAdapter={…} />` — `MountedForm` проп
+  принимает и передаёт рендереру.
 
 Валидация схемы мета-схемой — ответственность загрузчика (см. `05-preflight.md`), а не монтирования.
 

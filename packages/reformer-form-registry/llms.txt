@@ -144,7 +144,7 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
   access: { permissions: ['orders.write'], flags: ['checkout-v2'] },
 
-  degrade: 'error',
+  degrade: 'error', // не реализовано: кодом пока не читается
   meta: { name: 'Оформление заказа', tags: ['orders'] },
 };
 ```
@@ -183,7 +183,7 @@ type CodeSource<T> =
 | `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
-| `degrade` | `'error' \| 'placeholder'` | что делать при отказе; дефолт строгий |
+| `degrade` | `'error' \| 'placeholder'` | **не реализовано**: поле есть в типе, но код его не читает — `'placeholder'` ничего не меняет. Незарегистрированный компонент ловит preflight (`missing-components`, см. `05-preflight.md`) |
 
 ### `owner` обязателен не для красоты
 
@@ -344,9 +344,18 @@ React-контекст не пересекает границу бандла: п
 сборщиком.
 
 Вместе с реестром едет и производная от него обёртка полей (`$fieldWrapper`): её вместе с деревом
-достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда. Резолв адаптеров
-полей чужого кита (`resolveFieldAdapter`) хост задаёт в `options` провайдера реестра —
-`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
+достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда.
+
+Резолв адаптеров полей чужого кита (`resolveFieldAdapter`) в `options` провайдера реестра
+(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер эту
+опцию дальше не передаёт, и `FormOutlet` её не получает (известный баг). Обход:
+
+- объявить диалект статикой компонента до регистрации в `baseRegistry` —
+  `defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields` (или
+  `ForeignInput.reformerAdapter = adapter`): рендерер читает её без `resolveFieldAdapter`;
+- либо монтировать без `FormOutlet`: `useFormResource(entry, baseRegistry)` и
+  `<MountedForm entry={entry} loaded={res.data} resolveFieldAdapter={…} />` — `MountedForm` проп
+  принимает и передаёт рендереру.
 
 Валидация схемы мета-схемой — ответственность загрузчика (см. `05-preflight.md`), а не монтирования.
 
@@ -812,7 +821,7 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 | поле записи `renderBehavior` (фабрика `RenderBehaviorFn`) | правила узлов — в `behavior`; фабрика `(options) => defineFormBehavior(…)` получает настройки места; правила шагов — в `flow` |
 | проп `renderBehaviorOptions` у `FormOutlet` / `FormSlot` / `MountedForm` | `behaviorOptions` |
 | бандл `createJsonForm` в `onReady` | бандл `createForm` (`FormBundle`) |
-| `resolveFieldAdapter` из `JsonRendererProvider` хоста | `<FormRegistryProvider options={{ resolveFieldAdapter }}>` |
+| `resolveFieldAdapter` из `JsonRendererProvider` хоста | диалект статикой компонента (`defineFieldControl`) либо `<MountedForm resolveFieldAdapter>`; опция `<FormRegistryProvider options={{ resolveFieldAdapter }}>` сейчас до `FormOutlet` не доходит (баг), см. `03-mounting.md` |
 
 ## 45. Purpose
 
@@ -940,8 +949,11 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 расширением записи. Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и
 рендерер ремоута могут жить в разных бандлах.
 
-`resolveFieldAdapter` для компонентов чужого кита хост задаёт в опциях провайдера реестра —
-`<FormRegistryProvider options={{ resolveFieldAdapter }}>`; `FormOutlet` доносит его до рендерера.
+`resolveFieldAdapter` для компонентов чужого кита в опциях провайдера реестра
+(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер опцию
+не передаёт, до `FormOutlet` она не доходит (известный баг). Обход — диалект статикой компонента
+(`defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields`) либо монтирование
+через `useFormResource` + `<MountedForm resolveFieldAdapter={…}>`, см. `03-mounting.md`.
 
 ## 52. Частые ошибки
 
@@ -1571,7 +1583,10 @@ _Source: src/types.ts_
 export interface FormEntry<T extends object = Record<string, unknown>> {
   /** Стабильный идентификатор. Сверяется со `schema.id`, если тот задан. */
   id: string;
-  /** Версия записи (semver). Сверяется со `schema.version`, если тот задан. */
+  /**
+   * Версия записи (semver). Со `schema.version` не сверяется: preflight проверяет версию схемы
+   * только против диапазона {@link FormEntry.compatibleSchema}.
+   */
   version: string;
   /** Кто зарегистрировал — для диагностики коллизий `id` между микрофронтами. */
   owner: string;
@@ -1611,7 +1626,10 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   flow?: CodeSource<FormFlowConfig<T>>;
   placement?: FormPlacement;
   access?: FormAccess;
-  /** Политика деградации для ЭТОЙ формы. Дефолт реестра — `'error'`. */
+  /**
+   * Политика деградации для ЭТОЙ формы. Пока не реализована: поле объявлено, но код реестра его
+   * не читает.
+   */
   degrade?: DegradePolicy;
 
   /** Каталожные метаданные: выбор формы в UI, поиск, админка. */

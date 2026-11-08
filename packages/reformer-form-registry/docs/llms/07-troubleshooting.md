@@ -113,4 +113,4 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 | поле записи `renderBehavior` (фабрика `RenderBehaviorFn`) | правила узлов — в `behavior`; фабрика `(options) => defineFormBehavior(…)` получает настройки места; правила шагов — в `flow` |
 | проп `renderBehaviorOptions` у `FormOutlet` / `FormSlot` / `MountedForm` | `behaviorOptions` |
 | бандл `createJsonForm` в `onReady` | бандл `createForm` (`FormBundle`) |
-| `resolveFieldAdapter` из `JsonRendererProvider` хоста | `<FormRegistryProvider options={{ resolveFieldAdapter }}>` |
+| `resolveFieldAdapter` из `JsonRendererProvider` хоста | диалект статикой компонента (`defineFieldControl`) либо `<MountedForm resolveFieldAdapter>`; опция `<FormRegistryProvider options={{ resolveFieldAdapter }}>` сейчас до `FormOutlet` не доходит (баг), см. `03-mounting.md` |

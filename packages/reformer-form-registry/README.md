@@ -2,34 +2,17 @@
 
 Form registry for [`@reformer/core`](https://www.npmjs.com/package/@reformer/core): **one bundle
 registers a form, another decides where and when to render it.** Built for micro-frontends, where
-the team that owns a form and the application that shows it are different deployments.
+the team that owns a form and the application that shows it are different deployments: instead of
+an import, a menu entry and a route, the form is a **record** found by id, slot, route or tag.
 
-## Documentation
-
-Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer/](https://alexandrbukhtatyy.github.io/ReFormer/)
-
-## Why
-
-Wiring a form into an application is usually three manual edits — an import, a menu entry, a route.
-Nothing keeps those three in sync with the form itself, and nothing lets a remote application
-contribute a form at runtime. This package replaces the wiring with a **record**:
-
-```tsx
-getFormRegistry().register(checkoutFormEntry);
-
-// anywhere, knowing only the id:
-<FormOutlet id="checkout" />;
-```
-
-## Features
-
-- **Register / resolve split** — a micro-frontend registers, the host resolves by id, slot, route or tag
-- **Permissions and flags are a filter, not a gate per entry point** — a right cannot be bypassed by addressing the form a different way
-- **Data / code boundary is enforced by the types** — a schema is `DataSource` (can arrive over the network); a registry, behavior, validation rules, step flow and model factory are `CodeSource` and only ever come from the bundle
-- **Persistent cache** with swappable strategies — OPFS, IndexedDB, in-memory; one contract, one test suite
-- **Preflight** — six checks before a form is built (schema version and identity, registry names, named parts, step-flow ids against step selectors, model paths against initial values)
-- **Runtime guard** — detects two copies of `@reformer/core` or `@preact/signals-core` in one realm, a failure that is otherwise completely silent
-- React-free core: the registry, storage and guard work in a vanilla micro-frontend; React is an optional peer
+- **Permissions and flags are a filter**, not a check per entry point — a right cannot be bypassed
+  by addressing the form a different way.
+- **Data / code boundary in the types**: the schema is `DataSource` (may arrive over the network);
+  registry, behavior, validation, step flow and model factory are `CodeSource` — bundle only.
+- **Preflight** before a form is built (schema version, registry names, parts, step ids, model
+  paths), a persistent **schema cache** (OPFS, IndexedDB, memory) and a **runtime guard** against
+  two copies of `@reformer/core` in one page.
+- React-free core: the registry, storage and guard work in a vanilla micro-frontend.
 
 ## Installation
 
@@ -39,7 +22,7 @@ npm install @reformer/form-registry @reformer/core @reformer/renderer-json @refo
 
 `react` is an optional peer — needed only for `@reformer/form-registry/react`.
 
-## Quick Start
+## Quick start
 
 Describe the form once, as data plus code:
 
@@ -49,15 +32,12 @@ import type { FormEntry } from '@reformer/form-registry';
 export const checkoutEntry: FormEntry<CheckoutForm> = {
   id: 'checkout',
   version: '1.0.0',
-  owner: 'mfe-orders', // which micro-frontend registered it — used to report id collisions
-
-  // Data: the only part that can be delivered over the network (a format 2 JSON document).
+  owner: 'mfe-orders', // which micro-frontend registered it — reported on id collisions
+  // Data: the only part that may come over the network (a format 2 JSON document).
   schema: { kind: 'inline', value: checkoutSchema },
-
-  // Code: bundle only. There is deliberately no `kind: 'http'` here.
+  // Code: bundle only.
   registry: { kind: 'inline', value: createCheckoutRegistry() },
   model: { kind: 'inline', value: createCheckoutModel },
-  // One behavior: model links and schema-node rules (hideWhen, onComponentEvent, …).
   behavior: { kind: 'inline', value: checkoutBehavior },
   validation: { kind: 'inline', value: { extras: checkoutCrossRules } },
   // Wizard steps: the step id equals the `selector` of the step node in the document.
@@ -65,23 +45,22 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
     kind: 'inline',
     value: { steps: [{ id: 'delivery', rules: deliveryRules }, { id: 'confirm' }] },
   },
-
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'] },
   access: { permissions: ['orders.write'] },
 };
 ```
 
-Register it when the micro-frontend mounts, and unregister when it unmounts:
+Register it when the micro-frontend mounts:
 
 ```ts
 import { getFormRegistry } from '@reformer/form-registry';
 
-const off = getFormRegistry().registerAll(myForms);
+const off = getFormRegistry().registerAll([checkoutEntry]);
 // on unmount:
 off();
 ```
 
-Mount it in the host:
+Mount it in the host — by id or by slot:
 
 ```tsx
 import { getFormRegistry } from '@reformer/form-registry';
@@ -97,37 +76,32 @@ import { FormRegistryProvider, FormOutlet, FormSlot } from '@reformer/form-regis
 </FormRegistryProvider>;
 ```
 
-The host builds nothing itself: `FormOutlet` loads the entry, runs preflight and assembles the form
-with `createForm` from `@reformer/core` (document + registry + behavior + validation + flow), rendering
-it with `FormRenderer`. Host callbacks such as `onResult` go through the `behaviorOptions` prop into a
-behavior factory `(options) => defineFormBehavior(…)`. A document of the previous format (without
-`format: 2`) is converted on every load with `migrateJsonSchema`.
+The host builds nothing itself: `FormOutlet` loads the entry, runs preflight, assembles the form
+with `createForm` and draws it with `FormRenderer`. Host callbacks go through the `behaviorOptions`
+prop into a behavior factory `(options) => defineFormBehavior(…)`.
 
-## Subpath exports
+## Package entries
 
-| import                             | contains                                                      | needs React |
-| ---------------------------------- | ------------------------------------------------------------- | ----------- |
-| `@reformer/form-registry`          | registry, resolution, loader, preflight, network, cache       | no          |
-| `@reformer/form-registry/react`    | `FormRegistryProvider`, `FormOutlet`, `FormSlot`, `FormRoute` | yes         |
-| `@reformer/form-registry/storage`  | OPFS / IndexedDB / memory strategies, `pickStorage`           | no          |
-| `@reformer/form-registry/manifest` | schema validation against the meta-schema (**pulls ajv**)     | no          |
-| `@reformer/form-registry/guard`    | duplicate-runtime detection (zero dependencies)               | no          |
+| Import                             | Contains                                                                                         | React |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------ | ----- |
+| `@reformer/form-registry`          | `getFormRegistry`, `createFormRegistry`, `loadForm`, preflight, `fetchJson`, `createSchemaCache` | no    |
+| `@reformer/form-registry/react`    | `FormRegistryProvider`, `FormOutlet`, `FormSlot`, `FormRoute`, `MountedForm`, `useFormResource`  | yes   |
+| `@reformer/form-registry/storage`  | OPFS / IndexedDB / memory storage, `pickStorage`                                                 | no    |
+| `@reformer/form-registry/manifest` | schema check against the meta-schema (`assertSchemaValid`) — **pulls ajv**                       | no    |
+| `@reformer/form-registry/guard`    | detection of duplicate runtimes (no dependencies)                                                | no    |
 
-ajv lives **only** behind `./manifest`; the split is enforced by `scripts/check-ajv-isolation.mjs`
-in CI, not by convention.
+ajv lives only behind `./manifest`; CI enforces the split (`scripts/check-ajv-isolation.mjs`).
+Network schemas are cached on two levels — parsed objects in memory, bodies in storage,
+revalidated with `ETag`: `createSchemaCache({ storage: await pickStorage() })`.
 
-## Network schemas and cache
+## Links
 
-```ts
-import { createSchemaCache } from '@reformer/form-registry';
-import { pickStorage } from '@reformer/form-registry/storage';
-
-const cache = createSchemaCache({ storage: await pickStorage() });
-```
-
-Schemas are large (a six-step credit application is ~68 KB), so the cache is two-level: parsed
-objects in memory, serialized bodies in persistent storage, revalidated with `ETag`. The cache is
-**disposable** — clearing it mid-session is safe, everything is re-fetched.
+- Documentation: [form registry](https://alexandrbukhtatyy.github.io/ReFormer/docs/packages/form-registry),
+  [form entry](https://alexandrbukhtatyy.github.io/ReFormer/docs/packages/form-registry/form-entry),
+  [mounting](https://alexandrbukhtatyy.github.io/ReFormer/docs/packages/form-registry/mounting)
+- Recipes for AI assistants: [`docs/llms`](./docs/llms) — `overview`, `form-entry`, `mounting`,
+  `cache-storage`, `preflight`, `guard`, `troubleshooting`
+- MCP server for AI assistants: [`@reformer/mcp`](https://www.npmjs.com/package/@reformer/mcp)
 
 ## License
 

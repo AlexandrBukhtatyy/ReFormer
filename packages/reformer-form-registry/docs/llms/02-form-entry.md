@@ -26,7 +26,7 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
   access: { permissions: ['orders.write'], flags: ['checkout-v2'] },
 
-  degrade: 'error',
+  degrade: 'error', // не реализовано: кодом пока не читается
   meta: { name: 'Оформление заказа', tags: ['orders'] },
 };
 ```
@@ -67,7 +67,7 @@ type CodeSource<T> =
 | `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
-| `degrade` | `'error' \| 'placeholder'` | что делать при отказе; дефолт строгий |
+| `degrade` | `'error' \| 'placeholder'` | **не реализовано**: поле есть в типе, но код его не читает — `'placeholder'` ничего не меняет. Незарегистрированный компонент ловит preflight (`missing-components`, см. `05-preflight.md`) |
 
 ### `owner` обязателен не для красоты
 
