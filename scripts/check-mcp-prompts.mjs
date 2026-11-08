@@ -138,6 +138,9 @@ const LEGACY_ASSEMBLY = [
   {
     name: 'ручная связка createModel + createFormFromModel',
     test: (t) => /createModel\s*[<(]/.test(t) && LOW_LEVEL_FORM_RE.test(t),
+    // Только промпты: они обязаны учить сборке `createForm`. Справочник docs/llms вправе
+    // показывать низкоуровневый путь — `createFormFromModel` живое публичное API.
+    promptOnly: true,
   },
   {
     name: 'ручная связка convertJsonToM1Tree + фабрика формы',
@@ -216,14 +219,20 @@ const NEGATIVE_MARKERS = [
   'ловушк',
 ];
 
-/** Разбить текст на блоки (абзац/код-фенс) с номером стартовой строки. */
+/**
+ * Разбить текст на блоки (абзац/код-фенс) с номером стартовой строки и ближайшим заголовком над
+ * блоком (`heading`): таблица «Было → Стало» под заголовком «Удалённое API» отделена от него
+ * пустой строкой, и без заголовка её отрицательный контекст терялся.
+ */
 function toBlocks(content) {
   const lines = content.split('\n');
   const blocks = [];
   let current = null;
   let inFence = false;
+  let heading = '';
 
   lines.forEach((line, i) => {
+    if (!inFence && /^#{1,6}\s/.test(line)) heading = line;
     if (/^\s*```/.test(line)) inFence = !inFence;
     // Пустая строка вне код-фенса закрывает блок; внутри фенса — часть блока.
     if (!inFence && line.trim() === '') {
@@ -231,13 +240,17 @@ function toBlocks(content) {
       return;
     }
     if (current === null) {
-      current = { startLine: i + 1, lines: [] };
+      current = { startLine: i + 1, heading, lines: [] };
       blocks.push(current);
     }
     current.lines.push(line);
   });
 
-  return blocks.map((b) => ({ startLine: b.startLine, text: b.lines.join('\n') }));
+  return blocks.map((b) => ({
+    startLine: b.startLine,
+    heading: b.heading,
+    text: b.lines.join('\n'),
+  }));
 }
 
 function hasNegativeMarker(text) {
@@ -336,16 +349,26 @@ for (const root of DOC_CORPUS_ROOTS) {
     if (/\.(test|spec)\.tsx?$/.test(rel)) continue;
 
     const content = readFileSync(full, 'utf8');
-    const blocks = rel.endsWith('.md') ? toBlocks(content) : jsdocBlocks(content);
+    const isLlmsDoc = rel.endsWith('.md');
+    const blocks = isLlmsDoc ? toBlocks(content) : jsdocBlocks(content);
 
     for (const block of blocks) {
       const hits = [
         ...REMOVED_API.filter((api) => api.re.test(block.text)),
         ...PRESENTATIONAL_AS_FIELD.filter((api) => api.re.test(block.text)),
+        // Прежний контракт формы — и в рецептах docs/llms: `find_recipe` отдаёт их агенту целиком,
+        // как промпт. В JSDoc эти связки не ищем — там их нет, а регулярки на код реализации
+        // (`useMemo` рядом с фабрикой) дали бы ложные срабатывания.
+        ...(isLlmsDoc
+          ? LEGACY_ASSEMBLY.filter((api) => !api.promptOnly && api.test(block.text))
+          : []),
       ];
       if (hits.length === 0) continue;
       checkedBlocks += 1;
-      if (hasNegativeMarker(block.text)) continue;
+      // В рецептах контекст блока — и его заголовок: разделы «Удалённое API», «Перевод документа
+      // прежнего формата» перечисляют прежние имена таблицами и списками без слова-отрицания.
+      if (hasNegativeMarker(isLlmsDoc ? `${block.heading ?? ''}\n${block.text}` : block.text))
+        continue;
       violations.push({
         file: rel,
         line: block.startLine,
