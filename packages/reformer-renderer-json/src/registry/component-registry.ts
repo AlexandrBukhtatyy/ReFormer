@@ -143,11 +143,12 @@ export function composeRegistries(...registries: readonly ComponentRegistry[]): 
  * @example
  * ```typescript
  * import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
- * import { Input, Select, FormField } from '@reformer/ui-kit';
+ * import { Input, SelectAsync, FormField } from '@reformer/ui-kit';
  *
  * const registry = defineRegistry((reg) => {
  *   reg.component('Input', Input);
- *   reg.component('Select', Select);
+ *   // Поле выбора — `SelectAsync`; базовый `Select` кита — shadcn-примитив, не поле формы.
+ *   reg.component('Select', SelectAsync);
  *   reg.component(FIELD_WRAPPER, FormField);
  *   reg.dataSource('LOAN_TYPES', [
  *     { value: 'consumer', label: 'Потребительский' },

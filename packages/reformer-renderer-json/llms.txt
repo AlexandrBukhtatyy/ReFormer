@@ -148,7 +148,7 @@ function MyFormPage() {
 
 - **`JsonFormSchema`** — корневой документ: `format: 2` (обязателен), опциональные `$schema` (путь к мета-схеме для IDE), `id`, `version` (версия содержимого формы — её сверяет реестр форм), `meta`, `parts` (именованные части документа) и единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Привязка к модели — один ключ `model`; чем является узел, решают соседние ключи:
-  - **field-node** (`JsonFieldNode`) — лист: `model: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input); `disabled: true` создаёт поле отключённым, как у узла поля TS-схемы. Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md). Привязка к массиву целиком без `item` — тоже поле (мультивыбор, теги: `"model": "$model(tags)"` для `tags: string[]`).
+  - **field-node** (`JsonFieldNode`) — лист: `model: '$model(path)'` + `component: '$component(Name)'` (дефолта нет: без `component` нода поля есть, но рендерер ничего не рисует и пишет в консоль предупреждение «Model field has no component»); `disabled: true` создаёт поле отключённым, как у узла поля TS-схемы. Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md). Привязка к массиву целиком без `item` — тоже поле (мультивыбор, теги: `"model": "$model(tags)"` для `tags: string[]`).
   - **array-node** (`JsonArrayNode`) — массив под-форм: `model: '$model(path)'` + `item` (вписанный шаблон `{ $template: <JsonNode> }` либо часть `'$part(name)'`) + `component: '$component(FieldArray)'` (редактируемая секция) либо `'$component(List)'` (display-список без add/remove). Без `component` элементы отрисуются, но UI управления не будет — см. ниже.
   - **part-node** (`JsonPartNode`) — подформа: `model: '$model(group)'` + `part: '$part(name)'`. Пути внутри части относительны группе места подключения.
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/FormWizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` (вложенные узлы и текстовые части вперемешку).
@@ -2526,11 +2526,12 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
 
 ```typescript
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Input, Select, FormField } from '@reformer/ui-kit';
+import { Input, SelectAsync, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
   reg.component('Input', Input);
-  reg.component('Select', Select);
+  // Поле выбора — `SelectAsync`; базовый `Select` кита — shadcn-примитив, не поле формы.
+  reg.component('Select', SelectAsync);
   reg.component(FIELD_WRAPPER, FormField);
   reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
@@ -3231,7 +3232,8 @@ _Source: src/types/json-schema.ts_
 
 **Kind:** `interface`
 
-Поле формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input).
+Поле формы: значение из модели (`$model`) + компонент (`$component`). Дефолтного компонента нет:
+без `component` нода поля есть, но рендерер ничего не рисует (предупреждение в консоли).
 
 **Signature:**
 ```typescript
@@ -4164,7 +4166,19 @@ export interface ValidateFormSchemaOptions {
    * Карта регистр-имя → полная схема `componentProps` компонента (враппер + вариант, уже прошедшая
    * `mergeFieldPropsSchema` у поставщика). Не задана → фаза (d) не запускается (мягкий пропуск, полная
    * обратная совместимость). Компонент есть в дереве, но НЕ в карте → его props пропускаются
-   * индивидуально. Обычно берётся из `@reformer/ui-kit/meta` (`defaultPropSchemas`).
+   * индивидуально.
+   *
+   * Из `@reformer/ui-kit/meta` карта собирается так: `defaultPropSchemas` — схемы одних вариантов,
+   * без контракта враппера, и как есть отвергают `label`/`required`/`testId`. Каждую схему сначала
+   * сливают с враппером:
+   *
+   * ```ts
+   * import { defaultPropSchemas, mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
+   *
+   * const propSchemas = Object.fromEntries(
+   *   Object.entries(defaultPropSchemas).map(([name, s]) => [name, mergeFieldPropsSchema(s)])
+   * );
+   * ```
    */
   propSchemas?: Record<string, ComponentPropsSchema>;
 }

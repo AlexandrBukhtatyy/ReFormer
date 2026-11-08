@@ -55,7 +55,19 @@ export interface ValidateFormSchemaOptions {
    * Карта регистр-имя → полная схема `componentProps` компонента (враппер + вариант, уже прошедшая
    * `mergeFieldPropsSchema` у поставщика). Не задана → фаза (d) не запускается (мягкий пропуск, полная
    * обратная совместимость). Компонент есть в дереве, но НЕ в карте → его props пропускаются
-   * индивидуально. Обычно берётся из `@reformer/ui-kit/meta` (`defaultPropSchemas`).
+   * индивидуально.
+   *
+   * Из `@reformer/ui-kit/meta` карта собирается так: `defaultPropSchemas` — схемы одних вариантов,
+   * без контракта враппера, и как есть отвергают `label`/`required`/`testId`. Каждую схему сначала
+   * сливают с враппером:
+   *
+   * ```ts
+   * import { defaultPropSchemas, mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
+   *
+   * const propSchemas = Object.fromEntries(
+   *   Object.entries(defaultPropSchemas).map(([name, s]) => [name, mergeFieldPropsSchema(s)])
+   * );
+   * ```
    */
   propSchemas?: Record<string, ComponentPropsSchema>;
 }
