@@ -1,30 +1,38 @@
 /**
- * RenderSchema - декларативное описание структуры страницы формы
+ * Рендерер форм для React: рисует схему формы — единое дерево узлов (layout + поля) — по бандлу
+ * сборки `createForm` из `@reformer/core`.
  *
- * RenderSchema отвечает за layout и условия отображения полей,
- * а ModelSchema — за конфигурацию самих полей.
+ * Схема — функция от модели `(model) => RenderNode`: лист несёт ручку модели (`model.$.x`),
+ * `component` и `componentProps`. Сборка строит по ней форму и компилирует дерево, а
+ * `FormRenderer` получает бандл пропом `form`.
  *
  * @module reformer/renderer-react
  *
  * @example
  * ```tsx
- * import { FormRenderer, Box, Section, type RenderSchemaFn } from '@reformer/renderer-react';
+ * import { createForm, type FormModel } from '@reformer/core';
+ * import { useFormBundle } from '@reformer/core/react';
+ * import { FormRenderer, type RenderNode } from '@reformer/renderer-react';
+ * import { Box, Section, Input, FormField } from '@reformer/ui-kit';
  *
- * const renderSchema: RenderSchemaFn<MyForm> = () => ({
+ * const mySchema = (model: FormModel<MyForm>): RenderNode<MyForm> => ({
  *   component: Box,
  *   children: [
  *     {
  *       component: Section,
  *       componentProps: { title: 'Личные данные' },
  *       children: [
- *         { model: model.$.firstName, component: Input },
- *         { model: model.$.lastName, component: Input },
+ *         { model: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
+ *         { model: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
  *       ],
  *     },
  *   ],
  * });
  *
- * <FormRenderer render={renderSchema} />
+ * function MyFormPage() {
+ *   const bundle = useFormBundle(() => createForm<MyForm>({ initial, schema: mySchema }));
+ *   return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;
+ * }
  * ```
  */
 

@@ -1,23 +1,9 @@
 # @reformer/renderer-react
 
-React renderer for [`@reformer/core`](https://www.npmjs.com/package/@reformer/core). Turns the bundle
-built by `createForm` (model + form + compiled schema) into a React tree, wiring each field to its
-component and routing validation state into the UI.
-
-## Documentation
-
-Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer/](https://alexandrbukhtatyy.github.io/ReFormer/)
-
-## Features
-
-- Renders a ReFormer form from a declarative schema — one tree of nodes bound to the model with `model: model.$.field`
-- Renders by the compiled schema (`bundle.render.tree`): field, array of sub-forms, sub-form (`part`), container, text; a container without `component` renders only its children
-- The schema carries **layout only** — field rules live in a separate `ValidationDefinition` over the model, wired into `createForm` via `validation` and `flow` (see [Validation](#validation))
-- Node rules (`hideWhen`, `onComponentEvent`, `renderEffect`, `onMount`, …) are written in the form behavior (`defineFormBehavior(({ model, form, schema, flow }) => …)`) and executed by the renderer
-- Reactive: fields update from the model's signals with no manual wiring
-- Pluggable field wrapper (label + control + error) via `settings.fieldWrapper`
-- Binds each field itself: the value-based seam (`value` + `onChange(value)`) is translated into the control's own dialect (`checked` + `onChange(event)`, `value` + `onChange(value, option)`) by the component's `reformerAdapter` static (declared by `@reformer/ui-kit` components) — put the component itself into `component`, no per-control wrapper needed; **raw third-party controls** without the static (Checkbox, Select, Radio…) are adapted via `settings.resolveFieldAdapter`
-- TypeScript support, tree-shakable exports
+React renderer for [`@reformer/core`](https://www.npmjs.com/package/@reformer/core). Draws the
+form bundle built by `createForm` from its form schema: every field node goes to its component,
+containers and HTML tags become markup, arrays of sub-forms and parts are expanded. The schema
+carries layout only; validation and behavior stay in the same `createForm` call.
 
 ## Installation
 
@@ -25,91 +11,62 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 npm install @reformer/renderer-react @reformer/core
 ```
 
-## Quick Start
+Peers: `@reformer/core`, `react` and `react-dom` 18 or 19. Components usually come from
+[`@reformer/ui-kit`](https://www.npmjs.com/package/@reformer/ui-kit) — or your own.
+
+## Quick start
 
 ```tsx
 import { createForm, type FormModel } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, email } from '@reformer/core/validators';
 import { FormRenderer, type RenderNode } from '@reformer/renderer-react';
-import { FormField, Input } from '@reformer/ui-kit';
+import { Box, FormField, Input } from '@reformer/ui-kit';
 
-interface MyForm {
-  email: string;
-}
+type SignUp = { email: string };
 
-// Schema builder: called once by createForm with the model.
-const mySchema = (model: FormModel<MyForm>): RenderNode<MyForm> => ({
-  component: 'div',
+// Schema builder: createForm calls it once with the model.
+const schema = (model: FormModel<SignUp>): RenderNode<SignUp> => ({
+  component: Box,
   children: [{ model: model.$.email, component: Input, componentProps: { label: 'Email' } }],
 });
 
-export function MyFormPage() {
-  // One call builds the model, the form, the compiled schema and the form level
-  // (validate / submission / step flow). useFormBundle keeps the bundle stable between renders.
-  const bundle = useFormBundle(() =>
-    createForm<MyForm>({ initial: { email: '' }, schema: mySchema })
-  );
+const rules = defineValidation<SignUp>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+});
 
+export function SignUpPage() {
+  const bundle = useFormBundle(() =>
+    createForm<SignUp>({ initial: { email: '' }, schema, validation: rules })
+  );
+  // fieldWrapper draws label → control → error around every field.
   return <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-`createRenderSchema` remains available as the low-level path.
+Submitting is the same as for a hand-written form: `bundle.submission.submit(handler)`. A node
+with a `selector` is controlled from the behavior (`hideWhen`, `onComponentEvent`) or through
+`bundle.render.node(selector)`.
 
-## Validation
+## Package entries
 
-A schema node describes **layout only** — none of the node kinds (field, array, part, container) has a
-`validators` field, so `validators: [...]` on a leaf is a type error. Field validation is expressed once
-as a plain `ValidationDefinition` over the `FormModel` (the same `@reformer/core/validation` contract
-that hand-written forms use), so layout and rules stay independent and one validation covers every
-render target (React, JSON, hand-written JSX).
+| Import                     | Contains                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@reformer/renderer-react` | `FormRenderer`, `RenderNodeComponent`; node types (`RenderNode`, `ModelFieldRenderNode`, `ContainerRenderNode`, `ArrayRenderNode`, `PartRenderNode`); `RendererSettings`, `FieldAdapter`, `FieldWrapperProps`; node rules (`hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount`); `createRenderSchema`; `useRenderContext` |
 
-```tsx
-import { createForm } from '@reformer/core';
-import { useFormBundle } from '@reformer/core/react';
-import { defineIssueMessages } from '@reformer/core/i18n';
-import { defineValidation, validate } from '@reformer/core/validation';
-import { required, email } from '@reformer/core/validators';
-import { ValidationMessagesProvider } from '@reformer/cdk';
+`FormRenderer` props: `form` (the bundle), `settings` — `fieldWrapper` (the frame around each
+field) and `resolveFieldAdapter` (binds a third-party control that does not declare the
+`reformerAdapter` static: `checked` + `onChange(event)` and the like).
 
-// Rules over the model — `model.$.path` is the field handle. A rule carries a code, not a text.
-const rules = defineValidation<MyForm>(({ model }) => {
-  validate(model.$.email, [required({ code: 'email.required' }), email()]);
-});
+## Links
 
-// Texts by code — the form dictionary (falls back to the locale dictionary, then to the code).
-const messages = defineIssueMessages({ 'email.required': 'Enter your email' });
-
-function MyFormPage() {
-  const bundle = useFormBundle(() =>
-    createForm<MyForm>({ initial: { email: '' }, schema: mySchema, validation: rules })
-  );
-  const send = async () => {
-    // One run of all rules, then the handler.
-    const outcome = await bundle.submission.submit(api.save);
-    if (outcome.status === 'invalid') showHint('Check the form');
-  };
-  return (
-    <ValidationMessagesProvider messages={messages}>
-      <FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />
-      <button onClick={send}>Send</button>
-    </ValidationMessagesProvider>
-  );
-}
-```
-
-Operators come from `@reformer/core/validation`: `validate` / `validateAsync`,
-`validateWhen(() => cond, () => { … })`, `cross(handle, (snapshot) => issue | null)` from the schema
-scope, `applyEach(model.$.items, rowRules)` and `apply(...schemas)` for composition. Rule factories
-(`required()`, `min()`, `email()`, …) come from `@reformer/core/validators` and take `{ code?, params? }`.
-
-For a wizard, step rules go into the step flow: `createForm({ flow: { steps: [{ id: 'loan', rules:
-loanRules }] } })` — the step `id` equals the `selector` of the step node. The wizard's "Next" runs
-`flow.next()`, its submit button runs `bundle.submission.submit`. Live validation is chosen with
-`validation: { rules, strategy: 'blur' | 'change' | 'afterFirstSubmit' }`; the live phase of
-`afterFirstSubmit` starts only with a submit attempt (`bundle.submission.submit`), not with
-`bundle.validate()`, `validateStep` or `flow.next()`. See the
-[validation guide](./docs/llms/06-validation.md) and the [wizard guide](./docs/llms/07-form-wizard.md).
+- Documentation: [renderer-react](https://alexandrbukhtatyy.github.io/ReFormer/docs/packages/renderer-react),
+  [validation](https://alexandrbukhtatyy.github.io/ReFormer/docs/validation/overview)
+- Recipes for AI assistants: [`docs/llms`](./docs/llms) — `render-schema`, `render-behavior`,
+  `cookbook`, [`validation`](./docs/llms/06-validation.md),
+  [`form-wizard`](./docs/llms/07-form-wizard.md), `form-bundle`, `troubleshooting`
+- MCP server for AI assistants: [`@reformer/mcp`](https://www.npmjs.com/package/@reformer/mcp)
 
 ## License
 

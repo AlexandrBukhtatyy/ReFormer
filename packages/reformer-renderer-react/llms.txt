@@ -287,10 +287,11 @@ createModel<CreditForm>({ /* … */ coBorrowers: arrayOf(blankCoBorrower) });
 | `itemLabel?: string \| ((row, i) => string)` | — (string → `` `${itemLabel} #${i + 1}` ``) |
 | `reorderable?: boolean` | `false` (кнопки ↑/↓, `disabled` на концах) |
 | `showRemoveOnSingle?: boolean` | `false` (кнопка «Удалить» скрыта при единственном элементе) |
+| `maxItems?: number` | — (на пределе кнопка «Добавить» скрыта) |
 | `className?: string` | `'space-y-3 mt-2'` |
 | `cardClassName?: string` | `'mb-4 p-4 bg-card text-card-foreground rounded border'` |
 
-**`maxItems` НЕ существует.** Это выдуманный проп — компонент его игнорирует. Чтобы ограничить количество элементов, используй поведение (`hideWhen` на add-аффордансе), а не проп.
+**`maxItems` — только интерфейс.** На пределе кнопка «Добавить» скрыта, но данные он не ограничивает: предел для модели задаёт правило `maxLength(n)` на массив в validation-схеме (замечание с кодом `maxItems`).
 
 **Контракт компонента-рендерера массива.** Итерацию (подписку на структуру, кэш поддеревьев, стабильные ключи) делает рендерер, а компонент получает `ArrayComponentProps` — готовые `items: ArrayItemSlot[]` (`{ key, index, model, children }`) и колбэки `onAdd`/`onRemove`/`onMove` — плюс `componentProps` узла. `onAdd()` зовёт `push()` без значения: новая строка берётся из шаблона массива. Компонент не подписывается на модель и не вызывает хуков рендерера, поэтому свою секцию можно написать на любой UI-библиотеке и протестировать на фейковых `items` без формы:
 
