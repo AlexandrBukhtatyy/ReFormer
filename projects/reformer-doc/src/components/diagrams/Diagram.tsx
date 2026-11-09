@@ -169,6 +169,8 @@ export interface ArrowProps {
   labelAt?: Point;
   labelAnchor?: 'start' | 'middle' | 'end';
   dashed?: boolean;
+  /** `false` — линия без наконечника: ветка шины, которая дальше расходится стрелками. */
+  head?: boolean;
 }
 
 /** Путь через точки со скруглёнными углами радиуса `r`. */
@@ -196,7 +198,16 @@ function roundedPath(points: readonly Point[], r = 10): string {
 }
 
 /** Стрелка `from → to`: прямая или ломаная через `via`. */
-export function Arrow({ from, to, via = [], label, labelAt, labelAnchor, dashed }: ArrowProps) {
+export function Arrow({
+  from,
+  to,
+  via = [],
+  label,
+  labelAt,
+  labelAnchor,
+  dashed,
+  head = true,
+}: ArrowProps) {
   const markerId = useContext(MarkerContext);
   const points: Point[] = [from, ...via, to];
   const [x1, y1] = points[0];
@@ -214,7 +225,7 @@ export function Arrow({ from, to, via = [], label, labelAt, labelAnchor, dashed 
       <path
         d={roundedPath(points)}
         className={clsx(styles.arrow, dashed && styles.dashed)}
-        markerEnd={`url(#${markerId})`}
+        markerEnd={head ? `url(#${markerId})` : undefined}
       />
       {lines.length > 0 && (
         <Label
@@ -233,19 +244,28 @@ export interface GroupProps {
   y: number;
   width: number;
   height: number;
-  /** Название группы — в левом верхнем углу. */
+  /** Название группы — в левом углу. */
   title: string;
+  /**
+   * Где название: сверху (по умолчанию) или снизу — когда сверху в группу входят стрелки и
+   * легли бы на текст.
+   */
+  titleAt?: 'top' | 'bottom';
 }
 
 /**
  * Подложка, объединяющая блоки: приложение, повтор шагов, слой. Рисуется до блоков группы,
- * чтобы оказаться под ними; сверху оставьте ~28px под название.
+ * чтобы оказаться под ними; с той стороны, где название, оставьте ~28px.
  */
-export function Group({ x, y, width, height, title }: GroupProps) {
+export function Group({ x, y, width, height, title, titleAt = 'top' }: GroupProps) {
   return (
     <g className={styles.group}>
       <rect x={x} y={y} width={width} height={height} rx={12} />
-      <text x={x + 12} y={y + 19} className={styles.groupTitle}>
+      <text
+        x={x + 12}
+        y={titleAt === 'top' ? y + 19 : y + height - 11}
+        className={styles.groupTitle}
+      >
         {title}
       </text>
     </g>

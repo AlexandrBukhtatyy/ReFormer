@@ -785,6 +785,69 @@
   "diagram.formRegistry.lookup": {
     "message": "id, slot, route"
   },
+  "diagram.levels.title": {
+    "message": "Levels on top of the model"
+  },
+  "diagram.levels.caption": {
+    "message": "Only the model tree holds values. Any level above reads it through both proxies and adds its own state; a new level is added without changing the model."
+  },
+  "diagram.levels.form": {
+    "message": "Form level"
+  },
+  "diagram.levels.formHint": {
+    "message": "nodes and form.x proxy,\nchecks, steps, rendering"
+  },
+  "diagram.levels.app": {
+    "message": "Application"
+  },
+  "diagram.levels.appHint": {
+    "message": "components and computations:\nuseSignalSnapshot, computed"
+  },
+  "diagram.levels.custom": {
+    "message": "Your level"
+  },
+  "diagram.levels.customHint": {
+    "message": "autosave, address bar,\nanalytics"
+  },
+  "diagram.levels.model": {
+    "message": "Model level"
+  },
+  "diagram.levels.signals": {
+    "message": "Signal proxy"
+  },
+  "diagram.levels.values": {
+    "message": "Value proxy"
+  },
+  "diagram.levels.tree": {
+    "message": "Model tree"
+  },
+  "diagram.levels.treeHint": {
+    "message": "a signal under every field and the reset point — values live only here"
+  },
+  "diagram.levels.runtime": {
+    "message": "Signals"
+  },
+  "diagram.overlap.title": {
+    "message": "Proxies and model values overlap"
+  },
+  "diagram.overlap.caption": {
+    "message": "One proxy points to several values, several proxies lead to one value. A write through any of them is visible to all."
+  },
+  "diagram.overlap.computed": {
+    "message": "own computed"
+  },
+  "diagram.overlap.group": {
+    "message": "group signal"
+  },
+  "diagram.overlap.node": {
+    "message": "form node"
+  },
+  "diagram.overlap.value": {
+    "message": "value proxy"
+  },
+  "diagram.overlap.model": {
+    "message": "Model app — values"
+  },
   "homepage.title": {
     "message": "Reactive Forms Library"
   },

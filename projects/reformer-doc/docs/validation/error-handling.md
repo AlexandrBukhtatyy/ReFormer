@@ -93,6 +93,9 @@ import { getNodeForSignal } from '@reformer/core';
 getNodeForSignal(model.$.email)?.issues.value;
 ```
 
+Над одной моделью может быть собрано несколько форм. Тогда `getNodeForSignal` отдаёт ноду
+последней собранной, а ноду конкретной формы — `bundle.render.nodeOf(model.$.email)`.
+
 ### Фильтрация
 
 `issues` — обычный массив, фильтруйте его как массив:

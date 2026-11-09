@@ -68,6 +68,7 @@ const sidebars: SidebarsConfig = {
       label: 'Основные концепции',
       collapsed: true,
       items: [
+        'core-concepts/levels',
         'core-concepts/reactive-state',
         'core-concepts/model',
         'core-concepts/nodes',
