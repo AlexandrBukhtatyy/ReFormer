@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createModel, createFormFromModel } from '@reformer/core';
 import { FormField } from './form-field';
 import { Input } from '@/components/input';
+import { CheckboxWithLabel } from '@/components/checkbox';
+import { SwitchWithLabel } from '@/components/switch';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -263,6 +265,44 @@ describe('FormField — shadcn Field поверх @reformer/cdk', () => {
       );
       expect(tag).toContain('gap-6');
       expect(tag).not.toContain('gap-3');
+    });
+  });
+
+  // ReFormer-66d: подпись, описание и обязательность рисует обёртка. Раньше они уходили атрибутами
+  // на `<input>`, а нативный `required` включал проверку браузера, и та блокировала отправку формы
+  // раньше её собственной валидации (`submission.submit` не вызывался).
+  describe('props обёртки в контрол не уходят [ReFormer-66d]', () => {
+    const wrapperProps = { label: 'Имя', description: 'Как в паспорте', required: true };
+
+    it('Input: нет атрибутов label, description и required; обязательность — aria-required', () => {
+      const html = renderToStaticMarkup(
+        <FormField control={buildField({ ...wrapperProps, testId: 'name' }, Input)} />
+      );
+      const input = html.match(/<input[^>]*>/)?.[0] ?? '';
+
+      expect(input).not.toMatch(/\slabel=/);
+      expect(input).not.toMatch(/\sdescription=/);
+      expect(input).not.toMatch(/\srequired[=\s>]/);
+      expect(input).toContain('aria-required="true"');
+      // Подпись со звёздочкой и описание рисует сама обёртка.
+      expect(html).toContain('data-testid="label-name"');
+      expect(html).toContain('Как в паспорте');
+    });
+
+    it.each([
+      ['CheckboxWithLabel', CheckboxWithLabel],
+      ['SwitchWithLabel', SwitchWithLabel],
+    ])('%s: подпись со звёздочкой рисует сам, required в Radix не уходит', (_name, component) => {
+      const html = renderToStaticMarkup(
+        <FormField control={buildField({ label: 'Согласен', required: true }, component)} />
+      );
+      const root = html.match(/<button[^>]*role="(checkbox|switch)"[^>]*>/)?.[0] ?? '';
+
+      expect(html).toMatch(/Согласен<span aria-hidden="true"> \*<\/span>/);
+      expect(root).not.toMatch(/\srequired[=\s>]/);
+      expect(root).toContain('aria-required="true"');
+      // Верхней подписи нет — ссылка на её id повисла бы в пустоту.
+      expect(root).not.toContain('aria-labelledby');
     });
   });
 

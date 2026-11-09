@@ -885,7 +885,9 @@ const Tree = React.forwardRef<TreeHandle, TreeProps>(function Tree(
       // и позиции строк совпадают с невиртуальным списком.
       <div style={virtualized ? { height: virtual.totalHeight } : undefined}>
         <div style={offsetTop === 0 ? undefined : { transform: `translateY(${offsetTop}px)` }}>
-          <ItemGroup>
+          {/* Между `tree` и `treeitem` не должно быть чужих ролей: `role="list"` группы рвал
+              структуру дерева для скринридера. */}
+          <ItemGroup role="none">
             {visibleRows.map((row) => (
               <TreeRowView
                 key={row.node.id}

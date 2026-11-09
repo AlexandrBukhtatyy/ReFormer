@@ -1,6 +1,9 @@
 import type { PropsSchema } from '@/fields/props-schema';
 
-/** Props-схема Tooltip (Radix Tooltip.Root) — провайдер без DOM (стили/позиция — на TooltipContent). */
+/**
+ * Props-схема Tooltip (Radix Tooltip.Root) — провайдер без DOM (стили/позиция — на TooltipContent).
+ * `TooltipProvider` выше по дереву не обязателен: без него Tooltip ставит провайдер кита сам.
+ */
 export const tooltipBasePropsSchema = {
   type: 'object',
   additionalProperties: true,
@@ -14,8 +17,10 @@ export const tooltipBasePropsSchema = {
     },
     delayDuration: {
       type: 'number',
-      default: 700,
-      description: 'Задержка перед показом (мс).',
+      default: 0,
+      description:
+        'Задержка перед показом (мс). Не задана — берётся из TooltipProvider; провайдер кита ' +
+        '(и тот, что Tooltip ставит сам без внешнего) — 0 мс.',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
     disableHoverableContent: {

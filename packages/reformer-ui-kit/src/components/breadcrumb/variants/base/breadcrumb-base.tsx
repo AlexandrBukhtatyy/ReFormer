@@ -5,7 +5,7 @@ import { Slot } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
-// Дословный порт shadcn/ui (new-york-v4) breadcrumb. Правки только: unified `radix-ui` (Slot.Root),
+// Порт shadcn/ui (new-york-v4) breadcrumb. Правки: unified `radix-ui` (Slot.Root),
 // `@/lib/utils`, lucide-иконки с суффиксом `Icon` (конвенция репозитория), снят 'use client'.
 // Презентационный compound-набор семантической разметки (nav / ol / li / a / span) — не Radix-примитив
 // и не form-control. Каждая часть несёт собственный data-slot. Стили — Tailwind внутри реализации.
@@ -85,11 +85,11 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
 
 function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<'span'>) {
   const t = useKitMessages();
+  // Расхождение с апстримом: там `role="presentation"` + `aria-hidden` на всей обёртке прятали
+  // и sr-only подпись «Ещё» — свёрнутые звенья скринридер не объявлял. Иконку lucide прячет сама.
   return (
     <span
       data-slot="breadcrumb-ellipsis"
-      role="presentation"
-      aria-hidden="true"
       className={cn('flex size-9 items-center justify-center', className)}
       {...props}
     >

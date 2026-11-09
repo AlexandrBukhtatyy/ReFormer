@@ -23,15 +23,18 @@ export const progressBasePropsSchema = {
     value: {
       type: 'number',
       minimum: 0,
-      maximum: 100,
-      description: 'Текущее значение прогресса в процентах (0–100).',
+      description:
+        'Текущее значение от 0 до `max`. Не задано (или вне шкалы) — прогресс неопределённый: ' +
+        'полоса пустая, `data-state="indeterminate"`, без `aria-valuenow`.',
       'x-doc': { group: 'State', type: 'number', kind: 'number' },
     },
     max: {
       type: 'number',
       minimum: 1,
       default: 100,
-      description: 'Максимальное значение шкалы (по умолчанию 100).',
+      description:
+        'Максимальное значение шкалы (по умолчанию 100): заливка — доля `value / max`, ' +
+        'скринридер получает `aria-valuemax` и процент в `aria-valuetext`.',
       'x-doc': { group: 'State', type: 'number', kind: 'number' },
     },
   },

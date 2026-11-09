@@ -24,6 +24,21 @@ import { useResourceOptions } from '../async/use-resource-options';
 /** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N». */
 const DEFAULT_SUMMARY_THRESHOLD = 3;
 
+/**
+ * Пункты одной группы — подряд, группы в порядке первого появления (как у `SelectAsync`), внутри
+ * группы порядок исходный. Без этого перемешанные группы дали бы повторяющиеся заголовки.
+ */
+function groupInOrder(options: NormalizedOption[]): NormalizedOption[] {
+  if (!options.some((o) => o.group)) return options;
+  const buckets = new Map<string | undefined, NormalizedOption[]>();
+  for (const opt of options) {
+    const bucket = buckets.get(opt.group);
+    if (bucket) bucket.push(opt);
+    else buckets.set(opt.group, [opt]);
+  }
+  return [...buckets.values()].flat();
+}
+
 /** Опция мультивыбора, заданная inline (сериализуемый источник для формы/DSL). */
 export interface SelectMultiOption {
   value: string;
@@ -162,16 +177,33 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
   const selected = React.useMemo(() => value ?? [], [value]);
 
   const options: NormalizedOption[] = React.useMemo(() => {
-    if (directOptions) {
-      return directOptions.map((opt) => ({
-        id: opt.value,
-        label: opt.label,
-        value: String(opt.value),
-        group: opt.group,
-      }));
-    }
-    return ro.options;
+    const flat = directOptions
+      ? directOptions.map((opt) => ({
+          id: opt.value,
+          label: opt.label,
+          value: String(opt.value),
+          group: opt.group,
+        }))
+      : ro.options;
+    return groupInOrder(flat);
   }, [directOptions, ro.options]);
+
+  // Опции уже упорядочены по группам — режем на секции подряд идущих пунктов одной группы.
+  // Клавиатура ходит по плоскому `options`, поэтому индексы секций совпадают с `activeIndex`.
+  const sections = React.useMemo(() => {
+    const out: { group?: string; start: number; items: NormalizedOption[] }[] = [];
+    options.forEach((opt, index) => {
+      const last = out[out.length - 1];
+      if (last && last.group === opt.group) last.items.push(opt);
+      else out.push({ group: opt.group, start: index, items: [opt] });
+    });
+    return out;
+  }, [options]);
+
+  // id пунктов — для aria-activedescendant: фокус остаётся на listbox, а скринридер должен
+  // слышать пункт, подсвеченный стрелками.
+  const listId = React.useId();
+  const optionId = (index: number) => `${listId}-option-${index}`;
 
   /**
    * Лейблы всех значений, которые когда-либо попадались в опциях этой сессии.
@@ -232,6 +264,8 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange?.([]);
+    // Крестик пропадает вместе с выбором — без переноса фокус клавиатуры упал бы на body.
+    triggerRef.current?.focus();
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -348,6 +382,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             ref={listRef}
             role="listbox"
             aria-multiselectable="true"
+            aria-activedescendant={options[activeIndex] ? optionId(activeIndex) : undefined}
             tabIndex={0}
             onKeyDown={handleListKeyDown}
             onScroll={handleScroll}
@@ -362,32 +397,59 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
                 {emptyText ?? t('kit.select.empty')}
               </div>
             )}
-            {options.map((option, index) => {
-              const checked = selected.includes(option.value);
-              const blocked = atLimit && !checked;
+            {sections.map((section) => {
+              const items = section.items.map((option, offset) => {
+                const index = section.start + offset;
+                const checked = selected.includes(option.value);
+                const blocked = atLimit && !checked;
+                return (
+                  <div
+                    key={option.value}
+                    id={optionId(index)}
+                    role="option"
+                    aria-selected={checked}
+                    aria-disabled={blocked || undefined}
+                    data-active={index === activeIndex ? '' : undefined}
+                    data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
+                    onClick={() => !blocked && toggle(option.value)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={cn(
+                      'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 select-none',
+                      'data-[active]:bg-accent data-[active]:text-accent-foreground',
+                      blocked && 'pointer-events-none opacity-50'
+                    )}
+                  >
+                    {option.label}
+                    {/* Отметка — у правого края, как у составного `Select`; место под неё
+                        занято и у невыбранного пункта. */}
+                    <CheckIcon
+                      data-slot="select-multi-check"
+                      className={cn(
+                        'ml-auto size-4 shrink-0',
+                        checked ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </div>
+                );
+              });
+              if (!section.group) return items;
+              // Заголовок группы — как `SelectLabel` у одиночного Select; группа подписана им.
+              const labelId = `${listId}-group-${section.start}`;
               return (
                 <div
-                  key={option.value}
-                  role="option"
-                  aria-selected={checked}
-                  aria-disabled={blocked || undefined}
-                  data-active={index === activeIndex ? '' : undefined}
-                  data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
-                  onClick={() => !blocked && toggle(option.value)}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  className={cn(
-                    'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 select-none',
-                    'data-[active]:bg-accent data-[active]:text-accent-foreground',
-                    blocked && 'pointer-events-none opacity-50'
-                  )}
+                  key={`group-${section.start}`}
+                  role="group"
+                  aria-labelledby={labelId}
+                  data-slot="select-multi-group"
                 >
-                  {option.label}
-                  {/* Отметка — у правого края, как у составного `Select`; место под неё
-                      занято и у невыбранного пункта. */}
-                  <CheckIcon
-                    data-slot="select-multi-check"
-                    className={cn('ml-auto size-4 shrink-0', checked ? 'opacity-100' : 'opacity-0')}
-                  />
+                  <div
+                    id={labelId}
+                    data-slot="select-multi-group-label"
+                    className="px-2 py-1.5 text-xs text-muted-foreground"
+                  >
+                    {section.group}
+                  </div>
+                  {items}
                 </div>
               );
             })}
@@ -405,10 +467,13 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
           {showClearButton && (
             <button
               type="button"
-              className={TRAILING_CLEAR}
+              // Крестик в порядке Tab; `TRAILING_CLEAR` гасит outline — видимый фокус даёт кольцо.
+              className={cn(
+                TRAILING_CLEAR,
+                'rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50'
+              )}
               onClick={handleClear}
               aria-label={t('kit.select.clear')}
-              tabIndex={-1}
             >
               <XIcon className="size-4" />
             </button>

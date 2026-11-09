@@ -15,6 +15,10 @@ export interface CheckboxWithLabelProps
 /**
  * Inline-раскладка чекбокса: сам рисует подпись СПРАВА от контрола, обёрнутую в `<label htmlFor>`,
  * потому что `FormField` для inline-контролов верхнюю подпись подавляет (маркер `reformerLayout`).
+ * По той же причине звёздочку обязательного поля рисует он: `required` из `componentProps` обёртка
+ * отдаёт ему (`bindFieldProps`). В Radix `required` не уходит — он включил бы скрытый нативный
+ * `<input required>`, и проверка браузера блокировала бы отправку формы; обязательность
+ * скринридеру сообщает `aria-required` от обёртки.
  *
  * `data-testid`/`aria-*`/`checked`/`onCheckedChange` уходят на `CheckboxPrimitive.Root` (button
  * role=checkbox), НЕ на wrapper и НЕ на скрытый bubble-input. Доступное имя даёт связанная `<label>`
@@ -23,6 +27,7 @@ export interface CheckboxWithLabelProps
  */
 function CheckboxWithLabelBase({
   label,
+  required,
   tooltip,
   id,
   className,
@@ -54,6 +59,7 @@ function CheckboxWithLabelBase({
         {...props}
       />
       {label}
+      {label && required && <span aria-hidden="true"> *</span>}
     </label>
   );
 

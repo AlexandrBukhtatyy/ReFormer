@@ -87,22 +87,40 @@ export const FormWizardActions: FC<FormWizardActionsProps> = ({
   submittingLabel,
 }) => {
   const t = useKitMessages();
+  // `type="button"` у всех трёх: мастер часто живёт внутри `<form>` приложения, а кнопка без
+  // типа там — submit. «Далее» отправляла бы внешнюю форму в обход проверки шага, «Отправить» —
+  // второй раз, мимо `submit` мастера.
   return (
     <div data-slot="form-wizard-actions" className={`flex gap-4 ${className || ''}`}>
       {!isFirstStep && (
-        <Button onClick={prev.onClick} disabled={prev.disabled} data-testid="btn-previous">
+        <Button
+          type="button"
+          onClick={prev.onClick}
+          disabled={prev.disabled}
+          data-testid="btn-previous"
+        >
           {prevLabel ?? t('kit.formWizard.prev')}
         </Button>
       )}
       <div className="flex-1" />
       {!isLastStep ? (
-        <Button onClick={next.onClick} disabled={next.disabled} data-testid="btn-next">
+        <Button
+          type="button"
+          onClick={next.onClick}
+          disabled={next.disabled}
+          data-testid="btn-next"
+        >
           {isValidating
             ? (validatingLabel ?? t('kit.formWizard.validating'))
             : (nextLabel ?? t('kit.formWizard.next'))}
         </Button>
       ) : (
-        <Button onClick={submit.onClick} disabled={submit.disabled} data-testid="btn-submit">
+        <Button
+          type="button"
+          onClick={submit.onClick}
+          disabled={submit.disabled}
+          data-testid="btn-submit"
+        >
           {isSubmitting
             ? (submittingLabel ?? t('kit.formWizard.submitting'))
             : (submitLabel ?? t('kit.formWizard.submit'))}

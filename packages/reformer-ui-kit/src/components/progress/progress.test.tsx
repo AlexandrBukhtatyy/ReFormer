@@ -24,6 +24,29 @@ describe('Progress (base)', () => {
     expect(html).toContain('translateX(-100%)');
   });
 
+  it('value доходит до Radix Root: aria-valuenow, процент в aria-valuetext, data-state', () => {
+    const html = renderToStaticMarkup(<Progress value={40} />);
+    expect(html).toContain('aria-valuenow="40"');
+    expect(html).toContain('aria-valuemax="100"');
+    expect(html).toContain('aria-valuetext="40%"');
+    expect(html).toContain('data-state="loading"');
+    expect(renderToStaticMarkup(<Progress value={100} />)).toContain('data-state="complete"');
+  });
+
+  it('без value прогресс неопределённый: без aria-valuenow, data-state="indeterminate"', () => {
+    const html = renderToStaticMarkup(<Progress />);
+    expect(html).not.toContain('aria-valuenow');
+    expect(html).toContain('data-state="indeterminate"');
+  });
+
+  it('max задаёт шкалу: заливка и aria считаются от max, а не от 100', () => {
+    const html = renderToStaticMarkup(<Progress value={3} max={4} />);
+    expect(html).toContain('aria-valuemax="4"');
+    expect(html).toContain('aria-valuenow="3"');
+    expect(html).toContain('aria-valuetext="75%"');
+    expect(html).toContain('translateX(-25%)');
+  });
+
   it('className мёржится на Root (tailwind-merge, caller wins)', () => {
     const html = renderToStaticMarkup(<Progress value={10} className="h-4" />);
     expect(html).toContain('h-4');

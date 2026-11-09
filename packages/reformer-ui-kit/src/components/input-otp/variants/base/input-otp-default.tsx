@@ -22,6 +22,16 @@ export const otpAdapter: KitFieldAdapter = {
 export interface InputOTPDefaultProps {
   /** Число слотов (длина кода). По умолчанию 6. */
   maxLength?: number;
+  /**
+   * Допустимые символы — источник регулярного выражения, которому должен соответствовать весь код
+   * (`^\d+$`). Готовые: `REGEXP_ONLY_DIGITS`, `REGEXP_ONLY_CHARS`, `REGEXP_ONLY_DIGITS_AND_CHARS`.
+   * Не задан — принимается любой символ.
+   */
+  pattern?: string;
+  /** Экранная клавиатура мобильных устройств. По умолчанию `numeric`. */
+  inputMode?: 'numeric' | 'text' | 'tel' | 'decimal' | 'email' | 'url' | 'search' | 'none';
+  /** Код набран целиком (заполнены все `maxLength` слотов) — получает набранную строку. */
+  onComplete?: (value: string) => void;
   containerClassName?: string;
   className?: string;
   /** Кастомная раскладка слотов/групп/сепараторов. Если не задана — одна группа из `maxLength` слотов. */

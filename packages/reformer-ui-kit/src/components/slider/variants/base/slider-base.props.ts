@@ -43,7 +43,8 @@ export const sliderBasePropsSchema = {
     value: {
       group: 'Control',
       type: 'number | null',
-      description: 'Значение слайдера (одно-thumb). null трактуется как min. Резолвится формой.',
+      description:
+        'Значение слайдера (одно-thumb); прижимается к [min, max]. null — ручка на 0, прижатом к диапазону: при min ≥ 0 это min. Резолвится формой.',
     },
     onChange: {
       group: 'Control',

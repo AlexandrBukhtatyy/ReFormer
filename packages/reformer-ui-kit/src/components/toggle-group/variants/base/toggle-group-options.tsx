@@ -89,6 +89,7 @@ export interface ToggleGroupFormProps {
   disabled?: boolean;
   options?: ToggleGroupOption[];
   variant?: VariantProps<typeof toggleVariants>['variant'];
+  size?: VariantProps<typeof toggleVariants>['size'];
   className?: string;
 }
 

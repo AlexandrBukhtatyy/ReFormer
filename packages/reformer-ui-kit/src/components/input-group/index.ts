@@ -9,3 +9,6 @@ export {
   InputGroupInput,
   InputGroupTextarea,
 } from './variants/base/input-group-base';
+
+// props-схема.
+export { inputGroupBasePropsSchema } from './variants/base/input-group-base.props';

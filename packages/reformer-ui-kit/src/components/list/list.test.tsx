@@ -60,4 +60,24 @@ describe('List (ui-kit)', () => {
     expect(html).toContain('Первый');
     expect(html).toContain('Второй');
   });
+
+  it('каждый элемент — в обёртке role="listitem" (иначе список «пустой» для скринридера)', () => {
+    const html = renderToStaticMarkup(
+      <List
+        items={[
+          { key: 'a', index: 0, children: <span>Первый</span> },
+          { key: 'b', index: 1, children: <span>Второй</span> },
+        ]}
+      />
+    );
+    expect(html.match(/<div role="listitem" data-slot="list-item"><span>/g)).toHaveLength(2);
+  });
+
+  it('as="ul" — элементы в нативных <li>', () => {
+    const html = renderToStaticMarkup(
+      <List as="ul" items={[{ key: 'a', index: 0, children: <span>Первый</span> }]} />
+    );
+    expect(html).toMatch(/^<ul role="list"/);
+    expect(html).toContain('<li data-slot="list-item"><span>Первый</span></li>');
+  });
 });

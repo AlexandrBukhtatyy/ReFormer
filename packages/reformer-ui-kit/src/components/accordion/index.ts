@@ -4,4 +4,5 @@ export {
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
+  type AccordionHeadingLevel,
 } from './variants/base/accordion-base';

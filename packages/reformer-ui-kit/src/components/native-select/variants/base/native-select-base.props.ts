@@ -34,6 +34,13 @@ export const nativeSelectBasePropsSchema = {
       description: 'Подсказка-опция (value="") в начале списка.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
+    size: {
+      type: 'string',
+      enum: ['default', 'sm'],
+      default: 'default',
+      description: 'Высота поля: default (36px) | sm (32px).',
+      'x-doc': { group: 'Control', type: "'default' | 'sm'", kind: 'enum' },
+    },
     className: {
       type: 'string',
       description: 'Доп. CSS-класс select.',

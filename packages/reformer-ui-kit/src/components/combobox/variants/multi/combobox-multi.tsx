@@ -192,6 +192,8 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
     const handleClear = (e: React.MouseEvent) => {
       e.stopPropagation();
       onChange?.([]);
+      // Крестик пропадает вместе с выбором — без переноса фокус клавиатуры упал бы на body.
+      triggerRef.current?.focus();
     };
 
     const showClearButton = clearable && selected.length > 0 && !disabled;
@@ -315,10 +317,13 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
             {showClearButton && (
               <button
                 type="button"
-                className={TRAILING_CLEAR}
+                // Крестик в порядке Tab; `TRAILING_CLEAR` гасит outline — видимый фокус даёт кольцо.
+                className={cn(
+                  TRAILING_CLEAR,
+                  'rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                )}
                 onClick={handleClear}
                 aria-label={t('kit.combobox.clear')}
-                tabIndex={-1}
               >
                 <XIcon className="size-4" />
               </button>

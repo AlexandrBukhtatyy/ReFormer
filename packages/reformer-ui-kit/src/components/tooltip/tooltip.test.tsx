@@ -60,6 +60,17 @@ describe('Tooltip (base)', () => {
     expect(html).toContain('>Документация</a>');
   });
 
+  it('без TooltipProvider не бросает: провайдер ставится сам (renderer-json, билдер)', () => {
+    const tree = (
+      <Tooltip>
+        <TooltipTrigger data-testid="lonely">?</TooltipTrigger>
+        <TooltipContent>Подсказка</TooltipContent>
+      </Tooltip>
+    );
+    expect(() => renderToStaticMarkup(tree)).not.toThrow();
+    expect(renderToStaticMarkup(tree)).toContain('data-testid="lonely"');
+  });
+
   it('Tooltip / TooltipTrigger / TooltipContent / TooltipProvider экспортируются', () => {
     expect(typeof Tooltip).toBe('function');
     expect(typeof TooltipTrigger).toBe('function');

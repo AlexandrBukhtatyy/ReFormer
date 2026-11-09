@@ -6,8 +6,9 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/button';
 
-// Дословный порт shadcn/ui (new-york-v4) carousel compound. Правки только: `@/lib/utils`,
-// `@/components/button` (вместо registry-пути), снят 'use client'. Тяжёлая зависимость
+// Порт shadcn/ui (new-york-v4) carousel compound. Правки: `@/lib/utils`,
+// `@/components/button` (вместо registry-пути), снят 'use client', стрелки ↑/↓ у вертикальной
+// ленты и отписка от `reInit` (см. комментарии в `Carousel`). Тяжёлая зависимость
 // embla-carousel-react импортируется как есть (в vite.config — external, придёт optional peer'ом).
 // data-slot и все под-компоненты (Carousel / CarouselContent / CarouselItem / CarouselPrevious /
 // CarouselNext + хук useCarousel) сохранены как в апстриме.
@@ -78,17 +79,20 @@ function Carousel({
     api?.scrollNext();
   }, [api]);
 
+  // Расхождение с апстримом: стрелки идут по оси ленты. В апстриме и вертикальная лента
+  // листалась только ←/→, а ↑/↓ — естественные для неё клавиши — не работали.
+  const vertical = orientation === 'vertical';
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'ArrowLeft') {
+      if (event.key === (vertical ? 'ArrowUp' : 'ArrowLeft')) {
         event.preventDefault();
         scrollPrev();
-      } else if (event.key === 'ArrowRight') {
+      } else if (event.key === (vertical ? 'ArrowDown' : 'ArrowRight')) {
         event.preventDefault();
         scrollNext();
       }
     },
-    [scrollPrev, scrollNext]
+    [vertical, scrollPrev, scrollNext]
   );
 
   React.useEffect(() => {
@@ -102,8 +106,11 @@ function Carousel({
     api.on('reInit', onSelect);
     api.on('select', onSelect);
 
+    // Отписываемся от обоих событий: в апстриме `reInit` оставался подписан, и после смены `api`
+    // старый экземпляр продолжал дёргать setState.
     return () => {
-      api?.off('select', onSelect);
+      api.off('reInit', onSelect);
+      api.off('select', onSelect);
     };
   }, [api, onSelect]);
 

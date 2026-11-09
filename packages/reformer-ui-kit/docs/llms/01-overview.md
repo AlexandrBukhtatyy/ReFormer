@@ -325,7 +325,7 @@ function App() {
 | Компонент                       | Ключи                                                                                                                                                    |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormWizard`                    | `kit.formWizard.prev`, `next`, `submit`, `validating`, `submitting`, `progress`, `stepsNav`, `stepLabel`                                                 |
-| `FieldArray`, `FieldArraySection` | `kit.fieldArray.add`, `remove`, `item`, `moveUp`, `moveDown`                                                                                              |
+| `FieldArray`, `FieldArraySection` | `kit.fieldArray.add`, `remove`, `item`, `moveUp`, `moveDown`, `itemAction`                                                                                |
 | `FormField`                     | `kit.formField.hintLabel`, `validating`                                                                                                                  |
 | `FileUpload*`                   | `kit.fileUpload.choose`, `dropzone`, `inputPlaceholder`, `clear`, `avatarLabel`, `error`                                                                 |
 | `AsyncBoundary*`                | `kit.asyncBoundary.loadingTitle`, `loadingSubtitle`, `errorTitle`, `retry`, `emptyTitle`                                                                 |
@@ -334,7 +334,7 @@ function App() {
 | `InputPassword`                 | `kit.inputPassword.placeholder`, `show`, `hide`                                                                                                          |
 | `DatePicker*`                   | `kit.datePicker.placeholder`, `placeholderRange`, `placeholderMulti`, `selected`, `clear`                                                                |
 | `Calendar`                      | `kit.calendar.nav`, `previousMonth`, `nextMonth`, `monthDropdown`, `yearDropdown`, `weekNumber`, `weekNumberHeader`, `today`, `selected`                 |
-| `Table`, `DataGrid`             | `kit.table.loadError`, `selectAll`, `selectRow`, `empty`                                                                                                 |
+| `Table`, `DataGrid`             | `kit.table.loadError`, `selectAll`, `selectRow`, `empty`, `filter`                                                                                       |
 | `Tree`                          | `kit.tree.empty`                                                                                                                                         |
 | `Pagination`                    | `kit.pagination.label`, `previousLabel`, `previous`, `nextLabel`, `next`, `more`                                                                         |
 | `Breadcrumb`                    | `kit.breadcrumb.label`, `more`                                                                                                                           |
@@ -345,7 +345,8 @@ function App() {
 | `CommandDialog`                 | `kit.command.title`, `description`                                                                                                                       |
 | `Sidebar`                       | `kit.sidebar.title`, `description`, `toggle`                                                                                                             |
 | `Carousel`                      | `kit.carousel.previous`, `next`                                                                                                                          |
-| `MessageScroller`               | `kit.messageScroller.toEnd`, `toStart`                                                                                                                   |
+| `MessageScroller`               | `kit.messageScroller.toEnd`, `toStart`, `label`                                                                                                          |
+| `Toaster` (Sonner)              | `kit.sonner.label`, `close`                                                                                                                              |
 | `ExampleCard`                   | `kit.exampleCard.showPreview`, `showCode`, `copied`, `copy`                                                                                              |
 
 Сообщения — строки ICU: `"kit.select.selected": "Selected: {count}"`. В каталоге компонентов у

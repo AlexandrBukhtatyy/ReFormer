@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   flexRender,
   type ColumnDef,
+  type OnChangeFn,
   type SortingState,
   type PaginationState,
   type ColumnFiltersState,
@@ -72,10 +73,23 @@ export interface TableColumn<Row> {
   filterable?: boolean;
   /** Плейсхолдер для фильтр-инпута колонки. По умолчанию — `id`. */
   filterPlaceholder?: string;
+  /**
+   * Подпись фильтр-инпута для скринридера. По умолчанию — `kit.table.filter` с заголовком колонки
+   * («Фильтр: Имя»); если `header` не строка — с `id` колонки.
+   */
+  filterLabel?: string;
   /** Горизонтальное выравнивание содержимого. По умолчанию `left`. */
   align?: 'left' | 'center' | 'right';
   /** Доп. className для ячеек и заголовка колонки. */
   className?: string;
+}
+
+/** Выбранные строки DataGrid — аргумент {@link TableSettings.onSelectionChange}. */
+export interface TableSelection<Row> {
+  /** Ключи выбранных строк: `String(rowKey(row))`, без `rowKey` — индекс строки на странице. */
+  keys: string[];
+  /** Сами выбранные строки (в том числе выбранные на других страницах — при заданном `rowKey`). */
+  rows: Row[];
 }
 
 /** Контракт настроек DataGrid. */
@@ -88,12 +102,23 @@ export interface TableSettings<Row> {
   dataProvider: (query: TableQuery) => Promise<TablePage<Row>>;
   /** Колонки таблицы. */
   columns: TableColumn<Row>[];
-  /** Размер страницы. По умолчанию `10`. */
+  /**
+   * Размер страницы. По умолчанию `10`. Смена значения перезапрашивает данные с первой страницы.
+   */
   pageSize?: number;
-  /** Стабильный ключ строки (для React-key и выделения). По умолчанию — индекс. */
+  /**
+   * Стабильный ключ строки (для React-key и выделения). По умолчанию — индекс на странице: тогда
+   * выделение сбрасывается при каждой смене строк (страница, фильтр, сортировка, перезагрузка) —
+   * индекс уже указывает на другую строку. С `rowKey` выделение переживает перелистывание.
+   */
   rowKey?: (row: Row) => string | number;
   /** Режим выделения строк. По умолчанию `none`. */
   selection?: TableSelectionMode;
+  /**
+   * Вызывается после каждого изменения выделения (в том числе сброса) — так выбранные строки
+   * читаются снаружи, например для массового действия.
+   */
+  onSelectionChange?: (selection: TableSelection<Row>) => void;
 }
 
 /** Props {@link DataGrid}. */
@@ -157,14 +182,42 @@ const ALIGN_CLASS: Record<NonNullable<TableColumn<unknown>['align']>, string> = 
  *
  * <DataGrid settings={settings} />
  * ```
+ *
+ * @example Выбор строк для массового действия
+ * ```tsx
+ * const [selected, setSelected] = useState<User[]>([]);
+ *
+ * <DataGrid
+ *   settings={{
+ *     ...settings,
+ *     selection: 'multiple',
+ *     rowKey: (u) => u.id, // без rowKey выбор сбрасывается при смене страницы
+ *     onSelectionChange: ({ rows }) => setSelected(rows),
+ *   }}
+ * />
+ * <Button disabled={selected.length === 0} onClick={() => archive(selected)}>В архив</Button>
+ * ```
  */
 export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): React.ReactNode {
   const t = useKitMessages();
-  const { dataProvider, columns, pageSize = 10, rowKey, selection = 'none' } = settings;
+  const {
+    dataProvider,
+    columns,
+    pageSize = 10,
+    rowKey,
+    selection = 'none',
+    onSelectionChange,
+  } = settings;
+  // Общее имя радио-группы режима `single`: без него радио не связаны — стрелки не переводят выбор,
+  // а Tab заходит в каждую строку по отдельности.
+  const radioGroupName = React.useId();
 
   const [rows, setRows] = React.useState<Row[]>([]);
   const [total, setTotal] = React.useState(0);
   const [status, setStatus] = React.useState<AsyncStatus>('loading');
+  // Первая страница уже показана. Дальше перезагрузка не подменяет таблицу индикатором: подмена
+  // размонтировала кнопку сортировки или ссылку страницы под фокусом, и фокус улетал в body.
+  const [loadedOnce, setLoadedOnce] = React.useState(false);
   // Текст сбоя без сообщения ошибки — из словаря при показе, чтобы менялся вместе с языком.
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
@@ -174,14 +227,30 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
     pageIndex: 0,
     pageSize,
   });
+  // `pageSize` из настроек — не только начальное значение. Подстройка во время рендера, а не
+  // эффектом: эффект успел бы отправить запрос со старым размером.
+  const [appliedPageSize, setAppliedPageSize] = React.useState(pageSize);
+  if (appliedPageSize !== pageSize) {
+    setAppliedPageSize(pageSize);
+    setPagination({ pageIndex: 0, pageSize });
+  }
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+
+  // Пагинация серверная (`manualPagination`), а при ней @tanstack страницу сам не сбрасывает:
+  // фильтр, сузивший выборку, оставлял на 3-й странице — «Нет данных».
+  const onColumnFiltersChange: OnChangeFn<ColumnFiltersState> = (updater) => {
+    setColumnFilters(updater);
+    setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
+  };
 
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize));
 
   // Стабильная ссылка на dataProvider — чтобы её identity не гоняла fetch-эффект.
   const dataProviderRef = React.useRef(dataProvider);
   dataProviderRef.current = dataProvider;
+  const hasRowKeyRef = React.useRef(rowKey !== undefined);
+  hasRowKeyRef.current = rowKey !== undefined;
 
   const reqId = React.useRef(0);
   React.useEffect(() => {
@@ -200,6 +269,12 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
         setRows(res.rows);
         setTotal(res.total);
         setStatus('ready');
+        setLoadedOnce(true);
+        // Без rowKey ключ строки — её индекс: в новых строках тот же индекс — уже другая строка,
+        // и выбор «переехал» бы на неё.
+        if (!hasRowKeyRef.current) {
+          setRowSelection((current) => (Object.keys(current).length === 0 ? current : {}));
+        }
       })
       .catch((err: unknown) => {
         if (id !== reqId.current) return;
@@ -208,9 +283,36 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
       });
   }, [sorting, pagination, columnFilters, reloadKey]);
 
+  // Выделение наружу. Строки выбранных ключей копятся здесь: выбранная на другой странице строка
+  // в `rows` уже не лежит, а снаружи нужна сама строка, а не только её ключ.
+  const onSelectionChangeRef = React.useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
+  const selectedRowsRef = React.useRef(new Map<string, Row>());
+  const notifiedSelectionRef = React.useRef(rowSelection);
+  React.useEffect(() => {
+    // Сравнение со снимком, а не флаг «первый запуск»: StrictMode запускает эффект дважды.
+    if (notifiedSelectionRef.current === rowSelection) return;
+    notifiedSelectionRef.current = rowSelection;
+    const pageRows = new Map(rows.map((row, i) => [rowKey ? String(rowKey(row)) : String(i), row]));
+    const selected = new Map<string, Row>();
+    for (const [key, isSelected] of Object.entries(rowSelection)) {
+      if (!isSelected) continue;
+      const row = pageRows.get(key) ?? selectedRowsRef.current.get(key);
+      if (row !== undefined) selected.set(key, row);
+    }
+    selectedRowsRef.current = selected;
+    onSelectionChangeRef.current?.({ keys: [...selected.keys()], rows: [...selected.values()] });
+  }, [rowSelection, rows, rowKey]);
+
   const tableColumns = React.useMemo<ColumnDef<Row>[]>(() => {
     const defs: ColumnDef<Row>[] = columns.map((col) => ({
       id: col.id,
+      // Без `accessorFn` @tanstack считает колонку несортируемой (`getCanSort()` ложно), и клик по
+      // заголовку ничего не делал. Само значение в сортировку не идёт: она серверная.
+      accessorFn: (row) => col.accessor?.(row) ?? null,
+      // Первый клик — по возрастанию. Иначе направление выводится из значения первой строки, и для
+      // не-строки (число, элемент) первым шло бы «по убыванию».
+      sortDescFirst: false,
       header: () => col.header,
       cell: (ctx) => col.accessor?.(ctx.row.original) ?? null,
       enableSorting: col.sortable ?? false,
@@ -231,6 +333,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
         cell: ({ row }) => (
           <input
             type={selection === 'multiple' ? 'checkbox' : 'radio'}
+            name={selection === 'single' ? radioGroupName : undefined}
             aria-label={t('kit.table.selectRow')}
             checked={row.getIsSelected()}
             disabled={!row.getCanSelect()}
@@ -240,7 +343,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
       });
     }
     return defs;
-  }, [columns, selection, t]);
+  }, [columns, selection, t, radioGroupName]);
 
   const table = useReactTable({
     data: rows,
@@ -255,7 +358,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
     state: { sorting, pagination, columnFilters, rowSelection },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange,
     onRowSelectionChange: setRowSelection,
     getRowId: rowKey ? (row) => String(rowKey(row)) : undefined,
   });
@@ -266,18 +369,28 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
   const goToPage = (pageIndex: number) =>
     table.setPageIndex(Math.min(Math.max(pageIndex, 0), pageCount - 1));
 
+  // Перезагрузка после первой страницы — фоновое обновление: таблица остаётся (и фокус в ней),
+  // регион помечается `aria-busy`.
+  const refreshing = loadedOnce && status === 'loading';
+
   return (
     <div data-slot="data-grid" className={cn('w-full space-y-3', className)}>
       {filterableColumns.length > 0 && (
         <div data-slot="data-grid-toolbar" className="flex flex-wrap items-center gap-2">
           {filterableColumns.map((col) => {
             const column = table.getColumn(col.id);
+            // Плейсхолдер — не подпись: он исчезает при вводе и читается не всеми скринридерами.
+            const headerText =
+              typeof col.header === 'string' || typeof col.header === 'number'
+                ? String(col.header)
+                : col.id;
             return (
               <input
                 key={col.id}
                 type="text"
                 data-slot="data-grid-filter"
                 data-testid={`filter-${col.id}`}
+                aria-label={col.filterLabel ?? t('kit.table.filter', { column: headerText })}
                 placeholder={col.filterPlaceholder ?? col.id}
                 value={String(column?.getFilterValue() ?? '')}
                 onChange={(e) => column?.setFilterValue(e.target.value || undefined)}
@@ -289,11 +402,15 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
       )}
 
       <AsyncBoundary
-        status={status}
+        status={refreshing ? 'ready' : status}
+        refreshing={refreshing}
         error={errorMsg ?? t('kit.table.loadError')}
         onRetry={() => setReloadKey((k) => k + 1)}
       >
-        <div data-slot="data-grid-ready" className="space-y-3">
+        <div
+          data-slot="data-grid-ready"
+          className={cn('space-y-3 transition-opacity', refreshing && 'opacity-60')}
+        >
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -302,9 +419,18 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
                     const col = columns.find((c) => c.id === header.column.id);
                     const canSort = header.column.getCanSort();
                     const sortDir = header.column.getIsSorted();
+                    // aria-sort — только у главной колонки сортировки: по ARIA он ставится на
+                    // один заголовок за раз.
+                    const ariaSort =
+                      sortDir && header.column.getSortIndex() === 0
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined;
                     return (
                       <TableHead
                         key={header.id}
+                        aria-sort={ariaSort}
                         className={cn(
                           col?.align ? ALIGN_CLASS[col.align] : undefined,
                           col?.className

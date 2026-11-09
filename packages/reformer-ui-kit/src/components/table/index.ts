@@ -25,5 +25,6 @@ export type {
   TableQuery,
   TablePage,
   TableFilters,
+  TableSelection,
   TableSelectionMode,
 } from './variants/data-grid/table-data-grid';

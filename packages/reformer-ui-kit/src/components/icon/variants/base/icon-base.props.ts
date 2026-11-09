@@ -40,5 +40,12 @@ export const iconBasePropsSchema = {
       description: 'Доп. CSS-класс.',
       'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
     },
+    title: {
+      type: 'string',
+      description:
+        'Доступное имя иконки (элемент <title> внутри svg, role="img"). Не задано — иконка ' +
+        'декоративная: aria-hidden, скринридер её пропускает.',
+      'x-doc': { group: 'Textfield', type: 'string' },
+    },
   },
 } as const satisfies PropsSchema;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   Sidebar,
@@ -291,6 +291,76 @@ describe('Sidebar — меню', () => {
     const html = renderToStaticMarkup(<SidebarMenuSkeleton />);
     expect(html).toContain('data-slot="sidebar-menu-skeleton"');
     expect(html).not.toContain('data-sidebar="menu-skeleton-icon"');
+  });
+});
+
+describe('Sidebar — доступность', () => {
+  it('SidebarTrigger сообщает состояние и цель: aria-expanded + aria-controls на id панели', () => {
+    const html = renderToStaticMarkup(
+      <SidebarProvider>
+        <Sidebar />
+        <SidebarTrigger />
+      </SidebarProvider>
+    );
+    const controls = /aria-controls="([^"]+)"/.exec(html)?.[1];
+    expect(controls).toBeTruthy();
+    expect(html).toContain(`id="${controls}"`);
+    expect(html).toContain('aria-expanded="true"');
+
+    const collapsed = renderToStaticMarkup(
+      <SidebarProvider defaultOpen={false}>
+        <SidebarTrigger />
+      </SidebarProvider>
+    );
+    expect(collapsed).toContain('aria-expanded="false"');
+  });
+
+  it('isActive ставит aria-current="page" у MenuButton и MenuSubButton', () => {
+    const html = renderToStaticMarkup(
+      <SidebarProvider>
+        <SidebarMenuButton isActive>Текущий</SidebarMenuButton>
+        <SidebarMenuButton>Другой</SidebarMenuButton>
+      </SidebarProvider>
+    );
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(renderToStaticMarkup(<SidebarMenuSubButton isActive href="#" />)).toContain(
+      'aria-current="page"'
+    );
+  });
+
+  it('свёрнутая offcanvas-панель скрыта от Tab (invisible), рейл остаётся видимым', () => {
+    const html = renderToStaticMarkup(
+      <SidebarProvider defaultOpen={false}>
+        <Sidebar>
+          <SidebarRail />
+        </Sidebar>
+      </SidebarProvider>
+    );
+    expect(html).toContain('data-collapsible="offcanvas"');
+    expect(html).toMatch(
+      /data-slot="sidebar-container"[^>]*class="[^"]*group-data-\[collapsible=offcanvas\]:invisible/
+    );
+    expect(html).toMatch(
+      /data-slot="sidebar-rail"[^>]*class="[^"]*group-data-\[collapsible=offcanvas\]:visible/
+    );
+  });
+
+  it('ширина MenuSkeleton детерминирована (сервер и клиент совпадают), без Math.random', () => {
+    const random = vi.spyOn(Math, 'random');
+    const tree = (
+      <>
+        <SidebarMenuSkeleton />
+        <SidebarMenuSkeleton />
+      </>
+    );
+    const first = renderToStaticMarkup(tree);
+    expect(renderToStaticMarkup(tree)).toBe(first);
+    expect(random).not.toHaveBeenCalled();
+    random.mockRestore();
+    for (const [, width] of first.matchAll(/--skeleton-width:(\d+)%/g)) {
+      expect(Number(width)).toBeGreaterThanOrEqual(50);
+      expect(Number(width)).toBeLessThan(90);
+    }
   });
 });
 

@@ -49,6 +49,21 @@ describe('ExampleCard (base)', () => {
     expect(custom).toContain('bg-red-50');
   });
 
+  it('переключатель «пример / код» — type="button" и aria-pressed с постоянным именем', () => {
+    const html = renderToStaticMarkup(
+      <form>
+        <ExampleCard title="Т" code={`x`}>
+          <span>x</span>
+        </ExampleCard>
+      </form>
+    );
+    // Было: <button> без типа внутри формы отправлял её; состояние переключателя не объявлялось.
+    expect(html).toMatch(
+      /<button type="button" aria-pressed="false" aria-label="Show code"[^>]*title="Show code"/
+    );
+    expect(html).not.toMatch(/<button(?![^>]*type="button")/);
+  });
+
   it('className мёржится в контейнер (caller wins)', () => {
     const html = renderToStaticMarkup(
       <ExampleCard title="Т" className="max-w-md" code={`x`}>

@@ -4,12 +4,14 @@
  * @module reformer/ui-kit/components/box
  */
 
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 /**
- * Props компонента Box
+ * Props компонента Box: `className`, `children` и атрибуты `<div>` — `id`, `role`, `aria-*`,
+ * `data-*`, обработчики. Они доходят до элемента: раньше Box принимал только `className`, и
+ * ни назвать область (`aria-label`), ни сослаться на неё (`id`) было нельзя.
  */
-export interface BoxProps {
+export interface BoxProps extends Omit<ComponentProps<'div'>, 'children'> {
   /** CSS класс для стилизации */
   className?: string;
   /** Дочерние элементы */
@@ -50,9 +52,9 @@ export interface BoxProps {
  * }
  * ```
  */
-export function Box({ className, children }: BoxProps): ReactNode {
+export function Box({ className, children, ...props }: BoxProps): ReactNode {
   return (
-    <div data-slot="box" className={className}>
+    <div data-slot="box" className={className} {...props}>
       {children}
     </div>
   );

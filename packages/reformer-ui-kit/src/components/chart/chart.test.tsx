@@ -62,11 +62,22 @@ describe('Chart (base, recharts compound)', () => {
     expect(renderContainer({ className: 'my-custom-chart' })).toContain('my-custom-chart');
   });
 
-  it('ChartStyle отдельно рендерит темизацию (light + .dark селекторы)', () => {
+  it('ChartStyle отдельно рендерит темизацию (light + dark селекторы)', () => {
     const html = renderToStaticMarkup(<ChartStyle id="chart-x" config={config} />);
     expect(html).toContain('[data-chart=chart-x]');
-    expect(html).toContain('.dark [data-chart=chart-x]');
     expect(html).toContain('--color-desktop: #2563eb');
+  });
+
+  it('тёмные цвета theme.dark включаются и под .dark, и под [data-theme=dark] (как dark: кита)', () => {
+    const html = renderToStaticMarkup(
+      <ChartStyle
+        id="chart-t"
+        config={{ desktop: { label: 'Десктоп', theme: { light: '#111111', dark: '#eeeeee' } } }}
+      />
+    );
+    const dark = ":is(.dark, [data-theme='dark']) [data-chart=chart-t]";
+    expect(html).toContain(dark);
+    expect(html.slice(html.indexOf(dark))).toContain('--color-desktop: #eeeeee');
   });
 
   it('ChartStyle возвращает null при config без цветов (пустая разметка)', () => {

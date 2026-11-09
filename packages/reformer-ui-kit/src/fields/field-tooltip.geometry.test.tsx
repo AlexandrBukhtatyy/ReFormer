@@ -217,9 +217,11 @@ describe('иконка после текста и СНАРУЖИ <label>', () =>
     expect(html.match(/data-slot="info-hint"/g)).toHaveLength(1);
     expectOrder(html, 'Базовый', '</label>', 'data-testid="input-plan-basic-tooltip"', 'Профи');
     expect(html).toContain('aria-label="Hint: Базовый"');
-    expect(html).toContain('aria-describedby="input-plan-basic-tooltip"');
-    expect(html).toContain(
-      '<span id="input-plan-basic-tooltip" hidden="">До 3 пользователей</span>'
-    );
+    // id строятся из useId, а не из data-testid (тот одинаков у поля в каждой строке массива):
+    // проверяем связку radio → скрытый текст, а не конкретное значение id.
+    const hintId = html.match(/<span id="([^"]+)" hidden="">До 3 пользователей<\/span>/)?.[1];
+    expect(hintId).toBeTruthy();
+    const basicRadio = html.match(/<button[^>]*data-testid="input-plan-basic"[^>]*>/)?.[0] ?? '';
+    expect(basicRadio).toContain(`aria-describedby="${hintId}"`);
   });
 });

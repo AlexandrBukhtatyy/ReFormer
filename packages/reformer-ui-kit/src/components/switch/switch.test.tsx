@@ -77,3 +77,13 @@ describe('SwitchWithLabel (inline-label, boolean value-based)', () => {
     expect(html).toContain('aria-describedby="desc-a"');
   });
 });
+
+describe('Switch — состояние ошибки', () => {
+  it('aria-invalid подсвечивает рамку (стиль aria-invalid:, как у Checkbox)', () => {
+    const html = renderToStaticMarkup(
+      <Bound component={SwitchWithLabel} value={false} aria-invalid />
+    );
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain('aria-invalid:border-destructive');
+  });
+});

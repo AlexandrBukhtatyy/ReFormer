@@ -66,13 +66,14 @@ export const fileUploadSharedProperties = {
   allowDrop: {
     type: 'boolean',
     default: true,
-    description: 'Принимать drag-and-drop на зоне.',
+    description: 'Принимать drag-and-drop на зоне; у варианта-кнопки — на самой кнопке.',
     'x-doc': { group: 'Behavior', type: 'boolean' },
   },
   allowPaste: {
     type: 'boolean',
     default: false,
-    description: 'Принимать файлы из буфера обмена (paste на сфокусированной зоне).',
+    description:
+      'Принимать файлы из буфера обмена (paste на сфокусированной зоне; у варианта-кнопки — на кнопке).',
     'x-doc': { group: 'Behavior', type: 'boolean' },
   },
   capture: {
@@ -84,7 +85,8 @@ export const fileUploadSharedProperties = {
   autoUpload: {
     type: 'boolean',
     default: true,
-    description: 'Автозагрузка принятых файлов (действует при заданном uploader).',
+    description:
+      'Автозагрузка принятых файлов (действует при заданном uploader). При false файлы ждут отправки методом upload() handle поля.',
     'x-doc': { group: 'Behavior', type: 'boolean' },
   },
   className: {

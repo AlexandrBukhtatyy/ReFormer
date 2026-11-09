@@ -76,6 +76,18 @@ describe('FormWizardActions', () => {
     );
     expect(html).toContain('Оформить заявку');
   });
+
+  it('все кнопки — type="button": внутри <form> приложения они не отправляют её', () => {
+    const middle = renderToStaticMarkup(<FormWizardActions {...actionsProps()} />);
+    const last = renderToStaticMarkup(
+      <FormWizardActions {...actionsProps({ isLastStep: true })} />
+    );
+    // Было: <button> без типа — внутри формы это submit.
+    expect(middle).toMatch(/<button[^>]*type="button"[^>]*data-testid="btn-previous"/);
+    expect(middle).toMatch(/<button[^>]*type="button"[^>]*data-testid="btn-next"/);
+    expect(last).toMatch(/<button[^>]*type="button"[^>]*data-testid="btn-submit"/);
+    expect(middle + last).not.toMatch(/<button(?![^>]*type="button")/);
+  });
 });
 
 // --- FormWizardProgress --------------------------------------------------
@@ -187,6 +199,20 @@ describe('StepIndicator', () => {
       <StepIndicator {...indicatorProps([step()])} navAriaLabel="Этапы заявки" />
     );
     expect(html).toContain('aria-label="Этапы заявки"');
+  });
+
+  it('цвета — токены темы: завершённый шаг и его линия без зашитого зелёного', () => {
+    const html = renderToStaticMarkup(
+      <StepIndicator
+        {...indicatorProps([
+          step({ isCompleted: true }),
+          step({ number: 2, title: 'Данные', isCurrent: true }),
+        ])}
+      />
+    );
+    expect(html).not.toMatch(/(bg|text)-green-/);
+    // Линия после завершённого шага — акцент темы.
+    expect(html).toMatch(/class="flex-1 h-0\.5 mx-2 bg-primary"/);
   });
 });
 

@@ -35,7 +35,9 @@ export interface FieldArrayProps extends ArrayComponentProps {
    */
   addButtonLabel?: string;
   /**
-   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * Текст кнопки удаления. По умолчанию — из словаря локали. Имя кнопки для скринридера —
+   * этот текст плюс метка строки (`kit.fieldArray.itemAction`: «Удалить: Элемент #2»), чтобы
+   * кнопки разных строк различались; так же подписаны ↑/↓.
    * @defaultMessage kit.fieldArray.remove
    */
   removeButtonLabel?: string;
@@ -92,6 +94,10 @@ export function FieldArray({
     typeof itemLabel === 'function'
       ? itemLabel(model, index)
       : `${(itemLabel as string) ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
+  // Подпись действия над строкой для скринридера: «Удалить: Имущество #2» — как у
+  // `FieldArraySection`, иначе все «Удалить» и ↑/↓ звучат одинаково.
+  const itemAction = (action: string, item: string): string =>
+    t('kit.fieldArray.itemAction', { action, item });
 
   const addBtn = (cls: string) =>
     atMaxItems ? null : (
@@ -111,17 +117,25 @@ export function FieldArray({
 
       {items.map((it) => {
         const showRemove = showRemoveOnSingle || length > 1;
+        const label = getItemLabel(it.model, it.index);
+        const removeLabel = removeButtonLabel ?? t('kit.fieldArray.remove');
+        // Шапка — когда в ней есть что показать: метка или кнопки. Без title/itemLabel её раньше
+        // не было вовсе, и вместе с ней пропадали «Удалить» и ↑/↓.
+        const showLabel = Boolean(title || itemLabel);
+        const showHeader = showLabel || showRemove || reorderable;
         return (
           <div key={it.key} className={cardClassName} data-testid={`array-item-${it.index}`}>
-            {title || itemLabel ? (
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium">{getItemLabel(it.model, it.index)}</h4>
+            {showHeader ? (
+              <div
+                className={`flex items-center mb-3 ${showLabel ? 'justify-between' : 'justify-end'}`}
+              >
+                {showLabel ? <h4 className="font-medium">{label}</h4> : null}
                 <div className="flex items-center gap-2">
                   {reorderable ? (
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label={t('kit.fieldArray.moveUp')}
+                        aria-label={itemAction(t('kit.fieldArray.moveUp'), label)}
                         data-testid={`array-item-${it.index}-move-up`}
                         className={MOVE_BTN}
                         disabled={it.index === 0}
@@ -131,7 +145,7 @@ export function FieldArray({
                       </button>
                       <button
                         type="button"
-                        aria-label={t('kit.fieldArray.moveDown')}
+                        aria-label={itemAction(t('kit.fieldArray.moveDown'), label)}
                         data-testid={`array-item-${it.index}-move-down`}
                         className={MOVE_BTN}
                         disabled={it.index === length - 1}
@@ -144,11 +158,13 @@ export function FieldArray({
                   {showRemove ? (
                     <button
                       type="button"
+                      // Видимая подпись — начало имени (WCAG 2.5.3 «Label in Name»).
+                      aria-label={itemAction(removeLabel, label)}
                       data-testid={`array-item-${it.index}-remove`}
                       className={REMOVE_BTN}
                       onClick={() => onRemove?.(it.index)}
                     >
-                      {removeButtonLabel ?? t('kit.fieldArray.remove')}
+                      {removeLabel}
                     </button>
                   ) : null}
                 </div>

@@ -25,6 +25,16 @@ describe('Box (base)', () => {
     expect(html).toContain('<span>Второй</span>');
   });
 
+  it('прокидывает id/role/aria-*/data-* на контейнер', () => {
+    const html = renderToStaticMarkup(
+      <Box id="contacts" role="group" aria-labelledby="contacts-title" data-testid="box-contacts" />
+    );
+    expect(html).toContain('id="contacts"');
+    expect(html).toContain('role="group"');
+    expect(html).toContain('aria-labelledby="contacts-title"');
+    expect(html).toContain('data-testid="box-contacts"');
+  });
+
   it('без className рендерит div без атрибута class', () => {
     const html = renderToStaticMarkup(<Box>Контент</Box>);
     expect(html).not.toContain('class=');

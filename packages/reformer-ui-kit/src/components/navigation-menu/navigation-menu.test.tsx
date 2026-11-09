@@ -93,6 +93,25 @@ describe('NavigationMenu (base, Radix navigation compound)', () => {
     expect(html).toContain('>О нас</a>');
   });
 
+  it('активная ссылка: Radix ставит data-active="" — стили завязаны на наличие атрибута', () => {
+    const html = renderToStaticMarkup(
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem>
+            <NavigationMenuLink href="/about" active>
+              О нас
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    );
+    expect(html).toContain('data-active=""');
+    expect(html).toContain('aria-current="page"');
+    // `data-[active=true]:` требует значения "true" и под Radix не срабатывает никогда.
+    expect(html).not.toContain('data-[active=true]');
+    expect(html).toContain('data-active:bg-accent/50');
+  });
+
   it('navigationMenuTriggerStyle() экспортируется и генерирует классы', () => {
     const cls = navigationMenuTriggerStyle();
     expect(cls).toContain('inline-flex');

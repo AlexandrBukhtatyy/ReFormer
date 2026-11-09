@@ -41,7 +41,7 @@ describe('calendar props-схема — страж от дрейфа', () => {
     expect(calendarBasePropsSchema.additionalProperties).toBe(false);
   });
 
-  it('mode enum = single (field — single-date)', () => {
-    expect(calendarBasePropsSchema.properties.mode.enum).toEqual(['single']);
+  it('mode в схеме нет: у CalendarSingle он зашит (single)', () => {
+    expect(Object.keys(calendarBasePropsSchema.properties)).not.toContain('mode');
   });
 });

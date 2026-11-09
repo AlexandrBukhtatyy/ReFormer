@@ -11,8 +11,8 @@ import { ArrowDownIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/button';
 
-// Дословный порт shadcn/ui (new-york-v4) message-scroller — AI-контейнер авто-скролла
-// списка сообщений чата. Правки только: `@/lib/utils` (cn), `@/components/button` (вместо
+// Порт shadcn/ui (new-york-v4) message-scroller — AI-контейнер авто-скролла
+// списка сообщений чата. Правки: `@/lib/utils` (cn), `@/components/button` (вместо
 // registry-пути), снят 'use client'. data-slot сохранён на всех под-частях. Поведение
 // (auto-scroll, scroll-anchoring, видимость сообщений) живёт в headless-примитиве
 // `@shadcn/react/message-scroller` — не переписывается, тянется как runtime-зависимость.
@@ -40,13 +40,22 @@ function MessageScroller({
   );
 }
 
+/**
+ * Прокручиваемая область ленты (`role="region"`). Имя области (`aria-label`) по умолчанию — из
+ * словаря кита, ключ `kit.messageScroller.label`.
+ */
 function MessageScrollerViewport({
   className,
+  'aria-label': ariaLabel,
   ...props
 }: React.ComponentProps<typeof MessageScrollerPrimitive.Viewport>) {
+  const t = useKitMessages();
+  // Расхождение с апстримом: имя области примитив зашивает по-английски («Messages»),
+  // здесь оно берётся из словаря кита и переводится вместе с остальными подписями.
   return (
     <MessageScrollerPrimitive.Viewport
       data-slot="message-scroller-viewport"
+      aria-label={ariaLabel ?? t('kit.messageScroller.label')}
       className={cn(
         'size-full min-h-0 min-w-0 scroll-fade-b scrollbar-thin scrollbar-gutter-stable overflow-y-auto overscroll-contain contain-content data-autoscrolling:scrollbar-none',
         className
@@ -98,6 +107,8 @@ function MessageScrollerButton({
 }: React.ComponentProps<typeof MessageScrollerPrimitive.Button> &
   Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>) {
   const t = useKitMessages();
+  // Расхождение с апстримом: центровка — `start-1/2`, а не `inset-s-1/2`. Утилиты `inset-s-*`
+  // в Tailwind 4.1 нет, класс молча не генерировался, и кнопка прилипала к левому краю.
   return (
     <MessageScrollerPrimitive.Button
       data-slot="message-scroller-button"
@@ -106,7 +117,7 @@ function MessageScrollerButton({
       data-size={size}
       direction={direction}
       className={cn(
-        'absolute inset-s-1/2 -translate-x-1/2 border-border bg-background text-foreground transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)] data-[direction=end]:bottom-4 data-[direction=end]:data-[active=false]:translate-y-full data-[direction=start]:top-4 data-[direction=start]:data-[active=false]:-translate-y-full rtl:translate-x-1/2 data-[direction=start]:[&_svg]:rotate-180',
+        'absolute start-1/2 -translate-x-1/2 border-border bg-background text-foreground transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)] data-[direction=end]:bottom-4 data-[direction=end]:data-[active=false]:translate-y-full data-[direction=start]:top-4 data-[direction=start]:data-[active=false]:-translate-y-full rtl:translate-x-1/2 data-[direction=start]:[&_svg]:rotate-180',
         className
       )}
       render={render ?? <Button variant={variant} size={size} />}

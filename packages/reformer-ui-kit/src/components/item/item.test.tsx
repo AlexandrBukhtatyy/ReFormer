@@ -98,6 +98,41 @@ describe('Item (base, compound presentational)', () => {
     expect(html).toContain('data-slot="item-group"');
   });
 
+  it('Item в ItemGroup — элемент списка (role="listitem"); вне группы роли нет', () => {
+    const html = renderToStaticMarkup(
+      <ItemGroup>
+        <Item>Первый</Item>
+        <Item>Второй</Item>
+      </ItemGroup>
+    );
+    expect(html.match(/role="listitem"/g)).toHaveLength(2);
+    expect(renderToStaticMarkup(<Item>Один</Item>)).not.toContain('role=');
+  });
+
+  it('Item asChild в группе: ссылка сохраняет свою роль, listitem — у обёртки', () => {
+    const html = renderToStaticMarkup(
+      <ItemGroup>
+        <Item asChild>
+          <a href="/x">Ссылка</a>
+        </Item>
+      </ItemGroup>
+    );
+    expect(html).toMatch(/<div role="listitem"[^>]*class="contents"[^>]*><a /);
+    expect(html).not.toMatch(/<a [^>]*role=/);
+  });
+
+  it('своя роль группы (role="none") снимает listitem у пунктов; явная роль пункта важнее', () => {
+    const html = renderToStaticMarkup(
+      <ItemGroup role="none">
+        <Item>Пункт</Item>
+        <Item role="option">Вариант</Item>
+      </ItemGroup>
+    );
+    expect(html).toContain('role="none"');
+    expect(html).not.toContain('listitem');
+    expect(html).toContain('role="option"');
+  });
+
   it('ItemMedia — variant пробрасывается в data-variant', () => {
     const html = renderToStaticMarkup(<ItemMedia variant="icon">M</ItemMedia>);
     expect(html).toContain('data-variant="icon"');

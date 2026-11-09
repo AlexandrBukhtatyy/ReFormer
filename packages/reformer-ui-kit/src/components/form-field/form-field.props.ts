@@ -7,8 +7,11 @@ import type { PropsSchema } from '../../fields/props-schema';
  * `label`/`required` — живые (рисуются `FormField.Label`: `FormFieldRoot.tsx:80` → `FormFieldLabel.tsx:51`).
  * `testId` — meta-проп: уходит в `data-testid`, в примитив/DOM как проп не течёт.
  * `description` — под shadcn `Field` (`FieldDescription`); FormField перестроен на нём в волне 0.
- * `labelTooltip` — иконка (i) после подписи; как и `testId`, до контрола не доходит (срезает
- * обёртка поля — `bindFieldProps` в `@reformer/core/react`). Подсказка ВНУТРИ контрола — отдельный проп `tooltip` (`field-common.props.ts`).
+ * `labelTooltip` — иконка (i) после подписи. Ни один из этих props до контрола не доходит: их срезает
+ * обёртка поля (`bindFieldProps` в `@reformer/core/react`), иначе `label` и `required` легли бы
+ * атрибутами на `<input>`. Исключение — inline-контрол (`layout: 'inline-label'`): `label` и
+ * `required` он получает и рисует сам. Подсказка ВНУТРИ контрола — отдельный проп `tooltip`
+ * (`field-common.props.ts`).
  */
 export const fieldWrapperPropsSchema: PropsSchema = {
   type: 'object',

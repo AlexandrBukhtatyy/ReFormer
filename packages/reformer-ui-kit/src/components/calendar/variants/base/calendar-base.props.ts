@@ -5,7 +5,8 @@ import type { PropsSchema } from '@/fields/props-schema';
  * и DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
  *
  * `value`/`onChange` — seam (маппятся адаптером на `selected`/`onSelect`), поэтому в `x-runtimeProps`,
- * а не в `properties`. `x-registryName: 'Calendar'` → экспорт `CalendarSingle` (`x-exportName`).
+ * а не в `properties`. `mode` в схеме нет: у `CalendarSingle` он зашит (`single`), период и
+ * несколько дат — отдельные поля `DatePickerRange` / `DatePickerMulti`. `x-registryName: 'Calendar'` → экспорт `CalendarSingle` (`x-exportName`).
  */
 export const calendarBasePropsSchema = {
   type: 'object',
@@ -13,13 +14,6 @@ export const calendarBasePropsSchema = {
   'x-registryName': 'Calendar',
   'x-exportName': 'CalendarSingle',
   properties: {
-    mode: {
-      type: 'string',
-      enum: ['single'],
-      default: 'single',
-      description: 'Режим выбора. В форме — только single (одна дата, value: Date | null).',
-      'x-doc': { group: 'Behavior', type: "'single'", kind: 'enum' },
-    },
     captionLayout: {
       type: 'string',
       enum: ['label', 'dropdown', 'dropdown-months', 'dropdown-years'],

@@ -10,7 +10,10 @@ import { cn } from '@/lib/utils';
 // все под-компоненты + `useChart` + тип `ChartConfig`. data-slot сохранён как в апстриме.
 
 // Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { light: '', dark: '.dark' } as const;
+// Расхождение с апстримом: тёмная тема кита включается и классом `.dark`, и `[data-theme='dark']`
+// (Docusaurus) — так же, как вариант `dark:` в theme.css. С одним `.dark` цвета `theme.dark`
+// под `[data-theme='dark']` не применялись.
+const THEMES = { light: '', dark: ":is(.dark, [data-theme='dark'])" } as const;
 
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const;
 type TooltipNameType = number | string;

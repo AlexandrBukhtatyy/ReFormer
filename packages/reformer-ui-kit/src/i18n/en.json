@@ -28,6 +28,7 @@
   "kit.fieldArray.item": "Item",
   "kit.fieldArray.moveUp": "Move up",
   "kit.fieldArray.moveDown": "Move down",
+  "kit.fieldArray.itemAction": "{action}: {item}",
 
   "kit.formField.hintLabel": "Hint: {label}",
   "kit.formField.validating": "Validating...",
@@ -77,6 +78,7 @@
 
   "kit.messageScroller.toEnd": "Scroll to end",
   "kit.messageScroller.toStart": "Scroll to start",
+  "kit.messageScroller.label": "Messages",
 
   "kit.pagination.label": "Pagination",
   "kit.pagination.previousLabel": "Go to previous page",
@@ -93,9 +95,13 @@
 
   "kit.spinner.label": "Loading",
 
+  "kit.sonner.label": "Notifications",
+  "kit.sonner.close": "Close toast",
+
   "kit.table.loadError": "Failed to load data",
   "kit.table.selectAll": "Select all",
   "kit.table.selectRow": "Select row",
+  "kit.table.filter": "Filter: {column}",
   "kit.table.empty": "No data",
 
   "kit.tree.empty": "Empty",

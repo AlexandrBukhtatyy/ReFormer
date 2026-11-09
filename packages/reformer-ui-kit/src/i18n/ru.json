@@ -28,6 +28,7 @@
   "kit.fieldArray.item": "Элемент",
   "kit.fieldArray.moveUp": "Переместить вверх",
   "kit.fieldArray.moveDown": "Переместить вниз",
+  "kit.fieldArray.itemAction": "{action}: {item}",
 
   "kit.formField.hintLabel": "Подсказка: {label}",
   "kit.formField.validating": "Проверка...",
@@ -77,6 +78,7 @@
 
   "kit.messageScroller.toEnd": "Прокрутить в конец",
   "kit.messageScroller.toStart": "Прокрутить в начало",
+  "kit.messageScroller.label": "Сообщения",
 
   "kit.pagination.label": "Страницы",
   "kit.pagination.previousLabel": "Перейти на предыдущую страницу",
@@ -93,9 +95,13 @@
 
   "kit.spinner.label": "Загрузка",
 
+  "kit.sonner.label": "Уведомления",
+  "kit.sonner.close": "Закрыть уведомление",
+
   "kit.table.loadError": "Не удалось загрузить данные",
   "kit.table.selectAll": "Выбрать все",
   "kit.table.selectRow": "Выбрать строку",
+  "kit.table.filter": "Фильтр: {column}",
   "kit.table.empty": "Нет данных",
 
   "kit.tree.empty": "Пусто",

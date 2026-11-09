@@ -2,7 +2,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 
 /**
  * Props-схема InputOTP — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
- * `componentProps` (renderer-json). Реальная поверхность в DSL — 2 ключа (`maxLength`/`className`);
+ * `componentProps` (renderer-json). Поверхность в DSL — `maxLength`/`pattern`/`inputMode`/`className`;
  * `additionalProperties: false` ловит опечатки (враппер подмешивает label/required/…).
  *
  * `x-registryName: 'InputOTP'` → экспорт `InputOTPDefault` (`x-exportName`).
@@ -23,6 +23,23 @@ export const inputOtpBasePropsSchema = {
         'Число слотов (длина кода). Дефолтная раскладка разворачивает одну группу из maxLength слотов.',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
+    pattern: {
+      type: 'string',
+      description:
+        'Допустимые символы — источник регулярного выражения для всего кода: ^\\d+$ — только цифры (REGEXP_ONLY_DIGITS), ^[a-zA-Z0-9]+$ — цифры и латиница. Не задан — любой символ.',
+      'x-doc': { group: 'Behavior', type: 'string' },
+    },
+    inputMode: {
+      type: 'string',
+      enum: ['numeric', 'text', 'tel', 'decimal', 'email', 'url', 'search', 'none'],
+      default: 'numeric',
+      description: 'Экранная клавиатура мобильных устройств.',
+      'x-doc': {
+        group: 'Behavior',
+        type: "'numeric' | 'text' | 'tel' | 'decimal' | 'email' | 'url' | 'search' | 'none'",
+        kind: 'enum',
+      },
+    },
     className: {
       type: 'string',
       description: 'Доп. CSS-класс скрытого input.',
@@ -40,6 +57,12 @@ export const inputOtpBasePropsSchema = {
       group: 'Control',
       type: '(value: string | null) => void',
       description: 'Изменение кода. Пустой ввод → null.',
+    },
+    onComplete: {
+      group: 'Behavior',
+      type: '(value: string) => void',
+      description:
+        'Код набран целиком (заполнены все maxLength слотов). Функция — в JSON-форме недостижима, передаётся через реестр компонентов или schema-first.',
     },
   },
 } as const satisfies PropsSchema;

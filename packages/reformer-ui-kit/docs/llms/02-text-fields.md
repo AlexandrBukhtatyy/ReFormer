@@ -30,6 +30,7 @@
 | `InputMask`     | Поле + строковая маска-подсказка (`'9'` → цифра).                                           | Телефоны, ИНН, даты.                  |
 | `InputPassword` | Поле пароля с переключателем «глаз».                                                        | Регистрация, логин, смена пароля.     |
 | `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                                    | Комментарии, адрес, длинные описания. |
+| `InputOTPDefault` | Код из `maxLength` ячеек (registry `InputOTP`), только subpath `./input-otp`.             | Код из SMS, PIN.                      |
 
 ## Подсказка-иконка (i) — `tooltip`
 
@@ -281,13 +282,15 @@ interface InputPasswordProps {
   placeholder?: string; // default: 'Password'
   disabled?: boolean;
   showToggle?: boolean; // default: true — показывать кнопку «глаз»
+  autoComplete?: 'current-password' | 'new-password' | 'one-time-code' | 'off';
 }
 ```
 
-| Prop          | Тип       | Default      | Описание                                                                                                                        |
-| ------------- | --------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `showToggle`  | `boolean` | `true`       | Показывать ли иконку «глаз»/«перечеркнутый глаз» для переключения видимости. Иконка показывается только когда `value` непустой. |
-| `placeholder` | `string`  | `'Password'` | Подсказка.                                                                                                                      |
+| Prop           | Тип       | Default      | Описание                                                                                                                        |
+| -------------- | --------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `showToggle`   | `boolean` | `true`       | Показывать ли иконку «глаз»/«перечеркнутый глаз» для переключения видимости. Иконка показывается только когда `value` непустой. |
+| `placeholder`  | `string`  | `'Password'` | Подсказка.                                                                                                                      |
+| `autoComplete` | `string`  | —            | Подсказка менеджеру паролей: `current-password` — вход, `new-password` — регистрация и смена пароля. Не задан — решает браузер. |
 
 ### Common Patterns
 
@@ -332,6 +335,31 @@ const passwordRules = defineValidation<SignUp>(({ model, cross }) => {
   переключатель видимости — `Input` его не имеет.
 - Хранить пароль с побочными состояниями (`maskedValue`, `realValue`). Компонент
   всегда отдаёт raw-строку через `onChange`; маскирование — задача браузера.
+
+## InputOTP
+
+`InputOTPDefault` (registry `InputOTP`, subpath `@reformer/ui-kit/input-otp` — опциональный peer
+`input-otp`): значение `string | null`, пустой ввод → `null`.
+
+| Prop         | Тип                       | Default     | Описание                                                                                     |
+| ------------ | ------------------------- | ----------- | -------------------------------------------------------------------------------------------- |
+| `maxLength`  | `number`                  | `6`         | Число ячеек — длина кода.                                                                    |
+| `pattern`    | `string`                  | —           | Источник регулярного выражения для всего кода. Готовые: `REGEXP_ONLY_DIGITS`, `REGEXP_ONLY_CHARS`, `REGEXP_ONLY_DIGITS_AND_CHARS`. |
+| `inputMode`  | `'numeric' \| 'text' \| …` | `'numeric'` | Экранная клавиатура мобильных устройств.                                                     |
+| `onComplete` | `(value: string) => void` | —           | Код набран целиком. Функция — в JSON-форме недоступна, только в TS-схеме или через реестр.   |
+
+```tsx
+import { InputOTPDefault, REGEXP_ONLY_DIGITS } from '@reformer/ui-kit/input-otp';
+
+{
+  model: model.$.code,
+  component: InputOTPDefault,
+  componentProps: { label: 'Код из SMS', maxLength: 6, pattern: REGEXP_ONLY_DIGITS, onComplete: submit },
+}
+```
+
+Ошибка поля подсвечивает все ячейки: `aria-invalid` обёртка кладёт на скрытый `<input>`, а ячейки
+берут состояние из него.
 
 ## Textarea
 

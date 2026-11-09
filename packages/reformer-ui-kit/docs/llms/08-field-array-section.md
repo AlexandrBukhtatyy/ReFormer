@@ -191,9 +191,9 @@ defineRegistry((reg) => {
 | `control`            | `FormArray<T> \| undefined`                                  | required                             | Нода массива формы (`form.<массив>`)                               |
 | `itemComponent`      | `ComponentType<{ control: FormGroup<T> }>`                   | required                             | FC для рендера каждого item                                        |
 | `title`              | `string`                                                     | —                                    | Заголовок секции (h3)                                              |
-| `itemLabel`          | `string \| (control: FormGroup<T>, index: number) => string` | —                                    | Метка над каждым item                                              |
+| `itemLabel`          | `string \| (control: FormGroup<T>, index: number) => string` | —                                    | Метка над каждым item (без `title`/`itemLabel` метки нет, кнопки строки остаются) |
 | `addButtonLabel`     | `string`                                                     | `'+ Add'` (локаль)                   | Текст кнопки добавления                                            |
-| `removeButtonLabel`  | `string`                                                     | `'Remove'` (локаль)                  | Текст кнопки удаления                                              |
+| `removeButtonLabel`  | `string`                                                     | `'Remove'` (локаль)                  | Текст кнопки удаления; имя для скринридера — текст + метка строки (`kit.fieldArray.itemAction`: «Удалить: Имущество #2») |
 | `emptyMessage`       | `string`                                                     | —                                    | Сообщение при пустом массиве                                       |
 | `emptyMessageHint`   | `string`                                                     | —                                    | Подсказка под emptyMessage                                         |
 | `hasItems`           | `boolean`                                                    | —                                    | `false` → секция полностью скрыта                                  |
@@ -212,8 +212,16 @@ defineRegistry((reg) => {
 `items` и колбэки передаёт рендерер.
 
 Число строк проверяет валидация, а не проп: `validate(model.$.contacts, [minLength(1),
-maxLength(5)])` — у массива замечания `minItems` и `maxItems`, их показывает `FieldArray.Error`.
-`maxItems` на узле только скрывает «Добавить» на пределе.
+maxLength(5)])` — у массива замечания `minItems` и `maxItems`. `FieldArraySection` показывает их
+сам — под списком строк (`FieldArray.Error`, `data-testid="array-error"`), как только проверка их
+поставила. `FieldArray` (узел схемы) замечаний массива не показывает: рендерер передаёт ему только
+`items` и колбэки. `maxItems` на узле только скрывает «Добавить» на пределе.
+
+Кнопки строки («Удалить», ↑/↓) живут в шапке карточки. Шапка есть всегда, когда в ней есть что
+показать: без `title`/`itemLabel` в ней нет метки, но кнопки остаются. Имена кнопок для
+скринридера различаются по строкам: действие плюс метка строки (`Remove: Item #2`; без
+`title`/`itemLabel` — метка по умолчанию `kit.fieldArray.item`). Видимый текст «Удалить» — начало
+имени, поэтому голосовое «нажать Удалить» по-прежнему находит кнопку.
 
 ## Critical: `initialValue` — PLAIN LEAVES ONLY
 

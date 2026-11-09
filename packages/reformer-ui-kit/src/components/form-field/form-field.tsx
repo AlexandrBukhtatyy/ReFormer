@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { type FormControl } from '@reformer/core';
+import { hasInlineLabel, useLocalized } from '@reformer/core/react';
 import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/form-field';
 
 import { Field, FieldContent } from '@/components/field';
@@ -52,18 +53,14 @@ export interface FormFieldProps {
 const ROW_CLASS =
   'gap-3 has-[>[data-slot=field-content]]:items-baseline [&>[data-slot=field-label]]:flex-none [&>[data-slot=field-label]]:max-w-1/2 [&>[data-slot=field-label-row]]:max-w-1/2';
 
-/**
- * Контролы с inline-раскладкой (CheckboxWithLabel/SwitchWithLabel — сами рисуют подпись рядом с
- * контролом) объявляют маркер `reformerLayout = 'inline-label'` (`defineFieldControl`). Для них FormField
- * НЕ рендерит верхнюю подпись (иначе она задвоится).
- *
- * ⚠️ ИНВАРИАНТ: каждый контрол, рисующий подпись сам (CheckboxWithLabel/SwitchWithLabel), ОБЯЗАН
- * объявить `layout: 'inline-label'`. Маркер — неэнфорсимая конвенция: если
- * inline-контрол его не выставит, верхняя подпись задвоится молча (замена v6-детекции `=== Checkbox`).
- */
-function hasInlineLabel(component: unknown): boolean {
-  return (component as { reformerLayout?: string } | null)?.reformerLayout === 'inline-label';
-}
+// Контролы с inline-раскладкой (CheckboxWithLabel/SwitchWithLabel — сами рисуют подпись рядом с
+// контролом) объявляют маркер `reformerLayout = 'inline-label'` (`defineFieldControl`), его читает
+// `hasInlineLabel` ядра. Для них FormField НЕ рендерит верхнюю подпись (иначе она задвоится), а
+// `bindFieldProps` отдаёт им `label` и `required`.
+//
+// ⚠️ ИНВАРИАНТ: каждый контрол, рисующий подпись сам, ОБЯЗАН объявить `layout: 'inline-label'`.
+// Маркер — неэнфорсимая конвенция: если inline-контрол его не выставит, верхняя подпись задвоится
+// молча, а сам контрол останется без подписи (`label` обёртка ему не отдаст).
 
 interface FormFieldInnerProps {
   className?: string;
@@ -113,10 +110,15 @@ function FormFieldInner({
     />
   );
 
+  // Верхней подписи у inline-контрола нет, поэтому `aria-labelledby` на её id повис бы в пустоту:
+  // доступное имя такому контролу даёт его собственная `<label htmlFor>`.
   const fieldControl = customChildren ? (
     <CdkFormField.Control asChild>{customChildren}</CdkFormField.Control>
   ) : (
-    <CdkFormField.Control data-testid={`input-${testId}`} />
+    <CdkFormField.Control
+      data-testid={`input-${testId}`}
+      {...(inlineLabel ? { 'aria-labelledby': undefined } : {})}
+    />
   );
 
   const row = direction === 'row';
@@ -193,7 +195,12 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({
   // Допущение осознанное: description поля статичен, как и раскладка. Нужна динамика — пересоздать поле.
   // labelTooltip читается так же: hasHint обязан совпадать с фактом рендера скрытого текста подсказки,
   // иначе aria-describedby получит висячий id. Пустая строка = подсказки нет.
-  const own = control.componentProps.peek() as { description?: string; labelTooltip?: string };
+  // Описатели `msg()` раскрываются по локали: подпись и пропсы контрола раскрывает `useFormControl`,
+  // а эти два значения читаются мимо него. Поле без описателей смену языка не замечает.
+  const own = useLocalized(control.componentProps.peek()) as {
+    description?: string;
+    labelTooltip?: string;
+  };
   const description = own?.description;
   const labelTooltip = own?.labelTooltip || undefined;
 

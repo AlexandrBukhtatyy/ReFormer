@@ -56,7 +56,9 @@ export interface FieldArraySectionProps<T extends object> {
   addButtonLabel?: string;
 
   /**
-   * Текст кнопки удаления. По умолчанию — из словаря локали.
+   * Текст кнопки удаления. По умолчанию — из словаря локали. Имя кнопки для скринридера —
+   * этот текст плюс метка строки (`kit.fieldArray.itemAction`: «Удалить: Элемент #2»), чтобы
+   * кнопки разных строк различались; так же подписаны ↑/↓.
    * @defaultMessage kit.fieldArray.remove
    */
   removeButtonLabel?: string;
@@ -155,7 +157,9 @@ function resolveArrayNode<T extends object>(
  * Готовая UI-секция для динамического массива форм — стилизованная обёртка поверх
  * headless-compound `@reformer/cdk/field-array`. Рендерит заголовок, кнопку
  * «Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
- * удаления и перестановки ↑/↓) и сообщение пустого состояния.
+ * удаления и перестановки ↑/↓), сообщение пустого состояния и замечания самого массива
+ * (`minLength`/`maxLength` → `minItems`/`maxItems`) через `FieldArray.Error`. Шапка карточки с
+ * кнопками есть и без `title`/`itemLabel` — тогда в ней только кнопки.
  *
  * `control` принимает ноду массива под-форм — `FormArray<T>`
  * (`form.<массив>`). `itemComponent` — единственная форма
@@ -235,6 +239,10 @@ export function FieldArraySection<T extends object>({
     typeof itemLabel === 'function'
       ? itemLabel(control, index)
       : `${itemLabel ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
+  // Подпись действия над строкой для скринридера: «Удалить: Имущество #2». Без метки строки все
+  // «Удалить» и ↑/↓ звучали одинаково — в списке кнопок их не различить.
+  const itemAction = (action: string, item: string): string =>
+    t('kit.fieldArray.itemAction', { action, item });
 
   return (
     <FieldArray.Root control={arrayNode}>
@@ -257,13 +265,19 @@ export function FieldArraySection<T extends object>({
         <FieldArray.List className="space-y-3">
           {({ control: itemForm, index, remove, moveUp, moveDown, canMoveUp, canMoveDown }) => {
             const showRemove = showRemoveOnSingle || length > 1;
+            const label = getItemLabel(itemForm as unknown as FormGroup<T>, index);
+            const removeLabel = removeButtonLabel ?? t('kit.fieldArray.remove');
+            // Шапка нужна, если есть что в ней показать: метка или кнопки. Раньше её рисовали только
+            // при title/itemLabel, и секция без них теряла «Удалить» и ↑/↓ целиком.
+            const showLabel = Boolean(title || itemLabel);
+            const showHeader = showLabel || showRemove || reorderable;
             return (
               <div className={cardClassName} data-testid={`array-item-${index}`}>
-                {title || itemLabel ? (
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-medium">
-                      {getItemLabel(itemForm as unknown as FormGroup<T>, index)}
-                    </h4>
+                {showHeader ? (
+                  <div
+                    className={`flex items-center mb-3 ${showLabel ? 'justify-between' : 'justify-end'}`}
+                  >
+                    {showLabel ? <h4 className="font-medium">{label}</h4> : null}
                     <div className="flex items-center gap-2">
                       {reorderable ? (
                         <div className="flex items-center gap-1">
@@ -271,7 +285,7 @@ export function FieldArraySection<T extends object>({
                             type="button"
                             onClick={moveUp}
                             disabled={!canMoveUp}
-                            aria-label={t('kit.fieldArray.moveUp')}
+                            aria-label={itemAction(t('kit.fieldArray.moveUp'), label)}
                             data-testid={`array-item-${index}-move-up`}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
                           >
@@ -281,7 +295,7 @@ export function FieldArraySection<T extends object>({
                             type="button"
                             onClick={moveDown}
                             disabled={!canMoveDown}
-                            aria-label={t('kit.fieldArray.moveDown')}
+                            aria-label={itemAction(t('kit.fieldArray.moveDown'), label)}
                             data-testid={`array-item-${index}-move-down`}
                             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
                           >
@@ -293,10 +307,13 @@ export function FieldArraySection<T extends object>({
                         <button
                           type="button"
                           onClick={remove}
+                          // Видимая подпись — начало имени (WCAG 2.5.3): голосовой ввод «нажать
+                          // Удалить» по-прежнему находит кнопку.
+                          aria-label={itemAction(removeLabel, label)}
                           data-testid={`array-item-${index}-remove`}
                           className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-white shadow hover:bg-destructive/90 h-9 px-4 py-2"
                         >
-                          {removeButtonLabel ?? t('kit.fieldArray.remove')}
+                          {removeLabel}
                         </button>
                       ) : null}
                     </div>
@@ -318,6 +335,15 @@ export function FieldArraySection<T extends object>({
             </div>
           </FieldArray.Empty>
         ) : null}
+
+        {/* Замечания самого массива (`minLength`/`maxLength` → minItems/maxItems): замечания строк
+            показывают поля строк, а у массива своего поля нет — без этого текста ошибка, которая
+            блокирует отправку, нигде не видна. */}
+        <FieldArray.Error
+          data-slot="field-array-error"
+          data-testid="array-error"
+          className="text-sm text-destructive"
+        />
 
         {/* If no title is provided, render the AddButton as a footer. */}
         {!title && !atMaxItems ? (

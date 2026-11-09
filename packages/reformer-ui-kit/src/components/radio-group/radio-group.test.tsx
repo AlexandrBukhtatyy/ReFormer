@@ -85,4 +85,22 @@ describe('RadioGroupOptions (вариант base, рендерит options)', ()
     expect(html).toContain('id="control-x"');
     expect(html).toContain('aria-labelledby="label-x"');
   });
+
+  it('id пунктов уникальны у групп с одинаковым data-testid (строки FieldArray)', () => {
+    // В строках массива testId поля одинаков (`input-<field>`): id из него дублировались,
+    // и клик по подписи во второй строке выбирал пункт первой.
+    const html = renderToStaticMarkup(
+      <>
+        <Bound component={RadioGroupOptions} value={null} options={LOAN} data-testid="input-t" />
+        <Bound component={RadioGroupOptions} value={null} options={LOAN} data-testid="input-t" />
+      </>
+    );
+    const ids = [
+      ...html.matchAll(/role="radio"[^>]*?id="([^"]+)"|id="([^"]+)"[^>]*?role="radio"/g),
+    ].map((m) => m[1] ?? m[2]);
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(4);
+    const fors = [...html.matchAll(/for="([^"]+)"/g)].map((m) => m[1]);
+    expect(fors.sort()).toEqual([...ids].sort());
+  });
 });

@@ -2,18 +2,25 @@ import type { PropsSchema } from '@/fields/props-schema';
 
 /**
  * Props-схема Toggle — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
- * `componentProps` (renderer-json). Поверхность в DSL — `variant`/`size`/`className`;
+ * `componentProps` (renderer-json). Поверхность в DSL — `children`/`variant`/`size`/`className`;
  * `additionalProperties: false` ловит опечатки. `x-registryName: 'Toggle'` — компонент `Toggle`.
  *
  * НЕ inline-label: подпись поля рисует FormField сверху (`componentProps.label`), контент toggle —
- * через `children` (несериализуемый, в схему не выносится). `value`/`onChange` переопределяют seam
- * под boolean-контракт (Radix `pressed`/`onPressedChange`).
+ * `children`. Узел поля в JSON-схеме своих `children[]` не имеет, поэтому текст кнопки задаётся
+ * строкой `componentProps.children` (иконку/JSX — в TS-схеме). `value`/`onChange` переопределяют
+ * seam под boolean-контракт (Radix `pressed`/`onPressedChange`).
  */
 export const toggleBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Toggle',
   properties: {
+    children: {
+      type: 'string',
+      description:
+        'Текст внутри кнопки. Не подпись поля (её рисует FormField по label); без children кнопка пустая.',
+      'x-doc': { group: 'Textfield', type: 'ReactNode' },
+    },
     variant: {
       type: 'string',
       enum: ['default', 'outline'],

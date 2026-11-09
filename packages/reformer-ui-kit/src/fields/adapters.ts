@@ -87,7 +87,13 @@ export const multiValueAdapter: KitFieldAdapter = {
   toValue: (v) => (Array.isArray(v) ? (v as string[]) : []),
 };
 
-/** Slider — `value: number[]` + `onValueChange(number[])`. Одно-thumb режим: берём первый. */
+/**
+ * Slider — `value: number[]` + `onValueChange(number[])`. Одно-thumb режим: берём первый.
+ *
+ * `null` поля уходит в контрол как `[0]`: `toValue` не видит props контрола, и `min` ему не узнать,
+ * а пустой массив Radix рисует без ручки. Ставить ручку пустого поля в диапазон — дело контрола:
+ * `Slider` кита прижимает значение к `[min, max]`, и при `min ≥ 0` ручка встаёт на `min`.
+ */
 export const sliderAdapter: KitFieldAdapter = {
   valueProp: 'value',
   changeProp: 'onValueChange',

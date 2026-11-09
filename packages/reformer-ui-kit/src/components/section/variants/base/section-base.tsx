@@ -4,12 +4,14 @@
  * @module reformer/ui-kit/components/section
  */
 
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 /**
- * Props компонента Section
+ * Props компонента Section: свои (`title`, `titleAs`, `titleClassName`) и атрибуты `<section>` —
+ * `id`, `role`, `aria-*`, `data-*`, обработчики; они доходят до элемента. HTML-атрибут `title`
+ * (всплывающая подсказка) недоступен: имя занято заголовком секции.
  */
-export interface SectionProps {
+export interface SectionProps extends Omit<ComponentProps<'section'>, 'title' | 'children'> {
   /** Заголовок секции */
   title?: string;
   /** HTML элемент для заголовка (h1-h6). По умолчанию h3 */
@@ -67,9 +69,10 @@ export function Section({
   className,
   titleClassName,
   children,
+  ...props
 }: SectionProps): ReactNode {
   return (
-    <section data-slot="section" className={className}>
+    <section data-slot="section" className={className} {...props}>
       {title && (
         <TitleTag data-slot="section-title" className={titleClassName}>
           {title}

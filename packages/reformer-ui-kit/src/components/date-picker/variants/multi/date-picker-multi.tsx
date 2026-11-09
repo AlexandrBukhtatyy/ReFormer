@@ -127,6 +127,8 @@ const DatePickerMulti = React.forwardRef<DatePickerMultiHandle, DatePickerMultiP
     const handleClear = (e: React.MouseEvent) => {
       e.stopPropagation();
       onChange?.([]);
+      // Крестик пропадает вместе со значением — без переноса фокус клавиатуры упал бы на body.
+      triggerRef.current?.focus();
     };
 
     // `max` react-day-picker на пределе заменяет выбор кликнутым днём — вместо этого гасим
@@ -192,11 +194,14 @@ const DatePickerMulti = React.forwardRef<DatePickerMultiHandle, DatePickerMultiP
             {showClear && (
               <button
                 type="button"
-                className={TRAILING_CLEAR}
+                // Крестик в порядке Tab; `TRAILING_CLEAR` гасит outline — видимый фокус даёт кольцо.
+                className={cn(
+                  TRAILING_CLEAR,
+                  'rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                )}
                 onClick={handleClear}
                 aria-label={t('kit.datePicker.clear')}
                 data-testid={dataTestId ? `${dataTestId}-clear` : undefined}
-                tabIndex={-1}
               >
                 <XIcon className="size-4" />
               </button>

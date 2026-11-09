@@ -27,6 +27,11 @@ export interface DatePickerProps extends Omit<
   /** Колбэк выбора даты в календаре. Повторный клик по выбранной дате сбрасывает в `undefined`. */
   onChange?: (date: Date | undefined) => void;
   /**
+   * Уход из поля: закрытие календаря или потеря фокуса кнопкой при закрытом календаре. Переход
+   * фокуса из кнопки в открывшийся календарь уходом не считается.
+   */
+  onBlur?: () => void;
+  /**
    * Текст кнопки-триггера, когда дата не выбрана.
    * @defaultMessage kit.datePicker.placeholder
    */
@@ -53,30 +58,47 @@ export interface DatePickerHandle extends FieldHandle {
 /**
  * DatePicker — Popover c Calendar (single) и кнопкой-триггером, показывающей выбранную дату.
  * Управляемый контракт `value: Date | undefined` / `onChange(date)`. Поповер закрывается сам
- * при выборе даты. Стандартное standalone-использование:
- * `<DatePicker value={date} onChange={setDate} />`.
+ * при выборе даты. `onBlur` — уход из поля (закрытие календаря), а не открытие. Стандартное
+ * standalone-использование: `<DatePicker value={date} onChange={setDate} />`.
  */
 const DatePickerBase = React.forwardRef<DatePickerHandle, DatePickerProps>(function DatePicker(
-  { value, onChange, placeholder, dateFormat, className, disabled, ...props },
+  { value, onChange, onBlur, placeholder, dateFormat, className, disabled, ...props },
   ref
 ) {
   const t = useKitMessages();
   const i18n = useI18n();
   const [open, setOpen] = React.useState(false);
+  // Открытость — ещё и в ref: blur кнопки при открытии приходит раньше, чем замыкание увидит
+  // новое состояние, а решать по нему, ушёл ли пользователь из поля, надо сразу.
+  const openRef = React.useRef(false);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const setOpenState = React.useCallback((next: boolean) => {
+    openRef.current = next;
+    setOpen(next);
+  }, []);
 
   React.useImperativeHandle(
     ref,
     () => ({
       ...makeElementFieldHandle(triggerRef),
-      open: () => setOpen(true),
-      close: () => setOpen(false),
+      open: () => setOpenState(true),
+      close: () => setOpenState(false),
     }),
-    []
+    [setOpenState]
   );
 
+  // touched — при уходе из поля, а не при открытии: фокус из кнопки уходит в календарь, и blur
+  // кнопки тут ещё не уход. Уходом считаются закрытие календаря (выбор, Escape, клик мимо — после
+  // клика мимо фокус на кнопку не возвращается) и blur кнопки при закрытом календаре.
+  const handleOpenChange = (next: boolean) => {
+    const wasOpen = openRef.current;
+    setOpenState(next);
+    if (wasOpen && !next) onBlur?.();
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           ref={triggerRef}
@@ -90,6 +112,9 @@ const DatePickerBase = React.forwardRef<DatePickerHandle, DatePickerProps>(funct
             className
           )}
           {...props}
+          onBlur={() => {
+            if (!openRef.current) onBlur?.();
+          }}
         >
           <CalendarIcon />
           {value ? (
@@ -106,7 +131,7 @@ const DatePickerBase = React.forwardRef<DatePickerHandle, DatePickerProps>(funct
           defaultMonth={value}
           onSelect={(date) => {
             onChange?.(date);
-            setOpen(false);
+            handleOpenChange(false);
           }}
           autoFocus
         />

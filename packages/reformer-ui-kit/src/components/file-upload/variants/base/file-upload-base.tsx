@@ -2,6 +2,7 @@ import * as React from 'react';
 import { UploadIcon } from 'lucide-react';
 import {
   FileUpload as CdkFileUpload,
+  useFileUploadContext,
   type FileUploadHandle,
   type UseFileUploadOptions,
 } from '@reformer/cdk/file-upload';
@@ -26,6 +27,8 @@ export interface FileUploadFieldHandle extends FieldHandle {
   openFilePicker(): void;
   /** Очистить список (активные загрузки прерываются). */
   clear(): void;
+  /** Отправить ожидающие файлы — ручной режим `autoUpload: false` (при заданном `uploader`). */
+  upload(): void;
   /** Прервать все активные загрузки (элементы остаются с ошибкой `uploadAborted`). */
   abort(): void;
 }
@@ -121,10 +124,37 @@ export function splitFileUploadProps(props: FileUploadBaseProps & Record<string,
 }
 
 /**
+ * Кнопка-триггер варианта `button`. Зоны у варианта нет, поэтому каналы drop и paste зоны
+ * (`allowDrop` / `allowPaste`) вешаются на саму кнопку — иначе опции молча ничего не делали бы.
+ * Читает контекст CDK Root, поэтому отдельный компонент внутри него.
+ */
+function FileUploadButtonTrigger({ className, ...props }: React.ComponentProps<typeof Button>) {
+  const { getDropzoneProps } = useFileUploadContext();
+  // Из пропсов зоны — только каналы ввода: роль, tabIndex, id и клавиатура у кнопки свои.
+  const { onDragEnter, onDragOver, onDragLeave, onDrop, onPaste, ...zone } = getDropzoneProps();
+  return (
+    <CdkFileUpload.Trigger asChild>
+      <Button
+        variant="outline"
+        data-dragging={zone['data-dragging']}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        onPaste={onPaste}
+        className={cn('data-[dragging]:border-ring data-[dragging]:bg-muted/50', className)}
+        {...props}
+      />
+    </CdkFileUpload.Trigger>
+  );
+}
+
+/**
  * FileUpload (вариант `button`) — компактное поле загрузки файлов: кнопка «Выбрать
  * файлы» + список выбранных на презентационном `Attachment`. Controlled по seam
  * (`value`/`onChange`/`onBlur`/`disabled`); поведение целиком в
- * `@reformer/cdk/file-upload`.
+ * `@reformer/cdk/file-upload`. Файл можно и бросить на кнопку (`allowDrop`), и вставить из буфера
+ * в сфокусированную кнопку (`allowPaste`).
  *
  * `aria-*`/`id` из FormField ложатся на кнопку-триггер (rest-spread).
  */
@@ -132,7 +162,8 @@ export function FileUploadBase({
   ref,
   ...props
 }: FileUploadBaseProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
-  const { options, placeholder, hint, tooltip, className, id, rest } = splitFileUploadProps(props);
+  const { options, placeholder, hint, tooltip, invalid, className, id, rest } =
+    splitFileUploadProps(props);
   const t = useKitMessages();
 
   const tooltipHint = useFieldTooltip(tooltip, {
@@ -150,6 +181,7 @@ export function FileUploadBase({
       ...makeElementFieldHandle(triggerRef),
       openFilePicker: () => cdkRef.current?.openFilePicker(),
       clear: () => cdkRef.current?.clear(),
+      upload: () => cdkRef.current?.upload(),
       abort: () => cdkRef.current?.abort(),
     }),
     []
@@ -163,19 +195,19 @@ export function FileUploadBase({
     >
       <CdkFileUpload.Root ref={cdkRef} {...options} id={id}>
         <div className="flex items-center gap-3">
-          <CdkFileUpload.Trigger asChild>
-            {/* id — на интерактивном элементе: клик по <label htmlFor> фокусирует кнопку. */}
-            <Button
-              ref={triggerRef}
-              id={id}
-              variant="outline"
-              {...rest}
-              aria-describedby={tooltipHint.describedBy}
-            >
-              <UploadIcon />
-              {placeholder ?? t('kit.fileUpload.choose')}
-            </Button>
-          </CdkFileUpload.Trigger>
+          {/* id — на интерактивном элементе: клик по <label htmlFor> фокусирует кнопку. */}
+          <FileUploadButtonTrigger
+            ref={triggerRef}
+            id={id}
+            // Явный `invalid` — до rest: aria-invalid от FormField (ошибка валидации) главнее.
+            // Рамку ошибки рисует сам Button по `aria-invalid`, как у зоны и строки ввода.
+            aria-invalid={invalid || undefined}
+            {...rest}
+            aria-describedby={tooltipHint.describedBy}
+          >
+            <UploadIcon />
+            {placeholder ?? t('kit.fileUpload.choose')}
+          </FileUploadButtonTrigger>
           {tooltipHint.node}
           {hint && (
             <span data-slot="file-upload-hint" className="text-xs text-muted-foreground">

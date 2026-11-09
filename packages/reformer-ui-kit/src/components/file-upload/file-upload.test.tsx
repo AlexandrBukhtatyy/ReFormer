@@ -112,6 +112,18 @@ describe('FileUploadDropzone', () => {
     );
     expect(renderToStaticMarkup(<FileUploadDropzone value={null} />)).not.toContain('aria-invalid');
   });
+
+  // Вариант-кнопка извлекал `invalid`, но кнопке его не отдавал: вне формы рамка не включалась.
+  it('invalid помечает кнопку aria-invalid — рамку рисует Button', () => {
+    const button = (html: string) => html.match(/<button[^>]*data-slot="button"[^>]*>/)?.[0] ?? '';
+    expect(button(renderToStaticMarkup(<FileUploadBase value={null} invalid />))).toContain(
+      'aria-invalid="true"'
+    );
+    // Классы Button содержат `aria-invalid:` — проверяем именно атрибут.
+    expect(button(renderToStaticMarkup(<FileUploadBase value={null} />))).not.toMatch(
+      /\saria-invalid="/
+    );
+  });
 });
 
 describe('FileUploadInput', () => {

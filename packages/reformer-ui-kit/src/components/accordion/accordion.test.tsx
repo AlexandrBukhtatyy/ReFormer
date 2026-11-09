@@ -49,6 +49,33 @@ describe('Accordion (base, compound over Radix)', () => {
     expect(html).toContain('>Заголовок');
   });
 
+  it('заголовок секции — h3 по умолчанию (как в Radix), с data-state и классом flex', () => {
+    const html = renderToStaticMarkup(
+      <Accordion type="single">
+        <AccordionItem value="a">
+          <AccordionTrigger>Вопрос</AccordionTrigger>
+        </AccordionItem>
+      </Accordion>
+    );
+    expect(html).toMatch(/<h3[^>]*data-state="closed"[^>]*class="flex"[^>]*><button/);
+  });
+
+  it('headingLevel у Accordion задаёт уровень всех секций; у Trigger — переопределяет свою', () => {
+    const html = renderToStaticMarkup(
+      <Accordion type="multiple" headingLevel={2}>
+        <AccordionItem value="a">
+          <AccordionTrigger>Первая</AccordionTrigger>
+        </AccordionItem>
+        <AccordionItem value="b">
+          <AccordionTrigger headingLevel={4}>Вторая</AccordionTrigger>
+        </AccordionItem>
+      </Accordion>
+    );
+    expect(html).toMatch(/<h2[^>]*><button[^>]*>Первая/);
+    expect(html).toMatch(/<h4[^>]*><button[^>]*>Вторая/);
+    expect(html).not.toContain('<h3');
+  });
+
   it('Trigger содержит chevron-иконку (svg)', () => {
     const html = renderToStaticMarkup(
       <Accordion type="single" collapsible>

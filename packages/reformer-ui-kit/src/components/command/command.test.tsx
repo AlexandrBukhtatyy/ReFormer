@@ -121,7 +121,7 @@ describe('Command (base, cmdk wrapper)', () => {
     expect(html).toContain('data-testid="cmd-item-x"');
   });
 
-  it('CommandDialog: контент в Dialog Portal (в SSR отсутствует), но sr-only заголовок доступен', () => {
+  it('CommandDialog: закрытая палитра не оставляет в странице ни контента, ни скрытого заголовка', () => {
     const html = renderToStaticMarkup(
       <CommandDialog title="Палитра" description="Поиск команд">
         <CommandInput placeholder="Введите команду…" />
@@ -130,11 +130,9 @@ describe('Command (base, cmdk wrapper)', () => {
         </CommandList>
       </CommandDialog>
     );
-    // DialogHeader вне портала → sr-only заголовок/описание рендерятся
-    expect(html).toContain('Палитра');
-    expect(html).toContain('Поиск команд');
-    // DialogContent (с Command и его input) — в Portal, в SSR отсутствует
+    // Заголовок — внутри DialogContent (Portal): вне открытого окна его не читает скринридер.
+    expect(html).not.toContain('Палитра');
+    expect(html).not.toContain('Поиск команд');
     expect(html).not.toContain('data-slot="command-input"');
-    expect(html).not.toContain('data-slot="command-content"');
   });
 });

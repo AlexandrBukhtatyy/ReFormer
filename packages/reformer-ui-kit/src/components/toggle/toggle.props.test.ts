@@ -39,3 +39,9 @@ describe('toggle props-схема — страж от дрейфа', () => {
     expect(toggleBasePropsSchema.properties.size.enum).toEqual(['default', 'sm', 'lg']);
   });
 });
+
+describe('toggle props-схема — текст кнопки', () => {
+  it('children — строка в componentProps: у узла поля в JSON нет своих children[]', () => {
+    expect(toggleBasePropsSchema.properties.children.type).toBe('string');
+  });
+});

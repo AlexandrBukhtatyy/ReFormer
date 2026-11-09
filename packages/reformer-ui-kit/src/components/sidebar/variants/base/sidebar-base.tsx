@@ -14,11 +14,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 import { useIsMobile } from '../../hooks/use-mobile';
 
-// Дословный порт shadcn/ui (new-york-v4) sidebar. Правки только: unified `radix-ui` (Slot.Root),
+// Порт shadcn/ui (new-york-v4) sidebar. Правки: unified `radix-ui` (Slot.Root),
 // `@/lib/utils`, `@/components/{button,input,separator,sheet,skeleton,tooltip}` вместо registry-путей,
 // локальный `../../hooks/use-mobile`, снят 'use client'. data-slot / data-sidebar / cookie-персист
 // состояния / keyboard-shortcut (Cmd/Ctrl+B) сохранены как в апстриме. Не form-control — реэкспорт
 // всех под-компонентов + useSidebar.
+//
+// Расхождения с апстримом (доступность и поведение, подробности — у мест правки):
+// - cookie `sidebar_state` не только пишется, но и читается провайдером при монтировании;
+// - Ctrl/Cmd+B не перехватывается в полях ввода, и на одно нажатие переключается одна панель;
+// - на узком экране className/style/data-*/aria-* доходят до панели (Sheet);
+// - свёрнутая `offcanvas` убрана из порядка Tab (`visibility: hidden` после анимации);
+// - SidebarTrigger несёт aria-expanded/aria-controls, `isActive` ставит aria-current="page";
+// - ширина SidebarMenuSkeleton выводится из useId, а не из Math.random (гидратация).
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -27,7 +35,29 @@ const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 
+/** Сохранённое состояние панели из cookie `sidebar_state`; нет записи (или SSR) — `undefined`. */
+function readSidebarCookie(): boolean | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const match = new RegExp(`(?:^|;\\s*)${SIDEBAR_COOKIE_NAME}=(true|false)(?:;|$)`).exec(
+    document.cookie
+  );
+  return match ? match[1] === 'true' : undefined;
+}
+
+/**
+ * Фокус в поле ввода или редакторе: там Ctrl/Cmd+B — правка текста («жирный»), а не панель.
+ */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return (
+    target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !==
+    null
+  );
+}
+
 type SidebarContextProps = {
+  /** id панели — цель `aria-controls` у SidebarTrigger. */
+  sidebarId: string;
   state: 'expanded' | 'collapsed';
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -62,6 +92,7 @@ function SidebarProvider({
   onOpenChange?: (open: boolean) => void;
 }) {
   const isMobile = useIsMobile();
+  const sidebarId = React.useId();
   const [openMobile, setOpenMobile] = React.useState(false);
 
   // This is the internal state of the sidebar.
@@ -83,23 +114,47 @@ function SidebarProvider({
     [setOpenProp, open]
   );
 
+  // Cookie, которую пишет setOpen, восстанавливает состояние при следующем открытии страницы
+  // (в апстриме её читал только серверный код приложения, без него она была мёртвой). Только в
+  // неуправляемом режиме: при `open` состояние ведёт вызывающий. Читаем в layout-эффекте, а не в
+  // инициализаторе useState: на сервере cookie не видна, и гидратация должна совпасть с
+  // серверной разметкой (`defaultOpen`); до первой отрисовки состояние уже восстановлено.
+  React.useLayoutEffect(() => {
+    if (openProp !== undefined) return;
+    const saved = readSidebarCookie();
+    if (saved !== undefined) _setOpen(saved);
+    // Только при монтировании: дальше состояние ведёт сам провайдер.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
   }, [isMobile, setOpen, setOpenMobile]);
 
+  // Слушатель ставится один раз и зовёт свежий toggleSidebar через ref: при переподписке на
+  // каждое переключение провайдер уезжал бы в конец очереди window, и при нескольких провайдерах
+  // сочетание переключало бы их по очереди.
+  const toggleRef = React.useRef(toggleSidebar);
+  React.useLayoutEffect(() => {
+    toggleRef.current = toggleSidebar;
+  }, [toggleSidebar]);
+
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        toggleSidebar();
-      }
+      if (event.key !== SIDEBAR_KEYBOARD_SHORTCUT || !(event.metaKey || event.ctrlKey)) return;
+      // Уже обработано: полем, редактором или другим SidebarProvider на странице — на одно
+      // нажатие переключается одна панель (вложенный провайдер подписан раньше внешнего).
+      if (event.defaultPrevented || event.isComposing) return;
+      if (isEditableTarget(event.target)) return;
+      event.preventDefault();
+      toggleRef.current();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar]);
+  }, []);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
@@ -107,6 +162,7 @@ function SidebarProvider({
 
   const contextValue = React.useMemo<SidebarContextProps>(
     () => ({
+      sidebarId,
       state,
       open,
       setOpen,
@@ -115,7 +171,7 @@ function SidebarProvider({
       setOpenMobile,
       toggleSidebar,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [sidebarId, state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
   );
 
   return (
@@ -148,6 +204,7 @@ function Sidebar({
   variant = 'sidebar',
   collapsible = 'offcanvas',
   className,
+  style,
   children,
   ...props
 }: React.ComponentProps<'div'> & {
@@ -156,7 +213,7 @@ function Sidebar({
   collapsible?: 'offcanvas' | 'icon' | 'none';
 }) {
   const t = useKitMessages();
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { sidebarId, isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
   if (collapsible === 'none') {
     return (
@@ -166,6 +223,7 @@ function Sidebar({
           'flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground',
           className
         )}
+        style={style}
         {...props}
       >
         {children}
@@ -174,16 +232,23 @@ function Sidebar({
   }
 
   if (isMobile) {
+    // Пропсы панели — на SheetContent (её DOM), а не на Sheet: Radix Dialog.Root не рисует
+    // элемента, и в апстриме className/data-testid/aria-* на узком экране пропадали.
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          {...props}
+          className={cn(
+            'w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden',
+            className
+          )}
           style={
             {
               '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
+              ...style,
             } as React.CSSProperties
           }
           side={side}
@@ -192,7 +257,9 @@ function Sidebar({
             <SheetTitle>{t('kit.sidebar.title')}</SheetTitle>
             <SheetDescription>{t('kit.sidebar.description')}</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div id={sidebarId} className="flex h-full w-full flex-col">
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     );
@@ -200,6 +267,7 @@ function Sidebar({
 
   return (
     <div
+      id={sidebarId}
       className="group peer hidden text-sidebar-foreground md:block"
       data-state={state}
       data-collapsible={state === 'collapsed' ? collapsible : ''}
@@ -222,7 +290,11 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex',
+          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width,visibility] duration-200 ease-linear md:flex',
+          // Свёрнутая offcanvas-панель уезжает за край, но без `visibility: hidden` её пункты
+          // оставались в порядке Tab и в дереве доступности. `visibility` переходит в конце
+          // анимации, поэтому выезд остаётся видимым; SidebarRail возвращает себе `visible`.
+          'group-data-[collapsible=offcanvas]:invisible',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -232,6 +304,7 @@ function Sidebar({
             : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
           className
         )}
+        style={style}
         {...props}
       >
         <div
@@ -248,7 +321,7 @@ function Sidebar({
 
 function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const t = useKitMessages();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, sidebarId, isMobile, open, openMobile } = useSidebar();
 
   return (
     <Button
@@ -256,6 +329,10 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
+      // Кнопка-переключатель сообщает состояние и цель: в апстриме скринридер не знал, свёрнута
+      // ли панель и какую область кнопка открывает.
+      aria-expanded={isMobile ? openMobile : open}
+      aria-controls={sidebarId}
       className={cn('size-7', className)}
       onClick={(event) => {
         onClick?.(event);
@@ -288,6 +365,9 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
         'group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full hover:group-data-[collapsible=offcanvas]:bg-sidebar',
         '[[data-side=left][data-collapsible=offcanvas]_&]:-right-2',
         '[[data-side=right][data-collapsible=offcanvas]_&]:-left-2',
+        // Рейл — единственная часть свёрнутой offcanvas-панели, по которой её возвращают мышью:
+        // перекрываем `invisible` контейнера (см. Sidebar).
+        'group-data-[collapsible=offcanvas]:visible',
         className
       )}
       {...props}
@@ -499,6 +579,8 @@ function SidebarMenuButton({
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}
+      // Подсветка текущего пункта видна только глазу; скринридеру его называет aria-current.
+      aria-current={isActive ? 'page' : undefined}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
       {...props}
     />
@@ -585,11 +667,14 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<'div'> & {
   showIcon?: boolean;
 }) {
-  // Random width between 50 to 90%.
+  // Ширина 50–89%, разная у соседних заглушек. В апстриме — Math.random(): сервер и клиент
+  // получали разные числа, и гидратация расходилась. useId совпадает на сервере и клиенте.
+  const id = React.useId();
   const width = React.useMemo(() => {
-    // eslint-disable-next-line react-hooks/purity -- дословный порт shadcn SidebarMenuSkeleton: случайная ширина плейсхолдера безвредна (не влияет на состояние формы), меняем только глушение линта, не логику апстрима.
-    return `${Math.floor(Math.random() * 40) + 50}%`;
-  }, []);
+    let hash = 0;
+    for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+    return `${(Math.abs(hash) % 40) + 50}%`;
+  }, [id]);
 
   return (
     <div
@@ -657,6 +742,7 @@ function SidebarMenuSubButton({
       data-sidebar="menu-sub-button"
       data-size={size}
       data-active={isActive}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground',
         'data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground',

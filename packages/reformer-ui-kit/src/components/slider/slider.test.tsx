@@ -88,3 +88,50 @@ describe('sliderAdapter — одно-thumb контракт (value→primitive, 
     expect(sliderAdapter.fromEmit([], {})).toBeNull();
   });
 });
+
+describe('Slider — a11y поля на ручке (role=slider)', () => {
+  it('id/aria-labelledby/aria-describedby/aria-invalid — на ручке, не на корне', () => {
+    const html = renderToStaticMarkup(
+      <Bound
+        component={Slider}
+        value={30}
+        id="control-s"
+        aria-labelledby="label-s"
+        aria-describedby="desc-s"
+        aria-invalid
+        aria-errormessage="err-s"
+        aria-required
+      />
+    );
+    const thumb = html.match(/<span[^>]*role="slider"[^>]*>/)?.[0] ?? '';
+    expect(thumb).toContain('id="control-s"');
+    expect(thumb).toContain('aria-labelledby="label-s"');
+    expect(thumb).toContain('aria-describedby="desc-s"');
+    expect(thumb).toContain('aria-invalid="true"');
+    expect(thumb).toContain('aria-errormessage="err-s"');
+    const rootTag = html.slice(0, html.indexOf('>') + 1);
+    expect(rootTag).toContain('data-slot="slider"');
+    expect(rootTag).not.toContain('aria-labelledby');
+    expect(rootTag).not.toContain('id="control-s"');
+    // У role=slider нет aria-required — в DOM не идёт.
+    expect(html).not.toContain('aria-required');
+  });
+
+  it('id — только у первой ручки (у двух ручек id не дублируется)', () => {
+    const html = renderToStaticMarkup(<Slider value={[10, 20]} id="range" aria-label="Цена" />);
+    expect(html.match(/id="range"/g)).toHaveLength(1);
+    expect(html.match(/aria-label="Цена"/g)).toHaveLength(2);
+  });
+
+  // В SSR Radix не знает индекса ручки и aria-valuenow не пишет — положение видно по range.
+  it('пустое поле (null) при min > 0 — ручка на min, а не за левым краем трека', () => {
+    const html = renderToStaticMarkup(<Bound component={Slider} value={null} min={10} max={20} />);
+    // Без прижатия [0] при min=10 давал right:200% — ручка левее трека.
+    expect(html).toContain('left:0%;right:100%');
+  });
+
+  it('значение вне диапазона прижимается к [min, max]', () => {
+    const html = renderToStaticMarkup(<Bound component={Slider} value={150} min={0} max={100} />);
+    expect(html).toContain('left:0%;right:0%');
+  });
+});

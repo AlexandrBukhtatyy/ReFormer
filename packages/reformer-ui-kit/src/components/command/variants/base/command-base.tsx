@@ -17,9 +17,10 @@ import {
 // Тяжёлая dep `cmdk` (CommandPrimitive) импортируется как есть (external / optional peer).
 // data-slot и все под-компоненты сохранены как в апстриме. CommandDialog оборачивает cmdk
 // в Dialog из @/components/dialog.
-// Одно расхождение с апстримом — размер шрифта: там `text-sm` стоит на поле ввода, пустом
+// Расхождения с апстримом. Размер шрифта: там `text-sm` стоит на поле ввода, пустом
 // состоянии и каждом пункте, здесь его задаёт корень `Command`, а они наследуют. Иначе список
 // комбобокса не смог бы пойти за размером своего поля — пункт перебивал бы унаследованное.
+// Скрытый заголовок CommandDialog — внутри DialogContent (см. комментарий в компоненте).
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -56,16 +57,19 @@ function CommandDialog({
   showCloseButton?: boolean;
 }) {
   const t = useKitMessages();
+  // Расхождение с апстримом: скрытый заголовок стоит внутри DialogContent, а не перед ним. Снаружи
+  // он рендерился в странице и при закрытой палитре (лишний текст для скринридера), а при
+  // открытой оказывался вне модального окна, под aria-hidden остальной страницы.
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title ?? t('kit.command.title')}</DialogTitle>
-        <DialogDescription>{description ?? t('kit.command.description')}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn('overflow-hidden p-0', className)}
         showCloseButton={showCloseButton}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title ?? t('kit.command.title')}</DialogTitle>
+          <DialogDescription>{description ?? t('kit.command.description')}</DialogDescription>
+        </DialogHeader>
         <Command className="**:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>

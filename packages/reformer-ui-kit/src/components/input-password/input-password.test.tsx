@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { InputPassword } from './index';
+import { InputPassword, inputPasswordBasePropsSchema } from './index';
 import { Bound } from '@/test-utils/bound';
 
 describe('InputPassword (base)', () => {
@@ -72,5 +72,25 @@ describe('InputPassword (form-версия)', () => {
     // forwardRef exotic (объект), не функция: обёртка поля публикует handle композита как есть.
     // Рантайм-поведение handle (toggleVisibility/setVisible) проверяется в e2e (Playwright).
     expect(typeof InputPassword).toBe('object');
+  });
+});
+
+describe('InputPassword — фокус «глаза» и autoComplete', () => {
+  it('у кнопки «глаз» видимый фокус с клавиатуры (outline снят, есть кольцо)', () => {
+    const html = renderToStaticMarkup(<InputPassword value="secret" />);
+    const toggle = html.match(/<button[^>]*data-slot="input-password-toggle"[^>]*>/)?.[0] ?? '';
+    expect(toggle).toContain('focus-visible:ring-[3px]');
+    expect(toggle).not.toContain('text-gray-');
+  });
+
+  it('autoComplete доходит до input; в props-схеме — enum', () => {
+    const html = renderToStaticMarkup(<InputPassword value="" autoComplete="new-password" />);
+    expect(html).toContain('autoComplete="new-password"');
+    expect(inputPasswordBasePropsSchema.properties.autoComplete.enum).toEqual([
+      'current-password',
+      'new-password',
+      'one-time-code',
+      'off',
+    ]);
   });
 });

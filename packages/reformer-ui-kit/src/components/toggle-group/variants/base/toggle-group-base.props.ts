@@ -36,6 +36,13 @@ export const toggleGroupBasePropsSchema = {
       description: 'Визуальный стиль кнопок: плоские (default) или с рамкой (outline).',
       'x-doc': { group: 'Control', type: "'default' | 'outline'" },
     },
+    size: {
+      type: 'string',
+      enum: ['default', 'sm', 'lg'],
+      default: 'default',
+      description: 'Размер кнопок: default | sm | lg (как у Toggle).',
+      'x-doc': { group: 'Control', type: "'default' | 'sm' | 'lg'", kind: 'enum' },
+    },
     className: {
       type: 'string',
       description: 'Доп. CSS-класс контейнера группы.',

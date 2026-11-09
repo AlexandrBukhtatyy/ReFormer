@@ -84,11 +84,11 @@ describe('Pagination (base)', () => {
     expect(html).toContain('Next');
   });
 
-  it('PaginationEllipsis — aria-hidden и sr-only подпись', () => {
+  it('PaginationEllipsis — иконка скрыта, sr-only подпись читается (обёртка не aria-hidden)', () => {
     const html = renderToStaticMarkup(<PaginationEllipsis />);
-    expect(html).toContain('aria-hidden');
-    expect(html).toContain('More pages');
-    expect(html).toContain('sr-only');
+    expect(html).toMatch(/^<span data-slot="pagination-ellipsis" class="[^"]*">/);
+    expect(html).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(html).toContain('<span class="sr-only">More pages</span>');
   });
 
   it('className мёржится (tailwind-merge, caller wins)', () => {

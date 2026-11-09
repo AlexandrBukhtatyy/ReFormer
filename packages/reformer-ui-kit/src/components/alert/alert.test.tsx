@@ -3,16 +3,28 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { Alert, AlertTitle, AlertDescription, alertVariants } from './index';
 
 describe('Alert (base)', () => {
-  it('рендерит <div role="alert"> с data-slot="alert" и дефолтным (default) стилем', () => {
+  it('рендерит <div> с data-slot="alert" и дефолтным (default) стилем, без живой роли', () => {
     const html = renderToStaticMarkup(<Alert>Heads up</Alert>);
     expect(html).toContain('data-slot="alert"');
-    expect(html).toContain('role="alert"');
+    // Статичное пояснение не объявляется скринридером как срочное.
+    expect(html).not.toContain('role=');
     // default variant → bg-card / text-card-foreground
     expect(html).toContain('text-card-foreground');
     expect(html).toContain('>Heads up</div>');
   });
 
-  it('variant="destructive" даёт destructive-классы', () => {
+  it('явный role перекрывает умолчание (status — для появляющихся сообщений)', () => {
+    expect(renderToStaticMarkup(<Alert role="status">Сохранено</Alert>)).toContain('role="status"');
+    expect(
+      renderToStaticMarkup(
+        <Alert variant="destructive" role="note">
+          X
+        </Alert>
+      )
+    ).toContain('role="note"');
+  });
+
+  it('variant="destructive" — role="alert" и destructive-классы', () => {
     const html = renderToStaticMarkup(<Alert variant="destructive">Boom</Alert>);
     expect(html).toContain('role="alert"');
     expect(html).toContain('text-destructive');

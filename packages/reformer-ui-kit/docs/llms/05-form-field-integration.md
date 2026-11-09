@@ -292,9 +292,13 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 ```
 
 Поэтому `FormField` не рендерит верхний `Label` для контролов со статическим маркером
-`reformerLayout === 'inline-label'`. Сравнение с конкретным компонентом
-(`control.component === Checkbox`) снято в v7: маркер работает для любого варианта и
-для пользовательских контролов.
+`reformerLayout === 'inline-label'`. Маркер работает для любого варианта и для
+пользовательских контролов.
+
+Такой контрол получает из `componentProps` `label` и `required` и рисует подпись со звёздочкой
+сам. Остальным контролам обёртка эти props не передаёт, как и `description` с `labelTooltip`.
+В DOM они не попадают, а нативный `required` не включает проверку браузера, которая блокировала
+бы отправку формы.
 
 > Маркер — неэнфорсимая конвенция. Свой inline-контрол обязан его объявить —
 > `defineFieldControl(MyControl, { adapter, layout: 'inline-label' })` из

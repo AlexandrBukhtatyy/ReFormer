@@ -41,6 +41,16 @@ describe('Section (base, DSL-контейнер)', () => {
     expect(html).toContain('class="text-xl font-bold"');
   });
 
+  it('прокидывает id/role/aria-*/data-* на <section>', () => {
+    const html = renderToStaticMarkup(
+      <Section title="Адрес" id="address" aria-label="Адрес проживания" data-testid="sec" />
+    );
+    expect(html).toMatch(/^<section[^>]*id="address"/);
+    expect(html).toContain('aria-label="Адрес проживания"');
+    expect(html).toContain('data-testid="sec"');
+    expect(html).not.toMatch(/<section[^>]*title=/);
+  });
+
   it('рендерит дочерние элементы внутри секции', () => {
     const html = renderToStaticMarkup(
       <Section title="Адрес">

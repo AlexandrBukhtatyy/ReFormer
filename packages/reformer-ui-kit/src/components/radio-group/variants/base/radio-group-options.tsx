@@ -35,7 +35,8 @@ export interface RadioGroupOptionsProps extends Omit<
  * Контейнер — `role="radiogroup"` (Radix Root). Каждый Item получает per-option
  * `data-testid = <data-testid>-<value>`: FormField передаёт контролу `data-testid="input-<field>"`,
  * поэтому в форме выходит `input-<field>-<value>` (POM ждёт именно этот идентификатор). `id` Item
- * связывает `<label htmlFor>`, чтобы клик по подписи выбирал вариант.
+ * связывает `<label htmlFor>`, чтобы клик по подписи выбирал вариант; он строится из `useId`,
+ * а не из `data-testid`, — тот совпадает у одинаковых полей разных строк массива и разных форм.
  */
 function RadioGroupOptionsBase({
   options = [],
@@ -43,8 +44,9 @@ function RadioGroupOptionsBase({
   ...props
 }: RadioGroupOptionsProps) {
   const t = useKitMessages();
-  const generatedId = React.useId();
-  const idBase = dataTestId ?? generatedId;
+  // Только useId: testId одинаков у поля в каждой строке FieldArray (`input-<field>`), и id из
+  // него дублировались бы — клик по подписи во второй строке выбирал вариант первой.
+  const idBase = React.useId();
 
   return (
     <RadioGroup data-testid={dataTestId} {...props}>

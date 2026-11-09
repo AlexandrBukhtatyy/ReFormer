@@ -5,7 +5,7 @@ import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { buttonVariants, type Button } from '@/components/button';
 
-// Дословный порт shadcn/ui (new-york-v4) pagination. Правки только: `@/lib/utils`,
+// Порт shadcn/ui (new-york-v4) pagination. Правки: `@/lib/utils`,
 // `@/components/button` (вместо registry-пути) для buttonVariants/type Button, снят 'use client'.
 // Презентационный набор (nav/ul/li/a/span) — каждая часть несёт собственный data-slot.
 // PaginationLink стилизуется через buttonVariants (ghost / outline у активной).
@@ -92,9 +92,11 @@ function PaginationNext({ className, ...props }: React.ComponentProps<typeof Pag
 
 function PaginationEllipsis({ className, ...props }: React.ComponentProps<'span'>) {
   const t = useKitMessages();
+  // Расхождение с апстримом: там `aria-hidden` стоял на всей обёртке и прятал вместе с иконкой
+  // sr-only подпись «Ещё страницы» — пропуск страниц скринридер не объявлял. Иконку lucide
+  // прячет сама (`aria-hidden` по умолчанию), подпись остаётся читаемой.
   return (
     <span
-      aria-hidden
       data-slot="pagination-ellipsis"
       className={cn('flex size-9 items-center justify-center', className)}
       {...props}

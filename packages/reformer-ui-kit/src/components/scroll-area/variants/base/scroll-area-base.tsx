@@ -3,7 +3,7 @@ import { ScrollArea as ScrollAreaPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
-// Дословный порт shadcn/ui (new-york-v4) scroll-area. Правки только: unified `radix-ui`
+// Порт shadcn/ui (new-york-v4) scroll-area. Правки: unified `radix-ui`
 // (ScrollArea.Root/Viewport/ScrollAreaScrollbar/ScrollAreaThumb/Corner), `@/lib/utils`,
 // снят 'use client'. data-slot уже в апстриме. Compound-набор поверх Radix ScrollArea —
 // презентационный (не form-control). Стили — Tailwind внутри реализации.
@@ -16,14 +16,25 @@ import { cn } from '@/lib/utils';
 /** Ступени толщины полос прокрутки: `default` — 10px апстрима, `xs` — 6px для плотных рядов. */
 type ScrollAreaSize = 'default' | 'xs';
 
+// Ещё одно расхождение — `viewportProps`: прокручиваемая область — внутренний Viewport, а пропсы
+// уходили только на Root. Без доступа к Viewport нельзя было сделать область фокусируемой
+// (`tabIndex={0}` — прокрутка с клавиатуры) и назвать её (`aria-label`), хотя стили фокуса у
+// неё уже есть.
+
 function ScrollArea({
   className,
   children,
   size = 'default',
+  viewportProps,
   ...props
 }: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
   /** Толщина полос прокрутки: `xs` — тонкие (6px) для плотных рядов вроде вкладок. */
   size?: ScrollAreaSize;
+  /**
+   * Пропсы прокручиваемой области (Radix `ScrollArea.Viewport`): `tabIndex={0}` — прокрутка с
+   * клавиатуры, `aria-label` — имя области, `ref`, обработчики. `className` дополняет классы кита.
+   */
+  viewportProps?: React.ComponentProps<typeof ScrollAreaPrimitive.Viewport>;
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -33,7 +44,11 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        {...viewportProps}
+        className={cn(
+          'size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1',
+          viewportProps?.className
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

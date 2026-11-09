@@ -5,7 +5,7 @@
  * Aria-метки опциональные, по умолчанию — из словаря локали.
  */
 
-import type { FC } from 'react';
+import type { FC, KeyboardEvent } from 'react';
 import type {
   FormWizardIndicatorStepWithState,
   FormWizardIndicatorRenderProps,
@@ -34,7 +34,7 @@ export interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
 
 /**
  * Визуальная цепочка шагов wizard'а — иконки, заголовки и соединительные линии
- * с подсветкой текущего / завершённого шага. Клик (и Enter) по доступному шагу
+ * с подсветкой текущего / завершённого шага. Клик (и Enter / Space) по доступному шагу
  * вызывает `goToStep`; недоступные шаги приглушены и не кликабельны. Разметка
  * доступна для скринридеров (`role="navigation"`, `aria-current="step"`,
  * настраиваемые aria-метки).
@@ -71,12 +71,25 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
           completed: step.isCompleted ? 'yes' : 'no',
         });
 
+  // Только токены темы: зашитый зелёный не перекрашивался темой (в тёмной — тот же оттенок) и на
+  // `bg-muted` давал контраст ниже нормы. Завершённость передаёт галочка ✓ и линия цвета
+  // `primary` — тот же акцент, что у текущего шага.
   const getStepClasses = (step: FormWizardIndicatorStepWithState) => {
     if (step.isCurrent) return 'bg-primary text-primary-foreground';
-    // green-700, не 500: на фоне bg-muted зелёный 500 даёт контраст 2:1 при норме WCAG AA 4.5:1.
-    if (step.isCompleted) return 'text-green-700 hover:bg-accent';
+    if (step.isCompleted) return 'text-foreground hover:bg-accent';
     if (step.canNavigate) return 'hover:bg-accent';
     return 'opacity-50';
+  };
+
+  // `role="button"` обязывает к клавиатуре нативной кнопки: Enter и Space. Space без
+  // preventDefault ещё и прокрутил бы страницу.
+  const onStepKeyDown = (
+    e: KeyboardEvent<HTMLDivElement>,
+    step: FormWizardIndicatorStepWithState
+  ) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    if (step.canNavigate) goToStep(step.number);
   };
 
   return (
@@ -92,7 +105,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
           <div
             className={`flex items-center gap-2 p-3 rounded-lg transition-all ${getStepClasses(step)} ${step.canNavigate ? 'cursor-pointer' : 'cursor-not-allowed'}`}
             onClick={() => step.canNavigate && goToStep(step.number)}
-            onKeyDown={(e) => e.key === 'Enter' && step.canNavigate && goToStep(step.number)}
+            onKeyDown={(e) => onStepKeyDown(e, step)}
             data-testid={`step-indicator-${step.number}`}
             data-step-number={step.number}
             data-step-current={step.isCurrent}
@@ -114,7 +127,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
           </div>
           {index < steps.length - 1 && (
             <div
-              className={`flex-1 h-0.5 mx-2 ${step.isCompleted ? 'bg-green-500' : 'bg-border'}`}
+              className={`flex-1 h-0.5 mx-2 ${step.isCompleted ? 'bg-primary' : 'bg-border'}`}
               aria-hidden="true"
             />
           )}

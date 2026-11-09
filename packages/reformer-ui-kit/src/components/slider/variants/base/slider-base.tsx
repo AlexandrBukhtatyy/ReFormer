@@ -6,9 +6,9 @@ import { defineFieldControl } from '@/fields/field-control';
 import { sliderAdapter } from '@/fields/adapters';
 import { withFieldTooltip, OUTSIDE_FILL } from '@/fields/field-tooltip';
 
-// Дословный порт shadcn/ui (new-york-v4) slider. Правки только: снят 'use client'
-// (unified `radix-ui` (Slider.Root/Track/Range/Thumb) и `@/lib/utils` уже в upstream-исходнике).
-// data-slot сохранён. data-testid/aria-* приходят через spread `...props` и ложатся на
+// Порт shadcn/ui (new-york-v4) slider. Правки: снят 'use client' (unified `radix-ui` и
+// `@/lib/utils` уже в upstream-исходнике); a11y-пропсы поля — на ручки; значение прижимается
+// к диапазону. data-slot сохранён. data-testid и прочее — через spread `...props` на
 // SliderPrimitive.Root. Одно-thumb режим (форма, value: number|null) даёт _values.length === 1.
 function SliderBase({
   className,
@@ -16,18 +16,33 @@ function SliderBase({
   value,
   min = 0,
   max = 100,
+  id,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
+  'aria-errormessage': ariaErrorMessage,
+  // У role=slider нет aria-required (ARIA 1.2): на ручке он недопустим, на корне-span бессмыслен.
+  'aria-required': _ariaRequired,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
+  // Значение вне [min, max] Radix рисует за краем трека. Отсюда же «пустое» поле: адаптер не видит
+  // min и отдаёт null как [0] — при min > 0 ручка без прижатия уезжала бы левее трека.
+  const clamped = React.useMemo(
+    () => (Array.isArray(value) ? value.map((v) => Math.min(max, Math.max(min, v))) : value),
+    [value, min, max]
+  );
   const _values = React.useMemo(
-    () => (Array.isArray(value) ? value : Array.isArray(defaultValue) ? defaultValue : [min, max]),
-    [value, defaultValue, min, max]
+    () =>
+      Array.isArray(clamped) ? clamped : Array.isArray(defaultValue) ? defaultValue : [min, max],
+    [clamped, defaultValue, min, max]
   );
 
   return (
     <SliderPrimitive.Root
       data-slot="slider"
       defaultValue={defaultValue}
-      value={value}
+      value={clamped}
       min={min}
       max={max}
       className={cn(
@@ -49,11 +64,20 @@ function SliderBase({
           )}
         />
       </SliderPrimitive.Track>
+      {/* Фокус и роль slider — у ручки, поэтому имя, описание и ошибка поля нужны ей, а не
+          корневому span: иначе скринридер объявлял ручку без имени. id — у первой ручки, чтобы
+          <label for> и связки по id вели к фокусируемому элементу. */}
       {Array.from({ length: _values.length }, (_, index) => (
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+          id={index === 0 ? id : undefined}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
+          aria-errormessage={ariaErrorMessage}
+          className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
         />
       ))}
     </SliderPrimitive.Root>
@@ -80,7 +104,9 @@ export interface SliderFormProps {
 /**
  * Slider кита: порт shadcn + проп `tooltip` (иконка справа). В форме — скалярный контракт
  * `value: number | null`: {@link sliderAdapter} (статика) сводит его к Radix-массиву
- * (`[v ?? 0]` ↔ `arr[0]`, одно-thumb режим). Подпись поля — сверху, от FormField.
+ * (`[v ?? 0]` ↔ `arr[0]`, одно-thumb режим). Значение прижимается к `[min, max]`, поэтому
+ * пустое поле при `min ≥ 0` показывает ручку на `min`. Подпись поля — сверху, от FormField;
+ * `id`/`aria-*` поля ложатся на ручку (`role="slider"`), `data-testid` — на корень.
  */
 const Slider = defineFieldControl(withFieldTooltip(SliderBase, OUTSIDE_FILL), {
   adapter: sliderAdapter,

@@ -86,3 +86,9 @@ describe('группа вариантов NativeSelect', () => {
     expect(defaults[0]['x-registryName']).toBe('NativeSelect');
   });
 });
+
+describe('native-select props-схема — размер', () => {
+  it('size объявлен (default | sm, как у NativeSelect)', () => {
+    expect(nativeSelectBasePropsSchema.properties.size.enum).toEqual(['default', 'sm']);
+  });
+});

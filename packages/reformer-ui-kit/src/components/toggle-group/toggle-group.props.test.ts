@@ -89,3 +89,10 @@ describe('группа вариантов ToggleGroup', () => {
     );
   });
 });
+
+describe('toggle-group props-схемы — размер кнопок', () => {
+  it('size объявлен у обоих вариантов (как у Toggle)', () => {
+    expect(toggleGroupBasePropsSchema.properties.size.enum).toEqual(['default', 'sm', 'lg']);
+    expect(toggleGroupMultiPropsSchema.properties.size.enum).toEqual(['default', 'sm', 'lg']);
+  });
+});

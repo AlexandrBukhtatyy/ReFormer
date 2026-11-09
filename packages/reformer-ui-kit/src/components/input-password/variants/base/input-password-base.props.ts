@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 
 /**
  * Props-схема InputPassword — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
- * `componentProps` (renderer-json). Реальная поверхность в DSL — 3 ключа; `additionalProperties: false`
+ * `componentProps` (renderer-json). Реальная поверхность в DSL — 5 ключей; `additionalProperties: false`
  * ловит опечатки (`lable` вместо `label` подмешивается враппером).
  *
  * `x-registryName: 'InputPassword'` — компонент `InputPassword`.
@@ -27,6 +27,17 @@ export const inputPasswordBasePropsSchema = {
       description:
         'Показывать иконку переключения видимости (eye/eye-off). Появляется при непустом value.',
       'x-doc': { group: 'Behavior', type: 'boolean' },
+    },
+    autoComplete: {
+      type: 'string',
+      enum: ['current-password', 'new-password', 'one-time-code', 'off'],
+      description:
+        'Подсказка менеджеру паролей: current-password — вход, new-password — регистрация и смена пароля (браузер предложит сгенерировать), one-time-code — код из SMS. Не задан — браузер решает сам.',
+      'x-doc': {
+        group: 'Behavior',
+        type: "'current-password' | 'new-password' | 'one-time-code' | 'off'",
+        kind: 'enum',
+      },
     },
     readOnly: {
       type: 'boolean',

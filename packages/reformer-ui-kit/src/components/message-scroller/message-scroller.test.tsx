@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@/locale/ru';
 import {
   MessageScrollerProvider,
   MessageScroller,
@@ -44,6 +46,37 @@ describe('MessageScroller (base, compound)', () => {
     expect(html).toContain('data-slot="message-scroller-viewport"');
     expect(html).toContain('role="region"');
     expect(html).toContain('aria-label="Messages"');
+  });
+
+  it('имя области переводится словарём кита; свой aria-label важнее', () => {
+    const ruHtml = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <MessageScrollerProvider>
+          <MessageScroller>
+            <MessageScrollerViewport />
+          </MessageScroller>
+        </MessageScrollerProvider>
+      </I18nProvider>
+    );
+    expect(ruHtml).toContain('aria-label="Сообщения"');
+    const own = renderToStaticMarkup(
+      <MessageScrollerProvider>
+        <MessageScroller>
+          <MessageScrollerViewport aria-label="Чат с поддержкой" />
+        </MessageScroller>
+      </MessageScrollerProvider>
+    );
+    expect(own).toContain('aria-label="Чат с поддержкой"');
+  });
+
+  it('кнопка центруется утилитой Tailwind 4.1 (start-1/2), без несуществующей inset-s-1/2', () => {
+    const html = renderToStaticMarkup(
+      <MessageScrollerProvider>
+        <MessageScrollerButton />
+      </MessageScrollerProvider>
+    );
+    expect(html).toContain('start-1/2');
+    expect(html).not.toContain('inset-s-');
   });
 
   it('Content несёт свой data-slot и роль log (live-region)', () => {

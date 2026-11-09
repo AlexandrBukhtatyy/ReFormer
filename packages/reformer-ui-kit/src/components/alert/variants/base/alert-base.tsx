@@ -3,9 +3,9 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 
-// Дословный порт shadcn/ui (new-york-v4) alert. Правки только: `@/lib/utils`, снят 'use client'.
-// data-slot уже в апстриме. cva-стили (variant) — обычная стилизация внутри реализации,
-// не «варианты» в смысле нашего концепта.
+// Порт shadcn/ui (new-york-v4) alert. Правки: `@/lib/utils`, снят 'use client', роль по тону
+// (см. JSDoc `Alert`). data-slot уже в апстриме. cva-стили (variant) — обычная стилизация
+// внутри реализации, не «варианты» в смысле нашего концепта.
 const alertVariants = cva(
   'relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
   {
@@ -22,15 +22,25 @@ const alertVariants = cva(
   }
 );
 
+/**
+ * Плашка: пояснение (`variant="default"`) или ошибка (`variant="destructive"`).
+ *
+ * Роль зависит от тона. `destructive` — `role="alert"`: появившись, ошибка сразу зачитывается
+ * скринридером. У `default` живой роли нет: постоянное пояснение не должно объявляться как
+ * срочное при каждом показе шага или экрана. Сообщение, которое появляется в ответ на действие
+ * («Сохранено»), получает роль явно — `role="status"`; проп `role` перекрывает умолчание.
+ */
 function Alert({
   className,
   variant,
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+  // Расхождение с апстримом: там `role="alert"` у любого тона, и статичное пояснение формы
+  // скринридер объявлял срочным сообщением.
   return (
     <div
       data-slot="alert"
-      role="alert"
+      role={variant === 'destructive' ? 'alert' : undefined}
       className={cn(alertVariants({ variant }), className)}
       {...props}
     />

@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator, InputOTPDefault } from './index';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+  InputOTPDefault,
+  REGEXP_ONLY_DIGITS_AND_CHARS,
+  inputOtpBasePropsSchema,
+} from './index';
 import { Bound } from '@/test-utils/bound';
 
 describe('InputOTP (base, pure shadcn)', () => {
@@ -60,5 +68,40 @@ describe('InputOTPDefault (field-версия)', () => {
     );
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');
+  });
+});
+
+describe('InputOTPDefault — ошибка, pattern, inputMode', () => {
+  it('aria-invalid поля подсвечивает ячейки (data-invalid), хотя сам атрибут — на input', () => {
+    const invalid = renderToStaticMarkup(
+      <Bound component={InputOTPDefault} maxLength={4} value={null} aria-invalid />
+    );
+    expect(invalid.match(/data-slot="input-otp-slot"[^>]*data-invalid="true"/g)).toHaveLength(4);
+
+    const valid = renderToStaticMarkup(
+      <Bound component={InputOTPDefault} maxLength={4} value={null} />
+    );
+    expect(valid).not.toContain('data-invalid="true"');
+  });
+
+  it('pattern и inputMode доходят до input', () => {
+    const html = renderToStaticMarkup(
+      <Bound
+        component={InputOTPDefault}
+        maxLength={4}
+        value={null}
+        pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+        inputMode="text"
+      />
+    );
+    expect(html).toContain('pattern="^[a-zA-Z0-9]+$"');
+    expect(html).toContain('inputMode="text"');
+  });
+
+  it('props-схема: pattern/inputMode — в DSL, onComplete — runtime', () => {
+    expect(Object.keys(inputOtpBasePropsSchema.properties)).toEqual(
+      expect.arrayContaining(['pattern', 'inputMode'])
+    );
+    expect(Object.keys(inputOtpBasePropsSchema['x-runtimeProps'])).toContain('onComplete');
   });
 });

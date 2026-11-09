@@ -44,5 +44,16 @@ export const accordionBasePropsSchema = {
       description: 'Ориентация раскладки секций.',
       'x-doc': { group: 'Behavior', type: "'vertical' | 'horizontal'", kind: 'enum' },
     },
+    headingLevel: {
+      type: 'number',
+      minimum: 1,
+      maximum: 6,
+      multipleOf: 1,
+      default: 3,
+      description:
+        'Уровень заголовков секций (h1–h6) — под структуру заголовков страницы. ' +
+        'AccordionTrigger может переопределить его для своей секции.',
+      'x-doc': { group: 'Behavior', type: '1 | 2 | 3 | 4 | 5 | 6', kind: 'number' },
+    },
   },
 } as const satisfies PropsSchema;

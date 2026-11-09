@@ -150,6 +150,8 @@ const DatePickerRange = React.forwardRef<DatePickerRangeHandle, DatePickerRangeP
     const handleClear = (e: React.MouseEvent) => {
       e.stopPropagation();
       onChange?.(undefined);
+      // Крестик пропадает вместе со значением — без переноса фокус клавиатуры упал бы на body.
+      triggerRef.current?.focus();
     };
 
     const selected: DateRange | undefined = draftFrom
@@ -210,11 +212,14 @@ const DatePickerRange = React.forwardRef<DatePickerRangeHandle, DatePickerRangeP
             {showClear && (
               <button
                 type="button"
-                className={TRAILING_CLEAR}
+                // Крестик в порядке Tab; `TRAILING_CLEAR` гасит outline — видимый фокус даёт кольцо.
+                className={cn(
+                  TRAILING_CLEAR,
+                  'rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                )}
                 onClick={handleClear}
                 aria-label={t('kit.datePicker.clear')}
                 data-testid={dataTestId ? `${dataTestId}-clear` : undefined}
-                tabIndex={-1}
               >
                 <XIcon className="size-4" />
               </button>

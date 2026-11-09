@@ -35,6 +35,12 @@ export interface InputPasswordProps extends Omit<
    * значение / `showToggle={false}`) — у правого края.
    */
   tooltip?: string;
+  /**
+   * Подсказка менеджеру паролей: `current-password` — вход, `new-password` — регистрация и смена
+   * пароля (браузер предложит сгенерировать), `one-time-code` — код из SMS. Не задан — браузер
+   * решает сам.
+   */
+  autoComplete?: React.InputHTMLAttributes<HTMLInputElement>['autoComplete'];
 }
 
 /**
@@ -162,7 +168,9 @@ const InputPassword = React.forwardRef<InputPasswordHandle, InputPasswordProps>(
             data-slot="input-password-toggle"
             // У выключенного поля кнопка не реагирует ни на клик, ни на наведение: одного атрибута
             // `disabled` мало — `:hover` и `cursor-pointer` у disabled-кнопки продолжают работать.
-            className="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+            // outline снят — видимый фокус с клавиатуры даёт кольцо, как у самого поля. Цвета —
+            // токены темы: серые `text-gray-*` в тёмной теме сливались с фоном.
+            className="cursor-pointer rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
             onClick={togglePasswordVisibility}
             disabled={disabled}
             aria-label={showPassword ? t('kit.inputPassword.hide') : t('kit.inputPassword.show')}

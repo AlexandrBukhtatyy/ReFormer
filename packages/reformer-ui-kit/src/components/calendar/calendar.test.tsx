@@ -90,3 +90,44 @@ describe('Calendar — подписи по локали [ReFormer-f29b.6]', () =
     expect(weekdays[0]).toBe('воскресенье');
   });
 });
+
+describe('CalendarSingle — a11y поля на корне-группе', () => {
+  it('корень — role=group с подписью, описанием и ошибкой поля', () => {
+    const html = renderToStaticMarkup(
+      <Bound
+        component={CalendarSingle}
+        value={null}
+        id="control-cal"
+        aria-labelledby="label-cal"
+        aria-describedby="desc-cal"
+        aria-invalid
+        aria-errormessage="err-cal"
+        aria-required
+      />
+    );
+    const root = html.match(/<div[^>]*data-slot="calendar"[^>]*>/)?.[0] ?? '';
+    expect(root).toContain('role="group"');
+    expect(root).toContain('id="control-cal"');
+    expect(root).toContain('aria-labelledby="label-cal"');
+    expect(root).toContain('aria-describedby="desc-cal"');
+    expect(root).toContain('aria-invalid="true"');
+    expect(root).toContain('aria-errormessage="err-cal"');
+    // У role=group нет aria-required (ARIA 1.2) — в DOM не идёт.
+    expect(html).not.toContain('aria-required');
+  });
+
+  it('с tooltip описание (с id подсказки) несёт корень календаря, без второй группы-обёртки', () => {
+    const html = renderToStaticMarkup(
+      <Bound
+        component={CalendarSingle}
+        value={null}
+        id="control-cal"
+        aria-describedby="desc-cal"
+        tooltip="Подсказка"
+      />
+    );
+    expect(html.match(/role="group"/g)).toHaveLength(1);
+    const root = html.match(/<div[^>]*data-slot="calendar"[^>]*>/)?.[0] ?? '';
+    expect(root).toMatch(/aria-describedby="desc-cal [^"]+"/);
+  });
+});

@@ -23,7 +23,8 @@ export function Bound({ component: Component, value, onChange, onBlur, ref, ...r
   const props = bindFieldProps(
     getFieldAdapter(Component),
     { value, onChange: onChange ?? noop, onBlur: onBlur ?? noop },
-    rest
+    rest,
+    Component
   );
   return <Component {...props} {...(ref ? { ref } : {})} />;
 }

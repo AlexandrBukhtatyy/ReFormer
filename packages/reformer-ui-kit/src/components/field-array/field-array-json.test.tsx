@@ -64,6 +64,25 @@ describe('FieldArray (ui-kit, renderer-json)', () => {
     expect(html).toContain('array-item-0-move-down');
   });
 
+  it('без title/itemLabel кнопки строки остаются, а их имена различимы', () => {
+    const html = renderToStaticMarkup(
+      <FieldArray
+        reorderable
+        items={[
+          { key: 'a', index: 0, children: <span>Первый</span> },
+          { key: 'b', index: 1, children: <span>Второй</span> },
+        ]}
+      />
+    );
+    // Было: шапки без title/itemLabel не было — с ней пропадали «Удалить» и ↑/↓.
+    expect(html).toContain('data-testid="array-item-0-remove"');
+    expect(html).toContain('data-testid="array-item-1-move-up"');
+    expect(html).not.toContain('<h4');
+    expect(html).toContain('aria-label="Remove: Item #1"');
+    expect(html).toContain('aria-label="Remove: Item #2"');
+    expect(html).toContain('aria-label="Move down: Item #1"');
+  });
+
   it('maxItems достигнут — кнопка добавления скрыта, ниже предела — на месте', () => {
     const full = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', maxItems: 2 }));
     expect(full).not.toContain('data-testid="array-add"');

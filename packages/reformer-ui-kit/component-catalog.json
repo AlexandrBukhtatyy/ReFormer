@@ -1009,6 +1009,19 @@
               "kind": "boolean"
             }
           },
+          "headingLevel": {
+            "type": "number",
+            "default": 3,
+            "description": "Уровень заголовков секций (h1–h6) — под структуру заголовков страницы. AccordionTrigger может переопределить его для своей секции.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "1 | 2 | 3 | 4 | 5 | 6",
+              "kind": "number"
+            },
+            "minimum": 1,
+            "maximum": 6,
+            "multipleOf": 1
+          },
           "onValueChange": {
             "description": "The callback that fires when the state of the accordion changes.",
             "x-doc": {
@@ -1185,6 +1198,14 @@
               "group": "Control",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "headingLevel": {
+            "type": "number",
+            "description": "Уровень заголовка этой секции; не задан — берётся из `Accordion` (по умолчанию 3).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "AccordionHeadingLevel"
             }
           }
         },
@@ -2919,7 +2940,13 @@
           }
         },
         "x-inherits": {
-          "react": ["DOMAttributes"],
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "RefAttributes"
+          ],
           "packages": []
         }
       }
@@ -3782,17 +3809,6 @@
             "x-doc": {
               "group": "Behavior",
               "type": "Partial<DayPickerLocale>"
-            }
-          },
-          "mode": {
-            "type": "string",
-            "enum": ["single"],
-            "default": "single",
-            "description": "Режим выбора. В форме — только single (одна дата, value: Date | null).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'single'",
-              "kind": "enum"
             }
           },
           "modifiers": {
@@ -12202,7 +12218,7 @@
           "allowDrop": {
             "type": "boolean",
             "default": true,
-            "description": "Принимать drag-and-drop на зоне.",
+            "description": "Принимать drag-and-drop на зоне; у варианта-кнопки — на самой кнопке.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12211,7 +12227,7 @@
           "allowPaste": {
             "type": "boolean",
             "default": false,
-            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне).",
+            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне; у варианта-кнопки — на кнопке).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12220,7 +12236,7 @@
           "autoUpload": {
             "type": "boolean",
             "default": true,
-            "description": "Автозагрузка принятых файлов (действует при заданном uploader).",
+            "description": "Автозагрузка принятых файлов (действует при заданном uploader). При false файлы ждут отправки методом upload() handle поля.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12733,7 +12749,7 @@
           "allowDrop": {
             "type": "boolean",
             "default": true,
-            "description": "Принимать drag-and-drop на зоне.",
+            "description": "Принимать drag-and-drop на зоне; у варианта-кнопки — на самой кнопке.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12742,7 +12758,7 @@
           "allowPaste": {
             "type": "boolean",
             "default": false,
-            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне).",
+            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне; у варианта-кнопки — на кнопке).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12751,7 +12767,7 @@
           "autoUpload": {
             "type": "boolean",
             "default": true,
-            "description": "Автозагрузка принятых файлов (действует при заданном uploader).",
+            "description": "Автозагрузка принятых файлов (действует при заданном uploader). При false файлы ждут отправки методом upload() handle поля.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -13016,7 +13032,7 @@
           "allowDrop": {
             "type": "boolean",
             "default": true,
-            "description": "Принимать drag-and-drop на зоне.",
+            "description": "Принимать drag-and-drop на зоне; у варианта-кнопки — на самой кнопке.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -13025,7 +13041,7 @@
           "allowPaste": {
             "type": "boolean",
             "default": false,
-            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне).",
+            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне; у варианта-кнопки — на кнопке).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -13034,7 +13050,7 @@
           "autoUpload": {
             "type": "boolean",
             "default": true,
-            "description": "Автозагрузка принятых файлов (действует при заданном uploader).",
+            "description": "Автозагрузка принятых файлов (действует при заданном uploader). При false файлы ждут отправки методом upload() handle поля.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -13930,6 +13946,13 @@
         "additionalProperties": false,
         "x-registryName": "Icon",
         "properties": {
+          "absoluteStrokeWidth": {
+            "type": "boolean",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
           "className": {
             "type": "string",
             "description": "Доп. CSS-класс.",
@@ -13975,7 +13998,19 @@
               "type": "number"
             },
             "minimum": 0.5
+          },
+          "title": {
+            "type": "string",
+            "description": "Доступное имя иконки (элемент <title> внутри svg, role=\"img\"). Не задано — иконка декоративная: aria-hidden, скринридер её пропускает.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
           }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "SVGAttributes"],
+          "packages": []
         }
       },
       "leaf": true
@@ -14714,6 +14749,17 @@
               "type": "string"
             }
           },
+          "inputMode": {
+            "type": "string",
+            "enum": ["numeric", "text", "tel", "decimal", "email", "url", "search", "none"],
+            "description": "Экранная клавиатура мобильных устройств.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'numeric' | 'text' | 'tel' | 'decimal' | 'email' | 'url' | 'search' | 'none'",
+              "kind": "enum"
+            },
+            "default": "numeric"
+          },
           "label": {
             "type": "string",
             "description": "Подпись поля (рендерит FormField.Label).",
@@ -14739,6 +14785,14 @@
             },
             "default": 6,
             "minimum": 1
+          },
+          "pattern": {
+            "type": "string",
+            "description": "Допустимые символы — источник регулярного выражения для всего кода: ^\\d+$ — только цифры (REGEXP_ONLY_DIGITS), ^[a-zA-Z0-9]+$ — цифры и латиница. Не задан — любой символ.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
           },
           "required": {
             "type": "boolean",
@@ -14791,6 +14845,11 @@
             "kind": "boolean",
             "default": false,
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "onComplete": {
+            "group": "Behavior",
+            "type": "(value: string) => void",
+            "description": "Код набран целиком (заполнены все maxLength слотов). Функция — в JSON-форме недостижима, передаётся через реестр компонентов или schema-first."
           }
         },
         "x-inherits": {
@@ -14909,6 +14968,16 @@
       "propsSchema": {
         "type": "object",
         "properties": {
+          "autoComplete": {
+            "description": "Подсказка менеджеру паролей: current-password — вход, new-password — регистрация и смена пароля (браузер предложит сгенерировать), one-time-code — код из SMS. Не задан — браузер решает сам.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'current-password' | 'new-password' | 'one-time-code' | 'off'",
+              "kind": "enum"
+            },
+            "type": "string",
+            "enum": ["current-password", "new-password", "one-time-code", "off"]
+          },
           "className": {
             "type": "string",
             "description": "Доп. CSS-класс.",
@@ -17507,11 +17576,14 @@
           },
           "size": {
             "type": "string",
-            "enum": ["sm", "default"],
+            "enum": ["default", "sm"],
             "x-doc": {
-              "group": "Behavior",
-              "type": "'sm' | 'default'"
-            }
+              "group": "Control",
+              "type": "'default' | 'sm'",
+              "kind": "enum"
+            },
+            "default": "default",
+            "description": "Высота поля: default (36px) | sm (32px)."
           },
           "testId": {
             "type": "string",
@@ -19009,7 +19081,7 @@
           },
           "max": {
             "type": "number",
-            "description": "Максимальное значение шкалы (по умолчанию 100).",
+            "description": "Максимальное значение шкалы (по умолчанию 100): заливка — доля `value / max`, скринридер получает `aria-valuemax` и процент в `aria-valuetext`.",
             "x-doc": {
               "group": "State",
               "type": "number",
@@ -19020,14 +19092,13 @@
           },
           "value": {
             "type": "number",
-            "description": "Текущее значение прогресса в процентах (0–100).",
+            "description": "Текущее значение от 0 до `max`. Не задано (или вне шкалы) — прогресс неопределённый: полоса пустая, `data-state=\"indeterminate\"`, без `aria-valuenow`.",
             "x-doc": {
               "group": "State",
               "type": "number",
               "kind": "number"
             },
-            "minimum": 0,
-            "maximum": 100
+            "minimum": 0
           }
         },
         "x-inherits": {
@@ -19768,6 +19839,14 @@
               "kind": "enum"
             },
             "default": "hover"
+          },
+          "viewportProps": {
+            "description": "Пропсы прокручиваемой области (Radix `ScrollArea.Viewport`): `tabIndex={0}` — прокрутка с клавиатуры, `aria-label` — имя области, `ref`, обработчики. `className` дополняет классы кита.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "(ScrollAreaViewportProps & RefAttributes<HTMLDivElement>)",
+              "kind": "readonly"
+            }
           }
         },
         "x-inherits": {
@@ -19896,7 +19975,13 @@
           }
         },
         "x-inherits": {
-          "react": ["DOMAttributes"],
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "RefAttributes"
+          ],
           "packages": []
         }
       }
@@ -22633,7 +22718,7 @@
           "value": {
             "group": "Control",
             "type": "number | null",
-            "description": "Значение слайдера (одно-thumb). null трактуется как min. Резолвится формой."
+            "description": "Значение слайдера (одно-thumb); прижимается к [min, max]. null — ручка на 0, прижатом к диапазону: при min ≥ 0 это min. Резолвится формой."
           },
           "onChange": {
             "group": "Control",
@@ -23756,6 +23841,14 @@
               "kind": "readonly"
             }
           },
+          "children": {
+            "type": "string",
+            "description": "Текст внутри кнопки. Не подпись поля (её рисует FormField по label); без children кнопка пустая.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "ReactNode"
+            }
+          },
           "className": {
             "type": "string",
             "description": "Доп. CSS-класс контрола (TogglePrimitive.Root).",
@@ -23992,11 +24085,13 @@
           "size": {
             "type": "string",
             "enum": ["default", "sm", "lg"],
-            "description": "Размер кнопок.",
+            "description": "Размер кнопок: default | sm | lg (как у Toggle).",
             "x-doc": {
-              "group": "Behavior",
-              "type": "'default' | 'sm' | 'lg'"
-            }
+              "group": "Control",
+              "type": "'default' | 'sm' | 'lg'",
+              "kind": "enum"
+            },
+            "default": "default"
           },
           "testId": {
             "type": "string",
@@ -24217,11 +24312,13 @@
           "size": {
             "type": "string",
             "enum": ["default", "sm", "lg"],
-            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
+            "description": "Размер кнопок: default | sm | lg (как у Toggle).",
             "x-doc": {
-              "group": "Behavior",
-              "type": "'default' | 'sm' | 'lg'"
-            }
+              "group": "Control",
+              "type": "'default' | 'sm' | 'lg'",
+              "kind": "enum"
+            },
+            "default": "default"
           },
           "testId": {
             "type": "string",
@@ -24304,8 +24401,8 @@
           },
           "delayDuration": {
             "type": "number",
-            "default": 700,
-            "description": "Задержка перед показом (мс).",
+            "default": 0,
+            "description": "Задержка перед показом (мс). Не задана — берётся из TooltipProvider; провайдер кита (и тот, что Tooltip ставит сам без внешнего) — 0 мс.",
             "x-doc": {
               "group": "Behavior",
               "type": "number"

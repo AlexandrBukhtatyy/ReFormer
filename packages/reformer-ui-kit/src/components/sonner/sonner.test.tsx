@@ -15,7 +15,8 @@ describe('Sonner Toaster (base, wrapper над sonner)', () => {
   });
 
   it('работает автономно — без next-themes / ThemeProvider (рендер не бросает)', () => {
-    // Регрессионный страж удаления useTheme: тема захардкожена 'system', провайдер не нужен.
+    // Регрессионный страж удаления useTheme: тему кит читает из разметки (.dark / data-theme),
+    // провайдер темы не нужен.
     expect(() => renderToStaticMarkup(<Toaster />)).not.toThrow();
   });
 

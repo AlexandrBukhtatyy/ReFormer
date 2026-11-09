@@ -103,13 +103,11 @@ describe('Breadcrumb (base, compound presentational)', () => {
     expect(html).not.toContain('<svg');
   });
 
-  it('BreadcrumbEllipsis — <span> с иконкой и sr-only подписью', () => {
+  it('BreadcrumbEllipsis — иконка скрыта, sr-only подпись читается (обёртка не aria-hidden)', () => {
     const html = renderToStaticMarkup(<BreadcrumbEllipsis />);
-    expect(html).toMatch(/^<span/);
-    expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain('<svg');
-    expect(html).toContain('sr-only');
-    expect(html).toContain('More');
+    expect(html).toMatch(/^<span data-slot="breadcrumb-ellipsis" class="[^"]*">/);
+    expect(html).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(html).toContain('<span class="sr-only">More</span>');
   });
 
   it('className мёржится (tailwind-merge, caller wins)', () => {

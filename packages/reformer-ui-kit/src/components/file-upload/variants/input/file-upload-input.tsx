@@ -111,6 +111,7 @@ export function FileUploadInput({
       ...makeElementFieldHandle(zoneRef),
       openFilePicker: () => cdkRef.current?.openFilePicker(),
       clear: () => cdkRef.current?.clear(),
+      upload: () => cdkRef.current?.upload(),
       abort: () => cdkRef.current?.abort(),
     }),
     []

@@ -5,9 +5,10 @@ import { NavigationMenu as NavigationMenuPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
-// Дословный порт shadcn/ui (new-york-v4) navigation-menu. Правки только: unified `radix-ui`
-// (NavigationMenuPrimitive), `@/lib/utils`, снят 'use client'. data-slot уже в апстриме на каждой
-// части. Radix-navigation compound: Root/List/Item/Trigger/Content/Link/Indicator/Viewport.
+// Порт shadcn/ui (new-york-v4) navigation-menu. Правки: unified `radix-ui`
+// (NavigationMenuPrimitive), `@/lib/utils`, снят 'use client', стили активной ссылки (см. Link).
+// data-slot уже в апстриме на каждой части.
+// Radix-navigation compound: Root/List/Item/Trigger/Content/Link/Indicator/Viewport.
 // NavigationMenu сам рендерит Viewport (viewport=true), который через Radix уходит в оверлей-слой.
 // navigationMenuTriggerStyle (cva) — стиль триггера, экспортируется для NavigationMenuLink «как триггер».
 
@@ -124,11 +125,14 @@ function NavigationMenuLink({
   className,
   ...props
 }: React.ComponentProps<typeof NavigationMenuPrimitive.Link>) {
+  // Расхождение с апстримом: Radix ставит активной ссылке `data-active=""` (наличие атрибута),
+  // а не `"true"`, поэтому стили `data-[active=true]:` апстрима не срабатывали никогда.
+  // `data-active:` в Tailwind 4 — селектор `[data-active]`.
   return (
     <NavigationMenuPrimitive.Link
       data-slot="navigation-menu-link"
       className={cn(
-        "flex flex-col gap-1 rounded-sm p-2 text-sm transition-all outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 data-[active=true]:bg-accent/50 data-[active=true]:text-accent-foreground data-[active=true]:hover:bg-accent data-[active=true]:focus:bg-accent [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        "flex flex-col gap-1 rounded-sm p-2 text-sm transition-all outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 data-active:bg-accent/50 data-active:text-accent-foreground data-active:hover:bg-accent data-active:focus:bg-accent [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className
       )}
       {...props}

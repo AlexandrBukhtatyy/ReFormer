@@ -20,6 +20,19 @@ describe('ScrollArea (base, compound over Radix)', () => {
     expect(html).toContain('>Длинный контент<');
   });
 
+  it('viewportProps доходят до прокручиваемой области: tabIndex, aria-label, className', () => {
+    const html = renderToStaticMarkup(
+      <ScrollArea viewportProps={{ tabIndex: 0, 'aria-label': 'Журнал', className: 'p-2' }}>
+        <div>Строки</div>
+      </ScrollArea>
+    );
+    const viewport = /<div[^>]*data-slot="scroll-area-viewport"[^>]*>/.exec(html)![0];
+    expect(viewport).toContain('tabindex="0"');
+    expect(viewport).toContain('aria-label="Журнал"');
+    expect(viewport).toContain('p-2');
+    expect(viewport).toContain('focus-visible:ring-[3px]');
+  });
+
   it('className мёржится на Root (tailwind-merge, caller wins)', () => {
     const html = renderToStaticMarkup(
       <ScrollArea className="h-40 w-64">

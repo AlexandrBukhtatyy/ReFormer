@@ -11,6 +11,8 @@ import { Switch } from './switch-base';
  * `onCheckedChange`). Подпись связывается с контролом через `htmlFor` — доступное имя даёт
  * связанный `<Label>`. Поэтому висячий `aria-labelledby` (FormField для inline-раскладки НЕ
  * рендерит верхнюю метку — IDREF указывал бы в пустоту) сбрасываем, когда рисуем свою подпись.
+ * Звёздочку обязательного поля рисует подпись: `required` в Radix не уходит — скрытый нативный
+ * `<input required>` блокировал бы отправку формы проверкой браузера.
  */
 export interface SwitchWithLabelProps
   extends React.ComponentProps<typeof Switch>, FieldTooltipProps {
@@ -20,6 +22,7 @@ export interface SwitchWithLabelProps
 
 function SwitchWithLabelBase({
   label,
+  required,
   tooltip,
   id,
   'aria-labelledby': ariaLabelledBy,
@@ -47,6 +50,7 @@ function SwitchWithLabelBase({
       {hasLabel && (
         <Label htmlFor={switchId} className="cursor-pointer font-normal">
           {label}
+          {required && <span aria-hidden="true"> *</span>}
         </Label>
       )}
       {/* После подписи, соседом <Label>: клик по иконке переключатель не трогает. */}

@@ -9,7 +9,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createModel, createFormFromModel, type FormModel, type FormGroup } from '@reformer/core';
+import {
+  createForm,
+  createModel,
+  createFormFromModel,
+  type FormModel,
+  type FormGroup,
+} from '@reformer/core';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { minLength } from '@reformer/core/validators';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@/locale/ru';
 import { FieldArraySection } from './index';
 
 type Item = { name: string };
@@ -106,8 +116,10 @@ describe('FieldArraySection (base carry)', () => {
     );
     expect(html).toContain('data-testid="array-item-0-move-up"');
     expect(html).toContain('data-testid="array-item-0-move-down"');
-    expect(html).toContain('aria-label="Move up"');
-    expect(html).toContain('aria-label="Move down"');
+    // Имя кнопки — действие плюс метка строки: у каждой строки свои ↑/↓.
+    expect(html).toContain('aria-label="Move up: Список #1"');
+    expect(html).toContain('aria-label="Move down: Список #1"');
+    expect(html).toContain('aria-label="Move up: Список #2"');
     // Первый элемент не может двигаться вверх — кнопка disabled.
     expect(html).toMatch(/array-item-0-move-up[^>]*disabled|disabled[^>]*array-item-0-move-up/);
   });
@@ -149,6 +161,94 @@ describe('FieldArraySection (base carry)', () => {
       />
     );
     expect(html).not.toContain('data-testid="array-add"');
+  });
+
+  it('без title/itemLabel у карточек есть шапка с «Удалить» и ↑/↓ (без метки)', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        reorderable
+      />
+    );
+    // Было: шапку рисовали только при title/itemLabel — кнопки пропадали вместе с ней.
+    expect(html).toContain('data-testid="array-item-0-remove"');
+    expect(html).toContain('data-testid="array-item-1-remove"');
+    expect(html).toContain('data-testid="array-item-0-move-down"');
+    // Видимой метки нет, но имя кнопки всё равно различимо — по метке по умолчанию.
+    expect(html).not.toContain('<h4');
+    expect(html).toContain('aria-label="Remove: Item #1"');
+    expect(html).toContain('aria-label="Remove: Item #2"');
+  });
+
+  it('без title/itemLabel и без кнопок шапки нет', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item> control={buildArray([{ name: 'a' }])} itemComponent={ItemMarker} />
+    );
+    expect(html).not.toContain('data-testid="array-item-0-remove"');
+    expect(html).not.toContain('justify-end');
+  });
+
+  it('«Удалить» у разных строк различимы: текст кнопки плюс метка строки, на языке локали', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FieldArraySection<Item>
+          control={buildArray([{ name: 'a' }, { name: 'b' }])}
+          itemComponent={ItemMarker}
+          title="Имущество"
+        />
+      </I18nProvider>
+    );
+    expect(html).toContain('aria-label="Удалить: Имущество #1"');
+    expect(html).toContain('aria-label="Удалить: Имущество #2"');
+    // Видимый текст не меняется.
+    expect(html).toMatch(/>Удалить<\/button>/);
+  });
+
+  it('свой removeButtonLabel — начало имени кнопки', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        itemLabel={(_c, i) => `Созаёмщик ${i + 1}`}
+        removeButtonLabel="Убрать"
+      />
+    );
+    expect(html).toContain('aria-label="Убрать: Созаёмщик 2"');
+  });
+
+  it('показывает замечания самого массива (minItems) после проверки', async () => {
+    type Shape = { items: Item[] };
+    const rules = defineValidation<Shape>(({ model }) => {
+      validate(model.$.items, [minLength(1)]);
+    });
+    const bundle = createForm<Shape>({
+      initial: { items: [] },
+      schema: (model: FormModel<Shape>) => ({
+        children: [
+          {
+            model: model.$.items,
+            item: (row: FormModel<Item>) => ({ children: [{ model: row.$.name }] }),
+          },
+        ],
+      }),
+      validation: { rules },
+    });
+    const section = () =>
+      renderToStaticMarkup(
+        <FieldArraySection<Item>
+          control={(bundle.form as any).items}
+          itemComponent={ItemMarker}
+          title="Список"
+        />
+      );
+
+    // До проверки замечаний нет — и текста нет.
+    expect(section()).not.toContain('data-testid="array-error"');
+
+    await bundle.validate();
+    // Было: секция замечаний массива не показывала, и FieldArray.Error некуда было поставить.
+    expect(section()).toMatch(/<p[^>]*role="alert"[^>]*data-testid="array-error"/);
   });
 
   it('hasItems=false скрывает секцию целиком (пустая строка)', () => {

@@ -11,6 +11,10 @@ describe('Spinner (base)', () => {
     expect(html).toContain('size-4');
   });
 
+  it('уважает «уменьшить движение»: motion-reduce:animate-none', () => {
+    expect(renderToStaticMarkup(<Spinner />)).toContain('motion-reduce:animate-none');
+  });
+
   it('доступность: role="status" + aria-label="Loading"', () => {
     const html = renderToStaticMarkup(<Spinner />);
     expect(html).toContain('role="status"');

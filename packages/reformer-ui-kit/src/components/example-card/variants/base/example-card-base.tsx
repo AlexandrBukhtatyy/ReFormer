@@ -172,9 +172,14 @@ export function ExampleCard({
 
         {/* Buttons */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Toggle view/code button */}
+          {/* Переключатель «пример / код». `type="button"`: карточка встречается внутри формы,
+              а кнопка без типа отправила бы её. Это переключатель, поэтому имя постоянное, а
+              состояние — в `aria-pressed`; меняющаяся подпись остаётся всплывающей (`title`). */}
           <button
+            type="button"
             onClick={toggleView}
+            aria-pressed={showCode}
+            aria-label={t('kit.exampleCard.showCode')}
             className={cn(
               'p-1.5 rounded transition-colors',
               showCode
@@ -195,6 +200,7 @@ export function ExampleCard({
             {code}
           </pre>
           <button
+            type="button"
             onClick={handleCopy}
             className={cn(
               'absolute top-2 right-2 p-1.5 rounded transition-colors',

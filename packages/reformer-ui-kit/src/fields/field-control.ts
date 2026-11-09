@@ -2,7 +2,9 @@ import type { FieldAdapter } from '@reformer/core/react';
 
 /**
  * Раскладка контрола в `FormField`: `inline-label` — контрол сам рисует подпись справа от себя
- * (Checkbox/Switch), и `FormField` верхнюю подпись не рендерит (иначе она задвоится).
+ * (Checkbox/Switch), и `FormField` верхнюю подпись не рендерит (иначе она задвоится). Такой контрол
+ * получает `label` и `required` из `componentProps` (`bindFieldProps` ядра их ему оставляет) и сам
+ * рисует звёздочку; остальным контролам эти props не передаются.
  */
 export type FieldControlLayout = 'inline-label';
 

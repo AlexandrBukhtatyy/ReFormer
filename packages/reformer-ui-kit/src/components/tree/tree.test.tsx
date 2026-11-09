@@ -39,6 +39,13 @@ describe('Tree (вариант base)', () => {
     expect(html).toContain('data-tree-id="README.md"');
   });
 
+  it('между tree и treeitem нет чужих ролей: группа строк — role="none", не list', () => {
+    const html = renderToStaticMarkup(<Tree nodes={NODES} />);
+    expect(html).not.toContain('role="list"');
+    expect(html).not.toContain('role="listitem"');
+    expect(html).toMatch(/<div role="none" data-slot="item-group"/);
+  });
+
   it('свёрнутая ветка своих детей не показывает', () => {
     const html = renderToStaticMarkup(<Tree nodes={NODES} />);
     expect(html).not.toContain('index.ts');

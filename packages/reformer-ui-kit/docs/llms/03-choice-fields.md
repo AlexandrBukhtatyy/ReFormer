@@ -25,6 +25,9 @@
 | `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
 | `DatePicker`, `DatePickerRange`, `DatePickerMulti`                    | Внутри кнопки у правого края; у вариантов с `clearable` — **крестик очистки → (i)**.                      |
 
+Крестик очистки — обычная кнопка в порядке Tab (`Clear selection` / `Clear dates` из словаря):
+до неё доходят с клавиатуры, а после очистки фокус возвращается на триггер поля.
+
 ```tsx
 <SelectAsync value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
 
@@ -552,6 +555,9 @@ const { form } = createForm<Form>({
 - **Запись значения** — заменой массива: `model.$.tags.value = [...]` или `form.tags.setValue([...])`.
   У поля-массива работают и точечные `model.tags.push(x)` / `removeAt(i)` — это тот же массив;
   у nullable-поля `model.tags` — сырое значение, и мутация на месте формой не замечается.
+- **Группы в `SelectMulti`** — `options: [{ value, label, group }]`: пункты одной группы
+  собираются под её заголовком (как `SelectLabel` у `SelectAsync`), группы — в порядке первого
+  появления. Список — `role="listbox"` с `aria-activedescendant` на пункте, подсвеченном стрелками.
 - **Лейблы выбранного вне текущей страницы** (`SelectMulti` + `resource`) — проп
   `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
   пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
@@ -829,7 +835,9 @@ const { form } = createForm<Form>({
 - **Сколько месяцев рядом** — `numberOfMonths`: 2 у периода, 1 у списка дат. Календарь
   открывается на месяце выбранного значения.
 - **Живая проверка** — `onBlur` у `DatePickerRange` и `DatePickerMulti` приходит на закрытии
-  календаря, поэтому для них берите `strategy: 'blur'`, как для мультивыбора.
+  календаря, поэтому для них берите `strategy: 'blur'`, как для мультивыбора. У `DatePicker` —
+  тоже на закрытии календаря либо при уходе фокуса с кнопки, пока календарь закрыт; открытие
+  календаря (фокус уходит в него) поле `touched` не делает.
 
 ### Anti-patterns
 

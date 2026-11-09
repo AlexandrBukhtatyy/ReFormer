@@ -5,19 +5,30 @@ import { Slot } from 'radix-ui';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/separator';
 
-// Дословный порт shadcn/ui (new-york-v4) item. Правки только: путь до Separator
-// (`@/components/separator`), `@/lib/utils`. Апстрим уже на unified `radix-ui`
-// (Slot.Root) и уже несёт data-slot на каждой части. cva-стили (variant/size) —
+// Порт shadcn/ui (new-york-v4) item. Правки: путь до Separator
+// (`@/components/separator`), `@/lib/utils`, роли списка (см. ItemGroup). Апстрим уже на unified
+// `radix-ui` (Slot.Root) и уже несёт data-slot на каждой части. cva-стили (variant/size) —
 // обычная стилизация внутри реализации, не «варианты» в смысле нашего концепта.
 
-function ItemGroup({ className, ...props }: React.ComponentProps<'div'>) {
+/** Item лежит прямо в списке `ItemGroup` (`role="list"`) и должен быть его элементом. */
+const ItemListContext = React.createContext(false);
+
+/**
+ * Группа пунктов — список (`role="list"`), её `Item` — элементы списка (`role="listitem"`).
+ * В апстриме у группы была роль списка, а у пунктов — никакой: скринридер объявлял пустой
+ * список. Свою роль группы (`role="none"` — когда группа лежит внутри дерева или меню, а пункты
+ * несут их роли) Item уважает: listitem ставится только внутри `role="list"`.
+ */
+function ItemGroup({ className, role = 'list', ...props }: React.ComponentProps<'div'>) {
   return (
-    <div
-      role="list"
-      data-slot="item-group"
-      className={cn('group/item-group flex flex-col', className)}
-      {...props}
-    />
+    <ItemListContext.Provider value={role === 'list'}>
+      <div
+        role={role}
+        data-slot="item-group"
+        className={cn('group/item-group flex flex-col', className)}
+        {...props}
+      />
+    </ItemListContext.Provider>
   );
 }
 
@@ -60,15 +71,27 @@ function Item({
   asChild = false,
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof itemVariants> & { asChild?: boolean }) {
+  const inList = React.useContext(ItemListContext);
   const Comp = asChild ? Slot.Root : 'div';
-  return (
+  const item = (
     <Comp
       data-slot="item"
       data-variant={variant}
       data-size={size}
+      // Своя разметка пункта в списке — элемент списка. Явный `role` вызывающего важнее.
+      role={inList && !asChild ? 'listitem' : undefined}
       className={cn(itemVariants({ variant, size, className }))}
       {...props}
     />
+  );
+  // С `asChild` пункт — чужой элемент (обычно ссылка): `listitem` на нём стёр бы роль ссылки,
+  // поэтому элементом списка становится обёртка без собственного бокса.
+  return inList && asChild ? (
+    <div role="listitem" data-slot="item-list-item" className="contents">
+      {item}
+    </div>
+  ) : (
+    item
   );
 }
 

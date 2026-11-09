@@ -107,6 +107,7 @@ export interface ToggleGroupMultiFormProps {
   options?: ToggleGroupOption[];
   maxItems?: number;
   variant?: VariantProps<typeof toggleVariants>['variant'];
+  size?: VariantProps<typeof toggleVariants>['size'];
   className?: string;
 }
 

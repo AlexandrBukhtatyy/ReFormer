@@ -7,10 +7,10 @@ import { Input } from '@/components/input';
 import { Textarea } from '@/components/textarea';
 
 // Дословный порт shadcn/ui (new-york-v4) input-group. Правки только: импорты зависимостей
-// (@/lib/utils, @/components/{button,input,textarea}), снят 'use client'. Все data-slot и все
-// под-компоненты (InputGroup / InputGroupAddon / InputGroupButton / InputGroupText /
-// InputGroupInput / InputGroupTextarea) сохранены. cva-стили (align/size) — обычная стилизация
-// внутри реализации, а не «варианты» в смысле нашего концепта.
+// (@/lib/utils, @/components/{button,input,textarea}), снят 'use client'; клик по аддону фокусирует
+// и textarea (InputGroupAddon). Все data-slot и все под-компоненты (InputGroup / InputGroupAddon /
+// InputGroupButton / InputGroupText / InputGroupInput / InputGroupTextarea) сохранены. cva-стили
+// (align/size) — обычная стилизация внутри реализации, а не «варианты» в смысле нашего концепта.
 
 function InputGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
@@ -74,7 +74,11 @@ function InputGroupAddon({
         if ((e.target as HTMLElement).closest('button')) {
           return;
         }
-        e.currentTarget.parentElement?.querySelector('input')?.focus();
+        // Контрол группы — input ИЛИ textarea: у апстрима `querySelector('input')`, и клик по
+        // аддону у InputGroupTextarea фокус не ставил.
+        e.currentTarget.parentElement
+          ?.querySelector<HTMLElement>('[data-slot=input-group-control], input, textarea')
+          ?.focus();
       }}
       {...props}
     />
