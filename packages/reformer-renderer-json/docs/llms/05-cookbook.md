@@ -229,7 +229,7 @@ const registry = defineRegistry((reg) => {
 **Notes.**
 
 - Резолв происходит только для строк-операторов (`'$dataSource(NAME)'`, `'$fn(name)'`). Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
-- Если имя не зарегистрировано: без проверки документа строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); `validateFormSchema` даст ошибку `unknown dataSource "NAME"`.
+- Если имя не зарегистрировано, сборка формы бросает `Data source "NAME" not found in registry` (для `$fn` — `Function "name" not found in registry`) на первом же промахе. `validateFormSchema` до сборки называет все промахи: `unknown dataSource "NAME"`, `unknown fn "name"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
 ## Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
@@ -458,6 +458,108 @@ defineRegistry((reg) => {
 - Текст, живущий не в модели, а в UI-состоянии (статус отправки), кладётся сигналом в реестр и подставляется как `"$dataSource(SUBMIT_STATUS)"`.
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
 - Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/demo/html-nodes/`.
+
+## Свой оператор { #custom-operator }
+
+**Problem.** Нужна строка-ссылка сверх встроенных: настройка приложения по имени (`$config(SUPPORT_PHONE)`), функция с аргументом (`$money(RUB)` — у `$fn` аргументов нет), ключи строк в записи CMS (`$t(key)` вместо `$locale(key)`).
+
+**Solution.** Набор операторов закрыт: `parseOperator` знает только `model`/`component`/`html`/`dataSource`/`fn`/`locale`/`part`, точки расширения ни в парсере, ни в реестре нет. Свой оператор — строка, которую код приложения разворачивает **до** проверки и сборки: в литерал или во встроенный оператор. Функции, компоненты и сигналы оператор не возвращает — их кладут в реестр, а оператор отдаёт ссылку на запись (`$fn(...)`, `$dataSource(...)`).
+
+```typescript
+import { parseOperator } from '@reformer/renderer-json';
+
+export type OperatorExpander = (arg: string) => unknown;
+
+const OPERATOR = /^\$([A-Za-z][A-Za-z0-9]*)\((.+)\)$/;
+
+/** Заменяет свои операторы документа. Встроенные операторы и обычные строки не трогает. */
+export function expandOperators<D>(document: D, operators: Record<string, OperatorExpander>): D {
+  const expanders = new Map(Object.entries(operators));
+  const walk = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      if (parseOperator(value)) return value; // встроенный оператор
+      const match = OPERATOR.exec(value);
+      if (!match) return value; // обычная строка
+      const expand = expanders.get(match[1]);
+      if (!expand) throw new Error(`Unknown operator "${value}"`);
+      return expand(match[2]);
+    }
+    if (Array.isArray(value)) return value.map(walk);
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walk(item)]));
+    }
+    return value;
+  };
+  return walk(document) as D;
+}
+
+const settings: Record<string, string> = { SUPPORT_PHONE: '8 800 555-35-35' };
+
+export const operators: Record<string, OperatorExpander> = {
+  config: (name) => {
+    const value = settings[name];
+    if (typeof value !== 'string') throw new Error(`No setting "${name}"`);
+    return value; // "$config(SUPPORT_PHONE)" → литерал
+  },
+  t: (key) => `$locale(${key})`, // "$t(fields.email)" → встроенный оператор
+  money: (currency) => `$fn(money.${currency})`, // "$money(RUB)" → запись реестра
+};
+```
+
+```typescript
+// Реестр: функция на каждое значение аргумента — под именем, которое даёт $money.
+const registry = defineRegistry((reg) => {
+  // …компоненты, FIELD_WRAPPER, reg.locale(...)
+  for (const currency of ['RUB', 'USD']) {
+    const format = new Intl.NumberFormat('ru-RU', { style: 'currency', currency });
+    reg.fn(`money.${currency}`, (value: number) => format.format(value));
+  }
+});
+
+// Разворачивание — до проверки и сборки.
+const document = expandOperators(rawDocument, operators);
+const { valid, errors } = validateFormSchema(document, { registry }); // проверяется развёрнутый
+const bundle = createForm<Order>({ initial, schema: document, registry });
+```
+
+```json
+{
+  "model": "$model(amount)",
+  "component": "$component(AmountInput)",
+  "componentProps": { "label": "$t(fields.amount)", "formatValue": "$money(RUB)" }
+}
+```
+
+Разворачивать при каждой сборке без явного вызова — обёртка реестра над `resolveSchema` (через него `createForm` строит дерево из документа):
+
+```typescript
+export function withOperators(
+  registry: ComponentRegistry,
+  operators: Record<string, OperatorExpander>
+): ComponentRegistry {
+  const resolveSchema = registry.resolveSchema;
+  if (!resolveSchema) throw new Error('The registry cannot build a form from a document');
+  return {
+    get: (name) => registry.get(name),
+    getDataSource: <T>(name: string) => registry.getDataSource<T>(name),
+    getLocale: () => registry.getLocale?.(),
+    has: (name) => registry.has(name),
+    names: () => registry.names(),
+    resolveSchema: (document, model) =>
+      resolveSchema.call(registry, expandOperators(document, operators), model),
+  };
+}
+
+createForm<Order>({ initial, schema: rawDocument, registry: withOperators(registry, operators) });
+```
+
+**Notes.**
+
+- Неразвёрнутая строка `$money(RUB)` в `componentProps` и тексте — **не ошибка** ни для сборки, ни для `validateFormSchema`: она доходит до компонента как есть. Поэтому `expandOperators` бросает на незнакомом `$имя(…)` — это ловит опечатки (`$mony(RUB)`).
+- Проверять надо развёрнутый документ: в исходном `$money(EUR)` — строка, в развёрнутом `validateFormSchema` даёт `unknown fn "money.EUR"`, опечатка ключа — `unknown locale key "…"`.
+- Свой оператор — только в значениях (`componentProps` на любой глубине, текст `children`). В `component`/`model`/`part`/`item` мета-схема (редактор, `validateFormSchema` по исходному документу) и `defineJsonSchema` его отвергают.
+- Своё имя, совпадающее со встроенным (`model`, `fn`, …), не вызывается: встроенные пропускаются первыми. Разворачивание однопроходное: результат оператора повторно не разбирается. Аргумент — вся строка в скобках (`$money(RUB, 2)` → `"RUB, 2"`).
+- `composeRegistries` собирает новый реестр и теряет обёртку `withOperators` — оборачивать последним: `withOperators(composeRegistries(app, form), operators)`. `@reformer/form-registry` объединяет реестры сам — ему отдают уже развёрнутый документ.
 
 ## See also
 

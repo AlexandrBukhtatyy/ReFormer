@@ -91,6 +91,7 @@ npm install @reformer/renderer-json @reformer/renderer-react @reformer/core
 | ------------------------------------------------------------ | ---------------------------------------------------------- |
 | [Формат документа](./renderer-json/document-format.md)       | узлы, операторы, HTML и текст, типизация                   |
 | [Реестр](./renderer-json/registry.md)                        | компоненты, данные, функции, локализация, чужие компоненты |
+| [Свои операторы](./renderer-json/custom-operators.md)        | свои строки `$имя(аргумент)` и как их развернуть до сборки |
 | [Массивы, части и шаги](./renderer-json/arrays-and-parts.md) | шаблоны строк, именованные части, шаги мастера             |
 | [Проверка документа](./renderer-json/document-check.md)      | `validateFormSchema`, панель ошибок, подсказки в редакторе |
 
@@ -100,8 +101,8 @@ npm install @reformer/renderer-json @reformer/renderer-react @reformer/core
   сборку ушёл другой реестр. Проверяйте документ заранее — см.
   [Проверка документа](./renderer-json/document-check.md).
 - **Поля без подписи и ошибок** — в реестре нет записи `FIELD_WRAPPER`.
-- **Строка `$dataSource(X)` дошла до компонента как есть** — источник не зарегистрирован.
-  `validateFormSchema` называет такие имена.
+- **`Data source "X" not found in registry`** — имя из `$dataSource(X)` не зарегистрировано.
+  Сборка формы останавливается на первом таком имени; `validateFormSchema` называет все сразу.
 - **`The document is in the previous JSON schema format`** — у документа нет `format: 2`.
   Переведите его при загрузке: `migrateJsonSchema(document)`.
 - **Сборку создавайте через `useFormBundle`**, а не `useMemo`: React вправе сбросить кэш `useMemo`,

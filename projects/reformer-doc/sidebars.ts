@@ -350,6 +350,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'packages/renderer-json/document-format',
         'packages/renderer-json/registry',
+        'packages/renderer-json/custom-operators',
         'packages/renderer-json/arrays-and-parts',
         'packages/renderer-json/document-check',
       ],

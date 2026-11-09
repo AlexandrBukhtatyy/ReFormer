@@ -2,9 +2,9 @@
 
 ## Component "X" not found in registry
 
-Имя из оператора `$component(X)` (или `$dataSource(X)`) не зарегистрировано в реестре. Проверь:
+Имя из оператора `$component(X)` не зарегистрировано в реестре (у `$dataSource(X)` своё сообщение — см. [Data source "X" not found in registry](#data-source-x-not-found-in-registry)). Проверь:
 
-- `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
+- `defineRegistry` действительно содержит `reg.component('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний.
 - Прежние имена `FormArray` / `FormArraySection` реестр понимает сам — как псевдонимы `FieldArray` / `FieldArraySection` (в dev — предупреждение `Компонент "FormArray" переименован в "FieldArray"`). Ошибка «not found» для них значит, что в реестре нет и записи под новым именем.
@@ -50,9 +50,15 @@ reg.component(FIELD_WRAPPER, FormField);
 
 `resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
 
+## Data source "X" not found in registry
+
+Строка `'$dataSource(X)'` ссылается на source, которого нет в реестре. Сборка формы (`createForm`) бросает на первом же таком имени — в `componentProps` на любой глубине и в тексте `children`; строкой до компонента она не доходит. Зарегистрируй `reg.dataSource('X', value)` либо передай значение литералом. Все промахи сразу называет `validateFormSchema` (`unknown dataSource "X"`). То же для функций: `Function "x" not found in registry` ↔ `unknown fn "x"`. Запись есть, но другого вида — `Entry "X" is a 'fn' and cannot be used as $dataSource(...)`.
+
 ## componentProps string passes through as plain string
 
-Строка `'$dataSource(NAME)'` в `componentProps` ссылается на source, который не зарегистрирован — конвертер оставляет её как есть. Используй `reg.dataSource('NAME', value)` либо передавай значение литералом напрямую. Голые строки (без `$dataSource(...)`) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
+Голые строки (без оператора) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
+
+Строка вида `$имя(...)` с именем вне встроенного набора (свой оператор: `$config(X)`, `$money(RUB)`) тоже уходит компоненту как есть, и `validateFormSchema` её не замечает: регистрации операторов нет. Документ разворачивают в литералы и встроенные операторы до проверки и сборки — [05-cookbook.md](05-cookbook.md#custom-operator).
 
 ## The document is in the previous JSON schema format
 

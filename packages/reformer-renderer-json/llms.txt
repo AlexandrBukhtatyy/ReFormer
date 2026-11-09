@@ -357,10 +357,11 @@ const schema = defineJsonSchema<{ email: string }>({
 - **Забыть `item` у массива** — без `item` узел с `model` на массив — это поле (значение массива целиком), а не массив под-форм.
 - **`part` на поле** — подформа подключается к объекту модели; на поле сборка бросает `"$model(x)" is not a group of the model`.
 - **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения. Обычно он вообще не нужен — шаблон в модели (`arrayOf(blank)`).
-- **Ссылаться на `$dataSource(NAME)` без регистрации** — `validateFormSchema` даст ошибку; без проверки строка просто прокинется как есть (молчаливый баг).
+- **Ссылаться на `$dataSource(NAME)` без регистрации** — сборка формы (`createForm`) бросает `Data source "NAME" not found in registry` на первом же таком имени: в `componentProps` на любой глубине и в тексте. `validateFormSchema` называет все промахи сразу (`unknown dataSource "NAME"`) — проверяй документ до сборки.
 - **Класть `validators` в field-node** — `JsonFieldNode` несёт только layout, поля `validators` в нём нет и оператора `$validator(...)` не существует. Валидация значений живёт в отдельной схеме над моделью (`defineValidation` из `@reformer/core/validation`), а не в JSON — см. [06-validation.md](06-validation.md).
 - **Путать `$fn` и `$dataSource`** — функции регистрируй через `reg.fn` и ссылайся через `$fn(name)`, данные — через `reg.dataSource`/`$dataSource(NAME)`. Перекрёстное использование (`$fn(LOAN_TYPES)`, `$dataSource(comparator)`) `validateFormSchema` отклонит, а рантайм бросит. `reg.fn` дополнительно бросает при регистрации не-функции.
-- **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(format, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
+- **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(format, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`. Выбирать её аргументом из документа (`$money(RUB)` → `$fn(money.RUB)`) — свой оператор, см. [05-cookbook.md](05-cookbook.md#custom-operator).
+- **Ждать, что рантайм разберёт свой `$имя(...)`** — набор операторов закрыт (`model`/`component`/`html`/`dataSource`/`fn`/`locale`/`part`), регистрации операторов нет. Строка `$config(X)` в `componentProps` или тексте уйдёт компоненту как есть, и `validateFormSchema` её не заметит. Свой оператор разворачивают в литерал или встроенный оператор **до** проверки и сборки — [05-cookbook.md](05-cookbook.md#custom-operator).
 - **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе сборки** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка формы, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
 - **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится `validateFormSchema`; без каталога промах молча деградирует до самого ключа.
 - **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` с текстом в `children`. Компонент нужен, когда есть своя логика или состояние.
@@ -549,9 +550,9 @@ const settings: RendererSettings = {
 
 **Troubleshooting / FAQ**
 
-Имя из оператора `$component(X)` (или `$dataSource(X)`) не зарегистрировано в реестре. Проверь:
+Имя из оператора `$component(X)` не зарегистрировано в реестре (у `$dataSource(X)` своё сообщение — см. [Data source "X" not found in registry](#data-source-x-not-found-in-registry)). Проверь:
 
-- `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
+- `defineRegistry` действительно содержит `reg.component('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - В сборку ушёл именно этот реестр: `createForm({ schema, registry })`. Если реестров несколько — `composeRegistries(base, own)`, при дублях имени выигрывает последний.
 - Прежние имена `FormArray` / `FormArraySection` реестр понимает сам — как псевдонимы `FieldArray` / `FieldArraySection` (в dev — предупреждение `Компонент "FormArray" переименован в "FieldArray"`). Ошибка «not found» для них значит, что в реестре нет и записи под новым именем.
@@ -597,23 +598,29 @@ reg.component(FIELD_WRAPPER, FormField);
 
 `resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`). Вернул `undefined` → статика компонента `reformerAdapter`, без неё — seam как есть. Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
 
-## 23. componentProps string passes through as plain string
+## 23. Data source "X" not found in registry
 
-Строка `'$dataSource(NAME)'` в `componentProps` ссылается на source, который не зарегистрирован — конвертер оставляет её как есть. Используй `reg.dataSource('NAME', value)` либо передавай значение литералом напрямую. Голые строки (без `$dataSource(...)`) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
+Строка `'$dataSource(X)'` ссылается на source, которого нет в реестре. Сборка формы (`createForm`) бросает на первом же таком имени — в `componentProps` на любой глубине и в тексте `children`; строкой до компонента она не доходит. Зарегистрируй `reg.dataSource('X', value)` либо передай значение литералом. Все промахи сразу называет `validateFormSchema` (`unknown dataSource "X"`). То же для функций: `Function "x" not found in registry` ↔ `unknown fn "x"`. Запись есть, но другого вида — `Entry "X" is a 'fn' and cannot be used as $dataSource(...)`.
 
-## 24. The document is in the previous JSON schema format
+## 24. componentProps string passes through as plain string
+
+Голые строки (без оператора) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
+
+Строка вида `$имя(...)` с именем вне встроенного набора (свой оператор: `$config(X)`, `$money(RUB)`) тоже уходит компоненту как есть, и `validateFormSchema` её не замечает: регистрации операторов нет. Документ разворачивают в литералы и встроенные операторы до проверки и сборки — [05-cookbook.md](05-cookbook.md#custom-operator).
+
+## 25. The document is in the previous JSON schema format
 
 У документа нет `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`), а собирает его `createForm`. Рантайм читает только формат 2: переведи документ `migrateJsonSchema(document)` при загрузке — функция чистая, документ формата 2 возвращает как есть. `validateFormSchema` на таком документе отвечает одной ошибкой с той же отсылкой.
 
-## 25. Invalid schema (при проверке документа)
+## 26. Invalid schema (при проверке документа)
 
 `validateFormSchema(schema, { registry })` из `@reformer/renderer-json/validate` прогоняет документ через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под поле/массив/подформу/контейнер, голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя, необъявленная часть `$part(...)`, неполный `initialValue`, несобранная ссылка на шаг. Ошибки рисует `SchemaErrorPanel`. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
 
-## 26. Behavior selector matches nothing
+## 27. Behavior selector matches nothing
 
 `hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит поведение. `selector` — plain-строка, НЕ оператор. Узлы внутри шаблона строки и именованной части лежат в своих областях: их адресует поведение строки (`applyEach(model.$.items, rowBehavior)`) или подформы (`apply(model.$.group, groupBehavior)`), а не корневое.
 
-## 27. Шаблон строки массива не рендерит строки
+## 28. Шаблон строки массива не рендерит строки
 
 Проверь:
 
@@ -621,11 +628,11 @@ reg.component(FIELD_WRAPPER, FormField);
 - Внутри шаблона пути `$model(...)` заданы **относительно строки** (`model: '$model(type)'`, а не `'$model(properties.0.type)'`).
 - Шаблон новой строки объявлен в модели — `arrayOf(blank)` — либо узел несёт `initialValue`. Без обоих «Добавить» бросает ошибку про шаблон.
 
-## 28. Массив рендерится без полей / пустой при добавлении
+## 29. Массив рендерится без полей / пустой при добавлении
 
 `initialValue` должен быть **полным** plain-объектом по форме элемента (все поля, что есть в шаблоне) — это проверяет `validateFormSchema`. Если передать частичный объект (`{ type: 'apartment' }` без `estimatedValue`/`description`), под-модель нового элемента не получит сигналов для недостающих полей и они не отрендерятся. Надёжнее шаблон в модели — `arrayOf(blankProperty)`.
 
-## 29. Toggle-видимость секции массива
+## 30. Toggle-видимость секции массива
 
 Условный показ секции (напр. массив `properties` виден только когда `hasProperty === true`) делается **не** кастомным блоком, а правилом узла в поведении формы:
 
@@ -639,7 +646,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 
 Поведение уходит в сборку полем `behavior`; узел адресуется по своему `selector`.
 
-## 30. console.warn: поведение обращается к узлам, которых нет в дереве
+## 31. console.warn: поведение обращается к узлам, которых нет в дереве
 
 `createForm` в dev сверяет адресованные через `schema.node(...)` селекторы с деревом и пишет «поведение обращается к узлам схемы, которых нет в корневом дереве: "…"». Обычно это опечатка в `selector` внутри поведения либо узел строки/части, адресованный из корневого поведения. Как чинить:
 
@@ -649,11 +656,11 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 
 Промах не роняет форму, но правило молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум.
 
-## 31. Битая схема → `SchemaErrorPanel`, а не белый экран
+## 32. Битая схема → `SchemaErrorPanel`, а не белый экран
 
 Ошибку рендера дерева из документа перехватывает `SchemaErrorBoundary` и рисует `SchemaErrorPanel` с описанием проблемы. В сборке `createForm` граница приходит в бандле от реестра (`bundle.render.errorBoundary`), и `FormRenderer` оборачивает ею дерево. Ошибку **сборки** (неизвестный `$component` бросает конвертер при `createForm`) граница рендера не ловит — проверяй документ до сборки `validateFormSchema` (см. «Invalid schema») и показывай `SchemaErrorPanel` вместо формы, как эталон `complex-multy-step-form-renderer-json`.
 
-## 32. See also
+## 33. See also
 
 - [01-overview.md](01-overview.md)
 - [02-json-schema.md](02-json-schema.md)
@@ -661,7 +668,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ model, schema }) => {
 - [05-cookbook.md](05-cookbook.md)
 - [10-format-2.md](10-format-2.md)
 
-## 33. Монтаж формы из JSON { #mounting }
+## 34. Монтаж формы из JSON { #mounting }
 
 **Cookbook**
 
@@ -700,7 +707,7 @@ export function MyFormPage() {
 - Поведение (compute/enableWhen/onChange модели **и** правила узлов hideWhen/onComponentEvent/onMount) — одно, полем `behavior`.
 - Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и рендерер ремоута могут оказаться в разных бандлах.
 
-## 34. Сборка формы одним проходом { #one-pass }
+## 35. Сборка формы одним проходом { #one-pass }
 
 **Problem.** Схему легко передать дважды — в сборку формы и отдельно рендереру — и две несвязанные передачи одного артефакта разъезжаются. Плюс `useMemo` для сборки модели/формы ненадёжен: React вправе сбросить его кэш.
 
@@ -753,7 +760,7 @@ export function CreditFormPage() {
 - `defineJsonSchema<T>` в `form.schema.ts` — канон схемы для renderer-json: identity-хелпер сужает пути `$model(...)` до `Path<T>`. Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри шаблона строки и именованной части относительны строке/группе и НЕ типизируются.
 - **Прежний формат** (документ без `format: 2`) рантайм не читает: переведи документ `migrateJsonSchema(document)` при загрузке и собирай результат `createForm` (см. [10-format-2.md](10-format-2.md)).
 
-## 35. Шаблон строки массива { #template-arrays }
+## 36. Шаблон строки массива { #template-arrays }
 
 **Problem.** В JSON нельзя выразить функцию `(row) => узел` для шаблона строки. Массив должен остаться декларативным.
 
@@ -801,7 +808,7 @@ createModel<CreditForm>({ /* … */ properties: arrayOf(blankProperty) });
 - Вложенный массив в массиве — новый узел массива внутри шаблона со своим `model`/`item`. Повторяющийся шаблон выносится в `parts` и подключается `"item": "$part(property)"`.
 - В JSON-документе прежнего формата компонент секции мог называться `$component(FormArray)` — реестр понимает это имя как псевдоним `FieldArray` (в dev — предупреждение), см. [03-registry.md](03-registry.md).
 
-## 36. Display-список из массива модели { #display-list }
+## 37. Display-список из массива модели { #display-list }
 
 **Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который даёт `FieldArray`.
 
@@ -842,7 +849,7 @@ defineFormBehavior<FormShape>(({ model }) => {
 - Компонент-рендерер массива получает готовые элементы пропом `items` (`{ key, index, model, children }`) и колбэки `onAdd`/`onRemove`/`onMove` — итерацию делает рендерер.
 - Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FieldArray` без мутаций) и `useList`.
 
-## 37. dataSource-значения и функции { #datasource }
+## 38. dataSource-значения и функции { #datasource }
 
 **Problem.** Нужно передать в проп массив options, функцию (`itemLabel: (row, index) => string`) или React-компонент — а JSON хранит только примитивы и объекты.
 
@@ -892,10 +899,10 @@ const registry = defineRegistry((reg) => {
 **Notes.**
 
 - Резолв происходит только для строк-операторов (`'$dataSource(NAME)'`, `'$fn(name)'`). Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
-- Если имя не зарегистрировано: без проверки документа строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); `validateFormSchema` даст ошибку `unknown dataSource "NAME"`.
+- Если имя не зарегистрировано, сборка формы бросает `Data source "NAME" not found in registry` (для `$fn` — `Function "name" not found in registry`) на первом же промахе. `validateFormSchema` до сборки называет все промахи: `unknown dataSource "NAME"`, `unknown fn "name"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
-## 38. Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
+## 39. Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
 
 **Problem.** JSON-реестр удобно наполнять готовыми контролами чужого UI-kit (antd/MUI) прямо по имени: `reg.component('Checkbox', Checkbox)`. Компоненты `@reformer/ui-kit` объявляют свой диалект статикой `reformerAdapter`, и рендерер применяет её сам, — а у чужих контролов статики нет, и они получают seam **как есть**: `value` + `onChange(value)`. Сырой antd `Checkbox` держит значение в `checked` и эмитит DOM-событие (`onChange(e)`), `Radio` — тоже событие: без перевода в модель попадёт `event`, а не значение. `Select` эмитит `(value, option)` — значение приходит **первым** и пишется в модель верно (лишний `option` отбрасывается сам) — ему адаптер не нужен.
 
@@ -938,7 +945,7 @@ const adapters = new Map<unknown, FieldAdapter>([
 - Компонентам `@reformer/ui-kit` (`Input`, `Textarea`, `CheckboxWithLabel`, …) и контролам с уже value-based контрактом адаптер не нужен — верни для них `undefined`: у первых диалект объявлен статикой.
 - Полный справочник полей `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в JSDoc типа `FieldAdapter` и кукбуке `@reformer/renderer-react`.
 
-## 39. Рантайм-сущности и пропсы узла (form, поток, статус) { #inject-runtime }
+## 40. Рантайм-сущности и пропсы узла (form, поток, статус) { #inject-runtime }
 
 **Problem.** Компоненту нужно то, что нельзя выразить в статичном JSON: форма, поток шагов, обработчик, статус загрузки.
 
@@ -964,7 +971,7 @@ export const formBehavior = defineFormBehavior<MyForm>(({ schema }) => {
 - `patchProps` мержит переданные пропы в `componentProps` узла.
 - Прежний приём — `onInit(schema.node('wizard'), () => schema.node('wizard').patchProps({ form, validateStep, validateAll }))` — больше не нужен: `validateStep`/`validateAll`-конфига у визарда нет, правила шагов — поток сборки (см. [07-form-wizard.md](07-form-wizard.md)).
 
-## 40. Вся форма read-only / view-mode { #readonly }
+## 41. Вся форма read-only / view-mode { #readonly }
 
 **Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
 
@@ -1002,7 +1009,7 @@ export const readonlyBehavior = defineFormBehavior<MyForm>(({ form }) => {
 - `readOnly` в DSL тоже нет: ни одна props-схема его не объявляет, и `additionalProperties: false` его отклонит.
 - Отключённые ноды не валидируются — для чистого view-mode это обычно желаемо.
 
-## 41. Migration from TS schema { #migration }
+## 42. Migration from TS schema { #migration }
 
 **Problem.** Есть готовая TS-схема `@reformer/renderer-react` (`(model) => RenderNode<T>` с React-компонентами по ссылке) — нужно перенести её в JSON-документ.
 
@@ -1052,7 +1059,7 @@ const registry = defineRegistry((reg) => {
 - Вид узла решают соседние ключи: `model` + `item` → массив, `model` + `part` → подформа, `model` → поле, `component` + `children` → контейнер. Порядок распознавания: массив → подформа → поле → контейнер.
 - Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `defineFormBehavior` и подключается полем `behavior` сборки. TS- и JSON-варианты одной формы переиспользуют одно поведение, одни правила и один поток шагов.
 
-## 42. Презентационные блоки без регистрации компонентов { #html-nodes }
+## 43. Презентационные блоки без регистрации компонентов { #html-nodes }
 
 **Problem.** Заголовки, инфо-плашки, разделители, блок «Итого» с живыми значениями. Через `$component(...)` под каждый такой блок нужен React-компонент и строка в реестре — реестр разрастается кодом, который ничего не делает, кроме вёрстки.
 
@@ -1122,7 +1129,109 @@ defineRegistry((reg) => {
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
 - Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/demo/html-nodes/`.
 
-## 43. See also
+## 44. Свой оператор { #custom-operator }
+
+**Problem.** Нужна строка-ссылка сверх встроенных: настройка приложения по имени (`$config(SUPPORT_PHONE)`), функция с аргументом (`$money(RUB)` — у `$fn` аргументов нет), ключи строк в записи CMS (`$t(key)` вместо `$locale(key)`).
+
+**Solution.** Набор операторов закрыт: `parseOperator` знает только `model`/`component`/`html`/`dataSource`/`fn`/`locale`/`part`, точки расширения ни в парсере, ни в реестре нет. Свой оператор — строка, которую код приложения разворачивает **до** проверки и сборки: в литерал или во встроенный оператор. Функции, компоненты и сигналы оператор не возвращает — их кладут в реестр, а оператор отдаёт ссылку на запись (`$fn(...)`, `$dataSource(...)`).
+
+```typescript
+import { parseOperator } from '@reformer/renderer-json';
+
+export type OperatorExpander = (arg: string) => unknown;
+
+const OPERATOR = /^\$([A-Za-z][A-Za-z0-9]*)\((.+)\)$/;
+
+/** Заменяет свои операторы документа. Встроенные операторы и обычные строки не трогает. */
+export function expandOperators<D>(document: D, operators: Record<string, OperatorExpander>): D {
+  const expanders = new Map(Object.entries(operators));
+  const walk = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      if (parseOperator(value)) return value; // встроенный оператор
+      const match = OPERATOR.exec(value);
+      if (!match) return value; // обычная строка
+      const expand = expanders.get(match[1]);
+      if (!expand) throw new Error(`Unknown operator "${value}"`);
+      return expand(match[2]);
+    }
+    if (Array.isArray(value)) return value.map(walk);
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walk(item)]));
+    }
+    return value;
+  };
+  return walk(document) as D;
+}
+
+const settings: Record<string, string> = { SUPPORT_PHONE: '8 800 555-35-35' };
+
+export const operators: Record<string, OperatorExpander> = {
+  config: (name) => {
+    const value = settings[name];
+    if (typeof value !== 'string') throw new Error(`No setting "${name}"`);
+    return value; // "$config(SUPPORT_PHONE)" → литерал
+  },
+  t: (key) => `$locale(${key})`, // "$t(fields.email)" → встроенный оператор
+  money: (currency) => `$fn(money.${currency})`, // "$money(RUB)" → запись реестра
+};
+```
+
+```typescript
+// Реестр: функция на каждое значение аргумента — под именем, которое даёт $money.
+const registry = defineRegistry((reg) => {
+  // …компоненты, FIELD_WRAPPER, reg.locale(...)
+  for (const currency of ['RUB', 'USD']) {
+    const format = new Intl.NumberFormat('ru-RU', { style: 'currency', currency });
+    reg.fn(`money.${currency}`, (value: number) => format.format(value));
+  }
+});
+
+// Разворачивание — до проверки и сборки.
+const document = expandOperators(rawDocument, operators);
+const { valid, errors } = validateFormSchema(document, { registry }); // проверяется развёрнутый
+const bundle = createForm<Order>({ initial, schema: document, registry });
+```
+
+```json
+{
+  "model": "$model(amount)",
+  "component": "$component(AmountInput)",
+  "componentProps": { "label": "$t(fields.amount)", "formatValue": "$money(RUB)" }
+}
+```
+
+Разворачивать при каждой сборке без явного вызова — обёртка реестра над `resolveSchema` (через него `createForm` строит дерево из документа):
+
+```typescript
+export function withOperators(
+  registry: ComponentRegistry,
+  operators: Record<string, OperatorExpander>
+): ComponentRegistry {
+  const resolveSchema = registry.resolveSchema;
+  if (!resolveSchema) throw new Error('The registry cannot build a form from a document');
+  return {
+    get: (name) => registry.get(name),
+    getDataSource: <T>(name: string) => registry.getDataSource<T>(name),
+    getLocale: () => registry.getLocale?.(),
+    has: (name) => registry.has(name),
+    names: () => registry.names(),
+    resolveSchema: (document, model) =>
+      resolveSchema.call(registry, expandOperators(document, operators), model),
+  };
+}
+
+createForm<Order>({ initial, schema: rawDocument, registry: withOperators(registry, operators) });
+```
+
+**Notes.**
+
+- Неразвёрнутая строка `$money(RUB)` в `componentProps` и тексте — **не ошибка** ни для сборки, ни для `validateFormSchema`: она доходит до компонента как есть. Поэтому `expandOperators` бросает на незнакомом `$имя(…)` — это ловит опечатки (`$mony(RUB)`).
+- Проверять надо развёрнутый документ: в исходном `$money(EUR)` — строка, в развёрнутом `validateFormSchema` даёт `unknown fn "money.EUR"`, опечатка ключа — `unknown locale key "…"`.
+- Свой оператор — только в значениях (`componentProps` на любой глубине, текст `children`). В `component`/`model`/`part`/`item` мета-схема (редактор, `validateFormSchema` по исходному документу) и `defineJsonSchema` его отвергают.
+- Своё имя, совпадающее со встроенным (`model`, `fn`, …), не вызывается: встроенные пропускаются первыми. Разворачивание однопроходное: результат оператора повторно не разбирается. Аргумент — вся строка в скобках (`$money(RUB, 2)` → `"RUB, 2"`).
+- `composeRegistries` собирает новый реестр и теряет обёртку `withOperators` — оборачивать последним: `withOperators(composeRegistries(app, form), operators)`. `@reformer/form-registry` объединяет реестры сам — ему отдают уже развёрнутый документ.
+
+## 45. See also
 
 - [01-overview.md](01-overview.md) — сборка `createForm` из документа и реестра.
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` и операторам.
@@ -1130,7 +1239,7 @@ defineRegistry((reg) => {
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 - [10-format-2.md](10-format-2.md) — документ формата 2 и перевод прежнего.
 
-## 44. Mental model — почему валидаторов нет в JSON { #mental-model }
+## 46. Mental model — почему валидаторов нет в JSON { #mental-model }
 
 **Validation**
 
@@ -1149,7 +1258,7 @@ defineRegistry((reg) => {
 
 Дальше — три шага: (1) правила над моделью, (2) подключить их к сборке, (3) тексты замечаний.
 
-## 45. Шаг 1 — правила над моделью { #build-schema }
+## 47. Шаг 1 — правила над моделью { #build-schema }
 
 Схема валидации — обычная функция `({ model, cross }) => void`, обёрнутая `defineValidation<T>(...)`. Внутри вызываются операторы из `@reformer/core/validation`: `validate(handle, [rules])` для синхронных правил (массив правил на поле). `handle` — ручка модели (`model.$.path`), НЕ строка-оператор `$model(...)` (операторы — только для layout-JSON; схема валидации это обычный TS-код). Фабрики правил импортируются из `@reformer/core/validators`; опции правила — `{ code?, params? }`.
 
@@ -1175,7 +1284,7 @@ export const applicantRules = defineValidation<CreditForm>(({ model }) => {
 
 Остальные операторы (тот же контракт, что в TS-форме): `validateAsync(handle, [asyncRules])` — асинхронные правила `(value, { signal }) => Promise<...>`; `validateWhen(() => cond, () => {...})` — условная валидация; `cross(handle, (snapshot) => issue | null)` из аргумента схемы — правило над несколькими полями по снимку модели; `applyEach(model.$.items, rowRules)` — правила строк массива; `apply(...schemas)` — композиция. Полное описание — `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
-## 46. Шаг 2 — подключить к сборке { #execute }
+## 48. Шаг 2 — подключить к сборке { #execute }
 
 Документ формата 2 собирает та же сборка, что и TS-схему: `createForm({ model, schema, registry })`. Правила шагов уходят в поток, правила вне шагов — в `validation`:
 
@@ -1211,7 +1320,7 @@ return <FormRenderer form={bundle} />;
 
 > **Мост «поведение инициирует валидацию».** Если правка одного поля должна перепрогнать правила другого (без отправки), это делает поведение — `revalidateWhen([model.$.dep], () => void validateModel(model, rules))` в `defineFormBehavior` (контракт `@reformer/core/behaviors`). Валидация остаётся отдельным слоем; поведение лишь дёргает раннер.
 
-## 47. Шаг 3 — тексты замечаний { #messages }
+## 49. Шаг 3 — тексты замечаний { #messages }
 
 ```typescript
 import { defineIssueMessages } from '@reformer/core/i18n';
@@ -1232,7 +1341,7 @@ import { ValidationMessagesProvider } from '@reformer/cdk';
 
 Порядок поиска текста: словарь формы → словарь локали → встроенный английский → сам `code`. Словарь — код, а не данные: в JSON-документ он не попадает и остаётся в бандле вместе с правилами.
 
-## 48. Полный рабочий пример { #full-example }
+## 50. Полный рабочий пример { #full-example }
 
 Зеркалит эталон `complex-multy-step-form-renderer-json`: правила — TS-схемы над моделью (`@reformer/core/validation`), общие для всех вариантов рендера; документ отличается от TS-варианта только тем, что он JSON.
 
@@ -1297,7 +1406,7 @@ export function CreditFormPage() {
 }
 ```
 
-## 49. Когда прогонять — декларативная стратегия { #strategy }
+## 51. Когда прогонять — декларативная стратегия { #strategy }
 
 По умолчанию правила запускаются только явно: «Далее», отправка, `bundle.validate()`. Живую проверку выбирает поле `strategy` в `validation` сборки — тем же контрактом, что и для TS-схемы (JSON тут ни при чём — он несёт только layout):
 
@@ -1310,11 +1419,11 @@ createForm<CreditForm>({
 
 Значения `strategy`: `submit` (default — прогон только явным вызовом), `blur` (по потере фокуса), `change` (на каждый ввод + `debounce`), `afterFirstSubmit` (тихо до первой попытки отправки → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`; живую фазу включает только `bundle.submission.submit` — `bundle.validate()`, `validateStep` и `flow.next()` её не включают). Подписки армирует `useFormBundle` в эффекте (SSR-safe). Для простой формы без сборки — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core/react`.
 
-## 50. Прежний формат документа { #v1 }
+## 52. Прежний формат документа { #v1 }
 
 Документ без `format: 2` (ключи `value` / `array`, шаги в `componentProps.steps`) рантайм не читает. Переведи его при загрузке: `migrateJsonSchema(document)` → формат 2 → `createForm` с теми же полями `validation` и `flow` (см. [10-format-2.md](10-format-2.md)).
 
-## 51. Anti-patterns
+## 53. Anti-patterns
 
 - **Ждать, что `validateFormSchema` валидирует значения** — она проверяет только СТРУКТУРУ документа через ajv. Введённые пользователем значения она не трогает.
 - **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`model`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует.
@@ -1324,7 +1433,7 @@ createForm<CreditForm>({
 - **Инлайнить схему в `validateModel` или пересобирать её на каждый прогон** — отмена устаревших прогонов ключится по паре «модель + правила». Держите схемы стабильными `const` через `defineValidation`.
 - **`selector` шага не совпадает с `id` шага потока** — визард не свяжет шаг с разметкой; в dev предупреждают сборка и визард, реестр форм ловит это preflight-проверкой `unknown-step-selectors`.
 
-## 52. See also
+## 54. See also
 
 - [07-form-wizard.md](07-form-wizard.md) — визард в JSON: шаги-дети, поток шагов, отправка (`onComponentEvent`), навигация (`flow.goTo`).
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` (field-node несёт только layout).
@@ -1333,7 +1442,7 @@ createForm<CreditForm>({
 - `@reformer/core` [34-i18n.md](../../../reformer/docs/llms/34-i18n.md) — словарь замечаний и локали.
 - [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [validate.ts](../../src/validate.ts) — структурная проверка документа.
 
-## 53. Половина 1 — layout шагов в JSON { #json-shape }
+## 55. Половина 1 — layout шагов в JSON { #json-shape }
 
 **FormWizard**
 
@@ -1419,7 +1528,7 @@ const schema = composeJsonFormSchema(rawSchema as unknown as JsonFormSchema, ste
 - Несобранная схема не собирается: конвертер бросает `Step reference "…" is not resolved`, `validateFormSchema` сообщает `step reference "…" is not resolved`.
 - Билдер открывает такую форму как одну и сам раскладывает правки по файлам шагов.
 
-## 54. Реестр: визард и шаг { #register }
+## 56. Реестр: визард и шаг { #register }
 
 `$component(FormWizard)` и `$component(Step)` — **записи в реестре**: имя резолвится через registry. Обёртка над библиотечным визардом не нужна — регистрируй его как есть:
 
@@ -1440,7 +1549,7 @@ export const registry = defineRegistry((reg) => {
 
 Имя записи произвольное — важно лишь совпадение строки в JSON и ключа в реестре. `FormWizard` объявляет `__selfManagedChildren`: рендерер передаёт ему узлы шагов данными и функцию их отрисовки.
 
-## 55. Половина 2 — правила шагов и поведение { #render-behavior }
+## 57. Половина 2 — правила шагов и поведение { #render-behavior }
 
 Правила шагов — поток сборки; отправка, навигация и видимость — одно поведение формы. Семантику операторов см. renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md).
 
@@ -1492,7 +1601,7 @@ return <FormRenderer form={bundle} />;
 
 Сверено с эталоном: `application/renderer.ts` — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`, `renderEffect(schema, () => { if (isMortgage(model.loanType)) flow?.goTo('loan'); })`; `flow/credit-application-flow.ts` — поток `{ steps: flow.map((step) => ({ id: step.selector, rules: step.rules })) }`.
 
-## 56. Поток шагов { #flow }
+## 58. Поток шагов { #flow }
 
 - Кнопка «Далее» — `flow.next()`: правила текущего шага; при замечаниях поток остаётся на шаге (`{ status: 'stayed', reason: 'invalid' }`), а поля помечаются `touched`.
 - Переход по индикатору — `flow.goTo(id)`: первый шаг доступен всегда, остальные — после прохождения предыдущего (`reason: 'locked'`). «Назад» — `flow.previous()`.
@@ -1500,11 +1609,11 @@ return <FormRenderer form={bundle} />;
 - Расхождение `flow.steps[].id` и селекторов узлов шагов — dev-предупреждения сборки и визарда; реестр форм ловит его preflight-проверкой `unknown-step-selectors`.
 - Снаружи дерева: `useFormFlow(bundle.flow!)` из `@reformer/core/react` — снимок (`current`, `index`, `isLast`, `validating`); `bundle.flow?.goTo('loan')`; `bundle.submission.submit(handler)`.
 
-## 57. Прежний формат документа { #v1 }
+## 59. Прежний формат документа { #v1 }
 
 В прежнем формате шаги лежали в `componentProps.steps` визарда, а визард подключался через прикладной шим. `migrateJsonSchema(document)` переносит шаги в `children` (визард узнаётся по имени — `DEFAULT_STEP_HOSTS`: `Wizard`, `RendererFormWizard`, `FormWizard`; свои имена — `{ stepHosts }`) и ставит `format: 2`. Имя компонента функция не меняет: на что оно указывает, решает реестр — зарегистрируй под ним `FormWizard` из `@reformer/ui-kit`.
 
-## 58. Anti-patterns
+## 60. Anti-patterns
 
 - **Класть шаги в `componentProps.steps`** — прежний формат. В формате 2 шаги — `children` визарда; `migrateJsonSchema` переносит их сам.
 - **Инъекция `form` / `validateStep` / `validateAll` в узел визарда через `onInit` + `patchProps`, `defineSteps`** — прежний контракт, удалён. Визард берёт форму, поток и отправку из сборки; правила шагов — `flow.steps[].rules`.
@@ -1515,14 +1624,14 @@ return <FormRenderer form={bundle} />;
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, обработчик отправки не навесится (сборка в dev предупредит о неизвестном селекторе).
 - **Проверять форму руками в обработчике отправки** — не нужно: обработчик вызывается через `bundle.submission.submit` только после успешной проверки, `values` — значения формы.
 
-## 59. See also
+## 61. See also
 
 - [06-validation.md](06-validation.md) — правила над моделью, поток шагов, тексты замечаний.
 - [10-format-2.md](10-format-2.md) — документ формата 2, сборка `createForm`, перевод прежнего формата.
 - renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
 - renderer-react [07-form-wizard.md](../../../reformer-renderer-react/docs/llms/07-form-wizard.md) — тот же визард в TS-схеме.
 
-## 60. Два пути (важно выбрать правильный)
+## 62. Два пути (важно выбрать правильный)
 
 **i18n / Локализация**
 
@@ -1537,7 +1646,7 @@ return <FormRenderer form={bundle} />;
 
 Причина: `componentProps` спредятся в компонент как есть — signal/ReactNode в `label` уронит его (`Objects are not valid as a React child`). Строковый путь резолвится один раз — когда сборка строит дерево из документа (смена языка = пересборка формы); реактивный путь читает сервис из React-контекста на этапе рендера (live-переключение).
 
-## 61. Сервис локализации
+## 63. Сервис локализации
 
 ```ts
 interface LocaleService {
@@ -1591,7 +1700,7 @@ const service: LocaleService = {
 };
 ```
 
-## 62. Путь 1 — строковые пропы (статично)
+## 64. Путь 1 — строковые пропы (статично)
 
 Без параметров — строковый оператор:
 
@@ -1618,7 +1727,7 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-## 63. Путь 2 — реактивный компонент `I18n`
+## 65. Путь 2 — реактивный компонент `I18n`
 
 Для markdown/rich и/или реактивных параметров и live-переключения языка. Регистрируется как компонент, оборачивается `LocaleProvider`:
 
@@ -1654,13 +1763,13 @@ function App() {
 
 `I18n` рендерит `service.render?.()` (markdown/JSX) либо `service.resolve()` (строка) — формат решает сервис. Перерисовывается при смене сигнала `values.count` и при смене `service` в `LocaleProvider` (переключение языка).
 
-## 64. Валидация
+## 66. Валидация
 
 `validateFormSchema` проверяет ключи `$locale(...)` и структурной формы `{ $locale }` против `localeKeys` (из `service.keys` или явного списка) — опечатка ключа ловится до рендера. Нет каталога → проверка мягко пропускается (ключи свободные).
 
 Проверка `componentProps` по схемам пропсов (`propSchemas`) принимает обе формы на месте любого значения — так же, как конвертер: `"label": "$locale(key)"` и `"label": { "$locale": "key", "params": { … } }` проходят там, где проп объявлен строкой. Структурная форма проверяется строго: только ключи `$locale` (непустая строка) и `params` (объект) — опечатка вида `param` даёт ошибку пропа.
 
-## 65. Anti-patterns
+## 67. Anti-patterns
 
 - **markdown/JSX в строковый проп** — `label: "$locale(...)"` с сервисом, возвращающим ReactNode, уронит компонент. Rich-контент только через `$component(I18n)` (или свой `$component(RichText)`).
 - **реактивный параметр в строковом `$locale`** — `{ $locale, params: { count: "$model(...)" } }` берётся снимком и **не обновляется** (путь статичный); в dev печатается warning. Для реактивных model-параметров → `I18n` с `values`.
@@ -1668,13 +1777,13 @@ function App() {
 - **ждать live-переключения от `$locale`** — строковый путь статичен; смена языка для label/placeholder требует пересборки формы (новый сервис в `reg.locale` + новая сборка). Live только у `I18n`.
 - **тащить ICU/markdown в схему** — форматтер живёт в реализации `LocaleService` у потребителя, не в JSON.
 
-## 66. See also
+## 68. See also
 
 - [02-json-schema.md](02-json-schema.md) — где `$locale`/`I18n` появляются в схеме.
 - [03-registry.md](03-registry.md) — `reg.locale`, `createLocaleService`, регистрация `I18n`.
 - [06-validation.md](06-validation.md) — валидация значений (отдельно от локализации).
 
-## 67. Границы слоёв
+## 69. Границы слоёв
 
 **Чек-лист ревью формы**
 
@@ -1692,7 +1801,7 @@ function App() {
       (`compute`/`enableWhen`/`onChange`), дерево рендера — операторы узлов
       (`hideWhen`/`patchProps`/`onComponentEvent`); бизнес-расчёты не в правилах узлов.
 
-## 68. Связи по строкам (ломаются молча)
+## 70. Связи по строкам (ломаются молча)
 
 - [ ] у каждого узла, который адресует поведение, есть `selector`, и он в union-типе селекторов
       страницы (опечатка → ошибка компиляции, а не тихий промах);
@@ -1705,7 +1814,7 @@ function App() {
 - [ ] документ проверяется `validateFormSchema` хотя бы в dev — ловит неизвестные
       `$component`/`$dataSource`/`$part` и структурные ошибки до сборки.
 
-## 69. Валидация и видимость
+## 71. Валидация и видимость
 
 - [ ] правила шагов — в потоке сборки (`flow: { steps: [{ id, rules }] }`), а не в узлах и не по
       индексу шага; «Далее» и отправка сами помечают проверенные поля `touched`;
@@ -1713,7 +1822,7 @@ function App() {
       скрытое поле продолжает валидироваться и уезжает в значения отправки;
 - [ ] предикаты `hideWhen` читают значение внутри колбэка (`model.x`), иначе они не реактивны.
 
-## 70. Рендер и мост
+## 72. Рендер и мост
 
 - [ ] в реестре — сами компоненты `@reformer/ui-kit` (`Input`, `InputNumber`, `SelectAsync`, …): диалект
       поля они объявляют статикой `reformerAdapter`; число — `InputNumber`, а не `Input` с
@@ -1728,13 +1837,13 @@ function App() {
 - [ ] реестр уровня страницы — это нормально и должно быть дефолтом; в общий реестр моста выносится
       только то, что переиспользуется несколькими формами.
 
-## 71. См. также
+## 73. См. также
 
 - [01-overview.md](01-overview.md) — сборка формы (`createForm` + реестр).
 - [06-validation.md](06-validation.md) — валидация над моделью, поток шагов, тексты замечаний.
 - [07-form-wizard.md](07-form-wizard.md) — визард и пошаговая валидация.
 
-## 72. Purpose
+## 74. Purpose
 
 **JSON-схема: формат 2**
 
@@ -1745,7 +1854,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 
 Полное описание контракта — раздел «Единый контракт формы» в `reformer://docs/core`.
 
-## 73. Документ
+## 75. Документ
 
 ```json
 {
@@ -1786,7 +1895,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 - `version` — версия содержимого формы (её сверяет реестр форм). К формату документа не относится.
 - `parts` — именованные части документа: подформы и шаблоны строк массивов.
 
-## 74. Узлы
+## 76. Узлы
 
 Привязка к модели — один ключ `model`. Чем является узел, решают соседние ключи.
 
@@ -1806,7 +1915,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 { "model": "$model(tags)", "component": "$component(SelectMulti)" }
 ```
 
-## 75. Именованные части
+## 77. Именованные части
 
 Часть объявляется один раз в `parts` и подключается оператором `$part(name)`:
 
@@ -1832,7 +1941,7 @@ TS-схему: `createForm` из `@reformer/core`, рисует тот же `For
 `apply(model.$.group, behavior)`, поведение строки — через `applyEach(model.$.items, behavior)`.
 Корневое поведение узлы частей не видит.
 
-## 76. Шаблон нового элемента массива
+## 78. Шаблон нового элемента массива
 
 Шаблон для кнопки «Добавить» живёт в модели — `arrayOf(blank)`:
 
@@ -1849,7 +1958,7 @@ export const createMyModel = () =>
 создаётся из данных без кода; шаблон модели главнее. Если `initialValue` задан, он обязан нести
 все ключи строки — это проверяет `validateFormSchema`.
 
-## 77. Шаги визарда
+## 79. Шаги визарда
 
 Шаги — обычные дети узла визарда. `selector` шага — идентификатор шага в потоке сборки:
 `createForm({ flow: { steps: [{ id: 'loan', rules: loanRules }] } })`. Визард
@@ -1874,7 +1983,7 @@ export const createMyModel = () =>
 Шаг в отдельном файле стоит ссылкой `{ "$ref": "./steps/loan/form.schema.json" }` в `children`.
 Перед сборкой формы документ собирает `composeJsonFormSchema(document, stepSchemas)`.
 
-## 78. Сборка и рендер
+## 80. Сборка и рендер
 
 ```tsx
 import { createForm } from '@reformer/core';
@@ -1925,7 +2034,7 @@ if (!valid) return <SchemaErrorPanel errors={errors} />;
 Проверяются структура узлов, синтаксис операторов, имена компонентов, источников и функций,
 имена частей (`$part(...)`), полнота заданного `initialValue` и несобранные ссылки на шаги.
 
-## 79. Перевод документа прежнего формата
+## 81. Перевод документа прежнего формата
 
 ```typescript
 import { migrateJsonSchema } from '@reformer/renderer-json';
@@ -1947,7 +2056,7 @@ const bundle = createForm({ model, schema, registry });
 Функция чистая, документ формата 2 возвращает как есть — её можно вызывать на любом документе.
 Части (`parts`) она не выделяет: повторяющиеся фрагменты выносятся вручную.
 
-## 80. Удалённый API прежнего пути { #removed-api }
+## 82. Удалённый API прежнего пути { #removed-api }
 
 Рантайм читает только документ формата 2. Документ без `format` сборка (`convertJsonSchema`) и
 проверка (`validateFormSchema`) отвергают с отсылкой к `migrateJsonSchema`;
@@ -1965,7 +2074,7 @@ const bundle = createForm({ model, schema, registry });
 | `formSchemaMetaSchemaV1`, `buildFormSchemaMetaSchemaV1`, `buildFormStepMetaSchemaV1` | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `buildFormStepMetaSchema` |
 | `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | `convertJsonSchema` (обычно его зовёт реестр при сборке) |
 
-## 81. Частые ошибки
+## 83. Частые ошибки
 
 | Симптом | Причина |
 | --- | --- |
@@ -1979,7 +2088,7 @@ const bundle = createForm({ model, schema, registry });
 | `[ComponentRegistry] Компонент "FormArray" переименован в "FieldArray"` | документ называет компонент прежним именем; псевдоним работает, но документ стоит обновить на `$component(FieldArray)` |
 | визард: «шаги схемы и шаги потока расходятся» | `selector` узла шага не совпадает с `id` шага в `flow.steps` |
 
-## 82. API Reference
+## 84. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
