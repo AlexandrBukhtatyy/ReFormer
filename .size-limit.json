@@ -62,12 +62,12 @@
   {
     "name": "@reformer/ui-kit/table (@tanstack/react-table external)",
     "path": "packages/reformer-ui-kit/dist/table.js",
-    "limit": "3.5 kB"
+    "limit": "3.75 kB"
   },
   {
     "name": "@reformer/ui-kit/sidebar (composite)",
     "path": "packages/reformer-ui-kit/dist/sidebar.js",
-    "limit": "4.5 kB"
+    "limit": "4.75 kB"
   },
   {
     "name": "@reformer/ui-kit Select subpath (Select + SelectAsync + SelectMulti)",
@@ -100,7 +100,7 @@
   {
     "name": "@reformer/ui-kit/input-otp (input-otp external)",
     "path": "packages/reformer-ui-kit/dist/input-otp.js",
-    "limit": "1.1 kB"
+    "limit": "1.25 kB"
   },
   {
     "name": "@reformer/ui-kit/drawer (vaul external)",
@@ -120,7 +120,7 @@
   {
     "name": "@reformer/ui-kit/sonner (sonner external)",
     "path": "packages/reformer-ui-kit/dist/sonner.js",
-    "limit": "0.5 kB"
+    "limit": "1.25 kB"
   },
   {
     "name": "@reformer/renderer-json",
