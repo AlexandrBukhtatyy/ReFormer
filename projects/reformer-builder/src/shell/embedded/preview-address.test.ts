@@ -66,30 +66,30 @@ describe('рамка билдера', () => {
 
 describe('адрес стенда', () => {
   it('несёт путь модуля, и стенд читает его обратно без потерь', () => {
-    const url = new URL(formUrlOf(at('/contacts'), 'src/forms/contact/index.tsx'));
+    const url = new URL(formUrlOf(at('/contacts'), 'src/forms/contact/index.ts'));
 
     expect(url.pathname).toBe('/contacts');
-    expect(standRequest(url.search)).toBe('src/forms/contact/index.tsx');
+    expect(standRequest(url.search)).toBe('src/forms/contact/index.ts');
   });
 
   it('сохраняет параметры страницы: маршрут с запросом остаётся тем же маршрутом', () => {
-    const url = new URL(formUrlOf(at('/list?tab=open'), 'src/forms/a/index.tsx'));
+    const url = new URL(formUrlOf(at('/list?tab=open'), 'src/forms/a/index.ts'));
 
     expect(url.searchParams.get('tab')).toBe('open');
-    expect(url.searchParams.get(FORM_STAND_PARAM)).toBe('src/forms/a/index.tsx');
+    expect(url.searchParams.get(FORM_STAND_PARAM)).toBe('src/forms/a/index.ts');
   });
 
   it('путь приводится к виду «от корня проекта, прямые разделители»', () => {
-    const url = new URL(formUrlOf(at('/'), '\\src\\forms\\a\\index.tsx'));
+    const url = new URL(formUrlOf(at('/'), '\\src\\forms\\a\\index.ts'));
 
-    expect(standRequest(url.search)).toBe('src/forms/a/index.tsx');
+    expect(standRequest(url.search)).toBe('src/forms/a/index.ts');
   });
 
   it('адрес стенда, построенный со стенда, не копит параметр', () => {
-    const first = new URL(formUrlOf(at('/'), 'src/forms/a/index.tsx'));
-    const second = new URL(formUrlOf(at(`/${first.search}`), 'src/forms/b/index.tsx'));
+    const first = new URL(formUrlOf(at('/'), 'src/forms/a/index.ts'));
+    const second = new URL(formUrlOf(at(`/${first.search}`), 'src/forms/b/index.ts'));
 
-    expect(second.searchParams.getAll(FORM_STAND_PARAM)).toEqual(['src/forms/b/index.tsx']);
+    expect(second.searchParams.getAll(FORM_STAND_PARAM)).toEqual(['src/forms/b/index.ts']);
   });
 
   it('обычная страница стендом не считается', () => {
@@ -105,7 +105,7 @@ describe('адрес страницы', () => {
   });
 
   it('параметра стенда в нём нет: стенд — не страница приложения', () => {
-    const stand = formUrlOf(at('/list?tab=open'), 'src/forms/a/index.tsx');
+    const stand = formUrlOf(at('/list?tab=open'), 'src/forms/a/index.ts');
 
     expect(pageUrlOf(at(stand.slice('http://localhost:5173'.length)))).toBe(
       'http://localhost:5173/list?tab=open'
@@ -117,17 +117,17 @@ describe('адрес модуля формы на dev-сервере', () => {
   const origin = 'http://localhost:5173';
 
   it('проект открыт в корне сервера — путь модуля и есть путь адреса', () => {
-    expect(moduleUrlOf(origin, '/', 'src/forms/contact/index.tsx')).toBe(
-      'http://localhost:5173/src/forms/contact/index.tsx'
+    expect(moduleUrlOf(origin, '/', 'src/forms/contact/index.ts')).toBe(
+      'http://localhost:5173/src/forms/contact/index.ts'
     );
   });
 
   it('проект открыт во вложенной папке — путь идёт под её префиксом', () => {
-    expect(moduleUrlOf(origin, '/src', 'forms/contact/index.tsx')).toBe(
-      'http://localhost:5173/src/forms/contact/index.tsx'
+    expect(moduleUrlOf(origin, '/src', 'forms/contact/index.ts')).toBe(
+      'http://localhost:5173/src/forms/contact/index.ts'
     );
-    expect(moduleUrlOf(origin, 'src/', '/forms/contact/index.tsx')).toBe(
-      'http://localhost:5173/src/forms/contact/index.tsx'
+    expect(moduleUrlOf(origin, 'src/', '/forms/contact/index.ts')).toBe(
+      'http://localhost:5173/src/forms/contact/index.ts'
     );
   });
 
@@ -151,7 +151,7 @@ describe('служба адресов', () => {
     expect(service.pageUrl()).toBe('http://localhost:5173/first');
     current = at('/second');
     expect(service.pageUrl()).toBe('http://localhost:5173/second');
-    expect(new URL(service.formUrl('src/forms/a/index.tsx')).pathname).toBe('/second');
+    expect(new URL(service.formUrl('src/forms/a/index.ts')).pathname).toBe('/second');
   });
 
   it('сообщает о записи файлов на диск — и перестаёт после отписки', () => {

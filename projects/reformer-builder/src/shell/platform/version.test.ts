@@ -12,7 +12,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { BUILDER_VERSION } from './version';
+import { parsePluginManifest } from '@reformer/builder-plugin-api/internal';
+import { BUILDER_VERSION, builderVersionOf, UNRELEASED_VERSION } from './version';
 
 describe('версия билдера', () => {
   it('совпадает с версией своего package.json', () => {
@@ -24,6 +25,35 @@ describe('версия билдера', () => {
 
     // Имя сверяется тоже: путь мог привести в чужой пакет, где поле `version` тоже есть.
     expect(declared.name).toBe('@reformer/builder');
-    expect(BUILDER_VERSION).toBe(declared.version);
+    expect(BUILDER_VERSION).toBe(builderVersionOf(declared.version));
+  });
+
+  it('заглушка рабочего дерева — «версия неизвестна», а не билдер 0.0.0', () => {
+    // semantic-release пишет настоящую версию после сборки, и в бандл выпуска попадает
+    // заглушка. Сверка с ней отказывала бы каждому плагину с `compatibility.builder`.
+    expect(builderVersionOf(UNRELEASED_VERSION)).toBeUndefined();
+    expect(builderVersionOf('3.0.0-beta.16')).toBe('3.0.0-beta.16');
+    expect(builderVersionOf('3.1.0')).toBe('3.1.0');
+  });
+
+  it('плагин с `compatibility.builder` грузится и у заглушки, и у беты своей линии', () => {
+    const text = JSON.stringify({
+      id: 'acme',
+      name: 'Acme',
+      apiVersion: '^1',
+      main: 'main.js',
+      compatibility: { builder: '^3' },
+    });
+    const parse = (builder: string) =>
+      parsePluginManifest(
+        text,
+        { kind: 'project', dir: 'acme' },
+        { builder: builderVersionOf(builder) }
+      );
+
+    expect(parse(UNRELEASED_VERSION).ok).toBe(true);
+    expect(parse('3.0.0-beta.16').ok).toBe(true);
+    const older = parse('2.0.0');
+    expect(!older.ok && older.problem.code).toBe('builder-version');
   });
 });

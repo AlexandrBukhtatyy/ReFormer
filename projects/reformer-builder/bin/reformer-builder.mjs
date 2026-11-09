@@ -25,7 +25,12 @@
  * и так же проверяют свежесобранные плагины.
  *
  * Использование:
- *   npx reformer-builder [--port <n>] [--host <h>] [--no-open] [--config <path>] [--plugins <dir>]
+ *   npx @reformer/builder@beta [--port <n>] [--host <h>] [--no-open] [--config <path>] [--plugins <dir>]
+ *
+ * Без установки npx ищет пакет по тому имени, которое ему дали, поэтому с нуля запускают по
+ * имени ПАКЕТА: пакета `reformer-builder` в npm нет. Имя команды (`npx reformer-builder`)
+ * работает, когда пакет уже стоит в проекте. Тег `beta` — пока линия 3.x выходит пререлизами:
+ * без тега npm ставит 2.x.
  */
 
 import { createServer } from 'node:http';
@@ -135,7 +140,8 @@ function printHelp() {
   console.log(`reformer-builder — визуальный билдер ReFormer-схем (локальный запуск)
 
 Использование:
-  npx reformer-builder [опции]
+  npx @reformer/builder@beta [опции]   без установки (версия 3 пока выходит под тегом beta)
+  npx reformer-builder [опции]         пакет @reformer/builder установлен в проект
 
 Опции:
   -p, --port <n>       Порт (по умолчанию 4321; занят — берётся следующий свободный)

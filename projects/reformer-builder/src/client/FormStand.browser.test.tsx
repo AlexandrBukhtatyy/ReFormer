@@ -18,26 +18,26 @@ describe('стенд формы', () => {
   it('рисует компонент, экспортированный модулем по умолчанию', async () => {
     const load = vi.fn(() => Promise.resolve({ default: ContactForm }));
 
-    renderReact(<FormStand modulePath="src/forms/contact/index.tsx" load={load} />);
+    renderReact(<FormStand modulePath="src/forms/contact/index.ts" load={load} />);
 
     await expect.element(page.getByRole('form', { name: 'Контакты' })).toBeVisible();
-    expect(load).toHaveBeenCalledWith('src/forms/contact/index.tsx');
+    expect(load).toHaveBeenCalledWith('src/forms/contact/index.ts');
   });
 
   it('пока модуль едет, называет, что грузит', async () => {
     const load = (): Promise<unknown> => new Promise(() => {});
 
-    renderReact(<FormStand modulePath="src/forms/contact/index.tsx" load={load} />);
+    renderReact(<FormStand modulePath="src/forms/contact/index.ts" load={load} />);
 
     await expect
       .element(page.getByRole('status'))
-      .toHaveTextContent('Загружаю «src/forms/contact/index.tsx»…');
+      .toHaveTextContent('Загружаю «src/forms/contact/index.ts»…');
   });
 
   it('модуль без компонента по умолчанию — причина словами, а не пустая рамка', async () => {
     const load = (): Promise<unknown> => Promise.resolve({ contactFormEntry: {} });
 
-    renderReact(<FormStand modulePath="src/forms/contact/index.tsx" load={load} />);
+    renderReact(<FormStand modulePath="src/forms/contact/index.ts" load={load} />);
 
     await expect.element(page.getByRole('status')).toHaveTextContent('нет компонента по умолчанию');
   });
@@ -45,7 +45,7 @@ describe('стенд формы', () => {
   it('модуль не загрузился — показана причина отказа', async () => {
     const load = (): Promise<unknown> => Promise.reject(new Error('файл не найден на сервере'));
 
-    renderReact(<FormStand modulePath="src/forms/missing/index.tsx" load={load} />);
+    renderReact(<FormStand modulePath="src/forms/missing/index.ts" load={load} />);
 
     await expect.element(page.getByRole('status')).toHaveTextContent('файл не найден на сервере');
   });
@@ -58,7 +58,7 @@ describe('стенд формы', () => {
     }
     const load = (): Promise<unknown> => Promise.resolve({ default: BrokenForm });
 
-    renderReact(<FormStand modulePath="src/forms/broken/index.tsx" load={load} />);
+    renderReact(<FormStand modulePath="src/forms/broken/index.ts" load={load} />);
 
     await expect.element(page.getByRole('status')).toHaveTextContent('реестр формы не собрался');
     consoleError.mockRestore();

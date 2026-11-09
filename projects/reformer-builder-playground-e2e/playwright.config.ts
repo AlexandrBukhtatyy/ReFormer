@@ -9,7 +9,7 @@ import { BUILDER_DIR, PLAYGROUND_CONFIG, PLAYGROUND_DIR } from './tests/shared/p
  *   `dev` (умолчание) — vite dev-сервер билдера: без сборки, правка исходников билдера видна
  *   следующим же прогоном.
  *   `dist` — собранный билдер под лаунчером (`bin/reformer-builder.mjs`), то есть ровно то, что
- *   получает человек из `npx reformer-builder`. Нужен готовый `projects/reformer-builder/dist`
+ *   получает человек из `npx @reformer/builder`. Нужен готовый `projects/reformer-builder/dist`
  *   (`npm run build -w @reformer/builder`).
  *   `embedded` — билдер, встроенный в приложение: dev-сервер приложения-образца
  *   (`projects/reformer-builder-host-example`) над его копией; он же отдаёт билдер. Свой набор тестов —
@@ -98,8 +98,9 @@ export default defineConfig({
                 }),
           url: BASE_URL,
           reuseExistingServer: !process.env.CI,
-          // `npm run dev` сначала собирает корпус знаний ассистента (predev) — отсюда запас.
-          // У встроенного билдера перед стартом сервера собираются плагины.
+          // Запас — на холодный старт Vite на CI: `npm run dev` билдера — голый `vite`, шагов перед
+          // ним нет (корпус знаний ассистента собирает сборка его плагина в globalSetup, после
+          // старта сервера). У встроенного билдера перед стартом сервера собираются плагины.
           timeout: EMBEDDED ? 600_000 : 180_000,
         },
       }),

@@ -12,10 +12,34 @@
  * то есть проверять не то, что работает. Импорт одинаково виден всем троим, а сборка
  * оставляет от `package.json` ровно это поле.
  *
+ * ## `0.0.0` — не версия, а её отсутствие
+ *
+ * В рабочем дереве `package.json` несёт заглушку `0.0.0`: настоящую версию пишет
+ * semantic-release при публикации — уже ПОСЛЕ сборки, поэтому та же заглушка попадает и в бандл
+ * выпуска. Сверка с ней отказывала бы каждому плагину с `compatibility.builder` («нужен ^3,
+ * а этот — 0.0.0») по числу, которого у билдера нет. Поэтому заглушка читается как «версия
+ * неизвестна», и `compatibility.builder` тогда проверяется формой, без сверки — тем же путём,
+ * каким манифест читает CLI автора плагина.
+ *
  * @module shell/platform/version
  */
 
 import { version } from '../../../package.json';
 
-/** Версия сборки билдера: то, против чего проверяется `compatibility.builder` манифеста. */
-export const BUILDER_VERSION: string = version;
+/** Версия рабочего дерева: semantic-release заменяет её настоящей только при публикации. */
+export const UNRELEASED_VERSION = '0.0.0';
+
+/**
+ * Версия билдера, нужная разбору манифеста, по записи в `package.json`.
+ *
+ * `undefined` — версия неизвестна (заглушка рабочего дерева): сверять не с чем.
+ */
+export function builderVersionOf(declared: string): string | undefined {
+  return declared.trim() === UNRELEASED_VERSION ? undefined : declared;
+}
+
+/**
+ * Версия сборки билдера: то, против чего проверяется `compatibility.builder` манифеста.
+ * `undefined` — сборка из рабочего дерева, версии у неё нет (см. шапку модуля).
+ */
+export const BUILDER_VERSION: string | undefined = builderVersionOf(version);

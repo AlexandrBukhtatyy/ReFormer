@@ -294,7 +294,7 @@ describe('рамка превью', () => {
 
   it('по адресу стенда рисует одну форму вместо приложения', async () => {
     window.name = PREVIEW_FRAME_NAME;
-    openStandAddress('src/forms/contact/index.tsx');
+    openStandAddress('src/forms/contact/index.ts');
     const loadForm = vi.fn(() =>
       Promise.resolve({
         default: () => <form aria-label="Контакты">форма контактов</form>,
@@ -308,12 +308,12 @@ describe('рамка превью', () => {
     );
 
     await expect.element(page.getByRole('form', { name: 'Контакты' })).toBeVisible();
-    expect(loadForm).toHaveBeenCalledWith('src/forms/contact/index.tsx');
+    expect(loadForm).toHaveBeenCalledWith('src/forms/contact/index.ts');
     expect(document.querySelector('[aria-label="Приложение"]')).toBeNull();
   });
 
   it('адрес стенда вне рамки превью — обычная страница приложения', async () => {
-    openStandAddress('src/forms/contact/index.tsx');
+    openStandAddress('src/forms/contact/index.ts');
     const loadForm = vi.fn(() => Promise.resolve({}));
 
     renderReact(

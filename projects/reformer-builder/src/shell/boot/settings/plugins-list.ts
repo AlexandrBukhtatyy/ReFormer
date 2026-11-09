@@ -75,6 +75,20 @@ export function mergePluginLayers(
 }
 
 /**
+ * Строка, которой распоряжается служба каталога (`PluginsCatalogService`), — а через неё палитра.
+ *
+ * Плагином приложения распоряжаться нечем: его набор задаёт сборка. Копией, перекрытой плагином
+ * приложения, — тоже: она не грузится, что бы ей ни сказали, и «включить» в палитре молча
+ * ничего не делало бы. Раздел настроек такую копию не показывает вовсе ({@link mergePluginLayers}),
+ * и палитра обязана решать так же — иначе две поверхности одного каталога предлагали бы разное.
+ */
+export function isManageablePlugin<T extends PluginCatalogEntry>(
+  entry: T
+): entry is T & { readonly layer?: Exclude<PluginLayer, 'application'> } {
+  return entry.layer !== 'application' && entry.overridden === undefined;
+}
+
+/**
  * Что разделу нужно от каталога плагинов.
  *
  * `subscribe` обязателен: набор и состояния меняются мимо окна — из палитры, авто-перезагрузкой

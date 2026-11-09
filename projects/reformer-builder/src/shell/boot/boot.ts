@@ -198,7 +198,7 @@ import {
 } from '@/shell/boot/project/project';
 import { createProjectStatusSource } from '@/shell/boot/project/project-status';
 import { createSettingsSections, LOCALE_SETTINGS_KEY } from './settings-sections';
-import { mergePluginLayers } from './settings/plugins-list';
+import { isManageablePlugin, mergePluginLayers } from './settings/plugins-list';
 
 /** Ключ настройки локали. Объявлен рядом с полем, которое его пишет. */
 export { LOCALE_SETTINGS_KEY } from './settings-sections';
@@ -969,13 +969,9 @@ export function boot(options: BootOptions): BuilderApp {
   services.register(PluginsCatalogServiceToken, {
     ...projectPlugins,
     // Служба управляет каталогом проекта и установленным из npm. Плагины приложения сюда
-    // не попадают вовсе: их набор задаёт сборка, и управлять им из палитры нечем.
-    list: () =>
-      projectPlugins
-        .list()
-        .flatMap((entry) =>
-          entry.layer === 'application' ? [] : [{ ...entry, layer: entry.layer }]
-        ),
+    // не попадают вовсе: их набор задаёт сборка, и управлять им из палитры нечем. Копии,
+    // перекрытые плагином приложения, — тоже: включить их нельзя (`isManageablePlugin`).
+    list: () => projectPlugins.list().filter(isManageablePlugin),
     install: async () => {
       const name = await prompt.input({
         titleKey: 'shell.plugins.install.title',

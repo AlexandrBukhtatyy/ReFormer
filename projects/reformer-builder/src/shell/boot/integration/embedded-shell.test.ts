@@ -229,7 +229,7 @@ describe('сборка рядом с приложением', () => {
     const { preview } = await askFromPlugin(started);
 
     expect(preview?.pageUrl()).toBe(`${ORIGIN}/contacts?tab=open`);
-    expect(preview?.formUrl('src/forms/contact/index.tsx')).toContain('/contacts?');
+    expect(preview?.formUrl('src/forms/contact/index.ts')).toContain('/contacts?');
   });
 
   it('вкладкой с того же адреса превью — корень приложения, а не адрес самого билдера', async () => {

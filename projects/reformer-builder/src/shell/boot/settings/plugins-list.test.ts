@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import {
   emptyStateOf,
+  isManageablePlugin,
   mergePluginLayers,
   settingsCardStateOf,
   toRows,
@@ -186,6 +187,22 @@ describe('плагины приложения в списке', () => {
     // Без пометки человек правил бы файлы плагина в проекте, не понимая, почему правки не видны.
     expect(merged[0]).toMatchObject({ layer: 'application', shadowed: 'project' });
     expect(merged[1]).not.toHaveProperty('shadowed');
+  });
+
+  it('палитре не отдаются ни плагины приложения, ни перекрытые ими копии', () => {
+    // Перекрытая копия числится выключенной, и палитра предлагала ей «включить», а включение
+    // молча отказывало: работает экземпляр приложения. Раздел настроек её не показывает —
+    // палитра обязана решать так же.
+    const manageable = [
+      entry({ id: 'files', layer: 'application', state: 'enabled' }),
+      entry({ id: 'editor', layer: 'project', overridden: 'application' }),
+      entry({ id: 'acme', layer: 'project' }),
+      entry({ id: 'from-npm', layer: 'installed' }),
+      // Сборка без установки слоя не называет вовсе — такая строка управляема.
+      entry({ id: 'plain' }),
+    ].filter(isManageablePlugin);
+
+    expect(manageable.map((item) => item.id)).toEqual(['acme', 'from-npm', 'plain']);
   });
 });
 
