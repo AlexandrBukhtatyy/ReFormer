@@ -30,16 +30,11 @@ function HomepageHeader() {
           <Link className="button button--secondary button--lg" to="/docs/">
             <Translate id="homepage.getStarted">Начать</Translate>
           </Link>
-          <Link
-            className="button button--outline button--secondary button--lg"
-            style={{ marginLeft: '1rem' }}
-            to="/docs/examples"
-          >
+          <Link className="button button--outline button--secondary button--lg" to="/docs/examples">
             <Translate id="homepage.examples">Примеры</Translate>
           </Link>
           <Link
             className="button button--outline button--secondary button--lg"
-            style={{ marginLeft: '1rem' }}
             href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx"
           >
             <Translate id="homepage.tryPlayground">Попробовать</Translate>
