@@ -36,7 +36,7 @@
  */
 
 import { createBrowserKnowledge } from '@reformer/mcp/browser';
-import type { Knowledge } from '@reformer/mcp/dist/core/knowledge.js';
+import type { Knowledge } from '@reformer/mcp/core';
 import { readProjectBundles, type PackageFiles } from './project-source';
 
 /** Откуда пришли знания — попадает в ответ инструмента, чтобы источник был виден. */

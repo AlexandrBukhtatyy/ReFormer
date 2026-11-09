@@ -41,4 +41,22 @@ describe('образец формы ReFormer', () => {
       expect(used.filter((name) => !names.has(name ?? ''))).toEqual([]);
     }
   });
+
+  it('у каждого поля свой путь в модели', () => {
+    // Поле из палитры привязывается к `newField`. Брошенные так три поля разных видов делили
+    // одно значение: флажок писал в него `true`, список — строку, число — число, и образец
+    // показывал форму, которую никто не пишет нарочно.
+    const paths: string[] = [];
+    const visit = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(visit);
+      if (typeof node !== 'object' || node === null) return;
+      const { model } = node as { model?: unknown };
+      if (typeof model === 'string') paths.push(model);
+      Object.values(node).forEach(visit);
+    };
+    visit(JSON.parse(readFileSync(FORM, 'utf8')));
+
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.filter((path, index) => paths.indexOf(path) !== index)).toEqual([]);
+  });
 });

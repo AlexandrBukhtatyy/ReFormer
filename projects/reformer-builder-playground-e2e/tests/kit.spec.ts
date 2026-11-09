@@ -72,8 +72,8 @@ test.describe('Кит HexaUI — плагин проекта', () => {
     disk,
     page,
   }) => {
-    // Форма своя и пустая: поле из палитры привязывается к `newField`, а в форме контакта этот
-    // путь уже заняли поля других видов — значение у них общее.
+    // Форма своя и пустая: поле из палитры привязывается к `newField`, и в пустой форме этот путь
+    // не занят ничем, кроме него.
     await builder.goto();
     await disk.seed({ plugins: [KIT_PLUGIN] });
     await disk.writeText(FIELDS_FORM, EMPTY_FORM);

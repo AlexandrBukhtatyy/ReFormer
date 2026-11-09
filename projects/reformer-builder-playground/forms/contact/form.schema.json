@@ -38,14 +38,6 @@
         ]
       },
       {
-        "$nodeId": "ggjp5tr9",
-        "model": "$model(newField)",
-        "component": "$component(Checkbox)",
-        "componentProps": {
-          "label": "Checkbox"
-        }
-      },
-      {
         "$nodeId": "demochan",
         "selector": "channel",
         "model": "$model(channel)",
@@ -65,28 +57,53 @@
         }
       },
       {
+        "$nodeId": "um6zmmom",
+        "selector": "topic",
+        "model": "$model(topic)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Тема обращения",
+          "options": [
+            {
+              "value": "question",
+              "label": "Вопрос"
+            },
+            {
+              "value": "order",
+              "label": "Заказ"
+            },
+            {
+              "value": "other",
+              "label": "Другое"
+            }
+          ]
+        }
+      },
+      {
+        "$nodeId": "lse4h9pg",
+        "selector": "age",
+        "model": "$model(age)",
+        "component": "$component(InputNumber)",
+        "componentProps": {
+          "label": "Возраст"
+        }
+      },
+      {
+        "$nodeId": "ggjp5tr9",
+        "selector": "subscribe",
+        "model": "$model(subscribe)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Присылать новости"
+        }
+      },
+      {
         "$nodeId": "demoagre",
         "selector": "agree",
         "model": "$model(agree)",
         "component": "$component(Checkbox)",
         "componentProps": {
           "label": "Согласен на обработку данных"
-        }
-      },
-      {
-        "$nodeId": "um6zmmom",
-        "model": "$model(newField)",
-        "component": "$component(Select)",
-        "componentProps": {
-          "label": "Select"
-        }
-      },
-      {
-        "$nodeId": "lse4h9pg",
-        "model": "$model(newField)",
-        "component": "$component(InputNumber)",
-        "componentProps": {
-          "label": "InputNumber"
         }
       }
     ]

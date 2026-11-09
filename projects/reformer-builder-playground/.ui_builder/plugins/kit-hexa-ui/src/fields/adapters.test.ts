@@ -47,16 +47,28 @@ const hours = (...marked: number[]): number[] =>
 const WRAPPER = { label: 'Подпись', required: true, description: 'Описание', tooltip: 'Подсказка' };
 
 /**
+ * Контрол, рисующий подпись рядом с собой, — как `CheckboxWithLabel` и `SwitchWithLabel` кита
+ * (статика `reformerLayout`). Только ему `bindFieldProps` оставляет `label` и `required`.
+ */
+const InlineLabelControl = Object.assign(() => null, { reformerLayout: 'inline-label' as const });
+
+/**
  * Связка поля с контролом, как её делает обёртка поля: значение модели `value`, пропсы схемы.
  * Возвращает пропсы контрола и эмит — вызов колбэка контрола с аргументами, как его зовёт HexaUI.
  */
-function bind(adapter: FieldAdapter, value: unknown, componentProps: Record<string, unknown> = {}) {
+function bind(
+  adapter: FieldAdapter,
+  value: unknown,
+  componentProps: Record<string, unknown> = {},
+  component?: unknown
+) {
   const onChange = vi.fn();
   const onBlur = vi.fn();
   const props = bindFieldProps(
     adapter,
     { value, onChange, onBlur },
-    { ...WRAPPER, ...componentProps }
+    { ...WRAPPER, ...componentProps },
+    component
   );
   const emit = (...args: unknown[]): unknown => {
     const callback = props[adapter.changeProp ?? 'onChange'] as (...a: unknown[]) => void;
@@ -194,7 +206,7 @@ describe('Checkbox (CheckboxWithLabel — antd Checkbox)', () => {
   });
 
   it('подпись, звёздочку и подсказку рисует сам контрол — срезается только описание', () => {
-    const { props } = bind(checkboxAdapter, true);
+    const { props } = bind(checkboxAdapter, true, {}, InlineLabelControl);
 
     expect(props.checked).toBe(true);
     expect(props.label).toBe('Подпись');
@@ -214,7 +226,7 @@ describe('Switch (SwitchWithLabel — HexaUI Toggle, antd Switch)', () => {
   });
 
   it('подпись остаётся у контрола', () => {
-    expect(bind(switchAdapter, true).props.label).toBe('Подпись');
+    expect(bind(switchAdapter, true, {}, InlineLabelControl).props.label).toBe('Подпись');
   });
 });
 
