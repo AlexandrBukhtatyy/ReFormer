@@ -51,6 +51,7 @@ import { setRenderRulesTool } from '../set-render-rules';
 import { BUILD_FORM_EXAMPLE, buildFormGrammar } from './grammar';
 import { liftInline } from './lift';
 import { planOf, type PlanNode } from './plan';
+import { checkRulePaths, rulePathsMessage } from './rule-paths';
 
 interface Params {
   intent?: unknown;
@@ -209,8 +210,16 @@ export const buildFormTool: AgentTool<Params> = {
     if (placed !== null) return placed;
 
     const ruleParams = ruleParamsOf(intent);
+    let pathNotes: readonly string[] = [];
     if (ruleParams !== null) {
-      const out = await setFormRulesTool.run(ruleParams, at(state));
+      // Пути правил — с черновиком, где узлы уже стоят: `set_form_rules` отказал бы на первом пути
+      // без поля одной строкой, и модель не понимала, что чинить (ReFormer-t4fr).
+      const checked = checkRulePaths(ruleParams, collectModelPaths(state.draft));
+      if (checked.problems.length > 0) {
+        return fail('INVALID_PARAMS', rulePathsMessage(checked.problems));
+      }
+      pathNotes = checked.notes;
+      const out = await setFormRulesTool.run(checked.params, at(state));
       if (!out.ok || out.rules === undefined) return located('Rules', out);
       state.rules = out.rules;
     }
@@ -239,7 +248,7 @@ export const buildFormTool: AgentTool<Params> = {
     }
 
     return {
-      ...ok(reply(intent, read.notices, state)),
+      ...ok(reply(intent, read.notices, state, pathNotes)),
       schema: state.draft,
       rules: state.rules,
       ops: [...state.ops, { kind: 'update', ref: '/rules', summary: 'правила формы' }],
@@ -547,8 +556,17 @@ const noticeText = (notice: IntentWarning): string => {
   return notice.at === undefined ? text : `${notice.at}: ${text}`;
 };
 
-/** Ответ модели: что собрано, адреса шагов, что не взято, замечания и напоминание о задании. */
-function reply(intent: FormIntent, notices: readonly IntentWarning[], state: PlaceState): string {
+/**
+ * Ответ модели: что собрано, адреса шагов, что не взято, замечания и напоминание о задании.
+ *
+ * @param pathNotes - Пути правил, которые сборка починила сама (`./rule-paths`).
+ */
+function reply(
+  intent: FormIntent,
+  notices: readonly IntentWarning[],
+  state: PlaceState,
+  pathNotes: readonly string[] = []
+): string {
   const rows = intent.arrays.reduce((sum, a) => sum + a.itemFields.length, 0);
   const counts = [
     state.steps.length > 0 ? `${state.steps.length} steps` : '',
@@ -578,7 +596,7 @@ function reply(intent: FormIntent, notices: readonly IntentWarning[], state: Pla
         'for them.'
     );
   }
-  const notes = notices.slice(0, MAX_NOTES).map(noticeText);
+  const notes = [...pathNotes, ...notices.map(noticeText)].slice(0, MAX_NOTES);
   if (notes.length > 0) lines.push(`Notes:\n${notes.map((n) => `- ${n}`).join('\n')}`);
   lines.push(
     'The build checks the intent, not the task: compare it with the request — every field, ' +

@@ -56,7 +56,7 @@ const BEHAVIOR_KINDS = [
 ] as const;
 
 /** Правило валидации, как его присылает модель: `rules` можно опустить, если есть другая проверка. */
-interface ValidationParam {
+export interface ValidationParam {
   target: string;
   rules?: string[];
   when?: string;
@@ -72,7 +72,7 @@ interface ValidationParam {
 }
 
 /** Связь, как её присылает модель: `each` — связь каждой строки массива. */
-interface BehaviorParam {
+export interface BehaviorParam {
   kind: string;
   target: string;
   sources?: string[];
@@ -80,7 +80,7 @@ interface BehaviorParam {
   each?: string;
 }
 
-interface Params {
+export interface Params {
   /** Значения источников `$dataSource(NAME)`: имя → варианты списка или значение; `null` убирает. */
   dataSources?: Record<string, unknown>;
   validation?: ValidationParam[];
@@ -155,14 +155,9 @@ export const setFormRulesTool: AgentTool<Params> = {
   run(params, ctx): ToolOutcome {
     const locked = lockedBy(params, ctx.rulesLock);
     if (locked !== undefined) return fail(locked.code, locked.message);
-    const known = new Set(collectModelPaths(ctx.draft));
+    const known = collectModelPaths(ctx.draft);
     const next: FormRules = params.mode === 'replace' ? emptyRules() : cloneRules(ctx.rules);
-
-    // Путь может указывать внутрь объекта или элемента массива (`items.price`), поэтому
-    // сравнение по префиксу: точное совпадение отвергало бы законные вложенные пути.
-    const unknown = (path: string) =>
-      !known.has(path) &&
-      ![...known].some((k) => path.startsWith(`${k}.`) || k.startsWith(`${path}.`));
+    const unknown = (path: string) => !isBoundPath(path, known);
 
     /** Что инструмент сделал за модель — дописывается к ответу, чтобы она могла поправить. */
     const notes: string[] = [];
@@ -174,7 +169,7 @@ export const setFormRulesTool: AgentTool<Params> = {
         return fail(
           'STALE_POINTER',
           `No field bound to "${rule.target}".`,
-          similarNames(rule.target, [...known])
+          similarNames(rule.target, known)
         );
       }
       const refused = checkValidationParam(rule);
@@ -208,7 +203,7 @@ export const setFormRulesTool: AgentTool<Params> = {
         return fail(
           'STALE_POINTER',
           `No field bound to "${b.target}".`,
-          similarNames(b.target, [...known])
+          similarNames(b.target, known)
         );
       }
       for (const s of b.sources) {
@@ -216,7 +211,7 @@ export const setFormRulesTool: AgentTool<Params> = {
           return fail(
             'STALE_POINTER',
             `Source "${s}" is not bound to any field.`,
-            similarNames(s, [...known])
+            similarNames(s, known)
           );
         }
       }
@@ -284,8 +279,19 @@ function dataSourceRefusal(name: string, value: unknown): string | null {
   return bad === undefined ? null : `Options of "${name}" are { value, label } objects.`;
 }
 
+/**
+ * Есть ли у пути правила поле в форме. Путь может указывать внутрь объекта или элемента массива
+ * (`items.price`), а связь включения — на группу целиком, поэтому сравнение по префиксу в обе
+ * стороны: точное совпадение отвергало бы законные вложенные пути.
+ *
+ * @param known - Пути модели формы (`collectModelPaths`).
+ */
+export function isBoundPath(path: string, known: readonly string[]): boolean {
+  return known.some((k) => k === path || path.startsWith(`${k}.`) || k.startsWith(`${path}.`));
+}
+
 /** Путь поля строки — полным путём: `qty` при `each: 'items'` → `items.qty`. */
-function rowFull(path: string, each: string | undefined): string {
+export function rowFull(path: string, each: string | undefined): string {
   if (each === undefined || path === each || path.startsWith(`${each}.`)) return path;
   return `${each}.${path}`;
 }

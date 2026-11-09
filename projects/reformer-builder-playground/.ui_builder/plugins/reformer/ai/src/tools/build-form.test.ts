@@ -360,7 +360,8 @@ describe('build_form', () => {
         validation: [{ target: 'missing', rules: ['required'] }],
       },
     });
-    expect(out.text).toMatch(/^Rules: /);
+    expect(out.text).toMatch(/^Rules name fields the form does not have, nothing changed:/);
+    expect(out.text).toContain('validation "missing": not declared');
     expect(out.schema).toBeUndefined();
   });
 
@@ -750,5 +751,90 @@ describe('build_form по умолчанию', () => {
       `1. Only the steps, no fields: ${JSON.stringify(BUILD_FORM_STEPS_EXAMPLE)}`
     );
     expect(grammar).not.toContain('Big form');
+  });
+});
+
+describe('build_form: пути правил против полей формы (ReFormer-t4fr)', () => {
+  const num = (name: string, label: string) => ({ name, component: 'InputNumber', label });
+  const total = {
+    kind: 'compute',
+    target: 'total_guests',
+    sources: ['adults', 'children'],
+    expr: '(model.adults ?? 0) + (model.children ?? 0)',
+  };
+
+  it('вычисляемое поле не объявлено — отказ называет починку, черновик не тронут', async () => {
+    // Живой ход: модель описала total_guests связью compute и не поставила его в fields; отказ
+    // «No field bound» она не поняла, и ход кончился без правок.
+    const out = await build({
+      intent: { fields: [num('adults', 'Adults'), num('children', 'Children')], behavior: [total] },
+    });
+    expect(out.error?.code).toBe('INVALID_PARAMS');
+    expect(out.schema).toBeUndefined();
+    expect(out.text).toContain('compute target "total_guests": not declared');
+    expect(out.text).toContain('A computed field is a field too');
+    expect(out.text).toContain('{"name":"total_guests","component":"…","label":"…"}');
+  });
+
+  it('все пути без поля — одним отказом, а не по одному за вызов', async () => {
+    const out = await build({
+      intent: {
+        fields: [num('adults', 'Adults'), num('children', 'Children')],
+        validation: [{ target: 'phone', rules: ['required'] }],
+        behavior: [total],
+      },
+    });
+    expect(out.error?.code).toBe('INVALID_PARAMS');
+    expect(out.text).toContain('validation "phone": not declared');
+    expect(out.text).toContain('compute target "total_guests"');
+  });
+
+  it('короткое имя единственного поля группы — полный путь, и ответ об этом говорит', async () => {
+    const { schema, out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            num('guests.adults', 'Adults'),
+            num('guests.children', 'Children'),
+            num('guests.total_guests', 'Total'),
+          ],
+          behavior: [{ ...total, sources: ['guests.adults', 'guests.children'] }],
+          validation: [{ target: 'adults', rules: ['required'] }],
+        },
+      })
+    );
+    expect(collectModelPaths(schema)).toContain('guests.total_guests');
+    expect(out.rules?.behavior[0].target).toBe('guests.total_guests');
+    expect(out.rules?.validation[0].target).toBe('guests.adults');
+    expect(out.text).toContain('compute target "total_guests" read as "guests.total_guests"');
+  });
+
+  it('короткое имя двух полей групп — не угадывается: отказ с обоими путями', async () => {
+    const out = await build({
+      intent: {
+        fields: [
+          { name: 'billing.email', component: 'Input', label: 'Billing' },
+          { name: 'contact.email', component: 'Input', label: 'Contact' },
+        ],
+        validation: [{ target: 'email', rules: ['email'] }],
+      },
+    });
+    expect(out.error?.code).toBe('INVALID_PARAMS');
+    expect(out.text).toContain('validation "email": no such field; did you mean');
+    expect(out.text).toContain('billing.email');
+    expect(out.text).toContain('contact.email');
+  });
+
+  it('добавление в форму: правило на поле, которое уже было в форме, принимается', async () => {
+    const first = expectBuilt(
+      await build({ intent: { fields: [num('adults', 'Adults'), num('children', 'Children')] } })
+    );
+    const base = emptySchema();
+    const out = await build(
+      { parent: '/root', intent: { fields: [num('total_guests', 'Total')], behavior: [total] } },
+      ctxOf(first.schema, base, first.out.rules)
+    );
+    expect(out.error?.code, out.text).toBeUndefined();
+    expect(out.rules?.behavior.map((b) => b.target)).toContain('total_guests');
   });
 });
