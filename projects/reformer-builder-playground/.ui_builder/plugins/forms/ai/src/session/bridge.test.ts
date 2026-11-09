@@ -714,27 +714,25 @@ describe('вопросы модели', () => {
   });
 });
 
-/** Шаблоны-двойник: кладут пустую форму двойника файлом `forms/<имя>.fake.json`. */
-function fakeCreator(
-  files: FakeFiles,
-  templates: Awaited<ReturnType<FormCreatorService['templates']>> = [
-    { id: 'simple', name: 'Простая', source: 'builtin' },
-  ]
-) {
+/**
+ * Создание форм — двойник: кладёт пустую форму двойника файлом `forms/<имя>.fake.json`. Список
+ * шаблонов у него есть, как у настоящего плагина, — ход его спрашивать не должен.
+ */
+function fakeCreator(files: FakeFiles) {
   const requests: Parameters<FormCreatorService['create']>[0][] = [];
+  const templates = vi.fn(async () => [
+    { id: 'simple', name: 'Простая', source: 'builtin' as const },
+  ]);
   const creator: FormCreatorService = {
-    templates: async () => templates,
+    templates,
     async create(request) {
       requests.push(request);
-      if (request.template !== undefined && request.template !== 'simple') {
-        return { ok: false, error: 'error.unknown-template', message: 'нет шаблона' };
-      }
       const path = `forms/${request.formName}.fake.json`;
       files.put(path, EMPTY);
       return { ok: true, documentId: path, path, template: request.template ?? null };
     },
   };
-  return { creator, requests };
+  return { creator, requests, templates };
 }
 
 describe('создание формы', () => {
@@ -765,79 +763,47 @@ describe('создание формы', () => {
     expect(requests[1].tools).toContain('add_field');
   });
 
-  it('шаблоны — в затравке попытки создания, а не лишним вызовом list_templates', async () => {
-    // Замер на живой модели: попытка создания тратила целый запрос на list_templates.
+  it('форма ассистента всегда пустая: шаблонов нет ни в затравке, ни в инструментах', async () => {
+    // ReFormer-u7g0: модель брала шаблон-образец и для формы, описанной словами, а продолжение
+    // хода перекраивало его — лишние поля образца, правила на удалённые поля.
     const files = createFakeFiles();
-    const { creator } = fakeCreator(files);
+    const { creator, requests: created, templates } = fakeCreator(files);
     const { provider, requests } = recordingSequence([
       [{ tool: 'create_form', args: { name: 'credit' } }],
       [{ text: 'Готово.' }],
     ]);
     const { bridge } = harness([], { files, provider, openForm: false, formCreator: creator });
 
-    await bridge.send('сделай анкету на кредит');
+    await bridge.send('сделай пошаговую анкету на кредит');
 
     expect([...requests[0].tools].sort()).toEqual(['ask_user', 'create_form']);
     const seed = JSON.stringify(requests[0].messages);
-    expect(seed).toContain('\\"simple\\" Простая');
-    // Продолжение знает, что вызовов надо поменьше.
-    expect(JSON.stringify(requests[1].messages)).toContain('as few calls');
+    expect(seed).not.toContain('Простая');
+    expect(seed).not.toMatch(/template/i);
+    expect(templates).not.toHaveBeenCalled();
+    expect(created).toEqual([{ formName: 'credit' }]);
+    // Продолжение знает, что форма пустая и вызовов надо поменьше.
+    const resumed = JSON.stringify(requests[1].messages);
+    expect(resumed).toContain('was created empty');
+    expect(resumed).toContain('as few calls');
   });
 
-  it('шаблонов больше, чем влезает в затравку, — остальные через list_templates', async () => {
-    const files = createFakeFiles();
-    const many = Array.from({ length: 10 }, (_, i) => ({
-      id: `t${i}`,
-      name: `Шаблон ${i}`,
-      source: 'builtin' as const,
-    }));
-    const { creator } = fakeCreator(files, many);
-    const { provider, requests } = recordingSequence([[{ text: 'Какую форму?' }]]);
-    const { bridge } = harness([], { files, provider, openForm: false, formCreator: creator });
-
-    await bridge.send('сделай форму');
-
-    expect(requests[0].tools).toContain('list_templates');
-    const seed = JSON.stringify(requests[0].messages);
-    expect(seed).toContain('t7');
-    expect(seed).not.toContain('t8');
-    expect(seed).toContain('2 more');
-  });
-
-  it('шаблоны не получены — затравка отсылает к list_templates, ход идёт', async () => {
-    const files = createFakeFiles();
-    const { creator } = fakeCreator(files);
-    const broken: FormCreatorService = {
-      ...creator,
-      templates: () => Promise.reject(new Error('печатник не поднялся')),
-    };
-    const { provider, requests } = recordingSequence([
-      [{ tool: 'create_form', args: { name: 'credit' } }],
-      [{ text: 'Готово.' }],
-    ]);
-    const { host, bridge } = harness([], { files, provider, openForm: false, formCreator: broken });
-
-    await bridge.send('сделай анкету');
-
-    expect(requests[0].tools).toContain('list_templates');
-    expect(host.activeResource()).toBe('forms/credit.fake.json');
-  });
-
-  it('неизвестный шаблон — отказ модели, формы нет', async () => {
+  it('create_form с шаблоном — отказ по схеме инструмента, формы нет', async () => {
     const files = createFakeFiles({ [FORM]: EMPTY });
-    const { creator } = fakeCreator(files);
+    const { creator, requests: created } = fakeCreator(files);
     const { session, bridge } = harness(
-      [{ tool: 'create_form', args: { name: 'credit', template: 'nope' } }, { text: 'Нет.' }],
+      [{ tool: 'create_form', args: { name: 'credit', template: 'simple' } }, { text: 'Нет.' }],
       { files, formCreator: creator }
     );
 
-    await bridge.send('сделай форму по шаблону nope');
+    await bridge.send('сделай форму по шаблону simple');
 
     const failed = session
       .get()
       .entries.at(-1)
       ?.tools.find((tool) => tool.name === 'create_form');
     expect(failed?.ok).toBe(false);
+    expect(created).toEqual([]);
     expect(files.text('forms/credit.fake.json')).toBeUndefined();
   });
 

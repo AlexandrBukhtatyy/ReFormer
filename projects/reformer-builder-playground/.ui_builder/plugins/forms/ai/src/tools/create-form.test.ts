@@ -1,36 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { FormToolContext, FormTurnScope } from '@reformer/builder-plugin-api';
-import { createFormTool, listTemplatesTool } from './create-form';
+import { createFormTool } from './create-form';
 
-/** Контекст вызова с областью хода — ровно то, что читают оба инструмента. */
+/** Контекст вызова с областью хода — ровно то, что читает инструмент. */
 function contextWith(turn?: Partial<FormTurnScope>): FormToolContext {
   return turn === undefined ? {} : { turn: turn as FormTurnScope };
 }
-
-describe('list_templates', () => {
-  it('строка на шаблон: идентификатор, имя и укороченное описание', async () => {
-    const templates = vi.fn().mockResolvedValue([
-      { id: 'simple', name: 'Простая форма', description: 'а'.repeat(400) },
-      { id: 'credit', name: 'Кредит' },
-    ]);
-    const outcome = await listTemplatesTool.run({} as never, contextWith({ templates }));
-    const [first, second] = outcome.text.split('\n');
-    expect(first.startsWith('- "simple" Простая форма: ааа')).toBe(true);
-    expect(first.length).toBeLessThan(200);
-    expect(second).toBe('- "credit" Кредит');
-  });
-
-  it('без шаблонов — подсказка про пустую форму; без области хода — недоступно', async () => {
-    const empty = await listTemplatesTool.run(
-      {} as never,
-      contextWith({ templates: () => Promise.resolve([]) })
-    );
-    expect(empty.text).toContain('empty form');
-    expect((await listTemplatesTool.run({} as never, contextWith())).error?.code).toBe(
-      'UNAVAILABLE'
-    );
-  });
-});
 
 describe('create_form', () => {
   it('имя модуля — латиница в kebab-case, иначе отказ до создания', async () => {
@@ -89,19 +64,24 @@ describe('create_form', () => {
   it('отказ моста уходит модели кодом и подсказками', async () => {
     const createForm = vi.fn().mockResolvedValue({
       ok: false,
-      code: 'INVALID_PARAMS',
-      message: 'No template "x".',
-      suggestions: ['simple', 'wizard'],
+      code: 'REFUSED',
+      message: 'A form named "credit" already exists.',
+      suggestions: ['credit-2'],
     });
-    const outcome = await createFormTool.run(
-      { name: 'credit', template: 'x' },
-      contextWith({ createForm })
-    );
+    const outcome = await createFormTool.run({ name: 'credit' }, contextWith({ createForm }));
     expect(outcome.error).toEqual({
-      code: 'INVALID_PARAMS',
-      message: 'No template "x".',
-      suggestions: ['simple', 'wizard'],
+      code: 'REFUSED',
+      message: 'A form named "credit" already exists.',
+      suggestions: ['credit-2'],
     });
+  });
+
+  it('шаблона у инструмента нет: форма ассистента всегда пустая', () => {
+    // ReFormer-u7g0: модель брала шаблон-образец и для формы, описанной словами, а потом
+    // перекраивала его — лишние поля, правила на удалённые поля.
+    const schema = createFormTool.inputSchema as { properties: Record<string, unknown> };
+    expect(Object.keys(schema.properties)).toEqual(['name', 'folder']);
+    expect(createFormTool.description).not.toMatch(/template/i);
   });
 
   it('без области хода — недоступно', async () => {

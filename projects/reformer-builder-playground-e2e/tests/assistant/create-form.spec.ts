@@ -5,9 +5,9 @@ import { expect, test } from './shared/fixtures';
 /**
  * Ассистент: новая форма по просьбе пользователя. Каталог сценариев — `SCENARIOS.md`, группа T.
  *
- * `create_form` кладёт модуль через шаблоны (тем же путём, что окно «Создать форму»), мост
- * открывает новую форму и продолжает тот же ход на ней. Без открытой формы ход начинается с одного
- * создания: править ещё нечего.
+ * `create_form` кладёт модуль через плагин шаблонов (тем же путём, что окно «Создать форму»), но
+ * всегда пустым: шаблонов у ассистента нет (ReFormer-u7g0). Мост открывает новую форму и продолжает
+ * тот же ход на ней. Без открытой формы ход начинается с одного создания: править ещё нечего.
  */
 
 test.describe('Ассистент: новая форма', () => {
@@ -47,8 +47,9 @@ test.describe('Ассистент: новая форма', () => {
     expect(await disk.readText(created)).toContain('"format": 2');
   });
 
-  test('[T17] при открытой форме: новая — из шаблона, прежняя не тронута', async ({
+  test('[T17] при открытой форме: новая — пустая и открыта, прежняя не тронута', async ({
     builder,
+    disk,
     model,
     panel,
   }) => {
@@ -57,15 +58,14 @@ test.describe('Ассистент: новая форма', () => {
     await builder.openFile(FORM_A);
     await panel.connect();
 
-    model.reply(
-      call('create_form', { name: 'loan', template: 'builtin-simple-form' }),
-      say('Форма создана по шаблону.')
-    );
-    await panel.ask('Сделай новую форму «loan» по простому шаблону.');
+    model.reply(call('create_form', { name: 'loan' }), say('Форма создана.'));
+    await panel.ask('Сделай новую форму «loan».');
 
     await expect(builder.tabByPath(created)).toHaveAttribute('aria-selected', 'true');
     const lines = panel.toolLines(panel.answer(-1));
     await expect(lines.filter({ hasText: `Создана форма ${created}` })).toHaveCount(1);
+    // Форма ассистента пустая: ни одного поля образца, которое ходу пришлось бы вычищать.
+    expect(await disk.readText(created)).not.toContain('$model(');
     // Прежняя форма осталась как была: ход её не правил.
     expect(await builder.dirtyMark(FORM_A).count()).toBe(0);
   });

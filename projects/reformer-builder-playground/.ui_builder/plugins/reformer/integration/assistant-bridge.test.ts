@@ -2021,8 +2021,8 @@ describe('генерация кода (generate_code) — режим файло�
 });
 
 /**
- * Шаблоны-двойник: кладут пустую форму файлом `forms/<имя>/schema/form.schema.json` — как
- * настоящие, мимо двойника документов; открывает её мост.
+ * Создание форм — двойник: кладёт пустую форму файлом `forms/<имя>/schema/form.schema.json` — как
+ * настоящий плагин шаблонов, мимо двойника документов; открывает её мост.
  */
 function fakeCreator(files: FakeFiles, options: { readonly unsaved?: string } = {}) {
   const requests: Parameters<FormCreatorService['create']>[0][] = [];
@@ -2030,9 +2030,6 @@ function fakeCreator(files: FakeFiles, options: { readonly unsaved?: string } = 
     templates: async () => [{ id: 'simple', name: 'Простая форма', source: 'builtin' }],
     async create(request) {
       requests.push(request);
-      if (request.template !== undefined && request.template !== 'simple') {
-        return { ok: false, error: 'error.unknown-template', message: 'нет шаблона' };
-      }
       const path = `forms/${request.formName}/schema/form.schema.json`;
       files.put(path, EMPTY_TEXT);
       return {
@@ -2082,7 +2079,7 @@ describe('новая форма (create_form) — структурный реж�
     // Продолжение знает, где оно: карта новой формы и подсказка о создании.
     const second = JSON.stringify(requests[1]);
     expect(second).toContain(`Active form: ${NEW_FORM}`);
-    expect(second).toContain('was created (empty)');
+    expect(second).toContain('was created empty');
     // Первая попытка видела только создание: править было нечего.
     expect(JSON.stringify(requests[0])).toContain('No form is open');
   });
@@ -2164,21 +2161,23 @@ describe('новая форма (create_form) — структурный реж�
     expect(host.documentOf(NEW_FORM)?.getText()).toBe(EMPTY_TEXT);
   });
 
-  it('неизвестный шаблон — отказ модели со списком; формы нет', async () => {
+  it('шаблона у create_form нет: вызов с ним отклоняет схема, формы из шаблона нет', async () => {
+    // ReFormer-u7g0: форма ассистента всегда пустая — образец шаблона ход перекраивал бы правками.
     const files = createFakeFiles();
-    const { creator } = fakeCreator(files);
+    const { creator, requests } = fakeCreator(files);
     const { host, session, bridge } = harness(
-      [{ tool: 'create_form', args: { name: 'credit', template: 'nope' } }, { text: 'Нет.' }],
+      [{ tool: 'create_form', args: { name: 'credit', template: 'simple' } }, { text: 'Нет.' }],
       { files, formCreator: creator }
     );
-    await bridge.send('сделай форму по шаблону nope');
+    await bridge.send('сделай форму по шаблону simple');
 
     const failed = session
       .get()
       .entries.at(-1)
       ?.tools.find((tool) => tool.name === 'create_form');
     expect(failed?.ok).toBe(false);
-    expect(failed?.error).toContain('No template "nope"');
+    expect(failed?.error).toContain('unknown property "template"');
+    expect(requests).toEqual([]);
     expect(host.documentOf(NEW_FORM)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 /**
- * `list_templates` и `create_form` — новая форма по просьбе пользователя.
+ * `create_form` — новая форма по просьбе пользователя.
  *
  * ## Почему ход переходит на новую форму сам
  *
@@ -8,9 +8,19 @@
  * продолжает тот же ход на ней — с её картой и теми же инструментами. Ход без открытой формы
  * начинается с одних этих инструментов: править ещё нечего.
  *
- * Модуль кладут шаблоны — тем же путём, что окно «Создать форму»: каталогом `<каталог>/<имя>/`,
- * всеми файлами шаблона. Без шаблона форма пустая: встроенные шаблоны — образцы со всеми видами
- * полей, и форму по описанию из них пришлось бы сначала вычищать.
+ * ## Форма ассистента всегда пустая
+ *
+ * Модуль кладёт плагин шаблонов тем же путём, что окно «Создать форму» (`<каталог>/<имя>/`), но
+ * без шаблона: один документ формы с пустым корнем. Содержимое формы ход собирает сам, по
+ * описанию, `build_form` в продолжении хода.
+ *
+ * Раньше у инструмента был параметр `template`, а затравка хода без формы перечисляла шаблоны.
+ * Небольшая модель брала шаблон и для формы, описанной словами («пошаговая форма» — это и имя
+ * встроенного шаблона), а затем перекраивала образец: встроенные шаблоны несут по полю каждого
+ * вида, правила, источники данных и вычисления, и всё это приходилось вычищать. Каждая такая
+ * правка — шанс оставить правило на удалённое поле или поле образца в форме (ReFormer-u7g0).
+ * Поэтому шаблонов ассистент не видит и выбрать не может; форма из шаблона — решение человека,
+ * в окне «Создать форму».
  *
  * @module plugins/forms/ai/tools/create-form
  */
@@ -34,62 +44,20 @@ function moduleNameOf(raw: string): { name: string; fromPath: boolean } {
   return MODULE_NAME.test(last) ? { name: last, fromPath: true } : { name, fromPath: false };
 }
 
-/** Предел описания шаблона в списке: список — для выбора, а не для чтения. */
-const DESCRIPTION_LIMIT = 160;
-
-/** Шаблон, каким его видит модель. */
-export interface TemplateListing {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-}
-
-/**
- * Строки списка шаблонов: `- "<id>" имя: описание`. Одна форма у `list_templates` и у затравки
- * хода без формы — модель читает их одинаково.
- */
-export function templateLines(list: readonly TemplateListing[]): string[] {
-  return list.map((item) => {
-    const about = item.description?.trim() ?? '';
-    const short =
-      about.length > DESCRIPTION_LIMIT ? `${about.slice(0, DESCRIPTION_LIMIT - 1)}…` : about;
-    return `- "${item.id}" ${item.name}${short === '' ? '' : `: ${short}`}`;
-  });
-}
-
-export const listTemplatesTool: FormAgentTool = {
-  name: 'list_templates',
-  description: 'Form templates create_form can start from.',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  readOnly: true,
-  async run(_params, ctx) {
-    const templates = ctx.turn?.templates;
-    if (templates === undefined) {
-      return formToolFail('UNAVAILABLE', 'Templates are not available in this builder.');
-    }
-    const list = await templates();
-    if (list.length === 0)
-      return formToolOk('No templates: create_form without template makes an empty form.');
-    return formToolOk(templateLines(list).join('\n'));
-  },
-};
-
 interface CreateParams {
   name: string;
-  template?: string;
   folder?: string;
 }
 
 export const createFormTool: FormAgentTool<CreateParams> = {
   name: 'create_form',
   description:
-    'New form module; the turn continues on it. Only when asked for a new form. No ' +
-    'template: empty form.',
+    'New empty form module; the turn continues on it and builds it. Only when asked for a new ' +
+    'form.',
   inputSchema: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Folder, kebab-case: credit-application' },
-      template: { type: 'string', description: 'Template id' },
       folder: { type: 'string', description: 'Parent folder' },
     },
     required: ['name'],
@@ -111,16 +79,14 @@ export const createFormTool: FormAgentTool<CreateParams> = {
     }
     const outcome = await create({
       name,
-      ...(params.template === undefined ? {} : { template: params.template }),
       ...(params.folder === undefined ? {} : { folder: params.folder }),
     });
     if (!outcome.ok) return formToolFail(outcome.code, outcome.message, outcome.suggestions);
-    const from = outcome.template === null ? 'empty' : `from template "${outcome.template}"`;
     // Несохранённая форма открыта и правится так же: ход пишет только в рабочую копию.
     const unsaved = outcome.unsaved === undefined ? '' : ' Not saved to the project yet.';
     const renamed = fromPath ? ` Name taken from the path: ${name}.` : '';
     return formToolOk(
-      `Created ${outcome.path} (${from}).${renamed}${unsaved} This turn continues on it — stop ` +
+      `Created ${outcome.path} (empty).${renamed}${unsaved} This turn continues on it — stop ` +
         'here.'
     );
   },

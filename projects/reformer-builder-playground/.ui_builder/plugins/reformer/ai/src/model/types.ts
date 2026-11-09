@@ -157,9 +157,8 @@ export { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-too
  *
  * Повышение — 12343 → 12772: `create_form` — новая форма по просьбе пользователя
  * (ReFormer-1a6r.1). Без него «сделай анкету на кредит» правило открытую форму, если она была, а без
- * открытой формы ход отвечал «откройте форму». 429 символов в каждом запросе; `list_templates` в
- * поверхность не входит — им пользуется ход без формы, а неизвестный шаблон `create_form` и так
- * отвергает со списком.
+ * открытой формы ход отвечал «откройте форму». 429 символов в каждом запросе. (Тогда же был
+ * `list_templates` для хода без формы; с ReFormer-u7g0 шаблонов у ассистента нет.)
  *
  * Повышение — 12772 → 12838: `move_node` переносит пачку узлов (`refs` вместо `ref`,
  * ReFormer-ggpp). Замер на живой модели: разложить анкету из 11 полей по шагам мастера стоило
@@ -192,6 +191,10 @@ export { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-too
  * JSON-строкой, и проверка аргументов отклоняла вызов раньше, чем инструмент его разберёт
  * (сценарий 21.4: два отказа подряд).
  *
+ * Снижение — 13654 → 13592: у `create_form` нет параметра `template` (ReFormer-u7g0). Модель брала
+ * шаблон-образец и для формы, описанной словами, а потом перекраивала его — лишние поля образца,
+ * правила на удалённые поля. Форма ассистента теперь всегда пустая, её собирает `build_form`.
+ *
  * **Потолок — только встроенным.** У поверхности есть второе слагаемое — вклады плагинов:
  * инструменты точки `reformer.assistant.tool`, команды с блоком `agent` и `read_resource`, который
  * появляется вместе с провайдером ресурсов. У них свой потолок,
@@ -200,7 +203,7 @@ export { TOOL_DESCRIPTION_BUDGET, TOOL_NAME_BUDGET } from '@reformer/builder-too
  * ломает тест, которого его автор даже не видит. Обе стороны считает одна функция
  * `measureToolSurface`.
  */
-export const TOOL_SURFACE_BUDGET = 13654;
+export const TOOL_SURFACE_BUDGET = 13592;
 
 /**
  * Бюджет системного промпта (символы) — вторая половина постоянной части запроса.
@@ -248,8 +251,11 @@ export const CREATION_PROMPT_BUDGET = 800;
  * {@link TOOL_SURFACE_BUDGET}: новую форму просят независимо от способа правки.
  *
  * Снижение — 4342 → 4339: короче описание `generate_code`, как у {@link TOOL_SURFACE_BUDGET}.
+ *
+ * Снижение — 4339 → 4277: у `create_form` нет параметра `template`, как у
+ * {@link TOOL_SURFACE_BUDGET} (ReFormer-u7g0).
  */
-export const FILE_TOOL_SURFACE_BUDGET = 4339;
+export const FILE_TOOL_SURFACE_BUDGET = 4277;
 
 /**
  * Бюджет ответа `read_file` (символы) — страница файла.
@@ -352,8 +358,9 @@ export interface ToolContext extends FormToolContext {
 }
 
 /**
- * Ход, вопросы человеку, шаблоны и создание формы — контракт SDK (`FormTurnScope` и соседи): их
- * даёт ассистент, общий для стеков.
+ * Ход, вопросы человеку и создание формы — контракт SDK (`FormTurnScope` и соседи): их даёт
+ * ассистент, общий для стеков. Шаблоны в контракте есть, но ассистент ходу их не даёт: его форма
+ * всегда пустая (ReFormer-u7g0).
  */
 export type TurnWriteResult = FormTurnWriteResult;
 export type ResourceReadResult = FormResourceReadResult;
