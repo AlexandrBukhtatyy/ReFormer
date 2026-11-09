@@ -4,6 +4,7 @@ import {
   compareVersions,
   formatVersion,
   parseRange,
+  parseReleaseVersion,
   parseVersion,
   satisfies,
   satisfiesRange,
@@ -26,6 +27,30 @@ describe('parseVersion', () => {
     const rejected = ['', '   ', '*', '1.x', 'v1.2.3', '1.2.3.4', 'один', '1..2', '-1.0.0'];
 
     expect(rejected.filter((text) => parseVersion(text) !== undefined)).toEqual([]);
+  });
+});
+
+describe('parseReleaseVersion — версия приложения сверяется линией выпуска', () => {
+  it('пререлиз и метаданные сборки дают версию линии', () => {
+    expect(parseReleaseVersion('3.0.0-beta.16')).toEqual({ major: 3, minor: 0, patch: 0 });
+    expect(parseReleaseVersion('3.1.2+build.5')).toEqual({ major: 3, minor: 1, patch: 2 });
+    expect(parseReleaseVersion(' 3.0.0-rc.1+sha.abc ')).toEqual({ major: 3, minor: 0, patch: 0 });
+    expect(parseReleaseVersion('2.3.0')).toEqual({ major: 2, minor: 3, patch: 0 });
+  });
+
+  it('неполная версия и не версия — отказ: так выпуск версию не пишет', () => {
+    const rejected = ['', '3', '3.0', '3.0-beta', 'v3.0.0', '3.0.0-', '3.0.0-бета', 'unknown'];
+
+    expect(rejected.filter((text) => parseReleaseVersion(text) !== undefined)).toEqual([]);
+  });
+
+  it('бета линии 3.0.0 попадает в `^3.0.0` — по правилу npm не попала бы', () => {
+    const range = parseRange('^3.0.0');
+    const beta = parseReleaseVersion('3.0.0-beta.16');
+
+    expect(range && beta && satisfiesRange(beta, range)).toBe(true);
+    // Строгая форма для чужих версий не изменилась: там пререлиз по-прежнему отказ.
+    expect(satisfies('3.0.0-beta.16', '^3.0.0')).toBe(false);
   });
 });
 

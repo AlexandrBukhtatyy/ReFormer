@@ -606,6 +606,21 @@ describe('compatibility.builder — вторая ось совместимост
     expect(!result.ok && result.problem.message).toContain('2.3.0');
   });
 
+  it('пререлиз билдера сверяется линией выпуска: бета 3.0.0 — это билдер 3.0.0', () => {
+    // Иначе каждая бета отказывала бы плагинам, написанным под её же линию: правило npm
+    // считает `3.0.0-beta.16` меньше `3.0.0`, и `^3` её не покрывает.
+    for (const range of ['^3', '^3.0.0', '>=3.0.0', '3.x']) {
+      expect(withBuilder({ builder: range }, '3.0.0-beta.16').ok, range).toBe(true);
+    }
+    // Чужая линия по-прежнему отказ — и в сообщении версия названа целиком, с суффиксом.
+    const older = withBuilder({ builder: '^3' }, '2.9.0-beta.1');
+    expect(!older.ok && older.problem.code).toBe('builder-version');
+    expect(!older.ok && older.problem.message).toContain('2.9.0-beta.1');
+    // Пререлиз в ДИАПАЗОНЕ — по-прежнему отказ формы: его пишет автор плагина.
+    const prereleaseRange = withBuilder({ builder: '^3.0.0-beta' }, '3.0.0');
+    expect(!prereleaseRange.ok && prereleaseRange.problem.code).toBe('manifest-invalid');
+  });
+
   it('спрашивающий не назвал своей версии — проверяется только форма', () => {
     // Так манифест читает CLI автора плагина: в каком билдере плагин запустят, он не знает,
     // и отказ по версии означал бы отказ по выдуманному числу.

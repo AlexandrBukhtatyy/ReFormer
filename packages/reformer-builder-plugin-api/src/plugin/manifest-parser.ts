@@ -46,7 +46,9 @@
  *   про контракт, `compatibility.builder` — про приложение, и чинятся они разным: первое —
  *   правкой плагина, второе — обновлением билдера. Поэтому и код отказа отдельный
  *   (`builder-version`). Сверка делается, только если спрашивающий назвал свою версию:
- *   CLI автора плагина её не знает и проверяет форму диапазона.
+ *   CLI автора плагина её не знает и проверяет форму диапазона. Пререлиз билдера сверяется
+ *   линией выпуска (`3.0.0-beta.2` — как `3.0.0`): иначе бета отказывала бы всем плагинам,
+ *   написанным под её же линию.
  *
  * ## Почему разбор в пакете контракта
  *
@@ -61,7 +63,13 @@
 
 import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability.js';
 import { normalizeChord } from '../primitives/command.js';
-import { parseRange, parseVersion, satisfies } from '../primitives/semver.js';
+import {
+  parseRange,
+  parseReleaseVersion,
+  parseVersion,
+  satisfies,
+  satisfiesRange,
+} from '../primitives/semver.js';
 import { parseWhen } from '../primitives/when-expr.js';
 import { normalizeModulePath } from '../primitives/module-path.js';
 import { isPluginPermission, PLUGIN_PERMISSIONS, type PluginPermission } from './permissions.js';
@@ -221,7 +229,10 @@ export function parsePluginSourceManifest(
 export interface ShellVersions {
   /** Версия контракта плагинов. Умолчание — {@link BUILDER_API_VERSION}. */
   readonly api?: string;
-  /** Версия приложения-билдера. Без неё `compatibility.builder` только разбирается. */
+  /**
+   * Версия приложения-билдера. Без неё `compatibility.builder` только разбирается. Пререлиз
+   * сверяется линией выпуска: `3.0.0-beta.2` проходит там, где прошёл бы `3.0.0`.
+   */
   readonly builder?: string;
 }
 
@@ -553,7 +564,8 @@ function parseCompatibility(
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  if (parseRange(builder) === undefined) {
+  const range = parseRange(builder);
+  if (range === undefined) {
     return problem(
       'manifest-invalid',
       `из «compatibility.builder»: «${builder}» не читается диапазон версий. ` +
@@ -561,7 +573,10 @@ function parseCompatibility(
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  if (builderVersion !== undefined && !satisfies(builderVersion, builder)) {
+  // Версия приложения сверяется ЛИНИЕЙ выпуска: бета 3.0.0 — это билдер 3.0.0, и `^3` её
+  // покрывает (довод — у `parseReleaseVersion`). Неразбираемая версия — отказ, как и прежде.
+  const release = builderVersion === undefined ? undefined : parseReleaseVersion(builderVersion);
+  if (builderVersion !== undefined && (release === undefined || !satisfiesRange(release, range))) {
     return problem(
       'builder-version',
       `плагину нужен билдер «${builder}», а этот — ${builderVersion}. ` +
