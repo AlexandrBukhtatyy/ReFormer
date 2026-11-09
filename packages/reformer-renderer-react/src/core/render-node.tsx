@@ -25,6 +25,7 @@ import {
 } from '@reformer/core';
 import {
   bindFieldProps,
+  FormBundleContext,
   getFieldAdapter,
   useFieldHandleRef,
   useLocalized,
@@ -527,6 +528,16 @@ function formIndexOf(control: RenderModelArrayControl, modelIndex: number): numb
  * Компонент не знает ни про сигналы, ни про узлы схемы, ни про хуки рендерера — поэтому
  * реализовать его может любая UI-библиотека, а протестировать можно на фейковых `items` без формы.
  */
+/**
+ * Поиск ноды формы по ручке узла схемы. В рендере сборки `createForm` — ноды ЭТОЙ сборки
+ * (`bundle.render.nodeOf`): над одной моделью бывает несколько форм, и общий реестр отдал бы ноду
+ * последней. Без сборки (`createRenderSchema`) — общий реестр.
+ */
+function useNodeOf(): (handle: object) => unknown {
+  const bundle = useContext(FormBundleContext);
+  return bundle?.render?.nodeOf ?? getNodeForSignal;
+}
+
 const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   node,
   fieldWrapper,
@@ -543,6 +554,7 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp = node.component as React.ComponentType<any>;
   const control = node.control as RenderModelArrayControl;
+  const nodeOf = useNodeOf();
   const items = useModelArrayItems(node, fieldWrapper);
   // Описатели `msg('…')` в пропсах массива (заголовок, подпись «Добавить») — строками.
   const ownProps = useLocalized(useLocalizableFieldProps(node.props, undefined, propsOverride));
@@ -556,28 +568,28 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   // нода считает по строкам формы, поэтому индекс переводится. Без формы или для элемента `null`
   // (строки формы у него нет) — прямо в массив модели.
   const onAdd = useCallback(() => {
-    const array = getNodeForSignal(node.handle) as FormArray<object> | undefined;
+    const array = nodeOf(node.handle) as FormArray<object> | undefined;
     if (array) array.push();
     else control.push();
-  }, [node.handle, control]);
+  }, [node.handle, control, nodeOf]);
   const onRemove = useCallback(
     (index: number) => {
-      const array = getNodeForSignal(node.handle) as FormArray<object> | undefined;
+      const array = nodeOf(node.handle) as FormArray<object> | undefined;
       const row = array ? formIndexOf(control, index) : undefined;
       if (array && row !== undefined) array.removeAt(row);
       else control.removeAt(index);
     },
-    [node.handle, control]
+    [node.handle, control, nodeOf]
   );
   const onMove = useCallback(
     (from: number, to: number) => {
-      const array = getNodeForSignal(node.handle) as FormArray<object> | undefined;
+      const array = nodeOf(node.handle) as FormArray<object> | undefined;
       const fromRow = array ? formIndexOf(control, from) : undefined;
       const toRow = array ? formIndexOf(control, to) : undefined;
       if (array && fromRow !== undefined && toRow !== undefined) array.move(fromRow, toRow);
       else control.move(from, to);
     },
-    [node.handle, control]
+    [node.handle, control, nodeOf]
   );
 
   const slots: ArrayItemSlot[] = items.map(({ key, index, model, element }) => ({
@@ -808,6 +820,7 @@ export function RenderNodeComponent<T>({
 }: RenderNodeComponentProps<T>): ReactNode {
   const node = compiledNodeOf(givenNode as CompiledNode | RenderNode<unknown>);
   const { settings } = useRenderContext();
+  const nodeOf = useNodeOf();
   // prop имеет приоритет над глобальным settings (для user-space компонентов с вложенными формами)
   const fieldWrapper = fieldWrapperProp ?? settings?.fieldWrapper;
 
@@ -899,7 +912,7 @@ export function RenderNodeComponent<T>({
 
     case 'field': {
       const binding = node.handle;
-      const fieldNode = getNodeForSignal(binding) as FormControl<unknown> | undefined;
+      const fieldNode = nodeOf(binding) as FormControl<unknown> | undefined;
       if (!fieldNode) {
         if (typeof console !== 'undefined') {
           const p = binding.__path;

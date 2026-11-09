@@ -347,6 +347,29 @@ describe('FormRenderer — бандл createForm', () => {
     ).toContain('data-wrap="settings"');
   });
 
+  it('две сборки над одной моделью: каждая рисует свои ноды', () => {
+    // Обёртка показывает состояние ноды, которую ей отдал рендерер.
+    const IssueWrapper = ({ control, children }: FieldWrapperProps) => (
+      <div data-issues={control.issues.value.length}>{children}</div>
+    );
+    const model = createShape();
+    const schema = (m: FormModel<Shape>): RenderNode<Shape> => ({
+      model: m.$.kind,
+      component: Input,
+    });
+    const first = createForm<Shape>({ model, schema });
+    const second = createForm<Shape>({ model, schema });
+    first.form.kind.setIssues([{ code: 'server' }]);
+
+    const settings = { fieldWrapper: IssueWrapper };
+    expect(renderToStaticMarkup(<FormRenderer form={first} settings={settings} />)).toContain(
+      'data-issues="1"'
+    );
+    expect(renderToStaticMarkup(<FormRenderer form={second} settings={settings} />)).toContain(
+      'data-issues="0"'
+    );
+  });
+
   it('граница ошибок из бандла оборачивает дерево', () => {
     const Boundary = ({ children }: { children: ReactNode }) => (
       <div data-boundary="yes">{children}</div>
