@@ -144,7 +144,83 @@ describe('FormWizard — поток шагов', () => {
   });
 });
 
+describe('FormWizard — кнопки на краях потока', () => {
+  const twoSteps = (
+    form: FormBundle<Shape>['form'],
+    render: (props: FormWizardActionsRenderProps) => null
+  ) => (
+    <FormWizard form={form}>
+      <FormWizard.Step component={Empty} control={form} />
+      <FormWizard.Step component={Empty} control={form} />
+      <FormWizard.Actions>{render}</FormWizard.Actions>
+    </FormWizard>
+  );
+
+  it('render-props: «Назад» отключена на первом шаге, «Далее» — на последнем', async () => {
+    const { form } = createBundle();
+    const flow = createFormFlow({ steps: ['a', 'b'] });
+
+    const first = capture(({ actions: render }) => (
+      <FormWizard form={form} flow={flow}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions>{render}</FormWizard.Actions>
+      </FormWizard>
+    )).actions!;
+    // Было: `disabled` учитывал только проверку/отправку, и разметка, которая не прячет кнопку,
+    // а отключает её по `disabled`, получала живую «Назад» на первом шаге.
+    expect(first.prev.disabled).toBe(true);
+    expect(first.next.disabled).toBe(false);
+
+    await flow.next();
+    const last = capture(({ actions: render }) => (
+      <FormWizard form={form} flow={flow}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions>{render}</FormWizard.Actions>
+      </FormWizard>
+    )).actions!;
+    expect(last.prev.disabled).toBe(false);
+    expect(last.next.disabled).toBe(true);
+  });
+
+  it('render-props совпадают с compound-кнопками Prev/Next', () => {
+    const { form } = createBundle();
+    const { actions } = capture(({ actions: render }) => twoSteps(form, render));
+    const html = renderToStaticMarkup(
+      <FormWizard form={form}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions>
+          <FormWizard.Prev>Back</FormWizard.Prev>
+          <FormWizard.Next>Next</FormWizard.Next>
+        </FormWizard.Actions>
+      </FormWizard>
+    );
+
+    expect(actions!.prev.disabled).toBe(true);
+    expect(html).toMatch(/<button type="button" disabled=""[^>]*>Back<\/button>/);
+  });
+});
+
 describe('FormWizard — отправка', () => {
+  it('FormWizard.Submit — type="button": внутри <form> приложения нет второй, нативной отправки', () => {
+    const { form } = createBundle();
+    const html = renderToStaticMarkup(
+      <form>
+        <FormWizard form={form}>
+          <FormWizard.Step component={Empty} control={form} />
+          <FormWizard.Actions>
+            <FormWizard.Submit>Send</FormWizard.Submit>
+          </FormWizard.Actions>
+        </FormWizard>
+      </form>
+    );
+
+    expect(html).toMatch(/<button type="button"[^>]*>Send<\/button>/);
+    expect(html).not.toContain('type="submit"');
+  });
+
   it('в сборке: замечания — обработчик не вызывается', async () => {
     const bundle = createBundle();
     const onSubmit = vi.fn();

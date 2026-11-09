@@ -91,7 +91,7 @@ function DocumentsField({ control }: { control: FormControl<FileUploadValue> }) 
 | `validate(file, { existing })`                          | Своя проверка: массив ошибок или `null`                                           |
 | `allowDrop` / `allowPaste`                              | Каналы ввода (`@default true` / `false`)                                          |
 | `capture`                                               | Камера мобильного пикера: `'user'` или `'environment'`                            |
-| `uploader`, `autoUpload`                                | Загрузка при выборе (`autoUpload` — `@default true`)                              |
+| `uploader`, `autoUpload`                                | Загрузка при выборе (`autoUpload` — `@default true`; при `false` — `upload()`)    |
 
 Отклонённые файлы в значение не попадают: они уходят в `onReject(rejections)` и в
 `rejections` хука. Ошибка — `ValidationIssue` с кодом, без текста: `fileType`, `maxFileSize`,
@@ -127,7 +127,11 @@ function DocumentsField({ control }: { control: FormControl<FileUploadValue> }) 
 ### Управление снаружи — ref
 
 `ref` на `FileUpload.Root` даёт `FileUploadHandle`: `openFilePicker()`, `addFiles(files)`,
-`removeItem(key)`, `clear()`, `retry(key)`, `abort(key?)`, `focus()`.
+`removeItem(key)`, `clear()`, `retry(key)`, `upload(key?)`, `abort(key?)`, `focus()`.
+
+`upload(key?)` — ручной запуск загрузки при `autoUpload: false`: принятые файлы ждут в статусе
+`local`, пока их не отправит `upload()` (без `key` — все ожидающие). `retry(key)` в этом режиме
+перезапускает загрузку сразу.
 
 ```tsx
 const uploadRef = useRef<FileUploadHandle>(null);
@@ -140,7 +144,7 @@ const uploadRef = useRef<FileUploadHandle>(null);
 
 Хук без разметки — для своего набора элементов. Принимает те же опции, что `Root`, и отдаёт
 состояние (`items`, `rejections`, `dragging`, `maxFilesReached`, `uploading`, `liveMessage`),
-действия (`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `abort`, `focus`,
+действия (`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `upload`, `abort`, `focus`,
 `getPreviewUrl`) и prop-getters (`getRootProps`, `getDropzoneProps`, `getTriggerProps`,
 `getHiddenInputProps`, `getItemProps`, …). `uploading` — признак незавершённых загрузок: по нему
 блокируют отправку формы.

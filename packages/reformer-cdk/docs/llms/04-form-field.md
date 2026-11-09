@@ -55,6 +55,12 @@ function EmailField({ control }: { control: typeof form.email }) {
 `@reformer/core/react`); `Control` читает её через `getFieldAdapter(component)` и применяет
 `bindFieldProps`. Нет статики — seam проходит как есть.
 
+Props обёртки — `label`, `description`, `required`, `labelTooltip` — `Control` контролу не передаёт:
+их рисуют `Label`, `Description` и подсказка, а обязательность контрол получает как `aria-required`.
+Нативный `required` на `<input>` блокировал бы отправку формы проверкой браузера. Контрол с
+inline-подписью (статика `reformerLayout = 'inline-label'`) получает `label` и `required` — подпись
+со звёздочкой он рисует сам.
+
 ```tsx
 import type { FieldAdapter } from '@reformer/core/react';
 

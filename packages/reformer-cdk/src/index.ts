@@ -109,6 +109,7 @@ export {
   FormFieldControl,
   FormFieldError,
   FormFieldDescription,
+  FormFieldHint,
   useFormField,
   FormFieldContext,
   useFormFieldContext,
@@ -122,12 +123,14 @@ export type {
   FormFieldControlProps,
   FormFieldErrorProps,
   FormFieldDescriptionProps,
+  FormFieldHintProps,
   UseFormFieldReturn,
   UseFormFieldState,
   UseFormFieldLabelProps,
   UseFormFieldControlProps,
   UseFormFieldErrorProps,
   UseFormFieldDescriptionProps,
+  UseFormFieldHintProps,
 } from './components/form-field';
 
 // ============================================================================

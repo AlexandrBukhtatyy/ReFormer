@@ -227,6 +227,34 @@ describe('FormField.Control — адаптер контрола (статика 
     expect('testId' in props).toBe(false);
   });
 
+  // ReFormer-66d: подпись, описание и обязательность рисует обёртка. На `<input>` они уходили
+  // атрибутами, а нативный `required` включал проверку браузера, блокировавшую отправку формы.
+  it('label, description и required в контрол не уходят; обязательность — aria-required', () => {
+    const { props } = renderAuto((p: Record<string, unknown>) => capture(p), {
+      componentProps: { label: 'Имя', description: 'd', required: true, placeholder: 'p' },
+    });
+
+    expect('label' in props).toBe(false);
+    expect('description' in props).toBe(false);
+    expect('required' in props).toBe(false);
+    expect(props['aria-required']).toBe(true);
+    expect(props.placeholder).toBe('p');
+  });
+
+  it('контрол с inline-подписью получает label и required — подпись он рисует сам', () => {
+    const InlineCheckbox = Object.assign((p: Record<string, unknown>) => capture(p), {
+      reformerAdapter: checkedAdapter,
+      reformerLayout: 'inline-label',
+    });
+    const { props } = renderAuto(InlineCheckbox, {
+      componentProps: { label: 'Согласен', description: 'd', required: true },
+    });
+
+    expect(props.label).toBe('Согласен');
+    expect(props.required).toBe(true);
+    expect('description' in props).toBe(false);
+  });
+
   it('asChild: уже привязанный ребёнок не привязывается второй раз', () => {
     const { ctx } = makeCtx();
     const Spy = Object.assign((p: Record<string, unknown>) => capture(p), {

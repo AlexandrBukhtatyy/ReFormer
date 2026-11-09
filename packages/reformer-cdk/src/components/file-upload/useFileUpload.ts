@@ -103,6 +103,11 @@ export interface UseFileUploadReturn {
   removeItem: (key: string) => void;
   clear: () => void;
   retry: (key: string) => void;
+  /**
+   * Запустить загрузку ожидающих (`local`) файлов — ручной режим `autoUpload: false`. Без `key` —
+   * все ожидающие. Без `uploader` ничего не делает.
+   */
+  upload: (key?: string) => void;
   abort: (key?: string) => void;
   /** Сфокусировать hidden input («подсветить невалидное поле»). */
   focus: () => void;
@@ -433,12 +438,25 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
     emit(next.items);
   }, [apply, emit, revokePreview]);
 
+  const upload = useCallback(
+    (key?: string) => {
+      if (!uploaderRef.current) return;
+      for (const item of stateRef.current.items) {
+        if (item.status !== 'local' || (key !== undefined && item.key !== key)) continue;
+        if (!controllersRef.current.has(item.key)) startUpload(item.key, item.file);
+      }
+    },
+    [startUpload]
+  );
+
   const retry = useCallback(
     (key: string) => {
-      // error → local; очередь подхватит и перезапустит загрузку.
+      // error → local; при autoUpload очередь подхватит и перезапустит загрузку. В ручном режиме
+      // очереди нет — повтор, о котором попросили явно, запускаем сразу.
       apply({ kind: 'retry', key });
+      if (optionsRef.current.autoUpload === false) upload(key);
     },
-    [apply]
+    [apply, upload]
   );
 
   const abort = useCallback((key?: string) => {
@@ -696,6 +714,7 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
     removeItem,
     clear,
     retry,
+    upload,
     abort,
     focus,
     getPreviewUrl,

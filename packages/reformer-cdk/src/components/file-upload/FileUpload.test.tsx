@@ -62,6 +62,7 @@ function ctx(overrides: Partial<FileUploadContextValue> = {}): FileUploadContext
     removeItem: () => {},
     clear: () => {},
     retry: () => {},
+    upload: () => {},
     abort: () => {},
     focus: () => {},
     getPreviewUrl: () => null,

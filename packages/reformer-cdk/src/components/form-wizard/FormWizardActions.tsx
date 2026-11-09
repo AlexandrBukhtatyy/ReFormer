@@ -7,7 +7,10 @@ import { useFormWizard } from './FormWizardContext';
 export interface FormWizardButtonProps {
   /** Click handler */
   onClick: () => void;
-  /** Whether the button is disabled */
+  /**
+   * Whether the button is disabled: during validation or submission; `prev` — also on the first
+   * step, `next` — also on the last step (same as `FormWizard.Prev` / `FormWizard.Next`).
+   */
   disabled: boolean;
 }
 
@@ -149,13 +152,16 @@ export function FormWizardActions({
     const isDisabled = isValidating || isSubmitting;
 
     const renderProps: FormWizardActionsRenderProps = {
+      // Края — как у compound-кнопок `FormWizard.Prev`/`Next`: «Назад» на первом шаге и «Далее»
+      // на последнем некуда вести, и разметка, которая не прячет их, а только отключает по
+      // `disabled`, не должна получать живую кнопку.
       prev: {
         onClick: goToPreviousStep,
-        disabled: isDisabled,
+        disabled: isDisabled || isFirstStep,
       },
       next: {
         onClick: () => goToNextStep(),
-        disabled: isDisabled,
+        disabled: isDisabled || isLastStep,
       },
       submit: {
         // Через `submit` из контекста, а не напрямую в проп: внутри сборки он идёт через

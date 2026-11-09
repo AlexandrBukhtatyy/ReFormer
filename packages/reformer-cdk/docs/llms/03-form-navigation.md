@@ -159,6 +159,11 @@ form and flow from the context).
 (they read the Actions context) — they cannot be used standalone. They are not
 top-level exports; access them as members: `FormWizard.Prev`, etc.
 
+All three render `type="button"`, `FormWizard.Submit` included: submission goes only through the
+wizard (`submit` → `bundle.submission.submit` inside a bundle), so a wizard placed inside your own
+`<form>` never triggers the native form submit and never calls the handler twice. Do not rely on
+Enter-in-a-field submitting the wizard.
+
 ### Actions: compound mode
 
 ```tsx
@@ -258,8 +263,8 @@ returns the `SubmitResult`.
 
 ```typescript
 interface FormWizardActionsRenderProps {
-  prev: { onClick: () => void; disabled: boolean };
-  next: { onClick: () => void; disabled: boolean };
+  prev: { onClick: () => void; disabled: boolean }; // also disabled on the first step
+  next: { onClick: () => void; disabled: boolean }; // also disabled on the last step
   submit: { onClick: () => void; disabled: boolean; isSubmitting: boolean };
   isFirstStep: boolean;
   isLastStep: boolean;

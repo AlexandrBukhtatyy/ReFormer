@@ -132,11 +132,19 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       unknown
     >;
     void _testId;
-    const bound = bindFieldProps(getFieldAdapter(Component), seam, {
-      ...domComponentProps,
-      ...(accessibleProps as Record<string, unknown>),
-      ...(props as Record<string, unknown>),
-    });
+    // Подпись, описание и `required` рисует обёртка — `bindFieldProps` срезает их у контрола
+    // (нативный `required` на `<input>` блокировал бы отправку проверкой браузера). Компонент
+    // передаётся, чтобы контрол с inline-подписью (чекбокс) получил `label` и `required`.
+    const bound = bindFieldProps(
+      getFieldAdapter(Component),
+      seam,
+      {
+        ...domComponentProps,
+        ...(accessibleProps as Record<string, unknown>),
+        ...(props as Record<string, unknown>),
+      },
+      Component
+    );
     return <Component {...(ref ? { ref: handleRef } : {})} {...bound} disabled={disabled} />;
   }
 );

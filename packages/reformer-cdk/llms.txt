@@ -553,6 +553,11 @@ form and flow from the context).
 (they read the Actions context) — they cannot be used standalone. They are not
 top-level exports; access them as members: `FormWizard.Prev`, etc.
 
+All three render `type="button"`, `FormWizard.Submit` included: submission goes only through the
+wizard (`submit` → `bundle.submission.submit` inside a bundle), so a wizard placed inside your own
+`<form>` never triggers the native form submit and never calls the handler twice. Do not rely on
+Enter-in-a-field submitting the wizard.
+
 ### Actions: compound mode
 
 ```tsx
@@ -652,8 +657,8 @@ returns the `SubmitResult`.
 
 ```typescript
 interface FormWizardActionsRenderProps {
-  prev: { onClick: () => void; disabled: boolean };
-  next: { onClick: () => void; disabled: boolean };
+  prev: { onClick: () => void; disabled: boolean }; // also disabled on the first step
+  next: { onClick: () => void; disabled: boolean }; // also disabled on the last step
   submit: { onClick: () => void; disabled: boolean; isSubmitting: boolean };
   isFirstStep: boolean;
   isLastStep: boolean;
@@ -850,6 +855,12 @@ function EmailField({ control }: { control: typeof form.email }) {
 `onChange`, …). Диалект компонент объявляет статикой `reformerAdapter` (тип `FieldAdapter` из
 `@reformer/core/react`); `Control` читает её через `getFieldAdapter(component)` и применяет
 `bindFieldProps`. Нет статики — seam проходит как есть.
+
+Props обёртки — `label`, `description`, `required`, `labelTooltip` — `Control` контролу не передаёт:
+их рисуют `Label`, `Description` и подсказка, а обязательность контрол получает как `aria-required`.
+Нативный `required` на `<input>` блокировал бы отправку формы проверкой браузера. Контрол с
+inline-подписью (статика `reformerLayout = 'inline-label'`) получает `label` и `required` — подпись
+со звёздочкой он рисует сам.
 
 ```tsx
 import type { FieldAdapter } from '@reformer/core/react';
@@ -1920,7 +1931,7 @@ function DocumentsField({ control }: { control: FormControl<FileUploadValue> }) 
 | `validate(file, { existing })`                          | Своя проверка: массив ошибок или `null`                                           |
 | `allowDrop` / `allowPaste`                              | Каналы ввода (`@default true` / `false`)                                          |
 | `capture`                                               | Камера мобильного пикера: `'user'` или `'environment'`                            |
-| `uploader`, `autoUpload`                                | Загрузка при выборе (`autoUpload` — `@default true`)                              |
+| `uploader`, `autoUpload`                                | Загрузка при выборе (`autoUpload` — `@default true`; при `false` — `upload()`)    |
 
 Отклонённые файлы в значение не попадают: они уходят в `onReject(rejections)` и в
 `rejections` хука. Ошибка — `ValidationIssue` с кодом, без текста: `fileType`, `maxFileSize`,
@@ -1956,7 +1967,11 @@ function DocumentsField({ control }: { control: FormControl<FileUploadValue> }) 
 ### Управление снаружи — ref
 
 `ref` на `FileUpload.Root` даёт `FileUploadHandle`: `openFilePicker()`, `addFiles(files)`,
-`removeItem(key)`, `clear()`, `retry(key)`, `abort(key?)`, `focus()`.
+`removeItem(key)`, `clear()`, `retry(key)`, `upload(key?)`, `abort(key?)`, `focus()`.
+
+`upload(key?)` — ручной запуск загрузки при `autoUpload: false`: принятые файлы ждут в статусе
+`local`, пока их не отправит `upload()` (без `key` — все ожидающие). `retry(key)` в этом режиме
+перезапускает загрузку сразу.
 
 ```tsx
 const uploadRef = useRef<FileUploadHandle>(null);
@@ -1969,7 +1984,7 @@ const uploadRef = useRef<FileUploadHandle>(null);
 
 Хук без разметки — для своего набора элементов. Принимает те же опции, что `Root`, и отдаёт
 состояние (`items`, `rejections`, `dragging`, `maxFilesReached`, `uploading`, `liveMessage`),
-действия (`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `abort`, `focus`,
+действия (`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `upload`, `abort`, `focus`,
 `getPreviewUrl`) и prop-getters (`getRootProps`, `getDropzoneProps`, `getTriggerProps`,
 `getHiddenInputProps`, `getItemProps`, …). `uploading` — признак незавершённых загрузок: по нему
 блокируют отправку формы.
@@ -4592,6 +4607,11 @@ export interface FileUploadHandle {
   clear(): void;
   /** Повторить упавшую загрузку. */
   retry(key: string): void;
+  /**
+   * Запустить загрузку ожидающих файлов — ручной режим `autoUpload: false`. Без `key` — все
+   * ожидающие. Без `uploader` ничего не делает.
+   */
+  upload(key?: string): void;
   /** Прервать загрузку элемента (или все, без `key`) — элемент остаётся с ошибкой `uploadAborted`. */
   abort(key?: string): void;
   /** Сфокусировать hidden input — для «подсветить невалидное поле». */
@@ -5958,7 +5978,10 @@ Props for a navigation button (prev/next)
 export interface FormWizardButtonProps {
   /** Click handler */
   onClick: () => void;
-  /** Whether the button is disabled */
+  /**
+   * Whether the button is disabled: during validation or submission; `prev` — also on the first
+   * step, `next` — also on the last step (same as `FormWizard.Prev` / `FormWizard.Next`).
+   */
   disabled: boolean;
 }
 ```
@@ -6567,6 +6590,10 @@ FormWizard.Submit - Form submission button component
 Renders a button that submits the form on the last step.
 Automatically disabled when not on the last step, during validation, or during submission.
 Shows `loadingText` content during submission if provided.
+
+The button is `type="button"`: submission goes only through the wizard's `submit` (inside a
+bundle — `bundle.submission.submit`). Inside an app `<form>` it does not trigger the native form
+submit, so the handler is never called twice.
 
 **Signature:**
 ```typescript
@@ -8364,7 +8391,8 @@ export interface UseFileUploadOptions {
    */
   uploader?: FileUploadUploader;
   /**
-   * Автоматически запускать загрузку принятых файлов (при заданном `uploader`).
+   * Автоматически запускать загрузку принятых файлов (при заданном `uploader`). При `false` файлы
+   * ждут в статусе `local`, пока их не отправит `upload()` хука или handle.
    * @default true
    */
   autoUpload?: boolean;
@@ -8420,6 +8448,11 @@ export interface UseFileUploadReturn {
   removeItem: (key: string) => void;
   clear: () => void;
   retry: (key: string) => void;
+  /**
+   * Запустить загрузку ожидающих (`local`) файлов — ручной режим `autoUpload: false`. Без `key` —
+   * все ожидающие. Без `uploader` ничего не делает.
+   */
+  upload: (key?: string) => void;
   abort: (key?: string) => void;
   /** Сфокусировать hidden input («подсветить невалидное поле»). */
   focus: () => void;

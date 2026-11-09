@@ -138,7 +138,8 @@ export interface UseFileUploadOptions {
    */
   uploader?: FileUploadUploader;
   /**
-   * Автоматически запускать загрузку принятых файлов (при заданном `uploader`).
+   * Автоматически запускать загрузку принятых файлов (при заданном `uploader`). При `false` файлы
+   * ждут в статусе `local`, пока их не отправит `upload()` хука или handle.
    * @default true
    */
   autoUpload?: boolean;
@@ -169,6 +170,11 @@ export interface FileUploadHandle {
   clear(): void;
   /** Повторить упавшую загрузку. */
   retry(key: string): void;
+  /**
+   * Запустить загрузку ожидающих файлов — ручной режим `autoUpload: false`. Без `key` — все
+   * ожидающие. Без `uploader` ничего не делает.
+   */
+  upload(key?: string): void;
   /** Прервать загрузку элемента (или все, без `key`) — элемент остаётся с ошибкой `uploadAborted`. */
   abort(key?: string): void;
   /** Сфокусировать hidden input — для «подсветить невалидное поле». */

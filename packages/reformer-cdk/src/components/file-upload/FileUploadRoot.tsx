@@ -79,6 +79,7 @@ export const FileUploadRoot = forwardRef<FileUploadHandle, FileUploadRootProps>(
         removeItem: fileUpload.removeItem,
         clear: fileUpload.clear,
         retry: fileUpload.retry,
+        upload: fileUpload.upload,
         abort: fileUpload.abort,
         focus: fileUpload.focus,
       }),

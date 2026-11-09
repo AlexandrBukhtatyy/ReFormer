@@ -34,6 +34,10 @@ export interface FormWizardSubmitProps extends Omit<
  * Automatically disabled when not on the last step, during validation, or during submission.
  * Shows `loadingText` content during submission if provided.
  *
+ * The button is `type="button"`: submission goes only through the wizard's `submit` (inside a
+ * bundle — `bundle.submission.submit`). Inside an app `<form>` it does not trigger the native form
+ * submit, so the handler is never called twice.
+ *
  * @example Basic usage
  * ```tsx
  * <FormWizard.Actions onSubmit={handleSubmit}>
@@ -82,7 +86,10 @@ export const FormWizardSubmit = forwardRef<HTMLButtonElement, FormWizardSubmitPr
     return (
       <Comp
         ref={ref}
-        type={asChild ? undefined : 'submit'}
+        // `button`, не `submit`: отправка идёт только через `submit` мастера (onClick ниже). Внутри
+        // `<form>` приложения кнопка-submit запускала бы ещё и нативную отправку — второй вызов
+        // обработчика формы либо перезагрузку страницы.
+        type={asChild ? undefined : 'button'}
         // Через `submit` из контекста: внутри сборки он зовёт `onSubmit` только после
         // успешной проверки всей формы. Гейт общий с render-props веткой FormWizardActions.
         onClick={() => {
