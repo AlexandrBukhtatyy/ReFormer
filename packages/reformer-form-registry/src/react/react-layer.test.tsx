@@ -19,6 +19,7 @@ import type { FormEntry, ResolveContext } from '../types';
 import {
   FormRegistryProvider,
   useFormRegistryContext,
+  type FormRegistryOptions,
   type FormRegistryProviderProps,
 } from './context';
 import { FormOutlet, FormSlot } from './form-outlet';
@@ -217,6 +218,92 @@ describe('MountedForm — синхронная сборка', () => {
   });
 });
 
+describe('MountedForm — адаптер полей чужого кита', () => {
+  // Чужой контрол читает значение из `text`, а не из `value`: без адаптера он получил бы пустоту.
+  const ForeignInput: FC<{ text?: unknown }> = ({ text }) => <i>{`чужое:${String(text ?? '')}`}</i>;
+  const foreign = defineRegistry((r) => {
+    r.component('Box', Box as FC);
+    r.component('Foreign', ForeignInput);
+  });
+  const foreignSchema = {
+    format: 2,
+    root: {
+      component: '$component(Box)',
+      children: [{ model: '$model(email)', component: '$component(Foreign)' }],
+    },
+  } as never;
+  const loaded: LoadedForm<Model> = {
+    schema: foreignSchema,
+    registry: foreign,
+    initial: { email: 'почта' },
+  };
+  const mount = (resolveFieldAdapter?: FormRegistryOptions['resolveFieldAdapter']) =>
+    renderToString(
+      <MountedForm<Model>
+        entry={entry({ id: 'a' }) as FormEntry<Model>}
+        loaded={loaded}
+        resolveFieldAdapter={resolveFieldAdapter}
+      />
+    );
+
+  it('резолв адаптера доходит до рендерера: значение уходит в проп диалекта', () => {
+    const html = mount((component) =>
+      component === ForeignInput ? { valueProp: 'text', changeProp: 'onText' } : undefined
+    );
+    expect(html).toContain('чужое:почта');
+  });
+
+  it('без резолва чужой контрол значения не получает', () => {
+    expect(mount()).toContain('чужое:<');
+  });
+});
+
+describe("MountedForm — degrade: 'placeholder'", () => {
+  interface Contact {
+    email: string;
+    phone: string;
+  }
+
+  // Документ ссылается на два незарегистрированных компонента: контейнер с полем внутри и лист.
+  const holes = {
+    format: 2,
+    root: {
+      component: '$component(Box)',
+      children: [
+        {
+          component: '$component(GoneCard)',
+          children: [{ model: '$model(email)', component: '$component(Input)' }],
+        },
+        { model: '$model(phone)', component: '$component(GoneInput)' },
+      ],
+    },
+  } as never;
+  const holeEntry = (degrade?: FormEntry['degrade']): FormEntry<Contact> =>
+    entry({
+      id: 'holes',
+      ...(degrade ? { degrade } : {}),
+      schema: { kind: 'inline', value: holes },
+      initial: { kind: 'inline', value: { email: 'почта', phone: 'телефон' } },
+    }) as unknown as FormEntry<Contact>;
+
+  it('форма рисуется: дети заглушки-контейнера на месте, лист без контрола, обёртка цела', async () => {
+    const e = holeEntry('placeholder');
+    const loaded = await loadForm<Contact>(e, baseRegistry);
+    const html = renderToString(<MountedForm<Contact> entry={e} loaded={loaded} />);
+
+    expect(loaded.placeholders).toEqual(['GoneCard', 'GoneInput']);
+    // Поле внутри пропавшего контейнера отрисовано — форма вокруг дыры осталась целой.
+    expect(html).toContain('поле:<!-- -->почта');
+    // Обёртки у обоих полей, но контрол — только у зарегистрированного: у листа-заглушки его нет.
+    expect(html.match(/data-wrapped="yes"/g)).toHaveLength(2);
+    expect(html).not.toContain('телефон');
+  });
+
+  it("без политики та же запись не загружается — 'error' по умолчанию", async () => {
+    await expect(loadForm<Contact>(holeEntry(), baseRegistry)).rejects.toThrow(/GoneCard/);
+  });
+});
+
 describe('MountedForm — единая сборка (документ формата 2)', () => {
   interface Shape {
     email: string;
@@ -383,14 +470,19 @@ describe('FormRegistryProvider — проброс кэша и опций заг�
   const same = (actual: unknown, expected: unknown): string =>
     actual === undefined ? 'нет' : actual === expected ? 'тот-же' : 'другой';
 
-  const Probe: FC<{ cache?: SchemaCache; fetchImpl?: typeof fetch }> = (expected) => {
+  const Probe: FC<{
+    cache?: SchemaCache;
+    fetchImpl?: typeof fetch;
+    resolveFieldAdapter?: FormRegistryOptions['resolveFieldAdapter'];
+  }> = (expected) => {
     const { cache, options } = useFormRegistryContext();
     // Одной строкой, а не соседними узлами: между двумя текстовыми детьми SSR вставляет
     // разделитель `<!-- -->`, и поиск подстроки по разметке перестал бы находить очевидное.
     const line =
       `кэш:${same(cache, expected.cache)} ` +
       `preflight:${options.preflight ?? 'нет'} ` +
-      `fetch:${same(options.fetchImpl, expected.fetchImpl)}`;
+      `fetch:${same(options.fetchImpl, expected.fetchImpl)} ` +
+      `адаптер:${same(options.resolveFieldAdapter, expected.resolveFieldAdapter)}`;
     return <b>{line}</b>;
   };
 
@@ -402,7 +494,11 @@ describe('FormRegistryProvider — проброс кэша и опций заг�
         baseRegistry={baseRegistry}
         {...props}
       >
-        <Probe cache={props.cache} fetchImpl={props.options?.fetchImpl} />
+        <Probe
+          cache={props.cache}
+          fetchImpl={props.options?.fetchImpl}
+          resolveFieldAdapter={props.options?.resolveFieldAdapter}
+        />
       </FormRegistryProvider>
     );
 
@@ -423,5 +519,13 @@ describe('FormRegistryProvider — проброс кэша и опций заг�
     const html = render({ options: { preflight: 'warn', fetchImpl } });
     expect(html).toContain('preflight:warn');
     expect(html).toContain('fetch:тот-же');
+  });
+
+  it('resolveFieldAdapter доезжает до контекста — оттуда его берёт FormOutlet', () => {
+    // Провайдер разбирает `options` на поля поимённо, и поле, забытое в разборе, до места
+    // монтирования не доходило вовсе — опция молча не работала (ReFormer-934).
+    const resolveFieldAdapter: FormRegistryOptions['resolveFieldAdapter'] = () => undefined;
+    expect(render({ options: { resolveFieldAdapter } })).toContain('адаптер:тот-же');
+    expect(render({})).toContain('адаптер:нет');
   });
 });

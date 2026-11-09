@@ -176,6 +176,53 @@ describe('loadForm — preflight', () => {
     await expect(loadForm(withOwn, base)).resolves.toBeDefined();
   });
 
+  it("degrade 'placeholder': промах заменяется заглушкой, форма загружается, хост узнаёт", async () => {
+    const bad = entry({
+      id: 'a',
+      degrade: 'placeholder',
+      schema: { kind: 'inline', value: badSchema },
+    });
+    const seen: { code: string; level?: string; message: string }[] = [];
+    const loaded = await loadForm(bad, base, { onDiagnostic: (d) => seen.push(d) });
+
+    // Режим preflight по умолчанию — 'error', и без политики та же схема бросает (тест выше).
+    expect(loaded.preflight?.ok).toBe(true);
+    expect(loaded.placeholders).toEqual(['НетТакого']);
+    expect(loaded.registry.get('НетТакого')?.type).toBe('component');
+    expect(loaded.registry.has('Box')).toBe(true); // заглушки легли поверх, база не потеряна
+    expect(seen).toEqual([
+      expect.objectContaining({ code: 'placeholder-components', level: 'warn' }),
+    ]);
+    expect(seen[0].message).toContain('НетТакого');
+  });
+
+  it("degrade 'placeholder' сообщает о заглушках и при выключенном preflight", async () => {
+    // Заглушка — не проверка, а принятое решение: молча показать форму с дырой нельзя.
+    const bad = entry({
+      id: 'a',
+      degrade: 'placeholder',
+      schema: { kind: 'inline', value: badSchema },
+    });
+    const seen: string[] = [];
+    const loaded = await loadForm(bad, base, {
+      preflight: 'off',
+      onDiagnostic: (d) => seen.push(d.code),
+    });
+    expect(seen).toEqual(['placeholder-components']);
+    expect(loaded.placeholders).toEqual(['НетТакого']);
+  });
+
+  it("degrade 'placeholder' без промахов ничего не подменяет", async () => {
+    const loaded = await loadForm(entry({ id: 'a', degrade: 'placeholder' }), base);
+    expect(loaded.placeholders).toBeUndefined();
+    expect(loaded.registry).toBe(base);
+  });
+
+  it("degrade 'error' ведёт себя как политика по умолчанию", async () => {
+    const bad = entry({ id: 'a', degrade: 'error', schema: { kind: 'inline', value: badSchema } });
+    await expect(loadForm(bad, base)).rejects.toBeInstanceOf(FormPreflightError);
+  });
+
   it('без initial и без model — внятная ошибка до сборки формы', async () => {
     const noModel = entry({ id: 'a', initial: undefined });
     await expect(loadForm(noModel, base)).rejects.toThrow(/initial.*model/);

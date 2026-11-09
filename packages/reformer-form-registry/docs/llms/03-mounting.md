@@ -82,8 +82,10 @@ resolveForms(store, query, ctx) =
 
 Форма дополнительно обёрнута в `SchemaErrorBoundary`: ошибка рендера даёт панель ошибки, а не
 белый экран. Границу кладёт в бандл реестр, а `errorFallback` места монтирования её заменяет.
-Неизвестный
-`$component` и прочие промахи документа ловит до сборки preflight (`missing-components`).
+Неизвестный `$component` и прочие промахи документа ловит до сборки preflight
+(`missing-components`) — и форма не монтируется, срабатывает `loadErrorFallback`. Запись с
+`degrade: 'placeholder'` вместо этого монтируется с нейтральными заглушками на месте пропавших
+компонентов, а хост получает диагностику `placeholder-components` (см. `02-form-entry.md`).
 
 Отдельные пропы места монтирования:
 
@@ -106,16 +108,28 @@ React-контекст не пересекает границу бандла: п
 Вместе с реестром едет и производная от него обёртка полей (`$fieldWrapper`): её вместе с деревом
 достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда.
 
-Резолв адаптеров полей чужого кита (`resolveFieldAdapter`) в `options` провайдера реестра
-(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер эту
-опцию дальше не передаёт, и `FormOutlet` её не получает (известный баг). Обход:
+## Адаптеры полей чужого кита
 
-- объявить диалект статикой компонента до регистрации в `baseRegistry` —
-  `defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields` (или
-  `ForeignInput.reformerAdapter = adapter`): рендерер читает её без `resolveFieldAdapter`;
-- либо монтировать без `FormOutlet`: `useFormResource(entry, baseRegistry)` и
-  `<MountedForm entry={entry} loaded={res.data} resolveFieldAdapter={…} />` — `MountedForm` проп
-  принимает и передаёт рендереру.
+Компоненты чужого кита, которые читают значение не из `value` (`checked`, `selected`, своё событие
+вместо `onChange`), подключаются резолвом адаптеров — тем же, что `settings.resolveFieldAdapter` у
+`FormRenderer`. В реестре форм он задаётся один раз, в опциях провайдера:
+
+```tsx
+const resolveFieldAdapter = (component) => adapters.get(component); // ссылка стабильная
+
+<FormRegistryProvider registry={registry} context={ctx} baseRegistry={core} options={{ resolveFieldAdapter }}>
+  <FormOutlet id="checkout" />
+</FormRegistryProvider>;
+```
+
+Все формы, смонтированные `FormOutlet` / `FormSlot` / `FormRoute`, получают его отсюда. При ручной
+сборке без outlet'а (`useFormResource(entry, baseRegistry)` + `MountedForm`) резолв передаётся
+одноимённым пропом: `<MountedForm entry={entry} loaded={res.data} resolveFieldAdapter={…} />`.
+
+Резолв приоритетнее статики компонента: `reformerAdapter` (или `defineFieldControl(ForeignInput,
+{ adapter })` из `@reformer/ui-kit/fields`) берётся, только если резолв вернул `undefined`. Статика
+удобнее, когда компонент ваш, — тогда опция провайдера не нужна. Держите ссылку на резолв
+стабильной: смена ссылки перерисовывает смонтированные формы.
 
 Валидация схемы мета-схемой — ответственность загрузчика (см. `05-preflight.md`), а не монтирования.
 

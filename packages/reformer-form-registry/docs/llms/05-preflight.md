@@ -58,6 +58,12 @@ const loaded = await loadForm(entry, baseRegistry, {
 Единственная проверка уровня `warn` — нематериализованные пути: форма при этом работает, просто её
 валидация частично мертва.
 
+Запись с `degrade: 'placeholder'` до `missing-components` не доходит: загрузчик ещё до проверок
+подставляет нейтральные заглушки на место пропавших компонентов и шлёт в `onDiagnostic`
+`placeholder-components` (`warn`) — при любом режиме preflight, включая `'off'`. Список имён — в
+`loaded.placeholders`. Прямой вызов `preflight()` политику не учитывает и по-прежнему даёт
+`missing-components` уровня `error` — удобно для проверки схем в CI. См. `02-form-entry.md`.
+
 ## Проверяется СОСТАВНОЙ реестр
 
 Preflight получает реестр уже после `composeRegistries(base, own)`. Если бы он смотрел только в

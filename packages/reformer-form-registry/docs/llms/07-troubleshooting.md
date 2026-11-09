@@ -60,6 +60,16 @@ Preflight ловит это как `unmaterialized-model-paths` (уровень 
 Задайте `compatibleSchema` и включите preflight: вместо одного промаха из конвертера вы получите
 полный список плюс проверку версии.
 
+Если форма должна показываться и с пропавшим компонентом, задайте записи `degrade: 'placeholder'`:
+на месте компонента встанет нейтральная заглушка, а `onDiagnostic` получит
+`placeholder-components` (`warn`) со списком имён.
+
+## На месте части формы пусто, но ошибок нет
+
+У записи `degrade: 'placeholder'`, и в реестре нет компонента из схемы. Заглушка своей разметки не
+рисует: у контейнера видны только его дети, у поля — обёртка (подпись, ошибки) без контрола. Какие
+компоненты подменены — в `loaded.placeholders` и в диагностике `placeholder-components`.
+
 ## Форма собралась, но пишет не те поля
 
 CDN отдал чужую схему. Ловится как `schema-identity-mismatch` — сверка `id` записи и `id` схемы.
@@ -113,4 +123,4 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 | поле записи `renderBehavior` (фабрика `RenderBehaviorFn`) | правила узлов — в `behavior`; фабрика `(options) => defineFormBehavior(…)` получает настройки места; правила шагов — в `flow` |
 | проп `renderBehaviorOptions` у `FormOutlet` / `FormSlot` / `MountedForm` | `behaviorOptions` |
 | бандл `createJsonForm` в `onReady` | бандл `createForm` (`FormBundle`) |
-| `resolveFieldAdapter` из `JsonRendererProvider` хоста | диалект статикой компонента (`defineFieldControl`) либо `<MountedForm resolveFieldAdapter>`; опция `<FormRegistryProvider options={{ resolveFieldAdapter }}>` сейчас до `FormOutlet` не доходит (баг), см. `03-mounting.md` |
+| `resolveFieldAdapter` из `JsonRendererProvider` хоста | опция провайдера реестра `<FormRegistryProvider options={{ resolveFieldAdapter }}>` (доходит до `FormOutlet` / `FormSlot` / `FormRoute`), проп `<MountedForm resolveFieldAdapter>` при ручной сборке либо диалект статикой компонента (`defineFieldControl`), см. `03-mounting.md` |

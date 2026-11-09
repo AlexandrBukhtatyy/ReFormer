@@ -8,10 +8,13 @@
  * @module reformer/form-registry/loader
  */
 
+import type { ReactNode } from 'react';
 import type { FormFlowConfig, FormModel } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
 import {
+  collectOperatorNames,
   composeRegistries,
+  defineRegistry,
   migrateJsonSchema,
   type ComponentRegistry,
   type JsonFormSchema,
@@ -31,8 +34,16 @@ import type {
 export interface LoadedForm<T extends object = Record<string, unknown>> {
   /** Документ схемы — всегда формата 2: прежний формат загрузчик переводит при загрузке. */
   schema: JsonFormSchema<T>;
-  /** Базовый реестр, скомпонованный с расширением записи. */
+  /**
+   * Базовый реестр, скомпонованный с расширением записи, — и, при `degrade: 'placeholder'`,
+   * с заглушками на месте незарегистрированных компонентов.
+   */
   registry: ComponentRegistry;
+  /**
+   * Компоненты, которых не нашлось в реестре и вместо которых подставлены заглушки
+   * (`FormEntry.degrade: 'placeholder'`). `undefined` — подставлять было нечего.
+   */
+  placeholders?: string[];
   initial?: T;
   makeModel?: () => FormModel<T>;
   /** Поведение формы либо его фабрика от настроек места монтирования. */
@@ -160,7 +171,10 @@ async function loadCode<T>(
 /**
  * Загружает все части записи, компонует реестр и проверяет результат.
  *
- * Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`).
+ * Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`). При
+ * `entry.degrade: 'placeholder'` незарегистрированные компоненты заменяются нейтральными
+ * заглушками (список — в `placeholders`, диагностика — `placeholder-components`), и
+ * `missing-components` их уже не ловит.
  *
  * @param entry - Запись реестра.
  * @param baseRegistry - Базовый реестр компонентов (общее ядро приложения).
@@ -202,7 +216,29 @@ export async function loadForm<T extends object>(
   );
 
   // Расширение записи перекрывает базу — last-wins, как у Object.assign.
-  const registry = own ? composeRegistries(baseRegistry, own) : baseRegistry;
+  const composed = own ? composeRegistries(baseRegistry, own) : baseRegistry;
+
+  // Политика деградации — до preflight: заглушки закрывают промахи `missing-components`, и
+  // форма с `degrade: 'placeholder'` не падает ни на проверке, ни в синхронном конвертере.
+  // Диагностика шлётся при любом режиме preflight: заглушка — это уже не проверка, а принятое
+  // решение, и хост должен узнать, что форма показана не целиком.
+  const placeholders =
+    entry.degrade === 'placeholder'
+      ? collectOperatorNames(schema).components.filter((n) => !composed.has(n))
+      : [];
+  const registry = placeholders.length
+    ? composeRegistries(composed, placeholderRegistry(placeholders))
+    : composed;
+  if (placeholders.length) {
+    opts.onDiagnostic?.({
+      code: 'placeholder-components',
+      level: 'warn',
+      entryKey: key,
+      message:
+        `в реестре нет компонентов: ${placeholders.join(', ')} — на их месте нейтральные ` +
+        `заглушки (degrade: 'placeholder')`,
+    });
+  }
 
   let checked: PreflightResult | undefined;
   const mode = opts.preflight ?? 'error';
@@ -223,5 +259,26 @@ export async function loadForm<T extends object>(
     validation,
     flow,
     preflight: checked,
+    ...(placeholders.length ? { placeholders } : {}),
   };
+}
+
+/**
+ * Нейтральная заглушка на месте незарегистрированного компонента (`degrade: 'placeholder'`).
+ *
+ * Своей разметки у неё нет: контейнер рисует только своих детей — форма вокруг дыры остаётся
+ * целой, — а у поля остаётся обёртка (подпись, ошибки) без контрола. Возвращает `children` без
+ * `createElement`, поэтому ядру пакета не нужен рантайм React (в `./react` он есть, здесь — нет).
+ */
+function placeholderOf(name: string): (props: { children?: ReactNode }) => ReactNode {
+  const Placeholder = ({ children }: { children?: ReactNode }): ReactNode => children ?? null;
+  Placeholder.displayName = `Placeholder(${name})`;
+  return Placeholder;
+}
+
+/** Реестр заглушек под перечисленные имена — компонуется поверх реестра записи. */
+function placeholderRegistry(names: readonly string[]): ComponentRegistry {
+  return defineRegistry((reg) => {
+    for (const name of names) reg.component(name, placeholderOf(name));
+  });
 }

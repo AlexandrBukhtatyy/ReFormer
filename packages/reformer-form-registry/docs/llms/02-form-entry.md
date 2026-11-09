@@ -26,7 +26,7 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
   access: { permissions: ['orders.write'], flags: ['checkout-v2'] },
 
-  degrade: 'error', // не реализовано: кодом пока не читается
+  degrade: 'error', // дефолт; 'placeholder' — заглушки вместо незарегистрированных компонентов
   meta: { name: 'Оформление заказа', tags: ['orders'] },
 };
 ```
@@ -67,7 +67,7 @@ type CodeSource<T> =
 | `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
-| `degrade` | `'error' \| 'placeholder'` | **не реализовано**: поле есть в типе, но код его не читает — `'placeholder'` ничего не меняет. Незарегистрированный компонент ловит preflight (`missing-components`, см. `05-preflight.md`) |
+| `degrade` | `'error' \| 'placeholder'` | что делать с незарегистрированным компонентом схемы; дефолт `'error'` |
 
 ### `owner` обязателен не для красоты
 
@@ -106,6 +106,32 @@ const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
     });
   });
 ```
+
+### `degrade` — форма с незарегистрированным компонентом
+
+Схема, приехавшая по сети, может сослаться на компонент, которого в реестре нет: схему выкатили
+вперёд кода. Что тогда делать, решает запись — политику читает загрузчик (`loadForm`), поэтому она
+одинаково действует в `FormOutlet` / `FormSlot` / `FormRoute` и при ручной сборке.
+
+| политика | что происходит |
+| --- | --- |
+| `'error'` (дефолт) | preflight даёт `missing-components` уровня `error`, форма не монтируется — место монтирования рисует `loadErrorFallback` |
+| `'placeholder'` | на месте каждого пропавшего компонента — нейтральная заглушка, форма монтируется; `onDiagnostic` получает `placeholder-components` (`warn`) со списком имён — при любом режиме preflight |
+
+Заглушка своей разметки не рисует: контейнер показывает только своих детей (поля внутри пропавшей
+карточки остаются на месте), у поля остаётся обёртка — подпись и ошибки — без контрола. Список
+подменённых имён — в `loaded.placeholders`.
+
+```ts
+const loaded = await loadForm({ ...entry, degrade: 'placeholder' }, baseRegistry, {
+  onDiagnostic: (d) => telemetry.warn(d.code, d.message), // placeholder-components
+});
+loaded.placeholders; // ['PromoBanner']
+```
+
+Политика касается только `$component`: пропавший `$dataSource` / `$fn` по-прежнему
+`missing-data-sources` / `missing-fns` уровня `error`. Для значимых форм (оплата, согласия)
+оставляйте `'error'`: форма без части полей хуже, чем явный отказ.
 
 ## Конфликты `id`
 

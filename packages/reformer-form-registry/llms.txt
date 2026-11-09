@@ -144,7 +144,7 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
   placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
   access: { permissions: ['orders.write'], flags: ['checkout-v2'] },
 
-  degrade: 'error', // не реализовано: кодом пока не читается
+  degrade: 'error', // дефолт; 'placeholder' — заглушки вместо незарегистрированных компонентов
   meta: { name: 'Оформление заказа', tags: ['orders'] },
 };
 ```
@@ -183,7 +183,7 @@ type CodeSource<T> =
 | `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
 | `placement` | `object?` | слоты, маршруты, приоритет |
 | `access` | `object?` | права, флаги, `canRender` |
-| `degrade` | `'error' \| 'placeholder'` | **не реализовано**: поле есть в типе, но код его не читает — `'placeholder'` ничего не меняет. Незарегистрированный компонент ловит preflight (`missing-components`, см. `05-preflight.md`) |
+| `degrade` | `'error' \| 'placeholder'` | что делать с незарегистрированным компонентом схемы; дефолт `'error'` |
 
 ### `owner` обязателен не для красоты
 
@@ -222,6 +222,32 @@ const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
     });
   });
 ```
+
+### `degrade` — форма с незарегистрированным компонентом
+
+Схема, приехавшая по сети, может сослаться на компонент, которого в реестре нет: схему выкатили
+вперёд кода. Что тогда делать, решает запись — политику читает загрузчик (`loadForm`), поэтому она
+одинаково действует в `FormOutlet` / `FormSlot` / `FormRoute` и при ручной сборке.
+
+| политика | что происходит |
+| --- | --- |
+| `'error'` (дефолт) | preflight даёт `missing-components` уровня `error`, форма не монтируется — место монтирования рисует `loadErrorFallback` |
+| `'placeholder'` | на месте каждого пропавшего компонента — нейтральная заглушка, форма монтируется; `onDiagnostic` получает `placeholder-components` (`warn`) со списком имён — при любом режиме preflight |
+
+Заглушка своей разметки не рисует: контейнер показывает только своих детей (поля внутри пропавшей
+карточки остаются на месте), у поля остаётся обёртка — подпись и ошибки — без контрола. Список
+подменённых имён — в `loaded.placeholders`.
+
+```ts
+const loaded = await loadForm({ ...entry, degrade: 'placeholder' }, baseRegistry, {
+  onDiagnostic: (d) => telemetry.warn(d.code, d.message), // placeholder-components
+});
+loaded.placeholders; // ['PromoBanner']
+```
+
+Политика касается только `$component`: пропавший `$dataSource` / `$fn` по-прежнему
+`missing-data-sources` / `missing-fns` уровня `error`. Для значимых форм (оплата, согласия)
+оставляйте `'error'`: форма без части полей хуже, чем явный отказ.
 
 ## 9. Конфликты `id`
 
@@ -322,8 +348,10 @@ resolveForms(store, query, ctx) =
 
 Форма дополнительно обёрнута в `SchemaErrorBoundary`: ошибка рендера даёт панель ошибки, а не
 белый экран. Границу кладёт в бандл реестр, а `errorFallback` места монтирования её заменяет.
-Неизвестный
-`$component` и прочие промахи документа ловит до сборки preflight (`missing-components`).
+Неизвестный `$component` и прочие промахи документа ловит до сборки preflight
+(`missing-components`) — и форма не монтируется, срабатывает `loadErrorFallback`. Запись с
+`degrade: 'placeholder'` вместо этого монтируется с нейтральными заглушками на месте пропавших
+компонентов, а хост получает диагностику `placeholder-components` (см. `02-form-entry.md`).
 
 Отдельные пропы места монтирования:
 
@@ -346,20 +374,32 @@ React-контекст не пересекает границу бандла: п
 Вместе с реестром едет и производная от него обёртка полей (`$fieldWrapper`): её вместе с деревом
 достаёт из реестра сама сборка и кладёт в бандл — `FormRenderer` берёт её оттуда.
 
-Резолв адаптеров полей чужого кита (`resolveFieldAdapter`) в `options` провайдера реестра
-(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер эту
-опцию дальше не передаёт, и `FormOutlet` её не получает (известный баг). Обход:
+## 15. Адаптеры полей чужого кита
 
-- объявить диалект статикой компонента до регистрации в `baseRegistry` —
-  `defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields` (или
-  `ForeignInput.reformerAdapter = adapter`): рендерер читает её без `resolveFieldAdapter`;
-- либо монтировать без `FormOutlet`: `useFormResource(entry, baseRegistry)` и
-  `<MountedForm entry={entry} loaded={res.data} resolveFieldAdapter={…} />` — `MountedForm` проп
-  принимает и передаёт рендереру.
+Компоненты чужого кита, которые читают значение не из `value` (`checked`, `selected`, своё событие
+вместо `onChange`), подключаются резолвом адаптеров — тем же, что `settings.resolveFieldAdapter` у
+`FormRenderer`. В реестре форм он задаётся один раз, в опциях провайдера:
+
+```tsx
+const resolveFieldAdapter = (component) => adapters.get(component); // ссылка стабильная
+
+<FormRegistryProvider registry={registry} context={ctx} baseRegistry={core} options={{ resolveFieldAdapter }}>
+  <FormOutlet id="checkout" />
+</FormRegistryProvider>;
+```
+
+Все формы, смонтированные `FormOutlet` / `FormSlot` / `FormRoute`, получают его отсюда. При ручной
+сборке без outlet'а (`useFormResource(entry, baseRegistry)` + `MountedForm`) резолв передаётся
+одноимённым пропом: `<MountedForm entry={entry} loaded={res.data} resolveFieldAdapter={…} />`.
+
+Резолв приоритетнее статики компонента: `reformerAdapter` (или `defineFieldControl(ForeignInput,
+{ adapter })` из `@reformer/ui-kit/fields`) берётся, только если резолв вернул `undefined`. Статика
+удобнее, когда компонент ваш, — тогда опция провайдера не нужна. Держите ссылку на резолв
+стабильной: смена ссылки перерисовывает смонтированные формы.
 
 Валидация схемы мета-схемой — ответственность загрузчика (см. `05-preflight.md`), а не монтирования.
 
-## 15. Пересоздание при смене версии
+## 16. Пересоздание при смене версии
 
 ```tsx
 <MountedForm key={entryKeyOf(entry)} ... />
@@ -369,7 +409,7 @@ React-контекст не пересекает границу бандла: п
 `useFormBundle` вернул бы старую модель со старой схемой — форма
 визуально «обновилась» бы, а данные остались от прежней версии.
 
-## 16. Быстрый старт
+## 17. Быстрый старт
 
 **Сеть, кэш и хранилище**
 
@@ -396,7 +436,7 @@ const cache = createSchemaCache({ storage: await pickStorage() });
 Кэш нужен только сетевым источникам. У `kind: 'inline'` загрузчик отдаёт значение до кэша, поэтому
 на inline-записях счётчики останутся нулевыми — это норма, а не признак неработающего кэша.
 
-## 17. Загрузка по сети
+## 18. Загрузка по сети
 
 ```ts
 schema: { kind: 'http', url: '/schemas/checkout.json' }
@@ -417,7 +457,7 @@ schema: { kind: 'http', url: '/schemas/checkout.json' }
 
 Причина отказа машиночитаема: `http-error`, `not-json`, `not-a-form-schema`, `aborted`, `network`.
 
-## 18. Два уровня кэша
+## 19. Два уровня кэша
 
 L1 — в памяти: разобранные объекты и промисы «в полёте». L2 — сериализованные тела через
 `StorageStrategy`. Чтение L1 → L2 → сеть; запись сеть → L2 → L1. Устаревшее в L2 ревалидируется
@@ -442,7 +482,7 @@ L1 — в памяти: разобранные объекты и промисы 
 диагностику и уход в сеть, но не исключение. **Кэш выбрасываемый**: `clear()` в любой момент
 безопасен.
 
-## 19. Метрики
+## 20. Метрики
 
 ```ts
 const cache = createSchemaCache({ storage, onEvent: (e) => log.push(e) });
@@ -483,7 +523,7 @@ fetched + refetched + revalidated + error + aborted === stale + miss
 - **`stats()` возвращает копию.** Живой объект потребитель, сравнивающий снимки по ссылке (`useMemo`,
   `useSyncExternalStore`), не увидел бы меняющимся ни разу. Для потока — `onEvent`.
 
-## 20. Стратегии хранения
+## 21. Стратегии хранения
 
 ```ts
 import {
@@ -531,7 +571,7 @@ import {
 LRU по `lastUsedAt`, потолок 32 МБ. Чтение обновляет возраст — иначе LRU выродился бы в FIFO.
 Политика вынесена чистой функцией `selectEvictions` и тестируется отдельно от ввода-вывода.
 
-## 21. Шесть проверок
+## 22. Шесть проверок
 
 **Preflight — проверки до сборки формы**
 
@@ -583,7 +623,7 @@ const loaded = await loadForm(entry, baseRegistry, {
 отсутствие элемента ошибкой не является. Шаблон строки массива (`item`) против начальных значений не
 проверяется: его пути относительны элементу.
 
-## 22. Уровни
+## 23. Уровни
 
 - `error` — форму собирать нельзя, `loadForm` бросает `FormPreflightError`;
 - `warn` — соберётся, но часть поведения молча не сработает; попадает в `loaded.preflight.problems`.
@@ -591,18 +631,24 @@ const loaded = await loadForm(entry, baseRegistry, {
 Единственная проверка уровня `warn` — нематериализованные пути: форма при этом работает, просто её
 валидация частично мертва.
 
-## 23. Проверяется СОСТАВНОЙ реестр
+Запись с `degrade: 'placeholder'` до `missing-components` не доходит: загрузчик ещё до проверок
+подставляет нейтральные заглушки на место пропавших компонентов и шлёт в `onDiagnostic`
+`placeholder-components` (`warn`) — при любом режиме preflight, включая `'off'`. Список имён — в
+`loaded.placeholders`. Прямой вызов `preflight()` политику не учитывает и по-прежнему даёт
+`missing-components` уровня `error` — удобно для проверки схем в CI. См. `02-form-entry.md`.
+
+## 24. Проверяется СОСТАВНОЙ реестр
 
 Preflight получает реестр уже после `composeRegistries(base, own)`. Если бы он смотрел только в
 базовый, любое расширение записи давало бы ложный отказ — и, что хуже, потеря композиции прошла бы
 незамеченной.
 
-## 24. Проверяется документ ПОСЛЕ перевода
+## 25. Проверяется документ ПОСЛЕ перевода
 
 Preflight получает документ формата 2: загрузчик переводит прежний формат (`migrateJsonSchema`) до
 проверок, поэтому preflight видит шаги визарда уже в `children`.
 
-## 25. Валидация схемы мета-схемой
+## 26. Валидация схемы мета-схемой
 
 Стратегия комбинированная:
 
@@ -620,7 +666,7 @@ import { validateSchemaCached, assertSchemaValid } from '@reformer/form-registry
 паре (схема, реестр) через `WeakMap`: схема иммутабельна, повторная проверка того же объекта не
 может дать другой ответ, а `WeakMap` не удерживает схемы от сборки мусора.
 
-## 26. Что ломается
+## 27. Что ломается
 
 **Guard: двойной рантайм**
 
@@ -639,7 +685,7 @@ import { validateSchemaCached, assertSchemaValid } from '@reformer/form-registry
 бандла. В микрофронтах отказ приходит с другой стороны — два независимо собранных бандла грузят по
 своей копии, и ни один из них при этом не «неправильный».
 
-## 27. Как пользоваться
+## 28. Как пользоваться
 
 Каждый бандл при инициализации ставит свои штампы, хост потом спрашивает результат:
 
@@ -660,7 +706,7 @@ import { reportRuntime } from '@reformer/form-registry/guard';
 const { ok, duplicates, observed } = reportRuntime((d) => telemetry.error(d.message));
 ```
 
-## 28. Сравниваются объекты, а не версии
+## 29. Сравниваются объекты, а не версии
 
 Штамп обязан быть объектом или функцией — примитив отвергается с ошибкой. Строка с версией совпала
 бы у разных копий по значению, и дубль остался бы невидимым: **две копии одной и той же версии
@@ -671,7 +717,7 @@ const { ok, duplicates, observed } = reportRuntime((d) => telemetry.error(d.mess
 `CORE_RUNTIME_TOKEN` существует в ядре ровно для этого — быть объектом, уникальным в пределах одной
 копии модуля.
 
-## 29. Строгость — рантайм-флагом
+## 30. Строгость — рантайм-флагом
 
 ```ts
 setRuntimeStrict(true); // бросить на второй копии
@@ -689,7 +735,7 @@ setRuntimeStrict(true); // бросить на второй копии
 Ни на то, ни на другое опираться нельзя. Отсутствие node-глобалей в собранном пакете проверяется
 `scripts/check-no-node-globals.mjs` в CI.
 
-## 30. Ограничение, которое важно понимать
+## 31. Ограничение, которое важно понимать
 
 Guard видит **только те копии, которые сами себя штампанули**. Бандл, не вызвавший `stampRuntime`,
 останется невидимым — из JS нет способа пересчитать все загруженные модули.
@@ -697,7 +743,7 @@ Guard видит **только те копии, которые сами себ�
 Поэтому `checkRuntime()` возвращает не только `duplicates`, но и `observed`: пустой `observed`
 означает «guard просто не подключили», и это НЕ то же самое, что подтверждённое отсутствие дублей.
 
-## 31. Хранилище состояния
+## 32. Хранилище состояния
 
 Состояние лежит в `globalThis` под `Symbol.for('reformer.runtime.v1')`. `Symbol.for` живёт в
 cross-realm registry — это единственный ключ, совпадающий у двух независимо собранных копий модуля.
@@ -706,7 +752,7 @@ cross-realm registry — это единственный ключ, совпад�
 Тот же приём использует и сам реестр форм (`Symbol.for('reformer.form-registry.v1')`) — иначе при
 Module Federation без общего chunk'а хост не увидел бы форм, зарегистрированных ремоутом.
 
-## 32. Форма не появилась, в DOM пусто, ошибок нет
+## 33. Форма не появилась, в DOM пусто, ошибок нет
 
 **Troubleshooting**
 
@@ -726,7 +772,7 @@ console.log(reg.diagnostics); // конфликты id
 Частые причины: микрофронт ещё не смонтировался; `unregister` вызван раньше времени; в `ctx` не
 попало право или флаг из `access`.
 
-## 33. Поля отрисовались голыми — без label, подсказки и места под ошибку
+## 34. Поля отрисовались голыми — без label, подсказки и места под ошибку
 
 Реестр компонентов дошёл, а производная от него обёртка полей (`$fieldWrapper`) — нет. Признак в
 разметке: `<input label="Фамилия">` — атрибут `label` уехал прямо в DOM, потому что его никто не
@@ -735,7 +781,7 @@ console.log(reg.diagnostics); // конфликты id
 Обёртку берёт из реестра формы сама сборка (`registry.resolveSchema`) и кладёт в бандл — проверьте,
 что запись `FIELD_WRAPPER` есть в базовом реестре или в расширении записи.
 
-## 34. Валидация «не работает» на конкретном поле
+## 35. Валидация «не работает» на конкретном поле
 
 Поля нет в начальных значениях → у него нет сигнала → ни поведение, ни замечания к нему не
 привяжутся. Прогон правил разносит замечания через `getNodeForSignal(handle)?.setIssues(...)`, и
@@ -744,14 +790,14 @@ console.log(reg.diagnostics); // конфликты id
 Preflight ловит это как `unmaterialized-model-paths` (уровень `warn`). Проверьте
 `loaded.preflight.problems` — или включите `preflight: 'error'`.
 
-## 35. Замечания есть, а текста нет — показан код
+## 36. Замечания есть, а текста нет — показан код
 
 Правило несёт только код (`required({ code: 'delivery.required' })`), строку по коду даёт словарь.
 Если на месте текста виден сам код, словаря формы нет выше по дереву: оберните место монтирования в
 `ValidationMessagesProvider messages={…}` из `@reformer/cdk` (словарь — `defineIssueMessages`, это
 код, и по сети он не едет).
 
-## 36. Пошаговая валидация молча не срабатывает на одном шаге
+## 37. Пошаговая валидация молча не срабатывает на одном шаге
 
 Шаг переименовали в документе, а `id` в `flow.steps` записи остался прежним. Идентификатор шага
 потока — это **селектор** узла шага, и договорённость держится только на совпадении строк.
@@ -760,7 +806,7 @@ Preflight ловит это как `unmaterialized-model-paths` (уровень 
 расхождение видят сборка («в `flow.steps` есть шаги, для которых в дереве схемы нет узла») и визард
 («шаги схемы и шаги потока расходятся»).
 
-## 37. `Component "..." not found in registry`
+## 38. `Component "..." not found in registry`
 
 Схема ссылается на имя, которого нет в реестре. Если схема сетевая — почти наверняка она ушла вперёд
 кода.
@@ -768,12 +814,22 @@ Preflight ловит это как `unmaterialized-model-paths` (уровень 
 Задайте `compatibleSchema` и включите preflight: вместо одного промаха из конвертера вы получите
 полный список плюс проверку версии.
 
-## 38. Форма собралась, но пишет не те поля
+Если форма должна показываться и с пропавшим компонентом, задайте записи `degrade: 'placeholder'`:
+на месте компонента встанет нейтральная заглушка, а `onDiagnostic` получит
+`placeholder-components` (`warn`) со списком имён.
+
+## 39. На месте части формы пусто, но ошибок нет
+
+У записи `degrade: 'placeholder'`, и в реестре нет компонента из схемы. Заглушка своей разметки не
+рисует: у контейнера видны только его дети, у поля — обёртка (подпись, ошибки) без контрола. Какие
+компоненты подменены — в `loaded.placeholders` и в диагностике `placeholder-components`.
+
+## 40. Форма собралась, но пишет не те поля
 
 CDN отдал чужую схему. Ловится как `schema-identity-mismatch` — сверка `id` записи и `id` схемы.
 Без неё отказ полностью молчалив: форма выглядит работающей.
 
-## 39. `enableWhen` перестал работать / вычисляемые поля затираются
+## 41. `enableWhen` перестал работать / вычисляемые поля затираются
 
 Классический признак **двух копий `@reformer/core`** в одном realm. См. `06-guard.md`: подключите
 `stampRuntime` в каждом бандле и `reportRuntime` в хосте.
@@ -781,12 +837,12 @@ CDN отдал чужую схему. Ловится как `schema-identity-mis
 Проверьте заодно, что `observed` не пуст — пустой означает, что guard просто не подключён, а не что
 дублей нет.
 
-## 40. `Cannot find module '@reformer/renderer-react'` у потребителя
+## 42. `Cannot find module '@reformer/renderer-react'` у потребителя
 
 Пакет монтирует форму через `FormRenderer`, а его типы ссылаются на `RendererSettings`. Пакет
 объявлен в `peerDependencies` — установите его рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
 
-## 41. Схема не грузится по сети
+## 43. Схема не грузится по сети
 
 Смотрите `kind` у `FormFetchError`:
 
@@ -798,7 +854,7 @@ CDN отдал чужую схему. Ловится как `schema-identity-mis
 | `network` | сеть недоступна |
 | `aborted` | отменено — размонтировали последнего ожидающего |
 
-## 42. Кэш отдаёт устаревшую схему
+## 44. Кэш отдаёт устаревшую схему
 
 `maxAgeMs` (дефолт 5 минут) ещё не истёк. Точечно:
 
@@ -808,22 +864,22 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 
 Кэш выбрасываемый — `cache.clear()` безопасен в любой момент.
 
-## 43. Бесконечный цикл рендера, React error #185
+## 45. Бесконечный цикл рендера, React error #185
 
 `useSyncExternalStore` сравнивает снимок по ссылке. Если ваш код оборачивает `registry.list()` в
 `map`/`filter` внутри рендера, каждый вызов даёт новый массив. Сам `list()` ссылку сохраняет, пока
 состав реестра не менялся, — не ломайте это трансформацией на месте, мемоизируйте.
 
-## 44. Удалённое API записи и места монтирования
+## 46. Удалённое API записи и места монтирования
 
 | Было | Стало |
 | --- | --- |
 | поле записи `renderBehavior` (фабрика `RenderBehaviorFn`) | правила узлов — в `behavior`; фабрика `(options) => defineFormBehavior(…)` получает настройки места; правила шагов — в `flow` |
 | проп `renderBehaviorOptions` у `FormOutlet` / `FormSlot` / `MountedForm` | `behaviorOptions` |
 | бандл `createJsonForm` в `onReady` | бандл `createForm` (`FormBundle`) |
-| `resolveFieldAdapter` из `JsonRendererProvider` хоста | диалект статикой компонента (`defineFieldControl`) либо `<MountedForm resolveFieldAdapter>`; опция `<FormRegistryProvider options={{ resolveFieldAdapter }}>` сейчас до `FormOutlet` не доходит (баг), см. `03-mounting.md` |
+| `resolveFieldAdapter` из `JsonRendererProvider` хоста | опция провайдера реестра `<FormRegistryProvider options={{ resolveFieldAdapter }}>` (доходит до `FormOutlet` / `FormSlot` / `FormRoute`), проп `<MountedForm resolveFieldAdapter>` при ручной сборке либо диалект статикой компонента (`defineFieldControl`), см. `03-mounting.md` |
 
-## 45. Purpose
+## 47. Purpose
 
 **Запись единого контракта: документ формата 2 и одно поведение**
 
@@ -833,7 +889,7 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 Формат документа — `reformer://docs/renderer-json`, раздел «JSON-схема: формат 2». Контракт
 целиком — раздел «Единый контракт формы» в `reformer://docs/core`.
 
-## 46. Запись
+## 48. Запись
 
 ```ts
 import type { FormEntry } from '@reformer/form-registry';
@@ -884,7 +940,7 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
 - `validation` — правила формы (`FormValidation`: `rules` | `extras`, `strategy`); без `rules` полный
   набор сборка собирает из правил шагов потока и `extras`.
 
-## 47. Настройки места монтирования
+## 49. Настройки места монтирования
 
 ```tsx
 <FormOutlet id="checkout" behaviorOptions={{ onResult: showToast }} />
@@ -894,7 +950,7 @@ export const checkoutEntry: FormEntry<CheckoutForm> = {
 поэтому они приходят пропом и попадают в фабрику поведения аргументом. Без пропа фабрика получает
 пустой объект. Фабрика вызывается один раз, при сборке формы.
 
-## 48. Документ прежнего формата
+## 50. Документ прежнего формата
 
 Загрузчик (`loadForm`) приводит документ к формату 2 сам — `migrateJsonSchema` на каждой загрузке:
 
@@ -921,7 +977,7 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 
 `LoadedForm.schema` — всегда формат 2.
 
-## 49. onReady
+## 51. onReady
 
 ```tsx
 <FormOutlet id="checkout" onReady={(bundle) => bundle.model.patch(prefill)} />
@@ -930,7 +986,7 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 `onReady` получает собранный бандл (`MountedFormBundle`) — `FormBundle` из `createForm`:
 `{ model, form, render, flow, validate, validateStep, submission, … }`.
 
-## 50. Preflight и части документа
+## 52. Preflight и части документа
 
 Проверки идут по корневому дереву и по именованным частям (`parts`):
 
@@ -943,19 +999,20 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 - шаблон строки массива (`item`) против начальных значений не проверяется: его пути относительны
   элементу, а массив на старте обычно пуст.
 
-## 51. Обёртка поля и адаптеры
+## 53. Обёртка поля и адаптеры
 
 Обёртку поля (`FIELD_WRAPPER`) сборка берёт из реестра формы — базового, скомпонованного с
 расширением записи. Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и
 рендерер ремоута могут жить в разных бандлах.
 
-`resolveFieldAdapter` для компонентов чужого кита в опциях провайдера реестра
-(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) **сейчас не работает**: провайдер опцию
-не передаёт, до `FormOutlet` она не доходит (известный баг). Обход — диалект статикой компонента
-(`defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields`) либо монтирование
-через `useFormResource` + `<MountedForm resolveFieldAdapter={…}>`, см. `03-mounting.md`.
+`resolveFieldAdapter` для компонентов чужого кита задаётся в опциях провайдера реестра
+(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) — смонтированные `FormOutlet` /
+`FormSlot` / `FormRoute` формы передают его рендереру как `settings.resolveFieldAdapter`. При
+ручной сборке — проп `<MountedForm resolveFieldAdapter={…}>`. Свой компонент проще пометить
+статикой (`defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields`), см.
+`03-mounting.md`.
 
-## 52. Частые ошибки
+## 54. Частые ошибки
 
 | Симптом | Причина |
 | --- | --- |
@@ -968,7 +1025,7 @@ await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] }
 | визард: «шаги схемы и шаги потока расходятся» | набор `flow.steps` не совпадает с узлами шагов визарда в документе (порядок шагов визард берёт из потока сам) |
 | правило `hideWhen` узла внутри подформы не срабатывает | корневое поведение не видит узлы частей — подключите поведение подформы через `apply(model.$.group, behavior)` |
 
-## 53. API Reference
+## 55. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1368,14 +1425,24 @@ _Source: src/storage/memory.ts_
 
 **Kind:** `type`
 
-Что делать, если схема ссылается на незарегистрированный компонент.
+Что делать, если схема ссылается на незарегистрированный компонент. Читает загрузчик
+(`loadForm`), поэтому политика одинаково действует в `FormOutlet` / `FormSlot` / `FormRoute`
+и при ручной сборке через `useFormResource` + `MountedForm`.
 
 **Signature:**
 ```typescript
 export type DegradePolicy =
-  /** Не показывать форму, нарисовать панель ошибки. Безопасно для значимых форм. */
+  /**
+   * Не показывать форму: preflight даёт `missing-components` уровня `error`, и при режиме
+   * preflight `'error'` загрузка падает `FormPreflightError` — место монтирования рисует
+   * `loadErrorFallback`. Безопасно для значимых форм. Политика по умолчанию.
+   */
   | 'error'
-  /** Отрисовать форму, на месте узла — нейтральный стаб плюс диагностика. */
+  /**
+   * Отрисовать форму, на месте узла — нейтральный стаб плюс диагностика `placeholder-components`
+   * (уровень `warn`). Стаб своей разметки не имеет: контейнер рисует детей, поле — обёртку без
+   * контрола.
+   */
   | 'placeholder';
 ```
 
@@ -1626,10 +1693,7 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   flow?: CodeSource<FormFlowConfig<T>>;
   placement?: FormPlacement;
   access?: FormAccess;
-  /**
-   * Политика деградации для ЭТОЙ формы. Пока не реализована: поле объявлено, но код реестра его
-   * не читает.
-   */
+  /** Политика деградации для ЭТОЙ формы. По умолчанию `'error'` — см. {@link DegradePolicy}. */
   degrade?: DegradePolicy;
 
   /** Каталожные метаданные: выбор формы в UI, поиск, админка. */
@@ -1862,7 +1926,10 @@ export interface FormRegistryOptions {
   stepHosts?: readonly string[];
   /**
    * Резолв адаптеров полей для компонентов чужого кита — тот же, что `settings.resolveFieldAdapter`
-   * у `FormRenderer`: смонтированные формы получают его отсюда. Держите ссылку стабильной.
+   * у `FormRenderer`. Формы, смонтированные `FormOutlet` / `FormSlot` / `FormRoute`, получают его
+   * отсюда; `MountedForm` без outlet'а принимает его одноимённым пропом. Приоритетнее статики
+   * `reformerAdapter` компонента: она берётся, только если резолв вернул `undefined`. Держите
+   * ссылку стабильной — смена ссылки перерисовывает смонтированные формы.
    */
   resolveFieldAdapter?: RendererSettings['resolveFieldAdapter'];
 }
@@ -2078,8 +2145,16 @@ _Source: src/types.ts_
 export interface LoadedForm<T extends object = Record<string, unknown>> {
   /** Документ схемы — всегда формата 2: прежний формат загрузчик переводит при загрузке. */
   schema: JsonFormSchema<T>;
-  /** Базовый реестр, скомпонованный с расширением записи. */
+  /**
+   * Базовый реестр, скомпонованный с расширением записи, — и, при `degrade: 'placeholder'`,
+   * с заглушками на месте незарегистрированных компонентов.
+   */
   registry: ComponentRegistry;
+  /**
+   * Компоненты, которых не нашлось в реестре и вместо которых подставлены заглушки
+   * (`FormEntry.degrade: 'placeholder'`). `undefined` — подставлять было нечего.
+   */
+  placeholders?: string[];
   initial?: T;
   makeModel?: () => FormModel<T>;
   /** Поведение формы либо его фабрика от настроек места монтирования. */
@@ -2099,7 +2174,10 @@ _Source: src/loader.ts_
 
 Загружает все части записи, компонует реестр и проверяет результат.
 
-Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`).
+Документ схемы прежнего формата переводится в формат 2 (`migrateJsonSchema`). При
+`entry.degrade: 'placeholder'` незарегистрированные компоненты заменяются нейтральными
+заглушками (список — в `placeholders`, диагностика — `placeholder-components`), и
+`missing-components` их уже не ловит.
 
 **Signature:**
 ```typescript

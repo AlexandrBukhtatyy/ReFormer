@@ -113,11 +113,23 @@ export interface FormAccess {
   canRender?: (ctx: ResolveContext) => boolean;
 }
 
-/** Что делать, если схема ссылается на незарегистрированный компонент. */
+/**
+ * Что делать, если схема ссылается на незарегистрированный компонент. Читает загрузчик
+ * (`loadForm`), поэтому политика одинаково действует в `FormOutlet` / `FormSlot` / `FormRoute`
+ * и при ручной сборке через `useFormResource` + `MountedForm`.
+ */
 export type DegradePolicy =
-  /** Не показывать форму, нарисовать панель ошибки. Безопасно для значимых форм. */
+  /**
+   * Не показывать форму: preflight даёт `missing-components` уровня `error`, и при режиме
+   * preflight `'error'` загрузка падает `FormPreflightError` — место монтирования рисует
+   * `loadErrorFallback`. Безопасно для значимых форм. Политика по умолчанию.
+   */
   | 'error'
-  /** Отрисовать форму, на месте узла — нейтральный стаб плюс диагностика. */
+  /**
+   * Отрисовать форму, на месте узла — нейтральный стаб плюс диагностика `placeholder-components`
+   * (уровень `warn`). Стаб своей разметки не имеет: контейнер рисует детей, поле — обёртку без
+   * контрола.
+   */
   | 'placeholder';
 
 /** Запись реестра форм. */
@@ -167,10 +179,7 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
   flow?: CodeSource<FormFlowConfig<T>>;
   placement?: FormPlacement;
   access?: FormAccess;
-  /**
-   * Политика деградации для ЭТОЙ формы. Пока не реализована: поле объявлено, но код реестра его
-   * не читает.
-   */
+  /** Политика деградации для ЭТОЙ формы. По умолчанию `'error'` — см. {@link DegradePolicy}. */
   degrade?: DegradePolicy;
 
   /** Каталожные метаданные: выбор формы в UI, поиск, админка. */

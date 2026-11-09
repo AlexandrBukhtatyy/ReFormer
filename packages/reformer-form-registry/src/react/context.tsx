@@ -29,7 +29,10 @@ export interface FormRegistryOptions {
   stepHosts?: readonly string[];
   /**
    * Резолв адаптеров полей для компонентов чужого кита — тот же, что `settings.resolveFieldAdapter`
-   * у `FormRenderer`: смонтированные формы получают его отсюда. Держите ссылку стабильной.
+   * у `FormRenderer`. Формы, смонтированные `FormOutlet` / `FormSlot` / `FormRoute`, получают его
+   * отсюда; `MountedForm` без outlet'а принимает его одноимённым пропом. Приоритетнее статики
+   * `reformerAdapter` компонента: она берётся, только если резолв вернул `undefined`. Держите
+   * ссылку стабильной — смена ссылки перерисовывает смонтированные формы.
    */
   resolveFieldAdapter?: RendererSettings['resolveFieldAdapter'];
 }
@@ -78,7 +81,9 @@ export function FormRegistryProvider({
   // и держи мы объект в зависимостях целиком — контекст пересоздавался бы каждый рендер.
   // Раньше это стоило лишь лишних ре-рендеров, но с приходом `cache` в зависимости эффекта
   // загрузки такая нестабильность означала бы бесконечную перезагрузку формы.
-  const { onDiagnostic, preflight, fetchImpl, stepHosts } = options ?? {};
+  // Обратная сторона разбора: поле, не перечисленное здесь, до `FormOutlet` не доходит вовсе —
+  // так когда-то молча терялся `resolveFieldAdapter`. Новую опцию добавляйте и сюда, и в объект ниже.
+  const { onDiagnostic, preflight, fetchImpl, stepHosts, resolveFieldAdapter } = options ?? {};
 
   const value = useMemo<FormRegistryContextValue>(
     () => ({
@@ -87,9 +92,20 @@ export function FormRegistryProvider({
       ctx: context,
       baseRegistry,
       cache,
-      options: { onDiagnostic, preflight, fetchImpl, stepHosts },
+      options: { onDiagnostic, preflight, fetchImpl, stepHosts, resolveFieldAdapter },
     }),
-    [registry, entries, context, baseRegistry, cache, onDiagnostic, preflight, fetchImpl, stepHosts]
+    [
+      registry,
+      entries,
+      context,
+      baseRegistry,
+      cache,
+      onDiagnostic,
+      preflight,
+      fetchImpl,
+      stepHosts,
+      resolveFieldAdapter,
+    ]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
