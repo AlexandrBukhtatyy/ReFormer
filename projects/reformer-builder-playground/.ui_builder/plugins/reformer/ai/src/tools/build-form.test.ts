@@ -272,6 +272,27 @@ describe('build_form', () => {
     );
     expect(out.error?.code).toBe('INVALID_PARAMS');
     expect(out.text).toContain('pass parent');
+    // Оба выхода: о новой форме — create_form, а не родитель в старой (ReFormer-9a9c).
+    expect(out.text).toContain('call create_form');
+  });
+
+  it('поля образца грамматики названы в ответе; форма о другом — без замечания', async () => {
+    const copied = expectBuilt(await build({ intent: BUILD_FORM_EXAMPLE }));
+    expect(copied.out.text).toMatch(/Fields email, kind, inn.* match the grammar example/);
+
+    const vet = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'petName', component: 'Input', label: 'Кличка' },
+            { name: 'reason', component: 'Input', label: 'Причина' },
+            { name: 'email', component: 'Input', label: 'Почта' },
+          ],
+        },
+      })
+    );
+    // Одно совпадение имени — не копия образца.
+    expect(vet.out.text).not.toContain('grammar example');
   });
 
   it('поле, которое уже есть в форме, не добавляется второй раз', async () => {

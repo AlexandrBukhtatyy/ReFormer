@@ -20,6 +20,20 @@ import { formToolFail, formToolOk, type FormAgentTool } from '@reformer/builder-
 /** Имя модуля — имя его каталога и основа имён в коде: латиница в kebab-case. */
 const MODULE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
+/**
+ * Имя модуля из того, что прислала модель. Небольшая модель пишет путь по образцу открытой формы —
+ * `forms/eval/schema/restaurant-review`. Отказ на такое имя она не исправляла, а бросала создание
+ * и достраивала открытую форму (ReFormer-9a9c, замер на qwen3.5:4b: 47 запросов вместо трёх).
+ * Поэтому путь, чей последний сегмент — годное имя, принимается этим сегментом. Каталог из пути
+ * не берётся: в нём легко оказаться внутри чужого модуля (`…/schema/`).
+ */
+function moduleNameOf(raw: string): { name: string; fromPath: boolean } {
+  const name = raw.trim();
+  if (MODULE_NAME.test(name) || !name.includes('/')) return { name, fromPath: false };
+  const last = name.replace(/\/+$/, '').split('/').at(-1) ?? '';
+  return MODULE_NAME.test(last) ? { name: last, fromPath: true } : { name, fromPath: false };
+}
+
 /** Предел описания шаблона в списке: список — для выбора, а не для чтения. */
 const DESCRIPTION_LIMIT = 160;
 
@@ -88,11 +102,11 @@ export const createFormTool: FormAgentTool<CreateParams> = {
     if (create === undefined) {
       return formToolFail('UNAVAILABLE', 'Creating forms is not available in this builder.');
     }
-    const name = params.name.trim();
+    const { name, fromPath } = moduleNameOf(params.name);
     if (!MODULE_NAME.test(name)) {
       return formToolFail(
         'INVALID_PARAMS',
-        `name "${name}": kebab-case latin, e.g. credit-application.`
+        `name "${name}": the folder name only, kebab-case latin, e.g. credit-application.`
       );
     }
     const outcome = await create({
@@ -104,8 +118,10 @@ export const createFormTool: FormAgentTool<CreateParams> = {
     const from = outcome.template === null ? 'empty' : `from template "${outcome.template}"`;
     // Несохранённая форма открыта и правится так же: ход пишет только в рабочую копию.
     const unsaved = outcome.unsaved === undefined ? '' : ' Not saved to the project yet.';
+    const renamed = fromPath ? ` Name taken from the path: ${name}.` : '';
     return formToolOk(
-      `Created ${outcome.path} (${from}).${unsaved} This turn continues on it — stop here.`
+      `Created ${outcome.path} (${from}).${renamed}${unsaved} This turn continues on it — stop ` +
+        'here.'
     );
   },
 };

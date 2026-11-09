@@ -13,6 +13,14 @@
 
 import { commonProps, listComponents, wizardNames, type Catalog } from '../model/catalog-digest';
 
+/**
+ * Новая форма о другом — `create_form`, а не достройка открытой. Ход идёт в форму вкладки, и
+ * просьба о другой форме дописывалась в неё (ReFormer-9a9c). «С содержимым» — намеренно: пустая
+ * открытая форма — законная цель такой просьбы. Одна строка на оба режима, структурный и файлов.
+ */
+export const NEW_FORM_RULE =
+  'A new form on another subject → create_form; never build it into a form with content.';
+
 /** Сколько контейнеров назвать в промпте: остальные модель добирает через `list_components`. */
 const CONTAINERS_IN_PROMPT = 12;
 
@@ -113,6 +121,7 @@ call with every component name you need.
 ## Hard rules
 
 ${bulk}
+- ${NEW_FORM_RULE}
 - Names are never invented. Editor components — from the lists above or list_components;
   ReFormer API (operators, validation) — ask ask_reformer. An invented name is refused by the
   editor, and the refusal costs you a step.

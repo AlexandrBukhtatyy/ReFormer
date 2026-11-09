@@ -43,6 +43,33 @@ describe('create_form', () => {
     expect(createForm).not.toHaveBeenCalled();
   });
 
+  it('путь вместо имени — берётся последний сегмент, модель узнаёт об этом', async () => {
+    // Замер ReFormer-9a9c: qwen3.5:4b прислала путь по образцу открытой формы, на отказ не
+    // исправила имя и достроила открытую форму — 47 запросов вместо трёх.
+    const createForm = vi.fn().mockResolvedValue({
+      ok: true,
+      path: 'forms/restaurant-review/schema/form.schema.json',
+      template: null,
+    });
+    const outcome = await createFormTool.run(
+      { name: 'forms/eval/schema/restaurant-review' },
+      contextWith({ createForm })
+    );
+    expect(createForm).toHaveBeenCalledWith({ name: 'restaurant-review' });
+    expect(outcome.text).toContain('Name taken from the path: restaurant-review.');
+  });
+
+  it('путь, чей последний сегмент не годится, — отказ', async () => {
+    const createForm = vi.fn();
+    const outcome = await createFormTool.run(
+      { name: 'forms/eval/schema/form.schema.json' },
+      contextWith({ createForm })
+    );
+    expect(outcome.error?.code).toBe('INVALID_PARAMS');
+    expect(outcome.text).toContain('the folder name only');
+    expect(createForm).not.toHaveBeenCalled();
+  });
+
   it('создала — модель узнаёт путь и что ход продолжится на новой форме', async () => {
     const createForm = vi.fn().mockResolvedValue({
       ok: true,

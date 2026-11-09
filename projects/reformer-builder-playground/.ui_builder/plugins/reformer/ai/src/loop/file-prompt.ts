@@ -28,6 +28,7 @@ import {
 } from '../../../core/codegen/layout';
 import { STEP_SCHEMA_MARKER } from '../../../core/form-model';
 import { commonProps, listComponents, type Catalog } from '../model/catalog-digest';
+import { NEW_FORM_RULE } from './prompt';
 
 /** Сколько контейнеров назвать в промпте: остальные модель добирает через `list_components`. */
 const CONTAINERS_IN_PROMPT = 12;
@@ -76,6 +77,7 @@ A field binds to the model with "model": "$model(applicant.email)" and takes its
 
 ## Editing
 
+- ${NEW_FORM_RULE}
 - old_string is copied exactly, without the line-number prefix, with enough context to be unique.
 - All edits of one file go in ONE edit_file call; edits of different files may share a step.
 - Work step by step: a whole wizard step with all its fields in one edit, then the next. If the work does not fit, do part of it and say what is left.

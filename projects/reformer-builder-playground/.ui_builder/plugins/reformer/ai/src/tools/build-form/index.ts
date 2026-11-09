@@ -48,7 +48,7 @@ import { INSERT_MAX_NODES, insertNodeTool } from '../insert-node';
 import { REF_PROP } from '../params';
 import { setFormRulesTool } from '../set-form-rules';
 import { setRenderRulesTool } from '../set-render-rules';
-import { buildFormGrammar } from './grammar';
+import { BUILD_FORM_EXAMPLE, buildFormGrammar } from './grammar';
 import { liftInline } from './lift';
 import { planOf, type PlanNode } from './plan';
 
@@ -161,9 +161,12 @@ export const buildFormTool: AgentTool<Params> = {
     // собирает её заново от базы: правка intent и пересборка, как у `form_build`.
     const rebuild = params.parent === undefined;
     if (rebuild && buildOutline(ctx.base).length > 1) {
+      // Отказ называет оба выхода. Прежний текст называл один — «передай parent», — и модель,
+      // которую просили о новой форме, послушно искала родителя в старой (ReFormer-9a9c).
       return fail(
         'INVALID_PARAMS',
-        'The form already has content: pass parent — the step or section to add to.'
+        'The form already has content. A new form the user asked for: call create_form. To add ' +
+          'to this form: pass parent — the step or section.'
       );
     }
     const start = rebuild
@@ -568,6 +571,13 @@ function reply(intent: FormIntent, notices: readonly IntentWarning[], state: Pla
   }
   const lost = notKept(intent);
   if (lost.length > 0) lines.push(`Not kept: ${lost.join('; ')}.`);
+  const sample = sampleFields(intent);
+  if (sample.length > 0) {
+    lines.push(
+      `Fields ${sample.join(', ')} match the grammar example; keep them only if the user asked ` +
+        'for them.'
+    );
+  }
   const notes = notices.slice(0, MAX_NOTES).map(noticeText);
   if (notes.length > 0) lines.push(`Notes:\n${notes.map((n) => `- ${n}`).join('\n')}`);
   lines.push(
@@ -576,6 +586,26 @@ function reply(intent: FormIntent, notices: readonly IntentWarning[], state: Pla
   );
   const text = lines.join('\n');
   return text.length <= TOOL_TEXT_BUDGET ? text : `${text.slice(0, TOOL_TEXT_BUDGET - 1)}…`;
+}
+
+/** Имена полей и массивов образца грамматики, в нижнем регистре. */
+const SAMPLE_NAMES: ReadonlySet<string> = new Set(
+  [...BUILD_FORM_EXAMPLE.fields, ...BUILD_FORM_EXAMPLE.arrays].map((f) => f.name.toLowerCase())
+);
+
+/** С какого числа совпадений с образцом intent похож на его копию, а не на совпадение имён. */
+const SAMPLE_MATCH_MIN = 3;
+
+/**
+ * Поля intent с именами образца грамматики — если их не меньше {@link SAMPLE_MATCH_MIN}. Образец
+ * идёт в затравке каждой пустой формы, и небольшая модель переносит его поля в форму о другом
+ * (ReFormer-9a9c). Отказывать нельзя: форма заказа законно содержит email, price и total. Поэтому
+ * сборка только называет совпадения, а решает модель — по запросу.
+ */
+function sampleFields(intent: FormIntent): string[] {
+  const names = [...intent.fields, ...intent.arrays].map((f) => f.name.split('.').at(-1) ?? f.name);
+  const matched = [...new Set(names.filter((name) => SAMPLE_NAMES.has(name.toLowerCase())))];
+  return matched.length >= SAMPLE_MATCH_MIN ? matched : [];
 }
 
 /** Что из intent документу билдера положить некуда — называется, а не теряется молча. */

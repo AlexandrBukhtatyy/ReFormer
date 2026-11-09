@@ -44,6 +44,16 @@ const OUTLINE_SEED_LEAD =
   'required, by its property or a rule; a field without the mark is optional.';
 
 /**
+ * Новая форма — не в эту. Ход идёт в форму вкладки, а после `create_form` вкладкой становится
+ * созданная: следующая просьба «сделай форму X» приходила в режим правки прошлой формы, и модель
+ * дописывала X в неё (ReFormer-9a9c: на qwen3.5:4b — 3 хода из 6). Строка — в затравке непустой
+ * формы: пустая — законная цель такой просьбы, её заполняют, а не заводят ещё одну. Режим файлов
+ * пустоту модуля не знает — там то же условное правило стоит в промпте (`NEW_FORM_RULE`).
+ */
+export const NEW_FORM_SEED =
+  'A request for a new form on another subject → create_form; this form stays as it is.';
+
+/**
  * Затравка пустой формы. Без неё ход по пустой форме — а это каждое продолжение после
  * `create_form` — начинался с `get_form_outline`: модель не знала, куда вставлять, и шла
  * спрашивать. Одна строка вместо целого обращения к модели.
@@ -79,7 +89,11 @@ export function formSeed(
   const locksText = renderLocksSeed(locks);
   if (entries.length <= 1) return [empty, rulesText, locksText].filter(Boolean).join('\n\n');
   const map = renderOutline(entries, OUTLINE_SEED_BUDGET);
-  return `${OUTLINE_SEED_LEAD}\n${[map, rulesText, locksText].filter(Boolean).join('\n\n')}`;
+  // Указание — до карты: карта помечена как данные, и строка после неё читалась бы ими же.
+  return (
+    `${NEW_FORM_SEED}\n\n${OUTLINE_SEED_LEAD}\n` +
+    [map, rulesText, locksText].filter(Boolean).join('\n\n')
+  );
 }
 
 /** Пометка, отделяющая содержимое модуля от инструкций. */

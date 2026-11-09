@@ -95,6 +95,7 @@ export function buildFormGrammar(catalog: Catalog): string {
         'Rules of a row: "each":"children", target is the row field.\n';
   return `# build_form intent
 
+Examples show the SYNTAX on a sample form: build only the fields of the user's request, never the sample's.
 One object — fields, layout and rules of a whole form, a step or a block. Compact JSON.
 {"fields":[…],"arrays":[…],"steps":[…],"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…]}
 

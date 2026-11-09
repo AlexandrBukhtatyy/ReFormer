@@ -16,9 +16,11 @@
  * `EVAL_BUILD_FORM=0` — структурный режим без `build_form`, как до него (база замера плана
  * mcp-misty-graham, этап 2; по умолчанию `build_form` в наборе, как в билдере),
  * `EVAL_DUMP=<каталог>` — тело каждого запроса к модели и сырой ответ сервера файлами: по ним
- * видно то, что до хода не дошло (вызов, который сервер не разобрал).
+ * видно то, что до хода не дошло (вызов, который сервер не разобрал),
+ * `EVAL_REPEATS=<n>` — каждый сценарий n раз.
  * Итог — таблицей в консоль и JSON в `.tmp/eval/` корня репозитория. Отчёт —
- * `docs/mcp-eval/builder-form-scenarios.md`.
+ * `docs/mcp-eval/builder-form-scenarios.md`; сценарии N и метрики лишних полей —
+ * `docs/mcp-eval/builder-new-form-routing.md`.
  *
  * @module plugins/reformer/integration/assistant-scenarios-eval.test
  */
@@ -43,6 +45,7 @@ import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
 import { createFakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
+import { BUILD_FORM_EXAMPLE } from '../ai/src/tools/build-form/grammar';
 import type { AiAssistant } from '../../forms/ai/src/plugin';
 import type { FormCreatorService, ModuleGeneratorService } from '@reformer/builder-plugin-api';
 import type { TurnTelemetry } from '../../forms/ai/src/session/telemetry';
@@ -87,6 +90,12 @@ const ONLY = (process.env.EVAL_ONLY ?? '')
   .split(',')
   .map((id) => id.trim())
   .filter(Boolean);
+/**
+ * Сколько раз прогнать каждый сценарий. Разброс модели велик (22.1 шёл от 246 до 1146 с), и
+ * вердикт одного прогона — не доля. Повторы ложатся в один JSON с полем `repeat`; `mcp:compare`
+ * складывает их в долю прошедших по сценарию.
+ */
+const REPEATS = Math.max(1, Number(process.env.EVAL_REPEATS ?? 1) || 1);
 /** Предел шагов хода: сценарии в десяток полей укладываются, зацикливание — нет. */
 const MAX_STEPS = 24;
 
@@ -221,6 +230,13 @@ const labelOf = (node: Node): string => String(node.componentProps?.label ?? '')
 
 interface EvalState {
   readonly schema: JsonFormSchema | null;
+  /**
+   * Форма, созданная ходом (первая из `created`), — её рабочая копия после хода. Ход, создавший
+   * форму со вкладки другой, правит новую, а `schema` остаётся формой реплики человека.
+   */
+  readonly createdSchema: JsonFormSchema | null;
+  /** Документ, открытый до хода ({@link DOCUMENT}), после хода; формы не было — `null`. */
+  readonly documentSchema: JsonFormSchema | null;
   readonly rules: FormRules;
   readonly tools: readonly ToolLogEntry[];
   readonly text: string;
@@ -262,7 +278,113 @@ interface EvalScenario {
    * собравший 20 полей из 25, и ход, не собравший ничего, падают одинаково.
    */
   readonly coverage?: (state: EvalState) => Coverage;
+  /**
+   * Ключи полей, которые заказаны, — у сценариев, где они названы в запросе. По ним считаются
+   * лишние поля и поля образца грамматики в форме-результате ({@link resultSchema}).
+   */
+  readonly expectFields?: readonly string[];
+  /** Сколько полей заказано, когда ключи в запросе не названы: лишние — только числом. */
+  readonly expectFieldCount?: number;
 }
+
+/**
+ * Форма-результат хода: созданная, если ход создал форму, иначе форма хода. Лишние поля ищутся в
+ * ней: ход, создавший форму со вкладки анкеты, собирает поля в новой.
+ */
+const resultSchema = (s: EvalState): JsonFormSchema | null => s.createdSchema ?? s.schema;
+
+/** Ключи полей формы — последний сегмент пути модели, в нижнем регистре. */
+const fieldKeys = (schema: JsonFormSchema | null): string[] =>
+  fieldsOf(schema).map((f) => keyOf(modelOf(f)).toLowerCase());
+
+/**
+ * Ключи полей образца грамматики `build_form`: поля и массивы {@link BUILD_FORM_EXAMPLE}, плюс поля
+ * секции и шага, которые грамматика показывает строкой (`series`, `number`, `city`). Форма по
+ * описанию, в которой они есть без заказа, переписала образец.
+ */
+const EXAMPLE_KEYS: ReadonlySet<string> = new Set(
+  [
+    ...BUILD_FORM_EXAMPLE.fields.map((f) => f.name),
+    ...BUILD_FORM_EXAMPLE.arrays.map((a) => a.name),
+    'series',
+    'number',
+    'city',
+  ].map((key) => key.toLowerCase())
+);
+
+/** Лишнее против заказанного: ключи вне заказа, их число и ключи образца среди них. */
+interface Extra {
+  readonly fields: readonly string[] | null;
+  readonly count: number | null;
+  readonly leaked: readonly string[];
+}
+
+/** Ключи полей стартовой формы сценария. */
+function startKeys(scenario: EvalScenario): string[] {
+  if (scenario.form === 'client') return fieldKeys(CLIENT);
+  if (scenario.form === 'wizard') return fieldKeys(WIZARD);
+  return [];
+}
+
+function extraOf(scenario: EvalScenario, s: EvalState): Extra {
+  // Результат — стартовая форма (ход ничего не создал): её прежние поля не лишние, лишнее — только
+  // то, что ход в неё добавил. Иначе анкета клиента, сама говорящая на словаре образца, давала бы
+  // ложную «утечку» email, kind, inn, price… в каждом ходе, не создавшем форму.
+  const before = s.createdSchema === null ? new Set(startKeys(scenario)) : new Set<string>();
+  const keys = fieldKeys(resultSchema(s)).filter((key) => !before.has(key));
+  if (scenario.expectFields !== undefined) {
+    const expected = new Set(scenario.expectFields.map((key) => key.toLowerCase()));
+    const fields = keys.filter((key) => !expected.has(key));
+    return { fields, count: fields.length, leaked: fields.filter((key) => EXAMPLE_KEYS.has(key)) };
+  }
+  if (scenario.expectFieldCount !== undefined) {
+    return {
+      fields: null,
+      count: Math.max(0, keys.length - scenario.expectFieldCount),
+      leaked: [],
+    };
+  }
+  return { fields: null, count: null, leaked: [] };
+}
+
+/**
+ * Проверка формы по заказанным ключам: все на месте и ничего сверх них. Регистр ключа не важен,
+ * группа — тоже (сравнивается последний сегмент пути).
+ */
+function exactFields(schema: JsonFormSchema | null, expected: readonly string[]): string | null {
+  const keys = fieldKeys(schema);
+  const want = expected.map((key) => key.toLowerCase());
+  const missing = want.filter((key) => !keys.includes(key));
+  if (missing.length > 0) return `нет полей: ${missing.join(', ')}`;
+  const extra = keys.filter((key) => !want.includes(key));
+  return extra.length > 0 ? `лишние поля: ${extra.join(', ')}` : null;
+}
+
+/** Анкета клиента после хода та же, что до него, — по ключам полей; изменилась — что именно. */
+function clientUntouched(s: EvalState): string | null {
+  const before = fieldKeys(CLIENT);
+  const after = fieldKeys(s.documentSchema);
+  const added = after.filter((key) => !before.includes(key));
+  const lost = before.filter((key) => !after.includes(key));
+  if (added.length === 0 && lost.length === 0) return null;
+  return (
+    'анкета клиента изменилась:' +
+    (added.length > 0 ? ` +${added.join(', +')}` : '') +
+    (lost.length > 0 ? ` −${lost.join(', −')}` : '')
+  );
+}
+
+/** Ключи полей сценариев N: новая форма по описанию — запись к ветеринару и отзыв о ресторане. */
+const VET_KEYS = ['petName', 'species', 'visitDate', 'reason', 'ownerPhone'];
+const REVIEW_KEYS = ['rating', 'serviceOk', 'comment', 'replyEmail'];
+const VET_REQUEST =
+  'Сделай новую форму записи к ветеринару, ключи полей — в скобках: кличка питомца (petName), ' +
+  'вид животного (species: кошка, собака, другое), дата визита (visitDate), причина обращения ' +
+  '(reason), телефон владельца (ownerPhone).';
+const REVIEW_REQUEST =
+  'Нужна анкета отзыва о ресторане, ключи полей — в скобках: оценка от 1 до 5 (rating), ' +
+  'понравилось ли обслуживание (serviceOk, флажок), комментарий (comment), email для ответа ' +
+  '(replyEmail).';
 
 /** Собранное против заказанного: поля и правила. */
 interface Coverage {
@@ -358,6 +480,7 @@ const SCENARIOS: readonly EvalScenario[] = [
     title: 'форма по одной фразе без открытой формы',
     form: 'none',
     request: 'Сделай анкету для заявки на кредит: ФИО, телефон, сумма кредита и срок в месяцах.',
+    expectFieldCount: 4,
     check: (s) =>
       s.created.length !== 1
         ? 'форма не создана'
@@ -372,6 +495,7 @@ const SCENARIOS: readonly EvalScenario[] = [
     title: 'заполнить пустую форму по описанию',
     form: 'empty',
     request: 'Добавь в форму поля: имя, электронная почта и телефон.',
+    expectFieldCount: 3,
     check: (s) =>
       fieldsOf(s.schema).length < 3
         ? `полей ${fieldsOf(s.schema).length} из 3`
@@ -639,6 +763,7 @@ const SCENARIOS: readonly EvalScenario[] = [
     form: 'none',
     otherForms: OTHER_FORMS,
     request: 'Сделай новую форму обратной связи: имя, почта и сообщение.',
+    expectFieldCount: 3,
     check: (s) =>
       s.tools.some((t) => t.name === 'choose_form')
         ? 'выбрана существующая форма'
@@ -681,6 +806,7 @@ const SCENARIOS: readonly EvalScenario[] = [
       return rules[0] < 7 ? `правил ${rules[0]} из ${rules[1]}` : null;
     },
     coverage: (s) => b1Coverage(s),
+    expectFields: B1_STEPS.flat(),
   },
   {
     id: 'B.2',
@@ -731,6 +857,53 @@ const SCENARIOS: readonly EvalScenario[] = [
       rules: [s.rules.behavior.some((b) => b.kind.startsWith('copyFrom')) ? 1 : 0, 1],
     }),
   },
+  // ── Новая форма по описанию: куда идёт ход и что в неё попадает (ReFormer-9a9c) ──
+  // Предметы не пересекаются со словарём образца грамматики `build_form` и анкеты клиента: поле
+  // образца в результате видно как лишнее, а не теряется среди заказанных.
+  {
+    id: 'N.1',
+    title: 'новая форма, когда открыта другая, — запись к ветеринару',
+    form: 'client',
+    request: VET_REQUEST,
+    expectFields: VET_KEYS,
+    check: (s) => {
+      if (s.created.length !== 1) return `создано форм: ${s.created.length}`;
+      return clientUntouched(s) ?? exactFields(s.createdSchema, VET_KEYS);
+    },
+  },
+  {
+    id: 'N.2',
+    title: 'новая форма, когда открыта другая, — отзыв о ресторане',
+    form: 'client',
+    request: REVIEW_REQUEST,
+    expectFields: REVIEW_KEYS,
+    check: (s) => {
+      if (s.created.length !== 1) return `создано форм: ${s.created.length}`;
+      return clientUntouched(s) ?? exactFields(s.createdSchema, REVIEW_KEYS);
+    },
+  },
+  {
+    id: 'N.3',
+    title: 'форма по описанию без открытой формы — без полей образца',
+    form: 'none',
+    request: VET_REQUEST,
+    expectFields: VET_KEYS,
+    check: (s) =>
+      s.created.length !== 1
+        ? `создано форм: ${s.created.length}`
+        : exactFields(resultSchema(s), VET_KEYS),
+  },
+  {
+    id: 'N.4',
+    title: 'пустая открытая форма заполняется, новая не создаётся',
+    form: 'empty',
+    request: REVIEW_REQUEST,
+    expectFields: REVIEW_KEYS,
+    check: (s) =>
+      s.created.length > 0
+        ? `создана форма: ${s.created.join(', ')}`
+        : exactFields(s.schema, REVIEW_KEYS),
+  },
 ];
 
 /** Покрытие B.1: поля по ключам запроса, правила — по списку {@link b1Rules}. */
@@ -779,6 +952,16 @@ interface EvalResult {
   readonly written: readonly string[];
   /** Собранное против заказанного — у сценариев крупной сборки, иначе `null`. */
   readonly coverage: Coverage | null;
+  /** Номер повтора сценария в прогоне ({@link REPEATS}), с единицы. */
+  readonly repeat: number;
+  /** Форм, созданных ходом (`create_form`). */
+  readonly createdForms: number;
+  /** Ключи полей вне заказа — у сценариев с названными ключами, иначе `null`. */
+  readonly extraFields: readonly string[] | null;
+  /** Сколько полей сверх заказа; заказ неизвестен — `null`. */
+  readonly extraCount: number | null;
+  /** Поля образца грамматики `build_form` среди лишних. */
+  readonly leakedExample: readonly string[];
 }
 
 /** Строка моста о коде, напечатанном записью хода, — не вызов модели. */
@@ -822,19 +1005,27 @@ function telemetryOf(summary: TurnTelemetry | null) {
   };
 }
 
-async function runScenario(scenario: EvalScenario): Promise<EvalResult> {
-  const undump =
-    DUMP === undefined
-      ? () => undefined
-      : dumpExchanges(DUMP, () => scenario.id.replace(/\W/g, '_'));
+async function runScenario(scenario: EvalScenario, repeat: number): Promise<EvalResult> {
+  const label = `${scenario.id.replace(/\W/g, '_')}${REPEATS > 1 ? `-r${repeat}` : ''}`;
+  const undump = DUMP === undefined ? () => undefined : dumpExchanges(DUMP, () => label);
   try {
-    return await runScenarioOnce(scenario);
+    return await runScenarioOnce(scenario, repeat);
   } finally {
     undump();
   }
 }
 
-async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
+/** Схема из текста; текста нет или он не разбирается — `null`. */
+function schemaOf(text: string | null | undefined): JsonFormSchema | null {
+  if (text === null || text === undefined) return null;
+  try {
+    return parseSchemaText(text);
+  } catch {
+    return null;
+  }
+}
+
+async function runScenarioOnce(scenario: EvalScenario, repeat: number): Promise<EvalResult> {
   const files = createFakeFiles();
   const host = createFakeHost(files);
   // Генерация — настоящая: ею ход пишет правила в код модуля.
@@ -963,17 +1154,15 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
   const entries = session.get().entries;
   const target =
     entries.find((entry) => entry.role === 'user')?.snapshot?.resource ?? host.activeResource();
-  const text = target === null ? null : (host.documentOf(target)?.getText() ?? null);
-  let schema: JsonFormSchema | null = null;
-  try {
-    schema = text === null ? null : parseSchemaText(text);
-  } catch {
-    schema = null;
-  }
+  const textOf = (path: string): string | null =>
+    host.documentOf(path)?.getText() ?? files.text(path) ?? null;
+  const schema = target === null ? null : schemaOf(textOf(target));
   const rules = target === null ? emptyRules() : (await readRuleCode(files, target, target)).rules;
   const last = entries.at(-1);
   const state: EvalState = {
     schema,
+    createdSchema: created.length === 0 ? null : schemaOf(textOf(created[0])),
+    documentSchema: scenario.form === 'none' ? null : schemaOf(textOf(DOCUMENT)),
     rules,
     // Все реплики ассистента: выбор формы и правки после него могут лечь в разные.
     tools: entries.filter((entry) => entry.role === 'assistant').flatMap((entry) => entry.tools),
@@ -987,6 +1176,7 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
   const reason = timedOut
     ? `остановлен через ${SCENARIO_LIMIT_MS / 60_000} мин`
     : scenario.check(state);
+  const extra = extraOf(scenario, state);
   return {
     id: scenario.id,
     title: scenario.title,
@@ -1010,6 +1200,11 @@ async function runScenarioOnce(scenario: EvalScenario): Promise<EvalResult> {
     ...telemetryOf(telemetry),
     written: [...new Set(files.writes.map((write) => write.path))].sort(),
     coverage: scenario.coverage?.(state) ?? null,
+    repeat,
+    createdForms: created.length,
+    extraFields: extra.fields,
+    extraCount: extra.count,
+    leakedExample: extra.leaked,
   };
 }
 
@@ -1018,23 +1213,35 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
   const chosen = SCENARIOS.filter((scenario) => ONLY.length === 0 || ONLY.includes(scenario.id));
 
   for (const scenario of chosen) {
-    it(`[${scenario.id}] ${scenario.title}`, async () => {
-      const result = await runScenario(scenario);
-      results.push(result);
-      const coverage =
-        result.coverage === null
-          ? ''
-          : ` · поля ${result.coverage.fields.join('/')}, правила ${result.coverage.rules.join('/')}`;
-      console.info(
-        `[eval] ${result.id} ${result.pass ? 'OK' : `FAIL (${result.reason})`}${coverage} · ` +
-          `${result.seconds}s · запросов ${result.requests}, модель ${result.modelSeconds}s, ` +
-          `до 1-го куска ${result.firstChunkSeconds ?? '—'}s, выход ${result.outputTokens}, ` +
-          `рассуждение ${result.reasoningTokens || `${result.reasoningChars} симв.`} · ` +
-          `${result.tools.join(' → ')}`
-      );
-      // Неудача сценария — данные замера, а не поломка теста: итог считает отчёт.
-      expect(result.id).toBe(scenario.id);
-    }, 1_800_000);
+    for (let repeat = 1; repeat <= REPEATS; repeat += 1) {
+      const suffix = REPEATS > 1 ? ` #${repeat}` : '';
+      it(`[${scenario.id}]${suffix} ${scenario.title}`, async () => {
+        const result = await runScenario(scenario, repeat);
+        results.push(result);
+        const coverage =
+          result.coverage === null
+            ? ''
+            : ` · поля ${result.coverage.fields.join('/')}, правила ${result.coverage.rules.join('/')}`;
+        const extra =
+          result.extraCount === null
+            ? ''
+            : ` · лишних ${result.extraCount}` +
+              (result.extraFields?.length ? ` (${result.extraFields.join(', ')})` : '') +
+              (result.leakedExample.length > 0
+                ? `, из образца ${result.leakedExample.join(', ')}`
+                : '');
+        console.info(
+          `[eval] ${result.id}${suffix} ${result.pass ? 'OK' : `FAIL (${result.reason})`}` +
+            `${coverage}${extra} · ${result.seconds}s · запросов ${result.requests}, ` +
+            `модель ${result.modelSeconds}s, до 1-го куска ${result.firstChunkSeconds ?? '—'}s, ` +
+            `вход ${result.inputTokens}, выход ${result.outputTokens}, ` +
+            `рассуждение ${result.reasoningTokens || `${result.reasoningChars} симв.`} · ` +
+            `${result.tools.join(' → ')}`
+        );
+        // Неудача сценария — данные замера, а не поломка теста: итог считает отчёт.
+        expect(result.id).toBe(scenario.id);
+      }, 1_800_000);
+    }
   }
 
   it('итог', () => {
@@ -1051,6 +1258,7 @@ describe.skipIf(!MODEL)('замер: сценарии разработки фо�
           kind: KIND,
           baseUrl: BASE_URL,
           buildForm: BUILD_FORM,
+          repeats: REPEATS,
           passed,
           total: results.length,
           results,

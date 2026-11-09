@@ -27,6 +27,12 @@ describe('системный промпт', () => {
     expect(systemPrompt(catalog).length).toBeLessThanOrEqual(PROMPT_BUDGET);
   });
 
+  it('новая форма о другом — create_form, а не достройка открытой (ReFormer-9a9c)', () => {
+    expect(systemPrompt(catalog)).toContain(
+      'A new form on another subject → create_form; never build it into a form with content.'
+    );
+  });
+
   it('называет поля этого кита — чтобы первый list_components стал необязательным', () => {
     const text = systemPrompt(catalog);
     const fields = listComponents(catalog, { role: 'field' }).map((c) => c.name);
