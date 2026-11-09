@@ -10,6 +10,7 @@ import { listDocConfig } from '@site/src/components/demo/examples/list';
 
 # List
 
+<ComponentDoc config={listDocConfig}>
 Обёртка для массива, который форма только показывает: уведомления, статусы документов, бейджи.
 Элементы приходят уже нарисованными, List кладёт их в контейнер со списочной разметкой. Кнопок
 «Добавить» и «Удалить» у него нет.
@@ -60,13 +61,9 @@ const schema = (model: FormModel<{ notices: Notice[] }>): FormSchemaNode => ({
 | `testId`    | Атрибут `data-testid` контейнера.                                                  |
 
 Подписки на модель и цикла по массиву в List нет: строки строит и обновляет рендерер. Поэтому
-компонент можно отрисовать и без формы — передав `items` руками, как во вкладке «Варианты» ниже.
+компонент можно отрисовать и без формы — передав `items` руками, как во вкладке «Варианты».
 
-## Примеры
-
-<ComponentDoc config={listDocConfig} />
-
-### В документе renderer-json
+## В документе renderer-json
 
 В JSON тот же узел массива ссылается на компонент по имени. Пути `$model(...)` внутри `$template`
 считаются от строки массива.
@@ -117,3 +114,5 @@ reg.component('Item', Item);
 - [Item](./item.mdx) — оформление строки списка.
 - [Box](./box.mdx) и [Section](./section.mdx) — контейнеры для раскладки схемы.
 - [List из CDK](../cdk/list.mdx) — `List` и `useList` без оформления.
+
+</ComponentDoc>

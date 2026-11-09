@@ -10,6 +10,7 @@ import { sonnerDocConfig } from '@site/src/components/demo/examples/sonner';
 
 # Sonner
 
+<ComponentDoc config={sonnerDocConfig}>
 Всплывающие уведомления в углу экрана: «Сохранено», «Не удалось отправить». Через несколько
 секунд они исчезают сами. Контейнер `Toaster` ставится один раз в корне приложения, а уведомление
 показывает функция `toast()` из любого места кода. Построено на
@@ -69,10 +70,6 @@ toast.success('Заявка отправлена', { description: 'Ответ п
 - Свои `toastOptions`, `icons` и `style` дополняют настройки кита, а не заменяют их: например,
   свой `toastOptions.duration` не сбрасывает иконки статусов и их выравнивание.
 
-## Примеры
-
-<ComponentDoc config={sonnerDocConfig} />
-
 ## Доступность
 
 | Клавиша | Действие                                                                   |
@@ -106,3 +103,5 @@ toast.success('Заявка отправлена', { description: 'Ответ п
 - [Alert](./alert.mdx) — сообщение, которое остаётся на странице.
 - [AlertDialog](./alert-dialog.mdx) — подтверждение действия.
 - [Документация sonner](https://sonner.emilkowal.ski/) — все пропсы `Toaster` и опции `toast`.
+
+</ComponentDoc>

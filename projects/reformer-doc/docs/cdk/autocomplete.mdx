@@ -10,6 +10,7 @@ import { cdkAutocompleteDocConfig } from '@site/src/components/demo/examples/cdk
 
 # Autocomplete
 
+<ComponentDoc config={cdkAutocompleteDocConfig}>
 `Autocomplete` — текстовое поле с подсказками. Значение поля — всегда то, что набрано. Подсказки
 помогают набрать быстрее: выбор подсказки подставляет её текст в поле.
 
@@ -70,10 +71,6 @@ const CITIES = ['Москва', 'Мурманск', 'Казань']; // конс
 Компонент не привязан к форме: `value` и `onChange` — обычные пропсы. В форме его обычно ставят
 компонентом узла схемы — так сделан `InputSuggest`.
 
-## Примеры
-
-<ComponentDoc config={cdkAutocompleteDocConfig} />
-
 ## Доступность
 
 Компонент реализует шаблон combobox со списком:
@@ -99,3 +96,5 @@ const CITIES = ['Москва', 'Мурманск', 'Казань']; // конс
 - [Источники опций](./option-source.mdx) — `ResourceConfig` и загрузка с сервера.
 - [Input в ui-kit](../ui-kit/input.mdx) — `InputSuggest`, готовое поле с подсказками.
 - [Select в ui-kit](../ui-kit/select.mdx) — выбор, когда значение обязано быть из списка.
+
+</ComponentDoc>

@@ -10,6 +10,7 @@ import { messageDocConfig } from '@site/src/components/demo/examples/message';
 
 # Message
 
+<ComponentDoc config={messageDocConfig}>
 Строка одного сообщения в чате с ассистентом: аватар автора, подпись, содержимое и подвал со
 временем. Сама реплика, вложения и статусы — это другие компоненты набора, они кладутся внутрь
 `MessageContent`. Сторону задаёт `align`.
@@ -72,10 +73,6 @@ import {
 - Если внутри есть пузырь `variant="ghost"`, подписи теряют боковой отступ и выравниваются по
   тексту ответа.
 
-## Примеры
-
-<ComponentDoc config={messageDocConfig} />
-
 ## Доступность
 
 - Все части — обычные `div` без ролей и клавиатуры. Сообщение читается по порядку разметки:
@@ -97,3 +94,5 @@ import {
 - [Attachment](./attachment.mdx) — вложения в сообщении.
 - [Marker](./marker.mdx) — служебные строки.
 - [MessageScroller](./message-scroller.mdx) — лента сообщений с автопрокруткой.
+
+</ComponentDoc>

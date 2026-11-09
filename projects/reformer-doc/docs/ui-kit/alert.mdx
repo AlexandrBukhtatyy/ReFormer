@@ -10,6 +10,7 @@ import { alertDocConfig } from '@site/src/components/demo/examples/alert';
 
 # Alert
 
+<ComponentDoc config={alertDocConfig}>
 Плашка с сообщением: заголовок, текст и необязательная иконка слева. Вид — `variant`: сведения
 (`default`) или ошибка (`destructive`). Компонент входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -49,10 +50,6 @@ import { CircleAlert } from 'lucide-react';
 `variant` принимает `default` и `destructive`. Иконка берёт цвет текста плашки. Все части — `<div>`
 и принимают `className`.
 
-## Примеры
-
-<ComponentDoc config={alertDocConfig} />
-
 ## Доступность
 
 - У `variant="destructive"` корень получает `role="alert"`: появившись на странице, плашка сразу
@@ -76,3 +73,5 @@ import { CircleAlert } from 'lucide-react';
 - [AlertDialog](./alert-dialog.mdx) — подтверждение действия.
 - [Card](./card.mdx) — блок содержимого с рамкой.
 - [Empty](./empty.mdx) — пустое состояние.
+
+</ComponentDoc>

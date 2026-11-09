@@ -9,6 +9,7 @@ import { radioGroupDocConfig } from '@site/src/components/demo/examples/radio-gr
 
 # RadioGroup
 
+<ComponentDoc config={radioGroupDocConfig}>
 Группа переключателей, в которой выбирают ровно один вариант из нескольких, и все варианты видны
 сразу. В форму ставят `RadioGroupOptions`: он рисует пункты из массива `options`.
 
@@ -71,10 +72,6 @@ import { radioGroupDocConfig } from '@site/src/components/demo/examples/radio-gr
 </RadioGroup>
 ```
 
-## Примеры и API
-
-<ComponentDoc config={radioGroupDocConfig} />
-
 ## Доступность
 
 - Группа построена на Radix RadioGroup: контейнер `role="radiogroup"`, пункты — кнопки
@@ -107,3 +104,5 @@ import { radioGroupDocConfig } from '@site/src/components/demo/examples/radio-gr
 - [ToggleGroup](./toggle-group.mdx) — тот же выбор в виде кнопок.
 - [Select](./select.mdx) — выбор из длинного списка.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+
+</ComponentDoc>

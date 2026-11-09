@@ -24,6 +24,7 @@ export const demoText = {
     }),
   resizeLabel: () => translate({ id: 'demo.resize.label', message: 'Изменить ширину превью' }),
 
+  tabDescription: () => translate({ id: 'demo.tab.description', message: 'Описание' }),
   tabVariants: () => translate({ id: 'demo.tab.variants', message: 'Варианты' }),
   tabExamples: () => translate({ id: 'demo.tab.examples', message: 'Примеры' }),
   tabApi: () => translate({ id: 'demo.tab.api', message: 'API' }),

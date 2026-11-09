@@ -9,6 +9,7 @@ import { cdkFormFieldDocConfig } from '@site/src/components/demo/examples/cdk-fo
 
 # FormField
 
+<ComponentDoc config={cdkFormFieldDocConfig}>
 `FormField` из cdk — анатомия одного поля формы: подпись, контрол, описание, подсказка и ошибка.
 Компонент связывает их `id` и `aria-*` атрибутами, подписывается на состояние поля и передаёт
 контролу значение и обработчики. Раскладку частей задаёте вы.
@@ -71,10 +72,6 @@ DOM-событие в `onChange`, — компонент объявляет эт
 отправку формы. Контрол с подписью рядом с собой (статика `reformerLayout = 'inline-label'`, как у
 чекбокса) получает `label` и `required` — подпись со звёздочкой он рисует сам.
 
-## Примеры
-
-<ComponentDoc config={cdkFormFieldDocConfig} />
-
 ## Доступность
 
 `FormField` берёт на себя связки, которые чаще всего забывают:
@@ -108,3 +105,5 @@ DOM-событие в `onChange`, — компонент объявляет эт
 - [FormField в ui-kit](../ui-kit/form-field.mdx) — готовая раскладка поля.
 - [Тексты замечаний](./validation-messages.mdx) — словарь формы и свой источник текстов.
 - [Свои поля](../react/custom-fields.md) — компонент поля и адаптер.
+
+</ComponentDoc>

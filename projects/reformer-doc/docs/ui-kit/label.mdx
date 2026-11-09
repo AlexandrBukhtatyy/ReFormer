@@ -9,6 +9,7 @@ import { labelDocConfig } from '@site/src/components/demo/examples/label';
 
 # Label
 
+<ComponentDoc config={labelDocConfig}>
 Подпись к контролу — элемент `<label>` с оформлением кита. Построен на `Label` из Radix UI.
 
 ## Когда брать
@@ -43,10 +44,6 @@ import { Input, Label } from '@reformer/ui-kit';
 В форме из JSON каталог кита описывает компонент под именем `Label`, из пропсов там доступны
 `htmlFor` и `className`.
 
-## Примеры и API
-
-<ComponentDoc config={labelDocConfig} />
-
 ## Доступность
 
 - Это настоящий `<label>`: клик по нему переводит фокус в связанный контрол или переключает
@@ -62,3 +59,5 @@ import { Input, Label } from '@reformer/ui-kit';
 
 - [Field](./field.mdx) — подпись в составе поля.
 - [FormField](./form-field.mdx) — подпись поля формы.
+
+</ComponentDoc>

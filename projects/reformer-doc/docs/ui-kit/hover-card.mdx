@@ -10,6 +10,7 @@ import { hoverCardDocConfig } from '@site/src/components/demo/examples/hover-car
 
 # HoverCard
 
+<ComponentDoc config={hoverCardDocConfig}>
 Карточка-превью, которая появляется, когда курсор задерживается на ссылке или ссылка получает
 фокус: профиль автора, сведения о документе. Построена на Radix HoverCard и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -49,10 +50,6 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from '@reformer/ui-kit'
   мешает читать страницу.
 - Если не хватает места, карточка сама переезжает на другую сторону.
 
-## Примеры
-
-<ComponentDoc config={hoverCardDocConfig} />
-
 ## Доступность
 
 | Клавиша | Действие                                                      |
@@ -76,3 +73,5 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from '@reformer/ui-kit'
 - [Avatar](./avatar.mdx) — фото в превью профиля.
 - [Radix HoverCard](https://www.radix-ui.com/primitives/docs/components/hover-card) — полный список
   пропсов примитива.
+
+</ComponentDoc>

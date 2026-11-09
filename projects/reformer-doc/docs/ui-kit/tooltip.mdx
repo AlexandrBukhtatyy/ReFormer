@@ -10,6 +10,7 @@ import { tooltipDocConfig } from '@site/src/components/demo/examples/tooltip';
 
 # Tooltip
 
+<ComponentDoc config={tooltipDocConfig}>
 Короткий текст, который появляется, когда курсор наведён на элемент или элемент получил фокус с
 клавиатуры. Обычно поясняет кнопку-иконку. Построен на Radix Tooltip и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -63,10 +64,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@refor
   `delayDuration` (например, 300).
 - Если не хватает места, подсказка сама переезжает на другую сторону.
 
-## Примеры
-
-<ComponentDoc config={tooltipDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix Tooltip:
@@ -94,3 +91,5 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@refor
 - [HoverCard](./hover-card.mdx) — превью по наведению.
 - [Radix Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip) — полный список
   пропсов примитива.
+
+</ComponentDoc>

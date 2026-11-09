@@ -10,6 +10,7 @@ import { kbdDocConfig } from '@site/src/components/demo/examples/kbd';
 
 # Kbd
 
+<ComponentDoc config={kbdDocConfig}>
 Показывает клавишу или сочетание клавиш: «нажмите Ctrl K». `Kbd` — одна клавиша, `KbdGroup` —
 несколько клавиш в ряд. Оба рисуют HTML-элемент `<kbd>`, который и означает «ввод с клавиатуры».
 
@@ -46,10 +47,6 @@ import { Kbd, KbdGroup } from '@reformer/ui-kit'; // или '@reformer/ui-kit/kb
 - Внутри `TooltipContent` клавиша сама меняет цвета под тёмный фон подсказки.
 - Иконка `svg` внутри `Kbd` получает размер 12px, если вы не задали свой класс `size-*`.
 
-## Примеры
-
-<ComponentDoc config={kbdDocConfig} />
-
 ## Доступность
 
 - `<kbd>` — семантика «клавиша». Скринридер читает его как обычный текст.
@@ -69,3 +66,5 @@ Windows — `Ctrl` и `Alt`.
 - [Tooltip](./tooltip.mdx) — подсказка с сочетанием клавиш.
 - [Command](./command.mdx) — палитра команд с горячими клавишами.
 - [DropdownMenu](./dropdown-menu.mdx) — пункты меню с сочетаниями.
+
+</ComponentDoc>

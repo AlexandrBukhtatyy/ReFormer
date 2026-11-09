@@ -10,6 +10,7 @@ import { breadcrumbDocConfig } from '@site/src/components/demo/examples/breadcru
 
 # Breadcrumb
 
+<ComponentDoc config={breadcrumbDocConfig}>
 Путь к текущей странице: «Главная › Каталог › Товар». Предыдущие уровни — ссылки, текущий —
 просто название. Это семантическая разметка (`nav`, `ol`, `li`, `a`) со стилями, без Radix.
 
@@ -62,10 +63,6 @@ import {
 роутера используйте `asChild`: стили перейдут на вашу ссылку, а переход пойдёт без перезагрузки
 страницы.
 
-## Примеры
-
-<ComponentDoc config={breadcrumbDocConfig} />
-
 ## Доступность
 
 - Корень — `<nav>` с `aria-label` из локали кита («Навигационная цепочка» в русской локали).
@@ -111,3 +108,5 @@ const appRu = extendLocale(ru, {
 - [NavigationMenu](./navigation-menu.mdx) — навигация по разделам сайта.
 - [DropdownMenu](./dropdown-menu.mdx) — меню для свёрнутых уровней.
 - [Pagination](./pagination.mdx) — страницы одного списка.
+
+</ComponentDoc>

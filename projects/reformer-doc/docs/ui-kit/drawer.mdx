@@ -10,6 +10,7 @@ import { drawerDocConfig } from '@site/src/components/demo/examples/drawer';
 
 # Drawer
 
+<ComponentDoc config={drawerDocConfig}>
 Шторка, которая выезжает снизу экрана поверх страницы. Её тянут и смахивают пальцем, как
 системные панели телефона. Построена на [vaul](https://vaul.emilkowal.ski/) и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -88,10 +89,6 @@ import {
 - `handleOnly` — тянуть только за ручку: нужно, если внутри шторки есть прокрутка или слайдер.
 - Остальные пропсы vaul (`snapPoints`, `repositionInputs` и др.) передаются корню как есть.
 
-## Примеры
-
-<ComponentDoc config={drawerDocConfig} />
-
 ## Доступность
 
 vaul построен на Radix Dialog, поэтому шторка ведёт себя как модальное окно:
@@ -117,3 +114,5 @@ vaul построен на Radix Dialog, поэтому шторка ведёт 
 - [Sheet](./sheet.mdx) — панель у края без жестов.
 - [Dialog](./dialog.mdx) — окно в центре экрана.
 - [Документация vaul](https://vaul.emilkowal.ski/) — все пропсы корня.
+
+</ComponentDoc>

@@ -10,6 +10,7 @@ import { sectionDocConfig } from '@site/src/components/demo/examples/section';
 
 # Section
 
+<ComponentDoc config={sectionDocConfig}>
 Группа связанных полей формы с заголовком: «Паспорт», «Адрес», «Контакты». Рисует `<section>`
 и, если задан `title`, заголовок выбранного уровня. Своих стилей нет: вес заголовка и отступы
 задают классы.
@@ -82,11 +83,7 @@ import { Input, Section } from '@reformer/ui-kit'; // или '@reformer/ui-kit/s
 
 Пара полей стоит в [Box](./box.mdx) с сеткой, поле на всю ширину — вне сетки.
 
-## Примеры
-
-<ComponentDoc config={sectionDocConfig} />
-
-### В документе renderer-json
+## В документе renderer-json
 
 ```json
 {
@@ -129,3 +126,5 @@ import { Input, Section } from '@reformer/ui-kit'; // или '@reformer/ui-kit/s
 - [Card](./card.mdx) — группа с рамкой и фоном.
 - [FieldArray](./field-array.mdx) — секция повторяющихся записей.
 - [Схема формы](../core-concepts/schemas/form-schema.md) — виды узлов и контейнеры.
+
+</ComponentDoc>

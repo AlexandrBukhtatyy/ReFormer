@@ -9,6 +9,7 @@ import { sliderDocConfig } from '@site/src/components/demo/examples/slider';
 
 # Slider
 
+<ComponentDoc config={sliderDocConfig}>
 Ползунок для выбора числа из диапазона. Значение поля — `number | null`, границы и шаг задают
 `min`, `max` и `step`. В `component` [узла схемы](../reference/glossary.md#форма-и-данные)
 `Slider` кладётся как есть.
@@ -51,10 +52,6 @@ import { sliderDocConfig } from '@site/src/components/demo/examples/slider';
 Вне формы `Slider` — обычный Radix Slider: значение массивом, `value={[n]}` и
 `onValueChange={([n]) => …}`.
 
-## Примеры и API
-
-<ComponentDoc config={sliderDocConfig} />
-
 ## Доступность
 
 - Ручка — элемент с `role="slider"` и `aria-valuemin`, `aria-valuemax`, `aria-valuenow`; её
@@ -79,3 +76,5 @@ import { sliderDocConfig } from '@site/src/components/demo/examples/slider';
 - [Input](./input.mdx) — `InputNumber` для точного ввода числа.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
 - [Встроенные правила](../validation/built-in.md) — `min`, `max`, `required`.
+
+</ComponentDoc>

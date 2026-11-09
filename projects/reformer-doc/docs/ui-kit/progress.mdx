@@ -10,6 +10,7 @@ import { progressDocConfig } from '@site/src/components/demo/examples/progress';
 
 # Progress
 
+<ComponentDoc config={progressDocConfig}>
 Горизонтальная полоса, заполненная на долю `value / max`: загрузка файла, заполненность профиля,
 доля пройденных шагов. Построена на Radix Progress и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -45,10 +46,6 @@ import { Progress } from '@reformer/ui-kit'; // или '@reformer/ui-kit/progres
 Подпись и число процентов компонент не рисует — ставьте их рядом (пример «Подпись и значение для
 скринридера»).
 
-## Примеры
-
-<ComponentDoc config={progressDocConfig} />
-
 ## Доступность
 
 - Radix ставит дорожке `role="progressbar"`, `aria-valuemin`, `aria-valuemax` и, если `value`
@@ -71,3 +68,5 @@ import { Progress } from '@reformer/ui-kit'; // или '@reformer/ui-kit/progres
 - [Skeleton](./skeleton.mdx) — заглушка на месте содержимого.
 - [Radix Progress](https://www.radix-ui.com/primitives/docs/components/progress) — полный список
   пропсов примитива.
+
+</ComponentDoc>

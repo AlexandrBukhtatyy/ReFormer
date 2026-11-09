@@ -10,6 +10,7 @@ import { chartDocConfig } from '@site/src/components/demo/examples/chart';
 
 # Chart
 
+<ComponentDoc config={chartDocConfig}>
 Обёртка над [recharts](https://recharts.org): сам график — компоненты recharts (`BarChart`,
 `LineChart`, `Bar`, `XAxis`), а кит даёт контейнер, оформленные подсказку и легенду и единое место
 для цветов и подписей рядов — `ChartConfig`. Входит в [кит](../reference/glossary.md#пакеты)
@@ -82,10 +83,6 @@ const chartConfig = {
   Если ряду нужны свои цвета для светлой и тёмной темы, задайте `theme: { light, dark }`: цвет
   `dark` включается и под классом `.dark`, и под атрибутом `[data-theme='dark']`.
 
-## Примеры
-
-<ComponentDoc config={chartDocConfig} />
-
 ## Доступность
 
 - График — картинка. Числа из него скринридер не прочитает целиком: дайте рядом текстовую версию —
@@ -105,3 +102,5 @@ const chartConfig = {
 - [Table](./table.mdx) — точные значения в строках и столбцах.
 - [Progress](./progress.mdx) — одно значение-доля.
 - [Документация recharts](https://recharts.org/en-US/api) — все графики, оси и их пропсы.
+
+</ComponentDoc>

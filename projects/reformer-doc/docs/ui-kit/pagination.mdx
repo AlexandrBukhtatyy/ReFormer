@@ -10,6 +10,7 @@ import { paginationDocConfig } from '@site/src/components/demo/examples/paginati
 
 # Pagination
 
+<ComponentDoc config={paginationDocConfig}>
 Переход по страницам длинного списка: «Назад», номера, «Вперёд». Это разметка со стилями: какая
 страница текущая и куда ведёт каждая ссылка, решаете вы. Считать страницы компонент не умеет.
 
@@ -75,10 +76,6 @@ import {
 через `aria-disabled` и классы `pointer-events-none opacity-50` — как во вкладке «Примеры» — или не
 выводите их.
 
-## Примеры
-
-<ComponentDoc config={paginationDocConfig} />
-
 ## Доступность
 
 - Корень — `<nav role="navigation">` с `aria-label` из локали кита («Страницы» в русской локали).
@@ -127,3 +124,5 @@ const appRu = extendLocale(ru, {
 - [Table](./table.mdx) — таблица данных, под которой обычно стоит Pagination.
 - [Button](./button.mdx) — варианты и размеры, из которых собраны ссылки.
 - [Breadcrumb](./breadcrumb.mdx) — путь к текущей странице.
+
+</ComponentDoc>

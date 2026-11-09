@@ -10,6 +10,7 @@ import { sidebarDocConfig } from '@site/src/components/demo/examples/sidebar';
 
 # Sidebar
 
+<ComponentDoc config={sidebarDocConfig}>
 Боковая панель навигации приложения: меню разделов слева или справа от основной области.
 Сворачивается кнопкой или сочетанием `Ctrl+B` (`⌘B` на macOS), на узком экране выезжает поверх
 страницы. Это каркас приложения, а не поле формы.
@@ -125,10 +126,6 @@ import {
 Панель с `collapsible="offcanvas"` или `"icon"` фиксирована к окну (`position: fixed`, высота
 окна). Она рассчитана на каркас всей страницы, а не на блок внутри неё.
 
-## Примеры
-
-<ComponentDoc config={sidebarDocConfig} />
-
 ## Доступность
 
 | Клавиша         | Действие                                                               |
@@ -191,3 +188,5 @@ const locale = extendLocale(ru, {
 - [NavigationMenu](./navigation-menu.mdx) — навигация в шапке сайта.
 - [Sidebar в shadcn/ui](https://ui.shadcn.com/docs/components/sidebar) — исходный компонент и
   готовые раскладки.
+
+</ComponentDoc>

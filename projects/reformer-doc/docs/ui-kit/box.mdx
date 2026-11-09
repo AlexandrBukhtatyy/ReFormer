@@ -10,6 +10,7 @@ import { boxDocConfig } from '@site/src/components/demo/examples/box';
 
 # Box
 
+<ComponentDoc config={boxDocConfig}>
 Контейнер раскладки: `<div>` с классом. В [схеме формы](../reference/glossary.md) Box
 группирует узлы — ставит поля в колонку, сетку или строку. Раскладку задаёт `className`, своих
 стилей у Box нет.
@@ -62,11 +63,7 @@ import { Box, Input } from '@reformer/ui-kit'; // или '@reformer/ui-kit/box'
 `space-y-*`). Фон, рамку, тень и скругление дают компоненты: [Card](./card.mdx),
 [Alert](./alert.mdx), `Separator`. Классы цвета на Box ломают тёмную тему.
 
-## Примеры
-
-<ComponentDoc config={boxDocConfig} />
-
-### В документе renderer-json
+## В документе renderer-json
 
 В JSON компонент указывают по имени. Классы те же, что в TS-схеме, меняется только запись узла.
 
@@ -116,3 +113,5 @@ defaultPropSchemas` из `@reformer/ui-kit/meta`), любой ключ `componen
 - [Card](./card.mdx) — группа с рамкой и фоном.
 - [Схема формы](../core-concepts/schemas/form-schema.md) — виды узлов и контейнеры.
 - [renderer-json](/docs/packages/renderer-json) — формы из JSON-документа и реестр.
+
+</ComponentDoc>

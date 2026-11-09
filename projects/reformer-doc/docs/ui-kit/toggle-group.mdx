@@ -9,6 +9,7 @@ import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-
 
 # ToggleGroup
 
+<ComponentDoc config={toggleGroupDocConfig}>
 Ряд кнопок-сегментов, из которых нажата одна или несколько. В форму ставят `ToggleGroupOptions`
 (одно значение) или `ToggleGroupMulti` (несколько): оба рисуют кнопки из массива `options`.
 
@@ -71,10 +72,6 @@ import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-
 </ToggleGroup>
 ```
 
-## Примеры и API
-
-<ComponentDoc config={toggleGroupDocConfig} />
-
 ## Доступность
 
 - Группа построена на Radix ToggleGroup. У `ToggleGroupOptions` контейнер — `role="radiogroup"`,
@@ -98,3 +95,5 @@ import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-
 - [RadioGroup](./radio-group.mdx) — тот же выбор кружками с подписями.
 - [Toggle](./toggle.mdx) — одна нажимаемая кнопка.
 - [Select](./select.mdx) — выбор из длинного списка.
+
+</ComponentDoc>

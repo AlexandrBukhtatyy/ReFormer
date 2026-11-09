@@ -10,6 +10,7 @@ import { infoHintDocConfig } from '@site/src/components/demo/examples/info-hint'
 
 # InfoHint
 
+<ComponentDoc config={infoHintDocConfig}>
 Иконка (i) с подсказкой. Подсказка открывается наведением курсора, фокусом с клавиатуры и
 касанием на телефоне. Компонент построен на [Tooltip](./tooltip.mdx), но приносит свой провайдер и
 работает в любом месте без обёрток. Входит в [кит](../reference/glossary.md#пакеты)
@@ -51,10 +52,6 @@ import { InfoHint } from '@reformer/ui-kit'; // или '@reformer/ui-kit/info-hi
   поля.
 - Свой контрол получает проп `tooltip` декоратором `withFieldTooltip` из `@reformer/ui-kit/fields`;
   композит, который сам ставит иконку, — хуком `useFieldTooltip`.
-
-## Примеры
-
-<ComponentDoc config={infoHintDocConfig} />
 
 ## Доступность
 
@@ -100,3 +97,5 @@ const loadLocale = createLocaleLoader([
 - [FormField](./form-field.mdx) — подсказка после подписи поля (`labelTooltip`).
 - [Tooltip](./tooltip.mdx) — подсказка к кнопке-иконке.
 - [Popover](./popover.mdx) — длинное пояснение по щелчку.
+
+</ComponentDoc>

@@ -10,6 +10,7 @@ import { cdkListDocConfig } from '@site/src/components/demo/examples/cdk-list';
 
 # List
 
+<ComponentDoc config={cdkListDocConfig}>
 `List` перебирает строки массива [модели](../reference/glossary.md#форма-и-данные) и рисует на
 каждую вашу разметку. Кнопок добавления, удаления и перестановки у него нет: состав массива
 меняет код, а не пользователь.
@@ -62,10 +63,6 @@ function NoticeRow({ control }: { control: FormGroup<Notice> }) {
 Строку выносите в отдельный компонент, который сам читает значения своих полей: тогда правка одной
 строки не перерисовывает остальные.
 
-## Примеры
-
-<ComponentDoc config={cdkListDocConfig} />
-
 ## Доступность
 
 `List` не добавляет ни элементов, ни ролей. Роли выбираете по смыслу: `role="list"` и `listitem`
@@ -81,3 +78,5 @@ function NoticeRow({ control }: { control: FormGroup<Notice> }) {
 - [FieldArray](./field-array.mdx) — массив, который редактирует пользователь.
 - [List в ui-kit](../ui-kit/list.mdx) — контейнер для формы из схемы.
 - [Массивы в форме](/docs/patterns/arrays) — модель и схема массива.
+
+</ComponentDoc>

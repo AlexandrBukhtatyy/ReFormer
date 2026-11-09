@@ -9,6 +9,7 @@ import { cdkFileUploadDocConfig } from '@site/src/components/demo/examples/cdk-f
 
 # FileUpload
 
+<ComponentDoc config={cdkFileUploadDocConfig}>
 `FileUpload` — выбор и загрузка файлов: кнопка, зона перетаскивания, список файлов с прогрессом,
 повтором и удалением. Компонент отбирает файлы, ведёт загрузку и связывает всё с полем формы.
 Видимую разметку вы пишете сами.
@@ -85,10 +86,6 @@ const uploader: FileUploadUploader = (file, { onProgress, signal }) =>
 тестов и своих обёрток есть чистое ядро без React: `fileUploadReducer`, `selectFiles`,
 `projectValue`, `reconcileItems`.
 
-## Примеры
-
-<ComponentDoc config={cdkFileUploadDocConfig} />
-
 ## Доступность
 
 - В основе — настоящий `<input type="file">`, скрытый визуально, но не через `display: none`:
@@ -121,3 +118,5 @@ const uploader: FileUploadUploader = (file, { onProgress, signal }) =>
 - [FileUpload в ui-kit](../ui-kit/file-upload.mdx) — готовый вид.
 - [Тексты замечаний](./validation-messages.mdx) — тексты нарушений отбора.
 - [Локализация cdk](./locale.md) — статусы и подписи на других языках.
+
+</ComponentDoc>

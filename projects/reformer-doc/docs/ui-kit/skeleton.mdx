@@ -10,6 +10,7 @@ import { skeletonDocConfig } from '@site/src/components/demo/examples/skeleton';
 
 # Skeleton
 
+<ComponentDoc config={skeletonDocConfig}>
 Серый пульсирующий блок на месте содержимого, которое ещё загружается. Форму и размер задают
 классы: строка текста, круг аватара, прямоугольник картинки. Компонент входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -43,10 +44,6 @@ import { Skeleton } from '@reformer/ui-kit'; // или '@reformer/ui-kit/skeleto
 Без высоты и ширины блок пустой и не виден. Ваш класс скругления перекрывает базовый
 `rounded-md`.
 
-## Примеры
-
-<ComponentDoc config={skeletonDocConfig} />
-
 ## Доступность
 
 - Сам скелет для скринридера пуст: у него нет ни текста, ни роли.
@@ -65,3 +62,5 @@ import { Skeleton } from '@reformer/ui-kit'; // или '@reformer/ui-kit/skeleto
 - [Spinner](./spinner.mdx) — индикатор ожидания.
 - [Progress](./progress.mdx) — доля выполненного.
 - [AsyncBoundary](./async-boundary.mdx) — состояния загрузки блока данных.
+
+</ComponentDoc>

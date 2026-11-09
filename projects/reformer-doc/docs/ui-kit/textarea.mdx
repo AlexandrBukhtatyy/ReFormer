@@ -9,6 +9,7 @@ import { textareaDocConfig } from '@site/src/components/demo/examples/textarea';
 
 # Textarea
 
+<ComponentDoc config={textareaDocConfig}>
 Многострочное поле ввода текста. Высота растёт вместе с текстом. В форме `Textarea` кладётся в
 `component` [узла схемы](../reference/glossary.md#форма-и-данные) как есть.
 
@@ -52,10 +53,6 @@ import { textareaDocConfig } from '@site/src/components/demo/examples/textarea';
 поля. Заблокировать поле — `form.comment.disable()`. Вне формы `Textarea` — обычный `<textarea>`:
 его `onChange` получает DOM-событие.
 
-## Примеры и API
-
-<ComponentDoc config={textareaDocConfig} />
-
 ## Доступность
 
 - Под капотом настоящий `<textarea>`: фокус по Tab, Enter переносит строку и форму не отправляет.
@@ -78,3 +75,5 @@ import { textareaDocConfig } from '@site/src/components/demo/examples/textarea';
 - [Input](./input.mdx) — однострочное поле.
 - [InputGroup](./input-group.mdx) — поле с кнопками и текстом по краям.
 - [Встроенные правила](../validation/built-in.md) — `required`, `maxLength` и другие.
+
+</ComponentDoc>

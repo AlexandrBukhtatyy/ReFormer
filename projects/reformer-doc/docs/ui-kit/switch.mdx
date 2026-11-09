@@ -9,6 +9,7 @@ import { switchDocConfig } from '@site/src/components/demo/examples/switch';
 
 # Switch
 
+<ComponentDoc config={switchDocConfig}>
 Выключатель «вкл / выкл» для настройки, которая по смыслу включается и выключается. В форму ставят
 `SwitchWithLabel` — выключатель с подписью справа. Значение поля — `boolean`.
 
@@ -58,10 +59,6 @@ import { switchDocConfig } from '@site/src/components/demo/examples/switch';
 <SwitchWithLabel checked={dark} onCheckedChange={setDark} label="Тёмная тема" />
 ```
 
-## Примеры и API
-
-<ComponentDoc config={switchDocConfig} />
-
 ## Доступность
 
 - Выключатель — кнопка `role="switch"` с `aria-checked` (Radix Switch). Фокус — по Tab,
@@ -85,3 +82,5 @@ import { switchDocConfig } from '@site/src/components/demo/examples/switch';
 - [Checkbox](./checkbox.mdx) — флажок для согласия и опций.
 - [Toggle](./toggle.mdx) — нажимаемая кнопка.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+
+</ComponentDoc>

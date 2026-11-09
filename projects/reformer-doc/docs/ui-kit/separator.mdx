@@ -10,6 +10,7 @@ import { separatorDocConfig } from '@site/src/components/demo/examples/separator
 
 # Separator
 
+<ComponentDoc config={separatorDocConfig}>
 Тонкая линия, которая отделяет один блок от другого: разделы настроек, группы полей, пункты в
 строке. Построена на Radix Separator и входит в [кит](../reference/glossary.md#пакеты)
 `@reformer/ui-kit`, это не поле формы.
@@ -53,10 +54,6 @@ import { Separator } from '@reformer/ui-kit'; // или '@reformer/ui-kit/separa
 `{ component: Separator, componentProps: { className: 'my-4' } }`. Для формы из JSON положите
 компонент в [реестр](../reference/glossary.md#рендеринг): `reg.component('Separator', Separator)`.
 
-## Примеры
-
-<ComponentDoc config={separatorDocConfig} />
-
 ## Доступность
 
 - По умолчанию (`decorative`) линия — украшение: у неё `role="none"`, скринридер её пропускает.
@@ -77,3 +74,5 @@ import { Separator } from '@reformer/ui-kit'; // или '@reformer/ui-kit/separa
 - [Box](./box.mdx) — отступы и сетка без своего вида.
 - [Radix Separator](https://www.radix-ui.com/primitives/docs/components/separator) — полный список
   пропсов примитива.
+
+</ComponentDoc>

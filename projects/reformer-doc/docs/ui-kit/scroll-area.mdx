@@ -10,6 +10,7 @@ import { scrollAreaDocConfig } from '@site/src/components/demo/examples/scroll-a
 
 # ScrollArea
 
+<ComponentDoc config={scrollAreaDocConfig}>
 Область фиксированного размера, внутри которой содержимое прокручивается. Вместо системных полос
 прокрутки она рисует тонкие полосы в цветах темы, одинаковые во всех браузерах. Сама прокрутка
 остаётся системной: колесо, тачпад и касание работают как обычно. Построен на Radix ScrollArea.
@@ -52,10 +53,6 @@ import { ScrollArea, ScrollBar } from '@reformer/ui-kit'; // или '@reformer/u
   `aria-label`, `ref` (чтобы прокрутить область из кода), обработчики; `className` оттуда
   дополняет классы кита.
 
-## Примеры
-
-<ComponentDoc config={scrollAreaDocConfig} />
-
 ## Доступность
 
 - Прокрутка системная, поэтому работают колесо мыши, тачпад, касание и прокрутка к элементу, на
@@ -81,3 +78,5 @@ import { ScrollArea, ScrollBar } from '@reformer/ui-kit'; // или '@reformer/u
 - [DirectionProvider](./direction.mdx) — направление текста для полос.
 - [Radix ScrollArea](https://www.radix-ui.com/primitives/docs/components/scroll-area) — примитив, на
   котором построен компонент.
+
+</ComponentDoc>

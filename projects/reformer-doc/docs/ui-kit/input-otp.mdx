@@ -9,6 +9,7 @@ import { inputOtpDocConfig } from '@site/src/components/demo/examples/input-otp'
 
 # InputOTP
 
+<ComponentDoc config={inputOtpDocConfig}>
 Поле одноразового кода: каждый символ — в своей ячейке. Работает на библиотеке
 [`input-otp`](https://input-otp.rodz.dev/). Для формы — `InputOTPDefault`, он кладётся в
 `component` [узла схемы](../reference/glossary.md#форма-и-данные) как есть.
@@ -74,10 +75,6 @@ import { InputOTPDefault } from '@reformer/ui-kit/input-otp';
 }
 ```
 
-## Примеры и API
-
-<ComponentDoc config={inputOtpDocConfig} />
-
 ## Доступность
 
 - Под ячейками — одно настоящее `<input>`, видимое скринридеру и браузеру. Ячейки только рисуют
@@ -101,3 +98,5 @@ import { InputOTPDefault } from '@reformer/ui-kit/input-otp';
 - [InputMask](./input-mask.mdx) — поле с шаблоном ввода.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
 - [Встроенные правила](../validation/built-in.md) — `required`, `minLength` и другие.
+
+</ComponentDoc>

@@ -10,6 +10,7 @@ import { resizableDocConfig } from '@site/src/components/demo/examples/resizable
 
 # Resizable
 
+<ComponentDoc config={resizableDocConfig}>
 Панели с разделителем, который пользователь тянет мышью или двигает с клавиатуры. Так устроены
 рабочие области редактора: дерево файлов, редактор, терминал. Построен на библиотеке
 [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels) четвёртой версии, это не
@@ -119,10 +120,6 @@ function EditorLayout() {
 - `onlySaveAfterUserInteractions: true` — сохранять только изменения, сделанные пользователем, а не
   программные (`setLayout`, пересчёт при смене размеров окна).
 
-## Примеры
-
-<ComponentDoc config={resizableDocConfig} />
-
 ## Доступность
 
 Разделитель получает от библиотеки `role="separator"` и фокус по `Tab`. Атрибуты
@@ -155,3 +152,5 @@ function EditorLayout() {
 - [Tree](./tree.mdx) — дерево файлов для панели-проводника.
 - [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels) — полный список
   пропсов и примеры хранилищ.
+
+</ComponentDoc>

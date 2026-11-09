@@ -9,6 +9,7 @@ import { toggleDocConfig } from '@site/src/components/demo/examples/toggle';
 
 # Toggle
 
+<ComponentDoc config={toggleDocConfig}>
 Кнопка, которая остаётся нажатой после щелчка и отжимается следующим. Значение поля — `boolean`.
 На кнопке — текст или иконка, подпись поля стоит над ней.
 
@@ -58,10 +59,6 @@ import { toggleDocConfig } from '@site/src/components/demo/examples/toggle';
 </Toggle>
 ```
 
-## Примеры и API
-
-<ComponentDoc config={toggleDocConfig} />
-
 ## Доступность
 
 - Кнопка — `<button>` с `aria-pressed` (Radix Toggle). Фокус — по Tab, нажатие — пробелом или
@@ -83,3 +80,5 @@ import { toggleDocConfig } from '@site/src/components/demo/examples/toggle';
 - [ToggleGroup](./toggle-group.mdx) — группа таких кнопок.
 - [Switch](./switch.mdx) — выключатель для настроек.
 - [Button](./button.mdx) — обычная кнопка действия.
+
+</ComponentDoc>

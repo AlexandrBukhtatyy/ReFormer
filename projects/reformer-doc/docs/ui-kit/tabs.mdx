@@ -10,6 +10,7 @@ import { tabsDocConfig } from '@site/src/components/demo/examples/tabs';
 
 # Tabs
 
+<ComponentDoc config={tabsDocConfig}>
 Вкладки: ряд заголовков и под ним одна панель. Выбор заголовка меняет панель. Построен на Radix
 Tabs, это не поле формы.
 
@@ -53,10 +54,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@reformer/ui-kit'; // 
 теряются: значения хранит [модель](../reference/glossary.md), а не компоненты. Проверка при
 отправке тоже идёт по модели и захватывает поля всех вкладок, а не только открытой.
 
-## Примеры
-
-<ComponentDoc config={tabsDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix Tabs:
@@ -88,3 +85,5 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@reformer/ui-kit'; // 
 - [Direction](./direction.mdx) — направление текста для стрелок.
 - [Radix Tabs](https://www.radix-ui.com/primitives/docs/components/tabs) — полный список пропсов
   примитива.
+
+</ComponentDoc>

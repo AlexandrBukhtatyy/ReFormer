@@ -10,6 +10,7 @@ import { collapsibleDocConfig } from '@site/src/components/demo/examples/collaps
 
 # Collapsible
 
+<ComponentDoc config={collapsibleDocConfig}>
 Один блок, который показывается и скрывается по кнопке. Построен на Radix Collapsible. Своих
 стилей у него нет: компонент отвечает только за «открыто / закрыто», вид задаёте вы.
 
@@ -46,10 +47,6 @@ import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from '@re
 Закрытое содержимое удаляется из разметки. Поля формы внутри при этом не теряют значений: их хранит
 [модель](../reference/glossary.md), а не компоненты.
 
-## Примеры
-
-<ComponentDoc config={collapsibleDocConfig} />
-
 ## Доступность
 
 | Клавиша           | Действие                                                |
@@ -75,3 +72,5 @@ import { Button, Collapsible, CollapsibleTrigger, CollapsibleContent } from '@re
 - [Item](./item.mdx) — строки внутри раскрываемого списка.
 - [Radix Collapsible](https://www.radix-ui.com/primitives/docs/components/collapsible) — полный
   список пропсов примитива.
+
+</ComponentDoc>

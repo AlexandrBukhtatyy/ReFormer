@@ -10,6 +10,7 @@ import { menubarDocConfig } from '@site/src/components/demo/examples/menubar';
 
 # Menubar
 
+<ComponentDoc config={menubarDocConfig}>
 Строка меню, как в настольном приложении: «Файл», «Правка», «Вид». Каждый пункт строки открывает
 своё меню команд. Построен на Radix Menubar, это не поле формы.
 
@@ -66,10 +67,6 @@ import {
 `MenubarShortcut` — только подпись. Само сочетание клавиш компонент не слушает: обработчик вешаете
 вы.
 
-## Примеры
-
-<ComponentDoc config={menubarDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix Menubar:
@@ -106,3 +103,5 @@ import {
 - [Kbd](./kbd.mdx) — оформление клавиш в тексте.
 - [Radix Menubar](https://www.radix-ui.com/primitives/docs/components/menubar) — полный список
   пропсов примитива.
+
+</ComponentDoc>

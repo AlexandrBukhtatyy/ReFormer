@@ -10,6 +10,7 @@ import { iconDocConfig } from '@site/src/components/demo/examples/icon';
 
 # Icon
 
+<ComponentDoc config={iconDocConfig}>
 Иконка из набора [lucide](https://lucide.dev/icons/), заданная именем-строкой: `iconName="Mail"`.
 Компонент входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
 
@@ -58,10 +59,6 @@ import { Icon } from '@reformer/ui-kit'; // или '@reformer/ui-kit/icon'
 формы из JSON положите компонент в [реестр](../reference/glossary.md#рендеринг):
 `reg.component('Icon', Icon)`.
 
-## Примеры
-
-<ComponentDoc config={iconDocConfig} />
-
 ## Доступность
 
 - По умолчанию иконка декоративная и скрыта от скринридера (`aria-hidden="true"`). Иконка рядом с
@@ -81,3 +78,5 @@ import { Icon } from '@reformer/ui-kit'; // или '@reformer/ui-kit/icon'
 - [Button](./button.mdx) — кнопка с иконкой.
 - [Avatar](./avatar.mdx) — изображение человека.
 - [Список иконок lucide](https://lucide.dev/icons/) — поиск имени.
+
+</ComponentDoc>

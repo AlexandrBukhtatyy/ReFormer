@@ -9,6 +9,7 @@ import { cdkAsyncBoundaryDocConfig } from '@site/src/components/demo/examples/cd
 
 # AsyncBoundary
 
+<ComponentDoc config={cdkAsyncBoundaryDocConfig}>
 `AsyncBoundary` показывает одно из четырёх состояний загрузки данных: загрузка не нужна (`idle`),
 идёт (`loading`), готово (`ready`), ошибка (`error`). Он не добавляет разметки — каждое состояние
 вы описываете своим слотом.
@@ -90,10 +91,6 @@ function ApplicationPage({ applicationId, bundle }: Props) {
 сети. `loadKey` сравнивается через `Object.is`: передавайте примитив, а не новый объект, иначе
 загрузка будет перезапускаться на каждом рендере.
 
-## Примеры
-
-<ComponentDoc config={cdkAsyncBoundaryDocConfig} />
-
 ## Доступность
 
 Компонент сам расставляет атрибуты на наборах пропсов `useAsyncBoundary`:
@@ -121,3 +118,5 @@ function ApplicationPage({ applicationId, bundle }: Props) {
 - [AsyncBoundary в ui-kit](../ui-kit/async-boundary.mdx) — готовый вид.
 - [Предзагрузка данных формы](../patterns/async-preload.md) — загрузка значений в модель.
 - [Локализация cdk](./locale.md) — строки компонента на других языках.
+
+</ComponentDoc>

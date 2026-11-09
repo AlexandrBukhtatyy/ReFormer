@@ -10,6 +10,7 @@ import { dropdownMenuDocConfig } from '@site/src/components/demo/examples/dropdo
 
 # DropdownMenu
 
+<ComponentDoc config={dropdownMenuDocConfig}>
 Меню, которое открывается кнопкой: список действий, флажков или вариантов на выбор. По пунктам
 ходят стрелками. Построено на Radix DropdownMenu и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -81,10 +82,6 @@ import {
 - Пока меню открыто (`modal` по умолчанию), страница под ним не реагирует на мышь и скрыта от
   скринридера.
 
-## Примеры
-
-<ComponentDoc config={dropdownMenuDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix DropdownMenu:
@@ -117,3 +114,5 @@ import {
 - [Command](./command.mdx) — список команд с поиском.
 - [Radix DropdownMenu](https://www.radix-ui.com/primitives/docs/components/dropdown-menu) — полный
   список пропсов примитива.
+
+</ComponentDoc>

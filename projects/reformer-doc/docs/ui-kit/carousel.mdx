@@ -10,6 +10,7 @@ import { carouselDocConfig } from '@site/src/components/demo/examples/carousel';
 
 # Carousel
 
+<ComponentDoc config={carouselDocConfig}>
 Лента слайдов, которую листают стрелками, свайпом или клавишами `←` / `→`. Построена на
 [embla-carousel-react](https://www.embla-carousel.com/) и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -65,10 +66,6 @@ import { Carousel, CarouselContent, CarouselItem } from '@reformer/ui-kit/carous
   `px-12` у родителя — или передвиньте их своим `className`.
 - У вертикальной ленты (`orientation="vertical"`) задайте `CarouselContent` фиксированную высоту.
 
-## Примеры
-
-<ComponentDoc config={carouselDocConfig} />
-
 ## Доступность
 
 | Клавиша           | Действие                                                  |
@@ -116,3 +113,5 @@ const loadLocale = createLocaleLoader([
 - [Tabs](./tabs.mdx) — переключение разделов с названиями.
 - [ScrollArea](./scroll-area.mdx) — прокрутка без листания.
 - [Документация embla](https://www.embla-carousel.com/api/options/) — все `opts` и методы api.
+
+</ComponentDoc>

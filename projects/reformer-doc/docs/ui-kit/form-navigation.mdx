@@ -9,6 +9,7 @@ import { uiKitFormWizardDocConfig } from '@site/src/components/demo/examples/for
 
 # FormWizard
 
+<ComponentDoc config={uiKitFormWizardDocConfig}>
 Оформленная многошаговая форма — мастер. Рисует индикатор шагов, тело текущего шага, кнопки
 «Назад», «Далее», «Отправить» и строку прогресса. Какие шаги есть и какие правила у каждого,
 задаёт [поток шагов](../reference/glossary.md#поведение-шаги-и-отправка) сборки формы.
@@ -100,10 +101,6 @@ onComponentEvent(schema.node('wizard'), 'onSubmit', (values) => api.send(values)
 Снаружи мастера им управляет сам поток: `bundle.flow.next()`, `bundle.flow.goTo('phone')`.
 Состояние для своей разметки — `useFormFlow(bundle.flow)` из `@reformer/core/react`.
 
-## Примеры и API
-
-<ComponentDoc config={uiKitFormWizardDocConfig} />
-
 ## Доступность
 
 - Индикатор — `role="navigation"` с подписью «Шаги формы». Каждый шаг в нём — элемент с
@@ -143,3 +140,5 @@ onComponentEvent(schema.node('wizard'), 'onSubmit', (values) => api.send(values)
 - [Многошаговые формы](../guides/multi-step-forms.mdx) — поток шагов, переходы, отправка.
 - [FormWizard из cdk](/docs/cdk/form-wizard) — части мастера без оформления.
 - [FieldArraySection](./field-array.mdx) — массив под-форм внутри шага.
+
+</ComponentDoc>

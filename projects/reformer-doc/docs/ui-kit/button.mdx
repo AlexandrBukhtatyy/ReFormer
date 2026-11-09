@@ -10,6 +10,7 @@ import { buttonDocConfig } from '@site/src/components/demo/examples/button';
 
 # Button
 
+<ComponentDoc config={buttonDocConfig}>
 Кнопка запускает действие: отправить форму, открыть окно, удалить запись. Вид задаёт `variant`,
 размер — `size`. Компонент входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`,
 это не поле формы.
@@ -59,10 +60,6 @@ import { Button } from '@reformer/ui-kit'; // или '@reformer/ui-kit/button'
 
 Цвет меняйте вариантом, а не классами `bg-*`: варианты берут цвета из темы и верны в тёмной теме.
 
-## Примеры
-
-<ComponentDoc config={buttonDocConfig} />
-
 ## Доступность
 
 Компонент рисует нативный `<button>`, поэтому клавиатуру даёт браузер:
@@ -91,3 +88,5 @@ import { Button } from '@reformer/ui-kit'; // или '@reformer/ui-kit/button'
 - [Toggle](./toggle.mdx) — кнопка-переключатель.
 - [AlertDialog](./alert-dialog.mdx) — подтверждение перед опасным действием.
 - [Spinner](./spinner.mdx) — индикатор загрузки внутри кнопки.
+
+</ComponentDoc>

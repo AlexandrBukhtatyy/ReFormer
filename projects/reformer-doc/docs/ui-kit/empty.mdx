@@ -10,6 +10,7 @@ import { emptyDocConfig } from '@site/src/components/demo/examples/empty';
 
 # Empty
 
+<ComponentDoc config={emptyDocConfig}>
 Блок для места, где пока ничего нет: пустой список, пустой результат поиска, первый запуск.
 Показывает иконку, заголовок, пояснение и кнопку следующего шага по центру. Собирается из частей,
 любую можно опустить.
@@ -69,10 +70,6 @@ import { FolderPlus } from 'lucide-react';
   ему даёт содержимое.
 - `emptyMediaVariants` — классы медиа-слота (cva) для своего элемента с тем же видом.
 
-## Примеры
-
-<ComponentDoc config={emptyDocConfig} />
-
 ## Доступность
 
 - Все части — обычные `div` без ролей. Скринридер читает их как текст по порядку.
@@ -92,3 +89,5 @@ import { FolderPlus } from 'lucide-react';
 - [AsyncBoundary](./async-boundary.mdx) — загрузка и ошибка загрузки.
 - [Alert](./alert.mdx) — сообщение рядом с содержимым.
 - [Item](./item.mdx) — строки списка, когда он не пуст.
+
+</ComponentDoc>

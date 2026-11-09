@@ -9,6 +9,7 @@ import { comboboxDocConfig } from '@site/src/components/demo/examples/combobox';
 
 # Combobox
 
+<ComponentDoc config={comboboxDocConfig}>
 Выбор из списка с поиском. Кнопка показывает выбранное и открывает всплывающий список, над
 которым стоит поле поиска. В семействе четыре компонента: одно значение, несколько значений и те
 же два режима для выбора из дерева.
@@ -87,10 +88,6 @@ import { Combobox } from '@reformer/ui-kit/combobox';
 `schema.node('country').getRef<ComboboxHandle>().current?.open()`. Кроме `open()` ссылка на
 компонент даёт `close()`, `clear()`, фокус и прокрутку к полю.
 
-## Примеры и API
-
-<ComponentDoc config={comboboxDocConfig} />
-
 ## Доступность
 
 - Кнопка — `role="combobox"` с `aria-expanded`. На неё [FormField](./form-field.mdx) вешает
@@ -131,3 +128,5 @@ import { Combobox } from '@reformer/ui-kit/combobox';
 - [Select](./select.mdx) — выбор из короткого списка и подгрузка опций с сервера.
 - [Tree](./tree.mdx) — дерево, на котором построены варианты с иерархией.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+
+</ComponentDoc>

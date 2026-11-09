@@ -9,6 +9,7 @@ import { inputMaskDocConfig } from '@site/src/components/demo/examples/input-mas
 
 # InputMask
 
+<ComponentDoc config={inputMaskDocConfig}>
 Текстовое поле, которое показывает шаблон ввода в пустом поле: `+7 (999) 999-99-99`. В шаблоне
 `9` — цифра, остальные символы — как есть. В форме `InputMask` кладётся в `component`
 [узла схемы](../reference/glossary.md#форма-и-данные) как есть.
@@ -75,10 +76,6 @@ validate(model.$.phone, [required(), pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/
 поля. Вне формы `InputMask` тоже работает со значением, а не с событием: `onChange` получает
 строку или `null`.
 
-## Примеры и API
-
-<ComponentDoc config={inputMaskDocConfig} />
-
 ## Доступность
 
 - Под капотом настоящий `<input type="text">`: фокус по Tab, ввод и вставка работают как обычно.
@@ -101,3 +98,5 @@ validate(model.$.phone, [required(), pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/
 - [Input](./input.mdx) — строка без шаблона.
 - [Встроенные правила](../validation/built-in.md) — `pattern`, `minLength` и другие.
 - [Свои компоненты полей](../react/custom-fields.md) — подключить библиотеку масок.
+
+</ComponentDoc>

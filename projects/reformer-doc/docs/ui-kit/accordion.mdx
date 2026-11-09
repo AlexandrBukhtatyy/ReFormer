@@ -10,6 +10,7 @@ import { accordionDocConfig } from '@site/src/components/demo/examples/accordion
 
 # Accordion
 
+<ComponentDoc config={accordionDocConfig}>
 Стопка секций с заголовками. Щелчок по заголовку раскрывает или сворачивает содержимое секции.
 Построен на Radix Accordion, это не поле формы.
 
@@ -50,10 +51,6 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@r
 
 Состоянием управляет либо сам компонент (`defaultValue`), либо вы (`value` + `onValueChange`).
 
-## Примеры
-
-<ComponentDoc config={accordionDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix Accordion:
@@ -88,3 +85,5 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@r
 - [Section](./section.mdx) — группа полей формы с заголовком, без раскрытия.
 - [Radix Accordion](https://www.radix-ui.com/primitives/docs/components/accordion) — полный список
   пропсов примитива.
+
+</ComponentDoc>

@@ -9,6 +9,7 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 
 # FormField
 
+<ComponentDoc config={uiKitFormFieldDocConfig}>
 Обёртка поля. Получает [ноду](../reference/glossary.md#форма-и-данные) поля и рисует вокруг
 контрола подпись, пояснение и [замечание](../reference/glossary.md#валидация). Какой контрол
 рисовать и с какими пропсами, FormField берёт из узла схемы — в разметке остаётся одна строка
@@ -49,7 +50,7 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 `labelTooltip` не передаются: их рисует FormField.
 
 Пропсы самого FormField — `control`, `direction`, `testId`, `className`, `children` — описаны на
-вкладке API ниже.
+вкладке API.
 
 ### Общие пропсы полей
 
@@ -86,10 +87,6 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 на лету, пересоздайте поле. `label` и `required` меняются на лету через
 `form.inn.updateComponentProps({ label })`.
 
-## Примеры и API
-
-<ComponentDoc config={uiKitFormFieldDocConfig} />
-
 ## Доступность
 
 - Подпись — настоящий `<label for>`, и контрол ссылается на неё через `aria-labelledby`. У
@@ -124,3 +121,5 @@ FormField рисует две свои строки:
 - [Field и FieldFrame](./field.mdx) — та же раскладка без ноды формы.
 - [Обработка ошибок](../validation/error-handling.md) — когда и как показываются замечания.
 - [Свои компоненты полей](../react/custom-fields.md) — подключить свой контрол к FormField.
+
+</ComponentDoc>

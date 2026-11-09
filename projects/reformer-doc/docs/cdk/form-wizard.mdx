@@ -9,6 +9,7 @@ import { formWizardDocConfig } from '@site/src/components/demo/examples/cdk-form
 
 # FormWizard
 
+<ComponentDoc config={formWizardDocConfig}>
 `FormWizard` рисует многошаговую форму: показывает текущий шаг, индикатор и прогресс, ведёт
 кнопки «Назад», «Далее» и «Отправить». Разметку каждой части вы пишете сами.
 
@@ -134,10 +135,6 @@ stateDiagram-v2
 включает стратегия сборки — `createForm({ validation: { strategy: 'blur' } })`, см.
 [Стратегии валидации](../validation/validation-strategies.md).
 
-## Примеры
-
-<ComponentDoc config={formWizardDocConfig} />
-
 ## Доступность
 
 - При смене шага визард объявляет скринридеру «Шаг N из M» через скрытый регион
@@ -166,3 +163,5 @@ stateDiagram-v2
 - [Многошаговые формы](/docs/guides/multi-step-forms) — поток шагов, правила и отправка целиком.
 - [FormWizard в ui-kit](../ui-kit/form-navigation.mdx) — готовый визард.
 - [Стратегии валидации](../validation/validation-strategies.md) — проверка при вводе.
+
+</ComponentDoc>

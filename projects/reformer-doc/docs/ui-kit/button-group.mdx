@@ -10,6 +10,7 @@ import { buttonGroupDocConfig } from '@site/src/components/demo/examples/button-
 
 # ButtonGroup
 
+<ComponentDoc config={buttonGroupDocConfig}>
 Контейнер, который склеивает соседние кнопки в один сегмент: у внутренних краёв пропадают
 скругления и двойные границы. В группу можно поставить и поле ввода, и неактивную подпись. Это
 оформление, а не поле формы: выбранного значения у группы нет.
@@ -50,10 +51,6 @@ import { Button, ButtonGroup, ButtonGroupSeparator, ButtonGroupText } from '@ref
   группе ширину (`className="w-full"`), и поле займёт всё свободное место.
 - `buttonGroupVariants` — классы группы (cva) для своего контейнера, если нужен тот же вид.
 
-## Примеры
-
-<ComponentDoc config={buttonGroupDocConfig} />
-
 ## Доступность
 
 - Контейнер — `div` с `role="group"`. Имени у группы нет: задайте `aria-label` или
@@ -77,3 +74,5 @@ import { Button, ButtonGroup, ButtonGroupSeparator, ButtonGroupText } from '@ref
 - [ToggleGroup](./toggle-group.mdx) — группа кнопок с выбранным состоянием.
 - [InputGroup](./input-group.mdx) — дополнения внутри поля ввода.
 - [DropdownMenu](./dropdown-menu.mdx) — меню для кнопки «ещё».
+
+</ComponentDoc>

@@ -26,6 +26,9 @@
   "demo.resize.label": {
     "message": "Change preview width"
   },
+  "demo.tab.description": {
+    "message": "Description"
+  },
   "demo.tab.variants": {
     "message": "Variants"
   },

@@ -10,6 +10,7 @@ import { sheetDocConfig } from '@site/src/components/demo/examples/sheet';
 
 # Sheet
 
+<ComponentDoc config={sheetDocConfig}>
 Панель, которая выезжает от края экрана поверх страницы. Внутри — заголовок, содержимое и кнопки.
 Ведёт себя как модальное окно: страница под панелью недоступна. Построена на Radix Dialog и
 входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -75,10 +76,6 @@ import {
 - Панель закрывают крестик, `Esc`, щелчок по затемнению и любой `SheetClose`. Чтобы закрыть её из
   кода, управляйте открытием сами: `open` и `onOpenChange`.
 
-## Примеры
-
-<ComponentDoc config={sheetDocConfig} />
-
 ## Доступность
 
 Sheet — это Radix Dialog, поэтому поведение то же, что у [Dialog](./dialog.mdx#доступность):
@@ -125,3 +122,5 @@ const loadLocale = createLocaleLoader([
 - [Sidebar](./sidebar.mdx) — постоянная боковая навигация.
 - [Radix Dialog](https://www.radix-ui.com/primitives/docs/components/dialog) — полный список
   пропсов примитива.
+
+</ComponentDoc>

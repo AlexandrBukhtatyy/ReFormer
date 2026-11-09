@@ -10,6 +10,7 @@ import { exampleCardDocConfig } from '@site/src/components/demo/examples/example
 
 # ExampleCard
 
+<ComponentDoc config={exampleCardDocConfig}>
 Карточка для демо-страниц и песочниц: заголовок, описание и живой пример. Кнопка в шапке
 переключает карточку на код примера, а кнопка в углу кода копирует его. Компонент входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -46,10 +47,6 @@ import { ExampleCard, Button } from '@reformer/ui-kit'; // или '@reformer/ui-
 `code` — просто строка. Карточка его не выполняет и не сверяет с `children`: следить, чтобы пример
 и код совпадали, приходится вам. Для фона берите цвета темы (`bg-muted`, `bg-accent`) — они верны и
 в тёмной теме.
-
-## Примеры
-
-<ComponentDoc config={exampleCardDocConfig} />
 
 ## Доступность
 
@@ -91,3 +88,5 @@ const loadLocale = createLocaleLoader([
 
 - [Card](./card.mdx) — блок с рамкой для рабочего интерфейса.
 - [Button](./button.mdx) — кнопки, которые чаще всего показывают в примерах.
+
+</ComponentDoc>

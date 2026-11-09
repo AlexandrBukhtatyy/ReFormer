@@ -10,6 +10,7 @@ import { avatarDocConfig } from '@site/src/components/demo/examples/avatar';
 
 # Avatar
 
+<ComponentDoc config={avatarDocConfig}>
 Круглое фото пользователя. Пока картинка грузится или если ссылка битая, на её месте видны
 инициалы. Построен на Radix Avatar и входит в [кит](../reference/glossary.md#пакеты)
 `@reformer/ui-kit`, это не поле формы.
@@ -53,10 +54,6 @@ import {
 Размеры: `sm` — 24px, `default` — 32px, `lg` — 40px. Шрифт инициалов, точка статуса и кружок «+N»
 подстраиваются под размер сами. Инициалы вы передаёте готовыми — компонент их не вычисляет.
 
-## Примеры
-
-<ComponentDoc config={avatarDocConfig} />
-
 ## Доступность
 
 - Загруженную картинку скринридер читает по `alt`. Если имя написано рядом с аватаром, поставьте
@@ -79,3 +76,5 @@ import {
 - [Badge](./badge.mdx) — текстовая метка.
 - [Radix Avatar](https://www.radix-ui.com/primitives/docs/components/avatar) — полный список
   пропсов примитива.
+
+</ComponentDoc>

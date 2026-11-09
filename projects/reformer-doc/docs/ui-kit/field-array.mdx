@@ -9,6 +9,7 @@ import { uiKitFieldArrayDocConfig } from '@site/src/components/demo/examples/fie
 
 # FieldArraySection
 
+<ComponentDoc config={uiKitFieldArrayDocConfig}>
 Оформленная секция массива под-форм: телефоны, адреса, созаёмщики. Заголовок, кнопка
 «Добавить», карточка на каждую строку, удаление, перестановка и пустое состояние уже готовы.
 Строку вы описываете один раз — секция повторяет её для каждого элемента массива.
@@ -100,13 +101,6 @@ const PhoneItem = ({ control }: { control: FormGroup<Phone> }) => (
 `model.phones.removeAt(0)`) или ноду (`form.phones.move(0, 1)`) — секция обновится сама.
 Подробнее о массивах — в руководстве [Массивы](/docs/patterns/arrays).
 
-## Примеры и API
-
-Вкладка API — таблица пропсов. Пропсы, у которых не сказано «только у FieldArraySection», есть и
-у `FieldArray`.
-
-<ComponentDoc config={uiKitFieldArrayDocConfig} />
-
 ## Доступность
 
 - Все кнопки — настоящие `<button type="button">`: работают с клавиатуры (Tab, Enter, пробел) и не
@@ -151,3 +145,5 @@ const PhoneItem = ({ control }: { control: FormGroup<Phone> }) => (
 - [FieldArray из cdk](/docs/cdk/field-array) — те же части без оформления.
 - [FormField](./form-field.mdx) — поле внутри строки.
 - [FormWizard](./form-navigation.mdx) — массив внутри шага мастера.
+
+</ComponentDoc>

@@ -10,6 +10,7 @@ import { popoverDocConfig } from '@site/src/components/demo/examples/popover';
 
 # Popover
 
+<ComponentDoc config={popoverDocConfig}>
 Небольшая панель, которая открывается щелчком рядом с кнопкой: настройки, короткая форма,
 подробности. Страница под ней остаётся доступной. Построен на Radix Popover и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -72,10 +73,6 @@ import {
 - Закрыть панель кнопкой внутри неё можно, только управляя открытием: `open` и `onOpenChange`
   (пример «Закрыть из кода»).
 
-## Примеры
-
-<ComponentDoc config={popoverDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix Popover:
@@ -104,3 +101,5 @@ import {
 - [DropdownMenu](./dropdown-menu.mdx) — меню действий.
 - [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover) — полный список
   пропсов примитива.
+
+</ComponentDoc>

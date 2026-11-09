@@ -10,6 +10,7 @@ import { cdkValidationMessagesDocConfig } from '@site/src/components/demo/exampl
 
 # Тексты замечаний
 
+<ComponentDoc config={cdkValidationMessagesDocConfig}>
 [Замечание](../reference/glossary.md#валидация) валидации несёт код и параметры, но не текст:
 `{ code: 'minLength', params: { minLength: 8 } }`. Текст под полем подбирает резолвер сообщений.
 `ValidationMessagesProvider` задаёт, откуда он берёт тексты для части формы, а
@@ -66,10 +67,6 @@ const messages = defineIssueMessages({
 и формы, которые рендерер рисует с обёрткой поля ui-kit.
 Смена языка в `I18nProvider` переводит уже показанные замечания без повторной проверки.
 
-## Примеры
-
-<ComponentDoc config={cdkValidationMessagesDocConfig} />
-
 ## Подводные камни
 
 - **`messages` того же провайдера важнее `resolver`.** Если задать оба, коды из словаря возьмутся
@@ -95,3 +92,5 @@ const messages = defineIssueMessages({
 - [Обработка ошибок](../validation/error-handling.md) — замечания, коды и параметры.
 - [FormField](./form-field.mdx) — где показывается текст замечания.
 - [Локализация](/docs/guides/localization) — языки и словари.
+
+</ComponentDoc>

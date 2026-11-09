@@ -10,6 +10,7 @@ import { itemDocConfig } from '@site/src/components/demo/examples/item';
 
 # Item
 
+<ComponentDoc config={itemDocConfig}>
 Строка из трёх зон: медиа слева, текст в центре, действия справа. Собирается из частей, любую
 можно опустить. Строки объединяют в список `ItemGroup` с разделителями `ItemSeparator`. Это
 оформление, а не поле формы.
@@ -79,10 +80,6 @@ import { FileText } from 'lucide-react';
 - `itemVariants` и `itemMediaVariants` — классы строки и медиа-слота (cva) для своих элементов с
   тем же видом.
 
-## Примеры
-
-<ComponentDoc config={itemDocConfig} />
-
 ## Доступность
 
 - `ItemGroup` ставит `role="list"`, а `Item` внутри него сам получает `role="listitem"`. Строке
@@ -109,3 +106,5 @@ import { FileText } from 'lucide-react';
 - [Card](./card.mdx) — отдельная карточка.
 - [Empty](./empty.mdx) — что показать, когда строк нет.
 - [Badge](./badge.mdx) — метки статуса в `ItemActions`.
+
+</ComponentDoc>

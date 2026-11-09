@@ -10,6 +10,7 @@ import { commandDocConfig } from '@site/src/components/demo/examples/command';
 
 # Command
 
+<ComponentDoc config={commandDocConfig}>
 Палитра команд: поле поиска и список под ним. Ввод сужает список, стрелки выбирают пункт, `Enter`
 выполняет. В окне (`CommandDialog`) получается привычная палитра по `⌘K`. Построена на
 [cmdk](https://cmdk.paco.me) и входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`,
@@ -85,10 +86,6 @@ import {
 - Данные с сервера: отключите встроенный поиск (`shouldFilter={false}`), берите текст из
   `onValueChange` у `CommandInput` и рисуйте пункты из ответа.
 
-## Примеры
-
-<ComponentDoc config={commandDocConfig} />
-
 ## Доступность
 
 Фокус всё время остаётся в поле поиска, клавиши обрабатывает cmdk:
@@ -140,3 +137,5 @@ const loadLocale = createLocaleLoader([
 - [DropdownMenu](./dropdown-menu.mdx) — меню действий за кнопкой.
 - [Dialog](./dialog.mdx) — окно, в котором живёт `CommandDialog`.
 - [Документация cmdk](https://github.com/pacocoursey/cmdk) — все пропсы и свой фильтр.
+
+</ComponentDoc>

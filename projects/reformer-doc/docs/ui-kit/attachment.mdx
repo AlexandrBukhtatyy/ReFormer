@@ -10,6 +10,7 @@ import { attachmentDocConfig } from '@site/src/components/demo/examples/attachme
 
 # Attachment
 
+<ComponentDoc config={attachmentDocConfig}>
 Карточка приложенного файла: значок или миниатюра, имя, подпись и кнопки. Стадию загрузки
 показывает `state`. Компонент только рисует файл — выбирать и загружать файлы он не умеет.
 
@@ -70,10 +71,6 @@ import { FileText, X } from 'lucide-react';
 - `orientation="vertical"` превращает карточку в плитку шириной 96 px (120 px с текстом).
 - `AttachmentTrigger` лежит под кнопками `AttachmentActions`: они остаются нажимаемыми поверх него.
 
-## Примеры
-
-<ComponentDoc config={attachmentDocConfig} />
-
 ## Доступность
 
 - `Attachment` и его части — обычные `div` и `span`, своих ролей нет.
@@ -95,3 +92,5 @@ import { FileText, X } from 'lucide-react';
 - [Message](./message.mdx) — реплика чата, в которой стоят вложения.
 - [Bubble](./bubble.mdx) — текст реплики.
 - [Spinner](./spinner.mdx) — значок загрузки для `AttachmentMedia`.
+
+</ComponentDoc>

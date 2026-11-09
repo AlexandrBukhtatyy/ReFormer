@@ -10,6 +10,7 @@ import { messageScrollerDocConfig } from '@site/src/components/demo/examples/mes
 
 # MessageScroller
 
+<ComponentDoc config={messageScrollerDocConfig}>
 Прокручиваемая лента сообщений чата. Открывается с конца переписки, ставит новую реплику
 пользователя к верхнему краю, держит ленту у конца, пока дописывается ответ, и показывает кнопку
 «к последнему сообщению», когда её прокрутили вверх. Поведение даёт библиотека
@@ -99,10 +100,6 @@ import {
 
 :::
 
-## Примеры
-
-<ComponentDoc config={messageScrollerDocConfig} />
-
 ## Доступность
 
 - `MessageScrollerViewport` — область `role="region"` с `tabIndex={0}`: на неё можно встать с
@@ -149,3 +146,5 @@ const locale = extendLocale(ru, {
 - [Bubble](./bubble.mdx) — пузырь с текстом реплики.
 - [ScrollArea](./scroll-area.mdx) — обычная область прокрутки.
 - [Обзор UI Kit](./overview.md) — установка и необязательные зависимости.
+
+</ComponentDoc>

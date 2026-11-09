@@ -10,6 +10,7 @@ import { markerDocConfig } from '@site/src/components/demo/examples/marker';
 
 # Marker
 
+<ComponentDoc config={markerDocConfig}>
 Служебная строка в ленте чата: статус ассистента, шаг рассуждения, разделитель «Сегодня»,
 заголовок блока источников. Текст приглушён, чтобы не спорить с репликами. Оформление задаёт
 `variant`.
@@ -51,10 +52,6 @@ import { Sparkles } from 'lucide-react';
 
 `asChild` отдаёт оформление дочернему элементу: с `<a>` внутри кликабельна вся строка.
 
-## Примеры
-
-<ComponentDoc config={markerDocConfig} />
-
 ## Доступность
 
 - `Marker` — обычный `div` (или ваш элемент при `asChild`), своей роли нет. Если статус меняется
@@ -73,3 +70,5 @@ import { Sparkles } from 'lucide-react';
 - [Message](./message.mdx) — реплика с аватаром и заголовком.
 - [Bubble](./bubble.mdx) — пузырь с текстом реплики.
 - [MessageScroller](./message-scroller.mdx) — лента сообщений с прокруткой.
+
+</ComponentDoc>

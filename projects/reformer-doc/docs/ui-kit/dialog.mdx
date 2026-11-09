@@ -10,6 +10,7 @@ import { dialogDocConfig } from '@site/src/components/demo/examples/dialog';
 
 # Dialog
 
+<ComponentDoc config={dialogDocConfig}>
 Модальное окно в центре экрана. Пока оно открыто, страница под ним затемнена и недоступна.
 Построено на Radix Dialog и входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`,
 это не поле формы.
@@ -81,10 +82,6 @@ import {
 - `DialogPortal` и `DialogOverlay` `DialogContent` рисует сам; отдельно они нужны только для своей
   композиции окна.
 
-## Примеры
-
-<ComponentDoc config={dialogDocConfig} />
-
 ## Доступность
 
 Фокус, клавиатуру и атрибуты даёт Radix Dialog:
@@ -137,3 +134,5 @@ const loadLocale = createLocaleLoader([
 - [Command](./command.mdx) — палитра команд в окне (`CommandDialog`).
 - [Radix Dialog](https://www.radix-ui.com/primitives/docs/components/dialog) — полный список
   пропсов примитива.
+
+</ComponentDoc>

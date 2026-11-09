@@ -9,6 +9,7 @@ import { datePickerDocConfig } from '@site/src/components/demo/examples/date-pic
 
 # DatePicker
 
+<ComponentDoc config={datePickerDocConfig}>
 Поле даты: кнопка показывает выбранную дату, по щелчку открывается [Calendar](./calendar.mdx) во
 всплывающем окне. Три компонента — одна дата, период и несколько дат, у каждого свой тип
 значения.
@@ -74,10 +75,6 @@ import { DatePickerRange } from '@reformer/ui-kit/date-picker';
 Из поведения формы календарь открывают программно:
 `schema.node('date').getRef<DatePickerHandle>().current?.open()`; есть и `close()`.
 
-## Примеры и API
-
-<ComponentDoc config={datePickerDocConfig} />
-
 ## Доступность
 
 - Триггер — обычная кнопка: Enter или пробел открывают календарь, фокус переходит на выбранный
@@ -114,3 +111,5 @@ date-fns (`dateLocale` в локали) токены формата выводя
 - [InputMask](./input-mask.mdx) — ввод даты с клавиатуры по маске.
 - [Встроенные правила](../validation/built-in.md) — правила для дат: `minDate`, `maxDate`,
   `pastDate`, `futureDate`.
+
+</ComponentDoc>

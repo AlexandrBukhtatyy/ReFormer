@@ -9,6 +9,7 @@ import { calendarDocConfig } from '@site/src/components/demo/examples/calendar';
 
 # Calendar
 
+<ComponentDoc config={calendarDocConfig}>
 Календарь месяца прямо на странице, без всплывающего окна. Построен на
 [react-day-picker](https://daypicker.dev) v10. В форме используется `CalendarSingle` — выбор
 одной даты, значение поля `Date | null`.
@@ -62,10 +63,6 @@ import { CalendarSingle } from '@reformer/ui-kit/calendar';
 [описании FormField](./form-field.mdx#общие-пропсы-полей). Заблокировать календарь —
 `form.deliveryDate.disable()`.
 
-## Примеры и API
-
-<ComponentDoc config={calendarDocConfig} />
-
 ## Доступность
 
 Разметку и клавиатуру даёт react-day-picker:
@@ -109,3 +106,5 @@ import { CalendarSingle } from '@reformer/ui-kit/calendar';
 - [DatePicker](./date-picker.mdx) — тот же календарь во всплывающем окне, период и несколько дат.
 - [Popover](./popover.mdx) — всплывающее окно, если собираете свой выбор даты.
 - [Встроенные правила](../validation/built-in.md) — правила для дат.
+
+</ComponentDoc>

@@ -9,6 +9,7 @@ import { fieldArrayDocConfig } from '@site/src/components/demo/examples/cdk-fiel
 
 # FieldArray
 
+<ComponentDoc config={fieldArrayDocConfig}>
 `FieldArray` рисует массив строк формы — телефоны, совладельцев, позиции заказа — и даёт кнопки
 добавления, удаления и перестановки. Разметку строки и кнопок вы пишете сами.
 
@@ -98,10 +99,6 @@ const phonesRef = useRef<FieldArrayHandle<Phone>>(null);
 и `isEmpty` — снимок на момент рендера; для реактивной длины снаружи есть
 `useArrayLength(form.phones)` из `@reformer/core/react`.
 
-## Примеры
-
-<ComponentDoc config={fieldArrayDocConfig} />
-
 ## Доступность
 
 - `AddButton` и `RemoveButton` рендерят `<button type="button">`: они не отправляют форму. Через
@@ -122,3 +119,5 @@ const phonesRef = useRef<FieldArrayHandle<Phone>>(null);
 - [Массивы в форме](/docs/patterns/arrays) — модель, схема и правила массива.
 - [FieldArraySection в ui-kit](../ui-kit/field-array.mdx) — готовая секция с `maxItems`.
 - [List](./list.mdx) — вывод массива без редактирования.
+
+</ComponentDoc>

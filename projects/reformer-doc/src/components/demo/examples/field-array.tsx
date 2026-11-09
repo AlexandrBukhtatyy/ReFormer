@@ -186,6 +186,11 @@ export const uiKitFieldArrayDocConfig: ComponentDocConfig = {
   importFrom: '@reformer/ui-kit/field-array',
   description:
     'Оформленная секция массива под-форм: заголовок, кнопка «Добавить», карточка на строку, удаление, перестановка и пустое состояние.',
+  apiNote: (
+    <>
+      Пропсы, у которых не сказано «только у FieldArraySection», есть и у <code>FieldArray</code>.
+    </>
+  ),
   variants: [
     {
       id: 'titled',

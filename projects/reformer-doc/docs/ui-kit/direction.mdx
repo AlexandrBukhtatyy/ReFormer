@@ -10,6 +10,7 @@ import { directionDocConfig } from '@site/src/components/demo/examples/direction
 
 # DirectionProvider
 
+<ComponentDoc config={directionDocConfig}>
 Сообщает компонентам на Radix, в какую сторону идёт текст: слева направо (`ltr`) или справа
 налево (`rtl`, иврит и арабский). Своей разметки не рисует — только передаёт направление вниз по
 дереву. Хук `useDirection` читает его в ваших компонентах.
@@ -55,10 +56,6 @@ function Toolbar() {
   DropdownMenu, ContextMenu, RadioGroup, ToggleGroup, Slider, ScrollArea и базовый Select.
 - Вложенный провайдер переопределяет внешний для своего поддерева.
 
-## Примеры
-
-<ComponentDoc config={directionDocConfig} />
-
 ## Доступность
 
 - Скринридер и браузер узнают направление из атрибута `dir` и языка из атрибута `lang` в DOM.
@@ -78,3 +75,5 @@ function Toolbar() {
 - [Accordion](./accordion.mdx) и [Tabs](./tabs.mdx) — стрелки клавиатуры с учётом направления.
 - [Radix Direction](https://www.radix-ui.com/primitives/docs/utilities/direction-provider) —
   исходный провайдер.
+
+</ComponentDoc>

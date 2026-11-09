@@ -9,6 +9,7 @@ import { checkboxDocConfig } from '@site/src/components/demo/examples/checkbox';
 
 # Checkbox
 
+<ComponentDoc config={checkboxDocConfig}>
 Флажок для ответа «да или нет»: согласие, подписка, необязательная опция. В форму ставят
 `CheckboxWithLabel` — флажок с подписью справа. Значение поля — `boolean`.
 
@@ -62,10 +63,6 @@ import { checkboxDocConfig } from '@site/src/components/demo/examples/checkbox';
 />
 ```
 
-## Примеры и API
-
-<ComponentDoc config={checkboxDocConfig} />
-
 ## Доступность
 
 - Флажок — кнопка `role="checkbox"` с `aria-checked` (Radix Checkbox). Фокус — по Tab,
@@ -89,3 +86,5 @@ import { checkboxDocConfig } from '@site/src/components/demo/examples/checkbox';
 - [Switch](./switch.mdx) — выключатель для настроек.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
 - [Встроенные правила](../validation/built-in.md) — `required` для `boolean` требует `true`.
+
+</ComponentDoc>

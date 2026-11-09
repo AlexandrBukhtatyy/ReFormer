@@ -149,7 +149,10 @@ export interface ApiConfig {
   language?: string;
 }
 
-/** Полная конфигурация страницы компонента (три таба). */
+/**
+ * Конфигурация вкладок страницы компонента: «Варианты», «Примеры», «API». Вкладку «Описание»
+ * конфиг не задаёт — это текст страницы, дети `<ComponentDoc>` в `.mdx`.
+ */
 export interface ComponentDocConfig {
   /** Имя компонента, напр. `Input`. */
   name: string;
@@ -169,4 +172,6 @@ export interface ComponentDocConfig {
    * У полей формы таблица не нужна: пропсы — часть `api.controls`.
    */
   props?: PropRow[];
+  /** Пояснение над содержимым вкладки API: что показывает таблица и к каким компонентам относится. */
+  apiNote?: ReactNode;
 }

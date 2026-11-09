@@ -9,6 +9,7 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
 
 # Select
 
+<ComponentDoc config={selectDocConfig}>
 Выпадающий список: поле в одну строку, а пункты открываются поверх страницы. В семействе три
 компонента: `SelectAsync` — одно значение, `SelectMulti` — несколько, `Select` с частями — для
 ручной сборки вне формы.
@@ -111,10 +112,6 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
 поведении формы, до первой отрисовки: `const cityRef = schema.node('city').getRef<SelectAsyncHandle>()`,
 а потом, например, перезагружают список после смены страны: `cityRef.current?.reload()`.
 
-## Примеры и API
-
-<ComponentDoc config={selectDocConfig} />
-
 ## Доступность
 
 - `SelectAsync` и части `Select` построены на Radix Select. Поле — кнопка с
@@ -157,3 +154,5 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
 - [Combobox](./combobox.mdx) — выбор с поиском по вводу.
 - [NativeSelect](./native-select.mdx) — системный выпадающий список.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+
+</ComponentDoc>

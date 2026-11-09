@@ -10,6 +10,7 @@ import { aspectRatioDocConfig } from '@site/src/components/demo/examples/aspect-
 
 # AspectRatio
 
+<ComponentDoc config={aspectRatioDocConfig}>
 Область с постоянной пропорцией ширины к высоте. Ширину задаёт родитель, высоту компонент
 считает сам. Поэтому место под картинку или видео зарезервировано заранее, и страница не прыгает,
 пока они грузятся. Построен на Radix AspectRatio, это не поле формы.
@@ -50,10 +51,6 @@ AspectRatio — один компонент, но в разметке у нег�
 Ширину ставьте на родителя, а не на AspectRatio: внешний элемент всегда занимает её целиком.
 Содержимое растягивайте на всю область — классы `h-full w-full`, для картинки ещё `object-cover`.
 
-## Примеры
-
-<ComponentDoc config={aspectRatioDocConfig} />
-
 ## Доступность
 
 - Роли и клавиатуры у компонента нет: это обычные `div`.
@@ -71,3 +68,5 @@ AspectRatio — один компонент, но в разметке у нег�
 - [Skeleton](./skeleton.mdx) — заглушка на время загрузки.
 - [Radix AspectRatio](https://www.radix-ui.com/primitives/docs/components/aspect-ratio) — примитив,
   на котором построен компонент.
+
+</ComponentDoc>

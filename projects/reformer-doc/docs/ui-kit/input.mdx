@@ -9,6 +9,7 @@ import { inputDocConfig } from '@site/src/components/demo/examples/input';
 
 # Input
 
+<ComponentDoc config={inputDocConfig}>
 Однострочное поле ввода текста. В семействе три компонента: `Input` — строка, `InputNumber` —
 число, `InputSuggest` — строка с подсказками из списка. Каждый кладётся в `component`
 [узла схемы](../reference/glossary.md#форма-и-данные) как есть.
@@ -58,10 +59,6 @@ import { inputDocConfig } from '@site/src/components/demo/examples/input';
 
 Вне формы `Input` — обычный `<input>`: его `onChange` получает DOM-событие.
 
-## Примеры и API
-
-<ComponentDoc config={inputDocConfig} />
-
 ## Доступность
 
 - Под капотом настоящий `<input>`: фокус по Tab, ввод, автозаполнение браузера работают как
@@ -88,3 +85,5 @@ import { inputDocConfig } from '@site/src/components/demo/examples/input';
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
 - [InputMask](./input-mask.mdx) — поле с шаблоном ввода.
 - [Встроенные правила](../validation/built-in.md) — `required`, `min`, `email` и другие.
+
+</ComponentDoc>

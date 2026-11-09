@@ -27,8 +27,8 @@ new-york, палитра neutral) на Tailwind CSS v4 и Radix UI.
 | Раскладка и служебные | [Box](./box.mdx), [Section](./section.mdx), [Separator](./separator.mdx), [List](./list.mdx), [Item](./item.mdx), [Collapsible](./collapsible.mdx), [ScrollArea](./scroll-area.mdx), [AspectRatio](./aspect-ratio.mdx), [Resizable](./resizable.mdx), [AsyncBoundary](./async-boundary.mdx), [Empty](./empty.mdx), [Spinner](./spinner.mdx), [Kbd](./kbd.mdx), [Direction](./direction.mdx) |
 | ИИ-чат                | [Message](./message.mdx), [Bubble](./bubble.mdx), [Attachment](./attachment.mdx), [Marker](./marker.mdx), [MessageScroller](./message-scroller.mdx)                                                                                                                                                                                                                                         |
 
-Полный список — в меню слева. На странице каждого компонента есть живые варианты, примеры и
-вкладка API.
+Полный список — в меню слева. Страница каждого компонента разбита на вкладки: описание, живые
+варианты, примеры и API.
 
 ## Установка
 

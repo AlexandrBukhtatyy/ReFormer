@@ -10,6 +10,7 @@ import { cdkOptionSourceDocConfig } from '@site/src/components/demo/examples/cdk
 
 # Источники опций
 
+<ComponentDoc config={cdkOptionSourceDocConfig}>
 Вход `@reformer/cdk/option-source` грузит варианты для списочных полей: `Select`, `SelectMulti` и
 `InputSuggest` из ui-kit, [Autocomplete](./autocomplete.mdx) из cdk. Откуда брать варианты, описывает
 объект `ResourceConfig`, а хук `useResourceOptions` грузит их, ищет по ним и догружает страницы.
@@ -79,10 +80,6 @@ const {
 Для своих обёрток и тестов без DOM есть чистые функции: `resolveStrategyFlags`, `normalizeItems`,
 `mergeOptions`, `filterClient`, `resourceReducer`, `hasMore`, `isNearBottom`.
 
-## Примеры
-
-<ComponentDoc config={cdkOptionSourceDocConfig} />
-
 ## Подводные камни
 
 - **Источник — константа модуля или `useMemo`.** Хук перезапускает загрузку, когда меняется ссылка
@@ -105,3 +102,5 @@ const {
 
 - [Autocomplete](./autocomplete.mdx) — подсказки из `ResourceConfig`.
 - [Select в ui-kit](../ui-kit/select.mdx) — выбор из списка с `resource`.
+
+</ComponentDoc>

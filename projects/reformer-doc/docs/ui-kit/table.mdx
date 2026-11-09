@@ -10,6 +10,7 @@ import { tableDocConfig } from '@site/src/components/demo/examples/table';
 
 # Table
 
+<ComponentDoc config={tableDocConfig}>
 Таблица в двух видах. Части `Table…` — стилизованные теги таблицы для разметки руками. `DataGrid`
 — таблица, которая сама запрашивает страницы данных у вашей функции и показывает загрузку, ошибку
 и пустой результат. Это не поле формы.
@@ -145,10 +146,6 @@ const settings: TableSettings<User> = {
   `rowKey` ключ строки — её номер на странице, поэтому выбор сбрасывается при каждой смене строк:
   страница, фильтр, сортировка, перезагрузка.
 
-## Примеры
-
-<ComponentDoc config={tableDocConfig} />
-
 ## Доступность
 
 Части Table — нативные теги таблицы, скринридер читает строки и колонки сам.
@@ -220,3 +217,5 @@ const locale = extendLocale(ru, { messages: { 'kit.table.empty': 'Заявок �
 - [AsyncBoundary](./async-boundary.mdx) — блоки загрузки и ошибки, которые использует DataGrid.
 - [List](./list.mdx) и [Item](./item.mdx) — списки вместо таблицы.
 - [TanStack Table](https://tanstack.com/table) — движок DataGrid.
+
+</ComponentDoc>

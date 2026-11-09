@@ -10,6 +10,7 @@ import { treeDocConfig } from '@site/src/components/demo/examples/tree';
 
 # Tree
 
+<ComponentDoc config={treeDocConfig}>
 Дерево строк, каким его показывает файловый навигатор редактора: уровни с отступами, треугольник
 у ветки, значок, подпись, метка справа. Показывает иерархию — файлы проекта, разделы каталога,
 оргструктуру. Это навигация, а не поле формы: значения у дерева нет.
@@ -107,10 +108,6 @@ const nodes: TreeNode[] = [
 `getActionTargets()` отвечает, к чему применить действие: к набору, если выделенная строка в нём,
 иначе к одной выделенной строке.
 
-## Примеры
-
-<ComponentDoc config={treeDocConfig} />
-
 ## Доступность
 
 Контейнер — `role="tree"`, строки — `role="treeitem"` с `aria-level`, `aria-selected`,
@@ -158,3 +155,5 @@ const nodes: TreeNode[] = [
 - [Resizable](./resizable.mdx) — панель-проводник с изменяемой шириной.
 - [ScrollArea](./scroll-area.mdx) — прокрутка, на которой построено дерево.
 - [Item](./item.mdx) — строки, из которых собрано дерево.
+
+</ComponentDoc>

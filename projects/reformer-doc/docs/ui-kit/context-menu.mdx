@@ -10,6 +10,7 @@ import { contextMenuDocConfig } from '@site/src/components/demo/examples/context
 
 # ContextMenu
 
+<ComponentDoc config={contextMenuDocConfig}>
 Меню, которое открывается правым щелчком (или долгим касанием) по области и встаёт у курсора: как
 контекстное меню в файловом менеджере. Построено на Radix ContextMenu и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -69,10 +70,6 @@ import {
 - `ContextMenuShortcut` — только подпись; сочетание клавиш приложение обрабатывает само.
 - `disabled` у триггера возвращает обычное меню браузера.
 
-## Примеры
-
-<ComponentDoc config={contextMenuDocConfig} />
-
 ## Доступность
 
 Внутри открытого меню клавиатура та же, что у DropdownMenu:
@@ -101,3 +98,5 @@ import {
 - [Command](./command.mdx) — команды с поиском.
 - [Radix ContextMenu](https://www.radix-ui.com/primitives/docs/components/context-menu) — полный
   список пропсов примитива.
+
+</ComponentDoc>

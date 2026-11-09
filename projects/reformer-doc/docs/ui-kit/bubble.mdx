@@ -10,6 +10,7 @@ import { bubbleDocConfig } from '@site/src/components/demo/examples/bubble';
 
 # Bubble
 
+<ComponentDoc config={bubbleDocConfig}>
 Пузырь с текстом одной реплики чата. Оформление задаёт `variant`, сторону — `align`. Это часть
 набора для чата с ассистентом: пузырь обычно стоит внутри [Message](./message.mdx).
 
@@ -54,10 +55,6 @@ import { BubbleGroup, Bubble, BubbleContent, BubbleReactions } from '@reformer/u
   действует. Внутри [Message](./message.mdx) с `align="end"` пузырь встаёт вправо сам.
 - Пузырь занимает не больше 80 % ширины колонки; `ghost` — всю ширину.
 
-## Примеры
-
-<ComponentDoc config={bubbleDocConfig} />
-
 ## Доступность
 
 - Все части — обычные `div`: своих ролей и клавиатуры у пузыря нет, текст читается по порядку.
@@ -79,3 +76,5 @@ import { BubbleGroup, Bubble, BubbleContent, BubbleReactions } from '@reformer/u
 - [MessageScroller](./message-scroller.mdx) — прокручиваемая лента сообщений.
 - [Attachment](./attachment.mdx) — вложения в реплике.
 - [Marker](./marker.mdx) — служебные строки ответа.
+
+</ComponentDoc>

@@ -10,6 +10,7 @@ import { badgeDocConfig } from '@site/src/components/demo/examples/badge';
 
 # Badge
 
+<ComponentDoc config={badgeDocConfig}>
 Короткая метка рядом с текстом: статус заявки, число непрочитанных, тег. Вид задаёт `variant`.
 Компонент входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
 
@@ -40,10 +41,6 @@ import { Badge } from '@reformer/ui-kit'; // или '@reformer/ui-kit/badge'
 Подсветка при наведении у вариантов включается только на ссылке (`asChild` с `<a>`): обычная
 метка на курсор не реагирует.
 
-## Примеры
-
-<ComponentDoc config={badgeDocConfig} />
-
 ## Доступность
 
 - Метка — обычный текст в `<span>`: скринридер читает её вместе с соседним текстом, роли и фокуса у
@@ -62,3 +59,5 @@ import { Badge } from '@reformer/ui-kit'; // или '@reformer/ui-kit/badge'
 - [Avatar](./avatar.mdx) — статус-точка на аватаре.
 - [Button](./button.mdx) — те же варианты вида для действий.
 - [Kbd](./kbd.mdx) — обозначение клавиш.
+
+</ComponentDoc>

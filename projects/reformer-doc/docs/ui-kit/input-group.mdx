@@ -9,6 +9,7 @@ import { inputGroupDocConfig } from '@site/src/components/demo/examples/input-gr
 
 # InputGroup
 
+<ComponentDoc config={inputGroupDocConfig}>
 Поле ввода с аддонами по краям: иконкой, текстом или кнопкой. Рамка, кольцо фокуса и красная
 рамка ошибки рисуются на всю группу, поэтому поле и аддоны выглядят одним элементом.
 
@@ -58,10 +59,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@r
 такую группу с полем формы, сделайте из неё свой компонент поля — см.
 [Свои компоненты полей](../react/custom-fields.md).
 
-## Примеры и API
-
-<ComponentDoc config={inputGroupDocConfig} />
-
 ## Доступность
 
 - Контейнер и каждый аддон размечены `role="group"`. Назовите группу, если у неё нет видимой
@@ -85,3 +82,5 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@r
 - [Input](./input.mdx) и [Textarea](./textarea.mdx) — поля формы с общими пропсами.
 - [Button](./button.mdx) — варианты и размеры кнопок.
 - [Свои компоненты полей](../react/custom-fields.md) — как подключить свою разметку к форме.
+
+</ComponentDoc>

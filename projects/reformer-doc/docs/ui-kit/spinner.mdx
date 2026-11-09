@@ -10,6 +10,7 @@ import { spinnerDocConfig } from '@site/src/components/demo/examples/spinner';
 
 # Spinner
 
+<ComponentDoc config={spinnerDocConfig}>
 Вращающаяся иконка: «идёт работа, подождите». Размер и цвет задают классы. Для скринридера у
 спиннера есть роль `status` и подпись «Загрузка», которая переводится вместе с локалью кита.
 
@@ -44,10 +45,6 @@ Spinner — один элемент `svg` (иконка `Loader2Icon` из lucid
 | `className`  | Размер (`size-*`, по умолчанию `size-4`) и цвет (`text-*`: иконка берёт цвет текста). |
 | `aria-label` | Подпись для скринридера. По умолчанию — из локали кита: Loading / Загрузка.           |
 | остальные    | Любые атрибуты `svg`: `data-testid`, `aria-hidden`, `style`.                          |
-
-## Примеры
-
-<ComponentDoc config={spinnerDocConfig} />
 
 ## Доступность
 
@@ -90,3 +87,5 @@ const locale = extendLocale(ru, { messages: { 'kit.spinner.label': 'Подожд
 - [Skeleton](./skeleton.mdx) — заглушка на месте содержимого.
 - [AsyncBoundary](./async-boundary.mdx) — блок с загрузкой, ошибкой и повтором.
 - [Button](./button.mdx) — кнопка, в которую ставят спиннер.
+
+</ComponentDoc>

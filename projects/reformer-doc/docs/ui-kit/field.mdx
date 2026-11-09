@@ -9,6 +9,7 @@ import { fieldDocConfig } from '@site/src/components/demo/examples/field';
 
 # Field
 
+<ComponentDoc config={fieldDocConfig}>
 Части раскладки поля: подпись, контрол, пояснение, ошибка, группа полей с заголовком. Это
 вёрстка без формы — значение, проверку и связи для скринридера вы задаёте сами. `FieldFrame`
 собирает эти части в готовую рамку поля.
@@ -65,10 +66,6 @@ import { Field, FieldDescription, FieldLabel, Input } from '@reformer/ui-kit';
 </FieldFrame>
 ```
 
-## Примеры и API
-
-<ComponentDoc config={fieldDocConfig} />
-
 ## Доступность
 
 - `FieldLabel` — настоящий `<label>`: свяжите его с контролом через `htmlFor` и `id`, и клик по
@@ -93,3 +90,5 @@ import { Field, FieldDescription, FieldLabel, Input } from '@reformer/ui-kit';
 - [FormField](./form-field.mdx) — та же раскладка для поля формы.
 - [Label](./label.mdx) — подпись отдельно.
 - [Section](./section.mdx) — группы и секции формы.
+
+</ComponentDoc>

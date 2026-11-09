@@ -10,6 +10,7 @@ import { asyncBoundaryDocConfig } from '@site/src/components/demo/examples/async
 
 # AsyncBoundary
 
+<ComponentDoc config={asyncBoundaryDocConfig}>
 Контейнер для части экрана, которая ждёт данные: форма редактирования заявки, справочник, список.
 Показывает спиннер, пока данные грузятся, карточку ошибки с кнопкой «Повторить», если загрузка не
 удалась, и ваше содержимое, когда всё готово. Блоки загрузки и ошибки уже оформлены.
@@ -90,10 +91,6 @@ import { AsyncBoundary } from '@reformer/ui-kit'; // или '@reformer/ui-kit/as
 рисуете внутри `children`, когда список пуст. Так блок пустоты не объявляется скринридеру как
 тревога.
 
-## Примеры
-
-<ComponentDoc config={asyncBoundaryDocConfig} />
-
 ## Доступность
 
 - Регион-обёртка получает `aria-busy` на время загрузки и фонового обновления (`refreshing`), а
@@ -161,3 +158,5 @@ export const appRu = extendLocale(ru, {
   AsyncBoundary.
 - [Spinner](./spinner.mdx), [Skeleton](./skeleton.mdx), [Empty](./empty.mdx) — блоки, из которых
   собраны состояния.
+
+</ComponentDoc>

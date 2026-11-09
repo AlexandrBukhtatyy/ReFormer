@@ -9,6 +9,7 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 
 # FileUpload
 
+<ComponentDoc config={fileUploadDocConfig}>
 Поле выбора и загрузки файлов. Четыре компонента с разным видом — кнопка, зона перетаскивания,
 строка ввода и аватар — и одним поведением: отбор файлов, список, загрузка на сервер с
 прогрессом. Поведение даёт headless-слой [`@reformer/cdk/file-upload`](/docs/cdk/file-upload),
@@ -90,10 +91,6 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 `clear()`, `upload()` — отправить ожидающие файлы при `autoUpload: false` — и `abort()` —
 прервать активные загрузки.
 
-## Примеры и API
-
-<ComponentDoc config={fileUploadDocConfig} />
-
 ## Доступность
 
 Основу даёт headless-слой:
@@ -138,3 +135,5 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 - [Встроенные правила](../validation/built-in.md) — правила для файлов: `maxFiles`,
   `maxFileSize`, `fileType`.
 - [FormField](./form-field.mdx) — подпись, пояснение и замечание вокруг поля.
+
+</ComponentDoc>

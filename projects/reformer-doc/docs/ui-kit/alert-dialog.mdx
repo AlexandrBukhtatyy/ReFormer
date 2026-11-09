@@ -10,6 +10,7 @@ import { alertDialogDocConfig } from '@site/src/components/demo/examples/alert-d
 
 # AlertDialog
 
+<ComponentDoc config={alertDialogDocConfig}>
 Окно, которое задаёт вопрос и ждёт ответа: «Удалить проект?» — «Отмена» или «Удалить». Щелчок мимо
 окна его не закрывает. Построено на Radix AlertDialog и входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
@@ -84,10 +85,6 @@ import {
 - Пишите кнопки глаголом действия («Удалить», «Отозвать»), а не «Да» / «ОК»: ответ понятен без
   чтения вопроса.
 
-## Примеры
-
-<ComponentDoc config={alertDialogDocConfig} />
-
 ## Доступность
 
 Фокус, клавиатуру и атрибуты даёт Radix AlertDialog:
@@ -117,3 +114,5 @@ import {
 - [Button](./button.mdx) — варианты кнопок для действия и отмены.
 - [Radix AlertDialog](https://www.radix-ui.com/primitives/docs/components/alert-dialog) — полный
   список пропсов примитива.
+
+</ComponentDoc>

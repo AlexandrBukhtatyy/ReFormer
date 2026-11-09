@@ -10,6 +10,7 @@ import { navigationMenuDocConfig } from '@site/src/components/demo/examples/navi
 
 # NavigationMenu
 
+<ComponentDoc config={navigationMenuDocConfig}>
 Навигация сайта: ряд пунктов в шапке. Пункт-ссылка ведёт на страницу, пункт-кнопка раскрывает
 панель с группой ссылок. Построен на Radix NavigationMenu, это не поле формы.
 
@@ -74,10 +75,6 @@ import {
 Чтобы ссылки работали с роутером приложения, передайте в `NavigationMenuLink` свойство `asChild` и
 положите внутрь ссылку роутера.
 
-## Примеры
-
-<ComponentDoc config={navigationMenuDocConfig} />
-
 ## Доступность
 
 Клавиатуру и атрибуты даёт Radix NavigationMenu:
@@ -110,3 +107,5 @@ import {
 - [Sidebar](./sidebar.mdx) — боковая навигация.
 - [Radix NavigationMenu](https://www.radix-ui.com/primitives/docs/components/navigation-menu) —
   полный список пропсов примитива.
+
+</ComponentDoc>

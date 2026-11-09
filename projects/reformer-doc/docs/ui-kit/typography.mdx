@@ -10,6 +10,7 @@ import { typographyDocConfig } from '@site/src/components/demo/examples/typograp
 
 # Typography
 
+<ComponentDoc config={typographyDocConfig}>
 Набор компонентов для текста: заголовки, абзацы, списки, цитаты, код. Каждый рисует один тег
 (`h1`, `p`, `ul`…) с готовым размером, весом и отступами. Набор входит в
 [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поля формы.
@@ -54,10 +55,6 @@ import { TypographyH2, TypographyP, TypographyInlineCode } from '@reformer/ui-ki
 Tailwind-классов побеждает ваш — `className="text-2xl"` у `TypographyH2` заменит его `text-3xl`.
 Цвета берутся из темы, поэтому текст верен и в тёмной теме.
 
-## Примеры
-
-<ComponentDoc config={typographyDocConfig} />
-
 ## Доступность
 
 - Компоненты рисуют настоящие теги: `TypographyH2` — это `h2` в структуре заголовков страницы.
@@ -76,3 +73,5 @@ Tailwind-классов побеждает ваш — `className="text-2xl"` у 
 - [Section](./section.mdx) — заголовок группы полей в форме.
 - [Card](./card.mdx) — блок с рамкой для текста и действий.
 - [Kbd](./kbd.mdx) — обозначение клавиш.
+
+</ComponentDoc>
