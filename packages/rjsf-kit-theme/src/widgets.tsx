@@ -30,12 +30,12 @@
  */
 
 import { createElement, type ComponentType } from 'react';
-import { bindFieldProps, getFieldAdapter } from '@reformer/core/react';
+import { bindFieldProps, getFieldAdapter, hasInlineLabel } from '@reformer/core/react';
 import { rangeSpec, type EnumOptionsType, type Widget, type WidgetProps } from '@rjsf/utils';
 
 /** Контрол подписывает себя сам (чекбокс, переключатель) — маркер полей ReFormer. */
 export function isInlineLabel(component: unknown): boolean {
-  return (component as { reformerLayout?: string } | null)?.reformerLayout === 'inline-label';
+  return hasInlineLabel(component);
 }
 
 /** Похоже ли значение на React-компонент: функция, класс или объект `memo`/`forwardRef`. */
@@ -201,12 +201,16 @@ export function kitWidget(
         'data-testid': `input-${fieldName}`,
         ...(disabled === true || readonly === true ? { disabled: true } : {}),
         ...(placeholder ? { placeholder } : {}),
-        ...(required === true ? { required: true } : {}),
+        // Обязательность — для скринридера. Сам `required` `bindFieldProps` оставляет только
+        // контролу с inline-подписью (он рисует звёздочку): нативный `required` на `<input>`
+        // включил бы проверку браузера поверх проверки схемы.
+        ...(required === true ? { required: true, 'aria-required': true } : {}),
         ...(autofocus === true ? { autoFocus: true } : {}),
         ...(rawErrors !== undefined && rawErrors.length > 0 ? { 'aria-invalid': true } : {}),
         ...(keyed !== undefined ? { options: keyed.options } : {}),
         ...(inline && hideLabel !== true ? { label } : {}),
-      }
+      },
+      Control
     );
     return createElement(Control, bound);
   }
