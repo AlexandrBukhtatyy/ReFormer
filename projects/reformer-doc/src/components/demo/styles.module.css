@@ -1,4 +1,17 @@
 /* ── Оболочка страницы компонента + табы ─────────────────────────────── */
+/* Заголовок страницы для скринридеров: в разметке есть, на экране места не занимает. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .componentDoc {
   margin: 1rem 0 2rem;
 }

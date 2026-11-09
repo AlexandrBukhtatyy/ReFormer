@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Info } from 'lucide-react';
 import Heading from '@theme/Heading';
+import { useDoc } from '@docusaurus/plugin-content-docs/client';
 import { VariantGallery } from './VariantGallery';
 import { Playground } from './Playground';
 import { ApiExplorer } from './ApiExplorer';
@@ -48,6 +49,10 @@ interface ComponentDocProps {
 /**
  * Оболочка страницы компонента: вкладки Описание | Варианты | Примеры | API.
  *
+ * Видимого заголовка у страницы нет — имя компонента уже в хлебных крошках, а крупный H1
+ * отодвигал вкладки вниз. Страница ставит `hide_title: true`, а `<h1>` с её `title` компонент
+ * рисует сам, скрытым визуально: по нему страницу находят скринридеры.
+ *
  * Открытая вкладка живёт в адресе: `#variants`, `#examples`, `#api`; у «Описания» адрес без
  * якоря. Ссылка на заголовок другой вкладки — пункт оглавления справа или ссылка с соседней
  * страницы — сама открывает нужную вкладку и докручивает до заголовка.
@@ -60,6 +65,7 @@ export function ComponentDoc({ config, children }: ComponentDocProps) {
   // Сервер и первый рендер всегда отдают вкладку по умолчанию — иначе гидрация разойдётся с
   // разметкой. Вкладку из адреса подхватывает эффект ниже.
   const [active, setActive] = useState<TabId>(defaultTab);
+  const { metadata } = useDoc();
   const hintId = useId();
   const baseId = useId();
   // Заголовок, до которого докрутить после смены вкладки: пока вкладка закрыта, его нет в
@@ -112,6 +118,7 @@ export function ComponentDoc({ config, children }: ComponentDocProps) {
 
   return (
     <div className={styles.componentDoc}>
+      <h1 className={styles.visuallyHidden}>{metadata.title}</h1>
       <div className={styles.tabBar} role="tablist" aria-label={demoText.tabsLabel(config.name)}>
         {tabs.map((t) => (
           <button

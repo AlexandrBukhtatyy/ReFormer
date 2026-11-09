@@ -30,12 +30,22 @@
 
 ## Шаблон страницы компонента (UI Kit, CDK)
 
-Страница — заголовок `# Имя` и вкладки Описание | Варианты | Примеры | API. Весь текст страницы
-стоит между `<ComponentDoc config={…}>` и `</ComponentDoc>`: это вкладка «Описание», она открыта по
+Страница — только вкладки Описание | Варианты | Примеры | API, видимого заголовка `# Имя` нет:
+имя уже в хлебных крошках. Во frontmatter — `hide_title: true`, иначе Docusaurus нарисует заголовок
+из `title`; скрытый `<h1>` для скринридеров ставит сам `ComponentDoc`. Весь текст страницы стоит
+между `<ComponentDoc config={…}>` и `</ComponentDoc>`: это вкладка «Описание», она открыта по
 умолчанию, её заголовки попадают в оглавление. Остальные вкладки строит конфиг.
 
 ```mdx
-# Input
+---
+id: input
+title: Input
+sidebar_label: Input
+hide_title: true
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { inputDocConfig } from '@site/src/components/demo/examples/input';
 
 <ComponentDoc config={inputDocConfig}>
 Назначение в одном абзаце.
