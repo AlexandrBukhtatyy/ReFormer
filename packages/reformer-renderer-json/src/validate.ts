@@ -171,7 +171,9 @@ function formatAjvErrors(
   for (const e of ajvErrors ?? []) {
     if (e.keyword === 'if') continue;
     if (e.keyword === 'anyOf') continue;
-    if (e.schemaPath.includes('operatorOp')) continue;
+    // Ветки escape-hatch'а (оператор-строка, структурная `$locale`) — шум: значение не обязано
+    // быть оператором, и «must match pattern»/«must be object» лишь заслонили бы честную ошибку.
+    if (e.schemaPath.includes('operatorOp') || e.schemaPath.includes('localeObjectOp')) continue;
     if (e.keyword === 'additionalProperties') {
       const prop = (e.params as { additionalProperty?: string }).additionalProperty;
       const loc = joinInstancePath(basePath, e.instancePath);

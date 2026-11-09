@@ -98,6 +98,34 @@ function operatorOpDefinition(): Record<string, unknown> {
 }
 
 /**
+ * Имя определения структурной формы `$locale` — `{ "$locale": "key", "params": { … } }`.
+ * Структурная форма — объект, а не строка, поэтому `operatorOp` её не покрывает, хотя конвертер
+ * резолвит её на месте любого значения `componentProps` так же, как строку `$locale(key)`.
+ */
+const LOCALE_OBJECT_OP = 'localeObjectOp';
+
+/**
+ * Определение структурной формы `$locale`. Живёт здесь, а не в `form-schema.schema.json`: базовая
+ * мета-схема материализуется генераторами в IDE-схемы примеров, и новое определение в ней дало бы
+ * дрейф сгенерированных файлов, хотя сами узлы документа не меняются — меняется только проверка
+ * `componentProps`.
+ */
+function localeObjectOpDefinition(): Record<string, unknown> {
+  return {
+    type: 'object',
+    required: ['$locale'],
+    additionalProperties: false,
+    properties: {
+      $locale: { type: 'string', minLength: 1 },
+      params: { type: 'object' },
+    },
+    description:
+      'Structural $locale with interpolation params: { "$locale": "key", "params": { "count": 8 } }. ' +
+      'Accepted wherever a "$locale(key)" operator string is — the converter resolves both to a string.',
+  };
+}
+
+/**
  * Рекурсивно вырезает `x-*`-ключи (`x-doc`/`x-runtimeProps`/`x-registryName`) из схемы. Нужно перед
  * компиляцией ajv: в strict-режиме ajv бросает `unknown keyword: "x-doc"`. Удачно — это машинная
  * гарантия, что валидатор DSL физически не видит doc-метаданные.
@@ -123,11 +151,13 @@ function deepStripDocExtensions(value: unknown): unknown {
 }
 
 /**
- * Рекурсивно оборачивает КАЖДЫЙ проп схемы в `anyOf: [<честный тип>, operatorOp]`, чтобы автор
- * схемы формы не дублировал escape-hatch руками: оператор-строка (`"$dataSource(LOAN_TYPES)"`,
- * `"$fn(fmt)"`) допустима на месте любого значения componentProps. Спускается во вложенные
- * `properties` и `items`; сам объект в `anyOf` не оборачивается (componentProps — всегда объект).
- * Ссылается на `#/definitions/operatorOp` — определение подставляет {@link toComponentPropsValidatorSchema}.
+ * Рекурсивно оборачивает КАЖДЫЙ проп схемы в `anyOf: [<честный тип>, operatorOp, localeObjectOp]`,
+ * чтобы автор схемы формы не дублировал escape-hatch руками: оператор-строка
+ * (`"$dataSource(LOAN_TYPES)"`, `"$fn(fmt)"`) и структурная форма `$locale`
+ * (`{ "$locale": "key", "params": {…} }`) допустимы на месте любого значения componentProps — как и
+ * в конвертере. Спускается во вложенные `properties` и `items`; сам объект в `anyOf` не
+ * оборачивается (componentProps — всегда объект). Ссылается на `#/definitions/operatorOp` и
+ * `#/definitions/localeObjectOp` — определения подставляет {@link toComponentPropsValidatorSchema}.
  *
  * @param schema - JSON Schema (обычно после {@link stripDocExtensions}).
  * @returns Копия схемы с обёрнутыми пропами.
@@ -148,7 +178,13 @@ function wrapPropsWithOperator(value: unknown): unknown {
   ) {
     const props: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(node.properties as Record<string, unknown>)) {
-      props[k] = { anyOf: [wrapPropsWithOperator(v), { $ref: '#/definitions/operatorOp' }] };
+      props[k] = {
+        anyOf: [
+          wrapPropsWithOperator(v),
+          { $ref: '#/definitions/operatorOp' },
+          { $ref: `#/definitions/${LOCALE_OBJECT_OP}` },
+        ],
+      };
     }
     out.properties = props;
   }
@@ -161,9 +197,9 @@ function wrapPropsWithOperator(value: unknown): unknown {
 /**
  * Превращает схему `componentProps` компонента ({@link ComponentPropsSchema}) в самодостаточную
  * ajv-схему: {@link stripDocExtensions} (снять `x-*`) → {@link allowOperatorStrings} (обернуть пропы
- * в `anyOf` с operatorOp) → добавить `definitions.operatorOp`, чтобы `$ref` резолвился при
- * standalone-компиляции. Используется фазой (d) `validateFormSchema` и IDE-веткой
- * {@link buildFormSchemaMetaSchema}.
+ * в `anyOf` с operatorOp и структурной формой `$locale`) → добавить `definitions.operatorOp` и
+ * `definitions.localeObjectOp`, чтобы `$ref` резолвились при standalone-компиляции. Используется
+ * фазой (d) `validateFormSchema` и IDE-веткой {@link buildFormSchemaMetaSchema}.
  *
  * @param propsSchema - Полная схема componentProps (враппер + вариант; уже прошедшая mergeFieldPropsSchema).
  * @returns JSON-схема, готовая к `ajv.compile`.
@@ -176,7 +212,11 @@ export function toComponentPropsValidatorSchema(
   const existingDefs = (wrapped.definitions as Record<string, unknown> | undefined) ?? {};
   return {
     ...wrapped,
-    definitions: { ...existingDefs, operatorOp: operatorOpDefinition() },
+    definitions: {
+      ...existingDefs,
+      operatorOp: operatorOpDefinition(),
+      [LOCALE_OBJECT_OP]: localeObjectOpDefinition(),
+    },
   };
 }
 
@@ -251,6 +291,9 @@ function tightenMetaSchema(
       const target = schema.definitions[def];
       target.allOf = [...(target.allOf ?? []), ...branches];
     }
+    // Ветки `then` вложены в мета-схему, и `$ref` из них резолвится от её корня: `operatorOp` там
+    // есть изначально, а структурную форму `$locale` нужно положить рядом.
+    (schema.definitions as Record<string, unknown>)[LOCALE_OBJECT_OP] = localeObjectOpDefinition();
   }
   return schema as unknown as Record<string, unknown>;
 }

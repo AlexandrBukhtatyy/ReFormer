@@ -1658,6 +1658,8 @@ function App() {
 
 `validateFormSchema` проверяет ключи `$locale(...)` и структурной формы `{ $locale }` против `localeKeys` (из `service.keys` или явного списка) — опечатка ключа ловится до рендера. Нет каталога → проверка мягко пропускается (ключи свободные).
 
+Проверка `componentProps` по схемам пропсов (`propSchemas`) принимает обе формы на месте любого значения — так же, как конвертер: `"label": "$locale(key)"` и `"label": { "$locale": "key", "params": { … } }` проходят там, где проп объявлен строкой. Структурная форма проверяется строго: только ключи `$locale` (непустая строка) и `params` (объект) — опечатка вида `param` даёт ошибку пропа.
+
 ## 65. Anti-patterns
 
 - **markdown/JSX в строковый проп** — `label: "$locale(...)"` с сервисом, возвращающим ReactNode, уронит компонент. Rich-контент только через `$component(I18n)` (или свой `$component(RichText)`).
@@ -2001,11 +2003,13 @@ _Source: src/html/html-tags.ts_
 
 **Kind:** `function`
 
-Рекурсивно оборачивает КАЖДЫЙ проп схемы в `anyOf: [<честный тип>, operatorOp]`, чтобы автор
-схемы формы не дублировал escape-hatch руками: оператор-строка (`"$dataSource(LOAN_TYPES)"`,
-`"$fn(fmt)"`) допустима на месте любого значения componentProps. Спускается во вложенные
-`properties` и `items`; сам объект в `anyOf` не оборачивается (componentProps — всегда объект).
-Ссылается на `#/definitions/operatorOp` — определение подставляет {@link toComponentPropsValidatorSchema}.
+Рекурсивно оборачивает КАЖДЫЙ проп схемы в `anyOf: [<честный тип>, operatorOp, localeObjectOp]`,
+чтобы автор схемы формы не дублировал escape-hatch руками: оператор-строка
+(`"$dataSource(LOAN_TYPES)"`, `"$fn(fmt)"`) и структурная форма `$locale`
+(`{ "$locale": "key", "params": {…} }`) допустимы на месте любого значения componentProps — как и
+в конвертере. Спускается во вложенные `properties` и `items`; сам объект в `anyOf` не
+оборачивается (componentProps — всегда объект). Ссылается на `#/definitions/operatorOp` и
+`#/definitions/localeObjectOp` — определения подставляет {@link toComponentPropsValidatorSchema}.
 
 **Signature:**
 ```typescript
@@ -4011,9 +4015,9 @@ _Source: src/schema/index.ts_
 
 Превращает схему `componentProps` компонента ({@link ComponentPropsSchema}) в самодостаточную
 ajv-схему: {@link stripDocExtensions} (снять `x-*`) → {@link allowOperatorStrings} (обернуть пропы
-в `anyOf` с operatorOp) → добавить `definitions.operatorOp`, чтобы `$ref` резолвился при
-standalone-компиляции. Используется фазой (d) `validateFormSchema` и IDE-веткой
-{@link buildFormSchemaMetaSchema}.
+в `anyOf` с operatorOp и структурной формой `$locale`) → добавить `definitions.operatorOp` и
+`definitions.localeObjectOp`, чтобы `$ref` резолвились при standalone-компиляции. Используется
+фазой (d) `validateFormSchema` и IDE-веткой {@link buildFormSchemaMetaSchema}.
 
 **Signature:**
 ```typescript

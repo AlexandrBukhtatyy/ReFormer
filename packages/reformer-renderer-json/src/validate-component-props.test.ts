@@ -170,5 +170,71 @@ describe('validateFormSchema — componentProps (phase d)', () => {
     expect(joined).not.toMatch(/operatorOp/i);
     expect(joined).not.toMatch(/anyOf/i);
     expect(joined).not.toMatch(/must match pattern/i);
+    // ветка структурной `$locale` — тоже escape-hatch, её «must be object» — шум
+    expect(joined).not.toMatch(/localeObjectOp/i);
+    expect(joined).not.toMatch(/must be object/i);
+  });
+
+  // Регресс ReFormer-3vz: конвертер резолвит `{ $locale, params }` на месте любого значения
+  // componentProps, а валидатор с propSchemas отвергал её как «label must be string» — и MCP
+  // `validate_json_schema` браковал пример из docs/llms/08-i18n.md.
+  it('(6) accepts the structural $locale form in place of a string prop', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(password)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.min', params: { count: 8 } } },
+      },
+    };
+    expect(validateFormSchema(schema, { propSchemas })).toEqual({ valid: true, errors: [] });
+    // Без params — тоже структурная форма.
+    const bare = {
+      format: 2,
+      root: {
+        model: '$model(loanType)',
+        component: '$component(Select)',
+        componentProps: { placeholder: { $locale: 'fields.loanType.placeholder' } },
+      },
+    };
+    expect(validateFormSchema(bare, { propSchemas }).valid).toBe(true);
+  });
+
+  it('(7) a malformed structural $locale is still rejected', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(password)',
+        component: '$component(Input)',
+        // опечатка: `param` вместо `params`; объект без `$locale` — не локаль вовсе
+        componentProps: { label: { $locale: 'fields.min', param: { count: 8 } } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { propSchemas });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/label/);
+    expect(
+      validateFormSchema(
+        { ...schema, root: { ...schema.root, componentProps: { label: { key: 'x' } } } },
+        { propSchemas }
+      ).valid
+    ).toBe(false);
+  });
+
+  it('(8) checks the key of a structural $locale against localeKeys', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(password)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.nope', params: { count: 8 } } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, {
+      propSchemas,
+      localeKeys: ['fields.min'],
+    });
+    expect(valid).toBe(false);
+    expect(errors).toEqual([expect.stringMatching(/unknown locale key "fields\.nope"/)]);
   });
 });
