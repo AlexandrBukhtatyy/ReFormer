@@ -752,6 +752,29 @@ function reformerPackageDir(pkgName) {
   return path.join(repoRoot, 'packages', tail === 'core' ? 'reformer' : `reformer-${tail}`);
 }
 
+/**
+ * Файлы-кандидаты для абсолютного пути модуля `base` (без расширения либо с JS-суффиксом) — в
+ * порядке предпочтения.
+ *
+ * Исходники с `moduleResolution: node16/nodenext` пишут относительные импорты с суффиксом
+ * выходного файла — `export * from './intent.js'` при исходнике `intent.ts`. Склейка `base + '.ts'`
+ * давала `intent.js.ts`, реэкспорт не резолвился, и все символы за ним молча выпадали из
+ * llms.txt и llms-index.json (так пропадали `readIntent`, `findCycle` из `@reformer/mcp/intent`).
+ * Поэтому JS-суффикс сначала меняется на TS-исходник, как это делает сам `tsc`.
+ */
+function moduleFileCandidates(base) {
+  const jsToTs = { '.js': ['.ts', '.tsx'], '.jsx': ['.tsx'], '.mjs': ['.mts'], '.cjs': ['.cts'] };
+  const ext = path.extname(base);
+  const fromJs = jsToTs[ext] ? jsToTs[ext].map((tsExt) => base.slice(0, -ext.length) + tsExt) : [];
+  return [
+    ...fromJs,
+    base + '.ts',
+    base + '.tsx',
+    path.join(base, 'index.ts'),
+    path.join(base, 'index.tsx'),
+  ];
+}
+
 function resolveModule(fromFile, spec) {
   // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше отбрасывался вместе со всеми
   // не-относительными путями, и кросс-пакетный реэкспорт (так жил ныне удалённый алиас
@@ -763,13 +786,7 @@ function resolveModule(fromFile, spec) {
   // не попадали — при том что это контракт, который реализует пользовательский
   // array-компонент.
   if (spec.startsWith('@/')) {
-    const rel = spec.slice(2);
-    for (const abs of [
-      path.join(pkgPath, 'src', `${rel}.ts`),
-      path.join(pkgPath, 'src', `${rel}.tsx`),
-      path.join(pkgPath, 'src', rel, 'index.ts'),
-      path.join(pkgPath, 'src', rel, 'index.tsx'),
-    ]) {
+    for (const abs of moduleFileCandidates(path.join(pkgPath, 'src', spec.slice(2)))) {
       if (fs.existsSync(abs)) return abs;
     }
     return null;
@@ -803,15 +820,7 @@ function resolveModule(fromFile, spec) {
     }
     return null;
   }
-  const baseDir = path.dirname(fromFile);
-  const candidates = [
-    spec + '.ts',
-    spec + '.tsx',
-    path.join(spec, 'index.ts'),
-    path.join(spec, 'index.tsx'),
-  ];
-  for (const rel of candidates) {
-    const abs = path.resolve(baseDir, rel);
+  for (const abs of moduleFileCandidates(path.resolve(path.dirname(fromFile), spec))) {
     if (fs.existsSync(abs)) return abs;
   }
   return null;

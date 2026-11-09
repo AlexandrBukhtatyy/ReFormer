@@ -32,7 +32,7 @@ node scripts/generate-llms-txt <package-path>
 
 - `package.json` — имя пакета, версия, описание для шапки.
 - `docs/llms/*.md` — нумерованные тематические разделы. Имена секций должны совпадать со словарём из конвенции (`Installation`, `Quick Start`, …).
-- `src/index.ts` (рекурсивно по `export * from './...'` и `export { ... } from './...'`) — публичные символы с JSDoc.
+- `src/index.ts` (рекурсивно по `export * from './...'` и `export { ... } from './...'`) — публичные символы с JSDoc. Относительный путь с JS-суффиксом (`'./intent.js'`, стиль `moduleResolution: node16`) резолвится в TS-исходник (`intent.ts` / `intent.tsx`), как у `tsc`.
 
 ## Шапка файла
 
