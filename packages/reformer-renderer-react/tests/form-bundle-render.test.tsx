@@ -50,8 +50,9 @@ const createShape = (over: Partial<Shape> = {}) =>
     ...over,
   });
 
-const Input = ({ value, label }: any) => (
-  <input data-label={label} defaultValue={String(value ?? '')} />
+// Собственный проп контрола — `caption`: `label` адресован обёртке поля, контролу он не доходит.
+const Input = ({ value, caption }: any) => (
+  <input data-label={caption} defaultValue={String(value ?? '')} />
 );
 const Section = ({ title, children }: { title?: string; children?: ReactNode }) => (
   <section data-title={title}>{children}</section>
@@ -67,12 +68,12 @@ const List = ({ items }: ArrayComponentProps) => (
 const address = (model: FormModel<Address>): RenderNode<Shape> => ({
   component: Section,
   children: [
-    { model: model.$.city, component: Input, componentProps: { label: 'Город' } },
+    { model: model.$.city, component: Input, componentProps: { caption: 'Город' } },
     {
       selector: 'street',
       component: Section,
       componentProps: { title: 'улица' },
-      children: [{ model: model.$.street, component: Input, componentProps: { label: 'Улица' } }],
+      children: [{ model: model.$.street, component: Input, componentProps: { caption: 'Улица' } }],
     },
   ],
 });
@@ -80,12 +81,12 @@ const address = (model: FormModel<Address>): RenderNode<Shape> => ({
 const row = (model: FormModel<Row>): RenderNode<Shape> => ({
   component: Section,
   children: [
-    { model: model.$.name, component: Input, componentProps: { label: 'Имя' } },
+    { model: model.$.name, component: Input, componentProps: { caption: 'Имя' } },
     {
       selector: 'note',
       component: Section,
       componentProps: { title: 'заметка' },
-      children: [{ model: model.$.note, component: Input, componentProps: { label: 'Заметка' } }],
+      children: [{ model: model.$.note, component: Input, componentProps: { caption: 'Заметка' } }],
     },
   ],
 });
@@ -94,7 +95,7 @@ const shapeSchema = (model: FormModel<Shape>): RenderNode<Shape> => ({
   selector: 'root',
   component: Section,
   children: [
-    { model: model.$.kind, component: Input, componentProps: { label: 'Вид' } },
+    { model: model.$.kind, component: Input, componentProps: { caption: 'Вид' } },
     {
       selector: 'registration',
       component: Section,
@@ -246,12 +247,12 @@ describe('FormRenderer — бандл createForm', () => {
             selector: 'kind',
             model: model.$.kind,
             component: Probe,
-            componentProps: { label: 'Вид' },
+            componentProps: { caption: 'Вид' },
           },
         ],
       }),
       behavior: defineFormBehavior<Shape>(({ schema }) => {
-        schema.node('kind').patchProps({ label: 'Новый вид' });
+        schema.node('kind').patchProps({ caption: 'Новый вид' });
         onComponentEvent(schema.node('kind'), 'onChange', changed);
       }),
     });
@@ -259,7 +260,7 @@ describe('FormRenderer — бандл createForm', () => {
     renderToStaticMarkup(<FormRenderer form={bundle} />);
     seen[0].onChange('b');
 
-    expect(seen[0].label).toBe('Новый вид');
+    expect(seen[0].caption).toBe('Новый вид');
     // Привязка не потеряна: значение записано в форму, и колбэк поведения получил то же значение.
     expect(bundle.model.kind).toBe('b');
     expect(changed).toHaveBeenCalledWith('b');
@@ -399,7 +400,9 @@ describe('FormRenderer — бандл createForm', () => {
           {
             selector: 'first',
             component: Section,
-            children: [{ model: model.$.kind, component: Input, componentProps: { label: 'Вид' } }],
+            children: [
+              { model: model.$.kind, component: Input, componentProps: { caption: 'Вид' } },
+            ],
           },
           { selector: 'second', component: Section, componentProps: { title: 'пусто' } },
         ],
@@ -448,7 +451,9 @@ describe('FormRenderer — бандл createForm', () => {
           'Вид: ',
           model.$.kind,
           {
-            children: [{ model: model.$.kind, component: Input, componentProps: { label: 'Вид' } }],
+            children: [
+              { model: model.$.kind, component: Input, componentProps: { caption: 'Вид' } },
+            ],
           },
         ],
       }),

@@ -4,7 +4,7 @@
  * @module reformer/renderer-react/render-node
  */
 
-import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { memo, useCallback, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { effect, type Signal } from '@reformer/core/signals';
 import type {
   CompiledArrayNode,
@@ -23,7 +23,12 @@ import {
   isValueSignal,
   unknownSchemaSelectors,
 } from '@reformer/core';
-import { bindFieldProps, getFieldAdapter, useFieldHandleRef } from '@reformer/core/react';
+import {
+  bindFieldProps,
+  getFieldAdapter,
+  useFieldHandleRef,
+  useLocalized,
+} from '@reformer/core/react';
 import type {
   RenderNode,
   FieldWrapperProps,
@@ -215,6 +220,11 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   // Императивный handle поля для `schema.node(sel).getRef()`: собственный handle контрола либо
   // базовый FieldHandle из его DOM-узла. Хук — до early-return.
   const handleRef = useFieldHandleRef(nodeRef as React.Ref<unknown> | undefined);
+  // Описатели `msg('…')` в пропсах — строками по активной локали: подпись, плейсхолдер, опции.
+  // Хук — до early-return; поле без описателей смену языка не замечает.
+  const localizedProps = useLocalized(
+    useLocalizableFieldProps(node.props, nodeComponentProps, propsOverride)
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Component = node.component as React.ComponentType<any> | undefined;
   if (!Component) {
@@ -233,7 +243,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     fieldWrapper: perFieldWrapper,
     testId: explicitTestId,
     ...inputComponentProps
-  } = { ...node.props, ...nodeComponentProps, ...propsOverride } as Record<string, unknown> & {
+  } = localizedProps as Record<string, unknown> & {
     className?: string;
     wrapper?: React.ElementType;
     fieldWrapper?: React.ComponentType<FieldWrapperProps>;
@@ -263,10 +273,14 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     adapter?.passControl === true ||
     (Component as { reformerNeedsControl?: boolean }).reformerNeedsControl === true;
 
+  // Подпись, описание и `required` рисует обёртка поля — контролу они не уходят (нативный
+  // `required` блокировал бы отправку проверкой браузера). Контрол с inline-подписью получает
+  // `label` и `required` — для этого `bindFieldProps` нужен сам компонент.
   const inputProps = bindFieldProps(
     adapter,
     { value, onChange, onBlur },
-    inputComponentProps as Record<string, unknown>
+    inputComponentProps as Record<string, unknown>,
+    Component
   );
   if (testId && inputProps['data-testid'] === undefined) {
     inputProps['data-testid'] = `input-${testId}`;
@@ -530,6 +544,8 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   const Comp = node.component as React.ComponentType<any>;
   const control = node.control as RenderModelArrayControl;
   const items = useModelArrayItems(node, fieldWrapper);
+  // Описатели `msg('…')` в пропсах массива (заголовок, подпись «Добавить») — строками.
+  const ownProps = useLocalized(useLocalizableFieldProps(node.props, undefined, propsOverride));
 
   // Колбэки стабильны по `control` — иначе memo-компоненты потребителя ломались бы на каждый
   // рендер секции. Новый элемент берётся из шаблона массива: `arrayOf(blank)` в модели либо
@@ -572,7 +588,13 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   }));
 
   const props = withComponentEvents(
-    { items: slots, onAdd, onRemove, onMove, ...node.props, ...propsOverride },
+    {
+      items: slots,
+      onAdd,
+      onRemove,
+      onMove,
+      ...ownProps,
+    },
     events
   );
   return <Comp {...props} />;
@@ -643,6 +665,22 @@ function useSignalSetKey(signals: ReadonlyArray<Signal<unknown>>): number {
  * `React.memo`). Реактивность — через revision-счётчик, поэтому объект пропсов пересобирается inline
  * (дешёвый spread), без кэш-снапшота. SSR-safe. Вызывать безусловно (на верхнем уровне рендера).
  */
+/**
+ * Пропсы узла поверх его `componentProps` и переопределения — одним объектом, ссылка которого
+ * держится, пока не изменилась ни одна часть: `useLocalized` кэширует раскрытие по ссылке, и новый
+ * объект на каждый рендер раскрывал бы описатели заново.
+ */
+function useLocalizableFieldProps(
+  base: Record<string, unknown> | undefined,
+  own: Record<string, unknown> | undefined,
+  override: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  return useMemo(
+    () => (own === undefined && override == null ? (base ?? {}) : { ...base, ...own, ...override }),
+    [base, own, override]
+  );
+}
+
 function useSignalProps(
   props: Record<string, unknown> | undefined
 ): Record<string, unknown> | undefined {
@@ -807,6 +845,11 @@ export function RenderNodeComponent<T>({
   // Разворачиваем signal-значения в componentProps (из `$model(...)`, напр. в шаблоне элемента
   // списка) — безусловно, до early-return. Использует контейнерная ветка (у листа свой seam).
   const unwrappedComponentProps = useSignalProps(node.props as Record<string, unknown>);
+  // Описатели `msg()` в пропсах контейнера (заголовки секций и шагов) — строками по локали.
+  // Хук — до early-return; контейнер без описателей смену языка не замечает.
+  const localizedContainerProps = useLocalized(
+    useLocalizableFieldProps(unwrappedComponentProps, undefined, propsOverride)
+  );
 
   if (isHidden) {
     return null;
@@ -898,9 +941,8 @@ export function RenderNodeComponent<T>({
     return <>{renderChildren(children, form)}</>;
   }
 
-  const baseProps = unwrappedComponentProps || {};
-  // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
-  const propsPatched = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
+  // Пропсы узла с переопределением (schema.node(selector).patchProps()) и раскрытыми описателями.
+  const propsPatched = localizedContainerProps;
   // Колбэки onComponentEvent — наивысший приоритет среди prop-overrides
   const callbackOverrides = callbackMap ? Object.fromEntries(callbackMap) : {};
   const effectiveProps = callbackMap ? { ...propsPatched, ...callbackOverrides } : propsPatched;

@@ -25,12 +25,12 @@ interface F {
 const INITIAL: F = { name: '', tags: ['ru', 'by'], profile: { langs: ['en'] } };
 
 /** Контрол мультивыбора в объёме теста: показывает, что значение до него доехало. */
-const Multi: FC<{ value?: string[] | null; onChange?: unknown; label?: string }> = ({
+const Multi: FC<{ value?: string[] | null; onChange?: unknown; caption?: string }> = ({
   value,
   onChange,
-  label,
+  caption,
 }) => (
-  <i data-label={label} data-bound={typeof onChange === 'function'}>
+  <i data-label={caption} data-bound={typeof onChange === 'function'}>
     {(value ?? []).join('|')}
   </i>
 );
@@ -56,7 +56,7 @@ describe('узел схемы с массивом в value', () => {
         ({
           component: 'div',
           children: [
-            { model: model.$.tags, component: Multi, componentProps: { label: 'Теги' } },
+            { model: model.$.tags, component: Multi, componentProps: { caption: 'Теги' } },
             { model: model.$.profile.langs, component: Multi },
           ],
         }) as never,
