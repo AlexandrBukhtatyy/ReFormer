@@ -12,7 +12,7 @@
  * @module model/behaviors-value
  */
 
-import { effect, type Signal, type ReadonlySignal } from '@preact/signals-core';
+import { effect, untracked, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import { deferredWrites } from './safe-effect';
 
 /** Функция отписки от behavior-эффекта. */
@@ -28,6 +28,9 @@ export type BehaviorCleanup = () => void;
  * источников. Оператор поведения `computeFrom` из `@reformer/core/behaviors` цель помечает
  * (`markDerived`) и защищён от циклов: массовая запись такую цель не трогает. В поведении формы
  * нужен оператор; примитив — для модели без формы.
+ *
+ * Пересчёт запускают только `sources`: сигналы, прочитанные внутри `fn` и `when`, — снимок на момент
+ * пересчёта, а не зависимость.
  *
  * @group Model
  * @param sources Сигналы-источники (`model.$.a`, `model.$.b`).
@@ -48,9 +51,9 @@ export function computeFrom<R>(
   options?: { when?: (...values: any[]) => boolean }
 ): BehaviorCleanup {
   return effect(() => {
-    const values = sources.map((s) => s.value); // подписка на источники
-    if (options?.when && !options.when(...values)) return;
-    const next = fn(...values);
+    const values = sources.map((s) => s.value); // подписка — только на источники
+    if (options?.when && !untracked(() => options.when!(...values))) return;
+    const next = untracked(() => fn(...values));
     if (target.peek() !== next) target.value = next;
   });
 }

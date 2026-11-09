@@ -48,6 +48,28 @@ describe('computeFrom (signals)', () => {
     expect(m.sum).toBe(7);
   });
 
+  // ReFormer-ee4: чтение в `fn` и `when` раньше подписывало эффект — явный список был нестрогим.
+  it('пересчёт запускают только sources: сигналы из fn и when — снимок, а не зависимость', () => {
+    const m = createModel<{ amount: number; rate: number; total: number; on: boolean }>({
+      amount: 10,
+      rate: 2,
+      total: 0,
+      on: true,
+    });
+    const fn = vi.fn((amount: number) => amount * m.rate);
+    computeFrom([m.$.amount], m.$.total, fn, { when: () => m.on });
+    expect(m.total).toBe(20);
+
+    m.rate = 3; // не источник — пересчёта нет
+    m.on = false; // и это не источник
+    m.on = true;
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(m.total).toBe(20);
+
+    m.amount = 5; // источник — пересчёт с текущей ставкой
+    expect(m.total).toBe(15);
+  });
+
   it('цепочка вычислений A→B', () => {
     const m = createModel<{ x: number; doubled: number; plusOne: number }>({
       x: 1,

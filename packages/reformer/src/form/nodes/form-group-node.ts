@@ -42,13 +42,20 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   private readonly leafSignals = new WeakMap<InternalFormNode, Signal<unknown>>();
   private behaviorCleanup: (() => void) | undefined;
   private face: FormGroup<T> | undefined;
+  /** Поля-массивы модели без ноды (схема их не привязала) — о них предупреждает прокси. */
+  private readonly unbound: ReadonlySet<string>;
 
   /**
    * @param children - Готовые ноды детей по именам полей данных. Вид ребёнка задан нодой: по
    *   именам и значениям группа ничего не угадывает.
+   * @param unbound - Имена полей-массивов модели, для которых сборка ноду не построила.
    */
-  constructor(children: Iterable<readonly [string, InternalFormNode]>) {
+  constructor(
+    children: Iterable<readonly [string, InternalFormNode]>,
+    unbound: Iterable<string> = []
+  ) {
     this.children = new Map(children);
+    this.unbound = new Set(unbound);
     const nodes = [...this.children.values()];
 
     this.value = computed(() => {
@@ -77,7 +84,7 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
 
   /** Лицо группы: прокси с нодами полей. Строится один раз. */
   get proxy(): FormGroup<T> {
-    this.face ??= buildFormProxy<T>(this, this.children);
+    this.face ??= buildFormProxy<T>(this, this.children, this.unbound);
     return this.face;
   }
 

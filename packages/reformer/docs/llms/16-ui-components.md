@@ -186,10 +186,21 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 | ----------------------------- | --------------------------------------------------------------------------- |
 | `FieldAdapter`                | Тип адаптера: диалект контрола                                              |
 | `getFieldAdapter(component)`  | Статика `component.reformerAdapter` либо `undefined`                        |
-| `bindFieldProps(adapter, seam, props)` | Props контрола под адаптер (без адаптера — seam как есть)          |
+| `bindFieldProps(adapter, seam, props, component?)` | Props контрола под адаптер (без адаптера — seam как есть) |
+| `FIELD_WRAPPER_ONLY_PROPS`    | Props обёртки, которые контролу не передаются: `label`, `description`, `required`, `labelTooltip` |
+| `hasInlineLabel(component)`   | Контрол рисует подпись сам (статика `reformerLayout = 'inline-label'`)      |
 | `FieldHandle`                 | Императивный handle поля: `focus` / `blur` / `scrollIntoView` / `getElement` |
 | `makeElementFieldHandle(ref)` | Базовый `FieldHandle` из DOM-узла                                           |
 | `useFieldHandleRef(outerRef)` | Ref для контрола + публикация handle потребителю (строит ОБЁРТКА поля)     |
+
+Подпись, описание, звёздочку обязательности и иконку у подписи рисует обёртка поля, поэтому
+`bindFieldProps` срезает `label`, `description`, `required` и `labelTooltip` из `componentProps`:
+контрол их не получает. Обязательность контрол узнаёт из `aria-required`, который ставит обёртка.
+Нативный `required` на `<input>` включил бы проверку браузера, и она блокировала бы отправку
+формы раньше её собственной валидации. Исключение — контрол с inline-подписью (чекбокс,
+переключатель, статика `reformerLayout = 'inline-label'`): он получает `label` и `required` и
+рисует подпись со звёздочкой сам. Для этого обёртка передаёт `bindFieldProps` сам компонент
+четвёртым аргументом.
 
 В приложении обычно достаточно `defineFieldControl(MyControl, { adapter })` из
 `@reformer/ui-kit/fields` (плюс готовые пресеты `checkedAdapter`, `valueChangeAdapter`, …); для

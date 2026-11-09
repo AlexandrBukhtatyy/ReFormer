@@ -50,15 +50,33 @@ function faceOf(node: InternalFormNode): unknown {
 }
 
 /**
+ * Предупредить в dev, что у поля-массива нет ноды. Тип группы обещает его (`FormArray` либо
+ * `FormControl` массива), а сборка ноду не строит, пока схема не сказала, чем массив является:
+ * по пустому массиву не отличить список под-форм от мультивыбора. Без предупреждения
+ * `form.items.push(…)` падал бы на `undefined` без объяснения причины.
+ */
+function warnUnbound(key: string): void {
+  if (process.env.NODE_ENV === 'production') return;
+  console.warn(
+    `[ReFormer] form.${key}: массив модели не привязан в схеме, и ноды у него нет — ` +
+      `значение undefined. Привяжите его: { model: model.$.${key}, item: (row) => … } — ` +
+      `массив под-форм, или { model: model.$.${key}, component } — поле над массивом целиком.`
+  );
+}
+
+/**
  * Прокси группы над её сырым узлом.
  *
  * @param target - Сырой узел группы
  * @param children - Сырые ноды полей по именам
+ * @param unbound - Поля-массивы модели, для которых сборка ноду не построила (нет узла в схеме)
  */
 export function buildFormProxy<T>(
   target: InternalFormNode<T>,
-  children: ReadonlyMap<string, InternalFormNode>
+  children: ReadonlyMap<string, InternalFormNode>,
+  unbound: ReadonlySet<string> = new Set()
 ): FormGroup<T> {
+  const warned = new Set<string>();
   let fields: Record<string, unknown> | undefined;
   const fieldsRecord = (): Record<string, unknown> => {
     if (!fields) {
@@ -89,6 +107,13 @@ export function buildFormProxy<T>(
       if (prop === FIELDS_NAMESPACE) return fieldsRecord();
       if (MEMBER_NAMES.has(prop)) return memberOf(prop);
       if (typeof prop === 'string' && children.has(prop)) return fieldsRecord()[prop];
+      if (typeof prop === 'string' && unbound.has(prop)) {
+        if (!warned.has(prop)) {
+          warned.add(prop);
+          warnUnbound(prop);
+        }
+        return undefined;
+      }
       return memberOf(prop);
     },
     set: (_, prop, value) => {

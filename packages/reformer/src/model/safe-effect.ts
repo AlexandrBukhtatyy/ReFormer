@@ -30,9 +30,21 @@ const DEFER_CONTEXT = 'runOutsideEffect';
  * отложенная запись «best-effort» и не должна ронять микротаск/всплывать как unhandledRejection.
  */
 function logDeferError(error: unknown, context: string): void {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !isAbortError(error)) {
     console.error(`[${context}]`, error);
   }
+}
+
+/**
+ * Отмена — не сбой. Обработчик `onChange` обрывает запрос прошлого вызова через `ctx.signal`, и
+ * `fetch` того вызова отклоняется с `AbortError`: это ожидаемый исход, а не ошибка для консоли.
+ */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: unknown }).name === 'AbortError'
+  );
 }
 
 function isPromiseLike(value: unknown): value is Promise<unknown> {

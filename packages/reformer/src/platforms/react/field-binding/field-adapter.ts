@@ -54,10 +54,41 @@ export interface FieldAdapterCarrier {
 }
 
 /**
- * Props, которые адресованы обёртке поля, а не контролу: `labelTooltip` рисует `FormField` у
- * подписи. Они приходят в общем мешке `componentProps`, и без среза утекли бы в DOM контрола.
+ * Props, которые адресованы обёртке поля, а не контролу: подпись (`label`), звёздочку
+ * обязательности (`required`), описание под полем (`description`) и иконку у подписи
+ * (`labelTooltip`) рисует `FormField`. Они приходят в общем мешке `componentProps`, и без среза
+ * утекли бы в DOM контрола: `label="Имя"` атрибутом на `<input>`, а нативный `required` включил бы
+ * проверку браузера, которая блокирует отправку формы раньше её собственной валидации.
+ *
+ * Исключение — контрол с inline-подписью ({@link hasInlineLabel}): `label` и `required` он рисует сам.
  */
-export const FIELD_WRAPPER_ONLY_PROPS: readonly string[] = ['labelTooltip'];
+export const FIELD_WRAPPER_ONLY_PROPS: readonly string[] = [
+  'label',
+  'description',
+  'required',
+  'labelTooltip',
+];
+
+/** Props обёртки, которые контрол с inline-подписью получает: подпись он рисует рядом с собой. */
+const INLINE_LABEL_PROPS: ReadonlySet<string> = new Set(['label', 'required']);
+
+/**
+ * Рисует ли контрол подпись сам — рядом с собой (чекбокс, переключатель). Такой компонент
+ * объявляет статику `reformerLayout = 'inline-label'`: обёртка поля тогда не рисует подпись
+ * сверху, а `label` и `required` отдаёт контролу.
+ *
+ * @example
+ * ```ts
+ * CheckboxWithLabel.reformerLayout = 'inline-label';
+ * hasInlineLabel(CheckboxWithLabel); // → true
+ * ```
+ */
+export function hasInlineLabel(component: unknown): boolean {
+  if (component == null || (typeof component !== 'function' && typeof component !== 'object')) {
+    return false;
+  }
+  return (component as { reformerLayout?: unknown }).reformerLayout === 'inline-label';
+}
 
 /**
  * Адаптер, объявленный компонентом статикой `reformerAdapter`, либо `undefined`.
@@ -95,15 +126,21 @@ const identity = (x: unknown): unknown => x;
  * @param adapter - Адаптер контрола или `undefined` (value-based контрол).
  * @param seam - Значение поля и его колбэки.
  * @param componentProps - Прочие props контрола.
+ * @param component - Сам контрол. Нужен, чтобы оставить `label` и `required` контролу с
+ *   inline-подписью ({@link hasInlineLabel}); без него эти props срезаются у всех.
  * @returns Плоский объект props для спреда в контрол.
  */
 export function bindFieldProps(
   adapter: FieldAdapter | undefined,
   seam: FieldSeam,
-  componentProps: Record<string, unknown> = {}
+  componentProps: Record<string, unknown> = {},
+  component?: unknown
 ): Record<string, unknown> {
   const rest: Record<string, unknown> = { ...componentProps };
-  for (const key of FIELD_WRAPPER_ONLY_PROPS) delete rest[key];
+  const inlineLabel = hasInlineLabel(component);
+  for (const key of FIELD_WRAPPER_ONLY_PROPS) {
+    if (!(inlineLabel && INLINE_LABEL_PROPS.has(key))) delete rest[key];
+  }
   for (const key of adapter?.strip ?? []) delete rest[key];
 
   if (!adapter) {

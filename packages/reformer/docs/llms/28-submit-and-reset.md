@@ -26,6 +26,8 @@ type SubmitResult<R> =
 bundle.submission.submitting: ReadonlySignal<boolean>; // работает обработчик
 bundle.validate(): Promise<ValidationResult>; // проверить всю форму без отправки
 bundle.validating: ReadonlySignal<boolean>; // идёт проверка
+// в компоненте оба сигнала читает useSignalSnapshot из @reformer/core/react:
+//   const submitting = useSignalSnapshot(bundle.submission.submitting);
 bundle.dispose(): void; // снять сборку: поведение, подписки нод, живую проверку; модель остаётся
 
 // Отправка без сборки (визард в разметке без createForm) — без проверки

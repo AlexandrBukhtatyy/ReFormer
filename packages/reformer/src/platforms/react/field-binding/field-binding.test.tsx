@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { forwardRef } from 'react';
-import { bindFieldProps, getFieldAdapter, type FieldAdapter } from './field-adapter';
+import {
+  bindFieldProps,
+  getFieldAdapter,
+  hasInlineLabel,
+  type FieldAdapter,
+} from './field-adapter';
 import { resolveFieldHandle, type FieldHandle } from './field-handle';
 
 const seam = (value: unknown = null) => ({
@@ -12,25 +17,48 @@ const seam = (value: unknown = null) => ({
 describe('bindFieldProps', () => {
   it('без адаптера: value-based seam как есть, componentProps сохраняются', () => {
     const s = seam('hello');
-    const props = bindFieldProps(undefined, s, { label: 'X' });
+    const props = bindFieldProps(undefined, s, { placeholder: 'X' });
 
     expect(props.value).toBe('hello');
-    expect(props.label).toBe('X');
+    expect(props.placeholder).toBe('X');
     (props.onChange as (v: unknown) => void)('world');
     expect(s.onChange).toHaveBeenCalledWith('world');
     expect(props.onBlur).toBe(s.onBlur);
   });
 
-  it('срезает props обёртки (labelTooltip) и strip адаптера', () => {
-    const props = bindFieldProps({ strip: ['label'] }, seam(), {
-      labelTooltip: 'hint',
-      label: 'X',
-      placeholder: 'p',
-    });
+  it('срезает strip адаптера', () => {
+    const props = bindFieldProps({ strip: ['mask'] }, seam(), { mask: '99', placeholder: 'p' });
 
-    expect('labelTooltip' in props).toBe(false);
-    expect('label' in props).toBe(false);
+    expect('mask' in props).toBe(false);
     expect(props.placeholder).toBe('p');
+  });
+
+  // ReFormer-66d: подпись, описание и обязательность рисует обёртка поля. Нативный `required` на
+  // `<input>` включал проверку браузера, и она блокировала отправку раньше валидации формы.
+  it('срезает props обёртки: label, description, required, labelTooltip', () => {
+    const wrapperProps = { label: 'Имя', description: 'd', required: true, labelTooltip: 'hint' };
+
+    for (const adapter of [undefined, { valueProp: 'checked' }]) {
+      const props = bindFieldProps(adapter, seam(), { ...wrapperProps, placeholder: 'p' });
+
+      for (const key of Object.keys(wrapperProps)) expect(key in props).toBe(false);
+      expect(props.placeholder).toBe('p');
+    }
+  });
+
+  it('контрол с inline-подписью получает label и required, но не description и labelTooltip', () => {
+    const InlineControl = Object.assign(() => null, { reformerLayout: 'inline-label' });
+    const props = bindFieldProps(
+      undefined,
+      seam(),
+      { label: 'Согласен', required: true, description: 'd', labelTooltip: 'hint' },
+      InlineControl
+    );
+
+    expect(props.label).toBe('Согласен');
+    expect(props.required).toBe(true);
+    expect('description' in props).toBe(false);
+    expect('labelTooltip' in props).toBe(false);
   });
 
   it('адаптер: valueProp/changeProp/fromEmit/toValue', () => {
@@ -72,6 +100,22 @@ describe('bindFieldProps', () => {
   it('seam перекрывает одноимённые componentProps', () => {
     const props = bindFieldProps(undefined, seam('real'), { value: 'stale' });
     expect(props.value).toBe('real');
+  });
+});
+
+describe('hasInlineLabel', () => {
+  it('читает статику reformerLayout у функции и у forwardRef-объекта', () => {
+    const fn = Object.assign(() => null, { reformerLayout: 'inline-label' });
+    const ref = Object.assign(
+      forwardRef(() => null),
+      { reformerLayout: 'inline-label' }
+    );
+
+    expect(hasInlineLabel(fn)).toBe(true);
+    expect(hasInlineLabel(ref)).toBe(true);
+    expect(hasInlineLabel(() => null)).toBe(false);
+    expect(hasInlineLabel('input')).toBe(false);
+    expect(hasInlineLabel(undefined)).toBe(false);
   });
 });
 

@@ -76,7 +76,9 @@ const rowFormBuilder =
  *  - лист → поле ({@link FormControl}) над сигналом листа, с конфигом из схемы;
  *  - массив с `item` в схеме → массив под-форм ({@link FormArray}, на любой глубине);
  *  - массив, к которому схема привязала компонент → поле над массивом целиком (мультивыбор,
- *    теги, файлы); без привязки массив пропускается — чем он является, решает схема, а не данные;
+ *    теги, файлы); без привязки массив пропускается — чем он является, решает схема, а не данные
+ *    (по пустому массиву не отличить список под-форм от мультивыбора). Обращение к такому полю
+ *    группы в dev предупреждает, как его привязать;
  *  - группа → вложенная группа ({@link FormGroup}); в реестре ручка группы указывает на её лицо.
  *
  * Вид узла модели фиксируется при её создании, а значение меняется: лист, созданный из `null` и
@@ -90,6 +92,7 @@ function buildGroupNode(
 ): FormGroupNode<unknown> {
   const fields = new Map<string, InternalFormNode>();
   const leaves: Array<[FormControlNode<unknown>, Signal<unknown>]> = [];
+  const unbound: string[] = [];
 
   const addField = (key: string, signal: Signal<unknown>): void => {
     // Правила валидации живут вне дерева схемы (`@reformer/core/validation`), нода их не
@@ -120,6 +123,8 @@ function buildGroupNode(
         registerSignalNode(handle as object, node);
       } else if (context.fields.has(handle as object)) {
         addField(key, handle as Signal<unknown>);
+      } else {
+        unbound.push(key);
       }
       continue;
     }
@@ -135,7 +140,7 @@ function buildGroupNode(
     addField(key, handle as Signal<unknown>);
   }
 
-  const group = new FormGroupNode<unknown>(fields);
+  const group = new FormGroupNode<unknown>(fields, unbound);
   // Связать лист с его сигналом модели на ВЛАДЕЮЩЕЙ группе: групповой setValue сверяет цели
   // compute с записываемым сигналом, а не с computed-обёрткой value ноды (её markDerived не помечает).
   for (const [node, signal] of leaves) group.registerLeafSignal(node, signal);

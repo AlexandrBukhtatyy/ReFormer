@@ -57,7 +57,13 @@ export function compute<R>(
   });
 }
 
-/** Вычисляемое поле с явным списком зависимостей (escape hatch). */
+/**
+ * Вычисляемое поле с явным списком зависимостей (escape hatch).
+ *
+ * Пересчёт запускают ТОЛЬКО `sources`: `fn` и `when` выполняются без отслеживания, и сигналы,
+ * прочитанные внутри них, — снимок на момент пересчёта, а не зависимость. Иначе явный список был бы
+ * нестрогим: чтение `model.rate` в `fn` молча добавляло бы источник, которого в списке нет.
+ */
 export function computeFrom<R>(
   sources: ReadonlySignal<unknown>[],
   target: Signal<R>,
@@ -69,9 +75,9 @@ export function computeFrom<R>(
   onDispose(() => unmarkDerived(target)); // refcount: см. compute
   const guard = makeCycleGuard(target as Signal<unknown>); // F7
   effect(() => {
-    const values = sources.map((s) => s.value); // подписка на источники
-    if (options?.when && !options.when(...values)) return;
-    const next = fn(...values);
+    const values = sources.map((s) => s.value); // подписка — только на источники
+    if (options?.when && !untracked(() => options.when!(...values))) return;
+    const next = untracked(() => fn(...values));
     if (target.peek() === next) return;
     guard(() => {
       target.value = next;
