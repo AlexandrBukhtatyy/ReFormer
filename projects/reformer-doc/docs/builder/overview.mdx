@@ -4,7 +4,7 @@ title: Обзор
 description: ReFormer Builder — визуальный конструктор форм ReFormer, который работает в браузере с папкой проекта на диске.
 ---
 
-import Link from '@docusaurus/Link';
+import { OpenBuilderButton } from '@site/src/components/builder/OpenBuilderButton';
 
 # Билдер ReFormer
 
@@ -12,9 +12,7 @@ import Link from '@docusaurus/Link';
 видят живой, правят свойства полей и выгружают кодом — готовым модулем, который подключается
 к приложению на React.
 
-<Link className="button button--primary button--lg" to="pathname:///builder/">
-  Открыть билдер ↗
-</Link>
+<OpenBuilderButton />
 
 ![Билдер с открытой формой: слева дерево проекта, в центре дерево узлов формы, справа свойства выбранного поля](/img/builder/shell.png)
 
