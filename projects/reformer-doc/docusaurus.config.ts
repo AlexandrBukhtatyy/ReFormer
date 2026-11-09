@@ -95,7 +95,15 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   future: {
-    v4: true,
+    // Флаги v4 перечислены явно, а не `v4: true`: с 3.10 сокращение включает ещё
+    // `fasterByDefault` (сборка на Rspack, нужен пакет @docusaurus/faster),
+    // `mdx1CompatDisabledByDefault` и `siteStorageNamespacing`. Переход на Rspack меняет
+    // раскладку чанков, а от неё зависят живые демо (см. `reformerLiveDemoPlugin`), — его
+    // включают отдельно, с проверкой демо в браузере.
+    v4: {
+      removeLegacyPostBuildHeadAttribute: true,
+      useCssCascadeLayers: true,
+    },
   },
 
   url: 'https://alexandrbukhtatyy.github.io',
