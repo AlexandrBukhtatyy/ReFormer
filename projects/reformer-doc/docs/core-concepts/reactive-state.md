@@ -1,6 +1,11 @@
 ---
 sidebar_position: 1
+# На странице JSX-схема: разбирать .md как MDX, а не как CommonMark.
+mdx:
+  format: mdx
 ---
+
+import { ReactiveUpdatePath } from '@site/src/components/diagrams/ReactiveUpdatePath';
 
 # Реактивность и сигналы
 
@@ -19,13 +24,7 @@ ReFormer хранит каждое значение формы в [сигнал�
 
 ## Как изменение доходит до экрана
 
-```mermaid
-flowchart LR
-  write["Ввод в поле<br/>или запись в модель"] --> signal["Сигнал поля<br/>model.$.email"]
-  signal --> node["Состояние ноды<br/>form.email: value, dirty, issues"]
-  node --> hook["Хук React<br/>useFormControl"]
-  hook --> render["Перерисовка<br/>только этого поля"]
-```
+<ReactiveUpdatePath />
 
 1. Значение записывается в сигнал поля [модели](./model.mdx) — из компонента, из поведения или
    вашим кодом.

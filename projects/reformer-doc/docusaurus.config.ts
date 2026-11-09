@@ -186,8 +186,9 @@ const config: Config = {
   ],
   markdown: {
     format: 'detect',
-    // Схемы — блоки ```mermaid прямо в тексте страницы: правятся как код и переводятся
-    // вместе со страницей.
+    // Схемы сайта рисуются компонентами из src/components/diagrams (примитивы Diagram/Box/Arrow,
+    // SequenceDiagram), а не Mermaid: у Mermaid свои шрифты и заливки, его схема выбивается из
+    // соседних. Поддержка Mermaid оставлена включённой, но новых блоков ```mermaid не добавляйте.
     mermaid: true,
     hooks: {
       onBrokenMarkdownLinks: 'throw',

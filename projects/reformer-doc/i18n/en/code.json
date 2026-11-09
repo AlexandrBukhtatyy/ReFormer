@@ -344,6 +344,447 @@
   "diagram.jsonRender.pageHint": {
     "message": "fields, issues, steps"
   },
+  "diagram.m1.title": {
+    "message": "M1 architecture: four layers of a form"
+  },
+  "diagram.m1.caption": {
+    "message": "Each layer is described separately and meets in createForm. Model and schema say what data is collected, validation whether it is correct, behavior how it reacts."
+  },
+  "diagram.m1.model": {
+    "message": "Model"
+  },
+  "diagram.m1.modelHint": {
+    "message": "form values"
+  },
+  "diagram.m1.schema": {
+    "message": "Schema"
+  },
+  "diagram.m1.schemaHint1": {
+    "message": "a tree of nodes:"
+  },
+  "diagram.m1.schemaHint2": {
+    "message": "field ↔ component"
+  },
+  "diagram.m1.validation": {
+    "message": "Validation"
+  },
+  "diagram.m1.validationHint": {
+    "message": "rules"
+  },
+  "diagram.m1.behavior": {
+    "message": "Behavior"
+  },
+  "diagram.m1.behaviorHint": {
+    "message": "reactions to changes"
+  },
+  "diagram.m1.form": {
+    "message": "the form: field nodes on top of model signals"
+  },
+  "diagram.computed.reads": {
+    "message": "reads"
+  },
+  "diagram.computed.writes": {
+    "message": "writes"
+  },
+  "diagram.computed.deps.title": {
+    "message": "Which fields an operator reads and which it writes"
+  },
+  "diagram.computed.deps.caption": {
+    "message": "An operator subscribes to the fields it reads and writes only to its target. Behavior operators are highlighted."
+  },
+  "diagram.computed.promoCode": {
+    "message": "promoCode field"
+  },
+  "diagram.computed.toggles": {
+    "message": "enables\nand disables"
+  },
+  "diagram.computed.cycle.title": {
+    "message": "A computation cycle"
+  },
+  "diagram.computed.cycle.caption": {
+    "message": "Each computation reads the other one's target. The cycle converges when the next recalculation leaves the values unchanged."
+  },
+  "diagram.computed.cycle.computeB": {
+    "message": "compute for b"
+  },
+  "diagram.computed.cycle.computeA": {
+    "message": "compute for a"
+  },
+  "diagram.reactive.title": {
+    "message": "How a change reaches the screen"
+  },
+  "diagram.reactive.caption": {
+    "message": "A new value reaches only the hook that reads this node, so only one field re-renders."
+  },
+  "diagram.reactive.write": {
+    "message": "Field input"
+  },
+  "diagram.reactive.writeHint": {
+    "message": "or a write to the model"
+  },
+  "diagram.reactive.signal": {
+    "message": "Field signal"
+  },
+  "diagram.reactive.node": {
+    "message": "Node state"
+  },
+  "diagram.reactive.hook": {
+    "message": "React hook"
+  },
+  "diagram.reactive.render": {
+    "message": "Re-render"
+  },
+  "diagram.reactive.renderHint": {
+    "message": "of this field only"
+  },
+  "diagram.submit.title": {
+    "message": "Form submission outcomes"
+  },
+  "diagram.submit.caption": {
+    "message": "Every outcome is a SubmitResult object with a status. The handler runs only when there are no blocking issues."
+  },
+  "diagram.submit.check": {
+    "message": "rules check"
+  },
+  "diagram.submit.invalid": {
+    "message": "blocking issues\nfound"
+  },
+  "diagram.submit.error": {
+    "message": "a rule did not answer"
+  },
+  "diagram.submit.cancelled": {
+    "message": "a newer check replaced it\nor the model changed"
+  },
+  "diagram.submit.handler": {
+    "message": "no issues"
+  },
+  "diagram.submit.submitted": {
+    "message": "returned a result"
+  },
+  "diagram.submit.failed": {
+    "message": "threw an exception"
+  },
+  "diagram.reset.title": {
+    "message": "The reset point"
+  },
+  "diagram.reset.caption": {
+    "message": "form.reset() returns both values and node state to the reset point; model.reset() returns only values."
+  },
+  "diagram.reset.initial": {
+    "message": "initial values"
+  },
+  "diagram.reset.patch": {
+    "message": "model.patch(loaded)"
+  },
+  "diagram.reset.point": {
+    "message": "reset point"
+  },
+  "diagram.reset.form": {
+    "message": "values restored,\nissues and touched cleared"
+  },
+  "diagram.reset.model": {
+    "message": "only values restored,\nnodes untouched"
+  },
+  "diagram.steps.title": {
+    "message": "The step machine"
+  },
+  "diagram.steps.caption": {
+    "message": "Forward only through the step rules check; back at any time, without a check."
+  },
+  "diagram.steps.current": {
+    "message": "Step N"
+  },
+  "diagram.steps.check": {
+    "message": "Rules check of step N"
+  },
+  "diagram.steps.next": {
+    "message": "Step N+1"
+  },
+  "diagram.steps.earlier": {
+    "message": "Passed step"
+  },
+  "diagram.steps.earlierHint": {
+    "message": "before N"
+  },
+  "diagram.steps.first": {
+    "message": "first step"
+  },
+  "diagram.steps.stayed": {
+    "message": "issues or failure —\nstayed"
+  },
+  "diagram.steps.moved": {
+    "message": "no issues —\nmoved"
+  },
+  "diagram.steps.back": {
+    "message": "previous()\nor goTo(id)"
+  },
+  "diagram.steps.forwardAgain": {
+    "message": "next()\nstep by step"
+  },
+  "diagram.wizard.passed": {
+    "message": "next()\nstep passed"
+  },
+  "diagram.wizard.title": {
+    "message": "Transitions between wizard steps"
+  },
+  "diagram.wizard.caption": {
+    "message": "Forward is next(): a step with issues does not let you through. Back is previous() at any time."
+  },
+  "diagram.wizard.blocked": {
+    "message": "next() — issues found"
+  },
+  "diagram.issueText.noKey": {
+    "message": "no key"
+  },
+  "diagram.issueText.title": {
+    "message": "Where an issue text comes from"
+  },
+  "diagram.issueText.caption": {
+    "message": "The text is looked up along a chain of dictionaries when shown. Found nowhere — the code itself is shown."
+  },
+  "diagram.issueText.issue": {
+    "message": "issue"
+  },
+  "diagram.issueText.issueHint": {
+    "message": "code and params"
+  },
+  "diagram.issueText.form": {
+    "message": "form dictionary"
+  },
+  "diagram.issueText.locale": {
+    "message": "locale dictionary"
+  },
+  "diagram.issueText.localeHint": {
+    "message": "key validation.*"
+  },
+  "diagram.issueText.builtIn": {
+    "message": "built-in"
+  },
+  "diagram.issueText.builtInHint": {
+    "message": "English"
+  },
+  "diagram.issueText.code": {
+    "message": "the code itself"
+  },
+  "diagram.issueText.noCode": {
+    "message": "no code"
+  },
+  "diagram.validation.title": {
+    "message": "How a check runs"
+  },
+  "diagram.validation.caption": {
+    "message": "An issue carries a code and params; its text is picked only when shown. Dashed — a reply."
+  },
+  "diagram.validation.user": {
+    "message": "User"
+  },
+  "diagram.validation.strategy": {
+    "message": "Strategy"
+  },
+  "diagram.validation.rules": {
+    "message": "Rules"
+  },
+  "diagram.validation.node": {
+    "message": "Field node"
+  },
+  "diagram.validation.trigger": {
+    "message": "input, blur\nor submit"
+  },
+  "diagram.validation.run": {
+    "message": "run rules\non model values"
+  },
+  "diagram.validation.issues": {
+    "message": "issues\n{ code, params }"
+  },
+  "diagram.validation.text": {
+    "message": "text by code from a dictionary"
+  },
+  "diagram.assistant.title": {
+    "message": "How an assistant turn goes"
+  },
+  "diagram.assistant.caption": {
+    "message": "In one turn the model can take several steps. Edits land in the working copy, not on disk. Dashed — a reply."
+  },
+  "diagram.assistant.human": {
+    "message": "Person"
+  },
+  "diagram.assistant.panel": {
+    "message": "Panel"
+  },
+  "diagram.assistant.panelHint": {
+    "message": "“Assistant”"
+  },
+  "diagram.assistant.model": {
+    "message": "Model"
+  },
+  "diagram.assistant.stack": {
+    "message": "Form stack"
+  },
+  "diagram.assistant.copy": {
+    "message": "Working copy"
+  },
+  "diagram.assistant.ask": {
+    "message": "“add a\nPhone field”"
+  },
+  "diagram.assistant.request": {
+    "message": "request, form,\ntool list"
+  },
+  "diagram.assistant.loop": {
+    "message": "turn steps"
+  },
+  "diagram.assistant.call": {
+    "message": "tool call —\ninsert a node,\nset a property"
+  },
+  "diagram.assistant.result": {
+    "message": "result\nor error"
+  },
+  "diagram.assistant.answer": {
+    "message": "text answer"
+  },
+  "diagram.assistant.edits": {
+    "message": "edits as one record\nand updated\nmodule code"
+  },
+  "diagram.assistant.reply": {
+    "message": "answer,\ncall lines,\n“Restore”"
+  },
+  "diagram.codegen.title": {
+    "message": "How a form module is printed"
+  },
+  "diagram.codegen.caption": {
+    "message": "Generation reads the form document and the module rules and puts the module files into the working copy; they reach the disk by a write."
+  },
+  "diagram.codegen.document": {
+    "message": "Form document"
+  },
+  "diagram.codegen.rules": {
+    "message": "Rules in module code"
+  },
+  "diagram.codegen.stack": {
+    "message": "ReFormer stack"
+  },
+  "diagram.codegen.stackHint": {
+    "message": "what a form\nand its module are"
+  },
+  "diagram.codegen.targets": {
+    "message": "Codegen targets"
+  },
+  "diagram.codegen.targetsHint": {
+    "message": "built-in and from\n.ui_builder/codegen"
+  },
+  "diagram.codegen.copy": {
+    "message": "Working copy"
+  },
+  "diagram.codegen.disk": {
+    "message": "Disk"
+  },
+  "diagram.codegen.files": {
+    "message": "module files"
+  },
+  "diagram.codegen.write": {
+    "message": "write"
+  },
+  "diagram.pluginBuild.title": {
+    "message": "Plugin build pipeline"
+  },
+  "diagram.pluginBuild.caption": {
+    "message": "build checks the output by the same rules as the builder. The builder loads the build directory as is; pack wraps it for npm."
+  },
+  "diagram.pluginBuild.sources": {
+    "message": "Sources"
+  },
+  "diagram.pluginBuild.validate": {
+    "message": "manifest and files"
+  },
+  "diagram.pluginBuild.build": {
+    "message": "code, deferred\nmodules, styles"
+  },
+  "diagram.pluginBuild.checks": {
+    "message": "Checks"
+  },
+  "diagram.pluginBuild.checksHint": {
+    "message": "manifest,\nfile count,\ntrial activation"
+  },
+  "diagram.pluginBuild.out": {
+    "message": "Build directory"
+  },
+  "diagram.pluginBuild.project": {
+    "message": "Project"
+  },
+  "diagram.pluginBuild.pack": {
+    "message": "npm archive"
+  },
+  "diagram.pluginLayers.title": {
+    "message": "Where plugins come from"
+  },
+  "diagram.pluginLayers.caption": {
+    "message": "Layers load in turn: built-in at startup, then app plugins, project plugins after a folder is opened. A person enables plugins from npm."
+  },
+  "diagram.pluginLayers.builtin": {
+    "message": "Built-in"
+  },
+  "diagram.pluginLayers.builtinHint": {
+    "message": "bundled in the shell: project, plugin management, profile"
+  },
+  "diagram.pluginLayers.app": {
+    "message": "App plugins"
+  },
+  "diagram.pluginLayers.appHint": {
+    "message": "ship with the builder"
+  },
+  "diagram.pluginLayers.project": {
+    "message": "Project plugins"
+  },
+  "diagram.pluginLayers.projectHint": {
+    "message": ".ui_builder/plugins/ of the open folder"
+  },
+  "diagram.pluginLayers.npm": {
+    "message": "Installed from npm"
+  },
+  "diagram.pluginLayers.npmHint": {
+    "message": "downloaded to this browser,\nwork once enabled"
+  },
+  "diagram.pluginLayers.atStart": {
+    "message": "at startup, right after them"
+  },
+  "diagram.pluginLayers.afterOpen": {
+    "message": "after a folder is opened"
+  },
+  "diagram.formRegistry.title": {
+    "message": "How the form registry works"
+  },
+  "diagram.formRegistry.caption": {
+    "message": "The provider registers a form, the host finds it by id, slot or route, the loader assembles and checks the parts. Dashed — a schema from the server."
+  },
+  "diagram.formRegistry.provider": {
+    "message": "Micro-frontend provider"
+  },
+  "diagram.formRegistry.host": {
+    "message": "Host application"
+  },
+  "diagram.formRegistry.entry": {
+    "message": "schema + form code"
+  },
+  "diagram.formRegistry.registry": {
+    "message": "Form registry"
+  },
+  "diagram.formRegistry.server": {
+    "message": "Server"
+  },
+  "diagram.formRegistry.serverHint": {
+    "message": "JSON schema"
+  },
+  "diagram.formRegistry.providerHint": {
+    "message": "permissions, flags, base registry"
+  },
+  "diagram.formRegistry.outletHint": {
+    "message": "or FormSlot, FormRoute"
+  },
+  "diagram.formRegistry.loadHint": {
+    "message": "loading and checks"
+  },
+  "diagram.formRegistry.lookup": {
+    "message": "id, slot, route"
+  },
   "homepage.title": {
     "message": "Reactive Forms Library"
   },

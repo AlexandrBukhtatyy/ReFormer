@@ -7,6 +7,7 @@ hide_title: true
 
 import { ComponentDoc } from '@site/src/components/demo';
 import { formWizardDocConfig } from '@site/src/components/demo/examples/cdk-form-wizard';
+import { WizardSteps } from '@site/src/components/diagrams/StepFlows';
 
 <ComponentDoc config={formWizardDocConfig}>
 `FormWizard` рисует многошаговую форму: показывает текущий шаг, индикатор и прогресс, ведёт
@@ -86,17 +87,7 @@ function CreditWizard() {
 а поля следующих шагов остаются нетронутыми. Назад можно всегда; вперёд по индикатору — только на
 пройденные шаги и на следующий за ними.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> loan
-    loan --> loan: next() — есть замечания
-    loan --> contacts: next() — шаг прошёл
-    contacts --> loan: previous()
-    contacts --> confirm: next() — шаг прошёл
-    confirm --> contacts: previous()
-    confirm --> [*]: submission.submit()
-```
+<WizardSteps />
 
 Возврат назад снимает отметку «пройден» с целевого шага и всех следующих: вперёд их снова
 проверит `next()`.

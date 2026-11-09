@@ -4,6 +4,7 @@ sidebar_position: 2
 
 import OrderTotal from '@site/src/components/demo/live/behaviors/order-total';
 import orderTotalSource from '@site/src/components/demo/live/behaviors/order-total.tsx?raw';
+import { ComputeDependencies, ComputeCycle } from '@site/src/components/diagrams/ComputedFlow';
 
 # Вычисляемые поля
 
@@ -36,14 +37,7 @@ import orderTotalSource from '@site/src/components/demo/live/behaviors/order-tot
 
 ## Какие поля читает и какое пишет
 
-```mermaid
-flowchart LR
-  price["model.price"] -- читает --> total_c["compute"]
-  quantity["model.quantity"] -- читает --> total_c
-  total_c -- пишет --> total["model.total"]
-  total -- читает --> promo_c["enableWhen"]
-  promo_c -- включает и выключает --> promo["поле promoCode"]
-```
+<ComputeDependencies />
 
 Оператор подписывается на поля, которые прочитал при последнем пересчёте. Цель в источники не
 входит: `compute` для `total` не реагирует на запись в `total`. Записывает он только новое
@@ -138,13 +132,7 @@ const creditBehavior = defineFormBehavior<Credit>(({ model }) => {
 
 Цикл — когда два вычисления читают цели друг друга:
 
-```mermaid
-flowchart LR
-  a["model.a"] -- читает --> cb["compute для b"]
-  cb -- пишет --> b["model.b"]
-  b -- читает --> ca["compute для a"]
-  ca -- пишет --> a
-```
+<ComputeCycle />
 
 - **Цикл сходится**, если значения перестают меняться: очередной пересчёт даёт то же значение,
   записи нет, и цикл останавливается сам.

@@ -2,7 +2,12 @@
 sidebar_position: 4
 title: Сборка и стили плагина
 description: Что делает reformer-plugin build — формат сборки, отложенный код, воркеры и файлы, проверки; как плагину оформляться — классы оболочки, изолированная таблица стилей, порталы; каталог кита из TypeScript-типов.
+# На странице JSX-схема: разбирать .md как MDX, а не как CommonMark.
+mdx:
+  format: mdx
 ---
+
+import { PluginBuildPipeline } from '@site/src/components/diagrams/BuilderFlows';
 
 # Сборка и стили плагина
 
@@ -11,19 +16,7 @@ description: Что делает reformer-plugin build — формат сбор
 
 ## Конвейер
 
-```mermaid
-flowchart LR
-  src["Исходники<br/>manifest.json, src/, locales/, styles.css"]
-  validate["validate<br/>манифест и файлы"]
-  build["build<br/>код, отложенные модули, стили"]
-  checks["Проверки<br/>манифест, число файлов, пробная активация"]
-  out["Каталог сборки<br/>manifest.json, main.js, chunks/"]
-  project[".ui_builder/plugins/ проекта"]
-  tgz["pack<br/>архив для npm"]
-  src --> validate --> build --> checks --> out
-  out --> project
-  out --> tgz
-```
+<PluginBuildPipeline />
 
 | Команда                                                         | Что делает                                                           |
 | --------------------------------------------------------------- | -------------------------------------------------------------------- |

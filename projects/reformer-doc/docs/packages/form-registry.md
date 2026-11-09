@@ -2,7 +2,12 @@
 id: form-registry
 title: '@reformer/form-registry'
 sidebar_label: 'form-registry'
+# На странице JSX-схема: разбирать .md как MDX, а не как CommonMark.
+mdx:
+  format: mdx
 ---
+
+import { FormRegistryFlow } from '@site/src/components/diagrams/FormRegistryFlow';
 
 # @reformer/form-registry
 
@@ -22,26 +27,7 @@ sidebar_label: 'form-registry'
 
 ## Как это устроено
 
-```mermaid
-flowchart LR
-  subgraph MFE["Микрофронтенд-поставщик"]
-    E["FormEntry<br/>схема + код формы"]
-  end
-  R[("Реестр форм<br/>getFormRegistry()")]
-  subgraph Host["Приложение-хозяин"]
-    P["FormRegistryProvider<br/>права, флаги, базовый реестр"]
-    O["FormOutlet / FormSlot / FormRoute"]
-    L["loadForm<br/>загрузка и проверки"]
-    F["createForm + FormRenderer"]
-  end
-  S[["Сервер: JSON-схема"]]
-  E -- "register" --> R
-  P --> O
-  O -- "id, слот, маршрут" --> R
-  O --> L
-  S -. "kind: 'http'" .-> L
-  L --> F
-```
+<FormRegistryFlow />
 
 1. **Поставщик** описывает форму записью `FormEntry` и регистрирует её в общем реестре.
 2. **Хозяин** ставит `FormRegistryProvider` с правами, флагами и общим реестром компонентов.

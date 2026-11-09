@@ -4,6 +4,7 @@ sidebar_position: 3
 
 import ServerError from '@site/src/components/demo/live/patterns/server-error';
 import serverErrorSource from '@site/src/components/demo/live/patterns/server-error.tsx?raw';
+import { SubmitOutcomes, ResetPoint } from '@site/src/components/diagrams/SubmitAndReset';
 
 # Отправка и сброс
 
@@ -39,16 +40,7 @@ import serverErrorSource from '@site/src/components/demo/live/patterns/server-er
 
 ## Итоги отправки
 
-```mermaid
-flowchart TD
-  submit["submission.submit(handler)"] --> check{"проверка правил"}
-  check -- "есть блокирующие замечания" --> invalid(["invalid"])
-  check -- "правило не ответило" --> error(["error"])
-  check -- "проверку сменила новая<br/>или модель изменилась" --> cancelled(["cancelled"])
-  check -- "замечаний нет" --> handler["handler(values)"]
-  handler -- "вернул результат" --> submitted(["submitted"])
-  handler -- "бросил исключение" --> failed(["failed"])
-```
+<SubmitOutcomes />
 
 `submit` не бросает исключений: любой исход приходит объектом `SubmitResult`.
 
@@ -136,13 +128,7 @@ function SubmitButton({ bundle }: { bundle: FormBundle<Signup> }) {
 Точка отсчёта у них одна: значения, с которыми создана модель, либо последние зафиксированные
 вызовом `model.captureInitial()`.
 
-```mermaid
-flowchart LR
-  create["createForm<br/>начальные значения"] --> ref(("точка<br/>отсчёта"))
-  load["model.patch(загруженное)<br/>model.captureInitial()"] --> ref
-  ref -- "form.reset()" --> clean["значения вернулись,<br/>замечания и касание сняты"]
-  ref -- "model.reset()" --> values["вернулись только значения,<br/>ноды не тронуты"]
-```
+<ResetPoint />
 
 | Вызов                    | Что делает                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------- |

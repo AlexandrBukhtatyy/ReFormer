@@ -4,6 +4,7 @@ sidebar_position: 1
 
 import SignupForm from '@site/src/components/demo/live/validation/signup-form';
 import signupFormSource from '@site/src/components/demo/live/validation/signup-form.tsx?raw';
+import { ValidationSequence } from '@site/src/components/diagrams/ValidationSequence';
 
 # Обзор валидации
 
@@ -38,19 +39,7 @@ import signupFormSource from '@site/src/components/demo/live/validation/signup-f
 
 ## Как проходит проверка
 
-```mermaid
-sequenceDiagram
-  participant U as Пользователь
-  participant S as Стратегия
-  participant R as Правила
-  participant N as Нода поля
-  participant F as FormField
-  U->>S: ввод, уход из поля или отправка
-  S->>R: прогон правил по значениям модели
-  R-->>N: замечания { code, params }
-  N-->>F: issues, shouldShowIssues
-  F-->>U: текст по коду из словаря
-```
+<ValidationSequence />
 
 - **Стратегия** выбирает момент прогона: при отправке, при уходе из поля, на каждый ввод или вживую
   после первой отправки. Подробно — в [Стратегиях валидации](./validation-strategies.md).

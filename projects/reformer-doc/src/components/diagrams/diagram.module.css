@@ -64,6 +64,7 @@
 }
 
 .arrow {
+  fill: none;
   stroke: var(--ifm-color-emphasis-600);
   stroke-width: 1.5;
 }
@@ -79,4 +80,34 @@
 .arrowLabel {
   fill: var(--ifm-color-emphasis-700);
   font-size: 12px;
+}
+
+/* Подложка группы: заливка без рамки — отличается и от блока, и от пунктирного ghost. */
+.group rect {
+  fill: var(--ifm-color-emphasis-100);
+  stroke: var(--ifm-color-emphasis-200);
+  stroke-width: 1;
+}
+
+.groupTitle {
+  fill: var(--ifm-color-emphasis-700);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.terminalDot {
+  fill: var(--ifm-color-emphasis-700);
+}
+
+.terminalRing {
+  fill: none;
+  stroke: var(--ifm-color-emphasis-700);
+  stroke-width: 1.5;
+}
+
+/* Линия жизни участника в диаграмме последовательности. */
+.lifeline {
+  stroke: var(--ifm-color-emphasis-300);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
 }

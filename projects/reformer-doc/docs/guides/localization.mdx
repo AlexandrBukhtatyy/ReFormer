@@ -5,6 +5,7 @@ description: Язык формы, словари ядра, cdk и кита, св
 
 import LanguageSwitch from '@site/src/components/demo/live/guides/language-switch';
 import languageSwitchSource from '@site/src/components/demo/live/guides/language-switch.tsx?raw';
+import { IssueMessageLookup } from '@site/src/components/diagrams/IssueMessageLookup';
 
 # Локализация
 
@@ -162,13 +163,7 @@ import { msg } from '@reformer/core/i18n';
 Замечание несёт код и параметры, а текста в нём нет. Текст подбирается в момент показа, поэтому
 смена языка переводит уже показанные замечания без повторной проверки.
 
-```mermaid
-flowchart LR
-  issue["замечание:<br/>код и параметры"] --> form["словарь формы<br/>defineIssueMessages"]
-  form -- "нет кода" --> locale["словарь языка<br/>ключ validation.*"]
-  locale -- "нет ключа" --> en["встроенный<br/>английский"]
-  en -- "нет ключа" --> code["сам код"]
-```
+<IssueMessageLookup />
 
 Встроенные правила (`required`, `email`, `minLength` и другие) переведены в словаре ядра. Своему
 правилу дайте свой код, а текст кода — в словарь формы:

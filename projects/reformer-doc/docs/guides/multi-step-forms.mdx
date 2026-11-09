@@ -5,6 +5,7 @@ description: Поток шагов сборки — порядок шагов, �
 
 import TicketWizard from '@site/src/components/demo/live/guides/ticket-wizard';
 import ticketWizardSource from '@site/src/components/demo/live/guides/ticket-wizard.tsx?raw';
+import { StepMachine } from '@site/src/components/diagrams/StepFlows';
 
 # Многошаговые формы
 
@@ -78,20 +79,7 @@ const createLoanForm = () =>
 
 ## Машина шагов
 
-```mermaid
-stateDiagram-v2
-  direction LR
-  state "Шаг N" as step
-  state "Проверка правил шага N" as checking
-  state "Шаг N+1" as following
-  state "Пройденный шаг раньше N" as earlier
-  [*] --> step: первый шаг
-  step --> checking: next()
-  checking --> following: замечаний нет — moved
-  checking --> step: замечания или сбой — stayed
-  step --> earlier: previous() или goTo(id)
-  earlier --> step: next() по шагам
-```
+<StepMachine />
 
 - **Вперёд — только `next()`.** Он проверяет правила текущего шага, при успехе отмечает шаг
   пройденным и переходит. При замечаниях поток остаётся на шаге, а поля шага помечаются тронутыми —

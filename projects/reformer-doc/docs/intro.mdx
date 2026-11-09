@@ -3,6 +3,8 @@ sidebar_position: 1
 slug: /
 ---
 
+import { ArchitectureM1 } from '@site/src/components/diagrams/ArchitectureM1';
+
 # Введение
 
 **ReFormer** — библиотека для построения сложных форм на React, основанная на
@@ -15,18 +17,7 @@ slug: /
 В основе ядра лежит архитектура **M1**, разделяющая форму на четыре слоя. Каждый слой отвечает за
 одну задачу, что делает форму предсказуемой, переиспользуемой и легко тестируемой.
 
-```mermaid
-flowchart LR
-  model["<b>Модель</b><br/>createModel<br/>значения"]
-  schema["<b>Схема</b><br/>поле модели ↔ компонент"]
-  validation["<b>Валидация</b><br/>defineValidation<br/>правила"]
-  behavior["<b>Поведение</b><br/>defineFormBehavior<br/>реакции на изменения"]
-  form(["<b>createForm</b><br/>форма: ноды полей"])
-  model --> form
-  schema --> form
-  validation --> form
-  behavior --> form
-```
+<ArchitectureM1 />
 
 1. **Модель** (`createModel`) — источник истины для значений. Обычный на вид объект, где под каждым
    полем стоит реактивный сигнал. Значения принадлежат модели, а не UI.
