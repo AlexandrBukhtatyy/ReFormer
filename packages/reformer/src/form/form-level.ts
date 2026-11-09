@@ -19,7 +19,7 @@ import type { FormModel } from '../model/types';
 import { createFormFlow, type FormFlow } from './flow/flow';
 import { createSubmission, type ActionCheck, type FormSubmission } from './submission';
 import { apply } from './validation/operators';
-import { cancelRun, defineValidation, runAndApply } from './validation/run';
+import { cancelRun, defineValidation, runAndApply, type NodeScope } from './validation/run';
 import {
   createFormValidation,
   type FormValidationController,
@@ -136,7 +136,8 @@ const AT = '[@reformer/core] createForm';
  *
  * @typeParam T - Форма данных модели.
  * @param model - Модель формы.
- * @param config - Правила (`validation`) и поток (`flow`).
+ * @param config - Правила (`validation`), поток (`flow`) и ноды сборки (`nodes`): в них ложатся
+ *   замечания. Без `nodes` — общий реестр, то есть последняя собранная над моделью форма.
  * @returns {@link FormLevel}.
  * @throws Error если в потоке повторяется шаг.
  *
@@ -157,8 +158,11 @@ export function createFormLevel<T>(
   config: {
     validation?: FormValidation<T> | ValidationDefinition<T>;
     flow?: FormFlowConfig<T>;
+    /** @internal Ноды сборки — их передаёт `createForm`. */
+    nodes?: NodeScope;
   }
 ): FormLevel<T> {
+  const { nodes } = config;
   const validation: FormValidation<T> =
     typeof config.validation === 'function'
       ? { rules: config.validation }
@@ -189,6 +193,7 @@ export function createFormLevel<T>(
           strategy: validation.strategy,
           debounce: validation.debounce,
           liveAfterSubmit: validation.liveAfterSubmit,
+          nodes,
         })
       : undefined;
 
@@ -242,7 +247,7 @@ export function createFormLevel<T>(
   const runStep = async (step: ValidationDefinition<T>): Promise<ValidationResult> => {
     checks.value++;
     try {
-      return await runAndApply(model, step, { touch: true, skipDisabled: true });
+      return await runAndApply(model, step, { touch: true, skipDisabled: true, nodes });
     } finally {
       checks.value--;
     }
@@ -288,7 +293,7 @@ export function createFormLevel<T>(
     dispose() {
       controller?.dispose();
       // Проверки шага идут своими правилами, мимо контроллера: их прогоны отменяются отдельно.
-      for (const step of stepSchemas) cancelRun(model as object, step as object);
+      for (const step of stepSchemas) cancelRun(model as object, step as object, nodes);
     },
   };
 }

@@ -29,6 +29,8 @@ import { compileSchema } from './schema/compile';
 import type { CompiledSchema, SchemaNodeId } from './schema/compiled';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormGroup } from './types/index';
+import type { FormNode } from './types/nodes';
+import { createNodeScope } from './signal-node-registry';
 import {
   createFormLevel,
   type FormFlowConfig,
@@ -74,6 +76,12 @@ export interface FormRender {
   readonly controller: SchemaController;
   /** Управление узлом КОРНЕВОЙ области по его `selector`. */
   node(selector: string): SchemaNodeControl;
+  /**
+   * Нода формы ЭТОЙ сборки по ручке модели (`model.$.email`, `model.$.items`). Рендерер находит
+   * через неё ноду узла схемы: над одной моделью может быть собрано несколько форм, и общий
+   * `getNodeForSignal` отдал бы ноду последней из них.
+   */
+  nodeOf(handle: object): FormNode<unknown> | undefined;
   /** Обёртка поля из реестра (JSON-вариант). */
   readonly fieldWrapper?: unknown;
   /** Граница ошибок из реестра (JSON-вариант). */
@@ -262,14 +270,22 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
   const compiled = tree !== undefined ? compileSchema(tree, model as object) : undefined;
   const controller = createSchemaController();
   const root = controller.scopeOf(model);
+  // Ноды этой сборки: проверка, поведение и рендерер находят по ручке модели именно их, даже если
+  // над моделью собрана ещё одна форма. Уровень получает область до нод — заполнит её сборка нод.
+  const nodes = createNodeScope();
 
   // Уровень формы — до нод: поведение получает поток шагов.
-  const level = createFormLevel<T>(model, { validation: config.validation, flow: config.flow });
+  const level = createFormLevel<T>(model, {
+    validation: config.validation,
+    flow: config.flow,
+    nodes,
+  });
   // Первые записи поведения (копия `syncFields`, нормализация, сброс выключенного поля) выполняются
   // до возврата, а не на микротаске: собранная форма уже согласована.
   const form = runAssemblyWrites(() =>
     createFormFromCompiled<T>({
       model,
+      nodes,
       ...(compiled !== undefined ? { compiled } : {}),
       ...(config.behavior ? { behavior: config.behavior, schemaController: controller } : {}),
       ...(level.flow !== undefined ? { flow: level.flow } : {}),
@@ -292,6 +308,7 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
       tree: compiled,
       controller,
       node: (selector) => root.node(selector),
+      nodeOf: (handle) => nodes.get(handle),
       ...(fieldWrapper !== undefined ? { fieldWrapper } : {}),
       ...(errorBoundary !== undefined ? { errorBoundary } : {}),
     },

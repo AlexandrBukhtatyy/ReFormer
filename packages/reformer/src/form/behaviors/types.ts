@@ -15,6 +15,7 @@ import type { FormModel } from '../../model/types';
 import type { FormGroup } from '../types/index';
 import type { SchemaController, SchemaScope } from '../schema-controller';
 import type { FormFlow } from '../flow/flow';
+import type { NodeScope } from '../signal-node-registry';
 
 /**
  * Область схемы поведения: модель (значения и сигналы), форма (ноды) и схема (узлы разметки).
@@ -39,13 +40,15 @@ export interface FormBehavior<T> {
   /**
    * @internal Запускается сборкой формы после построения нод и заполнения реестра сигнал→нода.
    * `controller` — схема-контроллер сборки; без него поведение получает собственный, который
-   * никто не читает (модель без рендерера). `flow` — поток шагов сборки.
+   * никто не читает (модель без рендерера). `flow` — поток шагов сборки. `nodes` — ноды сборки:
+   * по ним операторы находят поле, которое включить или выключить; без них — общий реестр.
    */
   __run(
     model: FormModel<T>,
     form: FormGroup<T>,
     controller?: SchemaController,
-    flow?: FormFlow
+    flow?: FormFlow,
+    nodes?: NodeScope
   ): BehaviorCleanup;
 }
 

@@ -16,8 +16,14 @@
 import { effect, signal, untracked, type ReadonlySignal } from '@preact/signals-core';
 import { eachValueSignal } from '../../model/create-model';
 import type { FormModel, PathAwareSignal } from '../../model/types';
-import { getNodeForSignal } from '../signal-node-registry';
-import { cancelRun, isTouchByValidation, runAndApply, type ValidationTouch } from './run';
+import { GLOBAL_NODES } from '../signal-node-registry';
+import {
+  cancelRun,
+  isTouchByValidation,
+  runAndApply,
+  type NodeScope,
+  type ValidationTouch,
+} from './run';
 import type { ValidationResult, ValidationDefinition } from './types';
 
 /**
@@ -37,6 +43,13 @@ export interface ValidationStrategyOptions {
   debounce?: number;
   /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
   liveAfterSubmit?: 'change' | 'blur';
+  /**
+   * Ноды сборки, в которые ложатся замечания и чьи уходы из поля будят `blur`. Задаёт сборка
+   * `createForm`; без неё — общий реестр, то есть последняя собранная над моделью форма.
+   *
+   * @internal
+   */
+  nodes?: NodeScope;
 }
 
 /**
@@ -115,6 +128,7 @@ export function createFormValidation<T>(
   options: ValidationStrategyOptions = {}
 ): FormValidationController {
   const { strategy = 'submit', debounce = 0, liveAfterSubmit = 'change' } = options;
+  const nodes = options.nodes ?? GLOBAL_NODES;
 
   const _validating = signal(false);
   let inFlight = 0;
@@ -129,7 +143,7 @@ export function createFormValidation<T>(
     _validating.value = true;
     try {
       // Проверка формы: выключенные поля не участвуют — как и в агрегате `valid`.
-      return await runAndApply(model, schema, { touch, skipDisabled: true });
+      return await runAndApply(model, schema, { touch, skipDisabled: true, nodes });
     } finally {
       if (--inFlight === 0) _validating.value = false;
     }
@@ -209,7 +223,7 @@ export function createFormValidation<T>(
         let left = false;
         disposeFx = arm(
           (sig) => {
-            const node = getNodeForSignal(sig) as
+            const node = nodes.get(sig) as
               | { touched: ReadonlySignal<boolean>; touches?: ReadonlySignal<number> }
               | undefined;
             if (node === undefined) return;
@@ -237,7 +251,7 @@ export function createFormValidation<T>(
       disposeFx?.();
       disposeFx = undefined;
       // Идущий прогон тоже отменяется: его async-правило иначе ответило бы уже снятой форме.
-      cancelRun(model as object, schema as object);
+      cancelRun(model as object, schema as object, nodes);
     },
     get isValidating() {
       return _validating.value;

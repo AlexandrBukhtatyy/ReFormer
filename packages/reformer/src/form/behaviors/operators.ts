@@ -22,8 +22,8 @@ import {
 import { markDerived, unmarkDerived } from '../../model/derived-registry';
 import { deferredWrites } from '../../model/safe-effect';
 import { availabilityWrites, enableWhen as coreEnableWhen, type AvailabilityTarget } from './node';
-import { getNodeForSignal } from '../signal-node-registry';
-import { assertInsideSchema, onDispose, effect } from './context';
+import type { NodeScope } from '../signal-node-registry';
+import { assertInsideSchema, getNodes, onDispose, effect } from './context';
 import {
   type GroupSignals,
   isLeafSignal,
@@ -214,8 +214,8 @@ export function disableWhen(
  * У цели нет ноды формы — правило ничего не выключит. Почти всегда это поле, которого нет в схеме
  * формы, или ручка чужой модели; в dev об этом предупреждение.
  */
-function warnWithoutNode(op: string, target: object): void {
-  if (process.env.NODE_ENV === 'production' || getNodeForSignal(target)) return;
+function warnWithoutNode(op: string, target: object, nodes: NodeScope): void {
+  if (process.env.NODE_ENV === 'production' || nodes.get(target)) return;
   const path = (target as { __path?: string }).__path ?? '?';
   console.warn(
     `[@reformer/core/behaviors] ${op}("${path}"): у поля нет ноды формы — правило ничего не ` +
@@ -229,12 +229,13 @@ function applyAvailability(
   condition: () => boolean,
   options?: { resetOnDisable?: boolean }
 ): void {
+  const nodes = getNodes();
   for (const t of asArray(target)) {
-    warnWithoutNode(op, t);
+    warnWithoutNode(op, t, nodes);
     if (isLeafSignal(t)) {
-      onDispose(coreEnableWhen(t as ReadonlySignal<unknown>, condition, options));
+      onDispose(coreEnableWhen(t as ReadonlySignal<unknown>, condition, options, nodes));
     } else {
-      enableGroup(t as GroupSignals, condition, options);
+      enableGroup(t as GroupSignals, condition, options, nodes);
     }
   }
 }
@@ -242,11 +243,12 @@ function applyAvailability(
 function enableGroup(
   g: GroupSignals,
   condition: () => boolean,
-  options?: { resetOnDisable?: boolean }
+  options: { resetOnDisable?: boolean } | undefined,
+  nodes: NodeScope
 ): void {
   // Нода — по идентичности ручки, а не по пути: путь ручки абсолютный (`items.0.address`), а
   // форма строки массива — отдельный корень. Поиск по пути в схеме строки ничего не находил.
-  const node = getNodeForSignal(g) as AvailabilityTarget | undefined;
+  const node = nodes.get(g) as AvailabilityTarget | undefined;
   if (!node) return;
   const writes = availabilityWrites(condition, options);
   effect(() => {

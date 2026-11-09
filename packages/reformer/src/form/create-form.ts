@@ -13,7 +13,7 @@ import { FormControlNode } from './nodes/form-control-node';
 import { FormGroupNode } from './nodes/form-group-node';
 import { FormArrayNode, type ModelArrayControl } from './nodes/form-array-node';
 import { rawNode, type InternalFormNode } from './nodes/node-kind';
-import { registerSignalNode } from './signal-node-registry';
+import { createNodeScope, type NodeScope } from './signal-node-registry';
 import { isModelArraySignal, isModelContainerSignal } from '../model/model-signals-proxy';
 import { modelOf, provideArrayBlank } from '../model/model-value-proxy';
 import { compileSchema } from './schema/compile';
@@ -62,12 +62,15 @@ interface BuildContext {
 
 const EMPTY_CONTEXT: BuildContext = { fields: new Map(), arrays: new Map() };
 
-/** Строитель формы строки массива под-форм: своя форма над скомпилированной схемой строки. */
+/**
+ * Строитель формы строки массива под-форм: своя форма над скомпилированной схемой строки. Ноды
+ * строки — ноды той же сборки, поэтому строка регистрируется в её области.
+ */
 const rowFormBuilder =
-  (array: CompiledArrayNode) =>
+  (array: CompiledArrayNode, nodes: NodeScope) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (rowModel: any): FormGroup<any> =>
-    createFormFromCompiled({ model: rowModel, compiled: array.row(rowModel) });
+    createFormFromCompiled({ model: rowModel, compiled: array.row(rowModel), nodes });
 
 /**
  * Строит ноды группы по дереву сигналов модели (`model.$`) и сразу заполняет реестр ручка→нода.
@@ -88,7 +91,8 @@ const rowFormBuilder =
  */
 function buildGroupNode(
   signals: Record<string, unknown>,
-  context: BuildContext
+  context: BuildContext,
+  nodes: NodeScope
 ): FormGroupNode<unknown> {
   const fields = new Map<string, InternalFormNode>();
   const leaves: Array<[FormControlNode<unknown>, Signal<unknown>]> = [];
@@ -107,7 +111,7 @@ function buildGroupNode(
       : {};
     const node = new FormControlNode<unknown>({ ...config, valueSignal: signal });
     fields.set(key, node);
-    registerSignalNode(signal, node);
+    nodes.register(signal, node);
     leaves.push([node, signal]);
   };
 
@@ -118,9 +122,9 @@ function buildGroupNode(
       const array = context.arrays.get(handle as object);
       if (array) {
         const control = modelOf(handle as { peek(): unknown[] }) as ModelArrayControl<object>;
-        const node = new FormArrayNode(control, rowFormBuilder(array));
+        const node = new FormArrayNode(control, rowFormBuilder(array, nodes));
         fields.set(key, node as unknown as InternalFormNode);
-        registerSignalNode(handle as object, node);
+        nodes.register(handle as object, node);
       } else if (context.fields.has(handle as object)) {
         addField(key, handle as Signal<unknown>);
       } else {
@@ -131,9 +135,9 @@ function buildGroupNode(
 
     if (isModelContainerSignal(handle)) {
       // Группа: её узел в дереве `$` перечисляет поля как собственные ключи.
-      const node = buildGroupNode(handle as Record<string, unknown>, context);
+      const node = buildGroupNode(handle as Record<string, unknown>, context, nodes);
       fields.set(key, node);
-      registerSignalNode(handle as object, node.proxy);
+      nodes.register(handle as object, node.proxy);
       continue;
     }
 
@@ -234,6 +238,11 @@ export function disposeForm<T>(form: FormGroup<T>): void {
 export interface CreateFormFromCompiledArgs<T> extends Omit<CreateFormFromModelArgs<T>, 'schema'> {
   /** Скомпилированная схема области модели; без неё у полей нет конфига из схемы. */
   compiled?: CompiledSchema;
+  /**
+   * Область нод сборки: в неё регистрируются ноды формы и её строк, через неё их находят проверка,
+   * поведение и рендерер сборки. Без неё у формы своя новая область.
+   */
+  nodes?: NodeScope;
 }
 
 /**
@@ -244,6 +253,7 @@ export interface CreateFormFromCompiledArgs<T> extends Omit<CreateFormFromModelA
  */
 export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): FormGroup<T> {
   const { model, compiled, behavior } = args;
+  const nodes = args.nodes ?? createNodeScope();
   const context: BuildContext = compiled ?? EMPTY_CONTEXT;
   // Шаблон нового элемента из схемы — запасной: шаблон модели (`arrayOf`) главнее.
   for (const [handle, array] of context.arrays) {
@@ -255,18 +265,19 @@ export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): 
   // над массивом целиком либо массив под-форм) или узел-группа.
   const groupNode = buildGroupNode(
     model.$ as unknown as Record<string, unknown>,
-    context
+    context,
+    nodes
   ) as FormGroupNode<T>;
   const form = groupNode.proxy;
   // Корень тоже регистрируется: у формы строки массива он — ручка этой строки.
-  registerSignalNode(model.$ as object, form);
+  nodes.register(model.$ as object, form);
 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
   // cleanup отдаём форме — отпишется в dispose() группы.
   if (behavior) {
     try {
       groupNode.attachBehaviorCleanup(
-        behavior.__run(model, form, args.schemaController, args.flow)
+        behavior.__run(model, form, args.schemaController, args.flow, nodes)
       );
     } catch (error) {
       // Поведение упало при запуске: свои effect'ы оно сняло само, а форму вызывающий не получит —

@@ -11,7 +11,7 @@
  */
 
 import { effect, untracked, type Signal, type ReadonlySignal } from '@preact/signals-core';
-import { getNodeForSignal } from '../signal-node-registry';
+import { GLOBAL_NODES, type NodeScope } from '../signal-node-registry';
 import { rawNode } from '../nodes/node-kind';
 import { deferredWrites } from '../../model/safe-effect';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
@@ -90,12 +90,13 @@ export function availabilityWrites(
 export function enableWhen(
   target: ReadonlySignal<unknown>,
   condition: () => boolean,
-  options?: { resetOnDisable?: boolean }
+  options?: { resetOnDisable?: boolean },
+  nodes: NodeScope = GLOBAL_NODES
 ): BehaviorCleanup {
   const writes = availabilityWrites(condition, options);
   const stop = effect(() => {
     condition(); // подписка на сигналы условия
-    const node = getNodeForSignal(target as Signal<unknown>);
+    const node = nodes.get(target as Signal<unknown>);
     if (node) writes.schedule(node);
   });
   return () => {

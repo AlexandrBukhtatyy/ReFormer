@@ -2,7 +2,7 @@
  * Операторы поведения над коллекциями и под-моделями.
  *
  * Цель оператора — РУЧКА дерева `model.$` (`model.$.items`, `model.$.address`). Под-модель и нода
- * формы находятся по идентичности ручки ({@link modelOf}, {@link getNodeForSignal}), а не по пути:
+ * формы находятся по идентичности ручки ({@link modelOf}, область нод сборки), а не по пути:
  * путь абсолютный, а область вложенной схемы (строка массива, группа) — нет. Поэтому операторы
  * работают одинаково в корневой схеме, в схеме строки и в схеме группы.
  *
@@ -17,13 +17,13 @@ import type { Signal } from '@preact/signals-core';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
 import type { FormModel, ModelArray } from '../../model/types';
 import type { FormGroup } from '../types/index';
-import { getNodeForSignal } from '../signal-node-registry';
 import { arrayHandleOf, groupHandleOf, modelOf } from '../../model/model-value-proxy';
 import { isModelContainerSignal } from '../../model/model-signals-proxy';
 import {
   assertInsideSchema,
   getController,
   getFlow,
+  getNodes,
   onDispose,
   effect,
   defer,
@@ -157,10 +157,12 @@ export function applyEach<TItem extends object>(
 ): void {
   const controller = getController('applyEach'); // вне схемы поведения — понятная ошибка
   const flow = getFlow('applyEach');
+  // Ноды сборки берутся сейчас: строки появляются позже, в effect, когда окно схемы уже закрыто.
+  const nodes = getNodes();
   const handle = arrayHandleOf(array);
   if (!handle) return wrongTarget('applyEach', array, 'массив');
   const rows = modelOf(handle as { peek(): unknown[] }) as unknown as RowArray<TItem>;
-  const arrNode = getNodeForSignal(handle) as RowArrayNode | undefined;
+  const arrNode = nodes.get(handle) as RowArrayNode | undefined;
   // Длину берём из НОДЫ массива (её строки обновляются ПОСЛЕ построения форм строк) — так rowForm готов
   // к запуску row-поведения независимо от порядка effect'ов. Фолбэк — длина value-фасада модели
   // (нематериализованный массив: форм строк нет, node-операции недоступны). Поле над массивом
@@ -181,7 +183,7 @@ export function applyEach<TItem extends object>(
         const rowForm =
           (rowForms?.at?.(i) as FormGroup<TItem> | undefined) ??
           unmaterializedRowForm<TItem>(pathOf(handle));
-        activeByRow.set(rowModel, itemSchema.__run(rowModel, rowForm, controller, flow));
+        activeByRow.set(rowModel, itemSchema.__run(rowModel, rowForm, controller, flow, nodes));
       }
     }
     // отписать исчезнувшие строки
@@ -344,6 +346,7 @@ export function apply<V extends object | null | undefined>(
 ): void {
   const controller = getController('apply'); // вне схемы поведения — понятная ошибка
   const flow = getFlow('apply');
+  const nodes = getNodes();
   for (const target of asArray(targets)) {
     // Цель — группа. Массив и лист под-модели не имеют: массив подключают через `applyEach`.
     const handle = groupHandleOf(target);
@@ -355,7 +358,9 @@ export function apply<V extends object | null | undefined>(
     // Форма может отсутствовать (модель без формы, под-схема работает только со значениями) —
     // тогда node-операции через `form.*` недоступны.
     // У группы в реестре лежит её лицо — FormGroup с нодами полей.
-    const nestedForm = getNodeForSignal(handle) as FormGroup<NonNullable<V>> | undefined;
-    onDispose(subSchema.__run(subModel, nestedForm as FormGroup<NonNullable<V>>, controller, flow));
+    const nestedForm = nodes.get(handle) as FormGroup<NonNullable<V>> | undefined;
+    onDispose(
+      subSchema.__run(subModel, nestedForm as FormGroup<NonNullable<V>>, controller, flow, nodes)
+    );
   }
 }

@@ -23,6 +23,7 @@ import {
 } from '../schema-controller';
 import type { BehaviorScope, FormBehavior } from './types';
 import type { FormFlow } from '../flow/flow';
+import { GLOBAL_NODES, type NodeScope } from '../signal-node-registry';
 
 interface RunContext {
   cleanups: BehaviorCleanup[];
@@ -32,6 +33,8 @@ interface RunContext {
   form: unknown;
   controller: SchemaController;
   flow: FormFlow | undefined;
+  /** Ноды сборки: по ним операторы находят ноду поля, группы, массива. */
+  nodes: NodeScope;
   /**
    * Откат того, что поведение сделало с узлами императивно (`setHidden`, `patchProps`), — при
    * снятии, после всех его отписок. См. {@link behaviorSchema}.
@@ -118,6 +121,16 @@ export function getScope<T>(): BehaviorScope<T> {
  */
 export function getController(op = 'getController'): SchemaController {
   return requireCtx(op).controller;
+}
+
+/**
+ * Ноды сборки, в которой идёт схема поведения; вне схемы — общий реестр. Оператор берёт их в
+ * момент вызова и держит у себя: его effect перезапускается и после того, как окно схемы закрыто.
+ *
+ * @internal
+ */
+export function getNodes(): NodeScope {
+  return current?.nodes ?? GLOBAL_NODES;
 }
 
 /**
@@ -223,7 +236,7 @@ const scopeOf = (ctx: RunContext): BehaviorScope<unknown> =>
  */
 export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void): FormBehavior<T> {
   return {
-    __run(model, form, controller = createSchemaController(), flow) {
+    __run(model, form, controller = createSchemaController(), flow, nodes = GLOBAL_NODES) {
       const ctx: RunContext = {
         cleanups: [],
         deferred: new Set(),
@@ -231,6 +244,7 @@ export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void):
         form,
         controller,
         flow,
+        nodes,
       };
       const prev = current;
       current = ctx;
