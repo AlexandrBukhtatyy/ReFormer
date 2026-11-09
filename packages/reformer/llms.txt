@@ -8788,13 +8788,16 @@ export function createFormLevel<T>(
   config: {
     validation?: FormValidation<T> | ValidationDefinition<T>;
     flow?: FormFlowConfig<T>;
+    /** @internal Ноды сборки — их передаёт `createForm`. */
+    nodes?: NodeScope;
   }
 ): FormLevel<T>
 ```
 
 **Parameters:**
 - `model` — - Модель формы.
-- `config` — - Правила (`validation`) и поток (`flow`).
+- `config` — - Правила (`validation`), поток (`flow`) и ноды сборки (`nodes`): в них ложатся
+замечания. Без `nodes` — общий реестр, то есть последняя собранная над моделью форма.
 
 **Returns:** 
 
@@ -10121,13 +10124,15 @@ export interface FormBehavior<T> {
   /**
    * @internal Запускается сборкой формы после построения нод и заполнения реестра сигнал→нода.
    * `controller` — схема-контроллер сборки; без него поведение получает собственный, который
-   * никто не читает (модель без рендерера). `flow` — поток шагов сборки.
+   * никто не читает (модель без рендерера). `flow` — поток шагов сборки. `nodes` — ноды сборки:
+   * по ним операторы находят поле, которое включить или выключить; без них — общий реестр.
    */
   __run(
     model: FormModel<T>,
     form: FormGroup<T>,
     controller?: SchemaController,
-    flow?: FormFlow
+    flow?: FormFlow,
+    nodes?: NodeScope
   ): BehaviorCleanup;
 }
 ```
@@ -10567,6 +10572,12 @@ export interface FormRender {
   readonly controller: SchemaController;
   /** Управление узлом КОРНЕВОЙ области по его `selector`. */
   node(selector: string): SchemaNodeControl;
+  /**
+   * Нода формы ЭТОЙ сборки по ручке модели (`model.$.email`, `model.$.items`). Рендерер находит
+   * через неё ноду узла схемы: над одной моделью может быть собрано несколько форм, и общий
+   * `getNodeForSignal` отдал бы ноду последней из них.
+   */
+  nodeOf(handle: object): FormNode<unknown> | undefined;
   /** Обёртка поля из реестра (JSON-вариант). */
   readonly fieldWrapper?: unknown;
   /** Граница ошибок из реестра (JSON-вариант). */
@@ -10797,10 +10808,13 @@ _Source: src/platforms/react/field-binding/field-adapter.ts_
 
 Найти ноду формы по ручке модели.
 
-Используется state-операциями behavior (`enableWhen`/`disableWhen`), подключением под-схем
-(`apply`/`applyEach`) и роутингом ошибок валидации в ноды. Возвращает `undefined`, если форма
-ещё не построена или эта часть модели в форме не материализована (например, массив без
-item-схемы).
+Возвращает `undefined`, если форма ещё не построена или эта часть модели в форме не
+материализована (например, массив без item-схемы).
+
+Если над моделью собрано несколько форм, у ручки несколько нод, и здесь — нода последней
+собранной формы (или явной перепривязки {@link registerSignalNode}). Ноду конкретной сборки
+отдаёт `bundle.render.nodeOf(handle)`: через неё проверка, поведение и рендерер сборки и
+находят свои ноды.
 
 **Signature:**
 ```typescript
@@ -13138,9 +13152,10 @@ _Source: src/signals.ts_
 
 Связать ручку модели с её нодой формы.
 
-Вызывается движком при сборке формы (`createForm`/{@link createFormFromModel}) для каждого поля,
+Сборка формы (`createForm`/{@link createFormFromModel}) заполняет реестр сама — для каждого поля,
 группы и массива под-форм; у группы в реестре лежит её лицо {@link FormGroup} с нодами полей.
-Прикладной код обычно этот реестр не заполняет напрямую.
+Прикладной код зовёт эту функцию, чтобы перепривязать ручку к ноде другой сборки: перепривязка
+действует и на сборку, которой ручка принадлежит, пока эту ручку не перезапишет новая сборка.
 
 **Signature:**
 ```typescript
@@ -15440,6 +15455,13 @@ export interface ValidationStrategyOptions {
   debounce?: number;
   /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
   liveAfterSubmit?: 'change' | 'blur';
+  /**
+   * Ноды сборки, в которые ложатся замечания и чьи уходы из поля будят `blur`. Задаёт сборка
+   * `createForm`; без неё — общий реестр, то есть последняя собранная над моделью форма.
+   *
+   * @internal
+   */
+  nodes?: NodeScope;
 }
 ```
 
