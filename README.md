@@ -13,45 +13,102 @@
 
 ## Команды
 
-### Основные команды
+Все команды запускаются из корня репозитория.
 
-```
-# Установить зависимости для @reformer/core
-npm install -w @reformer/core
+### Подготовка
 
-# Собрать @reformer/core
-npm run build -w @reformer/core
-
-
-# Установить зависимости для @reformer/cdk
-npm install -w @reformer/cdk
-
-# Собрать @reformer/cdk
-npm run build -w @reformer/cdk
-
-
-# Установить зависимости для @reformer/renderer-react
-npm install -w @reformer/renderer-react
-
-# Собрать @reformer/renderer-react
-npm run build -w @reformer/renderer-react
-
-
-# Установить зависимости для react-playground
-npm install -w react-playground
-
-# Собрать react-playground
-npm run build -w react-playground
-
-# Запустить react-playground в режиме разработки
-npm run dev -w react-playground
+```bash
+npm install
 ```
 
-### Запуск тестов
+Проекты берут пакеты библиотеки из их сборки (`dist/`), а в git она не хранится. В свежем клоне
+соберите пакеты по одному и в этом порядке — npm сам не сортирует их по зависимостям:
 
-Инструкции по настройке, команды тестов и полный справочник команд — в [README.md](./projects/react-playground-e2e/README.md).
+```bash
+for pkg in @reformer/core @reformer/cdk @reformer/renderer-react @reformer/ui-kit \
+           @reformer/renderer-json @reformer/form-registry @reformer/mcp \
+           @reformer/builder-plugin-api @reformer/builder-toolkit @reformer/builder-plugin-cli \
+           @reformer/rjsf-kit-theme; do
+  npm run build -w "$pkg"
+done
+```
 
-E2E визуального билдера — отдельный проект: [reformer-builder-playground-e2e](./projects/reformer-builder-playground-e2e/README.md) открывает в билдере каталог-образец [reformer-builder-playground](./projects/reformer-builder-playground/README.md).
+Сайту документации хватает первых пяти пакетов. Песочнице (её отладочная страница берёт модули
+билдера), билдеру и его плагинам нужен весь список. Правку в пакете проект увидит после его
+пересборки: `npm run build -w @reformer/<пакет>`.
+
+### Проекты
+
+| Проект                                                                              | Что это                                     | Адрес                 |
+| ----------------------------------------------------------------------------------- | ------------------------------------------- | --------------------- |
+| [react-playground](./projects/react-playground)                                     | Песочница: примеры форм на всех пакетах     | http://localhost:5173 |
+| [reformer-doc](./projects/reformer-doc)                                             | Сайт документации (Docusaurus)              | http://localhost:3000 |
+| [reformer-builder](./projects/reformer-builder/README.md)                           | Визуальный билдер форм `@reformer/builder`  | http://localhost:5174 |
+| [reformer-builder-playground](./projects/reformer-builder-playground/README.md)     | Проект-образец: формы и плагины для билдера | http://localhost:5184 |
+| [reformer-builder-host-example](./projects/reformer-builder-host-example/README.md) | Билдер, встроенный в Vite-приложение        | http://localhost:5175 |
+
+**Песочница — react-playground**
+
+```bash
+npm run dev                            # то же, что npm run dev -w react-playground
+npm run build -w react-playground      # моки, JSON-схемы форм, tsc и сборка
+npm run preview -w react-playground    # посмотреть собранное
+```
+
+**Сайт документации — reformer-doc**
+
+```bash
+npm run start -w reformer-doc                   # русская версия
+npm run start -w reformer-doc -- --locale en    # английская версия
+npm run build -w reformer-doc                   # обе локали в build/; битая ссылка или якорь — ошибка
+npm run serve -w reformer-doc                   # посмотреть собранное
+npm run typecheck -w reformer-doc               # типы сайта и живых примеров
+```
+
+**Визуальный билдер — reformer-builder и reformer-builder-playground**
+
+```bash
+npm run builder -w reformer-builder-playground       # билдер с плагинами проекта-образца, порт 5184
+npm run builder:dist -w reformer-builder-playground  # собранный билдер под лаунчером, тот же порт
+npm run dev:builder                                  # dev-сервер билдера со своим конфигом, порт 5174
+npm run build -w @reformer/builder                   # сборка в projects/reformer-builder/dist
+```
+
+В билдере — «Открыть папку…» и выбрать `projects/reformer-builder-playground`. Нужен
+Chromium-браузер: папку билдер открывает через File System Access API. `builder` перед стартом
+сам собирает плагины проекта-образца и сервер ReFormer для ассистента; `builder:dist` берёт
+готовую сборку из `npm run build -w @reformer/builder`. `dev:builder` читает конфиг
+`projects/reformer-builder/.ui_builder/config.json` — он в `.gitignore`, у каждого свой.
+Подробнее — в README [билдера](./projects/reformer-builder/README.md) и
+[проекта-образца](./projects/reformer-builder-playground/README.md).
+
+**Билдер внутри приложения — reformer-builder-host-example**
+
+```bash
+npm run dev -w reformer-builder-host-example              # кит @reformer/ui-kit
+npm run preset:hexa-ui -w reformer-builder-host-example   # кит HexaUI
+```
+
+### Тесты и проверки
+
+```bash
+npm run test -w @reformer/core                        # unit-тесты пакета; у остальных пакетов — так же
+npm run test -w @reformer/builder                     # unit-тесты билдера
+npm run test:browser -w @reformer/builder             # тесты билдера в браузере
+
+npx playwright install chromium                       # браузер Playwright — один раз
+npm run test:e2e -w react-playground-e2e              # e2e песочницы, dev-сервер поднимется сам
+npm run test:e2e -w reformer-builder-playground-e2e   # e2e билдера на проекте-образце
+
+npm run typecheck        # типы всех пакетов и проектов
+npm run lint             # eslint
+npm run format:check     # prettier
+npm run generate:llms    # перегенерировать llms.txt и llms-index.json пакетов
+npm run mcp:evaluate     # оценка MCP-сервера — та же, что гейт в CI
+```
+
+Режимы, фильтры и снимки e2e — в README [e2e песочницы](./projects/react-playground-e2e/README.md)
+и [e2e билдера](./projects/reformer-builder-playground-e2e/README.md).
 
 ## Пакеты
 
