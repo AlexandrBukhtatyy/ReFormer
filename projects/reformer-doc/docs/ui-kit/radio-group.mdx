@@ -85,8 +85,10 @@ import { radioGroupDocConfig } from '@site/src/components/demo/examples/radio-gr
 - Подпись группы связана с контейнером через `aria-labelledby`, пояснение и замечание — через
   `aria-describedby`. Пока замечание показано, у группы стоят `aria-invalid` и
   `aria-errormessage`.
-- Подпись пункта — `<label>`, связанный с ним по `id`. Иконка `tooltip` пункта стоит вне
-  подписи, её текст привязан к пункту через `aria-describedby`.
+- Подпись пункта — `<label>`, связанный с ним по `id`. `id` пунктов `RadioGroupOptions` строит
+  сам, уникальным на странице (`testId` на него не влияет): одинаковые поля в строках массива не
+  путают подписи. Иконка `tooltip` пункта стоит вне подписи, её текст привязан к пункту через
+  `aria-describedby`.
 
 ## Локализация
 

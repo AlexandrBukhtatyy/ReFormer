@@ -23,7 +23,7 @@ const noticeSchema = (model: FormModel<NoticeForm>): FormSchemaNode => ({
       componentProps: { testId: 'notices' },
       item: (row: FormModel<Notice>) => ({
         component: Item,
-        componentProps: { variant: 'outline', size: 'sm', role: 'listitem' },
+        componentProps: { variant: 'outline', size: 'sm' },
         children: [row.$.text],
       }),
     },
@@ -63,7 +63,7 @@ export const listDocConfig: ComponentDocConfig = {
       id: 'base',
       title: 'Готовые элементы',
       description:
-        'items — массив { key, index, children }. List кладёт их в контейнер role="list" с отступом space-y-2.',
+        'items — массив { key, index, children }. List кладёт их в контейнер role="list" с отступом space-y-2 и оборачивает каждый в role="listitem".',
       render: () => (
         <div style={{ width: '100%', maxWidth: 420 }}>
           <List
@@ -72,7 +72,7 @@ export const listDocConfig: ComponentDocConfig = {
                 key: 'a',
                 index: 0,
                 children: (
-                  <Item variant="outline" size="sm" role="listitem">
+                  <Item variant="outline" size="sm">
                     <ItemContent>
                       <ItemTitle>Паспорт загружен</ItemTitle>
                     </ItemContent>
@@ -83,7 +83,7 @@ export const listDocConfig: ComponentDocConfig = {
                 key: 'b',
                 index: 1,
                 children: (
-                  <Item variant="outline" size="sm" role="listitem">
+                  <Item variant="outline" size="sm">
                     <ItemContent>
                       <ItemTitle>Справка о доходах на проверке</ItemTitle>
                     </ItemContent>
@@ -100,7 +100,7 @@ export const listDocConfig: ComponentDocConfig = {
       key: 'a',
       index: 0,
       children: (
-        <Item variant="outline" size="sm" role="listitem">
+        <Item variant="outline" size="sm">
           <ItemContent>
             <ItemTitle>Паспорт загружен</ItemTitle>
           </ItemContent>
@@ -111,7 +111,7 @@ export const listDocConfig: ComponentDocConfig = {
       key: 'b',
       index: 1,
       children: (
-        <Item variant="outline" size="sm" role="listitem">
+        <Item variant="outline" size="sm">
           <ItemContent>
             <ItemTitle>Справка о доходах на проверке</ItemTitle>
           </ItemContent>
@@ -125,16 +125,16 @@ export const listDocConfig: ComponentDocConfig = {
       id: 'as-ul',
       title: 'Маркированный список (as="ul")',
       description:
-        'as меняет тег контейнера. С as="ul" элементы — обычные <li>, className добавляет маркеры.',
+        'as меняет тег контейнера. С as="ul" List сам оборачивает каждый элемент в <li>, className добавляет маркеры.',
       render: () => (
         <div style={{ width: '100%', maxWidth: 420 }}>
           <List
             as="ul"
             className="list-disc pl-5 text-sm"
             items={[
-              { key: 'passport', index: 0, children: <li>Паспорт</li> },
-              { key: 'income', index: 1, children: <li>Справка о доходах</li> },
-              { key: 'snils', index: 2, children: <li>СНИЛС</li> },
+              { key: 'passport', index: 0, children: 'Паспорт' },
+              { key: 'income', index: 1, children: 'Справка о доходах' },
+              { key: 'snils', index: 2, children: 'СНИЛС' },
             ]}
           />
         </div>
@@ -143,9 +143,9 @@ export const listDocConfig: ComponentDocConfig = {
   as="ul"
   className="list-disc pl-5 text-sm"
   items={[
-    { key: 'passport', index: 0, children: <li>Паспорт</li> },
-    { key: 'income', index: 1, children: <li>Справка о доходах</li> },
-    { key: 'snils', index: 2, children: <li>СНИЛС</li> },
+    { key: 'passport', index: 0, children: 'Паспорт' },
+    { key: 'income', index: 1, children: 'Справка о доходах' },
+    { key: 'snils', index: 2, children: 'СНИЛС' },
   ]}
 />`,
     },
@@ -173,7 +173,7 @@ const noticeSchema = (model: FormModel<NoticeForm>): FormSchemaNode => ({
       componentProps: { testId: 'notices' },
       item: (row: FormModel<Notice>) => ({
         component: Item,
-        componentProps: { variant: 'outline', size: 'sm', role: 'listitem' },
+        componentProps: { variant: 'outline', size: 'sm' },
         children: [row.$.text],
       }),
     },
@@ -220,7 +220,7 @@ function NoticeList() {
       type: 'ElementType',
       default: "'div'",
       description:
-        'Тег или компонент контейнера, например "ul" или "ol". role="list" остаётся при любом теге.',
+        'Тег или компонент контейнера, например "ul" или "ol". role="list" остаётся при любом теге. Элементы при "ul" / "ol" — в <li>, иначе — в <div role="listitem">.',
     },
     {
       name: 'testId',

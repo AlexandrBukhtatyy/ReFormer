@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Table,
   TableHeader,
@@ -85,6 +85,23 @@ const selectionSettings: TableSettings<User> = {
   pageSize: 5,
   selection: 'multiple',
 };
+
+// Выбранные строки читает onSelectionChange; с rowKey выбор переживает перелистывание.
+function SelectionGrid() {
+  const [selected, setSelected] = useState<User[]>([]);
+  const settings = useMemo<TableSettings<User>>(
+    () => ({ ...selectionSettings, onSelectionChange: ({ rows }) => setSelected(rows) }),
+    []
+  );
+  return (
+    <div className="space-y-2">
+      <DataGrid settings={settings} />
+      <p className="text-sm text-muted-foreground">
+        Выбрано: {selected.length > 0 ? selected.map((u) => u.name).join(', ') : 'ничего'}
+      </p>
+    </div>
+  );
+}
 
 const emptySettings: TableSettings<User> = {
   columns: gridSettings.columns,
@@ -185,7 +202,7 @@ export const tableDocConfig: ComponentDocConfig = {
       id: 'data-grid',
       title: 'DataGrid: страницы и фильтр',
       description:
-        'dataProvider получает { filters, sorting, pagination } и возвращает { rows, total }. Ввод в фильтр и переход по страницам — новый запрос; на время запроса виден блок загрузки.',
+        'dataProvider получает { filters, sorting, pagination } и возвращает { rows, total }. Ввод в фильтр, щелчок по заголовку ID или Имя и переход по страницам — новый запрос. Блок загрузки виден только до первой страницы, дальше таблица на время запроса приглушается.',
       render: () => (
         <div style={{ width: '100%' }}>
           <DataGrid settings={gridSettings} />
@@ -238,19 +255,30 @@ const gridSettings: TableSettings<User> = {
       id: 'data-grid-selection',
       title: 'DataGrid: выбор строк',
       description:
-        'selection="multiple" добавляет колонку флажков и флажок «выбрать все на странице» в шапке. selection="single" — переключатель на строку.',
+        'selection="multiple" добавляет колонку флажков и флажок «выбрать все на странице» в шапке. selection="single" — переключатель на строку. onSelectionChange отдаёт выбранные строки наружу; с rowKey выбор сохраняется при перелистывании.',
       render: () => (
         <div style={{ width: '100%' }}>
-          <DataGrid settings={selectionSettings} />
+          <SelectionGrid />
         </div>
       ),
-      code: `const selectionSettings: TableSettings<User> = {
-  ...gridSettings,
-  pageSize: 5,
-  selection: 'multiple', // 'none' | 'single' | 'multiple'
-};
-
-<DataGrid settings={selectionSettings} />`,
+      code: `function SelectionGrid() {
+  const [selected, setSelected] = useState<User[]>([]);
+  const settings = useMemo<TableSettings<User>>(
+    () => ({
+      ...gridSettings, // rowKey: (u) => u.id — без него выбор сбрасывается при смене страницы
+      pageSize: 5,
+      selection: 'multiple', // 'none' | 'single' | 'multiple'
+      onSelectionChange: ({ rows }) => setSelected(rows),
+    }),
+    []
+  );
+  return (
+    <>
+      <DataGrid settings={settings} />
+      <p>Выбрано: {selected.length > 0 ? selected.map((u) => u.name).join(', ') : 'ничего'}</p>
+    </>
+  );
+}`,
     },
   ],
   examples: [
@@ -310,7 +338,8 @@ function FlakyGrid() {
     {
       name: 'DataGrid.settings',
       type: 'TableSettings<Row>',
-      description: 'Обязательный. Колонки, источник данных, размер страницы, ключ строки, выбор.',
+      description:
+        'Обязательный. Колонки, источник данных, размер страницы, ключ строки, выбор и колбэк выбора.',
     },
     {
       name: 'DataGrid.className',
@@ -333,13 +362,13 @@ function FlakyGrid() {
       type: 'number',
       default: '10',
       description:
-        'Строк на странице. Читается один раз при монтировании; уходит в query.pagination.pageSize.',
+        'Строк на странице; уходит в query.pagination.pageSize. Смена значения перезапрашивает данные с первой страницы.',
     },
     {
       name: 'settings.rowKey',
       type: '(row: Row) => string | number',
       description:
-        'Стабильный ключ строки. Без него ключ — номер строки на странице, и выбор переезжает между страницами.',
+        'Стабильный ключ строки. С ним выбор переживает перелистывание. Без него ключ — номер строки на странице, и выбор сбрасывается при каждой смене строк (страница, фильтр, сортировка, перезагрузка).',
     },
     {
       name: 'settings.selection',
@@ -347,6 +376,12 @@ function FlakyGrid() {
       default: "'none'",
       description:
         'Колонка выбора: переключатель на строку (single) или флажки с «выбрать все на странице» (multiple).',
+    },
+    {
+      name: 'settings.onSelectionChange',
+      type: '(selection: TableSelection<Row>) => void',
+      description:
+        'Вызывается после каждого изменения выбора, в том числе сброса. selection — { keys, rows }: ключи и сами строки, с rowKey — и выбранные на других страницах.',
     },
     {
       name: 'column.id',
@@ -368,20 +403,25 @@ function FlakyGrid() {
       type: 'boolean',
       default: 'false',
       description:
-        'Сортировка по колонке: значение уходит в query.sorting. Сейчас кнопка сортировки не появляется — см. предупреждение на странице.',
+        'Кнопка сортировки в заголовке: первый щелчок — по возрастанию, второй — по убыванию, третий снимает сортировку. Направление уходит в query.sorting, у заголовка — aria-sort.',
     },
     {
       name: 'column.filterable',
       type: 'boolean',
       default: 'false',
       description:
-        'Текстовое поле фильтра над таблицей. Значение уходит в query.filters[id] на каждое нажатие клавиши.',
+        'Текстовое поле фильтра над таблицей. Значение уходит в query.filters[id] на каждое нажатие клавиши; смена фильтра возвращает на первую страницу.',
     },
     {
       name: 'column.filterPlaceholder',
       type: 'string',
+      description: 'Подсказка в поле фильтра. По умолчанию — id колонки.',
+    },
+    {
+      name: 'column.filterLabel',
+      type: 'string',
       description:
-        'Подсказка в поле фильтра. По умолчанию — id колонки. Это единственная подпись поля для скринридера.',
+        'Подпись поля фильтра для скринридера. По умолчанию — kit.table.filter с заголовком колонки («Фильтр: Имя»); если header не строка — с id.',
     },
     {
       name: 'column.align',

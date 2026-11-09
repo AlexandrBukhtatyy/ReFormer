@@ -361,9 +361,8 @@ export const messageScrollerDocConfig: ComponentDocConfig = {
     {
       name: 'Viewport.aria-label',
       type: 'string',
-      default: "'Messages'",
       description:
-        'Подпись области прокрутки для скринридера. Кит её не переводит — задайте на языке интерфейса.',
+        'Подпись области прокрутки для скринридера. По умолчанию — kit.messageScroller.label из словаря кита (Messages / Сообщения).',
     },
     {
       name: 'Viewport.preserveScrollOnPrepend',

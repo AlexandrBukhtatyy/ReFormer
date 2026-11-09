@@ -12,8 +12,8 @@ import { controlsFromPropsSchema } from '../controls-from-schema';
 import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-// У демо в одной вкладке — разные наборы значений: id вариантов RadioGroupOptions строятся из
-// data-testid и value, и одинаковые наборы без testId дали бы на странице одинаковые id.
+// Наборы вариантов для демо. id пунктов RadioGroupOptions строит из useId, поэтому одинаковые
+// наборы на одной странице не конфликтуют.
 const LOAN = [
   { value: 'consumer', label: 'Потребительский' },
   { value: 'mortgage', label: 'Ипотека' },

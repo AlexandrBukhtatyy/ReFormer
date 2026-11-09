@@ -199,6 +199,12 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
         'Толщина полос: default — 10px, xs — 6px. На ScrollArea — для её вертикальной полосы.',
     },
     {
+      name: 'viewportProps',
+      type: 'Radix ScrollArea.Viewport props',
+      description:
+        'Пропсы внутренней прокручиваемой области: tabIndex={0} — прокрутка с клавиатуры, aria-label — имя области, ref, обработчики. className дополняет классы кита.',
+    },
+    {
       name: 'dir',
       type: "'ltr' | 'rtl'",
       description:

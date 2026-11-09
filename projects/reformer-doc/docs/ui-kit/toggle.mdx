@@ -29,7 +29,9 @@ import { toggleDocConfig } from '@site/src/components/demo/examples/toggle';
 | --------- | ------------- | ----------------------------- |
 | `Toggle`  | `boolean`     | `children`, `variant`, `size` |
 
-- `children` — что нарисовано на кнопке: текст или иконка. Это не подпись поля.
+- `children` — что нарисовано на кнопке: текст или иконка. Это не подпись поля. В документе
+  renderer-json `children` — строка в `componentProps`; иконку или разметку задают в схеме формы в
+  коде.
 - `variant` — `'default'` (без рамки, нажатая кнопка залита) или `'outline'` (с рамкой).
 - `size` — `'sm'`, `'default'` или `'lg'`.
 - Подпись поля (`label`) рисует [FormField](./form-field.mdx) над кнопкой, как у текстовых полей.

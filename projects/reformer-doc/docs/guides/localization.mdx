@@ -143,17 +143,19 @@ function CartSummary({ count, total }: { count: number; total: number }) {
 
 ## Подписи полей
 
-Подпись поля — строка в `componentProps` узла схемы. Компонент поля показывает её как есть. Чтобы
-подпись менялась вместе с языком, положите перевод в пропсы при смене языка — так делает пример
-выше:
+Подпись, плейсхолдер и подписи опций задаются в `componentProps` узла схемы. Чтобы они менялись
+вместе с языком, вместо строки положите описатель `msg(ключ)` — так делает пример выше:
 
 ```tsx
-const { t } = useI18n();
+import { msg } from '@reformer/core/i18n';
 
-useEffect(() => {
-  form.email.updateComponentProps({ label: t('signup.email') });
-}, [form, t]);
+{ model: model.$.email, component: Input, componentProps: { label: msg('signup.email') } }
 ```
+
+Описатель раскрывается по активному языку там, где пропсы доходят до компонента: в обёртке поля
+`FormField` и в рендерере `@reformer/renderer-react` (поля, секции, массивы). Обход заходит и в
+массивы — `options: [{ value: 'a', label: msg('opt.a') }]`. Пропсы, которые вы читаете сами мимо
+`useFormControl`, раскрывает `resolveLocalized(props, useI18n())`.
 
 ## Тексты замечаний
 
@@ -246,8 +248,8 @@ expect(validateLocale(ru, en)).toEqual([]);
   `defineIssueMessages(...)` — константа модуля.
 - **Настройки локали без словаря** — источник, вернувший `{ weekStartsOn: 1 }`, принимается за
   словарь. Отдавайте поле `messages`, хотя бы пустым: `{ weekStartsOn: 1, messages: {} }`.
-- **Описатели `msg(...)` в пропсах схемы** — компоненты полей их не раскрывают и получат объект
-  вместо строки. Подпись кладите строкой.
+- **Строка вместо описателя** — `label: t('signup.email')` в схеме переведётся один раз, при
+  сборке формы, и при смене языка останется прежней. В схеме — `msg('signup.email')`.
 
 ## См. также
 

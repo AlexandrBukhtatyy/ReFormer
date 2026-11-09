@@ -37,9 +37,9 @@ import { calendarDocConfig } from '@site/src/components/demo/examples/calendar';
 | `CalendarSingle` | `Date \| null` | `captionLayout`, `showOutsideDays`                          |
 | `Calendar`       | — (вне формы)  | `mode`, `selected`, `onSelect` и остальные пропсы DayPicker |
 
-- **`CalendarSingle`** — компонент для формы. Режим `single` зашит. Повторный щелчок по
-  выбранной дате сбрасывает значение в `null`. Остальные пропсы DayPicker (например,
-  `numberOfMonths`, `showWeekNumber`) проходят как есть.
+- **`CalendarSingle`** — компонент для формы. Режим `single` зашит: пропа `mode` у него нет.
+  Повторный щелчок по выбранной дате сбрасывает значение в `null`. Остальные пропсы DayPicker
+  (например, `numberOfMonths`, `showWeekNumber`) проходят как есть.
 - **`Calendar`** — обёртка DayPicker в стиле кита. Режим, выбранное значение и обработчик задаёте
   сами. Ячейку дня рисует `CalendarDayButton`, её можно заменить через `components`.
 - **`captionLayout`** — шапка месяца: `label` (подпись), `dropdown` (списки месяца и года),
@@ -77,9 +77,10 @@ import { CalendarSingle } from '@reformer/ui-kit/calendar';
 - кнопки «Предыдущий месяц» и «Следующий месяц» подписаны для скринридера, смена месяца
   объявляется через `aria-live`.
 
-Подпись поля связана с календарём через `aria-labelledby`. Ограничение: `aria-invalid` и
-`aria-describedby` от [FormField](./form-field.mdx) DayPicker в разметку не передаёт — замечание
-под календарём видно, но к сетке дней не привязано.
+Корень `CalendarSingle` — группа (`role="group"`). Связки от [FormField](./form-field.mdx)
+ложатся на неё: подпись поля — через `aria-labelledby`, пояснение и замечание — через
+`aria-describedby`, при показанной ошибке — `aria-invalid` и `aria-errormessage`. `aria-required`
+у группы не предусмотрен, и календарь его не ставит.
 
 ## Локализация
 

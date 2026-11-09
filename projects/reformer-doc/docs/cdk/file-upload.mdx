@@ -74,11 +74,16 @@ const uploader: FileUploadUploader = (file, { onProgress, signal }) =>
 запрос. Загрузка, прерванная через `abort()`, остаётся в списке с ошибкой `uploadAborted`,
 упавшая — с `uploadFailed`; `ItemRetryTrigger` повторяет её.
 
+По умолчанию (`autoUpload: true`) загрузка начинается сразу после выбора. При
+`autoUpload: false` принятые файлы ждут в статусе `local`, пока их не отправит `upload(key?)` —
+метод хука и `FileUploadHandle`; без `key` уходят все ожидающие. Повтор упавшей загрузки в этом
+режиме начинается сразу.
+
 Без compound-дерева то же поведение даёт хук `useFileUpload` с наборами пропсов
 (`getRootProps`, `getDropzoneProps`, `getHiddenInputProps`, …). Ref корня — `FileUploadHandle` с
-`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `abort`, `focus`. Для тестов и своих
-обёрток есть чистое ядро без React: `fileUploadReducer`, `selectFiles`, `projectValue`,
-`reconcileItems`.
+`openFilePicker`, `addFiles`, `removeItem`, `clear`, `retry`, `upload`, `abort`, `focus`. Для
+тестов и своих обёрток есть чистое ядро без React: `fileUploadReducer`, `selectFiles`,
+`projectValue`, `reconcileItems`.
 
 ## Примеры
 

@@ -156,11 +156,11 @@ export const itemDocConfig: ComponentDocConfig = {
       id: 'group-separators',
       title: 'Список строк (ItemGroup)',
       description:
-        'ItemGroup ставит role="list", поэтому каждой строке нужен role="listitem". ItemSeparator — линия между строками.',
+        'ItemGroup ставит role="list", а Item внутри него сам становится role="listitem". ItemSeparator — линия между строками.',
       render: () => (
         <div style={{ width: '100%', maxWidth: 420 }}>
           <ItemGroup>
-            <Item role="listitem">
+            <Item>
               <ItemContent>
                 <ItemTitle>Анна Петрова</ItemTitle>
                 <ItemDescription>anna@example.com</ItemDescription>
@@ -170,7 +170,7 @@ export const itemDocConfig: ComponentDocConfig = {
               </ItemActions>
             </Item>
             <ItemSeparator />
-            <Item role="listitem">
+            <Item>
               <ItemContent>
                 <ItemTitle>Иван Смирнов</ItemTitle>
                 <ItemDescription>ivan@example.com</ItemDescription>
@@ -183,7 +183,7 @@ export const itemDocConfig: ComponentDocConfig = {
         </div>
       ),
       code: `<ItemGroup>
-  <Item role="listitem">
+  <Item>
     <ItemContent>
       <ItemTitle>Анна Петрова</ItemTitle>
       <ItemDescription>anna@example.com</ItemDescription>
@@ -193,7 +193,7 @@ export const itemDocConfig: ComponentDocConfig = {
     </ItemActions>
   </Item>
   <ItemSeparator />
-  <Item role="listitem">
+  <Item>
     <ItemContent>
       <ItemTitle>Иван Смирнов</ItemTitle>
       <ItemDescription>ivan@example.com</ItemDescription>
@@ -293,7 +293,8 @@ export const itemDocConfig: ComponentDocConfig = {
     {
       name: 'role',
       type: 'string',
-      description: 'Своей роли у Item нет. Внутри ItemGroup или List задайте role="listitem".',
+      description:
+        'Вне списка своей роли у Item нет. Внутри ItemGroup с role="list" Item сам получает role="listitem" (с asChild — его обёртка). Явный role перекрывает.',
     },
     {
       name: 'ItemMedia.variant',
@@ -331,7 +332,8 @@ export const itemDocConfig: ComponentDocConfig = {
     {
       name: 'ItemGroup',
       type: 'div',
-      description: 'Контейнер списка строк с role="list".',
+      description:
+        'Контейнер списка строк с role="list"; Item внутри получают role="listitem". Своя роль (например, "none") снимает и роль listitem у строк.',
     },
     {
       name: 'ItemSeparator',

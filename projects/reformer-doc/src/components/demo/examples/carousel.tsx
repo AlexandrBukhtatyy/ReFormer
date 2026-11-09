@@ -62,7 +62,7 @@ export const carouselDocConfig: ComponentDocConfig = {
   name: 'Carousel',
   importFrom: '@reformer/ui-kit/carousel',
   description:
-    'Лента слайдов со стрелками, свайпом и клавишами ← / →. Импорт — @reformer/ui-kit/carousel, нужен пакет embla-carousel-react.',
+    'Лента слайдов со стрелками, свайпом и клавишами ← / → (у вертикальной — ↑ / ↓). Импорт — @reformer/ui-kit/carousel, нужен пакет embla-carousel-react.',
   variants: [
     {
       id: 'basic',
@@ -138,7 +138,7 @@ export const carouselDocConfig: ComponentDocConfig = {
       id: 'vertical',
       title: 'Вертикальная лента',
       description:
-        'orientation="vertical" листает сверху вниз, стрелки встают сверху и снизу. CarouselContent нужна фиксированная высота.',
+        'orientation="vertical" листает сверху вниз, стрелки встают сверху и снизу, с клавиатуры — ↑ / ↓. CarouselContent нужна фиксированная высота.',
       render: () => (
         <div className="py-12">
           <Carousel orientation="vertical" className="w-full max-w-xs">
@@ -257,7 +257,8 @@ function CarouselWithCounter() {
       name: 'Carousel.orientation',
       type: "'horizontal' | 'vertical'",
       default: "'horizontal'",
-      description: 'Направление ленты. Стрелки переезжают по бокам или сверху и снизу.',
+      description:
+        'Направление ленты. Стрелки переезжают по бокам или сверху и снизу; клавиши — ← / → или ↑ / ↓.',
     },
     {
       name: 'Carousel.opts',

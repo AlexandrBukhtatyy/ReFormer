@@ -38,9 +38,9 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
 | `SelectAsync` | `string \| null`   | `options`, `resource`, `placeholder`, `clearable`                                     |
 | `SelectMulti` | `string[] \| null` | `options`, `resource`, `selectedOptions`, `maxItems`, `summaryThreshold`, `clearable` |
 
-Пункт `options` — объект `{ value, label, group? }`. У `SelectAsync` пункты с одинаковым `group`
-собираются под общим заголовком. Значение поля — `value` выбранного пункта строкой: число в
-`value` станет строкой.
+Пункт `options` — объект `{ value, label, group? }`. У `SelectAsync` и `SelectMulti` пункты с
+одинаковым `group` собираются под общим заголовком. Значение поля — `value` выбранного пункта
+строкой: число в `value` станет строкой.
 
 `resource` — источник пунктов с функцией `load`. Стратегия `type` решает, когда её звать:
 
@@ -125,12 +125,14 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
   в переход по буквам.
 - `SelectMulti` — кнопка `role="combobox"` с `aria-haspopup="listbox"` и список
   `role="listbox"` с `aria-multiselectable`. В списке: ↓/↑, Home/End — по пунктам, Enter или
-  пробел — отметить или снять. Пункты, выключенные `maxItems`, помечены `aria-disabled`.
+  пробел — отметить или снять. Фокус остаётся на списке, а подсвеченный пункт скринридер узнаёт
+  по `aria-activedescendant`. Группа пунктов — `role="group"`, подписанная своим заголовком.
+  Пункты, выключенные `maxItems`, помечены `aria-disabled`.
 - `FormField` связывает поле с подписью, пояснением и замечанием: `aria-labelledby`,
   `aria-describedby`, при показанном замечании — `aria-invalid` и `aria-errormessage`, при
   `required` — `aria-required`.
-- Крестик `clearable` подписан для скринридера, но в порядок Tab не входит: с клавиатуры значение
-  сбрасывают выбором другого пункта.
+- Крестик `clearable` подписан для скринридера и входит в порядок Tab: Enter или пробел на нём
+  сбрасывают значение. После сброса крестик пропадает, и фокус возвращается на поле.
 
 ## Локализация
 

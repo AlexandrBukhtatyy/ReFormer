@@ -71,7 +71,7 @@ export const iconDocConfig: ComponentDocConfig = {
       id: 'in-text',
       title: 'Иконка рядом с текстом',
       description:
-        'Иконка-украшение: смысл несёт текст рядом. Скринридер иконку пропускает — она всегда помечена aria-hidden.',
+        'Иконка-украшение: смысл несёт текст рядом. Скринридер иконку пропускает — без title и aria-label она помечена aria-hidden.',
       render: () => (
         <span className="inline-flex items-center gap-1.5 text-sm">
           <Icon iconName="Phone" size={16} />
@@ -87,15 +87,11 @@ export const iconDocConfig: ComponentDocConfig = {
       id: 'meaningful',
       title: 'Иконка со смыслом',
       description:
-        'Icon не принимает aria-label. Если иконка что-то значит сама по себе, оберните её элементом с role="img" и подписью.',
+        'Если иконка что-то значит сама по себе, дайте ей имя: title рисует <title> внутри <svg>, иконка получает role="img" и читается скринридером.',
       render: () => (
-        <span role="img" aria-label="Проверено" className="inline-flex text-primary">
-          <Icon iconName="BadgeCheck" size={20} />
-        </span>
+        <Icon iconName="BadgeCheck" size={20} title="Проверено" className="text-primary" />
       ),
-      code: `<span role="img" aria-label="Проверено" className="inline-flex text-primary">
-  <Icon iconName="BadgeCheck" size={20} />
-</span>`,
+      code: `<Icon iconName="BadgeCheck" size={20} title="Проверено" className="text-primary" />`,
     },
   ],
   props: [
@@ -127,7 +123,18 @@ export const iconDocConfig: ComponentDocConfig = {
     {
       name: 'className',
       type: 'string',
-      description: 'Классы <svg>: цвет (text-*), отступы. Других атрибутов Icon не принимает.',
+      description: 'Классы <svg>: цвет (text-*), отступы.',
+    },
+    {
+      name: 'title',
+      type: 'string',
+      description:
+        'Имя иконки для скринридера: <title> внутри <svg> и role="img". Без title (и без aria-label / aria-labelledby) иконка декоративная — aria-hidden.',
+    },
+    {
+      name: '...props',
+      type: 'SVG-атрибуты lucide',
+      description: 'style, aria-*, data-*, обработчики событий — доходят до <svg>.',
     },
   ],
 };

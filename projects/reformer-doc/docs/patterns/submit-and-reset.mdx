@@ -110,22 +110,12 @@ const outcome = await signup.submission.submit(async (values) => {
 ## Индикация отправки
 
 У сборки два сигнала: `bundle.validating` — идёт проверка, `bundle.submission.submitting` — работает
-обработчик. Готового хука для произвольного сигнала в `@reformer/core/react` нет. В компоненте сигнал
-читают подпиской `useSyncExternalStore`:
+обработчик. В компоненте их читает хук `useSignalSnapshot` из `@reformer/core/react`: он
+перерисовывает компонент, когда сигнал меняется.
 
 ```tsx
-import { useSyncExternalStore } from 'react';
 import type { FormBundle } from '@reformer/core';
-import type { ReadonlySignal } from '@reformer/core/signals';
-
-// Свой помощник приложения: подписка на сигнал и его текущее значение.
-function useSignalSnapshot<T>(source: ReadonlySignal<T>): T {
-  return useSyncExternalStore(
-    (onChange) => source.subscribe(() => onChange()),
-    () => source.peek(),
-    () => source.peek() // SSR: значение без подписки
-  );
-}
+import { useSignalSnapshot } from '@reformer/core/react';
 
 function SubmitButton({ bundle }: { bundle: FormBundle<Signup> }) {
   const validating = useSignalSnapshot(bundle.validating);

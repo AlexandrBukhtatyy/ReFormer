@@ -18,7 +18,7 @@ import { tooltipDocConfig } from '@site/src/components/demo/examples/tooltip';
 
 - **Tooltip** — одна строка к кнопке-иконке или сокращению: «Удалить», «Скопировать ссылку».
 - [InfoHint](./info-hint.mdx) — пояснение к полю или заголовку за иконкой (i). Открывается ещё и
-  касанием на телефоне и не требует провайдера.
+  касанием на телефоне.
 - У полей формы подсказку дают пропсы `labelTooltip` и `tooltip` — их рисует
   [FormField](./form-field.mdx), Tooltip вручную не нужен.
 - [HoverCard](./hover-card.mdx) — превью с несколькими строками и картинкой.
@@ -32,7 +32,7 @@ import { tooltipDocConfig } from '@site/src/components/demo/examples/tooltip';
 ```tsx
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@reformer/ui-kit'; // или '@reformer/ui-kit/tooltip'
 
-// Один раз у корня приложения:
+// Необязательно — один раз у корня приложения, чтобы задать общие настройки:
 <TooltipProvider>
   <App />
 </TooltipProvider>;
@@ -50,15 +50,17 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@refor
 
 | Часть             | Что это                                                           | Ключевые пропсы                                         |
 | ----------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
-| `TooltipProvider` | Общие настройки подсказок. Обязателен.                            | `delayDuration` (`0`), `skipDelayDuration`              |
+| `TooltipProvider` | Общие настройки подсказок. Необязателен.                          | `delayDuration` (`0`), `skipDelayDuration`              |
 | `Tooltip`         | Одна подсказка.                                                   | `open` + `onOpenChange`, `defaultOpen`, `delayDuration` |
 | `TooltipTrigger`  | Элемент, к которому относится подсказка. По умолчанию `<button>`. | `asChild`                                               |
 | `TooltipContent`  | Текст подсказки в портале, со стрелкой.                           | `side` (`top`), `align`, `sideOffset` (`0`)             |
 
-- `Tooltip` без `TooltipProvider` выше по дереву бросает ошибку. Поставьте провайдер один раз у
-  корня приложения.
-- У `TooltipProvider` кита задержка показа — 0 мс. Чтобы подсказки не всплывали при каждом проезде
-  курсора, задайте `delayDuration` (например, 300).
+- Без `TooltipProvider` выше по дереву `Tooltip` ставит провайдер кита сам. Общий провайдер у
+  корня приложения нужен, чтобы задать настройки один раз и чтобы соседние подсказки показывались
+  без повторной задержки.
+- Задержка показа по умолчанию — 0 мс: и у `TooltipProvider` кита, и у провайдера, который
+  `Tooltip` ставит сам. Чтобы подсказки не всплывали при каждом проезде курсора, задайте
+  `delayDuration` (например, 300).
 - Если не хватает места, подсказка сама переезжает на другую сторону.
 
 ## Примеры

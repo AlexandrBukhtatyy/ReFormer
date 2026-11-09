@@ -32,15 +32,16 @@ import { nativeSelectDocConfig } from '@site/src/components/demo/examples/native
 
 ## Анатомия
 
-| Компонент                 | Значение поля      | Ключевые пропсы               |
-| ------------------------- | ------------------ | ----------------------------- |
-| `NativeSelectWithOptions` | `string \| null`   | `options`, `placeholder`      |
-| `NativeSelectMulti`       | `string[] \| null` | `options`, `rows`, `maxItems` |
+| Компонент                 | Значение поля      | Ключевые пропсы                  |
+| ------------------------- | ------------------ | -------------------------------- |
+| `NativeSelectWithOptions` | `string \| null`   | `options`, `placeholder`, `size` |
+| `NativeSelectMulti`       | `string[] \| null` | `options`, `rows`, `maxItems`    |
 
 - Пункт `options` — `{ value, label, group? }`. Пункты с одинаковым `group` собираются в
   `<optgroup>` с этим заголовком. В модель попадает `value` строкой: так работает `<select>`.
 - `placeholder` у `NativeSelectWithOptions` — первый пункт с пустым значением. Его можно выбрать,
   и тогда значение поля станет `null`.
+- `size` у `NativeSelectWithOptions` — высота поля: `'default'` или `'sm'` (ниже).
 - У `NativeSelectMulti` подсказки нет намеренно: в списке с множественным выбором она стала бы
   обычным выбираемым пунктом. `rows` — сколько строк видно без прокрутки (атрибут `size`), без
   него браузер показывает четыре.

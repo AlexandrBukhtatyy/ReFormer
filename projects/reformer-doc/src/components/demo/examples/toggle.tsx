@@ -30,9 +30,9 @@ function BoldToggle() {
   );
 }`;
 
-// Пропсы панели API — из props-схемы варианта. label задаётся baseComponentProps.
+// Пропсы панели API — из props-схемы варианта. label и children задаются baseComponentProps.
 const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(toggleBasePropsSchema), {
-  omit: ['label'],
+  omit: ['label', 'children'],
 });
 
 export const toggleDocConfig: ComponentDocConfig = {

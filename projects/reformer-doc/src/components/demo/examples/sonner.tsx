@@ -159,9 +159,8 @@ export const sonnerDocConfig: ComponentDocConfig = {
     {
       name: 'theme',
       type: "'light' | 'dark' | 'system'",
-      default: "'system'",
       description:
-        'Тема уведомлений. У кита — system, по настройке ОС; если тема приложения переключается вручную, передайте её сами.',
+        "Тема уведомлений. Не задана — тема приложения: dark, если выше по дереву стоит .dark или [data-theme='dark'], иначе light. system — по настройке ОС.",
     },
     {
       name: 'position',
@@ -196,14 +195,14 @@ export const sonnerDocConfig: ComponentDocConfig = {
     {
       name: 'containerAriaLabel',
       type: 'string',
-      default: "'Notifications'",
-      description: 'Имя области уведомлений для скринридера. Кит его не переводит.',
+      description:
+        'Имя области уведомлений для скринридера. По умолчанию — kit.sonner.label из словаря кита («Уведомления»).',
     },
     {
       name: 'toastOptions',
       type: 'ToastOptions',
       description:
-        'Общие настройки уведомлений: closeButtonAriaLabel (по умолчанию «Close toast»), classNames, duration. Ваш объект заменяет настройки кита целиком.',
+        'Общие настройки уведомлений: closeButtonAriaLabel (по умолчанию — kit.sonner.close, «Закрыть уведомление»), classNames, duration. Ваш объект дополняет настройки кита; так же сливаются icons и style.',
     },
     {
       name: 'toast(message, options?)',

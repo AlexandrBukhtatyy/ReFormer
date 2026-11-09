@@ -41,7 +41,7 @@ import {
 import { FileText } from 'lucide-react';
 
 <ItemGroup>
-  <Item variant="outline" role="listitem">
+  <Item variant="outline">
     <ItemMedia variant="icon">
       <FileText />
     </ItemMedia>
@@ -69,7 +69,7 @@ import { FileText } from 'lucide-react';
 | `ItemDescription`           | Описание приглушённым цветом, не длиннее двух строк (`p`). | —                                     |
 | `ItemActions`               | Кнопки и бейджи справа.                                    | —                                     |
 | `ItemHeader` / `ItemFooter` | Ряд на всю ширину над основным рядом и под ним.            | —                                     |
-| `ItemGroup`                 | Контейнер списка строк, `role="list"`.                     | —                                     |
+| `ItemGroup`                 | Контейнер списка строк, `role="list"`.                     | `role`                                |
 | `ItemSeparator`             | Горизонтальная линия между строками.                       | —                                     |
 
 - `variant`: `default` — без рамки, `outline` — с рамкой, `muted` — серый фон. `size="sm"` уменьшает
@@ -85,9 +85,11 @@ import { FileText } from 'lucide-react';
 
 ## Доступность
 
-- `ItemGroup` ставит `role="list"`, а `Item` роли `listitem` не получает. Список без `listitem`
-  внутри скринридер читает неверно, поэтому внутри `ItemGroup` задавайте строкам
-  `role="listitem"` сами.
+- `ItemGroup` ставит `role="list"`, а `Item` внутри него сам получает `role="listitem"`. Строке
+  с `asChild` роль ставится на обёртку, чтобы ссылка или кнопка сохранили свою роль. Явный `role`
+  у `Item` перекрывает умолчание.
+- Своя роль у `ItemGroup` (например, `role="none"`, когда строки несут роли дерева или меню)
+  снимает и `listitem` у строк. Вне `ItemGroup` своей роли у `Item` нет.
 - `ItemSeparator` декоративный (`role="none"`): скринридер его пропускает.
 - Сама строка не фокусируется. Чтобы вся строка была ссылкой или кнопкой, используйте `asChild`
   с `<a>` или `<button>`: стили фокуса строки достанутся этому элементу. Кнопки внутри такой

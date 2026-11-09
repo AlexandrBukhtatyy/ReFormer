@@ -103,18 +103,9 @@ model.$.documents.value = [
 
 // Пропсы панели API — из props-схемы варианта. Числовые лимиты, label и загрузчик — постоянные
 // (числовой контрол без умолчания дал бы 0 и отклонял бы любой файл). allowDrop/allowPaste
-// не показываем: у кнопки нет зоны, на которую можно бросить или вставить файл.
+// показываем: у кнопки файл бросают и вставляют прямо на неё.
 const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(fileUploadBasePropsSchema), {
-  omit: [
-    'label',
-    'maxFiles',
-    'maxFileSize',
-    'minFileSize',
-    'maxTotalFileSize',
-    'capture',
-    'allowDrop',
-    'allowPaste',
-  ],
+  omit: ['label', 'maxFiles', 'maxFileSize', 'minFileSize', 'maxTotalFileSize', 'capture'],
 });
 
 export const fileUploadDocConfig: ComponentDocConfig = {

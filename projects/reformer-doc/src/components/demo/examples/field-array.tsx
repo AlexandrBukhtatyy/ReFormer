@@ -259,7 +259,7 @@ const bundle = useFormBundle(() =>
       id: 'footer',
       title: 'Без заголовка',
       description:
-        'Без title кнопка «Добавить» стоит ссылкой под списком. itemLabel оставляет карточкам шапку с кнопкой «Удалить»; showRemoveOnSingle показывает её и у единственной строки.',
+        'Без title кнопка «Добавить» стоит ссылкой под списком. itemLabel даёт карточкам метку в шапке рядом с кнопкой «Удалить»; showRemoveOnSingle показывает её и у единственной строки.',
       render: SectionFooter,
       code: `<FieldArraySection
   control={form.phones}
@@ -326,7 +326,7 @@ validate(model.$.phones, [maxLength(3)]);`,
       name: 'itemLabel',
       type: 'string | ((control, index) => string)',
       description:
-        'Метка карточки: строка-префикс («Телефон #1») или функция. Без title и itemLabel у карточек нет шапки — и кнопок удаления и перестановки тоже.',
+        'Метка карточки: строка-префикс («Телефон #1») или функция. Входит в имя кнопок строки: «Удалить: Телефон #2». Без title и itemLabel в шапке нет метки, но кнопки удаления и перестановки остаются.',
     },
     {
       name: 'addButtonLabel',
@@ -338,7 +338,8 @@ validate(model.$.phones, [maxLength(3)]);`,
       name: 'removeButtonLabel',
       type: 'string',
       default: 'kit.fieldArray.remove',
-      description: 'Текст кнопки «Удалить». По умолчанию — из словаря кита.',
+      description:
+        'Текст кнопки «Удалить». По умолчанию — из словаря кита. Имя для скринридера — этот текст и метка строки: «Удалить: Телефон #2».',
     },
     {
       name: 'emptyMessage',

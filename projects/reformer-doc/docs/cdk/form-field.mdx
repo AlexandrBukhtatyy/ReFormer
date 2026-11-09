@@ -65,6 +65,12 @@ DOM-событие в `onChange`, — компонент объявляет эт
 ([адаптер поля](../reference/glossary.md#рендеринг)). Как его описать — в
 [Своих полях](../react/custom-fields.md).
 
+Пропсы обёртки — `label`, `description`, `required`, `labelTooltip` — `Control` контролу не
+передаёт: их рисуют `Label`, `Description` и подсказка, а обязательность контрол получает как
+`aria-required`. Нативный `required` на `<input>` включил бы проверку браузера, которая блокирует
+отправку формы. Контрол с подписью рядом с собой (статика `reformerLayout = 'inline-label'`, как у
+чекбокса) получает `label` и `required` — подпись со звёздочкой он рисует сам.
+
 ## Примеры
 
 <ComponentDoc config={cdkFormFieldDocConfig} />

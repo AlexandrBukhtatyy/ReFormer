@@ -334,7 +334,7 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       id: 'ref',
       title: 'Управление снаружи через ref',
       description:
-        'FileUploadHandle: openFilePicker, addFiles, removeItem, clear, retry, abort, focus — для триггеров вне дерева компонента.',
+        'FileUploadHandle: openFilePicker, addFiles, removeItem, clear, retry, upload, abort, focus — для триггеров вне дерева компонента.',
       render: RefDemo,
       code: `const uploadRef = useRef<FileUploadHandle>(null);
 
@@ -382,7 +382,7 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
       name: 'uploader / autoUpload',
       type: '(file, { onProgress, signal }) => Promise<RemoteFileRef> / boolean',
       description:
-        'Immediate-режим: загрузка при выборе, значение — RemoteFileRef[]. Дефолтной реализации нет — только ваша.',
+        'Immediate-режим: загрузка при выборе, значение — RemoteFileRef[]. Дефолтной реализации нет — только ваша. При autoUpload: false файлы ждут в статусе local, пока их не отправит upload(key?).',
       default: 'autoUpload: true',
     },
     {
@@ -410,7 +410,7 @@ export const cdkFileUploadDocConfig: ComponentDocConfig = {
     },
     {
       name: 'useFileUpload(options)',
-      type: '→ { items, rejections, dragging, uploading, maxFilesReached, liveMessage, openFilePicker, addFiles, removeItem, clear, retry, abort, getPreviewUrl, getRootProps, getDropzoneProps, getTriggerProps, getHiddenInputProps, getItemGroupProps, getItemProps, getItemDeleteTriggerProps, getItemRetryTriggerProps, getClearTriggerProps, getLiveRegionProps }',
+      type: '→ { items, rejections, dragging, uploading, maxFilesReached, liveMessage, openFilePicker, addFiles, removeItem, clear, retry, upload, abort, getPreviewUrl, getRootProps, getDropzoneProps, getTriggerProps, getHiddenInputProps, getItemGroupProps, getItemProps, getItemDeleteTriggerProps, getItemRetryTriggerProps, getClearTriggerProps, getLiveRegionProps }',
       description: 'Всё поведение компонента для своей разметки.',
     },
     {

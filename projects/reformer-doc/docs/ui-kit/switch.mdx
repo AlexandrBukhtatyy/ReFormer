@@ -34,8 +34,8 @@ import { switchDocConfig } from '@site/src/components/demo/examples/switch';
 | `Switch`          | `boolean`     | `size`, `className` |
 
 `SwitchWithLabel` сам рисует подпись справа, поэтому [FormField](./form-field.mdx) не ставит над
-ним свою. Клик по подписи переключает выключатель. Звёздочку `required` у такой подписи
-компонент не рисует. У голого `Switch` есть `size`: `'default'` или `'sm'`.
+ним свою. Клик по подписи переключает выключатель. При `required` звёздочку компонент рисует у
+своей подписи. У голого `Switch` есть `size`: `'default'` или `'sm'`.
 
 ```tsx
 {
@@ -70,7 +70,7 @@ import { switchDocConfig } from '@site/src/components/demo/examples/switch';
   клику. Без `label` выключатель в форме остаётся без имени — задавайте подпись всегда.
 - `FormField` связывает выключатель с пояснением и замечанием (`aria-describedby`), при
   показанном замечании ставит `aria-invalid` и `aria-errormessage`, при `required` —
-  `aria-required`. Рамкой ошибки выключатель не подсвечивается: видно только текст замечания.
+  `aria-required`. При показанной ошибке выключатель подсвечивается рамкой ошибки, как и флажок.
 - Иконка `tooltip` стоит после подписи, вне `<label>`: щелчок по ней выключатель не трогает.
 
 ## Локализация

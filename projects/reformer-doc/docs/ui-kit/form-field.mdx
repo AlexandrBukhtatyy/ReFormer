@@ -44,7 +44,9 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 цветом и не делает поле невалидным. Пока идёт асинхронная проверка, под полем стоит «Проверка...».
 
 У `CheckboxWithLabel` и `SwitchWithLabel` подпись стоит справа от контрола и рисуется самим
-контролом, поэтому верхней подписи у них нет.
+контролом, поэтому верхней подписи у них нет. `label` и `required` FormField отдаёт им, и
+звёздочку они рисуют у своей подписи. Остальным контролам `label`, `description`, `required` и
+`labelTooltip` не передаются: их рисует FormField.
 
 Пропсы самого FormField — `control`, `direction`, `testId`, `className`, `children` — описаны на
 вкладке API ниже.
@@ -90,7 +92,8 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 
 ## Доступность
 
-- Подпись — настоящий `<label for>`, и контрол ссылается на неё через `aria-labelledby`.
+- Подпись — настоящий `<label for>`, и контрол ссылается на неё через `aria-labelledby`. У
+  `CheckboxWithLabel` и `SwitchWithLabel` имя даёт их собственная подпись `<label for>`.
 - Пояснение, текст `labelTooltip` и показанное замечание связаны с контролом через
   `aria-describedby` — скринридер прочитает их вместе с подписью.
 - Пока на экране ошибка, у контрола стоят `aria-invalid` и `aria-errormessage`. Предупреждение

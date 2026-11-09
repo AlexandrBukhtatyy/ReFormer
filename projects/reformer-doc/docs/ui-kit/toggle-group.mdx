@@ -28,14 +28,15 @@ import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-
 
 ## Анатомия
 
-| Компонент            | Значение поля      | Ключевые пропсы                  |
-| -------------------- | ------------------ | -------------------------------- |
-| `ToggleGroupOptions` | `string \| null`   | `options`, `variant`             |
-| `ToggleGroupMulti`   | `string[] \| null` | `options`, `variant`, `maxItems` |
+| Компонент            | Значение поля      | Ключевые пропсы                          |
+| -------------------- | ------------------ | ---------------------------------------- |
+| `ToggleGroupOptions` | `string \| null`   | `options`, `variant`, `size`             |
+| `ToggleGroupMulti`   | `string[] \| null` | `options`, `variant`, `size`, `maxItems` |
 
 - Пункт `options` — `{ value, label }`, `value` — строка. `label` — текст на кнопке.
 - `variant` — `'default'` (отдельные кнопки без рамки) или `'outline'` (общая рамка, как у
   сегментов одного поля).
+- `size` — размер кнопок: `'sm'`, `'default'` или `'lg'`, как у [Toggle](./toggle.mdx).
 - В `ToggleGroupOptions` щелчок по нажатой кнопке снимает выбор: значение поля станет `null`.
 - В `ToggleGroupMulti` снятие последней кнопки тоже даёт `null`. `maxItems` выключает
   ненажатые кнопки, когда выбрано достаточно. Это подсказка интерфейса; ограничение для формы —

@@ -4,7 +4,7 @@ import type { ComponentDocConfig } from '../types';
 
 /**
  * Tooltip — не поле формы: подсказка на Radix Tooltip (TooltipProvider / Tooltip / TooltipTrigger /
- * TooltipContent). Tooltip работает только внутри TooltipProvider. Variants — базовая подсказка и
+ * TooltipContent). Без внешнего TooltipProvider Tooltip ставит провайдер сам. Variants — базовая подсказка и
  * стороны, Examples — кнопка-иконка, задержка. Обёртка `<div style>` в render — рамка демо, в
  * `code` её нет.
  */
@@ -12,36 +12,32 @@ export const tooltipDocConfig: ComponentDocConfig = {
   name: 'Tooltip',
   importFrom: '@reformer/ui-kit',
   description:
-    'Короткий текст при наведении или фокусе. Нужен TooltipProvider — один на приложение.',
+    'Короткий текст при наведении или фокусе. TooltipProvider необязателен: без него Tooltip ставит провайдер сам.',
   variants: [
     {
       id: 'basic',
       title: 'Базовая подсказка',
       description: 'Наведите курсор на кнопку или перейдите на неё клавишей Tab.',
       render: () => (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline">Наведи на меня</Button>
-            </TooltipTrigger>
-            <TooltipContent>Всплывающая подсказка</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline">Наведи на меня</Button>
+          </TooltipTrigger>
+          <TooltipContent>Всплывающая подсказка</TooltipContent>
+        </Tooltip>
       ),
-      code: `<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button variant="outline">Наведи на меня</Button>
-    </TooltipTrigger>
-    <TooltipContent>Всплывающая подсказка</TooltipContent>
-  </Tooltip>
-</TooltipProvider>`,
+      code: `<Tooltip>
+  <TooltipTrigger asChild>
+    <Button variant="outline">Наведи на меня</Button>
+  </TooltipTrigger>
+  <TooltipContent>Всплывающая подсказка</TooltipContent>
+</Tooltip>`,
     },
     {
       id: 'sides',
       title: 'Сторона появления (side)',
       description:
-        'side у TooltipContent — сторона появления: top (по умолчанию), right, bottom, left.',
+        'side у TooltipContent — сторона появления: top (по умолчанию), right, bottom, left. Общий TooltipProvider у соседних подсказок показывает следующую без повторной задержки.',
       render: () => (
         <TooltipProvider>
           <div className="flex flex-wrap gap-3">
@@ -77,35 +73,31 @@ export const tooltipDocConfig: ComponentDocConfig = {
       description:
         'Кнопка без текста: имя для скринридера — aria-label, а Tooltip показывает то же слово глазами. Появляется и по фокусу.',
       render: () => (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Информация">
-                <Info />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Подробнее об этом поле</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Информация">
+              <Info />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Подробнее об этом поле</TooltipContent>
+        </Tooltip>
       ),
       code: `import { Info } from 'lucide-react';
 
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button variant="ghost" size="icon" aria-label="Информация">
-        <Info />
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>Подробнее об этом поле</TooltipContent>
-  </Tooltip>
-</TooltipProvider>`,
+<Tooltip>
+  <TooltipTrigger asChild>
+    <Button variant="ghost" size="icon" aria-label="Информация">
+      <Info />
+    </Button>
+  </TooltipTrigger>
+  <TooltipContent>Подробнее об этом поле</TooltipContent>
+</Tooltip>`,
     },
     {
       id: 'delay',
       title: 'Задержка появления (delayDuration)',
       description:
-        'delayDuration у TooltipProvider (или у отдельного Tooltip) — пауза перед показом, мс. У TooltipProvider кита по умолчанию 0.',
+        'delayDuration у TooltipProvider (или у отдельного Tooltip) — пауза перед показом, мс. По умолчанию 0 — и у TooltipProvider кита, и у провайдера, который Tooltip ставит сам.',
       render: () => (
         <TooltipProvider delayDuration={600}>
           <Tooltip>
@@ -131,7 +123,7 @@ export const tooltipDocConfig: ComponentDocConfig = {
       name: 'TooltipProvider',
       type: 'Radix Tooltip.Provider',
       description:
-        'Общие настройки подсказок. Обязателен: без него Tooltip бросает ошибку. Ставится один раз у корня. delayDuration — пауза перед показом, мс (у кита 0).',
+        'Общие настройки подсказок. Необязателен: без него Tooltip ставит провайдер сам. Один у корня приложения задаёт задержку один раз и показывает соседние подсказки без повторной задержки. delayDuration — пауза перед показом, мс (у кита 0).',
     },
     {
       name: 'Tooltip',

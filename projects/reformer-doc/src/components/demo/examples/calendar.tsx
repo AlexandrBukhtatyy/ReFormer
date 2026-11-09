@@ -7,10 +7,9 @@ import { controlsFromPropsSchema } from '../controls-from-schema';
 import { fieldSnippet, fieldVariant } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
-// Пропсы панели API — из props-схемы. label задаётся baseComponentProps; mode у CalendarSingle
-// зашит (single) и пропом не принимается.
+// Пропсы панели API — из props-схемы. label задаётся baseComponentProps.
 const API_CONTROLS = controlsFromPropsSchema(mergeFieldPropsSchema(calendarBasePropsSchema), {
-  omit: ['label', 'mode'],
+  omit: ['label'],
 });
 
 /* ─── Календарь вне формы: свой стейт, режим и обработчик ─── */

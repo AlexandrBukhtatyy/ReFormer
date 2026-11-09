@@ -299,7 +299,7 @@ export const navigationMenuDocConfig: ComponentDocConfig = {
       type: 'boolean',
       default: 'false',
       description:
-        'Текущая страница: ссылка получает aria-current="page". Подсветка в ките сейчас не срабатывает — см. раздел «Доступность».',
+        'Текущая страница: ссылка получает aria-current="page" и подсветку фоном (атрибут data-active).',
     },
     {
       name: 'NavigationMenuLink.onSelect',

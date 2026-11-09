@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
-import { createLocaleLoader } from '@reformer/core/i18n';
+import { createLocaleLoader, msg } from '@reformer/core/i18n';
 import { I18nProvider, useFormBundle, useI18n } from '@reformer/core/react';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { email, minLength, required } from '@reformer/core/validators';
@@ -35,12 +35,22 @@ const loadLocale = createLocaleLoader([
   (code) => APP_MESSAGES[code as Lang] ?? null,
 ]);
 
+// Подпись — описатель `msg(ключ)`: строку по активному языку подставит поле, и при смене языка
+// подписи меняются сами.
 const signupSchema = (model: FormModel<Signup>): FormSchemaNode => ({
   children: [
-    { model: model.$.name, component: Input },
-    { model: model.$.email, component: Input, componentProps: { type: 'email' } },
+    { model: model.$.name, component: Input, componentProps: { label: msg('signup.name') } },
+    {
+      model: model.$.email,
+      component: Input,
+      componentProps: { type: 'email', label: msg('signup.email') },
+    },
     // Плейсхолдер «Пароль» / «Password» — строка кита, её переводит словарь кита.
-    { model: model.$.password, component: InputPassword },
+    {
+      model: model.$.password,
+      component: InputPassword,
+      componentProps: { label: msg('signup.password') },
+    },
   ],
 });
 
@@ -67,13 +77,6 @@ function SignupForm() {
   const signup = useFormBundle(createSignup);
   const { form } = signup;
   const [createdFor, setCreatedFor] = useState<string | null>(null);
-
-  // Подпись поля — строка в пропсах узла схемы. При смене языка кладём туда перевод.
-  useEffect(() => {
-    form.name.updateComponentProps({ label: t('signup.name') });
-    form.email.updateComponentProps({ label: t('signup.email') });
-    form.password.updateComponentProps({ label: t('signup.password') });
-  }, [form, t]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();

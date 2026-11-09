@@ -35,12 +35,16 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 | Компонент            | Значение поля                       | Ключевые пропсы                                                       |
 | -------------------- | ----------------------------------- | --------------------------------------------------------------------- |
 | `FileUploadBase`     | `File[] \| RemoteFileRef[] \| null` | `accept`, `multiple`, `maxFiles`, `maxFileSize`, `hint`, `uploader`   |
-| `FileUploadDropzone` | `File[] \| RemoteFileRef[] \| null` | то же + `allowDrop`, `allowPaste`                                     |
-| `FileUploadInput`    | `File[] \| RemoteFileRef[] \| null` | то же + `allowDrop`, `allowPaste`                                     |
+| `FileUploadDropzone` | `File[] \| RemoteFileRef[] \| null` | то же                                                                 |
+| `FileUploadInput`    | `File[] \| RemoteFileRef[] \| null` | то же                                                                 |
 | `FileUploadAvatar`   | `File \| RemoteFileRef \| null`     | `shape`, `accept` (по умолчанию `image/*`), `maxFileSize`, `uploader` |
 
 Пропа `variant` нет — каждый вид отдельный компонент. В `component`
 [узла схемы](../reference/glossary.md#форма-и-данные) он кладётся как есть.
+
+Каналы ввода — `allowDrop` (перетаскивание, по умолчанию включено) и `allowPaste` (вставка из
+буфера, по умолчанию выключена) — есть у кнопки, зоны и строки ввода. У `FileUploadBase` файл
+бросают и вставляют прямо на кнопку.
 
 **Значение поля — один массив, а не массив вложенных форм.** Пустой список приходит как `null`,
 поэтому `required()` работает без доработок. Начальное значение в модели — `null`; тип поля в
@@ -54,8 +58,8 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
   при выборе: прогресс, повтор после ошибки, отмена при удалении. Значение — сериализуемые
   дескрипторы `RemoteFileRef` (`{ id, name, url?, size?, type? }`) только успешно загруженных
   файлов. Такое значение переживает черновик, JSON-форму и повторное открытие формы на
-  редактирование. `autoUpload: false` ставит загрузку на паузу: файлы ждут в списке, пока проп
-  снова не станет `true`.
+  редактирование. `autoUpload: false` ставит загрузку на паузу: файлы ждут в списке, пока их не
+  отправит метод `upload()` у ref поля или пока проп снова не станет `true`.
 
 **Отбор файлов** делает сам компонент, до записи в значение: `accept` (свой разбор — нативный
 `accept` на перетаскивание не действует), `maxFiles`, `maxFileSize`, `minFileSize`,
@@ -82,8 +86,9 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 текста, поэтому `label` у него ещё и подпись зоны для скринридера.
 
 Из поведения формы выбор файлов открывают программно:
-`schema.node('documents').getRef<FileUploadFieldHandle>().current?.openFilePicker()`; есть и
-`clear()`, и `abort()` — прервать активные загрузки.
+`schema.node('documents').getRef<FileUploadFieldHandle>().current?.openFilePicker()`. Там же
+`clear()`, `upload()` — отправить ожидающие файлы при `autoUpload: false` — и `abort()` —
+прервать активные загрузки.
 
 ## Примеры и API
 
@@ -102,8 +107,8 @@ import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upl
 - у кнопки удаления `aria-label` с именем файла, прогресс загрузки — `role="progressbar"`.
 
 [FormField](./form-field.mdx) вешает подпись и замечание на кнопку или зону. При показанном
-замечании зона, строка ввода и аватар подсвечивают рамку по `aria-invalid`; кнопка показывает
-ошибку только текстом под полем. Вне формы рамку включает проп `invalid`.
+замечании все варианты — кнопка, зона, строка ввода и аватар — подсвечивают рамку по
+`aria-invalid`. Вне формы рамку включает проп `invalid`.
 
 ## Локализация
 

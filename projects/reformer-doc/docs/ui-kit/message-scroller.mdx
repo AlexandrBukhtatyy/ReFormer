@@ -108,8 +108,8 @@ import {
 - `MessageScrollerViewport` — область `role="region"` с `tabIndex={0}`: на неё можно встать с
   `Tab` и прокручивать стрелками, `PageUp` / `PageDown`, `Home` / `End` и пробелом. Любая из этих
   клавиш, как и колесо, останавливает автопрокрутку.
-- Подпись области по умолчанию — английское «Messages». Кит её не переводит: задайте
-  `aria-label` на языке интерфейса.
+- Подпись области по умолчанию — из словаря кита («Сообщения» в русской локали). Своё имя
+  задаёт `aria-label`.
 - `MessageScrollerContent` — живой регион `role="log"` с `aria-relevant="additions"`: скринридер
   зачитывает новые сообщения, не перечитывая старые.
 - `MessageScrollerButton`, пока прокручивать некуда, недоступна: у неё `inert` и `tabIndex={-1}`,
@@ -117,18 +117,20 @@ import {
 
 ## Локализация
 
-Кнопка рисует скрытую подпись для скринридера из локали кита:
+Область прокрутки и кнопка рисуют скрытые подписи для скринридера из локали кита:
 
-| Ключ                          | English         | Русский             | Когда               |
-| ----------------------------- | --------------- | ------------------- | ------------------- |
-| `kit.messageScroller.toEnd`   | Scroll to end   | Прокрутить в конец  | `direction="end"`   |
-| `kit.messageScroller.toStart` | Scroll to start | Прокрутить в начало | `direction="start"` |
+| Ключ                          | English         | Русский             | Когда                                           |
+| ----------------------------- | --------------- | ------------------- | ----------------------------------------------- |
+| `kit.messageScroller.label`   | Messages        | Сообщения           | имя `MessageScrollerViewport`, без `aria-label` |
+| `kit.messageScroller.toEnd`   | Scroll to end   | Прокрутить в конец  | кнопка, `direction="end"`                       |
+| `kit.messageScroller.toStart` | Scroll to start | Прокрутить в начало | кнопка, `direction="start"`                     |
 
 Строки берутся из локали `I18nProvider` (`@reformer/core/react`). Без провайдера — английские.
 Русский набор кита — модуль `@reformer/ui-kit/locale/ru` или загрузчик `loadKitLocale` из
 `@reformer/ui-kit/locale`. Заменить строку можно двумя способами:
 
-- передать свои `children` кнопке — они заменят и стрелку, и подпись;
+- в компоненте: `aria-label` у `MessageScrollerViewport`, свои `children` у кнопки — они заменят
+  и стрелку, и подпись;
 - переопределить ключ в локали:
 
 ```ts
@@ -140,9 +142,6 @@ const locale = extendLocale(ru, {
 });
 // <I18nProvider locale={locale}>…</I18nProvider>
 ```
-
-Подпись области прокрутки (`aria-label` у `MessageScrollerViewport`) в локаль не входит — её
-задаёте вы.
 
 ## См. также
 

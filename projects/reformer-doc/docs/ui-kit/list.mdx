@@ -45,7 +45,6 @@ const schema = (model: FormModel<{ notices: Notice[] }>): FormSchemaNode => ({
       componentProps: { className: 'space-y-1' },
       item: (row: FormModel<Notice>) => ({
         component: Item,
-        componentProps: { role: 'listitem' },
         children: [row.$.text], // сигнал поля строки — текст обновится сам
       }),
     },
@@ -80,7 +79,6 @@ const schema = (model: FormModel<{ notices: Notice[] }>): FormSchemaNode => ({
   "item": {
     "$template": {
       "component": "$component(Item)",
-      "componentProps": { "role": "listitem" },
       "children": ["$model(text)"]
     }
   }
@@ -102,11 +100,11 @@ reg.component('Item', Item);
 ## Доступность
 
 - Контейнер получает `role="list"` при любом значении `as`.
-- Роль `listitem` у элементов List не ставит. Список без `listitem` внутри скринридер читает
-  неверно, поэтому роль задаёт шаблон строки: `componentProps: { role: 'listitem' }` у
-  компонента строки или `as: 'ul'` у List и тег `li` в строке (`{ component: 'li', children: […] }`).
-- Элемент со своей ролью не может одновременно быть `listitem`: у `Alert`, например, роль
-  `alert`. Такой элемент оборачивайте в `li`, а List ставьте с `as: 'ul'`.
+- Каждый элемент List сам оборачивает в элемент списка: `li` при `as: 'ul'` или `'ol'`, иначе
+  `div` с `role="listitem"`. Шаблону строки роль `listitem` и тег `li` не нужны — иначе получится
+  элемент списка внутри элемента списка.
+- Строка со своей ролью (например, `Alert` с `role="alert"`) кладётся в шаблон как есть: роль
+  `listitem` несёт обёртка List.
 - Клавиатурой List не управляет: фокус получают только интерактивные элементы внутри строк.
 
 ## Локализация

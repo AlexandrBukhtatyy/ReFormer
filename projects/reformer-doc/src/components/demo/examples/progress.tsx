@@ -4,19 +4,20 @@ import type { ComponentDocConfig } from '../types';
 
 /**
  * Progress — не поле формы: полоса прогресса на Radix Progress (Root + Indicator). Заполнение —
- * `value` в процентах (0–100), высота и цвет — `className`. Variants — значения и размеры,
+ * доля `value / max` (по умолчанию max = 100), высота и цвет — `className`. Variants — значения и размеры,
  * Examples — приёмы (живое значение, подпись). Обёртка `<div style>` в render — рамка демо, в
  * `code` её нет.
  */
 export const progressDocConfig: ComponentDocConfig = {
   name: 'Progress',
   importFrom: '@reformer/ui-kit',
-  description: 'Полоса, заполненная на value процентов (0–100). role="progressbar" ставит Radix.',
+  description:
+    'Полоса, заполненная на долю value / max (по умолчанию max = 100). role="progressbar" и aria-valuenow ставит Radix.',
   variants: [
     {
       id: 'values',
       title: 'Значение (value)',
-      description: 'value — доля заполнения в процентах: 0, 25, 50, 75, 100.',
+      description: 'При max по умолчанию (100) value читается как процент: 0, 25, 50, 75, 100.',
       render: () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 320 }}>
           <Progress value={0} />
@@ -31,6 +32,17 @@ export const progressDocConfig: ComponentDocConfig = {
 <Progress value={50} />
 <Progress value={75} />
 <Progress value={100} />`,
+    },
+    {
+      id: 'max',
+      title: 'Своя шкала (max)',
+      description: 'value и max — в ваших единицах: 3 из 5 разделов заполняют полосу на 60 %.',
+      render: () => (
+        <div style={{ width: 320 }}>
+          <Progress value={3} max={5} aria-label="Заполнено разделов" />
+        </div>
+      ),
+      code: `<Progress value={3} max={5} aria-label="Заполнено разделов" />`,
     },
     {
       id: 'custom-size',
@@ -86,14 +98,14 @@ export const progressDocConfig: ComponentDocConfig = {
       id: 'with-label',
       title: 'Подпись и значение для скринридера',
       description:
-        'Progress не рисует текст: подпись и процент ставьте рядом. aria-labelledby связывает полосу с подписью, aria-valuenow сообщает значение — компонент сам его не выставляет.',
+        'Progress не рисует текст: подпись и процент ставьте рядом. aria-labelledby связывает полосу с подписью; aria-valuenow и процент в aria-valuetext компонент ставит сам.',
       render: () => (
         <div className="flex w-80 flex-col gap-1.5">
           <div className="flex justify-between text-sm">
             <span id="upload-label">Загрузка файла</span>
             <span>66%</span>
           </div>
-          <Progress value={66} aria-labelledby="upload-label" aria-valuenow={66} />
+          <Progress value={66} aria-labelledby="upload-label" />
         </div>
       ),
       code: `<div className="flex w-80 flex-col gap-1.5">
@@ -101,7 +113,7 @@ export const progressDocConfig: ComponentDocConfig = {
     <span id="upload-label">Загрузка файла</span>
     <span>66%</span>
   </div>
-  <Progress value={66} aria-labelledby="upload-label" aria-valuenow={66} />
+  <Progress value={66} aria-labelledby="upload-label" />
 </div>`,
     },
   ],
@@ -110,14 +122,14 @@ export const progressDocConfig: ComponentDocConfig = {
       name: 'value',
       type: 'number',
       description:
-        'Заполнение в процентах, 0–100. Без value полоса пустая. В Radix не передаётся — aria-valuenow задайте сами.',
+        'Текущее значение от 0 до max. Без value (или вне шкалы) полоса пустая, прогресс неопределённый. Доходит до Radix: aria-valuenow, aria-valuetext, data-state.',
     },
     {
       name: 'max',
       type: 'number',
       default: '100',
       description:
-        'Верх шкалы для Radix (aria-valuemax). На заполнение не влияет: value всегда считается процентом.',
+        'Верх шкалы (aria-valuemax). Заливка — доля value / max: value={3} max={5} заполняет 60 %.',
     },
     {
       name: 'className',
@@ -129,7 +141,7 @@ export const progressDocConfig: ComponentDocConfig = {
       name: '...props',
       type: 'Radix Progress.Root',
       description:
-        'Остальные атрибуты корня: aria-label, aria-labelledby, aria-valuenow, aria-valuetext и т. д.',
+        'Остальные атрибуты корня: aria-label, aria-labelledby, aria-valuetext, getValueLabel и т. д.',
     },
   ],
 };

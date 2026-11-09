@@ -277,7 +277,7 @@ const [visible, setVisible] = useState(false);
       type: "'inline-start' | 'inline-end' | 'block-start' | 'block-end'",
       default: "'inline-start'",
       description:
-        'Где стоит аддон. inline-* — слева или справа от поля; block-* ставят группу в колонку — аддон над полем или под ним. Клик по аддону (не по кнопке) переводит фокус в однострочное поле.',
+        'Где стоит аддон. inline-* — слева или справа от поля; block-* ставят группу в колонку — аддон над полем или под ним. Клик по аддону (не по кнопке) переводит фокус в поле группы — input или textarea.',
     },
     {
       name: 'InputGroupButton · size',

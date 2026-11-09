@@ -5,12 +5,13 @@ import {
   InputOTPGroup,
   InputOTPSlot,
   InputOTPSeparator,
+  REGEXP_ONLY_DIGITS,
   inputOtpBasePropsSchema,
 } from '@reformer/ui-kit/input-otp';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required, minLength } from '@reformer/core/validators';
 import { controlsFromPropsSchema } from '../controls-from-schema';
-import { fieldSnippet, fieldVariant } from '../field-snippet';
+import { fieldSnippet, fieldVariant, raw } from '../field-snippet';
 import type { ComponentDocConfig } from '../types';
 
 // Пропсы панели API — из props-схемы компонента. label задаётся baseComponentProps.
@@ -118,12 +119,13 @@ const [value, setValue] = useState('');
       id: 'digits-only',
       title: 'Только цифры',
       description:
-        'Без pattern ячейки принимают любые символы. Регулярное выражение строкой в pattern не даёт набрать или вставить то, что ему не подходит.',
+        'Без pattern ячейки принимают любые символы. Регулярное выражение строкой в pattern не даёт набрать или вставить то, что ему не подходит. Готовые значения — REGEXP_ONLY_DIGITS, REGEXP_ONLY_CHARS, REGEXP_ONLY_DIGITS_AND_CHARS из @reformer/ui-kit/input-otp.',
       field: 'otp',
       component: InputOTPDefault,
       componentName: 'InputOTPDefault',
       initial: '',
-      props: { label: 'Код из СМС', maxLength: 6, pattern: '^\\d+$' },
+      props: { label: 'Код из СМС', maxLength: 6, pattern: REGEXP_ONLY_DIGITS },
+      codeProps: { pattern: raw('REGEXP_ONLY_DIGITS') },
     }),
   ],
   api: {

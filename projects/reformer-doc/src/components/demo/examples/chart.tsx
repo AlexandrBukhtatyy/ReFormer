@@ -235,7 +235,7 @@ const chartConfig = {
       name: 'config',
       type: 'ChartConfig',
       description:
-        'Ряды: ключ → { label, icon?, color | theme }. color объявляет --color-<ключ>; label и icon показывают подсказка и легенда. theme = { light, dark } срабатывает только под классом .dark — надёжнее color: "var(--chart-N)".',
+        "Ряды: ключ → { label, icon?, color | theme }. color объявляет --color-<ключ>; label и icon показывают подсказка и легенда. theme = { light, dark } — свои цвета для светлой и тёмной темы; dark включается под .dark и под [data-theme='dark'].",
     },
     {
       name: 'ChartTooltip',

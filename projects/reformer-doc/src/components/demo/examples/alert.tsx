@@ -1,10 +1,10 @@
 import { Alert, AlertTitle, AlertDescription } from '@reformer/ui-kit';
-import { CircleAlert, Info } from 'lucide-react';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import type { ComponentDocConfig } from '../types';
 
 /**
  * Alert — не поле формы: Alert / AlertTitle / AlertDescription. Variants — пресеты `variant`,
- * Examples — приёмы (иконка, плашка без объявления), API — таблица props. Обёртка `<div style>` в
+ * Examples — приёмы (иконка, сообщение после действия), API — таблица props. Обёртка `<div style>` в
  * render — рамка демо, в `code` её нет.
  */
 export const alertDocConfig: ComponentDocConfig = {
@@ -76,23 +76,23 @@ export const alertDocConfig: ComponentDocConfig = {
 </Alert>`,
     },
     {
-      id: 'static-note',
-      title: 'Пояснение без объявления (role="note")',
+      id: 'status',
+      title: 'Сообщение после действия (role="status")',
       description:
-        'Alert по умолчанию — role="alert": скринридер зачитывает его сразу. Постоянному пояснению, которое есть на странице с самого начала, задайте role="note".',
+        'У variant="default" живой роли нет: скринридер не объявляет пояснение, которое есть на странице с самого начала. Сообщению, которое появляется в ответ на действие, задайте role="status".',
       render: () => (
-        <Alert role="note">
-          <Info />
-          <AlertTitle>Что будет дальше</AlertTitle>
-          <AlertDescription>Заявку рассмотрят в течение двух рабочих дней.</AlertDescription>
+        <Alert role="status">
+          <CircleCheck />
+          <AlertTitle>Заявка отправлена</AlertTitle>
+          <AlertDescription>Её рассмотрят в течение двух рабочих дней.</AlertDescription>
         </Alert>
       ),
-      code: `import { Info } from 'lucide-react';
+      code: `import { CircleCheck } from 'lucide-react';
 
-<Alert role="note">
-  <Info />
-  <AlertTitle>Что будет дальше</AlertTitle>
-  <AlertDescription>Заявку рассмотрят в течение двух рабочих дней.</AlertDescription>
+<Alert role="status">
+  <CircleCheck />
+  <AlertTitle>Заявка отправлена</AlertTitle>
+  <AlertDescription>Её рассмотрят в течение двух рабочих дней.</AlertDescription>
 </Alert>`,
     },
   ],
@@ -106,9 +106,8 @@ export const alertDocConfig: ComponentDocConfig = {
     {
       name: 'role',
       type: 'string',
-      default: "'alert'",
       description:
-        'Роль корня. По умолчанию alert — скринридер зачитывает плашку сразу. Для постоянного пояснения — "note".',
+        'Роль корня. У destructive по умолчанию alert — скринридер зачитывает плашку сразу; у default роли нет. Проп перекрывает умолчание: "status" — для сообщения после действия.',
     },
     {
       name: 'children',

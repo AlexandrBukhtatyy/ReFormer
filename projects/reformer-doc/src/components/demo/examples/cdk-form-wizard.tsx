@@ -129,14 +129,9 @@ function RenderPropsDemo() {
               if (outcome.status === 'submitted') setSent(outcome.result.name);
             }}
           >
-            {({ prev, next, submit, isFirstStep, isLastStep }) => (
+            {({ prev, next, submit, isLastStep }) => (
               <div style={ROW}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={prev.onClick}
-                  disabled={prev.disabled || isFirstStep}
-                >
+                <Button variant="outline" size="sm" onClick={prev.onClick} disabled={prev.disabled}>
                   Назад
                 </Button>
                 {!isLastStep ? (
@@ -302,9 +297,9 @@ export const formWizardDocConfig: ComponentDocConfig = {
       await bundle.submission.submit(sendApplication); // полная проверка + обработчик
     }}
   >
-    {({ prev, next, submit, isFirstStep, isLastStep }) => (
+    {({ prev, next, submit, isLastStep }) => (
       <>
-        <button onClick={prev.onClick} disabled={prev.disabled || isFirstStep}>Назад</button>
+        <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>
         {!isLastStep ? (
           <button onClick={next.onClick} disabled={next.disabled}>Далее</button>
         ) : (
@@ -398,13 +393,13 @@ function Toolbar({ bundle }: { bundle: FormBundle<WForm> }) {
       name: 'FormWizard.Actions',
       type: 'onSubmit?; children: ReactNode | (props) => ReactNode; className?; style?',
       description:
-        'Кнопки навигации. props: prev, next, submit ({ onClick, disabled }, у submit ещё isSubmitting), isFirstStep, isLastStep, isValidating, isSubmitting. Внутри сборки onSubmit зовётся после успешной проверки всей формы, вне её — по нажатию.',
+        'Кнопки навигации. props: prev, next, submit ({ onClick, disabled }, у submit ещё isSubmitting), isFirstStep, isLastStep, isValidating, isSubmitting. prev.disabled учитывает первый шаг, next.disabled — последний. Внутри сборки onSubmit зовётся после успешной проверки всей формы, вне её — по нажатию.',
     },
     {
       name: 'FormWizard.Prev / Next / Submit',
       type: 'children; asChild?; disabled?; loadingText? (Submit)',
       description:
-        'Готовые кнопки внутри Actions. Отключаются сами на краях и во время проверки или отправки; data-first-step, data-last-step, data-not-last-step, data-submitting — для стилей. Submit — type="submit".',
+        'Готовые кнопки внутри Actions. Отключаются сами на краях и во время проверки или отправки; data-first-step, data-last-step, data-not-last-step, data-submitting — для стилей. Все три — type="button": отправка только через submit визарда.',
     },
     {
       name: 'FormWizard.Progress',

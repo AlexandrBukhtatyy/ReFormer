@@ -89,8 +89,8 @@ import {
   `Enter`, поэтому `href` указывайте всегда, даже при переходе через `onClick`.
 - `aria-disabled` не мешает выполнить переход с клавиатуры. Если ссылка помечена недоступной,
   проверьте границы в своём `onClick`.
-- `PaginationEllipsis` скрыт от скринридера целиком (`aria-hidden`), вместе со своей подписью
-  «Ещё страницы».
+- У `PaginationEllipsis` значок «…» скрыт от скринридера, а скрытая подпись «Ещё страницы»
+  читается: пропуск страниц объявляется.
 
 ## Локализация
 
@@ -101,7 +101,7 @@ import {
 | `kit.pagination.previousLabel` | `Go to previous page` | `Перейти на предыдущую страницу` | проп `aria-label` у `PaginationPrevious` |
 | `kit.pagination.next`          | `Next`                | `Вперёд`                         | только ключом локали                     |
 | `kit.pagination.nextLabel`     | `Go to next page`     | `Перейти на следующую страницу`  | проп `aria-label` у `PaginationNext`     |
-| `kit.pagination.more`          | `More pages`          | `Ещё страницы`                   | пропа нет; скрыта от скринридера         |
+| `kit.pagination.more`          | `More pages`          | `Ещё страницы`                   | только ключом локали                     |
 
 Видимые подписи «Назад» и «Вперёд» заменить пропом нельзя: `children` у `PaginationPrevious` и
 `PaginationNext` компонент рисует сам. Меняйте их ключами в локали.

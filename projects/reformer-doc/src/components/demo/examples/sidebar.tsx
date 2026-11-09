@@ -595,7 +595,8 @@ export const sidebarDocConfig: ComponentDocConfig = {
       name: 'SidebarProvider.defaultOpen',
       type: 'boolean',
       default: 'true',
-      description: 'Развёрнута ли панель при первом рендере, если состоянием управляет провайдер.',
+      description:
+        'Развёрнута ли панель при первом рендере, если состоянием управляет провайдер. Сохранённое в cookie sidebar_state состояние важнее.',
     },
     {
       name: 'SidebarProvider.open',
@@ -640,7 +641,7 @@ export const sidebarDocConfig: ComponentDocConfig = {
       type: 'boolean',
       default: 'false',
       description:
-        'Подсветить пункт как текущий (data-active). Для скринридера добавьте aria-current="page" сами.',
+        'Подсветить пункт как текущий (data-active) и поставить aria-current="page". С asChild атрибут достаётся вашей ссылке.',
     },
     {
       name: 'SidebarMenuButton.tooltip',
@@ -682,13 +683,14 @@ export const sidebarDocConfig: ComponentDocConfig = {
       name: 'SidebarMenuSubButton.isActive',
       type: 'boolean',
       default: 'false',
-      description: 'Подсветить пункт подменю как текущий.',
+      description: 'Подсветить пункт подменю как текущий и поставить aria-current="page".',
     },
     {
       name: 'SidebarMenuSkeleton.showIcon',
       type: 'boolean',
       default: 'false',
-      description: 'Добавить к заглушке квадрат иконки. Ширина полосы текста случайная.',
+      description:
+        'Добавить к заглушке квадрат иконки. Ширина полосы текста — от 50 до 89 %, разная у соседних заглушек.',
     },
     {
       name: 'useSidebar()',

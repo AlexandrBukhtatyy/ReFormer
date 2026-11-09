@@ -284,6 +284,13 @@ export const accordionDocConfig: ComponentDocConfig = {
         'Направление текста для стрелок в horizontal. По умолчанию берётся из DirectionProvider.',
     },
     {
+      name: 'headingLevel',
+      type: '1 | 2 | 3 | 4 | 5 | 6',
+      default: '3',
+      description:
+        'Уровень заголовков секций (h1–h6) под структуру заголовков страницы. AccordionTrigger.headingLevel меняет его для одной секции.',
+    },
+    {
       name: 'AccordionItem.value',
       type: 'string',
       description:
