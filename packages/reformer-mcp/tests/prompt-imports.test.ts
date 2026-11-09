@@ -138,9 +138,10 @@ function collectRecipeImports(): RecipeImport[] {
     IMPORT_RE.lastIndex = 0;
     while ((m = IMPORT_RE.exec(content)) !== null) {
       const [, names, from] = m;
-      // Собственные входы MCP-сервера — не API форм. К тому же символы `@reformer/mcp/intent`
-      // в индекс не попадают: генератор llms не резолвит реэкспорт с суффиксом `.js`.
-      if (from.startsWith('@reformer/mcp')) continue;
+      // Глубокие пути в сборку MCP-сервера (`@reformer/mcp/dist/platform/worker/…`) публичного
+      // входа не имеют и в индекс не попадают. Входы `@reformer/mcp/core`, `/intent` и др.
+      // проверяются наравне с пакетами форм.
+      if (from.startsWith('@reformer/mcp/dist/')) continue;
       const first = content.slice(0, m.index).split('\n').length - 1;
       const last = content.slice(0, m.index + m[0].length).split('\n').length - 1;
       if (isCounterExample(lines, first, last)) continue;

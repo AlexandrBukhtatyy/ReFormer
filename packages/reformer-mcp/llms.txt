@@ -1125,6 +1125,78 @@ Rebuild only the worker bundle (needs a built `dist`): `npm run build:worker -w 
 
 _Auto-generated from JSDoc on public exports._
 
+### ArrayIntent
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ArrayIntent {
+  name: string;
+  modelPath?: string;
+  /** Имя интерфейса элемента — попадёт в `model.ts`. */
+  itemInterfaceName: string;
+  itemFields: FieldIntent[];
+  /**
+   * Начальное значение обязательно: узел массива без него ломается на первом `add`,
+   * и это ровно та ошибка, которую `validateFormSchema` поймать не может.
+   */
+  initialValue: unknown[];
+  /** Компонент, рисующий строки (`FieldArray` из ui-kit либо свой). */
+  component?: string;
+  /**
+   * Пропсы компонента массива: у `FieldArray` — `title`, `addButtonLabel` («+ Добавить
+   * имущество»), `itemLabel`, `emptyMessage`, `reorderable`. Без них кнопка добавления — с
+   * подписью по умолчанию, и пользователь (и e2e по подписи) её не узнаёт.
+   */
+  componentProps?: Record<string, unknown>;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### BehaviorIntent
+
+**Kind:** `interface`
+
+Реактивная связь над моделью: оператор ядра (`kind` — его имя) либо вызов своего оператора
+(`kind: 'call'`, вызов — в `expr`, оператор объявлен в {@link FormIntent.operators}).
+
+**Signature:**
+```typescript
+export interface BehaviorIntent {
+  kind: ModelBehaviorKind | 'call';
+  /**
+   * Поле, которое поведение ПИШЕТ. У `exclusiveFlag` — флаг строки (`contacts.primary`), у
+   * `aggregateInto` — сам массив, в строки которого пишется итог, у `call` — поле, которое меняет
+   * свой оператор.
+   */
+  target: string;
+  /**
+   * Поведение КАЖДОЙ строки массива с этим путём → `applyEach(model.$.<each>, ({ model: item }) => …)`.
+   * Цель и источники — поля строки полным путём (`items.lineTotal`) или от строки (`lineTotal`);
+   * выражение читает строку как `item`, форму — как `model`. У `exclusiveFlag` обязателен.
+   */
+  each?: string;
+  /** Поля, которые оно ЧИТАЕТ. Из них строится проверка циклов. */
+  sources: string[];
+  /**
+   * Тело выражения на TS — вставляется как есть. У `copyFrom` — условие копирования
+   * (`{ when: () => expr }`), например `model.sameEmail === true`.
+   */
+  expr?: string;
+  /**
+   * Условие вычисления у `compute` и `computeFrom` → `{ when: () => … }`: пока оно ложно, поле не
+   * пересчитывается и хранит то, что в нём есть. Пример: первоначальный взнос считается только
+   * для ипотеки — `model.loanType === 'mortgage'`.
+   */
+  when?: string;
+  options?: Record<string, unknown>;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
 ### BrowserKnowledge
 
 **Kind:** `interface`
@@ -1168,6 +1240,129 @@ export interface BrowserKnowledgeInput {
 
 _Source: src/platform/browser/knowledge.ts_
 
+### buildBehaviorTs
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function buildBehaviorTs(intent: FormIntent): string
+```
+
+_Source: src/core/generate/builders.ts_
+
+### buildSchemaLayout
+
+**Kind:** `function`
+
+Построить документ формата 2 из intent.
+
+**Signature:**
+```typescript
+export function buildSchemaLayout(intent: FormIntent): SchemaLayout
+```
+
+**Returns:** Документ, сведения о частях для TS-печати и ключи шагов.
+
+_Source: src/core/generate/schema-emit.ts_
+
+### buildValidationSchemaTs
+
+**Kind:** `function`
+
+Модуль с ОДНОЙ схемой валидации для заданного подмножества правил.
+
+Зачем отдельно от `buildValidationTs`. Билдер раскладывает правила визарда по шагам
+(`steps/<slug>/form.validation.ts` — правила полей шага, корневой `form.validation.ts` — межшаговые),
+и каждому файлу нужен свой полноценный модуль: свои импорты ровно под свои правила, своё имя
+экспорта, свой путь до типа модели. Второй эмиттер правил в билдере разошёлся бы с этим на
+первой же правке — поэтому печать тела живёт здесь одна, а `buildValidationTs` — обёртка над ней.
+
+Печатает `import …` + `export const <exportName> = defineValidation<…>(…)` и ничего
+сверх: сборка корня (`apply(...)`, `makeStepCheck`) — дело потребителя.
+
+**Signature:**
+```typescript
+export function buildValidationSchemaTs(
+  rules: readonly ValidationRuleIntent[],
+  opts: ValidationSchemaTsOptions
+): string
+```
+
+**Examples:**
+
+buildValidationSchemaTs([{ target: 'email', rules: ['required', 'email()'] }], {
+  interfaceName: 'Contacts',
+  exportName: 'stepValidation',
+  typeImport: '../../types',
+});
+
+_Source: src/core/generate/builders.ts_
+
+### collectSteps
+
+**Kind:** `function`
+
+Шаги визарда в порядке обхода разметки.
+
+**Signature:**
+```typescript
+export function collectSteps(root: LayoutNode): Array<Extract<LayoutNode, { kind: 'step' }>>
+```
+
+_Source: src/core/generate/schema-emit.ts_
+
+### CoreOperators
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface CoreOperators {
+  /** Индекс ядра найден. `false` — сверять не с чем: имена правил идут в код как есть. */
+  readonly found: boolean;
+  /** Фабрики правил в порядке грамматики: по группам, внутри группы — по имени. */
+  readonly rules: ReadonlyMap<string, CoreRule>;
+  /** Значения из `./validators`, `./validation`, `./behaviors`: свой оператор так называться не может. */
+  readonly names: ReadonlySet<string>;
+}
+```
+
+_Source: src/core/generate/core-operators.ts_
+
+### coreOperatorsFromIndex
+
+**Kind:** `function`
+
+Операторы ядра из слитого индекса. Нет индекса ядра — {@link NO_CORE_OPERATORS}.
+
+**Signature:**
+```typescript
+export function coreOperatorsFromIndex(index: MergedIndex): CoreOperators
+```
+
+_Source: src/core/generate/core-operators.ts_
+
+### CoreRule
+
+**Kind:** `interface`
+
+Фабрика правила ядра.
+
+**Signature:**
+```typescript
+export interface CoreRule {
+  /** Имя фабрики: `minAge`. */
+  name: string;
+  /** Как записать правило в `rules`: `minAge(18)`, `required`. */
+  call: string;
+  /** Какие значения проверяет: `any`, `text`, `number`, `date`, `file` — или своё значение ядра. */
+  group: string;
+}
+```
+
+_Source: src/core/generate/core-operators.ts_
+
 ### createBrowserKnowledge
 
 **Kind:** `function`
@@ -1195,6 +1390,263 @@ export function createKnowledge(sources: KnowledgeSources): Knowledge
 ```
 
 _Source: src/core/knowledge.ts_
+
+### DataSourceIntent
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface DataSourceIntent {
+  name: string;
+  /** Комментарий-подсказка, откуда берутся значения. */
+  note?: string;
+  /**
+   * Значения справочника — варианты поля выбора: `{ value, label }` либо примитивы (станут
+   * `{ value: x, label: String(x) }`). Печатаются в `data-sources.ts`; без них справочник —
+   * пустой массив с пометкой, и поле выбора рисуется без вариантов.
+   */
+  values?: unknown[];
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### Dependency
+
+**Kind:** `interface`
+
+Ребро графа: `target` читает поля из `reads`.
+
+**Signature:**
+```typescript
+export interface Dependency {
+  target: string;
+  reads: string[];
+}
+```
+
+_Source: src/core/utils/graph.ts_
+
+### FieldIntent
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FieldIntent {
+  /** Имя поля в модели. Оно же — `selector` узла, если не задан отдельно. */
+  name: string;
+  /** Путь в модели; по умолчанию совпадает с `name`. */
+  modelPath?: string;
+  type: FieldType;
+  /** Имя компонента в реестре (`Input`, `Select`, …). */
+  component: string;
+  componentProps?: Record<string, unknown>;
+  label?: string;
+  initialValue?: unknown;
+  /** Имя `$dataSource(...)` для полей выбора. */
+  optionsSource?: string;
+  /**
+   * Имя `$dataSource(...)` подсказок поля со свободным вводом: значение остаётся текстом, подсказка
+   * его только подставляет. Поле рисует `InputSuggest` (проп `suggestions`).
+   */
+  suggestionsSource?: string;
+  /** Селектор узла для render-поведения; по умолчанию — `name`. */
+  selector?: string;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### FieldType
+
+**Kind:** `type`
+
+Тип значения поля в модели.
+
+**Signature:**
+```typescript
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### findCycle
+
+**Kind:** `function`
+
+DFS по графу `target → reads`. Возвращает циклический путь (последний элемент повторяет
+первый) либо `null`, если циклов нет.
+
+Обход идёт только по узлам, которые сами являются `target`: поле, которое лишь читают,
+ничего не пишет и цикл замкнуть не может.
+
+**Signature:**
+```typescript
+export function findCycle(deps: Dependency[]): string[] | null
+```
+
+_Source: src/core/utils/graph.ts_
+
+### FormIntent
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormIntent {
+  formName: string;
+  /** Имя интерфейса модели, PascalCase. */
+  interfaceName: string;
+  target: ReformerTargetStack;
+  layout: 'minimalist' | 'folders';
+  layoutRoot: LayoutNode;
+  /**
+   * Именованные части разметки — подформы. Подключаются узлом `{ kind: 'part', ref, part }`.
+   * Листья части ссылаются на поля относительно группы подключения. Строки массивов сюда не
+   * входят: их часть генератор строит сам из `ArrayIntent.itemFields`.
+   */
+  parts?: Record<string, LayoutNode>;
+  fields: FieldIntent[];
+  arrays: ArrayIntent[];
+  validation: ValidationRuleIntent[];
+  behavior: BehaviorIntent[];
+  /** Правила узлов схемы: события компонентов, эффекты рендера, хуки жизненного цикла. */
+  nodes?: NodeRuleIntent[];
+  visibility: VisibilityIntent[];
+  dataSources: DataSourceIntent[];
+  /**
+   * Свои операторы: имя → модуль, из которого его импортирует сборка (`./operators` — файл
+   * `operators.ts` каталога формы). Так подключаются свои правила (`rules`), свои операторы
+   * валидации (`call` правила), свои операторы поведения (`kind: 'call'`) и функции, которые
+   * читают выражения. Модулю каталога формы `form_build` пишет заготовку, пока её не правили.
+   */
+  operators?: Record<string, string>;
+  wizard?: WizardIntent;
+  /** Всё, чего не хватило для полного бандла, — видно потребителю. */
+  warnings: string[];
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### inspectLayoutRefs
+
+**Kind:** `function`
+
+Обойти дерево раскладки intent: на что оно ссылается и что из этого не объявлено.
+
+Обход идёт по intent, а не по документу схемы: в документе ссылки на необъявленное уже нет.
+
+**Signature:**
+```typescript
+export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; unknown: string[] }
+```
+
+**Returns:** `placed` — пути полей и массивов, стоящих в раскладке; `unknown` — сообщения о ссылках в
+никуда.
+
+_Source: src/core/generate/cross-check.ts_
+
+### IntentProblem
+
+**Kind:** `interface`
+
+Запись входа, которую прочитать не удалось.
+
+**Signature:**
+```typescript
+export interface IntentProblem {
+  /** Место в присланном объекте: `fields[2].name`. */
+  at: string;
+  /** Что не так. */
+  message: string;
+  /** Какой вид ожидается вместо этого. */
+  expected: string;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### IntentReading
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface IntentReading {
+  /** Нормализованный intent из того, что прочитать удалось. */
+  intent: FormIntent;
+  /** Выброшенные записи. Пусто — вход прочитан целиком. */
+  problems: IntentProblem[];
+  /** Предупреждения с кодами, в порядке `intent.warnings`. */
+  notices: IntentWarning[];
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### IntentWarning
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface IntentWarning {
+  code: IntentWarningCode;
+  /** Текст, тот же, что в `FormIntent.warnings`. */
+  message: string;
+  /** Место в присланном объекте (`fields[2]`) или имя сущности, когда оно есть. */
+  at?: string;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### IntentWarningCode
+
+**Kind:** `type`
+
+Стабильный код предупреждения чтения. Текст предупреждения — по-русски и может меняться, а
+потребитель со своим языком (ассистент билдера отвечает модели по-английски) выбирает и
+переводит по коду.
+
+**Signature:**
+```typescript
+export type IntentWarningCode =
+  /** Свои предупреждения intent (`warnings` из `plan_form`), прочитанные как есть. */
+  | 'consumer'
+  | 'intent-string'
+  | 'keys-renamed'
+  | 'target-unknown'
+  | 'type-default'
+  | 'type-unknown'
+  | 'type-is-component'
+  | 'component-default'
+  | 'component-normalized'
+  | 'array-as-field'
+  | 'array-duplicate'
+  | 'layout-kind-unknown'
+  | 'required-lifted'
+  | 'item-interface-default'
+  | 'initial-value-default'
+  | 'unnamed-dropped'
+  | 'no-fields'
+  | 'intent-as-node'
+  | 'step-as-key'
+  | 'steps-as-object'
+  | 'layout-as-list'
+  | 'rules-in-fields'
+  | 'rules-on-fields'
+  | 'inline-fields'
+  | 'inline-arrays'
+  | 'bare-refs'
+  | 'reset-as-on-change'
+  | 'computed-toggle-replaced';
+```
+
+_Source: src/core/generate/form-intent.ts_
 
 ### Knowledge
 
@@ -1262,6 +1714,37 @@ export interface KnowledgeSources {
 
 _Source: src/core/knowledge.ts_
 
+### LayoutNode
+
+**Kind:** `type`
+
+Узел layout-дерева. Листья ссылаются на поля/массивы ПО ИМЕНИ, не встраивают их.
+
+**Signature:**
+```typescript
+export type LayoutNode =
+  | { kind: 'field'; ref: string }
+  // `selector` у массива — точка адресации для behavior/visibility. Без него генератор
+  // подставлял имя массива, и правило, ссылавшееся на собственный selector из intent,
+  // адресовало узел, которого в разметке нет.
+  | { kind: 'array'; ref: string; selector?: string }
+  // Подформа: именованная часть (`FormIntent.parts`), подключённая к группе модели. `ref` — путь
+  // группы в области узла. Листья части ссылаются на поля ОТНОСИТЕЛЬНО группы (`city`, а не
+  // `registrationAddress.city`), поэтому одна часть подключается к нескольким группам.
+  | { kind: 'part'; ref: string; part: string; selector?: string }
+  | {
+      kind: 'container';
+      component: string;
+      htmlTag?: string;
+      componentProps?: Record<string, unknown>;
+      selector?: string;
+      children: LayoutNode[];
+    }
+  | { kind: 'step'; title: string; icon?: string; selector?: string; children: LayoutNode[] };
+```
+
+_Source: src/core/generate/form-intent.ts_
+
 ### memoize
 
 **Kind:** `function`
@@ -1274,6 +1757,269 @@ export function memoize<T>(k: Knowledge, key: string, build: () => T): T
 ```
 
 _Source: src/core/knowledge.ts_
+
+### mergeFieldChecks
+
+**Kind:** `function`
+
+Проверки одного поля — одним `validate`.
+
+Строка intent несёт один код и один текст, поэтому две проверки поля со своими текстами — две
+строки с одним `target`. Раньше каждая печаталась своим `validate(model.$.price, […])`, и правка
+«добавь полю проверку» давала второй оператор рядом с первым, а не валидатор в его списке.
+Теперь проверки строк с тем же полем, массивом `each` и условием `when` уходят в список первой
+из них; повтор той же проверки отбрасывается. Строка, у которой кроме проверок ничего не было,
+исчезает, а её `async`, `cross` и `call` печатаются на своём месте.
+
+Только печать: тексты замечаний словарь берёт из строк intent, как они записаны.
+
+**Signature:**
+```typescript
+export function mergeFieldChecks(rules: readonly ValidationRuleIntent[]): ValidationRuleIntent[]
+```
+
+_Source: src/core/generate/builders.ts_
+
+### modelPaths
+
+**Kind:** `function`
+
+Все пути модели, которые intent объявляет, — база для кросс-проверок.
+
+**Signature:**
+```typescript
+export function modelPaths(intent: FormIntent): Set<string>
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### MODULE_ONLY_WARNINGS
+
+**Kind:** `const`
+
+Предупреждения о печати модуля: интерфейсы модели, начальные значения, тип значения, таргет,
+а также подстановки, сделанные как надо. Документу формы (ассистент билдера хранит JSON-схему,
+а не модуль) они не нужны, и модель принимала их за сбой (замер 2026-11-03).
+
+**Signature:**
+```typescript
+export const MODULE_ONLY_WARNINGS: ReadonlySet<IntentWarningCode>
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### NO_CORE_OPERATORS
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const NO_CORE_OPERATORS: CoreOperators
+```
+
+_Source: src/core/generate/core-operators.ts_
+
+### NO_UI_KIT
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const NO_UI_KIT: UiKitComponents
+```
+
+_Source: src/core/generate/ui-kit-components.ts_
+
+### NodeRuleIntent
+
+**Kind:** `interface`
+
+Правило узла схемы: событие компонента, реактивный эффект или хук жизненного цикла. В
+`form.intent.json` пишется записью `behavior` со своим `kind`; узел — по `selector` из
+`layoutRoot`. Исполняет рендерер, поэтому на таргете `core` правило не печатается.
+
+**Signature:**
+```typescript
+export interface NodeRuleIntent {
+  kind: NodeBehaviorKind;
+  /** Узел схемы. У `renderEffect` его нет: эффект живёт, пока смонтирована схема. */
+  selector?: string;
+  /** Проп-событие компонента у `onComponentEvent`: `onSubmit`, `onChange`, … */
+  event?: string;
+  /**
+   * Тело обработчика на TS — вставляется как есть. `await` делает обработчик асинхронным; у
+   * `onComponentEvent` аргументы события — `args`, у `onMount` и `renderEffect` тело может
+   * вернуть очистку: `return () => clearInterval(timer);`.
+   */
+  expr: string;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### normalizeFieldComponent
+
+**Kind:** `function`
+
+Привести компонент поля к актуальному registry-имени.
+
+- имя экспорта (`CheckboxWithLabel`) → registry-имя (по каталогу кита);
+- `Input` для числового поля или с `type: 'number'` → `InputNumber` (у `Input` больше нет
+  `type: 'number'`: схема `additionalProperties: false`, а значение ушло бы в модель строкой);
+- `Input` с `suggestions` → `InputSuggest`;
+- `FileUpload` с `variant: 'dropzone' | 'input'` → `FileUploadDropzone` / `FileUploadInput`
+  (пропа `variant` у `FileUpload*` больше нет).
+
+**Signature:**
+```typescript
+export function normalizeFieldComponent(
+  component: string,
+  fieldType: string,
+  props: Record<string, unknown> = {},
+  kit: UiKitComponents = NO_UI_KIT
+): NormalizedFieldComponent
+```
+
+_Source: src/core/generate/ui-kit-components.ts_
+
+### normalizeIntent
+
+**Kind:** `function`
+
+Довести частичный intent до полного: расставить умолчания и собрать `warnings`.
+
+Ничего не выдумывает сверх умолчаний, которые нельзя не иметь (`selector = name`,
+`modelPath = name`). Всё остальное недостающее попадает в `warnings` — генератор обязан
+сказать, чего у формы не хватает, а не молча выдать полуфабрикат как готовый результат.
+
+`opts.uiKit` — каталог кита: по нему имя экспорта компонента приводится к registry-имени.
+
+**Signature:**
+```typescript
+export function normalizeIntent(
+  partial: Partial<FormIntent>,
+  opts: { uiKit?: UiKitComponents } = {}
+): FormIntent
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### readIntent
+
+**Kind:** `function`
+
+Прочитать произвольный вход как `FormIntent`.
+
+Возвращает ВСЕГДА рабочий intent — из того, что удалось разобрать, — и отдельным списком то,
+что пришлось выбросить. Бросать исключение здесь нельзя: у MCP оно превращается в `-32603`,
+который консументу не сообщает ничего.
+
+**Signature:**
+```typescript
+export function readIntent(raw: unknown, options: ReadIntentOptions = {}): IntentReading
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### ReadIntentOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ReadIntentOptions {
+  /**
+   * Intent читается для документа формы, а не для модуля: предупреждения
+   * {@link MODULE_ONLY_WARNINGS} не попадают ни в `notices`, ни в `intent.warnings`.
+   */
+  forDocument?: boolean;
+  /**
+   * Каталог кита: по нему имя экспорта приводится к registry-имени, а имя компонента в `type`
+   * узнаётся как компонент. Без него имена компонентов не сверяются.
+   */
+  uiKit?: UiKitComponents;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### SchemaDocNode
+
+**Kind:** `interface`
+
+Узел документа формата 2. Чем он является, решают ключи: `item` — массив, `part` — подформа.
+
+**Signature:**
+```typescript
+export interface SchemaDocNode {
+  selector?: string;
+  model?: string;
+  /** Постоянная блокировка поля — ключ узла, а не проп компонента. */
+  disabled?: boolean;
+  component?: string;
+  componentProps?: Record<string, unknown>;
+  /** Шаблон строки массива: `$part(name)`. */
+  item?: string;
+  /** Подформа: `$part(name)`. */
+  part?: string;
+  children?: SchemaDocNode[];
+}
+```
+
+_Source: src/core/generate/schema-emit.ts_
+
+### SchemaDocument
+
+**Kind:** `interface`
+
+Документ JSON-DSL формата 2.
+
+**Signature:**
+```typescript
+export interface SchemaDocument {
+  format: 2;
+  parts?: Record<string, SchemaDocNode>;
+  root: SchemaDocNode;
+}
+```
+
+_Source: src/core/generate/schema-emit.ts_
+
+### SchemaLayout
+
+**Kind:** `interface`
+
+Документ плюс сведения, которых в самом документе нет.
+
+**Signature:**
+```typescript
+export interface SchemaLayout {
+  document: SchemaDocument;
+  /** Имя части → к чему она относится. */
+  partInfo: Record<string, PartInfo>;
+  /** Ключ правил каждого шага визарда (он же `selector` узла шага) — по порядку шагов. */
+  stepKeys: string[];
+  warnings: string[];
+}
+```
+
+_Source: src/core/generate/schema-emit.ts_
+
+### stepKeyOf
+
+**Kind:** `function`
+
+Ключ шага — `selector` узла шага и идентификатор шага в потоке (`flow.steps[].id`).
+
+Берётся заданный в intent `selector`; у шага без него — `step<N>`. Ключ обязан быть одним и
+тем же в разметке и в правилах, поэтому считается здесь, в одном месте, для обоих эмиттеров.
+
+**Signature:**
+```typescript
+export function stepKeyOf(step: { selector?: string }, index: number): string
+```
+
+_Source: src/core/generate/schema-emit.ts_
 
 ### SymbolsFallback
 
@@ -1308,3 +2054,124 @@ export type UiKitCatalogSource = () => Promise<unknown>;
 ```
 
 _Source: src/core/knowledge.ts_
+
+### UiKitComponents
+
+**Kind:** `interface`
+
+Компоненты кита, прочитанные из его каталога.
+
+**Signature:**
+```typescript
+export interface UiKitComponents {
+  /** Каталог найден. `false` — сверять не с чем: имена идут в код как есть. */
+  readonly found: boolean;
+  /** Registry-имя поля (`role: 'field'`) → экспорт, регистрируемый под этим именем. */
+  readonly fields: Readonly<Record<string, string>>;
+  /** Registry-имя любой записи каталога (поле, контейнер, `FormWizard`, …) → экспорт. */
+  readonly exports: Readonly<Record<string, string>>;
+  /** Экспорт → подпуть (`calendar`), если в корне пакета его нет: импорт из корня не компилируется. */
+  readonly subpaths: Readonly<Record<string, string>>;
+}
+```
+
+_Source: src/core/generate/ui-kit-components.ts_
+
+### uiKitFromCatalog
+
+**Kind:** `function`
+
+Разобрать каталог кита: `component-catalog.json` или любой объект с `components` из записей
+`{ name, role, exportName?, subpath? }` (каталог конструктора несёт и свои записи — лишнее не
+мешает). Не каталог — {@link NO_UI_KIT}.
+
+**Signature:**
+```typescript
+export function uiKitFromCatalog(json: unknown): UiKitComponents
+```
+
+_Source: src/core/generate/ui-kit-components.ts_
+
+### ValidationRuleIntent
+
+**Kind:** `interface`
+
+Правило валидации над одним путём модели.
+
+**Signature:**
+```typescript
+export interface ValidationRuleIntent {
+  /** Путь в модели. Для правил внутри массива — `items.field`. */
+  target: string;
+  /** Правило применяется к каждому элементу массива с этим именем. */
+  each?: string;
+  /** Условие активности правила → `validateWhen`. */
+  when?: string;
+  /** Имена валидаторов: `required`, `email`, `minLength(2)`, … */
+  rules: string[];
+  /**
+   * Асинхронная проверка: имя функции, которую напишет разработчик, либо сама функция
+   * выражением `async (value, { signal }) => issue | null` — печатается как есть.
+   */
+  async?: string;
+  /**
+   * Кросс-полевая проверка → `cross(target, (values) => …)`: выражение над снимком формы
+   * `values` (у правила строки массива — снимком строки), которое должно быть ИСТИННЫМ; ложное
+   * даёт замечание {@link code}. Пример: `values.confirmPassword === values.password`.
+   */
+  cross?: string;
+  /**
+   * Вызов своего оператора валидации — печатается в схему как есть:
+   * `phoneOrEmail(model.$.phone, model.$.email)`. Оператор объявлен в {@link FormIntent.operators};
+   * у правила строки массива строку читают как `item`.
+   */
+  call?: string;
+  /** Код замечания кросс-полевой или асинхронной проверки. По умолчанию у `cross` — `cross`. */
+  code?: string;
+  /** Текст замечания с кодом {@link code} — для словаря формы (`defineIssueMessages`). */
+  message?: string;
+  /**
+   * Замечание `cross` — предупреждение: показывается, но отправку не блокирует. По умолчанию —
+   * ошибка.
+   */
+  severity?: 'error' | 'warning';
+  /**
+   * Параметры замечания `cross`: имя → выражение над снимком `values`. Текст словаря подставляет
+   * их по имени: `{max}` в «не больше {max}».
+   */
+  params?: Record<string, string>;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### VisibilityIntent
+
+**Kind:** `interface`
+
+Правило видимости в render-слое.
+
+**Signature:**
+```typescript
+export interface VisibilityIntent {
+  /** Селектор узла в схеме. */
+  selector: string;
+  /** Условие, при котором узел СКРЫТ. */
+  condition: string;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### WizardIntent
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface WizardIntent {
+  steps: Array<{ title: string; icon?: string; fields: string[] }>;
+}
+```
+
+_Source: src/core/generate/form-intent.ts_

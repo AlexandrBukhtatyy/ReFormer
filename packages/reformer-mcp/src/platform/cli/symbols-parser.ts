@@ -559,7 +559,12 @@ function resolveModule(fromFile: string, spec: string): string | null {
   // specifier may carry a `.js` extension (ESM) or none. Source (.ts/.tsx) is tried first
   // so monorepo behaviour is unchanged.
   const bare = spec.replace(/\.(js|mjs|cjs)$/, '');
+  // ESM-исходник пишет реэкспорт с суффиксом `.js` (`export * from './intent/index.js'`), а файл —
+  // `.ts`: без замены суффикса символы такого входа терялись (так было с `@reformer/mcp/intent`).
+  // Генератор llms-index резолвит так же (`scripts/generate-llms-txt`, `moduleFileCandidates`) —
+  // паритет состава символов проверяет tests/index-loader.test.ts.
   const candidates = [
+    ...(bare === spec ? [] : [bare + '.ts', bare + '.tsx']),
     spec + '.ts',
     spec + '.tsx',
     `${spec}/index.ts`,
