@@ -176,6 +176,8 @@ export default defineConfig([
       // Общие скрипты сборки плагинов проекта-образца (генератор их таблиц стилей): запускаются
       // node'ом из каталога пакета плагина, а не исполняются в браузере.
       'projects/reformer-builder-playground/.ui_builder/plugins/.shared/**/*.mjs',
+      // Плагины и лоадеры сайта документации: их грузит Docusaurus (webpack) в node.
+      'projects/reformer-doc/plugins/**/*.{js,mjs,cjs}',
       '**/*.config.{js,mjs,cjs,ts}',
       '**/.*rc.{js,mjs,cjs}',
       '**/vite.config.*',
