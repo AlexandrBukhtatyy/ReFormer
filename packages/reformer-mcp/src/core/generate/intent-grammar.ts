@@ -401,7 +401,9 @@ export function intentGrammar(catalogs: FormCatalogs): string {
 
 Ты пишешь только этот файл, остальные файлы модуля записывает form_build. Сам файл формы не создаёт: работа закончена только после ответа ✓ от form_build. Экономь токены: JSON компактный, одна запись на строку. Большую форму пиши частями: поля и раскладка → form_build → Edit: правила → form_build → Edit: поведение → form_build.
 
-{"formName":"Заявка","interfaceName":"Application","target":"renderer-react","fields":[…],"arrays":[…],"parts":{…},"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…],"operators":{…}}
+{"formName":"<имя формы из задания>","interfaceName":"<ИмяИнтерфейса>","target":"renderer-react","fields":[…],"arrays":[…],"parts":{…},"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…],"operators":{…}}
+
+Примеры ниже — синтаксис на образце кредитной заявки: поля бери из задания, а не из образца.
 
 target — стек из задания, не меняй его: core | renderer-react | renderer-json.
 На core сборка пишет всё, кроме разметки: в index.tsx будет заглушка, её замени своим JSX и собери снова. Поле: <FormField control={bundle.form.price} /> из @reformer/ui-kit. visibility там не работает — условие пиши в JSX. Массив и шаги: find_recipe.

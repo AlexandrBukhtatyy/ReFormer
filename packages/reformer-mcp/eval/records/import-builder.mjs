@@ -58,6 +58,21 @@ export function builderRecords(
         ...(result.requests === undefined
           ? []
           : [{ id: 'process.requests', value: result.requests, better: 'lower' }]),
+        ...(result.createdForms === undefined
+          ? []
+          : [{ id: 'process.createdForms', value: result.createdForms, better: 'none' }]),
+        // Лишние поля и поля образца грамматики — у сценариев, где заказ известен
+        // (ReFormer-9a9c): «поле есть» засчитывало форму с переписанным образцом.
+        ...(typeof result.extraCount === 'number'
+          ? [
+              { id: 'quality.extraFields', value: result.extraCount, better: 'lower' },
+              {
+                id: 'quality.leakedExample',
+                value: result.leakedExample?.length ?? 0,
+                better: 'lower',
+              },
+            ]
+          : []),
         // Покрытие сценариев крупной сборки: вердикт «прошёл / нет» на них грубый.
         ...(result.coverage
           ? [

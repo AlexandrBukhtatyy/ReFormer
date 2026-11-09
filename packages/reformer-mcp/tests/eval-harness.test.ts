@@ -94,6 +94,10 @@ describe('импорт результатов конструктора', () => {
         outputTokens: 200,
         timedOut: false,
         error: null,
+        createdForms: 1,
+        extraFields: ['inn', 'price', 'note'],
+        extraCount: 3,
+        leakedExample: ['inn', 'price'],
       },
       {
         id: '5.3',
@@ -118,6 +122,19 @@ describe('импорт результатов конструктора', () => {
     for (const record of records) expect(validateRecord(record)).toEqual([]);
     expect(records[0].source.provenance).toBe('imported');
     expect(records[0].approach.id).toBe('structured-off');
+  });
+
+  it('переносит лишние поля и поля образца; без заказа их метрик нет', () => {
+    const metric = (index: number, id: string) =>
+      records[index].metrics.find((m: { id: string }) => m.id === id);
+    expect(metric(0, 'quality.extraFields')).toEqual({
+      id: 'quality.extraFields',
+      value: 3,
+      better: 'lower',
+    });
+    expect(metric(0, 'quality.leakedExample')?.value).toBe(2);
+    expect(metric(0, 'process.createdForms')?.value).toBe(1);
+    expect(metric(1, 'quality.extraFields')).toBeUndefined();
   });
 
   it('переносит вердикт, причину и завершение по таймауту', () => {
