@@ -13,6 +13,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 let hookCalls = 0;
 
 vi.mock('react', () => ({
+  // Контексты локализации создаются при импорте модуля — это не хук, счётчик не трогаем.
+  createContext: (value: unknown) => ({ value, displayName: '' }),
+  useContext: (context: { value: unknown }) => {
+    hookCalls++;
+    return context.value;
+  },
+  useMemo: (fn: () => unknown) => {
+    hookCalls++;
+    return fn();
+  },
   useCallback: (fn: unknown) => {
     hookCalls++;
     return fn;

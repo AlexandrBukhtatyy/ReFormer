@@ -68,7 +68,7 @@
 | `validateModel`, `runValidation`, `applyValidationResult` (раннер), `createFormValidation`             | `@reformer/core/validation`                      |
 | `Rule`, `AsyncRule`, `ValidationDefinition`, `ValidationScope`, `ValidationResult` (типы)              | `@reformer/core/validation`                      |
 | `FormValidationController`, `FormValidationRunOptions`, `ValidationStrategyKind` (типы стратегии)      | `@reformer/core/validation`                      |
-| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`        | `@reformer/core/react`                           |
+| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormValidation` | `@reformer/core/react`                           |
 | `useFormFlow`, `FormBundleContext`, `useFormBundleContext`                                             | `@reformer/core/react`                           |
 | `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля)  | `@reformer/core/react`                           |
 | `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                            | `@reformer/core/react`                           |
@@ -122,6 +122,7 @@
 | `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, shouldShowIssues, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
+| `useSignalSnapshot(signal)` | `T` (значение сигнала) | Один сигнал или `computed` | `bundle.validating`, `bundle.submission.submitting`, группа модели |
 | `useFormFlow(bundle.flow)` | `{ current, index, completed, isFirst, isLast, validating }` | Сигналы потока шагов | Свои кнопки и индикатор шагов |
 | `useIssueMessage(messages?)` | `(issue) => string` | Локаль | Текст замечания в своём компоненте |
 
@@ -2708,10 +2709,21 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 | ----------------------------- | --------------------------------------------------------------------------- |
 | `FieldAdapter`                | Тип адаптера: диалект контрола                                              |
 | `getFieldAdapter(component)`  | Статика `component.reformerAdapter` либо `undefined`                        |
-| `bindFieldProps(adapter, seam, props)` | Props контрола под адаптер (без адаптера — seam как есть)          |
+| `bindFieldProps(adapter, seam, props, component?)` | Props контрола под адаптер (без адаптера — seam как есть) |
+| `FIELD_WRAPPER_ONLY_PROPS`    | Props обёртки, которые контролу не передаются: `label`, `description`, `required`, `labelTooltip` |
+| `hasInlineLabel(component)`   | Контрол рисует подпись сам (статика `reformerLayout = 'inline-label'`)      |
 | `FieldHandle`                 | Императивный handle поля: `focus` / `blur` / `scrollIntoView` / `getElement` |
 | `makeElementFieldHandle(ref)` | Базовый `FieldHandle` из DOM-узла                                           |
 | `useFieldHandleRef(outerRef)` | Ref для контрола + публикация handle потребителю (строит ОБЁРТКА поля)     |
+
+Подпись, описание, звёздочку обязательности и иконку у подписи рисует обёртка поля, поэтому
+`bindFieldProps` срезает `label`, `description`, `required` и `labelTooltip` из `componentProps`:
+контрол их не получает. Обязательность контрол узнаёт из `aria-required`, который ставит обёртка.
+Нативный `required` на `<input>` включил бы проверку браузера, и она блокировала бы отправку
+формы раньше её собственной валидации. Исключение — контрол с inline-подписью (чекбокс,
+переключатель, статика `reformerLayout = 'inline-label'`): он получает `label` и `required` и
+рисует подпись со звёздочкой сам. Для этого обёртка передаёт `bindFieldProps` сам компонент
+четвёртым аргументом.
 
 В приложении обычно достаточно `defineFieldControl(MyControl, { adapter })` из
 `@reformer/ui-kit/fields` (плюс готовые пресеты `checkedAdapter`, `valueChangeAdapter`, …); для
@@ -3310,6 +3322,19 @@ model.get();                 // НЕреактивный снимок { email, a
 > ⚠️ `model.get()` и `model.isDirty()` читают через `peek()` — внутри `effect`/`computed` они НЕ
 > создают зависимостей. `computed(() => model.get())` никогда не пересчитается. Для реактивного
 > чтения всего объекта — узел дерева `$` (ниже).
+
+### `dirty` ноды и `isDirty()` модели — разные вопросы
+
+| Что                     | Отвечает на вопрос                                   | Кто меняет                                                                                                  |
+| ----------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `form.email.dirty`      | Правил ли поле пользователь через форму?             | ввод через ноду — `setValue` ноды (так пишет обёртка поля); снимает `form.reset()` / `form.email.reset()`  |
+| `model.isDirty()`       | Отличаются ли значения модели от точки отсчёта?      | любая запись в модель, кроме производных полей (`compute`, `computeFrom`, `markDerived`)                    |
+
+Запись в модель — `model.email = 'x'`, `model.patch(...)`, запись поведения — `dirty` ноды не
+ставит: поле показывает замечания по `touched || dirty`, и данные, пришедшие из кода, не должны
+«открывать» ошибки до того, как пользователь их коснулся. Поэтому после `model.patch(serverData)`
+`form.email.dirty === false`, а `model.isDirty() === true`, пока не вызван `model.captureInitial()`.
+`dirty` — сигнал (реактивен), `isDirty()` — нереактивный снимок (см. выше).
 
 ### Подписка на группу и на модель целиком
 
@@ -4452,6 +4477,8 @@ type SubmitResult<R> =
 bundle.submission.submitting: ReadonlySignal<boolean>; // работает обработчик
 bundle.validate(): Promise<ValidationResult>; // проверить всю форму без отправки
 bundle.validating: ReadonlySignal<boolean>; // идёт проверка
+// в компоненте оба сигнала читает useSignalSnapshot из @reformer/core/react:
+//   const submitting = useSignalSnapshot(bundle.submission.submitting);
 bundle.dispose(): void; // снять сборку: поведение, подписки нод, живую проверку; модель остаётся
 
 // Отправка без сборки (визард в разметке без createForm) — без проверки
@@ -6097,14 +6124,31 @@ expect(validateLocale(ruJson, enJson)).toEqual([]);
 // битое сообщение образца — тоже syntax («в образце: …»), проверка остальных ключей продолжается
 ```
 
-## 91. Описатели сообщений (низкий уровень)
+## 91. Описатели сообщений в схеме
 
 `msg(key, values?, defaultMessage?)` создаёт описатель сообщения, `defineMessages(appEn)` — `msg` с
-типизированными ключами, `resolveLocalized(value, i18n)` раскрывает описатели в объекте пропсов.
+типизированными ключами. Описатель кладут в `componentProps` схемы вместо строки — подпись поля,
+плейсхолдер, подписи опций, заголовок секции:
 
-> ⚠️ Рендереры и `FormField` описатели сами пока НЕ раскрывают. Не кладите `msg(...)` в
-> `componentProps` схемы: компонент получит объект вместо строки. До появления раскрытия в
-> рендерерах вызывайте `resolveLocalized` вручную или используйте `useI18n().t`.
+```typescript
+import { msg } from '@reformer/core/i18n';
+
+{
+  model: model.$.email,
+  component: Input,
+  componentProps: { label: msg('signup.email'), placeholder: msg('signup.emailHint') },
+}
+```
+
+Описатели раскрываются по локали `I18nProvider` там, где пропсы доходят до компонента:
+`useFormControl` (а с ним обёртка поля `FormField` из `@reformer/cdk` / `@reformer/ui-kit`) и
+рендерер `@reformer/renderer-react` — для полей, контейнеров и массивов. Обход заходит в массивы и
+объекты-литералы (`options: [{ value, label: msg(…) }]`); сигналы, React-элементы и узлы формы не
+трогает. Смена языка перерисовывает поля с новыми строками — эффект с
+`updateComponentProps({ label: t(…) })` для этого не нужен.
+
+`resolveLocalized(value, i18n)` раскрывает описатели вручную — для пропсов, которые вы читаете мимо
+`useFormControl` (например, `control.componentProps.peek()`).
 
 ## 92. Anti-patterns
 
@@ -7521,7 +7565,7 @@ npm install @reformer/core
 | Вход                                               | Что внутри                                                                                                          |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `@reformer/core`                                   | `createForm`, `createModel`, `arrayOf`, `compileSchema`, `createFormFlow`, `createSubmission`; типы `FormModel`, `FormGroup`, `FormControl`, `FormArray`, `FormSchemaNode`, `ValidationIssue` |
-| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormFlow`, `useFormValidation`, `FormBundleContext`, `I18nProvider`, `useIssueMessage`, `bindFieldProps` |
+| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormFlow`, `useFormValidation`, `FormBundleContext`, `I18nProvider`, `useIssueMessage`, `bindFieldProps` |
 | `@reformer/core/validation`                        | `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`, `validateModel`, `createFormValidation` |
 | `@reformer/core/validators`                        | фабрики правил: `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`, числа, даты, файлы |
 | `@reformer/core/validators/<имя>`                  | одно правило на вход: `required`, `email`, `min-length`, `is-date`, `min-age` и другие (правил для файлов здесь нет — только в `validators`) |
@@ -8058,7 +8102,8 @@ Props контрола под адаптер: срезает служебные 
 export function bindFieldProps(
   adapter: FieldAdapter | undefined,
   seam: FieldSeam,
-  componentProps: Record<string, unknown> = {}
+  componentProps: Record<string, unknown> = {},
+  component?: unknown
 ): Record<string, unknown>
 ```
 
@@ -8066,6 +8111,8 @@ export function bindFieldProps(
 - `adapter` — - Адаптер контрола или `undefined` (value-based контрол).
 - `seam` — - Значение поля и его колбэки.
 - `componentProps` — - Прочие props контрола.
+- `component` — - Сам контрол. Нужен, чтобы оставить `label` и `required` контролу с
+inline-подписью ({@link hasInlineLabel}); без него эти props срезаются у всех.
 
 **Returns:** Плоский объект props для спреда в контрол.
 
@@ -8404,6 +8451,9 @@ _Source: src/signals.ts_
 источников. Оператор поведения `computeFrom` из `@reformer/core/behaviors` цель помечает
 (`markDerived`) и защищён от циклов: массовая запись такую цель не трогает. В поведении формы
 нужен оператор; примитив — для модели без формы.
+
+Пересчёт запускают только `sources`: сигналы, прочитанные внутри `fn` и `when`, — снимок на момент
+пересчёта, а не зависимость.
 
 **Signature:**
 ```typescript
@@ -9476,8 +9526,13 @@ _Source: src/i18n/loader.ts_
 
 **Kind:** `const`
 
-Props, которые адресованы обёртке поля, а не контролу: `labelTooltip` рисует `FormField` у
-подписи. Они приходят в общем мешке `componentProps`, и без среза утекли бы в DOM контрола.
+Props, которые адресованы обёртке поля, а не контролу: подпись (`label`), звёздочку
+обязательности (`required`), описание под полем (`description`) и иконку у подписи
+(`labelTooltip`) рисует `FormField`. Они приходят в общем мешке `componentProps`, и без среза
+утекли бы в DOM контрола: `label="Имя"` атрибутом на `<input>`, а нативный `required` включил бы
+проверку браузера, которая блокирует отправку формы раньше её собственной валидации.
+
+Исключение — контрол с inline-подписью ({@link hasInlineLabel}): `label` и `required` он рисует сам.
 
 **Signature:**
 ```typescript
@@ -9750,6 +9805,10 @@ export interface FieldControlState<T> {
   /**
    * Пользовательские props для передачи в UI-компоненты.
    * Устанавливаются через {@link FormControl.updateComponentProps}.
+   *
+   * Описатели сообщений (`msg('profile.email.label')` из `@reformer/core/i18n`) приходят уже
+   * раскрытыми по локали `I18nProvider` — строками, в том числе внутри массивов и объектов-литералов
+   * (подписи опций). Смена языка перерисовывает компонент с новыми строками.
    *
    * @example
    * ```tsx
@@ -10786,6 +10845,28 @@ export function getScope<T>(): BehaviorScope<T>
 ```
 
 _Source: src/form/behaviors/context.ts_
+
+### hasInlineLabel
+
+**Kind:** `function`
+
+Рисует ли контрол подпись сам — рядом с собой (чекбокс, переключатель). Такой компонент
+объявляет статику `reformerLayout = 'inline-label'`: обёртка поля тогда не рисует подпись
+сверху, а `label` и `required` отдаёт контролу.
+
+**Signature:**
+```typescript
+export function hasInlineLabel(component: unknown): boolean
+```
+
+**Examples:**
+
+```ts
+CheckboxWithLabel.reformerLayout = 'inline-label';
+hasInlineLabel(CheckboxWithLabel); // → true
+```
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
 
 ### hideWhen
 
@@ -14945,6 +15026,37 @@ function FieldIssues({ control }: { control: FormControl<string> }) {
 
 _Source: src/platforms/react/i18n/hooks.ts_
 
+### useLocalized
+
+**Kind:** `function`
+
+Значение с раскрытыми описателями `msg('…')` по активной локали — строками, в том числе внутри
+массивов и объектов-литералов (подписи опций). Сигналы, React-элементы и узлы формы не трогает.
+
+Перерисовывает компонент при смене языка, только если результат изменился: значение без
+описателей возвращается тем же объектом, и смену языка компонент не замечает. Этим хук
+отличается от `resolveLocalized(value, useI18n())`, который перерисовывает при каждой смене.
+
+**Signature:**
+```typescript
+export function useLocalized<T>(value: T): T
+```
+
+**Parameters:**
+- `value` — - Пропсы, массив или одиночное значение.
+
+**Returns:** То же значение, где описатели заменены строками.
+
+**Examples:**
+
+```tsx
+function SectionTitle({ title }: { title: LocalizableText }) {
+  return <h3>{useLocalized(title)}</h3>;
+}
+```
+
+_Source: src/platforms/react/i18n/hooks.ts_
+
 ### useMessages
 
 **Kind:** `function`
@@ -14982,6 +15094,51 @@ function ClearButton() {
 ```
 
 _Source: src/platforms/react/i18n/hooks.ts_
+
+### useSignalSnapshot
+
+**Kind:** `function`
+
+Значение произвольного сигнала в React-компоненте: компонент перерисовывается, когда сигнал
+меняется.
+
+Для поля формы есть {@link useFormControl} и {@link useFormControlValue}. Этот хук — для
+остальных сигналов: идёт ли проверка (`bundle.validating`), работает ли обработчик отправки
+(`bundle.submission.submitting`), группа модели целиком (`model.$.address`), свой `computed`.
+
+**Signature:**
+```typescript
+export function useSignalSnapshot<T>(source: ReadonlySignal<T>): T
+```
+
+**Parameters:**
+- `source` — - Сигнал или `computed`
+
+**Returns:** Текущее значение сигнала
+
+**Examples:**
+
+Кнопка отправки
+```tsx
+import { useSignalSnapshot } from '@reformer/core/react';
+
+function SubmitButton({ bundle }: { bundle: FormBundle<Signup> }) {
+const validating = useSignalSnapshot(bundle.validating);
+const submitting = useSignalSnapshot(bundle.submission.submitting);
+return (
+<button type="submit" disabled={validating || submitting}>
+{submitting ? 'Отправка…' : 'Отправить'}
+</button>
+);
+}
+```
+
+Группа модели
+```tsx
+const address = useSignalSnapshot(model.$.address); // { city, street }
+```
+
+_Source: src/platforms/react/hooks/useSignalSnapshot.ts_
 
 ### validate
 

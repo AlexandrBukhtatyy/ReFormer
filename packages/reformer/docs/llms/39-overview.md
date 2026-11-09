@@ -37,7 +37,7 @@ npm install @reformer/core
 | Вход                                               | Что внутри                                                                                                          |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `@reformer/core`                                   | `createForm`, `createModel`, `arrayOf`, `compileSchema`, `createFormFlow`, `createSubmission`; типы `FormModel`, `FormGroup`, `FormControl`, `FormArray`, `FormSchemaNode`, `ValidationIssue` |
-| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormFlow`, `useFormValidation`, `FormBundleContext`, `I18nProvider`, `useIssueMessage`, `bindFieldProps` |
+| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormFlow`, `useFormValidation`, `FormBundleContext`, `I18nProvider`, `useIssueMessage`, `bindFieldProps` |
 | `@reformer/core/validation`                        | `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`, `validateModel`, `createFormValidation` |
 | `@reformer/core/validators`                        | фабрики правил: `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`, числа, даты, файлы |
 | `@reformer/core/validators/<имя>`                  | одно правило на вход: `required`, `email`, `min-length`, `is-date`, `min-age` и другие (правил для файлов здесь нет — только в `validators`) |

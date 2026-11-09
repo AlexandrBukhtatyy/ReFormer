@@ -197,6 +197,10 @@ export interface FieldControlState<T> {
    * Пользовательские props для передачи в UI-компоненты.
    * Устанавливаются через {@link FormControl.updateComponentProps}.
    *
+   * Описатели сообщений (`msg('profile.email.label')` из `@reformer/core/i18n`) приходят уже
+   * раскрытыми по локали `I18nProvider` — строками, в том числе внутри массивов и объектов-литералов
+   * (подписи опций). Смена языка перерисовывает компонент с новыми строками.
+   *
    * @example
    * ```tsx
    * // Установка props

@@ -18,7 +18,7 @@
 | `validateModel`, `runValidation`, `applyValidationResult` (раннер), `createFormValidation`             | `@reformer/core/validation`                      |
 | `Rule`, `AsyncRule`, `ValidationDefinition`, `ValidationScope`, `ValidationResult` (типы)              | `@reformer/core/validation`                      |
 | `FormValidationController`, `FormValidationRunOptions`, `ValidationStrategyKind` (типы стратегии)      | `@reformer/core/validation`                      |
-| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useFormValidation`        | `@reformer/core/react`                           |
+| `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormValidation` | `@reformer/core/react`                           |
 | `useFormFlow`, `FormBundleContext`, `useFormBundleContext`                                             | `@reformer/core/react`                           |
 | `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля)  | `@reformer/core/react`                           |
 | `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                            | `@reformer/core/react`                           |
@@ -72,6 +72,7 @@
 | `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, shouldShowIssues, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
+| `useSignalSnapshot(signal)` | `T` (значение сигнала) | Один сигнал или `computed` | `bundle.validating`, `bundle.submission.submitting`, группа модели |
 | `useFormFlow(bundle.flow)` | `{ current, index, completed, isFirst, isLast, validating }` | Сигналы потока шагов | Свои кнопки и индикатор шагов |
 | `useIssueMessage(messages?)` | `(issue) => string` | Локаль | Текст замечания в своём компоненте |
 

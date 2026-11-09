@@ -49,3 +49,48 @@ const DEFAULT_VALUE = contextValue(createI18n(DEFAULT_LOCALE), false, undefined)
 
 export const I18nContext = createContext<I18nContextValue>(DEFAULT_VALUE);
 I18nContext.displayName = I18N_CONTEXT_MARKER;
+
+/**
+ * Активная локаль как подписка — для читателей, которым язык нужен не всегда.
+ *
+ * Значение {@link I18nContext} меняется при смене языка, и React перерисовывает каждого его
+ * потребителя. Поле формы читает язык только ради описателей `msg()` в своих пропсах, а таких полей
+ * обычно меньше, чем полей вообще. Источник стабилен на время жизни провайдера: потребитель
+ * подписывается сам (`useLocalized`) и перерисовывается, только когда изменился ЕГО результат.
+ */
+export interface I18nSource {
+  /** Ручка активной локали. */
+  readonly get: () => I18nHandle;
+  /** Подписка на смену локали; возвращает отписку. */
+  readonly subscribe: (listener: () => void) => () => void;
+}
+
+/** Источник поверх меняющейся ручки: провайдер кладёт новую через `set`, подписчики узнают. */
+export interface MutableI18nSource extends I18nSource {
+  readonly set: (handle: I18nHandle) => void;
+}
+
+/** Источник локали провайдера. */
+export function createI18nSource(initial: I18nHandle): MutableI18nSource {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    set: (handle) => {
+      if (handle === current) return;
+      current = handle;
+      listeners.forEach((listener) => listener());
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+/** Источник «провайдера нет»: встроенный английский, смен не бывает. */
+const DEFAULT_SOURCE: I18nSource = { get: () => DEFAULT_VALUE, subscribe: () => () => {} };
+
+/** Контекст источника локали — живёт рядом с {@link I18nContext} и так же единственен в сборке. */
+export const I18nSourceContext = createContext<I18nSource>(DEFAULT_SOURCE);
+I18nSourceContext.displayName = `${I18N_CONTEXT_MARKER}Source`;

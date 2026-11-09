@@ -17,6 +17,7 @@
 export { useFormControl } from './hooks/useFormControl';
 export { useFormControlValue } from './hooks/useFormControlValue';
 export { useArrayLength } from './hooks/useArrayLength';
+export { useSignalSnapshot } from './hooks/useSignalSnapshot';
 export { useFormValidation } from './hooks/use-form-validation';
 export type { UseFormValidationArgs, UseFormValidationResult } from './hooks/use-form-validation';
 export { useFormBundle } from './hooks/use-form-bundle';
@@ -33,6 +34,7 @@ export type { FieldControlState, ArrayControlState } from './hooks/types';
 export {
   getFieldAdapter,
   bindFieldProps,
+  hasInlineLabel,
   FIELD_WRAPPER_ONLY_PROPS,
 } from './field-binding/field-adapter';
 export type { FieldAdapter, FieldAdapterCarrier, FieldSeam } from './field-binding/field-adapter';

@@ -14,8 +14,10 @@ import {
   createElement,
   Fragment,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type ReactElement,
   type ReactNode,
 } from 'react';
@@ -23,7 +25,43 @@ import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { DEFAULT_LOCALE, type FormLocale } from '../../../i18n/locale';
 import { createLocaleStore, type LocaleLoad } from '../../../i18n/locale-store';
 import { createI18n } from '../../../i18n/translator';
-import { contextValue, I18nContext } from './context';
+import {
+  contextValue,
+  createI18nSource,
+  I18nContext,
+  I18nSourceContext,
+  type I18nContextValue,
+} from './context';
+
+/** На сервере эффектов нет, а `useLayoutEffect` там предупреждает: берём обычный. */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+/**
+ * Дети провайдера: значение контекста языка плюс стабильный источник для адресных подписчиков
+ * (`useLocalized`). Источник узнаёт новую ручку до отрисовки кадра — поля с описателями `msg()`
+ * перерисуются в том же кадре, что и остальные потребители языка.
+ */
+function provide(value: I18nContextValue, children: ReactNode): ReactElement {
+  return createElement(
+    I18nContext.Provider,
+    { value },
+    createElement(SourceProvider, { value }, children)
+  );
+}
+
+function SourceProvider({
+  value,
+  children,
+}: {
+  value: I18nContextValue;
+  children?: ReactNode;
+}): ReactElement {
+  const [source] = useState(() => createI18nSource(value));
+  useIsomorphicLayoutEffect(() => {
+    source.set(value);
+  }, [source, value]);
+  return createElement(I18nSourceContext.Provider, { value: source }, children);
+}
 
 /** Режим «готовая локаль». */
 export interface I18nStaticProviderProps {
@@ -60,7 +98,7 @@ export type I18nProviderProps = I18nStaticProviderProps | I18nLoadingProviderPro
 
 function StaticProvider({ locale, children }: I18nStaticProviderProps): ReactElement {
   const value = useMemo(() => contextValue(createI18n(locale), false, undefined), [locale]);
-  return createElement(I18nContext.Provider, { value }, children);
+  return provide(value, children);
 }
 
 function LoadingProvider({
@@ -111,7 +149,7 @@ function LoadingProvider({
   if (value === null)
     return fallback === undefined ? null : createElement(Fragment, null, fallback);
   childrenShownRef.current = true;
-  return createElement(I18nContext.Provider, { value }, children);
+  return provide(value, children);
 }
 
 /**

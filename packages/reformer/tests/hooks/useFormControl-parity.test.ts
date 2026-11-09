@@ -14,6 +14,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('react', () => ({
+  createContext: (value: unknown) => ({ value, displayName: '' }),
+  useContext: (context: { value: unknown }) => context.value,
+  useMemo: (fn: () => unknown) => fn(),
   useCallback: (fn: unknown) => fn,
   useRef: (init: unknown) => ({ current: init }),
 }));

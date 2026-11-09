@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import type { FormArray, FormControl, ValidationIssue } from '../../../form/types/index';
 import { isFormArray } from '../../../form/type-guards';
+import { useLocalized } from '../i18n/hooks';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
   useSignalSubscription,
@@ -378,16 +380,23 @@ export function useFormControl(
   // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков
   // (useSignalSubscription), поэтому переключение control между undefined / полем / массивом
   // НЕ меняет число/порядок хуков (иначе React крашит «Rendered more hooks than previous render»).
-  if (!control) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useEmptyControl();
-  }
+  const state = !control
+    ? // eslint-disable-next-line react-hooks/rules-of-hooks
+      useEmptyControl()
+    : isFormArray(control)
+      ? // eslint-disable-next-line react-hooks/rules-of-hooks
+        useArrayControl(control)
+      : // eslint-disable-next-line react-hooks/rules-of-hooks
+        useFieldControl(control);
 
-  if (isFormArray(control)) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useArrayControl(control);
-  }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useFieldControl(control);
+  // Описатели сообщений (`msg('profile.email.label')`) в `componentProps` раскрываются по активной
+  // локали: подпись, плейсхолдер и подписи опций приходят компоненту строками. Хук — после ветвления,
+  // но в каждой ветке: число и порядок хуков от вида контрола не зависят. Поле без описателей смену
+  // языка не замечает — `useLocalized` отдаёт тот же объект и не будит компонент.
+  const rawProps = (state as { componentProps?: Record<string, unknown> }).componentProps;
+  const props = useLocalized(rawProps);
+  return useMemo(
+    () => (props === rawProps ? state : { ...state, componentProps: props }),
+    [state, props, rawProps]
+  ) as FieldControlState<unknown> | ArrayControlState<object>;
 }

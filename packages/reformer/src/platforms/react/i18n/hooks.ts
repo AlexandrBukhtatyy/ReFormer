@@ -4,13 +4,16 @@
  * @module platforms/react/i18n/hooks
  */
 
-import { useContext, useMemo } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
+import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import type { ValidationIssue } from '../../../form/types/contracts';
 import type { Messages } from '../../../i18n/locale';
 import type { MessageValues } from '../../../i18n/message-format';
 import { createI18n, translateBuiltin } from '../../../i18n/translator';
 import { resolveIssueMessage, type IssueMessages } from '../../../i18n/validation-message';
-import { I18nContext, type I18nContextValue } from './context';
+import { resolveLocalized } from '../../../i18n/resolve-localized';
+import type { I18nHandle } from '../../../i18n/translator';
+import { I18nContext, I18nSourceContext, type I18nContextValue } from './context';
 
 /**
  * Активная локаль: перевод ключей приложения, форматирование чисел, дат и размеров, состояние
@@ -90,4 +93,42 @@ export function useIssueMessage(messages?: IssueMessages): (issue: ValidationIss
     const i18n = createI18n(locale);
     return (issue: ValidationIssue) => resolveIssueMessage(issue, i18n, messages);
   }, [locale, messages]);
+}
+
+/**
+ * Значение с раскрытыми описателями `msg('…')` по активной локали — строками, в том числе внутри
+ * массивов и объектов-литералов (подписи опций). Сигналы, React-элементы и узлы формы не трогает.
+ *
+ * Перерисовывает компонент при смене языка, только если результат изменился: значение без
+ * описателей возвращается тем же объектом, и смену языка компонент не замечает. Этим хук
+ * отличается от `resolveLocalized(value, useI18n())`, который перерисовывает при каждой смене.
+ *
+ * @param value - Пропсы, массив или одиночное значение.
+ * @returns То же значение, где описатели заменены строками.
+ *
+ * @example
+ * ```tsx
+ * function SectionTitle({ title }: { title: LocalizableText }) {
+ *   return <h3>{useLocalized(title)}</h3>;
+ * }
+ * ```
+ */
+export function useLocalized<T>(value: T): T {
+  const source = useContext(I18nSourceContext);
+  // Кэш по паре (значение, ручка локали): `useSyncExternalStore` зовёт getSnapshot повторно и
+  // ждёт тот же результат, пока ничего не менялось.
+  const cache = useRef<{ value: T; handle: I18nHandle; resolved: T } | null>(null);
+  const getSnapshot = (): T => {
+    const handle = source.get();
+    const hit = cache.current;
+    if (hit !== null && hit.value === value && hit.handle === handle) return hit.resolved;
+    const resolved = resolveLocalized(value, handle);
+    cache.current = { value, handle, resolved };
+    return resolved;
+  };
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => source.subscribe(onStoreChange),
+    [source]
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

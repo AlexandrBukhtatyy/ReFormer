@@ -72,12 +72,14 @@ const REACT_BINDINGS = [
   'useFormControl',
   'useFormControlValue',
   'useArrayLength',
+  'useSignalSnapshot',
   'useFormValidation',
   'useFormBundle',
   'FormBundleContext',
   'useFormBundleContext',
   'getFieldAdapter',
   'bindFieldProps',
+  'hasInlineLabel',
   'FIELD_WRAPPER_ONLY_PROPS',
   'makeElementFieldHandle',
   'useFieldHandleRef',
@@ -88,6 +90,7 @@ const REACT_I18N = [
   'useI18n',
   'useMessages',
   'useIssueMessage',
+  'useLocalized',
   'I18N_CONTEXT_MARKER',
 ];
 

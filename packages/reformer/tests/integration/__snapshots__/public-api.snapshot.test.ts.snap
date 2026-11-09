@@ -270,6 +270,7 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
   "UseFormValidationResult": "тип",
   "bindFieldProps": "функция",
   "getFieldAdapter": "функция",
+  "hasInlineLabel": "функция",
   "makeElementFieldHandle": "функция",
   "useArrayLength": "функция",
   "useFieldHandleRef": "функция",
@@ -281,7 +282,9 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
   "useFormValidation": "функция",
   "useI18n": "функция",
   "useIssueMessage": "функция",
+  "useLocalized": "функция",
   "useMessages": "функция",
+  "useSignalSnapshot": "функция",
 }
 `;
 
