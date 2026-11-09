@@ -79,6 +79,34 @@ describe('форма над частью модели приложения', () 
     expect(profile.form.email.issues.value).toEqual([]);
   });
 
+  it('правило на корень формы ставит замечание самой форме', async () => {
+    const app = createApp();
+    const sameAsName = defineValidation<User>(({ model }) => {
+      validate(model.$ as never, [
+        (user: User) => (user.name !== '' && user.name === user.email ? { code: 'same' } : null),
+      ]);
+    });
+    const profile = createForm<User>({ model: app.user, validation: sameAsName });
+    app.user.name = 'neo';
+    app.user.email = 'neo';
+
+    const result = await profile.validate();
+
+    expect(result.status).toBe('invalid');
+    expect(profile.form.ownIssues.value.map((issue) => issue.code)).toEqual(['same']);
+  });
+
+  it('правило на поле вне модели формы в её проверке не участвует', async () => {
+    const app = createApp();
+    // Правило замыкает чужую ручку: у формы над app.user нет ноды, где показать замечание.
+    const withTheme = defineValidation<User>(() => {
+      validate(app.$.theme, [(theme) => (theme === 'light' ? { code: 'theme' } : null)]);
+    });
+    const profile = createForm<User>({ model: app.user, validation: withTheme });
+
+    expect((await profile.validate()).status).toBe('valid');
+  });
+
   it('отправка с нарушенным правилом не зовёт обработчик', async () => {
     const app = createApp();
     const profile = createForm<User>({ model: app.user, validation: userRules });
@@ -98,6 +126,23 @@ describe('форма над частью модели приложения', () 
 
     expect(app.user.email).toBe('neo@zion.io');
     expect((await profile.validate()).status).toBe('valid');
+  });
+});
+
+describe('правило на корень модели', () => {
+  it('у формы над всей моделью замечание правила на корень ложится на саму форму', async () => {
+    const sameAsName = defineValidation<User>(({ model }) => {
+      validate(model.$ as never, [
+        (user: User) => (user.name !== '' && user.name === user.email ? { code: 'same' } : null),
+      ]);
+    });
+    const bundle = createForm<User>({
+      initial: { name: 'neo', email: 'neo', nickname: '' },
+      validation: sameAsName,
+    });
+
+    expect((await bundle.validate()).status).toBe('invalid');
+    expect(bundle.form.ownIssues.value.map((issue) => issue.code)).toEqual(['same']);
   });
 });
 

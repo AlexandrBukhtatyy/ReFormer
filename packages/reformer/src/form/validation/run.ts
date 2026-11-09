@@ -86,6 +86,18 @@ const shownIssues = new WeakMap<
   { byOrigin: Map<object, readonly ValidationIssue[]>; written: readonly ValidationIssue[] }
 >();
 
+/**
+ * Ключ хранилища для замечаний полей без нод, разнесённых на корень формы. Отдельный от ключа
+ * самой ноды корня: правило на корень (`validate(model.$, …)`) и сборщик таких замечаний пишут в
+ * одну ноду, но каждый — свой список, и один не должен стирать другой.
+ */
+const orphanKeys = new WeakMap<object, object>();
+const orphanKeyOf = (root: object): object => {
+  let key = orphanKeys.get(root);
+  if (key === undefined) orphanKeys.set(root, (key = {}));
+  return key;
+};
+
 /** Результат, собранный не раннером: меток нет, и он отвечает за весь список поля. */
 const UNTAGGED = {};
 
@@ -126,7 +138,7 @@ function mergeIssues(lists: Iterable<readonly ValidationIssue[]>): readonly Vali
 /**
  * Записать ноде итог прогона с учётом замечаний других определений — см. {@link shownIssues}.
  *
- * @param key - Ключ хранилища — нода, на которую ложится итог.
+ * @param key - Ключ хранилища: нода, на которую ложится итог, либо ключ сирот её корня.
  * @param lists - Списки прогона по определениям; `undefined` — поле в прогоне не проверялось.
  * @param keepForeign - Список, поставленный мимо разноса, сохранить, а не забыть (корень формы).
  */
@@ -199,12 +211,13 @@ function settleOrphans(
   if (model === undefined) return;
   const root = nodes.get(model.$ as object) as IssueTarget | undefined;
   if (root === undefined) return;
-  if (orphans.size === 0 && !shownIssues.has(root)) return;
+  const key = orphanKeyOf(root);
+  if (orphans.size === 0 && !shownIssues.has(key)) return;
   if (tagged === undefined) {
-    settleOn(root, root, undefined, undefined, orphans.get(UNTAGGED) ?? [], true);
+    settleOn(key, root, undefined, undefined, orphans.get(UNTAGGED) ?? [], true);
     return;
   }
-  settleOn(root, root, tagged, orphans, undefined, true);
+  settleOn(key, root, tagged, orphans, undefined, true);
 }
 
 function runStateFor(owner: object, schema: object): RunState {
@@ -253,7 +266,8 @@ function isInactive(
   handle: PathAwareSignal<unknown>,
   nodes: NodeScope
 ): boolean {
-  const base = (model as { __path?: string }).__path ?? '';
+  // Путь есть у любой модели: у корня — '', у под-модели — путь её группы.
+  const base = (model as unknown as { __path: string }).__path;
   if (handle.__path === base) return isDisabledNode(handle, nodes);
   const prefix = base === '' ? '' : `${base}.`;
   if (!handle.__path.startsWith(prefix)) return true;
