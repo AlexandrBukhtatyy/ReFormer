@@ -23,8 +23,11 @@
  * @module shell/platform/services/theme
  */
 
-import { disposeAll, toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import { createStore, onScopeDispose } from '@reformer/core/model';
+import { computed, untracked } from '@reformer/core/signals';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { createEventBus } from '@/shell/platform/primitives/event';
+import { signalFrom } from '@/shell/platform/primitives/signal-store';
 import { defineEvent } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import {
@@ -120,78 +123,74 @@ export function createThemeService(options: ThemeServiceOptions): HostThemeServi
     return isThemePreference(stored) ? stored : 'system';
   };
 
-  const resolve = (preference: ThemePreference): ThemeKind =>
-    preference === 'system' ? system.current() : preference;
-
   const apply = (theme: ThemeKind): void => {
     if (root === null) return;
     if (theme === 'dark') root.classList.add(DARK_CLASS);
     else root.classList.remove(DARK_CLASS);
   };
 
-  const defaultRegistration = settings.registerDefault<ThemePreference>(
-    THEME_SETTINGS_KEY,
-    options.defaultPreference ?? 'system'
-  );
+  return createStore((scope) => {
+    // Умолчание — до первого чтения предпочтения: без него `get` вернул бы `undefined`.
+    const defaultRegistration = settings.registerDefault<ThemePreference>(
+      THEME_SETTINGS_KEY,
+      options.defaultPreference ?? 'system'
+    );
+    onScopeDispose(() => defaultRegistration.dispose());
 
-  let preference = readPreference();
-  let theme = resolve(preference);
-  apply(theme);
-
-  /**
-   * Пересчитывает тему из настроек и системы.
-   *
-   * Один путь на все источники изменения (запись настройки, правка настройки снаружи,
-   * переключение системы) — иначе появились бы две ветки, применяющие класс по-разному,
-   * и расхождение между ними всплыло бы как «тема применилась, но подписчики не узнали».
-   */
-  const recompute = (): void => {
-    preference = readPreference();
-    const next = resolve(preference);
-    if (next === theme) return;
-    theme = next;
-    apply(theme);
-    bus.emit(ThemeDidChange, theme);
-  };
-
-  const subscriptions: Disposable[] = [
-    defaultRegistration,
-    settings.onDidChange((key) => {
-      if (key === THEME_SETTINGS_KEY) recompute();
-    }),
+    const preference = signalFrom(readPreference, (onChange) =>
+      settings.onDidChange((key) => {
+        if (key === THEME_SETTINGS_KEY) onChange();
+      })
+    );
     // Подписку на систему держим всегда, а не только при `system`: иначе возврат к «как
     // в системе» требовал бы завести её заново, и до первого переключения ОС тема осталась
     // бы прежней.
-    system.subscribe(() => {
-      recompute();
-    }),
-  ];
+    const systemTheme = signalFrom(
+      () => system.current(),
+      (onChange) => system.subscribe(() => onChange())
+    );
+    /**
+     * Тема из настроек и системы. Один расчёт на все источники изменения (запись настройки,
+     * правка настройки снаружи, переключение системы) — иначе появились бы две ветки,
+     * применяющие класс по-разному. Новое значение — только при смене темы.
+     */
+    const theme = computed(
+      (): ThemeKind => (preference.value === 'system' ? systemTheme.value : preference.value)
+    );
 
-  return {
-    get theme(): ThemeKind {
-      return theme;
-    },
-    get preference(): ThemePreference {
-      return preference;
-    },
+    let initial = true;
+    scope.effect(() => {
+      const next = theme.value;
+      apply(next);
+      if (initial) {
+        initial = false;
+        return;
+      }
+      untracked(() => bus.emit(ThemeDidChange, next));
+    });
 
-    async setPreference(next: ThemePreference): Promise<void> {
-      // Применение делает не эта строка, а подписка на настройки: запись обновляет кэш
-      // и уведомляет синхронно, до ожидания хранилища. Так у переключателя один путь
-      // с любой другой правкой той же настройки.
-      await settings.set<ThemePreference>(THEME_SETTINGS_KEY, next);
-    },
+    return {
+      get theme(): ThemeKind {
+        return theme.peek();
+      },
+      get preference(): ThemePreference {
+        return preference.peek();
+      },
 
-    onDidChange(cb: (theme: ThemeKind) => void): Disposable {
-      return bus.on(ThemeDidChange, cb);
-    },
+      async setPreference(next: ThemePreference): Promise<void> {
+        // Применение делает не эта строка, а подписка на настройки: запись обновляет кэш
+        // и уведомляет синхронно, до ожидания хранилища. Так у переключателя один путь
+        // с любой другой правкой той же настройки.
+        await settings.set<ThemePreference>(THEME_SETTINGS_KEY, next);
+      },
 
-    dispose(): void {
-      // Класс с корня не снимаем: снятие — это «стало светло», а выключение службы
+      onDidChange(cb: (theme: ThemeKind) => void): Disposable {
+        return bus.on(ThemeDidChange, cb);
+      },
+      // Класс с корня при снятии не снимаем: снятие — это «стало светло», а выключение службы
       // не означает смену темы. Оболочка уходит вместе с документом.
-      disposeAll(subscriptions);
-    },
-  };
+    };
+  });
 }
 
 /**

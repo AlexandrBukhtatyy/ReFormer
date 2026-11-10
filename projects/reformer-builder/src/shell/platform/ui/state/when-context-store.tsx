@@ -12,10 +12,10 @@
  *
  * Требование `useSyncExternalStore` — `getSnapshot` обязан возвращать **ту же ссылку**, пока
  * ничего не изменилось, иначе React уходит в бесконечную перерисовку с «The result of
- * getSnapshot should be cached». Ровно ради этого свойства реестр вкладов кэширует снимок
- * (см. `primitives/extension-point`), и по той же причине здесь снимок пересоздаётся только
- * при настоящем изменении: {@link WhenContextStore.set} с патчем, ничего не меняющим,
- * не рождает ни нового объекта, ни уведомления.
+ * getSnapshot should be cached». Здесь это свойство даёт модель ядра: контекст — модель из пяти
+ * полей, снимок — её `model.$` (computed), а лист модели не уведомляет при равном значении.
+ * Поэтому {@link WhenContextStore.set} с патчем, ничего не меняющим, не рождает ни нового
+ * объекта, ни уведомления — без ручного сравнения полей.
  *
  * Это не оптимизация. Каждое поле контекста — перерисовка всего, что на него подписано
  * (plugin-and-shell.md, «`WhenContext` остаётся на пяти полях»), а обновляется он из
@@ -38,9 +38,10 @@
  */
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { createModel } from '@reformer/core/model';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import { whenContext, type WhenContext } from '@reformer/builder-plugin-api/internal';
+import { throwListenerErrors, toSource } from '@/shell/platform/primitives/signal-store';
 import { classifyFocus, probeFromElement } from '@/shell/platform/ui/keyboard/focus';
 
 /** Изменяемое хранилище одного снимка {@link WhenContext}. */
@@ -69,59 +70,27 @@ export interface WhenContextStore {
  * ни одного вызова.
  */
 export function createWhenContextStore(initial: Partial<WhenContext> = {}): WhenContextStore {
-  let snapshot = whenContext(initial);
-  const listeners = new Set<() => void>();
-
-  /**
-   * Уведомляет подписчиков. Политика ошибок — как у точки расширения и у смены локали:
-   * падение одного подписчика не мешает остальным и не откатывает уже совершённое
-   * изменение, но и не теряется.
-   */
-  const notify = (): void => {
-    const errors: unknown[] = [];
-    for (const listener of [...listeners]) {
-      try {
-        listener();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    if (errors.length === 1) throw errors[0];
-    if (errors.length > 1) {
-      throw new AggregateError(errors, 'ошибки в подписчиках контекста применимости');
-    }
-  };
+  const context = createModel<WhenContext>({ ...whenContext(initial) });
+  // Политика ошибок — как у точки расширения и у смены локали: падение одного подписчика не
+  // мешает остальным и не откатывает уже совершённое изменение, но и не теряется.
+  const source = toSource(
+    context.$,
+    throwListenerErrors('ошибки в подписчиках контекста применимости')
+  );
 
   return {
-    get: (): WhenContext => snapshot,
+    get: (): WhenContext => context.$.peek(),
 
     set(patch: Partial<WhenContext>): boolean {
-      // Сравнение по ключам патча, а не по всему снимку: патч приходит из обработчика
-      // фокуса на каждое движение по интерфейсу, и подавляющее большинство вызовов
-      // не меняют ничего.
-      const next: Record<string, unknown> = { ...snapshot };
-      let changed = false;
-      for (const [key, value] of Object.entries(patch)) {
-        // `undefined` в патче — это «поле не трогаем», а не «сбрось поле»: необязательных
-        // полей у контекста нет, и запись `undefined` сделала бы снимок невалидным по типу.
-        if (value === undefined) continue;
-        if (Object.is(next[key], value)) continue;
-        next[key] = value;
-        changed = true;
-      }
-      if (!changed) return false;
-
-      snapshot = whenContext(next as Partial<WhenContext>);
-      notify();
-      return true;
+      // `undefined` в патче — «поле не трогаем», а не «сбрось поле»: `patch` модели так и
+      // читает его. Изменился ли снимок, говорит его ссылка: равные значения листьев её не
+      // двигают, а патч из обработчика фокуса чаще всего не меняет ничего.
+      const before = context.$.peek();
+      context.patch(patch);
+      return context.$.peek() !== before;
     },
 
-    subscribe(listener: () => void): Disposable {
-      listeners.add(listener);
-      return toDisposable(() => {
-        listeners.delete(listener);
-      });
-    },
+    subscribe: source.subscribe,
   };
 }
 

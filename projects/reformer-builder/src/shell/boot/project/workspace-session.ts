@@ -14,6 +14,8 @@
  * @module shell/boot/project/workspace-session
  */
 
+import { createStore } from '@reformer/core/model';
+import { computed } from '@reformer/core/signals';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { EventBus } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
@@ -47,6 +49,7 @@ import { createWorkspace } from '@/shell/platform/workspace/workspace';
 import type { WorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';
 import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import { ALWAYS_PARSES, type VerifyText } from '@/shell/platform/workspace/merge/resolve';
+import { logListenerErrors, signalFrom, toSource } from '@/shell/platform/primitives/signal-store';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createDocumentModels, type DocumentModels } from './document-models';
 import { createDocumentSave, type DocumentSave } from './document-save';
@@ -83,69 +86,37 @@ export interface DisposableStatusSource extends WorkspaceStatusSource, Disposabl
  *
  * Снимок пересчитывается на каждый пакет изменений, но ССЫЛКА меняется только вместе
  * со значением: `useSyncExternalStore` сравнивает снимки по ссылке, а пакет приходит и на
- * материализацию соседей по импорту, которая для строки состояния не значит ничего.
+ * материализацию соседей по импорту, которая для строки состояния не значит ничего. Это даёт
+ * сигнал: счётчик, получивший то же число, не уведомляет, и `computed` снимка не пересчитывается.
  */
 export function createWorkspaceStatusSource(
   workspace: StatusWorkspace,
   divergence?: Pick<DivergenceWatch, 'get' | 'subscribe'>
 ): DisposableStatusSource {
-  const compute = (): WorkspaceStatusSnapshot => ({
-    hasWorkspace: true,
-    dirtyCount: workspace.dirtyResources().length,
-    externallyChangedCount: divergence?.get().count ?? 0,
+  return createStore(() => {
+    // Пакет изменений рабочей области про расхождение не знает: его порождает наша запись,
+    // а расхождение — чужая. Поэтому источников два, и они независимы.
+    const dirty = signalFrom(
+      () => workspace.dirtyResources().length,
+      (onChange) => workspace.onDidChange(onChange)
+    );
+    const external = divergence
+      ? signalFrom(
+          () => divergence.get().count,
+          (onChange) => divergence.subscribe(onChange)
+        )
+      : null;
+    const status = computed(
+      (): WorkspaceStatusSnapshot =>
+        Object.freeze({
+          hasWorkspace: true,
+          dirtyCount: dirty.value,
+          externallyChangedCount: external?.value ?? 0,
+        })
+    );
+    // Политика всех хранилищ оболочки: упавший подписчик не мешает остальным.
+    return toSource(status, logListenerErrors('[app] подписчик строки состояния упал'));
   });
-
-  let snapshot: WorkspaceStatusSnapshot = Object.freeze(compute());
-  const listeners = new Set<() => void>();
-
-  // Пакет изменений рабочей области про расхождение не знает: его порождает наша запись,
-  // а расхождение — чужая. Поэтому подписок две, и они независимы.
-  const onChange = (): void => {
-    const next = compute();
-    if (
-      next.dirtyCount === snapshot.dirtyCount &&
-      next.externallyChangedCount === snapshot.externallyChangedCount
-    ) {
-      return;
-    }
-    snapshot = Object.freeze(next);
-    for (const listener of [...listeners]) listener();
-  };
-  const divergenceSubscription = divergence?.subscribe(onChange);
-
-  const subscription = workspace.onDidChange(() => {
-    const next = compute();
-    if (
-      next.dirtyCount === snapshot.dirtyCount &&
-      next.externallyChangedCount === snapshot.externallyChangedCount
-    ) {
-      return;
-    }
-    snapshot = Object.freeze(next);
-    for (const listener of [...listeners]) {
-      try {
-        listener();
-      } catch (error) {
-        // Политика всех хранилищ оболочки: упавший подписчик не мешает остальным.
-        console.error('[app] подписчик строки состояния упал', error);
-      }
-    }
-  });
-
-  return {
-    get: () => snapshot,
-    subscribe(listener) {
-      listeners.add(listener);
-      return toDisposable(() => {
-        listeners.delete(listener);
-      });
-    },
-    dispose() {
-      subscription.dispose();
-      divergenceSubscription?.dispose();
-      listeners.clear();
-    },
-  };
 }
 
 /**

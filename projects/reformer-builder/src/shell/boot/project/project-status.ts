@@ -6,7 +6,8 @@
  * проекта для неё — смена содержимого, а не смена источника.
  *
  * Двойная подписка здесь неизбежна и потому явная: на держателя проекта (сессия сменилась)
- * и на итог самой сессии (счётчик изменился). Вторая переустанавливается при каждой первой.
+ * и на итог самой сессии (счётчик изменился). Вторую держит эффект над текущим проектом: при
+ * смене проекта очистка эффекта отпускает прежний итог, а новый запуск подписывается на свежий.
  *
  * Модуль типизован структурно и ничего не импортирует из `./project`: так он проверяется
  * в `node` без рабочей области, хранилищ и React.
@@ -14,7 +15,10 @@
  * @module shell/boot/project/project-status
  */
 
-import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import { createStore } from '@reformer/core/model';
+import { signal } from '@reformer/core/signals';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import { logListenerErrors, signalFrom, toSource } from '@/shell/platform/primitives/signal-store';
 import {
   NO_WORKSPACE_STATUS,
   type WorkspaceStatusSnapshot,
@@ -31,51 +35,28 @@ export interface StatusProjectReader {
 export interface DisposableStatusSource extends WorkspaceStatusSource, Disposable {}
 
 export function createProjectStatusSource(project: StatusProjectReader): DisposableStatusSource {
-  const listeners = new Set<() => void>();
-  let snapshot: WorkspaceStatusSnapshot = project.get()?.status.get() ?? NO_WORKSPACE_STATUS;
-  let inner: Disposable | null = null;
+  return createStore((scope) => {
+    const current = signalFrom(
+      () => project.get(),
+      (onChange) => project.subscribe(onChange)
+    );
+    const snapshot = signal<WorkspaceStatusSnapshot>(NO_WORKSPACE_STATUS);
 
-  const notify = (): void => {
-    for (const listener of [...listeners]) {
-      try {
-        listener();
-      } catch (error) {
-        console.error('[app] подписчик итога рабочей области упал', error);
+    scope.effect(() => {
+      const status = current.value?.status;
+      if (!status) {
+        snapshot.value = NO_WORKSPACE_STATUS;
+        return;
       }
-    }
-  };
-
-  const pull = (): void => {
-    const next = project.get()?.status.get() ?? NO_WORKSPACE_STATUS;
-    // Ссылка сравнивается, а не значение: снимок сессии стабилен между изменениями,
-    // и `useSyncExternalStore` требует ровно этого.
-    if (next === snapshot) return;
-    snapshot = next;
-    notify();
-  };
-
-  const rebind = (): void => {
-    inner?.dispose();
-    inner = project.get()?.status.subscribe(pull) ?? null;
-    pull();
-  };
-
-  const outer = project.subscribe(rebind);
-  rebind();
-
-  return {
-    get: () => snapshot,
-    subscribe(listener) {
-      listeners.add(listener);
-      return toDisposable(() => {
-        listeners.delete(listener);
+      // Снимок сессии стабилен между изменениями, и сигнал сравнивает его по ссылке: тот же
+      // объект подписчиков не будит — `useSyncExternalStore` требует ровно этого.
+      snapshot.value = status.get();
+      const subscription = status.subscribe(() => {
+        snapshot.value = status.get();
       });
-    },
-    dispose() {
-      outer.dispose();
-      inner?.dispose();
-      inner = null;
-      listeners.clear();
-    },
-  };
+      return () => subscription.dispose();
+    });
+
+    return toSource(snapshot, logListenerErrors('[app] подписчик итога рабочей области упал'));
+  });
 }
