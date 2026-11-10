@@ -81,6 +81,19 @@ export default defineConfig({
       external: ['react', 'react-dom', '@preact/signals-core'],
       output: {
         entryFileNames: '[name].js',
+        // Чанки, собранные только из реактивной модели (src/model/**), получают стабильный
+        // префикс `model-core-`. Иначе Rollup называет их по случайному модулю (`safe-effect-*`),
+        // и size-limit не может их найти: лимит входа `model` мерил только реэкспорт-шим.
+        //
+        // Раскладку чанков это не меняет — только имена. `manualChunks` здесь не годится: он
+        // затягивает в ручной чанк и незакреплённые зависимости, и вход `signals` стал бы
+        // фасадом над всей моделью.
+        chunkFileNames(chunk) {
+          const modelOnly =
+            chunk.moduleIds.length > 0 &&
+            chunk.moduleIds.every((id) => /[\\/]src[\\/]model[\\/]/.test(id));
+          return modelOnly ? 'model-core-[hash].js' : '[name]-[hash].js';
+        },
       },
     },
   },

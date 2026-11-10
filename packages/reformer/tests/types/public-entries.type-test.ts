@@ -109,6 +109,7 @@ interface Shape {
 /** `.` — модель, сборка, ноды, схема, компилятор, контроллер, уровень формы и поток. */
 export type RootTypes = [
   Root.FormModel<Shape>,
+  Root.Model<Shape>,
   Root.ModelArray<Phone>,
   Root.ModelSignals<Shape>,
   Root.ModelGroupSignals<Shape>,
@@ -216,6 +217,7 @@ export type RootValues = [
 /** `./model` — модель, value-операции над сигналами и утилиты субстрата. */
 export type ModelEntry = [
   Model.FormModel<Shape>,
+  Model.Model<Shape>,
   Model.ModelArray<Phone>,
   Model.ModelArraySignals<Phone, Phone[]>,
   Model.ModelGroupSignals<Shape>,
@@ -241,6 +243,13 @@ export type ModelEntry = [
   typeof Model.runOutsideEffect,
   typeof Model.deferredWritesSettled,
   typeof Model.deepEqual,
+  Model.Scope,
+  Model.Store<{ count: number }>,
+  typeof Model.createScope,
+  typeof Model.getCurrentScope,
+  typeof Model.onScopeDispose,
+  typeof Model.createStore,
+  typeof Model.shallowEqual,
 ];
 
 /** `./behaviors` — контракт схемы поведения, набор авторинга и операторы. */
@@ -423,6 +432,8 @@ export type ReactEntryExports = [
   typeof ReactEntry.useFormValidation,
   typeof ReactEntry.useFormBundle,
   typeof ReactEntry.useFormFlow,
+  typeof ReactEntry.useComputed,
+  typeof ReactEntry.useStore,
   typeof ReactEntry.FormBundleContext,
   typeof ReactEntry.useFormBundleContext,
   typeof ReactEntry.getFieldAdapter,
@@ -452,6 +463,9 @@ export function sharedTypeChecks(
   const signalFromBehaviors: Behaviors.ReadonlySignal<string> = signal;
   // Совпадение точное, а не «присваивается»: входы отдают один и тот же тип.
   expectTypeOf<Root.FormModel<Shape>>().toEqualTypeOf<Model.FormModel<Shape>>();
+  // `Model` и `FormModel` — синонимы: модель приложения и модель формы — один тип.
+  expectTypeOf<Root.Model<Shape>>().toEqualTypeOf<Model.FormModel<Shape>>();
+  expectTypeOf<Model.Model<Shape>>().toEqualTypeOf<Root.FormModel<Shape>>();
   expectTypeOf<Root.ModelArray<Phone>>().toEqualTypeOf<Model.ModelArray<Phone>>();
   expectTypeOf<Root.PathAwareSignal<string>>().toEqualTypeOf<Model.PathAwareSignal<string>>();
   expectTypeOf<Root.BehaviorCleanup>().toEqualTypeOf<Behaviors.BehaviorCleanup>();
@@ -464,4 +478,27 @@ export function sharedTypeChecks(
   // @ts-expect-error — замечание из корня — тот же `ValidationIssue`: текста в нём нет
   const issue: Root.ValidationIssue = { code: 'required', message: 'Обязательное поле' };
   void [modelFromModel, cleanupFromBehaviors, scopeFromRoot, signalFromBehaviors, issue];
+}
+
+// ─── Стор приложения: типы createStore и useComputed ───────────────────────────────────────
+
+/** `createStore` отдаёт API из setup плюс `dispose`; `useComputed` — тип результата селектора. */
+export function storeTypeChecks(): void {
+  const store = (null as unknown as typeof Model.createStore)(() => ({
+    count: 1,
+    inc: (): number => 2,
+  }));
+  expectTypeOf(store).toMatchTypeOf<{ count: number; inc: () => number; dispose(): void }>();
+  expectTypeOf(store.dispose).toEqualTypeOf<() => void>();
+  expectTypeOf(store.count).toEqualTypeOf<number>();
+  expectTypeOf(store.inc).returns.toEqualTypeOf<number>();
+
+  const selected = (null as unknown as typeof ReactEntry.useComputed)(() => ({ n: 1 }));
+  expectTypeOf(selected).toEqualTypeOf<{ n: number }>();
+
+  // Map и Set в модели — листья: значение — сама коллекция, а не под-модель.
+  const model = (null as unknown as typeof Model.createModel)<{ tags: Set<string> }>({
+    tags: new Set(),
+  });
+  expectTypeOf(model.tags).toEqualTypeOf<Set<string>>();
 }

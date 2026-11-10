@@ -16,8 +16,8 @@
   },
   {
     "name": "@reformer/core (model only)",
-    "path": "packages/reformer/dist/model.js",
-    "limit": "2 kB"
+    "path": ["packages/reformer/dist/model.js", "packages/reformer/dist/model-core-*.js"],
+    "limit": "10 kB"
   },
   {
     "name": "@reformer/core (i18n only)",

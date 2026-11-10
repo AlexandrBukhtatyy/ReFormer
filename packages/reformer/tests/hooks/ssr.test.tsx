@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRef, type RefObject } from 'react';
 import { renderToString } from 'react-dom/server';
-import { arrayOf } from '../../src/model';
+import { arrayOf, createModel, shallowEqual } from '../../src/model';
 import type { FormModel } from '../../src/model/types';
 import { createForm, type FormBundle } from '../../src/form/form-bundle';
 import { createFormFlow } from '../../src/form/flow/flow';
@@ -19,6 +19,7 @@ import type { ValidationIssue } from '../../src/form/types/index';
 import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
 import { useFormControlValue } from '../../src/platforms/react/hooks/useFormControlValue';
 import { useArrayLength } from '../../src/platforms/react/hooks/useArrayLength';
+import { useComputed } from '../../src/platforms/react/hooks/useComputed';
 import { useFormFlow } from '../../src/platforms/react/hooks/use-form-flow';
 import { useFormValidation } from '../../src/platforms/react/hooks/use-form-validation';
 import { useFormBundle } from '../../src/platforms/react/hooks/use-form-bundle';
@@ -233,5 +234,35 @@ describe('SSR — поле и локализация', () => {
     );
 
     expect(html).toBe('<em>Обязательное поле</em>');
+  });
+});
+
+describe('SSR — модель приложения', () => {
+  it('useComputed: селектор над моделью — значение в первом кадре, без подписок', () => {
+    const cart = createModel({
+      items: [
+        { id: 'a', qty: 2 },
+        { id: 'b', qty: 3 },
+      ],
+    });
+    function Line() {
+      const line = useComputed(
+        () => cart.$.items.value.find((i) => i.id === 'b'),
+        [],
+        shallowEqual
+      );
+      const total = useComputed(() => cart.$.items.value.reduce((s, i) => s + i.qty, 0));
+      return (
+        <p>
+          {line?.qty}|{total}
+        </p>
+      );
+    }
+    const base = liveEffects();
+
+    const html = renderToString(<Line />);
+
+    expect(html).toBe('<p>3<!-- -->|<!-- -->5</p>');
+    expect(liveEffects()).toBe(base);
   });
 });

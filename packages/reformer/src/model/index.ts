@@ -21,7 +21,10 @@
  * - **producer-owned флаг** — `markDerived`/`isDerived`/`unmarkDerived`;
  * - **утилиты субстрата** — `runOutsideEffect`/`safeCallback`/`safeDebouncedCallback` и
  *   `deferredWritesSettled` (дождаться отложенных записей текущего тика);
- * - **сравнение значений** — `deepEqual`, на нём стоят `isDirty` и сверка «модель изменилась».
+ * - **сравнение значений** — `deepEqual`, на нём стоят `isDirty` и сверка «модель изменилась»;
+ *   `shallowEqual` — для селекторов;
+ * - **область жизни и стор** — `createScope`/`getCurrentScope`/`onScopeDispose` и `createStore`:
+ *   реакции, созданные в области, снимаются одним `dispose()` — модель как стор приложения.
  *
  * Запасной шаблон элемента массива модель принимает от того, кто строит её извне (сборка формы
  * передаёт `initialValue` узла-массива); что это узел схемы, модель не знает.
@@ -37,6 +40,7 @@ export { arrayOf } from './model-nodes';
 export type {
   DeepPartial,
   FormModel,
+  Model,
   ModelArray,
   ModelArraySignals,
   ModelGroupSignals,
@@ -76,3 +80,7 @@ export {
 
 // Сравнение значений модели — то же, на котором стоят `isDirty` и сверка «модель изменилась».
 export { deepEqual } from './model-nodes';
+
+// Область жизни реакций и стор приложения: всё созданное в области снимается одним `dispose()`.
+export { createScope, getCurrentScope, onScopeDispose, createStore, shallowEqual } from './scope';
+export type { Scope, Store } from './scope';

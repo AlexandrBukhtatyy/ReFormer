@@ -18,6 +18,8 @@ export { useFormControl } from './hooks/useFormControl';
 export { useFormControlValue } from './hooks/useFormControlValue';
 export { useArrayLength } from './hooks/useArrayLength';
 export { useSignalSnapshot } from './hooks/useSignalSnapshot';
+export { useComputed } from './hooks/useComputed';
+export { useStore } from './hooks/useStore';
 export { useFormValidation } from './hooks/use-form-validation';
 export type { UseFormValidationArgs, UseFormValidationResult } from './hooks/use-form-validation';
 export { useFormBundle } from './hooks/use-form-bundle';

@@ -14,6 +14,7 @@
 
 import { effect, untracked, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import { deferredWrites } from './safe-effect';
+import { ownedByScope } from './scope';
 
 /** Функция отписки от behavior-эффекта. */
 export type BehaviorCleanup = () => void;
@@ -50,12 +51,14 @@ export function computeFrom<R>(
   fn: (...values: any[]) => NoInfer<R>,
   options?: { when?: (...values: any[]) => boolean }
 ): BehaviorCleanup {
-  return effect(() => {
-    const values = sources.map((s) => s.value); // подписка — только на источники
-    if (options?.when && !untracked(() => options.when!(...values))) return;
-    const next = untracked(() => fn(...values));
-    if (target.peek() !== next) target.value = next;
-  });
+  return ownedByScope(
+    effect(() => {
+      const values = sources.map((s) => s.value); // подписка — только на источники
+      if (options?.when && !untracked(() => options.when!(...values))) return;
+      const next = untracked(() => fn(...values));
+      if (target.peek() !== next) target.value = next;
+    })
+  );
 }
 
 /**
@@ -72,17 +75,21 @@ export function copyFrom<T>(
   target: Signal<T>,
   options?: { when?: () => boolean; transform?: (value: T) => T }
 ): BehaviorCleanup {
-  return effect(() => {
-    const value = source.value; // подписка на источник
-    if (options?.when && !options.when()) return; // условие тоже реактивно (читает свои сигналы)
-    const next = options?.transform ? options.transform(value) : value;
-    if (target.peek() !== next) target.value = next;
-  });
+  return ownedByScope(
+    effect(() => {
+      const value = source.value; // подписка на источник
+      if (options?.when && !options.when()) return; // условие тоже реактивно (читает свои сигналы)
+      const next = options?.transform ? options.transform(value) : value;
+      if (target.peek() !== next) target.value = next;
+    })
+  );
 }
 
 /**
  * Реакция на изменение поля: вызывает `cb(value)` при каждом изменении (по умолчанию без вызова на
  * инициализации; `immediate: true` — вызвать сразу).
+ *
+ * Реакция зависит только от `source`: сигналы, которые колбэк читает, его не перезапускают.
  *
  * @group Model
  * @example
@@ -99,14 +106,18 @@ export function watchField<T>(
   options?: { immediate?: boolean }
 ): BehaviorCleanup {
   let initial = true;
-  return effect(() => {
-    const value = source.value; // подписка
-    if (initial) {
-      initial = false;
-      if (!options?.immediate) return;
-    }
-    cb(value);
-  });
+  return ownedByScope(
+    effect(() => {
+      const value = source.value; // подписка
+      if (initial) {
+        initial = false;
+        if (!options?.immediate) return;
+      }
+      // Вне отслеживания: иначе каждое чтение внутри колбэка подписало бы эффект, и колбэк
+      // срабатывал бы на смену чужих сигналов с прежним значением источника.
+      untracked(() => cb(value));
+    })
+  );
 }
 
 /**
@@ -141,10 +152,10 @@ export function transformValue<T>(
       }
     });
   });
-  return () => {
+  return ownedByScope(() => {
     stop();
     writes.cancelAll();
-  };
+  });
 }
 
 /**
@@ -182,10 +193,10 @@ export function resetWhen<T>(
       if (condition() && target.peek() !== resetValue) target.value = resetValue;
     });
   });
-  return () => {
+  return ownedByScope(() => {
     stop();
     writes.cancelAll();
-  };
+  });
 }
 
 /**
@@ -252,11 +263,11 @@ export function syncFields<T>(
       }
     });
   });
-  return () => {
+  return ownedByScope(() => {
     d1();
     d2();
     writes.cancelAll();
-  };
+  });
 }
 
 /**
@@ -283,10 +294,10 @@ export function revalidateWhen(
     }
     writes.schedule(() => revalidate());
   });
-  return () => {
+  return ownedByScope(() => {
     stop();
     writes.cancelAll();
-  };
+  });
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

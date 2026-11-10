@@ -18,14 +18,64 @@ import { isDerived } from './derived-registry';
 // Утилиты
 // ============================================================================
 
+/** Тег встроенного объекта: `[object Map]`, `[object Date]`, … */
+const tagOf = (v: object): string => Object.prototype.toString.call(v);
+
+/**
+ * Встроенные объекты-значения, которые модель держит целиком в листе, а не разбирает на поля.
+ * Распознаются по тегу, а не через `instanceof`: так узнаётся и объект из другого realm (iframe
+ * превью), у которого свои конструкторы `Map` и `Date`.
+ */
+const VALUE_TAGS = new Set([
+  '[object Date]',
+  '[object Map]',
+  '[object Set]',
+  '[object WeakMap]',
+  '[object WeakSet]',
+  '[object RegExp]',
+  '[object Promise]',
+  '[object ArrayBuffer]',
+  '[object SharedArrayBuffer]',
+]);
+
+const isDate = (v: unknown): v is Date =>
+  v instanceof Date || (typeof v === 'object' && v !== null && tagOf(v) === '[object Date]');
+const isMap = (v: object): v is Map<unknown, unknown> => tagOf(v) === '[object Map]';
+const isSet = (v: object): v is Set<unknown> => tagOf(v) === '[object Set]';
+
 const isPlainObject = (v: unknown): v is Record<string, unknown> => {
   if (v === null || typeof v !== 'object') return false;
   if (Array.isArray(v)) return false;
-  if (v instanceof Date) return false;
+  if (VALUE_TAGS.has(tagOf(v)) || ArrayBuffer.isView(v)) return false;
   if (typeof Blob !== 'undefined' && v instanceof Blob) return false;
   if (typeof File !== 'undefined' && v instanceof File) return false;
   return true;
 };
+
+/**
+ * Экземпляр класса: прототип объекта — не `Object.prototype` своего realm (у того прототипа нет).
+ * Модель разбирает его в группу полей, теряя прототип и методы.
+ */
+const isClassInstance = (v: object): boolean => {
+  const proto = Object.getPrototypeOf(v) as object | null;
+  return proto !== null && Object.getPrototypeOf(proto) !== null;
+};
+
+/** Прототипы, о которых уже предупредили: одно предупреждение на класс. */
+const warnedClasses = new WeakSet<object>();
+
+function warnClassInstance(value: object, path: string): void {
+  const proto = Object.getPrototypeOf(value) as object;
+  if (warnedClasses.has(proto)) return;
+  warnedClasses.add(proto);
+  const name = (proto as { constructor?: { name?: string } }).constructor?.name || 'без имени';
+  const at = path === '' ? 'model' : `model.${path}`;
+  console.warn(
+    `[@reformer/core] ${at}: экземпляр класса ${name} разобран в группу полей — прототип и ` +
+      'методы в модели потеряны. Передайте в модель данные (plain-объект), а экземпляр храните ' +
+      'вне модели.'
+  );
+}
 
 const joinPath = (base: string, key: string | number): string =>
   base === '' ? String(key) : `${base}.${key}`;
@@ -34,8 +84,11 @@ export const isIndexKey = (key: string): boolean => /^\d+$/.test(key);
 
 const clone = <T>(v: T): T => {
   // Дата — изменяемый объект: снимок с общей ссылкой портился бы правкой на месте (`setFullYear`).
-  if (v instanceof Date) return new Date(v.getTime()) as unknown as T;
+  if (isDate(v)) return new Date(v.getTime()) as unknown as T;
   if (Array.isArray(v)) return v.map(clone) as unknown as T;
+  // Map и Set — тоже изменяемые: снимок — поверхностная копия (элементы — по ссылке).
+  if (typeof v === 'object' && v !== null && isMap(v)) return new Map(v) as unknown as T;
+  if (typeof v === 'object' && v !== null && isSet(v)) return new Set(v) as unknown as T;
   if (isPlainObject(v)) {
     const o: Record<string, unknown> = {};
     for (const k of Object.keys(v)) o[k] = clone((v as Record<string, unknown>)[k]);
@@ -46,7 +99,8 @@ const clone = <T>(v: T): T => {
 
 /**
  * Глубокое сравнение значений модели: объекты и массивы — по содержимому, даты — по времени,
- * `NaN` равен себе, остальное (включая файлы) — по ссылке.
+ * Map — по ключам и значениям, Set — по элементам, `NaN` равен себе, остальное (включая файлы и
+ * экземпляры других встроенных классов) — по ссылке.
  *
  * То же сравнение стоит за `isDirty` модели и за сверкой «модель изменилась, пока шла проверка»
  * при отправке и переходе шага: значение, изменённое и возвращённое, изменением не считается.
@@ -60,10 +114,24 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
   // NaN не равен самому себе: без этой ветки число-NaN считалось бы изменённым всегда.
   if (Number.isNaN(a) && Number.isNaN(b)) return true;
-  if (a instanceof Date && b instanceof Date) return Object.is(a.getTime(), b.getTime());
+  if (isDate(a) && isDate(b)) return Object.is(a.getTime(), b.getTime());
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
     return a.every((x, i) => deepEqual(x, b[i]));
+  }
+  if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
+  // Map — по ключам (ключи — по идентичности, как в самой Map) и значениям; Set — по элементам.
+  if (isMap(a) && isMap(b)) {
+    if (a.size !== b.size) return false;
+    for (const [key, value] of a) {
+      if (!b.has(key) || !deepEqual(value, b.get(key))) return false;
+    }
+    return true;
+  }
+  if (isSet(a) && isSet(b)) {
+    if (a.size !== b.size) return false;
+    for (const item of a) if (!b.has(item)) return false;
+    return true;
   }
   if (isPlainObject(a) && isPlainObject(b)) {
     const ka = Object.keys(a);
@@ -517,7 +585,12 @@ export class ModelArrayNode {
 
 function buildNode(value: unknown, path: string, shape?: Shape): ModelNode {
   if (Array.isArray(value)) return new ModelArrayNode(value, path, shape);
-  if (isPlainObject(value)) return new ModelGroupNode(value, path, shape);
+  if (isPlainObject(value)) {
+    if (process.env.NODE_ENV !== 'production' && isClassInstance(value)) {
+      warnClassInstance(value, path);
+    }
+    return new ModelGroupNode(value, path, shape);
+  }
   return new ModelLeafNode(value, path);
 }
 

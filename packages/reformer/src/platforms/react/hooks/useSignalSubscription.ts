@@ -1,35 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { effect, type Signal } from '@preact/signals-core';
-
-/**
- * Shallow сравнение массивов по содержимому
- * @internal
- */
-function shallowArrayEqual<T>(a: T[], b: T[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
-/**
- * Поверхностное сравнение объектов: те же ключи, значения по `Object.is`.
- * @internal
- */
-function shallowObjectEqual(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true;
-  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = Object.keys(left);
-  if (keys.length !== Object.keys(right).length) return false;
-  return keys.every(
-    (key) => Object.prototype.hasOwnProperty.call(right, key) && Object.is(left[key], right[key])
-  );
-}
+import { shallowEqual } from '../../../model/scope';
 
 /** @internal */
 export type SignalMap = Record<string, Signal<unknown>>;
@@ -161,12 +133,12 @@ export function useSignalSubscription<
       const cachedValue = (cache as Record<string, unknown>)[key];
 
       if (useShallowObjectEqual) {
-        if (!shallowObjectEqual(cachedValue, currentValue)) {
+        if (!shallowEqual(cachedValue, currentValue)) {
           hasChanged = true;
           break;
         }
       } else if (useArrayEqual) {
-        if (!shallowArrayEqual(cachedValue as unknown[], currentValue as unknown[])) {
+        if (!shallowEqual(cachedValue, currentValue)) {
           hasChanged = true;
           break;
         }

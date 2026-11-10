@@ -22,11 +22,14 @@
  * хук собирает новую сборку той же фабрикой: снятая форма не оживает, а мёртвая хуже свежей.
  * Введённое в скрытую форму при этом не сохраняется.
  *
+ * Сам жизненный цикл общий со стором приложения ({@link useStore}) и живёт в `use-owned.ts`; здесь
+ * к нему добавляется только арминг живой проверки.
+ *
  * @module platforms/react/hooks/use-form-bundle
  */
 
-import { useEffect, useRef, useState } from 'react';
 import type { FormValidationController } from '../../../form/validation/strategy';
+import { useOwned } from './use-owned';
 
 /** Минимум, который хук ожидает от бандла: контроллер живой валидации и снятие — оба опционально. */
 export interface FormBundleLike {
@@ -34,6 +37,10 @@ export interface FormBundleLike {
   /** Снять сборку: поведение, подписки нод, живую проверку. Есть у всех фабрик семейства. */
   dispose?(): void;
 }
+
+/** Живая проверка армируется в эффекте: на сервере эффекты не выполняются, и стратегия молчит. */
+const startLiveValidation = (bundle: FormBundleLike): (() => void) | undefined =>
+  bundle.validation?.controller.start();
 
 /**
  * Собрать форму один раз и держать её стабильной; живую стратегию валидации армировать в эффекте
@@ -67,42 +74,5 @@ export interface FormBundleLike {
  * дважды — запускайте их из поведения формы или из эффекта компонента.
  */
 export function useFormBundle<B extends FormBundleLike>(factory: () => B): B {
-  const [bundle, setBundle] = useState(factory);
-  // Фабрика первого рендера: ею же собирается замена снятой сборки. Новая фабрика на ререндере
-  // бандл не пересобирает — как и раньше.
-  const [build] = useState(() => factory);
-  /** Снятие, заказанное последней очисткой; повторный запуск эффекта над той же сборкой его отменяет. */
-  const pending = useRef<{ bundle: B; cancelled: boolean; done: boolean } | null>(null);
-
-  useEffect(() => {
-    const previous = pending.current;
-    if (previous?.bundle === bundle && previous.done) {
-      // Сборку уже сняли, а эффект запустился снова — поддерево показали после скрытия. Замена
-      // ставится из колбэка, как ответ внешней системы, а не телом эффекта: синхронный setState
-      // здесь — лишний каскадный рендер. Если поддерево успели скрыть раньше, замена отменяется,
-      // а билет остаётся — следующий показ попробует снова.
-      let live = true;
-      queueMicrotask(() => {
-        if (live) setBundle(build());
-      });
-      return () => {
-        live = false;
-      };
-    }
-    pending.current = null;
-    if (previous?.bundle === bundle) previous.cancelled = true;
-    const stop = bundle.validation?.controller.start();
-    return () => {
-      stop?.();
-      const disposal = { bundle, cancelled: false, done: false };
-      pending.current = disposal;
-      queueMicrotask(() => {
-        if (disposal.cancelled) return;
-        bundle.dispose?.();
-        disposal.done = true;
-      });
-    };
-  }, [bundle, build]);
-
-  return bundle;
+  return useOwned(factory, startLiveValidation);
 }

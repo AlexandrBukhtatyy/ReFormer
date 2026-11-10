@@ -21,6 +21,7 @@ export { arrayOf } from './model/model-nodes';
 export type {
   DeepPartial,
   FormModel,
+  Model,
   ModelArray,
   ModelArraySignals,
   ModelGroupSignals,

@@ -138,6 +138,23 @@ describe('watchField (signals)', () => {
     m.x = 2;
     expect(cb).toHaveBeenCalledTimes(1);
   });
+
+  it('сигналы, прочитанные колбэком, его не перезапускают', () => {
+    const m = createModel<{ a: number; b: number }>({ a: 0, b: 0 });
+    const seen: Array<[number, number]> = [];
+    watchField(m.$.a, (a) => {
+      seen.push([a, m.$.b.value]); // чтение b — не подписка
+    });
+    m.a = 1;
+    m.b = 10;
+    m.b = 20;
+    expect(seen).toEqual([[1, 0]]);
+    m.a = 2;
+    expect(seen).toEqual([
+      [1, 0],
+      [2, 20],
+    ]);
+  });
 });
 
 describe('transformValue (signals)', () => {

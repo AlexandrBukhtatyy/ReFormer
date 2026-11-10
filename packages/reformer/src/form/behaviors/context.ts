@@ -15,6 +15,7 @@
 import { effect as preactEffect } from '@preact/signals-core';
 import type { BehaviorCleanup } from '../../model/behaviors-value';
 import { runOutsideEffect } from '../../model/safe-effect';
+import { runWithoutScope } from '../../model/scope';
 import {
   createSchemaController,
   type SchemaController,
@@ -249,7 +250,12 @@ export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void):
       const prev = current;
       current = ctx;
       try {
-        withDeferSink(ctx.deferred, () => setup(scopeOf(ctx) as BehaviorScope<T>));
+        // Поведение принадлежит форме: его снимает отписка, которую вернёт `__run`. Если форму
+        // собирают внутри области модели (`createStore`, `scope.run`), операторы поведения в эту
+        // область не попадают — иначе её снятие оборвало бы поведение живой формы.
+        runWithoutScope(() =>
+          withDeferSink(ctx.deferred, () => setup(scopeOf(ctx) as BehaviorScope<T>))
+        );
       } catch (error) {
         // Сборка упала — снять то, что setup успел создать: снять это потом некому.
         disposeRun(ctx);

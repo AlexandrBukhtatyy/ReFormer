@@ -28,10 +28,22 @@ export type PathAwareSignal<T> = Signal<T> & {
 };
 
 /**
- * Спец-объекты, которые трактуются как листья (не разворачиваются в под-модель).
+ * Спец-объекты, которые трактуются как листья (не разворачиваются в под-модель): даты, файлы и
+ * встроенные коллекции и значения — их модель держит целиком, а сравнивает Map/Set по содержимому.
  * @internal
  */
-type Opaque = Date | File | Blob;
+type Opaque =
+  | Date
+  | File
+  | Blob
+  | ReadonlyMap<unknown, unknown>
+  | ReadonlySet<unknown>
+  | WeakMap<object, unknown>
+  | WeakSet<object>
+  | RegExp
+  | Promise<unknown>
+  | ArrayBuffer
+  | ArrayBufferView;
 
 /**
  * Значение одного ключа в {@link DeepPartial}: вложенная группа — частично, массив и спец-объект
@@ -295,10 +307,28 @@ export interface ModelApi<T> {
 }
 
 /**
- * FormModel — под-модель объекта `T`: value-доступ ({@link ModelObject}) + `.$`-сигналы + {@link ModelApi}
- * (get/set/patch/isDirty/reset/signalAt). Вложенные объекты-группы модели — тоже {@link FormModel}
+ * Модель объекта `T`: value-доступ ({@link ModelObject}) + `.$`-сигналы + {@link ModelApi}
+ * (get/set/patch/isDirty/reset/signalAt). Вложенные объекты-группы модели — тоже модели
  * (доступны как `model.<group>`), поэтому `model.<group>.$.<field>` эквивалентно `model.$.<group>.<field>`.
+ *
+ * То, что возвращает `createModel`, — и для формы, и для состояния приложения вне форм. Для кода
+ * форм то же самое называется {@link FormModel}.
+ *
+ * @example
+ * ```typescript
+ * interface App { user: { name: string }; ui: { theme: 'light' | 'dark' } }
+ * const app: Model<App> = createModel<App>({ user: { name: '' }, ui: { theme: 'light' } });
+ * app.ui.theme = 'dark';
+ * ```
  *
  * @group Model
  */
-export type FormModel<T> = ModelObject<T> & ModelApi<T>;
+export type Model<T> = ModelObject<T> & ModelApi<T>;
+
+/**
+ * Модель формы — то же, что {@link Model}: имя для кода форм (схемы, правила, поведение).
+ * Синонимы взаимозаменяемы.
+ *
+ * @group Model
+ */
+export type FormModel<T> = Model<T>;

@@ -13,13 +13,14 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { arrayOf } from '../../src/model';
+import { arrayOf, shallowEqual } from '../../src/model';
 import type { FormModel } from '../../src/model/types';
 import { createForm } from '../../src/form/form-bundle';
 import { defineValidation, validate } from '../../src/form/validation';
 import { required } from '../../src/form/validators';
 import type { FormArray } from '../../src/form/types/index';
 import { useArrayLength } from '../../src/platforms/react/hooks/useArrayLength';
+import { useComputed } from '../../src/platforms/react/hooks/useComputed';
 import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
 import { useFormBundle } from '../../src/platforms/react/hooks/use-form-bundle';
 import { useFormValidation } from '../../src/platforms/react/hooks/use-form-validation';
@@ -144,6 +145,21 @@ const hooks: HookCase[] = [
     effects: 1,
     strategy: 'blur',
     mount: (bundle, strict) => mountPlain(() => useFormBundle(() => bundle), strict),
+  },
+  {
+    name: 'useComputed (селектор над моделью)',
+    effects: 1,
+    mount: (bundle, strict) =>
+      mountPlain(
+        // Селектор и равенство — новые функции на каждом рендере: вычисление держат `deps`.
+        () =>
+          useComputed(
+            () => bundle.model.$.phones.value.map((phone) => phone.number),
+            [],
+            shallowEqual
+          ),
+        strict
+      ),
   },
 ];
 
