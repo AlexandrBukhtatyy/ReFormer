@@ -11,6 +11,11 @@
  * `set_form_rules` (пути, коды замечаний, циклы, два писателя), видимость — `set_render_rules`
  * (селектор узла). Отказ любого шага отменяет всё: черновик хода не меняется, пока не собрано целое.
  *
+ * Одно исключение — правило, чей путь не нашёл поля в собранном (`./rule-paths`). Оно
+ * откладывается, а сборка ложится: поля и раскладка дороже связи, и отказ целиком из-за неё
+ * оставлял человека без формы — небольшая модель повторяла сборку с той же ошибкой (ReFormer-t4fr).
+ * Ответ перечисляет отложенные правила с починкой.
+ *
  * Intent читает и раскладывает MCP (`readIntent`, `buildSchemaLayout`) — тот же словарь, в котором
  * билдер уже хранит правила (`core/form-model/rules`). Что из intent документу билдера некуда
  * положить (начальные значения, опции связей), ответ называет, а не теряет молча.
@@ -51,7 +56,7 @@ import { setRenderRulesTool } from '../set-render-rules';
 import { BUILD_FORM_EXAMPLE, buildFormGrammar } from './grammar';
 import { liftInline } from './lift';
 import { planOf, type PlanNode } from './plan';
-import { checkRulePaths, rulePathsMessage } from './rule-paths';
+import { checkRulePaths, droppedRulesText, hasRuleParams } from './rule-paths';
 
 interface Params {
   intent?: unknown;
@@ -210,18 +215,22 @@ export const buildFormTool: AgentTool<Params> = {
     if (placed !== null) return placed;
 
     const ruleParams = ruleParamsOf(intent);
-    let pathNotes: readonly string[] = [];
+    let paths: { readonly notes: readonly string[]; readonly dropped: readonly string[] } = {
+      notes: [],
+      dropped: [],
+    };
     if (ruleParams !== null) {
-      // Пути правил — с черновиком, где узлы уже стоят: `set_form_rules` отказал бы на первом пути
-      // без поля одной строкой, и модель не понимала, что чинить (ReFormer-t4fr).
-      const checked = checkRulePaths(ruleParams, collectModelPaths(state.draft));
-      if (checked.problems.length > 0) {
-        return fail('INVALID_PARAMS', rulePathsMessage(checked.problems));
+      // Пути правил — с черновиком, где узлы уже стоят. Правило без поля откладывается, а не
+      // отменяет сборку: отказ целиком оставлял человека без формы (ReFormer-t4fr).
+      const checked = checkRulePaths(ruleParams, collectModelPaths(state.draft), {
+        isSample: (name) => SAMPLE_NAMES.has(name.toLowerCase()),
+      });
+      paths = checked;
+      if (hasRuleParams(checked.params)) {
+        const out = await setFormRulesTool.run(checked.params, at(state));
+        if (!out.ok || out.rules === undefined) return located('Rules', out);
+        state.rules = out.rules;
       }
-      pathNotes = checked.notes;
-      const out = await setFormRulesTool.run(checked.params, at(state));
-      if (!out.ok || out.rules === undefined) return located('Rules', out);
-      state.rules = out.rules;
     }
     if (intent.visibility.length > 0) {
       const missing = intent.visibility.filter((v) => !state.refs.has(v.selector));
@@ -248,7 +257,7 @@ export const buildFormTool: AgentTool<Params> = {
     }
 
     return {
-      ...ok(reply(intent, read.notices, state, pathNotes)),
+      ...ok(reply(intent, read.notices, state, paths)),
       schema: state.draft,
       rules: state.rules,
       ops: [...state.ops, { kind: 'update', ref: '/rules', summary: 'правила формы' }],
@@ -559,13 +568,14 @@ const noticeText = (notice: IntentWarning): string => {
 /**
  * Ответ модели: что собрано, адреса шагов, что не взято, замечания и напоминание о задании.
  *
- * @param pathNotes - Пути правил, которые сборка починила сама (`./rule-paths`).
+ * @param paths - Пути правил, которые сборка починила сама, и отложенные правила (`./rule-paths`).
+ *   Отложенные идут сразу за сводкой: при обрезке ответа по бюджету теряться им нельзя.
  */
 function reply(
   intent: FormIntent,
   notices: readonly IntentWarning[],
   state: PlaceState,
-  pathNotes: readonly string[] = []
+  paths: { readonly notes: readonly string[]; readonly dropped: readonly string[] }
 ): string {
   const rows = intent.arrays.reduce((sum, a) => sum + a.itemFields.length, 0);
   const counts = [
@@ -578,6 +588,7 @@ function reply(
     `Built ${counts.join(', ')}. Rules now: validation ${rules.validation.length}, behavior ` +
       `${rules.behavior.length}, render ${rules.render.length}.`,
   ];
+  if (paths.dropped.length > 0) lines.push(droppedRulesText(paths.dropped));
   if (state.blocks.length > 0) {
     const blocks = state.blocks
       .slice(0, MAX_NOTES)
@@ -596,7 +607,7 @@ function reply(
         'for them.'
     );
   }
-  const notes = [...pathNotes, ...notices.map(noticeText)].slice(0, MAX_NOTES);
+  const notes = [...paths.notes, ...notices.map(noticeText)].slice(0, MAX_NOTES);
   if (notes.length > 0) lines.push(`Notes:\n${notes.map((n) => `- ${n}`).join('\n')}`);
   lines.push(
     'The build checks the intent, not the task: compare it with the request — every field, ' +

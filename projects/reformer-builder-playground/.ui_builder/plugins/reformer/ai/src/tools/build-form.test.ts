@@ -353,16 +353,19 @@ describe('build_form', () => {
     expect(out.schema).toBeUndefined();
   });
 
-  it('правило на поле, которого нет, — отказ правил, ничего не применено', async () => {
-    const out = await build({
-      intent: {
-        fields: [{ name: 'a', component: 'Input' }],
-        validation: [{ target: 'missing', rules: ['required'] }],
-      },
-    });
-    expect(out.text).toMatch(/^Rules name fields the form does not have, nothing changed:/);
+  it('правило на поле, которого нет, — форма собрана, правило отложено и названо', async () => {
+    const { schema, out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [{ name: 'a', component: 'Input' }],
+          validation: [{ target: 'missing', rules: ['required'] }],
+        },
+      })
+    );
+    expect(collectModelPaths(schema)).toEqual(['a']);
+    expect(out.rules?.validation).toEqual([]);
+    expect(out.text).toContain('Not applied — rules name fields the form does not have:');
     expect(out.text).toContain('validation "missing": not declared');
-    expect(out.schema).toBeUndefined();
   });
 
   it('два писателя одного поля — отказ правил', async () => {
@@ -763,28 +766,67 @@ describe('build_form: пути правил против полей формы (
     expr: '(model.adults ?? 0) + (model.children ?? 0)',
   };
 
-  it('вычисляемое поле не объявлено — отказ называет починку, черновик не тронут', async () => {
-    // Живой ход: модель описала total_guests связью compute и не поставила его в fields; отказ
-    // «No field bound» она не поняла, и ход кончился без правок.
-    const out = await build({
-      intent: { fields: [num('adults', 'Adults'), num('children', 'Children')], behavior: [total] },
-    });
-    expect(out.error?.code).toBe('INVALID_PARAMS');
-    expect(out.schema).toBeUndefined();
-    expect(out.text).toContain('compute target "total_guests": not declared');
-    expect(out.text).toContain('A computed field is a field too');
-    expect(out.text).toContain('{"name":"total_guests","component":"…","label":"…"}');
+  it('ход из чата: форма собрана, связи без полей отложены с починкой', async () => {
+    // Живой ход: compute в необъявленный total_guests и enableWhen с источником kind из образца
+    // грамматики. Отказ целиком повторялся четыре раза — человек оставался без формы.
+    const { schema, out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'name', component: 'Input', label: 'Name', required: true },
+            { name: 'with_guests', component: 'Checkbox', label: 'With guests' },
+          ],
+          arrays: [
+            {
+              name: 'guests',
+              itemFields: [{ name: 'guest_name', component: 'Input', label: 'Guest' }],
+            },
+          ],
+          behavior: [
+            {
+              kind: 'compute',
+              target: 'total_guests',
+              sources: ['guests'],
+              expr: '(model.guests?.length ?? 0) + 1',
+            },
+            {
+              kind: 'enableWhen',
+              target: 'guests',
+              sources: ['kind'],
+              expr: 'model.with_guests === true',
+            },
+          ],
+        },
+      })
+    );
+    expect(collectModelPaths(schema)).toEqual(['name', 'with_guests', 'guests']);
+    expect(out.rules?.behavior).toEqual([]);
+    expect(out.rules?.validation.map((r) => r.target)).toEqual(['name']);
+    // Цель вычисления: «объяви поле», а не «did you mean guests?» — с ней модель не объявляла.
+    expect(out.text).toContain(
+      'compute target "total_guests": not declared. A computed field is a field too'
+    );
+    expect(out.text).not.toContain('did you mean guests');
+    expect(out.text).toContain(
+      'enableWhen source "kind": a name from the grammar example, not from this form'
+    );
+    expect(out.text).toContain('The rest is built.');
   });
 
-  it('все пути без поля — одним отказом, а не по одному за вызов', async () => {
-    const out = await build({
-      intent: {
-        fields: [num('adults', 'Adults'), num('children', 'Children')],
-        validation: [{ target: 'phone', rules: ['required'] }],
-        behavior: [total],
-      },
-    });
-    expect(out.error?.code).toBe('INVALID_PARAMS');
+  it('несколько путей без поля — все в одном ответе, годные правила ложатся', async () => {
+    const { out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [num('adults', 'Adults'), num('children', 'Children')],
+          validation: [
+            { target: 'phone', rules: ['required'] },
+            { target: 'adults', rules: ['required'] },
+          ],
+          behavior: [total],
+        },
+      })
+    );
+    expect(out.rules?.validation.map((r) => r.target)).toEqual(['adults']);
     expect(out.text).toContain('validation "phone": not declared');
     expect(out.text).toContain('compute target "total_guests"');
   });
@@ -807,19 +849,22 @@ describe('build_form: пути правил против полей формы (
     expect(out.rules?.behavior[0].target).toBe('guests.total_guests');
     expect(out.rules?.validation[0].target).toBe('guests.adults');
     expect(out.text).toContain('compute target "total_guests" read as "guests.total_guests"');
+    expect(out.text).not.toContain('Not applied');
   });
 
-  it('короткое имя двух полей групп — не угадывается: отказ с обоими путями', async () => {
-    const out = await build({
-      intent: {
-        fields: [
-          { name: 'billing.email', component: 'Input', label: 'Billing' },
-          { name: 'contact.email', component: 'Input', label: 'Contact' },
-        ],
-        validation: [{ target: 'email', rules: ['email'] }],
-      },
-    });
-    expect(out.error?.code).toBe('INVALID_PARAMS');
+  it('короткое имя двух полей групп — не угадывается: правило отложено с обоими путями', async () => {
+    const { out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'billing.email', component: 'Input', label: 'Billing' },
+            { name: 'contact.email', component: 'Input', label: 'Contact' },
+          ],
+          validation: [{ target: 'email', rules: ['email'] }],
+        },
+      })
+    );
+    expect(out.rules?.validation).toEqual([]);
     expect(out.text).toContain('validation "email": no such field; did you mean');
     expect(out.text).toContain('billing.email');
     expect(out.text).toContain('contact.email');
