@@ -142,6 +142,8 @@
   "shell.tree.expand": "Expand the directory",
   "shell.tree.label": "Project resources",
   "shell.tree.menu.empty": "No actions here",
+  "shell.tree.unsaved": "Unsaved changes",
+  "shell.tree.unsavedInside": "Contains unsaved files",
   "shell.settings.plugins": "Plugins",
   "shell.settings.plugins.description": "Application plugins always run. Plugins from the .ui_builder/plugins directory of the open project are enabled by you — project code never runs on its own.",
   "shell.settings.plugins.empty.no-project": "No project is open. Plugins live in the .ui_builder/plugins directory of the open project.",

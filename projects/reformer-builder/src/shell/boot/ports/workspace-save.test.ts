@@ -39,7 +39,14 @@ function harness() {
   const sourceId = `save${seq}`;
   const source: Source = {
     ...createMemorySource(
-      { 'readme.md': '# привет', 'notes.md': 'заметки' },
+      {
+        'readme.md': '# привет',
+        'notes.md': 'заметки',
+        'forms/guest/schema.json': '{}',
+        'forms/guest/steps/one.json': '{}',
+        'forms/other/schema.json': '{}',
+        'forms/guestbook/schema.json': '{}',
+      },
       { id: sourceId, label: `src-${seq}`, writable: true }
     ),
     descriptor: { kind: 'fs', handleKey: sourceId },
@@ -136,6 +143,78 @@ describe('сохранение рабочей копии', () => {
       await expect(app.sourceText('notes.md')).resolves.toBe('заметки');
       // Вторая правка всё ещё не сохранена.
       expect(app.saving.isDirty()).toBe(true);
+    } finally {
+      app.dispose();
+    }
+  });
+
+  it('каталог с nested сохраняет всё несохранённое под ним и ничего рядом', async () => {
+    const app = harness();
+    try {
+      await app.open();
+      await app.write('forms/guest/schema.json', '{"a":1}');
+      await app.write('forms/guest/steps/one.json', '{"b":2}');
+      await app.write('forms/other/schema.json', '{"c":3}');
+      await app.write('forms/guestbook/schema.json', '{"d":4}');
+      await app.write('readme.md', '# правка');
+
+      await expect(app.saving.save([app.id('forms/guest')], { nested: true })).resolves.toBe(true);
+
+      await expect(app.sourceText('forms/guest/schema.json')).resolves.toBe('{"a":1}');
+      await expect(app.sourceText('forms/guest/steps/one.json')).resolves.toBe('{"b":2}');
+      // Соседи не тронуты — и «forms/guestbook»: каталог сравнивается по сегментам пути,
+      // а не по префиксу строки.
+      await expect(app.sourceText('forms/other/schema.json')).resolves.toBe('{}');
+      await expect(app.sourceText('forms/guestbook/schema.json')).resolves.toBe('{}');
+      await expect(app.sourceText('readme.md')).resolves.toBe('# привет');
+      expect(app.saving.isDirty([app.id('forms/guest')])).toBe(false);
+      expect(app.saving.isDirty([app.id('forms/other')])).toBe(true);
+    } finally {
+      app.dispose();
+    }
+  });
+
+  it('isDirty со списком отвечает за названное и всё под ним', async () => {
+    const app = harness();
+    try {
+      await app.open();
+      await app.write('forms/guest/steps/one.json', '{"b":2}');
+
+      expect(app.saving.isDirty([app.id('forms')])).toBe(true);
+      expect(app.saving.isDirty([app.id('forms/guest/steps/one.json')])).toBe(true);
+      expect(app.saving.isDirty([app.id('forms/other')])).toBe(false);
+      expect(app.saving.isDirty([app.id('readme.md')])).toBe(false);
+      expect(app.saving.isDirty([app.id('readme.md'), app.id('forms/guest')])).toBe(true);
+    } finally {
+      app.dispose();
+    }
+  });
+
+  it('nested в выделении без правок — пустая операция, а не отказ', async () => {
+    const app = harness();
+    try {
+      await app.open();
+      await app.write('readme.md', '# правка');
+
+      await expect(
+        app.saving.save([app.id('forms'), app.id('notes.md')], { nested: true })
+      ).resolves.toBe(true);
+      // Изменённое вне выделения так и осталось несохранённым.
+      await expect(app.sourceText('readme.md')).resolves.toBe('# привет');
+      expect(app.saving.isDirty()).toBe(true);
+    } finally {
+      app.dispose();
+    }
+  });
+
+  it('без nested каталог в списке — отказ: сам по себе он не файл', async () => {
+    const app = harness();
+    try {
+      await app.open();
+      await app.write('forms/guest/schema.json', '{"a":1}');
+
+      await expect(app.saving.save([app.id('forms/guest')])).resolves.toBe(false);
+      await expect(app.sourceText('forms/guest/schema.json')).resolves.toBe('{}');
     } finally {
       app.dispose();
     }

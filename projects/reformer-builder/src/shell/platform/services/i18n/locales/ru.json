@@ -142,6 +142,8 @@
   "shell.tree.expand": "Раскрыть каталог",
   "shell.tree.label": "Ресурсы проекта",
   "shell.tree.menu.empty": "Здесь нет действий",
+  "shell.tree.unsaved": "Не сохранён",
+  "shell.tree.unsavedInside": "Внутри есть несохранённые файлы",
   "shell.settings.plugins": "Плагины",
   "shell.settings.plugins.description": "Плагины приложения работают всегда. Плагины из каталога .ui_builder/plugins открытого проекта включает человек — код из проекта не запускается сам.",
   "shell.settings.plugins.empty.no-project": "Проект не открыт. Плагины лежат в каталоге .ui_builder/plugins открытого проекта.",

@@ -29,13 +29,16 @@ import {
   selectedIds,
   whenResource,
 } from '@reformer/builder-plugin-api/internal';
+import { TREE_ROW_ATTRIBUTE } from '@reformer/ui-kit/tree';
 import { createResourceTreeStore, type TreeWorkspace } from './resource-tree';
-import { ResourceTree } from './ResourceTree';
+import { ResourceTree, type UnsavedSource } from './ResourceTree';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.tree.label': 'Ресурсы проекта',
   'shell.tree.empty': 'Здесь пусто',
   'shell.tree.menu.empty': 'Здесь нет действий',
+  'shell.tree.unsaved': 'Не сохранён',
+  'shell.tree.unsavedInside': 'Внутри есть несохранённые файлы',
   'command.rename': 'Переименовать…',
   'command.newFile': 'Новый файл…',
 };
@@ -66,11 +69,14 @@ const workspace: TreeWorkspace = {
 interface Fixture {
   readonly opened: { id: ResourceId; preview: boolean }[];
   readonly executed: { id: string; args: unknown }[];
+  readonly container: HTMLElement;
   readonly unmount: () => void;
 }
 
 /** Монтирует дерево с двумя пунктами меню: один только над строкой, второй — всегда. */
-async function mountTree(options: { withMenu?: boolean } = {}): Promise<Fixture> {
+async function mountTree(
+  options: { withMenu?: boolean; unsaved?: UnsavedSource } = {}
+): Promise<Fixture> {
   const extensions = createExtensionRegistry();
   const commands = createCommandRegistry({ getContext: () => whenContext({ focus: 'tree' }) });
   const executed: { id: string; args: unknown }[] = [];
@@ -139,6 +145,7 @@ async function mountTree(options: { withMenu?: boolean } = {}): Promise<Fixture>
         onOpen={(id, choice) => {
           opened.push({ id, preview: choice.preview });
         }}
+        unsaved={options.unsaved}
       />
     </div>
   );
@@ -147,7 +154,7 @@ async function mountTree(options: { withMenu?: boolean } = {}): Promise<Fixture>
     expect(mounted.container.textContent).toContain('package.json');
   });
 
-  return { opened, executed, unmount: mounted.unmount };
+  return { opened, executed, container: mounted.container, unmount: mounted.unmount };
 }
 
 describe('вид и открытие', () => {
@@ -185,6 +192,75 @@ describe('вид и открытие', () => {
     expect(fixture.opened).toEqual([]);
 
     fixture.unmount();
+  });
+});
+
+/** Источник несохранённого, которым тест управляет сам: список и сигнал «он сменился». */
+function unsavedSource(initial: readonly ResourceId[]) {
+  let dirty = initial;
+  const listeners = new Set<() => void>();
+  const source: UnsavedSource = {
+    list: () => dirty,
+    onDidChange: (cb) => {
+      listeners.add(cb);
+      return { dispose: () => listeners.delete(cb) };
+    },
+  };
+  return {
+    source,
+    listeners,
+    set(next: readonly ResourceId[]) {
+      dirty = next;
+      for (const cb of listeners) cb();
+    },
+  };
+}
+
+/** Пометка несохранённого в строке: `file`, `dir` или `null`, если её нет. */
+function unsavedMarkOf(container: HTMLElement, id: ResourceId): string | null {
+  const row = container.querySelector(`[${TREE_ROW_ATTRIBUTE}="${id}"]`);
+  return row?.querySelector('[data-unsaved]')?.getAttribute('data-unsaved') ?? null;
+}
+
+describe('несохранённое', () => {
+  it('точка на изменённом файле и бледная — на свёрнутом каталоге над ним', async () => {
+    const unsaved = unsavedSource(['mem:forms/credit.json']);
+    const fixture = await mountTree({ unsaved: unsaved.source });
+
+    expect(unsavedMarkOf(fixture.container, 'mem:forms')).toBe('dir');
+    expect(unsavedMarkOf(fixture.container, 'mem:package.json')).toBeNull();
+
+    await userEvent.click(page.getByText('forms'));
+    await expect.element(page.getByText('credit.json')).toBeVisible();
+
+    expect(unsavedMarkOf(fixture.container, 'mem:forms/credit.json')).toBe('file');
+    expect(unsavedMarkOf(fixture.container, 'mem:forms/loan.json')).toBeNull();
+    await expect
+      .element(page.getByRole('img', { name: 'Не сохранён' }))
+      .toHaveAttribute('title', 'Не сохранён');
+
+    fixture.unmount();
+  });
+
+  it('после сохранения точки уходят, а при новой правке появляются', async () => {
+    const unsaved = unsavedSource(['mem:package.json']);
+    const fixture = await mountTree({ unsaved: unsaved.source });
+
+    expect(unsavedMarkOf(fixture.container, 'mem:package.json')).toBe('file');
+
+    unsaved.set([]);
+    await vi.waitFor(() => {
+      expect(unsavedMarkOf(fixture.container, 'mem:package.json')).toBeNull();
+    });
+
+    unsaved.set(['mem:forms/loan.json']);
+    await vi.waitFor(() => {
+      expect(unsavedMarkOf(fixture.container, 'mem:forms')).toBe('dir');
+    });
+
+    fixture.unmount();
+    // Подписка снимается вместе с деревом: иначе закрытый проект держал бы его в памяти.
+    expect(unsaved.listeners.size).toBe(0);
   });
 });
 

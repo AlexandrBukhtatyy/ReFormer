@@ -19,6 +19,11 @@ export const OPEN_PROJECT_COMMAND_ID = 'project.openProject';
 export const SAVE_COMMAND_ID = 'project.save';
 /** Сохранить всё изменённое. */
 export const SAVE_ALL_COMMAND_ID = 'project.saveAll';
+/**
+ * Сохранить выделенное в дереве: файл — если изменён, каталог — все несохранённые файлы под ним.
+ * С `{ ids }` — эти ресурсы, без аргументов — выделение дерева.
+ */
+export const SAVE_SELECTED_COMMAND_ID = 'project.saveSelected';
 /** Открыть недавний проект: с `{ id }` — этот, без аргументов — выбор из списка. */
 export const OPEN_RECENT_COMMAND_ID = 'project.openRecent';
 /** Убрать из списка все недавние проекты, кроме открытого. */

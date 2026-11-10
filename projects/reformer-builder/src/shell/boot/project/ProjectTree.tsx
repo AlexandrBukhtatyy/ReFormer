@@ -12,13 +12,13 @@
  * @module shell/boot/project/ProjectTree
  */
 
-import type { ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
-import { ResourceTree } from '@/shell/platform/ui/state/ResourceTree';
+import { ResourceTree, type UnsavedSource } from '@/shell/platform/ui/state/ResourceTree';
 import { type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { ProjectReader } from './useProject';
@@ -56,6 +56,18 @@ export function ProjectTree({
   useLocale(i18n);
   const { t } = i18n;
 
+  // Один объект на сессию: дерево подписывается заново, только когда сменился проект.
+  const unsaved = useMemo<UnsavedSource | undefined>(
+    () =>
+      session === null
+        ? undefined
+        : {
+            list: () => session.workspace.dirtyResources(),
+            onDidChange: (cb) => session.workspace.onDidChange(() => cb()),
+          },
+    [session]
+  );
+
   if (session === null) {
     return (
       <Empty className="border-0">
@@ -86,6 +98,7 @@ export function ProjectTree({
       readText={(id: ResourceId) => session.workspace.readText(id)}
       commands={commands}
       whenContext={whenContext === undefined ? undefined : () => whenContext.get()}
+      unsaved={unsaved}
     />
   );
 }

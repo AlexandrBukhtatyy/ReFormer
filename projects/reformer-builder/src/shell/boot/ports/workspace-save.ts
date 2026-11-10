@@ -17,12 +17,43 @@
  * @module shell/boot/ports/workspace-save
  */
 
-import type { ResourceId, WorkspaceSaveService } from '@reformer/builder-plugin-api/internal';
+import {
+  isInside,
+  parseResourceId,
+  type ResourceId,
+  type WorkspaceSaveService,
+} from '@reformer/builder-plugin-api/internal';
 import type { ProjectHost } from '@/shell/boot/project/project';
+import type { WorkspaceSession } from '@/shell/boot/project/workspace-session';
 
 export interface WorkspaceSaveDeps {
   /** Держатель проекта в объёме одной операции: только снимок. */
   readonly project: Pick<ProjectHost, 'get'>;
+}
+
+/**
+ * Несохранённое внутри ресурсов (`WorkspaceSaveOptions.nested`): сам ресурс, если он изменён,
+ * и все изменённые файлы под ним.
+ *
+ * Каталог отличается от файла не запросом к источнику, а тем, что под ним что-то лежит: у файла
+ * «под ним» пусто, а изменённость самого каталога — всегда `false`, его нет в рабочей копии.
+ * Сам ресурс спрашивается у сохранения документов, а не у рабочей области: составной документ
+ * изменён и тогда, когда изменена одна его часть.
+ */
+function unsavedWithin(
+  session: Pick<WorkspaceSession, 'saving' | 'workspace'>,
+  ids: readonly ResourceId[]
+): readonly ResourceId[] {
+  const dirty = session.workspace.dirtyResources().map((id) => ({ id, ...parseResourceId(id) }));
+  const out = new Set<ResourceId>();
+  for (const id of ids) {
+    if (session.saving.isDirty(id)) out.add(id);
+    const { sourceId, path } = parseResourceId(id);
+    for (const one of dirty) {
+      if (one.sourceId === sourceId && isInside(one.path, path)) out.add(one.id);
+    }
+  }
+  return [...out];
 }
 
 export function createWorkspaceSaveService(deps: WorkspaceSaveDeps): WorkspaceSaveService {
@@ -30,7 +61,12 @@ export function createWorkspaceSaveService(deps: WorkspaceSaveDeps): WorkspaceSa
     async save(ids: readonly ResourceId[], options) {
       const session = deps.project.get();
       if (session === null) return false;
-      const results = await Promise.all(ids.map((id) => session.saving.save(id, options)));
+      const targets = options?.nested === true ? unsavedWithin(session, ids) : ids;
+      // По одному, а не разом: среди названного бывают корень составного документа и его же
+      // часть. Сохранение корня пишет и части, и параллельная запись той же части второй раз
+      // упёрлась бы в ревизию, которую первая только что сменила, — ложное расхождение.
+      const results = [];
+      for (const id of targets) results.push(await session.saving.save(id, options));
       // Расхождения с источником — не отказ сохранения, а состояние рабочей области: их
       // показывает диалог слияния, и знать о них обязан тот, кто его открывает.
       session.divergence.noteConflicts(results.flatMap((r) => r.conflicts ?? []));
@@ -48,6 +84,12 @@ export function createWorkspaceSaveService(deps: WorkspaceSaveDeps): WorkspaceSa
       return result.ok;
     },
 
-    isDirty: () => deps.project.get()?.workspace.isDirty() ?? false,
+    isDirty: (ids) => {
+      const session = deps.project.get();
+      if (session === null) return false;
+      return ids === undefined
+        ? session.workspace.isDirty()
+        : unsavedWithin(session, ids).length > 0;
+    },
   };
 }

@@ -2,6 +2,7 @@
   "command.openProject": "Open folder…",
   "command.save": "Save",
   "command.saveAll": "Save all",
+  "command.saveSelected": "Save selected",
   "command.openRecent": "Open Recent Project…",
   "command.clearRecent": "Clear Recently Opened…",
   "menu.recent": "Open Recent",

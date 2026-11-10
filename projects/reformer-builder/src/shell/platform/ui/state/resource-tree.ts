@@ -319,6 +319,52 @@ export function flattenTree(state: ResourceTreeState): readonly TreeRow[] {
 }
 
 /**
+ * Несохранённое в дереве: сами изменённые файлы и каталоги, под которыми они лежат.
+ *
+ * Каталог помечается потому, что форма — это каталог из десятка файлов, и созданная ходом
+ * ассистента или шаблоном она стоит в дереве свёрнутой: пометка только на файлах была бы
+ * не видна, пока каталог не раскроешь.
+ */
+export interface UnsavedMarks {
+  readonly files: ReadonlySet<ResourceId>;
+  readonly dirs: ReadonlySet<ResourceId>;
+}
+
+/** Пометок нет — общий пустой снимок, чтобы «ничего не изменилось» сравнивалось по ссылке. */
+export const NO_UNSAVED: UnsavedMarks = { files: new Set(), dirs: new Set() };
+
+/**
+ * Пометки по списку изменённых ресурсов рабочей области.
+ *
+ * Предки строятся тем же конструктором адреса, что и строки дерева (`makeResourceId`), поэтому
+ * совпадают с ними буква в букву. Подъём останавливается на уже отмеченном каталоге: его предки
+ * отмечены вместе с ним.
+ */
+export function unsavedMarks(dirty: readonly ResourceId[]): UnsavedMarks {
+  if (dirty.length === 0) return NO_UNSAVED;
+  const dirs = new Set<ResourceId>();
+  for (const id of dirty) {
+    const { sourceId, path } = parseResourceId(id);
+    let dir = path;
+    while (dir !== '') {
+      dir = dirname(dir);
+      const dirId = makeResourceId(sourceId, dir);
+      if (dirs.has(dirId)) break;
+      dirs.add(dirId);
+    }
+  }
+  return { files: new Set(dirty), dirs };
+}
+
+/** Тот же ли состав. Нужен затем, чтобы правка уже изменённого файла не перерисовывала дерево. */
+export function sameUnsaved(a: UnsavedMarks, b: UnsavedMarks): boolean {
+  if (a === b) return true;
+  if (a.files.size !== b.files.size) return false;
+  for (const id of a.files) if (!b.files.has(id)) return false;
+  return true;
+}
+
+/**
  * Рабочая область в объёме, нужном дереву: листинг уровня и изменения состава.
  *
  * Отсутствие `readText` в этом типе — не экономия, а гарантия: дерево физически не может

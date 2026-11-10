@@ -2,6 +2,7 @@
   "command.openProject": "Открыть папку…",
   "command.save": "Сохранить",
   "command.saveAll": "Сохранить всё",
+  "command.saveSelected": "Сохранить выбранное",
   "command.openRecent": "Открыть недавний проект…",
   "command.clearRecent": "Очистить список недавних…",
   "menu.recent": "Недавно открытые",

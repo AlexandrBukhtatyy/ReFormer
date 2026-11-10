@@ -94,9 +94,14 @@ import {
   actionTargets,
   flattenTree,
   levelStatus,
+  NO_UNSAVED,
+  sameUnsaved,
+  unsavedMarks,
   type ResourceTreeState,
   type ResourceTreeStore,
+  type UnsavedMarks,
 } from './resource-tree';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { useContributions, type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
 import {
   DECORATION_BADGE_VARIANT,
@@ -148,6 +153,38 @@ function toTreeNodes(
  */
 export type TreeCommands = Pick<CommandRegistry, 'get' | 'isEnabled' | 'execute'>;
 
+/**
+ * Откуда дерево знает про несохранённое: список изменённых ресурсов и сигнал «он мог измениться».
+ *
+ * Сигнал без состава — дерево перечитывает список само: изменений рабочей области много (набор
+ * текста пишет на каждую правку), а список изменённого меняется редко, и сравнивать дешевле,
+ * чем разбирать пакеты событий.
+ */
+export interface UnsavedSource {
+  list(): readonly ResourceId[];
+  onDidChange(cb: () => void): Disposable;
+}
+
+/**
+ * Пометки несохранённого, живые: пересчёт на каждое изменение рабочей области, перерисовка —
+ * только когда состав изменённого стал другим.
+ */
+function useUnsavedMarks(source: UnsavedSource | undefined): UnsavedMarks {
+  const [marks, setMarks] = useState<UnsavedMarks>(() =>
+    source === undefined ? NO_UNSAVED : unsavedMarks(source.list())
+  );
+  useEffect(() => {
+    const read = (): void => {
+      const next = source === undefined ? NO_UNSAVED : unsavedMarks(source.list());
+      setMarks((prev) => (sameUnsaved(prev, next) ? prev : next));
+    };
+    read();
+    const subscription = source?.onDidChange(read);
+    return () => subscription?.dispose();
+  }, [source]);
+  return marks;
+}
+
 export interface ResourceTreeProps {
   readonly tree: ResourceTreeStore;
   readonly extensions: ExtensionReader;
@@ -177,6 +214,14 @@ export interface ResourceTreeProps {
    * спрашивают на щелчке, а перерисовывать дерево на каждое движение фокуса незачем.
    */
   readonly whenContext?: () => WhenContext;
+  /**
+   * Несохранённое — точкой на файле и на каталоге, под которым он лежит.
+   *
+   * Платформенная пометка, а не декорация вклада: «изменён, но не сохранён» — состояние рабочей
+   * копии, как звёздочка на вкладке, и о нём знает оболочка, а не предметный плагин. Без пропа
+   * пометок нет.
+   */
+  readonly unsaved?: UnsavedSource;
 }
 
 export function ResourceTree({
@@ -187,8 +232,10 @@ export function ResourceTree({
   readText,
   commands,
   whenContext,
+  unsaved,
 }: ResourceTreeProps): ReactElement {
   const state = useResourceTree(tree);
+  const unsavedNow = useUnsavedMarks(unsaved);
   const decorations = useResourceDecorations(extensions);
   const menus = useContributions(extensions, MenuPoint);
   useLocale(i18n);
@@ -257,7 +304,33 @@ export function ResourceTree({
     [decorate]
   );
 
-  const renderActions = useCallback(
+  /**
+   * Точка несохранённого. У файла — сплошная: изменён он сам. У каталога — бледнее: изменено
+   * что-то внутри, и сохранить это можно пунктом меню каталога, не раскрывая его.
+   */
+  const renderUnsaved = useCallback(
+    (node: TreeNode): ReactElement | null => {
+      const file = unsavedNow.files.has(node.id);
+      if (!file && !unsavedNow.dirs.has(node.id)) return null;
+      const label = t(file ? 'shell.tree.unsaved' : 'shell.tree.unsavedInside');
+      return (
+        <span
+          role="img"
+          aria-label={label}
+          title={label}
+          data-unsaved={file ? 'file' : 'dir'}
+          className={
+            file
+              ? 'inline-block size-2 shrink-0 rounded-full bg-foreground/80'
+              : 'inline-block size-1.5 shrink-0 rounded-full bg-muted-foreground/60'
+          }
+        />
+      );
+    },
+    [unsavedNow, t]
+  );
+
+  const renderBadge = useCallback(
     (node: TreeNode): ReactElement | null => {
       const decoration = decorate(node.id);
       if (decoration?.badge === undefined) return null;
@@ -289,6 +362,23 @@ export function ResourceTree({
       );
     },
     [decorate, i18n]
+  );
+
+  /** Правый край строки: пометка вклада (находки) и точка несохранённого рядом с ней. */
+  const renderActions = useCallback(
+    (node: TreeNode): ReactElement | null => {
+      const badge = renderBadge(node);
+      const dot = renderUnsaved(node);
+      if (dot === null) return badge;
+      if (badge === null) return dot;
+      return (
+        <span className="flex items-center gap-1.5">
+          {badge}
+          {dot}
+        </span>
+      );
+    },
+    [renderBadge, renderUnsaved]
   );
 
   /**

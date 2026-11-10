@@ -35,6 +35,16 @@ export interface WorkspaceSaveOptions {
    * не просит: чужие несохранённые правки рядом с ними — не его решение.
    */
   readonly companions?: boolean;
+  /**
+   * Сохранить несохранённое ВНУТРИ названных ресурсов: у каталога — все изменённые файлы под
+   * ним на любой глубине, у файла — он сам, если изменён. Неизменённое пропускается без отказа:
+   * сохранить каталог, в котором нечего сохранять, — пустая операция, а не ошибка.
+   *
+   * Просит сохранение выделенного в дереве проекта: человек выделяет каталог формы, а не
+   * перечисляет её файлы, и список изменённого у плагина нет. Без флага каталог в списке —
+   * отказ (`false`): сам по себе он не файл, и сохранять у него нечего.
+   */
+  readonly nested?: boolean;
 }
 
 export interface WorkspaceSaveService {
@@ -52,8 +62,12 @@ export interface WorkspaceSaveService {
    * нет, и собирать его ради одной команды значило бы отдать наружу устройство рабочей копии.
    */
   saveAll(): Promise<boolean>;
-  /** Есть ли несохранённые правки — во всей рабочей области. Без проекта — `false`. */
-  isDirty(): boolean;
+  /**
+   * Есть ли несохранённые правки. Без аргумента — во всей рабочей области; со списком — в этих
+   * ресурсах и под ними, по тому же правилу, что {@link WorkspaceSaveOptions.nested}: им пункт
+   * «Сохранить выбранное» гасит себя там, где сохранять нечего. Без проекта — `false`.
+   */
+  isDirty(ids?: readonly ResourceId[]): boolean;
 }
 
 /**
@@ -62,9 +76,11 @@ export interface WorkspaceSaveService {
  *
  * `1.1.0` — минор: {@link WorkspaceSaveService.saveAll} и {@link WorkspaceSaveService.isDirty}.
  * `1.2.0` — минор: {@link WorkspaceSaveOptions.companions}.
+ * `1.3.0` — минор: {@link WorkspaceSaveOptions.nested} и список адресов
+ *   у {@link WorkspaceSaveService.isDirty}.
  */
 export const WorkspaceSaveCapability: Capability<WorkspaceSaveService> =
-  defineCapability<WorkspaceSaveService>({ id: 'reformer.workspace.save', version: '1.2.0' });
+  defineCapability<WorkspaceSaveService>({ id: 'reformer.workspace.save', version: '1.3.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const WorkspaceSaveServiceToken = WorkspaceSaveCapability;

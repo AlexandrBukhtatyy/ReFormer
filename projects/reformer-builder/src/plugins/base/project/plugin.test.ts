@@ -14,11 +14,14 @@ import {
   DocumentsServiceToken,
   MenuPoint,
   PanelPoint,
+  RESOURCE_CONTEXT_MENU,
   WorkspaceResourcesServiceToken,
   WorkspaceSaveServiceToken,
+  type MenuItemContribution,
   type PluginContext,
   type RecentProjects,
   type ResourceId,
+  type ResourceRef,
 } from '@reformer/builder-plugin-api';
 import {
   CLEAR_RECENT_COMMAND_ID,
@@ -28,11 +31,13 @@ import {
   PROJECT_WELCOME_PANEL_ID,
   SAVE_ALL_COMMAND_ID,
   SAVE_COMMAND_ID,
+  SAVE_SELECTED_COMMAND_ID,
 } from './contract';
 import { PROJECT_MESSAGES } from './messages';
 import {
   createProjectPlugin,
   projectCommands,
+  projectContextMenuItems,
   projectMenuItems,
   type ProjectCommandsDeps,
 } from './plugin';
@@ -59,11 +64,12 @@ function deps(overrides: Partial<ProjectCommandsDeps> = {}): ProjectCommandsDeps
 }
 
 describe('команды', () => {
-  it('плагин везёт ровно три команды рабочей области', () => {
+  it('плагин везёт ровно четыре команды рабочей области', () => {
     expect(projectCommands(deps()).map((command) => command.id)).toEqual([
       OPEN_PROJECT_COMMAND_ID,
       SAVE_COMMAND_ID,
       SAVE_ALL_COMMAND_ID,
+      SAVE_SELECTED_COMMAND_ID,
     ]);
   });
 
@@ -153,6 +159,124 @@ describe('команды', () => {
 
     expect(open.enabled?.(context(null))).toBe(false);
     await expect(open.run?.(undefined)).resolves.toBe(false);
+  });
+});
+
+describe('«Сохранить выбранное»', () => {
+  const saveSelected = (overrides: Partial<ProjectCommandsDeps> = {}) => {
+    const command = projectCommands(deps(overrides)).find(
+      (one) => one.id === SAVE_SELECTED_COMMAND_ID
+    );
+    if (command === undefined) throw new Error('команды нет');
+    return command;
+  };
+
+  it('сохраняет адреса из пункта меню с nested: каталог — всем несохранённым под ним', async () => {
+    const save = vi.fn(() => Promise.resolve(true));
+    const command = saveSelected({
+      saving: () => ({ save, saveAll: () => Promise.resolve(true) }),
+    });
+
+    await expect(command.run({ ids: ['fs:forms/guest', 'fs:readme.md'] })).resolves.toBe(true);
+    expect(save).toHaveBeenCalledWith(['fs:forms/guest', 'fs:readme.md'], { nested: true });
+  });
+
+  it('без аргументов берёт выделение дерева — вызов из палитры', async () => {
+    const save = vi.fn(() => Promise.resolve(true));
+    const command = saveSelected({
+      saving: () => ({ save, saveAll: () => Promise.resolve(true) }),
+      tree: () => ({ selection: () => [{ id: 'fs:forms' } as ResourceRef] }),
+    });
+
+    await command.run();
+    expect(save).toHaveBeenCalledWith(['fs:forms'], { nested: true });
+  });
+
+  it('пустое выделение ничего не сохраняет: «сохранить всё» — другая команда', async () => {
+    const save = vi.fn(() => Promise.resolve(true));
+    const saveAll = vi.fn(() => Promise.resolve(true));
+    const command = saveSelected({
+      saving: () => ({ save, saveAll }),
+      tree: () => ({ selection: () => [] }),
+    });
+
+    await expect(command.run()).resolves.toBe(false);
+    await expect(saveSelected({ saving: () => ({ save, saveAll }) }).run()).resolves.toBe(false);
+    expect(save).not.toHaveBeenCalled();
+    expect(saveAll).not.toHaveBeenCalled();
+  });
+
+  it('без права сохранения или без проекта недоступна', () => {
+    expect(saveSelected({ saving: () => undefined }).enabled?.(context(null))).toBe(false);
+    expect(
+      saveSelected({
+        documents: () => ({ activeResource: () => null, hasProject: () => false }),
+      }).enabled?.(context(null))
+    ).toBe(false);
+    expect(saveSelected().enabled?.(context(null))).toBe(true);
+  });
+
+  it('без сочетания клавиш: mod+s и mod+alt+s уже заняты документом и «всем»', () => {
+    expect(saveSelected().keybinding).toBeUndefined();
+  });
+});
+
+describe('пункт контекстного меню дерева', () => {
+  const ref = (id: string, kind: 'file' | 'directory' = 'directory') =>
+    ({ id, kind }) as unknown as ResourceRef;
+  const target = (selection: readonly ResourceRef[], over: ResourceRef | null = selection[0]) => ({
+    ref: over,
+    dir: 'fs:',
+    selection,
+    rootId: 'fs:',
+  });
+
+  const item = (isDirty: (ids?: readonly ResourceId[]) => boolean = () => true) => {
+    const [entry] = projectContextMenuItems({ saving: () => ({ isDirty }) });
+    return entry.value as MenuItemContribution;
+  };
+
+  it('стоит в меню дерева, ссылается на команду и не несёт своего заголовка', () => {
+    const value = item();
+
+    expect(value).toMatchObject({
+      kind: 'item',
+      menu: RESOURCE_CONTEXT_MENU,
+      command: SAVE_SELECTED_COMMAND_ID,
+      group: '2_save',
+    });
+    expect(value).not.toHaveProperty('titleKey');
+  });
+
+  it('виден над строкой, а над пустым местом панели — нет', () => {
+    const value = item();
+
+    expect(value.when?.(context(null), target([ref('fs:forms')]))).toBe(true);
+    expect(value.when?.(context(null), target([], null))).toBe(false);
+  });
+
+  it('гаснет, когда в выделенном нечего сохранять, и спрашивает про всё выделение', () => {
+    const isDirty = vi.fn((ids?: readonly ResourceId[]) => ids?.includes('fs:forms') ?? false);
+    const value = item(isDirty);
+
+    expect(value.enabledWhen?.(context(null), target([ref('fs:forms'), ref('fs:a')]))).toBe(true);
+    expect(isDirty).toHaveBeenLastCalledWith(['fs:forms', 'fs:a']);
+    expect(value.enabledWhen?.(context(null), target([ref('fs:docs')]))).toBe(false);
+  });
+
+  it('без права сохранения гаснет, а не падает', () => {
+    const [entry] = projectContextMenuItems({ saving: () => undefined });
+    const value = entry.value as MenuItemContribution;
+
+    expect(value.enabledWhen?.(context(null), target([ref('fs:forms')]))).toBe(false);
+  });
+
+  it('передаёт команде адреса выделения', () => {
+    const value = item();
+
+    expect(value.argsOf?.(target([ref('fs:forms'), ref('fs:a.txt', 'file')]))).toEqual({
+      ids: ['fs:forms', 'fs:a.txt'],
+    });
   });
 });
 
@@ -262,6 +386,7 @@ describe('активация', () => {
       OPEN_PROJECT_COMMAND_ID,
       SAVE_COMMAND_ID,
       SAVE_ALL_COMMAND_ID,
+      SAVE_SELECTED_COMMAND_ID,
       OPEN_RECENT_COMMAND_ID,
       CLEAR_RECENT_COMMAND_ID,
     ]);
@@ -270,6 +395,7 @@ describe('активация', () => {
         `${MenuPoint.id}:project.menu.openProject`,
         `${MenuPoint.id}:project.menu.save`,
         `${MenuPoint.id}:project.menu.saveAll`,
+        `${MenuPoint.id}:project.context.saveSelected`,
         `${MenuPoint.id}:project.menu.recent`,
         `${MenuPoint.id}:project.menu.recent.projects`,
         `${MenuPoint.id}:project.menu.recent.more`,

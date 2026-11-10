@@ -23,6 +23,9 @@ import {
   setLevelStatus,
   sortEntries,
   staleLevels,
+  NO_UNSAVED,
+  sameUnsaved,
+  unsavedMarks,
   type ResourceTreeState,
   type TreeChange,
 } from './resource-tree';
@@ -494,5 +497,51 @@ describe('createResourceTreeStore — сверка с рабочей облас�
     store.dispose();
 
     expect(fake.listeners.size).toBe(0);
+  });
+});
+
+describe('unsavedMarks — несохранённое в дереве', () => {
+  const id = (path: string): ResourceId => makeResourceId('mem', path);
+
+  it('файл помечен сам, а каталоги над ним — до корня включительно', () => {
+    const marks = unsavedMarks([id('src/forms/guest/schema.json')]);
+
+    expect([...marks.files]).toEqual([id('src/forms/guest/schema.json')]);
+    expect([...marks.dirs].sort()).toEqual(
+      [id('src/forms/guest'), id('src/forms'), id('src'), ROOT].sort()
+    );
+  });
+
+  it('соседний каталог не помечается: только предки изменённого', () => {
+    const marks = unsavedMarks([id('src/forms/guest/schema.json')]);
+
+    expect(marks.dirs.has(id('src/forms/other'))).toBe(false);
+    expect(marks.dirs.has(id('src/forms/guest/schema.json'))).toBe(false);
+  });
+
+  it('адреса каталогов совпадают с адресами строк дерева', () => {
+    const marks = unsavedMarks([id('a/b.txt')]);
+
+    expect(marks.dirs.has(dir('a').id)).toBe(true);
+  });
+
+  it('несколько файлов в одном каталоге дают его один раз', () => {
+    const marks = unsavedMarks([id('form/a.ts'), id('form/b.ts'), id('form/steps/c.ts')]);
+
+    expect(marks.files.size).toBe(3);
+    expect([...marks.dirs].sort()).toEqual([id('form'), id('form/steps'), ROOT].sort());
+  });
+
+  it('пустой список — общий пустой снимок', () => {
+    expect(unsavedMarks([])).toBe(NO_UNSAVED);
+  });
+
+  it('тот же состав в другом порядке — «ничего не изменилось»', () => {
+    const a = unsavedMarks([id('x.ts'), id('y.ts')]);
+    const b = unsavedMarks([id('y.ts'), id('x.ts')]);
+
+    expect(sameUnsaved(a, b)).toBe(true);
+    expect(sameUnsaved(a, unsavedMarks([id('x.ts')]))).toBe(false);
+    expect(sameUnsaved(a, unsavedMarks([id('x.ts'), id('z.ts')]))).toBe(false);
   });
 });
