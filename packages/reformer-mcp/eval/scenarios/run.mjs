@@ -259,7 +259,7 @@ async function runCell(cell) {
     agent: {
       kind: agent.kind,
       model: agent.model ?? null,
-      auth: agent.kind === 'claude-code' ? 'oauth' : null,
+      auth: adapters.get(agent.kind)?.authKind?.() ?? null,
       settings: agent.settings ?? {},
     },
     approach: { id: approachId },

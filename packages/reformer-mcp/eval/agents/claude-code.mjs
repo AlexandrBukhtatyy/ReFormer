@@ -1,8 +1,9 @@
 /**
  * Агент Claude Code: `claude -p` с единственным MCP-сервером и файловыми инструментами.
  *
- * Запускается по подписке (OAuth), поэтому `total_cost_usd` — оценка, а не списание; `auth: oauth` в
- * записи об этом предупреждает. Изоляция проверяется по факту: событие `system/init` называет каталог,
+ * Запускается по подписке (OAuth), поэтому `total_cost_usd` — оценка, а не списание; `auth` в
+ * записи об этом предупреждает (`oauth-token`, `oauth`; `api-key` — уже списание). На macOS
+ * обязателен токен `CLAUDE_CODE_OAUTH_TOKEN` из `claude setup-token` ({@link authMode}). Изоляция проверяется по факту: событие `system/init` называет каталог,
  * инструменты и серверы, а вызовы инструментов — куда агент на самом деле ходил. Нарушение делает
  * прогон недействительным, а не проваленным: это сломался прибор, а не форма.
  */
@@ -40,11 +41,18 @@ function normalize(value) {
 const FILE_TOOLS = ['Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const MCP_PREFIX = 'mcp__reformer__';
 
+/** Долгоживущий токен подписки (`claude setup-token`): вложенный claude не ходит в Keychain. */
+export const TOKEN_ENV = 'CLAUDE_CODE_OAUTH_TOKEN';
+
+/** Свой путь к CLI вместо поиска в PATH: например, свежий CLI, когда первым в PATH стоит старый. */
+export const BIN_ENV = 'REFORMER_CLAUDE_BIN';
+
 /**
- * Исполняемый файл `claude`. На Windows npm кладёт в PATH обёртку `.cmd`; запускать её пришлось бы
- * через shell, поэтому берётся `.exe`, на который она указывает.
+ * Исполняемый файл `claude`: из {@link BIN_ENV} либо из PATH. На Windows npm кладёт в PATH обёртку
+ * `.cmd`; запускать её пришлось бы через shell, поэтому берётся `.exe`, на который она указывает.
  */
 function findClaude() {
+  if (process.env[BIN_ENV]) return process.env[BIN_ENV];
   const lookup = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['claude'], {
     encoding: 'utf8',
   });
@@ -84,13 +92,15 @@ export function missingFlags(helpText) {
 
 export async function preflight() {
   const claude = findClaude();
-  if (!claude) return 'В PATH нет claude';
+  if (!claude) return `В PATH нет claude (свой путь — ${BIN_ENV})`;
+  const { problem } = authMode();
+  if (problem) return problem;
   // stdin закрыт, время ограничено: старый CLI 1.0.83 на `--version` не отвечает минутами, а на
   // `--help` тратит около 10 с.
   const probe = (args, timeout) =>
     spawnSync(claude, args, {
       encoding: 'utf8',
-      env: cleanEnvironment(),
+      env: childEnvironment(),
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout,
     });
@@ -105,14 +115,43 @@ export async function preflight() {
   );
 }
 
-/** Окружение без признаков внешней сессии Claude Code: иначе вложенный запуск отказывается работать. */
-function cleanEnvironment() {
-  const environment = { ...process.env };
-  for (const key of Object.keys(environment)) {
-    if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_')) delete environment[key];
+/**
+ * Окружение вложенного claude: без признаков внешней сессии Claude Code — иначе вложенный запуск
+ * отказывается работать. Токен подписки {@link TOKEN_ENV} остаётся: это не признак сессии, а
+ * способ войти без Keychain. Чистая функция — проверяется тестом.
+ */
+export function childEnvironment(environment = process.env) {
+  const result = { ...environment };
+  for (const key of Object.keys(result)) {
+    if (key === TOKEN_ENV) continue;
+    if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_')) delete result[key];
   }
-  return environment;
+  return result;
 }
+
+/**
+ * Чем войдёт вложенный claude и можно ли так запускать батч. Без токена и ключа API каждый процесс
+ * claude читает OAuth-токен из Keychain. На macOS это запрос пароля на каждый процесс, а прогоны
+ * посреди батча получают «Not logged in» (батч `20261111T170113Z-5c48`: 8 из 13). Поэтому на macOS
+ * такой запуск отклоняется до батча. Чистая функция — проверяется тестом.
+ *
+ * @returns `auth` — для записи прогона; `problem` — причина не начинать батч или `null`.
+ */
+export function authMode(environment = process.env, platform = process.platform) {
+  if (environment[TOKEN_ENV]) return { auth: 'oauth-token', problem: null };
+  if (environment.ANTHROPIC_API_KEY) return { auth: 'api-key', problem: null };
+  if (platform !== 'darwin') return { auth: 'oauth', problem: null };
+  return {
+    auth: 'oauth',
+    problem:
+      `нет ${TOKEN_ENV}: без него каждый процесс claude читает токен из Keychain — macOS ` +
+      'спрашивает пароль, а прогоны посреди батча получают «Not logged in». Токен выдаёт ' +
+      `\`claude setup-token\`; запуск — \`${TOKEN_ENV}=<токен> npm run mcp:scenarios -- …\``,
+  };
+}
+
+/** Способ входа для записи прогона: `oauth-token`, `api-key` или `oauth`. */
+export const authKind = () => authMode().auth;
 
 /** Проблемы изоляции по событию `system/init`. Чистая функция — проверяется тестом. */
 export function initProblems(init, { workspaceDirectory }) {
@@ -239,14 +278,18 @@ export function runAgent(input) {
     } else if (event.type === 'result') {
       costUsd = event.total_cost_usd ?? 0;
       finalText = String(event.result ?? '').slice(0, 2000);
+      // `success` с `is_error` — сбой канала, а не работа модели: так приходит «Not logged in»
+      // (ни одного хода, ноль токенов). Раннер считает такой прогон недействительным.
       exitReason =
-        event.subtype === 'success'
-          ? 'completed'
-          : /budget/i.test(event.subtype ?? '')
-            ? 'budget'
-            : /turns/i.test(event.subtype ?? '')
-              ? 'maxSteps'
-              : 'error';
+        event.is_error === true && event.subtype === 'success'
+          ? 'error'
+          : event.subtype === 'success'
+            ? 'completed'
+            : /budget/i.test(event.subtype ?? '')
+              ? 'budget'
+              : /turns/i.test(event.subtype ?? '')
+                ? 'maxSteps'
+                : 'error';
       usage = {
         inputTokens: event.usage?.input_tokens ?? 0,
         outputTokens: event.usage?.output_tokens ?? 0,
@@ -262,7 +305,7 @@ export function runAgent(input) {
   return new Promise((resolve) => {
     const child = spawn(findClaude(), args, {
       cwd: workspaceDirectory,
-      env: cleanEnvironment(),
+      env: childEnvironment(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let buffer = '';

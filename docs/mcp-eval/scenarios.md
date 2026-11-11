@@ -49,6 +49,19 @@ npm run mcp:mutate                             # умеют ли приборы 
 Без модели всё это идёт в `.github/workflows/mcp-quality.yml` (ночью, вручную и при пуше в main).
 Прогоны с моделью в CI не идут: они тратят лимит и не детерминированы.
 
+**Claude Code на macOS — только по токену.** Без токена каждый вложенный `claude` читает OAuth из
+Keychain: macOS спрашивает пароль на каждый процесс, а прогоны посреди батча получают «Not logged
+in». Поэтому без `CLAUDE_CODE_OAUTH_TOKEN` (или `ANTHROPIC_API_KEY` — это уже списание, а не
+подписка) стенд не начинает батч. Токен выдаёт `claude setup-token`; держи его вне репозитория:
+
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=<токен> npm run mcp:scenarios -- --agent claude-code --model sonnet …
+```
+
+Стенду нужен Claude Code с флагом `--restricted`; проверка до батча сверяет флаги по `claude --help`.
+Если первым в PATH стоит старый CLI, путь к свежему задаёт `REFORMER_CLAUDE_BIN`. Ответ CLI с
+`is_error` («Not logged in») делает прогон недействительным, а не проваленным.
+
 ## Сырьё прогона и диалог
 
 Прогон оставляет каталог `.tmp/mcp-runs/<батч>/<прогон>/`:
