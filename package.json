@@ -32,6 +32,7 @@
     "mcp:evaluate": "node packages/reformer-mcp/eval/runner.mjs",
     "mcp:calibrate": "node packages/reformer-mcp/eval/calibration/run.mjs",
     "mcp:compare": "node packages/reformer-mcp/eval/records/compare.mjs",
+    "mcp:log": "node packages/reformer-mcp/eval/records/log.mjs",
     "mcp:report": "node packages/reformer-mcp/eval/records/report-html.mjs",
     "mcp:import-builder": "node packages/reformer-mcp/eval/records/import-builder.mjs",
     "mcp:verify": "node packages/reformer-mcp/eval/verify/index.mjs",

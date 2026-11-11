@@ -7,12 +7,19 @@
  * Контекст модели ограничен, поэтому старые ответы инструментов усекаются — кроме ответов генератора
  * ({@link KEEP_WHOLE_TOOLS}). Это вмешательство прибора: число усечений и длина ответов генератора
  * попадают в запись прогона.
+ *
+ * Журнал (`transcript.jsonl`) — весь разговор, а не только реплики модели: системный промпт и
+ * задание, рассуждение, вызовы с аргументами, полный текст ответа и то, что из него дошло до модели,
+ * подсказки и усечения стенда. Ответ сервера — главное, что нужно при разборе ошибки малой модели, а
+ * прежде от него оставались только имя и длина (ReFormer-qo9b.37). Вызов инструмента MCP несёт номер
+ * `call` и отпечаток аргументов — общий ключ с трассой сервера (`server-trace.jsonl`).
  */
 
 import { createWriteStream } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { McpClient } from '../lib/client.mjs';
+import { argumentsDigest } from '../lib/digest.mjs';
 import { repoRoot } from '../records/record.mjs';
 import { findTextualCall } from './textual-call.mjs';
 import { runWorkspaceTool, WORKSPACE_TOOLS } from './workspace-tools.mjs';
@@ -133,6 +140,8 @@ export async function runAgent(input) {
   const client = new McpClient(input.serverPath, {
     env: {
       REFORMER_TRACE_FILE: input.traceFile,
+      // Полная трасса: аргументы и ответы сервера целиком — для разбора прогона (`npm run mcp:log`).
+      REFORMER_TRACE_FULL: '1',
       // Как у claude-code: агент вне репозитория, а типы формы form_build проверяет с настоящими
       // пакетами. Без этого проверка типов недоступна, и запасная проверка импортов на снимке
       // сервера без соседних пакетов отвергает собственный код генератора (батч f7d3).
@@ -168,10 +177,16 @@ export async function runAgent(input) {
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: input.prompt },
     ];
+    log({ step: 0, role: 'system', content: SYSTEM_PROMPT, tools: toolNames });
+    log({ step: 0, role: 'user', content: input.prompt });
     let nudged = false;
+    /** Номер вызова инструмента MCP — тот же счёт, что `call` в трассе сервера. */
+    let mcpCalls = 0;
 
     for (let step = 0; step < limits.maxSteps; step++) {
-      harness.truncations += truncateOldResults(messages);
+      const truncated = truncateOldResults(messages);
+      harness.truncations += truncated;
+      if (truncated > 0) log({ step, role: 'harness', truncated });
       const reply = await postChat(
         {
           model: input.model,
@@ -189,7 +204,18 @@ export async function runAgent(input) {
       usage.outputTokens += reply.eval_count ?? 0;
       usage.modelMs += Math.round((reply.total_duration ?? 0) / 1e6);
       const { message } = reply;
-      log({ step, role: 'assistant', content: message.content, tool_calls: message.tool_calls });
+      log({
+        step,
+        role: 'assistant',
+        content: message.content,
+        ...(message.thinking ? { thinking: message.thinking } : {}),
+        tool_calls: message.tool_calls,
+        usage: {
+          inputTokens: reply.prompt_eval_count ?? 0,
+          outputTokens: reply.eval_count ?? 0,
+          modelMs: Math.round((reply.total_duration ?? 0) / 1e6),
+        },
+      });
       messages.push(message);
 
       const calls = message.tool_calls ?? [];
@@ -200,10 +226,9 @@ export async function runAgent(input) {
           // Модель написала вызов текстом и считает работу сделанной. Один раз подсказываем: это
           // свойство модели, а не сервера, но без подсказки сценарий мерил бы только его.
           nudged = true;
-          messages.push({
-            role: 'user',
-            content: `Ты написал вызов ${textual} текстом, и он не выполнен. Вызови инструмент по-настоящему.`,
-          });
+          const nudge = `Ты написал вызов ${textual} текстом, и он не выполнен. Вызови инструмент по-настоящему.`;
+          messages.push({ role: 'user', content: nudge });
+          log({ step, role: 'user', content: nudge, nudge: true });
           continue;
         }
         finalText = message.content ?? '';
@@ -215,28 +240,47 @@ export async function runAgent(input) {
         const name = call.function?.name;
         const argumentsValue = call.function?.arguments ?? {};
         let result;
+        let source = 'unknown';
         if (mcpNames.has(name)) {
+          source = 'mcp';
+          mcpCalls++;
           const reply_ = await client.callTool(name, argumentsValue);
           result = {
             ok: !reply_.error && reply_.result?.isError !== true,
             text: reply_.text || JSON.stringify(reply_.error),
           };
         } else if (name === READ_RESOURCE_TOOL.name) {
+          source = 'resource';
           const reply_ = await client.readResource(argumentsValue.uri);
           result = { ok: !reply_.error, text: reply_.text || JSON.stringify(reply_.error) };
         } else if (WORKSPACE_TOOLS.some((tool) => tool.name === name)) {
+          source = 'workspace';
           result = runWorkspaceTool(input.workspaceDirectory, name, argumentsValue);
         } else {
           result = { ok: false, text: `Неизвестный инструмент: ${name}` };
         }
         toolCalls.push({ name, ok: result.ok });
-        log({ step, role: 'tool', name, ok: result.ok, chars: result.text.length });
         if (KEEP_WHOLE_TOOLS.has(name)) {
           harness.keptWhole++;
           harness.keptWholeMaxChars = Math.max(harness.keptWholeMaxChars, result.text.length);
         }
         const capped = capResponse(result.text, cap);
         if (capped.cut) harness.overflows++;
+        log({
+          step,
+          role: 'tool',
+          name,
+          source,
+          ...(source === 'mcp'
+            ? { call: mcpCalls, argumentsDigest: argumentsDigest(argumentsValue) }
+            : {}),
+          arguments: argumentsValue,
+          ok: result.ok,
+          chars: result.text.length,
+          content: result.text,
+          // Что из ответа дошло до модели: длиннее контекста — усечено стендом.
+          ...(capped.cut ? { sentChars: capped.text.length } : {}),
+        });
         messages.push({ role: 'tool', tool_name: name, content: capped.text });
       }
     }
@@ -250,7 +294,9 @@ export async function runAgent(input) {
   } finally {
     clearTimeout(timer);
     client.close();
-    transcript.end();
+    // Результат — когда журнал дописан: раннер и `npm run mcp:log` читают его сразу, а `process.exit`
+    // в конце батча оборвал бы недописанный хвост.
+    await new Promise((resolve) => transcript.end(resolve));
   }
 
   return {

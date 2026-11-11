@@ -18,7 +18,12 @@ export async function runAgent(input) {
   // Окружение — как у агентов с моделью (`claude-code`, `ollama`): рабочий каталог вне репозитория,
   // пакеты `@reformer/*` — от корня монорепо. Без него сборка честно отвечает «окружение».
   const client = new McpClient(input.serverPath, {
-    env: { REFORMER_TRACE_FILE: input.traceFile, REFORMER_TYPECHECK_ROOT: repoRoot },
+    env: {
+      REFORMER_TRACE_FILE: input.traceFile,
+      // Полная трасса: транскрипта у повтора нет, и разбор прогона читает ответы сервера отсюда.
+      REFORMER_TRACE_FULL: '1',
+      REFORMER_TYPECHECK_ROOT: repoRoot,
+    },
     cwd: input.workspaceDirectory,
   });
   try {

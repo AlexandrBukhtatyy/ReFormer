@@ -102,6 +102,8 @@ export function runAgent(input) {
           args: [input.serverPath],
           env: {
             REFORMER_TRACE_FILE: input.traceFile,
+            // Полная трасса: аргументы и ответы целиком — для разбора прогона (`npm run mcp:log`).
+            REFORMER_TRACE_FULL: '1',
             REFORMER_ISSUE_REPORTS_DIR: path.join(runDirectory, 'issue-reports'),
             // Агент вне репозитория, а типы формы form_build проверяет с настоящими пакетами.
             REFORMER_TYPECHECK_ROOT: repoRoot,
@@ -230,16 +232,15 @@ export function runAgent(input) {
       else child.kill('SIGKILL');
     }, limits.timeoutMs);
 
+    // Результат — когда журнал дописан: `process.exit` в конце батча оборвал бы недописанный хвост.
     child.on('error', (error) => {
       clearTimeout(timer);
-      transcript.end();
-      resolve(finish(`запуск claude: ${error.message}`));
+      transcript.end(() => resolve(finish(`запуск claude: ${error.message}`)));
     });
     child.on('close', () => {
       clearTimeout(timer);
-      transcript.end();
       if (timedOut) exitReason = 'timeout';
-      resolve(finish(finalText || stderr));
+      transcript.end(() => resolve(finish(finalText || stderr)));
     });
     child.stdin.end(input.prompt);
 

@@ -1,0 +1,183 @@
+/**
+ * Агент Ollama от начала до конца: модель подменена записанными ответами (`node:http`), сервер —
+ * настоящий `dist/index.js`. Проверяется журнал прогона (ReFormer-qo9b.37): в нём то, что ушло
+ * модели, ответ сервера совпадает с трассой, а журнал и трасса сходятся по номеру вызова и отпечатку.
+ */
+
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { runAgent } from '../eval/agents/ollama.mjs';
+import { argumentsDigest } from '../eval/lib/digest.mjs';
+import { readRun, renderRun } from '../eval/lib/run-log.mjs';
+import { precondition } from './support/preconditions';
+
+interface ChatMessage {
+  readonly role: string;
+  readonly content: string;
+  readonly tool_name?: string;
+}
+
+interface ChatBody {
+  readonly messages: readonly ChatMessage[];
+}
+
+/** Ответы «модели» по порядку и тела запросов к ней. */
+const chat = vi.hoisted(() => ({ replies: [] as unknown[], bodies: [] as ChatBody[] }));
+
+vi.mock('node:http', async () => {
+  const { EventEmitter } = await import('node:events');
+  function request(_url: string, _options: unknown, onResponse: (response: unknown) => void) {
+    const outgoing = Object.assign(new EventEmitter(), {
+      end(body: string) {
+        chat.bodies.push(JSON.parse(body) as ChatBody);
+        const reply = chat.replies.shift();
+        const response = Object.assign(new EventEmitter(), { statusCode: 200 });
+        onResponse(response);
+        setImmediate(() => {
+          response.emit('data', Buffer.from(JSON.stringify(reply)));
+          response.emit('end');
+        });
+      },
+    });
+    return outgoing;
+  }
+  return { default: { request }, request };
+});
+
+const packageRoot = path.resolve(__dirname, '..');
+const distEntry = path.join(packageRoot, 'dist/index.js');
+const hasDist = precondition(
+  'сборка сервера',
+  existsSync(distEntry),
+  'npm run build -w @reformer/mcp'
+);
+
+type Entry = Record<string, unknown> & { role?: string; kind?: string };
+
+const readJsonl = (file: string): Entry[] =>
+  readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((line) => line !== '')
+    .map((line) => JSON.parse(line) as Entry);
+
+const reply = (message: Record<string, unknown>) => ({
+  message: { role: 'assistant', content: '', ...message },
+  prompt_eval_count: 900,
+  eval_count: 30,
+  total_duration: 1_500_000_000,
+});
+
+let root: string;
+
+beforeEach(() => {
+  root = mkdtempSync(path.join(tmpdir(), 'ollama-agent-'));
+  chat.replies.length = 0;
+  chat.bodies.length = 0;
+});
+
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
+
+describe.runIf(hasDist)('агент Ollama: журнал прогона', () => {
+  it('журнал хранит то, что ушло модели, и сходится с трассой сервера', async () => {
+    const runDirectory = path.join(root, 'batch', 'L1-test.core.bare.ollama.r1');
+    const workspaceDirectory = path.join(root, 'workspace');
+    mkdirSync(runDirectory, { recursive: true });
+    mkdirSync(workspaceDirectory, { recursive: true });
+    const args = { requirement: 'скрыть поле, пока чекбокс не отмечен' };
+    const guide = { uri: 'reformer://guide' };
+    chat.replies.push(
+      reply({
+        content: 'Выбираю оператор.',
+        thinking: 'Нужен оператор видимости.',
+        tool_calls: [
+          { function: { name: 'choose_api', arguments: args } },
+          { function: { name: 'read_mcp_resource', arguments: guide } },
+        ],
+      }),
+      // Вызов текстом: стенд один раз подсказывает модели.
+      reply({ content: 'Вызываю choose_api({"requirement": "x"})' }),
+      reply({ content: 'Готово.' })
+    );
+
+    const result = await runAgent({
+      scenario: { id: 'L1-test' },
+      target: 'core',
+      workspaceDirectory,
+      runDirectory,
+      prompt: 'Сделай форму обратной связи.',
+      model: 'fake-model',
+      approach: { id: 'bare' },
+      serverPath: distEntry,
+      traceFile: path.join(runDirectory, 'server-trace.jsonl'),
+      limits: { timeoutMs: 60_000, maxUsd: 0, maxSteps: 5 },
+      settings: { numCtx: 32768 },
+    });
+    expect(result.exitReason).toBe('completed');
+    expect(result.finalText).toBe('Готово.');
+
+    const transcript = readJsonl(path.join(runDirectory, 'transcript.jsonl'));
+    const [system, prompt] = transcript;
+    expect(system).toMatchObject({ step: 0, role: 'system' });
+    expect(system.tools).toEqual(expect.arrayContaining(['choose_api', 'read_mcp_resource']));
+    expect(system.content).toBe(chat.bodies[0].messages[0].content);
+    expect(prompt).toEqual({ step: 0, role: 'user', content: 'Сделай форму обратной связи.' });
+    expect(transcript.find((entry) => entry.role === 'assistant')).toMatchObject({
+      thinking: 'Нужен оператор видимости.',
+      usage: { inputTokens: 900, outputTokens: 30, modelMs: 1500 },
+    });
+    expect(transcript.find((entry) => entry.nudge === true)).toMatchObject({
+      role: 'user',
+      step: 1,
+    });
+
+    const [toolEntry, resourceEntry] = transcript.filter((entry) => entry.role === 'tool');
+    expect(toolEntry).toMatchObject({
+      name: 'choose_api',
+      source: 'mcp',
+      call: 1,
+      argumentsDigest: argumentsDigest(args),
+      arguments: args,
+      ok: true,
+    });
+    expect(String(toolEntry.content).length).toBe(toolEntry.chars);
+    expect(resourceEntry).toMatchObject({
+      name: 'read_mcp_resource',
+      source: 'resource',
+      ok: true,
+    });
+    expect(resourceEntry).not.toHaveProperty('call');
+
+    // Что получила модель, то и отдал сервер: ответ целиком, тот же номер и отпечаток.
+    const trace = readJsonl(path.join(runDirectory, 'server-trace.jsonl'));
+    const served = trace.find((entry) => entry.kind === 'tool');
+    expect(served).toMatchObject({
+      call: 1,
+      name: 'choose_api',
+      argumentsDigest: toolEntry.argumentsDigest,
+      arguments: args,
+      result: toolEntry.content,
+    });
+    const sentToModel = chat.bodies[1].messages.filter((message) => message.role === 'tool');
+    expect(sentToModel[0]).toEqual({
+      role: 'tool',
+      tool_name: 'choose_api',
+      content: toolEntry.content,
+    });
+    // Длинный ресурс стенд усекает: журнал знает, сколько из него дошло до модели.
+    expect(resourceEntry.sentChars ?? resourceEntry.chars).toBe(sentToModel[1].content.length);
+
+    const run = readRun(runDirectory);
+    expect(run.unmatched).toEqual([]);
+    const dialog = renderRun(run);
+    expect(dialog).toContain('## Задание\n\n> Сделай форму обратной связи.');
+    expect(dialog).toContain('<details><summary>Системный промпт</summary>');
+    expect(dialog).toMatch(/\*\*→ choose_api\*\* · вызов #1 · \d+ мс · ответ \d+ симв\./);
+    expect(dialog).toContain('**→ read_mcp_resource** _(resource)_');
+    expect(dialog).toContain('> Подсказка стенда: Ты написал вызов choose_api текстом');
+    expect(dialog).toContain('## Итог модели\n\n> Готово.');
+  }, 60_000);
+});
