@@ -33,10 +33,12 @@ describe.runIf(loadUrl !== undefined)('сервер-бандл в Web Worker', (
     });
     const tools = await session.listTools();
     expect(tools.map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(['choose_api', 'get_context', 'generate_form'])
+      expect.arrayContaining(['choose_api', 'get_context', 'validate_form'])
     );
-    // Профиль браузера: ни отчётов на диск, ни путей к спецификациям.
-    expect(tools.map((tool) => tool.name)).not.toContain('report_issue');
+    // Профиль браузера — справочный канал: ничего не пишет на диск и не читает спецификации.
+    for (const name of ['report_issue', 'form_build', 'plan_form', 'generate_form']) {
+      expect(tools.map((tool) => tool.name)).not.toContain(name);
+    }
 
     const result = await session.callTool('choose_api', {
       requirement: 'total = price * quantity',

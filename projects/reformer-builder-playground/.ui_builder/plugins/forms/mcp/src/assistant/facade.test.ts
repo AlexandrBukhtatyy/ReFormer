@@ -118,21 +118,21 @@ describe('mcp_call', () => {
   });
 
   it('длинный ответ — начало в бюджете и ссылка на полный ресурс', async () => {
-    const long = Array.from({ length: 200 }, (_, at) => `line ${at} of the manifest`).join('\n');
+    const long = Array.from({ length: 200 }, (_, at) => `line ${at} of the symbol docs`).join('\n');
     const { call, provider } = await setup({
       reformer: {
-        tools: [fakeTool('generate_form')],
+        tools: [fakeTool('get_symbol_docs')],
         call: () => ({ content: [{ type: 'text', text: long }] }),
       },
     });
-    const text = textOf(await call.run({ server: 'reformer', tool: 'generate_form' }, ctx));
+    const text = textOf(await call.run({ server: 'reformer', tool: 'get_symbol_docs' }, ctx));
     expect(text.length).toBeLessThanOrEqual(ANSWER_BUDGET);
     const uri = /read_resource (mcp:result\/\d+)/.exec(text)?.[1];
     expect(uri).toBe('mcp:result/1');
 
     const full = await provider.read(uri!, ctx.signal);
     expect(full).toMatchObject({ ok: true });
-    expect((full as { text: string }).text).toContain('line 199 of the manifest');
+    expect((full as { text: string }).text).toContain('line 199 of the symbol docs');
   });
 
   it('ошибка инструмента сервера — отказ FAILED с текстом сервера', async () => {
