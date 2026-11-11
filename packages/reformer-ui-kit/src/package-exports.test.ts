@@ -26,6 +26,7 @@ const FIXED = new Set([
   './locale/ru',
   './locale/en.json',
   './locale/ru.json',
+  './package.json',
 ]);
 
 function componentDirs(): string[] {

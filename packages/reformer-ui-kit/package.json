@@ -35,6 +35,7 @@
     },
     "./locale/en.json": "./dist/locale/en.json",
     "./locale/ru.json": "./dist/locale/ru.json",
+    "./package.json": "./package.json",
     "./accordion": {
       "types": "./dist/accordion.d.ts",
       "import": "./dist/accordion.js"

@@ -56,6 +56,9 @@ const exportsMap = {
   './locale/ru': { types: './dist/locale/ru.d.ts', import: './dist/locale/ru.js' },
   './locale/en.json': './dist/locale/en.json',
   './locale/ru.json': './dist/locale/ru.json',
+  // Манифест пакета: по нему инструменты (MCP-сервер, сборщики) находят корень установленного
+  // кита, не угадывая путь. Фиксированная точка — в FIXED-наборе package-exports.test.ts.
+  './package.json': './package.json',
 };
 for (const name of components) {
   exportsMap[`./${name}`] = {
