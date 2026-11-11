@@ -4,32 +4,92 @@ sidebar_position: 3
 
 # Tools
 
-The MCP server provides tools the AI can call to perform tasks. It is convenient to group them by
-the steps of working on a form.
+The MCP server provides tools the AI can call to perform tasks. There are ten by default; the
+eleventh, `debug`, appears only with `REFORMER_DEBUG=true`. The embedded profile (how the server runs
+inside the builder assistant) has only the reference tools and `validate_form`: `plan_form`,
+`form_build` and `report_issue` write files to disk. It is convenient to group the tools by the steps
+of working on a form.
 
-| Step                    | Tools                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| Figure out which API    | `choose_api` (requirement in your own words → operator), `get_context` (context for a build step) |
-| Find reference material | `get_symbol_docs`, `list_symbols`, `find_recipe`, `search_docs`                                   |
-| Build the form          | `plan_form` (spec → `FormIntent`), `generate_form` (`FormIntent` → form files)                    |
-| Check                   | `validate_form`: `kind` = `code`, `json-schema`, `behaviors`, `bundle`, `layout`                  |
-| Report a problem        | `report_issue`                                                                                    |
+| Step                    | Tools                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| Figure out which API    | `choose_api` (requirement in your own words → operator), `get_context` (context for a build step)        |
+| Find reference material | `get_symbol_docs`, `list_symbols`, `find_recipe`, `search_docs`                                          |
+| Build the form          | `plan_form` (spec → a draft `form.intent.json`), `form_build` (`form.intent.json` → form module on disk) |
+| Check                   | `validate_form`: `kind` = `code`, `json-schema`, `behaviors`, `bundle`, `layout`                         |
+| Report a problem        | `report_issue`                                                                                           |
+
+`generate_form`, which returned the form files as text, and the aliases `validate_json_schema` and
+`check_behaviors` were removed in 7.0 — a call answers "Unknown tool". Use `form_build` instead of
+`generate_form`, and `validate_form` with `kind: "json-schema"` or `kind: "behaviors"` instead of the
+aliases.
 
 The role of each tool is described in the [Overview](./overview#tools). Below are the details of
-`validate_form` and `report_issue`.
+`form_build`, `plan_form`, `validate_form` and `report_issue`.
+
+## form_build
+
+Builds a form module on disk from a single file — `<dir>/form.intent.json`. The agent writes and
+edits only this file; `form_build` compiles it, cross-checks it, type-checks the result and writes
+all module files itself. The answer is diagnostics only.
+
+| Parameter | Type   | Required | Description                                                                                                                                                                           |
+| --------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dir`     | string | No       | the form folder inside the project, `form` by default; required at a monorepo root                                                                                                    |
+| `grammar` | string | No       | return the intent grammar instead of building: `base`, a section (`behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes`), several comma-separated, or `all` |
+
+- **Start with the grammar:** `form_build {"grammar":"base"}` needs neither a project nor a file;
+  further sections on demand. A call before `form.intent.json` exists also returns the grammar.
+- **Nothing is written while errors remain.** Errors come as a list with the file and line.
+- **Built files start with the marker** `// @reformer-form-build`. A file edited by hand is detached:
+  the build keeps your version and says so. Delete the file to put it back under the build.
+- **`types.ts` and `api.ts` are yours from day one.** On the `core` stack `index.tsx` is a stub with
+  samples (a field, visibility in JSX, `bundle.submission.submit`, steps): the build keeps it in step
+  with the intent until you write your JSX markup there; from then on the file is yours and the build
+  type-checks it. Switching to a renderer target replaces an untouched stub and refuses to keep
+  markup written by hand.
+- **An unknown key of a record is an error** naming the nearest valid key (`unknown-key`). A
+  component prop written next to the field (`placeholder`, `min`) is moved into `componentProps`
+  with a note.
+- **The verdict is the one of `validate_form` with `kind: "bundle"`.** On top of it the build
+  type-checks the module (an error names the file to fix) and needs the environment:
+  `@reformer/core` and `@reformer/ui-kit` installed in the project.
+
+The module layout and the intent format are in the `06-form-directory-layout` recipe of the
+`@reformer/mcp` package (the "`form.intent.json`" section); `find_recipe` returns it too.
+
+## plan_form
+
+Drafts `<dir>/form.intent.json` from a markdown spec: fields with types and components, rules from
+the spec tables, wizard steps, arrays. The draft is written to disk; the answer is a short summary and
+a list of what to finish by hand (formulas of computed fields and visibility conditions are not
+extracted from the text).
+
+| Parameter  | Type   | Required | Description                                                          |
+| ---------- | ------ | -------- | -------------------------------------------------------------------- |
+| `specPath` | string | Yes      | the markdown spec, absolute or relative to the working directory     |
+| `dir`      | string | No       | the form folder, as in `form_build` (`form` by default)              |
+| `target`   | string | No       | the stack from the task: `core` / `renderer-react` / `renderer-json` |
+
+- **An existing `form.intent.json` is never overwritten** — a draft starts the work, it does not
+  replace it.
+- **No free-text description** (`description` is not supported since 7.0): from a description the
+  agent writes the intent itself, by the grammar from `form_build {"grammar":"base"}`.
 
 ## validate_form
 
 Checks a form before it runs. Returns `RF0xx` diagnostics with the line, a "what to do" hint and the
 next call to make.
 
-| `kind`        | What it checks                                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `code`        | The form's TypeScript: unknown or wrongly imported `@reformer` symbols, operators outside their schema, removed API    |
-| `json-schema` | a renderer-json schema document                                                                                        |
-| `behaviors`   | compute cycles — from a list of `{ target, reads[] }`                                                                  |
-| `bundle`      | the `FormIntent` and the schema as a whole, cross-checked against each other                                           |
-| `layout`      | the form module's file names against the canonical set (`form.schema.ts`, `form.behavior.ts`, `form.validation.ts`, …) |
+| `kind`        | What it checks                                                                                                             |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `code`        | The form's TypeScript: unknown or wrongly imported `@reformer` symbols, operators outside their schema, removed API        |
+| `json-schema` | a renderer-json schema document                                                                                            |
+| `behaviors`   | compute cycles — from a list of `{ target, reads[] }`                                                                      |
+| `bundle`      | the `FormIntent` judged as `form_build` judges it: record reading, C1–C13, placement, kit components; `schema` is optional |
+| `layout`      | the form module's file names against the canonical set (`form.schema.ts`, `form.behavior.ts`, `form.validation.ts`, …)     |
+
+`kind: 'code'` finds removed API by a table of former names — the same "before → after" replacement
+is described on the [Migrating from earlier APIs](/docs/reference/migration) page.
 
 ## report_issue
 

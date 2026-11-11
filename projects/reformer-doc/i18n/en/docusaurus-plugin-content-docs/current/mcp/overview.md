@@ -57,11 +57,27 @@ variable (it adds the `debug` tool, the `reformer://debug` resource and a prompt
 | `find_recipe`     | A recipe by scenario keyword (`wizard`, `form-array`, `json-schema`) or a symbol's `@example`.                                                      |
 | `search_docs`     | Full-text search across the documentation of all packages, for when you can describe the task but cannot name it.                                   |
 | `list_symbols`    | Public symbols by kind, package or part of the name.                                                                                                |
-| `plan_form`       | A form spec (markdown) or a description → `FormIntent`: fields, arrays, rules, behavior, layout.                                                    |
-| `generate_form`   | `FormIntent` → a set of form files (`model.ts`, `form.schema.ts`, `form.validation.ts`, `form.behavior.ts`, …) with cross-checking.                 |
+| `plan_form`       | A draft `<dir>/form.intent.json` from a markdown form spec: fields, rules from the spec tables, steps, arrays. Never overwrites an existing file.   |
+| `form_build`      | A form module on disk from a single `form.intent.json`: compiling, type-checking and writing the files; the agent edits only the intent.            |
 | `validate_form`   | Pre-run checking: code (`kind: "code"`), JSON schema, behavior cycles, the whole bundle and the module's file names (`kind: "layout"`).             |
 | `report_issue`    | Save a problem you found and its solution as a separate JSON report in `<project root>/.reformer/issue_reports`.                                    |
 | `debug`           | Only with `REFORMER_DEBUG=true` — an internal tool for developing the server itself.                                                                |
+
+A form is created along one path: the grammar `form_build {"grammar":"base"}` → your own
+`<dir>/form.intent.json` (or a `plan_form` draft from a spec) → `form_build {"dir": …}`. The former
+`generate_form` and the aliases `validate_json_schema` and `check_behaviors` were removed in 7.0.
+
+The embedded, browser profile (how the server runs inside the builder assistant) has only the
+reference tools and `validate_form`: `plan_form`, `form_build` and `report_issue` write to disk.
+Each tool is described in detail in [Tools](./tools).
+
+### Package entry points
+
+| Entry point             | What for                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `@reformer/mcp`         | the server for IDEs, the `reformer-mcp` binary                                                                                       |
+| `@reformer/mcp/browser` | the server's knowledge — docs and the symbol index — from the build artifact, without a file system: the same tools run in a browser |
+| `@reformer/mcp/intent`  | the `FormIntent` compiler without the server: parsing, the verdict of `form_build`, layout, rules — for your own tools               |
 
 ## Prompts
 
@@ -69,9 +85,10 @@ variable (it adds the `debug` tool, the `reformer://debug` resource and a prompt
   prompt, tool or resource to use at each step.
 - `discover-context` — determine the project's target stack (`core` / `renderer-react` /
   `renderer-json`) from the form description and the project directory.
-- `plan-form` — read a form spec (markdown) and return a development plan.
+- `plan-form` — parse a form spec (markdown) and lead along the path: a `plan_form` draft, finishing
+  the intent against the spec, `form_build`.
 - `create-form` — create a form from a description (`description`, `target`).
-- `add-feature` — add one capability to an existing form: `feature` = `validation` |
+- `add-feature` — add one capability to a form built with `form_build`: `feature` = `validation` |
   `behavior` | `array` | `wizard`.
 - `to-renderer` — switch the rendering approach: `FormRenderer` over the same TS schema
   (`renderer-react`) or the schema as a format 2 JSON document + a registry (`renderer-json`); the
@@ -80,8 +97,8 @@ variable (it adds the `debug` tool, the `reformer://debug` resource and a prompt
 - `debug` — only with `REFORMER_DEBUG=true`.
 
 Prompts do not reach every client: some agents have no access to `prompts/list`. That is why the same
-content is also available in the tools (`get_context`, `plan_form`, `generate_form`) and in the
-`reformer://guide` resource.
+content is also available in the tools (`get_context`, `plan_form`, `form_build` with `grammar`) and
+in the `reformer://guide` resource.
 
 ## Resources
 
@@ -89,6 +106,9 @@ content is also available in the tools (`get_context`, `plan_form`, `generate_fo
   tool and resource to use at each step.
 - `reformer://catalog` — a JSON map of packages and their sections (slug + title) — where to get
   section URIs from.
+- `reformer://status` — what the server found in the project: the `@reformer/*` packages, indexes,
+  whether type-checking is available. Read it when docs come back empty or a tool reports an
+  environment problem.
 - `reformer://docs/<pkg>` — the full documentation of one package, for example `reformer://docs/cdk`.
   `<pkg>` is the name without the `@reformer/` prefix: `core`, `cdk`, `ui-kit`, `renderer-react`,
   `renderer-json`, …

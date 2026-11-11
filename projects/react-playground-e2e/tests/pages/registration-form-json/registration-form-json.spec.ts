@@ -12,7 +12,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 /**
  * Страница формы. `REG_FORM_PATH` подставляет калибровка MCP (`packages/reformer-mcp/eval/calibration`):
- * тот же набор гоняется по форме, собранной из ответа `generate_form`.
+ * тот же набор гоняется по форме, которую `form_build` собрал из эталонного intent.
  */
 const FORM_PATH = process.env.REG_FORM_PATH ?? '/demo/registration-json';
 

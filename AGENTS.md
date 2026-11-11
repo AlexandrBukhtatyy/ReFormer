@@ -24,7 +24,7 @@
 claude mcp add --transport stdio reformer -- reformer-mcp
 ```
 
-Доступно: 11 tools (`choose_api`, `get_context`, `get_symbol_docs`, `find_recipe`, `search_docs`, `list_symbols`, `plan_form`, `generate_form`, `form_build`, `validate_form`, `report_issue`; `debug` — под `REFORMER_DEBUG=true`); resources `reformer://guide`, `reformer://catalog`, `reformer://docs/<пакет>[/<раздел>]`; prompts `start-here`, `discover-context`, `plan-form`, `create-form`, `add-feature`, `to-renderer`, `review`. Подробно — [packages/reformer-mcp/README.md](packages/reformer-mcp/README.md).
+Доступно: 10 tools (`choose_api`, `get_context`, `get_symbol_docs`, `find_recipe`, `search_docs`, `list_symbols`, `plan_form`, `form_build`, `validate_form`, `report_issue`; `debug` — под `REFORMER_DEBUG=true`); resources `reformer://guide`, `reformer://status`, `reformer://catalog`, `reformer://docs/<пакет>[/<раздел>]`; prompts `start-here`, `discover-context`, `plan-form`, `create-form`, `add-feature`, `to-renderer`, `review`. Форма создаётся одним путём: грамматика `form_build {"grammar":"base"}` → `<dir>/form.intent.json` → `form_build {"dir":…}` (сервер сам пишет модуль); `generate_form` удалён в 7.0. Подробно — [packages/reformer-mcp/README.md](packages/reformer-mcp/README.md).
 
 ### Эталонные примеры
 

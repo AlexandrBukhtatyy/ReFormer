@@ -1,6 +1,6 @@
 /**
- * Формы калибровки MCP: каждая папка `<кейс>-<таргет>/` — модуль, собранный из ответа
- * `generate_form` (`packages/reformer-mcp/eval/calibration/runtime.mjs`), и страница `Page.tsx`
+ * Формы калибровки MCP: каждая папка `<кейс>-<таргет>/` — модуль, который `form_build` собрал из
+ * эталонного intent (`packages/reformer-mcp/eval/calibration/runtime.mjs`), и страница `Page.tsx`
  * калибровочного стенда вокруг него.
  *
  * Страницы находятся сами (`import.meta.glob`) и грузятся лениво: сгенерированный модуль может

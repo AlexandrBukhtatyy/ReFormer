@@ -13,10 +13,10 @@ documentation.
 | ------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `start-here`       | —                                        | The canonical workflow of the unified form contract and a map: which prompt, tool, resource at which step |
 | `discover-context` | `description`, `projectPath?`            | Determine the project's target stack: `core` / `renderer-react` / `renderer-json`                         |
-| `plan-form`        | `specPath`, `target?`, `projectPath?`    | Read a form spec (markdown) and return a development plan                                                 |
+| `plan-form`        | `specPath`, `target?`, `projectPath?`    | Parse a form spec (markdown): a `plan_form` draft, finishing the intent, `form_build`                     |
 | `create-form`      | `description`, `target?`, `projectPath?` | Create a form from a description                                                                          |
-| `add-feature`      | `feature`, `code`, `requirements`        | Add one capability to an existing form: `validation` / `behavior` / `array` / `wizard`                    |
-| `to-renderer`      | `code`, `target?`                        | Switch the rendering approach: `renderer-react` (default) or `renderer-json` (format 2 document)          |
+| `add-feature`      | `feature`, `requirements`, `code?`       | Add one capability to an existing form: `validation` / `behavior` / `array` / `wizard`                    |
+| `to-renderer`      | `code?`, `target?`                       | Switch the rendering approach: `renderer-react` (default) or `renderer-json` (format 2 document)          |
 | `review`           | `code`                                   | A cross-package code review checklist                                                                     |
 | `debug`            | `code`                                   | Only with `REFORMER_DEBUG=true` — analysis of a problematic form using the core troubleshooting guide     |
 
@@ -27,8 +27,10 @@ difference is who renders the form.
 ## If prompts are unavailable
 
 Not every MCP client supports prompts. The same content is available through tools and resources:
-`get_context` assembles the context for a step, `plan_form` → `generate_form` build a form from a
-spec, and the `reformer://guide` resource describes the whole workflow. Simply ask the AI:
+`get_context` assembles the context for a step, `plan_form` drafts the intent from a spec,
+`form_build` builds the form module from the intent, and the `reformer://guide` resource describes the
+whole path. The `code` argument of `add-feature` and `to-renderer` is the current `form.intent.json`;
+without it the agent reads the file from the form folder. Simply ask the AI:
 
 ```
 Create a registration form with email, password and password confirmation

@@ -12,10 +12,10 @@ slash-команду), а сервер подставляет в диалог и
 | ------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `start-here`       | —                                        | Канонический workflow единого контракта формы и карта: какой промпт, инструмент, ресурс на каком шаге |
 | `discover-context` | `description`, `projectPath?`            | Определить целевой стек проекта: `core` / `renderer-react` / `renderer-json`                          |
-| `plan-form`        | `specPath`, `target?`, `projectPath?`    | Прочитать спеку формы (markdown) и вернуть план разработки                                            |
+| `plan-form`        | `specPath`, `target?`, `projectPath?`    | Разобрать спеку формы (markdown): черновик `plan_form`, доработка intent, `form_build`                |
 | `create-form`      | `description`, `target?`, `projectPath?` | Создать форму по описанию                                                                             |
-| `add-feature`      | `feature`, `code`, `requirements`        | Добавить в готовую форму одну возможность: `validation` / `behavior` / `array` / `wizard`             |
-| `to-renderer`      | `code`, `target?`                        | Сменить способ отрисовки: `renderer-react` (по умолчанию) или `renderer-json` (документ формата 2)    |
+| `add-feature`      | `feature`, `requirements`, `code?`       | Добавить в готовую форму одну возможность: `validation` / `behavior` / `array` / `wizard`             |
+| `to-renderer`      | `code?`, `target?`                       | Сменить способ отрисовки: `renderer-react` (по умолчанию) или `renderer-json` (документ формата 2)    |
 | `review`           | `code`                                   | Кросс-пакетный чек-лист код-ревью                                                                     |
 | `debug`            | `code`                                   | Только при `REFORMER_DEBUG=true` — разбор проблемной формы по troubleshooting ядра                    |
 
@@ -26,8 +26,10 @@ slash-команду), а сервер подставляет в диалог и
 ## Если промпты недоступны
 
 Не каждый клиент MCP поддерживает промпты. То же содержание доступно через инструменты и ресурсы:
-`get_context` собирает контекст для шага, `plan_form` → `generate_form` строят форму по спеке, а
-ресурс `reformer://guide` описывает весь workflow. Достаточно просто попросить AI:
+`get_context` собирает контекст для шага, `plan_form` пишет черновик intent по спеке, `form_build`
+собирает из intent модуль формы, а ресурс `reformer://guide` описывает весь путь. Аргумент `code` у
+`add-feature` и `to-renderer` — текущий `form.intent.json`; без него агент прочитает файл из каталога
+формы. Достаточно просто попросить AI:
 
 ```
 Создай форму регистрации с email, паролем и подтверждением пароля
