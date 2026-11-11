@@ -30,7 +30,19 @@ import { invalidCall, type ToolTextResult } from './tool-result.js';
 export const INTENT_FILE = 'form.intent.json';
 
 /** Необязательные файлы сборки: исчезли из бандла — их нетронутая копия удаляется с диска. */
-const OPTIONAL_DERIVED = ['form.flow.ts', 'form.messages.ts', 'registry.ts'];
+/**
+ * Производные файлы, которых сборка может и не выпустить: шагов нет, текстов нет, другой таргет.
+ * Невыпущенный и нетронутый руками убирается. Схема — в обоих видах: renderer-json пишет её
+ * данными (`form.schema.json`), остальные таргеты — кодом (`form.schema.ts`), и прежний вид при
+ * смене таргета или сборкой до 2026-11-11 остался бы лежать рядом.
+ */
+const OPTIONAL_DERIVED = [
+  'form.flow.ts',
+  'form.messages.ts',
+  'registry.ts',
+  'form.schema.ts',
+  'form.schema.json',
+];
 
 /** Сколько ошибок печатать: дальше агент всё равно правит и собирает заново. */
 const MAX_ERRORS = 12;
@@ -146,12 +158,12 @@ interface BuildPlan {
 function planBuild(directory: FormDirectory, derived: FormFile[], owned: FormFile[]): BuildPlan {
   const plan: BuildPlan = { module: [], writes: [], removes: [], unchanged: 0, detached: [] };
   for (const file of derived) {
-    const next = withMarker(file.content);
+    const next = withMarker(file.content, file.path);
     const existing = directory.read(file.path);
     if (existing === null) {
       plan.writes.push({ path: file.path, content: next });
       plan.module.push({ path: file.path, content: next });
-    } else if (originOf(existing) !== 'generated') {
+    } else if (originOf(existing, file.path) !== 'generated') {
       plan.detached.push(file.path);
       plan.module.push({ path: file.path, content: existing });
     } else if (existing === next) {
@@ -170,7 +182,7 @@ function planBuild(directory: FormDirectory, derived: FormFile[], owned: FormFil
   const produced = new Set(derived.map((file) => file.path));
   for (const name of OPTIONAL_DERIVED) {
     const existing = produced.has(name) ? null : directory.read(name);
-    if (existing !== null && originOf(existing) === 'generated') plan.removes.push(name);
+    if (existing !== null && originOf(existing, name) === 'generated') plan.removes.push(name);
   }
   return plan;
 }

@@ -500,11 +500,12 @@ describe('validate_form kind=layout', () => {
       'data-sources.ts',
       'api.ts',
     ],
+    // renderer-json держит схему данными: документ открывает ui-builder [2026-11-11].
     'renderer-json': [
       'index.tsx',
       'types.ts',
       'model.ts',
-      'form.schema.ts',
+      'form.schema.json',
       'form.behavior.ts',
       'form.validation.ts',
       'data-sources.ts',
@@ -630,7 +631,7 @@ describe('validate_form kind=layout', () => {
     expect(errors).toMatch(/`behavior\.ts`[\s\S]*?`form\.behavior\.ts`/);
     expect(errors).toMatch(/`dictionaries\.ts`[\s\S]*?`data-sources\.ts`/);
     expect(errors).toMatch(/`initial-values\.ts`[\s\S]*?`model\.ts`/);
-    expect(errors).toMatch(/`json-schema\.ts`[\s\S]*?`form\.schema\.ts`/);
+    expect(errors).toMatch(/`json-schema\.ts`[\s\S]*?`form\.schema\.json`/);
     expect(errors, 'имя названо — про «нет файла» второй раз не сообщаем').not.toMatch(/RF012/);
 
     const warnings = section(text, 'Warnings');
@@ -718,7 +719,7 @@ describe('validate_form kind=layout', () => {
 
     const json = await layout(
       CANON['renderer-json']
-        .map((f) => (f === 'form.schema.ts' ? 'renderer.schema.json' : f))
+        .map((f) => (f === 'form.schema.json' ? 'renderer.schema.json' : f))
         .concat('renderer.behavior.ts', 'renderer.wizard.tsx'),
       'renderer-json'
     );
@@ -748,21 +749,21 @@ describe('validate_form kind=layout', () => {
     );
     expect(errorCount(text)).toBe(1);
     const errors = section(text, 'Errors');
-    expect(errors).toMatch(/`schema\.ts`[\s\S]*?`form\.schema\.ts`/);
+    expect(errors).toMatch(/`schema\.ts`[\s\S]*?`form\.schema\.json`/);
     // Файлы ролей, которых в каноне больше нет, — предупреждения с адресом переноса.
     const warnings = section(text, 'Warnings');
     expect(warnings).toMatch(/render\.behavior\.ts[\s\S]*?`form\.behavior\.ts`/);
     expect(warnings).toMatch(/json-wizard\.tsx[\s\S]*?`FormWizard`/);
   });
 
-  it('`form.schema.json` допустим, но предупреждает о потере типизации', async () => {
-    const files = CANON['renderer-json'].map((f) =>
-      f === 'form.schema.ts' ? 'form.schema.json' : f
+  it('renderer-json: `form.schema.json` — канон без замечаний, `.ts` — допустимый вариант', async () => {
+    const canon = await layout(CANON['renderer-json'], 'renderer-json');
+    expect(canon).toMatch(/✅ ошибок нет/);
+    expect(canon).not.toMatch(/RF011/);
+    const typed = CANON['renderer-json'].map((f) =>
+      f === 'form.schema.json' ? 'form.schema.ts' : f
     );
-    const text = await layout(files, 'renderer-json');
-    expect(text).toMatch(/✅ ошибок нет/);
-    expect(section(text, 'Warnings')).toMatch(/\$model/);
-    expect(section(text, 'Warnings')).toMatch(/defineJsonSchema/);
+    expect(await layout(typed, 'renderer-json')).toMatch(/✅ ошибок нет/);
   });
 
   it('нет обязательного файла — RF012 с именем и назначением', async () => {
@@ -950,7 +951,7 @@ describe('validate_form kind=layout', () => {
   it('target выводится по составу файлов и догадка проговаривается', async () => {
     const json = await layout(CANON['renderer-json']);
     expect(json).toMatch(
-      /`target` не передан — принят `renderer-json` по составу файлов \(есть `registry\.ts`\)/
+      /`target` не передан — принят `renderer-json` по составу файлов \(есть `form\.schema\.json`\)/
     );
     expect(json).toMatch(/✅ ошибок нет/);
 

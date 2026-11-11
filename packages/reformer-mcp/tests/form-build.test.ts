@@ -133,6 +133,60 @@ describe('form_build: путь без ошибок', () => {
   );
 
   it(
+    'renderer-json: схема — документ form.schema.json, его открывает ui-builder',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, target: 'renderer-json' });
+      const { isError } = await build();
+      expect(isError).toBe(false);
+      expect(existsSync(formFile('form.schema.ts'))).toBe(false);
+      // Ровно то, что билдер ищет: имя `*.schema.json` и документ формата 2 с маркером сборки.
+      const text = readFileSync(formFile('form.schema.json'), 'utf-8');
+      const document = JSON.parse(text);
+      expect(document.format).toBe(2);
+      expect(document.meta.description).toMatch(/^@reformer-form-build [0-9a-f]{16} /);
+      expect(originOf(text, 'form.schema.json')).toBe('generated');
+      const { validateFormSchema } = await import('@reformer/renderer-json/validate');
+      expect(validateFormSchema(document).errors).toEqual([]);
+      // Повторная сборка его не переписывает.
+      expect((await build()).text).toContain('written 0');
+    },
+    SLOW
+  );
+
+  it(
+    'renderer-json: документ, правленный в ui-builder, сборка не трогает',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, target: 'renderer-json' });
+      await build();
+      const document = JSON.parse(readFileSync(formFile('form.schema.json'), 'utf-8'));
+      document.root.children.reverse();
+      const edited = `${JSON.stringify(document, null, 2)}\n`;
+      writeFileSync(formFile('form.schema.json'), edited);
+      const { text } = await build();
+      expect(text).toContain('form.schema.json');
+      expect(readFileSync(formFile('form.schema.json'), 'utf-8')).toBe(edited);
+    },
+    SLOW
+  );
+
+  it(
+    'сборка до 2026-11-11 оставила form.schema.ts — он убирается, правленный руками остаётся',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, target: 'renderer-json' });
+      writeFileSync(formFile('form.schema.ts'), withMarker('export const formSchema = {};\n'));
+      await build();
+      expect(existsSync(formFile('form.schema.ts'))).toBe(false);
+
+      // Смена таргета: прежний документ уходит так же.
+      writeIntent({ ...GRAMMAR_EXAMPLE, target: 'renderer-react' });
+      await build();
+      expect(existsSync(formFile('form.schema.json'))).toBe(false);
+      expect(existsSync(formFile('form.schema.ts'))).toBe(true);
+    },
+    SLOW
+  );
+
+  it(
     'незнакомое свойство компонента — предупреждение со свойствами, которые есть',
     async () => {
       const intent = clone(GRAMMAR_EXAMPLE);
@@ -428,6 +482,29 @@ describe('form_build: чей файл', () => {
     expect(originOf(file.replace("'a'", '"a"'))).toBe('generated');
     expect(originOf(file.replace("'a'", "'b'"))).toBe('edited');
     expect(originOf("const name = 'a';\n")).toBe('handwritten');
+  });
+
+  it('маркер JSON — в meta.description: порядок ключей и отступы правкой не считаются', () => {
+    const body = { format: 2, meta: { name: 'Форма' }, root: { component: '$component(Box)' } };
+    const file = withMarker(JSON.stringify(body), 'form.schema.json');
+    const marked = JSON.parse(file);
+    expect(Object.keys(marked)).toEqual(['format', 'meta', 'root']);
+    expect(marked.meta.name).toBe('Форма');
+    expect(originOf(file, 'form.schema.json')).toBe('generated');
+    // Так сохранит ui-builder: другие отступы и порядок ключей.
+    const { root, meta, format } = marked;
+    expect(originOf(JSON.stringify({ root, meta, format }), 'form.schema.json')).toBe('generated');
+    expect(originOf(file.replace('$component(Box)', '$component(Card)'), 'form.schema.json')).toBe(
+      'edited'
+    );
+    expect(originOf(JSON.stringify(body), 'form.schema.json')).toBe('handwritten');
+    // Свой `meta.description` документа место маркеру уступает, и хэш от этого не плывёт.
+    const described = withMarker(
+      JSON.stringify({ ...body, meta: { description: 'своё' } }),
+      'form.schema.json'
+    );
+    expect(originOf(described, 'form.schema.json')).toBe('generated');
+    expect(originOf('{ not json', 'form.schema.json')).toBe('handwritten');
   });
 
   it(

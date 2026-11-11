@@ -1,15 +1,4 @@
-/**
- * Схема формы «Заявка на кредит» — документ JSON-DSL формата 2.
- *
- * Обёртка `defineJsonSchema<T>` — не украшение: она типизирует литерал по модели,
- * поэтому опечатка внутри `$model(...)` не собирается, а не всплывает в рантайме.
- * Пути внутри частей (`parts`) относительны под-модели и типом не проверяются.
- */
-import { defineJsonSchema } from '@reformer/renderer-json';
-
-import type { CreditApplicationForm } from './model';
-
-export const formSchema = defineJsonSchema<CreditApplicationForm>({
+{
   "format": 2,
   "parts": {
     "address": {
@@ -1535,4 +1524,4 @@ export const formSchema = defineJsonSchema<CreditApplicationForm>({
       }
     ]
   }
-});
+}

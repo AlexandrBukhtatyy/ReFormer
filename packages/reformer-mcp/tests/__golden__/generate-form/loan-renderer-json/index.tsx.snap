@@ -1,14 +1,16 @@
 import { createForm } from '@reformer/core';
 import { useFormBundle } from '@reformer/core/react';
 import { FormRenderer } from '@reformer/renderer-react';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { formBehavior } from './form.behavior';
-import { formSchema } from './form.schema';
+import schemaDocument from './form.schema.json';
 import { formFlow } from './form.flow';
 import { formValidation } from './form.validation';
 import { createFormModel, type ZayavkaNaKreditSokraschennayaShape } from './model';
 import { createRegistry } from './registry';
 
 const registry = createRegistry();
+const formSchema = schemaDocument as unknown as JsonFormSchema<ZayavkaNaKreditSokraschennayaShape>;
 
 export function ZayavkaNaKreditSokraschennayaForm() {
   // Фабрика выполняется один раз: `useMemo` здесь неверен — React вправе сбросить кэш.

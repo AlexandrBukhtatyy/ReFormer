@@ -1,6 +1,7 @@
 /**
  * Модуль формы (`model.ts`, `form.validation.ts`, `form.flow.ts`, `form.behavior.ts`,
- * `form.schema.ts`, `registry.ts`) как живые значения — без браузера.
+ * `form.schema.ts` либо документ `form.schema.json` у renderer-json, `registry.ts`) как живые
+ * значения — без браузера.
  *
  * Общий для `tests/form-from-spec.test.ts` и верификатора. Способ загрузки внедряется: в тесте файлы
  * импортирует vite, в верификаторе — `tsx`.
@@ -26,7 +27,10 @@ export async function loadFormModule(importFile, fileNames) {
   const { formValidation } = await optional('form.validation.ts');
   const { formFlow } = await optional('form.flow.ts');
   const { formBehavior } = await optional('form.behavior.ts');
-  const { formSchema } = await optional('form.schema.ts');
+  // renderer-json держит схему данными — документ приходит экспортом по умолчанию.
+  const formSchema = fileNames.includes('form.schema.json')
+    ? (await importFile('form.schema.json')).default
+    : (await optional('form.schema.ts')).formSchema;
   const { createRegistry } = await optional('registry.ts');
   const flowSteps = formFlow?.steps ?? [];
 

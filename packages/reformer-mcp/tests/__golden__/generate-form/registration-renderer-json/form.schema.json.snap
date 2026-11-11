@@ -1,15 +1,4 @@
-/**
- * Схема формы «RegistrationForm» — документ JSON-DSL формата 2.
- *
- * Обёртка `defineJsonSchema<T>` — не украшение: она типизирует литерал по модели,
- * поэтому опечатка внутри `$model(...)` не собирается, а не всплывает в рантайме.
- * Пути внутри частей (`parts`) относительны под-модели и типом не проверяются.
- */
-import { defineJsonSchema } from '@reformer/renderer-json';
-
-import type { RegistrationFormData } from './model';
-
-export const formSchema = defineJsonSchema<RegistrationFormData>({
+{
   "format": 2,
   "root": {
     "component": "$component(Box)",
@@ -97,4 +86,4 @@ export const formSchema = defineJsonSchema<RegistrationFormData>({
       }
     ]
   }
-});
+}

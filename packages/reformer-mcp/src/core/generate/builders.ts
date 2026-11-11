@@ -32,7 +32,6 @@ import {
 } from './ui-kit-components.js';
 import {
   buildFormSchemaJson,
-  buildFormSchemaJsonTs,
   buildFormSchemaTs,
   buildSchemaLayout,
   collectSteps,
@@ -237,11 +236,16 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   if (withMessages) lines.push("import { ValidationMessagesProvider } from '@reformer/cdk';");
   if (intent.target !== 'core')
     lines.push("import { FormRenderer } from '@reformer/renderer-react';");
+  if (json) lines.push("import type { JsonFormSchema } from '@reformer/renderer-json';");
   if (intent.target === 'renderer-react')
     lines.push("import { FormField } from '@reformer/ui-kit';");
   lines.push("import { formBehavior } from './form.behavior';");
   if (withMessages) lines.push("import { formMessages } from './form.messages';");
-  lines.push("import { formSchema } from './form.schema';");
+  lines.push(
+    json
+      ? "import schemaDocument from './form.schema.json';"
+      : "import { formSchema } from './form.schema';"
+  );
   if (withSteps) lines.push("import { formFlow } from './form.flow';");
   lines.push("import { formValidation } from './form.validation';");
   lines.push(`import { createFormModel, type ${type} } from './model';`);
@@ -250,6 +254,9 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   if (json) {
     // Реестр создаётся один раз на модуль: это код приложения, а не данные формы.
     lines.push('const registry = createRegistry();');
+    // JSON-импорт типизирован широко (`format: number`, `$model(...)` — `string`), поэтому
+    // приведение двойное; пути `$model(...)` сверяет сборка по полям intent.
+    lines.push(`const formSchema = schemaDocument as unknown as JsonFormSchema<${type}>;`);
     lines.push('');
   }
   lines.push(`export function ${name}() {`);
@@ -1962,9 +1969,9 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'types.ts', role: 'локальные типы модуля' },
     { path: 'model.ts', role: 'интерфейс модели, начальные значения и шаблоны элементов массивов' },
     {
-      path: 'form.schema.ts',
-      role: 'схема в JSON-DSL формата 2 через `defineJsonSchema<T>` — с ним пути `$model(...)` проверяются на компиляции, с чистым `.json` нет',
-      variants: ['form.schema.tsx', 'form.schema.json'],
+      path: 'form.schema.json',
+      role: 'схема — документ JSON-DSL формата 2, данными: его открывает ui-builder; пути `$model(...)` сверяет сборка, `defineJsonSchema<T>` в `.ts` проверил бы их компилятором',
+      variants: ['form.schema.ts', 'form.schema.tsx'],
     },
     { path: 'form.behavior.ts', role: BEHAVIOR_ROLE },
     { path: 'form.validation.ts', role: 'правила валидации' },
@@ -2139,10 +2146,12 @@ export function buildBundle(
   warnings.push(...dataSources.warnings);
 
   if (intent.target === 'renderer-json') {
-    // Отдаём канонический `.ts` (`defineJsonSchema<T>`), а не чистый `.json`: только он держит
-    // compile-time проверку путей `$model(...)` — ни ajv, ни обход реестра опечатку в пути не
-    // ловят.
-    files.push({ path: 'form.schema.ts', content: buildFormSchemaJsonTs(intent) });
+    // Схема — данные, `form.schema.json`: его открывает ui-builder (он ищет `*.schema.json`), и
+    // документ JSON-формы должен быть JSON. Прежде здесь был `.ts` с `defineJsonSchema<T>` ради
+    // проверки путей `$model(...)` компилятором; пути сборка берёт из полей intent и сверяет сама
+    // (кросс-проверки раскладки), а вот форма, которую не открыть в ui-builder, проверке не
+    // поддавалась вовсе.
+    files.push({ path: 'form.schema.json', content: layoutJson });
     const registry = buildRegistryTs(intent, catalogs.uiKit);
     files.push({ path: 'registry.ts', content: registry.content });
     warnings.push(...registry.warnings);

@@ -521,28 +521,3 @@ export function buildFormSchemaTs(
   lines.push(rootBlock.trimEnd());
   return { content: lines.join('\n') + '\n', warnings };
 }
-
-/**
- * `form.schema.ts` для renderer-json — документ формата 2, обёрнутый в `defineJsonSchema<T>`.
- *
- * Обёртка типизирует литерал по модели: опечатка внутри `$model(...)` корневого дерева не
- * собирается. Пути внутри частей относительны под-модели и остаются непроверенными — как и у
- * чистого `.json`.
- */
-export function buildFormSchemaJsonTs(intent: FormIntent): string {
-  const literal = buildFormSchemaJson(intent).trimEnd();
-  const lines: string[] = [];
-  lines.push('/**');
-  lines.push(` * Схема формы «${intent.formName}» — документ JSON-DSL формата 2.`);
-  lines.push(' *');
-  lines.push(' * Обёртка `defineJsonSchema<T>` — не украшение: она типизирует литерал по модели,');
-  lines.push(' * поэтому опечатка внутри `$model(...)` не собирается, а не всплывает в рантайме.');
-  lines.push(' * Пути внутри частей (`parts`) относительны под-модели и типом не проверяются.');
-  lines.push(' */');
-  lines.push("import { defineJsonSchema } from '@reformer/renderer-json';");
-  lines.push('');
-  lines.push(`import type { ${intent.interfaceName} } from './model';`);
-  lines.push('');
-  lines.push(`export const formSchema = defineJsonSchema<${intent.interfaceName}>(${literal});`);
-  return lines.join('\n') + '\n';
-}

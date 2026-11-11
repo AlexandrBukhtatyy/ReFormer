@@ -149,16 +149,14 @@ describe('набор файлов', () => {
   for (const target of TARGETS) {
     it(`${target}: схема, поведение и валидация — по одному файлу`, () => {
       const paths = buildBundle(loanIntent(target), CATALOGS).files.map((f) => f.path);
+      // renderer-json держит схему данными: документ открывает ui-builder [2026-11-11].
+      const schema = target === 'renderer-json' ? 'form.schema.json' : 'form.schema.ts';
       expect(paths).toEqual(
-        expect.arrayContaining([
-          'model.ts',
-          'form.schema.ts',
-          'form.validation.ts',
-          'form.behavior.ts',
-        ])
+        expect.arrayContaining(['model.ts', schema, 'form.validation.ts', 'form.behavior.ts'])
       );
+      expect(paths.filter((path) => path.startsWith('form.schema.'))).toEqual([schema]);
       // Файлов прежнего контракта нет ни у одного таргета.
-      for (const gone of ['form.render.ts', 'wizard.tsx', 'layout.json', 'form.schema.json']) {
+      for (const gone of ['form.render.ts', 'wizard.tsx', 'layout.json']) {
         expect(paths, `${gone} — файл прежнего контракта`).not.toContain(gone);
       }
       expect(paths.includes('registry.ts')).toBe(target === 'renderer-json');
@@ -231,7 +229,7 @@ describe('form.schema.ts — TS-таргеты', () => {
   });
 });
 
-describe('form.schema.ts — документ формата 2', () => {
+describe('form.schema.json — документ формата 2', () => {
   const document = JSON.parse(buildFormSchemaJson(loanIntent('renderer-json')));
 
   it('несёт `format: 2`, словарь частей и шаги в `children`', () => {
@@ -273,10 +271,13 @@ describe('form.schema.ts — документ формата 2', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('файл бандла — тот же документ в `defineJsonSchema<T>`', () => {
-    const ts = fileOf('renderer-json', 'form.schema.ts');
-    expect(ts).toContain('export const formSchema = defineJsonSchema<LoanRequest>({');
-    expect(ts).toContain('"format": 2,');
+  it('файл бандла — тот же документ данными, точка входа приводит его к типу модели', () => {
+    expect(JSON.parse(fileOf('renderer-json', 'form.schema.json'))).toEqual(document);
+    const entry = buildAssemblyTsx(loanIntent('renderer-json'));
+    expect(entry).toContain("import schemaDocument from './form.schema.json';");
+    expect(entry).toContain(
+      'const formSchema = schemaDocument as unknown as JsonFormSchema<LoanRequest>;'
+    );
   });
 });
 

@@ -49,7 +49,7 @@ The separator is a **dot**, never a dash and never a collapsed word: `form.behav
 ├── index.tsx           # entry: ONE assembly — createForm in useFormBundle — and whoever draws
 ├── types.ts            # form type + field enums + { value, label } option type + constant dictionaries
 ├── model.ts            # createModel factory + initial values + new-row templates (arrayOf)
-├── form.schema.ts      # the schema: ONE tree of nodes — the form is built from it and drawn by it
+├── form.schema.ts      # the schema: ONE tree of nodes — the form is built from it and drawn by it (json: .json)
 ├── form.behavior.ts    # the ONLY behavior: links over the model + rules for schema nodes
 ├── form.validation.ts  # ALL validation over the model; wizard: per-step rules exported + { extras }
 ├── form.flow.ts        # optional, wizard: steps of the flow — [{ id: <step selector>, rules }]
@@ -66,20 +66,20 @@ code, `defineIssueMessages({ 'loanAmount.required': '…' })` → `<ValidationMe
 
 **`form.schema.*` — one tree, two notations:**
 
-| target         | file             | content                                                                                              |
-| -------------- | ---------------- | ---------------------------------------------------------------------------------------------------- |
-| core           | `form.schema.ts` | builder `(model) => node`: `{ model: model.$.x, component, componentProps }`; the markup is JSX      |
-| renderer-react | `form.schema.ts` | the same builder, with containers — `FormRenderer` draws the tree                                    |
-| renderer-json  | `form.schema.ts` | the same tree as a document of format 2 (`$model` / `$component` / `$part`) in `defineJsonSchema<T>` |
+| target         | file               | content                                                                                         |
+| -------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| core           | `form.schema.ts`   | builder `(model) => node`: `{ model: model.$.x, component, componentProps }`; the markup is JSX |
+| renderer-react | `form.schema.ts`   | the same builder, with containers — `FormRenderer` draws the tree                               |
+| renderer-json  | `form.schema.json` | the same tree as a document of format 2 (`$model` / `$component` / `$part`), stored as data     |
 
 - **`.tsx` instead of `.ts` is fine** when the schema itself contains JSX (an inline cell
   renderer). Only the extension changes: `form.schema.tsx`, never `schema.tsx` / `json-schema.ts`.
-- **renderer-json — why `.ts` is the default.** `defineJsonSchema<T>` types the literal against `T`,
-  so a typo inside `$model(personalData.frstName)` is a **compile-time** error — the main thing
-  standing between the DSL and a field that silently binds to nothing.
-- **`form.schema.json` is an accepted variant** (renderer-json) — the same DSL stored as data
-  (`import raw from './form.schema.json'` plus a cast to `JsonFormSchema<T>`). Take it knowingly:
-  **`$model` paths stop being type-checked**, and nothing else picks the slack up.
+- **renderer-json — why `.json` is the default.** ui-builder opens only `*.schema.json`.
+  `index.tsx` imports it: `schemaDocument as unknown as JsonFormSchema<T>` (`resolveJsonModule`).
+  `form_build` writes the `$model(...)` paths from the intent and cross-checks them; its mark is
+  `meta.description`, and a document saved from ui-builder is a hand edit.
+- **`form.schema.ts` is an accepted variant** (renderer-json): the same document in
+  `defineJsonSchema<T>` — a `$model` typo fails at compile time, but ui-builder does not open it.
 
 **Behavior — one layer, one file.** `form.behavior.ts` holds `defineFormBehavior<T>(({ model, form, schema }) => …)`:
 links over the model (compute / enableWhen / copyFrom / onChange) and rules for schema nodes
@@ -121,11 +121,11 @@ A **data** schema (`form.schema.json`, renderer-json) is split by reference: the
 ```
 core (8):            index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts
 renderer-react (8):  index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts
-renderer-json (9):   index.tsx  types.ts  model.ts  form.schema.ts  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts  registry.ts
+renderer-json (9):   index.tsx  types.ts  model.ts  form.schema.json  form.behavior.ts  form.validation.ts  data-sources.ts  api.ts  registry.ts
 
 # same names, allowed shapes:
 any target                     schema holds JSX        -> form.schema.tsx
-renderer-json                  schema as raw data      -> form.schema.json  (no $model typing)
+renderer-json                  schema typed by tsc     -> form.schema.ts with defineJsonSchema<T>  (ui-builder does not open it)
 any target + wizard, optional  steps as folders        -> steps/index.ts + steps/<slug>/{form.schema.*, form.validation.ts, form.behavior.ts}
 ```
 
@@ -228,24 +228,24 @@ removed in `@reformer/mcp` 7.0.
 
 The contract of a form is the same for every way of drawing, so almost every file is written once.
 
-| File                                | Role                                                 |       core        |  renderer-react   |        renderer-json         |
-| ----------------------------------- | ---------------------------------------------------- | :---------------: | :---------------: | :--------------------------: |
-| `types.ts`                          | form type + enums + option type + constants          |        ✅         |       reuse       |            reuse             |
-| `model.ts`                          | reactive model (source of truth) + new-row templates |        ✅         |       reuse       |            reuse             |
-| `form.validation.ts`                | rules; wizard: step rules exported + `{ extras }`   |        ✅         |       reuse       |            reuse             |
-| `form.flow.ts`                      | wizard: steps of the flow `[{ id, rules }]`          | optional (wizard) | optional (wizard) |      optional (wizard)       |
-| `form.messages.ts`                  | issue texts by code (`defineIssueMessages`)          |     optional      |     optional      |           optional           |
-| `form.behavior.ts`                  | the one behavior: model links + node rules           |        ✅         |       reuse       |            reuse             |
-| `data-sources.ts`                   | options + async loaders (dataSources)                |        ✅         |       reuse       |            reuse             |
-| `api.ts`                            | submit + prefill/load                                |        ✅         |       reuse       |            reuse             |
-| `operators.ts`                      | own rules and validation / behavior operators        |     optional      |     optional      |           optional           |
-| `form.schema.ts`                    | the one schema tree: TS builder / JSON document      |        ✅         |       reuse       | the same tree as a document  |
-| `form.schema.tsx`                   | same file when the schema contains JSX               |      variant      |      variant      |           variant            |
-| `form.schema.json`                  | same DSL as raw data — no `$model` typing            |         —         |         —         |           variant            |
-| `registry.ts`                       | binds components + data-sources to DSL names         |         —         |         —         |              ✅              |
-| `steps/index.ts` + `steps/<slug>/…` | per-step schema / validation / behavior              | optional (wizard) | optional (wizard) |      optional (wizard)       |
-| **app** `registry.ts` (base)        | ui-kit + system components                           |         —         |         —         | app-level (§2, aspirational) |
-| **app** `form-schema.schema.json`   | generated DSL meta-schema                            |         —         |         —         | app-level (§2, aspirational) |
+| File                                | Role                                                                                    |       core        |  renderer-react   |        renderer-json         |
+| ----------------------------------- | --------------------------------------------------------------------------------------- | :---------------: | :---------------: | :--------------------------: |
+| `types.ts`                          | form type + enums + option type + constants                                             |        ✅         |       reuse       |            reuse             |
+| `model.ts`                          | reactive model (source of truth) + new-row templates                                    |        ✅         |       reuse       |            reuse             |
+| `form.validation.ts`                | rules; wizard: step rules exported + `{ extras }`                                       |        ✅         |       reuse       |            reuse             |
+| `form.flow.ts`                      | wizard: steps of the flow `[{ id, rules }]`                                             | optional (wizard) | optional (wizard) |      optional (wizard)       |
+| `form.messages.ts`                  | issue texts by code (`defineIssueMessages`)                                             |     optional      |     optional      |           optional           |
+| `form.behavior.ts`                  | the one behavior: model links + node rules                                              |        ✅         |       reuse       |            reuse             |
+| `data-sources.ts`                   | options + async loaders (dataSources)                                                   |        ✅         |       reuse       |            reuse             |
+| `api.ts`                            | submit + prefill/load                                                                   |        ✅         |       reuse       |            reuse             |
+| `operators.ts`                      | own rules and validation / behavior operators                                           |     optional      |     optional      |           optional           |
+| `form.schema.ts`                    | the one schema tree: TS builder; renderer-json — typed document (`defineJsonSchema<T>`) |        ✅         |       reuse       |           variant            |
+| `form.schema.tsx`                   | same file when the schema contains JSX                                                  |      variant      |      variant      |           variant            |
+| `form.schema.json`                  | the JSON document of format 2 — what ui-builder opens                                   |         —         |         —         |              ✅              |
+| `registry.ts`                       | binds components + data-sources to DSL names                                            |         —         |         —         |              ✅              |
+| `steps/index.ts` + `steps/<slug>/…` | per-step schema / validation / behavior                                                 | optional (wizard) | optional (wizard) |      optional (wizard)       |
+| **app** `registry.ts` (base)        | ui-kit + system components                                                              |         —         |         —         | app-level (§2, aspirational) |
+| **app** `form-schema.schema.json`   | generated DSL meta-schema                                                               |         —         |         —         | app-level (§2, aspirational) |
 
 Rule nodes of the behavior (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer.
 When the markup is written by hand (core) there is none, so `form_build` refuses them

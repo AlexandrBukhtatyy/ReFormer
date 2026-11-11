@@ -697,12 +697,14 @@ describe('builders', () => {
     // Валидация — тоже артефакт формы: `form.validation.ts`, прежний `validation.ts` не печатается.
     expect(json.files.map((f) => f.path)).toContain('form.validation.ts');
     expect(json.files.map((f) => f.path)).not.toContain('validation.ts');
-    // Схема отдаётся каноничным `form.schema.ts`, а не `.json`: предупреждение о потере
-    // типизации читают не все, а блок кода из манифеста копируют все.
-    const schema = json.files.find((f) => f.path === 'form.schema.ts');
-    expect(schema, 'схема renderer-json отдаётся как form.schema.ts').toBeDefined();
-    expect(schema?.content).toContain(`defineJsonSchema<${deriveInterfaceName('Order')}>(`);
-    expect(json.files.map((f) => f.path)).not.toContain('form.schema.json');
+    // Схема renderer-json — данные, `form.schema.json`: документ открывает ui-builder [2026-11-11].
+    const schema = json.files.find((f) => f.path === 'form.schema.json');
+    expect(schema, 'схема renderer-json отдаётся как form.schema.json').toBeDefined();
+    expect(JSON.parse(schema!.content).format).toBe(2);
+    expect(json.files.map((f) => f.path)).not.toContain('form.schema.ts');
+    expect(buildAssemblyTsx(goodIntent())).toContain(
+      `schemaDocument as unknown as JsonFormSchema<${deriveInterfaceName('Order')}>`
+    );
     const core = buildBundle(normalizeIntent({ ...goodIntent(), target: 'core' }), CATALOGS);
     expect(core.files.map((f) => f.path)).not.toContain('registry.ts');
     // Схема одна на все таргеты: `core` получает ту же `form.schema.ts`, а не `layout.json`

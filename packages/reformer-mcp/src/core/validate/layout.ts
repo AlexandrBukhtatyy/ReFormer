@@ -328,9 +328,6 @@ function extraHint(base: string): string {
 }
 
 /** Оговорка про чистый JSON: она стоит отдельного предупреждения, а не сноски в доках. */
-const JSON_SCHEMA_NOTE =
-  'чистый JSON теряет compile-time проверку путей `$model(...)` — опечатку в пути не поймает ни `tsc`, ни мета-схема';
-
 /** Слаг папки шага: kebab-case, без ведущего номера (`01-dannye`, `1_contacts` — нет). */
 const STEP_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const NUMBERED_SLUG_RE = /^\d+[-_.]/;
@@ -668,18 +665,9 @@ export function validateLayout(files: readonly string[], target: LayoutTarget): 
         continue;
       }
 
+      // Схема данными у renderer-json — штатный вид (её открывает ui-builder), а у других таргетов
+      // `.json` в каноне нет вовсе: предупреждать о потере типизации больше не о чем.
       canonicalHits.set(concern, [...(canonicalHits.get(concern) ?? []), base]);
-
-      if (concern === 'schema' && ext === 'json') {
-        diagnostics.push({
-          code: 'RF011',
-          severity: 'warning',
-          message: `допустимый вариант, но ${JSON_SCHEMA_NOTE}.`,
-          path: rel,
-          suggestion:
-            'Дефолт канона — `form.schema.ts` с `defineJsonSchema<T>`; `.json` оставляйте осознанно.',
-        });
-      }
       continue;
     }
 

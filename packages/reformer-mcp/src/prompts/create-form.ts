@@ -63,7 +63,7 @@ export const TARGET_NOTE: Readonly<Record<ReformerTarget, string>> = {
     'you write no code unless the grammar sends you to `operators`.',
   'renderer-json':
     'On renderer-json form_build writes the whole module: the schema as a JSON document ' +
-    '(`form.schema.ts` with `defineJsonSchema`), `registry.ts` and `index.tsx`.',
+    '(`form.schema.json` — ui-builder opens it), `registry.ts` and `index.tsx`.',
 };
 
 export function targetLabelFor(target: ReformerTarget): string {
