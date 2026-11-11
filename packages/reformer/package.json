@@ -136,7 +136,8 @@
     "./validators/max-age": {
       "types": "./dist/validators/max-age.d.ts",
       "import": "./dist/validators/max-age.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "scripts": {

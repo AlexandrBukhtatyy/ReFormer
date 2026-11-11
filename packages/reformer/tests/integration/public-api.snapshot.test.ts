@@ -284,11 +284,13 @@ beforeAll(() => {
 // ─── Входы и снимок ────────────────────────────────────────────────────────────────────────
 
 describe('public API — входы сабпатов', () => {
-  it('PA-01: каждый вход `package.json` описан тестом — модуль, гранулярное правило или JSON локали', () => {
+  it('PA-01: каждый вход `package.json` описан тестом — модуль, гранулярное правило, JSON локали или манифест', () => {
     const subpaths = Object.keys(PACKAGE_EXPORTS);
     const classified = Object.fromEntries(
       subpaths.map((subpath) => {
         if (subpath in ENTRIES) return [subpath, 'модуль'];
+        // Манифест пакета: по нему инструменты находят корень установки (MCP, аудит 2026-11).
+        if (subpath === './package.json') return [subpath, 'манифест'];
         if (GRANULAR.test(subpath)) {
           return [
             subpath,
@@ -308,7 +310,7 @@ describe('public API — входы сабпатов', () => {
     expect(Object.keys(ENTRIES).filter((subpath) => !subpaths.includes(subpath))).toEqual([]);
     expect(
       Object.entries(classified).filter(
-        ([, kind]) => !['модуль', 'правило', 'JSON локали'].includes(kind)
+        ([, kind]) => !['модуль', 'правило', 'JSON локали', 'манифест'].includes(kind)
       )
     ).toEqual([]);
   });
