@@ -46,7 +46,7 @@ test.describe('Ассистент: build_form', () => {
     await expect(panel.failedToolLines(panel.answer(-1))).toHaveCount(0);
     await expect(panel.message(panel.answer(-1))).toHaveText('Форма собрана.');
     // Продолжение на пустой новой форме несёт грамматику сразу: вызов без intent не нужен.
-    expect(JSON.stringify(model.requests[1])).toContain('# build_form intent');
+    expect(JSON.stringify(model.requests[1])).toContain('# intent — grammar');
     expect(toolNames(model.requests[1])).toContain('build_form');
   });
 
@@ -78,7 +78,64 @@ test.describe('Ассистент: build_form', () => {
     );
   });
 
-  test('[B3] мастер с полями одним вызовом — отказ с первым вызовом по шагам, форма цела', async ({
+  test('[B3] мастер одним intent: шаги с полями, правило строки, вычисление, видимость', async ({
+    builder,
+    model,
+    page,
+    panel,
+  }) => {
+    await builder.openPlayground({ plugins: ['reformer/ai'] });
+    await panel.connect();
+
+    model.reply(
+      call('create_form', { name: 'order' }),
+      call('build_form', {
+        intent: {
+          fields: [
+            { name: 'price', component: 'InputNumber', label: 'Цена E2E' },
+            { name: 'qty', component: 'InputNumber', label: 'Количество E2E' },
+            { name: 'total', component: 'InputNumber', label: 'Итого E2E' },
+            { name: 'gift', component: 'Checkbox', label: 'Подарок E2E' },
+            { name: 'note', component: 'Input', label: 'Открытка E2E' },
+          ],
+          arrays: [
+            {
+              name: 'items',
+              componentProps: { title: 'Позиции E2E' },
+              itemFields: [{ name: 'title', component: 'Input', label: 'Позиция E2E' }],
+            },
+          ],
+          steps: [
+            { title: 'Заказ E2E', fields: ['price', 'qty', 'total', 'items'] },
+            { title: 'Доставка E2E', fields: ['gift', 'note'] },
+          ],
+          validation: [{ target: 'title', each: 'items', rules: ['required'] }],
+          behavior: [
+            {
+              kind: 'compute',
+              target: 'total',
+              sources: ['price', 'qty'],
+              expr: '(model.price ?? 0) * (model.qty ?? 0)',
+            },
+          ],
+          visibility: [{ selector: 'note', condition: 'model.gift !== true' }],
+        },
+      }),
+      say('Мастер собран.')
+    );
+    await panel.ask('Сделай заказ мастером из двух шагов: позиции и итог, затем доставка.');
+
+    await expect(page.getByText('Заказ E2E', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Доставка E2E', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Цена E2E', { exact: true })).toBeVisible();
+    await expect(panel.failedToolLines(panel.answer(-1))).toHaveCount(0);
+    // До шести шагов мастер собирается одним вызовом; правила всех видов ложатся вместе с ним.
+    const reply = toolResults(model.requests[2]).join('\n');
+    expect(reply).toContain('Steps: "Заказ E2E"');
+    expect(reply).toContain('Rules now: validation 1, behavior 1, render 1.');
+  });
+
+  test('[B6] мастер крупнее предела — один отказ со списком шагов, форма цела, лента по-русски', async ({
     builder,
     model,
     panel,
@@ -87,26 +144,28 @@ test.describe('Ассистент: build_form', () => {
     await builder.openFile(FORM_A);
     await panel.connect();
 
+    const titles = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
     model.reply(
       call('build_form', {
         parent: '/root',
         intent: {
-          fields: [EMAIL, PHONE],
-          steps: [
-            { title: 'A', fields: ['email'] },
-            { title: 'B', fields: ['phone'] },
-          ],
+          fields: titles.map((t) => ({ name: `f${t}`, component: 'Input', label: t })),
+          steps: titles.map((t) => ({ title: t, fields: [`f${t}`] })),
         },
       }),
       say('Не вышло.')
     );
-    await panel.ask('Добавь мастер из двух шагов.');
+    await panel.ask('Добавь мастер из семи шагов.');
 
-    await expect(panel.failedToolLines(panel.answer(0))).toHaveCount(1);
+    const failed = panel.failedToolLines(panel.answer(0));
+    await expect(failed).toHaveCount(1);
+    // Человеку — строка по коду отказа, английский текст модели — в подробностях (ReFormer-lhvk.7).
+    await expect(failed).toContainText('Правка описана неверно');
+    await expect(failed.getByTestId('ai-tool-detail')).toHaveCount(1);
     await expect(builder.dirtyMark(FORM_A)).toHaveCount(0);
-    expect(toolResults(model.requests[1]).join('\n')).toContain(
-      '{"steps":[{"title":"A"},{"title":"B"}]}'
-    );
+    const reply = toolResults(model.requests[1]).join('\n');
+    expect(reply).toContain('wizard-too-large');
+    expect(reply).toContain(JSON.stringify({ steps: titles.map((title) => ({ title })) }));
   });
 
   test('[B4] «Отменить ход» снимает всю сборку одним шагом', async ({
