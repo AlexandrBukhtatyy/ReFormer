@@ -17,7 +17,7 @@ import { readRuleCode } from '../ai/src/stack/rule-code';
 import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
 import { createFakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
-import { BUILD_FORM_EXAMPLE } from '../ai/src/tools/build-form/grammar';
+import { DOCUMENT_GRAMMAR_EXAMPLE } from '@reformer/mcp/intent';
 import { createAgentBridge } from '../../forms/ai/src/session/bridge';
 import { createAiSession } from '../../forms/ai/src/session/session';
 import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
@@ -94,20 +94,24 @@ async function turn(script: readonly FakeStep[], buildForm = true) {
 describe('build_form целым ходом', () => {
   it('форма и правила примера ложатся в документ и код модуля', async () => {
     const { schema, rules, tools } = await turn([
-      { tool: 'build_form', args: { intent: BUILD_FORM_EXAMPLE } },
+      { tool: 'build_form', args: { intent: DOCUMENT_GRAMMAR_EXAMPLE } },
       { text: 'Готово.' },
     ]);
     const build = tools.find((tool) => tool.name === 'build_form');
     expect(build?.ok, build?.error).toBe(true);
     expect(collectModelPaths(schema)).toEqual(
-      expect.arrayContaining(['email', 'kind', 'inn', 'price', 'qty', 'total'])
+      expect.arrayContaining(['loanType', 'price', 'quantity', 'total', 'propertyValue'])
     );
     expect(rules.validation.map((r) => r.target)).toEqual(
-      expect.arrayContaining(['email', 'inn', 'qty'])
+      expect.arrayContaining(['price', 'propertyValue', 'confirm'])
     );
     expect(rules.behavior.map((b) => b.kind)).toEqual(
-      expect.arrayContaining(['compute', 'copyFrom', 'enableWhen'])
+      expect.arrayContaining(['compute', 'enableWhen', 'copyFrom', 'onChange'])
     );
+    // Опции связи пережили печать в код модуля и обратное чтение (аудит 2026-11, D4).
+    expect(rules.behavior.find((b) => b.kind === 'enableWhen')).toMatchObject({
+      options: { resetOnDisable: true },
+    });
     expect(rules.render).toEqual([expect.objectContaining({ kind: 'hideWhen' })]);
   });
 

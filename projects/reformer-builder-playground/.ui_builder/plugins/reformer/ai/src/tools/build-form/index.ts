@@ -6,19 +6,29 @@
  * только диагностика. Без него форма собиралась десятками вызовов `insert_node` и `set_form_rules`,
  * и большую спеку не довёл до конца ни один режим ассистента.
  *
- * Сборка — не второй механизм правки, а последовательность уже существующих инструментов над одним
- * черновиком: узлы ставит `insert_node` (фабрика каталога и гейт схемы — его), правила —
- * `set_form_rules` (пути, коды замечаний, циклы, два писателя), видимость — `set_render_rules`
- * (селектор узла). Отказ любого шага отменяет всё: черновик хода не меняется, пока не собрано целое.
+ * ## Один язык с MCP
  *
- * Одно исключение — правило, чей путь не нашёл поля в собранном (`./rule-paths`). Оно
- * откладывается, а сборка ложится: поля и раскладка дороже связи, и отказ целиком из-за неё
- * оставлял человека без формы — небольшая модель повторяла сборку с той же ошибкой (ReFormer-t4fr).
- * Ответ перечисляет отложенные правила с починкой.
+ * Intent судит судья MCP (`judgeIntent` с `forDocument`) — тот же вердикт, что у `form_build` и
+ * `validate_form`: чтение с незнакомыми ключами и подъёмом записей, кросс-проверка, неразмещённое,
+ * компоненты и свойства кита и то, чего документ не держит (код модуля — отказ, начальные значения —
+ * заметка). Своего прохода подъёма записей у билдера больше нет: их читает MCP (план
+ * mcp-audit-one-path, фаза 4; аудит 2026-11, D3).
  *
- * Intent читает и раскладывает MCP (`readIntent`, `buildSchemaLayout`) — тот же словарь, в котором
- * билдер уже хранит правила (`core/form-model/rules`). Что из intent документу билдера некуда
- * положить (начальные значения, опции связей), ответ называет, а не теряет молча.
+ * ## Один отказ со всеми пунктами
+ *
+ * Всё, что проверяется до первой вставки, проверяется до неё и сразу целиком: вердикт судьи, размер
+ * визарда, родитель и занятые поля, подформы, отказы правил (`planRules` — те же, что у
+ * `set_form_rules`). Отказ один, до {@link MAX_FINDINGS} пунктов, у каждого код, место и починка:
+ * раньше отказы шли по одному, и модель чинила intent по кругу (аудит 2026-11, D5).
+ *
+ * Сборка — последовательность уже существующих инструментов над одним черновиком: узлы ставит
+ * `insert_node` (фабрика каталога и гейт схемы — его), правила — `set_form_rules`, видимость и
+ * события узлов — `set_render_rules`. Отказ любого шага отменяет всё: черновик хода не меняется,
+ * пока не собрано целое.
+ *
+ * Правило, чей путь не нашёл поля (`./rule-paths`), не отказ: оно откладывается, а сборка ложится —
+ * поля и раскладка дороже связи, и отказ целиком из-за неё оставлял человека без формы
+ * (ReFormer-t4fr). Ответ перечисляет отложенные правила с починкой.
  *
  * @module plugins/reformer/ai/tools/build-form
  */
@@ -26,24 +36,23 @@
 import {
   buildSchemaLayout,
   collectSteps,
-  inspectLayoutRefs,
+  DOCUMENT_GRAMMAR_EXAMPLE,
+  judgeIntent,
   modelPaths,
-  readIntent,
-  uiKitFromCatalog,
   type FormIntent,
-  type IntentWarning,
-  type IntentWarningCode,
+  type IntentProblemCode,
+  type JudgeFinding,
+  type JudgeWarningCode,
 } from '@reformer/mcp/intent';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { collectModelPaths, emptyRules, type FormRules } from '../../../../core/form-model';
-import { listComponents, wizardNames } from '../../model/catalog-digest';
+import { wizardNames } from '../../model/catalog-digest';
 import { isResolved, resolveRef } from '../../model/node-ref';
 import { buildOutline } from '../../model/outline';
 import { insertSlotOf } from '../../model/slots';
 import {
   fail,
   ok,
-  TOOL_TEXT_BUDGET,
   type AgentTool,
   type ChangeOp,
   type ToolContext,
@@ -51,10 +60,9 @@ import {
 } from '../../model/types';
 import { INSERT_MAX_NODES, insertNodeTool } from '../insert-node';
 import { REF_PROP } from '../params';
-import { setFormRulesTool } from '../set-form-rules';
+import { planRules, setFormRulesTool, type Params as RuleParams } from '../set-form-rules';
 import { setRenderRulesTool } from '../set-render-rules';
-import { BUILD_FORM_EXAMPLE, buildFormGrammar } from './grammar';
-import { liftInline } from './lift';
+import { buildFormGrammar, catalogsOf, WIZARD_MAX_FIELDS, WIZARD_MAX_STEPS } from './grammar';
 import { planOf, type PlanNode } from './plan';
 import { checkRulePaths, droppedRulesText, hasRuleParams } from './rule-paths';
 
@@ -65,13 +73,47 @@ interface Params {
 }
 
 /** Бюджет ответа: грамматика длиннее сводки правки, а без неё первый вызов бесполезен. */
-const BUILD_FORM_TEXT_BUDGET = 4000;
+export const BUILD_FORM_TEXT_BUDGET = 4000;
 
-/** Сколько проблем чтения intent назвать: чинит их модель по нескольку за раз. */
-const MAX_PROBLEMS = 12;
+/** Сколько пунктов назвать в отказе: модель чинит их за один заход, но не два десятка сразу. */
+const MAX_FINDINGS = 12;
 
 /** Сколько замечаний сборки показать. */
 const MAX_NOTES = 8;
+
+/** Пункт отказа: код, место, что не так и что сделать — как строка находки `form_build`. */
+export interface BuildFinding {
+  readonly code: string;
+  readonly at?: string;
+  readonly message: string;
+  readonly hint?: string;
+}
+
+/**
+ * Коды проблем чтения intent. При них судья других ошибок не даёт — intent прочитан не целиком, и
+ * своих проверок сборка не добавляет: они судили бы о недочитанном. Запись полная: новый код MCP без
+ * строки здесь — ошибка типов, а не молча другой отказ.
+ */
+const READING_CODES: Readonly<Record<IntentProblemCode, true>> = {
+  'intent-unreadable': true,
+  'not-an-object': true,
+  'missing-key': true,
+  'unknown-key': true,
+  'key-conflict': true,
+  'prop-unsupported': true,
+  'invalid-value': true,
+  'unknown-kind': true,
+  duplicate: true,
+  'inert-behavior': true,
+};
+
+const isReading = (code: string): boolean => Object.hasOwn(READING_CODES, code);
+
+/**
+ * Пути правил судья сверяет с моделью intent, а сборка — с черновиком, где стоят и прежние поля:
+ * в шаг правило законно называет поле, собранное раньше. Их сверяет `./rule-paths`.
+ */
+const RULE_PATH_CODES: ReadonlySet<string> = new Set(['C4', 'C5']);
 
 export const buildFormTool: AgentTool<Params> = {
   name: 'build_form',
@@ -82,7 +124,7 @@ export const buildFormTool: AgentTool<Params> = {
     type: 'object',
     properties: {
       // Строкой — тоже: модель шлёт intent JSON-строкой, и проверка аргументов отклоняла вызов до
-      // `readIntent`, который строку разбирает (замер 2026-11-03, сценарий 21.4: два отказа подряд).
+      // чтения, которое строку разбирает (замер 2026-11-03, сценарий 21.4: два отказа подряд).
       intent: {
         type: ['object', 'string'],
         description: 'The form as one intent; omit to get the grammar',
@@ -100,104 +142,120 @@ export const buildFormTool: AgentTool<Params> = {
       return ok(buildFormGrammar(ctx.catalog));
     }
 
-    const fieldComponents = listComponents(ctx.catalog, { role: 'field' }).map((c) => c.name);
-    const lifted = liftInline(params.intent, fieldComponents);
-    if (lifted.problems.length > 0) {
-      return fail(
-        'INVALID_PARAMS',
-        `The intent was not read, nothing changed:\n${lifted.problems
-          .slice(0, MAX_PROBLEMS)
-          .map((p) => `- ${p}`)
-          .join('\n')}\nEvery field needs "name" (a dotted name is a group field: address.city).`
+    // Документ, а не модуль: заметок о печати модуля (интерфейсы, типы значений) судья не пишет —
+    // модель принимала их за сбой (замер 2026-11-03, сценарий 3.6). Справочники — каталог кита.
+    const verdict = judgeIntent(params.intent, catalogsOf(ctx.catalog), { forDocument: true });
+    if (verdict.errors.some((error) => isReading(error.code))) {
+      return refusal(
+        'The intent was not read',
+        verdict.errors,
+        'Call build_form without intent for the grammar.'
       );
     }
-    const raw = lifted.intent;
-    // Документ, а не модуль: предупреждения о печати модуля (интерфейсы, типы значений, начальные
-    // значения) MCP не пишет — модель принимала их за сбой (замер 2026-11-03, сценарий 3.6).
-    // Каталог активного кита: по нему имя экспорта приводится к имени реестра, а имя компонента
-    // в `type` узнаётся как компонент.
-    const read = readIntent(raw, {
-      forDocument: true,
-      uiKit: uiKitFromCatalog({ components: ctx.catalog }),
-    });
-    if (read.problems.length > 0) {
-      const lines = read.problems
-        .slice(0, MAX_PROBLEMS)
-        .map((p) => `- ${p.at}: ${p.message}; expected ${p.expected}`);
-      return fail(
-        'INVALID_PARAMS',
-        `The intent was not read, nothing changed:\n${lines.join('\n')}\n` +
-          'Call build_form without intent for the grammar.'
-      );
-    }
-    const intent = read.intent;
-    const steps = collectSteps(intent.layoutRoot).length;
-    if (intent.fields.length + intent.arrays.length === 0 && steps === 0) {
-      return fail('INVALID_PARAMS', emptyIntentMessage(raw));
-    }
-    if (steps > 1 && intent.fields.length + intent.arrays.length > 0) {
-      return fail('INVALID_PARAMS', multiStepMessage(intent));
-    }
-
-    const layout = inspectLayoutRefs(intent);
-    if (layout.unknown.length > 0) {
-      return fail(
-        'INVALID_PARAMS',
-        `Layout names what fields do not declare: ${layout.unknown.join(' ')} Declare each ` +
-          'one in "fields": [{ "name", "component", "label" }].'
-      );
-    }
-    const unplaced = [...intent.fields, ...intent.arrays]
-      .filter((e) => !layout.placed.has(e.name) && !layout.placed.has(e.modelPath ?? e.name))
-      .map((e) => e.name);
-    if (unplaced.length > 0) {
-      // Без шагов «шаг» в отказе путал модель: раскладка была узлами layoutRoot (сценарий B.3).
-      const where = steps > 0 ? 'any step' : 'the layout';
-      return fail(
-        'INVALID_PARAMS',
-        `Not placed in ${where}: ${unplaced.join(', ')}. Every field and array stands once in ` +
-          `${steps > 0 ? 'a step' : '"layoutRoot" — by name: "sameAddress"'}.`
-      );
-    }
-
-    const plan = planOf(buildSchemaLayout(intent).document, ctx.catalog);
-    if ('error' in plan) return fail('INVALID_PARAMS', plan.error);
+    const intent = verdict.intent;
 
     // Без родителя — форма целиком: только пока она была пустой на начало хода. Повторный вызов
     // собирает её заново от базы: правка intent и пересборка, как у `form_build`.
     const rebuild = params.parent === undefined;
-    if (rebuild && buildOutline(ctx.base).length > 1) {
-      // Отказ называет оба выхода. Прежний текст называл один — «передай parent», — и модель,
-      // которую просили о новой форме, послушно искала родителя в старой (ReFormer-9a9c).
-      return fail(
-        'INVALID_PARAMS',
-        'The form already has content. A new form the user asked for: call create_form. To add ' +
-          'to this form: pass parent — the step or section.'
-      );
-    }
     const start = rebuild
       ? { draft: ctx.base, rules: emptyRules() }
       : { draft: ctx.draft, rules: ctx.rules };
+    const findings: BuildFinding[] = verdict.errors.filter(
+      (error) => !RULE_PATH_CODES.has(error.code) && !declaredBefore(error, start.rules)
+    );
+    // Свойство вне строгой схемы кита: модулю — предупреждение (уйдёт в DOM), документу — отказ:
+    // гейт правки сверяет узел со схемой кита и такую вставку не пропустит. Сказать об этом до
+    // вставки — значит назвать все такие места разом, со списком того, что у компонента есть.
+    for (const warning of verdict.warnings) {
+      if (warning.code !== 'component-props') continue;
+      findings.push({
+        code: warning.code,
+        message: warning.message,
+        hint: 'the kit schema of the component is closed: use the props it has',
+      });
+    }
+
+    const steps = collectSteps(intent.layoutRoot).length;
+    if (intent.fields.length + intent.arrays.length === 0 && steps === 0) {
+      findings.push({ code: 'empty-intent', message: emptyIntentMessage(params.intent) });
+    }
+    const large = wizardTooLarge(intent, steps);
+    if (large !== null) findings.push(large);
+
+    if (rebuild && buildOutline(ctx.base).length > 1) {
+      // Пункт называет оба выхода. Прежний текст называл один — «передай parent», — и модель,
+      // которую просили о новой форме, послушно искала родителя в старой (ReFormer-9a9c).
+      findings.push({
+        code: 'form-not-empty',
+        message: 'the form already has content',
+        hint:
+          'a new form the user asked for: call create_form; to add to this form: pass parent — ' +
+          'the step or section',
+      });
+    }
     const parentRef = params.parent ?? '/root';
     const parent = resolveRef(start.draft, parentRef);
-    if (!isResolved(parent)) return parent;
-    const slot = insertSlotOf(parent.node, parent.path);
-    if (slot === null) {
-      return fail(
-        'INVALID_PARENT',
-        `Node ${parentRef} does not hold children: pick a step or section.`
-      );
+    const slot = isResolved(parent) ? insertSlotOf(parent.node, parent.path) : null;
+    if (!isResolved(parent)) {
+      findings.push({ code: 'parent', at: parentRef, message: parent.text });
+    } else if (slot === null) {
+      findings.push({
+        code: 'parent',
+        at: parentRef,
+        message: 'the node does not hold children',
+        hint: 'pick a step or section',
+      });
     }
     if (!rebuild) {
       const taken = new Set(collectModelPaths(start.draft));
       const clash = [...modelPaths(intent)].filter((path) => taken.has(path));
       if (clash.length > 0) {
-        return fail(
-          'INVALID_PARAMS',
-          `Already in the form: ${clash.slice(0, 8).join(', ')}. build_form adds new fields; ` +
-            'change existing ones with set_node_prop.'
+        findings.push({
+          code: 'already-in-form',
+          at: clash.slice(0, 8).join(', '),
+          message: 'already in the form',
+          hint: 'build_form adds new fields; change existing ones with set_node_prop',
+        });
+      }
+    }
+
+    const layout = planOf(buildSchemaLayout(intent).document, ctx.catalog);
+    const plan = 'error' in layout ? null : layout;
+    if ('error' in layout) findings.push({ code: 'parts-unsupported', message: layout.error });
+
+    // Пути правил — с полями черновика и intent: ровно то, что увидит `set_form_rules` после
+    // вставки. Правило без поля откладывается, а не отменяет сборку (ReFormer-t4fr).
+    const known = [...new Set([...collectModelPaths(start.draft), ...modelPaths(intent)])];
+    const ruleParams = ruleParamsOf(intent);
+    let paths: { readonly notes: readonly string[]; readonly dropped: readonly string[] } = {
+      notes: [],
+      dropped: [],
+    };
+    let rules: RuleParams | null = null;
+    if (ruleParams !== null) {
+      const checked = checkRulePaths(ruleParams, known, {
+        isSample: (name) => SAMPLE_NAMES.has(name.toLowerCase()),
+      });
+      paths = checked;
+      if (hasRuleParams(checked.params)) {
+        rules = checked.params;
+        const planned = planRules(rules, { rules: start.rules, known, lock: ctx.rulesLock });
+        findings.push(
+          ...planned.refusals.map((refused) => ({
+            code: refused.kind,
+            at: refused.at,
+            message: refused.message,
+            ...(refused.similar !== undefined && refused.similar.length > 0
+              ? { hint: `did you mean ${refused.similar.join(', ')}?` }
+              : {}),
+          }))
         );
       }
+    }
+
+    if (findings.length > 0 || plan === null || slot === null) {
+      const deferred = paths.dropped.length > 0 ? droppedRulesText(paths.dropped) : undefined;
+      return refusal('The intent was not built', findings, deferred);
     }
 
     const state: PlaceState = {
@@ -210,54 +268,31 @@ export const buildFormTool: AgentTool<Params> = {
       blocks: [],
       step: wizardNames(ctx.catalog)?.step,
     };
-    const top = asStepIfWizard(topNodes(plan, slot.kind, state), slot.kind, state, raw);
+    const top = asStepIfWizard(topNodes(plan, slot.kind, state), slot.kind, state, params.intent);
     const placed = await place(state, parentRef, top, params.index, true);
     if (placed !== null) return placed;
 
-    const ruleParams = ruleParamsOf(intent);
-    let paths: { readonly notes: readonly string[]; readonly dropped: readonly string[] } = {
-      notes: [],
-      dropped: [],
-    };
-    if (ruleParams !== null) {
-      // Пути правил — с черновиком, где узлы уже стоят. Правило без поля откладывается, а не
-      // отменяет сборку: отказ целиком оставлял человека без формы (ReFormer-t4fr).
-      const checked = checkRulePaths(ruleParams, collectModelPaths(state.draft), {
-        isSample: (name) => SAMPLE_NAMES.has(name.toLowerCase()),
-      });
-      paths = checked;
-      if (hasRuleParams(checked.params)) {
-        const out = await setFormRulesTool.run(checked.params, at(state));
-        if (!out.ok || out.rules === undefined) return located('Rules', out);
-        state.rules = out.rules;
-      }
+    if (rules !== null) {
+      const out = await setFormRulesTool.run(rules, at(state));
+      if (!out.ok || out.rules === undefined) return located('Rules', out);
+      state.rules = out.rules;
     }
-    if (intent.visibility.length > 0) {
-      const missing = intent.visibility.filter((v) => !state.refs.has(v.selector));
-      if (missing.length > 0) {
-        return fail(
-          'INVALID_PARAMS',
-          `visibility names no built node: ${missing.map((v) => v.selector).join(', ')}.`
-        );
-      }
-      const out = await setRenderRulesTool.run(
-        {
-          mode: 'merge',
-          rules: intent.visibility.map((v) => ({
-            ref: state.refs.get(v.selector) as string,
-            kind: 'hideWhen',
-            condition: v.condition,
-          })),
-        },
-        at(state)
+    const render = renderRulesOf(intent, state);
+    if ('missing' in render) {
+      return fail(
+        'INVALID_PARAMS',
+        `Render rules name no built node: ${render.missing.join(', ')}. Nothing was changed.`
       );
-      if (!out.ok) return located('Visibility', out);
+    }
+    if (render.rules.length > 0) {
+      const out = await setRenderRulesTool.run({ mode: 'merge', rules: render.rules }, at(state));
+      if (!out.ok) return located('Render rules', out);
       state.draft = out.schema ?? state.draft;
       state.rules = out.rules ?? state.rules;
     }
 
     return {
-      ...ok(reply(intent, read.notices, state, paths)),
+      ...ok(reply(intent, verdict.warnings, state, paths)),
       schema: state.draft,
       rules: state.rules,
       ops: [...state.ops, { kind: 'update', ref: '/rules', summary: 'правила формы' }],
@@ -294,9 +329,61 @@ const at = (state: PlaceState): ToolContext => ({
   rules: state.rules,
 });
 
+/** Строка пункта отказа: `- <код> at <место>: <что не так> → <что сделать>`. */
+const findingLine = (finding: BuildFinding): string =>
+  `- ${finding.code}${finding.at === undefined ? '' : ` at ${finding.at}`}: ${finding.message}` +
+  (finding.hint === undefined ? '' : ` → ${finding.hint}`);
+
+/** Один отказ со всеми пунктами; черновик хода не тронут. */
+function refusal(head: string, findings: readonly BuildFinding[], tail?: string): ToolOutcome {
+  const lines = findings.slice(0, MAX_FINDINGS).map(findingLine);
+  if (findings.length > MAX_FINDINGS) lines.push(`… and ${findings.length - MAX_FINDINGS} more.`);
+  const count = `${findings.length} problem${findings.length === 1 ? '' : 's'}`;
+  const text = [`${head}, nothing changed — ${count}:`, ...lines, ...(tail ? [tail] : [])].join(
+    '\n'
+  );
+  return fail('INVALID_PARAMS', clip(text));
+}
+
+const clip = (text: string): string =>
+  text.length <= BUILD_FORM_TEXT_BUDGET ? text : `${text.slice(0, BUILD_FORM_TEXT_BUDGET - 1)}…`;
+
 /** Отказ вложенного шага сборки — с тем, на чём он случился; черновик хода не тронут. */
 function located(what: string, outcome: ToolOutcome): ToolOutcome {
   return { ...outcome, text: `${what}: ${outcome.text} Nothing was changed.` };
+}
+
+/**
+ * C3 о справочнике, который форма уже знает из прежних правил. При сборке по шагам поле шага
+ * законно ссылается на справочник, заданный раньше: судья видит только этот intent.
+ */
+function declaredBefore(error: JudgeFinding, rules: FormRules): boolean {
+  if (error.code !== 'C3' || rules.dataSources === undefined) return false;
+  const name = /\$dataSource\(([^)]+)\)/.exec(error.message)?.[1];
+  return name !== undefined && Object.hasOwn(rules.dataSources, name);
+}
+
+/**
+ * Визард крупнее {@link WIZARD_MAX_STEPS} шагов или {@link WIZARD_MAX_FIELDS} полей — по шагам. Одни
+ * шаги без полей (первый вызов такой сборки) проходят при любом их числе.
+ */
+function wizardTooLarge(intent: FormIntent, steps: number): BuildFinding | null {
+  const size =
+    intent.fields.length + intent.arrays.reduce((sum, a) => sum + 1 + a.itemFields.length, 0);
+  if (steps < 2 || size === 0 || (steps <= WIZARD_MAX_STEPS && size <= WIZARD_MAX_FIELDS)) {
+    return null;
+  }
+  const titles = collectSteps(intent.layoutRoot).map((step) => ({ title: step.title }));
+  return {
+    code: 'wizard-too-large',
+    message:
+      `a wizard of ${steps} steps and ${size} fields is built step by step (one intent holds up ` +
+      `to ${WIZARD_MAX_STEPS} steps and ${WIZARD_MAX_FIELDS} fields)`,
+    hint:
+      `first call — only the steps: ${JSON.stringify({ steps: titles })}; then one build_form ` +
+      "per step: parent = the step address from the reply, intent = that step's fields, arrays " +
+      'and rules',
+  };
 }
 
 /**
@@ -457,24 +544,7 @@ function safeParse(text: string): unknown {
 }
 
 /**
- * Отказ формы из нескольких шагов, присланной целиком: какие шаги поставить первым вызовом.
- *
- * Целиком такую форму локальная модель писала одним ответом, и ход молчал десятки минут (замер
- * 2026-11-03, форма на 82 поля: 32 минуты рассуждения до первого вызова и 16 — сам вызов). По
- * шагам каждый ответ модели несёт один шаг. Один шаг с полями — в том числе в готовый визард —
- * собирается сразу.
- */
-function multiStepMessage(intent: FormIntent): string {
-  const steps = collectSteps(intent.layoutRoot).map((step) => ({ title: step.title }));
-  return (
-    `A form of ${steps.length} steps is built step by step, nothing was changed. First call: ` +
-    `only the steps — {"steps":${JSON.stringify(steps)}}. Then one build_form per step: parent = ` +
-    "the step address from the reply, intent = that step's fields, arrays and rules."
-  );
-}
-
-/**
- * Отказ пустого intent — с тем, что пришло, и записью, которую ждёт сборка.
+ * Пункт пустого intent — с тем, что пришло, и записью, которую ждёт сборка.
  *
  * Голое «полей нет» модель чинила наугад: в замере 2026-11-03 после него B.3 бросил `build_form` и
  * собрал блок мелкими вызовами.
@@ -486,19 +556,25 @@ function emptyIntentMessage(raw: unknown): string {
       ? Object.keys(source)
       : [];
   return (
-    'The intent has no fields, arrays or steps' +
+    'the intent has no fields, arrays or steps' +
     (keys.length > 0 ? ` (top-level keys received: ${keys.slice(0, 10).join(', ')})` : '') +
     '. Declare each field once in "fields": [{ "name", "component", "label" }] and place it by ' +
-    'name in "steps": [{ "title", "fields": ["name"] }] or "layoutRoot". Call build_form ' +
-    'without intent for the grammar.'
+    'name in "steps": [{ "title", "fields": ["name"] }] or "layoutRoot"'
   );
 }
 
-/** Аргументы `set_form_rules` из intent; `null` — правил нет. */
-function ruleParamsOf(intent: FormIntent): Parameters<typeof setFormRulesTool.run>[0] | null {
+/**
+ * Аргументы `set_form_rules` из intent; `null` — правил нет. Записи с `call` документ не держит:
+ * их называет вердикт судьи (`not-in-document`), а правилам они дали бы эхо «правило ничего не
+ * проверяет».
+ */
+function ruleParamsOf(intent: FormIntent): RuleParams | null {
+  const validation = intent.validation.filter((rule) => rule.call === undefined);
+  const behavior = intent.behavior.filter((link) => link.kind !== 'call');
+  // Справочник без значений документ не держит — о нём заметка судьи (`not-kept`).
   const dataSources = Object.fromEntries(
     intent.dataSources
-      .filter((d) => Array.isArray(d.values))
+      .filter((d) => Array.isArray(d.values) && d.values.length > 0)
       .map((d) => [
         d.name,
         (d.values ?? []).map((v) =>
@@ -507,21 +583,23 @@ function ruleParamsOf(intent: FormIntent): Parameters<typeof setFormRulesTool.ru
       ])
   );
   const empty =
-    intent.validation.length === 0 &&
-    intent.behavior.length === 0 &&
-    Object.keys(dataSources).length === 0;
+    validation.length === 0 && behavior.length === 0 && Object.keys(dataSources).length === 0;
   if (empty) return null;
   return {
     mode: 'merge',
-    ...(intent.validation.length > 0 ? { validation: intent.validation } : {}),
-    ...(intent.behavior.length > 0
+    ...(validation.length > 0 ? { validation } : {}),
+    ...(behavior.length > 0
       ? {
-          behavior: intent.behavior.map((b) => ({
+          behavior: behavior.map((b) => ({
             kind: b.kind,
             target: b.target,
             sources: b.sources,
             ...(b.expr === undefined ? {} : { expr: b.expr }),
             ...(b.each === undefined ? {} : { each: b.each }),
+            // Условие пересчёта и опции печатает генерация и читает обратно читатель кода: раньше
+            // условный пересчёт становился безусловным (аудит 2026-11, D4).
+            ...(b.when === undefined ? {} : { when: b.when }),
+            ...(b.options === undefined ? {} : { options: b.options }),
           })),
         }
       : {}),
@@ -529,51 +607,54 @@ function ruleParamsOf(intent: FormIntent): Parameters<typeof setFormRulesTool.ru
   };
 }
 
+/** Правило вызова `set_render_rules`. */
+type RenderParam = NonNullable<Parameters<typeof setRenderRulesTool.run>[0]['rules']>[number];
+
 /**
- * Замечания чтения intent по-английски — по стабильному коду MCP: текст MCP русский, а ответ
- * инструмента модель читает на языке грамматики. Код без перевода — текстом MCP как есть.
+ * Render-правила из intent: видимость — `hideWhen`, событие компонента — `onEvent` (ReFormer-o8rm).
+ * Хуки узлов, которым в документе нет места, до сюда не доходят: их отказ — вердикт судьи.
  */
-const NOTICE_TEXT: Partial<Record<IntentWarningCode, string>> = {
-  'type-unknown': 'unknown value type, taken as string',
-  'type-is-component':
-    'a component name in "type", taken as the component; write it in "component"',
-  'component-normalized': 'component replaced with the kit name for it',
-  'array-as-field': 'a field with rows, read as an array; declare arrays in "arrays"',
-  'array-duplicate': 'declared in both "fields" and "arrays", the "arrays" entry is used',
-  'layout-kind-unknown': 'unknown layout node kind, read as a container',
-  'unnamed-dropped': 'records without "name" were dropped',
-  'intent-as-node': 'the intent is a layout node, read as "layoutRoot"',
-  'step-as-key': 'one step under "step", read as "steps" of one',
-  'steps-as-object': '"steps" is an object, read as a list of one step',
-  'layout-as-list': 'the layout is a list, read as the root children',
-  'rules-in-fields': 'validation rules listed in "fields", moved to "validation"',
-  'rules-on-fields': 'checks written on fields, moved to "validation"',
-  'inline-fields': 'fields described inside steps or layout nodes, declared in "fields"',
-  'inline-arrays': 'arrays described inside steps or layout nodes, declared in "arrays"',
-  'bare-refs': 'layout nodes holding only a name, read as field references',
-  'reset-as-on-change':
-    'resetWhen whose condition reads no field never sees its sources change; written as onChange ' +
-    'on each source that resets the field',
-  'computed-toggle-replaced':
-    'enableWhen would make this computed field editable; replaced with a reset while the ' +
-    'condition is false, the field stays locked',
-};
+function renderRulesOf(
+  intent: FormIntent,
+  state: PlaceState
+): { readonly rules: RenderParam[] } | { readonly missing: string[] } {
+  const wanted: Array<{ readonly selector: string; readonly rule: Omit<RenderParam, 'ref'> }> = [
+    ...intent.visibility.map((v) => ({
+      selector: v.selector,
+      rule: { kind: 'hideWhen', condition: v.condition },
+    })),
+    ...(intent.nodes ?? [])
+      .filter((node) => node.kind === 'onComponentEvent' && node.selector !== undefined)
+      .map((node) => ({
+        selector: node.selector as string,
+        // `async` по `await` в теле ставит сам `set_render_rules`.
+        rule: { kind: 'onEvent', event: node.event ?? '', body: node.expr },
+      })),
+  ];
+  const missing = [
+    ...new Set(wanted.filter((w) => !state.refs.has(w.selector)).map((w) => w.selector)),
+  ];
+  if (missing.length > 0) return { missing };
+  return {
+    rules: wanted.map((w) => ({ ref: state.refs.get(w.selector) as string, ...w.rule })),
+  };
+}
 
-const noticeText = (notice: IntentWarning): string => {
-  const text = NOTICE_TEXT[notice.code];
-  if (text === undefined) return notice.message;
-  return notice.at === undefined ? text : `${notice.at}: ${text}`;
-};
+/** Заметка судьи строкой: место — если текст его ещё не называет. */
+const noteText = (note: JudgeFinding<JudgeWarningCode>): string =>
+  note.at === undefined || note.message.includes(note.at)
+    ? note.message
+    : `${note.at}: ${note.message}`;
 
 /**
- * Ответ модели: что собрано, адреса шагов, что не взято, замечания и напоминание о задании.
+ * Ответ модели: что собрано, адреса шагов, что не сохранено, замечания и напоминание о задании.
  *
  * @param paths - Пути правил, которые сборка починила сама, и отложенные правила (`./rule-paths`).
  *   Отложенные идут сразу за сводкой: при обрезке ответа по бюджету теряться им нельзя.
  */
 function reply(
   intent: FormIntent,
-  notices: readonly IntentWarning[],
+  warnings: readonly JudgeFinding<JudgeWarningCode>[],
   state: PlaceState,
   paths: { readonly notes: readonly string[]; readonly dropped: readonly string[] }
 ): string {
@@ -598,7 +679,8 @@ function reply(
   if (state.steps.length > 0) {
     lines.push(`Steps: ${state.steps.map((s) => `"${s.title}" ${s.ref}`).join('; ')}.`);
   }
-  const lost = notKept(intent);
+  // Что форма не сохранит, называется отдельной строкой: это не замечание о записи, а потеря.
+  const lost = warnings.filter((w) => w.code === 'not-kept').map((w) => w.message);
   if (lost.length > 0) lines.push(`Not kept: ${lost.join('; ')}.`);
   const sample = sampleFields(intent);
   if (sample.length > 0) {
@@ -607,19 +689,23 @@ function reply(
         'for them.'
     );
   }
-  const notes = [...paths.notes, ...notices.map(noticeText)].slice(0, MAX_NOTES);
+  const notes = [
+    ...paths.notes,
+    ...warnings.filter((w) => w.code !== 'not-kept').map(noteText),
+  ].slice(0, MAX_NOTES);
   if (notes.length > 0) lines.push(`Notes:\n${notes.map((n) => `- ${n}`).join('\n')}`);
   lines.push(
     'The build checks the intent, not the task: compare it with the request — every field, ' +
       'step, rule and dependency — before you finish.'
   );
-  const text = lines.join('\n');
-  return text.length <= TOOL_TEXT_BUDGET ? text : `${text.slice(0, TOOL_TEXT_BUDGET - 1)}…`;
+  return clip(lines.join('\n'));
 }
 
-/** Имена полей и массивов образца грамматики, в нижнем регистре. */
+/** Имена полей и массивов образца грамматики (последний сегмент), в нижнем регистре. */
 const SAMPLE_NAMES: ReadonlySet<string> = new Set(
-  [...BUILD_FORM_EXAMPLE.fields, ...BUILD_FORM_EXAMPLE.arrays].map((f) => f.name.toLowerCase())
+  [...DOCUMENT_GRAMMAR_EXAMPLE.fields, ...DOCUMENT_GRAMMAR_EXAMPLE.arrays].map(
+    (f) => f.name.split('.').at(-1)?.toLowerCase() ?? f.name.toLowerCase()
+  )
 );
 
 /** С какого числа совпадений с образцом intent похож на его копию, а не на совпадение имён. */
@@ -628,27 +714,11 @@ const SAMPLE_MATCH_MIN = 3;
 /**
  * Поля intent с именами образца грамматики — если их не меньше {@link SAMPLE_MATCH_MIN}. Образец
  * идёт в затравке каждой пустой формы, и небольшая модель переносит его поля в форму о другом
- * (ReFormer-9a9c). Отказывать нельзя: форма заказа законно содержит email, price и total. Поэтому
+ * (ReFormer-9a9c). Отказывать нельзя: форма заказа законно содержит price и total. Поэтому
  * сборка только называет совпадения, а решает модель — по запросу.
  */
 function sampleFields(intent: FormIntent): string[] {
   const names = [...intent.fields, ...intent.arrays].map((f) => f.name.split('.').at(-1) ?? f.name);
   const matched = [...new Set(names.filter((name) => SAMPLE_NAMES.has(name.toLowerCase())))];
   return matched.length >= SAMPLE_MATCH_MIN ? matched : [];
-}
-
-/** Что из intent документу билдера положить некуда — называется, а не теряется молча. */
-function notKept(intent: FormIntent): string[] {
-  const out: string[] = [];
-  const initial = intent.fields
-    .filter((f) => f.initialValue !== undefined && f.initialValue !== '' && f.initialValue !== null)
-    .map((f) => f.name);
-  if (initial.length > 0) {
-    out.push(`initial values of ${initial.join(', ')} — the start value follows the component`);
-  }
-  const rows = intent.arrays.filter((a) => a.initialValue.length > 0).map((a) => a.name);
-  if (rows.length > 0) out.push(`starting rows of ${rows.join(', ')}`);
-  const options = intent.behavior.filter((b) => b.options !== undefined).map((b) => b.target);
-  if (options.length > 0) out.push(`options of the behaviour on ${options.join(', ')}`);
-  return out;
 }

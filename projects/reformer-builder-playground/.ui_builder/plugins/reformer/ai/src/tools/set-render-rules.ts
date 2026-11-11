@@ -66,7 +66,15 @@ function toRule(rule: ParamRule, selector: string): RenderRuleIntent {
     case 'hideWhen':
       return { kind: 'hideWhen', selector, condition: rule.condition! };
     case 'onEvent':
-      return { kind: 'onEvent', selector, event: rule.event!, body: rule.body! };
+      // `await` в теле делает обработчик асинхронным, как у MCP: кодоген печатает `async` по флагу,
+      // и без него тело с `await` не собиралось у пользователя.
+      return {
+        kind: 'onEvent',
+        selector,
+        event: rule.event!,
+        body: rule.body!,
+        ...(/\bawait\b/.test(rule.body!) ? { async: true } : {}),
+      };
     default:
       return { kind: 'patchProps', selector, props: rule.props! };
   }

@@ -67,7 +67,7 @@ Paths are relative to the module root. A turn starts with the module's file list
 
 - ${DEFAULT_SCHEMA_PATH} [form]: the form document — layout, fields, model bindings. The turn names its actual path.
 - ${step} [step]: a step of a split wizard, {"$schema": "${STEP_SCHEMA_MARKER}", "node": NODE}, referenced from the wizard's children as {"$ref": "${stepRef}"}. Create the step file BEFORE the reference. Files cannot be deleted: to drop a step, remove its $ref.
-- ${VALIDATION_DIR}/${FORM_RULES_NAME}.ts, ${VALIDATION_DIR}/<step>.ts, behavior/index.ts [rules]: validation and behaviour code. Follow the code already there; ask ask_reformer about the API. A new step's rules file is wired in on the next code generation.
+- ${VALIDATION_DIR}/${FORM_RULES_NAME}.ts, ${VALIDATION_DIR}/<step>.ts, behavior/index.ts [rules]: validation and behaviour code. Follow the code already there; ReFormer API — ask_reformer, not mcp_call (other servers). A new step's rules file is wired in on the next code generation.
 - [derived] files are rewritten by code generation: do not edit them.
 
 ## Form document (format 2)

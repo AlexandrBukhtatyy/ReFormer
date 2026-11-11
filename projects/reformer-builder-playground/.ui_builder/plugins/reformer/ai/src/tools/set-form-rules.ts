@@ -36,6 +36,7 @@ import {
   type AgentTool,
   type RulesLock,
   type RulesRefusal,
+  type ToolErrorCode,
   type ToolOutcome,
 } from '../model/types';
 
@@ -78,6 +79,14 @@ export interface BehaviorParam {
   sources?: string[];
   expr?: string;
   each?: string;
+  /**
+   * Условие пересчёта у `compute` и `computeFrom`: пока ложно, поле хранит своё значение. Приходит
+   * из intent `build_form`; в схеме аргументов инструмента его нет — поверхность платит каждая
+   * модель на каждом шаге, а сборка зовёт инструмент напрямую.
+   */
+  when?: string;
+  /** Опции оператора: `resetOnDisable` у `enableWhen`, `resetValue` у `resetWhen`. Как `when`. */
+  options?: Record<string, unknown>;
 }
 
 export interface Params {
@@ -153,94 +162,215 @@ export const setFormRulesTool: AgentTool<Params> = {
   readOnly: false,
 
   run(params, ctx): ToolOutcome {
-    const locked = lockedBy(params, ctx.rulesLock);
-    if (locked !== undefined) return fail(locked.code, locked.message);
-    const known = collectModelPaths(ctx.draft);
-    const next: FormRules = params.mode === 'replace' ? emptyRules() : cloneRules(ctx.rules);
-    const unknown = (path: string) => !isBoundPath(path, known);
-
-    /** Что инструмент сделал за модель — дописывается к ответу, чтобы она могла поправить. */
-    const notes: string[] = [];
-    for (const raw of params.validation ?? []) {
-      // Правило строки адресует поле строки, и модель пишет его путь от строки (`name`): хранится
-      // он полным путём, как у связей строк, — иначе правило не находило своего поля.
-      const rule = { ...raw, target: rowFull(raw.target, raw.each) };
-      if (unknown(rule.target)) {
-        return fail(
-          'STALE_POINTER',
-          `No field bound to "${rule.target}".`,
-          similarNames(rule.target, known)
-        );
-      }
-      const refused = checkValidationParam(rule);
-      if (refused) return fail('INVALID_PARAMS', refused);
-      const split = splitMessage(rule);
-      if (split.note !== undefined) notes.push(split.note);
-      for (const entry of split.entries) {
-        const coded = withMessageCode(entry);
-        if (typeof coded === 'string') return fail('INVALID_PARAMS', coded);
-        next.validation.push(validationIntent(coded));
-      }
-    }
-
-    for (const [name, value] of Object.entries(params.dataSources ?? {})) {
-      const refused = dataSourceRefusal(name, value);
-      if (refused) return fail('INVALID_PARAMS', refused);
-      const sources = { ...next.dataSources };
-      if (value === null) delete sources[name];
-      else sources[name] = value;
-      if (Object.keys(sources).length > 0) next.dataSources = sources;
-      else delete next.dataSources;
-    }
-
-    for (const raw of params.behavior ?? []) {
-      const refused = checkBehaviorParam(raw);
-      if (refused) return fail('INVALID_PARAMS', refused);
-      // Поля строки хранятся полным путём, как у правил валидации строк: так их сверяет
-      // целостность правил, а от строки их печатает генерация.
-      const b = behaviorIntent(raw);
-      if (unknown(b.target)) {
-        return fail(
-          'STALE_POINTER',
-          `No field bound to "${b.target}".`,
-          similarNames(b.target, known)
-        );
-      }
-      for (const s of b.sources) {
-        if (unknown(s)) {
-          return fail(
-            'STALE_POINTER',
-            `Source "${s}" is not bound to any field.`,
-            similarNames(s, known)
-          );
-        }
-      }
-      next.behavior.push(b);
-    }
-
-    // Два поведения на один target перетирают друг друга молча — это не «последнее выигрывает»,
-    // а гонка: порядок зависит от того, как их разложил сборщик.
-    // `aggregateInto` пишет в строки массива, а не в одно поле: с полями строк он не спорит.
-    const fieldLinks = next.behavior.filter((b) => b.kind !== 'aggregateInto');
-    const writers = new Map<string, number>();
-    for (const b of fieldLinks) writers.set(b.target, (writers.get(b.target) ?? 0) + 1);
-    const twice = [...writers].filter(([, n]) => n > 1).map(([t]) => t);
-    if (twice.length > 0) {
-      return fail('SCHEMA_INVALID', `Two behaviours write the same field: ${twice.join(', ')}.`);
-    }
-
-    const cycle = findCycle(fieldLinks.map((b) => ({ target: b.target, reads: b.sources })));
-    if (cycle) {
-      return fail('SCHEMA_INVALID', `Cycle in computed fields: ${cycle.join(' → ')}.`);
-    }
-
+    const plan = planRules(params, {
+      rules: ctx.rules,
+      known: collectModelPaths(ctx.draft),
+      lock: ctx.rulesLock,
+    });
+    // Инструмент отвечает первым отказом: модель правит вызов по одному месту. Все сразу собирает
+    // `build_form` (`./build-form`) — его отказ один на весь intent.
+    const first = plan.refusals[0];
+    if (first !== undefined) return fail(first.code, first.message, first.similar);
+    const notes = [...plan.notes, ...unreferencedSourceNotes(params, ctx.draft)];
     return {
-      ...ok([summarize(next), ...notes].join('\n')),
-      rules: next,
-      ops: [{ kind: 'update', ref: '/rules', summary: summarize(next) }],
+      ...ok([summarize(plan.rules), ...notes].join('\n')),
+      rules: plan.rules,
+      ops: [{ kind: 'update', ref: '/rules', summary: summarize(plan.rules) }],
     };
   },
 };
+
+/** Вид отказа правил — для сводного отказа `build_form` и ленты: стабильнее текста. */
+export type RuleRefusalKind =
+  | 'rules-locked'
+  | 'no-field'
+  | 'rule-invalid'
+  | 'data-source-invalid'
+  | 'behavior-invalid'
+  | 'two-writers'
+  | 'cycle';
+
+/** Почему правило не принять: код инструмента, вид, место и фраза для модели. */
+export interface RuleRefusal {
+  readonly code: ToolErrorCode;
+  readonly kind: RuleRefusalKind;
+  /** Цель правила или имя источника. */
+  readonly at: string;
+  readonly message: string;
+  /** Похожие пути модели — у пути без поля. */
+  readonly similar?: string[];
+}
+
+/** Правила после вызова, что сделано за модель и почему вызов не принять — всё сразу. */
+export interface RulesPlan {
+  readonly rules: FormRules;
+  readonly notes: readonly string[];
+  readonly refusals: readonly RuleRefusal[];
+}
+
+/**
+ * Что вызов `set_form_rules` сделает с правилами — без побочных эффектов.
+ *
+ * Отказы собираются все, а не до первого: `build_form` отвечает на intent одним отказом со всеми
+ * пунктами, и модель чинит их за один заход (аудит 2026-11, D5). Сам инструмент отдаёт первый.
+ *
+ * @param base.known - Пути модели формы (`collectModelPaths`).
+ */
+export function planRules(
+  params: Params,
+  base: { readonly rules: FormRules; readonly known: readonly string[]; readonly lock?: RulesLock }
+): RulesPlan {
+  const refusals: RuleRefusal[] = [];
+  const locked = lockedBy(params, base.lock);
+  if (locked !== undefined) {
+    refusals.push({
+      code: locked.code,
+      kind: 'rules-locked',
+      at: '/rules',
+      message: locked.message,
+    });
+  }
+  const { known } = base;
+  const next: FormRules = params.mode === 'replace' ? emptyRules() : cloneRules(base.rules);
+  const unknown = (path: string) => !isBoundPath(path, known);
+  const noField = (path: string, message: string): void => {
+    refusals.push({
+      code: 'STALE_POINTER',
+      kind: 'no-field',
+      at: path,
+      message,
+      similar: similarNames(path, known),
+    });
+  };
+
+  /** Что инструмент сделал за модель — дописывается к ответу, чтобы она могла поправить. */
+  const notes: string[] = [];
+  for (const raw of params.validation ?? []) {
+    // Правило строки адресует поле строки, и модель пишет его путь от строки (`name`): хранится
+    // он полным путём, как у связей строк, — иначе правило не находило своего поля.
+    const rule = { ...raw, target: rowFull(raw.target, raw.each) };
+    if (unknown(rule.target)) {
+      noField(rule.target, `No field bound to "${rule.target}".`);
+      continue;
+    }
+    const refused = checkValidationParam(rule);
+    if (refused) {
+      refusals.push({
+        code: 'INVALID_PARAMS',
+        kind: 'rule-invalid',
+        at: rule.target,
+        message: refused,
+      });
+      continue;
+    }
+    const split = splitMessage(rule);
+    if (split.note !== undefined) notes.push(split.note);
+    for (const entry of split.entries) {
+      const coded = withMessageCode(entry);
+      if (typeof coded === 'string') {
+        refusals.push({
+          code: 'INVALID_PARAMS',
+          kind: 'rule-invalid',
+          at: rule.target,
+          message: coded,
+        });
+      } else {
+        next.validation.push(validationIntent(coded));
+      }
+    }
+  }
+
+  for (const [name, value] of Object.entries(params.dataSources ?? {})) {
+    const refused = dataSourceRefusal(name, value);
+    if (refused) {
+      refusals.push({
+        code: 'INVALID_PARAMS',
+        kind: 'data-source-invalid',
+        at: name,
+        message: refused,
+      });
+      continue;
+    }
+    const sources = { ...next.dataSources };
+    if (value === null) delete sources[name];
+    else sources[name] = value;
+    if (Object.keys(sources).length > 0) next.dataSources = sources;
+    else delete next.dataSources;
+  }
+
+  for (const raw of params.behavior ?? []) {
+    const refused = checkBehaviorParam(raw);
+    if (refused) {
+      refusals.push({
+        code: 'INVALID_PARAMS',
+        kind: 'behavior-invalid',
+        at: raw.target,
+        message: refused,
+      });
+      continue;
+    }
+    // Поля строки хранятся полным путём, как у правил валидации строк: так их сверяет
+    // целостность правил, а от строки их печатает генерация.
+    const b = behaviorIntent(raw);
+    const before = refusals.length;
+    if (unknown(b.target)) noField(b.target, `No field bound to "${b.target}".`);
+    for (const s of b.sources) {
+      if (unknown(s)) noField(s, `Source "${s}" is not bound to any field.`);
+    }
+    if (refusals.length === before) next.behavior.push(b);
+  }
+
+  // Два поведения на один target перетирают друг друга молча — это не «последнее выигрывает»,
+  // а гонка: порядок зависит от того, как их разложил сборщик.
+  // `aggregateInto` пишет в строки массива, а не в одно поле: с полями строк он не спорит.
+  const fieldLinks = next.behavior.filter((b) => b.kind !== 'aggregateInto');
+  const writers = new Map<string, number>();
+  for (const b of fieldLinks) writers.set(b.target, (writers.get(b.target) ?? 0) + 1);
+  const twice = [...writers].filter(([, n]) => n > 1).map(([t]) => t);
+  if (twice.length > 0) {
+    refusals.push({
+      code: 'SCHEMA_INVALID',
+      kind: 'two-writers',
+      at: twice.join(', '),
+      message: `Two behaviours write the same field: ${twice.join(', ')}.`,
+    });
+  }
+
+  const cycle = findCycle(fieldLinks.map((b) => ({ target: b.target, reads: b.sources })));
+  if (cycle) {
+    refusals.push({
+      code: 'SCHEMA_INVALID',
+      kind: 'cycle',
+      at: cycle[0] ?? '',
+      message: `Cycle in computed fields: ${cycle.join(' → ')}.`,
+    });
+  }
+
+  return { rules: next, notes, refusals };
+}
+
+/** Ссылка поля на источник в схеме: `$dataSource(NAME)`. */
+const DATA_SOURCE_REF = /\$dataSource\(([A-Za-z_$][\w$]*)\)/g;
+
+/**
+ * Заметка об источнике, на который не ссылается ни одно поле черновика (ReFormer-qsm8.14).
+ *
+ * Генерация печатает только источники, названные `$dataSource(NAME)` в схеме: остальные молча
+ * выпадали, и выбор оставался без вариантов, хотя инструмент ответил «готово». Отказом это не
+ * делается — модель вправе задать варианты раньше, чем поставит поле, — но ответ называет имя и путь.
+ */
+export function unreferencedSourceNotes(params: Params, draft: unknown): string[] {
+  const referenced = new Set(
+    [...JSON.stringify(draft).matchAll(DATA_SOURCE_REF)].map((match) => match[1])
+  );
+  return Object.entries(params.dataSources ?? {})
+    .filter(([name, value]) => value !== null && !referenced.has(name))
+    .map(
+      ([name]) =>
+        `No field uses the data source "${name}" yet: its options are dropped unless a field ` +
+        `names it — set_node_prop {"options":"$dataSource(${name})"}.`
+    );
+}
 
 /**
  * Отказ, если вызов меняет правила, которые ход не сможет записать (`../stack/rule-code`):
@@ -320,6 +450,10 @@ function behaviorIntent(b: BehaviorParam): FormRules['behavior'][number] {
     sources: (b.sources ?? []).map((source) => rowFull(source, each)),
     ...(b.expr !== undefined ? { expr: b.expr } : {}),
     ...(each !== undefined ? { each } : {}),
+    // Условие пересчёта и опции печатает генерация (`buildBehaviorTs`) и читает обратно читатель
+    // кода (`rules-code/behavior`): раньше они терялись здесь молча (аудит 2026-11, D4).
+    ...(b.when !== undefined ? { when: b.when } : {}),
+    ...(b.options !== undefined && Object.keys(b.options).length > 0 ? { options: b.options } : {}),
   };
 }
 

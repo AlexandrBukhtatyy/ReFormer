@@ -181,7 +181,7 @@ describe('карта формы, приложенная к ходу', () => {
     const { messages } = await requestOf(emptySchema());
     expect(messages).toHaveLength(2);
     expect(messages[1].content).toContain('build it with build_form, no parent');
-    expect(messages[1].content).toContain('# build_form intent');
+    expect(messages[1].content).toContain('# intent — grammar');
     expect(messages[1].content).not.toContain('Form map');
   });
 });

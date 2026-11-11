@@ -1293,9 +1293,11 @@ describe('несколько форм: куда ложится ход', () => {
     expect(files.text('forms/loan/forms/contact/rules.ts')).toBeUndefined();
     const tools = session.get().entries.at(-1)?.tools ?? [];
     expect(tools.map((tool) => tool.ok)).toEqual([false, false]);
-    expect(tools[0].error).toContain("is not this form's document");
-    expect(tools[0].error).toContain(`The active form is ${FORM_FILE}`);
-    expect(tools[1].error).toContain("outside this form's module");
+    // Человеку — строка по коду отказа, текст модели — в подробностях (ReFormer-lhvk.7).
+    expect(tools[0].error).toBe('turn.tool.pathRefused');
+    expect(tools[0].detail).toContain("is not this form's document");
+    expect(tools[0].detail).toContain(`The active form is ${FORM_FILE}`);
+    expect(tools[1].detail).toContain("outside this form's module");
   });
 
   it('режим файлов: путь из прошлого хода по другой форме — в затравке пометка о смене', async () => {
@@ -1948,7 +1950,8 @@ describe('генерация кода (generate_code) — структурный
     const lines = generationLines(session);
     expect(lines).toHaveLength(1);
     expect(lines[0].ok).toBe(false);
-    expect(lines[0].error).toContain('not available');
+    expect(lines[0].error).toBe('turn.tool.unavailable');
+    expect(lines[0].detail).toContain('not available');
   });
 
   it('правки ждут решения — генерация не идёт, причина названа', async () => {
@@ -2176,7 +2179,7 @@ describe('новая форма (create_form) — структурный реж�
       .entries.at(-1)
       ?.tools.find((tool) => tool.name === 'create_form');
     expect(failed?.ok).toBe(false);
-    expect(failed?.error).toContain('unknown property "template"');
+    expect(failed?.detail).toContain('unknown property "template"');
     expect(requests).toEqual([]);
     expect(host.documentOf(NEW_FORM)).toBeNull();
   });

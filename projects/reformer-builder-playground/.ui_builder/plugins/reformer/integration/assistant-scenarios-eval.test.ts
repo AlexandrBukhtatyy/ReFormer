@@ -45,7 +45,8 @@ import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
 import { createFakeHost } from '../../forms/ai/src/testing';
 import { createFakeFiles } from '../ai/src/stack/testing';
 import { createSchemaFormStack } from '../ai/src/stack';
-import { BUILD_FORM_EXAMPLE } from '../ai/src/tools/build-form/grammar';
+import { DOCUMENT_GRAMMAR_EXAMPLE } from '@reformer/mcp/intent';
+import { createBuiltinReference } from '../ai/src/knowledge/builtin';
 import type { AiAssistant } from '../../forms/ai/src/plugin';
 import type { FormCreatorService, ModuleGeneratorService } from '@reformer/builder-plugin-api';
 import type { TurnTelemetry } from '../../forms/ai/src/session/telemetry';
@@ -298,17 +299,14 @@ const fieldKeys = (schema: JsonFormSchema | null): string[] =>
   fieldsOf(schema).map((f) => keyOf(modelOf(f)).toLowerCase());
 
 /**
- * Ключи полей образца грамматики `build_form`: поля и массивы {@link BUILD_FORM_EXAMPLE}, плюс поля
- * секции и шага, которые грамматика показывает строкой (`series`, `number`, `city`). Форма по
+ * Ключи полей образца грамматики `build_form` — профиля `document` MCP: поля
+ * ({@link DOCUMENT_GRAMMAR_EXAMPLE}, последним сегментом пути), массивы и поля их строк. Форма по
  * описанию, в которой они есть без заказа, переписала образец.
  */
 const EXAMPLE_KEYS: ReadonlySet<string> = new Set(
   [
-    ...BUILD_FORM_EXAMPLE.fields.map((f) => f.name),
-    ...BUILD_FORM_EXAMPLE.arrays.map((a) => a.name),
-    'series',
-    'number',
-    'city',
+    ...DOCUMENT_GRAMMAR_EXAMPLE.fields.map((f) => f.name.split('.').at(-1) ?? f.name),
+    ...DOCUMENT_GRAMMAR_EXAMPLE.arrays.flatMap((a) => [a.name, ...a.itemFields.map((f) => f.name)]),
   ].map((key) => key.toLowerCase())
 );
 
@@ -1100,8 +1098,12 @@ async function runScenarioOnce(scenario: EvalScenario, repeat: number): Promise<
 
   const session = createAiSession();
   let telemetry: TurnTelemetry | null = null;
+  // Как в плагине: справка по библиотеке в наборе (`ask_reformer`) — без неё замер мерил другой
+  // набор инструментов, чем видит модель в билдере (план mcp-audit-one-path, фаза 4).
+  const reference = createBuiltinReference();
   const stack = createSchemaFormStack({
     catalog: () => builtinEntries(),
+    reference: () => reference,
     validateForm: () => Promise.resolve(validateFormSchema),
     scopeOf: (id) => files.scopeOf(id),
     generator: () => codegen,

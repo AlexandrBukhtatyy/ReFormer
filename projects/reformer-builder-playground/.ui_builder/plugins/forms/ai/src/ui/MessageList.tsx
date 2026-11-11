@@ -233,7 +233,20 @@ export function MessageList({
                       <CircleAlert className="mt-px size-3 flex-none text-amber-600 dark:text-amber-400" />
                     )}
                     <span className="min-w-0 wrap-anywhere">
-                      {tool.summary ?? tool.error ?? tool.name}
+                      {tool.detail === undefined ? (
+                        (tool.summary ?? tool.error ?? tool.name)
+                      ) : (
+                        // Строка — человеку на его языке, текст модели — по раскрытию
+                        // (ReFormer-lhvk.7).
+                        <details data-testid="ai-tool-detail">
+                          <summary className="cursor-pointer">
+                            {tool.summary ?? tool.error ?? tool.name}
+                          </summary>
+                          <pre className="mt-0.5 font-mono text-[10.5px] whitespace-pre-wrap">
+                            {tool.detail}
+                          </pre>
+                        </details>
+                      )}
                     </span>
                   </li>
                 ))}

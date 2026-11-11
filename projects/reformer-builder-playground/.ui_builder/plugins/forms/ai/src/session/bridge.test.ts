@@ -1104,8 +1104,10 @@ describe('форма хода — не только активная вклад�
       .entries.at(-1)
       ?.tools.find((tool) => tool.name === 'create_form');
     expect(refused).toMatchObject({ ok: false });
-    expect(refused?.error).toContain('already exists');
-    expect(refused?.error).toContain('choose_form');
+    // Человеку — строка по коду отказа, текст модели — в подробностях (ReFormer-lhvk.7).
+    expect(refused?.error).toBe('turn.tool.refused');
+    expect(refused?.detail).toContain('already exists');
+    expect(refused?.detail).toContain('choose_form');
   });
 
   it('новая форма с вкладки файла модуля встаёт рядом с модулем, а не внутри', async () => {

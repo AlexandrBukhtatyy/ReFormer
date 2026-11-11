@@ -48,6 +48,7 @@ import {
   type FormLoaded,
   type FormStackHost,
   type FormToolContext,
+  type FormToolErrorCode,
   type FormToolOutcome,
   type FormTurn,
   type GenerateReport,
@@ -2112,7 +2113,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           // полей не должна превращать ленту в двенадцать одинаковых записей. Детали пакета
           // видны в предпросмотре изменений, где им и место.
           ...(event.ops?.length ? { summary: summaryOf(event.ops) } : {}),
-          ...(event.error ? { error: event.error.message } : {}),
+          // Человеку — строка по коду отказа, модели — её английский текст: он идёт в
+          // подробности строки, а не в ленту как есть (ReFormer-lhvk.7).
+          ...(event.error
+            ? { error: t(REFUSAL_KEY[event.error.code]), detail: event.error.message }
+            : {}),
           ...(event.readOnly ? { readOnly: true } : {}),
         });
         break;
@@ -2529,3 +2534,29 @@ function newTurnId(): string {
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+/**
+ * Ключ словаря строки отказа по коду инструмента (ReFormer-lhvk.7). Текст отказа написан для
+ * модели и по-английски; человеку лента показывает, что случилось, на его языке, а текст модели —
+ * в подробностях строки. Запись полная: новый код без строки здесь — ошибка типов.
+ */
+const REFUSAL_KEY: Readonly<Record<FormToolErrorCode, string>> = {
+  UNKNOWN_COMPONENT: 'turn.tool.unknownComponent',
+  INVALID_PROPS: 'turn.tool.invalidProps',
+  STALE_POINTER: 'turn.tool.stalePointer',
+  INVALID_PARENT: 'turn.tool.invalidParent',
+  SCHEMA_INVALID: 'turn.tool.schemaInvalid',
+  INVALID_PARAMS: 'turn.tool.invalidParams',
+  UNKNOWN_TOOL: 'turn.tool.unknownTool',
+  TOOL_FAILED: 'turn.tool.failed',
+  PATH_REFUSED: 'turn.tool.pathRefused',
+  FILE_NOT_FOUND: 'turn.tool.fileNotFound',
+  EDIT_MISMATCH: 'turn.tool.editMismatch',
+  STALE_FILE: 'turn.tool.staleFile',
+  CODE_INVALID: 'turn.tool.codeInvalid',
+  NOT_FOUND: 'turn.tool.notFound',
+  REFUSED: 'turn.tool.refused',
+  UNSUPPORTED: 'turn.tool.unsupported',
+  TOO_LARGE: 'turn.tool.tooLarge',
+  UNAVAILABLE: 'turn.tool.unavailable',
+};

@@ -1,18 +1,23 @@
+import {
+  DOCUMENT_GRAMMAR_EXAMPLE,
+  DOCUMENT_GRAMMAR_LIMIT,
+  INTENT_CONTRACT_VERSION,
+  intentGrammar,
+} from '@reformer/mcp/intent';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { describe, expect, it } from 'vitest';
 import { builtinEntries } from '../../../core/testing';
+import { builtinKit } from '../../../core/codegen/__fixtures__/kit';
+import { prepare } from '../../../core/codegen/context';
+import { readRulesFromCode } from '../../../core/codegen/rules-code';
+import { behaviorView } from '../../../core/codegen/view/behavior';
 import { collectModelPaths, emptyRules, emptySchema, getAt } from '../../../core/form-model';
 import { buildOutline } from '../model/outline';
 import { wizardNames } from '../model/catalog-digest';
 import type { ToolContext, ToolOutcome } from '../model/types';
 import { buildFormTool } from './build-form';
-import {
-  BUILD_FORM_EXAMPLE,
-  BUILD_FORM_STEPS_EXAMPLE,
-  buildFormGrammar,
-} from './build-form/grammar';
-import { liftInline } from './build-form/lift';
+import { BUILD_FORM_STEPS_EXAMPLE, buildFormGrammar, catalogsOf } from './build-form/grammar';
 import { insertNodeTool } from './insert-node';
 import { createEditorToolRegistry } from './registry';
 import { structuredSlots } from '.';
@@ -22,6 +27,66 @@ import { PROMPT_BUDGET } from '../model/types';
 
 const catalog = builtinEntries();
 const kit = wizardNames(catalog);
+
+/**
+ * Форма заказа — прежний образец грамматики билдера. Грамматика теперь из MCP
+ * (`DOCUMENT_GRAMMAR_EXAMPLE`), а этот intent остался фикстурой сборки по шагам: в нём поля двух
+ * шагов, правило между шагами, связи, массив, видимость и справочник.
+ */
+const ORDER_FORM = {
+  fields: [
+    { name: 'email', component: 'Input', label: 'Email', required: true },
+    { name: 'kind', component: 'Select', label: 'Client type', optionsSource: 'KINDS' },
+    { name: 'inn', component: 'Input', label: 'INN' },
+    { name: 'sameEmail', component: 'Checkbox', label: 'Send the invoice to the same email' },
+    { name: 'billingEmail', component: 'Input', label: 'Invoice email' },
+    { name: 'price', component: 'InputNumber', label: 'Price' },
+    { name: 'qty', component: 'InputNumber', label: 'Quantity' },
+    { name: 'total', component: 'InputNumber', label: 'Total' },
+  ],
+  arrays: [
+    {
+      name: 'children',
+      componentProps: { title: 'Children' },
+      itemFields: [{ name: 'name', component: 'Input', label: 'Name', required: true }],
+    },
+  ],
+  validation: [
+    { target: 'email', rules: ['email'] },
+    { target: 'inn', rules: ['required'], when: "model.kind === 'company'" },
+    { target: 'qty', rules: ['min(1)', 'max(100)'] },
+    {
+      target: 'billingEmail',
+      cross: 'values.billingEmail !== values.inn',
+      message: 'Must differ from INN',
+    },
+  ],
+  behavior: [
+    {
+      kind: 'compute',
+      target: 'total',
+      sources: ['price', 'qty'],
+      expr: '(model.price ?? 0) * (model.qty ?? 0)',
+    },
+    {
+      kind: 'copyFrom',
+      target: 'billingEmail',
+      sources: ['email'],
+      expr: 'model.sameEmail === true',
+    },
+    { kind: 'enableWhen', target: 'inn', sources: ['kind'], expr: "model.kind === 'company'" },
+  ],
+  visibility: [{ selector: 'billingEmail', condition: 'model.sameEmail === true' }],
+  dataSources: [
+    {
+      name: 'KINDS',
+      values: [
+        { value: 'person', label: 'Person' },
+        { value: 'company', label: 'Company' },
+      ],
+    },
+  ],
+};
 
 const ctxOf = (draft: JsonFormSchema, base = draft, rules = emptyRules()): ToolContext => ({
   draft,
@@ -50,30 +115,38 @@ describe('build_form', () => {
     const out = await build({});
     expect(out.ok).toBe(true);
     expect(out.schema).toBeUndefined();
-    expect(out.text).toContain('# build_form intent');
+    expect(out.text).toContain('# intent — grammar');
+    expect(out.text).toContain('## Where it lands');
     expect(out.text).toContain('InputNumber');
   });
 
-  it('пример грамматики собирается: поля, строки массива, правила, видимость', async () => {
-    const { schema, out } = expectBuilt(await build({ intent: BUILD_FORM_EXAMPLE }));
+  it('пример грамматики MCP собирается на ките: поля, строки, правила, опции связей, видимость', async () => {
+    const { schema, out } = expectBuilt(await build({ intent: DOCUMENT_GRAMMAR_EXAMPLE }));
     const paths = collectModelPaths(schema);
-    for (const name of ['email', 'kind', 'inn', 'price', 'qty', 'total', 'billingEmail']) {
+    for (const name of ['loanType', 'price', 'total', 'propertyValue', 'residenceAddress.city']) {
       expect(paths).toContain(name);
     }
-    expect(JSON.stringify(schema)).toContain('$model(name)');
+    expect(JSON.stringify(schema)).toContain('$model(phone)');
     expect(out.rules?.validation.map((r) => r.target)).toEqual(
-      expect.arrayContaining(['email', 'inn', 'qty', 'billingEmail'])
+      expect.arrayContaining(['price', 'propertyValue', 'contacts.phone', 'confirm'])
     );
-    expect(out.rules?.behavior.map((b) => b.kind)).toEqual(['compute', 'copyFrom', 'enableWhen']);
-    expect(out.rules?.render).toEqual([
-      expect.objectContaining({ kind: 'hideWhen', condition: 'model.sameEmail === true' }),
+    expect(out.rules?.behavior.map((b) => b.kind)).toEqual([
+      'compute',
+      'enableWhen',
+      'copyFrom',
+      'onChange',
     ]);
-    expect(out.rules?.dataSources?.KINDS).toHaveLength(2);
+    // Опции связи доходят до правил: раньше `behaviorIntent` их молча терял (аудит 2026-11, D4).
+    expect(out.rules?.behavior[1]).toMatchObject({ options: { resetOnDisable: true } });
+    expect(out.rules?.render).toEqual([
+      expect.objectContaining({ kind: 'hideWhen', condition: "model.loanType !== 'mortgage'" }),
+    ]);
+    expect(out.rules?.dataSources?.LOAN_TYPES).toHaveLength(2);
   });
 
   it('цель compute встаёт выключенным полем, прочие поля — нет', async () => {
     // MCP блокирует вычисляемое поле ключом узла `disabled` (ReFormer-j356.6).
-    const { schema } = expectBuilt(await build({ intent: BUILD_FORM_EXAMPLE }));
+    const { schema } = expectBuilt(await build({ intent: DOCUMENT_GRAMMAR_EXAMPLE }));
     const nodes: Array<Record<string, unknown>> = [];
     const walk = (value: unknown): void => {
       if (Array.isArray(value)) value.forEach(walk);
@@ -98,28 +171,44 @@ describe('build_form', () => {
     );
   });
 
-  it('форма из нескольких шагов с полями сразу — отказ с первым вызовом по шагам', async () => {
+  it('визард с полями до шести шагов собирается одним intent', async () => {
+    const { schema, out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'a', component: 'Input', label: 'A' },
+            { name: 'b', component: 'Input', label: 'B' },
+          ],
+          steps: [
+            { title: 'One', fields: ['a'] },
+            { title: 'Two', fields: ['b'] },
+          ],
+        },
+      })
+    );
+    expect(stepsOf(schema)).toHaveLength(2);
+    expect(collectModelPaths(schema)).toEqual(['a', 'b']);
+    expect(out.text).toContain('Steps: "One"');
+  });
+
+  it('визард крупнее предела — отказ с первым вызовом по шагам, форма цела', async () => {
+    const titles = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
     const out = await build({
       intent: {
-        fields: [
-          { name: 'a', component: 'Input', label: 'A' },
-          { name: 'b', component: 'Input', label: 'B' },
-        ],
-        steps: [
-          { title: 'One', fields: ['a'] },
-          { title: 'Two', fields: ['b'] },
-        ],
+        fields: titles.map((t) => ({ name: t.toLowerCase(), component: 'Input', label: t })),
+        steps: titles.map((t) => ({ title: t, fields: [t.toLowerCase()] })),
       },
     });
     expect(out.ok).toBe(false);
     expect(out.schema).toBeUndefined();
-    expect(out.text).toContain('{"steps":[{"title":"One"},{"title":"Two"}]}');
+    expect(out.text).toContain('wizard-too-large');
+    expect(out.text).toContain(JSON.stringify({ steps: titles.map((title) => ({ title })) }));
   });
 
   it('форма по шагам: шаги, затем поля и правила каждого шага в его адрес', async () => {
     const steps = expectBuilt(await build({ intent: BUILD_FORM_STEPS_EXAMPLE }));
     const [client, order] = stepsOf(steps.schema).map((entry) => entry.ref);
-    const { fields, arrays, validation, behavior, visibility, dataSources } = BUILD_FORM_EXAMPLE;
+    const { fields, arrays, validation, behavior, visibility, dataSources } = ORDER_FORM;
     const first = expectBuilt(
       await build(
         {
@@ -277,8 +366,8 @@ describe('build_form', () => {
   });
 
   it('поля образца грамматики названы в ответе; форма о другом — без замечания', async () => {
-    const copied = expectBuilt(await build({ intent: BUILD_FORM_EXAMPLE }));
-    expect(copied.out.text).toMatch(/Fields email, kind, inn.* match the grammar example/);
+    const copied = expectBuilt(await build({ intent: DOCUMENT_GRAMMAR_EXAMPLE }));
+    expect(copied.out.text).toMatch(/Fields loanType, price, quantity.* match the grammar example/);
 
     const vet = expectBuilt(
       await build({
@@ -303,7 +392,7 @@ describe('build_form', () => {
       { parent: '/root', intent: { fields: [{ name: 'a', component: 'Input' }] } },
       ctxOf(filled)
     );
-    expect(out.text).toContain('Already in the form: a');
+    expect(out.text).toContain('already-in-form at a: already in the form');
     expect(out.schema).toBeUndefined();
   });
 
@@ -342,14 +431,15 @@ describe('build_form', () => {
         steps: [{ title: 'One', fields: ['a'] }],
       },
     });
-    expect(out.text).toContain('Not placed in any step: b');
+    expect(out.text).toContain('unplaced at layoutRoot: not placed in layoutRoot: b');
     expect(out.schema).toBeUndefined();
   });
 
-  it('выдуманный компонент — отказ insert_node с адресом, ничего не применено', async () => {
+  it('выдуманный компонент — отказ судьи до вставки, ничего не применено', async () => {
     const out = await build({ intent: { fields: [{ name: 'a', component: 'EmailField' }] } });
-    expect(out.error?.code).toBe('UNKNOWN_COMPONENT');
-    expect(out.text).toContain('Nothing was changed');
+    expect(out.ok).toBe(false);
+    expect(out.text).toContain('nothing changed');
+    expect(out.text).toContain('the component `EmailField` is not in @reformer/ui-kit');
     expect(out.schema).toBeUndefined();
   });
 
@@ -381,7 +471,8 @@ describe('build_form', () => {
         ],
       },
     });
-    expect(out.text).toContain('Two behaviours write the same field');
+    expect(out.text).toContain('two-writers at a: Two behaviours write the same field');
+    expect(out.schema).toBeUndefined();
   });
 
   it('разбирает intent строкой и называет то, что не взято', async () => {
@@ -480,7 +571,7 @@ describe('build_form', () => {
       },
     });
     expectBuilt(out);
-    expect(out.text).toContain('fields[1]: unknown value type, taken as string');
+    expect(out.text).toContain('fields[1]: type `money2` is unknown');
     // Подстановка компонента, перенос required и тип по умолчанию — про модуль, не про документ.
     expect(out.text).not.toMatch(/[а-яё]{4}/i);
   });
@@ -488,13 +579,15 @@ describe('build_form', () => {
 
 // Записи локальной модели из замера 2026-11-03 (qwen3.8:27b): поле описано там, где оно стоит.
 describe('build_form: поля, описанные на месте', () => {
-  it('intent в записи грамматики не меняется — то же значение', () => {
-    const names = catalog.map((entry) => entry.name);
-    expect(liftInline(BUILD_FORM_EXAMPLE, names)).toEqual({
-      intent: BUILD_FORM_EXAMPLE,
-      problems: [],
-    });
-    expect(liftInline(BUILD_FORM_EXAMPLE, names).intent).toBe(BUILD_FORM_EXAMPLE);
+  it('грамматика — профиль document MCP и строки о том, куда ляжет собранное', () => {
+    // Контракт intent, под который написаны обёртка грамматики и перенос в документ.
+    expect(INTENT_CONTRACT_VERSION).toBe(1);
+    const grammar = buildFormGrammar(catalog);
+    expect(grammar.startsWith(intentGrammar(catalogsOf(catalog), { profile: 'document' }))).toBe(
+      true
+    );
+    // Профиль держит потолок MCP; строки билдера — сверху, не больше нескольких сотен символов.
+    expect(grammar.length).toBeLessThanOrEqual(DOCUMENT_GRAMMAR_LIMIT + 400);
   });
 
   it('описание поля в шаге сокращённой записи поднимается в fields', async () => {
@@ -536,17 +629,16 @@ describe('build_form: поля, описанные на месте', () => {
     expect(collectModelPaths(schema)).toEqual(['city', 'street']);
   });
 
-  it('объявленное в fields побеждает описание на месте', async () => {
-    const { schema } = expectBuilt(
-      await build({
-        intent: {
-          fields: [{ name: 'a', component: 'Input', label: 'Объявлено' }],
-          steps: [{ title: 'One', fields: [{ name: 'a', component: 'Input', label: 'На месте' }] }],
-        },
-      })
-    );
-    expect(JSON.stringify(schema)).toContain('Объявлено');
-    expect(JSON.stringify(schema)).not.toContain('На месте');
+  it('описание на месте против объявления — отказ key-conflict, а не молчаливый выбор', async () => {
+    const out = await build({
+      intent: {
+        fields: [{ name: 'a', component: 'Input', label: 'Объявлено' }],
+        steps: [{ title: 'One', fields: [{ name: 'a', component: 'Input', label: 'На месте' }] }],
+      },
+    });
+    expect(out.ok).toBe(false);
+    expect(out.text).toContain('key-conflict at steps[0].fields[0].label');
+    expect(out.schema).toBeUndefined();
   });
 
   it('раскладка списком — дети корня; intent-шаг — шаг', async () => {
@@ -637,7 +729,7 @@ describe('build_form: поля, описанные на месте', () => {
       intent: { steps: [{ title: 'A', fields: [{ label: 'Город', component: 'Input' }] }] },
     });
     expect(out.ok).toBe(false);
-    expect(out.text).toContain('steps[0].fields[0]: a field without "name"');
+    expect(out.text).toContain('missing-key at steps[0].fields[0]: a step field has no name');
   });
 
   it('голое имя в разметке — ссылка на поле, а не пустой контейнер (запись B.3)', async () => {
@@ -669,7 +761,8 @@ describe('build_form: поля, описанные на месте', () => {
       },
     });
     expect(out.ok).toBe(false);
-    expect(out.text).toContain('Not placed in the layout: b.');
+    expect(out.text).toContain('not placed in layoutRoot: b');
+    expect(out.text).toContain('put each name into a node of `layoutRoot`');
   });
 
   it('правило среди полей переносится в validation — запись 21.4 из замера', async () => {
@@ -717,10 +810,12 @@ describe('build_form: поля, описанные на месте', () => {
   });
 
   it('пустой intent — отказ с полученными ключами и ожидаемой записью', async () => {
+    // Незнакомый ключ называет само чтение MCP (`unknown-key`), с перечнем ключей intent.
     const out = await build({ intent: { blocks: [{ title: 'A' }] } });
     expect(out.ok).toBe(false);
-    expect(out.text).toContain('top-level keys received: blocks');
-    expect(out.text).toContain('"fields": [{ "name", "component", "label" }]');
+    expect(out.text).toContain('unknown key `blocks`');
+    expect(out.text).toContain('fields');
+    expect(out.text).toContain('build_form without intent');
   });
 });
 
@@ -751,7 +846,7 @@ describe('build_form по умолчанию', () => {
   it('грамматика называет сборку по шагам, а её пример шагов собирается', () => {
     const grammar = buildFormGrammar(catalog);
     expect(grammar).toContain(
-      `1. Only the steps, no fields: ${JSON.stringify(BUILD_FORM_STEPS_EXAMPLE)}`
+      `first ${JSON.stringify(BUILD_FORM_STEPS_EXAMPLE)}, then one build_form`
     );
     expect(grammar).not.toContain('Big form');
   });
@@ -767,8 +862,9 @@ describe('build_form: пути правил против полей формы (
   };
 
   it('ход из чата: форма собрана, связи без полей отложены с починкой', async () => {
-    // Живой ход: compute в необъявленный total_guests и enableWhen с источником kind из образца
-    // грамматики. Отказ целиком повторялся четыре раза — человек оставался без формы.
+    // Живой ход: compute в необъявленный total_guests и enableWhen с источником из образца
+    // грамматики (тогда — kind, в образце MCP — loanType). Отказ целиком повторялся четыре раза —
+    // человек оставался без формы.
     const { schema, out } = expectBuilt(
       await build({
         intent: {
@@ -792,7 +888,7 @@ describe('build_form: пути правил против полей формы (
             {
               kind: 'enableWhen',
               target: 'guests',
-              sources: ['kind'],
+              sources: ['loanType'],
               expr: 'model.with_guests === true',
             },
           ],
@@ -808,7 +904,7 @@ describe('build_form: пути правил против полей формы (
     );
     expect(out.text).not.toContain('did you mean guests');
     expect(out.text).toContain(
-      'enableWhen source "kind": a name from the grammar example, not from this form'
+      'enableWhen source "loanType": a name from the grammar example, not from this form'
     );
     expect(out.text).toContain('The rest is built.');
   });
@@ -881,5 +977,141 @@ describe('build_form: пути правил против полей формы (
     );
     expect(out.error?.code, out.text).toBeUndefined();
     expect(out.rules?.behavior.map((b) => b.target)).toContain('total_guests');
+  });
+});
+
+describe('build_form: перенос в документ и записи, которым в нём нет места (аудит 2026-11, D4)', () => {
+  const fields = [
+    { name: 'loanType', component: 'Select', label: 'Type', optionsSource: 'TYPES' },
+    { name: 'price', component: 'InputNumber', label: 'Price' },
+    { name: 'fee', component: 'InputNumber', label: 'Fee' },
+  ];
+  const dataSources = [{ name: 'TYPES', values: [{ value: 'm', label: 'Mortgage' }] }];
+
+  /** Строки связей и правил узлов, как их печатает генерация, — файлом поведения. */
+  function printedBehavior(schema: JsonFormSchema, rules: ToolOutcome['rules']): string {
+    const view = behaviorView(prepare({ schema, formName: 'Probe', kit: builtinKit(), rules }));
+    const nodes = view.groups.flatMap((group) => group.rules.flatMap((rule) => rule.lines));
+    return [
+      'export function behaviorRules({ model, schema }: BehaviorScope<Form>): void {',
+      ...[...view.links, ...nodes].map((line) => `  ${line}`),
+      '}',
+      '',
+    ].join('\n');
+  }
+
+  it('when вычисления и событие узла доходят до правил, печатаются и читаются обратно', async () => {
+    const { schema, out } = expectBuilt(
+      await build({
+        intent: {
+          fields,
+          steps: [{ title: 'One', fields: ['loanType', 'price', 'fee'] }],
+          dataSources,
+          behavior: [
+            {
+              kind: 'compute',
+              target: 'fee',
+              sources: ['price'],
+              expr: '(model.price ?? 0) * 0.01',
+              when: "model.loanType === 'm'",
+            },
+            {
+              kind: 'onComponentEvent',
+              selector: 'wizard',
+              event: 'onSubmit',
+              expr: 'await Promise.resolve(args);',
+            },
+          ],
+        },
+      })
+    );
+    expect(out.rules?.behavior).toEqual([
+      expect.objectContaining({ kind: 'compute', target: 'fee', when: "model.loanType === 'm'" }),
+    ]);
+    // `await` в теле — обработчик асинхронный, как у MCP (ReFormer-o8rm).
+    expect(out.rules?.render).toEqual([
+      expect.objectContaining({ kind: 'onEvent', event: 'onSubmit', async: true }),
+    ]);
+
+    const read = readRulesFromCode({
+      validation: [],
+      behavior: { path: 'behavior/index.ts', text: printedBehavior(schema, out.rules) },
+      constants: [],
+    });
+    expect(read.files[0]?.foreign).toEqual([]);
+    expect(read.rules.behavior).toEqual([
+      expect.objectContaining({ kind: 'compute', target: 'fee', when: "model.loanType === 'm'" }),
+    ]);
+    expect(read.rules.render).toEqual([
+      expect.objectContaining({ kind: 'onEvent', event: 'onSubmit', async: true }),
+    ]);
+  });
+
+  it('код модуля, severity и неизвестный селектор — один отказ со всеми пунктами', async () => {
+    const out = await build({
+      intent: {
+        fields,
+        dataSources,
+        validation: [
+          {
+            target: 'price',
+            cross: 'values.price > 0',
+            code: 'price.negative',
+            message: 'The price is positive',
+            severity: 'warning',
+          },
+          { target: 'fee', call: 'feeRule(model.$.fee)', code: 'fee', message: 'Wrong fee' },
+        ],
+        behavior: [
+          { kind: 'call', target: 'price', expr: 'roundTo(model.$.price, 100)' },
+          { kind: 'onMount', selector: 'fee', expr: 'console.log(model.get())' },
+        ],
+        visibility: [{ selector: 'nowhere', condition: 'model.price === null' }],
+        operators: { feeRule: './operators', roundTo: './operators' },
+      },
+    });
+    expect(out.ok).toBe(false);
+    expect(out.schema).toBeUndefined();
+    expect(out.text).toMatch(/^The intent was not built, nothing changed — 6 problems:/);
+    for (const item of [
+      '- not-in-document at operators:',
+      '- not-in-document at validation[0].severity:',
+      '- not-in-document at validation[1].call:',
+      '- not-in-document at behavior: call price:',
+      '- not-in-document at behavior: onMount fee:',
+      '- C6: A visibility rule targets `nowhere`',
+    ]) {
+      expect(out.text).toContain(item);
+    }
+  });
+
+  it('справочник без значений и начальное значение — «Not kept», форма собрана', async () => {
+    const { out } = expectBuilt(
+      await build({
+        intent: {
+          fields: [
+            { name: 'kind', component: 'Select', label: 'Kind', optionsSource: 'KINDS' },
+            { name: 'qty', component: 'InputNumber', label: 'Quantity', initialValue: 1 },
+          ],
+          dataSources: [{ name: 'KINDS' }],
+        },
+      })
+    );
+    expect(out.text).toContain('Not kept: initial values of qty');
+    expect(out.text).toContain('the data source `KINDS` has no values');
+    expect(out.rules?.dataSources).toBeUndefined();
+  });
+
+  it('ответ не обрезается по бюджету точечных инструментов', async () => {
+    const many = Array.from({ length: 70 }, (_, i) => ({
+      name: `veryLongFieldNameNumber${i}`,
+      component: 'Input',
+      label: `Field ${i}`,
+      initialValue: `value ${i}`,
+    }));
+    const { out } = expectBuilt(await build({ intent: { fields: many } }));
+    // Прежний ответ резался по 1500 символов при бюджете инструмента 4000 (аудит 2026-11, D5).
+    expect(out.text.length).toBeGreaterThan(1500);
+    expect(out.text).toContain('before you finish');
   });
 });

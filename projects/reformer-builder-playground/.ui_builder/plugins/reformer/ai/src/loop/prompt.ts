@@ -123,8 +123,8 @@ call with every component name you need.
 ${bulk}
 - ${NEW_FORM_RULE}
 - Names are never invented. Editor components — from the lists above or list_components;
-  ReFormer API (operators, validation) — ask ask_reformer. An invented name is refused by the
-  editor, and the refusal costs you a step.
+  ReFormer API (operators, validation) — ask_reformer, not mcp_call (other servers). An invented
+  name is refused and costs a step.
 - Never write CSS or Tailwind classes. Express layout through set_layout (direction, columns, gap).
 - Write model paths bare (applicant.email), never wrapped in $model(...).
 - When removing or moving a single node, pass "expect" so the edit cannot land on the wrong node
