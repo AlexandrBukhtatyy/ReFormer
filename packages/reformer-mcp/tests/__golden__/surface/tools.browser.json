@@ -217,7 +217,7 @@
               "type": "string"
             }
           ],
-          "description": "kind=bundle: the FormIntent (object or JSON string) — judged as form_build judges it."
+          "description": "kind=bundle: the FormIntent (object or JSON string) — judged as the build judges it."
         },
         "componentNames": {
           "type": "array",

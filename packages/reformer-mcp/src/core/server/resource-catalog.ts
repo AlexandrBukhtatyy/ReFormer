@@ -3,7 +3,8 @@
  *
  * Схема адресов:
  *
- *   reformer://guide                        — вводная: один путь к форме и указатели (≤ 6 КБ)
+ *   reformer://guide                        — вводная: один путь к форме и указатели (≤ 6 КБ);
+ *                                             у воркера — карта справочных инструментов
  *   reformer://catalog                      — машиночитаемая карта пакетов → секции
  *   reformer://status                       — что сервер нашёл: пакеты, индексы, проверка типов
  *   reformer://docs/<pkg-short>             — полный llms.txt одного пакета
@@ -33,6 +34,8 @@ import { OWN_PACKAGE } from '../docs/packages.js';
 import { listRecipeNames } from '../docs/recipes.js';
 import type { Knowledge } from '../knowledge.js';
 import { describeKnowledge } from '../status.js';
+import { REFERENCE_GUIDE } from './reference-guide.js';
+import type { ServerProfile } from './tool-catalog.js';
 
 /** Запись `resources/list`. */
 export interface ResourceEntry {
@@ -45,6 +48,11 @@ export interface ResourceEntry {
 export interface ResourceCatalogOptions {
   /** Отладочный ресурс `reformer://debug`. */
   readonly debug?: boolean;
+  /**
+   * Профиль сервера. `browser` — справочный канал без `form_build`: гайд описывает его инструменты,
+   * а не путь к форме (`./reference-guide`).
+   */
+  readonly profile?: ServerProfile;
 }
 
 /** Запись `resources/templates/list`. */
@@ -99,6 +107,7 @@ export function createResourceCatalog(
   options: ResourceCatalogOptions = {}
 ): ResourceCatalog {
   const docs = () => knowledge().docs;
+  const reference = options.profile === 'browser';
 
   /** `<pkg-short>` (например, `core`) → полное имя пакета; `null` — неизвестен или без llms.txt. */
   const resolvePackage = (short: string): string | null => {
@@ -169,9 +178,12 @@ export function createResourceCatalog(
       const resources: ResourceEntry[] = [
         {
           uri: 'reformer://guide',
-          name: 'ReFormer MCP — start-here guide',
-          description:
-            'Start here: the one path to a form (form.intent.json → form_build), what the build writes, the contract for your own code, and which tool or resource to use. Under 6 KB; the full self-doc is reformer://docs/mcp.',
+          name: reference
+            ? 'ReFormer — library reference guide'
+            : 'ReFormer MCP — start-here guide',
+          description: reference
+            ? 'Start here: which tool answers which question about the ReFormer API, and what validate_form checks. Under 2 KB.'
+            : 'Start here: the one path to a form (form.intent.json → form_build), what the build writes, the contract for your own code, and which tool or resource to use. Under 6 KB; the full self-doc is reformer://docs/mcp.',
           mimeType: 'text/markdown',
         },
         {
@@ -217,6 +229,9 @@ export function createResourceCatalog(
     read(uri) {
       // Вводная — первый раздел самодокументации; полный текст — reformer://docs/mcp.
       if (uri === 'reformer://guide') {
+        if (reference) {
+          return { contents: [{ uri, mimeType: 'text/markdown', text: REFERENCE_GUIDE }] };
+        }
         const section = docs().sectionBySlug(OWN_PACKAGE, GUIDE_SECTION);
         const text = section ? section.replace(/^## \d+\.\s*/, '# ') : GUIDE_FALLBACK;
         return { contents: [{ uri, mimeType: 'text/markdown', text }] };

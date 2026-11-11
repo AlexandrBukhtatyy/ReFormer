@@ -1913,7 +1913,7 @@ const FLOW_ROLE =
 /** Роль файла своих операторов — одна строка на все таргеты. */
 const OPERATORS_ROLE =
   'свои операторы: правила, операторы валидации и поведения, которые вызывает intent ' +
-  '(`operators`); заготовку пишет `form_build`, тела — автор формы';
+  '(`operators`); заготовку пишет сборка, тела — автор формы';
 
 /** Роль файла словаря текстов замечаний — одна строка на все таргеты. */
 const MESSAGES_ROLE =
@@ -1939,7 +1939,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'operators.ts', role: OPERATORS_ROLE, optional: true },
     {
       path: 'form.intent.json',
-      role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
+      role: 'исходник формы для сборки: файлы с маркером сборки она пишет сама',
       optional: true,
     },
   ],
@@ -1961,7 +1961,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'operators.ts', role: OPERATORS_ROLE, optional: true },
     {
       path: 'form.intent.json',
-      role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
+      role: 'исходник формы для сборки: файлы с маркером сборки она пишет сама',
       optional: true,
     },
   ],
@@ -1983,7 +1983,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
     { path: 'operators.ts', role: OPERATORS_ROLE, optional: true },
     {
       path: 'form.intent.json',
-      role: 'исходник формы для `form_build`: файлы с маркером сборки он пишет сам',
+      role: 'исходник формы для сборки: файлы с маркером сборки она пишет сама',
       optional: true,
     },
     { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },

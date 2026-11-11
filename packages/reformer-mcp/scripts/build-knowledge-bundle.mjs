@@ -8,6 +8,10 @@
  *
  *   node scripts/build-knowledge-bundle.mjs --out <dir> [--packages a,b] [--no-docs]
  *
+ * Пакеты по умолчанию — `BROWSER_PACKAGES` ядра: артефакт читают только среды без диска (воркер,
+ * справка конструктора), а там форму собирает хост, и документация MCP о `form_build` была бы
+ * советом, которому не последовать.
+ *
  * Выход: `<dir>/knowledge-index.json` (обязательный) и `<dir>/knowledge-docs.json`.
  * Разделены намеренно — см. докстринг `core/bundle.ts`.
  *
@@ -42,13 +46,15 @@ if (!existsSync(coreEntry)) {
   console.error('✗ dist/core не собран — сначала: npm run build -w @reformer/mcp');
   process.exit(1);
 }
-const { KNOWN_PACKAGES, packageDirName } = await import(pathToFileURL(coreEntry).href);
+const { BROWSER_PACKAGES, packageDirName } = await import(pathToFileURL(coreEntry).href);
 const { BUNDLE_SCHEMA_VERSION } = await import(
   pathToFileURL(path.join(pkgDir, 'dist', 'core', 'bundle.js')).href
 );
 
 const only = flag('packages');
-const targets = only ? only.split(',').map((s) => s.trim()) : [...KNOWN_PACKAGES];
+// По умолчанию — корпус браузера: без документации самого MCP, его путь через `form_build` там
+// недоступен (`BROWSER_PACKAGES`).
+const targets = only ? only.split(',').map((s) => s.trim()) : [...BROWSER_PACKAGES];
 
 const indexPackages = {};
 const docsPackages = {};

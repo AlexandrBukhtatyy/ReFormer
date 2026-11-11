@@ -1,15 +1,17 @@
 /**
- * MCP-сервер ReFormer в Web Worker — тот же набор инструментов и ресурсов, что под Node, над
- * вшитым корпусом знаний.
+ * MCP-сервер ReFormer в Web Worker — справочный канал над вшитым корпусом знаний.
  *
  * Бандл воркера (`scripts/build-worker.mjs`) вызывает {@link startWorkerServer} на старте скрипта
  * с `self` в роли порта: хост запускает воркер и сразу говорит с ним по MCP через `postMessage`
  * (`./port-transport`). Ни диска, ни сети: знание собирается из артефакта корпуса, который бандл
  * несёт в себе.
  *
- * Профиль `browser` (`core/server/tool-catalog`): без `report_issue` и `debug`, `plan_form` — от
- * описания. Промптов нет — они рендерятся шаблонами с диска и просят sampling у клиента, а
- * воркер не умеет ни того, ни другого.
+ * Профиль `browser` (`core/server/tool-catalog`): семь справочных инструментов — `choose_api`,
+ * `get_context`, `find_recipe`, `search_docs`, `get_symbol_docs`, `list_symbols`, `validate_form`.
+ * `form_build`, `plan_form` и `report_issue` нет: форму собирает хост своим инструментом. Поэтому у
+ * воркера свои `instructions` и свой гайд `reformer://guide` (`core/server/reference-guide`), а
+ * корпус — без документации MCP (`BROWSER_PACKAGES`). Промптов нет — они рендерятся шаблонами с
+ * диска и просят sampling у клиента, а воркер не умеет ни того, ни другого.
  *
  * Корпус разбирается ЛЕНИВО: `initialize` и `tools/list` отвечают сразу, а мегабайты JSON
  * разбираются на первый вызов, которому нужно знание. Хост будит воркер на вызов и усыпляет по
@@ -22,6 +24,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { Knowledge } from '../../core/knowledge.js';
 import { mountReformerServer } from '../../core/server/mount.js';
+import { REFERENCE_INSTRUCTIONS } from '../../core/server/reference-guide.js';
 import { createResourceCatalog } from '../../core/server/resource-catalog.js';
 import { createToolCatalog } from '../../core/server/tool-catalog.js';
 import { createBrowserKnowledge, type BrowserKnowledgeInput } from '../browser/knowledge.js';
@@ -54,11 +57,11 @@ export function startWorkerServer(options: WorkerServerOptions): WorkerServer {
 
   const server = new Server(
     { name: 'reformer-mcp', version: options.version },
-    { capabilities: { tools: {}, resources: {} } }
+    { capabilities: { tools: {}, resources: {} }, instructions: REFERENCE_INSTRUCTIONS }
   );
   mountReformerServer(server, {
     tools: createToolCatalog(lazyKnowledge, { profile: 'browser' }),
-    resources: createResourceCatalog(lazyKnowledge),
+    resources: createResourceCatalog(lazyKnowledge, { profile: 'browser' }),
   });
 
   // Транспорт создаётся и подключается сразу, на старте скрипта: слушатель порта должен стоять

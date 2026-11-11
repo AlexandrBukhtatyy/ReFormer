@@ -2624,7 +2624,7 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       code: 'keys-renamed',
       message:
         `Keys brought to the FormIntent contract: ${[...ctx.renames].sort().join(', ')}. ` +
-        'The grammar names them: form_build {"grammar":"base"}.',
+        'The grammar names them (section base).',
     });
   }
   notes.push(...ctx.warnings);

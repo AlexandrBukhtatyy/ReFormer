@@ -27,7 +27,7 @@
  * @module plugins/reformer/ai/knowledge/project-source
  */
 
-import { KNOWN_PACKAGES } from '@reformer/mcp/dist/core/docs/packages.js';
+import { BROWSER_PACKAGES } from '@reformer/mcp/dist/core/docs/packages.js';
 import {
   BUNDLE_SCHEMA_VERSION,
   type DocsBundle,
@@ -74,7 +74,9 @@ export async function readProjectBundles(files: PackageFiles): Promise<ProjectBu
   const docs: DocsBundle = { schemaVersion: BUNDLE_SCHEMA_VERSION, builtAt: '', packages: {} };
   const versions: Record<string, string> = {};
 
-  for (const pkg of KNOWN_PACKAGES) {
+  // Пакеты — как у вшитого корпуса: без документации MCP, её путь через `form_build` ассистенту
+  // недоступен — форму здесь собирает `build_form`.
+  for (const pkg of BROWSER_PACKAGES) {
     // Путь — по ИМЕНИ пакета (`node_modules/@reformer/core`), а не по имени каталога монорепо:
     // у потребителя нет ни `packages/`, ни его раскладки.
     const dir = `node_modules/${pkg}`;

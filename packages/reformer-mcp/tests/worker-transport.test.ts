@@ -97,12 +97,15 @@ describe.runIf(
     await client.close();
   });
 
-  it('ресурсы читаются тем же каталогом, что под Node', async () => {
+  it('ресурсы читаются тем же каталогом, что под Node; гайд — справочного канала', async () => {
     const client = await connect(() => bundles!);
     const { resources } = await client.listResources();
     expect(resources.map((resource) => resource.uri)).toContain('reformer://catalog');
+    // У воркера нет form_build: гайд — карта справочных инструментов, а не путь к форме.
     const { contents } = await client.readResource({ uri: 'reformer://guide' });
-    expect((contents[0] as { text: string }).text).toContain('form.intent.json');
+    const guide = (contents[0] as { text: string }).text;
+    expect(guide).toContain('choose_api');
+    expect(guide).not.toContain('form_build');
     await client.close();
   });
 });

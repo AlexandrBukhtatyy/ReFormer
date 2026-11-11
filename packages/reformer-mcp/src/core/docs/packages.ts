@@ -33,6 +33,18 @@ export const DEFAULT_PACKAGE: ReformerPackage = '@reformer/core';
 export const OWN_PACKAGE: ReformerPackage = '@reformer/mcp';
 
 /**
+ * Пакеты корпуса сред без файловой системы — артефакта `build-knowledge-bundle.mjs`, который несут
+ * воркер и справка `ask_reformer` конструктора: все известные, кроме самого MCP.
+ *
+ * Там форму собирает хост, а не `form_build`. Документация MCP (путь через `form_build`, раскладка
+ * модуля, встраивание) описывает инструменты, которых в браузере нет: её поиск и рецепты дали бы
+ * совет, которому модель не может последовать (фаза 5 аудита, ReFormer-11oe.6).
+ */
+export const BROWSER_PACKAGES: readonly ReformerPackage[] = KNOWN_PACKAGES.filter(
+  (pkg) => pkg !== OWN_PACKAGE
+);
+
+/**
  * Привести значение аргумента `package` к полному имени пакета.
  *
  * Принимает и `@reformer/core`, и короткое `core`. Короткая форма нужна с тех пор, как из

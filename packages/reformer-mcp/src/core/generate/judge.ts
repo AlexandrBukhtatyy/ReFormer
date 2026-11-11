@@ -81,6 +81,11 @@ export interface JudgeOptions {
   /** Ключи реестра справочников. */
   dataSourceNames?: string[];
   /**
+   * Есть ли у сервера `form_build` (по умолчанию — да). В воркере конструктора его нет: подсказки
+   * ведут в справочные инструменты, а не в грамматику `form_build` (ReFormer-11oe.6).
+   */
+  formBuild?: boolean;
+  /**
    * Требовать окружение модуля: индекс ядра и каталог кита (по умолчанию — да). `validate_form` модуль
    * не собирает и без них лишь не сверяет имена — об этом он говорит сам.
    */
@@ -128,7 +133,8 @@ function environmentErrors(catalogs: FormCatalogs): JudgeFinding[] {
 function unknownComponents(
   intent: FormIntent,
   catalogs: FormCatalogs,
-  forDocument: boolean
+  forDocument: boolean,
+  formBuild: boolean
 ): JudgeFinding[] {
   if (!catalogs.uiKit.found) return [];
   const kit = Object.keys(catalogs.uiKit.exports);
@@ -147,7 +153,9 @@ function unknownComponents(
         // одни поля, и контейнер модель угадывала заново (ReFormer-11oe.15). У билдера form_build нет.
         hint: forDocument
           ? 'a component of the kit: ## components of the grammar lists them by purpose'
-          : 'a component of @reformer/ui-kit: form_build {"grammar":"components"} lists them by purpose',
+          : formBuild
+            ? 'a component of @reformer/ui-kit: form_build {"grammar":"components"} lists them by purpose'
+            : 'a component of @reformer/ui-kit: list_symbols {"package":"ui-kit","nameContains":"…"} finds it by name',
       };
     });
 }
@@ -331,7 +339,8 @@ export function judgeIntent(
     }
   }
 
-  errors.push(...unknownComponents(intent, catalogs, options.forDocument === true));
+  const formBuild = options.formBuild !== false;
+  errors.push(...unknownComponents(intent, catalogs, options.forDocument === true, formBuild));
   if (!options.forDocument && intent.target === 'core') {
     errors.push(...coreRenderRules(intent));
     const texts = layoutTexts(intent.layoutRoot);
@@ -352,9 +361,12 @@ export function judgeIntent(
 
   if (catalogs.uiKitProps) {
     // Типы и значения пропсов — описание компонента; у билдера form_build нет, ему хватает перечня.
-    const details = options.forDocument
-      ? undefined
-      : (component: string) => `types and values: form_build {"grammar":"components:${component}"}`;
+    // В воркере грамматики нет, а справка по символу значений пропсов не даёт: хватает перечня.
+    const details =
+      options.forDocument || !formBuild
+        ? undefined
+        : (component: string) =>
+            `types and values: form_build {"grammar":"components:${component}"}`;
     for (const note of checkComponentProps(intent, catalogs.uiKitProps, catalogs.uiKit, details)) {
       warnings.push({ code: 'component-props', message: note });
     }

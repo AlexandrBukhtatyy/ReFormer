@@ -25,7 +25,7 @@ const KEYED: Readonly<Record<string, string>> = {
   arrayOf: 'an `arrays` record (grammar section `arrays`)',
   FormWizard: 'a `FormWizard` root of `layoutRoot` with `step` children (grammar section `wizard`)',
   FormFlowConfig:
-    'the steps of the `FormWizard` root: each step `selector` keys its rules, form_build writes `form.flow.ts` (section `wizard`)',
+    'the steps of the `FormWizard` root: each step `selector` keys its rules, the build writes `form.flow.ts` (section `wizard`)',
   defineRegistry: '`"optionsSource":"NAME"` on the field plus a `dataSources` record',
 };
 

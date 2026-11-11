@@ -72,7 +72,7 @@ export const validateFormToolDefinition = {
       intent: {
         anyOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }],
         description:
-          'kind=bundle: the FormIntent (object or JSON string) — judged as form_build judges it.',
+          'kind=bundle: the FormIntent (object or JSON string) — judged as the build judges it.',
       },
       componentNames: {
         type: 'array',
@@ -238,8 +238,10 @@ export async function validateFormTool(
       // поля-словарь роняли вызов `-32603` (аудит 2026-11, B2). componentNames/dataSourceNames —
       // реальные ключи реестра: контейнеры (Box, Section) intent не объявляет.
       const catalogs = await catalogsOf(k);
+      const formBuild = options.formBuild !== false;
       const verdict = judgeIntent(args.intent, catalogs, {
         requireEnvironment: false,
+        formBuild,
         ...(schema !== undefined ? { schema } : {}),
         ...(Array.isArray(args.componentNames) ? { componentNames: args.componentNames } : {}),
         ...(Array.isArray(args.dataSourceNames) ? { dataSourceNames: args.dataSourceNames } : {}),
@@ -250,7 +252,8 @@ export async function validateFormTool(
       ];
       const limits = [
         'The intent and the layout are checked against each other; TypeScript is not — for it ' +
-          'use `kind: "code"`, and form_build type-checks the module.',
+          'use `kind: "code"`' +
+          (formBuild ? ', and form_build type-checks the module.' : '.'),
         ...(catalogs.core.found ? [] : ['The @reformer/core index is not found: rules unchecked.']),
         ...(catalogs.uiKit.found
           ? []
