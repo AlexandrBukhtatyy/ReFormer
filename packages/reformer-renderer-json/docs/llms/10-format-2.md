@@ -234,6 +234,7 @@ const bundle = createForm({ model, schema, registry });
 | Симптом | Причина |
 | --- | --- |
 | `The document is in the previous JSON schema format` / `/: the document is in the previous JSON schema format` | у документа нет `format: 2` (сборка / `validateFormSchema`) — переведи его `migrateJsonSchema` |
+| `The document is not a form document` / `/: not a form document` | нет ни `format: 2`, ни корня `root` — например, JSON Schema данных; документ формы собирают заново, `migrateJsonSchema` не поможет |
 | `Part "x" not found in the document "parts"` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
 | `"$model(x)" is not a group of the model` | подформа подключена к полю; `part` ставится на объект модели |
 | `"$model(x)" is not an array of the model` | узел с `item` привязан не к массиву либо начальное значение массива — `null` |

@@ -211,6 +211,29 @@ describe('validateFormSchema: формат 2', () => {
     expect(validateFormSchema(migrateJsonSchema(v1), opts).errors).toEqual([]);
   });
 
+  it('объект без `format` и без `root` — не документ формы, а не «прежний формат» (ReFormer-11oe.21)', () => {
+    // JSON Schema данных: переводить нечего, совет про migrateJsonSchema увёл бы в тупик.
+    const dataSchema = {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: { city: { type: 'string' } },
+      required: ['city'],
+    };
+    const data = validateFormSchema(dataSchema, opts);
+    expect(data.valid).toBe(false);
+    expect(data.errors).toEqual([
+      '/: not a form document: a form document is { "format": 2, "root": { … } } — a tree of ' +
+        'nodes with "component" and "children". This looks like a JSON Schema of the data ' +
+        '("properties", "type"): the form layout is a separate document, the shape of the data ' +
+        'comes from the form model.',
+    ]);
+    // Не схема данных и не форма — без пояснения про данные, но и без migrateJsonSchema.
+    const other = validateFormSchema({ fields: [{ name: 'city' }] }, opts).errors;
+    expect(other).toHaveLength(1);
+    expect(other[0]).toMatch(/^\/: not a form document: a form document is/);
+    expect(other[0]).not.toMatch(/JSON Schema of the data|migrateJsonSchema/);
+  });
+
   it('чужое значение `format` и не-объект называет мета-схема', () => {
     expect(
       validateFormSchema({ format: 3, root: { component: '$component(Box)' } }).errors

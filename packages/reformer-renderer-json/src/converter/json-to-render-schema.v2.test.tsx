@@ -231,6 +231,13 @@ describe('convertJsonSchema: ошибки документа', () => {
     ).toThrow(/migrateJsonSchema/);
   });
 
+  it('JSON Schema данных — не документ формы, без совета про migrateJsonSchema', () => {
+    const dataSchema = { type: 'object', properties: { city: { type: 'string' } } };
+    const build = () => convertJsonSchema(dataSchema as any, registry, createShape());
+    expect(build).toThrow(/^The document is not a form document: .*JSON Schema of the data/);
+    expect(build).not.toThrow(/migrateJsonSchema/);
+  });
+
   it('неизвестная часть — ошибка сразу, при сборке дерева; называет доступные', () => {
     expect(() =>
       convert(

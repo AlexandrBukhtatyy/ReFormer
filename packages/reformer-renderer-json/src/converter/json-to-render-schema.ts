@@ -30,6 +30,7 @@ import {
 } from '../operators';
 import { isAllowedHtmlTag, sanitizeHtmlProps } from '../html/html-tags';
 import { isJsonStepRef } from '../compose';
+import { documentShapeProblem, notAFormText } from '../document-shape';
 import type { ComponentRegistry } from '../registry/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -434,7 +435,8 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
  * @param registry - Реестр компонентов/источников (см. {@link defineRegistry}).
  * @param model - Модель данных — источник значений (`FormModel`).
  * @returns Корневой {@link RenderNode}.
- * @throws Error если документ — прежнего формата: его переводит `migrateJsonSchema`.
+ * @throws Error если документ — прежнего формата (его переводит `migrateJsonSchema`) либо вовсе не
+ *   документ формы: без `format` и без корня `root`, например JSON Schema данных.
  *
  * @example
  * ```ts
@@ -449,6 +451,10 @@ export function convertJsonSchema<T>(
   registry: ComponentRegistry,
   model: FormModel<T>
 ): RenderNode<T> {
+  if (documentShapeProblem(schema) === 'not-a-form') {
+    // JSON Schema данных или конфиг: переводить нечего, совет про migrateJsonSchema увёл бы в тупик.
+    throw new Error(`The document is ${notAFormText(schema)}`);
+  }
   if (schemaFormatOf(schema) !== 2) {
     throw new Error(
       'The document is in the previous JSON schema format (no "format": 2). Convert it with ' +

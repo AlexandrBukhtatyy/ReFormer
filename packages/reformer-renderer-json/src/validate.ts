@@ -32,6 +32,7 @@ import {
 import { parseOperator, isModelOp } from './operators';
 import { isAllowedHtmlTag } from './html/html-tags';
 import { isJsonStepRef } from './compose';
+import { documentShapeProblem, notAFormText } from './document-shape';
 import type { ComponentRegistry } from './registry/types';
 import { renamedComponentOf } from './registry/renamed-components';
 
@@ -350,12 +351,14 @@ function walkArrayInitialValue(
 }
 
 /**
- * Ошибка для документа прежнего формата: объект без поля `format`. Не-объект и объект с чужим
- * значением `format` доходят до мета-схемы — она назовёт ошибку сама.
+ * Ошибка для объекта без поля `format`: с корнем `root` — документ прежнего формата, без него — не
+ * документ формы вовсе (JSON Schema данных, конфиг). Не-объект и объект с чужим значением `format`
+ * доходят до мета-схемы — она назовёт ошибку сама.
  */
 function previousFormatError(schema: unknown): string | undefined {
-  if (schema === null || typeof schema !== 'object' || Array.isArray(schema)) return undefined;
-  if ('format' in schema) return undefined;
+  const problem = documentShapeProblem(schema);
+  if (problem === 'not-a-form') return `/: ${notAFormText(schema)}`;
+  if (problem !== 'previous-format') return undefined;
   return (
     '/: the document is in the previous JSON schema format (no "format": 2) — the runtime reads ' +
     'format 2 only. Convert it with migrateJsonSchema(document) and validate the result.'
