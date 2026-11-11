@@ -4,7 +4,8 @@
  * Сырьё прогона лежит в `.tmp/mcp-runs/<батч>/<прогон>/` разными файлами: задание (`prompt.md`),
  * журнал агента (`transcript.jsonl` — сырой `stream-json` у Claude Code, свой журнал у Ollama, у
  * повтора без модели его нет), трасса сервера (`server-trace.jsonl`), последний ответ
- * (`final.txt`), вердикт (`verify.json`) и запись в `records.jsonl` батча. Читать прогон по ним
+ * (`final.txt`), вердикт (`verify.json`), снимок рабочего каталога агента (`workspace/`: `spec.md` и
+ * прочее вне формы) и запись в `records.jsonl` батча. Читать прогон по ним
  * приходилось руками (ReFormer-qo9b.37). Здесь они сводятся в один Markdown.
  *
  * Вызов журнала и вызов трассы сходятся по отпечатку аргументов (`./digest.mjs` — та же функция, что
@@ -16,7 +17,7 @@
  * @module reformer-mcp/eval/lib/run-log
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { checkStatus } from '../records/record.mjs';
 import { argumentsDigest } from './digest.mjs';
@@ -246,6 +247,18 @@ function recordOf(runDirectory) {
   );
 }
 
+/** Файлы снимка рабочего каталога агента (`workspace/`), пути — от каталога прогона. */
+function workspaceFiles(runDirectory) {
+  const root = path.join(runDirectory, 'workspace');
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) =>
+      path.relative(runDirectory, path.join(entry.parentPath, entry.name)).replaceAll('\\', '/')
+    )
+    .sort();
+}
+
 /** Всё о прогоне из его каталога. */
 export function readRun(runDirectory) {
   const trace = readJsonl(path.join(runDirectory, 'server-trace.jsonl'));
@@ -259,6 +272,7 @@ export function readRun(runDirectory) {
     prompt: readText(path.join(runDirectory, 'prompt.md')) ?? dialog.meta.prompt ?? null,
     finalText: readText(path.join(runDirectory, 'final.txt')) ?? dialog.meta.final ?? null,
     verify: verifyText === null ? null : JSON.parse(verifyText),
+    workspaceFiles: workspaceFiles(runDirectory),
     dialog,
     unmatched,
     traceCalls: trace.length,
@@ -370,6 +384,15 @@ export function renderRun(run, options = {}) {
     out.push(`Пропущены: ${skipped.map((id) => `\`${id}\``).join(', ')}.`, '');
 
   out.push('## Задание', '', run.prompt ? quote(run.prompt) : '_нет prompt.md_', '');
+  if (run.workspaceFiles.length > 0) {
+    const links = run.workspaceFiles.map(
+      (file) => `[${file.slice('workspace/'.length)}](${encodeURI(file)})`
+    );
+    out.push(
+      `Рабочий каталог агента (без \`form/\` — она в \`bundle/\`): ${links.join(' · ')}`,
+      ''
+    );
+  }
   if (dialog.meta.system) {
     out.push(details('Системный промпт', fenced(dialog.meta.system)), '');
   }

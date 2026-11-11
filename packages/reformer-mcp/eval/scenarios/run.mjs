@@ -20,7 +20,8 @@
  *   --publish              положить записи в packages/reformer-mcp/eval/runs/
  *
  * Рабочий каталог агента — вне репозитория: иначе агент увидел бы исходники пакетов, и замерялся бы
- * не сервер. Результат копируется внутрь репозитория только для проверки: там резолвятся `@reformer/*`.
+ * не сервер. После прогона он копируется в каталог прогона: форма — в `bundle/` (там резолвятся
+ * `@reformer/*`, там её и проверяют), остальное — в `workspace/`.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -137,6 +138,24 @@ async function buildPrompt({ scenario, target, approach, workspaceDirectory }) {
     }
   }
   return `${approach.promptPrefix ?? ''}${task}\n\n${rules}`;
+}
+
+/** Каталоги рабочего каталога агента, которых нет в `workspace/` прогона. */
+const NOT_SNAPSHOTTED = new Set(['form', 'node_modules']);
+
+/**
+ * Рабочий каталог агента — в `<прогон>/workspace/`: он лежит во временном каталоге системы, а в прогоне
+ * должно остаться, с чем агент работал (`spec.md`, `package.json`) и что оставил вне `form/`. Сама
+ * форма — в `bundle/`; снимок делается до проверки изоляции, поэтому есть и у недействительного прогона.
+ */
+function snapshotWorkspace(workspaceDirectory, runDirectory) {
+  const target = path.join(runDirectory, 'workspace');
+  rmSync(target, { recursive: true, force: true });
+  cpSync(workspaceDirectory, target, {
+    recursive: true,
+    filter: (source) =>
+      !NOT_SNAPSHOTTED.has(path.relative(workspaceDirectory, source).split(path.sep)[0]),
+  });
 }
 
 /** Метрики процесса — из журнала сервера: они одинаковы для любого агента. */
@@ -305,6 +324,7 @@ async function runCell(cell) {
   });
   spentUsd += result.costUsd ?? 0;
   writeFileSync(path.join(runDirectory, 'final.txt'), result.finalText ?? '');
+  snapshotWorkspace(workspaceDirectory, runDirectory);
 
   const { metrics, toolSequence } = processMetrics(traceFile, result.toolCalls);
   for (const [id, value] of Object.entries(result.harness ?? {})) {
