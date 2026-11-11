@@ -6,7 +6,12 @@ import { fileURLToPath } from 'url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 import { createNodeServer } from './platform/cli/server.js';
-import { createTraceSink, TRACE_FILE_ENV } from './platform/cli/trace-sink.js';
+import {
+  createTraceSink,
+  isTraceFull,
+  TRACE_FILE_ENV,
+  TRACE_FULL_ENV,
+} from './platform/cli/trace-sink.js';
 
 // Check debug mode
 const isDebugMode = process.env.REFORMER_DEBUG === 'true';
@@ -32,7 +37,9 @@ function readServerVersion(): string {
 const server = createNodeServer({
   version: readServerVersion(),
   debug: isDebugMode,
-  onCall: createTraceSink(process.env[TRACE_FILE_ENV]),
+  onCall: createTraceSink(process.env[TRACE_FILE_ENV], {
+    full: isTraceFull(process.env[TRACE_FULL_ENV]),
+  }),
 });
 
 // ==================== START SERVER ====================

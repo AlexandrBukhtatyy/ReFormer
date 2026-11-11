@@ -234,6 +234,32 @@ describe.runIf(hasDist)('dist/index.js через stdio', () => {
     expect(entries[0].argumentsDigest).toBe(entries[1].argumentsDigest);
     expect(entries[0].argumentsPreview).toContain('скрыть поле');
     expect(entries[0].resultChars).toBeGreaterThan(0);
+    // Номер вызова считает только инструменты; без полного режима ни аргументов, ни ответа.
+    expect(entries.map((entry) => entry.call)).toEqual([1, 2, undefined]);
+    for (const entry of entries) {
+      expect(entry).not.toHaveProperty('arguments');
+      expect(entry).not.toHaveProperty('result');
+    }
+  });
+
+  it('REFORMER_TRACE_FULL: аргументы целиком и текст ответа', async () => {
+    traceDirectory = mkdtempSync(join(tmpdir(), 'reformer-trace-'));
+    const traceFile = join(traceDirectory, 'trace.jsonl');
+    const client = await spawnServer({ REFORMER_TRACE_FILE: traceFile, REFORMER_TRACE_FULL: '1' });
+    const args = { requirement: 'скрыть поле' };
+
+    const reply = await client.callTool({ name: 'choose_api', arguments: args });
+    const resource = await client.readResource({ uri: 'reformer://guide' });
+
+    const [tool, guide] = readFileSync(traceFile, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    const replyText = (reply.content as { text: string }[]).map((block) => block.text).join('\n');
+    expect(tool).toMatchObject({ call: 1, arguments: args, result: replyText });
+    expect(guide).toMatchObject({ kind: 'resource', arguments: null });
+    expect(guide).not.toHaveProperty('call');
+    expect(guide.result).toBe((resource.contents[0] as { text: string }).text);
   });
 
   it('без REFORMER_TRACE_FILE сервер работает и файла не заводит', async () => {

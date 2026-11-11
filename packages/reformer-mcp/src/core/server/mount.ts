@@ -35,6 +35,12 @@ export interface ReformerServerCall {
   /** Текст исключения; `null`, если вызов вернул ответ (пусть и с `isError`). */
   readonly protocolError: string | null;
   readonly durationMs: number;
+  /**
+   * Ответ как есть — для полной трассы замера (`REFORMER_TRACE_FULL`). У вызова, упавшего
+   * исключением, ответа нет. Ссылка на уже собранный объект: наблюдателю без полной трассы она
+   * ничего не стоит.
+   */
+  readonly result?: unknown;
 }
 
 export interface MountOptions {
@@ -59,6 +65,7 @@ export async function observeCall<Result>(
     const result = await run();
     onCall({
       ...call,
+      result,
       resultChars: JSON.stringify(result)?.length ?? 0,
       isError: (result as { isError?: boolean } | null)?.isError === true,
       protocolError: null,
