@@ -9,7 +9,8 @@
  *   --matrix <имя|файл>    оси прогона из matrices/
  *   --agent                replay | ollama | claude-code
  *   --approach a,b         подходы из approaches.json (по умолчанию bare)
- *   --target t             только этот таргет сценария
+ *   --target t             каждый сценарий — на этом таргете вместо своих (renderer-json: формы
+ *                          откроются в ui-builder, их схема — form.schema.json)
  *   --repeats N            повторов на ячейку; один прогон с агентом ничего не доказывает
  *   --concurrency K        параллельных прогонов
  *   --max-usd-batch X      потолок оценочной стоимости батча: дальше прогоны не начинаются

@@ -37,6 +37,7 @@ npm run mcp:verify -- --golden [--browser]     # эталоны проходят
 npm run mcp:verify -- --negative               # сломанные формы падают на своей проверке
 npm run mcp:verify -- --reverify <батч>[,<батч>]  # новая оценка сохранённых форм без модели
 npm run mcp:scenarios -- --matrix smoke        # весь путь без модели, годится для CI
+npm run mcp:scenarios -- --matrix smoke --target renderer-json  # все сценарии JSON-формами — для ui-builder
 npm run mcp:scenarios -- --agent claude-code --model sonnet --scenario 'L1-*,L3-*' --repeats 3 \
   --max-usd-batch 5 --browser --publish
 npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b-32k --scenario L1-feedback
