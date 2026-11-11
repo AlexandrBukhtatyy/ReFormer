@@ -146,6 +146,12 @@ interface BuildPlan {
   unchanged: number;
   /** Файлы с правками: сборка их не трогает и об этом говорит. */
   detached: string[];
+  /**
+   * Правленные руками файлы, которых эта сборка больше не выпускает: модуль их не читает. Так
+   * осталась правка `form.schema.ts` после перехода renderer-json на `form.schema.json` — молча она
+   * перестала бы действовать.
+   */
+  orphaned: string[];
 }
 
 /**
@@ -156,7 +162,14 @@ interface BuildPlan {
  * отсоединяется. `types.ts` и `api.ts` принадлежат потребителю с первого дня.
  */
 function planBuild(directory: FormDirectory, derived: FormFile[], owned: FormFile[]): BuildPlan {
-  const plan: BuildPlan = { module: [], writes: [], removes: [], unchanged: 0, detached: [] };
+  const plan: BuildPlan = {
+    module: [],
+    writes: [],
+    removes: [],
+    unchanged: 0,
+    detached: [],
+    orphaned: [],
+  };
   for (const file of derived) {
     const next = withMarker(file.content, file.path);
     const existing = directory.read(file.path);
@@ -182,7 +195,10 @@ function planBuild(directory: FormDirectory, derived: FormFile[], owned: FormFil
   const produced = new Set(derived.map((file) => file.path));
   for (const name of OPTIONAL_DERIVED) {
     const existing = produced.has(name) ? null : directory.read(name);
-    if (existing !== null && originOf(existing, name) === 'generated') plan.removes.push(name);
+    if (existing === null) continue;
+    const origin = originOf(existing, name);
+    if (origin === 'generated') plan.removes.push(name);
+    else if (origin === 'edited') plan.orphaned.push(name);
   }
   return plan;
 }
@@ -402,6 +418,17 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
     lines.push(
       `Edited by hand and left as is: ${detached.join(', ')}. The build no longer updates them; ` +
         'delete a file to put it back under the build.'
+    );
+  }
+  if (plan.orphaned.length > 0) {
+    const schema = plan.orphaned.includes('form.schema.ts') && intent.target === 'renderer-json';
+    lines.push(
+      `⚠️ Edited by hand, but this build no longer produces them: ${plan.orphaned.join(', ')}. ` +
+        'Nothing in the module reads them now' +
+        (schema
+          ? ' — the schema of renderer-json is form.schema.json, and index.tsx imports it'
+          : '') +
+        '. Carry your edits over (into form.intent.json or the new file) and delete the old one.'
     );
   }
   if (notes.length > 0) {

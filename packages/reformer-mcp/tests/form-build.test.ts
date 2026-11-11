@@ -177,6 +177,18 @@ describe('form_build: путь без ошибок', () => {
       await build();
       expect(existsSync(formFile('form.schema.ts'))).toBe(false);
 
+      // Правленный руками остаётся, но сборка говорит, что модуль его больше не читает: так
+      // правка текста кнопок в прогоне L5-registration молча перестала бы действовать.
+      const edited = withMarker('export const formSchema = {};\n').replace('{}', '{ x: 1 }');
+      writeFileSync(formFile('form.schema.ts'), edited);
+      const { text } = await build();
+      expect(readFileSync(formFile('form.schema.ts'), 'utf-8')).toBe(edited);
+      expect(text).toContain(
+        'Edited by hand, but this build no longer produces them: form.schema.ts'
+      );
+      expect(text).toContain('the schema of renderer-json is form.schema.json');
+      rmSync(formFile('form.schema.ts'));
+
       // Смена таргета: прежний документ уходит так же.
       writeIntent({ ...GRAMMAR_EXAMPLE, target: 'renderer-react' });
       await build();
