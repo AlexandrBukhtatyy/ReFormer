@@ -154,21 +154,29 @@ const LEGACY_ASSEMBLY = [
     name: 'settings={{ registry, model }} у провайдера рендерера',
     test: (t) => /settings=\{\{[^}]*\bmodel\b/.test(t),
   },
+  // С 7.0 форму создаёт один путь — intent → form_build; generate_form удалён (аудит 2026-11).
+  {
+    name: 'generate_form вместо form_build',
+    test: (t) => /\bgenerate_form\b/.test(t),
+  },
 ];
 
 /**
- * Промпты, обязанные учить сборке: если файл вообще говорит про создание формы, он должен
- * назвать актуальную точку входа. Без этого «тихий разъезд» вернётся с другой стороны —
- * промпт просто перестанет упоминать сборку, и проверка выше ничего не найдёт.
+ * Промпты, которые создают или меняют форму: каждый обязан вести к `form_build` (с 7.0 это
+ * единственный путь, аудит 2026-11). Без этой проверки «тихий разъезд» вернётся с другой
+ * стороны — промпт перестанет называть путь, и проверки выше ничего не найдут.
  */
-const MUST_MENTION_FACTORY = [
-  'create-form.md',
+const MUST_MENTION_BUILD = [
   'start-here.md',
-  'to-renderer.md',
-  'to-renderer-json.md',
+  'create-form.md',
+  'plan-form.md',
+  'add-validation.md',
+  'add-behavior.md',
+  'add-form-array.md',
   'add-wizard.md',
+  'to-renderer.md',
 ];
-const FACTORY_RE = /\bcreateForm\s*[<(]/;
+const BUILD_RE = /\bform_build\b/;
 
 /**
  * Маркеры отрицательного контекста. Достаточно одного в блоке.
@@ -291,12 +299,12 @@ for (const file of files) {
     });
   }
 
-  // Обратная проверка: файл про сборку обязан назвать фабрику.
-  if (MUST_MENTION_FACTORY.includes(file) && !FACTORY_RE.test(content)) {
+  // Обратная проверка: промпт, который создаёт или меняет форму, обязан назвать form_build.
+  if (MUST_MENTION_BUILD.includes(file) && !BUILD_RE.test(content)) {
     violations.push({
       file,
       line: 1,
-      api: 'не названа сборка формы — createForm',
+      api: 'не назван путь создания формы — form_build',
       excerpt: content.split('\n').slice(0, 3).join('\n'),
     });
   }
