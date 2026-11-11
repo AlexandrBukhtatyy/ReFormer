@@ -58,15 +58,15 @@ function fieldSite(field: FieldIntent, at: string): PropsSite {
 
 /** Все `componentProps` intent: поля, массивы, строки массивов и контейнеры раскладки. */
 function collectSites(intent: FormIntent): PropsSite[] {
-  const sites: PropsSite[] = intent.fields.map((f) => fieldSite(f, `поле «${f.name}»`));
+  const sites: PropsSite[] = intent.fields.map((f) => fieldSite(f, `the field «${f.name}»`));
   for (const array of intent.arrays) {
     sites.push({
-      at: `массив «${array.name}»`,
+      at: `the array «${array.name}»`,
       component: array.component ?? 'FieldArray',
       props: array.componentProps,
     });
     for (const f of array.itemFields) {
-      sites.push(fieldSite(f, `поле «${f.name}» массива «${array.name}»`));
+      sites.push(fieldSite(f, `the field «${f.name}» of the array «${array.name}»`));
     }
   }
   const walk = (node: LayoutNode): void => {
@@ -75,7 +75,7 @@ function collectSites(intent: FormIntent): PropsSite[] {
     // Корень визарда рисует `FormWizard`, а `$html(...)` — тег: схемы кита к ним не относятся.
     if (!isWizardContainer(node) && !node.htmlTag) {
       sites.push({
-        at: `контейнер «${node.selector ?? node.component}»`,
+        at: `the container «${node.selector ?? node.component}»`,
         component: node.component,
         props: node.componentProps,
       });
@@ -115,8 +115,8 @@ export function checkComponentProps(
     if (unknown.length === 0) continue;
     const names = unknown.map((key) => `«${key}»`).join(', ');
     notes.push(
-      `${site.at}: у ${site.component} нет ${unknown.length === 1 ? 'свойства' : 'свойств'} ` +
-        `${names} в componentProps. Есть: ${known.join(', ')}.`
+      `${site.at}: ${site.component} has no ${unknown.length === 1 ? 'prop' : 'props'} ` +
+        `${names} in componentProps — they would go to the DOM. It has: ${known.join(', ')}.`
     );
   }
   return notes;

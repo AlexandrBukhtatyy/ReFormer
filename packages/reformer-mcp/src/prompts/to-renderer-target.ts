@@ -1,27 +1,28 @@
 /**
  * Промпт `to-renderer` — перенос формы на рендерер, целевой стек выбирается аргументом.
  *
- * Схлопывает `to-renderer` и `to-renderer-json`: у них одинаковый вход (`code`) и одна задача,
- * различается только целевой пакет. Две записи в `prompts/list` за это различие платить не
- * обязаны. Содержимое обоих шаблонов сохранено без изменений.
+ * С 7.0 перенос — это `target` в `form.intent.json` и пересборка `form_build`: контракт формы один на
+ * все стеки, а модуль пишет сборка. Прежние шаблоны учили переписывать модуль руками (аудит
+ * 2026-11, A1). Шаблон один на оба рендерера, различаются подписи.
  */
 
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
-
-const TEMPLATES = {
-  'renderer-react': 'to-renderer',
-  'renderer-json': 'to-renderer-json',
-} as const;
+import { TARGET_NOTE, targetLabelFor } from './create-form.js';
 
 export const toRendererPromptDefinition = {
   name: 'to-renderer',
   description:
-    'Change who draws an existing @reformer form: FormRenderer over the same TS schema (renderer-react) or the schema as a JSON document of format 2 + registry (renderer-json). Model, validation, behavior and the createForm call stay.',
+    'Switch a form built with form_build to a renderer — FormRenderer over the TS schema (renderer-react) or the schema as a JSON document + registry (renderer-json) — by changing "target" in form.intent.json and building again.',
   arguments: [
-    { name: 'code', description: 'Текущий код формы.', required: true },
+    {
+      name: 'code',
+      description:
+        'The current form.intent.json (optional: otherwise read it from the form folder).',
+      required: false,
+    },
     {
       name: 'target',
-      description: 'renderer-react (по умолчанию) | renderer-json',
+      description: 'renderer-react (default) | renderer-json',
       required: false,
     },
   ],
@@ -31,14 +32,19 @@ export async function getToRendererPrompt(args: {
   code?: string;
   target?: string;
 }): Promise<{ messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }> }> {
-  const code = String(args.code ?? '').trim();
-  if (!code) {
-    return message(
-      '❌ **to-renderer: не передан `code`** — нужен текущий код формы, который переносим.'
-    );
-  }
+  const given = String(args.code ?? '').trim();
   const target = args.target === 'renderer-json' ? 'renderer-json' : 'renderer-react';
-  return message(renderPromptTemplate(TEMPLATES[target], { code }));
+  const code = given
+    ? `\`\`\`json\n${given}\n\`\`\``
+    : 'Not given: read `<dir>/form.intent.json` yourself.';
+  return message(
+    renderPromptTemplate('to-renderer', {
+      code,
+      target,
+      targetLabel: targetLabelFor(target),
+      targetNote: TARGET_NOTE[target],
+    })
+  );
 }
 
 function message(text: string) {

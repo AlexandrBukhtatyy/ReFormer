@@ -1,77 +1,68 @@
 # Prompts
 
-Workflow prompts. Each returns an instruction message that orchestrates one step and points you
-at the resources/tools to read.
+Workflow prompts. Each returns an instruction message for one step: what to write in
+`form.intent.json`, which grammar section to ask for, when to call `form_build`.
 
 > **Prompts are a human channel, and most agent clients do not expose them.** If you are an
 > agent, check first: without a way to list or invoke prompts, none of this section is reachable
 > for you — and there is no error to tell you so. Every prompt below names its tool equivalent;
 > use that instead. This is not a fallback, it is the supported path for tool-only consumers.
 
-| Prompt | Tool-only equivalent |
-| --- | --- |
-| `start-here` | read the resource `reformer://guide` (same content, no prompt needed) |
-| `discover-context` | `get_context` with your task and, if known, `target` |
-| `plan-form` | `plan_form` tool (same arguments) |
-| `create-form` | `find_recipe directory-layout` for the file layout, then `generate_form` |
-| `add-feature` / `to-renderer` | `find_recipe` on the feature keyword, then `choose_api` |
-| `review` | `validate_form` — `kind: "layout"`, then `code` / `behaviors` / `json-schema` |
+| Prompt                        | Tool-only equivalent                                                        |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `start-here`                  | read the resource `reformer://guide`                                        |
+| `discover-context`            | read `reformer://status`; `get_context` with your task and `target`          |
+| `plan-form`                   | `plan_form {specPath, dir}`, then finish the draft and `form_build`         |
+| `create-form`                 | `form_build {"grammar":"base"}`, write the intent, `form_build {dir}`       |
+| `add-feature` / `to-renderer` | the grammar section of the feature, edit the intent, `form_build {dir}`     |
+| `review`                      | `validate_form` — `kind: "layout"`, then `code` / `behaviors` / `json-schema` |
 
 ## start-here
 
-No arguments. The entry point: returns the workflow of the unified form contract (one schema, one
-assembly `createForm`, one behavior), the map of prompts/tools/resources, and the reading order.
+No arguments. The one path to a form (grammar → `form.intent.json` → `form_build`), where your own
+code goes, and the map of tools, prompts and resources.
 
-**Tool-only equivalent:** read the resource `reformer://guide`. It is the same document, and
-its opening lines carry the file-layout rule — which is the one thing worth reading before you
-create any file.
+**Tool-only equivalent:** the resource `reformer://guide`.
 
 ## discover-context
 
 - `description` (required), `projectPath` (optional).
 
-Detects the target stack (ui-kit / Tailwind / which renderer) from the consumer project and
-recommends a render target. Optional first step when the target isn't given.
+Detects the stack of the project (ui-kit, Tailwind, which renderer) and recommends a target.
+Optional first step when the target isn't given.
 
 ## plan-form
 
 - `specPath` (required), `target` (optional: core | renderer-react | renderer-json), `projectPath` (optional).
 
-Reads and parses a markdown spec file, then returns a roadmap: steps, fields, conditionals,
-behaviors, API endpoints, a risk matrix, and verification scenarios. Use when the form comes
-from a written spec.
+Summarises the spec — steps, fields, conditional and computed fields, arrays, API — and leads
+through `plan_form` (a draft intent on disk), finishing the draft against the spec, and
+`form_build` until ✓.
 
 ## create-form
 
 - `description` (required), `target` (optional, default core), `projectPath` (optional).
 
-Turns a free-text form description into build instructions for the chosen target (quick-start,
-FormSchema reference, imports, stack-aware skeleton). Use for the initial form when there is no spec file.
+A new form from a description: the detected stack, the grammar sections to ask for, the intent,
+`form_build`, and what is left to you on the chosen target (the JSX markup on core).
 
 ## add-feature
 
-Добавить одну возможность в существующую форму. Стадия выбирается аргументом:
-- `feature: "validation"` — правила валидации;
-- `feature: "behavior"` — единственное поведение формы: связи над моделью и правила узлов схемы;
-- `feature: "array"` — массив под-форм (`arrayOf` в модели, узел `{ model, item }`, `applyEach`);
-- `feature: "wizard"` — шаги мастера (библиотечный `FormWizard` узлом схемы).
+One capability for a form built with `form_build`, chosen by `feature`:
 
-Аргументы: `code` (текущий код формы) и `requirements` (что добавить; для `wizard` —
-перечень шагов и полей).
+- `validation` — rows of `validation` (sections `cross`, `async` when needed);
+- `behavior` — records of `behavior` and `visibility` (`choose_api` per requirement);
+- `array` — a record of `arrays` with row rules and behaviors (section `arrays`);
+- `wizard` — a `FormWizard` root with steps (section `wizard`).
 
-Схлопывает прежние `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`:
-у всех четырёх одна форма аргументов, поэтому слияние не создаёт путаницы, а перечисление
-из четырёх записей стоило каждому клиенту токенов при подключении.
+Arguments: `requirements` (what to add; for `wizard` — the steps and their fields) and, optionally,
+`code` — the current `form.intent.json`.
 
 ## to-renderer
 
-Сменить способ отрисовки формы. Модель, валидация, поведение и вызов `createForm` остаются —
-меняется только то, кто рисует. Целевой стек — аргумент:
-- `target: "renderer-react"` (по умолчанию) — разметку из JSX рисует `FormRenderer` по той же схеме;
-- `target: "renderer-json"` — схема становится JSON-документом формата 2, плюс реестр компонентов.
-
-Аргументы: `code`, опционально `target`. Схлопывает прежние `to-renderer` и
-`to-renderer-json`.
+Switch the form to `target`: `renderer-react` (default) or `renderer-json` — `"target"` in the
+intent and `form_build`; a hand-written `index.tsx` from core is moved out first. Optional `code` —
+the current intent.
 
 ## review
 

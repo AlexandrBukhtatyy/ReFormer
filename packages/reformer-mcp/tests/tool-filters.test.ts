@@ -1,11 +1,9 @@
 /**
- * Сужение выдачи инструментов знания: фильтры `list_symbols`, `package` у `get_symbol_docs` и
- * чтение спеки с диска в `plan_form`.
+ * Сужение выдачи инструментов знания: фильтры `list_symbols` и `package` у `get_symbol_docs`.
+ * Чтение спеки с диска в `plan_form` — `plan-form.test.ts`.
  */
 
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { planFormTool } from '../src/core/tools/generate-form';
 import { getSymbolDocsTool } from '../src/core/tools/get-symbol-docs';
 import { listSymbolsTool } from '../src/core/tools/list-symbols';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
@@ -18,7 +16,6 @@ const hasSymbols = precondition(
   getPublicSymbols('@reformer/core').length > 0,
   'npm run build в пакетах (нужны llms.txt и llms-index.json)'
 );
-const specPath = resolve(__dirname, 'fixtures/spec-loan-request.md');
 
 describe.runIf(hasSymbols)('list_symbols: фильтры', () => {
   const listed = async (args: Parameters<typeof listSymbolsTool>[0]) =>
@@ -68,23 +65,5 @@ describe.runIf(hasSymbols)('get_symbol_docs: package', () => {
     const text = await docs('createForm', 'ui-kit');
     expect(text).toMatch(/not found/);
     expect(text).toContain('ui-kit');
-  });
-});
-
-describe('plan_form: спека с диска', () => {
-  it('существующий specPath даёт intent с полями спеки', async () => {
-    const { content } = await planFormTool({ specPath }, knowledge);
-    const text = content[0].text;
-    expect(text).toContain('loanAmount');
-    expect(text).not.toMatch(/спека не найдена/);
-  });
-
-  it('несуществующий specPath — отказ с этим путём', async () => {
-    const result = await planFormTool(
-      { specPath: resolve(__dirname, 'no-such-spec.md') },
-      knowledge
-    );
-    expect(result.content[0].text).toMatch(/спека не найдена/);
-    expect(result.content[0].text).toContain('no-such-spec.md');
   });
 });

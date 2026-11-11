@@ -1,15 +1,27 @@
 /**
  * Каталог сценариев: чтение `scenario.json` и сборка эталонного решения.
  *
- * Эталон — результат `generate_form` по `reference`: это либо файл intent относительно каталога
- * сценария, либо `plan_form` — intent сервер строит сам из спеки сценария.
+ * Эталон собирается тем же путём, что и решение агента (с 7.0 он один): intent в
+ * `<каталог>/form.intent.json`, затем `form_build`. Intent берётся из `reference`: это либо файл
+ * относительно каталога сценария, либо `plan_form` — черновик сервер пишет сам по спеке сценария.
+ * Раньше эталон печатал `generate_form`, и стенд мерил агентов по пути, которым они не шли.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extractIntent, parseGenerateForm, writeBundle } from '../calibration/lib/bundle.mjs';
 import { repoRoot } from '../records/record.mjs';
+import { intentForTarget } from '../lib/intent-target.mjs';
+
+const INTENT_FILE = 'form.intent.json';
 
 export const scenariosDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,15 +70,26 @@ export function loadScenarios({ pattern = '*', includeHoldout = false } = {}) {
     .sort((first, second) => first.level - second.level || first.id.localeCompare(second.id));
 }
 
-async function referenceIntent({ scenario, target, client }) {
+/** Intent эталона в `<directory>/form.intent.json`: из файла сценария либо черновиком `plan_form`. */
+async function writeReferenceIntent({ scenario, target, directory, client }) {
+  const intentFile = path.join(directory, INTENT_FILE);
+  rmSync(intentFile, { force: true });
+  let intent;
   if (scenario.reference === 'plan_form') {
-    const { text } = await client.callTool('plan_form', { specPath: scenario.specFile, target });
-    const intent = extractIntent(text);
-    if (!intent) throw new Error(`${scenario.id}: plan_form не вернул intent`);
-    return intent;
+    const { text } = await client.callTool('plan_form', {
+      specPath: scenario.specFile,
+      dir: directory,
+      target,
+    });
+    if (!existsSync(intentFile)) {
+      throw new Error(`${scenario.id}: plan_form не записал черновик — ${text.slice(0, 400)}`);
+    }
+    intent = JSON.parse(readFileSync(intentFile, 'utf8'));
+  } else {
+    const file = path.resolve(scenario.directory, scenario.reference);
+    intent = JSON.parse(readFileSync(file, 'utf8'));
   }
-  const file = path.resolve(scenario.directory, scenario.reference);
-  return JSON.parse(readFileSync(file, 'utf8'));
+  writeFileSync(intentFile, `${JSON.stringify(intentForTarget(intent, target), null, 2)}\n`);
 }
 
 /**
@@ -89,24 +112,14 @@ function drawCoreForm(indexFile) {
   );
 }
 
-/** Собрать эталонный модуль сценария через сервер и записать в каталог. */
+/** Собрать эталонный модуль сценария через сервер: intent на диск, затем `form_build`. */
 export async function writeReferenceBundle({ scenario, target, directory, client }) {
-  const intent = await referenceIntent({ scenario, target, client });
-  const { text } = await client.callTool('generate_form', { intent: { ...intent, target } });
-  const parsed = parseGenerateForm(text);
-  if (parsed.status !== 'ok') {
-    throw new Error(
-      `${scenario.id}/${target}: generate_form — ${parsed.errors.join('; ') || parsed.status}`
-    );
+  mkdirSync(directory, { recursive: true });
+  await writeReferenceIntent({ scenario, target, directory, client });
+  const { text } = await client.callTool('form_build', { dir: directory }, 180000);
+  if (!text.startsWith('✓ form_build')) {
+    throw new Error(`${scenario.id}/${target}: form_build —\n${text.slice(0, 2000)}`);
   }
-  writeBundle(directory, parsed);
   if (target === 'core') drawCoreForm(path.join(directory, 'index.tsx'));
-  // Файлы, которые манифест велит создать самому: без них раскладка не канонична.
-  for (const [, file] of text.matchAll(/^\| `([^`]+)` \|.*\*\*создайте сами\*\*/gm)) {
-    const ownFile = path.join(directory, file);
-    if (existsSync(ownFile)) continue;
-    mkdirSync(path.dirname(ownFile), { recursive: true });
-    writeFileSync(ownFile, 'export {};\n');
-  }
-  return parsed;
+  return { status: 'ok', text };
 }

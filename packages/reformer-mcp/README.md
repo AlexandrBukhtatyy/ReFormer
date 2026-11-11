@@ -40,33 +40,35 @@ claude mcp list
 | `find_recipe`     | Рецепт по теме из `docs/llms/` пакетов либо `@example` символа                            |
 | `search_docs`     | Полнотекстовый поиск по документации всех пакетов                                         |
 | `list_symbols`    | Публичные символы по виду, пакету или части имени                                         |
-| `plan_form`       | Спека или описание → `FormIntent`                                                         |
-| `generate_form`   | `FormIntent` → файлы формы (манифест; пишет клиент)                                       |
-| `form_build`      | `form.intent.json` → модуль формы на диске (пишет сервер)                                 |
+| `plan_form`       | Markdown-спека → черновик `<dir>/form.intent.json` на диске                               |
+| `form_build`      | `form.intent.json` → модуль формы на диске (пишет сервер); `grammar` — грамматика intent  |
 | `validate_form`   | Проверка до запуска: код, JSON-схема, циклы поведения, весь набор, имена файлов модуля    |
 | `report_issue`    | Сохранить проблему и её решение JSON-отчётом в `<корень проекта>/.reformer/issue_reports` |
 | `debug`           | Только при `REFORMER_DEBUG=true` — внутренний инструмент для разработки самого сервера    |
 
-По умолчанию — 11 инструментов; `debug` добавляется в режиме отладки. Аргументы каждого — в
-[docs/llms/02-tools.md](./docs/llms/02-tools.md).
+По умолчанию — 10 инструментов; `debug` добавляется в режиме отладки. Форму создаёт один путь:
+грамматика `form_build {"grammar":"base"}` → свой `form.intent.json` → `form_build {"dir":…}`.
+Аргументы каждого инструмента — в [docs/llms/02-tools.md](./docs/llms/02-tools.md).
 
-**Ресурсы:** `reformer://guide` (самодокументация сервера), `reformer://catalog` (карта разделов),
-`reformer://docs/<пакет>` и `reformer://docs/<пакет>/<раздел>` — подробно в
+**Ресурсы:** `reformer://guide` (с чего начать, до 6 КБ), `reformer://status` (что сервер нашёл в
+окружении), `reformer://catalog` (карта разделов), `reformer://docs/<пакет>` и
+`reformer://docs/<пакет>/<раздел>` — подробно в
 [docs/llms/04-resources.md](./docs/llms/04-resources.md). **Промпты:** `start-here`, `plan-form`, `create-form`,
 `add-feature`, `to-renderer`, `review` и другие — [docs/llms/03-prompts.md](./docs/llms/03-prompts.md).
 
 ## Входы пакета
 
-| Импорт                                          | Что внутри                                                                                                      |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `@reformer/mcp`                                 | сервер stdio (`bin`: `reformer-mcp`); для запуска, не для импорта                                               |
-| `@reformer/mcp/core`                            | `createKnowledge`, `memoize` и типы знаний сервера                                                              |
-| `@reformer/mcp/browser`                         | `createBrowserKnowledge` — знания из уже загруженных данных, для браузера                                       |
-| `@reformer/mcp/intent`                          | компилятор описания формы чистыми функциями: `readIntent`, `normalizeIntent`, `buildBehaviorTs`, `findCycle`, … |
-| `@reformer/mcp/package.json`, `@reformer/mcp/*` | файлы пакета: `llms.txt`, `docs/llms/*.md`, бандл воркера `dist/worker/server.js`                               |
+| Импорт                                          | Что внутри                                                                                                                                     |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@reformer/mcp`                                 | сервер stdio (`bin`: `reformer-mcp`); для запуска, не для импорта                                                                              |
+| `@reformer/mcp/core`                            | `createKnowledge`, `memoize` и типы знаний сервера                                                                                             |
+| `@reformer/mcp/browser`                         | `createBrowserKnowledge` — знания из уже загруженных данных, для браузера                                                                      |
+| `@reformer/mcp/intent`                          | компилятор описания формы и его судья чистыми функциями: `judgeIntent` (вердикт `form_build`), `readIntent`, `buildBehaviorTs`, `findCycle`, … |
+| `@reformer/mcp/package.json`, `@reformer/mcp/*` | файлы пакета: `llms.txt`, `docs/llms/*.md`, бандл воркера `dist/worker/server.js`                                                              |
 
-Тот же сервер работает в браузерном Web Worker (`dist/worker/server.js`, корпус знаний вшит; нет
-`form_build`, `report_issue` и промптов). Подключение воркера и входы для встраивания —
+Тот же сервер работает в браузерном Web Worker (`dist/worker/server.js`, корпус знаний вшит) как
+справочный канал: только справочные инструменты, без `form_build`, `plan_form`, `report_issue` и
+промптов. Подключение воркера и входы для встраивания —
 [docs/llms/07-embedding.md](./docs/llms/07-embedding.md).
 
 ## Переменные окружения
@@ -74,12 +76,24 @@ claude mcp list
 | Переменная                   | По умолчанию                               | Что делает                                                                                          |
 | ---------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | `REFORMER_ISSUE_REPORTS_DIR` | `<корень проекта>/.reformer/issue_reports` | Каталог отчётов `report_issue`; абсолютный путь (`~` — домашний каталог), относительный отклоняется |
-| `REFORMER_FORM_LAYOUT`       | `minimalist`                               | Раскладка файлов формы в промпте `create-form`: `minimalist` или `folders`                          |
 | `REFORMER_DEBUG`             | не задана                                  | `true` — режим отладки: инструмент и промпт `debug`, ресурс `reformer://debug`                      |
 | `REFORMER_TRACE_FILE`        | не задана                                  | Журнал вызовов для замеров: строка JSON на вызов (размеры, отпечаток аргументов, начало ответа)     |
-| `REFORMER_TYPECHECK_ROOT`    | не задана                                  | Откуда `validate_form` и `form_build` берут `@reformer/*` и `typescript` для проверки типов         |
+| `REFORMER_TYPECHECK_ROOT`    | не задана                                  | Запасной корень, откуда `form_build` берёт `@reformer/*` и `typescript` для проверки типов формы    |
 
 Задаются при регистрации (`claude mcp add … -e REFORMER_DEBUG=true`) или в `env` конфига клиента.
+
+## Миграция 6 → 7
+
+- **Форму создаёт один путь.** Агент пишет `<dir>/form.intent.json`, а `form_build` компилирует,
+  проверяет типы и пишет модуль сам. Грамматика — `form_build {"grammar":"base"}` и секции по запросу.
+- **`generate_form` удалён.** Он печатал файлы, которые агент переписывал руками. Вместо него —
+  `form_build`.
+- **`plan_form`** принимает только спеку (`specPath`, `dir`, `target`) и пишет черновик intent на
+  диск, а не возвращает его текстом; свободное описание (`description`) больше не разбирается.
+- **Удалены алиасы** `validate_json_schema` и `check_behaviors` — их давно заменил `validate_form`.
+- **Воркер** — справочный канал: без `plan_form` и `generate_form`.
+- **`reformer://guide`** — короткое начало (до 6 КБ); полный текст — `reformer://docs/mcp`. Новый
+  ресурс `reformer://status` показывает, какие пакеты сервер нашёл и может ли он проверять типы.
 
 ## Разработка
 
@@ -94,7 +108,7 @@ npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
 
 - Документация: [обзор MCP](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/overview),
   [инструменты](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/tools)
-- Справка сервера (она же `reformer://guide`): [`docs/llms`](./docs/llms)
+- Справка сервера (`reformer://docs/mcp`, начало — `reformer://guide`): [`docs/llms`](./docs/llms)
 - Конвенция документации пакетов: [docs/llms-convention.md](../../docs/llms-convention.md)
 
 ## License

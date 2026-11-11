@@ -94,9 +94,12 @@ describe.runIf(
     });
 
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(['choose_api', 'search_docs', 'generate_form'])
-    );
+    const names = tools.map((tool) => tool.name);
+    expect(names).toEqual(expect.arrayContaining(['choose_api', 'search_docs', 'validate_form']));
+    // Воркер — справочный канал: инструментов, которые пишут форму, в нём нет.
+    for (const name of ['generate_form', 'plan_form', 'form_build']) {
+      expect(names).not.toContain(name);
+    }
 
     const result = await client.callTool({
       name: 'choose_api',

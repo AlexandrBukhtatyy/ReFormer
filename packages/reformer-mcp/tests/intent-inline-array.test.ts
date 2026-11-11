@@ -31,7 +31,9 @@ describe('readIntent: массив в fields', () => {
       componentProps: { title: 'Имущество' },
       itemFields: [{ name: 'type', component: 'Select' }],
     });
-    expect(intent.warnings.join('\n')).toContain('`properties` есть строки — прочитано как массив');
+    expect(intent.warnings.join('\n')).toContain(
+      'the field `properties` has rows — read as an array'
+    );
   });
 
   it('тип-синоним со строками под синонимом — тоже массив; тип array без строк — поле', () => {
@@ -63,7 +65,7 @@ describe('readIntent: массив в fields', () => {
     });
     expect(intent.arrays).toHaveLength(1);
     expect(intent.arrays[0].itemFields.map((f) => f.name)).toEqual(['value']);
-    expect(intent.warnings.join('\n')).toContain('взята запись из arrays');
+    expect(intent.warnings.join('\n')).toContain('the `arrays` entry is used');
   });
 
   it('обязательная строка поднимается в правило строки массива', () => {

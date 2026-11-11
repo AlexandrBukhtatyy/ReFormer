@@ -43,6 +43,11 @@ export interface DecisionRule {
   /** Чем это НЕ является — самые частые подмены. */
   alternatives?: Array<{ symbol: string; when: string }>;
   /**
+   * Операторы, которые требование просит ВМЕСТЕ с рекомендованным: «видно и обязательно при X» —
+   * это `hideWhen` и `validateWhen`, и одним из них требование не закрыть (аудит 2026-11, A9).
+   */
+  also?: Array<{ symbol: string; why: string }>;
+  /**
    * Каноничная запись вызова — печатается вместо сигнатуры и примера из индекса.
    *
    * Нужна, когда одно имя живёт в двух модулях: `apply` и `applyEach` есть и в поведении, и в
@@ -81,7 +86,8 @@ export const DECISION_RULES: DecisionRule[] = [
     // вычислении, а «массив» — в правилах про each/applyEach. Совпадать должно И то, И другое,
     // в любом порядке — отсюда lookahead вместо перечисления.
     cues: [
-      /(?=[\s\S]*(сумм|итог|среднее|количеств|подсч[ёе]т|total|sum\b|count\b|average|aggregate))(?=[\s\S]*(масс|элемент|строк|списк|позици|array|items?\b|rows?\b|FieldArray))/i,
+      // «Всех контактов», «of all rows» — тоже коллекция: так требование о сумме и говорят.
+      /(?=[\s\S]*(сумм|итог|среднее|количеств|подсч[ёе]т|total|sum\b|count\b|average|aggregate))(?=[\s\S]*(масс|элемент|строк|списк|позици|\bвсех\b|\bпо\s+всем\b|array|items?\b|rows?\b|\bof all\b|\bacross all\b|FieldArray))/i,
     ],
     // Поведение на КАЖДОМ элементе — это applyEach, а не агрегат в одно поле.
     unless: [/кажд|each\b|per\s+item|на\s+элемент/i],
@@ -371,6 +377,37 @@ export const DECISION_RULES: DecisionRule[] = [
     because:
       'асинхронное правило с отменой предыдущего запроса; дебаунс задаётся опцией, вручную его писать не нужно',
   },
+  /**
+   * «Видно и обязательно при X» — два оператора, а не один. Правило с одним сигналом
+   * `validate-conditional` отвечало только `validateWhen`: поле оставалось видимым всегда, а агент
+   * считал требование закрытым (аудит 2026-11, A9). Скрытое `hideWhen` поле при этом по-прежнему
+   * валидируется, поэтому без `validateWhen` оно блокировало бы отправку. Два сигнала — «видно и
+   * обязательно» и условие — обгоняют одиночный сигнал соседа.
+   */
+  {
+    id: 'show-and-require-when',
+    intent: 'поле видно и обязательно только при условии',
+    cues: [
+      /(видн|показ|отобража|появля|\bshown?\b|\bvisible\b|\bappears?\b|\bdisplayed\b)[\s\S]{0,60}(обязател|\brequired\b|\bmandatory\b)|(обязател|\brequired\b|\bmandatory\b)[\s\S]{0,60}(видн|показ|\bshown?\b|\bvisible\b|\bdisplayed\b)/i,
+      // Тот же признак плюс условие — второй сигнал. Отдельное «если» сигналом не считается: им
+      // говорит любое условное требование, и правило перехватывало бы «ИНН обязателен, если…».
+      /^(?=[\s\S]*(видн|показ|отобража|появля|\bshown?\b|\bvisible\b|\bappears?\b|\bdisplayed\b))(?=[\s\S]*(обязател|\brequired\b|\bmandatory\b))(?=[\s\S]*(\bесли\b|\bкогда\b|\bпри\b|\bif\b|\bwhen\b|\bonly\b))/i,
+    ],
+    // «Видно всегда и обязательно» — обычное `required`, условия нет.
+    unless: [/всегда|\balways\b/i],
+    recommend: 'hideWhen',
+    because:
+      'показ и обязательность — два оператора: узел прячет правило схемы `hideWhen`, а обязательность включает `validateWhen`. Одним `validateWhen` поле останется видимым всегда; одним `hideWhen` скрытое поле останется обязательным и заблокирует отправку',
+    also: [
+      {
+        symbol: 'validateWhen',
+        why: 'обязательность при том же условии: правила внутри активны, пока условие истинно',
+      },
+    ],
+    alternatives: [
+      { symbol: 'enableWhen', when: 'поле остаётся видимым, но недоступно и не валидируется' },
+    ],
+  },
   {
     id: 'validate-conditional',
     intent: 'правило действует только при условии',
@@ -566,9 +603,10 @@ export const DECISION_RULES: DecisionRule[] = [
     cues: [
       /(разлож|раздел|разби|распредел)\w*[\s\S]{0,40}(шаг|этап)|пошагов\w*\s+форм|(мастер|визард)\w*|multi-?step|\bwizard\b|split [\s\S]{0,30}into steps/i,
     ],
-    // Условный шаг — hideWhen; проверка шага — поток (step-check); узел шага в схеме — wizard-node.
+    // Условный шаг — hideWhen; узел шага в схеме — wizard-node. Проверка шага (step-check) соседа
+    // не отменяет: «визард с валидацией по шагам» — это и разметка шагов, и их поток.
     unless: [
-      /скрыт|спрят|показыва|\bhide|условн\w*\s+шаг|conditional step|(далее|next)[\s\S]{0,60}(провер|валид|validat)|(провер|валид)\w*[\s\S]{0,40}(текущ|сво)\w*\s+шаг|узл\w*\s+схем|schema node/i,
+      /скрыт|спрят|показыва|\bhide|условн\w*\s+шаг|conditional step|узл\w*\s+схем|schema node/i,
     ],
     recommend: 'FormWizard',
     because:
@@ -581,15 +619,18 @@ export const DECISION_RULES: DecisionRule[] = [
       '',
       "createForm({ model, schema, validation, flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] } });",
     ].join('\n'),
-    alternatives: [
-      { symbol: 'FormFlowConfig', when: 'вопрос про порядок и проверку шагов, а не про разметку' },
+    also: [
+      {
+        symbol: 'FormFlowConfig',
+        why: 'порядок шагов и проверка «Далее» — поток сборки; шаг потока — это `selector` шага',
+      },
     ],
   },
   {
     id: 'step-check',
     intent: '«Далее» проверяет только текущий шаг',
     cues: [
-      /(далее|next)[\s\S]{0,60}(провер|валид|validat)|(провер|валид)\w*[\s\S]{0,40}(только\s+)?(текущ|сво|этого)\w*\s+шаг|validate (only )?(the )?current step|per-step validation/i,
+      /(далее|next)[\s\S]{0,60}(провер|валид|validat)|(провер|валид)\w*[\s\S]{0,40}(только\s+)?(текущ|сво|этого)\w*\s+шаг|(провер|валид)\w*\s+(по\s+)?(каждо\w*\s+)?шаг|кажд\w*\s+шаг\w*[\s\S]{0,30}(провер|валид)|validate (only )?(the )?current step|per[- ]step (validation|check)|validat\w* (of |on )?each step|each step[\s\S]{0,30}validat/i,
     ],
     recommend: 'FormFlowConfig',
     because:
@@ -602,6 +643,12 @@ export const DECISION_RULES: DecisionRule[] = [
       '};',
       '// createForm({ …, flow: formFlow })',
     ].join('\n'),
+    also: [
+      {
+        symbol: 'FormWizard',
+        why: 'сами шаги — дети узла `FormWizard`, у каждого `selector`, он же `id` шага потока',
+      },
+    ],
   },
   {
     id: 'clear-issues-on-change',
@@ -620,7 +667,9 @@ export const DECISION_RULES: DecisionRule[] = [
     id: 'validate-each',
     intent: 'валидируется каждый элемент массива',
     cues: [
-      /кажд(ый|ого|ую|ой) (элемент|строк).*валид|валид.*кажд(ый|ого|ую|ой) (элемент|строк)|each (array )?(item|row)|per[- ]row validation|validate .* array (item|row)/i,
+      /кажд(ый|ая|ое|ого|ую|ой) (элемент|строк).*валид|валид.*кажд(ый|ая|ое|ого|ую|ой) (элемент|строк)|each (array )?(item|row)|per[- ]row validation|validate .* array (item|row)/i,
+      // «Массив контактов с обязательным телефоном» — правило строки, сказанное через поле строки.
+      /(массив|списк|строк)\w*[\s\S]{0,40}обязател|\barray of\b[\s\S]{0,40}\brequired\b|\b(each|every) (row|item)\b[\s\S]{0,30}\brequired\b/i,
     ],
     recommend: 'applyEach',
     because:
@@ -918,6 +967,43 @@ function cyrillic(re: RegExp): RegExp {
     cyrillicCache.set(re, out);
   }
   return out;
+}
+
+/**
+ * Требования составной задачи: части через `;`, перевод строки, конец предложения или « + ».
+ * Запятая — не граница: «мастер из трёх шагов, каждый шаг проверяется» — одно требование.
+ */
+export function splitRequirements(task: string): string[] {
+  return String(task ?? '')
+    .split(/;|\n|(?<=[.!?])\s+|\s\+\s/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 2);
+}
+
+/** Решение по одному требованию составной задачи. */
+export interface RequirementDecision extends ApiChoice {
+  /** Требование, по которому принято решение. */
+  requirement: string;
+}
+
+/**
+ * Решения на каждое требование составной задачи (аудит 2026-11, A9): лучшее правило каждой части,
+ * без повторов. Равные по счёту соседи сюда не входят — ничья почти всегда подмена («доступно
+ * только когда» — и `enableWhen`, и `validateWhen`), а операторы, нужные вместе, правило называет
+ * само (`also`).
+ */
+export function chooseApiPerRequirement(task: string, limit = 4): RequirementDecision[] {
+  const parts = splitRequirements(task);
+  const units = parts.length > 1 ? parts : [String(task ?? '').trim()];
+  const out: RequirementDecision[] = [];
+  const seen = new Set<string>();
+  for (const requirement of units) {
+    const best = chooseApi(requirement)[0];
+    if (!best || seen.has(best.rule.id)) continue;
+    seen.add(best.rule.id);
+    out.push({ ...best, requirement });
+  }
+  return out.slice(0, limit);
 }
 
 export function chooseApi(requirement: string): ApiChoice[] {

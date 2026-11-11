@@ -12,13 +12,9 @@ import { createTraceSink, TRACE_FILE_ENV } from './platform/cli/trace-sink.js';
 const isDebugMode = process.env.REFORMER_DEBUG === 'true';
 
 // Env config (set in the MCP server registration `.mcp.json` env, like REFORMER_DEBUG):
-//   REFORMER_FORM_LAYOUT = 'minimalist' (default) | 'folders'
-//     → default file layout the `create-form` prompt steers toward. Read in prompts/create-form.ts.
-//     ВАЖНО: ручка действует только в prompt-канале, а он доходит не до всякого клиента — замер
-//     показал агентов, у которых `prompts/list` и `prompts/get` недоступны в принципе. Поэтому
-//     раскладку по умолчанию (`minimalist`) дублируют tool-поверхность (описания `plan_form` /
-//     `generate_form`, чек-лист в манифесте) и вводный блок `reformer://guide`.
 //   REFORMER_TRACE_FILE = <путь> → журнал вызовов для замеров, см. platform/cli/trace-sink.ts.
+//   Раскладку модуля держит сама сборка (`form_build` пишет каноничные имена), поэтому прежнего
+//   REFORMER_FORM_LAYOUT с 7.0 нет.
 
 // Версия из package.json пакета — иначе клиент видел захардкоженный литерал (в 11.0.0
 // сервер отдавал '6.0.0', что читалось как «npx отдаёт протухший кэш»). Читаем от dist/

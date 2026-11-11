@@ -211,9 +211,9 @@ export function renderReport({ smoke, t1, t2, t3, t4, t5, t6 }, meta) {
   }
 
   if (t2) {
-    L.push('## T2 — intent → бандл (`generate_form` + tsc + `validate_form`)', '');
+    L.push('## T2 — intent → модуль (`form_build` + tsc + `validate_form`)', '');
     L.push(
-      '| кейс / intent / таргет | cross-check | C-ошибки | потери intent | предупр. | файлы | tsc | layout | code |'
+      '| кейс / intent / таргет | сборка | ошибки сборки | потери intent | предупр. | файлы | tsc | layout | code |'
     );
     L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
     for (const r of t2) {
@@ -241,7 +241,7 @@ export function renderReport({ smoke, t1, t2, t3, t4, t5, t6 }, meta) {
       )
     );
     if (probs.size) {
-      L.push('Ошибки кросс-проверки и потери intent:', '');
+      L.push('Ошибки сборки:', '');
       for (const p of [...probs].slice(0, 40)) L.push(`- ${p}`);
       L.push('');
     }

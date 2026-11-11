@@ -27,7 +27,7 @@ import type { UiKitComponents } from './ui-kit-components.js';
 
 /**
  * Условие вида `model.loanType === 'mortgage'` → поле, от которого зависит правило.
- * Нужно для `sources` поведения: из них строится проверка циклов в `check_behaviors`.
+ * Нужно для `sources` поведения: из них кросс-проверка строит граф циклов (C7).
  */
 function sourcesOf(when: string): string[] {
   const names = new Set<string>();
@@ -158,7 +158,7 @@ export function intentFromAnalysis(
   const warnings = [...analysis.warnings];
 
   // Условия «при x='y'» спека пишет коротким именем поля, а поле живёт в группе
-  // (`vehicle.hasAntiTheft`), и флаг сравнивался со строкой `'true'`: `generate_form` отвечал C5
+  // (`vehicle.hasAntiTheft`), и флаг сравнивался со строкой `'true'`: сборка отвечала C5
   // («такого поля нет»), а бандл не собирался (калибровка, holdout-спека страхования).
   const fieldTypes = new Map(analysis.fields.map((f) => [f.name, f.type]));
   for (const f of analysis.fields) {

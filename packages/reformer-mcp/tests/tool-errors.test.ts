@@ -21,11 +21,9 @@ const INVALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ['get_context', {}],
   ['validate_form', {}],
   ['validate_form', { kind: 'unknown' }],
-  ['generate_form', {}],
   ['plan_form', {}],
   ['plan_form', { specPath: 'нет/такой/спеки.md' }],
   ['report_issue', {}],
-  ['check_behaviors', {}],
 ];
 
 describe('неверный вызов — isError', () => {

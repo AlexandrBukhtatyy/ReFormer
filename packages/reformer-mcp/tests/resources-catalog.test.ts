@@ -20,7 +20,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { createResourceCatalog } from '../src/core/server/resource-catalog';
+import { createResourceCatalog, GUIDE_LIMIT_BYTES } from '../src/core/server/resource-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
 import { listAvailablePackages, listSections, getSectionBySlug } from '../src/utils/docs-parser';
 import { precondition } from './support/preconditions';
@@ -147,5 +147,29 @@ describe('resources — каталог вместо перечисления с�
       0
     );
     expect(catalogChars).toBeLessThan(oldListingChars / 2);
+  });
+});
+
+describe('reformer://guide — контракт и указатели (аудит 2026-11, A5; ReFormer-qo9b.36)', () => {
+  const guide = (): string => {
+    const [content] = resources.read('reformer://guide').contents;
+    return (content as { text: string }).text;
+  };
+
+  it.runIf(hasDocs)(`не длиннее ${GUIDE_LIMIT_BYTES} байт: его читает и малая модель`, () => {
+    expect(Buffer.byteLength(guide())).toBeLessThanOrEqual(GUIDE_LIMIT_BYTES);
+  });
+
+  it.runIf(hasDocs)('начинается с единого пути и не советует generate_form', () => {
+    const text = guide();
+    expect(text.split('\n')[0]).toBe('# Start here — one path to a form');
+    expect(text.slice(0, 400)).toContain('form_build');
+    expect(text).not.toMatch(/generate_form/);
+  });
+
+  it.runIf(hasDocs)('полная самодокументация — отдельным ресурсом, и guide её называет', () => {
+    const [full] = resources.read('reformer://docs/mcp').contents;
+    expect((full as { text: string }).text.length).toBeGreaterThan(guide().length * 5);
+    expect(guide()).toContain('reformer://docs/mcp');
   });
 });

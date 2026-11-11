@@ -1,7 +1,8 @@
 /**
- * Tool `validate_json_schema` — программная проверка form-DSL JSON-схемы
- * (`@reformer/renderer-json`) до рендера. Обёртка над `validateFormSchema`
- * из subpath `@reformer/renderer-json/validate` (там изолирован ajv).
+ * Проверка JSON-схемы формы (`@reformer/renderer-json`) до рендера — то, что делает
+ * `validate_form kind="json-schema"`. Обёртка над `validateFormSchema` из subpath
+ * `@reformer/renderer-json/validate` (там изолирован ajv). Отдельного инструмента
+ * `validate_json_schema` с 7.0 нет.
  *
  * Даёт агенту objective-обратную связь: структура узлов + синтаксис операторов
  * (`$model/$component/$dataSource`) + неизвестные имена компонентов/data-source.
@@ -63,7 +64,7 @@ export async function validateJsonSchemaTool(
     validateFormSchema = mod.validateFormSchema;
   } catch (e) {
     return text(
-      '# validate_json_schema unavailable\n\n' +
+      '# validate_form kind="json-schema" unavailable\n\n' +
         'Could not load `@reformer/renderer-json/validate`. Ensure `@reformer/renderer-json` ' +
         'is installed and built (`npm run build -w @reformer/renderer-json`).\n\n' +
         `Underlying error: ${(e as Error).message}`

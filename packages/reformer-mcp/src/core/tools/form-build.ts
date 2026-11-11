@@ -1,11 +1,15 @@
 /**
  * Tool `form_build`: собрать модуль формы на диск из `form.intent.json`.
  *
- * Зачем он при живом `generate_form`. Тот возвращает файлы текстом, и агент печатает их заново:
- * форма кредита стоит два вывода вместо одного, поэтому на больших формах агенты его обходили и
- * писали код вручную, читая справку. Здесь агент правит только intent своими Write и Edit, а сервер
- * компилирует, проверяет и пишет сам, отвечая одной диагностикой. Замер и критерии —
- * `docs/plans/mcp-misty-graham.md`.
+ * Единственный путь создания формы в профиле node (с 7.0). Прежний `generate_form` возвращал файлы
+ * текстом, и агент печатал их заново: форма кредита стоила два вывода вместо одного, поэтому на
+ * больших формах агенты его обходили и писали код вручную, читая справку. Здесь агент правит только
+ * intent своими Write и Edit, а сервер компилирует, проверяет и пишет сам, отвечая одной
+ * диагностикой. Замер и критерии — `docs/plans/mcp-misty-graham.md`, единый путь —
+ * `docs/plans/mcp-audit-one-path.md`.
+ *
+ * Грамматику intent инструмент отдаёт по запросу `grammar` — без диска — и вместо сборки, пока файла
+ * intent нет.
  *
  * Запись — «всё или ничего»: при любой ошибке диск не меняется. Запись на диск отдана порту
  * `FormWorkspace`, поэтому в браузерном профиле инструмента нет.
@@ -13,19 +17,11 @@
  * @module reformer-mcp/core/tools/form-build
  */
 
-import {
-  buildAssemblyTsx,
-  buildBundle,
-  buildOperatorStubs,
-  isLostMessageWarning,
-  OPERATOR_STUB_MARK,
-} from '../generate/builders.js';
+import { buildAssemblyTsx, buildOperatorStubs, OPERATOR_STUB_MARK } from '../generate/builders.js';
 import { catalogsOf } from '../generate/catalogs.js';
-import { crossCheckBundle, inspectLayoutRefs } from '../generate/cross-check.js';
-import { readIntent } from '../generate/form-intent.js';
 import { originOf, withMarker } from '../generate/generated-marker.js';
-import { intentGrammar } from '../generate/intent-grammar.js';
-import { checkComponentProps } from '../generate/ui-kit-props.js';
+import { GRAMMAR_SECTIONS, intentGrammar, readGrammarRequest } from '../generate/intent-grammar.js';
+import { judgeIntent, type IntentVerdict, type JudgeFinding } from '../generate/judge.js';
 import type { Knowledge } from '../knowledge.js';
 import { unindexedLimitation, validateCode } from '../validate/code.js';
 import type { FormDirectory, FormFile, TypeDiagnostic } from '../workspace/form-workspace.js';
@@ -38,18 +34,24 @@ const OPTIONAL_DERIVED = ['form.flow.ts', 'form.messages.ts', 'registry.ts'];
 
 /** Сколько ошибок печатать: дальше агент всё равно правит и собирает заново. */
 const MAX_ERRORS = 12;
-const MAX_WARNINGS = 10;
+/** Потолок предупреждений: судья ставит меняющие смысл первыми, за потолком — их число. */
+const MAX_WARNINGS = 20;
 
 export const formBuildToolDefinition = {
   name: 'form_build',
   description:
-    'Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit. Nothing is written while errors remain. Call it before the intent file exists to get the intent grammar. Keep the requested stack in "target": on core you also write the JSX markup in index.tsx.',
+    'Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit; nothing is written while errors remain. Start with {"grammar":"base"} — the intent grammar, no project or file needed; further sections on demand. Keep the requested stack in "target": on core you also write the JSX markup in index.tsx.',
   inputSchema: {
     type: 'object' as const,
     properties: {
       dir: {
         type: 'string',
-        description: 'Form folder inside the project (default "form").',
+        description:
+          'Form folder, relative to the working directory (default "form"; required at a monorepo root).',
+      },
+      grammar: {
+        type: 'string',
+        description: `Return the intent grammar instead of building: "base", a section (${GRAMMAR_SECTIONS.join(', ')}), several comma-separated, or "all".`,
       },
     },
     required: [],
@@ -58,22 +60,69 @@ export const formBuildToolDefinition = {
 
 export interface FormBuildArgs {
   dir?: unknown;
+  grammar?: unknown;
 }
 
 function failure(heading: string, items: readonly string[]): ToolTextResult {
   return invalidCall(
     [
-      `✗ form_build: ${heading}. Файлы не записаны.`,
+      `✗ form_build: ${heading} — nothing written.`,
       ...items.slice(0, MAX_ERRORS).map((item) => `- ${item}`),
-      ...(items.length > MAX_ERRORS ? [`… и ещё ${items.length - MAX_ERRORS}.`] : []),
+      ...(items.length > MAX_ERRORS ? [`… and ${items.length - MAX_ERRORS} more.`] : []),
     ].join('\n')
   );
 }
 
-function renderTypeError(diagnostic: TypeDiagnostic): string {
+/** Находка судьи строкой ответа: код, место, что не так и что сделать. */
+export function renderFinding(finding: JudgeFinding<string>): string {
+  const where = finding.at ? ` at \`${finding.at}\`` : '';
+  const hint = finding.hint ? ` → ${finding.hint}` : '';
+  return `${finding.code}${where}: ${finding.message}${hint}`;
+}
+
+/** Заголовок отказа по вердикту: что за ошибки — чтение, окружение или сама форма. */
+function verdictHeading(verdict: IntentVerdict): string {
+  const { errors } = verdict;
+  if (errors.every((error) => error.code === 'environment')) return 'the environment';
+  const read = errors.filter((error) => error.at !== undefined && READ_CODES.has(error.code));
+  if (read.length === errors.length) return `${INTENT_FILE} is not read in full`;
+  return `${errors.length} error${errors.length === 1 ? '' : 's'}`;
+}
+
+/** Коды проблем чтения: отказ по ним — «intent не прочитан», а не ошибки формы. */
+const READ_CODES: ReadonlySet<string> = new Set([
+  'intent-unreadable',
+  'not-an-object',
+  'missing-key',
+  'unknown-key',
+  'key-conflict',
+  'prop-unsupported',
+  'invalid-value',
+  'unknown-kind',
+  'duplicate',
+  'inert-behavior',
+]);
+
+/**
+ * Ошибка типов с тем, где её править. Сгенерированный файл правят через intent: сборка перепишет
+ * его следующим вызовом. Файл агента — `index.tsx` на core, свои операторы, `types.ts`, `api.ts`,
+ * отсоединённые правкой — правят в нём самом. Раньше на всё был один совет «правь intent», и ошибку в
+ * своей разметке агент искал в intent.
+ */
+function renderTypeError(diagnostic: TypeDiagnostic, own: ReadonlySet<string>): string {
   const place =
     diagnostic.line === null ? diagnostic.file : `${diagnostic.file}:${diagnostic.line}`;
-  return `${place} ${diagnostic.message}\n  в строке: ${diagnostic.source}`;
+  const fix = own.has(diagnostic.file)
+    ? `fix ${diagnostic.file} — it is your file`
+    : `fix ${INTENT_FILE} — the build writes ${diagnostic.file}`;
+  const line = diagnostic.source ? `\n  in line: ${diagnostic.source}` : '';
+  return `${place} ${diagnostic.message} → ${fix}${line}`;
+}
+
+/** Модуль `@reformer/*`, который компилятор не нашёл (TS2307): это окружение, а не форма. */
+function missingReformerModule(diagnostic: TypeDiagnostic): string | null {
+  if (diagnostic.code !== 2307) return null;
+  return /['"](@reformer\/[^'"]+)['"]/.exec(diagnostic.message)?.[1] ?? null;
 }
 
 /** Что и как лежит на диске после сборки: решение принимается до записи. */
@@ -150,13 +199,44 @@ async function checkImports(
   return { errors, unchecked: [...unchecked].sort() };
 }
 
+/**
+ * Инструмент никогда не бросает: непойманное исключение доезжает до клиента как `-32603` без поля,
+ * причины и следующего шага — для агента это тупик. Дефект сборки выходит объяснённым текстом.
+ */
 export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<ToolTextResult> {
-  const dir = args?.dir === undefined ? 'form' : args.dir;
-  if (typeof dir !== 'string' || !dir.trim()) {
-    return invalidCall('✗ form_build: `dir` — непустой путь каталога формы внутри проекта.');
+  try {
+    return await runFormBuild(args, k);
+  } catch (error) {
+    return failure('an internal build error — a defect of the server, not of the intent', [
+      error instanceof Error ? error.message : String(error),
+      'Send the intent with report_issue: the build must answer with diagnostics, not crash.',
+    ]);
   }
-  const opened = k.forms.open(dir);
-  if (!opened.ok) return failure(`каталог «${dir}»`, [opened.reason]);
+}
+
+async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolTextResult> {
+  // Грамматика — без диска и без проекта: её спрашивают до того, как появился каталог формы, и там,
+  // где каталога нет вовсе (аудит 2026-11, A6).
+  if (args?.grammar !== undefined && args.grammar !== false) {
+    const request = readGrammarRequest(args.grammar);
+    if (request === null) {
+      return invalidCall(
+        `✗ form_build: unknown grammar section ${JSON.stringify(args.grammar)}. Use "base", ` +
+          `"all" or a section: ${GRAMMAR_SECTIONS.join(', ')}.`
+      );
+    }
+    const grammar = intentGrammar(await catalogsOf(k), { sections: request });
+    return { content: [{ type: 'text', text: grammar }] };
+  }
+
+  const dir = args?.dir;
+  if (dir !== undefined && (typeof dir !== 'string' || !dir.trim())) {
+    return invalidCall(
+      '✗ form_build: `dir` is a non-empty path of the form folder in the project.'
+    );
+  }
+  const opened = k.forms.open(dir ?? null);
+  if (!opened.ok) return failure(`the folder «${dir ?? 'form'}»`, [opened.reason]);
   const { directory } = opened;
   // Компоненты и правила — из каталога установленного кита и индекса установленного ядра.
   const catalogs = await catalogsOf(k);
@@ -170,52 +250,24 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   try {
     raw = JSON.parse(source);
   } catch (error) {
-    return failure(`${INTENT_FILE} не разбирается`, [
+    return failure(`${INTENT_FILE} is not JSON`, [
       error instanceof Error ? error.message : String(error),
     ]);
   }
 
-  const { intent, problems } = readIntent(raw, { uiKit: catalogs.uiKit });
-  if (problems.length > 0) {
-    return failure(
-      'intent прочитан не целиком',
-      problems.map((p) => `\`${p.at}\` — ${p.message}. Ожидается: ${p.expected}`)
-    );
+  // Вердикт — у судьи: тот же, что у `validate_form kind="bundle"` и у ассистента билдера.
+  const verdict = judgeIntent(raw, catalogs);
+  if (!verdict.ok || !verdict.bundle) {
+    return failure(verdictHeading(verdict), verdict.errors.map(renderFinding));
   }
+  const { intent } = verdict;
+  const { files } = verdict.bundle;
 
-  const { files, warnings, layoutJson } = buildBundle(intent, catalogs);
-  const report = crossCheckBundle(intent, JSON.parse(layoutJson), { core: catalogs.core });
-  if (!report.ok) {
-    return failure(
-      'кросс-проверка',
-      report.errors.map((error) => `${error.code} ${error.message}`)
-    );
-  }
-
-  // Поле вне раскладки: модель его знает, а пользователь не увидит. Для `generate_form` это
-  // предупреждение C9, здесь — ошибка, как и всё, что молча теряет часть формы.
-  const { placed } = inspectLayoutRefs(intent);
-  const unplaced = [...intent.fields, ...intent.arrays]
-    .map((entity) => entity.modelPath ?? entity.name)
-    .filter((name) => !placed.has(name));
-  if (unplaced.length > 0) {
-    // Раскладку из сокращения `steps` строит чтение intent: там поле ставится в `steps[i].fields`,
-    // а `layoutRoot` агент мог и не писать.
-    const hint = intent.wizard ? ['В сокращении `steps` имя поля — в `steps[i].fields`.'] : [];
-    return failure('не стоят в layoutRoot', [unplaced.join(', '), ...hint]);
-  }
-
-  const lostMessages = warnings.filter(isLostMessageWarning);
-  if (lostMessages.length > 0) {
-    return failure(
-      `тексты ошибок потеряны: ${lostMessages.length}. На каждый код — своя строка validation со своим message`,
-      lostMessages
-    );
-  }
-
-  // На core разметку пишет агент в JSX, поэтому `index.tsx` там его файл, а не вывод сборки. Отказывать
-  // такой форме нельзя: прогоны показали, что агент либо меняет заданный стек, либо уходит писать
-  // модуль вручную и теряет канон.
+  // `index.tsx` — производный файл на всех таргетах, с меткой сборки. На core это заготовка разметки:
+  // пока её не правили, сборка держит её в ладу с intent; первая правка (разметка агента)
+  // отсоединяет файл, дальше он принадлежит агенту. Метка нужна и при смене таргета: нетронутую
+  // заготовку core рендерер заменяет своей сборкой, а без метки она считалась правленной руками и
+  // оставалась — форма рисовала `null` (аудит 2026-11, B6).
   const assembly: FormFile = { path: 'index.tsx', content: buildAssemblyTsx(intent) };
   const handMarkup = intent.target === 'core';
   // Заготовка своих операторов — производный файл: пока её не правили, сборка держит её в ладу с
@@ -224,65 +276,97 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   const stubs = buildOperatorStubs(intent);
   const derived: FormFile[] = [
     ...files,
-    ...(handMarkup ? [] : [assembly]),
+    assembly,
     ...stubs,
     ...(files.some((file) => file.path === 'data-sources.ts')
       ? []
       : [{ path: 'data-sources.ts', content: '// Справочники формы.\nexport {};\n' }]),
   ];
   const owned: FormFile[] = [
-    ...(handMarkup ? [assembly] : []),
     { path: 'types.ts', content: '// Локальные типы модуля.\nexport {};\n' },
     { path: 'api.ts', content: '// Загрузка и отправка данных.\nexport {};\n' },
   ].filter((file) => !stubs.some((stub) => stub.path === file.path));
   const plan = planBuild(directory, derived, owned);
 
+  // На рендерере `index.tsx` пишет сборка. Отсоединённый файл без FormRenderer — разметка, написанная
+  // руками для core: с ней модуль рисовал бы не ту форму, и молча её оставить нельзя.
+  if (!handMarkup && plan.detached.includes('index.tsx')) {
+    const own = plan.module.find((file) => file.path === 'index.tsx')?.content ?? '';
+    if (!own.includes('FormRenderer')) {
+      return failure(`index.tsx is not a ${intent.target} assembly`, [
+        'index.tsx holds markup written by hand (it draws no FormRenderer) — on ' +
+          `${intent.target} the build writes index.tsx itself. Move your markup to another ` +
+          'file, or delete index.tsx, and build again.',
+      ]);
+    }
+  }
+
   const types = await directory.typecheck(plan.module);
   if (types.status === 'checked' && types.diagnostics.length > 0) {
+    const missing = [
+      ...new Set(types.diagnostics.map(missingReformerModule).filter((m) => m !== null)),
+    ];
+    if (missing.length > 0) {
+      return failure(
+        'the environment',
+        missing.map(
+          (module) =>
+            `environment: ${module} does not resolve from the form folder → install it in the ` +
+            'project; what the server found: resource reformer://status'
+        )
+      );
+    }
+    // Файлы агента: всё, что сборка не пишет, и всё, что она отсоединила после правки руками.
+    const own = new Set([...owned.map((file) => file.path), ...plan.detached]);
     return failure(
-      `ошибки типов: ${types.diagnostics.length}. Правь ${INTENT_FILE}, а не сгенерированные файлы`,
-      types.diagnostics.map(renderTypeError)
+      `type errors: ${types.diagnostics.length}`,
+      types.diagnostics.map((diagnostic) => renderTypeError(diagnostic, own))
     );
+  }
+  // Пакеты, которые модуль импортирует, а проект их не даёт: модуль здесь не соберётся (B3).
+  if (types.status === 'unavailable' && types.missing && types.missing.length > 0) {
+    return failure('the environment', [
+      `environment: ${types.reason} → install the packages in the project; what the server ` +
+        'found: resource reformer://status',
+    ]);
   }
   let uncheckedImports: string[] = [];
   if (types.status === 'unavailable') {
     const imports = await checkImports(k, plan.module);
-    if (imports.errors.length > 0) return failure('неверные импорты', imports.errors);
+    if (imports.errors.length > 0) return failure('wrong imports', imports.errors);
     uncheckedImports = imports.unchecked;
   }
 
   for (const file of plan.writes) directory.write(file.path, file.content);
   for (const name of plan.removes) directory.remove(name);
 
-  const notes = [
-    ...intent.warnings,
-    ...(catalogs.uiKitProps
-      ? checkComponentProps(intent, catalogs.uiKitProps, catalogs.uiKit)
-      : []),
-    ...warnings,
-    ...report.warnings.map((warning) => `${warning.code}: ${warning.message}`),
-  ];
+  const notes = verdict.warnings.map((warning) =>
+    warning.code === 'module-note' || warning.code === 'component-props'
+      ? warning.message
+      : `${warning.code}: ${warning.message}`
+  );
   const lines = [
-    `✓ form_build: записано ${plan.writes.length}, без изменений ${plan.unchanged}. ` +
-      `Полей ${intent.fields.length}, массивов ${intent.arrays.length}, ` +
-      `правил ${intent.validation.length}, поведений ${intent.behavior.length}.`,
+    `✓ form_build: written ${plan.writes.length}, unchanged ${plan.unchanged}. ` +
+      `Fields ${intent.fields.length}, arrays ${intent.arrays.length}, ` +
+      `rules ${intent.validation.length}, behaviors ${intent.behavior.length}.`,
     types.status === 'checked'
-      ? 'Типы проверены, ошибок нет.'
+      ? 'Types checked, no errors.'
       : uncheckedImports.length > 0
-        ? `⚠️ Типы НЕ проверены: ${types.reason}. ${unindexedLimitation(uncheckedImports)}`
-        : `⚠️ Типы НЕ проверены: ${types.reason}. Проверены только импорты.`,
-    `Каталог ${directory.label}: ${directory.list().join(', ')}.`,
+        ? `⚠️ Types NOT checked: ${types.reason}. ${unindexedLimitation(uncheckedImports)}`
+        : `⚠️ Types NOT checked: ${types.reason}. Only the imports were checked.`,
+    `Folder ${directory.label}: ${directory.list().join(', ')}.`,
     // Полноту сборка не проверяет: без этой строки агенты заканчивали на ✓, не дописав правила из
     // таблицы зависимостей спеки (ReFormer-w0bo.3).
-    'Сборка не знает задания: сверь intent с ним, особенно межполевые правила и таблицы зависимостей.',
+    'The build does not know the task: check the intent against it, especially cross-field rules ' +
+      'and dependency tables.',
   ];
   if (
     handMarkup &&
     plan.module.some((file) => file.path === 'index.tsx' && file.content.includes('return null;'))
   ) {
     lines.push(
-      '⚠️ Разметки ещё нет: index.tsx рисует `null`. На core напиши её там сам (Edit) и собери снова: ' +
-        'сборка этот файл не перезаписывает и проверит его типы.'
+      '⚠️ No markup yet: index.tsx renders `null`. On core write it there yourself (Edit) and ' +
+        'build again: the build does not overwrite this file and type-checks it.'
     );
   }
   const unwritten = stubs
@@ -291,22 +375,26 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
     .map((file) => file.path);
   if (unwritten.length > 0) {
     lines.push(
-      `⚠️ Свои операторы — ещё заготовки: ${unwritten.join(', ')}. Правило в заготовке пропускает ` +
-        'любое значение, оператор ничего не делает. Напиши тела там сам (Edit), убери метки ' +
-        `${OPERATOR_STUB_MARK} и собери снова: после правки сборка файл не трогает, но проверяет его типы.`
+      `⚠️ Your operators are still stubs: ${unwritten.join(', ')}. A stub rule passes any value, ` +
+        'a stub operator does nothing. Write the bodies there yourself (Edit), remove the ' +
+        `${OPERATOR_STUB_MARK} marks and build again: after an edit the build leaves the file ` +
+        'alone, but type-checks it.'
     );
   }
-  // Файл своих операторов и должен быть правлен руками — о нём это не новость.
-  const detached = plan.detached.filter((path) => !stubs.some((stub) => stub.path === path));
+  // Файл своих операторов и разметка на core и должны быть правлены руками — о них это не новость.
+  const detached = plan.detached.filter(
+    (path) => !stubs.some((stub) => stub.path === path) && !(handMarkup && path === 'index.tsx')
+  );
   if (detached.length > 0) {
     lines.push(
-      `Правлены вручную и оставлены как есть: ${detached.join(', ')}. Сборка их больше не ` +
-        'обновляет; чтобы вернуть файл под сборку, удали его.'
+      `Edited by hand and left as is: ${detached.join(', ')}. The build no longer updates them; ` +
+        'delete a file to put it back under the build.'
     );
   }
   if (notes.length > 0) {
-    lines.push(`Предупреждений: ${notes.length}.`);
+    lines.push(`Warnings: ${notes.length}.`);
     for (const note of notes.slice(0, MAX_WARNINGS)) lines.push(`- ${note}`);
+    if (notes.length > MAX_WARNINGS) lines.push(`… and ${notes.length - MAX_WARNINGS} more.`);
   }
   return { content: [{ type: 'text', text: lines.join('\n') }] };
 }

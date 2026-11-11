@@ -67,8 +67,8 @@ describe('checkComponentProps', () => {
       ],
     });
     expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([
-      'поле «price»: у InputNumber нет свойства «minValue» в componentProps. ' +
-        'Есть: label, testId, placeholder, min, max.',
+      'the field «price»: InputNumber has no prop «minValue» in componentProps — they would go ' +
+        'to the DOM. It has: label, testId, placeholder, min, max.',
     ]);
   });
 
@@ -83,7 +83,8 @@ describe('checkComponentProps', () => {
       },
     });
     expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([
-      'контейнер «main»: у Section нет свойства «label» в componentProps. Есть: title.',
+      'the container «main»: Section has no prop «label» in componentProps — they would go to ' +
+        'the DOM. It has: title.',
     ]);
   });
 
@@ -110,9 +111,10 @@ describe('checkComponentProps', () => {
       },
     });
     expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([
-      'поле «qty» массива «items»: у InputNumber нет свойства «step» в componentProps. ' +
-        'Есть: label, testId, placeholder, min, max.',
-      'контейнер «Box»: у Box нет свойства «gap» в componentProps. Есть: className.',
+      'the field «qty» of the array «items»: InputNumber has no prop «step» in componentProps — ' +
+        'they would go to the DOM. It has: label, testId, placeholder, min, max.',
+      'the container «Box»: Box has no prop «gap» in componentProps — they would go to the DOM. ' +
+        'It has: className.',
     ]);
   });
 
@@ -214,7 +216,7 @@ describe('настоящие схемы кита — из закоммиченн
       ],
     });
     const [note] = checkComponentProps(intent, kit!, CATALOGS.uiKit);
-    expect(note).toContain('у InputNumber нет свойства «minValue»');
-    expect(note).toMatch(/Есть: .*\bmin\b/);
+    expect(note).toContain('InputNumber has no prop «minValue»');
+    expect(note).toMatch(/It has: .*\bmin\b/);
   });
 });

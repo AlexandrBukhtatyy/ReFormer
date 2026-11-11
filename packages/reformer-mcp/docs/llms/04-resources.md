@@ -2,15 +2,16 @@
 
 Documentation the server serves as MCP resources (ReadResource to fetch).
 
-`ListResources` returns only **8 entries** — the guide, the catalog, and one full-docs URI per
-package. It deliberately does NOT enumerate the ~343 individual sections: doing so cost every
+`ListResources` returns only a few entries — the guide, the catalog, the status and one full-docs
+URI per package. It deliberately does NOT enumerate the ~343 individual sections: doing so cost every
 client ~20 900 tokens at connection time, before any useful work. To discover section URIs use
 `reformer://catalog` (a compact JSON map) or `search_docs`, which already returns ready URIs.
 Section URIs themselves are unchanged and read exactly as before.
 
 ## URI scheme
 
-- `reformer://guide` — this server's full self-doc (workflow + tools + prompts + resources). The entry point in resource form (mirrors the `start-here` prompt).
+- `reformer://guide` — start here: the one path to a form (`form.intent.json` → `form_build`), what the build writes, the contract for your own code, and which tool or resource to use. Under 6 KB; the resource form of the `start-here` prompt.
+- `reformer://status` — `application/json`: which `@reformer/*` packages the server found (where, version, index, docs), whether it can type-check a form, the ui-kit catalog, and what failed to load.
 - `reformer://catalog` — `application/json`: every package → its sections as `[slug, title]`. The index for building the URIs below.
 - `reformer://docs/<pkg>` — the full `llms.txt` of one library package (every section concatenated).
 - `reformer://docs/<pkg>/<section-slug>` — a single `##` section of a package, by slug.
@@ -22,8 +23,9 @@ Section URIs themselves are unchanged and read exactly as before.
 
 ## Self-documentation (this server)
 
-- `reformer://guide` — the whole self-doc in one document (guide + tools + prompts + resources + workflow).
-  Equivalent to `reformer://docs/mcp` (the full mcp `llms.txt`).
+- `reformer://guide` — the short start: the first section of this self-doc.
+- `reformer://docs/mcp` — the whole self-doc in one document (guide + tools + prompts + resources +
+  the library contract behind the module).
 - Individual sections are addressable, but their slug is derived from the section's H2 heading, not the
   filename. Enumerate exact URIs via `reformer://catalog`. Examples of real slugs:
   `reformer://docs/mcp/form-intent-json-the-source-for-form-build`,

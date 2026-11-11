@@ -80,7 +80,7 @@ describe('без каталога кита', () => {
     expect(content).toContain("reg.component('Calendar', Calendar);");
     expect(content).toContain("from '@reformer/ui-kit';");
     expect(content).not.toContain('TODO');
-    expect(warnings).toEqual([expect.stringMatching(/Каталог @reformer\/ui-kit не найден/)]);
+    expect(warnings).toEqual([expect.stringMatching(/The @reformer\/ui-kit catalog is not found/)]);
   });
 
   it('с каталогом то же поле импортируется из подпути', () => {
@@ -177,7 +177,7 @@ describe('генератор', () => {
     ]);
     expect(intent.fields[1].componentProps ?? {}).not.toHaveProperty('type');
     expect(intent.warnings.join('\n')).toMatch(/InputNumber/);
-    expect(intent.warnings.join('\n')).toMatch(/CheckboxWithLabel.*имя экспорта/);
+    expect(intent.warnings.join('\n')).toMatch(/CheckboxWithLabel.*is the export name/);
   });
 
   it('registry.ts импортирует сами компоненты, а не *Field', () => {

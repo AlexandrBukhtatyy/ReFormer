@@ -98,7 +98,7 @@ const step = async (id, title, fn) => {
   console.log(` — ${Math.round((Date.now() - t0) / 1000)} с`);
 };
 await step('T1', 'спека → intent', () => trackT1(ctx));
-await step('T2', 'intent → бандл', () => trackT2(ctx, results.t1));
+await step('T2', 'intent → модуль', () => trackT2(ctx, results.t1));
 await step('T3', 'рантайм: e2e эталонов по собранным формам', async () => {
   const mounted = await mountForms({ outDir });
   const e2e = runE2e({ outDir, mounted });

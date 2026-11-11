@@ -3,7 +3,7 @@
  *
  * Схема адресов:
  *
- *   reformer://guide                        — вводная: правило раскладки + llms.txt самого MCP
+ *   reformer://guide                        — вводная: один путь к форме и указатели (≤ 6 КБ)
  *   reformer://catalog                      — машиночитаемая карта пакетов → секции
  *   reformer://status                       — что сервер нашёл: пакеты, индексы, проверка типов
  *   reformer://docs/<pkg-short>             — полный llms.txt одного пакета
@@ -64,41 +64,25 @@ export interface ResourceCatalog {
 }
 
 /**
- * Сводка правила раскладки файлов — печатается ПЕРЕД полным текстом гайда.
+ * Раздел самодокументации, который отдаёт `reformer://guide`: первый раздел `docs/llms/01-guide.md`.
  *
- * `reformer://guide` отдаёт весь llms.txt пакета (~47 КБ), и замер
- * (`docs/plans/mcp-layout-authority.md`) показал: имена файлов формы доезжали до агента ровно
- * одним способом — чтением этого документа целиком. Прогон точечными запросами получил 5/10
- * совпадений с каноном, прогон, начавший с guide, — 8/9. Правило, стоящее первым абзацем,
- * доезжает и до тех, кто читает только начало; полный per-target список остаётся ниже по тексту
- * и в `find_recipe directory-layout`.
+ * Раньше гайдом был весь `llms.txt` пакета (~100 тыс. символов): он не называл `form_build` и не
+ * помещался в контекст малой локальной модели — Ollama отрезала начало переписки вместе с заданием
+ * (аудит 2026-11, A5; ReFormer-qo9b.36). Теперь гайд — контракт и указатели, а полный текст отдаёт
+ * `reformer://docs/mcp`.
  */
-export const FORM_LAYOUT_ENTRY = [
-  '> **Form file layout — read this even if you read nothing else here.**',
-  '>',
-  '> A form module is FLAT: no role folders (a large form uses the `folders` layout). Wizard steps live',
-  '> in the root schema OR one folder per step `steps/<slug>/` (kebab slug of the step title, no',
-  '> number) with the aggregator `steps/index.ts`; inside a step folder the names are the same.',
-  '> Naming rule and file set, identical for every target: `form.<role>` is a form artifact whose',
-  '> suffix names the role; every other file is plain-named (`index.tsx`, `types.ts`, `model.ts`,',
-  '> `data-sources.ts`, `api.ts`):',
-  '>',
-  '> - **schema** — `form.schema.ts` (`.tsx` when the schema contains JSX): ONE tree for the form',
-  '>   and its layout. For renderer-json a plain `form.schema.json` is an accepted variant, but it',
-  '>   loses compile-time checking of `$model(...)` paths that `defineJsonSchema<T>` gives.',
-  '> - **behavior** — `form.behavior.ts`: the ONLY behavior of the form — links over the model and',
-  "> rules for schema nodes (`hideWhen(schema.node('selector'), …)`).",
-  '> - **validation** — `form.validation.ts` (rules over the model; wizard step key = step',
-  '>   `selector`).',
-  '>',
-  '> renderer-json also has `registry.ts`. There is no `form.render.ts` and no `wizard.tsx` shim:',
-  '> node rules live in `form.behavior.ts`, the wizard is the library `FormWizard` with steps in',
-  '> `children`. Files of the former contract (`form.render.ts`, `wizard.tsx`, `renderer.*`,',
-  '> `validation.ts`) still work but are reported as outdated.',
-  '> File names are not a free choice. Full per-target list: `find_recipe directory-layout`, or',
-  '> the "Form directory layout" section below. Check the names you picked with',
-  '> `validate_form kind="layout"` — before writing, not after.',
+export const GUIDE_SECTION = 'start-here-one-path-to-a-form';
+
+/** Потолок гайда в байтах: его читает любая модель, включая малые. */
+export const GUIDE_LIMIT_BYTES = 6 * 1024;
+
+/** Гайд, когда самодокументация не найдена: путь к форме важнее, чем её отсутствие. */
+const GUIDE_FALLBACK = [
+  '# ReFormer MCP — guide',
   '',
+  'Write `<dir>/form.intent.json`, then `form_build {"dir":"<dir>"}` compiles, checks and writes the',
+  'module. The grammar: `form_build {"grammar":"base"}`. The self-doc of this server was not found —',
+  'see `reformer://status`.',
 ].join('\n');
 
 function packageShortName(pkg: string): string {
@@ -187,7 +171,7 @@ export function createResourceCatalog(
           uri: 'reformer://guide',
           name: 'ReFormer MCP — start-here guide',
           description:
-            'Entry point: the canonical form-building workflow, the mandatory flat form file layout (`form.<role>` files: schema, behavior, validation, optional flow and messages), and a map of which MCP tool/resource to use at each step; the layout rule is in the opening lines.',
+            'Start here: the one path to a form (form.intent.json → form_build), what the build writes, the contract for your own code, and which tool or resource to use. Under 6 KB; the full self-doc is reformer://docs/mcp.',
           mimeType: 'text/markdown',
         },
         {
@@ -231,17 +215,11 @@ export function createResourceCatalog(
     },
 
     read(uri) {
-      // Вводная → полная самодокументация MCP-сервера.
+      // Вводная — первый раздел самодокументации; полный текст — reformer://docs/mcp.
       if (uri === 'reformer://guide') {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'text/markdown',
-              text: `${FORM_LAYOUT_ENTRY}\n${docs().full(OWN_PACKAGE)}`,
-            },
-          ],
-        };
+        const section = docs().sectionBySlug(OWN_PACKAGE, GUIDE_SECTION);
+        const text = section ? section.replace(/^## \d+\.\s*/, '# ') : GUIDE_FALLBACK;
+        return { contents: [{ uri, mimeType: 'text/markdown', text }] };
       }
 
       if (uri === 'reformer://catalog') {

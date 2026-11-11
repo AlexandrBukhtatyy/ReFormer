@@ -1,19 +1,18 @@
 /**
- * Каталог инструментов сервера: тот же список и тот же диспетчер, что жили в `src/index.ts`.
+ * Каталог инструментов сервера: список и диспетчер, общие для Node и браузерного воркера.
  *
- * Каталог вынесен из Node-кода сервера, чтобы его же поднимал браузерный воркер. Здесь
- * фиксируется, что переезд ничего не поменял для клиента под Node — имена, порядок, скрытые, но
- * вызываемые инструменты, ответы, — и чем от него отличается профиль браузера.
+ * Здесь фиксируется, что видит клиент под Node — имена, порядок, ответы, — и чем от него отличается
+ * профиль браузера. С 7.0 форму создаёт один путь (intent → `form_build`), а легаси удалено:
+ * `generate_form` и алиасы `validate_json_schema`/`check_behaviors` — неизвестные имена.
  */
 
 import { describe, expect, it } from 'vitest';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { chooseApiTool } from '../src/core/tools/choose-api';
-import { planFormTool } from '../src/core/tools/generate-form';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
 
-/** Порядок `tools/list` до переезда — клиенты видят инструменты именно так. */
-const NODE_TOOLS = [
+/** Справочные инструменты: одни и те же в обоих профилях. */
+const REFERENCE_TOOLS = [
   'get_context',
   'choose_api',
   'get_symbol_docs',
@@ -21,14 +20,16 @@ const NODE_TOOLS = [
   'search_docs',
   'list_symbols',
   'validate_form',
-  'plan_form',
-  'generate_form',
-  'form_build',
-  'report_issue',
 ];
 
-/** Инструменты, которым нужен диск: в воркере их нет. */
-const NODE_ONLY_TOOLS = ['form_build', 'report_issue'];
+/** Порядок `tools/list` под Node — клиенты видят инструменты именно так. */
+const NODE_TOOLS = [...REFERENCE_TOOLS, 'plan_form', 'form_build', 'report_issue'];
+
+/** Воркер: справочный канал — без инструментов, которые пишут в проект. */
+const BROWSER_TOOLS = REFERENCE_TOOLS;
+
+/** Удалены в 7.0: `generate_form`, и давно заменённые `validate_form` алиасы. */
+const REMOVED_TOOLS = ['generate_form', 'validate_json_schema', 'check_behaviors'];
 
 const names = (catalog: ReturnType<typeof createToolCatalog>) =>
   catalog.list().map((tool) => tool.name);
@@ -54,20 +55,26 @@ describe('каталог инструментов — профиль node', () =
     );
   });
 
-  it('скрытые инструменты не перечислены, но вызываются', async () => {
-    expect(names(catalog)).not.toContain('check_behaviors');
-    const result = await catalog.call('check_behaviors', {
-      dependencies: [
-        { target: 'a', reads: ['b'] },
-        { target: 'b', reads: ['a'] },
-      ],
-    });
-    expect(result.content.length).toBeGreaterThan(0);
+  it('легаси 6.x — неизвестные имена', async () => {
+    for (const name of REMOVED_TOOLS) {
+      await expect(catalog.call(name, {}), name).rejects.toThrow(`Unknown tool: ${name}`);
+    }
   });
 
   it('неизвестный инструмент и debug без флага — ошибка', async () => {
     await expect(catalog.call('no_such_tool', {})).rejects.toThrow('Unknown tool: no_such_tool');
     await expect(catalog.call('debug', {})).rejects.toThrow('Unknown tool: debug');
+  });
+
+  it('plan_form — спека и каталог формы, без description', () => {
+    const plan = catalog.list().find((tool) => tool.name === 'plan_form');
+    expect(Object.keys(plan?.inputSchema.properties ?? {})).toEqual(['specPath', 'dir', 'target']);
+    expect(plan?.inputSchema.required).toEqual(['specPath']);
+  });
+
+  it('form_build — каталог и грамматика', () => {
+    const build = catalog.list().find((tool) => tool.name === 'form_build');
+    expect(Object.keys(build?.inputSchema.properties ?? {})).toEqual(['dir', 'grammar']);
   });
 });
 
@@ -75,7 +82,7 @@ describe('каталог инструментов — профиль browser', (
   const catalog = createToolCatalog(cliKnowledge, { profile: 'browser', debug: true });
 
   it('без инструментов диска и debug, даже по флагу', () => {
-    expect(names(catalog)).toEqual(NODE_TOOLS.filter((name) => !NODE_ONLY_TOOLS.includes(name)));
+    expect(names(catalog)).toEqual(BROWSER_TOOLS);
   });
 
   it('form_build не вызывается: записывать форму там некуда', async () => {
@@ -88,15 +95,15 @@ describe('каталог инструментов — профиль browser', (
     );
   });
 
-  it('plan_form — без specPath в схеме', () => {
-    const plan = catalog.list().find((tool) => tool.name === 'plan_form');
-    expect(Object.keys(plan?.inputSchema.properties ?? {})).toEqual(['description', 'target']);
+  it('plan_form не вызывается: черновик пишется в проект, а его тут нет', async () => {
+    await expect(catalog.call('plan_form', { description: 'x' })).rejects.toThrow(
+      'Unknown tool: plan_form'
+    );
   });
 
-  it('plan_form отбрасывает specPath из аргументов и работает от описания', async () => {
-    const description = 'Форма обратной связи: имя, email, сообщение';
-    expect(await catalog.call('plan_form', { specPath: 'spec.md', description })).toEqual(
-      await planFormTool({ description }, cliKnowledge())
-    );
+  it('легаси 6.x — неизвестные имена', async () => {
+    for (const name of REMOVED_TOOLS) {
+      await expect(catalog.call(name, {}), name).rejects.toThrow(`Unknown tool: ${name}`);
+    }
   });
 });

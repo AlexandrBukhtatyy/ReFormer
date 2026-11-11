@@ -59,7 +59,7 @@ describe('readIntent: поле, описанное на месте', () => {
       { title: 'Клиент', refs: ['fullName'] },
       { title: 'Заказ', refs: ['amount'] },
     ]);
-    expect(notes(intent.warnings)).toContain('объявлены в `fields`: `fullName`, `amount`');
+    expect(notes(intent.warnings)).toContain('declared in `fields`: `fullName`, `amount`');
     expectBuilds(raw);
   });
 
@@ -83,7 +83,7 @@ describe('readIntent: поле, описанное на месте', () => {
       { kind: 'field', ref: 'email' },
       { kind: 'field', ref: 'city' },
     ]);
-    expect(notes(intent.warnings)).toContain('прочитаны ссылками на поле');
+    expect(notes(intent.warnings)).toContain('read as field references');
     expectBuilds(raw);
   });
 
@@ -191,7 +191,7 @@ describe('readIntent: проверки в списке полей', () => {
     expect(problems).toEqual([]);
     expect(intent.fields.map((f) => f.name)).toEqual(['email']);
     expect(intent.validation).toEqual([{ target: 'email', rules: ['required()', 'email()'] }]);
-    expect(notes(intent.warnings)).toContain('перенесены в `validation`');
+    expect(notes(intent.warnings)).toContain('moved to `validation`');
   });
 
   it('проверки на самом поле и на поле строки массива — записи validation', () => {
@@ -241,7 +241,7 @@ describe('readIntent: тип, который на деле компонент', 
       { uiKit: CATALOGS.uiKit }
     );
     expect(intent.fields[0]).toMatchObject({ component: 'Select', type: 'string' });
-    expect(notes(intent.warnings)).toContain('имя компонента: принят компонент `Select`');
+    expect(notes(intent.warnings)).toContain('is a component name — read as component `Select`');
   });
 
   it('тип значения берётся из компонента; явный component побеждает type', () => {
@@ -321,5 +321,177 @@ describe('readIntent: значок шага [ReFormer-j356.4.21: A19]', () => {
       const step = JSON.parse(layoutJson).root.children[0];
       expect(step.componentProps).toEqual({ title: 'Кредит', icon: '💰' });
     }
+  });
+});
+
+/**
+ * Записи, которые ассистент конструктора поднимал своим проходом (`build-form/lift.ts`) до
+ * `readIntent`. Проход удалён (план — фаза 4): здесь закреплено, что чтение MCP разбирает каждую из
+ * них само, — корпус тот же, что у теста паритета, которым проверялось удаление.
+ */
+describe('записи подъёма ассистента конструктора — читает сам readIntent', () => {
+  const field = (name: string, extra: Record<string, unknown> = {}) => ({
+    name,
+    component: 'Input',
+    label: name.toUpperCase(),
+    ...extra,
+  });
+  const rows = [
+    { name: 'type', component: 'Input', label: 'Type' },
+    { name: 'value', component: 'InputNumber', label: 'Value' },
+  ];
+  const view = (raw: unknown) => {
+    const { intent, problems, notices } = readIntent(raw, {
+      forDocument: true,
+      uiKit: CATALOGS.uiKit,
+    });
+    return {
+      problems: problems.map((p) => `${p.code} at ${p.at}`),
+      notices: notices.map((n) => n.code),
+      fields: intent.fields.map((f) => `${f.modelPath ?? f.name}:${f.component}`),
+      arrays: intent.arrays.map((a) => `${a.name}[${a.itemFields.map((f) => f.name).join(',')}]`),
+      steps: (intent.wizard?.steps ?? []).map((s) => s.title),
+      validation: intent.validation.map((v) => v.target),
+    };
+  };
+
+  it.each<[string, unknown, string[]]>([
+    ['поля в шаге', { steps: [{ title: 'One', fields: [field('a'), field('b')] }] }, ['a', 'b']],
+    [
+      'узлы-поля в разметке',
+      {
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [{ kind: 'field', ...field('city') }, field('street')],
+        },
+      },
+      ['city', 'street'],
+    ],
+    ['раскладка списком', { layoutRoot: [field('a')] }, ['a']],
+    [
+      'intent — узел шага',
+      { kind: 'step', title: 'Delivery', children: [field('city')] },
+      ['city'],
+    ],
+    ['intent — узел-контейнер', { children: [field('a')] }, ['a']],
+    ['шаг ключом step', { step: { title: 'Delivery', fields: [field('city')] } }, ['city']],
+    ['steps объектом', { steps: { title: 'Delivery', fields: [field('city')] } }, ['city']],
+    [
+      'поле шага по пути модели',
+      { step: { title: 'D', fields: [{ label: 'City', model: 'delivery.city', type: 'text' }] } },
+      ['delivery.city'],
+    ],
+    ['ключ wizard', { wizard: { steps: [{ title: 'A', fields: [field('a')] }] } }, ['a']],
+    [
+      'имя полем path',
+      { steps: [{ title: 'A', fields: [{ path: 'x.y', component: 'Input' }] }] },
+      ['x.y'],
+    ],
+    [
+      'имя полем ref',
+      { steps: [{ title: 'A', fields: [{ ref: 'z', component: 'Input' }] }] },
+      ['z'],
+    ],
+    [
+      'имя полем binding',
+      { steps: [{ title: 'A', fields: [{ binding: 'w', component: 'Input' }] }] },
+      ['w'],
+    ],
+    ['список шага items', { steps: [{ title: 'A', items: [field('a')] }] }, ['a']],
+    ['шаги ключом pages', { pages: [{ title: 'A', fields: [field('a')] }] }, ['a']],
+    [
+      'раскладка ключом tree',
+      { tree: { kind: 'container', component: 'Box', children: [field('a')] } },
+      ['a'],
+    ],
+    [
+      'дети ключом nodes',
+      { layoutRoot: { kind: 'container', component: 'Box', nodes: [field('a')] } },
+      ['a'],
+    ],
+    [
+      'вложенный список детей',
+      { layoutRoot: { kind: 'container', component: 'Box', children: [[field('a'), field('b')]] } },
+      ['a', 'b'],
+    ],
+  ])('%s', (_name, raw, paths) => {
+    const read = view(raw);
+    expect(read.problems).toEqual([]);
+    expect(read.fields.map((f) => f.split(':')[0])).toEqual(paths);
+  });
+
+  it('тип-компонент и синонимы компонента', () => {
+    const read = view({
+      fields: [
+        { name: 'note', type: 'textarea', label: 'Note' },
+        { name: 'a', widget: 'Input', label: 'A' },
+        { name: 'b', componentName: 'InputNumber', label: 'B' },
+      ],
+    });
+    expect(read.problems).toEqual([]);
+    expect(read.fields).toEqual(['note:Textarea', 'a:Input', 'b:InputNumber']);
+  });
+
+  it('массив полем и массив в шаге — массивы со строками', () => {
+    for (const raw of [
+      {
+        fields: [{ name: 'items', type: 'array', label: 'Items', itemFields: rows }],
+        steps: [{ title: 'A', fields: ['items'] }],
+      },
+      {
+        steps: [
+          { title: 'A', fields: [{ name: 'items', type: 'array', label: 'Items', fields: rows }] },
+        ],
+      },
+    ]) {
+      const read = view(raw);
+      expect(read.problems).toEqual([]);
+      expect(read.arrays).toEqual(['items[type,value]']);
+    }
+  });
+
+  it('правило среди полей — в validation; голое имя в разметке — ссылка', () => {
+    expect(
+      view({ fields: [field('phone'), { target: 'phone', rules: ['required'] }] })
+    ).toMatchObject({
+      problems: [],
+      fields: ['phone:Input'],
+      validation: ['phone'],
+    });
+    const bare = view({
+      fields: [field('city'), field('same')],
+      layoutRoot: [{ kind: 'container', component: 'Box', children: ['city'] }, { name: 'same' }],
+    });
+    expect(bare.problems).toEqual([]);
+  });
+
+  it('правило без проверок ("rules": []) отбрасывается с предупреждением, а не валит intent', () => {
+    const read = view({
+      fields: [field('phone'), field('phone2')],
+      validation: [
+        { target: 'phone', rules: ['required'] },
+        { target: 'phone2', rules: [] },
+      ],
+    });
+    expect(read.problems).toEqual([]);
+    expect(read.validation).toEqual(['phone']);
+    expect(read.notices).toContain('rule-empty-dropped');
+    // Ключа нет вовсе — запись битая: это по-прежнему отказ.
+    expect(view({ fields: [field('a')], validation: [{ target: 'a' }] }).problems).toEqual([
+      'missing-key at validation[0].rules',
+    ]);
+  });
+
+  it('поле шага без имени и описание на месте против объявления — отказы, а не молчаливый выбор', () => {
+    expect(
+      view({ steps: [{ title: 'A', fields: [{ label: 'City', component: 'Input' }] }] }).problems
+    ).toEqual(['missing-key at steps[0].fields[0]']);
+    expect(
+      view({
+        fields: [field('a', { label: 'Declared' })],
+        steps: [{ title: 'One', fields: [field('a', { label: 'Inline' })] }],
+      }).problems
+    ).toEqual(['key-conflict at steps[0].fields[0].label']);
   });
 });

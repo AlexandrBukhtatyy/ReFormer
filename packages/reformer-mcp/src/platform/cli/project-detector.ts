@@ -1,12 +1,20 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname, join, sep } from 'path';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { UI_KIT_PACKAGE, uiKitFromCatalog } from '../../core/generate/ui-kit-components.js';
+import { defaultPackageBases } from './package-locator.js';
 import { discoverUnknownStack } from './sampling-helpers.js';
 import { reportKnowledgeProblem } from './problems.js';
+import { loadUiKitCatalog, uiKitCatalogPaths } from './ui-kit-catalog.js';
 
 export interface ProjectStack {
   /** Absolute path to the resolved project package.json (or null if not found). */
   projectRoot: string | null;
+  /**
+   * The project's package.json declares `workspaces`: it is a monorepo root, not an app. A form
+   * placed there by default (`form/`) would land outside every app of the monorepo.
+   */
+  workspaceRoot: boolean;
   /** All dependencies (deps + devDeps + peerDeps) keyed by name → version range. */
   allDependencies: Record<string, string>;
   /** Whether @reformer/ui-kit is in deps. */
@@ -103,6 +111,7 @@ export function detectProjectStack(startDir?: string): ProjectStack {
   if (!pkgPath) {
     return {
       projectRoot: null,
+      workspaceRoot: false,
       allDependencies: {},
       hasUiKit: false,
       hasCdk: false,
@@ -121,6 +130,7 @@ export function detectProjectStack(startDir?: string): ProjectStack {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
     peerDependencies?: Record<string, string>;
+    workspaces?: unknown;
   } = {};
   try {
     json = JSON.parse(readFileSync(pkgPath, 'utf-8'));
@@ -138,8 +148,14 @@ export function detectProjectStack(startDir?: string): ProjectStack {
   const hasTailwindDep = '@tailwindcss/vite' in allDeps || 'tailwindcss' in allDeps;
   const hasTailwindVitePlugin = '@tailwindcss/vite' in allDeps;
 
+  const workspaces = json.workspaces;
+  const workspaceRoot = Array.isArray(workspaces)
+    ? workspaces.length > 0
+    : typeof workspaces === 'object' && workspaces !== null;
+
   return {
     projectRoot,
+    workspaceRoot,
     allDependencies: allDeps,
     hasUiKit: '@reformer/ui-kit' in allDeps,
     hasCdk: '@reformer/cdk' in allDeps,
@@ -155,23 +171,59 @@ export function detectProjectStack(startDir?: string): ProjectStack {
 }
 
 /**
- * Render a short markdown block summarising what was detected and what
- * recommendation follows. Used by create-form prompt.
+ * Подпути кита для своего кода агента: `@reformer/ui-kit/date-picker` — DatePicker, … .
+ *
+ * Берутся из каталога установленного кита, а не из списка в коде: прежняя подсказка импортировала
+ * `DatePicker` из корня пакета, где его нет (ReFormer-4e7x), и называла компоненты, которых в ките
+ * уже не было.
+ */
+function uiKitSubpathLine(stack: ProjectStack): string | null {
+  const bases = stack.projectRoot ? [stack.projectRoot, ...defaultPackageBases()] : undefined;
+  const kit = uiKitFromCatalog(loadUiKitCatalog(uiKitCatalogPaths(bases)));
+  if (!kit.found) return null;
+  const bySubpath = new Map<string, string[]>();
+  for (const [name, exported] of Object.entries(kit.fields)) {
+    const subpath = kit.subpaths[exported];
+    if (!subpath) continue;
+    // Имя в intent — registry-имя; импортируется экспорт. Где они разные, видны оба.
+    const shown = name === exported ? exported : `${exported} (intent: ${name})`;
+    bySubpath.set(subpath, [...(bySubpath.get(subpath) ?? []), shown]);
+  }
+  if (bySubpath.size === 0) return null;
+  const groups = [...bySubpath]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([subpath, names]) => `\`${UI_KIT_PACKAGE}/${subpath}\` — ${[...new Set(names)].join(', ')}`
+    );
+  return `Components with their own subpath (not in the package root): ${groups.join('; ')}.`;
+}
+
+/**
+ * Что найдено в проекте и что из этого следует для формы. Печатается в промптах `create-form`,
+ * `plan-form` и `discover-context`.
+ *
+ * Форма собирается из intent (`form_build`), поэтому здесь нет ни списка импортов, ни правил
+ * разметки модуля: компоненты называет грамматика, импорты печатает сборка. Остаётся то, что агент
+ * решает сам: есть ли кит вообще и, на core, чем оформлять свою JSX-разметку.
  */
 export function renderStackDetectionBlock(stack: ProjectStack): string {
   if (!stack.projectRoot) {
     return [
-      '> ⚠️ MCP не нашёл `package.json` рабочего проекта в дереве выше cwd. Уточни у оркестратора:',
-      '> «Какие UI-компоненты использовать? (a) `@reformer/ui-kit`, (b) shadcn/ui, (c) MUI, (d) plain HTML, (e) другое — укажи».',
-      '> «Какая система стилей? (a) Tailwind, (b) CSS Modules, (c) Emotion / styled-components, (d) vanilla CSS, (e) inline style».',
+      '> ⚠️ No `package.json` of a project was found above the working directory. Ask the orchestrator:',
+      '> "Which UI components? (a) `@reformer/ui-kit`, (b) shadcn/ui, (c) MUI, (d) plain HTML, (e) other" and',
+      '> "Which styling? (a) Tailwind, (b) CSS Modules, (c) Emotion / styled-components, (d) vanilla CSS".',
     ].join('\n');
   }
 
   const lines: string[] = [];
-  lines.push('### Detected stack (auto)');
+  lines.push('### Detected stack');
   lines.push('');
   lines.push(`Project root: \`${stack.projectRoot}\``);
-  lines.push('');
+  if (stack.workspaceRoot) {
+    lines.push(
+      'This is a monorepo root: pass form_build and plan_form a `dir` inside an app package.'
+    );
+  }
 
   const detected: string[] = [];
   if (stack.hasUiKit) detected.push('`@reformer/ui-kit`');
@@ -181,222 +233,50 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
   if (stack.hasTailwind) {
     detected.push(
       stack.hasTailwindVitePlugin && !stack.hasTailwindConfig
-        ? 'Tailwind CSS (v4 via @tailwindcss/vite, inline @theme)'
+        ? 'Tailwind CSS (v4 via @tailwindcss/vite)'
         : 'Tailwind CSS'
     );
-  } else if (stack.hasTailwindDep) detected.push('Tailwind dep (no config + no vite plugin)');
-  else if (stack.hasTailwindConfig) detected.push('Tailwind config (no dep)');
-
-  if (detected.length > 0) {
-    lines.push(`**Detected:** ${detected.join(', ')}.`);
-  } else {
-    lines.push('**Detected:** ничего из known stacks. См. MCP-gap-вопрос ниже.');
   }
+  lines.push(
+    `Detected: ${detected.length > 0 ? detected.join(', ') : 'none of the known stacks'}.`
+  );
   lines.push('');
 
-  // UI kit recommendation
   if (stack.hasUiKit) {
-    lines.push('**UI components → используй `@reformer/ui-kit`:**');
-    lines.push('');
-    lines.push('```typescript');
-    lines.push('// Поля формы');
     lines.push(
-      "import { Input, InputNumber, InputMask, InputPassword, Textarea } from '@reformer/ui-kit';"
+      '- **UI components → `@reformer/ui-kit`.** In the intent, `component` is a name from the grammar; ' +
+        'form_build writes the imports. In your own JSX (markup on core): ' +
+        "`import { FormField } from '@reformer/ui-kit'`, a field is `<FormField control={bundle.form.email} />`."
     );
-    lines.push(
-      "import { CheckboxWithLabel, RadioGroupOptions, SelectAsync, DatePicker } from '@reformer/ui-kit';"
-    );
-    lines.push('// Layout-контейнеры (для RenderSchema или ручной разметки)');
-    lines.push("import { Section, Box, Collapsible } from '@reformer/ui-kit';");
-    lines.push('// Вид — компонентом, а не классами: карточка, плашка, разделитель');
-    lines.push(
-      "import { Card, CardContent, CardHeader, CardTitle, Alert, Separator } from '@reformer/ui-kit';"
-    );
-    lines.push('// Кнопки и обвязка');
-    lines.push("import { Button, FormField, AsyncBoundary, cn } from '@reformer/ui-kit';");
-    lines.push('```');
-    lines.push('');
-    lines.push(
-      "В `component` поля кладётся САМ компонент (`InputNumber`, `CheckboxWithLabel`, …): свой диалект (`checked`/`onCheckedChange` и т.п.) он объявляет статикой, обёртка поля (`FormField` / лист RenderSchema) связывает его с моделью сама. Числовое поле — `InputNumber`, не `Input` с `type: 'number'`; `*Field`-версий (`InputField`, `CheckboxField`, …) больше нет."
-    );
+    const subpaths = uiKitSubpathLine(stack);
+    if (subpaths) lines.push(`  ${subpaths}`);
   } else {
-    lines.push('> ⚠️ `@reformer/ui-kit` НЕ найден в зависимостях. **Уточни у оркестратора:**');
     lines.push(
-      '> «Какие UI-компоненты использовать? (a) добавить `@reformer/ui-kit`, (b) shadcn/ui, (c) MUI, (d) plain HTML, (e) другое».'
+      '- ⚠️ **`@reformer/ui-kit` is not a dependency.** Ask the orchestrator which UI components to use: ' +
+        '(a) add `@reformer/ui-kit`, (b) shadcn/ui, (c) MUI, (d) plain HTML, (e) other. Do not build the form until answered.'
     );
-    lines.push('> До получения ответа НЕ генерируй код — это инвалидный fallback.');
   }
-  lines.push('');
 
-  // Tailwind recommendation
   if (stack.hasTailwind) {
-    const setupNote =
-      stack.hasTailwindVitePlugin && !stack.hasTailwindConfig
-        ? ' (v4 — конфиг inline через `@theme` в CSS, отдельного `tailwind.config.*` нет)'
-        : '';
-    lines.push(`**Styling → Tailwind, но ТОЛЬКО раскладка и отступы**${setupNote}:`);
-    lines.push('');
     lines.push(
-      '- Ритм: `space-y-6` (шаг) → `space-y-4` (группа полей) → `space-y-3` (элемент массива).'
+      '- **Styling (only your JSX on core):** layout classes only — rhythm `space-y-6` → `space-y-4` → ' +
+        '`space-y-3`, grid `grid grid-cols-1 md:grid-cols-2 gap-4`; looks come from components (`Card`, `Alert`, ' +
+        '`Separator`), never hand-written `bg-*` / `border-*` / `shadow-*` / `rounded-*`. Rules: ' +
+        '`find_recipe {"topic":"form-layout","package":"ui-kit"}`.'
     );
-    lines.push(
-      '- Сетка полей: `grid grid-cols-1 md:grid-cols-2 gap-4`; поле на всю ширину — ВНЕ сетки (не `col-span-*`).'
-    );
-    lines.push(
-      '- Заголовки: `text-xl font-bold` (шаг), `text-lg font-semibold` (группа) — без цвета.'
-    );
-    lines.push(
-      '- НЕ пиши руками `bg-*`, `text-<цвет>-<оттенок>`, `border-<цвет>`, `shadow-*`, `rounded-*`. Вид даёт компонент: карточка — `Card`, плашка — `Alert`, разделитель — `Separator`.'
-    );
-    lines.push(
-      '- Состояния полей (focus / disabled / invalid) уже внутри контролов кита — не дублируй классами.'
-    );
-    lines.push('- Правила целиком: `find_recipe({ topic: "form-layout", package: "ui-kit" })`.');
   } else if (stack.hasTailwindDep || stack.hasTailwindConfig) {
     lines.push(
-      '> ⚠️ Tailwind частично обнаружен (' +
-        (stack.hasTailwindDep ? 'dep есть' : 'dep НЕТ') +
+      '- ⚠️ Tailwind is only partly set up (' +
+        (stack.hasTailwindDep ? 'dependency yes' : 'dependency no') +
         ', ' +
-        (stack.hasTailwindConfig ? 'config есть' : 'config НЕТ') +
-        '). Уточни у оркестратора, считать ли Tailwind включённым.'
+        (stack.hasTailwindConfig ? 'config yes' : 'config no') +
+        '). On core ask the orchestrator before writing classes.'
     );
   } else {
-    lines.push('> ⚠️ Tailwind не обнаружен. **Уточни у оркестратора:**');
     lines.push(
-      '> «Какая система стилей? (a) Tailwind, (b) CSS Modules, (c) Emotion / styled-components, (d) vanilla CSS, (e) inline style».'
+      '- Styling system not detected: renderer targets need none; on core ask the orchestrator before writing classes.'
     );
-    lines.push('> До получения ответа НЕ генерируй классы.');
   }
-
-  return lines.join('\n');
-}
-
-/**
- * Render layout skeleton recommendation for create-form prompt. Active only
- * when both ui-kit and Tailwind detected.
- */
-export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): string {
-  if (!stack.hasUiKit || !stack.hasTailwind) return '';
-
-  const lines: string[] = [];
-  lines.push('### Layout skeleton (target visual density)');
-  lines.push('');
-  lines.push('Для многошаговой/секционной формы используй такую плотность:');
-  lines.push('');
-
-  if (target === 'renderer-react' || target === 'renderer-json') {
-    lines.push('**Step / Section в RenderSchema:**');
-    lines.push('');
-    lines.push('```typescript');
-    lines.push('{');
-    lines.push("  selector: 'step1',");
-    lines.push('  component: Section,');
-    lines.push('  componentProps: {');
-    lines.push("    title: 'Шаг 1. Параметры кредита',");
-    lines.push("    titleAs: 'h2',");
-    lines.push("    titleClassName: 'text-xl font-bold',");
-    lines.push('    // Только ритм. Карточку даёт компонент Card (зарегистрируй его в реестре),');
-    lines.push(
-      '    // а не строка bg-*/border/rounded-*/shadow-* — иначе форма разъезжается с китом.'
-    );
-    lines.push("    className: 'space-y-4',");
-    lines.push('  },');
-    lines.push('  children: [');
-    lines.push('    {');
-    lines.push('      component: Box,');
-    lines.push("      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },");
-    lines.push('      children: [');
-    lines.push(
-      "        { model: model.$.step1.loanAmount, component: InputNumber, componentProps: { testId: 'loanAmount' } },"
-    );
-    lines.push('        { model: model.$.step1.loanTerm, component: InputNumber },');
-    lines.push('      ],');
-    lines.push('    },');
-    lines.push('    { model: model.$.step1.loanPurpose, component: Textarea },  // full-width');
-    lines.push('  ],');
-    lines.push('}');
-    lines.push('```');
-    lines.push('');
-    lines.push(
-      '**Settings.fieldWrapper = FormField** — оборачивает каждое поле в label + error + pending:'
-    );
-    lines.push('```tsx');
-    lines.push('<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />');
-    lines.push('```');
-  } else {
-    lines.push('**Step-обёртка в ручном React (карточка — компонентом, не классами):**');
-    lines.push('');
-    lines.push('```tsx');
-    lines.push('<Card>');
-    lines.push('  <CardHeader>');
-    lines.push('    <CardTitle>Шаг 1. Параметры кредита</CardTitle>');
-    lines.push('  </CardHeader>');
-    lines.push('  <CardContent className="space-y-4">');
-    lines.push('    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">');
-    lines.push('      <FormField control={form.step1.loanAmount} testId="step1.loanAmount" />');
-    lines.push('      <FormField control={form.step1.loanTerm} testId="step1.loanTerm" />');
-    lines.push('    </div>');
-    lines.push('    <FormField control={form.step1.loanPurpose} testId="step1.loanPurpose" />');
-    lines.push('  </CardContent>');
-    lines.push('</Card>');
-    lines.push('```');
-    lines.push('');
-    lines.push('**Внешний контейнер страницы:**');
-    lines.push('```tsx');
-    lines.push('<div className="max-w-2xl mx-auto p-6 space-y-6">');
-    lines.push('  <h1 className="text-xl font-bold">Заявка на кредит</h1>');
-    lines.push('  <StepIndicator current={currentStep} completed={completedSteps} />');
-    lines.push('  {/* <Card> со step section */}');
-    lines.push('  {/* nav-buttons row */}');
-    lines.push('  {/* progress text */}');
-    lines.push('</div>');
-    lines.push('```');
-  }
-  lines.push('');
-  lines.push('**Step indicator с иконками + dashes (lucide-react):**');
-  lines.push('```tsx');
-  lines.push(
-    "import { Coins, User, Phone, Briefcase, FileText, CheckSquare } from 'lucide-react';"
-  );
-  lines.push('');
-  lines.push('const STEP_META = [');
-  lines.push("  { n: 1, label: 'Кредит', icon: Coins },");
-  lines.push("  { n: 2, label: 'Данные', icon: User },");
-  lines.push("  { n: 3, label: 'Контакты', icon: Phone },");
-  lines.push("  { n: 4, label: 'Работа', icon: Briefcase },");
-  lines.push("  { n: 5, label: 'Доп. инфо', icon: FileText },");
-  lines.push("  { n: 6, label: 'Подтверждение', icon: CheckSquare },");
-  lines.push('];');
-  lines.push('// chip = <button> (не <div>), клик ведёт на n если completed || n <= maxReached.');
-  lines.push('// Между chip и chip — `<li aria-hidden>—</li>` (en-dash), без классов цвета.');
-  lines.push('```');
-  lines.push('');
-  lines.push('**Кнопки навигации с visual cues + progress text:**');
-  lines.push('```tsx');
-  lines.push("import { Button, Separator } from '@reformer/ui-kit';");
-  lines.push('');
-  lines.push('<Separator />');
-  lines.push('<div className="flex items-center justify-between gap-3">');
-  lines.push('  {currentStep > 1');
-  lines.push('    ? <Button type="button" variant="outline" onClick={prev}>← Назад</Button>');
-  lines.push('    : <span aria-hidden />}');
-  lines.push('  {currentStep < TOTAL_STEPS');
-  lines.push('    ? <Button type="button" onClick={next}>Далее →</Button>');
-  lines.push('    : <Button type="submit">Отправить</Button>}');
-  lines.push('</div>');
-  lines.push('<div className="text-sm text-center">');
-  lines.push(
-    '  Шаг {currentStep} из {TOTAL_STEPS} • {Math.round((currentStep - 1) / (TOTAL_STEPS - 1) * 100)}% завершено'
-  );
-  lines.push('</div>');
-  lines.push('```');
-  lines.push('');
-  lines.push(
-    '**Не используй plain `<input>` / `<button>` / inline-style** — это нарушает консистентность baseline.'
-  );
-  lines.push(
-    '**Не пропускай:** карточку шага (`Card` + `CardContent`), иконки в indicator, en-dashes между chips, "← Назад" / "Далее →" со стрелкой, progress-text. Каждый из этих элементов — заметный gap vs baseline (см. iter-3 fix-plan).'
-  );
 
   return lines.join('\n');
 }
@@ -431,7 +311,7 @@ export async function renderStackDetectionBlockAsync(
   }
 
   const lines: string[] = [];
-  lines.push('### Detected stack (auto + LLM-assisted)');
+  lines.push('### Detected stack (LLM-assisted)');
   lines.push('');
   lines.push(`Project root: \`${stack.projectRoot}\``);
   lines.push('');

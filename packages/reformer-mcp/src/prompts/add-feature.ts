@@ -1,15 +1,13 @@
 /**
  * Промпт `add-feature` — одна дверь к четырём стадиям доработки формы.
  *
- * Схлопывает `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`. Схлопывается
- * именно эта четвёрка, потому что у них ОДНА форма аргументов (`code` + текстовые требования):
- * слияние не создаёт путаницы «какой аргумент для какой стадии». `create-form` и `plan-form`
- * остались отдельными — у них другой вход (описание/путь к спеке), и объединение сделало бы
- * схему шире, а вызов — более ошибочным.
+ * Схлопывает `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`: у них одна форма
+ * аргументов (форма + текстовые требования), и четыре записи в `prompts/list` стоили ~570 токенов
+ * у каждого клиента при подключении.
  *
- * Содержимое шаблонов не тронуто: это самая выверенная документация в репозитории (118 KB,
- * защищена гейтом scripts/check-mcp-prompts.mjs). Схлопывается ПЕРЕЧИСЛЕНИЕ — четыре записи
- * в `prompts/list` вместо одной стоили ~570 токенов у каждого клиента при подключении.
+ * С 7.0 стадия — это правка `form.intent.json` и пересборка `form_build`; шаблоны называют нужную
+ * секцию грамматики. Прежние шаблоны учили писать модуль руками (аудит 2026-11, A1/A2). Текущую
+ * форму агент читает сам, поэтому `code` необязателен.
  */
 
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
@@ -27,18 +25,23 @@ export type FormFeature = keyof typeof FEATURES;
 export const addFeaturePromptDefinition = {
   name: 'add-feature',
   description:
-    'Add one capability to an existing @reformer form: validation rules, behavior (links over the model and rules for schema nodes), an array of sub-forms, or wizard steps. The result is the same for every way of drawing the form. Pick the stage with `feature`.',
+    'Add one capability to a form built with form_build — validation rules, behavior, an array of rows or wizard steps — by editing form.intent.json and building again. Pick the stage with `feature`.',
   arguments: [
     {
       name: 'feature',
       description: 'validation | behavior | array | wizard',
       required: true,
     },
-    { name: 'code', description: 'Текущий код формы.', required: true },
     {
       name: 'requirements',
-      description: 'Что нужно добавить. Для `feature: wizard` — перечень шагов и полей на каждом.',
+      description: 'What to add. For `feature: wizard` — the steps and the fields of each.',
       required: true,
+    },
+    {
+      name: 'code',
+      description:
+        'The current form.intent.json (optional: otherwise read it from the form folder).',
+      required: false,
     },
   ],
 };
@@ -54,19 +57,21 @@ export async function getAddFeaturePrompt(args: {
   const spec = FEATURES[feature];
   if (!spec) {
     return message(
-      `❌ **add-feature: неизвестная стадия \`${args.feature ?? '(не передана)'}\`**\n\n` +
-        `Допустимые значения \`feature\`: ${Object.keys(FEATURES).join(', ')}.`
+      `❌ **add-feature: unknown stage \`${args.feature ?? '(missing)'}\`**\n\n` +
+        `Valid values of \`feature\`: ${Object.keys(FEATURES).join(', ')}.`
     );
   }
 
-  const code = String(args.code ?? '').trim();
+  const given = String(args.code ?? '').trim();
   const requirements = String(args.requirements ?? args.steps ?? '').trim();
-  if (!code || !requirements) {
+  if (!requirements) {
     return message(
-      `❌ **add-feature (${feature}): не хватает аргументов**\n\n` +
-        'Нужны `code` (текущий код формы) и `requirements` (что добавить).'
+      `❌ **add-feature (${feature}): \`requirements\` is missing** — what should be added.`
     );
   }
+  const code = given
+    ? `\`\`\`json\n${given}\n\`\`\``
+    : 'Not given: read `<dir>/form.intent.json` yourself.';
 
   // Шаблон wizard ждёт переменную `steps`, остальные — `requirements`. Передаём под тем
   // именем, которое шаблон объявляет, а не переименовываем шаблоны: они read-only по гейту.

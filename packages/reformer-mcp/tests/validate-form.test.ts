@@ -55,6 +55,31 @@ describe('validate_form — диспетчер', () => {
 });
 
 describe('validate_form kind=code', () => {
+  // Две самые частые выдумки агентов и текст в опциях правила (аудит 2026-11, B7).
+  it.runIf(hasSymbols)(
+    'выдумки агентов: submit у формы — ошибка, reduce у массива модели — предупреждение',
+    async () => {
+      const code = [
+        "import { required } from '@reformer/core/validators';",
+        'export async function send(bundle: any, model: any) {',
+        '  await bundle.form.submit();',
+        '  bundle.form.validate();',
+        '  return model.items.reduce((sum: number, row: any) => sum + row.qty, 0);',
+        '}',
+        "export const rule = required({ message: 'Enter the value' });",
+      ].join('\n');
+      const text = (await validateFormTool({ kind: 'code', code }, k)).content[0].text;
+      const errors = text.split('## Warnings')[0];
+      expect(errors).toContain('У узлов формы нет `submit()`');
+      expect(errors).toContain('У узлов формы нет `validate()`');
+      expect(errors).toContain('bundle.submission.submit(handler)');
+      // Опции правила с текстом компилятор отвергает — это ошибка, а не предупреждение.
+      expect(errors).toContain('Текст в опциях правила');
+      expect(text).toContain('У массива модели нет `reduce`');
+      expect(text).toContain('model.items.toArray().reduce(…)');
+    }
+  );
+
   it.runIf(hasSymbols)('RF002 — несуществующий символ, с похожими именами', async () => {
     const { content } = await validateFormTool(
       {
@@ -335,7 +360,7 @@ describe('validate_form kind=bundle', () => {
     );
     const text = content[0].text;
     expect(codes(text)).toContain('RF004');
-    expect(text, 'граница проверки должна быть названа').toMatch(/сам TypeScript не проверяется/);
+    expect(text, 'граница проверки должна быть названа').toMatch(/TypeScript is not/);
   });
 
   /**

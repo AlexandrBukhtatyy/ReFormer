@@ -26,9 +26,9 @@ import {
   buildModelTs,
 } from '../src/core/generate/builders.js';
 import { crossCheckBundle } from '../src/core/generate/cross-check.js';
+import { judgeIntent } from '../src/core/generate/judge.js';
 import { readIntent, type FormIntent } from '../src/core/generate/form-intent.js';
 import { buildFormSchemaJson, buildFormSchemaTs } from '../src/core/generate/schema-emit.js';
-import { generateFormTool } from '../src/core/tools/generate-form';
 import { validateCode } from '../src/core/validate/code';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
 
@@ -372,13 +372,16 @@ describe('form.behavior.ts — единственное поведение', () 
     expect(warnings).toEqual([]);
   });
 
-  it('в core правила узлов не печатаются — и об этом сказано', () => {
+  it('в core правила узлов не печатаются — и судья говорит об этом ошибкой', () => {
     // Операторы узлов только записывают правило, исполняет его рендерер. В `core` разметку
     // рисует JSX, и напечатанный `hideWhen` был бы мёртвым кодом, который выглядит рабочим.
-    const { content, warnings } = buildFormBehaviorTs(loanIntent('core'));
+    const { content } = buildFormBehaviorTs(loanIntent('core'));
     expect(content).not.toContain('hideWhen');
     expect(content).toContain('enableWhen(model.$.propertyValue');
-    expect(warnings.join(' ')).toMatch(/правила узлов схемы исполняет рендерер/);
+    // Раньше это было предупреждение, которое тонуло, и условия видимости пропадали молча (B5).
+    const verdict = judgeIntent(JSON.parse(JSON.stringify(loanIntent('core'))), CATALOGS);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.errors.map((e) => e.code)).toContain('not-on-target');
   });
 });
 
@@ -422,15 +425,11 @@ describe('сборка — index.tsx', () => {
     expect(core, 'разметку в core рисует JSX').not.toContain('FormRenderer');
   });
 
-  it('манифест печатает образец сборки', async () => {
-    const { content } = await generateFormTool(
-      { intent: loanIntent('renderer-json') },
-      cliKnowledge()
-    );
-    const text = content[0].text;
-    expect(text).toContain('## Сборка — `index.tsx` (пишете сами)');
-    expect(text).toContain('createForm<LoanRequest>({');
-    expect(text).toMatch(/✅ Кросс-проверка пройдена/);
+  it('сборка печатает createForm, а бандл проходит кросс-проверку', () => {
+    const intent = loanIntent('renderer-json');
+    expect(buildAssemblyTsx(intent)).toContain('createForm<LoanRequest>({');
+    const { layoutJson } = buildBundle(intent, CATALOGS);
+    expect(crossCheckBundle(intent, JSON.parse(layoutJson)).ok).toBe(true);
   });
 });
 
@@ -577,10 +576,11 @@ describe('validate_form kind=code — прежний контракт', () => {
   });
 
   it('текст в правиле и в замечании, прежние методы нод — RF010', async () => {
+    // Текст в опциях правила компилятор отвергает: это ошибка, а не предупреждение (B7).
     expect(
       await codes("validate(model.$.phone, [required({ message: 'Укажите телефон' })]);")
-    ).toContain('RF010:warning');
-    expect(await codes("min(5, { messageKey: 'app.min' })")).toContain('RF010:warning');
+    ).toContain('RF010:error');
+    expect(await codes("min(5, { messageKey: 'app.min' })")).toContain('RF010:error');
     expect(await codes("return { code: 'taken', message: 'Занято' };")).toContain('RF010:warning');
     expect(await codes('form.email.setErrors([]);')).toContain('RF010:warning');
     // Код вместо текста — без замечаний.

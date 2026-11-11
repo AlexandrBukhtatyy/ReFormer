@@ -68,10 +68,20 @@ describe('операторы ядра из индекса монорепо', () 
     }
   });
 
+  it('операторы схем — отдельно от фабрик правил: без required и min', () => {
+    const { operatorNames } = CATALOGS.core;
+    for (const name of ['validate', 'applyEach', 'computeFrom', 'effect']) {
+      expect(operatorNames.has(name), name).toBe(true);
+    }
+    for (const name of ['required', 'min', 'email']) {
+      expect(operatorNames.has(name), name).toBe(false);
+    }
+  });
+
   it('строка грамматики: группы по порядку, у any подписи нет', () => {
     const line = renderRuleList(CATALOGS.core);
-    expect(line.startsWith('required; строки и списки: ')).toBe(true);
-    expect(line).toMatch(/; числа: .*; даты: .*; файлы: /);
+    expect(line.startsWith('required; text and lists: ')).toBe(true);
+    expect(line).toMatch(/; numbers: .*; dates: .*; files: /);
   });
 });
 

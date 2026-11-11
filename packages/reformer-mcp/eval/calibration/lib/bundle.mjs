@@ -1,91 +1,79 @@
 /**
- * Разбор ответов `plan_form` и `generate_form` и проверка типов собранного бандла.
+ * Сборка модуля формы для калибровки — тем же путём, что у агента (с 7.0 он один): intent в
+ * `<каталог>/form.intent.json`, затем `form_build`, затем файлы модуля читаются с диска.
  *
- * Оба инструмента отвечают одним markdown-текстом (структурированного содержимого у них нет), так
- * что калибровка читает его так же, как агент: intent — из блока ```json у `plan_form`, файлы — из
- * секций `### \`путь\`` у `generate_form` (`src/core/tools/generate-form.ts`).
+ * Ответ `form_build` — текст диагностики (структурированного содержимого у инструмента нет), так что
+ * калибровка читает его так же, как агент: первая строка — ✓ или ✗, пункты — строки «- …».
  */
 
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { typecheckFiles } from '../../lib/typecheck.mjs';
 
-/** intent из ответа `plan_form`; `null`, если блока нет или он не разбирается. */
-export function extractIntent(text) {
-  const m = String(text).match(/```json\n([\s\S]*?)\n```/);
-  if (!m) return null;
-  try {
-    return JSON.parse(m[1]);
-  } catch {
-    return null;
-  }
-}
+export const INTENT_FILE = 'form.intent.json';
 
-/** Секция `## <заголовок>` до следующей `## `. */
-function section(text, heading) {
-  const start = text.search(new RegExp(`^## ${heading}`, 'm'));
-  if (start < 0) return '';
-  const rest = text.slice(start + 3);
-  const end = rest.search(/^## /m);
-  return end < 0 ? rest : rest.slice(0, end);
+/** Чистый каталог формы с intent внутри — вход `form_build`. */
+export function prepareFormDirectory(dir, intent) {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, INTENT_FILE), `${JSON.stringify(intent, null, 2)}\n`);
 }
 
 /**
- * Ответ `generate_form` → статус проверки, ошибки, предупреждения, файлы и образец сборки.
+ * Ответ `form_build` → статус, ошибки и предупреждения.
  *
  * @returns {{ status: 'ok'|'fail'|'unknown', errors: string[], warnings: string[],
- *   intentProblems: string[], files: {path:string, lang:string, content:string}[],
- *   indexSample: string|null }}
+ *   typesChecked: boolean }}
  */
-export function parseGenerateForm(text) {
+export function parseFormBuild(text) {
   const t = String(text);
-  const status = /^✅/m.test(t) ? 'ok' : /^❌/m.test(t) ? 'fail' : 'unknown';
-  const bullets = (s) =>
-    s
+  const status = t.startsWith('✓ form_build')
+    ? 'ok'
+    : t.startsWith('✗ form_build')
+      ? 'fail'
+      : 'unknown';
+  const bullets = (part) =>
+    part
       .split('\n')
-      .filter((l) => /^\s*[-*] /.test(l))
-      .map((l) => l.replace(/^\s*[-*] /, '').trim());
-  const errors = bullets(section(t, 'Errors'));
-  const warnings = bullets(section(t, 'Warnings'));
-  const intentProblems = bullets(section(t, 'Intent'));
-
-  const files = [];
-  const filesPart = section(t, 'Files');
-  const re = /^### `(.+?)`\n```(\w*)\n([\s\S]*?)\n```/gm;
-  let m;
-  while ((m = re.exec(filesPart))) files.push({ path: m[1], lang: m[2], content: `${m[3]}\n` });
-
-  const assembly = section(t, 'Сборка');
-  const sample = assembly.match(/```tsx\n([\s\S]*?)\n```/);
+      .filter((line) => /^- /.test(line))
+      .map((line) => line.slice(2).trim());
+  // Неудача: заголовок и пункты сразу под ним. Успех: пункты — предупреждения после их счётчика.
+  const warningsAt = t.search(/^Warnings: \d+\./m);
   return {
     status,
-    errors,
-    warnings,
-    intentProblems,
-    files,
-    indexSample: sample ? `${sample[1]}\n` : null,
+    errors: status === 'fail' ? bullets(t) : [],
+    warnings: status === 'ok' && warningsAt >= 0 ? bullets(t.slice(warningsAt)) : [],
+    typesChecked: /^Types checked/m.test(t),
   };
 }
 
-/** Записать файлы бандла (и образец `index.tsx`, если он есть) в каталог. */
-export function writeBundle(dir, parsed) {
-  rmSync(dir, { recursive: true, force: true });
-  for (const f of parsed.files) {
-    const target = path.join(dir, f.path);
-    mkdirSync(path.dirname(target), { recursive: true });
-    writeFileSync(target, f.content);
-  }
-  if (parsed.indexSample) writeFileSync(path.join(dir, 'index.tsx'), parsed.indexSample);
+/** Файлы модуля на диске: пути от каталога формы и содержимое. */
+export function readModule(dir) {
+  const out = [];
+  const walk = (current) => {
+    for (const name of readdirSync(current).sort()) {
+      const full = path.join(current, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else
+        out.push({
+          path: path.relative(dir, full).split(path.sep).join('/'),
+          content: readFileSync(full, 'utf8'),
+        });
+    }
+  };
+  walk(dir);
+  return out;
 }
 
 /**
- * Проверка типов бандла с настоящими типами `@reformer/*`.
+ * Проверка типов модуля с настоящими типами `@reformer/*` — независимо от проверки самого
+ * `form_build`, чтобы её ложное «ошибок нет» было видно.
  *
  * @returns {{ file: string, line: number|null, message: string }[]}
  */
-export function typecheck(dir, parsed) {
-  return typecheckFiles(dir, [
-    ...parsed.files.filter((f) => /\.tsx?$/.test(f.path)).map((f) => path.join(dir, f.path)),
-    ...(parsed.indexSample ? [path.join(dir, 'index.tsx')] : []),
-  ]);
+export function typecheck(dir, files) {
+  return typecheckFiles(
+    dir,
+    files.filter((f) => /\.tsx?$/.test(f.path)).map((f) => path.join(dir, f.path))
+  );
 }

@@ -80,7 +80,7 @@ describe('RF007 / C6, C8 — некорректная разметка', () => {
     const text = await checkBundle({
       intent: {
         ...fieldIntent,
-        visibility: [{ selector: '#ghost', when: 'city === "x"', mode: 'hide' }],
+        visibility: [{ selector: '#ghost', when: 'city === "x"' }],
       },
       schema: layoutWith({ value: '$model(city)', component: '$component(Select)' }),
     });

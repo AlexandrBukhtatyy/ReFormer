@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { CATALOGS } from './support/catalogs';
+import { HOSTILE_INTENTS } from './support/hostile-intents';
 import {
   normalizeIntent,
   readIntent,
@@ -28,12 +29,11 @@ import {
   buildValidationSchemaTs,
   buildBehaviorTs,
   collectUsedComponents,
-  renderLayoutChecklist,
 } from '../src/core/generate/builders.js';
 import { crossCheckBundle } from '../src/core/generate/cross-check.js';
 import { groupUiKitImports } from '../src/core/generate/ui-kit-components.js';
 import { buildFormSchemaJson } from '../src/core/generate/schema-emit.js';
-import { generateFormTool, planFormTool } from '../src/core/tools/generate-form';
+import { planFormTool } from '../src/core/tools/plan-form';
 import { cliKnowledge } from '../src/platform/cli/knowledge.js';
 
 /** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
@@ -102,7 +102,7 @@ describe('form-intent', () => {
   });
 
   it('пустой intent предупреждает, а не притворяется формой', () => {
-    expect(normalizeIntent({ formName: 'X' }).warnings.join(' ')).toMatch(/нет ни одного поля/);
+    expect(normalizeIntent({ formName: 'X' }).warnings.join(' ')).toMatch(/has no field/);
   });
 });
 
@@ -127,7 +127,7 @@ describe('builders', () => {
    * (`.tmp/verdicts/b2-generate-form-antipattern-invalid-ts.md`). Все три не ловились ничем:
    * кросс-проверка сверяет файлы между собой, а они были согласованно неверны.
    *
-   * Разметка — документ формата 2 из `buildFormSchemaJson`: его `generate_form` кладёт в
+   * Разметка — документ формата 2 из `buildFormSchemaJson`: его сборка кладёт в
    * `form.schema.ts` и его же передаёт кросс-проверке.
    */
   describe('layout соответствует канону renderer-json', () => {
@@ -709,25 +709,8 @@ describe('builders', () => {
     // с просьбой перенести разметку руками.
     expect(core.files.map((f) => f.path)).toContain('form.schema.ts');
     expect(core.files.map((f) => f.path)).not.toContain('layout.json');
-    expect(core.warnings.join(' '), 'ограничение target должно быть названо').toMatch(
-      /правила узлов схемы исполняет рендерер/
-    );
-  });
-
-  it('чек-лист раскладки печатает канон, а вариант имени засчитывает канонической строке', () => {
-    // Генератор отдаёт схему renderer-json как канонический `.ts`, но `.json` остаётся
-    // допустимым вариантом — консумент может прийти с ним. Строка в таблице обязана остаться
-    // канонической, иначе чек-лист переучивает консумента на вариант.
-    const out = renderLayoutChecklist('renderer-json', ['model.ts', 'form.schema.json']);
-    expect(out).toMatch(/`form\.schema\.ts`.*сгенерирован ниже как `form\.schema\.json`/);
-    // Несгенерированные файлы названы поимённо — это и есть сигнал неполноты, которого не было.
-    expect(out).toMatch(/`registry\.ts`.*создайте сами/);
-    expect(out).toContain('find_recipe directory-layout');
-    // У core рендер-слоя нет: иначе консумент создаст мёртвый файл.
-    expect(renderLayoutChecklist('core', [])).not.toContain('form.render.ts');
-    // Раскладка шагов названа поимённо — иначе агент заводит `components/steps/Step1.tsx`.
-    expect(out).toContain('steps/index.ts');
-    expect(out).toContain('steps/<slug>/');
+    // Ограничение target называет судья (`not-on-target`), а не заметка генератора.
+    expect(core.warnings.join(' ')).not.toMatch(/правила узлов схемы исполняет рендерер/);
   });
 
   // Калибровка по форме регистрации (eval/calibration): без словаря форма показывала пользователю
@@ -773,7 +756,7 @@ describe('builders', () => {
     expect(messages).toContain("'a': 'Ник?'");
     expect(messages).toContain("'b': 'Ник?'");
     expect(bundle.warnings.join(' ')).not.toMatch(/Ник/);
-    expect(bundle.warnings.join(' ')).toMatch(/«Пароль\?».*нет кода/);
+    expect(bundle.warnings.join(' ')).toMatch(/«Пароль\?».*have no code/);
 
     const assembly = buildAssemblyTsx(intent);
     expect(assembly).toContain("import { formMessages } from './form.messages';");
@@ -942,7 +925,7 @@ describe('builders', () => {
 });
 
 describe('cross-check', () => {
-  // Тот же документ, что `generate_form` передаёт кросс-проверке: формат 2, прочитанный из JSON.
+  // Тот же документ, что сборка передаёт кросс-проверке: формат 2, прочитанный из JSON.
   const run = (intent: FormIntent) =>
     crossCheckBundle(intent, JSON.parse(buildFormSchemaJson(intent)));
 
@@ -969,7 +952,7 @@ describe('cross-check', () => {
     intent.visibility.push({ selector: 'ghost', condition: 'true' });
     const errors = run(intent).errors;
     expect(errors.map((e) => e.code)).toContain('C6');
-    expect(errors.find((e) => e.code === 'C6')!.message).toMatch(/no-op/);
+    expect(errors.find((e) => e.code === 'C6')!.message).toMatch(/would do nothing/);
   });
 
   it('C7 — цикл в вычисляемых полях', () => {
@@ -1024,63 +1007,14 @@ describe('импорты кита', () => {
   });
 });
 
-describe('tools plan_form / generate_form', () => {
+describe('plan_form и бандл', () => {
   it('plan_form без источника объясняет, что нужно', async () => {
-    const { content } = await planFormTool({}, k);
-    expect(content[0].text).toMatch(/specPath|description/);
-  });
-
-  it('plan_form: что дописать руками — до intent, в пределах бюджета ответа клиента', async () => {
-    // Фасад `mcp_call` ассистента конструктора режет ответ на 1400 символов: перечень после
-    // JSON крупной спеки модель не видела никогда (калибровка, трек T6).
-    const { content } = await planFormTool(
-      {
-        description:
-          '| Ключ в форме | Тип поля | Валидация |\n| --- | --- | --- |\n' +
-          '| login | Input | Обязательное, должно быть уникальным на сервере |',
-      },
-      k
-    );
-    const text = content[0].text;
-    const warnings = text.indexOf('## Warnings');
-    expect(warnings).toBeGreaterThan(0);
-    expect(warnings).toBeLessThan(text.indexOf('```json'));
-    expect(warnings).toBeLessThan(1400);
+    expect((await planFormTool({}, k)).content[0].text).toMatch(/specPath/);
   });
 
   it('plan_form с несуществующим путём не притворяется, что разобрал', async () => {
     const { content } = await planFormTool({ specPath: 'нет/такого/файла.md' }, k);
-    expect(content[0].text).toMatch(/не найдена/);
-  });
-
-  it('generate_form без intent объясняет, что нужно', async () => {
-    const { content } = await generateFormTool({ intent: undefined as never }, cliKnowledge());
-    expect(content[0].text).toMatch(/intent/);
-  });
-
-  it('generate_form отдаёт манифест и НЕ пишет на диск', async () => {
-    const { content } = await generateFormTool({ intent: goodIntent() }, cliKnowledge());
-    const text = content[0].text;
-    expect(text).toMatch(/Кросс-проверка пройдена/);
-    expect(text).toContain('### `model.ts`');
-    expect(text).toContain('### `registry.ts`');
-    expect(text, 'контракт scaffolding должен быть назван').toMatch(/на диск не пишет/);
-  });
-
-  it('манифест печатает полный набор имён, а не только сгенерированные файлы', async () => {
-    // Раньше манифест отдавал 5 файлов из 10 без единого признака неполноты, и консумент
-    // достраивал остальные под своими именами. Молчание читается как «файлов ровно столько».
-    const { content } = await generateFormTool({ intent: goodIntent() }, cliKnowledge());
-    const text = content[0].text;
-    const row = (name: string) =>
-      new RegExp(`\\| \`${name.replace(/\./g, '\\.')}\` \\|[^\\n]*создайте сами`);
-    for (const name of ['index.tsx', 'types.ts', 'api.ts']) {
-      expect(text, `${name} не назван в чек-листе раскладки`).toMatch(row(name));
-    }
-    expect(text).toMatch(/\| `model\.ts` \|[^\n]*сгенерирован ниже/);
-    // У формы со справочником файл справочников печатает сам генератор (калибровка: раньше
-    // схема импортировала из `./data-sources`, которого в бандле не было).
-    expect(text).toMatch(/\| `data-sources\.ts` \|[^\n]*сгенерирован ниже/);
+    expect(content[0].text).toMatch(/spec not found/);
   });
 
   it('справочники: значения из intent — в data-sources.ts и в реестр renderer-json', () => {
@@ -1095,7 +1029,7 @@ describe('tools plan_form / generate_form', () => {
     expect(sources).toContain('"label": "Рубль"');
     expect(sources).toContain('"value": "usd"');
     expect(sources).toContain('export const EMPTY: Array<{ value: string; label: string }> = [];');
-    expect(bundle.warnings.join(' ')).toMatch(/Справочник `EMPTY` без значений/);
+    expect(bundle.warnings.join(' ')).toMatch(/The data source `EMPTY` has no values/);
     const registry = bundle.files.find((f) => f.path === 'registry.ts')?.content ?? '';
     expect(registry).toContain("import { CURRENCIES, EMPTY } from './data-sources';");
     expect(registry).toContain("reg.dataSource('CURRENCIES', CURRENCIES);");
@@ -1120,13 +1054,13 @@ describe('tools plan_form / generate_form', () => {
     });
   });
 
-  it('generate_form отдаёт файлы ДАЖЕ при ошибках, но не скрывает их', async () => {
+  it('правило на несуществующее поле — ошибка кросс-проверки C4', () => {
     const intent = goodIntent();
     intent.validation.push({ target: 'ghost', rules: ['required()'] });
-    const { content } = await generateFormTool({ intent }, cliKnowledge());
-    expect(content[0].text).toMatch(/Кросс-проверка не пройдена/);
-    expect(content[0].text).toContain('**C4**');
-    expect(content[0].text).toContain('### `model.ts`');
+    const { layoutJson } = buildBundle(intent, CATALOGS);
+    const report = crossCheckBundle(intent, JSON.parse(layoutJson), { core: CATALOGS.core });
+    expect(report.ok).toBe(false);
+    expect(report.errors.map((error) => error.code)).toContain('C4');
   });
 });
 
@@ -1209,7 +1143,7 @@ describe('layout проходит НАСТОЯЩИЙ валидатор renderer
 /**
  * Вход, каким его присылает модель, а не `plan_form`.
  *
- * Ровно эта форма записи роняла `generate_form` внутренней ошибкой MCP `-32603` («Cannot read
+ * Ровно эта форма записи роняла сборку внутренней ошибкой MCP `-32603` («Cannot read
  * properties of undefined (reading 'split')»): поля названы `path`, поведение — `behaviors`, его
  * источники — `reads`, шаги отдельным списком `steps`. Диагноз консумент не получал никакой,
  * хотя описание инструмента обещало «Partial input is normalised with warnings».
@@ -1312,8 +1246,8 @@ describe('readIntent — вход не из plan_form', () => {
   });
 
   it('готовый intent проходит слой без изменений', () => {
-    // Иначе приём «интуитивного» входа стал бы налогом на нормальный путь `plan_form` →
-    // `generate_form`: тот отдаёт JSON, и он обязан вернуться из чтения таким же.
+    // Иначе приём «интуитивного» входа стал бы налогом на нормальный путь: черновик `plan_form`
+    // — это JSON, и он обязан вернуться из чтения таким же.
     const good = goodIntent();
     const { intent, problems } = readIntent(JSON.parse(JSON.stringify(good)));
     expect(problems).toEqual([]);
@@ -1331,78 +1265,65 @@ describe('readIntent — вход не из plan_form', () => {
   });
 });
 
-describe('generate_form на неполном intent', () => {
-  it('падавший вход собирается в манифест, а не в -32603', async () => {
-    const { content } = await generateFormTool({ intent: intuitiveIntent() }, cliKnowledge());
-    const text = content[0].text;
-    expect(text).toMatch(/Кросс-проверка пройдена/);
-    expect(text).toContain('### `model.ts`');
+/** Бандл из входа — как его собирает `form_build`: чтение, сборка, кросс-проверка. */
+function bundleOf(raw: unknown) {
+  const { intent, problems } = readIntent(raw, { uiKit: CATALOGS.uiKit });
+  const bundle = buildBundle(intent, CATALOGS);
+  const report = crossCheckBundle(intent, JSON.parse(bundle.layoutJson), { core: CATALOGS.core });
+  const file = (path: string) => bundle.files.find((f) => f.path === path)?.content ?? '';
+  const notes = [
+    ...intent.warnings,
+    ...bundle.warnings,
+    ...report.warnings.map((warning) => warning.message),
+  ].join('\n');
+  return { intent, problems, report, file, notes };
+}
+
+describe('сборка на неполном intent', () => {
+  it('падавший вход собирается, а не уходит внутренней ошибкой', () => {
+    const { report, file, notes } = bundleOf(intuitiveIntent());
+    expect(report.ok).toBe(true);
     // Составной путь дошёл до модели вложенным объектом, а не строкой с точкой в ключе.
-    expect(text).toContain('personal: {');
-    expect(text).toMatch(/## Warnings/);
+    expect(file('model.ts')).toContain('personal: {');
+    expect(notes).not.toBe('');
   });
 
-  it('составной путь даёт валидный параметр колбэка computeFrom', async () => {
-    // `(personal.lastName) => …` не парсится вовсе: манифест отдавал бы файл, который не
-    // собирается. Имя берётся по последнему сегменту, и переименование названо на месте.
-    const { content } = await generateFormTool({ intent: intuitiveIntent() }, cliKnowledge());
-    expect(content[0].text).toContain('(lastName) =>');
-    expect(content[0].text).toMatch(/параметры названы по последнему сегменту/);
+  it('составной путь даёт валидный параметр колбэка computeFrom', () => {
+    // `(personal.lastName) => …` не парсится вовсе: файл не собирался бы. Имя берётся по
+    // последнему сегменту, и переименование названо на месте.
+    const behavior = bundleOf(intuitiveIntent()).file('form.behavior.ts');
+    expect(behavior).toContain('(lastName) =>');
+    expect(behavior).toMatch(/параметры названы по последнему сегменту/);
   });
 
-  it('выброшенные записи видны в заголовке и разобраны поимённо', async () => {
-    const { content } = await generateFormTool(
-      {
-        intent: {
-          formName: 'Z',
-          fields: [{ name: 'a', type: 'string', component: 'Input' }],
-          validation: [{ field: 'a' }],
-        },
-      },
-      cliKnowledge()
-    );
-    const text = content[0].text;
-    expect(text).toMatch(/Из intent выброшено записей: 1/);
-    expect(text).toContain('`validation[0].rules`');
-    expect(text).toContain('### `model.ts`');
+  it('выброшенные записи разобраны поимённо, остальное собрано', () => {
+    const { problems, file } = bundleOf({
+      formName: 'Z',
+      fields: [{ name: 'a', type: 'string', component: 'Input' }],
+      validation: [{ field: 'a' }],
+    });
+    expect(problems.map((p) => p.at)).toContain('validation[0].rules');
+    expect(file('model.ts')).not.toBe('');
   });
 
-  it('когда читать нечего — диагностика и адрес готового intent, а не пустой каркас', async () => {
-    const { content } = await generateFormTool({ intent: 'не json' }, cliKnowledge());
-    const text = content[0].text;
-    expect(text).toMatch(/прочитать не удалось/);
-    expect(text).toMatch(/не разбирается как JSON/);
-    expect(text).toMatch(/plan_form/);
-    expect(text).not.toContain('### `model.ts`');
+  it('когда читать нечего — проблема входа, а не пустой каркас', () => {
+    const { intent, problems } = readIntent('не json');
+    expect(problems.map((p) => p.code)).toEqual(['intent-unreadable']);
+    expect(problems.map((p) => p.message).join(' ')).toMatch(/is not JSON/);
+    expect(intent.fields).toEqual([]);
   });
 
-  it('intent строкой с валидным JSON читается', async () => {
-    const { content } = await generateFormTool(
-      { intent: JSON.stringify(intuitiveIntent()) },
-      cliKnowledge()
-    );
-    expect(content[0].text).toContain('### `model.ts`');
-    expect(content[0].text).toMatch(/пришёл строкой/);
+  it('intent строкой с валидным JSON читается', () => {
+    const { file, notes } = bundleOf(JSON.stringify(intuitiveIntent()));
+    expect(file('model.ts')).not.toBe('');
+    expect(notes).toMatch(/came as a string/);
   });
 
-  it('ни один вход не уходит внутренней ошибкой', async () => {
-    // Обещание описания инструмента проверяется целиком, а не на одном кейсе: `-32603` не
-    // сообщает консументу ничего, и для агента это тупик.
-    const hostile: unknown[] = [
-      {},
-      42,
-      [1, 2],
-      { fields: 'нет' },
-      { fields: [null, 7] },
-      { fields: [{ name: 'a' }], arrays: [{ name: 'a' }] },
-      { fields: [{ name: 'a', type: 'string', component: 'Input' }], layout: { kind: 'bogus' } },
-      { fields: { a: { type: 'nonsense' } }, behavior: 'нет', visibility: [42], dataSources: [7] },
-      { steps: 'первый', wizard: { steps: [{}] } },
-    ];
-    for (const intent of hostile) {
-      const { content } = await generateFormTool({ intent }, cliKnowledge());
-      expect(content[0].text, JSON.stringify(intent)).toMatch(/generate_form/);
-      expect(content[0].text, JSON.stringify(intent)).not.toMatch(/Внутренняя ошибка/);
+  it('ни один вход не роняет чтение и сборку', () => {
+    // `-32603` не сообщает консументу ничего, и для агента это тупик: любой вход либо собирается,
+    // либо даёт проблемы чтения. То же для `form_build` целиком — `form-build.test.ts`.
+    for (const raw of HOSTILE_INTENTS) {
+      expect(() => bundleOf(raw), JSON.stringify(raw)).not.toThrow();
     }
   });
 });

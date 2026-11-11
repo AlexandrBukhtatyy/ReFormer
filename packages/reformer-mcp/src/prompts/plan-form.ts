@@ -18,30 +18,40 @@ import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 import {
   deepAnalyzeSpec,
   inferTarget,
+  isReformerTarget,
   renderDeepAnalysisBlock,
+  type ReformerTarget,
 } from '../platform/cli/sampling-helpers.js';
+import { TARGET_NOTE } from './create-form.js';
 
+/**
+ * Промпт `plan-form` — форма по markdown-спеке.
+ *
+ * С 7.0 он ведёт к одному пути: `plan_form` пишет черновик intent, агент дописывает его по спеке,
+ * `form_build` собирает модуль. Прежний текст был планом ручной разработки — стадии субагентов,
+ * сборка модуля руками (аудит 2026-11, A1). Сводка спеки (шаги, условные и вычисляемые поля,
+ * массивы, API) осталась: по ней агент сверяет черновик.
+ */
 export const planFormPromptDefinition = {
   name: 'plan-form',
   description:
-    'Прочитать спеку формы (markdown), проанализировать поля/шаги/behaviors/arrays/API, и вернуть структурированный markdown-план разработки: roadmap из 7 sub-agent стадий, рекомендуемая последовательность других MCP-промптов, risk matrix (cycle-prevention, plain-leaves, hide-vs-disable), verification scenarios для playwright, test fixtures.',
+    'Build a @reformer form from a markdown spec: a summary of the spec (steps, conditional and computed fields, arrays, API), then plan_form drafts form.intent.json and form_build builds it.',
   arguments: [
     {
       name: 'specPath',
       description:
-        'Абсолютный или относительный путь к markdown-спеке формы. Например: docs/specs/credit-application-form.md',
+        'Markdown spec of the form, absolute or relative to the working directory. E.g. docs/specs/credit-application-form.md',
       required: true,
     },
     {
       name: 'target',
-      description:
-        'Целевой стек: "core" | "renderer-react" | "renderer-json". По умолчанию "core".',
+      description: 'Stack: "core" | "renderer-react" | "renderer-json". Default "core".',
       required: false,
     },
     {
       name: 'projectPath',
       description:
-        'Путь к каталогу проекта для auto-detection стека (как в create-form). По умолчанию process.cwd().',
+        'Project folder whose package.json is used to detect the stack (as in create-form). Default: the server working directory.',
       required: false,
     },
   ],
@@ -93,95 +103,55 @@ function analyzeSpec(content: string): SpecAnalysis {
   };
 }
 
-function rendererPrereqsFor(target: string): string {
-  if (target === 'renderer-react') {
-    return [
-      '- `reformer://docs/renderer-react/quick-start`',
-      '- `reformer://docs/renderer-react/key-concepts`',
-      '- `reformer://docs/renderer-react/programmatic-api`',
-      '- `reformer://docs/renderer-react/anti-patterns`',
-    ].join('\n');
-  }
-  if (target === 'renderer-json') {
-    return [
-      '- `reformer://docs/renderer-json/quick-start`',
-      '- `reformer://docs/renderer-json/key-concepts`',
-      '- `reformer://docs/renderer-json/builder-api`',
-      '- `reformer://docs/renderer-json/shablon-stroki-massiva-template-arrays`',
-      '- `reformer://docs/renderer-json/datasource-znacheniya-i-funktsii-datasource`',
-      '- `reformer://docs/renderer-json/rantaym-suschnosti-i-propsy-uzla-form-potok-status-inject-runtime`',
-      '- `reformer://docs/renderer-json/anti-patterns`',
-    ].join('\n');
-  }
-  return '';
+/** Перечень до `limit` имён и «+N» за ним; пусто — `none found`. */
+function listed(names: readonly string[], limit = 12): string {
+  if (names.length === 0) return 'none found';
+  return (
+    names.slice(0, limit).join(', ') + (names.length > limit ? ` (+${names.length - limit})` : '')
+  );
+}
+
+/** Секции грамматики, которые нужны этой спеке. */
+function sectionsFor(spec: SpecAnalysis): string {
+  const sections = ['behavior', 'cross'];
+  if (spec.steps > 0) sections.unshift('wizard');
+  if (spec.arrays.length > 0) sections.unshift('arrays');
+  if (spec.apiEndpoints.length > 0) sections.push('async', 'operators', 'nodes');
+  return sections.map((name) => `\`${name}\``).join(', ');
 }
 
 function buildPlanVars(
   spec: SpecAnalysis,
   stackBlock: string,
-  target: string,
+  target: ReformerTarget,
   specPathRel: string
 ): Record<string, unknown> {
   const stepsLine =
     spec.steps > 0
-      ? `Multi-step (${spec.steps} шагов): ${Object.entries(spec.fieldsPerStep)
-          .map(([s, n]) => `${s}=${n} полей`)
-          .join(', ')}`
-      : 'Single-page form';
-
-  const conditionalLine =
-    spec.conditionalFields.length > 0
-      ? spec.conditionalFields.slice(0, 12).join(', ') +
-        (spec.conditionalFields.length > 12 ? ` (+${spec.conditionalFields.length - 12})` : '')
-      : 'не обнаружено';
-
-  const computedLine =
-    spec.computedFields.length > 0
-      ? spec.computedFields.slice(0, 12).join(', ') +
-        (spec.computedFields.length > 12 ? ` (+${spec.computedFields.length - 12})` : '')
-      : 'не обнаружено';
-
-  const arraysLine = spec.arrays.length > 0 ? spec.arrays.join(', ') : 'не обнаружено';
-
-  const apiLine =
-    spec.apiEndpoints.length > 0
-      ? spec.apiEndpoints.join('\n   - ')
-      : 'не обнаружено (или не требует backend)';
-
-  const canonicalLine = spec.hasCanonicalLabels
-    ? '✅ Спека содержит "Canonical user-facing strings" таблицу — используй её literally для всех label/placeholder/error messages.'
-    : '⚠️ Спека НЕ содержит canonical strings таблицу — попроси оркестратора подтвердить, какие тексты использовать. Не выдумывай свои.';
-
-  const masksLine = spec.hasMasks
-    ? '✅ Поля с masks обнаружены — используй `InputMask` из `@reformer/ui-kit` с `componentProps.mask`.'
-    : 'Маски не упомянуты.';
-
-  // Порядок один на все таргеты: контракт формы от способа отрисовки не зависит. Различается
-  // только последний шаг — где стоит визард.
-  const promptOrder =
-    target === 'core'
-      ? '`create-form` (target=core) → `add-feature` по стадиям: `validation` → `behavior` → `array` → `wizard` (B1: `FormWizard` в JSX, `form` и `config` — из бандла сборки)'
-      : `\`create-form\` (target=${target}) → \`add-feature\` по стадиям: \`validation\` → \`behavior\` → \`array\` → \`wizard\` (B2: библиотечный \`FormWizard\` узлом схемы, шаги в \`children\`)`;
+      ? `Wizard of ${spec.steps} steps (${Object.entries(spec.fieldsPerStep)
+          .map(([step, count]) => `${step}: ${count}`)
+          .join(', ')})`
+      : 'Single page';
 
   return {
     formName: spec.formName,
     totalFields: spec.totalFields,
-    steps: spec.steps,
     stepsLine,
-    conditionalLine,
-    computedLine,
-    arraysLine,
-    apiLine,
-    canonicalLine,
-    masksLine,
+    conditionalLine: listed(spec.conditionalFields),
+    computedLine: listed(spec.computedFields),
+    arraysLine: listed(spec.arrays),
+    apiLine: spec.apiEndpoints.length > 0 ? spec.apiEndpoints.join('; ') : 'none found',
+    canonicalLine: spec.hasCanonicalLabels
+      ? 'The spec has a table of canonical user-facing strings: use it literally for labels, placeholders and messages.'
+      : 'The spec has no table of canonical strings: take texts from the field tables; ask the orchestrator rather than invent.',
+    masksLine: spec.hasMasks
+      ? 'Masked fields found: `InputMask` with `componentProps.mask`.'
+      : 'No input masks mentioned.',
     stackBlock,
     target,
     specPathRel,
-    promptOrder,
-    stepsCountText: spec.steps > 0 ? String(spec.steps) : 'все',
-    stepsTextOrSix: spec.steps > 0 ? String(spec.steps) : '6',
-    stepsTextOrOne: spec.steps > 0 ? String(spec.steps) : '1',
-    rendererPrereqs: rendererPrereqsFor(target),
+    sectionsLine: sectionsFor(spec),
+    targetNote: TARGET_NOTE[target],
   };
 }
 
@@ -202,11 +172,9 @@ export async function getPlanFormPrompt(
           role: 'user',
           content: {
             type: 'text',
-            text: `❌ **plan-form: не передан обязательный аргумент \`specPath\`**
+            text: `❌ **plan-form: the required argument \`specPath\` is missing**
 
-plan-form строит roadmap из markdown-спеки формы — без пути к ней работать не с чем.
-
-**Что делать:** передай \`specPath\` — путь к спеке (абсолютный или относительно \`${process.cwd()}\`), например \`docs/specs/credit-application-form.md\`. Опционально \`target\` (\`core\` | \`renderer-react\` | \`renderer-json\`) и \`projectPath\`.`,
+plan-form builds a form from a markdown spec. Pass \`specPath\` — absolute or relative to \`${process.cwd()}\`, e.g. \`docs/specs/credit-application-form.md\`; optionally \`target\` (\`core\` | \`renderer-react\` | \`renderer-json\`) and \`projectPath\`. Without a spec, use the prompt \`create-form\`.`,
           },
         },
       ],
@@ -222,16 +190,9 @@ plan-form строит roadmap из markdown-спеки формы — без п
           role: 'user',
           content: {
             type: 'text',
-            text: `❌ **plan-form: spec файл не найден**
+            text: `❌ **plan-form: spec not found**
 
-Передан \`specPath: "${args.specPath}"\`, но файл не существует ни как абсолютный путь, ни относительно \`process.cwd()\` (\`${process.cwd()}\`).
-
-**Что делать:**
-1. Проверь, что путь к спеке корректный.
-2. Если спека в монорепо — передавай относительный путь от корня репо, например \`docs/specs/credit-application-form.md\`.
-3. Передавай \`projectPath\` тоже, если нужно подсказать корень.
-
-Без спеки plan-form не может построить осмысленный roadmap — попроси оркестратора уточнить путь.`,
+\`specPath: "${args.specPath}"\` exists neither as an absolute path nor relative to \`${process.cwd()}\`. Check the path (in a monorepo — from the repo root, e.g. \`docs/specs/credit-application-form.md\`) or ask the orchestrator for it.`,
           },
         },
       ],
@@ -248,11 +209,9 @@ plan-form строит roadmap из markdown-спеки формы — без п
           role: 'user',
           content: {
             type: 'text',
-            text: `❌ **plan-form: ошибка чтения файла**
+            text: `❌ **plan-form: the spec cannot be read**
 
-\`${resolvedSpecPath}\`: ${err instanceof Error ? err.message : String(err)}
-
-Проверь права доступа.`,
+\`${resolvedSpecPath}\`: ${err instanceof Error ? err.message : String(err)}`,
           },
         },
       ],
@@ -262,9 +221,10 @@ plan-form строит roadmap из markdown-спеки формы — без п
   const spec = analyzeSpec(specContent);
   const stack = detectProjectStack(args.projectPath);
 
-  // Auto-detect target via sampling unless caller pinned it.
-  const target = args.target
-    ? args.target.toLowerCase()
+  // Auto-detect target via sampling unless caller pinned it; an unknown value is not passed on.
+  const pinned = args.target ? args.target.toLowerCase() : undefined;
+  const target: ReformerTarget = isReformerTarget(pinned)
+    ? pinned
     : server
       ? await inferTarget(server, { description: spec.formName, stack })
       : 'core';

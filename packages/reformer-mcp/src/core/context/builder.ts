@@ -11,7 +11,9 @@
  * попасть в ответ ровно один раз, а источники — общим списком в конце.
  */
 
-import { chooseApi } from '../decide/api-decision.js';
+import { chooseApiPerRequirement, type RequirementDecision } from '../decide/api-decision.js';
+import { intentHintFor } from '../decide/intent-hint.js';
+import { coreOperatorsOf } from '../generate/catalogs.js';
 import { FORM_LAYOUT_CANON, renderLayoutLine } from '../generate/builders.js';
 import { findOneSymbol } from '../index/symbols.js';
 import type { Knowledge } from '../knowledge.js';
@@ -170,7 +172,10 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
   const topics = topicsForSections(k, sectionHits, args.topics).slice(0, 3);
 
   // --- рекомендованные символы, дедуплицированные -----------------------------
-  const decision = chooseApi(task)[0] ?? null;
+  // Составная задача («визард + массив + итог») получает решение на каждое требование, а не одно на
+  // всю задачу: раньше выигрывало одно правило, и остальные требования оставались без ответа.
+  const decisions = chooseApiPerRequirement(task);
+  const decision = decisions[0] ?? null;
   // Символы ищем по ВСЕМ допустимым пакетам, а не только по целевому: ответ на «отрисовать
   // строки массива» — `FieldArray` из cdk, и при жёсткой привязке к `core` выдача заполнялась
   // случайным ядерным символом. Сужение по цели делается фильтром, а не запретом поиска.
@@ -194,7 +199,11 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
     new RegExp(`\\b${name.replace(/[$]/g, '\\$')}\\b`).test(sectionText);
 
   const symbolNames: string[] = [];
-  if (decision) symbolNames.push(decision.rule.recommend);
+  for (const choice of decisions) {
+    for (const name of [choice.rule.recommend, ...(choice.rule.also ?? []).map((a) => a.symbol)]) {
+      if (!symbolNames.includes(name)) symbolNames.push(name);
+    }
+  }
   for (const hit of strong) {
     if (symbolNames.includes(hit.symbol.name)) continue;
     if (!groundedIn(hit.symbol.name)) continue;
@@ -228,15 +237,40 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
   }
 
   // --- решение ---------------------------------------------------------------
-  if (decision) {
+  const core = coreOperatorsOf(k);
+  /** Запись оператора в intent — строкой ответа: форму агент пишет на языке intent. */
+  const inIntent = (symbol: string): string => {
+    const hint = intentHintFor(symbol, core);
+    return hint ? `\nIn form.intent.json: ${hint}.` : '';
+  };
+  const together = (choice: RequirementDecision): string =>
+    (choice.rule.also ?? [])
+      .map((item) => `\nTogether with \`${item.symbol}\` — ${item.why}.${inIntent(item.symbol)}`)
+      .join('');
+  if (decisions.length === 1 && decision) {
     push(
       'decision',
       `## Use \`${decision.rule.recommend}\`\n` +
         `Требование читается как «${decision.rule.intent}». ${decision.rule.because}` +
+        inIntent(decision.rule.recommend) +
+        together(decision) +
         (decision.rule.alternatives?.length
           ? `\n\nНе оно, если:\n` +
             decision.rule.alternatives.map((a) => `- \`${a.symbol}\` — ${a.when}`).join('\n')
           : '')
+    );
+  } else if (decisions.length > 1) {
+    push(
+      'decision',
+      '## Decisions — one per requirement\n' +
+        decisions
+          .map(
+            (choice) =>
+              `- «${choice.requirement}» → \`${choice.rule.recommend}\`: ${choice.rule.intent}.` +
+              inIntent(choice.rule.recommend).replace(/\n/g, '\n  ') +
+              together(choice).replace(/\n/g, '\n  ')
+          )
+          .join('\n')
     );
   }
 
@@ -254,7 +288,7 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
     if (!sym) continue;
     // Имя живёт в двух модулях (`apply`, `applyEach`) — индекс отдаёт одно объявление, и его
     // сигнатура относилась бы к другому слою. Правило несёт каноничную запись само.
-    const usage = decision?.rule.recommend === name ? decision.rule.usage : undefined;
+    const usage = decisions.find((choice) => choice.rule.recommend === name)?.rule.usage;
     if (usage) {
       signatures.push(`\`${sym.name}\` (${sym.package})\n\`\`\`typescript\n${usage}\n\`\`\``);
       continue;

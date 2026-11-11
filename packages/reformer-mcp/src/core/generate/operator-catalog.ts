@@ -24,7 +24,7 @@ export const VALIDATION_OPERATORS: Readonly<Record<string, string>> = {
   validateWhen: 'when',
   applyEach: 'each',
   cross: 'cross',
-  apply: 'путь группы через точку',
+  apply: 'dotted group path',
 };
 
 /** Операторы поведения над моделью: каждый — свой `kind` записи `behavior`. */
@@ -61,6 +61,46 @@ export type NodeBehaviorKind = (typeof NODE_BEHAVIOR_KINDS)[number];
 /** Операторы поведения, которые записываются не своим `kind`, — чем именно. */
 export const BEHAVIOR_KEY_OPERATORS: Readonly<Record<string, string>> = {
   applyEach: 'each',
-  apply: 'путь группы через точку',
+  apply: 'dotted group path',
   hideWhen: 'visibility',
 };
+
+/**
+ * Экспорты `./behaviors` и `./validation`, которые не операторы, а основа: ими пишут свою схему и
+ * свой оператор (`defineFormBehavior`, `effect`, `validateModel`, …). В intent их не записывают, и
+ * грамматика о них молчит. Список сверяет с исходниками ядра `tests/operator-catalog.test.ts`.
+ */
+export const CORE_OPERATOR_FOUNDATION: ReadonlySet<string> = new Set([
+  'Signal',
+  'defer',
+  'defineFormBehavior',
+  'effect',
+  'getScope',
+  'onDispose',
+  'applyValidationResult',
+  'createFormValidation',
+  'defineValidation',
+  'runValidation',
+  'validateModel',
+]);
+
+/** Всё, что язык intent записывает своим ключом. */
+const KEYED_OPERATORS: ReadonlySet<string> = new Set([
+  ...Object.keys(VALIDATION_OPERATORS),
+  ...MODEL_BEHAVIOR_KINDS,
+  ...NODE_BEHAVIOR_KINDS,
+  ...Object.keys(BEHAVIOR_KEY_OPERATORS),
+]);
+
+/**
+ * Операторы установленного ядра, которых нет в языке intent (ReFormer-wkva).
+ *
+ * Ядро бывает новее сервера: оператор, добавленный в ядро позже, сервер напечатать не умеет, но
+ * агент может вызвать его через `kind: "call"` из своего модуля. Без этого списка грамматика о нём
+ * молчала, и агент не узнавал, что такой оператор вообще есть.
+ */
+export function operatorsWithoutIntentKey(operatorNames: Iterable<string>): string[] {
+  return [...new Set(operatorNames)]
+    .filter((name) => !KEYED_OPERATORS.has(name) && !CORE_OPERATOR_FOUNDATION.has(name))
+    .sort();
+}

@@ -76,12 +76,37 @@ const toFunction = (tool) => ({
 });
 
 /**
- * Ответы, которые модель переносит в файлы целиком: бандл `generate_form`, intent `plan_form`,
- * грамматика `form_build`. Усечённый бандл модель дописывала бы по памяти, и замер судил бы стенд, а
- * не сервер (ReFormer-qo9b.31: прогон qwen L1-feedback, 135 усечений при контексте 32k). Их длина
- * попадает в запись прогона: ответ длиннее контекста модели виден там, а не теряется молча.
+ * Ответы, которые модель держит целиком: грамматика и диагностика `form_build`, сводка `plan_form`.
+ * Усечённую грамматику модель дописывала бы по памяти, и замер судил бы стенд, а не сервер
+ * (ReFormer-qo9b.31: прогон qwen L1-feedback, 135 усечений при контексте 32k). Их длина попадает в
+ * запись прогона.
  */
-export const KEEP_WHOLE_TOOLS = new Set(['generate_form', 'plan_form', 'form_build']);
+export const KEEP_WHOLE_TOOLS = new Set(['plan_form', 'form_build']);
+
+/** Грубая оценка символов на токен: код и английский текст. */
+const CHARS_PER_TOKEN = 3;
+/** Доля контекста модели, которую может занять один ответ. */
+const RESPONSE_SHARE = 0.35;
+
+/** Потолок одного ответа инструмента или ресурса в символах для контекста `numCtx` токенов. */
+export function responseCap(numCtx) {
+  return Math.floor(numCtx * CHARS_PER_TOKEN * RESPONSE_SHARE);
+}
+
+/**
+ * Ответ длиннее потолка — усечь с пометкой стенда (ReFormer-qo9b.36).
+ *
+ * Без этого ответ длиннее контекста уходил в Ollama целиком, и она сама отбрасывала начало переписки
+ * вместе с заданием: прогон падал «500 no user query found» (батч f7d3, ресурс guide на 70 тыс.
+ * символов при контексте 32k). Пометка видна модели, а счётчик — записи прогона.
+ */
+export function capResponse(text, cap) {
+  if (text.length <= cap) return { text, cut: false };
+  return {
+    text: `${text.slice(0, cap)}\n… [ответ длиннее контекста модели (${text.length} символов) — усечён стендом]`,
+    cut: true,
+  };
+}
 
 /** Усечь старые ответы инструментов; возвращает число усечённых за этот шаг. */
 export function truncateOldResults(messages) {
@@ -117,7 +142,14 @@ export async function runAgent(input) {
   });
   const toolCalls = [];
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0, turns: 0, modelMs: 0 };
-  const harness = { truncations: 0, textualCalls: 0, keptWhole: 0, keptWholeMaxChars: 0 };
+  const harness = {
+    truncations: 0,
+    textualCalls: 0,
+    keptWhole: 0,
+    keptWholeMaxChars: 0,
+    overflows: 0,
+  };
+  const cap = responseCap(settings.numCtx ?? 32768);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
   let exitReason = 'maxSteps';
@@ -203,7 +235,9 @@ export async function runAgent(input) {
           harness.keptWhole++;
           harness.keptWholeMaxChars = Math.max(harness.keptWholeMaxChars, result.text.length);
         }
-        messages.push({ role: 'tool', tool_name: name, content: result.text });
+        const capped = capResponse(result.text, cap);
+        if (capped.cut) harness.overflows++;
+        messages.push({ role: 'tool', tool_name: name, content: capped.text });
       }
     }
   } catch (error) {

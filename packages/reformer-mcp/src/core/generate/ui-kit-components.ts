@@ -81,7 +81,7 @@ export function uiKitExportOf(kit: UiKitComponents, name: string): string | unde
 
 /** Предупреждение генератора, когда каталога нет. */
 export const NO_UI_KIT_WARNING =
-  'Каталог @reformer/ui-kit не найден: импорты компонентов не сверены — имена взяты как есть из корня пакета.';
+  'The @reformer/ui-kit catalog is not found: component imports are not checked — names are taken as is from the package root.';
 
 /** Разложить экспорты кита по модулям: сначала корень пакета, затем подпути по алфавиту. */
 export function groupUiKitImports(
@@ -130,18 +130,20 @@ export function normalizeFieldComponent(
     // Имя экспорта вместо registry-имени: в JSON-DSL `$component(...)` ссылается на ключ реестра.
     const registry = Object.keys(kit.fields).find((key) => kit.fields[key] === name);
     if (registry) {
-      notes.push(`\`${name}\` — имя экспорта; в реестре он зарегистрирован как \`${registry}\`.`);
+      notes.push(`\`${name}\` is the export name; the registry knows it as \`${registry}\`.`);
       name = registry;
     }
   }
 
   if (name === 'Input') {
     if (componentProps.type === 'number' || fieldType === 'number') {
-      notes.push("числовое поле рисует `InputNumber` (у `Input` нет `type: 'number'`).");
+      notes.push("a number field is drawn by `InputNumber` (`Input` has no `type: 'number'`).");
       delete componentProps.type;
       name = 'InputNumber';
     } else if (componentProps.suggestions !== undefined) {
-      notes.push('поле с подсказками рисует `InputSuggest` (у `Input` нет `suggestions`).');
+      notes.push(
+        'a field with suggestions is drawn by `InputSuggest` (`Input` has no `suggestions`).'
+      );
       name = 'InputSuggest';
     }
   } else if (name === 'InputNumber' && componentProps.type === 'number') {
@@ -158,7 +160,9 @@ export function normalizeFieldComponent(
       notes.push("`FileUpload` + `variant: 'input'` → `FileUploadInput`.");
       name = 'FileUploadInput';
     } else if (variant !== undefined) {
-      notes.push(`проп \`variant\` у \`${name}\` снят — вариант задаётся самим компонентом.`);
+      notes.push(
+        `the \`variant\` prop of \`${name}\` is dropped — the component itself is the variant.`
+      );
     }
   }
 

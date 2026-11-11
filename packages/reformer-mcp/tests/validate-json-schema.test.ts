@@ -1,5 +1,5 @@
 /**
- * `validate_json_schema` против примеров документации.
+ * `validate_form kind="json-schema"` (`validateJsonSchemaTool`) против примеров документации.
  *
  * Пример из llms-доков — то, что агент скопирует первым. Если валидатор его бракует, агент «чинит»
  * рабочую схему и уходит от рекомендованного пути: так было со структурной формой `$locale` с
@@ -43,7 +43,7 @@ function docNode(marker: string): unknown {
 
 const asDocument = (node: unknown) => ({ format: 2, root: node });
 
-describe('validate_json_schema — примеры локализации из docs/llms renderer-json', () => {
+describe('validate_form kind="json-schema" — примеры локализации из docs/llms renderer-json', () => {
   // Первый вызов грузит ajv и компилирует схемы пропсов кита — под нагрузкой (параллельные воркеры,
   // сборка рядом) это дольше дефолтных 5 с, и падал бы по таймауту первый тест, какой ни запусти.
   // Цена платится один раз здесь, с явным таймаутом.

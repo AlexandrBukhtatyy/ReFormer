@@ -18,8 +18,17 @@ export function ZayavkaNaKreditSokraschennayaForm() {
     })
   );
 
-  // Разметку рисуете сами: поля — `bundle.form.<путь>`, например
-  // <FormField control={bundle.form.email} />. Правила узлов схемы (`hideWhen`)
-  // исполняет только рендерер — видимость здесь остаётся условием в JSX.
+  // On core your JSX draws the form; the build type-checks it. A field:
+  //   <FormField control={bundle.form.loanType} />  — FormField from '@reformer/ui-kit'.
+  // Visibility is a condition in JSX on a value read with useFormControlValue:
+  //   const value = useFormControlValue(bundle.form.loanType);
+  //   {value === … && <FormField control={…} />}
+  // Submit with bundle.submission — the form nodes have no submit() or validate():
+  //   const result = await bundle.submission.submit((values) => send(values));
+  //   result.status: 'submitted' | 'invalid' | 'error' | 'cancelled' | 'failed';
+  //   useSignalSnapshot(bundle.submission.submitting) is true while the handler runs.
+  // Steps — bundle.flow: useFormFlow(bundle.flow!) re-renders on a step change;
+  //   flow.next() checks the rules of the step, flow.previous(), flow.goTo(id).
+  //   Step ids: step1, step2.
   return null;
 }

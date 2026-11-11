@@ -13,6 +13,8 @@
  */
 
 import { chooseApi, type DecisionRule } from '../decide/api-decision.js';
+import { intentHintFor } from '../decide/intent-hint.js';
+import { coreOperatorsOf } from '../generate/catalogs.js';
 import { findOneSymbol } from '../index/symbols.js';
 import { searchSymbols, renderSymbolHits } from '../index/search.js';
 import type { Knowledge } from '../knowledge.js';
@@ -89,21 +91,32 @@ function noteTitle(note: string | undefined): string {
     .trim();
 }
 
-async function renderChoice(
-  k: Knowledge,
-  rule: DecisionRule,
-  requirement: string
-): Promise<string> {
+async function renderChoice(k: Knowledge, rule: DecisionRule): Promise<string> {
   const sym = await findOneSymbol(k, rule.declaredIn ?? rule.recommend);
   const lines: string[] = [];
 
   lines.push(`# choose_api: \`${rule.recommend}\``);
   lines.push('');
-  lines.push(`**Requirement:** ${requirement}`);
+  // Само требование агент знает: эхо стоило места в бюджете ответа, а понимание передаёт «Reads as».
   lines.push(`**Reads as:** ${rule.intent}`);
   lines.push('');
   lines.push(`**Why \`${rule.recommend}\`:** ${rule.because}`);
+  const core = coreOperatorsOf(k);
+  const hint = intentHintFor(rule.recommend, core);
+  if (hint) lines.push(`**In form.intent.json:** ${hint}.`);
   lines.push('');
+
+  if (rule.also && rule.also.length > 0) {
+    lines.push('## Together with');
+    for (const item of rule.also) {
+      const itemHint = intentHintFor(item.symbol, core);
+      lines.push(
+        `- \`${item.symbol}\` — ${item.why}` +
+          (itemHint ? `. In form.intent.json: ${itemHint}.` : '')
+      );
+    }
+    lines.push('');
+  }
 
   if (sym && rule.usage) {
     // Имя живёт в двух модулях — сигнатура из индекса относилась бы к другому слою.
@@ -188,7 +201,7 @@ export async function chooseApiTool(
   }
 
   const [best, ...rest] = choices;
-  let body = await renderChoice(k, best.rule, requirement);
+  let body = await renderChoice(k, best.rule);
 
   // Второе правило показываем, только если оно совпало не слабее: иначе это шум.
   const runnerUp = rest.find((c) => c.matches >= best.matches);

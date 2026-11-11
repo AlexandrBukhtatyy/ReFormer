@@ -47,6 +47,28 @@ describe('get_context', () => {
     expect(r.symbols[0]).toBe('enableWhen');
   });
 
+  it.runIf(hasDocs)('визард по обеим формулировкам находит FormWizard и поток шагов', async () => {
+    for (const task of [
+      'визард с валидацией по шагам',
+      'мастер из трёх шагов, каждый шаг проверяется перед переходом',
+    ]) {
+      const r = await buildContext(k, { task });
+      expect(r.text, task).toContain('FormWizard');
+      expect(r.text, task).toContain('FormFlowConfig');
+      expect(r.text, task).toContain('In form.intent.json:');
+    }
+  });
+
+  it.runIf(hasDocs)('составная задача — решение на каждое требование', async () => {
+    const r = await buildContext(k, {
+      task: 'визард из трёх шагов; массив контактов с обязательным телефоном; итог — сумма доходов всех контактов',
+    });
+    expect(r.text).toMatch(/^## Decisions — one per requirement/m);
+    for (const symbol of ['FormWizard', 'applyEach', 'compute']) {
+      expect(r.text, symbol).toContain(`→ \`${symbol}\``);
+    }
+  });
+
   it.runIf(hasDocs)('без уверенности не выдумывает блок API', async () => {
     // Запрос намеренно не ложится ни на одно правило и не имеет опорных секций.
     const r = await buildContext(k, { task: 'zzqq wubble frotz plugh', target: 'core' });

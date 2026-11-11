@@ -297,8 +297,7 @@ export async function findRecipeTool(
   k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   // MCP Server не валидирует args по inputSchema — обязательный `topic` может прийти
-  // отсутствующим/не-строкой. Защищаемся до .trim(), иначе — необработанный TypeError
-  // (ср. паттерн в check-behaviors.ts).
+  // отсутствующим/не-строкой. Защищаемся до .trim(), иначе — необработанный TypeError.
   if (typeof args.topic !== 'string') {
     return invalidCall('Argument "topic" is required and must be a non-empty string.');
   }

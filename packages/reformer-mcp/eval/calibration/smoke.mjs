@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import path from 'node:path';
 import { CHANNELS, inspect, pkgDir, pool, repoRoot } from './lib/inspector.mjs';
 
-const NODE_TOOLS = [
+const REFERENCE_TOOLS = [
   'get_context',
   'choose_api',
   'get_symbol_docs',
@@ -22,12 +22,10 @@ const NODE_TOOLS = [
   'search_docs',
   'list_symbols',
   'validate_form',
-  'plan_form',
-  'generate_form',
-  'form_build',
-  'report_issue',
 ];
-const WORKER_TOOLS = NODE_TOOLS.filter((name) => name !== 'report_issue' && name !== 'form_build');
+// С 7.0 форму создаёт один путь — form_build; generate_form удалён. Воркер — справочный канал.
+const NODE_TOOLS = [...REFERENCE_TOOLS, 'plan_form', 'form_build', 'report_issue'];
+const WORKER_TOOLS = REFERENCE_TOOLS;
 const NODE_PROMPTS = [
   'start-here',
   'discover-context',
@@ -37,7 +35,9 @@ const NODE_PROMPTS = [
   'add-feature',
   'to-renderer',
 ];
-const GUIDE_FIRST_LINE = '> **Form file layout — read this even if you read nothing else here.**';
+const GUIDE_FIRST_LINE = '# Start here — one path to a form';
+/** Потолок гайда: `GUIDE_LIMIT_BYTES` в `src/core/server/resource-catalog.ts`. */
+const GUIDE_LIMIT_BYTES = 6 * 1024;
 const LOAN_SPEC = path.join(pkgDir, 'tests', 'fixtures', 'spec-loan-request.md');
 
 const SAMPLE_CODE = `import { createForm } from '@reformer/core';
@@ -54,16 +54,6 @@ export const form = createForm<Profile>({
 });
 `;
 
-const SMALL_INTENT = {
-  formName: 'ContactForm',
-  target: 'core',
-  fields: [
-    { name: 'email', type: 'string', component: 'Input', label: 'Email' },
-    { name: 'phone', type: 'string', component: 'Input', label: 'Телефон' },
-  ],
-  validation: [{ target: 'email', rules: ['required()', 'email()'] }],
-};
-
 /** Вызовы, ответы на которые обязаны совпасть в обоих профилях. */
 const PARITY_CALLS = [
   ['choose_api', { requirement: 'поле B доступно только когда A заполнено' }],
@@ -78,11 +68,6 @@ const PARITY_CALLS = [
     { kind: 'layout', files: ['index.tsx', 'model.ts', 'form.schema.ts', 'form.behavior.ts'] },
   ],
   ['validate_form', { kind: 'code', code: SAMPLE_CODE }],
-  [
-    'plan_form',
-    { description: 'Форма обратной связи: имя (обязательно), email (обязательно), сообщение' },
-  ],
-  ['generate_form', { intent: SMALL_INTENT }],
 ];
 
 export async function runSmoke({ outDir, channels }) {
@@ -178,9 +163,13 @@ export async function runSmoke({ outDir, channels }) {
     add(
       'S04',
       ch,
-      'reformer://guide начинается с правила раскладки',
-      guide.ok && guide.text.startsWith(GUIDE_FIRST_LINE) ? 'pass' : 'fail',
-      `${guide.text.length} символов`
+      'reformer://guide начинается с единого пути и не длиннее 6 КБ',
+      guide.ok &&
+        guide.text.startsWith(GUIDE_FIRST_LINE) &&
+        Buffer.byteLength(guide.text) <= GUIDE_LIMIT_BYTES
+        ? 'pass'
+        : 'fail',
+      `${Buffer.byteLength(guide.text)} байт`
     );
 
     const cat = await inspect(ch, 'resources/read', { uri: 'reformer://catalog' });
@@ -336,7 +325,6 @@ export async function runSmoke({ outDir, channels }) {
       ['choose_api без requirement', 'choose_api', {}],
       ['get_symbol_docs без symbol', 'get_symbol_docs', {}],
       ['find_recipe без topic', 'find_recipe', {}],
-      ['generate_form без intent', 'generate_form', {}],
       ['search_docs query числом', 'search_docs', { query: 123 }],
       ['validate_form kind=unknown', 'validate_form', { kind: 'unknown' }],
       ['validate_form без kind', 'validate_form', {}],

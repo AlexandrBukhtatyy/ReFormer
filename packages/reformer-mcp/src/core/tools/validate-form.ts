@@ -22,8 +22,7 @@ import type { Knowledge } from '../knowledge.js';
 import { renderDiagnostics, type Diagnostic } from '../validate/codes.js';
 import { findCycle, type Dependency } from '../utils/graph.js';
 import { catalogsOf } from '../generate/catalogs.js';
-import { crossCheckBundle } from '../generate/cross-check.js';
-import { normalizeIntent, type FormIntent } from '../generate/form-intent.js';
+import { judgeIntent, type JudgeFinding } from '../generate/judge.js';
 import { validateJsonSchemaTool } from './validate-json-schema.js';
 import { invalidCall } from './tool-result.js';
 
@@ -54,7 +53,9 @@ export const validateFormToolDefinition = {
       // MCP Inspector отмечал её как непереносимую (калибровка, smoke S02).
       schema: {
         anyOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }],
-        description: 'kind=json-schema | bundle: the layout schema (object or JSON string).',
+        description:
+          'kind=json-schema: the layout schema (object or JSON string). kind=bundle: optional — the ' +
+          'schema to check the intent against; without it, the schema the build would make.',
       },
       dependencies: {
         type: 'array',
@@ -68,7 +69,11 @@ export const validateFormToolDefinition = {
           required: ['target', 'reads'],
         },
       },
-      intent: { type: 'object', description: 'kind=bundle: the FormIntent behind the schema.' },
+      intent: {
+        anyOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }],
+        description:
+          'kind=bundle: the FormIntent (object or JSON string) — judged as form_build judges it.',
+      },
       componentNames: {
         type: 'array',
         items: { type: 'string' },
@@ -89,7 +94,7 @@ export interface ValidateFormArgs {
   code?: string;
   schema?: unknown;
   dependencies?: Dependency[];
-  intent?: Partial<FormIntent>;
+  intent?: unknown;
   componentNames?: string[];
   dataSourceNames?: string[];
   /** kind=layout: имена или пути файлов модуля формы. */
@@ -208,9 +213,10 @@ export async function validateFormTool(
     }
 
     case 'bundle': {
-      if (!args.intent || args.schema === undefined) {
+      if (args.intent === undefined || args.intent === null) {
         return invalidCall(
-          'Для `kind: "bundle"` нужны и `intent`, и `schema` — проверка сверяет их между собой.'
+          '`kind: "bundle"` needs `intent` — the FormIntent or its JSON. `schema` is optional: ' +
+            'without it the intent is judged against the schema the build would make.'
         );
       }
       let schema = args.schema;
@@ -218,30 +224,32 @@ export async function validateFormTool(
         try {
           schema = JSON.parse(schema);
         } catch (e) {
-          return invalidCall(
-            `Аргумент \`schema\` — строка, но не валидный JSON: ${(e as Error).message}`
-          );
+          return invalidCall(`\`schema\` is a string but not JSON: ${(e as Error).message}`);
         }
       }
+      // Вердикт — у того же судьи, что у `form_build`: раньше intent здесь шёл мимо `readIntent` и
+      // поля-словарь роняли вызов `-32603` (аудит 2026-11, B2). componentNames/dataSourceNames —
+      // реальные ключи реестра: контейнеры (Box, Section) intent не объявляет.
       const catalogs = await catalogsOf(k);
-      const intent = normalizeIntent(args.intent, { uiKit: catalogs.uiKit });
-      // componentNames/dataSourceNames — реальные ключи реестра. Раньше при kind="bundle"
-      // они игнорировались, и контейнерные компоненты (Wizard, Box, Section) объявлялись
-      // неизвестными: объявить их в FormIntent негде, он описывает поля, а не разметку.
-      const cross = crossCheckBundle(intent, schema, {
-        core: catalogs.core,
+      const verdict = judgeIntent(args.intent, catalogs, {
+        requireEnvironment: false,
+        ...(schema !== undefined ? { schema } : {}),
         ...(Array.isArray(args.componentNames) ? { componentNames: args.componentNames } : {}),
         ...(Array.isArray(args.dataSourceNames) ? { dataSourceNames: args.dataSourceNames } : {}),
       });
       const diagnostics: Diagnostic[] = [
-        ...cross.errors.map((e) => toDiagnostic(e.code, 'error', e.message)),
-        ...cross.warnings.map((w) => toDiagnostic(w.code, 'warning', w.message)),
+        ...verdict.errors.map((f) => findingDiagnostic(f, 'error')),
+        ...verdict.warnings.map((f) => findingDiagnostic(f, 'warning')),
       ];
-      return text(
-        report('bundle', diagnostics, [
-          'Сверяются intent и layout между собой; сам TypeScript не проверяется — для него `kind: "code"`.',
-        ])
-      );
+      const limits = [
+        'The intent and the layout are checked against each other; TypeScript is not — for it ' +
+          'use `kind: "code"`, and form_build type-checks the module.',
+        ...(catalogs.core.found ? [] : ['The @reformer/core index is not found: rules unchecked.']),
+        ...(catalogs.uiKit.found
+          ? []
+          : ['The @reformer/ui-kit catalog is not found: components unchecked.']),
+      ];
+      return text(report('bundle', diagnostics, limits));
     }
 
     case 'layout': {
@@ -295,19 +303,40 @@ export async function validateFormTool(
   }
 }
 
-/** Коды кросс-проверки C1..C11 → коды диагностик RF0xx. */
-function toDiagnostic(code: string, severity: 'error' | 'warning', message: string): Diagnostic {
-  const map: Record<string, Diagnostic['code']> = {
-    C1: 'RF001',
-    C2: 'RF008',
-    C3: 'RF009',
-    C4: 'RF004',
-    C5: 'RF005',
-    C6: 'RF007',
-    C7: 'RF006',
-    C8: 'RF007',
-    C9: 'RF001',
-    C11: 'RF007',
+/** Коды находок судьи → коды диагностик RF0xx. Проблемы чтения intent — RF014. */
+const FINDING_RF: Readonly<Record<string, Diagnostic['code']>> = {
+  C1: 'RF001',
+  C2: 'RF008',
+  C3: 'RF009',
+  C4: 'RF004',
+  C5: 'RF005',
+  C6: 'RF007',
+  C7: 'RF006',
+  C8: 'RF007',
+  C9: 'RF001',
+  C10: 'RF007',
+  C11: 'RF007',
+  C12: 'RF001',
+  C13: 'RF007',
+  unplaced: 'RF007',
+  'lost-message': 'RF004',
+  'unknown-component': 'RF008',
+  'component-props': 'RF008',
+  environment: 'RF015',
+  'not-on-target': 'RF016',
+  'not-in-document': 'RF016',
+  'module-note': 'RF001',
+};
+
+function findingDiagnostic(
+  finding: JudgeFinding<string>,
+  severity: 'error' | 'warning'
+): Diagnostic {
+  return {
+    code: FINDING_RF[finding.code] ?? 'RF014',
+    severity,
+    message: `${finding.code}: ${finding.message}`,
+    ...(finding.at ? { path: finding.at } : {}),
+    ...(finding.hint ? { suggestion: finding.hint } : {}),
   };
-  return { code: map[code] ?? 'RF001', severity, message };
 }

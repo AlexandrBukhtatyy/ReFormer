@@ -217,11 +217,10 @@ function formComponentName(intent: FormIntent): string {
 /**
  * Сборка формы — тело `index.tsx`.
  *
- * Файл пишет консумент (в нём живут загрузка, submit и оформление страницы), поэтому в бандл он
- * не входит. Но именно здесь агенты чаще всего возвращались к прежнему контракту — три фабрики
- * сборки, два хука, отдельный рендерер для JSON, — и манифест без этого образца оставлял
- * единственный непокрытый файл на догадку. Сборка одна на все таргеты: меняется только вид
- * схемы (функция или документ + `registry`) и то, кто рисует разметку.
+ * `form_build` пишет его на renderer-таргетах и оставляет заготовкой на core, где разметку пишет
+ * агент. Здесь агенты чаще всего возвращались к прежнему контракту — три фабрики сборки, два хука,
+ * отдельный рендерер для JSON. Сборка одна на все таргеты: меняется только вид схемы (функция или
+ * документ + `registry`) и то, кто рисует разметку.
  */
 export function buildAssemblyTsx(intent: FormIntent): string {
   const type = intent.interfaceName;
@@ -269,13 +268,7 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   lines.push('  );');
   lines.push('');
   if (intent.target === 'core') {
-    lines.push('  // Разметку рисуете сами: поля — `bundle.form.<путь>`, например');
-    lines.push('  // <FormField control={bundle.form.email} />. Правила узлов схемы (`hideWhen`)');
-    lines.push('  // исполняет только рендерер — видимость здесь остаётся условием в JSX.');
-    if (buildMessagesTs(intent).content !== null) {
-      lines.push('  // Тексты замечаний — `formMessages` из ./form.messages: оберните разметку в');
-      lines.push('  // <ValidationMessagesProvider messages={formMessages}> (`@reformer/cdk`).');
-    }
+    lines.push(...coreMarkupHints(intent, withSteps));
     lines.push('  return null;');
   } else {
     const renderer = json
@@ -294,6 +287,42 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   }
   lines.push('}');
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Подсказки заготовки `index.tsx` на core: разметку там пишет агент, и без образца он выдумывал
+ * `bundle.form.submit()` и `bundle.form.validate()` — их нет (ReFormer-qo9b.33). Образцы — на
+ * полях самой формы: поле, условие видимости, отправка, шаги, тексты замечаний.
+ */
+function coreMarkupHints(intent: FormIntent, withSteps: boolean): string[] {
+  const first = intent.fields[0];
+  const path = first ? (first.modelPath ?? first.name) : 'fieldName';
+  const lines = [
+    '  // On core your JSX draws the form; the build type-checks it. A field:',
+    `  //   <FormField control={bundle.form.${path}} />  — FormField from '@reformer/ui-kit'.`,
+    '  // Visibility is a condition in JSX on a value read with useFormControlValue:',
+    `  //   const value = useFormControlValue(bundle.form.${path});`,
+    '  //   {value === … && <FormField control={…} />}',
+    '  // Submit with bundle.submission — the form nodes have no submit() or validate():',
+    '  //   const result = await bundle.submission.submit((values) => send(values));',
+    "  //   result.status: 'submitted' | 'invalid' | 'error' | 'cancelled' | 'failed';",
+    '  //   useSignalSnapshot(bundle.submission.submitting) is true while the handler runs.',
+  ];
+  if (withSteps) {
+    const ids = collectSteps(intent.layoutRoot).map((step, index) => stepKeyOf(step, index));
+    lines.push(
+      '  // Steps — bundle.flow: useFormFlow(bundle.flow!) re-renders on a step change;',
+      '  //   flow.next() checks the rules of the step, flow.previous(), flow.goTo(id).',
+      `  //   Step ids: ${ids.join(', ')}.`
+    );
+  }
+  if (buildMessagesTs(intent).content !== null) {
+    lines.push(
+      '  // Issue texts — formMessages from ./form.messages: wrap the markup in',
+      "  //   <ValidationMessagesProvider messages={formMessages}> from '@reformer/cdk'."
+    );
+  }
+  return lines;
 }
 
 /** Имя фабрики шаблона элемента: `PropertyItem` → `blankPropertyItem`. */
@@ -616,8 +645,8 @@ export function buildDataSourcesTs(intent: FormIntent): {
       lines.push(`// TODO: значения справочника ${name}.`);
       lines.push(`export const ${name}: Array<{ value: string; label: string }> = [];`);
       warnings.push(
-        `Справочник \`${name}\` без значений — в data-sources.ts пустой массив, поле выбора ` +
-          'останется без вариантов: передайте `values` в `dataSources` intent или впишите их в файл.'
+        `The data source \`${name}\` has no values — data-sources.ts holds an empty list, and the ` +
+          'select field would have no options: give `values` in `dataSources` of the intent.'
       );
     }
   }
@@ -649,11 +678,11 @@ function tsString(value: string): string {
 }
 
 /**
- * Предупреждение `buildMessagesTs` о потерянном тексте замечания. `generate_form` только печатает
- * его, а для `form_build` это ошибка: агенты заканчивали работу на ✓, теряя тексты.
+ * Предупреждение `buildMessagesTs` о потерянном тексте замечания. Для `form_build` это ошибка, а не
+ * заметка: агенты заканчивали работу на ✓, теряя тексты.
  */
 export function isLostMessageWarning(warning: string): boolean {
-  return /^Текст «|^Код `[^`]*` получил два текста/.test(warning);
+  return /^The text «|^The code `[^`]*` got two texts/.test(warning);
 }
 
 /**
@@ -682,8 +711,8 @@ export function buildMessagesTs(intent: FormIntent): {
     const codes = messageCodes(rule);
     if (codes.length === 0) {
       warnings.push(
-        `Текст «${rule.message}» у правила на \`${rule.target}\` не попал в form.messages.ts: ` +
-          "у его проверок нет кода — задайте его в вызове: required({ code: 'price.required' })."
+        `The text «${rule.message}» of the rule on \`${rule.target}\` is not in form.messages.ts: ` +
+          "its checks have no code — give it in the call: required({ code: 'price.required' })."
       );
       continue;
     }
@@ -695,7 +724,7 @@ export function buildMessagesTs(intent: FormIntent): {
     const previous = entries.get(code);
     if (previous !== undefined && previous !== rule.message) {
       warnings.push(
-        `Код \`${code}\` получил два текста — в словаре оставлен первый: «${previous}».`
+        `The code \`${code}\` got two texts — the dictionary keeps the first: «${previous}».`
       );
       continue;
     }
@@ -1678,20 +1707,8 @@ export function buildFormBehaviorTs(intent: FormIntent): { content: string; warn
   const nodeRules = intent.nodes ?? [];
   const withNodes =
     (intent.visibility.length > 0 || nodeRules.length > 0) && intent.target !== 'core';
-  if (intent.visibility.length > 0 && !withNodes) {
-    warnings.push(
-      `Правил видимости: ${intent.visibility.length} — для таргета \`core\` они не напечатаны: ` +
-        'правила узлов схемы исполняет рендерер, а здесь разметку рисует JSX. Запишите условия в ' +
-        'компонентах шагов; чтобы поле при этом перестало валидироваться — `enableWhen`.'
-    );
-  }
-  if (nodeRules.length > 0 && !withNodes) {
-    warnings.push(
-      `Правил узлов схемы (${[...new Set(nodeRules.map((rule) => rule.kind))].join(', ')}): ` +
-        `${nodeRules.length} — для таргета \`core\` они не напечатаны: их исполняет рендерер. ` +
-        'Обработчики и хуки запишите в JSX-разметке.'
-    );
-  }
+  // Видимость и правила узлов на core не печатаются: их исполняет рендерер, а там разметку рисует
+  // JSX. Об этом говорит судья — ошибкой `not-on-target` (`judge.ts`), а не предупреждением здесь.
 
   const ops = behaviorOps(intent);
   if (withNodes && intent.visibility.length > 0) ops.push('hideWhen');
@@ -1801,9 +1818,7 @@ export function buildRegistryTs(
   const known = [...used].filter((c) => exportOf(c)).sort();
   const unknown = [...used].filter((c) => !exportOf(c)).sort();
   if (!kit.found) warnings.push(NO_UI_KIT_WARNING);
-  for (const c of unknown) {
-    warnings.push(`Компонент \`${c}\` не из каталога ui-kit — в registry.ts стоит TODO.`);
-  }
+  // Компонент не из кита — ошибка судьи (`unknown-component`); в реестре остаётся TODO.
 
   const imports = [...new Set(known.map((c) => exportOf(c) as string))].sort();
   const lines: string[] = [];
@@ -1868,12 +1883,10 @@ const BEHAVIOR_ROLE =
 /**
  * Каноническая раскладка по таргетам — источник `06-form-directory-layout.md` §1.
  *
- * Таблица живёт рядом с генератором намеренно. Манифест — один из немногих каналов, по которым
- * имена файлов доезжают до консумента без чтения документации целиком; замер
- * (`docs/plans/mcp-layout-authority.md`) показал, что агент, работающий точечными запросами,
- * правило раскладки не получает вовсе, а манифест печатал 5 имён из 10 и ничем не сообщал, что
- * остальные консумент обязан создать сам. Поэтому список печатается ПОЛНЫЙ, с пометкой
- * происхождения у каждой строки.
+ * Таблица живёт рядом с генератором намеренно: по ней `form_build` пишет модуль, `validate_form
+ * kind="layout"` проверяет имена модуля, написанного руками, а `get_context` их называет. Замер
+ * (`docs/plans/mcp-layout-authority.md`) показал, что агент, работающий точечными запросами, без
+ * этого правила раскладку выдумывал сам.
  *
  * Правило имён одно на все таргеты: `form.<роль>` — артефакт формы, суффикс называет роль
  * (`schema` — схема формы, `behavior` — поведение, `validation` — правила валидации); остальные
@@ -2026,16 +2039,12 @@ export function layoutSpecPath(spec: LayoutFileSpec, slug = '<slug>'): string {
 }
 
 /**
- * Тот же канон одной строкой — для каналов, где таблица `renderLayoutChecklist` не по бюджету.
+ * Канон раскладки одной строкой — для `get_context`, где модуль пишут руками (свой код рядом с
+ * модулем, ревью). Строка собирается из `FORM_LAYOUT_CANON`, а не пишется руками, иначе копии
+ * расходятся с каноном — ровно эта поломка и разбирается в `docs/plans/mcp-layout-authority.md`.
  *
- * Такие каналы уже два: результат `plan_form` и сборка `get_context`. Строка собирается из
- * `FORM_LAYOUT_CANON`, а не пишется руками, иначе копии расходятся с каноном — ровно эта
- * поломка и разбирается в `docs/plans/mcp-layout-authority.md`.
- *
- * @param withOptional - Дописать опциональные файлы и раскладку шагов. По умолчанию нет: в
- *   `plan_form` строка отвечает на «какие файлы завести сейчас». В `get_context` — да: там она
- *   единственный источник имён, а файлы `steps/<slug>/` — как раз те имена, которые агенты
- *   выдумывали сами (`components/steps/Step1.tsx`).
+ * @param withOptional - Дописать опциональные файлы и раскладку шагов: файлы `steps/<slug>/` —
+ *   как раз те имена, которые агенты выдумывали сами (`components/steps/Step1.tsx`).
  */
 export function renderLayoutLine(target: ReformerTargetStack, withOptional = false): string {
   const canon = FORM_LAYOUT_CANON[target];
@@ -2081,69 +2090,8 @@ export function renderStepLayoutNote(target: ReformerTargetStack): string {
   );
 }
 
-/**
- * Полный per-target список имён с пометкой, что сгенерировано, а что консумент пишет сам.
- *
- * Печатается ВСЕГДА, даже когда сгенерировано всё: молчание манифеста читается как «файлов
- * ровно столько», и именно так раскладка расходилась с каноном на практике.
- */
-export function renderLayoutChecklist(
-  target: ReformerTargetStack,
-  generated: readonly string[]
-): string {
-  const canon = FORM_LAYOUT_CANON[target];
-  const emitted = new Set(generated);
-
-  const lines: string[] = [];
-  lines.push('## Раскладка модуля — канонические имена');
-  lines.push('');
-  lines.push(
-    'Модуль формы плоский, без каталогов ролей (их раскладка `folders` — для крупной формы); шаги wizard-а — ' +
-      'в корневой схеме или по папке на шаг `steps/<slug>/` (имена внутри те же). ' +
-      'Префикс `form.` — у артефактов формы, суффикс называет роль (`schema` — схема формы, ' +
-      '`behavior` — поведение формы: модель и узлы схемы, `validation` — валидация); ' +
-      'остальные файлы plain-named. Полное правило — `find_recipe directory-layout`.'
-  );
-  lines.push('');
-
-  const rows: string[] = [];
-  let required = 0;
-  let done = 0;
-  for (const spec of canon) {
-    const hit = [spec.path, ...(spec.variants ?? [])].find((p) => emitted.has(p));
-    if (!spec.optional) required += 1;
-    let origin: string;
-    if (hit) {
-      if (!spec.optional) done += 1;
-      origin = hit === spec.path ? 'сгенерирован ниже' : `сгенерирован ниже как \`${hit}\``;
-    } else {
-      origin = spec.optional ? 'создайте сами, если нужен' : '**создайте сами**';
-    }
-    rows.push(`| ${specNames(spec)} | ${spec.role} | ${origin} |`);
-  }
-
-  lines.push(
-    `Сервер сгенерировал ${done} из ${required} обязательных файлов; остальные создайте сами — ` +
-      'под этими именами, а не под своими.'
-  );
-  lines.push('');
-  lines.push('| Файл | Роль | Откуда |');
-  lines.push('| --- | --- | --- |');
-  lines.push(...rows);
-
-  lines.push('');
-  lines.push(renderStepLayoutNote(target));
-
-  lines.push('');
-  lines.push(
-    'Когда состав файлов известен, сверьте его: `validate_form kind="layout"` со списком имён.'
-  );
-
-  return lines.join('\n');
-}
-
 // ---------------------------------------------------------------------------
-// Сборка манифеста
+// Сборка модуля
 // ---------------------------------------------------------------------------
 
 /**
@@ -2157,10 +2105,8 @@ export function renderLayoutChecklist(
  * формата 2 (`renderer-json`) — это одно и то же дерево в двух записях (`schema-emit.ts`).
  * Правила видимости уходят в `form.behavior.ts`, отдельного файла слоя рендера нет.
  *
- * Генерируется ПОДМНОЖЕСТВО набора: остальные файлы (`index.tsx`, `types.ts`, `data-sources.ts`,
- * `api.ts`) пишет консумент. Полный набор с пометкой происхождения печатает
- * `renderLayoutChecklist` — без неё манифест читался как «файлов ровно столько», и имена
- * расходились с каноном.
+ * Генерируется ПОДМНОЖЕСТВО набора: сборку `index.tsx`, заготовки своих операторов и файлы
+ * потребителя (`types.ts`, `api.ts`) добавляет `form_build`.
  */
 export function buildBundle(
   intent: FormIntent,

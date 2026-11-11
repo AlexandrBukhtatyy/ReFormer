@@ -17,6 +17,10 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { symbolsByName } from '../src/core/index/merge';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
+import {
+  detectProjectStack,
+  renderStackDetectionBlock,
+} from '../src/platform/cli/project-detector';
 import { findSymbol } from '../src/platform/cli/symbols-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 
@@ -37,11 +41,33 @@ interface ImportedName {
   file: string;
 }
 
-/** Извлечь именованные импорты из @reformer/* по всем шаблонам. */
+/** Проект с китом: на нём блок стека печатает импорты кита. */
+const PLAYGROUND = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../projects/react-playground'
+);
+
+/**
+ * Тексты промптов: шаблоны и блок «обнаруженный стек», который промпты вставляют по проекту. С 7.0
+ * код в шаблонах почти не печатается — форму пишет `form_build`, — а импорты для своего кода агента
+ * печатает блок стека; он здесь тоже, иначе устаревшее имя в нём никто бы не заметил (ReFormer-4e7x).
+ */
+function promptSources(): Array<{ file: string; content: string }> {
+  return [
+    ...readdirSync(templatesDir)
+      .filter((f) => f.endsWith('.md'))
+      .map((file) => ({ file, content: readFileSync(resolve(templatesDir, file), 'utf-8') })),
+    {
+      file: 'project-detector (stack block)',
+      content: renderStackDetectionBlock(detectProjectStack(PLAYGROUND)),
+    },
+  ];
+}
+
+/** Извлечь именованные импорты из @reformer/* по всем текстам промптов. */
 function collectReformerImports(): ImportedName[] {
   const out: ImportedName[] = [];
-  for (const file of readdirSync(templatesDir).filter((f) => f.endsWith('.md'))) {
-    const content = readFileSync(resolve(templatesDir, file), 'utf-8');
+  for (const { file, content } of promptSources()) {
     let m: RegExpExecArray | null;
     IMPORT_RE.lastIndex = 0;
     while ((m = IMPORT_RE.exec(content)) !== null) {
@@ -63,8 +89,14 @@ function collectReformerImports(): ImportedName[] {
 describe('промпты не противоречат резолверу символов (symbol-consistency)', () => {
   const imports = collectReformerImports();
 
-  it('в шаблонах вообще есть @reformer-импорты для проверки', () => {
+  it('в текстах промптов вообще есть @reformer-импорты для проверки', () => {
     expect(imports.length).toBeGreaterThan(0);
+  });
+
+  it('блок стека берёт подпути кита из каталога: DatePicker — из date-picker (ReFormer-4e7x)', () => {
+    const block = renderStackDetectionBlock(detectProjectStack(PLAYGROUND));
+    expect(block).toMatch(/`@reformer\/ui-kit\/date-picker` — [^;]*\bDatePicker\b/);
+    expect(block).not.toMatch(/import \{[^}]*\bDatePicker\b[^}]*\} from '@reformer\/ui-kit'/);
   });
 
   it(

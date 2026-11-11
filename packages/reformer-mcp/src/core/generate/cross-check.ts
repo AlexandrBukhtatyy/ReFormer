@@ -41,12 +41,15 @@ export type CrossCheckCode =
   | 'C9'
   | 'C10'
   | 'C11'
-  | 'C12';
+  | 'C12'
+  | 'C13';
 
 export interface CrossCheckIssue {
   code: CrossCheckCode;
   severity: 'error' | 'warning';
   message: string;
+  /** О чём замечание, когда это поле или справочник: по нему судья не дублирует свои ошибки. */
+  subject?: { kind: 'field' | 'data-source'; name: string };
 }
 
 export interface CrossCheckReport {
@@ -211,7 +214,7 @@ function collectArrayNodes(node: unknown, out: Array<Record<string, unknown>>): 
  * `Wizard` и `RendererFormWizard` — ключи прикладного шима прежнего контракта; оставлены,
  * чтобы документы прежнего формата проверялись без ложных срабатываний.
  */
-const BUILTIN_COMPONENTS = new Set([
+export const BUILTIN_COMPONENTS: ReadonlySet<string> = new Set([
   'FIELD_WRAPPER',
   'Step',
   'FormWizard',
@@ -236,8 +239,8 @@ export function crossCheckBundle(
   const warnings: CrossCheckIssue[] = [];
   const err = (code: CrossCheckCode, message: string) =>
     errors.push({ code, severity: 'error', message });
-  const warn = (code: CrossCheckCode, message: string) =>
-    warnings.push({ code, severity: 'warning', message });
+  const warn = (code: CrossCheckCode, message: string, subject?: CrossCheckIssue['subject']) =>
+    warnings.push({ code, severity: 'warning', message, ...(subject ? { subject } : {}) });
 
   const paths = modelPaths(intent);
   const models = new Set<string>();
@@ -258,7 +261,7 @@ export function crossCheckBundle(
   // суффиксного смягчения здесь быть не должно — оно пропускало реальные промахи.
   for (const m of models) {
     if (!paths.has(m))
-      err('C1', `$model(${m}) — такого пути нет в модели. Привязка ведёт в никуда.`);
+      err('C1', `$model(${m}) — no such path in the model; the binding leads nowhere.`);
   }
 
   // C2 — каждый компонент разметки зарегистрирован. Список «что используется» берём у того же
@@ -273,7 +276,7 @@ export function crossCheckBundle(
     if (opts?.componentNames) {
       err(
         'C2',
-        `$component(${c}) не объявлен ни одним полем intent и не передан в componentNames — в реестре его не будет.`
+        `$component(${c}) is declared by no field of the intent and is not in componentNames — the registry will not have it.`
       );
     } else {
       // Контейнерным компонентам места в FormIntent нет: он описывает поля, а не разметку.
@@ -281,7 +284,7 @@ export function crossCheckBundle(
       // «это контейнер» нельзя — поэтому предупреждение, а не ошибка.
       warn(
         'C2',
-        `$component(${c}) не объявлен ни одним полем intent. Если это контейнер или прикладной шим — так и должно быть; чтобы проверить по-настоящему, передайте componentNames с ключами реестра.`
+        `$component(${c}) is declared by no field of the intent. For a container or an app shim that is expected; to check for real, pass componentNames — the registry keys.`
       );
     }
   }
@@ -290,7 +293,10 @@ export function crossCheckBundle(
   const declaredSources = new Set(intent.dataSources.map((d) => d.name));
   for (const d of dataSources) {
     if (!declaredSources.has(d)) {
-      err('C3', `$dataSource(${d}) не объявлен в intent.dataSources — реестр его не отдаст.`);
+      err(
+        'C3',
+        `$dataSource(${d}) is not declared in intent.dataSources — the registry will not provide it.`
+      );
     }
   }
 
@@ -298,7 +304,7 @@ export function crossCheckBundle(
   for (const rule of intent.validation) {
     const target = rule.each ? `${rule.each}.${rule.target}` : rule.target;
     const known = paths.has(target) || paths.has(rule.target);
-    if (!known) err('C4', `Правило валидации на \`${target}\` — такого пути в модели нет.`);
+    if (!known) err('C4', `A validation rule on \`${target}\` — no such path in the model.`);
   }
 
   // C5 — цели и источники поведения существуют.
@@ -321,11 +327,11 @@ export function crossCheckBundle(
     (b.kind === 'enableWhen' || b.kind === 'disableWhen') && groups.has(fullOf(b, b.target));
   for (const b of intent.behavior) {
     if (!paths.has(fullOf(b, b.target)) && !togglesGroup(b)) {
-      err('C5', `Поведение \`${b.kind}\` пишет в \`${b.target}\` — такого поля в модели нет.`);
+      err('C5', `\`${b.kind}\` writes \`${b.target}\` — no such field in the model.`);
     }
     for (const s of b.sources) {
       if (!paths.has(fullOf(b, s))) {
-        err('C5', `Поведение \`${b.kind}\` читает \`${s}\` — такого поля в модели нет.`);
+        err('C5', `\`${b.kind}\` reads \`${s}\` — no such field in the model.`);
       }
     }
   }
@@ -336,7 +342,7 @@ export function crossCheckBundle(
     if (!selectors.has(v.selector)) {
       err(
         'C6',
-        `Видимость адресует \`${v.selector}\`, но такого selector в разметке нет — правило будет no-op.`
+        `A visibility rule targets \`${v.selector}\`, and the layout has no such selector — the rule would do nothing.`
       );
     }
   }
@@ -344,8 +350,8 @@ export function crossCheckBundle(
     if (rule.selector !== undefined && !selectors.has(rule.selector)) {
       err(
         'C6',
-        `\`${rule.kind}\` адресует узел \`${rule.selector}\`, но такого selector в разметке нет — ` +
-          'правило будет no-op.'
+        `\`${rule.kind}\` targets the node \`${rule.selector}\`, and the layout has no such ` +
+          'selector — the rule would do nothing.'
       );
     }
   }
@@ -357,7 +363,10 @@ export function crossCheckBundle(
     .map((b) => ({ target: fullOf(b, b.target), reads: b.sources.map((s) => fullOf(b, s)) }));
   const cycle = findCycle(deps);
   if (cycle) {
-    err('C7', `Цикл в вычисляемых полях: ${cycle.join(' → ')}. Рантайм бросит «Cycle detected».`);
+    err(
+      'C7',
+      `A cycle in computed fields: ${cycle.join(' → ')} — the runtime throws "Cycle detected".`
+    );
   }
 
   // C8 — узел массива под-форм собран верно: есть шаблон строки, а запасной `initialValue`
@@ -381,8 +390,8 @@ export function crossCheckBundle(
       err(
         'C8',
         view.v2
-          ? `Узел массива \`${path}\`: initialValue должен быть объектом — литералом одного пустого элемента.`
-          : `Узел массива \`${path}\` без initialValue-объекта — первое добавление строки упадёт.`
+          ? `The array node \`${path}\`: initialValue must be an object — the literal of one empty row.`
+          : `The array node \`${path}\` has no initialValue object — adding the first row fails.`
       );
       if (!view.v2) continue;
     }
@@ -392,7 +401,7 @@ export function crossCheckBundle(
       if (extra.length > 0) {
         err(
           'C8',
-          `initialValue массива \`${path}\` содержит поля вне itemFields: ${extra.join(', ')}.`
+          `The initialValue of the array \`${path}\` has fields outside itemFields: ${extra.join(', ')}.`
         );
       }
     }
@@ -403,15 +412,15 @@ export function crossCheckBundle(
       if (!(rowPart in view.parts)) {
         err(
           'C8',
-          `Узел массива \`${path}\`: шаблон строки \`$part(${rowPart})\` не объявлен в \`parts\` документа.`
+          `The array node \`${path}\`: the row template \`$part(${rowPart})\` is not declared in \`parts\` of the document.`
         );
       }
     } else if (!isRecord(node.item) || !('$template' in node.item)) {
       err(
         'C8',
         view.v2
-          ? `Узел массива \`${path}\`: шаблон строки — \`"item": "$part(имя)"\` либо \`item.$template\`.`
-          : `Узел массива \`${path}\`: шаблон элемента должен лежать в \`item.$template\`.`
+          ? `The array node \`${path}\`: the row template is \`"item": "$part(name)"\` or \`item.$template\`.`
+          : `The array node \`${path}\`: the row template goes in \`item.$template\`.`
       );
     }
   }
@@ -422,7 +431,7 @@ export function crossCheckBundle(
     collectOperators(layoutJson, 'part', usedParts);
     for (const name of usedParts) {
       if (!(name in view.parts)) {
-        err('C8', `\`$part(${name})\` — такой части нет в \`parts\` документа.`);
+        err('C8', `\`$part(${name})\` — no such part in \`parts\` of the document.`);
       }
     }
   }
@@ -430,11 +439,20 @@ export function crossCheckBundle(
   // C9 — мёртвые объявления. Не ошибка, но признак расхождения замысла и результата.
   for (const f of intent.fields) {
     const path = f.modelPath ?? f.name;
-    if (!models.has(path)) warn('C9', `Поле \`${path}\` объявлено, но в разметке не используется.`);
+    if (!models.has(path)) {
+      warn('C9', `The field \`${path}\` is declared and not used in the layout.`, {
+        kind: 'field',
+        name: path,
+      });
+    }
   }
   for (const d of intent.dataSources) {
-    if (!dataSources.has(d.name))
-      warn('C9', `dataSource \`${d.name}\` объявлен, но не используется.`);
+    if (!dataSources.has(d.name)) {
+      warn('C9', `The data source \`${d.name}\` is declared and used by no field.`, {
+        kind: 'data-source',
+        name: d.name,
+      });
+    }
   }
 
   // C10 — одинаковые testId. Селектор `data-testid` обязан разрешаться в один элемент:
@@ -448,8 +466,8 @@ export function crossCheckBundle(
     if (count > 1) {
       err(
         'C10',
-        `testId \`${id}\` встречается ${count} раза — селектор разрешится в несколько элементов. ` +
-          'Идентификатор выводится из пути модели: одноимённые листья разных групп должны нести префикс.'
+        `testId \`${id}\` occurs ${count} times — the selector resolves to several elements. ` +
+          'The id comes from the model path: same-named leaves of different groups need a prefix.'
       );
     }
   }
@@ -457,6 +475,10 @@ export function crossCheckBundle(
   // C11 — ссылки раскладки ведут в объявленное. Генератор выбрасывает такой узел молча, поэтому
   // C1 его уже не видит: документ приходит без него, а форма — без поля.
   for (const message of inspectLayoutRefs(intent).unknown) err('C11', message);
+
+  // C13 — шаги вперемешку с другими узлами. Мастером рисуется контейнер, ВСЕ дети которого — шаги;
+  // смешанный рисовался обычным контейнером со «Step» внутри, и визард молча не работал.
+  for (const message of inspectSteps(intent)) err('C13', message);
 
   checkOperators(intent, opts?.core ?? NO_CORE_OPERATORS, err, warn);
 
@@ -496,16 +518,16 @@ function checkOperators(
       if (name === null || declared(name) || !core.found || core.rules.has(name)) continue;
       err(
         'C12',
-        `Правило \`${r}\` на \`${rule.target}\`: \`${name}\` — не валидатор @reformer/core/validators. ` +
-          `Своё правило объяви в operators: { "${name}": "./operators" }.`
+        `The rule \`${r}\` on \`${rule.target}\`: \`${name}\` is not a validator of ` +
+          `@reformer/core/validators. Declare your own rule in operators: { "${name}": "./operators" }.`
       );
     }
     const head = rule.call ? ruleName(rule.call) : null;
     if (rule.call && (head === null || !declared(head))) {
       err(
         'C12',
-        `Вызов \`${rule.call}\` на \`${rule.target}\`: оператор${head ? ` \`${head}\`` : ''} не объявлен ` +
-          'в operators — сборке неоткуда его импортировать.'
+        `The call \`${rule.call}\` on \`${rule.target}\`: the operator${head ? ` \`${head}\`` : ''} is ` +
+          'not declared in operators — the build has nowhere to import it from.'
       );
     }
   }
@@ -515,8 +537,8 @@ function checkOperators(
     if (head === null || !declared(head)) {
       err(
         'C12',
-        `Поведение \`call\` вызывает \`${b.expr ?? ''}\`: оператор${head ? ` \`${head}\`` : ''} не ` +
-          'объявлен в operators. Оператор ядра пишется своим kind, а не через call.'
+        `The behavior \`call\` calls \`${b.expr ?? ''}\`: the operator${head ? ` \`${head}\`` : ''} is ` +
+          'not declared in operators. A core operator is written with its own kind, not through call.'
       );
     }
   }
@@ -535,18 +557,21 @@ function checkOperators(
     if (coreNames.has(name)) {
       err(
         'C12',
-        `Свой оператор \`${name}\` носит имя оператора ядра — импорты столкнутся. Назови его иначе.`
+        `Your operator \`${name}\` has the name of a core operator — the imports would clash. Rename it.`
       );
     }
     if (isDerivedModule(module)) {
       err(
         'C12',
-        `Оператор \`${name}\` импортируется из \`${module}\` — этот модуль пишет сборка. ` +
-          'Свои операторы держи в "./operators".'
+        `The operator \`${name}\` is imported from \`${module}\` — the build writes that module. ` +
+          'Keep your operators in "./operators".'
       );
     }
     if (!code.some((part) => mentionsName(part, name))) {
-      warn('C12', `Оператор \`${name}\` объявлен в operators, но intent его не вызывает.`);
+      warn(
+        'C12',
+        `The operator \`${name}\` is declared in operators, and the intent never calls it.`
+      );
     }
   }
 }
@@ -574,7 +599,7 @@ export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; un
         placed.add(absolute(node.ref));
         if (!fields.has(absolute(node.ref))) {
           unknown.push(
-            `Раскладка ссылается на поле \`${absolute(node.ref)}\` — такого нет в fields.`
+            `The layout refers to the field \`${absolute(node.ref)}\` — no such field in fields.`
           );
         }
         return;
@@ -582,14 +607,14 @@ export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; un
         placed.add(absolute(node.ref));
         if (!arrays.has(absolute(node.ref))) {
           unknown.push(
-            `Раскладка ссылается на массив \`${absolute(node.ref)}\` — такого нет в arrays.`
+            `The layout refers to the array \`${absolute(node.ref)}\` — no such array in arrays.`
           );
         }
         return;
       case 'part': {
         const part = intent.parts?.[node.part];
         if (!part) {
-          unknown.push(`Раскладка подключает часть \`${node.part}\` — такой нет в parts.`);
+          unknown.push(`The layout mounts the part \`${node.part}\` — no such part in parts.`);
         } else if (!parts.includes(node.part)) {
           walk(part, absolute(node.ref), [...parts, node.part]);
         }
@@ -601,6 +626,39 @@ export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; un
   };
   walk(intent.layoutRoot, null, []);
   return { placed, unknown };
+}
+
+/**
+ * Шаги в раскладке intent: контейнер, где шаги перемешаны с другими узлами, и шаг внутри шага.
+ *
+ * @returns Сообщения C13.
+ */
+export function inspectSteps(intent: FormIntent): string[] {
+  const out: string[] = [];
+  const label = (node: LayoutNode): string =>
+    node.kind === 'step'
+      ? `step «${node.title}»`
+      : node.kind === 'container'
+        ? `container \`${node.selector ?? node.component}\``
+        : `\`${node.ref}\``;
+  const walk = (node: LayoutNode, insideStep: boolean): void => {
+    if (node.kind !== 'container' && node.kind !== 'step') return;
+    if (node.kind === 'step' && insideStep) {
+      out.push(`${label(node)} is nested in another step — a wizard holds steps one level deep.`);
+    }
+    const steps = node.children.filter((child) => child.kind === 'step');
+    const others = node.children.filter((child) => child.kind !== 'step');
+    if (steps.length > 0 && others.length > 0) {
+      out.push(
+        `${label(node)} mixes steps with other nodes (${others.map(label).join(', ')}) — a ` +
+          'wizard container holds only steps; put these nodes into a step.'
+      );
+    }
+    for (const child of node.children) walk(child, insideStep || node.kind === 'step');
+  };
+  walk(intent.layoutRoot, false);
+  for (const part of Object.values(intent.parts ?? {})) walk(part, false);
+  return out;
 }
 
 /**

@@ -101,16 +101,17 @@ function repairConstantResets(
 ): BehaviorIntent[] {
   return behavior.flatMap((b): BehaviorIntent[] => {
     if (b.kind !== 'resetWhen' || readsModel(b.expr)) return [b];
-    const condition = b.expr ?? '(нет)';
+    const condition = b.expr ?? '(none)';
     if (b.sources.length === 0) {
       problems.push({
+        code: 'inert-behavior',
         at: `behavior: resetWhen ${b.target}`,
         message:
-          `условие \`${condition}\` не читает ни одного поля модели — сброс \`${b.target}\` ` +
-          'не сработает ни при каком изменении',
+          `the condition \`${condition}\` reads no field of the model — the reset of ` +
+          `\`${b.target}\` never fires`,
         expected:
-          'условие над полями ("!model.phone") или сброс при смене поля — onChange на нём: ' +
-          `{"kind":"onChange","target":"<поле>","expr":"model.${b.target} = null;"}`,
+          'a condition over fields ("!model.phone"), or a reset when a field changes — onChange ' +
+          `on it: {"kind":"onChange","target":"<field>","expr":"model.${b.target} = null;"}`,
       });
       return [];
     }
@@ -119,10 +120,10 @@ function repairConstantResets(
     notices.push({
       code: 'reset-as-on-change',
       message:
-        `resetWhen \`${b.target}\` с условием \`${condition}\` не читает модель и смену ` +
-        `${b.sources.map((s) => `\`${s}\``).join(', ')} не увидел бы — записан сбросом в ` +
-        'onChange источника. Сброс при смене поля пиши так: {"kind":"onChange","target":"<поле>",' +
-        `"expr":"${assignment}"}.`,
+        `resetWhen \`${b.target}\` with the condition \`${condition}\` reads no model field and ` +
+        `would never see ${b.sources.map((s) => `\`${s}\``).join(', ')} change — written as a reset ` +
+        'in onChange of the source. A reset when a field changes is: {"kind":"onChange","target":' +
+        `"<field>","expr":"${assignment}"}.`,
       at: b.target,
     });
     return b.sources.map((source) => ({
@@ -181,15 +182,15 @@ function repairComputedToggles(
     const reset = toggle.options?.resetOnDisable === true;
     const compute = behavior.find((other) => computeKinds.has(other.kind) && key(other) === key(b));
     const done = [
-      ...(compute?.when === undefined ? ['условие стало `when` вычисления'] : []),
-      ...(reset ? ['очищается resetWhen по ложному условию'] : []),
-      'поле заблокировано',
+      ...(compute?.when === undefined ? ['the condition became the `when` of the compute'] : []),
+      ...(reset ? ['it is cleared by resetWhen on the false condition'] : []),
+      'the field is locked',
     ];
     notices.push({
       code: 'computed-toggle-replaced',
       message:
-        `Вычисляемое поле \`${toggle.target}\`: ${toggle.kind} включал бы его для ввода — ` +
-        `${done.join(', ')}. Цель compute заблокирована сама: видимость задаёт visibility.`,
+        `The computed field \`${toggle.target}\`: ${toggle.kind} would make it editable — ` +
+        `${done.join(', ')}. A compute target is locked by itself; visibility is set by visibility.`,
       at: toggle.target,
     });
     if (!reset) return [];

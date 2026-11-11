@@ -9,69 +9,81 @@
 - 02-tools.md — Tools
 - 03-prompts.md — Prompts
 - 04-resources.md — Resources
-- 05-m1-workflow.md — Form-building workflow
+- 05-m1-workflow.md — The contract behind a form module
 - 06-form-directory-layout.md — Form directory layout (core / renderer-react / renderer-json)
 - 07-embedding.md — Embedding — package entries and the browser worker
 - API Reference (auto-generated from JSDoc)
 
-## 1. How to use it (recommended order)
+## 1. Start here — one path to a form
 
 **ReFormer MCP — start-here guide**
 
-This MCP server gives you everything needed to build a form with the ReFormer library
-**from this server alone** — no need to read the library source. It exposes documentation
-(resources), lookup tools, and workflow prompts.
+**Write `<dir>/form.intent.json`, then `form_build {"dir":"<dir>"}` compiles, checks and writes the
+module. Never write the module files yourself.**
 
-1. **Get oriented** — run the `start-here` prompt (or read this guide). It returns the
-   workflow and the map below.
-2. **Plan** — for a form from a spec, use the `plan-form` prompt (it reads and parses the spec
-   file). For a free-text description, use `create-form`. To detect the target stack, `discover-context`.
-3. **Read the workflow** — the build workflow of the unified form contract (model → one schema →
-   one assembly `createForm` → validation → the one behavior → wizard → draw). It is part of this
-   guide; the whole self-doc is one resource: `reformer://guide`. The contract in one place:
-   `find_recipe unified-contract`.
-4. **Look things up as you code**:
-   - `find_recipe <topic>` — a worked example for a scenario (e.g. `wizard`, `form-array`, `cycle`, `json-schema`).
-   - `get_symbol_docs <name>` — exact signature + `@example` of a function/type (e.g. `createForm`, `validateModel`).
-   - `list_symbols` — the API surface by kind/package when you don't know the name.
-5. **Add features** with the prompt `add-feature` — `feature`: `validation` | `behavior` | `array` | `wizard`.
-6. **Change who draws**: prompt `to-renderer` — `target`: `renderer-react` (JSX → `FormRenderer` over
-   the same schema) | `renderer-json` (the schema as a JSON document + registry).
-7. **Check your work** — one tool, `validate_form`, by `kind`:
-   - `layout` — file names of the form module against the canonical set;
-   - `code` — unknown symbols, operators outside their schema, keys and factories of the former contract;
-   - `behaviors` — declare compute/copy dependencies, get cycle detection;
-   - `json-schema` — a renderer-json document before rendering;
-   - `bundle` — a FormIntent and its schema against each other.
+### The path
 
-   And the prompt `review` — a cross-package code-review checklist.
+1. `form_build {"grammar":"base"}` — the grammar of the intent. Sections on demand: `behavior`,
+   `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes` (or `all`). Needs no project.
+2. Write `<dir>/form.intent.json` with your own file tools. From a markdown spec,
+   `plan_form {"specPath":"…","dir":"<dir>"}` writes a draft to finish (never over an existing file).
+3. `form_build {"dir":"<dir>"}` cross-checks the intent, type-checks the module and writes every
+   file — or nothing while errors remain. Fix the intent on ✗; the form is done on ✓. `dir` is
+   relative to the working directory, `form` by default; at a monorepo root pass a folder inside an app.
+4. `"target"` keeps the stack, the contract is the same for all three: `core` — you write the JSX
+   markup in `index.tsx` (form_build keeps it and type-checks it); `renderer-react` — `FormRenderer`
+   over the TS schema; `renderer-json` — the schema as a JSON document plus a registry.
 
-## 2. What's where
+A large form goes in parts: fields + `layoutRoot` → build → validation → build → behavior → build.
 
-The full self-doc of this server is one resource — `reformer://guide` (aka `reformer://docs/mcp`) —
-covering: **Tools** (callable lookup + validation), **Prompts** (one per workflow step),
-**Resources** (`reformer://docs/<pkg>[/<section>]` for the 6 library packages), and the **workflow**.
-Individual sections are addressable per-heading (slug from the H2 title); enumerate exact URIs with ListResources.
+### What form_build writes
 
-## 3. The 6 library packages (read their docs via resources)
+A flat module with the same names on every target: `model.ts`, `form.schema.ts`,
+`form.validation.ts`, `form.behavior.ts`, optional `form.flow.ts` (wizard steps) and
+`form.messages.ts` (messages by rule code), `registry.ts` (renderer-json), `data-sources.ts`,
+`index.tsx` (the assembly; your markup on core). Yours from the start: `types.ts`, `api.ts` and the
+bodies in `operators.ts`. A generated file you edit by hand is detached — the build stops rewriting
+it; delete it to bring it back. Test ids come from field paths (`personalData-lastName`).
 
-- `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
-- `@reformer/cdk` — headless FieldArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
-- `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
-- `@reformer/renderer-react` — `FormRenderer`: draws the schema tree (`reformer://docs/renderer-react`).
-- `@reformer/renderer-json` — the schema as a JSON document + registry (`reformer://docs/renderer-json`).
-- `@reformer/form-registry` — one bundle registers a form (`FormEntry`), another renders it by id (`<FormOutlet id>`); built for micro-frontends (`reformer://docs/form-registry`).
+### Your own code
 
-## 4. Golden rules
+What the grammar cannot express — own rules and operators (`operators.ts`), loading and submit
+(`api.ts`), the markup on core — is code against the library contract:
 
-- **One contract for every way of drawing**: one schema tree, one binding handle, one assembly, one behavior. One `createModel` is the source of truth; schema nodes are bound to it by the key `model` and the handle `model.$.…` — field `{ model: model.$.x, component }`, array `{ model: model.$.items, item }`, sub-form `{ model: model.$.group, part }`. The keys `value:` / `array:` are the former contract.
-- **One assembly**: `useFormBundle(() => createForm({ model, schema, registry?, behavior?, validation? }))` → `{ model, form, validation?, render }`. `createCoreForm` / `createReactForm` / `createJsonForm` have been removed.
-- **One behavior**: `defineFormBehavior(({ model, form, schema }) => …)` holds both the links over the model and the rules for schema nodes (`hideWhen(schema.node(selector), …)`). A separate `form.render.ts` / `renderBehavior` is the former contract.
-- Validation is a **separate on-demand schema**, not a schema-leaf concern: run `validateModel(model, schema)` from `@reformer/core/validation` (schema built with `defineValidation(({ model }) => { validate(sig, [rules]); … })`), never `form.validate()`. Ambient operators inside the schema: `validate` / `validateAsync` / `validateWhen` / `cross` / `apply` (a sub-form) / `applyEach` (array rows); field rules (`required()`/`min()`/…) come from `@reformer/core/validators`. Schema nodes carry **no** validators.
-- The old validation contract is gone — don't use `validateFormModel`, schema leaves with `{ value, validators: [...] }`, `ModelValidator(value, scope, root)`, conditional `{ when, children }` nodes, or the path-based `ValidationSchemaFn` / `validate(path.x)`. Use the `@reformer/core/validation` operators above instead.
-- Low-level `createFormFromModel({ model, schema })` stays for special cases; a form is assembled with `createForm`.
+- `createModel<T>()` is the source of truth; ONE schema tree binds a node by `model: model.$.field`;
+- ONE assembly — `createForm({ model, schema, behavior, validation })` inside `useFormBundle`;
+- ONE behavior — `defineFormBehavior(({ model, form, schema }) => …)`; validation —
+  `defineValidation(({ model }) => …)` with rules from `@reformer/core/validators`, a `{ code }` each;
+- checks and submit go through the bundle: `bundle.validate()`, `bundle.submission.submit(handler)`.
 
-## 5. get_context
+### Tools
+
+| Need                                                   | Tool                                              |
+| ------------------------------------------------------ | ------------------------------------------------- |
+| build a form; the intent grammar                       | `form_build`                                      |
+| a draft intent from a markdown spec                    | `plan_form`                                       |
+| which of two similar operators                         | `choose_api`                                      |
+| context for one step of your own code                  | `get_context`                                     |
+| signature and example of a symbol                      | `get_symbol_docs`                                 |
+| a worked recipe (`wizard`, `form-array`, `json-schema`) | `find_recipe`                                    |
+| docs by words / the API surface                        | `search_docs` / `list_symbols`                    |
+| check own code, file names, behaviors, a JSON schema   | `validate_form` (`code`, `layout`, `behaviors`, `json-schema`, `bundle`) |
+| report a problem of the server                         | `report_issue`                                    |
+
+Prompts: `start-here`, `create-form` (from a description), `plan-form` (from a spec file),
+`add-feature` (`validation` | `behavior` | `array` | `wizard`), `to-renderer`, `review`,
+`discover-context`.
+
+### Resources
+
+- `reformer://docs/mcp` — the full self-doc of this server: every tool, prompt and resource in detail.
+- `reformer://docs/<package>[/<section>]` — library docs: `core`, `cdk`, `ui-kit`, `renderer-react`,
+  `renderer-json`, `form-registry`.
+- `reformer://catalog` — every section as `[slug, title]`; `search_docs` returns ready URIs.
+- `reformer://status` — which packages the server found, their indexes, whether it can type-check.
+  Read it when docs come back empty or a tool reports an environment problem.
+
+## 2. get_context
 
 **Tools**
 
@@ -97,7 +109,7 @@ arguments are exact.
 найденными секциями, блока `## API` не будет — вместо него выдача честно скажет об этом и
 поведёт секциями. Пустой блок безопаснее уверенной догадки.
 
-## 6. choose_api
+## 3. choose_api
 
 Какой оператор ReFormer решает требование, сформулированное своими словами. Отвечает на
 вопрос, которого не закрывает поиск по документации: **какой из двух похожих** —
@@ -122,7 +134,7 @@ arguments are exact.
 Замерено на корпусе eval (46 задач): с `choose_api` первым шагом first-pass 80.4% → 95.7%,
 токенов на задачу median 916 → 299, нерешённых задач не осталось.
 
-## 7. get_symbol_docs
+## 4. get_symbol_docs
 
 Full JSDoc for one public symbol of any `@reformer/*` package: description, signature,
 params, `@returns`, every `@example`, source path.
@@ -132,7 +144,7 @@ params, `@returns`, every `@example`, source path.
 
 Use before writing code against an unfamiliar symbol.
 
-## 8. find_recipe
+## 5. find_recipe
 
 A worked example / how-to for a scenario. Cascade: docs/llms filename → `##` section →
 symbol `@example` → **full-text search** (same index as `search_docs`) → fallback list.
@@ -150,7 +162,7 @@ candidates with snippets, and the top hit is inlined when it matches a section h
 
 Use to copy a correct pattern instead of guessing.
 
-## 9. search_docs
+## 6. search_docs
 
 Full-text search across every documentation section of all `@reformer/*` packages — for when
 you can't name the symbol or recipe topic but can describe the task in words. Returns ranked
@@ -164,7 +176,7 @@ URI to get the full section.
 Reach for `find_recipe` (curated topic→recipe) or `get_symbol_docs` (one symbol) when you
 already know the topic or name; `search_docs` is the fallback when you don't.
 
-## 10. list_symbols
+## 7. list_symbols
 
 The API surface by kind and package — discovery when you don't know a name.
 
@@ -176,7 +188,7 @@ The API surface by kind and package — discovery when you don't know a name.
 E.g. all functions of `@reformer/core` enumerate every validator and behavior. Then
 `get_symbol_docs` the one you want.
 
-## 11. validate_form
+## 8. validate_form
 
 Одна дверь во все проверки формы. Вид проверки — аргумент `kind`, результат всегда одной
 формы: диагностики `RF0xx` с местом, тем что сделать и готовым следующим вызовом.
@@ -196,10 +208,13 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
   получает одну ошибку с советом перевести его `migrateJsonSchema`.
 - `kind: "behaviors"` — циклы в вычисляемых полях (`RF006`), по объявленным
   `{ target, reads[] }`.
-- `kind: "bundle"` — `intent` + схема сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
-  модели (пути внутри части — от группы, к которой она подключена), каждый `$component`
-  зарегистрирован, каждая часть `$part` объявлена, каждая цель правила существует, селекторы
-  видимости присутствуют в схеме.
+- `kind: "bundle"` — `intent` (объект или JSON строкой) судится так же, как его судит
+  `form_build`, — вердикт один: проблемы чтения записи (`RF014`, с ближайшим ключом), C1–C13
+  кросс-проверки (каждый `$model` есть в модели, каждый `$component` зарегистрирован, каждая часть
+  `$part` объявлена, каждая цель правила существует, селекторы видимости есть в схеме, шаги не
+  перемешаны с другими узлами — C13), поле вне раскладки, потерянный текст замечания, компонент не
+  из кита (`RF008`), правила, которых таргет не исполняет (`RF016`: видимость на core). `schema`
+  необязательна: без неё intent сверяется со схемой, которую построила бы сборка.
 - `kind: "layout"` — ИМЕНА файлов модуля формы против канона (`files[]` + `target`). Набор один
   на все таргеты; файлы прежнего контракта (`form.render.ts`, `wizard.tsx`, `renderer.*`,
   `validation.ts`) — предупреждения с подсказкой, куда перенести содержимое.
@@ -208,55 +223,57 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 читаться как «код верен» — разбор построчный, без TypeScript-AST (это сознательный отказ:
 `typescript` весит 23 MB и вынесен из обязательных зависимостей).
 
-Прежние `validate_json_schema` и `check_behaviors` заменены этим инструментом.
+Прежние `validate_json_schema` и `check_behaviors` заменены этим инструментом и с 7.0 удалены.
 
-## 12. plan_form
+## 9. plan_form
 
-Спека (markdown) или описание → `FormIntent`: машиночитаемый план формы (поля, массивы,
-правила, поведение, разметка, подформы `parts`), который человек читает и правит до генерации
-кода.
+A markdown spec → a draft `<dir>/form.intent.json` on disk. The answer is a short summary — what
+was parsed (fields, steps, arrays, rules) and what to finish by hand; the intent itself is not
+printed, so a large JSON never passes through the model twice. An existing intent file is never
+overwritten.
 
-- `specPath` (string, optional) — путь к спеке, абсолютный или от корня репозитория.
-- `description` (string, optional) — свободное описание, если спеки нет.
+- `specPath` (string, required) — the spec, absolute or relative to the working directory.
+- `dir` (string, optional) — the form folder, as in `form_build` (default `form`; required at a
+  monorepo root).
 - `target` (string, optional) — `core` | `renderer-react` | `renderer-json`.
 
-Разбор эвристический и честно об этом говорит: типы полей и компоненты угаданы по тексту.
+The parse is heuristic and says so: field types without a type column are guessed by name; formulas
+of computed fields and visibility rules are not extracted. A free-text description is no longer
+parsed — it gave an empty draft: write the intent by the grammar instead.
 
-## 13. generate_form
+## 10. form_build
 
-`FormIntent` → бандл файлов единого контракта формы плюс кросс-проверка файлов между собой.
-Набор один на все таргеты: `model.ts` (фабрика модели, шаблоны строк массивов — `arrayOf`),
-`form.schema.ts` (одно дерево узлов: TS-билдер для `core` и `renderer-react`, документ формата 2
-в `defineJsonSchema<T>` для `renderer-json`), `form.validation.ts` (подформы — `apply`, массивы —
-`applyEach`, шаги визарда — по `selector`), `form.behavior.ts` (единственное поведение: связи над
-моделью и правила узлов схемы); `renderer-json` получает ещё `registry.ts`. Манифест печатает и
-образец сборки `index.tsx` — `createForm` + `useFormBundle`.
+The one way to make a form: a module on disk from one file, `<dir>/form.intent.json`. You write and
+edit only that file with your own Write/Edit; `form_build` compiles it, cross-checks it, type-checks
+the module and writes every module file itself, answering with diagnostics only. Nothing is written
+while errors remain. There is no `form_build` in the browser worker — it has no disk.
 
-Возвращает МАНИФЕСТ — файлы пишет клиент через свой Write и свой permission-гейт: сервер живёт
-в своём процессе и корня репозитория не знает.
+`generate_form` of 6.x, which printed the files for the agent to write by hand, is removed in 7.0,
+and so are the aliases `validate_json_schema` and `check_behaviors` (use `validate_form`).
 
-Подформа в intent: разметка объявляется один раз в `parts: { <имя>: LayoutNode }` и ставится узлом
-`{ kind: "part", ref: "<путь группы>", part: "<имя>" }`; пути полей внутри части — от группы.
+- `dir` (string, optional) — the form folder relative to the working directory, `form` by default;
+  required at a monorepo root (a `package.json` with `workspaces`): the default would put the form
+  outside every app.
+- `grammar` (string, optional) — return the intent grammar instead of building: `base`, a section
+  (`behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes`), several
+  comma-separated, or `all`. Needs neither a project nor an intent file.
 
-- `intent` (object, required) — обычно из `plan_form`; неполный нормализуется с warnings.
-- `target` (string, optional) — перекрывает `intent.target`.
+Without an intent file the call answers with the base grammar. Built files start with the mark
+`// @reformer-form-build`; a file edited by hand is detached — the build leaves it alone and says
+so. `types.ts` and `api.ts` belong to you. `index.tsx` is built on every target: on `core` it is a
+stub with samples — a field, visibility in JSX, `bundle.submission.submit`, steps — kept in step
+with the intent until you write your markup there; a renderer target replaces an untouched stub with
+its assembly and refuses to keep markup written by hand. Details — `06-form-directory-layout`,
+section «`form.intent.json`».
 
-## 14. form_build
+The answer is `✓ form_build: …` or `✗ form_build: <what> — nothing written.` with one finding per
+line: `<code> at <place>: <what is wrong> → <what to do>`. An unknown key of a record is an error
+(`unknown-key`, with the nearest key); a component prop written next to the field (`placeholder`,
+`min`) is moved into `componentProps` with a note. The verdict is the one of `validate_form
+kind="bundle"`; on top of it the build type-checks the module (a type error says which file to fix)
+and needs the environment: `@reformer/core` and `@reformer/ui-kit` installed in the project.
 
-Модуль формы на диске из одного файла — `<dir>/form.intent.json`. Агент пишет и правит только
-этот файл своим Write/Edit; `form_build` компилирует его, сверяет, проверяет типы результата и сам
-записывает все файлы модуля, возвращая только диагностику. В отличие от `generate_form`, сервер
-пишет файлы сам, поэтому инструмента нет во встроенном (браузерном) профиле.
-
-- `dir` (string, optional) — каталог формы внутри проекта, по умолчанию `form`.
-
-Пока есть ошибки, на диск не пишется ничего. Вызов до появления `form.intent.json` возвращает
-грамматику intent. Собранные файлы начинаются с метки `// @reformer-form-build`; файл, правленный
-руками, отсоединяется — сборка его не трогает и сообщает об этом. `types.ts` и `api.ts` — файлы
-потребителя; на таргете `core` им же принадлежит `index.tsx` (сборка создаёт заготовку один раз).
-Подробно — `06-form-directory-layout`, раздел «`form.intent.json`».
-
-## 15. report_issue
+## 11. report_issue
 
 Record a ReFormer problem + its fix as a JSON report on disk — one file per report,
 `<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`.
@@ -275,82 +292,73 @@ Use when you discover and fix a non-obvious ReFormer error, to help future runs.
 
 _A `debug` tool exists only when the server runs with `REFORMER_DEBUG=true`; ignore it in normal use._
 
-## 16. start-here
+## 12. start-here
 
 **Prompts**
 
-Workflow prompts. Each returns an instruction message that orchestrates one step and points you
-at the resources/tools to read.
+Workflow prompts. Each returns an instruction message for one step: what to write in
+`form.intent.json`, which grammar section to ask for, when to call `form_build`.
 
 > **Prompts are a human channel, and most agent clients do not expose them.** If you are an
 > agent, check first: without a way to list or invoke prompts, none of this section is reachable
 > for you — and there is no error to tell you so. Every prompt below names its tool equivalent;
 > use that instead. This is not a fallback, it is the supported path for tool-only consumers.
 
-| Prompt | Tool-only equivalent |
-| --- | --- |
-| `start-here` | read the resource `reformer://guide` (same content, no prompt needed) |
-| `discover-context` | `get_context` with your task and, if known, `target` |
-| `plan-form` | `plan_form` tool (same arguments) |
-| `create-form` | `find_recipe directory-layout` for the file layout, then `generate_form` |
-| `add-feature` / `to-renderer` | `find_recipe` on the feature keyword, then `choose_api` |
-| `review` | `validate_form` — `kind: "layout"`, then `code` / `behaviors` / `json-schema` |
+| Prompt                        | Tool-only equivalent                                                        |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `start-here`                  | read the resource `reformer://guide`                                        |
+| `discover-context`            | read `reformer://status`; `get_context` with your task and `target`          |
+| `plan-form`                   | `plan_form {specPath, dir}`, then finish the draft and `form_build`         |
+| `create-form`                 | `form_build {"grammar":"base"}`, write the intent, `form_build {dir}`       |
+| `add-feature` / `to-renderer` | the grammar section of the feature, edit the intent, `form_build {dir}`     |
+| `review`                      | `validate_form` — `kind: "layout"`, then `code` / `behaviors` / `json-schema` |
 
-No arguments. The entry point: returns the workflow of the unified form contract (one schema, one
-assembly `createForm`, one behavior), the map of prompts/tools/resources, and the reading order.
+No arguments. The one path to a form (grammar → `form.intent.json` → `form_build`), where your own
+code goes, and the map of tools, prompts and resources.
 
-**Tool-only equivalent:** read the resource `reformer://guide`. It is the same document, and
-its opening lines carry the file-layout rule — which is the one thing worth reading before you
-create any file.
+**Tool-only equivalent:** the resource `reformer://guide`.
 
-## 17. discover-context
+## 13. discover-context
 
 - `description` (required), `projectPath` (optional).
 
-Detects the target stack (ui-kit / Tailwind / which renderer) from the consumer project and
-recommends a render target. Optional first step when the target isn't given.
+Detects the stack of the project (ui-kit, Tailwind, which renderer) and recommends a target.
+Optional first step when the target isn't given.
 
-## 18. plan-form
+## 14. plan-form
 
 - `specPath` (required), `target` (optional: core | renderer-react | renderer-json), `projectPath` (optional).
 
-Reads and parses a markdown spec file, then returns a roadmap: steps, fields, conditionals,
-behaviors, API endpoints, a risk matrix, and verification scenarios. Use when the form comes
-from a written spec.
+Summarises the spec — steps, fields, conditional and computed fields, arrays, API — and leads
+through `plan_form` (a draft intent on disk), finishing the draft against the spec, and
+`form_build` until ✓.
 
-## 19. create-form
+## 15. create-form
 
 - `description` (required), `target` (optional, default core), `projectPath` (optional).
 
-Turns a free-text form description into build instructions for the chosen target (quick-start,
-FormSchema reference, imports, stack-aware skeleton). Use for the initial form when there is no spec file.
+A new form from a description: the detected stack, the grammar sections to ask for, the intent,
+`form_build`, and what is left to you on the chosen target (the JSX markup on core).
 
-## 20. add-feature
+## 16. add-feature
 
-Добавить одну возможность в существующую форму. Стадия выбирается аргументом:
-- `feature: "validation"` — правила валидации;
-- `feature: "behavior"` — единственное поведение формы: связи над моделью и правила узлов схемы;
-- `feature: "array"` — массив под-форм (`arrayOf` в модели, узел `{ model, item }`, `applyEach`);
-- `feature: "wizard"` — шаги мастера (библиотечный `FormWizard` узлом схемы).
+One capability for a form built with `form_build`, chosen by `feature`:
 
-Аргументы: `code` (текущий код формы) и `requirements` (что добавить; для `wizard` —
-перечень шагов и полей).
+- `validation` — rows of `validation` (sections `cross`, `async` when needed);
+- `behavior` — records of `behavior` and `visibility` (`choose_api` per requirement);
+- `array` — a record of `arrays` with row rules and behaviors (section `arrays`);
+- `wizard` — a `FormWizard` root with steps (section `wizard`).
 
-Схлопывает прежние `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`:
-у всех четырёх одна форма аргументов, поэтому слияние не создаёт путаницы, а перечисление
-из четырёх записей стоило каждому клиенту токенов при подключении.
+Arguments: `requirements` (what to add; for `wizard` — the steps and their fields) and, optionally,
+`code` — the current `form.intent.json`.
 
-## 21. to-renderer
+## 17. to-renderer
 
-Сменить способ отрисовки формы. Модель, валидация, поведение и вызов `createForm` остаются —
-меняется только то, кто рисует. Целевой стек — аргумент:
-- `target: "renderer-react"` (по умолчанию) — разметку из JSX рисует `FormRenderer` по той же схеме;
-- `target: "renderer-json"` — схема становится JSON-документом формата 2, плюс реестр компонентов.
+Switch the form to `target`: `renderer-react` (default) or `renderer-json` — `"target"` in the
+intent and `form_build`; a hand-written `index.tsx` from core is moved out first. Optional `code` —
+the current intent.
 
-Аргументы: `code`, опционально `target`. Схлопывает прежние `to-renderer` и
-`to-renderer-json`.
-
-## 22. review
+## 18. review
 
 - `code` (required).
 
@@ -360,19 +368,20 @@ Cross-package review checklist (state setup, integration, anti-patterns) for exi
 
 _A `debug` prompt exists only with `REFORMER_DEBUG=true`._
 
-## 23. URI scheme
+## 19. URI scheme
 
 **Resources**
 
 Documentation the server serves as MCP resources (ReadResource to fetch).
 
-`ListResources` returns only **8 entries** — the guide, the catalog, and one full-docs URI per
-package. It deliberately does NOT enumerate the ~343 individual sections: doing so cost every
+`ListResources` returns only a few entries — the guide, the catalog, the status and one full-docs
+URI per package. It deliberately does NOT enumerate the ~343 individual sections: doing so cost every
 client ~20 900 tokens at connection time, before any useful work. To discover section URIs use
 `reformer://catalog` (a compact JSON map) or `search_docs`, which already returns ready URIs.
 Section URIs themselves are unchanged and read exactly as before.
 
-- `reformer://guide` — this server's full self-doc (workflow + tools + prompts + resources). The entry point in resource form (mirrors the `start-here` prompt).
+- `reformer://guide` — start here: the one path to a form (`form.intent.json` → `form_build`), what the build writes, the contract for your own code, and which tool or resource to use. Under 6 KB; the resource form of the `start-here` prompt.
+- `reformer://status` — `application/json`: which `@reformer/*` packages the server found (where, version, index, docs), whether it can type-check a form, the ui-kit catalog, and what failed to load.
 - `reformer://catalog` — `application/json`: every package → its sections as `[slug, title]`. The index for building the URIs below.
 - `reformer://docs/<pkg>` — the full `llms.txt` of one library package (every section concatenated).
 - `reformer://docs/<pkg>/<section-slug>` — a single `##` section of a package, by slug.
@@ -382,16 +391,17 @@ Section URIs themselves are unchanged and read exactly as before.
 
 `<pkg>` is a short name: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `form-registry`, `mcp`.
 
-## 24. Self-documentation (this server)
+## 20. Self-documentation (this server)
 
-- `reformer://guide` — the whole self-doc in one document (guide + tools + prompts + resources + workflow).
-  Equivalent to `reformer://docs/mcp` (the full mcp `llms.txt`).
+- `reformer://guide` — the short start: the first section of this self-doc.
+- `reformer://docs/mcp` — the whole self-doc in one document (guide + tools + prompts + resources +
+  the library contract behind the module).
 - Individual sections are addressable, but their slug is derived from the section's H2 heading, not the
   filename. Enumerate exact URIs via `reformer://catalog`. Examples of real slugs:
   `reformer://docs/mcp/form-intent-json-the-source-for-form-build`,
   `reformer://docs/mcp/schema-one-tree-of-nodes`, `reformer://docs/mcp/checklist-before-you-finish`.
 
-## 25. Library docs (the 6 packages)
+## 21. Library docs (the 6 packages)
 
 Each package's sections come from its `docs/llms/*.md`. Discover exact slugs via `reformer://catalog`
 or `search_docs`. The examples below are file names, one whole file each:
@@ -402,7 +412,7 @@ or `search_docs`. The examples below are file names, one whole file each:
 - `reformer://docs/renderer-react/render-schema`, `reformer://docs/renderer-react/render-behavior` — the schema tree drawn by `FormRenderer`.
 - `reformer://docs/renderer-json/json-schema`, `reformer://docs/renderer-json/registry` — JSON DSL + registry.
 
-## 26. How this relates to tools
+## 22. How this relates to tools
 
 `find_recipe` reads the same `docs/llms/*.md` directly (with alias resolution) and, when no curated
 recipe matches, cascades into the same full-text search `search_docs` uses — so an unknown topic
@@ -410,16 +420,20 @@ returns ranked `reformer://docs/…` candidates instead of a dead end. Resources
 sections when you want to browse or read a whole package. When you know the scenario, `find_recipe`
 is faster; when you want the full section text, read the resource.
 
-## 27. 0. Choose who draws the markup
+## 23. 0. Choose who draws the markup
 
-**Form-building workflow**
+**The contract behind a form module**
 
-The canonical order for building a ReFormer form. A form is described ONE way for every way of
-drawing it: one schema tree, one binding handle (`model.$.…`), one assembly (`createForm`), one
-behavior. The single reactive model is the source of truth. Follow the steps top to bottom. Each
-lists the decision, the key API, and the traps the runtime would otherwise punish. Look up exact
-signatures with `get_symbol_docs`, worked examples with `find_recipe` (start with
-`find_recipe unified-contract`).
+**You do not assemble a form by these steps:** `form_build` writes this module from
+`form.intent.json` (see the guide). This chapter is the library contract the generated module
+follows — read it when you write your own code next to it (the JSX markup on core, own operators in
+`operators.ts`, loading and submit in `api.ts`) or review a module.
+
+A form is described ONE way for every way of drawing it: one schema tree, one binding handle
+(`model.$.…`), one assembly (`createForm`), one behavior. The single reactive model is the source of
+truth. The parts below go in the order a module is put together; each lists the decision, the key
+API, and the traps the runtime would otherwise punish. Exact signatures — `get_symbol_docs`, worked
+examples — `find_recipe` (start with `find_recipe unified-contract`).
 
 ```ts
 // model.ts — initial values and templates of new array rows
@@ -472,7 +486,7 @@ const credit = useFormBundle(() =>
 Steps 1–6 are the same for all three. They differ only in the shape of the schema passed to the
 assembly (a builder or a document + `registry`) and in step 7.
 
-## 28. 1. Model — `createModel<T>(initial)`
+## 24. 1. Model — `createModel<T>(initial)`
 
 The model owns all values. Decisions: the data shape as a `type` (NOT `interface` — see
 `find_recipe type-safety-recipes`), and full initial values.
@@ -493,7 +507,7 @@ export const createRegModel = () =>
 // model.email (value) · model.$.email (binding handle) · model.get() · model.set(full)
 ```
 
-## 29. 2. Schema — one tree of nodes
+## 25. 2. Schema — one tree of nodes
 
 ONE schema: a field is described once and stands right where it is drawn. The schema is a builder
 `(model) => node`; a node is bound to the model by the key `model` and the handle `model.$.…` —
@@ -544,7 +558,7 @@ Traps:
 - Containers are optional: whoever writes the markup in JSX keeps only field nodes in the schema.
 - `selector` is a node id for rules of the behavior (step 5), not a model path.
 
-## 30. 3. Assemble — ONE call, `createForm`
+## 26. 3. Assemble — ONE call, `createForm`
 
 The model, the schema tree, the form, the behavior and the validation are built in a single pass.
 The call is the same for every way of drawing; a JSON document goes in as `schema` together with
@@ -575,7 +589,7 @@ once, while `useMemo` may drop its cache and rebuild the form, losing typed inpu
 `createFormFromModel({ model, schema })` remains public for special cases; `createLegacyForm`
 (both overloads) has been removed.
 
-## 31. 4. Validation — `defineValidation`
+## 27. 4. Validation — `defineValidation`
 
 Validation is its **own ambient schema** — a plain function over the model, imported from
 `@reformer/core/validation`, separate from the form schema (step 2) and from the behavior (step 5).
@@ -639,7 +653,7 @@ Trap: the old `ModelValidator (value, scope, root)` placed in a leaf's `validato
 `validateFormModel` → `{ valid, errors }` is replaced by `validateModel` → `Promise<boolean>` that routes
 errors into the nodes itself.
 
-## 32. 5. Behavior — the ONLY behavior of the form (optional)
+## 28. 5. Behavior — the ONLY behavior of the form (optional)
 
 One function, one file (`form.behavior.ts`), one `behavior` field of the assembly. Next to the model
 and the form it gets the schema, so links over the model and rules for schema nodes stand side by
@@ -685,7 +699,7 @@ through `validate_form kind="behaviors"`; see `find_recipe cycle`.
 Bridge to validation (the only overlap between the layers): a behavior can _trigger_ a re-run —
 `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.
 
-## 33. 6. Arrays & Wizard (when needed)
+## 29. 6. Arrays & Wizard (when needed)
 
 - **Array of sub-forms**: `arrayOf(blank)` in the model + the node
   `{ model: model.$.items, component: FieldArray, item: itemRow }`; `itemRow` is a part
@@ -703,7 +717,7 @@ Bridge to validation (the only overlap between the layers): a behavior can _trig
   of it is the former contract; the behavior navigates with `flow.goTo(id)`. In JSX `FormWizard`
   takes `form`, `flow={bundle.flow}` and `steps` as props. `find_recipe wizard`.
 
-## 34. 7. Draw
+## 30. 7. Draw
 
 The bundle from step 3 goes to whoever draws.
 
@@ -732,7 +746,7 @@ artifacts over one model, the same for every way of drawing: the **schema** (`fo
 stay independent: a layout pushed from the server changes display without touching the rules, and
 vice versa.
 
-## 35. Checklist before you finish
+## 31. Checklist before you finish
 
 1. The model initialises every field; arrays of sub-forms are `arrayOf(blank)`. 2. Nodes are
 `{ model: model.$.x, component, ... }` — the key is `model`, no `validators:` on a node. 3. One
@@ -742,7 +756,7 @@ assembly: `createForm` in `useFormBundle`. 4. Validation is a separate `defineVa
 7. A JSON document has `"format": 2` and passed `validate_form kind="json-schema"`. 8. The code
 passed `validate_form kind="code"` — it reports keys and factories of the former contract.
 
-## 36. 1. Minimalist (default) — flat, one file per concern
+## 32. 1. Minimalist (default) — flat, one file per concern
 
 **Form directory layout (core / renderer-react / renderer-json)**
 
@@ -771,8 +785,8 @@ Use `[form-name]` / `[FormName]` as placeholders.
 > written before this guide and still use the old names; they are references for _content_, never for
 > _naming_.
 
-> The default this guide leads with is configurable — see §5 (`REFORMER_FORM_LAYOUT`). This guide
-> documents both the minimalist default and the folders scale-up regardless of the setting.
+> `form_build` writes the minimalist layout (§5). This guide documents both it and the folders
+> scale-up for a module organised by hand.
 
 What files should a form have? Exactly the set below — the same files for every target.
 Everything lives in the form module root (no role folders — those are the large-form layout of §3). A single
@@ -889,7 +903,7 @@ Rules:
 - **The set is the whole module.** A concern with no file of its own does not get a new file — it
   belongs inside one of these. The documented exception is the `steps/` folders above.
 
-## 37. 2. App-level infrastructure (renderer-json only) — recommendation, not a conformance bar
+## 33. 2. App-level infrastructure (renderer-json only) — recommendation, not a conformance bar
 
 > **Status: aspirational.** Nothing in this repository implements the layout below: no example has a
 > `src/renderer-json/` directory, and the meta-schema generator is currently wired to one specific
@@ -919,7 +933,7 @@ workaround.
 > Raw (non-ui-kit) controls are bound by name the same way, but need a `resolveFieldAdapter` in the
 > renderer **settings** (see `@reformer/renderer-react`), not in the registry itself.
 
-## 38. 3. Scale up: folders (large forms)
+## 34. 3. Scale up: folders (large forms)
 
 When a form grows large (many steps, sub-forms reused across steps, several ways of drawing), the
 flat module becomes **role folders** — the layout of the reference credit application
@@ -953,7 +967,7 @@ flow })`. `validation/form.ts` keeps only the rules outside steps (`{ extras }`)
 - `validate_form kind="layout"` recognises this layout by its role folders: it checks the top-level
   folders and the entry, not the file names inside them.
 
-## 39. 4. Scaling
+## 35. 4. Scaling
 
 | Complexity               | Structure                                                                                                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -961,23 +975,14 @@ flow })`. `validation/form.ts` keeps only the rules outside steps (`{ extras }`)
 | **Default (minimalist)** | flat files (§1) — plain-named base + `form.schema` / `form.behavior` / `form.validation`; wizard steps in the root schema or in `steps/<slug>/`; identical across targets |
 | Large                    | folders (§3): role folders `model/` `schema/` `validation/` `behavior/` `flow/` `application/` (+ app-level registry/meta-schema for renderer-json)                       |
 
-## 40. 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
+## 36. 5. Which layout `form_build` writes
 
-Which layout the **`create-form` prompt leads with** is configurable via the `REFORMER_FORM_LAYOUT`
-environment variable, set in the MCP server registration `env` of your client's `.mcp.json` — the
-same mechanism as `REFORMER_DEBUG`:
+`form_build` always writes the flat **minimalist** layout under the canonical names above; the
+`folders` layout is for a large module you organise by hand. The former `REFORMER_FORM_LAYOUT`
+switch only steered the `create-form` prompt, and the prompt no longer writes modules — it was
+removed in `@reformer/mcp` 7.0.
 
-```jsonc
-// .mcp.json
-{
-  "mcpServers": { "reformer": { "command": "…", "env": { "REFORMER_FORM_LAYOUT": "minimalist" } } },
-}
-```
-
-Values: `minimalist` (default when unset/unrecognized) | `folders`. This guide documents both
-layouts regardless; the env var only changes which one `create-form` steers toward by default.
-
-## 41. 6. Reuse map
+## 37. 6. Reuse map
 
 The contract of a form is the same for every way of drawing, so almost every file is written once.
 
@@ -1001,14 +1006,14 @@ The contract of a form is the same for every way of drawing, so almost every fil
 | **app** `form-schema.schema.json`   | generated DSL meta-schema                            |         —         |         —         | app-level (§2, aspirational) |
 
 Rule nodes of the behavior (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer.
-When the markup is written by hand (core) they do nothing: visibility, submit and data loading stay
-in the JSX of `index.tsx` there.
+When the markup is written by hand (core) there is none, so `form_build` refuses them
+(`not-on-target`): visibility, submit and data loading are written in the JSX of `index.tsx` there.
 
 Renaming any of these is a defect in itself: the stems above are the contract that reviews, generators
 and `find_recipe directory-layout` key on. Older example directories in this repository predate the
 contract and are **not** naming references.
 
-## 42. 7. Former names (`form.render.ts`, `wizard.tsx`, `renderer.*`, `validation.ts`)
+## 38. 7. Former names (`form.render.ts`, `wizard.tsx`, `renderer.*`, `validation.ts`)
 
 The canon was aligned twice. First the render layer lost its `renderer.` prefix and validation got
 the `form.` prefix. Then the unified contract removed two roles altogether: the separate behavior of
@@ -1026,14 +1031,16 @@ Fix it when you next touch the module; new code uses the canonical names only. `
 `renderer-react` share one file set, so the files alone no longer tell these targets apart — pass
 `target` to `validate_form kind="layout"` explicitly.
 
-## 43. 8. `form.intent.json` — the source for `form_build`
+## 39. 8. `form.intent.json` — the source for `form_build`
 
 An optional addition to the module. Author and edit only this file: `form_build` compiles it,
 type-checks the result and writes the module. Files it wrote start with a `// @reformer-form-build`
 marker. Editing such a file by hand detaches it: the build keeps your version and says so; delete
 the file to bring it back. `types.ts` and `api.ts` stay yours. On the `core` target `index.tsx` is
-yours too: the build creates a stub once, you write the JSX markup there, and the build type-checks
-it.
+a stub with samples (a field, visibility in JSX, `bundle.submission.submit`, steps) that the build
+keeps in step with the intent until you write the JSX markup there; from then on it is yours, and
+the build type-checks it. Switching to a renderer target replaces an untouched stub and refuses to
+keep markup written by hand.
 
 Own operators are built on the core ones: a rule factory returning `Rule<T>`, a validation operator
 over `validate` / `cross` / `validateWhen`, a behavior operator over the `@reformer/core/behaviors`
@@ -1044,7 +1051,7 @@ arguments, empty bodies, `TODO(form_build)` marks. Until you edit it, the stub f
 writing the bodies detaches it like any built file, and the build keeps reminding you while marks
 remain.
 
-## 44. Package entries
+## 40. Package entries
 
 **Embedding — package entries and the browser worker**
 
@@ -1057,45 +1064,98 @@ An agent that only calls the server's tools does not need this file.
 | `@reformer/mcp`       | the stdio server (`bin`: `reformer-mcp`); not meant to be imported                                 |
 | `@reformer/mcp/core`  | `createKnowledge(sources)`, `memoize`; types `Knowledge`, `KnowledgeSources`, `SymbolsFallback`, `UiKitCatalogSource` |
 | `@reformer/mcp/browser` | `createBrowserKnowledge(input)` → `{ knowledge, issues }` — knowledge from already loaded data   |
-| `@reformer/mcp/intent`  | the form-intent compiler as pure functions — no server, no disk                                  |
+| `@reformer/mcp/intent`  | the form-intent compiler and its judge as pure functions — no server, no disk                    |
 | `@reformer/mcp/package.json`, `@reformer/mcp/*` | raw files of the package (`llms.txt`, `docs/llms/*.md`, `dist/worker/server.js`) |
 
 `core/` holds no Node globals (`npm run check:no-node-globals` guards it), so `./core`,
 `./browser` and `./intent` load in a browser.
 
-## 45. `@reformer/mcp/intent` — compile a form intent in-process
+## 41. `@reformer/mcp/intent` — compile and judge a form intent in-process
 
-The same pipeline that `generate_form` and `form_build` run, for a host that keeps its own form
-document (the ReFormer Builder assistant uses it in its `build_form` tool):
+The pipeline of `form_build` as pure functions, for a host that keeps its own form document (the
+ReFormer Builder assistant uses it in its `build_form` tool). Start with `judgeIntent`: it gives the
+verdict of `validate_form kind="bundle"` and of `form_build` before its type check, so the host,
+the terminal and the validator call the same things errors.
 
-| Function                                         | What it does                                                                    |
-| ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `readIntent(raw, options?)`                      | parse an untrusted JSON value → `{ intent, problems, notices }`                 |
-| `normalizeIntent(partial, { uiKit? })`           | fill the defaults of a partial `FormIntent`                                     |
-| `buildSchemaLayout(intent)`, `collectSteps`, `stepKeyOf` | the schema layout and wizard steps of the intent                        |
-| `buildValidationSchemaTs(rules, options)`, `buildBehaviorTs(intent)` | print `form.validation.ts` / `form.behavior.ts` source      |
-| `mergeFieldChecks`, `inspectLayoutRefs`, `modelPaths` | merge per-field checks, cross-check layout references, list model paths    |
-| `findCycle(deps)`                                | a cycle in `{ target, reads }[]` dependencies, or `null` (as `check_behaviors`) |
-| `uiKitFromCatalog`, `normalizeFieldComponent`, `NO_UI_KIT` | component names from a kit catalog                                   |
-| `coreOperatorsFromIndex`, `NO_CORE_OPERATORS`    | operators of the installed `@reformer/core`, read from its `llms-index.json`    |
+| Function                                                  | What it does                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `judgeIntent(raw, catalogs, options?)`                    | the verdict on an untrusted JSON value → `{ ok, intent, errors, warnings, bundle? }`; never throws  |
+| `readIntent(raw, options?)`                               | the reading step alone → `{ intent, problems, notices }`                                             |
+| `normalizeIntent(partial, { uiKit? })`                    | fill the defaults of a partial `FormIntent`                                                          |
+| `buildSchemaLayout(intent)`, `collectSteps`, `stepKeyOf`  | the schema layout and wizard steps of the intent                                                     |
+| `buildValidationSchemaTs(rules, options)`, `buildBehaviorTs(intent)` | print `form.validation.ts` / `form.behavior.ts` source                                    |
+| `mergeFieldChecks`, `inspectLayoutRefs`, `inspectSteps`, `modelPaths` | merge per-field checks, cross-check layout references, find steps mixed with other nodes or nested in a step (C13), list model paths |
+| `findCycle(deps)`                                         | a cycle in `{ target, reads }[]` dependencies, or `null` (as `validate_form kind="behaviors"`)       |
+| `uiKitFromCatalog`, `uiKitPropsFromCatalog`, `normalizeFieldComponent`, `NO_UI_KIT` | component names and props schemas from a kit catalog                       |
+| `coreOperatorsFromIndex`, `NO_CORE_OPERATORS`             | operators of the installed `@reformer/core`, from a knowledge index                                  |
+| `MODULE_ONLY_WARNINGS`                                    | codes of the warnings about printing a module — a form document does not need them                  |
+| `intentGrammar(catalogs, { profile: 'document' })`        | the intent grammar of a form document: no target, JSX, initial values or module code; at most `DOCUMENT_GRAMMAR_LIMIT` characters |
+| `DOCUMENT_GRAMMAR_EXAMPLE`                                | the intent the document grammar is printed from — build it with your own builder to check the grammar holds on your kit |
+| `documentCapabilities(intent)`                            | what a form document cannot hold (`not-in-document`) and will not keep (`not-kept`); `judgeIntent` with `forDocument` includes it |
+| `INTENT_CONTRACT_VERSION`                                 | the version of the intent contract — records, finding codes, the document grammar; grows on an incompatible change |
 
 Types: `FormIntent`, `FieldIntent`, `ArrayIntent`, `WizardIntent`, `ValidationRuleIntent`,
-`BehaviorIntent`, `VisibilityIntent`, `NodeRuleIntent`, `LayoutNode`, `SchemaDocument`,
-`IntentProblem`, `IntentWarning`.
+`BehaviorIntent`, `VisibilityIntent`, `NodeRuleIntent`, `DataSourceIntent`, `FieldType`,
+`LayoutNode`, `SchemaDocument`, `SchemaDocNode`, `SchemaLayout`; reading — `ReadIntentOptions`,
+`IntentReading`, `IntentProblem`, `IntentProblemCode`, `IntentWarning`, `IntentWarningCode`; the
+verdict — `IntentVerdict`, `JudgeFinding`, `JudgeCode`, `JudgeWarningCode`, `JudgeOptions`;
+catalogs — `FormCatalogs`, `UiKitComponents`, `UiKitPropSchemas`, `CoreOperators`, `CoreRule`;
+`Dependency` of `findCycle`.
+
+### The verdict — `judgeIntent`
+
+The verdict matches the build's only with the catalogs the build checks names against:
+
+- `uiKit` and `uiKitProps` — both from the kit catalog, the JSON of `@reformer/ui-kit/catalog`.
+  Without the props schemas reading does not know which props a component lacks: `min` written on
+  an `Input` is moved into `componentProps` where the build reports `prop-unsupported`, and unknown
+  keys inside `componentProps` get no `component-props` warning.
+- `core` — `coreOperatorsFromIndex(knowledge.index)`, the knowledge of `@reformer/mcp/core` or
+  `@reformer/mcp/browser`. With `NO_CORE_OPERATORS` rule names are not checked against the core.
+
+Options:
+
+- `forDocument: true` — judge a form document, not a module: no environment is required, no module
+  is built (`bundle` is absent), the target's rules and the notes about printing a module are left
+  out. What a document has no place for is an error `not-in-document` — own operators, `call`,
+  `severity` and `params` of a check, node hooks other than `onComponentEvent`; what it will not keep
+  is a warning `not-kept` — initial values, starting rows, a data source without values.
+- `requireEnvironment: false` — judge a module even without the catalogs (as `validate_form` does):
+  a missing catalog turns its checks off instead of the error `environment`.
+- `schema`, `componentNames`, `dataSourceNames` — cross-check a schema of your own against the intent
+  (as `validate_form kind="bundle"` with `schema`).
+
+A finding is `{ code, message, at?, hint? }`: `at` is the place in the intent (`fields[2].lable`),
+`hint` is what to do. The `code` is stable: reading problems (`unknown-key`, `key-conflict`,
+`invalid-value`, …), `C1`–`C13` of the cross-check and the judge's own (`unplaced`, `lost-message`,
+`unknown-component`, `environment`, `not-on-target`, `not-in-document`). The `message` is English, written for a
+model, and may change: a host with its own language picks its text by the code. Reading problems
+stop the verdict — further checks would only echo the records that were not read. Warnings come
+ranked: those that change the meaning go first.
 
 ```typescript
-import { findCycle, readIntent } from '@reformer/mcp/intent';
+import {
+  coreOperatorsFromIndex,
+  judgeIntent,
+  uiKitFromCatalog,
+  uiKitPropsFromCatalog,
+  type FormCatalogs,
+} from '@reformer/mcp/intent';
 
-const { intent, problems } = readIntent(JSON.parse(text));
-if (problems.length > 0) throw new Error(problems.map((p) => p.message).join('\n'));
+// kitCatalog — the JSON of `@reformer/ui-kit/catalog`; knowledge — from `@reformer/mcp/browser`
+const catalogs: FormCatalogs = {
+  uiKit: uiKitFromCatalog(kitCatalog),
+  uiKitProps: uiKitPropsFromCatalog(kitCatalog),
+  core: coreOperatorsFromIndex(knowledge.index),
+};
 
-const cycle = findCycle([
-  { target: 'total', reads: ['price', 'quantity'] },
-  { target: 'price', reads: ['total'] },
-]); // ['total', 'price', 'total']
+const verdict = judgeIntent(JSON.parse(text), catalogs, { forDocument: true });
+for (const { code, at, message, hint } of verdict.errors) {
+  console.log(`${code}${at ? ` at ${at}` : ''}: ${message}${hint ? ` → ${hint}` : ''}`);
+}
 ```
 
-## 46. Browser worker
+## 42. Browser worker
 
 `dist/worker/server.js` is one self-contained script (about 4.5 MB) with the knowledge corpus
 built in. The host starts it as a Web Worker and speaks MCP over `postMessage`: one message —
@@ -1113,15 +1173,16 @@ await client.connect(createPortTransport(worker, { onClose: () => worker.termina
 
 Differences from the Node server:
 
-- no `form_build` and `report_issue` — they write to disk; no `debug`;
-- `plan_form` has no `specPath` — the plan is built from `description`;
+- only the reference tools: no `form_build` and `plan_form` (they write into a project, and there is
+  none), no `report_issue` (a report in worker memory would be lost), no `debug`. A host builds the
+  form itself from an intent — with `@reformer/mcp/intent`, as the Builder assistant's `build_form`;
 - no prompts: they are rendered from template files and ask the client for sampling;
 - the same resources: `reformer://guide`, `reformer://catalog`, `reformer://docs/…`.
 
 Rebuild only the worker bundle (needs a built `dist`): `npm run build:worker -w @reformer/mcp`;
 `-- --out <dir>` also copies it there.
 
-## 47. API Reference
+## 43. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1327,6 +1388,11 @@ export interface CoreOperators {
   readonly rules: ReadonlyMap<string, CoreRule>;
   /** Значения из `./validators`, `./validation`, `./behaviors`: свой оператор так называться не может. */
   readonly names: ReadonlySet<string>;
+  /**
+   * Значения только из `./validation` и `./behaviors` — операторы схем и основа своих операторов.
+   * По ним грамматика находит оператор ядра, которого нет в языке intent (ReFormer-wkva).
+   */
+  readonly operatorNames: ReadonlySet<string>;
 }
 ```
 
@@ -1430,6 +1496,67 @@ export interface Dependency {
 
 _Source: src/core/utils/graph.ts_
 
+### DOCUMENT_GRAMMAR_EXAMPLE
+
+**Kind:** `const`
+
+Рабочая форма грамматики документа: то же, что у {@link GRAMMAR_EXAMPLE}, без шагов, частей,
+своих операторов и хуков модуля. Строки грамматики берутся отсюда, а потребитель собирает этот
+intent своей сборкой — ассистент конструктора проверяет так `build_form` на своём ките.
+
+**Signature:**
+```typescript
+export const DOCUMENT_GRAMMAR_EXAMPLE
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
+### DOCUMENT_GRAMMAR_LIMIT
+
+**Kind:** `const`
+
+Потолок грамматики документа в символах — не длиннее прежней грамматики `build_form`
+ассистента конструктора (около 3500): её читает каждая модель, включая малые локальные.
+
+**Signature:**
+```typescript
+export const DOCUMENT_GRAMMAR_LIMIT
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
+### documentCapabilities
+
+**Kind:** `function`
+
+Что из intent документ не держит (ошибки) и что не сохранит (заметки).
+
+**Signature:**
+```typescript
+export function documentCapabilities(intent: FormIntent): DocumentCapabilities
+```
+
+**Parameters:**
+- `intent` — - Прочитанный intent (`readIntent`).
+
+_Source: src/core/generate/document.ts_
+
+### DocumentCapabilities
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface DocumentCapabilities {
+  /** Записи, которым в документе нет места. */
+  readonly errors: JudgeFinding<'not-in-document'>[];
+  /** Что форма не сохранит, хотя собирается. */
+  readonly notes: JudgeFinding<'not-kept'>[];
+}
+```
+
+_Source: src/core/generate/document.ts_
+
 ### FieldIntent
 
 **Kind:** `interface`
@@ -1491,6 +1618,24 @@ export function findCycle(deps: Dependency[]): string[] | null
 
 _Source: src/core/utils/graph.ts_
 
+### FormCatalogs
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormCatalogs {
+  /** Компоненты кита. */
+  readonly uiKit: UiKitComponents;
+  /** Props-схемы компонентов кита — из того же каталога; без каталога `undefined`. */
+  readonly uiKitProps?: UiKitPropSchemas;
+  /** Фабрики правил и имена операторов ядра. */
+  readonly core: CoreOperators;
+}
+```
+
+_Source: src/core/generate/catalogs.ts_
+
 ### FormIntent
 
 **Kind:** `interface`
@@ -1533,6 +1678,19 @@ export interface FormIntent {
 
 _Source: src/core/generate/form-intent.ts_
 
+### GrammarRequest
+
+**Kind:** `type`
+
+Что вернуть: базу, все секции сразу или выбранные секции.
+
+**Signature:**
+```typescript
+export type GrammarRequest = 'base' | 'all' | readonly GrammarSection[];
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
 ### inspectLayoutRefs
 
 **Kind:** `function`
@@ -1551,6 +1709,70 @@ export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; un
 
 _Source: src/core/generate/cross-check.ts_
 
+### inspectSteps
+
+**Kind:** `function`
+
+Шаги в раскладке intent: контейнер, где шаги перемешаны с другими узлами, и шаг внутри шага.
+
+**Signature:**
+```typescript
+export function inspectSteps(intent: FormIntent): string[]
+```
+
+**Returns:** Сообщения C13.
+
+_Source: src/core/generate/cross-check.ts_
+
+### INTENT_CONTRACT_VERSION
+
+**Kind:** `const`
+
+Версия контракта intent: записи и их ключи, коды находок судьи, грамматика документа и то, что
+документ держит (`./document`). Растёт при несовместимой правке любого из них. Потребитель,
+встроивший компилятор (ассистент конструктора), сверяет её со своей: обёртки грамматики и перенос
+в документ написаны под конкретную версию.
+
+**Signature:**
+```typescript
+export const INTENT_CONTRACT_VERSION
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### intentGrammar
+
+**Kind:** `function`
+
+Грамматика intent для установленных кита и ядра.
+
+**Signature:**
+```typescript
+export function intentGrammar(catalogs: FormCatalogs, options: IntentGrammarOptions = {}): string
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
+### IntentGrammarOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface IntentGrammarOptions {
+  /** По умолчанию — база. У профиля `document` секций нет: его текст один. */
+  readonly sections?: GrammarRequest;
+  /**
+   * Для кого грамматика: `module` (по умолчанию) — `form.intent.json`, из которого `form_build`
+   * пишет модуль; `document` — intent документа формы (ассистент конструктора, `build_form`): без
+   * таргета, разметки JSX, начальных значений и того, что живёт только в коде модуля (`./document`).
+   */
+  readonly profile?: 'module' | 'document';
+}
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
 ### IntentProblem
 
 **Kind:** `interface`
@@ -1560,6 +1782,7 @@ _Source: src/core/generate/cross-check.ts_
 **Signature:**
 ```typescript
 export interface IntentProblem {
+  code: IntentProblemCode;
   /** Место в присланном объекте: `fields[2].name`. */
   at: string;
   /** Что не так. */
@@ -1567,6 +1790,40 @@ export interface IntentProblem {
   /** Какой вид ожидается вместо этого. */
   expected: string;
 }
+```
+
+_Source: src/core/generate/form-intent.ts_
+
+### IntentProblemCode
+
+**Kind:** `type`
+
+Стабильный код проблемы чтения: по нему выбирает потребитель со своим языком и ищут тесты, а текст
+может меняться.
+
+**Signature:**
+```typescript
+export type IntentProblemCode =
+  /** Вход — не объект intent: строка не JSON, массив, число. */
+  | 'intent-unreadable'
+  /** Запись списка — не объект: поле, массив, правило, поведение, видимость, шаг, узел. */
+  | 'not-an-object'
+  /** Нет обязательного: имени поля, цели правила, вида поведения, ссылки узла, тела обработчика. */
+  | 'missing-key'
+  /** Ключ, которого у записи нет; подсказка называет ближайший допустимый. */
+  | 'unknown-key'
+  /** Два синонима одного ключа с разными значениями либо описание на месте против объявления. */
+  | 'key-conflict'
+  /** Свойство, которого у компонента нет. */
+  | 'prop-unsupported'
+  /** Значение не того вида: `required` не логическое, параметр замечания — объект. */
+  | 'invalid-value'
+  /** Вид поведения, которого контракт не знает. */
+  | 'unknown-kind'
+  /** Второе объявление того же пути. */
+  | 'duplicate'
+  /** Связь, которая собралась бы и не сработала ни разу. */
+  | 'inert-behavior';
 ```
 
 _Source: src/core/generate/form-intent.ts_
@@ -1588,6 +1845,26 @@ export interface IntentReading {
 ```
 
 _Source: src/core/generate/form-intent.ts_
+
+### IntentVerdict
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface IntentVerdict {
+  /** Ошибок нет: модуль собирается. */
+  ok: boolean;
+  /** Прочитанный intent — и при ошибках: потребитель показывает, что из него понято. */
+  intent: FormIntent;
+  errors: JudgeFinding[];
+  warnings: JudgeFinding<JudgeWarningCode>[];
+  /** Сборка модуля: файлы, их заметки и схема. Есть, когда судили модуль и intent прочитан. */
+  bundle?: ReturnType<typeof buildBundle>;
+}
+```
+
+_Source: src/core/generate/judge.ts_
 
 ### IntentWarning
 
@@ -1645,10 +1922,133 @@ export type IntentWarningCode =
   | 'inline-arrays'
   | 'bare-refs'
   | 'reset-as-on-change'
-  | 'computed-toggle-replaced';
+  | 'computed-toggle-replaced'
+  /** Свойство компонента записано рядом с полем, массивом или контейнером — перенесено в пропсы. */
+  | 'prop-lifted'
+  /** Значение приведено к нужному виду: `required: "true"`, число в `params`, справочник картой. */
+  | 'value-coerced'
+  /** Список записан словарём `{ имя: запись }` — прочитан списком. */
+  | 'list-as-map'
+  /** Описание поля на месте дописано в его объявление. */
+  | 'inline-merged'
+  /** Сокращение `steps` рядом с `layoutRoot`: раскладка — из `layoutRoot`, шаги не читаются. */
+  | 'steps-ignored'
+  /** Правило на путь поля строки (`contacts.phone`) прочитано правилом каждой строки (`each`). */
+  | 'each-lifted'
+  /** Правило без проверок (`"rules": []`) — «правил нет»: запись отброшена. */
+  | 'rule-empty-dropped';
 ```
 
 _Source: src/core/generate/form-intent.ts_
+
+### JudgeCode
+
+**Kind:** `type`
+
+Код находки судьи: проблема чтения, код кросс-проверки или своя проверка судьи.
+
+**Signature:**
+```typescript
+export type JudgeCode =
+  | IntentProblemCode
+  | CrossCheckCode
+  /** Поле или массив объявлены, но не стоят в раскладке: модель их знает, пользователь не увидит. */
+  | 'unplaced'
+  /** У кода замечания нет своего текста либо их два. */
+  | 'lost-message'
+  /** Компонента нет в ките. */
+  | 'unknown-component'
+  /** Окружение не даёт собрать модуль: нет индекса ядра или каталога кита. */
+  | 'environment'
+  /** Правило, которое выбранный таргет не исполняет: видимость и правила узлов на core. */
+  | 'not-on-target'
+  /** Записи, которым в документе формы нет места: код модуля (`./document`). */
+  | 'not-in-document';
+```
+
+_Source: src/core/generate/judge.ts_
+
+### JudgeFinding
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface JudgeFinding<C extends string = JudgeCode> {
+  code: C;
+  message: string;
+  /** Место в intent (`fields[2].lable`), когда оно известно. */
+  at?: string;
+  /** Что сделать либо что ожидается. */
+  hint?: string;
+}
+```
+
+_Source: src/core/generate/judge.ts_
+
+### judgeIntent
+
+**Kind:** `function`
+
+Вынести вердикт intent. Не бросает: всё, что не так, — находками.
+
+**Signature:**
+```typescript
+export function judgeIntent(
+  raw: unknown,
+  catalogs: FormCatalogs,
+  options: JudgeOptions = {}
+): IntentVerdict
+```
+
+_Source: src/core/generate/judge.ts_
+
+### JudgeOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface JudgeOptions {
+  /**
+   * Судить документ билдера, а не модуль: без требований к окружению модуля, без правил таргета и
+   * без заметок о печати модуля.
+   */
+  forDocument?: boolean;
+  /** Схема, присланная на сверку (`validate_form`). Без неё — схема, собранная из intent. */
+  schema?: unknown;
+  /** Ключи реестра компонентов — для сверки присланной схемы (C2). */
+  componentNames?: string[];
+  /** Ключи реестра справочников. */
+  dataSourceNames?: string[];
+  /**
+   * Требовать окружение модуля: индекс ядра и каталог кита (по умолчанию — да). `validate_form` модуль
+   * не собирает и без них лишь не сверяет имена — об этом он говорит сам.
+   */
+  requireEnvironment?: boolean;
+}
+```
+
+_Source: src/core/generate/judge.ts_
+
+### JudgeWarningCode
+
+**Kind:** `type`
+
+Код предупреждения судьи: заметка чтения, кросс-проверки, сборки или свойств компонента.
+
+**Signature:**
+```typescript
+export type JudgeWarningCode =
+  | IntentWarningCode
+  | CrossCheckCode
+  | 'module-note'
+  | 'component-props'
+  /** Документ формы этого не сохранит: начальные значения, справочник без значений. */
+  | 'not-kept';
+```
+
+_Source: src/core/generate/judge.ts_
 
 ### Knowledge
 
@@ -1944,6 +2344,12 @@ export interface ReadIntentOptions {
    * узнаётся как компонент. Без него имена компонентов не сверяются.
    */
   uiKit?: UiKitComponents;
+  /**
+   * Props-схемы кита: по ним свойство компонента, записанное рядом с полем (`placeholder`, `min`,
+   * `mask`), переносится в `componentProps`, а чужое называется проблемой. Без схем переносятся
+   * только общеизвестные свойства.
+   */
+  uiKitProps?: UiKitPropSchemas;
 }
 ```
 
@@ -2098,6 +2504,33 @@ export function uiKitFromCatalog(json: unknown): UiKitComponents
 
 _Source: src/core/generate/ui-kit-components.ts_
 
+### UiKitPropSchemas
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface UiKitPropSchemas {
+  /** Схема компонента по registry-имени; у полей — вместе с пропсами обёртки. */
+  defaults: Readonly<Record<string, PropsSchema>>;
+}
+```
+
+_Source: src/core/generate/ui-kit-props.ts_
+
+### uiKitPropsFromCatalog
+
+**Kind:** `function`
+
+Props-схемы из каталога кита. Каталога нет или в нём нет схем — `undefined`.
+
+**Signature:**
+```typescript
+export function uiKitPropsFromCatalog(json: unknown): UiKitPropSchemas | undefined
+```
+
+_Source: src/core/generate/ui-kit-props.ts_
+
 ### ValidationRuleIntent
 
 **Kind:** `interface`
@@ -2176,7 +2609,7 @@ _Source: src/core/generate/form-intent.ts_
 **Signature:**
 ```typescript
 export interface WizardIntent {
-  steps: Array<{ title: string; icon?: string; fields: string[] }>;
+  steps: Array<{ title: string; icon?: string; selector?: string; fields: string[] }>;
 }
 ```
 

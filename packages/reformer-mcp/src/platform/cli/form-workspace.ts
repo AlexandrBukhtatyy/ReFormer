@@ -43,6 +43,7 @@ import type {
   TypecheckResult,
   TypeDiagnostic,
 } from '../../core/workspace/form-workspace.js';
+import { DEFAULT_FORM_DIR } from '../../core/workspace/form-workspace.js';
 import { locatePackages, TYPECHECK_ROOT_ENV } from './package-locator.js';
 import { reportKnowledgeProblem } from './problems.js';
 import { detectProjectStack } from './project-detector.js';
@@ -178,7 +179,10 @@ function typecheckModule(
   const configBase = existsSync(directory) ? directory : nearestExisting(directory);
   const compiler = loadCompiler([configBase, root, ...(fallback ? [fallback] : [])]);
   if (!compiler) {
-    return { status: 'unavailable', reason: 'в проекте и рядом с сервером нет пакета typescript' };
+    return {
+      status: 'unavailable',
+      reason: 'no typescript package in the project or next to the server',
+    };
   }
   const { ts } = compiler;
 
@@ -289,11 +293,12 @@ function typecheckModule(
   if (missing.length > 0) {
     return {
       status: 'unavailable',
+      missing,
       reason:
-        `из каталога формы не резолвятся ${missing.join(', ')}` +
+        `${missing.join(', ')} do not resolve from the form folder` +
         (fallback
-          ? ` (ни в проекте, ни от ${TYPECHECK_ROOT_ENV}=${fallback})`
-          : ': пакеты не установлены в проекте или не собраны (нет dist)'),
+          ? ` (neither in the project nor from ${TYPECHECK_ROOT_ENV}=${fallback})`
+          : ': the packages are not installed in the project or not built (no dist)'),
     };
   }
 
@@ -317,6 +322,7 @@ function typecheckModule(
         message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ').slice(0, 300),
         source:
           line === null ? '' : (sourceFile.text.split('\n')[line]?.trim().slice(0, 200) ?? ''),
+        code: diagnostic.code,
       });
     }
   }
@@ -399,24 +405,35 @@ export function createCliFormWorkspace(startDirectory?: string): FormWorkspace {
       // Граница записи — проект, в котором работает агент (от рабочего каталога сессии). Писать
       // в любой проект на диске, куда указал путь, нельзя. Проект самой формы (её tsconfig и
       // компилятор) ищет уже проверка типов — от каталога формы, внутри этой границы.
-      const projectRoot = detectProjectStack(start).projectRoot;
+      const stack = detectProjectStack(start);
+      const projectRoot = stack.projectRoot;
       if (!projectRoot) {
         return {
           ok: false,
-          reason: 'не найден package.json проекта с зависимостями: некуда записывать форму',
+          reason: 'no package.json of a project with dependencies: nowhere to write the form',
+        };
+      }
+      // Без `dir` на корне монорепо умолчание положило бы форму мимо приложений (аудит 2026-11, A6).
+      if (dir === null && stack.workspaceRoot) {
+        return {
+          ok: false,
+          reason:
+            `pass "dir": ${projectRoot} is a monorepo root (package.json has workspaces), ` +
+            'so the default "form" folder would be outside every app. Give the form folder inside ' +
+            'an app, e.g. {"dir":"apps/web/src/forms/order"}.',
         };
       }
       const root = realpathSync(projectRoot);
-      const path = realPathOfNearest(resolve(start, dir));
+      const path = realPathOfNearest(resolve(start, dir ?? DEFAULT_FORM_DIR));
       if (!isInside(root, path)) {
-        return { ok: false, reason: `каталог должен лежать внутри проекта ${root}` };
+        return { ok: false, reason: `the folder must be inside the project ${root}` };
       }
       if (
         relative(root, path)
           .split(sep)
           .some((segment) => FORBIDDEN_SEGMENTS.has(segment))
       ) {
-        return { ok: false, reason: 'в node_modules и .git писать нельзя' };
+        return { ok: false, reason: 'node_modules and .git are not writable' };
       }
       return { ok: true, directory: openDirectory(root, path) };
     },

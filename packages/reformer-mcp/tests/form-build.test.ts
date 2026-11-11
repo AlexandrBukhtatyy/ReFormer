@@ -19,6 +19,7 @@ import { join, resolve } from 'node:path';
 import * as prettier from 'prettier';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CATALOGS } from './support/catalogs';
+import { HOSTILE_INTENTS } from './support/hostile-intents';
 import { GRAMMAR_EXAMPLE, intentGrammar } from '../src/core/generate/intent-grammar';
 import { originOf, withMarker } from '../src/core/generate/generated-marker';
 import { createKnowledge, type Knowledge } from '../src/core/knowledge';
@@ -88,7 +89,7 @@ describe('form_build: путь без ошибок', () => {
       const { text, isError } = await build();
       expect(text).toContain('✓ form_build');
       expect(isError).toBe(false);
-      expect(text).toContain('Типы проверены');
+      expect(text).toContain('Types checked');
       expect(text).not.toContain('import ');
       expect(text.length).toBeLessThan(1500);
       expect(readdirSync(join(project, 'form')).sort()).toEqual(
@@ -114,7 +115,7 @@ describe('form_build: путь без ошибок', () => {
       expect(readFileSync(formFile('api.ts'), 'utf-8')).toContain(
         'export function submitApplication'
       );
-      expect(text).toContain('Свои операторы — ещё заготовки: operators.ts, api.ts');
+      expect(text).toContain('Your operators are still stubs: operators.ts, api.ts');
     },
     SLOW
   );
@@ -142,7 +143,7 @@ describe('form_build: путь без ошибок', () => {
         // сверяется с пропсами компонента, так что сказать о нём может только сборка.
         const { text, isError } = await build();
         expect(isError).toBe(false);
-        expect(text).toContain('поле «price»: у InputNumber нет свойства «minValue»');
+        expect(text).toContain('the field «price»: InputNumber has no prop «minValue»');
       }
     },
     SLOW
@@ -168,7 +169,7 @@ describe('form_build: путь без ошибок', () => {
       writeIntent(GRAMMAR_EXAMPLE);
       await build();
       const { text } = await build();
-      expect(text).toContain('записано 0');
+      expect(text).toContain('written 0');
     },
     SLOW
   );
@@ -209,7 +210,7 @@ describe('form_build: при ошибке диск не меняется', () =>
     writeFileSync(formFile(INTENT_FILE), '{ нет');
     const { text, isError } = await build();
     expect(isError).toBe(true);
-    expect(text).toContain('не разбирается');
+    expect(text).toContain('is not JSON');
     expectNothingWritten();
   });
 
@@ -247,7 +248,7 @@ describe('form_build: при ошибке диск не меняется', () =>
     writeIntent(intent);
     const { text, isError } = await build();
     expect(isError).toBe(true);
-    expect(text).toContain('тексты ошибок потеряны');
+    expect(text).toContain('lost-message');
     expect(text).toContain("required({ code: 'price.required' })");
     expectNothingWritten();
   });
@@ -261,7 +262,9 @@ describe('form_build: при ошибке диск не меняется', () =>
       const { text, isError } = await build();
       expect(isError).toBe(true);
       expect(text).toContain("Property 'reduce' does not exist");
-      expect(text).toContain('в строке:');
+      expect(text).toContain('in line:');
+      // Ошибка в сгенерированном файле правится через intent: файл перепишет следующая сборка.
+      expect(text).toContain('fix form.intent.json — the build writes form.behavior.ts');
       expectNothingWritten();
     },
     SLOW
@@ -276,7 +279,7 @@ describe('form_build: при ошибке диск не меняется', () =>
       const { text, isError } = await build();
       expect(isError).toBe(true);
       expect(text).toContain('notARealValidator');
-      expect(text).toContain('объяви в operators');
+      expect(text).toContain('Declare your own rule in operators');
       expectNothingWritten();
     },
     SLOW
@@ -290,7 +293,7 @@ describe('form_build: при ошибке диск не меняется', () =>
     const { text, isError } = await build();
     expect(isError).toBe(true);
     expect(text).toContain('C12');
-    expect(text).toContain('`roundTo` не объявлен в operators');
+    expect(text).toContain('`roundTo` is not declared in operators');
     expectNothingWritten();
   });
 
@@ -313,7 +316,7 @@ describe('form_build: границы каталога', () => {
     for (const dir of ['../outside', '..', resolve(project, '../outside')]) {
       const { isError, text } = await build(dir);
       expect(isError, dir).toBe(true);
-      expect(text).toContain('внутри проекта');
+      expect(text).toContain('inside the project');
     }
   });
 
@@ -321,7 +324,7 @@ describe('form_build: границы каталога', () => {
     for (const dir of ['node_modules/x', '.git/hooks']) {
       const { isError, text } = await build(dir);
       expect(isError, dir).toBe(true);
-      expect(text).toContain('писать нельзя');
+      expect(text).toContain('are not writable');
     }
   });
 
@@ -331,7 +334,7 @@ describe('form_build: границы каталога', () => {
       symlinkSync(outside, join(project, 'escape'), 'junction');
       const { isError, text } = await build('escape/form');
       expect(isError).toBe(true);
-      expect(text).toContain('внутри проекта');
+      expect(text).toContain('inside the project');
       expect(readdirSync(outside)).toEqual([]);
     } finally {
       rmSync(join(project, 'escape'), { recursive: true, force: true });
@@ -361,13 +364,13 @@ describe('form_build: чей файл', () => {
       writeFileSync(formFile('form.behavior.ts'), edited);
 
       const rebuilt = await build();
-      expect(rebuilt.text).toContain('Правлены вручную');
+      expect(rebuilt.text).toContain('Edited by hand');
       expect(rebuilt.text).toContain('form.behavior.ts');
       expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).toBe(edited);
 
       rmSync(formFile('form.behavior.ts'));
       const returned = await build();
-      expect(returned.text).not.toContain('Правлены вручную');
+      expect(returned.text).not.toContain('Edited by hand');
       expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).not.toContain('правка человека');
     },
     SLOW
@@ -449,8 +452,8 @@ describe('form_build: чей файл', () => {
       const rebuilt = await build();
       expect(rebuilt.isError).toBe(false);
       expect(readFileSync(formFile('operators.ts'), 'utf-8')).toBe(own);
-      expect(rebuilt.text).not.toContain('Правлены вручную');
-      expect(rebuilt.text).toContain('Свои операторы — ещё заготовки: api.ts.');
+      expect(rebuilt.text).not.toContain('Edited by hand');
+      expect(rebuilt.text).toContain('Your operators are still stubs: api.ts.');
     },
     SLOW
   );
@@ -506,7 +509,28 @@ describe('form_build: чей файл', () => {
 });
 
 describe('form_build: таргет core', () => {
-  const coreIntent = { ...GRAMMAR_EXAMPLE, target: 'core', visibility: [] };
+  // Видимость и правила узлов на core — ошибка судьи (`not-on-target`): их пишут в JSX.
+  const NODE_KINDS = ['onComponentEvent', 'renderEffect', 'onInit', 'onMount', 'onUnmount'];
+  const coreIntent = {
+    ...GRAMMAR_EXAMPLE,
+    target: 'core',
+    visibility: [],
+    behavior: GRAMMAR_EXAMPLE.behavior.filter((b) => !NODE_KINDS.includes(b.kind)),
+  };
+
+  it(
+    'видимость и правила узлов на core — отказ с образцом JSX, диск не меняется',
+    async () => {
+      writeIntent({ ...GRAMMAR_EXAMPLE, target: 'core' });
+      const { text, isError } = await build();
+      expect(isError).toBe(true);
+      expect(text).toContain('not-on-target at `visibility`');
+      expect(text).toContain('not-on-target at `behavior`');
+      expect(text).toContain('<FormField control={bundle.form.propertyValue} />');
+      expect(existsSync(formFile('model.ts'))).toBe(false);
+    },
+    SLOW
+  );
 
   it(
     'собирает всё, кроме разметки, и не тянет рендерер',
@@ -515,11 +539,14 @@ describe('form_build: таргет core', () => {
       const { text, isError } = await build();
       expect(text).toContain('✓ form_build');
       expect(isError).toBe(false);
-      expect(text).toContain('Разметки ещё нет');
-      // Правила узлов исполняет рендерер: на core их нет в поведении, и сборка об этом говорит.
-      expect(text).toContain('Правил узлов схемы');
+      expect(text).toContain('No markup yet');
       expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).not.toContain('onMount');
-      expect(originOf(readFileSync(formFile('index.tsx'), 'utf-8'))).toBe('handwritten');
+      // Заготовка разметки — с меткой сборки: нетронутую сборка обновляет и заменяет при смене таргета.
+      const stub = readFileSync(formFile('index.tsx'), 'utf-8');
+      expect(originOf(stub)).toBe('generated');
+      // Образец отправки и шагов — вместо выдуманных bundle.form.submit() (ReFormer-qo9b.33).
+      expect(stub).toContain('bundle.submission.submit(');
+      expect(stub).toContain('useFormFlow(bundle.flow!)');
       expect(existsSync(formFile('model.ts'))).toBe(true);
       for (const name of readdirSync(join(project, 'form'))) {
         if (!/\.tsx?$/.test(name)) continue;
@@ -544,13 +571,79 @@ describe('form_build: таргет core', () => {
       writeFileSync(formFile('index.tsx'), withField('bundle.form.price'));
       const passed = await build();
       expect(passed.text).toContain('✓ form_build');
-      expect(passed.text).not.toContain('Разметки ещё нет');
+      expect(passed.text).not.toContain('No markup yet');
       expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('bundle.form.price');
 
       writeFileSync(formFile('index.tsx'), withField('bundle.form.noSuchField'));
       const failed = await build();
       expect(failed.isError).toBe(true);
       expect(failed.text).toContain('noSuchField');
+      // Разметка на core — файл агента: ошибку правят в нём, а не в intent.
+      expect(failed.text).toContain('fix index.tsx — it is your file');
+
+      // Пакет @reformer, которого нет, — окружение, а не ошибка формы (TS2307).
+      writeFileSync(
+        formFile('index.tsx'),
+        `import { nothing } from '@reformer/no-such-package';\nvoid nothing;\n${stub}`
+      );
+      const missing = await build();
+      expect(missing.isError).toBe(true);
+      expect(missing.text).toContain('✗ form_build: the environment');
+      expect(missing.text).toContain('@reformer/no-such-package do not resolve');
+    },
+    SLOW
+  );
+});
+
+describe('form_build: index.tsx при смене таргета [B6]', () => {
+  const NODE_KINDS = ['onComponentEvent', 'renderEffect', 'onInit', 'onMount', 'onUnmount'];
+  const onCore = {
+    ...GRAMMAR_EXAMPLE,
+    target: 'core',
+    visibility: [],
+    behavior: GRAMMAR_EXAMPLE.behavior.filter((b) => !NODE_KINDS.includes(b.kind)),
+  };
+
+  it(
+    'нетронутая заготовка core заменяется сборкой рендерера, и обратно',
+    async () => {
+      writeIntent(onCore);
+      expect((await build()).isError).toBe(false);
+      expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('return null;');
+
+      writeIntent({ ...onCore, target: 'renderer-react' });
+      const react = await build();
+      expect(react.isError, react.text).toBe(false);
+      expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('<FormRenderer');
+
+      writeIntent(onCore);
+      const back = await build();
+      expect(back.isError, back.text).toBe(false);
+      const stub = readFileSync(formFile('index.tsx'), 'utf-8');
+      expect(stub).toContain('return null;');
+      expect(stub).not.toContain('@reformer/renderer-react');
+    },
+    SLOW
+  );
+
+  it(
+    'разметка, написанная для core, не остаётся молча при смене таргета',
+    async () => {
+      writeIntent(onCore);
+      await build();
+      const stub = readFileSync(formFile('index.tsx'), 'utf-8');
+      writeFileSync(
+        formFile('index.tsx'),
+        `import { FormField } from '@reformer/ui-kit';\n${stub.replace(
+          'return null;',
+          'return <FormField control={bundle.form.price} />;'
+        )}`
+      );
+      writeIntent({ ...onCore, target: 'renderer-react' });
+      const { text, isError } = await build();
+      expect(isError).toBe(true);
+      expect(text).toContain('index.tsx is not a renderer-react assembly');
+      expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('bundle.form.price');
     },
     SLOW
   );
@@ -564,14 +657,18 @@ describe('form_build: компилятор недоступен', () => {
     process.env[TYPECHECK_ROOT_ENV] = repoRoot;
   };
 
-  it('говорит, что типы не проверены, и всё равно ловит несуществующий импорт', async () => {
+  it('пакеты @reformer не резолвятся из проекта — ошибка окружения с их именами [B3]', async () => {
     noRoot();
     try {
       writeIntent(GRAMMAR_EXAMPLE);
-      const passed = await build();
-      expect(passed.text).toContain('✓ form_build');
-      expect(passed.text).toContain('Типы НЕ проверены');
+      // Раньше сборка писала модуль с пометкой «типы не проверены»: в таком проекте он не соберётся.
+      const missing = await build();
+      expect(missing.isError).toBe(true);
+      expect(missing.text).toContain('✗ form_build: the environment');
+      expect(missing.text).toMatch(/@reformer\/core.* do not resolve from the form folder/);
+      expect(existsSync(formFile('model.ts'))).toBe(false);
 
+      // Ошибку самого intent судья находит и без компилятора: несуществующий валидатор — C12.
       const intent = clone(GRAMMAR_EXAMPLE);
       intent.validation[0].rules = ["notARealValidator({ code: 'price.required' })"];
       writeIntent(intent);
@@ -583,7 +680,7 @@ describe('form_build: компилятор недоступен', () => {
     }
   });
 
-  it('без индексов пакетов не бракует собственный вывод, а называет пробел окружения [ReFormer-j356.9]', async () => {
+  it('без индексов пакетов — ошибка окружения, а не отказ собственному выводу [ReFormer-j356.9, B3]', async () => {
     noRoot();
     try {
       const blind = createKnowledge({
@@ -594,11 +691,13 @@ describe('form_build: компилятор недоступен', () => {
       writeIntent(GRAMMAR_EXAMPLE);
       const result = await formBuildTool({}, blind);
       const text = result.content[0].text;
-      expect(result.isError, text).not.toBe(true);
-      expect(text).toContain('✓ form_build');
-      expect(text).not.toContain('не существует');
-      expect(text).toContain('не проверены');
+      expect(result.isError, text).toBe(true);
+      expect(text).toContain('✗ form_build: the environment');
+      // Без индекса проверка импортов объявляла `createForm` несуществующим — этого больше нет.
+      expect(text).not.toContain('RF002');
+      expect(text).toContain('@reformer/core');
       expect(text).toContain('reformer://status');
+      expect(existsSync(formFile('model.ts'))).toBe(false);
     } finally {
       restoreRoot();
     }
@@ -622,7 +721,7 @@ describe('form_build: запись intent не теряет часть форм�
       });
       const { text, isError } = await build();
       expect(isError).toBe(false);
-      expect(text).toContain('Полей 2');
+      expect(text).toContain('Fields 2');
       const schema = readFileSync(formFile('form.schema.ts'), 'utf-8');
       expect(schema).toContain('Клиент');
       expect(schema).toContain('Заказ');
@@ -642,7 +741,7 @@ describe('form_build: запись intent не теряет часть форм�
     });
     const { text, isError } = await build();
     expect(isError).toBe(true);
-    expect(text).toContain('не стоят в layoutRoot');
+    expect(text).toContain('not placed in layoutRoot');
     expect(text).toContain('`steps[i].fields`');
     expectNothingWritten();
   });
@@ -681,7 +780,7 @@ describe('form_build: запись intent не теряет часть форм�
     });
     const { text, isError } = await build();
     expect(isError).toBe(true);
-    expect(text).toContain('объявлено второй раз');
+    expect(text).toContain('declared a second time');
     expect(text).not.toContain('C10');
     expectNothingWritten();
   });
@@ -708,7 +807,7 @@ describe('form_build: пустое текстовое поле — null', () => 
       writeIntent(intent);
       const failed = await build();
       expect(failed.isError).toBe(true);
-      expect(failed.text).toContain('ошибки типов');
+      expect(failed.text).toContain('type errors');
       expectNothingWritten();
 
       intent.behavior[0].expr = "(model.promo ?? '').trim()";
@@ -733,7 +832,7 @@ describe('form_build: подсказки из справочника', () => {
         dataSources: [{ name: 'CITIES', values: ['Москва', 'Казань'] }],
       });
       const { text, isError } = await build();
-      expect(text).toContain('Типы проверены');
+      expect(text).toContain('Types checked');
       expect(isError).toBe(false);
       const schema = readFileSync(formFile('form.schema.ts'), 'utf-8');
       expect(schema).toContain('component: InputSuggest');
@@ -768,7 +867,7 @@ describe('form_build: замечание cross — предупреждение 
         ],
       });
       const { text, isError } = await build();
-      expect(text).toContain('Типы проверены');
+      expect(text).toContain('Types checked');
       expect(isError).toBe(false);
       const validation = readFileSync(formFile('form.validation.ts'), 'utf-8');
       expect(validation).toContain(
@@ -811,7 +910,7 @@ describe('form_build: условие вычисления', () => {
         ],
       });
       const { text, isError } = await build();
-      expect(text).toContain('Типы проверены');
+      expect(text).toContain('Types checked');
       expect(isError).toBe(false);
       const behavior = readFileSync(formFile('form.behavior.ts'), 'utf-8');
       expect(behavior).toContain("{ when: () => model.loanType === 'mortgage' }");
@@ -839,11 +938,26 @@ describe('form_build: включение группы', () => {
         ],
       });
       const { text, isError } = await build();
-      expect(text).toContain('Типы проверены');
+      expect(text).toContain('Types checked');
       expect(isError).toBe(false);
       expect(readFileSync(formFile('form.behavior.ts'), 'utf-8')).toContain(
         'enableWhen(model.$.residence, () => model.other);'
       );
+    },
+    SLOW
+  );
+});
+
+describe('form_build: любой вход — диагностика, а не ошибка протокола', () => {
+  it(
+    'ни один вход не уходит исключением',
+    async () => {
+      for (const raw of HOSTILE_INTENTS) {
+        writeIntent(raw);
+        const { text } = await build();
+        expect(text, JSON.stringify(raw)).toMatch(/form_build/);
+        expect(text, JSON.stringify(raw)).not.toMatch(/internal build error/);
+      }
     },
     SLOW
   );

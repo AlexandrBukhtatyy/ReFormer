@@ -44,6 +44,13 @@ import {
   getDiscoverContextPrompt,
 } from '../../prompts/index.js';
 
+/**
+ * Инструкции сервера: их клиент кладёт в контекст агента при подключении, раньше любого вызова.
+ * Называют только инструменты профиля node.
+ */
+export const SERVER_INSTRUCTIONS =
+  'To create or change a ReFormer form: write <dir>/form.intent.json and call form_build {"dir":"<dir>"} — it compiles, type-checks and writes the module; never write module files yourself. Grammar first: form_build {"grammar":"base"}. From a markdown spec, plan_form {"specPath":"…","dir":"<dir>"} drafts the intent. Keep the requested stack in "target"; on @reformer/core you also write the JSX markup in index.tsx. Documentation tools are for custom code or an unclear form_build error.';
+
 export interface NodeServerOptions {
   readonly version: string;
   readonly debug: boolean;
@@ -80,9 +87,9 @@ export function createNodeServer(options: NodeServerOptions): Server {
         prompts: {},
       },
       // Без этого агенты на больших формах шли за справкой и писали код вручную: выбор пути
-      // без подсказки в задании проверен прогонами (docs/plans/mcp-misty-graham.md).
-      instructions:
-        'To create or change a ReFormer form: author <dir>/form.intent.json and call form_build. It compiles, type-checks and writes the module to disk, so do not write module files yourself. Call form_build first to get the intent grammar. Keep the requested stack: on @reformer/core you also write the JSX markup in index.tsx. Use the documentation tools only for custom code or an unclear form_build error.',
+      // без подсказки в задании проверен прогонами (docs/plans/mcp-misty-graham.md). Путь один
+      // (7.0): intent → form_build; грамматика — по запросу, без проекта (аудит 2026-11, A1/A6).
+      instructions: SERVER_INSTRUCTIONS,
     }
   );
 

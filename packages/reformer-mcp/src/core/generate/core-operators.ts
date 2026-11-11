@@ -37,24 +37,34 @@ export interface CoreOperators {
   readonly rules: ReadonlyMap<string, CoreRule>;
   /** Значения из `./validators`, `./validation`, `./behaviors`: свой оператор так называться не может. */
   readonly names: ReadonlySet<string>;
+  /**
+   * Значения только из `./validation` и `./behaviors` — операторы схем и основа своих операторов.
+   * По ним грамматика находит оператор ядра, которого нет в языке intent (ReFormer-wkva).
+   */
+  readonly operatorNames: ReadonlySet<string>;
 }
 
 export const NO_CORE_OPERATORS: CoreOperators = {
   found: false,
   rules: new Map(),
   names: new Set(),
+  operatorNames: new Set(),
 };
 
 const CORE_PACKAGE = '@reformer/core';
-const OPERATOR_ENTRIES = ['./validators', './validation', './behaviors'];
+const SCHEMA_OPERATOR_ENTRIES = ['./validation', './behaviors'];
+const OPERATOR_ENTRIES = ['./validators', ...SCHEMA_OPERATOR_ENTRIES];
 
-/** Группы в порядке грамматики и их подписи; у `any` подписи нет — это правила для любого поля. */
+/**
+ * Группы в порядке грамматики и их подписи; у `any` подписи нет — это правила для любого поля.
+ * Подписи английские: грамматика написана для модели, а её язык — английский.
+ */
 const GROUP_LABELS: ReadonlyArray<[string, string]> = [
   ['any', ''],
-  ['text', 'строки и списки'],
-  ['number', 'числа'],
-  ['date', 'даты'],
-  ['file', 'файлы'],
+  ['text', 'text and lists'],
+  ['number', 'numbers'],
+  ['date', 'dates'],
+  ['file', 'files'],
 ];
 
 const flat = (text: string): string => text.replace(/\s+/g, ' ').trim();
@@ -200,19 +210,23 @@ export function coreOperatorsFromIndex(index: MergedIndex): CoreOperators {
       a.group.localeCompare(b.group) ||
       a.name.localeCompare(b.name)
   );
-  const names = core
-    .filter((symbol) => symbol.kind !== 'interface' && symbol.kind !== 'type')
+  const values = core.filter((symbol) => symbol.kind !== 'interface' && symbol.kind !== 'type');
+  const names = values
     .filter((symbol) => inEntries(symbol, OPERATOR_ENTRIES))
+    .map((symbol) => symbol.name);
+  const operatorNames = values
+    .filter((symbol) => inEntries(symbol, SCHEMA_OPERATOR_ENTRIES))
     .map((symbol) => symbol.name);
 
   return {
     found: true,
     rules: new Map(rules.map((rule) => [rule.name, rule])),
     names: new Set(names),
+    operatorNames: new Set(operatorNames),
   };
 }
 
-/** Правила ядра одной строкой по группам — для грамматики: `required; числа: min(18) max(100)`. */
+/** Правила ядра одной строкой по группам — для грамматики: `required; numbers: min(18) max(100)`. */
 export function renderRuleList(core: CoreOperators): string {
   const groups = new Map<string, string[]>();
   for (const rule of core.rules.values()) {

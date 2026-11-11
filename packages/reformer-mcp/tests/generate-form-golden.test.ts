@@ -1,7 +1,7 @@
 /**
- * Снимки того, что печатает `generate_form`: три intent разной сложности под три таргета. Код, который
- * сервер кладёт в проекты потребителей, не должен меняться незаметно: любая правка генератора видна в
- * ревью построчно.
+ * Снимки того, что пишет сборка (`form_build`): три intent разной сложности под три таргета. Код,
+ * который сервер кладёт в проекты потребителей, не должен меняться незаметно: любая правка
+ * генератора видна в ревью построчно.
  *
  * Осознанная правка: `npx vitest run tests/generate-form-golden.test.ts -u` и разбор диффа.
  */
@@ -29,7 +29,7 @@ const SOURCES: Record<string, (target: ReformerTargetStack) => unknown> = {
   credit: (target) => ({ ...readCase('credit'), target }),
 };
 
-describe.each(Object.keys(SOURCES))('снимок generate_form: %s', (name) => {
+describe.each(Object.keys(SOURCES))('снимок сборки: %s', (name) => {
   it.each(TARGETS)('%s', async (target) => {
     const { intent, problems } = readIntent(SOURCES[name](target));
     expect(problems).toEqual([]);

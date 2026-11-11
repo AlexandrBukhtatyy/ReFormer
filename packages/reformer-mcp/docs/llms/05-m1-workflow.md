@@ -1,11 +1,15 @@
-# Form-building workflow
+# The contract behind a form module
 
-The canonical order for building a ReFormer form. A form is described ONE way for every way of
-drawing it: one schema tree, one binding handle (`model.$.…`), one assembly (`createForm`), one
-behavior. The single reactive model is the source of truth. Follow the steps top to bottom. Each
-lists the decision, the key API, and the traps the runtime would otherwise punish. Look up exact
-signatures with `get_symbol_docs`, worked examples with `find_recipe` (start with
-`find_recipe unified-contract`).
+**You do not assemble a form by these steps:** `form_build` writes this module from
+`form.intent.json` (see the guide). This chapter is the library contract the generated module
+follows — read it when you write your own code next to it (the JSX markup on core, own operators in
+`operators.ts`, loading and submit in `api.ts`) or review a module.
+
+A form is described ONE way for every way of drawing it: one schema tree, one binding handle
+(`model.$.…`), one assembly (`createForm`), one behavior. The single reactive model is the source of
+truth. The parts below go in the order a module is put together; each lists the decision, the key
+API, and the traps the runtime would otherwise punish. Exact signatures — `get_symbol_docs`, worked
+examples — `find_recipe` (start with `find_recipe unified-contract`).
 
 ```ts
 // model.ts — initial values and templates of new array rows

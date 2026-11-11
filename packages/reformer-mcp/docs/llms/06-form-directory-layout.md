@@ -25,8 +25,8 @@ Use `[form-name]` / `[FormName]` as placeholders.
 > written before this guide and still use the old names; they are references for _content_, never for
 > _naming_.
 
-> The default this guide leads with is configurable — see §5 (`REFORMER_FORM_LAYOUT`). This guide
-> documents both the minimalist default and the folders scale-up regardless of the setting.
+> `form_build` writes the minimalist layout (§5). This guide documents both it and the folders
+> scale-up for a module organised by hand.
 
 ## 1. Minimalist (default) — flat, one file per concern
 
@@ -217,21 +217,12 @@ flow })`. `validation/form.ts` keeps only the rules outside steps (`{ extras }`)
 | **Default (minimalist)** | flat files (§1) — plain-named base + `form.schema` / `form.behavior` / `form.validation`; wizard steps in the root schema or in `steps/<slug>/`; identical across targets |
 | Large                    | folders (§3): role folders `model/` `schema/` `validation/` `behavior/` `flow/` `application/` (+ app-level registry/meta-schema for renderer-json)                       |
 
-## 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
+## 5. Which layout `form_build` writes
 
-Which layout the **`create-form` prompt leads with** is configurable via the `REFORMER_FORM_LAYOUT`
-environment variable, set in the MCP server registration `env` of your client's `.mcp.json` — the
-same mechanism as `REFORMER_DEBUG`:
-
-```jsonc
-// .mcp.json
-{
-  "mcpServers": { "reformer": { "command": "…", "env": { "REFORMER_FORM_LAYOUT": "minimalist" } } },
-}
-```
-
-Values: `minimalist` (default when unset/unrecognized) | `folders`. This guide documents both
-layouts regardless; the env var only changes which one `create-form` steers toward by default.
+`form_build` always writes the flat **minimalist** layout under the canonical names above; the
+`folders` layout is for a large module you organise by hand. The former `REFORMER_FORM_LAYOUT`
+switch only steered the `create-form` prompt, and the prompt no longer writes modules — it was
+removed in `@reformer/mcp` 7.0.
 
 ## 6. Reuse map
 
@@ -257,8 +248,8 @@ The contract of a form is the same for every way of drawing, so almost every fil
 | **app** `form-schema.schema.json`   | generated DSL meta-schema                            |         —         |         —         | app-level (§2, aspirational) |
 
 Rule nodes of the behavior (`hideWhen`, `onComponentEvent`, `onMount`) are executed by the renderer.
-When the markup is written by hand (core) they do nothing: visibility, submit and data loading stay
-in the JSX of `index.tsx` there.
+When the markup is written by hand (core) there is none, so `form_build` refuses them
+(`not-on-target`): visibility, submit and data loading are written in the JSX of `index.tsx` there.
 
 Renaming any of these is a defect in itself: the stems above are the contract that reviews, generators
 and `find_recipe directory-layout` key on. Older example directories in this repository predate the
@@ -288,8 +279,10 @@ An optional addition to the module. Author and edit only this file: `form_build`
 type-checks the result and writes the module. Files it wrote start with a `// @reformer-form-build`
 marker. Editing such a file by hand detaches it: the build keeps your version and says so; delete
 the file to bring it back. `types.ts` and `api.ts` stay yours. On the `core` target `index.tsx` is
-yours too: the build creates a stub once, you write the JSX markup there, and the build type-checks
-it.
+a stub with samples (a field, visibility in JSX, `bundle.submission.submit`, steps) that the build
+keeps in step with the intent until you write the JSX markup there; from then on it is yours, and
+the build type-checks it. Switching to a renderer target replaces an untouched stub and refuses to
+keep markup written by hand.
 
 Own operators are built on the core ones: a rule factory returning `Rule<T>`, a validation operator
 over `validate` / `cross` / `validateWhen`, a behavior operator over the `@reformer/core/behaviors`

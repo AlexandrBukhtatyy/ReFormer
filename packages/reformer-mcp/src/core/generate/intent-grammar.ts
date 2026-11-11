@@ -1,5 +1,5 @@
 /**
- * Грамматика `form.intent.json`: её отдаёт `form_build`, пока файла нет.
+ * Грамматика `form.intent.json`: её отдаёт `form_build` — по запросу `grammar` и пока файла нет.
  *
  * Примеры строк берутся из {@link GRAMMAR_EXAMPLE}, а тест собирает этот intent настоящей сборкой.
  * Текст-образец без такой проверки уже подводил: пример `copyFrom` на группу выглядел правдоподобно,
@@ -9,24 +9,32 @@
  * каталога установленного кита, правила — из индекса установленного ядра. Чего не нашлось, о том
  * грамматика говорит прямо, а не подставляет список, которого у потребителя нет.
  *
+ * ## База и секции
+ *
+ * Грамматика целиком не помещалась в контекст малых локальных моделей (аудит 2026-11, A5/A7), а
+ * простой форме нужна лишь её часть. Поэтому она делится: база — поля, раскладка, валидация и
+ * поведение простой формы, не длиннее {@link GRAMMAR_BASE_LIMIT}; остальное — секции по запросу
+ * (`form_build {grammar: "arrays"}`), и база их перечисляет. Текст английский: это язык модели, а
+ * тексты самой формы (подписи, сообщения) остаются на языке задания.
+ *
  * @module reformer-mcp/core/generate/intent-grammar
  */
 
 import type { FormCatalogs } from './catalogs.js';
 import { renderRuleList } from './core-operators.js';
-import { VALIDATION_OPERATORS } from './operator-catalog.js';
+import { operatorsWithoutIntentKey } from './operator-catalog.js';
 
 /** Рабочая форма, на которой показана вся грамматика. */
 export const GRAMMAR_EXAMPLE = {
-  formName: 'Заявка',
-  interfaceName: 'Application',
+  formName: 'Loan application',
+  interfaceName: 'LoanApplication',
   target: 'renderer-react',
   fields: [
     {
       name: 'loanType',
       type: 'string',
       component: 'Select',
-      label: 'Тип',
+      label: 'Loan type',
       initialValue: 'consumer',
       optionsSource: 'LOAN_TYPES',
     },
@@ -34,40 +42,46 @@ export const GRAMMAR_EXAMPLE = {
       name: 'price',
       type: 'number',
       component: 'InputNumber',
-      label: 'Цена',
+      label: 'Price',
       initialValue: null,
-      componentProps: { placeholder: 'Введите цену', min: 1 },
+      componentProps: { placeholder: 'Enter the price', min: 1 },
     },
-    { name: 'quantity', type: 'number', component: 'InputNumber', label: 'Штук', initialValue: 1 },
-    { name: 'total', type: 'number', component: 'InputNumber', label: 'Итог', initialValue: 0 },
-    { name: 'vat', type: 'number', component: 'InputNumber', label: 'НДС', initialValue: 0 },
+    {
+      name: 'quantity',
+      type: 'number',
+      component: 'InputNumber',
+      label: 'Quantity',
+      initialValue: 1,
+    },
+    { name: 'total', type: 'number', component: 'InputNumber', label: 'Total', initialValue: 0 },
+    { name: 'vat', type: 'number', component: 'InputNumber', label: 'VAT', initialValue: 0 },
     {
       name: 'propertyValue',
       type: 'number',
       component: 'InputNumber',
-      label: 'Стоимость',
+      label: 'Property value',
       initialValue: null,
     },
     {
       name: 'password',
       type: 'string',
       component: 'InputPassword',
-      label: 'Пароль',
+      label: 'Password',
       initialValue: '',
     },
     {
       name: 'confirm',
       type: 'string',
       component: 'InputPassword',
-      label: 'Повтор',
+      label: 'Repeat password',
       initialValue: '',
     },
-    { name: 'smsCode', type: 'string', component: 'Input', label: 'Код', initialValue: '' },
+    { name: 'smsCode', type: 'string', component: 'Input', label: 'SMS code', initialValue: '' },
     {
       name: 'birthDate',
       type: 'date',
       component: 'Input',
-      label: 'Дата рождения',
+      label: 'Birth date',
       initialValue: '',
       componentProps: { type: 'date' },
     },
@@ -75,48 +89,54 @@ export const GRAMMAR_EXAMPLE = {
       name: 'phone',
       type: 'string',
       component: 'InputMask',
-      label: 'Телефон',
+      label: 'Phone',
       initialValue: '',
       componentProps: { mask: '+7 (999) 999-99-99' },
     },
-    { name: 'postalCode', type: 'string', component: 'Input', label: 'Индекс', initialValue: '' },
+    {
+      name: 'postalCode',
+      type: 'string',
+      component: 'Input',
+      label: 'Postal code',
+      initialValue: '',
+    },
     {
       name: 'sameAddress',
       type: 'boolean',
       component: 'Checkbox',
-      label: 'Совпадает',
+      label: 'Same as registration',
       initialValue: false,
     },
     {
       name: 'registrationAddress.city',
       type: 'string',
       component: 'Input',
-      label: 'Город',
+      label: 'City',
       initialValue: '',
     },
     {
       name: 'residenceAddress.city',
       type: 'string',
       component: 'Input',
-      label: 'Город',
+      label: 'City',
       initialValue: '',
     },
     {
       name: 'hasContacts',
       type: 'boolean',
       component: 'Checkbox',
-      label: 'Есть контакты',
+      label: 'Has contacts',
       initialValue: false,
     },
     {
       name: 'income',
       type: 'number',
       component: 'InputNumber',
-      label: 'Сумма дохода',
+      label: 'Total income',
       initialValue: 0,
     },
     { name: 'email', type: 'string', component: 'Input', label: 'Email', initialValue: '' },
-    { name: 'login', type: 'string', component: 'Input', label: 'Логин', initialValue: '' },
+    { name: 'login', type: 'string', component: 'Input', label: 'Login', initialValue: '' },
   ],
   arrays: [
     {
@@ -124,21 +144,21 @@ export const GRAMMAR_EXAMPLE = {
       itemInterfaceName: 'Contact',
       initialValue: [],
       component: 'FieldArray',
-      componentProps: { title: 'Контакты', addButtonLabel: '+ Добавить', itemLabel: 'Контакт' },
+      componentProps: { title: 'Contacts', addButtonLabel: '+ Add', itemLabel: 'Contact' },
       itemFields: [
-        { name: 'phone', type: 'string', component: 'Input', label: 'Телефон', initialValue: '' },
+        { name: 'phone', type: 'string', component: 'Input', label: 'Phone', initialValue: '' },
         {
           name: 'income',
           type: 'number',
           component: 'InputNumber',
-          label: 'Доход',
+          label: 'Income',
           initialValue: 0,
         },
         {
           name: 'primary',
           type: 'boolean',
           component: 'Checkbox',
-          label: 'Основной',
+          label: 'Primary',
           initialValue: false,
         },
       ],
@@ -149,13 +169,13 @@ export const GRAMMAR_EXAMPLE = {
   },
   layoutRoot: {
     kind: 'container',
-    component: 'Box',
+    component: 'FormWizard',
     selector: 'wizard',
-    componentProps: { submitLabel: 'Отправить' },
+    componentProps: { submitLabel: 'Send' },
     children: [
       {
         kind: 'step',
-        title: 'Кредит',
+        title: 'Loan',
         selector: 'loan',
         children: [
           'loanType',
@@ -167,14 +187,14 @@ export const GRAMMAR_EXAMPLE = {
             kind: 'container',
             component: 'Section',
             selector: 'mortgage-section',
-            componentProps: { title: 'Ипотека' },
+            componentProps: { title: 'Mortgage' },
             children: ['propertyValue'],
           },
         ],
       },
       {
         kind: 'step',
-        title: 'Данные',
+        title: 'Applicant',
         selector: 'person',
         children: [
           'password',
@@ -199,57 +219,54 @@ export const GRAMMAR_EXAMPLE = {
     {
       target: 'price',
       rules: ["required({ code: 'price.required' })"],
-      message: 'Укажите цену',
+      message: 'Enter the price',
     },
     {
       target: 'price',
       rules: ["min(1, { code: 'price.min' })"],
-      message: 'Цена не меньше 1',
+      message: 'The price is at least 1',
     },
     {
       target: 'propertyValue',
       when: "model.loanType === 'mortgage'",
       rules: ["required({ code: 'propertyValue.required' })"],
-      message: 'Укажите стоимость',
+      message: 'Enter the property value',
     },
     {
       target: 'phone',
       each: 'contacts',
       rules: ["required({ code: 'contact.phone.required' })"],
-      message: 'Укажите телефон',
+      message: 'Enter the phone',
     },
     {
       target: 'confirm',
-      rules: [],
       cross: 'values.confirm === values.password',
       code: 'mismatch',
-      message: 'Пароли не совпадают',
+      message: 'Passwords do not match',
     },
     {
       target: 'smsCode',
-      rules: [],
       async: "async (value) => (value === '1' ? null : { code: 'bad' })",
       code: 'bad',
-      message: 'Неверный код',
+      message: 'Wrong code',
     },
     {
       target: 'income',
       each: 'contacts',
-      rules: [],
       cross: '(values.income ?? 0) >= 0',
       code: 'contact.income.negative',
-      message: 'Доход не может быть отрицательным',
+      message: 'Income cannot be negative',
     },
     {
       target: 'postalCode',
       rules: ["postalCodeRu({ code: 'postalCode.format' })"],
-      message: 'Индекс — 6 цифр',
+      message: 'A postal code is 6 digits',
     },
     {
       target: 'phone',
       call: 'phoneOrEmail(model.$.phone, model.$.email)',
       code: 'contact.missing',
-      message: 'Укажите телефон или email',
+      message: 'Enter a phone or an email',
     },
   ],
   behavior: [
@@ -269,13 +286,11 @@ export const GRAMMAR_EXAMPLE = {
     {
       kind: 'onChange',
       target: 'hasContacts',
-      sources: [],
       expr: 'if (!value) model.contacts.clear();',
     },
     {
       kind: 'transformValue',
       target: 'postalCode',
-      sources: [],
       expr: "(value ?? '').replace(/\\D/g, '').slice(0, 6)",
     },
     {
@@ -311,14 +326,13 @@ export const GRAMMAR_EXAMPLE = {
       sources: ['password'],
       expr: 'form.confirm.markAsTouched()',
     },
-    { kind: 'exclusiveFlag', target: 'primary', each: 'contacts', sources: [] },
+    { kind: 'exclusiveFlag', target: 'primary', each: 'contacts' },
     {
       kind: 'aggregateInto',
       target: 'contacts',
-      sources: [],
-      expr: 'rows.length === 0 || rows.some((row) => row.primary) ? [] : [{ index: 0, patch: { primary: true } }]',
+      expr: 'rows.some((row) => row.primary) ? [] : [{ index: 0, patch: { primary: true } }]',
     },
-    { kind: 'call', target: 'price', sources: [], expr: 'roundTo(model.$.price, 100)' },
+    { kind: 'call', target: 'price', expr: 'roundTo(model.$.price, 100)' },
     {
       kind: 'onComponentEvent',
       selector: 'wizard',
@@ -327,17 +341,17 @@ export const GRAMMAR_EXAMPLE = {
     },
     {
       kind: 'renderEffect',
-      expr: "if (model.loanType === 'mortgage') schema.node('mortgage-section').getRef<HTMLElement>().current?.scrollIntoView();",
+      expr: "schema.node('mortgage-section').getRef<HTMLElement>().current?.focus();",
     },
     {
       kind: 'onInit',
       selector: 'mortgage-section',
-      expr: "schema.node('mortgage-section').patchProps({ title: 'Ипотечный кредит' })",
+      expr: "schema.node('mortgage-section').patchProps({ title: 'Mortgage loan' })",
     },
     {
       kind: 'onMount',
       selector: 'wizard',
-      expr: 'const timer = setInterval(() => saveDraft(model.get()), 30000); return () => clearInterval(timer);',
+      expr: 'const t = setInterval(() => saveDraft(model.get()), 30000); return () => clearInterval(t);',
     },
     { kind: 'onUnmount', selector: 'wizard', expr: 'saveDraft(model.get())' },
   ],
@@ -353,8 +367,8 @@ export const GRAMMAR_EXAMPLE = {
     {
       name: 'LOAN_TYPES',
       values: [
-        { value: 'consumer', label: 'Потребительский' },
-        { value: 'mortgage', label: 'Ипотека' },
+        { value: 'consumer', label: 'Consumer' },
+        { value: 'mortgage', label: 'Mortgage' },
       ],
     },
   ],
@@ -362,6 +376,78 @@ export const GRAMMAR_EXAMPLE = {
 
 const json = (value: unknown): string => JSON.stringify(value);
 const { fields, arrays, validation, behavior } = GRAMMAR_EXAMPLE;
+
+/**
+ * Потолок базы в символах: её читает каждая модель, включая малые локальные. Сама база — около
+ * 4000; запас нужен на рост каталога кита и индекса ядра, из которых она печатает списки.
+ */
+export const GRAMMAR_BASE_LIMIT = 4200;
+/**
+ * Потолок грамматики целиком (`grammar: "all"`). План задавал 8000, но ниже уже пришлось бы
+ * убирать образцы записей, а целиком грамматику просят модели с большим контекстом: малые берут
+ * секции по одной.
+ */
+export const GRAMMAR_ALL_LIMIT = 9500;
+
+/** Секции грамматики, которые приходят по запросу. Порядок — порядок в `grammar: "all"`. */
+export const GRAMMAR_SECTIONS = [
+  'behavior',
+  'arrays',
+  'wizard',
+  'cross',
+  'async',
+  'parts',
+  'operators',
+  'nodes',
+] as const;
+
+export type GrammarSection = (typeof GRAMMAR_SECTIONS)[number];
+
+/** Что вернуть: базу, все секции сразу или выбранные секции. */
+export type GrammarRequest = 'base' | 'all' | readonly GrammarSection[];
+
+export interface IntentGrammarOptions {
+  /** По умолчанию — база. У профиля `document` секций нет: его текст один. */
+  readonly sections?: GrammarRequest;
+  /**
+   * Для кого грамматика: `module` (по умолчанию) — `form.intent.json`, из которого `form_build`
+   * пишет модуль; `document` — intent документа формы (ассистент конструктора, `build_form`): без
+   * таргета, разметки JSX, начальных значений и того, что живёт только в коде модуля (`./document`).
+   */
+  readonly profile?: 'module' | 'document';
+}
+
+/** Строка секции в перечне базы: что в ней. */
+const SECTION_SUMMARY: Readonly<Record<GrammarSection, string>> = {
+  behavior: 'more operators',
+  arrays: 'rows',
+  wizard: 'steps',
+  cross: 'across fields',
+  async: '',
+  parts: 'sub-forms',
+  operators: 'own code',
+  nodes: 'submit, mount',
+};
+
+const isSection = (value: string): value is GrammarSection =>
+  (GRAMMAR_SECTIONS as readonly string[]).includes(value);
+
+/**
+ * Запрос грамматики из аргумента инструмента: `true` и `"base"` — база, `"all"` — всё,
+ * `"arrays"` или `"arrays,wizard"` — секции. Незнакомое имя — `null`: вызывающий отвечает отказом
+ * со списком, а не молча отдаёт базу.
+ */
+export function readGrammarRequest(value: unknown): GrammarRequest | null {
+  if (value === true) return 'base';
+  if (typeof value !== 'string') return null;
+  const names = value
+    .split(/[\s,]+/)
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
+  if (names.length === 0 || (names.length === 1 && names[0] === 'base')) return 'base';
+  if (names.length === 1 && names[0] === 'all') return 'all';
+  return names.every(isSection) ? [...new Set(names)] : null;
+}
 
 /** Поле примера по имени: индекс сдвигается, когда в пример добавляют поле. */
 const field = (name: string) => {
@@ -374,110 +460,285 @@ const field = (name: string) => {
 const behaviorRow = (kind: string, nth = 0): string =>
   json(behavior.filter((row) => row.kind === kind)[nth]);
 
-/** Ключи правила intent → операторы схемы валидации ядра. */
-const validationKeys = Object.entries(VALIDATION_OPERATORS)
-  .filter(([, key]) => !key.includes(' '))
-  .map(([operator, key]) => `${key} → ${operator}`)
-  .join(', ');
+const [loanStep, personStep] = GRAMMAR_EXAMPLE.layoutRoot.children;
+
+/** Раскладка без шагов — контейнер с частью детей первого шага примера (поля и секция). */
+const plainLayout = {
+  kind: 'container',
+  component: 'Box',
+  children: [...loanStep.children.slice(0, 2), loanStep.children[loanStep.children.length - 1]],
+};
+
+/** Массив примера с двумя полями строки и без `component`: `FieldArray` — значение по умолчанию. */
+const { component: _arrayComponent, ...arrayWithoutComponent } = arrays[0];
+const arraySample = { ...arrayWithoutComponent, itemFields: arrays[0].itemFields.slice(0, 2) };
+
+/** Визард примера с укороченными шагами: синтаксис тот же, строк меньше. */
+const wizardLayout = {
+  ...GRAMMAR_EXAMPLE.layoutRoot,
+  children: [
+    { ...loanStep, children: loanStep.children.slice(0, 2) },
+    { ...personStep, children: [personStep.children[0], { kind: 'array', ref: 'contacts' }] },
+  ],
+};
 
 /** Строка о компонентах полей: поля кита из его каталога. */
 function componentLine({ uiKit }: FormCatalogs): string {
   return uiKit.found
     ? `- component: ${Object.keys(uiKit.fields).join(' ')}.`
-    : '- component: каталог @reformer/ui-kit не найден — пиши имя компонента из своего реестра.';
+    : '- component: the @reformer/ui-kit catalog was not found, use a name from your registry.';
 }
 
 /** Строка о правилах: фабрики ядра из его индекса. */
 function rulesLine({ core }: FormCatalogs): string {
   const list = core.found
     ? renderRuleList(core)
-    : 'индекс @reformer/core не найден — имена правил не сверяются';
-  return `- rules — фабрики @reformer/core/validators: ${list}. Последний аргумент — { code: '…' }.`;
+    : 'the @reformer/core index was not found, rule names are not checked';
+  return `- rules — @reformer/core/validators: ${list}; last argument { code: '…' }.`;
 }
 
-/** Грамматика intent для установленных кита и ядра. */
-export function intentGrammar(catalogs: FormCatalogs): string {
-  return `# form.intent.json — грамматика
+function base(catalogs: FormCatalogs): string {
+  const more = GRAMMAR_SECTIONS.map((name) =>
+    SECTION_SUMMARY[name] ? `${name} (${SECTION_SUMMARY[name]})` : name
+  ).join(', ');
+  const sources = GRAMMAR_EXAMPLE.dataSources[0];
+  return `# form.intent.json — grammar
 
-Ты пишешь только этот файл, остальные файлы модуля записывает form_build. Сам файл формы не создаёт: работа закончена только после ответа ✓ от form_build. Экономь токены: JSON компактный, одна запись на строку. Большую форму пиши частями: поля и раскладка → form_build → Edit: правила → form_build → Edit: поведение → form_build.
+You write only this file; form_build compiles it and writes the module. The form is done when form_build answers ✓. Compact JSON, one record per line. Large form: fields + layoutRoot, then validation, then behavior, form_build after each.
 
-{"formName":"<имя формы из задания>","interfaceName":"<ИмяИнтерфейса>","target":"renderer-react","fields":[…],"arrays":[…],"parts":{…},"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…],"operators":{…}}
+{"formName":"<from the task>","interfaceName":"<TypeName>","target":"renderer-react","fields":[…],"arrays":[…],"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…]}
 
-Примеры ниже — синтаксис на образце кредитной заявки: поля бери из задания, а не из образца.
-
-target — стек из задания, не меняй его: core | renderer-react | renderer-json.
-На core сборка пишет всё, кроме разметки: в index.tsx будет заглушка, её замени своим JSX и собери снова. Поле: <FormField control={bundle.form.price} /> из @reformer/ui-kit. visibility там не работает — условие пиши в JSX. Массив и шаги: find_recipe.
+Samples show syntax only: fields come from the task, texts keep its language.
+target — the task's stack, keep it: core | renderer-react | renderer-json. On core you write the markup in index.tsx (<FormField control={bundle.form.price} /> from @reformer/ui-kit), then build again; visibility and node rules go to that JSX too. An unknown key is an error naming the nearest one.
 
 ## fields
 ${json(field('price'))}
-- Поле группы — имя через точку: "registrationAddress.city".
-- type: string | number | boolean | date | array (атомарное значение файлов у FileUpload*).
+- Group field: "address.city". type: string | number | boolean | date | array (files).
 ${componentLine(catalogs)}
-- componentProps — свойства компонента; незнакомое form_build назовёт и перечислит, какие есть.
-- Варианты выбора: "optionsSource":"LOAN_TYPES" и запись в dataSources либо componentProps.options:[{"value":"a","label":"А"}].
-- Свободный ввод с подсказками: "suggestionsSource":"CITIES" и запись в dataSources — поле рисует InputSuggest.
-- Дата строкой: ${json(field('birthDate'))}. DatePicker хранит Date.
-- Маска: "component":"InputMask","componentProps":${json(field('phone').componentProps)}.
+- Choices: "optionsSource":"LOAN_TYPES" + a dataSources record, or componentProps.options:[{"value":"a","label":"A"}]; free-input hints: "suggestionsSource".
+- Date string: "type":"date", Input, componentProps {"type":"date"}; DatePicker holds a Date. Mask: InputMask, componentProps ${json(field('phone').componentProps)}.
 
-## arrays
-${json(arrays[0])}
+## layoutRoot — every field and array stands in it
+${json(plainLayout)}
+- A string child is a field ref; an array: {"kind":"array","ref":"contacts"}; selector names a node.
 
-## layoutRoot — каждое поле и массив должны в нём стоять
-${json(GRAMMAR_EXAMPLE.layoutRoot.children[0])}
-- Корень с шагами: {"kind":"container","component":"Box","selector":"wizard","componentProps":{"submitLabel":"Отправить"},"children":[шаги]}. Форма без шагов — те же контейнеры без узлов step. Значок шага: "icon":"💰".
-- Строка в children — ссылка на поле. Массив: {"kind":"array","ref":"contacts"}.
-- Подформа: parts ${json(GRAMMAR_EXAMPLE.parts)}, узел {"kind":"part","ref":"registrationAddress","part":"address"}; ссылки в части — от группы.
-
-## validation — одна строка на правило, текст в message
+## validation — one row per rule, its text in message
 ${json(validation[0])}
 ${rulesLine(catalogs)}
-- Ключи правила — операторы схемы ядра: ${validationKeys}; правило поля группы — путь через точку.
-- Текст строки получает каждая её проверка с кодом; своя формулировка проверке — строкой с одним этим кодом.
-- Проверки поля сборка печатает одним validate(…, […]). Новую проверку без своего текста добавляй в rules строки этого поля, а не новой строкой; проверку со своим текстом — строкой с тем же target, как price выше.
-- Условие: ${json(validation[2])}
-- Строка массива: ${json(validation[3])}
-- Между полями (выражение ИСТИННО, когда всё верно): ${json(validation[4])}
-- Между полями строки массива (values — снимок строки): ${json(validation[6])}
-- Асинхронно: ${json(validation[5])}
-- У cross: "severity":"warning" — предупреждение, отправку не блокирует; "params":{"max":"values.income * 10"} — числа для {max} в message.
-- Своё правило — имя из operators: ${json(validation[7])}
-- Свой оператор валидации — вызов печатается в схему как есть: ${json(validation[8])}. В правиле с each model в вызове — строка.
+- message covers every check of the row; a check with its own text needs its own row.
+- Condition: "when":${json(validation[2].when)} in the row.
 
-## behavior — kind это оператор ядра, expr это TS, sources это поля, которые оно читает
+## behavior — kind: core operator, expr: TypeScript, sources: fields read
 ${behaviorRow('compute')}
-${behaviorRow('computeFrom')} — параметры expr — sources по последнему сегменту пути.
-${behaviorRow('enableWhen')}
-${behaviorRow('disableWhen')} — группа целиком.
-${behaviorRow('onChange')} — value: новое значение target.
-${behaviorRow('transformValue')}
-${behaviorRow('copyFrom')} — expr: условие копирования.
-${behaviorRow('syncFields')} — в обе стороны.
-${behaviorRow('resetWhen')} — без resetValue поле сбрасывается в null.
-${behaviorRow('revalidateWhen')} — expr: что сделать при смене sources. Перезапуск своей схемы — void validateModel(model, схема): validateModel сборка импортирует сама, схему объяви в operators.
-${behaviorRow('exclusiveFlag')} — флаг true только у одной строки.
-${behaviorRow('aggregateInto')} — rows: снимок строк, ответ — [{ index, patch }].
-${behaviorRow('call')} — свой оператор поведения из operators, вызов как есть.
-target и sources — только листовые поля и массивы; enableWhen и disableWhen принимают и группу ("target":"residenceAddress"). В compute проверяй null: у числа без значения тип number | null, у необязательного текста — string | null. Условие пересчёта у compute и computeFrom: "when":"model.loanType === 'mortgage'". Цель compute заблокирована для ввода сама.
-Поведение строки массива: "each":"contacts", строка в expr — item. Узел формы (снять замечания, пометить тронутым) — form.<поле>.
+${behaviorRow('enableWhen')} — disableWhen: inverse, also for a group.
+${behaviorRow('copyFrom')} — expr: when to copy.
+${behaviorRow('onChange')} — value: new value.
+target, sources: leaf fields and arrays; compute must handle null (an empty number).
 
-Массив в модели — НЕ обычный массив: есть length, at(i), map(fn), forEach(fn), toArray(), push(), removeAt(i), clear(); нет get, reduce, filter — сначала map(...) или toArray(). Сумма:
-${behaviorRow('compute', 1)}
+## visibility, dataSources
+${json(GRAMMAR_EXAMPLE.visibility[0])} — the node is HIDDEN while true.
+${json({ ...sources, values: sources.values.slice(0, 1) })}
 
-## Узлы схемы — тоже behavior: узел по selector из layoutRoot, в expr есть schema; на core не печатаются
-${behaviorRow('onComponentEvent')} — событие компонента, аргументы — args. Так подключается отправка.
-${behaviorRow('renderEffect')} — эффект после монтирования схемы, ref узла — getRef().
-${behaviorRow('onInit')} — до первого рендера.
-${behaviorRow('onMount')} — тело может вернуть очистку.
-${behaviorRow('onUnmount')}
-С await обработчик асинхронный.
-
-## operators — свои операторы: имя → модуль импорта
-${json(GRAMMAR_EXAMPLE.operators)}
-- Модуль каталога формы ("./operators" → operators.ts, "./api" → api.ts) form_build пишет заготовкой: сигнатура принимает любые аргументы, тело пустое. Тела напиши сам (Edit): правка делает файл твоим — сборка его больше не трогает, но проверяет типы. Модуль проекта ("@/shared/validators") подключается как есть.
-- Правило — функция, возвращающая Rule<T> из @reformer/core/validation; оператор валидации — на validate, cross, validateWhen; оператор поведения — на операторах @reformer/core/behaviors или effect + onDispose.
-
-## visibility и dataSources
-${json(GRAMMAR_EXAMPLE.visibility[0])} — узел СКРЫТ, когда условие истинно; selector задан в layoutRoot.
-${json(GRAMMAR_EXAMPLE.dataSources[0])}
+## More: form_build {"grammar":"<section>"}
+${more}, all.
 `;
+}
+
+/** Секции по запросу: каждая — самостоятельный текст, без повтора базы. */
+const SECTION_TEXT: Readonly<Record<GrammarSection, (catalogs: FormCatalogs) => string>> = {
+  behavior: () => `## behavior — other model operators
+${behaviorRow('computeFrom')} — expr parameters: sources by their last segment.
+${behaviorRow('disableWhen')} — a whole group.
+${behaviorRow('transformValue')}
+${behaviorRow('syncFields')} — both ways.
+${behaviorRow('resetWhen')} — without resetValue: null.
+${behaviorRow('revalidateWhen')} — expr runs when sources change.
+- compute and computeFrom recompute only while "when":"<condition>" holds; a compute target is read-only. A form node (errors, touched): form.<field>.
+`,
+
+  arrays: () => `## arrays — repeating rows
+${json(arraySample)}
+- In layoutRoot: {"kind":"array","ref":"contacts"}. Row rule: ${json(validation[3])}
+- Row behavior: "each":"contacts", the row in expr is item. ${behaviorRow('exclusiveFlag')} — true in one row only.
+${behaviorRow('aggregateInto')} — answer [{ index, patch }].
+- A model array is NOT a plain array: length, at(i), map(fn), forEach(fn), toArray(), push(), removeAt(i), clear(); reduce or filter only after map(...) or toArray(). Sum:
+${behaviorRow('compute', 1)}
+`,
+
+  wizard: () => `## wizard — steps
+${json(wizardLayout)}
+- Every child of FormWizard is a step; a step holds fields, arrays, containers; "icon":"💰".
+- The step selector keys the step's validation (default step<N>). Shorthand: "steps":[{"title":"Loan","fields":["loanType","price"]}] instead of layoutRoot.
+- Submit: section nodes. On core write the steps in index.tsx (find_recipe wizard).
+`,
+
+  cross: () => `## cross — across fields, the expression is TRUE when valid
+${json(validation[4])}
+- In a row: "each":"contacts", values is the row. "severity":"warning" does not block submit; "params":{"max":"values.income * 10"} fills {max} in message.
+`,
+
+  async: () => `## async — null when valid, else { code }
+${json(validation[5])}
+`,
+
+  parts: () => `## parts — one sub-form layout for several groups
+"parts":${json(GRAMMAR_EXAMPLE.parts)}, node {"kind":"part","ref":"registrationAddress","part":"address"}; refs in a part are relative to the group.
+`,
+
+  operators: ({ core }) => {
+    const unkeyed = operatorsWithoutIntentKey(core.operatorNames);
+    return `## operators — own code: name → module
+${json(GRAMMAR_EXAMPLE.operators)}
+- Own rule: "rules":${json(validation[7].rules)} — returns Rule<T> (@reformer/core/validation).
+- Own validation operator instead of rules, printed as is: "call":${json(validation[8].call)}; with each, model is the row.
+- Own behavior operator: ${behaviorRow('call')} — on @reformer/core/behaviors or effect + onDispose.
+- "./operators" → operators.ts, "./api" → api.ts get a stub; write the bodies (Edit): then the file is yours, type-checked but not rewritten. A project module ("@/shared/x") is imported as is.
+- revalidateWhen with your schema: void validateModel(model, schema), the schema in operators.${
+      unkeyed.length > 0
+        ? `\n- Core operators without an intent key: ${unkeyed.join(', ')} — call them with "kind":"call".`
+        : ''
+    }
+`;
+  },
+
+  nodes: () => `## nodes — node events by selector, expr has schema; not printed on core
+${behaviorRow('onComponentEvent')} — args: the event arguments; this wires submit.
+${behaviorRow('renderEffect')} — the node ref: getRef().
+${behaviorRow('onMount')} — may return a cleanup. Same shape: "kind":"onInit" (before the first render), "kind":"onUnmount".
+`,
+};
+
+/** Поле примера без того, чего документ не держит: типа значения и начального значения. */
+function documentField<F extends { type?: unknown; initialValue?: unknown }>(
+  record: F
+): Omit<F, 'type' | 'initialValue'> {
+  const { type: _type, initialValue: _initial, ...rest } = record;
+  return rest;
+}
+
+const [contacts] = arrays;
+
+/**
+ * Рабочая форма грамматики документа: то же, что у {@link GRAMMAR_EXAMPLE}, без шагов, частей,
+ * своих операторов и хуков модуля. Строки грамматики берутся отсюда, а потребитель собирает этот
+ * intent своей сборкой — ассистент конструктора проверяет так `build_form` на своём ките.
+ */
+export const DOCUMENT_GRAMMAR_EXAMPLE = {
+  fields: [
+    'loanType',
+    'price',
+    'quantity',
+    'total',
+    'propertyValue',
+    'password',
+    'confirm',
+    'sameAddress',
+    'registrationAddress.city',
+    'residenceAddress.city',
+    'hasContacts',
+  ].map((name) => documentField(field(name))),
+  arrays: [
+    {
+      name: contacts.name,
+      componentProps: { title: contacts.componentProps.title },
+      itemFields: contacts.itemFields.slice(0, 2).map(documentField),
+    },
+  ],
+  layoutRoot: {
+    kind: 'container',
+    component: 'Box',
+    children: [
+      ...plainLayout.children.slice(0, 2),
+      'quantity',
+      'total',
+      plainLayout.children[plainLayout.children.length - 1],
+      'password',
+      'confirm',
+      'sameAddress',
+      'registrationAddress.city',
+      'residenceAddress.city',
+      'hasContacts',
+      { kind: 'array', ref: 'contacts' },
+    ],
+  },
+  validation: [validation[0], validation[2], validation[3], validation[4]],
+  behavior: ['compute', 'enableWhen', 'copyFrom', 'onChange'].map(
+    (kind) => behavior.filter((row) => row.kind === kind)[0]
+  ),
+  visibility: GRAMMAR_EXAMPLE.visibility,
+  dataSources: GRAMMAR_EXAMPLE.dataSources,
+};
+
+/**
+ * Потолок грамматики документа в символах — не длиннее прежней грамматики `build_form`
+ * ассистента конструктора (около 3500): её читает каждая модель, включая малые локальные.
+ */
+export const DOCUMENT_GRAMMAR_LIMIT = 3500;
+
+/**
+ * Правила документа — по именам: фабрики ядра из его индекса, а без индекса — самые ходовые.
+ * Образцы аргументов, как в базе, грамматику документа удлинили бы вдвое против прежней.
+ */
+function documentRulesLine({ core }: FormCatalogs): string {
+  const list = core.found
+    ? [...core.rules.keys()].join(' ')
+    : 'required email minLength(n) maxLength(n) min(n) max(n) pattern(/re/)';
+  return `- rules: ${list}; last argument { code: '…' }.`;
+}
+
+function documentGrammar(catalogs: FormCatalogs): string {
+  const example = DOCUMENT_GRAMMAR_EXAMPLE;
+  const sources = GRAMMAR_EXAMPLE.dataSources[0];
+  return `# intent — grammar
+
+One object — a form, a step or a block. Compact JSON.
+{"fields":[…],"arrays":[…],"layoutRoot":{…},"validation":[…],"behavior":[…],"visibility":[…],"dataSources":[…]}
+Samples show syntax only: fields come from the task, texts keep its language. An unknown key is an error naming the nearest one.
+
+## fields
+${json(documentField(field('price')))}
+- Group field: "address.city".
+${componentLine(catalogs)}
+- Choices: "optionsSource":"LOAN_TYPES" + a dataSources record. Mask: InputMask, componentProps ${json(field('phone').componentProps)}.
+
+## layoutRoot — every field and array stands in it
+${json(plainLayout)}
+- A string child is a field ref; an array: {"kind":"array","ref":"contacts"}; selector names a node.
+- Wizard: "steps":[{"title":"Loan","fields":["loanType","price"]},{"title":"Applicant","fields":["password"]}] instead of layoutRoot.
+
+## arrays — repeating rows
+${json(example.arrays[0])}
+- Row rules and behavior: "each":"contacts", target is the row field, expr reads the row as item.
+
+## validation — one row per rule, its text in message
+${json(validation[0])}
+${documentRulesLine(catalogs)}
+- Condition: "when":${json(validation[2].when)}. Across fields, TRUE when valid: ${json(validation[4])}
+
+## behavior — kind: core operator, expr: TypeScript, sources: fields read
+${behaviorRow('compute')} — "when" recomputes only while true.
+${behaviorRow('enableWhen')} — disableWhen: inverse.
+Also copyFrom (expr: when to copy) onChange computeFrom syncFields resetWhen transformValue revalidateWhen; rows: exclusiveFlag aggregateInto. Handle null.
+
+## visibility, dataSources, node events
+${json(GRAMMAR_EXAMPLE.visibility[0])} — HIDDEN while true.
+${json({ ...sources, values: sources.values.slice(0, 1) })}
+- Node event, a behavior row: {"kind":"onComponentEvent","selector":"<node>","event":"onClick","expr":"…"}. Own operators, call and node hooks are module code: not in a document.
+`;
+}
+
+/**
+ * Грамматика intent для установленных кита и ядра.
+ *
+ * @param options.sections - `base` (по умолчанию) — база; `all` — база и все секции; список секций —
+ *   только они, без повтора базы.
+ * @param options.profile - `document` — грамматика документа формы: один текст, без секций.
+ */
+export function intentGrammar(catalogs: FormCatalogs, options: IntentGrammarOptions = {}): string {
+  if (options.profile === 'document') return documentGrammar(catalogs);
+  const request = options.sections ?? 'base';
+  if (request === 'base') return base(catalogs);
+  const sections = request === 'all' ? GRAMMAR_SECTIONS : request;
+  const parts = sections.map((name) => SECTION_TEXT[name](catalogs));
+  return (request === 'all' ? [base(catalogs), ...parts] : parts).join('\n');
 }

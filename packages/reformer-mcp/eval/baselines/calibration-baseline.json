@@ -1,10 +1,10 @@
 {
-  "date": "2026-11-03",
+  "date": "2026-11-11",
   "channels": ["node", "worker"],
-  "note": "T3 — прогон с --e2e от 2026-10-27 (after-3), перенесён без изменений; остальные треки — прогон 2026-11-03 без e2e.",
+  "note": "T3 — прогон с --e2e от 2026-10-27 (after-3), перенесён без изменений; остальные треки — прогон 2026-11-11 без e2e (MCP 7.0, один путь: generate_form и алиасы удалены). T1 — только канал node: plan_form пишет черновик на диск, паритет каналов снят; заметки разбора считаются по ответу plan_form («Finish by hand (N)»), unparsed — по показанным пунктам (нижняя граница). T2 — через form_build: files — весь записанный модуль (с intent и файлами потребителя), warnings — только предупреждения сборки (заметки разбора — в T1). T4.recipes: validation ведёт на рецепт правил 06-validation (cad41e74, 2026-11-08). T6: form_build вместо generate_form; plan_form отвечает сводкой (только node, n 8 → 4). smoke 55 → 51: паритет plan_form/generate_form снят, S12d и негатив «generate_form без intent» в обоих каналах удалены вместе с инструментом. Фаза 2 (2026-11-11): choose_api.fits 91.4% → 88.6% — ответ называет запись решения в form.intent.json; askReformer.fits 17.1% → 8.6% — фасад заполняет бюджет 1500 плотнее, ключ ответа по-прежнему в бюджете у 100%.",
   "inspector": "2.12.0",
   "smoke": {
-    "pass": 55,
+    "pass": 51,
     "fail": [],
     "info": 1
   },
@@ -18,7 +18,7 @@
         "visibility": 0,
         "warnings": 7
       },
-      "parity": true,
+      "parity": null,
       "fields": "8/8",
       "fieldsExtra": 0,
       "typeMismatch": 0,
@@ -53,7 +53,7 @@
         "visibility": 0,
         "warnings": 17
       },
-      "parity": true,
+      "parity": null,
       "fields": "67/75",
       "fieldsExtra": 0,
       "typeMismatch": 0,
@@ -93,7 +93,7 @@
         "visibility": 0,
         "warnings": 42
       },
-      "parity": true
+      "parity": null
     },
     "loan": {
       "counts": {
@@ -104,7 +104,7 @@
         "visibility": 0,
         "warnings": 2
       },
-      "parity": true
+      "parity": null
     }
   },
   "t2": [
@@ -113,8 +113,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 7,
-      "files": 4,
+      "warnings": 0,
+      "files": 9,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -124,8 +124,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 7,
-      "files": 4,
+      "warnings": 0,
+      "files": 9,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -135,8 +135,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 7,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -147,7 +147,7 @@
       "crossCheckErrors": 0,
       "intentProblems": 0,
       "warnings": 0,
-      "files": 5,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -158,7 +158,7 @@
       "crossCheckErrors": 0,
       "intentProblems": 0,
       "warnings": 0,
-      "files": 5,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -169,7 +169,7 @@
       "crossCheckErrors": 0,
       "intentProblems": 0,
       "warnings": 0,
-      "files": 6,
+      "files": 11,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -179,8 +179,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 17,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -190,8 +190,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 17,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -201,8 +201,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 17,
-      "files": 6,
+      "warnings": 0,
+      "files": 11,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -213,7 +213,7 @@
       "crossCheckErrors": 0,
       "intentProblems": 0,
       "warnings": 1,
-      "files": 7,
+      "files": 11,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -224,7 +224,7 @@
       "crossCheckErrors": 0,
       "intentProblems": 0,
       "warnings": 0,
-      "files": 7,
+      "files": 11,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -235,7 +235,7 @@
       "crossCheckErrors": 0,
       "intentProblems": 0,
       "warnings": 0,
-      "files": 8,
+      "files": 12,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -245,8 +245,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 42,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -256,8 +256,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 42,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -267,8 +267,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 42,
-      "files": 6,
+      "warnings": 0,
+      "files": 11,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -278,8 +278,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 2,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -289,8 +289,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 2,
-      "files": 5,
+      "warnings": 0,
+      "files": 10,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -300,8 +300,8 @@
       "status": "ok",
       "crossCheckErrors": 0,
       "intentProblems": 0,
-      "warnings": 2,
-      "files": 6,
+      "warnings": 0,
+      "files": 11,
       "tscErrors": 0,
       "layoutErrors": 0,
       "codeErrors": 0
@@ -327,7 +327,7 @@
         "copy-from: # Recipe: copyFrom — Копирование значений между полями",
         "json-schema: # Recipe: JSON Schema",
         "directory-layout: # Recipe: Form directory layout (core / renderer-react / renderer-json)",
-        "validation: # Recipe: useFormValidation — Единый выбор стратегии валидации",
+        "validation: # Recipe: Validation",
         "computed: # Recipe: compute-vs-watch"
       ],
       "worker": [
@@ -336,7 +336,7 @@
         "copy-from: # Recipe: copyFrom — Копирование значений между полями",
         "json-schema: # Recipe: JSON Schema",
         "directory-layout: # Recipe: Form directory layout (core / renderer-react / renderer-json)",
-        "validation: # Recipe: useFormValidation — Единый выбор стратегии валидации",
+        "validation: # Recipe: Validation",
         "computed: # Recipe: compute-vs-watch"
       ]
     }
@@ -535,34 +535,34 @@
   },
   "t6": {
     "plan_form": {
-      "n": 8,
+      "n": 4,
       "keyInBudget": "100%",
-      "fits": "0%",
-      "medianChars": 45768
+      "fits": "25%",
+      "medianChars": 2145
     },
-    "generate_form": {
+    "form_build": {
       "n": 18,
       "keyInBudget": "100%",
-      "fits": "0%",
-      "medianChars": 45602
+      "fits": "100%",
+      "medianChars": 468
     },
     "validate_form": {
-      "n": 895,
+      "n": 964,
       "keyInBudget": "100%",
-      "fits": "95.9%",
+      "fits": "96.2%",
       "medianChars": 357
     },
     "choose_api": {
       "n": 70,
       "keyInBudget": "100%",
-      "fits": "91.4%",
-      "medianChars": 855
+      "fits": "88.6%",
+      "medianChars": 904
     },
     "askReformer": {
       "n": 35,
       "keyInBudget": "100%",
-      "fits": "17.1%",
-      "medianChars": 1464
+      "fits": "8.6%",
+      "medianChars": 1456
     },
     "get_symbol_docs": {
       "n": 88,
@@ -574,10 +574,10 @@
       "n": 14,
       "keyInBudget": "100%",
       "fits": "0%",
-      "medianChars": 7616
+      "medianChars": 7901
     },
     "plan_form_warnings": {
-      "beyondBudget": "0/8"
+      "beyondBudget": "0/4"
     }
   },
   "t3": {

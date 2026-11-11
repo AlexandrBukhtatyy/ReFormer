@@ -9,41 +9,35 @@
  *
  * ## Профиль
  *
- * `node` — сервер под Node, как всегда. `browser` — воркер в браузере, где нет диска:
+ * `node` — сервер под Node. Форму там создаёт один путь (с 7.0): агент пишет `form.intent.json`, а
+ * `form_build` собирает и записывает модуль; `plan_form` пишет черновик intent по спеке.
  *
- * - нет `report_issue`: отчёт лёг бы в память воркера и пропал, а инструмент ответил бы
- *   «сохранено» — обещание, которое никто не выполнит;
- * - нет `form_build`: он записывает файлы формы в проект, а проекта на диске тут нет;
- * - нет `debug`;
- * - у `plan_form` нет `specPath`: спеку по пути воркеру прочитать неоткуда, работает
- *   `description`.
+ * `browser` — воркер в браузере, где нет диска: только справочные инструменты. Форму там собирает
+ * ассистент конструктора своим `build_form` над документом, а не сервер. Поэтому нет `form_build` и
+ * `plan_form` (они пишут в проект, которого тут нет), `report_issue` (отчёт лёг бы в память воркера и
+ * пропал) и `debug`.
  *
- * `validate_json_schema` и `check_behaviors` в списке не значатся (их заменил `validate_form`), но
- * вызываются по имени у обоих профилей — как и прежде.
+ * Легаси удалено в 7.0 (аудит 2026-11, A1): `generate_form` печатал файлы текстом, и агенты уходили
+ * писать модуль мимо генератора; `plan_form` воркера отдавал intent для него же; скрытые
+ * `validate_json_schema` и `check_behaviors` давно заменил `validate_form`. Вызов любого из них —
+ * «Unknown tool», как у любого неизвестного имени.
  *
  * @module reformer-mcp/core/server/tool-catalog
  */
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Knowledge } from '../knowledge.js';
-import { checkBehaviorsTool } from '../tools/check-behaviors.js';
 import { chooseApiTool, chooseApiToolDefinition } from '../tools/choose-api.js';
 import { debugTool, debugToolDefinition } from '../tools/debug.js';
 import { findRecipeTool, findRecipeToolDefinition } from '../tools/find-recipe.js';
 import { formBuildTool, formBuildToolDefinition } from '../tools/form-build.js';
-import {
-  generateFormTool,
-  generateFormToolDefinition,
-  planFormTool,
-  planFormToolDefinition,
-} from '../tools/generate-form.js';
+import { planFormTool, planFormToolDefinition } from '../tools/plan-form.js';
 import { getContextTool, getContextToolDefinition } from '../tools/get-context.js';
 import { getSymbolDocsTool, getSymbolDocsToolDefinition } from '../tools/get-symbol-docs.js';
 import { listSymbolsTool, listSymbolsToolDefinition } from '../tools/list-symbols.js';
 import { reportIssueTool, reportIssueToolDefinition } from '../tools/report-issue.js';
 import { searchDocsTool, searchDocsToolDefinition } from '../tools/search-docs.js';
 import { validateFormTool, validateFormToolDefinition } from '../tools/validate-form.js';
-import { validateJsonSchemaTool } from '../tools/validate-json-schema.js';
 
 /** Объявление инструмента — в том виде, в каком его отдаёт `tools/list`. */
 export interface ToolDefinition {
@@ -75,15 +69,6 @@ export interface ToolCatalog {
   call(name: string, args: Record<string, unknown> | undefined): Promise<CallToolResult>;
 }
 
-/** `plan_form` без `specPath` — для профиля без диска. */
-const planFormWithoutSpecPath: ToolDefinition = (() => {
-  const { specPath: _specPath, ...properties } = planFormToolDefinition.inputSchema.properties;
-  return {
-    ...planFormToolDefinition,
-    inputSchema: { ...planFormToolDefinition.inputSchema, properties },
-  };
-})();
-
 /**
  * Собрать каталог инструментов.
  *
@@ -107,10 +92,10 @@ export function createToolCatalog(
         searchDocsToolDefinition,
         listSymbolsToolDefinition,
         validateFormToolDefinition,
-        browser ? planFormWithoutSpecPath : planFormToolDefinition,
-        generateFormToolDefinition,
       ];
-      if (!browser) tools.push(formBuildToolDefinition, reportIssueToolDefinition);
+      if (!browser) {
+        tools.push(planFormToolDefinition, formBuildToolDefinition, reportIssueToolDefinition);
+      }
       if (debug) tools.push(debugToolDefinition);
       return tools;
     },
@@ -135,19 +120,9 @@ export function createToolCatalog(
         case 'validate_form':
           return await validateFormTool(args as Record<string, unknown>, knowledge());
 
-        case 'plan_form': {
-          const params = args as { specPath?: string; description?: string; target?: string };
-          // Профиль без диска путь спеки не читает: аргумент, которого нет в схеме, не должен
-          // молча превращаться в «спека не найдена».
-          const { specPath: _specPath, ...withoutSpecPath } = params ?? {};
-          return await planFormTool(browser ? withoutSpecPath : params, knowledge());
-        }
-
-        case 'generate_form':
-          return await generateFormTool(
-            args as { intent: Record<string, unknown>; target?: string },
-            knowledge()
-          );
+        case 'plan_form':
+          if (browser) break;
+          return await planFormTool(args ?? {}, knowledge());
 
         case 'get_context':
           return await getContextTool(
@@ -170,12 +145,6 @@ export function createToolCatalog(
         case 'find_recipe':
           return await findRecipeTool(args as { topic: string; package?: string }, knowledge());
 
-        case 'validate_json_schema':
-          return await validateJsonSchemaTool(
-            args as { schema: unknown; componentNames?: string[]; dataSourceNames?: string[] },
-            knowledge()
-          );
-
         case 'list_symbols':
           return await listSymbolsTool(
             args as {
@@ -190,11 +159,6 @@ export function createToolCatalog(
           return await searchDocsTool(
             args as { query?: string; package?: string; limit?: number },
             knowledge()
-          );
-
-        case 'check_behaviors':
-          return await checkBehaviorsTool(
-            args as { dependencies: Array<{ target: string; reads: string[] }> }
           );
       }
       throw new Error(`Unknown tool: ${name}`);

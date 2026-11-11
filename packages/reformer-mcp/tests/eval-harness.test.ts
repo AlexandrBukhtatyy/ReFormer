@@ -8,7 +8,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initProblems } from '../eval/agents/claude-code.mjs';
-import { KEEP_WHOLE_TOOLS, truncateOldResults } from '../eval/agents/ollama.mjs';
+import {
+  capResponse,
+  KEEP_WHOLE_TOOLS,
+  responseCap,
+  truncateOldResults,
+} from '../eval/agents/ollama.mjs';
 import { findTextualCall } from '../eval/agents/textual-call.mjs';
 import { resolveInside, runWorkspaceTool } from '../eval/agents/workspace-tools.mjs';
 import { compareCalibration } from '../eval/calibration/compare.mjs';
@@ -384,21 +389,31 @@ describe('адаптер Ollama: усечение старых ответов', 
     content: 'x'.repeat(chars),
   });
 
-  it('ответ генератора не усекается, прочие старые ответы — да [ReFormer-qo9b.31]', () => {
-    const bundle = tool('generate_form', 9000);
+  it('ответ сборки не усекается, прочие старые ответы — да [ReFormer-qo9b.31]', () => {
+    const grammar = tool('form_build', 9000);
     const messages = [
       { role: 'user', content: 'задача' },
       tool('find_recipe', 5000),
-      bundle,
+      grammar,
       tool('plan_form', 6000),
       ...Array.from({ length: 4 }, () => tool('search_docs', 3000)),
     ];
     expect(truncateOldResults(messages)).toBe(1);
     expect(messages[1].content).toContain('ответ усечён стендом');
-    expect(bundle.content).toHaveLength(9000);
+    expect(grammar.content).toHaveLength(9000);
     expect(messages[3].content).toHaveLength(6000);
     // Последние ответы остаются целыми: их модель читает прямо сейчас.
     expect(messages.slice(-4).every((m) => m.content.length === 3000)).toBe(true);
-    expect([...KEEP_WHOLE_TOOLS].sort()).toEqual(['form_build', 'generate_form', 'plan_form']);
+    expect([...KEEP_WHOLE_TOOLS].sort()).toEqual(['form_build', 'plan_form']);
+  });
+
+  it('ответ длиннее контекста модели усекается с пометкой [ReFormer-qo9b.36]', () => {
+    const cap = responseCap(32768);
+    expect(cap).toBeGreaterThan(9500); // грамматика целиком помещается
+    expect(capResponse('x'.repeat(cap), cap)).toEqual({ text: 'x'.repeat(cap), cut: false });
+    const long = capResponse('x'.repeat(70128), cap);
+    expect(long.cut).toBe(true);
+    expect(long.text.length).toBeLessThan(cap + 200);
+    expect(long.text).toContain('70128');
   });
 });

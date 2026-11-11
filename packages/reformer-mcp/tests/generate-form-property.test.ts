@@ -170,7 +170,7 @@ if (process.env.REFORMER_TEST_SLOW === '1') {
   });
 }
 
-describe('свойства generate_form на случайных intent', () => {
+describe('свойства сборки на случайных intent', () => {
   it('бандл проходит собственную кросс-проверку', () => {
     fc.assert(
       fc.property(intentArbitrary, (partial) => {

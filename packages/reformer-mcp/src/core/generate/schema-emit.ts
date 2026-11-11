@@ -202,7 +202,7 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
     const declared = intent.parts?.[name];
     if (!declared) {
       warnings.push(
-        `Подформа ссылается на часть \`${name}\`, но в intent.parts её нет — узел пропущен.`
+        `A subform refers to the part \`${name}\`, and intent.parts has none — the node is skipped.`
       );
       return false;
     }
@@ -508,9 +508,9 @@ export function buildFormSchemaTs(
     lines.push(importLine(names, from));
   }
   if (!kit.found && imports.uiKit.size > 0) warnings.push(NO_UI_KIT_WARNING);
+  // Компонент не из кита — ошибка судьи (`unknown-component`); в схеме остаётся TODO.
   for (const name of [...imports.unknownComponents].sort()) {
     lines.push(`// TODO: импортируйте компонент \`${name}\` — его нет в каталоге ui-kit.`);
-    warnings.push(`Компонент \`${name}\` не из каталога ui-kit — в form.schema.ts стоит TODO.`);
   }
   if (imports.dataSources.size > 0) {
     lines.push(importLine([...imports.dataSources].sort(), './data-sources'));

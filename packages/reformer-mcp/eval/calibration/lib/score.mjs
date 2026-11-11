@@ -266,8 +266,8 @@ export function scoreIntent(facts, intent) {
 export function fitness(tool, text) {
   const t = String(text);
   const probes = {
-    generate_form: [/^[✅❌].*$/m, 'статус кросс-проверки'],
-    plan_form: [/^Разобрано:.*$/m, 'счётчики разбора'],
+    form_build: [/^[✓✗] form_build.*$/m, 'вердикт сборки'],
+    plan_form: [/^[✓✗] plan_form.*$/m, 'сводка черновика'],
     validate_form: [/✅|❌|⚠️|RF0\d\d|\bvalid\b|без замечаний|No issues/i, 'вердикт'],
     choose_api: [/^# choose_api: `[^`]+`/m, 'выбранный оператор'],
     find_recipe: [/^# Recipe/m, 'заголовок рецепта'],
@@ -290,6 +290,27 @@ export function fitness(tool, text) {
 
 /** Где в ответе начинаются предупреждения — их модель должна увидеть до правки. */
 export function warningsAt(text) {
-  const at = String(text).search(/^## Warnings/m);
+  const at = String(text).search(/^## Warnings|^Finish by hand/m);
   return at;
+}
+
+/**
+ * Заметки разбора из ответа `plan_form`. С 7.0 черновик на диске их не держит: они уходят в ответ
+ * блоком «Finish by hand (N):», где показаны первые пункты, а остаток свёрнут в «… N more».
+ *
+ * `total` — число из заголовка, то есть все заметки; `items` — показанные. Счёт по `items` (например,
+ * «не разобран») — нижняя граница, когда заметок больше, чем ответ показывает.
+ *
+ * @returns {{ total: number, items: string[] }}
+ */
+export function planNotes(text) {
+  const t = String(text);
+  const head = /^Finish by hand \((\d+)\):$/m.exec(t);
+  if (!head) return { total: 0, items: [] };
+  const items = [];
+  for (const line of t.slice(head.index + head[0].length + 1).split('\n')) {
+    if (!line.startsWith('- ')) break;
+    if (!/^- … \d+ more/.test(line)) items.push(line.slice(2));
+  }
+  return { total: Number(head[1]), items };
 }

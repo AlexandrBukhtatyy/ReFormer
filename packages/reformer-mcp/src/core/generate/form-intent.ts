@@ -17,7 +17,13 @@
  */
 
 import { repairBehavior } from './behavior-repair.js';
-import { liftInline } from './intent-lift.js';
+import { liftInline, rulesFromMap } from './intent-lift.js';
+import {
+  INTENT_RECORDS,
+  nearestKey,
+  recordKeys,
+  type IntentRecordKind,
+} from './intent-messages.js';
 import {
   MODEL_BEHAVIOR_KINDS,
   NODE_BEHAVIOR_KINDS,
@@ -25,6 +31,15 @@ import {
   type NodeBehaviorKind,
 } from './operator-catalog.js';
 import { normalizeFieldComponent, NO_UI_KIT, type UiKitComponents } from './ui-kit-components.js';
+import type { UiKitPropSchemas } from './ui-kit-props.js';
+
+/**
+ * Версия контракта intent: записи и их ключи, коды находок судьи, грамматика документа и то, что
+ * документ держит (`./document`). Растёт при несовместимой правке любого из них. Потребитель,
+ * встроивший компилятор (ассистент конструктора), сверяет её со своей: обёртки грамматики и перенос
+ * в документ написаны под конкретную версию.
+ */
+export const INTENT_CONTRACT_VERSION = 1;
 
 /** Тип значения поля в модели. */
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
@@ -189,7 +204,7 @@ export interface DataSourceIntent {
 }
 
 export interface WizardIntent {
-  steps: Array<{ title: string; icon?: string; fields: string[] }>;
+  steps: Array<{ title: string; icon?: string; selector?: string; fields: string[] }>;
 }
 
 /** Узел layout-дерева. Листья ссылаются на поля/массивы ПО ИМЕНИ, не встраивают их. */
@@ -411,22 +426,22 @@ function normalizeWith(
     } as T;
   };
 
-  const fields = named(partial.fields ?? [], 'поле').map((f) => {
+  const fields = named(partial.fields ?? [], 'field').map((f) => {
     const name = usableName(f) as string;
     return withComponent(
       { ...f, name, modelPath: f.modelPath ?? name, selector: f.selector ?? name },
-      `Поле \`${name}\``,
+      `The field \`${name}\``,
       name
     );
   });
 
-  const arrays = named(partial.arrays ?? [], 'массив').map((a) => {
+  const arrays = named(partial.arrays ?? [], 'array').map((a) => {
     const name = usableName(a) as string;
     const declared = typeof a.itemInterfaceName === 'string' ? a.itemInterfaceName.trim() : '';
     if (!declared) {
       warnings.add(
         'item-interface-default',
-        `Массив \`${name}\` без itemInterfaceName — интерфейс элемента назван по умолчанию.`,
+        `The array \`${name}\` has no itemInterfaceName — the row interface got a default name.`,
         name
       );
     }
@@ -435,7 +450,7 @@ function normalizeWith(
       name,
       modelPath: a.modelPath ?? name,
       itemInterfaceName: declared || `${toPascal(name.split('.').pop() ?? name) || 'Array'}Item`,
-      itemFields: named(a.itemFields ?? [], `поле массива \`${name}\``).map((f) => {
+      itemFields: named(a.itemFields ?? [], `row field of \`${name}\``).map((f) => {
         const fieldName = usableName(f) as string;
         return withComponent(
           {
@@ -444,7 +459,7 @@ function normalizeWith(
             modelPath: f.modelPath ?? fieldName,
             selector: f.selector ?? fieldName,
           },
-          `Поле \`${name}[].${fieldName}\``,
+          `The field \`${name}[].${fieldName}\``,
           `${name}[].${fieldName}`
         );
       }),
@@ -456,7 +471,7 @@ function normalizeWith(
     const count = dropped.filter((d) => d === what).length;
     warnings.add(
       'unnamed-dropped',
-      `Без имени, поэтому выброшено (${what}): ${count}. У записи обязателен \`name\`.`
+      `Records without a name dropped (${what}): ${count}. A record needs \`name\`.`
     );
   }
   for (const a of arrays) {
@@ -466,7 +481,7 @@ function normalizeWith(
     if (!Array.isArray(source?.initialValue)) {
       warnings.add(
         'initial-value-default',
-        `Массив \`${a.name}\` без initialValue — подставлен пустой массив.`,
+        `The array \`${a.name}\` has no initialValue — an empty list taken.`,
         a.name
       );
     }
@@ -482,7 +497,7 @@ function normalizeWith(
   ];
 
   if (fields.length === 0 && arrays.length === 0) {
-    warnings.add('no-fields', 'В intent нет ни одного поля — бандл будет пустым каркасом.');
+    warnings.add('no-fields', 'The intent has no field — the module would be an empty shell.');
   }
 
   return {
@@ -537,7 +552,7 @@ export function modelPaths(intent: FormIntent): Set<string> {
  * Почему между аргументом инструмента и `normalizeIntent` стоит отдельный слой.
  *
  * `normalizeIntent` принимает `Partial<FormIntent>` — то есть уже ТЕ ЖЕ имена ключей, что в
- * контракте. Модель, зовущая `generate_form` не после `plan_form`, а «по памяти», присылает те
+ * контракте. Модель, пишущая intent «по памяти», а не по грамматике, присылает те
  * же сущности под интуитивными именами: `path` вместо `name`, `reads` вместо `sources`,
  * `behaviors` вместо `behavior`, шаги отдельным списком `steps`. Такой вход не нормализовался
  * и не отвергался — он доезжал до билдера и падал внутренней ошибкой MCP `-32603` («Cannot read
@@ -550,8 +565,35 @@ export function modelPaths(intent: FormIntent): Set<string> {
  * придумать оператор, которого консумент не просил.
  */
 
+/**
+ * Стабильный код проблемы чтения: по нему выбирает потребитель со своим языком и ищут тесты, а текст
+ * может меняться.
+ */
+export type IntentProblemCode =
+  /** Вход — не объект intent: строка не JSON, массив, число. */
+  | 'intent-unreadable'
+  /** Запись списка — не объект: поле, массив, правило, поведение, видимость, шаг, узел. */
+  | 'not-an-object'
+  /** Нет обязательного: имени поля, цели правила, вида поведения, ссылки узла, тела обработчика. */
+  | 'missing-key'
+  /** Ключ, которого у записи нет; подсказка называет ближайший допустимый. */
+  | 'unknown-key'
+  /** Два синонима одного ключа с разными значениями либо описание на месте против объявления. */
+  | 'key-conflict'
+  /** Свойство, которого у компонента нет. */
+  | 'prop-unsupported'
+  /** Значение не того вида: `required` не логическое, параметр замечания — объект. */
+  | 'invalid-value'
+  /** Вид поведения, которого контракт не знает. */
+  | 'unknown-kind'
+  /** Второе объявление того же пути. */
+  | 'duplicate'
+  /** Связь, которая собралась бы и не сработала ни разу. */
+  | 'inert-behavior';
+
 /** Запись входа, которую прочитать не удалось. */
 export interface IntentProblem {
+  code: IntentProblemCode;
   /** Место в присланном объекте: `fields[2].name`. */
   at: string;
   /** Что не так. */
@@ -594,7 +636,21 @@ export type IntentWarningCode =
   | 'inline-arrays'
   | 'bare-refs'
   | 'reset-as-on-change'
-  | 'computed-toggle-replaced';
+  | 'computed-toggle-replaced'
+  /** Свойство компонента записано рядом с полем, массивом или контейнером — перенесено в пропсы. */
+  | 'prop-lifted'
+  /** Значение приведено к нужному виду: `required: "true"`, число в `params`, справочник картой. */
+  | 'value-coerced'
+  /** Список записан словарём `{ имя: запись }` — прочитан списком. */
+  | 'list-as-map'
+  /** Описание поля на месте дописано в его объявление. */
+  | 'inline-merged'
+  /** Сокращение `steps` рядом с `layoutRoot`: раскладка — из `layoutRoot`, шаги не читаются. */
+  | 'steps-ignored'
+  /** Правило на путь поля строки (`contacts.phone`) прочитано правилом каждой строки (`each`). */
+  | 'each-lifted'
+  /** Правило без проверок (`"rules": []`) — «правил нет»: запись отброшена. */
+  | 'rule-empty-dropped';
 
 export interface IntentWarning {
   code: IntentWarningCode;
@@ -632,6 +688,12 @@ export interface ReadIntentOptions {
    * узнаётся как компонент. Без него имена компонентов не сверяются.
    */
   uiKit?: UiKitComponents;
+  /**
+   * Props-схемы кита: по ним свойство компонента, записанное рядом с полем (`placeholder`, `min`,
+   * `mask`), переносится в `componentProps`, а чужое называется проблемой. Без схем переносятся
+   * только общеизвестные свойства.
+   */
+  uiKitProps?: UiKitPropSchemas;
 }
 
 export interface IntentReading {
@@ -650,6 +712,17 @@ interface ReadCtx {
   renames: Set<string>;
   /** Каталог кита — см. {@link ReadIntentOptions.uiKit}. */
   uiKit: UiKitComponents;
+  /** Props-схемы кита — см. {@link ReadIntentOptions.uiKitProps}. */
+  uiKitProps: UiKitPropSchemas | undefined;
+  /**
+   * Ключи, которые чтение взяло, — по записи. Остаток записи либо известное не на своём месте (его
+   * поднимает чтение), либо проблема `unknown-key`: молча ключ не пропадает (аудит 2026-11, B1).
+   */
+  used: WeakMap<object, Set<string>>;
+  /** Ключи, о которых чтение спрашивало, → их канон: словарь подсказки ближайшего ключа. */
+  asked: WeakMap<object, Map<string, string>>;
+  /** Синонимы, чьё значение расходится со взятым ключом: `[синоним, взятый]`. */
+  conflicts: WeakMap<object, Array<[string, string]>>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -666,21 +739,170 @@ function warn(ctx: ReadCtx, code: IntentWarningCode, message: string, at?: strin
   ctx.warnings.push({ code, message, ...(at === undefined ? {} : { at }) });
 }
 
-/** Значение канонического ключа либо первого из синонимов; переименование запоминается. */
+function problem(
+  ctx: ReadCtx,
+  code: IntentProblemCode,
+  at: string,
+  message: string,
+  expected: string
+): void {
+  ctx.problems.push({ code, at, message, expected });
+}
+
+/** Значения JSON равны: синоним, повторивший взятый ключ, конфликтом не считается. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  return (
+    ka.length === kb.length &&
+    ka.every((key) =>
+      sameValue((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+    )
+  );
+}
+
+function setOf<V>(map: WeakMap<object, Set<V>>, src: object): Set<V> {
+  let set = map.get(src);
+  if (!set) map.set(src, (set = new Set()));
+  return set;
+}
+
+/** Отметить ключи, прочитанные не через {@link take}: `wizard`, `layout`, `warnings`. */
+function use(ctx: ReadCtx, src: Record<string, unknown>, ...keys: string[]): void {
+  const used = setOf(ctx.used, src);
+  for (const key of keys) used.add(key);
+}
+
+/**
+ * Значение канонического ключа либо первого из синонимов; переименование запоминается.
+ *
+ * Ключ берётся и в другом регистре (`Label`, `InitialValue`) — это тот же ключ. Синоним рядом со
+ * взятым ключом отмечается взятым, а расхождение их значений — конфликтом: какое из двух имела в
+ * виду модель, чтение не угадывает.
+ */
 function take(
   src: Record<string, unknown>,
   canonical: string,
   aliases: readonly string[],
   ctx: ReadCtx
 ): unknown {
-  if (src[canonical] !== undefined) return src[canonical];
-  for (const alias of aliases) {
-    if (src[alias] !== undefined) {
-      ctx.renames.add(`${alias} → ${canonical}`);
-      return src[alias];
+  const group = [canonical, ...aliases];
+  let asked = ctx.asked.get(src);
+  if (!asked) ctx.asked.set(src, (asked = new Map()));
+  for (const key of group) if (!asked.has(key)) asked.set(key, canonical);
+  const used = setOf(ctx.used, src);
+
+  const present = group.filter((key) => src[key] !== undefined);
+  if (present.length === 0) {
+    const lower = new Set(group.map((key) => key.toLowerCase()));
+    const loose = Object.keys(src).find(
+      (key) =>
+        src[key] !== undefined && !used.has(key) && !asked.has(key) && lower.has(key.toLowerCase())
+    );
+    if (loose === undefined) return undefined;
+    used.add(loose);
+    ctx.renames.add(`${loose} → ${canonical}`);
+    return src[loose];
+  }
+  const [first, ...others] = present;
+  used.add(first);
+  if (first !== canonical) ctx.renames.add(`${first} → ${canonical}`);
+  for (const other of others) {
+    used.add(other);
+    if (!sameValue(src[other], src[first])) {
+      let list = ctx.conflicts.get(src);
+      if (!list) ctx.conflicts.set(src, (list = []));
+      list.push([other, first]);
     }
   }
+  return src[first];
+}
+
+/**
+ * Строка ключа: непустая строка как есть, отсутствие, `null` и пустая строка — `null`. Значение
+ * другого вида — проблема: раньше `label: { ru: … }` и `selector: 7` пропадали молча.
+ */
+function takeName(
+  src: Record<string, unknown>,
+  canonical: string,
+  aliases: readonly string[],
+  ctx: ReadCtx,
+  at: string
+): string | null {
+  const value = take(src, canonical, aliases, ctx);
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  problem(
+    ctx,
+    'invalid-value',
+    `${at}.${canonical}`,
+    `\`${canonical}\` is ${Array.isArray(value) ? 'an array' : typeof value}`,
+    `a string`
+  );
+  return null;
+}
+
+/** Словарь ключа (`componentProps`, `options`): не словарь — проблема, а не тихая потеря. */
+function takeRecord(
+  src: Record<string, unknown>,
+  canonical: string,
+  aliases: readonly string[],
+  ctx: ReadCtx,
+  at: string
+): Record<string, unknown> | undefined {
+  const value = take(src, canonical, aliases, ctx);
+  if (value === undefined || value === null) return undefined;
+  if (isRecord(value)) return value;
+  problem(
+    ctx,
+    'invalid-value',
+    `${at}.${canonical}`,
+    `\`${canonical}\` is ${Array.isArray(value) ? 'an array' : typeof value}`,
+    `an object: { "${canonical}": { … } }`
+  );
   return undefined;
+}
+
+/**
+ * Остаток записи после чтения: конфликты синонимов и ключи, которых чтение не взяло.
+ *
+ * `lift` получает ключ остатка и решает, известное ли это не на своём месте (свойство компонента
+ * рядом с полем — его переносит в пропсы); не поднятое — проблема `unknown-key` с ближайшим
+ * допустимым ключом.
+ */
+function finish(
+  ctx: ReadCtx,
+  src: Record<string, unknown>,
+  at: string,
+  kind: IntentRecordKind,
+  lift?: (key: string, value: unknown) => boolean
+): void {
+  for (const [other, first] of ctx.conflicts.get(src) ?? []) {
+    problem(
+      ctx,
+      'key-conflict',
+      `${at}.${other}`,
+      `\`${other}\` and \`${first}\` mean the same key and hold different values`,
+      `one of them: \`${first}\` is read`
+    );
+  }
+  const used = ctx.used.get(src) ?? new Set<string>();
+  for (const key of Object.keys(src)) {
+    if (src[key] === undefined || used.has(key)) continue;
+    if (lift?.(key, src[key])) continue;
+    const near = nearestKey(key, ctx.asked.get(src) ?? new Map());
+    problem(
+      ctx,
+      'unknown-key',
+      `${at}.${key}`,
+      `unknown key \`${key}\` on ${INTENT_RECORDS[kind].label}` +
+        (near ? ` — did you mean \`${near}\`?` : ''),
+      recordKeys(kind)
+    );
+  }
 }
 
 /** Непустая строка либо `null`. */
@@ -700,6 +922,49 @@ function asList(value: unknown): unknown[] {
     return Object.entries(value).map(([name, v]) => (isRecord(v) ? { name, ...v } : { name }));
   }
   return [value];
+}
+
+/** Как запись словаря становится записью списка. */
+interface MapKeying {
+  /** Ключ, под который ложится имя записи: `name` у полей, `target` у правил, `selector` у видимости. */
+  key: string;
+  /**
+   * Ключ, под который ложится значение-не-объект: `fields: { email: "string" }` → `type`,
+   * `validation: { price: ["required()"] }` → `rules`. Без него такое значение — проблема записи.
+   */
+  value?: string;
+}
+
+/**
+ * Записи списка с местом каждой: `fields[2]` у списка, `fields.email` у словаря. Значение словаря,
+ * которое не объект и не сокращение {@link MapKeying.value}, остаётся как есть — чтение записи
+ * назовёт его «не объект», а не потеряет, как прежний `asList`.
+ */
+function entriesOf(
+  value: unknown,
+  base: string,
+  keying: MapKeying,
+  ctx: ReadCtx
+): Array<{ at: string; item: unknown }> {
+  if (Array.isArray(value)) return value.map((item, i) => ({ at: `${base}[${i}]`, item }));
+  if (value === undefined || value === null) return [];
+  if (!isRecord(value)) return [{ at: base, item: value }];
+  const entries = Object.entries(value);
+  if (entries.length > 0) {
+    warn(
+      ctx,
+      'list-as-map',
+      `\`${base}\` is a map — read as a list: the key of each entry is its ${keying.key}.`
+    );
+  }
+  return entries.map(([name, v]) => ({
+    at: `${base}.${name}`,
+    item: isRecord(v)
+      ? { [keying.key]: name, ...v }
+      : keying.value !== undefined
+        ? { [keying.key]: name, [keying.value]: v }
+        : v,
+  }));
 }
 
 /** Имена из списка: строки как есть, объекты — по `name` / `ref` / `path` / `field`. */
@@ -802,9 +1067,19 @@ export function readTargetStack(value: unknown): ReformerTargetStack | null {
 }
 
 function readFieldType(value: unknown, at: string, ctx: ReadCtx): FieldType {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.type`,
+      `\`type\` is ${typeof value}`,
+      'string | number | boolean | date | array | object'
+    );
+    return 'string';
+  }
   const raw = asName(value);
   if (!raw) {
-    warn(ctx, 'type-default', `${at}: тип не указан — принят \`string\`.`, at);
+    warn(ctx, 'type-default', `${at}: no type — \`string\` taken.`, at);
     return 'string';
   }
   const hit = FIELD_TYPE_ALIASES[raw.toLowerCase()];
@@ -812,11 +1087,140 @@ function readFieldType(value: unknown, at: string, ctx: ReadCtx): FieldType {
   warn(
     ctx,
     'type-unknown',
-    `${at}: тип \`${raw}\` контракту неизвестен — принят \`string\` ` +
-      '(допустимы string | number | boolean | date | array | object).',
+    `${at}: type \`${raw}\` is unknown — \`string\` taken ` +
+      '(string | number | boolean | date | array | object).',
     at
   );
   return 'string';
+}
+
+/**
+ * Свойства, которые модели пишут рядом с записью, а не в `componentProps`. Без props-схем кита
+ * поднимаются только они: что ещё принимает компонент, чтение не знает.
+ */
+const COMMON_FIELD_PROPS: ReadonlySet<string> = new Set([
+  'placeholder',
+  'hint',
+  'description',
+  'min',
+  'max',
+  'step',
+  'mask',
+  'testId',
+  'maxLength',
+  'rows',
+  'disabled',
+  'readOnly',
+  'autoComplete',
+  'prefix',
+  'suffix',
+]);
+const COMMON_ARRAY_PROPS: ReadonlySet<string> = new Set([
+  'title',
+  'addButtonLabel',
+  'itemLabel',
+  'emptyMessage',
+  'reorderable',
+  'minItems',
+  'maxItems',
+  'testId',
+]);
+const COMMON_CONTAINER_PROPS: ReadonlySet<string> = new Set([
+  'title',
+  'description',
+  'submitLabel',
+  'testId',
+  'className',
+]);
+
+/**
+ * Свойства компонента по props-схеме кита. `strict` — схема закрыта (`additionalProperties: false`):
+ * чего в ней нет, того у компонента нет. Открытая схема лишь добавляет свои свойства к общеизвестным.
+ */
+function propsOf(
+  ctx: ReadCtx,
+  component: string
+): { names: ReadonlySet<string>; strict: boolean } | null {
+  const schema = ctx.uiKitProps?.defaults[component];
+  if (!schema) return null;
+  const properties = isRecord(schema.properties) ? Object.keys(schema.properties) : [];
+  return { names: new Set(properties), strict: schema.additionalProperties === false };
+}
+
+/**
+ * Поднять ключ остатка записи в `componentProps`, если это свойство её компонента: `placeholder`,
+ * `min`, `mask` у поля, `title` у секции, `submitLabel` у мастера. Решает props-схема кита, без неё —
+ * общеизвестные свойства (`common`).
+ *
+ * Общеизвестное свойство, которого у компонента по закрытой схеме нет, — проблема с перечнем того,
+ * что есть: это не опечатка ключа, а не тот компонент или не то место.
+ */
+function liftProp(
+  ctx: ReadCtx,
+  at: string,
+  key: string,
+  value: unknown,
+  component: string,
+  props: Record<string, unknown>,
+  common: ReadonlySet<string>
+): boolean {
+  const schema = propsOf(ctx, component);
+  const isProp = schema
+    ? schema.names.has(key) || (!schema.strict && common.has(key))
+    : common.has(key);
+  if (!isProp) {
+    if (!schema?.strict || !common.has(key)) return false;
+    problem(
+      ctx,
+      'prop-unsupported',
+      `${at}.${key}`,
+      `\`${key}\` is not a key of this record, and \`${component}\` has no \`${key}\` prop`,
+      `\`${component}\` props: ${[...schema.names].join(', ')}`
+    );
+    return true;
+  }
+  if (props[key] !== undefined && !sameValue(props[key], value)) {
+    problem(
+      ctx,
+      'key-conflict',
+      `${at}.${key}`,
+      `\`${key}\` is set both here and in componentProps, with different values`,
+      `one place: componentProps.${key}`
+    );
+    return true;
+  }
+  props[key] = value;
+  warn(
+    ctx,
+    'prop-lifted',
+    `${at}.${key}: moved into componentProps — it is a \`${component}\` prop.` +
+      (key === 'min' || key === 'max'
+        ? ` It bounds the input only; a validation error needs a rule: ${key}(…).`
+        : ''),
+    at
+  );
+  return true;
+}
+
+/**
+ * `required` поля: логическое, а строка `"true"`/`"false"` — с заметкой. Прочее — проблема: раньше
+ * всё, кроме `true`, молча значило «необязательно».
+ */
+function readRequired(value: unknown, at: string, ctx: ReadCtx): boolean {
+  if (value === undefined || value === null || typeof value === 'boolean') return value === true;
+  if (typeof value === 'string' && /^(true|false)$/i.test(value.trim())) {
+    const flag = value.trim().toLowerCase() === 'true';
+    warn(ctx, 'value-coerced', `${at}.required: "${value}" read as ${flag}.`, at);
+    return flag;
+  }
+  problem(
+    ctx,
+    'invalid-value',
+    `${at}.required`,
+    `\`required\` is ${JSON.stringify(value)}`,
+    'true or false; conditional and custom checks are rules in `validation`'
+  );
+  return false;
 }
 
 function readField(
@@ -825,27 +1229,25 @@ function readField(
   ctx: ReadCtx
 ): { field: FieldIntent; required: boolean } | null {
   if (!isRecord(raw)) {
-    ctx.problems.push({
-      at,
-      message: 'запись поля не объект',
-      expected: '{ "name": "lastName", "type": "string", "component": "Input" }',
-    });
+    problem(ctx, 'not-an-object', at, 'a field is not an object', INTENT_RECORDS.field.sample);
     return null;
   }
 
-  const modelPath = asName(take(raw, 'modelPath', ['path', 'model', 'binding'], ctx));
-  const name = asName(take(raw, 'name', ['field', 'key', 'id'], ctx)) ?? modelPath;
+  const modelPath = takeName(raw, 'modelPath', ['path', 'model', 'binding'], ctx, at);
+  const name = takeName(raw, 'name', ['field', 'key', 'id'], ctx, at) ?? modelPath;
   if (!name) {
-    ctx.problems.push({
-      at: `${at}.name`,
-      message: 'у поля нет имени',
-      expected: 'непустая строка `name` (либо `path` — путь в модели, он же станет именем)',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.name`,
+      'a field has no name',
+      'a non-empty `name` (or `modelPath` — the path in the model, it becomes the name)'
+    );
     return null;
   }
 
   const rawType = take(raw, 'type', ['fieldType', 'valueType', 'dataType'], ctx);
-  const named = asName(take(raw, 'component', ['componentName', 'widget', 'control'], ctx));
+  const named = takeName(raw, 'component', ['componentName', 'widget', 'control'], ctx, at);
   // `type: "Select"` — имя компонента, а не тип значения. По типу `select` → `string` поле
   // рисовал `Input`, и выбор из вариантов пропадал с ✓ (ReFormer-j356.5).
   const typeComponent = named ? null : componentOfType(rawType, ctx.uiKit);
@@ -854,26 +1256,27 @@ function readField(
       COMPONENT_VALUE_TYPE[typeComponent] ??
       'string')
     : readFieldType(rawType, at, ctx);
-  const component = named ?? typeComponent;
+  const component = named ?? typeComponent ?? DEFAULT_COMPONENT[type];
   if (typeComponent) {
     warn(
       ctx,
       'type-is-component',
-      `${at}: \`type: "${String(rawType)}"\` — имя компонента: принят компонент ` +
-        `\`${typeComponent}\`, тип значения \`${type}\`. Компонент пиши в \`component\`.`,
+      `${at}: \`type: "${String(rawType)}"\` is a component name — read as component ` +
+        `\`${typeComponent}\` with value type \`${type}\`. Write the component in \`component\`.`,
       at
     );
-  } else if (!component) {
+  } else if (!named) {
     warn(
       ctx,
       'component-default',
-      `${at}: компонент не указан — принят \`${DEFAULT_COMPONENT[type]}\` по типу \`${type}\`.`,
+      `${at}: no component — \`${component}\` taken for type \`${type}\`.`,
       at
     );
   }
 
-  const props = take(raw, 'componentProps', ['props'], ctx);
-  const componentProps: Record<string, unknown> = isRecord(props) ? { ...props } : {};
+  const componentProps: Record<string, unknown> = {
+    ...takeRecord(raw, 'componentProps', ['props'], ctx, at),
+  };
   // `options` — двусмысленный ключ: строка это ИМЯ справочника (`$dataSource(...)`), массив —
   // готовые значения, и им место в пропсах компонента, а не в реестре источников.
   const options = take(raw, 'optionsSource', ['dataSource', 'optionsRef', 'options'], ctx);
@@ -881,19 +1284,37 @@ function readField(
   // Та же двусмысленность у подсказок: строка — справочник, массив — готовые подсказки.
   const suggestions = take(raw, 'suggestionsSource', ['suggestionsRef', 'suggestions'], ctx);
   if (Array.isArray(suggestions)) componentProps.suggestions = suggestions;
+  for (const [key, value] of [
+    ['optionsSource', options],
+    ['suggestionsSource', suggestions],
+  ] as const) {
+    if (value === undefined || value === null || typeof value === 'string') continue;
+    if (Array.isArray(value)) continue;
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.${key}`,
+      `\`${key}\` is ${typeof value}`,
+      'the name of a data source ("LOAN_TYPES") or a list of options'
+    );
+  }
 
-  const label = asName(take(raw, 'label', ['title', 'caption'], ctx));
-  const selector = asName(take(raw, 'selector', ['nodeSelector'], ctx));
+  const label = takeName(raw, 'label', ['title', 'caption'], ctx, at);
+  const selector = takeName(raw, 'selector', ['nodeSelector'], ctx, at);
   const optionsSource = asName(options);
   const suggestionsSource = asName(suggestions);
   const initialValue = take(raw, 'initialValue', ['defaultValue', 'default'], ctx);
+  const required = readRequired(take(raw, 'required', ['isRequired', 'mandatory'], ctx), at, ctx);
+  finish(ctx, raw, at, 'field', (key, value) =>
+    liftProp(ctx, at, key, value, component, componentProps, COMMON_FIELD_PROPS)
+  );
 
   return {
     field: {
       name,
       modelPath: modelPath ?? name,
       type,
-      component: component ?? DEFAULT_COMPONENT[type],
+      component,
       ...(label ? { label } : {}),
       ...(selector ? { selector } : {}),
       ...(optionsSource ? { optionsSource } : {}),
@@ -901,12 +1322,19 @@ function readField(
       ...(Object.keys(componentProps).length > 0 ? { componentProps } : {}),
       ...(initialValue !== undefined ? { initialValue } : {}),
     },
-    required: take(raw, 'required', ['isRequired', 'mandatory'], ctx) === true,
+    required,
   };
 }
 
 /** Синонимы `itemFields`: так строки массива называют и в `arrays`, и в записи поля. */
 const ITEM_FIELDS_ALIASES = ['fields', 'columns', 'items'] as const;
+
+/** Поля словарём: `{ email: { … } }` либо сокращение `{ email: "string" }` — тип значения. */
+const FIELD_KEYING: MapKeying = { key: 'name', value: 'type' };
+/** Поля строки массива словарём — как поля формы. */
+const ROW_KEYING: MapKeying = FIELD_KEYING;
+/** Правила словарём: ключ — цель правила, значение-не-объект — сами правила. */
+const RULE_KEYING: MapKeying = { key: 'target', value: 'rules' };
 
 /**
  * Массив, записанный полем: со строками `itemFields` либо с типом `array` и строками под
@@ -951,47 +1379,77 @@ function readArray(
   ctx: ReadCtx
 ): { array: ArrayIntent; required: string[] } | null {
   if (!isRecord(raw)) {
-    ctx.problems.push({
-      at,
-      message: 'запись массива не объект',
-      expected: '{ "name": "items", "itemInterfaceName": "OrderItem", "itemFields": [ … ] }',
-    });
+    problem(ctx, 'not-an-object', at, 'an array is not an object', INTENT_RECORDS.array.sample);
     return null;
   }
 
-  const modelPath = asName(take(raw, 'modelPath', ['path'], ctx));
-  const name = asName(take(raw, 'name', ['field', 'key', 'id'], ctx)) ?? modelPath;
+  const modelPath = takeName(raw, 'modelPath', ['path'], ctx, at);
+  const name = takeName(raw, 'name', ['field', 'key', 'id'], ctx, at) ?? modelPath;
   if (!name) {
-    ctx.problems.push({
-      at: `${at}.name`,
-      message: 'у массива нет имени',
-      expected: 'непустая строка `name` (либо `path` — путь в модели)',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.name`,
+      'an array has no name',
+      'a non-empty `name` (or `modelPath` — the path in the model)'
+    );
     return null;
+  }
+
+  // Массив, записанный полем, несёт `type: "array"` — это и есть признак массива, а не потеря.
+  const declaredType = take(raw, 'type', ['fieldType', 'valueType', 'dataType'], ctx);
+  if (
+    declaredType !== undefined &&
+    FIELD_TYPE_ALIASES[String(asName(declaredType)).toLowerCase()] !== 'array'
+  ) {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.type`,
+      `an array has \`type: ${JSON.stringify(declaredType)}\``,
+      'no `type` on an array (or `"array"`); the row fields are `itemFields`'
+    );
   }
 
   const itemFields: FieldIntent[] = [];
   const required: string[] = [];
-  asList(take(raw, 'itemFields', ITEM_FIELDS_ALIASES, ctx)).forEach((item, i) => {
-    const read = readField(item, `${at}.itemFields[${i}]`, ctx);
-    if (!read) return;
+  const rows = take(raw, 'itemFields', ITEM_FIELDS_ALIASES, ctx);
+  for (const { at: rowAt, item } of entriesOf(rows, `${at}.itemFields`, ROW_KEYING, ctx)) {
+    const read = readField(item, rowAt, ctx);
+    if (!read) continue;
     itemFields.push(read.field);
     if (read.required) required.push(read.field.modelPath ?? read.field.name);
-  });
+  }
 
-  const itemInterfaceName = asName(
-    take(raw, 'itemInterfaceName', ['itemType', 'itemInterface', 'itemName'], ctx)
+  const itemInterfaceName = takeName(
+    raw,
+    'itemInterfaceName',
+    ['itemType', 'itemInterface', 'itemName'],
+    ctx,
+    at
   );
   const initialValue = take(raw, 'initialValue', ['initialRows', 'rows', 'defaultValue'], ctx);
-  const component = asName(take(raw, 'component', ['componentName'], ctx));
-  const props = take(raw, 'componentProps', ['props'], ctx);
-  const componentProps: Record<string, unknown> = isRecord(props) ? { ...props } : {};
-  // Подпись массива, записанного как поле, — заголовок `FieldArray`; у своего компонента её
-  // некуда положить, не угадывая его пропсы.
-  const label = asName(take(raw, 'label', ['title', 'caption'], ctx));
-  if (label && (component ?? 'FieldArray') === 'FieldArray' && componentProps.title === undefined) {
+  const component = takeName(raw, 'component', ['componentName'], ctx, at);
+  const props = takeRecord(raw, 'componentProps', ['props'], ctx, at);
+  const componentProps: Record<string, unknown> = { ...props };
+  // Подпись массива — заголовок `FieldArray`. У своего компонента её некуда положить, не угадывая
+  // его пропсы, — и молча её не теряем.
+  const label = takeName(raw, 'label', ['title', 'caption'], ctx, at);
+  const fieldArray = (component ?? 'FieldArray') === 'FieldArray';
+  if (label && fieldArray && componentProps.title === undefined) {
     componentProps.title = label;
+  } else if (label && !fieldArray) {
+    problem(
+      ctx,
+      'prop-unsupported',
+      `${at}.label`,
+      `the label of an array is the title of FieldArray, and this array is drawn by \`${component}\``,
+      `the prop of \`${component}\` in componentProps`
+    );
   }
+  finish(ctx, raw, at, 'array', (key, value) =>
+    liftProp(ctx, at, key, value, component ?? 'FieldArray', componentProps, COMMON_ARRAY_PROPS)
+  );
 
   // `itemInterfaceName` и `initialValue` доводит до контракта `normalizeIntent` — она же и
   // предупреждает о подстановке, поэтому здесь они передаются как пришли.
@@ -1003,61 +1461,154 @@ function readArray(
       itemFields,
       initialValue: initialValue as unknown[],
       ...(component ? { component } : {}),
-      ...(isRecord(props) || label ? { componentProps } : {}),
+      ...(props !== undefined || Object.keys(componentProps).length > 0 ? { componentProps } : {}),
     },
     required,
   };
 }
 
+/**
+ * Строки списка (`rules`, `sources`): строка как есть, запись — по одному ключу имени. Запись с
+ * чем-то ещё (`{ "name": "minLength", "args": [2] }`) — проблема: имя из неё взялось бы, а
+ * аргументы пропали бы молча.
+ */
+function readStrings(value: unknown, at: string, ctx: ReadCtx, sample: string): string[] {
+  const out: string[] = [];
+  asList(value).forEach((item, i) => {
+    if (typeof item === 'string') {
+      if (item.trim()) out.push(item.trim());
+      return;
+    }
+    if (isRecord(item)) {
+      const keys = Object.keys(item);
+      const key = keys.length === 1 ? keys[0] : undefined;
+      const name = key && ['name', 'ref', 'path', 'field'].includes(key) ? asName(item[key]) : null;
+      if (name) {
+        out.push(name);
+        return;
+      }
+    }
+    problem(
+      ctx,
+      'invalid-value',
+      Array.isArray(value) ? `${at}[${i}]` : at,
+      `${JSON.stringify(item)} is not a string`,
+      sample
+    );
+  });
+  return out;
+}
+
+/**
+ * Параметры замечания: имя → выражение над `values`. Число и логическое — то же выражение, записанное
+ * без кавычек; объект и список выражением не прочитать.
+ */
+function readParams(value: unknown, at: string, ctx: ReadCtx): Record<string, string> | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.params`,
+      `\`params\` is ${Array.isArray(value) ? 'an array' : typeof value}`,
+      '{ "max": "values.limit" } — name → expression over `values`'
+    );
+    return undefined;
+  }
+  const params: Record<string, string> = {};
+  for (const [name, expr] of Object.entries(value)) {
+    if (typeof expr === 'string' && expr.trim()) {
+      params[name] = expr.trim();
+    } else if (typeof expr === 'number' || typeof expr === 'boolean') {
+      params[name] = String(expr);
+      warn(
+        ctx,
+        'value-coerced',
+        `${at}.params.${name}: ${expr} read as the expression "${expr}".`,
+        at
+      );
+    } else {
+      problem(
+        ctx,
+        'invalid-value',
+        `${at}.params.${name}`,
+        `the param \`${name}\` is ${JSON.stringify(expr)}`,
+        'an expression over `values`: "values.limit"'
+      );
+    }
+  }
+  return params;
+}
+
 function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationRuleIntent | null {
   if (!isRecord(raw)) {
-    ctx.problems.push({
+    problem(
+      ctx,
+      'not-an-object',
       at,
-      message: 'правило валидации не объект',
-      expected: '{ "target": "price", "rules": ["required()", "min(1)"] }',
-    });
+      'a validation rule is not an object',
+      INTENT_RECORDS.rule.sample
+    );
     return null;
   }
 
-  const target = asName(take(raw, 'target', ['field', 'path', 'name', 'for'], ctx));
+  const target = takeName(raw, 'target', ['field', 'path', 'name', 'for'], ctx, at);
   if (!target) {
-    ctx.problems.push({
-      at: `${at}.target`,
-      message: 'правило не говорит, к какому полю относится',
-      expected: '`target` — путь в модели, например `personal.lastName`',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.target`,
+      'the rule does not say which field it checks',
+      '`target` — the path in the model, e.g. `personal.lastName`'
+    );
     return null;
   }
 
-  const rules = asNames(take(raw, 'rules', ['rule', 'validators', 'checks'], ctx));
-  const async = asName(take(raw, 'async', ['asyncValidator', 'asyncRule'], ctx));
-  const cross = asName(take(raw, 'cross', ['crossCheck', 'check'], ctx));
-  const call = asName(take(raw, 'call', ['operator', 'invoke'], ctx));
+  const written = take(raw, 'rules', ['rule', 'validators', 'checks'], ctx);
+  const rules = readStrings(written, `${at}.rules`, ctx, 'a validator call: "minLength(2)"');
+  const async = takeName(raw, 'async', ['asyncValidator', 'asyncRule'], ctx, at);
+  const cross = takeName(raw, 'cross', ['crossCheck', 'check'], ctx, at);
+  const call = takeName(raw, 'call', ['operator', 'invoke'], ctx, at);
   if (rules.length === 0 && !async && !cross && !call) {
-    ctx.problems.push({
-      at: `${at}.rules`,
-      message: `у правила на \`${target}\` нет ни одного валидатора`,
-      expected:
-        '`rules`: ["required()", "minLength(2)"] — фабрики из `@reformer/core/validators` ' +
-        'или свои из `operators`',
-    });
+    // `"rules": []` — так модель пишет «у этого поля правил нет» (замер ассистента конструктора
+    // 2026-11-03, сценарий 21.4). Отказ стоил ей хода и ничего не спасал: записи нечего проверять.
+    if (Array.isArray(written) && written.length === 0) {
+      warn(
+        ctx,
+        'rule-empty-dropped',
+        `${at}: the rule on \`${target}\` has no checks ("rules": []) — dropped.`,
+        at
+      );
+      return null;
+    }
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.rules`,
+      `the rule on \`${target}\` has no validator`,
+      '`rules`: ["required()", "minLength(2)"] — factories of `@reformer/core/validators` or ' +
+        'your own from `operators`; or `cross`, `async`, `call`'
+    );
     return null;
   }
 
-  const when = asName(take(raw, 'when', ['condition'], ctx));
-  const each = asName(take(raw, 'each', ['array', 'arrayPath'], ctx));
-  const code = asName(take(raw, 'code', ['issue', 'errorCode'], ctx));
-  const message = asName(take(raw, 'message', ['text', 'errorMessage'], ctx));
-  const level = asName(take(raw, 'severity', ['level'], ctx))?.toLowerCase();
+  const when = takeName(raw, 'when', ['condition'], ctx, at);
+  const each = takeName(raw, 'each', ['array', 'arrayPath'], ctx, at);
+  const code = takeName(raw, 'code', ['issue', 'errorCode'], ctx, at);
+  const message = takeName(raw, 'message', ['text', 'errorMessage'], ctx, at);
+  const level = takeName(raw, 'severity', ['level'], ctx, at)?.toLowerCase();
   const severity = level === 'warning' || level === 'warn' ? 'warning' : undefined;
-  const paramsRaw = take(raw, 'params', ['messageParams', 'issueParams'], ctx);
-  const params = isRecord(paramsRaw)
-    ? Object.fromEntries(
-        Object.entries(paramsRaw).filter((entry): entry is [string, string] => {
-          return typeof entry[1] === 'string' && entry[1].trim() !== '';
-        })
-      )
-    : undefined;
+  if (level && level !== 'error' && !severity) {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.severity`,
+      `\`severity\` is "${level}"`,
+      '"error" (the default) or "warning"'
+    );
+  }
+  const params = readParams(take(raw, 'params', ['messageParams', 'issueParams'], ctx), at, ctx);
+  finish(ctx, raw, at, 'rule');
   return {
     target,
     rules,
@@ -1083,33 +1634,66 @@ function readNodeRule(
   at: string,
   ctx: ReadCtx
 ): NodeRuleIntent | null {
-  const selector = asName(take(raw, 'selector', ['node', 'target'], ctx));
+  const selector = takeName(raw, 'selector', ['node', 'target'], ctx, at);
   if (kind !== 'renderEffect' && !selector) {
-    ctx.problems.push({
-      at: `${at}.selector`,
-      message: `\`${kind}\` не говорит, к какому узлу схемы относится`,
-      expected:
-        '`selector` узла из layoutRoot: { "kind": "onMount", "selector": "wizard", "expr": "…" }',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.selector`,
+      `\`${kind}\` does not say which schema node it handles`,
+      'the `selector` of a layoutRoot node: { "kind": "onMount", "selector": "wizard", "expr": "…" }'
+    );
     return null;
   }
-  const event = asName(take(raw, 'event', ['prop', 'eventName'], ctx));
+  const event = takeName(raw, 'event', ['prop', 'eventName'], ctx, at);
   if (kind === 'onComponentEvent' && !event) {
-    ctx.problems.push({
-      at: `${at}.event`,
-      message: '`onComponentEvent` не называет событие компонента',
-      expected: '`event` — проп-событие компонента узла: "onSubmit"',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.event`,
+      '`onComponentEvent` does not name the component event',
+      '`event` — the event prop of the node component: "onSubmit"'
+    );
     return null;
   }
-  const expr = asName(take(raw, 'expr', ['expression', 'code', 'handler', 'body'], ctx));
+  const expr = takeName(raw, 'expr', ['expression', 'code', 'handler', 'body'], ctx, at);
   if (!expr) {
-    ctx.problems.push({
-      at: `${at}.expr`,
-      message: `у \`${kind}\` нет тела обработчика`,
-      expected: '`expr` — тело на TS, вставляется как есть',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.expr`,
+      `\`${kind}\` has no handler body`,
+      '`expr` — the TS body, printed as is'
+    );
     return null;
+  }
+  // У `renderEffect` узла нет, у остальных правил — нет события: такие ключи правило не исполнит.
+  finish(
+    ctx,
+    raw,
+    at,
+    'node-rule',
+    (key) =>
+      // `sources: []` — привычка записей поведения; пустой список ничего не теряет.
+      key === 'sources' && Array.isArray(raw.sources) && raw.sources.length === 0
+  );
+  if (kind === 'renderEffect' && selector) {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.selector`,
+      '`renderEffect` belongs to the whole schema, not to a node',
+      'no `selector` on `renderEffect`; a node hook is `onInit`/`onMount`/`onUnmount`'
+    );
+  }
+  if (kind !== 'onComponentEvent' && event) {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.event`,
+      `\`${kind}\` has no event`,
+      'a component event is `onComponentEvent` with `event`'
+    );
   }
   return {
     kind,
@@ -1125,78 +1709,88 @@ function readBehavior(
   ctx: ReadCtx
 ): BehaviorIntent | NodeRuleIntent | null {
   if (!isRecord(raw)) {
-    ctx.problems.push({
+    problem(
+      ctx,
+      'not-an-object',
       at,
-      message: 'запись поведения не объект',
-      expected: '{ "kind": "computeFrom", "target": "total", "sources": ["price"], "expr": "…" }',
-    });
+      'a behavior is not an object',
+      INTENT_RECORDS.behavior.sample
+    );
     return null;
   }
 
-  const declared = asName(take(raw, 'kind', ['type', 'op', 'operator'], ctx));
+  const declared = takeName(raw, 'kind', ['type', 'op', 'operator'], ctx, at);
   const kind = declared
     ? BEHAVIOR_BY_KEY.get(declared.toLowerCase().replace(/[^a-z]/g, ''))
     : undefined;
   if (!kind) {
-    ctx.problems.push({
-      at: `${at}.kind`,
-      message: declared
-        ? `вид поведения \`${declared}\` контракту неизвестен`
-        : 'у поведения не указан вид',
-      expected: `${BEHAVIOR_KINDS.join(' | ')} — подобрать под требование помогает \`choose_api\``,
-    });
+    problem(
+      ctx,
+      declared ? 'unknown-kind' : 'missing-key',
+      `${at}.kind`,
+      declared ? `unknown behavior kind \`${declared}\`` : 'a behavior has no kind',
+      `${BEHAVIOR_KINDS.join(' | ')} — \`choose_api\` picks one for a requirement`
+    );
     return null;
   }
   if (isNodeKind(kind)) return readNodeRule(raw, kind, at, ctx);
 
-  const target = asName(take(raw, 'target', ['field', 'path', 'to', 'writes'], ctx));
+  const target = takeName(raw, 'target', ['field', 'path', 'to', 'writes'], ctx, at);
   if (!target) {
-    ctx.problems.push({
-      at: `${at}.target`,
-      message: `поведение \`${kind}\` не говорит, какое поле оно пишет`,
-      expected: '`target` — путь в модели',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.target`,
+      `\`${kind}\` does not say which field it writes`,
+      '`target` — the path in the model'
+    );
     return null;
   }
 
   // У вычисления `when` — своё условие рядом с формулой (A8 калибровки), а не формула: читать его
   // синонимом `expr` значило бы посчитать поле условием.
   const computed = kind === 'compute' || kind === 'computeFrom';
-  const expr = asName(
-    take(
-      raw,
-      'expr',
-      computed
-        ? ['expression', 'formula', 'code']
-        : ['expression', 'formula', 'code', 'when', 'condition'],
-      ctx
-    )
+  const expr = takeName(
+    raw,
+    'expr',
+    computed
+      ? ['expression', 'formula', 'code']
+      : ['expression', 'formula', 'code', 'when', 'condition'],
+    ctx,
+    at
   );
   if (kind === 'call' && !expr) {
-    ctx.problems.push({
-      at: `${at}.expr`,
-      message: '`call` не называет вызов своего оператора',
-      expected: '`expr` — вызов оператора из `operators`: "roundTo(model.$.price, 100)"',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.expr`,
+      '`call` does not name the call of your operator',
+      '`expr` — a call of an operator from `operators`: "roundTo(model.$.price, 100)"'
+    );
     return null;
   }
-  const options = take(raw, 'options', ['opts'], ctx);
+  const options = takeRecord(raw, 'options', ['opts'], ctx, at);
   // Условие вычисления — ключом `when` или внутри `options` (так оно выглядит в коде ядра).
-  const optionWhen = isRecord(options) ? asName(options.when) : null;
-  const when = computed ? (asName(take(raw, 'when', ['condition'], ctx)) ?? optionWhen) : null;
-  const rest = isRecord(options) && optionWhen && computed ? withoutKey(options, 'when') : options;
-  const each = asName(take(raw, 'each', ['array', 'arrayPath', 'row'], ctx));
+  const optionWhen = options ? asName(options.when) : null;
+  const when = computed ? (takeName(raw, 'when', ['condition'], ctx, at) ?? optionWhen) : null;
+  const rest = options && optionWhen && computed ? withoutKey(options, 'when') : options;
+  const each = takeName(raw, 'each', ['array', 'arrayPath', 'row'], ctx, at);
+  const sources = readStrings(
+    take(raw, 'sources', ['reads', 'deps', 'dependsOn', 'from', 'source'], ctx),
+    `${at}.sources`,
+    ctx,
+    'a path in the model: "price"'
+  );
+  finish(ctx, raw, at, 'behavior');
   return {
     kind,
     target,
     ...(each ? { each } : {}),
-    sources: asNames(take(raw, 'sources', ['reads', 'deps', 'dependsOn', 'from', 'source'], ctx)),
+    sources,
     ...(expr ? { expr } : {}),
     ...(when ? { when } : {}),
     // Пустые `options` после снятия `when` не печатаются; присланные пустыми — как были.
-    ...(isRecord(rest) && (rest === options || Object.keys(rest).length > 0)
-      ? { options: rest }
-      : {}),
+    ...(rest && (rest === options || Object.keys(rest).length > 0) ? { options: rest } : {}),
   };
 }
 
@@ -1210,30 +1804,50 @@ export const DEFAULT_OPERATORS_MODULE = './operators';
 function readOperators(raw: unknown, ctx: ReadCtx): Record<string, string> {
   const operators: Record<string, string> = {};
   if (raw === undefined || raw === null) return operators;
-  const moduleOf = (value: unknown): unknown =>
-    isRecord(value) ? (value.from ?? value.module) : value;
-  const entries: Array<[string, unknown, unknown]> = isRecord(raw)
-    ? Object.entries(raw).map(([name, value]) => [`operators.${name}`, name, moduleOf(value)])
-    : asList(raw).map((item, i) => [
-        `operators[${i}]`,
-        isRecord(item) ? item.name : item,
-        isRecord(item) ? moduleOf(item) : undefined,
-      ]);
-  for (const [at, name, module] of entries) {
-    if (typeof name !== 'string' || !/^[A-Za-z_$][\w$]*$/.test(name.trim())) {
-      ctx.problems.push({
-        at,
-        message: `имя оператора \`${String(name)}\` не идентификатор TS`,
-        expected: '{ "operators": { "innChecksum": "./operators" } }',
+  // Запись оператора — `{ name, from }`; у записи словаря имя — её ключ.
+  const fromRecord = (rec: Record<string, unknown>, at: string, key?: string) => {
+    const own = take(rec, 'name', ['id'], ctx);
+    if (key !== undefined && own !== undefined && own !== key) {
+      problem(
+        ctx,
+        'key-conflict',
+        `${at}.name`,
+        `the operator is listed under \`${key}\` and named \`${String(own)}\``,
+        'one name: the key of the map'
+      );
+    }
+    const module = take(rec, 'from', ['module', 'path', 'import'], ctx);
+    finish(ctx, rec, at, 'operator');
+    return { at, name: key ?? own, module };
+  };
+  const entries: Array<{ at: string; name: unknown; module: unknown }> = isRecord(raw)
+    ? Object.entries(raw).map(([name, value]) => {
+        const at = `operators.${name}`;
+        return isRecord(value) ? fromRecord(value, at, name) : { at, name, module: value };
+      })
+    : asList(raw).map((item, i) => {
+        const at = `operators[${i}]`;
+        return isRecord(item) ? fromRecord(item, at) : { at, name: item, module: undefined };
       });
+  for (const { at, name, module } of entries) {
+    if (typeof name !== 'string' || !/^[A-Za-z_$][\w$]*$/.test(name.trim())) {
+      problem(
+        ctx,
+        'invalid-value',
+        at,
+        `the operator name \`${String(name)}\` is not a TS identifier`,
+        INTENT_RECORDS.operator.sample
+      );
       continue;
     }
     if (module !== undefined && module !== null && typeof module !== 'string') {
-      ctx.problems.push({
+      problem(
+        ctx,
+        'invalid-value',
         at,
-        message: `модуль оператора \`${name}\` не строка`,
-        expected: 'путь модуля, как в import: "./operators", "@/shared/validators"',
-      });
+        `the module of the operator \`${name}\` is not a string`,
+        'a module path, as in import: "./operators", "@/shared/validators"'
+      );
       continue;
     }
     operators[name.trim()] = asName(module) ?? DEFAULT_OPERATORS_MODULE;
@@ -1243,92 +1857,151 @@ function readOperators(raw: unknown, ctx: ReadCtx): Record<string, string> {
 
 function readVisibility(raw: unknown, at: string, ctx: ReadCtx): VisibilityIntent | null {
   if (!isRecord(raw)) {
-    ctx.problems.push({
+    problem(
+      ctx,
+      'not-an-object',
       at,
-      message: 'правило видимости не объект',
-      expected: '{ "selector": "spouseIncome", "condition": "model.married === false" }',
-    });
+      'a visibility rule is not an object',
+      INTENT_RECORDS.visibility.sample
+    );
     return null;
   }
-  const selector = asName(take(raw, 'selector', ['node', 'target', 'field', 'ref'], ctx));
-  const condition = asName(take(raw, 'condition', ['when', 'expr', 'hideWhen'], ctx));
+  const selector = takeName(raw, 'selector', ['node', 'target', 'field', 'ref'], ctx, at);
+  const condition = takeName(raw, 'condition', ['when', 'expr', 'hideWhen'], ctx, at);
   if (!selector || !condition) {
-    ctx.problems.push({
-      at,
-      message: selector ? `у правила видимости \`${selector}\` нет условия` : 'нет selector узла',
-      expected:
-        '`selector` — selector узла из разметки, `condition` — выражение, при котором узел СКРЫТ',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.${selector ? 'condition' : 'selector'}`,
+      selector
+        ? `the visibility rule of \`${selector}\` has no condition`
+        : 'a visibility rule has no node selector',
+      '`selector` — the selector of a layout node, `condition` — the expression under which the ' +
+        'node is HIDDEN'
+    );
     return null;
   }
+  finish(ctx, raw, at, 'visibility');
   return { selector, condition };
+}
+
+/**
+ * Значения справочника: список как есть, словарь `{ значение: подпись }` — списком `{ value, label }`.
+ * Прочее — проблема: справочник без значений рисует поле выбора пустым.
+ */
+function readValues(value: unknown, at: string, ctx: ReadCtx): unknown[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (Array.isArray(value)) return value;
+  if (isRecord(value)) {
+    warn(ctx, 'value-coerced', `${at}.values: a map read as { value, label } options.`, at);
+    return Object.entries(value).map(([key, label]) => ({ value: key, label: String(label) }));
+  }
+  problem(
+    ctx,
+    'invalid-value',
+    `${at}.values`,
+    `\`values\` is ${typeof value}`,
+    '[{ "value": "usd", "label": "USD" }] or a list of primitives'
+  );
+  return undefined;
 }
 
 function readDataSource(raw: unknown, at: string, ctx: ReadCtx): DataSourceIntent | null {
   const plain = asName(raw);
   if (plain) return { name: plain };
   if (!isRecord(raw)) {
-    ctx.problems.push({
+    problem(
+      ctx,
+      'not-an-object',
       at,
-      message: 'источник данных не объект и не имя',
-      expected: '"CURRENCIES" либо { "name": "CURRENCIES", "note": "откуда значения" }',
-    });
+      'a data source is neither an object nor a name',
+      `"CURRENCIES" or ${INTENT_RECORDS['data-source'].sample}`
+    );
     return null;
   }
-  const name = asName(take(raw, 'name', ['id', 'key', 'source'], ctx));
+  const name = takeName(raw, 'name', ['id', 'key', 'source'], ctx, at);
   if (!name) {
-    ctx.problems.push({
-      at: `${at}.name`,
-      message: 'у источника данных нет имени',
-      expected: '`name` — то же имя, что в `$dataSource(...)` разметки',
-    });
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.name`,
+      'a data source has no name',
+      '`name` — the same name as in `optionsSource` of the field'
+    );
     return null;
   }
-  const note = asName(take(raw, 'note', ['description', 'comment'], ctx));
-  const values = take(raw, 'values', ['options', 'items', 'data'], ctx);
-  return { name, ...(note ? { note } : {}), ...(Array.isArray(values) ? { values } : {}) };
+  const note = takeName(raw, 'note', ['description', 'comment'], ctx, at);
+  const values = readValues(take(raw, 'values', ['options', 'items', 'data'], ctx), at, ctx);
+  finish(ctx, raw, at, 'data-source');
+  return { name, ...(note ? { note } : {}), ...(values ? { values } : {}) };
 }
 
-function readStep(
-  raw: unknown,
-  at: string,
-  ctx: ReadCtx
-): { title: string; icon?: string; fields: string[] } | null {
+/** Шаг сокращённой записи `steps`: заголовок, значок, селектор и имена его полей. */
+interface StepRead {
+  title: string;
+  icon?: string;
+  selector?: string;
+  fields: string[];
+}
+
+function readStep(raw: unknown, at: string, ctx: ReadCtx): StepRead | null {
   const plain = asName(raw);
   if (plain) return { title: plain, fields: [] };
   if (!isRecord(raw)) {
-    ctx.problems.push({
+    problem(
+      ctx,
+      'not-an-object',
       at,
-      message: 'шаг не объект и не заголовок',
-      expected: '{ "title": "Личные данные", "fields": ["lastName", "firstName"] }',
-    });
+      'a step is neither an object nor a title',
+      INTENT_RECORDS.step.sample
+    );
     return null;
   }
-  const icon = asName(take(raw, 'icon', ['emoji'], ctx));
-  return {
-    title: asName(take(raw, 'title', ['label', 'name', 'caption'], ctx)) ?? at,
-    ...(icon ? { icon } : {}),
-    fields: asNames(take(raw, 'fields', ['fieldNames', 'items', 'refs'], ctx)),
-  };
+  const icon = takeName(raw, 'icon', ['emoji'], ctx, at);
+  const selector = takeName(raw, 'selector', [], ctx, at);
+  const title = takeName(raw, 'title', ['label', 'name', 'caption'], ctx, at);
+  if (!title) {
+    problem(
+      ctx,
+      'missing-key',
+      `${at}.title`,
+      'a step has no title — the wizard shows it in the step indicator',
+      INTENT_RECORDS.step.sample
+    );
+    return null;
+  }
+  const fields = readStrings(
+    take(raw, 'fields', ['fieldNames', 'items', 'refs'], ctx),
+    `${at}.fields`,
+    ctx,
+    'a field name: "lastName"'
+  );
+  finish(ctx, raw, at, 'step');
+  return { title, ...(icon ? { icon } : {}), ...(selector ? { selector } : {}), fields };
 }
 
 /**
  * Корень мастера из сокращённой записи шагов: контейнер `wizard` (его рисует `FormWizard`) с узлом
  * шага на каждый шаг и ссылками на его поля. Поле, не названное ни в одном шаге, остаётся вне
  * раскладки — это видит проверка размещения, а не догадка, в какой шаг его поставить.
+ *
+ * @param props - Свойства мастера из записи `wizard` (`submitLabel`).
  */
 function stepsLayout(
-  steps: ReadonlyArray<{ title: string; icon?: string; fields: string[] }>,
-  arrays: ReadonlySet<string>
+  steps: readonly StepRead[],
+  arrays: ReadonlySet<string>,
+  props: Record<string, unknown>
 ): LayoutNode {
   return {
     kind: 'container',
-    component: 'Box',
+    component: 'FormWizard',
     selector: 'wizard',
+    ...(Object.keys(props).length > 0 ? { componentProps: props } : {}),
     children: steps.map((step) => ({
       kind: 'step' as const,
       title: step.title,
       ...(step.icon ? { icon: step.icon } : {}),
+      ...(step.selector ? { selector: step.selector } : {}),
       children: step.fields.map(
         (ref): LayoutNode => (arrays.has(ref) ? { kind: 'array', ref } : { kind: 'field', ref })
       ),
@@ -1342,42 +2015,60 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
   const plain = asName(raw);
   if (plain) return { kind: 'field', ref: plain };
   if (!isRecord(raw)) {
-    ctx.problems.push({
+    problem(
+      ctx,
+      'not-an-object',
       at,
-      message: 'узел разметки не объект',
-      expected: '{ "kind": "container", "component": "Box", "children": [ … ] }',
-    });
+      'a layout node is not an object',
+      INTENT_RECORDS['container-node'].sample
+    );
     return null;
   }
 
-  const kind = (asName(take(raw, 'kind', ['type'], ctx)) ?? '').toLowerCase();
-  const selector = asName(take(raw, 'selector', [], ctx));
+  const kind = (takeName(raw, 'kind', ['type'], ctx, at) ?? '').toLowerCase();
+  const selector = takeName(raw, 'selector', [], ctx, at);
 
   if (kind === 'field' || kind === 'array') {
-    const ref = asName(take(raw, 'ref', ['name', 'field', 'path'], ctx));
+    const ref = takeName(raw, 'ref', ['name', 'field', 'path'], ctx, at);
     if (!ref) {
-      ctx.problems.push({
-        at: `${at}.ref`,
-        message: `узел \`${kind}\` не ссылается ни на что`,
-        expected: '`ref` — имя поля или массива, объявленного в intent',
-      });
+      problem(
+        ctx,
+        'missing-key',
+        `${at}.ref`,
+        `a \`${kind}\` node refers to nothing`,
+        '`ref` — the name of a field or an array declared in the intent'
+      );
       return null;
     }
-    // selector осмыслен только у массива: у поля точка адресации — путь модели.
+    // selector осмыслен только у массива: у поля точка адресации — путь модели, а свой селектор
+    // поле несёт в объявлении.
+    if (kind === 'field' && selector) {
+      problem(
+        ctx,
+        'invalid-value',
+        `${at}.selector`,
+        'a field node has no selector of its own',
+        `the \`selector\` of the field \`${ref}\` in \`fields\``
+      );
+    }
+    finish(ctx, raw, at, kind === 'field' ? 'field-node' : 'array-node');
     return kind === 'array' && selector ? { kind, ref, selector } : { kind, ref };
   }
 
   if (kind === 'part' || kind === 'subform') {
-    const ref = asName(take(raw, 'ref', ['group', 'model', 'path'], ctx));
-    const part = asName(take(raw, 'part', ['name', 'partName'], ctx));
+    const ref = takeName(raw, 'ref', ['group', 'model', 'path'], ctx, at);
+    const part = takeName(raw, 'part', ['name', 'partName'], ctx, at);
     if (!ref || !part) {
-      ctx.problems.push({
-        at: `${at}.${ref ? 'part' : 'ref'}`,
-        message: 'узел подформы без группы или без имени части',
-        expected: '{ "kind": "part", "ref": "registrationAddress", "part": "address" }',
-      });
+      problem(
+        ctx,
+        'missing-key',
+        `${at}.${ref ? 'part' : 'ref'}`,
+        'a part node without the group or the part name',
+        INTENT_RECORDS['part-node'].sample
+      );
       return null;
     }
+    finish(ctx, raw, at, 'part-node');
     return { kind: 'part', ref, part, ...(selector ? { selector } : {}) };
   }
 
@@ -1386,36 +2077,76 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
     .filter((child): child is LayoutNode => child !== null);
 
   if (kind === 'step') {
-    const icon = asName(take(raw, 'icon', ['emoji'], ctx));
+    const icon = takeName(raw, 'icon', ['emoji'], ctx, at);
+    const title = takeName(raw, 'title', ['label'], ctx, at);
+    if (!title) {
+      problem(
+        ctx,
+        'missing-key',
+        `${at}.title`,
+        'a step has no title — the wizard shows it in the step indicator',
+        INTENT_RECORDS['step-node'].sample
+      );
+      return null;
+    }
+    finish(ctx, raw, at, 'step-node');
     return {
       kind: 'step',
-      title: asName(take(raw, 'title', ['label'], ctx)) ?? 'Шаг',
+      title,
       ...(icon ? { icon } : {}),
       ...(selector ? { selector } : {}),
       children,
     };
   }
 
-  if (kind && kind !== 'container' && kind !== 'group') {
+  const htmlTag = takeName(raw, 'htmlTag', ['tag', 'html'], ctx, at);
+  const named = takeName(raw, 'component', ['componentName'], ctx, at);
+  // `kind: "section"` — имя контейнера кита, а не вид узла: им и рисуется, как `type: "Select"` у поля.
+  const kindComponent =
+    !named && kind && kind !== 'container' && kind !== 'group'
+      ? containerOfKind(kind, ctx.uiKit)
+      : null;
+  if (kindComponent) {
     warn(
       ctx,
       'layout-kind-unknown',
-      `${at}: вид узла \`${kind}\` контракту неизвестен — прочитан как контейнер ` +
-        '(допустимы field | array | part | container | step).',
+      `${at}: \`kind: "${kind}"\` is a component name — read as a container drawn by ` +
+        `\`${kindComponent}\`. Write { "kind": "container", "component": "${kindComponent}" }.`,
+      at
+    );
+  } else if (kind && kind !== 'container' && kind !== 'group') {
+    warn(
+      ctx,
+      'layout-kind-unknown',
+      `${at}: unknown node kind \`${kind}\` — read as a container ` +
+        '(field | array | part | container | step).',
       at
     );
   }
-  const htmlTag = asName(take(raw, 'htmlTag', ['tag', 'html'], ctx));
-  const component = asName(take(raw, 'component', ['componentName'], ctx));
-  const props = take(raw, 'componentProps', ['props'], ctx);
+  const component = named ?? kindComponent ?? (htmlTag ? 'div' : 'Box');
+  const props = takeRecord(raw, 'componentProps', ['props'], ctx, at);
+  const componentProps: Record<string, unknown> = { ...props };
+  finish(ctx, raw, at, 'container-node', (key, value) =>
+    liftProp(ctx, at, key, value, component, componentProps, COMMON_CONTAINER_PROPS)
+  );
   return {
     kind: 'container',
-    component: component ?? (htmlTag ? 'div' : 'Box'),
+    component,
     ...(htmlTag ? { htmlTag } : {}),
-    ...(isRecord(props) ? { componentProps: props } : {}),
+    ...(props !== undefined || Object.keys(componentProps).length > 0 ? { componentProps } : {}),
     ...(selector ? { selector } : {}),
     children,
   };
+}
+
+/** Контейнер кита по имени вида узла в любом регистре: `section` → `Section`. */
+function containerOfKind(kind: string, uiKit: UiKitComponents): string | null {
+  if (!uiKit.found) return null;
+  return (
+    Object.keys(uiKit.exports).find(
+      (name) => !(name in uiKit.fields) && name.toLowerCase() === kind
+    ) ?? null
+  );
 }
 
 /**
@@ -1431,28 +2162,36 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     problems: [],
     renames: new Set(),
     uiKit: options.uiKit ?? NO_UI_KIT,
+    uiKitProps: options.uiKitProps,
+    used: new WeakMap(),
+    asked: new WeakMap(),
+    conflicts: new WeakMap(),
   };
 
   let source: unknown = raw;
   if (typeof source === 'string') {
     try {
       source = JSON.parse(source);
-      warn(ctx, 'intent-string', '`intent` пришёл строкой — разобран как JSON.');
+      warn(ctx, 'intent-string', 'The intent came as a string — parsed as JSON.');
     } catch (e) {
-      ctx.problems.push({
-        at: 'intent',
-        message: `строка не разбирается как JSON: ${(e as Error).message}`,
-        expected: 'объект FormIntent — целиком его отдаёт `plan_form`',
-      });
+      problem(
+        ctx,
+        'intent-unreadable',
+        'intent',
+        `the string is not JSON: ${(e as Error).message}`,
+        INTENT_RECORDS.intent.sample
+      );
       source = {};
     }
   }
   if (!isRecord(source)) {
-    ctx.problems.push({
-      at: 'intent',
-      message: `получен ${Array.isArray(source) ? 'массив' : typeof source}`,
-      expected: 'объект FormIntent — целиком его отдаёт `plan_form`',
-    });
+    problem(
+      ctx,
+      'intent-unreadable',
+      'intent',
+      `the intent is ${Array.isArray(source) ? 'an array' : typeof source}`,
+      INTENT_RECORDS.intent.sample
+    );
     source = {};
   }
   const canonical = liftInline(source as Record<string, unknown>);
@@ -1466,38 +2205,41 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     warn(
       ctx,
       'target-unknown',
-      `Таргет \`${String(declaredTarget)}\` не распознан — принят \`core\` ` +
-        '(допустимы core | renderer-react | renderer-json).'
+      `Target \`${String(declaredTarget)}\` is unknown — \`core\` taken ` +
+        '(core | renderer-react | renderer-json).'
     );
   }
 
   const fields: FieldIntent[] = [];
   const requiredTargets: Array<{ target: string; each?: string }> = [];
   const arraysAsFields: Array<{ raw: Record<string, unknown>; at: string }> = [];
-  const declaredAt = new Map<string, number>();
-  asList(take(src, 'fields', ['formFields', 'inputs'], ctx)).forEach((item, i) => {
+  const declaredAt = new Map<string, string>();
+  const fieldList = take(src, 'fields', ['formFields', 'inputs'], ctx);
+  for (const { at, item } of entriesOf(fieldList, 'fields', FIELD_KEYING, ctx)) {
     if (isArrayAsField(item)) {
-      arraysAsFields.push({ raw: item, at: `fields[${i}]` });
-      return;
+      arraysAsFields.push({ raw: item, at });
+      continue;
     }
-    const read = readField(item, `fields[${i}]`, ctx);
-    if (!read) return;
+    const read = readField(item, at, ctx);
+    if (!read) continue;
     // Второе объявление того же пути — не поле: сборка отказывала про дубль testId (C10), и
     // причина терялась (так читалось правило валидации, записанное в `fields`).
     const path = read.field.modelPath ?? read.field.name;
     const first = declaredAt.get(path);
     if (first !== undefined) {
-      ctx.problems.push({
-        at: `fields[${i}]`,
-        message: `поле \`${path}\` объявлено второй раз (первое — fields[${first}])`,
-        expected: 'одно объявление на путь модели; проверки — записями `validation`',
-      });
-      return;
+      problem(
+        ctx,
+        'duplicate',
+        at,
+        `the field \`${path}\` is declared a second time (the first is ${first})`,
+        'one declaration per model path; checks are `validation` rules'
+      );
+      continue;
     }
-    declaredAt.set(path, i);
+    declaredAt.set(path, at);
     fields.push(read.field);
     if (read.required) requiredTargets.push({ target: read.field.modelPath ?? read.field.name });
-  });
+  }
 
   const arrays: ArrayIntent[] = [];
   const addArray = (read: { array: ArrayIntent; required: string[] }): void => {
@@ -1506,12 +2248,11 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       requiredTargets.push({ target: path, each: read.array.name });
     }
   };
-  asList(take(src, 'arrays', ['formArrays', 'collections', 'repeatables'], ctx)).forEach(
-    (item, i) => {
-      const read = readArray(item, `arrays[${i}]`, ctx);
-      if (read) addArray(read);
-    }
-  );
+  const arrayList = take(src, 'arrays', ['formArrays', 'collections', 'repeatables'], ctx);
+  for (const { at, item } of entriesOf(arrayList, 'arrays', { key: 'name' }, ctx)) {
+    const read = readArray(item, at, ctx);
+    if (read) addArray(read);
+  }
   // Массив из `fields` — после объявленных в `arrays`: одноимённая запись там побеждает.
   for (const { raw, at } of arraysAsFields) {
     const read = readArray(raw, at, ctx);
@@ -1520,7 +2261,8 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       warn(
         ctx,
         'array-duplicate',
-        `${at}: массив \`${read.array.name}\` записан и в fields, и в arrays — взята запись из arrays.`,
+        `${at}: the array \`${read.array.name}\` is written both in fields and in arrays — the ` +
+          '`arrays` entry is used.',
         at
       );
       continue;
@@ -1528,20 +2270,42 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     warn(
       ctx,
       'array-as-field',
-      `${at}: у поля \`${read.array.name}\` есть строки — прочитано как массив. ` +
-        'Массив пиши в `arrays`, в раскладке — `{"kind":"array","ref":"…"}`.',
+      `${at}: the field \`${read.array.name}\` has rows — read as an array. Write arrays in ` +
+        '`arrays`, and in the layout `{"kind":"array","ref":"…"}`.',
       at
     );
     addArray(read);
   }
 
   const validation: ValidationRuleIntent[] = [];
-  asList(take(src, 'validation', ['validations', 'validationRules', 'rules'], ctx)).forEach(
-    (item, i) => {
-      const rule = readValidationRule(item, `validation[${i}]`, ctx);
-      if (rule) validation.push(rule);
+  const ruleList = take(src, 'validation', ['validations', 'validationRules', 'rules'], ctx);
+  for (const { at, item } of ruleEntries(ruleList, ctx)) {
+    const rule = readValidationRule(item, at, ctx);
+    if (rule) validation.push(rule);
+  }
+  // Правило на путь поля строки без `each` — то же правило каждой строки: смысл однозначен, а сборка
+  // отказывала C4 «такого пути нет» (ReFormer-j356.11).
+  const rowRules: string[] = [];
+  validation.forEach((rule, index) => {
+    if (rule.each !== undefined) return;
+    for (const array of arrays) {
+      const base = array.modelPath ?? array.name;
+      const rest = rule.target.startsWith(`${base}.`) ? rule.target.slice(base.length + 1) : null;
+      if (rest === null || !array.itemFields.some((f) => (f.modelPath ?? f.name) === rest))
+        continue;
+      validation[index] = { ...rule, target: rest, each: base };
+      rowRules.push(`${rule.target} → each ${base}, target ${rest}`);
+      return;
     }
-  );
+  });
+  if (rowRules.length > 0) {
+    warn(
+      ctx,
+      'each-lifted',
+      `Rules on a row field read as rules of every row: ${rowRules.join('; ')}. A row rule is ` +
+        '{ "target": "<row field>", "each": "<array>" }.'
+    );
+  }
 
   // `required: true` у поля — самая интуитивная запись обязательности, и до сих пор она молча
   // терялась: контракт держит валидацию отдельным списком. Поднимаем её в правило, но не
@@ -1564,53 +2328,129 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     warn(
       ctx,
       'required-lifted',
-      `Полей с \`required: true\`: ${lifted.length} — им добавлено правило \`required()\` ` +
-        'в validation. Обязательность живёт там: в описании поля её держать негде.'
+      `Fields with \`required: true\`: ${lifted.length} — a \`required()\` rule is added to ` +
+        'validation for each. Required lives there: the field record does not keep it.'
     );
   }
 
   const behavior: BehaviorIntent[] = [];
   const nodes: NodeRuleIntent[] = [];
-  asList(take(src, 'behavior', ['behaviors', 'behaviours', 'behaviour', 'reactions'], ctx)).forEach(
-    (item, i) => {
-      const read = readBehavior(item, `behavior[${i}]`, ctx);
-      if (!read) return;
-      if (isNodeKind(read.kind)) nodes.push(read as NodeRuleIntent);
-      else behavior.push(read as BehaviorIntent);
-    }
+  const addBehavior = (read: BehaviorIntent | NodeRuleIntent | null): void => {
+    if (!read) return;
+    if (isNodeKind(read.kind)) nodes.push(read as NodeRuleIntent);
+    else behavior.push(read as BehaviorIntent);
+  };
+  const behaviorList = take(
+    src,
+    'behavior',
+    ['behaviors', 'behaviours', 'behaviour', 'reactions'],
+    ctx
   );
+  for (const { at, item } of entriesOf(behaviorList, 'behavior', { key: 'target' }, ctx)) {
+    addBehavior(readBehavior(item, at, ctx));
+  }
+  // Правила узлов отдельным списком — так их держит сам `FormIntent`: intent ходит туда-обратно, и
+  // прочитанный обратно список `nodes` раньше пропадал молча.
+  const nodeList = take(src, 'nodes', ['nodeRules'], ctx);
+  for (const { at, item } of entriesOf(nodeList, 'nodes', { key: 'selector' }, ctx)) {
+    addBehavior(readBehavior(item, at, ctx));
+  }
 
   const operators = readOperators(take(src, 'operators', ['customOperators'], ctx), ctx);
 
   const visibility: VisibilityIntent[] = [];
-  asList(take(src, 'visibility', ['visibilityRules', 'hidden', 'hideWhen'], ctx)).forEach(
-    (item, i) => {
-      const read = readVisibility(item, `visibility[${i}]`, ctx);
-      if (read) visibility.push(read);
-    }
-  );
+  const visibilityList = take(src, 'visibility', ['visibilityRules', 'hidden', 'hideWhen'], ctx);
+  for (const { at, item } of entriesOf(
+    visibilityList,
+    'visibility',
+    { key: 'selector', value: 'condition' },
+    ctx
+  )) {
+    const read = readVisibility(item, at, ctx);
+    if (read) visibility.push(read);
+  }
 
   const dataSources: DataSourceIntent[] = [];
-  asList(take(src, 'dataSources', ['datasources', 'data_sources', 'dictionaries'], ctx)).forEach(
-    (item, i) => {
-      const read = readDataSource(item, `dataSources[${i}]`, ctx);
-      if (read) dataSources.push(read);
-    }
-  );
+  const sourceList = take(src, 'dataSources', ['datasources', 'data_sources', 'dictionaries'], ctx);
+  for (const { at, item } of entriesOf(
+    sourceList,
+    'dataSources',
+    { key: 'name', value: 'values' },
+    ctx
+  )) {
+    const read = readDataSource(item, at, ctx);
+    if (read) dataSources.push(read);
+  }
 
-  const wizardRaw = src.wizard;
-  const stepsRaw =
-    (isRecord(wizardRaw) ? take(wizardRaw, 'steps', ['pages'], ctx) : undefined) ??
-    take(src, 'steps', ['pages', 'wizardSteps'], ctx);
-  const steps = asList(stepsRaw)
-    .map((item, i) => readStep(item, `steps[${i}]`, ctx))
-    .filter((step): step is { title: string; icon?: string; fields: string[] } => step !== null);
+  // Шаги — сокращением `steps` либо записью `wizard: { steps }`; свойства мастера (`submitLabel`)
+  // запись `wizard` несёт рядом со шагами.
+  const wizardProps: Record<string, unknown> = {};
+  const wizardRaw = take(src, 'wizard', [], ctx);
+  let wizardSteps: unknown;
+  if (isRecord(wizardRaw)) {
+    wizardSteps = take(wizardRaw, 'steps', ['pages'], ctx);
+    finish(ctx, wizardRaw, 'wizard', 'wizard', (key, value) =>
+      liftProp(ctx, 'wizard', key, value, 'FormWizard', wizardProps, COMMON_CONTAINER_PROPS)
+    );
+  } else if (wizardRaw !== undefined && wizardRaw !== null) {
+    problem(
+      ctx,
+      'invalid-value',
+      'wizard',
+      `\`wizard\` is ${Array.isArray(wizardRaw) ? 'an array' : typeof wizardRaw}`,
+      INTENT_RECORDS.wizard.sample
+    );
+  }
+  const topSteps = take(src, 'steps', ['pages', 'wizardSteps'], ctx);
+  if (wizardSteps !== undefined && topSteps !== undefined && !sameValue(wizardSteps, topSteps)) {
+    problem(
+      ctx,
+      'key-conflict',
+      'steps',
+      '`steps` and `wizard.steps` both list the steps, differently',
+      'one list of steps'
+    );
+  }
+  const steps: StepRead[] = [];
+  for (const { at, item } of entriesOf(
+    wizardSteps ?? topSteps,
+    'steps',
+    { key: 'title', value: 'fields' },
+    ctx
+  )) {
+    const step = readStep(item, at, ctx);
+    if (step) steps.push(step);
+  }
 
   // `layout` в контракте — режим раскладки ФАЙЛОВ (строка), но модели кладут туда и дерево.
-  const declaredLayout = src.layout;
+  const declaredLayout = take(src, 'layout', [], ctx);
+  const rootRaw = take(src, 'layoutRoot', ['root', 'tree'], ctx);
+  if (isRecord(declaredLayout) || Array.isArray(declaredLayout)) {
+    if (rootRaw !== undefined) {
+      problem(
+        ctx,
+        'key-conflict',
+        'layout',
+        '`layout` and `layoutRoot` both hold a layout tree',
+        'the tree in `layoutRoot`; `layout` is the file layout of the module: minimalist | folders'
+      );
+    }
+  } else if (
+    declaredLayout !== undefined &&
+    declaredLayout !== null &&
+    !['minimalist', 'folders'].includes(String(declaredLayout))
+  ) {
+    problem(
+      ctx,
+      'invalid-value',
+      'layout',
+      `\`layout\` is ${JSON.stringify(declaredLayout)}`,
+      'the file layout of the module: "minimalist" (the default) or "folders"; the form tree is ' +
+        '`layoutRoot`'
+    );
+  }
   const readRoot = readLayoutNode(
-    take(src, 'layoutRoot', ['root', 'tree'], ctx) ??
-      (isRecord(declaredLayout) ? declaredLayout : undefined),
+    rootRaw ?? (isRecord(declaredLayout) ? declaredLayout : undefined),
     'layoutRoot',
     ctx
   );
@@ -1620,7 +2460,17 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
   // Раньше шаги оставались в `wizard`, а форма собиралась плоской с ✓ (ReFormer-j356.5).
   const layoutRoot =
     (readRoot && refArrays(readRoot, namesOf(arrays), namesOf(fields))) ??
-    (steps.length > 0 ? stepsLayout(steps, namesOf(arrays)) : null);
+    (steps.length > 0 ? stepsLayout(steps, namesOf(arrays), wizardProps) : null);
+  // Рядом с раскладкой шаги не читаются. Совпадают с её шагами — это тот же intent, прочитанный
+  // обратно; расходятся — о расхождении надо сказать, а не выбрать молча.
+  if (readRoot && steps.length > 0 && !sameSteps(readRoot, steps)) {
+    warn(
+      ctx,
+      'steps-ignored',
+      '`steps` and `layoutRoot` disagree — the layout is `layoutRoot`, the `steps` shorthand is ' +
+        'not read. Keep one of them.'
+    );
+  }
 
   // Именованные части разметки (подформы): словарь «имя → узел».
   const parts: Record<string, LayoutNode> = {};
@@ -1630,34 +2480,44 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       const node = readLayoutNode(raw, `parts.${name}`, ctx);
       if (node) parts[name] = node;
     }
-  } else if (partsRaw !== undefined) {
-    ctx.problems.push({
-      at: 'parts',
-      message: 'части разметки заданы не словарём',
-      expected: '{ "address": { "kind": "container", "component": "Box", "children": ["city"] } }',
-    });
+  } else if (partsRaw !== undefined && partsRaw !== null) {
+    problem(
+      ctx,
+      'invalid-value',
+      'parts',
+      'the layout parts are not a map',
+      '{ "address": { "kind": "container", "component": "Box", "children": ["city"] } }'
+    );
   }
 
   // Свои предупреждения консумента (например, из `plan_form`) сохраняем: intent ходит
   // туда-обратно, и терять их на каждом круге — значит терять разбор спеки.
-  const notes: IntentWarning[] = asNames(src.warnings).map((message) => ({
+  const notes: IntentWarning[] = asNames(take(src, 'warnings', [], ctx)).map((message) => ({
     code: 'consumer' as const,
     message,
   }));
+
+  const formName = takeName(src, 'formName', ['name', 'title', 'form', 'formTitle'], ctx, 'intent');
+  const interfaceName = takeName(
+    src,
+    'interfaceName',
+    ['modelName', 'modelInterface', 'interface'],
+    ctx,
+    'intent'
+  );
+  // `$schema` — ссылка редактора на схему файла: формы она не касается.
+  use(ctx, src, '$schema');
+  finish(ctx, src, 'intent', 'intent');
+
   if (ctx.renames.size > 0) {
     notes.push({
       code: 'keys-renamed',
       message:
-        `Ключи приведены к контракту FormIntent: ${[...ctx.renames].sort().join(', ')}. ` +
-        'Intent без переименований отдаёт `plan_form`.',
+        `Keys brought to the FormIntent contract: ${[...ctx.renames].sort().join(', ')}. ` +
+        'The grammar names them: form_build {"grammar":"base"}.',
     });
   }
   notes.push(...ctx.warnings);
-
-  const formName = asName(take(src, 'formName', ['name', 'title', 'form', 'formTitle'], ctx));
-  const interfaceName = asName(
-    take(src, 'interfaceName', ['modelName', 'modelInterface', 'interface'], ctx)
-  );
 
   const normalized: IntentWarning[] = [];
   const normalizedIntent = normalizeWith(
@@ -1665,7 +2525,7 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
       ...(formName ? { formName } : {}),
       ...(interfaceName ? { interfaceName } : {}),
       target: target ?? 'core',
-      layout: asName(declaredLayout) === 'folders' ? 'folders' : 'minimalist',
+      layout: declaredLayout === 'folders' ? 'folders' : 'minimalist',
       ...(layoutRoot ? { layoutRoot } : {}),
       ...(Object.keys(parts).length > 0 ? { parts } : {}),
       fields,
@@ -1694,4 +2554,45 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     problems: ctx.problems,
     notices,
   };
+}
+
+/**
+ * Правила валидации списком либо словарём `{ путь: правила }`. Значение словаря — список строк
+ * (`["required()"]`), одна запись, список записей или одна строка правила.
+ */
+function ruleEntries(value: unknown, ctx: ReadCtx): Array<{ at: string; item: unknown }> {
+  if (!isRecord(value)) return entriesOf(value, 'validation', RULE_KEYING, ctx);
+  if (Object.keys(value).length > 0) {
+    warn(
+      ctx,
+      'list-as-map',
+      '`validation` is a map — read as a list: the key of each entry is its target.'
+    );
+  }
+  return rulesFromMap(value);
+}
+
+/** Шаги раскладки совпадают с сокращением `steps`: заголовки и поля по порядку. */
+function sameSteps(root: LayoutNode, steps: readonly StepRead[]): boolean {
+  const own: Array<{ title: string; fields: string[] }> = [];
+  const refs = (node: LayoutNode, out: string[]): void => {
+    if (node.kind === 'field' || node.kind === 'array') out.push(node.ref);
+    else if (node.kind === 'container' || node.kind === 'step') {
+      for (const child of node.children) refs(child, out);
+    }
+  };
+  const walk = (node: LayoutNode): void => {
+    if (node.kind === 'step') {
+      const fields: string[] = [];
+      refs(node, fields);
+      own.push({ title: node.title, fields });
+    } else if (node.kind === 'container') {
+      for (const child of node.children) walk(child);
+    }
+  };
+  walk(root);
+  return (
+    own.length === steps.length &&
+    own.every((step, i) => step.title === steps[i].title && sameValue(step.fields, steps[i].fields))
+  );
 }

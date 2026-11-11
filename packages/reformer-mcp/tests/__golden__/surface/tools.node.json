@@ -183,7 +183,7 @@
               "type": "string"
             }
           ],
-          "description": "kind=json-schema | bundle: the layout schema (object or JSON string)."
+          "description": "kind=json-schema: the layout schema (object or JSON string). kind=bundle: optional — the schema to check the intent against; without it, the schema the build would make."
         },
         "dependencies": {
           "type": "array",
@@ -208,8 +208,16 @@
           }
         },
         "intent": {
-          "type": "object",
-          "description": "kind=bundle: the FormIntent behind the schema."
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": true
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "kind=bundle: the FormIntent (object or JSON string) — judged as form_build judges it."
         },
         "componentNames": {
           "type": "array",
@@ -233,55 +241,41 @@
   },
   {
     "name": "plan_form",
-    "description": "Turn a form spec (markdown file) or a description into a FormIntent: the machine-readable plan — fields, arrays, validation rules, behaviours, layout — that generate_form compiles into a file bundle. Review and edit the intent before generating. Form-module file names are fixed by convention: the result lists them; full rule — find_recipe directory-layout, check yours with validate_form kind=\"layout\".",
+    "description": "Draft <dir>/form.intent.json from a markdown form spec: fields with types and components, validation from the spec tables, wizard steps, arrays. The draft is written to disk (an existing file is never overwritten); the answer is a short summary and what to finish by hand. Then edit the intent and call form_build.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "specPath": {
           "type": "string",
-          "description": "Path to a markdown spec, absolute or repo-relative."
+          "description": "Markdown spec, absolute or relative to the working directory."
         },
-        "description": {
+        "dir": {
           "type": "string",
-          "description": "Free-form description, when there is no spec file."
-        },
-        "target": {
-          "type": "string",
-          "description": "core | renderer-react | renderer-json (default core)."
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "generate_form",
-    "description": "Compile a FormIntent into a form bundle (model.ts, form.schema.ts, form.validation.ts, form.behavior.ts, plus registry.ts for renderer-json) and cross-check the files against each other: every $model path exists in the model, every $component is registered, every $part is declared, every rule and behaviour targets a real path, no compute cycles. The contract is the same for every target: one schema tree, one behavior, one assembly — the manifest also prints the index.tsx assembly (createForm + useFormBundle). Returns a manifest — you write the files yourself, under the canonical file names it prints for the target (rule: find_recipe directory-layout).",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "intent": {
-          "type": "object",
-          "description": "FormIntent, typically from plan_form. Partial input is normalised with warnings. Reusable sub-form: declare its layout once in `parts: { <name>: LayoutNode }` and mount it with a layout node `{ kind: \"part\", ref: \"<group path>\", part: \"<name>\" }`; field refs inside a part are relative to the group."
+          "description": "Form folder for the draft, as in form_build (default \"form\")."
         },
         "target": {
           "type": "string",
-          "description": "Overrides intent.target."
+          "description": "Stack from the task: core | renderer-react | renderer-json (default core)."
         }
       },
       "required": [
-        "intent"
+        "specPath"
       ]
     }
   },
   {
     "name": "form_build",
-    "description": "Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit. Nothing is written while errors remain. Call it before the intent file exists to get the intent grammar. Keep the requested stack in \"target\": on core you also write the JSX markup in index.tsx.",
+    "description": "Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit; nothing is written while errors remain. Start with {\"grammar\":\"base\"} — the intent grammar, no project or file needed; further sections on demand. Keep the requested stack in \"target\": on core you also write the JSX markup in index.tsx.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "dir": {
           "type": "string",
-          "description": "Form folder inside the project (default \"form\")."
+          "description": "Form folder, relative to the working directory (default \"form\"; required at a monorepo root)."
+        },
+        "grammar": {
+          "type": "string",
+          "description": "Return the intent grammar instead of building: \"base\", a section (behavior, arrays, wizard, cross, async, parts, operators, nodes), several comma-separated, or \"all\"."
         }
       },
       "required": []

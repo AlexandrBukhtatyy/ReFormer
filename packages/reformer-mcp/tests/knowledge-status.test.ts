@@ -72,7 +72,7 @@ describe('знание без индексов', () => {
     const { diagnostics, limitations, unindexed } = await validateCode(blind, code);
     expect(diagnostics.filter((d) => d.code === 'RF002')).toEqual([]);
     expect(unindexed).toEqual(['@reformer/core', '@reformer/ui-kit']);
-    expect(limitations.join('\n')).toContain('не проверены');
+    expect(limitations.join('\n')).toContain('are not checked');
   });
 });
 

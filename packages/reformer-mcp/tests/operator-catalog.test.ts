@@ -18,8 +18,10 @@ import { describe, expect, it } from 'vitest';
 import { CATALOGS } from './support/catalogs';
 import {
   BEHAVIOR_KEY_OPERATORS,
+  CORE_OPERATOR_FOUNDATION,
   MODEL_BEHAVIOR_KINDS,
   NODE_BEHAVIOR_KINDS,
+  operatorsWithoutIntentKey,
   VALIDATION_OPERATORS,
 } from '../src/core/generate/operator-catalog';
 import { intentGrammar } from '../src/core/generate/intent-grammar';
@@ -138,10 +140,45 @@ describe('операторы MCP совпадают с ядром', () => {
     },
     SLOW
   );
+
+  it(
+    'основа своих операторов — ровно то, что точки входа экспортируют вне модулей операторов',
+    () => {
+      const operatorModules = [
+        'behaviors/operators.ts',
+        'behaviors/collections.ts',
+        'behaviors/schema-operators.ts',
+        'validation/operators.ts',
+      ];
+      const foundation = [ENTRIES.behaviors, ENTRIES.validation].flatMap((entry) =>
+        [...valueExports(entry)]
+          .filter(([, file]) => !operatorModules.some((module) => file.endsWith(module)))
+          .map(([name]) => name)
+      );
+      expect([...new Set(foundation)].sort()).toEqual([...CORE_OPERATOR_FOUNDATION].sort());
+    },
+    SLOW
+  );
+});
+
+describe('операторы ядра без ключа intent (ReFormer-wkva)', () => {
+  it('у установленного ядра таких нет', () => {
+    expect(operatorsWithoutIntentKey(CATALOGS.core.operatorNames)).toEqual([]);
+  });
+
+  it('новый оператор ядра грамматика называет с подсказкой kind: call', () => {
+    const operatorNames = new Set([...CATALOGS.core.operatorNames, 'debounceWhen']);
+    expect(operatorsWithoutIntentKey(operatorNames)).toEqual(['debounceWhen']);
+    const section = intentGrammar(
+      { ...CATALOGS, core: { ...CATALOGS.core, operatorNames } },
+      { sections: ['operators'] }
+    );
+    expect(section).toMatch(/without an intent key: debounceWhen — call them with "kind":"call"/);
+  });
 });
 
 describe('грамматика называет каждый оператор', () => {
-  const grammar = intentGrammar(CATALOGS);
+  const grammar = intentGrammar(CATALOGS, { sections: 'all' });
 
   it('каждое правило ядра — образцом из индекса', () => {
     expect(CATALOGS.core.rules.size).toBeGreaterThan(0);

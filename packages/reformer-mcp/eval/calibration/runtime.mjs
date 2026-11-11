@@ -1,5 +1,5 @@
 /**
- * T3 — рантайм: форма, собранная из ответа `generate_form`, работает в браузере под e2e эталона.
+ * T3 — рантайм: форма, собранная `form_build`, работает в браузере под e2e эталона.
  *
  * Модули пишутся в `projects/react-playground/src/pages/debug/mcp-calibration/<кейс>-<таргет>/`:
  * файлы бандла — как их отдал сервер, плюс `Page.tsx` стенда. Страница делает то, что по образцу
@@ -16,12 +16,13 @@
  * регистрация — проект `registration-form-json` с `REG_FORM_PATH`.
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { flattenReport as flatten, runPlaywright as playwright } from '../lib/playwright.mjs';
-import { parseGenerateForm } from './lib/bundle.mjs';
+import { parseFormBuild, prepareFormDirectory, readModule } from './lib/bundle.mjs';
 import { inspect, repoRoot } from './lib/inspector.mjs';
 import { CASES, TARGETS } from './tracks.mjs';
+import { intentForTarget } from '../lib/intent-target.mjs';
 
 const PAGES_DIR = path.join(repoRoot, 'projects/react-playground/src/pages/debug/mcp-calibration');
 const E2E_DIR = path.join(repoRoot, 'projects/react-playground-e2e');
@@ -93,8 +94,8 @@ function pageTsx({ hasFlow, hasRegistry, messagesExport }) {
   };
 `;
   return `/**
- * Страница калибровочного стенда MCP — НЕ вывод сервера: сборка по образцу \`index.tsx\` из ответа
- * \`generate_form\` и кнопки отправки. Генерируется \`packages/reformer-mcp/eval/calibration/runtime.mjs\`.
+ * Страница калибровочного стенда MCP — НЕ вывод сервера: сборка модуля, записанного \`form_build\`,
+ * и кнопки отправки. Генерируется \`packages/reformer-mcp/eval/calibration/runtime.mjs\`.
  */
 ${imports.join('\n')}
 
@@ -127,25 +128,21 @@ export async function mountForms({
     if (!c?.intent || !existsSync(c.intent)) continue;
     const intent = JSON.parse(readFileSync(c.intent, 'utf8'));
     for (const target of TARGETS) {
-      const r = await inspect('node', 'tools/call', {
-        toolName: 'generate_form',
-        toolArgs: { intent: { ...intent, target } },
-      });
-      const parsed = parseGenerateForm(r.text);
       const dir = path.join(PAGES_DIR, `${id}-${target}`);
-      rmSync(dir, { recursive: true, force: true });
-      mkdirSync(dir, { recursive: true });
-      for (const f of parsed.files) {
-        const file = path.join(dir, f.path);
-        mkdirSync(path.dirname(file), { recursive: true });
-        writeFileSync(file, f.content);
-      }
-      const messages = parsed.files.find((f) => f.path === 'form.messages.ts');
+      prepareFormDirectory(dir, intentForTarget(intent, target));
+      const r = await inspect('node', 'tools/call', {
+        toolName: 'form_build',
+        toolArgs: { dir },
+        timeoutMs: 180_000,
+      });
+      const built = parseFormBuild(r.text);
+      const files = built.status === 'ok' ? readModule(dir) : [];
+      const messages = files.find((f) => f.path === 'form.messages.ts');
       writeFileSync(
         path.join(dir, 'Page.tsx'),
         pageTsx({
-          hasFlow: parsed.files.some((f) => f.path === 'form.flow.ts'),
-          hasRegistry: parsed.files.some((f) => f.path === 'registry.ts'),
+          hasFlow: files.some((f) => f.path === 'form.flow.ts'),
+          hasRegistry: files.some((f) => f.path === 'registry.ts'),
           messagesExport:
             messages?.content.match(/export const (\w+)\s*=\s*defineIssueMessages/)?.[1] ?? null,
         })
@@ -154,8 +151,8 @@ export async function mountForms({
         case: id,
         source,
         target,
-        status: parsed.status,
-        files: parsed.files.map((f) => f.path),
+        status: built.status,
+        files: files.map((f) => f.path),
         path:
           id === 'credit'
             ? `/mcp-credit-application-${target}-vcal`

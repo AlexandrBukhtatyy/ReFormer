@@ -33,49 +33,49 @@
   },
   {
     "name": "plan-form",
-    "description": "Прочитать спеку формы (markdown), проанализировать поля/шаги/behaviors/arrays/API, и вернуть структурированный markdown-план разработки: roadmap из 7 sub-agent стадий, рекомендуемая последовательность других MCP-промптов, risk matrix (cycle-prevention, plain-leaves, hide-vs-disable), verification scenarios для playwright, test fixtures.",
+    "description": "Build a @reformer form from a markdown spec: a summary of the spec (steps, conditional and computed fields, arrays, API), then plan_form drafts form.intent.json and form_build builds it.",
     "arguments": [
       {
         "name": "specPath",
-        "description": "Абсолютный или относительный путь к markdown-спеке формы. Например: docs/specs/credit-application-form.md",
+        "description": "Markdown spec of the form, absolute or relative to the working directory. E.g. docs/specs/credit-application-form.md",
         "required": true
       },
       {
         "name": "target",
-        "description": "Целевой стек: \"core\" | \"renderer-react\" | \"renderer-json\". По умолчанию \"core\".",
+        "description": "Stack: \"core\" | \"renderer-react\" | \"renderer-json\". Default \"core\".",
         "required": false
       },
       {
         "name": "projectPath",
-        "description": "Путь к каталогу проекта для auto-detection стека (как в create-form). По умолчанию process.cwd().",
+        "description": "Project folder whose package.json is used to detect the stack (as in create-form). Default: the server working directory.",
         "required": false
       }
     ]
   },
   {
     "name": "create-form",
-    "description": "Create a form on @reformer/* from a textual description. Slim+ prompt — points the model at MCP resources for full FormSchema/Quick-Start/imports references; only critical inline rules and the auto-detected stack block stay in the message body.",
+    "description": "Create a new @reformer form from a description: get the intent grammar, write form.intent.json, build it with form_build. Includes the detected project stack.",
     "arguments": [
       {
         "name": "description",
-        "description": "Свободное описание формы: какие поля, типы, начальные значения, связи. Например: \"Регистрация пользователя: email, password, confirmPassword (сверка), age (число 18+)\".",
+        "description": "The form in your own words: fields, types, initial values, links. E.g. \"Sign-up: email, password, confirmPassword (must match), age (number, 18+)\".",
         "required": true
       },
       {
         "name": "target",
-        "description": "Целевой стек: \"core\" (разметка руками в JSX), \"renderer-react\" (разметку рисует FormRenderer по TS-схеме), \"renderer-json\" (схема — JSON-документ + реестр). Контракт формы один на все три; различается только вид схемы и то, кто рисует. По умолчанию \"core\".",
+        "description": "Stack: \"core\" (you write the JSX markup), \"renderer-react\" (FormRenderer draws a TS schema), \"renderer-json\" (the schema is a JSON document + registry). Default \"core\".",
         "required": false
       },
       {
         "name": "projectPath",
-        "description": "Абсолютный или относительный путь к каталогу проекта, чей `package.json` нужно использовать для auto-detection (UI kit + Tailwind). По умолчанию — `process.cwd()` MCP-сервера.",
+        "description": "Project folder whose package.json is used to detect the stack (UI kit, Tailwind). Default: the server working directory.",
         "required": false
       }
     ]
   },
   {
     "name": "add-feature",
-    "description": "Add one capability to an existing @reformer form: validation rules, behavior (links over the model and rules for schema nodes), an array of sub-forms, or wizard steps. The result is the same for every way of drawing the form. Pick the stage with `feature`.",
+    "description": "Add one capability to a form built with form_build — validation rules, behavior, an array of rows or wizard steps — by editing form.intent.json and building again. Pick the stage with `feature`.",
     "arguments": [
       {
         "name": "feature",
@@ -83,29 +83,29 @@
         "required": true
       },
       {
-        "name": "code",
-        "description": "Текущий код формы.",
+        "name": "requirements",
+        "description": "What to add. For `feature: wizard` — the steps and the fields of each.",
         "required": true
       },
       {
-        "name": "requirements",
-        "description": "Что нужно добавить. Для `feature: wizard` — перечень шагов и полей на каждом.",
-        "required": true
+        "name": "code",
+        "description": "The current form.intent.json (optional: otherwise read it from the form folder).",
+        "required": false
       }
     ]
   },
   {
     "name": "to-renderer",
-    "description": "Change who draws an existing @reformer form: FormRenderer over the same TS schema (renderer-react) or the schema as a JSON document of format 2 + registry (renderer-json). Model, validation, behavior and the createForm call stay.",
+    "description": "Switch a form built with form_build to a renderer — FormRenderer over the TS schema (renderer-react) or the schema as a JSON document + registry (renderer-json) — by changing \"target\" in form.intent.json and building again.",
     "arguments": [
       {
         "name": "code",
-        "description": "Текущий код формы.",
-        "required": true
+        "description": "The current form.intent.json (optional: otherwise read it from the form folder).",
+        "required": false
       },
       {
         "name": "target",
-        "description": "renderer-react (по умолчанию) | renderer-json",
+        "description": "renderer-react (default) | renderer-json",
         "required": false
       }
     ]

@@ -123,10 +123,13 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
   получает одну ошибку с советом перевести его `migrateJsonSchema`.
 - `kind: "behaviors"` — циклы в вычисляемых полях (`RF006`), по объявленным
   `{ target, reads[] }`.
-- `kind: "bundle"` — `intent` + схема сверяются МЕЖДУ СОБОЙ: каждый `$model` есть в
-  модели (пути внутри части — от группы, к которой она подключена), каждый `$component`
-  зарегистрирован, каждая часть `$part` объявлена, каждая цель правила существует, селекторы
-  видимости присутствуют в схеме.
+- `kind: "bundle"` — `intent` (объект или JSON строкой) судится так же, как его судит
+  `form_build`, — вердикт один: проблемы чтения записи (`RF014`, с ближайшим ключом), C1–C13
+  кросс-проверки (каждый `$model` есть в модели, каждый `$component` зарегистрирован, каждая часть
+  `$part` объявлена, каждая цель правила существует, селекторы видимости есть в схеме, шаги не
+  перемешаны с другими узлами — C13), поле вне раскладки, потерянный текст замечания, компонент не
+  из кита (`RF008`), правила, которых таргет не исполняет (`RF016`: видимость на core). `schema`
+  необязательна: без неё intent сверяется со схемой, которую построила бы сборка.
 - `kind: "layout"` — ИМЕНА файлов модуля формы против канона (`files[]` + `target`). Набор один
   на все таргеты; файлы прежнего контракта (`form.render.ts`, `wizard.tsx`, `renderer.*`,
   `validation.ts`) — предупреждения с подсказкой, куда перенести содержимое.
@@ -135,53 +138,55 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 читаться как «код верен» — разбор построчный, без TypeScript-AST (это сознательный отказ:
 `typescript` весит 23 MB и вынесен из обязательных зависимостей).
 
-Прежние `validate_json_schema` и `check_behaviors` заменены этим инструментом.
+Прежние `validate_json_schema` и `check_behaviors` заменены этим инструментом и с 7.0 удалены.
 
 ## plan_form
 
-Спека (markdown) или описание → `FormIntent`: машиночитаемый план формы (поля, массивы,
-правила, поведение, разметка, подформы `parts`), который человек читает и правит до генерации
-кода.
+A markdown spec → a draft `<dir>/form.intent.json` on disk. The answer is a short summary — what
+was parsed (fields, steps, arrays, rules) and what to finish by hand; the intent itself is not
+printed, so a large JSON never passes through the model twice. An existing intent file is never
+overwritten.
 
-- `specPath` (string, optional) — путь к спеке, абсолютный или от корня репозитория.
-- `description` (string, optional) — свободное описание, если спеки нет.
+- `specPath` (string, required) — the spec, absolute or relative to the working directory.
+- `dir` (string, optional) — the form folder, as in `form_build` (default `form`; required at a
+  monorepo root).
 - `target` (string, optional) — `core` | `renderer-react` | `renderer-json`.
 
-Разбор эвристический и честно об этом говорит: типы полей и компоненты угаданы по тексту.
-
-## generate_form
-
-`FormIntent` → бандл файлов единого контракта формы плюс кросс-проверка файлов между собой.
-Набор один на все таргеты: `model.ts` (фабрика модели, шаблоны строк массивов — `arrayOf`),
-`form.schema.ts` (одно дерево узлов: TS-билдер для `core` и `renderer-react`, документ формата 2
-в `defineJsonSchema<T>` для `renderer-json`), `form.validation.ts` (подформы — `apply`, массивы —
-`applyEach`, шаги визарда — по `selector`), `form.behavior.ts` (единственное поведение: связи над
-моделью и правила узлов схемы); `renderer-json` получает ещё `registry.ts`. Манифест печатает и
-образец сборки `index.tsx` — `createForm` + `useFormBundle`.
-
-Возвращает МАНИФЕСТ — файлы пишет клиент через свой Write и свой permission-гейт: сервер живёт
-в своём процессе и корня репозитория не знает.
-
-Подформа в intent: разметка объявляется один раз в `parts: { <имя>: LayoutNode }` и ставится узлом
-`{ kind: "part", ref: "<путь группы>", part: "<имя>" }`; пути полей внутри части — от группы.
-
-- `intent` (object, required) — обычно из `plan_form`; неполный нормализуется с warnings.
-- `target` (string, optional) — перекрывает `intent.target`.
+The parse is heuristic and says so: field types without a type column are guessed by name; formulas
+of computed fields and visibility rules are not extracted. A free-text description is no longer
+parsed — it gave an empty draft: write the intent by the grammar instead.
 
 ## form_build
 
-Модуль формы на диске из одного файла — `<dir>/form.intent.json`. Агент пишет и правит только
-этот файл своим Write/Edit; `form_build` компилирует его, сверяет, проверяет типы результата и сам
-записывает все файлы модуля, возвращая только диагностику. В отличие от `generate_form`, сервер
-пишет файлы сам, поэтому инструмента нет во встроенном (браузерном) профиле.
+The one way to make a form: a module on disk from one file, `<dir>/form.intent.json`. You write and
+edit only that file with your own Write/Edit; `form_build` compiles it, cross-checks it, type-checks
+the module and writes every module file itself, answering with diagnostics only. Nothing is written
+while errors remain. There is no `form_build` in the browser worker — it has no disk.
 
-- `dir` (string, optional) — каталог формы внутри проекта, по умолчанию `form`.
+`generate_form` of 6.x, which printed the files for the agent to write by hand, is removed in 7.0,
+and so are the aliases `validate_json_schema` and `check_behaviors` (use `validate_form`).
 
-Пока есть ошибки, на диск не пишется ничего. Вызов до появления `form.intent.json` возвращает
-грамматику intent. Собранные файлы начинаются с метки `// @reformer-form-build`; файл, правленный
-руками, отсоединяется — сборка его не трогает и сообщает об этом. `types.ts` и `api.ts` — файлы
-потребителя; на таргете `core` им же принадлежит `index.tsx` (сборка создаёт заготовку один раз).
-Подробно — `06-form-directory-layout`, раздел «`form.intent.json`».
+- `dir` (string, optional) — the form folder relative to the working directory, `form` by default;
+  required at a monorepo root (a `package.json` with `workspaces`): the default would put the form
+  outside every app.
+- `grammar` (string, optional) — return the intent grammar instead of building: `base`, a section
+  (`behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes`), several
+  comma-separated, or `all`. Needs neither a project nor an intent file.
+
+Without an intent file the call answers with the base grammar. Built files start with the mark
+`// @reformer-form-build`; a file edited by hand is detached — the build leaves it alone and says
+so. `types.ts` and `api.ts` belong to you. `index.tsx` is built on every target: on `core` it is a
+stub with samples — a field, visibility in JSX, `bundle.submission.submit`, steps — kept in step
+with the intent until you write your markup there; a renderer target replaces an untouched stub with
+its assembly and refuses to keep markup written by hand. Details — `06-form-directory-layout`,
+section «`form.intent.json`».
+
+The answer is `✓ form_build: …` or `✗ form_build: <what> — nothing written.` with one finding per
+line: `<code> at <place>: <what is wrong> → <what to do>`. An unknown key of a record is an error
+(`unknown-key`, with the nearest key); a component prop written next to the field (`placeholder`,
+`min`) is moved into `componentProps` with a note. The verdict is the one of `validate_form
+kind="bundle"`; on top of it the build type-checks the module (a type error says which file to fix)
+and needs the environment: `@reformer/core` and `@reformer/ui-kit` installed in the project.
 
 ## report_issue
 

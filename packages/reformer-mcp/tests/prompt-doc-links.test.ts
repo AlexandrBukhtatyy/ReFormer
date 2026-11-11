@@ -55,7 +55,9 @@ describe('промпты — ссылки на документацию', () => 
       }
     }
 
-    expect(checked).toBeGreaterThan(20);
+    // С 7.0 промпты ведут к form_build, а не к чтению справки: ссылок меньше, но они есть
+    // (review, debug) — счётчик лишь страхует, что выражение вообще что-то находит.
+    expect(checked).toBeGreaterThan(5);
     expect(broken, `не открываются:\n${broken.join('\n')}`).toEqual([]);
   });
 

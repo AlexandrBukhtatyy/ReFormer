@@ -1,65 +1,22 @@
-You add validation to an existing `@reformer/*` form.
+You add validation to a form built with `form_build`.
 
-Validation is a **separate** contract from layout and behavior: an ambient function
-`defineValidation<T>(({ model }) => { … })`, passed to the assembly as the `validation` field of
-`createForm` (and runnable on its own with `validateModel(model, schema)`). The form schema (TS tree or JSON
-document) carries **no** validators — the rules live in this standalone schema function. You author
-`form.validation.ts`; you do not touch the schema tree. The file is the same for every way of drawing the form.
+## Requirements
 
-## Args
+{{requirements}}
 
-- requirements: {{requirements}}
+## Current form
 
-## Current form code
-
-```typescript
 {{code}}
-```
 
-## Critical inline rules
+## Steps
 
-- **Validation is a standalone schema, not leaf metadata** — rules live in `defineValidation<T>(({ model }) => { … })` and are wired to fields with the ambient operator `validate(sig, [rules])` (sig = `model.$.field`). The path-based engine (`ValidationSchemaFn` / `validate(path.field, …)` / `validation: (path) => {…}`), the leaf-node `validators: [...]` array, the `ModelValidator (value, scope, root)` shape, and the whole-model runner `validateFormModel(model, schema)` have all been **removed**. A rule is either a built-in factory (`required()`, `min(10)`, …) or a `Rule<T>` — an inline `(value) => ValidationIssue | null`.
-- **A rule carries a code, never text.** `RuleOptions` is `{ code?, params? }` and `ValidationIssue` is `{ code, params?, severity? }` — there is no `message`/`messageKey`. Field-specific text = an own code `<field>.<rule>` on the rule (`required({ code: 'phone.required' })`) plus an entry in the form dictionary: `export const formMessages = defineIssueMessages({ 'phone.required': 'Укажите телефон' })` (`@reformer/core/i18n`), mounted once with `<ValidationMessagesProvider messages={formMessages}>` (`@reformer/cdk`). Values go in a template (`'Не меньше {minLength} символов'`) or, for grouped numbers like «50 000 ₽», a function `(params, i18n) => …`. Built-in codes without an entry fall back to the locale (`validation.<code>`).
-- **Conditional validation** — wrap the branch in `validateWhen(() => cond, () => { … })`: the rules inside are active only while `cond` is true, and a field that leaves an off branch is auto-cleared (`setIssues([])`). There is no `{ when, children }` node and no `applyWhen`-in-validators anymore. A single check that returns `null` when off is still fine, but a whole conditional sub-tree belongs in `validateWhen`.
-- **Cross-field rule = `cross(sig, fn)`**, where `cross` comes from the schema argument — `defineValidation<T>(({ model, cross }) => …)` — and is NOT imported. `fn` receives the **snapshot** of the current scope's model (`model.get()`, typed as the whole form / enclosing sub-model), returns `ValidationIssue | null`, and the error lands on `sig` — the field that should carry it. Read siblings straight off that snapshot (`f.password`, `f.propertyValue`); do NOT reach into node internals (`ctx.form.X.value.value` is implementation detail, not public API). Extract the body as a plain `(f: Root) => ValidationIssue | null`.
-- **Async = `validateAsync(sig, [asyncRules])`**. An `AsyncRule<T>` is `(value, { signal }) => Promise<ValidationIssue | null>`. The runner awaits it, hands it an `AbortSignal`, and cancels stale progs itself — you do NOT hand-roll a debounce. Still short-circuit cheap cases first (`if (!value || value.length < 3) return null;`), forward `signal` to `fetch`, and on a network error return `null` (a failed request must not block submit).
-- **Re-validation on dependency change** — `validateModel` re-evaluates every `cross` on each prog (submit/step). To re-run a cross rule reactively when a _dependency_ field changes (before the next submit), bridge from behavior: `revalidateWhen([model.$.dependency], () => void validateModel(model, schema))` (`revalidateWhen` is a behavior operator, imported from `@reformer/core/behaviors`).
-- **Sub-forms, arrays & composition — one binding in every layer.** A sub-form: `apply(model.$.registrationAddress, addressRules)` — `addressRules` is a `defineValidation<Address>` that receives the sub-model, so one set of rules serves several groups. An array: `applyEach(model.$.properties, propertyRules)` — the same kind of schema, run for every element. Inside such a schema `cross` receives the snapshot of ITS OWN scope (the group / the row), not of the whole form. Several schemas over the same model are composed with `apply(...schemas)`. ❌ `each(model.items, …)` and a direct call `addressSchema({ model: model.registrationAddress })` are the former contract.
-- **TS2589 on 70+ field forms** — annotate the model/schema types rather than casting rules. Prefer fixing the field type in `types.ts` (`number | null` → `number | undefined` if a `min`/`max` complains) over an `as never` cast; the built-in factories already accept nullable fields, so a cast is rarely needed — if unavoidable, narrow it to the single call-site, not the whole schema.
-- **Extract named rules for anything non-trivial**. Inline is fine for a 1-line check (`(v) => v === true ? null : {...}` typed as a `Rule<T>`). Extract module-level — typed `Rule<T>` (value-level), `AsyncRule<T>` (async), or `(f: Root) => ValidationIssue | null` (cross-field) — for: bodies >5 lines, cross-field rules with branching, async validators with try/catch, reused checks (e.g. a `ruName(label)` helper returning `Rule<string>[]`). Name by semantics, not by operator (`passwordsMatch`, `initialPaymentVsProperty` — not `validateField1`).
+1. Read `<dir>/form.intent.json`. The rules are rows of its `validation` list; their grammar is in
+   `form_build {"grammar":"base"}`. Rules across fields: section `cross`; server checks: `async`;
+   rows of an array: `arrays`; your own rule: `operators`.
+2. Add one row per rule: `{"target":"price","rules":["required({ code: 'price.required' })"],"message":"Enter the price"}`.
+   The row's `message` goes to each of its checks; a check with its own text needs its own row with
+   the same target. A rule that holds only in some case: `"when":"<condition over model>"` in the row.
+3. `form_build {"dir":"<dir>"}`. On ✗ fix the intent and build again; done on ✓.
 
-## Prerequisites — read these resources via ReadMcpResourceTool
-
-**You MUST read these BEFORE writing validators. Skipping = wrong validators or wrong import paths.**
-
-- `reformer://docs/core/api-signatures` (built-in validators API)
-- `reformer://docs/core/common-patterns` (cross-field via the `cross` snapshot, conditional `validateWhen`, `revalidateWhen` bridge)
-- `reformer://docs/core/common-mistakes`
-- `reformer://docs/core/extended-common-mistakes`
-- `reformer://docs/core/async-reaction-onchange-critically-important` (async validation pattern)
-- `reformer://docs/core/api-reference` (full validator catalogue)
-
-## Task
-
-1. Map each requirement to a built-in (`required`, `email`, `minLength`, `pattern`, `min`, `max`, `url`, `phone`, `isNumber`, `integer`, `isDate`, `minDate`, `maxDate`, `pastDate`, `futureDate`, `minAge`, `maxAge`) and wire it with `validate(model.$.field, [built-in])` inside the schema.
-2. Custom value rules → a `Rule<T>` `(value) => ValidationIssue | null` placed in the same `validate(sig, [...])` array.
-3. Async → `validateAsync(model.$.field, [asyncRule])` where the rule is `(value, { signal }) => Promise<…>`; short-circuit cheap cases, forward `signal` to `fetch`, return `null` on a network error.
-4. Cross-field → take `cross` from the schema argument (`({ model, cross }) => …`) and call `cross(model.$.field, (f) => …)` reading siblings off the snapshot `f`, attached to the error-carrying field. Add `revalidateWhen([model.$.dep], () => void validateModel(model, schema))` in the form's behavior if it must re-run on a dependency change before submit.
-5. Conditional → wrap the branch in `validateWhen(() => cond, () => { … })`. Do NOT use a `{ when, children }` sub-tree.
-6. Sub-forms / arrays / composition → `apply(model.$.group, groupRules)` for a sub-form, `applyEach(model.$.arrayField, itemRules)` for array rows (both take a `defineValidation` over the sub-model); compose step schemas with `apply(...schemas)`.
-7. Imports: `import { validate, validateAsync, validateWhen, apply, applyEach, defineValidation, validateModel, type Rule, type AsyncRule, type ValidationDefinition } from '@reformer/core/validation'` (operators + types; `cross` is not among them — it is a member of the schema argument), `import { required, email, min, max, … } from '@reformer/core/validators'` (built-in factories), `import { type FormModel, type FormValidation, type ValidationIssue } from '@reformer/core'`, and — only for the re-validation bridge — `import { revalidateWhen } from '@reformer/core/behaviors'`. Don't reinvent built-ins.
-8. Do NOT touch the schema tree — validation is a separate `ValidationDefinition<T>`, wrapped in `defineValidation<T>(({ model, cross }) => { … })` (keep the schema in a stable module-level `const`). Hand it to the assembly — `createForm({ …, validation: formValidation })` — and check through the bundle: `bundle.validate()` → `ValidationResult` (`status: 'valid' | 'invalid' | …`), `bundle.submission.submit(handler)` → `SubmitResult` (the handler runs only when nothing blocks); the bare runner is `validateModel(model, schema)` → `Promise<boolean>` (`true` = no blocking errors). It routes errors into the form nodes, clears fields that became valid, and `severity:'warning'` never blocks. For a wizard declare the rules as DATA: `flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'contacts', rules: contactsRules }] }` plus `validation: { extras: crossStepRules }` — the `id` of a step is the `selector` of its node in the schema; `bundle.flow.next()` checks the current step, `bundle.validateStep(id)` checks any step. ❌ A hand-rolled `makeValidationConfig(model)` is the former contract.
-
-## Output checklist
-
-- [ ] Прочитал все ресурсы из Prerequisites: yes/no
-- [ ] Rules carry codes (`{ code: '<field>.<rule>' }`), not text; every own code has an entry in the form dictionary `defineIssueMessages`, mounted with `<ValidationMessagesProvider messages>`
-- [ ] Rules live in a standalone `defineValidation<T>(({ model }) => …)` wired via `validate(sig, [...])` — NOT `validators: [...]` on layout nodes, NOT a `(path) => {}` callback
-- [ ] Cross-field rules use `cross` from the schema argument (never imported): `cross(sig, (f) => …)` reading the snapshot `f`, attached to the error-carrying field (NOT `ctx.form.Y.value.value`)
-- [ ] Conditional rules are wrapped in `validateWhen(() => cond, () => …)` (no `{ when, children }`)
-- [ ] Async validators use `validateAsync(sig, [ (value, { signal }) => … ])`, short-circuit + forward `signal`, return `null` on network error
-- [ ] No default «Поле обязательно для заполнения» messages reach UI
-- [ ] Validation is passed to the assembly as `validation` (or run via `validateModel(model, schema)`, `Promise<boolean>`), NOT `validateFormModel`
-- [ ] Sub-forms via `apply(model.$.group, rules)`, arrays via `applyEach(model.$.items, rules)` — NOT `each`, NOT a direct call of the sub-schema
-- [ ] Wizard rules declared as `flow: { steps: [{ id: <step selector>, rules }] }` and `validation: { extras }` — no `makeValidationConfig`
-- [ ] **Non-trivial callbacks (>5 lines) extracted module-level** as typed `Rule<T>` / `AsyncRule<T>` / `(f: Root) => ValidationIssue | null` functions; inline OK only for short single-line checks
+Messages come from the requirements, in their language. The build prints the rules, the message
+dictionary and the wizard step rules itself — do not write `form.validation.ts` by hand.

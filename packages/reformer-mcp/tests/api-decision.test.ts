@@ -13,7 +13,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { chooseApi, DECISION_RULES } from '../src/core/decide/api-decision.js';
+import {
+  chooseApi,
+  chooseApiPerRequirement,
+  DECISION_RULES,
+} from '../src/core/decide/api-decision.js';
 import { chooseApiTool } from '../src/core/tools/choose-api';
 import { findOneSymbol } from '../src/index/symbols';
 import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
@@ -119,6 +123,17 @@ const CASES: Array<[string, string]> = [
   ['at least one phone and at most five rows', 'minLength'],
   // ...а поля каждой строки — по-прежнему applyEach, и шаблон строки — arrayOf.
   ['провалидировать каждую строку массива телефонов', 'applyEach'],
+  // «Видно и обязательно при X» — пара hideWhen + validateWhen (аудит 2026-11, A9); условие без
+  // «видно» остаётся validateWhen.
+  ['поле видно и обязательно только при ипотеке', 'hideWhen'],
+  ['field is shown and required only when the loan type is mortgage', 'hideWhen'],
+  ['ИНН обязателен, если клиент — юрлицо', 'validateWhen'],
+  ['required only if the user is a company', 'validateWhen'],
+  // Правило строки, сказанное через поле строки, и сумма по строкам.
+  ['массив контактов с обязательным телефоном', 'applyEach'],
+  ['an array of contacts with a required phone', 'applyEach'],
+  ['итог — сумма доходов всех контактов', 'compute'],
+  ['total is the sum of the incomes of all contacts', 'compute'],
 ];
 
 describe('decide/api-decision — таблица правил', () => {
@@ -157,6 +172,59 @@ describe('decide/api-decision — таблица правил', () => {
       expect(missing, `альтернативы указывают в никуда: ${missing.join(', ')}`).toEqual([]);
     }
   );
+
+  it.runIf(hasSymbols)('операторы «вместе с» существуют как экспорт', async () => {
+    const missing: string[] = [];
+    for (const rule of DECISION_RULES) {
+      for (const item of rule.also ?? []) {
+        if ((await findOneSymbol(item.symbol)) === null)
+          missing.push(`${rule.id} → ${item.symbol}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('«видно и обязательно при X» требует пары операторов', () => {
+    for (const requirement of [
+      'поле видно и обязательно только при ипотеке',
+      'field is shown and required only when the loan type is mortgage',
+    ]) {
+      const top = chooseApi(requirement)[0];
+      expect(top?.rule.recommend, requirement).toBe('hideWhen');
+      expect(top?.rule.also?.map((item) => item.symbol)).toEqual(['validateWhen']);
+    }
+  });
+
+  it('визард по обеим формулировкам — и шаги, и их поток', () => {
+    for (const requirement of [
+      'визард с валидацией по шагам',
+      'мастер из трёх шагов, каждый шаг проверяется перед переходом',
+      'wizard with per-step validation',
+      'разложить форму по шагам мастера',
+    ]) {
+      const top = chooseApi(requirement)[0];
+      const named = [top?.rule.recommend, ...(top?.rule.also ?? []).map((item) => item.symbol)];
+      expect(named.sort(), requirement).toEqual(['FormFlowConfig', 'FormWizard']);
+    }
+  });
+
+  it('составная задача — решение на каждое требование', () => {
+    const decisions = chooseApiPerRequirement(
+      'визард из трёх шагов; массив контактов с обязательным телефоном; итог — сумма доходов всех контактов'
+    );
+    expect(decisions.map((d) => d.rule.recommend)).toEqual(['FormWizard', 'applyEach', 'compute']);
+    expect(decisions.map((d) => d.requirement)).toEqual([
+      'визард из трёх шагов',
+      'массив контактов с обязательным телефоном',
+      'итог — сумма доходов всех контактов',
+    ]);
+    // Одно требование — одно решение, без ничьих-подмен.
+    expect(
+      chooseApiPerRequirement('поле B доступно только когда A заполнено').map(
+        (d) => d.rule.recommend
+      )
+    ).toEqual(['enableWhen']);
+  });
 
   it('идентификаторы правил уникальны', () => {
     const ids = DECISION_RULES.map((r) => r.id);
@@ -201,6 +269,19 @@ describe('tool choose_api', () => {
     // Документация прямо предупреждает про подмену enableWhen — это и есть самое ценное.
     expect(text).toContain('## Anti-patterns recorded for this choice');
     expect(text).toContain('enableWhen');
+  });
+
+  it.runIf(hasSymbols)('ответ говорит, как решение записать в form.intent.json', async () => {
+    const { content } = await chooseApiTool(
+      { requirement: 'поле видно и обязательно только при ипотеке' },
+      k
+    );
+    const text = content[0].text;
+    expect(text).toContain('# choose_api: `hideWhen`');
+    expect(text).toContain('**In form.intent.json:** `"visibility"');
+    expect(text).toMatch(
+      /## Together with\n- `validateWhen` — .*In form\.intent\.json: a `validation` row with `"when"/
+    );
   });
 
   it.runIf(hasSymbols)('имя из двух модулей отвечает каноничной записью слоя', async () => {

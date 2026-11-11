@@ -2,24 +2,32 @@
  * Точка входа `@reformer/mcp/intent`: компилятор intent для встраивания (ассистент билдера).
  *
  * Проверяется обещание точки входа, а не сам компилятор — его покрывают тесты генератора: экспорты
- * на месте, и цепочка, которой пользуется билдер (чтение → раскладка → ссылки раскладки → печать
- * правил), проходит на intent с шагами, массивом и правилами.
+ * на месте, цепочка, которой пользуется билдер (чтение → раскладка → ссылки раскладки → печать
+ * правил), проходит на intent с шагами, массивом и правилами, а судья, собранный из одной точки
+ * входа, судит так же, как `form_build`.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CATALOGS } from './support/catalogs';
+import { CATALOGS, UI_KIT_CATALOG_PATH } from './support/catalogs';
 import {
   buildBehaviorTs,
   buildSchemaLayout,
   buildValidationSchemaTs,
   collectSteps,
+  coreOperatorsFromIndex,
   findCycle,
+  type FormCatalogs,
   inspectLayoutRefs,
+  judgeIntent,
   MODULE_ONLY_WARNINGS,
   modelPaths,
   normalizeFieldComponent,
   normalizeIntent,
   readIntent,
+  uiKitFromCatalog,
+  uiKitPropsFromCatalog,
 } from '../src/core/intent';
+import { cliKnowledge } from '../src/platform/cli/knowledge';
 import packageJson from '../package.json';
 
 describe('@reformer/mcp/intent', () => {
@@ -107,5 +115,27 @@ describe('@reformer/mcp/intent', () => {
   it('нормализация компонента и intent доступны отдельно', () => {
     expect(normalizeFieldComponent('Input', 'number').component).toBe('InputNumber');
     expect(normalizeIntent({ fields: [] }).layoutRoot.kind).toBe('container');
+  });
+
+  it('судья из одной точки входа судит так же, как form_build', () => {
+    const catalog: unknown = JSON.parse(readFileSync(UI_KIT_CATALOG_PATH, 'utf8'));
+    const catalogs: FormCatalogs = {
+      uiKit: uiKitFromCatalog(catalog),
+      uiKitProps: uiKitPropsFromCatalog(catalog),
+      core: coreOperatorsFromIndex(cliKnowledge().index),
+    };
+    // `min` — общеизвестное свойство поля, но у `Input` его нет: так говорит закрытая схема кита.
+    const raw = {
+      formName: 'Probe',
+      fields: [{ name: 'code', type: 'string', component: 'Input', label: 'Code', min: 1 }],
+      layoutRoot: { kind: 'container', component: 'Box', children: ['code'] },
+    };
+    const verdict = judgeIntent(raw, catalogs);
+    expect(verdict).toEqual(judgeIntent(raw, CATALOGS));
+    expect(verdict.errors).toEqual([
+      expect.objectContaining({ code: 'prop-unsupported', at: 'fields[0].min' }),
+    ]);
+    // Без props-схем чтение не знает, чего у компонента нет: вердикт расходится со сборкой.
+    expect(judgeIntent(raw, { ...catalogs, uiKitProps: undefined }).ok).toBe(true);
   });
 });

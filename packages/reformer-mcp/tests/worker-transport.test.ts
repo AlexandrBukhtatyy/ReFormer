@@ -102,7 +102,7 @@ describe.runIf(
     const { resources } = await client.listResources();
     expect(resources.map((resource) => resource.uri)).toContain('reformer://catalog');
     const { contents } = await client.readResource({ uri: 'reformer://guide' });
-    expect((contents[0] as { text: string }).text).toContain('Form file layout');
+    expect((contents[0] as { text: string }).text).toContain('form.intent.json');
     await client.close();
   });
 });

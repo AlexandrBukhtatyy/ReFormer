@@ -18,6 +18,11 @@
  * разметке (читалось пустым контейнером) и правило валидации в списке полей (читалось вторым
  * полем с тем же именем). Массив, записанный полем в `fields`, читает сам `readIntent`.
  *
+ * Описание на месте для уже объявленного поля дописывает объявление тем, чего в нём нет, а
+ * расхождение — проблема: раньше такое описание отбрасывалось целиком, и подпись или компонент из
+ * разметки пропадали молча (аудит 2026-11, B1). Тексты заметок и проблем — английские: их читает
+ * модель.
+ *
  * @module reformer-mcp/core/generate/intent-lift
  */
 
@@ -63,6 +68,8 @@ const FIELD_KEYS = [
   'optionsSource',
   'suggestionsSource',
   'options',
+  // Селектор узла поля — селектор самого поля: в объявлении его и держит `FieldIntent`.
+  'selector',
 ] as const;
 
 /** Ключи проверок, как их читает `readValidationRule`. */
@@ -115,10 +122,12 @@ function isInlineArray(node: Json): boolean {
 
 /**
  * Объявление из описания на месте: служебные ключи разметки сняты, путь модели и прочее — как
- * было (их прочтёт `readField`), имя — `name`, если его не было. У массива снят и тип `array`.
+ * было (их прочтёт `readField`), имя — `name`, если его не было. У массива снят и тип `array`, а
+ * `selector` остаётся узлу: селектор массива адресует узел, селектор поля — само поле.
  */
-function declarationOf(node: Json, name: string): Json {
-  const { kind: _kind, ref: _ref, selector: _selector, ...rest } = node;
+function declarationOf(node: Json, name: string, array = false): Json {
+  const { kind: _kind, ref: _ref, ...rest } = node;
+  if (array) delete rest.selector;
   if (rest.type === 'array') delete rest.type;
   return typeof node.name === 'string' && node.name.trim() !== '' ? rest : { name, ...rest };
 }
@@ -134,34 +143,94 @@ function declaredNames(value: unknown): Set<string> {
   );
 }
 
-/** Дописывает поднятые объявления к списку или словарю, не перекрывая объявленное. */
-function withDeclarations(value: unknown, lifted: readonly Json[]): unknown {
+/** Описание на месте и где оно стоит. */
+interface Lifted {
+  readonly at: string;
+  readonly decl: Json;
+}
+
+/** Ключи имени и разметки: они называют запись, а не описывают её. */
+const MERGE_SKIP: ReadonlySet<string> = new Set([...NAME_KEYS, 'kind', 'ref']);
+
+/**
+ * Дописывает поднятые объявления к списку или словарю. Объявленное по имени побеждает, но описание
+ * на месте дописывает в него то, чего там нет; разные значения одного ключа — проблема.
+ *
+ * @returns Новое значение и число объявлений, дописанных описаниями на месте.
+ */
+function withDeclarations(
+  value: unknown,
+  lifted: readonly Lifted[],
+  problems: IntentProblem[]
+): { value: unknown; merged: number } {
   const declared = declaredNames(value);
-  const fresh = lifted.filter((item) => !declared.has(nameOf(item) as string));
-  if (fresh.length === 0) return value;
-  if (isRecord(value)) {
-    const entries = fresh.map(({ name, ...rest }) => [name as string, rest] as const);
-    return { ...value, ...Object.fromEntries(entries) };
+  const fresh = lifted.filter(({ decl }) => !declared.has(nameOf(decl) as string));
+  let merged = 0;
+  let next = value;
+  for (const { at, decl } of lifted.filter((item) => !fresh.includes(item))) {
+    const name = nameOf(decl) as string;
+    const own = isRecord(next)
+      ? isRecord(next[name])
+        ? (next[name] as Json)
+        : {}
+      : ((next as unknown[]).find((item) => isRecord(item) && nameOf(item) === name) as Json);
+    if (own === undefined) continue;
+    const additions: Json = {};
+    for (const [key, v] of Object.entries(decl)) {
+      if (MERGE_SKIP.has(key)) continue;
+      if (own[key] === undefined) additions[key] = v;
+      else if (JSON.stringify(own[key]) !== JSON.stringify(v)) {
+        problems.push({
+          code: 'key-conflict',
+          at: `${at}.${key}`,
+          message:
+            `the field \`${name}\` is declared in \`fields\` with another \`${key}\` — ` +
+            `${JSON.stringify(own[key])} there, ${JSON.stringify(v)} here`,
+          expected: 'one value: describe the field once, in `fields`; in the layout put its name',
+        });
+      }
+    }
+    if (Object.keys(additions).length === 0) continue;
+    merged += 1;
+    const whole = { ...own, ...additions };
+    next = isRecord(next)
+      ? { ...next, [name]: whole }
+      : (next as unknown[]).map((item) => (item === own ? whole : item));
   }
-  return [...(Array.isArray(value) ? value : []), ...fresh];
+  if (fresh.length === 0) return { value: next, merged };
+  if (isRecord(next)) {
+    const entries = fresh.map(({ decl: { name, ...rest } }) => [name as string, rest] as const);
+    return { value: { ...next, ...Object.fromEntries(entries) }, merged };
+  }
+  return {
+    value: [...(Array.isArray(next) ? next : []), ...fresh.map(({ decl }) => decl)],
+    merged,
+  };
 }
 
 interface Lift {
-  readonly fields: Json[];
-  readonly arrays: Json[];
+  readonly fields: Lifted[];
+  readonly arrays: Lifted[];
   readonly problems: IntentProblem[];
   bareRefs: number;
 }
 
-/** Узел разметки со ссылками вместо описаний; описания — в `lift`. */
-function liftNode(node: unknown, at: string, lift: Lift): unknown {
+/**
+ * Узел разметки со ссылками вместо описаний; описания — в `lift`.
+ *
+ * @param inList - Узел среди детей: безымянное описание поля, названное проблемой, из них снимается,
+ *   иначе чтение разметки прочло бы его контейнером и назвало бы те же ключи второй раз.
+ */
+function liftNode(node: unknown, at: string, lift: Lift, inList = false): unknown {
   // Список среди детей — те же дети: модель вкладывает группу полей лишними скобками.
-  if (Array.isArray(node)) return node.map((child, i) => liftNode(child, `${at}[${i}]`, lift));
+  if (Array.isArray(node)) {
+    return node.map((child, i) => liftNode(child, `${at}[${i}]`, lift, inList));
+  }
   if (!isRecord(node)) return node;
   const name = nameOf(node);
   // Массив — раньше поля: у массива есть и признаки поля (подпись, тип).
   if (name !== undefined && isInlineArray(node)) {
-    lift.arrays.push(declarationOf(node, name));
+    lift.arrays.push({ at, decl: declarationOf(node, name, true) });
     return {
       kind: 'array',
       ref: name,
@@ -171,13 +240,14 @@ function liftNode(node: unknown, at: string, lift: Lift): unknown {
   if (describesField(node)) {
     if (name === undefined) {
       lift.problems.push({
+        code: 'missing-key',
         at,
-        message: 'узел разметки описывает поле, но без имени',
-        expected: 'поле — в `fields` с `name`, в разметке — его имя: `"lastName"`',
+        message: 'a layout node describes a field but has no name',
+        expected: 'the field in `fields` with `name`, in the layout its name: `"lastName"`',
       });
-      return node;
+      return inList ? [] : node;
     }
-    lift.fields.push(declarationOf(node, name));
+    lift.fields.push({ at, decl: declarationOf(node, name) });
     return { kind: 'field', ref: name };
   }
   // Голое имя (`{ "name": "sameAddress" }`) — ссылка на поле: читалось пустым контейнером.
@@ -197,7 +267,7 @@ function liftNode(node: unknown, at: string, lift: Lift): unknown {
 /** Дети с развёрнутыми вложенными списками. */
 function flatten(children: readonly unknown[], at: string, lift: Lift): unknown[] {
   return children.flatMap((child, i) => {
-    const node = liftNode(child, `${at}[${i}]`, lift);
+    const node = liftNode(child, `${at}[${i}]`, lift, true);
     return Array.isArray(node) ? node : [node];
   });
 }
@@ -209,20 +279,26 @@ function liftStep(step: unknown, at: string, lift: Lift): unknown {
   for (const key of STEP_FIELD_KEYS) {
     const list = next[key];
     if (!Array.isArray(list)) continue;
-    next[key] = list.map((item, i) => {
-      if (!isRecord(item)) return item;
+    // Безымянное описание названо проблемой и из шага снято: второй раз о нём скажет чтение шага.
+    next[key] = list.flatMap((item, i) => {
+      if (!isRecord(item)) return [item];
       const name = nameOf(item);
+      const itemAt = `${at}.${key}[${i}]`;
       if (name === undefined) {
         lift.problems.push({
-          at: `${at}.${key}[${i}]`,
-          message: 'у поля шага нет имени',
-          expected: 'поле — в `fields` с `name`, в шаге — его имя: `"fields": ["lastName"]`',
+          code: 'missing-key',
+          at: itemAt,
+          message: 'a step field has no name',
+          expected:
+            'the field in `fields` with `name`, in the step its name: `"fields": ["lastName"]`',
         });
-        return item;
+        return [];
       }
-      if (isInlineArray(item)) lift.arrays.push(declarationOf(item, name));
-      else if (describesField(item)) lift.fields.push(declarationOf(item, name));
-      return name;
+      if (isInlineArray(item))
+        lift.arrays.push({ at: itemAt, decl: declarationOf(item, name, true) });
+      else if (describesField(item))
+        lift.fields.push({ at: itemAt, decl: declarationOf(item, name) });
+      return [name];
     });
   }
   return next;
@@ -245,7 +321,10 @@ const RULE_ENTRY_KEYS = [...RULE_KEYS, 'message', 'errorMessage', 'code', 'when'
 function ownRules(fields: unknown, each?: string): { fields: unknown; rules: Json[] } {
   const rules: Json[] = [];
   const strip = (item: unknown, name?: string): unknown => {
-    if (!isRecord(item) || !RULE_KEYS.some((key) => item[key] !== undefined)) return item;
+    if (!isRecord(item)) return item;
+    const carries =
+      item.validation !== undefined || RULE_KEYS.some((key) => item[key] !== undefined);
+    if (!carries) return item;
     const target =
       (typeof item.modelPath === 'string' && item.modelPath) ||
       (typeof item.path === 'string' && item.path) ||
@@ -253,13 +332,21 @@ function ownRules(fields: unknown, each?: string): { fields: unknown; rules: Jso
       name;
     if (target === undefined) return item;
     const rest: Json = { ...item };
-    const rule: Json = each === undefined ? { target } : { target, each };
-    for (const key of RULE_ENTRY_KEYS) {
-      if (rest[key] === undefined) continue;
-      rule[key] = rest[key];
-      delete rest[key];
+    const base: Json = each === undefined ? { target } : { target, each };
+    // `validation` на самом поле — те же правила другим ключом: раньше он пропадал молча.
+    if (rest.validation !== undefined) {
+      rules.push(...fieldValidation(rest.validation, base));
+      delete rest.validation;
     }
-    rules.push(rule);
+    if (RULE_KEYS.some((key) => rest[key] !== undefined)) {
+      const rule: Json = { ...base };
+      for (const key of RULE_ENTRY_KEYS) {
+        if (rest[key] === undefined) continue;
+        rule[key] = rest[key];
+        delete rest[key];
+      }
+      rules.push(rule);
+    }
     return rest;
   };
   if (Array.isArray(fields)) {
@@ -271,6 +358,22 @@ function ownRules(fields: unknown, each?: string): { fields: unknown; rules: Jso
     return { fields: Object.fromEntries(entries), rules };
   }
   return { fields, rules };
+}
+
+/**
+ * `validation` на самом поле: строка правила, список строк, запись правила или список записей.
+ * Строки — одним правилом, записи — каждая своим; значение другого вида уходит в правило как есть,
+ * и его назовёт чтение правила.
+ */
+function fieldValidation(value: unknown, base: Json): Json[] {
+  if (typeof value === 'string') return [{ ...base, rules: [value] }];
+  if (isRecord(value)) return [{ ...base, ...value }];
+  if (!Array.isArray(value)) return [{ ...base, rules: value }];
+  const strings = value.filter((item) => !isRecord(item));
+  return [
+    ...(strings.length > 0 ? [{ ...base, rules: strings }] : []),
+    ...value.filter(isRecord).map((item) => ({ ...base, ...item })),
+  ];
 }
 
 /** Проверки на полях строк массива — правилами с `each`: путь в строке, массив — `each`. */
@@ -298,8 +401,34 @@ function rowRules(arrays: unknown): { arrays: unknown; rules: Json[] } {
 const asRoot = (value: unknown): unknown =>
   Array.isArray(value) ? { kind: 'container', component: 'Box', children: value } : value;
 
-const names = (items: readonly Json[]): string =>
-  items.map((item) => `\`${nameOf(item)}\``).join(', ');
+const names = (items: readonly Lifted[]): string =>
+  items.map(({ decl }) => `\`${nameOf(decl)}\``).join(', ');
+
+/**
+ * Правила словаря `{ путь: правила }` записями списка. Значение — список строк (`["required()"]`),
+ * одна запись, список записей или одна строка правила; место записи — `validation.<путь>`.
+ */
+export function rulesFromMap(map: Json): Array<{ at: string; item: unknown }> {
+  return Object.entries(map).flatMap(([target, v]) => {
+    const at = `validation.${target}`;
+    if (Array.isArray(v) && v.length > 0 && v.every(isRecord)) {
+      return v.map((rec, i) => ({ at: `${at}[${i}]`, item: { target, ...rec } }));
+    }
+    if (isRecord(v)) return [{ at, item: { target, ...v } }];
+    return [{ at, item: { target, rules: v } }];
+  });
+}
+
+/**
+ * Дописать перенесённые правила к `validation`. Словарь правил сначала становится списком: раньше
+ * перенос заменял его списком перенесённых, и правила словаря пропадали молча.
+ */
+function appendRules(validation: unknown, moved: readonly Json[]): unknown[] {
+  if (Array.isArray(validation)) return [...validation, ...moved];
+  if (isRecord(validation)) return [...rulesFromMap(validation).map(({ item }) => item), ...moved];
+  if (validation === undefined || validation === null) return [...moved];
+  return [validation, ...moved];
+}
 
 export interface LiftResult {
   /** Intent в канонической записи. */
@@ -338,31 +467,30 @@ export function liftInline(source: Json): LiftResult {
         dataSources,
       }).filter(([, value]) => value !== undefined)
     );
-    note('intent-as-node', 'Intent пришёл узлом разметки — прочитан как `layoutRoot`.');
+    note('intent-as-node', 'The intent is a layout node — read as `layoutRoot`.');
   }
 
   // Один шаг — ключом `step` или объектом вместо списка `steps`.
   if (intent.steps === undefined && isRecord(intent.step)) {
     const { step, ...rest } = intent;
     intent = { ...rest, steps: [step] };
-    note('step-as-key', 'Шаг пришёл ключом `step` — прочитан как `steps` из одного шага.');
+    note('step-as-key', 'One step came under `step` — read as `steps` of one step.');
   } else if (isRecord(intent.steps) && ('title' in intent.steps || 'fields' in intent.steps)) {
     intent = { ...intent, steps: [intent.steps] };
-    note('steps-as-object', '`steps` пришёл объектом — прочитан как список из одного шага.');
+    note('steps-as-object', '`steps` is an object — read as a list of one step.');
   }
 
   if (Array.isArray(intent.fields) && intent.fields.some(isMisplacedRule)) {
-    const rules = intent.fields.filter(isMisplacedRule);
-    const validation = intent.validation;
+    const rules = intent.fields.filter(isMisplacedRule) as Json[];
     intent = {
       ...intent,
       fields: intent.fields.filter((item) => !isMisplacedRule(item)),
-      validation: [...(Array.isArray(validation) ? validation : []), ...rules],
+      validation: appendRules(intent.validation, rules),
     };
     note(
       'rules-in-fields',
-      `Правил валидации в \`fields\`: ${rules.length} — перенесены в \`validation\`. ` +
-        'В `fields` — только поля, проверки — списком `validation`.'
+      `Validation rules in \`fields\`: ${rules.length} — moved to \`validation\`. ` +
+        '`fields` holds fields only, checks are the `validation` list.'
     );
   }
 
@@ -372,7 +500,7 @@ export function liftInline(source: Json): LiftResult {
     if (intent[key] === undefined || typeof intent[key] === 'string') continue;
     const root = asRoot(intent[key]);
     if (root !== intent[key]) {
-      note('layout-as-list', `\`${key}\` пришёл списком — прочитан как дети корневого контейнера.`);
+      note('layout-as-list', `\`${key}\` is a list — read as the children of the root container.`);
     }
     intent = { ...intent, [key]: liftNode(root, key, lift) };
   }
@@ -396,20 +524,33 @@ export function liftInline(source: Json): LiftResult {
     }
   }
 
+  let merged = 0;
   if (lift.fields.length > 0) {
-    intent = { ...intent, fields: withDeclarations(intent.fields, lift.fields) };
+    const declared = withDeclarations(intent.fields, lift.fields, lift.problems);
+    intent = { ...intent, fields: declared.value };
+    merged += declared.merged;
     note(
       'inline-fields',
-      `Поля, описанные прямо в шагах или узлах разметки, объявлены в \`fields\`: ` +
-        `${names(lift.fields)}. Поле объявляй в \`fields\`, а в шаге и разметке ставь его имя.`
+      `Fields described right in steps or layout nodes are declared in \`fields\`: ` +
+        `${names(lift.fields)}. Declare a field in \`fields\` and put its name in the step or ` +
+        'the layout.'
     );
   }
   if (lift.arrays.length > 0) {
-    intent = { ...intent, arrays: withDeclarations(intent.arrays, lift.arrays) };
+    const declared = withDeclarations(intent.arrays, lift.arrays, lift.problems);
+    intent = { ...intent, arrays: declared.value };
+    merged += declared.merged;
     note(
       'inline-arrays',
-      `Массивы, описанные прямо в шагах или узлах разметки, объявлены в \`arrays\`: ` +
+      `Arrays described right in steps or layout nodes are declared in \`arrays\`: ` +
         `${names(lift.arrays)}.`
+    );
+  }
+  if (merged > 0) {
+    note(
+      'inline-merged',
+      `Descriptions in the layout completed ${merged} declarations already in \`fields\`/` +
+        '`arrays` — describe each once, in its declaration.'
     );
   }
   // После подъёма: поле, описанное в шаге, тоже приносит свои проверки.
@@ -417,24 +558,23 @@ export function liftInline(source: Json): LiftResult {
   const rows = rowRules(intent.arrays);
   const moved = [...own.rules, ...rows.rules];
   if (moved.length > 0) {
-    const validation = intent.validation;
     intent = {
       ...intent,
       ...(own.rules.length > 0 ? { fields: own.fields } : {}),
       ...(rows.rules.length > 0 ? { arrays: rows.arrays } : {}),
-      validation: [...(Array.isArray(validation) ? validation : []), ...moved],
+      validation: appendRules(intent.validation, moved),
     };
     note(
       'rules-on-fields',
-      `Проверки, записанные на самих полях: ${moved.length} — перенесены в \`validation\`.`
+      `Checks written on the fields themselves: ${moved.length} — moved to \`validation\`.`
     );
   }
 
   if (lift.bareRefs > 0) {
     note(
       'bare-refs',
-      `Узлов разметки из одного имени: ${lift.bareRefs} — прочитаны ссылками на поле. ` +
-        'Ссылка на поле в разметке — строка: `"lastName"`.'
+      `Layout nodes holding only a name: ${lift.bareRefs} — read as field references. A field ` +
+        'reference in the layout is a string: `"lastName"`.'
     );
   }
 

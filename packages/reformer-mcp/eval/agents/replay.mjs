@@ -7,6 +7,7 @@
 
 import path from 'node:path';
 import { McpClient } from '../lib/client.mjs';
+import { repoRoot } from '../records/record.mjs';
 import { writeReferenceBundle } from '../scenarios/catalog.mjs';
 
 export const kind = 'replay';
@@ -14,8 +15,10 @@ export const kind = 'replay';
 /** @param {import('./types.mjs').AgentInput} input */
 export async function runAgent(input) {
   const startedAt = Date.now();
+  // Окружение — как у агентов с моделью (`claude-code`, `ollama`): рабочий каталог вне репозитория,
+  // пакеты `@reformer/*` — от корня монорепо. Без него сборка честно отвечает «окружение».
   const client = new McpClient(input.serverPath, {
-    env: { REFORMER_TRACE_FILE: input.traceFile },
+    env: { REFORMER_TRACE_FILE: input.traceFile, REFORMER_TYPECHECK_ROOT: repoRoot },
     cwd: input.workspaceDirectory,
   });
   try {
@@ -31,7 +34,10 @@ export async function runAgent(input) {
     });
     return {
       transcriptPath: null,
-      toolCalls: [{ name: 'generate_form', ok: true }],
+      toolCalls: [
+        ...(input.scenario.reference === 'plan_form' ? [{ name: 'plan_form', ok: true }] : []),
+        { name: 'form_build', ok: true },
+      ],
       usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, turns: 0 },
       costUsd: 0,
       durationMs: Date.now() - startedAt,

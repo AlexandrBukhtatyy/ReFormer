@@ -519,10 +519,46 @@ export async function validateCode(
       if (!legacy.re.test(text)) continue;
       diagnostics.push({
         code: 'RF010',
-        severity: 'warning',
+        severity: legacy.severity ?? 'warning',
         message: legacy.message,
         line: i + 1,
         suggestion: legacy.suggestion,
+      });
+    }
+  }
+
+  // --- RF001: выдуманные методы — две самые частые выдумки агентов (аудит 2026-11, B7) ------
+  // У узлов формы нет `submit()` и `validate()`: проверяет и отправляет сборка. У массива модели
+  // нет методов массива JS, кроме `map` и `forEach`: строки — `toArray()`. Массив узнаётся только по
+  // методу — у строк этих методов нет, но поле-список (значение `SelectMulti`) их имеет, поэтому
+  // это предупреждение.
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i];
+    if (/^\s*(\/\/|\*|\/\*)/.test(text)) continue;
+    const node = /\b[A-Za-z_$][\w$]*\.form(?:\.[A-Za-z_$][\w$]*)*\.(submit|validate)\(/.exec(text);
+    if (node) {
+      diagnostics.push({
+        code: 'RF001',
+        severity: 'error',
+        message: `У узлов формы нет \`${node[1]}()\`: проверяет и отправляет сборка.`,
+        line: i + 1,
+        suggestion:
+          node[1] === 'submit'
+            ? 'Отправка — `bundle.submission.submit(handler)` → `SubmitResult`; идёт ли она — `bundle.submission.submitting`.'
+            : 'Проверка формы — `bundle.validate()`, шага — `bundle.validateStep(id)`; переход шага — `bundle.flow.next()`.',
+      });
+    }
+    const array =
+      /\bmodel\.((?:[A-Za-z_][\w]*\.)*[A-Za-z_][\w]*)\.(reduce|reduceRight|filter|some|every|find|findIndex|flatMap|sort|reverse)\(/.exec(
+        text
+      );
+    if (array) {
+      diagnostics.push({
+        code: 'RF001',
+        severity: 'warning',
+        message: `У массива модели нет \`${array[2]}\` — из методов массива у него есть \`map\` и \`forEach\`.`,
+        line: i + 1,
+        suggestion: `Строки массива — \`model.${array[1]}.toArray().${array[2]}(…)\` либо \`model.${array[1]}.map(…)\`.`,
       });
     }
   }
@@ -569,8 +605,9 @@ export async function validateCode(
  */
 export function unindexedLimitation(packages: readonly string[]): string {
   return (
-    `Импорты из ${packages.join(', ')} не проверены: сервер не нашёл индекс этих пакетов ` +
-    '(llms-index.json). Это окружение, а не ошибка кода — см. reformer://status.'
+    `Imports from ${packages.join(', ')} are not checked: the server found no index of these ` +
+    'packages (llms-index.json). This is the environment, not an error of the code — see ' +
+    'reformer://status.'
   );
 }
 
@@ -585,10 +622,13 @@ const LEGACY_SUBMIT =
  */
 function ruleOptionsKeys(
   core: CoreOperators
-): Array<{ re: RegExp; message: string; suggestion: string }> {
+): Array<{ re: RegExp; message: string; suggestion: string; severity?: 'error' }> {
   if (!core.found) return [];
   return [
     {
+      // Ошибка, а не предупреждение: литерал опций с лишним ключом компилятор отвергает (аудит
+      // 2026-11, B7), и «предупреждение» здесь обещало бы, что код соберётся.
+      severity: 'error',
       re: new RegExp(
         `\\b(?:${[...core.rules.keys()].join('|')})\\([^)]*\\{[^}]*\\bmessage(?:Key)?\\s*:`
       ),
@@ -603,7 +643,12 @@ function ruleOptionsKeys(
  * Ключи и поля прежнего контракта в коде схемы и сборки: что найдено → чем заменить.
  * Разбор построчный, поэтому шаблоны узкие: привязка обязана стоять рядом с ключом.
  */
-const LEGACY_KEYS: ReadonlyArray<{ re: RegExp; message: string; suggestion: string }> = [
+const LEGACY_KEYS: ReadonlyArray<{
+  re: RegExp;
+  message: string;
+  suggestion: string;
+  severity?: 'error';
+}> = [
   {
     re: /\bvalue:\s*[A-Za-z_$][\w$]*\.\$\./,
     message: 'Привязка поля ключом `value` — прежняя запись узла схемы.',

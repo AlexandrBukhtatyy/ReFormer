@@ -1,80 +1,39 @@
-You are building (or modifying) a form with the **ReFormer** library, using this MCP server as
-your only source of truth. Do not assume APIs from memory — look them up here.
+You are building or changing a form with the **ReFormer** library through this MCP server. Do not
+write ReFormer code from memory: the server compiles forms itself.
 
-## The workflow (follow in order)
+## One path: intent → form_build
 
-A form is described ONE way for every way of drawing it — markup by hand in JSX, `FormRenderer` over
-a TS schema, `FormRenderer` over a JSON document: one schema tree, one binding handle, one behavior,
-one assembly.
+1. **Grammar** — `form_build {"grammar":"base"}` returns the grammar of `form.intent.json`. It lists
+   further sections on demand: `behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`,
+   `nodes` (or `all`).
+2. **Intent** — write `<dir>/form.intent.json` with your own file tools: fields, `layoutRoot`,
+   validation, behavior. From a markdown spec, `plan_form {"specPath":"…","dir":"<dir>"}` writes a
+   draft to finish.
+3. **Build** — `form_build {"dir":"<dir>"}` compiles the intent, cross-checks it, type-checks the
+   module and writes every module file. Fix what it reports **in the intent** and build again; the
+   form is done only when it answers ✓. Never write or edit the generated files.
+4. **Stack** — keep the requested stack in `"target"`: `core` | `renderer-react` | `renderer-json`.
+   On `core` you also write the JSX markup in `index.tsx` (`<FormField control={bundle.form.x} />`);
+   form_build type-checks it and does not overwrite it.
 
-1. **Model** — `createModel<T>(initial)` from `@reformer/core`, exported as a factory. One reactive
-   model is the source of truth. Type the data as a `type` (not `interface`), initialise every field
-   (numbers `null`, strings `''`). An array of sub-forms is declared with its new-row template:
-   `properties: arrayOf(blankProperty)`.
-2. **Schema** — ONE tree of nodes, a builder `(model) => node`. The binding key is `model`, the
-   binding handle is `model.$.…` — for a field, a group and an array alike:
-   field `{ model: model.$.email, component, componentProps }`, array
-   `{ model: model.$.items, component: FieldArray, item: itemRow }`, sub-form
-   `{ model: model.$.address, part: address }`, container `{ component, children }`. The keys
-   `value:` / `array:` are the former contract. The schema carries **no** validation: a leaf
-   `validators: [...]` array still type-checks (legacy field) but the engine that ran it was
-   **removed**, so the rule is silently ignored — see step 4.
-3. **Assembly** — ONE call for every target: `createForm({ model | initial, schema, registry?, behavior?, validation? })`
-   from `@reformer/core` → a bundle `{ model, form, validation?, render }`. A JSON document goes in
-   as `schema` together with `registry`. In React wrap the factory in `useFormBundle` — a lazy
-   `useState` that runs it exactly once; `useMemo` may drop its cache and rebuild the form, losing
-   typed input. `createCoreForm` / `createReactForm` / `createJsonForm` and the hooks
-   `useReactForm` / `useJsonForm` have been removed — do not use them.
-4. **Validation** — a **standalone schema, not node metadata**: rules live in
-   `defineValidation<T>(({ model }) => { … })` and are wired with ambient operators from
-   `@reformer/core/validation`: `validate(model.$.field, [rules])` for a field,
-   `apply(model.$.group, groupRules)` for a sub-form, `applyEach(model.$.items, itemRules)` for an
-   array. A rule is a built-in factory from `@reformer/core/validators` (`required()`, `email()`,
-   `minLength()`) or a `Rule<T>` — an inline `(value) => ValidationIssue | null`. Pass the rules to
-   the assembly (`validation: schema`; a wizard — `flow: { steps: [{ id: <step selector>, rules }] }`
-   and `validation: { extras }`) and check through the bundle — `bundle.validate()`,
-   `bundle.submission.submit(handler)`; the external runner is `await validateModel(model, schema)`
-   (`Promise<boolean>`, routes errors into the form nodes). The leaf `validators: [...]` array, the
-   `ModelValidator (value, scope, root)` shape and the whole-model runner
-   `validateFormModel(model, schema)` have all been **removed** — never emit them.
-5. **Behavior** — the ONLY behavior of the form: `defineFormBehavior<T>(({ model, form, schema }) => { … })`
-   from `@reformer/core/behaviors`. Links over the model (`compute` / `copyFrom` / `enableWhen` /
-   `onChange`; `apply` for a sub-form, `applyEach` for array rows) and rules for schema nodes
-   (`hideWhen(schema.node('selector'), …)`, `onComponentEvent`, `onMount`) stand side by side.
-   A computed field reads OTHER fields and writes its own — avoid cycles.
-6. **Wizard** (if needed) — the library `FormWizard` as a schema node, steps are its `children`
-   (`{ selector, component: Step, componentProps: { title } , children }`); the step `selector` is
-   the `id` of the step in `flow.steps`. No app shim, no `componentProps.steps`.
-7. **Draw** — the bundle goes to whoever draws: renderer —
-   `<FormRenderer form={bundle} settings=\{{ fieldWrapper: FormField }} />`; JSON —
-   `<FormRenderer form={bundle} />` (the field wrapper comes from the registry); by hand —
-   `<FormField control={bundle.form.x} />`.
+A large form goes in parts: fields + `layoutRoot` → build → validation → build → behavior → build.
+Test ids are printed by the build from field paths (`personalData-lastName`); do not add your own.
 
-## Which tool/prompt at each step
+## Your own code
 
-- The contract in one place: tool `find_recipe unified-contract`.
-- Full self-doc (workflow + tools + prompts + resources): resource `reformer://guide` (aka `reformer://docs/mcp`).
-- Which of two similar operators: tool `choose_api <requirement>`.
-- Exact signature + example of a symbol: tool `get_symbol_docs <name>`.
-- A worked pattern for a scenario: tool `find_recipe <topic>` (e.g. `wizard`, `form-array`, `cycle`, `json-schema`).
-- Discover the API surface: tool `list_symbols` (by kind/package).
-- Package docs: resources `reformer://docs/{core,cdk,ui-kit,renderer-react,renderer-json}[/section]`.
-- From a spec file: tools `plan_form` → `generate_form` (a cross-checked bundle), or prompt `plan-form`. From free text: prompt `create-form`.
-- Add features: prompt `add-feature` with `feature`: `validation` | `behavior` | `array` | `wizard`.
-- Change who draws: prompt `to-renderer` with `target`: `renderer-react` | `renderer-json`.
+What the grammar cannot express is code you write in the form folder: rules and operators in
+`operators.ts`, data loading and submit in `api.ts` (grammar section `operators`). For that code:
 
-## Verify before you finish
+- `choose_api <requirement>` — which of two similar operators;
+- `get_symbol_docs <name>`, `find_recipe <topic>`, `search_docs <query>`, `list_symbols`;
+- `validate_form kind="code"` — check TypeScript you wrote by hand.
 
-One tool, `validate_form`, by `kind`:
+## Prompts
 
-- `kind="layout"` — file names of the form module against the canonical set (run it BEFORE writing files).
-- `kind="code"` — the TS you wrote: unknown `@reformer` symbols, operators outside their schema, keys and factories of the former contract.
-- `kind="behaviors"` — behaviors acyclic (declare `{ target, reads }` per computed field).
-- `kind="json-schema"` — the JSON document well-formed (pass your registry's component/dataSource names).
-- `kind="bundle"` — a whole FormIntent + schema, cross-checked against each other.
+`create-form` (from a description), `plan-form` (from a spec file), `add-feature` (`validation` |
+`behavior` | `array` | `wizard`), `to-renderer` (change who draws), `review`, `discover-context`.
 
-Code review → prompt `review`.
+## Resources
 
-You already have the workflow above. Look up specific pieces with `find_recipe` and
-`get_symbol_docs`; for the full reference in one place, read `reformer://guide`. Individual
-doc sections are per-heading — discover their exact URIs with ListResources.
+`reformer://guide` — this path and where to look things up; `reformer://docs/<package>` — library
+docs; `reformer://status` — which packages the server found and whether it can type-check.

@@ -250,6 +250,6 @@ describe('общий текст правила с несколькими код�
       { target: 'carBrand', rules: ['required()', 'minLength(2)'], message: 'Укажите марку' },
     ]);
     expect(content).toBeNull();
-    expect(warnings[0]).toMatch(/^Текст «Укажите марку».*нет кода/);
+    expect(warnings[0]).toMatch(/^The text «Укажите марку».*have no code/);
   });
 });

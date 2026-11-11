@@ -1,8 +1,8 @@
 /**
  * Треки замера калибровки (кроме рантайма T3 — он в `runtime.mjs`).
  *
- *   T1 спека → intent        `plan_form` по спеке, сверка с эталонными фактами
- *   T2 intent → бандл         `generate_form` × 3 таргета, проверка типов, `validate_form` по файлам
+ *   T1 спека → intent        `plan_form` по спеке (черновик на диске), сверка с эталонными фактами
+ *   T2 intent → модуль        `form_build` × 3 таргета, проверка типов, `validate_form` по файлам
  *   T4 подбор API             `choose_api` по `operators.json`, `askReformer` с бюджетом
  *                             `ask_reformer`, покрытие `get_symbol_docs`, рецепты
  *   T5 проверка кода          `validate_form` по коду эталонов: рабочий код → любая ошибка ложная
@@ -16,9 +16,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { extractIntent, parseGenerateForm, typecheck, writeBundle } from './lib/bundle.mjs';
+import { parseFormBuild, prepareFormDirectory, readModule, typecheck } from './lib/bundle.mjs';
 import { calDir, inspect, pkgDir, pool, repoRoot, tmpDir } from './lib/inspector.mjs';
-import { ANSWER_BUDGET, fitness, scoreIntent, warningsAt } from './lib/score.mjs';
+import { ANSWER_BUDGET, fitness, planNotes, scoreIntent, warningsAt } from './lib/score.mjs';
+import { intentForTarget } from '../lib/intent-target.mjs';
 
 export const TARGETS = ['core', 'renderer-react', 'renderer-json'];
 const PLAYGROUND = path.join(repoRoot, 'projects/react-playground/src/pages/demo');
@@ -96,18 +97,18 @@ export async function trackT1({ outDir, channels, texts }) {
   const result = {};
   for (const c of CASES) {
     const facts = readJson(c.facts ?? '');
-    const specText = readFileSync(c.spec, 'utf8');
     const entry = { role: c.role, channels: {} };
-    for (const ch of channels) {
-      // node читает спеку по пути, worker — текстом: у профиля browser `specPath` нет.
-      const args =
-        ch === 'node'
-          ? { specPath: c.spec, target: 'core' }
-          : { description: specText, target: 'core' };
+    // `plan_form` с 7.0 только под Node: черновик пишется на диск. У воркера инструмента нет.
+    for (const ch of channels.filter((channel) => channel === 'node')) {
+      const draftDir = path.join(outDir, 't1-drafts', c.id);
+      const args = { specPath: c.spec, dir: draftDir, target: 'core' };
       const r = await inspect(ch, 'tools/call', { toolName: 'plan_form', toolArgs: args });
       texts.add('T1', ch, 'plan_form', r.text);
       save(outDir, `t1/${c.id}-${ch}.md`, r.text);
-      const intent = extractIntent(r.text);
+      const intent = readJson(path.join(draftDir, 'form.intent.json'));
+      // Заметки разбора черновик не держит — они в ответе; счёт ведётся по нему (`planNotes`).
+      const notes = planNotes(r.text);
+      const scored = intent ? { ...intent, warnings: notes.items } : null;
       entry.channels[ch] = {
         exit: r.exit,
         via: r.via,
@@ -115,14 +116,9 @@ export async function trackT1({ outDir, channels, texts }) {
         chars: r.text.length,
         warningsAt: warningsAt(r.text),
         intent,
-        counts: counts(intent),
-        score: facts && intent ? scoreIntent(facts, intent) : null,
+        counts: { ...counts(intent), warnings: notes.total },
+        score: facts && scored ? { ...scoreIntent(facts, scored), warnings: notes.total } : null,
       };
-    }
-    if (entry.channels.node && entry.channels.worker) {
-      const a = JSON.stringify(entry.channels.node.intent);
-      const b = JSON.stringify(entry.channels.worker.intent);
-      entry.parity = a === b;
     }
     result[c.id] = entry;
   }
@@ -145,7 +141,7 @@ export async function trackT1({ outDir, channels, texts }) {
 }
 
 // ---------------------------------------------------------------------------
-// T2 — intent → бандл
+// T2 — intent → модуль
 // ---------------------------------------------------------------------------
 
 /**
@@ -189,45 +185,34 @@ export async function trackT2({ outDir, texts }, t1) {
       ...(golden ? [['golden', golden]] : []),
     ];
     for (const [source, intent] of sources) {
-      for (const target of TARGETS) jobs.push({ c, source, intent: { ...intent, target }, target });
+      for (const target of TARGETS) {
+        jobs.push({ c, source, intent: intentForTarget(intent, target), target });
+      }
     }
   }
 
   const runs = await pool(jobs, 2, async ({ c, source, intent, target }) => {
-    const r = await inspect('node', 'tools/call', {
-      toolName: 'generate_form',
-      toolArgs: { intent },
-    });
-    texts.add('T2', 'node', 'generate_form', r.text);
     const name = `${c.id}-${source}-${target}`;
-    save(outDir, `t2/${name}.md`, r.text);
-    const parsed = parseGenerateForm(r.text);
     const dir = path.join(outDir, 'bundles', name);
-    writeBundle(dir, parsed);
-    const tsc = typecheck(dir, parsed);
+    prepareFormDirectory(dir, intent);
+    const r = await inspect('node', 'tools/call', {
+      toolName: 'form_build',
+      toolArgs: { dir },
+      timeoutMs: 180_000,
+    });
+    texts.add('T2', 'node', 'form_build', r.text);
+    save(outDir, `t2/${name}.md`, r.text);
+    const built = parseFormBuild(r.text);
+    const files = built.status === 'ok' ? readModule(dir) : [];
+    const tsc = files.length > 0 ? typecheck(dir, files) : [];
 
-    // Раскладка — такой, какой её соберёт агент по манифесту: напечатанные файлы плюс те, что
-    // манифест велит создать самому (`| \`types.ts\` | … | **создайте сами** |`). Без них
-    // проверка всегда отвечала RF012 на файлы, которых сервер печатать и не обещал.
-    const ownFiles = [...r.text.matchAll(/^\| `([^`]+)` \|.*\*\*создайте сами\*\*/gm)].map(
-      (m) => m[1]
-    );
+    // Раскладка — то, что записала сборка: модуль целиком, с intent и файлами потребителя.
     const layout = await inspect('node', 'tools/call', {
       toolName: 'validate_form',
-      toolArgs: {
-        kind: 'layout',
-        target,
-        files: [
-          ...new Set([
-            ...parsed.files.map((f) => f.path),
-            ...(parsed.indexSample ? ['index.tsx'] : []),
-            ...ownFiles,
-          ]),
-        ],
-      },
+      toolArgs: { kind: 'layout', target, files: files.map((f) => f.path) },
     });
     texts.add('T2', 'node', 'validate_form', layout.text);
-    const codeFiles = parsed.files.filter((f) => /\.tsx?$/.test(f.path));
+    const codeFiles = files.filter((f) => /\.tsx?$/.test(f.path));
     const code = await pool(codeFiles, CONCURRENCY, async (f) => {
       const v = await inspect('node', 'tools/call', {
         toolName: 'validate_form',
@@ -245,11 +230,13 @@ export async function trackT2({ outDir, texts }, t1) {
       via: r.via,
       ms: r.ms,
       chars: r.text.length,
-      status: parsed.status,
-      errors: parsed.errors,
-      warnings: parsed.warnings,
-      intentProblems: parsed.intentProblems,
-      files: parsed.files.map((f) => f.path),
+      status: built.status,
+      errors: built.errors,
+      warnings: built.warnings,
+      // Проблемы чтения intent `form_build` отдаёт ошибками сборки — они в `errors`.
+      intentProblems: [],
+      typesChecked: built.typesChecked,
+      files: files.map((f) => f.path),
       tsc,
       layout: parseValidate(layout.text),
       code,
