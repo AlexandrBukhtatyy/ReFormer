@@ -17,6 +17,7 @@
  */
 
 import { repairBehavior } from './behavior-repair.js';
+import { nameIgnoringCase } from './component-names.js';
 import { liftInline, rulesFromMap } from './intent-lift.js';
 import {
   INTENT_RECORDS,
@@ -2145,7 +2146,20 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
       at
     );
   }
-  const component = named ?? kindComponent ?? (htmlTag ? 'div' : 'Box');
+  // `card` вместо `Card`: имя однозначно, как у поля в `normalizeFieldComponent` (ReFormer-11oe.19).
+  const inCase =
+    named && !(named in ctx.uiKit.exports)
+      ? nameIgnoringCase(named, Object.keys(ctx.uiKit.exports))
+      : null;
+  if (inCase) {
+    warn(
+      ctx,
+      'component-normalized',
+      `${at}: \`${named}\` is \`${inCase}\` — component names are case-sensitive.`,
+      at
+    );
+  }
+  const component = inCase ?? named ?? kindComponent ?? (htmlTag ? 'div' : 'Box');
   const props = takeRecord(raw, 'componentProps', ['props'], ctx, at);
   const componentProps: Record<string, unknown> = { ...props };
   finish(ctx, raw, at, 'container-node', (key, value) =>

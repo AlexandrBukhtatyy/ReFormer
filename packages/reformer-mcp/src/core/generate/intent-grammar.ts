@@ -21,7 +21,7 @@
  */
 
 import type { FormCatalogs } from './catalogs.js';
-import { nearestKey } from './intent-messages.js';
+import { didYouMean, nameIgnoringCase, suggestComponents } from './component-names.js';
 import { UI_KIT_PACKAGE } from './ui-kit-components.js';
 import type { PropsSchema } from './ui-kit-props.js';
 import { renderRuleList } from './core-operators.js';
@@ -635,14 +635,13 @@ function componentDetails(catalogs: FormCatalogs, names: readonly string[]): str
     return 'The @reformer/ui-kit catalog was not found: there is nothing to describe.';
   }
   const known = Object.keys(uiKit.exports);
-  const byLower = new Map(known.map((name) => [name.toLowerCase(), name]));
-  const nearest = new Map(known.map((name) => [name, name]));
   const blocks = names.slice(0, COMPONENT_DETAILS_LIMIT).map((asked) => {
-    const name = byLower.get(asked.toLowerCase());
+    const name = nameIgnoringCase(asked, known);
     if (name) return describeComponent(name, catalogs);
-    const near = nearestKey(asked, nearest);
+    // `TextField` или `выпадающий список` — синоним называет компонент кита, как в ошибке сборки.
+    const hint = didYouMean(suggestComponents(asked, known));
     return (
-      `## ${asked} — not in @reformer/ui-kit${near ? `; did you mean \`${near}\`?` : '.'} ` +
+      `## ${asked} — not in @reformer/ui-kit${hint ? `; ${hint}` : '.'} ` +
       'The list: form_build {"grammar":"components"}'
     );
   });

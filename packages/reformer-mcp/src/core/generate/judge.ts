@@ -28,7 +28,7 @@ import {
   type IntentProblemCode,
   type IntentWarningCode,
 } from './form-intent.js';
-import { nearestKey } from './intent-messages.js';
+import { didYouMean, suggestComponents } from './component-names.js';
 import { buildFormSchemaJson } from './schema-emit.js';
 import { checkComponentProps } from './ui-kit-props.js';
 
@@ -132,17 +132,16 @@ function unknownComponents(
   if (!catalogs.uiKit.found) return [];
   const kit = Object.keys(catalogs.uiKit.exports);
   const known = new Set([...kit, ...BUILTIN_COMPONENTS]);
-  const names = new Map(kit.map((name) => [name, name]));
   return [...collectUsedComponents(intent)]
     .filter((name) => !known.has(name))
     .sort()
     .map((name) => {
-      const near = nearestKey(name, names);
+      // Опечатка — по расстоянию правки, имя из другой библиотеки или словами — по синонимам.
+      const hint = didYouMean(suggestComponents(name, kit));
       return {
         code: 'unknown-component' as const,
         message:
-          `the component \`${name}\` is not in @reformer/ui-kit` +
-          (near ? ` — did you mean \`${near}\`?` : ''),
+          `the component \`${name}\` is not in @reformer/ui-kit` + (hint ? ` — ${hint}` : ''),
         // Перечень — раздел `## components` грамматики. Раньше подсказка вела в грамматику, где были
         // одни поля, и контейнер модель угадывала заново (ReFormer-11oe.15). У билдера form_build нет.
         hint: forDocument

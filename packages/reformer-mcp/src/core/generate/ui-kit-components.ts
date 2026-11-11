@@ -16,6 +16,8 @@
  * связывает поле с моделью обёртка (`FormField` / лист рендерера).
  */
 
+import { nameIgnoringCase } from './component-names.js';
+
 /** Пакет кита: корень импортов и префикс подпутей. */
 export const UI_KIT_PACKAGE = '@reformer/ui-kit';
 
@@ -216,6 +218,13 @@ export function normalizeFieldComponent(
     if (registry) {
       notes.push(`\`${name}\` is the export name; the registry knows it as \`${registry}\`.`);
       name = registry;
+    } else {
+      // `input` вместо `Input`: имя однозначно, ход модели на ошибку не тратится (ReFormer-11oe.19).
+      const inCase = nameIgnoringCase(name, Object.keys(kit.fields));
+      if (inCase) {
+        notes.push(`\`${name}\` is \`${inCase}\` — component names are case-sensitive.`);
+        name = inCase;
+      }
     }
   }
 
