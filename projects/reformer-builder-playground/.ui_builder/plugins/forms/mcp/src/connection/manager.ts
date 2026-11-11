@@ -33,7 +33,8 @@ import {
 } from '../config/types';
 import type { McpHost } from '../host';
 import { secretKeyOf } from '../secrets';
-import type { McpCallResult, McpSession, McpTool, SessionOpeners } from './session';
+import { buildMismatchNote } from './build-check';
+import type { McpCallResult, McpServerInfo, McpSession, McpTool, SessionOpeners } from './session';
 import {
   createSupervisor,
   SupervisorError,
@@ -141,6 +142,8 @@ export function isMixedContent(url: string, pageProtocol: string | undefined): b
   }
 }
 
+const noteOf = (note: string | null): string[] => (note === null ? [] : [note]);
+
 /** Собрать менеджер. Конфигурация читается `reload()` — его зовёт плагин на активации. */
 export function createMcpManager(options: ManagerOptions): McpManager {
   const { host, openers } = options;
@@ -149,6 +152,8 @@ export function createMcpManager(options: ManagerOptions): McpManager {
   let specs: readonly ServerSpec[] = [];
   let problems: readonly string[] = [];
   const toolsCache = new Map<string, readonly McpTool[]>();
+  /** `serverInfo` последней сессии: по нему сверяется сборка воркера ReFormer (`./build-check`). */
+  const serverInfos = new Map<string, McpServerInfo>();
   const scripts = new Map<string, Blob>();
   const unreadable = new Map<string, string>();
   const values = new Map<string, string>();
@@ -221,8 +226,12 @@ export function createMcpManager(options: ManagerOptions): McpManager {
         spec.kind === 'http' || spec.kind === 'sse'
           ? variablesOf(spec).map((name) => ({ name, set: values.has(name) }))
           : [],
-      notes:
-        spec.kind === 'bundle' || spec.kind === 'http' || spec.kind === 'sse' ? spec.notes : [],
+      notes: [
+        ...(spec.kind === 'bundle' || spec.kind === 'http' || spec.kind === 'sse'
+          ? spec.notes
+          : []),
+        ...noteOf(buildMismatchNote(serverInfos.get(spec.name))),
+      ],
     };
   };
 
@@ -246,22 +255,33 @@ export function createMcpManager(options: ManagerOptions): McpManager {
     notify();
   };
 
+  /** Запомнить, как сервер представился: смена сборки видна в снимке. */
+  const remember = (name: string, session: McpSession): McpSession => {
+    const known = serverInfos.get(name);
+    if (session.server !== undefined && session.server.version !== known?.version) {
+      serverInfos.set(name, session.server);
+      notify();
+    }
+    return session;
+  };
+
   const open = async (name: string, lost: (error: Error) => void): Promise<McpSession> => {
     const spec = specOf(name);
     if (spec === undefined || !isLaunchable(spec))
       throw new Error(`MCP server ${name} is not configured`);
     if (spec.kind === 'bundle') {
-      return openers.worker({
+      const session = await openers.worker({
         name,
         script: await scriptOf(spec),
         onToolsChanged: onToolsChanged(name),
         lost,
       });
+      return remember(name, session);
     }
     const resolved = resolveRemote(spec, Object.fromEntries(values));
     if (!resolved.ok)
       throw new Error(`MCP server ${name} needs values: ${resolved.missing.join(', ')}`);
-    return openers.remote({
+    const session = await openers.remote({
       name,
       kind: spec.kind,
       url: resolved.url,
@@ -269,6 +289,7 @@ export function createMcpManager(options: ManagerOptions): McpManager {
       onToolsChanged: onToolsChanged(name),
       lost,
     });
+    return remember(name, session);
   };
 
   /** Сервер, к которому можно идти, либо ошибка для модели. */
@@ -363,6 +384,7 @@ export function createMcpManager(options: ManagerOptions): McpManager {
     async reload() {
       await supervisor.closeAll();
       toolsCache.clear();
+      serverInfos.clear();
       scripts.clear();
       unreadable.clear();
       const discovered = await discoverServers(host);

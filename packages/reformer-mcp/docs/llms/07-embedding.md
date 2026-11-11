@@ -12,6 +12,7 @@ An agent that only calls the server's tools does not need this file.
 | `@reformer/mcp/core`  | `createKnowledge(sources)`, `memoize`; types `Knowledge`, `KnowledgeSources`, `SymbolsFallback`, `UiKitCatalogSource` |
 | `@reformer/mcp/browser` | `createBrowserKnowledge(input)` → `{ knowledge, issues }` — knowledge from already loaded data   |
 | `@reformer/mcp/intent`  | the form-intent compiler and its judge as pure functions — no server, no disk                    |
+| `@reformer/mcp/build-info` | `BUILD_ID` (hash of the sources), `buildIdOf(version)` — to match copies built apart         |
 | `@reformer/mcp/package.json`, `@reformer/mcp/*` | raw files of the package (`llms.txt`, `docs/llms/*.md`, `dist/worker/server.js`) |
 
 `core/` holds no Node globals (`npm run check:no-node-globals` guards it), so `./core`,
@@ -124,7 +125,13 @@ Differences from the Node server:
   none), no `report_issue` (a report in worker memory would be lost), no `debug`. A host builds the
   form itself from an intent — with `@reformer/mcp/intent`, as the Builder assistant's `build_form`;
 - no prompts: they are rendered from template files and ask the client for sampling;
-- the same resources: `reformer://guide`, `reformer://catalog`, `reformer://docs/…`.
+- its own `instructions` and `reformer://guide` — a map of the reference tools; the corpus has no
+  docs of `@reformer/mcp` itself (they describe `form_build`).
 
-Rebuild only the worker bundle (needs a built `dist`): `npm run build:worker -w @reformer/mcp`;
-`-- --out <dir>` also copies it there.
+The version in `serverInfo` carries the build: `6.0.0+<BUILD_ID>`. A host that also bundles
+`@reformer/mcp/intent` compares it with its own `BUILD_ID` — different builds judge one form
+differently. `reformer://status` names `buildId` and the `corpusHash` of the built-in corpus.
+
+The corpus is built once, into `dist/knowledge` (with `knowledge-manifest.json`); the worker embeds
+that copy. Rebuild only the worker bundle: `npm run build:worker -w @reformer/mcp` (`-- --out <dir>`
+also copies it there) — it stops if `dist` is older than the sources.

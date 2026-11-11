@@ -4,7 +4,8 @@
  * Реестр ассистента режет ответ вклада до 1500 символов с конца, посреди строки. Поэтому
  * длинное режется здесь, по строкам, и с указателем на продолжение: полный ответ вызова и
  * полная схема инструмента лежат ресурсами `mcp:` (`./results`), и модель читает их
- * `read_resource` страницами по 6000 символов, — дороже не становится ни одна поверхность.
+ * `read_resource` страницами с `offset` — ответ вызова с той строки, где кончилась первая страница.
+ * Дороже не становится ни одна поверхность.
  *
  * Всё, что пришло от сервера, помечается как данные, а не инструкции: описание инструмента и его
  * ответ пишет третья сторона, и модель не должна выполнять «указания» из них.
@@ -150,8 +151,21 @@ export function callText(result: McpCallResult): string {
   return JSON.stringify(result.structuredContent, null, 2);
 }
 
+/** Указатель на продолжение длинного ответа — в формате `read_file`/`read_resource`. */
+function continuation(uri: string, offset: number, total: number, chars: number): string {
+  return (
+    `\n… lines 1-${offset - 1} of ${total} (${chars} chars). ` +
+    `Continue: read_resource uri=${uri} offset=${offset}`
+  );
+}
+
 /**
- * Ответ вызова для модели: пометка, текст, а длинный — началом и ссылкой на полный ресурс.
+ * Ответ вызова для модели: пометка, текст, а длинный — первой страницей и указателем на
+ * продолжение.
+ *
+ * Продолжение — с той строки, где страница кончилась, а не с начала: раньше указатель вёл на
+ * полный ресурс, и модель перечитывала уже показанное, не зная, где остановилась. Строки — строки
+ * ресурса `mcp:result/<n>` (`./results`): первая — пометка чужих данных, затем текст ответа.
  *
  * @param keep - Сохранить полный текст; возвращает адрес ресурса.
  */
@@ -165,9 +179,15 @@ export function formatCall(
   const text = callText(result) || '(empty result)';
   if (header.length + 1 + text.length <= ANSWER_BUDGET) return `${header}\n${text}`;
   const uri = keep(text);
-  const pointer = `\n…\nFull result (${text.length} chars): read_resource ${uri}`;
-  const room = ANSWER_BUDGET - header.length - 1 - pointer.length;
+  const total = 1 + text.split('\n').length;
+  // Место — под указатель с самым длинным номером строки: номер известен только после обрыва.
+  const room =
+    ANSWER_BUDGET - header.length - 1 - continuation(uri, total, total, text.length).length;
   // Обрыв — по концу строки, если он близко: модель хуже читает разорванную строку JSON.
   const cut = text.lastIndexOf('\n', room);
-  return `${header}\n${text.slice(0, cut > room * 0.6 ? cut : room)}${pointer}`;
+  const atLineEnd = cut > room * 0.6;
+  const shown = text.slice(0, atLineEnd ? cut : room);
+  // Целые строки страницы пропускаются; оборванная строка — первой в продолжении.
+  const offset = 1 + shown.split('\n').length + (atLineEnd ? 1 : 0);
+  return `${header}\n${shown}${continuation(uri, offset, total, text.length)}`;
 }

@@ -20,9 +20,11 @@ import {
   type MessageEventLike,
   type MessagePortLike,
 } from '../src/platform/worker/port-transport';
+import { readBuildId, readManifest } from '../scripts/lib/build-stamp.mjs';
 import { precondition } from './support/preconditions';
 
-const bundleFile = resolve(__dirname, '../dist/worker/server.js');
+const pkgDir = resolve(__dirname, '..');
+const bundleFile = resolve(pkgDir, 'dist/worker/server.js');
 
 type Listener = (event: MessageEventLike) => void;
 
@@ -88,10 +90,19 @@ describe.runIf(
     const version = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8')) as {
       version: string;
     };
+    // Метка сборки — build-метаданные версии: по ней конструктор сверяет воркер с плагинами.
+    const buildId = readBuildId(pkgDir);
     expect(client.getServerVersion()).toMatchObject({
       name: 'reformer-mcp',
-      version: version.version,
+      version: `${version.version}+${buildId}`,
     });
+    // Статус называет ту же метку и хэш вшитого корпуса — тот же, что в dist/knowledge.
+    const status = await client.readResource({ uri: 'reformer://status' });
+    const { server } = JSON.parse((status.contents[0] as { text: string }).text) as {
+      server: { buildId: string; corpusHash: string };
+    };
+    expect(server.buildId).toBe(buildId);
+    expect(server.corpusHash).toBe(readManifest(pkgDir).corpusHash);
 
     const { tools } = await client.listTools();
     const names = tools.map((tool) => tool.name);

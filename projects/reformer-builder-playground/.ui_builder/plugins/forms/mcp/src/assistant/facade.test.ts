@@ -127,12 +127,35 @@ describe('mcp_call', () => {
     });
     const text = textOf(await call.run({ server: 'reformer', tool: 'get_symbol_docs' }, ctx));
     expect(text.length).toBeLessThanOrEqual(ANSWER_BUDGET);
-    const uri = /read_resource (mcp:result\/\d+)/.exec(text)?.[1];
-    expect(uri).toBe('mcp:result/1');
+    const pointer = /read_resource uri=(mcp:result\/\d+) offset=(\d+)/.exec(text);
+    expect(pointer?.[1]).toBe('mcp:result/1');
 
-    const full = await provider.read(uri!, ctx.signal);
+    const full = await provider.read(pointer![1]!, ctx.signal);
     expect(full).toMatchObject({ ok: true });
-    expect((full as { text: string }).text).toContain('line 199 of the symbol docs');
+    const lines = (full as { text: string }).text.split('\n');
+    expect(lines.at(-1)).toBe('line 199 of the symbol docs');
+
+    // Продолжение — ровно со строки после последней показанной: без пропуска и без повтора.
+    const offset = Number(pointer![2]);
+    const shown = text.split('\n').filter((line) => line.startsWith('line '));
+    expect(lines[offset - 2]).toBe(shown.at(-1));
+    expect(text).toContain(`lines 1-${offset - 1} of ${lines.length}`);
+  });
+
+  it('длинная строка без переносов — продолжение с оборванной строки', async () => {
+    const { call, provider } = await setup({
+      reformer: {
+        tools: [fakeTool('search_docs')],
+        call: () => ({ content: [{ type: 'text', text: `head\n${'x'.repeat(3000)}` }] }),
+      },
+    });
+    const text = textOf(await call.run({ server: 'reformer', tool: 'search_docs' }, ctx));
+    expect(text.length).toBeLessThanOrEqual(ANSWER_BUDGET);
+    const offset = Number(/offset=(\d+)/.exec(text)?.[1]);
+    const full = (await provider.read('mcp:result/1', ctx.signal)) as { text: string };
+    // Строка 1 — пометка, 2 — head, 3 — оборванная: с неё и продолжение.
+    expect(offset).toBe(3);
+    expect(full.text.split('\n')[offset - 1]).toBe('x'.repeat(3000));
   });
 
   it('ошибка инструмента сервера — отказ FAILED с текстом сервера', async () => {

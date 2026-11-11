@@ -5,7 +5,9 @@
  *   node scripts/build-worker.mjs [--out <dir>]
  *
  * Бандл самодостаточный: код сервера (`dist/platform/worker/server.js` поверх SDK) плюс корпус
- * знаний — тот же артефакт, что собирает `build-knowledge-bundle.mjs`, вшитый строкой. Хост
+ * знаний из `dist/knowledge` (его собирает `build-knowledge-bundle.mjs` в `npm run build`), вшитый
+ * строкой, и манифест корпуса. Перед сборкой — проверка свежести `dist` (`./lib/build-stamp.mjs`):
+ * `mcp:build` конструктора из устаревшего `dist` останавливается с командой, а не собирает молча. Хост
  * кладёт файл в `.ui_builder/mcp/<имя>/server.js` проекта и запускает его воркером из Blob;
  * соседних файлов и своего протокола загрузки нет — их не знал бы ни один другой MCP-хост.
  *
@@ -18,14 +20,12 @@
  * Требует собранный `dist` (tsc): сервер воркера и ядро, которое читает генератор корпуса.
  */
 
-import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -35,6 +35,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
+import { assertFresh, KNOWLEDGE_DIR, readManifest } from './lib/build-stamp.mjs';
 
 const pkgDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(pkgDir, '../..');
@@ -86,23 +87,22 @@ function writeUiKitCatalog(dir) {
   return out;
 }
 
-// Корпус — во временный каталог ВНЕ репозитория: это промежуточный файл сборки, а не артефакт.
+// Код и корпус — из `dist`, и только свежие: бандл из устаревшего `dist` судил бы формы не так,
+// как исходники, а в конструкторе этого не видно. Корпус собирает `npm run build` (dist/knowledge),
+// здесь он только вшивается — та же копия, что у справки конструктора (`copy-knowledge.mjs`).
+await assertFresh(pkgDir, repoRoot, 'бандл воркера');
+const knowledgeDir = path.join(pkgDir, 'dist', KNOWLEDGE_DIR);
+const manifest = readManifest(pkgDir);
+
+// Временный каталог ВНЕ репозитория: промежуточные файлы сборки, а не артефакт.
 const corpusDir = mkdtempSync(path.join(os.tmpdir(), 'reformer-mcp-worker-'));
 try {
-  const corpus = spawnSync(
-    process.execPath,
-    [path.join(pkgDir, 'scripts', 'build-knowledge-bundle.mjs'), '--out', corpusDir],
-    { stdio: 'inherit' }
-  );
-  // Не `process.exit`: он не дал бы `finally` убрать временный каталог.
-  if (corpus.status !== 0) throw new Error('корпус знаний не собран — см. сообщение выше');
-
   // Корпус вшивается ТЕКСТОМ, поэтому файлы получают расширение `.txt` — его esbuild и так грузит
   // строкой. Загрузчик `text` для всех `.json` не годится: под ним строками стали бы и мета-схемы
   // ajv внутри SDK, и `new Server()` упал бы на «schema must be object or boolean».
   const asText = (name) => {
     const file = path.join(corpusDir, `${name}.txt`);
-    renameSync(path.join(corpusDir, `${name}.json`), file);
+    copyFileSync(path.join(knowledgeDir, `${name}.json`), file);
     return file;
   };
   const indexFile = asText('knowledge-index');
@@ -116,6 +116,7 @@ try {
     'startWorkerServer({',
     '  port: self,',
     `  version: ${JSON.stringify(version)},`,
+    `  manifest: ${JSON.stringify(manifest)},`,
     '  corpus: () => ({',
     '    index: JSON.parse(indexText),',
     '    docs: JSON.parse(docsText),',

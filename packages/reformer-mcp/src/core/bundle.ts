@@ -39,6 +39,22 @@ export interface DocsBundle {
 }
 
 /** Артефакт чужой мажорной версии читать нельзя: поля могли поменять смысл. */
+/**
+ * Манифест корпуса — `knowledge-manifest.json` рядом с артефактами (`build-knowledge-bundle.mjs`).
+ * По нему сверяются копии корпуса: воркер и справка конструктора несут один и тот же.
+ */
+export interface CorpusManifest {
+  readonly schemaVersion: number;
+  /** Версия `@reformer/mcp`, собравшего корпус. */
+  readonly version: string;
+  /** Метка сборки кода (`@reformer/mcp/build-info`), с которой собран корпус. */
+  readonly buildId: string | null;
+  /** Хэш содержимого пакетов: одинаковые тексты — одинаковый хэш. */
+  readonly corpusHash: string;
+  readonly builtAt: string;
+  readonly packages: readonly string[];
+}
+
 export function isSupportedBundle(value: unknown): boolean {
   const b = value as { schemaVersion?: unknown } | null;
   return !!b && typeof b === 'object' && b.schemaVersion === BUNDLE_SCHEMA_VERSION;

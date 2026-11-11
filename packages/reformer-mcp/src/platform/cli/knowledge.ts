@@ -12,6 +12,7 @@
 
 import { readFileSync, statSync } from 'fs';
 import { join } from 'path';
+import { BUILD_ID } from '../../build-info.js';
 import { KNOWN_PACKAGES, OWN_PACKAGE } from '../../core/docs/packages.js';
 import { createKnowledge, type Knowledge } from '../../core/knowledge.js';
 import type { PublicSymbol } from '../../core/index/public-symbol.js';
@@ -82,8 +83,7 @@ function serverIdentity(): PlatformStatus['server'] {
       // версия неизвестна
     }
   }
-  const built = mtimeOf(join(serverDirectory(), 'knowledge.js'));
-  return { version, buildId: built > 0 ? new Date(built).toISOString() : null };
+  return { version, buildId: BUILD_ID };
 }
 
 /** Часть статуса, которую знает только CLI. */

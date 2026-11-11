@@ -72,7 +72,9 @@ function toolOf(tool: { name: string; description?: string; inputSchema: object 
 
 /** Сессия над подключённым клиентом. */
 function sessionOf(client: Client, beforeClose?: () => Promise<void>): McpSession {
+  const info = client.getServerVersion();
   return {
+    ...(info === undefined ? {} : { server: { name: info.name, version: info.version } }),
     async listTools(signal) {
       const tools: McpTool[] = [];
       let cursor: string | undefined;

@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { BUILD_ID } from '@reformer/mcp/build-info';
 import { startWorkerServer } from '@reformer/mcp/dist/platform/worker/server.js';
 import { createRemoteOpener, createWorkerOpener, type WorkerLike } from './mcp-client';
 
@@ -77,6 +78,11 @@ describe.runIf(hasCorpus)('воркер сервера-бандла', () => {
       name: 'reformer',
       script: new Blob(['/* скрипт не исполняется: воркер — двойник */']),
       ...events,
+    });
+    // Воркер из dist называет метку сборки — по ней менеджер сверяет его с плагинами.
+    expect(session.server).toEqual({
+      name: 'reformer-mcp',
+      version: BUILD_ID === 'dev' ? '0.0.0-test' : `0.0.0-test+${BUILD_ID}`,
     });
 
     const tools = await session.listTools();
@@ -191,6 +197,7 @@ describe('удалённый сервер', () => {
   it('Streamable HTTP: подключение, вызов, заголовки; закрытие — DELETE сессии', async () => {
     const remote = fakeRemote();
     const session = await createRemoteOpener(remote.fetchImpl)(input);
+    expect(session.server).toEqual({ name: 'fake-remote', version: '1.0.0' });
     expect((await session.listTools()).map((tool) => tool.name)).toEqual(['search']);
     const result = await session.callTool('search', { q: 'wizard' });
     expect(result.content[0]).toEqual({ type: 'text', text: 'found {"q":"wizard"}' });

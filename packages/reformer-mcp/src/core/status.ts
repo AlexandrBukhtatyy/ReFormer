@@ -37,8 +37,15 @@ export interface PackageLocationStatus {
 /** Часть статуса, которую знает только платформа. */
 export interface PlatformStatus {
   readonly profile: 'node' | 'browser';
-  /** Сервер: имя пакета, версия и метка сборки (у воркера — время сборки корпуса). */
-  readonly server: { readonly version: string; readonly buildId: string | null };
+  /**
+   * Сервер: версия, метка сборки кода (`@reformer/mcp/build-info`; `dev` — из исходников) и, где
+   * корпус вшит, хэш корпуса из его манифеста — по ним сверяются копии MCP, собранные порознь.
+   */
+  readonly server: {
+    readonly version: string;
+    readonly buildId: string | null;
+    readonly corpusHash?: string | null;
+  };
   /** Пакеты, как их нашла платформа. В браузере — то, что вшито в артефакт. */
   readonly packages: readonly PackageLocationStatus[];
   /** Проверка типов `form_build`: у браузера её нет вовсе. */

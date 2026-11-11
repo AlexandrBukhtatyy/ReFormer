@@ -85,13 +85,22 @@ describe('reformer://status — браузер', () => {
         builtAt: '2026-11-11T00:00:00.000Z',
         packages: {},
       },
+      manifest: {
+        schemaVersion: 1,
+        version: '7.0.0-test',
+        buildId: 'dev',
+        corpusHash: 'c0ffee0000000000',
+        builtAt: '2026-11-11T00:00:00.000Z',
+        packages: [],
+      },
     });
     const status = JSON.parse(
       resourceText(createResourceCatalog(() => knowledge).read('reformer://status'))
     );
+    // Метка — кода (из исходников — `dev`), хэш — вшитого корпуса: по ним сверяются копии.
     expect(status).toMatchObject({
       profile: 'browser',
-      server: { version: '7.0.0-test', buildId: '2026-11-11T00:00:00.000Z' },
+      server: { version: '7.0.0-test', buildId: 'dev', corpusHash: 'c0ffee0000000000' },
       ready: false,
       typecheck: { available: false },
     });

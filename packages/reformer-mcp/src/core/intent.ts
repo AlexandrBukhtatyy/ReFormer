@@ -86,3 +86,5 @@ export {
   type CoreRule,
 } from './generate/core-operators.js';
 export { findCycle, type Dependency } from './utils/graph.js';
+// Метка сборки: хост сверяет по ней свою копию компилятора с воркером MCP (ReFormer-11oe.6).
+export { BUILD_ID, buildIdOf } from '../build-info.js';

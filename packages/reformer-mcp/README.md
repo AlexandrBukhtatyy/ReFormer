@@ -64,11 +64,13 @@ claude mcp list
 | `@reformer/mcp/core`                            | `createKnowledge`, `memoize` и типы знаний сервера                                                                                             |
 | `@reformer/mcp/browser`                         | `createBrowserKnowledge` — знания из уже загруженных данных, для браузера                                                                      |
 | `@reformer/mcp/intent`                          | компилятор описания формы и его судья чистыми функциями: `judgeIntent` (вердикт `form_build`), `readIntent`, `buildBehaviorTs`, `findCycle`, … |
+| `@reformer/mcp/build-info`                      | `BUILD_ID` — метка сборки (хэш исходников) и `buildIdOf(version)`: сверка копий MCP, собранных порознь                                         |
 | `@reformer/mcp/package.json`, `@reformer/mcp/*` | файлы пакета: `llms.txt`, `docs/llms/*.md`, бандл воркера `dist/worker/server.js`                                                              |
 
 Тот же сервер работает в браузерном Web Worker (`dist/worker/server.js`, корпус знаний вшит) как
 справочный канал: только справочные инструменты, без `form_build`, `plan_form`, `report_issue` и
-промптов. Подключение воркера и входы для встраивания —
+промптов. Версия в его `serverInfo` несёт метку сборки (`6.0.0+<BUILD_ID>`) — конструктор сверяет её
+со своей копией `@reformer/mcp/intent`. Подключение воркера и входы для встраивания —
 [docs/llms/07-embedding.md](./docs/llms/07-embedding.md).
 
 ## Переменные окружения

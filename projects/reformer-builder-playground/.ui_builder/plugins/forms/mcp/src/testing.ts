@@ -6,7 +6,13 @@
 
 import type { ResourceRef } from '@reformer/builder-plugin-api';
 import type { McpHost } from './host';
-import type { McpCallResult, McpSession, McpTool, SessionOpeners } from './connection/session';
+import type {
+  McpCallResult,
+  McpServerInfo,
+  McpSession,
+  McpTool,
+  SessionOpeners,
+} from './connection/session';
 import type { Clock } from './connection/supervisor';
 
 /** Корень проекта двойника. */
@@ -127,6 +133,8 @@ export function createFakeClock(): Clock & { advance(ms: number): void; readonly
 /** Сервер-двойник: инструменты и ответы вызовов. */
 export interface FakeServer {
   readonly tools: McpTool[];
+  /** `serverInfo` сессии; без него сервер не представляется. */
+  readonly server?: McpServerInfo;
   call?(name: string, args: Record<string, unknown>): McpCallResult | Promise<McpCallResult>;
 }
 
@@ -160,6 +168,7 @@ export function createFakeOpeners(
   const remoteRequests: FakeOpeners['remoteRequests'] = [];
 
   const session = (name: string): McpSession => ({
+    ...(servers[name]?.server === undefined ? {} : { server: servers[name].server }),
     listTools: async () => [...(servers[name]?.tools ?? [])],
     async callTool(tool, args) {
       calls.push({ server: name, tool, args });

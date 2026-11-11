@@ -13,9 +13,11 @@
  * отсутствующей. MCP-сервер решает это, читая индекс у установленного пакета
  * (`core/index/merge.ts`); источник рабочей области даёт браузеру ту же возможность.
  *
- * Артефакт (`generated/knowledge-index.json` и `knowledge-docs.json`) генерируется при сборке
- * из `llms.txt` и `llms-index.json` установленных пакетов, и в git не коммитится: его версия
- * обязана совпадать со сборкой, а не с моментом, когда его последний раз обновили руками.
+ * Артефакт (`generated/knowledge-index.json`, `knowledge-docs.json` и манифест) копируется при
+ * сборке из `dist/knowledge` пакета `@reformer/mcp` (`copy-knowledge.mjs`) — тот же корпус, что
+ * вшит в воркер MCP, с тем же `corpusHash`. Копия из устаревшего `dist` останавливает сборку. В git
+ * артефакт не коммитится: его версия обязана совпадать со сборкой, а не с моментом, когда его
+ * последний раз обновили руками.
  *
  * Импорт ОБЯЗАТЕЛЬНО динамический: статический положил бы 2.8 МБ JSON в основной чанк, и за них
  * платил бы размером первого экрана каждый, кто ассистентом не пользуется.
@@ -104,9 +106,16 @@ async function bundledKnowledge(): Promise<KnowledgeSource | null> {
       import('./generated/knowledge-index.json'),
       import('./generated/knowledge-docs.json'),
     ]);
+    // Манифест — для сверки копий корпуса (`reformer://status`, corpusHash): тот же, что вшит в
+    // воркер. Его нет в старом артефакте — корпус от этого не хуже, поэтому без отказа.
+    const manifest = await import('./generated/knowledge-manifest.json').then(
+      (module) => (module.default ?? module) as never,
+      () => null
+    );
     const { knowledge } = createBrowserKnowledge({
       index: (index.default ?? index) as never,
       docs: (docs.default ?? docs) as never,
+      manifest,
     });
     return { knowledge, origin: 'bundle', versions: {} };
   } catch (error) {

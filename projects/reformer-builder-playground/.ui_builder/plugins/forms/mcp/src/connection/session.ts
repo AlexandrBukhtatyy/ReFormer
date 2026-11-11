@@ -34,8 +34,16 @@ export interface McpCallResult {
   readonly isError?: boolean;
 }
 
+/** Сервер, как он представился в `initialize` (`serverInfo`). */
+export interface McpServerInfo {
+  readonly name: string;
+  readonly version: string;
+}
+
 /** Открытое соединение с сервером. */
 export interface McpSession extends Session {
+  /** `serverInfo` из `initialize`; `undefined` — сервер не представился. */
+  readonly server?: McpServerInfo;
   /** Все инструменты сервера (постранично, не больше {@link MAX_TOOLS}). */
   listTools(signal?: AbortSignal): Promise<McpTool[]>;
   callTool(

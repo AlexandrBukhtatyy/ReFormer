@@ -22,6 +22,8 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { versionWithBuild } from '../../build-info.js';
+import type { CorpusManifest } from '../../core/bundle.js';
 import type { Knowledge } from '../../core/knowledge.js';
 import { mountReformerServer } from '../../core/server/mount.js';
 import { REFERENCE_INSTRUCTIONS } from '../../core/server/reference-guide.js';
@@ -37,6 +39,8 @@ export interface WorkerServerOptions {
   readonly version: string;
   /** Корпус знаний. Функция: разбор откладывается до первого вызова, которому он нужен. */
   readonly corpus: () => BrowserKnowledgeInput;
+  /** Манифест вшитого корпуса — в `reformer://status`. Мал, поэтому не ленивый. */
+  readonly manifest?: CorpusManifest | null;
 }
 
 export interface WorkerServer {
@@ -52,11 +56,13 @@ export function startWorkerServer(options: WorkerServerOptions): WorkerServer {
   const lazyKnowledge = (): Knowledge =>
     (knowledge ??= createBrowserKnowledge({
       version: options.version,
+      manifest: options.manifest ?? null,
       ...options.corpus(),
     }).knowledge);
 
   const server = new Server(
-    { name: 'reformer-mcp', version: options.version },
+    // Метка сборки — в версии: хост сверяет её со своей копией `@reformer/mcp/intent`.
+    { name: 'reformer-mcp', version: versionWithBuild(options.version) },
     { capabilities: { tools: {}, resources: {} }, instructions: REFERENCE_INSTRUCTIONS }
   );
   mountReformerServer(server, {

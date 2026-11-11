@@ -6,13 +6,19 @@
  * второй генератор рядом с ним разъехался бы первым же изменением схемы. Потребитель говорит
  * только КУДА положить.
  *
- *   node scripts/build-knowledge-bundle.mjs --out <dir> [--packages a,b] [--no-docs]
+ *   node scripts/build-knowledge-bundle.mjs [--out <dir>] [--packages a,b] [--no-docs]
+ *
+ * Место по умолчанию — `dist/knowledge`: корпус собирается ОДИН раз, при сборке пакета, а воркер
+ * (`build-worker.mjs`) и справка конструктора (`copy-knowledge.mjs`) берут его оттуда. Две
+ * сборки корпуса в разное время давали копии из разных текстов, и снаружи этого не было видно.
  *
  * Пакеты по умолчанию — `BROWSER_PACKAGES` ядра: артефакт читают только среды без диска (воркер,
  * справка конструктора), а там форму собирает хост, и документация MCP о `form_build` была бы
  * советом, которому не последовать.
  *
- * Выход: `<dir>/knowledge-index.json` (обязательный) и `<dir>/knowledge-docs.json`.
+ * Выход: `<dir>/knowledge-index.json` (обязательный), `<dir>/knowledge-docs.json` и манифест
+ * `<dir>/knowledge-manifest.json` — `{ version, buildId, corpusHash, builtAt, packages }`: метка
+ * сборки кода и хэш содержимого (`./lib/corpus.mjs`).
  * Разделены намеренно — см. докстринг `core/bundle.ts`.
  *
  * Детерминизм. `builtAt` берётся из максимального mtime источников, а не из текущего времени:
@@ -23,6 +29,8 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { KNOWLEDGE_DIR, MANIFEST_FILE, readBuildId } from './lib/build-stamp.mjs';
+import { corpusHash, readCorpusSources } from './lib/corpus.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(scriptDir, '..');
@@ -36,7 +44,8 @@ function flag(name, fallback = null) {
 }
 const has = (name) => process.argv.includes(`--${name}`);
 
-const outDir = path.resolve(flag('out') ?? path.join(pkgDir, 'bundle'));
+const outDir = path.resolve(flag('out') ?? path.join(pkgDir, 'dist', KNOWLEDGE_DIR));
+const { version } = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
 const withDocs = !has('no-docs');
 
 // Список пакетов и раскладку каталогов берём из ядра, а не дублируем: разъехавшись, они
@@ -56,30 +65,12 @@ const only = flag('packages');
 // недоступен (`BROWSER_PACKAGES`).
 const targets = only ? only.split(',').map((s) => s.trim()) : [...BROWSER_PACKAGES];
 
-const indexPackages = {};
-const docsPackages = {};
-let newest = 0;
-const missing = [];
-
-for (const pkg of targets) {
-  const dir = path.join(repoRoot, 'packages', packageDirName(pkg));
-  const indexFile = path.join(dir, 'llms-index.json');
-  const docsFile = path.join(dir, 'llms.txt');
-
-  if (existsSync(indexFile)) {
-    indexPackages[pkg] = JSON.parse(readFileSync(indexFile, 'utf8'));
-    newest = Math.max(newest, statSync(indexFile).mtimeMs);
-  } else {
-    missing.push(`${pkg}: llms-index.json`);
-  }
-
-  if (withDocs && existsSync(docsFile)) {
-    docsPackages[pkg] = readFileSync(docsFile, 'utf8');
-    newest = Math.max(newest, statSync(docsFile).mtimeMs);
-  } else if (withDocs) {
-    missing.push(`${pkg}: llms.txt`);
-  }
-}
+const { indexPackages, docsPackages, newest, missing } = readCorpusSources({
+  repoRoot,
+  packages: targets,
+  packageDirName,
+  withDocs,
+});
 
 if (Object.keys(indexPackages).length === 0) {
   console.error('✗ ни одного llms-index.json — сначала: npm run generate:llms');
@@ -119,6 +110,17 @@ if (withDocs) {
     packages: docsPackages,
   });
 }
+// Манифест: по нему копии корпуса сверяются между собой и со своими источниками.
+const manifest = {
+  schemaVersion: BUNDLE_SCHEMA_VERSION,
+  version,
+  buildId: readBuildId(pkgDir),
+  corpusHash: corpusHash({ indexPackages, docsPackages }),
+  builtAt,
+  withDocs,
+  packages: Object.keys(indexPackages),
+};
+write(MANIFEST_FILE, manifest);
 
 const symbols = Object.values(indexPackages).reduce((n, p) => n + p.symbols.length, 0);
 const topics = Object.values(indexPackages).reduce((n, p) => n + p.topics.length, 0);

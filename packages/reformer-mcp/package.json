@@ -9,6 +9,7 @@
     "./core": "./dist/core/knowledge.js",
     "./browser": "./dist/platform/browser/knowledge.js",
     "./intent": "./dist/core/intent.js",
+    "./build-info": "./dist/build-info.js",
     "./package.json": "./package.json",
     "./*": "./*"
   },
@@ -24,7 +25,7 @@
   ],
   "scripts": {
     "generate:llms": "node ../../scripts/generate-llms-txt .",
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && npm run generate:llms && tsc && node scripts/copy-templates.mjs && node scripts/build-worker.mjs",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && npm run generate:llms && tsc && node scripts/stamp-build.mjs && node scripts/copy-templates.mjs && node scripts/build-knowledge-bundle.mjs && node scripts/build-worker.mjs",
     "build:worker": "node scripts/build-worker.mjs",
     "dev": "tsc --watch",
     "start": "node dist/index.js",

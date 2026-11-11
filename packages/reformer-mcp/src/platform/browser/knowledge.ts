@@ -19,7 +19,8 @@
  * @module reformer-mcp/platform/browser/knowledge
  */
 
-import type { DocsBundle, IndexBundle } from '../../core/bundle.js';
+import { BUILD_ID } from '../../build-info.js';
+import type { CorpusManifest, DocsBundle, IndexBundle } from '../../core/bundle.js';
 import { KNOWN_PACKAGES } from '../../core/docs/packages.js';
 import { createKnowledge, type Knowledge } from '../../core/knowledge.js';
 import type { PlatformStatus } from '../../core/status.js';
@@ -50,6 +51,8 @@ export interface BrowserKnowledgeInput {
   uiKitCatalog?: unknown;
   /** Версия сервера на момент сборки бандла — для `reformer://status`. */
   version?: string;
+  /** Манифест вшитого корпуса: его хэш — в `reformer://status`, для сверки копий. */
+  manifest?: CorpusManifest | null;
 }
 
 /** Статус браузерного знания: что вшито в артефакт. Компилятора и диска здесь нет по природе. */
@@ -58,7 +61,11 @@ function browserStatus(input: BrowserKnowledgeInput): PlatformStatus {
   const components = (input.uiKitCatalog as { components?: unknown } | undefined)?.components;
   return {
     profile: 'browser',
-    server: { version: input.version ?? 'unknown', buildId: input.index?.builtAt ?? null },
+    server: {
+      version: input.version ?? 'unknown',
+      buildId: BUILD_ID,
+      corpusHash: input.manifest?.corpusHash ?? null,
+    },
     packages: KNOWN_PACKAGES.map((name) => {
       const index = packages[name] as { version?: unknown } | undefined;
       return {
