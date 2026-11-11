@@ -139,9 +139,15 @@ function report(kind: string, diagnostics: Diagnostic[], notes: string[] = []): 
   return lines.join('\n');
 }
 
+export interface ValidateFormOptions {
+  /** Есть ли у сервера `form_build`: в воркере билдера его нет, и советовать его нельзя. */
+  formBuild?: boolean;
+}
+
 export async function validateFormTool(
   args: ValidateFormArgs,
-  k: Knowledge
+  k: Knowledge,
+  options: ValidateFormOptions = {}
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const kind = String(args.kind ?? '').trim();
 
@@ -208,7 +214,8 @@ export async function validateFormTool(
           componentNames: args.componentNames,
           dataSourceNames: args.dataSourceNames,
         },
-        k
+        k,
+        options
       );
     }
 

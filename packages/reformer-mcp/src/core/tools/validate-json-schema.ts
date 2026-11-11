@@ -40,9 +40,60 @@ export interface ValidateJsonSchemaArgs {
   localeKeys?: string[];
 }
 
+export interface ValidateJsonSchemaOptions {
+  /** Есть ли у сервера `form_build` (под Node — да, в воркере билдера — нет): советовать ли его. */
+  formBuild?: boolean;
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Объект без `format` и без корня `root` — не документ формы: JSON Schema данных, FormIntent, конфиг.
+ *
+ * Проверка своя, а не текст библиотеки: `@reformer/renderer-json` проекта может быть старше и назвал
+ * бы такой объект «прежним форматом» с советом `migrateJsonSchema`. Переводить там нечего, и модель
+ * переписывала документ под ложный совет раз за разом (ReFormer-11oe.21). Документ прежнего формата
+ * (`root` без `format`) идёт в библиотеку: его она называет верно.
+ */
+function notAFormDocument(schema: unknown, formBuild: boolean): string | null {
+  if (!isObject(schema) || 'format' in schema || isObject(schema.root)) return null;
+  const meta = schema.$schema;
+  const intent = ['fields', 'formName', 'layoutRoot', 'steps'].some((key) => key in schema);
+  const data =
+    'properties' in schema ||
+    'type' in schema ||
+    (typeof meta === 'string' && meta.includes('json-schema.org'));
+  const what = intent
+    ? 'This is a FormIntent, not a form document.'
+    : data
+      ? 'This is a JSON Schema of the data ("properties", "type"), not a form document: the layout ' +
+        'of a form is a separate document, the shape of the data comes from the form model.'
+      : 'This is not a form document.';
+  const next = [
+    ...(formBuild
+      ? [
+          '- form_build writes the form document itself: write <dir>/form.intent.json and call ' +
+            'form_build {"dir":"<dir>"}; the intent format — form_build {"grammar":"base"}.',
+        ]
+      : []),
+    ...(intent ? ['- a FormIntent is checked by validate_form {"kind":"bundle","intent":…}.'] : []),
+    '- migrateJsonSchema will not help: it converts a form document of the previous format, and ' +
+      'this one has no tree of nodes.',
+  ];
+  return (
+    '# JSON schema — ❌ not a form document\n\n' +
+    `- /: no "format": 2 and no "root". ${what}\n` +
+    '- A form document is { "format": 2, "root": { … } }: a tree of nodes with "component" and ' +
+    '"children", fields bound by "$model(path)".\n\n' +
+    `## Next\n${next.join('\n')}`
+  );
+}
+
 export async function validateJsonSchemaTool(
   args: ValidateJsonSchemaArgs,
-  k?: Knowledge
+  k?: Knowledge,
+  options: ValidateJsonSchemaOptions = {}
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   // Accept a JSON string as well as a parsed object.
   let schema = args.schema;
@@ -55,6 +106,9 @@ export async function validateJsonSchemaTool(
       );
     }
   }
+
+  const notAForm = notAFormDocument(schema, options.formBuild !== false);
+  if (notAForm) return text(notAForm);
 
   // Lazily load the validator; ajv lives behind this subpath and the package
   // must be built. Fail gracefully rather than crashing the server.

@@ -38,6 +38,7 @@ import { listSymbolsTool, listSymbolsToolDefinition } from '../tools/list-symbol
 import { reportIssueTool, reportIssueToolDefinition } from '../tools/report-issue.js';
 import { searchDocsTool, searchDocsToolDefinition } from '../tools/search-docs.js';
 import { validateFormTool, validateFormToolDefinition } from '../tools/validate-form.js';
+import { createRepeatWatch } from './repeat-calls.js';
 
 /** Объявление инструмента — в том виде, в каком его отдаёт `tools/list`. */
 export interface ToolDefinition {
@@ -81,8 +82,11 @@ export function createToolCatalog(
 ): ToolCatalog {
   const browser = options.profile === 'browser';
   const debug = options.debug === true && !browser;
+  // Повтор без перемен называется в ответе: малая модель иначе шлёт тот же вызов раз за разом.
+  const repeats = createRepeatWatch();
+  let calls = 0;
 
-  return {
+  const catalog: ToolCatalog = {
     list() {
       const tools: ToolDefinition[] = [
         getContextToolDefinition,
@@ -118,7 +122,9 @@ export function createToolCatalog(
           return await debugTool(args as { section?: string }, knowledge());
 
         case 'validate_form':
-          return await validateFormTool(args as Record<string, unknown>, knowledge());
+          return await validateFormTool(args as Record<string, unknown>, knowledge(), {
+            formBuild: !browser,
+          });
 
         case 'plan_form':
           if (browser) break;
@@ -162,6 +168,15 @@ export function createToolCatalog(
           );
       }
       throw new Error(`Unknown tool: ${name}`);
+    },
+  };
+
+  return {
+    list: () => catalog.list(),
+    async call(name, args) {
+      // Номер — как у трассы сервера: каждый вызов инструмента, и неизвестного тоже.
+      const call = ++calls;
+      return repeats.observe(call, name, args, await catalog.call(name, args));
     },
   };
 }
