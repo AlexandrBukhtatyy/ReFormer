@@ -107,6 +107,9 @@ npm run mcp:evaluate                # замер качества ответов
 npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
 ```
 
+Как устроено тестирование: уровни проверок, строгий режим, снимки, стенды качества и CI — в
+[docs/testing.md](./docs/testing.md).
+
 ## Ссылки
 
 - Документация: [обзор MCP](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/overview),
