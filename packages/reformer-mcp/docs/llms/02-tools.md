@@ -171,7 +171,8 @@ and so are the aliases `validate_json_schema` and `check_behaviors` (use `valida
   outside every app.
 - `grammar` (string, optional) — return the intent grammar instead of building: `base`, a section
   (`behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes`), several
-  comma-separated, or `all`. Needs neither a project nor an intent file.
+  comma-separated (`base` may be one of them: `base,arrays` is the base and the section), or `all`.
+  Needs neither a project nor an intent file.
 
 Without an intent file the call answers with the base grammar. Built files start with the mark
 `// @reformer-form-build`; a file edited by hand is detached — the build leaves it alone and says

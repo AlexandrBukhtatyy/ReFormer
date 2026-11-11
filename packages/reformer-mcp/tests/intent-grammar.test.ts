@@ -124,9 +124,21 @@ describe('readGrammarRequest', () => {
     expect(readGrammarRequest('wizard, arrays')).toEqual(['wizard', 'arrays']);
   });
 
+  it('база в списке — часть запроса, all в списке — всё [ReFormer-11oe.13]', () => {
+    expect(readGrammarRequest('base,behavior')).toEqual(['base', 'behavior']);
+    expect(readGrammarRequest('behavior base')).toEqual(['behavior', 'base']);
+    expect(readGrammarRequest('base, base')).toBe('base');
+    expect(readGrammarRequest('all,arrays')).toBe('all');
+    const text = intentGrammar(CATALOGS, { sections: ['behavior', 'base'] });
+    expect(text).toBe(
+      [intentGrammar(CATALOGS), intentGrammar(CATALOGS, { sections: ['behavior'] })].join('\n')
+    );
+  });
+
   it('незнакомое имя и не строка — null', () => {
     expect(readGrammarRequest('array')).toBeNull();
     expect(readGrammarRequest('arrays,steps')).toBeNull();
+    expect(readGrammarRequest('base,steps')).toBeNull();
     expect(readGrammarRequest(false)).toBeNull();
     expect(readGrammarRequest(1)).toBeNull();
   });

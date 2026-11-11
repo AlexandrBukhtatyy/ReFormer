@@ -110,9 +110,13 @@ export async function planFormTool(args: PlanFormArgs, k: Knowledge): Promise<To
 
   const spec = k.spec.read(specPath);
   if (spec === null) {
+    // Вторая строка — маршрут без спеки: малая модель зовёт plan_form на задание одной фразой с
+    // выдуманным файлом, и отказ без маршрута был тупиком (gemma4:26b, ReFormer-11oe.14).
     return invalidCall(
       `✗ plan_form: spec not found — \`${specPath}\` exists neither as an absolute path nor ` +
-        `relative to ${k.spec.describe?.() ?? 'the working directory'}.`
+        `relative to ${k.spec.describe?.() ?? 'the working directory'}.\n` +
+        'No spec file (the task is in the message)? Write form.intent.json yourself: get the ' +
+        'grammar with form_build {"grammar":"base"}, then call form_build {"dir":"<form folder>"}.'
     );
   }
 

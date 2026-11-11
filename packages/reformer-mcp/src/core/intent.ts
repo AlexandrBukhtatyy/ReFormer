@@ -56,6 +56,7 @@ export {
   DOCUMENT_GRAMMAR_EXAMPLE,
   DOCUMENT_GRAMMAR_LIMIT,
   intentGrammar,
+  type GrammarPart,
   type GrammarRequest,
   type IntentGrammarOptions,
 } from './generate/intent-grammar.js';

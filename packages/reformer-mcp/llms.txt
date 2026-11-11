@@ -256,7 +256,8 @@ and so are the aliases `validate_json_schema` and `check_behaviors` (use `valida
   outside every app.
 - `grammar` (string, optional) — return the intent grammar instead of building: `base`, a section
   (`behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes`), several
-  comma-separated, or `all`. Needs neither a project nor an intent file.
+  comma-separated (`base` may be one of them: `base,arrays` is the base and the section), or `all`.
+  Needs neither a project nor an intent file.
 
 Without an intent file the call answers with the base grammar. Built files start with the mark
 `// @reformer-form-build`; a file edited by hand is detached — the build leaves it alone and says
@@ -1678,15 +1679,29 @@ export interface FormIntent {
 
 _Source: src/core/generate/form-intent.ts_
 
+### GrammarPart
+
+**Kind:** `type`
+
+Часть запроса списком: секция или сама база (`"base,behavior"` — база и секция).
+
+**Signature:**
+```typescript
+export type GrammarPart = GrammarSection | 'base';
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
 ### GrammarRequest
 
 **Kind:** `type`
 
-Что вернуть: базу, все секции сразу или выбранные секции.
+Что вернуть: базу, все секции сразу или выбранные части. В списке база идёт первой, где бы её ни
+назвали.
 
 **Signature:**
 ```typescript
-export type GrammarRequest = 'base' | 'all' | readonly GrammarSection[];
+export type GrammarRequest = 'base' | 'all' | readonly GrammarPart[];
 ```
 
 _Source: src/core/generate/intent-grammar.ts_

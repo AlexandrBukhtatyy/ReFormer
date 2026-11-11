@@ -127,6 +127,8 @@ describe('plan_form: отказы', () => {
     expect(result.isError).toBe(true);
     expect(textOf(result)).toContain('spec not found');
     expect(textOf(result)).toContain('no-such-spec.md');
+    // Задание одной фразой со спекой, которой нет: отказ ведёт к form_build [ReFormer-11oe.14].
+    expect(textOf(result)).toContain('form_build {"grammar":"base"}');
     expect(existsSync(join(project, 'form'))).toBe(false);
   });
 });
@@ -179,6 +181,20 @@ describe('form_build {grammar}', () => {
     );
   });
 
+  it('база в списке — база и секции: так модель просит сама [ReFormer-11oe.13]', async () => {
+    const result = await formBuildTool({ grammar: 'base,behavior' }, noDisk());
+    expect(result.isError).not.toBe(true);
+    const text = textOf(result);
+    expect(text).toBe(
+      [intentGrammar(CATALOGS), intentGrammar(CATALOGS, { sections: ['behavior'] })].join('\n')
+    );
+    // Порядок в запросе не важен: база всегда первой.
+    expect(textOf(await formBuildTool({ grammar: 'behavior, base' }, noDisk()))).toBe(text);
+    // Это меньше, чем `all`, к которому вёл прежний отказ.
+    const all = textOf(await formBuildTool({ grammar: 'all' }, noDisk()));
+    expect(text.length).toBeLessThan(all.length);
+  });
+
   it('грамматика при существующем intent — не сборка', async () => {
     mkdirSync(join(project, 'form'), { recursive: true });
     writeFileSync(draftPath(), '{ not json');
@@ -190,6 +206,8 @@ describe('form_build {grammar}', () => {
     const result = await formBuildTool({ grammar: 'steps' }, noDisk());
     expect(result.isError).toBe(true);
     expect(textOf(result)).toMatch(/unknown grammar section "steps".*arrays, wizard/);
+    expect(textOf(result)).toContain('comma-separated list ("base,arrays")');
+    expect((await formBuildTool({ grammar: 'base,steps' }, noDisk())).isError).toBe(true);
   });
 });
 

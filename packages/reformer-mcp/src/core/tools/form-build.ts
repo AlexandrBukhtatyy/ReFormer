@@ -222,7 +222,8 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
     if (request === null) {
       return invalidCall(
         `✗ form_build: unknown grammar section ${JSON.stringify(args.grammar)}. Use "base", ` +
-          `"all" or a section: ${GRAMMAR_SECTIONS.join(', ')}.`
+          `"all", a section or a comma-separated list ("base,arrays"): ` +
+          `${GRAMMAR_SECTIONS.join(', ')}.`
       );
     }
     const grammar = intentGrammar(await catalogsOf(k), { sections: request });

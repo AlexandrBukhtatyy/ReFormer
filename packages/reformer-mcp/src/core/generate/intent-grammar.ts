@@ -403,8 +403,14 @@ export const GRAMMAR_SECTIONS = [
 
 export type GrammarSection = (typeof GRAMMAR_SECTIONS)[number];
 
-/** Что вернуть: базу, все секции сразу или выбранные секции. */
-export type GrammarRequest = 'base' | 'all' | readonly GrammarSection[];
+/** Часть запроса списком: секция или сама база (`"base,behavior"` — база и секция). */
+export type GrammarPart = GrammarSection | 'base';
+
+/**
+ * Что вернуть: базу, все секции сразу или выбранные части. В списке база идёт первой, где бы её ни
+ * назвали.
+ */
+export type GrammarRequest = 'base' | 'all' | readonly GrammarPart[];
 
 export interface IntentGrammarOptions {
   /** По умолчанию — база. У профиля `document` секций нет: его текст один. */
@@ -434,19 +440,28 @@ const isSection = (value: string): value is GrammarSection =>
 
 /**
  * Запрос грамматики из аргумента инструмента: `true` и `"base"` — база, `"all"` — всё,
- * `"arrays"` или `"arrays,wizard"` — секции. Незнакомое имя — `null`: вызывающий отвечает отказом
- * со списком, а не молча отдаёт базу.
+ * `"arrays"` или `"arrays,wizard"` — секции, `"base,behavior"` — база и секция. `all` в списке
+ * покрывает остальное. Незнакомое имя — `null`: вызывающий отвечает отказом со списком, а не молча
+ * отдаёт базу.
+ *
+ * Базу в списке модели просят сами: описание инструмента обещает «several comma-separated», и
+ * отказ на `"base,behavior"` уводил sonnet в `"all"` — вдвое больше текста (ReFormer-11oe.13).
  */
 export function readGrammarRequest(value: unknown): GrammarRequest | null {
   if (value === true) return 'base';
   if (typeof value !== 'string') return null;
-  const names = value
-    .split(/[\s,]+/)
-    .map((name) => name.trim().toLowerCase())
-    .filter(Boolean);
+  const names = [
+    ...new Set(
+      value
+        .split(/[\s,]+/)
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+  if (!names.every((name) => name === 'base' || name === 'all' || isSection(name))) return null;
+  if (names.includes('all')) return 'all';
   if (names.length === 0 || (names.length === 1 && names[0] === 'base')) return 'base';
-  if (names.length === 1 && names[0] === 'all') return 'all';
-  return names.every(isSection) ? [...new Set(names)] : null;
+  return names as GrammarPart[];
 }
 
 /** Поле примера по имени: индекс сдвигается, когда в пример добавляют поле. */
@@ -727,6 +742,8 @@ ${json({ ...sources, values: sources.values.slice(0, 1) })}
 `;
 }
 
+const isSectionPart = (part: GrammarPart): part is GrammarSection => part !== 'base';
+
 /**
  * Грамматика intent для установленных кита и ядра.
  *
@@ -738,7 +755,8 @@ export function intentGrammar(catalogs: FormCatalogs, options: IntentGrammarOpti
   if (options.profile === 'document') return documentGrammar(catalogs);
   const request = options.sections ?? 'base';
   if (request === 'base') return base(catalogs);
-  const sections = request === 'all' ? GRAMMAR_SECTIONS : request;
+  const withBase = request === 'all' || request.includes('base');
+  const sections = request === 'all' ? GRAMMAR_SECTIONS : request.filter(isSectionPart);
   const parts = sections.map((name) => SECTION_TEXT[name](catalogs));
-  return (request === 'all' ? [base(catalogs), ...parts] : parts).join('\n');
+  return (withBase ? [base(catalogs), ...parts] : parts).join('\n');
 }
