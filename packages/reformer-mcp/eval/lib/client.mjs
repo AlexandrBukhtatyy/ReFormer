@@ -86,7 +86,10 @@ export class McpClient {
     });
   }
 
-  /** Инициализация + handshake. Возвращает время до готовности сервера (мс). */
+  /**
+   * Инициализация + handshake. Возвращает время до готовности сервера (мс), его `serverInfo` и
+   * `instructions` — их клиент MCP показывает модели (Claude Code — в системном промпте).
+   */
   async initialize() {
     const t0 = performance.now();
     const reply = await this.#send(
@@ -104,7 +107,12 @@ export class McpClient {
     this.#child.stdin.write(
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n'
     );
-    return { ms: performance.now() - t0, serverInfo: reply.result?.serverInfo ?? null };
+    return {
+      ms: performance.now() - t0,
+      serverInfo: reply.result?.serverInfo ?? null,
+      instructions:
+        typeof reply.result?.instructions === 'string' ? reply.result.instructions : null,
+    };
   }
 
   /**

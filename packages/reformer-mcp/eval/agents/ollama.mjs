@@ -8,6 +8,9 @@
  * ({@link KEEP_WHOLE_TOOLS}). Это вмешательство прибора: число усечений и длина ответов генератора
  * попадают в запись прогона.
  *
+ * Системный промпт — свой плюс инструкции сервера из `initialize`, как у Claude Code
+ * ({@link systemPrompt}).
+ *
  * Журнал (`transcript.jsonl`) — весь разговор, а не только реплики модели: системный промпт и
  * задание, рассуждение, вызовы с аргументами, полный текст ответа и то, что из него дошло до модели,
  * подсказки и усечения стенда. Ответ сервера — главное, что нужно при разборе ошибки малой модели, а
@@ -43,6 +46,17 @@ const READ_RESOURCE_TOOL = {
 };
 
 const SYSTEM_PROMPT = `You are a software developer working in a project directory. Do the task by calling the tools: the reformer MCP server tools give knowledge about the @reformer form library, the file tools change files in the working directory. Files exist only if you write them with write_file: printing code in a message does not create it.`;
+
+/**
+ * Системный промпт с инструкциями сервера из `initialize` — так их видит модель в Claude Code
+ * (раздел «MCP Server Instructions»). Без них стенд мерил сервер без его главной подсказки о
+ * маршруте: qwen3.5:4b не вызвал ни одного инструмента MCP, gemma4:26b пошла в `plan_form` с
+ * выдуманной спекой (ReFormer-qo9b.38).
+ */
+export function systemPrompt(instructions) {
+  if (!instructions) return SYSTEM_PROMPT;
+  return `${SYSTEM_PROMPT}\n\n# MCP Server Instructions\n\n## reformer\n${instructions}`;
+}
 
 /** Проверка до батча: сервер Ollama отвечает и модель загружена. */
 export async function preflight(model) {
@@ -165,7 +179,8 @@ export async function runAgent(input) {
   let finalText = '';
 
   try {
-    await client.initialize();
+    const { instructions } = await client.initialize();
+    const system = systemPrompt(instructions);
     const listed = (await client.request('tools/list', {})).result?.tools ?? [];
     const withoutTools = new Set(input.approach.withoutTools ?? []);
     const mcpTools = listed.filter((tool) => !withoutTools.has(tool.name));
@@ -174,10 +189,16 @@ export async function runAgent(input) {
     const toolNames = tools.map((tool) => tool.name);
 
     const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: system },
       { role: 'user', content: input.prompt },
     ];
-    log({ step: 0, role: 'system', content: SYSTEM_PROMPT, tools: toolNames });
+    log({
+      step: 0,
+      role: 'system',
+      content: system,
+      tools: toolNames,
+      serverInstructions: instructions !== null,
+    });
     log({ step: 0, role: 'user', content: input.prompt });
     let nudged = false;
     /** Номер вызова инструмента MCP — тот же счёт, что `call` в трассе сервера. */

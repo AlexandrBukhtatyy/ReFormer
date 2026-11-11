@@ -8,9 +8,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runAgent } from '../eval/agents/ollama.mjs';
+import { runAgent, systemPrompt } from '../eval/agents/ollama.mjs';
 import { argumentsDigest } from '../eval/lib/digest.mjs';
 import { readRun, renderRun } from '../eval/lib/run-log.mjs';
+import { SERVER_INSTRUCTIONS } from '../src/platform/cli/server';
 import { precondition } from './support/preconditions';
 
 interface ChatMessage {
@@ -81,6 +82,17 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
+describe('агент Ollama: системный промпт', () => {
+  it('инструкции сервера — разделом после своего промпта; без них — только свой', () => {
+    const own = systemPrompt(null);
+    expect(own).not.toContain('MCP Server Instructions');
+    expect(systemPrompt('')).toBe(own);
+    const full = systemPrompt('Use form_build.');
+    expect(full.startsWith(own)).toBe(true);
+    expect(full.endsWith('# MCP Server Instructions\n\n## reformer\nUse form_build.')).toBe(true);
+  });
+});
+
 describe.runIf(hasDist)('агент Ollama: журнал прогона', () => {
   it('журнал хранит то, что ушло модели, и сходится с трассой сервера', async () => {
     const runDirectory = path.join(root, 'batch', 'L1-test.core.bare.ollama.r1');
@@ -124,6 +136,10 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
     expect(system).toMatchObject({ step: 0, role: 'system' });
     expect(system.tools).toEqual(expect.arrayContaining(['choose_api', 'read_mcp_resource']));
     expect(system.content).toBe(chat.bodies[0].messages[0].content);
+    // Инструкции сервера доходят до модели, как в Claude Code [ReFormer-qo9b.38].
+    expect(system.serverInstructions).toBe(true);
+    expect(system.content).toBe(systemPrompt(SERVER_INSTRUCTIONS));
+    expect(system.content).toContain('form_build {"grammar":"base"}');
     expect(prompt).toEqual({ step: 0, role: 'user', content: 'Сделай форму обратной связи.' });
     expect(transcript.find((entry) => entry.role === 'assistant')).toMatchObject({
       thinking: 'Нужен оператор видимости.',
