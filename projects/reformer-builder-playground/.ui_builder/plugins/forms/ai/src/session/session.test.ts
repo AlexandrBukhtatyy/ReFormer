@@ -82,6 +82,20 @@ describe('ход', () => {
     expect(last?.tools).toHaveLength(1);
   });
 
+  it('вызов и вопрос помечаются длиной текста на момент прихода — по ней лента их ставит', () => {
+    const session = createAiSession();
+    session.startTurn('сделай форму');
+    session.logTool({ name: 'read_form', ok: true });
+    session.appendText('Уточню.');
+    session.askQuestions({ id: 'ask1', questions: [] });
+    session.logTool({ name: 'insert_node', ok: true });
+    expect(session.get().entries.at(-1)?.marks).toEqual([
+      { kind: 'tool', at: 0, index: 0 },
+      { kind: 'ask', at: 7, id: 'ask1' },
+      { kind: 'tool', at: 7, index: 1 },
+    ]);
+  });
+
   it('без хода дописывать некуда — реплика пользователя не растёт', () => {
     const session = createAiSession();
     session.appendText('мимо');

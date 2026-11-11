@@ -151,6 +151,30 @@ export interface AskCard {
   readonly cancelled?: true;
 }
 
+/**
+ * Место вызова или карточки вопросов в реплике: сколько текста было написано к их приходу.
+ *
+ * Текст реплики — одна строка: так он уходит обратно в модель (`./history`). Но в ленте ответ,
+ * написанный после правок, обязан стоять под ними, а пояснение перед вызовом — над ним: без
+ * меток лента ставила весь текст над журналом, и итог хода читался раньше действий, к которым он
+ * относится. Метки идут в порядке прихода — по ним лента нарезает текст (`../ui/timeline`).
+ */
+export type EntryMark =
+  | {
+      readonly kind: 'tool';
+      /** Длина текста реплики в момент вызова. */
+      readonly at: number;
+      /** Номер вызова в {@link ChatEntry.tools}. */
+      readonly index: number;
+    }
+  | {
+      readonly kind: 'ask';
+      /** Длина текста реплики в момент вопроса. */
+      readonly at: number;
+      /** Идентификатор карточки в {@link ChatEntry.asks}. */
+      readonly id: string;
+    };
+
 /** Реплика диалога в интерфейсе. */
 export interface ChatEntry {
   readonly id: string;
@@ -170,6 +194,8 @@ export interface ChatEntry {
   readonly tools: readonly ToolLogEntry[];
   /** Вопросы модели человеку — по карточке на вызов `ask_user`. */
   readonly asks?: readonly AskCard[];
+  /** Порядок вызовов и вопросов относительно текста — см. {@link EntryMark}. */
+  readonly marks?: readonly EntryMark[];
 }
 
 /**
@@ -465,11 +491,22 @@ export function createAiSession(): AiSession {
     },
 
     logTool(entry) {
-      updateLast((last) => ({ ...last, tools: [...last.tools, entry] }));
+      updateLast((last) => ({
+        ...last,
+        tools: [...last.tools, entry],
+        marks: [
+          ...(last.marks ?? []),
+          { kind: 'tool', at: last.text.length, index: last.tools.length },
+        ],
+      }));
     },
 
     askQuestions(card) {
-      updateLast((last) => ({ ...last, asks: [...(last.asks ?? []), card] }));
+      updateLast((last) => ({
+        ...last,
+        asks: [...(last.asks ?? []), card],
+        marks: [...(last.marks ?? []), { kind: 'ask', at: last.text.length, id: card.id }],
+      }));
     },
 
     answerAsk(id, answers) {

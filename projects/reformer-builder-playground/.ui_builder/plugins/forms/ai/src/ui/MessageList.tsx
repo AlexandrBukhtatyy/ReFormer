@@ -27,9 +27,10 @@ import { Message, MessageContent, MessageGroup } from '@reformer/ui-kit/message'
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Spinner } from '@reformer/ui-kit/spinner';
 import type { Translate } from '../host';
-import type { ChatEntry } from '../session/session';
+import type { ChatEntry, ToolLogEntry } from '../session/session';
 import { AttachmentChips } from './AttachmentChips';
 import { QuestionCard } from './QuestionCard';
+import { timelineOf } from './timeline';
 import { useStickToBottom } from './useStickToBottom';
 import type { FormAskAnswer } from '@reformer/builder-plugin-api';
 
@@ -85,6 +86,43 @@ function Reasoning({ text, t }: { text: string; t: Translate }): ReactElement {
         </ScrollArea>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/** Подряд идущие вызовы инструментов — строками журнала. */
+function ToolLines({ tools }: { tools: readonly ToolLogEntry[] }): ReactElement {
+  return (
+    <ul className="space-y-0.5">
+      {tools.map((tool, index) => (
+        <li
+          key={String(index)}
+          data-testid="ai-tool-line"
+          data-ok={tool.ok}
+          className="text-muted-foreground flex gap-1.5 text-[11.5px] leading-4"
+        >
+          {tool.ok ? (
+            <Check className="mt-px size-3 flex-none text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <CircleAlert className="mt-px size-3 flex-none text-amber-600 dark:text-amber-400" />
+          )}
+          <span className="min-w-0 wrap-anywhere">
+            {tool.detail === undefined ? (
+              (tool.summary ?? tool.error ?? tool.name)
+            ) : (
+              // Строка — человеку на его языке, текст модели — по раскрытию (ReFormer-lhvk.7).
+              <details data-testid="ai-tool-detail">
+                <summary className="cursor-pointer">
+                  {tool.summary ?? tool.error ?? tool.name}
+                </summary>
+                <pre className="mt-0.5 font-mono text-[10.5px] whitespace-pre-wrap">
+                  {tool.detail}
+                </pre>
+              </details>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -159,98 +197,80 @@ export function MessageList({
             )}
             {entry.reasoning !== '' && <Reasoning text={entry.reasoning} t={t} />}
 
-            {/* Вопросы — над ответом: модель спрашивает до правок, и ответ с журналом правок
-                приходят уже после того, как человек ответил. */}
-            {entry.asks?.map((card) => (
-              <QuestionCard
-                key={card.id}
-                card={card}
-                open={card.id === openAsk}
-                t={t}
-                onAnswer={(answers) => {
-                  onAnswer(card.id, answers);
-                }}
-              />
-            ))}
-
-            {/* Пустая реплика ассистента — обычное состояние в начале хода: сначала приходит
-                рассуждение и вызовы инструментов, текст ответа может появиться только в конце. */}
-            {entry.text !== '' && (
-              <Message align={entry.role === 'user' ? 'end' : 'start'}>
-                <MessageContent
-                  data-testid="ai-message"
-                  className={
-                    entry.role === 'user'
-                      ? 'bg-muted rounded-md px-2.5 py-1.5 text-[12.5px] leading-5 wrap-anywhere whitespace-pre-wrap'
-                      : 'text-foreground text-[12.5px] leading-5 wrap-anywhere whitespace-pre-wrap'
-                  }
-                >
-                  {entry.text}
-                  {entry.role === 'user' && entry.snapshot !== undefined && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={running}
-                      onClick={() => {
-                        onRestore(entry.id);
-                      }}
-                      title={t('chat.restore.hint', {
-                        text:
-                          entry.text.length > TITLE_IN_HINT
-                            ? `${entry.text.slice(0, TITLE_IN_HINT)}…`
-                            : entry.text,
-                      })}
-                      className="text-muted-foreground h-6 self-end px-1.5 text-[10.5px]"
+            {entry.role === 'user' ? (
+              <>
+                {entry.text !== '' && (
+                  <Message align="end">
+                    <MessageContent
+                      data-testid="ai-message"
+                      className="bg-muted rounded-md px-2.5 py-1.5 text-[12.5px] leading-5 wrap-anywhere whitespace-pre-wrap"
                     >
-                      <Undo2 className="size-3" />
-                      {t('chat.restore')}
-                    </Button>
-                  )}
-                </MessageContent>
-              </Message>
-            )}
-
-            {entry.role === 'user' && entry.attachments !== undefined && (
-              <AttachmentChips
-                attachments={entry.attachments}
-                t={t}
-                className="justify-end gap-1.5 py-0"
-              />
-            )}
-
-            {entry.tools.length > 0 && (
-              <ul className="space-y-0.5">
-                {entry.tools.map((tool, index) => (
-                  <li
-                    key={`${entry.id}-${String(index)}`}
-                    data-testid="ai-tool-line"
-                    data-ok={tool.ok}
-                    className="text-muted-foreground flex gap-1.5 text-[11.5px] leading-4"
-                  >
-                    {tool.ok ? (
-                      <Check className="mt-px size-3 flex-none text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                      <CircleAlert className="mt-px size-3 flex-none text-amber-600 dark:text-amber-400" />
-                    )}
-                    <span className="min-w-0 wrap-anywhere">
-                      {tool.detail === undefined ? (
-                        (tool.summary ?? tool.error ?? tool.name)
-                      ) : (
-                        // Строка — человеку на его языке, текст модели — по раскрытию
-                        // (ReFormer-lhvk.7).
-                        <details data-testid="ai-tool-detail">
-                          <summary className="cursor-pointer">
-                            {tool.summary ?? tool.error ?? tool.name}
-                          </summary>
-                          <pre className="mt-0.5 font-mono text-[10.5px] whitespace-pre-wrap">
-                            {tool.detail}
-                          </pre>
-                        </details>
+                      {entry.text}
+                      {entry.snapshot !== undefined && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={running}
+                          onClick={() => {
+                            onRestore(entry.id);
+                          }}
+                          title={t('chat.restore.hint', {
+                            text:
+                              entry.text.length > TITLE_IN_HINT
+                                ? `${entry.text.slice(0, TITLE_IN_HINT)}…`
+                                : entry.text,
+                          })}
+                          className="text-muted-foreground h-6 self-end px-1.5 text-[10.5px]"
+                        >
+                          <Undo2 className="size-3" />
+                          {t('chat.restore')}
+                        </Button>
                       )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                    </MessageContent>
+                  </Message>
+                )}
+                {entry.attachments !== undefined && (
+                  <AttachmentChips
+                    attachments={entry.attachments}
+                    t={t}
+                    className="justify-end gap-1.5 py-0"
+                  />
+                )}
+              </>
+            ) : (
+              // Блоки — в порядке хода (`./timeline`): пояснение над вызовом, к которому оно
+              // относится, итог — под журналом правок, вопрос — там, где модель его задала.
+              // Пустая реплика — обычное начало хода: текст может появиться только в конце.
+              timelineOf(entry).map((block, index) => {
+                const key = `${entry.id}-${String(index)}`;
+                switch (block.kind) {
+                  case 'text':
+                    return (
+                      <Message key={key} align="start">
+                        <MessageContent
+                          data-testid="ai-message"
+                          className="text-foreground text-[12.5px] leading-5 wrap-anywhere whitespace-pre-wrap"
+                        >
+                          {block.text}
+                        </MessageContent>
+                      </Message>
+                    );
+                  case 'tools':
+                    return <ToolLines key={key} tools={block.tools} />;
+                  case 'ask':
+                    return (
+                      <QuestionCard
+                        key={block.card.id}
+                        card={block.card}
+                        open={block.card.id === openAsk}
+                        t={t}
+                        onAnswer={(answers) => {
+                          onAnswer(block.card.id, answers);
+                        }}
+                      />
+                    );
+                }
+              })
             )}
           </div>
         ))}
