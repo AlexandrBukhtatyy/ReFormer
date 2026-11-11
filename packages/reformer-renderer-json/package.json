@@ -14,7 +14,8 @@
     "./validate": {
       "types": "./dist/validate.d.ts",
       "import": "./dist/validate.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "scripts": {
