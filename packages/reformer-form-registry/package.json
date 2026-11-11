@@ -26,7 +26,8 @@
     "./guard": {
       "types": "./dist/guard.d.ts",
       "import": "./dist/guard.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "scripts": {
