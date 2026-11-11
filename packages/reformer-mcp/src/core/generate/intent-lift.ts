@@ -98,10 +98,14 @@ function kindOf(node: Json): string | undefined {
   return typeof node.kind === 'string' ? node.kind.toLowerCase() : undefined;
 }
 
-/** Описание поля: хотя бы один признак поля, без детей и без вида, отличного от `field`. */
+/**
+ * Описание поля: хотя бы один признак поля, без детей и без вида, отличного от `field`. Текст
+ * (`{ "text": … }`) — не поле, даже с `selector`: его читает разметка (ReFormer-11oe.16).
+ */
 function describesField(node: Json): boolean {
   const kind = kindOf(node);
   if ((kind !== undefined && kind !== 'field') || node.children !== undefined) return false;
+  if (node.text !== undefined) return false;
   return FIELD_KEYS.some((key) => node[key] !== undefined);
 }
 

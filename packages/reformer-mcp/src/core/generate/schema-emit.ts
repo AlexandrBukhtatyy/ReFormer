@@ -37,7 +37,8 @@ export interface SchemaDocNode {
   item?: string;
   /** Подформа: `$part(name)`. */
   part?: string;
-  children?: SchemaDocNode[];
+  /** Дети: узлы и текстовые части — строки (заголовок, абзац, подпись кнопки). */
+  children?: Array<SchemaDocNode | string>;
 }
 
 /** Документ JSON-DSL формата 2. */
@@ -266,6 +267,9 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
           children: childrenOf(node.children, scope),
         };
       }
+      case 'text':
+        // Текст — часть детей, а не узел: его печатает `childrenOf`.
+        return null;
       default: {
         if (isWizardContainer(node)) {
           return {
@@ -289,10 +293,12 @@ export function buildSchemaLayout(intent: FormIntent): SchemaLayout {
     }
   }
 
-  function childrenOf(children: LayoutNode[], scope: string | null): SchemaDocNode[] {
-    return children
-      .map((child) => toNode(child, scope))
-      .filter((child): child is SchemaDocNode => child !== null);
+  function childrenOf(children: LayoutNode[], scope: string | null): Array<SchemaDocNode | string> {
+    return children.flatMap((child): Array<SchemaDocNode | string> => {
+      if (child.kind === 'text') return [child.text];
+      const node = toNode(child, scope);
+      return node === null ? [] : [node];
+    });
   }
 
   const root = toNode(intent.layoutRoot, null) ?? { component: '$html(div)', children: [] };
@@ -419,7 +425,7 @@ function ordered(node: SchemaDocNode): Record<string, unknown> {
     componentProps: node.componentProps,
     item: node.item,
     part: node.part,
-    children: node.children?.map(ordered),
+    children: node.children?.map((child) => (typeof child === 'string' ? child : ordered(child))),
   };
 }
 

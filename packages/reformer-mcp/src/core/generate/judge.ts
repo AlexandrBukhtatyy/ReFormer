@@ -27,6 +27,7 @@ import {
   type FormIntent,
   type IntentProblemCode,
   type IntentWarningCode,
+  type LayoutNode,
 } from './form-intent.js';
 import { didYouMean, suggestComponents } from './component-names.js';
 import { buildFormSchemaJson } from './schema-emit.js';
@@ -149,6 +150,13 @@ function unknownComponents(
           : 'a component of @reformer/ui-kit: form_build {"grammar":"components"} lists them by purpose',
       };
     });
+}
+
+/** Тексты раскладки по порядку обхода. */
+function layoutTexts(node: LayoutNode): string[] {
+  if (node.kind === 'text') return [node.text];
+  if (node.kind !== 'container' && node.kind !== 'step') return [];
+  return node.children.flatMap(layoutTexts);
 }
 
 /**
@@ -324,7 +332,23 @@ export function judgeIntent(
   }
 
   errors.push(...unknownComponents(intent, catalogs, options.forDocument === true));
-  if (!options.forDocument && intent.target === 'core') errors.push(...coreRenderRules(intent));
+  if (!options.forDocument && intent.target === 'core') {
+    errors.push(...coreRenderRules(intent));
+    const texts = layoutTexts(intent.layoutRoot);
+    if (texts.length > 0) {
+      // Текст в схеме core не вредит, но и не рисуется: разметку рисует JSX агента. Молча он
+      // пропал бы со страницы (ReFormer-11oe.16).
+      warnings.push({
+        code: 'module-note',
+        message:
+          `texts in the layout (${texts.length}: ${texts
+            .slice(0, 3)
+            .map((text) => `«${text}»`)
+            .join(', ')}${texts.length > 3 ? ', …' : ''}) — on core your JSX in index.tsx ` +
+          'draws the markup: write them there too',
+      });
+    }
+  }
 
   if (catalogs.uiKitProps) {
     // Типы и значения пропсов — описание компонента; у билдера form_build нет, ему хватает перечня.

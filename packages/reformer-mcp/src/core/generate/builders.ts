@@ -1163,6 +1163,7 @@ function stepOfPath(
       if (part) walk(part, step, absolute(node.ref));
       return;
     }
+    if (node.kind === 'text') return;
     node.children.forEach((child) => walk(child, step, scope));
   };
   steps.forEach((step, index) => step.children.forEach((child) => walk(child, index, '')));

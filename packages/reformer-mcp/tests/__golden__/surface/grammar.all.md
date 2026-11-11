@@ -17,6 +17,7 @@ target — the task's stack, keep it: core | renderer-react | renderer-json. On 
 ## layoutRoot — every field and array stands in it
 {"kind":"container","component":"Box","children":["loanType","price",{"kind":"container","component":"Section","selector":"mortgage-section","componentProps":{"title":"Mortgage"},"children":["propertyValue"]}]}
 - A string child is a field ref; an array: {"kind":"array","ref":"contacts"}; selector names a node.
+- Text: {"text":"Sign in"} among children — a heading, a paragraph, a button label; a page needs no fields.
 
 ## validation — one row per rule, its text in message
 {"target":"price","rules":["required({ code: 'price.required' })"],"message":"Enter the price"}

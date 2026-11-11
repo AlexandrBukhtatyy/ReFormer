@@ -110,6 +110,56 @@ function stepsOf(schema: JsonFormSchema) {
   return buildOutline(schema).filter((e) => e.component === kit?.step);
 }
 
+describe('build_form: текстовые узлы [ReFormer-11oe.16]', () => {
+  /** Все текстовые части документа по порядку обхода. */
+  const textsOf = (node: unknown): string[] => {
+    if (typeof node === 'string') return [node];
+    const children = (node as { children?: unknown[] } | null)?.children;
+    return Array.isArray(children) ? children.flatMap(textsOf) : [];
+  };
+
+  it('заголовок, абзац и подпись кнопки встают текстом узлов', async () => {
+    const { schema } = expectBuilt(
+      await build({
+        intent: {
+          fields: [{ name: 'login', type: 'string', component: 'Input', label: 'Логин' }],
+          layoutRoot: {
+            kind: 'container',
+            component: 'Box',
+            children: [
+              { kind: 'container', component: 'TypographyH1', children: [{ text: 'Вход' }] },
+              { kind: 'container', component: 'Box', children: [{ text: 'Введите логин.' }] },
+              'login',
+              { kind: 'container', component: 'Button', children: [{ text: 'Войти' }] },
+            ],
+          },
+        },
+      })
+    );
+    const texts = textsOf(schema.root);
+    expect(texts).toEqual(expect.arrayContaining(['Вход', 'Введите логин.', 'Войти']));
+    // Подпись кнопки по умолчанию заменена, а не дописана рядом.
+    expect(texts.filter((text) => text !== 'Вход' && text !== 'Введите логин.')).not.toContain(
+      'Кнопка'
+    );
+  });
+
+  it('текст вперемешку с узлами — отказ с советом дать тексту свой контейнер', async () => {
+    const out = await build({
+      intent: {
+        fields: [{ name: 'login', type: 'string', component: 'Input', label: 'Логин' }],
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [{ text: 'Вход' }, 'login'],
+        },
+      },
+    });
+    expect(out.schema).toBeUndefined();
+    expect(out.text).toContain('TypographyP');
+  });
+});
+
 describe('build_form', () => {
   it('без intent отдаёт грамматику с именами полей кита', async () => {
     const out = await build({});

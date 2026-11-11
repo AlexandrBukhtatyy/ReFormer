@@ -28,7 +28,8 @@ export type IntentRecordKind =
   | 'array-node'
   | 'part-node'
   | 'container-node'
-  | 'step-node';
+  | 'step-node'
+  | 'text-node';
 
 interface RecordText {
   /** Как запись называется в тексте: «a field». */
@@ -162,6 +163,11 @@ export const INTENT_RECORDS: Readonly<Record<IntentRecordKind, RecordText>> = {
     label: 'a container node',
     keys: ['kind', 'component', 'componentProps', 'selector', 'htmlTag', 'children'],
     sample: '{ "kind": "container", "component": "Box", "children": [ … ] }',
+  },
+  'text-node': {
+    label: 'a text',
+    keys: ['kind', 'text'],
+    sample: '{ "text": "Sign in" }',
   },
   'step-node': {
     label: 'a step node',

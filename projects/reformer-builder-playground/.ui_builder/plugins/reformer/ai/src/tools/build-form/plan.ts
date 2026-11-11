@@ -27,6 +27,11 @@ export interface PlanNode {
   readonly rows: readonly PlanNode[];
   /** Селектор узла в intent — по нему правило видимости находит свою цель. */
   readonly selector?: string;
+  /**
+   * Своё содержимое узла — текст (заголовок, подпись кнопки): `insert_node` текст детьми не берёт,
+   * его ставит `setTextChild` после вставки, как `set_node_prop(key: 'text')` (ReFormer-11oe.16).
+   */
+  readonly text?: string;
 }
 
 /** Свойства, которые MCP выводит сам и которые билдеру не нужны: `testId` ставит генерация. */
@@ -69,7 +74,21 @@ export function planOf(document: SchemaDocument, catalog: Catalog): PlanNode | {
         `names (address.city) and share the markup with extract_part after the build.`;
     }
     const row = operand(node.item, 'part');
-    const rows = row === undefined ? [] : (document.parts?.[row]?.children ?? []);
+    const rowChildren = row === undefined ? [] : (document.parts?.[row]?.children ?? []);
+    const rows = rowChildren.filter((child): child is SchemaDocNode => typeof child !== 'string');
+    if (rows.length !== rowChildren.length) {
+      error ??= 'Text in an array row is not supported by build_form: put it into a field label.';
+    }
+    // Текст среди детей — содержимое узла. Вперемешку с узлами его вставить нечем: `insert_node`
+    // ставит узлы, а содержимое узла — одна текстовая часть.
+    const kids = node.children ?? [];
+    const texts = kids.filter((child): child is string => typeof child === 'string');
+    const nodes = kids.filter((child): child is SchemaDocNode => typeof child !== 'string');
+    if (texts.length > 0 && nodes.length > 0) {
+      error ??=
+        `Text and nodes in one container (${componentOf(node)}): give the text its own ` +
+        `container — {"kind":"container","component":"TypographyP","children":[{"text":"${texts[0]}"}]}.`;
+    }
     const props = Object.fromEntries(
       Object.entries(node.componentProps ?? {}).filter(([key]) => !DERIVED_PROPS.has(key))
     );
@@ -80,9 +99,10 @@ export function planOf(document: SchemaDocument, catalog: Catalog): PlanNode | {
       component: componentOf(node),
       ...(model === undefined ? {} : { model }),
       ...(Object.keys(props).length > 0 ? { props } : {}),
-      children: (node.children ?? []).map(convert),
+      children: nodes.map(convert),
       rows: rows.map(convert),
       ...(node.selector === undefined ? {} : { selector: node.selector }),
+      ...(texts.length > 0 && nodes.length === 0 ? { text: texts.join('') } : {}),
     };
   };
 

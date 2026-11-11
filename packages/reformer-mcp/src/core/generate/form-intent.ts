@@ -228,7 +228,10 @@ export type LayoutNode =
       selector?: string;
       children: LayoutNode[];
     }
-  | { kind: 'step'; title: string; icon?: string; selector?: string; children: LayoutNode[] };
+  | { kind: 'step'; title: string; icon?: string; selector?: string; children: LayoutNode[] }
+  // Текст среди детей: заголовок, абзац, подпись кнопки — страница, а не только форма. Строка в
+  // `children` — ссылка на поле, поэтому текст — запись `{ "text": … }` (ReFormer-11oe.16).
+  | { kind: 'text'; text: string };
 
 export type ReformerTargetStack = 'core' | 'renderer-react' | 'renderer-json';
 
@@ -498,8 +501,13 @@ function normalizeWith(
     ).values(),
   ];
 
-  if (fields.length === 0 && arrays.length === 0) {
-    warnings.add('no-fields', 'The intent has no field — the module would be an empty shell.');
+  // Страница без формы — норма: заголовки, текст, карточки. Пусто — только когда нет ни полей,
+  // ни текста (ReFormer-11oe.16).
+  if (fields.length === 0 && arrays.length === 0 && !hasText(partial.layoutRoot)) {
+    warnings.add(
+      'no-fields',
+      'The intent has no field and no text — the module would be an empty shell.'
+    );
   }
 
   return {
@@ -2032,6 +2040,67 @@ function stepsLayout(
   };
 }
 
+/**
+ * Корень раскладки или части — узел, а не текст: текст у корня печать документа подменила бы пустым
+ * `div`, и он пропал бы молча.
+ */
+function containerRoot(node: LayoutNode | null, at: string, ctx: ReadCtx): LayoutNode | null {
+  if (node?.kind !== 'text') return node;
+  problem(
+    ctx,
+    'invalid-value',
+    at,
+    `\`${at}\` is a text, not a container`,
+    `a container around it: { "kind": "container", "component": "Box", "children": [{ "text": "${node.text}" }] }`
+  );
+  return null;
+}
+
+/** Есть ли в раскладке текст — у страницы без полей. */
+function hasText(node: LayoutNode | undefined): boolean {
+  if (!node) return false;
+  if (node.kind === 'text') return true;
+  return (node.kind === 'container' || node.kind === 'step') && node.children.some(hasText);
+}
+
+/** Запись без вида — текст, если у неё есть `text` и нет того, что делает её узлом. */
+function isTextRecord(raw: Record<string, unknown>): boolean {
+  return (
+    'text' in raw && !['component', 'children', 'ref', 'htmlTag', 'title'].some((key) => key in raw)
+  );
+}
+
+/**
+ * Текстовая часть детей: `{ "text": "Sign in" }`. Адреса у неё нет — рендерер не адресует
+ * текстовые части, — поэтому `selector` — проблема с советом обернуть текст в контейнер.
+ */
+function readTextNode(raw: Record<string, unknown>, at: string, ctx: ReadCtx): LayoutNode | null {
+  const value = take(raw, 'text', ['content', 'value'], ctx);
+  const selector = takeName(raw, 'selector', [], ctx, at);
+  if (selector) {
+    problem(
+      ctx,
+      'invalid-value',
+      `${at}.selector`,
+      'a text has no selector of its own',
+      `a container with the selector around it: { "kind": "container", "component": "Box", "selector": "${selector}", "children": [{ "text": "…" }] }`
+    );
+  }
+  const text = typeof value === 'number' ? String(value) : value;
+  if (typeof text !== 'string' || text.trim() === '') {
+    problem(
+      ctx,
+      typeof text === 'string' || text === undefined ? 'missing-key' : 'invalid-value',
+      `${at}.text`,
+      'a text node without text',
+      INTENT_RECORDS['text-node'].sample
+    );
+    return null;
+  }
+  finish(ctx, raw, at, 'text-node');
+  return { kind: 'text', text };
+}
+
 function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | null {
   if (raw === undefined || raw === null) return null;
   // Строка среди детей — ссылка на поле по имени: самая частая сокращённая запись.
@@ -2049,6 +2118,7 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
   }
 
   const kind = (takeName(raw, 'kind', ['type'], ctx, at) ?? '').toLowerCase();
+  if (kind === 'text' || (kind === '' && isTextRecord(raw))) return readTextNode(raw, at, ctx);
   const selector = takeName(raw, 'selector', [], ctx, at);
 
   if (kind === 'field' || kind === 'array') {
@@ -2485,8 +2555,12 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
         '`layoutRoot`'
     );
   }
-  const readRoot = readLayoutNode(
-    rootRaw ?? (isRecord(declaredLayout) ? declaredLayout : undefined),
+  const readRoot = containerRoot(
+    readLayoutNode(
+      rootRaw ?? (isRecord(declaredLayout) ? declaredLayout : undefined),
+      'layoutRoot',
+      ctx
+    ),
     'layoutRoot',
     ctx
   );
@@ -2513,7 +2587,7 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
   const partsRaw = take(src, 'parts', ['subforms', 'fragments'], ctx);
   if (isRecord(partsRaw)) {
     for (const [name, raw] of Object.entries(partsRaw)) {
-      const node = readLayoutNode(raw, `parts.${name}`, ctx);
+      const node = containerRoot(readLayoutNode(raw, `parts.${name}`, ctx), `parts.${name}`, ctx);
       if (node) parts[name] = node;
     }
   } else if (partsRaw !== undefined && partsRaw !== null) {

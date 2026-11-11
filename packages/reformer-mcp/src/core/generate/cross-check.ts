@@ -620,6 +620,8 @@ export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; un
         }
         return;
       }
+      case 'text':
+        return;
       default:
         for (const child of node.children) walk(child, scope, parts);
     }
@@ -640,7 +642,9 @@ export function inspectSteps(intent: FormIntent): string[] {
       ? `step «${node.title}»`
       : node.kind === 'container'
         ? `container \`${node.selector ?? node.component}\``
-        : `\`${node.ref}\``;
+        : node.kind === 'text'
+          ? `text «${node.text}»`
+          : `\`${node.ref}\``;
   const walk = (node: LayoutNode, insideStep: boolean): void => {
     if (node.kind !== 'container' && node.kind !== 'step') return;
     if (node.kind === 'step' && insideStep) {

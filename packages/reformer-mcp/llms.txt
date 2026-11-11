@@ -2180,7 +2180,10 @@ export type LayoutNode =
       selector?: string;
       children: LayoutNode[];
     }
-  | { kind: 'step'; title: string; icon?: string; selector?: string; children: LayoutNode[] };
+  | { kind: 'step'; title: string; icon?: string; selector?: string; children: LayoutNode[] }
+  // Текст среди детей: заголовок, абзац, подпись кнопки — страница, а не только форма. Строка в
+  // `children` — ссылка на поле, поэтому текст — запись `{ "text": … }` (ReFormer-11oe.16).
+  | { kind: 'text'; text: string };
 ```
 
 _Source: src/core/generate/form-intent.ts_
@@ -2408,7 +2411,8 @@ export interface SchemaDocNode {
   item?: string;
   /** Подформа: `$part(name)`. */
   part?: string;
-  children?: SchemaDocNode[];
+  /** Дети: узлы и текстовые части — строки (заголовок, абзац, подпись кнопки). */
+  children?: Array<SchemaDocNode | string>;
 }
 ```
 

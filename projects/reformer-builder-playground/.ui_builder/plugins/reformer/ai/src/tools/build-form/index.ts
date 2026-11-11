@@ -45,7 +45,12 @@ import {
   type JudgeWarningCode,
 } from '@reformer/mcp/intent';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { collectModelPaths, emptyRules, type FormRules } from '../../../../core/form-model';
+import {
+  collectModelPaths,
+  emptyRules,
+  setTextChild,
+  type FormRules,
+} from '../../../../core/form-model';
 import { wizardNames } from '../../model/catalog-digest';
 import { isResolved, resolveRef } from '../../model/node-ref';
 import { buildOutline } from '../../model/outline';
@@ -473,6 +478,7 @@ async function place(
     for (const node of chunk) {
       const ref = refs[next++];
       record(state, node, ref);
+      writeText(state, node, ref);
       if (top && node.model === undefined && node.component !== state.step) {
         const title = node.props?.title ?? node.props?.label;
         state.blocks.push({ component: node.component, title: String(title ?? ''), ref });
@@ -481,6 +487,7 @@ async function place(
       for (const kid of kids) {
         const kidRef = refs[next++];
         record(state, kid, kidRef);
+        writeText(state, kid, kidRef);
         pending.push({ ref: kidRef, children: kid.children, rows: kid.rows });
       }
       pending.push({ ref, children: node.children.slice(kids.length), rows: node.rows });
@@ -526,6 +533,17 @@ function chunks(nodes: readonly PlanNode[]): PlanNode[][] {
   }
   if (current.length > 0) out.push(current);
   return out;
+}
+
+/**
+ * Текст узла — после вставки, той же правкой, что `set_node_prop(key: 'text')`: содержимое по
+ * умолчанию («Кнопка» у `Button`) заменяется, у пустого контейнера текст встаёт первым ребёнком.
+ */
+function writeText(state: PlaceState, node: PlanNode, ref: string): void {
+  if (node.text === undefined) return;
+  const found = resolveRef(state.draft, ref);
+  if (!isResolved(found)) return;
+  state.draft = setTextChild(state.draft, found.path, node.text).schema;
 }
 
 function record(state: PlaceState, node: PlanNode, ref: string): void {
