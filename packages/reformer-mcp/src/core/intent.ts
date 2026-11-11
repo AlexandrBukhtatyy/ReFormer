@@ -56,6 +56,7 @@ export {
   DOCUMENT_GRAMMAR_EXAMPLE,
   DOCUMENT_GRAMMAR_LIMIT,
   intentGrammar,
+  type ComponentsRequest,
   type GrammarPart,
   type GrammarRequest,
   type IntentGrammarOptions,

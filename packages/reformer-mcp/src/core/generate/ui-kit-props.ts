@@ -95,12 +95,14 @@ function collectSites(intent: FormIntent): PropsSite[] {
  * проверяется ничего: не отличить поле (его схема сливается с пропсами обёртки) от контейнера, и
  * `label` поля стал бы ложным замечанием.
  *
+ * @param details - Куда за типами и значениями пропсов компонента: строка в конце замечания.
  * @returns По строке на место с чужими ключами: что не так и какие свойства у компонента есть.
  */
 export function checkComponentProps(
   intent: FormIntent,
   kit: UiKitPropSchemas,
-  components: UiKitComponents
+  components: UiKitComponents,
+  details?: (component: string) => string
 ): string[] {
   const notes: string[] = [];
   if (!components.found) return notes;
@@ -116,7 +118,8 @@ export function checkComponentProps(
     const names = unknown.map((key) => `«${key}»`).join(', ');
     notes.push(
       `${site.at}: ${site.component} has no ${unknown.length === 1 ? 'prop' : 'props'} ` +
-        `${names} in componentProps — they would go to the DOM. It has: ${known.join(', ')}.`
+        `${names} in componentProps — they would go to the DOM. It has: ${known.join(', ')}.` +
+        (details ? ` ${details(site.component)}` : '')
     );
   }
   return notes;

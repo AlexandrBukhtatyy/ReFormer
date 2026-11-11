@@ -10,7 +10,7 @@ target — the task's stack, keep it: core | renderer-react | renderer-json. On 
 ## fields
 {"name":"price","type":"number","component":"InputNumber","label":"Price","initialValue":null,"componentProps":{"placeholder":"Enter the price","min":1}}
 - Group field: "address.city". type: string | number | boolean | date | array (files).
-- component: Calendar Checkbox Combobox ComboboxMulti ComboboxTree ComboboxTreeMulti DatePicker DatePickerMulti DatePickerRange FileUpload FileUploadAvatar FileUploadDropzone FileUploadInput Input InputMask InputNumber InputOTP InputPassword InputSuggest NativeSelect NativeSelectMulti RadioGroup Select SelectMulti Slider Switch Textarea Toggle ToggleGroup ToggleGroupMulti.
+- component: a field of ## components (inputs, choice).
 - Choices: "optionsSource":"LOAN_TYPES" + a dataSources record, or componentProps.options:[{"value":"a","label":"A"}]; free-input hints: "suggestionsSource".
 - Date string: "type":"date", Input, componentProps {"type":"date"}; DatePicker holds a Date. Mask: InputMask, componentProps {"mask":"+7 (999) 999-99-99"}.
 
@@ -34,6 +34,18 @@ target, sources: leaf fields and arrays; compute must handle null (an empty numb
 ## visibility, dataSources
 {"selector":"mortgage-section","condition":"model.loanType !== 'mortgage'"} — the node is HIDDEN while true.
 {"name":"LOAN_TYPES","values":[{"value":"consumer","label":"Consumer"}]}
+
+## components — @reformer/ui-kit by purpose: inputs and choice are fields, the rest are layoutRoot containers; parts and props of any: form_build {"grammar":"components:Card,Tabs"}
+inputs: Input InputNumber InputSuggest InputPassword InputMask InputOTP Textarea DatePicker DatePickerRange DatePickerMulti Calendar FileUpload FileUploadAvatar FileUploadDropzone FileUploadInput
+choice: Select SelectMulti NativeSelect NativeSelectMulti Combobox ComboboxMulti ComboboxTree ComboboxTreeMulti RadioGroup Checkbox Switch Slider Toggle ToggleGroup ToggleGroupMulti
+layout: Box Section Card Accordion Tabs Collapsible InputGroup ButtonGroup AspectRatio ScrollArea Resizable Sidebar
+display: Icon Label Badge Avatar Progress Skeleton Spinner Table Tree Chart Empty Kbd Marker Alert Separator Carousel
+typography: TypographyBlockquote TypographyH1 TypographyH2 TypographyH3 TypographyH4 TypographyInlineCode TypographyLarge TypographyLead TypographyList TypographyMuted TypographyP TypographySmall
+actions: Button
+overlays: Dialog AlertDialog Sheet Drawer Popover HoverCard Tooltip Command
+navigation: DropdownMenu ContextMenu Menubar NavigationMenu Breadcrumb Pagination
+chat: Bubble Message MessageScroller Attachment Item
+other: AsyncBoundaryEmpty AsyncBoundaryError AsyncBoundaryLoading DataGrid DirectionProvider ExampleCard Field FieldArray FieldArraySection FieldContent FieldDescription FieldError FieldGroup FieldLabel FieldLegend FieldSeparator FieldSet FieldTitle FormWizard FormWizardActions FormWizardProgress InfoHint InputOTPGroup InputOTPSeparator InputOTPSlot ScrollBar StepIndicator Toaster
 
 ## More: form_build {"grammar":"<section>"}
 behavior (more operators), arrays (rows), wizard (steps), cross (across fields), async, parts (sub-forms), operators (own code), nodes (submit, mount), all.

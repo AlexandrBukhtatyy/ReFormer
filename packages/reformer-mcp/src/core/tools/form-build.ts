@@ -51,7 +51,7 @@ export const formBuildToolDefinition = {
       },
       grammar: {
         type: 'string',
-        description: `Return the intent grammar instead of building: "base", a section (${GRAMMAR_SECTIONS.join(', ')}), several comma-separated, or "all".`,
+        description: `Return the intent grammar instead of building: "base", a section (${GRAMMAR_SECTIONS.join(', ')}), several comma-separated, or "all"; "components:Card,Tabs" — parts and props of kit components.`,
       },
     },
     required: [],

@@ -257,7 +257,9 @@ and so are the aliases `validate_json_schema` and `check_behaviors` (use `valida
 - `grammar` (string, optional) — return the intent grammar instead of building: `base`, a section
   (`behavior`, `arrays`, `wizard`, `cross`, `async`, `parts`, `operators`, `nodes`), several
   comma-separated (`base` may be one of them: `base,arrays` is the base and the section), or `all`.
-  Needs neither a project nor an intent file.
+  `components` lists the kit components by purpose (fields and containers, for a form or a page);
+  `components:Card,Tabs` describes each — role, import, parts and props with types, values and the
+  kit's descriptions. Needs neither a project nor an intent file.
 
 Without an intent file the call answers with the base grammar. Built files start with the mark
 `// @reformer-form-build`; a file edited by hand is detached — the build leaves it alone and says
@@ -1376,6 +1378,22 @@ export function collectSteps(root: LayoutNode): Array<Extract<LayoutNode, { kind
 
 _Source: src/core/generate/schema-emit.ts_
 
+### ComponentsRequest
+
+**Kind:** `interface`
+
+Компоненты кита: пустой список — раздел `## components` (все компоненты по назначению), имена —
+описание каждого: роль, импорт, части и пропсы из каталога.
+
+**Signature:**
+```typescript
+export interface ComponentsRequest {
+  readonly components: readonly string[];
+}
+```
+
+_Source: src/core/generate/intent-grammar.ts_
+
 ### CoreOperators
 
 **Kind:** `interface`
@@ -1516,8 +1534,9 @@ _Source: src/core/generate/intent-grammar.ts_
 
 **Kind:** `const`
 
-Потолок грамматики документа в символах — не длиннее прежней грамматики `build_form`
-ассистента конструктора (около 3500): её читает каждая модель, включая малые локальные.
+Потолок грамматики документа в символах: её читает каждая модель, включая малые локальные.
+Прежде — не длиннее старой грамматики `build_form` (около 3500); раздел `## components` с
+компонентами кита по назначению прибавил около 1100 (ReFormer-11oe.15).
 
 **Signature:**
 ```typescript
@@ -1696,12 +1715,12 @@ _Source: src/core/generate/intent-grammar.ts_
 
 **Kind:** `type`
 
-Что вернуть: базу, все секции сразу или выбранные части. В списке база идёт первой, где бы её ни
-назвали.
+Что вернуть: базу, все секции сразу, выбранные части (в списке база идёт первой, где бы её ни
+назвали) или компоненты кита.
 
 **Signature:**
 ```typescript
-export type GrammarRequest = 'base' | 'all' | readonly GrammarPart[];
+export type GrammarRequest = 'base' | 'all' | readonly GrammarPart[] | ComponentsRequest;
 ```
 
 _Source: src/core/generate/intent-grammar.ts_
@@ -2499,6 +2518,15 @@ export interface UiKitComponents {
   readonly exports: Readonly<Record<string, string>>;
   /** Экспорт → подпуть (`calendar`), если в корне пакета его нет: импорт из корня не компилируется. */
   readonly subpaths: Readonly<Record<string, string>>;
+  /**
+   * Компоненты верхнего уровня по назначению ({@link COMPONENT_GROUPS}): группа → registry-имена.
+   * Части составных — в {@link parts}, служебные обёртки кита (`kit.infra`) — нигде. Из этого
+   * перечня грамматика печатает раздел `## components`: и для формы, и для страницы. Нет — хост
+   * собрал справочники без групп; грамматика тогда называет одни поля.
+   */
+  readonly groups?: Readonly<Record<string, readonly string[]>>;
+  /** Части составного компонента: корень → части (`Card` → `CardHeader`, `CardContent`, …). */
+  readonly parts?: Readonly<Record<string, readonly string[]>>;
 }
 ```
 

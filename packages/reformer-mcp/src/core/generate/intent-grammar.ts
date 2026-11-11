@@ -21,6 +21,9 @@
  */
 
 import type { FormCatalogs } from './catalogs.js';
+import { nearestKey } from './intent-messages.js';
+import { UI_KIT_PACKAGE } from './ui-kit-components.js';
+import type { PropsSchema } from './ui-kit-props.js';
 import { renderRuleList } from './core-operators.js';
 import { operatorsWithoutIntentKey } from './operator-catalog.js';
 
@@ -378,16 +381,18 @@ const json = (value: unknown): string => JSON.stringify(value);
 const { fields, arrays, validation, behavior } = GRAMMAR_EXAMPLE;
 
 /**
- * Потолок базы в символах: её читает каждая модель, включая малые локальные. Сама база — около
- * 4000; запас нужен на рост каталога кита и индекса ядра, из которых она печатает списки.
+ * Потолок базы в символах: её читает каждая модель, включая малые локальные. Без раздела
+ * `## components` база была около 4000 при потолке 4200; раздел (около 1100: все компоненты кита по
+ * назначению — и для формы, и для страницы) поднял её до 5000 (ReFormer-11oe.15). Запас — на рост
+ * каталога кита и индекса ядра, из которых она печатает списки.
  */
-export const GRAMMAR_BASE_LIMIT = 4200;
+export const GRAMMAR_BASE_LIMIT = 5600;
 /**
  * Потолок грамматики целиком (`grammar: "all"`). План задавал 8000, но ниже уже пришлось бы
  * убирать образцы записей, а целиком грамматику просят модели с большим контекстом: малые берут
- * секции по одной.
+ * секции по одной. Раздел `## components` в базе прибавил около 1100 (было 9500).
  */
-export const GRAMMAR_ALL_LIMIT = 9500;
+export const GRAMMAR_ALL_LIMIT = 10600;
 
 /** Секции грамматики, которые приходят по запросу. Порядок — порядок в `grammar: "all"`. */
 export const GRAMMAR_SECTIONS = [
@@ -407,10 +412,21 @@ export type GrammarSection = (typeof GRAMMAR_SECTIONS)[number];
 export type GrammarPart = GrammarSection | 'base';
 
 /**
- * Что вернуть: базу, все секции сразу или выбранные части. В списке база идёт первой, где бы её ни
- * назвали.
+ * Компоненты кита: пустой список — раздел `## components` (все компоненты по назначению), имена —
+ * описание каждого: роль, импорт, части и пропсы из каталога.
  */
-export type GrammarRequest = 'base' | 'all' | readonly GrammarPart[];
+export interface ComponentsRequest {
+  readonly components: readonly string[];
+}
+
+/**
+ * Что вернуть: базу, все секции сразу, выбранные части (в списке база идёт первой, где бы её ни
+ * назвали) или компоненты кита.
+ */
+export type GrammarRequest = 'base' | 'all' | readonly GrammarPart[] | ComponentsRequest;
+
+const isComponentsRequest = (request: GrammarRequest): request is ComponentsRequest =>
+  typeof request === 'object' && 'components' in request;
 
 export interface IntentGrammarOptions {
   /** По умолчанию — база. У профиля `document` секций нет: его текст один. */
@@ -450,6 +466,11 @@ const isSection = (value: string): value is GrammarSection =>
 export function readGrammarRequest(value: unknown): GrammarRequest | null {
   if (value === true) return 'base';
   if (typeof value !== 'string') return null;
+  // `components` — перечень компонентов кита, `components:Card,Tabs` — их описания.
+  const components = /^\s*components?\s*(?::(.*))?$/i.exec(value);
+  if (components) {
+    return { components: [...new Set((components[1] ?? '').split(/[\s,]+/).filter(Boolean))] };
+  }
   const names = [
     ...new Set(
       value
@@ -497,11 +518,140 @@ const wizardLayout = {
   ],
 };
 
-/** Строка о компонентах полей: поля кита из его каталога. */
+/** Строка о компонентах полей: ссылка на `## components`, а у хоста без групп — сами поля кита. */
 function componentLine({ uiKit }: FormCatalogs): string {
-  return uiKit.found
-    ? `- component: ${Object.keys(uiKit.fields).join(' ')}.`
-    : '- component: the @reformer/ui-kit catalog was not found, use a name from your registry.';
+  if (!uiKit.found) {
+    return '- component: the @reformer/ui-kit catalog was not found, use a name from your registry.';
+  }
+  return uiKit.groups
+    ? '- component: a field of ## components (inputs, choice).'
+    : `- component: ${Object.keys(uiKit.fields).join(' ')}.`;
+}
+
+/**
+ * Раздел `## components`: все компоненты кита верхнего уровня по назначению — для формы и для
+ * страницы (заголовки, текст, таблицы, оверлеи). Раньше грамматика называла одни поля, и
+ * контейнер не из примера (`Card`, `Tabs`) модель угадывала, а отказ `unknown-component` отсылал в
+ * грамматику, где контейнеров не было (ReFormer-11oe.15). Части и пропсы — по запросу
+ * (`form_build {"grammar":"components:Card"}`); у документа билдера запроса нет — только перечень.
+ */
+function componentsSection({ uiKit }: FormCatalogs, profile: 'module' | 'document'): string {
+  if (!uiKit.found || !uiKit.groups) return '';
+  const header =
+    profile === 'module'
+      ? '## components — @reformer/ui-kit by purpose: inputs and choice are fields, the rest are layoutRoot containers; parts and props of any: form_build {"grammar":"components:Card,Tabs"}'
+      : '## components — the kit by purpose: inputs and choice are fields, the rest are layoutRoot containers';
+  const rows = Object.entries(uiKit.groups).map(([group, names]) => {
+    // Теги HTML каталог конструктора называет `$html(div)`, а intent пишет их ключом htmlTag.
+    const tags = names.map((name) => /^\$html\((.+)\)$/.exec(name)?.[1]);
+    return tags.every(Boolean)
+      ? `${group} — a container {"htmlTag":"section"}: ${tags.join(' ')}`
+      : `${group}: ${names.join(' ')}`;
+  });
+  return `${header}\n${rows.join('\n')}\n`;
+}
+
+/** Предел описаний за один запрос: столько компонентов модель и спросит за один шаг формы. */
+const COMPONENT_DETAILS_LIMIT = 8;
+/** Предел пропсов в описании: у таблиц и оверлеев их десятки, а модели нужны ходовые. */
+const COMPONENT_PROPS_LIMIT = 40;
+/** Описание пропа — не длиннее этого. */
+const PROP_DESCRIPTION_CHARS = 140;
+
+/** Пропсы, которых в intent не бывает: обработчики (код, а не JSON), слот и дети узла. */
+const NOT_IN_INTENT = /^(on[A-Z].*|asChild|ref|children|key)$/;
+
+/** Тип пропа из JSON Schema одной строкой: `string`, `"a" | "b"`, `number[]`. */
+function propType(schema: PropsSchema): string {
+  if (Array.isArray(schema.enum))
+    return schema.enum.map((value) => JSON.stringify(value)).join(' | ');
+  if (schema.const !== undefined) return JSON.stringify(schema.const);
+  const variants = (schema.anyOf ?? schema.oneOf) as PropsSchema[] | undefined;
+  if (Array.isArray(variants)) return [...new Set(variants.map(propType))].join(' | ');
+  const type = Array.isArray(schema.type) ? schema.type.join(' | ') : schema.type;
+  if (type === 'array' && schema.items && typeof schema.items === 'object') {
+    return `${propType(schema.items as PropsSchema)}[]`;
+  }
+  return typeof type === 'string' ? type : 'any';
+}
+
+function propDescription(schema: PropsSchema): string {
+  if (typeof schema.description !== 'string') return '';
+  // Целиком, а не до точки: «Доп. CSS-класс триггера.» обрывалось на сокращении.
+  const flat = schema.description.replace(/\s+/g, ' ').trim();
+  const clipped =
+    flat.length > PROP_DESCRIPTION_CHARS ? `${flat.slice(0, PROP_DESCRIPTION_CHARS - 1)}…` : flat;
+  return clipped ? ` — ${clipped}` : '';
+}
+
+/** Описание одного компонента кита из его каталога. */
+function describeComponent(name: string, { uiKit, uiKitProps }: FormCatalogs): string {
+  const exported = uiKit.exports[name] ?? name;
+  const subpath = uiKit.subpaths[exported];
+  const from = subpath ? `${UI_KIT_PACKAGE}/${subpath}` : UI_KIT_PACKAGE;
+  const parent = Object.entries(uiKit.parts ?? {}).find(([, parts]) => parts.includes(name))?.[0];
+  const group = Object.entries(uiKit.groups ?? {}).find(([, names]) => names.includes(name))?.[0];
+  const role = name in uiKit.fields ? 'field' : parent ? `part of ${parent}` : 'container';
+  const lines = [
+    `## ${name} — ${role}${group ? `, ${group}` : ''}; import { ${exported} } from "${from}"`,
+  ];
+  // Части поля (`SelectItem`, …) рисует само поле: в раскладку их не ставят.
+  const parts = name in uiKit.fields ? undefined : uiKit.parts?.[name];
+  if (parts?.length) lines.push(`parts — containers inside it: ${parts.join(' ')}`);
+  const schema = uiKitProps?.defaults[name];
+  const properties = (schema?.properties ?? {}) as Record<string, PropsSchema>;
+  const hidden = new Set(
+    Array.isArray(schema?.['x-runtimeProps']) ? (schema['x-runtimeProps'] as string[]) : []
+  );
+  const props = Object.entries(properties).filter(
+    ([key]) => !NOT_IN_INTENT.test(key) && !hidden.has(key)
+  );
+  if (props.length === 0) {
+    lines.push(schema ? 'componentProps: none' : 'componentProps: the catalog has no props schema');
+  } else {
+    lines.push(
+      name in uiKit.fields
+        ? 'componentProps (label and required are keys of the field record):'
+        : 'componentProps:'
+    );
+    for (const [key, prop] of props.slice(0, COMPONENT_PROPS_LIMIT)) {
+      const fallback = prop.default === undefined ? '' : ` = ${JSON.stringify(prop.default)}`;
+      lines.push(`- ${key}: ${propType(prop)}${fallback}${propDescription(prop)}`);
+    }
+    if (props.length > COMPONENT_PROPS_LIMIT) {
+      lines.push(`- … ${props.length - COMPONENT_PROPS_LIMIT} more`);
+    }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Описания компонентов кита по именам: роль и группа, импорт, части составного и пропсы с типом,
+ * значениями и описанием из каталога. Описания пропсов — данные кита, на его языке.
+ */
+function componentDetails(catalogs: FormCatalogs, names: readonly string[]): string {
+  const { uiKit } = catalogs;
+  if (!uiKit.found) {
+    return 'The @reformer/ui-kit catalog was not found: there is nothing to describe.';
+  }
+  const known = Object.keys(uiKit.exports);
+  const byLower = new Map(known.map((name) => [name.toLowerCase(), name]));
+  const nearest = new Map(known.map((name) => [name, name]));
+  const blocks = names.slice(0, COMPONENT_DETAILS_LIMIT).map((asked) => {
+    const name = byLower.get(asked.toLowerCase());
+    if (name) return describeComponent(name, catalogs);
+    const near = nearestKey(asked, nearest);
+    return (
+      `## ${asked} — not in @reformer/ui-kit${near ? `; did you mean \`${near}\`?` : '.'} ` +
+      'The list: form_build {"grammar":"components"}'
+    );
+  });
+  if (names.length > COMPONENT_DETAILS_LIMIT) {
+    blocks.push(
+      `… ${names.length - COMPONENT_DETAILS_LIMIT} more: at most ${COMPONENT_DETAILS_LIMIT} per call.`
+    );
+  }
+  return blocks.join('\n\n');
 }
 
 /** Строка о правилах: фабрики ядра из его индекса. */
@@ -554,6 +704,7 @@ target, sources: leaf fields and arrays; compute must handle null (an empty numb
 ${json(GRAMMAR_EXAMPLE.visibility[0])} — the node is HIDDEN while true.
 ${json({ ...sources, values: sources.values.slice(0, 1) })}
 
+${componentsSection(catalogs, 'module')}
 ## More: form_build {"grammar":"<section>"}
 ${more}, all.
 `;
@@ -685,10 +836,11 @@ export const DOCUMENT_GRAMMAR_EXAMPLE = {
 };
 
 /**
- * Потолок грамматики документа в символах — не длиннее прежней грамматики `build_form`
- * ассистента конструктора (около 3500): её читает каждая модель, включая малые локальные.
+ * Потолок грамматики документа в символах: её читает каждая модель, включая малые локальные.
+ * Прежде — не длиннее старой грамматики `build_form` (около 3500); раздел `## components` с
+ * компонентами кита по назначению прибавил около 1100 (ReFormer-11oe.15).
  */
-export const DOCUMENT_GRAMMAR_LIMIT = 3500;
+export const DOCUMENT_GRAMMAR_LIMIT = 4700;
 
 /**
  * Правила документа — по именам: фабрики ядра из его индекса, а без индекса — самые ходовые.
@@ -739,7 +891,8 @@ Also copyFrom (expr: when to copy) onChange computeFrom syncFields resetWhen tra
 ${json(GRAMMAR_EXAMPLE.visibility[0])} — HIDDEN while true.
 ${json({ ...sources, values: sources.values.slice(0, 1) })}
 - Node event, a behavior row: {"kind":"onComponentEvent","selector":"<node>","event":"onClick","expr":"…"}. Own operators, call and node hooks are module code: not in a document.
-`;
+
+${componentsSection(catalogs, 'document')}`;
 }
 
 const isSectionPart = (part: GrammarPart): part is GrammarSection => part !== 'base';
@@ -755,6 +908,12 @@ export function intentGrammar(catalogs: FormCatalogs, options: IntentGrammarOpti
   if (options.profile === 'document') return documentGrammar(catalogs);
   const request = options.sections ?? 'base';
   if (request === 'base') return base(catalogs);
+  if (isComponentsRequest(request)) {
+    return request.components.length === 0
+      ? componentsSection(catalogs, 'module') ||
+          'The @reformer/ui-kit catalog was not found: use a name from your registry.'
+      : componentDetails(catalogs, request.components);
+  }
   const withBase = request === 'all' || request.includes('base');
   const sections = request === 'all' ? GRAMMAR_SECTIONS : request.filter(isSectionPart);
   const parts = sections.map((name) => SECTION_TEXT[name](catalogs));

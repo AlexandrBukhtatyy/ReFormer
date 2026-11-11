@@ -172,13 +172,33 @@ describe('checkComponentProps', () => {
 });
 
 describe('грамматика intent', () => {
-  it('перечисляет каждый компонент поля из каталога ui-kit', () => {
-    const line = intentGrammar(CATALOGS)
-      .split('\n')
-      .find((l) => l.startsWith('- component: '));
-    expect(line?.slice('- component: '.length, -1).split(' ')).toEqual(
-      Object.keys(CATALOGS.uiKit.fields)
+  it('раздел components называет каждый компонент кита ровно раз, поля — в inputs и choice [ReFormer-11oe.15]', () => {
+    const grammar = intentGrammar(CATALOGS);
+    const section = grammar.slice(grammar.indexOf('\n## components'), grammar.indexOf('\n## More'));
+    const rows = Object.fromEntries(
+      section
+        .split('\n')
+        .filter((line) => /^[a-z]+: /.test(line))
+        .map((line) => {
+          const [group, names] = line.split(': ');
+          return [group, names.split(' ')];
+        })
     );
+    const listed = Object.values(rows).flat();
+    expect(new Set(listed).size).toBe(listed.length);
+    expect([...rows.inputs, ...rows.choice].sort()).toEqual(
+      Object.keys(CATALOGS.uiKit.fields).sort()
+    );
+    // Части составных — в описании корня, служебные обёртки кита (`kit.infra`) — нигде.
+    const parts = new Set(Object.values(CATALOGS.uiKit.parts ?? {}).flat());
+    const infra = ['FormField', 'FieldFrame', 'AsyncBoundary', 'List'];
+    const expected = Object.keys(CATALOGS.uiKit.exports).filter(
+      (name) => !parts.has(name) && !infra.includes(name)
+    );
+    expect([...listed].sort()).toEqual(expected.sort());
+    // Страница — не только форма: типографика и отображение в перечне.
+    expect(rows.typography).toContain('TypographyH1');
+    expect(rows.layout).toEqual(expect.arrayContaining(['Box', 'Section', 'Card', 'Tabs']));
   });
 });
 

@@ -124,7 +124,11 @@ function environmentErrors(catalogs: FormCatalogs): JudgeFinding[] {
 }
 
 /** Компоненты intent, которых нет в ките, — с ближайшим именем кита. */
-function unknownComponents(intent: FormIntent, catalogs: FormCatalogs): JudgeFinding[] {
+function unknownComponents(
+  intent: FormIntent,
+  catalogs: FormCatalogs,
+  forDocument: boolean
+): JudgeFinding[] {
   if (!catalogs.uiKit.found) return [];
   const kit = Object.keys(catalogs.uiKit.exports);
   const known = new Set([...kit, ...BUILTIN_COMPONENTS]);
@@ -139,7 +143,11 @@ function unknownComponents(intent: FormIntent, catalogs: FormCatalogs): JudgeFin
         message:
           `the component \`${name}\` is not in @reformer/ui-kit` +
           (near ? ` — did you mean \`${near}\`?` : ''),
-        hint: 'a component of @reformer/ui-kit; the grammar lists them: form_build {"grammar":"base"}',
+        // Перечень — раздел `## components` грамматики. Раньше подсказка вела в грамматику, где были
+        // одни поля, и контейнер модель угадывала заново (ReFormer-11oe.15). У билдера form_build нет.
+        hint: forDocument
+          ? 'a component of the kit: ## components of the grammar lists them by purpose'
+          : 'a component of @reformer/ui-kit: form_build {"grammar":"components"} lists them by purpose',
       };
     });
 }
@@ -316,11 +324,15 @@ export function judgeIntent(
     }
   }
 
-  errors.push(...unknownComponents(intent, catalogs));
+  errors.push(...unknownComponents(intent, catalogs, options.forDocument === true));
   if (!options.forDocument && intent.target === 'core') errors.push(...coreRenderRules(intent));
 
   if (catalogs.uiKitProps) {
-    for (const note of checkComponentProps(intent, catalogs.uiKitProps, catalogs.uiKit)) {
+    // Типы и значения пропсов — описание компонента; у билдера form_build нет, ему хватает перечня.
+    const details = options.forDocument
+      ? undefined
+      : (component: string) => `types and values: form_build {"grammar":"components:${component}"}`;
+    for (const note of checkComponentProps(intent, catalogs.uiKitProps, catalogs.uiKit, details)) {
       warnings.push({ code: 'component-props', message: note });
     }
   }

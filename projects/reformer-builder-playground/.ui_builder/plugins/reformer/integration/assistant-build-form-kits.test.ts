@@ -125,4 +125,19 @@ describe.each(KITS)('build_form: $name', ({ entries }) => {
     expect(grammar).toContain('Input');
     expect(grammar.includes('## arrays')).toBe(arrayName(entries) !== undefined);
   });
+
+  it('раздел components — только компоненты этого кита [ReFormer-11oe.15]', () => {
+    const grammar = buildFormGrammar(entries);
+    const section = grammar.slice(
+      grammar.indexOf('\n## components'),
+      grammar.indexOf('\n## Where')
+    );
+    const listed = section
+      .split('\n')
+      .filter((line) => /^\S+: /.test(line))
+      .flatMap((line) => line.slice(line.indexOf(': ') + 2).split(' '));
+    expect(listed.length).toBeGreaterThan(0);
+    const names = new Set(entries.map((entry) => entry.name));
+    expect(listed.filter((name) => !names.has(name))).toEqual([]);
+  });
 });

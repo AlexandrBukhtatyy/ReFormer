@@ -590,6 +590,19 @@ describe('build_form: поля, описанные на месте', () => {
     expect(grammar.length).toBeLessThanOrEqual(DOCUMENT_GRAMMAR_LIMIT + 400);
   });
 
+  it('грамматика называет компоненты кита по назначению — и для страницы [ReFormer-11oe.15]', () => {
+    const grammar = buildFormGrammar(catalog);
+    const section = grammar.slice(
+      grammar.indexOf('\n## components'),
+      grammar.indexOf('\n## Where')
+    );
+    expect(section).toMatch(/^layout: .*\bCard\b.*\bTabs\b/m);
+    expect(section).toMatch(/^typography: .*\bTypographyH1\b/m);
+    expect(section).toMatch(/^inputs: .*\bInput\b/m);
+    // У ассистента form_build нет: описание компонента он берёт не оттуда.
+    expect(section).not.toContain('form_build');
+  });
+
   it('описание поля в шаге сокращённой записи поднимается в fields', async () => {
     const { schema, out } = expectBuilt(
       await build({

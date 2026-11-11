@@ -29,9 +29,56 @@ export interface UiKitComponents {
   readonly exports: Readonly<Record<string, string>>;
   /** Экспорт → подпуть (`calendar`), если в корне пакета его нет: импорт из корня не компилируется. */
   readonly subpaths: Readonly<Record<string, string>>;
+  /**
+   * Компоненты верхнего уровня по назначению ({@link COMPONENT_GROUPS}): группа → registry-имена.
+   * Части составных — в {@link parts}, служебные обёртки кита (`kit.infra`) — нигде. Из этого
+   * перечня грамматика печатает раздел `## components`: и для формы, и для страницы. Нет — хост
+   * собрал справочники без групп; грамматика тогда называет одни поля.
+   */
+  readonly groups?: Readonly<Record<string, readonly string[]>>;
+  /** Части составного компонента: корень → части (`Card` → `CardHeader`, `CardContent`, …). */
+  readonly parts?: Readonly<Record<string, readonly string[]>>;
 }
 
 export const NO_UI_KIT: UiKitComponents = { found: false, fields: {}, exports: {}, subpaths: {} };
+
+/**
+ * Группы компонентов в порядке печати. Источник — категории палитры кита
+ * (`kit.palette.categoryByName` файла каталога, `category` записи каталога конструктора); без
+ * категории — по роли и имени: поле — `inputs`, `Typography*` — `typography`, прочее — `other`.
+ */
+export const COMPONENT_GROUPS = [
+  'inputs',
+  'choice',
+  'layout',
+  'display',
+  'typography',
+  'actions',
+  'overlays',
+  'navigation',
+  'chat',
+  'arrays',
+  'wizard',
+  'html',
+  'other',
+] as const;
+
+/** Категория палитры кита → группа. Метки кита — по-русски, грамматика — по-английски. */
+const GROUP_BY_CATEGORY: Readonly<Record<string, string>> = {
+  'Поля ввода': 'inputs',
+  'Выбор и переключатели': 'choice',
+  Контейнеры: 'layout',
+  Отображение: 'display',
+  Действия: 'actions',
+  Оверлеи: 'overlays',
+  Навигация: 'navigation',
+  Чат: 'chat',
+  // Категории каталога конструктора, которых нет в палитре кита.
+  Типографика: 'typography',
+  Массив: 'arrays',
+  Мастер: 'wizard',
+  HTML: 'html',
+};
 
 /** Запись каталога — ровно те поля, что нужны генератору. */
 interface CatalogRecord {
@@ -39,6 +86,10 @@ interface CatalogRecord {
   role?: unknown;
   exportName?: unknown;
   subpath?: unknown;
+  /** Корень составного компонента, частью которого запись является. */
+  compoundParent?: unknown;
+  /** Категория палитры (каталог конструктора). */
+  category?: unknown;
 }
 
 const isRecord = (value: unknown): value is CatalogRecord =>
@@ -57,18 +108,51 @@ const text = (value: unknown): string | undefined =>
 export function uiKitFromCatalog(json: unknown): UiKitComponents {
   const components = (json as { components?: unknown } | null)?.components;
   if (!Array.isArray(components)) return NO_UI_KIT;
+  const kit = (json as { kit?: KitDescriptor }).kit;
+  const categoryByName = kit?.palette?.categoryByName ?? {};
+  const paletteOrder = new Map(Object.keys(categoryByName).map((name, index) => [name, index]));
+  const infra = new Set(Object.values(kit?.infra ?? {}).filter((name) => typeof name === 'string'));
   const fields: Record<string, string> = {};
   const exports: Record<string, string> = {};
   const subpaths: Record<string, string> = {};
+  const groups: Record<string, string[]> = {};
+  const parts: Record<string, string[]> = {};
   for (const record of components.filter(isRecord)) {
     const exported = text(record.exportName) ?? record.name;
     exports[record.name] = exported;
     if (record.role === 'field') fields[record.name] = exported;
     const subpath = text(record.subpath);
     if (subpath) subpaths[exported] = subpath;
+    const parent = text(record.compoundParent);
+    if (parent) (parts[parent] ??= []).push(record.name);
+    else if (!infra.has(record.name)) {
+      (groups[groupOf(record, categoryByName[record.name])] ??= []).push(record.name);
+    }
   }
   if (Object.keys(exports).length === 0) return NO_UI_KIT;
-  return { found: true, fields, exports, subpaths };
+  // Внутри группы — порядок палитры кита (ходовые первыми), остальное — в порядке каталога.
+  const rank = (name: string): number => paletteOrder.get(name) ?? paletteOrder.size;
+  const ordered = Object.fromEntries(
+    [...COMPONENT_GROUPS, ...Object.keys(groups).sort()]
+      .filter((group, index, all) => groups[group] && all.indexOf(group) === index)
+      .map((group) => [group, [...groups[group]].sort((a, b) => rank(a) - rank(b))])
+  );
+  return { found: true, fields, exports, subpaths, groups: ordered, parts };
+}
+
+/** То, что разбор берёт из описания кита в его каталоге. */
+interface KitDescriptor {
+  palette?: { categoryByName?: Record<string, string> };
+  infra?: Record<string, unknown>;
+}
+
+/** Группа записи: категория палитры, а без неё — роль и имя. */
+function groupOf(record: CatalogRecord, paletteCategory: string | undefined): string {
+  const category = text(record.category) ?? paletteCategory;
+  if (category) return GROUP_BY_CATEGORY[category] ?? category;
+  if (record.role === 'field') return 'inputs';
+  if (record.name.startsWith('Typography')) return 'typography';
+  return 'other';
 }
 
 /**
