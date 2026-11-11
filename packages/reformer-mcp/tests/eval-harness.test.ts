@@ -3,11 +3,19 @@
  * результатов конструктора, каталог сценариев, привязка и пробы верификатора, изоляция агента.
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { initProblems } from '../eval/agents/claude-code.mjs';
+import { initProblems, missingFlags } from '../eval/agents/claude-code.mjs';
 import {
   capResponse,
   KEEP_WHOLE_TOOLS,
@@ -304,6 +312,49 @@ describe('изоляция агентов', () => {
     ).toContain('github');
     expect(problems({ mcp_servers: [{ name: 'reformer', status: 'failed' }] })).toContain('failed');
     expect(problems({ cwd: process.cwd() })).toContain('внутри репозитория');
+  });
+
+  it('каталог через симлинк — тот же каталог: Claude Code называет настоящий путь', () => {
+    // macOS: os.tmpdir() — /var/folders/…, а init.cwd — /private/var/folders/….
+    const real = mkdtempSync(join(tmpdir(), 'init-real-'));
+    const link = `${real}-link`;
+    try {
+      mkdirSync(join(real, 'run'));
+      symlinkSync(real, link);
+      const init = { ...goodInit, cwd: realpathSync(join(real, 'run')) };
+      expect(initProblems(init, { workspaceDirectory: join(link, 'run') })).toEqual([]);
+      expect(initProblems(init, { workspaceDirectory: real }).join('; ')).toContain('не тот');
+    } finally {
+      unlinkSync(link);
+      rmSync(real, { recursive: true, force: true });
+    }
+  });
+
+  it('старый CLI без флагов запуска отсекается до батча, а не прогоном', () => {
+    const fresh = [
+      '  --restricted                          Restricted mode: removes the built-in',
+      '  --tools <tools...>                    Specify the list of available tools',
+      '  --permission-prompts <target>         Who answers permission prompts',
+      '  --disable-slash-commands              Disable all skills and commands',
+      '  --no-session-persistence              Disable session persistence',
+      '  --max-budget-usd <amount>             Maximum dollar amount to spend on API',
+      '  --strict-mcp-config                   Only use MCP servers from --mcp-config',
+    ].join('\n');
+    expect(missingFlags(fresh)).toEqual([]);
+    // Claude Code 1.0.83: есть `--strict-mcp-config` и `--allowedTools`, но нет `--restricted` и
+    // `--tools` — упоминание `--tools` внутри `--allowedTools` флагом не считается.
+    const old = [
+      '  --allowedTools <tools...>        Comma or space-separated list of tool names',
+      '  --strict-mcp-config              Only use MCP servers from --mcp-config',
+    ].join('\n');
+    expect(missingFlags(old)).toEqual([
+      '--restricted',
+      '--tools',
+      '--permission-prompts',
+      '--disable-slash-commands',
+      '--no-session-persistence',
+      '--max-budget-usd',
+    ]);
   });
 
   let directory: string | undefined;

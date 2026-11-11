@@ -8,12 +8,34 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, readFileSync, writeFileSync } from 'node:fs';
+import { createWriteStream, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { treeKillCommand } from '../../../../scripts/run-vitest-verdict.mjs';
 import { repoRoot } from '../records/record.mjs';
 
 export const kind = 'claude-code';
+
+/**
+ * Путь для сравнения: настоящий, без симлинков, в нижнем регистре. На macOS `os.tmpdir()` — это
+ * `/var/folders/…`, а Claude Code называет каталог по-настоящему, `/private/var/folders/…`: без
+ * разрешения симлинков изоляция считалась нарушенной во всех прогонах (батч `20261111T170113Z-5c48`).
+ * Несуществующий путь — как есть.
+ */
+function normalize(value) {
+  const resolved = path.resolve(String(value));
+  let real = resolved;
+  try {
+    real = realpathSync.native(resolved);
+  } catch {
+    // Пути нет на диске (файл, который агент только собирается записать) — разрешаем родителя.
+    try {
+      real = path.join(realpathSync.native(path.dirname(resolved)), path.basename(resolved));
+    } catch {
+      real = resolved;
+    }
+  }
+  return real.toLowerCase();
+}
 
 const FILE_TOOLS = ['Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const MCP_PREFIX = 'mcp__reformer__';
@@ -38,8 +60,49 @@ function findClaude() {
   return candidates[0] ?? null;
 }
 
+/**
+ * Флаги запуска, которых нет в старых версиях CLI. Без них `claude` падает на разборе аргументов
+ * до события `init`, и каждый прогон батча становится недействительным за ноль долларов: так ушёл
+ * батч `20261111T163322Z-0dd6` на Claude Code 1.0.83 из npm, первым стоявшем в PATH.
+ */
+const REQUIRED_FLAGS = [
+  '--restricted',
+  '--tools',
+  '--permission-prompts',
+  '--disable-slash-commands',
+  '--no-session-persistence',
+  '--max-budget-usd',
+  '--strict-mcp-config',
+];
+
+/** Флаги, которых нет в справке CLI (`claude --help`). Чистая функция — проверяется тестом. */
+export function missingFlags(helpText) {
+  return REQUIRED_FLAGS.filter(
+    (flag) => !new RegExp(`(^|\\s)${flag}(\\s|,|=|$)`, 'm').test(helpText)
+  );
+}
+
 export async function preflight() {
-  return findClaude() ? null : 'В PATH нет claude';
+  const claude = findClaude();
+  if (!claude) return 'В PATH нет claude';
+  // stdin закрыт, время ограничено: старый CLI 1.0.83 на `--version` не отвечает минутами, а на
+  // `--help` тратит около 10 с.
+  const probe = (args, timeout) =>
+    spawnSync(claude, args, {
+      encoding: 'utf8',
+      env: cleanEnvironment(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout,
+    });
+  const help = probe(['--help'], 30_000);
+  if (help.error) return `${claude} --help не ответил: ${help.error.message}`;
+  const missing = missingFlags(`${help.stdout ?? ''}\n${help.stderr ?? ''}`);
+  if (missing.length === 0) return null;
+  const version = (probe(['--version'], 5_000).stdout ?? '').trim() || 'версия неизвестна';
+  return (
+    `${claude} (${version}) не знает ${missing.join(', ')}: обнови Claude Code или поставь ` +
+    'свежий CLI первым в PATH'
+  );
 }
 
 /** Окружение без признаков внешней сессии Claude Code: иначе вложенный запуск отказывается работать. */
@@ -54,7 +117,6 @@ function cleanEnvironment() {
 /** Проблемы изоляции по событию `system/init`. Чистая функция — проверяется тестом. */
 export function initProblems(init, { workspaceDirectory }) {
   const problems = [];
-  const normalize = (value) => path.resolve(String(value)).toLowerCase();
   const root = normalize(repoRoot);
   if (normalize(init.cwd).startsWith(root + path.sep) || normalize(init.cwd) === root) {
     problems.push(`рабочий каталог внутри репозитория: ${init.cwd}`);
@@ -84,8 +146,9 @@ export function initProblems(init, { workspaceDirectory }) {
 function escapesWorkspace(toolInput, workspaceDirectory) {
   const target = toolInput?.file_path ?? toolInput?.path;
   if (typeof target !== 'string') return false;
-  const resolved = path.resolve(workspaceDirectory, target).toLowerCase();
-  return resolved.startsWith(path.resolve(repoRoot).toLowerCase() + path.sep);
+  return normalize(path.resolve(workspaceDirectory, target)).startsWith(
+    normalize(repoRoot) + path.sep
+  );
 }
 
 /** @param {import('./types.mjs').AgentInput} input */
