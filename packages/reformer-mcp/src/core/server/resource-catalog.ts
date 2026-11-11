@@ -5,6 +5,7 @@
  *
  *   reformer://guide                        — вводная: правило раскладки + llms.txt самого MCP
  *   reformer://catalog                      — машиночитаемая карта пакетов → секции
+ *   reformer://status                       — что сервер нашёл: пакеты, индексы, проверка типов
  *   reformer://docs/<pkg-short>             — полный llms.txt одного пакета
  *   reformer://docs/<pkg-short>/<section>   — одна секция уровня 2, по слагу
  *
@@ -31,6 +32,7 @@ import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { OWN_PACKAGE } from '../docs/packages.js';
 import { listRecipeNames } from '../docs/recipes.js';
 import type { Knowledge } from '../knowledge.js';
+import { describeKnowledge } from '../status.js';
 
 /** Запись `resources/list`. */
 export interface ResourceEntry {
@@ -197,6 +199,16 @@ export function createResourceCatalog(
         },
       ];
 
+      if (knowledge().status) {
+        resources.push({
+          uri: 'reformer://status',
+          name: 'ReFormer MCP — environment status',
+          description:
+            'JSON: which @reformer/* packages the server found (where, version, index, docs), whether form type-checking is available, the ui-kit catalog, and what failed to load. Read it when docs come back empty or a tool reports an environment problem.',
+          mimeType: 'application/json',
+        });
+      }
+
       for (const pkg of docs().packages()) {
         const short = packageShortName(pkg);
         resources.push({
@@ -234,6 +246,13 @@ export function createResourceCatalog(
 
       if (uri === 'reformer://catalog') {
         return { contents: [{ uri, mimeType: 'application/json', text: buildCatalog() }] };
+      }
+
+      if (uri === 'reformer://status') {
+        const k = knowledge();
+        if (!k.status) throw new Error(`Unknown resource: ${uri}`);
+        const text = JSON.stringify(describeKnowledge(k, k.status()), null, 2);
+        return { contents: [{ uri, mimeType: 'application/json', text }] };
       }
 
       if (uri === 'reformer://debug') {

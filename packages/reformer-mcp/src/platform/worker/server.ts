@@ -47,7 +47,10 @@ export interface WorkerServer {
 export function startWorkerServer(options: WorkerServerOptions): WorkerServer {
   let knowledge: Knowledge | undefined;
   const lazyKnowledge = (): Knowledge =>
-    (knowledge ??= createBrowserKnowledge(options.corpus()).knowledge);
+    (knowledge ??= createBrowserKnowledge({
+      version: options.version,
+      ...options.corpus(),
+    }).knowledge);
 
   const server = new Server(
     { name: 'reformer-mcp', version: options.version },

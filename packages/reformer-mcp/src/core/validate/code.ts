@@ -286,10 +286,10 @@ export async function validateCode(
   k: Knowledge,
   code: string,
   _options: ValidateCodeOptions = {}
-): Promise<{ diagnostics: Diagnostic[]; limitations: string[] }> {
+): Promise<{ diagnostics: Diagnostic[]; limitations: string[]; unindexed: string[] }> {
   const diagnostics: Diagnostic[] = [];
   const source = String(code ?? '');
-  if (!source.trim()) return { diagnostics, limitations: [] };
+  if (!source.trim()) return { diagnostics, limitations: [], unindexed: [] };
 
   const lines = source.split('\n');
   const imports = parseImports(source);
@@ -297,6 +297,15 @@ export async function validateCode(
 
   // --- RF002 / RF003 / RF010: имена, импортированные из @reformer/* -----------
   const outOfCorpus = new Set<string>();
+  // Пакет корпуса, символов которого сервер не видит: нет индекса и фолбэк ничего не дал. «Не
+  // существует ни в одном пакете» о нём было бы неправдой — и именно так form_build объявлял
+  // несуществующим код, который напечатал сам (ReFormer-j356.9). Это пробел окружения, а не кода.
+  const unindexed = new Set<string>();
+  const visible = new Map<string, boolean>();
+  const isVisible = async (pkg: string): Promise<boolean> => {
+    if (!visible.has(pkg)) visible.set(pkg, (await publicSymbols(k, pkg)).length > 0);
+    return visible.get(pkg) === true;
+  };
   for (const imp of reformerImports) {
     const basePackage = imp.from.split('/').slice(0, 2).join('/');
     // Пакет вне корпуса знания (`@reformer/builder-toolkit` и прочие служебные): его символов в
@@ -304,6 +313,10 @@ export async function validateCode(
     // (калибровка, трек T5).
     if (!(KNOWN_PACKAGES as readonly string[]).includes(basePackage)) {
       outOfCorpus.add(basePackage);
+      continue;
+    }
+    if (!(await isVisible(basePackage))) {
+      unindexed.add(basePackage);
       continue;
     }
     for (const { imported } of imp.names) {
@@ -545,8 +558,20 @@ export async function validateCode(
             'сервера, о его символах сказать нечего.',
         ]
       : []),
+    ...(unindexed.size > 0 ? [unindexedLimitation([...unindexed])] : []),
   ];
-  return { diagnostics, limitations };
+  return { diagnostics, limitations, unindexed: [...unindexed] };
+}
+
+/**
+ * Пометка «импорты не проверены»: у сервера нет индекса пакетов. Это пробел окружения — что
+ * именно не найдено, показывает `reformer://status`.
+ */
+export function unindexedLimitation(packages: readonly string[]): string {
+  return (
+    `Импорты из ${packages.join(', ')} не проверены: сервер не нашёл индекс этих пакетов ` +
+    '(llms-index.json). Это окружение, а не ошибка кода — см. reformer://status.'
+  );
 }
 
 /** Отправка членом сборки: `bundle.submit(handler)`, `level.submitting`, `jsonForm.submit(…)`. */

@@ -172,7 +172,8 @@ export function createToolCatalog(
 
         case 'validate_json_schema':
           return await validateJsonSchemaTool(
-            args as { schema: unknown; componentNames?: string[]; dataSourceNames?: string[] }
+            args as { schema: unknown; componentNames?: string[]; dataSourceNames?: string[] },
+            knowledge()
           );
 
         case 'list_symbols':

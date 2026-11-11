@@ -20,6 +20,7 @@ import { UNAVAILABLE_ISSUE_SINK, type IssueSink } from './issues/sink.js';
 import { UNAVAILABLE_FORM_WORKSPACE, type FormWorkspace } from './workspace/form-workspace.js';
 import type { PublicSymbol } from './index/public-symbol.js';
 import type { MergedIndex } from './index/types.js';
+import type { PlatformStatusSource } from './status.js';
 
 /**
  * Разбор публичных символов пакета в обход индекса.
@@ -58,6 +59,8 @@ export interface KnowledgeSources {
   symbolsFallback?: SymbolsFallback;
   /** Отсутствует — генератор работает без каталога кита: имена компонентов не сверяются. */
   uiKitCatalog?: UiKitCatalogSource;
+  /** Что знает о себе платформа — для `reformer://status`. Отсутствует — ресурса нет. */
+  status?: PlatformStatusSource;
 }
 
 export interface Knowledge {
@@ -77,6 +80,8 @@ export interface Knowledge {
   readonly symbolsFallback?: SymbolsFallback;
   /** См. {@link UiKitCatalogSource}. */
   readonly uiKitCatalog?: UiKitCatalogSource;
+  /** См. {@link PlatformStatusSource}. */
+  readonly status?: PlatformStatusSource;
   /**
    * Ленивые производные, общие на экземпляр: разобранные символы фолбэка, поисковые корпуса.
    *
@@ -103,6 +108,7 @@ export function createKnowledge(sources: KnowledgeSources): Knowledge {
     forms: sources.forms ?? UNAVAILABLE_FORM_WORKSPACE,
     ...(sources.symbolsFallback ? { symbolsFallback: sources.symbolsFallback } : {}),
     ...(sources.uiKitCatalog ? { uiKitCatalog: sources.uiKitCatalog } : {}),
+    ...(sources.status ? { status: sources.status } : {}),
     memo: new Map(),
   };
 }

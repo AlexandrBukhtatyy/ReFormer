@@ -1,7 +1,7 @@
 /**
  * Источник файлов `docs/llms` для CLI.
  *
- * Каталог резолвится теми же четырьмя путями, что `llms.txt` и индекс. Отдельная тонкость
+ * Каталог ищется в тех же местах, что `llms.txt` и индекс ({@link locatePackages}). Отдельная тонкость
  * публикации: `docs/llms` входит в `files` у всех библиотек, но НЕ у самого `@reformer/mcp` —
  * его собственные рецепты у потребителя доступны только через секции `llms.txt`.
  *
@@ -13,28 +13,16 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from 'fs';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { join, resolve } from 'path';
 import type { RecipeSource } from '../../core/docs/recipes.js';
-import { packageDirName } from '../../core/docs/packages.js';
-import { packageRoot } from './docs-source.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { locatePackages } from './package-locator.js';
+import { reportKnowledgeProblem } from './problems.js';
 
 /** Абсолютный путь к `docs/llms` пакета, если каталог доступен. */
 function locateDocsDir(pkg: string): string | null {
-  const dir = packageDirName(pkg);
-  const root = packageRoot(pkg);
-  const candidates = [
-    // Резолв через package.json пакета — работает под npx/pnpm/hoisting, где плоского
-    // `<cwd>/node_modules/<pkg>` может не быть.
-    ...(root ? [resolve(root, 'docs', 'llms')] : []),
-    resolve(process.cwd(), 'node_modules', pkg, 'docs', 'llms'),
-    resolve(__dirname, '../../../../', dir, 'docs', 'llms'),
-    resolve(process.cwd(), 'packages', dir, 'docs', 'llms'),
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
+  for (const location of locatePackages(pkg)) {
+    const dir = join(location.root, 'docs', 'llms');
+    if (existsSync(dir)) return dir;
   }
   return null;
 }
@@ -58,7 +46,8 @@ export function createCliRecipeSource(): RecipeSource {
       if (dir) {
         try {
           entries = readdirSync(dir);
-        } catch {
+        } catch (error) {
+          reportKnowledgeProblem(`recipes:${pkg}`, `${dir}: ${String(error)}`);
           entries = [];
         }
       }

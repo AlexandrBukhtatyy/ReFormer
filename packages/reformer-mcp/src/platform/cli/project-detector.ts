@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname, join, sep } from 'path';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { discoverUnknownStack } from './sampling-helpers.js';
+import { reportKnowledgeProblem } from './problems.js';
 
 export interface ProjectStack {
   /** Absolute path to the resolved project package.json (or null if not found). */
@@ -41,14 +42,16 @@ export function outsideNodeModules(dir: string): string {
 }
 
 /**
- * Walk up from cwd looking for the nearest package.json that is not a workspace
- * root descriptor (i.e. has dependencies). Starts outside `node_modules` (installed
- * packages are never the project). Stops at filesystem root or 8 levels up.
- * Returns null if not found.
+ * Walk up from the start directory looking for the nearest package.json that has
+ * dependencies. Starts outside `node_modules` (installed packages are never the project).
+ * Stops at the filesystem root. Returns null if not found.
+ *
+ * Без прежнего предела в 8 уровней: каталог формы в приложении монорепо лежит глубже, и поиск
+ * обрывался, не дойдя до `package.json` приложения.
  */
 function findProjectPackageJson(startDir: string): string | null {
   let dir = outsideNodeModules(startDir);
-  for (let i = 0; i < 8; i++) {
+  for (;;) {
     const candidate = join(dir, 'package.json');
     if (existsSync(candidate)) {
       try {
@@ -61,8 +64,8 @@ function findProjectPackageJson(startDir: string): string | null {
         if (Object.keys(allDeps).length > 0) {
           return candidate;
         }
-      } catch {
-        // ignore unreadable package.json
+      } catch (error) {
+        reportKnowledgeProblem('project', `${candidate}: ${String(error)}`);
       }
     }
     const parent = dirname(dir);

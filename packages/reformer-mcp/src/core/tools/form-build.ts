@@ -25,9 +25,9 @@ import { crossCheckBundle, inspectLayoutRefs } from '../generate/cross-check.js'
 import { readIntent } from '../generate/form-intent.js';
 import { originOf, withMarker } from '../generate/generated-marker.js';
 import { intentGrammar } from '../generate/intent-grammar.js';
-import { checkComponentProps, loadUiKitPropSchemas } from '../generate/ui-kit-props.js';
+import { checkComponentProps } from '../generate/ui-kit-props.js';
 import type { Knowledge } from '../knowledge.js';
-import { validateCode } from '../validate/code.js';
+import { unindexedLimitation, validateCode } from '../validate/code.js';
 import type { FormDirectory, FormFile, TypeDiagnostic } from '../workspace/form-workspace.js';
 import { invalidCall, type ToolTextResult } from './tool-result.js';
 
@@ -126,19 +126,28 @@ function planBuild(directory: FormDirectory, derived: FormFile[], owned: FormFil
   return plan;
 }
 
-/** Запасная проверка без компилятора: импорты несуществующих символов. */
-async function checkImports(k: Knowledge, files: readonly FormFile[]): Promise<string[]> {
+/**
+ * Запасная проверка без компилятора: импорты несуществующих символов.
+ *
+ * @returns Ошибки и пакеты, импорты из которых проверить нечем (у сервера нет их индекса).
+ */
+async function checkImports(
+  k: Knowledge,
+  files: readonly FormFile[]
+): Promise<{ errors: string[]; unchecked: string[] }> {
   const errors: string[] = [];
+  const unchecked = new Set<string>();
   for (const file of files) {
     if (!/\.tsx?$/.test(file.path)) continue;
-    const { diagnostics } = await validateCode(k, file.content);
+    const { diagnostics, unindexed } = await validateCode(k, file.content);
     for (const diagnostic of diagnostics) {
       if (diagnostic.severity !== 'error') continue;
       const place = diagnostic.line ? `${file.path}:${diagnostic.line}` : file.path;
       errors.push(`${place} ${diagnostic.code} ${diagnostic.message}`);
     }
+    for (const pkg of unindexed) unchecked.add(pkg);
   }
-  return errors;
+  return { errors, unchecked: [...unchecked].sort() };
 }
 
 export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<ToolTextResult> {
@@ -235,18 +244,21 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
       types.diagnostics.map(renderTypeError)
     );
   }
+  let uncheckedImports: string[] = [];
   if (types.status === 'unavailable') {
-    const importErrors = await checkImports(k, plan.module);
-    if (importErrors.length > 0) return failure('неверные импорты', importErrors);
+    const imports = await checkImports(k, plan.module);
+    if (imports.errors.length > 0) return failure('неверные импорты', imports.errors);
+    uncheckedImports = imports.unchecked;
   }
 
   for (const file of plan.writes) directory.write(file.path, file.content);
   for (const name of plan.removes) directory.remove(name);
 
-  const kit = await loadUiKitPropSchemas();
   const notes = [
     ...intent.warnings,
-    ...(kit ? checkComponentProps(intent, kit, catalogs.uiKit) : []),
+    ...(catalogs.uiKitProps
+      ? checkComponentProps(intent, catalogs.uiKitProps, catalogs.uiKit)
+      : []),
     ...warnings,
     ...report.warnings.map((warning) => `${warning.code}: ${warning.message}`),
   ];
@@ -256,7 +268,9 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
       `правил ${intent.validation.length}, поведений ${intent.behavior.length}.`,
     types.status === 'checked'
       ? 'Типы проверены, ошибок нет.'
-      : `⚠️ Типы НЕ проверены: ${types.reason}. Проверены только импорты.`,
+      : uncheckedImports.length > 0
+        ? `⚠️ Типы НЕ проверены: ${types.reason}. ${unindexedLimitation(uncheckedImports)}`
+        : `⚠️ Типы НЕ проверены: ${types.reason}. Проверены только импорты.`,
     `Каталог ${directory.label}: ${directory.list().join(', ')}.`,
     // Полноту сборка не проверяет: без этой строки агенты заканчивали на ✓, не дописав правила из
     // таблицы зависимостей спеки (ReFormer-w0bo.3).

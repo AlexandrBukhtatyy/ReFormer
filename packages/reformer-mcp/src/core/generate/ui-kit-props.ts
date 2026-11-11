@@ -1,9 +1,11 @@
 /**
  * Свойства компонентов ui-kit: props-схемы кита и проверка `componentProps` в intent по ним.
  *
- * Схемы — `defaultPropSchemas` из `@reformer/ui-kit/meta`, собранные из тех же `*.props.ts`, что и
- * `component-catalog.json`. Кит — опциональный peer сервера, поэтому модуль грузится лениво, а без
- * него проверка пропускается.
+ * Схемы — `propsSchema` записей `component-catalog.json` кита, того же каталога, из которого
+ * генератор берёт имена и подпути компонентов. Раньше схемы читались отдельно из
+ * `@reformer/ui-kit/meta` — от модуля сервера, а не от проекта, и там строгих схем было в пять раз
+ * меньше (60 против 334): два источника расходились (ReFormer-zjqy). Схемы полей в каталоге уже
+ * слиты с пропсами обёртки (`label`, `required`, `testId`, …).
  *
  * Зачем проверка в `form_build`. Грамматика intent показывает свойства только на примерах, а
  * выписать их для всех компонентов — раздуть ответ, который агент читает на каждой форме. Поэтому
@@ -20,38 +22,23 @@ import type { UiKitComponents } from './ui-kit-components.js';
 /** Props-схема компонента в форме JSON Schema: здесь нужны только имена свойств и строгость. */
 export type PropsSchema = Record<string, unknown>;
 
-/**
- * Форма модуля `@reformer/ui-kit/meta` (React-free): карта дефолтных props-схем + слияние с
- * контрактом обёртки поля.
- */
-interface UiKitMetaMod {
-  defaultPropSchemas?: Record<string, PropsSchema>;
-  mergeFieldPropsSchema?: (schema: PropsSchema) => PropsSchema;
-}
-
 export interface UiKitPropSchemas {
-  /** Схема дефолтного варианта по registry-имени. */
+  /** Схема компонента по registry-имени; у полей — вместе с пропсами обёртки. */
   defaults: Readonly<Record<string, PropsSchema>>;
-  /**
-   * Схема варианта вместе с пропсами обёртки (`label`, `required`, `testId`, …): поле рисуется
-   * внутри `FormField`, и без слияния эти ключи считались бы чужими.
-   */
-  mergeField: (schema: PropsSchema) => PropsSchema;
 }
 
-/** Загрузить props-схемы кита. Нет пакета или он не собран → `undefined`. */
-export async function loadUiKitPropSchemas(): Promise<UiKitPropSchemas | undefined> {
-  try {
-    const meta = (await import('@reformer/ui-kit/meta')) as UiKitMetaMod;
-    const defaults = meta.defaultPropSchemas;
-    if (!defaults || typeof defaults !== 'object' || Object.keys(defaults).length === 0) {
-      return undefined;
-    }
-    const merge = meta.mergeFieldPropsSchema;
-    return { defaults, mergeField: typeof merge === 'function' ? merge : (schema) => schema };
-  } catch {
-    return undefined;
+/** Props-схемы из каталога кита. Каталога нет или в нём нет схем — `undefined`. */
+export function uiKitPropsFromCatalog(json: unknown): UiKitPropSchemas | undefined {
+  const components = (json as { components?: unknown } | null)?.components;
+  if (!Array.isArray(components)) return undefined;
+  const defaults: Record<string, PropsSchema> = {};
+  for (const record of components) {
+    const name = (record as { name?: unknown } | null)?.name;
+    const schema = (record as { propsSchema?: unknown } | null)?.propsSchema;
+    if (typeof name !== 'string' || typeof schema !== 'object' || schema === null) continue;
+    defaults[name] = schema as PropsSchema;
   }
+  return Object.keys(defaults).length > 0 ? { defaults } : undefined;
 }
 
 /** Атрибуты DOM, которые компонент передаёт дальше: их нет в схеме, и это не опечатка. */
@@ -119,9 +106,8 @@ export function checkComponentProps(
   if (!components.found) return notes;
   for (const site of collectSites(intent)) {
     if (!site.props) continue;
-    const own = kit.defaults[site.component];
-    if (!own || own.additionalProperties !== false) continue;
-    const schema = components.fields[site.component] ? kit.mergeField(own) : own;
+    const schema = kit.defaults[site.component];
+    if (!schema || schema.additionalProperties !== false) continue;
     const known = Object.keys((schema.properties as Record<string, unknown> | undefined) ?? {});
     const unknown = Object.keys(site.props).filter(
       (key) => !known.includes(key) && !DOM_ATTRIBUTE.test(key)

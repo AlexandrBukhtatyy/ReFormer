@@ -11,6 +11,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { coreOperatorsOf, type FormCatalogs } from '../../src/core/generate/catalogs';
 import { uiKitFromCatalog } from '../../src/core/generate/ui-kit-components';
+import { uiKitPropsFromCatalog } from '../../src/core/generate/ui-kit-props';
 import { cliKnowledge } from '../../src/platform/cli/knowledge';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -21,8 +22,11 @@ export const UI_KIT_CATALOG_PATH = resolve(
   'packages/reformer-ui-kit/component-catalog.json'
 );
 
+const catalog: unknown = JSON.parse(readFileSync(UI_KIT_CATALOG_PATH, 'utf8'));
+
 /** Справочники монорепо. */
 export const CATALOGS: FormCatalogs = {
-  uiKit: uiKitFromCatalog(JSON.parse(readFileSync(UI_KIT_CATALOG_PATH, 'utf8'))),
+  uiKit: uiKitFromCatalog(catalog),
+  uiKitProps: uiKitPropsFromCatalog(catalog),
   core: coreOperatorsOf(cliKnowledge()),
 };

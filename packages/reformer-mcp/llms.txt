@@ -1235,6 +1235,8 @@ export interface BrowserKnowledgeInput {
    * имена компонентов.
    */
   uiKitCatalog?: unknown;
+  /** Версия сервера на момент сборки бандла — для `reformer://status`. */
+  version?: string;
 }
 ```
 
@@ -1671,6 +1673,8 @@ export interface Knowledge {
   readonly symbolsFallback?: SymbolsFallback;
   /** См. {@link UiKitCatalogSource}. */
   readonly uiKitCatalog?: UiKitCatalogSource;
+  /** См. {@link PlatformStatusSource}. */
+  readonly status?: PlatformStatusSource;
   /**
    * Ленивые производные, общие на экземпляр: разобранные символы фолбэка, поисковые корпуса.
    *
@@ -1709,6 +1713,8 @@ export interface KnowledgeSources {
   symbolsFallback?: SymbolsFallback;
   /** Отсутствует — генератор работает без каталога кита: имена компонентов не сверяются. */
   uiKitCatalog?: UiKitCatalogSource;
+  /** Что знает о себе платформа — для `reformer://status`. Отсутствует — ресурса нет. */
+  status?: PlatformStatusSource;
 }
 ```
 

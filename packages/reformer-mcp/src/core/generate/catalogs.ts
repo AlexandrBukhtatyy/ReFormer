@@ -13,10 +13,13 @@
 import { memoize, type Knowledge } from '../knowledge.js';
 import { coreOperatorsFromIndex, NO_CORE_OPERATORS, type CoreOperators } from './core-operators.js';
 import { NO_UI_KIT, uiKitFromCatalog, type UiKitComponents } from './ui-kit-components.js';
+import { uiKitPropsFromCatalog, type UiKitPropSchemas } from './ui-kit-props.js';
 
 export interface FormCatalogs {
   /** Компоненты кита. */
   readonly uiKit: UiKitComponents;
+  /** Props-схемы компонентов кита — из того же каталога; без каталога `undefined`. */
+  readonly uiKitProps?: UiKitPropSchemas;
   /** Фабрики правил и имена операторов ядра. */
   readonly core: CoreOperators;
 }
@@ -32,11 +35,15 @@ export function coreOperatorsOf(k: Knowledge): CoreOperators {
 export function catalogsOf(k: Knowledge): Promise<FormCatalogs> {
   return memoize(k, 'form-catalogs', async () => {
     let uiKit = NO_UI_KIT;
+    let uiKitProps: UiKitPropSchemas | undefined;
     try {
-      uiKit = uiKitFromCatalog(await k.uiKitCatalog?.());
+      const catalog = await k.uiKitCatalog?.();
+      uiKit = uiKitFromCatalog(catalog);
+      uiKitProps = uiKitPropsFromCatalog(catalog);
     } catch {
       // Битый или недоступный каталог — то же, что его отсутствие: генератор не сверяет имена.
+      // Причину платформа записывает в статус (`reformer://status`) при чтении каталога.
     }
-    return { uiKit, core: coreOperatorsOf(k) };
+    return { uiKit, ...(uiKitProps ? { uiKitProps } : {}), core: coreOperatorsOf(k) };
   });
 }

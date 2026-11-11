@@ -20,7 +20,9 @@
  */
 
 import type { DocsBundle, IndexBundle } from '../../core/bundle.js';
+import { KNOWN_PACKAGES } from '../../core/docs/packages.js';
 import { createKnowledge, type Knowledge } from '../../core/knowledge.js';
+import type { PlatformStatus } from '../../core/status.js';
 import { createMemoryIssueSink, type MemoryIssueSink } from './issue-sink.js';
 import {
   createBundleDocsSource,
@@ -46,6 +48,34 @@ export interface BrowserKnowledgeInput {
    * имена компонентов.
    */
   uiKitCatalog?: unknown;
+  /** Версия сервера на момент сборки бандла — для `reformer://status`. */
+  version?: string;
+}
+
+/** Статус браузерного знания: что вшито в артефакт. Компилятора и диска здесь нет по природе. */
+function browserStatus(input: BrowserKnowledgeInput): PlatformStatus {
+  const packages = input.index?.packages ?? {};
+  const components = (input.uiKitCatalog as { components?: unknown } | undefined)?.components;
+  return {
+    profile: 'browser',
+    server: { version: input.version ?? 'unknown', buildId: input.index?.builtAt ?? null },
+    packages: KNOWN_PACKAGES.map((name) => {
+      const index = packages[name] as { version?: unknown } | undefined;
+      return {
+        name,
+        root: null,
+        version: typeof index?.version === 'string' ? index.version : null,
+        via: index ? 'bundle' : null,
+      };
+    }),
+    typecheck: { available: false, detail: 'no compiler in the browser profile' },
+    uiKitCatalog: {
+      found: Array.isArray(components),
+      components: Array.isArray(components) ? components.length : 0,
+      source: Array.isArray(components) ? 'host' : null,
+    },
+    problems: [],
+  };
 }
 
 export interface BrowserKnowledge {
@@ -65,6 +95,7 @@ export function createBrowserKnowledge(input: BrowserKnowledgeInput): BrowserKno
     spec: createMemorySpecSource(input.specs ?? new Map()),
     issues,
     ...(input.uiKitCatalog === undefined ? {} : { uiKitCatalog: async () => input.uiKitCatalog }),
+    status: () => browserStatus(input),
     // `symbolsFallback` не передаётся намеренно — разбора AST в браузере нет, ядро подставит
     // заглушку, а деградация будет видна в ответах инструментов, а не спрятана.
   });

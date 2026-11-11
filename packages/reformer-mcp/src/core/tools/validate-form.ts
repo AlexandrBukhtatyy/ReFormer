@@ -197,11 +197,14 @@ export async function validateFormTool(
       }
       // Структурную проверку делает ajv внутри @reformer/renderer-json — переиспользуем её
       // как есть, а не переписываем: источник истины о формате DSL находится там.
-      return validateJsonSchemaTool({
-        schema: args.schema,
-        componentNames: args.componentNames,
-        dataSourceNames: args.dataSourceNames,
-      });
+      return validateJsonSchemaTool(
+        {
+          schema: args.schema,
+          componentNames: args.componentNames,
+          dataSourceNames: args.dataSourceNames,
+        },
+        k
+      );
     }
 
     case 'bundle': {

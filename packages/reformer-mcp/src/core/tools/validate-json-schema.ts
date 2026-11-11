@@ -7,7 +7,8 @@
  * (`$model/$component/$dataSource`) + неизвестные имена компонентов/data-source.
  */
 
-import { loadUiKitPropSchemas } from '../generate/ui-kit-props.js';
+import { catalogsOf } from '../generate/catalogs.js';
+import type { Knowledge } from '../knowledge.js';
 
 /**
  * Тип модуля `@reformer/renderer-json/validate` из источника истины (`typeof import`).
@@ -17,19 +18,17 @@ import { loadUiKitPropSchemas } from '../generate/ui-kit-props.js';
 type ValidateMod = typeof import('@reformer/renderer-json/validate');
 
 /**
- * Карта `componentProps`-схем кита (optional dependency, см. `loadUiKitPropSchemas`). Каждая
- * дефолтная схема варианта сливается с контрактом враппера (иначе `label`/`required`/`testId` в
- * реальном `componentProps` дали бы ложные срабатывания). Нет пакета / не собран → `undefined`
- * (props не проверяем, graceful fallback).
+ * Карта `componentProps`-схем кита из его каталога — того же, по которому генератор сверяет имена
+ * компонентов. Схемы полей в каталоге уже слиты с контрактом обёртки (иначе `label`/`required`/
+ * `testId` дали бы ложные срабатывания). Нет каталога → `undefined` (props не проверяются).
  */
-async function loadComponentPropSchemas(): Promise<
-  Record<string, Record<string, unknown>> | undefined
-> {
-  const kit = await loadUiKitPropSchemas();
-  if (!kit) return undefined;
-  return Object.fromEntries(
-    Object.entries(kit.defaults).map(([name, schema]) => [name, kit.mergeField(schema)])
-  );
+async function loadComponentPropSchemas(
+  k: Knowledge | undefined
+): Promise<Record<string, Record<string, unknown>> | undefined> {
+  if (!k) return undefined;
+  return (await catalogsOf(k)).uiKitProps?.defaults as
+    | Record<string, Record<string, unknown>>
+    | undefined;
 }
 
 export interface ValidateJsonSchemaArgs {
@@ -41,7 +40,8 @@ export interface ValidateJsonSchemaArgs {
 }
 
 export async function validateJsonSchemaTool(
-  args: ValidateJsonSchemaArgs
+  args: ValidateJsonSchemaArgs,
+  k?: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   // Accept a JSON string as well as a parsed object.
   let schema = args.schema;
@@ -70,9 +70,9 @@ export async function validateJsonSchemaTool(
     );
   }
 
-  // Optionally load componentProps schemas from `@reformer/ui-kit/meta` (optional dep). Present →
-  // phase (d) checks each node's `componentProps` (typos, wrong types). Absent → skipped gracefully.
-  const propSchemas = await loadComponentPropSchemas();
+  // componentProps-схемы из каталога кита. Есть → фаза (d) проверяет `componentProps` каждого узла
+  // (опечатки, типы). Нет каталога → проверка пропускается.
+  const propSchemas = await loadComponentPropSchemas(k);
 
   const { valid, errors } = validateFormSchema(schema, {
     componentNames: args.componentNames,

@@ -44,16 +44,19 @@ function buildCatalog(): string {
 }
 
 describe('resources — каталог вместо перечисления секций', () => {
-  it.runIf(hasDocs)('перечисление остаётся коротким: guide + catalog + по одному на пакет', () => {
-    // 2 фиксированных + N пакетов (debug — вне CI).
-    const listed = resources.list().length;
-    expect(listed).toBe(2 + packages.length);
-    expect(listed).toBeLessThanOrEqual(16);
+  it.runIf(hasDocs)(
+    'перечисление остаётся коротким: guide + catalog + status + по одному на пакет',
+    () => {
+      // 3 фиксированных + N пакетов (debug — вне CI).
+      const listed = resources.list().length;
+      expect(listed).toBe(3 + packages.length);
+      expect(listed).toBeLessThanOrEqual(16);
 
-    // Секций на порядок больше — именно их и не должно быть в списке.
-    const sections = packages.reduce((n, p) => n + listSections(p).length, 0);
-    expect(sections).toBeGreaterThan(listed * 5);
-  });
+      // Секций на порядок больше — именно их и не должно быть в списке.
+      const sections = packages.reduce((n, p) => n + listSections(p).length, 0);
+      expect(sections).toBeGreaterThan(listed * 5);
+    }
+  );
 
   it.runIf(hasDocs)('каталог перечисляет те же слаги и в том же порядке, что listSections', () => {
     const catalog = JSON.parse(buildCatalog()) as Catalog;

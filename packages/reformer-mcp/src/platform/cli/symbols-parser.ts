@@ -1,10 +1,9 @@
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname, relative } from 'path';
-import { fileURLToPath } from 'url';
 import * as ts from 'typescript';
 import { KNOWN_PACKAGES, type ReformerPackage } from '../../core/docs/packages.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { locatePackage } from './package-locator.js';
+import { reportKnowledgeProblem } from './problems.js';
 
 // Контракт символа общий у двух источников (индекс и этот парсер), поэтому объявлен в ядре.
 // Здесь он реэкспортируется, чтобы прежние импорты из `utils/symbols-parser` продолжали работать.
@@ -13,28 +12,9 @@ import type { PublicSymbol, SymbolTag } from '../../core/index/public-symbol.js'
 
 const symbolsCache = new Map<string, PublicSymbol[]>();
 
-/**
- * Map @reformer/<name> → directory name in monorepo packages/.
- */
-function packageDirName(pkg: string): string {
-  const tail = pkg.replace(/^@reformer\//, '');
-  if (tail === 'core') return 'reformer';
-  return `reformer-${tail}`;
-}
-
+/** Корень установленного пакета — там же, где его ищут справка и индекс. */
 function findPackageRoot(pkg: string): string | null {
-  const dir = packageDirName(pkg);
-  const candidates = [
-    resolve(process.cwd(), 'node_modules', pkg),
-    // Монорепо: файл лежит в `<pkg>/{src,dist}/platform/cli/`, поэтому до `packages/` —
-    // четыре уровня вверх (та же арифметика, что в index-source и recipe-source).
-    resolve(__dirname, '../../../../', dir),
-    resolve(process.cwd(), 'packages', dir),
-  ];
-  for (const c of candidates) {
-    if (existsSync(c) && existsSync(resolve(c, 'package.json'))) return c;
-  }
-  return null;
+  return locatePackage(pkg)?.root ?? null;
 }
 
 function findEntry(pkgRoot: string): string | null {
@@ -92,8 +72,9 @@ function findEntries(pkgRoot: string): string[] {
         if (existsSync(dts)) entries.push(dts);
       }
     }
-  } catch {
-    /* no package.json / unreadable exports — main entry only */
+  } catch (error) {
+    // Нет package.json или exports не читаются — индексируется только главный вход.
+    reportKnowledgeProblem('symbols', `${pkgRoot}: ${String(error)}`);
   }
 
   return [...new Set(entries)];

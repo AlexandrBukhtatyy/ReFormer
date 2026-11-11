@@ -24,11 +24,17 @@ describe('precondition', () => {
     expect(precondition('docs', true, 'npm run build')).toBe(true);
   });
 
-  it('каждый файл с runIf/skipIf берёт условие из precondition', () => {
+  it('каждый файл с условным пропуском берёт условие из precondition', () => {
     const directory = __dirname;
+    // Условный пропуск — не только runIf/skipIf: `cond ? describe : describe.skip` выключал набор
+    // молча и мимо строгого режима (аудит 2026-11, E4).
     const conditional = readdirSync(directory)
       .filter((file) => file.endsWith('.test.ts') && file !== 'test-preconditions.test.ts')
-      .filter((file) => /\.(runIf|skipIf)\(/.test(readFileSync(resolve(directory, file), 'utf8')));
+      .filter((file) =>
+        /\.(runIf|skipIf)\(|\b(describe|it|test)\.skip\b/.test(
+          readFileSync(resolve(directory, file), 'utf8')
+        )
+      );
     expect(conditional.length).toBeGreaterThan(0);
     const unguarded = conditional.filter(
       (file) => !readFileSync(resolve(directory, file), 'utf8').includes('precondition(')

@@ -29,6 +29,7 @@ import { searchDocsTool } from '../src/core/tools/search-docs.js';
 import { findRecipeTool } from '../src/core/tools/find-recipe.js';
 import { reportIssueTool } from '../src/core/tools/report-issue.js';
 import { validateFormTool } from '../src/core/tools/validate-form.js';
+import { precondition } from './support/preconditions';
 
 const repoRoot = resolve(__dirname, '../../..');
 
@@ -49,9 +50,13 @@ function loadBundles(): { index: IndexBundle; docs: DocsBundle } | null {
 }
 
 const bundles = loadBundles();
-const describeWithBundle = bundles ? describe : describe.skip;
+const hasBundles = precondition(
+  'llms-index.json пакетов монорепо',
+  bundles !== null,
+  'npm run generate:llms в пакетах @reformer/*'
+);
 
-describeWithBundle('ядро на браузерных источниках', () => {
+describe.runIf(hasBundles)('ядро на браузерных источниках', () => {
   const { knowledge: k, issues } = createBrowserKnowledge({
     index: bundles!.index,
     docs: bundles!.docs,

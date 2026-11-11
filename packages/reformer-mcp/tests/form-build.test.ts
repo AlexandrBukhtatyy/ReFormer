@@ -21,7 +21,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { CATALOGS } from './support/catalogs';
 import { GRAMMAR_EXAMPLE, intentGrammar } from '../src/core/generate/intent-grammar';
 import { originOf, withMarker } from '../src/core/generate/generated-marker';
-import type { Knowledge } from '../src/core/knowledge';
+import { createKnowledge, type Knowledge } from '../src/core/knowledge';
 import { formBuildTool, INTENT_FILE } from '../src/core/tools/form-build';
 import { createCliFormWorkspace, TYPECHECK_ROOT_ENV } from '../src/platform/cli/form-workspace';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
@@ -578,6 +578,27 @@ describe('form_build: компилятор недоступен', () => {
       const failed = await build();
       expect(failed.isError).toBe(true);
       expect(failed.text).toContain('notARealValidator');
+    } finally {
+      restoreRoot();
+    }
+  });
+
+  it('без индексов пакетов не бракует собственный вывод, а называет пробел окружения [ReFormer-j356.9]', async () => {
+    noRoot();
+    try {
+      const blind = createKnowledge({
+        docs: { has: () => false, read: () => null },
+        index: { read: () => null },
+        forms: createCliFormWorkspace(project),
+      });
+      writeIntent(GRAMMAR_EXAMPLE);
+      const result = await formBuildTool({}, blind);
+      const text = result.content[0].text;
+      expect(result.isError, text).not.toBe(true);
+      expect(text).toContain('✓ form_build');
+      expect(text).not.toContain('не существует');
+      expect(text).toContain('не проверены');
+      expect(text).toContain('reformer://status');
     } finally {
       restoreRoot();
     }

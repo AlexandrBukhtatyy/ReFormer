@@ -1,40 +1,74 @@
 /**
  * Каталог компонентов `@reformer/ui-kit` (`@reformer/ui-kit/catalog`) для генератора форм.
  *
- * Ищется там же, откуда форма будет импортировать кит: от `REFORMER_TYPECHECK_ROOT` (если стенд его
- * задал — от него же проверяются типы), затем от корня проекта, затем рядом с сервером. Так имена
- * и подпути компонентов совпадают с версией кита, которую соберёт компилятор потребителя. Кит —
- * опциональный peer: не нашёлся нигде — генератор работает без каталога.
+ * Ищется там же, где справка и индексы ({@link locatePackages}): от рабочего каталога, затем от
+ * `REFORMER_TYPECHECK_ROOT`, затем рядом с сервером. Так имена, подпути и props-схемы компонентов
+ * совпадают с версией кита, которую соберёт компилятор потребителя. Кит — опциональный peer: не
+ * нашёлся нигде — генератор работает без каталога, а статус (`reformer://status`) это показывает.
+ *
+ * Файл читается с диска при каждой сборке знания, а не через `require`: кэш модулей держал бы
+ * старый JSON после пересборки кита посреди сессии.
  *
  * @module reformer-mcp/platform/cli/ui-kit-catalog
  */
 
-import { createRequire } from 'module';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { TYPECHECK_ROOT_ENV } from './form-workspace.js';
-import { detectProjectStack } from './project-detector.js';
+import { defaultPackageBases, locatePackages } from './package-locator.js';
+import { reportKnowledgeProblem } from './problems.js';
 
-const CATALOG = '@reformer/ui-kit/catalog';
+const UI_KIT = '@reformer/ui-kit';
+const CATALOG_EXPORT = './catalog';
+const CATALOG_FILE = 'component-catalog.json';
 
-/** Откуда резолвить каталог, по порядку: `package.json` баз и модуль сервера. */
-export function uiKitCatalogBases(start: string = process.cwd()): string[] {
-  const bases: string[] = [];
-  const override = process.env[TYPECHECK_ROOT_ENV]?.trim();
-  if (override) bases.push(join(override, 'package.json'));
-  const projectRoot = detectProjectStack(start).projectRoot;
-  if (projectRoot) bases.push(join(projectRoot, 'package.json'));
-  bases.push(import.meta.url);
-  return bases;
+/** Путь файла каталога в пакете кита: по `exports["./catalog"]`, иначе имя по умолчанию. */
+function catalogPathIn(root: string): string {
+  try {
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as {
+      exports?: Record<string, unknown>;
+    };
+    const target = manifest.exports?.[CATALOG_EXPORT];
+    const relative =
+      typeof target === 'string'
+        ? target
+        : (((target as Record<string, unknown> | undefined)?.import ??
+            (target as Record<string, unknown> | undefined)?.default) as string | undefined);
+    if (typeof relative === 'string') return join(root, relative);
+  } catch {
+    // нет манифеста — имя по умолчанию
+  }
+  return join(root, CATALOG_FILE);
 }
 
-/** Каталог кита от первой базы, где он резолвится; нигде нет — `undefined`. */
-export function loadUiKitCatalog(bases: readonly string[]): unknown {
-  for (const from of bases) {
+/** Файлы каталога по местам установки кита, в порядке приоритета. */
+export function uiKitCatalogPaths(bases: readonly string[] = defaultPackageBases()): string[] {
+  return locatePackages(UI_KIT, bases).map((location) => catalogPathIn(location.root));
+}
+
+/** Каталог из первого места, где он читается; нигде — `undefined`. */
+export function loadUiKitCatalog(paths: readonly string[] = uiKitCatalogPaths()): unknown {
+  for (const path of paths) {
+    if (!existsSync(path)) continue;
     try {
-      return createRequire(from)(CATALOG) as unknown;
-    } catch {
-      // следующая база
+      return JSON.parse(readFileSync(path, 'utf-8')) as unknown;
+    } catch (error) {
+      reportKnowledgeProblem('ui-kit-catalog', `${path}: ${String(error)}`);
     }
   }
   return undefined;
+}
+
+/** Где лежит каталог, который прочитается, и сколько в нём компонентов — для статуса. */
+export function uiKitCatalogSummary(): { path: string | null; components: number } {
+  for (const path of uiKitCatalogPaths()) {
+    if (!existsSync(path)) continue;
+    try {
+      const components = (JSON.parse(readFileSync(path, 'utf-8')) as { components?: unknown })
+        .components;
+      return { path, components: Array.isArray(components) ? components.length : 0 };
+    } catch {
+      // проблему запишет loadUiKitCatalog
+    }
+  }
+  return { path: null, components: 0 };
 }

@@ -7,7 +7,7 @@
  * и форма кредита из калибровки проходят по настоящим схемам кита без замечаний.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -16,13 +16,11 @@ import { readIntent } from '../src/core/generate/form-intent';
 import { GRAMMAR_EXAMPLE, intentGrammar } from '../src/core/generate/intent-grammar';
 import {
   checkComponentProps,
-  loadUiKitPropSchemas,
+  uiKitPropsFromCatalog,
   type UiKitPropSchemas,
 } from '../src/core/generate/ui-kit-props';
-import { precondition } from './support/preconditions';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, '../../..');
 
 const strict = (...names: string[]) => ({
   type: 'object',
@@ -30,22 +28,17 @@ const strict = (...names: string[]) => ({
   properties: Object.fromEntries(names.map((name) => [name, { type: 'string' }])),
 });
 
-/** Кит из трёх компонентов: поле, контейнер и нестрогий. */
+/**
+ * Кит из трёх компонентов: поле, контейнер и нестрогий. Схема поля в каталоге уже слита с пропсами
+ * обёртки (`label`, `testId`), как её пишет генератор каталога кита.
+ */
 const fakeKit: UiKitPropSchemas = {
   defaults: {
-    InputNumber: strict('placeholder', 'min', 'max'),
+    InputNumber: strict('label', 'testId', 'placeholder', 'min', 'max'),
     Section: strict('title'),
     Box: strict('className'),
     Loose: { type: 'object', properties: { a: {} } },
   },
-  mergeField: (schema) => ({
-    ...schema,
-    properties: {
-      label: {},
-      testId: {},
-      ...(schema.properties as Record<string, unknown>),
-    },
-  }),
 };
 
 function intentOf(partial: Record<string, unknown>) {
@@ -162,6 +155,18 @@ describe('checkComponentProps', () => {
     });
     expect(checkComponentProps(intent, fakeKit, CATALOGS.uiKit)).toEqual([]);
   });
+
+  it('схемы строятся из каталога: имя записи → её propsSchema', () => {
+    const kit = uiKitPropsFromCatalog({
+      components: [
+        { name: 'Rating', role: 'field', propsSchema: strict('label', 'max') },
+        { name: 'Broken', role: 'field' },
+      ],
+    });
+    expect(Object.keys(kit!.defaults)).toEqual(['Rating']);
+    expect(uiKitPropsFromCatalog({ components: [] })).toBeUndefined();
+    expect(uiKitPropsFromCatalog(null)).toBeUndefined();
+  });
 });
 
 describe('грамматика intent', () => {
@@ -175,15 +180,18 @@ describe('грамматика intent', () => {
   });
 });
 
-const hasKit = precondition(
-  'собранный @reformer/ui-kit/meta',
-  existsSync(resolve(repoRoot, 'packages/reformer-ui-kit/dist/meta.js')),
-  'npm run build -w @reformer/ui-kit'
-);
+describe('настоящие схемы кита — из закоммиченного component-catalog.json', () => {
+  it('каталог даёт схемы, строгих среди них — большинство', () => {
+    const kit = CATALOGS.uiKitProps;
+    expect(kit).toBeDefined();
+    const strictCount = Object.values(kit!.defaults).filter(
+      (schema) => schema.additionalProperties === false
+    ).length;
+    expect(strictCount).toBeGreaterThan(100);
+  });
 
-describe.runIf(hasKit)('настоящие схемы кита', () => {
-  it('пример грамматики и форма кредита проходят без замечаний', async () => {
-    const kit = await loadUiKitPropSchemas();
+  it('пример грамматики и форма кредита проходят без замечаний', () => {
+    const kit = CATALOGS.uiKitProps;
     expect(kit).toBeDefined();
     const credit = JSON.parse(
       readFileSync(resolve(here, '../eval/calibration/cases/credit/intent.json'), 'utf-8')
@@ -193,8 +201,8 @@ describe.runIf(hasKit)('настоящие схемы кита', () => {
     }
   });
 
-  it('опечатку в свойстве настоящего InputNumber называет', async () => {
-    const kit = await loadUiKitPropSchemas();
+  it('опечатку в свойстве настоящего InputNumber называет', () => {
+    const kit = CATALOGS.uiKitProps;
     const intent = intentOf({
       fields: [
         {

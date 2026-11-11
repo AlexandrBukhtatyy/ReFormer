@@ -1,6 +1,7 @@
 /**
- * CLI ищет каталог кита там, откуда форма будет импортировать кит: от проекта, затем рядом с
- * сервером. Нашёлся у проекта — генератор называет компоненты той версии кита, что у потребителя.
+ * CLI ищет каталог кита там же, где справку и индексы: от проекта, затем от запасного корня, затем
+ * рядом с сервером. Нашёлся у проекта — генератор называет компоненты той версии кита, что у
+ * потребителя. Файл читается с диска, а не через `require`: пересборка кита видна без перезапуска.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { uiKitFromCatalog } from '../src/core/generate/ui-kit-components';
-import { loadUiKitCatalog } from '../src/platform/cli/ui-kit-catalog';
+import { loadUiKitCatalog, uiKitCatalogPaths } from '../src/platform/cli/ui-kit-catalog';
 
 const temporary: string[] = [];
 
@@ -41,12 +42,26 @@ afterEach(() => {
 describe('loadUiKitCatalog', () => {
   it('каталог проекта побеждает: первая база, где он резолвится', () => {
     const root = project(true);
-    const kit = uiKitFromCatalog(loadUiKitCatalog([join(root, 'package.json')]));
+    const kit = uiKitFromCatalog(loadUiKitCatalog(uiKitCatalogPaths([root])));
     expect(kit.fields).toEqual({ Rating: 'RatingStars' });
   });
 
   it('нет кита ни в одной базе — undefined', () => {
     const root = project(false);
-    expect(loadUiKitCatalog([join(root, 'package.json')])).toBeUndefined();
+    // Каталог сервера не передаётся: рядом с ним в монорепо кит есть.
+    expect(
+      loadUiKitCatalog(uiKitCatalogPaths([root]).filter((p) => p.startsWith(root)))
+    ).toBeUndefined();
+  });
+
+  it('изменённый файл каталога читается заново, без кэша модулей', () => {
+    const root = project(true);
+    const paths = uiKitCatalogPaths([root]);
+    expect(uiKitFromCatalog(loadUiKitCatalog(paths)).fields).toEqual({ Rating: 'RatingStars' });
+    writeFileSync(
+      join(root, 'node_modules', '@reformer', 'ui-kit', 'component-catalog.json'),
+      JSON.stringify({ components: [{ name: 'Stars', role: 'field' }] })
+    );
+    expect(uiKitFromCatalog(loadUiKitCatalog(paths)).fields).toEqual({ Stars: 'Stars' });
   });
 });

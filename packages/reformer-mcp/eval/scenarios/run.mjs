@@ -196,6 +196,17 @@ const processesBefore = orphanServerProcesses();
 const batchId = newBatchId();
 const source = collectSource();
 const server = await fingerprintServer(serverPath);
+// Предполётная проверка: сервер, который не видит пакеты, судил бы окружение, а не себя, — такой
+// батч недействителен целиком (ReFormer-qo9b.34). `--allow-incomplete-knowledge` — для осознанного
+// замера именно такого окружения.
+if (!server.loaded.ready && !has('allow-incomplete-knowledge')) {
+  console.error(
+    `Батч не стартует: сервер ${serverPath} не видит пакеты @reformer/* ` +
+      `(${server.loaded.source}): ${server.loaded.gaps.join('; ') || 'нет подробностей'}.\n` +
+      'Соберите пакеты (llms-index.json) или запустите с --allow-incomplete-knowledge.'
+  );
+  process.exit(2);
+}
 const batchDirectory = path.join(runsDirectory, batchId);
 const workspaceRoot = path.join(tmpdir(), 'reformer-mcp-runs', batchId);
 const verifyClient = new McpClient(serverPath);

@@ -12,11 +12,14 @@ import {
   appendFileSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { estimateTokens, McpClient } from '../lib/client.mjs';
@@ -107,9 +110,69 @@ export function knowledgeDigest() {
   return sha256(hash);
 }
 
-/** Что сервер показывает клиенту и сколько это стоит: три отпечатка и цена подключения. */
+/**
+ * Что сервер реально загрузил: `reformer://status` (сервер с ресурсом статуса) или, у прежних
+ * серверов, пробник `list_symbols createForm`. Отпечаток `knowledgeDigest` считает раннер по файлам
+ * монорепо и не видит, что нашёл сам сервер: снимок сервера без соседних пакетов отвечал пустой
+ * справкой, а записи этого не замечали (ReFormer-qo9b.34).
+ */
+export async function loadedKnowledge(client) {
+  const reply = await client.request('resources/read', { uri: 'reformer://status' });
+  const text = reply.result?.contents?.[0]?.text;
+  if (typeof text === 'string') {
+    const status = JSON.parse(text);
+    const required = new Set([
+      '@reformer/core',
+      '@reformer/cdk',
+      '@reformer/ui-kit',
+      '@reformer/renderer-react',
+      '@reformer/renderer-json',
+    ]);
+    const gaps = (status.packages ?? [])
+      .filter((entry) => required.has(entry.name) && !entry.index)
+      .map((entry) => `${entry.name}: ${entry.root ? 'нет индекса' : 'не найден'}`);
+    return {
+      source: 'status',
+      ready: status.ready === true,
+      gaps,
+      packages: (status.packages ?? []).map(({ name, version, index, docs }) => ({
+        name,
+        version,
+        index,
+        docs,
+      })),
+      typecheck: status.typecheck?.available ?? null,
+      problems: (status.problems ?? []).length,
+    };
+  }
+  const probe = await client.request('tools/call', {
+    name: 'list_symbols',
+    arguments: { nameContains: 'createForm' },
+  });
+  const ready = JSON.stringify(probe.result ?? {}).includes('createForm');
+  return {
+    source: 'probe',
+    ready,
+    gaps: ready ? [] : ['сервер не находит createForm в @reformer/core (list_symbols)'],
+    packages: [],
+    typecheck: null,
+    problems: 0,
+  };
+}
+
+/**
+ * Что сервер показывает клиенту и сколько это стоит: три отпечатка и цена подключения.
+ *
+ * Сервер поднимается так же, как его видит агент стенда: из каталога вне репозитория и с
+ * `REFORMER_TYPECHECK_ROOT` на корень монорепо. Иначе предполётная проверка судила бы другое
+ * окружение, чем то, в котором работает агент.
+ */
 export async function fingerprintServer(serverPath, channel = 'node') {
-  const client = new McpClient(serverPath);
+  const outside = mkdtempSync(path.join(tmpdir(), 'reformer-mcp-fingerprint-'));
+  const client = new McpClient(serverPath, {
+    cwd: outside,
+    env: { REFORMER_TYPECHECK_ROOT: repoRoot },
+  });
   try {
     const { serverInfo } = await client.initialize();
     const results = {};
@@ -126,18 +189,22 @@ export async function fingerprintServer(serverPath, channel = 'node') {
       results['prompts/list'],
       results['resources/templates/list'],
     ]);
+    const loaded = await loadedKnowledge(client);
     return {
       channel,
       version: serverInfo?.version ?? null,
       surfaceDigest: sha256(createHash('sha256').update(surface)),
       buildDigest: buildDigest(serverPath),
       knowledgeDigest: knowledgeDigest(),
+      loadedDigest: sha256(createHash('sha256').update(JSON.stringify(loaded.packages))),
+      loaded,
       staticTokens: ['tools/list', 'resources/list', 'prompts/list']
         .map((method) => estimateTokens(JSON.stringify(results[method])))
         .reduce((sum, tokens) => sum + tokens, 0),
     };
   } finally {
     client.close();
+    rmSync(outside, { recursive: true, force: true });
   }
 }
 
