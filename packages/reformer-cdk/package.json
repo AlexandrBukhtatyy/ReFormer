@@ -56,7 +56,8 @@
       "import": "./dist/locale/ru.js"
     },
     "./locale/en.json": "./dist/locale/en.json",
-    "./locale/ru.json": "./dist/locale/ru.json"
+    "./locale/ru.json": "./dist/locale/ru.json",
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "scripts": {
