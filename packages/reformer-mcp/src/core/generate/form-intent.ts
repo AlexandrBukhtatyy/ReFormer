@@ -25,6 +25,7 @@ import {
   type IntentRecordKind,
 } from './intent-messages.js';
 import {
+  BEHAVIOR_KINDS_WITH_OPTIONS,
   MODEL_BEHAVIOR_KINDS,
   NODE_BEHAVIOR_KINDS,
   type ModelBehaviorKind,
@@ -1773,7 +1774,28 @@ function readBehavior(
   // Условие вычисления — ключом `when` или внутри `options` (так оно выглядит в коде ядра).
   const optionWhen = options ? asName(options.when) : null;
   const when = computed ? (takeName(raw, 'when', ['condition'], ctx, at) ?? optionWhen) : null;
-  const rest = options && optionWhen && computed ? withoutKey(options, 'when') : options;
+  const kept = options && optionWhen && computed ? withoutKey(options, 'when') : options;
+  const lost =
+    kept !== undefined &&
+    Object.keys(kept).length > 0 &&
+    !(BEHAVIOR_KINDS_WITH_OPTIONS as readonly string[]).includes(kind);
+  // Запись читается дальше: остальные её ошибки попадут в тот же отказ.
+  const rest = lost ? undefined : kept;
+  if (lost) {
+    // Сборка печатает `options` не у всех видов: у остальных их молча не было бы (ReFormer-11oe.11).
+    problem(
+      ctx,
+      'unknown-key',
+      `${at}.options`,
+      `\`${kind}\` takes no options${computed ? ' besides `when`' : ''} — ` +
+        `${Object.keys(kept)
+          .map((key) => `\`${key}\``)
+          .join(', ')} would be lost`,
+      computed
+        ? 'only the condition: "when":"model.a > 0" (or options: { "when": … })'
+        : `drop \`options\`; they are kept by ${BEHAVIOR_KINDS_WITH_OPTIONS.join(', ')}`
+    );
+  }
   const each = takeName(raw, 'each', ['array', 'arrayPath', 'row'], ctx, at);
   const sources = readStrings(
     take(raw, 'sources', ['reads', 'deps', 'dependsOn', 'from', 'source'], ctx),

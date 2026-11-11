@@ -44,6 +44,21 @@ export const MODEL_BEHAVIOR_KINDS = [
 ] as const;
 
 /**
+ * Виды поведения, у которых сборка печатает `options` записи третьим аргументом оператора. У
+ * остальных параметров в ядре нет (у `compute`/`computeFrom` — только `when`, его чтение переносит
+ * отдельно): записанные `options` были бы потеряны молча, поэтому чтение intent их отклоняет
+ * (ReFormer-11oe.11). Совпадение со сборкой держит тест.
+ */
+export const BEHAVIOR_KINDS_WITH_OPTIONS = [
+  'copyFrom',
+  'syncFields',
+  'onChange',
+  'enableWhen',
+  'disableWhen',
+  'resetWhen',
+] as const satisfies readonly ModelBehaviorKind[];
+
+/**
  * Операторы над узлами схемы — тоже `kind` записи `behavior`, но адресуют узел по `selector`, а не
  * поле. Правила узлов исполняет рендерер, поэтому на таргете `core` они не печатаются.
  */
