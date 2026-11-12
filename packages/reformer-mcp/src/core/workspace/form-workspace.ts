@@ -48,6 +48,12 @@ export interface FormDirectory {
   list(): string[];
   /** Проверить типы модуля из этих файлов, не записывая их на диск. */
   typecheck(files: readonly FormFile[]): Promise<TypecheckResult>;
+  /**
+   * Файл с этим именем выше каталога формы, до корня проекта включительно: пути от корня проекта,
+   * ближний первым. Малая модель кладёт `form.intent.json` в корень, а не в каталог формы, и сборка
+   * без этого отвечала одной грамматикой, не назвав найденного файла (ReFormer-11oe.23).
+   */
+  above?(name: string): string[];
 }
 
 export type OpenedFormDirectory =

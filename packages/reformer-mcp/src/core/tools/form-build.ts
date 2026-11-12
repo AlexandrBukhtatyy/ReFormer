@@ -9,7 +9,8 @@
  * `docs/plans/mcp-audit-one-path.md`.
  *
  * Грамматику intent инструмент отдаёт по запросу `grammar` — без диска — и вместо сборки, пока файла
- * intent нет.
+ * intent нет. Когда вызов ждал сборку (`grammar` вместе с `dir`, или intent не найден), первая строка
+ * ответа — `⚠️ form_build: nothing built — …` с причиной и следующим вызовом.
  *
  * Запись — «всё или ничего»: при любой ошибке диск не меняется. Запись на диск отдана порту
  * `FormWorkspace`, поэтому в браузерном профиле инструмента нет.
@@ -254,10 +255,49 @@ export async function formBuildTool(args: FormBuildArgs, k: Knowledge): Promise<
   }
 }
 
+/** Вызов просит грамматику, а не сборку: `grammar` задан и не `false`. */
+export function asksForGrammar(args: { grammar?: unknown } | undefined): boolean {
+  return args?.grammar !== undefined && args.grammar !== false;
+}
+
+/** Первая строка ответа, когда сборки не было, — перед грамматикой (ReFormer-11oe.23). */
+const NOTHING_BUILT = '⚠️ form_build: nothing built —';
+
+/** `form.intent.json` выше каталога формы: где он лежит и что сборка читает только свой. */
+function strayIntentNote(directory: FormDirectory, expected: string): string {
+  const found = directory.above?.(INTENT_FILE) ?? [];
+  if (found.length === 0) return '';
+  return (
+    ` ${found.map((file) => `./${file}`).join(', ')} ${found.length === 1 ? 'lies' : 'lie'} ` +
+    `outside the form folder: the build reads only ${expected} — move it there.`
+  );
+}
+
+/**
+ * Пометка к грамматике, запрошенной вместе с `dir`: модель ждёт сборку и, не найдя `✗`, считает форму
+ * собранной. Прогон qwen3.5:4b (батч 20261112T044906Z-47ef) восемь раз звал
+ * `{"dir":"form","grammar":"all"}`, правя intent между вызовами, и ни разу не узнал, что сборки нет.
+ */
+function grammarOnlyNote(dir: unknown, k: Knowledge): string {
+  const call =
+    typeof dir === 'string' && dir.trim() ? JSON.stringify({ dir }) : '{"dir":"<form folder>"}';
+  const head = `${NOTHING_BUILT} with "grammar" the tool returns the grammar only.`;
+  const opened = typeof dir === 'string' && dir.trim() ? k.forms.open(dir) : null;
+  if (!opened?.ok) return `${head} To build, call form_build ${call} without "grammar".`;
+  const expected = `${opened.directory.label}/${INTENT_FILE}`;
+  if (opened.directory.read(INTENT_FILE) !== null) {
+    return `${head} ${expected} was not read. To build it, call form_build ${call} without "grammar".`;
+  }
+  return (
+    `${head} ${expected} does not exist yet: write it by this grammar, then call form_build ` +
+    `${call} without "grammar".${strayIntentNote(opened.directory, expected)}`
+  );
+}
+
 async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolTextResult> {
   // Грамматика — без диска и без проекта: её спрашивают до того, как появился каталог формы, и там,
   // где каталога нет вовсе (аудит 2026-11, A6).
-  if (args?.grammar !== undefined && args.grammar !== false) {
+  if (asksForGrammar(args)) {
     const request = readGrammarRequest(args.grammar);
     if (request === null) {
       return invalidCall(
@@ -267,7 +307,9 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
       );
     }
     const grammar = intentGrammar(await catalogsOf(k), { sections: request });
-    return { content: [{ type: 'text', text: grammar }] };
+    // Каталог формы рядом с грамматикой — модель ждала сборку: сказать, что её не было.
+    const text = args.dir === undefined ? grammar : `${grammarOnlyNote(args.dir, k)}\n\n${grammar}`;
+    return { content: [{ type: 'text', text }] };
   }
 
   const dir = args?.dir;
@@ -284,7 +326,13 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
 
   const source = directory.read(INTENT_FILE);
   if (source === null) {
-    return { content: [{ type: 'text', text: intentGrammar(catalogs) }] };
+    // Грамматика вместо сборки — с причиной: голую грамматику модель принимала за успех, не зная,
+    // что её файл лежит не там (батч 20261112T050352Z-2bb5, intent в корне рабочего каталога).
+    const expected = `${directory.label}/${INTENT_FILE}`;
+    const note =
+      `${NOTHING_BUILT} ${expected} does not exist yet. Write it by the grammar below, then call ` +
+      `form_build again.${strayIntentNote(directory, expected)}`;
+    return { content: [{ type: 'text', text: `${note}\n\n${intentGrammar(catalogs)}` }] };
   }
 
   let raw: unknown;

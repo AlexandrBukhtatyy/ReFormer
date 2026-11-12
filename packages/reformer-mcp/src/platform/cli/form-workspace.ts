@@ -391,6 +391,19 @@ function openDirectory(root: string, path: string): FormDirectory {
     async typecheck(files) {
       return typecheckModule(root, path, files);
     },
+    above(name) {
+      assertPlainName(name);
+      const found: string[] = [];
+      // Каталог формы лежит внутри корня (open проверил), поэтому подъём кончается на корне.
+      for (let current = dirname(path); ; current = dirname(current)) {
+        const file = join(current, name);
+        if (existsSync(file) && statSync(file).isFile()) {
+          found.push(relative(root, file).split(sep).join('/'));
+        }
+        if (current === root || dirname(current) === current) break;
+      }
+      return found;
+    },
   };
 }
 

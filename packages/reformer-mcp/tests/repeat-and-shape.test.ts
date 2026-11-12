@@ -96,6 +96,18 @@ describe('повтор вызова без перемен', () => {
     );
   });
 
+  it('form_build с grammar: совет про grammar, а не «измени файл» [ReFormer-11oe.23]', () => {
+    const watch = createRepeatWatch();
+    const args = { dir: 'form', grammar: 'all' };
+    watch.observe(1, 'form_build', args, answer('# grammar'));
+    const second = textOf(watch.observe(2, 'form_build', args, answer('# grammar')));
+    expect(second).toContain(
+      'With "grammar" form_build returns the grammar only and builds nothing'
+    );
+    expect(second).toContain('without "grammar"');
+    expect(second).not.toContain('change it before building');
+  });
+
   it('другие аргументы или инструмент — не повтор; у прочих инструментов — без совета', () => {
     const watch = createRepeatWatch();
     watch.observe(1, 'search_docs', { query: 'a' }, answer('x'));

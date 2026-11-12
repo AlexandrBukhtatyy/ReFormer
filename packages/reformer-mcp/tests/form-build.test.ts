@@ -80,7 +80,10 @@ describe('form_build: путь без ошибок', () => {
   it('без исходника отдаёт грамматику и ничего не создаёт', async () => {
     const { text, isError } = await build();
     expect(isError).toBe(false);
-    expect(text).toBe(intentGrammar(CATALOGS));
+    expect(text).toBe(
+      '⚠️ form_build: nothing built — form/form.intent.json does not exist yet. Write it by the ' +
+        `grammar below, then call form_build again.\n\n${intentGrammar(CATALOGS)}`
+    );
     expect(existsSync(join(project, 'form'))).toBe(false);
   });
 
@@ -419,6 +422,71 @@ describe('form_build: границы каталога', () => {
     } finally {
       rmSync(bare, { recursive: true, force: true });
     }
+  });
+});
+
+describe('form_build: сборки не было — первая строка говорит почему [ReFormer-11oe.23]', () => {
+  const call = async (args: { dir?: string; grammar?: string }) => {
+    const result = await formBuildTool(args, knowledge);
+    return { text: result.content[0].text, isError: result.isError === true };
+  };
+  const firstLine = (text: string) => text.split('\n')[0];
+
+  it('intent в корне проекта, а не в каталоге формы — ответ называет найденный файл', async () => {
+    writeFileSync(join(project, INTENT_FILE), JSON.stringify(GRAMMAR_EXAMPLE));
+    const { text, isError } = await call({ dir: 'form' });
+    expect(isError).toBe(false);
+    expect(firstLine(text)).toBe(
+      '⚠️ form_build: nothing built — form/form.intent.json does not exist yet. Write it by the ' +
+        'grammar below, then call form_build again. ./form.intent.json lies outside the form ' +
+        'folder: the build reads only form/form.intent.json — move it there.'
+    );
+    expect(text.endsWith(intentGrammar(CATALOGS))).toBe(true);
+    expect(existsSync(join(project, 'form'))).toBe(false);
+  });
+
+  it('вложенный каталог формы: найденные выше файлы — ближний первым', async () => {
+    mkdirSync(join(project, 'src'), { recursive: true });
+    writeFileSync(join(project, 'src', INTENT_FILE), '{}');
+    writeFileSync(join(project, INTENT_FILE), '{}');
+    const { text } = await call({ dir: 'src/forms/profile' });
+    expect(firstLine(text)).toContain('src/forms/profile/form.intent.json does not exist yet');
+    expect(firstLine(text)).toContain('./src/form.intent.json, ./form.intent.json lie outside');
+  });
+
+  it('grammar вместе с dir при готовом intent: грамматика, а не сборка, и диск не тронут', async () => {
+    writeIntent(GRAMMAR_EXAMPLE);
+    const { text, isError } = await call({ dir: 'form', grammar: 'all' });
+    expect(isError).toBe(false);
+    expect(text).toBe(
+      '⚠️ form_build: nothing built — with "grammar" the tool returns the grammar only. ' +
+        'form/form.intent.json was not read. To build it, call form_build {"dir":"form"} without ' +
+        `"grammar".\n\n${intentGrammar(CATALOGS, { sections: 'all' })}`
+    );
+    expectNothingWritten();
+    // Стенды не примут пометку ни за успех, ни за отказ сборки.
+    expect(parseFormBuild(text).status).toBe('unknown');
+  });
+
+  it('grammar вместе с dir без intent: что написать и куда, и где лежит промах', async () => {
+    writeFileSync(join(project, INTENT_FILE), '{}');
+    const { text } = await call({ dir: 'form', grammar: 'base' });
+    expect(firstLine(text)).toBe(
+      '⚠️ form_build: nothing built — with "grammar" the tool returns the grammar only. ' +
+        'form/form.intent.json does not exist yet: write it by this grammar, then call ' +
+        'form_build {"dir":"form"} without "grammar". ./form.intent.json lies outside the form ' +
+        'folder: the build reads only form/form.intent.json — move it there.'
+    );
+    expect(text.endsWith(intentGrammar(CATALOGS))).toBe(true);
+  });
+
+  it('grammar с каталогом вне проекта — пометка без чтения диска', async () => {
+    const { text, isError } = await call({ dir: '../outside', grammar: 'base' });
+    expect(isError).toBe(false);
+    expect(firstLine(text)).toBe(
+      '⚠️ form_build: nothing built — with "grammar" the tool returns the grammar only. To build, ' +
+        'call form_build {"dir":"../outside"} without "grammar".'
+    );
   });
 });
 

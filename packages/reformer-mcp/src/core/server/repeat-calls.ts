@@ -17,6 +17,7 @@
  */
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { asksForGrammar } from '../tools/form-build.js';
 
 /** Сколько последних вызовов помнит сервер. */
 export const REMEMBERED_CALLS = 200;
@@ -43,14 +44,20 @@ function fingerprint(text: string): string {
   return `${(hash >>> 0).toString(16)}:${text.length}`;
 }
 
-/** Что сделать иначе — по инструменту. */
-const ADVICE: Readonly<Record<string, string>> = {
-  validate_form:
+/**
+ * Что сделать иначе — по инструменту и аргументам. У `form_build` с `grammar` файл не читается вовсе:
+ * совет «измени файл» гнал модель править intent, который сборка не видела (ReFormer-11oe.23).
+ */
+const ADVICE: Readonly<Record<string, (args: Record<string, unknown> | undefined) => string>> = {
+  validate_form: () =>
     'validate_form checks only its arguments: an edit of a file does not reach it — pass the ' +
     'edited document, or change the approach.',
-  form_build:
-    'form_build reads form.intent.json from disk: the file is the same — change it before building ' +
-    'again.',
+  form_build: (args) =>
+    asksForGrammar(args)
+      ? 'With "grammar" form_build returns the grammar only and builds nothing — you have it ' +
+        'already: write form.intent.json and call form_build {"dir":…} without "grammar".'
+      : 'form_build reads form.intent.json from disk: the file is the same (or still missing) — ' +
+        'write or change it before building again.',
 };
 
 function answerText(result: CallToolResult): string {
@@ -98,7 +105,7 @@ export function createRepeatWatch(limit: number = REMEMBERED_CALLS): RepeatWatch
       }
       const times = before.times + 1;
       seen.set(key, { ...before, times });
-      const advice = ADVICE[name] ? ` ${ADVICE[name]}` : '';
+      const advice = ADVICE[name] ? ` ${ADVICE[name](args)}` : '';
       return withNote(
         result,
         `> Repeated call: the same arguments and the same answer as call ${before.call}` +
