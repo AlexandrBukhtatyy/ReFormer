@@ -56,6 +56,9 @@ const BEHAVIOR_KINDS = [
   'aggregateInto',
 ] as const;
 
+/** Реакции: пишут по событию, а не вычисляют поле из источников — в граф вычислений не входят. */
+const REACTION_KINDS: ReadonlySet<string> = new Set(['onChange', 'revalidateWhen']);
+
 /** Правило валидации, как его присылает модель: `rules` можно опустить, если есть другая проверка. */
 export interface ValidationParam {
   target: string;
@@ -323,9 +326,12 @@ export function planRules(
   // Два поведения на один target перетирают друг друга молча — это не «последнее выигрывает»,
   // а гонка: порядок зависит от того, как их разложил сборщик.
   // `aggregateInto` пишет в строки массива, а не в одно поле: с полями строк он не спорит.
+  // Реакция поле `target` не пишет — это поле-триггер (`onChange` на `age` рядом с вычислением
+  // `age` отвергался как второй писатель; лестница сценариев, L5-credit).
   const fieldLinks = next.behavior.filter((b) => b.kind !== 'aggregateInto');
+  const computed = fieldLinks.filter((b) => !REACTION_KINDS.has(b.kind));
   const writers = new Map<string, number>();
-  for (const b of fieldLinks) writers.set(b.target, (writers.get(b.target) ?? 0) + 1);
+  for (const b of computed) writers.set(b.target, (writers.get(b.target) ?? 0) + 1);
   const twice = [...writers].filter(([, n]) => n > 1).map(([t]) => t);
   if (twice.length > 0) {
     refusals.push({
@@ -336,7 +342,11 @@ export function planRules(
     });
   }
 
-  const cycle = findCycle(fieldLinks.map((b) => ({ target: b.target, reads: b.sources })));
+  // Граф вычислений — как у MCP (C7): реакции пишут по событию и поле из источников не вычисляют.
+  // `onChange` на поле с самим полем в источниках («сменился пароль — очистить подтверждение»)
+  // читался циклом `password → password`, и ассистент отвергал эталон, который `form_build`
+  // собирает (лестница сценариев, L5-registration).
+  const cycle = findCycle(computed.map((b) => ({ target: b.target, reads: b.sources })));
   if (cycle) {
     refusals.push({
       code: 'SCHEMA_INVALID',

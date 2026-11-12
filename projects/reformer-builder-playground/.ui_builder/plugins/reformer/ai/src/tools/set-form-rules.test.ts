@@ -95,6 +95,38 @@ describe('set_form_rules', () => {
     expect(res.text).toContain('Cycle');
   });
 
+  it('реакция на своё же поле — не цикл: onChange пишет по событию, а не вычисляет', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      {
+        behavior: [
+          {
+            kind: 'onChange',
+            target: 'total',
+            sources: ['total'],
+            expr: 'form.price.clearIssues();',
+          },
+        ],
+      },
+      ctx()
+    );
+    expect(res.text).not.toContain('Cycle');
+  });
+
+  it('реакция рядом с вычислением того же поля — не второй писатель', async () => {
+    const res = await reg.invoke(
+      'set_form_rules',
+      {
+        behavior: [
+          { kind: 'computeFrom', target: 'total', sources: ['price'], expr: '0' },
+          { kind: 'onChange', target: 'total', sources: [], expr: 'form.price.clearIssues();' },
+        ],
+      },
+      ctx()
+    );
+    expect(res.text).not.toContain('Two behaviours');
+  });
+
   it('два поведения на одно поле отвергаются', async () => {
     const res = await reg.invoke(
       'set_form_rules',
