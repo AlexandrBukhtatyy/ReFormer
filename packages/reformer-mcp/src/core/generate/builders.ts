@@ -679,6 +679,30 @@ function messageCodes(rule: ValidationRuleIntent): string[] {
   ];
 }
 
+/** Сколько проверок правила показывает пример кода: больше — шум, правило и так перед глазами. */
+const CODE_EXAMPLE_CHECKS = 3;
+
+/**
+ * Проверки правила без кода — с кодом последним аргументом, по полю правила. Общий пример
+ * `required({ code: 'price.required' })` малая модель брала как есть: правило на `email` получало
+ * совет про цену, и сборка трижды отказывала тем же (батч 20261112T163051Z-ad08, ReFormer-11oe.25).
+ */
+function codeExample(rule: ValidationRuleIntent): string {
+  const field = rule.each ? `${rule.each}.${rule.target}` : rule.target;
+  const calls = rule.rules.flatMap((check) => {
+    const match = /^\s*([A-Za-z_$][\w$]*)\s*(?:\(([\s\S]*)\))?\s*$/.exec(check);
+    if (!match) return [];
+    const [, name, given = ''] = match;
+    const code = `{ code: '${field}.${name}' }`;
+    const args = given.trim();
+    // Готовый объект параметров последним аргументом: дописывать второй объект было бы неверно.
+    if (args.endsWith('}')) return [`${name}(…, ${code})`];
+    return [`${name}(${args ? `${args}, ` : ''}${code})`];
+  });
+  const shown = calls.length > 0 ? calls : [`required({ code: '${field}.required' })`];
+  return shown.slice(0, CODE_EXAMPLE_CHECKS).join(', ');
+}
+
 /** Строковый литерал TS в одинарных кавычках. */
 function tsString(value: string): string {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
@@ -719,7 +743,7 @@ export function buildMessagesTs(intent: FormIntent): {
     if (codes.length === 0) {
       warnings.push(
         `The text «${rule.message}» of the rule on \`${rule.target}\` is not in form.messages.ts: ` +
-          "its checks have no code — give it in the call: required({ code: 'price.required' })."
+          `its checks have no code — give each one as the last argument: ${codeExample(rule)}.`
       );
       continue;
     }

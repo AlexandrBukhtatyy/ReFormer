@@ -320,8 +320,27 @@ describe('form_build: при ошибке диск не меняется', () =>
     const { text, isError } = await build();
     expect(isError).toBe(true);
     expect(text).toContain('lost-message');
-    expect(text).toContain("required({ code: 'price.required' })");
+    expect(text).toContain("required({ code: 'price.required' }), min(1, { code: 'price.min' })");
+    // Пример — сама починка: общая подсказка «строка на код» с ним бы спорила.
+    expect(text).not.toContain('one `validation` row per issue code');
     expectNothingWritten();
+  });
+
+  it('потерянный текст ошибки: пример кода — по полю и проверкам правила, а не про цену', async () => {
+    const intent = clone(GRAMMAR_EXAMPLE);
+    intent.validation[0] = {
+      ...intent.validation[0],
+      target: 'email',
+      rules: ['email()'],
+      message: 'Неверный email',
+    };
+    writeIntent(intent);
+    const { text } = await build();
+    expect(text).toContain(
+      'The text «Неверный email» of the rule on `email` is not in form.messages.ts: its checks ' +
+        "have no code — give each one as the last argument: email({ code: 'email.email' })."
+    );
+    expect(text).not.toContain('price.required');
   });
 
   it(
@@ -443,6 +462,32 @@ describe('form_build: сборки не было — первая строка �
     );
     expect(text.endsWith(intentGrammar(CATALOGS))).toBe(true);
     expect(existsSync(join(project, 'form'))).toBe(false);
+  });
+
+  it('intent под чужим именем в каталоге формы — ответ называет файл, без грамматики', async () => {
+    mkdirSync(join(project, 'form'), { recursive: true });
+    writeFileSync(join(project, 'form', 'intent.json'), JSON.stringify(GRAMMAR_EXAMPLE));
+    writeFileSync(join(project, 'form', 'intents.json'), '{}');
+    writeFileSync(join(project, 'form', 'form.schema.json'), '{}');
+    const { text, isError } = await call({ dir: 'form' });
+    expect(isError).toBe(false);
+    expect(text).toBe(
+      '⚠️ form_build: nothing built — form/form.intent.json does not exist yet. form/intent.json, ' +
+        'form/intents.json are in the form folder under another name: the build reads only ' +
+        'form/form.intent.json — write the intent under that name. Then call form_build again.'
+    );
+    expect(parseFormBuild(text).status).toBe('unknown');
+  });
+
+  it('grammar вместе с dir: intent под чужим именем назван и тут', async () => {
+    mkdirSync(join(project, 'form'), { recursive: true });
+    writeFileSync(join(project, 'form', 'Form-Intent.JSON'), '{}');
+    const { text } = await call({ dir: 'form', grammar: 'base' });
+    expect(firstLine(text)).toContain(
+      'form/Form-Intent.JSON is in the form folder under another name: the build reads only ' +
+        'form/form.intent.json — write the intent under that name.'
+    );
+    expect(text.endsWith(intentGrammar(CATALOGS))).toBe(true);
   });
 
   it('вложенный каталог формы: найденные выше файлы — ближний первым', async () => {
@@ -802,6 +847,10 @@ describe('form_build: index.tsx при смене таргета [B6]', () => {
       const { text, isError } = await build();
       expect(isError).toBe(true);
       expect(text).toContain('index.tsx is not a renderer-react assembly');
+      expect(text).toContain(
+        '- The target comes from form.intent.json: "target":"renderer-react". If the form is on ' +
+          '@reformer/core with markup written by hand, set "target":"core" and build again.'
+      );
       expect(readFileSync(formFile('index.tsx'), 'utf-8')).toContain('bundle.form.price');
     },
     SLOW

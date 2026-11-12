@@ -274,6 +274,29 @@ function strayIntentNote(directory: FormDirectory, expected: string): string {
 }
 
 /**
+ * Intent в каталоге формы под чужим именем: `intent.json`, `intents.json`, `form-intent.json`.
+ * Прогон qwen3.5:4b (батч 20261112T163051Z-ad08, L1-login r3) писал такие файлы и четыре раза
+ * получал «does not exist yet» с грамматикой целиком, так и не узнав, что дело в имени
+ * (ReFormer-11oe.26).
+ */
+function misnamedIntents(directory: FormDirectory): string[] {
+  return directory
+    .list()
+    .filter((name) => name !== INTENT_FILE && /intent/i.test(name) && /\.json$/i.test(name));
+}
+
+/** Пометка о файлах intent под чужим именем; пустая строка — таких нет. */
+function misnamedIntentNote(directory: FormDirectory, expected: string): string {
+  const found = misnamedIntents(directory);
+  if (found.length === 0) return '';
+  return (
+    ` ${found.map((name) => `${directory.label}/${name}`).join(', ')} ` +
+    `${found.length === 1 ? 'is' : 'are'} in the form folder under another name: the build reads ` +
+    `only ${expected} — write the intent under that name.`
+  );
+}
+
+/**
  * Пометка к грамматике, запрошенной вместе с `dir`: модель ждёт сборку и, не найдя `✗`, считает форму
  * собранной. Прогон qwen3.5:4b (батч 20261112T044906Z-47ef) восемь раз звал
  * `{"dir":"form","grammar":"all"}`, правя intent между вызовами, и ни разу не узнал, что сборки нет.
@@ -290,7 +313,8 @@ function grammarOnlyNote(dir: unknown, k: Knowledge): string {
   }
   return (
     `${head} ${expected} does not exist yet: write it by this grammar, then call form_build ` +
-    `${call} without "grammar".${strayIntentNote(opened.directory, expected)}`
+    `${call} without "grammar".${strayIntentNote(opened.directory, expected)}` +
+    misnamedIntentNote(opened.directory, expected)
   );
 }
 
@@ -329,6 +353,15 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
     // Грамматика вместо сборки — с причиной: голую грамматику модель принимала за успех, не зная,
     // что её файл лежит не там (батч 20261112T050352Z-2bb5, intent в корне рабочего каталога).
     const expected = `${directory.label}/${INTENT_FILE}`;
+    const misnamed = misnamedIntentNote(directory, expected);
+    if (misnamed) {
+      // Intent уже написан, не хватает имени: грамматика (~11 тыс. символов) тут только съела бы
+      // окно малой модели.
+      const text =
+        `${NOTHING_BUILT} ${expected} does not exist yet.${misnamed} ` +
+        'Then call form_build again.';
+      return { content: [{ type: 'text', text }] };
+    }
     const note =
       `${NOTHING_BUILT} ${expected} does not exist yet. Write it by the grammar below, then call ` +
       `form_build again.${strayIntentNote(directory, expected)}`;
@@ -386,6 +419,10 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
         'index.tsx holds markup written by hand (it draws no FormRenderer) — on ' +
           `${intent.target} the build writes index.tsx itself. Move your markup to another ` +
           'file, or delete index.tsx, and build again.',
+        // Таргет берётся из intent: модель, писавшая форму на core, ставила renderer-react и
+        // четыре раза получала тот же отказ (батч 20261112T163051Z-ad08, ReFormer-11oe.27).
+        `The target comes from ${INTENT_FILE}: "target":"${intent.target}". If the form is on ` +
+          '@reformer/core with markup written by hand, set "target":"core" and build again.',
       ]);
     }
   }

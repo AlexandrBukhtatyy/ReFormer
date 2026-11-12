@@ -329,10 +329,14 @@ export function judgeIntent(
 
   for (const note of bundle?.warnings ?? []) {
     if (isLostMessageWarning(note)) {
+      // Тексту без кода починку называет само замечание — пример по проверкам правила; общая
+      // подсказка «строка на код» спорила бы с ним (ReFormer-11oe.25).
       errors.push({
         code: 'lost-message',
         message: note,
-        hint: 'one `validation` row per issue code, each with its own message',
+        ...(note.startsWith('The text «')
+          ? {}
+          : { hint: 'one `validation` row per issue code, each with its own message' }),
       });
     } else {
       warnings.push({ code: 'module-note', message: note });
