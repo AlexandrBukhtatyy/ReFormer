@@ -1,8 +1,8 @@
 {
-  "description": "Приёмка 7.0, ассистент конструктора: та же лестница и тот же верификатор (npm run mcp:builder-ladder). Модели ×3 — класс ~27B и малый; model: null — эталоны без модели, годится для CI. Пороги — docs/plans/mcp-audit-one-path.md.",
+  "description": "Приёмка 7.0, ассистент конструктора: та же лестница и тот же верификатор (npm run mcp:builder-ladder). Модели ×3 — класс ~27B (qwen3.8:27b) и малый (qwen3.5:4b), окно 32K — у сервера: OLLAMA_CONTEXT_LENGTH=32768; model: null — эталоны без модели, годится для CI. Пороги — docs/plans/mcp-audit-one-path.md.",
   "agents": [
     {
-      "model": "qwen3.8:27b-32k"
+      "model": "qwen3.8:27b"
     },
     {
       "model": "qwen3.5:4b"

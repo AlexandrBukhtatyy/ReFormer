@@ -1,9 +1,9 @@
 {
-  "description": "Приёмка 7.0, терминал: локальные модели ×3 — класс ~27B (qwen3.8:27b-32k, gemma4:26b) и малый (qwen3.5:4b). Пороги — docs/plans/mcp-audit-one-path.md, «Пороги приёмки».",
+  "description": "Приёмка 7.0, терминал: локальные модели ×3 — класс ~27B (qwen3.8:27b, gemma4:26b) и малый (qwen3.5:4b). Пороги — docs/plans/mcp-audit-one-path.md, «Пороги приёмки».",
   "agents": [
     {
       "kind": "ollama",
-      "model": "qwen3.8:27b-32k"
+      "model": "qwen3.8:27b"
     },
     {
       "kind": "ollama",

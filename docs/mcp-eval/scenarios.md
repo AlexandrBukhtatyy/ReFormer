@@ -40,7 +40,8 @@ npm run mcp:scenarios -- --matrix smoke        # весь путь без мод
 npm run mcp:scenarios -- --matrix smoke --target renderer-json  # все сценарии JSON-формами — для ui-builder
 npm run mcp:scenarios -- --agent claude-code --model sonnet --scenario 'L1-*,L3-*' --repeats 3 \
   --max-usd-batch 5 --browser --publish
-npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b-32k --scenario L1-feedback
+npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b --scenario L1-feedback
+npm run mcp:scenarios -- --matrix accept-7.0-ollama --model qwen3.5:4b  # одна модель матрицы
 npm run mcp:compare -- <A> <B> [--gate]
 npm run mcp:report
 npm run mcp:log -- latest                      # прогоны последнего батча одним диалогом
@@ -87,10 +88,14 @@ CLAUDE_CODE_OAUTH_TOKEN=<токен> npm run mcp:scenarios -- --agent claude-cod
 
 ```bash
 npm run mcp:builder-ladder                                  # эталоны без модели (матрица builder-smoke)
-EVAL_KIND=openai-compatible npm run mcp:builder-ladder -- --model qwen3.8:27b-32k --repeats 3
+EVAL_KIND=openai-compatible npm run mcp:builder-ladder -- --model qwen3.8:27b --repeats 3
 npm run mcp:builder-ladder -- --matrix accept-7.0-builder   # приёмка: модели и повторы матрицы
 npm run mcp:compare -- <батч терминала> <батч ассистента>
 ```
+
+Окно контекста ассистента задаёт сервер Ollama: канал openai-compatible `num_ctx` не передаёт, а
+адаптер терминала ставит 32768 сам. Чтобы каналы шли с одним окном и модель ~27B помещалась в
+видеопамять, сервер для лестницы ассистента запускается с `OLLAMA_CONTEXT_LENGTH=32768 ollama serve`.
 
 Какие сценарии идут в ассистент — `builder` в `scenario.json`: `enabled` и, если эталон одним вызовом
 `build_form` не собрать (мастер на 96 полей, правила своим кодом), `replay: false` с причиной — такой

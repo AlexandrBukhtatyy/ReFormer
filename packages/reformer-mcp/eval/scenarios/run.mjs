@@ -3,10 +3,12 @@
  * Раннер сценариев: агент выполняет задание через MCP-сервер, верификатор судит результат.
  *
  *   npm run mcp:scenarios -- --matrix smoke
- *   npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b-32k --scenario 'L1-*,L3-*' --repeats 3
+ *   npm run mcp:scenarios -- --matrix accept-7.0-ollama --model qwen3.5:4b
+ *   npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b --scenario 'L1-*,L3-*' --repeats 3
  *   npm run mcp:scenarios -- --agent claude-code --model sonnet --scenario L1-feedback --max-usd-batch 2
  *
  *   --matrix <имя|файл>    оси прогона из matrices/
+ *   --model m              с --matrix — только агенты этой модели (модель не помещается на машине)
  *   --agent                replay | ollama | claude-code
  *   --approach a,b         подходы из approaches.json (по умолчанию bare)
  *   --target t             каждый сценарий — на этом таргете вместо своих (renderer-json: формы
@@ -64,7 +66,17 @@ function readMatrix() {
     const file = existsSync(name)
       ? name
       : path.join(scenariosDirectory, 'matrices', `${name}.json`);
-    return JSON.parse(readFileSync(file, 'utf8'));
+    const matrix = JSON.parse(readFileSync(file, 'utf8'));
+    // Модель матрицы, которая на этой машине не помещается, отсекается: остальные оси — как в матрице.
+    const only = flag('model');
+    if (!only) return matrix;
+    const agents = matrix.agents.filter((agent) => agent.model === only);
+    if (agents.length === 0) {
+      const known = matrix.agents.map((agent) => agent.model).join(', ');
+      console.error(`В матрице ${name} нет модели ${only}; есть: ${known}`);
+      process.exit(2);
+    }
+    return { ...matrix, agents };
   }
   const kind = flag('agent');
   if (!kind) {
