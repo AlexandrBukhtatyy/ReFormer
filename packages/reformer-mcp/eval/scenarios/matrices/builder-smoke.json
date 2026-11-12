@@ -1,0 +1,10 @@
+{
+  "description": "Ассистент без модели: эталонные intent лестницы через build_form, кодоген и верификатор. Годится для CI.",
+  "agents": [
+    {
+      "model": null
+    }
+  ],
+  "scenarios": "*",
+  "repeats": 1
+}

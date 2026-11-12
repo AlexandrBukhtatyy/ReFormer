@@ -5,10 +5,16 @@
  * Аргументы: каталог бандла и файл контракта. Итог — JSON последней строкой stdout.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { checkAllRules, loadFormModule, tick } from '../lib/form-runtime.mjs';
+import {
+  checkAllRules,
+  loadFormModule,
+  loadRegistryEntry,
+  REGISTRY_ENTRY_FILE,
+  tick,
+} from '../lib/form-runtime.mjs';
 import { bindFields, checkStructure, modelPaths, runProbes, schemaLabels } from './probes.mjs';
 
 const [bundleDirectory, contractFile] = process.argv.slice(2);
@@ -21,7 +27,9 @@ function finish(extra = {}) {
 }
 
 const fileNames = readdirSync(bundleDirectory);
-if (!fileNames.includes('model.ts')) {
+// Модуль конструктора — папки ролей и запись реестра форм; модуль MCP — плоский набор файлов.
+const builder = existsSync(path.join(bundleDirectory, REGISTRY_ENTRY_FILE));
+if (!builder && !fileNames.includes('model.ts')) {
   // Сервер требует канон раскладки; не последовавший ему агент — дефект пути, который сервер предложил.
   checks['runtime.load'] = ['fail', 'nonCanonical: в бандле нет model.ts'];
   finish({ nonCanonical: true });
@@ -33,12 +41,17 @@ let validation;
 try {
   core = await import('@reformer/core');
   validation = await import('@reformer/core/validation');
-  formModule = await loadFormModule(
-    (file) => import(pathToFileURL(path.join(bundleDirectory, file)).href),
-    fileNames
-  );
+  const importFile = (file) => import(pathToFileURL(path.join(bundleDirectory, file)).href);
+  formModule = builder
+    ? await loadRegistryEntry(importFile)
+    : await loadFormModule(importFile, fileNames);
   if (typeof formModule.createFormModel !== 'function') {
-    checks['runtime.load'] = ['fail', 'nonCanonical: model.ts не экспортирует createFormModel'];
+    checks['runtime.load'] = [
+      'fail',
+      builder
+        ? `nonCanonical: в записи ${REGISTRY_ENTRY_FILE} нет фабрики модели`
+        : 'nonCanonical: model.ts не экспортирует createFormModel',
+    ];
     finish({ nonCanonical: true });
   }
   formModule.createFormModel();

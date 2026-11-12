@@ -10,5 +10,10 @@
     "timeoutMs": 2400000,
     "maxUsd": 8,
     "maxSteps": 80
+  },
+  "builder": {
+    "enabled": true,
+    "replay": false,
+    "reason": "эталон одним intent не собрать: мастер на 96 полей ассистент собирает по шагам, части (kind: part) build_form не поддерживает"
   }
 }

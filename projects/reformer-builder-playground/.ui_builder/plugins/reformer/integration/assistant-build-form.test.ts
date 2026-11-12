@@ -9,87 +9,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { JsonFormSchema } from '@reformer/renderer-json';
-import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '../core/testing';
 import { collectModelPaths } from '../core/form-model';
-import { readRuleCode } from '../ai/src/stack/rule-code';
-import { parseSchemaText, printSchemaText } from '../ai/src/model/schema-text';
-import { createFakeFiles } from '../ai/src/stack/testing';
-import { createSchemaFormStack } from '../ai/src/stack';
 import { DOCUMENT_GRAMMAR_EXAMPLE } from '@reformer/mcp/intent';
-import { createAgentBridge } from '../../forms/ai/src/session/bridge';
-import { createAiSession } from '../../forms/ai/src/session/session';
-import { createProviderRegistry } from '../../forms/ai/src/providers/registry';
 import { createFakeProvider, type FakeStep } from '../../forms/ai/src/providers/fake';
-import type { AiAssistant } from '../../forms/ai/src/plugin';
-import { createFakeHost } from '../../forms/ai/src/testing';
-import { generatorOver } from './codegen-harness';
+import { bridgeTurn } from './bridge-turn';
 
-const DOCUMENT = 'forms/eval/schema/form.schema.json';
-
-const EMPTY: JsonFormSchema = {
-  format: 2,
-  version: '1.0',
-  root: { component: '$component(Box)', componentProps: { className: 'space-y-4' }, children: [] },
-} as unknown as JsonFormSchema;
-
-/** Ход по пустой форме со сценарием модели; стек — с `build_form` или без. */
-async function turn(script: readonly FakeStep[], buildForm = true) {
-  const files = createFakeFiles();
-  const host = createFakeHost(files);
-  const codegen = generatorOver({ files, documentOf: (id) => host.documentOf(id) });
-  files.put(DOCUMENT, printSchemaText(EMPTY));
-  host.openDocument(DOCUMENT, printSchemaText(EMPTY));
-
-  const providers = createProviderRegistry();
-  const provider = createFakeProvider(script);
-  const seen: string[][] = [];
-  providers.register({
-    ...provider,
-    stream: (req, signal) => {
-      seen.push(req.tools.map((tool) => tool.name));
-      return provider.stream(req, signal);
-    },
-  });
-  const assistant = {
-    providers,
-    loadConfig: () => Promise.resolve({ kind: 'anthropic' as const }),
-    saveConfig: () => Promise.resolve(),
-    clearConfig: () => Promise.resolve(),
-    models: () => Promise.resolve([]),
-    activate: () => Promise.reject(new Error('не нужно в тесте')),
-    restore: () => Promise.resolve(null),
-  } as unknown as AiAssistant;
-
-  const session = createAiSession();
-  const stack = createSchemaFormStack({
-    catalog: () => builtinEntries(),
-    validateForm: () => Promise.resolve(validateFormSchema),
-    scopeOf: (id) => files.scopeOf(id),
-    generator: () => codegen,
-    buildForm,
-  });
-  const bridge = createAgentBridge({
-    assistant,
-    host,
-    session,
-    agentCommands: () => [],
-    executeCommand: () => Promise.resolve(undefined),
-    stacks: () => [stack],
-    generator: () => codegen,
-    formCreator: () => undefined,
-  });
-  await bridge.send('Собери форму.');
-
-  const text = host.documentOf(DOCUMENT)?.getText() ?? '';
-  const { rules } = await readRuleCode(files, DOCUMENT, DOCUMENT);
-  const tools = session
-    .get()
-    .entries.filter((entry) => entry.role === 'assistant')
-    .flatMap((entry) => entry.tools);
-  return { schema: parseSchemaText(text), rules, tools, seen, host };
-}
+const turn = (script: readonly FakeStep[], buildForm = true) =>
+  bridgeTurn({ provider: createFakeProvider(script), buildForm });
 
 describe('build_form целым ходом', () => {
   it('форма и правила примера ложатся в документ и код модуля', async () => {

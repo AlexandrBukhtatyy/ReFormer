@@ -2,6 +2,8 @@
 /**
  * Импорт прогона ассистента конструктора (`.tmp/eval/form-scenarios-*.json`) в записи прогонов:
  * `npm run mcp:import-builder -- <файл> [--publish] [--reasoning off] [--price-in 3 --price-out 15]`.
+ * Прогон лестницы сценариев MCP — его `verify.json` (`mcp:verify -- --ladder <каталог>`): записи с
+ * проверками верификатора, сравнимые с терминалом (`ladderRecords`).
  *
  * Подход — `structured-<рассуждение>`, с `build_form` в наборе — `structured-<рассуждение>-build-form`
  * (флаг стенда `EVAL_BUILD_FORM`, план mcp-misty-graham, этап 2): без этого `mcp:compare` сложил бы
@@ -104,6 +106,53 @@ export function builderRecords(
   );
 }
 
+/**
+ * Записи из прогона лестницы в ассистенте (`mcp:verify -- --ladder <каталог>` → `verify.json`):
+ * вердикт, гейты и проверки — верификатора MCP, теми же контрактами, что у терминала. Поэтому запись
+ * — ячейка того же сценария и подхода `bare` (задание словами пользователя), а канал различает
+ * агент: `builder-replay` (эталон без модели) или `builder-bridge` (живая модель).
+ */
+export function ladderRecords(report, { batchId, startedAt, source, reasoning = 'default' }) {
+  const replay = report.agent === 'replay';
+  const repeats = new Map();
+  for (const result of report.results) {
+    repeats.set(result.id, Math.max(repeats.get(result.id) ?? 0, result.repeat ?? 1));
+  }
+  return report.results.map((result) =>
+    createRecord({
+      batchId,
+      harness: 'builder',
+      startedAt: startedAt.toISOString(),
+      durationMs: (result.seconds ?? 0) * 1000,
+      source: { ...source, provenance: 'imported' },
+      server: { channel: 'worker' },
+      agent: {
+        kind: replay ? 'builder-replay' : 'builder-bridge',
+        model: report.model ?? null,
+        auth: null,
+        settings: replay ? {} : { reasoning },
+      },
+      approach: { id: 'bare' },
+      scenario: { id: result.id, level: result.level, target: 'renderer-json' },
+      repeat: { index: result.repeat ?? 1, of: repeats.get(result.id) },
+      verdict: result.verdict,
+      score: result.score,
+      exitReason: result.built ? 'completed' : 'error',
+      gates: result.gates,
+      checks: result.checks,
+      metrics: [
+        { id: 'process.toolCalls', value: result.tools?.length ?? 0, better: 'none' },
+        {
+          id: 'process.buildFormCalls',
+          value: (result.tools ?? []).filter((name) => name === 'build_form').length,
+          better: 'lower',
+        },
+      ],
+      toolSequence: (result.tools ?? []).join(' → ').slice(0, 800),
+    })
+  );
+}
+
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isCli) {
   const argv = process.argv.slice(2);
@@ -126,13 +175,15 @@ if (isCli) {
     process.exit(2);
   }
   const report = JSON.parse(readFileSync(path.resolve(file), 'utf8'));
+  // Отчёт верификатора лестницы (`verify.json`) — свой перевод: проверки верификатора, а не стенда.
+  const fromLadder = path.basename(file) === 'verify.json';
   // Время прогона — из имени файла стенда, иначе тренды легли бы на дату импорта.
   const stamp = /(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})/.exec(path.basename(file));
   const startedAt = stamp
     ? new Date(`${stamp[1]}T${stamp[2]}:${stamp[3]}:${stamp[4]}Z`)
     : new Date();
   const batchId = newBatchId(startedAt);
-  const records = builderRecords(report, {
+  const records = (fromLadder ? ladderRecords : builderRecords)(report, {
     batchId,
     startedAt,
     source: collectSource(),
@@ -142,7 +193,7 @@ if (isCli) {
   const { local, published } = writeRecords(records, {
     batchId,
     harness: 'builder',
-    label: String(report.model).replace(/[^\w.-]+/g, '-'),
+    label: String(report.model ?? report.agent ?? 'builder').replace(/[^\w.-]+/g, '-'),
     publish: argv.includes('--publish'),
   });
   console.log(`${records.length} записей → ${path.relative(repoRoot, published ?? local)}`);

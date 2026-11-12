@@ -9,5 +9,8 @@
     "timeoutMs": 600000,
     "maxUsd": 1.5,
     "maxSteps": 30
+  },
+  "builder": {
+    "enabled": true
   }
 }

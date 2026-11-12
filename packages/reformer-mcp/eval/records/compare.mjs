@@ -28,6 +28,9 @@ const SIGNIFICANCE = 0.05;
 
 const modelOf = (record) => record.agent.model ?? record.agent.kind;
 const COMPARABLE_AXES = {
+  // Канал — стенд записи: терминал (`scenario`) и ассистент конструктора (`builder`) проходят одну
+  // лестницу и один верификатор (фаза 7 аудита), поэтому сравнимы на одних контрактах.
+  канал: (record) => record.harness,
   подход: (record) => record.approach.id,
   модель: modelOf,
 };
@@ -48,16 +51,20 @@ function comparedAxes(recordsA, recordsB) {
   });
 }
 
-/** Ключ ячейки: оси, по которым прогоны сопоставимы; сравниваемые оси в него не входят. */
-const cellKey = (record, axes) =>
-  [
-    record.harness,
+/**
+ * Ключ ячейки: оси, по которым прогоны сопоставимы; сравниваемые оси в него не входят. При сравнении
+ * каналов уходит и таргет: модуль ассистента — всегда renderer-json, а контракт сценария один.
+ */
+const cellKey = (record, axes) => {
+  const crossChannel = axes.some((axis) => axis.name === 'канал');
+  return [
     record.scenario.id,
-    record.scenario.target ?? '-',
+    ...(crossChannel ? [] : [record.scenario.target ?? '-']),
     ...Object.entries(COMPARABLE_AXES)
       .filter(([name]) => !axes.some((axis) => axis.name === name))
       .map(([, read]) => read(record)),
   ].join(' | ');
+};
 
 function findPublished(directory, batchId) {
   if (!existsSync(directory)) return [];

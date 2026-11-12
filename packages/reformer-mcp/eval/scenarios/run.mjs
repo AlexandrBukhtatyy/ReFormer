@@ -86,7 +86,7 @@ const maxUsdBatch = Number(flag('max-usd-batch', matrix.maxUsdBatch ?? 5));
 const withBrowser = has('browser');
 const scenarios = loadScenarios({
   pattern: flag('scenario', matrix.scenarios ?? '*'),
-  includeHoldout: has('include-holdout'),
+  includeHoldout: has('include-holdout') || matrix.includeHoldout === true,
 }).filter((scenario) => existsSync(scenario.contractFile));
 const convention = readFileSync(
   path.join(scenariosDirectory, '_shared/output-convention.md'),

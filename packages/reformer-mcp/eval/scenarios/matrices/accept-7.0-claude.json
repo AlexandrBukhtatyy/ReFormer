@@ -1,0 +1,15 @@
+{
+  "description": "Приёмка 7.0, терминал: Claude Code sonnet ×5 на всей лестнице с holdout. Пороги — docs/plans/mcp-audit-one-path.md, «Пороги приёмки». Тратит лимит подписки.",
+  "agents": [
+    {
+      "kind": "claude-code",
+      "model": "sonnet"
+    }
+  ],
+  "approaches": ["bare"],
+  "scenarios": "*",
+  "includeHoldout": true,
+  "repeats": 5,
+  "concurrency": 2,
+  "maxUsdBatch": 60
+}

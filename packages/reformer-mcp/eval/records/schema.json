@@ -56,7 +56,9 @@
       "type": "object",
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["none", "replay", "ollama", "claude-code", "builder-bridge"] },
+        "kind": {
+          "enum": ["none", "replay", "ollama", "claude-code", "builder-bridge", "builder-replay"]
+        },
         "model": { "type": ["string", "null"] },
         "auth": { "type": ["string", "null"] },
         "settings": { "type": "object" }

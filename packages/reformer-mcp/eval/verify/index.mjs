@@ -3,6 +3,9 @@
  * Верификатор формы: соответствует ли модуль формы контракту сценария.
  *
  *   npm run mcp:verify -- --dir <каталог> --contract <файл> [--target core]
+ *   npm run mcp:verify -- --dir <каталог> --contract <файл> --module builder   модуль конструктора
+ *   npm run mcp:verify -- --ladder <каталог>   прогон лестницы в ассистенте: <каталог>/ladder.json и
+ *                                               модуль на сценарий; итог — <каталог>/verify.json
  *   npm run mcp:verify -- --golden [--scenario 'L3-*']   эталон каждого сценария обязан пройти
  *   npm run mcp:verify -- --negative                     заведомо сломанные формы обязаны упасть
  *   npm run mcp:verify -- --reverify <батч>[,<батч>]     новая оценка сохранённых форм без модели
@@ -53,25 +56,45 @@ function listFiles(directory, prefix = '') {
   });
 }
 
+/** Точка входа модуля конструктора: запись реестра форм (`FormEntry`), а не компонент. */
+const BUILDER_ENTRY = 'application/entry.ts';
+
 /**
  * Стадия static: точка входа, стек, раскладка, типы, проверка кода сервером.
  *
  * @param {object} options
  * @param {boolean} [options.reference] - эталон: на `core` он рисуется `FormRenderer` только ради
  *   браузерной стадии (`drawCoreForm`), поэтому стек у него на этом таргете не проверяется.
+ * @param {'mcp'|'builder'} [options.module] - чей модуль: `builder` — кодоген конструктора, папки
+ *   ролей и запись реестра форм; канон раскладки MCP (`kind=layout`) к нему не применяется, стек —
+ *   всегда renderer-json.
  */
-export async function verifyStatic({ directory, target, client, reference = false }) {
+export async function verifyStatic({
+  directory,
+  target,
+  client,
+  reference = false,
+  module = 'mcp',
+}) {
+  const builder = module === 'builder';
   const checks = {};
   const files = existsSync(directory) ? listFiles(directory) : [];
-  const entry = path.join(directory, 'index.tsx');
-  const exportsComponent =
+  const entryFile = builder ? BUILDER_ENTRY : 'index.tsx';
+  const entry = path.join(directory, entryFile);
+  const exportsEntry =
     existsSync(entry) &&
-    /export\s+(default\s+)?(function|const|class)\s+\w*|export\s+default\s+\w+/.test(
-      readFileSync(entry, 'utf8')
-    );
-  checks['workspace.entry'] = exportsComponent
+    (builder
+      ? /export\s+const\s+\w+\s*:\s*FormEntry\b/
+      : /export\s+(default\s+)?(function|const|class)\s+\w*|export\s+default\s+\w+/
+    ).test(readFileSync(entry, 'utf8'));
+  checks['workspace.entry'] = exportsEntry
     ? 'pass'
-    : ['fail', files.length ? 'index.tsx не экспортирует компонент' : 'каталог результата пуст'];
+    : [
+        'fail',
+        files.length
+          ? `${entryFile} не экспортирует ${builder ? 'запись FormEntry' : 'компонент'}`
+          : 'каталог результата пуст',
+      ];
 
   const sources = files.filter((file) => SOURCE_FILE.test(file));
   if (sources.length === 0) {
@@ -81,7 +104,7 @@ export async function verifyStatic({ directory, target, client, reference = fals
 
   if (!(reference && target === 'core')) {
     const problem = stackProblem(
-      target,
+      builder ? 'renderer-json' : target,
       sources.map((file) => readFileSync(path.join(directory, file), 'utf8'))
     );
     checks['static.stack'] = problem ? ['fail', problem] : 'pass';
@@ -101,12 +124,15 @@ export async function verifyStatic({ directory, target, client, reference = fals
       ]
     : 'pass';
 
-  const layout = parseValidate(
-    (await client.callTool('validate_form', { kind: 'layout', files, target })).text
-  );
-  checks['workspace.layout'] = layout.errors
-    ? ['fail', `${layout.errors} ошибок: ${layout.codes.join(', ')}`.slice(0, 200)]
-    : 'pass';
+  // Канон раскладки — модуля MCP; у конструктора своя раскладка по папкам ролей.
+  if (!builder) {
+    const layout = parseValidate(
+      (await client.callTool('validate_form', { kind: 'layout', files, target })).text
+    );
+    checks['workspace.layout'] = layout.errors
+      ? ['fail', `${layout.errors} ошибок: ${layout.codes.join(', ')}`.slice(0, 200)]
+      : 'pass';
+  }
 
   let codeErrors = 0;
   const codes = new Set();
@@ -177,9 +203,9 @@ export function summarize(contract, checks) {
 }
 
 /** Полная проверка каталога: static + headless. */
-export async function verifyBundle({ directory, contractFile, target, client, reference }) {
+export async function verifyBundle({ directory, contractFile, target, client, reference, module }) {
   const contract = JSON.parse(readFileSync(contractFile, 'utf8'));
-  const checks = await verifyStatic({ directory, target, client, reference });
+  const checks = await verifyStatic({ directory, target, client, reference, module });
   const runtime = verifyRuntime({ directory, contractFile });
   Object.assign(checks, runtime.checks);
   return { checks, bound: runtime.bound ?? null, ...summarize(contract, checks) };
@@ -343,6 +369,55 @@ async function runReverify(client, batchIds) {
   }
 }
 
+/**
+ * Прогон лестницы в ассистенте (`assistant-ladder.test.ts` с `EVAL_LADDER_OUT`): каждый модуль
+ * конструктора — тем же контрактом сценария, что форма терминала. Сценарий, который ассистент не
+ * собрал (`build_form` отказал), — провал без проверки модуля.
+ *
+ * @returns Число сценариев, не прошедших верификатор.
+ */
+export async function runLadder(client, directory) {
+  const ladder = JSON.parse(readFileSync(path.join(directory, 'ladder.json'), 'utf8'));
+  const scenarios = new Map(
+    loadScenarios({ includeHoldout: true }).map((scenario) => [scenario.id, scenario])
+  );
+  const results = [];
+  for (const run of ladder.results) {
+    const scenario = scenarios.get(run.id);
+    if (!scenario) throw new Error(`сценарий ${run.id} не найден в eval/scenarios`);
+    const result = run.ok
+      ? await verifyBundle({
+          directory: path.join(directory, run.dir ?? run.id),
+          contractFile: scenario.contractFile,
+          target: 'renderer-json',
+          module: 'builder',
+          client,
+        })
+      : {
+          verdict: 'fail',
+          score: 0,
+          gates: ['builder.build'],
+          failedGates: ['builder.build'],
+          checks: { 'builder.build': ['fail', String(run.error ?? '').slice(0, 200)] },
+        };
+    printResult(`${run.dir ?? run.id} (ассистент)`, result);
+    results.push({
+      id: run.id,
+      repeat: run.repeat ?? 1,
+      level: scenario.level,
+      built: run.ok,
+      seconds: run.seconds,
+      tools: run.tools,
+      ...result,
+    });
+  }
+  writeFileSync(
+    path.join(directory, 'verify.json'),
+    `${JSON.stringify({ agent: ladder.agent, model: ladder.model, results }, null, 2)}\n`
+  );
+  return results.filter((result) => result.verdict !== 'pass').length;
+}
+
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isCli) {
   const argv = process.argv.slice(2);
@@ -363,6 +438,8 @@ if (isCli) {
       failed = await runGolden(client, flag('scenario', '*'), workDirectory, has('browser'));
     } else if (has('negative')) {
       failed = await runNegative(client, workDirectory);
+    } else if (has('ladder')) {
+      failed = await runLadder(client, path.resolve(flag('ladder', '')));
     } else if (has('reverify')) {
       await runReverify(client, flag('reverify', '').split(',').filter(Boolean));
     } else {
@@ -371,6 +448,7 @@ if (isCli) {
         directory,
         contractFile: path.resolve(flag('contract', '')),
         target: flag('target', 'renderer-react'),
+        module: flag('module', 'mcp'),
         client,
       });
       printResult(path.relative(repoRoot, directory), result);

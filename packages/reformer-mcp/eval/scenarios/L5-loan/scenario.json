@@ -10,5 +10,9 @@
     "timeoutMs": 1200000,
     "maxUsd": 3,
     "maxSteps": 40
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "эталон — черновик plan_form из спеки, а у ассистента plan_form нет"
   }
 }
