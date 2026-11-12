@@ -77,7 +77,11 @@ export async function staleness(pkgDir, repoRoot) {
     problems.push('dist не собран или собран без метки');
     return problems;
   }
-  if (built !== sourceHash(pkgDir)) {
+  if (built === 'dev') {
+    // `tsc` (или `npm run dev`) перезаписывает метку заглушкой: код свежий, но сборка не полная —
+    // нет метки, а корпус и бандл воркера могли остаться от прежней.
+    problems.push('dist пересобран tsc без метки (npm run dev или tsc), а не npm run build');
+  } else if (built !== sourceHash(pkgDir)) {
     problems.push(`исходники @reformer/mcp изменились после сборки (dist ${built})`);
   }
 

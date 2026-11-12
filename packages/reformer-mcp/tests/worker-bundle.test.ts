@@ -20,7 +20,7 @@ import {
   type MessageEventLike,
   type MessagePortLike,
 } from '../src/platform/worker/port-transport';
-import { readBuildId, readManifest } from '../scripts/lib/build-stamp.mjs';
+import { readManifest } from '../scripts/lib/build-stamp.mjs';
 import { precondition } from './support/preconditions';
 
 const pkgDir = resolve(__dirname, '..');
@@ -91,7 +91,9 @@ describe.runIf(
       version: string;
     };
     // Метка сборки — build-метаданные версии: по ней конструктор сверяет воркер с плагинами.
-    const buildId = readBuildId(pkgDir);
+    // Сверка — с манифестом: его пишет та же полная сборка, что и бандл, а `dist/build-info.js`
+    // перезаписывает любой `tsc` (npm run dev).
+    const buildId = readManifest(pkgDir).buildId;
     expect(client.getServerVersion()).toMatchObject({
       name: 'reformer-mcp',
       version: `${version.version}+${buildId}`,

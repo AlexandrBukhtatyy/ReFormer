@@ -108,6 +108,13 @@ describe('метка сборки', () => {
 
     writeFileSync(join(docs, 'llms.txt'), '# core v2\n');
     expect((await staleness(pkg, root)).join('\n')).toContain('документация пакетов');
+
+    // `tsc` без `npm run build` кладёт заглушку: сборка не полная, даже если код свежий.
+    writeFileSync(join(docs, 'llms.txt'), '# core\n');
+    writeFileSync(join(pkg, 'dist', 'build-info.js'), "export const BUILD_ID = 'dev';\n");
+    expect(await staleness(pkg, root)).toEqual([
+      'dist пересобран tsc без метки (npm run dev или tsc), а не npm run build',
+    ]);
   });
 
   it('метка в версии serverInfo: 6.0.0+<метка>, у кода из исходников — без неё', () => {
@@ -119,9 +126,12 @@ describe('метка сборки', () => {
   });
 });
 
-const built = existsSync(resolve(pkgDir, 'dist', 'knowledge', 'knowledge-manifest.json'));
+// Полная сборка: корпус есть, а метка не заглушка — `tsc` (npm run dev) перезаписывает её на `dev`.
+const built =
+  existsSync(resolve(pkgDir, 'dist', 'knowledge', 'knowledge-manifest.json')) &&
+  readBuildId(pkgDir) !== 'dev';
 
-describe.runIf(precondition('собранный dist', built, 'npm run build -w @reformer/mcp'))(
+describe.runIf(precondition('полная сборка dist', built, 'npm run build -w @reformer/mcp'))(
   'собранный dist пакета',
   () => {
     it('метка и манифест корпуса — одной сборки', () => {
