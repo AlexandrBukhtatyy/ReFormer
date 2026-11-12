@@ -1,259 +1,130 @@
 # Development Guide
 
-This guide covers how to develop and extend the ReFormer MCP server.
+How the ReFormer MCP server is built and how to extend it. Testing — [testing.md](./testing.md);
+the surface it exposes — [api.md](./api.md).
 
 ## Project Structure
 
 ```
 packages/reformer-mcp/
-├── package.json
-├── tsconfig.json
-├── scripts/
-│   ├── copy-templates.mjs    # Copies prompts/templates/*.md into dist/ on build
-│   └── snapshot-prompts.mjs  # Dev-only regression snapshot for prompt outputs
 ├── src/
-│   ├── index.ts              # Server entry point (registers tools/prompts/resources)
-│   ├── tools/                # MCP tools
-│   │   ├── debug.ts          # Debug tool (REFORMER_DEBUG only)
-│   │   └── report-issue.ts   # Issue reporting tool
-│   ├── prompts/              # MCP prompts — TS modules pair with .md templates
-│   │   ├── index.ts          # Re-exports all *PromptDefinition / get*Prompt pairs
-│   │   ├── create-form.ts    # Each module: definition + getter that renders its template
-│   │   ├── add-feature.ts
-│   │   ├── …                 # 8 prompts total
-│   │   └── templates/        # Prompt bodies as markdown with {{var}} placeholders
-│   │       ├── create-form.md
-│   │       ├── add-validation.md
-│   │       └── …
-│   └── utils/
-│       ├── docs-parser.ts            # Loads/sections @reformer/* llms.txt
-│       ├── project-detector.ts       # Detects ui-kit / Tailwind in target package.json
-│       └── prompt-template-loader.ts # Handlebars renderer for prompt templates
-├── docs/
-└── README.md
+│   ├── index.ts           # stdio entry: the Node server over stdin/stdout
+│   ├── build-info.ts      # BUILD_ID — stamped into dist by scripts/stamp-build.mjs
+│   ├── core/              # platform-free core: no Node globals (check:no-node-globals)
+│   │   ├── knowledge.ts   # Knowledge — what the server knows; the platform gives the sources
+│   │   ├── server/        # tool catalog (profiles node | browser), resource catalog, mount
+│   │   ├── tools/         # one module per tool: definition + handler
+│   │   ├── generate/      # the intent: reading, judge, grammar, cross-checks, module printing
+│   │   ├── decide/        # choose_api rules and their form in the intent
+│   │   ├── context/       # get_context assembly
+│   │   ├── docs/ index/   # the llms.txt corpus and the merged symbol index
+│   │   ├── validate/      # validate_form checks and RF codes
+│   │   ├── workspace/     # FormWorkspace — where form_build writes
+│   │   └── intent.ts      # entry @reformer/mcp/intent
+│   ├── platform/
+│   │   ├── cli/           # Node: disk sources, form workspace and type-check, prompts, sampling, trace
+│   │   ├── browser/       # knowledge from data already loaded (@reformer/mcp/browser)
+│   │   └── worker/        # Web Worker server over postMessage — the reference profile
+│   ├── prompts/           # prompt modules + templates/*.md
+│   ├── index/             # the symbol index loader (Node)
+│   └── utils/             # docs-parser, prompt-template-loader
+├── scripts/               # build: stamp, knowledge bundle, worker bundle, copies, packaging check
+├── docs/llms/             # self-documentation → llms.txt, served as reformer://docs/mcp
+├── eval/                  # quality stands: evaluate, calibration, scenarios, verify
+└── tests/                 # vitest; __golden__ snapshots of the surface and the module
 ```
 
-## Setting Up Development Environment
+## Setting Up
 
 ```bash
-# Clone the repository
-git clone https://github.com/AlexandrBukhtatyy/ReFormer.git
-cd ReFormer
-
-# Install dependencies
-npm install
-
-# Navigate to MCP package
-cd packages/reformer-mcp
-
-# Build
-npm run build
-
-# Watch mode for development
-npm run dev
+npm install                        # from the repository root
+npm run build -w @reformer/mcp     # generate:llms → tsc → stamp → templates → corpus → worker
+npm run test -w @reformer/mcp
+npm run dev -w @reformer/mcp       # tsc --watch: fast, but dist has no build id
 ```
 
-## Understanding MCP Architecture
+`npm run build` is the full build: the build id (`dist/build-info.js`), the knowledge corpus with its
+manifest (`dist/knowledge`) and the worker bundle (`dist/worker/server.js`). A bare `tsc` or
+`npm run dev` resets the build id to `dev`; the Builder's `mcp:build` and `plugins:build` then stop
+and ask for the full build — a copy from such a `dist` would judge forms differently from the
+sources.
 
-### Server Setup (index.ts)
+## Architecture
 
-The server uses `@modelcontextprotocol/sdk`:
+### One core, three platforms
 
-```typescript
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+The core works over `Knowledge` (`createKnowledge(sources)`): docs, the symbol index, recipes, specs,
+an issue sink, the form workspace, the kit catalog and the status. The platform gives the sources:
+`platform/cli` reads the disk, `platform/browser` takes data already loaded, `platform/worker` runs
+the same core inside a Web Worker over a built-in corpus. `core/` holds no Node globals, so
+`./core`, `./browser` and `./intent` load in a browser.
 
-const server = new Server(
-  { name: 'reformer-mcp', version: '1.0.0' },
-  { capabilities: { tools: {}, resources: {}, prompts: {} } }
-);
-```
+### Tool catalog and profiles
 
-### Feature Flags
+`createToolCatalog(knowledge, { profile })` (`core/server/tool-catalog.ts`) is the one list of tools.
+Profile `node` has all ten (plus `debug` with `REFORMER_DEBUG=true`), profile `browser` — the seven
+reference tools: the worker builds no forms. A text that names a tool must hold in both profiles:
+`validate_form` and the judge take a `formBuild` option, the worker has its own `instructions` and
+guide (`core/server/reference-guide.ts`), and `tests/worker-texts.test.ts` fails on a worker text
+that names a build tool.
 
-Debug features are hidden behind the `REFORMER_DEBUG` environment variable:
-
-```typescript
-const isDebugMode = process.env.REFORMER_DEBUG === 'true';
-
-// Only expose debug tools in debug mode
-if (isDebugMode) {
-  tools.push(debugToolDefinition);
-}
-```
-
-### Tools
-
-Tools are functions that Claude can call:
-
-```typescript
-// Definition
-const toolDefinition = {
-  name: 'my_tool',
-  description: 'What the tool does',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      param: { type: 'string', description: 'Parameter description' },
-    },
-    required: ['param'],
-  },
-};
-
-// Handler
-async function myTool(args: { param: string }) {
-  return {
-    content: [{ type: 'text', text: 'Result' }],
-  };
-}
-```
+`mountReformerServer(server, { tools, resources })` (`core/server/mount.ts`) wires the catalogs to
+the SDK; the Node server (`platform/cli/server.ts`) adds the prompts and the call trace.
 
 ### Resources
 
-Resources are passive data sources:
+`createResourceCatalog` (`core/server/resource-catalog.ts`): `reformer://guide`, `catalog`, `status`,
+`docs/<pkg>`, `docs/<pkg>/<slug>`. Sections are not listed in `resources/list` — every client pays
+for that list on connect; `reformer://catalog` and `search_docs` give the URIs.
 
-```typescript
-server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-  resources: [
-    {
-      uri: 'my://resource',
-      name: 'My Resource',
-      description: 'Description',
-      mimeType: 'text/markdown',
-    },
-  ],
-}));
+### The form path
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => ({
-  contents: [{ uri: request.params.uri, text: 'Content' }],
-}));
-```
-
-### Prompts
-
-Prompts are pre-built templates:
-
-```typescript
-const promptDefinition = {
-  name: 'my-prompt',
-  description: 'What the prompt does',
-  arguments: [{ name: 'input', description: 'Input description', required: true }],
-};
-
-function getMyPrompt(args: { input: string }) {
-  return {
-    messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text: `Context...\n\n${args.input}` },
-      },
-    ],
-  };
-}
-```
+`form_build` reads the intent and judges it (`judgeIntent`, `core/generate/judge.ts`), prints the
+module (`core/generate/builders.ts`), type-checks it in the workspace and only then writes. The judge
+is shared: `validate_form kind="bundle"` and the Builder's `build_form` (through
+`@reformer/mcp/intent`) give the same verdict. The lines of the answer and the codes of findings are
+contracts: [02-tools.md](./llms/02-tools.md) § form_build and
+[08-diagnostic-codes.md](./llms/08-diagnostic-codes.md), both held by tests.
 
 ## Adding a New Tool
 
-1. Create `src/tools/my-tool.ts`:
+1. `src/core/tools/my-tool.ts` — the definition and the handler `(args, knowledge) => result`.
+   Texts the model reads are in English; a finding gets a stable code.
+2. Register it in `src/core/server/tool-catalog.ts`: the definition in `list()` (decide the
+   profile — does the worker have it?), the call in `call()`.
+3. Describe it in `docs/llms/02-tools.md` and run `npm run generate:llms`; new codes go into
+   `docs/llms/08-diagnostic-codes.md` and the site mirror.
+4. Update the surface snapshots: `npx vitest run tests/surface-golden.test.ts -u`, review the diff;
+   the surface ceilings in that test must hold.
 
-```typescript
-export const myToolDefinition = {
-  name: 'my_tool',
-  description: 'Description',
-  inputSchema: { type: 'object', properties: {}, required: [] },
-};
+## Sampling
 
-export async function myTool() {
-  return { content: [{ type: 'text', text: 'Result' }] };
-}
-```
-
-2. Register in `src/core/server/tool-catalog.ts`: the definition in `list()`, the call in `call()`
-
-## Resources & Sampling Architecture (2.0)
-
-Starting in `2.0.0-beta.1` the server uses a **fine-grained resource model**
-plus **sampling** to keep prompt messages small.
-
-### Fine-grained resources
-
-Every level-2 section (`## `) of every package's `llms.txt` is exposed as
-its own MCP resource:
-
-- `reformer://docs/<pkg-short>` — full `llms.txt` for one package (aggregator).
-- `reformer://docs/<pkg-short>/<section-slug>` — single section.
-
-Where `<pkg-short>` ∈ `{core, cdk, ui-kit, renderer-react, renderer-json}`
-and `<section-slug>` is `slugify(title)` after stripping leading numeric
-prefixes (`## 1. Foo` → slug `foo`).
-
-`resources/list` is generated at runtime from `listSections()` —
-~213 resources total (208 sections + 5 aggregators). Use the MCP Inspector's
-Resources tab to browse the catalogue.
-
-### Slim+ prompts
-
-Prompt messages contain only:
-
-- args (description, code, requirements, …);
-- a 5–10 line **Critical inline rules** block — API names + signatures the
-  model commonly hallucinates, plus 1-line anti-patterns;
-- a **Prerequisites** block — list of resource URIs the model MUST read via
-  `ReadMcpResourceTool` before writing code;
-- the task and output checklist.
-
-Full code examples, discussion-style sections, and behavior-recipe deep-dives
-live in resources, not in the prompt. Compression vs the 1.x format: between
-**2× and 7×** depending on the prompt (`add-behavior` is the largest win:
-28 KB → 4 KB).
-
-### Sampling capability
-
-The server declares `sampling: {}` and uses it in four places:
-
-| Where                                             | When it fires                                                 | Purpose                                                                                                       |
-| ------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `create-form`, `plan-form`                        | `args.target` is missing                                      | classify `core` / `renderer-react` / `renderer-json` from description + deps                                  |
-| `project-detector.renderStackDetectionBlockAsync` | `projectRoot` found but no `@reformer/ui-kit` and no Tailwind | guess UI library + styling system from `package.json` deps                                                    |
-| `plan-form`                                       | always (when sampling supported)                              | extract complex spec patterns the regex parser misses (cross-step cascades, conditional groups, hidden steps) |
-| `discover-context` prompt                         | always                                                        | one batched call returning a JSON `{ target, uiKit, styling, validation, async }` recommendation              |
-
-Each call routes through `requestSampling()` in
-[src/utils/sampling.ts](../src/utils/sampling.ts) which:
-
-1. Checks `isSamplingSupported(server)` via `getClientCapabilities()`.
-2. Calls `server.createMessage(...)` with sane defaults
-   (`claude-3-5-sonnet`, 512 tokens, intelligencePriority 0.7).
-3. Returns a discriminated-union result so callers must handle
-   `{ ok: false, reason }` explicitly — graceful degradation is the rule,
-   never a thrown exception.
-
-When the client doesn't support sampling, every call falls back to
-deterministic logic — `inferTarget` returns the first detected renderer
-(or `'core'`), `discoverUnknownStack` returns `null`, `deepAnalyzeSpec`
-returns `null` (and the corresponding template block is empty).
+The server does not declare `sampling` — it is a capability of the client. When the client has it,
+the server asks it through `server.createMessage(...)` via `requestSampling()`
+(`src/platform/cli/sampling.ts`): the prompts `create-form` and `plan-form` infer the target when
+`target` is missing, `plan-form` analyses the spec deeper, `discover-context` asks for a stack
+recommendation. The result is a discriminated union: without sampling every call falls back to
+deterministic logic, never to an exception.
 
 ### Snapshot-based regression check
 
-`scripts/snapshot-prompts.mjs` writes the rendered output of every prompt
-to `.tmp/<dir>/<name>.txt` (without MCP-client sampling, so it always uses
-the deterministic fallback path). Use it to compare two states:
+`scripts/snapshot-prompts.mjs` writes the rendered output of every prompt to `.tmp/<dir>/<name>.txt`
+(without sampling, so always the deterministic path):
 
 ```bash
-npm run build
+npm run build -w @reformer/mcp
 node packages/reformer-mcp/scripts/snapshot-prompts.mjs .tmp/before
 # … make changes …
-npm run build
+npm run build -w @reformer/mcp
 node packages/reformer-mcp/scripts/snapshot-prompts.mjs .tmp/after
 diff -r .tmp/before .tmp/after
 ```
 
 ## Adding a New Prompt
 
-Prompts are split into two files: a TypeScript module that holds the
-definition + variable assembly, and a markdown template that holds the
-prose with `{{placeholder}}` slots. See **Prompt Templates Architecture**
-below for the rationale.
+Prompts are split into two files: a TypeScript module that holds the definition and the variables,
+and a markdown template that holds the prose with `{{placeholder}}` slots. See **Prompt Templates
+Architecture** below for the rationale.
 
 1. Create `src/prompts/templates/my-prompt.md`:
 
@@ -263,10 +134,6 @@ below for the rationale.
    ## Task
 
    {{task}}
-
-   ## Reference
-
-   {{referenceDocs}}
    ```
 
 2. Create `src/prompts/my-prompt.ts`:
@@ -280,37 +147,17 @@ below for the rationale.
      arguments: [{ name: 'task', description: 'Task description', required: true }],
    };
 
-   export function getMyPrompt(args: { task: string }): {
-     messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
-   } {
-     const text = renderPromptTemplate('my-prompt', {
-       task: args.task,
-       referenceDocs: 'Quick Start: …',
-     });
-     return {
-       messages: [{ role: 'user', content: { type: 'text', text } }],
-     };
+   export function getMyPrompt(args: { task: string }) {
+     const text = renderPromptTemplate('my-prompt', { task: args.task });
+     return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text } }] };
    }
    ```
 
-3. Export from `src/prompts/index.ts`.
-4. Register in `src/index.ts` (`ListPromptsRequestSchema` array + `GetPromptRequestSchema` switch).
-5. Run `npm run build` — `copy-templates.mjs` copies the `.md` into `dist/`.
-
-### Verifying with snapshot
-
-`scripts/snapshot-prompts.mjs` writes the rendered output of every prompt to
-`.tmp/<dir>/<name>.txt` so you can `diff -r` two states (e.g. before/after a
-refactor). It is a dev tool, not part of the published package.
-
-```bash
-npm run build
-node packages/reformer-mcp/scripts/snapshot-prompts.mjs .tmp/before
-# … make changes …
-npm run build
-node packages/reformer-mcp/scripts/snapshot-prompts.mjs .tmp/after
-diff -r .tmp/before .tmp/after
-```
+3. Export it from `src/prompts/index.ts`.
+4. Register it in `src/platform/cli/server.ts`: the definition in `listedPrompts()`, the call in
+   `getPrompt()`.
+5. `npm run build` — `copy-templates.mjs` copies the `.md` into `dist/`; `npm run check:mcp-prompts`
+   checks that no template teaches removed API.
 
 ## Prompt Templates Architecture
 
@@ -431,46 +278,31 @@ restart the server either way.
 
 ## Debug Mode
 
-Enable debug mode for development:
-
 ```bash
-REFORMER_DEBUG=true node dist/index.js
+REFORMER_DEBUG=true node packages/reformer-mcp/dist/index.js
+REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
 ```
 
-Or with MCP Inspector:
-
-```bash
-REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
-```
+It adds the `debug` tool and prompt and the `reformer://debug` resource.
 
 ## Debugging
 
-### Logging
-
-Use `console.error` for logging (stdout is reserved for MCP):
-
-```typescript
-console.error('Debug:', data);
-```
-
-### View MCP logs
-
-```bash
-# Windows
-Get-Content ~\AppData\Roaming\Claude\logs\mcp.log -Tail 50 -Wait
-
-# macOS
-tail -f ~/Library/Logs/Claude/mcp.log
-
-# Linux
-tail -f ~/.config/Claude/logs/mcp.log
-```
+- **stderr only.** stdout carries the MCP protocol; log with `console.error`.
+- **Call trace.** `REFORMER_TRACE_FILE=<file>` writes a JSON line per call (number, sizes, a digest
+  of the arguments); `REFORMER_TRACE_FULL=1` adds the full arguments and answer text. The scenario
+  stand reads it into `dialog.md` (`npm run mcp:log -- latest`).
+- **Client logs:** `~/Library/Logs/Claude/mcp*.log` (macOS), `%APPDATA%\Claude\logs\mcp*.log`
+  (Windows), `~/.config/Claude/logs/mcp*.log` (Linux).
 
 ## Best Practices
 
-1. **Use stderr for logging** - stdout is for MCP communication
-2. **Validate inputs** - Always check tool arguments
-3. **Handle errors gracefully** - Return helpful error messages
-4. **Keep responses concise** - Large responses slow down Claude
-5. **Cache when possible** - Documentation doesn't change often
-6. **Use feature flags** - Hide debug/development features from production
+1. **One path to a form.** A new capability goes into the intent grammar and `form_build`, not into
+   text that tells the agent to write module files by hand.
+2. **Texts for the model are English**, texts of a form are in the user's language; a finding has a
+   stable code, the text may change.
+3. **Every text holds in every profile** — the worker has no `form_build`, `plan_form` or
+   `report_issue`.
+4. **The surface is a budget.** Every client pays for `tools/list` on connect: keep descriptions
+   short, the ceilings in `tests/surface-golden.test.ts` hold them.
+5. **A contract has a test.** The answer lines stands parse, the codes, the grammar ceilings — change
+   them together with their test and the docs.
