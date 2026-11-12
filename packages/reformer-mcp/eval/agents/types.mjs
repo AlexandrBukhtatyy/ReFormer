@@ -14,6 +14,8 @@
  * @property {string} traceFile - журнал вызовов сервера
  * @property {{ timeoutMs: number, maxUsd: number, maxSteps: number }} limits
  * @property {Record<string, unknown>} [settings] - настройки агента из матрицы
+ * @property {(line: string) => void} [onProgress] - строка о ходе прогона (шаг, ожидание модели):
+ *   раннер печатает её, пока ячейка идёт; адаптер без пошагового цикла её не зовёт
  *
  * @typedef {object} AgentResult
  * @property {string|null} transcriptPath

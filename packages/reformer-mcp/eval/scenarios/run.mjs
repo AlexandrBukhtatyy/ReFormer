@@ -18,6 +18,11 @@
  *   --include-holdout      вместе с holdout (в отчётах он только агрегатом)
  *   --browser              с браузерной стадией: снимок доступности, axe, скриншоты
  *   --publish              положить записи в packages/reformer-mcp/eval/runs/
+ *   --shared-ollama        начать батч, хотя на той же Ollama идёт другой: шаги обоих ждут друг
+ *                          друга, их время не сравнимо с прочими батчами
+ *
+ * Ход ячейки — в stderr: строка на старт, у агента с пошаговым циклом (Ollama) — строка на шаг и
+ * пульс, пока модель отвечает дольше минуты. Итог ячейки — в stdout.
  *
  * Рабочий каталог агента — вне репозитория: иначе агент увидел бы исходники пакетов, и замерялся бы
  * не сервер. После прогона он копируется в каталог прогона: форма — в `bundle/` (там резолвятся
@@ -110,7 +115,7 @@ const adapters = new Map();
 for (const agent of matrix.agents) {
   const adapter = adapters.get(agent.kind) ?? (await import(`../agents/${agent.kind}.mjs`));
   adapters.set(agent.kind, adapter);
-  const problem = await adapter.preflight?.(agent.model);
+  const problem = await adapter.preflight?.(agent.model, { sharedOllama: has('shared-ollama') });
   if (problem) {
     console.error(`✗ ${agent.kind}: ${problem}`);
     process.exit(1);
@@ -304,6 +309,10 @@ async function runCell(cell) {
   writeFileSync(path.join(runDirectory, 'prompt.md'), prompt);
   const traceFile = path.join(runDirectory, 'server-trace.jsonl');
   const adapter = adapters.get(agent.kind);
+  // Строка итога появится только в конце ячейки, а она идёт до получаса: без строки старта и строк
+  // шагов живой прогон не отличить от зависшего (ReFormer-qo9b.41).
+  const progress = (line) => process.stderr.write(`${line}\n`);
+  progress(`→ ${startedAt.toTimeString().slice(0, 8)} · ${slug}`);
   const result = await adapter.runAgent({
     scenario,
     target,
@@ -315,6 +324,7 @@ async function runCell(cell) {
     serverPath,
     traceFile,
     settings: agent.settings,
+    onProgress: progress,
     limits: {
       maxUsd: 1.5,
       maxSteps: 30,

@@ -4,11 +4,19 @@
  * модели, ответ сервера совпадает с трассой, а журнал и трасса сходятся по номеру вызова и отпечатку.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runAgent, systemPrompt } from '../eval/agents/ollama.mjs';
+import {
+  claimOllama,
+  ollamaLockFile,
+  releaseOllama,
+  runAgent,
+  stepLine,
+  systemPrompt,
+  waitLine,
+} from '../eval/agents/ollama.mjs';
 import { argumentsDigest } from '../eval/lib/digest.mjs';
 import { readRun, renderRun } from '../eval/lib/run-log.mjs';
 import { SERVER_INSTRUCTIONS } from '../src/platform/cli/server';
@@ -93,6 +101,67 @@ describe('агент Ollama: системный промпт', () => {
   });
 });
 
+describe('агент Ollama: ход прогона и одна Ollama на батч [ReFormer-qo9b.41]', () => {
+  const at = new Date(2026, 10, 12, 8, 7, 26);
+
+  it('строка шага: время, прогон, шаг, время модели и вызовы с пометкой ошибки', () => {
+    const calls = [
+      { name: 'validate_form', ok: false },
+      { name: 'list_files', ok: true },
+    ];
+    expect(stepLine({ at, slug: 'L2.r1', step: 6, modelMs: 9081, calls })).toBe(
+      '  08:07:26 · L2.r1 · шаг 6 · модель 9 с · validate_form ✗, list_files'
+    );
+    expect(stepLine({ at, slug: 'L2.r1', step: 7, modelMs: 400, calls: [] })).toBe(
+      '  08:07:26 · L2.r1 · шаг 7 · модель 0 с · ответ без вызова'
+    );
+    expect(waitLine({ at, slug: 'L2.r1', step: 10, waitedMs: 120_400 })).toBe(
+      '  08:07:26 · L2.r1 · шаг 10 · ждёт модель 120 с'
+    );
+  });
+
+  it('файл занятости — свой на адрес Ollama', () => {
+    expect(path.basename(ollamaLockFile('http://localhost:11434', root))).toBe(
+      '.ollama-localhost-11434.lock'
+    );
+    expect(ollamaLockFile('http://gpu.lan:8080', root)).not.toBe(
+      ollamaLockFile('http://localhost:11434', root)
+    );
+  });
+
+  it('живой владелец не пускает второй батч; мёртвый, испорченный файл и свой — не помеха', () => {
+    const lockFile = path.join(root, 'runs', '.ollama-test.lock');
+    const alive = new Set([111]);
+    const isAlive = (pid: number) => alive.has(pid);
+    const claim = (pid: number) => claimOllama({ lockFile, pid, isAlive, now: at, command: 'x' });
+
+    expect(claim(111)).toEqual({ ok: true });
+    expect(JSON.parse(readFileSync(lockFile, 'utf8'))).toEqual({
+      pid: 111,
+      startedAt: at.toISOString(),
+      command: 'x',
+    });
+    // Другой процесс при живом владельце — отказ с владельцем.
+    expect(claim(222)).toEqual({
+      ok: false,
+      holder: { pid: 111, startedAt: at.toISOString(), command: 'x' },
+    });
+    // Повтор своего захвата (вторая модель матрицы) — не помеха.
+    expect(claim(111)).toEqual({ ok: true });
+    // Владелец снят Ctrl+C и файл не убрал: Ollama свободна.
+    alive.delete(111);
+    expect(claim(222)).toEqual({ ok: true });
+    writeFileSync(lockFile, '{ not json');
+    expect(claim(333)).toEqual({ ok: true });
+
+    // Убрать можно только свой файл.
+    releaseOllama({ lockFile, pid: 222 });
+    expect(existsSync(lockFile)).toBe(true);
+    releaseOllama({ lockFile, pid: 333 });
+    expect(existsSync(lockFile)).toBe(false);
+  });
+});
+
 describe.runIf(hasDist)('агент Ollama: журнал прогона', () => {
   it('журнал хранит то, что ушло модели, и сходится с трассой сервера', async () => {
     const runDirectory = path.join(root, 'batch', 'L1-test.core.bare.ollama.r1');
@@ -115,6 +184,7 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
       reply({ content: 'Готово.' })
     );
 
+    const progress: string[] = [];
     const result = await runAgent({
       scenario: { id: 'L1-test' },
       target: 'core',
@@ -127,9 +197,19 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
       traceFile: path.join(runDirectory, 'server-trace.jsonl'),
       limits: { timeoutMs: 60_000, maxUsd: 0, maxSteps: 5 },
       settings: { numCtx: 32768 },
+      onProgress: (line: string) => progress.push(line),
     });
     expect(result.exitReason).toBe('completed');
     expect(result.finalText).toBe('Готово.');
+    // Строка на каждый шаг — с файловыми и прочими вызовами, которых нет в трассе сервера.
+    const shape = (step: number, tools: string) =>
+      new RegExp(
+        `^ {2}\\d\\d:\\d\\d:\\d\\d · L1-test\\.core\\.bare\\.ollama\\.r1 · шаг ${step} · модель 2 с · ${tools}$`
+      );
+    expect(progress).toHaveLength(3);
+    expect(progress[0]).toMatch(shape(0, 'choose_api, read_mcp_resource'));
+    expect(progress[1]).toMatch(shape(1, 'ответ без вызова'));
+    expect(progress[2]).toMatch(shape(2, 'ответ без вызова'));
 
     const transcript = readJsonl(path.join(runDirectory, 'transcript.jsonl'));
     const [system, prompt] = transcript;
