@@ -3,8 +3,10 @@
 //
 // Зачем: `start-here` — задокументированная точка входа сервера («START HERE… Call this
 // first») — возвращала клиенту JSON-RPC -32603 «"fieldWrapper:" not defined». Причина:
-// в шаблоне лежит JSX `settings={{ fieldWrapper: FormField }}`, а Handlebars в strict-режиме
-// читает `{{ fieldWrapper: FormField }}` как выражение. То же было в `to-renderer`.
+// в шаблоне лежал JSX `settings={{ fieldWrapper: FormField }}`, а тогдашний шаблонизатор
+// (Handlebars в strict-режиме) читал его как выражение. То же было в `to-renderer`. С тех пор
+// Handlebars заменён подстановкой `{{имя}}` (src/utils/prompt-template-loader.ts), но промпт
+// по-прежнему может не отрендериться: подстановка без значения — ошибка.
 //
 // Почему это не поймали: единственное, что рендерило промпты, — `snapshot-prompts.mjs` с
 // РУЧНЫМ списком кейсов, где `start-here` просто отсутствовал, и он не запускался в CI.
@@ -12,9 +14,9 @@
 // паре `<x>PromptDefinition` + `get<X>Prompt`, аргументы — из самого определения. Новый
 // промпт попадает под проверку автоматически, забыть его нельзя.
 //
-// Плюс отдельная фаза: статический скан ВСЕХ шаблонов на неэкранированные mustache —
-// ловит шаблон, ещё не подключённый к промпту, и даёт внятное сообщение вместо
-// handlebars-ошибки на рантайме.
+// Плюс отдельная фаза: статический скан ВСЕХ шаблонов, в том числе ещё не подключённых к
+// промпту, на остатки синтаксиса Handlebars (`\{{`, `{{#if}}`, `{{{{raw}}}}` …). Рендер на них
+// не падает — фрагмент уходит клиенту буквальным текстом, — поэтому ловить их надо здесь.
 //
 // Использование: node scripts/check-mcp-render.mjs
 
@@ -25,6 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkgDir = path.join(repoRoot, 'packages', 'reformer-mcp');
 const distEntry = path.join(pkgDir, 'dist', 'prompts', 'index.js');
+const loaderEntry = path.join(pkgDir, 'dist', 'utils', 'prompt-template-loader.js');
 const templatesDir = path.join(pkgDir, 'src', 'prompts', 'templates');
 
 if (!existsSync(distEntry)) {
@@ -54,27 +57,18 @@ const ARG_FIXTURES = {
 const failures = [];
 
 // ---------------------------------------------------------------------------
-// Фаза 1 — статический скан шаблонов (та же классификация, что в prompt-template-loader.ts)
+// Фаза 1 — статический скан шаблонов: правило берётся из самого загрузчика, а не копируется
 // ---------------------------------------------------------------------------
 
-const RAW_BLOCK_RE = /\{\{\{\{raw\}\}\}\}[\s\S]*?\{\{\{\{\/raw\}\}\}\}/g;
-const MUSTACHE_RE = /(\\?)\{\{\{?([^{}]*?)\}?\}\}/g;
-const PATH_RE = /^[\w.$]+$/;
+const { staleTemplateSyntax } = await import(pathToFileURL(loaderEntry).href);
 
 for (const file of readdirSync(templatesDir).filter((f) => f.endsWith('.md'))) {
-  const src = readFileSync(path.join(templatesDir, file), 'utf8').replace(RAW_BLOCK_RE, '');
-  let m;
-  MUSTACHE_RE.lastIndex = 0;
-  while ((m = MUSTACHE_RE.exec(src)) !== null) {
-    const escaped = m[1] !== '';
-    const inner = m[2].trim();
-    if (escaped || !inner) continue;
-    if (/^[#/^!>]/.test(inner)) continue;
-    if (PATH_RE.test(inner)) continue;
-    const line = src.slice(0, m.index).split('\n').length;
+  const src = readFileSync(path.join(templatesDir, file), 'utf8');
+  for (const { line, text } of staleTemplateSyntax(src)) {
     failures.push(
-      `${file}:${line} — неэкранированный {{${inner}}}: Handlebars разберёт это как выражение. ` +
-        'Экранируйте открывающую скобку как \\{{ либо оберните блок в {{{{raw}}}} … {{{{/raw}}}}.'
+      `${file}:${line} — синтаксис Handlebars, которого больше нет: «${text}». ` +
+        'Подстановка — только `{{имя}}`, остальное уходит клиенту текстом. JSX и код ' +
+        'экранировать не нужно: уберите `\\` перед `{{`, условия и циклы перенесите в модуль промпта.'
     );
   }
 }
@@ -151,5 +145,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `\n✓ @reformer/mcp: ${rendered} промпт(ов) рендерятся, шаблоны без неэкранированных {{…}}`
+  `\n✓ @reformer/mcp: ${rendered} промпт(ов) рендерятся, шаблоны без остатков синтаксиса Handlebars`
 );

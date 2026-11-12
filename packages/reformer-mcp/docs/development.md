@@ -324,110 +324,109 @@ natural file:
   variable assembly (`getSection`/`detectProjectStack`/precomputed conditional
   blocks) and the MCP message envelope.
 - **`src/prompts/templates/<name>.md`** owns the _content_ — markdown with
-  syntax highlighting in IDE preview, prettier-friendly, diff-friendly.
+  `{{name}}` placeholders, readable in IDE preview and diff-friendly.
 
-The template name passed to `renderPromptTemplate(name, vars)` matches the
-`*PromptDefinition.name` (kebab-case), so lookup is `name → name.md`.
+`renderPromptTemplate(name, vars)` takes the template file name without `.md`.
+Several prompts may share one template: `add-feature` picks one of four by
+`feature`, both `to-renderer` targets render `to-renderer.md`.
 
 ### Loader (`src/utils/prompt-template-loader.ts`)
 
-Public API:
+There is no template engine — the loader does plain substitution. Public API:
 
 ```typescript
-renderPromptTemplate(name: string, vars: Record<string, unknown>): string;
-clearPromptTemplateCache(): void; // mainly for tests
+renderPromptTemplate(name: string, vars: Record<string, unknown>): string; // load + fill
+fillTemplate(template: string, vars: Record<string, unknown>, label?: string): string;
+templatePlaceholders(template: string): string[];
+staleTemplateSyntax(template: string): Array<{ line: number; text: string }>;
 ```
 
 Behaviour:
 
-- **Path resolution** — three candidates, mirrors `docs-parser.ts`:
+- **Placeholder** — exactly `{{name}}`: letters, digits and `_`, no spaces.
+  Anything else in braces is plain text, so JSX such as
+  `settings={{ fieldWrapper: FormField }}`, object literals and JSON in code
+  samples need no escaping.
+- **Missing variable** — a placeholder whose name is not an own key of `vars`
+  throws `Prompt template "<name>.md" missing variables: … Provided: …`.
+  `null`/`undefined` under a present key render as an empty string; any other
+  value goes through `String()`.
+- **Single pass** — substituted values are never scanned again, so `{{…}}`
+  inside user code stays as is. Replacement is done by a function, so `$&` or
+  `$1` in a value stay literal.
+- **Path resolution** — three candidates:
   1. `dist/prompts/templates/<name>.md` (runtime after build).
   2. `src/prompts/templates/<name>.md` (monorepo dev under `tsc --watch`).
   3. `<cwd>/packages/reformer-mcp/src/prompts/templates/<name>.md` (cwd fallback).
-- **Caches** — raw text and compiled `Handlebars.TemplateDelegate`, both keyed
-  by template name.
-- **Compile options** — `{ noEscape: true, strict: true }`. `noEscape` because
-  every value is markdown/code (HTML-escape would corrupt `<`, `&`). `strict`
-  because Handlebars otherwise silently inserts an empty string for an unknown
-  variable.
-- **Pre-validation** — before rendering, the loader regex-scans the template
-  for top-level `{{var}}` references and throws if any are missing from `vars`,
-  with both lists in the error message. This catches typos earlier than the
-  Handlebars compile error and gives a friendlier message.
-- **Raw helper** — `Handlebars.registerHelper('raw', …)` is registered so that
-  literal `{{` / `}}` inside code blocks can be wrapped in `{{{{raw}}}}…{{{{/raw}}}}`
-  without tripping `strict` mode (see «Handling `{{` collisions» below).
+- **Cache** — template text keyed by name, for the life of the process.
+
+Tests: `tests/prompt-template-loader.test.ts`.
+
+### Why not Handlebars
+
+Until ReFormer-bx95 the loader used Handlebars, and only for `{{name}}`
+substitution. Its delimiters collide with JSX: in strict mode
+`settings={{ fieldWrapper: FormField }}` was parsed as an expression, and
+`start-here` — the documented entry point of the server — answered every client
+with JSON-RPC -32603. Keeping Handlebars safe took a hand-written pre-lexer, a
+`raw` helper, `\{{` escapes and a CI step. Plain substitution removes that class
+of failures together with a runtime dependency (handlebars and its four
+transitive packages).
 
 ### Authoring conventions
 
 #### Placeholders are precomputed values
 
-Templates have **no logic** — no `{{#if}}`, no `{{#each}}`, no helpers beyond
-`raw`. All conditional fragments are computed in the TS module and passed in as
-ready-made strings. Examples from `create-form.ts`:
+Templates have **no logic** — no conditions, loops or helpers. Every conditional
+fragment is computed in the TS module and passed in as a ready-made string.
+From `create-form.ts`:
 
 ```typescript
-const targetLabel =
-  target === 'core'           ? '(только @reformer/core …)' :
-  target === 'renderer-react' ? '(@reformer/renderer-react …)' :
-                                '(@reformer/renderer-json …)';
-
-const rendererBlock = target === 'renderer-react'
-  ? `\n\n## RenderSchema (TS)\n\n${getSection('Quick Start', …)}…`
-  : '';
+const text = renderPromptTemplate('create-form', {
+  target,
+  targetLabel: targetLabelFor(target),
+  description: args.description,
+  stackBlock: await renderStackDetectionBlockAsync(stack, server),
+  targetNote: TARGET_NOTE[target],
+});
 ```
 
-Both end up in the template as `{{targetLabel}}` and `{{rendererBlock}}`.
-Pushing the conditional into TS keeps the template scannable and the loader’s
-pre-validation simple (it only counts top-level names).
+The template sees them as `{{target}}`, `{{targetLabel}}`, `{{description}}`,
+`{{stackBlock}}` and `{{targetNote}}`.
 
-#### Handling `{{` collisions
+#### No leftover Handlebars syntax
 
-If a template contains literal `{{` outside a placeholder — typically in JSX
-spread (`settings={{ fieldWrapper: FormField }}`) or Vue/Liquid examples in a
-fenced code block — Handlebars in strict mode will treat it as an undefined
-helper invocation and throw. Wrap the offending line(s) in a raw block:
-
-````markdown
-```tsx
-{{{{raw}}}}<FormRenderer settings={{ fieldWrapper: FormField }} />{{{{/raw}}}}
-```
-````
-
-````
-
-Before adding a new prompt, grep its TS source for literal `{{` (anything not
-inside a `${…}` interpolation) and decide which lines to wrap. Top files to
-inspect: anything containing JSX, JSON examples, or generated config snippets.
+`\{{` escapes, `{{#if}}` / `{{else}}` / `{{/if}}` blocks, `{{! comments }}`,
+`{{> partials}}`, triple braces and `{{{{raw}}}}` are not syntax anymore.
+Rendering does not fail on them — they would reach the client as literal text.
+`staleTemplateSyntax` finds them, and both `npm run check:mcp-render` (CI) and
+`tests/prompt-template-loader.test.ts` fail on any template that contains them.
 
 #### `getSection` / `getFullDocs` always stay in TS
 
 Documentation lookups are runtime calls into the cached `llms.txt` parsers and
 have no business in markdown. Compute them in the TS module and feed the
-resulting strings to the template:
+resulting strings to the template.
 
-```typescript
-const text = renderPromptTemplate('add-behavior', {
-  cycleDetection: getSection('Cycle', '@reformer/core'),
-  watchField:     getSection('Async', '@reformer/core'),
-  // …
-});
-````
+#### Prettier does not touch templates
+
+`packages/reformer-mcp/src/prompts/templates/` is listed in `.prettierignore`:
+prettier formats code fences inside markdown and would turn `{{code}}` in a
+TypeScript fence into `{ { code; } }`, silently breaking the placeholder.
 
 ### Build pipeline
 
-`npm run build` chains:
+Templates are not TypeScript, so `tsc` does not emit them. `npm run build` runs
+`node scripts/copy-templates.mjs` after `tsc`; it copies
+`src/prompts/templates/*.md` into `dist/prompts/templates/`.
 
-1. `npm run generate:llms` — emits `llms.txt` for every workspace package.
-2. `tsc` — compiles `src/` into `dist/` (TypeScript only).
-3. `node scripts/copy-templates.mjs` — `fs.cpSync` of `src/prompts/templates/*.md`
-   into `dist/prompts/templates/` (`tsc` does not copy non-TS assets).
+`npm run dev` runs `tsc --watch` only and does not copy templates. If
+`dist/prompts/templates/` exists from an earlier build, it wins: re-run
+`node scripts/copy-templates.mjs` after editing a template. Otherwise the loader
+falls back to `src/prompts/templates/`. Templates are cached per process, so
+restart the server either way.
 
-`npm run dev` runs `tsc --watch` only; the loader’s second path candidate
-reads `.md` directly from `src/`, so editing a template during `dev` reflects
-immediately without re-running the copy step.
-
-`package.json` `files: ["dist", "README.md"]` already covers the templates —
+`package.json` `files` includes `dist`, which covers the templates —
 `npm pack --dry-run` lists `dist/prompts/templates/*.md` in the tarball.
 
 ## Debug Mode

@@ -16,7 +16,7 @@ You are a senior reviewer for ReFormer-based forms. Audit the supplied code agai
 - Validators come from `@reformer/core/validators/*`. Behaviors from `@reformer/core/behaviors/*`. No inline duplicates of built-ins.
 - FieldArray uses headless compound API (`FieldArray.Root/.List/.Item/.AddButton`) — no manual array state.
 - FormWizard — no custom step machine. Drawn by the renderer it is the library `FormWizard` as a schema node with steps in `children` (step `selector` = `id` in `flow.steps`); no app shim, no `componentProps.steps`, no `patchProps({ form, config })`.
-- `renderer-react`: drawn by `<FormRenderer form={bundle} settings=\{{ fieldWrapper: FormField }} />`; nobody calls `createRenderSchema` by hand.
+- `renderer-react`: drawn by `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`; nobody calls `createRenderSchema` by hand.
 - `renderer-json`: the document has `"format": 2`; every `$component(Name)` and every `$part(name)` resolves; `FIELD_WRAPPER` is set; drawn by `<FormRenderer form={bundle} />`.
 - Submit checks `isValid` (or equivalent) before sending. No swallowed errors in `onInit`/`onMount`.
 

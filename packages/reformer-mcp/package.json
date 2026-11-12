@@ -55,8 +55,7 @@
   },
   "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/packages/reformer-mcp#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "handlebars": "^4.7.9"
+    "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "optionalDependencies": {
     "@reformer/renderer-json": "*"

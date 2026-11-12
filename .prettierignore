@@ -21,9 +21,9 @@ projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/f
 # planning artifacts — authored ad-hoc by plan mode / agents, not prod docs
 docs/plans/
 
-# Handlebars-шаблоны промптов MCP: prettier ломает {{code}} внутри ```typescript
+# Шаблоны промптов MCP с подстановками {{имя}}: prettier ломает {{code}} внутри ```typescript
 # fence в невалидный `{ { code; } }` (парсит как объект-литерал) — подстановка молча
-# перестаёт работать. Это .md по расширению, но не markdown, а Handlebars.
+# перестаёт работать. Это .md по расширению, но не markdown, а шаблон.
 packages/reformer-mcp/src/prompts/templates/
 
 # beads issue tracker — файлы ведёт bd (jsonl/yaml/backup), не prettier

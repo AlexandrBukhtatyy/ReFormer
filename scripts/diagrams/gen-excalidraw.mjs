@@ -194,7 +194,7 @@ card({
     'src/: tools/ · prompts/ · utils/\n' +
     'tools: find_recipe · get_symbol_docs · list_symbols\n' +
     '       validate_json_schema · check_behaviors · report_issue\n' +
-    'внешние: @modelcontextprotocol/sdk, handlebars\n' +
+    'внешние: @modelcontextprotocol/sdk\n' +
     'читает llms.txt + docs/llms всех 6 пакетов (createRequire)\n' +
     'резолв доков — тоже зависимость: все 5 объявлены optional peer',
   metrics: '28 файлов · 4 038 строк · 2 теста',

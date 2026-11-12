@@ -1,16 +1,31 @@
+/**
+ * Шаблоны промптов: markdown с подстановками `{{имя}}` — и ничего больше. Ни условий, ни циклов,
+ * ни хелперов: всё условное модуль промпта считает сам и передаёт готовой строкой.
+ *
+ * Почему не шаблонизатор. Раньше здесь был Handlebars, и от него использовалась только
+ * подстановка. Зато его разделители совпадают с JSX: `settings={{ fieldWrapper: FormField }}` в
+ * тексте промпта он разбирал как выражение, и `start-here` — точка входа сервера — отдавал
+ * клиентам JSON-RPC -32603. Здесь подстановкой считается только точное `{{имя}}` (буквы, цифры и
+ * `_`, без пробелов), а всё остальное — текст: JSX и примеры кода экранировать не нужно.
+ */
+
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Handlebars from 'handlebars';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-Handlebars.registerHelper('raw', function (this: unknown, options: Handlebars.HelperOptions) {
-  return options.fn(this);
-});
+/** Подстановка — `{{имя}}` целиком, без пробелов внутри. Всё прочее с `{{` — текст шаблона. */
+const PLACEHOLDER_RE = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
 
-const rawCache = new Map<string, string>();
-const compiledCache = new Map<string, Handlebars.TemplateDelegate>();
+/**
+ * Синтаксис Handlebars, которого больше нет: экранирование `\{{`, блоки `{{#…}}`/`{{/…}}`,
+ * `{{else}}`, комментарии `{{!…}}`, партиалы `{{>…}}`, тройные скобки и `{{{{raw}}}}`. Такой
+ * фрагмент ушёл бы клиенту буквальным текстом.
+ */
+const STALE_SYNTAX_RE = /\\\{\{|\{\{\{|\{\{\s*(?:[#/^!>]|else\b)/g;
+
+const templateCache = new Map<string, string>();
 
 function getTemplatePaths(name: string): string[] {
   return [
@@ -23,14 +38,14 @@ function getTemplatePaths(name: string): string[] {
   ];
 }
 
-function loadRaw(name: string): string {
-  const cached = rawCache.get(name);
+function loadTemplate(name: string): string {
+  const cached = templateCache.get(name);
   if (cached !== undefined) return cached;
   const candidates = getTemplatePaths(name);
   for (const p of candidates) {
     if (existsSync(p)) {
       const text = readFileSync(p, 'utf-8');
-      rawCache.set(name, text);
+      templateCache.set(name, text);
       return text;
     }
   }
@@ -39,96 +54,51 @@ function loadRaw(name: string): string {
   );
 }
 
-function loadCompiled(name: string): Handlebars.TemplateDelegate {
-  const cached = compiledCache.get(name);
-  if (cached) return cached;
-  const raw = loadRaw(name);
-  try {
-    const compiled = Handlebars.compile(raw, { noEscape: true, strict: true });
-    compiledCache.set(name, compiled);
-    return compiled;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to compile prompt template "${name}": ${msg}`);
-  }
+/** Имена подстановок шаблона, без повторов, в порядке первого появления. */
+export function templatePlaceholders(template: string): string[] {
+  return [...new Set(Array.from(template.matchAll(PLACEHOLDER_RE), (match) => match[1]))];
 }
 
-const RAW_BLOCK_RE = /\{\{\{\{raw\}\}\}\}[\s\S]*?\{\{\{\{\/raw\}\}\}\}/g;
+/**
+ * Остатки синтаксиса Handlebars в шаблоне, с номерами строк. Рендер на них не падает — фрагмент
+ * просто уйдёт клиенту текстом, — поэтому ловит их проверка `check:mcp-render` и тест шаблонов.
+ */
+export function staleTemplateSyntax(template: string): Array<{ line: number; text: string }> {
+  return Array.from(template.matchAll(STALE_SYNTAX_RE), (match) => {
+    const start = match.index ?? 0;
+    const line = template.slice(0, start).split('\n').length;
+    const lineText = template.split('\n')[line - 1] ?? '';
+    return { line, text: lineText.trim() };
+  });
+}
 
 /**
- * Every mustache in the template, with its optional escaping backslash.
+ * Подставить значения в шаблон.
  *
- * Must match what Handlebars itself lexes, not just well-formed variables — the old
- * `/\{\{\{?\s*([\w.]+)\s*\}?\}\}/` only matched identifier paths, so JSX double braces
- * (`settings={{ fieldWrapper: FormField }}`) slipped past the pre-flight check and blew up
- * later inside Handlebars with `strict: true` as `"fieldWrapper:" not defined`. That shipped:
- * `start-here` — the documented entry point of this server — and `to-renderer` returned
- * JSON-RPC -32603 to every client. Group 1 = escaping backslash, group 2 = inner text.
+ * Один проход: подставленное значение не разбирается повторно, поэтому `{{…}}` в коде
+ * пользователя остаётся как есть. Замена идёт функцией, поэтому `$&` и `$1` в значении — текст,
+ * а не шаблоны `String.replace`. Подстановка без значения — ошибка со списком недостающих и
+ * переданных имён: иначе промпт молча ушёл бы клиенту с дырой. `null`/`undefined` под
+ * переданным ключом — пустая строка.
  */
-const MUSTACHE_RE = /(\\?)\{\{\{?([^{}]*?)\}?\}\}/g;
-
-/** A bare Handlebars path (`foo`, `foo.bar`) — the only form these templates use. */
-const PATH_RE = /^[\w.$]+$/;
-
-interface TemplateScan {
-  /** Top-level variable names the template requires. */
-  names: Set<string>;
-  /** Unescaped mustaches Handlebars would parse as an expression but that name no variable. */
-  invalid: string[];
-}
-
-/**
- * Classify every mustache: required variable, block/comment (passed through to Handlebars),
- * escaped (`\{{…}}` — emitted literally, used for JSX braces in code samples), or invalid.
- */
-function scanTemplate(template: string): TemplateScan {
-  const stripped = template.replace(RAW_BLOCK_RE, '');
-  const names = new Set<string>();
-  const invalid: string[] = [];
-  let m: RegExpExecArray | null;
-  MUSTACHE_RE.lastIndex = 0;
-  while ((m = MUSTACHE_RE.exec(stripped)) !== null) {
-    const escaped = m[1] !== '';
-    const inner = m[2].trim();
-    if (escaped || !inner) continue;
-    // Block helpers, partials and comments are Handlebars' business, not ours.
-    if (/^[#/^!>]/.test(inner)) continue;
-    if (!PATH_RE.test(inner)) {
-      invalid.push(inner);
-      continue;
-    }
-    const top = inner.split('.')[0];
-    if (top.startsWith('@') || top === 'this' || top === 'else') continue;
-    names.add(top);
+export function fillTemplate(
+  template: string,
+  vars: Record<string, unknown>,
+  label = 'template'
+): string {
+  const missing = templatePlaceholders(template).filter((name) => !Object.hasOwn(vars, name));
+  if (missing.length > 0) {
+    throw new Error(
+      `Prompt template "${label}" missing variables: ${missing.join(', ')}. ` +
+        `Provided: ${Object.keys(vars).join(', ') || '(none)'}`
+    );
   }
-  return { names, invalid };
+  return template.replace(PLACEHOLDER_RE, (_, name: string) => {
+    const value = vars[name];
+    return value === null || value === undefined ? '' : String(value);
+  });
 }
 
 export function renderPromptTemplate(name: string, vars: Record<string, unknown>): string {
-  const raw = loadRaw(name);
-  const { names: required, invalid } = scanTemplate(raw);
-  if (invalid.length > 0) {
-    throw new Error(
-      `Prompt template "${name}.md" has ${invalid.length} unescaped mustache(s) that Handlebars ` +
-        `parses as an expression but that name no variable: ${invalid.map((s) => `{{${s}}}`).join(', ')}. ` +
-        `Usually this is JSX/TS code in prose — escape the opening brace as \\{{ so it renders ` +
-        `literally, or wrap the block in {{{{raw}}}} … {{{{/raw}}}}.`
-    );
-  }
-  const missing: string[] = [];
-  for (const v of required) {
-    if (!(v in vars)) missing.push(v);
-  }
-  if (missing.length > 0) {
-    throw new Error(
-      `Prompt template "${name}.md" missing variables: ${missing.join(', ')}. Provided: ${Object.keys(vars).join(', ') || '(none)'}`
-    );
-  }
-  const compiled = loadCompiled(name);
-  try {
-    return compiled(vars);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to render prompt template "${name}": ${msg}`);
-  }
+  return fillTemplate(loadTemplate(name), vars, `${name}.md`);
 }
