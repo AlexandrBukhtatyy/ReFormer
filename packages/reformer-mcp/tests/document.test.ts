@@ -127,6 +127,50 @@ describe('что держит документ', () => {
     ]);
   });
 
+  it('пустые стартовые строки в пределах minItems документ держит — заметки нет', () => {
+    const arrays = (initialValue: unknown[], minItems?: number) =>
+      documentCapabilities(
+        read({
+          fields: [],
+          arrays: [
+            {
+              name: 'rows',
+              initialValue,
+              ...(minItems === undefined ? {} : { componentProps: { minItems } }),
+              itemFields: [{ name: 'c', component: 'Input', label: 'C' }],
+            },
+          ],
+          layoutRoot: {
+            kind: 'container',
+            component: 'Box',
+            children: [{ kind: 'array', ref: 'rows' }],
+          },
+        })
+      ).notes.map((note) => note.at);
+    expect(arrays([{ c: '' }], 1)).toEqual([]);
+    // Строк больше минимума или в строке значение — не держит, и заметка называет minItems.
+    expect(arrays([{ c: '' }, { c: '' }], 1)).toEqual(['arrays']);
+    expect(arrays([{ c: 'x' }], 1)).toEqual(['arrays']);
+    const [note] = documentCapabilities(
+      read({
+        fields: [],
+        arrays: [
+          {
+            name: 'rows',
+            initialValue: [{ c: '' }],
+            itemFields: [{ name: 'c', component: 'Input', label: 'C' }],
+          },
+        ],
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [{ kind: 'array', ref: 'rows' }],
+        },
+      })
+    ).notes;
+    expect(note.message).toContain('"minItems"');
+  });
+
   it('судья документа включает их в вердикт, судья модуля — нет', () => {
     const asDocument = judgeIntent(clone(GRAMMAR_EXAMPLE), CATALOGS, { forDocument: true });
     expect(asDocument.ok).toBe(false);

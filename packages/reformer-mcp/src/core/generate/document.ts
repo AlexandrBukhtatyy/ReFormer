@@ -48,6 +48,21 @@ const meaningful = (value: unknown): boolean =>
   value !== undefined && value !== null && value !== '';
 
 /**
+ * Стартовые строки массива целиком выражены `minItems`: их не больше минимума, и в них нет
+ * значений — массив начнёт с тем же числом пустых строк.
+ */
+function keptByMinItems(array: FormIntent['arrays'][number]): boolean {
+  const min = array.componentProps?.minItems;
+  if (typeof min !== 'number' || min < array.initialValue.length) return false;
+  return array.initialValue.every(
+    (row) =>
+      row === null ||
+      typeof row !== 'object' ||
+      Object.values(row as Record<string, unknown>).every((value) => !meaningful(value))
+  );
+}
+
+/**
  * Что из intent документ не держит (ошибки) и что не сохранит (заметки).
  *
  * @param intent - Прочитанный intent (`readIntent`).
@@ -112,12 +127,18 @@ export function documentCapabilities(intent: FormIntent): DocumentCapabilities {
         'it follows the component',
     });
   }
-  const rows = intent.arrays.filter((a) => a.initialValue.length > 0).map((a) => a.name);
+  // Пустые стартовые строки документ держит числом — `minItems` у `FieldArray`: массив начинает с
+  // этого числа пустых строк. Значения строк он не держит (ReFormer-11oe.24).
+  const rows = intent.arrays
+    .filter((a) => a.initialValue.length > 0 && !keptByMinItems(a))
+    .map((a) => a.name);
   if (rows.length > 0) {
     notes.push({
       code: 'not-kept',
       at: 'arrays',
-      message: `starting rows of ${rows.join(', ')} are not kept: an array starts empty`,
+      message:
+        `starting rows of ${rows.join(', ')} are not kept: an array starts empty — empty ` +
+        'starting rows are "componentProps": { "minItems": N }, row values are not kept',
     });
   }
   intent.dataSources.forEach((source, i) => {

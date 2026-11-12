@@ -14,7 +14,8 @@
       "componentProps": {
         "addButtonLabel": "Добавить контакт",
         "title": "Контакты",
-        "maxItems": 5
+        "maxItems": 5,
+        "minItems": 1
       },
       "itemFields": [
         {
