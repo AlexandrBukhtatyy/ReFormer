@@ -343,10 +343,33 @@ export function collectFieldDefaults(
 ): readonly FieldDefault[] {
   const out: FieldDefault[] = [];
   const parts = documentParts(schema);
+  /**
+   * Стартовые строки массива: `minItems` у `FieldArray` — минимум строк, и массив начинает с
+   * этого числа пустых строк по шаблону строки (`item.$template` либо часть `$part(…)`). Без него —
+   * пустой список: документ стартовых значений не держит (ReFormer-11oe.24).
+   */
+  const startingRows = (node: JsonNode): unknown[] => {
+    const props = (node as { componentProps?: Record<string, unknown> }).componentProps;
+    const count = props?.minItems;
+    if (typeof count !== 'number' || !Number.isInteger(count) || count <= 0) return [];
+    const item = (node as { item?: unknown }).item;
+    const partName = typeof item === 'string' ? partNameOf(item) : undefined;
+    const template =
+      partName !== undefined
+        ? parts.get(partName)
+        : (item as { $template?: unknown } | undefined)?.$template;
+    if (!isNodeLike(template)) return Array.from({ length: count }, () => ({}));
+    const row = buildInitialValues(
+      collectFieldDefaults({ ...schema, root: template } as JsonFormSchema, valueTypeOf)
+    );
+    return Array.from({ length: count }, () => structuredClone(row));
+  };
   const visit = (node: JsonNode, prefix: string, entered: readonly string[]): void => {
     if (isArrayNode(node)) {
       const parsed = parseOperator(node.model);
-      if (parsed?.op === 'model') out.push({ path: `${prefix}${parsed.arg}`, value: [] });
+      if (parsed?.op === 'model') {
+        out.push({ path: `${prefix}${parsed.arg}`, value: startingRows(node) });
+      }
       return;
     }
     if (isPartNode(node)) {

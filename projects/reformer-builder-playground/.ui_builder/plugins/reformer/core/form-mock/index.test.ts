@@ -272,6 +272,43 @@ describe('именованные части документа', () => {
     });
   });
 
+  it('minItems у массива — столько пустых строк по шаблону строки (ReFormer-11oe.24)', () => {
+    const schema = {
+      format: 2,
+      root: {
+        component: '$html(div)',
+        children: [
+          {
+            model: '$model(contacts)',
+            component: '$component(FieldArray)',
+            componentProps: { minItems: 2, maxItems: 5 },
+            item: {
+              $template: {
+                component: '$html(div)',
+                children: [
+                  { model: '$model(name)', component: '$component(Input)' },
+                  { model: '$model(phone)', component: '$component(Input)' },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    const { contacts } = synthMock(schema).model as { contacts: Array<Record<string, unknown>> };
+    expect(contacts).toHaveLength(2);
+    expect(Object.keys(contacts[0]).sort()).toEqual(['name', 'phone']);
+    // Строки — разные объекты: правка одной не трогает другую.
+    expect(contacts[0]).not.toBe(contacts[1]);
+    // Строка из части тоже: `minItems: 1` у массива с шаблоном-частью.
+    const fromPart = partsSchema() as unknown as {
+      root: { children: Array<{ model?: string; componentProps?: Record<string, unknown> }> };
+    };
+    const guests = fromPart.root.children.find((child) => child.model === '$model(guests)');
+    guests!.componentProps = { ...(guests!.componentProps ?? {}), minItems: 1 };
+    expect((synthMock(fromPart as never).model as { guests: unknown[] }).guests).toHaveLength(1);
+  });
+
   it('пути полей части получают префикс группы', () => {
     const paths = collectFieldDefaults(partsSchema()).map((entry) => entry.path);
     expect(paths).toContain('home.city');
