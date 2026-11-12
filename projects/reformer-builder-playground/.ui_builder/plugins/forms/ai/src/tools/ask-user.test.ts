@@ -49,6 +49,19 @@ describe('ask_user', () => {
     ]);
   });
 
+  it('описание говорит модели, когда ставить multiSelect, — флаг доходит до карточки', async () => {
+    // Голый флаг схемы модель не ставила: вопрос «какие поля?» шёл радиокнопками (ReFormer-8qsl).
+    expect(askUserTool.description).toContain('multiSelect');
+
+    const ask = vi.fn(() => Promise.resolve<AskOutcome>([{ selected: ['Да', 'Нет'] }]));
+    await registry.invoke(
+      'ask_user',
+      { questions: [{ ...QUESTION, multiSelect: true }] },
+      ctxOf(ask)
+    );
+    expect(ask).toHaveBeenCalledWith([expect.objectContaining({ multiSelect: true })]);
+  });
+
   it('свой ответ и мультивыбор пересказываются словами человека', () => {
     const questions: AskQuestion[] = [
       { question: 'Какие поля?', options: [{ label: 'A' }, { label: 'B' }], multiSelect: true },

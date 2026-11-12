@@ -42,10 +42,13 @@ interface Params {
 
 export const askUserTool: FormAgentTool<Params> = {
   name: 'ask_user',
+  // Про `multiSelect` — словами здесь, а не описанием поля: голый флаг схемы модель не ставила
+  // вовсе, и «какие поля добавить?» уходило человеку радиокнопками с одним ответом.
   description:
     'Ask the user before editing when the request is ambiguous in a way that changes the ' +
-    'result. Put all questions in one call, 2-4 short options each; the user may also answer ' +
-    'in their own words. Never ask what a tool can tell you.',
+    'result. Put all questions in one call, 2-4 short options each; set multiSelect when ' +
+    'options are not exclusive (e.g. which fields to add). The user may also answer in their ' +
+    'own words. Never ask what a tool can tell you.',
   inputSchema: {
     type: 'object',
     properties: {
