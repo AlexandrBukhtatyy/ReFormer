@@ -55,6 +55,13 @@ export interface FieldArrayProps extends ArrayComponentProps {
    * не даёт его превысить из разметки.
    */
   maxItems?: number;
+  /**
+   * Минимум элементов — пара к `maxItems`: на минимуме кнопка «Удалить» скрыта (перекрывает
+   * `showRemoveOnSingle`). Ассистент конструктора начинает массив с этим числом пустых строк, так
+   * задание «минимум один контакт» стартует с одной строкой. Правило для данных — `minLength(n)` на
+   * массив (замечание `minItems`).
+   */
+  minItems?: number;
   /** Внешний className секции. */
   className?: string;
   /** Класс card-обёртки элемента. */
@@ -82,6 +89,7 @@ export function FieldArray({
   reorderable = false,
   showRemoveOnSingle = false,
   maxItems,
+  minItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
 }: FieldArrayProps): ReactNode {
@@ -116,7 +124,7 @@ export function FieldArray({
       ) : null}
 
       {items.map((it) => {
-        const showRemove = showRemoveOnSingle || length > 1;
+        const showRemove = minItems != null ? length > minItems : showRemoveOnSingle || length > 1;
         const label = getItemLabel(it.model, it.index);
         const removeLabel = removeButtonLabel ?? t('kit.fieldArray.remove');
         // Шапка — когда в ней есть что показать: метка или кнопки. Без title/itemLabel её раньше

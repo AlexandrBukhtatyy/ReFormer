@@ -92,6 +92,18 @@ describe('FieldArray (ui-kit, renderer-json)', () => {
     expect(footer).not.toContain('data-testid="array-add"');
   });
 
+  it('minItems: на минимуме «Удалить» скрыта, выше минимума — на месте', () => {
+    const atMin = render(
+      faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', minItems: 2, showRemoveOnSingle: true })
+    );
+    expect(atMin).not.toContain('-remove"');
+    const above = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', minItems: 1 }));
+    expect(above).toContain('data-testid="array-item-0-remove"');
+    // minItems: 0 разрешает удалить и единственную строку.
+    const none = render(faNode([{ name: 'a' }], { title: 'T', minItems: 0 }));
+    expect(none).toContain('data-testid="array-item-0-remove"');
+  });
+
   it('emptyMessage при пустом массиве', () => {
     const html = render(faNode([], { title: 'T', emptyMessage: 'Пусто пока' }));
     expect(html).toContain('Пусто пока');
