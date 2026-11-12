@@ -22,6 +22,9 @@ export function prepareFormDirectory(dir, intent) {
 /**
  * Ответ `form_build` → статус, ошибки и предупреждения.
  *
+ * Разбирает строки, формат которых описан в `docs/llms/02-tools.md` § form_build и закреплён тестом
+ * «ответ — контракт стендов» в `tests/form-build.test.ts`: тот же тест гоняет и этот разборщик.
+ *
  * @returns {{ status: 'ok'|'fail'|'unknown', errors: string[], warnings: string[],
  *   typesChecked: boolean }}
  */

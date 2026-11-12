@@ -1,284 +1,107 @@
 # Troubleshooting
 
-Common issues and solutions for the ReFormer MCP server.
+Common problems with the ReFormer MCP server and what to do. Start with the resource
+`reformer://status`: it lists the `@reformer/*` packages the server found (where, which version,
+with or without an index), whether it can type-check forms, the kit catalog, the build id and what
+failed to load.
 
-## Installation Issues
+## Install and register
 
 ### "reformer-mcp: command not found"
 
-**Cause:** Global npm package not in PATH
-
-**Solutions:**
-
-1. Use npx instead:
-
-   ```bash
-   claude mcp add --transport stdio reformer -- npx @reformer/mcp
-   ```
-
-2. Check npm global bin path:
-
-   ```bash
-   npm config get prefix
-   # Add the bin folder to your PATH
-   ```
-
-3. Reinstall globally:
-   ```bash
-   npm uninstall -g @reformer/mcp
-   npm install -g @reformer/mcp
-   ```
-
-### "Cannot find module '@modelcontextprotocol/sdk'"
-
-**Cause:** Dependencies not installed
-
-**Solution:**
+The global npm bin is not in `PATH`. Register through npx instead:
 
 ```bash
-cd packages/reformer-mcp
-npm install
-npm run build
+claude mcp add --transport stdio reformer -- npx -y @reformer/mcp
 ```
 
-## Server Issues
+or add the output of `npm config get prefix` + `/bin` to `PATH`.
 
-### Server not starting
-
-**Symptoms:** No response from MCP server
-
-**Check:**
-
-1. Node.js version (requires 18+):
-
-   ```bash
-   node --version
-   ```
-
-2. Build status:
-
-   ```bash
-   cd packages/reformer-mcp
-   npm run build
-   ```
-
-3. Direct execution:
-   ```bash
-   node dist/index.js
-   # Should show "ReFormer MCP Server started" on stderr
-   ```
-
-### "Documentation not found"
-
-**Cause:** llms.txt file cannot be located
-
-**Solutions:**
-
-1. Install @reformer/core in your project:
-
-   ```bash
-   npm install @reformer/core
-   ```
-
-2. Run from monorepo root:
-
-   ```bash
-   cd /path/to/ReFormer
-   node packages/reformer-mcp/dist/index.js
-   ```
-
-3. Check file exists:
-   ```bash
-   ls node_modules/@reformer/core/llms.txt
-   # or
-   ls packages/reformer/llms.txt
-   ```
-
-## Claude Code Integration
-
-### Server not appearing in `claude mcp list`
-
-**Cause:** Registration failed
-
-**Solutions:**
-
-1. Re-register with full path:
-
-   ```bash
-   claude mcp remove reformer
-   claude mcp add --transport stdio reformer -- node /full/path/to/dist/index.js
-   ```
-
-2. Check registration:
-   ```bash
-   claude mcp list
-   claude mcp get reformer
-   ```
-
-### Tools not available in Claude
-
-**Symptoms:** Claude doesn't use ReFormer tools
-
-**Solutions:**
-
-1. Restart Claude Code:
-
-   ```bash
-   # Exit Claude Code (Ctrl+C)
-   claude
-   ```
-
-2. Verify server is running:
-
-   ```bash
-   claude mcp list
-   ```
-
-3. Check logs for errors:
-   ```powershell
-   # Windows
-   Get-Content ~\AppData\Roaming\Claude\logs\mcp.log -Tail 50
-   ```
-
-### "Unknown tool" or "Unknown prompt" errors
-
-**Cause:** Version mismatch or incomplete build
-
-**Solution:**
+### The server does not appear in `claude mcp list`, or its tools are missing
 
 ```bash
-cd packages/reformer-mcp
-npm run build
 claude mcp remove reformer
-claude mcp add --transport stdio reformer -- node ./dist/index.js
+claude mcp add --transport stdio reformer -- npx -y @reformer/mcp
+claude mcp get reformer
 ```
 
-## Debug Mode Issues
+Restart the client after registering. Run the server by hand to see its start-up error:
+`npx -y @reformer/mcp` prints `ReFormer MCP Server started` on stderr and waits on stdin.
 
-### Debug features not available
+### "Unknown tool" for `generate_form`, `validate_json_schema` or `check_behaviors`
 
-**Symptoms:** `debug` tool/prompt not appearing
+They are removed in 7.0: a form is built by `form_build` from `form.intent.json`, checks go through
+`validate_form`. See the migration section of the README.
 
-**Cause:** `REFORMER_DEBUG` environment variable not set
+## Documentation comes back empty
 
-**Solution:**
+`search_docs`, `get_symbol_docs` or `find_recipe` find nothing for a package — the server did not
+find that package. Read `reformer://status`: a package with `root: null` is not installed in the
+project (install it), one without an index is installed without its `llms-index.json` (a broken or
+very old version).
+
+## Building a form
+
+### `✗ form_build: the environment — nothing written.`
+
+`form_build` type-checks the module against the project's packages: install `@reformer/core` and
+`@reformer/ui-kit` in the project that holds the form folder. In a monorepo where they resolve from
+elsewhere, `REFORMER_TYPECHECK_ROOT` names a fallback root.
+
+### `⚠️ Types NOT checked: …`
+
+The module was written, but there was nothing to check types with — no `typescript` in the project
+or next to the server. This is not "no errors": install `typescript` and build again.
+
+### `dir` is required at a monorepo root
+
+At a root `package.json` with `workspaces` the default `form` folder would land outside every app:
+pass `dir` inside an app package, e.g. `form_build {"dir":"apps/web/src/forms/order"}`.
+
+### `✗ form_build: form.intent.json is not read in full`
+
+Each line names a record, the problem code and the expected shape. Fix the records and build again.
+The codes and what they mean: [docs/llms/08-diagnostic-codes.md](./llms/08-diagnostic-codes.md).
+
+### A file "edited by hand" is no longer updated
+
+A module file without the mark `// @reformer-form-build` (or `meta.description` of
+`form.schema.json`) is yours: the build leaves it alone and says so. Delete it to put it back under
+the build. A hand-edited file the build no longer produces (e.g. `form.schema.ts` after switching to
+`renderer-json`) is reported too: carry the edits over and delete it.
+
+## The Builder assistant (browser worker)
+
+### `mcp:build` or `plugins:build` stops: "dist @reformer/mcp is stale"
+
+The sources or the package docs changed after the last full build, or `dist` was rebuilt by a bare
+`tsc` (`npm run dev`) without the build id. Run `npm run build -w @reformer/mcp`, then the command
+again.
+
+### The MCP panel says the worker comes from another build
+
+The worker bundle (`npm run mcp:build`) and the Builder plugins (`npm run plugins:build`) were built
+from different states of `@reformer/mcp`: a form can pass `validate_form` in the worker and fail in
+`build_form`, or the other way round. Rebuild both: `npm run mcp:build && npm run plugins:build`.
+
+## Debug mode
+
+`REFORMER_DEBUG=true` adds the `debug` tool and prompt and the `reformer://debug` resource:
 
 ```bash
-# Re-register with debug mode
-claude mcp remove reformer
-claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node ./dist/index.js
+claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- npx -y @reformer/mcp
 ```
 
-### Testing debug features locally
+## Seeing what the agent did
 
-```bash
-# Run with debug mode
-REFORMER_DEBUG=true node dist/index.js
+- `REFORMER_TRACE_FILE=<file>` writes one JSON line per call (number, sizes, a digest of the
+  arguments); with `REFORMER_TRACE_FULL=1` — the full arguments and answer text.
+- The MCP Inspector shows the raw surface:
+  `npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js`.
+- Client logs: `~/Library/Logs/Claude/mcp*.log` (macOS), `%APPDATA%\Claude\logs\mcp*.log` (Windows),
+  `~/.config/Claude/logs/mcp*.log` (Linux).
 
-# Or with MCP Inspector
-REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
-```
+## Getting help
 
-## Development Issues
-
-### TypeScript compilation errors
-
-**Check:**
-
-1. TypeScript version:
-
-   ```bash
-   npx tsc --version
-   ```
-
-2. Clean and rebuild:
-   ```bash
-   rm -rf dist
-   npm run build
-   ```
-
-### Changes not reflected
-
-**Cause:** Using cached version
-
-**Solution:**
-
-1. Rebuild:
-
-   ```bash
-   npm run build
-   ```
-
-2. Remove and re-add MCP server:
-   ```bash
-   claude mcp remove reformer
-   claude mcp add --transport stdio reformer -- node ./dist/index.js
-   ```
-
-## Logging and Debugging
-
-### Enable verbose logging
-
-Add to your server code:
-
-```typescript
-console.error('Debug:', JSON.stringify(data, null, 2));
-```
-
-### View MCP logs
-
-**Windows:**
-
-```powershell
-Get-Content ~\AppData\Roaming\Claude\logs\mcp.log -Tail 100 -Wait
-```
-
-**macOS:**
-
-```bash
-tail -f ~/Library/Logs/Claude/mcp.log
-```
-
-**Linux:**
-
-```bash
-tail -f ~/.config/Claude/logs/mcp.log
-```
-
-### Test with MCP Inspector
-
-```bash
-npm install -g @modelcontextprotocol/inspector
-npx mcp-inspector node ./dist/index.js
-```
-
-## Common Error Messages
-
-### "ENOENT: no such file or directory"
-
-- File path is incorrect
-- Build was not run
-- Working directory is wrong
-
-### "SyntaxError: Cannot use import statement"
-
-- Node.js doesn't support ESM
-- Check `"type": "module"` in package.json
-- Use Node.js 18+
-
-### "TypeError: Cannot read properties of undefined"
-
-- Tool arguments not provided
-- Documentation file not found
-- Invalid JSON-RPC request
-
-## Getting Help
-
-If you're still having issues:
-
-1. Check [GitHub Issues](https://github.com/AlexandrBukhtatyy/ReFormer/issues)
-2. Create a new issue with:
-   - Node.js version
-   - OS and version
-   - Complete error message
-   - Steps to reproduce
+Open an issue at [GitHub](https://github.com/AlexandrBukhtatyy/ReFormer/issues) with the Node.js
+version, the OS, the content of `reformer://status`, the full error and the steps to reproduce.

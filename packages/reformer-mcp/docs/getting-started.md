@@ -1,108 +1,71 @@
 # Getting Started with @reformer/mcp
 
-This guide will help you set up and use the ReFormer MCP server with Claude Code.
+Set up the ReFormer MCP server for Claude Code (or any MCP client) and build a first form with it.
 
 ## Prerequisites
 
-- Node.js 18 or higher
-- Claude Code CLI installed
-- (Optional) @reformer/core installed in your project
+- Node.js 18 or higher.
+- An MCP client: Claude Code, Claude Desktop, an editor with MCP support.
+- In the project where forms are built: `@reformer/core` and `@reformer/ui-kit` — `form_build`
+  type-checks the module against them; `typescript` for that check (the server also finds the one
+  next to itself).
 
-## Installation
-
-### Global Installation (Recommended)
+## Install and register
 
 ```bash
+# no installation: npx runs the server
+claude mcp add --transport stdio reformer -- npx -y @reformer/mcp
+
+# or install it and register the bin
 npm install -g @reformer/mcp
-```
-
-### Project Installation
-
-```bash
-npm install @reformer/mcp
-```
-
-## Registering with Claude Code
-
-### Option 1: Global command
-
-```bash
 claude mcp add --transport stdio reformer -- reformer-mcp
 ```
 
-### Option 2: npx (no installation required)
-
-```bash
-claude mcp add --transport stdio reformer -- npx @reformer/mcp
-```
-
-### Option 3: Project-level configuration
-
-Add to your project's `.mcp.json`:
+Project-level configuration, `.mcp.json` in the project root:
 
 ```json
 {
   "mcpServers": {
-    "reformer": {
-      "command": "npx",
-      "args": ["@reformer/mcp"]
-    }
+    "reformer": { "command": "npx", "args": ["-y", "@reformer/mcp"] }
   }
 }
 ```
 
-## Verifying Installation
+Check: `claude mcp list` shows `reformer`. The resource `reformer://status` tells which
+`@reformer/*` packages the server found and whether it can type-check forms.
 
-```bash
-# Check registered servers
-claude mcp list
+## How a form is made
 
-# You should see "reformer" in the list
-```
+There is one path, and the server's `instructions` tell the agent about it:
 
-## Using the Server
+1. The agent reads the grammar of the form description: `form_build {"grammar":"base"}`; more
+   sections on demand (`arrays`, `wizard`, `components`, …).
+2. It writes one file, `<dir>/form.intent.json`: fields, layout, validation, behavior, the target
+   stack (`core`, `renderer-react`, `renderer-json`).
+3. `form_build {"dir":"<dir>"}` compiles it, cross-checks it, type-checks the module and writes every
+   module file itself. With errors nothing is written; the answer names each problem and the fix.
+4. The agent fixes the intent and builds again until the answer starts with `✓ form_build`.
 
-Once registered, Claude will automatically have access to ReFormer documentation and tools.
+From a markdown spec, `plan_form {"specPath":"…","dir":"<dir>"}` drafts the intent first. On
+`@reformer/core` the agent also writes the JSX markup in `index.tsx`; on the renderer targets the
+build writes the schema too (`form.schema.ts`, or `form.schema.json` for `renderer-json`).
 
-### Example: Ask about ReFormer
-
-Simply ask Claude:
-
-```
-How do I create a form with validation in ReFormer?
-```
-
-Claude will use the documentation resources to provide accurate answers.
-
-### Example: Generate a form
+Ask, for example:
 
 ```
-Create a user registration form with email, password, and confirm password fields
+Create a registration form in src/forms/registration: email, password, password confirmation
+that must match, renderer-react.
 ```
 
-Claude uses the documentation to generate complete form code.
+## Beyond building
 
-### Example: Debug an issue
+The reference tools answer questions about the library when the agent writes its own code or meets
+an unclear error: `choose_api` (which operator fits a requirement), `get_context`, `find_recipe`,
+`search_docs`, `get_symbol_docs`, `list_symbols`. `validate_form` checks code, a JSON schema, an
+intent or file names before running. The whole surface — [API Reference](./api.md).
 
-```
-Why is my form field not updating when I type?
-```
+## Next steps
 
-Claude will use the documentation to help troubleshoot.
-
-## Available Capabilities
-
-### Tools
-
-- `report_issue` - Report errors and solutions for feedback collection (one JSON file per report under `.reformer/issue_reports`, see `REFORMER_ISSUE_REPORTS_DIR`)
-
-### Resources
-
-- `reformer://guide` - Server self-documentation
-- `reformer://docs[/<pkg>[/<section>]]` - Library docs (all / one package / one section)
-
-## Next Steps
-
-- [Development Guide](./development.md) - Learn how to develop MCP servers
-- [Testing Guide](./testing.md) - Test the MCP server
-- [API Reference](./api.md) - Detailed API documentation
+- [API Reference](./api.md) — tools, resources, prompts, entry points, environment variables.
+- [Troubleshooting](./troubleshooting.md) — when something does not work.
+- [Testing Guide](./testing.md) and [Development Guide](./development.md) — working on the server.

@@ -370,7 +370,14 @@ const sidebars: SidebarsConfig = {
   ],
 
   // ── MCP: сервер для AI-ассистентов ─────────────────────────────────────────
-  mcpSidebar: ['mcp/overview', 'mcp/quick-start', 'mcp/tools', 'mcp/prompts', 'mcp/examples'],
+  mcpSidebar: [
+    'mcp/overview',
+    'mcp/quick-start',
+    'mcp/tools',
+    'mcp/diagnostic-codes',
+    'mcp/prompts',
+    'mcp/examples',
+  ],
 
   // ── Builder: визуальный редактор форм и его плагины ───────────────────────
   builderSidebar: [

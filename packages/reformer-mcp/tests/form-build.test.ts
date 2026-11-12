@@ -23,7 +23,9 @@ import { HOSTILE_INTENTS } from './support/hostile-intents';
 import { GRAMMAR_EXAMPLE, intentGrammar } from '../src/core/generate/intent-grammar';
 import { originOf, withMarker } from '../src/core/generate/generated-marker';
 import { createKnowledge, type Knowledge } from '../src/core/knowledge';
-import { formBuildTool, INTENT_FILE } from '../src/core/tools/form-build';
+import { formBuildTool, INTENT_FILE, MAX_ERRORS, MAX_WARNINGS } from '../src/core/tools/form-build';
+import type { FormWorkspace } from '../src/core/workspace/form-workspace';
+import { parseFormBuild } from '../eval/calibration/lib/bundle.mjs';
 import { createCliFormWorkspace, TYPECHECK_ROOT_ENV } from '../src/platform/cli/form-workspace';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
 
@@ -1047,6 +1049,105 @@ describe('form_build: любой вход — диагностика, а не о
         expect(text, JSON.stringify(raw)).toMatch(/form_build/);
         expect(text, JSON.stringify(raw)).not.toMatch(/internal build error/);
       }
+    },
+    SLOW
+  );
+});
+
+/**
+ * Строки ответа, которые разбирают стенды (`eval/calibration/lib/bundle.mjs` — `parseFormBuild`,
+ * `eval/scenarios/catalog.mjs` — префикс `✓ form_build`). Формат описан в `docs/llms/02-tools.md`
+ * § form_build; правка строки в `form-build.ts` без правки разборщика ломала бы замеры молча.
+ */
+describe('form_build: ответ — контракт стендов', () => {
+  /** Каталог, где проверить типы нечем: строка «Types NOT checked» без запуска компилятора. */
+  const withoutCompiler = (forms: FormWorkspace): FormWorkspace => ({
+    open(dir) {
+      const opened = forms.open(dir);
+      if (!opened.ok) return opened;
+      return {
+        ok: true,
+        directory: {
+          label: opened.directory.label,
+          read: (name) => opened.directory.read(name),
+          write: (name, content) => opened.directory.write(name, content),
+          remove: (name) => opened.directory.remove(name),
+          list: () => opened.directory.list(),
+          typecheck: async () => ({ status: 'unavailable', reason: 'no compiler in this test' }),
+        },
+      };
+    },
+  });
+
+  it('отказ: заголовок, не больше MAX_ERRORS пунктов и хвост «… and N more.»', async () => {
+    const extra = 2;
+    writeIntent({
+      formName: 'Много ошибок',
+      fields: Array.from({ length: MAX_ERRORS + extra }, (_, at) => ({
+        name: `f${at}`,
+        type: 'string',
+        bogus: true,
+      })),
+    });
+    const { text, isError } = await build();
+    expect(isError).toBe(true);
+    const lines = text.split('\n');
+    expect(lines[0]).toMatch(/^✗ form_build: .+ — nothing written\.$/);
+    expect(lines.filter((line) => line.startsWith('- '))).toHaveLength(MAX_ERRORS);
+    expect(lines.at(-1)).toBe(`… and ${extra} more.`);
+    expect(parseFormBuild(text)).toMatchObject({ status: 'fail', typesChecked: false });
+    expect(parseFormBuild(text).errors).toHaveLength(MAX_ERRORS);
+    expectNothingWritten();
+  });
+
+  it('успех без проверки типов: «⚠️ Types NOT checked», «Warnings: N.» с потолком', async () => {
+    knowledge = { ...knowledge, forms: withoutCompiler(knowledge.forms) };
+    const extra = 1;
+    writeIntent({
+      formName: 'Много предупреждений',
+      target: 'renderer-react',
+      fields: [{ name: 'a', type: 'string', component: 'Input', label: 'A' }],
+      layoutRoot: {
+        kind: 'container',
+        component: 'Box',
+        children: [
+          'a',
+          // Чужой пропс у кнопки — предупреждение `component-props` на каждое место.
+          ...Array.from({ length: MAX_WARNINGS + extra }, () => ({
+            kind: 'container',
+            component: 'Button',
+            componentProps: { colour: 'red' },
+          })),
+        ],
+      },
+    });
+    const { text, isError } = await build();
+    expect(isError, text).toBe(false);
+    const lines = text.split('\n');
+    expect(lines[0]).toMatch(
+      /^✓ form_build: written \d+, unchanged \d+\. Fields 1, arrays 0, rules \d+, behaviors \d+\.$/
+    );
+    expect(lines[1]).toBe(
+      '⚠️ Types NOT checked: no compiler in this test. Only the imports were checked.'
+    );
+    const warningsAt = lines.findIndex((line) => /^Warnings: \d+\.$/.test(line));
+    expect(lines[warningsAt]).toBe(`Warnings: ${MAX_WARNINGS + extra}.`);
+    expect(lines.slice(warningsAt + 1).filter((line) => line.startsWith('- '))).toHaveLength(
+      MAX_WARNINGS
+    );
+    expect(lines.at(-1)).toBe(`… and ${extra} more.`);
+    const parsed = parseFormBuild(text);
+    expect(parsed).toMatchObject({ status: 'ok', typesChecked: false, errors: [] });
+    expect(parsed.warnings).toHaveLength(MAX_WARNINGS);
+  });
+
+  it(
+    'успех с проверкой типов: строка «Types checked, no errors.» второй',
+    async () => {
+      writeIntent(GRAMMAR_EXAMPLE);
+      const { text } = await build();
+      expect(text.split('\n')[1]).toBe('Types checked, no errors.');
+      expect(parseFormBuild(text)).toMatchObject({ status: 'ok', typesChecked: true, errors: [] });
     },
     SLOW
   );

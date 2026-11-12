@@ -94,9 +94,17 @@ claude mcp list
 - **`plan_form`** принимает только спеку (`specPath`, `dir`, `target`) и пишет черновик intent на
   диск, а не возвращает его текстом; свободное описание (`description`) больше не разбирается.
 - **Удалены алиасы** `validate_json_schema` и `check_behaviors` — их давно заменил `validate_form`.
-- **Воркер** — справочный канал: без `plan_form` и `generate_form`.
+- **Воркер** — справочный канал: без `plan_form`, `form_build` и `report_issue`, со своими
+  `instructions` и гайдом; в его корпусе нет документации самого MCP. Версия в `serverInfo` несёт
+  метку сборки (`6.0.0+<BUILD_ID>`, экспорт `@reformer/mcp/build-info`).
 - **`reformer://guide`** — короткое начало (до 6 КБ); полный текст — `reformer://docs/mcp`. Новый
   ресурс `reformer://status` показывает, какие пакеты сервер нашёл и может ли он проверять типы.
+- **renderer-json пишет схему данными** — `form.schema.json` (его открывает ui-builder), а не
+  `form.schema.ts`; `index.tsx` импортирует JSON.
+- **Страницы, а не только формы:** текст в раскладке — запись `{"text":"…"}` среди детей (заголовок,
+  абзац, подпись кнопки); компоненты кита по назначению — `form_build {"grammar":"components"}`.
+- **Коды находок** — стабильный контракт: реестр `reformer://docs/mcp/diagnostic-codes`
+  ([docs/llms/08-diagnostic-codes.md](./docs/llms/08-diagnostic-codes.md)).
 
 ## Разработка
 

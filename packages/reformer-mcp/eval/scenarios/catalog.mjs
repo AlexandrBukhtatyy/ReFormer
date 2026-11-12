@@ -117,6 +117,7 @@ export async function writeReferenceBundle({ scenario, target, directory, client
   mkdirSync(directory, { recursive: true });
   await writeReferenceIntent({ scenario, target, directory, client });
   const { text } = await client.callTool('form_build', { dir: directory }, 180000);
+  // Префикс ответа — контракт `form_build` (тест «ответ — контракт стендов», tests/form-build.test.ts).
   if (!text.startsWith('✓ form_build')) {
     throw new Error(`${scenario.id}/${target}: form_build —\n${text.slice(0, 2000)}`);
   }

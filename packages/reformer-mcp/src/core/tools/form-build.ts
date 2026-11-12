@@ -44,10 +44,26 @@ const OPTIONAL_DERIVED = [
   'form.schema.json',
 ];
 
+/*
+ * Строки ответа — контракт стендов: `eval/calibration/lib/bundle.mjs` (`parseFormBuild`) и
+ * `eval/scenarios/catalog.mjs` разбирают первую строку `✓`/`✗ form_build`, `Types checked`,
+ * `Warnings: N.` и пункты `- …`. Формат описан в `docs/llms/02-tools.md` § form_build и закреплён
+ * тестом «ответ — контракт стендов» в `tests/form-build.test.ts`: правка строки здесь без правки
+ * разборщика молча ломала бы замеры.
+ */
+
 /** Сколько ошибок печатать: дальше агент всё равно правит и собирает заново. */
-const MAX_ERRORS = 12;
+export const MAX_ERRORS = 12;
 /** Потолок предупреждений: судья ставит меняющие смысл первыми, за потолком — их число. */
-const MAX_WARNINGS = 20;
+export const MAX_WARNINGS = 20;
+
+/** Пункты списка ответа: не больше `max`, за потолком — строка `… and N more.`. */
+function bullets(items: readonly string[], max: number): string[] {
+  return [
+    ...items.slice(0, max).map((item) => `- ${item}`),
+    ...(items.length > max ? [`… and ${items.length - max} more.`] : []),
+  ];
+}
 
 export const formBuildToolDefinition = {
   name: 'form_build',
@@ -77,11 +93,7 @@ export interface FormBuildArgs {
 
 function failure(heading: string, items: readonly string[]): ToolTextResult {
   return invalidCall(
-    [
-      `✗ form_build: ${heading} — nothing written.`,
-      ...items.slice(0, MAX_ERRORS).map((item) => `- ${item}`),
-      ...(items.length > MAX_ERRORS ? [`… and ${items.length - MAX_ERRORS} more.`] : []),
-    ].join('\n')
+    [`✗ form_build: ${heading} — nothing written.`, ...bullets(items, MAX_ERRORS)].join('\n')
   );
 }
 
@@ -432,9 +444,7 @@ async function runFormBuild(args: FormBuildArgs, k: Knowledge): Promise<ToolText
     );
   }
   if (notes.length > 0) {
-    lines.push(`Warnings: ${notes.length}.`);
-    for (const note of notes.slice(0, MAX_WARNINGS)) lines.push(`- ${note}`);
-    if (notes.length > MAX_WARNINGS) lines.push(`… and ${notes.length - MAX_WARNINGS} more.`);
+    lines.push(`Warnings: ${notes.length}.`, ...bullets(notes, MAX_WARNINGS));
   }
   return { content: [{ type: 'text', text: lines.join('\n') }] };
 }

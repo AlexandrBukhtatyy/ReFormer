@@ -1,141 +1,82 @@
 # API Reference
 
-Complete API documentation for the ReFormer MCP server.
+The surface of `@reformer/mcp` 7.0 in one page. Arguments, answers and examples live in the
+server's self-documentation (`docs/llms/`, served as `reformer://docs/mcp`); this page names what
+exists and where it is described, so it does not drift from the code.
 
 ## Tools
 
-### report_issue
+Ten tools; an eleventh, `debug`, exists only with `REFORMER_DEBUG=true`. The browser worker has only
+the first seven — it builds no forms and writes no files.
 
-Report an issue encountered while working with ReFormer and its solution.
+| Tool              | What it does                                                                       | Worker |
+| ----------------- | ---------------------------------------------------------------------------------- | ------ |
+| `get_context`     | Context for one step: operator, signature, example, rules, anti-patterns           | ✓      |
+| `choose_api`      | Which operator meets a requirement stated in words; its form in `form.intent.json` | ✓      |
+| `get_symbol_docs` | Full JSDoc of one public symbol                                                    | ✓      |
+| `find_recipe`     | A worked example for a scenario keyword                                            | ✓      |
+| `search_docs`     | Full-text search over every documentation section                                  | ✓      |
+| `list_symbols`    | Public symbols by kind, package, name                                              | ✓      |
+| `validate_form`   | Checks by `kind`: `code`, `json-schema`, `behaviors`, `bundle`, `layout`           | ✓      |
+| `plan_form`       | A markdown spec → a draft `<dir>/form.intent.json` on disk                         | —      |
+| `form_build`      | `<dir>/form.intent.json` → the form module on disk; or the intent grammar          | —      |
+| `report_issue`    | A problem and its fix → a JSON report on disk                                      | —      |
 
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `error` | string | Yes | The error message or problem description |
-| `solution` | string | Yes | The solution or fix that resolved the issue |
-| `tags` | string[] | No | Tags for categorization (e.g., `category:behavior`, `agent:claude`, `severity:critical`) |
-| `context` | object | No | Additional context with `examples`, `relatedFiles`, `notes` |
-
-**Returns:** Confirmation of successful report
-
-**Example:**
-
-```json
-{
-  "error": "Infinite loop in computeFrom when effect depends on target",
-  "solution": "Use peek() instead of .value to read target without dependency",
-  "tags": ["category:behavior", "agent:claude", "severity:critical"],
-  "context": {
-    "examples": [
-      { "description": "Wrong", "code": "const v = targetNode.value.value;" },
-      { "description": "Correct", "code": "const v = targetNode.value.peek();" }
-    ],
-    "relatedFiles": ["packages/reformer/src/core/behavior/behaviors/compute-from.ts"]
-  }
-}
-```
-
-**Storage:** One JSON file per report, written to
-`<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`. Set the
-`REFORMER_ISSUE_REPORTS_DIR` environment variable to write elsewhere — an absolute path; a leading
-`~` expands to the home directory, a relative value is refused (it would resolve against the
-server's cwd, which the agent cannot see). Project root = nearest `package.json` with dependencies above cwd,
-searched from outside `node_modules` (an npx run from `node_modules/@reformer/mcp` still writes to
-the app); with no such file, the directory is created in cwd. The default `.reformer/` directory
-gets its own `.gitignore` (`*`), so reports never reach the project's commits.
-
----
-
-### debug (Debug Mode Only)
-
-Debug tool for MCP server development. Only available when `REFORMER_DEBUG=true`.
-
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `section` | string | No | Optional section to return |
-
-**Returns:** Debug information and documentation stats
-
----
+Details: [docs/llms/02-tools.md](./llms/02-tools.md). The codes of findings:
+[docs/llms/08-diagnostic-codes.md](./llms/08-diagnostic-codes.md).
 
 ## Resources
 
-### reformer://docs
+| URI                            | Content                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------- |
+| `reformer://guide`             | Start here (≤ 6 KB): the one path to a form; in the worker — the map of its reference tools |
+| `reformer://catalog`           | JSON map: package → documentation sections (slug, title)                                    |
+| `reformer://status`            | JSON: packages found, type-checking, kit catalog, build id and corpus hash                  |
+| `reformer://docs/<pkg>`        | The whole `llms.txt` of a package (`core`, `cdk`, `ui-kit`, …, `mcp`)                       |
+| `reformer://docs/<pkg>/<slug>` | One section; slugs come from `reformer://catalog` or `search_docs`                          |
+| `reformer://debug`             | Debug stats — only with `REFORMER_DEBUG=true`                                               |
 
-Complete ReFormer library documentation.
-
-**MIME Type:** `text/markdown`
-
-**Content:** Full llms.txt documentation including:
-
-- Installation
-- Quick Start
-- Architecture
-- Form Schema
-- Node Types
-- Validation
-- Behaviors
-- React Integration
-- API Reference
-- Common Patterns
-- FAQ
-
----
-
-### reformer://docs/<pkg>/<section>
-
-A single H2 section of a package, addressed by slug (enumerate exact URIs via ListResources).
-
-**MIME Type:** `text/markdown`
-
-> Public symbols/signatures and recipes are **tools**, not resources: use `list_symbols`,
-> `get_symbol_docs`, `find_recipe`. To search the prose of these sections full-text (when you
-> can't name the topic), use the `search_docs` tool.
-
----
-
-### reformer://debug (Debug Mode Only)
-
-Debug information for MCP server development.
-
-**MIME Type:** `text/markdown`
-
-**Content:** Debug stats and information
-
----
+Details: [docs/llms/04-resources.md](./llms/04-resources.md). The worker has no
+`reformer://docs/mcp`: its corpus leaves out the docs of the server itself.
 
 ## Prompts
 
-### debug (Debug Mode Only)
+Node server only — prompts are rendered from template files.
 
-Analyze ReFormer form code for issues. Only available when `REFORMER_DEBUG=true`.
+| Prompt             | Arguments (\* required)                    |
+| ------------------ | ------------------------------------------ |
+| `start-here`       | —                                          |
+| `discover-context` | `description`\*, `projectPath`             |
+| `plan-form`        | `specPath`\*, `target`, `projectPath`      |
+| `create-form`      | `description`\*, `target`, `projectPath`   |
+| `add-feature`      | `feature`\*, `requirements`\*, `code`      |
+| `to-renderer`      | `code`, `target`                           |
+| `review`           | `code`\*                                   |
+| `debug`            | `code`\* — only with `REFORMER_DEBUG=true` |
 
-**Arguments:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `code` | string | Yes | ReFormer form code to analyze |
+Details: [docs/llms/03-prompts.md](./llms/03-prompts.md).
 
-**Returns:** Analysis with documentation context
+## Entry points
 
----
+| Import                     | Content                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| `@reformer/mcp`            | The stdio server (`bin`: `reformer-mcp`); run it, do not import it                  |
+| `@reformer/mcp/core`       | `createKnowledge(sources)`, `memoize`, knowledge types                              |
+| `@reformer/mcp/browser`    | `createBrowserKnowledge(input)` — knowledge from data already loaded                |
+| `@reformer/mcp/intent`     | The intent compiler and its judge as pure functions: `readIntent`, `judgeIntent`, … |
+| `@reformer/mcp/build-info` | `BUILD_ID` (hash of the sources) and `buildIdOf(version)`                           |
+| `@reformer/mcp/*`          | Package files: `llms.txt`, `docs/llms/*.md`, `dist/worker/server.js`                |
 
-## Debug Mode
+Details: [docs/llms/07-embedding.md](./llms/07-embedding.md).
 
-To enable debug features, set the environment variable:
+## Environment variables
 
-```bash
-REFORMER_DEBUG=true node dist/index.js
-```
+| Variable                     | Effect                                                                  |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `REFORMER_ISSUE_REPORTS_DIR` | Directory of `report_issue` reports; an absolute path (`~` allowed)     |
+| `REFORMER_DEBUG`             | `true` — the `debug` tool and prompt, the `reformer://debug` resource   |
+| `REFORMER_TRACE_FILE`        | A JSON line per call, for measurements                                  |
+| `REFORMER_TRACE_FULL`        | `1` — the trace keeps full arguments and answer text                    |
+| `REFORMER_TYPECHECK_ROOT`    | A fallback root where `form_build` finds `@reformer/*` and `typescript` |
 
-Or when registering with Claude Code:
-
-```bash
-claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /path/to/dist/index.js
-```
-
-Debug mode enables:
-
-- `debug` tool
-- `debug` prompt
-- `reformer://debug` resource
+Register with a variable: `claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- npx -y @reformer/mcp`.
