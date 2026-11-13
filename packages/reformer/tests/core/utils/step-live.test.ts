@@ -2,9 +2,10 @@
  * Живая фаза шагов потока — `validation.liveAfterStep` (ReFormer-8n96).
  *
  * Шаг молчит до первой попытки «Далее» на нём (`flow.next()`), дальше его правила проверяются в
- * выбранном режиме. Здесь — составной контроллер сборки: какие правила гоняет живая проверка шага,
- * когда она снимается (отправка `afterFirstSubmit`, сброс формы, снятие сборки), режим `blur`,
- * `validating` и стратегии, при которых опция не действует.
+ * выбранном режиме — пока поток стоит на нём. Здесь — составной контроллер сборки: какие правила
+ * гоняет живая проверка шага, что живой только текущий шаг и возврат на шаг его перепроверяет
+ * (ReFormer-jy7s), когда она снимается (отправка `afterFirstSubmit`, сброс формы, снятие сборки),
+ * режим `blur`, `validating` и стратегии, при которых опция не действует.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createForm } from '../../../src/form/form-bundle';
@@ -82,6 +83,172 @@ describe('liveAfterStep — живая фаза шага', () => {
     expect(loanRuns).toHaveBeenCalledTimes(1);
     expect(contactRuns).not.toHaveBeenCalled();
     expect(form.amount.issues.value).toEqual([]);
+  });
+
+  it('живой только текущий шаг: на следующем шаге правила пройденного не гоняются', async () => {
+    const { model, flow, loanRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    model.amount = '5';
+    expect(await flow!.next()).toMatchObject({ status: 'moved', to: 'contacts' });
+    loanRuns.mockClear();
+
+    model.amount = '';
+    await tick();
+
+    expect(loanRuns).not.toHaveBeenCalled();
+  });
+
+  it('возврат на шаг: один прогон его правил без касания, дальше шаг снова живой', async () => {
+    const { form, model, flow, validating, loanRuns, contactRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    model.amount = '5';
+    await flow!.next();
+    model.amount = ''; // правка поведением, пока поток на другом шаге
+    await tick();
+    loanRuns.mockClear();
+
+    flow!.previous();
+    expect(validating.value).toBe(true);
+    await tick();
+
+    expect(loanRuns).toHaveBeenCalledTimes(1);
+    expect(validating.value).toBe(false);
+    expect(issueCodes(form.amount)).toEqual(['amount.required']);
+    loanRuns.mockClear();
+
+    model.amount = '7';
+    await tick();
+
+    expect(loanRuns).toHaveBeenCalledTimes(1);
+    expect(contactRuns).not.toHaveBeenCalled();
+    expect(form.amount.issues.value).toEqual([]);
+  });
+
+  it('у двух живых шагов правка гоняет правила только того, где стоит поток', async () => {
+    const { model, flow, loanRuns, contactRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    model.amount = '5';
+    await flow!.next();
+    expect(await flow!.next()).toMatchObject({ status: 'stayed', reason: 'invalid' });
+
+    flow!.previous();
+    await tick();
+    loanRuns.mockClear();
+    contactRuns.mockClear();
+    model.amount = '9';
+    await tick();
+    expect(loanRuns).toHaveBeenCalledTimes(1);
+    expect(contactRuns).not.toHaveBeenCalled();
+
+    await flow!.next();
+    await tick();
+    loanRuns.mockClear();
+    contactRuns.mockClear();
+    model.email = 'a@b.c';
+    await tick();
+    expect(contactRuns).toHaveBeenCalledTimes(1);
+    expect(loanRuns).not.toHaveBeenCalled();
+  });
+
+  it('исключение правила в перепроверке при возврате — в консоль, validating опускается', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { model, flow, validating, loanRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    model.amount = '5';
+    await flow!.next();
+    loanRuns.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    flow!.previous();
+    await tick();
+
+    expect(error).toHaveBeenCalledWith(
+      '[@reformer/core] живой прогон шага завершился исключением',
+      expect.any(Error)
+    );
+    expect(validating.value).toBe(false);
+    error.mockRestore();
+  });
+
+  it('validate и isValidating составного контроллера — полный прогон формы', async () => {
+    const { validation, loanRuns, contactRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    const { controller } = validation!;
+
+    const pending = controller.validate();
+    expect(controller.isValidating).toBe(true);
+    expect(await pending).toBe(false);
+
+    expect(controller.isValidating).toBe(false);
+    expect(loanRuns).toHaveBeenCalledTimes(1);
+    expect(contactRuns).toHaveBeenCalledTimes(1);
+  });
+
+  it('повторное армирование (remount) оживляет текущий шаг без лишнего прогона', async () => {
+    const { model, flow, validation, loanRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    await flow!.next(); // отказ: шаг остаётся, его живая фаза включена
+    validation!.controller.dispose();
+    validation!.controller.start();
+    loanRuns.mockClear();
+    await tick();
+    expect(loanRuns).not.toHaveBeenCalled();
+
+    model.amount = 'x';
+    await tick();
+
+    expect(loanRuns).toHaveBeenCalledTimes(1);
+  });
+
+  it('повторный start без снятия — одна подписка: правка гоняет правила шага один раз', async () => {
+    const { model, flow, validation, loanRuns } = setup({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    await flow!.next();
+    validation!.controller.start();
+    loanRuns.mockClear();
+
+    model.amount = 'x';
+    await tick();
+
+    expect(loanRuns).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounce: живой прогон шага — после паузы, один на серию правок', async () => {
+    vi.useFakeTimers();
+    try {
+      const { model, flow, loanRuns } = setup({
+        strategy: 'afterFirstSubmit',
+        liveAfterStep: 'change',
+        debounce: 300,
+      });
+      await flow!.next();
+      loanRuns.mockClear();
+
+      model.amount = '1';
+      model.amount = '12';
+      await vi.advanceTimersByTimeAsync(299);
+      expect(loanRuns).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(loanRuns).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('afterFirstSubmit: после отправки живая вся форма — правило шага не гоняется дважды', async () => {

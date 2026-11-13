@@ -53,6 +53,10 @@ export interface FormValidation<T> {
    * и, как живая проверка формы, полей не касается: ошибку видно у полей, которые проверил
    * «Далее» или изменил пользователь.
    *
+   * Живой — только текущий шаг потока: правила пройденных шагов на правки другого шага не
+   * гоняются, межшаговые замечания ловит отправка. Возврат на шаг, где уже было «Далее», снова
+   * делает его живым и один раз перепроверяет его правила.
+   *
    * Для стратегий `submit` и `afterFirstSubmit`; у `change` и `blur` форма живая и так — опция
    * не действует. При `afterFirstSubmit` попытка отправки делает живой всю форму, и живые фазы
    * шагов больше не нужны. Сброс формы (`form.reset()`) возвращает тихую фазу и шагам.
@@ -200,6 +204,16 @@ export function createFormLevel<T>(
         )
       : undefined);
 
+  // Поток — раньше контроллера: живая фаза шагов следит за текущим шагом. Проверку шага поток
+  // зовёт только при переходе — уровень к тому времени собран.
+  const flow =
+    config.flow !== undefined
+      ? createFormFlow({
+          steps: [...stepRules.keys()],
+          validateStep: (stepId) => validateStepToMove(stepId),
+        })
+      : undefined;
+
   const formController =
     rules !== undefined
       ? createFormValidation(model, rules, {
@@ -213,6 +227,7 @@ export function createFormLevel<T>(
   const strategy = validation.strategy ?? 'submit';
   const stepLive: StepLiveController<T> | undefined =
     formController !== undefined &&
+    flow !== undefined &&
     validation.liveAfterStep !== undefined &&
     stepSchemas.length > 0 &&
     (strategy === 'submit' || strategy === 'afterFirstSubmit')
@@ -222,6 +237,7 @@ export function createFormLevel<T>(
           debounce: validation.debounce,
           nodes,
           submitMakesFormLive: strategy === 'afterFirstSubmit',
+          current: flow.current,
         })
       : undefined;
   const controller: FormValidationController | undefined = stepLive ?? formController;
@@ -295,15 +311,10 @@ export function createFormLevel<T>(
     const step = rulesOfStep(stepId);
     if (!step) return VALID;
     // Попытка «Далее» включает живую фазу шага (`liveAfterStep`), каким бы ни был итог.
-    stepLive?.armStep(step);
+    stepLive?.armStep(stepId, step);
     const { result, stale } = await checkForAction(() => runStep(step));
     return stale ? { ...result, status: 'cancelled' } : result;
   };
-
-  const flow =
-    config.flow !== undefined
-      ? createFormFlow({ steps: [...stepRules.keys()], validateStep: validateStepToMove })
-      : undefined;
 
   // Отправка — попытка отправки: при отказе раскрыта вся форма, `afterFirstSubmit` переходит в
   // живую фазу. Без правил сверять нечего: обработчик получает модель как есть.

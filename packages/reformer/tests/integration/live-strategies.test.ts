@@ -324,7 +324,7 @@ describe('стратегия afterFirstSubmit', () => {
     expect(runs).not.toHaveBeenCalled();
   });
 
-  it('LS-21: liveAfterStep — живой прогон шага не трогает поля других шагов', async () => {
+  it('LS-21: liveAfterStep — живой только текущий шаг: ни непройденный, ни пройденный шаг правки не проверяют [ReFormer-jy7s]', async () => {
     const { bundle } = await started({ strategy: 'afterFirstSubmit', liveAfterStep: 'change' });
     const { form, model } = bundle;
     fillLoanStep(model);
@@ -333,11 +333,35 @@ describe('стратегия afterFirstSubmit', () => {
 
     // Шаг заявителя ещё не пытались пройти: правка его поля замечаний не показывает.
     form.applicant.lastName.setValue('x');
-    form.loan.amount.setValue(5); // шаг кредита живой: его поле перепроверено
+    // Шаг кредита пройден, но поток стоит не на нём: его правила не гоняются.
+    form.loan.amount.setValue(5);
     await settle();
 
     expect(form.applicant.lastName.issues.value).toEqual([]);
+    expect(form.loan.amount.issues.value).toEqual([]);
+  });
+
+  it('LS-23: liveAfterStep — возврат на пройденный шаг делает его живым и перепроверяет [ReFormer-jy7s]', async () => {
+    const { bundle, runs } = await started({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    const { form, model } = bundle;
+    fillLoanStep(model);
+    await flushBehaviors();
+    expect(await bundle.flow!.next()).toMatchObject({ status: 'moved' });
+    form.loan.amount.setValue(5);
+    await settle();
+
+    expect(bundle.flow!.previous()).toMatchObject({ status: 'moved', to: 'loan' });
+    await settle();
     expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
+
+    form.loan.amount.setValue(500_000);
+    await settle();
+
+    expect(form.loan.amount.issues.value).toEqual([]);
+    expect(runs).not.toHaveBeenCalled(); // перепроверка — правила шага, не полный набор
   });
 
   it('LS-22: liveAfterStep — сброс формы возвращает тихую фазу и шагам', async () => {
