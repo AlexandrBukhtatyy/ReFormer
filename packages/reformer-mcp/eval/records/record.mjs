@@ -302,42 +302,115 @@ export function validateRecord(record) {
 /** Статус проверки из значения `checks`. */
 export const checkStatus = (check) => (Array.isArray(check) ? check[0] : check);
 
+const byteSize = (value) => Buffer.byteLength(JSON.stringify(value));
+
+/** Причины проверок не длиннее `max` знаков; `0` — только статус. */
+function shortenReasons(checks, max) {
+  return Object.fromEntries(
+    Object.entries(checks ?? {}).map(([id, check]) => {
+      if (!Array.isArray(check)) return [id, check];
+      const [status, reason] = check;
+      if (max === 0) return [id, status];
+      return [id, reason.length > max ? [status, `${reason.slice(0, max - 1)}…`] : check];
+    })
+  );
+}
+
+/** Последовательность вызовов без последних шагов — пока запись не влезет в потолок. */
+function shortenSequence(record, limit) {
+  const steps = record.toolSequence.split(' → ');
+  while (steps.length > 0) {
+    steps.pop();
+    const candidate = { ...record, toolSequence: [...steps, '…'].join(' → ') };
+    if (byteSize(candidate) <= limit) return candidate;
+  }
+  return { ...record, toolSequence: '…' };
+}
+
+/**
+ * Запись, ужатая до потолка размера. Длинный сценарий набирает проверок с причинами больше потолка
+ * (L5 с пробами — около 1.2 КБ одних `checks`), и такая запись роняла бы запись всего батча.
+ *
+ * По шагам, пока не влезет: причины проверок до 60, потом до 30 знаков, хвост `toolSequence`,
+ * наконец причины совсем (остаётся статус). Срезанное помечено «…»: полные причины — в сырье
+ * прогона (`verify.json`). Запись, которая не влезла и так, возвращается как есть: её поймает
+ * `validateRecord`.
+ */
+export function fitRecord(record) {
+  const limit = RECORD_SIZE_LIMITS[record.harness];
+  if (!limit || byteSize(record) <= limit) return record;
+  const withReasons = (max) => ({ ...record, checks: shortenReasons(record.checks, max) });
+  const withSequence = (current) =>
+    typeof current.toolSequence === 'string' && current.toolSequence && byteSize(current) > limit
+      ? shortenSequence(current, limit)
+      : current;
+  const candidates = [
+    () => withReasons(60),
+    () => withReasons(30),
+    () => withSequence(withReasons(30)),
+    () => withSequence(withReasons(0)),
+  ];
+  for (const candidate of candidates) {
+    const fitted = candidate();
+    if (byteSize(fitted) <= limit) return fitted;
+  }
+  return record;
+}
+
 /**
  * Дописать записи батча и, по `publish`, положить копию в репозиторий.
  *
- * @returns {{ local: string, published: string | null }}
+ * Записи сначала ужимаются до потолка (`fitRecord`). Локальный `records.jsonl` пишется всегда —
+ * батч в часы работы модели не теряется из-за одной записи. Негодная запись (схема, потолок) идёт
+ * в stderr; с `publish` батч после локальной записи не публикуется, а функция бросает исключение.
+ * `root` — каталог сырья, по умолчанию `.tmp/mcp-runs`.
+ *
+ * @returns {{ local: string, published: string | null, problems: string[] }}
  */
-export function writeRecords(records, { batchId, harness, label, publish = false }) {
-  for (const record of records) {
-    const problems = validateRecord(record);
-    if (problems.length > 0) {
-      throw new Error(`Запись ${record.runId} не годится:\n  ${problems.join('\n  ')}`);
-    }
-  }
-  const lines = records.map((record) => `${JSON.stringify(record)}\n`).join('');
-  const directory = path.join(runsDirectory, batchId);
+export function writeRecords(
+  records,
+  { batchId, harness, label, publish = false, root = runsDirectory }
+) {
+  const fitted = records.map(fitRecord);
+  const problems = fitted.flatMap((record) => {
+    const found = validateRecord(record);
+    return found.length > 0 ? [`Запись ${record.runId} не годится:\n  ${found.join('\n  ')}`] : [];
+  });
+  const lines = fitted.map((record) => `${JSON.stringify(record)}\n`).join('');
+  const directory = path.join(root, batchId);
   mkdirSync(directory, { recursive: true });
   const local = path.join(directory, 'records.jsonl');
   appendFileSync(local, lines);
-  if (!publish) return { local, published: null };
+  for (const problem of problems) console.error(problem);
+  if (problems.length > 0 && publish) {
+    throw new Error(
+      `Батч ${batchId} не опубликован: негодных записей ${problems.length}. ` +
+        `Записи сохранены локально: ${path.relative(repoRoot, local)}`
+    );
+  }
+  if (!publish) return { local, published: null, problems };
 
   const year = batchId.slice(0, 4);
   const yearDirectory = path.join(publishedDirectory, year);
   mkdirSync(yearDirectory, { recursive: true });
   const published = path.join(yearDirectory, `${batchId}-${harness}-${label}.jsonl`);
   writeFileSync(published, readFileSync(local));
-  return { local, published };
+  return { local, published, problems };
 }
 
-/** Заменить записи в уже существующих файлах батча: новая оценка тех же прогонов. */
+/**
+ * Заменить записи в уже существующих файлах батча: новая оценка тех же прогонов. Записи ужимаются
+ * до потолка, как в `writeRecords`; при негодной записи файлы не трогаются.
+ */
 export function rewriteRecords(records, files) {
-  for (const record of records) {
+  const fitted = records.map(fitRecord);
+  for (const record of fitted) {
     const problems = validateRecord(record);
     if (problems.length > 0) {
       throw new Error(`Запись ${record.runId} не годится:\n  ${problems.join('\n  ')}`);
     }
   }
-  const lines = records.map((record) => `${JSON.stringify(record)}\n`).join('');
+  const lines = fitted.map((record) => `${JSON.stringify(record)}\n`).join('');
   for (const file of files) writeFileSync(file, lines);
 }
 

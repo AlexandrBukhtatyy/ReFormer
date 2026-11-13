@@ -3,9 +3,19 @@
  * измерительный прибор, а ошибка в нём выглядит как результат.
  */
 
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 import { compareBatches, renderComparison } from '../eval/records/compare.mjs';
-import { createRecord, newBatchId, validateRecord } from '../eval/records/record.mjs';
+import {
+  checkStatus,
+  createRecord,
+  fitRecord,
+  newBatchId,
+  validateRecord,
+  writeRecords,
+} from '../eval/records/record.mjs';
 import {
   fisherExact,
   median,
@@ -103,6 +113,67 @@ describe('запись прогона', () => {
       Array.from({ length: 400 }, (_, index) => [`check.${index}`, 'pass'])
     );
     expect(validateRecord(record({ checks })).join()).toMatch(/потолка/);
+  });
+
+  it('длинные причины проверок ужимаются до потолка, статусы остаются', () => {
+    // Причины по 66 знаков — как у L5-loan в батче 20261113T010642Z-594a, который из-за записи
+    // в 4087 байт остался без records.jsonl.
+    const checks = Object.fromEntries(
+      Array.from({ length: 25 }, (_, index) => [
+        `runtime.probe.case-${index}`,
+        [
+          'fail',
+          `ожидалась ошибка на поле amount, форма приняла значение ${index}`.padEnd(66, '.'),
+        ],
+      ])
+    );
+    const oversized = record({ checks });
+    expect(validateRecord(oversized).join()).toMatch(/потолка/);
+
+    const fitted = fitRecord(oversized);
+    expect(validateRecord(fitted)).toEqual([]);
+    expect(Object.keys(fitted.checks)).toEqual(Object.keys(checks));
+    for (const check of Object.values(fitted.checks)) expect(checkStatus(check)).toBe('fail');
+    expect(Object.values(fitted.checks).some((check) => String(check[1]).endsWith('…'))).toBe(true);
+  });
+
+  it('без причин ужимается хвост последовательности вызовов', () => {
+    const toolSequence = Array.from({ length: 900 }, (_, index) => `tool_${index}`).join(' → ');
+    const fitted = fitRecord({ ...record(), toolSequence });
+    expect(validateRecord(fitted)).toEqual([]);
+    expect(fitted.toolSequence.startsWith('tool_0 → tool_1 → ')).toBe(true);
+    expect(fitted.toolSequence.endsWith(' → …')).toBe(true);
+  });
+
+  it('запись в потолке не меняется', () => {
+    const small = record();
+    expect(fitRecord(small)).toBe(small);
+  });
+
+  it('негодная запись не теряет батч: записи пишутся локально, публикация отменяется', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'reformer-records-'));
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const checks = Object.fromEntries(
+        Array.from({ length: 400 }, (_, index) => [`check.${index}`, 'pass'])
+      );
+      const records = [record(), record({ checks, index: 2 })];
+      const options = { batchId: '20261113T000000Z-test', harness: 'scenario', label: 't', root };
+
+      const { local, problems } = writeRecords(records, options);
+      expect(problems).toHaveLength(1);
+      expect(readFileSync(local, 'utf8').trim().split('\n')).toHaveLength(2);
+      expect(errors).toHaveBeenCalled();
+
+      expect(() =>
+        writeRecords(records, { ...options, batchId: '20261113T000001Z-test', publish: true })
+      ).toThrow(/не опубликован/);
+      const kept = path.join(root, '20261113T000001Z-test', 'records.jsonl');
+      expect(readFileSync(kept, 'utf8').trim().split('\n')).toHaveLength(2);
+    } finally {
+      errors.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('идентификаторы батчей не совпадают и начинаются со времени', () => {
