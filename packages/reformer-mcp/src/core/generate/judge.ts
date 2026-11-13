@@ -232,6 +232,8 @@ const COSMETIC_WARNINGS: ReadonlySet<string> = new Set<JudgeWarningCode>([
   'prop-lifted',
   'value-coerced',
   'each-lifted',
+  'meta-dropped',
+  'wizard-as-list',
 ]);
 
 /** Предупреждения по важности: меняющие смысл — первыми, порядок внутри группы сохраняется. */

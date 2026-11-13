@@ -35,8 +35,10 @@ function readServerVersion(): string {
 
 // Server instance
 // REFORMER_SURFACE=code — эксперимент Code Mode: один инструмент run_script, API сервера в песочнице
-// QuickJS (замер — docs/mcp-eval/code-mode.md). Любое другое значение — обычный набор инструментов.
-const surface = process.env.REFORMER_SURFACE === 'code' ? 'code' : 'tools';
+// QuickJS (замер — docs/mcp-eval/code-mode.md). REFORMER_SURFACE=guided — профиль для малых моделей:
+// план от сервера и плоские правки (docs/plans/lucky-popping-wall.md). Иначе — обычный набор.
+const surfaceEnv = process.env.REFORMER_SURFACE;
+const surface = surfaceEnv === 'code' ? 'code' : surfaceEnv === 'guided' ? 'guided' : 'tools';
 
 const server = createNodeServer({
   version: readServerVersion(),

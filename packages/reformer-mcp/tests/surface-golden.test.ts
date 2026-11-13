@@ -19,7 +19,7 @@ import {
 import { GUIDE_LIMIT_BYTES } from '../src/core/server/resource-catalog';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
-import { createNodeServer } from '../src/platform/cli/server';
+import { createNodeServer, GUIDED_INSTRUCTIONS } from '../src/platform/cli/server';
 import { CATALOGS } from './support/catalogs';
 
 const TOOLS_TOKENS_CEILING = 2800;
@@ -52,6 +52,14 @@ describe('поверхность сервера', () => {
   it('инструменты профиля browser совпадают со снимком', async () => {
     const tools = createToolCatalog(cliKnowledge, { profile: 'browser' }).list();
     await expect(stable(tools)).toMatchFileSnapshot('__golden__/surface/tools.browser.json');
+  });
+
+  it('инструменты профиля guided совпадают со снимком и держат потолок', async () => {
+    const tools = createToolCatalog(cliKnowledge, { profile: 'node', guided: true }).list();
+    // Профиль для малых моделей: меньше половины обычной поверхности (её потолок — 2800 токенов).
+    expect(tokensOf(tools)).toBeLessThanOrEqual(1400);
+    expect(GUIDED_INSTRUCTIONS.length).toBeLessThan(500);
+    await expect(stable(tools)).toMatchFileSnapshot('__golden__/surface/tools.guided.json');
   });
 
   it('промпты совпадают со снимком', async () => {

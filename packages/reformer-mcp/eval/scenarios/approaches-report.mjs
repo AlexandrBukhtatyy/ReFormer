@@ -96,6 +96,11 @@ function processRow(batch, record) {
     const args = JSON.stringify(entry.arguments ?? entry.argumentsPreview ?? '');
     const written = (entry.result ?? '').match(/✓ form_build: written/g)?.length ?? 0;
     if (entry.name === 'form_build' && !/grammar/.test(args)) builds.push({ ok: written > 0 });
+    // Профиль guided: form_edit правит intent и собирает той же сборкой — это сборка, если в ответе
+    // есть её строка (все правки отклонены — сборки не было).
+    if (entry.name === 'form_edit' && /form_build:/.test(entry.result ?? '')) {
+      builds.push({ ok: written > 0 });
+    }
     if (entry.name === 'run_script') {
       const innerBuilds = (entry.inner ?? []).filter((inner) => inner.name === 'form_build').length;
       const grammarOnly =

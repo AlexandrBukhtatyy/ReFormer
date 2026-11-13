@@ -31,6 +31,14 @@ import { chooseApiTool, chooseApiToolDefinition } from '../tools/choose-api.js';
 import { debugTool, debugToolDefinition } from '../tools/debug.js';
 import { findRecipeTool, findRecipeToolDefinition } from '../tools/find-recipe.js';
 import { formBuildTool, formBuildToolDefinition } from '../tools/form-build.js';
+import {
+  formEditTool,
+  formEditToolDefinition,
+  formStartTool,
+  formStartToolDefinition,
+  formStatusTool,
+  formStatusToolDefinition,
+} from '../tools/guided.js';
 import { planFormTool, planFormToolDefinition } from '../tools/plan-form.js';
 import { getContextTool, getContextToolDefinition } from '../tools/get-context.js';
 import { getSymbolDocsTool, getSymbolDocsToolDefinition } from '../tools/get-symbol-docs.js';
@@ -69,6 +77,12 @@ export interface ToolCatalogOptions {
    * инструменты обычного режима — функции `reformer.*` внутри скрипта, исполняемого этой песочницей.
    */
   readonly codeMode?: ScriptSandbox;
+  /**
+   * Профиль guided (эксперимент, `REFORMER_SURFACE=guided`) для малых моделей: план от сервера
+   * (`form_start`), плоские правки со сборкой (`form_edit`), состояние (`form_status`) и
+   * `form_build`. Справочных инструментов нет: малая модель уходила в них с пути сборки.
+   */
+  readonly guided?: boolean;
 }
 
 export interface ToolCatalog {
@@ -93,12 +107,21 @@ export function createToolCatalog(
 ): ToolCatalog {
   const browser = options.profile === 'browser';
   const debug = options.debug === true && !browser;
+  const guided = options.guided === true && !browser;
   // Повтор без перемен называется в ответе: малая модель иначе шлёт тот же вызов раз за разом.
   const repeats = createRepeatWatch();
   let calls = 0;
 
   const catalog: ToolCatalog = {
     list() {
+      if (guided) {
+        return [
+          formStartToolDefinition,
+          formEditToolDefinition,
+          formStatusToolDefinition,
+          formBuildToolDefinition,
+        ];
+      }
       const tools: ToolDefinition[] = [
         getContextToolDefinition,
         chooseApiToolDefinition,
@@ -116,6 +139,19 @@ export function createToolCatalog(
     },
 
     async call(name, args) {
+      if (guided) {
+        switch (name) {
+          case 'form_start':
+            return await formStartTool(args ?? {}, knowledge());
+          case 'form_edit':
+            return await formEditTool(args ?? {}, knowledge());
+          case 'form_status':
+            return await formStatusTool(args ?? {}, knowledge());
+          case 'form_build':
+            return await formBuildTool(args ?? {}, knowledge());
+        }
+        throw new Error(`Unknown tool: ${name}`);
+      }
       switch (name) {
         case 'report_issue':
           if (browser) break;

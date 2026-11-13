@@ -59,8 +59,18 @@ export const SERVER_INSTRUCTIONS =
 export const CODE_MODE_INSTRUCTIONS =
   'This server has one tool, run_script: every server tool is an async function of the global `reformer` object inside the script (see the run_script description). To create or change a ReFormer form: write <dir>/form.intent.json with your file tools, then run_script `console.log(await reformer.formBuild({ dir: "<dir>" }))` — it compiles, type-checks and writes the module; never write module files yourself. Grammar first: run_script `console.log(await reformer.formBuild({ grammar: "base" }))`. From a markdown spec, `reformer.planForm({ specPath: "…", dir: "<dir>" })` drafts the intent. Keep the requested stack in "target"; on @reformer/core you also write the JSX markup in index.tsx. Documentation functions are for custom code or an unclear formBuild error; chain several of them in one script and print only what you need.';
 
-/** Поверхность сервера: обычная (набор инструментов) или Code Mode (один `run_script`). */
-export type ServerSurface = 'tools' | 'code';
+/**
+ * Инструкции профиля guided: тот же единственный путь, но шаги называет сервер — сначала
+ * `form_start`, дальше только `form_edit` по строке `Next:`.
+ */
+export const GUIDED_INSTRUCTIONS =
+  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server writes form.intent.json and builds the module; never write module files yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
+
+/**
+ * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`) или guided
+ * (план и правки для малых моделей).
+ */
+export type ServerSurface = 'tools' | 'code' | 'guided';
 
 export interface NodeServerOptions {
   readonly version: string;
@@ -84,6 +94,7 @@ type AnyPromptDefinition =
 export function createNodeServer(options: NodeServerOptions): Server {
   const { version, debug, onCall } = options;
   const codeMode = options.surface === 'code';
+  const guided = options.surface === 'guided';
 
   const server = new Server(
     {
@@ -103,7 +114,11 @@ export function createNodeServer(options: NodeServerOptions): Server {
       // Без этого агенты на больших формах шли за справкой и писали код вручную: выбор пути
       // без подсказки в задании проверен прогонами (docs/plans/mcp-misty-graham.md). Путь один
       // (7.0): intent → form_build; грамматика — по запросу, без проекта (аудит 2026-11, A1/A6).
-      instructions: codeMode ? CODE_MODE_INSTRUCTIONS : SERVER_INSTRUCTIONS,
+      instructions: codeMode
+        ? CODE_MODE_INSTRUCTIONS
+        : guided
+          ? GUIDED_INSTRUCTIONS
+          : SERVER_INSTRUCTIONS,
     }
   );
 
@@ -121,6 +136,7 @@ export function createNodeServer(options: NodeServerOptions): Server {
         profile: 'node',
         debug,
         ...(codeMode ? { codeMode: createQuickJsSandbox() } : {}),
+        ...(guided ? { guided: true } : {}),
       }),
       resources: createResourceCatalog(cliKnowledge, { debug }),
     },

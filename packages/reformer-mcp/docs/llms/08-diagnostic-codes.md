@@ -105,6 +105,9 @@ The list is complete: a test checks it against the code.
 | `steps-ignored` | `steps` next to `layoutRoot` — the layout is `layoutRoot`, `steps` not read |
 | `each-lifted` | A rule on a row field path — read as a rule of every row (`each`) |
 | `rule-empty-dropped` | A rule without checks (`"rules": []`) — dropped |
+| `meta-dropped` | Keys that carry no form (`version`, `$schema`, empty `components`, `intent`) — dropped |
+| `wizard-as-list` | Steps written as a list in `wizard` — read as `steps` |
+| `json-schema-lifted` | A JSON Schema in place of fields — fields and rules read from its `properties` |
 
 ## Judge
 

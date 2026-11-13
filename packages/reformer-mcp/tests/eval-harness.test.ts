@@ -459,7 +459,7 @@ describe('адаптер Ollama: усечение старых ответов', 
     expect(messages[3].content).toHaveLength(6000);
     // Последние ответы остаются целыми: их модель читает прямо сейчас.
     expect(messages.slice(-4).every((m) => m.content.length === 3000)).toBe(true);
-    expect([...KEEP_WHOLE_TOOLS].sort()).toEqual(['form_build', 'plan_form']);
+    expect([...KEEP_WHOLE_TOOLS].sort()).toEqual(['form_build', 'form_start', 'plan_form']);
   });
 
   it('ответ длиннее контекста модели усекается с пометкой [ReFormer-qo9b.36]', () => {

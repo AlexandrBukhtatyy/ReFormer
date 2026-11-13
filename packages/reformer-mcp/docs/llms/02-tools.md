@@ -224,6 +224,41 @@ to the app); when there is none, reports land in cwd itself. The default `.refor
 
 Use when you discover and fix a non-obvious ReFormer error, to help future runs.
 
+## Guided profile (`REFORMER_SURFACE=guided`)
+
+A surface for small local models: the server plans the work and builds; the model only sends
+small edits. It lists four tools — `form_start`, `form_edit`, `form_status`, `form_build` — and
+no reference tools. Every answer ends with `Next:` — one exact call — until `Done`.
+
+- **`form_start`** `{dir?, target, task? | specPath?, formName?}` — plans the stages from the
+  task words or the spec (fields; rows, steps, validation, cross-field rules, reactions as
+  needed; markup on core) and saves them to `<dir>/form.plan.json`. With `specPath` and no intent
+  yet, it drafts `form.intent.json` from the spec as `plan_form` does.
+- **`form_edit`** `{dir?, edits}` — flat edits; the server writes `form.intent.json` and runs the
+  same build as `form_build` (the answer holds its `✓`/`✗ form_build` lines). Edits apply one by
+  one: a rejected edit says how to fix it, the others still apply; `"edits":[]` only builds.
+
+  | op                            | Keys                                                                                                                                                              |
+  | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `add_field`, `set_field`      | `name`, `label`, `type` (string number boolean date), `options`, `mask`, `placeholder`, `readonly`, `component`, `step`; `set_field` with `array` — a row field   |
+  | `remove_field`                | `name` — also drops the rules on it                                                                                                                               |
+  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`                                                                                         |
+  | `add_step`, `place`           | `title`, `fields`; `name`, `step` (number, title or selector)                                                                                                     |
+  | `add_rule`                    | `field`, `array`, `required` `email` `phone` `url` `integer` (true), `min` `max` `minLength` `maxLength` (numbers), `pattern`, `rule`, `cross`, `when`, `message` |
+  | `add_behavior`                | `kind` (a core operator), `target`, `expr`, `array`, `when`, `resetOnDisable`; `sources` come from `expr`                                                         |
+  | `add_visibility`              | `field`, `showWhen` or `hideWhen` — renderer targets only                                                                                                         |
+  | `set_form`                    | `formName`                                                                                                                                                        |
+  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits                                                                             |
+
+  The server fills what it knows: the component by type, rule codes when a `message` is given,
+  `sources` from the expression, the target from the plan.
+
+- **`form_status`** `{dir?, skip?}` — the stages, the last build, the next call; `skip` drops a
+  stage the task does not need.
+
+A stage is done by the content of the intent, not by the model's word; `Done` needs a passing
+build on the current files with types checked.
+
 ---
 
 _A `debug` tool exists only when the server runs with `REFORMER_DEBUG=true`; ignore it in normal use._

@@ -1,0 +1,256 @@
+[
+  {
+    "name": "form_start",
+    "description": "Start a form: the server plans the stages of the work (fields, rows, steps, validation, reactions, markup) and saves the plan to <dir>/form.plan.json. Call it first, once per form. Then change the form only with form_edit — every answer ends with the exact next call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Form folder (default \"form\")."
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "core",
+            "renderer-react",
+            "renderer-json"
+          ],
+          "description": "The stack named in the task."
+        },
+        "task": {
+          "type": "string",
+          "description": "The task text, as given."
+        },
+        "specPath": {
+          "type": "string",
+          "description": "A markdown spec of the form, if the task has one: the server drafts the form from it."
+        },
+        "formName": {
+          "type": "string",
+          "description": "Form title in the language of the task."
+        }
+      },
+      "required": [
+        "target"
+      ]
+    }
+  },
+  {
+    "name": "form_edit",
+    "description": "Change the form with small edits; the server writes form.intent.json and builds the module (never write module files yourself). Edits are applied one by one: a rejected edit says how to fix it, the others still apply. \"edits\":[] just builds. Names, labels and texts come from the task.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Form folder (default \"form\")."
+        },
+        "edits": {
+          "type": "array",
+          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · markup (core: the server writes index.tsx)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "add_field",
+                  "set_field",
+                  "remove_field",
+                  "add_array",
+                  "add_item_field",
+                  "add_step",
+                  "place",
+                  "add_rule",
+                  "add_behavior",
+                  "add_visibility",
+                  "set_form",
+                  "markup"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "field": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "date"
+                ]
+              },
+              "component": {
+                "type": "string"
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "object"
+                  ]
+                }
+              },
+              "mask": {
+                "type": "string"
+              },
+              "placeholder": {
+                "type": "string"
+              },
+              "readonly": {
+                "type": "boolean"
+              },
+              "initialValue": {},
+              "step": {
+                "type": "string"
+              },
+              "array": {
+                "type": "string"
+              },
+              "minItems": {
+                "type": "number"
+              },
+              "maxItems": {
+                "type": "number"
+              },
+              "title": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "email": {
+                "type": "boolean"
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "minLength": {
+                "type": "number"
+              },
+              "maxLength": {
+                "type": "number"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "rule": {
+                "type": "string"
+              },
+              "cross": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "compute",
+                  "computeFrom",
+                  "copyFrom",
+                  "syncFields",
+                  "onChange",
+                  "enableWhen",
+                  "disableWhen",
+                  "resetWhen",
+                  "transformValue",
+                  "revalidateWhen",
+                  "exclusiveFlag",
+                  "aggregateInto"
+                ]
+              },
+              "target": {
+                "type": "string"
+              },
+              "expr": {
+                "type": "string"
+              },
+              "resetOnDisable": {
+                "type": "boolean"
+              },
+              "showWhen": {
+                "type": "string"
+              },
+              "hideWhen": {
+                "type": "string"
+              },
+              "formName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "op"
+            ]
+          }
+        }
+      },
+      "required": [
+        "edits"
+      ]
+    }
+  },
+  {
+    "name": "form_status",
+    "description": "The plan of the form: which stages are done, whether the last build passed, the next call. \"skip\" drops a stage the task does not need (validation, cross, behavior, arrays, wizard).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Form folder (default \"form\")."
+        },
+        "skip": {
+          "type": "string",
+          "enum": [
+            "arrays",
+            "wizard",
+            "validation",
+            "cross",
+            "behavior"
+          ]
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "form_build",
+    "description": "Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit; nothing is written while errors remain. Start with {\"grammar\":\"base\"} — the intent grammar, no project or file needed; further sections on demand. Keep the requested stack in \"target\": on core you also write the JSX markup in index.tsx.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string",
+          "description": "Form folder, relative to the working directory (default \"form\"; required at a monorepo root)."
+        },
+        "grammar": {
+          "type": "string",
+          "description": "Return the intent grammar instead of building: \"base\", a section (behavior, arrays, wizard, cross, async, parts, operators, nodes), several comma-separated, or \"all\"; \"components:Card,Tabs\" — parts and props of kit components."
+        }
+      },
+      "required": []
+    }
+  }
+]

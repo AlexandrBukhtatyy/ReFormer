@@ -221,7 +221,20 @@ function formComponentName(intent: FormIntent): string {
  * отдельный рендерер для JSON. Сборка одна на все таргеты: меняется только вид схемы (функция или
  * документ + `registry`) и то, кто рисует разметку.
  */
-export function buildAssemblyTsx(intent: FormIntent): string {
+/**
+ * Разметка core, написанная сервером, а не агентом: профиль guided пишет её операцией `markup`
+ * (`../guided/markup`). Без неё на core сборка печатает заготовку с подсказками и `return null`.
+ */
+export interface CoreMarkup {
+  /** Импорты сверх тех, что печатает сборка. */
+  readonly imports: readonly string[];
+  /** Код между импортами и компонентом формы: компоненты строк массивов. */
+  readonly helpers: readonly string[];
+  /** Тело компонента после `bundle` — от первой строки до `return (…);` включительно. */
+  readonly body: readonly string[];
+}
+
+export function buildAssemblyTsx(intent: FormIntent, coreMarkup?: CoreMarkup): string {
   const type = intent.interfaceName;
   const name = formComponentName(intent);
   const withSteps = collectSteps(intent.layoutRoot).length > 0;
@@ -250,7 +263,10 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   lines.push("import { formValidation } from './form.validation';");
   lines.push(`import { createFormModel, type ${type} } from './model';`);
   if (json) lines.push("import { createRegistry } from './registry';");
+  const markup = intent.target === 'core' ? coreMarkup : undefined;
+  if (markup) lines.push(...markup.imports);
   lines.push('');
+  if (markup && markup.helpers.length > 0) lines.push(...markup.helpers, '');
   if (json) {
     // Реестр создаётся один раз на модуль: это код приложения, а не данные формы.
     lines.push('const registry = createRegistry();');
@@ -274,7 +290,9 @@ export function buildAssemblyTsx(intent: FormIntent): string {
   lines.push('    })');
   lines.push('  );');
   lines.push('');
-  if (intent.target === 'core') {
+  if (markup) {
+    lines.push(...markup.body);
+  } else if (intent.target === 'core') {
     lines.push(...coreMarkupHints(intent, withSteps));
     lines.push('  return null;');
   } else {
@@ -1944,6 +1962,9 @@ const MESSAGES_ROLE =
   'словарь текстов замечаний (`defineIssueMessages`): код правила → текст; подключается ' +
   '`<ValidationMessagesProvider messages={…}>`';
 
+/** План профиля guided: этапы формы и их состояние (`../guided/plan`). */
+const PLAN_ROLE = 'план профиля guided: этапы сборки формы и последняя сборка';
+
 export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
   core: [
     { path: 'index.tsx', role: 'точка входа: сборка `createForm` и разметка в JSX' },
@@ -1966,6 +1987,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
       role: 'исходник формы для сборки: файлы с маркером сборки она пишет сама',
       optional: true,
     },
+    { path: 'form.plan.json', role: PLAN_ROLE, optional: true },
   ],
   'renderer-react': [
     { path: 'index.tsx', role: 'точка входа: сборка `createForm` и `FormRenderer`' },
@@ -1988,6 +2010,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
       role: 'исходник формы для сборки: файлы с маркером сборки она пишет сама',
       optional: true,
     },
+    { path: 'form.plan.json', role: PLAN_ROLE, optional: true },
   ],
   'renderer-json': [
     { path: 'index.tsx', role: 'точка входа: сборка `createForm` и `FormRenderer`' },
@@ -2010,6 +2033,7 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
       role: 'исходник формы для сборки: файлы с маркером сборки она пишет сама',
       optional: true,
     },
+    { path: 'form.plan.json', role: PLAN_ROLE, optional: true },
     { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },
   ],
 };

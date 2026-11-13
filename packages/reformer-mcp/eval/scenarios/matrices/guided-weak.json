@@ -1,0 +1,13 @@
+{
+  "description": "Профиль guided против bare и Code Mode на слабой модели: гипотеза «план от сервера и плоские правки доводят 4B до рабочей формы». По три повтора. План и итоги — docs/plans/lucky-popping-wall.md, docs/mcp-eval/guided.md.",
+  "agents": [
+    {
+      "kind": "ollama",
+      "model": "qwen3.5:4b"
+    }
+  ],
+  "approaches": ["bare", "code-mode", "guided"],
+  "scenarios": "L1-feedback,L1-login,L2-profile-json,L2-registration-lite,L3-delivery,L3-order-total,L4-contacts-array,L4-wizard-3steps,L5-loan",
+  "repeats": 3,
+  "concurrency": 1
+}

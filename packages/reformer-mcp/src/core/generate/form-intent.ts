@@ -18,6 +18,7 @@
 
 import { repairBehavior } from './behavior-repair.js';
 import { nameIgnoringCase } from './component-names.js';
+import { liftForeign, regexLiteral } from './intent-foreign.js';
 import { liftInline, rulesFromMap } from './intent-lift.js';
 import {
   INTENT_RECORDS,
@@ -660,7 +661,13 @@ export type IntentWarningCode =
   /** Правило на путь поля строки (`contacts.phone`) прочитано правилом каждой строки (`each`). */
   | 'each-lifted'
   /** Правило без проверок (`"rules": []`) — «правил нет»: запись отброшена. */
-  | 'rule-empty-dropped';
+  | 'rule-empty-dropped'
+  /** Метаключи корня (`version`, `$schema`, пустой `components`) — отброшены. */
+  | 'meta-dropped'
+  /** Шаги мастера списком в `wizard` — прочитаны как `steps`. */
+  | 'wizard-as-list'
+  /** JSON Schema вместо полей — поля и правила прочитаны из её `properties`. */
+  | 'json-schema-lifted';
 
 export interface IntentWarning {
   code: IntentWarningCode;
@@ -1477,6 +1484,64 @@ function readArray(
   };
 }
 
+const RULE_NAME_KEYS = ['name', 'rule', 'validator', 'type', 'code'] as const;
+const RULE_ARG_KEYS = ['args', 'arg', 'value', 'params'] as const;
+
+/** Аргумент вызова правила литералом TS. */
+function ruleArg(value: unknown): string {
+  return typeof value === 'string' ? `'${value.replace(/'/g, "\\'")}'` : JSON.stringify(value);
+}
+
+/**
+ * Правило, записанное объектом, — строкой вызова. Малая модель пишет `{ "min": 50000 }`,
+ * `{ "required": true }`, `{ "code": "required" }`, `{ "name": "minLength", "args": [2] }`
+ * (корпус qwen3.5:4b, ReFormer-f2fs.5). Имя и аргументы здесь однозначны; запись, где они не
+ * однозначны, остаётся отказом `readStrings`.
+ */
+export function ruleFromRecord(item: Record<string, unknown>): string | null {
+  const keys = Object.keys(item);
+  const nameKey = RULE_NAME_KEYS.find((key) => typeof item[key] === 'string');
+  if (nameKey) {
+    const name = String(item[nameKey]).trim();
+    const extra = keys.filter((key) => key !== nameKey);
+    // Имя уже записано вызовом: `{ "code": "maxLength(100)" }`.
+    if (extra.length === 0 && /^[A-Za-z_$][\w$]*\([\s\S]*\)$/.test(name)) return name;
+    if (!/^[A-Za-z_$][\w$]*$/.test(name)) return null;
+    if (extra.some((key) => !(RULE_ARG_KEYS as readonly string[]).includes(key))) return null;
+    const argKey = RULE_ARG_KEYS.find((key) => item[key] !== undefined);
+    const args = argKey === undefined ? [] : asList(item[argKey]);
+    return `${name}(${args.map(ruleArg).join(', ')})`;
+  }
+  if (keys.length !== 1 || !/^[A-Za-z_$][\w$]*$/.test(keys[0])) return null;
+  const [name] = keys;
+  const value = item[name];
+  if (value === true) return `${name}()`;
+  if (typeof value === 'number') return `${name}(${value})`;
+  if (name === 'pattern' && typeof value === 'string') return `pattern(${regexLiteral(value)})`;
+  return null;
+}
+
+/** Правила-объекты списка — строками вызова, с предупреждением `value-coerced`. */
+function coerceRules(value: unknown, at: string, ctx: ReadCtx): unknown {
+  if (value === undefined) return value;
+  let coerced = 0;
+  const list = asList(value).map((item) => {
+    if (!isRecord(item)) return item;
+    const rule = ruleFromRecord(item);
+    if (rule === null) return item;
+    coerced += 1;
+    return rule;
+  });
+  if (coerced === 0) return value;
+  warn(
+    ctx,
+    'value-coerced',
+    `${coerced} rules at \`${at}\` were objects — read as calls: ${list.filter((r) => typeof r === 'string').join(', ')}.`,
+    at
+  );
+  return list;
+}
+
 /**
  * Строки списка (`rules`, `sources`): строка как есть, запись — по одному ключу имени. Запись с
  * чем-то ещё (`{ "name": "minLength", "args": [2] }`) — проблема: имя из неё взялось бы, а
@@ -1574,7 +1639,7 @@ function readValidationRule(raw: unknown, at: string, ctx: ReadCtx): ValidationR
     return null;
   }
 
-  const written = take(raw, 'rules', ['rule', 'validators', 'checks'], ctx);
+  const written = coerceRules(take(raw, 'rules', ['rule', 'validators', 'checks'], ctx), at, ctx);
   const rules = readStrings(written, `${at}.rules`, ctx, 'a validator call: "minLength(2)"');
   const async = takeName(raw, 'async', ['asyncValidator', 'asyncRule'], ctx, at);
   const cross = takeName(raw, 'cross', ['crossCheck', 'check'], ctx, at);
@@ -2300,7 +2365,9 @@ export function readIntent(raw: unknown, options: ReadIntentOptions = {}): Inten
     );
     source = {};
   }
-  const canonical = liftInline(source as Record<string, unknown>);
+  const foreign = liftForeign(source as Record<string, unknown>);
+  ctx.warnings.push(...foreign.notes);
+  const canonical = liftInline(foreign.source);
   const src = canonical.source;
   ctx.warnings.push(...canonical.notes);
   ctx.problems.push(...canonical.problems);

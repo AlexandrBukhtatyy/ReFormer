@@ -110,6 +110,9 @@ sidebar_position: 3.5
 | `steps-ignored`            | `steps` рядом с `layoutRoot` — раскладка из `layoutRoot`, `steps` не читаются        |
 | `each-lifted`              | Правило на путь поля строки — прочитано правилом каждой строки (`each`)              |
 | `rule-empty-dropped`       | Правило без проверок (`"rules": []`) — отброшено                                     |
+| `meta-dropped`             | Ключи без формы (`version`, `$schema`, пустой `components`, `intent`) — отброшены    |
+| `wizard-as-list`           | Шаги списком в `wizard` — прочитаны как `steps`                                      |
+| `json-schema-lifted`       | JSON Schema вместо полей — поля и правила прочитаны из её `properties`               |
 
 ## Судья
 
