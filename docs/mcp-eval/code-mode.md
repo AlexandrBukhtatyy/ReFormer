@@ -1,6 +1,7 @@
 # Code Mode на слабой модели: было и стало
 
-> Замер 2026-11-12/13, ветка `feat/mcp-code-mode`, задача `ReFormer-gi02`. Разведка (N=1 на
+> Замер 2026-11-12/13, ветка `feat/mcp-code-mode`, задача `ReFormer-gi02`. План —
+> [docs/plans/harmonic-drifting-brooks.md](../plans/harmonic-drifting-brooks.md). Разведка (N=1 на
 > ячейку), а не оценка.
 
 ## Что проверяли
