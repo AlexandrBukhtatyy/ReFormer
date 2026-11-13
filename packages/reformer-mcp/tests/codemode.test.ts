@@ -1,6 +1,7 @@
 /**
  * Code Mode (эксперимент, `REFORMER_SURFACE=code`): объявление API из `tools/list`, инструмент
- * `run_script`, каталог в этом режиме и песочница QuickJS.
+ * `run_script`, каталог в этом режиме и песочница QuickJS — по общему контракту
+ * (`./sandbox-contract`; браузерная песочница проверяется им же в `*.browser.test.ts`).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -15,6 +16,7 @@ import {
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
 import { createQuickJsSandbox } from '../src/platform/cli/quickjs-sandbox';
+import { describeSandboxContract } from './sandbox-contract';
 
 describe('объявление API', () => {
   it('имя функции — инструмент в camelCase', () => {
@@ -142,37 +144,9 @@ describe('каталог в режиме Code Mode', () => {
   });
 });
 
-describe('песочница QuickJS', () => {
-  const sandbox = createQuickJsSandbox({ timeoutMs: 3000, cpuSliceMs: 500 });
-  const echo = async (args: unknown) => `echo ${JSON.stringify(args)}`;
-
-  it('TypeScript, вывод и возвращённое значение', async () => {
-    const outcome = await sandbox.run(
-      'const a: string = await reformer.echo({ x: 1 }); console.log(a); return { n: 2 }',
-      { echo }
-    );
-    expect(outcome.logs).toEqual(['echo {"x":1}']);
-    expect(outcome.returned).toContain('"n": 2');
-    expect(outcome.error).toBeUndefined();
-  });
-
-  it('нет require, process, fetch и таймеров', async () => {
-    const outcome = await sandbox.run(
-      'console.log(typeof require, typeof process, typeof fetch, typeof setTimeout)',
-      {}
-    );
-    expect(outcome.logs).toEqual(['undefined undefined undefined undefined']);
-  });
-
-  it('бесконечный цикл и вечный промис прерываются', async () => {
-    expect((await sandbox.run('while (true) {}', {})).error).toMatch(/interrupted/);
-    expect((await sandbox.run('await new Promise(() => {})', {})).error).toMatch(/did not finish/);
-  });
-
-  it('исключение скрипта — ошибка со строкой', async () => {
-    expect((await sandbox.run('\nthrow new Error("boom")', {})).error).toBe('Error: boom (line 2)');
-  });
-});
+describeSandboxContract('QuickJS', () =>
+  createQuickJsSandbox({ timeoutMs: 3000, cpuSliceMs: 500 })
+);
 
 describe('стенд Ollama: что держится целиком', () => {
   it('скрипт со сборкой — как ответ form_build, справочный скрипт — нет', () => {

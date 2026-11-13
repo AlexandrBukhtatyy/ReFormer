@@ -174,6 +174,10 @@ export function createQuickJsSandbox(options: QuickJsSandboxOptions = {}): Scrip
             stripped = null;
           }
           if (stripped !== null) {
+            // Снятие типов — работа хоста (первый раз ещё и загрузка `typescript`), а не скрипта:
+            // квант непрерывного исполнения начинается заново, иначе под нагрузкой повтор
+            // прерывался бы, не начавшись.
+            resume();
             const retried = evaluate(stripped);
             if (!retried.error) {
               evaluated.error.dispose();

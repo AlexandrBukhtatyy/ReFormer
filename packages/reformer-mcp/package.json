@@ -31,6 +31,7 @@
     "start": "node dist/index.js",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch",
+    "test:browser": "node ../../scripts/run-vitest.mjs -c vitest.browser.config.ts",
     "check:packaging": "node scripts/check-packaging.mjs",
     "typecheck:tests": "tsc -p tests/tsconfig.json"
   },
@@ -87,6 +88,8 @@
     }
   },
   "devDependencies": {
+    "@vitest/browser": "^4.0.15",
+    "@vitest/browser-playwright": "^4.0.15",
     "esbuild": "^0.27.1",
     "fast-check": "^4.10.2",
     "tsx": "^4.19.2",
