@@ -8,6 +8,8 @@
  * и тёмной теме. Подписи значений у баров + таблицы под графиками — данные не только цветом.
  */
 import { HEADLINE, NOTES } from './metrics.mjs';
+import { DRIFT_THRESHOLD, RUN_DRIFT_SHARE, describeFlags, pct, pctAbs } from './calibration.mjs';
+import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
 
 const esc = (s) =>
   String(s).replace(
@@ -122,17 +124,191 @@ function table(headers, rows) {
     .join('')}</tbody></table></div>`;
 }
 
+const FORM_TITLES = { registration: 'регистрация с капчей', credit: 'кредитная заявка' };
+
+/** Раздел калибровки скорости машины: сессии, сноска о дрейфе, по участникам и порядку прогонов. */
+function calibrationSection(summary, labels) {
+  const out = ['<section><h2>Калибровка скорости машины</h2>'];
+  if (!summary.calibration) {
+    out.push(
+      '<p class="muted">В прогонах нет калибровки (сняты до её появления): дрейф скорости машины не измерен.</p></section>'
+    );
+    return out.join('');
+  }
+  const label = (l) =>
+    (labels[l] ?? (l === 'reformer-core-aa' ? 'ReFormer core A/A' : l)).replace(/_/g, '');
+  const t = pctAbs(DRIFT_THRESHOLD, 0);
+  out.push(
+    `<p class="muted">В начале и в конце каждого прогона — одна и та же детерминированная JS-нагрузка на пустой странице той же вкладки, под тем же троттлингом, вне окон замера. Её время — мера скорости машины в момент прогона (значение прогона — среднее начала и конца). Числа отчёта ею не нормируются; сравнение отчётов разных сессий с нормировкой — <code>npm run bench:compare</code>. Порог сноски — ${t}: вдвое больше типичного разброса метрик между прогонами (≈ 5 %), при собственном шуме калибровки на тихой машине 1–3 %; дрейф внутри прогона — если порог превышен больше чем в ${pctAbs(RUN_DRIFT_SHARE, 0)} прогонов.</p>`
+  );
+  const rows = [];
+  const notes = [];
+  for (const f of summary.forms) {
+    for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {})) {
+      rows.push([
+        `${esc(FORM_TITLES[f.form] ?? f.form)}${c.flags.length ? ' <span class="warn">⚠</span>' : ''}<br><span class="muted">${esc(f.runId)}</span>`,
+        `${cpu}x`,
+        c.n,
+        fmt(c.median, 'мс'),
+        pctAbs(c.spread),
+        pct(c.trend),
+        `${pct(c.runDrift.median)} / ${pctAbs(c.runDrift.maxAbs)}`,
+      ]);
+      if (c.flags.length)
+        notes.push(`${FORM_TITLES[f.form] ?? f.form}, CPU ${cpu}x: ${describeFlags(c).join('; ')}`);
+    }
+  }
+  for (const [cpu, c] of Object.entries(summary.calibration.byCpu)) {
+    if (c.flags.length) notes.push(`весь отчёт, CPU ${cpu}x: ${describeFlags(c).join('; ')}`);
+    if (Object.keys(c.formMedians).length < 2) continue;
+    rows.push([
+      `<strong>весь отчёт</strong>${c.flags.length ? ' <span class="warn">⚠</span>' : ''}`,
+      `${cpu}x`,
+      c.n,
+      fmt(c.median, 'мс'),
+      pctAbs(c.spread),
+      '—',
+      '—',
+    ]);
+  }
+  out.push(
+    table(
+      [
+        'Сессия',
+        'CPU',
+        'Прогонов',
+        'Медиана, мс',
+        'Разброс p10–p90',
+        'Первая → последняя итерация',
+        'Дрейф в прогоне: медиана / max',
+      ],
+      rows
+    )
+  );
+  out.push(
+    notes.length
+      ? `<p class="warn">Дрейф скорости машины больше порога ${t}: ${esc(notes.join('. '))}. Абсолютные числа таких сессий менее надёжны; сравнение с другими отчётами — только с нормировкой.</p>`
+      : `<p class="muted">Дрейф в пределах порога ${t}.</p>`
+  );
+  for (const f of summary.forms) {
+    for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {})) {
+      const libs = Object.keys(c.libs);
+      if (!libs.length) continue;
+      const row = (name, get) => [esc(name), ...libs.map((l) => get(c.libs[l]))];
+      out.push(
+        `<details><summary>${esc(FORM_TITLES[f.form] ?? f.form)}, CPU ${cpu}x: по участникам и порядку прогонов</summary>`
+      );
+      out.push(
+        table(
+          ['', ...libs.map(label)],
+          [
+            row('Медиана калибровки, мс', (x) => fmt(x.median, 'мс')),
+            row('К медиане сессии', (x) => pct(x.vsSession)),
+            row('Начало прогона, мс', (x) => fmt(x.start, 'мс')),
+            row('Конец прогона, мс', (x) => fmt(x.end, 'мс')),
+            row('Дрейф в прогоне, медиана', (x) => pct(x.drift)),
+            row('Дрейф в прогоне, наибольший по модулю', (x) => pctAbs(x.driftMaxAbs)),
+          ]
+        )
+      );
+      out.push(
+        '<p class="muted">По порядку прогонов: калибровка прогона, мс; ниже — дрейф от начала к концу прогона.</p>'
+      );
+      out.push(
+        table(
+          ['Итерация', ...libs.map(label), 'Медиана'],
+          c.iterations.map((it) => [
+            `${it.iteration + 1}${it.warmup ? ' <span class="muted">(прогрев)</span>' : ''}`,
+            ...libs.map((l) => {
+              const x = it.cells[l];
+              return x
+                ? `${fmt(x.value, 'мс')}<br><span class="muted">${pct(x.drift, 0)}</span>`
+                : '—';
+            }),
+            fmt(it.median, 'мс'),
+          ])
+        )
+      );
+      out.push('</details>');
+    }
+  }
+  out.push('</section>');
+  return out.join('\n');
+}
+
+/** Раздел фоновой нагрузки: по сессиям — чужие ядра, GPU, «грязные» прогоны, тяжёлые соседи. */
+function backgroundSection(summary) {
+  const out = ['<section><h2>Фоновая нагрузка</h2>'];
+  if (!summary.forms.some((f) => f.background)) {
+    out.push(
+      '<p class="muted">В прогонах нет замеров фоновой нагрузки (сняты до их появления).</p></section>'
+    );
+    return out.join('');
+  }
+  out.push(
+    `<p class="muted">В начале и в конце каждого прогона — снимок процессов: доля CPU процесса за прогон по приращению его CPU-времени, дерево бенча исключено; на macOS — загрузка GPU в точках замера. Прогон «грязный», если занят тяжёлый сосед (Ollama, чужие браузеры автоматизации, сборки и тесты, десктопные браузеры, Docker/VM, любой процесс от 20 % ядра, GPU) или чужая нагрузка от одного ядра. Сессия помечается, если грязных прогонов больше ${pctAbs(DIRTY_SHARE, 0)}. Проверка машины перед прогоном — <code>npm run bench:idle-check</code>.</p>`
+  );
+  const rows = summary.forms.map((f) => {
+    const bg = f.background;
+    const title = `${esc(FORM_TITLES[f.form] ?? f.form)}${bg?.flags.length ? ' <span class="warn">⚠</span>' : ''}<br><span class="muted">${esc(f.runId)}</span>`;
+    if (!bg?.n) return [title, '—', '—', '—', '—', '—'];
+    return [
+      title,
+      bg.n,
+      `${fmt(bg.foreignCores.median, '')} / ${fmt(bg.foreignCores.max, '')}`,
+      bg.gpu ? `${bg.gpu.median.toFixed(0)} / ${bg.gpu.max.toFixed(0)}` : '—',
+      fmt(bg.ownCores, ''),
+      `${bg.dirtyRuns} из ${bg.n}`,
+    ];
+  });
+  out.push(
+    table(
+      [
+        'Сессия',
+        'Прогонов',
+        'Чужая нагрузка, ядер: медиана / max',
+        'GPU, %: медиана / max',
+        'Бенч сам, ядер',
+        '«Грязных» прогонов',
+      ],
+      rows
+    )
+  );
+  for (const f of summary.forms) {
+    const bg = f.background;
+    if (!bg?.n || !bg.neighbours.length) continue;
+    out.push(
+      `<p class="muted">Тяжёлые соседи, ${esc(FORM_TITLES[f.form] ?? f.form)}:</p><ul>${bg.neighbours.map((n) => `<li>${esc(neighbourText(n, bg.n))}</li>`).join('')}</ul>`
+    );
+  }
+  const flagged = summary.forms.filter((f) => f.background?.flags.length);
+  out.push(
+    flagged.length
+      ? `<p class="warn">Фоновая нагрузка выше порога: ${esc(flagged.map((f) => `${FORM_TITLES[f.form] ?? f.form} — ${describeBackgroundFlags(f.background)}`).join('. '))}. Калибровка (чистый JS) нагрузку на GPU и память почти не видит — нормировка такие сессии не выправляет.</p>`
+      : '<p class="muted">Фоновая нагрузка в пределах порога.</p>'
+  );
+  out.push('</section>');
+  return out.join('\n');
+}
+
 export function renderHtml(summary, labels) {
   const out = [];
   const env = summary.forms[0]?.env;
   for (const f of summary.forms) {
     const libs = f.libs;
-    out.push(
-      `<section><h2>Форма: ${f.form === 'registration' ? 'регистрация с капчей' : 'кредитная заявка'}</h2>`
-    );
+    out.push(`<section><h2>Форма: ${FORM_TITLES[f.form] ?? f.form}</h2>`);
     if (f.failures.length)
       out.push(
         `<p class="warn">Неудачных прогонов: ${f.failures.length} — не входят в статистику.</p>`
+      );
+    for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {}))
+      if (c.flags.length)
+        out.push(
+          `<p class="warn">CPU ${cpu}x: скорость машины в этой сессии менялась больше порога ${pctAbs(DRIFT_THRESHOLD, 0)} — ${esc(describeFlags(c).join('; '))}. Абсолютные числа менее надёжны, см. «Калибровка скорости машины».</p>`
+        );
+    if (f.background?.flags.length)
+      out.push(
+        `<p class="warn">Фоновая нагрузка: ${esc(describeBackgroundFlags(f.background))}. Числа этой сессии шумные и несравнимы с прогонами на тихой машине, см. «Фоновая нагрузка».</p>`
       );
     for (const cpu of f.cpus) {
       out.push(`<h3>Ключевые метрики, CPU ${cpu}x</h3><div class="grid">`);
@@ -199,6 +375,9 @@ export function renderHtml(summary, labels) {
     }
     out.push('</section>');
   }
+
+  out.push(calibrationSection(summary, labels));
+  out.push(backgroundSection(summary));
 
   if (summary.bundle) {
     out.push('<section><h2>Размер бандла</h2><div class="grid">');

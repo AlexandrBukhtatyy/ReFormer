@@ -133,6 +133,24 @@ export const METRICS = {
   ],
 };
 
+/**
+ * Метрики чистого CPU-времени main thread: время кода и вёрстки без таймеров, сети и ожидания
+ * кадра. Их масштаб следует за скоростью машины почти пропорционально, поэтому по ним
+ * `bench:compare` строит индекс скорости по baseline и сводку по участникам. У остальных метрик в
+ * мс (готовность, FCP, «UI затих», «до кадра», TBT) нормировка приблизительна: debounce, задержка
+ * fake API и кадры от CPU не зависят, а TBT считает только часть задачи сверх 50 мс.
+ */
+export const CPU_TIME_METRICS = new Set([
+  'script',
+  'scriptPerKey',
+  'layoutPerKey',
+  'layout',
+  'keyProc',
+  'keyProcP95',
+  'mountSync',
+  'scriptPerCycle',
+]);
+
 function slope(points, key) {
   if (!points || points.length < 2) return null;
   const xs = points.map((p) => p.i);

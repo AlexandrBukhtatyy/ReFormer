@@ -1,32 +1,42 @@
 #!/usr/bin/env node
 /**
- * Отчёт бенчмарка: results/<run>/phases.ndjson (+ отчёты бандла и кода приложения) →
- * results/_reports/<stamp>/{summary.json, report.md, report.html}.
+ * Отчёт бенчмарка: results/<run>/{phases,runs}.ndjson (+ отчёты бандла и кода приложения) →
+ * results/_reports/<stamp>/{summary.json, report.md, report.html}. Свёртка прогонов — aggregate.mjs.
  *
  * Как читаются числа (BENCH-CONTRACT §7): прогон уже свёрнут (метрики в metrics.mjs), по прогонам —
  * медиана и IQR; отношение к лучшему в строке; значимость против ReFormer core — Mann–Whitney U с
- * поправкой Holm по всем сравнениям; различие меньше шума A/A-пары не считается различием.
+ * поправкой Holm по всем сравнениям; различие меньше шума A/A-пары не считается различием. Числа —
+ * сырые мс сессии; калибровка скорости машины (calibration.mjs) показывается отдельным разделом и
+ * их не нормирует — нормировка только при сравнении отчётов (compare.mjs).
  *
  * Опции: --runs <dir>[,<dir>] (по умолчанию — последний прогон каждой формы), --publish (копия в
  * docs/benchmarks/forms/).
  */
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { describe, holm, mannWhitney, median, ratioCI } from './stats.mjs';
-import { HEADLINE, METRICS, NOTES, PHASES } from './metrics.mjs';
+import { holm } from './stats.mjs';
+import { HEADLINE, NOTES } from './metrics.mjs';
 import { renderHtml } from './report-html.mjs';
+import {
+  COMPARE_TO,
+  CONTROL,
+  LIB_ORDER,
+  aggregate,
+  e2eDir,
+  latestRuns,
+  resolveRuns,
+  resultsDir,
+} from './aggregate.mjs';
+import {
+  DRIFT_THRESHOLD,
+  RUN_DRIFT_SHARE,
+  describeFlags,
+  pct,
+  pctAbs,
+  reportCalibration,
+} from './calibration.mjs';
+import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const e2eDir = path.resolve(here, '..');
-const resultsDir = path.join(e2eDir, 'results');
 const appDist = path.resolve(e2eDir, '../forms-benchmark/dist');
 const repoRoot = path.resolve(e2eDir, '../..');
 
@@ -36,144 +46,14 @@ const argValue = (name) => {
   return i === -1 ? undefined : args[i + 1];
 };
 
-const LIB_ORDER = ['reformer-core', 'reformer-json', 'formik', 'rhf', 'rjsf', 'baseline'];
-const COMPARE_TO = 'reformer-core';
-const CONTROL = 'reformer-core-aa';
-
-// ── Выбор прогонов ───────────────────────────────────────────────────────────
-function pickRuns() {
-  const explicit = argValue('--runs');
-  if (explicit) return explicit.split(',').map((d) => path.resolve(resultsDir, d));
-  const dirs = existsSync(resultsDir)
-    ? readdirSync(resultsDir).filter(
-        (d) => /_[a-z]+_[0-9a-z]+$/.test(d) && existsSync(path.join(resultsDir, d, 'phases.ndjson'))
-      )
-    : [];
-  const latest = {};
-  for (const d of dirs.sort()) latest[d.split('_')[1]] = d;
-  return Object.values(latest).map((d) => path.join(resultsDir, d));
-}
-
-const readNdjson = (file) =>
-  existsSync(file)
-    ? readFileSync(file, 'utf8')
-        .split('\n')
-        .filter(Boolean)
-        .map((l) => JSON.parse(l))
-    : [];
-
-const runs = pickRuns();
+// ── Выбор прогонов и свёртка ─────────────────────────────────────────────────
+const explicit = argValue('--runs');
+const runs = explicit ? resolveRuns(explicit) : latestRuns();
 if (!runs.length) {
   console.error('нет прогонов в results/ — сначала npm run bench');
   process.exit(1);
 }
-
-// ── Агрегация ────────────────────────────────────────────────────────────────
-const forms = [];
-const comparisons = []; // для Holm: { ref, p }
-
-for (const dir of runs) {
-  const env = JSON.parse(readFileSync(path.join(dir, 'env.json'), 'utf8'));
-  const phases = readNdjson(path.join(dir, 'phases.ndjson'));
-  const runLog = readNdjson(path.join(dir, 'runs.ndjson'));
-  const form = env.form;
-  const libsPresent = [...new Set(phases.map((p) => p.lib))];
-  const libs = LIB_ORDER.filter((l) => libsPresent.includes(l));
-  const cpus = [...new Set(phases.filter((p) => p.mode === 'timing').map((p) => p.cpu))].sort();
-
-  const failures = runLog.filter((r) => !r.ok);
-  const formOut = { form, runId: env.runId, env, libs, cpus, failures, sections: [], renders: [] };
-
-  for (const cpu of cpus) {
-    for (const phase of PHASES[form] ?? []) {
-      const metrics = METRICS[phase.kind].filter((m) => !m.only || m.only.includes(phase.id));
-      const section = { cpu, phase: phase.id, title: phase.title, kind: phase.kind, rows: [] };
-      for (const metric of metrics) {
-        const values = {};
-        for (const lib of [...libs, CONTROL]) {
-          values[lib] = phases
-            .filter(
-              (p) => p.mode === 'timing' && p.cpu === cpu && p.phase === phase.id && p.lib === lib
-            )
-            .map((p) => {
-              try {
-                return metric.get(p);
-              } catch {
-                return null;
-              }
-            })
-            .filter((v) => v !== null && v !== undefined && Number.isFinite(v));
-        }
-        const stats = Object.fromEntries(
-          Object.entries(values).map(([lib, v]) => [lib, describe(v)])
-        );
-        const contenders = libs.filter((l) => l !== 'baseline' && stats[l].n > 0);
-        if (!contenders.length) continue;
-        const best = contenders.reduce((a, b) => (stats[b].median < stats[a].median ? b : a));
-        const cells = {};
-        for (const lib of libs) {
-          const s = stats[lib];
-          if (!s.n) continue;
-          const ratio = stats[best].median ? s.median / stats[best].median : null;
-          cells[lib] = {
-            ...s,
-            ratio,
-            ratioCI: lib === best ? null : ratioCI(values[lib], values[best]),
-          };
-        }
-        // Шум A/A: насколько расходятся две одинаковые сборки ReFormer core.
-        const noise =
-          stats[CONTROL]?.n && stats[COMPARE_TO]?.n && stats[COMPARE_TO].median
-            ? Math.abs(Math.log(stats[CONTROL].median / stats[COMPARE_TO].median))
-            : null;
-        const row = {
-          metric: metric.id,
-          label: metric.label,
-          unit: metric.unit,
-          best,
-          noise,
-          cells,
-        };
-        if (values[COMPARE_TO]?.length) {
-          for (const lib of contenders.filter((l) => l !== COMPARE_TO)) {
-            const p = mannWhitney(values[lib], values[COMPARE_TO]);
-            const ref = { form, cpu, phase: phase.id, metric: metric.id, lib, p, adj: null };
-            comparisons.push(ref);
-            cells[lib].vsCore = ref;
-          }
-        }
-        section.rows.push(row);
-      }
-      section.apiCalls = apiCallsIfDiffer(phases, cpu, phase.id, libs);
-      if (section.rows.length) formOut.sections.push(section);
-    }
-  }
-
-  // Рендеры: один проход на участника (CPU 1x).
-  for (const phase of PHASES[form] ?? []) {
-    const row = { phase: phase.id, title: phase.title, kind: phase.kind, cells: {} };
-    for (const lib of libs) {
-      const rec = phases.find((p) => p.mode === 'renders' && p.phase === phase.id && p.lib === lib);
-      if (!rec?.renders) continue;
-      const keys = rec.keys?.proc?.length ?? 0;
-      const executions = Object.values(rec.renders.primitiveExecutions ?? {}).reduce(
-        (a, b) => a + b,
-        0
-      );
-      row.cells[lib] = {
-        commits: rec.renders.commits,
-        components: rec.renders.components,
-        primitives: rec.renders.primitives,
-        executions,
-        keys,
-        perKey: keys ? rec.renders.components / keys : null,
-        perMount: phase.kind === 'remount' && rec.count ? rec.renders.components / rec.count : null,
-      };
-    }
-    if (Object.keys(row.cells).length) formOut.renders.push(row);
-  }
-  forms.push(formOut);
-}
+const { forms, comparisons } = aggregate(runs);
 
 // Holm по всем сравнениям отчёта.
 const adjusted = holm(comparisons.map((c) => c.p));
@@ -195,40 +75,11 @@ const summary = {
   generatedAt: new Date().toISOString(),
   runs: runs.map((r) => path.basename(r)),
   forms,
+  /** Калибровка скорости машины по всему отчёту (формы обычно мерятся в разных сессиях). */
+  calibration: reportCalibration(forms),
   bundle,
   code,
 };
-
-/**
- * Запросы к fake API за фазу по участникам — только если они различаются: тогда часть работы
- * (и её время) у кого-то перенесена в другую фазу, и это видно под таблицей. У участника берётся
- * самый частый набор вызовов по его прогонам.
- */
-function apiCallsIfDiffer(phases, cpu, phaseId, libs) {
-  const byLib = {};
-  for (const lib of libs.filter((l) => l !== 'baseline')) {
-    const sigs = phases
-      .filter(
-        (p) =>
-          p.mode === 'timing' && p.cpu === cpu && p.phase === phaseId && p.lib === lib && p.apiCalls
-      )
-      .map((p) =>
-        JSON.stringify(
-          Object.entries(p.apiCalls)
-            .filter(([, n]) => n > 0)
-            .sort()
-        )
-      );
-    if (!sigs.length) continue;
-    const counts = new Map();
-    for (const s of sigs) counts.set(s, (counts.get(s) ?? 0) + 1);
-    byLib[lib] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  }
-  if (new Set(Object.values(byLib)).size <= 1) return null;
-  return Object.fromEntries(
-    Object.entries(byLib).map(([lib, s]) => [lib, Object.fromEntries(JSON.parse(s))])
-  );
-}
 
 function formatCalls(calls) {
   const entries = Object.entries(calls);
@@ -244,6 +95,9 @@ const LABELS = {
   rjsf: 'RJSF',
   baseline: '_baseline_',
 };
+/** Подписи участников в калибровке: там есть и A/A-копия — она тоже занимает место в порядке. */
+const calLabel = (lib) => (lib === CONTROL ? 'ReFormer core A/A' : (LABELS[lib] ?? lib));
+const FORM_TITLES = { registration: 'регистрация с капчей', credit: 'кредитная заявка' };
 
 function fmt(v, unit) {
   if (v === null || v === undefined || !Number.isFinite(v)) return '—';
@@ -314,6 +168,7 @@ push(
   '- `×1.42` — во сколько раз хуже лучшего участника в строке; лучший выделен **жирным**.',
   '- `▲` / `▼` — значимо хуже / лучше ReFormer core: точный Mann–Whitney U (перестановочное распределение), поправка Holm по всем сравнениям отчёта, p < 0.05, и разница больше шума A/A (две одинаковые сборки ReFormer core). Без значка — различие не доказано.',
   '- _baseline_ — та же разметка без библиотеки форм: нижняя граница стоимости.',
+  '- Числа — сырые миллисекунды этой сессии, без нормировки. Скорость машины в сессии и её дрейф — раздел «Калибровка скорости машины»; сравнение с отчётом другой сессии — `npm run bench:compare`.',
   '- Методика и правила честности: `projects/forms-benchmark/BENCH-CONTRACT.md`; поведение всех реализаций проверено conformance-тестами до замеров.',
   ''
 );
@@ -322,10 +177,23 @@ for (const f of forms) {
   const libs = f.libs;
   const header = `| Метрика | ${libs.map((l) => LABELS[l] ?? l).join(' | ')} |`;
   const sep = `|---|${libs.map(() => '---:').join('|')}|`;
-  push(`## Форма: ${f.form === 'registration' ? 'регистрация с капчей' : 'кредитная заявка'}`, '');
+  push(`## Форма: ${FORM_TITLES[f.form] ?? f.form}`, '');
   if (f.failures.length) {
     push(
       `> ⚠️ Неудачных прогонов: ${f.failures.length} — они не входят в статистику (см. runs.ndjson).`,
+      ''
+    );
+  }
+  for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {})) {
+    if (!c.flags.length) continue;
+    push(
+      `> ⚠️ CPU ${cpu}x: скорость машины в этой сессии менялась больше порога ${pctAbs(DRIFT_THRESHOLD, 0)} — ${describeFlags(c).join('; ')}. Абсолютные числа менее надёжны, см. «Калибровка скорости машины».`,
+      ''
+    );
+  }
+  if (f.background?.flags.length) {
+    push(
+      `> ⚠️ Фоновая нагрузка: ${describeBackgroundFlags(f.background)}. Числа этой сессии шумные и несравнимы с прогонами на тихой машине, см. «Фоновая нагрузка».`,
       ''
     );
   }
@@ -390,6 +258,9 @@ for (const f of forms) {
   }
 }
 
+pushCalibration();
+pushBackground();
+
 if (bundle) {
   push(
     '## Размер бандла',
@@ -441,10 +312,160 @@ push(
   '- Троттлинг CPU в Chromium замедляет только main thread: парсинг и компиляция вне основного потока, GC и растеризация не замедляются — стоимость больших бандлов занижена.',
   '- «Клавиша → конец кадра» квантуется частотой кадров; для сравнения точнее «клавиша → конец обработки» и CPU-время на клавишу.',
   '- Одна машина и один браузер; результаты на другом железе отличаются по абсолютным значениям.',
-  '- Абсолютные значения разных сессий несравнимы даже на одной машине: у baseline (тот же код) они расходились до 1.6× между прогонами одного дня при одинаковой фоновой нагрузке (частота и тепловой режим CPU). Сравнивайте отношения внутри одного отчёта; участники в прогоне чередуются в перемешанном порядке, поэтому дрейф ложится на всех одинаково.',
+  '- Фоновая нагрузка на машине (раздел «Фоновая нагрузка») меняет числа сильнее, чем видит калибровка: инференс LLM, чужие браузеры и сборки конкурируют за GPU, память и композитор. Её снимок — только CPU-время процессов и моментальная загрузка GPU в начале и конце прогона; процессы, завершившиеся за прогон, не видны.',
+  '- Абсолютные значения разных сессий напрямую несравнимы даже на одной машине: у baseline (тот же код) они расходились до 1.6× между прогонами одного дня при одинаковой фоновой нагрузке (частота и тепловой режим CPU). Поэтому в начале и в конце каждого прогона идёт калибровочная нагрузка: раздел «Калибровка скорости машины» показывает дрейф внутри сессии, а `npm run bench:compare` сравнивает два отчёта и в сырых миллисекундах, и с нормировкой по калибровке. Нормировка приблизительна: метрики с таймерами, сетью и кадрами зависят от скорости CPU лишь частично, а частота меняет разные виды работы неодинаково. Внутри одного отчёта сравнивайте отношения: участники в прогоне чередуются в перемешанном порядке, поэтому дрейф ложится на всех одинаково.',
   '- Реализации конкурентов написаны по официальной документации независимо от кода ReFormer; отклонения каждой — в `projects/forms-benchmark/src/libs/<lib>/README.md`.',
   ''
 );
+
+// ── Калибровка скорости машины ───────────────────────────────────────────────
+function pushCalibration() {
+  push('## Калибровка скорости машины', '');
+  const total = summary.calibration;
+  if (!total) {
+    push(
+      '_В прогонах нет калибровки (сняты до её появления, ReFormer-q6ny): дрейф скорости машины не измерен._',
+      ''
+    );
+    return;
+  }
+  const workload = forms.find((f) => f.env.calibration?.workload)?.env.calibration.workload;
+  push(
+    `В начале и в конце каждого прогона — одна и та же детерминированная JS-нагрузка${workload ? ` \`${workload.id}\` (${workload.reps} повторов после ${workload.warmup} прогревочных, медиана)` : ''}: объекты полей, строки, regex, мелкие сортировки, spread-копии состояния, JSON. Она идёт на пустой странице той же вкладки под тем же троттлингом CPU, вне окон замера. Её время — мера скорости машины в момент прогона; значение прогона — среднее начала и конца. Таблицы отчёта ею **не нормируются** — она показывает дрейф и нужна для сравнения отчётов разных сессий (\`npm run bench:compare\`).`,
+    '',
+    `Порог сноски — ${pctAbs(DRIFT_THRESHOLD, 0)}: собственный шум калибровки на тихой машине — 1–3 %, а типичный разброс временных метрик между прогонами — около 5 % (медиана CV), шум A/A — до 7 % (p90); дрейф вдвое больше этого разброса — уже смена режима машины (частота, тепловой режим, энергоэффективные ядра), и перемешанный порядок итераций не гарантирует, что дрейф лёг на участников поровну. Дрейф внутри прогона попадает в сноску, если порог превышен больше чем в ${pctAbs(RUN_DRIFT_SHARE, 0)} прогонов: одиночный скачок медиану по итерациям не сдвигает.`,
+    '',
+    '| Сессия | CPU | Прогонов | Медиана, мс | Разброс p10–p90 | Первая → последняя итерация | Дрейф в прогоне: медиана / max |',
+    '|---|---|---:|---:|---:|---:|---:|'
+  );
+  for (const f of forms) {
+    for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {})) {
+      const flag = c.flags.length ? ' ⚠️' : '';
+      push(
+        `| ${FORM_TITLES[f.form] ?? f.form} (\`${f.runId}\`)${flag} | ${cpu}x | ${c.n} | ${fmt(c.median, 'мс')} | ${pctAbs(c.spread)} | ${pct(c.trend)} | ${pct(c.runDrift.median)} / ${pctAbs(c.runDrift.maxAbs)} |`
+      );
+    }
+  }
+  for (const [cpu, c] of Object.entries(total.byCpu)) {
+    if (Object.keys(c.formMedians).length < 2) continue;
+    push(
+      `| **весь отчёт**${c.flags.length ? ' ⚠️' : ''} | ${cpu}x | ${c.n} | ${fmt(c.median, 'мс')} | ${pctAbs(c.spread)} | — | — |`
+    );
+  }
+  push('');
+  const notes = [];
+  for (const f of forms)
+    for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {}))
+      if (c.flags.length)
+        notes.push(`${FORM_TITLES[f.form] ?? f.form}, CPU ${cpu}x: ${describeFlags(c).join('; ')}`);
+  for (const [cpu, c] of Object.entries(total.byCpu))
+    if (c.flags.length) notes.push(`весь отчёт, CPU ${cpu}x: ${describeFlags(c).join('; ')}`);
+  if (notes.length) {
+    push(
+      `> ⚠️ Дрейф скорости машины больше порога ${pctAbs(DRIFT_THRESHOLD, 0)}: ${notes.join('. ')}. Абсолютные числа таких сессий менее надёжны; отношения внутри отчёта страдают меньше, но разброс по прогонам у всех участников выше. Сравнение с другими отчётами — только с нормировкой (\`npm run bench:compare\`).`,
+      ''
+    );
+  } else {
+    push(`_Дрейф в пределах порога ${pctAbs(DRIFT_THRESHOLD, 0)}._`, '');
+  }
+
+  for (const f of forms) {
+    for (const [cpu, c] of Object.entries(f.calibration?.byCpu ?? {})) {
+      const libs = Object.keys(c.libs);
+      if (!libs.length) continue;
+      const head = `| | ${libs.map(calLabel).join(' | ')} |`;
+      const sep = `|---|${libs.map(() => '---:').join('|')}|`;
+      const row = (label, get) => `| ${label} | ${libs.map((l) => get(c.libs[l])).join(' | ')} |`;
+      push(
+        `### ${FORM_TITLES[f.form] ?? f.form}, CPU ${cpu}x`,
+        '',
+        'По участникам (без прогрева):',
+        '',
+        head,
+        sep,
+        row('Медиана калибровки, мс', (s) => fmt(s.median, 'мс')),
+        row('К медиане сессии', (s) => pct(s.vsSession)),
+        row('Начало прогона, мс', (s) => fmt(s.start, 'мс')),
+        row('Конец прогона, мс', (s) => fmt(s.end, 'мс')),
+        row('Дрейф в прогоне, медиана', (s) => pct(s.drift)),
+        row('Дрейф в прогоне, наибольший по модулю', (s) => pctAbs(s.driftMaxAbs)),
+        '',
+        'По порядку прогонов: калибровка прогона, мс (в скобках — дрейф от начала к концу прогона):',
+        '',
+        `| Итерация | ${libs.map(calLabel).join(' | ')} | Медиана |`,
+        `|---|${libs.map(() => '---:').join('|')}|---:|`
+      );
+      for (const it of c.iterations) {
+        const cells = libs.map((l) => {
+          const x = it.cells[l];
+          return x ? `${fmt(x.value, 'мс')} (${pct(x.drift, 0)})` : '—';
+        });
+        push(
+          `| ${it.iteration + 1}${it.warmup ? ' (прогрев)' : ''} | ${cells.join(' | ')} | ${fmt(it.median, 'мс')} |`
+        );
+      }
+      push('');
+    }
+  }
+}
+
+// ── Фоновая нагрузка ─────────────────────────────────────────────────────────
+function pushBackground() {
+  push('## Фоновая нагрузка', '');
+  if (!forms.some((f) => f.background)) {
+    push(
+      '_В прогонах нет замеров фоновой нагрузки (сняты до их появления): что ещё работало на машине, неизвестно._',
+      ''
+    );
+    return;
+  }
+  const t = forms.find((f) => f.env.background?.thresholds)?.env.background.thresholds;
+  push(
+    'Калибровка ловит частоту и тепловой режим CPU, но не соседей: инференс LLM, чужие браузеры и сборки конкурируют за GPU, память и композитор и бьют по DOM, layout и отрисовке сильнее, чем по JS. Поэтому в начале и в конце каждого прогона (в точках калибровки, вне окон замера) снимается список процессов: доля CPU процесса — приращение его CPU-времени за прогон к длительности прогона; дерево самого бенча исключено. На macOS добавляется загрузка GPU — моментальная, в точках замера, когда страница бенча пуста.',
+    '',
+    `Прогон «грязный», если занят тяжёлый сосед${t ? ` (Ollama и чужие автоматизированные браузеры — от ${t.ollamaPct} % ядра, инструменты на Node, десктопные браузеры и Docker/VM — от ${t.toolingPct} %, прочий процесс — от ${t.otherPct} %, GPU — от ${t.gpuPct} %)` : ''} или чужая нагрузка в сумме${t ? ` от ${t.foreignCores} ядра` : ''}: бенч сам занимает 1–2 ядра, и ещё целое ядро соседей уводит его потоки на энергоэффективные ядра. Сессия помечается, если грязных прогонов больше ${pctAbs(DIRTY_SHARE, 0)}: короткий всплеск медиану по итерациям не сдвигает.`,
+    '',
+    '| Сессия | Прогонов | Чужая нагрузка, ядер: медиана / max | GPU, %: медиана / max | Бенч сам, ядер | «Грязных» прогонов | Пред-проверка |',
+    '|---|---:|---:|---:|---:|---:|---|'
+  );
+  for (const f of forms) {
+    const bg = f.background;
+    const title = `${FORM_TITLES[f.form] ?? f.form} (\`${f.runId}\`)`;
+    if (!bg) {
+      push(`| ${title} | — | — | — | — | — | нет замеров |`);
+      continue;
+    }
+    const pre = bg.preflight
+      ? bg.preflight.dirty
+        ? `занята: ${bg.preflight.reasons.join('; ')}`
+        : `свободна (${bg.preflight.foreignCores} ядра)`
+      : '—';
+    if (!bg.n) {
+      push(`| ${title} | 0 | — | — | — | — | ${pre} |`);
+      continue;
+    }
+    push(
+      `| ${title}${bg.flags.length ? ' ⚠️' : ''} | ${bg.n} | ${fmt(bg.foreignCores.median, '')} / ${fmt(bg.foreignCores.max, '')} | ${bg.gpu ? `${bg.gpu.median.toFixed(0)} / ${bg.gpu.max.toFixed(0)}` : '—'} | ${fmt(bg.ownCores, '')} | ${bg.dirtyRuns} из ${bg.n} | ${pre} |`
+    );
+  }
+  push('');
+  for (const f of forms) {
+    const bg = f.background;
+    if (!bg?.n || !bg.neighbours.length) continue;
+    push(`Тяжёлые соседи, ${FORM_TITLES[f.form] ?? f.form}:`, '');
+    for (const n of bg.neighbours) push(`- ${neighbourText(n, bg.n)}`);
+    push('');
+  }
+  const flagged = forms.filter((f) => f.background?.flags.length);
+  if (flagged.length) {
+    push(
+      `> ⚠️ Фоновая нагрузка выше порога: ${flagged.map((f) => `${FORM_TITLES[f.form] ?? f.form} — ${describeBackgroundFlags(f.background)}`).join('. ')}. Соседи нагружают GPU, память и композитор, а калибровка (чистый JS) этого почти не видит — нормировка \`bench:compare\` такие сессии не выправляет. Перед долгим прогоном проверьте машину: \`npm run bench:idle-check\`; \`BENCH_REQUIRE_IDLE=1\` не даст начать замеры на занятой машине.`,
+      ''
+    );
+  } else {
+    push('_Фоновая нагрузка в пределах порога._', '');
+  }
+}
 
 // ── Запись ───────────────────────────────────────────────────────────────────
 const stamp = new Date()

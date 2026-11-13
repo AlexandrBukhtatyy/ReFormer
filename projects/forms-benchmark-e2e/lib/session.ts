@@ -16,6 +16,7 @@ import {
 import type { Participant, FormId } from './participants';
 import type { ResultsWriter } from './results';
 import { benchConfig } from './config';
+import { CALIBRATION, calibrationWorkload, sampleOf, type CalibrationSample } from './calibration';
 import { round, sum } from './stats';
 
 export type Mode = 'timing' | 'renders' | 'trace';
@@ -173,14 +174,48 @@ export class BenchSession {
     if (cadenceMs) await sleep(cadenceMs);
   }
 
+  // ── Калибровка скорости машины (вне фаз) ─────────────────────────────────
+  /**
+   * Калибровочная нагрузка ({@link CALIBRATION}) на пустой странице этой вкладки, под троттлингом
+   * сессии. `start` — до первой фазы (новая вкладка и так на about:blank), `end` — после последней:
+   * вкладка сначала уходит на about:blank, чтобы условия совпадали с началом. До нагрузки и после —
+   * GC; после — пауза, чтобы фоновая работа (GC, компиляция) не попала в первую фазу.
+   */
+  async calibrate(at: 'start' | 'end'): Promise<CalibrationSample> {
+    if (at === 'end') await this.page.goto('about:blank');
+    await this.cdp.gc();
+    const { times, checksum } = await this.page.evaluate(calibrationWorkload, {
+      units: CALIBRATION.units,
+      reps: CALIBRATION.reps,
+      warmup: CALIBRATION.warmup,
+    });
+    if (checksum !== CALIBRATION.checksum) {
+      throw new Error(
+        `калибровка: контрольная сумма ${checksum}, ожидалась ${CALIBRATION.checksum} — нагрузку поменяли без смены id?`
+      );
+    }
+    await this.cdp.gc();
+    await sleep(CALIBRATION.settleMs);
+    return sampleOf(times);
+  }
+
   // ── Фазы ─────────────────────────────────────────────────────────────────
   async load(phase: string, url: string): Promise<{ readyAt: number }> {
+    // Счётчики CDP накопительные и навигацией не сбрасываются, а до перехода на этой вкладке
+    // работала калибровка (она — команда DevTools, её время целиком в DevToolsCommandDuration и
+    // TaskDuration): берётся дельта от момента перед переходом. Если навигация всё же сменила процесс
+    // рендерера и счётчики пошли заново (они меньше стартовых), берутся абсолютные значения.
+    const start = await this.cdp.metrics();
     await this.page.goto(url, { waitUntil: 'domcontentloaded' });
     const readyAt = await this.page.evaluate(
       () => (window as unknown as BenchGlobals).__bench.ready
     );
     await this.page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
-    const metrics = await this.cdp.metrics();
+    const end = await this.cdp.metrics();
+    const reset =
+      end.DevToolsCommandDuration < start.DevToolsCommandDuration ||
+      end.TaskDuration < start.TaskDuration;
+    const metrics = reset ? end : delta(end, start);
     const probe = await this.page.evaluate(() =>
       (window as unknown as BenchGlobals).__probe.stop()
     );

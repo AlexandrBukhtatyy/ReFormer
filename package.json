@@ -46,6 +46,8 @@
     "bench": "npm run bench:build && npm run bench -w forms-benchmark-e2e",
     "bench:quick": "npm run bench:build && npm run bench:quick -w forms-benchmark-e2e",
     "bench:report": "npm run report -w forms-benchmark-e2e --",
+    "bench:compare": "npm run compare -w forms-benchmark-e2e --",
+    "bench:idle-check": "npm run idle-check -w forms-benchmark-e2e --",
     "scripts:analize:imports": "node scripts/analyze-imports/index.js",
     "diagram": "node scripts/diagrams/index.mjs",
     "diagram:redraw": "node scripts/diagrams/index.mjs --skip-analyze",

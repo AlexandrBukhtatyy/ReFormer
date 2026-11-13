@@ -6,13 +6,16 @@
  * Измеряемые фазы — сырой ввод (клик по координатам, клавиши; поле ввода фокусируется
  * `locator.focus()` — одинаковая для всех короткая команда, зато не зависит от сдвигов вёрстки).
  * Даты, select и радио, которые в фазах не меряются, заполняет POM вне окна замера. После каждой
- * фазы — проверочные ворота; сбой прогона пишется в runs.ndjson и не останавливает остальные.
+ * фазы — проверочные ворота; сбой прогона пишется в runs.ndjson и не останавливает остальные. В
+ * начале и в конце прогона — калибровочная нагрузка (lib/calibration.ts) вне фаз.
  */
 import { test, type Browser } from '@playwright/test';
 import { benchConfig, createShuffler } from '../../lib/config';
 import { participants, type Participant } from '../../lib/participants';
 import { ResultsWriter } from '../../lib/results';
 import { BenchSession, type Mode } from '../../lib/session';
+import { calibrationRecord, type CalibrationSample } from '../../lib/calibration';
+import { preflight, startBackgroundSample } from '../../lib/background';
 import { CreditPage, MORTGAGE, SMS_VALID_CODE, maskDigits } from '../../pom/credit';
 import { toDomPath } from '../../../forms-benchmark/src/shared/domain/credit';
 
@@ -216,8 +219,15 @@ async function runOnce(
   const started = Date.now();
   let session: BenchSession | null = null;
   let tracing = false;
+  // Калибровка скорости машины: до первой фазы и после последней, вне трассы (lib/calibration.ts).
+  let calStart: CalibrationSample | null = null;
+  let calEnd: CalibrationSample | null = null;
+  // Фоновая нагрузка за прогон: снимки процессов в точках калибровки (lib/background.ts).
+  let sampler: ReturnType<typeof startBackgroundSample> | null = null;
   try {
     session = await BenchSession.open(browser, info, writer, baseURL);
+    sampler = startBackgroundSample();
+    calStart = await session.calibrate('start');
     if (mode === 'trace') {
       await browser.startTracing(session.page, { path: writer.tracePath(`${lib.id}-${FORM}`) });
       tracing = true;
@@ -227,15 +237,32 @@ async function runOnce(
       await browser.stopTracing();
       tracing = false;
     }
-    await session.close();
-    session = null;
     if (lib.role !== 'baseline') {
+      // Загрузка с данными — в новом context; конец калибровки — в нём, после последней фазы.
+      await session.close();
       session = await BenchSession.open(browser, info, writer, baseURL);
       await applicationFlow(session);
     }
-    writer.run({ ...info, lib: lib.id, ok: true, ms: Date.now() - started });
+    calEnd = await session.calibrate('end');
+    const background = sampler.finish();
+    await session.close();
+    session = null;
+    const calibration = calibrationRecord(calStart, calEnd);
+    const ms = Date.now() - started;
+    writer.run({ ...info, lib: lib.id, ok: true, ms, calibration, background });
   } catch (error) {
-    writer.run({ ...info, lib: lib.id, ok: false, error: String(error), ms: Date.now() - started });
+    const calibration = calibrationRecord(calStart, calEnd);
+    const background = sampler?.finish() ?? null;
+    const ms = Date.now() - started;
+    writer.run({
+      ...info,
+      lib: lib.id,
+      ok: false,
+      error: String(error),
+      ms,
+      calibration,
+      background,
+    });
     console.error(`✗ ${lib.id} ${mode} cpu${cpu} #${iteration}: ${String(error)}`);
   } finally {
     if (tracing) await browser.stopTracing().catch(() => {});
@@ -246,8 +273,13 @@ async function runOnce(
 test('кредитная заявка: профилирование всех участников', async ({ browser, baseURL }) => {
   const libs = participants(FORM);
   if (libs.length === 0) test.skip(true, 'нет собранных страниц кредитной заявки');
+  // Пред-проверка фоновой нагрузки: предупреждение, а с BENCH_REQUIRE_IDLE=1 — отказ до замеров.
+  const idle = await preflight();
+  if (benchConfig.requireIdle && idle?.dirty) {
+    throw new Error(`BENCH_REQUIRE_IDLE=1: машина занята — ${idle.reasons.join('; ')}`);
+  }
   const writer = ResultsWriter.create(FORM);
-  await writer.writeEnv(browser, benchConfig, FORM);
+  await writer.writeEnv(browser, benchConfig, FORM, idle);
   const shuffle = createShuffler(benchConfig.seed);
   const url = baseURL!;
   const total = benchConfig.warmup + benchConfig.iterations;
@@ -271,5 +303,6 @@ test('кредитная заявка: профилирование всех у�
       await runOnce(browser, url, writer, lib, benchConfig.cpuRates[0] ?? 1, 'trace', 0, false);
     }
   }
+  writer.finish();
   test.info().annotations.push({ type: 'results', description: writer.dir });
 });

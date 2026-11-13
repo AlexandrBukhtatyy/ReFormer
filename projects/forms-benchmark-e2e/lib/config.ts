@@ -10,6 +10,8 @@
  * BENCH_TRACE       — трассируемый прогон на участника (1 — да)
  * BENCH_SEED        — сид перемешивания порядка участников (по умолчанию от времени запуска)
  * BENCH_LIBS        — только эти участники (через запятую)
+ * BENCH_REQUIRE_IDLE — 1: не запускать замеры, если пред-проверка нашла фоновую нагрузку
+ *                     (lib/background.ts); по умолчанию — только предупреждение в консоли
  */
 const num = (name: string, fallback: number) => {
   const raw = process.env[name];
@@ -38,6 +40,7 @@ export const benchConfig = {
   renders: process.env.BENCH_RENDERS !== '0',
   trace: process.env.BENCH_TRACE !== '0',
   seed: num('BENCH_SEED', Date.now() % 2 ** 31),
+  requireIdle: process.env.BENCH_REQUIRE_IDLE === '1',
 };
 
 export type BenchConfig = typeof benchConfig;
