@@ -38,6 +38,7 @@
     "mcp:builder-ladder": "node packages/reformer-mcp/eval/builder/ladder.mjs",
     "mcp:verify": "node packages/reformer-mcp/eval/verify/index.mjs",
     "mcp:scenarios": "node packages/reformer-mcp/eval/scenarios/run.mjs",
+    "mcp:approaches": "node packages/reformer-mcp/eval/scenarios/approaches-report.mjs",
     "mcp:mutate": "node packages/reformer-mcp/eval/mutations/run.mjs",
     "scripts:analize:imports": "node scripts/analyze-imports/index.js",
     "diagram": "node scripts/diagrams/index.mjs",

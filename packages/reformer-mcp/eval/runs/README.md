@@ -29,6 +29,22 @@ npm run mcp:report                        # .tmp/mcp-eval/report/index.html: т�
 прогон `dialog.md` — задание, шаги модели, вызовы с ответами сервера и итог
 ([как устроено](../../../../docs/mcp-eval/scenarios.md)).
 
+## Снимки отчётов `approaches/`
+
+Отчёт сравнения подходов (`npm run mcp:approaches`) считается по сырью, а сырьё в git не едет. Его
+снимок — `.json` в формате `reformer-mcp-approaches/1`: строки отчёта и цепочки вызовов, по строке на
+прогон. Снимок сохраняет `--save`, а отчёт по нему пересобирается и после клона:
+
+```bash
+npm run mcp:approaches -- packages/reformer-mcp/eval/runs/approaches/<имя>.json [--sequence]
+```
+
+Это не записи: `mcp:compare` и `mcp:report` читают только `.jsonl` и снимков не видят.
+
+| Снимок                                                | Отчёт                                               |
+| ----------------------------------------------------- | --------------------------------------------------- |
+| [code-mode-weak.json](approaches/code-mode-weak.json) | [Code Mode](../../../../docs/mcp-eval/code-mode.md) |
+
 ## Что важно помнить
 
 - **Один прогон с моделью ничего не доказывает.** При трёх повторах значим только переход 0/3 ↔ 3/3
