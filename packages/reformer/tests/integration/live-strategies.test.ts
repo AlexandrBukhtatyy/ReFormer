@@ -256,6 +256,33 @@ describe('стратегия afterFirstSubmit', () => {
     expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
   });
 
+  it('LS-19: сброс формы возвращает тихую фазу — сброс прогон не будит, ввод молчит до новой отправки [ReFormer-6xxp]', async () => {
+    // «Очистить» — `form.reset()` сборки: форма как неотправленная, как `reset()` RHF
+    // (`isSubmitted = false`) и `resetForm()` Formik (`submitCount = 0`).
+    const { bundle, runs } = await started({ strategy: 'afterFirstSubmit' });
+    const { form } = bundle;
+    expect((await bundle.submission.submit(vi.fn())).status).toBe('invalid');
+    runs.mockClear();
+
+    form.reset();
+    await settle();
+    expect(runs).not.toHaveBeenCalled();
+    expect(form.loan.amount.issues.value).toEqual([]);
+
+    form.loan.amount.setValue(5);
+    await settle();
+    expect(runs).not.toHaveBeenCalled();
+    expect(form.loan.amount.issues.value).toEqual([]);
+
+    expect((await bundle.submission.submit(vi.fn())).status).toBe('invalid');
+    runs.mockClear();
+    form.loan.amount.setValue(500_000);
+    await settle();
+
+    expect(runs).toHaveBeenCalledTimes(1);
+    expect(form.loan.amount.issues.value).toEqual([]);
+  });
+
   it('LS-07: проверка шага визарда первой отправкой не считается', async () => {
     // Так задумано (решение A4 плана docs/plans/gleaming-kindling-quasar.md): живую фазу включает
     // только попытка отправки — `submission.submit` сборки или `submit()` хука; ни `validate()`,

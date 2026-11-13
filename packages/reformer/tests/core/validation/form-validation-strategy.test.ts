@@ -811,3 +811,171 @@ describe('createFormValidation — лишние живые прогоны (де�
     }
   });
 });
+
+describe('createFormValidation — живой прогон без лишних записей и запросов [ReFormer-w83s]', () => {
+  it('тот же итог не переписывает список замечаний поля: подписчики не будятся', async () => {
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, nameRequired, { strategy: 'change' });
+    ctrl.start();
+    try {
+      model.age = 1; // живой прогон: у пустого имени замечание
+      await tick();
+      const shown = form.name.issues.value;
+      expect(issueCodes(form.name)).toEqual(['required']);
+
+      model.age = 2; // ввод в соседнее поле: итог у имени тот же
+      await tick();
+
+      expect(form.name.issues.value).toBe(shown);
+    } finally {
+      ctrl.dispose();
+    }
+  });
+
+  it('async-правило не спрашивается о неизменённом значении; его ответ остаётся на поле', async () => {
+    const { model, form } = makeForm();
+    const taken = vi.fn(async (value: string) => (value === 'ab' ? { code: 'taken' } : null));
+    const schema = defineValidation<F>(({ model: scope }) => {
+      validate(scope.$.name, [minLength(5)]);
+      validateAsync(scope.$.name, [taken]);
+    });
+    const ctrl = createFormValidation(model, schema, { strategy: 'change' });
+    ctrl.start();
+    try {
+      model.name = 'ab';
+      await tick();
+      expect(taken).toHaveBeenCalledTimes(1);
+      const shown = form.name.issues.value;
+      expect(issueCodes(form.name)).toEqual(['minLength', 'taken']);
+
+      model.age = 1; // соседнее поле: имя не ждёт проверки и запроса нет
+      expect(form.name.pending.value).toBe(false);
+      await tick();
+      expect(taken).toHaveBeenCalledTimes(1);
+      expect(form.name.issues.value).toBe(shown);
+
+      model.name = 'abc'; // новое значение — новый вопрос
+      await tick();
+      expect(taken).toHaveBeenCalledTimes(2);
+      expect(issueCodes(form.name)).toEqual(['minLength']);
+    } finally {
+      ctrl.dispose();
+    }
+  });
+
+  it('явная проверка и попытка отправки спрашивают правило всегда', async () => {
+    const { model } = makeForm();
+    const free = vi.fn(async () => null);
+    const schema = defineValidation<F>(({ model: scope }) => {
+      validateAsync(scope.$.name, [free]);
+    });
+    const ctrl = createFormValidation(model, schema, { strategy: 'change' });
+    ctrl.start();
+    try {
+      model.name = 'Иван';
+      await tick();
+      expect(free).toHaveBeenCalledTimes(1);
+
+      await ctrl.validate();
+      await ctrl.run({ submit: true });
+
+      expect(free).toHaveBeenCalledTimes(3);
+    } finally {
+      ctrl.dispose();
+    }
+  });
+
+  it('сбой правила ответом не считается: следующий живой прогон спрашивает снова', async () => {
+    const { model, form } = makeForm();
+    const flaky = vi
+      .fn<(value: string) => Promise<ValidationIssue | null>>()
+      .mockRejectedValueOnce(new Error('сеть'))
+      .mockResolvedValue(null);
+    const schema = defineValidation<F>(({ model: scope }) => {
+      validateAsync(scope.$.name, [flaky]);
+    });
+    const ctrl = createFormValidation(model, schema, { strategy: 'change' });
+    ctrl.start();
+    try {
+      model.name = 'Иван';
+      await tick();
+      expect(issueCodes(form.name)).toEqual(['ruleFailed']);
+
+      model.age = 1;
+      await tick();
+
+      expect(flaky).toHaveBeenCalledTimes(2);
+      expect(issueCodes(form.name)).toEqual([]);
+    } finally {
+      ctrl.dispose();
+    }
+  });
+});
+
+describe('createFormValidation — resetPhase [ReFormer-6xxp]', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('afterFirstSubmit: после resetPhase() ввод молчит до следующей попытки отправки', async () => {
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, nameRequired, { strategy: 'afterFirstSubmit' });
+    ctrl.start();
+    try {
+      await ctrl.run({ submit: true });
+      expect(issueCodes(form.name)).toEqual(['required']);
+
+      ctrl.resetPhase();
+      form.reset(); // форма без сборки: ноды сбрасывает вызывающий
+      model.name = 'x';
+      await flushMicrotasks(2);
+      expect(form.name.issues.value).toEqual([]);
+
+      await ctrl.run({ submit: true }); // новая попытка отправки — снова живая фаза
+      model.name = 'Иван';
+      await flushMicrotasks(2);
+      expect(form.name.issues.value).toEqual([]);
+      model.name = 'И';
+      await flushMicrotasks(2);
+      expect(issueCodes(form.name)).toEqual(['minLength']);
+    } finally {
+      ctrl.dispose();
+    }
+  });
+
+  it('снимает отложенный прогон; подписки остаются', async () => {
+    useFakeClock();
+    const { model } = makeForm();
+    const { runs, schema } = countedNameRules();
+    const ctrl = createFormValidation(model, schema, { strategy: 'change', debounce: 300 });
+    ctrl.start();
+    try {
+      model.name = 'x';
+      ctrl.resetPhase();
+      expect(vi.getTimerCount()).toBe(0);
+      await advance(1000);
+      expect(runs).not.toHaveBeenCalled();
+
+      model.name = 'xy'; // стратегия армирована: следующий ввод проверяется
+      await advance(300);
+      await flushMicrotasks(5);
+      expect(runs).toHaveBeenCalledTimes(1);
+    } finally {
+      ctrl.dispose();
+    }
+  });
+
+  it('отменяет идущий прогон: его ответ на ноды не ложится', async () => {
+    const { model, form } = makeForm();
+    const { answers, schema } = controlledNameRules();
+    const ctrl = createFormValidation(model, schema);
+
+    const running = ctrl.run();
+    ctrl.resetPhase();
+    answers[0].resolve({ code: 'taken' });
+
+    expect((await running).status).toBe('cancelled');
+    expect(form.name.issues.value).toEqual([]);
+    expect(form.name.pending.value).toBe(false);
+  });
+});

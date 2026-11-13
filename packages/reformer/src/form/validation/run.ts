@@ -16,11 +16,11 @@
  */
 
 import { batch } from '@preact/signals-core';
-import { deferredWritesSettled } from '../../model/index';
+import { deepEqual, deferredWritesSettled } from '../../model/index';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { GLOBAL_NODES, type NodeScope } from '../signal-node-registry';
 import type { ValidationIssue } from '../types/contracts';
-import { runWithContext, type VContext } from './context';
+import { runWithContext, type AsyncAnswers, type VContext } from './context';
 import { scopeOf } from './operators';
 import type { ValidationFailure, ValidationResult, ValidationDefinition } from './types';
 
@@ -50,6 +50,8 @@ interface RunState {
   fields: Set<PathAwareSignal<unknown>>;
   /** Контроллер текущего прогона (отменяет предыдущий in-flight прогон той же (model, schema)). */
   ac: AbortController | null;
+  /** Ответы async-правил: их переиспользует живой прогон, пока значение поля не изменилось. */
+  answers: AsyncAnswers;
 }
 const stateRegistry = new WeakMap<object, WeakMap<object, RunState>>();
 
@@ -166,7 +168,10 @@ function settleOn(
     });
   }
   const written = byOrigin.size === 0 ? [] : mergeIssues(byOrigin.values());
-  node.setIssues(written);
+  // Тот же итог не пишется: правила создают замечания заново на каждом прогоне, и новый список с
+  // прежним содержимым будил бы подписчиков поля и агрегаты контейнеров — живая проверка
+  // перерисовывала бы все поля с замечаниями на каждую клавишу в любом из них.
+  if (node.ownIssues === undefined || !deepEqual(current, written)) node.setIssues(written);
   shownIssues.set(key, { byOrigin, written: node.ownIssues?.peek() ?? written });
 }
 
@@ -224,7 +229,8 @@ function runStateFor(owner: object, schema: object): RunState {
   let perModel = stateRegistry.get(owner);
   if (!perModel) stateRegistry.set(owner, (perModel = new WeakMap()));
   let state = perModel.get(schema);
-  if (!state) perModel.set(schema, (state = { fields: new Set(), ac: null }));
+  if (!state)
+    perModel.set(schema, (state = { fields: new Set(), ac: null, answers: new WeakMap() }));
   return state;
 }
 
@@ -352,6 +358,8 @@ export const isTouchByValidation = (): boolean => touchesByValidation > 0;
  *
  * @param markPending - держать ноды полей с async-правилами в `pending` до вызова `release`.
  * @param skipDisabled - не учитывать поля выключенных нод (проверка уровня формы).
+ * @param live - живой прогон: async-правило поля, не менявшегося с полученного ответа, не
+ *   вызывается — берётся его прежний ответ.
  * @returns Результат и `release` — снять `pending` (вызывается после разноса, чтобы поле не
  *   мигнуло прежним статусом между концом ожидания и новыми ошибками).
  */
@@ -360,7 +368,8 @@ async function collect<T>(
   schema: ValidationDefinition<T>,
   markPending: boolean,
   skipDisabled = false,
-  nodes: NodeScope = GLOBAL_NODES
+  nodes: NodeScope = GLOBAL_NODES,
+  live = false
 ): Promise<{ result: ValidationResult; release: () => void }> {
   const state = runStateFor(ownerOf(model as object, nodes), schema as object);
   state.ac?.abort(); // отменяем предыдущий in-flight прогон этой (model, schema)
@@ -380,10 +389,14 @@ async function collect<T>(
     origin: schema as object,
     origins: new Map(),
     executed: new Set([schema as object]),
+    answers: state.answers,
+    ...(live ? { recall: [] } : {}),
   };
   // Синхронная регистрация: validate/cross/apply/applyEach отрабатывают здесь. Ambient-окно
   // закрывается до любого await — этим владеет runWithContext.
   runWithContext(ctx, () => schema(scopeOf(model)));
+  // Прежние ответы async-правил — после синхронных замечаний, как легли бы ответы вызванных.
+  if (ctx.recall) for (const write of ctx.recall) write();
 
   const busy: PendingTarget[] = [];
   if (markPending) {
@@ -530,15 +543,25 @@ export function applyValidationResult(
  * `nodes` — область нод сборки: замечания ложатся в её ноды, даже если над моделью собрана ещё
  * одна форма. Без неё — общий реестр, последняя собранная форма.
  *
+ * `live` — прогон живой проверки: async-правило поля, не менявшегося с полученного ответа, не
+ * вызывается, и поле не ждёт проверки. Отправка и явная проверка спрашивают правила всегда.
+ *
  * @internal
  */
 export async function runAndApply<T>(
   model: FormModel<T>,
   schema: ValidationDefinition<T>,
-  options?: { touch?: ValidationTouch; skipDisabled?: boolean; nodes?: NodeScope }
+  options?: { touch?: ValidationTouch; skipDisabled?: boolean; nodes?: NodeScope; live?: boolean }
 ): Promise<ValidationResult> {
   const nodes = options?.nodes ?? GLOBAL_NODES;
-  const { result, release } = await collect(model, schema, true, options?.skipDisabled, nodes);
+  const { result, release } = await collect(
+    model,
+    schema,
+    true,
+    options?.skipDisabled,
+    nodes,
+    options?.live
+  );
   const touch = options?.touch ?? false;
   const write = (): void => {
     applyValidationResult(result, { touch: touch !== false });

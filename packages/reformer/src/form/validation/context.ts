@@ -57,7 +57,28 @@ export interface VContext {
   origins: Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>;
   /** Определения, исполненные в прогоне: за их замечания на проверенных полях прогон отвечает. */
   executed: Set<object>;
+  /**
+   * Ответы async-правил пары (владелец, схема): прогон записывает каждый полученный ответ вместе со
+   * значением, на которое он дан. Без памяти (прогон собран не раннером) ответы не запоминаются.
+   */
+  answers?: AsyncAnswers;
+  /**
+   * Живой прогон: правило, чьё поле не менялось с полученного ответа, не вызывается — ответ берётся
+   * из {@link VContext.answers}, и поле не ждёт проверки. Сюда правило кладёт запись ответа в
+   * замечания; раннер выполняет их после синхронной части, где ложились бы и ответы вызванных
+   * правил: синхронные замечания поля остаются первыми.
+   */
+  recall?: Array<() => void>;
 }
+
+/** Ответ async-правила и значение поля, на которое он дан. */
+export interface AsyncAnswer {
+  readonly value: unknown;
+  readonly issue: ValidationIssue | null;
+}
+
+/** Память ответов async-правил: ручка поля → правило → последний ответ. */
+export type AsyncAnswers = WeakMap<object, Map<unknown, AsyncAnswer>>;
 
 let current: VContext | null = null;
 

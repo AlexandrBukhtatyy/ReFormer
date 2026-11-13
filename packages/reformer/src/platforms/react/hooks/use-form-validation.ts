@@ -31,6 +31,12 @@ export interface UseFormValidationResult {
    * `afterFirstSubmit` не меняется. Для кнопки «Проверить». Стабильная ссылка.
    */
   validate: () => Promise<boolean>;
+  /**
+   * Вернуть стратегию в исходную фазу — вместе со сбросом формы (`form.reset()`):
+   * `afterFirstSubmit` снова молчит до попытки отправки, отложенный и идущий прогоны отменяются.
+   * Значения и замечания не трогает. Стабильная ссылка.
+   */
+  resetPhase: () => void;
   /** Идёт ли прогон (submit или live) — для блокировки кнопки. */
   isValidating: boolean;
 }
@@ -81,6 +87,7 @@ export function useFormValidation<T>(args: UseFormValidationArgs<T>): UseFormVal
     [controller]
   );
   const validate = useCallback(() => controller.validate(), [controller]);
+  const resetPhase = useCallback(() => controller.resetPhase(), [controller]);
 
-  return { submit, validate, isValidating };
+  return { submit, validate, resetPhase, isValidating };
 }

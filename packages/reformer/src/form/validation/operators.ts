@@ -49,12 +49,21 @@ const RULE_FAILED = 'ruleFailed';
  * прогона, статус прогона становится `error`, а на поле ложится блокирующая ошибка `ruleFailed`
  * (текст — из словаря локали). Отмена устаревшего прогона сбоем не считается.
  *
+ * Ответ правила — функция значения поля. Живая проверка (`change`, `blur`, живая фаза
+ * `afterFirstSubmit`) не спрашивает правило заново, пока значение его поля не изменилось с
+ * полученного ответа: ввод в соседнее поле не шлёт запрос и не переводит поле в `pending`.
+ * Отправка и явная проверка (`validate()`, шаг) спрашивают всегда. Память ключится по ссылке
+ * правила — держите правило константой модуля; правило-стрелка внутри схемы — новая ссылка на
+ * каждом прогоне, и его спрашивают каждый раз.
+ *
  * @example
  * ```ts
- * validateAsync(model.$.username, [async (v, { signal }) => {
+ * const usernameFree: AsyncRule<string> = async (v, { signal }) => {
  *   const r = await fetch(`/api/free?u=${v}`, { signal });
  *   return (await r.json()).free ? null : { code: 'taken' };
- * }]);
+ * };
+ *
+ * validateAsync(model.$.username, [usernameFree]);
  * ```
  */
 export function validateAsync<TField>(
@@ -67,13 +76,29 @@ export function validateAsync<TField>(
   if (!checking(ctx, handle)) return;
   const value = sig.peek();
   const signal = ctx.signal;
-  ctx.asyncFields.add(handle);
+  const { answers, recall } = ctx;
+  let known = answers?.get(handle);
   for (const rule of rules) {
+    // Живой прогон не спрашивает правило заново о том же значении: ответ — функция значения.
+    const answer = known?.get(rule);
+    if (recall !== undefined && answer !== undefined && Object.is(answer.value, value)) {
+      const { issue } = answer;
+      if (issue) recall.push(() => void bucket.push(issue));
+      continue;
+    }
+    ctx.asyncFields.add(handle);
     ctx.pending.push(
       // Вызов внутри исполнителя промиса: синхронное исключение правила — такой же сбой.
       new Promise<ValidationIssue | null>((resolve) => resolve(rule(value, { signal }))).then(
         (err) => {
-          if (err && !signal.aborted) bucket.push(err);
+          if (signal.aborted) return;
+          // Запоминается только ответ: сбой и отмена ответом не считаются, их правило спросят снова.
+          if (answers !== undefined) {
+            known ??= answers.get(handle);
+            if (known === undefined) answers.set(handle, (known = new Map()));
+            known.set(rule, { value, issue: err ?? null });
+          }
+          if (err) bucket.push(err);
         },
         (error: unknown) => {
           if (signal.aborted) return;

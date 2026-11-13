@@ -290,7 +290,7 @@ describe('оболочка заявки — точечные ререндеры'
     expect(screen.queryByTestId('list:coBorrowers')).toBeNull();
   });
 
-  it('RA-05: повторная проверка без правок — поля без замечаний не тронуты, с замечаниями рисуются заново', async () => {
+  it('RA-05: повторная проверка без правок не рисует ни одного поля', async () => {
     const app = mountLoan();
     await perform(() => fireEvent.click(button('Далее')));
     expect(alerts()).toHaveLength(4);
@@ -301,20 +301,9 @@ describe('оболочка заявки — точечные ререндеры'
     const fields = Object.fromEntries(
       Object.entries(app.renders()).filter(([key]) => /^(field|issue):/.test(key))
     );
-    // поведение под вопросом: каждая проверка создаёт новые объекты замечаний, поэтому поэлементное
-    // сравнение `issues` в `useFormControl` спасает от ререндера только поля без замечаний (вид
-    // кредита, промокод). Поля с прежними замечаниями и их тексты рисуются заново, хотя на
-    // экране ничего не изменилось; при живой проверке так происходит на каждую правку любого поля.
-    expect(fields).toEqual({
-      'field:loan.amount': 1,
-      'issue:loan.amount': 1,
-      'field:loan.term': 1,
-      'issue:loan.term': 1,
-      'field:loan.purpose': 1,
-      'issue:loan.purpose': 1,
-      'field:loan.firstPaymentDate': 1,
-      'issue:loan.firstPaymentDate': 1,
-    });
+    // Правила создают замечания заново на каждом прогоне, но раннер пишет полю только изменившийся
+    // список: те же замечания — без записи, и ни поле, ни его текст не рисуются (ReFormer-w83s).
+    expect(fields).toEqual({});
   });
 });
 

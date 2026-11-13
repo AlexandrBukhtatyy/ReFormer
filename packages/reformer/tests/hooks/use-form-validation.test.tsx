@@ -246,6 +246,28 @@ describe('useFormValidation — стратегии после монтирова
     expect(rule).toHaveBeenCalledTimes(1); // фаза тихая: проверка не была отправкой
   });
 
+  it('afterFirstSubmit: resetPhase вместе со сбросом формы — ввод молчит до новой отправки [ReFormer-6xxp]', async () => {
+    const { model, form, rule, rules } = createSignup('a');
+    const hook = renderValidation({ model, schema: rules, strategy: 'afterFirstSubmit' });
+    const { resetPhase } = hook.result.current;
+
+    await act(async () => {
+      await hook.result.current.submit();
+    });
+    act(() => {
+      hook.result.current.resetPhase();
+      form.reset();
+    });
+    await act(async () => {
+      model.email = '';
+      await settle();
+    });
+
+    expect(rule).toHaveBeenCalledTimes(1); // только отправка
+    expect(form.email.issues.value).toEqual([]);
+    expect(hook.result.current.resetPhase).toBe(resetPhase);
+  });
+
   it('afterFirstSubmit + liveAfterSubmit=blur: после отправки — по потере фокуса', async () => {
     const { model, form, rule, rules } = createSignup();
     const hook = renderValidation({

@@ -32,7 +32,8 @@ import type { ValidationResult, ValidationDefinition } from './types';
  * - `blur` — при потере фокуса поля (каждый уход из любого листа, и повторный тоже);
  * - `change` — на каждый ввод (с опц. `debounce`);
  * - `afterFirstSubmit` — тихо до первой попытки отправки (`run({ submit: true })`), затем live
- *   (см. `liveAfterSubmit`). Проверка без отправки (`validate()`) фазу не переключает.
+ *   (см. `liveAfterSubmit`). Проверка без отправки (`validate()`) фазу не переключает; сброс формы
+ *   (`form.reset()` сборки, {@link FormValidationController.resetPhase}) возвращает тихую фазу.
  */
 export type ValidationStrategyKind = 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
 
@@ -91,6 +92,15 @@ export interface FormValidationController {
    */
   start(): () => void;
   /**
+   * Вернуть стратегию в исходную фазу — для сброса формы: `afterFirstSubmit` снова молчит до
+   * следующей попытки отправки. Отложенный (`debounce`) и идущий прогоны отменяются — они о
+   * значениях до сброса (идущий `validate()` или `run()` получит `cancelled`). Подписки остаются,
+   * значения и замечания не трогаются: их сбрасывает форма.
+   *
+   * Сборка `createForm` зовёт его сама из `form.reset()` своей формы.
+   */
+  resetPhase(): void;
+  /**
    * Снять подписки и таймеры, отменить идущий прогон (его `validate()` или `run()` получит
    * `cancelled`). Идемпотентно; после него `start()` снова армирует стратегию.
    */
@@ -138,12 +148,12 @@ export function createFormValidation<T>(
   let disposeFx: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const run = async (touch: ValidationTouch): Promise<ValidationResult> => {
+  const run = async (touch: ValidationTouch, live = false): Promise<ValidationResult> => {
     inFlight++;
     _validating.value = true;
     try {
       // Проверка формы: выключенные поля не участвуют — как и в агрегате `valid`.
-      return await runAndApply(model, schema, { touch, skipDisabled: true, nodes });
+      return await runAndApply(model, schema, { touch, skipDisabled: true, nodes, live });
     } finally {
       if (--inFlight === 0) _validating.value = false;
     }
@@ -152,7 +162,8 @@ export function createFormValidation<T>(
   const fireLive = (): void => {
     // live-прогон НЕ метит touched — ошибки видны только по dirty/touched. Результат никто не ждёт,
     // поэтому исключение схемы ловится здесь: иначе оно осталось бы необработанным отклонением.
-    run(false).catch((error: unknown) => {
+    // Живой прогон не спрашивает async-правила о значениях, на которые ответ уже есть.
+    run(false, true).catch((error: unknown) => {
       if (process.env.NODE_ENV !== 'production') {
         console.error(
           '[@reformer/core/validation] живой прогон схемы завершился исключением',
@@ -161,6 +172,15 @@ export function createFormValidation<T>(
       }
     });
   };
+  /** Снять отложенный прогон и отменить идущий. */
+  const cancelPending = (): void => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    cancelRun(model as object, schema as object, nodes);
+  };
+
   const fireLiveDebounced = (): void => {
     if (!debounce) {
       fireLive();
@@ -243,15 +263,17 @@ export function createFormValidation<T>(
       // 'submit' — реактивно ничего не арминг (работает только validate()).
       return () => controller.dispose();
     },
+    resetPhase() {
+      submitted = false;
+      // Отложенный и идущий прогоны — о значениях до сброса: их замечания легли бы на сброшенную
+      // форму невидимыми и проявились бы при первом вводе.
+      cancelPending();
+    },
     dispose() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = undefined;
-      }
       disposeFx?.();
       disposeFx = undefined;
       // Идущий прогон тоже отменяется: его async-правило иначе ответило бы уже снятой форме.
-      cancelRun(model as object, schema as object, nodes);
+      cancelPending();
     },
     get isValidating() {
       return _validating.value;

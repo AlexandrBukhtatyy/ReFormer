@@ -243,6 +243,11 @@ export interface CreateFormFromCompiledArgs<T> extends Omit<CreateFormFromModelA
    * поведение и рендерер сборки. Без неё у формы своя новая область.
    */
   nodes?: NodeScope;
+  /**
+   * Что сделать в начале `reset()` корня, до записи значений. Сборка возвращает здесь живую
+   * проверку в исходную фазу.
+   */
+  onReset?: () => void;
 }
 
 /**
@@ -269,6 +274,7 @@ export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): 
     nodes
   ) as FormGroupNode<T>;
   const form = groupNode.proxy;
+  if (args.onReset) groupNode.attachResetHook(args.onReset);
   // Корень тоже регистрируется: у формы строки массива он — ручка этой строки.
   nodes.register(model.$ as object, form);
 

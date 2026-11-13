@@ -98,6 +98,10 @@ export interface FormRender {
  */
 export interface FormBundle<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
+  /**
+   * Форма — ноды полей. Её `reset()` — сброс для пользователя: значения к точке отсчёта модели,
+   * чистые ноды и живая проверка в исходной фазе (`afterFirstSubmit` снова молчит до отправки).
+   */
   readonly form: FormGroup<T>;
   readonly render: FormRender;
   /**
@@ -280,6 +284,7 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
     flow: config.flow,
     nodes,
   });
+  const { validation } = level;
   // Первые записи поведения (копия `syncFields`, нормализация, сброс выключенного поля) выполняются
   // до возврата, а не на микротаске: собранная форма уже согласована.
   const form = runAssemblyWrites(() =>
@@ -289,6 +294,9 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
       ...(compiled !== undefined ? { compiled } : {}),
       ...(config.behavior ? { behavior: config.behavior, schemaController: controller } : {}),
       ...(level.flow !== undefined ? { flow: level.flow } : {}),
+      // Сброс формы для пользователя возвращает и живую проверку: `afterFirstSubmit` снова молчит
+      // до следующей попытки отправки, как форма, которую ещё не отправляли.
+      ...(validation !== undefined ? { onReset: () => validation.controller.resetPhase() } : {}),
     })
   );
   // Точка отсчёта своей модели — собранная форма: правки `seed` и первые записи поведения. Сброс

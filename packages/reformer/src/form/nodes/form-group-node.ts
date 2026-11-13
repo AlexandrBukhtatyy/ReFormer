@@ -41,6 +41,8 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
    */
   private readonly leafSignals = new WeakMap<InternalFormNode, Signal<unknown>>();
   private behaviorCleanup: (() => void) | undefined;
+  /** Что сделать перед сбросом — у корня сборки: вернуть живую проверку в тихую фазу. */
+  private beforeReset: (() => void) | undefined;
   private face: FormGroup<T> | undefined;
   /** Поля-массивы модели без ноды (схема их не привязала) — о них предупреждает прокси. */
   private readonly unbound: ReadonlySet<string>;
@@ -115,8 +117,12 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
    * к точке отсчёта модели, той же, к которой возвращает `model.reset()` (значения создания модели
    * либо последнего `captureInitial()`), — и форма после сброса не изменена.
    * Цели `compute` значения не получают, как и в `setValue`: ими владеет поведение.
+   *
+   * Корень сборки `createForm` сначала возвращает живую проверку в исходную фазу — до записи
+   * значений: иначе каждая запись разбудила бы прогон `afterFirstSubmit` по сброшенной форме.
    */
   reset(value?: T): void {
+    this.beforeReset?.();
     this.own.clear();
     this.children.forEach((child, key) => {
       const source = this.leafSignals.get(child) ?? child.value;
@@ -176,6 +182,11 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   /** Прикрепить cleanup поведения формы (`createForm({ behavior })`). @internal */
   attachBehaviorCleanup(cleanup: () => void): void {
     this.behaviorCleanup = cleanup;
+  }
+
+  /** Действие перед сбросом группы — его задаёт сборка своему корню. @internal */
+  attachResetHook(hook: () => void): void {
+    this.beforeReset = hook;
   }
 
   /** Связать лист с его сигналом модели для `setValue`. @internal */
