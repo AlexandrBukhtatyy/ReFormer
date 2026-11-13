@@ -9,6 +9,7 @@ import {
   loadApplicationFiles,
 } from './shell/platform/plugin/application/files';
 import { readStoredPreset } from './shell/boot/stored-preset';
+import { parseTranspilerChoice } from './shell/platform/plugin/transpiler-engines';
 import {
   printStartupSummary,
   traced,
@@ -36,6 +37,9 @@ import './index.css';
 // в консоль печатает адрес с параметром `rb-trace`. Буфер запросов расширен заранее: по
 // умолчанию он на 250 записей, а сводке нужны все файлы плагинов и чанки оболочки.
 const TRACE_FLAG = 'rb-trace';
+// Движок транспиляции `.ts` — эксперимент ReFormer-ydh8: `?rb-transpiler=sucrase` сравнивает
+// sucrase с `typescript` на той же сборке. Без параметра или с незнакомым именем — `typescript`.
+const TRANSPILER_FLAG = 'rb-transpiler';
 performance.setResourceTimingBufferSize?.(1000);
 const launchConfigRead = traceSpan('launch.config');
 
@@ -70,6 +74,9 @@ void Promise.all([fetchRuntimeBundle(), readStoredPreset()]).then(([bundle, stor
       // Окружение названо явно, хотя у вкладки оно совпадает с умолчанием сборки: чей здесь
       // документ и чей источник, должно читаться из входа, а не из умолчания.
       environment: embedding?.environment ?? createBrowserTabEnvironment(),
+      transpiler: parseTranspilerChoice(
+        new URLSearchParams(window.location.search).get(TRANSPILER_FLAG)
+      ),
       // Плагины приложения лежат РЯДОМ СО СБОРКОЙ, в каталоге `plugins/` от её базового адреса:
       // их кладёт туда тот, кто приложение разворачивает (лаунчер, сборка для поставки, Pages).
       // Нет каталога — штатный `null`: так запускается билдер под `vite dev`, где плагины

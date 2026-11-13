@@ -121,7 +121,7 @@ export function isTypeScriptFile(fileName: string): boolean {
  * `import('typescript')` — единственное место, где пакет упоминается, и оно намеренно
  * динамическое: статическая ссылка отсюда вернула бы движок в основной чанк.
  */
-const loadTypeScript: TypeScriptEngineLoader = async (): Promise<TypeScriptEngine> => {
+export const loadTypeScript: TypeScriptEngineLoader = async (): Promise<TypeScriptEngine> => {
   const module: unknown = await import('typescript');
   const candidate = (module as { default?: unknown }).default ?? module;
   const engine = candidate as TypeScriptEngine;
@@ -212,9 +212,18 @@ export interface TypeScriptSupport extends Disposable {
   ensure(fileNames: Iterable<string>): Promise<void>;
 }
 
-/** Настройки подготовки. Единственная — чем грузить движок. */
+/** Настройки подготовки: чем грузить движок. */
 export interface TypeScriptSupportOptions {
+  /** Чем грузить `typescript`. Подменяется в тестах. */
   readonly load?: TypeScriptEngineLoader;
+  /**
+   * Как получить готовый транспилятор целиком — другим движком (`sucrase`, см.
+   * `./transpiler-engines`). Сильнее {@link load}: если задан, `typescript` не грузится вовсе.
+   *
+   * Подготовка та же — лениво, один раз и только когда среди файлов есть `.ts`: меняется движок,
+   * а не правило «платит тот, кому нужно».
+   */
+  readonly transpiler?: () => Promise<Transpiler>;
 }
 
 /**
@@ -229,12 +238,13 @@ export function createTypeScriptSupport(
   options: TypeScriptSupportOptions = {}
 ): TypeScriptSupport {
   const load = options.load ?? loadTypeScript;
+  const transpiler = options.transpiler ?? (async () => createTypeScriptTranspiler(await load()));
   let preparing: Promise<void> | undefined;
   let registration: Disposable | undefined;
 
   const prepare = (): Promise<void> => {
-    preparing ??= load().then((engine) => {
-      registration = registry.register(createTypeScriptTranspiler(engine));
+    preparing ??= transpiler().then((ready) => {
+      registration = registry.register(ready);
     });
     return preparing;
   };

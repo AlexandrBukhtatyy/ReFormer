@@ -16,6 +16,7 @@ import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-c
 import * as sdk from '@reformer/builder-plugin-api';
 import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
+import { SUCRASE_ENGINE } from '@/shell/platform/plugin/transpiler-engines';
 import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
 describe('модули, доступные плагину каталога', () => {
@@ -107,6 +108,16 @@ describe('модули, доступные плагину каталога', () 
     await modules.prepare(['main.ts']);
     expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual(['typescript']);
 
+    modules.dispose();
+  });
+
+  it('выбранный композицией движок садится вместо typescript, а не рядом с ним', async () => {
+    const modules = createPluginModules({ modules: RUNTIME_MODULES, transpiler: SUCRASE_ENGINE });
+
+    await modules.prepare(['main.ts']);
+
+    // Рядом — значило бы два движка в реестре и победу последнего по случайности порядка.
+    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual(['sucrase']);
     modules.dispose();
   });
 

@@ -176,10 +176,9 @@ import { EditorViewStatesToken } from '@reformer/builder-plugin-api/internal';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';
 import {
-  TYPESCRIPT_ENGINE_VERSION,
-  TYPESCRIPT_OPTIONS_SIGNATURE,
-  TYPESCRIPT_TRANSPILER_ID,
-} from '@/shell/platform/plugin/typescript-transpiler';
+  transpilerEngine,
+  type TranspilerChoice,
+} from '@/shell/platform/plugin/transpiler-engines';
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { builderDirectory } from '@/shell/platform/workspace/storage/namespace';
 import { createPluginModules } from './plugin-modules';
@@ -428,6 +427,13 @@ export interface BootOptions {
    * встроенная в чужое приложение.
    */
   readonly environment?: ShellEnvironment;
+  /**
+   * Движок транспиляции `.ts` для превью форм и плагинов каталога. Без значения — `typescript`.
+   *
+   * Эксперимент (ReFormer-ydh8): `main.tsx` включает `sucrase` параметром адреса
+   * `rb-transpiler=sucrase` — так оба движка сравниваются на одной сборке.
+   */
+  readonly transpiler?: TranspilerChoice;
 }
 
 export function boot(options: BootOptions): BuilderApp {
@@ -710,6 +716,8 @@ export function boot(options: BootOptions): BuilderApp {
    * из-за этого открытие проекта незачем — промах кэша не ошибка.
    */
   let compileCache: { readonly workspaceId: string; readonly cache: CompileCache } | null = null;
+  /** Движок транспиляции — один описатель на кэш и на загрузчик модулей. */
+  const transpiler = transpilerEngine(options.transpiler);
   const buildCacheOf = (): CompileCache | null => {
     const workspaceId = project.get()?.workspaceId ?? null;
     if (workspaceId === null) return null;
@@ -717,10 +725,11 @@ export function boot(options: BootOptions): BuilderApp {
       const store = createBuildCacheStore(workspaceId);
       compileCache = {
         workspaceId,
+        // Подпись кэша — от того же движка, что транспилирует (описатель `transpiler` выше).
         cache: createCompileCache(store, {
-          engineId: TYPESCRIPT_TRANSPILER_ID,
-          engineVersion: TYPESCRIPT_ENGINE_VERSION,
-          optionsVersion: TYPESCRIPT_OPTIONS_SIGNATURE,
+          engineId: transpiler.engineId,
+          engineVersion: transpiler.engineVersion,
+          optionsVersion: transpiler.optionsVersion,
         }),
       };
       void store.sweep(BUILD_CACHE_BUDGET_BYTES).catch((error: unknown) => {
@@ -735,6 +744,7 @@ export function boot(options: BootOptions): BuilderApp {
   // здесь. Второй экземпляр означал бы второй чанк TypeScript на 3.5 МБ.
   const pluginModules = createPluginModules({
     cache: buildCacheOf,
+    transpiler,
     // Модули стека — от состава: оболочка своими держит только SDK и React.
     modules: options.application.modules,
   });
