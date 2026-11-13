@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createModuleLoader } from './loader';
 import { lazyBuiltin, ModuleRegistryError } from './registry';
@@ -258,6 +258,161 @@ describe('ModuleLoader: место находки движка', () => {
 
     expect(result.errors[0].phase).toBe('transpile');
     expect(result.errors[0].range).toBeUndefined();
+  });
+});
+
+describe('ModuleLoader: запасной движок для отвергнутых файлов', () => {
+  /**
+   * Пара движков, как у гибрида sucrase + typescript. Основной отвергает файл с маркером
+   * `PRIMARY_FAILS`, запасной — только с `BOTH_FAIL`, и его находка несёт место. Оба отдают код
+   * как есть: маркеры стоят в комментариях, JS остаётся верным.
+   */
+  function engines() {
+    const fallback: Transpiler = {
+      id: 'strict',
+      applies: (fileName) => fileName.endsWith('.ts'),
+      transpile: (code) => {
+        if (code.includes('BOTH_FAIL')) {
+          throw new TranspileError([{ message: 'точно: здесь', range: { start: 3, end: 4 } }]);
+        }
+        return { js: code };
+      },
+    };
+    const loadFallback = vi.fn(() => Promise.resolve(fallback));
+    const primary: Transpiler = {
+      id: 'fast',
+      applies: (fileName) => fileName.endsWith('.ts'),
+      transpile: (code) => {
+        if (code.includes('PRIMARY_FAILS') || code.includes('BOTH_FAIL')) {
+          throw new TranspileError([{ message: 'основной: не понял' }]);
+        }
+        return { js: code };
+      },
+      fallback: loadFallback,
+    };
+    const loader = createModuleLoader();
+    loader.transpilers.register(primary);
+    return { loader, loadFallback };
+  }
+
+  it('без отказов запасной движок не грузится вовсе', async () => {
+    const { loader, loadFallback } = engines();
+
+    const result = await loader.load(files({ 'a.ts': 'exports.a = 1;' }), 'a.ts');
+
+    expect(result.errors).toEqual([]);
+    expect(result.entry).toEqual({ a: 1 });
+    expect(loadFallback).not.toHaveBeenCalled();
+  });
+
+  it('файл, который отверг основной, переводит запасной — и модуль работает', async () => {
+    const { loader, loadFallback } = engines();
+
+    const result = await loader.load(
+      files({
+        'main.ts': 'exports.value = require("./odd").odd + 1;',
+        'odd.ts': '/* PRIMARY_FAILS */ exports.odd = 41;',
+      }),
+      'main.ts'
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.entry).toEqual({ value: 42 });
+    expect(loadFallback).toHaveBeenCalledTimes(1);
+    // Вывод запасного в кэш не идёт: кэш подписан основным движком.
+    expect([...result.compiled.keys()]).toEqual(['main.ts']);
+  });
+
+  it('отвергли оба — находка запасного, с его текстом и местом', async () => {
+    const { loader } = engines();
+
+    const result = await loader.load(files({ 'bad.ts': '/* BOTH_FAIL */' }), 'bad.ts');
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatchObject({
+      file: 'bad.ts',
+      phase: 'transpile',
+      range: { start: 3, end: 4 },
+    });
+    expect(result.errors[0].message).toContain('точно: здесь');
+    expect(result.errors[0].message).not.toContain('основной');
+  });
+
+  it('отказ, который проглотил код, тоже уходит запасному — как у точки входа превью', async () => {
+    const { loader } = engines();
+    // Точка входа превью ловит сбой каждого файла роли: снаружи граф «собрался без ошибок».
+    const entry = [
+      'var errors = [];',
+      'try { exports.odd = require("./odd.ts").odd; } catch (e) { errors.push(e.message); }',
+      'exports.errors = errors;',
+    ].join('\n');
+
+    const result = await loader.load(
+      files({ 'entry.js': entry, 'odd.ts': '/* PRIMARY_FAILS */ exports.odd = 7;' }),
+      'entry.js'
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.entry).toEqual({ odd: 7, errors: [] });
+  });
+
+  it('файл, дошедший до исполнения только через запасной, сам тоже может уйти запасному', async () => {
+    const { loader, loadFallback } = engines();
+
+    // `deep.ts` в первой сборке не исполнялся вовсе: до него не дошли из-за `mid.ts`.
+    const result = await loader.load(
+      files({
+        'main.ts': 'exports.v = require("./mid").v;',
+        'mid.ts': '/* PRIMARY_FAILS */ exports.v = require("./deep").v * 2;',
+        'deep.ts': '/* PRIMARY_FAILS */ exports.v = 21;',
+      }),
+      'main.ts'
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.entry).toEqual({ v: 42 });
+    // Движок один и грузится через ту же функцию — описатель сам держит его единственным.
+    expect(loadFallback).toHaveBeenCalledTimes(2);
+  });
+
+  it('запасной не загрузился — остаётся находка основного, загрузка не падает', async () => {
+    const loader = createModuleLoader();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    loader.transpilers.register({
+      id: 'fast',
+      applies: (fileName) => fileName.endsWith('.ts'),
+      transpile: () => {
+        throw new TranspileError([{ message: 'основной: не понял' }]);
+      },
+      fallback: () => Promise.reject(new Error('чанк не приехал')),
+    });
+
+    const result = await loader.load(files({ 'a.ts': 'exports.a = 1;' }), 'a.ts');
+
+    expect(result.errors[0]).toMatchObject({ file: 'a.ts', phase: 'transpile' });
+    expect(result.errors[0].message).toContain('основной: не понял');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('отложенный импорт: отвергнутый файл переводит запасной, граф тот же', async () => {
+    const { loader, loadFallback } = engines();
+
+    const result = await loader.load(
+      files({
+        'main.js': 'exports.load = () => __reformerImport("./chunk.ts");',
+        'chunk.ts': '/* PRIMARY_FAILS */ exports.name = "чанк";',
+      }),
+      'main.js',
+      { lazy: {} }
+    );
+    expect(result.errors).toEqual([]);
+    expect(loadFallback).not.toHaveBeenCalled();
+
+    const chunk = await (result.entry as { load: () => Promise<{ name: string }> }).load();
+
+    expect(chunk.name).toBe('чанк');
+    expect(loadFallback).toHaveBeenCalledTimes(1);
   });
 });
 

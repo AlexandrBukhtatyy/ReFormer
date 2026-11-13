@@ -428,10 +428,11 @@ export interface BootOptions {
    */
   readonly environment?: ShellEnvironment;
   /**
-   * Движок транспиляции `.ts` для превью форм и плагинов каталога. Без значения — `typescript`.
+   * Движок транспиляции `.ts` для превью форм и плагинов каталога. Без значения — sucrase
+   * с `typescript` в запасе (ReFormer-t3xy).
    *
-   * Эксперимент (ReFormer-ydh8): `main.tsx` включает `sucrase` параметром адреса
-   * `rb-transpiler=sucrase` — так оба движка сравниваются на одной сборке.
+   * `main.tsx` берёт его из параметра адреса `rb-transpiler`: `typescript` — откат на прежний
+   * движок без пересборки, он же — сравнение двух движков на одной сборке.
    */
   readonly transpiler?: TranspilerChoice;
 }

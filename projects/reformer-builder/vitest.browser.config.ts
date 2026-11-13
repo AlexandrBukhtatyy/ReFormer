@@ -77,8 +77,10 @@ export default defineConfig({
   // Подсветка блоков кода грузится динамическим импортом, а Vite предзаготавливает
   // зависимости по СТАТИЧЕСКИМ импортам. Без этой строки первый же тест с блоком кода
   // получает «Failed to fetch dynamically imported module» и перезагрузку прогона.
+  // Движки транспиляции — по той же причине: оба приезжают `import()` (sucrase сразу, typescript
+  // запасным при отказе), и без предзаготовки запасной в прогоне не загрузится вовсе.
   optimizeDeps: {
-    include: ['highlight.js/lib/common', 'date-fns', 'react-day-picker'],
+    include: ['highlight.js/lib/common', 'date-fns', 'react-day-picker', 'sucrase', 'typescript'],
   },
   test: {
     name: 'browser',

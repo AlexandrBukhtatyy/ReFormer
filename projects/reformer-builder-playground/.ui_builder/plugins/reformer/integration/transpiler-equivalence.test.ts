@@ -14,16 +14,21 @@
  * Формы — шаблоны проекта-образца (то, что человек открывает в билдере) и вывод кодогена
  * (то, что билдер печатает сам).
  *
+ * Гибрид (ReFormer-t3xy) проверяется отдельно, на сломанных формах: всё, что sucrase отверг,
+ * переводит `typescript`, поэтому находки обязаны совпасть с находками `typescript` целиком.
+ * Чистая форма `typescript` не грузит вовсе — ради этого гибрид и заведён.
+ *
  * @module plugins/reformer/integration/transpiler-equivalence.test
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
 import {
+  createHybridEngine,
   SUCRASE_ENGINE,
   TYPESCRIPT_ENGINE,
   type TranspilerEngine,
@@ -86,6 +91,12 @@ async function formModules(): Promise<readonly FormModule[]> {
   ];
 }
 
+/**
+ * Предел времени теста. Каждая сборка формы поднимает настоящую оболочку с модулями стека, и в
+ * общем прогоне, где параллельно идут десятки файлов, пять секунд по умолчанию — впритык.
+ */
+const COMPILE_TIMEOUT = 30_000;
+
 /** Спецификаторы `require` в выводе движка — отсортированные и без повторов. */
 function requiredSpecifiers(js: string): string[] {
   const found = new Set<string>();
@@ -141,7 +152,7 @@ async function compiledWith(engine: TranspilerEngine, form: FormModule) {
   }
 }
 
-describe('sucrase и typescript на настоящих формах', () => {
+describe('sucrase и typescript на настоящих формах', { timeout: COMPILE_TIMEOUT }, () => {
   it('каждый файл модуля оба движка читают одинаково, и импорты в выводе те же', async () => {
     const [typescript, sucrase] = await Promise.all([
       TYPESCRIPT_ENGINE.load(),
@@ -177,5 +188,69 @@ describe('sucrase и typescript на настоящих формах', () => {
 
       expect(viaSucrase, form.name).toEqual(viaTypescript);
     }
+  });
+});
+
+/** Шаблон проекта-образца, в один файл которого дописана поломка. */
+function brokenForm(file: string, tail: string): FormModule {
+  const base = templateModule('reformer-simple-form');
+  const source = base.files.get(file);
+  if (source === undefined) throw new Error(`в шаблоне нет ${file}`);
+  return { ...base, files: new Map([...base.files, [file, `${source}${tail}`]]) };
+}
+
+/** Гибрид, у которого видно, грузился ли запасной `typescript`. */
+function watchedHybrid() {
+  const loadTypescript = vi.fn(() => TYPESCRIPT_ENGINE.load());
+  return { engine: createHybridEngine(loadTypescript), loadTypescript };
+}
+
+describe('гибрид: sucrase с typescript в запасе', { timeout: COMPILE_TIMEOUT }, () => {
+  it('чистая форма typescript не грузит вовсе', async () => {
+    const { engine, loadTypescript } = watchedHybrid();
+
+    for (const form of await formModules()) {
+      expect((await compiledWith(engine, form)).problems, form.name).toEqual([]);
+    }
+
+    expect(loadTypescript).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'незакрытая строка', file: 'validation/form.ts', tail: '\nexport const s = "abc\n;' },
+    { name: 'лишняя скобка', file: 'model/initial-value.ts', tail: '\n}\n' },
+    { name: 'незакрытый вызов', file: 'behavior/index.ts', tail: '\nconsole.log(1;\n' },
+    // Повторное `let` для typescript — не синтаксис, а связывание: `transpileModule` о нём молчит,
+    // и сбой всплывает при исполнении без места — у обоих движков одинаково.
+    {
+      name: 'повторное let',
+      file: 'behavior/index.ts',
+      tail: '\nlet twice = 1;\nlet twice = 2;\n',
+    },
+  ])('$name — те же находки, что у typescript целиком', async ({ file, tail }) => {
+    const form = brokenForm(file, tail);
+    const { engine, loadTypescript } = watchedHybrid();
+
+    const viaTypescript = await compiledWith(TYPESCRIPT_ENGINE, form);
+    const viaHybrid = await compiledWith(engine, form);
+
+    expect(viaTypescript.problems.length).toBeGreaterThan(0);
+    expect(viaHybrid).toEqual(viaTypescript);
+    // Совпадение — не случайность: отвергнутый файл переводил именно `typescript`.
+    expect(loadTypescript).toHaveBeenCalled();
+  });
+
+  it('незакрытая строка — текст typescript и место в исходнике файла', async () => {
+    const file = 'validation/form.ts';
+    const form = brokenForm(file, '\nexport const s = "abc\n;');
+    const source = form.files.get(file) ?? '';
+
+    const { problems } = await compiledWith(watchedHybrid().engine, form);
+
+    const problem = problems.find((item) => item.file === file);
+    expect(problem).toMatchObject({ phase: 'transpile' });
+    expect(problem?.message).toContain('Unterminated string literal');
+    // Место указывает в дописанную строку, а не в начало файла.
+    expect(problem?.range?.start).toBeGreaterThan(source.lastIndexOf('export const s'));
   });
 });

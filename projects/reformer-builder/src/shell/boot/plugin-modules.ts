@@ -47,7 +47,10 @@ import {
   isTypeScriptFile,
   type TypeScriptSupport,
 } from '@/shell/platform/plugin/typescript-transpiler';
-import type { TranspilerEngine } from '@/shell/platform/plugin/transpiler-engines';
+import {
+  transpilerEngine,
+  type TranspilerEngine,
+} from '@/shell/platform/plugin/transpiler-engines';
 import type { ComposedModule } from './composition';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import * as sdk from '@reformer/builder-plugin-api';
@@ -147,7 +150,8 @@ export interface PluginModulesOptions {
    */
   readonly modules?: readonly ComposedModule[];
   /**
-   * Чем транспилировать `.ts`. Без значения — `typescript`, как было всегда.
+   * Чем транспилировать `.ts`. Без значения — движок по умолчанию (`transpilerEngine()`: sucrase
+   * с `typescript` в запасе).
    *
    * Подпись кэша ({@link cache}) обязана быть от ТОГО ЖЕ движка: композиция берёт обе из одного
    * описателя (`transpilerEngine`), иначе кэш отдал бы вывод прежнего движка как свой.
@@ -160,11 +164,10 @@ export function createPluginModules(options: PluginModulesOptions = {}): PluginM
   // а `ModuleLoader.registry` сужен до контракта и её не отдаёт.
   const registry = createModuleRegistry([...HOST_MODULES, ...(options.modules ?? [])]);
   const modules = createModuleLoader({ registry });
-  const engine = options.transpiler;
-  const typescript = createTypeScriptSupport(
-    modules.transpilers,
-    engine === undefined ? {} : { transpiler: () => engine.load() }
-  );
+  const engine = options.transpiler ?? transpilerEngine();
+  const typescript = createTypeScriptSupport(modules.transpilers, {
+    transpiler: () => engine.load(),
+  });
   const cacheOf = options.cache;
 
   return {

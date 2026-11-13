@@ -171,6 +171,37 @@ describe('транспилятор sucrase', () => {
     expect(finding.message).not.toContain('broken.ts');
   });
 
+  it('вывод, который не разбирается, — отказ транспиляции, а не исполнения', async () => {
+    const transpiler = await real();
+    // sucrase незакрытую строку пропускает насквозь: без проверки это был бы `SyntaxError`
+    // уже при исполнении — фаза evaluate, у которой нет ни места, ни запасного движка.
+    const source = 'export const s = "abc\nx";';
+
+    let caught: unknown;
+    try {
+      transpiler.transpile(source, 'broken.ts');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(TranspileError);
+    const finding = (caught as TranspileError).findings[0];
+    expect(finding.message).toContain('не разбирается');
+    // Позиция разбора — в выводе, а не в исходнике; честнее без места, его назовёт запасной.
+    expect(finding.range).toBeUndefined();
+  });
+
+  it('повторное let — тоже отказ транспиляции', async () => {
+    const transpiler = await real();
+    expect(() => transpiler.transpile('let a = 1;\nlet a = 2;', 'dup.ts')).toThrow(TranspileError);
+  });
+
+  it('запасной движок из настроек доезжает до транспилятора, а без него его нет', () => {
+    const fallback = () => Promise.resolve(createSucraseTranspiler(fakeEngine()));
+    expect(createSucraseTranspiler(fakeEngine(), { fallback }).fallback).toBe(fallback);
+    expect(createSucraseTranspiler(fakeEngine()).fallback).toBeUndefined();
+  });
+
   it('сбой самого движка, а не синтаксис, пробрасывается как есть', () => {
     const failure = new Error('движок сломан');
     const transpiler = createSucraseTranspiler(

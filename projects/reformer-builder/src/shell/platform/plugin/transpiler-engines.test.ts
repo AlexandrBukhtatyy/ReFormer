@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { createTranspilerRegistry } from '@/shell/platform/modules/transpilers';
+import { createTranspilerRegistry, type Transpiler } from '@/shell/platform/modules/transpilers';
 import {
+  createHybridEngine,
   parseTranspilerChoice,
   SUCRASE_ENGINE,
   transpilerEngine,
@@ -10,8 +11,8 @@ import {
 import { createTypeScriptSupport } from './typescript-transpiler';
 
 describe('выбор движка транспиляции', () => {
-  it('без имени — typescript: эксперимент включают явно', () => {
-    expect(transpilerEngine()).toBe(TYPESCRIPT_ENGINE);
+  it('без имени — гибрид sucrase; typescript целиком включают явно', () => {
+    expect(transpilerEngine()).toBe(SUCRASE_ENGINE);
     expect(transpilerEngine('typescript')).toBe(TYPESCRIPT_ENGINE);
     expect(transpilerEngine('sucrase')).toBe(SUCRASE_ENGINE);
   });
@@ -58,5 +59,52 @@ describe('выбор движка транспиляции', () => {
       new Function('exports', 'require', 'module', js)(module.exports, require, module);
       expect(module.exports, engine.engineId).toMatchObject({ value: 20 });
     }
+  });
+});
+
+describe('гибрид: sucrase с запасным движком', () => {
+  /** Запасной-подставка: считает загрузки, переводит что угодно в маркер. */
+  const fakeFallback = (): Transpiler => ({
+    id: 'fallback',
+    applies: () => true,
+    transpile: () => ({ js: 'exports.via = "fallback";' }),
+  });
+
+  it('запасной у транспилятора есть, но описатель его НЕ грузит', async () => {
+    const load = vi.fn(() => Promise.resolve(fakeFallback()));
+    const transpiler = await createHybridEngine(load).load();
+
+    // Чистый файл запасного не будит: в этом весь выигрыш гибрида.
+    transpiler.transpile('export const a: number = 1;', 'model.ts');
+    expect(transpiler.fallback).toBeTypeOf('function');
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('запасной грузится один раз, сколько бы файлов ни отказало', async () => {
+    const load = vi.fn(() => Promise.resolve(fakeFallback()));
+    const transpiler = await createHybridEngine(load).load();
+
+    const [a, b] = await Promise.all([transpiler.fallback?.(), transpiler.fallback?.()]);
+    await transpiler.fallback?.();
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+  });
+
+  it('неудачная загрузка запасного не запоминается: следующий отказ пробует снова', async () => {
+    const load = vi
+      .fn<() => Promise<Transpiler>>()
+      .mockRejectedValueOnce(new Error('чанк не приехал'))
+      .mockResolvedValue(fakeFallback());
+    const transpiler = await createHybridEngine(load).load();
+
+    await expect(transpiler.fallback?.()).rejects.toThrow('чанк не приехал');
+    await expect(transpiler.fallback?.()).resolves.toMatchObject({ id: 'fallback' });
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('в движке по умолчанию запасной — настоящий typescript', async () => {
+    const fallback = await (await SUCRASE_ENGINE.load()).fallback?.();
+    expect(fallback?.id).toBe(TYPESCRIPT_ENGINE.engineId);
   });
 });

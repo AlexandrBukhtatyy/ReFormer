@@ -37,8 +37,8 @@ import './index.css';
 // в консоль печатает адрес с параметром `rb-trace`. Буфер запросов расширен заранее: по
 // умолчанию он на 250 записей, а сводке нужны все файлы плагинов и чанки оболочки.
 const TRACE_FLAG = 'rb-trace';
-// Движок транспиляции `.ts` — эксперимент ReFormer-ydh8: `?rb-transpiler=sucrase` сравнивает
-// sucrase с `typescript` на той же сборке. Без параметра или с незнакомым именем — `typescript`.
+// Движок транспиляции `.ts`: по умолчанию sucrase с `typescript` в запасе (ReFormer-t3xy).
+// `?rb-transpiler=typescript` — откат на прежний движок без пересборки. Незнакомое имя — умолчание.
 const TRANSPILER_FLAG = 'rb-transpiler';
 performance.setResourceTimingBufferSize?.(1000);
 const launchConfigRead = traceSpan('launch.config');

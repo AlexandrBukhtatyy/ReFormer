@@ -1,6 +1,12 @@
 /**
- * Движки транспиляции, из которых выбирает композиция: `typescript` (по умолчанию) и `sucrase`
- * (эксперимент ReFormer-ydh8).
+ * Движки транспиляции, из которых выбирает композиция: `sucrase` (по умолчанию, с `typescript`
+ * в запасе — ReFormer-t3xy) и `typescript` целиком (откат: `?rb-transpiler=typescript`).
+ *
+ * ## Гибрид
+ *
+ * sucrase переводит всё, а `typescript` грузится только тогда, когда sucrase файл отверг: ради
+ * точной находки с местом либо ради синтаксиса, которого sucrase не знает. Форма без ошибок
+ * `typescript` не грузит вовсе — в этом весь выигрыш: чанк 207 КБ вместо 3.5 МБ.
  *
  * Описатель движка — две вещи, которые обязаны ходить вместе: как его загрузить и чем он
  * подписывает кэш транспиляции. Разведи их — и после смены движка кэш отдавал бы код, собранный
@@ -48,16 +54,35 @@ export const TYPESCRIPT_ENGINE: TranspilerEngine = {
   load: async () => createTypeScriptTranspiler(await loadTypeScript()),
 };
 
-export const SUCRASE_ENGINE: TranspilerEngine = {
-  engineId: SUCRASE_TRANSPILER_ID,
-  engineVersion: SUCRASE_ENGINE_VERSION,
-  optionsVersion: SUCRASE_OPTIONS_SIGNATURE,
-  load: async () => createSucraseTranspiler(await loadSucraseEngine()),
-};
+/**
+ * Гибрид над заданным запасным движком. Отдельной функцией ради тестов: им нужно видеть,
+ * КОГДА запасной грузится, а настоящий `typescript` этого не покажет.
+ *
+ * Запасной грузится один раз на описатель; неудачная загрузка не запоминается — сетевая икота
+ * не должна до перезагрузки страницы лишать человека точных находок.
+ */
+export function createHybridEngine(fallback: () => Promise<Transpiler>): TranspilerEngine {
+  let loading: Promise<Transpiler> | undefined;
+  const loadFallback = (): Promise<Transpiler> =>
+    (loading ??= fallback().catch((error: unknown) => {
+      loading = undefined;
+      throw error;
+    }));
+  return {
+    engineId: SUCRASE_TRANSPILER_ID,
+    engineVersion: SUCRASE_ENGINE_VERSION,
+    optionsVersion: SUCRASE_OPTIONS_SIGNATURE,
+    load: async () =>
+      createSucraseTranspiler(await loadSucraseEngine(), { fallback: loadFallback }),
+  };
+}
 
-/** Описатель по имени. Без имени — `typescript`: эксперимент включают явно. */
-export function transpilerEngine(choice: TranspilerChoice = 'typescript'): TranspilerEngine {
-  return choice === 'sucrase' ? SUCRASE_ENGINE : TYPESCRIPT_ENGINE;
+/** sucrase с `typescript` в запасе — движок по умолчанию. */
+export const SUCRASE_ENGINE: TranspilerEngine = createHybridEngine(() => TYPESCRIPT_ENGINE.load());
+
+/** Описатель по имени. Без имени — гибрид sucrase: `typescript` целиком включают явно. */
+export function transpilerEngine(choice: TranspilerChoice = 'sucrase'): TranspilerEngine {
+  return choice === 'typescript' ? TYPESCRIPT_ENGINE : SUCRASE_ENGINE;
 }
 
 /**

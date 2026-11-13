@@ -1,6 +1,6 @@
 /**
- * Транспилятор sucrase — сменная замена `typescript` в реестре `host/modules` (эксперимент
- * ReFormer-ydh8).
+ * Транспилятор sucrase — движок по умолчанию в реестре `host/modules` (ReFormer-ydh8,
+ * гибрид — ReFormer-t3xy).
  *
  * ## Зачем
  *
@@ -21,13 +21,21 @@
  * - `disableESTransforms` — современный синтаксис (`?.`, `??`, поля классов, `#private`) остаётся
  *   как есть, как у TS с `target=es2022`. Без флага sucrase переписывает их своими помощниками.
  *
- * ## Чем он слабее `typescript` — известные отличия
+ * ## Чем он слабее `typescript` — и как это закрыто
  *
- * sucrase разбирает ровно столько, сколько нужно для преобразования, и часть синтаксических
- * ошибок не замечает: незакрытая строка, повторное `let`, несовпадающий закрывающий тег JSX
- * (`<div></span>` молча становится `<div>`). Первые две доедут до исполнения как `SyntaxError`
- * фазы `evaluate` — без места в исходнике. Тексты ошибок беднее: «Unexpected token» вместо
- * «Expression expected». Проверки типов нет ни у одного из движков.
+ * sucrase разбирает ровно столько, сколько нужно для преобразования. Тексты его ошибок беднее
+ * («Unexpected token» вместо «Expression expected»), а часть ошибок он не замечает вовсе:
+ * незакрытая строка, повторное `let`, `08` проходят насквозь и дали бы `SyntaxError` уже при
+ * исполнении — без места в исходнике.
+ *
+ * Поэтому `transpile` обещает больше, чем «вызвал sucrase»: вывод ещё и РАЗБИРАЕТСЯ (без
+ * исполнения) — тем же конвертом, что у линковщика. Не разобрался — это отказ транспиляции,
+ * а не исполнения. Любой отказ загрузчик отдаёт запасному движку (`fallback`, в композиции —
+ * `typescript`, лениво): собрал — модуль работает, не собрал — находка уже его, с местом.
+ *
+ * Чего гибрид не закрывает: несовпадающий закрывающий тег JSX (`<div></span>`) sucrase молча
+ * собирает в `<div>`, отказа нет — и до запасного дело не доходит. Проверки типов нет ни у одного
+ * из движков.
  *
  * @module shell/platform/plugin/sucrase-transpiler
  */
@@ -53,7 +61,7 @@ export const SUCRASE_ENGINE_VERSION: string = sucraseVersion;
  */
 export const SUCRASE_OPTIONS_SIGNATURE =
   'transforms=typescript,imports(+jsx for .tsx);jsxRuntime=automatic;jsxImportSource=react;' +
-  'production=true;disableESTransforms=true';
+  'production=true;disableESTransforms=true;verify=parse';
 
 /** Опции sucrase, которыми мы пользуемся. */
 export interface SucraseOptions {
@@ -110,14 +118,40 @@ function toFinding(error: unknown): TranspileFinding | undefined {
   return pos < 0 ? { message: text } : { message: text, range: { start: pos, end: pos + 1 } };
 }
 
+/**
+ * Разбирает вывод, не исполняя: тот же конверт CommonJS, что у линковщика.
+ *
+ * `Function` компилирует тело и ничего не вызывает. Отказ здесь — тот самый `SyntaxError`, который
+ * линковщик получил бы при исполнении, только узнанный на фазе транспиляции, где у отказа есть
+ * запасной движок. Лишних отказов проверка не даёт: что не разобралось здесь, не исполнилось бы
+ * и там.
+ */
+function parseCommonJs(js: string): void {
+  new Function('exports', 'require', 'module', '__filename', js);
+}
+
+/** Настройки транспилятора. */
+export interface SucraseTranspilerOptions {
+  /** Запасной движок для отвергнутых файлов — см. `Transpiler.fallback`. */
+  readonly fallback?: () => Promise<Transpiler>;
+  /** Проверка вывода; по умолчанию — разбор конвертом линковщика. Бросает — значит отказ. */
+  readonly verify?: (js: string) => void;
+}
+
 /** Собирает транспилятор над готовым движком — настоящим или подставным. */
-export function createSucraseTranspiler(engine: SucraseEngine): Transpiler {
+export function createSucraseTranspiler(
+  engine: SucraseEngine,
+  options: SucraseTranspilerOptions = {}
+): Transpiler {
+  const verify = options.verify ?? parseCommonJs;
   return {
     id: SUCRASE_TRANSPILER_ID,
     applies: isTypeScriptFile,
+    ...(options.fallback === undefined ? {} : { fallback: options.fallback }),
     transpile(code, fileName) {
+      let js: string;
       try {
-        return { js: engine.transform(code, optionsFor(fileName)).code };
+        js = engine.transform(code, optionsFor(fileName)).code;
       } catch (error) {
         // Ошибка без места — не синтаксис, а сбой самого движка: пусть линковщик назовёт её
         // как есть, подделывать ей позицию незачем.
@@ -125,6 +159,15 @@ export function createSucraseTranspiler(engine: SucraseEngine): Transpiler {
         if (finding === undefined) throw error;
         throw new TranspileError([finding]);
       }
+      try {
+        verify(js);
+      } catch (error) {
+        // Места нет: позиция `SyntaxError` у разбора — в ВЫВОДЕ, а не в исходнике перед
+        // человеком. Точное место назовёт запасной движок.
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new TranspileError([{ message: `вывод sucrase не разбирается: ${reason}` }]);
+      }
+      return { js };
     },
   };
 }

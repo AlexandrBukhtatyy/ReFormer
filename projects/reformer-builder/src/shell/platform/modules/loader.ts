@@ -26,7 +26,13 @@
  */
 
 import { toEsmNamespace } from './esm-interop';
-import { createLinker, normalizeFiles, ModuleLinkError, type LinkPhase } from './linker';
+import {
+  createLinker,
+  normalizeFiles,
+  ModuleLinkError,
+  type LinkPhase,
+  type Linker,
+} from './linker';
 import { normalizeModulePath, PLUGIN_LAZY_IMPORT } from '@reformer/builder-plugin-api/internal';
 import {
   createModuleRegistry,
@@ -38,6 +44,7 @@ import {
   createTranspilerRegistry,
   TranspileError,
   type TranspileFinding,
+  type Transpiler,
   type TranspilerRegistry,
 } from './transpilers';
 
@@ -300,6 +307,13 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
       };
       /** Что прошло через движок. Наполняется по ходу линковки — граф зовёт только нужное. */
       const compiled = new Map<string, string>();
+      /**
+       * Отказы движка, у которого есть запасной (`Transpiler.fallback`): файл → загрузка
+       * запасного. Наполняется по ходу линковки, опустошается {@link adoptFallbacks}.
+       */
+      const rejected = new Map<string, () => Promise<Transpiler>>();
+      /** Файлы, которые переводит запасной движок, — уже загруженный. */
+      const viaFallback = new Map<string, Transpiler>();
 
       /**
        * Файл без подходящего движка идёт как есть.
@@ -313,13 +327,52 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
       const compile = (code: string, fileName: string): string => {
         const cached = ready?.get(fileName);
         if (cached !== undefined) return cached;
+        // Граф собирается заново после отказа: файл, уже переведённый основным движком, второй
+        // раз ему не отдаётся.
+        const done = compiled.get(fileName);
+        if (done !== undefined) return done;
+        // Вывод запасного движка в `compiled` не идёт: кэш подписан основным, и чужой вывод под
+        // его подписью значил бы, что ключ кэша больше не говорит, чем собран код.
+        const fallback = viaFallback.get(fileName);
+        if (fallback !== undefined) return fallback.transpile(code, fileName).js;
         const transpiler = transpilers.find(fileName);
         // JSON — данные, а не код: `import x from './a.json'` получает разобранное значение.
         // Корректный JSON — корректное выражение JS, поэтому обёртки достаточно.
         if (transpiler === undefined) return fileName.endsWith('.json') ? jsonModule(code) : code;
-        const js = transpiler.transpile(code, fileName).js;
+        let js: string;
+        try {
+          js = transpiler.transpile(code, fileName).js;
+        } catch (error) {
+          // Отказ запоминается ДО того, как исключение уйдёт в граф: его вправе проглотить код
+          // (точка входа превью ловит сбой каждого файла роли), а запасному он нужен всё равно.
+          if (transpiler.fallback !== undefined) rejected.set(fileName, transpiler.fallback);
+          throw error;
+        }
         compiled.set(fileName, js);
         return js;
+      };
+
+      /**
+       * Грузит запасные движки для отвергнутых файлов. `true` — хоть один файл его получил,
+       * то есть граф стоит собрать заново.
+       *
+       * Отказ загрузки — не сбой сборки: остаётся то, что сказал основной движок, а это лучше,
+       * чем не сказать ничего. Файл при этом из ожидания уходит — иначе каждая следующая
+       * попытка грузила бы недоступный движок снова.
+       */
+      const adoptFallbacks = async (): Promise<boolean> => {
+        const pending = [...rejected];
+        rejected.clear();
+        let adopted = false;
+        for (const [file, load] of pending) {
+          try {
+            viaFallback.set(file, await load());
+            adopted = true;
+          } catch (error) {
+            console.warn(`[modules] запасной движок для «${file}» не загрузился`, error);
+          }
+        }
+        return adopted;
       };
 
       /**
@@ -403,7 +456,17 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         if (namespaces.has(file)) return namespaces.get(file);
         let exports: unknown;
         try {
-          exports = linker.load(file);
+          // Отказ основного движка — запасной и повтор на ТОМ ЖЕ линковщике: упавшие модули
+          // в его кэш не попали и исполнятся заново, а исполненные раньше — нет.
+          for (;;) {
+            try {
+              exports = linker.load(file);
+              break;
+            } catch (error) {
+              if (!(await adoptFallbacks())) throw error;
+              assertLive(target);
+            }
+          }
         } finally {
           releaseExecuted();
         }
@@ -413,17 +476,19 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         return namespace;
       };
 
-      const linker = createLinker({
-        files: normalized,
-        registry,
-        compile,
-        knownSpecifiers: () => registry.specifiers(),
-        overrides: loadOptions?.overrides,
-        ambient:
-          lazy === undefined
-            ? loadOptions?.ambient
-            : { ...loadOptions?.ambient, [PLUGIN_LAZY_IMPORT]: importLazy },
-      });
+      const link = (): Linker =>
+        createLinker({
+          files: normalized,
+          registry,
+          compile,
+          knownSpecifiers: () => registry.specifiers(),
+          overrides: loadOptions?.overrides,
+          ambient:
+            lazy === undefined
+              ? loadOptions?.ambient
+              : { ...loadOptions?.ambient, [PLUGIN_LAZY_IMPORT]: importLazy },
+        });
+      let linker = link();
 
       const dispose =
         lazy === undefined
@@ -466,27 +531,43 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         });
       }
 
-      try {
-        const value = linker.load(entryFile);
+      /** Одна сборка графа от точки входа — синхронная, как и сама линковка. */
+      const attempt = (): LoadResult => {
+        try {
+          const value = linker.load(entryFile);
+          return { entry: value, modules: linker.modules, compiled, errors: [], ...dispose };
+        } catch (error) {
+          // Модули, успевшие исполниться до сбоя, остаются доступны: у плагина это уже
+          // подключённые вклады, которые владельцу придётся снять.
+          return {
+            entry: undefined,
+            modules: linker.modules,
+            compiled,
+            errors: [toLoadError(error, entryFile)],
+            ...dispose,
+          };
+        }
+      };
+
+      const first = attempt();
+      if (rejected.size === 0) {
         releaseExecuted();
-        return Promise.resolve({
-          entry: value,
-          modules: linker.modules,
-          compiled,
-          errors: [],
-          ...dispose,
-        });
-      } catch (error) {
-        // Модули, успевшие исполниться до сбоя, остаются доступны: у плагина это уже
-        // подключённые вклады, которые владельцу придётся снять.
-        return Promise.resolve({
-          entry: undefined,
-          modules: linker.modules,
-          compiled,
-          errors: [toLoadError(error, entryFile)],
-          ...dispose,
-        });
+        return Promise.resolve(first);
       }
+
+      // Основной движок что-то отверг, и у него есть запасной. Граф собирается заново ЦЕЛИКОМ,
+      // а не дочитывается: точка входа превью ловит сбой каждого файла и сама уже исполнилась —
+      // в прежнем графе повторять нечего. Исполненное первой сборкой выбрасывается, как граф
+      // прошлой правки. Цикл конечен: каждый круг отдаёт запасному хотя бы один новый файл.
+      return (async (): Promise<LoadResult> => {
+        let result = first;
+        while (!disposed && (await adoptFallbacks())) {
+          linker = link();
+          result = attempt();
+        }
+        releaseExecuted();
+        return result;
+      })();
     },
   };
 }

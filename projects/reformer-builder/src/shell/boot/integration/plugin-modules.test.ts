@@ -7,16 +7,11 @@ import * as rendererJson from '@reformer/renderer-json';
 
 import { createCompileCache } from '@/shell/platform/modules/compile-cache';
 import { ModuleRegistryError } from '@/shell/platform/modules/registry';
-import {
-  TYPESCRIPT_ENGINE_VERSION,
-  TYPESCRIPT_OPTIONS_SIGNATURE,
-  TYPESCRIPT_TRANSPILER_ID,
-} from '@/shell/platform/plugin/typescript-transpiler';
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import * as sdk from '@reformer/builder-plugin-api';
 import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
-import { SUCRASE_ENGINE } from '@/shell/platform/plugin/transpiler-engines';
+import { TYPESCRIPT_ENGINE, transpilerEngine } from '@/shell/platform/plugin/transpiler-engines';
 import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
 describe('модули, доступные плагину каталога', () => {
@@ -106,18 +101,23 @@ describe('модули, доступные плагину каталога', () 
     expect(modules.modules.transpilers.list()).toEqual([]);
 
     await modules.prepare(['main.ts']);
-    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual(['typescript']);
+    // По умолчанию — sucrase; `typescript` у него в запасе и в реестр не садится.
+    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual(['sucrase']);
 
     modules.dispose();
   });
 
-  it('выбранный композицией движок садится вместо typescript, а не рядом с ним', async () => {
-    const modules = createPluginModules({ modules: RUNTIME_MODULES, transpiler: SUCRASE_ENGINE });
+  it('выбранный композицией движок садится вместо умолчания, а не рядом с ним', async () => {
+    // Откат `?rb-transpiler=typescript`: прежний движок целиком.
+    const modules = createPluginModules({
+      modules: RUNTIME_MODULES,
+      transpiler: TYPESCRIPT_ENGINE,
+    });
 
     await modules.prepare(['main.ts']);
 
     // Рядом — значило бы два движка в реестре и победу последнего по случайности порядка.
-    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual(['sucrase']);
+    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual(['typescript']);
     modules.dispose();
   });
 
@@ -190,11 +190,8 @@ describe('модули, доступные коду формы', () => {
       sweep: () => Promise.resolve({ bytesBefore: 0, removed: 0 }),
       clear: () => Promise.resolve(),
     };
-    const cache = createCompileCache(store, {
-      engineId: TYPESCRIPT_TRANSPILER_ID,
-      engineVersion: TYPESCRIPT_ENGINE_VERSION,
-      optionsVersion: TYPESCRIPT_OPTIONS_SIGNATURE,
-    });
+    // Подпись — от движка по умолчанию, как у композиции (`boot`).
+    const cache = createCompileCache(store, transpilerEngine());
     const files = new Map([['model.ts', 'export const initialFormModel = { a: 1 };']]);
 
     const first = createPluginModules({ cache: () => cache, modules: RUNTIME_MODULES });
@@ -214,7 +211,7 @@ describe('модули, доступные коду формы', () => {
 
     expect(again.complete).toBe(true);
     expect(again.ready.get('model.ts')).toContain('exports.initialFormModel');
-    // Главное свойство кэша: `import('typescript')` не случился, значит 3.5 МБ чанка не поехали.
+    // Главное свойство кэша: движок не грузился вовсе — ни sucrase, ни тем более `typescript`.
     expect(second.modules.transpilers.list()).toEqual([]);
     second.dispose();
   });
@@ -225,7 +222,9 @@ describe('модули, доступные коду формы', () => {
     const primed = await modules.prepareCached(new Map([['model.ts', 'export const a = 1;']]));
 
     expect(primed.complete).toBe(false);
-    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual([TYPESCRIPT_TRANSPILER_ID]);
+    expect(modules.modules.transpilers.list().map((t) => t.id)).toEqual([
+      transpilerEngine().engineId,
+    ]);
     modules.dispose();
   });
 
