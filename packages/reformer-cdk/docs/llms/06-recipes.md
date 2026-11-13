@@ -267,7 +267,7 @@ function Page() {
 - Операции потока: `next()` (проверка текущего шага и переход, `Promise<FlowTransition>`), `previous()`, `goTo(id)`, `canGoTo(id)`, `reset()`. Итог перехода — `{ status: 'moved', from, to }` либо `{ status: 'stayed', step, reason, validation? }`, где `reason` — `'invalid' | 'error' | 'cancelled' | 'edge' | 'locked'`.
 - `goTo(id)` пускает на первый шаг и на шаг, предыдущий которого пройден; иначе — `stayed` с `reason: 'locked'`. Неизвестный идентификатор — исключение. Чтобы пройти вперёд с проверкой — `await flow.next()`.
 - `bundle.submission.submit(handler)` возвращает `SubmitResult`: `submitted` (с `result`), `invalid` / `error` / `cancelled` (с `validation`, обработчик не вызывался) или `failed` (обработчик бросил `error`). При `invalid` / `error` тронутой помечается вся форма, при `cancelled` — ничего, при успехе — только проверенные поля. Идёт ли обработчик — `bundle.submission.submitting`.
-- Переходы снаружи не вызывают `onStepChange` и `scrollToTop` визарда — на смену шага реагируйте через `useFormFlow(flow).current`.
+- Переходы снаружи визард видит сам: он подписан на поток, поэтому `onStepChange` и прокрутка к началу (`scrollToTop`) срабатывают на любую смену шага — кнопкой визарда, `flow.goTo` из кода или поведения, `flow.reset()`. Вне визарда на смену шага реагируйте через `useFormFlow(flow).current`.
 - Из поведения формы — тот же поток: `defineFormBehavior<CreditForm>(({ flow }) => { … flow?.goTo('loan'); })`.
 - Внутри дерева визарда то же доступно через `useFormWizard()`: `goToStep(n)` (номер с единицы), `goToNextStep()`, `submit(handler)`.
 

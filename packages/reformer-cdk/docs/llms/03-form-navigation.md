@@ -98,10 +98,15 @@ many of them; `totalSteps` is `flow.steps.length`. `FormWizard.Step` takes eithe
 > onto `<button>` (`isSubmitting` would leak into the DOM). Read the
 > members explicitly as shown, or use the compound `FormWizard.Prev/Next/Submit`.
 
-Other props: `onStepChange(step)` — called after the wizard's own transitions with the 1-based step
-number; `scrollToTop` (default `true`) — scroll to the top after them. A polite live region
-announces "Step N of M" to screen readers; focus management stays with the consumer
-(`onStepChange`).
+Other props: `onStepChange(step)` — called with the 1-based number of the new step whenever the
+flow's current step changes; `scrollToTop` (default `true`) — scroll the window to the top on the
+same changes. The wizard watches the flow itself, not its buttons, so both fire for every move,
+whatever made it: the wizard's buttons and indicator, `useFormWizard()`, `flow.next()` /
+`previous()` / `goTo(id)` / `reset()` called from outside or from a behavior, and a refused submit
+with `flow.onInvalidSubmit: 'firstInvalidStep'`. Once per change, after the new step has rendered —
+`onStepChange` can move focus into it. Not on the first render, and not when the `flow` prop itself
+is replaced. A polite live region announces "Step N of M" to screen readers; focus management stays
+with the consumer (`onStepChange`).
 
 ## Validation and Submit
 
@@ -172,8 +177,9 @@ createForm<Root>({
   Next again.
 - The step is found from the submit run itself — no extra rule runs or server calls. With a full
   `validation.rules` set it is found only if the set `apply`s the step rules.
-- The move is not one of the wizard's own transitions: `onStepChange` is not called and the page
-  is not scrolled. Watch `useFormFlow(flow).current` to move focus or scroll.
+- The wizard reacts to the move like to any step change: `onStepChange` gets the number of the step
+  with the error, and the page scrolls to the top (`scrollToTop`). Move focus to the first invalid
+  field in `onStepChange` — the step is already rendered by then.
 - It replaces the hand-written workaround — re-checking each step with `bundle.validateStep(id)`
   after a refused submit and calling `flow.goTo` — which runs the rules and async requests again.
 
@@ -398,9 +404,9 @@ type FlowTransition =
   `{ status: 'stayed', reason: 'locked' }`.
 - Going back (`previous()`, `goTo` an earlier step) forgets the completion of the target step and
   every later one — moving forward checks them again.
-- Transitions made outside the wizard do not call `onStepChange` and do not scroll — the wizard does
-  that only for its own buttons. Subscribe to the flow instead: `useFormFlow(flow)` from
-  `@reformer/core/react` returns `{ current, index, completed, isFirst, isLast, validating }`.
+- Transitions made outside the wizard call `onStepChange` and scroll to the top the same way as its
+  own buttons — the wizard watches the flow. To react to the flow elsewhere, `useFormFlow(flow)`
+  from `@reformer/core/react` returns `{ current, index, completed, isFirst, isLast, validating }`.
 - Behaviors get the same flow: `defineFormBehavior<Root>(({ flow }) => …)` — e.g. `flow?.goTo('loan')`
   from a reaction.
 

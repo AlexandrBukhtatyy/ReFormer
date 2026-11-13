@@ -375,7 +375,7 @@ function Toolbar({ bundle }: { bundle: FormBundle<WForm> }) {
       type: 'form?; flow?; onStepChange?; scrollToTop?',
       default: 'scrollToTop: true',
       description:
-        'Корень. flow — поток шагов сборки (bundle.flow); без него — сборка из FormBundleContext, без неё — поток по числу Step без правил. onStepChange(step) получает номер с единицы после переходов самого визарда; scrollToTop прокручивает страницу к началу.',
+        'Корень. flow — поток шагов сборки (bundle.flow); без него — сборка из FormBundleContext, без неё — поток по числу Step без правил. onStepChange(step) получает номер нового шага с единицы при любой смене шага потока — кнопкой визарда, flow.goTo снаружи, отказом отправки; scrollToTop прокручивает страницу к началу при тех же сменах.',
     },
     {
       name: 'FormWizard.Step',

@@ -27,9 +27,22 @@ export interface FormWizardProps<T extends Record<string, any>> {
   /** Children (Step components, Indicator, Actions, Progress, or any ReactNode) */
   children?: ReactNode;
 
-  /** Колбэк смены шага: номер шага с единицы. */
+  /**
+   * Колбэк смены шага: номер нового шага с единицы.
+   *
+   * Зовётся на любую смену текущего шага потока (`flow.current`), кто бы ни перевёл поток: кнопки
+   * и индикатор визарда, `useFormWizard()`, `flow.next()` / `previous()` / `goTo(id)` / `reset()`
+   * снаружи или из поведения формы, отказ отправки с `flow.onInvalidSubmit: 'firstInvalidStep'`.
+   * Один раз на смену и после того, как новый шаг нарисован, — в колбэке в него можно перевести
+   * фокус. Первая отрисовка визарда и замена самого потока (другой проп `flow`) сменой шага не
+   * считаются.
+   */
   onStepChange?: (step: number) => void;
 
-  /** Scroll to top on step change */
+  /**
+   * Прокручивать окно к началу (`window.scrollTo({ top: 0, behavior: 'smooth' })`) при смене шага —
+   * в тех же случаях, что и {@link FormWizardProps.onStepChange}. По умолчанию `true`; выключите,
+   * если визард стоит не в начале страницы.
+   */
   scrollToTop?: boolean;
 }

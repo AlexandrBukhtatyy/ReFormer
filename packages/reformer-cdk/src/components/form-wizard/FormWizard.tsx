@@ -1,6 +1,8 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   Children,
   isValidElement,
@@ -9,7 +11,6 @@ import {
 import {
   createFormFlow,
   createSubmission,
-  type FlowTransition,
   type FormFlow,
   type FormSubmission,
 } from '@reformer/core';
@@ -97,6 +98,11 @@ const positionalSteps = (total: number): string[] =>
  * из контекста, иначе позиционный поток без правил по числу `FormWizard.Step`. Визард рисует
  * поток и зовёт его переходы; правила доступности шагов и проверку шага держит поток.
  *
+ * Смена шага: `onStepChange` и прокрутка к началу (`scrollToTop`) идут от потока — на любую смену
+ * `flow.current`, кто бы ни перевёл поток: кнопки визарда, `flow.goTo` снаружи или из поведения,
+ * отказ отправки с `onInvalidSubmit: 'firstInvalidStep'`, `flow.reset()`. Один раз на смену, после
+ * отрисовки нового шага.
+ *
  * Отправка: внутри сборки (контекст `FormBundleContext`) обработчик зовётся через
  * `bundle.submission` — только после успешной проверки всей формы. Без сборки визард строит свою
  * отправку без проверки (`createSubmission`): обработчик зовётся по нажатию, `isSubmitting` истинен,
@@ -164,18 +170,21 @@ function FormWizardBase<T extends Record<string, any>>({
     () => false
   );
 
-  /** После перехода: колбэк смены шага и прокрутка к началу. */
-  const settle = useCallback(
-    (transition: FlowTransition): boolean => {
-      if (transition.status !== 'moved') return false;
-      onStepChange?.(flow.steps.indexOf(transition.to) + 1);
-      if (scrollToTop && typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return true;
-    },
-    [flow, onStepChange, scrollToTop]
-  );
+  // Смена шага — колбэк и прокрутка к началу. Источник смены — сам поток, а не кнопки визарда:
+  // так их получают и переходы снаружи (`flow.goTo` из кода или поведения, переход отказа отправки
+  // `onInvalidSubmit: 'firstInvalidStep'`, `flow.reset()`). Эффект идёт после фиксации, когда новый
+  // шаг уже нарисован: в колбэке в него можно перевести фокус. Первая отрисовка — точка отсчёта,
+  // не смена; смена самого потока (другой проп `flow`, пересобранный позиционный) — тоже.
+  const shown = useRef<{ flow: FormFlow; index: number } | null>(null);
+  useEffect(() => {
+    const last = shown.current;
+    shown.current = { flow, index: state.index };
+    if (last === null || last.flow !== flow || last.index === state.index) return;
+    onStepChange?.(state.index + 1);
+    if (scrollToTop && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [flow, state.index, onStepChange, scrollToTop]);
 
   const goToNextStep = useCallback(async (): Promise<boolean> => {
     const transition = await flow.next();
@@ -184,20 +193,19 @@ function FormWizardBase<T extends Record<string, any>>({
       // поля (`validateStep` → `touch`), а поля следующих шагов остаются нетронутыми.
       return false;
     }
-    settle(transition);
     return true;
-  }, [flow, settle]);
+  }, [flow]);
 
   const goToPreviousStep = useCallback(() => {
-    settle(flow.previous());
-  }, [flow, settle]);
+    flow.previous();
+  }, [flow]);
 
   const goToStep = useCallback(
     (step: number): boolean => {
       const stepId = flow.steps[step - 1];
-      return stepId !== undefined && settle(flow.goTo(stepId));
+      return stepId !== undefined && flow.goTo(stepId).status === 'moved';
     },
-    [flow, settle]
+    [flow]
   );
 
   const submit = useCallback(
