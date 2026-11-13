@@ -9,5 +9,9 @@
   "prompt-create-form": {
     "description": "Раннер сам берёт промпт create-form у сервера (грамматика → form.intent.json → form_build) и отдаёт его текст агенту.",
     "serverPrompt": "create-form"
+  },
+  "code-mode": {
+    "description": "Задание как у bare, сервер в режиме Code Mode (REFORMER_SURFACE=code): один инструмент run_script, все инструменты — функции reformer.* в песочнице.",
+    "serverEnv": { "REFORMER_SURFACE": "code" }
   }
 }

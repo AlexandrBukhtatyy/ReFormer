@@ -39,6 +39,12 @@ import { reportIssueTool, reportIssueToolDefinition } from '../tools/report-issu
 import { searchDocsTool, searchDocsToolDefinition } from '../tools/search-docs.js';
 import { validateFormTool, validateFormToolDefinition } from '../tools/validate-form.js';
 import { createRepeatWatch } from './repeat-calls.js';
+import {
+  RUN_SCRIPT_TOOL,
+  runScriptTool,
+  runScriptToolDefinition,
+  type ScriptSandbox,
+} from '../codemode/run-script.js';
 
 /** Объявление инструмента — в том виде, в каком его отдаёт `tools/list`. */
 export interface ToolDefinition {
@@ -58,6 +64,11 @@ export interface ToolCatalogOptions {
   readonly profile: ServerProfile;
   /** Отладочный инструмент `debug` — только под Node и только по флагу. */
   readonly debug?: boolean;
+  /**
+   * Code Mode (эксперимент, `REFORMER_SURFACE=code`): `tools/list` — один `run_script`, а все
+   * инструменты обычного режима — функции `reformer.*` внутри скрипта, исполняемого этой песочницей.
+   */
+  readonly codeMode?: ScriptSandbox;
 }
 
 export interface ToolCatalog {
@@ -171,12 +182,29 @@ export function createToolCatalog(
     },
   };
 
-  return {
-    list: () => catalog.list(),
-    async call(name, args) {
-      // Номер — как у трассы сервера: каждый вызов инструмента, и неизвестного тоже.
-      const call = ++calls;
-      return repeats.observe(call, name, args, await catalog.call(name, args));
-    },
+  const observed = async (
+    name: string,
+    args: Record<string, unknown> | undefined
+  ): Promise<CallToolResult> => {
+    // Номер — как у трассы сервера: каждый вызов инструмента, и неизвестного тоже.
+    const call = ++calls;
+    return repeats.observe(call, name, args, await catalog.call(name, args));
   };
+
+  const sandbox = options.codeMode;
+  if (sandbox) {
+    // Скрипту доступны те же инструменты, что видит клиент обычного режима, и с той же пометкой
+    // повторов: меняется только форма подачи, не знание.
+    const scriptTools = catalog.list();
+    const runScript = runScriptToolDefinition(scriptTools);
+    return {
+      list: () => [runScript],
+      async call(name, args) {
+        if (name !== RUN_SCRIPT_TOOL) throw new Error(`Unknown tool: ${name}`);
+        return runScriptTool(args, scriptTools, observed, sandbox);
+      },
+    };
+  }
+
+  return { list: () => catalog.list(), call: observed };
 }

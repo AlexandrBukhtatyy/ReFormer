@@ -55,7 +55,9 @@
   },
   "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/packages/reformer-mcp#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0"
+    "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "quickjs-emscripten-core": "^0.32.0"
   },
   "optionalDependencies": {
     "@reformer/renderer-json": "*"

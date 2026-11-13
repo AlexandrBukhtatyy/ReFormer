@@ -1,0 +1,13 @@
+{
+  "description": "Code Mode против bare на слабой модели: гипотеза «с одним run_script и API в песочнице малая модель собирает форму лучше». По одному прогону на сценарий — разведка, не оценка. Итоги — docs/mcp-eval/code-mode.md.",
+  "agents": [
+    {
+      "kind": "ollama",
+      "model": "qwen3.5:4b"
+    }
+  ],
+  "approaches": ["bare", "code-mode"],
+  "scenarios": "*",
+  "repeats": 1,
+  "concurrency": 1
+}

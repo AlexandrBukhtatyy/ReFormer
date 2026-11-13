@@ -216,6 +216,18 @@ const toFunction = (tool) => ({
  */
 export const KEEP_WHOLE_TOOLS = new Set(['plan_form', 'form_build']);
 
+/** Code Mode: скрипт, вызвавший сборку или черновик intent, несёт в ответе их текст. */
+const BUILD_IN_SCRIPT = /reformer\s*\.\s*(formBuild|planForm)\s*\(/;
+
+/**
+ * Держать ли ответ целиком. В Code Mode грамматика и диагностика `form_build` приходят ответом
+ * `run_script` — держим его на тех же правах, иначе режимы сравнивались бы при разных условиях стенда.
+ */
+export function keepsWhole(name, args) {
+  if (KEEP_WHOLE_TOOLS.has(name)) return true;
+  return name === 'run_script' && typeof args?.code === 'string' && BUILD_IN_SCRIPT.test(args.code);
+}
+
 /** Грубая оценка символов на токен: код и английский текст. */
 const CHARS_PER_TOKEN = 3;
 /** Доля контекста модели, которую может занять один ответ. */
@@ -241,10 +253,16 @@ export function capResponse(text, cap) {
   };
 }
 
-/** Усечь старые ответы инструментов; возвращает число усечённых за этот шаг. */
-export function truncateOldResults(messages) {
+/**
+ * Усечь старые ответы инструментов; возвращает число усечённых за этот шаг.
+ *
+ * @param {Array<object>} messages
+ * @param {WeakSet<object>} [kept] - ответы, которые держатся целиком по {@link keepsWhole}
+ */
+export function truncateOldResults(messages, kept = new WeakSet()) {
   const results = messages.filter(
-    (message) => message.role === 'tool' && !KEEP_WHOLE_TOOLS.has(message.tool_name)
+    (message) =>
+      message.role === 'tool' && !KEEP_WHOLE_TOOLS.has(message.tool_name) && !kept.has(message)
   );
   let truncated = 0;
   for (const message of results.slice(0, -KEEP_FULL_LAST_RESULTS)) {
@@ -272,6 +290,7 @@ export async function runAgent(input) {
       // пакетами. Без этого проверка типов недоступна, и запасная проверка импортов на снимке
       // сервера без соседних пакетов отвергает собственный код генератора (батч f7d3).
       REFORMER_TYPECHECK_ROOT: repoRoot,
+      ...input.approach.serverEnv,
     },
     cwd: input.workspaceDirectory,
   });
@@ -318,8 +337,10 @@ export async function runAgent(input) {
     /** Номер вызова инструмента MCP — тот же счёт, что `call` в трассе сервера. */
     let mcpCalls = 0;
 
+    /** Ответы, которые держатся целиком ({@link keepsWhole}). */
+    const kept = new WeakSet();
     for (let step = 0; step < limits.maxSteps; step++) {
-      const truncated = truncateOldResults(messages);
+      const truncated = truncateOldResults(messages, kept);
       harness.truncations += truncated;
       if (truncated > 0) log({ step, role: 'harness', truncated });
       // Ответ модели ждётся минутами: пульс показывает, что прогон жив, а не завис.
@@ -416,7 +437,8 @@ export async function runAgent(input) {
         }
         toolCalls.push({ name, ok: result.ok });
         stepCalls.push({ name, ok: result.ok });
-        if (KEEP_WHOLE_TOOLS.has(name)) {
+        const whole = keepsWhole(name, argumentsValue);
+        if (whole) {
           harness.keptWhole++;
           harness.keptWholeMaxChars = Math.max(harness.keptWholeMaxChars, result.text.length);
         }
@@ -437,7 +459,9 @@ export async function runAgent(input) {
           // Что из ответа дошло до модели: длиннее контекста — усечено стендом.
           ...(capped.cut ? { sentChars: capped.text.length } : {}),
         });
-        messages.push({ role: 'tool', tool_name: name, content: capped.text });
+        const toolMessage = { role: 'tool', tool_name: name, content: capped.text };
+        if (whole) kept.add(toolMessage);
+        messages.push(toolMessage);
       }
       progress?.(stepLine({ at: new Date(), slug, step, modelMs, calls: stepCalls }));
     }

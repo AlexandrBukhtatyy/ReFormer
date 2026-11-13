@@ -209,6 +209,7 @@ export function runAgent(input) {
             REFORMER_ISSUE_REPORTS_DIR: path.join(runDirectory, 'issue-reports'),
             // Агент вне репозитория, а типы формы form_build проверяет с настоящими пакетами.
             REFORMER_TYPECHECK_ROOT: repoRoot,
+            ...input.approach.serverEnv,
           },
         },
       },
