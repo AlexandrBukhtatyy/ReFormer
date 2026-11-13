@@ -6,7 +6,8 @@
  * `AbortSignal`, и устаревший прогон не ждёт своих медленных правил. Разнос гасит поля диффом
  * только для результата, собранного раннером; результат, собранный вручную (не раннером),
  * разносится как есть. Замечание правила — `code`, `params`, `severity` — доходит до результата и
- * до ноды без изменений.
+ * до ноды без изменений. `checkedUnder` отвечает по результату, какие поля проверило каждое
+ * определение прогона вместе с подключёнными в нём.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -17,6 +18,8 @@ import type { PathAwareSignal } from '../../../src/model/types';
 import { createForm } from '../../../src/form/form-bundle';
 import { defineFormBehavior, enableWhen } from '../../../src/form/behaviors';
 import {
+  apply,
+  applyEach,
   applyValidationResult,
   defineValidation,
   runValidation,
@@ -25,7 +28,7 @@ import {
   validateModel,
   validateWhen,
 } from '../../../src/form/validation';
-import { runAndApply } from '../../../src/form/validation/run';
+import { checkedUnder, runAndApply } from '../../../src/form/validation/run';
 import { required } from '../../../src/form/validators';
 import type { ValidationIssue } from '../../../src/form/types/contracts';
 import type { ValidationDefinition, ValidationResult } from '../../../src/form/validation/types';
@@ -421,5 +424,126 @@ describe('validation/run — замечание правила доходит б
 
     expect(await validateModel(model, rules)).toBe(true);
     expect(spy).toHaveBeenCalledWith('');
+  });
+});
+
+describe('validation/run — checkedUnder: поля, проверенные определением [ReFormer-d4bd]', () => {
+  interface Address {
+    city: string;
+    street: string;
+  }
+  interface Row {
+    title: string;
+  }
+  interface Order {
+    customer: string;
+    home: Address;
+    office: Address;
+    rows: Row[];
+    note: string;
+  }
+  const initial = (): Order => ({
+    customer: '',
+    home: { city: '', street: '' },
+    office: { city: '', street: '' },
+    rows: [{ title: '' }, { title: '' }],
+    note: '',
+  });
+
+  /** Пути полей множества — по алфавиту. */
+  const paths = (fields: ReadonlySet<PathAwareSignal<unknown>> | undefined): string[] =>
+    [...(fields ?? [])].map((sig) => sig.__path).sort();
+
+  const addressRules = defineValidation<Address>(({ model }) => {
+    validate(model.$.city, [required()]);
+    validate(model.$.street, [required()]);
+  });
+  const rowRules = defineValidation<Row>(({ model }) => validate(model.$.title, [required()]));
+
+  it('поле вложенной схемы относится к ней и к каждому определению над ней', async () => {
+    const model = createModel<Order>(initial());
+    const customerStep = defineValidation<Order>(({ model: scope }) => {
+      validate(scope.$.customer, [required()]);
+      apply(scope.$.home, addressRules);
+    });
+    const rowsStep = defineValidation<Order>(({ model: scope }) =>
+      applyEach(scope.$.rows, rowRules)
+    );
+    const rules = defineValidation<Order>(() => apply(customerStep, rowsStep));
+
+    const under = checkedUnder(await runValidation(model, rules));
+
+    expect(paths(under.get(customerStep))).toEqual(['customer', 'home.city', 'home.street']);
+    expect(paths(under.get(addressRules))).toEqual(['home.city', 'home.street']);
+    expect(paths(under.get(rowsStep))).toEqual(['rows.0.title', 'rows.1.title']);
+    expect(paths(under.get(rowRules))).toEqual(['rows.0.title', 'rows.1.title']);
+    expect(paths(under.get(rules))).toEqual([
+      'customer',
+      'home.city',
+      'home.street',
+      'rows.0.title',
+      'rows.1.title',
+    ]);
+  });
+
+  it('одна схема в двух определениях: поле — тому, через кого прогон до него дошёл', async () => {
+    const model = createModel<Order>(initial());
+    const homeStep = defineValidation<Order>(({ model: scope }) =>
+      apply(scope.$.home, addressRules)
+    );
+    const officeStep = defineValidation<Order>(({ model: scope }) =>
+      apply(scope.$.office, addressRules)
+    );
+    const rules = defineValidation<Order>(() => apply(homeStep, officeStep));
+
+    const under = checkedUnder(await runValidation(model, rules));
+
+    expect(paths(under.get(homeStep))).toEqual(['home.city', 'home.street']);
+    expect(paths(under.get(officeStep))).toEqual(['office.city', 'office.street']);
+    expect(paths(under.get(addressRules))).toEqual([
+      'home.city',
+      'home.street',
+      'office.city',
+      'office.street',
+    ]);
+  });
+
+  it('поле выключенной ветки validateWhen не проверено', async () => {
+    const model = createModel<Order>(initial());
+    const rules = defineValidation<Order>(({ model: scope }) => {
+      validate(scope.$.customer, [required()]);
+      validateWhen(
+        () => false,
+        () => validate(scope.$.note, [required()])
+      );
+    });
+
+    const under = checkedUnder(await runValidation(model, rules));
+
+    expect(paths(under.get(rules))).toEqual(['customer']);
+  });
+
+  it('выключенное поле в проверке формы (skipDisabled) не проверено', async () => {
+    const bundle = createForm<Login>({
+      initial: { login: '', note: '' },
+      behavior: defineFormBehavior<Login>(({ model }) => {
+        enableWhen(model.$.note, () => model.login !== '');
+      }),
+    });
+    await tick(); // отложенная запись enableWhen
+    const rules = defineValidation<Login>(({ model: scope }) => {
+      validate(scope.$.login, [required()]);
+      validate(scope.$.note, [required()]);
+    });
+
+    const under = checkedUnder(await runAndApply(bundle.model, rules, { skipDisabled: true }));
+
+    expect(paths(under.get(rules))).toEqual(['login']);
+  });
+
+  it('результат не от раннера — пустая карта', () => {
+    const model = createModel<Login>({ login: '', note: '' });
+
+    expect(checkedUnder(handMade('invalid', [[model.$.login, [issue('x')]]])).size).toBe(0);
   });
 });

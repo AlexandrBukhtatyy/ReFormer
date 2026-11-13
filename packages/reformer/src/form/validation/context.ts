@@ -57,6 +57,14 @@ export interface VContext {
   origins: Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>;
   /** Определения, исполненные в прогоне: за их замечания на проверенных полях прогон отвечает. */
   executed: Set<object>;
+  /** Текущий вход в определение {@link VContext.origin} — с цепочкой входов от корня прогона. */
+  entry: OriginEntry;
+  /**
+   * Поля, правила которых выполнялись прямо во входе (не во вложенных), по входу. Одна ссылка на
+   * весь прогон, как `failures`: по ней прогон отвечает, какие поля проверило определение вместе с
+   * подключёнными в нём.
+   */
+  checkedIn: Map<OriginEntry, Set<PathAwareSignal<unknown>>>;
   /**
    * Ответы async-правил пары (владелец, схема): прогон записывает каждый полученный ответ вместе со
    * значением, на которое он дан. Без памяти (прогон собран не раннером) ответы не запоминаются.
@@ -69,6 +77,20 @@ export interface VContext {
    * правил: синхронные замечания поля остаются первыми.
    */
   recall?: Array<() => void>;
+}
+
+/**
+ * Вход прогона в определение: корень прогона либо подключение схемы через `apply` / `applyEach`
+ * (у каждой строки массива — свой вход). Цепочка `parent` ведёт к корню прогона.
+ *
+ * Принадлежность поля считается по входам, а не по самим определениям: схема, подключённая в двух
+ * местах (адрес регистрации в одном шаге и адрес созаёмщика в другом), относит поле к тому
+ * определению, через которое прогон дошёл до него, а не к первому, где её подключили.
+ */
+export interface OriginEntry {
+  readonly origin: object;
+  /** Вход, из которого подключено определение; у корня прогона — нет. */
+  readonly parent: OriginEntry | undefined;
 }
 
 /** Ответ async-правила и значение поля, на которое он дан. */
@@ -121,15 +143,21 @@ export function touch(ctx: VContext, sig: PathAwareSignal<unknown>): ValidationI
   return bucket;
 }
 
-/** Исполнить определение: его замечания помечаются им же. */
+/**
+ * Исполнить определение: его замечания помечаются им же, а проверенные поля записываются в новый
+ * вход, подключённый к текущему.
+ */
 export function withOrigin(ctx: VContext, origin: object, fn: () => void): void {
   const previous = ctx.origin;
+  const outer = ctx.entry;
   ctx.origin = origin;
+  ctx.entry = { origin, parent: outer };
   ctx.executed.add(origin);
   try {
     fn();
   } finally {
     ctx.origin = previous;
+    ctx.entry = outer;
   }
 }
 
@@ -137,11 +165,15 @@ export function withOrigin(ctx: VContext, origin: object, fn: () => void): void 
 export const gated = (ctx: VContext): boolean => ctx.whenStack.every((cond) => cond());
 
 /**
- * Правила поля выполняются: ветка активна. Поле запоминается проверенным ({@link VContext.checked}).
- * Без активной ветки — `false`, и поле остаётся только в `issues` для гашения.
+ * Правила поля выполняются: ветка активна. Поле запоминается проверенным ({@link VContext.checked})
+ * и проверенным в текущем входе ({@link VContext.checkedIn}). Без активной ветки — `false`, и поле
+ * остаётся только в `issues` для гашения.
  */
 export function checking(ctx: VContext, sig: PathAwareSignal<unknown>): boolean {
   if (!gated(ctx)) return false;
   ctx.checked.add(sig);
+  let direct = ctx.checkedIn.get(ctx.entry);
+  if (!direct) ctx.checkedIn.set(ctx.entry, (direct = new Set()));
+  direct.add(sig);
   return true;
 }

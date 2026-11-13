@@ -45,6 +45,7 @@ interface FormValidation<T> {
 }
 interface FormFlowConfig<T> {
   steps: readonly { id: string; rules?: ValidationDefinition<T> | null }[];
+  onInvalidSubmit?: 'stay' | 'firstInvalidStep'; // отказ отправки: остаться (по умолчанию) или на шаг с ошибкой
 }
 
 // Сборка
@@ -113,7 +114,7 @@ function createFormFlow(options: {
 | ----------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `bundle.validate()`                 | полный набор (`rules` либо шаги + `extras`) | разносит замечания, проверенные поля — `touched`                                       |
 | `bundle.validateStep(id)`           | правила шага `id`; шаг без правил — `valid` | разносит замечания, поля шага — `touched`                                              |
-| `bundle.submission.submit(handler)` | один прогон полного набора                  | `invalid` / `error` — вся форма `touched`, `cancelled` — ничего; обработчик не зовётся |
+| `bundle.submission.submit(handler)` | один прогон полного набора                  | `invalid` / `error` — вся форма `touched`, `cancelled` — ничего; обработчик не зовётся. С `flow.onInvalidSubmit: 'firstInvalidStep'` при `invalid` поток переходит на первый шаг с ошибкой |
 | `flow.next()`                       | правила текущего шага (`validateStep`)      | как `validateStep`; при успехе — переход                                               |
 
 - `ValidationResult` — `{ status, issues, failures }`: `status` — `valid | invalid | error |
@@ -166,6 +167,16 @@ cancelled`, `issues` — замечания по ручке поля, `failures`
   шагом, где поток стоит сейчас, — и при успехе, и при отказе проверки.
 - Повтор `id` в `flow.steps` — исключение при сборке. Шаг, для которого в корневой области схемы
   нет узла с таким `selector`, — dev-предупреждение (если хотя бы один шаг узел нашёл).
+- Отправка поток по умолчанию не трогает (`onInvalidSubmit: 'stay'`). С
+  `onInvalidSubmit: 'firstInvalidStep'` итог `invalid` переводит поток (`goTo`) на первый по
+  порядку шаг, правила которого — вместе с их `apply` / `applyEach` — в этом прогоне проверили поле
+  с блокирующим замечанием; источник замечания (правила шага или `extras`) не важен. Переход — до
+  того, как `submit()` вернёт итог. Поток остаётся: шаг с ошибкой — текущий; замечание только на
+  поле, которого не проверяет ни один шаг; шаг впереди закрыт (`locked`); итог `error` /
+  `cancelled`. Шаг находится по результату того же прогона — без повторных правил и запросов; со
+  своим `validation.rules` — если набор подключает правила шагов через `apply`. Живая фаза шага
+  (`liveAfterStep`) после такого перехода снова включается, но шаг не перепроверяется: его только
+  что проверила отправка.
 
 ## Examples
 
@@ -237,6 +248,26 @@ function CreditWizard() {
   сборки сам; его `onSubmit` зовётся через `bundle.submission.submit` — только после успешной
   проверки всей формы.
 - Без `flow` и без сборки в контексте визард строит позиционный поток **без правил**.
+
+### Отказ отправки — на шаг с ошибкой
+
+```typescript
+const createCredit = () =>
+  createForm<CreditForm>({
+    model: createCreditModel(),
+    schema: creditSchema,
+    validation: { extras: crossStepRules }, // межшаговое правило на поле шага 'loan'
+    flow: { ...creditFlow, onInvalidSubmit: 'firstInvalidStep' },
+  });
+
+// на последнем шаге: правило 'loan' устарело после правки на шаге 'applicant'
+const outcome = await credit.submission.submit(sendApplication);
+// outcome.status === 'invalid'; credit.flow.current.value === 'loan' — уже к этому моменту,
+// поля тронуты, замечание видно; пройденными остались шаги до 'loan'
+```
+
+Визард с размонтированными неактивными шагами без этой опции показал бы «Отправить» без
+видимого итога: замечание стоит на шаге, которого нет на экране.
 
 ### Свои кнопки — `useFormFlow`
 
@@ -377,6 +408,21 @@ credit.validateStep(1);
 
 // ✅ Идентификатор шага — selector узла шага
 credit.validateStep('loan');
+```
+
+```typescript
+// ❌ Искать шаг с ошибкой повторной проверкой каждого шага — правила и async-запросы ещё раз
+const outcome = await credit.submission.submit(send);
+if (outcome.status === 'invalid') {
+  for (const id of credit.flow!.steps) {
+    if ((await credit.validateStep(id)).status !== 'invalid') continue;
+    credit.flow!.goTo(id);
+    break;
+  }
+}
+
+// ✅ Поток сам переходит на первый шаг с ошибкой — по результату той же отправки
+createForm({ …, flow: { steps, onInvalidSubmit: 'firstInvalidStep' } });
 ```
 
 ```typescript

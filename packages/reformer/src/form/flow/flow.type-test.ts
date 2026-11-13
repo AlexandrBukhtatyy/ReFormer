@@ -8,7 +8,8 @@
  *  - состояние потока — сигналы только для чтения, а `next()` асинхронный, `previous()` и `goTo()` —
  *    синхронные;
  *  - шаги в конфиге сборки (`FormFlowConfig`) — список `{ id, rules }` правил той же формы данных,
- *    `rules: null` и шаг без поля `rules` — шаги без правил.
+ *    `rules: null` и шаг без поля `rules` — шаги без правил;
+ *  - отказ отправки в конфиге потока (`onInvalidSubmit`) — закрытый список режимов.
  */
 
 import type { ReadonlySignal } from '@preact/signals-core';
@@ -129,6 +130,15 @@ export function flowConfigTypeChecks(): void {
   // @ts-expect-error — шаги только для чтения
   config.steps.push({ id: 'extra' });
 
+  // Отказ отправки: поток остаётся либо переходит на первый шаг с ошибкой.
+  const jumping: FormFlowConfig<Application> = {
+    steps: [{ id: 'loan', rules: loanRules }],
+    onInvalidSubmit: 'firstInvalidStep',
+  };
+  const staying: FormFlowConfig<Application> = { steps: [], onInvalidSubmit: 'stay' };
+  // @ts-expect-error — режим — 'stay' либо 'firstInvalidStep', а не шаг
+  const toStep: FormFlowConfig<Application> = { steps: [], onInvalidSubmit: 'loan' };
+
   // Поток без сборки: идентификаторы шагов и необязательная проверка шага.
   const options: FormFlowOptions = {
     steps: ['loan', 'review'] as const,
@@ -141,5 +151,6 @@ export function flowConfigTypeChecks(): void {
   // @ts-expect-error — проверка шага возвращает результат проверки, а не `boolean`
   createFormFlow({ steps: ['loan'], validateStep: async () => true });
 
-  void [step, fromList, withoutId, foreignRules, idsOnly, flow, positional];
+  void [step, fromList, withoutId, foreignRules, idsOnly, jumping, staying, toStep];
+  void [flow, positional];
 }

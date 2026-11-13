@@ -29,6 +29,8 @@ bundle.validating: ReadonlySignal<boolean>; // идёт проверка
 // в компоненте оба сигнала читает useSignalSnapshot из @reformer/core/react:
 //   const submitting = useSignalSnapshot(bundle.submission.submitting);
 bundle.dispose(): void; // снять сборку: поведение, подписки нод, живую проверку; модель остаётся
+// Визард: отказ invalid ведёт поток на первый шаг с ошибкой (по умолчанию 'stay' — остаётся)
+createForm({ …, flow: { steps, onInvalidSubmit: 'firstInvalidStep' } });
 
 // Отправка без сборки (визард в разметке без createForm) — без проверки
 createSubmission<T>({ check: undefined, values: () => T }): FormSubmission<T>;
@@ -71,6 +73,11 @@ form.reset();                                 // к точке отсчёта м
 
 Отправка — попытка отправки: стратегия `afterFirstSubmit` после неё переходит в живую фазу
 (`bundle.validate()` фазу не трогает, см. `33-validation-strategy.md`).
+
+Поток шагов отправка по умолчанию не трогает. С `flow.onInvalidSubmit: 'firstInvalidStep'` итог
+`invalid` переводит поток на первый шаг, правила которого проверили поле с блокирующим
+замечанием, — до того, как `submit()` вернёт итог; `error` и `cancelled` поток не трогают
+(см. `13-multi-step.md`).
 
 ## Examples
 
@@ -349,6 +356,13 @@ A: `model.reset()` меняет значения; замечания в нода
 A: Это правило с `severity: 'warning'` — оно показывается, но отправку не блокирует. Блокируют только
 замечания без `severity` (по умолчанию `'error'`). Чтобы не пускать submit при warning — проверь
 `(await bundle.validate()).issues` сам до отправки.
+
+**Q: Визард: `submit` на последнем шаге вернул `invalid`, а на экране ни одной ошибки.**
+A: Замечание стоит на поле раннего шага — например, межшаговое правило шага 4 устарело после
+правки на шаге 5, — а визард рисует только текущий шаг. Включите
+`flow: { steps, onInvalidSubmit: 'firstInvalidStep' }`: отказ переведёт поток на первый шаг с
+ошибкой, поля уже тронуты — замечания видны сразу. Обходить это прогоном `validateStep(id)` по
+каждому шагу не нужно: он повторяет правила и async-запросы.
 
 **Q: `submit` вернул `status: 'error'`, а замечаний правил в форме нет — на поле «Не удалось проверить поле».**
 A: Async-правило не вернуло результат (сеть, исключение). Сбой блокирует: на поле — замечание

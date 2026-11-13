@@ -12,10 +12,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { issueCodes } from '../../test-utils/issues';
 import { InputStub } from '../../test-utils/stubs';
 import {
+  checking,
   gated,
   requireCtx,
   runWithContext,
   touch,
+  type OriginEntry,
   type VContext,
   withOrigin,
 } from '../../../src/form/validation/context';
@@ -51,6 +53,8 @@ function contextOf(model: object = createModel({ a: '' })): VContext {
     origin: root,
     origins: new Map(),
     executed: new Set([root]),
+    entry: { origin: root, parent: undefined },
+    checkedIn: new Map(),
   };
 }
 
@@ -132,6 +136,38 @@ describe('validation/context — окно прогона', () => {
     expect(ctx.origins.get(sig)?.get(nested)).toEqual([issue('nested')]);
     expect(ctx.origins.get(sig)?.get(root)).toEqual([issue('root')]);
     expect([...ctx.executed]).toEqual([root, nested]);
+  });
+
+  it('withOrigin: поле записано во вход вложенного определения, вход ведёт к корню и восстановлен [ReFormer-d4bd]', () => {
+    const model = createModel({ a: '', b: '' });
+    const ctx = contextOf(model);
+    const rootEntry = ctx.entry;
+    const nested = {};
+    const a = model.$.a as PathAwareSignal<unknown>;
+    const b = model.$.b as PathAwareSignal<unknown>;
+    let inner: OriginEntry | undefined;
+
+    expect(checking(ctx, a)).toBe(true);
+    withOrigin(ctx, nested, () => {
+      inner = ctx.entry;
+      checking(ctx, b);
+      checking(ctx, b);
+    });
+
+    expect(ctx.entry).toBe(rootEntry);
+    expect(inner).toEqual({ origin: nested, parent: rootEntry });
+    expect([...(ctx.checkedIn.get(rootEntry) ?? [])]).toEqual([a]);
+    expect([...(ctx.checkedIn.get(inner!) ?? [])]).toEqual([b]);
+  });
+
+  it('checking: поле выключенной ветки ни проверенным, ни проверенным во входе не считается', () => {
+    const model = createModel({ a: '' });
+    const ctx = contextOf(model);
+    ctx.whenStack.push(() => false);
+
+    expect(checking(ctx, model.$.a as PathAwareSignal<unknown>)).toBe(false);
+    expect(ctx.checked.size).toBe(0);
+    expect(ctx.checkedIn.size).toBe(0);
   });
 
   it('gated: пустой стек — ветка активна; ложное условие в стеке её выключает', () => {

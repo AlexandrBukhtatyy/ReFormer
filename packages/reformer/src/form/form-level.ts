@@ -19,7 +19,13 @@ import type { FormModel } from '../model/types';
 import { createFormFlow, type FormFlow } from './flow/flow';
 import { createSubmission, type ActionCheck, type FormSubmission } from './submission';
 import { apply } from './validation/operators';
-import { cancelRun, defineValidation, runAndApply, type NodeScope } from './validation/run';
+import {
+  cancelRun,
+  checkedUnder,
+  defineValidation,
+  runAndApply,
+  type NodeScope,
+} from './validation/run';
 import {
   createFormValidation,
   type FormValidationController,
@@ -82,6 +88,41 @@ export interface FlowStep<T> {
  */
 export interface FormFlowConfig<T> {
   readonly steps: readonly FlowStep<T>[];
+  /**
+   * Что делает поток, когда отправка (`submission.submit`) отказала с итогом `invalid`. По
+   * умолчанию `'stay'` — поток остаётся, где стоял.
+   *
+   * `'firstInvalidStep'` — до того как `submit()` вернёт итог, поток переходит на первый по порядку
+   * шаг, правила которого в этом прогоне проверили поле с блокирующим замечанием (правила шага
+   * вместе с подключёнными в них `apply` / `applyEach`). Источник замечания не важен — правила шага
+   * или `extras`: шаг выбирается по полю. Так видно замечание раннего шага: межшаговое правило,
+   * устаревшее после правки на позднем шаге, у визарда с размонтированными неактивными шагами иначе
+   * осталось бы на невидимом шаге, и «Отправить» на последнем шаге не показало бы ничего.
+   *
+   * Переход — `flow.goTo`: назад — всегда (пройденными остаются шаги до цели), вперёд на закрытый
+   * шаг (`locked`) — нет. Поток остаётся, если шаг с ошибкой — текущий либо замечание стоит на
+   * поле, которого не проверял ни один шаг (только `extras`). Итоги `error` и `cancelled` поток не
+   * трогают. Шаг находится по результату того же прогона: правила заново не исполняются, запросов
+   * к серверу нет. С полным набором `validation.rules` шаг находится, только если набор подключает
+   * правила шагов через `apply`.
+   *
+   * @example
+   * ```typescript
+   * createForm<Order>({
+   *   initial,
+   *   validation: { extras: crossStepRules },
+   *   flow: {
+   *     steps: [
+   *       { id: 'budget', rules: budgetRules }, // межшаговое правило: сумма позиций ≤ лимита
+   *       { id: 'items', rules: itemsRules },
+   *       { id: 'confirm' },
+   *     ],
+   *     onInvalidSubmit: 'firstInvalidStep',
+   *   },
+   * });
+   * ```
+   */
+  readonly onInvalidSubmit?: 'stay' | 'firstInvalidStep';
 }
 
 /**
@@ -109,7 +150,8 @@ export interface FormLevel<T> {
   readonly validation: FormValidationState<T> | undefined;
   /**
    * Отправка: `submission.submit(handler)` — один прогон всех правил и обработчик со значениями,
-   * которые они видели; `submission.submitting` — идёт ли обработчик.
+   * которые они видели; `submission.submitting` — идёт ли обработчик. С
+   * `flow.onInvalidSubmit: 'firstInvalidStep'` отказ `invalid` переводит поток на шаг с ошибкой.
    */
   readonly submission: FormSubmission<T>;
   /**
@@ -190,6 +232,7 @@ export function createFormLevel<T>(
     if (stepRules.has(step.id)) throw new Error(`${AT}: шаг потока «${step.id}» повторяется.`);
     stepRules.set(step.id, step.rules ?? null);
   }
+  const onInvalidSubmit = config.flow?.onInvalidSubmit ?? 'stay';
   const stepSchemas = [...stepRules.values()].filter(
     (rules): rules is ValidationDefinition<T> => rules != null
   );
@@ -316,12 +359,46 @@ export function createFormLevel<T>(
     return stale ? { ...result, status: 'cancelled' } : result;
   };
 
+  /**
+   * Первый по порядку потока шаг, правила которого в этом прогоне проверили поле с блокирующим
+   * замечанием. Ответ — из результата прогона: правила заново не исполняются.
+   */
+  const firstInvalidStep = (result: ValidationResult): string | undefined => {
+    const blocking = new Set<unknown>();
+    for (const [sig, issues] of result.issues) {
+      if (issues.some((issue) => issue.severity !== 'warning')) blocking.add(sig);
+    }
+    const under = checkedUnder(result);
+    for (const [stepId, rules] of stepRules) {
+      const fields = rules ? under.get(rules) : undefined;
+      if (fields && [...fields].some((sig) => blocking.has(sig))) return stepId;
+    }
+    return undefined;
+  };
+
+  /** Перевести поток на первый шаг с замечанием отказа отправки; шаг не найден — остаться. */
+  const showFirstInvalidStep = (steps: FormFlow, result: ValidationResult): void => {
+    const stepId = firstInvalidStep(result);
+    if (stepId === undefined || stepId === steps.current.peek()) return;
+    const move = (): void => void steps.goTo(stepId);
+    // Правила шага только что проверила отправка: перепроверять его при возврате незачем.
+    if (stepLive) stepLive.moveChecked(move);
+    else move();
+  };
+
   // Отправка — попытка отправки: при отказе раскрыта вся форма, `afterFirstSubmit` переходит в
-  // живую фазу. Без правил сверять нечего: обработчик получает модель как есть.
+  // живую фазу; с `onInvalidSubmit: 'firstInvalidStep'` отказ `invalid` переводит поток к ошибке
+  // до того, как `submit()` вернёт итог. Без правил сверять нечего: обработчик получает модель как
+  // есть.
+  const submitCheck = async (run: FormValidationController): Promise<ActionCheck<T>> => {
+    const checked = await checkForAction(() => run.run({ touch: 'all', submit: true }));
+    if (flow && onInvalidSubmit === 'firstInvalidStep' && checked.result.status === 'invalid') {
+      showFirstInvalidStep(flow, checked.result);
+    }
+    return checked;
+  };
   const submission = createSubmission<T>({
-    check: controller
-      ? () => checkForAction(() => controller.run({ touch: 'all', submit: true }))
-      : undefined,
+    check: controller ? () => submitCheck(controller) : undefined,
     values: () => model.get() as T,
   });
 

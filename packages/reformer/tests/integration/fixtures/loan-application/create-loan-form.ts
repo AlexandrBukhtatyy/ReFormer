@@ -9,6 +9,7 @@
  * - `server` — своя заглушка сервера (ручные ответы, недоступный сервис);
  * - `initial` + `seed` — модель из готовых значений (черновик, загрузка) и правка до сборки нод;
  * - `rules: 'all'` — одностраничный вариант: полный набор правил одной схемой, без потока шагов;
+ * - `onInvalidSubmit` — куда поток ведёт при отказе отправки (по умолчанию остаётся на месте);
  * - `extraRules` — правила сценария поверх правил заявки (async-правило строки, счётчик прогонов);
  * - `extraBehavior` — поведение сценария поверх поведения заявки (оператор, которого в ней нет).
  *
@@ -19,6 +20,7 @@
 import {
   createForm,
   type FormBundle,
+  type FormFlowConfig,
   type FormModel,
   type FormValidation,
 } from '../../../../src/index';
@@ -61,6 +63,8 @@ export interface LoanFormOptions {
    * `'all'` — полный набор одной схемой без потока (одностраничная анкета).
    */
   readonly rules?: 'steps' | 'all';
+  /** Что делает поток при отказе отправки — `flow.onInvalidSubmit`; по умолчанию остаётся. */
+  readonly onInvalidSubmit?: FormFlowConfig<LoanApplication>['onInvalidSubmit'];
   /**
    * Правила сценария поверх правил заявки: проверяются вместе с межшаговыми `extras` (полная
    * проверка и отправка), в варианте `rules: 'all'` — вместе с полным набором. Композиция
@@ -141,7 +145,9 @@ export function createLoanForm(options: LoanFormOptions = {}): LoanForm {
     schema: loanSchema,
     behavior,
     validation,
-    ...(singlePage ? {} : { flow: createLoanFlow(rules) }),
+    ...(singlePage
+      ? {}
+      : { flow: { ...createLoanFlow(rules), onInvalidSubmit: options.onInvalidSubmit } }),
   });
 
   return { bundle, server, rules };

@@ -11,7 +11,9 @@
  * - правка формы, пока отправка ждёт проверку: что уходит обработчику и что делает живая стратегия;
  * - одностраничный вариант `rules: 'all'` (композиция `apply(...схемы)`);
  * - замечания сервера после отправки: `setIssues` / `clearIssues` и `applyValidationResult` на
- *   нодах, их видимость (`shouldShowError`), снятие правкой и повторной отправкой.
+ *   нодах, их видимость (`shouldShowError`), снятие правкой и повторной отправкой;
+ * - визард с `flow.onInvalidSubmit: 'firstInvalidStep'`: отказ переводит поток на первый шаг с
+ *   ошибкой — межшаговое правило, подформа адреса в двух шагах, ответ сервера; сбой — не переводит.
  * Гонки проверки и живые стратегии — в `async-and-races` и `live-strategies`.
  */
 
@@ -29,6 +31,7 @@ import {
   type ValidationStrategyKind,
 } from '../../src/form/validation/index';
 import { fillLoanApplication, passWizardTo } from './fixtures/loan-application/actions';
+import { createLoanServer } from './fixtures/loan-application/api';
 import {
   createLoanForm,
   type LoanForm,
@@ -541,5 +544,81 @@ describe('замечания сервера после отправки', () => 
     expect(result.status).toBe('submitted');
     expect(form.applicant.ownIssues.value).toEqual([{ code: 'applicant.duplicate' }]);
     expect(form.valid.value).toBe(false);
+  });
+});
+
+// ─── Визард: отказ отправки ведёт на шаг с ошибкой ─────────────────────────────────────────────
+
+describe("визард: flow.onInvalidSubmit: 'firstInvalidStep' — отказ отправки ведёт на шаг с ошибкой", () => {
+  it('SS-19: межшаговое правило extras на поле первого шага — поток на шаге «Кредит», пройденные забыты', async () => {
+    const { bundle } = build({ onInvalidSubmit: 'firstInvalidStep' });
+    await passWizardTo(bundle, 'review');
+    // Доход семьи мал для платежа: замечание extras ложится на сумму — поле шага «Кредит».
+    bundle.model.employment.monthlyIncome = 20_000;
+    bundle.model.hasCoBorrowers = false;
+    await settle();
+    const handler = vi.fn();
+
+    const result = await bundle.submission.submit(handler);
+
+    expect(result).toMatchObject({ status: 'invalid', validation: { status: 'invalid' } });
+    expect(handler).not.toHaveBeenCalled();
+    expect(bundle.flow!.current.value).toBe('loan');
+    expect(bundle.flow!.completed.value.size).toBe(0);
+    expect(issueCodes(bundle.form.loan.amount)).toEqual(['loan.paymentTooHigh']);
+    expect(bundle.form.loan.amount.shouldShowError.value).toBe(true);
+  });
+
+  it('SS-20: подформа адреса в двух шагах — ошибка адреса созаёмщика ведёт на его шаг, а не на «Контакты»', async () => {
+    const { bundle } = build({ onInvalidSubmit: 'firstInvalidStep' });
+    await passWizardTo(bundle, 'review');
+    // Схема адреса подключена и в «Контактах» (раньше), и в строке созаёмщика.
+    bundle.model.coBorrowers.at(0).livesWithApplicant = false;
+    await settle();
+
+    const result = await bundle.submission.submit(vi.fn());
+
+    expect(pathsWithIssues(validationOf(result))).toEqual(
+      expect.arrayContaining(['coBorrowers.0.address.city', 'coBorrowers.0.address.street'])
+    );
+    expect(
+      pathsWithIssues(validationOf(result)).some((path) => path.startsWith('registration'))
+    ).toBe(false);
+    expect(bundle.flow!.current.value).toBe('co-borrowers');
+  });
+
+  it('SS-21: async-правило — сервер не нашёл ИНН: поток на шаге «Заёмщик», сервер спрошен один раз', async () => {
+    const UNKNOWN_INN = '500100732260';
+    const { bundle, server } = build({
+      onInvalidSubmit: 'firstInvalidStep',
+      server: createLoanServer({ unknownInns: [UNKNOWN_INN] }),
+    });
+    await passWizardTo(bundle, 'review');
+    bundle.model.applicant.inn = UNKNOWN_INN;
+    const innChecks = server.callsOf('checkInn').length;
+
+    const result = await bundle.submission.submit(vi.fn());
+
+    expect(result.status).toBe('invalid');
+    expect(bundle.flow!.current.value).toBe('applicant');
+    expect(issueCodes(bundle.form.applicant.inn)).toEqual(['applicant.inn.notFound']);
+    expect(server.callsOf('checkInn')).toHaveLength(innChecks + 1);
+  });
+
+  it('SS-22: сбой проверки (error) поток не трогает, даже если на раннем шаге есть замечание', async () => {
+    const FAILING_INN = '500100732260';
+    const { bundle } = build({
+      onInvalidSubmit: 'firstInvalidStep',
+      server: createLoanServer({ failingInns: [FAILING_INN] }),
+    });
+    await passWizardTo(bundle, 'review');
+    bundle.model.applicant.inn = FAILING_INN;
+    bundle.model.email = 'ivanov@';
+
+    const result = await bundle.submission.submit(vi.fn());
+
+    expect(result.status).toBe('error');
+    expect(bundle.flow!.current.value).toBe('review');
+    expect(issueCodes(bundle.form.email)).toEqual(['email']);
   });
 });

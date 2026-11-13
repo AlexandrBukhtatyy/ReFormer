@@ -20,7 +20,7 @@ import { deepEqual, deferredWritesSettled } from '../../model/index';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { GLOBAL_NODES, type NodeScope } from '../signal-node-registry';
 import type { ValidationIssue } from '../types/contracts';
-import { runWithContext, type AsyncAnswers, type VContext } from './context';
+import { runWithContext, type AsyncAnswers, type OriginEntry, type VContext } from './context';
 import { scopeOf } from './operators';
 import type { ValidationFailure, ValidationResult, ValidationDefinition } from './types';
 
@@ -64,6 +64,43 @@ const stateOfResult = new WeakMap<ValidationResult, RunState>();
  * раннером, здесь не записан — для него проверенными считаются все поля `issues`.
  */
 const checkedOfResult = new WeakMap<ValidationResult, ReadonlySet<PathAwareSignal<unknown>>>();
+
+/** Поля, проверенные прогоном, — все и по входам в определения: для {@link checkedUnder}. */
+interface CheckedEntries {
+  readonly checked: ReadonlySet<PathAwareSignal<unknown>>;
+  readonly byEntry: ReadonlyMap<OriginEntry, ReadonlySet<PathAwareSignal<unknown>>>;
+}
+const entriesOfResult = new WeakMap<ValidationResult, CheckedEntries>();
+
+/**
+ * Поля, которые прогон проверил правилами определения — его собственными и подключёнными в нём
+ * (`apply`, `applyEach`) на любой глубине, — по каждому определению прогона. Поля, выпавшие из
+ * проверки формы (выключенные, удалённая строка), не входят. Результат, собранный не раннером, —
+ * пустая карта.
+ *
+ * Ответ берётся из самого прогона — правила заново не исполняются. Поле относится к определениям
+ * по входам прогона: схема, подключённая в двух местах, отдаёт поле тому, через кого прогон дошёл
+ * до него (см. {@link OriginEntry}).
+ *
+ * @internal
+ */
+export function checkedUnder(
+  result: ValidationResult
+): ReadonlyMap<object, ReadonlySet<PathAwareSignal<unknown>>> {
+  const under = new Map<object, Set<PathAwareSignal<unknown>>>();
+  const recorded = entriesOfResult.get(result);
+  if (recorded === undefined) return under;
+  for (const [entry, direct] of recorded.byEntry) {
+    const fields = [...direct].filter((sig) => recorded.checked.has(sig));
+    // Вверх по цепочке входов: поле вложенной схемы проверено и каждым определением над ней.
+    for (let at: OriginEntry | undefined = entry; at !== undefined; at = at.parent) {
+      let set = under.get(at.origin);
+      if (set === undefined) under.set(at.origin, (set = new Set()));
+      for (const sig of fields) set.add(sig);
+    }
+  }
+  return under;
+}
 
 /** Замечания результата по определениям-источникам и определения, исполненные прогоном. */
 interface TaggedIssues {
@@ -389,6 +426,8 @@ async function collect<T>(
     origin: schema as object,
     origins: new Map(),
     executed: new Set([schema as object]),
+    entry: { origin: schema as object, parent: undefined },
+    checkedIn: new Map(),
     answers: state.answers,
     ...(live ? { recall: [] } : {}),
   };
@@ -442,6 +481,7 @@ async function collect<T>(
   };
   stateOfResult.set(result, state);
   checkedOfResult.set(result, ctx.checked);
+  entriesOfResult.set(result, { checked: ctx.checked, byEntry: ctx.checkedIn });
   taggedOfResult.set(result, { origins: ctx.origins, executed: ctx.executed });
   modelOfResult.set(result, model as FormModel<unknown>);
   nodesOfResult.set(result, nodes);

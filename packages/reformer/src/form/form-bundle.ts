@@ -143,7 +143,8 @@ export interface CreateFormConfig<T> {
   validation?: FormValidation<T> | ValidationDefinition<T>;
   /**
    * Поток шагов: `{ steps: [{ id, rules }] }`. Идентификатор шага — `selector` узла шага в схеме;
-   * `next()` потока проверяет правила текущего шага.
+   * `next()` потока проверяет правила текущего шага. `onInvalidSubmit: 'firstInvalidStep'` —
+   * отказ отправки переводит поток на первый шаг с ошибкой (по умолчанию поток остаётся).
    */
   flow?: FormFlowConfig<T>;
   /**

@@ -114,7 +114,9 @@ announces "Step N of M" to screen readers; focus management stays with the consu
 - **Submit** (`submit.onClick`, `FormWizard.Submit`, `submit(handler)` from `useFormWizard()`):
   - inside the bundle context it goes through `bundle.submission.submit`: one run of the **full**
     rule set; on success the handler (`Actions` `onSubmit`) is called, on issues every field is
-    marked touched and the handler is not called;
+    marked touched and the handler is not called — and with
+    `flow.onInvalidSubmit: 'firstInvalidStep'` the flow moves to the first step with an error
+    (recipe below);
   - with `form`/`flow` props outside the context the wizard calls the handler on click **without**
     a check (its own submission — `createSubmission` with no check) — run the check in the
     handler: `bundle.submission.submit(handler)`.
@@ -136,6 +138,44 @@ marked touched, on `cancelled` — nothing, on success — only the fields that 
 `bundle.submission.submitting` is `true` while the handler runs (not while the rules run).
 `bundle.validateStep('loan')` checks one step (an unknown id throws), `bundle.validate()` — the
 full set.
+
+### Recipe: Submit moves to the first step with an error
+
+The wizard renders only the current step. When Submit is refused because of an issue on an
+earlier step — typically a cross-step rule of step 4 that went stale after an edit on step 5 — the
+issue sits on a step that is not on the screen, and pressing Submit on the last step seems to do
+nothing. Let the flow move there:
+
+```typescript
+createForm<Root>({
+  initial,
+  validation: { extras: crossStepRules },
+  flow: {
+    steps: [
+      { id: 'loan', rules: loanRules },
+      { id: 'contacts', rules: contactsRules },
+      { id: 'confirm' },
+    ],
+    onInvalidSubmit: 'firstInvalidStep', // default: 'stay'
+  },
+});
+```
+
+- On an `invalid` outcome, before `bundle.submission.submit` resolves, the flow moves
+  (`flow.goTo`) to the first step whose rules checked a field with a blocking issue in that same
+  run. The issue may come from the step rules, from an `apply` / `applyEach` inside them or from
+  `validation.extras` — what counts is that the step checked the field. Every field is already
+  touched, so the issues show as soon as the step renders.
+- The flow stays when that step is the current one, when the issue is on a field no step checks
+  (`extras` only), when the step lies ahead and is still locked, and on `error` / `cancelled`.
+- Going back forgets the completion of that step and the later ones: the user moves forward with
+  Next again.
+- The step is found from the submit run itself — no extra rule runs or server calls. With a full
+  `validation.rules` set it is found only if the set `apply`s the step rules.
+- The move is not one of the wizard's own transitions: `onStepChange` is not called and the page
+  is not scrolled. Watch `useFormFlow(flow).current` to move focus or scroll.
+- It replaces the hand-written workaround — re-checking each step with `bundle.validateStep(id)`
+  after a refused submit and calling `flow.goTo` — which runs the rules and async requests again.
 
 When the steps are described in the schema, the step id is the `selector` of the step node; in dev
 `createForm` warns about `flow.steps` ids that have no node with that `selector`. A wizard described

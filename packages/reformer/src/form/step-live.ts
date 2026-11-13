@@ -13,7 +13,8 @@
  * пятом шаге формы это пять прогонов на клавишу вместо одного. Межшаговые замечания ловит
  * отправка. Возврат на пройденный шаг армирует его снова и один раз перепроверяет: пока поток
  * стоял на другом шаге, поле этого могло измениться поведением (`computeFrom`, `copyFrom`,
- * `resetWhen`), и замечания шага должны быть о том, что видно сейчас.
+ * `resetWhen`), и замечания шага должны быть о том, что видно сейчас. Исключение — переход, который
+ * делает отказ отправки (`flow.onInvalidSubmit`): отправка только что проверила правила шага.
  *
  * @internal
  * @module form/step-live
@@ -30,6 +31,12 @@ import type { ValidationDefinition } from './validation/types';
 export interface StepLiveController<T> extends FormValidationController {
   /** Включить живую фазу шага с этими правилами; повторно — ничего. */
   armStep(stepId: string, rules: ValidationDefinition<T>): void;
+  /**
+   * Перевести поток без перепроверки шага, на который он придёт: его правила только что проверил
+   * прогон, который и переводит поток (отказ отправки с `flow.onInvalidSubmit`). Шаг всё равно
+   * становится живым.
+   */
+  moveChecked(move: () => void): void;
 }
 
 export interface StepLiveOptions<T> {
@@ -77,6 +84,8 @@ export function createStepLiveController<T>(
   const refreshing = signal(0);
   /** Вся форма в живой фазе — шагам своя не нужна. */
   let formLive = false;
+  /** Идёт переход без перепроверки шага — {@link StepLiveController.moveChecked}. */
+  let movingChecked = false;
 
   /** Армировать контроллер шага (или никакой) вместо прежнего. */
   const activate = (step: LiveStep<T> | undefined): void => {
@@ -130,6 +139,14 @@ export function createStepLiveController<T>(
       // Армирует его подписка на текущий шаг — если составной контроллер армирован.
       steps.value = new Map([...steps.peek(), [stepId, step]]);
     },
+    moveChecked(move) {
+      movingChecked = true;
+      try {
+        move();
+      } finally {
+        movingChecked = false;
+      }
+    },
     validate: () => form.validate(),
     run(runOptions) {
       if (runOptions?.submit && submitMakesFormLive) {
@@ -149,10 +166,11 @@ export function createStepLiveController<T>(
           untracked(() => {
             // Перепроверка — только при возврате на шаг. Армирование шага, на котором поток
             // стоит, перепроверки не просит: «Далее», которое его армирует, само проверяет шаг.
+            // Не просит и переход, который сделал сам прогон, проверивший шаг (`moveChecked`).
             const returned = shown !== undefined && shown !== stepId;
             shown = stepId;
             activate(step);
-            if (returned && step) refresh(step);
+            if (returned && step && !movingChecked) refresh(step);
           });
         });
       }
