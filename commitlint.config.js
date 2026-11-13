@@ -47,6 +47,9 @@ export default {
         // Проект-образец, который билдер открывает как рабочий каталог, и e2e билдера на нём.
         'reformer-builder-playground',
         'reformer-builder-playground-e2e',
+        // Бенчмарк форм: приложение со страницами участников и e2e с профилированием.
+        'forms-benchmark',
+        'forms-benchmark-e2e',
         'docs',
         'ci',
         'deps',

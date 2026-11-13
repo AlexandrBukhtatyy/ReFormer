@@ -1,0 +1,34 @@
+{
+  "$comment": "Участники бенчмарка. id — имя в URL и отчёте, impl — каталог src/libs/<impl>/<form>. Вход без main.tsx пропускается при сборке.",
+  "forms": ["registration", "credit"],
+  "entries": [
+    {
+      "id": "reformer-core",
+      "impl": "reformer-core",
+      "label": "ReFormer (core)",
+      "role": "subject"
+    },
+    {
+      "id": "reformer-json",
+      "impl": "reformer-json",
+      "label": "ReFormer (renderer-json)",
+      "role": "subject"
+    },
+    { "id": "formik", "impl": "formik", "label": "Formik + Yup", "role": "competitor" },
+    { "id": "rhf", "impl": "rhf", "label": "React Hook Form + zod", "role": "competitor" },
+    { "id": "rjsf", "impl": "rjsf", "label": "RJSF + ajv8", "role": "competitor" },
+    {
+      "id": "baseline",
+      "impl": "baseline",
+      "label": "Baseline (без библиотеки)",
+      "role": "baseline"
+    },
+    {
+      "id": "reformer-core-aa",
+      "impl": "reformer-core",
+      "label": "A/A: ReFormer (core)",
+      "role": "control"
+    }
+  ],
+  "pages": [{ "id": "calibration", "entry": "src/calibration/main.tsx" }]
+}

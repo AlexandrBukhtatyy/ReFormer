@@ -1,0 +1,87 @@
+{
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Page)",
+    "componentProps": { "title": "Регистрация" },
+    "children": [
+      {
+        "component": "$component(Form)",
+        "children": [
+          {
+            "component": "$html(div)",
+            "componentProps": { "className": "b-grid" },
+            "children": [
+              {
+                "model": "$model(username)",
+                "component": "$component(TextInput)",
+                "componentProps": { "label": "Имя пользователя", "placeholder": "Логин (латиница)" }
+              },
+              {
+                "model": "$model(email)",
+                "component": "$component(TextInput)",
+                "componentProps": {
+                  "label": "Email",
+                  "placeholder": "your@email.com",
+                  "type": "email"
+                }
+              },
+              {
+                "model": "$model(password)",
+                "component": "$component(TextInput)",
+                "componentProps": {
+                  "label": "Пароль",
+                  "placeholder": "Минимум 8 символов",
+                  "type": "password"
+                }
+              },
+              {
+                "model": "$model(confirmPassword)",
+                "component": "$component(TextInput)",
+                "componentProps": {
+                  "label": "Подтвердите пароль",
+                  "placeholder": "Повторите пароль",
+                  "type": "password"
+                }
+              }
+            ]
+          },
+          {
+            "model": "$model(fullName)",
+            "component": "$component(TextInput)",
+            "componentProps": { "label": "Полное имя", "placeholder": "Иван Иванов" }
+          },
+          {
+            "model": "$model(phone)",
+            "component": "$component(MaskedInput)",
+            "componentProps": {
+              "label": "Телефон",
+              "placeholder": "+7 (999) 123-45-67",
+              "mask": "+7 (999) 999-99-99"
+            }
+          },
+          {
+            "model": "$model(captcha)",
+            "component": "$component(CaptchaWidget)",
+            "componentProps": {
+              "label": "Символы с картинки",
+              "placeholder": "Введите 6 символов с картинки"
+            }
+          },
+          {
+            "model": "$model(acceptTerms)",
+            "component": "$component(Checkbox)",
+            "componentProps": { "label": "Я принимаю условия использования" }
+          },
+          {
+            "component": "$component(Actions)",
+            "children": [
+              { "component": "$component(SubmitButton)", "children": ["Зарегистрироваться"] },
+              { "component": "$component(ResetButton)" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

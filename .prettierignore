@@ -69,3 +69,7 @@ projects/reformer-builder-playground/.ui_builder/plugins/*/*/src/styles.css
 projects/reformer-builder-playground/.ui_builder/mcp/*/server.js
 # снимки сравниваются побайтно: форматирование при коммите сломало бы их
 packages/reformer-mcp/tests/__golden__/
+# отчёт бенчмарка форм пишет projects/forms-benchmark-e2e/scripts/report.mjs (`npm run bench:report
+# -- --publish`); prettier переформатировал бы сгенерированные таблицы и summary.json при каждой
+# публикации
+docs/benchmarks/forms/

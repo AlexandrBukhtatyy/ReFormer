@@ -94,6 +94,8 @@ Project scopes (не публикуются в npm):
 - `reformer-builder-playground-e2e` — e2e-тесты билдера на этом проекте (`projects/reformer-builder-playground-e2e`)
 - `reformer-hexa-ui` — кит HexaUI и внешний плагин билдера (`projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui`)
 - `rjsf-kit-theme` — тема RJSF из любого кита (`packages/rjsf-kit-theme`; её вкладывает в свою сборку плагин `reformer.rjsf.render`)
+- `forms-benchmark` — бенчмарк форм: страницы ReFormer, Formik, RHF и RJSF на общем UI (`projects/forms-benchmark`)
+- `forms-benchmark-e2e` — conformance и профилирование бенчмарка форм, отчёты (`projects/forms-benchmark-e2e`)
 
 Other scopes:
 

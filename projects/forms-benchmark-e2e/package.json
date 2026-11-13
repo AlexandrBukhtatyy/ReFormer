@@ -1,0 +1,20 @@
+{
+  "name": "forms-benchmark-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Conformance и профилирование страниц forms-benchmark в Chromium (CDP, трассы, рендеры)",
+  "scripts": {
+    "conformance": "playwright test --project=conformance",
+    "bench": "playwright test --project=bench && node scripts/report.mjs",
+    "bench:quick": "cross-env BENCH_QUICK=1 playwright test --project=bench && node scripts/report.mjs",
+    "report": "node scripts/report.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
+    "cross-env": "^7.0.3",
+    "typescript": "~5.9.3"
+  }
+}

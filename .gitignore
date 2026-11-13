@@ -61,3 +61,7 @@ projects/react-playground/src/pages/debug/mcp-calibration/*/
 
 # Формы стенда сценариев MCP (`npm run mcp:scenarios`, `npm run mcp:verify`): вывод стенда.
 projects/react-playground/src/pages/debug/mcp-scenarios/*/
+
+# Бенчмарк форм: сырые результаты прогонов, трассы DevTools и отчёты (публикуемый снимок —
+# docs/benchmarks/forms/, по `npm run bench:report -- --publish`).
+projects/forms-benchmark-e2e/results/
