@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Импорт прогона ассистента конструктора (`.tmp/eval/form-scenarios-*.json`) в записи прогонов:
- * `npm run mcp:import-builder -- <файл> [--publish] [--reasoning off] [--price-in 3 --price-out 15]`.
+ * `npm run mcp:import-builder -- <файл> [--reasoning off] [--price-in 3 --price-out 15]`.
  * Прогон лестницы сценариев MCP — его `verify.json` (`mcp:verify -- --ladder <каталог>`): записи с
  * проверками верификатора, сравнимые с терминалом (`ladderRecords`).
  *
@@ -18,7 +18,14 @@
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { collectSource, createRecord, newBatchId, repoRoot, writeRecords } from './record.mjs';
+import {
+  collectSource,
+  createRecord,
+  newBatchId,
+  recordsSummary,
+  rejectPublishFlag,
+  writeRecords,
+} from './record.mjs';
 
 /** Записи из отчёта стенда. Чистая функция — проверяется тестом. */
 export function builderRecords(
@@ -155,6 +162,7 @@ export function ladderRecords(report, { batchId, startedAt, source, reasoning = 
 
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isCli) {
+  rejectPublishFlag();
   const argv = process.argv.slice(2);
   const valueOf = (flag) => (argv.includes(flag) ? argv[argv.indexOf(flag) + 1] : undefined);
   const reasoning = valueOf('--reasoning') ?? 'default';
@@ -169,9 +177,7 @@ if (isCli) {
     (argument, index) => !argument.startsWith('--') && !valued.has(argv[index - 1])
   );
   if (!file) {
-    console.error(
-      'Использование: npm run mcp:import-builder -- <form-scenarios-*.json> [--publish]'
-    );
+    console.error('Использование: npm run mcp:import-builder -- <form-scenarios-*.json>');
     process.exit(2);
   }
   const report = JSON.parse(readFileSync(path.resolve(file), 'utf8'));
@@ -190,11 +196,6 @@ if (isCli) {
     reasoning,
     price,
   });
-  const { local, published } = writeRecords(records, {
-    batchId,
-    harness: 'builder',
-    label: String(report.model ?? report.agent ?? 'builder').replace(/[^\w.-]+/g, '-'),
-    publish: argv.includes('--publish'),
-  });
-  console.log(`${records.length} записей → ${path.relative(repoRoot, published ?? local)}`);
+  const { local } = writeRecords(records, { batchId });
+  console.log(`${records.length} записей. ${recordsSummary(local, batchId)}`);
 }

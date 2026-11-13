@@ -34,6 +34,7 @@
     "mcp:compare": "node packages/reformer-mcp/eval/records/compare.mjs",
     "mcp:log": "node packages/reformer-mcp/eval/records/log.mjs",
     "mcp:report": "node packages/reformer-mcp/eval/records/report-html.mjs",
+    "mcp:history": "node packages/reformer-mcp/eval/records/history.mjs",
     "mcp:import-builder": "node packages/reformer-mcp/eval/records/import-builder.mjs",
     "mcp:builder-ladder": "node packages/reformer-mcp/eval/builder/ladder.mjs",
     "mcp:verify": "node packages/reformer-mcp/eval/verify/index.mjs",

@@ -34,7 +34,6 @@ import { parseValidate } from '../calibration/tracks.mjs';
 import {
   checkStatus,
   packageDirectory,
-  publishedDirectory,
   readRecords,
   repoRoot,
   rewriteRecords,
@@ -351,15 +350,11 @@ async function runReverify(client, batchIds) {
         },
       });
     }
-    const year = path.join(publishedDirectory, batchId.slice(0, 4));
-    const published = existsSync(year)
-      ? readdirSync(year)
-          .filter((name) => name.startsWith(`${batchId}-`))
-          .map((name) => path.join(year, name))
-      : [];
-    rewriteRecords(records, [local, ...published]);
+    rewriteRecords(records, [local]);
     const passed = records.filter((record) => record.verdict === 'pass').length;
-    console.log(`${batchId}: прошло ${passed}/${records.length}`);
+    console.log(
+      `${batchId}: прошло ${passed}/${records.length}; в историю: npm run mcp:history -- add ${batchId}`
+    );
     for (const flip of flips) console.log(`  ${flip}`);
     if (holdout.total > 0) {
       console.log(

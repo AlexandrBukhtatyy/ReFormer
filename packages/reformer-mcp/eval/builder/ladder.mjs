@@ -3,7 +3,7 @@
  * Лестница сценариев MCP в ассистенте конструктора — одной командой (фаза 7 аудита, ReFormer-11oe.8):
  *
  *   npm run mcp:builder-ladder -- [--matrix builder-smoke] [--model <модель>] [--scenario 'L1-*']
- *                                 [--repeats 3] [--publish]
+ *                                 [--repeats 3]
  *
  * Цепочка на каждого агента матрицы: ход ассистента (`assistant-ladder.test.ts` плагина — мост, стек
  * форм, `build_form`, кодоген) → модули в `.tmp/eval/builder/<батч>/<агент>/` → верификатор MCP теми
@@ -23,13 +23,16 @@ import {
   collectSource,
   newBatchId,
   packageDirectory,
+  recordsSummary,
+  rejectPublishFlag,
   repoRoot,
   writeRecords,
 } from '../records/record.mjs';
 import { runLadder } from '../verify/index.mjs';
 
+rejectPublishFlag();
+
 const argv = process.argv.slice(2);
-const has = (name) => argv.includes(`--${name}`);
 const flag = (name, fallback = null) => {
   const index = argv.indexOf(`--${name}`);
   return index >= 0 && argv[index + 1] && !argv[index + 1].startsWith('--')
@@ -85,13 +88,8 @@ try {
     failed += await runLadder(client, out);
     const report = JSON.parse(readFileSync(path.join(out, 'verify.json'), 'utf8'));
     const records = ladderRecords(report, { batchId, startedAt, source: collectSource() });
-    const { local, published } = writeRecords(records, {
-      batchId,
-      harness: 'builder',
-      label,
-      publish: has('publish'),
-    });
-    console.log(`  ${records.length} записей → ${path.relative(repoRoot, published ?? local)}`);
+    const { local } = writeRecords(records, { batchId });
+    console.log(`  ${records.length} записей. ${recordsSummary(local, batchId)}`);
   }
 } finally {
   client.close();

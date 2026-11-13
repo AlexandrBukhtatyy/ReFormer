@@ -27,6 +27,7 @@ import { resolveInside, runWorkspaceTool } from '../eval/agents/workspace-tools.
 import { compareCalibration } from '../eval/calibration/compare.mjs';
 import { builderRecords } from '../eval/records/import-builder.mjs';
 import { calibrationMetrics } from '../eval/records/adapters.mjs';
+import { pointsFromRecords } from '../eval/records/history.mjs';
 import { validateRecord } from '../eval/records/record.mjs';
 import { renderReportHtml } from '../eval/records/report-html.mjs';
 import { loadScenarios, matchesPattern } from '../eval/scenarios/catalog.mjs';
@@ -157,18 +158,21 @@ describe('импорт результатов конструктора', () => {
     expect(records[1].exitReason).toBe('timeout');
   });
 
-  it('сводка показывает holdout только агрегатом', () => {
-    const html = renderReportHtml(records);
-    expect(html).toContain('<title>Прогоны MCP</title>');
+  it('дашборд по истории показывает holdout только агрегатом', () => {
+    const html = renderReportHtml({ points: pointsFromRecords(records), events: [] });
+    expect(html).toContain('<title>Метрики MCP</title>');
     expect(html).toContain('qwen3.8:27b-32k');
     const holdout = {
       ...records[0],
       runId: 'hold',
       scenario: { ...records[0].scenario, id: 'скрытый-сценарий', split: 'holdout' },
     };
-    const withHoldout = renderReportHtml([...records, holdout]);
+    const withHoldout = renderReportHtml({
+      points: pointsFromRecords([...records, holdout]),
+      events: [],
+    });
     expect(withHoldout).not.toContain('скрытый-сценарий');
-    expect(withHoldout).toContain('Holdout');
+    expect(withHoldout).toContain('"holdout":[1,1]');
   });
 });
 

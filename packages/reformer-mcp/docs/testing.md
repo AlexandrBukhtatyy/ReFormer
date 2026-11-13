@@ -213,11 +213,12 @@ npm run mcp:mutate                       # сервер ломается нам�
 (`claude setup-token`), Ollama берётся с `OLLAMA_BASE_URL` (по умолчанию `http://localhost:11434`).
 Флаги, бюджет и разбор прогона — в [scenarios.md](../../../docs/mcp-eval/scenarios.md).
 
-Записи прогонов всех стендов — в одном формате. Без `--publish` запись остаётся в
-`.tmp/mcp-runs/<батч>/` вместе с сырьём, с `--publish` попадает в
-[eval/runs/](../eval/runs/README.md). Читать их помогают `npm run mcp:compare -- <A> <B>`,
-`npm run mcp:report` (HTML-отчёт с трендами) и `npm run mcp:log -- latest` (прогон одним диалогом:
-задание, шаги модели, вызовы и ответы сервера).
+Записи прогонов всех стендов — в одном формате. Они остаются в `.tmp/mcp-runs/<батч>/` вместе с
+сырьём и в git не едут. В git едет история метрик: `npm run mcp:history -- add <батч>` добавляет
+точки батча в [eval/runs/history.json](../eval/runs/README.md), а `npm run mcp:report` строит по ней
+дашборд с графиками и отметками событий. Записи читают `npm run mcp:compare -- <A> <B>` и
+`npm run mcp:log -- latest` (прогон одним диалогом: задание, шаги модели, вызовы и ответы
+сервера).
 
 ## CI
 

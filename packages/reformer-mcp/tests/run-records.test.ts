@@ -150,7 +150,7 @@ describe('запись прогона', () => {
     expect(fitRecord(small)).toBe(small);
   });
 
-  it('негодная запись не теряет батч: записи пишутся локально, публикация отменяется', () => {
+  it('негодная запись не теряет батч: записи пишутся локально, проблема — в stderr', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'reformer-records-'));
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
@@ -158,18 +158,12 @@ describe('запись прогона', () => {
         Array.from({ length: 400 }, (_, index) => [`check.${index}`, 'pass'])
       );
       const records = [record(), record({ checks, index: 2 })];
-      const options = { batchId: '20261113T000000Z-test', harness: 'scenario', label: 't', root };
 
-      const { local, problems } = writeRecords(records, options);
+      const { local, problems } = writeRecords(records, { batchId: '20261113T000000Z-test', root });
       expect(problems).toHaveLength(1);
+      expect(problems[0]).toMatch(/потолка/);
       expect(readFileSync(local, 'utf8').trim().split('\n')).toHaveLength(2);
       expect(errors).toHaveBeenCalled();
-
-      expect(() =>
-        writeRecords(records, { ...options, batchId: '20261113T000001Z-test', publish: true })
-      ).toThrow(/не опубликован/);
-      const kept = path.join(root, '20261113T000001Z-test', 'records.jsonl');
-      expect(readFileSync(kept, 'utf8').trim().split('\n')).toHaveLength(2);
     } finally {
       errors.mockRestore();
       rmSync(root, { recursive: true, force: true });

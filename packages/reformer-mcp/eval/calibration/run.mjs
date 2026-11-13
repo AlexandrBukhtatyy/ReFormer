@@ -17,7 +17,6 @@
  *   npm run mcp:calibrate -- --out <dir>        — каталог прогона (по умолчанию .tmp/mcp-calibration/<время>)
  *   npm run mcp:calibrate -- --gate             — код 1 при ухудшении против calibration-baseline.json
  *   npm run mcp:calibrate -- --save-baseline    — записать метрики прогона как baseline
- *   npm run mcp:calibrate -- --publish          — положить запись прогона в packages/reformer-mcp/eval/runs/
  *
  * Перед запуском: собранный пакет (`npm --prefix packages/reformer-mcp run build`) и бандл
  * конструктора (`npm --prefix projects/reformer-builder-playground run mcp:build`).
@@ -33,7 +32,7 @@ import {
   tmpDir,
 } from './lib/inspector.mjs';
 import { calibrationRecord } from '../records/adapters.mjs';
-import { writeRecords } from '../records/record.mjs';
+import { recordsSummary, rejectPublishFlag, writeRecords } from '../records/record.mjs';
 import { compareCalibration } from './compare.mjs';
 import { buildMetrics, renderReport } from './report.mjs';
 import { runSmoke } from './smoke.mjs';
@@ -41,6 +40,7 @@ import { mountForms, runE2e, summarizeE2e } from './runtime.mjs';
 import { createTextLog, trackT1, trackT2, trackT4, trackT5, trackT6 } from './tracks.mjs';
 
 const argv = process.argv.slice(2);
+rejectPublishFlag(argv);
 const has = (name) => argv.includes(`--${name}`);
 function flag(name, fallback = null) {
   const i = argv.indexOf(`--${name}`);
@@ -119,13 +119,8 @@ const record = await calibrationRecord(results, metrics, {
   serverPath: CHANNELS.node.script,
   channels,
 });
-const { local, published } = writeRecords([record], {
-  batchId: record.batchId,
-  harness: 'calibration',
-  label: channels.join('-'),
-  publish: has('publish'),
-});
-console.log(`Запись прогона: ${path.relative(repoRoot, published ?? local)}`);
+const { local } = writeRecords([record], { batchId: record.batchId });
+console.log(recordsSummary(local, record.batchId));
 
 const baselineFile = path.join(
   repoRoot,

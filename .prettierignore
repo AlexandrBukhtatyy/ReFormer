@@ -19,6 +19,8 @@ packages/reformer-mcp/eval/baselines/baseline.json
 # снимки отчёта сравнения подходов пишет `npm run mcp:approaches -- … --save` по строке на прогон;
 # prettier развернул бы строки в объекты, и каждый --save оставлял бы файл изменённым
 packages/reformer-mcp/eval/runs/approaches/
+# историю метрик пишет `npm run mcp:history` по строке на точку и событие — по той же причине
+packages/reformer-mcp/eval/runs/history.json
 projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/form-schema.schema.json
 
 # planning artifacts — authored ad-hoc by plan mode / agents, not prod docs

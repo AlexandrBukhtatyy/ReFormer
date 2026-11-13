@@ -12,15 +12,15 @@
  * Прогоны с вердиктом `invalid` (сломался прибор, а не форма) в статистику не входят.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   checkStatus,
-  publishedDirectory,
   readRecords,
   repoRoot,
   runsDirectory,
+  trackedRunsDirectory,
 } from './record.mjs';
 import { fisherExact, median, passAtK, passPowerK, signTest, wilsonInterval } from './stats.mjs';
 
@@ -66,20 +66,11 @@ const cellKey = (record, axes) => {
   ].join(' | ');
 };
 
-function findPublished(directory, batchId) {
-  if (!existsSync(directory)) return [];
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(directory, entry.name);
-    if (entry.isDirectory()) return findPublished(full, batchId);
-    return entry.name.startsWith(batchId) && entry.name.endsWith('.jsonl') ? [full] : [];
-  });
-}
-
 /** Разобрать аргумент сравнения в записи. */
 export function loadBatch(reference) {
   let target = reference;
   if (target.startsWith('baseline:')) {
-    const file = path.join(publishedDirectory, 'baselines.json');
+    const file = path.join(trackedRunsDirectory, 'baselines.json');
     const baselines = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
     const key = target.slice('baseline:'.length);
     if (!baselines[key]) throw new Error(`В baselines.json нет ключа «${key}»`);
@@ -88,8 +79,6 @@ export function loadBatch(reference) {
   if (existsSync(target)) return readRecords(target);
   const relative = path.join(repoRoot, target);
   if (existsSync(relative)) return readRecords(relative);
-  const published = findPublished(publishedDirectory, target);
-  if (published.length > 0) return published.flatMap(readRecords);
   const local = path.join(runsDirectory, target, 'records.jsonl');
   if (existsSync(local)) return readRecords(local);
   throw new Error(`Не найден набор прогонов «${reference}»`);

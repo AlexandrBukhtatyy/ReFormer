@@ -19,7 +19,6 @@
  *   --server <dist>        другая сборка сервера, для A/B
  *   --include-holdout      вместе с holdout (в отчётах он только агрегатом)
  *   --browser              с браузерной стадией: снимок доступности, axe, скриншоты
- *   --publish              положить записи в packages/reformer-mcp/eval/runs/
  *   --shared-ollama        начать батч, хотя на той же Ollama идёт другой: шаги обоих ждут друг
  *                          друга, их время не сравнимо с прочими батчами
  *
@@ -43,6 +42,8 @@ import {
   fingerprintServer,
   newBatchId,
   packageDirectory,
+  recordsSummary,
+  rejectPublishFlag,
   repoRoot,
   runsDirectory,
   writeRecords,
@@ -52,6 +53,7 @@ import { summarize, verifyBundle } from '../verify/index.mjs';
 import { loadScenarios, scenariosDirectory } from './catalog.mjs';
 
 const argv = process.argv.slice(2);
+rejectPublishFlag(argv);
 const has = (name) => argv.includes(`--${name}`);
 const flag = (name, fallback = null) => {
   const index = argv.indexOf(`--${name}`);
@@ -444,15 +446,7 @@ const records = outcomes.map((outcome) => {
   return createRecord({ ...outcome.shared, verdict, score, gates, checks: outcome.checks });
 });
 
-const { local, published } = writeRecords(records, {
-  batchId,
-  harness: 'scenario',
-  label: flag('label', matrix.agents.map((agent) => agent.model ?? agent.kind).join('-')).replace(
-    /[^\w.-]+/g,
-    '-'
-  ),
-  publish: has('publish'),
-});
+const { local } = writeRecords(records, { batchId });
 
 // Строки по ходу батча — до браузерной стадии; итог считается здесь, он же уходит в запись.
 if (withBrowser) {
@@ -468,7 +462,7 @@ const invalid = records.filter((record) => record.verdict === 'invalid').length;
 console.log(
   `\nИтог: прошло ${passed}/${records.length - invalid}${invalid ? `, недействительно ${invalid}` : ''}. Оценка стоимости: $${spentUsd.toFixed(2)}.`
 );
-console.log(`Записи: ${path.relative(repoRoot, published ?? local)}`);
+console.log(recordsSummary(local, batchId));
 
 // На Windows снятый агент оставляет дочерние процессы. Сирота — сервер, чей родитель уже мёртв: сервер
 // с живым родителем принадлежит кому-то другому, например соседнему батчу или открытой сессии.

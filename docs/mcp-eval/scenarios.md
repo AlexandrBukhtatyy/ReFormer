@@ -39,11 +39,12 @@ npm run mcp:verify -- --reverify <батч>[,<батч>]  # новая оцен�
 npm run mcp:scenarios -- --matrix smoke        # весь путь без модели, годится для CI
 npm run mcp:scenarios -- --matrix smoke --target renderer-json  # все сценарии JSON-формами — для ui-builder
 npm run mcp:scenarios -- --agent claude-code --model sonnet --scenario 'L1-*,L3-*' --repeats 3 \
-  --max-usd-batch 5 --browser --publish
+  --max-usd-batch 5 --browser
 npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b --scenario L1-feedback
 npm run mcp:scenarios -- --matrix accept-7.0-ollama --model qwen3.5:4b  # одна модель матрицы
 npm run mcp:compare -- <A> <B> [--gate]
-npm run mcp:report
+npm run mcp:history -- add <батч>              # батч — в историю метрик (в git)
+npm run mcp:report                             # дашборд по истории метрик
 npm run mcp:log -- latest                      # прогоны последнего батча одним диалогом
 npm run mcp:approaches -- <батч> [<батч> …]    # было/стало по подходам, markdown; --save — снимок в git
 npm run mcp:mutate                             # умеют ли приборы краснеть
@@ -173,6 +174,16 @@ markdown с четырьмя разделами:
 Каталог снимков исключён из Prettier: иначе после каждого `--save` файл оставался бы изменённым.
 Пример — [Code Mode](code-mode.md).
 
+### История метрик и дашборд
+
+Записи и сырьё остаются в `.tmp`. Чтобы замер было видно на графиках и после клона, батч добавляют
+в историю: `npm run mcp:history -- add <батч> [--tag <тег>]`. Точка истории — батч одной серии
+(стенд · агент · подход) с агрегатами, ячейками, отпечатками сервера и прибора и тегами. События —
+что менялось между точками: правка сервера, знания, прибора или агента; `events-from-git` берёт их
+из коммитов с `Refs:`. `npm run mcp:report` строит по истории дашборд с фильтром по тегам и
+отметками событий. Формат, теги, виды событий и что показывает дашборд —
+[eval/runs/README.md](../../packages/reformer-mcp/eval/runs/README.md).
+
 ## Первый замер: Claude Code, sonnet, подход `bare`
 
 > Замеры этого раздела и «Что замер уже нашёл» сняты на 6.x, до `form_build`: агент получал модуль
@@ -180,7 +191,7 @@ markdown с четырьмя разделами:
 > `form_build` (раздел «`form_build`: тот же замер после смены пути»), поэтому находки о генераторе
 > относятся к прежнему пути.
 
-Батч [`20261102T170522Z-793e`](../../packages/reformer-mcp/eval/runs/2026/20261102T170522Z-793e-scenario-sonnet-bare.jsonl), **по одному
+Батч `20261102T170522Z-793e` (в [истории метрик](../../packages/reformer-mcp/eval/runs/history.json)), **по одному
 прогону на сценарий**. Оценка стоимости — $1.25 (подписка, это не списание).
 
 | Сценарий             | Таргет         | Вердикт |  Счёт | Что пошло не так                                                 |
@@ -201,7 +212,7 @@ markdown с четырьмя разделами:
 
 ### Кредитная заявка: L5-credit, renderer-react, три повтора
 
-Батч [`20261102T171621Z-5c61`](../../packages/reformer-mcp/eval/runs/2026/20261102T171621Z-5c61-scenario-sonnet.jsonl). Там же
+Батч `20261102T171621Z-5c61` (в [истории метрик](../../packages/reformer-mcp/eval/runs/history.json)). Там же
 L4-contacts-array — 3/3.
 
 | Повтор | Вердикт |  Счёт | Вызовов MCP | Время, с | Стоимость | Что пошло не так                                        |

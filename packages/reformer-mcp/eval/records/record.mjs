@@ -1,9 +1,9 @@
 /**
  * Запись прогона (`reformer-mcp-run/1`) — один формат для всех стендов качества сервера.
  *
- * Сырьё и записи всегда ложатся в `.tmp/mcp-runs/<batchId>/`. В репозиторий попадают только батчи,
- * опубликованные явно (`--publish`): `packages/reformer-mcp/eval/runs/<год>/`. Отладочные прогоны
- * в истории не нужны, а опубликованные сравниваются `mcp:compare` и рисуются `mcp:report`.
+ * Сырьё и записи ложатся в `.tmp/mcp-runs/<batchId>/` и в git не едут. В репозиторий попадает
+ * история метрик (`eval/runs/history.json`, `./history.mjs`): точка на батч × серию, добавленная
+ * явно. Записи сравнивает `mcp:compare`, историю рисует `mcp:report`.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -28,7 +28,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const packageDirectory = path.resolve(here, '../..');
 export const repoRoot = path.resolve(packageDirectory, '../..');
 export const runsDirectory = path.join(repoRoot, '.tmp', 'mcp-runs');
-export const publishedDirectory = path.join(packageDirectory, 'eval', 'runs');
+/** Что о прогонах лежит в git: история метрик, имена эталонных батчей, снимки отчётов. */
+export const trackedRunsDirectory = path.join(packageDirectory, 'eval', 'runs');
 
 export const RECORD_SCHEMA = 'reformer-mcp-run/1';
 const schema = JSON.parse(readFileSync(path.join(here, 'schema.json'), 'utf8'));
@@ -358,19 +359,16 @@ export function fitRecord(record) {
 }
 
 /**
- * Дописать записи батча и, по `publish`, положить копию в репозиторий.
+ * Дописать записи батча в `.tmp/mcp-runs/<батч>/records.jsonl`.
  *
- * Записи сначала ужимаются до потолка (`fitRecord`). Локальный `records.jsonl` пишется всегда —
- * батч в часы работы модели не теряется из-за одной записи. Негодная запись (схема, потолок) идёт
- * в stderr; с `publish` батч после локальной записи не публикуется, а функция бросает исключение.
+ * Записи сначала ужимаются до потолка (`fitRecord`). Файл пишется всегда — батч в часы работы модели
+ * не теряется из-за одной записи; негодная запись (схема, потолок) идёт в stderr. В git записи не
+ * едут: батч попадает в историю метрик командой `npm run mcp:history -- add <батч>`.
  * `root` — каталог сырья, по умолчанию `.tmp/mcp-runs`.
  *
- * @returns {{ local: string, published: string | null, problems: string[] }}
+ * @returns {{ local: string, problems: string[] }}
  */
-export function writeRecords(
-  records,
-  { batchId, harness, label, publish = false, root = runsDirectory }
-) {
+export function writeRecords(records, { batchId, root = runsDirectory }) {
   const fitted = records.map(fitRecord);
   const problems = fitted.flatMap((record) => {
     const found = validateRecord(record);
@@ -382,20 +380,24 @@ export function writeRecords(
   const local = path.join(directory, 'records.jsonl');
   appendFileSync(local, lines);
   for (const problem of problems) console.error(problem);
-  if (problems.length > 0 && publish) {
-    throw new Error(
-      `Батч ${batchId} не опубликован: негодных записей ${problems.length}. ` +
-        `Записи сохранены локально: ${path.relative(repoRoot, local)}`
-    );
-  }
-  if (!publish) return { local, published: null, problems };
+  return { local, problems };
+}
 
-  const year = batchId.slice(0, 4);
-  const yearDirectory = path.join(publishedDirectory, year);
-  mkdirSync(yearDirectory, { recursive: true });
-  const published = path.join(yearDirectory, `${batchId}-${harness}-${label}.jsonl`);
-  writeFileSync(published, readFileSync(local));
-  return { local, published, problems };
+/** Строка итога стенда: где записи и как отправить батч в историю метрик. */
+export const recordsSummary = (local, batchId) =>
+  `Записи: ${path.relative(repoRoot, local)}\nВ историю метрик: npm run mcp:history -- add ${batchId}`;
+
+/**
+ * Флаг `--publish` убран: записи в git больше не публикуются. Стенд с ним останавливается сразу,
+ * а не после часа работы модели.
+ */
+export function rejectPublishFlag(argv = process.argv.slice(2)) {
+  if (!argv.includes('--publish')) return;
+  console.error(
+    '--publish убран: записи остаются в .tmp/mcp-runs, в git едет история метрик — ' +
+      'после батча: npm run mcp:history -- add <батч>'
+  );
+  process.exit(2);
 }
 
 /**
