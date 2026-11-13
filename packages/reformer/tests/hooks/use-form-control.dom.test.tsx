@@ -113,6 +113,7 @@ describe('useFormControl — поле', () => {
       shouldShowError: false,
       shouldShowIssues: false,
       componentProps: { label: 'Почта' },
+      path: 'email',
     });
   });
 
@@ -265,7 +266,20 @@ describe('useFormControl — массив под-форм', () => {
       touched: false,
       dirty: false,
       disabled: false,
+      path: 'phones',
     });
+  });
+
+  it('путь поля строки следует за индексом: удаление соседки перерисовывает поле [ReFormer-7ybd]', () => {
+    const { form } = createContacts({ phones: [{ number: '1' }, { number: '2' }] });
+    const hook = renderField(form.phones.at(1)!.number);
+    expect(hook.result.current.path).toBe('phones.1.number');
+    const before = hook.renders();
+
+    act(() => form.phones.removeAt(0));
+
+    expect(hook.result.current.path).toBe('phones.0.number');
+    expect(hook.renders()).toBe(before + 1);
   });
 
   it('push и removeAt перерисовывают и меняют длину', () => {
@@ -329,6 +343,7 @@ describe('useFormControl — undefined и смена контрола', () => {
       touched: false,
       dirty: false,
       disabled: false,
+      path: '',
     });
   });
 

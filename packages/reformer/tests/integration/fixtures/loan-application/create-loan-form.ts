@@ -4,7 +4,8 @@
  * Фабрика собирает модель, схему, поведение, правила и поток одной сборки и отдаёт бандл вместе с
  * заглушкой сервера, чтобы сценарий видел журнал внешних вызовов и управлял ответами. Опции
  * переключают то, что в настоящем приложении выбирают при сборке:
- * - `strategy` / `debounce` / `liveAfterSubmit` — живая проверка (по умолчанию — только отправка);
+ * - `strategy` / `debounce` / `liveAfterSubmit` / `liveAfterStep` — живая проверка (по умолчанию —
+ *   только отправка);
  * - `server` — своя заглушка сервера (ручные ответы, недоступный сервис);
  * - `initial` + `seed` — модель из готовых значений (черновик, загрузка) и правка до сборки нод;
  * - `rules: 'all'` — одностраничный вариант: полный набор правил одной схемой, без потока шагов;
@@ -47,6 +48,8 @@ export interface LoanFormOptions {
   readonly debounce?: number;
   /** Режим живой фазы `afterFirstSubmit`. */
   readonly liveAfterSubmit?: 'change' | 'blur';
+  /** Живая фаза шагов после первой попытки «Далее» и её режим. */
+  readonly liveAfterStep?: 'change' | 'blur';
   /** Заглушка сервера; по умолчанию — отвечающая сразу. */
   readonly server?: LoanServer;
   /** Значения заявки: модель создаёт `createForm` из них, поля сервера помечаются в `seed`. */
@@ -110,6 +113,7 @@ export function createLoanForm(options: LoanFormOptions = {}): LoanForm {
     strategy: options.strategy,
     debounce: options.debounce,
     liveAfterSubmit: options.liveAfterSubmit,
+    liveAfterStep: options.liveAfterStep,
   };
 
   const loanBehavior = createLoanBehavior(server.api, rules);

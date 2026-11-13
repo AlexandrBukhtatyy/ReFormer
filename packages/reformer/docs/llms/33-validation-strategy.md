@@ -35,6 +35,7 @@ createForm<T>({
     strategy?: ValidationStrategyKind;     // default 'submit'
     debounce?: number;
     liveAfterSubmit?: 'change' | 'blur';
+    liveAfterStep?: 'change' | 'blur';    // живая фаза шага после первого «Далее» (flow)
   },
 });
 
@@ -96,10 +97,15 @@ function createFormValidation<T>(
 | `submit()` хука `useFormValidation`                             | да               | вся форма          |
 | `controller.run({ touch: 'all', submit: true })`                | да               | вся форма          |
 | `bundle.validate()`, `validate()` хука, `controller.validate()` | нет              | проверенные поля   |
-| `bundle.validateStep(id)`, `flow.next()`                        | нет              | поля шага          |
+| `bundle.validateStep(id)`, `flow.next()`                        | нет\*            | поля шага          |
 
 Кнопка «Проверить» — `validate()`: показывает замечания, но форма остаётся в тихой фазе. Отменённая
 отправка (`cancelled`) форму тронутой не помечает.
+
+\* Живую фазу **шага** включает `flow.next()` при опции сборки `liveAfterStep: 'change' | 'blur'`:
+шаг молчит до первой попытки «Далее» на нём, дальше его правила проверяются живьём (только они —
+поля других шагов молчат). Опция — для стратегий `submit` и `afterFirstSubmit`; см.
+`13-multi-step.md`.
 
 Тихую фазу возвращает **сброс формы** — кнопка «Очистить»:
 

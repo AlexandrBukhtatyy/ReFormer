@@ -239,6 +239,20 @@ export interface FieldControlState<T> {
    * ```
    */
   dirty: boolean;
+
+  /**
+   * Путь поля в модели (`items.0.name`) — реактивный аналог `control.path`. У поля строки массива
+   * меняется вместе с индексом строки, и компонент перерисовывается: из пути выводят
+   * `data-testid`, `id` и `name`. У поля не из модели — `''`.
+   *
+   * @example
+   * ```tsx
+   * const { path } = useFormControl(row.name);
+   *
+   * return <input id={path} data-testid={`input-${path.replace(/\./g, '-')}`} />;
+   * ```
+   */
+  path: string;
 }
 
 /**
@@ -402,4 +416,7 @@ export interface ArrayControlState<T> {
    * ```
    */
   disabled: boolean;
+
+  /** Путь массива в модели (`items`) — реактивный аналог `control.path`. */
+  path: string;
 }

@@ -17,7 +17,7 @@ import { computed, effect, signal, untracked, type ReadonlySignal } from '@preac
 import type { ValidationIssue } from '../types/contracts';
 import type { FormArray, FormGroup } from '../types/nodes';
 import type { FormModel } from '../../model/types';
-import { referenceOf } from '../../model/model-value-proxy';
+import { livePathOf, referenceOf } from '../../model/model-value-proxy';
 import { createAggregateSignals } from '../aggregate-signals';
 import { rowKeyOf } from '../schema/row-key';
 import { NODE_KIND, rawNode, type InternalFormNode } from './node-kind';
@@ -48,6 +48,7 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
   readonly dirty: ReadonlySignal<boolean>;
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
   readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
+  readonly path: ReadonlySignal<string>;
 
   private readonly rows = signal<FormGroup<T>[]>([]);
   /**
@@ -134,6 +135,8 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     this.issues = aggregate.issues;
     this.ownIssues = this.own.list;
     this.disabled = this.availability.disabled;
+    // Массив строится над массивом модели; запасной путь — для стороннего массива-контрола.
+    this.path = livePathOf(control) ?? computed(() => '');
   }
 
   get length(): number {

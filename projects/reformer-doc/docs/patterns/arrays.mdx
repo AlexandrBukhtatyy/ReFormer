@@ -137,6 +137,21 @@ const orderRules = defineValidation<Order>(({ model }) => {
 `useArrayLength` подписан только на длину. Если строки переставляют, подпишитесь на массив целиком —
 `useFormControl(form.items)`.
 
+### Путь поля строки
+
+У поля и массива есть путь в модели — сигнал `control.path` (`items.0.name`). Он следует за
+индексом строки: после `removeAt(0)` поле прежней второй строки отвечает `items.0.name`. Из пути
+выводят `data-testid`, `id` и `name`, а в компоненте его даёт `useFormControl(control).path` —
+компонент перерисуется, когда строка сдвинется. Рендерер выводит `data-testid` поля из того же
+пути.
+
+```tsx
+function NameField({ control }: { control: FormControl<string> }) {
+  const { value, path } = useFormControl(control);
+  return <input value={value} data-testid={`input-${path.replace(/\./g, '-')}`} />;
+}
+```
+
 ## Итог по строкам
 
 Сумма по строкам — вычисляемое поле [поведения](../behaviors/computed.mdx). Читайте строки через

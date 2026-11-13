@@ -26,6 +26,7 @@ import {
   type ValidationStrategyKind,
 } from './validation/strategy';
 import type { ValidationDefinition, ValidationResult } from './validation/types';
+import { createStepLiveController, type StepLiveController } from './step-live';
 
 /**
  * Правила валидации формы и стратегия живой проверки.
@@ -45,6 +46,18 @@ export interface FormValidation<T> {
   debounce?: number;
   /** Режим живой фазы для `afterFirstSubmit`. По умолчанию `'change'`. */
   liveAfterSubmit?: 'change' | 'blur';
+  /**
+   * Живая фаза шагов потока и её режим: шаг молчит до первой попытки «Далее» на нём
+   * (`flow.next()`), дальше его правила проверяются на каждую правку (`'change'`) либо уход из
+   * поля (`'blur'`), с той же задержкой `debounce`. Живой прогон шага проверяет только его правила
+   * и, как живая проверка формы, полей не касается: ошибку видно у полей, которые проверил
+   * «Далее» или изменил пользователь.
+   *
+   * Для стратегий `submit` и `afterFirstSubmit`; у `change` и `blur` форма живая и так — опция
+   * не действует. При `afterFirstSubmit` попытка отправки делает живой всю форму, и живые фазы
+   * шагов больше не нужны. Сброс формы (`form.reset()`) возвращает тихую фазу и шагам.
+   */
+  liveAfterStep?: 'change' | 'blur';
 }
 
 /**
@@ -187,7 +200,7 @@ export function createFormLevel<T>(
         )
       : undefined);
 
-  const controller =
+  const formController =
     rules !== undefined
       ? createFormValidation(model, rules, {
           strategy: validation.strategy,
@@ -196,6 +209,22 @@ export function createFormLevel<T>(
           nodes,
         })
       : undefined;
+  // Живая фаза шагов — поверх стратегии, которая сама форму не оживляет до отправки.
+  const strategy = validation.strategy ?? 'submit';
+  const stepLive: StepLiveController<T> | undefined =
+    formController !== undefined &&
+    validation.liveAfterStep !== undefined &&
+    stepSchemas.length > 0 &&
+    (strategy === 'submit' || strategy === 'afterFirstSubmit')
+      ? createStepLiveController(formController, {
+          model,
+          mode: validation.liveAfterStep,
+          debounce: validation.debounce,
+          nodes,
+          submitMakesFormLive: strategy === 'afterFirstSubmit',
+        })
+      : undefined;
+  const controller: FormValidationController | undefined = stepLive ?? formController;
 
   // Идущие проверки шага и проверки, ждущие отложенных записей поведения.
   const checks = signal(0);
@@ -265,6 +294,8 @@ export function createFormLevel<T>(
   const validateStepToMove = async (stepId: string): Promise<ValidationResult> => {
     const step = rulesOfStep(stepId);
     if (!step) return VALID;
+    // Попытка «Далее» включает живую фазу шага (`liveAfterStep`), каким бы ни был итог.
+    stepLive?.armStep(step);
     const { result, stale } = await checkForAction(() => runStep(step));
     return stale ? { ...result, status: 'cancelled' } : result;
   };

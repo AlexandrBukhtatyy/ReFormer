@@ -23,6 +23,7 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     shouldShowError: control.shouldShowError,
     shouldShowIssues: control.shouldShowIssues,
     componentProps: control.componentProps,
+    path: control.path,
   };
 
   const configs: SignalConfig<keyof typeof signals>[] = [
@@ -38,6 +39,8 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     { key: 'shouldShowIssues' },
     // `updateComponentProps` всегда отдаёт новый объект: те же значения поле не перерисовывают.
     { key: 'componentProps', useShallowObjectEqual: true },
+    // Путь строки массива меняется с её индексом: из него выводят `data-testid` и `id`.
+    { key: 'path' },
   ];
 
   const buildSnapshot = (values: ExtractSignalValues<typeof signals>): FieldControlState<T> => ({
@@ -52,6 +55,7 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     shouldShowError: values.shouldShowError as boolean,
     shouldShowIssues: values.shouldShowIssues as boolean,
     componentProps: values.componentProps as Record<string, unknown>,
+    path: values.path as string,
   });
 
   return useSignalSubscription(signals, configs, buildSnapshot, control);
@@ -70,6 +74,7 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
     touched: control.touched,
     dirty: control.dirty,
     disabled: control.disabled,
+    path: control.path,
   };
 
   const configs: SignalConfig<keyof typeof signals>[] = [
@@ -82,6 +87,7 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
     { key: 'touched' },
     { key: 'dirty' },
     { key: 'disabled' },
+    { key: 'path' },
   ];
 
   const buildSnapshot = (values: ExtractSignalValues<typeof signals>): ArrayControlState<T> => ({
@@ -95,6 +101,7 @@ function useArrayControl<T extends object>(control: FormArray<T>): ArrayControlS
     touched: values.touched as boolean,
     dirty: values.dirty as boolean,
     disabled: values.disabled as boolean,
+    path: values.path as string,
   });
 
   return useSignalSubscription(signals, configs, buildSnapshot, control);
@@ -121,6 +128,7 @@ function useEmptyControl(): ArrayControlState<object> {
     touched: false,
     dirty: false,
     disabled: false,
+    path: '',
   });
   return useSignalSubscription({}, [], buildSnapshot);
 }

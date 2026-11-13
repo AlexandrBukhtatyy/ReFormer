@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { batch, effect, signal, type Signal } from '@preact/signals-core';
 import { createComponentState } from '../../../../src/form/nodes/state/component';
+import { createModel } from '../../../../src/model/index';
 
 describe('component — пропсы и правки поверх них', () => {
   it('начальные пропсы отдаются как переданы, без них — пустой объект', () => {
@@ -92,5 +93,43 @@ describe('component — пропсы и правки поверх них', () =>
       (state.props as Signal<Record<string, unknown>>).value = {};
     }).toThrow(TypeError);
     expect(state.props.value).toEqual({ label: 'Email' });
+  });
+});
+
+describe('component — пропс-сигнал вне модели отдаётся значением [ReFormer-zh9r]', () => {
+  it('сигнал в пропсах — его значение; смена сигнала даёт новый снимок пропсов', () => {
+    const options: Signal<string[]> = signal([]);
+    const state = createComponentState({ label: 'Тип', options });
+    const seen: unknown[] = [];
+    const stop = effect(() => {
+      seen.push(state.props.value.options);
+    });
+
+    options.value = ['дом', 'квартира'];
+    stop();
+
+    expect(state.props.value).toEqual({ label: 'Тип', options: ['дом', 'квартира'] });
+    expect(seen).toEqual([[], ['дом', 'квартира']]);
+  });
+
+  it('ручка модели — привязка, а не значение: доходит как есть', () => {
+    const model = createModel({ amount: 0, address: { city: '' } });
+    const state = createComponentState({ leaf: model.$.amount, group: model.$.address });
+
+    expect(state.props.value.leaf).toBe(model.$.amount);
+    expect(state.props.value.group).toBe(model.$.address);
+  });
+
+  it('правка значением заменяет сигнал, правка сигналом — подписывает на него', () => {
+    const first = signal(['a']);
+    const second = signal(['b']);
+    const state = createComponentState({ options: first });
+
+    state.update({ options: ['вручную'] });
+    expect(state.props.value.options).toEqual(['вручную']);
+
+    state.update({ options: second });
+    second.value = ['c'];
+    expect(state.props.value.options).toEqual(['c']);
   });
 });

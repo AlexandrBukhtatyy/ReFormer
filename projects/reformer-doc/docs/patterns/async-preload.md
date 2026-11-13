@@ -229,6 +229,32 @@ createForm<AddressForm>({ initial, schema: addressSchema, behavior: addressBehav
 `immediate: false`) — для запуска сразу передайте `{ immediate: true }`.
 :::
 
+## Справочник для строк массива
+
+Справочник, загруженный один раз (типы имущества, регионы), раздают полям всех строк сигналом в
+`componentProps` шаблона строки. Нода поля отдаёт пропс-сигнал значением и следит за ним: каждая
+строка, в том числе добавленная позже, читает тот же сигнал, и загрузка доходит до всех строк
+сразу.
+
+```typescript
+import { signal } from '@reformer/core/signals';
+
+const propertyTypes = signal<Option[]>([]);
+void api.getPropertyTypes().then((options) => (propertyTypes.value = options));
+
+// шаблон строки массива
+item: (row) => ({
+  children: [
+    { model: row.$.type, component: Select, componentProps: { label: 'Тип', options: propertyTypes } },
+  ],
+}),
+```
+
+Разворачивается сигнал вне модели на верхнем уровне `componentProps`; ручку модели (`model.$.x`)
+компонент получает как есть — это привязка. В JSON-схеме сигнал регистрируют в
+реестре — `reg.dataSource('PROPERTY_TYPES', propertyTypes)` — и ссылаются на него
+`"$dataSource(PROPERTY_TYPES)"`.
+
 ## См. также
 
 - [Модель данных](../core-concepts/model) — `patch` / `set` / `reset` / `captureInitial`.

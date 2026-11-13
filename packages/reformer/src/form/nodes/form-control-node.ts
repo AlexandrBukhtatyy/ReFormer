@@ -14,7 +14,7 @@ import type { ValidationIssue } from '../types/contracts';
 import type { ComponentRef } from '../types/schema-node';
 import type { FormControl } from '../types/nodes';
 import { isDerived } from '../../model/derived-registry';
-import { referenceOf } from '../../model/model-value-proxy';
+import { livePathOf, referenceOf } from '../../model/model-value-proxy';
 import { NODE_KIND, type InternalFormNode } from './node-kind';
 import {
   createAvailability,
@@ -23,6 +23,9 @@ import {
   createIssues,
   createPending,
 } from './state';
+
+/** Путь поля не из модели: его нет, и он не меняется. */
+const NO_PATH: ReadonlySignal<string> = computed(() => '');
 
 export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly [NODE_KIND] = 'control' as const;
@@ -40,6 +43,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
   readonly component: ComponentRef | undefined;
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
+  readonly path: ReadonlySignal<string>;
   readonly shouldShowError: ReadonlySignal<boolean>;
   readonly shouldShowIssues: ReadonlySignal<boolean>;
 
@@ -82,6 +86,7 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
     this.issues = this.issueState.list;
     this.ownIssues = this.issueState.list;
     this.componentProps = this.componentState.props;
+    this.path = livePathOf(this.source) ?? NO_PATH;
     const revealed = computed(() => this.touched.value || this.dirty.value);
     this.shouldShowError = computed(() => this.invalid.value && revealed.value);
     // То же условие, что у ошибки, но для любого замечания: предупреждение поле невалидным не

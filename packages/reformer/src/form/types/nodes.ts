@@ -78,6 +78,12 @@ export interface FormNode<T> {
  * @typeParam T - Значение поля
  */
 export interface FormControl<T> extends FormNode<T> {
+  /**
+   * Путь в модели — сигнал (`items.0.name`). У поля строки массива он меняется вместе с индексом
+   * строки: после `removeAt(0)` поле прежней второй строки — `items.0.name`. Из него выводят
+   * `data-testid`, `id` и `name` разметки. У поля над собственным сигналом, не из модели, — `''`.
+   */
+  readonly path: ReadonlySignal<string>;
   /** Компонент поля из узла схемы. */
   readonly component: ComponentRef | undefined;
   /** Пропсы компонента: из узла схемы и правок {@link FormControl.updateComponentProps}. */
@@ -110,6 +116,11 @@ export interface FormControl<T> extends FormNode<T> {
  * @typeParam T - Элемент массива
  */
 export interface FormArray<T extends object> extends FormNode<T[]> {
+  /**
+   * Путь массива в модели — сигнал (`items`). У массива внутри строки другого массива меняется
+   * вместе с индексом этой строки.
+   */
+  readonly path: ReadonlySignal<string>;
   /** Число строк; чтение в эффекте или `computed` подписывает на изменения. */
   readonly length: number;
   at(index: number): FormGroup<T> | undefined;

@@ -1845,6 +1845,19 @@ function ItemsList({ form }: { form: FormGroup<MyForm> }) {
 }
 ```
 
+**Путь поля строки — `control.path`** (сигнал, `items.0.name`): он следует за индексом строки —
+после `removeAt(0)` поле прежней второй строки отвечает `items.0.name`. Из него выводят
+`data-testid`, `id`, `name`; в компоненте — `useFormControl(control).path` (компонент
+перерисуется, когда строка сдвинется). Собирать индекс из разметки списка не нужно. Рендерер
+(`@reformer/renderer-react`, `renderer-json`) выводит `data-testid` поля из того же живого пути.
+
+```tsx
+function NameField({ control }: { control: FormControl<string> }) {
+  const { value, path } = useFormControl(control);
+  return <input value={value} data-testid={`input-${path.replace(/\./g, '-')}`} />;
+}
+```
+
 > В монорепо для массивов используется готовый `FieldArraySection` из `@reformer/ui-kit`
 > (`control={form.items}`, `itemComponent`, add/remove/reorder из коробки; шаблон новой строки —
 > `arrayOf(blank)` в модели, проп `initialValue` — запасной путь). В схеме массив под-форм рисует
@@ -2024,6 +2037,16 @@ loan.validating.value; // идёт ли проверка — полная либ
   `reason: 'cancelled'`: правила этого значения не видели. Следующий `next()` проверит новое.
 - Стратегия `afterFirstSubmit` переходит в живую фазу только от отправки
   (`bundle.submission.submit`): `next()`, `validateStep` и `validate` её не переключают.
+- Живая фаза **шага** — `validation: { liveAfterStep: 'change' | 'blur' }`: шаг молчит до первой
+  попытки «Далее» на нём (`next()`, с любым итогом), дальше его правила проверяются на каждую
+  правку (`'change'`) либо уход из поля (`'blur'`), с задержкой `debounce`. Живой прогон шага —
+  только его правила: поля непройденных шагов молчат. Для стратегий `submit` и
+  `afterFirstSubmit`; после отправки при `afterFirstSubmit` живая вся форма. `form.reset()`
+  возвращает тихую фазу и шагам.
+
+  ```typescript
+  validation: { extras: crossStepRules, strategy: 'afterFirstSubmit', liveAfterStep: 'change' },
+  ```
 - `goTo(id)` открывает первый шаг и шаги после пройденных; прыжок вперёд через непройденный шаг —
   `reason: 'locked'`. Назад — всегда.
 - В dev сборка предупреждает о шаге `flow.steps`, для которого в схеме нет узла с таким `selector`.
@@ -4509,7 +4532,8 @@ form.markAsTouched();                         // тронуть все поля 
 form.clearIssues();                           // снять замечания со всех нод
 form.<field>.setIssues([{ code, params }]);   // серверная/бизнес-ошибка в конкретное поле
 form.<field>.clearIssues();
-form.reset();                                 // к точке отсчёта модели + чистые ноды (замечания, touched, dirty)
+form.reset();                                 // к точке отсчёта модели + чистые ноды (замечания, touched, dirty);
+                                              // у формы сборки ещё и тихая фаза afterFirstSubmit
 ```
 
 ### Что отправка делает с полями
@@ -4843,9 +4867,11 @@ A: Ничего. Цели `compute` / `computeFrom` и поля с `markDerived`
 **Q: Чем `form.reset()` отличается от `model.reset()`?**
 A: Точка отсчёта у них одна — initial-снимок модели либо последний `model.captureInitial()`
 (загруженные данные). `form.reset()` — сброс для пользователя (кнопка «Сбросить»): значения к точке
-отсчёта и чистые ноды — замечания, touched, dirty; после него и форма, и модель не изменены.
-`model.reset()` — сброс значений модели: ноды не трогает, замечания погаснут при следующей
-проверке. Исключение — `enableWhen({ resetOnDisable: true })`: выключенное поле очищается к
+отсчёта и чистые ноды — замечания, touched, dirty; после него и форма, и модель не изменены. У
+формы сборки (`bundle.form.reset()`) он возвращает и живую проверку в исходную фазу: стратегия
+`afterFirstSubmit` снова молчит до следующей отправки, как у неотправленной формы.
+`model.reset()` — сброс значений модели: ноды и фазу проверки не трогает, замечания погаснут при
+следующей проверке. Исключение — `enableWhen({ resetOnDisable: true })`: выключенное поле очищается к
 значению, с которым нода создана, а не к загруженному.
 
 **Q: Disabled-поля участвуют в submit-данных?**
@@ -5426,6 +5452,23 @@ return pending ? <Spinner /> : shouldShowIssues ? <Error text={message(issues[0]
 пока идёт полный прогон либо прогон шага; `bundle.submission.submitting` — пока работает обработчик
 отправки.
 
+### Живая проверка: ответ на то же значение не запрашивается
+
+Ответ async-правила — функция значения поля. Живая проверка (`strategy: 'change'` / `'blur'`,
+живая фаза `afterFirstSubmit`) прогоняет всю схему на каждый ввод, но правило поля, чьё значение
+не менялось с полученного ответа, не вызывает: берёт прежний ответ. Ввод в соседнее поле не шлёт
+запрос и не переводит поле в `pending`. Сбой правила (`ruleFailed`) ответом не считается — его
+спросят снова. Отправка и явная проверка (`bundle.validate()`, шаг) спрашивают правила всегда:
+сервер мог измениться.
+
+Память ключится по ссылке правила:
+
+- правило — **константа модуля** (`const checkEmailUnique: AsyncRule<string> = …`, как выше) —
+  ответ переиспользуется;
+- правило-**стрелка внутри схемы** — новая ссылка на каждом прогоне, его спрашивают каждый раз.
+  Так и нужно для правила, которое читает соседние поля (async cross-field ниже): его ответ
+  зависит не только от своего значения.
+
 ### Debounce и отмена
 
 - **Отмена устаревших — бесплатно.** Быстрый повторный прогон той же пары `(model, schema)`
@@ -5568,6 +5611,52 @@ loadOptionsOn(model.$.carBrand, form.carModel, fetchCarModels, { resetTarget: tr
 - **Cancellation** — `onChange` даёт `{ signal }` (AbortSignal); передавай его в `fetch` и
   игнорируй `AbortError`.
 
+### Справочник для полей строк массива — загрузка один раз
+
+Справочник (типы имущества, регионы), загруженный один раз, раздают полям всех строк **сигналом
+в `componentProps` шаблона строки**. Нода поля отдаёт пропс-сигнал значением и реактивно: каждая
+строка, в том числе добавленная позже, читает тот же сигнал, и загрузка доходит до всех строк
+сразу. Поведение, которое раздаёт опции каждой строке через `updateComponentProps`, не нужно, а
+`ResourceConfig` (`resource` у `Select`) грузил бы справочник на каждое монтирование строки.
+
+```typescript
+import { signal } from '@reformer/core/signals';
+
+// Справочник — один раз на форму (страница, сервис, загрузка при старте).
+const propertyTypes = signal<Option[]>([]);
+const typesLoading = signal(true);
+void api.getPropertyTypes().then((options) => {
+  propertyTypes.value = options;
+  typesLoading.value = false;
+});
+
+const schema = (model: FormModel<Application>) => ({
+  children: [
+    {
+      model: model.$.properties,
+      component: FieldArray,
+      item: (row: FormModel<Property>) => ({
+        children: [
+          {
+            model: row.$.type,
+            component: Select,
+            // Сигнал, а не его значение: строки видят загрузку, сколько бы их ни добавили.
+            componentProps: { label: 'Тип', options: propertyTypes, loading: typesLoading },
+          },
+        ],
+      }),
+    },
+  ],
+});
+```
+
+- Разворачивается сигнал **вне модели** на **верхнем уровне** `componentProps`. Ручка модели
+  (`model.$.x`, `model.$.group`) — привязка, компонент получает её как есть; сигнал внутри
+  объекта или массива — тоже как есть.
+- `updateComponentProps({ options })` строки заменяет сигнал значением — только у этой строки.
+- JSON-форма (`@reformer/renderer-json`): сигнал регистрируется в реестре —
+  `reg.dataSource('PROPERTY_TYPES', propertyTypes)`, в схеме — `"options": "$dataSource(PROPERTY_TYPES)"`.
+
 ### Initial load (preload at form mount)
 
 Для загрузки опций при инициализации формы — external hook + `model.set` + `updateComponentProps`
@@ -5617,6 +5706,7 @@ createForm<T>({
     strategy?: ValidationStrategyKind;     // default 'submit'
     debounce?: number;
     liveAfterSubmit?: 'change' | 'blur';
+    liveAfterStep?: 'change' | 'blur';    // живая фаза шага после первого «Далее» (flow)
   },
 });
 
@@ -5630,6 +5720,7 @@ function useFormValidation<T>(args: {
 }): {
   submit: () => Promise<boolean>;   // попытка отправки: при отказе раскрыта вся форма, afterFirstSubmit → живая фаза
   validate: () => Promise<boolean>; // проверка без отправки: раскрыты проверенные поля, фаза не меняется
+  resetPhase: () => void;           // вместе с form.reset(): afterFirstSubmit снова молчит до отправки
   isValidating: boolean;
 };
 
@@ -5648,6 +5739,7 @@ interface FormValidationController {
   validate(): Promise<boolean>;        // нейтральная проверка: touch:true, фазу afterFirstSubmit не трогает; true — только valid
   run(options?: FormValidationRunOptions): Promise<ValidationResult>; // valid | invalid | error | cancelled
   start(): () => void;                 // армит реактивные подписки (ТОЛЬКО на клиенте) → dispose
+  resetPhase(): void;                  // исходная фаза: afterFirstSubmit молчит до отправки; отложенный и идущий прогоны отменены
   dispose(): void;                     // снять подписки и таймеры, отменить идущий прогон (он получит cancelled)
   readonly isValidating: boolean;
   readonly validating: ReadonlySignal<boolean>;
@@ -5676,10 +5768,38 @@ function createFormValidation<T>(
 | `submit()` хука `useFormValidation`                             | да               | вся форма          |
 | `controller.run({ touch: 'all', submit: true })`                | да               | вся форма          |
 | `bundle.validate()`, `validate()` хука, `controller.validate()` | нет              | проверенные поля   |
-| `bundle.validateStep(id)`, `flow.next()`                        | нет              | поля шага          |
+| `bundle.validateStep(id)`, `flow.next()`                        | нет\*            | поля шага          |
 
 Кнопка «Проверить» — `validate()`: показывает замечания, но форма остаётся в тихой фазе. Отменённая
 отправка (`cancelled`) форму тронутой не помечает.
+
+\* Живую фазу **шага** включает `flow.next()` при опции сборки `liveAfterStep: 'change' | 'blur'`:
+шаг молчит до первой попытки «Далее» на нём, дальше его правила проверяются живьём (только они —
+поля других шагов молчат). Опция — для стратегий `submit` и `afterFirstSubmit`; см.
+`13-multi-step.md`.
+
+Тихую фазу возвращает **сброс формы** — кнопка «Очистить»:
+
+| Сброс                                | Фаза                                                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| `bundle.form.reset()`                | тихая: значения, ноды и фаза — как у неотправленной формы                    |
+| `form.reset()` + `resetPhase()` хука | тихая (форма без сборки: ноды сбрасывает форма, фазу — контроллер)           |
+| `model.reset()`                      | не меняется: сброс только значений, ноды и фаза остаются — это не «Очистить» |
+
+Сброс отменяет отложенный (`debounce`) и идущий прогоны — они о значениях до сброса.
+
+### Что живой прогон не делает заново
+
+Живой прогон проверяет всю схему, но поле перерисовывается, только если у него что-то изменилось:
+
+- **те же замечания** полю не пишутся — ввод в одно поле не будит поля с прежними ошибками;
+- **async-правило** не спрашивается о значении, на которое ответ уже есть: ввод в соседнее поле не
+  шлёт запрос и не переводит поле в `pending`. Сбой правила (`ruleFailed`) ответом не считается.
+  Отправка и явная проверка (`validate()`, шаг) спрашивают правила всегда.
+
+Память ответа ключится по ссылке правила: держи async-правило константой модуля. Стрелка внутри
+схемы — новая ссылка на каждом прогоне, её спрашивают каждый раз (см.
+`31-async-validator-debounce.md`).
 
 ### Стратегии
 
@@ -5871,6 +5991,12 @@ if (typeof window !== 'undefined') controller.start();
 ```
 
 ```typescript
+// ❌ afterFirstSubmit: «Очистить» через model.reset() — форма остаётся в живой фазе и тронутой,
+// следующий ввод сразу показывает ошибку
+model.reset();
+// ✅ сброс для пользователя: значения, ноды и тихая фаза
+bundle.form.reset();
+
 // ❌ afterFirstSubmit: ждать живой фазы после проверки — validate() фазу не переключает
 await bundle.validate(); // форма в тихой фазе, ввод не перепроверяется
 
@@ -8182,6 +8308,9 @@ export interface ArrayControlState<T> {
    * ```
    */
   disabled: boolean;
+
+  /** Путь массива в модели (`items`) — реактивный аналог `control.path`. */
+  path: string;
 }
 ```
 
@@ -10174,6 +10303,20 @@ export interface FieldControlState<T> {
    * ```
    */
   dirty: boolean;
+
+  /**
+   * Путь поля в модели (`items.0.name`) — реактивный аналог `control.path`. У поля строки массива
+   * меняется вместе с индексом строки, и компонент перерисовывается: из пути выводят
+   * `data-testid`, `id` и `name`. У поля не из модели — `''`.
+   *
+   * @example
+   * ```tsx
+   * const { path } = useFormControl(row.name);
+   *
+   * return <input id={path} data-testid={`input-${path.replace(/\./g, '-')}`} />;
+   * ```
+   */
+  path: string;
 }
 ```
 
@@ -10389,6 +10532,11 @@ _Source: src/form/flow/flow.ts_
 **Signature:**
 ```typescript
 export interface FormArray<T extends object> extends FormNode<T[]> {
+  /**
+   * Путь массива в модели — сигнал (`items`). У массива внутри строки другого массива меняется
+   * вместе с индексом этой строки.
+   */
+  readonly path: ReadonlySignal<string>;
   /** Число строк; чтение в эффекте или `computed` подписывает на изменения. */
   readonly length: number;
   at(index: number): FormGroup<T> | undefined;
@@ -10474,6 +10622,10 @@ _Source: src/form/behaviors/types.ts_
 ```typescript
 export interface FormBundle<T> extends FormLevel<T> {
   readonly model: FormModel<T>;
+  /**
+   * Форма — ноды полей. Её `reset()` — сброс для пользователя: значения к точке отсчёта модели,
+   * чистые ноды и живая проверка в исходной фазе (`afterFirstSubmit` снова молчит до отправки).
+   */
   readonly form: FormGroup<T>;
   readonly render: FormRender;
   /**
@@ -10536,6 +10688,12 @@ _Source: src/platforms/react/hooks/use-form-bundle.ts_
 **Signature:**
 ```typescript
 export interface FormControl<T> extends FormNode<T> {
+  /**
+   * Путь в модели — сигнал (`items.0.name`). У поля строки массива он меняется вместе с индексом
+   * строки: после `removeAt(0)` поле прежней второй строки — `items.0.name`. Из него выводят
+   * `data-testid`, `id` и `name` разметки. У поля над собственным сигналом, не из модели, — `''`.
+   */
+  readonly path: ReadonlySignal<string>;
   /** Компонент поля из узла схемы. */
   readonly component: ComponentRef | undefined;
   /** Пропсы компонента: из узла схемы и правок {@link FormControl.updateComponentProps}. */
@@ -10982,6 +11140,18 @@ export interface FormValidation<T> {
   debounce?: number;
   /** Режим живой фазы для `afterFirstSubmit`. По умолчанию `'change'`. */
   liveAfterSubmit?: 'change' | 'blur';
+  /**
+   * Живая фаза шагов потока и её режим: шаг молчит до первой попытки «Далее» на нём
+   * (`flow.next()`), дальше его правила проверяются на каждую правку (`'change'`) либо уход из
+   * поля (`'blur'`), с той же задержкой `debounce`. Живой прогон шага проверяет только его правила
+   * и, как живая проверка формы, полей не касается: ошибку видно у полей, которые проверил
+   * «Далее» или изменил пользователь.
+   *
+   * Для стратегий `submit` и `afterFirstSubmit`; у `change` и `blur` форма живая и так — опция
+   * не действует. При `afterFirstSubmit` попытка отправки делает живой всю форму, и живые фазы
+   * шагов больше не нужны. Сброс формы (`form.reset()`) возвращает тихую фазу и шагам.
+   */
+  liveAfterStep?: 'change' | 'blur';
 }
 ```
 
@@ -11015,6 +11185,15 @@ export interface FormValidationController {
    * после такого цикла молча оставался бы без живой валидации.
    */
   start(): () => void;
+  /**
+   * Вернуть стратегию в исходную фазу — для сброса формы: `afterFirstSubmit` снова молчит до
+   * следующей попытки отправки. Отложенный (`debounce`) и идущий прогоны отменяются — они о
+   * значениях до сброса (идущий `validate()` или `run()` получит `cancelled`). Подписки остаются,
+   * значения и замечания не трогаются: их сбрасывает форма.
+   *
+   * Сборка `createForm` зовёт его сама из `form.reset()` своей формы.
+   */
+  resetPhase(): void;
   /**
    * Снять подписки и таймеры, отменить идущий прогон (его `validate()` или `run()` получит
    * `cancelled`). Идемпотентно; после него `start()` снова армирует стратегию.
@@ -15492,6 +15671,12 @@ export interface UseFormValidationResult {
    * `afterFirstSubmit` не меняется. Для кнопки «Проверить». Стабильная ссылка.
    */
   validate: () => Promise<boolean>;
+  /**
+   * Вернуть стратегию в исходную фазу — вместе со сбросом формы (`form.reset()`):
+   * `afterFirstSubmit` снова молчит до попытки отправки, отложенный и идущий прогоны отменяются.
+   * Значения и замечания не трогает. Стабильная ссылка.
+   */
+  resetPhase: () => void;
   /** Идёт ли прогон (submit или live) — для блокировки кнопки. */
   isValidating: boolean;
 }
@@ -15750,6 +15935,13 @@ _Source: src/form/validation/operators.ts_
 прогона, статус прогона становится `error`, а на поле ложится блокирующая ошибка `ruleFailed`
 (текст — из словаря локали). Отмена устаревшего прогона сбоем не считается.
 
+Ответ правила — функция значения поля. Живая проверка (`change`, `blur`, живая фаза
+`afterFirstSubmit`) не спрашивает правило заново, пока значение его поля не изменилось с
+полученного ответа: ввод в соседнее поле не шлёт запрос и не переводит поле в `pending`.
+Отправка и явная проверка (`validate()`, шаг) спрашивают всегда. Память ключится по ссылке
+правила — держите правило константой модуля; правило-стрелка внутри схемы — новая ссылка на
+каждом прогоне, и его спрашивают каждый раз.
+
 **Signature:**
 ```typescript
 export function validateAsync<TField>(
@@ -15761,10 +15953,12 @@ export function validateAsync<TField>(
 **Examples:**
 
 ```ts
-validateAsync(model.$.username, [async (v, { signal }) => {
+const usernameFree: AsyncRule<string> = async (v, { signal }) => {
   const r = await fetch(`/api/free?u=${v}`, { signal });
   return (await r.json()).free ? null : { code: 'taken' };
-}]);
+};
+
+validateAsync(model.$.username, [usernameFree]);
 ```
 
 _Source: src/form/validation/operators.ts_
@@ -15994,7 +16188,8 @@ _Source: src/form/validation/types.ts_
 - `blur` — при потере фокуса поля (каждый уход из любого листа, и повторный тоже);
 - `change` — на каждый ввод (с опц. `debounce`);
 - `afterFirstSubmit` — тихо до первой попытки отправки (`run({ submit: true })`), затем live
-  (см. `liveAfterSubmit`). Проверка без отправки (`validate()`) фазу не переключает.
+  (см. `liveAfterSubmit`). Проверка без отправки (`validate()`) фазу не переключает; сброс формы
+  (`form.reset()` сборки, {@link FormValidationController.resetPhase}) возвращает тихую фазу.
 
 **Signature:**
 ```typescript

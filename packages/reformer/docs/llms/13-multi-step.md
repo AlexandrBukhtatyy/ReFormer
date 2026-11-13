@@ -51,6 +51,16 @@ loan.validating.value; // идёт ли проверка — полная либ
   `reason: 'cancelled'`: правила этого значения не видели. Следующий `next()` проверит новое.
 - Стратегия `afterFirstSubmit` переходит в живую фазу только от отправки
   (`bundle.submission.submit`): `next()`, `validateStep` и `validate` её не переключают.
+- Живая фаза **шага** — `validation: { liveAfterStep: 'change' | 'blur' }`: шаг молчит до первой
+  попытки «Далее» на нём (`next()`, с любым итогом), дальше его правила проверяются на каждую
+  правку (`'change'`) либо уход из поля (`'blur'`), с задержкой `debounce`. Живой прогон шага —
+  только его правила: поля непройденных шагов молчат. Для стратегий `submit` и
+  `afterFirstSubmit`; после отправки при `afterFirstSubmit` живая вся форма. `form.reset()`
+  возвращает тихую фазу и шагам.
+
+  ```typescript
+  validation: { extras: crossStepRules, strategy: 'afterFirstSubmit', liveAfterStep: 'change' },
+  ```
 - `goTo(id)` открывает первый шаг и шаги после пройденных; прыжок вперёд через непройденный шаг —
   `reason: 'locked'`. Назад — всегда.
 - В dev сборка предупреждает о шаге `flow.steps`, для которого в схеме нет узла с таким `selector`.

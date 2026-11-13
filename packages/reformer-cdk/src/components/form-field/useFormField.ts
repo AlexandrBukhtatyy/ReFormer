@@ -29,6 +29,12 @@ export interface UseFormFieldState<T = unknown> {
   required: boolean;
   /** Full componentProps bag from FormControl config */
   componentProps: Record<string, unknown>;
+  /**
+   * Field path in the model (`items.0.name`). For a field of an array row it follows the row
+   * index, so `data-testid` / `name` derived from it stay correct after a neighbour row is
+   * removed. Empty for a field that is not bound to a model.
+   */
+  path: string;
 }
 
 /** Props to spread onto a <label> element */
@@ -160,6 +166,7 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
       shouldShowError,
       shouldShowIssues,
       componentProps,
+      path,
     } = raw;
     const required = Boolean(componentProps.required);
     const primary = issues[primaryIssueIndex(issues)];
@@ -205,6 +212,7 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
         label: componentProps.label as string | undefined,
         required,
         componentProps: componentProps as Record<string, unknown>,
+        path,
       },
       actions: {
         setValue: (v: T) => control.setValue(v),

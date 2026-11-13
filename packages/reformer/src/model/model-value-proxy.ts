@@ -10,6 +10,7 @@
  * @module model/model-value-proxy
  */
 
+import type { ReadonlySignal } from '@preact/signals-core';
 import { isSignal } from '../signals';
 import {
   type ModelNode,
@@ -339,6 +340,21 @@ export function referenceOf(handle: unknown): { readonly value: unknown } | unde
   if (array !== undefined) return { value: array.reference() };
   const leaf = leafOfSignal(handle);
   return leaf === undefined ? undefined : { value: leaf.reference() };
+}
+
+/**
+ * Путь в модели как сигнал — по ручке `$` (лист, группа, массив) либо value-фасаду (под-модель,
+ * массив). У строки массива и её полей путь меняется вместе с индексом строки: после
+ * `removeAt(0)` поле прежней второй строки — `items.0.name`. Не ручка модели — `undefined`.
+ *
+ * @internal
+ */
+export function livePathOf(binding: unknown): ReadonlySignal<string> | undefined {
+  if (binding == null || typeof binding !== 'object') return undefined;
+  const leaf = leafOfSignal(binding);
+  if (leaf !== undefined) return leaf.livePath();
+  const handle = isModelContainerSignal(binding) ? binding : signalsOf(binding);
+  return containerNodeOf(handle)?.livePath();
 }
 
 export function isModelFacade(value: unknown): boolean {

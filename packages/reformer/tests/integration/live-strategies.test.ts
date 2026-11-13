@@ -303,6 +303,56 @@ describe('стратегия afterFirstSubmit', () => {
     expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
   });
 
+  it('LS-20: liveAfterStep — шаг молчит до первого «Далее» на нём, затем проверяет каждую правку [ReFormer-8n96]', async () => {
+    const { bundle, runs } = await started({
+      strategy: 'afterFirstSubmit',
+      liveAfterStep: 'change',
+    });
+    const { form } = bundle;
+    form.loan.amount.setValue(5);
+    await settle();
+    expect(form.loan.amount.issues.value).toEqual([]); // до «Далее» шаг молчит
+
+    expect(await bundle.flow!.next()).toMatchObject({ status: 'stayed', reason: 'invalid' });
+    expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
+
+    form.loan.amount.setValue(500_000);
+    await settle();
+
+    expect(form.loan.amount.issues.value).toEqual([]);
+    // Живой прогон шага — его правила, а не полный набор с `extras` сценария.
+    expect(runs).not.toHaveBeenCalled();
+  });
+
+  it('LS-21: liveAfterStep — живой прогон шага не трогает поля других шагов', async () => {
+    const { bundle } = await started({ strategy: 'afterFirstSubmit', liveAfterStep: 'change' });
+    const { form, model } = bundle;
+    fillLoanStep(model);
+    await flushBehaviors();
+    expect(await bundle.flow!.next()).toMatchObject({ status: 'moved' });
+
+    // Шаг заявителя ещё не пытались пройти: правка его поля замечаний не показывает.
+    form.applicant.lastName.setValue('x');
+    form.loan.amount.setValue(5); // шаг кредита живой: его поле перепроверено
+    await settle();
+
+    expect(form.applicant.lastName.issues.value).toEqual([]);
+    expect(issueCodes(form.loan.amount)).toEqual(['loan.amount.min', 'loan.amount.step']);
+  });
+
+  it('LS-22: liveAfterStep — сброс формы возвращает тихую фазу и шагам', async () => {
+    const { bundle } = await started({ strategy: 'afterFirstSubmit', liveAfterStep: 'change' });
+    const { form } = bundle;
+    form.loan.amount.setValue(5);
+    await bundle.flow!.next();
+
+    form.reset();
+    form.loan.amount.setValue(5);
+    await settle();
+
+    expect(form.loan.amount.issues.value).toEqual([]);
+  });
+
   it('LS-08: liveAfterSubmit blur — до отправки молчит и на уход из поля; после — ввод без ухода не проверяет', async () => {
     const { bundle, runs } = await started({
       strategy: 'afterFirstSubmit',

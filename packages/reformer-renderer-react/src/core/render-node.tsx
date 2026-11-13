@@ -90,23 +90,24 @@ interface RenderNodeComponentProps<T> {
  * `componentProps` включён сюда специально: рантайм-обновления ноды (`updateComponentProps`, напр.
  * догруженные `options`) должны доезжать до контрола в ОБЕИХ ветках рендера — в т.ч. когда контрол
  * под адаптером и не получает `control` (иначе обновление молча терялось). Меняется он только по
- * явному `updateComponentProps`, поэтому churn'а не добавляет. Снапшот кэшируется по тройке
- * (value, disabled, componentProps): иначе useSyncExternalStore получал бы свежий объект каждый
- * getSnapshot и зациклился бы. SSR-safe.
+ * явному `updateComponentProps`, поэтому churn'а не добавляет. `path` — путь поля в модели: у
+ * поля строки массива он меняется с индексом строки, из него рендерер выводит `data-testid` и ref
+ * по пути. Снапшот кэшируется по четвёрке значений: иначе useSyncExternalStore получал бы свежий
+ * объект каждый getSnapshot и зациклился бы. SSR-safe.
  */
-function useFieldRenderState(fieldNode: FormControl<unknown>): {
+interface FieldRenderState {
   value: unknown;
   disabled: boolean;
   componentProps: Record<string, unknown>;
-} {
-  const cacheRef = useRef<{
-    value: unknown;
-    disabled: boolean;
-    componentProps: Record<string, unknown>;
-  }>({
+  path: string;
+}
+
+function useFieldRenderState(fieldNode: FormControl<unknown>): FieldRenderState {
+  const cacheRef = useRef<FieldRenderState>({
     value: fieldNode.value.value,
     disabled: fieldNode.disabled.value,
     componentProps: fieldNode.componentProps.value,
+    path: fieldNode.path.value,
   });
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -115,6 +116,9 @@ function useFieldRenderState(fieldNode: FormControl<unknown>): {
         void fieldNode.value.value; // зависимость: сигнал value
         void fieldNode.disabled.value; // зависимость: сигнал disabled
         void fieldNode.componentProps.value; // зависимость: реактивные componentProps ноды
+        // Путь поля строки массива меняется с индексом строки, а поддерево строки при удалении
+        // соседки не перерисовывается: без подписки `data-testid` и ref по пути устаревали бы.
+        void fieldNode.path.value;
         if (first) {
           first = false;
           return;
@@ -124,22 +128,20 @@ function useFieldRenderState(fieldNode: FormControl<unknown>): {
     },
     [fieldNode]
   );
-  const getSnapshot = useCallback((): {
-    value: unknown;
-    disabled: boolean;
-    componentProps: Record<string, unknown>;
-  } => {
+  const getSnapshot = useCallback((): FieldRenderState => {
     const value = fieldNode.value.value;
     const disabled = fieldNode.disabled.value;
     const componentProps = fieldNode.componentProps.value;
+    const path = fieldNode.path.value;
     const prev = cacheRef.current;
     if (
       prev.value === value &&
       prev.disabled === disabled &&
-      prev.componentProps === componentProps
+      prev.componentProps === componentProps &&
+      prev.path === path
     )
       return prev;
-    const next = { value, disabled, componentProps };
+    const next = { value, disabled, componentProps, path };
     cacheRef.current = next;
     return next;
   }, [fieldNode]);
@@ -186,7 +188,8 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   node,
   fieldNode,
   fieldWrapper: FieldWrapper,
-  nodeRef,
+  nodeRef: selectorRef,
+  pathRefs,
   resolveFieldAdapter,
   propsOverride,
   events,
@@ -205,6 +208,11 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
    */
   nodeRef?: React.RefObject<unknown>;
   /**
+   * Ref по пути поля (`schema.node('phones.0.number').getRef()`) — у узла без `selector`. Ищется по
+   * живому пути: строка, сдвинутая удалением соседки, отвечает уже по новому индексу.
+   */
+  pathRefs?: ReadonlyMap<string, React.RefObject<unknown>>;
+  /**
    * Резолв {@link FieldAdapter} по компоненту поля (из `settings.resolveFieldAdapter`). Если адаптер
    * найден — seam кладётся в контракт контрола (valueProp/changeProp/fromEmit/toValue), иначе
    * применяется как есть (текущее value-based поведение).
@@ -213,7 +221,13 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }): ReactNode {
   // Подписка на value+disabled+реактивные componentProps ноды (не на все 9 сигналов useFormControl).
-  const { value, disabled, componentProps: nodeComponentProps } = useFieldRenderState(fieldNode);
+  const {
+    value,
+    disabled,
+    componentProps: nodeComponentProps,
+    path,
+  } = useFieldRenderState(fieldNode);
+  const nodeRef = selectorRef ?? (path ? pathRefs?.get(path) : undefined);
   // Стабильные колбэки: fieldNode стабилен для данного сигнала → не пересоздаются каждый рендер,
   // поэтому React.memo на пользовательском Component держится.
   const onChange = useCallback((v: unknown) => fieldNode.setValue(v as never), [fieldNode]);
@@ -251,8 +265,8 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     testId?: unknown;
   };
 
-  // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
-  const path = node.handle.__path;
+  // testId: явный из схемы, иначе из живого пути поля (`personalData.lastName` →
+  // `personalData-lastName`; у строки массива — с её текущим индексом).
   const testId =
     typeof explicitTestId === 'string'
       ? explicitTestId
@@ -923,20 +937,18 @@ export function RenderNodeComponent<T>({
         return null;
       }
       // Адресация ref листа: явный `selector` в приоритете, иначе — индексный путь модели
-      // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FieldArray
-      // (`schema.node('phones.0.number').getRef()`) без перечисления индексов автором схемы.
+      // (`phones.0.number`). Даёт адресацию строк FieldArray (`schema.node('phones.0.number')
+      // .getRef()`) без перечисления индексов автором схемы. Путь живой — его ищет само поле.
       // Селектор ищется в своей области, а путь абсолютный — он ищется от корня сборки.
-      const leafRef = selector
-        ? overrideMaps?.refRegistry.get(selector)
-        : binding.__path
-          ? (controllerContext?.rootMaps ?? overrideMaps)?.refRegistry.get(binding.__path)
-          : undefined;
       return (
         <ModelFieldRenderer
           node={node}
           fieldNode={fieldNode}
           fieldWrapper={fieldWrapper}
-          nodeRef={leafRef}
+          nodeRef={selector ? overrideMaps?.refRegistry.get(selector) : undefined}
+          pathRefs={
+            selector ? undefined : (controllerContext?.rootMaps ?? overrideMaps)?.refRegistry
+          }
           resolveFieldAdapter={settings?.resolveFieldAdapter}
           propsOverride={propsOverride}
           events={callbackMap}

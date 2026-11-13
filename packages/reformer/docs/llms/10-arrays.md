@@ -215,6 +215,19 @@ function ItemsList({ form }: { form: FormGroup<MyForm> }) {
 }
 ```
 
+**Путь поля строки — `control.path`** (сигнал, `items.0.name`): он следует за индексом строки —
+после `removeAt(0)` поле прежней второй строки отвечает `items.0.name`. Из него выводят
+`data-testid`, `id`, `name`; в компоненте — `useFormControl(control).path` (компонент
+перерисуется, когда строка сдвинется). Собирать индекс из разметки списка не нужно. Рендерер
+(`@reformer/renderer-react`, `renderer-json`) выводит `data-testid` поля из того же живого пути.
+
+```tsx
+function NameField({ control }: { control: FormControl<string> }) {
+  const { value, path } = useFormControl(control);
+  return <input value={value} data-testid={`input-${path.replace(/\./g, '-')}`} />;
+}
+```
+
 > В монорепо для массивов используется готовый `FieldArraySection` из `@reformer/ui-kit`
 > (`control={form.items}`, `itemComponent`, add/remove/reorder из коробки; шаблон новой строки —
 > `arrayOf(blank)` в модели, проп `initialValue` — запасной путь). В схеме массив под-форм рисует

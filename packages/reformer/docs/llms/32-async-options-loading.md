@@ -95,6 +95,52 @@ loadOptionsOn(model.$.carBrand, form.carModel, fetchCarModels, { resetTarget: tr
 - **Cancellation** — `onChange` даёт `{ signal }` (AbortSignal); передавай его в `fetch` и
   игнорируй `AbortError`.
 
+### Справочник для полей строк массива — загрузка один раз
+
+Справочник (типы имущества, регионы), загруженный один раз, раздают полям всех строк **сигналом
+в `componentProps` шаблона строки**. Нода поля отдаёт пропс-сигнал значением и реактивно: каждая
+строка, в том числе добавленная позже, читает тот же сигнал, и загрузка доходит до всех строк
+сразу. Поведение, которое раздаёт опции каждой строке через `updateComponentProps`, не нужно, а
+`ResourceConfig` (`resource` у `Select`) грузил бы справочник на каждое монтирование строки.
+
+```typescript
+import { signal } from '@reformer/core/signals';
+
+// Справочник — один раз на форму (страница, сервис, загрузка при старте).
+const propertyTypes = signal<Option[]>([]);
+const typesLoading = signal(true);
+void api.getPropertyTypes().then((options) => {
+  propertyTypes.value = options;
+  typesLoading.value = false;
+});
+
+const schema = (model: FormModel<Application>) => ({
+  children: [
+    {
+      model: model.$.properties,
+      component: FieldArray,
+      item: (row: FormModel<Property>) => ({
+        children: [
+          {
+            model: row.$.type,
+            component: Select,
+            // Сигнал, а не его значение: строки видят загрузку, сколько бы их ни добавили.
+            componentProps: { label: 'Тип', options: propertyTypes, loading: typesLoading },
+          },
+        ],
+      }),
+    },
+  ],
+});
+```
+
+- Разворачивается сигнал **вне модели** на **верхнем уровне** `componentProps`. Ручка модели
+  (`model.$.x`, `model.$.group`) — привязка, компонент получает её как есть; сигнал внутри
+  объекта или массива — тоже как есть.
+- `updateComponentProps({ options })` строки заменяет сигнал значением — только у этой строки.
+- JSON-форма (`@reformer/renderer-json`): сигнал регистрируется в реестре —
+  `reg.dataSource('PROPERTY_TYPES', propertyTypes)`, в схеме — `"options": "$dataSource(PROPERTY_TYPES)"`.
+
 ### Initial load (preload at form mount)
 
 Для загрузки опций при инициализации формы — external hook + `model.set` + `updateComponentProps`

@@ -10,7 +10,7 @@
  * @module model/model-nodes
  */
 
-import { batch, signal, type Signal } from '@preact/signals-core';
+import { batch, signal, type ReadonlySignal, type Signal } from '@preact/signals-core';
 import type { PathAwareSignal } from './types';
 import { isDerived } from './derived-registry';
 
@@ -232,14 +232,33 @@ export type ModelNode = ModelLeafNode | ModelGroupNode | ModelArrayNode;
 const leafBySignal = new WeakMap<object, ModelLeafNode>();
 
 /** Лист модели, чей это сигнал; `undefined` — сигнал не из модели. @internal */
-export function leafOfSignal(handle: object): { reference(): unknown } | undefined {
+export function leafOfSignal(
+  handle: object
+): { reference(): unknown; livePath(): ReadonlySignal<string> } | undefined {
   return leafBySignal.get(handle);
+}
+
+/**
+ * Путь узла как сигнал. Заводится по первому запросу: живой путь нужен немногим (путь поля строки
+ * массива в разметке), а узлов в модели много. Пока сигнала нет, переезд узла его не создаёт.
+ */
+class PathCell {
+  private cell: Signal<string> | undefined;
+
+  live(path: string): ReadonlySignal<string> {
+    return (this.cell ??= signal(path));
+  }
+
+  move(path: string): void {
+    if (this.cell) this.cell.value = path;
+  }
 }
 
 class ModelLeafNode {
   readonly kind = 'leaf' as const;
   readonly signal: PathAwareSignal<unknown>;
   private initial: unknown;
+  private readonly pathCell = new PathCell();
 
   constructor(
     initial: unknown,
@@ -255,6 +274,12 @@ class ModelLeafNode {
   rebase(path: string): void {
     this.path = path;
     (this.signal as Signal<unknown> & { __path: string }).__path = path;
+    this.pathCell.move(path);
+  }
+
+  /** Путь как сигнал: у листа строки массива меняется вместе с индексом строки. */
+  livePath(): ReadonlySignal<string> {
+    return this.pathCell.live(this.path);
   }
 
   /** Реактивное чтение (внутри effect/computed создаёт зависимость). */
@@ -299,6 +324,7 @@ class ModelLeafNode {
 export class ModelGroupNode {
   readonly kind = 'group' as const;
   readonly children = new Map<string, ModelNode>();
+  private readonly pathCell = new PathCell();
 
   /**
    * @param shape Образец той же группы из шаблона родительского массива: из него вложенные
@@ -317,7 +343,13 @@ export class ModelGroupNode {
 
   rebase(path: string): void {
     this.path = path;
+    this.pathCell.move(path);
     for (const [key, node] of this.children) node.rebase(joinPath(path, key));
+  }
+
+  /** Путь как сигнал: у строки массива меняется вместе с её индексом. */
+  livePath(): ReadonlySignal<string> {
+    return this.pathCell.live(this.path);
   }
 
   /** Реактивное чтение поддерева (внутри effect/computed подписывает на все листья группы). */
@@ -424,6 +456,7 @@ export class ModelArrayNode {
   // Образец элемента — один вызов шаблона. Нужен только ради вложенных шаблонов: элемент из
   // обычных данных (`set` с сервера, `push(значение)`) метку `arrayOf` на своих массивах не несёт.
   private sample: { readonly value: unknown } | undefined;
+  private readonly pathCell = new PathCell();
 
   /** @param shape Образец того же массива из шаблона родителя (см. {@link ModelGroupNode}). */
   constructor(
@@ -481,11 +514,24 @@ export class ModelArrayNode {
 
   rebase(path: string): void {
     this.path = path;
+    this.pathCell.move(path);
     this.items.peek().forEach((node, i) => node.rebase(joinPath(path, i)));
   }
 
-  private reindex(): void {
-    this.items.peek().forEach((node, i) => node.rebase(joinPath(this.path, i)));
+  /** Путь как сигнал: у вложенного массива строки меняется вместе с индексом строки. */
+  livePath(): ReadonlySignal<string> {
+    return this.pathCell.live(this.path);
+  }
+
+  /**
+   * Новый состав и пути элементов — одной записью: подписчик состава (строки формы, разметка
+   * списка) должен видеть элементы уже с их новыми путями, а не прежними.
+   */
+  private reorder(items: ModelNode[]): void {
+    batch(() => {
+      this.items.value = items;
+      items.forEach((node, i) => node.rebase(joinPath(this.path, i)));
+    });
   }
 
   /**
@@ -511,16 +557,14 @@ export class ModelArrayNode {
     const arr = [...this.items.peek()];
     if (index > arr.length) throw this.beyondEnd(`insertAt(${index})`, index, arr.length);
     arr.splice(index, 0, this.build(this.fresh(value), index));
-    this.items.value = arr;
-    this.reindex();
+    this.reorder(arr);
   }
   removeAt(index: number): void {
     const arr = [...this.items.peek()];
     // `removeAt(list.findIndex(…))` без находки не должен удалять последний элемент.
     if (!Number.isInteger(index) || index < 0 || index >= arr.length) return;
     arr.splice(index, 1);
-    this.items.value = arr;
-    this.reindex();
+    this.reorder(arr);
   }
   move(from: number, to: number): void {
     const arr = [...this.items.peek()];
@@ -531,15 +575,13 @@ export class ModelArrayNode {
     if (from === to) return;
     const [moved] = arr.splice(from, 1);
     if (moved) arr.splice(to, 0, moved);
-    this.items.value = arr;
-    this.reindex();
+    this.reorder(arr);
   }
   swap(a: number, b: number): void {
     const arr = [...this.items.peek()];
     if (a < 0 || b < 0 || a >= arr.length || b >= arr.length || a === b) return;
     [arr[a], arr[b]] = [arr[b], arr[a]];
-    this.items.value = arr;
-    this.reindex();
+    this.reorder(arr);
   }
   clear(): void {
     this.items.value = [];
