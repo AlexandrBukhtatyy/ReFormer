@@ -103,6 +103,10 @@ export default defineConfig([
     '**/.docusaurus',
     '**/.tmp',
     '**/.playwright-mcp',
+    // Рабочие копии сеансов Claude Code (EnterWorktree) — копии всего репозитория, по 1–2 ГБ.
+    // ESLint не читает ни .gitignore, ни .git/info/exclude: без строки `eslint . --fix` правил бы
+    // файлы в чужих рабочих копиях.
+    '.claude/worktrees/**',
     // Auto-generated mock handlers (msw + vite-plugin-mock-server)
     '**/_generated/**',
     // Auto-generated API docs from JSDoc

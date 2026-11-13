@@ -29,6 +29,11 @@ packages/reformer-mcp/src/prompts/templates/
 # beads issue tracker — файлы ведёт bd (jsonl/yaml/backup), не prettier
 .beads/
 
+# Рабочие копии сеансов Claude Code (EnterWorktree): `prettier --write .` иначе переписывал бы
+# файлы в чужих рабочих копиях (исключение Claude Code лежит в .git/info/exclude, prettier его
+# не читает)
+.claude/worktrees/
+
 # Сборка плагинов проекта-образца для билдера (`npm run build:dev` в пакете плагина) лежит в корне
 # каталога плагина и исключена ЕГО .gitignore — а вложенные .gitignore prettier не читает
 # и переформатировал бы main.js. Плагин лежит либо прямо в каталоге плагинов, либо в каталоге
