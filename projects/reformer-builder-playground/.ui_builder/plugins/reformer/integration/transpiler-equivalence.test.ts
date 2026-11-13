@@ -220,13 +220,6 @@ describe('гибрид: sucrase с typescript в запасе', { timeout: COMPI
     { name: 'незакрытая строка', file: 'validation/form.ts', tail: '\nexport const s = "abc\n;' },
     { name: 'лишняя скобка', file: 'model/initial-value.ts', tail: '\n}\n' },
     { name: 'незакрытый вызов', file: 'behavior/index.ts', tail: '\nconsole.log(1;\n' },
-    // Повторное `let` для typescript — не синтаксис, а связывание: `transpileModule` о нём молчит,
-    // и сбой всплывает при исполнении без места — у обоих движков одинаково.
-    {
-      name: 'повторное let',
-      file: 'behavior/index.ts',
-      tail: '\nlet twice = 1;\nlet twice = 2;\n',
-    },
   ])('$name — те же находки, что у typescript целиком', async ({ file, tail }) => {
     const form = brokenForm(file, tail);
     const { engine, loadTypescript } = watchedHybrid();
@@ -238,6 +231,32 @@ describe('гибрид: sucrase с typescript в запасе', { timeout: COMPI
     expect(viaHybrid).toEqual(viaTypescript);
     // Совпадение — не случайность: отвергнутый файл переводил именно `typescript`.
     expect(loadTypescript).toHaveBeenCalled();
+  });
+
+  it('повторное let — у гибрида место в файле, у typescript целиком — нет', async () => {
+    // Для typescript это не синтаксис, а связывание: `transpileModule` о нём молчит, и сбой
+    // всплывает при исполнении без места. acorn, разбирающий вывод sucrase, его ловит — и находка
+    // окончательная: запасной typescript её только потерял бы.
+    const file = 'behavior/index.ts';
+    const form = brokenForm(file, '\nlet twice = 1;\nlet twice = 2;\n');
+    const source = form.files.get(file) ?? '';
+    const { engine, loadTypescript } = watchedHybrid();
+
+    const viaTypescript = await compiledWith(TYPESCRIPT_ENGINE, form);
+    const viaHybrid = await compiledWith(engine, form);
+
+    expect(viaTypescript.problems.find((item) => item.file === file)).toMatchObject({
+      phase: 'evaluate',
+    });
+    expect(viaTypescript.problems.find((item) => item.file === file)?.range).toBeUndefined();
+
+    const problem = viaHybrid.problems.find((item) => item.file === file);
+    expect(problem).toMatchObject({ phase: 'transpile' });
+    expect(problem?.message).toContain("'twice' has already been declared");
+    // Место — второе объявление, а не первое и не начало файла.
+    const second = source.lastIndexOf('twice');
+    expect(problem?.range).toEqual({ start: second, end: second + 1 });
+    expect(loadTypescript).not.toHaveBeenCalled();
   });
 
   it('незакрытая строка — текст typescript и место в исходнике файла', async () => {

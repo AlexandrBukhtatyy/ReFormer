@@ -175,6 +175,7 @@ import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-
 import { EditorViewStatesToken } from '@reformer/builder-plugin-api/internal';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';
+import { loopInstrumentation, type LoopInstrumentation } from '@/shell/platform/modules/loop-guard';
 import {
   transpilerEngine,
   type TranspilerChoice,
@@ -756,25 +757,36 @@ export function boot(options: BootOptions): BuilderApp {
   // (его печатает `registry.ts`), а превью грузит кит и без того — ленивым namespace.
   // Греется то, что импортируют САМИ файлы, а не всё подряд: иначе каждая форма платила бы
   // за подпути кита с их зависимостями, которых в ней нет.
+  //
+  // Код, исполняемый через возможность, — код ПРОЕКТА человека (форма и её фикстура), и его
+  // набирают вживую: превью собирает форму через 200 мс тишины. Поэтому в его циклы встаёт сторож
+  // (`modules/loop-guard`): бесконечный цикл становится исключением с файлом и строкой, а не
+  // зависшей вкладкой. Плагины каталога грузятся мимо возможности и сторожа не получают.
+  /** Сторож циклов; не загрузился — форма собирается как раньше, без него. */
+  const guardLoops = (): Promise<LoopInstrumentation | null> =>
+    loopInstrumentation().catch((error: unknown) => {
+      console.warn('[boot] сторож циклов не загрузился: код формы исполняется без него', error);
+      return null;
+    });
   services.register(ModuleLoaderCapability, {
     // Параметры перечислены поимённо: у движка их больше, чем обещает контракт (дочитка графа
     // по отложенному импорту — дело загрузчика плагинов), и лишнее плагину не передаётся.
-    load: (files, entry, loadOptions) =>
-      pluginModules.modules.load(
-        files,
-        entry,
-        loadOptions === undefined
-          ? undefined
-          : {
-              ready: loadOptions.ready,
-              overrides: loadOptions.overrides,
-              ambient: loadOptions.ambient,
-            }
-      ),
+    load: async (files, entry, loadOptions) => {
+      const guard = await guardLoops();
+      return pluginModules.modules.load(files, entry, {
+        ready: loadOptions?.ready,
+        overrides: loadOptions?.overrides,
+        ambient:
+          guard === null ? loadOptions?.ambient : { ...loadOptions?.ambient, ...guard.ambient },
+        ...(guard === null ? {} : { instrument: guard.instrument }),
+      });
+    },
     prepare: async (files) => {
       const [primed] = await Promise.all([
         pluginModules.prepareCached(files),
         pluginModules.warm(files),
+        // Сторож нужен сразу за прогревом: грузим его заодно, а не в начале загрузки.
+        guardLoops(),
       ]);
       return primed;
     },

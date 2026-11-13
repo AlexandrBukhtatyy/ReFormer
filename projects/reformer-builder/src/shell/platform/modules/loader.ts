@@ -166,6 +166,15 @@ export interface LoadOptions {
    * откуда они, — загрузчик плагинов, — и плагину эту дверь открывать незачем.
    */
   readonly lazy?: LazyLoad;
+  /**
+   * Преобразование готового JS перед исполнением: путь → код. Так в код формы встаёт сторож
+   * циклов (`./loop-guard`).
+   *
+   * После транспиляции и после кэша — одинаково для любого движка, запасного и `.js`-файлов без
+   * движка. В `LoadResult.compiled` (и, значит, в кэш) идёт вывод ДО преобразования: кэш хранит
+   * перевод файла, а не то, чем его оснастила эта загрузка. JSON не преобразуется — это данные.
+   */
+  readonly instrument?: (js: string, fileName: string) => string;
 }
 
 /**
@@ -248,6 +257,7 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
       const normalized = new Map(normalizeFiles(files));
       const ready = loadOptions?.ready;
       const lazy = loadOptions?.lazy;
+      const instrument = loadOptions?.instrument;
 
       let disposed = false;
       /** Идущие чтения — по файлам: два импорта, которым нужен один чанк, читают его раз. */
@@ -315,6 +325,14 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
       /** Файлы, которые переводит запасной движок, — уже загруженный. */
       const viaFallback = new Map<string, Transpiler>();
 
+      /** Перевод файла плюс преобразование этой загрузки ({@link LoadOptions.instrument}). */
+      const compile = (code: string, fileName: string): string => {
+        const js = translate(code, fileName);
+        return instrument === undefined || fileName.endsWith('.json')
+          ? js
+          : instrument(js, fileName);
+      };
+
       /**
        * Файл без подходящего движка идёт как есть.
        *
@@ -324,7 +342,7 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
        * Готовый код из кэша проверяется ПЕРВЫМ и по тому же ключу, что и файл в наборе, — иначе
        * попадание пришлось бы искать после того, как движок уже разбудили.
        */
-      const compile = (code: string, fileName: string): string => {
+      const translate = (code: string, fileName: string): string => {
         const cached = ready?.get(fileName);
         if (cached !== undefined) return cached;
         // Граф собирается заново после отказа: файл, уже переведённый основным движком, второй
@@ -345,7 +363,11 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         } catch (error) {
           // Отказ запоминается ДО того, как исключение уйдёт в граф: его вправе проглотить код
           // (точка входа превью ловит сбой каждого файла роли), а запасному он нужен всё равно.
-          if (transpiler.fallback !== undefined) rejected.set(fileName, transpiler.fallback);
+          // Окончательную находку запасной не уточнит — отдавать ему файл значило бы её потерять.
+          const definitive = error instanceof TranspileError && error.definitive;
+          if (transpiler.fallback !== undefined && !definitive) {
+            rejected.set(fileName, transpiler.fallback);
+          }
           throw error;
         }
         compiled.set(fileName, js);

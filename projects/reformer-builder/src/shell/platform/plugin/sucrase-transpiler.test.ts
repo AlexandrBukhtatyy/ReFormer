@@ -1,9 +1,11 @@
+import * as acorn from 'acorn';
 import { describe, expect, it } from 'vitest';
 
 import { TranspileError } from '@/shell/platform/modules/transpilers';
 import {
   createSucraseTranspiler,
   loadSucraseEngine,
+  parseWithAcorn,
   SUCRASE_ENGINE_VERSION,
   SUCRASE_OPTIONS_SIGNATURE,
   SUCRASE_TRANSPILER_ID,
@@ -194,6 +196,47 @@ describe('транспилятор sucrase', () => {
   it('повторное let — тоже отказ транспиляции', async () => {
     const transpiler = await real();
     expect(() => transpiler.transpile('let a = 1;\nlet a = 2;', 'dup.ts')).toThrow(TranspileError);
+  });
+
+  it('с acorn повторное let — окончательная находка с местом второго объявления', async () => {
+    const transpiler = createSucraseTranspiler(await loadSucraseEngine(), {
+      verify: parseWithAcorn(acorn),
+    });
+    const source = 'const n: number = 1;\nlet a: string = "x";\nlet a = "y";\n';
+
+    let caught: unknown;
+    try {
+      transpiler.transpile(source, 'dup.ts');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(TranspileError);
+    const error = caught as TranspileError;
+    // typescript, переводящий файл в одиночку, этого не ловит: отдать файл ему — потерять место.
+    expect(error.definitive).toBe(true);
+    expect(error.findings[0].message).toContain("Identifier 'a' has already been declared");
+    const second = source.lastIndexOf('a =');
+    expect(error.findings[0].range).toEqual({ start: second, end: second + 1 });
+  });
+
+  it('с acorn ошибка разбора вывода несёт место в исходнике и уходит запасному', async () => {
+    const transpiler = createSucraseTranspiler(await loadSucraseEngine(), {
+      verify: parseWithAcorn(acorn),
+    });
+    const source = 'export const ok = 1;\nexport const s = "abc\nx";\n';
+
+    let caught: unknown;
+    try {
+      transpiler.transpile(source, 'broken.ts');
+    } catch (error) {
+      caught = error;
+    }
+
+    const error = caught as TranspileError;
+    expect(error.definitive).toBe(false);
+    // Место — во второй строке, где строка не закрыта, а не в начале файла.
+    expect(error.findings[0].range?.start).toBeGreaterThan(source.indexOf('\n'));
   });
 
   it('запасной движок из настроек доезжает до транспилятора, а без него его нет', () => {

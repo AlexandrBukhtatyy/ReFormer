@@ -33,6 +33,12 @@
  * а не исполнения. Любой отказ загрузчик отдаёт запасному движку (`fallback`, в композиции —
  * `typescript`, лениво): собрал — модуль работает, не собрал — находка уже его, с местом.
  *
+ * Разбирает вывод acorn ({@link parseWithAcorn}), когда композиция его дала, иначе — `Function`.
+ * acorn называет место, и sucrase сохраняет строки исходника, — поэтому место ошибки разбора
+ * переносится в файл человека. Повторное объявление имени (`let a` дважды) acorn ловит, а
+ * `typescript`, переводящий файл в одиночку, — нет: он переведёт, и сбой всплывёт при исполнении
+ * без места. Такая находка окончательная (`TranspileError.definitive`) и запасному не отдаётся.
+ *
  * Чего гибрид не закрывает: несовпадающий закрывающий тег JSX (`<div></span>`) sucrase молча
  * собирает в `<div>`, отказа нет — и до запасного дело не доходит. Проверки типов нет ни у одного
  * из движков.
@@ -40,6 +46,7 @@
  * @module shell/platform/plugin/sucrase-transpiler
  */
 
+import type * as Acorn from 'acorn';
 import { version as sucraseVersion } from 'sucrase/package.json';
 
 import {
@@ -130,6 +137,48 @@ function parseCommonJs(js: string): void {
   new Function('exports', 'require', 'module', '__filename', js);
 }
 
+/** Та часть acorn, которой разбирается вывод. */
+export type AcornParser = Pick<typeof Acorn, 'parse'>;
+
+/**
+ * Разбор вывода acorn — с местом ошибки. Настройки — как у конверта линковщика: скрипт, тело
+ * функции (`return` на верхнем уровне законен).
+ */
+export function parseWithAcorn(acorn: AcornParser): (js: string) => void {
+  return (js) => {
+    acorn.parse(js, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowReturnOutsideFunction: true,
+      allowHashBang: true,
+    });
+  };
+}
+
+/** Ошибка, которую {@link parseWithAcorn} не уточнит запасным движком: связывание имён. */
+const DEFINITIVE = /has already been declared/;
+
+/**
+ * Место ошибки разбора вывода — в исходнике. Строка та же (sucrase их сохраняет), колонка
+ * та же, если до неё на строке не было снятых типов; за концом строки — её конец.
+ */
+function sourceRange(
+  code: string,
+  error: unknown
+): { readonly start: number; readonly end: number } | undefined {
+  const loc = (error as { loc?: { line?: unknown; column?: unknown } } | null)?.loc;
+  if (typeof loc?.line !== 'number' || typeof loc.column !== 'number') return undefined;
+  let start = 0;
+  for (let line = 1; line < loc.line; line += 1) {
+    const next = code.indexOf('\n', start);
+    if (next < 0) return undefined;
+    start = next + 1;
+  }
+  const lineEnd = code.indexOf('\n', start);
+  const at = Math.min(start + loc.column, lineEnd < 0 ? code.length : lineEnd);
+  return { start: at, end: at + 1 };
+}
+
 /** Настройки транспилятора. */
 export interface SucraseTranspilerOptions {
   /** Запасной движок для отвергнутых файлов — см. `Transpiler.fallback`. */
@@ -162,10 +211,27 @@ export function createSucraseTranspiler(
       try {
         verify(js);
       } catch (error) {
-        // Места нет: позиция `SyntaxError` у разбора — в ВЫВОДЕ, а не в исходнике перед
-        // человеком. Точное место назовёт запасной движок.
-        const reason = error instanceof Error ? error.message : String(error);
-        throw new TranspileError([{ message: `вывод sucrase не разбирается: ${reason}` }]);
+        const reason = (error instanceof Error ? error.message : String(error)).replace(
+          /\s*\(\d+:\d+\)\s*$/,
+          ''
+        );
+        const range = sourceRange(code, error);
+        if (DEFINITIVE.test(reason)) {
+          throw new TranspileError(
+            [{ message: reason, ...(range === undefined ? {} : { range }) }],
+            {
+              definitive: true,
+            }
+          );
+        }
+        // Место разбора у `Function` — в ВЫВОДЕ, а не в исходнике; у acorn оно перенесено. Так или
+        // иначе файл уйдёт запасному движку, и уточнит находку он.
+        throw new TranspileError([
+          {
+            message: `вывод sucrase не разбирается: ${reason}`,
+            ...(range === undefined ? {} : { range }),
+          },
+        ]);
       }
       return { js };
     },

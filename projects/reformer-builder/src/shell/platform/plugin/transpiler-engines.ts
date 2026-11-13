@@ -23,6 +23,7 @@ import type { Transpiler } from '@/shell/platform/modules/transpilers';
 import {
   createSucraseTranspiler,
   loadSucraseEngine,
+  parseWithAcorn,
   SUCRASE_ENGINE_VERSION,
   SUCRASE_OPTIONS_SIGNATURE,
   SUCRASE_TRANSPILER_ID,
@@ -72,8 +73,17 @@ export function createHybridEngine(fallback: () => Promise<Transpiler>): Transpi
     engineId: SUCRASE_TRANSPILER_ID,
     engineVersion: SUCRASE_ENGINE_VERSION,
     optionsVersion: SUCRASE_OPTIONS_SIGNATURE,
-    load: async () =>
-      createSucraseTranspiler(await loadSucraseEngine(), { fallback: loadFallback }),
+    load: async () => {
+      // acorn — для места ошибки разбора; не приехал — разбирает `Function`, без места.
+      const [engine, acorn] = await Promise.all([
+        loadSucraseEngine(),
+        import('acorn').catch(() => null),
+      ]);
+      return createSucraseTranspiler(engine, {
+        fallback: loadFallback,
+        ...(acorn === null ? {} : { verify: parseWithAcorn(acorn) }),
+      });
+    },
   };
 }
 

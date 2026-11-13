@@ -38,6 +38,7 @@ import { WorkspaceSaveCapability } from '@reformer/builder-plugin-api/internal';
 import type { PluginPermission } from '@reformer/builder-plugin-api/internal';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
+import { ModuleLoaderCapability } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 
 const builderProfile = builtinProfile('builder');
@@ -175,5 +176,34 @@ describe('возможности оболочки', () => {
 
     expect(asked.missing).toEqual([]);
     expect(asked.documentsWorks).toBe(true);
+  });
+});
+
+describe('загрузчик модулей для кода проекта', () => {
+  it('отдаёт коду сторож циклов: бесконечный цикл формы — исключение, а не зависание', async () => {
+    stubBrowser();
+    app = boot({ application: fromProfile(minimalProfile) });
+    await app.ready;
+
+    const source =
+      'exports.guard = typeof __reformerLoopGuard__;\n' +
+      'let n = 0;\nfor (let i = 0; i < 3; i++) { n++; }\nexports.n = n;';
+    let loaded: Promise<{ readonly entry: unknown }> | undefined;
+    app.plugins.register(
+      definePlugin({
+        id: 'probe-modules',
+        activate(ctx) {
+          loaded = ctx.services
+            .get(ModuleLoaderCapability)
+            ?.load(new Map([['form/model.js', source]]), 'form/model.js');
+        },
+      }),
+      []
+    );
+    expect(app.plugins.activate('probe-modules')).toBe(true);
+
+    // Сторож пришёл модулю лексически, а цикл, кончающийся сам, работает как прежде.
+    const graph = await loaded;
+    expect(graph?.entry).toEqual({ guard: 'function', n: 3 });
   });
 });

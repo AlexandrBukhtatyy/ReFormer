@@ -375,6 +375,27 @@ describe('ModuleLoader: запасной движок для отвергнут�
     expect(loadFallback).toHaveBeenCalledTimes(2);
   });
 
+  it('окончательную находку основного запасной не получает — место сохраняется', async () => {
+    const loader = createModuleLoader();
+    const loadFallback = vi.fn(() => Promise.resolve(tsStripper));
+    loader.transpilers.register({
+      id: 'fast',
+      applies: (fileName) => fileName.endsWith('.ts'),
+      transpile: () => {
+        throw new TranspileError(
+          [{ message: "Identifier 'a' has already been declared", range: { start: 5, end: 6 } }],
+          { definitive: true }
+        );
+      },
+      fallback: loadFallback,
+    });
+
+    const result = await loader.load(files({ 'a.ts': 'let a; let a;' }), 'a.ts');
+
+    expect(loadFallback).not.toHaveBeenCalled();
+    expect(result.errors[0]).toMatchObject({ phase: 'transpile', range: { start: 5, end: 6 } });
+  });
+
   it('запасной не загрузился — остаётся находка основного, загрузка не падает', async () => {
     const loader = createModuleLoader();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

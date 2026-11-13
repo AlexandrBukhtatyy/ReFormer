@@ -45,11 +45,19 @@ export interface TranspileFinding {
  */
 export class TranspileError extends Error {
   readonly findings: readonly TranspileFinding[];
+  /**
+   * Находка окончательная: запасной движок (`Transpiler.fallback`) её не уточнит, и файл ему не
+   * отдаётся. Пример — повторное объявление имени: это не синтаксис, а связывание, и строгий
+   * движок, переводящий файл в одиночку, его не проверяет вовсе — переведёт, и сбой всплывёт
+   * при исполнении уже без места.
+   */
+  readonly definitive: boolean;
 
-  constructor(findings: readonly TranspileFinding[]) {
+  constructor(findings: readonly TranspileFinding[], options: { definitive?: boolean } = {}) {
     super(findings.map((finding) => finding.message).join('; '));
     this.name = 'TranspileError';
     this.findings = findings;
+    this.definitive = options.definitive === true;
   }
 }
 
