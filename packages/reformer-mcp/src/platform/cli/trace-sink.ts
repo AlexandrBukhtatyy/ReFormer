@@ -21,6 +21,7 @@ import { createHash } from 'node:crypto';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { ReformerServerCall } from '../../core/server/mount.js';
+import { INNER_CALLS_META } from '../../core/codemode/run-script.js';
 
 export const TRACE_FILE_ENV = 'REFORMER_TRACE_FILE';
 export const TRACE_FULL_ENV = 'REFORMER_TRACE_FULL';
@@ -62,6 +63,14 @@ export function resultText(result: unknown): string | null {
     .join('\n');
 }
 
+/** Вложенные вызовы `run_script` из `_meta` ответа — полем `inner` строки трассы. */
+function innerCallsOf(result: unknown): { inner?: unknown } {
+  if (result === null || typeof result !== 'object') return {};
+  const meta = (result as { _meta?: Record<string, unknown> })._meta;
+  const inner = meta?.[INNER_CALLS_META];
+  return Array.isArray(inner) ? { inner } : {};
+}
+
 export interface TraceSinkOptions {
   /** Полный режим: аргументы целиком и текст ответа. */
   readonly full?: boolean;
@@ -92,6 +101,8 @@ export function createTraceSink(
       isError: call.isError,
       protocolError: call.protocolError,
       durationMs: Math.round(call.durationMs),
+      // Code Mode: вызовы инструментов изнутри `run_script` — модель их не видит, разбор прогона видит.
+      ...innerCallsOf(call.result),
       ...(options.full
         ? { arguments: call.arguments ?? null, result: resultText(call.result) }
         : {}),

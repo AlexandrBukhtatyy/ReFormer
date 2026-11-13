@@ -9,7 +9,8 @@
  * @property {string} runDirectory - каталог сырья прогона (`.tmp/mcp-runs/...`)
  * @property {string} prompt - задание целиком
  * @property {string|null} model
- * @property {{ id: string, withoutTools?: string[] }} approach
+ * @property {{ id: string, withoutTools?: string[], serverEnv?: Record<string, string> }} approach -
+ *   `serverEnv` — переменные окружения сервера MCP этого подхода (Code Mode: `REFORMER_SURFACE=code`)
  * @property {string} serverPath - собранный сервер
  * @property {string} traceFile - журнал вызовов сервера
  * @property {{ timeoutMs: number, maxUsd: number, maxSteps: number }} limits

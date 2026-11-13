@@ -23,6 +23,7 @@ import {
 import { createResourceCatalog } from '../../core/server/resource-catalog.js';
 import { createToolCatalog } from '../../core/server/tool-catalog.js';
 import { cliKnowledge } from './knowledge.js';
+import { createQuickJsSandbox } from './quickjs-sandbox.js';
 
 // Prompts
 import {
@@ -51,9 +52,21 @@ import {
 export const SERVER_INSTRUCTIONS =
   'To create or change a ReFormer form: write <dir>/form.intent.json and call form_build {"dir":"<dir>"} — it compiles, type-checks and writes the module; never write module files yourself. Grammar first: form_build {"grammar":"base"}. From a markdown spec, plan_form {"specPath":"…","dir":"<dir>"} drafts the intent. Keep the requested stack in "target"; on @reformer/core you also write the JSX markup in index.tsx. Documentation tools are for custom code or an unclear form_build error.';
 
+/**
+ * Инструкции режима Code Mode: тот же маршрут, что {@link SERVER_INSTRUCTIONS}, слово в слово по
+ * смыслу, но вызовы записаны кодом для `run_script`.
+ */
+export const CODE_MODE_INSTRUCTIONS =
+  'This server has one tool, run_script: every server tool is an async function of the global `reformer` object inside the script (see the run_script description). To create or change a ReFormer form: write <dir>/form.intent.json with your file tools, then run_script `console.log(await reformer.formBuild({ dir: "<dir>" }))` — it compiles, type-checks and writes the module; never write module files yourself. Grammar first: run_script `console.log(await reformer.formBuild({ grammar: "base" }))`. From a markdown spec, `reformer.planForm({ specPath: "…", dir: "<dir>" })` drafts the intent. Keep the requested stack in "target"; on @reformer/core you also write the JSX markup in index.tsx. Documentation functions are for custom code or an unclear formBuild error; chain several of them in one script and print only what you need.';
+
+/** Поверхность сервера: обычная (набор инструментов) или Code Mode (один `run_script`). */
+export type ServerSurface = 'tools' | 'code';
+
 export interface NodeServerOptions {
   readonly version: string;
   readonly debug: boolean;
+  /** `code` — эксперимент Code Mode (`REFORMER_SURFACE=code`); по умолчанию `tools`. */
+  readonly surface?: ServerSurface;
   /** Наблюдатель вызовов инструментов, ресурсов и промптов (см. `MountOptions.onCall`). */
   readonly onCall?: (call: ReformerServerCall) => void;
 }
@@ -70,6 +83,7 @@ type AnyPromptDefinition =
 
 export function createNodeServer(options: NodeServerOptions): Server {
   const { version, debug, onCall } = options;
+  const codeMode = options.surface === 'code';
 
   const server = new Server(
     {
@@ -89,7 +103,7 @@ export function createNodeServer(options: NodeServerOptions): Server {
       // Без этого агенты на больших формах шли за справкой и писали код вручную: выбор пути
       // без подсказки в задании проверен прогонами (docs/plans/mcp-misty-graham.md). Путь один
       // (7.0): intent → form_build; грамматика — по запросу, без проекта (аудит 2026-11, A1/A6).
-      instructions: SERVER_INSTRUCTIONS,
+      instructions: codeMode ? CODE_MODE_INSTRUCTIONS : SERVER_INSTRUCTIONS,
     }
   );
 
@@ -103,7 +117,11 @@ export function createNodeServer(options: NodeServerOptions): Server {
   mountReformerServer(
     server,
     {
-      tools: createToolCatalog(cliKnowledge, { profile: 'node', debug }),
+      tools: createToolCatalog(cliKnowledge, {
+        profile: 'node',
+        debug,
+        ...(codeMode ? { codeMode: createQuickJsSandbox() } : {}),
+      }),
       resources: createResourceCatalog(cliKnowledge, { debug }),
     },
     { onCall }
