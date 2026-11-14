@@ -100,6 +100,10 @@ export interface Baseline {
   readonly fields: readonly string[];
   readonly arrays: readonly string[];
   readonly steps: readonly string[];
+  /** Проверки каждого поля на старте: имена валидаторов, `cross`, `async`. */
+  readonly rules?: Readonly<Record<string, readonly string[]>>;
+  /** Подписи полей на старте: удалённое поле по-прежнему перекрывает свою подпись в задании. */
+  readonly labels?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -175,6 +179,25 @@ export function parsePlan(text: string | null): GuidedPlan | null {
             fields: strings(plan.baseline.fields),
             arrays: strings(plan.baseline.arrays),
             steps: strings(plan.baseline.steps),
+            ...(plan.baseline.labels && typeof plan.baseline.labels === 'object'
+              ? {
+                  labels: Object.fromEntries(
+                    Object.entries(plan.baseline.labels).filter(
+                      (entry): entry is [string, string] => typeof entry[1] === 'string'
+                    )
+                  ),
+                }
+              : {}),
+            ...(plan.baseline.rules && typeof plan.baseline.rules === 'object'
+              ? {
+                  rules: Object.fromEntries(
+                    Object.entries(plan.baseline.rules).map(([path, names]) => [
+                      path,
+                      strings(names),
+                    ])
+                  ),
+                }
+              : {}),
           },
         }
       : {}),
@@ -199,7 +222,26 @@ export function baselineOf(intent: FormIntent): Baseline {
     fields: intent.fields.map((field) => field.modelPath ?? field.name),
     arrays: intent.arrays.map((array) => array.name),
     steps: collectSteps(intent.layoutRoot).map((step) => String(step.title ?? '')),
+    rules: checksByField(intent),
+    labels: Object.fromEntries(
+      intent.fields.map((field) => [field.modelPath ?? field.name, field.label ?? ''])
+    ),
   };
+}
+
+/** Проверки полей формы (вне строк массивов): имена валидаторов, `cross`, `async`. */
+function checksByField(intent: FormIntent): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const row of intent.validation) {
+    if (row.each !== undefined) continue;
+    const names = [
+      ...row.rules.map((rule) => /^\s*(\w+)/.exec(rule)?.[1] ?? rule),
+      ...(row.cross ? ['cross'] : []),
+      ...(row.async ? ['async'] : []),
+    ];
+    (out[row.target] ??= []).push(...names);
+  }
+  return out;
 }
 
 export function serializePlan(plan: GuidedPlan): string {
@@ -640,7 +682,14 @@ function limitText(task: string): string {
       else if (char === ')') depth = Math.max(0, depth - 1);
     }
     const marker = depth <= 0 && /^\)/.test(tail) && /(^|[\s:;,])$/.test(prefix);
-    return operand || marker ? ' '.repeat(number.length) : number;
+    // Число, склеенное с буквами (код `ABC123`), и длительность («через 300 мс») — не ограничения
+    // формы: «the task names 123, 300» уводило модель с подтверждения (батч 20261114T192434Z-731c).
+    const glued = /\p{L}$/u.test(head) || /^\p{L}/u.test(tail);
+    const duration =
+      /^\s*(?:мс|ms|миллисекунд|сек(?:унд)?|sec(?:onds?)?|s\b|мин(?:ут)?\b|min(?:utes?)?\b|час|hours?\b)/iu.test(
+        tail
+      );
+    return operand || marker || glued || duration ? ' '.repeat(number.length) : number;
   });
 }
 
@@ -1193,10 +1242,11 @@ export function stageExample(
       return '[{"op":"add_rule","field":"<field>","equals":"<the field it must match>","message":"<text of the task>"}]';
     case 'edit':
       return '[{"op":"rename_field","name":"<key now>","to":"<new key>"},{"op":"set_field","name":"<field>","label":"<new label of the task>"}]';
+    // Заглушки, а не «total» и «address»: на форме без этих полей пример вёл в тупик (358f).
     case 'behavior':
       return target === 'core'
-        ? '[{"op":"add_behavior","kind":"compute","target":"total","expr":"(model.price ?? 0) * (model.quantity ?? 0)"},{"op":"add_behavior","kind":"enableWhen","target":"address","expr":"model.method === \'delivery\'"}]'
-        : '[{"op":"add_behavior","kind":"compute","target":"total","expr":"(model.price ?? 0) * (model.quantity ?? 0)"},{"op":"add_visibility","field":"address","showWhen":"model.method === \'delivery\'"}]';
+        ? '[{"op":"add_behavior","kind":"compute","target":"<computed field>","expr":"<the formula of the task over model.<field>>"},{"op":"add_behavior","kind":"enableWhen","target":"<field>","expr":"model.<field> === \'<the choice of the task>\'"}]'
+        : '[{"op":"add_behavior","kind":"compute","target":"<computed field>","expr":"<the formula of the task over model.<field>>"},{"op":"add_visibility","field":"<field>","showWhen":"model.<field> === \'<the choice of the task>\'"}]';
     case 'markup':
       return '[{"op":"markup"}]';
   }
@@ -1304,11 +1354,34 @@ const ADD_WORDS = /добав|\badd\b|\badds\b/i;
 const RENAME_WORDS = /переимен|\brename/i;
 const STEP_WORDS = /шаг|\bstep/i;
 
-/** Имена в обратных кавычках или скобках: `phone`, (phone). Формулы и маски — не имена. */
+/** Слова-не-имена среди латиницы русского текста. */
+const NOT_NAMES: ReadonlySet<string> = new Set(['true', 'false', 'null', 'undefined', 'and', 'or']);
+
+/**
+ * Имена полей в тексте правки: в обратных кавычках, в скобках, а в русском тексте — и голые
+ * латинские идентификаторы: модель пересказывала задание без кавычек («ключ username вместо login»),
+ * и сверка не видела переименования (батч 20261114T192434Z-731c). Формулы и маски — не имена.
+ */
 function namesIn(clause: string): string[] {
+  const explicit = [
+    ...new Set([
+      ...[...clause.matchAll(/`([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)`/g)].map((m) => m[1]),
+      ...[...clause.matchAll(/\(([a-z][A-Za-z0-9]*(?:\.[A-Za-z]\w*)*)\)/g)].map((m) => m[1]),
+    ]),
+  ];
+  // Голая латиница — только запасной путь для пересказа без кавычек: рядом с именем в кавычках она
+  // обычно ориентир («после email добавь телефон (`phone`)»), а не новое поле.
+  if (explicit.length > 0 || !/[а-яё]/i.test(clause)) return explicit;
   return [
-    ...[...clause.matchAll(/`([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)`/g)].map((m) => m[1]),
-    ...[...clause.matchAll(/\(([a-z][A-Za-z0-9]*(?:\.[A-Za-z]\w*)*)\)/g)].map((m) => m[1]),
+    ...new Set(
+      [
+        ...clause.matchAll(
+          /(?<![\w$./\-@])[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*(?:\.[a-z][A-Za-z0-9]*)*(?![\w$/\-@]|\.\w)/g
+        ),
+      ]
+        .map((m) => m[0])
+        .filter((name) => name.length >= 3 && !NOT_NAMES.has(name))
+    ),
   ];
 }
 
@@ -1316,13 +1389,65 @@ function namesIn(clause: string): string[] {
 const titlesIn = (clause: string): string[] =>
   [...clause.matchAll(/«([^»]+)»/g)].map((m) => m[1].trim());
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Подпись поля как шаблон по основам слов: «Повтор пароля» находит «повтор пароля», «Скидка» — «скидку». */
+function labelPattern(label: string): RegExp | null {
+  const words = label
+    .toLowerCase()
+    .replace(/[^\p{L}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.join('').length < 4) return null;
+  const stems = words.map(
+    (word) => `${escapeRegExp(word.length >= 5 ? word.slice(0, -1) : word)}\\p{L}*`
+  );
+  return new RegExp(`(?<!\\p{L})${stems.join('\\s+')}`, 'u');
+}
+
+/**
+ * Поля, которые фраза называет подписью. Совпадение внутри более длинного совпадения другой подписи
+ * не в счёт: «пароль» внутри «повтор пароля» — не поле «Пароль».
+ */
+function labelsIn(segment: string, labels: Readonly<Record<string, string>>): string[] {
+  const lower = segment.toLowerCase();
+  const hits: Array<{ path: string; at: number; end: number }> = [];
+  for (const [path, label] of Object.entries(labels)) {
+    const pattern = labelPattern(label);
+    const match = pattern ? pattern.exec(lower) : null;
+    if (match) hits.push({ path, at: match.index, end: match.index + match[0].length });
+  }
+  return hits
+    .filter(
+      (hit) =>
+        !hits.some(
+          (other) =>
+            other !== hit &&
+            other.at <= hit.at &&
+            other.end >= hit.end &&
+            other.end - other.at > hit.end - hit.at
+        )
+    )
+    .map((hit) => hit.path);
+}
+
 /**
  * Сверка правки с заданием — только то, что задание называет однозначно; точность важнее полноты:
- * ложное расхождение толкает модель в лишние правки. Имена — в обратных кавычках или скобках,
- * шаги — в «ёлочках» рядом со словом «шаг». Строка-заголовок со словом действия и двоеточием в конце
- * передаёт действие пунктам списка под ней.
+ * ложное расхождение толкает модель в лишние правки.
+ *
+ * - Имена — в обратных кавычках, скобках или голой латиницей в русском тексте; шаги — в «ёлочках»
+ *   рядом со словом «шаг». Строка-заголовок со словом действия и двоеточием в конце передаёт
+ *   действие пунктам списка под ней.
+ * - Удаление по подписи: «убери капчу и повтор пароля» — поле «Повтор пароля» ещё в форме.
+ * - «Остальное не меняй»: поле, которое задание не называет ни именем, ни подписью, потеряло
+ *   проверки (`baseline` — состав на старте). Модель читала «и все их проверки» как «все проверки
+ *   формы» и снимала правила логина и пароля (батч 20261114T192434Z-731c).
  */
-export function editGaps(task: string | undefined, intent: FormIntent): string[] {
+export function editGaps(
+  task: string | undefined,
+  intent: FormIntent,
+  baseline?: Baseline
+): string[] {
   if (!task) return [];
   const paths = [
     ...intent.fields.map((field) => field.modelPath ?? field.name),
@@ -1336,6 +1461,13 @@ export function editGaps(task: string | undefined, intent: FormIntent): string[]
       .toLowerCase()
   );
   const hasStep = (title: string): boolean => steps.includes(title.toLowerCase());
+  // Подписи на старте и сейчас: удалённое поле перекрывает свою подпись («повтор пароля» — не «пароль»).
+  const labels: Record<string, string> = {
+    ...(baseline?.labels ?? {}),
+    ...Object.fromEntries(
+      intent.fields.map((field) => [field.modelPath ?? field.name, field.label ?? ''])
+    ),
+  };
   const gaps = new Set<string>();
   let heading = '';
   for (const raw of task.split('\n')) {
@@ -1360,6 +1492,11 @@ export function editGaps(task: string | undefined, intent: FormIntent): string[]
       } else if (REMOVE_WORDS.test(verbs)) {
         for (const name of names)
           if (has(name)) gaps.add(`\`${name}\` is still in the form — the task removes it`);
+        // Подписи — только в части фразы до пояснения (« — сами поля…», «: Итого теперь…»): после
+        // него задание называет поля, которые остаются.
+        const [head] = sentence.split(/\s[—–-]\s|:/);
+        for (const path of labelsIn(head, labels))
+          if (has(path)) gaps.add(`\`${path}\` is still in the form — the task removes it`);
         for (const title of titles)
           if (hasStep(title))
             gaps.add(`step «${title}» is still in the form — the task removes it`);
@@ -1373,6 +1510,29 @@ export function editGaps(task: string | undefined, intent: FormIntent): string[]
           if (title && !hasStep(title))
             gaps.add(`step «${title}» is not in the form — the task adds it`);
         }
+      }
+    }
+  }
+  if (baseline?.rules) {
+    const now = checksByField(intent);
+    const lower = task.toLowerCase();
+    for (const [path, before] of Object.entries(baseline.rules)) {
+      if (!paths.includes(path)) continue;
+      const after = new Set(now[path] ?? []);
+      const lost = [...new Set(before)].filter((name) => !after.has(name));
+      if (lost.length === 0) continue;
+      const label = (
+        intent.fields.find((field) => (field.modelPath ?? field.name) === path)?.label ?? ''
+      )
+        .toLowerCase()
+        .trim();
+      const named =
+        new RegExp(`(?<![\\w$])${escapeRegExp(path.toLowerCase())}(?![\\w$])`).test(lower) ||
+        (label.length >= 3 && lower.includes(label));
+      if (!named) {
+        gaps.add(
+          `\`${path}\` lost its checks (${lost.join(', ')}) — the task does not change \`${path}\`: put them back with add_rule`
+        );
       }
     }
   }
@@ -1403,7 +1563,7 @@ function editCheckLines(plan: GuidedPlan, intent: FormIntent, dir: string): stri
     changesLine(plan.baseline, intent),
     `Fields now: ${fieldsSummary(intent)}`,
     `Rules now: ${rulesSummary(intent)}`,
-    ...editGaps(plan.task, intent).map((gap) => `⚠️ Differs from the task: ${gap}.`),
+    ...editGaps(plan.task, intent, plan.baseline).map((gap) => `⚠️ Differs from the task: ${gap}.`),
     'A change of the task not made yet? form_edit. Every change made, nothing else touched:',
     `form_status {"dir":${JSON.stringify(dir)},"confirm":"edit"}`,
   ];

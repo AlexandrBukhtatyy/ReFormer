@@ -200,7 +200,16 @@ export async function runScriptTool(
     ...outcome.logs,
   ];
   if (outcome.returned !== undefined) parts.push(outcome.returned);
-  if (outcome.error !== undefined) parts.push(`✗ script error: ${outcome.error}`);
+  if (outcome.error !== undefined) {
+    parts.push(`✗ script error: ${outcome.error}`);
+    // Связка с guided: после синтаксической ошибки модель считала правки сделанными или уходила
+    // править файлы руками — сказать, что не выполнилось ничего (батч 20261114T192434Z-731c).
+    if (options.returnErrors === true && /^SyntaxError/.test(outcome.error)) {
+      parts.push(
+        'Nothing in this script ran — fix the code at that place (quotes, commas, brackets) and send the same call again.'
+      );
+    }
+  }
   const text =
     parts.length > 0
       ? parts.join('\n')

@@ -253,9 +253,11 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
 
   **A form already in `dir`** (an intent and no plan, or a plan of a change): the task changes it.
   The plan is one stage `edit`: the changes with `form_edit`, then `confirm: "edit"` after a check
-  of the changes — what was added, removed or renamed since the start and what the task names in
-  backticks or parentheses (`` `phone` ``, `(phone)`) or as steps in «…»: still there, missing,
-  renamed. The checks of a new form (numbers, labels, lost fields) do not run on a change.
+  of the changes — what was added, removed or renamed since the start, and what the task names: a
+  key in backticks or parentheses (`` `phone` ``, `(phone)`; bare latin keys in a Russian text when
+  none is quoted), a field label in a sentence that removes it, a step in «…». A field the task does
+  not name that lost its checks is a difference too («the rest stays as is»). The checks of a new
+  form (numbers, labels, lost fields) do not run on a change.
 
 - **`form_edit`** `{dir?, edits}` — flat edits; the server writes `form.intent.json` and runs the
   same build as `form_build` (the answer holds its `✓`/`✗ form_build` lines). Edits apply one by

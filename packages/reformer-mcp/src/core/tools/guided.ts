@@ -682,7 +682,7 @@ export async function formStatusTool(
     // Правка сверяется только по дельте: проверки создания формы на тексте правки ложны.
     const gaps = intent
       ? plan.mode === 'edit'
-        ? editGaps(plan.task, intent)
+        ? editGaps(plan.task, intent, plan.baseline)
         : taskGaps(plan.task, intent)
       : [];
     if (gaps.length > 0 && plan.confirmTried !== true) {
@@ -946,7 +946,9 @@ export async function formEditTool(
         );
         if (applied.markup)
           report.push(
-            '- markup: index.tsx written — fields, rows and steps of the layout, a submit button.'
+            // Разметка сервера — готовый этап: модель на core читала её и переписывала руками с
+            // выдуманным API, ломая типы (батч 20261114T192434Z-731c, registration-create).
+            '- markup: index.tsx written — fields, rows and steps of the layout, a submit button. The markup is done and belongs to the server: do not rewrite index.tsx — every later edit updates it.'
           );
       }
     }

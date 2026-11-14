@@ -86,6 +86,28 @@ export function stripTypes(code: string): string | null {
   }).outputText;
 }
 
+/**
+ * Где синтаксическая ошибка: сообщение разборщика TypeScript и кусок кода вокруг места. QuickJS
+ * называет только строку, а скрипт малой модели — одна строка: после «expecting ':' (line 1)» она
+ * бросала API и писала файлы руками (батч 20261114T192434Z-731c). Нет пакета `typescript` — `null`.
+ */
+export function syntaxPlace(code: string): string | null {
+  const ts = loadTypescript();
+  if (!ts) return null;
+  const wrapped = wrapScript(code);
+  const { diagnostics } = ts.transpileModule(wrapped, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
+    reportDiagnostics: true,
+  });
+  const first = diagnostics?.find((diagnostic) => diagnostic.start !== undefined);
+  if (!first || first.start === undefined) return null;
+  const at = Math.min(code.length, Math.max(0, first.start - wrapped.indexOf(code)));
+  const flat = (text: string): string => text.replace(/\s+/g, ' ');
+  const before = flat(code.slice(Math.max(0, at - 60), at));
+  const after = flat(code.slice(at, at + 30));
+  return `${ts.flattenDiagnosticMessageText(first.messageText, ' ')} — at character ${at + 1}: …${before}⟪here⟫${after}…`;
+}
+
 /** Значение из песочницы → строка вывода, как её напечатал бы `console.log`. */
 function formatValue(value: unknown): string {
   if (typeof value === 'string') return value;
@@ -188,8 +210,18 @@ export function createQuickJsSandbox(options: QuickJsSandboxOptions = {}): Scrip
           }
         }
         if (evaluated.error) {
-          const error = formatError(context.dump(evaluated.error));
+          const dumped = context.dump(evaluated.error) as { name?: string };
+          let error = formatError(dumped);
           evaluated.error.dispose();
+          if (dumped?.name === 'SyntaxError') {
+            let place: string | null = null;
+            try {
+              place = syntaxPlace(code);
+            } catch {
+              place = null;
+            }
+            if (place) error = `${error}; ${place}`;
+          }
           return { logs, error };
         }
         // `resolvePromise` подписывается на промис внутри VM, а подписка исполняется только очередью

@@ -63,7 +63,19 @@ const BEHAVIOR_STRONG =
   /(\s=\s|считает(?:ся)?\s+сам|вычисля|рассчитыва|видн[ыао]?(?![а-яё])|виден|скрыт|показыва|появля|\bcomputed?\b|\bcalculated\b|\bvisible\b|\bhidden\b|\bshown\b)/i;
 
 export function behaviorWord(text: string): string | undefined {
-  return BEHAVIOR_STRONG.exec(text)?.[0].trim();
+  return BEHAVIOR_STRONG.exec(withoutHiddenInput(text))?.[0].trim();
+}
+
+/**
+ * Скрытый ввод пароля — вид поля, а не видимость: «пароль … ввод скрыт» давал этап поведения, его
+ * нельзя было снять, а пример предлагал чужие `total` и `address` — модель на core ушла писать
+ * index.tsx руками (батч 20261114T200104Z-358f, registration-create).
+ */
+function withoutHiddenInput(text: string): string {
+  return text.replace(
+    /ввод\p{L}*\s+скрыт\p{L}*|скрыт\p{L}*\s+ввод\p{L}*|\bhidden\s+input\b|\binput\s+(?:is\s+)?hidden\b|\bmasked\b/giu,
+    ' '
+  );
 }
 
 /**
@@ -82,7 +94,7 @@ export function featuresFromText(text: string): TaskFeatures {
     wizard: WIZARD.test(text),
     validation: VALIDATION.test(text),
     cross: CROSS.test(text),
-    behavior: BEHAVIOR.test(text),
+    behavior: BEHAVIOR.test(withoutHiddenInput(text)),
   };
 }
 

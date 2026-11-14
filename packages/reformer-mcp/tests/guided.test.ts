@@ -12,7 +12,7 @@ import { CATALOGS } from './support/catalogs';
 import { RUN_SCRIPT_TOOL } from '../src/core/codemode/run-script';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { applyEdits, maskToPattern, type EditContext } from '../src/core/guided/edits';
-import { featuresFromText } from '../src/core/guided/features';
+import { behaviorWord, featuresFromText } from '../src/core/guided/features';
 import { MARKUP_MARK } from '../src/core/guided/markup';
 import {
   baselineOf,
@@ -2624,5 +2624,112 @@ describe('модель не видит файлов формы', () => {
       },
       SLOW
     );
+  });
+});
+
+describe('сверка без ложных чисел и с пересказом правки', () => {
+  const form = (fields: Array<[string, string]>, validation: Rec[] = []) =>
+    readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: fields.map(([name, label]) => ({ name, type: 'string', component: 'Input', label })),
+      validation,
+    }).intent!;
+
+  it('число, склеенное с буквами, и длительность — не ограничения формы', () => {
+    const task =
+      'капча (captcha) — код из 6 символов, обязательна. Верный код ABC123, ответ через 300 мс.';
+    const gaps = taskGaps(task, form([['captcha', 'Капча']]));
+    expect(gaps.join('\n')).toMatch(/the task names 6 —/);
+    expect(gaps.join('\n')).not.toMatch(/123|300/);
+  });
+
+  it('имена латиницей без кавычек в русском пересказе — тоже имена', () => {
+    const task =
+      '1. Поле логина переименуй: ключ username вместо login. 2. Сразу после email добавь телефон phone.';
+    expect(
+      editGaps(
+        task,
+        form([
+          ['login', 'Логин'],
+          ['email', 'Email'],
+        ])
+      )
+    ).toEqual([
+      '`login` is still in the form — the task renames it to `username`',
+      '`phone` is not in the form — the task adds it',
+    ]);
+  });
+
+  it('удаление по подписи и «остальное не меняй» — по составу на старте', () => {
+    const seed = form(
+      [
+        ['login', 'Логин'],
+        ['password', 'Пароль'],
+        ['confirmPassword', 'Повтор пароля'],
+        ['captcha', 'Капча'],
+      ],
+      [
+        { target: 'login', rules: ['required()', 'minLength(3)'] },
+        { target: 'password', rules: ['required()'] },
+        { target: 'confirmPassword', rules: ['required()'] },
+      ]
+    );
+    const before = baselineOf(seed);
+    const task =
+      'Убери из формы капчу и повтор пароля — сами поля и все их проверки. Остальное в форме не меняй.';
+    // Повтор пароля остался, а у логина и пароля сняли проверки.
+    const wrong = form([
+      ['login', 'Логин'],
+      ['password', 'Пароль'],
+      ['confirmPassword', 'Повтор пароля'],
+    ]);
+    expect(editGaps(task, wrong, before)).toEqual([
+      '`confirmPassword` is still in the form — the task removes it',
+      '`login` lost its checks (required, minLength) — the task does not change `login`: put them back with add_rule',
+      '`password` lost its checks (required) — the task does not change `password`: put them back with add_rule',
+    ]);
+    // Повтор пароля удалён: подпись «пароля» внутри его подписи — не поле «Пароль».
+    const right = form(
+      [
+        ['login', 'Логин'],
+        ['password', 'Пароль'],
+      ],
+      [
+        { target: 'login', rules: ['required()', 'minLength(3)'] },
+        { target: 'password', rules: ['required()'] },
+      ]
+    );
+    expect(editGaps(task, right, before)).toEqual([]);
+  });
+
+  it('code-guided: синтаксическая ошибка — место в коде и «ничего не выполнилось»', async () => {
+    const catalog = createToolCatalog(() => cliKnowledge(), {
+      profile: 'node',
+      guided: true,
+      codeMode: createQuickJsSandbox(),
+    });
+    const result = await catalog.call(RUN_SCRIPT_TOOL, {
+      code: 'console.log(await reformer.formEdit({dir:"form",edits:[{op:"add_rule",field:"phone",pattern":"x"}]}))',
+    });
+    const text = result.content.map((block) => (block.type === 'text' ? block.text : '')).join();
+    expect(text).toMatch(/SyntaxError/);
+    expect(text).toMatch(/⟪here⟫/);
+    expect(text).toMatch(/Nothing in this script ran/);
+  });
+});
+
+describe('скрытый ввод пароля — не поведение', () => {
+  it('«ввод скрыт» не даёт этап поведения и не держит его от skip; видимость поля — даёт', () => {
+    const task = 'пароль (password) — обязателен, минимум 8 символов, ввод скрыт;';
+    expect(featuresFromText(task).behavior).toBe(false);
+    expect(behaviorWord(task)).toBeUndefined();
+    expect(featuresFromText('Адрес скрыт при самовывозе').behavior).toBe(true);
+    expect(featuresFromText('password field, hidden input').behavior).toBe(false);
+  });
+
+  it('пример этапа поведения без подходящих полей — заглушки, а не total и address', () => {
+    expect(stageExample('behavior', 'core')).not.toMatch(/"total"|"address"/);
+    expect(stageExample('behavior', 'renderer-react')).toMatch(/<computed field>/);
   });
 });
