@@ -16,8 +16,9 @@
  */
 
 import { buildAssemblyTsx, buildMessagesTs } from '../generate/builders.js';
-import { catalogsOf } from '../generate/catalogs.js';
+import { catalogsOf, type FormCatalogs } from '../generate/catalogs.js';
 import {
+  readIntent,
   readTargetStack,
   type FormIntent,
   type ReformerTargetStack,
@@ -34,7 +35,7 @@ import {
   featuresFromText,
   validationWord,
 } from '../guided/features.js';
-import { buildCoreMarkup, MARKUP_MARK } from '../guided/markup.js';
+import { buildCoreMarkup, MARKUP_MARK, submitLabelOf } from '../guided/markup.js';
 import {
   baselineOf,
   editCall,
@@ -173,10 +174,33 @@ function noPlanLines(tool: string, dir: string, directory?: FormDirectory): stri
 }
 
 function statusLines(plan: GuidedPlan, directory: FormDirectory, dir: string): string[] {
-  const state = planState(plan, directory.read(INTENT_FILE), directory.read('index.tsx'));
+  const index = directory.read('index.tsx');
+  const state = planState(plan, directory.read(INTENT_FILE), index);
   // Правка: «каждое поле задания здесь?» — вопрос создания формы; поля называет сверка правки.
   const fields = plan.mode === 'edit' ? [] : fieldsLine(state.intent);
-  return [progressLine(state), ...fields, ...nextLines(plan, state, dir)];
+  const next = nextLines(plan, state, dir);
+  const entry = entryOf(index);
+  return [
+    progressLine(state),
+    ...fields,
+    ...next.map((line) =>
+      line.startsWith('Done:') && entry
+        ? `${line} The entry ${dir}/index.tsx is written by the server and exports ${entry} — the form component a task asks for; nothing is left to write.`
+        : line
+    ),
+  ];
+}
+
+/**
+ * Компонент, который экспортирует `index.tsx`. Задание сценария просит «точку входа form/index.tsx с
+ * компонентом формы»: после `Done` модель писала её сама поверх серверной — и `Form.tsx` с выдуманным
+ * API (батч 20261114T215823Z-1be3, registration-create на renderer-json). Ответ называет готовое.
+ */
+function entryOf(index: string | null): string | null {
+  if (index === null) return null;
+  const named = /export\s+(?:function|const)\s+([A-Z][\w$]*)/.exec(index)?.[1];
+  if (named) return `\`${named}\``;
+  return /export\s+default\b/.test(index) ? 'the form component as default' : null;
 }
 
 /**
@@ -259,24 +283,104 @@ const SERVER_FILES = ['form.schema.ts', 'form.validation.ts', 'form.behavior.ts'
  * renderer-react ломал сборку ошибками типов, которые ответ советовал чинить через `form_edit`
  * (L3-delivery, 20261113T230859Z-f59e). На core `index.tsx` — разметка, его не трогаем.
  */
-function restoreServerFiles(directory: FormDirectory, target: string): string[] {
+interface RemovedFile {
+  readonly name: string;
+  readonly content: string;
+}
+
+function restoreServerFiles(directory: FormDirectory, target: string): RemovedFile[] {
   const files = target === 'core' ? SERVER_FILES : [...SERVER_FILES, 'index.tsx'];
-  const restored: string[] = [];
+  const removed: RemovedFile[] = [];
   for (const file of files) {
     const content = directory.read(file);
     if (content === null || originOf(content, file) === 'generated') continue;
     directory.remove(file);
-    restored.push(file);
+    removed.push({ name: file, content });
   }
-  return restored;
+  return removed;
 }
 
-const restoredLine = (files: readonly string[]): string[] =>
-  files.length > 0
-    ? [
-        `Written by hand and replaced by the build: ${files.join(', ')} — the server writes the module; change the form only with form_edit.`,
-      ]
-    : [];
+/**
+ * Сборка не прошла — файлы, убранные перед ней, на место: без них модуль терял `model.ts`, и следующая
+ * сборка падала уже на импорте (батч 20261114T211434Z-bca8, registration-edit). Сборка, которая
+ * прошла, пишет их сама — тогда ничего не возвращаем.
+ */
+function putBack(directory: FormDirectory, removed: readonly RemovedFile[]): void {
+  for (const file of removed) {
+    if (directory.read(file.name) === null) directory.write(file.name, file.content);
+  }
+}
+
+const restoredLine = (files: readonly RemovedFile[], ok: boolean): string[] =>
+  files.length === 0
+    ? []
+    : ok
+      ? [
+          `Written by hand and replaced by the build: ${files.map((file) => file.name).join(', ')} — the server writes the module; change the form only with form_edit.`,
+        ]
+      : [
+          `Written by hand: ${files.map((file) => file.name).join(', ')} — left as it was, the build did not pass; the server replaces it with the next build that passes. Change the form only with form_edit.`,
+        ];
+
+/** Код проблемы чтения, которую сервер снимает сам: ключ, которого intent не знает. */
+const UNREADABLE = new Set(['unknown-key', 'prop-unsupported']);
+
+/** Путь проблемы (`fields[0].componentProps.x`, `intent.cross`) — сегментами. */
+function problemPath(at: string): Array<string | number> {
+  const segments: Array<string | number> = [];
+  for (const match of at.replace(/^intent\./, '').matchAll(/([^.[\]]+)|\[(\d+)\]/g)) {
+    segments.push(match[2] === undefined ? (match[1] as string) : Number(match[2]));
+  }
+  return segments;
+}
+
+/**
+ * Ключи, которых intent не знает, — прочь из формы, с похожим ключом — под ним. Модель писала intent
+ * руками до `form_start`, план правки брал его за основу, и каждая сборка падала на `unknown-key`,
+ * который `form_edit` убрать не может (батч 20261114T211434Z-bca8). Путь, которого в файле нет
+ * (ключ прочитан как синоним), не трогаем: сборка назовёт его сама.
+ */
+export function dropUnreadable(
+  file: Record<string, unknown>,
+  catalogs: Pick<FormCatalogs, 'uiKit' | 'uiKitProps'>
+): string[] {
+  const dropped: string[] = [];
+  for (let round = 0; round < 3; round += 1) {
+    const { problems } = readIntent(file, {
+      uiKit: catalogs.uiKit,
+      ...(catalogs.uiKitProps ? { uiKitProps: catalogs.uiKitProps } : {}),
+    });
+    let changed = false;
+    for (const problem of problems) {
+      if (!UNREADABLE.has(problem.code)) continue;
+      const path = problemPath(problem.at);
+      const key = path.pop();
+      if (typeof key !== 'string') continue;
+      let holder: unknown = file;
+      for (const segment of path) {
+        holder =
+          holder !== null && typeof holder === 'object'
+            ? (holder as Record<string | number, unknown>)[segment]
+            : undefined;
+      }
+      if (holder === null || typeof holder !== 'object' || Array.isArray(holder)) continue;
+      const record = holder as Record<string, unknown>;
+      if (!(key in record)) continue;
+      const near = /did you mean `([^`]+)`\?/.exec(problem.message)?.[1];
+      const at = problem.at.replace(/^intent\./, '');
+      if (near && !(near in record)) {
+        record[near] = record[key];
+        dropped.push(`${at} → ${near}`);
+      } else {
+        dropped.push(at);
+      }
+      delete record[key];
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return dropped;
+}
 
 /** Запомнить форму, которую сейчас держит сервер: её он вернёт, если файл перепишут руками. */
 function withIntent(plan: GuidedPlan, directory: FormDirectory): GuidedPlan {
@@ -386,11 +490,23 @@ function draftLine(line: string): string {
     );
 }
 
-/** Имя формы по заданию: заголовок до двоеточия или первая фраза, не длиннее пяти слов. */
-function formNameOf(task: string): string {
-  const head = task.split(/[:.!?\n]/)[0]?.trim() ?? '';
+/**
+ * Имя формы по заданию: заголовок до двоеточия или первая фраза, не длиннее пяти слов, без глагола
+ * просьбы и хвоста «с полями». Из «Сделать форму регистрации с полями» выходил компонент
+ * `SdelatFormuRegistratsiiSPolyamiForm`, и модель переименовывала его в разметке руками (батч
+ * 20261114T215823Z-1be3).
+ */
+export function formNameOf(task: string): string {
+  const head = (task.split(/[:.!?\n]/)[0]?.trim() ?? '')
+    .replace(
+      /^(?:сделай(?:те)?|сделать|создай(?:те)?|создать|собери(?:те)?|собрать)\s+форму(?![а-яё])/i,
+      'Форма'
+    )
+    .replace(/^(?:make|create|build)\s+(?:a|an|the)\s+/i, '')
+    .replace(/\s+(?:с полями|with (?:the )?fields)(?![а-яёa-z]).*$/i, '');
   const words = head.split(/\s+/).filter(Boolean);
-  return words.slice(0, 5).join(' ') || 'Form';
+  const name = words.slice(0, 5).join(' ');
+  return name ? `${name.charAt(0).toUpperCase()}${name.slice(1)}` : 'Form';
 }
 
 // ---------- form_start ----------
@@ -920,6 +1036,12 @@ export async function formEditTool(
     );
   }
 
+  const unreadable = dropUnreadable(applied.file, catalogs);
+  if (unreadable.length > 0) {
+    report.push(
+      `- the server dropped keys the form cannot read: ${unreadable.join(', ')} — what they meant goes in with form_edit.`
+    );
+  }
   directory.write(INTENT_FILE, formatIntentJson(applied.file));
   plan = withIntent(plan, directory);
   directory.write(PLAN_FILE, serializePlan(plan));
@@ -942,7 +1064,10 @@ export async function formEditTool(
         const messages = buildMessagesTs(verdict.intent).content !== null;
         directory.write(
           'index.tsx',
-          buildAssemblyTsx(verdict.intent, buildCoreMarkup(verdict.intent, messages))
+          buildAssemblyTsx(
+            verdict.intent,
+            buildCoreMarkup(verdict.intent, messages, submitLabelOf(plan.task))
+          )
         );
         if (applied.markup)
           report.push(
@@ -954,10 +1079,12 @@ export async function formEditTool(
     }
   }
 
-  report.push(...restoredLine(restoreServerFiles(directory, plan.target)));
+  const removed = restoreServerFiles(directory, plan.target);
   const built = await formBuildTool({ dir: args.dir }, k);
   const buildText = guidedBuildText(built.content[0]?.text ?? '');
   const ok = built.isError !== true && buildText.startsWith('✓ form_build');
+  if (!ok) putBack(directory, removed);
+  report.push(...restoredLine(removed, ok));
   plan = withBuild(plan, directory, buildText, ok);
   directory.write(PLAN_FILE, serializePlan(plan));
   // Отклонённые правки — раньше следующего этапа: иначе этап считался сделанным по одной принятой
@@ -1045,11 +1172,12 @@ export async function formBuildGuidedTool(
   const built = await formBuildTool(args, k);
   const buildText = guidedBuildText(built.content[0]?.text ?? '');
   const ok = built.isError !== true && buildText.startsWith('✓ form_build');
+  if (!ok) putBack(directory, restored);
   plan = withBuild(plan, directory, buildText, ok);
   directory.write(PLAN_FILE, serializePlan(plan));
   const text = [
     ...guarded,
-    ...restoredLine(restored),
+    ...restoredLine(restored, ok),
     buildText,
     ...statusLines(plan, directory, dir),
   ].join('\n');

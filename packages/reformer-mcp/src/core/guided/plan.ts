@@ -314,6 +314,8 @@ interface FieldGap {
   readonly field: string;
   readonly said: string;
   readonly fix?: Record<string, unknown>;
+  /** Правило, которое сначала убрать: `pattern` email без «@» (см. {@link fieldGaps}). */
+  readonly wrong?: string;
 }
 
 const REQUIRED_WORDS = /обязател|\brequired\b/i;
@@ -322,6 +324,46 @@ const FORMAT_WORDS = /формат|корректн|правильн|\bformat\b|
 const EMAIL_FIELD = /e-?mail|почт/i;
 const OPTIONAL_WORDS = /не\s*обязател|\boptional\b|\bnot required\b/i;
 const VISIBLE_WORDS = /видн|виден|видим|показыва|скрыва|\bvisible\b|\bshown\b|\bhidden\b/i;
+
+/** «Хотя бы одна цифра», «минимум одну цифру», «at least one digit». */
+const DIGIT_WORDS =
+  /(?:хотя\s+бы|минимум|как\s+минимум|не\s+менее)\s+(?:одн[а-яё]{1,2}\s+)?цифр|at\s+least\s+one\s+(?:digit|number)/i;
+
+/**
+ * Поле, в котором задание требует хотя бы одну цифру, а проверки на цифру нет. Модель писала
+ * `"rule":"[a-z0-9]+"`, получала отказ и бросала пункт, а сверка правки цифр не смотрела (батч
+ * 20261114T215823Z-1be3, registration-edit). `pattern` ищет совпадение в любом месте строки, поэтому
+ * `\d` и есть «хотя бы одна цифра». Готовая правка — только когда шаблона у поля ещё нет: новый
+ * `pattern` заменил бы прежний.
+ */
+function digitGaps(task: string, intent: FormIntent): FieldGap[] {
+  const gaps: FieldGap[] = [];
+  const lower = task.toLowerCase();
+  for (const field of intent.fields) {
+    const path = field.modelPath ?? field.name;
+    if (mention(lower, field) === null) continue;
+    const said = [taskFragment(task, intent, path), ...taskFragments(task, intent, path)].find(
+      (window) => DIGIT_WORDS.test(window)
+    );
+    if (said === undefined) continue;
+    const rules = intent.validation
+      .filter((row) => row.target === path)
+      .flatMap((row) => row.rules);
+    const patterns = rules.filter((rule) => /^\s*pattern\s*\(/.test(rule));
+    if (patterns.some((rule) => /\\d|0-9|\[:digit:\]/.test(rule))) continue;
+    gaps.push({
+      field: path,
+      said,
+      ...(patterns.length === 0 ? { fix: { op: 'add_rule', field: path, pattern: '\\d' } } : {}),
+    });
+  }
+  return gaps;
+}
+
+const digitGapText = (gap: FieldGap): string =>
+  `the task wants at least one digit in ${gap.field} («${gap.said}») — no check for it${
+    gap.fix ? ': add_rule "pattern":"\\\\d" (a digit anywhere in the value)' : ''
+  }`;
 
 /**
  * Обязательность и видимость, которые задание говорит про поле в его окне, а в форме их нет. Модель
@@ -341,24 +383,42 @@ function fieldGaps(
     const path = field.modelPath ?? field.name;
     if (field.componentProps?.readOnly === true || mention(lower, field) === null) continue;
     const said = taskFragment(task, intent, path);
+    const windows = [said, ...taskFragments(task, intent, path)];
     const rules = intent.validation
       .filter((row) => row.target === path)
       .flatMap((row) => row.rules);
+    const requiredSaid = windows.find((window) => REQUIRED_WORDS.test(window));
     if (
-      REQUIRED_WORDS.test(said) &&
-      !OPTIONAL_WORDS.test(said) &&
+      requiredSaid !== undefined &&
+      !windows.some((window) => OPTIONAL_WORDS.test(window)) &&
       !rules.some((rule) => /^\s*required\s*\(/.test(rule))
     ) {
-      required.push({ field: path, said, fix: { op: 'add_rule', field: path, required: true } });
+      required.push({
+        field: path,
+        said: requiredSaid,
+        fix: { op: 'add_rule', field: path, required: true },
+      });
     }
+    const formatSaid = windows.find((window) => FORMAT_WORDS.test(window));
     // Формат email: «email — обязателен, проверяется формат» без правила email — модель ставила один
-    // required (батч 20261114T200104Z-358f, registration-create на renderer-json).
+    // required (батч 20261114T200104Z-358f, registration-create на renderer-json). Шаблон считается
+    // проверкой адреса, только если пропускает «@»: модель ставила email шаблон телефона, и любой
+    // адрес становился ошибкой (батч 20261114T211434Z-bca8).
     if (
       (EMAIL_FIELD.test(path) || EMAIL_FIELD.test(field.label ?? '')) &&
-      FORMAT_WORDS.test(said) &&
-      !rules.some((rule) => /^\s*(?:email|pattern)\s*\(/.test(rule))
+      formatSaid !== undefined &&
+      !rules.some(
+        (rule) =>
+          /^\s*email\s*\(/.test(rule) || (/^\s*pattern\s*\(/.test(rule) && rule.includes('@'))
+      )
     ) {
-      email.push({ field: path, said, fix: { op: 'add_rule', field: path, email: true } });
+      const wrong = rules.find((rule) => /^\s*pattern\s*\(/.test(rule));
+      email.push({
+        field: path,
+        said: formatSaid,
+        fix: { op: 'add_rule', field: path, email: true },
+        ...(wrong ? { wrong } : {}),
+      });
     }
     if (
       intent.target !== 'core' &&
@@ -632,8 +692,13 @@ export function taskGaps(task: string | undefined, intent: FormIntent): string[]
   for (const gap of required) {
     gaps.push(`the task makes ${gap.field} required («${gap.said}») — no "required" rule on it`);
   }
+  for (const gap of digitGaps(task, intent)) gaps.push(digitGapText(gap));
   for (const gap of email) {
-    gaps.push(`the task checks the format of ${gap.field} («${gap.said}») — no "email" rule on it`);
+    gaps.push(
+      gap.wrong
+        ? `the task checks the format of ${gap.field} («${gap.said}») — its ${gap.wrong} lets no "@" through, so every address fails: replace it with the "email" rule`
+        : `the task checks the format of ${gap.field} («${gap.said}») — no "email" rule on it`
+    );
   }
   for (const gap of visible) {
     gaps.push(
@@ -831,7 +896,10 @@ export function gapFixes(
   const { required, visible, email } = fieldGaps(task, intent);
   // Видимость раньше обязательности: правило поля, видимого по условию, сервер проверяет только
   // пока поле видно.
-  for (const gap of [...visible, ...required, ...email]) if (gap.fix) fixes.push(gap.fix);
+  for (const gap of [...visible, ...required, ...email, ...digitGaps(task, intent)]) {
+    if (gap.wrong) fixes.push({ op: 'remove_rule', field: gap.field, rule: 'pattern' });
+    if (gap.fix) fixes.push(gap.fix);
+  }
   for (const gap of siblingGaps(task, intent)) fixes.push(gap.fix);
   for (const entry of missingDefaults(task, intent)) {
     const field = intent.fields.find((f) => (f.modelPath ?? f.name) === entry.field);
@@ -1308,11 +1376,61 @@ export function taskFragment(
   const lower = task.toLowerCase();
   const marks = intent.fields
     .map((field) => ({ path: field.modelPath ?? field.name, at: mention(lower, field) }))
-    .filter((mark): mark is { path: string; at: { at: number; len: number } } => mark.at !== null)
+    .filter((mark): mark is Mark => mark.at !== null)
     .sort((a, b) => a.at.at - b.at.at);
   const me = marks.find((mark) => mark.path === path);
-  const cut = (text: string): string => (text.length > 240 ? `${text.slice(0, 240)}…` : text);
-  if (!me) return cut(task);
+  if (!me) return cutFragment(task);
+  return windowAt(task, marks, me, whole);
+}
+
+interface Mark {
+  readonly path: string;
+  readonly at: { at: number; len: number };
+}
+
+const cutFragment = (text: string): string => (text.length > 240 ? `${text.slice(0, 240)}…` : text);
+
+/**
+ * Все места, где поле названо, — с начала слова: `password` внутри `confirmPassword` и
+ * `InputPassword` — не упоминание поля.
+ */
+function mentionsOf(lower: string, field: FormIntent['fields'][number]): Mark['at'][] {
+  const label = (field.label ?? '').toLowerCase().trim();
+  const keys = [
+    label,
+    label.replace(/\s*\(.*?\)\s*/g, ' ').trim(),
+    (field.modelPath ?? field.name).toLowerCase(),
+    label.split(/\s+/)[0] ?? '',
+  ].filter((key) => key.length >= 3);
+  const found: Mark['at'][] = [];
+  for (const key of new Set(keys)) {
+    for (let at = lower.indexOf(key); at >= 0; at = lower.indexOf(key, at + 1)) {
+      if (at === 0 || !/[\p{L}\d_]/u.test(lower[at - 1] ?? '')) found.push({ at, len: key.length });
+    }
+  }
+  found.sort((a, b) => a.at - b.at || b.len - a.len);
+  return found.filter((mark, i) => i === 0 || mark.at >= found[i - 1].at + found[i - 1].len);
+}
+
+/**
+ * Окна поля у каждого его упоминания. Задание, пересказанное моделью, начиналось списком «с полями
+ * login, email, password…», и окно первого упоминания не видело «Пароль обязателен» дальше: форма с
+ * необязательным паролем прошла сверку (батч 20261114T215823Z-1be3, registration-create).
+ */
+export function taskFragments(task: string, intent: FormIntent, path: string): string[] {
+  const lower = task.toLowerCase();
+  const marks = intent.fields
+    .flatMap((field) =>
+      mentionsOf(lower, field).map((at) => ({ path: field.modelPath ?? field.name, at }))
+    )
+    .sort((a, b) => a.at.at - b.at.at);
+  const mine = marks.filter((mark) => mark.path === path);
+  return [...new Set(mine.map((me) => windowAt(task, marks, me, false)))];
+}
+
+/** Окно фокуса у одного упоминания поля (см. {@link taskFragment}). */
+function windowAt(task: string, marks: readonly Mark[], me: Mark, whole: boolean): string {
+  const cut = cutFragment;
   const at = me.at.at;
   const before = task.slice(0, at);
   const clauseStart =
@@ -1547,6 +1665,7 @@ export function editGaps(
       }
     }
   }
+  for (const gap of digitGaps(task, intent)) gaps.add(digitGapText(gap));
   if (baseline?.rules) {
     const now = checksByField(intent);
     const lower = task.toLowerCase();
@@ -1696,6 +1815,6 @@ export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): stri
     ];
   }
   return [
-    'Done: the form is built, every stage of the plan is complete and the types are checked. Stop here and do not edit module files.',
+    'Done: the form is built, every stage of the plan is complete and the types are checked. Stop here: do not write or edit any file of the form folder.',
   ];
 }

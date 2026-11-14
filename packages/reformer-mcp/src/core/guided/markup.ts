@@ -37,8 +37,35 @@ function titleOf(node: LayoutNode): string | null {
   return null;
 }
 
+/**
+ * Подпись кнопки отправки: названная в задании («кнопка «Зарегистрироваться»»), иначе на языке
+ * задания. «Submit» в русской форме модель на core правила руками и ломала типы разметки
+ * (батч 20261114T215823Z-1be3, registration-create).
+ */
+export function submitLabelOf(task: string | undefined): string {
+  if (!task) return 'Submit';
+  // Правка: «Кнопку «Зарегистрироваться» переименуй в «Создать аккаунт»» — подпись после «в».
+  const renamed =
+    /(?:кнопк[а-яё]*|button)\s*[«"“][^»"”\n]{1,40}[»"”][^.\n]{0,40}?(?:переимен[а-яё]*|замени[а-яё]*|rename|change)[^.\n«"“]{0,20}?\s(?:в|на|to)\s+[«"“]([^»"”\n]{1,40})[»"”]/i.exec(
+      task
+    )?.[1];
+  // «Rename the button "Register" to "Sign up"» — глагол раньше кнопки.
+  const verbFirst =
+    /(?:переимен[а-яё]*|замени[а-яё]*|rename|change)[^.\n]{0,20}?(?:кнопк[а-яё]*|button)\s*[«"“][^»"”\n]{1,40}[»"”]\s+(?:в|на|to)\s+[«"“]([^»"”\n]{1,40})[»"”]/i.exec(
+      task
+    )?.[1];
+  const named =
+    renamed ?? verbFirst ?? /(?:кнопк[а-яё]*|button)\s*[«"“]([^»"”\n]{1,40})[»"”]/i.exec(task)?.[1];
+  if (named?.trim()) return named.trim();
+  return /[а-яё]/i.test(task) ? 'Отправить' : 'Submit';
+}
+
 /** Разметка core для формы. `messages` — у формы есть словарь замечаний. */
-export function buildCoreMarkup(intent: FormIntent, messages: boolean): CoreMarkup {
+export function buildCoreMarkup(
+  intent: FormIntent,
+  messages: boolean,
+  submitLabel = 'Submit'
+): CoreMarkup {
   const arrays = new Map(intent.arrays.map((array) => [array.name, array]));
   const used = new Set<string>(['FormField', 'Button']);
   const helpers: string[] = [];
@@ -113,7 +140,7 @@ export function buildCoreMarkup(intent: FormIntent, messages: boolean): CoreMark
     '        }}',
     '      >',
     ...body,
-    '        <Button type="submit">Submit</Button>',
+    `        <Button type="submit">${jsxText(submitLabel)}</Button>`,
     '      </form>',
   ];
   const wrapped = messages

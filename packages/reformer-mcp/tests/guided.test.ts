@@ -13,7 +13,7 @@ import { RUN_SCRIPT_TOOL } from '../src/core/codemode/run-script';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { applyEdits, maskToPattern, type EditContext } from '../src/core/guided/edits';
 import { behaviorWord, featuresFromText } from '../src/core/guided/features';
-import { MARKUP_MARK } from '../src/core/guided/markup';
+import { buildCoreMarkup, MARKUP_MARK, submitLabelOf } from '../src/core/guided/markup';
 import {
   baselineOf,
   changesLine,
@@ -29,6 +29,8 @@ import {
 import { readIntent } from '../src/core/generate/form-intent';
 import type { Knowledge } from '../src/core/knowledge';
 import {
+  dropUnreadable,
+  formNameOf,
   formBuildGuidedTool,
   formEditTool,
   formStartTool,
@@ -1663,6 +1665,10 @@ describe('сквозной путь', () => {
       const checked = await formStatusTool({ dir: 'form', confirm: 'validation' }, knowledge);
       expect(text(checked)).toMatch(/Stage validation checked against the task/);
       expect(text(checked)).toMatch(/Done: the form is built/);
+      // Точка входа названа: модель писала её сама поверх серверной (батч 1be3).
+      expect(text(checked)).toMatch(
+        /The entry form\/index\.tsx is written by the server and exports `\w+Form` — the form component a task asks for; nothing is left to write\./
+      );
       expect(JSON.parse(file('form.intent.json')).target).toBe('renderer-react');
     },
     SLOW
@@ -2785,5 +2791,263 @@ describe('сверка: формат email и маска в правке', () =>
         ])
       )
     ).toEqual([]);
+  });
+});
+
+describe('кнопка — не поле, email без «@», нечитаемые ключи', () => {
+  it('add_field и add_item_field кнопки — отказ', () => {
+    const task = 'Регистрация: логин (login), внизу кнопка «Зарегистрироваться».';
+    const { outcomes } = applyEdits(
+      {},
+      [
+        { op: 'add_field', name: 'submitButton', label: 'Отправить', type: 'boolean' },
+        { op: 'add_field', name: 'register', label: 'Зарегистрироваться' },
+        { op: 'add_field', name: 'login', label: 'Логин' },
+        { op: 'add_field', name: 'radioButton', label: 'Вариант', options: ['a', 'b'] },
+        { op: 'add_array', name: 'rows', label: 'Строки' },
+        { op: 'add_item_field', array: 'rows', name: 'removeBtn', label: 'Удалить' },
+      ],
+      { ...ctx(), task, edit: true }
+    );
+    expect(outcomes[0]).toMatchObject({ ok: false });
+    expect(outcomes[0].message).toMatch(/«Отправить» is a button, not an input/);
+    expect(outcomes[1].message).toMatch(/«Зарегистрироваться» is a button, not an input/);
+    expect(outcomes[2].ok).toBe(true);
+    expect(outcomes[3].ok).toBe(true);
+    expect(outcomes[5].message).toMatch(/is a button, not an input/);
+  });
+
+  const form = (rules: string[]) =>
+    readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: [{ name: 'email', type: 'string', component: 'Input', label: 'Email' }],
+      validation: [{ target: 'email', rules }],
+    }).intent!;
+
+  it('шаблон email без «@» — не проверка формата: замена правилом email', () => {
+    const task = 'email (email) — обязателен, проверяется формат.';
+    const wrong = form(['required()', 'pattern(/^[a-zA-Z0-9_]+$/)']);
+    expect(taskGaps(task, wrong).join('\n')).toMatch(
+      /format of email .* lets no "@" through, so every address fails: replace it with the "email" rule/
+    );
+    const fixes = gapFixes(task, wrong);
+    const remove = fixes.findIndex((fix) => fix.op === 'remove_rule');
+    expect(fixes[remove]).toEqual({ op: 'remove_rule', field: 'email', rule: 'pattern' });
+    expect(fixes[remove + 1]).toEqual({ op: 'add_rule', field: 'email', email: true });
+    const right = form(['required()', 'pattern(/^\\S+@\\S+\\.\\S+$/)']);
+    expect(taskGaps(task, right).join('\n')).not.toMatch(/format of email/);
+  });
+
+  it('поля списком в начале задания — «обязателен» видно и в следующем упоминании', () => {
+    const task =
+      'Сделай форму регистрации с полями login, email, password, confirmPassword. Логин обязателен. Email обязателен, проверяется формат. Пароль обязателен, минимум 8 символов, компонент InputPassword. Повтор пароля обязателен.';
+    const intent = readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: [
+        { name: 'login', type: 'string', component: 'Input', label: 'Логин' },
+        { name: 'email', type: 'string', component: 'Input', label: 'Email' },
+        { name: 'password', type: 'string', component: 'Input', label: 'Пароль' },
+        { name: 'confirmPassword', type: 'string', component: 'Input', label: 'Повтор пароля' },
+      ],
+      validation: [
+        { target: 'login', rules: ['required()'] },
+        { target: 'email', rules: ['required()'] },
+        { target: 'password', rules: ['minLength(8)'] },
+        { target: 'confirmPassword', rules: ['required()'] },
+      ],
+    }).intent!;
+    const gaps = taskGaps(task, intent).join('\n');
+    expect(gaps).toMatch(
+      /the task makes password required \(«Пароль обязателен, минимум 8 символов, компонент InputPassword»\)/
+    );
+    expect(gaps).toMatch(
+      /the task checks the format of email \(«Email обязателен, проверяется формат»\)/
+    );
+    expect(gaps).not.toMatch(/makes (login|confirmPassword|email) required/);
+    expect(gapFixes(task, intent)).toContainEqual({
+      op: 'add_rule',
+      field: 'password',
+      required: true,
+    });
+  });
+
+  it('имя формы — без глагола просьбы и хвоста «с полями»', () => {
+    expect(formNameOf('Сделать форму регистрации с полями: логин, email')).toBe(
+      'Форма регистрации'
+    );
+    expect(formNameOf('Сделай форму регистрации:\n- логин')).toBe('Форма регистрации');
+    expect(formNameOf('Create a registration form with fields name and email.')).toBe(
+      'Registration form'
+    );
+    expect(formNameOf('Обратная связь: имя и email.')).toBe('Обратная связь');
+    expect(formNameOf('')).toBe('Form');
+  });
+
+  it('кнопка разметки core — с подписью из задания', () => {
+    expect(submitLabelOf('Логин (login); внизу кнопка «Зарегистрироваться».')).toBe(
+      'Зарегистрироваться'
+    );
+    expect(submitLabelOf('Отзыв: имя и текст.')).toBe('Отправить');
+    expect(submitLabelOf('4. Кнопку «Зарегистрироваться» переименуй в «Создать аккаунт».')).toBe(
+      'Создать аккаунт'
+    );
+    expect(submitLabelOf('Rename the button "Register" to "Sign up".')).toBe('Sign up');
+    expect(submitLabelOf('Feedback: name and a "Send" button.')).toBe('Submit');
+    expect(submitLabelOf('Feedback with a button "Send".')).toBe('Send');
+    expect(submitLabelOf(undefined)).toBe('Submit');
+    const intent = readIntent({
+      formName: 'F',
+      target: 'core',
+      fields: [{ name: 'login', type: 'string', component: 'Input', label: 'Логин' }],
+    }).intent!;
+    expect(buildCoreMarkup(intent, false, 'Зарегистрироваться').body.join('\n')).toContain(
+      '<Button type="submit">Зарегистрироваться</Button>'
+    );
+  });
+
+  it('«хотя бы одна цифра» без проверки — расхождение и готовая правка, она проходит', () => {
+    const task =
+      '2. Пароль — минимум 10 символов (было 8) и хотя бы одна цифра.\n3. Логин (`login`) не меняй.';
+    const base = {
+      formName: 'F',
+      target: 'renderer-react' as const,
+      fields: [
+        { name: 'login', type: 'string', component: 'Input', label: 'Логин' },
+        { name: 'password', type: 'string', component: 'Input', label: 'Пароль' },
+      ],
+      validation: [
+        { target: 'login', rules: ['required()', 'pattern(/^[a-z0-9_]+$/)'] },
+        { target: 'password', rules: ['required()', 'minLength(10)'] },
+      ],
+    };
+    const intent = readIntent(base).intent!;
+    const gap =
+      'the task wants at least one digit in password («Пароль — минимум 10 символов (было 8) и хотя бы одна цифра») — no check for it: add_rule "pattern":"\\\\d" (a digit anywhere in the value)';
+    expect(editGaps(task, intent)).toContain(gap);
+    expect(taskGaps(task, intent)).toContain(gap);
+    const fix = gapFixes(task, intent).find((one) => one.field === 'password');
+    expect(fix).toEqual({ op: 'add_rule', field: 'password', pattern: '\\d' });
+    const { file, outcomes } = applyEdits(base, [fix], ctx());
+    expect(outcomes[0].ok).toBe(true);
+    const fixed = readIntent(file).intent!;
+    expect(
+      fixed.validation.filter((row) => row.target === 'password').flatMap((row) => row.rules)
+    ).toContain('pattern(/\\d/)');
+    expect(editGaps(task, fixed)).toEqual([]);
+  });
+
+  it('регулярное выражение в "rule" — отказ ведёт в "pattern"', () => {
+    const { outcomes } = applyEdits(
+      { fields: [{ name: 'password', type: 'string', label: 'Пароль' }] },
+      [{ op: 'add_rule', field: 'password', rule: '[a-z0-9]+' }],
+      ctx()
+    );
+    expect(outcomes[0].message).toMatch(
+      /a regular expression goes in "pattern": "pattern":"\[a-z0-9\]\+" \(it matches anywhere in the value: "\\\\d" — at least one digit/
+    );
+  });
+
+  it('нечитаемые ключи — прочь, похожий ключ — под своим именем', () => {
+    const file: Rec = {
+      formName: 'F',
+      target: 'renderer-react',
+      cross: [{ a: 1 }],
+      fields: [{ name: 'email', type: 'string', label: 'Email', foo: 1 }],
+      validation: [{ target: 'email', rules: ['required()'], zzz: 3 }],
+      arrays: [{ name: 'items', label: 'I', item: [{ name: 'x', type: 'string' }] }],
+    };
+    expect(dropUnreadable(file, CATALOGS)).toEqual([
+      'fields[0].foo',
+      'arrays[0].item → itemFields',
+      'validation[0].zzz',
+      'cross',
+    ]);
+    expect(readIntent(file, CATALOGS).problems).toEqual([]);
+    expect((file.arrays as Rec[])[0].itemFields).toEqual([{ name: 'x', type: 'string' }]);
+    expect(dropUnreadable(file, CATALOGS)).toEqual([]);
+  });
+
+  describe('через сервер', () => {
+    let project: string;
+    let knowledge: Knowledge;
+    const previousRoot = process.env[TYPECHECK_ROOT_ENV];
+    const text = (result: { content: Array<{ text: string }> }) => result.content[0].text;
+    beforeAll(() => {
+      process.env[TYPECHECK_ROOT_ENV] = repoRoot;
+    });
+    afterAll(() => {
+      if (previousRoot === undefined) delete process.env[TYPECHECK_ROOT_ENV];
+      else process.env[TYPECHECK_ROOT_ENV] = previousRoot;
+    });
+    beforeEach(() => {
+      project = mkdtempSync(join(tmpdir(), 'guided-unreadable-'));
+      writeFileSync(
+        join(project, 'package.json'),
+        JSON.stringify({ name: 'consumer', dependencies: { '@reformer/core': '*' } })
+      );
+      knowledge = { ...cliKnowledge(), forms: createCliFormWorkspace(project) };
+    });
+    afterEach(() => rmSync(project, { recursive: true, force: true }));
+
+    it(
+      'intent руками до formStart с чужими ключами — form_edit снимает их и собирает',
+      async () => {
+        mkdirSync(join(project, 'form'));
+        writeFileSync(
+          join(project, 'form', 'form.intent.json'),
+          JSON.stringify({
+            formName: 'Регистрация',
+            target: 'renderer-react',
+            fields: [{ name: 'login', type: 'string', label: 'Логин', hint: 'латиница' }],
+            submit: { label: 'Зарегистрироваться' },
+          })
+        );
+        await formStartTool(
+          { dir: 'form', target: 'renderer-react', task: 'Добавь email (`email`).' },
+          knowledge
+        );
+        const edited = await formEditTool(
+          { dir: 'form', edits: [{ op: 'add_field', name: 'email', label: 'Email' }] },
+          knowledge
+        );
+        expect(text(edited)).toMatch(
+          /the server dropped keys the form cannot read: fields\[0\]\.hint, submit/
+        );
+        expect(text(edited)).toMatch(/^✓ form_build/m);
+      },
+      SLOW
+    );
+
+    it(
+      'сборка не прошла — файл модуля, написанный руками, остаётся на месте',
+      async () => {
+        await formStartTool(
+          { dir: 'form', target: 'renderer-react', task: 'Форма: a, b, c' },
+          knowledge
+        );
+        await formEditTool(
+          { dir: 'form', edits: [{ op: 'add_field', name: 'a', label: 'A' }] },
+          knowledge
+        );
+        const hand = 'export interface Model { a: string }\n';
+        writeFileSync(join(project, 'form', 'model.ts'), hand);
+        const failed = await formEditTool(
+          {
+            dir: 'form',
+            edits: [
+              { op: 'add_field', name: 'b', label: 'B' },
+              { op: 'add_behavior', kind: 'disableWhen', target: 'b', expr: 'model.a || model.b' },
+            ],
+          },
+          knowledge
+        );
+        expect(text(failed)).toMatch(/✗ form_build/);
+        expect(text(failed)).toMatch(/Written by hand: model\.ts — left as it was/);
+        expect(readFileSync(join(project, 'form', 'model.ts'), 'utf8')).toBe(hand);
+      },
+      SLOW
+    );
   });
 });

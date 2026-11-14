@@ -327,7 +327,10 @@ with `✗ form_build`, not a script error. The plain Code Mode surface is unchan
 
 The form files belong to the server. `form.intent.json` written by hand is put back to the last
 version the server wrote (or removed, if the server has not written one yet) before `form_edit`,
-`form_status` and `form_build` read it; module files written by hand are rebuilt. Build answers
+`form_status` and `form_build` read it; module files written by hand are rebuilt (and kept as
+they were while the build does not pass). Keys the form cannot read — say, from an intent written
+by hand before `form_start` — are dropped by the next `form_edit`, or moved under the key the
+reader suggests, and the answer names them. Build answers
 speak in edits: a type error points to the edit that fixes it, without file names or a file
 list. `form_build` with no plan and no form leads to `form_start` instead of the grammar.
 
@@ -364,7 +367,7 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   | `remove_behavior`             | `target`, `kind` — one kind; without it every behavior of the field                                                                                                                         |
   | `add_visibility`              | `field` or `fields`, `showWhen` or `hideWhen` — renderer targets only                                                                                                                       |
   | `set_form`                    | `formName`                                                                                                                                                                                  |
-  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits                                                                                                       |
+  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits; the submit button takes the label the task gives it                                                 |
 
   The server fills what it knows: the component by type, rule codes when a `message` is given,
   `sources` from the expression, the target from the plan. It also reads the usual slips: a
@@ -372,7 +375,9 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   a text are its length, a hand-written email pattern is `email`, choices written
   `value — label` are split, a rule of a field shown on a condition is checked only while shown,
   numbers of a formula are made null-safe. A name in `expr` or `when` that is not a field is
-  rejected with the list of fields.
+  rejected with the list of fields. A button is not an input: `add_field` whose name says
+  `submit`/`button`/`btn`, or whose label the task calls a button, is refused — the server draws
+  the submit button.
 
 - **`form_status`** `{dir?, skip?, add?, confirm?}` — the stages, the last build, the next
   call. `skip` drops a stage the task does not need (validation is not skipped when the form has
@@ -381,10 +386,12 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   against the task, `confirm: "edit"` — the check of a change.
 
 A stage is done by the content of the intent, not by the model's word; `Done` needs a passing
-build on the current files with types checked. Validation ends with a check against the task: the
-answer shows the task, the fields and the rules, and names what differs — an input the task names
-`(name)` with no field, a field the task calls required with no `required` rule, an email whose
-format the task checks with no `email` rule, a field the task shows on a condition with no
+build on the current files with types checked, and its line names the component `index.tsx`
+exports. Validation ends with a check against the task: the answer shows the task, the fields and
+the rules, and names what differs (a field's words are read at every place the task names it) — an
+input the task names `(name)` with no field, a field the task calls required with no `required`
+rule, a field that needs at least one digit with no `pattern` for it, an email whose
+format the task checks with no `email` rule (a `pattern` counts only if it lets `@` through), a field the task shows on a condition with no
 visibility, a number of the task no rule uses (numbers of a formula, list markers, numbers glued to
 letters like `ABC123` and durations like «300 мс» do not count), a bound the task does not name, a
 mask not in the task's format, a default of the task without `initialValue`, labels not in the

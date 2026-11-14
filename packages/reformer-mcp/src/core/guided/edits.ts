@@ -649,6 +649,13 @@ function ruleCall(rule: string): string {
   if (/^\w+$/.test(value)) return `${value}()`;
   const short = /^(\w+)\s*(?:[:=]\s*|\s+)(-?\d+(?:\.\d+)?)$/.exec(value);
   if (short) return `${short[1]}(${short[2]})`;
+  // Похоже на регулярное выражение — путь в "pattern": отказ «пиши minLength(2)» модель не связывала
+  // с «хотя бы одна цифра» и бросала пункт (батч 20261114T215823Z-1be3, registration-edit).
+  if (/[[\]\\]|[+*?]$/.test(value) && !/\s/.test(value)) {
+    throw new EditError(
+      `"rule":"${value}" is not a validator call — a regular expression goes in "pattern": "pattern":"${value}" (it matches anywhere in the value: "\\\\d" — at least one digit, "^…$" — the whole value)`
+    );
+  }
   throw new EditError(
     `"rule":"${value}" is not a validator call — write "minLength(2)" or use the keys: "minLength":2, "required":true`
   );
@@ -824,6 +831,33 @@ function fieldName(edit: Rec): string {
   return text(edit, 'name') ?? text(edit, 'field') ?? text(edit, 'name', true)!;
 }
 
+/**
+ * Кнопка — не поле: модель добавляла `submitButton` с подписью кнопки из задания, и форма требовала
+ * заполнить «поле» «Зарегистрироваться» (батч 20261114T211434Z-bca8, registration-create). Кнопку
+ * отправки рисует сервер. Признак — слово имени (`submit`, `button`, `btn`) или подпись, которую
+ * задание называет кнопкой.
+ */
+function buttonOf(name: string, label: string, task: string | undefined): string | null {
+  const words = name
+    .split(/(?=[A-Z])|[_\-.\s]+/)
+    .map((word) => word.toLowerCase())
+    .filter(Boolean);
+  const named = words.some(
+    (word, i) =>
+      word === 'submit' || word === 'btn' || (word === 'button' && words[i - 1] !== 'radio')
+  );
+  const said =
+    label.length > 0 &&
+    (/(?:кнопк|button\b)/i.test(label) ||
+      (task !== undefined &&
+        new RegExp(`(?:кнопк[а-яё]*|button)\\s*[«"“']?${escapeRegExp(label)}[»"”']?`, 'i').test(
+          task
+        )));
+  if (!named && !said) return null;
+  const what = label ? `«${label}»` : `\`${name}\``;
+  return `${what} is a button, not an input — the server draws the submit button itself; leave it out: as a field the user would have to fill it`;
+}
+
 function addField(file: Rec, edit: Rec, ctx: EditContext): string {
   const name = fieldName(edit);
   // Модель пересылает весь список полей: отказ «already exists» на каждое блокировал план, и модель
@@ -832,6 +866,8 @@ function addField(file: Rec, edit: Rec, ctx: EditContext): string {
     return `\`${name}\` already existed — ${setField(file, { ...edit, op: 'set_field' }, ctx)}`;
   }
   checkNewName(name, modelPaths(file));
+  const button = buttonOf(name, String(edit.label ?? '').trim(), ctx.task);
+  if (button) throw new EditError(button);
   // Заголовок формы — не поле: «Оформление заказа» становился полем orderDetails (L3-delivery,
   // 20261114T005219Z-43ce).
   const title = String(file.formName ?? '')
@@ -1174,6 +1210,8 @@ function addItemField(file: Rec, edit: Rec, ctx: EditContext): string {
   const name = text(edit, 'name', true)!;
   checkNewName(name, itemFieldsOf(array).map(nameOf));
   if (name.includes('.')) throw new EditError('a row field name is one word');
+  const button = buttonOf(name, String(edit.label ?? '').trim(), ctx.task);
+  if (button) throw new EditError(button);
   const record: Rec = { name, ...fieldRecord(edit, ctx) };
   itemFieldsOf(array).push(record);
   // Строки начального значения получают ключ нового поля: иначе тип строки и модель разойдутся.
