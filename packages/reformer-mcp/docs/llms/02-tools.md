@@ -236,7 +236,14 @@ functions are `reformer.formStart`, `reformer.formEdit`, `reformer.formStatus`,
 that prints nothing gets the answer of its last call. Its `run_script` has its own TypeScript
 declaration: `edits: Edit[]`, where `Edit` is a union by `op` with a doc line on every key, the
 answer layout under `@returns` and `@example` calls; the preamble says the server writes every file
-of the form folder. The plain Code Mode surface is unchanged.
+of the form folder. A call there does not throw: a failed build after applied edits is an answer
+with `✗ form_build`, not a script error. The plain Code Mode surface is unchanged.
+
+The form files belong to the server. `form.intent.json` written by hand is put back to the last
+version the server wrote (or removed, if the server has not written one yet) before `form_edit`,
+`form_status` and `form_build` read it; module files written by hand are rebuilt. Build answers
+speak in edits: a type error points to the edit that fixes it, without file names or a file
+list. `form_build` with no plan and no form leads to `form_start` instead of the grammar.
 
 - **`form_start`** `{dir?, target, task? | specPath?, formName?}` — plans the stages from the
   task words or the spec (fields; rows, steps, validation, cross-field rules, reactions as

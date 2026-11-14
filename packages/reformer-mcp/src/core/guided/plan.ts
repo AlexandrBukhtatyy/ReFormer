@@ -85,6 +85,13 @@ export interface GuidedPlan {
    * получила этот отказ 10 раз подряд и не вызвала `form_status {"add":"arrays"}` (order-create, 68e8).
    */
   readonly rowsTried?: boolean;
+  /**
+   * Форма, которую последней писал сервер: отпечаток и текст (`null` — сервер её ещё не писал). Intent,
+   * написанный руками, сервер возвращает к этой версии: модель уходила писать его сама после ответа
+   * сборки «fix form.intent.json» и теряла правила (батч 20261114T183644Z-ab51).
+   */
+  readonly intentPrint?: string;
+  readonly intentCopy?: string | null;
   readonly lastBuild?: BuildMark;
 }
 
@@ -173,6 +180,12 @@ export function parsePlan(text: string | null): GuidedPlan | null {
       : {}),
     ...(plan.edited === true ? { edited: true } : {}),
     ...(plan.rowsTried === true ? { rowsTried: true } : {}),
+    ...(typeof plan.intentPrint === 'string'
+      ? {
+          intentPrint: plan.intentPrint,
+          intentCopy: typeof plan.intentCopy === 'string' ? plan.intentCopy : null,
+        }
+      : {}),
     ...(plan.lastBuild ? { lastBuild: plan.lastBuild } : {}),
   };
 }

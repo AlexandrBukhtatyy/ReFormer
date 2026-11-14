@@ -621,8 +621,30 @@ function emailFromPattern(edit: Rec): { edit: Rec; note: string } {
  * `min 18`) — тот же вызов; прочее — отказ правки. Прежде строка шла в код как есть, `minLength:2()`
  * ломал сборку, и убрать его было нечем (L2-profile-json, 20261113T181347Z-c277).
  */
+/** Регулярное выражение литералом `/…/флаги`; неверное — отказ правки, а не ошибка компилятора. */
+function regexLiteral(pattern: string): string {
+  const literal = /^\/.*\/[a-z]*$/.test(pattern) ? pattern : `/${pattern.replace(/\//g, '\\/')}/`;
+  const [, body = '', flags = ''] = /^\/(.*)\/([a-z]*)$/.exec(literal) ?? [];
+  try {
+    new RegExp(body, flags);
+  } catch (error) {
+    throw new EditError(
+      `"pattern" is not a valid regular expression (${(error as Error).message}) — e.g. "^\\d{6}$"; an input format like a phone: "mask" on the field (9 — a digit) and "pattern" as the example shows`
+    );
+  }
+  return literal;
+}
+
 function ruleCall(rule: string): string {
   const value = rule.trim();
+  // pattern(^…$) без слэшей или со строкой — тот же шаблон литералом: как есть он ломал
+  // form.validation.ts дюжиной ошибок типов, и модель уходила править файлы руками (батч
+  // 20261114T183644Z-ab51, registration-create на core).
+  const patternCall = /^pattern\s*\(\s*([\s\S]*?)\s*\)$/.exec(value);
+  if (patternCall && !/^\/[\s\S]*\/[a-z]*(\s*,[\s\S]*)?$/.test(patternCall[1])) {
+    const body = patternCall[1].replace(/^(['"`])([\s\S]*)\1$/, '$2');
+    return `pattern(${regexLiteral(body)})`;
+  }
   if (/^\w+\s*\([\s\S]*\)$/.test(value)) return value;
   if (/^\w+$/.test(value)) return `${value}()`;
   const short = /^(\w+)\s*(?:[:=]\s*|\s+)(-?\d+(?:\.\d+)?)$/.exec(value);
@@ -641,28 +663,21 @@ function checksOf(edit: Rec, ctx: EditContext): string[] {
     if (value !== undefined) checks.push(`${key}(${value})`);
   }
   const pattern = text(edit, 'pattern');
-  if (pattern) {
-    const literal = /^\/.*\/[a-z]*$/.test(pattern) ? pattern : `/${pattern.replace(/\//g, '\\/')}/`;
-    // Неверное выражение — отказ правки сейчас, а не ошибка компилятора в form.validation.ts, которую
-    // модель не связывала со своим правилом.
-    const [, body = '', flags = ''] = /^\/(.*)\/([a-z]*)$/.exec(literal) ?? [];
-    try {
-      new RegExp(body, flags);
-    } catch (error) {
-      throw new EditError(
-        `"pattern" is not a valid regular expression (${(error as Error).message}) — e.g. "^\\d{6}$"; an input format like a phone: "mask" on the field (9 — a digit) and "pattern" as the example shows`
-      );
-    }
-    checks.push(`pattern(${literal})`);
-  }
+  // Неверное выражение — отказ правки сейчас, а не ошибка компилятора в form.validation.ts, которую
+  // модель не связывала со своим правилом.
+  if (pattern) checks.push(`pattern(${regexLiteral(pattern)})`);
   const single = text(edit, 'rule');
   // Регулярное выражение в «rule» — это pattern: отказ «нет валидатора ^\+7…» модель решала,
   // выбросив проверку формата совсем (L2-profile-json).
+  // Регулярка — только то, что на неё похоже целиком: начало с ^ или /, либо одно слово с \d. Фраза,
+  // которая просто кончается на $ («length >= 6 && pattern ^…$»), становилась бессмысленным
+  // выражением (батч 20261114T113832Z-68e8) — теперь она отказ «не вызов валидатора».
+  const trimmed = single?.trim() ?? '';
   if (
     single &&
     !pattern &&
-    /^(\^|\/)|\\d|\$$/.test(single.trim()) &&
-    !/^\w+\s*\(/.test(single.trim())
+    (/^(\^|\/)/.test(trimmed) || (/\\d/.test(trimmed) && !/\s/.test(trimmed))) &&
+    !/^\w+\s*\(/.test(trimmed)
   ) {
     return checksOf({ ...edit, rule: undefined, pattern: single.trim() }, ctx);
   }
@@ -1208,7 +1223,7 @@ function addStep(file: Rec, edit: Rec): string {
     const rootRefs = childrenOf(layout.root).map(refOf);
     if (rootRefs.some((ref) => ref === null)) {
       throw new EditError(
-        'the layout holds containers or texts — steps need a plain layout; remove them or edit layoutRoot by hand'
+        'the form has sections or texts in its layout — add_step needs a plain one; put the fields into the existing steps with place instead'
       );
     }
     delete file.layoutRoot;

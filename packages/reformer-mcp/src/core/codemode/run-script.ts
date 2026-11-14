@@ -107,6 +107,13 @@ export interface RunScriptOptions {
   readonly echoLast?: boolean;
   /** Пустой второй `edits` в вызове `formEdit` выбросить — см. {@link dropEmptyEdits}. */
   readonly dropEmptyEdits?: boolean;
+  /**
+   * Ответ-ошибку инструмента вернуть скрипту текстом, а не исключением. Связка с guided: каждый её
+   * ответ сам говорит ✓ или ✗ и что делать дальше, а исключение превращало сбой сборки после
+   * применённых правок в «✗ script error: Error: form_edit: 3 of 3 edits applied…» — модель читала
+   * это как ошибку своего скрипта (батч 20261114T183644Z-ab51).
+   */
+  readonly returnErrors?: boolean;
 }
 
 /**
@@ -177,7 +184,7 @@ export async function runScriptTool(
         chars: text.length,
         durationMs: Date.now() - started,
       });
-      if (result.isError === true) throw new Error(text);
+      if (result.isError === true && options.returnErrors !== true) throw new Error(text);
       return text;
     };
   }

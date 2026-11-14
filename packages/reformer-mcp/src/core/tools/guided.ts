@@ -100,7 +100,7 @@ export const formStartToolDefinition = {
 export const formEditToolDefinition = {
   name: 'form_edit',
   description:
-    'Change the form with small edits; the server writes form.intent.json and builds the module (never write module files yourself). Edits are applied one by one: a rejected edit says how to fix it, the others still apply. "edits":[] just builds. Names, labels and texts come from the task.',
+    'Change the form with small edits; the server keeps the form and builds the module — never write files of the form folder yourself. Edits are applied one by one: a rejected edit says how to fix it, the others still apply. "edits":[] just builds. Names, labels and texts come from the task.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -155,15 +155,21 @@ function openDir(args: { dir?: unknown }, k: Knowledge, tool: string): Opened | 
 const isOpened = (value: Opened | ToolTextResult): value is Opened => 'directory' in value;
 
 function noPlan(tool: string, dir: string, directory?: FormDirectory): ToolTextResult {
-  // Форма уже лежит в каталоге: план правки начинается тем же form_start — с заданием правки.
+  return invalidCall(noPlanLines(tool, dir, directory).join('\n'));
+}
+
+/** Плана нет: вызов `form_start` — с заданием формы или, если форма уже в каталоге, с заданием правки. */
+function noPlanLines(tool: string, dir: string, directory?: FormDirectory): string[] {
   const existing = directory !== undefined && directory.read(INTENT_FILE) !== null;
-  return invalidCall(
-    existing
-      ? `✗ ${tool}: no plan in ${dir}/${PLAN_FILE} — the form is already in ${dir}: start the change first, with the text of the change:\n` +
-          `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text of the change, word for word>"}`
-      : `✗ ${tool}: no plan in ${dir}/${PLAN_FILE} — start the form first:\n` +
-          `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text, word for word>"}`
-  );
+  return existing
+    ? [
+        `✗ ${tool}: no plan yet — the form is already in ${dir}: start the change first, with the text of the change:`,
+        `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text of the change, word for word>"}`,
+      ]
+    : [
+        `✗ ${tool}: no plan yet — start the form first:`,
+        `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text, word for word>"}`,
+      ];
 }
 
 function statusLines(plan: GuidedPlan, directory: FormDirectory, dir: string): string[] {
@@ -194,11 +200,53 @@ function fieldsLine(intent: FormIntent | null): string[] {
  * Ответ сборки в профиле guided. Совет сборки «на core пиши разметку сам» противоречит плану: её
  * пишет сервер на этапе markup — строка убирается, этап назовёт `Next:`.
  */
-function guidedBuildText(text: string): string {
+export function guidedBuildText(text: string): string {
   return text
     .split('\n')
-    .filter((line) => !line.startsWith('⚠️ No markup yet'))
+    .filter((line) => !BUILD_LINES_DROPPED.some((start) => line.startsWith(start)))
+    .map(guidedBuildLine)
     .join('\n');
+}
+
+/**
+ * Строки ответа обычной сборки, которых в профиле нет. Каждая звала модель к файлам: список файлов
+ * каталога с intent, «сверь intent с заданием», «правлено руками — удали файл», «пришли intent в
+ * report_issue» (инструмента в профиле нет). Прогон registration-create на core ушёл писать intent
+ * руками сразу после такого ответа (батч 20261114T183644Z-ab51).
+ */
+const BUILD_LINES_DROPPED = [
+  '⚠️ No markup yet',
+  'Folder ',
+  'The build does not know the task',
+  'Edited by hand and left as is',
+  '⚠️ Edited by hand, but this build',
+  '- Send the intent with report_issue',
+];
+
+/** Чем правится то, что сборка пишет в файл модуля. */
+const EDIT_FOR_FILE: Readonly<Record<string, string>> = {
+  'form.validation.ts': 'add_rule again with the fixed check, or remove_rule',
+  'form.behavior.ts': 'add_behavior again with the fixed expr, or remove_behavior',
+  'form.schema.ts': 'set_field',
+  'form.schema.json': 'set_field',
+  'model.ts': 'set_field',
+  'form.messages.ts': 'add_rule again with the fixed message',
+  'index.tsx': 'set_field, or {"op":"markup"} on core',
+};
+
+/** Строка ответа сборки в словах профиля: правят правкой, а не файлом. */
+function guidedBuildLine(line: string): string {
+  const typeError = / → fix form\.intent\.json — the build writes (\S+)$/.exec(line);
+  if (typeError) {
+    const fix = EDIT_FOR_FILE[typeError[1]] ?? 'form_edit';
+    return `${line.slice(0, typeError.index)} → fix it with form_edit: ${fix}`;
+  }
+  if (line.startsWith('⚠️ Your operators are still stubs')) {
+    return '⚠️ The form has operators that are stubs: a stub rule passes any value. This profile does not write their bodies.';
+  }
+  return line
+    .replace(/form\.intent\.json is not read in full/, 'the form is not read in full')
+    .replace(/form\.intent\.json is not JSON/, 'the form is not readable');
 }
 
 /** Итог сборки — в план: «готово» сервер ставит только по сборке на текущих файлах. */
@@ -229,6 +277,28 @@ const restoredLine = (files: readonly string[]): string[] =>
         `Written by hand and replaced by the build: ${files.join(', ')} — the server writes the module; change the form only with form_edit.`,
       ]
     : [];
+
+/** Запомнить форму, которую сейчас держит сервер: её он вернёт, если файл перепишут руками. */
+function withIntent(plan: GuidedPlan, directory: FormDirectory): GuidedPlan {
+  const text = directory.read(INTENT_FILE);
+  return { ...plan, intentPrint: fingerprint(text), intentCopy: text };
+}
+
+/**
+ * Intent, написанный руками, — назад к версии сервера; файл, которого сервер не писал, — прочь.
+ * Модель уходила писать intent сама и теряла правила, а сборка молча его принимала (батч
+ * 20261114T183644Z-ab51). Возвращает строку ответа или ничего.
+ */
+function guardIntent(plan: GuidedPlan, directory: FormDirectory): string[] {
+  if (plan.intentPrint === undefined) return [];
+  const now = directory.read(INTENT_FILE);
+  if (fingerprint(now) === plan.intentPrint) return [];
+  if (typeof plan.intentCopy === 'string') directory.write(INTENT_FILE, plan.intentCopy);
+  else directory.remove(INTENT_FILE);
+  return [
+    'form.intent.json was written by hand — the server put its own version back. The form changes only with form_edit.',
+  ];
+}
 
 function withBuild(
   plan: GuidedPlan,
@@ -301,6 +371,21 @@ function specIn(task: string, dir: string, k: Knowledge): string | null {
   return found.size === 1 ? [...found][0] : null;
 }
 
+/**
+ * Строка ответа `plan_form` в словах профиля: черновик держит сервер, дописывают правками. Как есть
+ * она называла файл intent и звала «дописать руками».
+ */
+function draftLine(line: string): string {
+  return line
+    .replace(/^✓ plan_form: drafted \S+ from /, '✓ the server drafted the form from ')
+    .replace(/^Finish by hand \((\d+)\):/, 'Still to do with form_edit ($1):')
+    .replace(/ — add them by the spec\.$/, ' — add them with form_edit by the spec.')
+    .replace(
+      /^The draft does not read cleanly \((\d+)\) — fix these records:/,
+      'The draft does not read cleanly ($1) — fix these with form_edit:'
+    );
+}
+
 /** Имя формы по заданию: заголовок до двоеточия или первая фраза, не длиннее пяти слов. */
 function formNameOf(task: string): string {
   const head = task.split(/[:.!?\n]/)[0]?.trim() ?? '';
@@ -356,31 +441,36 @@ export async function formStartTool(
   // Форма уже лежит в каталоге, а плана нет (или он — план правки): задание её меняет. План — один
   // этап правки со сверкой по дельте; иначе проверки создания формы шли по тексту правки.
   const previous = parsePlan(directory.read(PLAN_FILE));
+  // Форма, переписанная руками после прошлого плана, — назад к версии сервера до нового плана.
+  if (previous) lines.push(...guardIntent(previous, directory));
   const existing = intentOf(directory.read(INTENT_FILE));
   const editing =
     existing !== null &&
     existing.fields.length + existing.arrays.length > 0 &&
     (previous === null || previous.mode === 'edit');
   if (editing) {
-    const plan: GuidedPlan = {
-      version: 1,
-      formName: existing.formName,
-      target,
-      source: 'task',
-      ...(specPath ? { specPath } : {}),
-      ...(task
-        ? { task: task.length > TASK_LIMIT_EDIT ? `${task.slice(0, TASK_LIMIT_EDIT)}…` : task }
-        : {}),
-      stages: ['edit'],
-      skipped: [],
-      mode: 'edit',
-      baseline: previous?.baseline ?? baselineOf(existing),
-      ...(previous?.lastBuild ? { lastBuild: previous.lastBuild } : {}),
-    };
+    const plan: GuidedPlan = withIntent(
+      {
+        version: 1,
+        formName: existing.formName,
+        target,
+        source: 'task',
+        ...(specPath ? { specPath } : {}),
+        ...(task
+          ? { task: task.length > TASK_LIMIT_EDIT ? `${task.slice(0, TASK_LIMIT_EDIT)}…` : task }
+          : {}),
+        stages: ['edit'],
+        skipped: [],
+        mode: 'edit',
+        baseline: previous?.baseline ?? baselineOf(existing),
+        ...(previous?.lastBuild ? { lastBuild: previous.lastBuild } : {}),
+      },
+      directory
+    );
     directory.write(PLAN_FILE, serializePlan(plan));
     const head = [
-      `✓ form_start: the form in ${dir} is already built — the plan of the change on ${target} is saved to ${dir}/${PLAN_FILE}.`,
-      'Change the form ONLY with form_edit: it rewrites form.intent.json and the module. Never write files of the form folder yourself.',
+      `✓ form_start: the form in ${dir} is already built — the plan of the change on ${target} is saved.`,
+      'Change the form ONLY with form_edit: the server rewrites the form and its module. Never write files of the form folder yourself.',
       `Fields now: ${fieldsSummary(existing)}`,
       '',
     ];
@@ -416,31 +506,39 @@ export async function formStartTool(
       const draft = drafted.content[0].text.split('\n');
       // Черновик и что дописать руками — из ответа plan_form, без его «Next»: следующий шаг здесь свой.
       lines.push(
-        ...draft.filter((line) => line.trim() && !line.startsWith('Next:')).slice(0, 16),
+        ...draft
+          .filter((line) => line.trim() && !line.startsWith('Next:'))
+          .slice(0, 16)
+          .map(draftLine),
         ''
       );
     } else {
-      lines.push(`${dir}/${INTENT_FILE} already exists — the plan continues it.`, '');
+      lines.push('The form already exists — the plan continues it.', '');
     }
   }
 
   const stages = stagesFor(features, target);
-  const plan: GuidedPlan = {
-    version: 1,
-    formName,
-    target,
-    source,
-    ...(specPath ? { specPath } : {}),
-    ...(task ? { task: task.length > TASK_LIMIT ? `${task.slice(0, TASK_LIMIT)}…` : task } : {}),
-    stages,
-    skipped: [],
-    ...(previous?.lastBuild ? { lastBuild: previous.lastBuild } : {}),
-  };
+  // Форма на старте — то, что сервер держит: черновик спеки или ничего (файл, написанный руками до
+  // первой правки, сервер уберёт).
+  const plan: GuidedPlan = withIntent(
+    {
+      version: 1,
+      formName,
+      target,
+      source,
+      ...(specPath ? { specPath } : {}),
+      ...(task ? { task: task.length > TASK_LIMIT ? `${task.slice(0, TASK_LIMIT)}…` : task } : {}),
+      stages,
+      skipped: [],
+      ...(previous?.lastBuild ? { lastBuild: previous.lastBuild } : {}),
+    },
+    directory
+  );
   directory.write(PLAN_FILE, serializePlan(plan));
 
   const head = [
-    `✓ form_start: the plan of «${formName}» on ${target} is saved to ${dir}/${PLAN_FILE}.`,
-    'Change the form ONLY with form_edit: it writes form.intent.json and builds the module. Do not write module files yourself.',
+    `✓ form_start: the plan of «${formName}» on ${target} is saved.`,
+    'Change the form ONLY with form_edit: the server keeps the form and builds its module. Never write files of the form folder yourself.',
     'Stages:',
     ...stages.map((stage, index) => `${index + 1}. ${stage} — ${stageGoal(stage, target)}`),
     'Names, labels and texts come from the task; the samples below show syntax only.',
@@ -462,7 +560,7 @@ export async function formStartTool(
  * формы, все правки этапа одним вызовом (модель слала по одной и упиралась в лимит шагов).
  */
 const GUIDED_PREAMBLE =
-  'Run a script against the ReFormer form API. The global `reformer` (declared below) has async functions; each takes ONE object and returns the answer of the server as text. Write the BODY of an async function: `await` the calls and print every answer with `console.log` — only printed text and a `return`ed value come back to you. The server writes every file in the form folder (form.intent.json and the module): never write or rewrite them with file tools — change the form only with `reformer.formEdit`, every edit of a stage in ONE call. Plain JavaScript: no import, require, fs or network. A rejected call throws an Error whose message is the answer.';
+  'Run a script against the ReFormer form API. The global `reformer` (declared below) has async functions; each takes ONE object and returns the answer of the server as text. Write the BODY of an async function: `await` the calls and print every answer with `console.log` — only printed text and a `return`ed value come back to you. The server writes every file in the form folder: never write or rewrite them with file tools — change the form only with `reformer.formEdit`, every edit of a stage in ONE call. Plain JavaScript: no import, require, fs or network. A call does not throw: its answer says ✓ or ✗ and what to do next.';
 
 const STAGE_TYPE = OPTIONAL_STAGES.map((stage) => JSON.stringify(stage)).join(' | ');
 
@@ -489,7 +587,7 @@ ${FORM_DIR_DOC}
   specPath?: string;
 }): Promise<string>;`,
   form_edit: `/**
- * Change the form with a list of edits — every edit of a stage in ONE call. The server applies them one by one, writes form.intent.json and builds the module.
+ * Change the form with a list of edits — every edit of a stage in ONE call. The server applies them one by one and builds the module.
  * @returns a line per edit — "✓ …" or "✗ … how to fix it" (the other edits still apply) — then "✓ form_build …" or the build errors, "Plan: …" and "Next:" with the code of the next call, or "Done: …" when the form is complete.
  * @example console.log(await reformer.formEdit({ dir: "form", edits: [
  *   { op: "add_field", name: "<key>", label: "<label of the task>", required: true },
@@ -546,7 +644,7 @@ export async function formStatusTool(
   const { directory, dir } = opened;
   let plan = parsePlan(directory.read(PLAN_FILE));
   if (!plan) return noPlan('form_status', dir, directory);
-  const lines: string[] = [];
+  const lines: string[] = [...guardIntent(plan, directory)];
   const optional = (stage: string): stage is StageId =>
     (OPTIONAL_STAGES as readonly string[]).includes(stage);
   // Этапы списком через запятую: модель снимала два сразу и получала отказ.
@@ -744,6 +842,7 @@ export async function formEditTool(
     );
   }
 
+  const guarded = guardIntent(plan, directory);
   const source = directory.read(INTENT_FILE);
   let raw: Record<string, unknown> = {};
   if (source !== null) {
@@ -753,11 +852,11 @@ export async function formEditTool(
         raw = parsed as Record<string, unknown>;
     } catch {
       return invalidCall(
-        `✗ form_edit: ${dir}/${INTENT_FILE} is not JSON — it was written by hand. Delete it and repeat the edits: form_edit writes it itself.`
+        `✗ form_edit: the form file in ${dir} is not JSON — it was written by hand. The form changes only with form_edit; start again with form_start.`
       );
     }
   }
-  const notes: string[] = editsNote ? [editsNote] : [];
+  const notes: string[] = [...guarded, ...(editsNote ? [editsNote] : [])];
   if (raw.formName === undefined) raw.formName = plan.formName;
   // Стек — из плана: модель, писавшая форму на core, ставила другой таргет и получала один отказ раз
   // за разом (батч 20261112T163051Z-ad08). Аргумент, который сервер знает, у модели не спрашивают.
@@ -822,6 +921,7 @@ export async function formEditTool(
   }
 
   directory.write(INTENT_FILE, formatIntentJson(applied.file));
+  plan = withIntent(plan, directory);
   directory.write(PLAN_FILE, serializePlan(plan));
 
   // Разметка core: по операции `markup` и при каждой правке, пока index.tsx — разметка сервера,
@@ -909,7 +1009,7 @@ export async function formBuildGuidedTool(
     const opened = openDir({ ...args, dir: args.dir ?? 'form' }, k, 'form_build');
     const plan = isOpened(opened) ? parsePlan(opened.directory.read(PLAN_FILE)) : null;
     const lines = [
-      'form_build: no grammar here — in this profile the form changes only with form_edit (flat edits); the server writes form.intent.json and the module.',
+      'form_build: no grammar here — in this profile the form changes only with form_edit (flat edits); the server writes every file of the form.',
     ];
     return {
       content: [
@@ -923,22 +1023,33 @@ export async function formBuildGuidedTool(
       ],
     };
   }
-  const before = openDir(args, k, 'form_build');
-  const planned = isOpened(before) ? parsePlan(before.directory.read(PLAN_FILE)) : null;
-  const restored =
-    planned && isOpened(before) ? restoreServerFiles(before.directory, planned.target) : [];
-  const built = await formBuildTool(args, k);
   const opened = openDir(args, k, 'form_build');
-  if (!isOpened(opened)) return built;
+  if (!isOpened(opened)) return opened;
   const { directory, dir } = opened;
   let plan = parsePlan(directory.read(PLAN_FILE));
-  if (!plan) return built;
+  if (!plan) {
+    // Ни плана, ни формы: обычная сборка ответила бы грамматикой с «напиши intent по ней» — в
+    // профиле это путь мимо правок. Форма есть (затравка, replay стенда) — собрать и назвать formStart.
+    if (directory.read(INTENT_FILE) === null) return noPlan('form_build', dir, directory);
+    const built = await formBuildTool(args, k);
+    const text = [
+      guidedBuildText(built.content[0]?.text ?? ''),
+      ...noPlanLines('form_build', dir, directory).slice(1),
+    ].join('\n');
+    return { ...built, content: [{ type: 'text', text }] };
+  }
+  const guarded = guardIntent(plan, directory);
+  const restored = restoreServerFiles(directory, plan.target);
+  const built = await formBuildTool(args, k);
   const buildText = guidedBuildText(built.content[0]?.text ?? '');
   const ok = built.isError !== true && buildText.startsWith('✓ form_build');
   plan = withBuild(plan, directory, buildText, ok);
   directory.write(PLAN_FILE, serializePlan(plan));
-  const text = [...restoredLine(restored), buildText, ...statusLines(plan, directory, dir)].join(
-    '\n'
-  );
+  const text = [
+    ...guarded,
+    ...restoredLine(restored),
+    buildText,
+    ...statusLines(plan, directory, dir),
+  ].join('\n');
   return { ...built, content: [{ type: 'text', text }] };
 }

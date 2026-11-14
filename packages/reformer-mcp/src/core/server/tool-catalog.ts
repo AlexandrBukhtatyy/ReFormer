@@ -265,6 +265,7 @@ export function createToolCatalog(
         const result = await runScriptTool(args, scriptTools, scriptCall, sandbox, {
           echoLast: guided,
           dropEmptyEdits: guided,
+          returnErrors: guided,
         });
         return guided ? withRunHint(result) : result;
       },

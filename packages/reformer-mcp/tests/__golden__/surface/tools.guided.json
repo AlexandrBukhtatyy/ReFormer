@@ -38,7 +38,7 @@
   },
   {
     "name": "form_edit",
-    "description": "Change the form with small edits; the server writes form.intent.json and builds the module (never write module files yourself). Edits are applied one by one: a rejected edit says how to fix it, the others still apply. \"edits\":[] just builds. Names, labels and texts come from the task.",
+    "description": "Change the form with small edits; the server keeps the form and builds the module — never write files of the form folder yourself. Edits are applied one by one: a rejected edit says how to fix it, the others still apply. \"edits\":[] just builds. Names, labels and texts come from the task.",
     "inputSchema": {
       "type": "object",
       "properties": {

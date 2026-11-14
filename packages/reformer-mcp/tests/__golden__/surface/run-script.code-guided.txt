@@ -1,4 +1,4 @@
-Run a script against the ReFormer form API. The global `reformer` (declared below) has async functions; each takes ONE object and returns the answer of the server as text. Write the BODY of an async function: `await` the calls and print every answer with `console.log` — only printed text and a `return`ed value come back to you. The server writes every file in the form folder (form.intent.json and the module): never write or rewrite them with file tools — change the form only with `reformer.formEdit`, every edit of a stage in ONE call. Plain JavaScript: no import, require, fs or network. A rejected call throws an Error whose message is the answer.
+Run a script against the ReFormer form API. The global `reformer` (declared below) has async functions; each takes ONE object and returns the answer of the server as text. Write the BODY of an async function: `await` the calls and print every answer with `console.log` — only printed text and a `return`ed value come back to you. The server writes every file in the form folder: never write or rewrite them with file tools — change the form only with `reformer.formEdit`, every edit of a stage in ONE call. Plain JavaScript: no import, require, fs or network. A call does not throw: its answer says ✓ or ✗ and what to do next.
 
 /** A stage of the plan. */
 type Stage = "arrays" | "wizard" | "validation" | "cross" | "behavior";
@@ -241,7 +241,7 @@ declare const reformer: {
   }): Promise<string>;
 
   /**
-   * Change the form with a list of edits — every edit of a stage in ONE call. The server applies them one by one, writes form.intent.json and builds the module.
+   * Change the form with a list of edits — every edit of a stage in ONE call. The server applies them one by one and builds the module.
    * @returns a line per edit — "✓ …" or "✗ … how to fix it" (the other edits still apply) — then "✓ form_build …" or the build errors, "Plan: …" and "Next:" with the code of the next call, or "Done: …" when the form is complete.
    * @example console.log(await reformer.formEdit({ dir: "form", edits: [
    *   { op: "add_field", name: "<key>", label: "<label of the task>", required: true },

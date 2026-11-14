@@ -64,7 +64,7 @@ export const CODE_MODE_INSTRUCTIONS =
  * `form_start`, дальше только `form_edit` по строке `Next:`.
  */
 export const GUIDED_INSTRUCTIONS =
-  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text, word for word>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server writes form.intent.json and builds the module; never write module files yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
+  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text, word for word>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server keeps the form and builds the module; never write files of the form folder yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
 
 /**
  * Инструкции связки Code Mode и guided: шаги называет сервер, как в {@link GUIDED_INSTRUCTIONS},
@@ -74,7 +74,7 @@ export const GUIDED_INSTRUCTIONS =
  * (батч 20261114T113832Z-68e8).
  */
 export const CODE_GUIDED_INSTRUCTIONS =
-  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. Start every form task with run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` — also when the form already lies in the folder and the task changes it; a task that names a markdown spec file also passes specPath. Then change the form only with reformer.formEdit — the server writes form.intent.json and the module; never write files in the form folder yourself. Every answer ends with "Next:" and a line of code — run it and print the result. Stop only when an answer says "Done".';
+  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. Start every form task with run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` — also when the form already lies in the folder and the task changes it; a task that names a markdown spec file also passes specPath. Then change the form only with reformer.formEdit — the server writes every file of the form; never write files in the form folder yourself. Every answer ends with "Next:" and a line of code — run it and print the result. Stop only when an answer says "Done".';
 
 /**
  * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`), guided (план и

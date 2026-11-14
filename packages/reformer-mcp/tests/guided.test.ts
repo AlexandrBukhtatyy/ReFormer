@@ -33,6 +33,7 @@ import {
   formEditTool,
   formStartTool,
   formStatusTool,
+  guidedBuildText,
 } from '../src/core/tools/guided';
 import { createCliFormWorkspace, TYPECHECK_ROOT_ENV } from '../src/platform/cli/form-workspace';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
@@ -1729,7 +1730,7 @@ describe('сквозной путь', () => {
   );
 
   it(
-    'стек — из плана: чужой target в intent возвращается к плану',
+    'intent, написанный руками, сервер убирает: форма меняется только правками',
     async () => {
       await formStartTool({ dir: 'form', target: 'core', task: 'Вход: логин и пароль' }, knowledge);
       writeFileSync(
@@ -1737,11 +1738,22 @@ describe('сквозной путь', () => {
         JSON.stringify({ formName: 'Вход', target: 'renderer-react', fields: [] })
       );
       const result = await formEditTool(
-        { dir: 'form', edits: [{ op: 'add_field', name: 'login' }] },
+        { dir: 'form', edits: [{ op: 'add_field', name: 'login', label: 'Логин' }] },
         knowledge
       );
-      expect(text(result)).toMatch(/target set back to core/);
-      expect(JSON.parse(file('form.intent.json')).target).toBe('core');
+      expect(text(result)).toMatch(/written by hand — the server put its own version back/);
+      const intent = JSON.parse(file('form.intent.json'));
+      expect(intent.target).toBe('core');
+      expect(intent.fields.map((f: { name: string }) => f.name)).toEqual(['login']);
+
+      // Правка руками после правки сервера — назад к версии сервера, и в formStatus тоже.
+      writeFileSync(
+        join(project, 'form', 'form.intent.json'),
+        JSON.stringify({ formName: 'Вход', target: 'core', fields: [], cross: 'x' })
+      );
+      const status = await formStatusTool({ dir: 'form' }, knowledge);
+      expect(text(status)).toMatch(/written by hand — the server put its own version back/);
+      expect(JSON.parse(file('form.intent.json')).fields).toHaveLength(1);
     },
     SLOW
   );
@@ -2468,6 +2480,8 @@ describe('правка готовой формы и спецификация: с
         withSpec
       );
       expect(text(start)).toMatch(/"specPath" taken from the task: form\/spec\.md/);
+      expect(text(start)).toMatch(/✓ the server drafted the form from form\/spec\.md/);
+      expect(text(start)).not.toMatch(/form\.intent\.json|by hand/);
       expect(JSON.parse(file('form.plan.json'))).toMatchObject({
         source: 'spec',
         specPath: 'form/spec.md',
@@ -2493,4 +2507,122 @@ describe('правка готовой формы и спецификация: с
     },
     SLOW
   );
+});
+
+describe('модель не видит файлов формы', () => {
+  it('ответ сборки — словами правок: без имени intent, списка файлов и «правь руками»', () => {
+    const raw = [
+      '✗ form_build: type errors: 1 — nothing written.',
+      '- form.validation.ts:11 Expression expected. → fix form.intent.json — the build writes form.validation.ts',
+      '- form.behavior.ts:9 Type mismatch. → fix form.intent.json — the build writes form.behavior.ts',
+      '✗ form_build: form.intent.json is not read in full — nothing written.',
+      'Folder form: api.ts, form.intent.json, index.tsx.',
+      'The build does not know the task: check the intent against it, especially cross-field rules and dependency tables.',
+      '⚠️ Your operators are still stubs: api.ts. A stub rule passes any value. Write the bodies there yourself (Edit).',
+      'Edited by hand and left as is: model.ts. The build no longer updates them; delete a file to put it back under the build.',
+      '- Send the intent with report_issue: the build must answer with diagnostics, not crash.',
+    ].join('\n');
+    const text = guidedBuildText(raw);
+    expect(text).not.toMatch(/form\.intent\.json|Folder |the intent|\(Edit\)|by hand|report_issue/);
+    expect(text).toMatch(/Expression expected\. → fix it with form_edit: add_rule again/);
+    expect(text).toMatch(/Type mismatch\. → fix it with form_edit: add_behavior again/);
+    expect(text).toMatch(/the form is not read in full/);
+    expect(text).toMatch(/operators that are stubs/);
+  });
+
+  it('pattern(…) без слэшей — литерал; фраза, кончающаяся на $, — отказ', () => {
+    const form = (): Rec => ({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: [{ name: 'login', type: 'string', component: 'Input', label: 'Логин' }],
+    });
+    const rulesOf = (rule: string) => {
+      const { file, outcomes } = applyEdits(
+        form(),
+        [{ op: 'add_rule', field: 'login', rule }],
+        ctx()
+      );
+      return {
+        ok: outcomes[0].ok,
+        message: outcomes[0].message,
+        rules: JSON.stringify(file.validation),
+      };
+    };
+    expect(rulesOf('pattern(^[a-zA-Z0-9_]{3,20}$)').rules).toContain(
+      'pattern(/^[a-zA-Z0-9_]{3,20}$/)'
+    );
+    expect(rulesOf("pattern('^[a-z]+$')").rules).toContain('pattern(/^[a-z]+$/)');
+    expect(rulesOf('pattern(/^x$/i)').rules).toContain('pattern(/^x$/i)');
+    const sentence = rulesOf('length >= 6 && pattern ^[a-zA-Z0-9_-]{6}$');
+    expect(sentence).toMatchObject({ ok: false });
+    expect(sentence.message).toMatch(/is not a validator call/);
+    const broken = rulesOf('pattern(^[a-z)');
+    expect(broken).toMatchObject({ ok: false });
+    expect(broken.message).toMatch(/not a valid regular expression/);
+  });
+
+  describe('через сервер', () => {
+    let project: string;
+    const previousRoot = process.env[TYPECHECK_ROOT_ENV];
+    const answer = (result: { content: Array<{ type: string; text?: string }> }) =>
+      result.content.map((block) => (block.type === 'text' ? (block.text ?? '') : '')).join('\n');
+    beforeAll(() => {
+      process.env[TYPECHECK_ROOT_ENV] = repoRoot;
+    });
+    afterAll(() => {
+      if (previousRoot === undefined) delete process.env[TYPECHECK_ROOT_ENV];
+      else process.env[TYPECHECK_ROOT_ENV] = previousRoot;
+    });
+    beforeEach(() => {
+      project = mkdtempSync(join(tmpdir(), 'guided-files-'));
+      writeFileSync(
+        join(project, 'package.json'),
+        JSON.stringify({ name: 'consumer', dependencies: { '@reformer/core': '*' } })
+      );
+    });
+    afterEach(() => rmSync(project, { recursive: true, force: true }));
+    const knowledgeOf = (): Knowledge => ({
+      ...cliKnowledge(),
+      forms: createCliFormWorkspace(project),
+    });
+
+    it(
+      'formBuild без плана и без формы ведёт в formStart, а не отдаёт грамматику',
+      async () => {
+        const result = await formBuildGuidedTool({ dir: 'form' }, knowledgeOf());
+        expect(answer(result)).toMatch(/no plan yet — start the form first/);
+        expect(answer(result)).not.toMatch(/grammar|Write it by/);
+      },
+      SLOW
+    );
+
+    it(
+      'code-guided: сбой сборки после применённых правок — ответ, а не исключение скрипта',
+      async () => {
+        const catalog = createToolCatalog(knowledgeOf, {
+          profile: 'node',
+          guided: true,
+          codeMode: createQuickJsSandbox(),
+        });
+        await catalog.call(RUN_SCRIPT_TOOL, {
+          code: 'console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "Форма: a, b, c" }))',
+        });
+        const result = await catalog.call(RUN_SCRIPT_TOOL, {
+          code: `console.log(await reformer.formEdit({ dir: "form", edits: [
+            { op: "add_field", name: "a", label: "A" },
+            { op: "add_field", name: "b", label: "B" },
+            { op: "add_field", name: "c", label: "C" },
+            { op: "add_behavior", kind: "disableWhen", target: "c", expr: "model.a || model.b" },
+          ] }))`,
+        });
+        const text = answer(result as never);
+        expect(text).toMatch(/form_edit: 4 of 4 edits applied/);
+        expect(text).toMatch(/✗ form_build/);
+        expect(text).not.toMatch(/script error/);
+        expect(text).not.toMatch(/form\.intent\.json/);
+        expect(result.isError).not.toBe(true);
+      },
+      SLOW
+    );
+  });
 });
