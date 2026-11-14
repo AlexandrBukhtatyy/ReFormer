@@ -102,7 +102,10 @@ function processRow(batch, record) {
       builds.push({ ok: written > 0 });
     }
     if (entry.name === 'run_script') {
-      const innerBuilds = (entry.inner ?? []).filter((inner) => inner.name === 'form_build').length;
+      // В связке с guided сборку делает и вложенный form_edit.
+      const innerBuilds = (entry.inner ?? []).filter(
+        (inner) => inner.name === 'form_build' || inner.name === 'form_edit'
+      ).length;
       const grammarOnly =
         /grammar/.test(args) && !/formBuild\(\s*\{\s*dir/.test(args) ? innerBuilds : 0;
       for (let i = 0; i < innerBuilds - grammarOnly; i++) builds.push({ ok: i < written });

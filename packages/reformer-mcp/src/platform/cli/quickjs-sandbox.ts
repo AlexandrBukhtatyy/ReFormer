@@ -256,7 +256,7 @@ function installApi(
 ): void {
   const api = context.newObject();
   for (const [name, implementation] of Object.entries(functions)) {
-    const fn = context.newFunction(name, (argument) => {
+    const fn = context.newFunction(name, (argument, ...rest) => {
       const value: unknown = argument === undefined ? undefined : context.dump(argument);
       const deferred = context.newPromise();
       pending.add(deferred);
@@ -269,7 +269,17 @@ function installApi(
         pending.delete(deferred);
         continueScript();
       };
-      implementation(value).then(
+      // Второй аргумент функция не читает: правки во втором объекте молча терялись, а модель видела
+      // «✓» (L2-registration-lite, 20261113T202315Z-dab0) — теперь это ошибка вызова.
+      const called =
+        rest.length > 0
+          ? Promise.reject(
+              new Error(
+                `reformer.${name} takes ONE object — put everything into it, e.g. reformer.${name}({ dir: "form", edits: [ … ] }); ${rest.length} more argument(s) ignored`
+              )
+            )
+          : implementation(value);
+      called.then(
         (text) => settle(true, text),
         (error: unknown) => settle(false, String((error as Error)?.message ?? error))
       );

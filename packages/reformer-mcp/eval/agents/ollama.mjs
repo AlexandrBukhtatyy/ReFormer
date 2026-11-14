@@ -217,8 +217,11 @@ const toFunction = (tool) => ({
  */
 export const KEEP_WHOLE_TOOLS = new Set(['plan_form', 'form_build', 'form_start']);
 
-/** Code Mode: скрипт, вызвавший сборку или черновик intent, несёт в ответе их текст. */
-const BUILD_IN_SCRIPT = /reformer\s*\.\s*(formBuild|planForm)\s*\(/;
+/**
+ * Code Mode: скрипт, вызвавший сборку или черновик intent, несёт в ответе их текст. В связке с
+ * guided сборку делает и formEdit, а план — formStart.
+ */
+const BUILD_IN_SCRIPT = /reformer\s*\.\s*(formBuild|planForm|formStart|formEdit)\s*\(/;
 
 /**
  * Держать ли ответ целиком. В Code Mode грамматика и диагностика `form_build` приходят ответом

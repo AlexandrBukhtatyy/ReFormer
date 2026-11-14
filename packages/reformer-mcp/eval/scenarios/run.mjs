@@ -271,6 +271,13 @@ console.log(
 
 const outcomes = [];
 let spentUsd = 0;
+// Потраченные токены батча: вход — сумма по всем шагам (контекст каждого шага), выход — ответы модели.
+const spentTokens = { input: 0, output: 0 };
+
+/** Токены строкой: 15887 → «15.9k». */
+function tokens(count) {
+  return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
+}
 
 async function runCell(cell) {
   const { scenario, target, agent, approachId, index } = cell;
@@ -347,6 +354,8 @@ async function runCell(cell) {
     },
   });
   spentUsd += result.costUsd ?? 0;
+  spentTokens.input += result.usage?.inputTokens ?? 0;
+  spentTokens.output += result.usage?.outputTokens ?? 0;
   writeFileSync(path.join(runDirectory, 'final.txt'), result.finalText ?? '');
   snapshotWorkspace(workspaceDirectory, runDirectory);
 
@@ -401,7 +410,7 @@ async function runCell(cell) {
   });
   writeFileSync(path.join(runDirectory, 'verify.json'), JSON.stringify(verification, null, 2));
   console.log(
-    `${verification.verdict === 'pass' ? '✓' : '✗'} ${slug}: счёт ${verification.score}, ${Math.round(result.durationMs / 1000)} с, вызовов MCP ${metrics[0].value}${verification.failedGates.length ? `; не прошло: ${verification.failedGates.join(', ')}` : ''}`
+    `${verification.verdict === 'pass' ? '✓' : '✗'} ${slug}: счёт ${verification.score}, ${Math.round(result.durationMs / 1000)} с, вызовов MCP ${metrics[0].value}, токенов ${tokens(result.usage?.inputTokens ?? 0)} вход / ${tokens(result.usage?.outputTokens ?? 0)} выход${verification.failedGates.length ? `; не прошло: ${verification.failedGates.join(', ')}` : ''}`
   );
   outcomes.push({
     slug,
@@ -460,7 +469,7 @@ if (withBrowser) {
 const passed = records.filter((record) => record.verdict === 'pass').length;
 const invalid = records.filter((record) => record.verdict === 'invalid').length;
 console.log(
-  `\nИтог: прошло ${passed}/${records.length - invalid}${invalid ? `, недействительно ${invalid}` : ''}. Оценка стоимости: $${spentUsd.toFixed(2)}.`
+  `\nИтог: прошло ${passed}/${records.length - invalid}${invalid ? `, недействительно ${invalid}` : ''}. Токенов: ${tokens(spentTokens.input)} вход / ${tokens(spentTokens.output)} выход. Оценка стоимости: $${spentUsd.toFixed(2)}.`
 );
 console.log(recordsSummary(local, batchId));
 

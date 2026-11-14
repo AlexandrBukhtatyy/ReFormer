@@ -20,7 +20,7 @@ import {
   observeCall,
   type ReformerServerCall,
 } from '../../core/server/mount.js';
-import { createResourceCatalog } from '../../core/server/resource-catalog.js';
+import { createResourceCatalog, type ResourceCatalog } from '../../core/server/resource-catalog.js';
 import { createToolCatalog } from '../../core/server/tool-catalog.js';
 import { cliKnowledge } from './knowledge.js';
 import { createQuickJsSandbox } from './quickjs-sandbox.js';
@@ -64,13 +64,31 @@ export const CODE_MODE_INSTRUCTIONS =
  * `form_start`, дальше только `form_edit` по строке `Next:`.
  */
 export const GUIDED_INSTRUCTIONS =
-  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server writes form.intent.json and builds the module; never write module files yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
+  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text, word for word>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server writes form.intent.json and builds the module; never write module files yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
 
 /**
- * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`) или guided
- * (план и правки для малых моделей).
+ * Инструкции связки Code Mode и guided: шаги называет сервер, как в {@link GUIDED_INSTRUCTIONS},
+ * но вызовы — функции `reformer.*` внутри `run_script`. Строки `Next:` приходят уже кодом скрипта.
  */
-export type ServerSurface = 'tools' | 'code' | 'guided';
+export const CODE_GUIDED_INSTRUCTIONS =
+  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. To create a ReFormer form: run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` once. Then change the form only with reformer.formEdit — the server writes form.intent.json and builds the module; never write module files yourself. Every answer ends with "Next:" and a line of code — run it in run_script and print the result. Stop only when an answer says "Done".';
+
+/**
+ * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`), guided (план и
+ * правки для малых моделей) или их связка `code-guided` (API guided внутри `run_script`).
+ */
+/** Пустой каталог ресурсов — для профилей guided. */
+const NO_RESOURCES: ResourceCatalog = {
+  list: () => [],
+  templates: () => [],
+  read: (uri: string) => {
+    throw new Error(
+      `No resources in this profile (${uri}): the server plans the form — follow "Next:" of the last answer.`
+    );
+  },
+};
+
+export type ServerSurface = 'tools' | 'code' | 'guided' | 'code-guided';
 
 export interface NodeServerOptions {
   readonly version: string;
@@ -93,8 +111,8 @@ type AnyPromptDefinition =
 
 export function createNodeServer(options: NodeServerOptions): Server {
   const { version, debug, onCall } = options;
-  const codeMode = options.surface === 'code';
-  const guided = options.surface === 'guided';
+  const codeMode = options.surface === 'code' || options.surface === 'code-guided';
+  const guided = options.surface === 'guided' || options.surface === 'code-guided';
 
   const server = new Server(
     {
@@ -114,11 +132,14 @@ export function createNodeServer(options: NodeServerOptions): Server {
       // Без этого агенты на больших формах шли за справкой и писали код вручную: выбор пути
       // без подсказки в задании проверен прогонами (docs/plans/mcp-misty-graham.md). Путь один
       // (7.0): intent → form_build; грамматика — по запросу, без проекта (аудит 2026-11, A1/A6).
-      instructions: codeMode
-        ? CODE_MODE_INSTRUCTIONS
-        : guided
-          ? GUIDED_INSTRUCTIONS
-          : SERVER_INSTRUCTIONS,
+      instructions:
+        codeMode && guided
+          ? CODE_GUIDED_INSTRUCTIONS
+          : codeMode
+            ? CODE_MODE_INSTRUCTIONS
+            : guided
+              ? GUIDED_INSTRUCTIONS
+              : SERVER_INSTRUCTIONS,
     }
   );
 
@@ -138,7 +159,9 @@ export function createNodeServer(options: NodeServerOptions): Server {
         ...(codeMode ? { codeMode: createQuickJsSandbox() } : {}),
         ...(guided ? { guided: true } : {}),
       }),
-      resources: createResourceCatalog(cliKnowledge, { debug }),
+      // В профилях guided справки нет и в ресурсах: модель читала reformer://docs/… по десять раз и
+      // писала index.tsx руками с выдуманным API (L3-delivery, 20261113T230859Z-f59e).
+      resources: guided ? NO_RESOURCES : createResourceCatalog(cliKnowledge, { debug }),
     },
     { onCall }
   );

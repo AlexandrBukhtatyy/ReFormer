@@ -20,7 +20,7 @@
         },
         "task": {
           "type": "string",
-          "description": "The task text, as given."
+          "description": "The task text word for word, in its own language: do not translate or retell it."
         },
         "specPath": {
           "type": "string",
@@ -48,7 +48,7 @@
         },
         "edits": {
           "type": "array",
-          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · markup (core: the server writes index.tsx)",
+          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?} · remove_rule {field,rule?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · markup (core: the server writes index.tsx)",
           "items": {
             "type": "object",
             "properties": {
@@ -63,7 +63,9 @@
                   "add_step",
                   "place",
                   "add_rule",
+                  "remove_rule",
                   "add_behavior",
+                  "remove_behavior",
                   "add_visibility",
                   "set_form",
                   "markup"
@@ -158,6 +160,9 @@
               "cross": {
                 "type": "string"
               },
+              "equals": {
+                "type": "string"
+              },
               "when": {
                 "type": "string"
               },
@@ -213,7 +218,7 @@
   },
   {
     "name": "form_status",
-    "description": "The plan of the form: which stages are done, whether the last build passed, the next call. \"skip\" drops a stage the task does not need (validation, cross, behavior, arrays, wizard).",
+    "description": "The plan of the form: which stages are done, whether the last build passed, the next call. \"skip\" drops a stage the task does not need, \"add\" adds one it needs (validation, cross, behavior, arrays, wizard).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -230,6 +235,23 @@
             "cross",
             "behavior"
           ]
+        },
+        "add": {
+          "type": "string",
+          "enum": [
+            "arrays",
+            "wizard",
+            "validation",
+            "cross",
+            "behavior"
+          ]
+        },
+        "confirm": {
+          "type": "string",
+          "enum": [
+            "validation"
+          ],
+          "description": "The rules were checked against the task: every limit it names has a rule."
         }
       },
       "required": []
@@ -237,17 +259,13 @@
   },
   {
     "name": "form_build",
-    "description": "Build a form module on disk from <dir>/form.intent.json: compiles it, cross-checks it, type-checks the result and WRITES all module files itself, returning only diagnostics. You author and edit only form.intent.json with your own Write/Edit; nothing is written while errors remain. Start with {\"grammar\":\"base\"} — the intent grammar, no project or file needed; further sections on demand. Keep the requested stack in \"target\": on core you also write the JSX markup in index.tsx.",
+    "description": "Build the module again from the current form files. form_edit already builds after every edit — call this only when an answer asks to build. The answer ends with the plan and \"Next:\".",
     "inputSchema": {
       "type": "object",
       "properties": {
         "dir": {
           "type": "string",
-          "description": "Form folder, relative to the working directory (default \"form\"; required at a monorepo root)."
-        },
-        "grammar": {
-          "type": "string",
-          "description": "Return the intent grammar instead of building: \"base\", a section (behavior, arrays, wizard, cross, async, parts, operators, nodes), several comma-separated, or \"all\"; \"components:Card,Tabs\" — parts and props of kit components."
+          "description": "Form folder (default \"form\")."
         }
       },
       "required": []

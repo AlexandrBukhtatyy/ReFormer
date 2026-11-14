@@ -82,6 +82,37 @@ function textOf(result: CallToolResult): string {
 const NO_OUTPUT =
   '(the script printed nothing — print what you need with console.log, or return a value)';
 
+export interface RunScriptOptions {
+  /**
+   * Скрипт ничего не напечатал — отдать ответ последнего вызова. Связка с guided: малая модель
+   * часто вызывала `formStart` без `console.log` и тратила шаг, чтобы узнать план.
+   */
+  readonly echoLast?: boolean;
+  /** Пустой второй `edits` в вызове `formEdit` выбросить — см. {@link dropEmptyEdits}. */
+  readonly dropEmptyEdits?: boolean;
+}
+
+/**
+ * Вызов `formEdit({ …, "edits":[…], "edits":[] })`: в JS побеждает последний ключ, и правки тихо
+ * терялись — модель приписывала пустой список из строки «собрать», трижды слала одно правило и не
+ * видела его (L3-refund, 20261113T210742Z-5a45). Пустой `edits` при другом `edits` в том же вызове
+ * выбрасывается до запуска.
+ */
+export function dropEmptyEdits(code: string): { code: string; dropped: number } {
+  let dropped = 0;
+  const key = String.raw`["']?edits["']?\s*:`;
+  const parts = code.split(/(?=\bformEdit\s*\()/);
+  const out = parts.map((part) => {
+    if (!/^formEdit\s*\(/.test(part)) return part;
+    if ((part.match(new RegExp(key, 'g')) ?? []).length < 2) return part;
+    return part.replace(new RegExp(String.raw`,\s*${key}\s*\[\s*\]`, 'g'), () => {
+      dropped++;
+      return '';
+    });
+  });
+  return { code: out.join(''), dropped };
+}
+
 /**
  * Исполнить `run_script`.
  *
@@ -94,7 +125,8 @@ export async function runScriptTool(
   args: Record<string, unknown> | undefined,
   tools: readonly ToolDefinition[],
   callTool: (name: string, args: Record<string, unknown>) => Promise<CallToolResult>,
-  sandbox: ScriptSandbox
+  sandbox: ScriptSandbox,
+  options: RunScriptOptions = {}
 ): Promise<CallToolResult> {
   const code = args?.code;
   if (typeof code !== 'string' || code.trim() === '') {
@@ -105,6 +137,7 @@ export async function runScriptTool(
   }
 
   const inner: InnerCall[] = [];
+  let last: { fn: string; text: string } | undefined;
   const functions: Record<string, ScriptFunction> = {};
   for (const tool of tools) {
     const fn = functionName(tool.name);
@@ -120,6 +153,7 @@ export async function runScriptTool(
       const started = Date.now();
       const result = await callTool(tool.name, (value ?? {}) as Record<string, unknown>);
       const text = textOf(result);
+      last = { fn, text };
       inner.push({
         name: tool.name,
         ok: result.isError !== true,
@@ -131,11 +165,24 @@ export async function runScriptTool(
     };
   }
 
-  const outcome = await sandbox.run(code, functions);
-  const parts = [...outcome.logs];
+  const fixed = options.dropEmptyEdits ? dropEmptyEdits(code) : { code, dropped: 0 };
+  const outcome = await sandbox.run(fixed.code, functions);
+  const parts = [
+    ...(fixed.dropped > 0
+      ? [
+          `(a second, empty "edits":[] dropped — in JS it replaced the edits of the same call; one "edits" per call)`,
+        ]
+      : []),
+    ...outcome.logs,
+  ];
   if (outcome.returned !== undefined) parts.push(outcome.returned);
   if (outcome.error !== undefined) parts.push(`✗ script error: ${outcome.error}`);
-  const text = parts.length > 0 ? parts.join('\n') : NO_OUTPUT;
+  const text =
+    parts.length > 0
+      ? parts.join('\n')
+      : options.echoLast && last
+        ? `(the script printed nothing — reformer.${last.fn} answered:)\n${last.text}`
+        : NO_OUTPUT;
   return {
     content: [{ type: 'text', text }],
     ...(outcome.error !== undefined ? { isError: true } : {}),

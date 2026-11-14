@@ -6,8 +6,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { keepsWhole, truncateOldResults } from '../eval/agents/ollama.mjs';
-import { apiDeclaration, functionName } from '../src/core/codemode/declaration';
+import { apiDeclaration, asScriptCalls, functionName } from '../src/core/codemode/declaration';
 import {
+  dropEmptyEdits,
   INNER_CALLS_META,
   RUN_SCRIPT_TOOL,
   runScriptTool,
@@ -159,6 +160,15 @@ describe('стенд Ollama: что держится целиком', () => {
     );
   });
 
+  it('связка с guided: план и правки со сборкой держатся целиком', () => {
+    expect(keepsWhole('run_script', { code: 'console.log(await reformer.formStart({}))' })).toBe(
+      true
+    );
+    expect(keepsWhole('run_script', { code: 'console.log(await reformer.formEdit({}))' })).toBe(
+      true
+    );
+  });
+
   it('усечение пропускает отмеченные ответы', () => {
     const long = 'x'.repeat(5000);
     const keptMessage = { role: 'tool', tool_name: 'run_script', content: long };
@@ -174,5 +184,37 @@ describe('стенд Ollama: что держится целиком', () => {
     const kept = new WeakSet([keptMessage]);
     expect(truncateOldResults(messages, kept)).toBe(1);
     expect(keptMessage.content).toHaveLength(5000);
+  });
+});
+
+describe('строки вызовов кодом скрипта', () => {
+  it('вызов с объектом переписан, упоминание без объекта и строка сборки — нет', () => {
+    const text = [
+      'Change the form ONLY with form_edit: it builds.',
+      '✓ form_build: written 8, unchanged 0.',
+      'form_edit {"dir":"form","edits":[{"op":"add_field","name":"a"}]}',
+      'The task has no validation? form_status {"dir":"form","skip":"validation"}',
+    ].join('\n');
+    expect(asScriptCalls(text, ['form_edit', 'form_status', 'form_build']).split('\n')).toEqual([
+      'Change the form ONLY with form_edit: it builds.',
+      '✓ form_build: written 8, unchanged 0.',
+      'await reformer.formEdit({"dir":"form","edits":[{"op":"add_field","name":"a"}]})',
+      'The task has no validation? await reformer.formStatus({"dir":"form","skip":"validation"})',
+    ]);
+  });
+});
+
+describe('пустой второй edits в вызове formEdit', () => {
+  it('выбрасывается, если в том же вызове есть другой edits; одиночный пустой — нет', () => {
+    const code = [
+      'console.log(await reformer.formEdit({ "dir": "form", "edits": [{ "op": "add_rule", "field": "c" }], "edits": [] }))',
+      'console.log(await reformer.formEdit({ dir: "form", edits: [] }))',
+    ].join('\n');
+    const { code: fixed, dropped } = dropEmptyEdits(code);
+    expect(dropped).toBe(1);
+    expect(fixed.split('\n')).toEqual([
+      'console.log(await reformer.formEdit({ "dir": "form", "edits": [{ "op": "add_rule", "field": "c" }] }))',
+      'console.log(await reformer.formEdit({ dir: "form", edits: [] }))',
+    ]);
   });
 });

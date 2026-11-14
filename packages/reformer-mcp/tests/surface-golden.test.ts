@@ -161,3 +161,18 @@ describe('тексты профиля node — один путь (аудит 202
     await expect(guide).toMatchFileSnapshot('__golden__/surface/guide.md');
   });
 });
+
+describe('поверхность профилей guided', () => {
+  it('ресурсов-справки нет: только run_script или инструменты guided', async () => {
+    for (const surface of ['guided', 'code-guided'] as const) {
+      const server = createNodeServer({ version: '0.0.0', debug: false, surface });
+      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+      await server.connect(serverTransport);
+      const client = new Client({ name: `surface-${surface}`, version: '0.0.0' });
+      await client.connect(clientTransport);
+      expect((await client.listResources()).resources).toEqual([]);
+      expect((await client.listResourceTemplates()).resourceTemplates).toEqual([]);
+      await client.close();
+    }
+  });
+});

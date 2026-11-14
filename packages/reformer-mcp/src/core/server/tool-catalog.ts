@@ -32,6 +32,8 @@ import { debugTool, debugToolDefinition } from '../tools/debug.js';
 import { findRecipeTool, findRecipeToolDefinition } from '../tools/find-recipe.js';
 import { formBuildTool, formBuildToolDefinition } from '../tools/form-build.js';
 import {
+  formBuildGuidedTool,
+  formBuildGuidedToolDefinition,
   formEditTool,
   formEditToolDefinition,
   formStartTool,
@@ -53,6 +55,7 @@ import {
   runScriptToolDefinition,
   type ScriptSandbox,
 } from '../codemode/run-script.js';
+import { asScriptCalls } from '../codemode/declaration.js';
 
 /** Объявление инструмента — в том виде, в каком его отдаёт `tools/list`. */
 export interface ToolDefinition {
@@ -81,6 +84,7 @@ export interface ToolCatalogOptions {
    * Профиль guided (эксперимент, `REFORMER_SURFACE=guided`) для малых моделей: план от сервера
    * (`form_start`), плоские правки со сборкой (`form_edit`), состояние (`form_status`) и
    * `form_build`. Справочных инструментов нет: малая модель уходила в них с пути сборки.
+   * Вместе с `codeMode` — связка `REFORMER_SURFACE=code-guided`: эти четыре функции в `run_script`.
    */
   readonly guided?: boolean;
 }
@@ -119,7 +123,7 @@ export function createToolCatalog(
           formStartToolDefinition,
           formEditToolDefinition,
           formStatusToolDefinition,
-          formBuildToolDefinition,
+          formBuildGuidedToolDefinition,
         ];
       }
       const tools: ToolDefinition[] = [
@@ -148,7 +152,7 @@ export function createToolCatalog(
           case 'form_status':
             return await formStatusTool(args ?? {}, knowledge());
           case 'form_build':
-            return await formBuildTool(args ?? {}, knowledge());
+            return await formBuildGuidedTool(args ?? {}, knowledge());
         }
         throw new Error(`Unknown tool: ${name}`);
       }
@@ -233,14 +237,55 @@ export function createToolCatalog(
     // повторов: меняется только форма подачи, не знание.
     const scriptTools = catalog.list();
     const runScript = runScriptToolDefinition(scriptTools);
+    // Связка с guided: строки `Next:` называют вызов инструмента — скрипту их отдают кодом, который
+    // можно вставить как есть. Обычный Code Mode не трогается: его замеры остаются сравнимыми.
+    const toolNames = scriptTools.map((tool) => tool.name);
+    const scriptCall = guided
+      ? async (name: string, args: Record<string, unknown>) => {
+          const result = await observed(name, args);
+          return {
+            ...result,
+            content: result.content.map((block) =>
+              block.type === 'text'
+                ? { ...block, text: asScriptCalls(block.text, toolNames) }
+                : block
+            ),
+          };
+        }
+      : observed;
     return {
       list: () => [runScript],
       async call(name, args) {
         if (name !== RUN_SCRIPT_TOOL) throw new Error(`Unknown tool: ${name}`);
-        return runScriptTool(args, scriptTools, observed, sandbox);
+        const result = await runScriptTool(args, scriptTools, scriptCall, sandbox, {
+          echoLast: guided,
+          dropEmptyEdits: guided,
+        });
+        return guided ? withRunHint(result) : result;
       },
     };
   }
 
   return { list: () => catalog.list(), call: observed };
+}
+
+/**
+ * Ответ со следующим вызовом, но без «Done» — напоминание, что вызов идёт через `run_script`. Малая
+ * модель трижды отвечала блоком кода в сообщении вместо вызова, и прогон кончался на первом шаге
+ * (пошаговый план, 20261113T224423Z-b31c).
+ */
+const RUN_HINT = '→ Run that call with run_script: code written in a message runs nothing.';
+
+function withRunHint(result: CallToolResult): CallToolResult {
+  const text = result.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n');
+  if (!/await reformer\.\w+\(/.test(text) || /^Done:/m.test(text)) return result;
+  const last = result.content.map((block) => block.type).lastIndexOf('text');
+  return {
+    ...result,
+    content: result.content.map((block, index) =>
+      index === last && block.type === 'text'
+        ? { ...block, text: `${block.text}\n${RUN_HINT}` }
+        : block
+    ),
+  };
 }

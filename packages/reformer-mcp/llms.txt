@@ -316,6 +316,11 @@ A surface for small local models: the server plans the work and builds; the mode
 small edits. It lists four tools — `form_start`, `form_edit`, `form_status`, `form_build` — and
 no reference tools. Every answer ends with `Next:` — one exact call — until `Done`.
 
+`REFORMER_SURFACE=code-guided` puts the same API inside Code Mode — one `run_script` tool, the
+functions are `reformer.formStart`, `reformer.formEdit`, `reformer.formStatus`,
+`reformer.formBuild`. The `Next:` lines come as code (`await reformer.formEdit({…})`); a script
+that prints nothing gets the answer of its last call.
+
 - **`form_start`** `{dir?, target, task? | specPath?, formName?}` — plans the stages from the
   task words or the spec (fields; rows, steps, validation, cross-field rules, reactions as
   needed; markup on core) and saves them to `<dir>/form.plan.json`. With `specPath` and no intent
@@ -324,26 +329,43 @@ no reference tools. Every answer ends with `Next:` — one exact call — until 
   same build as `form_build` (the answer holds its `✓`/`✗ form_build` lines). Edits apply one by
   one: a rejected edit says how to fix it, the others still apply; `"edits":[]` only builds.
 
-  | op                            | Keys                                                                                                                                                              |
-  | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | `add_field`, `set_field`      | `name`, `label`, `type` (string number boolean date), `options`, `mask`, `placeholder`, `readonly`, `component`, `step`; `set_field` with `array` — a row field   |
-  | `remove_field`                | `name` — also drops the rules on it                                                                                                                               |
-  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`                                                                                         |
-  | `add_step`, `place`           | `title`, `fields`; `name`, `step` (number, title or selector)                                                                                                     |
-  | `add_rule`                    | `field`, `array`, `required` `email` `phone` `url` `integer` (true), `min` `max` `minLength` `maxLength` (numbers), `pattern`, `rule`, `cross`, `when`, `message` |
-  | `add_behavior`                | `kind` (a core operator), `target`, `expr`, `array`, `when`, `resetOnDisable`; `sources` come from `expr`                                                         |
-  | `add_visibility`              | `field`, `showWhen` or `hideWhen` — renderer targets only                                                                                                         |
-  | `set_form`                    | `formName`                                                                                                                                                        |
-  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits                                                                             |
+  | op                            | Keys                                                                                                                                                                                        |
+  | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `add_field`, `set_field`      | `name`, `label`, `type` (string number boolean date), `options`, `mask`, `initialValue`, `placeholder`, `readonly`, `component`, `step`; `set_field` with `array` — a row field             |
+  | `remove_field`                | `name` — also drops the rules on it                                                                                                                                                         |
+  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`                                                                                                                   |
+  | `add_step`, `place`           | `title`, `fields`; `name`, `step` (number, title or selector)                                                                                                                               |
+  | `add_rule`                    | `field`, `array`, `required` `email` `phone` `url` `integer` (true), `min` `max` `minLength` `maxLength` (numbers), `pattern`, `rule`, `cross`, `equals` (another field), `when`, `message` |
+  | `remove_rule`                 | `field`, `rule` — one validator; without it every rule of the field                                                                                                                         |
+  | `add_behavior`                | `kind` (a core operator), `target`, `expr`, `array`, `when`, `resetOnDisable`; `sources` come from `expr`; the same behavior of the field is replaced                                       |
+  | `remove_behavior`             | `target`, `kind` — one kind; without it every behavior of the field                                                                                                                         |
+  | `add_visibility`              | `field` or `fields`, `showWhen` or `hideWhen` — renderer targets only                                                                                                                       |
+  | `set_form`                    | `formName`                                                                                                                                                                                  |
+  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits                                                                                                       |
 
   The server fills what it knows: the component by type, rule codes when a `message` is given,
-  `sources` from the expression, the target from the plan.
+  `sources` from the expression, the target from the plan. It also reads the usual slips: a
+  check written on the field becomes its rule, a mask also gets its format check, `min`/`max` of
+  a text are its length, a hand-written email pattern is `email`, choices written
+  `value — label` are split, a rule of a field shown on a condition is checked only while shown,
+  numbers of a formula are made null-safe. A name in `expr` or `when` that is not a field is
+  rejected with the list of fields.
 
-- **`form_status`** `{dir?, skip?}` — the stages, the last build, the next call; `skip` drops a
-  stage the task does not need.
+- **`form_status`** `{dir?, skip?, add?, confirm?}` — the stages, the last build, the next
+  call. `skip` drops a stage the task does not need (validation is not skipped when the form has
+  rules or the task names checks; behavior — when the task has a formula or a field shown on a
+  condition), `add` adds one it needs, `confirm: "validation"` closes the check of the form
+  against the task.
 
 A stage is done by the content of the intent, not by the model's word; `Done` needs a passing
-build on the current files with types checked.
+build on the current files with types checked. Validation ends with a check against the task: the
+answer shows the task, the fields and the rules, and names what differs — an input the task names
+`(name)` with no field, a field the task calls required with no `required` rule, a field the task
+shows on a condition with no visibility, a number of the task no rule uses (numbers of a formula
+and list markers do not count), a bound the task does not name, a mask not in the task's format, a
+default of the task without `initialValue`, labels not in the task's language — with a ready
+`form_edit` call where it can be derived. The first `confirm` with differences is refused; a second
+one is accepted.
 
 ---
 

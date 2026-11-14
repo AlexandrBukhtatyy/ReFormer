@@ -21,6 +21,27 @@ export function functionName(toolName: string): string {
   return toolName.replace(/_([a-z0-9])/g, (_, letter: string) => letter.toUpperCase());
 }
 
+/**
+ * Переписать строки вызовов в ответе инструмента кодом скрипта: `form_edit {"dir":"form"}` →
+ * `await reformer.formEdit({"dir":"form"})`. Объект берётся до последней `}` строки; JSON — уже
+ * литерал JS. Слово без `{` следом (`with form_edit:`, `✓ form_build: written`) не трогается: по
+ * строке сборки стенд считает сборки.
+ */
+export function asScriptCalls(text: string, toolNames: readonly string[]): string {
+  if (toolNames.length === 0) return text;
+  const names = toolNames.map((name) => name.replace(/[^\w]/g, '')).join('|');
+  const call = new RegExp(`\\b(${names}) (\\{.*\\})`, 'g');
+  return text
+    .split('\n')
+    .map((line) =>
+      line.replace(
+        call,
+        (_, name: string, object: string) => `await reformer.${functionName(name)}(${object})`
+      )
+    )
+    .join('\n');
+}
+
 type JsonSchema = Record<string, unknown>;
 
 const asSchema = (value: unknown): JsonSchema =>

@@ -17,5 +17,9 @@
   "guided": {
     "description": "Задание как у bare, сервер в профиле guided (REFORMER_SURFACE=guided): план от сервера (form_start), плоские правки со сборкой (form_edit), form_status и form_build; справочных инструментов нет.",
     "serverEnv": { "REFORMER_SURFACE": "guided" }
+  },
+  "code-guided": {
+    "description": "Задание как у bare, сервер — связка Code Mode и guided (REFORMER_SURFACE=code-guided): один run_script, в песочнице reformer.formStart/formEdit/formStatus/formBuild; строки Next: приходят кодом скрипта.",
+    "serverEnv": { "REFORMER_SURFACE": "code-guided" }
   }
 }

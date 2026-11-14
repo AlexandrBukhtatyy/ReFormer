@@ -14,9 +14,10 @@
  * @module reformer-mcp/core/guided/plan
  */
 
+import { formatTemplates, maskToPattern } from './edits.js';
 import { readIntent, type FormIntent, type ReformerTargetStack } from '../generate/form-intent.js';
 import { collectSteps } from '../generate/schema-emit.js';
-import type { TaskFeatures } from './features.js';
+import { behaviorWord, crossWord, validationWord, type TaskFeatures } from './features.js';
 
 export const PLAN_FILE = 'form.plan.json';
 
@@ -48,16 +49,39 @@ export interface GuidedPlan {
   readonly target: ReformerTargetStack;
   readonly source: 'task' | 'spec';
   readonly specPath?: string;
+  /**
+   * Текст задания (до {@link TASK_LIMIT} знаков) — его ограничения напоминаются на этапе валидации:
+   * модель копировала пример с одним `required` и теряла «от 2 до 100 символов» (L2-profile-json).
+   */
+  readonly task?: string;
   readonly stages: readonly StageId[];
   readonly skipped: readonly StageId[];
+  /**
+   * Этапы, которые модель сверила с заданием (`form_status {"confirm":…}`). Валидация «готова»
+   * только после сверки: модель ставила один `required` и получала «готово», не вспомнив о длине и
+   * формате из задания (L2-profile-json, 20261113T173706Z-63d7).
+   */
+  readonly confirmed?: readonly StageId[];
+  /**
+   * Сверку при расхождениях уже пытались подтвердить: второе подтверждение принимается (эвристика
+   * может ошибиться), первое — нет. Модель подтверждала, не глядя на «the task names 1, 10, 12», и
+   * сдавала форму с двумя полями из четырёх (L2-event-signup, 20261113T184634Z-977e).
+   */
+  readonly confirmTried?: boolean;
   readonly lastBuild?: BuildMark;
 }
 
-/** Этапы под признаки задачи: поля всегда, разметка — только на core. */
+/**
+ * Этапы под признаки задачи: поля и валидация всегда, разметка — только на core. Валидация не
+ * зависит от слов задания: модель пересказывает их своими словами (и даже транслитом), и
+ * «оба обязательны» терялось вместе с этапом (L1-login, батч 20261113T164955Z-8b0d). Задаче без
+ * правил этап снимает `skip`.
+ */
 export function stagesFor(features: TaskFeatures, target: ReformerTargetStack): StageId[] {
   return STAGE_ORDER.filter((stage) => {
     switch (stage) {
       case 'fields':
+      case 'validation':
         return true;
       case 'markup':
         return target === 'core';
@@ -81,6 +105,9 @@ const isStage = (value: unknown): value is StageId =>
   typeof value === 'string' && (STAGE_ORDER as readonly string[]).includes(value);
 
 /** План из файла; битый или чужой файл — `null`, как если бы плана не было. */
+/** Сколько знаков задания хранит план. */
+export const TASK_LIMIT = 600;
+
 export function parsePlan(text: string | null): GuidedPlan | null {
   if (text === null) return null;
   let raw: unknown;
@@ -98,8 +125,11 @@ export function parsePlan(text: string | null): GuidedPlan | null {
     target: plan.target,
     source: plan.source === 'spec' ? 'spec' : 'task',
     ...(typeof plan.specPath === 'string' ? { specPath: plan.specPath } : {}),
+    ...(typeof plan.task === 'string' ? { task: plan.task } : {}),
     stages: plan.stages,
     skipped: Array.isArray(plan.skipped) ? plan.skipped.filter(isStage) : [],
+    ...(Array.isArray(plan.confirmed) ? { confirmed: plan.confirmed.filter(isStage) } : {}),
+    ...(plan.confirmTried === true ? { confirmTried: true } : {}),
     ...(plan.lastBuild ? { lastBuild: plan.lastBuild } : {}),
   };
 }
@@ -118,8 +148,746 @@ function intentOf(text: string | null): FormIntent | null {
   }
 }
 
+/**
+ * Поля без единого правила (вычисляемые и только для чтения не в счёт). Этап валидации засчитывался
+ * по одному правилу — и «готово» приходило с необязательными телефоном и городом (L2-profile-json,
+ * 20261113T171142Z-19e3). Теперь каждое поле получает правило или этап снимают `skip`.
+ */
+export function unruled(intent: FormIntent): string[] {
+  const rows = intent.validation.filter((row) => !row.cross && row.rules.length > 0);
+  return intent.fields
+    .filter((field) => field.componentProps?.readOnly !== true)
+    .filter((field) => {
+      const path = field.modelPath ?? field.name;
+      const rules = rows.filter((row) => row.target === path).flatMap((row) => row.rules);
+      const mask = field.componentProps?.mask;
+      if (typeof mask !== 'string') return rules.length === 0;
+      // Поле с маской: проверку формата ставит сервер; этап ждёт решения модели об остальном
+      // (обязательность, длина) — правила сверх выражения по маске — или skip.
+      const own = `/${maskToPattern(mask)}/`;
+      const patterned = rules.some((rule) => /^\s*pattern\s*\(/.test(rule));
+      const beyondMask = rules.some((rule) => !rule.includes(own));
+      return !patterned || !beyondMask;
+    })
+    .map((field) => field.modelPath ?? field.name);
+}
+
+/** Умолчание задания: «по умолчанию выбран defect» → поле перед фразой и значение. */
+interface TaskDefault {
+  readonly phrase: string;
+  readonly field: string;
+  readonly value: string;
+}
+
+/**
+ * Умолчания, которые задание называет словами («по умолчанию 0», «by default is ru»), с полем —
+ * ближайшим «(имя)» перед фразой, если такое поле в форме есть. Модель пропускала умолчание, и
+ * сверка его не видела: «0» занят правилом `min(0)`, а «defect» не число (L3-refund,
+ * 20261113T210742Z-5a45).
+ */
+function taskDefaults(task: string, intent: FormIntent): TaskDefault[] {
+  const paths = new Set(intent.fields.map((field) => field.modelPath ?? field.name));
+  const out: TaskDefault[] = [];
+  const phrase =
+    /(?:по умолчанию(?:\s+(?:выбран[аоы]?|стоит|равн[аоы]?))?|by default(?:\s+is)?|defaults? to)\s*[:—–-]?\s*[«"']?([\p{L}\d_-]+(?:[.,]\d+)?)/giu;
+  for (const match of task.matchAll(phrase)) {
+    const before = task.slice(0, match.index);
+    const names = [...before.matchAll(/\(([A-Za-z_$][\w$.]*)/g)].map((m) => m[1]);
+    const field = names.reverse().find((name) => paths.has(name));
+    if (field) out.push({ phrase: match[0].trim(), field, value: match[1] });
+  }
+  return out;
+}
+
+/** Поле, которое задание делает обязательным или видимым по условию, а форма — нет. */
+interface FieldGap {
+  readonly field: string;
+  readonly said: string;
+  readonly fix?: Record<string, unknown>;
+}
+
+const REQUIRED_WORDS = /обязател|\brequired\b/i;
+const OPTIONAL_WORDS = /не\s*обязател|\boptional\b|\bnot required\b/i;
+const VISIBLE_WORDS = /видн|виден|видим|показыва|скрыва|\bvisible\b|\bshown\b|\bhidden\b/i;
+
+/**
+ * Обязательность и видимость, которые задание говорит про поле в его окне, а в форме их нет. Модель
+ * подтверждала сверку без правила «Комментарий (comment) виден и обязателен только при other»: сверка
+ * искала только числа и форматы (L3-refund, 20261113T220710Z-1415). Окно — без хвоста фразы: в нём
+ * только своё поле (точность важнее полноты — по расхождению модель правит форму).
+ */
+function fieldGaps(
+  task: string,
+  intent: FormIntent
+): { required: FieldGap[]; visible: FieldGap[] } {
+  const required: FieldGap[] = [];
+  const visible: FieldGap[] = [];
+  const lower = task.toLowerCase();
+  for (const field of intent.fields) {
+    const path = field.modelPath ?? field.name;
+    if (field.componentProps?.readOnly === true || mention(lower, field) === null) continue;
+    const said = taskFragment(task, intent, path);
+    const rules = intent.validation
+      .filter((row) => row.target === path)
+      .flatMap((row) => row.rules);
+    if (
+      REQUIRED_WORDS.test(said) &&
+      !OPTIONAL_WORDS.test(said) &&
+      !rules.some((rule) => /^\s*required\s*\(/.test(rule))
+    ) {
+      required.push({ field: path, said, fix: { op: 'add_rule', field: path, required: true } });
+    }
+    if (
+      intent.target !== 'core' &&
+      VISIBLE_WORDS.test(said) &&
+      !intent.visibility.some((row) => row.selector === path)
+    ) {
+      const condition = conditionIn(said, intent, path);
+      visible.push({
+        field: path,
+        said,
+        ...(condition ? { fix: { op: 'add_visibility', field: path, showWhen: condition } } : {}),
+      });
+    }
+  }
+  return { required, visible };
+}
+
+/**
+ * Соседи по условию: фраза начинается с условия («При доставке становятся обязательными адрес
+ * (address) и желаемая дата (deliveryDate) …»), и до «;» она говорит одно про все названные поля.
+ * У одного соседа видимость или «when» обязательности есть, у другого нет — расхождение, правка
+ * берёт условие соседа. Модель делала адрес обязательным всегда, а дату — только при доставке
+ * (L3-delivery, 20261113T230859Z-f59e). Фраза без условия в начале соседей не даёт: «имя и email
+ * обязательны, телефон — при согласии» про разные поля.
+ */
+function siblingGaps(
+  task: string,
+  intent: FormIntent
+): Array<{ text: string; fix: Record<string, unknown> }> {
+  const lower = task.toLowerCase();
+  const groups = new Map<number, string[]>();
+  for (const field of intent.fields) {
+    const at = mention(lower, field);
+    if (!at || field.componentProps?.readOnly === true) continue;
+    const before = task.slice(0, at.at);
+    const start =
+      Math.max(before.lastIndexOf('.'), before.lastIndexOf(';'), before.lastIndexOf(':')) + 1;
+    const clause = task.slice(start);
+    if (!/^\s*(при|если|когда|только при|when|if)(?![а-яёa-z])/i.test(clause)) continue;
+    const end = clause.search(/[.;]/);
+    if (end >= 0 && start + end < at.at) continue;
+    const path = field.modelPath ?? field.name;
+    groups.set(start, [...(groups.get(start) ?? []), path]);
+  }
+  const out: Array<{ text: string; fix: Record<string, unknown> }> = [];
+  const shown = (path: string): string | undefined => {
+    const hide = intent.visibility.find((row) => row.selector === path)?.condition;
+    if (hide === undefined) return undefined;
+    const inner = /^!\((.*)\)$/.exec(hide.trim());
+    return inner ? inner[1] : `!(${hide})`;
+  };
+  const requiredWhen = (path: string): { has: boolean; when?: string } => {
+    const row = intent.validation.find(
+      (r) => r.target === path && r.rules.some((rule) => /^\s*required\s*\(/.test(rule))
+    );
+    return { has: row !== undefined, ...(row?.when ? { when: row.when } : {}) };
+  };
+  for (const paths of groups.values()) {
+    if (paths.length < 2) continue;
+    const show = paths.map(shown).find((value) => value !== undefined);
+    const lead = paths.find((path) => shown(path) !== undefined);
+    if (show && intent.target !== 'core') {
+      for (const path of paths.filter((p) => shown(p) === undefined)) {
+        out.push({
+          text: `the task says the same of ${path} as of ${lead} — ${lead} is shown only when ${show}, ${path} always`,
+          fix: { op: 'add_visibility', field: path, showWhen: show },
+        });
+      }
+    }
+    const conditional = paths.map(requiredWhen).find((r) => r.when !== undefined)?.when;
+    const source = paths.find((path) => requiredWhen(path).when !== undefined);
+    if (conditional) {
+      for (const path of paths) {
+        const own = requiredWhen(path);
+        if (own.has && own.when === undefined) {
+          out.push({
+            text: `the task says the same of ${path} as of ${source} — ${source} is required only when ${conditional}, ${path} always`,
+            fix: { op: 'add_rule', field: path, required: true, when: conditional },
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Условие из окна поля: ровно один вариант выбора другого поля назван в нём своим значением. */
+function conditionIn(said: string, intent: FormIntent, path: string): string | undefined {
+  const found: string[] = [];
+  for (const field of intent.fields) {
+    const name = field.modelPath ?? field.name;
+    const options = field.componentProps?.options;
+    if (name === path || !Array.isArray(options)) continue;
+    for (const option of options as Array<{ value?: unknown }>) {
+      const value = option !== null && typeof option === 'object' ? option.value : option;
+      if (typeof value !== 'string' || !/^[\w-]+$/.test(value)) continue;
+      if (new RegExp(`(?<![\\w-])${value}(?![\\w-])`).test(said))
+        found.push(`model.${name} === '${value}'`);
+    }
+  }
+  return found.length === 1 ? found[0] : undefined;
+}
+
+/** Слова в скобках, которые не имена полей: «(required)», «(optional)». */
+const NOT_FIELD_NAMES: ReadonlySet<string> = new Set([
+  'required',
+  'optional',
+  'readonly',
+  'default',
+  'min',
+  'max',
+  'eg',
+  'ie',
+  'etc',
+  'yes',
+  'no',
+  'true',
+  'false',
+]);
+
+/**
+ * Поля, которые задание называет латинским именем в скобках («К возврату (refund)»), а в форме их
+ * нет. Модель теряла поле и подтверждала сверку: она искала только ограничения (L3-refund,
+ * 20261113T220710Z-1415). Подпись — слова перед скобкой.
+ */
+function missingFields(task: string, intent: FormIntent): Array<{ name: string; label: string }> {
+  const known = new Set<string>();
+  for (const field of intent.fields) known.add(field.modelPath ?? field.name).add(field.name);
+  for (const array of intent.arrays) {
+    known.add(array.name);
+    for (const item of array.itemFields) known.add(item.name);
+  }
+  for (const field of intent.fields) {
+    const options = field.componentProps?.options;
+    if (!Array.isArray(options)) continue;
+    for (const option of options as Array<{ value?: unknown }>) {
+      const value = option !== null && typeof option === 'object' ? option.value : option;
+      if (typeof value === 'string') known.add(value);
+    }
+  }
+  const out: Array<{ name: string; label: string }> = [];
+  for (const match of task.matchAll(/\(([a-z][A-Za-z0-9]*)(?=[\s,:;)])/g)) {
+    const name = match[1];
+    if (known.has(name) || NOT_FIELD_NAMES.has(name) || out.some((f) => f.name === name)) continue;
+    const words =
+      task
+        .slice(0, match.index)
+        .split(/[.,;:()—]/)
+        .pop()
+        ?.trim() ?? '';
+    const label = words ? `${words[0].toUpperCase()}${words.slice(1)}` : name;
+    out.push({ name, label });
+  }
+  return out;
+}
+
+/** Умолчания задания, которых в форме нет. */
+function missingDefaults(task: string, intent: FormIntent): TaskDefault[] {
+  return taskDefaults(task, intent).filter((entry) => {
+    const field = intent.fields.find((f) => (f.modelPath ?? f.name) === entry.field);
+    const initial = field?.initialValue;
+    if (initial !== undefined && initial !== null && String(initial) === entry.value) return false;
+    const options = field?.componentProps?.options;
+    // Подпись варианта вместо значения — тоже это умолчание.
+    return !(
+      Array.isArray(options) &&
+      (options as Array<{ value?: unknown; label?: unknown }>).some(
+        (option) =>
+          option !== null &&
+          typeof option === 'object' &&
+          String(option.value) === String(initial) &&
+          String(option.label).toLowerCase() === entry.value.toLowerCase()
+      )
+    );
+  });
+}
+
+/**
+ * Расхождения формы с заданием, которые видны без разбора языка: маска не из задания и числа
+ * задания, которых нет ни в правиле, ни в лимите строк, ни в варианте. Модель подтверждала сверку,
+ * не сравнивая, — «ФИО (2–100 символов)» писала в отчёте, а `minLength(2)` в форме не было
+ * (L2-profile-json, 20261113T174711Z-6256). Эвристика: подтвердить можно и при расхождениях.
+ */
+export function taskGaps(task: string | undefined, intent: FormIntent): string[] {
+  if (!task) return [];
+  const gaps: string[] = [];
+  const templates = formatTemplates(task);
+  const masks = intent.fields
+    .map((field) => ({ field, mask: field.componentProps?.mask }))
+    .filter(
+      (entry): entry is { field: (typeof intent.fields)[number]; mask: string } =>
+        typeof entry.mask === 'string'
+    );
+  for (const { field, mask } of masks) {
+    if (
+      templates.length > 0 &&
+      // Цифры с обеих сторон — девятки: «+7» шаблона и «+7» маски совпадают.
+      !templates.some((template) => template.replace(/\d/g, '9') === mask.replace(/\d/g, '9'))
+    ) {
+      gaps.push(
+        `the mask of ${field.modelPath ?? field.name} «${mask}» is not the format of the task «${templates[0]}» (9 for each digit)`
+      );
+    }
+  }
+  for (const path of strayMasks(task, intent)) {
+    gaps.push(
+      `the mask of ${path} is the format of another input of the task — the task names no format for ${path}: "mask":"" removes it`
+    );
+  }
+  // Варианты выбора стоят в задании сразу после подписи своего поля («город из списка Москва, …»).
+  // Далеко от подписи — это варианты другого поля задания: модель вешала их на первое поле и теряла
+  // поле города (L2-profile-json, 20261113T182123Z-e308).
+  const lower = task.toLowerCase();
+  for (const field of intent.fields) {
+    const options = field.componentProps?.options;
+    const label = (field.label ?? '').toLowerCase().trim();
+    if (!Array.isArray(options) || options.length === 0 || !label) continue;
+    const first = options[0] as { label?: unknown } | string;
+    const text = String(
+      typeof first === 'object' && first !== null ? (first.label ?? '') : first
+    ).toLowerCase();
+    const at = text ? lower.indexOf(text) : -1;
+    if (at < 0) continue;
+    // Подпись поля, её первое слово или имя в скобках: модель писала «Причина возврата», а задание —
+    // «Причина (reason): defect — брак» (L3-refund, 20261113T230859Z-f59e).
+    const name = (field.modelPath ?? field.name).toLowerCase();
+    const lead = label.split(/\s+/)[0] ?? '';
+    const near = [label, lead.length >= 3 ? lead : '', `(${name}`].filter(Boolean).some((key) => {
+      const keyAt = lower.lastIndexOf(key, at);
+      return keyAt >= 0 && at - (keyAt + key.length) <= 40;
+    });
+    if (near) continue;
+    gaps.push(
+      `the choices of ${field.modelPath ?? field.name} «${field.label}» stand in the task far from «${field.label}» — they belong to the input named right before them; is that input missing?`
+    );
+  }
+  if (templates.length > 0 && masks.length === 0) {
+    gaps.push(`the format of the task «${templates[0]}» is on no field — "mask" on its field`);
+  }
+  // Числа задания вне шаблонов формата и формул.
+  const named = taskNumbers(task);
+  const used = new Set<string>();
+  const collect = (value: unknown): void => {
+    if (typeof value === 'number') used.add(String(value));
+    else if (typeof value === 'string')
+      for (const match of value.matchAll(/\d+/g)) used.add(match[0]);
+    else if (Array.isArray(value)) value.forEach(collect);
+    else if (value !== null && typeof value === 'object') Object.values(value).forEach(collect);
+  };
+  collect(intent.validation.map((row) => [row.rules, row.when, row.cross]));
+  // Числа формул и условий — тоже из задания: «× (1 − скидка/100)» давало ложное «names 1, 100».
+  collect(intent.behavior.map((row) => [row.expr, row.when]));
+  collect(intent.visibility.map((row) => row.condition));
+  collect(intent.fields.map((field) => field.initialValue));
+  collect(intent.fields.map((field) => [field.componentProps, field.label]));
+  collect(intent.arrays.map((array) => [array.componentProps, array.itemFields]));
+  used.add(String(collectSteps(intent.layoutRoot).length));
+  const missing = [...named].filter((number) => !used.has(number));
+  if (missing.length > 0) {
+    gaps.push(`the task names ${missing.join(', ')} — no rule or setting of the form uses it`);
+  }
+  // Обратное: граница правила, которой в задании нет. Модель ставила email «min 6, max 10», и
+  // настоящий адрес уже не проходил (L2-registration-lite, 20261113T202828Z-32b0).
+  for (const field of missingFields(task, intent)) {
+    gaps.push(
+      `the task names the input ${field.name} «${field.label}» — the form has no such field`
+    );
+  }
+  for (const gap of siblingGaps(task, intent)) gaps.push(gap.text);
+  const { required, visible } = fieldGaps(task, intent);
+  for (const gap of required) {
+    gaps.push(`the task makes ${gap.field} required («${gap.said}») — no "required" rule on it`);
+  }
+  for (const gap of visible) {
+    gaps.push(
+      `the task shows ${gap.field} only on a condition («${gap.said}») — add_visibility for it`
+    );
+  }
+  for (const entry of missingDefaults(task, intent)) {
+    gaps.push(
+      `the task names the default «${entry.phrase}» — ${entry.field} has no "initialValue" ${entry.value}`
+    );
+  }
+  for (const bound of inventedBounds(task, intent)) {
+    gaps.push(
+      bound.elsewhere
+        ? `the form limits ${bound.field} by ${bound.name}(${bound.value}) — the task names ${bound.value} for ${bound.elsewhere}, not for ${bound.field}`
+        : `the form limits ${bound.field} by ${bound.name}(${bound.value}) — the task names no ${bound.value}`
+    );
+  }
+  // Подписи — из задания и на его языке: контракт и пользователь ищут «Повтор пароля», а модель
+  // переводила подписи на английский (L2-registration-lite).
+  const foreign = foreignLabels(task, intent);
+  if (foreign.length > 0) {
+    gaps.push(
+      `the labels ${foreign.map((label) => `«${label}»`).join(', ')} are not in the task — take each label from the task, in its language`
+    );
+  }
+  return gaps;
+}
+
+/** Числа задания вне шаблонов формата и формул. */
+function taskNumbers(task: string): Set<string> {
+  return new Set(
+    [...limitText(task).matchAll(/(?<!\d|\d\.)\d+(?!\d|\.\d)/g)].map((match) => match[0])
+  );
+}
+
+/**
+ * Текст задания, где могут стоять границы: шаблоны формата и числа формул заменены пробелами.
+ * Число формулы — операнд арифметики («× (1 − скидка/100)»): это не граница поля. На сверке до
+ * этапа поведения формулы в форме ещё нет, и «1, 100» объявлялись границами без правила — модель
+ * гоняла правила скидки по кругу, а пара «1 … 100» давала готовую правку `max: 100`
+ * (L3-order-total, 20261113T210742Z-5a45). Дефис — оператор только между словами через пробелы:
+ * «2-100 символов» — диапазон.
+ */
+function limitText(task: string): string {
+  let rest = task;
+  for (const template of formatTemplates(task)) rest = rest.split(template).join(' ');
+  const before = [/[\p{L}\d)%]\s*[×*/÷−+]\s*\(*\s*$/u, /[\p{L})]\s+-\s+\(*\s*$/u];
+  const after = [/^\s*\)*\s*[×*/÷−+]\s*\(*\s*[\p{L}\d(]/u, /^\s*\)*\s+-\s+\(*\s*[\p{L}(]/u];
+  return rest.replace(/(?<!\d|\d\.)\d+(?:\.\d+)?(?!\d|\.\d)/g, (number, at: number) => {
+    const head = rest.slice(Math.max(0, at - 40), at);
+    const tail = rest.slice(at + number.length, at + number.length + 40);
+    const operand =
+      before.some((pattern) => pattern.test(head)) || after.some((pattern) => pattern.test(tail));
+    // Маркер списка «1) … 2) …» вне скобок — не граница (L4-wizard-3steps: «the task names 1, 2»);
+    // «(от 0 до 50)» — граница: число внутри открытой скобки.
+    const prefix = rest.slice(0, at);
+    // Глубина скобок не уходит ниже нуля: «)» самих маркеров списка её не сбивает.
+    let depth = 0;
+    for (const char of prefix) {
+      if (char === '(') depth++;
+      else if (char === ')') depth = Math.max(0, depth - 1);
+    }
+    const marker = depth <= 0 && /^\)/.test(tail) && /(^|[\s:;,])$/.test(prefix);
+    return operand || marker ? ' '.repeat(number.length) : number;
+  });
+}
+
+/**
+ * Маска на поле, в окне которого формата нет, а в окне другого поля он есть: модель вешала маску
+ * телефона и на ФИО (L2-profile-json, 20261114T005219Z-43ce).
+ */
+function strayMasks(task: string, intent: FormIntent): string[] {
+  const templates = formatTemplates(task);
+  if (templates.length === 0) return [];
+  const lower = task.toLowerCase();
+  const windows = new Map<string, string>();
+  for (const field of intent.fields) {
+    if (mention(lower, field) === null) continue;
+    const path = field.modelPath ?? field.name;
+    windows.set(path, taskFragment(task, intent, path));
+  }
+  const hasFormat = (text: string): boolean =>
+    templates.some((template) => text.includes(template));
+  return intent.fields
+    .filter((field) => typeof field.componentProps?.mask === 'string')
+    .map((field) => field.modelPath ?? field.name)
+    .filter((path) => {
+      const own = windows.get(path);
+      if (own === undefined || hasFormat(own)) return false;
+      return [...windows.entries()].some(([other, text]) => other !== path && hasFormat(text));
+    });
+}
+
+/** Границы правил (min/max/minLength/maxLength), чисел которых в задании нет. */
+function inventedBounds(
+  task: string,
+  intent: FormIntent
+): Array<{ field: string; name: string; value: string; elsewhere?: string }> {
+  const named = taskNumbers(task);
+  const out: Array<{ field: string; name: string; value: string; elsewhere?: string }> = [];
+  const lower = task.toLowerCase();
+  const numbersOf = (text: string): Set<string> =>
+    new Set([...limitText(text).matchAll(/(?<!\d|\d\.)\d+(?!\d|\.\d)/g)].map((m) => m[0]));
+  const windows = new Map<string, Set<string>>();
+  for (const field of intent.fields) {
+    if (mention(lower, field) === null) continue;
+    const path = field.modelPath ?? field.name;
+    windows.set(path, numbersOf(taskFragment(task, intent, path)));
+  }
+  for (const row of intent.validation) {
+    for (const rule of row.rules) {
+      const call = /^\s*(minLength|maxLength|min|max)\s*\(\s*(\d+)/.exec(rule);
+      if (!call) continue;
+      if (!named.has(call[2])) {
+        out.push({ field: row.target, name: call[1], value: call[2] });
+        continue;
+      }
+      // Число задания, но про другое поле: «промокод не длиннее 12» давало email maxLength(12), и
+      // настоящий адрес не проходил (L2-event-signup, 20261114T005219Z-43ce).
+      const own = windows.get(row.target);
+      const other = [...windows.entries()].find(
+        ([path, numbers]) => path !== row.target && numbers.has(call[2])
+      );
+      if (own && !own.has(call[2]) && other)
+        out.push({ field: row.target, name: call[1], value: call[2], elsewhere: other[0] });
+    }
+  }
+  return out;
+}
+
+/** Подписи латиницей, которых нет в кириллическом задании. */
+function foreignLabels(task: string, intent: FormIntent): string[] {
+  const letters = task.match(/\p{L}/gu) ?? [];
+  const cyrillic = letters.filter((letter) => /[а-яё]/i.test(letter)).length;
+  if (letters.length === 0 || cyrillic / letters.length < 0.5) return [];
+  const lower = task.toLowerCase();
+  return [...intent.fields, ...intent.arrays.flatMap((array) => array.itemFields)]
+    .map((field) => field.label ?? '')
+    .filter((label) => label && !/[а-яё]/i.test(label) && !lower.includes(label.toLowerCase()));
+}
+
+/**
+ * Готовые правки под расхождения с заданием — там, где их можно вывести без разбора языка:
+ * маска не по шаблону задания → маска из шаблона; число диапазона рядом с границей, которая уже
+ * правило (`от 2 до 100` при `maxLength(100)`), → вторая граница того же поля. Предупреждение без
+ * готового вызова модель пропускала и подтверждала сверку (L2-profile-json, 20261113T175233Z-7a3f).
+ */
+export function gapFixes(
+  task: string | undefined,
+  intent: FormIntent
+): Array<Record<string, unknown>> {
+  if (!task) return [];
+  const fixes: Array<Record<string, unknown>> = [];
+  const templates = formatTemplates(task);
+  const nines = (value: string): string => value.replace(/\d/g, '9');
+  for (const field of intent.fields) {
+    const mask = field.componentProps?.mask;
+    if (typeof mask !== 'string' || templates.length === 0) continue;
+    if (templates.some((template) => nines(template) === nines(mask))) continue;
+    fixes.push({ op: 'set_field', name: field.modelPath ?? field.name, mask: templates[0] });
+  }
+  // Формат задания не стоит ни на одном поле: его поле — то, чья подпись в задании ближе всего
+  // перед шаблоном («телефон в формате +7 (999)…»).
+  if (
+    templates.length > 0 &&
+    !intent.fields.some((field) => typeof field.componentProps?.mask === 'string')
+  ) {
+    const at = task.indexOf(templates[0]);
+    const lower = task.toLowerCase();
+    let best: { path: string; distance: number } | undefined;
+    for (const field of intent.fields) {
+      if (field.type !== 'string' || Array.isArray(field.componentProps?.options)) continue;
+      const label = (field.label ?? '').toLowerCase().trim();
+      if (!label) continue;
+      const found = lower.lastIndexOf(label, at);
+      if (found < 0 || found > at) continue;
+      const distance = at - found;
+      if (!best || distance < best.distance)
+        best = { path: field.modelPath ?? field.name, distance };
+    }
+    if (best && best.distance <= 60)
+      fixes.push({ op: 'set_field', name: best.path, mask: templates[0] });
+  }
+  for (const field of missingFields(task, intent)) {
+    fixes.push({ op: 'add_field', name: field.name, label: field.label });
+  }
+  const { required, visible } = fieldGaps(task, intent);
+  // Видимость раньше обязательности: правило поля, видимого по условию, сервер проверяет только
+  // пока поле видно.
+  for (const gap of [...visible, ...required]) if (gap.fix) fixes.push(gap.fix);
+  for (const gap of siblingGaps(task, intent)) fixes.push(gap.fix);
+  for (const entry of missingDefaults(task, intent)) {
+    const field = intent.fields.find((f) => (f.modelPath ?? f.name) === entry.field);
+    const numeric = field?.type === 'number' && /^-?\d+(?:[.,]\d+)?$/.test(entry.value);
+    fixes.push({
+      op: 'set_field',
+      name: entry.field,
+      initialValue: numeric ? Number(entry.value.replace(',', '.')) : entry.value,
+    });
+  }
+  for (const path of strayMasks(task, intent))
+    fixes.push({ op: 'set_field', name: path, mask: '' });
+  for (const bound of inventedBounds(task, intent)) {
+    fixes.push({ op: 'remove_rule', field: bound.field, rule: bound.name });
+  }
+  const bounds: Array<{ name: string; value: string; target: string }> = [];
+  for (const row of intent.validation) {
+    for (const rule of row.rules) {
+      const call = /^\s*(minLength|maxLength|min|max)\s*\(\s*(\d+)/.exec(rule);
+      if (call) bounds.push({ name: call[1], value: call[2], target: row.target });
+    }
+  }
+  const gaps = taskGaps(task, intent).join(' ');
+  const rest = limitText(task);
+  const pairs = [...rest.matchAll(/(?<![\d.])(\d+)(?=[^\d]{1,12}?(\d+)(?![\d.]))/g)].map(
+    (match) => [match[1], match[2]] as const
+  );
+  const other: Record<string, string> = {
+    maxLength: 'minLength',
+    max: 'min',
+    minLength: 'maxLength',
+    min: 'max',
+  };
+  for (const [low, high] of pairs) {
+    const missingLow = new RegExp(`names [\\d, ]*\\b${low}\\b`).test(gaps);
+    const missingHigh = new RegExp(`names [\\d, ]*\\b${high}\\b`).test(gaps);
+    const upper = bounds.find(
+      (b) => b.value === high && (b.name === 'maxLength' || b.name === 'max')
+    );
+    const lower = bounds.find(
+      (b) => b.value === low && (b.name === 'minLength' || b.name === 'min')
+    );
+    if (missingLow && upper)
+      fixes.push({ op: 'add_rule', field: upper.target, [other[upper.name]]: Number(low) });
+    else if (missingHigh && lower)
+      fixes.push({ op: 'add_rule', field: lower.target, [other[lower.name]]: Number(high) });
+  }
+  return fixes;
+}
+
+/** Поля с их видом одной строкой: `fio «ФИО»: text · city «Город»: a choice of A | B`. */
+export function fieldsSummary(intent: FormIntent): string {
+  const kindOf = (field: FormIntent['fields'][number]): string => {
+    const props = field.componentProps ?? {};
+    if (props.readOnly === true) return 'read-only';
+    if (Array.isArray(props.options)) {
+      const labels = (props.options as unknown[]).map((option) =>
+        option !== null && typeof option === 'object' && 'label' in option
+          ? String((option as { label: unknown }).label)
+          : String(option)
+      );
+      return `a choice of ${labels.slice(0, 5).join(' | ')}${labels.length > 5 ? ' | …' : ''}`;
+    }
+    if (typeof props.mask === 'string') return `mask ${props.mask}`;
+    return field.type === 'string' ? 'text' : field.type;
+  };
+  const fields = intent.fields.map(
+    (field) => `${field.modelPath ?? field.name} «${field.label ?? field.name}»: ${kindOf(field)}`
+  );
+  const rows = intent.arrays.map(
+    (array) => `${array.name}[] rows: ${array.itemFields.map((item) => item.name).join(', ')}`
+  );
+  return [...fields, ...rows].join(' · ') || 'none';
+}
+
+/** Правила по полям одной строкой: `fio: required, minLength(2) · phone: required, pattern`. */
+export function rulesSummary(intent: FormIntent): string {
+  const byField = new Map<string, string[]>();
+  for (const row of intent.validation) {
+    if (row.cross || row.rules.length === 0) continue;
+    const names = row.rules.map((rule) => {
+      const call = /^\s*(\w+)\s*\(([^,{)]*)/.exec(rule);
+      if (!call) return rule;
+      const arg = call[2].trim();
+      return call[1] === 'pattern' || !arg ? call[1] : `${call[1]}(${arg})`;
+    });
+    byField.set(row.target, [...(byField.get(row.target) ?? []), ...names]);
+  }
+  return (
+    [...byField].map(([field, names]) => `${field}: ${names.join(', ')}`).join(' · ') || 'none'
+  );
+}
+
+/** В форме есть хотя бы одно правило поля. */
+export function validationStarted(intent: FormIntent | null): boolean {
+  return intent?.validation.some((row) => !row.cross && row.rules.length > 0) === true;
+}
+
+/**
+ * Вычисляемые поля без вычисления: поле только для чтения или цель формулы задания «(refund) = …»
+ * без `compute`. Этап поведения засчитывался по одной видимости, и «Done» выходил без формулы
+ * (L3-refund, 20261113T230859Z-f59e).
+ */
+export function uncomputed(intent: FormIntent, task: string | undefined): string[] {
+  const computes = new Set(
+    intent.behavior
+      .filter((row) => row.kind === 'compute' || row.kind === 'computeFrom')
+      .map((row) => row.target)
+  );
+  const paths = intent.fields.map((field) => field.modelPath ?? field.name);
+  const targets = new Set(
+    intent.fields
+      .filter((field) => field.componentProps?.readOnly === true)
+      .map((field) => field.modelPath ?? field.name)
+  );
+  for (const match of (task ?? '').matchAll(/\(([A-Za-z_$][\w$]*)\)\s*=\s*[^=]/g)) {
+    if (paths.includes(match[1])) targets.add(match[1]);
+  }
+  return [...targets].filter((path) => !computes.has(path));
+}
+
+/**
+ * Поля формулы задания, которых вычисление не читает: «Итог (total) = цена × количество × (1 −
+ * скидка/100)», а модель написала `price * quantity` и потеряла скидку — сборка прошла, «Done» вышел
+ * (L3-order-total, 20261114T005219Z-43ce). Поле узнаётся в правой части по имени или по началу слова
+ * подписи.
+ */
+export function formulaMisses(
+  intent: FormIntent,
+  task: string | undefined
+): Array<{ target: string; missing: string[] }> {
+  if (!task) return [];
+  const out: Array<{ target: string; missing: string[] }> = [];
+  const lower = task.toLowerCase();
+  for (const match of task.matchAll(/\(([A-Za-z_$][\w$]*)\)\s*=\s*(?=[^=])/g)) {
+    const target = match[1];
+    const row = intent.behavior.find(
+      (b) => (b.kind === 'compute' || b.kind === 'computeFrom') && b.target === target
+    );
+    if (!row) continue;
+    const start = (match.index ?? 0) + match[0].length;
+    let depth = 0;
+    let end = lower.length;
+    for (let i = start; i < lower.length; i++) {
+      const char = lower[i];
+      if (char === '(') depth++;
+      else if (char === ')') depth = Math.max(0, depth - 1);
+      else if (
+        depth === 0 &&
+        (char === ',' ||
+          char === ':' ||
+          char === ';' ||
+          (char === '.' && /\s|$/.test(lower[i + 1] ?? '')))
+      ) {
+        end = i;
+        break;
+      }
+    }
+    const rhs = lower.slice(start, end);
+    const reads = new Set([
+      ...(row.sources ?? []),
+      ...[...(row.expr ?? '').matchAll(/model\.([\w$]+)/g)].map((m) => m[1]),
+    ]);
+    const missing = intent.fields
+      .map((field) => ({
+        path: field.modelPath ?? field.name,
+        label: (field.label ?? '').toLowerCase(),
+      }))
+      .filter(({ path }) => path !== target && !reads.has(path))
+      .filter(({ path, label }) => {
+        if (new RegExp(`(?<![\\w$])${path.toLowerCase()}(?![\\w$])`).test(rhs)) return true;
+        return label
+          .split(/\s+/)
+          .filter((word) => word.length >= 4)
+          .some((word) => rhs.includes(word.slice(0, 5)));
+      })
+      .map(({ path }) => path);
+    if (missing.length > 0) out.push({ target, missing });
+  }
+  return out;
+}
+
 /** Сделан ли этап по содержимому формы. */
-function stageDone(stage: StageId, intent: FormIntent | null, index: string | null): boolean {
+function stageDone(
+  stage: StageId,
+  intent: FormIntent | null,
+  index: string | null,
+  task?: string
+): boolean {
   if (stage === 'markup') return index !== null && !index.includes('return null;');
   if (!intent) return false;
   switch (stage) {
@@ -130,11 +898,15 @@ function stageDone(stage: StageId, intent: FormIntent | null, index: string | nu
     case 'wizard':
       return collectSteps(intent.layoutRoot).length > 0;
     case 'validation':
-      return intent.validation.some((row) => !row.cross && row.rules.length > 0);
+      return unruled(intent).length === 0;
     case 'cross':
       return intent.validation.some((row) => Boolean(row.cross));
     case 'behavior':
-      return intent.behavior.length + intent.visibility.length > 0;
+      return (
+        intent.behavior.length + intent.visibility.length > 0 &&
+        uncomputed(intent, task).length === 0 &&
+        formulaMisses(intent, task).length === 0
+      );
   }
 }
 
@@ -158,6 +930,8 @@ export interface PlanState {
   readonly fresh: boolean;
   /** Intent с диска, прочитанный без справочников; `null` — его нет или он не читается. */
   readonly intent: FormIntent | null;
+  /** Правила есть у каждого поля, сверки с заданием ещё не было. */
+  readonly awaitingConfirm: boolean;
 }
 
 /** Состояние плана по файлам каталога формы. */
@@ -167,9 +941,15 @@ export function planState(
   indexText: string | null
 ): PlanState {
   const intent = intentOf(intentText);
+  const confirmed = plan.confirmed?.includes('validation') === true;
   const stages = plan.stages.map((id) => ({
     id,
-    done: stageDone(id, intent, indexText),
+    // Валидация закрывается только сверкой с заданием; после неё поля без правил — необязательные
+    // по решению модели.
+    done:
+      id === 'validation'
+        ? confirmed && (stageDone(id, intent, indexText) || validationStarted(intent))
+        : stageDone(id, intent, indexText, plan.task),
     skipped: plan.skipped.includes(id),
   }));
   const last = plan.lastBuild;
@@ -189,6 +969,8 @@ export function planState(
     complete: built && typesChecked && pending === null,
     fresh: intentText === null,
     intent,
+    awaitingConfirm:
+      pending === 'validation' && !confirmed && stageDone('validation', intent, indexText),
   };
 }
 
@@ -212,7 +994,7 @@ export function progressLine(state: PlanState): string {
 export function stageGoal(stage: StageId, target: ReformerTargetStack): string {
   switch (stage) {
     case 'fields':
-      return 'every input of the task: one add_field each, all in one call; a choice: "options"; a computed or read-only field: "readonly":true';
+      return 'every input of the task: one add_field each, all in one call; a choice: "options"; a default value of the task: "initialValue"; an input format like a phone: "mask" — the format from the task, 9 for a digit; a computed or read-only field: "readonly":true';
     case 'arrays':
       return 'repeating rows: add_array (min/max rows), then add_item_field for each column of a row';
     case 'wizard':
@@ -220,7 +1002,7 @@ export function stageGoal(stage: StageId, target: ReformerTargetStack): string {
     case 'validation':
       return 'add_rule per field: required, email, min/max, minLength/maxLength, pattern; "message" — its text; "when" — only on a condition';
     case 'cross':
-      return 'rules across fields: add_rule with "cross" — an expression over values, TRUE when valid';
+      return 'rules across fields: a field that must match another — add_rule with "equals":"<other field>"; any other condition — "cross": an expression over values, TRUE when valid';
     case 'behavior':
       return target === 'core'
         ? 'reactions: add_behavior compute (a calculated field), enableWhen (a field active only on a condition)'
@@ -245,12 +1027,26 @@ function examplesOn(
   const numbers = intent.fields.filter((field) => field.type === 'number');
   const choice = intent.fields.find((field) => Array.isArray(field.componentProps?.options));
   switch (stage) {
-    case 'validation':
-      return names.slice(0, 2).map((field) => ({ op: 'add_rule', field, required: true }));
+    case 'validation': {
+      // Пример — на полях без правил: модель копирует его, и поле без правила не теряется.
+      const open = unruled(intent);
+      const rules: Array<Record<string, unknown>> = (open.length > 0 ? open : names)
+        .slice(0, 6)
+        .map((field) => ({ op: 'add_rule', field, required: true }));
+      // Поле с маской: формат проверяет только pattern, и вывести его из маски модель не умела.
+      for (const masked of intent.fields) {
+        const path = masked.modelPath ?? masked.name;
+        if (typeof masked.componentProps?.mask !== 'string' || !open.includes(path)) continue;
+        rules.push({
+          op: 'add_rule',
+          field: path,
+          pattern: maskToPattern(masked.componentProps.mask as string),
+        });
+      }
+      return rules;
+    }
     case 'cross':
-      return names.length < 2
-        ? null
-        : [{ op: 'add_rule', field: names[1], cross: `values.${names[1]} === values.${names[0]}` }];
+      return names.length < 2 ? null : [{ op: 'add_rule', field: names[1], equals: names[0] }];
     case 'wizard': {
       const half = Math.ceil(names.length / 2);
       return [
@@ -262,20 +1058,26 @@ function examplesOn(
     }
     case 'behavior': {
       const edits: Array<Record<string, unknown>> = [];
-      const computed = numbers.find((field) => field.componentProps?.readOnly === true);
-      const inputs = numbers.filter((field) => field !== computed).slice(0, 2);
+      // Вычисляемое поле — по «только для чтения», а не по типу: строковое «К возврату» примера не
+      // получало, и пример предлагал одну видимость (L3-refund, 20261113T230859Z-f59e).
+      const computed = intent.fields.find((field) => field.componentProps?.readOnly === true);
+      const inputs = numbers.filter((field) => field !== computed);
       if (computed && inputs.length > 0) {
+        // Заглушка, а не формула: модель копировала «price * quantity» и теряла скидку из задания
+        // (L3-order-total, 20261113T191026Z-aaee). Поля названы — формулу модель берёт из задания.
         edits.push({
           op: 'add_behavior',
           kind: 'compute',
           target: computed.name,
-          expr: inputs.map((field) => `(model.${field.name} ?? 0)`).join(' * '),
+          expr: `<the formula of the task over ${inputs.map((field) => `model.${field.name}`).join(', ')}>`,
         });
       }
       const options = choice?.componentProps?.options as Array<{ value?: unknown }> | undefined;
       const dependent = names.find((name) => name !== choice?.name && name !== computed?.name);
       if (choice && dependent && options?.[0]?.value !== undefined) {
-        const condition = `model.${choice.name} === ${JSON.stringify(options[0].value).replace(/"/g, "'")}`;
+        // Заглушка, а не первый вариант: пример «=== 'defect'» модель брала как есть, а задание
+        // показывало поле при «other» (L3-refund, 20261113T220710Z-1415).
+        const condition = `model.${choice.name} === '<the choice of the task>'`;
         edits.push(
           target === 'core'
             ? { op: 'add_behavior', kind: 'enableWhen', target: dependent, expr: condition }
@@ -298,8 +1100,10 @@ export function stageExample(
   const own = intent ? examplesOn(stage, target, intent) : null;
   if (own) return JSON.stringify(own);
   switch (stage) {
+    // Полей ещё нет — заглушки, а не правдоподобные имена: модель копировала `email` из образца
+    // вместо поля задачи. Скопированную заглушку сервер отклонит с причиной, чужое имя прошло бы.
     case 'fields':
-      return '[{"op":"add_field","name":"email","label":"Email"},{"op":"add_field","name":"age","type":"number","label":"Age"},{"op":"add_field","name":"city","label":"City","options":["Moscow","Kazan"]}]';
+      return '[{"op":"add_field","name":"<latinName>","label":"<label from the task>"},{"op":"add_field","name":"<latinName>","type":"number","label":"<label>"},{"op":"add_field","name":"<latinName>","label":"<label>","options":["<option>","<option>"]}]';
     case 'arrays':
       return '[{"op":"add_array","name":"contacts","label":"Contacts","minItems":1,"maxItems":5},{"op":"add_item_field","array":"contacts","name":"phone","label":"Phone"}]';
     case 'wizard':
@@ -307,7 +1111,7 @@ export function stageExample(
     case 'validation':
       return '[{"op":"add_rule","field":"email","required":true,"email":true,"message":"Enter a valid email"},{"op":"add_rule","field":"age","min":18,"max":120,"message":"Age 18 to 120"}]';
     case 'cross':
-      return '[{"op":"add_rule","field":"confirmPassword","cross":"values.confirmPassword === values.password","message":"Passwords do not match"}]';
+      return '[{"op":"add_rule","field":"confirmPassword","equals":"password","message":"Passwords do not match"}]';
     case 'behavior':
       return target === 'core'
         ? '[{"op":"add_behavior","kind":"compute","target":"total","expr":"(model.price ?? 0) * (model.quantity ?? 0)"},{"op":"add_behavior","kind":"enableWhen","target":"address","expr":"model.method === \'delivery\'"}]'
@@ -323,6 +1127,92 @@ export function editCall(dir: string, edits: string): string {
 }
 
 /** Блок следующего шага: ровно один вызов или «готово». */
+/** Где поле названо в задании: подпись, подпись без скобок, имя, первое длинное слово подписи. */
+function mention(
+  lower: string,
+  field: FormIntent['fields'][number]
+): { at: number; len: number } | null {
+  const label = (field.label ?? '').toLowerCase().trim();
+  const keys = [
+    label,
+    label.replace(/\s*\(.*?\)\s*/g, ' ').trim(),
+    (field.modelPath ?? field.name).toLowerCase(),
+    label.split(/\s+/)[0] ?? '',
+  ].filter((key) => key.length >= 3);
+  let best: { at: number; len: number } | null = null;
+  for (const key of keys) {
+    const at = lower.indexOf(key);
+    if (at >= 0 && (!best || at < best.at)) best = { at, len: key.length };
+  }
+  return best;
+}
+
+/**
+ * Окно фокуса: кусок задания про одно поле — вводная часть фразы (условие вроде «При доставке
+ * становятся обязательными») и отрезок от предыдущего упомянутого поля до следующего. `whole` —
+ * до конца фразы (формула называет другие поля). Не нашли поле — задание целиком.
+ */
+export function taskFragment(
+  task: string,
+  intent: FormIntent,
+  path: string,
+  whole = false
+): string {
+  const lower = task.toLowerCase();
+  const marks = intent.fields
+    .map((field) => ({ path: field.modelPath ?? field.name, at: mention(lower, field) }))
+    .filter((mark): mark is { path: string; at: { at: number; len: number } } => mark.at !== null)
+    .sort((a, b) => a.at.at - b.at.at);
+  const me = marks.find((mark) => mark.path === path);
+  const cut = (text: string): string => (text.length > 240 ? `${text.slice(0, 240)}…` : text);
+  if (!me) return cut(task);
+  const at = me.at.at;
+  const before = task.slice(0, at);
+  const clauseStart =
+    Math.max(before.lastIndexOf('.'), before.lastIndexOf(';'), before.lastIndexOf(':')) + 1;
+  const after = task.slice(at);
+  // До конца предложения: после «;» задание договаривает про то же поле («…; по умолчанию выбран
+  // defect», «…; при самовывозе не проверяются») — окно, обрезанное на «;», это теряло (L3-refund).
+  const endMatch = /\.(\s|$)/.exec(after);
+  const clauseEnd = endMatch ? at + endMatch.index : task.length;
+  const inClause = marks.filter((mark) => mark.at.at >= clauseStart && mark.at.at < clauseEnd);
+  const index = inClause.indexOf(me);
+  const previous = index > 0 ? inClause[index - 1] : undefined;
+  const following = inClause[index + 1];
+  const segmentEnd = whole || !following ? clauseEnd : following.at.at;
+  const tidy = (text: string): string => text.replace(/^[\s,;:—-]+|[\s,;:—-]+$/g, '');
+  if (!previous) return cut(tidy(task.slice(clauseStart, segmentEnd)));
+  const lead = tidy(task.slice(clauseStart, inClause[0].at.at));
+  // От подписи самого поля: после подписи предыдущего идёт ещё его описание («(от 2 до 100 символов)»).
+  const segment = tidy(task.slice(at, segmentEnd));
+  return cut(lead ? `${lead} … ${segment}` : segment);
+}
+
+/**
+ * Сверка формы с заданием: задание, поля с их видом, правила, расхождения и готовая правка под них,
+ * затем подтверждение. Сверка всей формы, а не одних правил: модель вешала варианты города на ФИО
+ * и теряла поле города — список подписей этого не показывал (L2-profile-json, 20261113T174310Z-2301).
+ */
+function checkLines(plan: GuidedPlan, intent: FormIntent, dir: string): string[] {
+  const fixes = gapFixes(plan.task, intent);
+  return [
+    ...(plan.task ? [`The task: «${plan.task}»`] : []),
+    `Fields now: ${fieldsSummary(intent)}`,
+    `Rules now: ${rulesSummary(intent)}`,
+    ...taskGaps(plan.task, intent).map((gap) => `⚠️ Differs from the task: ${gap}.`),
+    ...(fixes.length > 0
+      ? [
+          'Next: fix the differences — this call does it:',
+          editCall(dir, JSON.stringify(fixes)),
+          'The form is right and the difference is not real? Then:',
+        ]
+      : [
+          'An input of the task missing or wrong (a choice on the wrong field, a lost field)? set_field / add_field. A limit (required, a length, a range, a format) without a rule? add_rule. All right:',
+        ]),
+    `form_status {"dir":${JSON.stringify(dir)},"confirm":"validation"}`,
+  ];
+}
+
 export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): string[] {
   if (state.failed) {
     return [
@@ -333,16 +1223,62 @@ export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): stri
   if (!state.built && !state.fresh) {
     return ['Next: build the current files:', editCall(dir, '[]')];
   }
+  if (state.pending === 'validation' && state.awaitingConfirm && state.intent) {
+    return [
+      'Next — check the form against the task before it is done.',
+      ...checkLines(plan, state.intent, dir),
+    ];
+  }
   if (state.pending !== null) {
     const skip = state.pending === 'fields' || state.pending === 'markup';
+    const skipCall = `form_status {"dir":${JSON.stringify(dir)},"skip":"${state.pending}"}`;
+    // Валидация начата: этап ждёт поля без правил — их и называем.
+    const open = state.pending === 'validation' && state.intent ? unruled(state.intent) : [];
+    const started = state.intent?.validation.some((row) => row.rules.length > 0) === true;
+    // Ограничения задания — к месту, где они нужны: модель копировала пример с одним required.
+    const reminder =
+      state.pending === 'validation' && plan.task
+        ? [
+            `The task: «${plan.task}» — every limit it names (required, a length, a range, a format) is a rule.`,
+          ]
+        : [];
+    // Валидация начата: голого skip нет — через него модель уходила с полями без правил
+    // (L2-profile-json, 20261113T180559Z-79cd). Необязательные поля — только после сверки.
+    if (started && open.length > 0 && state.intent) {
+      return [
+        `Next — validation: fields without a rule (or, with a mask, without "pattern"): ${open.join(', ')} — add_rule from the task for each:`,
+        editCall(dir, stageExample(state.pending, plan.target, state.intent)),
+        `Are ${open.join(', ')} optional on purpose? Check the form against the task first:`,
+        ...checkLines(plan, state.intent, dir),
+      ];
+    }
+    // Поведение с видимостью, но без формулы: называем поле, которое задание вычисляет.
+    const missing =
+      state.pending === 'behavior' && state.intent ? uncomputed(state.intent, plan.task) : [];
+    const misses =
+      state.pending === 'behavior' && state.intent ? formulaMisses(state.intent, plan.task) : [];
+    const formula = [
+      ...(missing.length > 0
+        ? [
+            `Not done: ${missing.join(', ')} — computed by the task, no add_behavior "kind":"compute" on it yet (the formula of the task over model.<field>).`,
+          ]
+        : []),
+      ...misses.map(
+        (miss) =>
+          `Not done: the formula of ${miss.target} in the task also reads ${miss.missing.join(', ')} — add_behavior "kind":"compute" for ${miss.target} again with the whole formula of the task.`
+      ),
+    ];
     return [
+      ...reminder,
+      ...formula,
       `Next — ${state.pending}: ${stageGoal(state.pending, plan.target)}.`,
       editCall(dir, stageExample(state.pending, plan.target, state.intent)),
-      ...(skip
+      ...(skip ||
+      (state.pending === 'validation' && plan.task && validationWord(plan.task)) ||
+      (state.pending === 'behavior' && plan.task && behaviorWord(plan.task)) ||
+      (state.pending === 'cross' && plan.task && crossWord(plan.task))
         ? []
-        : [
-            `The task has no ${state.pending}? form_status {"dir":${JSON.stringify(dir)},"skip":"${state.pending}"}`,
-          ]),
+        : [`The task has no ${state.pending}? ${skipCall}`]),
     ];
   }
   if (!state.typesChecked) {
