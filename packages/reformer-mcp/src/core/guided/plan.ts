@@ -317,6 +317,9 @@ interface FieldGap {
 }
 
 const REQUIRED_WORDS = /обязател|\brequired\b/i;
+/** Слова о проверке формата: «проверяется формат», «корректный email», «valid email». */
+const FORMAT_WORDS = /формат|корректн|правильн|\bformat\b|\bvalid\b/i;
+const EMAIL_FIELD = /e-?mail|почт/i;
 const OPTIONAL_WORDS = /не\s*обязател|\boptional\b|\bnot required\b/i;
 const VISIBLE_WORDS = /видн|виден|видим|показыва|скрыва|\bvisible\b|\bshown\b|\bhidden\b/i;
 
@@ -329,9 +332,10 @@ const VISIBLE_WORDS = /видн|виден|видим|показыва|скры�
 function fieldGaps(
   task: string,
   intent: FormIntent
-): { required: FieldGap[]; visible: FieldGap[] } {
+): { required: FieldGap[]; visible: FieldGap[]; email: FieldGap[] } {
   const required: FieldGap[] = [];
   const visible: FieldGap[] = [];
+  const email: FieldGap[] = [];
   const lower = task.toLowerCase();
   for (const field of intent.fields) {
     const path = field.modelPath ?? field.name;
@@ -347,6 +351,15 @@ function fieldGaps(
     ) {
       required.push({ field: path, said, fix: { op: 'add_rule', field: path, required: true } });
     }
+    // Формат email: «email — обязателен, проверяется формат» без правила email — модель ставила один
+    // required (батч 20261114T200104Z-358f, registration-create на renderer-json).
+    if (
+      (EMAIL_FIELD.test(path) || EMAIL_FIELD.test(field.label ?? '')) &&
+      FORMAT_WORDS.test(said) &&
+      !rules.some((rule) => /^\s*(?:email|pattern)\s*\(/.test(rule))
+    ) {
+      email.push({ field: path, said, fix: { op: 'add_rule', field: path, email: true } });
+    }
     if (
       intent.target !== 'core' &&
       VISIBLE_WORDS.test(said) &&
@@ -360,7 +373,7 @@ function fieldGaps(
       });
     }
   }
-  return { required, visible };
+  return { required, visible, email };
 }
 
 /**
@@ -615,9 +628,12 @@ export function taskGaps(task: string | undefined, intent: FormIntent): string[]
     );
   }
   for (const gap of siblingGaps(task, intent)) gaps.push(gap.text);
-  const { required, visible } = fieldGaps(task, intent);
+  const { required, visible, email } = fieldGaps(task, intent);
   for (const gap of required) {
     gaps.push(`the task makes ${gap.field} required («${gap.said}») — no "required" rule on it`);
+  }
+  for (const gap of email) {
+    gaps.push(`the task checks the format of ${gap.field} («${gap.said}») — no "email" rule on it`);
   }
   for (const gap of visible) {
     gaps.push(
@@ -812,10 +828,10 @@ export function gapFixes(
   for (const field of missingFields(task, intent)) {
     fixes.push({ op: 'add_field', name: field.name, label: field.label });
   }
-  const { required, visible } = fieldGaps(task, intent);
+  const { required, visible, email } = fieldGaps(task, intent);
   // Видимость раньше обязательности: правило поля, видимого по условию, сервер проверяет только
   // пока поле видно.
-  for (const gap of [...visible, ...required]) if (gap.fix) fixes.push(gap.fix);
+  for (const gap of [...visible, ...required, ...email]) if (gap.fix) fixes.push(gap.fix);
   for (const gap of siblingGaps(task, intent)) fixes.push(gap.fix);
   for (const entry of missingDefaults(task, intent)) {
     const field = intent.fields.find((f) => (f.modelPath ?? f.name) === entry.field);
@@ -1479,6 +1495,24 @@ export function editGaps(
       const verbs = bullet ? `${heading} ${sentence}` : sentence;
       const names = namesIn(sentence);
       const titles = STEP_WORDS.test(verbs) ? titlesIn(sentence) : [];
+      // Формат поля из задания («телефон (`phone`) с маской `+7 (999) 999-99-99`»): поле есть, а
+      // маски нет — модель добавляла поле без неё, и сверка давала Done (батч
+      // 20261114T200104Z-358f, registration-edit на renderer-json). Поле — ближайшее имя перед шаблоном.
+      for (const template of formatTemplates(sentence)) {
+        const at = sentence.indexOf(template);
+        const named = names
+          .map((name) => ({ name, place: sentence.lastIndexOf(name, at) }))
+          .filter((entry) => entry.place >= 0 && entry.place < at)
+          .sort((a, b) => b.place - a.place)[0]?.name;
+        const field = named
+          ? intent.fields.find((item) => (item.modelPath ?? item.name) === named)
+          : undefined;
+        if (field && typeof field.componentProps?.mask !== 'string') {
+          gaps.add(
+            `\`${named}\` has no mask — the task gives its format ${template}: set_field "mask":"${template}"`
+          );
+        }
+      }
       if (RENAME_WORDS.test(verbs)) {
         const pair = names.length >= 2 ? names : titles.length >= 2 ? titles : null;
         if (!pair) continue;

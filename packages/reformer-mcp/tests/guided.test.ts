@@ -2733,3 +2733,57 @@ describe('скрытый ввод пароля — не поведение', () 
     expect(stageExample('behavior', 'renderer-react')).toMatch(/<computed field>/);
   });
 });
+
+describe('сверка: формат email и маска в правке', () => {
+  const form = (fields: Array<[string, string, Rec?]>, validation: Rec[] = []) =>
+    readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: fields.map(([name, label, props]) => ({
+        name,
+        type: 'string',
+        component: props?.mask ? 'InputMask' : 'Input',
+        label,
+        ...(props ? { componentProps: props } : {}),
+      })),
+      validation,
+    }).intent!;
+
+  it('«проверяется формат» у email без правила email — расхождение с готовой правкой', () => {
+    const task = 'email (email) — обязателен, проверяется формат.';
+    const missing = form([['email', 'Email']], [{ target: 'email', rules: ['required()'] }]);
+    expect(taskGaps(task, missing).join('\n')).toMatch(
+      /the task checks the format of email .* no "email" rule on it/
+    );
+    expect(gapFixes(task, missing)).toContainEqual({ op: 'add_rule', field: 'email', email: true });
+    const done = form(
+      [['email', 'Email']],
+      [{ target: 'email', rules: ['required()', 'email()'] }]
+    );
+    expect(taskGaps(task, done).join('\n')).not.toMatch(/format of email/);
+  });
+
+  it('правка: поле с форматом задания без маски — расхождение', () => {
+    const task = '3. Сразу после email добавь телефон (`phone`) с маской `+7 (999) 999-99-99`.';
+    expect(
+      editGaps(
+        task,
+        form([
+          ['email', 'Email'],
+          ['phone', 'Телефон'],
+        ])
+      )
+    ).toEqual([
+      '`phone` has no mask — the task gives its format +7 (999) 999-99-99: set_field "mask":"+7 (999) 999-99-99"',
+    ]);
+    expect(
+      editGaps(
+        task,
+        form([
+          ['email', 'Email'],
+          ['phone', 'Телефон', { mask: '+7 (999) 999-99-99' }],
+        ])
+      )
+    ).toEqual([]);
+  });
+});

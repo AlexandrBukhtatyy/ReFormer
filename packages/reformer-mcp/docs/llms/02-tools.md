@@ -255,9 +255,10 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   The plan is one stage `edit`: the changes with `form_edit`, then `confirm: "edit"` after a check
   of the changes — what was added, removed or renamed since the start, and what the task names: a
   key in backticks or parentheses (`` `phone` ``, `(phone)`; bare latin keys in a Russian text when
-  none is quoted), a field label in a sentence that removes it, a step in «…». A field the task does
-  not name that lost its checks is a difference too («the rest stays as is»). The checks of a new
-  form (numbers, labels, lost fields) do not run on a change.
+  none is quoted), a field label in a sentence that removes it, a step in «…». A field with a
+  format the task gives but no mask, and a field the task does not name that lost its checks are
+  differences too («the rest stays as is»). The checks of a new form (numbers, labels, lost
+  fields) do not run on a change.
 
 - **`form_edit`** `{dir?, edits}` — flat edits; the server writes `form.intent.json` and runs the
   same build as `form_build` (the answer holds its `✓`/`✗ form_build` lines). Edits apply one by
@@ -296,12 +297,13 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
 A stage is done by the content of the intent, not by the model's word; `Done` needs a passing
 build on the current files with types checked. Validation ends with a check against the task: the
 answer shows the task, the fields and the rules, and names what differs — an input the task names
-`(name)` with no field, a field the task calls required with no `required` rule, a field the task
-shows on a condition with no visibility, a number of the task no rule uses (numbers of a formula
-and list markers do not count), a bound the task does not name, a mask not in the task's format, a
-default of the task without `initialValue`, labels not in the task's language — with a ready
-`form_edit` call where it can be derived. The first `confirm` with differences is refused; a second
-one is accepted.
+`(name)` with no field, a field the task calls required with no `required` rule, an email whose
+format the task checks with no `email` rule, a field the task shows on a condition with no
+visibility, a number of the task no rule uses (numbers of a formula, list markers, numbers glued to
+letters like `ABC123` and durations like «300 мс» do not count), a bound the task does not name, a
+mask not in the task's format, a default of the task without `initialValue`, labels not in the
+task's language — with a ready `form_edit` call where it can be derived. The first `confirm` with
+differences is refused; a second one is accepted.
 
 ---
 
