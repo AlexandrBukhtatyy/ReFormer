@@ -8,6 +8,7 @@
  */
 
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -25,14 +26,39 @@ const INTENT_FILE = 'form.intent.json';
 
 export const scenariosDirectory = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Каталоги сценариев. Сценарий — каталог со `scenario.json`; каталог без него — группа (форма и её
+ * операции: `registration/create`, `registration/edit`), обходится вглубь. `_*` и скрытые — служебные.
+ */
 function scenarioDirectories(directory, split) {
   return readdirSync(directory)
+    .filter((name) => !/^[_.]/.test(name) && name !== 'node_modules')
     .filter((name) => statSync(path.join(directory, name)).isDirectory())
     .flatMap((name) => {
       const full = path.join(directory, name);
-      if (name === 'holdout') return scenarioDirectories(full, 'holdout');
-      return existsSync(path.join(full, 'scenario.json')) ? [{ full, split }] : [];
+      if (existsSync(path.join(full, 'scenario.json'))) return [{ full, split }];
+      return scenarioDirectories(full, name === 'holdout' ? 'holdout' : split);
     });
+}
+
+/**
+ * Затравка правки: `seed` — id сценария, эталон которого стенд собирает в `form/` до старта агента.
+ * Источник обязан существовать, иметь эталон и сам с чистого листа: цепочка затравок сделала бы
+ * старт правки зависимым от двух эталонов сразу.
+ */
+function resolveSeeds(scenarios) {
+  const byId = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
+  for (const scenario of scenarios) {
+    if (!scenario.seed) continue;
+    const source = byId.get(scenario.seed);
+    if (!source) throw new Error(`${scenario.id}: seed «${scenario.seed}» — нет такого сценария`);
+    if (source.seed) throw new Error(`${scenario.id}: seed ${source.id} сам начинается с затравки`);
+    if (!source.reference || source.reference === 'plan_form') {
+      throw new Error(`${scenario.id}: у seed ${source.id} нет эталонного intent`);
+    }
+    scenario.seedScenario = source;
+  }
+  return scenarios;
 }
 
 /** Шаблон с `*` → проверка идентификатора; несколько шаблонов — через запятую. */
@@ -50,25 +76,37 @@ export function matchesPattern(id, pattern) {
 
 /**
  * @param {{ pattern?: string, includeHoldout?: boolean }} [options]
- * @returns {Array<object>} сценарии по порядку уровней
+ * @returns {Array<object>} сценарии по порядку уровней, внутри уровня — по операциям
  */
 export function loadScenarios({ pattern = '*', includeHoldout = false } = {}) {
-  return scenarioDirectories(scenariosDirectory, 'tuned')
-    .map(({ full, split }) => {
-      const scenario = JSON.parse(readFileSync(path.join(full, 'scenario.json'), 'utf8'));
-      return {
-        ...scenario,
-        split: scenario.split ?? split,
-        directory: full,
-        promptFile: path.join(full, scenario.prompt ?? 'prompt.md'),
-        contractFile: path.join(full, scenario.contract ?? 'contract.json'),
-        specFile: scenario.spec ? path.join(repoRoot, scenario.spec) : null,
-      };
-    })
+  const all = scenarioDirectories(scenariosDirectory, 'tuned').map(({ full, split }) => {
+    const scenario = JSON.parse(readFileSync(path.join(full, 'scenario.json'), 'utf8'));
+    return {
+      ...scenario,
+      split: scenario.split ?? split,
+      directory: full,
+      promptFile: path.join(full, scenario.prompt ?? 'prompt.md'),
+      contractFile: path.join(full, scenario.contract ?? 'contract.json'),
+      specFile: scenario.spec ? path.join(repoRoot, scenario.spec) : null,
+    };
+  });
+  return resolveSeeds(all)
     .filter((scenario) => includeHoldout || scenario.split !== 'holdout')
     .filter((scenario) => matchesPattern(scenario.id, pattern))
-    .sort((first, second) => first.level - second.level || first.id.localeCompare(second.id));
+    .sort(
+      (first, second) =>
+        first.level - second.level ||
+        operationRank(first) - operationRank(second) ||
+        first.id.localeCompare(second.id)
+    );
 }
+
+/** Порядок операций над одной формой: сначала создание, потом то, что начинается с готовой. */
+const OPERATIONS = ['create', 'split', 'edit', 'delete'];
+const operationRank = (scenario) => {
+  const rank = OPERATIONS.indexOf(scenario.operation ?? 'create');
+  return rank < 0 ? OPERATIONS.length : rank;
+};
 
 /** Intent эталона в `<directory>/form.intent.json`: из файла сценария либо черновиком `plan_form`. */
 async function writeReferenceIntent({ scenario, target, directory, client }) {
@@ -112,10 +150,24 @@ function drawCoreForm(indexFile) {
   );
 }
 
+/**
+ * Положить в каталог форму, с которой начинается правка: эталон сценария-затравки, собранный тем же
+ * путём. Сценарий без затравки начинается с пустого каталога — функция ничего не делает.
+ */
+export async function writeSeedBundle({ scenario, target, directory, client }) {
+  if (!scenario.seedScenario) return null;
+  return writeReferenceBundle({ scenario: scenario.seedScenario, target, directory, client });
+}
+
 /** Собрать эталонный модуль сценария через сервер: intent на диск, затем `form_build`. */
 export async function writeReferenceBundle({ scenario, target, directory, client }) {
   mkdirSync(directory, { recursive: true });
   await writeReferenceIntent({ scenario, target, directory, client });
+  // Файлы, которые агент пишет руками (тела своих операторов): сборка их не трогает, только проверяет
+  // типы. Путь источника — от каталога сценария.
+  for (const [file, source] of Object.entries(scenario.referenceFiles ?? {})) {
+    copyFileSync(path.resolve(scenario.directory, source), path.join(directory, file));
+  }
   const { text } = await client.callTool('form_build', { dir: directory }, 180000);
   // Префикс ответа — контракт `form_build` (тест «ответ — контракт стендов», tests/form-build.test.ts).
   if (!text.startsWith('✓ form_build')) {

@@ -64,7 +64,7 @@ function instrument(name, serverPath) {
         '--server',
         serverPath,
         '--scenario',
-        'L2-*,L3-*,L5-loan',
+        'registration-create,order-create',
       ],
     };
   }
@@ -77,7 +77,7 @@ function instrument(name, serverPath) {
         '--server',
         serverPath,
         '--scenario',
-        'L1-feedback',
+        'registration-create',
       ],
     };
   }

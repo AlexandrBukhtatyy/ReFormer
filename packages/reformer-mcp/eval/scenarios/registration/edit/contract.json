@@ -1,0 +1,64 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "registration-edit",
+  "extends": "../create/contract.json",
+  "fields": [
+    {
+      "id": "login",
+      "bind": { "path": "username", "label": "/имя пользователя/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/имя пользователя/i" }
+    },
+    {
+      "id": "phone",
+      "after": "email",
+      "bind": { "path": "phone", "label": "/телефон/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/телефон/i" }
+    }
+  ],
+  "absent": [{ "id": "login-key", "bind": { "paths": ["login"], "label": "/^логин/i" } }],
+  "buttons": [{ "name": "/создать аккаунт/i" }],
+  "sample": {
+    "password": "secret1234",
+    "confirmPassword": "secret1234",
+    "phone": ""
+  },
+  "probes": [
+    {
+      "id": "password-too-short",
+      "gate": true,
+      "set": { "password": "secret123", "confirmPassword": "secret123" },
+      "expect": { "valid": false, "invalid": ["password"] }
+    },
+    {
+      "id": "password-needs-digit",
+      "gate": true,
+      "set": { "password": "secretpassword", "confirmPassword": "secretpassword" },
+      "expect": { "valid": false, "invalid": ["password"] }
+    },
+    {
+      "id": "password-ten-with-digit",
+      "gate": true,
+      "set": { "password": "abcdefghi1", "confirmPassword": "abcdefghi1" },
+      "expect": { "valid": true, "noIssues": ["password"] }
+    },
+    {
+      "id": "phone-optional",
+      "gate": true,
+      "set": { "phone": "" },
+      "expect": { "valid": true, "noIssues": ["phone"] }
+    },
+    {
+      "id": "phone-format",
+      "gate": true,
+      "set": { "phone": "12345" },
+      "expect": { "valid": false, "invalid": ["phone"] }
+    },
+    {
+      "id": "phone-valid",
+      "set": { "phone": "+7 (999) 123-45-67" },
+      "expect": { "valid": true, "noIssues": ["phone"] }
+    }
+  ]
+}

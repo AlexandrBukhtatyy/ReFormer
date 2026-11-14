@@ -1,0 +1,140 @@
+{
+  "formName": "RegistrationForm",
+  "interfaceName": "Registration",
+  "target": "renderer-react",
+  "fields": [
+    {
+      "name": "login",
+      "type": "string",
+      "component": "Input",
+      "label": "Логин",
+      "initialValue": ""
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": "",
+      "componentProps": { "type": "email" }
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "initialValue": ""
+    },
+    {
+      "name": "confirmPassword",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Повтор пароля",
+      "initialValue": ""
+    },
+    {
+      "name": "captcha",
+      "type": "string",
+      "component": "Input",
+      "label": "Символы с картинки",
+      "initialValue": ""
+    }
+  ],
+  "layoutRoot": {
+    "kind": "container",
+    "component": "Box",
+    "children": [
+      "login",
+      "email",
+      "password",
+      "confirmPassword",
+      "captcha",
+      {
+        "kind": "container",
+        "component": "Button",
+        "selector": "submit",
+        "componentProps": { "type": "button" },
+        "children": [{ "text": "Зарегистрироваться" }]
+      }
+    ]
+  },
+  "validation": [
+    {
+      "target": "login",
+      "rules": ["required({ code: 'login.required' })"],
+      "message": "Введите логин"
+    },
+    {
+      "target": "login",
+      "rules": ["minLength(3, { code: 'login.minLength' })"],
+      "message": "Минимум 3 символа"
+    },
+    {
+      "target": "login",
+      "rules": ["maxLength(20, { code: 'login.maxLength' })"],
+      "message": "Максимум 20 символов"
+    },
+    {
+      "target": "login",
+      "rules": ["pattern(/^[a-zA-Z0-9_]+$/, { code: 'login.pattern' })"],
+      "message": "Только латиница, цифры и _"
+    },
+    {
+      "target": "email",
+      "rules": ["required({ code: 'email.required' })"],
+      "message": "Введите email"
+    },
+    {
+      "target": "email",
+      "rules": ["email({ code: 'email.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "password",
+      "rules": ["required({ code: 'password.required' })"],
+      "message": "Введите пароль"
+    },
+    {
+      "target": "password",
+      "rules": ["minLength(8, { code: 'password.minLength' })"],
+      "message": "Минимум 8 символов"
+    },
+    {
+      "target": "confirmPassword",
+      "rules": ["required({ code: 'confirmPassword.required' })"],
+      "message": "Повторите пароль"
+    },
+    {
+      "target": "confirmPassword",
+      "cross": "!values.confirmPassword || values.confirmPassword === values.password",
+      "code": "confirmPassword.mismatch",
+      "message": "Пароли не совпадают"
+    },
+    {
+      "target": "captcha",
+      "rules": ["required({ code: 'captcha.required' })"],
+      "message": "Введите символы с картинки"
+    },
+    {
+      "target": "captcha",
+      "async": "async (value) => { if (!value) return null; await new Promise((resolve) => setTimeout(resolve, 300)); return String(value).toUpperCase() === 'ABC123' ? null : { code: 'captcha.invalid' }; }",
+      "code": "captcha.invalid",
+      "message": "Символы не совпадают"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "revalidateWhen",
+      "target": "confirmPassword",
+      "sources": ["password"],
+      "expr": "form.confirmPassword.markAsTouched()"
+    },
+    {
+      "kind": "onComponentEvent",
+      "selector": "submit",
+      "event": "onClick",
+      "expr": "await registerUser(model.get())"
+    }
+  ],
+  "operators": { "registerUser": "./api" }
+}

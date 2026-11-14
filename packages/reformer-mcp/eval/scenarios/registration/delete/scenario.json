@@ -1,0 +1,19 @@
+{
+  "id": "registration-delete",
+  "level": 1,
+  "operation": "delete",
+  "title": "Регистрация: удаление полей с их правилами",
+  "seed": "registration-create",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "tags": ["delete", "cross", "async"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "лестница ассистента не кладёт затравку: правку там не с чего начать (ReFormer-mhsh.4)"
+  }
+}

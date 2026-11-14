@@ -1,0 +1,21 @@
+{
+  "id": "order-delete",
+  "level": 2,
+  "operation": "delete",
+  "title": "Оформление заказа: удаление полей вместе с зависимостями",
+  "seed": "order-create",
+  "spec": "packages/reformer-mcp/eval/scenarios/order/spec.md",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "referenceFiles": { "operators.ts": "../create/reference.operators.ts" },
+  "tags": ["delete", "computed", "async", "copy"],
+  "budget": {
+    "timeoutMs": 1800000,
+    "maxUsd": 4,
+    "maxSteps": 60
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "лестница ассистента не кладёт затравку: правку там не с чего начать (ReFormer-mhsh.4)"
+  }
+}

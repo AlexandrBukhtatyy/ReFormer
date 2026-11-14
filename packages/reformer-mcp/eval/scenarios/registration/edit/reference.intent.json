@@ -1,0 +1,159 @@
+{
+  "formName": "RegistrationForm",
+  "interfaceName": "Registration",
+  "target": "renderer-react",
+  "fields": [
+    {
+      "name": "username",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя пользователя",
+      "initialValue": ""
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": "",
+      "componentProps": { "type": "email" }
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон",
+      "initialValue": "",
+      "componentProps": { "mask": "+7 (999) 999-99-99" }
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "initialValue": ""
+    },
+    {
+      "name": "confirmPassword",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Повтор пароля",
+      "initialValue": ""
+    },
+    {
+      "name": "captcha",
+      "type": "string",
+      "component": "Input",
+      "label": "Символы с картинки",
+      "initialValue": ""
+    }
+  ],
+  "layoutRoot": {
+    "kind": "container",
+    "component": "Box",
+    "children": [
+      "username",
+      "email",
+      "phone",
+      "password",
+      "confirmPassword",
+      "captcha",
+      {
+        "kind": "container",
+        "component": "Button",
+        "selector": "submit",
+        "componentProps": { "type": "button" },
+        "children": [{ "text": "Создать аккаунт" }]
+      }
+    ]
+  },
+  "validation": [
+    {
+      "target": "username",
+      "rules": ["required({ code: 'username.required' })"],
+      "message": "Введите логин"
+    },
+    {
+      "target": "username",
+      "rules": ["minLength(3, { code: 'username.minLength' })"],
+      "message": "Минимум 3 символа"
+    },
+    {
+      "target": "username",
+      "rules": ["maxLength(20, { code: 'username.maxLength' })"],
+      "message": "Максимум 20 символов"
+    },
+    {
+      "target": "username",
+      "rules": ["pattern(/^[a-zA-Z0-9_]+$/, { code: 'username.pattern' })"],
+      "message": "Только латиница, цифры и _"
+    },
+    {
+      "target": "email",
+      "rules": ["required({ code: 'email.required' })"],
+      "message": "Введите email"
+    },
+    {
+      "target": "email",
+      "rules": ["email({ code: 'email.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "phone",
+      "rules": ["pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/, { code: 'phone.format' })"],
+      "message": "Формат +7 (999) 999-99-99"
+    },
+    {
+      "target": "password",
+      "rules": ["required({ code: 'password.required' })"],
+      "message": "Введите пароль"
+    },
+    {
+      "target": "password",
+      "rules": ["minLength(10, { code: 'password.minLength' })"],
+      "message": "Минимум 10 символов"
+    },
+    {
+      "target": "password",
+      "rules": ["pattern(/\\d/, { code: 'password.digit' })"],
+      "message": "Нужна хотя бы одна цифра"
+    },
+    {
+      "target": "confirmPassword",
+      "rules": ["required({ code: 'confirmPassword.required' })"],
+      "message": "Повторите пароль"
+    },
+    {
+      "target": "confirmPassword",
+      "cross": "!values.confirmPassword || values.confirmPassword === values.password",
+      "code": "confirmPassword.mismatch",
+      "message": "Пароли не совпадают"
+    },
+    {
+      "target": "captcha",
+      "rules": ["required({ code: 'captcha.required' })"],
+      "message": "Введите символы с картинки"
+    },
+    {
+      "target": "captcha",
+      "async": "async (value) => { if (!value) return null; await new Promise((resolve) => setTimeout(resolve, 300)); return String(value).toUpperCase() === 'ABC123' ? null : { code: 'captcha.invalid' }; }",
+      "code": "captcha.invalid",
+      "message": "Символы не совпадают"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "revalidateWhen",
+      "target": "confirmPassword",
+      "sources": ["password"],
+      "expr": "form.confirmPassword.markAsTouched()"
+    },
+    {
+      "kind": "onComponentEvent",
+      "selector": "submit",
+      "event": "onClick",
+      "expr": "await registerUser(model.get())"
+    }
+  ],
+  "operators": { "registerUser": "./api" }
+}

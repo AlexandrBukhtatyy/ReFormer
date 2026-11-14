@@ -1,0 +1,8 @@
+{
+  "description": "Форма не разбита на шаги: одностраничная затравка вместо мастера.",
+  "scenario": "wizard-split",
+  "target": "renderer-react",
+  "seedOnly": true,
+  "expectFailure": "runtime.structure.steps",
+  "mutations": []
+}

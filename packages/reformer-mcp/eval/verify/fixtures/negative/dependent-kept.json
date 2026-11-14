@@ -1,0 +1,8 @@
+{
+  "description": "Удаление не сделано: промокод, скидка и адрес для счёта остались в форме.",
+  "scenario": "order-delete",
+  "target": "renderer-react",
+  "seedOnly": true,
+  "expectFailure": "runtime.structure.absent",
+  "mutations": []
+}

@@ -1,0 +1,8 @@
+{
+  "description": "Правка не сделана: в каталоге осталась затравка — поле не переименовано.",
+  "scenario": "registration-edit",
+  "target": "renderer-react",
+  "seedOnly": true,
+  "expectFailure": "runtime.structure.fields",
+  "mutations": []
+}

@@ -6,7 +6,7 @@
  *   npm run mcp:verify -- --dir <каталог> --contract <файл> --module builder   модуль конструктора
  *   npm run mcp:verify -- --ladder <каталог>   прогон лестницы в ассистенте: <каталог>/ladder.json и
  *                                               модуль на сценарий; итог — <каталог>/verify.json
- *   npm run mcp:verify -- --golden [--scenario 'L3-*']   эталон каждого сценария обязан пройти
+ *   npm run mcp:verify -- --golden [--scenario 'order-*'] эталон каждого сценария обязан пройти
  *   npm run mcp:verify -- --negative                     заведомо сломанные формы обязаны упасть
  *   npm run mcp:verify -- --reverify <батч>[,<батч>]     новая оценка сохранённых форм без модели
  *
@@ -39,8 +39,9 @@ import {
   rewriteRecords,
   runsDirectory,
 } from '../records/record.mjs';
-import { loadScenarios, writeReferenceBundle } from '../scenarios/catalog.mjs';
+import { loadScenarios, writeReferenceBundle, writeSeedBundle } from '../scenarios/catalog.mjs';
 import { verifyInBrowser } from './browser.mjs';
+import { contractText, readContract } from './contract.mjs';
 import { stackProblem } from './stack.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -176,12 +177,22 @@ export function verifyRuntime({ directory, contractFile }) {
 /** Гейты: без чего форма не считается сделанной. Остальные проверки влияют только на счёт. */
 export function gatesFor(contract, checks) {
   const gates = ['workspace.entry', 'static.tsc', 'runtime.load', 'runtime.structure.fields'];
+  // Шаги мастера и удалённые поля — суть сценариев мастера и удаления: без них задание не сделано.
+  if (contract.steps?.length) gates.push('runtime.structure.steps');
+  if (contract.absent?.length) gates.push('runtime.structure.absent');
   for (const probe of contract.probes ?? []) {
     if (probe.gate && probe.where !== 'browser') gates.push(`runtime.probe.${probe.id}`);
   }
   // Пропущенная проверка не гейт: контракт мог не задавать снимок доступности, у эталона на core
   // стек не проверяется.
-  for (const id of ['static.stack', 'browser.render', 'browser.aria', 'browser.axe']) {
+  for (const id of [
+    'static.stack',
+    'browser.render',
+    'browser.aria',
+    'browser.axe',
+    'browser.absent',
+    'browser.buttons',
+  ]) {
     if (checks[id] !== undefined && checkStatus(checks[id]) !== 'skip') gates.push(id);
   }
   return gates;
@@ -203,7 +214,7 @@ export function summarize(contract, checks) {
 
 /** Полная проверка каталога: static + headless. */
 export async function verifyBundle({ directory, contractFile, target, client, reference, module }) {
-  const contract = JSON.parse(readFileSync(contractFile, 'utf8'));
+  const contract = readContract(contractFile);
   const checks = await verifyStatic({ directory, target, client, reference, module });
   const runtime = verifyRuntime({ directory, contractFile });
   Object.assign(checks, runtime.checks);
@@ -228,6 +239,8 @@ async function runGolden(client, pattern, workDirectory, withBrowser) {
     }
     for (const target of scenario.targets) {
       const directory = path.join(workDirectory, `${scenario.id}-${target}`);
+      // Правка — поверх затравки, как у агента: эталон проверяет и пересборку готовой формы.
+      await writeSeedBundle({ scenario, target, directory, client });
       await writeReferenceBundle({ scenario, target, directory, client });
       const result = await verifyBundle({
         directory,
@@ -242,7 +255,9 @@ async function runGolden(client, pattern, workDirectory, withBrowser) {
         slot: `${scenario.id}-${target}`.replace(/[^\w-]/g, '-'),
         directory,
         contractFile: scenario.contractFile,
-        contract: JSON.parse(readFileSync(scenario.contractFile, 'utf8')),
+        contract: readContract(scenario.contractFile),
+        // Эталон на core рисуется схемой без слоя рендера (`intentForTarget` снимает видимость).
+        renderLayer: target !== 'core',
       });
     }
   }
@@ -265,11 +280,18 @@ async function runGolden(client, pattern, workDirectory, withBrowser) {
 async function runNegative(client, workDirectory) {
   const fixtures = path.join(here, 'fixtures', 'negative');
   let failed = 0;
-  for (const name of readdirSync(fixtures).sort()) {
+  for (const name of readdirSync(fixtures)
+    .filter((file) => file.endsWith('.json'))
+    .sort()) {
     const fixture = JSON.parse(readFileSync(path.join(fixtures, name), 'utf8'));
     const scenario = loadScenarios({ pattern: fixture.scenario, includeHoldout: true })[0];
+    if (!scenario) throw new Error(`${name}: нет сценария ${fixture.scenario}`);
     const directory = path.join(workDirectory, `negative-${name.replace(/\.json$/, '')}`);
-    await writeReferenceBundle({ scenario, target: fixture.target, directory, client });
+    await writeSeedBundle({ scenario, target: fixture.target, directory, client });
+    // `seedOnly`: агент не сделал правку — в каталоге осталась затравка как есть.
+    if (!fixture.seedOnly) {
+      await writeReferenceBundle({ scenario, target: fixture.target, directory, client });
+    }
     for (const { file, find, replace } of fixture.mutations) {
       const target = path.join(directory, file);
       const source = readFileSync(target, 'utf8');
@@ -316,7 +338,7 @@ async function runReverify(client, batchIds) {
         records.push(record);
         continue;
       }
-      const contractText = readFileSync(scenario.contractFile, 'utf8');
+      const text = contractText(scenario.contractFile);
       const result = await verifyBundle({
         directory,
         contractFile: scenario.contractFile,
@@ -326,7 +348,10 @@ async function runReverify(client, batchIds) {
       });
       const browser = Object.entries(record.checks).filter(([id]) => id.startsWith('browser.'));
       const checks = { ...result.checks, ...Object.fromEntries(browser) };
-      const { verdict, score, gates, failedGates } = summarize(JSON.parse(contractText), checks);
+      const { verdict, score, gates, failedGates } = summarize(
+        readContract(scenario.contractFile),
+        checks
+      );
       if (scenario.split === 'holdout') {
         holdout.total += 1;
         if (record.verdict === 'pass') holdout.before += 1;
@@ -346,7 +371,7 @@ async function runReverify(client, batchIds) {
         source: { ...record.source, provenance: 'reverified' },
         scenario: {
           ...record.scenario,
-          contractDigest: createHash('sha256').update(contractText).digest('hex').slice(0, 16),
+          contractDigest: createHash('sha256').update(text).digest('hex').slice(0, 16),
         },
       });
     }

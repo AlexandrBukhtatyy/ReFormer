@@ -1,12 +1,12 @@
 {
   "description": "Сломанная формула: итог не учитывает скидку.",
-  "scenario": "L3-order-total",
+  "scenario": "order-create",
   "target": "core",
-  "expectFailure": "runtime.probe.total-from-inputs",
+  "expectFailure": "runtime.probe.total-with-discount",
   "mutations": [
     {
       "file": "form.behavior.ts",
-      "find": "(1 - discount / 100)",
+      "find": "(1 - (discount ?? 0) / 100)",
       "replace": "1"
     }
   ]

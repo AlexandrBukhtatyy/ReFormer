@@ -20,6 +20,7 @@ import {
 import path from 'node:path';
 import { flattenReport, runPlaywright, E2E_DIRECTORY } from '../lib/playwright.mjs';
 import { repoRoot } from '../records/record.mjs';
+import { readContract } from './contract.mjs';
 
 const PAGES_DIRECTORY = path.join(
   repoRoot,
@@ -63,7 +64,10 @@ export function deriveAriaFields(contract) {
 /**
  * Смонтировать модули и прогнать браузерные проверки.
  *
- * @param {Array<{ slot: string, directory: string, contractFile: string }>} entries
+ * `renderLayer: false` — форма нарисована схемой без слоя рендера (эталон на core): ожидания
+ * видимости (`hidden`) такой форме проверять нечем, пробы с ними пропускаются.
+ *
+ * @param {Array<{ slot: string, directory: string, contractFile: string, renderLayer?: boolean }>} entries
  * @param {{ batchId: string, workDirectory: string }} options
  * @returns {Record<string, Record<string, unknown>>} проверки по слотам
  */
@@ -75,19 +79,26 @@ export function verifyInBrowser(entries, { batchId, workDirectory }) {
     if (statSync(slot).isDirectory()) rmSync(slot, { recursive: true, force: true });
   }
   const screenshots = path.join(E2E_DIRECTORY, 'screenshots', 'mcp-scenarios', batchId);
-  const manifest = entries.map(({ slot, directory, contractFile }) => {
+  const manifest = entries.map(({ slot, directory, contractFile, renderLayer = true }) => {
     const pageDirectory = path.join(PAGES_DIRECTORY, slot);
     rmSync(pageDirectory, { recursive: true, force: true });
     mkdirSync(pageDirectory, { recursive: true });
     cpSync(directory, path.join(pageDirectory, 'module'), { recursive: true });
     writeFileSync(path.join(pageDirectory, 'Page.tsx'), pageTemplate);
-    const contract = JSON.parse(readFileSync(contractFile, 'utf8'));
+    const contract = readContract(contractFile);
     return {
       slot,
       path: `/mcp-scenarios/${slot}`,
       ariaFields: deriveAriaFields(contract),
       probes: (contract.probes ?? []).filter((probe) => probe.where === 'browser'),
       fields: contract.fields ?? [],
+      // Удалённые поля: на первом экране их подписи не должно быть.
+      absent: (contract.absent ?? [])
+        .filter((field) => field.bind?.label && !field.step)
+        .map((field) => ({ id: field.id, label: field.bind.label })),
+      // Кнопки, которые должны быть на первом экране: подпись — регулярка.
+      buttons: contract.buttons ?? [],
+      renderLayer,
       sample: contract.sample ?? {},
       screenshot: path.join(screenshots, `${slot}.png`),
       ariaArtifact: path.join(workDirectory, `${slot}.aria.yml`),
@@ -115,12 +126,24 @@ export function verifyInBrowser(entries, { batchId, workDirectory }) {
     return results;
   }
   // Заголовок теста — `<слот> :: <проверка>`.
-  for (const test of flattenReport(JSON.parse(readFileSync(reportFile, 'utf8')))) {
+  const report = JSON.parse(readFileSync(reportFile, 'utf8'));
+  for (const test of flattenReport(report)) {
     const [slot, check] = test.title.split(' :: ');
     if (!results[slot] || !check) continue;
     if (test.status === 'passed') results[slot][check] = 'pass';
     else if (test.status === 'skipped') results[slot][check] = 'skip';
     else results[slot][check] = ['fail', (test.error || test.status).slice(0, 200)];
+  }
+  // Отчёт есть, а тестов слота нет: Playwright упал до тестов (не поднялся dev-сервер). Пустой набор
+  // проверок выглядел бы как пройденная стадия — это провал прибора, его надо видеть.
+  const reason = (report.errors ?? []).map((error) => error.message).join('; ') || run.stderr;
+  for (const { slot } of entries) {
+    if (Object.keys(results[slot]).length === 0) {
+      results[slot]['browser.render'] = [
+        'fail',
+        `браузерная стадия не выполнилась: ${reason || 'нет тестов в отчёте'}`.slice(0, 200),
+      ];
+    }
   }
   return results;
 }

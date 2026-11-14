@@ -1,0 +1,115 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "order-delete",
+  "extends": "../create/contract.json",
+  "drop": {
+    "fields": [
+      "promoCode",
+      "discount",
+      "billingSame",
+      "billingAddress.city",
+      "billingAddress.street",
+      "billingAddress.house"
+    ],
+    "probes": [
+      "promo-uppercase",
+      "promo-unknown",
+      "discount-disabled-for-person",
+      "discount-reset-for-person",
+      "discount-max",
+      "total-with-discount",
+      "billing-copies-delivery",
+      "billing-disabled-while-same",
+      "billing-required-when-different"
+    ]
+  },
+  "absent": [
+    {
+      "id": "promoCode",
+      "bind": {
+        "paths": ["promoCode"],
+        "label": "/промокод/i"
+      }
+    },
+    {
+      "id": "discount",
+      "bind": {
+        "paths": ["discount"],
+        "label": "/скидк/i"
+      }
+    },
+    {
+      "id": "billingSame",
+      "bind": {
+        "paths": ["billingSame"],
+        "label": "/совпадает/i"
+      }
+    },
+    {
+      "id": "billingAddress",
+      "bind": {
+        "paths": [
+          "billingAddress",
+          "billingAddress.city",
+          "billingAddress.street",
+          "billingAddress.house"
+        ]
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "starts-with-defaults",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "customerType": "person",
+          "deliveryMethod": "pickup",
+          "paymentMethod": "card",
+          "agreeTerms": false,
+          "newsletter": false
+        },
+        "arrayLength": {
+          "items": 1,
+          "recipients": 1
+        }
+      }
+    },
+    {
+      "id": "total-equals-subtotal",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "items": {
+          "push": {
+            "title": "Мышь",
+            "quantity": 2,
+            "price": 1500,
+            "lineTotal": 0
+          }
+        }
+      },
+      "expect": {
+        "values": {
+          "subtotal": 53000,
+          "total": 53000
+        }
+      }
+    },
+    {
+      "id": "delivery-address-still-required",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "post"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["deliveryAddress.city"]
+      }
+    }
+  ]
+}

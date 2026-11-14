@@ -1,0 +1,22 @@
+{
+  "id": "wizard-split",
+  "level": 3,
+  "operation": "split",
+  "title": "Мастер оформления заказа: одностраничная форма → шаги",
+  "seed": "order-create",
+  "spec": "packages/reformer-mcp/eval/scenarios/order/spec.md",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "../create/reference.intent.json",
+  "referenceFiles": { "operators.ts": "../../order/create/reference.operators.ts" },
+  "contract": "../create/contract.json",
+  "tags": ["edit", "wizard"],
+  "budget": {
+    "timeoutMs": 1800000,
+    "maxUsd": 4,
+    "maxSteps": 60
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "лестница ассистента не кладёт затравку: правку там не с чего начать (ReFormer-mhsh.4)"
+  }
+}

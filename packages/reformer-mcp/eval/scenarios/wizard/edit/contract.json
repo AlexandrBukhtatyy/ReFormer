@@ -1,0 +1,194 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "wizard-edit",
+  "extends": "../create/contract.json",
+  "fields": [
+    {
+      "id": "giftWrap",
+      "after": "subtotal",
+      "bind": {
+        "path": "giftWrap",
+        "label": "/подарочн/i"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "giftMessage",
+      "after": "giftWrap",
+      "bind": {
+        "path": "giftMessage",
+        "label": "/открытк/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "comment",
+      "bind": {
+        "path": "comment",
+        "label": "/комментар/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/комментар/i",
+        "step": 7
+      }
+    }
+  ],
+  "steps": [
+    {
+      "title": "/покупател/i",
+      "fields": [
+        "customerType",
+        "contact.lastName",
+        "contact.firstName",
+        "email",
+        "phone",
+        "birthDate"
+      ]
+    },
+    {
+      "title": "/компани/i",
+      "fields": ["company.name", "company.inn"]
+    },
+    {
+      "title": "/доставк/i",
+      "fields": [
+        "deliveryMethod",
+        "deliveryAddress.city",
+        "deliveryAddress.street",
+        "deliveryAddress.house",
+        "deliveryDate",
+        "billingSame",
+        "billingAddress.city",
+        "billingAddress.street",
+        "billingAddress.house"
+      ]
+    },
+    {
+      "title": "/товар/i",
+      "fields": ["items", "subtotal"]
+    },
+    {
+      "title": "/упаковк/i",
+      "fields": ["giftWrap", "giftMessage"]
+    },
+    {
+      "title": "/^оплата и скидки$/i",
+      "fields": ["promoCode", "discount", "total", "paymentMethod", "receiptEmail"]
+    },
+    {
+      "title": "/подтвержд/i",
+      "fields": ["recipients", "comment", "agreeTerms", "newsletter", "sources"]
+    }
+  ],
+  "sample": {
+    "giftWrap": false,
+    "giftMessage": ""
+  },
+  "probes": [
+    {
+      "id": "gift-wrap-off-by-default",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "giftWrap": false,
+          "giftMessage": ""
+        }
+      }
+    },
+    {
+      "id": "gift-message-optional-without-wrap",
+      "gate": true,
+      "step": 5,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "step-5-blocks-gift-message",
+      "gate": true,
+      "step": 5,
+      "set": {
+        "giftWrap": true,
+        "giftMessage": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["giftMessage"]
+      }
+    },
+    {
+      "id": "gift-message-max",
+      "set": {
+        "giftWrap": true,
+        "giftMessage": "ааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааа"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["giftMessage"]
+      }
+    },
+    {
+      "id": "step-5-blocks-invoice-for-person",
+      "gate": true,
+      "step": 6,
+      "set": {
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["paymentMethod"]
+      }
+    },
+    {
+      "id": "step-6-blocks-terms",
+      "gate": true,
+      "step": 7,
+      "set": {
+        "agreeTerms": false
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["agreeTerms"]
+      }
+    },
+    {
+      "id": "step-6-passes-filled",
+      "step": 7,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "comment-checked-on-confirmation",
+      "gate": true,
+      "step": 7,
+      "set": {
+        "comment": "ааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааа"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["comment"]
+      }
+    },
+    {
+      "id": "comment-left-payment-step",
+      "gate": true,
+      "step": 6,
+      "set": {
+        "comment": "ааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааа"
+      },
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

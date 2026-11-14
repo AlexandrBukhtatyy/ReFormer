@@ -1,0 +1,96 @@
+{
+  "formName": "RegistrationForm",
+  "interfaceName": "Registration",
+  "target": "renderer-react",
+  "fields": [
+    {
+      "name": "login",
+      "type": "string",
+      "component": "Input",
+      "label": "Логин",
+      "initialValue": ""
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": "",
+      "componentProps": { "type": "email" }
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "component": "InputPassword",
+      "label": "Пароль",
+      "initialValue": ""
+    }
+  ],
+  "layoutRoot": {
+    "kind": "container",
+    "component": "Box",
+    "children": [
+      "login",
+      "email",
+      "password",
+      {
+        "kind": "container",
+        "component": "Button",
+        "selector": "submit",
+        "componentProps": { "type": "button" },
+        "children": [{ "text": "Зарегистрироваться" }]
+      }
+    ]
+  },
+  "validation": [
+    {
+      "target": "login",
+      "rules": ["required({ code: 'login.required' })"],
+      "message": "Введите логин"
+    },
+    {
+      "target": "login",
+      "rules": ["minLength(3, { code: 'login.minLength' })"],
+      "message": "Минимум 3 символа"
+    },
+    {
+      "target": "login",
+      "rules": ["maxLength(20, { code: 'login.maxLength' })"],
+      "message": "Максимум 20 символов"
+    },
+    {
+      "target": "login",
+      "rules": ["pattern(/^[a-zA-Z0-9_]+$/, { code: 'login.pattern' })"],
+      "message": "Только латиница, цифры и _"
+    },
+    {
+      "target": "email",
+      "rules": ["required({ code: 'email.required' })"],
+      "message": "Введите email"
+    },
+    {
+      "target": "email",
+      "rules": ["email({ code: 'email.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "password",
+      "rules": ["required({ code: 'password.required' })"],
+      "message": "Введите пароль"
+    },
+    {
+      "target": "password",
+      "rules": ["minLength(8, { code: 'password.minLength' })"],
+      "message": "Минимум 8 символов"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "onComponentEvent",
+      "selector": "submit",
+      "event": "onClick",
+      "expr": "await registerUser(model.get())"
+    }
+  ],
+  "operators": { "registerUser": "./api" }
+}

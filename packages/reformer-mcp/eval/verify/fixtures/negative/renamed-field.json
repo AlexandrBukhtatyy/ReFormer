@@ -1,23 +1,28 @@
 {
-  "description": "Поле согласованно названо иначе, чем в задании: форма рабочая, но контракт его не находит.",
-  "scenario": "L3-order-total",
+  "description": "Поле названо иначе, чем в задании, и подпись другая: форма рабочая, но контракт его не находит.",
+  "scenario": "registration-create",
   "target": "core",
   "expectFailure": "runtime.structure.fields",
   "mutations": [
     {
       "file": "model.ts",
-      "find": "total",
-      "replace": "sum"
+      "find": "login",
+      "replace": "nickname"
     },
     {
-      "file": "form.behavior.ts",
-      "find": "model.$.total",
-      "replace": "model.$.sum"
+      "file": "form.validation.ts",
+      "find": "model.$.login",
+      "replace": "model.$.nickname"
     },
     {
       "file": "form.schema.ts",
-      "find": "model.$.total",
-      "replace": "model.$.sum"
+      "find": "model.$.login",
+      "replace": "model.$.nickname"
+    },
+    {
+      "file": "form.schema.ts",
+      "find": "'Логин'",
+      "replace": "'Ник'"
     }
   ]
 }

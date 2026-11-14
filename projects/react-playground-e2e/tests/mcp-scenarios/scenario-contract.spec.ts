@@ -27,6 +27,12 @@ interface ManifestEntry {
   ariaFields: Array<{ id: string; role: string; name: string }>;
   probes: ManifestProbe[];
   fields: ManifestField[];
+  /** Удалённые поля: подписи, которых на первом экране быть не должно. */
+  absent?: Array<{ id: string; label: string }>;
+  /** Кнопки первого экрана: подпись — регулярка. */
+  buttons?: Array<{ name: string }>;
+  /** `false` — форма нарисована схемой без слоя рендера (эталон на core): видимость не проверить. */
+  renderLayer?: boolean;
   screenshot: string;
   ariaArtifact: string;
 }
@@ -123,8 +129,35 @@ for (const entry of manifest) {
       expect(severe).toEqual([]);
     });
 
+    test(`${entry.slot} :: browser.absent`, async ({ page }) => {
+      test.skip(!entry.absent?.length, 'контракт не называет удалённых полей');
+      await openForm(page, entry);
+      const root = page.getByTestId('scenario-root');
+      for (const field of entry.absent ?? []) {
+        await expect(root.getByLabel(regexFrom(field.label)), `${field.id} осталось`).toHaveCount(
+          0
+        );
+      }
+    });
+
+    test(`${entry.slot} :: browser.buttons`, async ({ page }) => {
+      test.skip(!entry.buttons?.length, 'контракт не называет кнопок');
+      await openForm(page, entry);
+      const root = page.getByTestId('scenario-root');
+      for (const button of entry.buttons ?? []) {
+        await expect(
+          root.getByRole('button', { name: regexFrom(button.name) }).first(),
+          `нет кнопки ${button.name}`
+        ).toBeVisible();
+      }
+    });
+
     for (const probe of entry.probes) {
       test(`${entry.slot} :: browser.probe.${probe.id}`, async ({ page }) => {
+        test.skip(
+          entry.renderLayer === false && Boolean(probe.expect.hidden?.length),
+          'эталон на core нарисован схемой без слоя рендера: видимость не проверить'
+        );
         await openForm(page, entry);
         for (const id of probe.expect.hidden ?? []) {
           await expect(fieldLocator(page, entry, id), `${id} виден`).toHaveCount(0);

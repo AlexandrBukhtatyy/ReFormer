@@ -1,0 +1,19 @@
+{
+  "id": "registration-create",
+  "level": 1,
+  "operation": "create",
+  "title": "Регистрация: создание формы",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "tags": ["validation", "cross", "async", "submit"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  },
+  "builder": {
+    "enabled": true,
+    "replay": false,
+    "reason": "кнопка отправляет форму своим оператором registerUser из ./api — это код модуля, документ конструктора его не хранит (build_form: not-in-document)"
+  }
+}

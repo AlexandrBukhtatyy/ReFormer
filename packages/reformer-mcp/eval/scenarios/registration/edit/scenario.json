@@ -1,0 +1,19 @@
+{
+  "id": "registration-edit",
+  "level": 1,
+  "operation": "edit",
+  "title": "Регистрация: правка готовой формы",
+  "seed": "registration-create",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "tags": ["edit", "rename", "validation"],
+  "budget": {
+    "timeoutMs": 600000,
+    "maxUsd": 1.5,
+    "maxSteps": 30
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "лестница ассистента не кладёт затравку: правку там не с чего начать (ReFormer-mhsh.4)"
+  }
+}

@@ -1,0 +1,324 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "wizard-delete",
+  "extends": "../create/contract.json",
+  "drop": {
+    "fields": [
+      "company.name",
+      "company.inn",
+      "deliveryMethod",
+      "deliveryAddress.city",
+      "deliveryAddress.street",
+      "deliveryAddress.house",
+      "deliveryDate",
+      "billingSame",
+      "billingAddress.city",
+      "billingAddress.street",
+      "billingAddress.house"
+    ],
+    "probes": [
+      "company-required",
+      "delivery-address-required",
+      "delivery-address-disabled-on-pickup",
+      "delivery-address-enabled-for-post",
+      "delivery-address-reset-on-pickup",
+      "delivery-date-required-for-courier",
+      "delivery-date-future",
+      "delivery-date-ok",
+      "delivery-date-reset",
+      "billing-copies-delivery",
+      "billing-disabled-while-same",
+      "billing-required-when-different",
+      "company-hidden-for-person",
+      "delivery-date-hidden-on-pickup",
+      "step-2-skipped-for-person",
+      "step-2-blocks-company",
+      "step-3-blocks-address",
+      "inn-format",
+      "inn-checksum"
+    ]
+  },
+  "absent": [
+    {
+      "id": "company",
+      "bind": {
+        "paths": ["company", "company.name", "company.inn"],
+        "label": "/организац|^инн/i"
+      }
+    },
+    {
+      "id": "delivery",
+      "bind": {
+        "paths": ["deliveryMethod", "deliveryAddress", "deliveryDate"],
+        "label": "/способ получени|дата доставк/i"
+      }
+    },
+    {
+      "id": "billing",
+      "bind": {
+        "paths": ["billingSame", "billingAddress"],
+        "label": "/совпадает/i"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "title": "/покупател/i",
+      "fields": [
+        "customerType",
+        "contact.lastName",
+        "contact.firstName",
+        "email",
+        "phone",
+        "birthDate"
+      ]
+    },
+    {
+      "title": "/товар/i",
+      "fields": ["items", "subtotal"]
+    },
+    {
+      "title": "/оплат/i",
+      "fields": ["promoCode", "discount", "total", "paymentMethod", "receiptEmail", "comment"]
+    },
+    {
+      "title": "/подтвержд/i",
+      "fields": ["recipients", "agreeTerms", "newsletter", "sources"]
+    }
+  ],
+  "fields": [
+    {
+      "id": "subtotal",
+      "bind": {
+        "path": "subtotal",
+        "label": "/сумма товаров/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/сумма товаров/i",
+        "step": 2
+      }
+    },
+    {
+      "id": "promoCode",
+      "bind": {
+        "path": "promoCode",
+        "label": "/промокод/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/промокод/i",
+        "step": 3
+      }
+    },
+    {
+      "id": "total",
+      "bind": {
+        "path": "total",
+        "label": "/итого/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/итого/i",
+        "step": 3
+      }
+    },
+    {
+      "id": "receiptEmail",
+      "bind": {
+        "path": "receiptEmail",
+        "label": "/чек/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/чек/i",
+        "step": 3
+      }
+    },
+    {
+      "id": "comment",
+      "bind": {
+        "path": "comment",
+        "label": "/комментар/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/комментар/i",
+        "step": 3
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "starts-with-defaults",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "customerType": "person",
+          "discount": 0,
+          "paymentMethod": "card",
+          "agreeTerms": false,
+          "newsletter": false
+        },
+        "arrayLength": {
+          "items": 1,
+          "recipients": 1
+        }
+      }
+    },
+    {
+      "id": "company-valid",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "total-with-discount",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "birthDate": "",
+        "discount": 10
+      },
+      "expect": {
+        "values": {
+          "total": 45000
+        }
+      }
+    },
+    {
+      "id": "discount-reset-for-person",
+      "gate": true,
+      "set": [
+        {
+          "customerType": "company",
+          "birthDate": "",
+          "discount": 20
+        },
+        {
+          "customerType": "person",
+          "birthDate": "1990-05-15"
+        }
+      ],
+      "expect": {
+        "values": {
+          "discount": 0,
+          "total": 50000
+        }
+      }
+    },
+    {
+      "id": "discount-max",
+      "set": {
+        "customerType": "company",
+        "birthDate": "",
+        "discount": 35
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["discount"]
+      }
+    },
+    {
+      "id": "invoice-for-company",
+      "set": {
+        "customerType": "company",
+        "birthDate": "",
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "person-drops-invoice",
+      "gate": true,
+      "set": [
+        {
+          "customerType": "company",
+          "birthDate": "",
+          "paymentMethod": "invoice"
+        },
+        {
+          "customerType": "person",
+          "birthDate": "1990-05-15"
+        }
+      ],
+      "expect": {
+        "values": {
+          "paymentMethod": "card"
+        }
+      }
+    },
+    {
+      "id": "step-4-blocks-items",
+      "gate": true,
+      "step": 2,
+      "set": {
+        "items.0.title": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.title"]
+      }
+    },
+    {
+      "id": "step-5-blocks-invoice-for-person",
+      "gate": true,
+      "step": 3,
+      "set": {
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["paymentMethod"]
+      }
+    },
+    {
+      "id": "step-6-blocks-terms",
+      "gate": true,
+      "step": 4,
+      "set": {
+        "agreeTerms": false
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["agreeTerms"]
+      }
+    },
+    {
+      "id": "step-6-passes-filled",
+      "step": 4,
+      "set": {
+        "customerType": "company",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "invoice-company-without-company-step",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "birthDate": "",
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

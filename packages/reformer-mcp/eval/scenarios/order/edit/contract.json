@@ -1,0 +1,175 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "order-edit",
+  "extends": "../create/contract.json",
+  "fields": [
+    {
+      "id": "customerType",
+      "bind": {
+        "path": "payerType",
+        "label": "/тип покупател/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "deliveryCost",
+      "after": "discount",
+      "bind": {
+        "path": "deliveryCost",
+        "label": "/стоимость доставк/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/стоимость доставк/i"
+      }
+    }
+  ],
+  "absent": [
+    {
+      "id": "customerType-key",
+      "bind": {
+        "paths": ["customerType"]
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "discount-max",
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "discount": 55
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["discount"]
+      }
+    },
+    {
+      "id": "discount-up-to-fifty",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "discount": 50
+      },
+      "expect": {
+        "valid": true,
+        "values": {
+          "total": 25000
+        }
+      }
+    },
+    {
+      "id": "delivery-cost-pickup",
+      "gate": true,
+      "expect": {
+        "values": {
+          "deliveryCost": 0,
+          "total": 50000
+        }
+      }
+    },
+    {
+      "id": "delivery-cost-post",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "post",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1"
+      },
+      "expect": {
+        "values": {
+          "deliveryCost": 300,
+          "total": 50300
+        }
+      }
+    },
+    {
+      "id": "delivery-cost-courier",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "courier",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1",
+        "deliveryDate": {
+          "$date": "+3d"
+        }
+      },
+      "expect": {
+        "values": {
+          "deliveryCost": 500,
+          "total": 50500
+        }
+      }
+    },
+    {
+      "id": "total-with-discount-and-delivery",
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "discount": 10,
+        "deliveryMethod": "post",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1"
+      },
+      "expect": {
+        "values": {
+          "total": 45300
+        }
+      }
+    },
+    {
+      "id": "comment-required-for-invoice",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "paymentMethod": "invoice",
+        "comment": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["comment"]
+      }
+    },
+    {
+      "id": "invoice-for-company",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "paymentMethod": "invoice",
+        "comment": "Счёт на ООО Ромашка"
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "comment-optional-for-card",
+      "gate": true,
+      "set": {
+        "comment": ""
+      },
+      "expect": {
+        "valid": true,
+        "noIssues": ["comment"]
+      }
+    }
+  ]
+}

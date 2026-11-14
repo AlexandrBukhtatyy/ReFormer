@@ -1,0 +1,21 @@
+{
+  "id": "order-edit",
+  "level": 2,
+  "operation": "edit",
+  "title": "Оформление заказа: переименование, новое вычисление, условное правило",
+  "seed": "order-create",
+  "spec": "packages/reformer-mcp/eval/scenarios/order/spec.md",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "referenceFiles": { "operators.ts": "../create/reference.operators.ts" },
+  "tags": ["edit", "rename", "computed", "conditional"],
+  "budget": {
+    "timeoutMs": 1800000,
+    "maxUsd": 4,
+    "maxSteps": 60
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "лестница ассистента не кладёт затравку: правку там не с чего начать (ReFormer-mhsh.4)"
+  }
+}

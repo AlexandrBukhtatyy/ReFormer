@@ -5,7 +5,7 @@
  * Аргументы: каталог бандла и файл контракта. Итог — JSON последней строкой stdout.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -15,10 +15,18 @@ import {
   REGISTRY_ENTRY_FILE,
   tick,
 } from '../lib/form-runtime.mjs';
-import { bindFields, checkStructure, modelPaths, runProbes, schemaLabels } from './probes.mjs';
+import { readContract } from './contract.mjs';
+import {
+  bindFields,
+  checkStructure,
+  modelPaths,
+  runProbes,
+  schemaLabels,
+  schemaSteps,
+} from './probes.mjs';
 
 const [bundleDirectory, contractFile] = process.argv.slice(2);
-const contract = JSON.parse(readFileSync(contractFile, 'utf8'));
+const contract = readContract(contractFile);
 const checks = {};
 
 function finish(extra = {}) {
@@ -76,6 +84,12 @@ function createInstance() {
     form: bundle.form,
     // Весь набор правил сразу: и у визарда, где правила разложены по шагам.
     validate: () => checkAllRules(validation.validateModel, bundle.model, formModule.ruleSchemas),
+    // Правила одного шага (номер с 1) — то, что проверяет переход «Далее».
+    validateStep: (step) => {
+      const rules = formModule.formFlow?.steps?.[step - 1]?.rules;
+      if (typeof rules !== 'function') throw new Error(`в форме нет шага ${step}`);
+      return checkAllRules(validation.validateModel, bundle.model, [rules]);
+    },
     dispose: () => bundle.dispose(),
   };
 }
@@ -89,8 +103,13 @@ try {
     typeof formModule.formSchema === 'function'
       ? formModule.formSchema(probeInstance.model)
       : formModule.formSchema;
-  const bound = bindFields(contract, paths, schemaLabels(schemaTree, probeInstance.model));
-  Object.assign(checks, checkStructure(contract, paths, bound, formModule.formFlow?.steps));
+  const labels = schemaLabels(schemaTree, probeInstance.model);
+  const bound = bindFields(contract, paths, labels);
+  const steps = schemaSteps(schemaTree, probeInstance.model, formModule.formFlow?.steps);
+  Object.assign(
+    checks,
+    checkStructure(contract, paths, bound, formModule.formFlow?.steps, { labels, steps })
+  );
   probeInstance.dispose();
   Object.assign(checks, await runProbes({ contract, bound, createInstance }));
   finish({ bound });

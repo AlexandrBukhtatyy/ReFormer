@@ -77,6 +77,8 @@
         "level": { "type": ["number", "null"] },
         "target": { "type": ["string", "null"] },
         "split": { "enum": ["tuned", "holdout", null] },
+        "operation": { "enum": ["create", "split", "edit", "delete"] },
+        "seed": { "type": "string" },
         "contractDigest": { "type": ["string", "null"] }
       }
     },

@@ -7,7 +7,7 @@
     }
   ],
   "approaches": ["bare", "code-mode", "guided"],
-  "scenarios": "L1-feedback,L1-login,L2-profile-json,L2-registration-lite,L3-delivery,L3-order-total,L4-contacts-array,L4-wizard-3steps,L5-loan",
+  "scenarios": "registration-*",
   "repeats": 3,
   "concurrency": 1
 }

@@ -1,6 +1,6 @@
 {
   "description": "Форма на чужом стеке: поведение совпадает, а стек из задания подменён.",
-  "scenario": "L1-feedback",
+  "scenario": "registration-create",
   "target": "renderer-react",
   "expectFailure": "static.stack",
   "mutations": [

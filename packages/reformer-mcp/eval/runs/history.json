@@ -199,6 +199,7 @@
     {"id":"dfb1198a","date":"2026-11-12","kind":"server","title":"feat(reformer-mcp): метка сборки, один корпус в dist/knowledge и сверка копий mcp в конструкторе","refs":["ReFormer-11oe.6","ReFormer-11oe.22"],"commit":"dfb1198a","source":"git","also":["knowledge"]},
     {"id":"44842541","date":"2026-11-13","kind":"knowledge","title":"fix(reformer): живая проверка не будит чужие поля, сброс формы возвращает тихую фазу","refs":["ReFormer-w83s","ReFormer-6xxp","ReFormer-wgwg"],"commit":"44842541","source":"git"},
     {"id":"452cf4a0","date":"2026-11-13","kind":"knowledge","title":"feat(reformer): живой путь поля строки, живая фаза шагов, справочник сигналом для строк массива","refs":["ReFormer-zy8k","ReFormer-7ybd","ReFormer-8n96","ReFormer-zh9r","ReFormer-wgwg"],"commit":"452cf4a0","source":"git"},
-    {"id":"b15168bb","date":"2026-11-13","kind":"server","title":"feat(reformer-mcp): code mode — один инструмент run_script с api сервера в песочнице quickjs","refs":["ReFormer-gi02"],"commit":"b15168bb","source":"git","also":["instrument"]}
+    {"id":"b15168bb","date":"2026-11-13","kind":"server","title":"feat(reformer-mcp): code mode — один инструмент run_script с api сервера в песочнице quickjs","refs":["ReFormer-gi02"],"commit":"b15168bb","source":"git","also":["instrument"]},
+    {"id":"m-2026-11-14-1","date":"2026-11-14","kind":"instrument","title":"Набор сценариев заменён: лестница L1–L5 и holdout → регистрация, заказ и мастер × создание, правка, удаление (10 сценариев × 3 стека)","refs":["ReFormer-mhsh"],"source":"manual"}
   ]
 }

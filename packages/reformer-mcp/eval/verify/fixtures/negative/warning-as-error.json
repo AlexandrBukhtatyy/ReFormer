@@ -1,0 +1,13 @@
+{
+  "description": "Предупреждение стало ошибкой: крупный заказ больше нельзя отправить.",
+  "scenario": "order-create",
+  "target": "renderer-react",
+  "expectFailure": "runtime.probe.large-order-warning",
+  "mutations": [
+    {
+      "file": "form.validation.ts",
+      "find": "{ code: 'total.large', severity: 'warning' }",
+      "replace": "{ code: 'total.large' }"
+    }
+  ]
+}

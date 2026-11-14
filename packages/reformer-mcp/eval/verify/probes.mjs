@@ -62,8 +62,13 @@ export function modelPaths(value, prefix = '') {
  * контракт называет путём.
  */
 export function schemaLabels(schema, model) {
-  const labels = [];
-  if (!schema) return labels;
+  return schemaFields(schema, model).filter((item) => typeof item.label === 'string');
+}
+
+/** Поля узла схемы и его потомков: путь модели и подпись (у поля без подписи — `null`). */
+function schemaFields(schema, model) {
+  const fields = [];
+  if (!schema) return fields;
   const paths = [...modelPaths(JSON.parse(JSON.stringify(model))).keys()];
   const signalPath = (signal) =>
     paths.find((path) => {
@@ -81,10 +86,10 @@ export function schemaLabels(schema, model) {
     if (!isPlainObject(node)) return;
     const reference = node.model ?? node.value;
     const label = node.componentProps?.label ?? node.label;
-    if (reference !== undefined && typeof label === 'string') {
+    if (reference !== undefined) {
       const textual = typeof reference === 'string' && /^\$model\((.+)\)$/.exec(reference);
       const path = textual ? textual[1] : signalPath(reference);
-      if (path) labels.push({ label, path });
+      if (path) fields.push({ label: typeof label === 'string' ? label : null, path });
     }
     for (const key of ['root', 'children', 'steps', 'parts']) {
       if (node[key] !== undefined)
@@ -92,7 +97,47 @@ export function schemaLabels(schema, model) {
     }
   };
   visit(schema);
-  return labels;
+  return fields;
+}
+
+/** Узел схемы по `selector`: поиск в глубину по тем же ключам, что обходит `schemaFields`. */
+function findSchemaNode(node, selector) {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findSchemaNode(child, selector);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!isPlainObject(node)) return null;
+  if (node.selector === selector) return node;
+  for (const key of ['root', 'children', 'steps', 'parts']) {
+    if (node[key] === undefined) continue;
+    const found = findSchemaNode(
+      isPlainObject(node[key]) && key === 'parts' ? Object.values(node[key]) : node[key],
+      selector
+    );
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Шаги мастера, как их видит пользователь: заголовок и поля шага. Шаг потока (`formFlow.steps`)
+ * назван `selector` своего узла в схеме, а заголовок и поля живут в этом узле.
+ *
+ * @returns {Array<{ id: string, title: string|null, paths: string[] }>}
+ */
+export function schemaSteps(schema, model, flowSteps) {
+  return (flowSteps ?? []).map((step) => {
+    const node = schema ? findSchemaNode(schema, step.id) : null;
+    const title = node?.componentProps?.title ?? node?.title ?? null;
+    return {
+      id: step.id,
+      title: typeof title === 'string' ? title : null,
+      paths: node ? schemaFields(node, model).map((item) => item.path) : [],
+    };
+  });
 }
 
 /** Привязать поля контракта к путям: сначала по кандидатам пути, затем по подписи в схеме. */
@@ -116,8 +161,14 @@ const typeOfSample = (value) => {
   return typeof value;
 };
 
-/** Проверки структуры: поля, массивы, шаги. */
-export function checkStructure(contract, paths, bound, flowSteps) {
+/**
+ * Проверки структуры: поля, массивы, шаги, поля, которых быть не должно.
+ *
+ * @param {object} [details]
+ * @param {Array<{ label: string, path: string }>} [details.labels] - подписи полей схемы (для `absent`)
+ * @param {ReturnType<typeof schemaSteps>} [details.steps] - шаги со схемы (для заголовков и полей)
+ */
+export function checkStructure(contract, paths, bound, flowSteps, { labels = [], steps } = {}) {
   const checks = {};
   const missing = Object.entries(bound)
     .filter(([, path]) => !path)
@@ -167,16 +218,58 @@ export function checkStructure(contract, paths, bound, flowSteps) {
         : 'pass';
   }
   if (contract.steps?.length) {
-    const actual = flowSteps?.length ?? 0;
-    checks['runtime.structure.steps'] =
-      actual === contract.steps.length
-        ? 'pass'
-        : ['fail', `шагов ${actual}, в контракте ${contract.steps.length}`];
+    checks['runtime.structure.steps'] = stepsCheck(contract, bound, flowSteps, steps);
+  }
+  if (contract.absent?.length) {
+    // Удалённое поле не должно найтись ни по одному кандидату пути, ни по подписи.
+    const present = contract.absent.flatMap((field) => {
+      const candidates = [field.bind?.path, ...(field.bind?.paths ?? [])].filter(Boolean);
+      const byPath = candidates.find((candidate) => paths.has(candidate));
+      if (byPath) return [`${field.id} (путь ${byPath})`];
+      const pattern = field.bind?.label ? parseRegex(field.bind.label) : null;
+      const byLabel = pattern && labels.find((item) => pattern.test(item.label));
+      return byLabel ? [`${field.id} (подпись «${byLabel.label}»)`] : [];
+    });
+    checks['runtime.structure.absent'] = present.length
+      ? ['fail', `осталось: ${present.join(', ')}`.slice(0, 200)]
+      : 'pass';
   }
   return checks;
 }
 
+/**
+ * Шаги: число, затем заголовок и поля каждого. Поле контракта на шаге — его путь среди путей узла
+ * шага или под ним (поле группы, строка массива). В `fields` шага — id полей контракта или пути
+ * массивов.
+ */
+function stepsCheck(contract, bound, flowSteps, steps) {
+  const actual = flowSteps?.length ?? 0;
+  if (actual !== contract.steps.length) {
+    return ['fail', `шагов ${actual}, в контракте ${contract.steps.length}`];
+  }
+  const problems = [];
+  contract.steps.forEach((expected, index) => {
+    const step = steps?.[index];
+    const number = index + 1;
+    if (expected.title && !(step?.title && parseRegex(expected.title).test(step.title))) {
+      problems.push(`шаг ${number}: заголовок «${step?.title ?? '—'}», ожидался ${expected.title}`);
+    }
+    const misplaced = (expected.fields ?? []).filter((id) => {
+      // Поле контракта — по привязке; массив (его нет среди полей) — по своему пути.
+      const path = id in bound ? bound[id] : id;
+      if (!path) return false; // ненайденное поле уже назвала проверка полей
+      return !(step?.paths ?? []).some(
+        (stepPath) => stepPath === path || path.startsWith(`${stepPath}.`)
+      );
+    });
+    if (misplaced.length) problems.push(`шаг ${number}: нет ${misplaced.join(', ')}`);
+  });
+  return problems.length ? ['fail', problems.join('; ').slice(0, 200)] : 'pass';
+}
+
 const issuesOf = (node) => node?.issues?.value ?? null;
+/** Замечания, которые делают поле невалидным: предупреждение (`severity: 'warning'`) — не из них. */
+const errorsOf = (node) => (issuesOf(node) ?? []).filter((issue) => issue.severity !== 'warning');
 
 /** Узел формы по пути: у массива строка берётся через `at`. */
 function formNode(form, path) {
@@ -188,16 +281,51 @@ function formNode(form, path) {
   return current;
 }
 
+/**
+ * Дата из записи контракта: ISO-дата (`2024-05-01`) или сдвиг от сегодняшнего дня (`+3d`, `-18y`,
+ * `+2m`). Сдвиг нужен правилам вроде `futureDate` и `minAge`: фиксированная дата со временем
+ * перестала бы быть «будущей».
+ */
+export function contractDate(text) {
+  const shift = /^([+-]\d+)([dmy])$/.exec(String(text));
+  if (!shift) return new Date(String(text));
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  const amount = Number(shift[1]);
+  if (shift[2] === 'd') date.setDate(date.getDate() + amount);
+  if (shift[2] === 'm') date.setMonth(date.getMonth() + amount);
+  if (shift[2] === 'y') date.setFullYear(date.getFullYear() + amount);
+  return date;
+}
+
+const isoDay = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+/** Значение из контракта для модели: `{ $date }` — объект `Date`, `{ $dateString }` — `YYYY-MM-DD`. */
+export function contractValue(value) {
+  if (isPlainObject(value) && '$date' in value) return contractDate(value.$date);
+  if (isPlainObject(value) && '$dateString' in value) {
+    return isoDay(contractDate(value.$dateString));
+  }
+  if (Array.isArray(value)) return value.map(contractValue);
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, contractValue(item)])
+    );
+  }
+  return value;
+}
+
 /** Ввести значения пробы. `{ push: {...} }` добавляет строку массива, `{ removeAt: n }` удаляет. */
 function applyValues(model, values, resolve) {
   for (const [key, value] of Object.entries(values ?? {})) {
     const path = resolve(key);
     if (isPlainObject(value) && 'push' in value) {
-      readPath(model, path).push(value.push);
+      readPath(model, path).push(contractValue(value.push));
     } else if (isPlainObject(value) && value.removeAt !== undefined) {
       readPath(model, path).removeAt(value.removeAt);
     } else {
-      writePath(model, path, value);
+      writePath(model, path, contractValue(value));
     }
   }
 }
@@ -219,18 +347,27 @@ function compareExpectations(expect, { model, form, valid }, resolve) {
     const node = formNode(form, resolve(id));
     // Разные поломки: узла нет вовсе (например, форма собрана без схемы) и правило не сработало.
     if (node === undefined) problems.push(`${id}: в форме нет такого узла`);
-    else if (!issuesOf(node)?.length) problems.push(`${id}: ожидалось замечание`);
+    else if (!errorsOf(node).length) problems.push(`${id}: ожидалось замечание`);
   }
   // Межполевое правило автор вправе повесить на любое из его полей: контракт этого не решает.
   if (expect.anyInvalid?.length) {
     const nodes = expect.anyInvalid.map((id) => formNode(form, resolve(id)));
-    if (!nodes.some((node) => issuesOf(node)?.length)) {
+    if (!nodes.some((node) => errorsOf(node).length)) {
       problems.push(`ожидалось замечание на одном из: ${expect.anyInvalid.join(', ')}`);
     }
   }
   for (const id of expect.noIssues ?? []) {
     const issues = issuesOf(formNode(form, resolve(id)));
     if (issues?.length) problems.push(`${id}: лишнее замечание ${issues[0].code}`);
+  }
+  // Предупреждение (`severity: 'warning'`): замечание есть, но форму оно не блокирует.
+  for (const id of expect.warnings ?? []) {
+    const issues = issuesOf(formNode(form, resolve(id))) ?? [];
+    if (!issues.some((issue) => issue.severity === 'warning')) {
+      problems.push(
+        `${id}: нет предупреждения, есть ${issues.map((issue) => `${issue.code}/${issue.severity ?? 'error'}`).join(',') || 'ничего'}`
+      );
+    }
   }
   for (const [id, code] of Object.entries(expect.errorCode ?? {})) {
     const issues = issuesOf(formNode(form, resolve(id))) ?? [];
@@ -281,7 +418,7 @@ function compareExpectations(expect, { model, form, valid }, resolve) {
  * @param {object} options
  * @param {object} options.contract
  * @param {Record<string, string|null>} options.bound
- * @param {() => Promise<{ model: any, form: any, validate: () => Promise<boolean>, dispose?: () => void }>} options.createInstance
+ * @param {() => Promise<{ model: any, form: any, validate: () => Promise<boolean>, validateStep?: (step: number) => Promise<boolean>, dispose?: () => void }>} options.createInstance
  * @returns {Promise<Record<string, unknown>>} проверки `runtime.probe.<id>`
  */
 export async function runProbes({ contract, bound, createInstance }) {
@@ -292,6 +429,13 @@ export async function runProbes({ contract, bound, createInstance }) {
     if (base) return [base, ...rest].join('.');
     return String(key);
   };
+  // Поле образца, которого в форме нет, пропускается: его отсутствие уже назвала проверка полей, а
+  // запись в несуществующий путь уронила бы исключением и пробы, которым это поле не нужно.
+  const boundSample = Object.fromEntries(
+    Object.entries(contract.sample ?? {}).filter(
+      ([key]) => bound[String(key).split('.')[0]] !== null
+    )
+  );
   for (const probe of contract.probes ?? []) {
     const id = `runtime.probe.${probe.id}`;
     if (probe.where === 'browser') continue;
@@ -299,14 +443,28 @@ export async function runProbes({ contract, bound, createInstance }) {
     try {
       instance = await createInstance();
       await tick();
-      if (probe.sample !== false) applyValues(instance.model, contract.sample, resolve);
-      applyValues(instance.model, probe.set, resolve);
-      await tick();
-      await tick();
-      const needsValidation = ['valid', 'invalid', 'anyInvalid', 'errorCode', 'noIssues'].some(
-        (key) => probe.expect?.[key] !== undefined
-      );
-      const valid = needsValidation ? await instance.validate() : null;
+      if (probe.sample !== false) applyValues(instance.model, boundSample, resolve);
+      // `set` списком — шаги по порядку: между ними отрабатывает поведение (сброс, копирование), как
+      // между действиями пользователя.
+      for (const values of Array.isArray(probe.set) ? probe.set : [probe.set]) {
+        applyValues(instance.model, values, resolve);
+        await tick();
+        await tick();
+      }
+      const needsValidation = [
+        'valid',
+        'invalid',
+        'anyInvalid',
+        'errorCode',
+        'noIssues',
+        'warnings',
+      ].some((key) => probe.expect?.[key] !== undefined);
+      // `step: N` (с 1) — только правила шага N, как их проверяет переход «Далее» (`flow.next()`).
+      const valid = !needsValidation
+        ? null
+        : probe.step !== undefined
+          ? await instance.validateStep(probe.step)
+          : await instance.validate();
       await tick();
       const problems = compareExpectations(
         probe.expect ?? {},

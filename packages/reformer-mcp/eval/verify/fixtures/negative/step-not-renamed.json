@@ -1,0 +1,8 @@
+{
+  "description": "Шаг не переименован и поле не перенесено: правка мастера не сделана.",
+  "scenario": "wizard-edit",
+  "target": "renderer-json",
+  "seedOnly": true,
+  "expectFailure": "runtime.structure.steps",
+  "mutations": []
+}

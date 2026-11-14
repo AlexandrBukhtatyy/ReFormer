@@ -1,12 +1,12 @@
 {
-  "description": "Форма потеряла межполевое правило спеки: остаток долга больше суммы кредита проходит.",
-  "scenario": "L5-credit",
+  "description": "Форма потеряла межполевое правило спеки: физлицо проходит с оплатой по счёту.",
+  "scenario": "order-create",
   "target": "renderer-react",
-  "expectFailure": "runtime.probe.rule-remaining-amount",
+  "expectFailure": "runtime.probe.invoice-only-for-company",
   "mutations": [
     {
       "file": "form.validation.ts",
-      "find": "values.remainingAmount <= values.amount",
+      "find": "values.paymentMethod !== 'invoice' || values.customerType === 'company'",
       "replace": "true"
     }
   ]

@@ -11,7 +11,7 @@
     }
   ],
   "approaches": ["bare"],
-  "scenarios": "L1-feedback,L2-registration-lite,L3-delivery,L3-order-total,L4-contacts-array,L5-loan",
+  "scenarios": "registration-*,order-create",
   "repeats": 3,
   "concurrency": 1
 }

@@ -1,0 +1,30 @@
+{
+  "id": "order-create",
+  "level": 2,
+  "operation": "create",
+  "title": "Оформление заказа: создание формы по спецификации",
+  "spec": "packages/reformer-mcp/eval/scenarios/order/spec.md",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "referenceFiles": { "operators.ts": "reference.operators.ts" },
+  "tags": [
+    "spec",
+    "array",
+    "computed",
+    "conditional",
+    "cross",
+    "async",
+    "operators",
+    "submit",
+    "heavy"
+  ],
+  "budget": {
+    "timeoutMs": 2400000,
+    "maxUsd": 6,
+    "maxSteps": 80
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "эталон держит своё правило-оператор (ИНН), асинхронную заглушку и событие кнопки: документ конструктора их не хранит"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "registration-create",
+  "fields": [
+    {
+      "id": "login",
+      "bind": { "path": "login", "label": "/логин/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/логин/i" }
+    },
+    {
+      "id": "email",
+      "bind": { "path": "email", "label": "/email|почт/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/email|почт/i" }
+    },
+    {
+      "id": "password",
+      "bind": { "path": "password", "label": "/^парол/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/^парол/i" }
+    },
+    {
+      "id": "confirmPassword",
+      "bind": { "path": "confirmPassword", "label": "/повтор|подтверд/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/повтор|подтверд/i" }
+    },
+    {
+      "id": "captcha",
+      "bind": { "path": "captcha", "label": "/капч|символ|код/i" },
+      "type": "string",
+      "aria": { "role": "textbox", "name": "/капч|символ|код/i" }
+    }
+  ],
+  "buttons": [{ "name": "/зарегистрироваться/i" }],
+  "sample": {
+    "login": "ivan_petrov",
+    "email": "ivan@example.com",
+    "password": "secret123",
+    "confirmPassword": "secret123",
+    "captcha": "ABC123"
+  },
+  "probes": [
+    { "id": "sample-valid", "gate": true, "expect": { "valid": true } },
+    {
+      "id": "login-required",
+      "gate": true,
+      "set": { "login": "" },
+      "expect": { "valid": false, "invalid": ["login"] }
+    },
+    {
+      "id": "login-too-short",
+      "gate": true,
+      "set": { "login": "iv" },
+      "expect": { "valid": false, "invalid": ["login"] }
+    },
+    {
+      "id": "login-too-long",
+      "set": { "login": "ivan_petrov_ivanovich_" },
+      "expect": { "valid": false, "invalid": ["login"] }
+    },
+    {
+      "id": "login-alphabet",
+      "gate": true,
+      "set": { "login": "иван-петров" },
+      "expect": { "valid": false, "invalid": ["login"] }
+    },
+    {
+      "id": "email-required",
+      "gate": true,
+      "set": { "email": "" },
+      "expect": { "valid": false, "invalid": ["email"] }
+    },
+    {
+      "id": "email-format",
+      "gate": true,
+      "set": { "email": "not-an-email" },
+      "expect": { "valid": false, "invalid": ["email"] }
+    },
+    {
+      "id": "password-required",
+      "gate": true,
+      "set": { "password": "", "confirmPassword": "" },
+      "expect": { "valid": false, "invalid": ["password"] }
+    },
+    {
+      "id": "password-too-short",
+      "gate": true,
+      "set": { "password": "short1", "confirmPassword": "short1" },
+      "expect": { "valid": false, "invalid": ["password"] }
+    },
+    {
+      "id": "confirm-required",
+      "set": { "confirmPassword": "" },
+      "expect": { "valid": false, "anyInvalid": ["confirmPassword", "password"] }
+    },
+    {
+      "id": "confirm-mismatch",
+      "gate": true,
+      "set": { "confirmPassword": "secret124" },
+      "expect": { "valid": false, "anyInvalid": ["confirmPassword", "password"] }
+    },
+    {
+      "id": "captcha-required",
+      "gate": true,
+      "set": { "captcha": "" },
+      "expect": { "valid": false, "invalid": ["captcha"] }
+    },
+    {
+      "id": "captcha-wrong",
+      "gate": true,
+      "set": { "captcha": "XYZ987" },
+      "expect": { "valid": false, "invalid": ["captcha"] }
+    },
+    {
+      "id": "captcha-any-case",
+      "gate": true,
+      "set": { "captcha": "abc123" },
+      "expect": { "valid": true, "noIssues": ["captcha"] }
+    }
+  ]
+}

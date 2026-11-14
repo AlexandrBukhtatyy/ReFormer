@@ -4,8 +4,8 @@
  *
  *   npm run mcp:scenarios -- --matrix smoke
  *   npm run mcp:scenarios -- --matrix accept-7.0-ollama --model qwen3.5:4b
- *   npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b --scenario 'L1-*,L3-*' --repeats 3
- *   npm run mcp:scenarios -- --agent claude-code --model sonnet --scenario L1-feedback --max-usd-batch 2
+ *   npm run mcp:scenarios -- --agent ollama --model qwen3.8:27b --scenario 'registration-*' --repeats 3
+ *   npm run mcp:scenarios -- --agent claude-code --model sonnet --scenario order-edit --max-usd-batch 2
  *
  *   --matrix <имя|файл>    оси прогона из matrices/
  *   --model m              с --matrix — только агенты этой модели (модель не помещается на машине)
@@ -24,6 +24,9 @@
  *
  * Ход ячейки — в stderr: строка на старт, у агента с пошаговым циклом (Ollama) — строка на шаг и
  * пульс, пока модель отвечает дольше минуты. Итог ячейки — в stdout.
+ *
+ * Сценарий правки (`seed`) начинается с готовой формы: до старта агента стенд собирает в `form/`
+ * эталон сценария-затравки; его intent остаётся в `<прогон>/seed.intent.json`.
  *
  * Рабочий каталог агента — вне репозитория: иначе агент увидел бы исходники пакетов, и замерялся бы
  * не сервер. После прогона он копируется в каталог прогона: форма — в `bundle/` (там резолвятся
@@ -49,8 +52,9 @@ import {
   writeRecords,
 } from '../records/record.mjs';
 import { verifyInBrowser } from '../verify/browser.mjs';
+import { contractText, readContract } from '../verify/contract.mjs';
 import { summarize, verifyBundle } from '../verify/index.mjs';
-import { loadScenarios, scenariosDirectory } from './catalog.mjs';
+import { loadScenarios, scenariosDirectory, writeSeedBundle } from './catalog.mjs';
 
 const argv = process.argv.slice(2);
 rejectPublishFlag(argv);
@@ -106,6 +110,12 @@ const convention = readFileSync(
   path.join(scenariosDirectory, '_shared/output-convention.md'),
   'utf8'
 );
+/** Откуда начинается работа: с пустого `form/` или с готовой формы, которую надо изменить. */
+const FORM_WORDS = {
+  fresh: 'Положи модуль формы в каталог `form/` текущего рабочего каталога.',
+  seeded:
+    'Форма, которую нужно изменить, уже лежит в каталоге `form/` текущего рабочего каталога: меняй её там, новую не создавай.',
+};
 const TARGET_WORDS = {
   core: '`@reformer/core`, разметку пишешь сам в JSX',
   'renderer-react': '`@reformer/renderer-react`, разметку рисует `FormRenderer` по схеме на TS',
@@ -139,7 +149,9 @@ for (const agent of matrix.agents) {
 /** Текст задания: один и тот же для всех агентов подхода. */
 async function buildPrompt({ scenario, target, approach, workspaceDirectory }) {
   const task = readFileSync(scenario.promptFile, 'utf8').trim();
-  const rules = convention.replace('{{target}}', TARGET_WORDS[target] ?? target);
+  const rules = convention
+    .replace('{{target}}', TARGET_WORDS[target] ?? target)
+    .replace('{{form}}', scenario.seedScenario ? FORM_WORDS.seeded : FORM_WORDS.fresh);
   if (approach.serverPrompt) {
     const client = new McpClient(serverPath, { cwd: workspaceDirectory });
     try {
@@ -251,6 +263,33 @@ const workspaceRoot = path.join(tmpdir(), 'reformer-mcp-runs', batchId);
 const verifyClient = new McpClient(serverPath);
 await verifyClient.initialize();
 
+/**
+ * Затравка правки: эталон сценария-затравки в `form/` рабочего каталога агента. Сервер пишет только
+ * внутри своего проекта, поэтому клиент — с рабочим каталогом агента и корнем монорепо для пакетов
+ * `@reformer/*`, как у агентов. Без трассы: сборка затравки не входит в метрики агента.
+ */
+async function seedWorkspace({ scenario, target, workspaceDirectory, runDirectory }) {
+  const client = new McpClient(serverPath, {
+    env: { REFORMER_TYPECHECK_ROOT: repoRoot },
+    cwd: workspaceDirectory,
+  });
+  try {
+    await client.initialize();
+    await writeSeedBundle({
+      scenario,
+      target,
+      directory: path.join(workspaceDirectory, 'form'),
+      client,
+    });
+  } finally {
+    client.close();
+  }
+  cpSync(
+    path.join(workspaceDirectory, 'form', 'form.intent.json'),
+    path.join(runDirectory, 'seed.intent.json')
+  );
+}
+
 const cells = [];
 for (const scenario of scenarios) {
   if (scenario.reference === undefined && matrix.agents.some((agent) => agent.kind === 'replay'))
@@ -295,7 +334,6 @@ async function runCell(cell) {
   if (scenario.specFile) cpSync(scenario.specFile, path.join(workspaceDirectory, 'spec.md'));
 
   const startedAt = new Date();
-  const contractText = readFileSync(scenario.contractFile, 'utf8');
   const base = {
     batchId,
     harness: 'scenario',
@@ -314,7 +352,12 @@ async function runCell(cell) {
       level: scenario.level,
       target,
       split: scenario.split,
-      contractDigest: createHash('sha256').update(contractText).digest('hex').slice(0, 16),
+      ...(scenario.seed ? { seed: scenario.seed } : {}),
+      ...(scenario.operation ? { operation: scenario.operation } : {}),
+      contractDigest: createHash('sha256')
+        .update(contractText(scenario.contractFile))
+        .digest('hex')
+        .slice(0, 16),
     },
     repeat: { index, of: repeats },
     artifacts: { runDir: path.relative(repoRoot, runDirectory).replaceAll('\\', '/') },
@@ -324,6 +367,25 @@ async function runCell(cell) {
     console.log(`· ${slug}: бюджет батча исчерпан ($${spentUsd.toFixed(2)})`);
     outcomes.push({ record: createRecord({ ...base, verdict: 'invalid', exitReason: 'budget' }) });
     return;
+  }
+
+  if (scenario.seedScenario) {
+    // Правка начинается с готовой формы. Не собралась затравка — сломан стенд, а не агент.
+    try {
+      await seedWorkspace({ scenario, target, workspaceDirectory, runDirectory });
+    } catch (error) {
+      const reason = `затравка ${scenario.seed}: ${error?.message ?? error}`.slice(0, 200);
+      console.log(`! ${slug}: недействительно — ${reason}`);
+      outcomes.push({
+        record: createRecord({
+          ...base,
+          verdict: 'invalid',
+          exitReason: 'error',
+          checks: { instrument: ['fail', reason] },
+        }),
+      });
+      return;
+    }
   }
 
   const prompt = await buildPrompt({ scenario, target, approach, workspaceDirectory });
@@ -416,6 +478,8 @@ async function runCell(cell) {
     slug,
     bundleDirectory,
     contractFile: scenario.contractFile,
+    // Эталон на core рисуется схемой без слоя рендера: видимость ему проверять нечем.
+    renderLayer: !(target === 'core' && agent.kind === 'replay'),
     shared,
     checks: verification.checks,
   });
@@ -439,6 +503,7 @@ if (withBrowser) {
         slot: outcome.slug.replace(/[^\w-]+/g, '-'),
         directory: outcome.bundleDirectory,
         contractFile: outcome.contractFile,
+        renderLayer: outcome.renderLayer,
       })),
       { batchId, workDirectory: path.join(batchDirectory, '_browser') }
     );
@@ -450,8 +515,7 @@ if (withBrowser) {
 
 const records = outcomes.map((outcome) => {
   if (outcome.record) return outcome.record;
-  const contract = JSON.parse(readFileSync(outcome.contractFile, 'utf8'));
-  const { verdict, score, gates } = summarize(contract, outcome.checks);
+  const { verdict, score, gates } = summarize(readContract(outcome.contractFile), outcome.checks);
   return createRecord({ ...outcome.shared, verdict, score, gates, checks: outcome.checks });
 });
 

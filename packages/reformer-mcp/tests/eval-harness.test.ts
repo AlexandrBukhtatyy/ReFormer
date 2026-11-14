@@ -31,8 +31,15 @@ import { pointsFromRecords } from '../eval/records/history.mjs';
 import { validateRecord } from '../eval/records/record.mjs';
 import { renderReportHtml } from '../eval/records/report-html.mjs';
 import { loadScenarios, matchesPattern } from '../eval/scenarios/catalog.mjs';
-import { summarize } from '../eval/verify/index.mjs';
-import { bindFields, checkStructure, modelPaths, runProbes } from '../eval/verify/probes.mjs';
+import { mergeContract, probeFieldIds, readContract } from '../eval/verify/contract.mjs';
+import { gatesFor, summarize } from '../eval/verify/index.mjs';
+import {
+  bindFields,
+  checkStructure,
+  modelPaths,
+  runProbes,
+  schemaSteps,
+} from '../eval/verify/probes.mjs';
 
 describe('гейт калибровки', () => {
   const baseline = {
@@ -177,26 +184,61 @@ describe('импорт результатов конструктора', () => {
 });
 
 describe('каталог сценариев', () => {
-  it('каждый сценарий ссылается на существующие задание и контракт, у контракта есть гейт', () => {
-    const scenarios = loadScenarios({ includeHoldout: true });
-    expect(scenarios.length).toBeGreaterThanOrEqual(12);
+  type Scenario = {
+    id: string;
+    level: number;
+    operation?: string;
+    targets: string[];
+    seed?: string;
+    seedScenario?: { id: string };
+    contractFile: string;
+  };
+  const scenarios = loadScenarios({ includeHoldout: true }) as Scenario[];
+
+  it('три формы × операции, каждая на трёх стеках', () => {
+    expect(scenarios.map((scenario) => scenario.id)).toEqual([
+      'registration-create',
+      'registration-edit',
+      'registration-delete',
+      'order-create',
+      'order-edit',
+      'order-delete',
+      'wizard-create',
+      'wizard-split',
+      'wizard-edit',
+      'wizard-delete',
+    ]);
     for (const scenario of scenarios) {
+      expect(scenario.targets, scenario.id).toEqual(['core', 'renderer-react', 'renderer-json']);
       expect(scenario.level, scenario.id).toBeGreaterThanOrEqual(1);
-      expect(scenario.targets.length, scenario.id).toBeGreaterThan(0);
     }
   });
 
-  it('holdout без явной просьбы не берётся', () => {
-    const ids = (includeHoldout: boolean) =>
-      loadScenarios({ includeHoldout }).map((scenario: { id: string }) => scenario.id);
-    expect(ids(true)).toContain('L5-insurance');
-    expect(ids(false)).not.toContain('L5-insurance');
+  it('правка начинается с эталона сценария создания, и только с затравкой', () => {
+    for (const scenario of scenarios) {
+      const fromScratch = (scenario.operation ?? 'create') === 'create';
+      expect(Boolean(scenario.seed), scenario.id).toBe(!fromScratch);
+      if (scenario.seed) expect(scenario.seedScenario?.id, scenario.id).toBe(scenario.seed);
+    }
+  });
+
+  it('контракт каждого сценария читается, у правки и удаления есть свои проверки', () => {
+    for (const scenario of scenarios) {
+      const contract = readContract(scenario.contractFile);
+      expect(
+        contract.probes.some((probe: { gate?: boolean }) => probe.gate),
+        scenario.id
+      ).toBe(true);
+      if (scenario.operation === 'delete') {
+        expect(contract.absent?.length, scenario.id).toBeGreaterThan(0);
+      }
+    }
   });
 
   it('шаблон идентификаторов: звёздочка и список', () => {
-    expect(matchesPattern('L3-delivery', 'L3-*')).toBe(true);
-    expect(matchesPattern('L3-delivery', 'L1-*,L3-delivery')).toBe(true);
-    expect(matchesPattern('L3-delivery', 'L3')).toBe(false);
+    expect(matchesPattern('order-edit', 'order-*')).toBe(true);
+    expect(matchesPattern('order-edit', 'registration-*,order-edit')).toBe(true);
+    expect(matchesPattern('order-edit', 'order')).toBe(false);
   });
 });
 
@@ -292,6 +334,200 @@ describe('верификатор: привязка и пробы', () => {
     expect(checks['runtime.probe.invalid']).toBe('pass');
     expect(checks['runtime.probe.browser-only']).toBeUndefined();
     expect(checks['runtime.probe.throws'][1]).toMatch(/исключение/);
+  });
+});
+
+describe('контракт правки: наследование', () => {
+  const base = {
+    case: 'base',
+    fields: [
+      { id: 'login', bind: { path: 'login' } },
+      { id: 'email', bind: { path: 'email' } },
+      { id: 'captcha', bind: { path: 'captcha' } },
+    ],
+    sample: { login: 'ivan', email: 'a@b.c', captcha: 'ABC123' },
+    probes: [
+      { id: 'sample-valid', expect: { valid: true } },
+      { id: 'email-required', set: { email: '' }, expect: { invalid: ['email'] } },
+      { id: 'captcha-wrong', set: { captcha: 'x' }, expect: { invalid: ['captcha'] } },
+    ],
+  };
+
+  it('замена на месте, вставка после поля, снятие поля вместе с образцом', () => {
+    const merged = mergeContract(base, {
+      case: 'edit',
+      drop: { fields: ['captcha'], probes: ['captcha-wrong'] },
+      fields: [
+        { id: 'login', bind: { path: 'username' } },
+        { id: 'phone', after: 'email', bind: { path: 'phone' } },
+      ],
+      sample: { login: 'petr', phone: '' },
+      probes: [{ id: 'sample-valid', expect: { valid: true, noIssues: ['phone'] } }],
+      absent: [{ id: 'captcha', bind: { paths: ['captcha'] } }],
+    });
+    expect(merged.case).toBe('edit');
+    expect(merged.fields.map((field: { id: string }) => field.id)).toEqual([
+      'login',
+      'email',
+      'phone',
+    ]);
+    expect(merged.fields[0].bind.path).toBe('username');
+    expect(merged.fields[2]).not.toHaveProperty('after');
+    expect(merged.sample).toEqual({ login: 'petr', email: 'a@b.c', phone: '' });
+    expect(merged.probes.map((probe: { id: string }) => probe.id)).toEqual([
+      'sample-valid',
+      'email-required',
+    ]);
+    expect(merged.probes[0].expect.noIssues).toEqual(['phone']);
+    expect(merged.absent).toHaveLength(1);
+  });
+
+  it('проба базы со снятым полем — ошибка автора контракта, а не тихий провал', () => {
+    expect(() => mergeContract(base, { drop: { fields: ['captcha'] } })).toThrow(/captcha-wrong/);
+    expect(() => mergeContract(base, { drop: { fields: ['nope'] } })).toThrow(/нет поля nope/);
+    expect(() =>
+      mergeContract(base, { fields: [{ id: 'x', after: 'nope', bind: { path: 'x' } }] })
+    ).toThrow(/after/);
+  });
+
+  it('id полей пробы: set, списки, словари и выражения — по первому сегменту пути', () => {
+    expect(
+      probeFieldIds({
+        set: { 'items.0.price': 1 },
+        expect: {
+          invalid: ['email'],
+          values: { total: 1 },
+          expressions: [{ id: 'sum', expression: '1' }],
+        },
+      }).sort()
+    ).toEqual(['email', 'items', 'sum', 'total']);
+  });
+
+  it('extends читается с диска цепочкой, путь — от файла наследника', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'contract-'));
+    try {
+      mkdirSync(join(directory, 'create'));
+      mkdirSync(join(directory, 'edit'));
+      writeFileSync(join(directory, 'create', 'contract.json'), JSON.stringify(base));
+      writeFileSync(
+        join(directory, 'edit', 'contract.json'),
+        JSON.stringify({
+          extends: '../create/contract.json',
+          drop: { fields: ['captcha'], probes: ['captcha-wrong'] },
+        })
+      );
+      const merged = readContract(join(directory, 'edit', 'contract.json'));
+      expect(merged).not.toHaveProperty('extends');
+      expect(merged).not.toHaveProperty('drop');
+      expect(merged.fields).toHaveLength(2);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('верификатор: удалённые поля, шаги, предупреждения', () => {
+  const paths = modelPaths({ username: '', email: '', items: [{ title: '' }], comment: '' });
+
+  it('absent: поле нашлось по пути или по подписи — провал, иначе — проход; гейт', () => {
+    const contract = {
+      absent: [
+        { id: 'captcha', bind: { paths: ['captcha'], label: '/капч|символ/i' } },
+        { id: 'login', bind: { paths: ['login'] } },
+      ],
+    };
+    expect(checkStructure(contract, paths, {}, [])['runtime.structure.absent']).toBe('pass');
+    const byLabel = checkStructure(contract, paths, {}, [], {
+      labels: [{ label: 'Символы с картинки', path: 'code' }],
+    });
+    expect(byLabel['runtime.structure.absent'][1]).toContain('captcha');
+    const byPath = checkStructure(
+      { absent: [{ id: 'email', bind: { paths: ['email'] } }] },
+      paths,
+      {},
+      []
+    );
+    expect(byPath['runtime.structure.absent'][1]).toContain('путь email');
+    expect(gatesFor(contract, {})).toContain('runtime.structure.absent');
+  });
+
+  it('шаги: число, заголовок и поля шага; поле массива — по пути массива', () => {
+    const contract = {
+      steps: [
+        { title: '/товар/i', fields: ['items'] },
+        { title: 'Оплата', fields: ['comment'] },
+      ],
+    };
+    const bound = { items: 'items', comment: 'comment' };
+    const flow = [{ id: 'step1' }, { id: 'step2' }];
+    const good = [
+      { id: 'step1', title: 'Товары', paths: ['items'] },
+      { id: 'step2', title: 'Оплата', paths: ['comment'] },
+    ];
+    expect(
+      checkStructure(contract, paths, bound, flow, { steps: good })['runtime.structure.steps']
+    ).toBe('pass');
+    const moved = [
+      { id: 'step1', title: 'Товары', paths: ['items', 'comment'] },
+      { id: 'step2', title: 'Оплата и скидки', paths: [] },
+    ];
+    const check = checkStructure(contract, paths, bound, flow, { steps: moved })[
+      'runtime.structure.steps'
+    ];
+    expect(check[1]).toContain('шаг 2: нет comment');
+    expect(checkStructure(contract, paths, bound, [flow[0]])['runtime.structure.steps'][1]).toBe(
+      'шагов 1, в контракте 2'
+    );
+    expect(gatesFor(contract, {})).toContain('runtime.structure.steps');
+  });
+
+  it('schemaSteps: заголовок и пути полей — из узла схемы с селектором шага', () => {
+    const schema = {
+      selector: 'wizard',
+      children: [
+        {
+          selector: 'step1',
+          componentProps: { title: 'Покупатель' },
+          children: [{ selector: 'email', model: '$model(email)', componentProps: {} }],
+        },
+      ],
+    };
+    expect(schemaSteps(schema, { $: {} }, [{ id: 'step1' }, { id: 'step9' }])).toEqual([
+      { id: 'step1', title: 'Покупатель', paths: ['email'] },
+      { id: 'step9', title: null, paths: [] },
+    ]);
+  });
+
+  it('предупреждение не делает поле невалидным; проба шага валидирует только шаг', async () => {
+    const contract = {
+      probes: [
+        { id: 'warning', expect: { valid: true, warnings: ['total'], noIssues: ['email'] } },
+        { id: 'not-invalid', expect: { invalid: ['total'] } },
+        { id: 'step', step: 2, expect: { valid: false } },
+      ],
+    };
+    const calls: number[] = [];
+    const createInstance = async () => ({
+      model: { total: 0, email: '' },
+      form: {
+        total: { issues: { value: [{ code: 'big', severity: 'warning' }] } },
+        email: { issues: { value: [] } },
+      },
+      validate: async () => true,
+      validateStep: async (step: number) => {
+        calls.push(step);
+        return false;
+      },
+    });
+    const checks = await runProbes({
+      contract,
+      bound: { total: 'total', email: 'email' },
+      createInstance,
+    });
+    expect(checks['runtime.probe.warning']).toBe('pass');
+    expect(checks['runtime.probe.not-invalid'][0]).toBe('fail');
+    expect(checks['runtime.probe.step']).toBe('pass');
+    expect(calls).toEqual([2]);
   });
 });
 

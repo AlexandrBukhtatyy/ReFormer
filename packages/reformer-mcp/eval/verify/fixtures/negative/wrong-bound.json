@@ -1,13 +1,13 @@
 {
-  "description": "Перепутана граница числового правила.",
-  "scenario": "L2-registration-lite",
+  "description": "Перепутана граница правила длины.",
+  "scenario": "registration-create",
   "target": "renderer-react",
-  "expectFailure": "runtime.probe.age-lower-bound",
+  "expectFailure": "runtime.probe.login-too-short",
   "mutations": [
     {
       "file": "form.validation.ts",
-      "find": "min(18)",
-      "replace": "min(1)"
+      "find": "minLength(3, { code: 'login.minLength' })",
+      "replace": "minLength(1, { code: 'login.minLength' })"
     }
   ]
 }

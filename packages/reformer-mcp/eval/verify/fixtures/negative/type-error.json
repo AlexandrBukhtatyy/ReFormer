@@ -1,12 +1,12 @@
 {
   "description": "Ошибка типов в модуле формы.",
-  "scenario": "L1-feedback",
+  "scenario": "registration-create",
   "target": "renderer-react",
   "expectFailure": "static.tsc",
   "mutations": [
     {
       "file": "form.validation.ts",
-      "find": "email()",
+      "find": "email({ code: 'email.format' })",
       "replace": "email(42)"
     }
   ]

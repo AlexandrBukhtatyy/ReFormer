@@ -1,0 +1,8 @@
+{
+  "description": "Удаление не сделано: капча и повтор пароля остались в форме.",
+  "scenario": "registration-delete",
+  "target": "renderer-react",
+  "seedOnly": true,
+  "expectFailure": "runtime.structure.absent",
+  "mutations": []
+}

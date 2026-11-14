@@ -1,0 +1,47 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "registration-delete",
+  "extends": "../create/contract.json",
+  "drop": {
+    "fields": ["confirmPassword", "captcha"],
+    "probes": [
+      "password-required",
+      "password-too-short",
+      "confirm-required",
+      "confirm-mismatch",
+      "captcha-required",
+      "captcha-wrong",
+      "captcha-any-case"
+    ]
+  },
+  "absent": [
+    {
+      "id": "confirmPassword",
+      "bind": {
+        "paths": ["confirmPassword", "passwordConfirm", "repeatPassword"],
+        "label": "/повтор|подтверд/i"
+      }
+    },
+    { "id": "captcha", "bind": { "paths": ["captcha"], "label": "/капч|символ/i" } }
+  ],
+  "probes": [
+    {
+      "id": "password-required",
+      "gate": true,
+      "set": { "password": "" },
+      "expect": { "valid": false, "invalid": ["password"] }
+    },
+    {
+      "id": "password-too-short",
+      "gate": true,
+      "set": { "password": "short1" },
+      "expect": { "valid": false, "invalid": ["password"] }
+    },
+    {
+      "id": "no-confirm-needed",
+      "gate": true,
+      "set": { "password": "another-secret" },
+      "expect": { "valid": true, "noIssues": ["password"] }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "wizard-create",
+  "level": 3,
+  "operation": "create",
+  "title": "Мастер оформления заказа: создание по спецификации",
+  "spec": "packages/reformer-mcp/eval/scenarios/order/spec.md",
+  "targets": ["core", "renderer-react", "renderer-json"],
+  "reference": "reference.intent.json",
+  "referenceFiles": { "operators.ts": "../../order/create/reference.operators.ts" },
+  "tags": [
+    "spec",
+    "wizard",
+    "array",
+    "computed",
+    "conditional",
+    "cross",
+    "async",
+    "operators",
+    "heavy"
+  ],
+  "budget": {
+    "timeoutMs": 2400000,
+    "maxUsd": 6,
+    "maxSteps": 80
+  },
+  "builder": {
+    "enabled": false,
+    "reason": "эталон держит своё правило-оператор (ИНН), асинхронную заглушку и событие отправки мастера: документ конструктора их не хранит"
+  }
+}

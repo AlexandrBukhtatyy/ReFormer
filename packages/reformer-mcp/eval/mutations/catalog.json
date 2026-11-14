@@ -37,8 +37,8 @@
       "id": "generator-broken-compute",
       "description": "Генератор ломает выражение computeFrom",
       "file": "core/generate/builders.js",
-      "find": "(${params.join(', ')}) => ${b.expr ?? 'undefined'});`",
-      "replace": "(${params.join(', ')}) => 0);`",
+      "find": "(${params.join(', ')}) => ${b.expr ?? 'undefined'}${computeWhen(b)});`",
+      "replace": "(${params.join(', ')}) => 0${computeWhen(b)});`",
       "expectRedIn": ["golden"]
     },
     {

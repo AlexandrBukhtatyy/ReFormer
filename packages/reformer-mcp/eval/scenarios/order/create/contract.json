@@ -1,0 +1,968 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "order-create",
+  "fields": [
+    {
+      "id": "customerType",
+      "bind": {
+        "path": "customerType",
+        "label": "/тип покупател/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "contact.lastName",
+      "bind": {
+        "path": "contact.lastName",
+        "label": "/фамили/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/фамили/i"
+      }
+    },
+    {
+      "id": "contact.firstName",
+      "bind": {
+        "path": "contact.firstName",
+        "label": "/^имя/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/^имя/i"
+      }
+    },
+    {
+      "id": "email",
+      "bind": {
+        "path": "email",
+        "label": "/^e-?mail$|^почт/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/^e-?mail/i"
+      }
+    },
+    {
+      "id": "phone",
+      "bind": {
+        "path": "phone",
+        "label": "/телефон/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/телефон/i"
+      }
+    },
+    {
+      "id": "birthDate",
+      "bind": {
+        "path": "birthDate",
+        "label": "/рождени/i"
+      },
+      "type": "date"
+    },
+    {
+      "id": "company.name",
+      "bind": {
+        "path": "company.name",
+        "label": "/организац/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "company.inn",
+      "bind": {
+        "path": "company.inn",
+        "label": "/инн/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "deliveryMethod",
+      "bind": {
+        "path": "deliveryMethod",
+        "label": "/способ получени/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "deliveryAddress.city",
+      "bind": {
+        "path": "deliveryAddress.city"
+      },
+      "type": "string"
+    },
+    {
+      "id": "deliveryAddress.street",
+      "bind": {
+        "path": "deliveryAddress.street"
+      },
+      "type": "string"
+    },
+    {
+      "id": "deliveryAddress.house",
+      "bind": {
+        "path": "deliveryAddress.house"
+      },
+      "type": "string"
+    },
+    {
+      "id": "deliveryDate",
+      "bind": {
+        "path": "deliveryDate",
+        "label": "/дата доставк/i"
+      },
+      "type": "date"
+    },
+    {
+      "id": "billingSame",
+      "bind": {
+        "path": "billingSame",
+        "label": "/совпадает/i"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "billingAddress.city",
+      "bind": {
+        "path": "billingAddress.city"
+      },
+      "type": "string"
+    },
+    {
+      "id": "billingAddress.street",
+      "bind": {
+        "path": "billingAddress.street"
+      },
+      "type": "string"
+    },
+    {
+      "id": "billingAddress.house",
+      "bind": {
+        "path": "billingAddress.house"
+      },
+      "type": "string"
+    },
+    {
+      "id": "subtotal",
+      "bind": {
+        "path": "subtotal",
+        "label": "/сумма товаров/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/сумма товаров/i"
+      }
+    },
+    {
+      "id": "promoCode",
+      "bind": {
+        "path": "promoCode",
+        "label": "/промокод/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/промокод/i"
+      }
+    },
+    {
+      "id": "discount",
+      "bind": {
+        "path": "discount",
+        "label": "/скидк/i"
+      },
+      "type": "number"
+    },
+    {
+      "id": "total",
+      "bind": {
+        "path": "total",
+        "label": "/итого/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/итого/i"
+      }
+    },
+    {
+      "id": "paymentMethod",
+      "bind": {
+        "path": "paymentMethod",
+        "label": "/способ оплат/i"
+      },
+      "type": "string"
+    },
+    {
+      "id": "receiptEmail",
+      "bind": {
+        "path": "receiptEmail",
+        "label": "/чек/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/чек/i"
+      }
+    },
+    {
+      "id": "comment",
+      "bind": {
+        "path": "comment",
+        "label": "/комментар/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/комментар/i"
+      }
+    },
+    {
+      "id": "agreeTerms",
+      "bind": {
+        "path": "agreeTerms",
+        "label": "/оферт/i"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "newsletter",
+      "bind": {
+        "path": "newsletter",
+        "label": "/новост/i"
+      },
+      "type": "boolean"
+    },
+    {
+      "id": "sources",
+      "bind": {
+        "path": "sources",
+        "label": "/узнали/i"
+      },
+      "type": "array"
+    }
+  ],
+  "arrays": [
+    {
+      "path": "items",
+      "itemFields": ["title", "quantity", "price", "lineTotal"]
+    },
+    {
+      "path": "recipients",
+      "itemFields": ["email", "primary"]
+    }
+  ],
+  "buttons": [
+    {
+      "name": "/оформить заказ/i"
+    }
+  ],
+  "sample": {
+    "customerType": "person",
+    "contact.lastName": "Петров",
+    "contact.firstName": "Иван",
+    "email": "ivan@example.com",
+    "phone": "+7 (999) 123-45-67",
+    "birthDate": "1990-05-15",
+    "deliveryMethod": "pickup",
+    "items.0.title": "Ноутбук",
+    "items.0.quantity": 1,
+    "items.0.price": 50000,
+    "paymentMethod": "card",
+    "recipients.0.email": "ivan@example.com",
+    "agreeTerms": true
+  },
+  "probes": [
+    {
+      "id": "sample-valid",
+      "gate": true,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "starts-with-defaults",
+      "gate": true,
+      "sample": false,
+      "expect": {
+        "values": {
+          "customerType": "person",
+          "deliveryMethod": "pickup",
+          "billingSame": true,
+          "discount": 0,
+          "paymentMethod": "card",
+          "agreeTerms": false,
+          "newsletter": false
+        },
+        "arrayLength": {
+          "items": 1,
+          "recipients": 1
+        }
+      }
+    },
+    {
+      "id": "last-name-required",
+      "gate": true,
+      "set": {
+        "contact.lastName": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["contact.lastName"]
+      }
+    },
+    {
+      "id": "first-name-too-short",
+      "set": {
+        "contact.firstName": "И"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["contact.firstName"]
+      }
+    },
+    {
+      "id": "email-format",
+      "gate": true,
+      "set": {
+        "email": "ivan@"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["email"]
+      }
+    },
+    {
+      "id": "phone-format",
+      "gate": true,
+      "set": {
+        "phone": "12345"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["phone"]
+      }
+    },
+    {
+      "id": "birth-date-required-for-person",
+      "gate": true,
+      "set": {
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["birthDate"]
+      }
+    },
+    {
+      "id": "birth-date-adult",
+      "gate": true,
+      "set": {
+        "birthDate": {
+          "$dateString": "-10y"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["birthDate"]
+      }
+    },
+    {
+      "id": "company-required",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["company.name", "company.inn"],
+        "noIssues": ["birthDate"]
+      }
+    },
+    {
+      "id": "inn-format",
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "12345",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["company.inn"]
+      }
+    },
+    {
+      "id": "inn-checksum",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083894",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["company.inn"]
+      }
+    },
+    {
+      "id": "company-valid",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "delivery-address-required",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "post"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["deliveryAddress.city", "deliveryAddress.street", "deliveryAddress.house"]
+      }
+    },
+    {
+      "id": "delivery-address-disabled-on-pickup",
+      "gate": true,
+      "expect": {
+        "disabled": ["deliveryAddress.city"]
+      }
+    },
+    {
+      "id": "delivery-address-enabled-for-post",
+      "set": {
+        "deliveryMethod": "post"
+      },
+      "expect": {
+        "enabled": ["deliveryAddress.city"]
+      }
+    },
+    {
+      "id": "delivery-address-reset-on-pickup",
+      "gate": true,
+      "set": [
+        {
+          "deliveryMethod": "post",
+          "deliveryAddress.city": "Казань",
+          "deliveryAddress.street": "Баумана",
+          "deliveryAddress.house": "1"
+        },
+        {
+          "deliveryMethod": "pickup"
+        }
+      ],
+      "expect": {
+        "values": {
+          "deliveryAddress.city": ""
+        }
+      }
+    },
+    {
+      "id": "delivery-date-required-for-courier",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "courier",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["deliveryDate"]
+      }
+    },
+    {
+      "id": "delivery-date-future",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "courier",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1",
+        "deliveryDate": {
+          "$date": "-1d"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["deliveryDate"]
+      }
+    },
+    {
+      "id": "delivery-date-ok",
+      "set": {
+        "deliveryMethod": "courier",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1",
+        "deliveryDate": {
+          "$date": "+3d"
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "delivery-date-reset",
+      "gate": true,
+      "set": [
+        {
+          "deliveryMethod": "courier",
+          "deliveryAddress.city": "Казань",
+          "deliveryAddress.street": "Баумана",
+          "deliveryAddress.house": "1",
+          "deliveryDate": {
+            "$date": "+3d"
+          }
+        },
+        {
+          "deliveryMethod": "post"
+        }
+      ],
+      "expect": {
+        "values": {
+          "deliveryDate": null
+        }
+      }
+    },
+    {
+      "id": "billing-copies-delivery",
+      "gate": true,
+      "set": {
+        "deliveryMethod": "post",
+        "deliveryAddress.city": "Казань",
+        "deliveryAddress.street": "Баумана",
+        "deliveryAddress.house": "1"
+      },
+      "expect": {
+        "values": {
+          "billingAddress.city": "Казань",
+          "billingAddress.street": "Баумана",
+          "billingAddress.house": "1"
+        }
+      }
+    },
+    {
+      "id": "billing-disabled-while-same",
+      "gate": true,
+      "expect": {
+        "disabled": ["billingAddress.city"]
+      }
+    },
+    {
+      "id": "billing-required-when-different",
+      "gate": true,
+      "set": {
+        "billingSame": false
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["billingAddress.city", "billingAddress.street", "billingAddress.house"]
+      }
+    },
+    {
+      "id": "item-title-required",
+      "gate": true,
+      "set": {
+        "items.0.title": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.title"]
+      }
+    },
+    {
+      "id": "item-quantity-integer",
+      "set": {
+        "items.0.quantity": 1.5
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.quantity"]
+      }
+    },
+    {
+      "id": "item-quantity-min",
+      "gate": true,
+      "set": {
+        "items.0.quantity": 0
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.quantity"]
+      }
+    },
+    {
+      "id": "item-quantity-max",
+      "set": {
+        "items.0.quantity": 100
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.quantity"]
+      }
+    },
+    {
+      "id": "item-price-not-negative",
+      "gate": true,
+      "set": {
+        "items.0.price": -1
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.price"]
+      }
+    },
+    {
+      "id": "items-at-least-one",
+      "gate": true,
+      "set": {
+        "items": {
+          "removeAt": 0
+        }
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items"]
+      }
+    },
+    {
+      "id": "new-row-validated",
+      "set": {
+        "items": {
+          "push": {
+            "title": "",
+            "quantity": 1,
+            "price": 100,
+            "lineTotal": 0
+          }
+        }
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.1.title"]
+      }
+    },
+    {
+      "id": "line-total-computed",
+      "gate": true,
+      "set": {
+        "items.0.quantity": 3,
+        "items.0.price": 200
+      },
+      "expect": {
+        "values": {
+          "items.0.lineTotal": 600
+        }
+      }
+    },
+    {
+      "id": "subtotal-computed",
+      "gate": true,
+      "set": {
+        "items": {
+          "push": {
+            "title": "Мышь",
+            "quantity": 2,
+            "price": 1500,
+            "lineTotal": 0
+          }
+        }
+      },
+      "expect": {
+        "values": {
+          "subtotal": 53000
+        }
+      }
+    },
+    {
+      "id": "total-without-discount",
+      "gate": true,
+      "expect": {
+        "values": {
+          "total": 50000
+        }
+      }
+    },
+    {
+      "id": "total-with-discount",
+      "gate": true,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "discount": 10
+      },
+      "expect": {
+        "values": {
+          "total": 45000
+        }
+      }
+    },
+    {
+      "id": "discount-disabled-for-person",
+      "gate": true,
+      "expect": {
+        "disabled": ["discount"]
+      }
+    },
+    {
+      "id": "discount-reset-for-person",
+      "gate": true,
+      "set": [
+        {
+          "customerType": "company",
+          "company.name": "ООО Ромашка",
+          "company.inn": "7707083893",
+          "birthDate": "",
+          "discount": 20
+        },
+        {
+          "customerType": "person",
+          "birthDate": "1990-05-15"
+        }
+      ],
+      "expect": {
+        "values": {
+          "discount": 0,
+          "total": 50000
+        }
+      }
+    },
+    {
+      "id": "discount-max",
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "discount": 35
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["discount"]
+      }
+    },
+    {
+      "id": "large-order-warning",
+      "gate": true,
+      "set": {
+        "items.0.price": 150000
+      },
+      "expect": {
+        "valid": true,
+        "warnings": ["total"]
+      }
+    },
+    {
+      "id": "promo-uppercase",
+      "gate": true,
+      "set": {
+        "promoCode": "sale10"
+      },
+      "expect": {
+        "valid": true,
+        "values": {
+          "promoCode": "SALE10"
+        },
+        "noIssues": ["promoCode"]
+      }
+    },
+    {
+      "id": "promo-unknown",
+      "gate": true,
+      "set": {
+        "promoCode": "WRONG"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["promoCode"]
+      }
+    },
+    {
+      "id": "invoice-only-for-company",
+      "gate": true,
+      "set": {
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["paymentMethod"]
+      }
+    },
+    {
+      "id": "invoice-for-company",
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": "",
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "person-drops-invoice",
+      "gate": true,
+      "set": [
+        {
+          "customerType": "company",
+          "company.name": "ООО Ромашка",
+          "company.inn": "7707083893",
+          "birthDate": "",
+          "paymentMethod": "invoice"
+        },
+        {
+          "customerType": "person",
+          "birthDate": "1990-05-15"
+        }
+      ],
+      "expect": {
+        "values": {
+          "paymentMethod": "card"
+        }
+      }
+    },
+    {
+      "id": "receipt-email-follows-email",
+      "gate": true,
+      "set": {
+        "email": "new@example.com"
+      },
+      "expect": {
+        "values": {
+          "receiptEmail": "new@example.com"
+        }
+      }
+    },
+    {
+      "id": "email-follows-receipt-email",
+      "set": {
+        "receiptEmail": "check@example.com"
+      },
+      "expect": {
+        "values": {
+          "email": "check@example.com"
+        }
+      }
+    },
+    {
+      "id": "receipt-email-format",
+      "set": {
+        "receiptEmail": "check@"
+      },
+      "expect": {
+        "valid": false,
+        "anyInvalid": ["receiptEmail", "email"]
+      }
+    },
+    {
+      "id": "comment-max",
+      "set": {
+        "comment": "ааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааааа"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["comment"]
+      }
+    },
+    {
+      "id": "recipient-email-required",
+      "gate": true,
+      "set": {
+        "recipients.0.email": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["recipients.0.email"]
+      }
+    },
+    {
+      "id": "primary-recipient-exclusive",
+      "gate": true,
+      "set": [
+        {
+          "recipients": {
+            "push": {
+              "email": "anna@example.com",
+              "primary": false
+            }
+          }
+        },
+        {
+          "recipients.1.primary": true
+        }
+      ],
+      "expect": {
+        "values": {
+          "recipients.0.primary": false,
+          "recipients.1.primary": true
+        }
+      }
+    },
+    {
+      "id": "primary-recipient-fallback",
+      "set": {
+        "recipients.0.primary": false
+      },
+      "expect": {
+        "values": {
+          "recipients.0.primary": true
+        }
+      }
+    },
+    {
+      "id": "agree-terms-required",
+      "gate": true,
+      "set": {
+        "agreeTerms": false
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["agreeTerms"]
+      }
+    },
+    {
+      "id": "company-hidden-for-person",
+      "where": "browser",
+      "expect": {
+        "hidden": ["company.name", "company.inn"]
+      }
+    },
+    {
+      "id": "delivery-date-hidden-on-pickup",
+      "where": "browser",
+      "expect": {
+        "hidden": ["deliveryDate"]
+      }
+    },
+    {
+      "id": "totals-read-only",
+      "where": "browser",
+      "expect": {
+        "readonly": ["subtotal", "total"]
+      }
+    }
+  ]
+}

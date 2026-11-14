@@ -9,7 +9,7 @@
  * `EVAL_LADDER_OUT=<каталог>` кладёт модули на диск (`<каталог>/<сценарий>/`) и отчёт `ladder.json`:
  * их проверяет верификатор MCP теми же контрактами, что формы терминала —
  * `npm run mcp:verify -- --ladder <каталог>`, а в записи прогонов переводит
- * `npm run mcp:import-builder -- <каталог>/verify.json`. `EVAL_LADDER='L1-*,L3-*'` — только эти
+ * `npm run mcp:import-builder -- <каталог>/verify.json`. `EVAL_LADDER='registration-*'` — только эти
  * сценарии.
  *
  * Живая модель — `EVAL_MODEL` (и `EVAL_KIND`, `EVAL_BASE_URL`, `EVAL_API_KEY`, `EVAL_REASONING`, как
@@ -59,11 +59,24 @@ function matcher(pattern: string | undefined): (id: string) => boolean {
   return (id) => regexes.some((regex) => regex.test(id));
 }
 
+/**
+ * Каталоги сценариев, как их обходит каталог стенда (`eval/scenarios/catalog.mjs`): сценарий —
+ * каталог со `scenario.json`, каталог без него — группа операций одной формы (`registration/edit`).
+ * Служебные (`_*`, скрытые) и holdout в лестницу не идут.
+ */
+function scenarioDirs(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !/^[_.]/.test(entry.name))
+    .filter((entry) => entry.name !== 'holdout' && entry.name !== 'node_modules')
+    .flatMap((entry) => {
+      const full = join(dir, entry.name);
+      return existsSync(join(full, 'scenario.json')) ? [full] : scenarioDirs(full);
+    });
+}
+
 function loadLadder(): Array<LadderScenario & { dir: string }> {
   const matches = matcher(process.env.EVAL_LADDER);
-  return readdirSync(SCENARIOS)
-    .map((name) => join(SCENARIOS, name))
-    .filter((dir) => existsSync(join(dir, 'scenario.json')))
+  return scenarioDirs(SCENARIOS)
     .map((dir) => ({
       dir,
       ...(JSON.parse(readFileSync(join(dir, 'scenario.json'), 'utf8')) as LadderScenario),

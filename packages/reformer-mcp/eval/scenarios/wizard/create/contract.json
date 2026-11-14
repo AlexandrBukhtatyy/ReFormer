@@ -1,0 +1,230 @@
+{
+  "schema": "reformer-mcp-contract/1",
+  "case": "wizard-create",
+  "extends": "../../order/create/contract.json",
+  "drop": {
+    "probes": ["totals-read-only"]
+  },
+  "fields": [
+    {
+      "id": "subtotal",
+      "bind": {
+        "path": "subtotal",
+        "label": "/сумма товаров/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/сумма товаров/i",
+        "step": 4
+      }
+    },
+    {
+      "id": "promoCode",
+      "bind": {
+        "path": "promoCode",
+        "label": "/промокод/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/промокод/i",
+        "step": 5
+      }
+    },
+    {
+      "id": "total",
+      "bind": {
+        "path": "total",
+        "label": "/итого/i"
+      },
+      "type": "number",
+      "aria": {
+        "role": "spinbutton|textbox",
+        "name": "/итого/i",
+        "step": 5
+      }
+    },
+    {
+      "id": "receiptEmail",
+      "bind": {
+        "path": "receiptEmail",
+        "label": "/чек/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/чек/i",
+        "step": 5
+      }
+    },
+    {
+      "id": "comment",
+      "bind": {
+        "path": "comment",
+        "label": "/комментар/i"
+      },
+      "type": "string",
+      "aria": {
+        "role": "textbox",
+        "name": "/комментар/i",
+        "step": 5
+      }
+    }
+  ],
+  "steps": [
+    {
+      "title": "/покупател/i",
+      "fields": [
+        "customerType",
+        "contact.lastName",
+        "contact.firstName",
+        "email",
+        "phone",
+        "birthDate"
+      ]
+    },
+    {
+      "title": "/компани/i",
+      "fields": ["company.name", "company.inn"]
+    },
+    {
+      "title": "/доставк/i",
+      "fields": [
+        "deliveryMethod",
+        "deliveryAddress.city",
+        "deliveryAddress.street",
+        "deliveryAddress.house",
+        "deliveryDate",
+        "billingSame",
+        "billingAddress.city",
+        "billingAddress.street",
+        "billingAddress.house"
+      ]
+    },
+    {
+      "title": "/товар/i",
+      "fields": ["items", "subtotal"]
+    },
+    {
+      "title": "/оплат/i",
+      "fields": ["promoCode", "discount", "total", "paymentMethod", "receiptEmail", "comment"]
+    },
+    {
+      "title": "/подтвержд/i",
+      "fields": ["recipients", "agreeTerms", "newsletter", "sources"]
+    }
+  ],
+  "buttons": [
+    {
+      "name": "/далее|next|дальше|продолж|вперёд/i"
+    }
+  ],
+  "probes": [
+    {
+      "id": "step-1-blocks-on-own-field",
+      "gate": true,
+      "step": 1,
+      "set": {
+        "contact.lastName": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["contact.lastName"]
+      }
+    },
+    {
+      "id": "step-1-ignores-later-steps",
+      "gate": true,
+      "step": 1,
+      "set": {
+        "agreeTerms": false,
+        "items.0.title": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "step-2-skipped-for-person",
+      "gate": true,
+      "step": 2,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "step-2-blocks-company",
+      "gate": true,
+      "step": 2,
+      "set": {
+        "customerType": "company"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["company.name"]
+      }
+    },
+    {
+      "id": "step-3-blocks-address",
+      "gate": true,
+      "step": 3,
+      "set": {
+        "deliveryMethod": "post"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["deliveryAddress.city"]
+      }
+    },
+    {
+      "id": "step-4-blocks-items",
+      "gate": true,
+      "step": 4,
+      "set": {
+        "items.0.title": ""
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["items.0.title"]
+      }
+    },
+    {
+      "id": "step-5-blocks-invoice-for-person",
+      "gate": true,
+      "step": 5,
+      "set": {
+        "paymentMethod": "invoice"
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["paymentMethod"]
+      }
+    },
+    {
+      "id": "step-6-blocks-terms",
+      "gate": true,
+      "step": 6,
+      "set": {
+        "agreeTerms": false
+      },
+      "expect": {
+        "valid": false,
+        "invalid": ["agreeTerms"]
+      }
+    },
+    {
+      "id": "step-6-passes-filled",
+      "step": 6,
+      "set": {
+        "customerType": "company",
+        "company.name": "ООО Ромашка",
+        "company.inn": "7707083893",
+        "birthDate": ""
+      },
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

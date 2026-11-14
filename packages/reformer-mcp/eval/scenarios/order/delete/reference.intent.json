@@ -1,0 +1,659 @@
+{
+  "formName": "OrderForm",
+  "interfaceName": "Order",
+  "target": "renderer-react",
+  "fields": [
+    {
+      "name": "customerType",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Тип покупателя",
+      "initialValue": "person",
+      "componentProps": {
+        "options": [
+          { "value": "person", "label": "Физическое лицо" },
+          { "value": "company", "label": "Юридическое лицо" }
+        ]
+      }
+    },
+    {
+      "name": "contact.lastName",
+      "type": "string",
+      "component": "Input",
+      "label": "Фамилия",
+      "initialValue": ""
+    },
+    {
+      "name": "contact.firstName",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя",
+      "initialValue": ""
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": "",
+      "componentProps": { "type": "email" }
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон",
+      "initialValue": "",
+      "componentProps": { "mask": "+7 (999) 999-99-99" }
+    },
+    {
+      "name": "birthDate",
+      "type": "date",
+      "component": "Input",
+      "label": "Дата рождения",
+      "initialValue": "",
+      "componentProps": { "type": "date" }
+    },
+    {
+      "name": "company.name",
+      "type": "string",
+      "component": "Input",
+      "label": "Название организации",
+      "initialValue": ""
+    },
+    {
+      "name": "company.inn",
+      "type": "string",
+      "component": "Input",
+      "label": "ИНН",
+      "initialValue": ""
+    },
+    {
+      "name": "deliveryMethod",
+      "type": "string",
+      "component": "Select",
+      "label": "Способ получения",
+      "initialValue": "pickup",
+      "optionsSource": "DELIVERY_METHODS"
+    },
+    {
+      "name": "deliveryAddress.city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "initialValue": ""
+    },
+    {
+      "name": "deliveryAddress.street",
+      "type": "string",
+      "component": "Input",
+      "label": "Улица",
+      "initialValue": ""
+    },
+    {
+      "name": "deliveryAddress.house",
+      "type": "string",
+      "component": "Input",
+      "label": "Дом",
+      "initialValue": ""
+    },
+    {
+      "name": "deliveryDate",
+      "type": "date",
+      "component": "DatePicker",
+      "label": "Дата доставки",
+      "initialValue": null
+    },
+    {
+      "name": "subtotal",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Сумма товаров",
+      "initialValue": 0,
+      "componentProps": { "readOnly": true }
+    },
+    {
+      "name": "total",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Итого",
+      "initialValue": 0,
+      "componentProps": { "readOnly": true }
+    },
+    {
+      "name": "paymentMethod",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Способ оплаты",
+      "initialValue": "card",
+      "componentProps": {
+        "options": [
+          { "value": "card", "label": "Картой онлайн" },
+          { "value": "cash", "label": "При получении" },
+          { "value": "invoice", "label": "По счёту" }
+        ]
+      }
+    },
+    {
+      "name": "receiptEmail",
+      "type": "string",
+      "component": "Input",
+      "label": "Email для чека",
+      "initialValue": "",
+      "componentProps": { "type": "email" }
+    },
+    {
+      "name": "comment",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Комментарий к заказу",
+      "initialValue": ""
+    },
+    {
+      "name": "agreeTerms",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласен с условиями оферты",
+      "initialValue": false
+    },
+    {
+      "name": "newsletter",
+      "type": "boolean",
+      "component": "Switch",
+      "label": "Получать новости и акции",
+      "initialValue": false
+    },
+    {
+      "name": "sources",
+      "type": "array",
+      "component": "SelectMulti",
+      "label": "Как вы о нас узнали",
+      "initialValue": [],
+      "optionsSource": "SOURCES"
+    }
+  ],
+  "arrays": [
+    {
+      "name": "items",
+      "itemInterfaceName": "OrderItem",
+      "initialValue": [{ "title": "", "quantity": 1, "price": null, "lineTotal": 0 }],
+      "componentProps": {
+        "title": "Товары",
+        "addButtonLabel": "+ Добавить товар",
+        "itemLabel": "Товар",
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "itemFields": [
+        {
+          "name": "title",
+          "type": "string",
+          "component": "Input",
+          "label": "Наименование",
+          "initialValue": ""
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Количество",
+          "initialValue": 1
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Цена",
+          "initialValue": null
+        },
+        {
+          "name": "lineTotal",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Сумма",
+          "initialValue": 0,
+          "componentProps": { "readOnly": true }
+        }
+      ]
+    },
+    {
+      "name": "recipients",
+      "itemInterfaceName": "Recipient",
+      "initialValue": [{ "email": "", "primary": true }],
+      "componentProps": {
+        "title": "Кому отправлять уведомления",
+        "addButtonLabel": "+ Добавить получателя",
+        "itemLabel": "Получатель",
+        "minItems": 1
+      },
+      "itemFields": [
+        {
+          "name": "email",
+          "type": "string",
+          "component": "Input",
+          "label": "Email получателя",
+          "initialValue": ""
+        },
+        {
+          "name": "primary",
+          "type": "boolean",
+          "component": "Checkbox",
+          "label": "Основной получатель",
+          "initialValue": false
+        }
+      ]
+    }
+  ],
+  "parts": {
+    "address": { "kind": "container", "component": "Box", "children": ["city", "street", "house"] }
+  },
+  "layoutRoot": {
+    "kind": "container",
+    "component": "Box",
+    "children": [
+      {
+        "kind": "container",
+        "component": "Section",
+        "selector": "buyer",
+        "componentProps": {
+          "title": "Покупатель"
+        },
+        "children": [
+          "customerType",
+          "contact.lastName",
+          "contact.firstName",
+          "email",
+          "phone",
+          "birthDate"
+        ]
+      },
+      {
+        "kind": "container",
+        "component": "Section",
+        "selector": "company",
+        "componentProps": {
+          "title": "Компания"
+        },
+        "children": ["company.name", "company.inn"]
+      },
+      {
+        "kind": "container",
+        "component": "Section",
+        "selector": "delivery",
+        "componentProps": {
+          "title": "Доставка"
+        },
+        "children": [
+          "deliveryMethod",
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "delivery-address",
+            "componentProps": {
+              "title": "Адрес доставки"
+            },
+            "children": [
+              {
+                "kind": "part",
+                "ref": "deliveryAddress",
+                "part": "address"
+              }
+            ]
+          },
+          "deliveryDate"
+        ]
+      },
+      {
+        "kind": "container",
+        "component": "Section",
+        "selector": "goods",
+        "componentProps": {
+          "title": "Товары"
+        },
+        "children": [
+          {
+            "kind": "array",
+            "ref": "items"
+          },
+          "subtotal"
+        ]
+      },
+      {
+        "kind": "container",
+        "component": "Section",
+        "selector": "payment",
+        "componentProps": {
+          "title": "Оплата"
+        },
+        "children": ["total", "paymentMethod", "receiptEmail", "comment"]
+      },
+      {
+        "kind": "container",
+        "component": "Section",
+        "selector": "confirmation",
+        "componentProps": {
+          "title": "Подтверждение"
+        },
+        "children": [
+          {
+            "kind": "array",
+            "ref": "recipients"
+          },
+          "agreeTerms",
+          "newsletter",
+          "sources"
+        ]
+      },
+      {
+        "kind": "container",
+        "component": "Button",
+        "selector": "submit",
+        "componentProps": {
+          "type": "button"
+        },
+        "children": [
+          {
+            "text": "Оформить заказ"
+          }
+        ]
+      }
+    ]
+  },
+  "validation": [
+    {
+      "target": "customerType",
+      "rules": ["required({ code: 'customerType.required' })"],
+      "message": "Выберите тип покупателя"
+    },
+    {
+      "target": "contact.lastName",
+      "rules": ["required({ code: 'lastName.required' })"],
+      "message": "Введите фамилию"
+    },
+    {
+      "target": "contact.lastName",
+      "rules": ["minLength(2, { code: 'lastName.minLength' })"],
+      "message": "Минимум 2 символа"
+    },
+    {
+      "target": "contact.firstName",
+      "rules": ["required({ code: 'firstName.required' })"],
+      "message": "Введите имя"
+    },
+    {
+      "target": "contact.firstName",
+      "rules": ["minLength(2, { code: 'firstName.minLength' })"],
+      "message": "Минимум 2 символа"
+    },
+    {
+      "target": "email",
+      "rules": ["required({ code: 'email.required' })"],
+      "message": "Введите email"
+    },
+    {
+      "target": "email",
+      "rules": ["email({ code: 'email.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "phone",
+      "rules": ["required({ code: 'phone.required' })"],
+      "message": "Введите телефон"
+    },
+    {
+      "target": "phone",
+      "rules": ["pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/, { code: 'phone.format' })"],
+      "message": "Формат +7 (999) 999-99-99"
+    },
+    {
+      "target": "birthDate",
+      "when": "model.customerType === 'person'",
+      "rules": ["required({ code: 'birthDate.required' })"],
+      "message": "Укажите дату рождения"
+    },
+    {
+      "target": "birthDate",
+      "when": "model.customerType === 'person'",
+      "rules": ["minAge(18, { code: 'birthDate.minAge' })"],
+      "message": "Покупателю должно быть не меньше 18 лет"
+    },
+    {
+      "target": "company.name",
+      "when": "model.customerType === 'company'",
+      "rules": ["required({ code: 'companyName.required' })"],
+      "message": "Введите название организации"
+    },
+    {
+      "target": "company.inn",
+      "when": "model.customerType === 'company'",
+      "rules": ["required({ code: 'inn.required' })"],
+      "message": "Введите ИНН"
+    },
+    {
+      "target": "company.inn",
+      "when": "model.customerType === 'company'",
+      "rules": ["pattern(/^\\d{10}$/, { code: 'inn.format' })"],
+      "message": "ИНН — 10 цифр"
+    },
+    {
+      "target": "company.inn",
+      "when": "model.customerType === 'company'",
+      "rules": ["innChecksum({ code: 'inn.checksum' })"],
+      "message": "Неверная контрольная сумма ИНН"
+    },
+    {
+      "target": "deliveryMethod",
+      "rules": ["required({ code: 'deliveryMethod.required' })"],
+      "message": "Выберите способ получения"
+    },
+    {
+      "target": "deliveryAddress.city",
+      "when": "model.deliveryMethod !== 'pickup'",
+      "rules": ["required({ code: 'deliveryCity.required' })"],
+      "message": "Введите город"
+    },
+    {
+      "target": "deliveryAddress.street",
+      "when": "model.deliveryMethod !== 'pickup'",
+      "rules": ["required({ code: 'deliveryStreet.required' })"],
+      "message": "Введите улицу"
+    },
+    {
+      "target": "deliveryAddress.house",
+      "when": "model.deliveryMethod !== 'pickup'",
+      "rules": ["required({ code: 'deliveryHouse.required' })"],
+      "message": "Введите дом"
+    },
+    {
+      "target": "deliveryDate",
+      "when": "model.deliveryMethod === 'courier'",
+      "rules": ["required({ code: 'deliveryDate.required' })"],
+      "message": "Выберите дату доставки"
+    },
+    {
+      "target": "deliveryDate",
+      "when": "model.deliveryMethod === 'courier'",
+      "rules": ["futureDate({ code: 'deliveryDate.future' })"],
+      "message": "Дата доставки — не раньше завтрашнего дня"
+    },
+    {
+      "target": "items",
+      "rules": ["minLength(1, { code: 'items.minLength' })"],
+      "message": "Добавьте хотя бы один товар"
+    },
+    {
+      "target": "items",
+      "rules": ["maxLength(10, { code: 'items.maxLength' })"],
+      "message": "Не больше 10 товаров"
+    },
+    {
+      "target": "title",
+      "each": "items",
+      "rules": ["required({ code: 'item.title.required' })"],
+      "message": "Введите наименование"
+    },
+    {
+      "target": "quantity",
+      "each": "items",
+      "rules": ["required({ code: 'item.quantity.required' })"],
+      "message": "Укажите количество"
+    },
+    {
+      "target": "quantity",
+      "each": "items",
+      "rules": ["integer({ code: 'item.quantity.integer' })"],
+      "message": "Количество — целое число"
+    },
+    {
+      "target": "quantity",
+      "each": "items",
+      "rules": ["min(1, { code: 'item.quantity.min' })"],
+      "message": "Минимум 1"
+    },
+    {
+      "target": "quantity",
+      "each": "items",
+      "rules": ["max(99, { code: 'item.quantity.max' })"],
+      "message": "Максимум 99"
+    },
+    {
+      "target": "price",
+      "each": "items",
+      "rules": ["required({ code: 'item.price.required' })"],
+      "message": "Укажите цену"
+    },
+    {
+      "target": "price",
+      "each": "items",
+      "rules": ["nonNegative({ code: 'item.price.nonNegative' })"],
+      "message": "Цена не может быть отрицательной"
+    },
+    {
+      "target": "total",
+      "cross": "values.total <= 100000",
+      "code": "total.large",
+      "severity": "warning",
+      "message": "Крупный заказ: менеджер свяжется для подтверждения"
+    },
+    {
+      "target": "paymentMethod",
+      "rules": ["required({ code: 'paymentMethod.required' })"],
+      "message": "Выберите способ оплаты"
+    },
+    {
+      "target": "paymentMethod",
+      "cross": "values.paymentMethod !== 'invoice' || values.customerType === 'company'",
+      "code": "paymentMethod.invoice",
+      "message": "Оплата по счёту — только для юридических лиц"
+    },
+    {
+      "target": "receiptEmail",
+      "rules": ["email({ code: 'receiptEmail.format' })"],
+      "message": "Некорректный email для чека"
+    },
+    {
+      "target": "comment",
+      "rules": ["maxLength(500, { code: 'comment.maxLength' })"],
+      "message": "Не больше 500 символов"
+    },
+    {
+      "target": "email",
+      "each": "recipients",
+      "rules": ["required({ code: 'recipient.email.required' })"],
+      "message": "Введите email получателя"
+    },
+    {
+      "target": "email",
+      "each": "recipients",
+      "rules": ["email({ code: 'recipient.email.format' })"],
+      "message": "Некорректный email получателя"
+    },
+    {
+      "target": "agreeTerms",
+      "rules": ["required({ code: 'agreeTerms.required' })"],
+      "message": "Нужно принять условия оферты"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "compute",
+      "each": "items",
+      "target": "lineTotal",
+      "sources": ["quantity", "price"],
+      "expr": "(item.quantity ?? 0) * (item.price ?? 0)"
+    },
+    {
+      "kind": "compute",
+      "target": "subtotal",
+      "sources": ["items", "items.lineTotal"],
+      "expr": "model.items.map((row) => row.lineTotal ?? 0).reduce((sum, value) => sum + value, 0)"
+    },
+    {
+      "kind": "computeFrom",
+      "target": "total",
+      "sources": ["subtotal"],
+      "expr": "Math.round((subtotal ?? 0) * 100) / 100"
+    },
+    {
+      "kind": "disableWhen",
+      "target": "deliveryAddress",
+      "sources": ["deliveryMethod"],
+      "expr": "model.deliveryMethod === 'pickup'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "resetWhen",
+      "target": "deliveryDate",
+      "sources": ["deliveryMethod"],
+      "expr": "model.deliveryMethod !== 'courier'"
+    },
+    { "kind": "syncFields", "target": "receiptEmail", "sources": ["email"] },
+    {
+      "kind": "onChange",
+      "target": "customerType",
+      "expr": "if (value === 'person' && model.paymentMethod === 'invoice') model.paymentMethod = 'card';"
+    },
+    {
+      "kind": "revalidateWhen",
+      "target": "paymentMethod",
+      "sources": ["customerType"],
+      "expr": "form.paymentMethod.markAsTouched()"
+    },
+    { "kind": "exclusiveFlag", "target": "primary", "each": "recipients" },
+    {
+      "kind": "aggregateInto",
+      "target": "recipients",
+      "expr": "rows.length === 0 || rows.some((row) => row.primary) ? [] : [{ index: 0, patch: { primary: true } }]"
+    },
+    {
+      "kind": "onComponentEvent",
+      "selector": "submit",
+      "event": "onClick",
+      "expr": "await submitOrder(model.get())"
+    }
+  ],
+  "visibility": [
+    { "selector": "company", "condition": "model.customerType !== 'company'" },
+    { "selector": "deliveryDate", "condition": "model.deliveryMethod !== 'courier'" }
+  ],
+  "dataSources": [
+    {
+      "name": "DELIVERY_METHODS",
+      "values": [
+        { "value": "pickup", "label": "Самовывоз" },
+        { "value": "courier", "label": "Курьер" },
+        { "value": "post", "label": "Почта" }
+      ]
+    },
+    {
+      "name": "SOURCES",
+      "values": [
+        { "value": "search", "label": "Поиск" },
+        { "value": "friends", "label": "Друзья" },
+        { "value": "ads", "label": "Реклама" },
+        { "value": "other", "label": "Другое" }
+      ]
+    }
+  ],
+  "operators": { "innChecksum": "./operators", "submitOrder": "./api" }
+}

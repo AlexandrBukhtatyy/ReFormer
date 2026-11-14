@@ -2,8 +2,8 @@
 /**
  * Лестница сценариев MCP в ассистенте конструктора — одной командой (фаза 7 аудита, ReFormer-11oe.8):
  *
- *   npm run mcp:builder-ladder -- [--matrix builder-smoke] [--model <модель>] [--scenario 'L1-*']
- *                                 [--repeats 3]
+ *   npm run mcp:builder-ladder -- [--matrix builder-smoke] [--model <модель>]
+ *                                 [--scenario 'registration-*'] [--repeats 3]
  *
  * Цепочка на каждого агента матрицы: ход ассистента (`assistant-ladder.test.ts` плагина — мост, стек
  * форм, `build_form`, кодоген) → модули в `.tmp/eval/builder/<батч>/<агент>/` → верификатор MCP теми
