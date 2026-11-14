@@ -5,7 +5,9 @@ import Translate, { translate } from '@docusaurus/Translate';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
-import CodeBlock from '@theme/CodeBlock';
+import Ecosystem from '@site/src/components/landing/Ecosystem';
+import BuilderShowcase from '@site/src/components/landing/BuilderShowcase';
+import LandingBenchmark from '@site/src/components/benchmark/LandingBenchmark';
 
 import styles from './index.module.css';
 
@@ -33,6 +35,9 @@ function HomepageHeader() {
           <Link className="button button--outline button--secondary button--lg" to="/docs/examples">
             <Translate id="homepage.examples">Примеры</Translate>
           </Link>
+          <Link className="button button--outline button--secondary button--lg" to="/benchmark">
+            <Translate id="homepage.benchmark">Бенчмарк</Translate>
+          </Link>
           <Link
             className="button button--outline button--secondary button--lg"
             href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx"
@@ -42,249 +47,6 @@ function HomepageHeader() {
         </div>
       </div>
     </header>
-  );
-}
-
-type PackageCard = {
-  name: string;
-  icon: string;
-  to: string;
-  descId: string;
-  descDefault: string;
-};
-
-const PACKAGES: PackageCard[] = [
-  {
-    name: '@reformer/core',
-    icon: '⚡',
-    to: '/docs/',
-    descId: 'homepage.pkg.core',
-    descDefault: 'Реактивное ядро на сигналах: модель, схема, правила, поведение, хуки React.',
-  },
-  {
-    name: '@reformer/cdk',
-    icon: '🧩',
-    to: '/docs/cdk/overview',
-    descId: 'homepage.pkg.cdk',
-    descDefault: 'Headless-компоненты: динамические массивы, визарды, анатомия поля.',
-  },
-  {
-    name: '@reformer/ui-kit',
-    icon: '🎨',
-    to: '/docs/ui-kit/overview',
-    descId: 'homepage.pkg.uikit',
-    descDefault: 'Стилизованные контролы (Tailwind + Radix), привязанные к FormControl.',
-  },
-  {
-    name: '@reformer/renderer-react',
-    icon: '🖼️',
-    to: '/docs/packages/renderer-react',
-    descId: 'homepage.pkg.rrender',
-    descDefault: 'Рендер формы из декларативной схемы и реактивной модели.',
-  },
-  {
-    name: '@reformer/renderer-json',
-    icon: '📄',
-    to: '/docs/packages/renderer-json',
-    descId: 'homepage.pkg.jrender',
-    descDefault: 'Форма целиком из JSON: операторы $model / $component + реестр.',
-  },
-  {
-    name: '@reformer/mcp',
-    icon: '🤖',
-    to: '/docs/mcp/overview',
-    descId: 'homepage.pkg.mcp',
-    descDefault: 'MCP-сервер: документация и генерация форм для ИИ-ассистентов.',
-  },
-  {
-    name: '@reformer/form-registry',
-    icon: '🔗',
-    to: '/docs/packages/form-registry',
-    descId: 'homepage.pkg.formRegistry',
-    descDefault: 'Формы, которые приложение получает от микрофронтендов: по ссылке и по запросу.',
-  },
-  {
-    name: 'Builder',
-    icon: '🛠️',
-    to: '/docs/builder/overview',
-    descId: 'homepage.pkg.builder',
-    descDefault: 'Визуальный редактор форм с ИИ-ассистентом и выгрузкой кода (в разработке).',
-  },
-];
-
-function PackagesSection(): ReactNode {
-  return (
-    <section className={styles.section}>
-      <div className="container">
-        <Heading as="h2" className={styles.sectionTitle}>
-          <Translate id="homepage.packages.title">Пакеты</Translate>
-        </Heading>
-        <div className={styles.packageGrid}>
-          {PACKAGES.map((pkg) => (
-            <Link key={pkg.name} to={pkg.to} className={styles.packageCard}>
-              <span className={styles.packageIcon}>{pkg.icon}</span>
-              <span className={styles.packageName}>{pkg.name}</span>
-              <span className={styles.packageDesc}>
-                <Translate id={pkg.descId}>{pkg.descDefault}</Translate>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const QUICK_START = `import { createForm, type FormModel } from '@reformer/core';
-import { useFormBundle } from '@reformer/core/react';
-import { defineValidation, validate } from '@reformer/core/validation';
-import { required, email } from '@reformer/core/validators';
-import { FormField, Input, Button } from '@reformer/ui-kit';
-
-type Contact = { email: string };
-
-// 1. Схема — привязка поля к сигналу модели + компонент (без валидаторов)
-const schema = (model: FormModel<Contact>) => ({
-  children: [
-    { model: model.$.email, component: Input, componentProps: { label: 'Email', type: 'email' } },
-  ],
-});
-
-// 2. Валидация — отдельный слой
-const validation = defineValidation<Contact>(({ model }) => {
-  validate(model.$.email, [required(), email()]);
-});
-
-function ContactForm() {
-  // 3. Сборка один раз: модель из initial, узлы формы поверх её сигналов, правила
-  const bundle = useFormBundle(() =>
-    createForm<Contact>({ initial: { email: '' }, schema, validation })
-  );
-
-  // 4. Отправка — один прогон правил; при замечаниях обработчик не вызывается, поля подсвечены
-  const onSubmit = (event) => {
-    event.preventDefault();
-    void bundle.submission.submit((values) => console.log(values));
-  };
-
-  // 5. Тонкий JSX — FormField делает всю работу
-  return (
-    <form onSubmit={onSubmit}>
-      <FormField control={bundle.form.email} />
-      <Button type="submit">Отправить</Button>
-    </form>
-  );
-}`;
-
-function QuickStartSection(): ReactNode {
-  return (
-    <section className={clsx(styles.section, styles.sectionAlt)}>
-      <div className="container">
-        <Heading as="h2" className={styles.sectionTitle}>
-          <Translate id="homepage.quickstart.title">Форма за минуту</Translate>
-        </Heading>
-        <div className={styles.quickStart}>
-          <CodeBlock language="tsx">{QUICK_START}</CodeBlock>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-type FeatureItem = {
-  titleId: string;
-  titleDefault: string;
-  descriptionId: string;
-  descriptionDefault: string;
-  icon: string;
-};
-
-const FeatureList: FeatureItem[] = [
-  {
-    titleId: 'homepage.feature.reactive.title',
-    titleDefault: 'Reactive by Design',
-    descriptionId: 'homepage.feature.reactive.description',
-    descriptionDefault:
-      'Built on Preact Signals for fine-grained reactivity. Only components using changed values re-render.',
-    icon: '⚡',
-  },
-  {
-    titleId: 'homepage.feature.typeSafe.title',
-    titleDefault: 'Type-Safe Forms',
-    descriptionId: 'homepage.feature.typeSafe.description',
-    descriptionDefault:
-      'Full TypeScript support with automatic type inference. Catch errors at compile time, not runtime.',
-    icon: '🛡️',
-  },
-  {
-    titleId: 'homepage.feature.validation.title',
-    titleDefault: 'Declarative Validation',
-    descriptionId: 'homepage.feature.validation.description',
-    descriptionDefault:
-      '28 built-in rules for strings, numbers, dates and files, async validation and your own rules. Rules live separately from the markup.',
-    icon: '✅',
-  },
-  {
-    titleId: 'homepage.feature.behaviors.title',
-    titleDefault: 'Smart Behaviors',
-    descriptionId: 'homepage.feature.behaviors.description',
-    descriptionDefault:
-      'Computed fields, conditional visibility, field synchronization. Complex form logic made simple.',
-    icon: '🔄',
-  },
-  {
-    titleId: 'homepage.feature.nested.title',
-    titleDefault: 'Nested Structures',
-    descriptionId: 'homepage.feature.nested.description',
-    descriptionDefault:
-      'Support for deeply nested objects and dynamic arrays. Build any form structure you need.',
-    icon: '📦',
-  },
-  {
-    titleId: 'homepage.feature.agnostic.title',
-    titleDefault: 'Framework Agnostic',
-    descriptionId: 'homepage.feature.agnostic.description',
-    descriptionDefault:
-      'Core library works anywhere. React bindings included, with more frameworks coming soon.',
-    icon: '🔌',
-  },
-  {
-    titleId: 'homepage.feature.aiFriendly.title',
-    titleDefault: 'AI-Friendly',
-    descriptionId: 'homepage.feature.aiFriendly.description',
-    descriptionDefault:
-      'Well-documented API with clear patterns. AI assistants can easily understand and generate code using ReFormer.',
-    icon: '🤖',
-  },
-];
-
-function Feature({ titleId, titleDefault, descriptionId, descriptionDefault, icon }: FeatureItem) {
-  return (
-    <div className={clsx('col col--4')}>
-      <div className="text--center padding-horiz--md padding-vert--md">
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{icon}</div>
-        <Heading as="h3">
-          <Translate id={titleId}>{titleDefault}</Translate>
-        </Heading>
-        <p>
-          <Translate id={descriptionId}>{descriptionDefault}</Translate>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function HomepageFeatures(): ReactNode {
-  return (
-    <section className={styles.features}>
-      <div className="container">
-        <div className="row">
-          {FeatureList.map((props, idx) => (
-            <Feature key={idx} {...props} />
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -300,9 +62,9 @@ export default function Home(): ReactNode {
     >
       <HomepageHeader />
       <main>
-        <QuickStartSection />
-        <HomepageFeatures />
-        <PackagesSection />
+        <LandingBenchmark />
+        <Ecosystem />
+        <BuilderShowcase />
       </main>
     </Layout>
   );

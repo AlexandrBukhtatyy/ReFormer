@@ -9,6 +9,7 @@
 ## Ссылки
 
 - [Документация](https://alexandrbukhtatyy.github.io/ReFormer/) — полная документация и справочник по API
+- [Бенчмарк](https://alexandrbukhtatyy.github.io/ReFormer/benchmark) — ReFormer против Formik, React Hook Form и RJSF на двух реальных формах: загрузка, ввод, визард, массивы, бандл, включая строки, где ReFormer уступает ([сырой отчёт](docs/benchmarks/forms/report.md))
 - [Песочница](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer?file=projects/react-playground/src/App.tsx) — попробуйте ReFormer в StackBlitz
 
 ## Команды

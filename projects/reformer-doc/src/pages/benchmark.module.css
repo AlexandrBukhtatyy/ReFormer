@@ -1,0 +1,633 @@
+/**
+ * Страница отчёта бенчмарка. Цвета — только переменные Infima (обе темы); таблицы прокручиваются
+ * внутри обёртки, сама страница по горизонтали не прокручивается ни на какой ширине.
+ */
+
+.main {
+  overflow-x: clip;
+}
+
+/* ── Шапка ─────────────────────────────────────────────────────────────── */
+.hero {
+  padding: 3.5rem 0 2.75rem;
+  background:
+    radial-gradient(
+      ellipse 80% 420px at 50% 0%,
+      color-mix(in srgb, var(--ifm-color-primary) 16%, transparent),
+      transparent 75%
+    ),
+    var(--ifm-background-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.kicker {
+  display: inline-block;
+  margin: 0 0 1rem;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ifm-color-primary);
+}
+
+.heroTitle {
+  max-width: 900px;
+  margin-bottom: 1rem;
+  font-size: 2.6rem;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.heroLead {
+  max-width: 820px;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.facts li {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  background: var(--ifm-background-surface-color);
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.facts b {
+  color: var(--ifm-font-color-base);
+}
+
+.env {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  margin: 0 0 1.25rem;
+  font-size: 0.85rem;
+}
+
+.env > div {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.env dt {
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.env dd {
+  margin: 0;
+  color: var(--ifm-font-color-base);
+}
+
+.participants {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0 0 1.75rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.participants li {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.65rem;
+  border-left: 3px solid var(--ifm-color-emphasis-500);
+}
+
+.participants li.participant_subject {
+  border-left-color: var(--ifm-color-primary);
+}
+
+.participants li.participant_baseline {
+  border-left-style: dashed;
+}
+
+.participantName {
+  font-weight: 700;
+}
+
+.participantStack {
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.heroButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media screen and (max-width: 996px) {
+  .hero {
+    padding: 2.25rem 0 2rem;
+  }
+
+  .participants {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .heroTitle {
+    font-size: 1.6rem;
+  }
+
+  .participants {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .heroTitle {
+    font-size: 1.9rem;
+  }
+
+  .heroLead {
+    font-size: 1rem;
+  }
+}
+
+/* ── Навигация по разделам ─────────────────────────────────────────────── */
+.sectionNav {
+  position: sticky;
+  top: var(--ifm-navbar-height);
+  z-index: calc(var(--ifm-z-index-fixed) - 1);
+  background: color-mix(in srgb, var(--ifm-background-color) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.sectionNavInner {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.sectionNavInner::-webkit-scrollbar {
+  display: none;
+}
+
+.sectionNavLink {
+  flex: none;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-800);
+  white-space: nowrap;
+}
+
+.sectionNavLink:hover {
+  text-decoration: none;
+  color: var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+}
+
+/* ── Разделы ───────────────────────────────────────────────────────────── */
+.section {
+  padding: 3.25rem 0;
+}
+
+.sectionAlt {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.sectionTitle {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  /* Якорь не уходит под липкую навигацию. */
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 3.5rem);
+}
+
+.sectionLead {
+  max-width: 860px;
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.subTitle {
+  margin: 2rem 0 0.85rem;
+  font-size: 1.25rem;
+}
+
+.tabs {
+  margin-bottom: 1rem;
+}
+
+.tabLead {
+  margin: 0.25rem 0 1.25rem;
+  font-size: 0.95rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* ── Графики ───────────────────────────────────────────────────────────── */
+.scoreGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.chartCard {
+  min-width: 0;
+  padding: 1rem 1.15rem 1.1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+}
+
+@media screen and (max-width: 996px) {
+  .scoreGrid,
+  .chartGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Таблицы ───────────────────────────────────────────────────────────── */
+.tableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background: var(--ifm-background-surface-color);
+}
+
+.table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table thead tr,
+.table tr {
+  border: none;
+  background: transparent;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  vertical-align: top;
+  text-align: left;
+}
+
+.table thead th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  white-space: nowrap;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody + tbody tr:first-child th {
+  border-top: 1px solid var(--ifm-color-emphasis-300);
+}
+
+/* Подпись строки остаётся на месте, пока таблица прокручивается по горизонтали. */
+.rowHead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 13rem;
+  font-weight: 500;
+  background: var(--ifm-background-surface-color);
+}
+
+.table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+@media screen and (max-width: 600px) {
+  .rowHead {
+    min-width: 9.5rem;
+    max-width: 11rem;
+    font-size: 0.8rem;
+  }
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cellMain {
+  display: block;
+}
+
+.cellRatio {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.cellSig {
+  cursor: help;
+}
+
+.cellIqr {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.bestCell .cellMain {
+  font-weight: 700;
+}
+
+.bestCell .cellRatio {
+  color: inherit;
+}
+
+.baselineCell {
+  font-style: italic;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.groupRow th {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-800);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.small {
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-700);
+  /* Список пакетов — в 1–2 строки, а не столбиком: строка таблицы не раздувается по высоте. */
+  min-width: 26rem;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ── Где ReFormer уступает ─────────────────────────────────────────────── */
+.lossSummary {
+  margin-bottom: 0.5rem;
+}
+
+/* Две формы рядом на широком экране: таблицы узкие, а строк в каждой десятки. */
+.lossGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1.25rem;
+  align-items: start;
+}
+
+@media screen and (max-width: 1200px) {
+  .lossGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.lossBlock {
+  min-width: 0;
+}
+
+.lossBlock .subTitle {
+  margin-top: 1.5rem;
+}
+
+.lossTable td,
+.lossTable th {
+  vertical-align: middle;
+}
+
+.lossPhase {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.lossMetric {
+  display: block;
+  font-weight: 500;
+}
+
+.lossAlso {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.lossFactor {
+  font-weight: 700;
+}
+
+.lossCoreLabel {
+  display: none;
+}
+
+/* Телефон: строка — карточка «метрика | отставание» / «ReFormer core | кто быстрее». */
+@media screen and (max-width: 600px) {
+  .lossTable thead {
+    display: none;
+  }
+
+  .lossTable,
+  .lossTable tbody {
+    display: block;
+  }
+
+  .lossTable tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'metric factor'
+      'core winner';
+    gap: 0.3rem 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  }
+
+  .lossTable tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .lossTable td {
+    padding: 0;
+    border: none !important;
+  }
+
+  .lossTable td:nth-child(1) {
+    grid-area: metric;
+  }
+
+  .lossTable td:nth-child(2) {
+    grid-area: core;
+    text-align: left !important;
+    white-space: normal;
+  }
+
+  .lossTable td:nth-child(3) {
+    grid-area: winner;
+    text-align: right;
+  }
+
+  .lossTable td:nth-child(4) {
+    grid-area: factor;
+  }
+
+  .lossCoreLabel {
+    display: inline;
+    color: var(--ifm-color-emphasis-700);
+  }
+}
+
+/* ── Фазы ──────────────────────────────────────────────────────────────── */
+.phaseToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.warning {
+  margin-right: auto;
+  font-size: 0.85rem;
+}
+
+.phase {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background: var(--ifm-background-surface-color);
+}
+
+.phase[open] {
+  padding-bottom: 0.25rem;
+}
+
+.phaseSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.phaseSummary::-webkit-details-marker {
+  display: none;
+}
+
+.phaseTitle {
+  flex: 1 1 18rem;
+  font-weight: 600;
+}
+
+.phaseTitle::before {
+  content: '▸';
+  display: inline-block;
+  width: 1.1rem;
+  color: var(--ifm-color-emphasis-600);
+  transition: transform 0.15s ease;
+}
+
+.phase[open] > .phaseSummary .phaseTitle::before {
+  transform: rotate(90deg);
+}
+
+.phaseMeta {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.phase .tableWrap {
+  margin: 0 0.75rem 0.75rem;
+}
+
+.phaseNotes {
+  margin: 0 1rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.phaseNotes p {
+  margin-bottom: 0.4rem;
+}
+
+/* ── Методика ──────────────────────────────────────────────────────────── */
+.methodGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 2rem;
+}
+
+@media screen and (max-width: 996px) {
+  .methodGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+.methodList {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.methodList li {
+  margin-bottom: 0.75rem;
+}
+
+.methodSide .subTitle:first-child {
+  margin-top: 0;
+}
+
+.reproduce {
+  margin-top: 0.5rem;
+}
+
+.linkList {
+  padding-left: 1.1rem;
+}
+
+.linkList li {
+  margin-bottom: 0.35rem;
+}
+
+.methodNote {
+  color: var(--ifm-color-emphasis-800);
+}

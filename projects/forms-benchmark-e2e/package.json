@@ -9,6 +9,7 @@
     "bench": "playwright test --project=bench && node scripts/report.mjs",
     "bench:quick": "cross-env BENCH_QUICK=1 playwright test --project=bench && node scripts/report.mjs",
     "report": "node scripts/report.mjs",
+    "site-data": "node scripts/site-data.mjs",
     "compare": "node scripts/compare.mjs",
     "idle-check": "node --disable-warning=ExperimentalWarning scripts/idle-check.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

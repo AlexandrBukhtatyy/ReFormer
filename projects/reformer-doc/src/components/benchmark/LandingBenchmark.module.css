@@ -1,0 +1,80 @@
+/* Раздел бенчмарка на лендинге: сразу под героем, с отсветом акцентного цвета сверху. */
+.section {
+  position: relative;
+  padding: 3.75rem 0 3.5rem;
+  background:
+    radial-gradient(
+      ellipse 70% 320px at 50% 0%,
+      color-mix(in srgb, var(--ifm-color-primary) 14%, transparent),
+      transparent 75%
+    ),
+    var(--ifm-background-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.kicker {
+  display: table;
+  margin: 0 auto 0.85rem;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ifm-color-primary);
+}
+
+.title {
+  max-width: 940px;
+  margin: 0 auto 0.85rem;
+  text-align: center;
+  font-size: 2.35rem;
+  line-height: 1.15;
+}
+
+.lead {
+  max-width: 720px;
+  margin: 0 auto 2.25rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+@media screen and (max-width: 1200px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .section {
+    padding: 2.5rem 0;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.footnote {
+  margin: 1.5rem auto 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.cta {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+}

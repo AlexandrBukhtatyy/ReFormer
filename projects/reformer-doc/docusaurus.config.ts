@@ -281,6 +281,12 @@ const config: Config = {
           className: 'navbar-builder-dev',
         },
         {
+          // Отчёт бенчмарка форм (src/pages/benchmark.tsx); подпись на en — i18n/en/docusaurus-theme-classic/navbar.json.
+          to: '/benchmark',
+          label: 'Бенчмарк',
+          position: 'left',
+        },
+        {
           // Сам билдер — отдельный Vite-SPA, задеплоен в подкаталог того же Pages-сайта.
           // `pathname://` → роутер не трогает ссылку и сам подставляет baseUrl (/ReFormer/).
           href: 'pathname:///builder/',

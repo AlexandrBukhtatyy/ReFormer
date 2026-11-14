@@ -10,7 +10,7 @@
  * их не нормирует — нормировка только при сравнении отчётов (compare.mjs).
  *
  * Опции: --runs <dir>[,<dir>] (по умолчанию — последний прогон каждой формы), --publish (копия в
- * docs/benchmarks/forms/).
+ * docs/benchmarks/forms/ и данные страницы /benchmark сайта документации — site-data.mjs).
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -36,6 +36,7 @@ import {
   reportCalibration,
 } from './calibration.mjs';
 import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
+import { writeSiteData } from './site-data.mjs';
 
 const appDist = path.resolve(e2eDir, '../forms-benchmark/dist');
 const repoRoot = path.resolve(e2eDir, '../..');
@@ -485,4 +486,10 @@ if (args.includes('--publish')) {
   for (const f of ['report.md', 'report.html', 'summary.json'])
     copyFileSync(path.join(outDir, f), path.join(pub, f));
   console.log(`опубликовано → ${path.relative(process.cwd(), pub)}`);
+  // Сайт берёт опубликованный summary.json: страница /benchmark и лендинг всегда совпадают с отчётом.
+  const published = JSON.parse(readFileSync(path.join(pub, 'summary.json'), 'utf8'));
+  for (const { file, bytes } of writeSiteData(published))
+    console.log(
+      `данные сайта → ${path.relative(process.cwd(), file)} (${(bytes / 1024).toFixed(1)} КБ)`
+    );
 }

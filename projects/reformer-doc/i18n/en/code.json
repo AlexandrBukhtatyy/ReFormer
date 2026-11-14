@@ -866,37 +866,502 @@
   "homepage.tryPlayground": {
     "message": "Try Playground"
   },
-  "homepage.packages.title": {
-    "message": "Packages"
+  "homepage.benchmark": {
+    "message": "Benchmark"
   },
-  "homepage.quickstart.title": {
-    "message": "A form in a minute"
+  "homepage.benchmark.kicker": {
+    "message": "Forms benchmark · {date}"
   },
-  "homepage.pkg.core": {
-    "message": "Reactive core on signals: model, schema, rules, behavior, React hooks."
+  "homepage.benchmark.title": {
+    "message": "ReFormer vs Formik, React Hook Form and RJSF"
   },
-  "homepage.pkg.cdk": {
-    "message": "Headless components: dynamic arrays, wizards, field anatomy."
+  "homepage.benchmark.lead": {
+    "message": "Two forms from real specifications — a registration form with a captcha and a six-step credit application — built on every library. Production builds, identical UI and behavior, measured in Chromium."
   },
-  "homepage.pkg.uikit": {
-    "message": "Styled controls (Tailwind + Radix) bound to form fields."
+  "homepage.benchmark.footnote": {
+    "message": "CPU {cpu}x, medians over {runs} runs · the report also shows where ReFormer falls behind"
   },
-  "homepage.pkg.rrender": {
-    "message": "Renders a form from a declarative schema and a reactive model."
+  "homepage.benchmark.cta": {
+    "message": "View the report →"
   },
-  "homepage.pkg.jrender": {
-    "message": "A whole form from JSON: $model / $component operators and a registry."
+  "homepage.benchmark.ready.claim": {
+    "message": "faster to a ready form than {rivals}"
   },
-  "homepage.pkg.mcp": {
-    "message": "MCP server: docs and form generation for AI assistants."
+  "homepage.benchmark.ready.context": {
+    "message": "Registration, cold load: {core} vs {others} {unit}"
   },
-  "homepage.pkg.formRegistry": {
-    "message": "Forms an app receives from micro-frontends: by link and on demand."
+  "homepage.benchmark.arrayAdd.claim": {
+    "message": "less JS to add array rows than {rivals}"
   },
-  "homepage.pkg.builder": {
-    "message": "Visual form editor with an AI assistant and code export (in development)."
+  "homepage.benchmark.arrayAdd.context": {
+    "message": "Credit application, property array: {core} vs {others} {unit} of JS"
   },
-  "homepage.feature.validation.description": {
-    "message": "28 built-in rules for strings, numbers, dates and files, async validation and your own rules. Rules live separately from the markup."
+  "homepage.benchmark.wizardStep.claim": {
+    "message": "faster to the next wizard step than {rivals}"
+  },
+  "homepage.benchmark.wizardStep.context": {
+    "message": "Credit application, “Next” to step 2 until the UI settles: {core} vs {others} {unit}"
+  },
+  "homepage.benchmark.bundle.claimLevel": {
+    "message": "gzip on top of React without a form library — on par with Formik"
+  },
+  "homepage.benchmark.bundle.claimSmallest": {
+    "message": "gzip on top of React without a form library — the smallest of all competitors"
+  },
+  "homepage.benchmark.bundle.claimPlain": {
+    "message": "gzip on top of React without a form library"
+  },
+  "homepage.benchmark.bundle.context": {
+    "message": "Registration: the production bundle of the page minus the same page without a form library"
+  },
+  "benchmark.page.title": {
+    "message": "Forms benchmark"
+  },
+  "benchmark.page.description": {
+    "message": "ReFormer vs Formik, React Hook Form and RJSF: load, typing, wizard, arrays, bundle and code size on two real forms — medians, spread and significance, losses included."
+  },
+  "benchmark.hero.kicker": {
+    "message": "Forms benchmark · {date}"
+  },
+  "benchmark.hero.title": {
+    "message": "ReFormer vs Formik, React Hook Form and RJSF — real numbers from the browser"
+  },
+  "benchmark.hero.lead": {
+    "message": "Two forms from real specifications — a registration form with a captcha and a six-step credit application — are implemented on every library, plus ReFormer on a JSON schema and a baseline without a form library. We measure what a user feels: loading, typing, clicks, wizard steps, arrays and remounting."
+  },
+  "benchmark.hero.toResults": {
+    "message": "To the results"
+  },
+  "benchmark.hero.toLosses": {
+    "message": "Where ReFormer falls behind"
+  },
+  "benchmark.fact.prod": {
+    "message": "{b} build of every page on its own"
+  },
+  "benchmark.fact.conformance": {
+    "message": "identical UI and behavior: {b} before measuring"
+  },
+  "benchmark.fact.cpu": {
+    "message": "{b} throttling"
+  },
+  "benchmark.fact.runs": {
+    "message": "medians over {b} runs (+{warmup} warm-up)"
+  },
+  "benchmark.fact.stats": {
+    "message": "exact {b}, p < 0.05"
+  },
+  "benchmark.fact.aa": {
+    "message": "a difference below the {b} noise is no difference"
+  },
+  "benchmark.env.machine": {
+    "message": "Machine"
+  },
+  "benchmark.env.machineValue": {
+    "message": "{cpu}, {cores} cores, {memory} GB"
+  },
+  "benchmark.env.browser": {
+    "message": "Browser"
+  },
+  "benchmark.env.date": {
+    "message": "Run"
+  },
+  "benchmark.env.build": {
+    "message": "Build"
+  },
+  "benchmark.participant.baseline": {
+    "message": "{react}, no form library"
+  },
+  "benchmark.nav.label": {
+    "message": "Report sections"
+  },
+  "benchmark.nav.results": {
+    "message": "Summary"
+  },
+  "benchmark.nav.losses": {
+    "message": "Where it falls behind"
+  },
+  "benchmark.nav.phases": {
+    "message": "All phases"
+  },
+  "benchmark.nav.renders": {
+    "message": "Renders"
+  },
+  "benchmark.nav.bundle": {
+    "message": "Bundle"
+  },
+  "benchmark.nav.code": {
+    "message": "Code size"
+  },
+  "benchmark.nav.method": {
+    "message": "Methodology"
+  },
+  "benchmark.results.title": {
+    "message": "Key results"
+  },
+  "benchmark.results.scoreLead": {
+    "message": "The score over every row of the report — both forms, all phases and metrics: in how many rows ReFormer core is significantly faster than a competitor, in how many it is slower, and where the difference is not proven."
+  },
+  "benchmark.results.headlineTitle": {
+    "message": "Key metrics per form"
+  },
+  "benchmark.results.coreBest": {
+    "message": "ReFormer core is the best in {n} of {total} key metrics of this form. Lower is better."
+  },
+  "benchmark.score.vs": {
+    "message": "vs {rival}"
+  },
+  "benchmark.score.rows": {
+    "message": "{total} rows"
+  },
+  "benchmark.score.winsLabel": {
+    "message": "— ReFormer core significantly faster"
+  },
+  "benchmark.score.wins": {
+    "message": "faster: {n}"
+  },
+  "benchmark.score.ties": {
+    "message": "not proven: {n}"
+  },
+  "benchmark.score.losses": {
+    "message": "slower: {n}"
+  },
+  "benchmark.legend.reformer": {
+    "message": "ReFormer (core and JSON)"
+  },
+  "benchmark.legend.rivals": {
+    "message": "Formik, RHF, RJSF"
+  },
+  "benchmark.legend.baseline": {
+    "message": "baseline — the same markup without a form library"
+  },
+  "benchmark.legend.iqr": {
+    "message": "spread across runs (q25–q75)"
+  },
+  "benchmark.legend.sig": {
+    "message": "▲ / ▼ — significantly worse / better than ReFormer core; no mark — the difference is not proven"
+  },
+  "benchmark.sig.worse": {
+    "message": "significantly worse than ReFormer core"
+  },
+  "benchmark.sig.better": {
+    "message": "significantly better than ReFormer core"
+  },
+  "benchmark.chart.tooltip": {
+    "message": "{lib}: median {median}, IQR {q25}–{q75}{unit}"
+  },
+  "benchmark.losses.title": {
+    "message": "Where ReFormer falls behind"
+  },
+  "benchmark.losses.lead": {
+    "message": "The report publishes everything, losses included. Below is every row where a competitor is significantly faster than ReFormer core (▼ in the full report), from the largest gap to the smallest."
+  },
+  "benchmark.losses.summary": {
+    "message": "There are {n} such rows out of {total}. Who is ahead (a row can have several): {list}."
+  },
+  "benchmark.losses.byRival": {
+    "message": "{lib} — {n}"
+  },
+  "benchmark.losses.col.metric": {
+    "message": "Phase and metric"
+  },
+  "benchmark.losses.col.winner": {
+    "message": "Significantly faster"
+  },
+  "benchmark.losses.col.factor": {
+    "message": "Gap"
+  },
+  "benchmark.losses.also": {
+    "message": "also {list}"
+  },
+  "benchmark.phases.title": {
+    "message": "All phases"
+  },
+  "benchmark.phases.lead": {
+    "message": "A cell is the median over {runs} runs at CPU {cpu}x (each run is reduced first: for example, the median latency over all keys of the phase); below it is the q25–q75 spread. ×1.44 means 1.44 times worse than the best in the row; the best is in bold. Lower is better."
+  },
+  "benchmark.phases.coreBest": {
+    "message": "ReFormer core is the best in {n} of {total}"
+  },
+  "benchmark.phases.noisy": {
+    "message": "Spread above 15 % (CV): {list}."
+  },
+  "benchmark.phases.apiCalls": {
+    "message": "API requests during the phase differ (part of the work moved to another phase): {list}."
+  },
+  "benchmark.phases.failures": {
+    "message": "⚠️ Failed runs: {n} — they are not included in the statistics."
+  },
+  "benchmark.phases.expandAll": {
+    "message": "Expand all"
+  },
+  "benchmark.phases.collapseAll": {
+    "message": "Collapse all"
+  },
+  "benchmark.table.metric": {
+    "message": "Metric"
+  },
+  "benchmark.table.phase": {
+    "message": "Phase"
+  },
+  "benchmark.renders.title": {
+    "message": "React renders"
+  },
+  "benchmark.renders.lead": {
+    "message": "Components rendered during the phase (commits in parentheses); for typing — per key, for remounting — per mount. Counted by a DevTools hook (the PerformedWork flag, like React DevTools) in a separate pass at CPU 1x."
+  },
+  "benchmark.renders.perKey": {
+    "message": "{n}/key ({commits})"
+  },
+  "benchmark.renders.perMount": {
+    "message": "{n}/mount"
+  },
+  "benchmark.bundle.title": {
+    "message": "Bundle size"
+  },
+  "benchmark.bundle.lead": {
+    "message": "A separate production build of every page, the static closure of the entry. The main number is gzip over the baseline: how much the form library and the form code add to the same page without a library. Compression is measured on the whole entry; package attribution is minified bytes from the sourcemap."
+  },
+  "benchmark.bundle.chartTitle": {
+    "message": "gzip over baseline"
+  },
+  "benchmark.bundle.col.page": {
+    "message": "Page"
+  },
+  "benchmark.bundle.col.raw": {
+    "message": "JS raw, {kb}"
+  },
+  "benchmark.bundle.col.over": {
+    "message": "gzip over baseline, {kb}"
+  },
+  "benchmark.bundle.col.top": {
+    "message": "Largest packages (raw, {kb})"
+  },
+  "benchmark.code.title": {
+    "message": "Implementation code size"
+  },
+  "benchmark.code.lead": {
+    "message": "Implementation sources that end up in the page bundle (from the sourcemap): lines without blanks and comments after prettier. “Form” is the files of the form folder, “glue” is the rest of the library integration code (field adapters, the RJSF theme, shared ReFormer rules and behavior). The shared benchmark layer is identical for everyone and is not counted. The credit JSON document of ReFormer JSON was generated once from shared field metadata; RJSF and ReFormer core build their schemas from the same metadata in code."
+  },
+  "benchmark.code.col.impl": {
+    "message": "Implementation"
+  },
+  "benchmark.code.col.formTs": {
+    "message": "Form TS"
+  },
+  "benchmark.code.col.formJson": {
+    "message": "Form JSON"
+  },
+  "benchmark.code.col.kitTs": {
+    "message": "Glue TS"
+  },
+  "benchmark.code.col.total": {
+    "message": "Total lines"
+  },
+  "benchmark.code.col.files": {
+    "message": "Files"
+  },
+  "benchmark.code.col.gzip": {
+    "message": "Source gzip, B"
+  },
+  "benchmark.method.title": {
+    "message": "Methodology and limitations"
+  },
+  "benchmark.method.contract.title": {
+    "message": "Behavior contract."
+  },
+  "benchmark.method.contract.text": {
+    "message": "One specification per form; shared UI, fake API and messages for everyone. Competitors are written idiomatically from their official docs, without relying on ReFormer code, with the same optimization budget: no React Compiler and no manual memo beyond what the docs recommend."
+  },
+  "benchmark.method.conformance.title": {
+    "message": "Conformance before measuring."
+  },
+  "benchmark.method.conformance.text": {
+    "message": "Before measuring, Playwright runs 171 tests: conformance of every implementation — errors and the quiet phase, server checks, masks, the wizard, arrays, the canonical payload — and the calibration of the render counter. Measuring starts only after a green run."
+  },
+  "benchmark.method.stats.title": {
+    "message": "Statistics."
+  },
+  "benchmark.method.stats.text": {
+    "message": "Each run is reduced first (for example, the median over all keys of a phase); over {runs} runs — the median and IQR. Significance against ReFormer core is an exact Mann–Whitney U test with the Holm correction over all comparisons of the report, p < 0.05; a difference below the A/A noise (two identical builds of ReFormer core) is not counted as a difference."
+  },
+  "benchmark.method.health.title": {
+    "message": "Calibration and background load."
+  },
+  "benchmark.method.health.text": {
+    "message": "At the start and the end of every run there is a calibration JS workload (machine speed drift) and a snapshot of neighbouring processes and the GPU; with BENCH_REQUIRE_IDLE=1 measuring does not start on a busy machine."
+  },
+  "benchmark.method.drift.title": {
+    "message": "Machine drift."
+  },
+  "benchmark.method.drift.text": {
+    "message": "Absolute numbers from different sessions are not comparable even on the same machine: the baseline (the same code) differed by up to 1.6× between runs on one day. Compare ratios within one report: participants alternate in a shuffled order within a run, so drift affects everyone equally."
+  },
+  "benchmark.method.limits.title": {
+    "message": "Limitations."
+  },
+  "benchmark.method.limits.text": {
+    "message": "CPU throttling in Chromium slows down only the main thread, so the cost of large bundles is understated. One machine and one browser. “Key → end of frame” is quantized by the frame rate; “key → end of processing” and JS per key are more precise."
+  },
+  "benchmark.method.sources": {
+    "message": "Sources and the raw report"
+  },
+  "benchmark.method.link.contract": {
+    "message": "methodology and fairness rules"
+  },
+  "benchmark.method.link.report": {
+    "message": "the full report of this run"
+  },
+  "benchmark.method.link.libs": {
+    "message": "implementations of all participants; each README lists its deviations"
+  },
+  "benchmark.method.reproduce": {
+    "message": "How to reproduce"
+  },
+  "benchmark.method.healthTitle": {
+    "message": "Machine state in this report"
+  },
+  "benchmark.method.noHealth": {
+    "message": "The published report was taken before calibration and the background-load detector existed: machine speed drift and neighbouring processes were not measured in these runs."
+  },
+  "benchmark.health.col.form": {
+    "message": "Form"
+  },
+  "benchmark.health.col.calMedian": {
+    "message": "Calibration, median"
+  },
+  "benchmark.health.col.spread": {
+    "message": "Spread p10–p90"
+  },
+  "benchmark.health.col.trend": {
+    "message": "Drift over the session"
+  },
+  "benchmark.health.col.foreign": {
+    "message": "Foreign load, cores"
+  },
+  "benchmark.health.col.dirty": {
+    "message": "“Dirty” runs"
+  },
+  "benchmark.fact.conformanceCount": {
+    "message": "171 tests"
+  },
+  "homepage.ecosystem.kicker": {
+    "message": "Ecosystem"
+  },
+  "homepage.ecosystem.title": {
+    "message": "Everything for forms — from the core to the AI assistant"
+  },
+  "homepage.ecosystem.lead": {
+    "message": "The packages stack in layers — take exactly what you need: the ready look of ui-kit, your own design system on top of cdk, or just the logic of core. MCP teaches all of it to your AI assistant."
+  },
+  "homepage.ecosystem.docs": {
+    "message": "Documentation →"
+  },
+  "homepage.ecosystem.core.role": {
+    "message": "Core"
+  },
+  "homepage.ecosystem.core.title": {
+    "message": "A signal model and one form assembly"
+  },
+  "homepage.ecosystem.core.p1": {
+    "message": "Fine-grained reactivity on signals"
+  },
+  "homepage.ecosystem.core.p2": {
+    "message": "Type safety"
+  },
+  "homepage.ecosystem.core.p3": {
+    "message": "Framework-agnostic"
+  },
+  "homepage.ecosystem.core.p4": {
+    "message": "Declarative validation and behavior"
+  },
+  "homepage.ecosystem.cdk.role": {
+    "message": "Headless"
+  },
+  "homepage.ecosystem.cdk.title": {
+    "message": "Logic and accessibility — the markup is yours"
+  },
+  "homepage.ecosystem.cdk.p1": {
+    "message": "State, aria attributes and keyboard support built in"
+  },
+  "homepage.ecosystem.cdk.p2": {
+    "message": "FormField, FormWizard, FieldArray, Autocomplete, FileUpload"
+  },
+  "homepage.ecosystem.cdk.p3": {
+    "message": "Zero CSS: made for your company's design system"
+  },
+  "homepage.ecosystem.uikit.role": {
+    "message": "Ready UI"
+  },
+  "homepage.ecosystem.uikit.title": {
+    "message": "70+ components in the shadcn/ui style"
+  },
+  "homepage.ecosystem.uikit.p1": {
+    "message": "Tailwind CSS v4 and Radix UI"
+  },
+  "homepage.ecosystem.uikit.p2": {
+    "message": "Masks, OTP codes, dates, combobox, file upload, step wizard and arrays"
+  },
+  "homepage.ecosystem.uikit.p3": {
+    "message": "A field goes into the schema as is, and onto the screen in one line"
+  },
+  "homepage.ecosystem.mcp.role": {
+    "message": "For AI"
+  },
+  "homepage.ecosystem.mcp.title": {
+    "message": "Your AI assistant writes forms from the docs, not by guessing"
+  },
+  "homepage.ecosystem.mcp.p1": {
+    "message": "Claude Code, Cursor and other MCP clients get docs and examples right in the conversation"
+  },
+  "homepage.builder.kicker": {
+    "message": "ReFormer Builder · in development"
+  },
+  "homepage.builder.title": {
+    "message": "Build a form with the mouse — or just ask the AI"
+  },
+  "homepage.builder.lead": {
+    "message": "A visual form builder: assemble a form from kit components, see it live right away and export it as code — a ready module for your React app."
+  },
+  "homepage.builder.f1.title": {
+    "message": "The AI assistant edits the form on request"
+  },
+  "homepage.builder.f1.text": {
+    "message": "“Add an email field”, “make the phone required”, “split the form into three steps”. Every turn can be undone as a whole."
+  },
+  "homepage.builder.f2.title": {
+    "message": "Bring your own model"
+  },
+  "homepage.builder.f2.text": {
+    "message": "Anthropic or OpenAI with an API key, or a local one: Ollama, LM Studio. The builder has no server of its own — requests go straight from the browser."
+  },
+  "homepage.builder.f3.title": {
+    "message": "Code as the output"
+  },
+  "homepage.builder.f3.text": {
+    "message": "Export prints a TypeScript form module: schema, model, rules, behavior, page. Edits go into the same JSON form file that lives in your repository."
+  },
+  "homepage.builder.f4.title": {
+    "message": "Your project, your kit"
+  },
+  "homepage.builder.f4.text": {
+    "message": "The project folder opens straight from disk; the form is drawn with ReFormer UI Kit or your design system's kit."
+  },
+  "homepage.builder.open": {
+    "message": "Open the builder ↗"
+  },
+  "homepage.builder.docs": {
+    "message": "How it works"
+  },
+  "homepage.builder.note": {
+    "message": "Requires a Chromium-based browser: Chrome, Edge, Arc or Brave."
+  },
+  "homepage.builder.shotAlt": {
+    "message": "The builder: the form tree and the assistant panel — asked to “Add a Phone field”, the assistant added the field and updated the module code"
+  },
+  "homepage.builder.caption": {
+    "message": "One assistant turn: the field is added and the form module code is updated"
+  },
+  "homepage.ecosystem.core.p5": {
+    "message": "Arrays, nesting, wizards"
   }
 }

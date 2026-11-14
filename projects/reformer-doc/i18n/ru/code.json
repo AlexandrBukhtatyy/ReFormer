@@ -8,62 +8,6 @@
   "homepage.tryPlayground": {
     "message": "Песочница"
   },
-  "homepage.feature.reactive.title": {
-    "message": "Реактивность по умолчанию",
-    "description": "Reactive feature title"
-  },
-  "homepage.feature.reactive.description": {
-    "message": "Построено на Preact Signals для точечной реактивности. Перерисовываются только компоненты, использующие изменённые значения.",
-    "description": "Reactive feature description"
-  },
-  "homepage.feature.typeSafe.title": {
-    "message": "Типобезопасные формы",
-    "description": "Type-safe feature title"
-  },
-  "homepage.feature.typeSafe.description": {
-    "message": "Полная поддержка TypeScript с автоматическим выводом типов. Ловите ошибки на этапе компиляции, а не в рантайме.",
-    "description": "Type-safe feature description"
-  },
-  "homepage.feature.validation.title": {
-    "message": "Декларативная валидация",
-    "description": "Validation feature title"
-  },
-  "homepage.feature.validation.description": {
-    "message": "28 встроенных правил для строк, чисел, дат и файлов, асинхронная проверка и свои правила. Правила живут отдельно от разметки.",
-    "description": "Validation feature description"
-  },
-  "homepage.feature.behaviors.title": {
-    "message": "Поведение полей",
-    "description": "Behaviors feature title"
-  },
-  "homepage.feature.behaviors.description": {
-    "message": "Вычисляемые поля, условная видимость, синхронизация полей. Сложная логика форм стала простой.",
-    "description": "Behaviors feature description"
-  },
-  "homepage.feature.nested.title": {
-    "message": "Вложенные структуры",
-    "description": "Nested feature title"
-  },
-  "homepage.feature.nested.description": {
-    "message": "Поддержка глубоко вложенных объектов и динамических массивов. Создавайте любую структуру форм.",
-    "description": "Nested feature description"
-  },
-  "homepage.feature.agnostic.title": {
-    "message": "Фреймворк-агностик",
-    "description": "Agnostic feature title"
-  },
-  "homepage.feature.agnostic.description": {
-    "message": "Ядро работает где угодно. React-биндинги включены, поддержка других фреймворков скоро.",
-    "description": "Agnostic feature description"
-  },
-  "homepage.feature.aiFriendly.title": {
-    "message": "AI-Friendly",
-    "description": "AI-Friendly feature title"
-  },
-  "homepage.feature.aiFriendly.description": {
-    "message": "Хорошо документированный API с понятными паттернами. ИИ-ассистенты легко понимают и генерируют код с ReFormer.",
-    "description": "AI-Friendly feature description"
-  },
   "theme.common.skipToMainContent": {
     "message": "Перейти к основному содержимому",
     "description": "The skip to content label used for accessibility, allowing to rapidly navigate to main content with keyboard tab/enter navigation"
