@@ -19,7 +19,11 @@ import {
 import { GUIDE_LIMIT_BYTES } from '../src/core/server/resource-catalog';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
-import { createNodeServer, GUIDED_INSTRUCTIONS } from '../src/platform/cli/server';
+import {
+  CODE_GUIDED_INSTRUCTIONS,
+  createNodeServer,
+  GUIDED_INSTRUCTIONS,
+} from '../src/platform/cli/server';
 import { CATALOGS } from './support/catalogs';
 
 const TOOLS_TOKENS_CEILING = 2800;
@@ -60,6 +64,22 @@ describe('поверхность сервера', () => {
     expect(tokensOf(tools)).toBeLessThanOrEqual(1400);
     expect(GUIDED_INSTRUCTIONS.length).toBeLessThan(500);
     await expect(stable(tools)).toMatchFileSnapshot('__golden__/surface/tools.guided.json');
+  });
+
+  it('run_script связки code-guided совпадает со снимком и держит потолок', async () => {
+    const sandbox = { run: async () => ({ logs: [] }) };
+    const [runScript] = createToolCatalog(cliKnowledge, {
+      profile: 'node',
+      guided: true,
+      codeMode: sandbox,
+    }).list();
+    // Типизированные правки с описаниями дороже плоской схемы, но это вся поверхность связки.
+    expect(tokensOf(runScript)).toBeLessThanOrEqual(4200);
+    expect(CODE_GUIDED_INSTRUCTIONS.length).toBeLessThan(750);
+    // Снимок текстом: объявление TS в JSON-строке не прочесть в ревью.
+    await expect(
+      `${runScript.description}\n\n--- code\n${JSON.stringify(runScript.inputSchema, null, 2)}\n`
+    ).toMatchFileSnapshot('__golden__/surface/run-script.code-guided.txt');
   });
 
   it('промпты совпадают со снимком', async () => {

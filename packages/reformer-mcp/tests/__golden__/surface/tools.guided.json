@@ -48,7 +48,7 @@
         },
         "edits": {
           "type": "array",
-          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?} · remove_rule {field,rule?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · markup (core: the server writes index.tsx)",
+          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · rename_field {name,to,label?} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · rename_step {title,to} · remove_step {title} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?} · remove_rule {field,rule?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · markup (core: the server writes index.tsx)",
           "items": {
             "type": "object",
             "properties": {
@@ -57,10 +57,13 @@
                 "enum": [
                   "add_field",
                   "set_field",
+                  "rename_field",
                   "remove_field",
                   "add_array",
                   "add_item_field",
                   "add_step",
+                  "rename_step",
+                  "remove_step",
                   "place",
                   "add_rule",
                   "remove_rule",
@@ -203,6 +206,9 @@
               },
               "formName": {
                 "type": "string"
+              },
+              "to": {
+                "type": "string"
               }
             },
             "required": [
@@ -249,9 +255,10 @@
         "confirm": {
           "type": "string",
           "enum": [
-            "validation"
+            "validation",
+            "edit"
           ],
-          "description": "The rules were checked against the task: every limit it names has a rule."
+          "description": "The form was checked against the task: \"validation\" — every limit it names has a rule; \"edit\" — every change it names is made."
         }
       },
       "required": []

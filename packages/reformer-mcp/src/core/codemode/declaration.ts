@@ -121,8 +121,34 @@ function functionDeclaration(tool: ToolDefinition, indent: string): string {
 }
 
 /**
+ * Объявление, написанное для поверхности руками, вместо разбора JSON Schema: размеченные объединения
+ * и примеры из схемы не вывести. Связка `code-guided` описывает так свои четыре функции — по схеме
+ * модель видела один объект правки с 38 необязательными ключами без описаний (батч
+ * 20261114T113832Z-68e8).
+ */
+export interface DeclarationOverrides {
+  /** Объявления типов перед `declare const reformer`. */
+  readonly types?: string;
+  /** Объявление функции по имени инструмента: doc-комментарий и сигнатура, без отступа. */
+  readonly members?: Readonly<Record<string, string>>;
+}
+
+/**
  * Объявление глобального `reformer` для модели: по функции на инструмент, в порядке `tools/list`.
  */
-export function apiDeclaration(tools: readonly ToolDefinition[]): string {
-  return `declare const reformer: {\n${tools.map((tool) => functionDeclaration(tool, '  ')).join('\n')}};`;
+export function apiDeclaration(
+  tools: readonly ToolDefinition[],
+  overrides: DeclarationOverrides = {}
+): string {
+  const members = tools.map((tool) => {
+    const own = overrides.members?.[tool.name];
+    if (own === undefined) return functionDeclaration(tool, '  ');
+    return `${own
+      .trimEnd()
+      .split('\n')
+      .map((line) => (line ? `  ${line}` : line))
+      .join('\n')}\n`;
+  });
+  const types = overrides.types ? `${overrides.types.trimEnd()}\n\n` : '';
+  return `${types}declare const reformer: {\n${members.join('\n')}};`;
 }

@@ -25,8 +25,8 @@ import {
 import { originOf } from '../generate/generated-marker.js';
 import { formatIntentJson } from '../generate/intent-format.js';
 import { judgeIntent } from '../generate/judge.js';
-import { MODEL_BEHAVIOR_KINDS } from '../generate/operator-catalog.js';
-import { applyEdits, EDIT_OPS, type EditOutcome } from '../guided/edits.js';
+import { editDeclaration, editItemSchema, EDIT_KEYS, editSummary } from '../guided/edit-spec.js';
+import { applyEdits, type EditOutcome } from '../guided/edits.js';
 import {
   behaviorWord,
   crossWord,
@@ -36,9 +36,14 @@ import {
 } from '../guided/features.js';
 import { buildCoreMarkup, MARKUP_MARK } from '../guided/markup.js';
 import {
+  baselineOf,
   editCall,
+  editGaps,
+  fieldsSummary,
   fingerprint,
+  intentOf,
   nextLines,
+  OPTIONAL_STAGES,
   parsePlan,
   PLAN_FILE,
   planState,
@@ -48,6 +53,7 @@ import {
   stagesFor,
   STAGE_ORDER,
   TASK_LIMIT,
+  TASK_LIMIT_EDIT,
   taskGaps,
   validationStarted,
   type GuidedPlan,
@@ -101,62 +107,13 @@ export const formEditToolDefinition = {
       dir: { type: 'string', description: 'Form folder (default "form").' },
       edits: {
         type: 'array',
-        description:
-          'add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?} · remove_rule {field,rule?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · markup (core: the server writes index.tsx)',
-        items: {
-          type: 'object',
-          properties: {
-            op: { type: 'string', enum: [...EDIT_OPS] },
-            name: { type: 'string' },
-            field: { type: 'string' },
-            label: { type: 'string' },
-            type: { type: 'string', enum: ['string', 'number', 'boolean', 'date'] },
-            component: { type: 'string' },
-            options: { type: 'array', items: { type: ['string', 'number', 'object'] } },
-            mask: { type: 'string' },
-            placeholder: { type: 'string' },
-            readonly: { type: 'boolean' },
-            initialValue: {},
-            step: { type: 'string' },
-            array: { type: 'string' },
-            minItems: { type: 'number' },
-            maxItems: { type: 'number' },
-            title: { type: 'string' },
-            fields: { type: 'array', items: { type: 'string' } },
-            required: { type: 'boolean' },
-            email: { type: 'boolean' },
-            min: { type: 'number' },
-            max: { type: 'number' },
-            minLength: { type: 'number' },
-            maxLength: { type: 'number' },
-            pattern: { type: 'string' },
-            rule: { type: 'string' },
-            cross: { type: 'string' },
-            equals: { type: 'string' },
-            when: { type: 'string' },
-            message: { type: 'string' },
-            kind: { type: 'string', enum: [...MODEL_BEHAVIOR_KINDS] },
-            target: { type: 'string' },
-            expr: { type: 'string' },
-            resetOnDisable: { type: 'boolean' },
-            showWhen: { type: 'string' },
-            hideWhen: { type: 'string' },
-            formName: { type: 'string' },
-          },
-          required: ['op'],
-        },
+        description: editSummary(),
+        items: editItemSchema(),
       },
     },
     required: ['edits'],
   },
 };
-
-/** Ключи одной правки (кроме `op`): по ним ключи за скобкой списка узнаются как ключи правки. */
-const EDIT_KEYS: ReadonlySet<string> = new Set(
-  Object.keys(formEditToolDefinition.inputSchema.properties.edits.items.properties).filter(
-    (key) => key !== 'op'
-  )
-);
 
 export const formStatusToolDefinition = {
   name: 'form_status',
@@ -166,12 +123,13 @@ export const formStatusToolDefinition = {
     type: 'object' as const,
     properties: {
       dir: { type: 'string', description: 'Form folder (default "form").' },
-      skip: { type: 'string', enum: STAGE_ORDER.filter((s) => s !== 'fields' && s !== 'markup') },
-      add: { type: 'string', enum: STAGE_ORDER.filter((s) => s !== 'fields' && s !== 'markup') },
+      skip: { type: 'string', enum: [...OPTIONAL_STAGES] },
+      add: { type: 'string', enum: [...OPTIONAL_STAGES] },
       confirm: {
         type: 'string',
-        enum: ['validation'],
-        description: 'The rules were checked against the task: every limit it names has a rule.',
+        enum: ['validation', 'edit'],
+        description:
+          'The form was checked against the task: "validation" — every limit it names has a rule; "edit" — every change it names is made.',
       },
     },
     required: [],
@@ -196,16 +154,23 @@ function openDir(args: { dir?: unknown }, k: Knowledge, tool: string): Opened | 
 
 const isOpened = (value: Opened | ToolTextResult): value is Opened => 'directory' in value;
 
-function noPlan(tool: string, dir: string): ToolTextResult {
+function noPlan(tool: string, dir: string, directory?: FormDirectory): ToolTextResult {
+  // Форма уже лежит в каталоге: план правки начинается тем же form_start — с заданием правки.
+  const existing = directory !== undefined && directory.read(INTENT_FILE) !== null;
   return invalidCall(
-    `✗ ${tool}: no plan in ${dir}/${PLAN_FILE} — start the form first:\n` +
-      `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text, word for word>"}`
+    existing
+      ? `✗ ${tool}: no plan in ${dir}/${PLAN_FILE} — the form is already in ${dir}: start the change first, with the text of the change:\n` +
+          `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text of the change, word for word>"}`
+      : `✗ ${tool}: no plan in ${dir}/${PLAN_FILE} — start the form first:\n` +
+          `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text, word for word>"}`
   );
 }
 
 function statusLines(plan: GuidedPlan, directory: FormDirectory, dir: string): string[] {
   const state = planState(plan, directory.read(INTENT_FILE), directory.read('index.tsx'));
-  return [progressLine(state), ...fieldsLine(state.intent), ...nextLines(plan, state, dir)];
+  // Правка: «каждое поле задания здесь?» — вопрос создания формы; поля называет сверка правки.
+  const fields = plan.mode === 'edit' ? [] : fieldsLine(state.intent);
+  return [progressLine(state), ...fields, ...nextLines(plan, state, dir)];
 }
 
 /**
@@ -284,6 +249,9 @@ function withBuild(
 
 const NOT_AN_OBJECT = 'an edit is an object';
 
+/** Начало отказа `add_array`, когда в плане нет этапа строк (`edits.ts`). */
+const NO_ROWS = 'the plan has no rows';
+
 /**
  * Строки отчёта о правках. Подряд идущие «не объекты» — одной строкой: пропущенная `{` в списке
  * превращала одну правку в восемь строк-отказов (L1-login, батч 20261113T164411Z-e818).
@@ -313,6 +281,24 @@ function reportLines(outcomes: readonly EditOutcome[]): string[] {
     );
   }
   return lines;
+}
+
+/**
+ * Файл спецификации, который называет задание (`spec.md`, `docs/order.md`): путь как написан или
+ * внутри каталога формы — затравка правки кладёт спеку туда. Ровно один найденный файл, иначе `null`.
+ */
+function specIn(task: string, dir: string, k: Knowledge): string | null {
+  const candidates = [...new Set([...task.matchAll(/[\w./-]+\.md\b/g)].map((match) => match[0]))];
+  const found = new Set<string>();
+  for (const candidate of candidates) {
+    for (const path of [candidate, `${dir}/${candidate}`]) {
+      if (k.spec.read(path) !== null) {
+        found.add(path);
+        break;
+      }
+    }
+  }
+  return found.size === 1 ? [...found][0] : null;
 }
 
 /** Имя формы по заданию: заголовок до двоеточия или первая фраза, не длиннее пяти слов. */
@@ -346,7 +332,7 @@ export async function formStartTool(
   if (!isOpened(opened)) return opened;
   const { directory, dir } = opened;
   const task = typeof args.task === 'string' ? args.task.trim() : '';
-  const specPath = typeof args.specPath === 'string' ? args.specPath.trim() : '';
+  let specPath = typeof args.specPath === 'string' ? args.specPath.trim() : '';
   if (!task && !specPath) {
     return invalidCall(
       '✗ form_start: give "task" (the task text) or "specPath" (a markdown spec of the form).'
@@ -356,6 +342,56 @@ export async function formStartTool(
   const lines: string[] = [];
   if (given && target !== given) {
     lines.push(`"target" taken from the task: @reformer/${target} → "${target}" (not "${given}").`);
+  }
+  // Спецификация, названная в задании файлом, — `specPath`: модель читала spec.md сама и вызывала
+  // form_start одним текстом задания, черновика по спеке не было ни в одном прогоне из трёх, и ~30
+  // полей она вводила правками по одной до лимита шагов (order-create, 20261114T113832Z-68e8).
+  if (!specPath) {
+    const found = specIn(task, dir, k);
+    if (found) {
+      specPath = found;
+      lines.push(`"specPath" taken from the task: ${found} — the server drafts the form from it.`);
+    }
+  }
+  // Форма уже лежит в каталоге, а плана нет (или он — план правки): задание её меняет. План — один
+  // этап правки со сверкой по дельте; иначе проверки создания формы шли по тексту правки.
+  const previous = parsePlan(directory.read(PLAN_FILE));
+  const existing = intentOf(directory.read(INTENT_FILE));
+  const editing =
+    existing !== null &&
+    existing.fields.length + existing.arrays.length > 0 &&
+    (previous === null || previous.mode === 'edit');
+  if (editing) {
+    const plan: GuidedPlan = {
+      version: 1,
+      formName: existing.formName,
+      target,
+      source: 'task',
+      ...(specPath ? { specPath } : {}),
+      ...(task
+        ? { task: task.length > TASK_LIMIT_EDIT ? `${task.slice(0, TASK_LIMIT_EDIT)}…` : task }
+        : {}),
+      stages: ['edit'],
+      skipped: [],
+      mode: 'edit',
+      baseline: previous?.baseline ?? baselineOf(existing),
+      ...(previous?.lastBuild ? { lastBuild: previous.lastBuild } : {}),
+    };
+    directory.write(PLAN_FILE, serializePlan(plan));
+    const head = [
+      `✓ form_start: the form in ${dir} is already built — the plan of the change on ${target} is saved to ${dir}/${PLAN_FILE}.`,
+      'Change the form ONLY with form_edit: it rewrites form.intent.json and the module. Never write files of the form folder yourself.',
+      `Fields now: ${fieldsSummary(existing)}`,
+      '',
+    ];
+    return {
+      content: [
+        {
+          type: 'text',
+          text: [...head, ...lines, ...statusLines(plan, directory, dir)].join('\n'),
+        },
+      ],
+    };
   }
   let features = featuresFromText(task);
   let source: GuidedPlan['source'] = 'task';
@@ -389,7 +425,6 @@ export async function formStartTool(
   }
 
   const stages = stagesFor(features, target);
-  const previous = parsePlan(directory.read(PLAN_FILE));
   const plan: GuidedPlan = {
     version: 1,
     formName,
@@ -418,6 +453,88 @@ export async function formStartTool(
   };
 }
 
+// ---------- Подача в Code Mode (`code-guided`) ----------
+
+/**
+ * Вводный абзац `run_script` связки. Общий абзац Code Mode говорил «write files with your own file
+ * tools» — в guided это прямо против «никогда не пиши файлы модуля»: в 8 из 9 правок модель
+ * переписывала файлы формы руками (батч 20261114T113832Z-68e8). Здесь — ни одного файла в каталоге
+ * формы, все правки этапа одним вызовом (модель слала по одной и упиралась в лимит шагов).
+ */
+const GUIDED_PREAMBLE =
+  'Run a script against the ReFormer form API. The global `reformer` (declared below) has async functions; each takes ONE object and returns the answer of the server as text. Write the BODY of an async function: `await` the calls and print every answer with `console.log` — only printed text and a `return`ed value come back to you. The server writes every file in the form folder (form.intent.json and the module): never write or rewrite them with file tools — change the form only with `reformer.formEdit`, every edit of a stage in ONE call. Plain JavaScript: no import, require, fs or network. A rejected call throws an Error whose message is the answer.';
+
+const STAGE_TYPE = OPTIONAL_STAGES.map((stage) => JSON.stringify(stage)).join(' | ');
+
+const FORM_DIR_DOC = '  /** Form folder (default "form"). */\n  dir?: string;';
+
+/** Объявления четырёх функций связки: doc-комментарий, `@returns`, `@example` и сигнатура. */
+const GUIDED_MEMBERS: Readonly<Record<string, string>> = {
+  form_start: `/**
+ * Start the work on a form — the first call, once. Pass the task text word for word, in its language. Three cases:
+ * - a new form: { dir, target, task };
+ * - the task names a markdown spec file: add specPath — the server drafts the whole form from it;
+ * - a form already lies in dir and the task changes it: { dir, target, task } with the text of the change — the plan is that change.
+ * @returns the plan, then "Next:" with the code of the next call.
+ * @example console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))
+ * @example console.log(await reformer.formStart({ dir: "form", target: "core", task: "<the task text>", specPath: "<the .md file the task names>" }))
+ */
+formStart(args: {
+${FORM_DIR_DOC}
+  /** The stack named in the task. */
+  target: "core" | "renderer-react" | "renderer-json";
+  /** The task text word for word, in its own language, with the stack line: do not translate or retell it. */
+  task: string;
+  /** The markdown spec file the task names. */
+  specPath?: string;
+}): Promise<string>;`,
+  form_edit: `/**
+ * Change the form with a list of edits — every edit of a stage in ONE call. The server applies them one by one, writes form.intent.json and builds the module.
+ * @returns a line per edit — "✓ …" or "✗ … how to fix it" (the other edits still apply) — then "✓ form_build …" or the build errors, "Plan: …" and "Next:" with the code of the next call, or "Done: …" when the form is complete.
+ * @example console.log(await reformer.formEdit({ dir: "form", edits: [
+ *   { op: "add_field", name: "<key>", label: "<label of the task>", required: true },
+ *   { op: "add_field", name: "<key>", label: "<label>", options: ["<choice>", "<choice>"] },
+ *   { op: "add_rule", field: "<key>", minLength: 2, message: "<text of the task>" },
+ * ] }))
+ */
+formEdit(args: {
+${FORM_DIR_DOC}
+  /** The edits; [] just builds the current files. */
+  edits: Edit[];
+}): Promise<string>;`,
+  form_status: `/**
+ * The plan of the form: which stages are done, whether the last build passed, the next call.
+ * @returns "Plan: …", then "Next:" with the code of the next call, or "Done: …".
+ */
+formStatus(args?: {
+${FORM_DIR_DOC}
+  /** Drop a stage the task does not need. */
+  skip?: Stage;
+  /** Add a stage the task needs. */
+  add?: Stage;
+  /** The form was checked against the task: "validation" — every limit of the task has a rule; "edit" — every change of the task is made. */
+  confirm?: "validation" | "edit";
+}): Promise<string>;`,
+  form_build: `/**
+ * Build the module again from the current form files. formEdit already builds after every edit — call it only when an answer asks to build.
+ * @returns the build result, "Plan: …" and "Next:".
+ */
+formBuild(args?: {
+${FORM_DIR_DOC}
+}): Promise<string>;`,
+};
+
+/** Подача `run_script` в связке `code-guided`. */
+export const GUIDED_SCRIPT_SURFACE = {
+  preamble: GUIDED_PREAMBLE,
+  codeExample:
+    'console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))',
+  declarations: {
+    types: `/** A stage of the plan. */\ntype Stage = ${STAGE_TYPE};\n\n${editDeclaration()}`,
+    members: GUIDED_MEMBERS,
+  },
+} as const;
+
 // ---------- form_status ----------
 
 export async function formStatusTool(
@@ -428,10 +545,10 @@ export async function formStatusTool(
   if (!isOpened(opened)) return opened;
   const { directory, dir } = opened;
   let plan = parsePlan(directory.read(PLAN_FILE));
-  if (!plan) return noPlan('form_status', dir);
+  if (!plan) return noPlan('form_status', dir, directory);
   const lines: string[] = [];
   const optional = (stage: string): stage is StageId =>
-    (STAGE_ORDER as readonly string[]).includes(stage) && stage !== 'fields' && stage !== 'markup';
+    (OPTIONAL_STAGES as readonly string[]).includes(stage);
   // Этапы списком через запятую: модель снимала два сразу и получала отказ.
   const stagesIn = (value: unknown): string[] =>
     (Array.isArray(value) ? value : String(value).split(','))
@@ -442,7 +559,7 @@ export async function formStatusTool(
     const wrong = added.filter((stage) => !optional(stage));
     if (wrong.length > 0) {
       return invalidCall(
-        `✗ form_status: "add" is one of ${STAGE_ORDER.filter(optional).join(', ')}, not ${wrong.join(', ')}.`
+        `✗ form_status: "add" is one of ${OPTIONAL_STAGES.join(', ')}, not ${wrong.join(', ')}.`
       );
     }
     const stages = new Set<string>([...plan.stages, ...added]);
@@ -459,10 +576,17 @@ export async function formStatusTool(
       plan!.stages.includes(stage as StageId)
     );
     if (confirmed.length === 0) {
-      return invalidCall('✗ form_status: "confirm" is a stage of this plan, e.g. "validation".');
+      return invalidCall(
+        `✗ form_status: "confirm" is a stage of this plan: ${plan.mode === 'edit' ? '"edit"' : '"validation"'}.`
+      );
     }
     const intent = planState(plan, directory.read(INTENT_FILE), null).intent;
-    const gaps = intent ? taskGaps(plan.task, intent) : [];
+    // Правка сверяется только по дельте: проверки создания формы на тексте правки ложны.
+    const gaps = intent
+      ? plan.mode === 'edit'
+        ? editGaps(plan.task, intent)
+        : taskGaps(plan.task, intent)
+      : [];
     if (gaps.length > 0 && plan.confirmTried !== true) {
       plan = { ...plan, confirmTried: true };
       directory.write(PLAN_FILE, serializePlan(plan));
@@ -473,7 +597,9 @@ export async function formStatusTool(
             text: [
               'Not confirmed yet — the form differs from the task:',
               ...gaps.map((gap) => `- ${gap}`),
-              'Add the missing fields and rules with form_edit. These are not limits of the form? Send the same confirm again.',
+              plan.mode === 'edit'
+                ? 'Make the missing changes with form_edit. The difference is not real? Send the same confirm again.'
+                : 'Add the missing fields and rules with form_edit. These are not limits of the form? Send the same confirm again.',
               ...statusLines(plan, directory, dir),
             ].join('\n'),
           },
@@ -535,7 +661,7 @@ export async function formStatusTool(
     if (wrong.length > 0 || skips.length === 0) {
       return invalidCall(
         `✗ form_status: "skip" is a stage of this plan other than fields and markup: ${
-          plan.stages.filter((s) => s !== 'fields' && s !== 'markup').join(', ') || 'none'
+          plan.stages.filter((s) => optional(s)).join(', ') || 'none'
         }.`
       );
     }
@@ -563,7 +689,7 @@ export async function formEditTool(
   if (!isOpened(opened)) return opened;
   const { directory, dir } = opened;
   let plan = parsePlan(directory.read(PLAN_FILE));
-  if (!plan) return noPlan('form_edit', dir);
+  if (!plan) return noPlan('form_edit', dir, directory);
   // Список правок строкой — частый сбой вызова у малых моделей: строка с JSON-списком читается как
   // список, иначе — отказ с образцом.
   let edits: unknown = args.edits;
@@ -642,15 +768,46 @@ export async function formEditTool(
   }
 
   const catalogs = await catalogsOf(k);
+  const editing = plan.mode === 'edit';
+  // Повтор add_array после отказа «в плане нет строк» — этап строк в план, правка принимается: модель
+  // на core получила этот отказ 10 раз подряд и не вызвала form_status {"add":"arrays"} (order-create,
+  // 20261114T113832Z-68e8).
+  const asksRows = edits.some(
+    (edit) =>
+      edit !== null &&
+      typeof edit === 'object' &&
+      (edit as Record<string, unknown>).op === 'add_array'
+  );
+  if (!editing && asksRows && plan.rowsTried === true && !plan.stages.includes('arrays')) {
+    const stages = new Set<StageId>([...plan.stages, 'arrays']);
+    plan = { ...plan, stages: STAGE_ORDER.filter((stage) => stages.has(stage)) };
+    notes.push('Stage arrays added to the plan: add_array came again.');
+  }
+  if (plan.skipped.includes('arrays') && asksRows && plan.rowsTried === true) {
+    plan = { ...plan, skipped: plan.skipped.filter((stage) => stage !== 'arrays') };
+  }
   const applied = applyEdits(raw, edits, {
     uiKit: catalogs.uiKit,
     rules: new Set(catalogs.core.found ? catalogs.core.rules.keys() : []),
     target: plan.target as ReformerTargetStack,
-    rows: plan.stages.includes('arrays') && !plan.skipped.includes('arrays'),
-    wizard: plan.stages.includes('wizard') && !plan.skipped.includes('wizard'),
+    // Правка готовой формы: в плане нет этапов строк и шагов — гейты плана не действуют.
+    ...(editing
+      ? { edit: true }
+      : {
+          rows: plan.stages.includes('arrays') && !plan.skipped.includes('arrays'),
+          wizard: plan.stages.includes('wizard') && !plan.skipped.includes('wizard'),
+        }),
     ...(plan.task ? { task: plan.task } : {}),
   });
+  if (
+    applied.outcomes.some((outcome) => !outcome.ok && outcome.message.startsWith(NO_ROWS)) &&
+    plan.rowsTried !== true
+  ) {
+    plan = { ...plan, rowsTried: true };
+    directory.write(PLAN_FILE, serializePlan(plan));
+  }
   const accepted = applied.outcomes.filter((outcome) => outcome.ok).length;
+  if (editing && accepted > 0 && plan.edited !== true) plan = { ...plan, edited: true };
   const report = [
     `form_edit: ${accepted} of ${applied.outcomes.length} edits applied.`,
     ...reportLines(applied.outcomes),
@@ -665,6 +822,7 @@ export async function formEditTool(
   }
 
   directory.write(INTENT_FILE, formatIntentJson(applied.file));
+  directory.write(PLAN_FILE, serializePlan(plan));
 
   // Разметка core: по операции `markup` и при каждой правке, пока index.tsx — разметка сервера,
   // иначе новое поле не появилось бы на странице.

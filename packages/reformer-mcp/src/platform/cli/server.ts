@@ -69,9 +69,12 @@ export const GUIDED_INSTRUCTIONS =
 /**
  * Инструкции связки Code Mode и guided: шаги называет сервер, как в {@link GUIDED_INSTRUCTIONS},
  * но вызовы — функции `reformer.*` внутри `run_script`. Строки `Next:` приходят уже кодом скрипта.
+ * Три входа названы явно: про форму, которая уже лежит в каталоге, и про спецификацию инструкции
+ * молчали — модель правила готовую форму руками в 8 из 9 правок и ни разу не передала `specPath`
+ * (батч 20261114T113832Z-68e8).
  */
 export const CODE_GUIDED_INSTRUCTIONS =
-  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. To create a ReFormer form: run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` once. Then change the form only with reformer.formEdit — the server writes form.intent.json and builds the module; never write module files yourself. Every answer ends with "Next:" and a line of code — run it in run_script and print the result. Stop only when an answer says "Done".';
+  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. Start every form task with run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` — also when the form already lies in the folder and the task changes it; a task that names a markdown spec file also passes specPath. Then change the form only with reformer.formEdit — the server writes form.intent.json and the module; never write files in the form folder yourself. Every answer ends with "Next:" and a line of code — run it and print the result. Stop only when an answer says "Done".';
 
 /**
  * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`), guided (план и

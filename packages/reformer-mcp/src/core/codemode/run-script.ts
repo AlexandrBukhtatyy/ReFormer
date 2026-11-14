@@ -17,7 +17,7 @@
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolDefinition } from '../server/tool-catalog.js';
-import { apiDeclaration, functionName } from './declaration.js';
+import { apiDeclaration, functionName, type DeclarationOverrides } from './declaration.js';
 
 export const RUN_SCRIPT_TOOL = 'run_script';
 
@@ -53,18 +53,35 @@ export const INNER_CALLS_META = 'reformer/innerCalls';
 const PREAMBLE =
   'Run a script against the ReFormer server API. Every server tool is an async function of the global `reformer` object (declared below; the argument is one object, the result is the tool answer as text). Write the BODY of an async function: use `await`, chain several calls in one script, keep only what you need and print it with `console.log` — only printed text and a `return`ed value come back to you. No imports, no require, no network, no file access: write files with your own file tools. A tool error throws an Error with the tool answer as its message.';
 
+/**
+ * Подача `run_script` для поверхности: вводный абзац, пример в описании `code` и объявление функций.
+ * Не задано — подача обычного Code Mode: его замеры остаются сравнимыми.
+ */
+export interface ScriptSurface {
+  readonly preamble?: string;
+  /** Пример тела скрипта в описании параметра `code`. */
+  readonly codeExample?: string;
+  readonly declarations?: DeclarationOverrides;
+}
+
+const CODE_EXAMPLE = 'console.log(await reformer.formBuild({ grammar: "base" }))';
+
 /** Определение `run_script` для `tools/list`: вводный абзац и объявление API. */
-export function runScriptToolDefinition(tools: readonly ToolDefinition[]): ToolDefinition {
+export function runScriptToolDefinition(
+  tools: readonly ToolDefinition[],
+  surface: ScriptSurface = {}
+): ToolDefinition {
   return {
     name: RUN_SCRIPT_TOOL,
-    description: `${PREAMBLE}\n\n${apiDeclaration(tools)}`,
+    description: `${surface.preamble ?? PREAMBLE}\n\n${apiDeclaration(tools, surface.declarations)}`,
     inputSchema: {
       type: 'object',
       properties: {
         code: {
           type: 'string',
-          description:
-            'JavaScript or TypeScript: the body of an async function, e.g. `console.log(await reformer.formBuild({ grammar: "base" }))`.',
+          description: surface.codeExample
+            ? `JavaScript: the body of an async function, e.g. \`${surface.codeExample}\`.`
+            : `JavaScript or TypeScript: the body of an async function, e.g. \`${CODE_EXAMPLE}\`.`,
         },
       },
       required: ['code'],

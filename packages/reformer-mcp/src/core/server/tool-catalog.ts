@@ -40,6 +40,7 @@ import {
   formStartToolDefinition,
   formStatusTool,
   formStatusToolDefinition,
+  GUIDED_SCRIPT_SURFACE,
 } from '../tools/guided.js';
 import { planFormTool, planFormToolDefinition } from '../tools/plan-form.js';
 import { getContextTool, getContextToolDefinition } from '../tools/get-context.js';
@@ -236,7 +237,11 @@ export function createToolCatalog(
     // Скрипту доступны те же инструменты, что видит клиент обычного режима, и с той же пометкой
     // повторов: меняется только форма подачи, не знание.
     const scriptTools = catalog.list();
-    const runScript = runScriptToolDefinition(scriptTools);
+    // Связка с guided — своя подача: абзац без «пиши файлы сам», типизированные правки, примеры.
+    const runScript = runScriptToolDefinition(
+      scriptTools,
+      guided ? GUIDED_SCRIPT_SURFACE : undefined
+    );
     // Связка с guided: строки `Next:` называют вызов инструмента — скрипту их отдают кодом, который
     // можно вставить как есть. Обычный Code Mode не трогается: его замеры остаются сравнимыми.
     const toolNames = scriptTools.map((tool) => tool.name);

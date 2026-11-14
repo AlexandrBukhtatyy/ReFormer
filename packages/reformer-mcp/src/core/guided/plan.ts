@@ -23,6 +23,7 @@ export const PLAN_FILE = 'form.plan.json';
 
 /** Этапы в порядке исполнения. */
 export const STAGE_ORDER = [
+  'edit',
   'fields',
   'arrays',
   'wizard',
@@ -68,7 +69,30 @@ export interface GuidedPlan {
    * сдавала форму с двумя полями из четырёх (L2-event-signup, 20261113T184634Z-977e).
    */
   readonly confirmTried?: boolean;
+  /**
+   * Правка готовой формы: `formStart` пришёл, когда intent уже лежал в каталоге, а плана не было. Задание
+   * — изменение, план — один этап `edit`, сверка — только по дельте. Без этого режима модель в 8 из 9
+   * правок переписывала файлы руками, а единственная правка путём guided получала проверки создания
+   * формы и снимала верные правила (батч 20261114T113832Z-68e8).
+   */
+  readonly mode?: 'edit';
+  /** Правка: состав формы на старте — для строки «что изменилось». */
+  readonly baseline?: Baseline;
+  /** Правка: с начала плана принята хотя бы одна правка. */
+  readonly edited?: boolean;
+  /**
+   * `add_array` уже отклоняли «в плане нет строк»: повтор принимается и добавляет этап. Модель на core
+   * получила этот отказ 10 раз подряд и не вызвала `form_status {"add":"arrays"}` (order-create, 68e8).
+   */
+  readonly rowsTried?: boolean;
   readonly lastBuild?: BuildMark;
+}
+
+/** Состав формы: пути полей, массивы, заголовки шагов. */
+export interface Baseline {
+  readonly fields: readonly string[];
+  readonly arrays: readonly string[];
+  readonly steps: readonly string[];
 }
 
 /**
@@ -80,6 +104,8 @@ export interface GuidedPlan {
 export function stagesFor(features: TaskFeatures, target: ReformerTargetStack): StageId[] {
   return STAGE_ORDER.filter((stage) => {
     switch (stage) {
+      case 'edit':
+        return false;
       case 'fields':
       case 'validation':
         return true;
@@ -90,6 +116,11 @@ export function stagesFor(features: TaskFeatures, target: ReformerTargetStack): 
     }
   });
 }
+
+/** Этапы, которые модель может снять (`skip`) или добавить (`add`): не поля, не разметка, не правка. */
+export const OPTIONAL_STAGES: readonly StageId[] = STAGE_ORDER.filter(
+  (stage) => stage !== 'fields' && stage !== 'markup' && stage !== 'edit'
+);
 
 /** Отпечаток текста: FNV-1a, 32 бита. В `core/` нет node-глобалов, поэтому без `crypto`. */
 export function fingerprint(text: string | null): string {
@@ -130,7 +161,31 @@ export function parsePlan(text: string | null): GuidedPlan | null {
     skipped: Array.isArray(plan.skipped) ? plan.skipped.filter(isStage) : [],
     ...(Array.isArray(plan.confirmed) ? { confirmed: plan.confirmed.filter(isStage) } : {}),
     ...(plan.confirmTried === true ? { confirmTried: true } : {}),
+    ...(plan.mode === 'edit' ? { mode: 'edit' as const } : {}),
+    ...(plan.baseline && typeof plan.baseline === 'object'
+      ? {
+          baseline: {
+            fields: strings(plan.baseline.fields),
+            arrays: strings(plan.baseline.arrays),
+            steps: strings(plan.baseline.steps),
+          },
+        }
+      : {}),
+    ...(plan.edited === true ? { edited: true } : {}),
+    ...(plan.rowsTried === true ? { rowsTried: true } : {}),
     ...(plan.lastBuild ? { lastBuild: plan.lastBuild } : {}),
+  };
+}
+
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+/** Состав формы по intent — исходная точка правки. */
+export function baselineOf(intent: FormIntent): Baseline {
+  return {
+    fields: intent.fields.map((field) => field.modelPath ?? field.name),
+    arrays: intent.arrays.map((array) => array.name),
+    steps: collectSteps(intent.layoutRoot).map((step) => String(step.title ?? '')),
   };
 }
 
@@ -139,7 +194,7 @@ export function serializePlan(plan: GuidedPlan): string {
 }
 
 /** Intent с диска, прочитанный без справочников: для подсчёта этапов их не нужно. */
-function intentOf(text: string | null): FormIntent | null {
+export function intentOf(text: string | null): FormIntent | null {
   if (text === null) return null;
   try {
     return readIntent(JSON.parse(text)).intent;
@@ -891,6 +946,9 @@ function stageDone(
   if (stage === 'markup') return index !== null && !index.includes('return null;');
   if (!intent) return false;
   switch (stage) {
+    case 'edit':
+      // Правка закрывается сверкой, а не содержимым: см. planState.
+      return false;
     case 'fields':
       return intent.fields.length + intent.arrays.length > 0;
     case 'arrays':
@@ -942,14 +1000,17 @@ export function planState(
 ): PlanState {
   const intent = intentOf(intentText);
   const confirmed = plan.confirmed?.includes('validation') === true;
+  const editConfirmed = plan.confirmed?.includes('edit') === true;
   const stages = plan.stages.map((id) => ({
     id,
     // Валидация закрывается только сверкой с заданием; после неё поля без правил — необязательные
-    // по решению модели.
+    // по решению модели. Правка — принятой правкой и сверкой изменений с заданием.
     done:
-      id === 'validation'
-        ? confirmed && (stageDone(id, intent, indexText) || validationStarted(intent))
-        : stageDone(id, intent, indexText, plan.task),
+      id === 'edit'
+        ? plan.edited === true && editConfirmed
+        : id === 'validation'
+          ? confirmed && (stageDone(id, intent, indexText) || validationStarted(intent))
+          : stageDone(id, intent, indexText, plan.task),
     skipped: plan.skipped.includes(id),
   }));
   const last = plan.lastBuild;
@@ -970,7 +1031,8 @@ export function planState(
     fresh: intentText === null,
     intent,
     awaitingConfirm:
-      pending === 'validation' && !confirmed && stageDone('validation', intent, indexText),
+      (pending === 'validation' && !confirmed && stageDone('validation', intent, indexText)) ||
+      (pending === 'edit' && plan.edited === true && !editConfirmed),
   };
 }
 
@@ -993,6 +1055,8 @@ export function progressLine(state: PlanState): string {
 /** Что делается на этапе: для ответа `form_start`. */
 export function stageGoal(stage: StageId, target: ReformerTargetStack): string {
   switch (stage) {
+    case 'edit':
+      return 'the changes of the task, every one with form_edit — several edits in one call; then a check of the changes against the task';
     case 'fields':
       return 'every input of the task: one add_field each, all in one call; a choice: "options"; a default value of the task: "initialValue"; an input format like a phone: "mask" — the format from the task, 9 for a digit; a computed or read-only field: "readonly":true';
     case 'arrays':
@@ -1046,7 +1110,9 @@ function examplesOn(
       return rules;
     }
     case 'cross':
-      return names.length < 2 ? null : [{ op: 'add_rule', field: names[1], equals: names[0] }];
+      // Заглушки, а не пара полей формы: пример `email equals login` модель вставила дословно, и в
+      // форме появилось правило «email равен логину» (registration-delete, 20261114T113832Z-68e8).
+      return null;
     case 'wizard': {
       const half = Math.ceil(names.length / 2);
       return [
@@ -1111,7 +1177,9 @@ export function stageExample(
     case 'validation':
       return '[{"op":"add_rule","field":"email","required":true,"email":true,"message":"Enter a valid email"},{"op":"add_rule","field":"age","min":18,"max":120,"message":"Age 18 to 120"}]';
     case 'cross':
-      return '[{"op":"add_rule","field":"confirmPassword","equals":"password","message":"Passwords do not match"}]';
+      return '[{"op":"add_rule","field":"<field>","equals":"<the field it must match>","message":"<text of the task>"}]';
+    case 'edit':
+      return '[{"op":"rename_field","name":"<key now>","to":"<new key>"},{"op":"set_field","name":"<field>","label":"<new label of the task>"}]';
     case 'behavior':
       return target === 'core'
         ? '[{"op":"add_behavior","kind":"compute","target":"total","expr":"(model.price ?? 0) * (model.quantity ?? 0)"},{"op":"add_behavior","kind":"enableWhen","target":"address","expr":"model.method === \'delivery\'"}]'
@@ -1213,11 +1281,145 @@ function checkLines(plan: GuidedPlan, intent: FormIntent, dir: string): string[]
   ];
 }
 
+// ---------- Правка готовой формы ----------
+
+/** Сколько знаков задания хранит план правки: нумерованный список правок длиннее задания формы. */
+export const TASK_LIMIT_EDIT = 1200;
+
+const REMOVE_WORDS = /убер|удал|убра|\bremove|\bdelete|\bdrop/i;
+const ADD_WORDS = /добав|\badd\b|\badds\b/i;
+const RENAME_WORDS = /переимен|\brename/i;
+const STEP_WORDS = /шаг|\bstep/i;
+
+/** Имена в обратных кавычках или скобках: `phone`, (phone). Формулы и маски — не имена. */
+function namesIn(clause: string): string[] {
+  return [
+    ...[...clause.matchAll(/`([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)`/g)].map((m) => m[1]),
+    ...[...clause.matchAll(/\(([a-z][A-Za-z0-9]*(?:\.[A-Za-z]\w*)*)\)/g)].map((m) => m[1]),
+  ];
+}
+
+/** Заголовки в «ёлочках». */
+const titlesIn = (clause: string): string[] =>
+  [...clause.matchAll(/«([^»]+)»/g)].map((m) => m[1].trim());
+
+/**
+ * Сверка правки с заданием — только то, что задание называет однозначно; точность важнее полноты:
+ * ложное расхождение толкает модель в лишние правки. Имена — в обратных кавычках или скобках,
+ * шаги — в «ёлочках» рядом со словом «шаг». Строка-заголовок со словом действия и двоеточием в конце
+ * передаёт действие пунктам списка под ней.
+ */
+export function editGaps(task: string | undefined, intent: FormIntent): string[] {
+  if (!task) return [];
+  const paths = [
+    ...intent.fields.map((field) => field.modelPath ?? field.name),
+    ...intent.arrays.map((array) => array.name),
+  ];
+  const has = (name: string): boolean =>
+    paths.some((path) => path === name || path.startsWith(`${name}.`));
+  const steps = collectSteps(intent.layoutRoot).map((step) =>
+    String(step.title ?? '')
+      .trim()
+      .toLowerCase()
+  );
+  const hasStep = (title: string): boolean => steps.includes(title.toLowerCase());
+  const gaps = new Set<string>();
+  let heading = '';
+  for (const raw of task.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bullet = /^[-*•]\s/.test(line);
+    if (!bullet) heading = /:\s*$/.test(line) ? line : '';
+    for (const sentence of line.split(/(?<=[.;!?])\s+/)) {
+      const verbs = bullet ? `${heading} ${sentence}` : sentence;
+      const names = namesIn(sentence);
+      const titles = STEP_WORDS.test(verbs) ? titlesIn(sentence) : [];
+      if (RENAME_WORDS.test(verbs)) {
+        const pair = names.length >= 2 ? names : titles.length >= 2 ? titles : null;
+        if (!pair) continue;
+        const [from, to] = /вместо|instead of/i.test(sentence) ? [pair[1], pair[0]] : pair;
+        const exists = names.length >= 2 ? has : hasStep;
+        const what = names.length >= 2 ? `\`${from}\`` : `step «${from}»`;
+        const next = names.length >= 2 ? `\`${to}\`` : `«${to}»`;
+        if (exists(from)) gaps.add(`${what} is still in the form — the task renames it to ${next}`);
+        else if (!exists(to))
+          gaps.add(`${next} is not in the form — the task renames ${what} to it`);
+      } else if (REMOVE_WORDS.test(verbs)) {
+        for (const name of names)
+          if (has(name)) gaps.add(`\`${name}\` is still in the form — the task removes it`);
+        for (const title of titles)
+          if (hasStep(title))
+            gaps.add(`step «${title}» is still in the form — the task removes it`);
+      } else if (ADD_WORDS.test(verbs)) {
+        for (const name of names)
+          if (!has(name)) gaps.add(`\`${name}\` is not in the form — the task adds it`);
+        // Заголовок шага — после слова действия: «Между шагами «Товары» и «Оплата» добавь шаг «Упаковка»».
+        const after = sentence.slice(Math.max(0, sentence.search(ADD_WORDS)));
+        if (STEP_WORDS.test(after)) {
+          const [title] = titlesIn(after.slice(after.search(STEP_WORDS)));
+          if (title && !hasStep(title))
+            gaps.add(`step «${title}» is not in the form — the task adds it`);
+        }
+      }
+    }
+  }
+  return [...gaps];
+}
+
+/** Что изменилось с начала правки: поля, массивы, шаги. */
+export function changesLine(baseline: Baseline | undefined, intent: FormIntent): string {
+  if (!baseline) return '';
+  const now = baselineOf(intent);
+  const parts: string[] = [];
+  const diff = (what: string, before: readonly string[], after: readonly string[]): void => {
+    const removed = before.filter((item) => !after.includes(item));
+    const added = after.filter((item) => !before.includes(item));
+    if (removed.length > 0) parts.push(`${what} removed: ${removed.join(', ')}`);
+    if (added.length > 0) parts.push(`${what} added: ${added.join(', ')}`);
+  };
+  diff('fields', baseline.fields, now.fields);
+  diff('arrays', baseline.arrays, now.arrays);
+  diff('steps', baseline.steps, now.steps);
+  return `Changes since the start: ${parts.join('; ') || 'no field, array or step added or removed (rules, labels and reactions may have changed)'}.`;
+}
+
+/** Сверка правки: задание, что изменилось, форма сейчас, расхождения, подтверждение. */
+function editCheckLines(plan: GuidedPlan, intent: FormIntent, dir: string): string[] {
+  return [
+    ...(plan.task ? [`The task: «${plan.task}»`] : []),
+    changesLine(plan.baseline, intent),
+    `Fields now: ${fieldsSummary(intent)}`,
+    `Rules now: ${rulesSummary(intent)}`,
+    ...editGaps(plan.task, intent).map((gap) => `⚠️ Differs from the task: ${gap}.`),
+    'A change of the task not made yet? form_edit. Every change made, nothing else touched:',
+    `form_status {"dir":${JSON.stringify(dir)},"confirm":"edit"}`,
+  ];
+}
+
+/** Правки, которыми меняют готовую форму. */
+const EDIT_OPS_LINE =
+  'Edits for changes: rename_field {name,to,label?} · set_field {name,…} · remove_field {name} · add_field {name,label,…} · add_rule / remove_rule {field,rule?} · add_behavior / remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · add_step / rename_step {title,to} / remove_step {title} · place {name,step}.';
+
 export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): string[] {
   if (state.failed) {
     return [
       'Next: fix the errors above with form_edit (set_field, remove_field, add_rule …) — the build runs again after the edits:',
       editCall(dir, '[{"op":"set_field","name":"…"}]'),
+    ];
+  }
+  // Правка готовой формы: сначала изменения задания, сборка идёт после них.
+  if (state.pending === 'edit' && plan.edited !== true) {
+    return [
+      ...(plan.task ? [`The task: «${plan.task}»`] : []),
+      `Next — edit: ${stageGoal('edit', plan.target)}.`,
+      EDIT_OPS_LINE,
+      editCall(dir, stageExample('edit', plan.target)),
+    ];
+  }
+  if (state.pending === 'edit' && state.awaitingConfirm && state.intent && state.built) {
+    return [
+      'Next — check the changes against the task before it is done.',
+      ...editCheckLines(plan, state.intent, dir),
     ];
   }
   if (!state.built && !state.fresh) {

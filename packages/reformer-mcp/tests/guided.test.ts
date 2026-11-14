@@ -4,7 +4,7 @@
  * компилятор).
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -15,6 +15,9 @@ import { applyEdits, maskToPattern, type EditContext } from '../src/core/guided/
 import { featuresFromText } from '../src/core/guided/features';
 import { MARKUP_MARK } from '../src/core/guided/markup';
 import {
+  baselineOf,
+  changesLine,
+  editGaps,
   formulaMisses,
   gapFixes,
   stageExample,
@@ -712,7 +715,7 @@ describe('плоские правки', () => {
     );
     expect(outcomes.map((o) => o.ok)).toEqual([false, true, true, false]);
     expect(outcomes[0].message).toMatch(/one choice is not a select/);
-    expect(outcomes[3].message).toMatch(/the plan has no rows.*"add":"arrays"/);
+    expect(outcomes[3].message).toMatch(/the plan has no rows.*Send the same add_array again/);
   });
 
   it('маска в чужой нотации (#) — нотация кита; выражение в "rule" — pattern', () => {
@@ -2104,4 +2107,390 @@ describe('связка Code Mode и guided', () => {
     );
     expect(answer).toMatch(/on core is saved/);
   });
+});
+
+describe('правка готовой формы: операции', () => {
+  const seed = (): Rec => ({
+    formName: 'Заказ',
+    target: 'renderer-react',
+    fields: [
+      { name: 'customerType', type: 'string', component: 'Input', label: 'Тип' },
+      { name: 'subtotal', type: 'number', component: 'InputNumber', label: 'Сумма' },
+      { name: 'discount', type: 'number', component: 'InputNumber', label: 'Скидка' },
+      { name: 'total', type: 'number', component: 'InputNumber', label: 'Итого' },
+      { name: 'delivery.city', type: 'string', component: 'Input', label: 'Город' },
+    ],
+    arrays: [
+      {
+        name: 'items',
+        itemFields: [{ name: 'price', type: 'number', component: 'InputNumber', label: 'Цена' }],
+      },
+    ],
+    validation: [
+      { target: 'customerType', rules: ['required()'] },
+      { target: 'discount', when: "model.customerType === 'company'", rules: ['max(30)'] },
+      { target: 'total', cross: 'values.total >= 0 || values.customerType === "b"', code: 't' },
+      { target: 'price', each: 'items', rules: ['required()'] },
+    ],
+    behavior: [
+      {
+        kind: 'computeFrom',
+        target: 'total',
+        sources: ['subtotal', 'discount'],
+        expr: '(subtotal ?? 0) * (1 - (discount ?? 0) / 100)',
+      },
+      {
+        kind: 'enableWhen',
+        target: 'discount',
+        sources: ['customerType'],
+        expr: "model.customerType === 'company'",
+      },
+    ],
+    visibility: [{ selector: 'delivery', condition: "model.customerType !== 'b'" }],
+    layoutRoot: {
+      kind: 'container',
+      component: 'FormWizard',
+      children: [
+        {
+          kind: 'step',
+          title: 'Покупатель',
+          selector: 'buyer',
+          children: ['customerType', { kind: 'part', ref: 'delivery', part: 'address' }],
+        },
+        {
+          kind: 'step',
+          title: 'Оплата',
+          selector: 'payment',
+          children: ['subtotal', 'discount', 'total', { kind: 'array', ref: 'items' }],
+        },
+      ],
+    },
+  });
+
+  it('rename_field переписывает цели, источники, выражения, видимость и раскладку', () => {
+    const { file, outcomes } = applyEdits(
+      seed(),
+      [{ op: 'rename_field', name: 'customerType', to: 'payerType', label: 'Плательщик' }],
+      { ...ctx(), edit: true }
+    );
+    expect(outcomes[0]).toMatchObject({ ok: true });
+    expect(outcomes[0].message).toMatch(/`customerType` renamed to `payerType`/);
+    const text = JSON.stringify(file);
+    expect(text).not.toMatch(/customerType/);
+    expect((file.fields as Rec[])[0]).toMatchObject({ name: 'payerType', label: 'Плательщик' });
+    expect((file.behavior as Rec[])[1]).toMatchObject({
+      sources: ['payerType'],
+      expr: "model.payerType === 'company'",
+    });
+    expect((file.validation as Rec[])[2].cross).toBe(
+      'values.total >= 0 || values.payerType === "b"'
+    );
+  });
+
+  it('rename_field группы и голое имя в формуле computeFrom; колонки строк не трогает', () => {
+    const { file } = applyEdits(
+      seed(),
+      [
+        { op: 'rename_field', name: 'discount', to: 'rebate' },
+        { op: 'rename_field', name: 'delivery', to: 'shipping' },
+      ],
+      { ...ctx(), edit: true }
+    );
+    const behavior = file.behavior as Rec[];
+    expect(behavior[0]).toMatchObject({
+      sources: ['subtotal', 'rebate'],
+      expr: '(subtotal ?? 0) * (1 - (rebate ?? 0) / 100)',
+    });
+    expect((file.fields as Rec[]).map((f) => f.name)).toContain('shipping.city');
+    expect(JSON.stringify(file.layoutRoot)).toMatch(/"ref":"shipping"/);
+    expect((file.visibility as Rec[])[0].selector).toBe('shipping');
+    // Колонка строки `price` — не поле формы: правило по `each` остаётся как было.
+    expect((file.validation as Rec[])[3]).toMatchObject({ target: 'price', each: 'items' });
+  });
+
+  it('rename_field: неизвестное поле и занятое имя — отказ с причиной', () => {
+    const { outcomes } = applyEdits(
+      seed(),
+      [
+        { op: 'rename_field', name: 'customerTipe', to: 'payerType' },
+        { op: 'rename_field', name: 'discount', to: 'total' },
+        { op: 'rename_field', name: 'discount' },
+      ],
+      { ...ctx(), edit: true }
+    );
+    expect(outcomes.map((o) => o.ok)).toEqual([false, false, false]);
+    expect(outcomes[0].message).toMatch(/no field `customerTipe` — did you mean `customerType`/);
+    expect(outcomes[2].message).toMatch(/"to" is the new key/);
+  });
+
+  it('rename_step и remove_step: шаг с полями, частью, массивом и их строками', () => {
+    const { file, outcomes } = applyEdits(
+      seed(),
+      [
+        { op: 'rename_step', title: 'Оплата', to: 'Оплата и скидки' },
+        { op: 'remove_step', title: 'Покупатель' },
+      ],
+      { ...ctx(), edit: true }
+    );
+    expect(outcomes.map((o) => o.ok)).toEqual([true, true]);
+    expect(outcomes[1].message).toMatch(/step «Покупатель» removed with 2 items/);
+    // Правила и поведение на удалённом поле ушли; кто ещё читает его — назван.
+    expect(outcomes[1].message).toMatch(/still read by/);
+    const names = (file.fields as Rec[]).map((f) => f.name);
+    expect(names).not.toContain('customerType');
+    expect(names).not.toContain('delivery.city');
+    expect(file.visibility).toEqual([]);
+    const steps = JSON.stringify(file.layoutRoot);
+    expect(steps).toMatch(/Оплата и скидки/);
+    expect(steps).not.toMatch(/Покупатель/);
+  });
+
+  it('remove_field в режиме правки — без напоминания «задание называет поле»', () => {
+    const task = 'Убери из формы скидку (`discount`).';
+    const editing = applyEdits(seed(), [{ op: 'remove_field', name: 'discount' }], {
+      ...ctx(),
+      task,
+      edit: true,
+    });
+    expect(editing.outcomes[0].message).not.toMatch(/put it back/);
+    // Формулу, которая читает удалённое поле, ответ называет.
+    expect(editing.outcomes[0].message).toMatch(/still read by computeFrom of total/);
+    const creating = applyEdits(seed(), [{ op: 'remove_field', name: 'discount' }], {
+      ...ctx(),
+      task: 'Форма: скидка (discount) от 0 до 30',
+    });
+    expect(creating.outcomes[0].message).toMatch(/put it back/);
+  });
+});
+
+describe('правка готовой формы: сверка по дельте', () => {
+  const intent = (paths: string[], steps: string[] = []) =>
+    readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: paths.map((name) => ({ name, type: 'string', component: 'Input', label: name })),
+      ...(steps.length > 0
+        ? {
+            layoutRoot: {
+              kind: 'container',
+              component: 'FormWizard',
+              children: steps.map((title, index) => ({
+                kind: 'step',
+                title,
+                selector: `s${index}`,
+                children: index === 0 ? paths : [],
+              })),
+            },
+          }
+        : {}),
+    }).intent!;
+
+  it('переименование, добавление и удаление по именам в кавычках', () => {
+    const task = [
+      'В каталоге `form/` уже готова форма. Доработай её:',
+      '1. Поле логина переименуй: ключ `username` вместо `login`.',
+      '2. Поле `customerType` переименуй в `payerType`.',
+      '3. Сразу после email добавь необязательный телефон (`phone`).',
+      '4. Убери капчу (`captcha`).',
+      'Остальное в форме не меняй.',
+    ].join('\n');
+    expect(editGaps(task, intent(['login', 'customerType', 'captcha']))).toEqual([
+      '`login` is still in the form — the task renames it to `username`',
+      '`customerType` is still in the form — the task renames it to `payerType`',
+      '`phone` is not in the form — the task adds it',
+      '`captcha` is still in the form — the task removes it',
+    ]);
+    expect(editGaps(task, intent(['username', 'payerType', 'phone']))).toEqual([]);
+  });
+
+  it('шаги в «ёлочках» и действие заголовка для пунктов списка под ним', () => {
+    const task = [
+      '1. Шаг «Оплата» переименуй в «Оплата и скидки».',
+      '2. Между шагами «Товары» и «Оплата» добавь шаг «Упаковка»:',
+      '   - «Подарочная упаковка» (`giftWrap`) — Switch;',
+      '3. Удали из мастера шаги «Компания» и «Доставка» целиком.',
+    ].join('\n');
+    expect(
+      editGaps(task, intent(['comment'], ['Товары', 'Оплата', 'Компания', 'Доставка']))
+    ).toEqual([
+      'step «Оплата» is still in the form — the task renames it to «Оплата и скидки»',
+      'step «Упаковка» is not in the form — the task adds it',
+      '`giftWrap` is not in the form — the task adds it',
+      'step «Компания» is still in the form — the task removes it',
+      'step «Доставка» is still in the form — the task removes it',
+    ]);
+  });
+
+  it('формулы и маски в кавычках — не имена; без имён расхождений нет', () => {
+    const task =
+      'Добавь телефон с маской `+7 (999) 999-99-99`. Итого теперь `subtotal × (1 − discount / 100)`. Убери капчу и повтор пароля.';
+    expect(editGaps(task, intent(['captcha', 'confirmPassword']))).toEqual([]);
+  });
+
+  it('строка «что изменилось» — от состава на старте', () => {
+    const before = baselineOf(intent(['login', 'captcha']));
+    expect(changesLine(before, intent(['username', 'phone']))).toBe(
+      'Changes since the start: fields removed: login, captcha; fields added: username, phone.'
+    );
+    expect(changesLine(before, intent(['login', 'captcha']))).toMatch(
+      /no field, array or step added or removed/
+    );
+  });
+
+  it('пример этапа cross — заглушки, а не пара полей формы', () => {
+    expect(stageExample('cross', 'renderer-react', intent(['email', 'login']))).toMatch(
+      /"field":"<field>","equals":"<the field it must match>"/
+    );
+  });
+});
+
+describe('правка готовой формы и спецификация: сквозной путь', () => {
+  let project: string;
+  let knowledge: Knowledge;
+  const previousRoot = process.env[TYPECHECK_ROOT_ENV];
+  const text = (result: { content: Array<{ text: string }> }) => result.content[0].text;
+  const file = (name: string) => readFileSync(join(project, 'form', name), 'utf8');
+
+  beforeAll(() => {
+    process.env[TYPECHECK_ROOT_ENV] = repoRoot;
+  });
+  afterAll(() => {
+    if (previousRoot === undefined) delete process.env[TYPECHECK_ROOT_ENV];
+    else process.env[TYPECHECK_ROOT_ENV] = previousRoot;
+  });
+  beforeEach(() => {
+    project = mkdtempSync(join(tmpdir(), 'guided-edit-'));
+    writeFileSync(
+      join(project, 'package.json'),
+      JSON.stringify({ name: 'consumer', dependencies: { '@reformer/core': '*' } })
+    );
+    knowledge = { ...cliKnowledge(), forms: createCliFormWorkspace(project) };
+  });
+  afterEach(() => rmSync(project, { recursive: true, force: true }));
+
+  const seedForm = (): void => {
+    const intent = {
+      formName: 'Регистрация',
+      target: 'renderer-react',
+      fields: [
+        { name: 'login', type: 'string', component: 'Input', label: 'Логин', initialValue: '' },
+        { name: 'email', type: 'string', component: 'Input', label: 'Email', initialValue: '' },
+        { name: 'password', type: 'string', component: 'Input', label: 'Пароль', initialValue: '' },
+        { name: 'captcha', type: 'string', component: 'Input', label: 'Капча', initialValue: '' },
+      ],
+      validation: [
+        { target: 'login', rules: ['required()', 'minLength(3)'] },
+        { target: 'email', rules: ['required()', 'email()'] },
+        { target: 'password', cross: 'values.password !== values.login', code: 'password.same' },
+        { target: 'captcha', rules: ['required()'] },
+      ],
+    };
+    const dir = join(project, 'form');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'form.intent.json'), JSON.stringify(intent, null, 2));
+  };
+
+  it(
+    'форма уже в каталоге: план правки → rename/add/remove → сверка дельты → Done',
+    async () => {
+      seedForm();
+      const task = [
+        'В каталоге `form/` уже готова форма регистрации. Доработай её:',
+        '1. Поле логина переименуй: ключ `username` вместо `login`.',
+        '2. Сразу после email добавь необязательный телефон (`phone`).',
+        '3. Убери капчу (`captcha`).',
+      ].join('\n');
+      const start = await formStartTool({ dir: 'form', target: 'renderer-react', task }, knowledge);
+      expect(text(start)).toMatch(/the form in form is already built — the plan of the change/);
+      expect(text(start)).toMatch(/Next — edit:/);
+      expect(text(start)).not.toMatch(/every input of the task is here/);
+      expect(JSON.parse(file('form.plan.json'))).toMatchObject({ mode: 'edit', stages: ['edit'] });
+
+      const renamed = await formEditTool(
+        { dir: 'form', edits: [{ op: 'rename_field', name: 'login', to: 'username' }] },
+        knowledge
+      );
+      expect(text(renamed)).toMatch(/^form_edit: 1 of 1 edits applied/);
+      expect(text(renamed)).toMatch(/Next — check the changes against the task/);
+      expect(text(renamed)).toMatch(/`phone` is not in the form — the task adds it/);
+      // Первое подтверждение при расхождениях — отказ.
+      const early = await formStatusTool({ dir: 'form', confirm: 'edit' }, knowledge);
+      expect(text(early)).toMatch(/Not confirmed yet/);
+
+      const rest = await formEditTool(
+        {
+          dir: 'form',
+          edits: [
+            { op: 'add_field', name: 'phone', label: 'Телефон' },
+            { op: 'remove_field', name: 'captcha' },
+          ],
+        },
+        knowledge
+      );
+      expect(text(rest)).not.toMatch(/put it back/);
+      expect(text(rest)).toMatch(
+        /Changes since the start: fields removed: login, captcha; fields added: username, phone/
+      );
+      expect(text(rest)).not.toMatch(/Differs from the task/);
+      const done = await formStatusTool({ dir: 'form', confirm: 'edit' }, knowledge);
+      expect(text(done)).toMatch(/Done: the form is built/);
+      const intent = JSON.parse(file('form.intent.json'));
+      expect(JSON.stringify(intent.validation)).toMatch(/values\.password !== values\.username/);
+    },
+    SLOW
+  );
+
+  it(
+    'formEdit без плана при готовой форме ведёт в formStart с заданием правки',
+    async () => {
+      seedForm();
+      const result = await formEditTool({ dir: 'form', edits: [] }, knowledge);
+      expect(text(result)).toMatch(/the form is already in form: start the change first/);
+    },
+    SLOW
+  );
+
+  it(
+    'спецификация, названная в задании файлом, — specPath',
+    async () => {
+      const spec =
+        '# Форма: Отзыв\n\n## Поля\n\n| Поле | Тип |\n| --- | --- |\n| Имя (`name`) | string |\n';
+      const withSpec: Knowledge = {
+        ...knowledge,
+        spec: { describe: () => project, read: (ref) => (ref === 'form/spec.md' ? spec : null) },
+      };
+      const start = await formStartTool(
+        {
+          dir: 'form',
+          target: 'renderer-react',
+          task: 'Сделай форму по спецификации из файла `spec.md`.',
+        },
+        withSpec
+      );
+      expect(text(start)).toMatch(/"specPath" taken from the task: form\/spec\.md/);
+      expect(JSON.parse(file('form.plan.json'))).toMatchObject({
+        source: 'spec',
+        specPath: 'form/spec.md',
+      });
+    },
+    SLOW
+  );
+
+  it(
+    'повтор add_array после отказа «в плане нет строк» добавляет этап и применяется',
+    async () => {
+      await formStartTool(
+        { dir: 'form', target: 'renderer-react', task: 'Форма: имя и email' },
+        knowledge
+      );
+      const edit = { op: 'add_array', name: 'items', label: 'Товары' };
+      const first = await formEditTool({ dir: 'form', edits: [edit] }, knowledge);
+      expect(text(first)).toMatch(/Send the same add_array again/);
+      const second = await formEditTool({ dir: 'form', edits: [edit] }, knowledge);
+      expect(text(second)).toMatch(/Stage arrays added to the plan: add_array came again/);
+      expect(text(second)).toMatch(/✓ add_array/);
+      expect(JSON.parse(file('form.plan.json')).stages).toContain('arrays');
+    },
+    SLOW
+  );
 });

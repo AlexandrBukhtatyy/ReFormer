@@ -23,23 +23,9 @@ import { MODEL_BEHAVIOR_KINDS } from '../generate/operator-catalog.js';
 import type { ReformerTargetStack } from '../generate/form-intent.js';
 import type { UiKitComponents } from '../generate/ui-kit-components.js';
 
-export const EDIT_OPS = [
-  'add_field',
-  'set_field',
-  'remove_field',
-  'add_array',
-  'add_item_field',
-  'add_step',
-  'place',
-  'add_rule',
-  'remove_rule',
-  'add_behavior',
-  'remove_behavior',
-  'add_visibility',
-  'set_form',
-  'markup',
-] as const;
-export type EditOp = (typeof EDIT_OPS)[number];
+import { EDIT_OPS, type EditOp } from './edit-spec.js';
+
+export { EDIT_OPS, type EditOp };
 
 const FIELD_TYPES = ['string', 'number', 'boolean', 'date'] as const;
 
@@ -105,6 +91,12 @@ export interface EditContext {
   readonly wizard?: boolean;
   /** Текст задания из плана: числовые варианты сверяются с ним. */
   readonly task?: string;
+  /**
+   * Правка готовой формы: задание — изменение, а не форма целиком. Напоминание «задание называет это
+   * поле» при удалении здесь ложное: поле названо как раз затем, чтобы его убрать (батч
+   * 20261114T113832Z-68e8, registration-delete).
+   */
+  readonly edit?: boolean;
 }
 
 export interface EditOutcome {
@@ -450,7 +442,19 @@ function layoutOf(file: Rec): Layout {
     return { kind: 'steps', steps: file.steps as Rec[] };
   }
   if (!isRecord(file.layoutRoot)) {
-    file.layoutRoot = { kind: 'container', component: 'Box', children: [] };
+    // Intent без раскладки раскладывает поля сам; новая раскладка начинается с них — иначе первое
+    // добавленное поле оставило бы остальные вне формы («unplaced» на готовой форме без layoutRoot).
+    file.layoutRoot = {
+      kind: 'container',
+      component: 'Box',
+      children: [
+        ...fieldsOf(file).map(nameOf).filter(Boolean),
+        ...arraysOf(file)
+          .map(nameOf)
+          .filter(Boolean)
+          .map((ref) => ({ kind: 'array', ref })),
+      ],
+    };
   }
   return { kind: 'tree', root: file.layoutRoot as Rec };
 }
@@ -883,41 +887,244 @@ function setField(file: Rec, edit: Rec, ctx: EditContext): string {
   return `field \`${name}\` changed${unmasked}${moved}${liftFieldRules(file, edit, ctx, name)}`;
 }
 
-function removeField(file: Rec, edit: Rec, ctx: EditContext): string {
-  const name = fieldName(edit);
-  const isArray = findArray(file, name) !== undefined;
-  const record = isArray ? findArray(file, name) : requireField(file, name);
-  // Поле, которое задание называет, модель удаляла вместо одной отклонённой правки на нём: «город из
-  // списка» пропадал из формы (L2-profile-json, 20261113T230859Z-f59e). Удаляется, но с напоминанием.
-  const label = String(record?.label ?? '').trim();
-  const named =
-    ctx.task !== undefined &&
-    ((label.length >= 3 && ctx.task.toLowerCase().includes(label.toLowerCase())) ||
-      new RegExp(`\\(${name}[\\s,:;)]`).test(ctx.task));
-  file[isArray ? 'arrays' : 'fields'] = (isArray ? arraysOf(file) : fieldsOf(file)).filter(
-    (record) => nameOf(record) !== name
-  );
-  unplace(file, name);
-  const touches = (path: unknown): boolean =>
-    typeof path === 'string' && (path === name || path.startsWith(`${name}.`));
+/** Путь — это `name` или поле внутри него (`name.city`). */
+const under = (path: unknown, name: string): boolean =>
+  typeof path === 'string' && (path === name || path.startsWith(`${name}.`));
+
+/**
+ * Убрать поля и массивы с этими путями — сами записи и строки валидации, поведения и видимости на
+ * них. Строки других полей, которые их читают, остаются: их правит модель, ответ их называет.
+ */
+function dropPaths(file: Rec, paths: readonly string[]): { dropped: number; readers: string[] } {
+  const hit = (path: unknown): boolean => paths.some((name) => under(path, name));
+  file.fields = fieldsOf(file).filter((record) => !hit(nameOf(record)));
+  file.arrays = arraysOf(file).filter((record) => !hit(nameOf(record)));
+  for (const name of paths) unplace(file, name);
   let dropped = 0;
   for (const key of ['validation', 'behavior', 'visibility']) {
     const before = list(file, key).length;
     file[key] = list(file, key).filter(
-      (row) => !touches(row.target) && !touches(row.selector) && !touches(row.each)
+      (row) => !hit(row.target) && !hit(row.selector) && !hit(row.each)
     );
     dropped += before - list(file, key).length;
   }
+  const reads = (row: Rec): boolean =>
+    (Array.isArray(row.sources) && row.sources.some(hit)) ||
+    ['expr', 'when', 'cross', 'condition'].some(
+      (key) =>
+        typeof row[key] === 'string' &&
+        paths.some((name) =>
+          new RegExp(`(?<![\\w$])(?:model|values|form)\\.${escapeRegExp(name)}(?![\\w$])`).test(
+            row[key] as string
+          )
+        )
+    );
+  const readers = [
+    ...new Set(
+      ['validation', 'behavior']
+        .flatMap((key) => list(file, key))
+        .filter(reads)
+        .map((row) => `${String(row.kind ?? 'rule')} of ${String(row.target ?? row.selector)}`)
+    ),
+  ];
+  return { dropped, readers };
+}
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Строка ответа об удалении: сколько правил ушло и кто ещё читает удалённое. */
+function droppedNote(dropped: number, readers: readonly string[]): string {
+  return `${dropped ? `, with ${dropped} rules on it` : ''}${
+    readers.length > 0
+      ? `; still read by ${readers.join(', ')} — change ${readers.length === 1 ? 'it' : 'them'} (add_behavior / add_rule again, or remove_behavior / remove_rule)`
+      : ''
+  }`;
+}
+
+function removeField(file: Rec, edit: Rec, ctx: EditContext): string {
+  const name = fieldName(edit);
+  const isArray = findArray(file, name) !== undefined;
+  const exact = findField(file, name);
+  // Группа (`delivery` у полей `delivery.city`) удаляется вся, хотя такого поля нет.
+  const group =
+    !isArray &&
+    exact === undefined &&
+    fieldsOf(file).some((record) => nameOf(record).startsWith(`${name}.`));
+  const record = isArray
+    ? findArray(file, name)
+    : (exact ?? (group ? undefined : requireField(file, name)));
+  // Поле, которое задание называет, модель удаляла вместо одной отклонённой правки на нём: «город из
+  // списка» пропадал из формы (L2-profile-json, 20261113T230859Z-f59e). Удаляется, но с напоминанием.
+  // При правке готовой формы поле названо затем, чтобы его убрать, — без напоминания.
+  const label = String(record?.label ?? '').trim();
+  const named =
+    ctx.edit !== true &&
+    ctx.task !== undefined &&
+    ((label.length >= 3 && ctx.task.toLowerCase().includes(label.toLowerCase())) ||
+      new RegExp(`\\(${escapeRegExp(name)}[\\s,:;)]`).test(ctx.task));
+  const { dropped, readers } = dropPaths(file, [name]);
   const warning = named
     ? ` — the task names this input («${label || name}»): put it back with add_field unless it really is not an input of the task`
     : '';
-  return `\`${name}\` removed${dropped ? `, with ${dropped} rules on it` : ''}${warning}`;
+  return `\`${name}\` removed${droppedNote(dropped, readers)}${warning}`;
+}
+
+// ---------- Переименования и шаги ----------
+
+/** Новое имя переименования: ключ `to` и его синонимы у моделей. */
+function newName(edit: Rec): string {
+  const to = text(edit, 'to') ?? text(edit, 'newName') ?? text(edit, 'rename') ?? text(edit, 'new');
+  if (!to)
+    throw new EditError('"to" is the new key — {"op":"rename_field","name":"<now>","to":"<new>"}');
+  return to;
+}
+
+/**
+ * Заменить путь `from` на `to` во всём intent: записи полей и массивов, цели, источники и селекторы
+ * строк, раскладка, выражения (`model.x`, `values.x`, `form.x`, голое имя в формуле `computeFrom`).
+ * Возвращает число замен.
+ */
+function renamePath(file: Rec, from: string, to: string): number {
+  let count = 0;
+  const swap = (path: unknown): unknown => {
+    if (typeof path !== 'string' || !under(path, from)) return path;
+    count++;
+    return `${to}${path.slice(from.length)}`;
+  };
+  for (const record of [...fieldsOf(file), ...arraysOf(file)]) record.name = swap(record.name);
+  const scoped = new RegExp(
+    `(?<![\\w$])(model|values|form)\\.${escapeRegExp(from)}(?![\\w$])`,
+    'g'
+  );
+  const bare = new RegExp(`(?<![\\w$.])${escapeRegExp(from)}(?![\\w$])`, 'g');
+  const rewrite = (expr: unknown, bareNames: boolean): unknown => {
+    if (typeof expr !== 'string') return expr;
+    let out = expr.replace(scoped, (_match, scope: string) => {
+      count++;
+      return `${scope}.${to}`;
+    });
+    if (bareNames) {
+      out = out.replace(bare, () => {
+        count++;
+        return to;
+      });
+    }
+    return out;
+  };
+  for (const key of ['validation', 'behavior', 'visibility']) {
+    for (const row of list(file, key)) {
+      // Внутри строк массива (`each`) цели и источники — колонки строки, не пути формы.
+      if (row.each === undefined) {
+        row.target = swap(row.target);
+        if (Array.isArray(row.sources)) row.sources = row.sources.map(swap);
+      }
+      row.each = swap(row.each);
+      row.selector = swap(row.selector);
+      for (const exprKey of ['expr', 'when', 'cross', 'condition', 'showWhen', 'hideWhen']) {
+        if (typeof row[exprKey] !== 'string') continue;
+        row[exprKey] = rewrite(row[exprKey], row.kind === 'computeFrom' && exprKey === 'expr');
+      }
+    }
+  }
+  if (Array.isArray(file.steps)) {
+    for (const step of file.steps as Rec[]) {
+      if (Array.isArray(step.fields)) step.fields = (step.fields as unknown[]).map(swap);
+    }
+  }
+  const walk = (node: unknown): void => {
+    if (!isRecord(node) || !Array.isArray(node.children)) return;
+    node.children = (node.children as unknown[]).map((child) => {
+      if (typeof child === 'string') return swap(child);
+      if (isRecord(child) && typeof child.ref === 'string') child.ref = swap(child.ref);
+      walk(child);
+      return child;
+    });
+  };
+  walk(file.layoutRoot);
+  return count;
+}
+
+function renameField(file: Rec, edit: Rec): string {
+  const from = text(edit, 'name') ?? text(edit, 'field', true)!;
+  const to = newName(edit);
+  const exists =
+    findArray(file, from) !== undefined ||
+    fieldsOf(file).some((record) => under(nameOf(record), from));
+  if (!exists) {
+    throw new EditError(`no field \`${from}\`${didYouMean(from, modelPaths(file))}`);
+  }
+  if (to.split('.').length !== from.split('.').length) {
+    throw new EditError(
+      `"to" keeps the depth of the path: \`${from}\` → a key like \`${from.split('.').slice(0, -1).concat('<new>').join('.')}\``
+    );
+  }
+  checkNewName(
+    to,
+    modelPaths(file).filter((path) => !under(path, from))
+  );
+  const references = renamePath(file, from, to);
+  const label = text(edit, 'label');
+  if (label) {
+    const record = findField(file, to) ?? findArray(file, to);
+    if (record) record.label = label;
+  }
+  return `\`${from}\` renamed to \`${to}\` (${references} references)${label ? `, label «${label}»` : ''}`;
+}
+
+/** Все шаги формы: сокращение `steps` или узлы `step` дерева. */
+function allSteps(file: Rec): Rec[] {
+  if (Array.isArray(file.steps) && file.steps.length > 0) return file.steps as Rec[];
+  return stepNodes(file.layoutRoot);
+}
+
+function renameStep(file: Rec, edit: Rec): string {
+  const step = findStep(allSteps(file), text(edit, 'title') ?? text(edit, 'step', true));
+  const to = newName(edit);
+  const before = String(step.title ?? '');
+  step.title = to;
+  return `step «${before}» renamed to «${to}»`;
+}
+
+/** Пути полей и массивов узла раскладки: строки, `array`/`part` по ссылке, вложенные контейнеры. */
+function refsIn(node: unknown, out: string[] = []): string[] {
+  if (typeof node === 'string') out.push(node);
+  else if (isRecord(node)) {
+    if (typeof node.ref === 'string') out.push(node.ref);
+    for (const child of Array.isArray(node.children) ? node.children : []) refsIn(child, out);
+  }
+  return out;
+}
+
+function removeStep(file: Rec, edit: Rec): string {
+  const steps = allSteps(file);
+  const step = findStep(steps, text(edit, 'title') ?? text(edit, 'step', true));
+  const title = String(step.title ?? '');
+  const refs = Array.isArray(step.fields)
+    ? (step.fields as unknown[]).filter((ref): ref is string => typeof ref === 'string')
+    : refsIn(step).filter((ref) => ref !== step.selector);
+  // Шаг — из раскладки: из сокращения или из детей родителя в дереве.
+  if (Array.isArray(file.steps) && file.steps.includes(step)) {
+    file.steps = (file.steps as Rec[]).filter((other) => other !== step);
+  } else {
+    const prune = (node: unknown): void => {
+      if (!isRecord(node) || !Array.isArray(node.children)) return;
+      node.children = (node.children as unknown[]).filter((child) => child !== step);
+      for (const child of node.children as unknown[]) prune(child);
+    };
+    prune(file.layoutRoot);
+  }
+  const { dropped, readers } = dropPaths(file, refs);
+  // Видимость самого шага (скрытый шаг мастера) — по его селектору.
+  if (typeof step.selector === 'string') {
+    file.visibility = list(file, 'visibility').filter((row) => row.selector !== step.selector);
+  }
+  return `step «${title}» removed with ${refs.length} items (${refs.join(', ') || 'none'})${droppedNote(dropped, readers)}`;
 }
 
 function addArray(file: Rec, edit: Rec, ctx: EditContext): string {
   if (ctx.rows === false) {
     throw new EditError(
-      'the plan has no rows: the task names no repeating rows. A choice from a list is a field with "options"; rows needed after all — form_status {"add":"arrays"} first'
+      'the plan has no rows: the task names no repeating rows. A choice from a list is a field with "options". Rows needed after all (the task or its spec lists rows)? Send the same add_array again — the plan gets a rows stage'
     );
   }
   const name = text(edit, 'name', true)!;
@@ -1627,7 +1834,7 @@ function trimmedKeys(edit: unknown): { edit: unknown; renamed: Array<[string, st
 const SNAKE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
 const camel = (name: string): string =>
   name.replace(/_([a-z0-9])/g, (_match, char: string) => char.toUpperCase());
-const NAME_KEYS = ['name', 'field', 'target', 'array', 'each', 'equals', 'sameAs'] as const;
+const NAME_KEYS = ['name', 'field', 'target', 'array', 'each', 'equals', 'sameAs', 'to'] as const;
 const EXPR_KEYS = ['expr', 'when', 'cross', 'showWhen', 'hideWhen', 'condition'] as const;
 
 /**
@@ -1732,6 +1939,12 @@ export function applyEdits(
             return setField(next, fieldEdit, ctx);
           case 'remove_field':
             return removeField(next, edit, ctx);
+          case 'rename_field':
+            return renameField(next, edit);
+          case 'rename_step':
+            return renameStep(next, edit);
+          case 'remove_step':
+            return removeStep(next, edit);
           case 'add_array':
             return addArray(next, edit, ctx);
           case 'add_item_field':

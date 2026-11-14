@@ -1,0 +1,296 @@
+Run a script against the ReFormer form API. The global `reformer` (declared below) has async functions; each takes ONE object and returns the answer of the server as text. Write the BODY of an async function: `await` the calls and print every answer with `console.log` — only printed text and a `return`ed value come back to you. The server writes every file in the form folder (form.intent.json and the module): never write or rewrite them with file tools — change the form only with `reformer.formEdit`, every edit of a stage in ONE call. Plain JavaScript: no import, require, fs or network. A rejected call throws an Error whose message is the answer.
+
+/** A stage of the plan. */
+type Stage = "arrays" | "wizard" | "validation" | "cross" | "behavior";
+
+/** What the input is. Give only what the task says. */
+interface FieldProps {
+  /** "string" by default; "number"; "boolean" — a checkbox or switch; "date". */
+  type?: "string" | "number" | "boolean" | "date";
+  /** Leave it out: the server picks it by type. Override only: Textarea, RadioGroup, Switch, Slider, SelectMulti, InputPassword (a hidden password), DatePicker. */
+  component?: string;
+  /** The choices the task lists, 2 or more. A length or a range is a check (minLength, min), not options. */
+  options?: Array<string | number | { value: string | number; label: string }>;
+  /** An input format the task gives, 9 for a digit: "+7 (999) 999-99-99". No format in the task — no mask. */
+  mask?: string;
+  /** A hint inside the empty input. */
+  placeholder?: string;
+  /** true — the form computes the value or only shows it. */
+  readonly?: boolean;
+  /** The default value the task names (for a choice — its value). */
+  initialValue?: string | number | boolean;
+}
+
+/** Checks of the task; a check written on a field becomes its rule. */
+interface Checks {
+  /** true — the value is required. */
+  required?: boolean;
+  /** true — the value must be an email. */
+  email?: boolean;
+  /** The smallest number the task allows (for a text — its shortest length). */
+  min?: number;
+  /** The largest number the task allows (for a text — its longest length). */
+  max?: number;
+  /** The shortest text the task allows. */
+  minLength?: number;
+  /** The longest text the task allows. */
+  maxLength?: number;
+  /** A regular expression the whole value must match, without slashes: "^[A-Za-z0-9_]+$". */
+  pattern?: string;
+  /** The error text from the task, in its language. */
+  message?: string;
+}
+
+/** add_field — A new input of the task. */
+interface AddField extends FieldProps, Checks {
+  op: "add_field";
+  /** Key of the field: latin camelCase (`firstName`); a group path is allowed (`contact.email`). */
+  name: string;
+  /** The label: the words of the task, in its language. */
+  label: string;
+  /** Title or number of the wizard step to put it in. */
+  step?: string;
+}
+
+/** set_field — Change a field: only the keys you give change. */
+interface SetField extends FieldProps, Checks {
+  op: "set_field";
+  /** An existing field (its key). */
+  name: string;
+  /** The label: the words of the task, in its language. */
+  label?: string;
+  /** Title or number of the wizard step to put it in. */
+  step?: string;
+}
+
+/** rename_field — Rename a field, a group or an array: the server rewrites its rules, behaviors, conditions and the layout. */
+interface RenameField {
+  op: "rename_field";
+  /** The key it has now. */
+  name: string;
+  /** The new key: latin camelCase. */
+  to: string;
+  /** A new label, if the task gives one. */
+  label?: string;
+}
+
+/** remove_field — Remove a field or an array with its rules, behaviors and visibility. */
+interface RemoveField {
+  op: "remove_field";
+  /** The field or array to remove (its key). */
+  name: string;
+}
+
+/** add_array — Repeating rows the user adds; then add_item_field for each column of a row. */
+interface AddArray {
+  op: "add_array";
+  /** Key of the array: one latin camelCase word. */
+  name: string;
+  /** The label: the words of the task, in its language. */
+  label: string;
+  /** At least this many rows. */
+  minItems?: number;
+  /** At most this many rows. */
+  maxItems?: number;
+  /** Title or number of the wizard step to put it in. */
+  step?: string;
+}
+
+/** add_item_field — A column of the rows of an array. */
+interface AddItemField extends FieldProps, Checks {
+  op: "add_item_field";
+  /** An array of the form: the edit is about a column of its rows. */
+  array: string;
+  /** Key of the column: latin camelCase. */
+  name: string;
+  /** The label: the words of the task, in its language. */
+  label: string;
+}
+
+/** add_step — A wizard step with its fields, in order. */
+interface AddStep {
+  op: "add_step";
+  /** Title of the step: the words of the task. */
+  title: string;
+  /** Keys of the fields and arrays of the step, in order. */
+  fields: string[];
+}
+
+/** rename_step — Change the title of a wizard step. */
+interface RenameStep {
+  op: "rename_step";
+  /** The title it has now (or its number). */
+  title: string;
+  /** The new title: the words of the task. */
+  to: string;
+}
+
+/** remove_step — Remove a wizard step with every field, rule and behavior in it. */
+interface RemoveStep {
+  op: "remove_step";
+  /** The title of the step (or its number). */
+  title: string;
+}
+
+/** place — Move a field or an array to a step. */
+interface Place {
+  op: "place";
+  /** The field or array to move. */
+  name: string;
+  /** Title or number of the wizard step to put it in. */
+  step: string;
+}
+
+/** add_rule — Checks of a field: all checks of one field may go into one add_rule. */
+interface AddRule extends Checks {
+  op: "add_rule";
+  /** An existing field of the form (its key). */
+  field: string;
+  /** An array of the form: the edit is about a column of its rows. */
+  array?: string;
+  /** Only a validator call: "minLength(2)", "pattern(/^\\d{6}$/)". A sentence is not a rule — its text goes to "message". */
+  rule?: string;
+  /** An expression over values.<field>, TRUE when the value is valid: "values.end >= values.start". */
+  cross?: string;
+  /** The key of the field this one must match (a repeated password). */
+  equals?: string;
+  /** Only while this condition over model.<field> holds: "model.method === 'courier'". */
+  when?: string;
+}
+
+/** remove_rule — Remove checks of a field. */
+interface RemoveRule {
+  op: "remove_rule";
+  /** An existing field of the form (its key). */
+  field: string;
+  /** The check to remove by its name ("minLength"); none — every check of the field. */
+  rule?: string;
+}
+
+/** add_behavior — A reaction: a computed value, a field active only on a condition, a value cleared on a condition… */
+interface AddBehavior {
+  op: "add_behavior";
+  /** compute — a formula; enableWhen / disableWhen — the field is active only on a condition; resetWhen — cleared on a condition; the rest as named. */
+  kind: "compute" | "computeFrom" | "copyFrom" | "syncFields" | "onChange" | "enableWhen" | "disableWhen" | "resetWhen" | "transformValue" | "revalidateWhen" | "exclusiveFlag" | "aggregateInto";
+  /** The field the behavior changes. */
+  target: string;
+  /** JS over model.<field>: the formula of compute ("(model.price ?? 0) * (model.qty ?? 0)"), the condition of enableWhen, disableWhen, resetWhen. */
+  expr?: string;
+  /** An array of the form: the edit is about a column of its rows. */
+  array?: string;
+  /** Only while this condition over model.<field> holds: "model.method === 'courier'". */
+  when?: string;
+  /** true — the value is cleared when the field gets disabled. */
+  resetOnDisable?: boolean;
+}
+
+/** remove_behavior — Remove reactions of a field. */
+interface RemoveBehavior {
+  op: "remove_behavior";
+  /** The field the behavior changes. */
+  target: string;
+  /** Which reaction to remove; none — every reaction of the field. */
+  kind?: "compute" | "computeFrom" | "copyFrom" | "syncFields" | "onChange" | "enableWhen" | "disableWhen" | "resetWhen" | "transformValue" | "revalidateWhen" | "exclusiveFlag" | "aggregateInto";
+}
+
+/** add_visibility — Show or hide a field on a condition: give showWhen or hideWhen. */
+interface AddVisibility {
+  op: "add_visibility";
+  /** An existing field of the form (its key). */
+  field: string;
+  /** Show the field only while this condition over model.<field> holds. */
+  showWhen?: string;
+  /** Hide the field while this condition over model.<field> holds. */
+  hideWhen?: string;
+}
+
+/** set_form — The title of the form. */
+interface SetForm {
+  op: "set_form";
+  /** Title of the form in the language of the task. */
+  formName: string;
+}
+
+/** markup — core only: the server writes the JSX markup of index.tsx. */
+interface Markup {
+  op: "markup";
+}
+
+/** One edit of the form: "op" says which. */
+type Edit = AddField | SetField | RenameField | RemoveField | AddArray | AddItemField | AddStep | RenameStep | RemoveStep | Place | AddRule | RemoveRule | AddBehavior | RemoveBehavior | AddVisibility | SetForm | Markup;
+
+declare const reformer: {
+  /**
+   * Start the work on a form — the first call, once. Pass the task text word for word, in its language. Three cases:
+   * - a new form: { dir, target, task };
+   * - the task names a markdown spec file: add specPath — the server drafts the whole form from it;
+   * - a form already lies in dir and the task changes it: { dir, target, task } with the text of the change — the plan is that change.
+   * @returns the plan, then "Next:" with the code of the next call.
+   * @example console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))
+   * @example console.log(await reformer.formStart({ dir: "form", target: "core", task: "<the task text>", specPath: "<the .md file the task names>" }))
+   */
+  formStart(args: {
+    /** Form folder (default "form"). */
+    dir?: string;
+    /** The stack named in the task. */
+    target: "core" | "renderer-react" | "renderer-json";
+    /** The task text word for word, in its own language, with the stack line: do not translate or retell it. */
+    task: string;
+    /** The markdown spec file the task names. */
+    specPath?: string;
+  }): Promise<string>;
+
+  /**
+   * Change the form with a list of edits — every edit of a stage in ONE call. The server applies them one by one, writes form.intent.json and builds the module.
+   * @returns a line per edit — "✓ …" or "✗ … how to fix it" (the other edits still apply) — then "✓ form_build …" or the build errors, "Plan: …" and "Next:" with the code of the next call, or "Done: …" when the form is complete.
+   * @example console.log(await reformer.formEdit({ dir: "form", edits: [
+   *   { op: "add_field", name: "<key>", label: "<label of the task>", required: true },
+   *   { op: "add_field", name: "<key>", label: "<label>", options: ["<choice>", "<choice>"] },
+   *   { op: "add_rule", field: "<key>", minLength: 2, message: "<text of the task>" },
+   * ] }))
+   */
+  formEdit(args: {
+    /** Form folder (default "form"). */
+    dir?: string;
+    /** The edits; [] just builds the current files. */
+    edits: Edit[];
+  }): Promise<string>;
+
+  /**
+   * The plan of the form: which stages are done, whether the last build passed, the next call.
+   * @returns "Plan: …", then "Next:" with the code of the next call, or "Done: …".
+   */
+  formStatus(args?: {
+    /** Form folder (default "form"). */
+    dir?: string;
+    /** Drop a stage the task does not need. */
+    skip?: Stage;
+    /** Add a stage the task needs. */
+    add?: Stage;
+    /** The form was checked against the task: "validation" — every limit of the task has a rule; "edit" — every change of the task is made. */
+    confirm?: "validation" | "edit";
+  }): Promise<string>;
+
+  /**
+   * Build the module again from the current form files. formEdit already builds after every edit — call it only when an answer asks to build.
+   * @returns the build result, "Plan: …" and "Next:".
+   */
+  formBuild(args?: {
+    /** Form folder (default "form"). */
+    dir?: string;
+  }): Promise<string>;
+};
+
+--- code
+{
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "JavaScript: the body of an async function, e.g. `console.log(await reformer.formStart({ dir: \"form\", target: \"renderer-react\", task: \"<the task text, word for word>\" }))`."
+    }
+  },
+  "required": [
+    "code"
+  ]
+}

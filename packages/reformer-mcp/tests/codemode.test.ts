@@ -4,6 +4,7 @@
  * (`./sandbox-contract`; браузерная песочница проверяется им же в `*.browser.test.ts`).
  */
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { keepsWhole, truncateOldResults } from '../eval/agents/ollama.mjs';
 import { apiDeclaration, asScriptCalls, functionName } from '../src/core/codemode/declaration';
@@ -216,5 +217,97 @@ describe('пустой второй edits в вызове formEdit', () => {
       'console.log(await reformer.formEdit({ "dir": "form", "edits": [{ "op": "add_rule", "field": "c" }] }))',
       'console.log(await reformer.formEdit({ dir: "form", edits: [] }))',
     ]);
+  });
+});
+
+describe('контракт code-guided', () => {
+  const sandbox: ScriptSandbox = { run: async () => ({ logs: [] }) };
+  const [runScript] = createToolCatalog(cliKnowledge, {
+    profile: 'node',
+    guided: true,
+    codeMode: sandbox,
+  }).list();
+  // Объявление — всё после вводного абзаца.
+  const declaration = runScript.description.slice(runScript.description.indexOf('\n\n') + 2);
+
+  /** Ошибки типов скрипта против объявления: тело async-функции, как его исполняет run_script. */
+  function typeErrors(script: string): string[] {
+    const files = new Map([
+      ['reformer.d.ts', declaration],
+      [
+        'script.ts',
+        `export {};\nasync function main(): Promise<void> {\n${script}\n}\nvoid main;\n`,
+      ],
+    ]);
+    const options: ts.CompilerOptions = {
+      strict: true,
+      noEmit: true,
+      target: ts.ScriptTarget.ES2022,
+      lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
+      types: [],
+    };
+    const host = ts.createCompilerHost(options);
+    const read = host.getSourceFile.bind(host);
+    host.getSourceFile = (name, language, ...rest) =>
+      files.has(name)
+        ? ts.createSourceFile(name, files.get(name)!, language)
+        : read(name, language, ...rest);
+    host.fileExists = (name) => files.has(name) || ts.sys.fileExists(name);
+    host.readFile = (name) => files.get(name) ?? ts.sys.readFile(name);
+    const program = ts.createProgram([...files.keys()], options, host);
+    return ts
+      .getPreEmitDiagnostics(program)
+      .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '));
+  }
+
+  it('объявление компилируется: скрипт со всеми операциями проходит проверку типов', () => {
+    const script = `
+      console.log(await reformer.formStart({ dir: "form", target: "core", task: "t", specPath: "spec.md" }));
+      console.log(await reformer.formEdit({ dir: "form", edits: [
+        { op: "add_field", name: "login", label: "Логин", required: true, minLength: 3, message: "m" },
+        { op: "add_field", name: "city", label: "Город", options: ["a", { value: "b", label: "B" }] },
+        { op: "set_field", name: "city", component: "RadioGroup", initialValue: "a" },
+        { op: "rename_field", name: "login", to: "username", label: "Имя" },
+        { op: "remove_field", name: "city" },
+        { op: "add_array", name: "items", label: "Товары", minItems: 1 },
+        { op: "add_item_field", array: "items", name: "price", label: "Цена", type: "number", min: 0 },
+        { op: "add_step", title: "Шаг", fields: ["username", "items"] },
+        { op: "rename_step", title: "Шаг", to: "Покупатель" },
+        { op: "remove_step", title: "2" },
+        { op: "place", name: "username", step: "1" },
+        { op: "add_rule", field: "username", pattern: "^[a-z]+$", when: "model.x === 1" },
+        { op: "add_rule", field: "confirm", equals: "password" },
+        { op: "remove_rule", field: "username", rule: "minLength" },
+        { op: "add_behavior", kind: "compute", target: "total", expr: "(model.a ?? 0) * 2" },
+        { op: "remove_behavior", target: "total", kind: "compute" },
+        { op: "add_visibility", field: "city", showWhen: "model.x === 1" },
+        { op: "set_form", formName: "Форма" },
+        { op: "markup" },
+      ] }));
+      console.log(await reformer.formStatus({ dir: "form", confirm: "edit", skip: "behavior" }));
+      console.log(await reformer.formBuild({ dir: "form" }));
+    `;
+    expect(typeErrors(script)).toEqual([]);
+  });
+
+  it('чужой ключ операции и пропущенный обязательный — ошибки типов', () => {
+    const errors = typeErrors(`
+      await reformer.formEdit({ edits: [{ op: "add_rule", field: "x", component: "Input" }] });
+      await reformer.formEdit({ edits: [{ op: "rename_field", name: "a" }] });
+      await reformer.formStart({ target: "react" as never, task: "t" });
+      await reformer.formEdit({ edits: [{ op: "add_field", name: "a", label: "A", type: "text" }] });
+    `);
+    expect(errors.join('\n')).toMatch(/'component' does not exist in type 'AddRule'/);
+    expect(errors.join('\n')).toMatch(/Property 'to' is missing/);
+    expect(errors.join('\n')).toMatch(/Type '"text"' is not assignable/);
+  });
+
+  it('вводный абзац связки не зовёт писать файлы, а пример — formStart', () => {
+    expect(runScript.description).not.toMatch(/write files with your own file tools/);
+    expect(runScript.description).toMatch(/never write or rewrite them with file tools/);
+    expect(JSON.stringify(runScript.inputSchema)).toMatch(/reformer\.formStart/);
+    // Обычный Code Mode подаётся как прежде.
+    const [plain] = createToolCatalog(cliKnowledge, { profile: 'node', codeMode: sandbox }).list();
+    expect(plain.description).toMatch(/write files with your own file tools/);
   });
 });

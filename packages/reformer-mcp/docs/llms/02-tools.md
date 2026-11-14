@@ -233,12 +233,23 @@ no reference tools. Every answer ends with `Next:` — one exact call — until 
 `REFORMER_SURFACE=code-guided` puts the same API inside Code Mode — one `run_script` tool, the
 functions are `reformer.formStart`, `reformer.formEdit`, `reformer.formStatus`,
 `reformer.formBuild`. The `Next:` lines come as code (`await reformer.formEdit({…})`); a script
-that prints nothing gets the answer of its last call.
+that prints nothing gets the answer of its last call. Its `run_script` has its own TypeScript
+declaration: `edits: Edit[]`, where `Edit` is a union by `op` with a doc line on every key, the
+answer layout under `@returns` and `@example` calls; the preamble says the server writes every file
+of the form folder. The plain Code Mode surface is unchanged.
 
 - **`form_start`** `{dir?, target, task? | specPath?, formName?}` — plans the stages from the
   task words or the spec (fields; rows, steps, validation, cross-field rules, reactions as
   needed; markup on core) and saves them to `<dir>/form.plan.json`. With `specPath` and no intent
-  yet, it drafts `form.intent.json` from the spec as `plan_form` does.
+  yet, it drafts `form.intent.json` from the spec as `plan_form` does. A task that names a `.md`
+  file the server can read (as written or inside `dir`) gets it as `specPath`.
+
+  **A form already in `dir`** (an intent and no plan, or a plan of a change): the task changes it.
+  The plan is one stage `edit`: the changes with `form_edit`, then `confirm: "edit"` after a check
+  of the changes — what was added, removed or renamed since the start and what the task names in
+  backticks or parentheses (`` `phone` ``, `(phone)`) or as steps in «…»: still there, missing,
+  renamed. The checks of a new form (numbers, labels, lost fields) do not run on a change.
+
 - **`form_edit`** `{dir?, edits}` — flat edits; the server writes `form.intent.json` and runs the
   same build as `form_build` (the answer holds its `✓`/`✗ form_build` lines). Edits apply one by
   one: a rejected edit says how to fix it, the others still apply; `"edits":[]` only builds.
@@ -246,8 +257,10 @@ that prints nothing gets the answer of its last call.
   | op                            | Keys                                                                                                                                                                                        |
   | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
   | `add_field`, `set_field`      | `name`, `label`, `type` (string number boolean date), `options`, `mask`, `initialValue`, `placeholder`, `readonly`, `component`, `step`; `set_field` with `array` — a row field             |
-  | `remove_field`                | `name` — also drops the rules on it                                                                                                                                                         |
-  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`                                                                                                                   |
+  | `remove_field`                | `name` — a field, an array or a group; also drops its rules and names the rules of other fields that still read it                                                                          |
+  | `rename_field`                | `name`, `to`, `label` — rewrites rules, behaviors (targets, sources, `expr`), conditions, visibility and the layout                                                                         |
+  | `rename_step`, `remove_step`  | `title` (or number), `to`; `remove_step` drops the step with its fields, rules and behaviors                                                                                                |
+  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`. A plan without rows refuses `add_array` once; the same call again adds the stage                                 |
   | `add_step`, `place`           | `title`, `fields`; `name`, `step` (number, title or selector)                                                                                                                               |
   | `add_rule`                    | `field`, `array`, `required` `email` `phone` `url` `integer` (true), `min` `max` `minLength` `maxLength` (numbers), `pattern`, `rule`, `cross`, `equals` (another field), `when`, `message` |
   | `remove_rule`                 | `field`, `rule` — one validator; without it every rule of the field                                                                                                                         |
@@ -269,7 +282,7 @@ that prints nothing gets the answer of its last call.
   call. `skip` drops a stage the task does not need (validation is not skipped when the form has
   rules or the task names checks; behavior — when the task has a formula or a field shown on a
   condition), `add` adds one it needs, `confirm: "validation"` closes the check of the form
-  against the task.
+  against the task, `confirm: "edit"` — the check of a change.
 
 A stage is done by the content of the intent, not by the model's word; `Done` needs a passing
 build on the current files with types checked. Validation ends with a check against the task: the
