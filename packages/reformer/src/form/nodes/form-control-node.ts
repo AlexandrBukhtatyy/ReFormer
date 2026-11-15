@@ -30,10 +30,6 @@ const NO_PATH: ReadonlySignal<string> = computed(() => '');
 export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly [NODE_KIND] = 'control' as const;
 
-  readonly value: ReadonlySignal<T>;
-  readonly valid: ReadonlySignal<boolean>;
-  readonly invalid: ReadonlySignal<boolean>;
-  readonly pending: ReadonlySignal<boolean>;
   readonly disabled: ReadonlySignal<boolean>;
   readonly touched: ReadonlySignal<boolean>;
   /** Уходы из поля, включая повторные, — триггер стратегии `blur`. @internal */
@@ -43,9 +39,20 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
   readonly component: ComponentRef | undefined;
   readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
-  readonly path: ReadonlySignal<string>;
-  readonly shouldShowError: ReadonlySignal<boolean>;
-  readonly shouldShowIssues: ReadonlySignal<boolean>;
+
+  /*
+   * Производные состояния — при первом чтении. В мастере поля невидимых шагов их не читает никто:
+   * ни разметка, ни сводные значения (те читают детей внутри своих `computed`, то есть только при
+   * вычислении). Создавать их при построении — по объекту и замыканию на каждое такое поле.
+   */
+  private valueSignal: ReadonlySignal<T> | undefined;
+  private pendingSignal: ReadonlySignal<boolean> | undefined;
+  private invalidSignal: ReadonlySignal<boolean> | undefined;
+  private validSignal: ReadonlySignal<boolean> | undefined;
+  private revealedSignal: ReadonlySignal<boolean> | undefined;
+  private shouldShowErrorSignal: ReadonlySignal<boolean> | undefined;
+  private shouldShowIssuesSignal: ReadonlySignal<boolean> | undefined;
+  private pathSignal: ReadonlySignal<string> | undefined;
 
   private readonly source: Signal<T>;
   /**
@@ -73,27 +80,65 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
     this.locked = config.disabled === true;
     this.componentState = createComponentState(config.componentProps ?? {});
 
-    const { disabled } = this.availability;
-    const blocking = this.issueState.blocking;
-    this.value = computed(() => this.source.value);
-    this.disabled = disabled;
-    this.pending = computed(() => !disabled.value && this.pendingState.active.value);
-    this.invalid = computed(() => !disabled.value && !this.pending.value && blocking.value);
-    this.valid = computed(() => !disabled.value && !this.pending.value && !blocking.value);
+    this.disabled = this.availability.disabled;
     this.touched = this.interaction.touched;
     this.touches = this.interaction.touches;
     this.dirty = this.interaction.dirty;
     this.issues = this.issueState.list;
     this.ownIssues = this.issueState.list;
     this.componentProps = this.componentState.props;
-    this.path = livePathOf(this.source) ?? NO_PATH;
-    const revealed = computed(() => this.touched.value || this.dirty.value);
-    this.shouldShowError = computed(() => this.invalid.value && revealed.value);
-    // То же условие, что у ошибки, но для любого замечания: предупреждение поле невалидным не
-    // делает, а показать его нужно.
-    this.shouldShowIssues = computed(
-      () => !disabled.value && !this.pending.value && this.issues.value.length > 0 && revealed.value
-    );
+  }
+
+  get value(): ReadonlySignal<T> {
+    return (this.valueSignal ??= computed(() => this.source.value));
+  }
+
+  get pending(): ReadonlySignal<boolean> {
+    return (this.pendingSignal ??= computed(
+      () => !this.disabled.value && this.pendingState.active.value
+    ));
+  }
+
+  get invalid(): ReadonlySignal<boolean> {
+    return (this.invalidSignal ??= computed(
+      () => !this.disabled.value && !this.pending.value && this.issueState.blocking.value
+    ));
+  }
+
+  get valid(): ReadonlySignal<boolean> {
+    return (this.validSignal ??= computed(
+      () => !this.disabled.value && !this.pending.value && !this.issueState.blocking.value
+    ));
+  }
+
+  /** Живой путь поля в модели; сигнал пути модель тоже заводит по первому запросу. */
+  get path(): ReadonlySignal<string> {
+    return (this.pathSignal ??= livePathOf(this.source) ?? NO_PATH);
+  }
+
+  get shouldShowError(): ReadonlySignal<boolean> {
+    return (this.shouldShowErrorSignal ??= computed(
+      () => this.invalid.value && this.revealed.value
+    ));
+  }
+
+  /**
+   * То же условие, что у ошибки, но для любого замечания: предупреждение поле невалидным не делает,
+   * а показать его нужно.
+   */
+  get shouldShowIssues(): ReadonlySignal<boolean> {
+    return (this.shouldShowIssuesSignal ??= computed(
+      () =>
+        !this.disabled.value &&
+        !this.pending.value &&
+        this.issues.value.length > 0 &&
+        this.revealed.value
+    ));
+  }
+
+  /** Трогали или меняли — тогда замечания поля видны. */
+  private get revealed(): ReadonlySignal<boolean> {
+    return (this.revealedSignal ??= computed(() => this.touched.value || this.dirty.value));
   }
 
   getValue(): T {
