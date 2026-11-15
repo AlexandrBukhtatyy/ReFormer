@@ -4,22 +4,22 @@ sidebar_position: 1
 
 # Overview
 
-`@reformer/mcp` is an MCP (Model Context Protocol) server for the `@reformer/*` library. It supplies
-AI assistants (Claude Code, Cursor, other MCP clients) with per-package documentation, a JSDoc index
-of public symbols, and reference form examples — right in the conversation context.
+`@reformer/mcp` is an MCP (Model Context Protocol) server for the `@reformer/*` library. Through it
+an AI assistant (Claude Code, Cursor, another MCP client) creates and changes ReFormer forms: the
+server plans the work, builds the form module, checks the types and writes the files itself, and the
+assistant does not need to read the library sources.
 
-The idea is that the server alone is enough for an assistant to build a form with ReFormer: there is
-no need to read the library sources. The server exposes documentation as **resources**, reference and
-generating **tools** (API selection, form planning and assembly, code checking), and workflow
-**prompts** following the unified form contract: model → one schema → one `createForm` bundle →
-rules → behavior → wizard (step flow) → rendering.
+A form follows the unified contract: model → one schema → one `createForm` bundle → rules →
+behavior → wizard (step flow) → rendering. The tool set (`REFORMER_SURFACE=tools`) adds the package
+documentation as **resources**, reference **tools** (API selection, a JSDoc index of public symbols,
+recipes, code checking) and workflow **prompts**.
 
 ## Why MCP — in numbers
 
 The same agent with the server builds and edits forms more reliably, faster and cheaper than from
-the package documentation alone. Over 270 Claude Sonnet runs, with the `code-guided-dsl` profile 97%
-of runs passed every check against 80% without MCP, the work went 3.3 times faster and cost 4 times
-less. The summary infographic and the results per scenario are on the
+the package documentation alone. Over 270 Claude Sonnet runs, with the `code-guided-dsl` surface —
+now the default — 97% of runs passed every check against 80% without MCP, the work went 3.3 times
+faster and cost 4 times less. The summary infographic and the results per scenario are on the
 [Measurements: with MCP and without](./benchmark) page.
 
 ## What is MCP?
@@ -52,10 +52,54 @@ claude mcp add --transport stdio reformer -- npx @reformer/mcp
 ```
 
 Check the connection with `claude mcp list`. Setup for other IDEs (Cursor, Windsurf, Cline) is in the
-[Quick Start](./quick-start). Debug mode is enabled with the `REFORMER_DEBUG=true` environment
-variable (it adds the `debug` tool, the `reformer://debug` resource and a prompt of the same name).
+[Quick Start](./quick-start). In the tool set debug mode is enabled with the `REFORMER_DEBUG=true`
+environment variable (it adds the `debug` tool, the `reformer://debug` resource and a prompt of the
+same name).
+
+## Surfaces
+
+The `REFORMER_SURFACE` environment variable picks what the server gives the assistant:
+
+| Surface                         | What the assistant sees                                                         | When to use                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `code-guided-dsl` (default)     | two tools, `search` and `execute`; both take JavaScript                         | create or change a form                                                                          |
+| `tools`                         | the [tool set](#tools), the [prompts](#prompts) and the [resources](#resources) | API reference for your own code, checking code with `validate_form`, your own `form.intent.json` |
+| `code`, `guided`, `code-guided` | experiments: Code Mode (one `run_script`) and profiles for small models         | measurements                                                                                     |
+
+### Default: search and execute
+
+The server leads the work. The assistant starts it in `execute` with a `reformer.formStart` call
+carrying the task text or a spec, then changes the form with the builder: method chains record
+edits, `save()` sends them, and the server builds the module. The server writes every file of the
+form folder, the JSX markup of `@reformer/core` too.
+
+```js
+// execute — edits with the builder
+const f = reformer.form();
+f.add('email', 'Email').required().email();
+f.add('company', 'Company')
+  .required()
+  .showWhen((m) => m.customerType === 'company');
+console.log(await f.save());
+```
+
+Every answer ends with a `Next:` line with ready code for `execute` — until an answer says `Done`.
+`search` only reads: the current form, the task and the parsed spec, the builder methods, the plan.
+Details are in [Tools](./tools#default-search-and-execute).
+
+### The tool set
+
+```bash
+claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @reformer/mcp
+```
+
+This is how the server worked before `code-guided-dsl` became the default. Use the tool set when the
+assistant writes its own code next to a form and needs API reference, when your tooling writes
+`form.intent.json` itself and calls `form_build`, or when the client works through prompts.
 
 ## Tools
+
+The server gives this set with `REFORMER_SURFACE=tools`.
 
 | Tool              | Role                                                                                                                                                |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -89,6 +133,8 @@ Each tool is described in detail in [Tools](./tools).
 
 ## Prompts
 
+Only in the `REFORMER_SURFACE=tools` set: every prompt leads through `form_build`.
+
 - `start-here` — the entry point: the canonical workflow of the unified contract and a map of which
   prompt, tool or resource to use at each step.
 - `discover-context` — determine the project's target stack (`core` / `renderer-react` /
@@ -109,6 +155,8 @@ content is also available in the tools (`get_context`, `plan_form`, `form_build`
 in the `reformer://guide` resource.
 
 ## Resources
+
+Only in the `REFORMER_SURFACE=tools` set.
 
 - `reformer://guide` — the server's self-documentation: the workflow, the form file layout, which
   tool and resource to use at each step.

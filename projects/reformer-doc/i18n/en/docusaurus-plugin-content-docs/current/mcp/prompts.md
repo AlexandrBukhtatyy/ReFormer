@@ -9,6 +9,10 @@ a slash command), and the server inserts instructions and the relevant documenta
 the conversation. Each prompt loads only the relevant sections, so it does not pull in the entire
 documentation.
 
+Prompts exist only in the tool set (`REFORMER_SURFACE=tools`): every one of them leads through
+`form_build`. In the default surface (`code-guided-dsl`) the server's plan leads the work, and it has
+no prompts — see [surfaces](./overview#surfaces).
+
 | Prompt             | Arguments                                | What it does                                                                                              |
 | ------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `start-here`       | —                                        | The canonical workflow of the unified form contract and a map: which prompt, tool, resource at which step |

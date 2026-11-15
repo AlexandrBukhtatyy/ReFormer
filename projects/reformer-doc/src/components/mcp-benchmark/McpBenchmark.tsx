@@ -22,7 +22,7 @@ function useLang(): Lang {
 
 const ARM_LABELS: Record<ArmId, Record<Lang, string>> = {
   'no-mcp': { ru: 'Без MCP', en: 'No MCP' },
-  'mcp-default': { ru: 'MCP по умолчанию', en: 'MCP, default' },
+  'mcp-default': { ru: 'MCP · инструменты', en: 'MCP · tool set' },
   'mcp-dsl': { ru: 'MCP · code-guided-dsl', en: 'MCP · code-guided-dsl' },
 };
 
@@ -273,8 +273,8 @@ export function McpSummary(): ReactNode {
           : `прогонов проходят все проверки с MCP · code-guided-dsl ${t.vs} ${pct(none)}% без MCP`,
       note:
         lang === 'en'
-          ? `MCP, default: ${pct(def)}%, mean score ${def.score.toFixed(3)} ${t.vs} ${none.score.toFixed(3)}`
-          : `MCP по умолчанию: ${pct(def)}%, средний счёт ${def.score.toFixed(3)} ${t.vs} ${none.score.toFixed(3)}`,
+          ? `MCP · tool set: ${pct(def)}%, mean score ${def.score.toFixed(3)} ${t.vs} ${none.score.toFixed(3)}`
+          : `MCP · инструменты: ${pct(def)}%, средний счёт ${def.score.toFixed(3)} ${t.vs} ${none.score.toFixed(3)}`,
     },
     {
       kicker: t.speed,
@@ -285,8 +285,8 @@ export function McpSummary(): ReactNode {
           : `быстрее: ${fmtMinutes(dsl.minutesTotal, lang)} на 90 прогонов ${t.vs} ${fmtMinutes(none.minutesTotal, lang)}`,
       note:
         lang === 'en'
-          ? `MCP, default: ×${fmtRatio(none.minutesTotal / def.minutesTotal)} (${fmtMinutes(def.minutesTotal, lang)})`
-          : `MCP по умолчанию: ×${fmtRatio(none.minutesTotal / def.minutesTotal)} (${fmtMinutes(def.minutesTotal, lang)})`,
+          ? `MCP · tool set: ×${fmtRatio(none.minutesTotal / def.minutesTotal)} (${fmtMinutes(def.minutesTotal, lang)})`
+          : `MCP · инструменты: ×${fmtRatio(none.minutesTotal / def.minutesTotal)} (${fmtMinutes(def.minutesTotal, lang)})`,
     },
     {
       kicker: t.cost,
@@ -297,8 +297,8 @@ export function McpSummary(): ReactNode {
           : `дешевле: ${fmtUsd(dsl.costTotal)} ${t.vs} ${fmtUsd(none.costTotal)} за 90 прогонов`,
       note:
         lang === 'en'
-          ? `per passed run ${fmtUsd(dsl.costPerPass)} ${t.vs} ${fmtUsd(none.costPerPass)}; MCP, default: ${fmtUsd(def.costTotal)}`
-          : `за пройденный прогон ${fmtUsd(dsl.costPerPass)} ${t.vs} ${fmtUsd(none.costPerPass)}; MCP по умолчанию: ${fmtUsd(def.costTotal)}`,
+          ? `per passed run ${fmtUsd(dsl.costPerPass)} ${t.vs} ${fmtUsd(none.costPerPass)}; MCP · tool set: ${fmtUsd(def.costTotal)}`
+          : `за пройденный прогон ${fmtUsd(dsl.costPerPass)} ${t.vs} ${fmtUsd(none.costPerPass)}; MCP · инструменты: ${fmtUsd(def.costTotal)}`,
     },
     {
       kicker: t.tokens,

@@ -84,6 +84,30 @@ Add to the Cline extension settings:
 }
 ```
 
+### The tool set instead of the default
+
+By default the server gives two tools, `search` and `execute`: the assistant builds and changes the
+form by the server's plan. API reference, code checking, resources and prompts are in the tool set
+([surfaces](./overview#surfaces)). To turn it on, set an environment variable:
+
+```bash
+claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @reformer/mcp
+```
+
+In the JSON config of Cursor, Windsurf and Cline — the `env` key:
+
+```json
+{
+  "mcpServers": {
+    "reformer": {
+      "command": "npx",
+      "args": ["@reformer/mcp"],
+      "env": { "REFORMER_SURFACE": "tools" }
+    }
+  }
+}
+```
+
 ## First request
 
 After setup, try asking the AI to help with ReFormer:
@@ -92,19 +116,18 @@ After setup, try asking the AI to help with ReFormer:
 Create a registration form with email, password and confirm password fields
 ```
 
-The AI will automatically get the ReFormer documentation through the MCP server and help with:
-
-- The form's TypeScript types
-- The form schema with components
-- Validation rules
-- A React component
+The assistant starts with `execute` and a `reformer.formStart` call carrying the request text. The
+server plans the work and leads through it: the assistant adds fields and rules with the builder,
+and the server builds the form module — the model, the schema with components, the validation rules
+and the markup — and checks the types. The work is finished when a server answer says `Done`.
 
 ## Verifying it works
 
-If the MCP server is configured correctly, the AI will be able to answer questions about ReFormer
-using up-to-date documentation.
+If the MCP server is configured correctly, the assistant's tool list has `search` and `execute` of
+the `reformer` server (in Claude Code — the `/mcp` command).
 
-Try asking:
+With the tool set (`REFORMER_SURFACE=tools`) the assistant also answers questions about ReFormer
+from up-to-date documentation. Try asking:
 
 ```
 How do I add email validation in ReFormer?

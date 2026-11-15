@@ -4,11 +4,75 @@ sidebar_position: 3
 
 # Tools
 
-The MCP server provides tools the AI can call to perform tasks. There are ten by default; the
-eleventh, `debug`, appears only with `REFORMER_DEBUG=true`. The embedded profile (how the server runs
-inside the builder assistant) has only the reference tools and `validate_form`: `plan_form`,
-`form_build` and `report_issue` write files to disk. It is convenient to group the tools by the steps
-of working on a form.
+The MCP server provides tools the AI can call to perform tasks. Which ones is decided by the
+`REFORMER_SURFACE` environment variable ([surfaces](./overview#surfaces)). By default there are two,
+`search` and `execute`. The set of ten tools — reference, building from `form.intent.json`, code
+checking — comes with `REFORMER_SURFACE=tools`.
+
+## Default: search and execute
+
+Both tools take JavaScript — the body of an async function. The code runs in the server sandbox:
+no imports, no file system, no network.
+
+**`execute`** changes the form. The work starts with one `reformer.formStart` call: the server reads
+the task (or the spec by `specPath`), plans the stages and saves the plan in the form folder.
+
+```js
+console.log(
+  await reformer.formStart({
+    dir: 'form',
+    target: 'renderer-react', // the stack from the task: core, renderer-react or renderer-json
+    task: '<the task text>',
+  })
+);
+```
+
+Then the builder `reformer.form()` changes the form. A method chain records edits, `save()` sends
+them in one batch, and the server applies them, builds the module and checks the types:
+
+```js
+const f = reformer.form();
+f.add('password', 'Password')
+  .required('Enter a password')
+  .min(8, 'At least 8 characters')
+  .digit('At least one digit');
+f.add('confirm', 'Repeat password')
+  .required('Repeat the password')
+  .sameAs('password', 'Passwords differ');
+f.add('company', 'Company')
+  .required('Enter the company')
+  .showWhen((m) => m.customerType === 'company');
+console.log(await f.save());
+```
+
+- Conditions and formulas are arrows with one parameter: `m => m.method === 'courier'`. The server
+  reads their text with the TypeScript parser and rejects an assignment, a closure over script
+  variables and unknown calls.
+- An unknown method is not a script error: its chain gets `✗` with a hint at the method it may
+  mean.
+- Edits a script did not save are saved when it finishes without an error.
+- The answer marks every edit with a `✓` or `✗` line naming the chain that made it and ends with a
+  `Next:` line with ready code for `execute` — until an answer says `Done`.
+
+Every file of the form folder belongs to the server: a `form.intent.json` or a module edited by hand
+is put back to the server's last version.
+
+**`search`** only reads. Its code sees frozen data: `form` (fields with their rules and steps,
+arrays, steps, behavior, visibility, the submit button), `task` (the task and the parsed spec),
+`api` (builder methods with the signature, doc and example) and `plan` (stages, the last build).
+The answer is at most 4000 characters.
+
+```js
+// the fields of the "Payment" step with their rules
+return form.fields.filter((field) => field.step === 'Payment');
+```
+
+## The tool set: REFORMER_SURFACE=tools
+
+Ten tools; the eleventh, `debug`, appears only with `REFORMER_DEBUG=true`. The embedded profile (how
+the server runs inside the builder assistant) has only the reference tools and `validate_form`:
+`plan_form`, `form_build` and `report_issue` write files to disk. It is convenient to group the tools
+by the steps of working on a form.
 
 | Step                    | Tools                                                                                                    |
 | ----------------------- | -------------------------------------------------------------------------------------------------------- |

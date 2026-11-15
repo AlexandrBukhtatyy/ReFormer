@@ -20,10 +20,10 @@ MCP server then? To answer with numbers, the same agent — Claude Sonnet in Cla
 same form tasks under three conditions:
 
 - **No MCP** — file tools only and the installed packages with their documentation;
-- **MCP, default** — the same plus the `@reformer/mcp` server in the surface a user gets out of the
-  box;
-- **MCP · code-guided-dsl** — the same plus the server in the form builder profile
-  (`REFORMER_SURFACE=code-guided-dsl`).
+- **MCP · tool set** — the same plus the `@reformer/mcp` server with its tool set
+  (`REFORMER_SURFACE=tools`), the server default at the time of the measurement;
+- **MCP · code-guided-dsl** — the same plus the server with the form builder
+  (`REFORMER_SURFACE=code-guided-dsl`). After the measurement this surface became the default.
 
 The same verifier checks every run: the build and types first, then the behavior of the form —
 values, rules, reactions, wizard steps. The conditions are in [How it was measured](#how-it-was-measured).
@@ -40,9 +40,9 @@ values, rules, reactions, wizard steps. The conditions are in [How it was measur
   plan, the build and the type check.
 - **Editing and removing** in a ready form pass in all three arms almost without failures, but
   with MCP it is faster and cheaper.
-- **MCP, default** does not yet beat working without the server by the number of passed runs,
-  though its mean check score is higher: its failures on creation are one known issue (the rule
-  “pay by invoice — companies only” does not reach the form), and it is being fixed.
+- **The tool set** does not beat working without the server by the number of passed runs, though
+  its mean check score is higher: its failures on creation are one known issue (the rule “pay by
+  invoice — companies only” does not reach the form), and it is being fixed.
 
 ## By task
 
