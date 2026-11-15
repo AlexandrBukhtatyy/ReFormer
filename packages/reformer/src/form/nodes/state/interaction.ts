@@ -1,11 +1,14 @@
 /**
  * Взаимодействие с полем: трогали ли его и меняли ли значение.
  *
+ * Флаги — {@link OwnedSignal}: снаружи только чтение, пишет их нода через методы.
+ *
  * @internal
  * @module form/nodes/state/interaction
  */
 
-import { batch, computed, signal, type ReadonlySignal } from '@preact/signals-core';
+import { batch, type ReadonlySignal } from '@preact/signals-core';
+import { OwnedSignal } from './owned-signal';
 
 export interface InteractionState {
   readonly touched: ReadonlySignal<boolean>;
@@ -19,23 +22,36 @@ export interface InteractionState {
   setDirty(dirty: boolean): void;
 }
 
+class Interaction implements InteractionState {
+  private readonly touchedSignal = new OwnedSignal(false);
+  private readonly dirtySignal = new OwnedSignal(false);
+  private readonly touchesSignal = new OwnedSignal(0);
+
+  get touched(): ReadonlySignal<boolean> {
+    return this.touchedSignal;
+  }
+
+  get dirty(): ReadonlySignal<boolean> {
+    return this.dirtySignal;
+  }
+
+  get touches(): ReadonlySignal<number> {
+    return this.touchesSignal;
+  }
+
+  setTouched(value: boolean): void {
+    // Одной волной: метка и счётчик меняются вместе, подписчики просыпаются один раз.
+    batch(() => {
+      this.touchedSignal.set(value);
+      if (value) this.touchesSignal.set(this.touchesSignal.peek() + 1);
+    });
+  }
+
+  setDirty(value: boolean): void {
+    this.dirtySignal.set(value);
+  }
+}
+
 export function createInteraction(): InteractionState {
-  const touched = signal(false);
-  const dirty = signal(false);
-  const touches = signal(0);
-  return {
-    touched: computed(() => touched.value),
-    dirty: computed(() => dirty.value),
-    touches: computed(() => touches.value),
-    setTouched: (value) => {
-      // Одной волной: метка и счётчик меняются вместе, подписчики просыпаются один раз.
-      batch(() => {
-        touched.value = value;
-        if (value) touches.value = touches.peek() + 1;
-      });
-    },
-    setDirty: (value) => {
-      dirty.value = value;
-    },
-  };
+  return new Interaction();
 }

@@ -10,7 +10,7 @@
  * @module form/nodes/state/component
  */
 
-import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
+import { computed, signal, type ReadonlySignal, type Signal } from '@preact/signals-core';
 import { isSignal } from '../../../signals';
 import { leafOfSignal } from '../../../model/model-nodes';
 import { isModelContainerSignal } from '../../../model/model-signals-proxy';
@@ -36,12 +36,20 @@ function unwrapSignals(raw: Readonly<Record<string, unknown>>): Readonly<Record<
   return out ?? raw;
 }
 
+class Component implements ComponentState {
+  private readonly raw: Signal<Readonly<Record<string, unknown>>>;
+  readonly props: ReadonlySignal<Readonly<Record<string, unknown>>>;
+
+  constructor(initial: Record<string, unknown>) {
+    this.raw = signal<Readonly<Record<string, unknown>>>(initial);
+    this.props = computed(() => unwrapSignals(this.raw.value));
+  }
+
+  update(patch: Record<string, unknown>): void {
+    this.raw.value = { ...this.raw.peek(), ...patch };
+  }
+}
+
 export function createComponentState(initial: Record<string, unknown> = {}): ComponentState {
-  const props = signal<Readonly<Record<string, unknown>>>(initial);
-  return {
-    props: computed(() => unwrapSignals(props.value)),
-    update: (patch) => {
-      props.value = { ...props.peek(), ...patch };
-    },
-  };
+  return new Component(initial);
 }

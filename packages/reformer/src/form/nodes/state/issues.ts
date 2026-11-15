@@ -1,11 +1,14 @@
 /**
  * Замечания ноды и признак блокирующих: `severity: 'warning'` отправку не блокирует.
  *
+ * Список — {@link OwnedSignal}: снаружи только чтение, пишут его `set` и `clear`.
+ *
  * @internal
  * @module form/nodes/state/issues
  */
 
-import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
+import { computed, type ReadonlySignal } from '@preact/signals-core';
+import { OwnedSignal } from './owned-signal';
 import type { ValidationIssue } from '../../types/contracts';
 
 export interface IssuesState {
@@ -15,16 +18,27 @@ export interface IssuesState {
   clear(): void;
 }
 
+const NO_ISSUES: readonly ValidationIssue[] = [];
+
+class Issues implements IssuesState {
+  private readonly listSignal = new OwnedSignal<readonly ValidationIssue[]>(NO_ISSUES);
+  readonly blocking: ReadonlySignal<boolean> = computed(() =>
+    this.listSignal.value.some((issue) => issue.severity !== 'warning')
+  );
+
+  get list(): ReadonlySignal<readonly ValidationIssue[]> {
+    return this.listSignal;
+  }
+
+  set(issues: readonly ValidationIssue[]): void {
+    this.listSignal.set(issues);
+  }
+
+  clear(): void {
+    this.listSignal.set([]);
+  }
+}
+
 export function createIssues(): IssuesState {
-  const list = signal<readonly ValidationIssue[]>([]);
-  return {
-    list: computed(() => list.value),
-    blocking: computed(() => list.value.some((issue) => issue.severity !== 'warning')),
-    set: (issues) => {
-      list.value = issues;
-    },
-    clear: () => {
-      list.value = [];
-    },
-  };
+  return new Issues();
 }

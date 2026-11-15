@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { effect } from '@preact/signals-core';
+import { effect, type Signal } from '@preact/signals-core';
 import { createPending } from '../../../../src/form/nodes/state/pending';
 
 describe('pending — счётчик прогонов async-правил', () => {
@@ -73,6 +73,15 @@ describe('pending — счётчик прогонов async-правил', () =>
     stop();
 
     expect(seen).toEqual([false, true, false]);
+  });
+
+  it('наружу — только чтение: признак меняют только отметки mark', () => {
+    const state = createPending();
+
+    expect(() => {
+      (state.active as Signal<boolean>).value = true;
+    }).toThrow(TypeError);
+    expect(state.active.value).toBe(false);
   });
 
   it('каждый вызов — свой счётчик', () => {
