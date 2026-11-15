@@ -6,8 +6,8 @@ import type { Props } from '@theme/AnnouncementBar/Content';
 import styles from './styles.module.css';
 
 const translations: Record<string, string> = {
-  en: '🚧 ReFormer is in beta. API may change. <a href="https://github.com/AlexandrBukhtatyy/ReFormer/issues">Report issues</a>',
-  ru: '🚧 ReFormer в бета-версии. API может измениться. <a href="https://github.com/AlexandrBukhtatyy/ReFormer/issues">Сообщить о проблеме</a>',
+  en: '🚧 ReFormer is in the testing stage, the release is coming soon. <a href="https://github.com/AlexandrBukhtatyy/ReFormer/issues">Report issues</a>',
+  ru: '🚧 ReFormer находится на стадии тестирования, скоро релиз. <a href="https://github.com/AlexandrBukhtatyy/ReFormer/issues">Сообщить о проблеме</a>',
 };
 
 export default function AnnouncementBarContent(props: Props): ReactNode {

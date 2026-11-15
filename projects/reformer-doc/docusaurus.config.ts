@@ -223,7 +223,7 @@ const config: Config = {
     announcementBar: {
       id: 'beta_banner',
       content:
-        '🚧 ReFormer is in beta. API may change. <a href="https://github.com/AlexandrBukhtatyy/ReFormer/issues">Report issues</a>',
+        '🚧 ReFormer is in the testing stage, the release is coming soon. <a href="https://github.com/AlexandrBukhtatyy/ReFormer/issues">Report issues</a>',
       backgroundColor: '#fef3c7',
       textColor: '#92400e',
       isCloseable: true,
