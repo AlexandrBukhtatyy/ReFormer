@@ -120,6 +120,22 @@ export async function planFormTool(args: PlanFormArgs, k: Knowledge): Promise<To
     );
   }
 
+  return draftFromSpec(spec, specPath, args, k);
+}
+
+/**
+ * Черновик по тексту спеки: на диск, сводка в ответ. Текст — из файла (`plan_form`) или само
+ * задание, когда оно и есть спецификация: модель вставляла spec.md в «task» вместо `specPath`, и
+ * черновика не было (order-create, батч 20261114T235104Z-4e30, ReFormer-f2fs.20).
+ *
+ * @param source - откуда текст: путь спеки или «the task» — для строки ответа
+ */
+export async function draftFromSpec(
+  spec: string,
+  source: string,
+  args: Pick<PlanFormArgs, 'dir' | 'target'>,
+  k: Knowledge
+): Promise<ToolTextResult> {
   const opened = k.forms.open(typeof args.dir === 'string' ? args.dir : null);
   if (!opened.ok) return invalidCall(`✗ plan_form: form folder — ${opened.reason}`);
   const { directory } = opened;
@@ -141,7 +157,7 @@ export async function planFormTool(args: PlanFormArgs, k: Knowledge): Promise<To
   directory.write(INTENT_FILE, formatIntentJson(draft));
 
   const lines = [
-    `✓ plan_form: drafted ${file} from ${specPath} — ${summary(intent, analysis)}.`,
+    `✓ plan_form: drafted ${file} from ${source} — ${summary(intent, analysis)}.`,
     '',
     'The draft is partial: field types without a type column are guessed by name; formulas of ' +
       'computed fields and visibility rules are not extracted — add them by the spec.',

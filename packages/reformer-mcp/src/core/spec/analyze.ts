@@ -11,6 +11,7 @@
  */
 
 import type { FieldType } from '../generate/form-intent.js';
+import { namedSubmitHandler, namedSubmitLabel } from '../generate/submit.js';
 
 export interface SpecField {
   name: string;
@@ -33,6 +34,10 @@ export interface SpecField {
   mask?: string;
   /** Фрагменты колонки «Валидация», которые распознать не удалось. Уходят в `warnings`. */
   unparsedRules: string[];
+  /** «Только для чтения» в колонке «Валидация»: поле считает форма, не человек. */
+  readOnly?: boolean;
+  /** «Необязательное» в колонке «Валидация»: правила обязательности у поля нет по спеке. */
+  optional?: boolean;
   /**
    * Номер шага (`### Шаг N`), под которым стоит строка. `undefined` — в спеке нет шагов или
    * строка стоит до первого из них.
@@ -72,6 +77,8 @@ export interface SpecStep {
 export interface SpecEntry {
   kind: 'field' | 'array';
   name: string;
+  /** Колонка «Раздел» строки: заголовок секции черновика (`from-spec`). */
+  section?: string;
 }
 
 export interface SpecAnalysis {
@@ -95,6 +102,10 @@ export interface SpecAnalysis {
    */
   arrays: string[];
   apiEndpoints: string[];
+  /** Подпись кнопки отправки, которую называет спека («Внизу страницы — кнопка «Оформить заказ»»). */
+  submitLabel: string | null;
+  /** Функция отправки, которую называет спека: `submitOrder(values)` из `./api`. */
+  submitHandler: string | null;
   hasCanonicalLabels: boolean;
   hasMasks: boolean;
   warnings: string[];
@@ -320,6 +331,10 @@ export function parseHeaderMap(table: string): Record<string, number> | null {
   return map;
 }
 
+/** Компонент массива строк формы (`FieldArray`), а не поля со списком значений (`SelectMulti`). */
+const isRowsComponent = (component: string): boolean =>
+  component === 'FieldArray' || component === 'FormArray';
+
 /** Значение ячейки по любому из синонимов заголовка. */
 function cellByHeader(
   cells: string[],
@@ -337,6 +352,11 @@ function cellByHeader(
 export function parseTypeCell(cell: string): { type: FieldType; component: string } | null {
   const raw = cell.replace(/<[^>]+>/g, '').trim();
   if (!raw) return null;
+  // Массив словами: «список строк», «массив», «list of rows».
+  // Без `\b`: граница слова в JS без флага `u` кириллицу не видит.
+  if (/^(?:список\s+строк|массив|list\s+of\s+rows|rows)(?![\p{L}\d])/iu.test(raw)) {
+    return { type: 'array', component: 'FieldArray' };
+  }
 
   // Без якоря в конце: в спеках за скобкой встречаются пометки («Input[number] readonly»,
   // «Input[number] — вычисляемое»). С якорем такая ячейка не матчилась вовсе и уходила в
@@ -368,6 +388,8 @@ export function parseTypeCell(cell: string): { type: FieldType; component: strin
     FieldArray: 'array',
     // Прежнее имя компонента: спека — внешний документ и может называть массив по-старому.
     FormArray: 'array',
+    // Множественный выбор — поле со списком значений, а не массив строк формы.
+    SelectMulti: 'array',
   };
   if (!(component in byComponent)) return null;
 
@@ -402,14 +424,17 @@ export function parseInitialCell(cell: string | undefined, type: FieldType): unk
   if (raw === 'null') return null;
   if (raw === 'undefined') return undefined;
   if (raw === 'true' || raw === 'false') return raw === 'true';
-  if (raw === '[]') return [];
-  if (raw === '{}') return {};
+  // Список и объект — только полю того же типа: `[]` у строкового поля ломал типы модели.
+  if (raw === '[]') return type === 'array' ? [] : undefined;
+  if (raw === '{}') return type === 'object' ? {} : undefined;
 
   const quoted = raw.match(/^['"`](.*)['"`]$/);
   if (quoted) return quoted[1];
 
   if (type === 'number' && /^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
   if (/^-?\d+(\.\d+)?$/.test(raw)) return type === 'string' ? raw : Number(raw);
+  // Значение варианта без кавычек — markdown снял обратные кавычки с `person`: это строка.
+  if (type === 'string' && /^[A-Za-z][\w-]*$/.test(raw)) return raw;
   return undefined;
 }
 
@@ -642,9 +667,19 @@ export const MAX_FIELDS = 200;
  */
 /** Синонимы колонок шапки. */
 const KEY_COLUMN = ['ключ в форме', 'ключ', 'field', 'key'];
-const TYPE_COLUMN = ['тип поля', 'тип', 'type'];
-const LABEL_COLUMN = ['название поля', 'название', 'label'];
-const VALUE_COLUMN = ['значение', 'value', 'default'];
+// «Компонент», «Подпись», «Начальное значение» — шапка спек стенда (order/spec.md): без синонимов
+// таблица читалась одними ключами — подписи, компоненты и начальные значения терялись, а «список
+// строк» не становился массивом (ReFormer-f2fs.21).
+const TYPE_COLUMN = ['тип поля', 'тип', 'type', 'компонент', 'component'];
+const LABEL_COLUMN = ['название поля', 'название', 'label', 'подпись', 'caption'];
+const VALUE_COLUMN = [
+  'значение',
+  'value',
+  'default',
+  'начальное значение',
+  'initial value',
+  'initial',
+];
 const VALIDATION_COLUMN = ['валидация', 'validation'];
 const SECTION_COLUMN = ['раздел', 'section'];
 
@@ -848,6 +883,20 @@ export interface SpecEntries {
  * полями; строка с ключом самого массива объявляет его. Каждая строка знает свой шаг — по
  * последнему заголовку `### Шаг N` над ней.
  */
+/**
+ * Массив, поля строки которого перечисляет таблица: ближайший заголовок над ней говорит о строке или
+ * элементе и называет массив ключом — «### Строка товара (`items`)», «### Item row (`items`)».
+ * Иначе — `null`: таблица полей формы.
+ */
+function rowArrayOf(content: string, offset: number): string | null {
+  const headings = [...content.slice(0, offset).matchAll(/^#{2,6}\s+(.+)$/gm)];
+  const heading = headings[headings.length - 1]?.[1] ?? '';
+  if (!/строк|элемент|\brow\b|\bitem\b/i.test(heading) || /^(?:шаг|step)\s+\d/i.test(heading)) {
+    return null;
+  }
+  return /`([a-z][A-Za-z0-9]*)`/.exec(heading)?.[1] ?? null;
+}
+
 export function extractEntries(content: string, dropped?: string[]): SpecEntries {
   const fields: SpecField[] = [];
   const arrays = new Map<string, SpecArray>();
@@ -883,6 +932,8 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
       when: extra?.when,
       ...(extra?.mask ? { mask: extra.mask } : {}),
       unparsedRules: extra?.unparsedRules ?? [],
+      ...(extra?.readOnly ? { readOnly: true } : {}),
+      ...(extra?.optional ? { optional: true } : {}),
       ...(step !== undefined ? { step } : {}),
       ...(heading !== undefined ? { stepHeading: heading } : {}),
     };
@@ -898,16 +949,19 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
         itemFields: [],
       };
       arrays.set(name, array);
-      order.push({ kind: 'array', name });
+      order.push({ kind: 'array', name, ...(section ? { section } : {}) });
     }
     return array;
   };
+
+  /** Раздел текущей строки таблицы («Раздел»): его помнит запись порядка поля или массива. */
+  let section: string | undefined;
 
   const pushField = (field: SpecField) => {
     if (seen.has(field.name) || arrays.has(field.name)) return;
     seen.add(field.name);
     fields.push(field);
-    order.push({ kind: 'field', name: field.name });
+    order.push({ kind: 'field', name: field.name, ...(section ? { section } : {}) });
   };
 
   const pushItem = (arrayName: string, field: SpecField, section?: string) => {
@@ -926,6 +980,8 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
 
   for (const table of readTables(content)) {
     const headers = table.headers;
+    // Таблица строки массива: заголовок над ней — «### Строка товара (`items`)».
+    const rowArray = table.rows.length > 0 ? rowArrayOf(content, table.rows[0].offset) : null;
     // Markdown-таблица без колонки ключа — не таблица полей (строки, сценарии, API): позиционный
     // фолбэк выдумывал бы поля из любой латинской ячейки. Она читается, только если иначе
     // полей нет вовсе (см. ниже).
@@ -934,6 +990,8 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
     for (const { offset, cells } of table.rows) {
       const step = stepAt(offset);
       heading = headingAt(offset);
+      const sectionCell = headers ? cellByHeader(cells, headers, SECTION_COLUMN)?.trim() : '';
+      section = sectionCell && !/^[-—–]$/.test(sectionCell) ? sectionCell : undefined;
 
       if (headers && hasKeyColumn(headers)) {
         const key = cellByHeader(cells, headers, KEY_COLUMN);
@@ -952,8 +1010,14 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
         }
         const read = (name: string) => {
           const type = parsedType?.type ?? guessField(name, note).type;
-          const validation = parseValidationCell(cellByHeader(cells, headers, VALIDATION_COLUMN));
+          const cell = cellByHeader(cells, headers, VALIDATION_COLUMN);
+          const validation = parseValidationCell(cell);
+          // Слова ячейки, которые не правило, а свойство поля: «Только для чтения», «Необязательное».
+          const readOnly = /только\s+для\s+чтения|\bread-?only\b/iu.test(cell ?? '');
+          const optional = /необязател|\boptional\b/iu.test(cell ?? '');
           return build(name, note, label, step, {
+            ...(readOnly ? { readOnly } : {}),
+            ...(optional ? { optional } : {}),
             type,
             component: parsedType?.component,
             initialValue: parseInitialCell(cellByHeader(cells, headers, VALUE_COLUMN), type),
@@ -969,8 +1033,12 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
           pushItem(item[1], read(item[2]), cellByHeader(cells, headers, SECTION_COLUMN));
           continue;
         }
+        if (rowArray && key && isFieldKey(key) && !key.includes('.')) {
+          pushItem(rowArray, read(key));
+          continue;
+        }
         if (key && isFieldKey(key)) {
-          if (parsedType?.type === 'array') {
+          if (parsedType?.type === 'array' && isRowsComponent(parsedType.component)) {
             // Строка самого массива: объявляет его и даёт подпись, полем модели не становится.
             const array = arrayOf(key, step);
             if (label?.trim()) array.label = label.trim();
@@ -1104,6 +1172,8 @@ export function analyzeSpec(content: string): SpecAnalysis {
     dependencies: extractDependencies(content),
     arrays,
     apiEndpoints: extractApiEndpoints(content),
+    submitLabel: namedSubmitLabel(content),
+    submitHandler: namedSubmitHandler(content),
     hasCanonicalLabels: /## Canonical user-facing strings/i.test(content),
     hasMasks: /InputMask|маска|mask:\s*['"`]/.test(content),
     warnings,

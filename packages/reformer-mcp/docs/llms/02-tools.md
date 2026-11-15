@@ -157,6 +157,18 @@ The parse is heuristic and says so: field types without a type column are guesse
 of computed fields and visibility rules are not extracted. A free-text description is no longer
 parsed — it gave an empty draft: write the intent by the grammar instead.
 
+On a page without steps, the «Раздел» (section) column groups the fields: rows in a row with one
+section become a `Section` with its title (selector — the model group all its fields share, else
+the title in latin); a single section for the whole form gives none. One `add_step` with the title
+of a section then makes every section a step of a wizard.
+
+The submit button the spec names («кнопка «Оформить заказ»») is drafted on a page without steps:
+a `Button` node at the end of the layout (`selector: "submit"`) and its send function in
+`operators` from `./api` — the one the spec names (`` `submitOrder(values)` из `./api` ``), else
+`submitForm`. On the renderers a click checks the whole form (`validateModel` with `formValidation`)
+and then calls it; on core the markup calls it through `bundle.submission.submit`. The build
+writes the function into `api.ts` as a stub that logs the values.
+
 ## form_build
 
 The one way to make a form: a module on disk from one file, `<dir>/form.intent.json`. You write and
@@ -252,7 +264,10 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   task words or the spec (fields; rows, steps, validation, cross-field rules, reactions as
   needed; markup on core) and saves them to `<dir>/form.plan.json`. With `specPath` and no intent
   yet, it drafts `form.intent.json` from the spec as `plan_form` does. A task that names a `.md`
-  file the server can read (as written or inside `dir`) gets it as `specPath`.
+  file the server can read (as written or inside `dir`) gets it as `specPath`; a task that is a
+  spec itself (a `#` title, `##` sections, a table of fields) is drafted the same way. With a
+  `specPath`, the words of the task add their stages to the spec's («a wizard instead of one
+  page» — the wizard stage).
 
   **A form already in `dir`** (an intent and no plan, or a plan of a change): the task changes it.
   The plan is one stage `edit`: the changes with `form_edit`, then `confirm: "edit"` after a check
@@ -267,21 +282,22 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   same build as `form_build` (the answer holds its `✓`/`✗ form_build` lines). Edits apply one by
   one: a rejected edit says how to fix it, the others still apply; `"edits":[]` only builds.
 
-  | op                            | Keys                                                                                                                                                                                        |
-  | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | `add_field`, `set_field`      | `name`, `label`, `type` (string number boolean date), `options`, `mask`, `initialValue`, `placeholder`, `readonly`, `component`, `step`; `set_field` with `array` — a row field             |
-  | `remove_field`                | `name` — a field, an array or a group; also drops its rules and names the rules of other fields that still read it                                                                          |
-  | `rename_field`                | `name`, `to`, `label` — rewrites rules, behaviors (targets, sources, `expr`), conditions, visibility and the layout                                                                         |
-  | `rename_step`, `remove_step`  | `title` (or number), `to`; `remove_step` drops the step with its fields, rules and behaviors                                                                                                |
-  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`. A plan without rows refuses `add_array` once; the same call again adds the stage                                 |
-  | `add_step`, `place`           | `title`, `fields`; `name`, `step` (number, title or selector)                                                                                                                               |
-  | `add_rule`                    | `field`, `array`, `required` `email` `phone` `url` `integer` (true), `min` `max` `minLength` `maxLength` (numbers), `pattern`, `rule`, `cross`, `equals` (another field), `when`, `message` |
-  | `remove_rule`                 | `field`, `rule` — one validator; without it every rule of the field                                                                                                                         |
-  | `add_behavior`                | `kind` (a core operator), `target`, `expr`, `array`, `when`, `resetOnDisable`; `sources` come from `expr`; the same behavior of the field is replaced                                       |
-  | `remove_behavior`             | `target`, `kind` — one kind; without it every behavior of the field                                                                                                                         |
-  | `add_visibility`              | `field` or `fields`, `showWhen` or `hideWhen` — renderer targets only                                                                                                                       |
-  | `set_form`                    | `formName`                                                                                                                                                                                  |
-  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits; the submit button takes the label the task gives it                                                 |
+  | op                            | Keys                                                                                                                                                                                                                                                                                                                                                                                     |
+  | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `add_field`, `set_field`      | `name`, `label`, `type` (string number boolean date), `options`, `mask`, `initialValue`, `placeholder`, `readonly`, `component`, `step`; `set_field` with `array` — a row field                                                                                                                                                                                                          |
+  | `remove_field`                | `name` — a field, an array or a group; also drops its rules, data sources no field uses any more and own operators only its rules called, and names the rules of other fields that still read it. A group left without fields goes with its subform node and its rules; a subform that loses one of its fields is opened in place (full paths); emptied sections and unused parts go too |
+  | `rename_field`                | `name`, `to`, `label` — rewrites rules, behaviors (targets, sources, `expr`), conditions, visibility and the layout                                                                                                                                                                                                                                                                      |
+  | `rename_step`, `remove_step`  | `title` (or number), `to`; `remove_step` drops the step with its fields, rules, behaviors and what only they used, as `remove_field`                                                                                                                                                                                                                                                     |
+  | `add_array`, `add_item_field` | `name`, `label`, `minItems`, `maxItems`; `array`, `name`, `label`, `type`. A plan without rows refuses `add_array` once; the same call again adds the stage; `add_array` with the name of a plain field turns that field into rows in its place                                                                                                                                          |
+  | `add_step`, `place`           | `title`, `fields`; `name`, `step` (number, title or selector). On a page with sections, `add_step` with the title of a section makes every section a step of a wizard, in the same order; a step that exists already is not added twice                                                                                                                                                  |
+  | `add_rule`                    | `field`, `array`, `required` `email` `phone` `url` `integer` (true), `min` `max` `minLength` `maxLength` (numbers), `pattern`, `rule`, `cross`, `equals` (another field), `async`, `delay`, `when`, `message`; `"required":false` — the field is optional on purpose: no rule, its `required` removed                                                                                    |
+  | `remove_rule`                 | `field`, `rule` — one validator (`async` — the async check); without it every rule of the field                                                                                                                                                                                                                                                                                          |
+  | `add_behavior`                | `kind` (a core operator), `target`, `expr`, `array`, `when`, `resetOnDisable`; `sources` come from `expr`; the same behavior of the field is replaced                                                                                                                                                                                                                                    |
+  | `remove_behavior`             | `target`, `kind` — one kind; without it every behavior of the field                                                                                                                                                                                                                                                                                                                      |
+  | `add_visibility`              | `field` or `fields`, `showWhen` or `hideWhen` — renderer targets only                                                                                                                                                                                                                                                                                                                    |
+  | `set_form`                    | `formName`                                                                                                                                                                                                                                                                                                                                                                               |
+  | `submit`                      | `label`, `handler?` — the submit button: a `Button` node at the end of the layout (`selector: "submit"`), on a wizard the `submitLabel` of `FormWizard`; again — a new label. A click sends the form                                                                                                                                                                                     |
+  | `markup`                      | core only: the server writes JSX in `index.tsx` and keeps it in step with later edits; the submit button stands where the layout has it, its label from `submit`, else the one the task gives                                                                                                                                                                                            |
 
   The server fills what it knows: the component by type, rule codes when a `message` is given,
   `sources` from the expression, the target from the plan. It also reads the usual slips: a
@@ -289,9 +305,22 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
   a text are its length, a hand-written email pattern is `email`, choices written
   `value — label` are split, a rule of a field shown on a condition is checked only while shown,
   numbers of a formula are made null-safe. A name in `expr` or `when` that is not a field is
-  rejected with the list of fields. A button is not an input: `add_field` whose name says
-  `submit`/`button`/`btn`, or whose label the task calls a button, is refused — the server draws
-  the submit button.
+  rejected with the list of fields. `async` is a condition over `value`, TRUE when the value is
+  valid (`"String(value).toUpperCase() === 'ABC123'"`): the server writes the async function
+  around it — an empty value passes, the answer comes after `delay` ms — with its own code and
+  `message`. A button is not an input: `add_field` whose label the task calls a button becomes
+  `submit` with that label; one whose name only says `submit`/`button`/`btn` is refused with the
+  `submit` edit. New fields of a form without steps go before its submit button. The click of
+  the button sends the form with a function of `api.ts` — `handler`, the one the task or spec
+  names, else `submitForm`; the build writes its stub, which logs the values. On the renderers
+  it is a node event: the button checks the whole form first, the wizard sends after its own
+  check (`onSubmit`); on core the server markup calls it. A page with sections becomes a wizard
+  by one `add_step` with the title of a section: each top-level section turns into a step with its
+  title, selector (its visibility now hides the step) and content — nested sections and subforms
+  stay; fields between sections join the step above them. The first `add_step` of a page with a
+  submit button makes it the button of the last step. The check against the task names a button
+  of the task — or of the spec of the plan — the form lacks (renderer targets) or labels
+  otherwise, and a field the task checks asynchronously with no `async` check.
 
 - **`form_status`** `{dir?, skip?, add?, confirm?}` — the stages, the last build, the next
   call. `skip` drops a stage the task does not need (validation is not skipped when the form has
@@ -301,7 +330,9 @@ list. `form_build` with no plan and no form leads to `form_start` instead of the
 
 A stage is done by the content of the intent, not by the model's word; `Done` needs a passing
 build on the current files with types checked, and its line names the component `index.tsx`
-exports. Validation ends with a check against the task: the answer shows the task, the fields and
+exports. Validation waits for a rule on every input but read-only and computed fields, checkboxes
+the task does not require to be checked, fields the task calls optional and fields made optional
+with `"required":false`. Validation ends with a check against the task: the answer shows the task, the fields and
 the rules, and names what differs (a field's words are read at every place the task names it) — an
 input the task names `(name)` with no field, a field the task calls required with no `required`
 rule, a field that needs at least one digit with no `pattern` for it, an email whose

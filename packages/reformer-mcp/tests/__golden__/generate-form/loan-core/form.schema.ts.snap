@@ -111,6 +111,7 @@ export const formSchema = (model: FormModel<ZayavkaNaKreditSokraschennayaShape>)
           selector: 'coBorrowers',
           model: model.$.coBorrowers,
           component: FieldArray,
+          componentProps: { title: 'Созаёмщики' },
           item: coBorrowersRow,
         },
         {

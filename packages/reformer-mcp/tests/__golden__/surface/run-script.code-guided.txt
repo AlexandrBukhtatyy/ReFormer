@@ -23,7 +23,7 @@ interface FieldProps {
 
 /** Checks of the task; a check written on a field becomes its rule. */
 interface Checks {
-  /** true — the value is required. */
+  /** true — the value is required; false — the task leaves the field optional: it stays without a rule. */
   required?: boolean;
   /** true — the value must be an email. */
   email?: boolean;
@@ -154,6 +154,10 @@ interface AddRule extends Checks {
   cross?: string;
   /** The key of the field this one must match (a repeated password). */
   equals?: string;
+  /** A check that waits for an answer (a server, a stub of it): a condition over value, TRUE when the value is valid — "String(value).toUpperCase() === 'ABC123'". The server writes the async function around it. */
+  async?: string;
+  /** The answer of the async check comes after this many milliseconds (the delay of the task). */
+  delay?: number;
   /** Only while this condition over model.<field> holds: "model.method === 'courier'". */
   when?: string;
 }
@@ -163,7 +167,7 @@ interface RemoveRule {
   op: "remove_rule";
   /** An existing field of the form (its key). */
   field: string;
-  /** The check to remove by its name ("minLength"); none — every check of the field. */
+  /** The check to remove by its name ("minLength", "async"); none — every check of the field. */
   rule?: string;
 }
 
@@ -211,13 +215,22 @@ interface SetForm {
   formName: string;
 }
 
+/** submit — The submit button of the form with the label of the task; again — a new label. A click checks the form and sends it with a stub function from api.ts. A button is not an input: never add_field. */
+interface Submit {
+  op: "submit";
+  /** The text of the button: the words of the task, in its language. */
+  label: string;
+  /** The send function the task or spec names ("submitOrder"); the server puts its stub in api.ts. */
+  handler?: string;
+}
+
 /** markup — core only: the server writes the JSX markup of index.tsx. */
 interface Markup {
   op: "markup";
 }
 
 /** One edit of the form: "op" says which. */
-type Edit = AddField | SetField | RenameField | RemoveField | AddArray | AddItemField | AddStep | RenameStep | RemoveStep | Place | AddRule | RemoveRule | AddBehavior | RemoveBehavior | AddVisibility | SetForm | Markup;
+type Edit = AddField | SetField | RenameField | RemoveField | AddArray | AddItemField | AddStep | RenameStep | RemoveStep | Place | AddRule | RemoveRule | AddBehavior | RemoveBehavior | AddVisibility | SetForm | Submit | Markup;
 
 declare const reformer: {
   /**

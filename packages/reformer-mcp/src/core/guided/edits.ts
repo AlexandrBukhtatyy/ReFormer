@@ -24,6 +24,15 @@ import type { ReformerTargetStack } from '../generate/form-intent.js';
 import type { UiKitComponents } from '../generate/ui-kit-components.js';
 
 import { EDIT_OPS, type EditOp } from './edit-spec.js';
+import { taskSubmitLabel } from './markup.js';
+import {
+  DEFAULT_SUBMIT_HANDLER,
+  isHandlerName,
+  namedSubmitHandler,
+  SUBMIT_MODULE,
+  SUBMIT_SELECTOR,
+  submitEventRule,
+} from '../generate/submit.js';
 
 export { EDIT_OPS, type EditOp };
 
@@ -91,6 +100,10 @@ export interface EditContext {
   readonly wizard?: boolean;
   /** Текст задания из плана: числовые варианты сверяются с ним. */
   readonly task?: string;
+  /** Функция отправки, которую называет спека плана (`submitOrder` из `./api`). */
+  readonly submitHandler?: string;
+  /** Правка объявила поле необязательным (`add_rule {"required":false}`): план его запомнит. */
+  readonly onOptional?: (path: string) => void;
   /**
    * Правка готовой формы: задание — изменение, а не форма целиком. Напоминание «задание называет это
    * поле» при удалении здесь ложное: поле названо как раз затем, чтобы его убрать (батч
@@ -111,6 +124,8 @@ export interface AppliedEdits {
   readonly outcomes: readonly EditOutcome[];
   /** Среди правок есть `markup`: разметку core пишет сервер. */
   readonly markup: boolean;
+  /** Поля, которые принятые правки объявили необязательными (`add_rule {"required":false}`). */
+  readonly optional: readonly string[];
 }
 
 class EditError extends Error {}
@@ -234,6 +249,12 @@ function requireField(file: Rec, name: string): Rec {
 function requireArray(file: Rec, name: string): Rec {
   const array = findArray(file, name);
   if (array) return array;
+  // Поле с тем же именем: строки делает `add_array` на его месте (ReFormer-f2fs.23).
+  if (findField(file, name)) {
+    throw new EditError(
+      `\`${name}\` is a field, not an array of rows — {"op":"add_array","name":"${name}","label":"<its label>"} turns it into rows in its place, then add_item_field`
+    );
+  }
   throw new EditError(`no array \`${name}\`${didYouMean(name, arraysOf(file).map(nameOf))}`);
 }
 
@@ -495,8 +516,8 @@ function unplace(file: Rec, ref: string): void {
 }
 
 /** Шаг по ключу: номер с 1, заголовок или селектор; без ключа — последний. */
-function findStep<T extends Rec>(steps: readonly T[], key: string | undefined): T {
-  if (steps.length === 0) throw new EditError('the form has no steps yet — add_step first');
+function findStep<T extends Rec>(steps: readonly T[], key: string | undefined, hint = ''): T {
+  if (steps.length === 0) throw new EditError(`the form has no steps yet — add_step first${hint}`);
   if (key === undefined) return steps[steps.length - 1];
   const index = /^\d+$/.test(key) ? Number(key) - 1 : -1;
   const found =
@@ -534,9 +555,148 @@ function place(file: Rec, ref: string, isArray: boolean, step: string | undefine
     childrenOf(target).push(isArray ? { kind: 'array', ref } : ref);
     return `step «${String(target.title)}»`;
   }
-  if (step !== undefined) throw new EditError('the form has no steps yet — add_step first');
-  childrenOf(layout.root).push(isArray ? { kind: 'array', ref } : ref);
+  if (step !== undefined)
+    throw new EditError(`the form has no steps yet — add_step first${sectionsHint(file)}`);
+  pushBeforeSubmit(layout.root, isArray ? { kind: 'array', ref } : ref);
   return 'the form';
+}
+
+/** Кнопка отправки в раскладке: `Button` с селектором `submit` или `type: "submit"`. */
+function isSubmitButton(node: unknown): node is Rec {
+  return (
+    isRecord(node) &&
+    node.component === 'Button' &&
+    (node.selector === 'submit' ||
+      (isRecord(node.componentProps) && node.componentProps.type === 'submit'))
+  );
+}
+
+/** Первый узел дерева, который проходит проверку. */
+function findNode(node: unknown, test: (node: Rec) => boolean): Rec | undefined {
+  if (!isRecord(node)) return undefined;
+  if (test(node)) return node;
+  for (const child of Array.isArray(node.children) ? node.children : []) {
+    const found = findNode(child, test);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
+ * Новый ребёнок корня — перед кнопкой отправки, если она в корне: поле, добавленное после кнопки,
+ * стояло бы на странице под ней.
+ */
+function pushBeforeSubmit(root: Rec, child: unknown): void {
+  const children = childrenOf(root);
+  const at = children.findIndex(isSubmitButton);
+  if (at >= 0) children.splice(at, 0, child);
+  else children.push(child);
+}
+
+const textsOf = (node: Rec): string =>
+  (Array.isArray(node.children) ? node.children : [])
+    .map((child) => (isRecord(child) && typeof child.text === 'string' ? child.text : ''))
+    .join('')
+    .trim();
+
+/** Обработчики событий узлов: записи `behavior` с событием и список `nodes` черновика по спеке. */
+function eventRows(file: Rec): Rec[] {
+  return [
+    ...(Array.isArray(file.behavior) ? file.behavior : []),
+    ...(Array.isArray(file.nodes) ? file.nodes : []),
+  ].filter((row): row is Rec => isRecord(row) && row.kind === 'onComponentEvent');
+}
+
+/**
+ * Отправка по кнопке: функция `./api` и обработчик. Функция — названная правкой (`handler`), заданием
+ * или спекой («`submitOrder(values)` из `./api`»), уже записанная в форме, иначе `submitForm`;
+ * заглушку в `api.ts` пишет сборка. На рендерерах — правило узла: у кнопки нажатие с проверкой всей
+ * формы, у мастера (`wizard` — его селектор) его отправка. На core функцию зовёт разметка сервера.
+ * Обработчик, который у узла уже есть, остаётся: его писал автор формы.
+ *
+ * Раньше кнопка на рендерерах была видна, но нажатие не делало ничего: `FormRenderer` не оборачивает
+ * форму в `<form>`, а события узлов в guided выразить было нечем (ReFormer-f2fs.17).
+ */
+function wireSubmit(
+  file: Rec,
+  edit: Rec,
+  ctx: EditContext,
+  node: { wizard?: string; selector?: string }
+): string {
+  const given = text(edit, 'handler');
+  if (given !== undefined && !isHandlerName(given)) {
+    throw new EditError(
+      `"handler" is the name of the send function, like "submitOrder" — got "${given}"`
+    );
+  }
+  const selector = node.wizard ?? node.selector ?? SUBMIT_SELECTOR;
+  const event = node.wizard ? 'onSubmit' : 'onClick';
+  const wired = eventRows(file).find((row) => row.selector === selector && row.event === event);
+  if (wired && given === undefined) return '';
+  const operators = isRecord(file.operators) ? file.operators : {};
+  const known = Object.keys(operators).find(
+    (name) => operators[name] === SUBMIT_MODULE && /^(?:submit|send)/i.test(name)
+  );
+  const handler =
+    given ?? ctx.submitHandler ?? namedSubmitHandler(ctx.task) ?? known ?? DEFAULT_SUBMIT_HANDLER;
+  file.operators = { ...operators, [handler]: SUBMIT_MODULE };
+  if (ctx.target === 'core')
+    return `; it sends with ${handler}(values) from ./api — the markup calls it`;
+  const rule = submitEventRule(handler, node.wizard, selector);
+  if (wired) Object.assign(wired, rule);
+  else list(file, 'behavior').push({ ...rule });
+  return node.wizard
+    ? `; the wizard sends with ${handler}(values) from ./api`
+    : `; a click checks the form, then sends with ${handler}(values) from ./api`;
+}
+
+/**
+ * Кнопка отправки — узел раскладки, а не поле. На рендерерах форму рисует схема, и кнопка, которой
+ * нет в intent, не появлялась вовсе: модель добавляла поле `submit` или `submitBtn` (батч
+ * 20261114T113832Z-68e8). У мастера кнопку последнего шага рисует `FormWizard` — правка ставит её
+ * подпись (`submitLabel`). На core узел рисует разметка сервера. Нажатие отправляет форму —
+ * {@link wireSubmit}.
+ */
+function submitOp(file: Rec, edit: Rec, ctx: EditContext): string {
+  const label = (text(edit, 'label') ?? text(edit, 'to') ?? text(edit, 'title'))?.trim();
+  if (!label) {
+    throw new EditError(
+      '"label" — the text of the button, the words of the task: {"op":"submit","label":"<the button of the task>"}'
+    );
+  }
+  if (Array.isArray(file.steps) && file.steps.length > 0) {
+    file.wizard = { ...(isRecord(file.wizard) ? file.wizard : {}), submitLabel: label };
+    // Мастер из сокращения `steps` — узел с селектором `wizard` (`stepsLayout`).
+    return `the submit button of the wizard: «${label}»${wireSubmit(file, edit, ctx, { wizard: 'wizard' })}`;
+  }
+  const { root } = layoutOf(file) as { kind: 'tree'; root: Rec };
+  const wizard = findNode(root, (node) => node.component === 'FormWizard');
+  if (wizard) {
+    wizard.componentProps = {
+      ...(isRecord(wizard.componentProps) ? wizard.componentProps : {}),
+      submitLabel: label,
+    };
+    if (typeof wizard.selector !== 'string' || !wizard.selector) wizard.selector = 'wizard';
+    return `the submit button of the wizard: «${label}»${wireSubmit(file, edit, ctx, { wizard: wizard.selector as string })}`;
+  }
+  const button = findNode(root, isSubmitButton);
+  if (button) {
+    const before = textsOf(button);
+    button.children = [{ text: label }];
+    if (typeof button.selector !== 'string' || !button.selector) button.selector = SUBMIT_SELECTOR;
+    const wired = wireSubmit(file, edit, ctx, { selector: button.selector as string });
+    return before === label
+      ? `the submit button is «${label}» already${wired}`
+      : `the submit button: «${before}» → «${label}»${wired}`;
+  }
+  childrenOf(root).push({
+    kind: 'container',
+    component: 'Button',
+    selector: SUBMIT_SELECTOR,
+    componentProps: { type: 'button' },
+    children: [{ text: label }],
+  });
+  return `the submit button «${label}» added at the end of the form${ctx.target === 'core' ? ' (the markup draws it)' : ''}${wireSubmit(file, edit, ctx, {})}`;
 }
 
 // ---------- Правила ----------
@@ -673,7 +833,20 @@ function checksOf(edit: Rec, ctx: EditContext): string[] {
   // Неверное выражение — отказ правки сейчас, а не ошибка компилятора в form.validation.ts, которую
   // модель не связывала со своим правилом.
   if (pattern) checks.push(`pattern(${regexLiteral(pattern)})`);
-  const single = text(edit, 'rule');
+  const named = text(edit, 'rule');
+  // «"rule":"pattern"» рядом с «"pattern":"…"» — имя вида, а не второе правило: без этого выходил
+  // пустой pattern() и сборка падала на типах (батч 20261114T235104Z-4e30, registration-edit).
+  const bare = named !== undefined && /^\w+$/.test(named.trim()) ? named.trim() : undefined;
+  if (
+    bare &&
+    edit[bare] === undefined &&
+    (bare === 'pattern' || (NUMBER_RULES as readonly string[]).includes(bare))
+  ) {
+    throw new EditError(
+      `"rule":"${bare}" needs its value — write it as the key: "${bare}":${bare === 'pattern' ? '"<regular expression>"' : 'N'}`
+    );
+  }
+  const single = bare && edit[bare] !== undefined ? undefined : named;
   // Регулярное выражение в «rule» — это pattern: отказ «нет валидатора ^\+7…» модель решала,
   // выбросив проверку формата совсем (L2-profile-json).
   // Регулярка — только то, что на неё похоже целиком: начало с ^ или /, либо одно слово с \d. Фраза,
@@ -833,11 +1006,17 @@ function fieldName(edit: Rec): string {
 
 /**
  * Кнопка — не поле: модель добавляла `submitButton` с подписью кнопки из задания, и форма требовала
- * заполнить «поле» «Зарегистрироваться» (батч 20261114T211434Z-bca8, registration-create). Кнопку
- * отправки рисует сервер. Признак — слово имени (`submit`, `button`, `btn`) или подпись, которую
- * задание называет кнопкой.
+ * заполнить «поле» «Зарегистрироваться» (батч 20261114T211434Z-bca8, registration-create). Признак —
+ * слово имени (`submit`, `button`, `btn`) или подпись, которую задание называет кнопкой.
+ *
+ * `label` — подпись кнопки, когда задание её называет: такая правка — кнопка отправки
+ * ({@link submitOp}), и сервер ставит её сам. Одно имя (`submitDate` — дата подачи) — только отказ.
  */
-function buttonOf(name: string, label: string, task: string | undefined): string | null {
+function buttonOf(
+  name: string,
+  label: string,
+  task: string | undefined
+): { label: string | null; message: string } | null {
   const words = name
     .split(/(?=[A-Z])|[_\-.\s]+/)
     .map((word) => word.toLowerCase())
@@ -846,16 +1025,22 @@ function buttonOf(name: string, label: string, task: string | undefined): string
     (word, i) =>
       word === 'submit' || word === 'btn' || (word === 'button' && words[i - 1] !== 'radio')
   );
+  const wordy = /(?:кнопк|button\b)/i.test(label);
   const said =
     label.length > 0 &&
-    (/(?:кнопк|button\b)/i.test(label) ||
+    (wordy ||
       (task !== undefined &&
         new RegExp(`(?:кнопк[а-яё]*|button)\\s*[«"“']?${escapeRegExp(label)}[»"”']?`, 'i').test(
           task
         )));
   if (!named && !said) return null;
   const what = label ? `«${label}»` : `\`${name}\``;
-  return `${what} is a button, not an input — the server draws the submit button itself; leave it out: as a field the user would have to fill it`;
+  // «Кнопка регистрации» — описание, а не подпись: подпись берётся из задания.
+  const text = said ? (wordy ? taskSubmitLabel(task) : label) : null;
+  return {
+    label: text,
+    message: `${what} is a button, not an input — the submit button is {"op":"submit","label":"<the button of the task>"}; as a field the user would have to fill it`,
+  };
 }
 
 function addField(file: Rec, edit: Rec, ctx: EditContext): string {
@@ -867,7 +1052,12 @@ function addField(file: Rec, edit: Rec, ctx: EditContext): string {
   }
   checkNewName(name, modelPaths(file));
   const button = buttonOf(name, String(edit.label ?? '').trim(), ctx.task);
-  if (button) throw new EditError(button);
+  // Подпись, которую задание называет кнопкой, — кнопка отправки: отказ стоил модели хода, а кнопку
+  // она всё равно не умела выразить.
+  if (button?.label) {
+    return `${submitOp(file, { label: button.label }, ctx)} (a button, not an input — read as {"op":"submit"})`;
+  }
+  if (button) throw new EditError(button.message);
   // Заголовок формы — не поле: «Оформление заказа» становился полем orderDetails (L3-delivery,
   // 20261114T005219Z-43ce).
   const title = String(file.formName ?? '')
@@ -942,15 +1132,110 @@ function setField(file: Rec, edit: Rec, ctx: EditContext): string {
 const under = (path: unknown, name: string): boolean =>
   typeof path === 'string' && (path === name || path.startsWith(`${name}.`));
 
+/** Имя справочника, из которого поле берёт варианты (`optionsSource` и синонимы чтения intent). */
+function sourceOf(record: Rec): string | undefined {
+  for (const key of ['optionsSource', 'dataSource', 'optionsRef', 'options']) {
+    if (typeof record[key] === 'string') return record[key] as string;
+  }
+  return undefined;
+}
+
+/** Весь код записей intent: правила, условия, выражения поведения, правил узлов и видимости. */
+function codeOf(file: Rec): string[] {
+  const strings = (value: unknown): string[] =>
+    typeof value === 'string'
+      ? [value]
+      : Array.isArray(value)
+        ? value.flatMap(strings)
+        : isRecord(value)
+          ? Object.values(value).flatMap(strings)
+          : [];
+  return ['validation', 'behavior', 'nodes', 'visibility'].flatMap((key) =>
+    (Array.isArray(file[key]) ? (file[key] as unknown[]) : []).flatMap((row) =>
+      isRecord(row)
+        ? ['rules', 'cross', 'when', 'async', 'call', 'params', 'expr', 'condition'].flatMap(
+            (field) => strings(row[field])
+          )
+        : []
+    )
+  );
+}
+
+const mentions = (code: readonly string[], name: string): boolean => {
+  const re = new RegExp(`(^|[^\\w$.])${escapeRegExp(name)}(?![\\w$])`);
+  return code.some((part) => re.test(part));
+};
+
+/**
+ * Хвосты удаления: справочники, которыми не пользуется ни одно поле, и свои операторы, которые
+ * читали только удалённые строки. Справочник без поля сборка не пропускает (C9), а удалить его
+ * правкой было нечем: после `remove_step` «Доставка» модель перебрала десяток обходов и сдалась
+ * (wizard-delete, батч 20261114T235105Z-1fef, ReFormer-f2fs.19). Оператор, которого intent не
+ * зовёт ни разу до удаления (функция отправки на core — её зовёт разметка), остаётся.
+ */
+function dropOrphans(file: Rec, codeBefore: readonly string[]): string[] {
+  const removed: string[] = [];
+  if (Array.isArray(file.dataSources)) {
+    const used = new Set(
+      [...fieldsOf(file), ...arraysOf(file).flatMap(itemFieldsOf)]
+        .map(sourceOf)
+        .filter((name): name is string => name !== undefined)
+    );
+    const kept = (file.dataSources as unknown[]).filter(
+      (source) => !isRecord(source) || typeof source.name !== 'string' || used.has(source.name)
+    );
+    for (const source of file.dataSources as unknown[]) {
+      if (!kept.includes(source) && isRecord(source))
+        removed.push(`data source ${String(source.name)}`);
+    }
+    file.dataSources = kept;
+  }
+  if (isRecord(file.parts)) {
+    const used = usedParts(file);
+    for (const name of Object.keys(file.parts)) {
+      if (used.has(name)) continue;
+      delete file.parts[name];
+      removed.push(`part ${name}`);
+    }
+    if (Object.keys(file.parts).length === 0) delete file.parts;
+  }
+  if (isRecord(file.operators)) {
+    const codeAfter = codeOf(file);
+    const operators = file.operators;
+    for (const name of Object.keys(operators)) {
+      if (mentions(codeBefore, name) && !mentions(codeAfter, name)) {
+        delete operators[name];
+        removed.push(`operator ${name}`);
+      }
+    }
+    if (Object.keys(operators).length === 0) delete file.operators;
+  }
+  return removed;
+}
+
 /**
  * Убрать поля и массивы с этими путями — сами записи и строки валидации, поведения и видимости на
  * них. Строки других полей, которые их читают, остаются: их правит модель, ответ их называет.
+ * Справочники и операторы, у которых не осталось пользователей, уходят тоже ({@link dropOrphans}).
  */
-function dropPaths(file: Rec, paths: readonly string[]): { dropped: number; readers: string[] } {
-  const hit = (path: unknown): boolean => paths.some((name) => under(path, name));
-  file.fields = fieldsOf(file).filter((record) => !hit(nameOf(record)));
-  file.arrays = arraysOf(file).filter((record) => !hit(nameOf(record)));
-  for (const name of paths) unplace(file, name);
+function dropPaths(
+  file: Rec,
+  paths: readonly string[]
+): { dropped: number; readers: string[]; orphans: string[] } {
+  const codeBefore = codeOf(file);
+  const removed = (path: unknown): boolean => paths.some((name) => under(path, name));
+  file.fields = fieldsOf(file).filter((record) => !removed(nameOf(record)));
+  file.arrays = arraysOf(file).filter((record) => !removed(nameOf(record)));
+  // Группа, у которой не осталось полей, ушла и сама: узел её подформы, правила и поведение на ней
+  // (`disableWhen` адреса для счёта). После удаления полей адреса по одному подформа группы
+  // оставалась, и сборка 27 раз подряд отвечала C11 (order-delete, батч 20261114T235104Z-4e30,
+  // ReFormer-f2fs.22).
+  const gone = [...paths, ...emptiedGroups(file, paths)];
+  const hit = (path: unknown): boolean => gone.some((name) => under(path, name));
+  for (const name of gone) unplace(file, name);
+  inlineBrokenParts(file);
+  for (const name of gone) unplace(file, name);
+  dropEmptyContainers(file.layoutRoot);
   let dropped = 0;
   for (const key of ['validation', 'behavior', 'visibility']) {
     const before = list(file, key).length;
@@ -978,14 +1263,115 @@ function dropPaths(file: Rec, paths: readonly string[]): { dropped: number; read
         .map((row) => `${String(row.kind ?? 'rule')} of ${String(row.target ?? row.selector)}`)
     ),
   ];
-  return { dropped, readers };
+  return { dropped, readers, orphans: dropOrphans(file, codeBefore) };
 }
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Строка ответа об удалении: сколько правил ушло и кто ещё читает удалённое. */
-function droppedNote(dropped: number, readers: readonly string[]): string {
+/**
+ * Контейнеры, которые удаление оставило без детей: секция «Адрес для счёта» без полей висела на
+ * странице одним заголовком. Шаги не трогаются — их убирает `remove_step`.
+ */
+function dropEmptyContainers(node: unknown): void {
+  if (!isRecord(node) || !Array.isArray(node.children)) return;
+  for (const child of node.children) dropEmptyContainers(child);
+  node.children = node.children.filter(
+    (child) =>
+      !(
+        isRecord(child) &&
+        child.kind === 'container' &&
+        child.component !== 'Button' &&
+        Array.isArray(child.children) &&
+        child.children.length === 0
+      )
+  );
+}
+
+/** Группы удалённых путей (`billingAddress` у `billingAddress.city`), где не осталось ни одного поля. */
+function emptiedGroups(file: Rec, paths: readonly string[]): string[] {
+  const left = modelPaths(file);
+  const groups = new Set<string>();
+  for (const path of paths) {
+    const parts = path.split('.');
+    for (let end = parts.length - 1; end > 0; end -= 1) groups.add(parts.slice(0, end).join('.'));
+  }
+  return [...groups].filter(
+    (group) => !paths.includes(group) && !left.some((path) => under(path, group))
+  );
+}
+
+/** Узел части с путями от группы: `city` → `deliveryAddress.city`. */
+function rebase(node: unknown, base: string): unknown {
+  if (typeof node === 'string') return `${base}.${node}`;
+  if (!isRecord(node)) return node;
+  const out: Rec = { ...node };
+  if (typeof node.ref === 'string') out.ref = `${base}.${node.ref}`;
+  if (Array.isArray(node.children))
+    out.children = node.children.map((child) => rebase(child, base));
+  return out;
+}
+
+/** Пути полей и массивов, на которые ссылается часть (относительно своей группы). */
+function partRefs(node: unknown, out: string[] = []): string[] {
+  if (typeof node === 'string') out.push(node);
+  else if (isRecord(node)) {
+    if (typeof node.ref === 'string' && node.kind !== 'part') out.push(node.ref);
+    for (const child of Array.isArray(node.children) ? node.children : []) partRefs(child, out);
+  }
+  return out;
+}
+
+/**
+ * Подформа, которая ссылается на удалённое поле своей группы, раскрывается на месте: её содержимое
+ * с полными путями (`deliveryAddress.city`), а удалённое уходит следом. Часть общая — адрес доставки
+ * и адрес для счёта, — поэтому убрать поле из самой части нельзя: пропало бы и у второй группы.
+ */
+function inlineBrokenParts(file: Rec): void {
+  const parts = isRecord(file.parts) ? file.parts : {};
+  const known = new Set(modelPaths(file));
+  const visit = (node: unknown): unknown => {
+    if (!isRecord(node)) return node;
+    if (node.kind === 'part' && typeof node.ref === 'string' && typeof node.part === 'string') {
+      const content = parts[node.part];
+      const base = node.ref;
+      const broken = partRefs(content).some(
+        (ref) =>
+          !known.has(`${base}.${ref}`) && ![...known].some((path) => under(path, `${base}.${ref}`))
+      );
+      if (!broken || !isRecord(content)) return node;
+      const inlined = rebase(content, base) as Rec;
+      return typeof node.selector === 'string' ? { ...inlined, selector: node.selector } : inlined;
+    }
+    if (Array.isArray(node.children)) node.children = node.children.map(visit);
+    return node;
+  };
+  if (isRecord(file.layoutRoot)) file.layoutRoot = visit(file.layoutRoot);
+}
+
+/** Узлы частей, которые раскладка подключает (в дереве и внутри других частей). */
+function usedParts(file: Rec): Set<string> {
+  const used = new Set<string>();
+  const walk = (node: unknown): void => {
+    if (!isRecord(node)) return;
+    if (node.kind === 'part' && typeof node.part === 'string' && !used.has(node.part)) {
+      used.add(node.part);
+      if (isRecord(file.parts)) walk(file.parts[node.part]);
+    }
+    for (const child of Array.isArray(node.children) ? node.children : []) walk(child);
+  };
+  walk(file.layoutRoot);
+  return used;
+}
+
+/** Строка ответа об удалении: сколько правил ушло, что ушло следом и кто ещё читает удалённое. */
+function droppedNote(
+  dropped: number,
+  readers: readonly string[],
+  orphans: readonly string[] = []
+): string {
   return `${dropped ? `, with ${dropped} rules on it` : ''}${
+    orphans.length > 0 ? `; no longer used, removed too: ${orphans.join(', ')}` : ''
+  }${
     readers.length > 0
       ? `; still read by ${readers.join(', ')} — change ${readers.length === 1 ? 'it' : 'them'} (add_behavior / add_rule again, or remove_behavior / remove_rule)`
       : ''
@@ -1013,11 +1399,11 @@ function removeField(file: Rec, edit: Rec, ctx: EditContext): string {
     ctx.task !== undefined &&
     ((label.length >= 3 && ctx.task.toLowerCase().includes(label.toLowerCase())) ||
       new RegExp(`\\(${escapeRegExp(name)}[\\s,:;)]`).test(ctx.task));
-  const { dropped, readers } = dropPaths(file, [name]);
+  const { dropped, readers, orphans } = dropPaths(file, [name]);
   const warning = named
     ? ` — the task names this input («${label || name}»): put it back with add_field unless it really is not an input of the task`
     : '';
-  return `\`${name}\` removed${droppedNote(dropped, readers)}${warning}`;
+  return `\`${name}\` removed${droppedNote(dropped, readers, orphans)}${warning}`;
 }
 
 // ---------- Переименования и шаги ----------
@@ -1129,7 +1515,11 @@ function allSteps(file: Rec): Rec[] {
 }
 
 function renameStep(file: Rec, edit: Rec): string {
-  const step = findStep(allSteps(file), text(edit, 'title') ?? text(edit, 'step', true));
+  const step = findStep(
+    allSteps(file),
+    text(edit, 'title') ?? text(edit, 'step', true),
+    sectionsHint(file)
+  );
   const to = newName(edit);
   const before = String(step.title ?? '');
   step.title = to;
@@ -1148,7 +1538,7 @@ function refsIn(node: unknown, out: string[] = []): string[] {
 
 function removeStep(file: Rec, edit: Rec): string {
   const steps = allSteps(file);
-  const step = findStep(steps, text(edit, 'title') ?? text(edit, 'step', true));
+  const step = findStep(steps, text(edit, 'title') ?? text(edit, 'step', true), sectionsHint(file));
   const title = String(step.title ?? '');
   const refs = Array.isArray(step.fields)
     ? (step.fields as unknown[]).filter((ref): ref is string => typeof ref === 'string')
@@ -1164,12 +1554,12 @@ function removeStep(file: Rec, edit: Rec): string {
     };
     prune(file.layoutRoot);
   }
-  const { dropped, readers } = dropPaths(file, refs);
+  const { dropped, readers, orphans } = dropPaths(file, refs);
   // Видимость самого шага (скрытый шаг мастера) — по его селектору.
   if (typeof step.selector === 'string') {
     file.visibility = list(file, 'visibility').filter((row) => row.selector !== step.selector);
   }
-  return `step «${title}» removed with ${refs.length} items (${refs.join(', ') || 'none'})${droppedNote(dropped, readers)}`;
+  return `step «${title}» removed with ${refs.length} items (${refs.join(', ') || 'none'})${droppedNote(dropped, readers, orphans)}`;
 }
 
 function addArray(file: Rec, edit: Rec, ctx: EditContext): string {
@@ -1179,6 +1569,13 @@ function addArray(file: Rec, edit: Rec, ctx: EditContext): string {
     );
   }
   const name = text(edit, 'name', true)!;
+  // Простое поле с этим именем — строки на его месте: черновик спеки делал массив полем, а
+  // `add_array` отвечал «already exists — use set_field», и этап строк шёл 17 раз подряд
+  // (wizard-create, батч 20261114T235104Z-4e30, ReFormer-f2fs.23).
+  const converted =
+    !name.includes('.') && !findArray(file, name) && findField(file, name)
+      ? fieldToArray(file, name)
+      : null;
   checkNewName(name, modelPaths(file));
   if (name.includes('.')) throw new EditError('an array name is one word, not a group path');
   const label = text(edit, 'label');
@@ -1201,7 +1598,47 @@ function addArray(file: Rec, edit: Rec, ctx: EditContext): string {
     itemFields: [],
   });
   const { step, note } = stepOf(edit, ctx);
-  return `array \`${name}\` added to ${place(file, name, true, step)}${note} — now add_item_field for its row`;
+  if (converted?.placed && step === undefined) {
+    return `array \`${name}\` added in place of the field \`${name}\`${converted.note} — now add_item_field for its row`;
+  }
+  return `array \`${name}\` added to ${place(file, name, true, step)}${note}${converted?.note ?? ''} — now add_item_field for its row`;
+}
+
+/**
+ * Поле → место массива с тем же именем: запись поля и строки правил и поведения на нём уходят, его
+ * ссылки в раскладке становятся узлами массива на том же месте. В сокращении `steps` ссылка остаётся
+ * именем: массив там — тоже имя.
+ */
+function fieldToArray(file: Rec, name: string): { placed: boolean; note: string } {
+  file.fields = fieldsOf(file).filter((record) => nameOf(record) !== name);
+  let dropped = 0;
+  for (const key of ['validation', 'behavior', 'visibility']) {
+    const before = list(file, key).length;
+    file[key] = list(file, key).filter((row) => row.target !== name && row.selector !== name);
+    dropped += before - list(file, key).length;
+  }
+  let placed = false;
+  if (Array.isArray(file.steps)) {
+    placed = (file.steps as Rec[]).some(
+      (step) => Array.isArray(step.fields) && step.fields.includes(name)
+    );
+  }
+  const swap = (node: unknown): void => {
+    if (!isRecord(node) || !Array.isArray(node.children)) return;
+    node.children = node.children.map((child) => {
+      if (child === name || (isRecord(child) && child.kind === 'field' && child.ref === name)) {
+        placed = true;
+        return { kind: 'array', ref: name };
+      }
+      swap(child);
+      return child;
+    });
+  };
+  swap(file.layoutRoot);
+  return {
+    placed,
+    note: `; \`${name}\` was a field — it is an array of rows now${dropped ? ` (its ${dropped} rules dropped)` : ''}`,
+  };
 }
 
 function addItemField(file: Rec, edit: Rec, ctx: EditContext): string {
@@ -1211,7 +1648,7 @@ function addItemField(file: Rec, edit: Rec, ctx: EditContext): string {
   checkNewName(name, itemFieldsOf(array).map(nameOf));
   if (name.includes('.')) throw new EditError('a row field name is one word');
   const button = buttonOf(name, String(edit.label ?? '').trim(), ctx.task);
-  if (button) throw new EditError(button);
+  if (button) throw new EditError(button.message);
   const record: Rec = { name, ...fieldRecord(edit, ctx) };
   itemFieldsOf(array).push(record);
   // Строки начального значения получают ключ нового поля: иначе тип строки и модель разойдутся.
@@ -1232,6 +1669,31 @@ function addStep(file: Rec, edit: Rec): string {
       throw new EditError(`no field or array \`${ref}\`${didYouMean(ref, [...known])}`);
   }
   const isArray = (ref: string) => findArray(file, ref) !== undefined;
+  // Форма с разделами: `add_step` с заголовком раздела делает разделы шагами мастера.
+  const sections = topSections(file);
+  if (sections.length > 0) {
+    const titles = sections.map((section) => String((section.componentProps as Rec).title).trim());
+    const match = sections.find(
+      (section, index) =>
+        titles[index].toLowerCase() === title.toLowerCase() || section.selector === title
+    );
+    if (!match) throw new EditError(`"${title}" is not a section of the form${sectionsHint(file)}`);
+    const converted = sectionsToSteps(file);
+    return refs.length > 0 ? `${converted}; ${moveToStep(file, title, refs)}` : converted;
+  }
+  // Шаг с этим заголовком уже есть (разделы стали шагами одной правкой, модель шлёт add_step на
+  // каждый): не второй шаг, а поля — в него.
+  const existing = allSteps(file).find(
+    (step) =>
+      String(step.title ?? '')
+        .trim()
+        .toLowerCase() === title.trim().toLowerCase()
+  );
+  if (existing) {
+    return refs.length > 0
+      ? moveToStep(file, title, refs)
+      : `step «${String(existing.title)}» is in the form already`;
+  }
   const layout = layoutOf(file);
   if (layout.kind === 'tree' && stepNodes(layout.root).length > 0) {
     const wizard = (function find(node: unknown): Rec | null {
@@ -1258,7 +1720,10 @@ function addStep(file: Rec, edit: Rec): string {
   if (layout.kind === 'tree') {
     // Первый шаг: раскладка становится сокращением `steps`. Всё, что стояло в корне, уходит в этот
     // шаг — так ни одно поле не остаётся вне раскладки; следующие шаги забирают своё по именам.
-    const rootRefs = childrenOf(layout.root).map(refOf);
+    // Кнопка отправки — не поле: её становится кнопка последнего шага мастера.
+    const children = childrenOf(layout.root);
+    const button = children.find(isSubmitButton);
+    const rootRefs = children.filter((child) => !isSubmitButton(child)).map(refOf);
     if (rootRefs.some((ref) => ref === null)) {
       throw new EditError(
         'the form has sections or texts in its layout — add_step needs a plain one; put the fields into the existing steps with place instead'
@@ -1266,11 +1731,129 @@ function addStep(file: Rec, edit: Rec): string {
     }
     delete file.layoutRoot;
     file.steps = [{ title, fields: [...new Set([...refs, ...(rootRefs as string[])])] }];
-    return `step «${title}» added; the form now has steps`;
+    return `step «${title}» added; the form now has steps${button ? buttonToWizard(file, button) : ''}`;
   }
   refs.forEach((ref) => unplace(file, ref));
   layout.steps.push({ title, fields: refs });
   return `step «${title}» added with ${refs.length} items`;
+}
+
+/**
+ * Кнопка отправки плоской формы, ставшей мастером: её подпись — подпись кнопки последнего шага, её
+ * обработчик нажатия — отправка мастера. Черновик по спеке нёс узел кнопки, и первый `add_step`
+ * отказывал «в раскладке не только поля» (ReFormer-f2fs.16, wizard-create).
+ */
+function buttonToWizard(file: Rec, button: Rec, node?: Rec): string {
+  const label = textsOf(button);
+  // Подпись — узлу мастера дерева (`node`) или записи `wizard` сокращения `steps`.
+  const holder = node
+    ? isRecord(node.componentProps)
+      ? node.componentProps
+      : {}
+    : isRecord(file.wizard)
+      ? file.wizard
+      : {};
+  if (label && typeof holder.submitLabel !== 'string') {
+    if (node) node.componentProps = { ...holder, submitLabel: label };
+    else file.wizard = { ...holder, submitLabel: label };
+  }
+  const wizardSelector = typeof node?.selector === 'string' ? node.selector : 'wizard';
+  const selector = typeof button.selector === 'string' ? button.selector : SUBMIT_SELECTOR;
+  for (const row of eventRows(file)) {
+    if (row.selector !== selector || row.event !== 'onClick') continue;
+    const handler = /\bawait\s+([A-Za-z_$][\w$]*)\(\s*model\.get\(\)\s*\)/.exec(
+      String(row.expr)
+    )?.[1];
+    Object.assign(
+      row,
+      handler
+        ? submitEventRule(handler, wizardSelector)
+        : { selector: wizardSelector, event: 'onSubmit' }
+    );
+  }
+  return label ? `; the submit button «${label}» is the button of the last step now` : '';
+}
+
+/** Раздел раскладки: контейнер с заголовком (`Section`, `Card` с `title`). */
+function isSection(node: unknown): node is Rec {
+  return (
+    isRecord(node) &&
+    (node.kind === 'container' ||
+      (node.kind === undefined && typeof node.component === 'string')) &&
+    node.component !== 'Button' &&
+    isRecord(node.componentProps) &&
+    typeof node.componentProps.title === 'string' &&
+    node.componentProps.title.trim() !== ''
+  );
+}
+
+/** Разделы верхнего уровня раскладки-дерева без шагов. */
+function topSections(file: Rec): Rec[] {
+  if (Array.isArray(file.steps) && file.steps.length > 0) return [];
+  if (!isRecord(file.layoutRoot) || stepNodes(file.layoutRoot).length > 0) return [];
+  return childrenOf(file.layoutRoot).filter(isSection);
+}
+
+/**
+ * Подсказка формы с разделами, у которой шагов нет: шагом раздел делает `add_step` с его заголовком.
+ * Без неё модель получала «the form has no steps yet — add_step first», а `add_step` — «a plain
+ * layout only»: тупик (wizard-split, батч 20261114T235105Z-1fef).
+ */
+function sectionsHint(file: Rec): string {
+  const sections = topSections(file);
+  if (sections.length === 0) return '';
+  const titles = sections.map((section) => String((section.componentProps as Rec).title));
+  return ` — the form has sections ${titles.map((title) => `«${title}»`).join(', ')}: {"op":"add_step","title":"${titles[0]}"} makes every section a step of a wizard, in the same order`;
+}
+
+/**
+ * Форма с разделами — мастер: каждый раздел верхнего уровня становится шагом с тем же заголовком,
+ * селектором и содержимым (вложенные секции и подформы остаются как были), в том же порядке. Поля
+ * между разделами уходят в шаг раздела над ними, поля до первого раздела — в первый шаг. Кнопка
+ * отправки — кнопка последнего шага. Селектор сохраняется, поэтому видимость раздела («Компания —
+ * только юрлицу») становится видимостью шага.
+ *
+ * Раньше `add_step` на такой форме отказывал, а `place` и `rename_step` отвечали «шагов нет» —
+ * раздел в шаг превратить было нечем (wizard-split, батч 20261114T235105Z-1fef, ReFormer-f2fs.18).
+ */
+function sectionsToSteps(file: Rec): string {
+  const root = file.layoutRoot as Rec;
+  const steps: Rec[] = [];
+  const before: unknown[] = [];
+  let button: Rec | undefined;
+  for (const child of childrenOf(root)) {
+    if (isSubmitButton(child)) {
+      button ??= child;
+      continue;
+    }
+    if (isSection(child)) {
+      const props = child.componentProps as Rec;
+      steps.push({
+        kind: 'step',
+        title: String(props.title).trim(),
+        ...(typeof child.selector === 'string' && child.selector
+          ? { selector: child.selector }
+          : {}),
+        children: [...before.splice(0), ...childrenOf(child)],
+      });
+    } else if (steps.length > 0) childrenOf(steps[steps.length - 1]).push(child);
+    else before.push(child);
+  }
+  const wizard: Rec = {
+    kind: 'container',
+    component: 'FormWizard',
+    selector: 'wizard',
+    children: steps,
+  };
+  file.layoutRoot = wizard;
+  const moved = button ? buttonToWizard(file, button, wizard) : '';
+  return `every section is a step of a wizard now, in the same order: ${steps.map((step) => `«${String(step.title)}»`).join(', ')}${moved}`;
+}
+
+/** Поля и массивы — в шаг с этим заголовком. */
+function moveToStep(file: Rec, title: string, refs: readonly string[]): string {
+  for (const ref of refs) place(file, ref, findArray(file, ref) !== undefined, title);
+  return `${refs.join(', ')} moved to step «${title}»`;
 }
 
 function placeOp(file: Rec, edit: Rec): string {
@@ -1332,7 +1915,15 @@ export function withScope(expr: string, file: Rec, scope: 'model' | 'values' = '
       if (typeof value === 'string') choices.add(value);
     }
   }
-  return expr.replace(
+  // Чужая область — своя: `values.password` в поведении (там поля — `model.<поле>`) сервер принимал,
+  // а сборка падала на «Cannot find name 'values'» (батч 20261114T225122Z-f433); в правиле между
+  // полями — наоборот, `model.` → `values.`.
+  const other = scope === 'model' ? 'values' : 'model';
+  const scoped = expr.replace(
+    new RegExp(`(?<![\\w$.'"])${other}\\.([A-Za-z_$][\\w$]*)`, 'g'),
+    (match: string, root: string) => (roots.has(root) ? `${scope}.${root}` : match)
+  );
+  return scoped.replace(
     /('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(?<![\w$.'"])([A-Za-z_$][\w$]*)(?![\w$])/g,
     (match: string, literal: string | undefined, id: string | undefined) => {
       // Имя поля в кавычках ('reason' === 'other') — поле, если это не вариант выбора (L3-refund).
@@ -1528,6 +2119,54 @@ function crossOf(edit: Rec, path: string, file: Rec): string | undefined {
   return value;
 }
 
+/**
+ * Асинхронная проверка: модель даёт условие над `value`, ИСТИННОЕ для верного значения, и задержку;
+ * функцию пишет сервер. Заглушка сервера («верный код ABC123, ответ через 300 мс») — то же условие с
+ * задержкой. Без этого модель писала `computeFrom` с `fetch` и файлы руками (батч
+ * 20261114T113832Z-68e8, registration-create).
+ *
+ * Пустое значение не проверяется: это дело `required`. Готовая функция (`async (value) => …`)
+ * принимается как есть — её проверит сборка.
+ */
+function asyncOf(edit: Rec, path: string): string | undefined {
+  const given = edit.async;
+  if (given === undefined || given === null || given === false) return undefined;
+  const sample = `"async":"String(value).toUpperCase() === 'ABC123'" — a condition over value, TRUE when the value is valid; "delay":300 — the answer in 300 ms`;
+  if (typeof given !== 'string' || !given.trim()) {
+    throw new EditError(`"async" is a condition, not ${JSON.stringify(given)}: ${sample}`);
+  }
+  const raw = given.trim();
+  if (/^async\b/.test(raw)) return raw;
+  // Поле самой проверки — это value: модель писала «model.captcha === 'ABC123'».
+  const own = new RegExp(`(?<![\\w$.])(?:model|values)\\.${escapeRegExp(path)}(?![\\w$])`, 'g');
+  const expr = raw.replace(own, 'value').replace(/;\s*$/, '');
+  if (/\breturn\b|;|=>/.test(expr)) {
+    throw new EditError(`"async":"${raw}" is code, not a condition — ${sample}`);
+  }
+  const foreign = /(?<![\w$.])(?:model|values)\.([A-Za-z_$][\w$.]*)/.exec(expr);
+  if (foreign) {
+    throw new EditError(
+      `"async" reads \`${foreign[0]}\` — an async check sees only the value of \`${path}\`: ${sample}`
+    );
+  }
+  if (!/\bvalue\b/.test(expr)) {
+    throw new EditError(`"async":"${raw}" does not read value — ${sample}`);
+  }
+  let depth = 0;
+  for (const char of expr.replace(/'[^']*'|"[^"]*"/g, '""')) {
+    if (char === '(') depth++;
+    if (char === ')') depth--;
+    if (depth < 0) break;
+  }
+  if (depth !== 0) throw new EditError(`"async":"${raw}" has unbalanced brackets — ${sample}`);
+  const delay = number(edit, 'delay');
+  const wait =
+    delay !== undefined && delay > 0
+      ? `await new Promise((resolve) => setTimeout(resolve, ${delay}));`
+      : 'await Promise.resolve();';
+  return `async (value) => { if (!value) return null; ${wait} return (${expr}) ? null : { code: '${path}.async' }; }`;
+}
+
 /** Условие показа поля из его правила видимости (там хранится условие скрытия). */
 function shownWhen(file: Rec, path: string): string | undefined {
   const row = list(file, 'visibility').find((entry) => entry.selector === path);
@@ -1568,13 +2207,20 @@ function removeRule(file: Rec, edit: Rec): string {
       continue;
     }
     const rules = Array.isArray(row.rules) ? (row.rules as unknown[]) : [];
+    // Асинхронная проверка — строка без «rules»: по имени она «async», и снять её одну можно только
+    // так; правка другой проверки поля её не уносит.
+    const own = row.async !== undefined;
     if (!name) {
-      removed += Math.max(rules.length, row.cross !== undefined ? 1 : 0);
+      removed += Math.max(rules.length, row.cross !== undefined || own ? 1 : 0);
+      continue;
+    }
+    if (own && name === 'async') {
+      removed++;
       continue;
     }
     const rest = rules.filter((rule) => typeof rule !== 'string' || ruleName(rule) !== name);
     removed += rules.length - rest.length;
-    if (rest.length > 0 || row.cross !== undefined) kept.push({ ...row, rules: rest });
+    if (rest.length > 0 || row.cross !== undefined || own) kept.push({ ...row, rules: rest });
   }
   if (removed === 0) {
     throw new EditError(`no rule${name ? ` \`${name}\`` : ''} on \`${field}\``);
@@ -1660,6 +2306,32 @@ function addRule(file: Rec, given: Rec, ctx: EditContext): string {
   const when = conditionOf(text(edit, 'when'), file);
   if (when) row.when = when;
   const message = text(edit, 'message');
+  const pending = asyncOf(edit, path);
+  if (pending) {
+    // Своя строка: у асинхронной проверки свой код и текст. Прежняя асинхронная проверка поля
+    // заменяется — иначе неудачную нельзя было бы исправить.
+    const before = list(file, 'validation').length;
+    file.validation = list(file, 'validation').filter(
+      (old) => !(old.target === path && old.each === row.each && old.async !== undefined)
+    );
+    const replaced = before > list(file, 'validation').length;
+    list(file, 'validation').push({
+      ...row,
+      rules: [],
+      async: pending,
+      code: text(edit, 'code') ?? `${path}.async`,
+      ...(message ? { message } : {}),
+    });
+    const done = `async check on \`${path}\` added${replaced ? ' (replaced the previous one)' : ''}`;
+    // Остальные проверки той же правки — обычным правилом; «message» у асинхронной: её текст задание
+    // и называет («неверный код — ошибка …»).
+    const rest: Rec = { ...given, async: undefined, delay: undefined, message: undefined };
+    const more =
+      checksOf({ ...edit, async: undefined, delay: undefined }, ctx).length > 0 ||
+      text(edit, 'cross') !== undefined ||
+      text(edit, 'equals') !== undefined;
+    return more ? `${done}; ${addRule(file, rest, ctx)}` : `${done}${note}`;
+  }
   const cross = crossOf(edit, path, file);
   if (cross) {
     row.cross = cross;
@@ -1669,6 +2341,16 @@ function addRule(file: Rec, given: Rec, ctx: EditContext): string {
     return `cross rule on \`${path}\` added`;
   }
   const found = checksOf(edit, ctx);
+  // «"required":false» — поле необязательное по решению модели: прежняя обязательность снимается, а
+  // этап валидации его больше не ждёт. Раньше это был отказ «no check», и этап висел до конца прогона
+  // на необязательном комментарии (order-create, батч 20261114T235104Z-4e30, ReFormer-f2fs.20).
+  const optional = edit.required === false;
+  const unrequired = optional ? dropRequired(file, path, row.each) : 0;
+  if (optional) ctx.onOptional?.(path);
+  const unrequiredNote = unrequired ? '; its required rule removed — the field is optional' : '';
+  if (optional && found.length === 0) {
+    return `\`${path}\` is optional: it stays without a rule${unrequired ? ' (its required rule removed)' : ''}`;
+  }
   // Условие без проверки — обязательность на условии: «"when":"model.deliveryMethod === 'delivery'",
   // "message":"Адрес требуется при доставке"» без «required» отклонялось, и модель трижды теряла
   // правило (L3-delivery, 20261113T230859Z-f59e).
@@ -1705,7 +2387,30 @@ function addRule(file: Rec, given: Rec, ctx: EditContext): string {
   if (shown) row.when = shown;
   kept.push(row);
   file.validation = kept;
-  return `rule on \`${path}\`: ${checks.map(ruleName).join(', ')}${implied ? (row.when !== undefined ? ' (a condition with no check read as "required" on it)' : ' (no check given — the task makes the field required)') : ''}${replaced ? ' (replaced the previous one)' : ''}${note}${shown ? ` (checked only while shown: ${shown})` : ''}`;
+  return `rule on \`${path}\`: ${checks.map(ruleName).join(', ')}${implied ? (row.when !== undefined ? ' (a condition with no check read as "required" on it)' : ' (no check given — the task makes the field required)') : ''}${replaced ? ' (replaced the previous one)' : ''}${note}${shown ? ` (checked only while shown: ${shown})` : ''}${unrequiredNote}`;
+}
+
+/** Снять обязательность поля: `required()` из его строк; опустевшая строка уходит. */
+function dropRequired(file: Rec, path: string, each: unknown): number {
+  let removed = 0;
+  file.validation = list(file, 'validation')
+    .map((row) => {
+      if (row.target !== path || row.each !== each || !Array.isArray(row.rules)) return row;
+      const rules = (row.rules as unknown[]).filter(
+        (rule) => typeof rule !== 'string' || ruleName(rule) !== 'required'
+      );
+      removed += (row.rules as unknown[]).length - rules.length;
+      return { ...row, rules };
+    })
+    .filter(
+      (row) =>
+        !Array.isArray(row.rules) ||
+        row.rules.length > 0 ||
+        row.cross !== undefined ||
+        row.async !== undefined ||
+        row.call !== undefined
+    );
+  return removed;
 }
 
 /**
@@ -1930,8 +2635,19 @@ export function applyEdits(
   let file = clone(source);
   const outcomes: EditOutcome[] = [];
   let markup = false;
+  // Необязательные поля правки — только принятой: отклонённая правка ничего не объявляет.
+  const optional: string[] = [];
+  let marked: string[] = [];
+  const local: EditContext = {
+    ...ctx,
+    onOptional: (path) => {
+      marked.push(path);
+      ctx.onOptional?.(path);
+    },
+  };
   const items = Array.isArray(edits) ? edits : [];
   items.forEach((given, index) => {
+    marked = [];
     // Ключ с пробелом или кавычками (`" op"`) — тот же ключ: отказ «"op" is one of …» на правку с
     // верной операцией модель не понимала и повторяла её раз за разом (L1-login, 20261113T165319Z-ced3).
     const { edit: keyed, renamed } = trimmedKeys(given);
@@ -1964,9 +2680,9 @@ export function applyEdits(
         );
       }
       if (op === 'markup') {
-        if (ctx.target !== 'core') {
+        if (local.target !== 'core') {
           throw new EditError(
-            `on ${ctx.target} the build writes index.tsx itself — no markup needed`
+            `on ${local.target} the build writes index.tsx itself — no markup needed`
           );
         }
         markup = true;
@@ -1981,17 +2697,17 @@ export function applyEdits(
       const next = clone(file);
       const { edit: fieldEdit, note: maskNote } = withoutInventedMask(
         rulesFromOptions(edit),
-        ctx,
+        local,
         next
       );
       const message = (() => {
         switch (op as EditOp) {
           case 'add_field':
-            return addField(next, fieldEdit, ctx);
+            return addField(next, fieldEdit, local);
           case 'set_field':
-            return setField(next, fieldEdit, ctx);
+            return setField(next, fieldEdit, local);
           case 'remove_field':
-            return removeField(next, edit, ctx);
+            return removeField(next, edit, local);
           case 'rename_field':
             return renameField(next, edit);
           case 'rename_step':
@@ -1999,15 +2715,15 @@ export function applyEdits(
           case 'remove_step':
             return removeStep(next, edit);
           case 'add_array':
-            return addArray(next, edit, ctx);
+            return addArray(next, edit, local);
           case 'add_item_field':
-            return addItemField(next, fieldEdit, ctx);
+            return addItemField(next, fieldEdit, local);
           case 'add_step':
             return addStep(next, edit);
           case 'place':
             return placeOp(next, edit);
           case 'add_rule':
-            return addRule(next, edit, ctx);
+            return addRule(next, edit, local);
           case 'remove_rule':
             return removeRule(next, edit);
           case 'remove_behavior':
@@ -2025,17 +2741,20 @@ export function applyEdits(
                     ? { hideWhen: text(edit, 'hideWhen') ?? condition }
                     : { showWhen: text(edit, 'showWhen') ?? condition }),
                 },
-                ctx
+                local
               );
             }
             return addBehavior(next, edit);
           case 'add_visibility':
-            return addVisibility(next, edit, ctx);
+            return addVisibility(next, edit, local);
+          case 'submit':
+            return submitOp(next, edit, local);
           default:
             return setForm(next, edit);
         }
       })();
       file = next;
+      optional.push(...marked);
       outcomes.push({ index, op, ok: true, message: `${message}${maskNote}${note}` });
     } catch (error) {
       if (!(error instanceof EditError)) throw error;
@@ -2043,7 +2762,7 @@ export function applyEdits(
     }
   });
   nullSafeFormulas(file);
-  return { file, outcomes, markup };
+  return { file, outcomes, markup, optional: [...new Set(optional)] };
 }
 
 /**

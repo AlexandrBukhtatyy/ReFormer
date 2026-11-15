@@ -71,7 +71,7 @@ export function behaviorWord(text: string): string | undefined {
  * нельзя было снять, а пример предлагал чужие `total` и `address` — модель на core ушла писать
  * index.tsx руками (батч 20261114T200104Z-358f, registration-create).
  */
-function withoutHiddenInput(text: string): string {
+export function withoutHiddenInput(text: string): string {
   return text.replace(
     /ввод\p{L}*\s+скрыт\p{L}*|скрыт\p{L}*\s+ввод\p{L}*|\bhidden\s+input\b|\binput\s+(?:is\s+)?hidden\b|\bmasked\b/giu,
     ' '
@@ -113,5 +113,20 @@ export function featuresFromSpec(analysis: SpecAnalysis, text: string): TaskFeat
       analysis.computedFields.length > 0 ||
       analysis.conditionalFields.length > 0 ||
       analysis.dependencies.length > 0,
+  };
+}
+
+/**
+ * Признаки задания поверх спецификации: «по spec.md, но пошаговую — мастер вместо одной страницы».
+ * План брал признаки одной спеки, и этапа мастера не было (wizard-create, батч
+ * 20261114T235104Z-4e30, ReFormer-f2fs.23).
+ */
+export function mergeFeatures(first: TaskFeatures, second: TaskFeatures): TaskFeatures {
+  return {
+    arrays: first.arrays || second.arrays,
+    wizard: first.wizard || second.wizard,
+    validation: first.validation || second.validation,
+    cross: first.cross || second.cross,
+    behavior: first.behavior || second.behavior,
   };
 }

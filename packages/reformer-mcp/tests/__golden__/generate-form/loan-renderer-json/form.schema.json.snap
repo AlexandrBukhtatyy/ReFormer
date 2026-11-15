@@ -130,6 +130,9 @@
             "selector": "coBorrowers",
             "model": "$model(coBorrowers)",
             "component": "$component(FieldArray)",
+            "componentProps": {
+              "title": "Созаёмщики"
+            },
             "item": "$part(coBorrowersRow)"
           },
           {

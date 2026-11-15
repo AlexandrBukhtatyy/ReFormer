@@ -117,10 +117,12 @@ describe('form_build: путь без ошибок', () => {
       expect(originOf(readFileSync(formFile('types.ts'), 'utf-8'))).toBe('handwritten');
       // Свои операторы: заготовка — файл сборки, пока её не правили, и ответ о ней напоминает.
       expect(originOf(readFileSync(formFile('operators.ts'), 'utf-8'))).toBe('generated');
+      // Функция отправки (её зовут только со значениями формы) — рабочая заглушка без метки: о ней
+      // не напоминают (ReFormer-f2fs.17).
       expect(readFileSync(formFile('api.ts'), 'utf-8')).toContain(
-        'export function submitApplication'
+        'export async function submitApplication(values: LoanApplication): Promise<void>'
       );
-      expect(text).toContain('Your operators are still stubs: operators.ts, api.ts');
+      expect(text).toContain('Your operators are still stubs: operators.ts.');
     },
     SLOW
   );
@@ -648,6 +650,7 @@ describe('form_build: чей файл', () => {
         "    !value || /^\\d{6}$/.test(value) ? null : { code: options.code ?? 'postalCode' };",
         'export function phoneOrEmail(..._args: unknown[]): void {}',
         'export function roundTo(..._args: unknown[]): void {}',
+        '// TODO(form_build): тело функции.',
         'export function saveDraft(..._args: unknown[]): void {}',
         '',
       ].join('\n');
@@ -657,7 +660,8 @@ describe('form_build: чей файл', () => {
       expect(rebuilt.isError).toBe(false);
       expect(readFileSync(formFile('operators.ts'), 'utf-8')).toBe(own);
       expect(rebuilt.text).not.toContain('Edited by hand');
-      expect(rebuilt.text).toContain('Your operators are still stubs: api.ts.');
+      // Метка осталась в своём файле — напоминание о нём; отправка в api.ts — не заготовка.
+      expect(rebuilt.text).toContain('Your operators are still stubs: operators.ts.');
     },
     SLOW
   );

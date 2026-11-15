@@ -18,13 +18,17 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { repoRoot } from '../records/record.mjs';
 import { intentForTarget } from '../lib/intent-target.mjs';
 
 const INTENT_FILE = 'form.intent.json';
 
 export const scenariosDirectory = path.dirname(fileURLToPath(import.meta.url));
+const packageDirectory = path.resolve(scenariosDirectory, '../..');
+
+/** Метка разметки сервера в `index.tsx` (`MARKUP_MARK`, `src/core/guided/markup.ts`). */
+const SERVER_MARKUP = 'Markup written by form_edit';
 
 /**
  * Каталоги сценариев. Сценарий — каталог со `scenario.json`; каталог без него — группа (форма и её
@@ -151,16 +155,55 @@ function drawCoreForm(indexFile) {
 }
 
 /**
+ * Разметка core от сервера — та, что пишет `form_edit` по операции `markup`: поля раскладки, строки
+ * массивов, подформы, кнопка отправки. Модули — из `dist`, как и сам сервер стенда; импорт ленивый:
+ * каталог читают и тесты, которым сборка пакета не нужна.
+ */
+async function writeServerMarkup({ scenario, directory }) {
+  const dist = (file) => pathToFileURL(path.join(packageDirectory, 'dist', file)).href;
+  const { readIntent } = await import(dist('core/intent.js'));
+  const { coreAssembly } = await import(dist('core/guided/markup.js'));
+  const raw = JSON.parse(readFileSync(path.join(directory, INTENT_FILE), 'utf8'));
+  const { intent, problems } = readIntent(raw);
+  if (problems.length > 0) {
+    throw new Error(`${scenario.id}: intent затравки не читается — ${problems[0].message}`);
+  }
+  const task = existsSync(scenario.promptFile) ? readFileSync(scenario.promptFile, 'utf8') : '';
+  writeFileSync(path.join(directory, 'index.tsx'), coreAssembly(intent, task));
+}
+
+/**
  * Положить в каталог форму, с которой начинается правка: эталон сценария-затравки, собранный тем же
  * путём. Сценарий без затравки начинается с пустого каталога — функция ничего не делает.
+ *
+ * На core затравка рисуется разметкой сервера, а не `FormRenderer`: затравку агент получает как свою
+ * форму, и импорт `@reformer/renderer-react` в `index.tsx`, которого агент и не трогал, валил гейт
+ * `static.stack` во всех ячейках правки на core (ReFormer-mhsh.6, батч 20261114T113832Z-68e8).
  */
 export async function writeSeedBundle({ scenario, target, directory, client }) {
   if (!scenario.seedScenario) return null;
-  return writeReferenceBundle({ scenario: scenario.seedScenario, target, directory, client });
+  return writeReferenceBundle({
+    scenario: scenario.seedScenario,
+    target,
+    directory,
+    client,
+    markup: 'server',
+  });
 }
 
-/** Собрать эталонный модуль сценария через сервер: intent на диск, затем `form_build`. */
-export async function writeReferenceBundle({ scenario, target, directory, client }) {
+/**
+ * Собрать эталонный модуль сценария через сервер: intent на диск, затем `form_build`.
+ *
+ * @param {{ markup?: 'renderer' | 'server' }} options - чем рисовать форму на core: эталону для
+ *   браузерной стадии — схемой через рендерер (по умолчанию), затравке — разметкой сервера
+ */
+export async function writeReferenceBundle({
+  scenario,
+  target,
+  directory,
+  client,
+  markup = 'renderer',
+}) {
   mkdirSync(directory, { recursive: true });
   await writeReferenceIntent({ scenario, target, directory, client });
   // Файлы, которые агент пишет руками (тела своих операторов): сборка их не трогает, только проверяет
@@ -168,11 +211,21 @@ export async function writeReferenceBundle({ scenario, target, directory, client
   for (const [file, source] of Object.entries(scenario.referenceFiles ?? {})) {
     copyFileSync(path.resolve(scenario.directory, source), path.join(directory, file));
   }
+  const indexFile = path.join(directory, 'index.tsx');
+  if (target === 'core') {
+    // Разметка сервера — до сборки: сборка не перепишет её (файл агента) и проверит её типы. Эталон
+    // поверх затравки (правка в прогоне эталонов) начинает с заготовки: разметка затравки читала бы
+    // поля, которых правка уже не оставила.
+    if (markup === 'server') await writeServerMarkup({ scenario, directory });
+    else if (existsSync(indexFile) && readFileSync(indexFile, 'utf8').includes(SERVER_MARKUP)) {
+      rmSync(indexFile);
+    }
+  }
   const { text } = await client.callTool('form_build', { dir: directory }, 180000);
   // Префикс ответа — контракт `form_build` (тест «ответ — контракт стендов», tests/form-build.test.ts).
   if (!text.startsWith('✓ form_build')) {
     throw new Error(`${scenario.id}/${target}: form_build —\n${text.slice(0, 2000)}`);
   }
-  if (target === 'core') drawCoreForm(path.join(directory, 'index.tsx'));
+  if (target === 'core' && markup === 'renderer') drawCoreForm(indexFile);
   return { status: 'ok', text };
 }

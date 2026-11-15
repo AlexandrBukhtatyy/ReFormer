@@ -15,9 +15,16 @@
  */
 
 import { formatTemplates, maskToPattern } from './edits.js';
+import { formSubmitLabel, taskSubmitLabel } from './markup.js';
 import { readIntent, type FormIntent, type ReformerTargetStack } from '../generate/form-intent.js';
 import { collectSteps } from '../generate/schema-emit.js';
-import { behaviorWord, crossWord, validationWord, type TaskFeatures } from './features.js';
+import {
+  behaviorWord,
+  crossWord,
+  validationWord,
+  withoutHiddenInput,
+  type TaskFeatures,
+} from './features.js';
 
 export const PLAN_FILE = 'form.plan.json';
 
@@ -55,6 +62,18 @@ export interface GuidedPlan {
    * модель копировала пример с одним `required` и теряла «от 2 до 100 символов» (L2-profile-json).
    */
   readonly task?: string;
+  /**
+   * Кнопка отправки, которую называет спека плана: подпись и функция отправки из `./api`. Сверка
+   * видела только текст задания, а у формы по спеке («Сделай форму по spec.md») кнопка названа в
+   * самой спеке (ReFormer-f2fs.16).
+   */
+  readonly specSubmit?: { readonly label?: string; readonly handler?: string };
+  /**
+   * Поля, которые модель объявила необязательными (`add_rule {"required":false}`): этап валидации
+   * их не ждёт. Раньше «необязательно» сказать было нечем — `required:false` отклонялся «no check»,
+   * и этап висел до конца прогона (order-create, батч 20261114T235104Z-4e30, ReFormer-f2fs.20).
+   */
+  readonly optional?: readonly string[];
   readonly stages: readonly StageId[];
   readonly skipped: readonly StageId[];
   /**
@@ -168,6 +187,17 @@ export function parsePlan(text: string | null): GuidedPlan | null {
     source: plan.source === 'spec' ? 'spec' : 'task',
     ...(typeof plan.specPath === 'string' ? { specPath: plan.specPath } : {}),
     ...(typeof plan.task === 'string' ? { task: plan.task } : {}),
+    ...(Array.isArray(plan.optional) ? { optional: strings(plan.optional) } : {}),
+    ...(plan.specSubmit && typeof plan.specSubmit === 'object'
+      ? {
+          specSubmit: {
+            ...(typeof plan.specSubmit.label === 'string' ? { label: plan.specSubmit.label } : {}),
+            ...(typeof plan.specSubmit.handler === 'string'
+              ? { handler: plan.specSubmit.handler }
+              : {}),
+          },
+        }
+      : {}),
     stages: plan.stages,
     skipped: Array.isArray(plan.skipped) ? plan.skipped.filter(isStage) : [],
     ...(Array.isArray(plan.confirmed) ? { confirmed: plan.confirmed.filter(isStage) } : {}),
@@ -258,18 +288,77 @@ export function intentOf(text: string | null): FormIntent | null {
   }
 }
 
+/** Что этап валидации знает сверх формы: задание и поля, объявленные необязательными. */
+export interface UnruledOptions {
+  readonly task?: string;
+  readonly optional?: readonly string[];
+}
+
+/** Поле без правила по слову задания: «необязательное», «по желанию», «можно оставить пустым». */
+const LEFT_OPTIONAL =
+  /не\s*обязател|\boptional\b|\bnot required\b|по желанию|можно не заполн|можно оставить пуст/;
+/** Флажок, который задание требует отметить: «обязательно отметить», «must be checked». */
+const MUST_CHECK = /обязател|\brequired\b|\bmust\b|отмет/;
+
 /**
- * Поля без единого правила (вычисляемые и только для чтения не в счёт). Этап валидации засчитывался
- * по одному правилу — и «готово» приходило с необязательными телефоном и городом (L2-profile-json,
- * 20261113T171142Z-19e3). Теперь каждое поле получает правило или этап снимают `skip`.
+ * Что задание говорит о поле — от каждого упоминания до конца фразы, строки таблицы или пункта:
+ * «Промокод — необязательный», «| `promoCode` | … | Необязательное; …».
  */
-export function unruled(intent: FormIntent): string[] {
-  const rows = intent.validation.filter((row) => !row.cross && row.rules.length > 0);
+function saidAbout(task: string, field: FormIntent['fields'][number]): string[] {
+  const lower = task.toLowerCase();
+  return mentionsOf(lower, field).map(({ at, len }) => {
+    const ends = ['\n', ';', '. ']
+      .map((mark) => lower.indexOf(mark, at + len))
+      .filter((index) => index >= 0);
+    return lower.slice(at, ends.length > 0 ? Math.min(...ends) : lower.length);
+  });
+}
+
+/** Задание называет поле необязательным. */
+function optionalInTask(task: string | undefined, field: FormIntent['fields'][number]): boolean {
+  return task !== undefined && saidAbout(task, field).some((said) => LEFT_OPTIONAL.test(said));
+}
+
+/** Задание требует поле (флажок «обязательно отметить»). */
+function requiredInTask(task: string | undefined, field: FormIntent['fields'][number]): boolean {
+  return (
+    task !== undefined &&
+    saidAbout(task, field).some((said) => MUST_CHECK.test(said) && !LEFT_OPTIONAL.test(said))
+  );
+}
+
+/**
+ * Поля, которым этап валидации ждёт правило. Этап засчитывался по одному правилу — и «готово»
+ * приходило с необязательными телефоном и городом (L2-profile-json, 20261113T171142Z-19e3), поэтому
+ * правило нужно каждому полю, кроме тех, которым его не даёт задание: только для чтения и
+ * вычисляемых (`compute`), флажков (если задание не требует их отметить), полей, которые задание
+ * называет необязательными или модель объявила такими (`required:false`). Их требование держало
+ * этап до конца прогона: «fields without a rule: billingSame, subtotal, promoCode, total…»
+ * (order-create, батч 20261114T235104Z-4e30, ReFormer-f2fs.20).
+ */
+export function unruled(intent: FormIntent, options: UnruledOptions = {}): string[] {
+  const rows = intent.validation.filter(
+    (row) => !row.cross && (row.rules.length > 0 || row.async !== undefined)
+  );
+  const computed = new Set(
+    intent.behavior
+      .filter((row) => row.kind === 'compute' || row.kind === 'computeFrom')
+      .map((row) => row.target)
+  );
+  const optional = new Set(options.optional ?? []);
   return intent.fields
     .filter((field) => field.componentProps?.readOnly !== true)
     .filter((field) => {
       const path = field.modelPath ?? field.name;
-      const rules = rows.filter((row) => row.target === path).flatMap((row) => row.rules);
+      if (computed.has(path) || optional.has(path)) return false;
+      if (optionalInTask(options.task, field)) return false;
+      return field.type !== 'boolean' || requiredInTask(options.task, field);
+    })
+    .filter((field) => {
+      const path = field.modelPath ?? field.name;
+      const rules = rows
+        .filter((row) => row.target === path)
+        .flatMap((row) => [...row.rules, ...(row.async !== undefined ? ['async'] : [])]);
       const mask = field.componentProps?.mask;
       if (typeof mask !== 'string') return rules.length === 0;
       // Поле с маской: проверку формата ставит сервер; этап ждёт решения модели об остальном
@@ -329,41 +418,164 @@ const VISIBLE_WORDS = /видн|виден|видим|показыва|скры�
 const DIGIT_WORDS =
   /(?:хотя\s+бы|минимум|как\s+минимум|не\s+менее)\s+(?:одн[а-яё]{1,2}\s+)?цифр|at\s+least\s+one\s+(?:digit|number)/i;
 
+/** Расхождение шаблона поля с заданием: текст и готовые правки. */
+interface PatternGap {
+  readonly field: string;
+  readonly text: string;
+  readonly fixes: readonly Record<string, unknown>[];
+}
+
+/** Регулярное выражение правила `pattern(/…/flags, …)` или `null`. */
+function patternOf(rule: string): RegExp | null {
+  const literal = /^\s*pattern\s*\(\s*\/((?:\\.|\[(?:\\.|[^\]\\])*\]|[^/\\[\n])+)\/([a-z]*)/.exec(
+    rule
+  );
+  if (!literal) return null;
+  try {
+    return new RegExp(literal[1], literal[2].replace(/[gy]/g, ''));
+  } catch {
+    return null;
+  }
+}
+
+/** Значение в формате маски: `9` — цифра, `a` — буква, `*` — любой знак. */
+const maskSample = (mask: string): string =>
+  mask.replace(/9/g, '5').replace(/a/g, 'x').replace(/\*/g, 'x');
+
+const EMAIL_SAMPLE = 'user@example.com';
+const WITH_DIGIT = 'abcdefgh12';
+const WITHOUT_DIGIT = 'abcdefghij';
+
 /**
- * Поле, в котором задание требует хотя бы одну цифру, а проверки на цифру нет. Модель писала
- * `"rule":"[a-z0-9]+"`, получала отказ и бросала пункт, а сверка правки цифр не смотрела (батч
- * 20261114T215823Z-1be3, registration-edit). `pattern` ищет совпадение в любом месте строки, поэтому
- * `\d` и есть «хотя бы одна цифра». Готовая правка — только когда шаблона у поля ещё нет: новый
- * `pattern` заменил бы прежний.
+ * Шаблоны полей, проверенные запуском на образцах, а не по тексту. Модель ставила паролю
+ * `^[0-9].*$` («начинается с цифры») на «хотя бы одна цифра», тот же шаблон — телефону поверх
+ * проверки маски и email: сверка видела в тексте `0-9` и молчала, а форма отвергала верные значения
+ * (батч 20261114T225122Z-f433, registration-edit). Проверки:
+ * - поле с маской — значение в формате маски проходит каждый шаблон;
+ * - поле email — `user@example.com` проходит каждый шаблон;
+ * - «хотя бы одна цифра» в задании — шаблон пропускает `abcdefgh12` и не пропускает `abcdefghij`
+ *   (`pattern` ищет совпадение в любом месте строки, поэтому `\d` и есть «хотя бы одна цифра»).
  */
-function digitGaps(task: string, intent: FormIntent): FieldGap[] {
-  const gaps: FieldGap[] = [];
+function patternGaps(task: string, intent: FormIntent): PatternGap[] {
+  const gaps: PatternGap[] = [];
   const lower = task.toLowerCase();
   for (const field of intent.fields) {
     const path = field.modelPath ?? field.name;
+    const rules = intent.validation
+      .filter((row) => row.target === path)
+      .flatMap((row) => row.rules);
+    const patterns = rules
+      .map((rule) => ({ rule, re: patternOf(rule) }))
+      .filter((entry): entry is { rule: string; re: RegExp } => entry.re !== null);
+    const removePattern = { op: 'remove_rule', field: path, rule: 'pattern' };
+    const mask = field.componentProps?.mask;
+    if (typeof mask === 'string' && mask.trim()) {
+      const sample = maskSample(mask);
+      const bad = patterns.find((entry) => !entry.re.test(sample));
+      if (bad) {
+        gaps.push({
+          field: path,
+          text: `\`${path}\` has ${bad.rule}, which rejects its own mask format ${mask} (e.g. «${sample}») — every filled value fails: remove_rule "pattern", then set_field "mask" again (the mask brings its check)`,
+          fixes: [removePattern, { op: 'set_field', name: path, mask }],
+        });
+      }
+      continue;
+    }
+    if (EMAIL_FIELD.test(path) || EMAIL_FIELD.test(field.label ?? '')) {
+      const bad = patterns.find((entry) => !entry.re.test(EMAIL_SAMPLE));
+      if (bad) {
+        const hasEmail = rules.some((rule) => /^\s*email\s*\(/.test(rule));
+        gaps.push({
+          field: path,
+          text: `\`${path}\` has ${bad.rule}, which rejects a valid address («${EMAIL_SAMPLE}») — remove_rule "pattern"${hasEmail ? '' : ', then add_rule "email":true'}: the "email" rule checks the format`,
+          fixes: [
+            removePattern,
+            ...(hasEmail ? [] : [{ op: 'add_rule', field: path, email: true }]),
+          ],
+        });
+        continue;
+      }
+    }
     if (mention(lower, field) === null) continue;
     const said = [taskFragment(task, intent, path), ...taskFragments(task, intent, path)].find(
       (window) => DIGIT_WORDS.test(window)
     );
     if (said === undefined) continue;
-    const rules = intent.validation
-      .filter((row) => row.target === path)
-      .flatMap((row) => row.rules);
-    const patterns = rules.filter((rule) => /^\s*pattern\s*\(/.test(rule));
-    if (patterns.some((rule) => /\\d|0-9|\[:digit:\]/.test(rule))) continue;
-    gaps.push({
-      field: path,
-      said,
-      ...(patterns.length === 0 ? { fix: { op: 'add_rule', field: path, pattern: '\\d' } } : {}),
-    });
+    const rejects = patterns.find((entry) => !entry.re.test(WITH_DIGIT));
+    const detects = patterns.some(
+      (entry) => entry.re.test(WITH_DIGIT) && !entry.re.test(WITHOUT_DIGIT)
+    );
+    if (detects && !rejects) continue;
+    const addDigit = { op: 'add_rule', field: path, pattern: '\\d' };
+    const head = `the task wants at least one digit in ${path} («${said}»)`;
+    if (rejects) {
+      gaps.push({
+        field: path,
+        text: `${head} — its ${rejects.rule} rejects a value with a digit like «${WITH_DIGIT}»: remove_rule "pattern", then add_rule "pattern":"\\\\d" (a digit anywhere in the value)`,
+        fixes: [removePattern, addDigit],
+      });
+    } else if (patterns.length === 0) {
+      gaps.push({
+        field: path,
+        text: `${head} — no check for it: add_rule "pattern":"\\\\d" (a digit anywhere in the value)`,
+        fixes: [addDigit],
+      });
+    } else {
+      // Шаблон уже есть и верные значения пропускает: новый `pattern` заменил бы его — без правки.
+      gaps.push({ field: path, text: `${head} — no check for it`, fixes: [] });
+    }
   }
   return gaps;
 }
 
-const digitGapText = (gap: FieldGap): string =>
-  `the task wants at least one digit in ${gap.field} («${gap.said}») — no check for it${
-    gap.fix ? ': add_rule "pattern":"\\\\d" (a digit anywhere in the value)' : ''
-  }`;
+/** «Должен совпадать с паролем», «must match password». */
+const MATCH_WORDS = /совпада|\bmatch(?:es)?\b|\bsame as\b|\bequals?\s+to\b/i;
+
+/** Основа подписи для поиска в падежах: «пароль» → «паро» («с паролем»). */
+const labelStem = (label: string): string => {
+  const word = (label.toLowerCase().trim().split(/\s+/)[0] ?? '').replace(/[^\p{L}\d_]/gu, '');
+  return word.length >= 4 ? word.slice(0, Math.max(4, word.length - 2)) : '';
+};
+
+/**
+ * Поле, которое задание велит сверять с другим («повтор пароля … должен совпадать с паролем»), без
+ * правила между полями. Модель подтверждала проверку, видела следующий этап cross и объявляла форму
+ * готовой — повтор пароля ничего не сверял (батчи 20261114T225122Z-f433 и 20261114T235104Z-4e30,
+ * registration-create). Сверка называет пару сразу, с готовой правкой `equals`. Второе поле — первое
+ * упомянутое после слова сверки, по имени или основе подписи.
+ */
+function matchGaps(task: string, intent: FormIntent): PatternGap[] {
+  const gaps: PatternGap[] = [];
+  const lower = task.toLowerCase();
+  for (const field of intent.fields) {
+    const path = field.modelPath ?? field.name;
+    if (mention(lower, field) === null) continue;
+    if (intent.validation.some((row) => row.target === path && row.cross !== undefined)) continue;
+    const said = [taskFragment(task, intent, path), ...taskFragments(task, intent, path)].find(
+      (window) => MATCH_WORDS.test(window)
+    );
+    if (said === undefined) continue;
+    const after = said.slice((MATCH_WORDS.exec(said)?.index ?? 0) + 1).toLowerCase();
+    let other: { path: string; at: number } | undefined;
+    for (const candidate of intent.fields) {
+      const candidatePath = candidate.modelPath ?? candidate.name;
+      if (candidatePath === path) continue;
+      const keys = [candidatePath.toLowerCase(), labelStem(candidate.label ?? '')].filter(Boolean);
+      for (const key of keys) {
+        const found = new RegExp(`(?<![\\p{L}\\d_])${escapeRegExp(key)}`, 'u').exec(after);
+        if (found && (!other || found.index < other.at))
+          other = { path: candidatePath, at: found.index };
+      }
+    }
+    if (!other) continue;
+    gaps.push({
+      field: path,
+      text: `the task makes ${path} match ${other.path} («${said}») — no rule for it: add_rule "equals":"${other.path}"`,
+      fixes: [{ op: 'add_rule', field: path, equals: other.path }],
+    });
+  }
+  return gaps;
+}
 
 /**
  * Обязательность и видимость, которые задание говорит про поле в его окне, а в форме их нет. Модель
@@ -410,7 +622,9 @@ function fieldGaps(
       !rules.some(
         (rule) =>
           /^\s*email\s*\(/.test(rule) || (/^\s*pattern\s*\(/.test(rule) && rule.includes('@'))
-      )
+      ) &&
+      // Шаблон, который отвергает верный адрес, называет patternGaps — с готовой заменой.
+      !rules.some((rule) => patternOf(rule)?.test(EMAIL_SAMPLE) === false)
     ) {
       const wrong = rules.find((rule) => /^\s*pattern\s*\(/.test(rule));
       email.push({
@@ -422,7 +636,9 @@ function fieldGaps(
     }
     if (
       intent.target !== 'core' &&
-      VISIBLE_WORDS.test(said) &&
+      // «hidden input» — вид поля пароля, а не видимость: ложное «покажи по условию» модель не
+      // могла снять и закончила поддельным «Done» (батч 20261114T225122Z-f433).
+      VISIBLE_WORDS.test(withoutHiddenInput(said)) &&
       !intent.visibility.some((row) => row.selector === path)
     ) {
       const condition = conditionIn(said, intent, path);
@@ -602,8 +818,15 @@ function missingDefaults(task: string, intent: FormIntent): TaskDefault[] {
  * не сравнивая, — «ФИО (2–100 символов)» писала в отчёте, а `minLength(2)` в форме не было
  * (L2-profile-json, 20261113T174711Z-6256). Эвристика: подтвердить можно и при расхождениях.
  */
-export function taskGaps(task: string | undefined, intent: FormIntent): string[] {
-  if (!task) return [];
+export function taskGaps(
+  task: string | undefined,
+  intent: FormIntent,
+  specLabel?: string
+): string[] {
+  if (!task) {
+    const button = submitGap('', intent, specLabel);
+    return button ? [button.text] : [];
+  }
   const gaps: string[] = [];
   const templates = formatTemplates(task);
   const masks = intent.fields
@@ -668,7 +891,7 @@ export function taskGaps(task: string | undefined, intent: FormIntent): string[]
     else if (Array.isArray(value)) value.forEach(collect);
     else if (value !== null && typeof value === 'object') Object.values(value).forEach(collect);
   };
-  collect(intent.validation.map((row) => [row.rules, row.when, row.cross]));
+  collect(intent.validation.map((row) => [row.rules, row.when, row.cross, row.async]));
   // Числа формул и условий — тоже из задания: «× (1 − скидка/100)» давало ложное «names 1, 100».
   collect(intent.behavior.map((row) => [row.expr, row.when]));
   collect(intent.visibility.map((row) => row.condition));
@@ -692,7 +915,8 @@ export function taskGaps(task: string | undefined, intent: FormIntent): string[]
   for (const gap of required) {
     gaps.push(`the task makes ${gap.field} required («${gap.said}») — no "required" rule on it`);
   }
-  for (const gap of digitGaps(task, intent)) gaps.push(digitGapText(gap));
+  for (const gap of patternGaps(task, intent)) gaps.push(gap.text);
+  for (const gap of matchGaps(task, intent)) gaps.push(gap.text);
   for (const gap of email) {
     gaps.push(
       gap.wrong
@@ -705,6 +929,13 @@ export function taskGaps(task: string | undefined, intent: FormIntent): string[]
       `the task shows ${gap.field} only on a condition («${gap.said}») — add_visibility for it`
     );
   }
+  for (const gap of asyncGaps(task, intent)) {
+    gaps.push(
+      `the task checks ${gap.field} asynchronously («${gap.said}») — no async check on it: add_rule "async":"<a condition over value, TRUE when valid>", "delay":<the ms of the task>, "message":"<its error text>"`
+    );
+  }
+  const button = submitGap(task, intent, specLabel);
+  if (button) gaps.push(button.text);
   for (const entry of missingDefaults(task, intent)) {
     gaps.push(
       `the task names the default «${entry.phrase}» — ${entry.field} has no "initialValue" ${entry.value}`
@@ -726,6 +957,68 @@ export function taskGaps(task: string | undefined, intent: FormIntent): string[]
     );
   }
   return gaps;
+}
+
+/**
+ * Кнопка отправки задания против кнопки формы: нет кнопки — на рендерерах её не нарисует никто, а
+ * модель добавляла её полем (батч 20261114T113832Z-68e8); подпись другая — правка «переименуй
+ * кнопку» не сделана. На core кнопку без узла рисует разметка с подписью задания. Задание кнопку не
+ * называет — подпись из спеки плана (`specLabel`).
+ */
+function submitGap(
+  task: string,
+  intent: FormIntent,
+  specLabel?: string
+): { text: string; fix: Record<string, unknown> } | null {
+  const fromTask = taskSubmitLabel(task);
+  const named = fromTask ?? specLabel ?? null;
+  if (!named) return null;
+  const source = fromTask ? 'the task' : 'the spec';
+  const fix = { op: 'submit', label: named };
+  const current = formSubmitLabel(intent);
+  if (current === null) {
+    if (intent.target === 'core') return null;
+    return {
+      text: `${source} names the button «${named}» — the form has no submit button: {"op":"submit","label":"${named}"}`,
+      fix,
+    };
+  }
+  if (current.toLowerCase() === named.toLowerCase()) return null;
+  return {
+    text: `the submit button of the form is «${current}» — ${source} names «${named}»: {"op":"submit","label":"${named}"}`,
+    fix,
+  };
+}
+
+const ASYNC_WORDS = /асинхрон|\basync(?:hronous(?:ly)?)?\b/i;
+
+/**
+ * Поля, которые задание проверяет асинхронно («проверяй асинхронно заглушкой»), без асинхронной
+ * проверки. Поле — ближайшее упоминание перед словом в той же строке задания: «капча (`captcha`) —
+ * … Сервера капчи пока нет: проверяй асинхронно» говорит о капче через предложение.
+ */
+function asyncGaps(task: string, intent: FormIntent): Array<{ field: string; said: string }> {
+  const out: Array<{ field: string; said: string }> = [];
+  for (const line of task.split('\n')) {
+    const lower = line.toLowerCase();
+    const word = lower.search(ASYNC_WORDS);
+    if (word < 0) continue;
+    let best: { path: string; at: number } | undefined;
+    for (const field of intent.fields) {
+      const path = field.modelPath ?? field.name;
+      for (const mark of mentionsOf(lower, field)) {
+        if (mark.at > word) continue;
+        if (!best || mark.at > best.at) best = { path, at: mark.at };
+      }
+    }
+    if (!best) continue;
+    const field = best.path;
+    if (intent.validation.some((row) => row.target === field && row.async)) continue;
+    if (out.some((gap) => gap.field === field)) continue;
+    const said = line.slice(Math.max(0, word - 40), word + 40).trim();
+    out.push({ field, said });
+  }
+  return out;
 }
 
 /** Числа задания вне шаблонов формата и формул. */
@@ -856,9 +1149,13 @@ function foreignLabels(task: string, intent: FormIntent): string[] {
  */
 export function gapFixes(
   task: string | undefined,
-  intent: FormIntent
+  intent: FormIntent,
+  specLabel?: string
 ): Array<Record<string, unknown>> {
-  if (!task) return [];
+  if (!task) {
+    const button = submitGap('', intent, specLabel);
+    return button ? [button.fix] : [];
+  }
   const fixes: Array<Record<string, unknown>> = [];
   const templates = formatTemplates(task);
   const nines = (value: string): string => value.replace(/\d/g, '9');
@@ -896,10 +1193,12 @@ export function gapFixes(
   const { required, visible, email } = fieldGaps(task, intent);
   // Видимость раньше обязательности: правило поля, видимого по условию, сервер проверяет только
   // пока поле видно.
-  for (const gap of [...visible, ...required, ...email, ...digitGaps(task, intent)]) {
+  for (const gap of [...visible, ...required, ...email]) {
     if (gap.wrong) fixes.push({ op: 'remove_rule', field: gap.field, rule: 'pattern' });
     if (gap.fix) fixes.push(gap.fix);
   }
+  for (const gap of [...patternGaps(task, intent), ...matchGaps(task, intent)])
+    fixes.push(...gap.fixes);
   for (const gap of siblingGaps(task, intent)) fixes.push(gap.fix);
   for (const entry of missingDefaults(task, intent)) {
     const field = intent.fields.find((f) => (f.modelPath ?? f.name) === entry.field);
@@ -912,6 +1211,8 @@ export function gapFixes(
   }
   for (const path of strayMasks(task, intent))
     fixes.push({ op: 'set_field', name: path, mask: '' });
+  const button = submitGap(task, intent, specLabel);
+  if (button) fixes.push(button.fix);
   for (const bound of inventedBounds(task, intent)) {
     fixes.push({ op: 'remove_rule', field: bound.field, rule: bound.name });
   }
@@ -979,13 +1280,14 @@ export function fieldsSummary(intent: FormIntent): string {
 export function rulesSummary(intent: FormIntent): string {
   const byField = new Map<string, string[]>();
   for (const row of intent.validation) {
-    if (row.cross || row.rules.length === 0) continue;
+    if (row.cross || (row.rules.length === 0 && !row.async)) continue;
     const names = row.rules.map((rule) => {
       const call = /^\s*(\w+)\s*\(([^,{)]*)/.exec(rule);
       if (!call) return rule;
       const arg = call[2].trim();
       return call[1] === 'pattern' || !arg ? call[1] : `${call[1]}(${arg})`;
     });
+    if (row.async) names.push('async');
     byField.set(row.target, [...(byField.get(row.target) ?? []), ...names]);
   }
   return (
@@ -1087,7 +1389,8 @@ function stageDone(
   stage: StageId,
   intent: FormIntent | null,
   index: string | null,
-  task?: string
+  task?: string,
+  optional?: readonly string[]
 ): boolean {
   if (stage === 'markup') return index !== null && !index.includes('return null;');
   if (!intent) return false;
@@ -1102,7 +1405,7 @@ function stageDone(
     case 'wizard':
       return collectSteps(intent.layoutRoot).length > 0;
     case 'validation':
-      return unruled(intent).length === 0;
+      return unruled(intent, { task, optional }).length === 0;
     case 'cross':
       return intent.validation.some((row) => Boolean(row.cross));
     case 'behavior':
@@ -1155,7 +1458,9 @@ export function planState(
       id === 'edit'
         ? plan.edited === true && editConfirmed
         : id === 'validation'
-          ? confirmed && (stageDone(id, intent, indexText) || validationStarted(intent))
+          ? confirmed &&
+            (stageDone(id, intent, indexText, plan.task, plan.optional) ||
+              validationStarted(intent))
           : stageDone(id, intent, indexText, plan.task),
     skipped: plan.skipped.includes(id),
   }));
@@ -1177,7 +1482,9 @@ export function planState(
     fresh: intentText === null,
     intent,
     awaitingConfirm:
-      (pending === 'validation' && !confirmed && stageDone('validation', intent, indexText)) ||
+      (pending === 'validation' &&
+        !confirmed &&
+        stageDone('validation', intent, indexText, plan.task, plan.optional)) ||
       (pending === 'edit' && plan.edited === true && !editConfirmed),
   };
 }
@@ -1204,13 +1511,13 @@ export function stageGoal(stage: StageId, target: ReformerTargetStack): string {
     case 'edit':
       return 'the changes of the task, every one with form_edit — several edits in one call; then a check of the changes against the task';
     case 'fields':
-      return 'every input of the task: one add_field each, all in one call; a choice: "options"; a default value of the task: "initialValue"; an input format like a phone: "mask" — the format from the task, 9 for a digit; a computed or read-only field: "readonly":true';
+      return 'every input of the task: one add_field each, all in one call; a choice: "options"; a default value of the task: "initialValue"; an input format like a phone: "mask" — the format from the task, 9 for a digit; a computed or read-only field: "readonly":true; the button of the task is no input: {"op":"submit","label":"<its text>"}';
     case 'arrays':
       return 'repeating rows: add_array (min/max rows), then add_item_field for each column of a row';
     case 'wizard':
       return 'steps in order: add_step with the names of its fields and arrays; every field goes to a step';
     case 'validation':
-      return 'add_rule per field: required, email, min/max, minLength/maxLength, pattern; "message" — its text; "when" — only on a condition';
+      return 'add_rule per field: required, email, min/max, minLength/maxLength, pattern; "message" — its text; "when" — only on a condition; a check that waits for a server (or its stub): "async" — a condition over value, TRUE when valid, "delay" — ms';
     case 'cross':
       return 'rules across fields: a field that must match another — add_rule with "equals":"<other field>"; any other condition — "cross": an expression over values, TRUE when valid';
     case 'behavior':
@@ -1230,7 +1537,8 @@ export function stageGoal(stage: StageId, target: ReformerTargetStack): string {
 function examplesOn(
   stage: StageId,
   target: ReformerTargetStack,
-  intent: FormIntent
+  intent: FormIntent,
+  options: UnruledOptions = {}
 ): Array<Record<string, unknown>> | null {
   const names = intent.fields.map((field) => field.modelPath ?? field.name);
   if (names.length === 0) return null;
@@ -1239,7 +1547,7 @@ function examplesOn(
   switch (stage) {
     case 'validation': {
       // Пример — на полях без правил: модель копирует его, и поле без правила не теряется.
-      const open = unruled(intent);
+      const open = unruled(intent, options);
       const rules: Array<Record<string, unknown>> = (open.length > 0 ? open : names)
         .slice(0, 6)
         .map((field) => ({ op: 'add_rule', field, required: true }));
@@ -1307,9 +1615,10 @@ function examplesOn(
 export function stageExample(
   stage: StageId,
   target: ReformerTargetStack,
-  intent: FormIntent | null = null
+  intent: FormIntent | null = null,
+  options: UnruledOptions = {}
 ): string {
-  const own = intent ? examplesOn(stage, target, intent) : null;
+  const own = intent ? examplesOn(stage, target, intent, options) : null;
   if (own) return JSON.stringify(own);
   switch (stage) {
     // Полей ещё нет — заглушки, а не правдоподобные имена: модель копировала `email` из образца
@@ -1459,12 +1768,14 @@ function windowAt(task: string, marks: readonly Mark[], me: Mark, whole: boolean
  * и теряла поле города — список подписей этого не показывал (L2-profile-json, 20261113T174310Z-2301).
  */
 function checkLines(plan: GuidedPlan, intent: FormIntent, dir: string): string[] {
-  const fixes = gapFixes(plan.task, intent);
+  const fixes = gapFixes(plan.task, intent, plan.specSubmit?.label);
   return [
     ...(plan.task ? [`The task: «${plan.task}»`] : []),
     `Fields now: ${fieldsSummary(intent)}`,
     `Rules now: ${rulesSummary(intent)}`,
-    ...taskGaps(plan.task, intent).map((gap) => `⚠️ Differs from the task: ${gap}.`),
+    ...taskGaps(plan.task, intent, plan.specSubmit?.label).map(
+      (gap) => `⚠️ Differs from the task: ${gap}.`
+    ),
     ...(fixes.length > 0
       ? [
           'Next: fix the differences — this call does it:',
@@ -1665,7 +1976,9 @@ export function editGaps(
       }
     }
   }
-  for (const gap of digitGaps(task, intent)) gaps.add(digitGapText(gap));
+  for (const gap of patternGaps(task, intent)) gaps.add(gap.text);
+  const button = submitGap(task, intent);
+  if (button) gaps.add(button.text);
   if (baseline?.rules) {
     const now = checksByField(intent);
     const lower = task.toLowerCase();
@@ -1685,6 +1998,17 @@ export function editGaps(
       if (!named) {
         gaps.add(
           `\`${path}\` lost its checks (${lost.join(', ')}) — the task does not change \`${path}\`: put them back with add_rule`
+        );
+      } else if (
+        lost.includes('required') &&
+        !taskFragments(task, intent, path).some(
+          (window) => OPTIONAL_WORDS.test(window) || REMOVE_WORDS.test(window)
+        )
+      ) {
+        // Поле задание называет, но обязательность не снимает: `remove_rule` без "rule" снимал все
+        // правила пароля вместе с required (батч 20261114T235104Z-4e30, registration-edit).
+        gaps.add(
+          `\`${path}\` lost its "required" check — the task changes \`${path}\` but does not make it optional: add_rule "required":true`
         );
       }
     }
@@ -1724,7 +2048,7 @@ function editCheckLines(plan: GuidedPlan, intent: FormIntent, dir: string): stri
 
 /** Правки, которыми меняют готовую форму. */
 const EDIT_OPS_LINE =
-  'Edits for changes: rename_field {name,to,label?} · set_field {name,…} · remove_field {name} · add_field {name,label,…} · add_rule / remove_rule {field,rule?} · add_behavior / remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · add_step / rename_step {title,to} / remove_step {title} · place {name,step}.';
+  'Edits for changes: rename_field {name,to,label?} · set_field {name,…} · remove_field {name} · add_field {name,label,…} · add_rule / remove_rule {field,rule?} · add_behavior / remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · add_step / rename_step {title,to} / remove_step {title} · place {name,step} · submit {label}.';
 
 export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): string[] {
   if (state.failed) {
@@ -1761,7 +2085,8 @@ export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): stri
     const skip = state.pending === 'fields' || state.pending === 'markup';
     const skipCall = `form_status {"dir":${JSON.stringify(dir)},"skip":"${state.pending}"}`;
     // Валидация начата: этап ждёт поля без правил — их и называем.
-    const open = state.pending === 'validation' && state.intent ? unruled(state.intent) : [];
+    const known = { task: plan.task, optional: plan.optional };
+    const open = state.pending === 'validation' && state.intent ? unruled(state.intent, known) : [];
     const started = state.intent?.validation.some((row) => row.rules.length > 0) === true;
     // Ограничения задания — к месту, где они нужны: модель копировала пример с одним required.
     const reminder =
@@ -1774,8 +2099,8 @@ export function nextLines(plan: GuidedPlan, state: PlanState, dir: string): stri
     // (L2-profile-json, 20261113T180559Z-79cd). Необязательные поля — только после сверки.
     if (started && open.length > 0 && state.intent) {
       return [
-        `Next — validation: fields without a rule (or, with a mask, without "pattern"): ${open.join(', ')} — add_rule from the task for each:`,
-        editCall(dir, stageExample(state.pending, plan.target, state.intent)),
+        `Next — validation: fields without a rule (or, with a mask, without "pattern"): ${open.join(', ')}. A limit the task gives one of them (required, a length, a range, a format) — add_rule; a field the task leaves optional — {"op":"add_rule","field":"<it>","required":false}, it stays without a rule:`,
+        editCall(dir, stageExample(state.pending, plan.target, state.intent, known)),
         `Are ${open.join(', ')} optional on purpose? Check the form against the task first:`,
         ...checkLines(plan, state.intent, dir),
       ];

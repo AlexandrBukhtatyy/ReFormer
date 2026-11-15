@@ -19,7 +19,13 @@ import {
   type FormIntent,
   type LayoutNode,
 } from './form-intent.js';
-import { collectUsedComponents, isDerivedModule, mentionsName, ruleName } from './builders.js';
+import {
+  collectUsedComponents,
+  isDerivedModule,
+  mentionsName,
+  ruleName,
+  submitHandlerOf,
+} from './builders.js';
 import { NO_CORE_OPERATORS, type CoreOperators } from './core-operators.js';
 import {
   BEHAVIOR_KEY_OPERATORS,
@@ -553,6 +559,9 @@ function checkOperators(
     ...(intent.nodes ?? []).map((rule) => rule.expr),
     ...intent.visibility.map((v) => v.condition),
   ];
+  // Функцию отправки на core зовёт разметка (`bundle.submission.submit`), а не intent: правил узлов
+  // там нет (ReFormer-f2fs.17).
+  const markupCalls = intent.target === 'core' ? submitHandlerOf(intent) : null;
   for (const [name, module] of Object.entries(operators)) {
     if (coreNames.has(name)) {
       err(
@@ -567,7 +576,7 @@ function checkOperators(
           'Keep your operators in "./operators".'
       );
     }
-    if (!code.some((part) => mentionsName(part, name))) {
+    if (name !== markupCalls && !code.some((part) => mentionsName(part, name))) {
       warn(
         'C12',
         `The operator \`${name}\` is declared in operators, and the intent never calls it.`

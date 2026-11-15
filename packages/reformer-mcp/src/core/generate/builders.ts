@@ -38,6 +38,7 @@ import {
   isWizardContainer,
   stepKeyOf,
 } from './schema-emit.js';
+import { onlySubmits } from './submit.js';
 
 /** Один файл бандла. */
 export interface BundleFile {
@@ -319,6 +320,12 @@ export function buildAssemblyTsx(intent: FormIntent, coreMarkup?: CoreMarkup): s
  * `bundle.form.submit()` и `bundle.form.validate()` — их нет (ReFormer-qo9b.33). Образцы — на
  * полях самой формы: поле, условие видимости, отправка, шаги, тексты замечаний.
  */
+/** Обработчик отправки в подсказке core: функция `api.ts` формы, если она есть. */
+function submitHint(intent: FormIntent): string {
+  const handler = submitHandlerOf(intent);
+  return handler ? `${handler} /* from './api' */` : '(values) => send(values)';
+}
+
 function coreMarkupHints(intent: FormIntent, withSteps: boolean): string[] {
   const first = intent.fields[0];
   const path = first ? (first.modelPath ?? first.name) : 'fieldName';
@@ -329,7 +336,7 @@ function coreMarkupHints(intent: FormIntent, withSteps: boolean): string[] {
     `  //   const value = useFormControlValue(bundle.form.${path});`,
     '  //   {value === … && <FormField control={…} />}',
     '  // Submit with bundle.submission — the form nodes have no submit() or validate():',
-    '  //   const result = await bundle.submission.submit((values) => send(values));',
+    `  //   const result = await bundle.submission.submit(${submitHint(intent)});`,
     "  //   result.status: 'submitted' | 'invalid' | 'error' | 'cancelled' | 'failed';",
     '  //   useSignalSnapshot(bundle.submission.submitting) is true while the handler runs.',
   ];
@@ -825,7 +832,7 @@ export function isDerivedModule(module: string): boolean {
 }
 
 /** Как intent пользуется своим оператором — от этого зависит его заготовка. */
-type OperatorRole = 'rule' | 'validation' | 'behavior' | 'schema' | 'function';
+type OperatorRole = 'rule' | 'validation' | 'behavior' | 'schema' | 'submit' | 'function';
 
 /** Тип значения поля, к которому относится правило; `null` — поле не найдено. */
 function ruleFieldType(
@@ -864,11 +871,28 @@ function operatorRoles(intent: FormIntent): Map<string, { role: OperatorRole; ty
       behavior.some((code) => new RegExp(`validateModel\\(\\s*\\w+\\s*,\\s*${name}\\b`).test(code))
     ) {
       roles.set(name, { role: 'schema', types: [] });
+    } else if (
+      operatorModuleFile(intent.operators?.[name] ?? '') === 'api.ts' &&
+      onlySubmits([...behavior, ...validationCode(intent.validation)], name)
+    ) {
+      // Функция `api.ts`, которую зовут только со значениями формы (или не зовут вовсе — на core её
+      // зовёт разметка): отправка. Заготовка без метки: «тело — заглушка, сервера нет» — это и есть
+      // заглушка, а напоминание «допиши тело» на каждой сборке уводило малую модель писать `api.ts`.
+      roles.set(name, { role: 'submit', types: [] });
     } else {
       roles.set(name, { role: 'function', types: [] });
     }
   }
   return roles;
+}
+
+/**
+ * Функция отправки формы — свой оператор `api.ts`, который зовут только со значениями формы или не
+ * зовут вовсе (на core её зовёт разметка). Нет такого — `null`.
+ */
+export function submitHandlerOf(intent: FormIntent): string | null {
+  for (const [name, { role }] of operatorRoles(intent)) if (role === 'submit') return name;
+  return null;
 }
 
 /** Типы значений одним объединением: `string | null` и `string` → `string | null`. */
@@ -913,6 +937,16 @@ function operatorStub(
         `  // ${mark}: связи оператора.`,
         '}',
       ];
+    case 'submit':
+      return [
+        '/**',
+        ' * Отправка формы: заглушка сервера — значения формы уходят в консоль. Замени тело запросом к',
+        ' * серверу: первая правка делает файл твоим.',
+        ' */',
+        `export async function ${name}(values: ${intent.interfaceName}): Promise<void> {`,
+        `  console.info('${name}', values);`,
+        '}',
+      ];
     case 'schema':
       return [
         `/** ${mark}: своя схема валидации — её перезапускает \`validateModel\` из поведения. */`,
@@ -953,13 +987,26 @@ export function buildOperatorStubs(intent: FormIntent): BundleFile[] {
     }));
     const rules = used.some((op) => op.role === 'rule');
     const schemas = used.some((op) => op.role === 'schema');
+    const submits = used.some((op) => op.role === 'submit');
     const core = [...(schemas ? ['defineValidation'] : []), ...(rules ? ['type Rule'] : [])];
+    // Файл одной отправки: её заглушка рабочая, меток нет — «допиши тела» про него было бы неправдой.
+    const header = used.every((op) => op.role === 'submit')
+      ? [
+          '/**',
+          ` * Отправка формы «${intent.formName}» — функция из \`operators\` \`form.intent.json\`, её зовёт`,
+          ' * кнопка формы. Пока файл не правлен, сборка обновляет заготовку под intent; первая правка',
+          ' * делает его твоим.',
+          ' */',
+        ]
+      : [
+          '/**',
+          ` * Свои операторы формы «${intent.formName}» — их вызывает \`form.intent.json\` (раздел`,
+          ' * `operators`). Пока файл не правлен, сборка обновляет заготовку под intent; первая правка',
+          ' * делает его твоим. Допиши тела: пока в файле остаются метки заготовки, form_build напоминает.',
+          ' */',
+        ];
     const lines = [
-      '/**',
-      ` * Свои операторы формы «${intent.formName}» — их вызывает \`form.intent.json\` (раздел`,
-      ' * `operators`). Пока файл не правлен, сборка обновляет заготовку под intent; первая правка',
-      ' * делает его твоим. Допиши тела: пока в файле остаются метки заготовки, form_build напоминает.',
-      ' */',
+      ...header,
       ...(core.length > 0
         ? [
             core.length === 1 && rules
@@ -967,7 +1014,7 @@ export function buildOperatorStubs(intent: FormIntent): BundleFile[] {
               : `import { ${core.join(', ')} } from '@reformer/core/validation';`,
           ]
         : []),
-      ...(schemas ? [`import type { ${intent.interfaceName} } from './model';`] : []),
+      ...(schemas || submits ? [`import type { ${intent.interfaceName} } from './model';`] : []),
       ...used.flatMap((op) => ['', ...operatorStub(op.name, op.role, op.types, intent)]),
     ];
     return { path, content: lines.join('\n') + '\n' };
@@ -1604,6 +1651,11 @@ function behaviorExtraImports(intent: FormIntent, withNodes: boolean): string[] 
   return [
     ...(code.some((part) => /(^|[^\w$.])validateModel\s*\(/.test(part))
       ? ["import { validateModel } from '@reformer/core/validation';"]
+      : []),
+    // Схема всей формы — проверка перед отправкой с кнопки вне мастера (`submitEventRule`).
+    ...(!intent.operators?.formValidation &&
+    code.some((part) => mentionsName(part, 'formValidation'))
+      ? ["import { formValidation } from './form.validation';"]
       : []),
     ...operatorImportLines(intent.operators, code),
   ];

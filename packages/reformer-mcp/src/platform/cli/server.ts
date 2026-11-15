@@ -64,17 +64,19 @@ export const CODE_MODE_INSTRUCTIONS =
  * `form_start`, дальше только `form_edit` по строке `Next:`.
  */
 export const GUIDED_INSTRUCTIONS =
-  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text, word for word>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server keeps the form and builds the module; never write files of the form folder yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
+  'To create a ReFormer form: call form_start {"dir":"form","target":"<stack from the task>","task":"<the task text, word for word>"} (or "specPath" for a spec file) once. Then change the form only with form_edit — the server keeps the form and builds the module, the JSX of @reformer/core too; never write files of the form folder yourself. Every answer ends with "Next:" — do exactly that call. Stop only when an answer says "Done".';
 
 /**
  * Инструкции связки Code Mode и guided: шаги называет сервер, как в {@link GUIDED_INSTRUCTIONS},
  * но вызовы — функции `reformer.*` внутри `run_script`. Строки `Next:` приходят уже кодом скрипта.
  * Три входа названы явно: про форму, которая уже лежит в каталоге, и про спецификацию инструкции
  * молчали — модель правила готовую форму руками в 8 из 9 правок и ни разу не передала `specPath`
- * (батч 20261114T113832Z-68e8).
+ * (батч 20261114T113832Z-68e8). JSX core назван отдельно: строка задания «разметку пишешь сам в
+ * JSX» читалась как разрешение писать файлы — три ячейки правки на core подряд прошли мимо сервера
+ * (батчи 20261114T215823Z-1be3, …225122Z-f433, ReFormer-f2fs.15).
  */
 export const CODE_GUIDED_INSTRUCTIONS =
-  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. Start every form task with run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` — also when the form already lies in the folder and the task changes it; a task that names a markdown spec file also passes specPath. Then change the form only with reformer.formEdit — the server writes every file of the form; never write files in the form folder yourself. Every answer ends with "Next:" and a line of code — run it and print the result. Stop only when an answer says "Done".';
+  'This server has one tool, run_script: the form functions are async functions of the global `reformer` object inside the script. Start every form task with run_script `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` — also when the form already lies in the folder and the task changes it; a task that names a markdown spec file also passes specPath. Then change the form only with reformer.formEdit — the server writes every file of the form, the JSX of @reformer/core too: never edit files in the form folder yourself. Every answer ends with "Next:" and a line of code — run it. Stop only when an answer says "Done".';
 
 /**
  * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`), guided (план и

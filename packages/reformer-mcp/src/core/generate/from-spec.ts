@@ -20,9 +20,16 @@ import {
   type FieldIntent,
   type FormIntent,
   type LayoutNode,
+  type NodeRuleIntent,
   type ReformerTargetStack,
   type ValidationRuleIntent,
 } from './form-intent.js';
+import {
+  DEFAULT_SUBMIT_HANDLER,
+  SUBMIT_MODULE,
+  submitButtonNode,
+  submitEventRule,
+} from './submit.js';
 import type { UiKitComponents } from './ui-kit-components.js';
 
 /**
@@ -45,7 +52,15 @@ function fieldIntentOf(f: SpecField): FieldIntent {
     component: f.component,
     label: f.label,
     ...(f.initialValue !== undefined ? { initialValue: f.initialValue } : {}),
-    ...(f.mask ? { componentProps: { mask: f.mask } } : {}),
+    // «Только для чтения» спеки — `readOnly` компонента: поле считает форма (итог, сумма строк).
+    ...(f.mask || f.readOnly
+      ? {
+          componentProps: {
+            ...(f.mask ? { mask: f.mask } : {}),
+            ...(f.readOnly ? { readOnly: true } : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -139,13 +154,137 @@ function layoutOf(analysis: SpecAnalysis, warnings: string[]): LayoutNode {
     .filter((s) => s.children.length > 0);
 
   if (steps.length < 2) {
-    return { kind: 'container', component: 'Box', children: analysis.order.map(leaf) };
+    return { kind: 'container', component: 'Box', children: sectioned(analysis.order, leaf) };
   }
   return {
     kind: 'container',
     component: 'Box',
     children: steps.map((s) => ({ kind: 'step' as const, title: s.title, children: s.children })),
   };
+}
+
+/**
+ * Кнопка отправки, которую называет спека: узел `Button` в конце плоской раскладки, функция отправки
+ * в `./api` (названная спекой, иначе `submitForm`) и на рендерерах — обработчик нажатия. На core
+ * функцию зовёт разметка. Раньше черновик кнопки не нёс: форма по спеке на рендерере выходила без
+ * кнопки вовсе, хотя спека её называла (ReFormer-f2fs.16).
+ */
+function submitOf(
+  analysis: SpecAnalysis,
+  target: ReformerTargetStack,
+  root: LayoutNode,
+  warnings: string[]
+): { nodes: NodeRuleIntent[]; operators?: Record<string, string> } {
+  const label = analysis.submitLabel;
+  if (!label || root.kind !== 'container') return { nodes: [] };
+  if (root.children.some((child) => child.kind === 'step')) {
+    warnings.push(
+      `Кнопка «${label}»: у мастера это подпись кнопки последнего шага — ` +
+        '`componentProps.submitLabel` узла `FormWizard`.'
+    );
+    return { nodes: [] };
+  }
+  root.children.push(submitButtonNode(label));
+  const handler = analysis.submitHandler ?? DEFAULT_SUBMIT_HANDLER;
+  return {
+    nodes: target === 'core' ? [] : [submitEventRule(handler)],
+    operators: { [handler]: SUBMIT_MODULE },
+  };
+}
+
+const LATIN: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+};
+
+/** Селектор секции: группа модели, общая для всех её полей (`company`), иначе заголовок латиницей. */
+function sectionSelector(title: string, names: readonly string[]): string {
+  const groups = new Set(names.map((name) => (name.includes('.') ? name.split('.')[0] : '')));
+  const [group] = [...groups];
+  if (groups.size === 1 && group) return group;
+  const slug = [...title.toLowerCase()]
+    .map((char) => LATIN[char] ?? char)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'section';
+}
+
+/**
+ * Поля плоской формы по колонке «Раздел»: строки подряд с одним разделом — `Section` с его
+ * заголовком, строки без раздела — в корне. Раздел, который встретился один на всю форму, секции не
+ * даёт: заголовок над всей формой ничего не группирует. Черновик спеки заказа был плоским, и мастер
+ * «каждый раздел — шаг» модель собирала, шесть раз перечисляя поля; с секциями хватает одного
+ * `add_step` с заголовком раздела (wizard-create, ReFormer-f2fs.26).
+ */
+function sectioned(
+  order: SpecAnalysis['order'],
+  leaf: (entry: SpecAnalysis['order'][number]) => LayoutNode
+): LayoutNode[] {
+  const titles = new Set(order.map((entry) => entry.section).filter(Boolean));
+  if (titles.size < 2) return order.map(leaf);
+  // Подряд идущие строки одного раздела — одна группа; строка без раздела — группа сама по себе.
+  const groups: Array<{ title?: string; entries: SpecAnalysis['order'] }> = [];
+  for (const entry of order) {
+    const last = groups[groups.length - 1];
+    if (entry.section && last?.title === entry.section) last.entries.push(entry);
+    else groups.push({ title: entry.section, entries: [entry] });
+  }
+  const out: LayoutNode[] = [];
+  // Селектор секции не совпадает с путём поля или массива: у тех свои узлы.
+  const used = new Set(order.map((entry) => entry.name));
+  for (const group of groups) {
+    if (!group.title) {
+      out.push(...group.entries.map(leaf));
+      continue;
+    }
+    const base = sectionSelector(
+      group.title,
+      group.entries.map((entry) => entry.name)
+    );
+    let selector = base;
+    for (let index = 2; used.has(selector); index += 1) selector = `${base}-${index}`;
+    used.add(selector);
+    out.push({
+      kind: 'container',
+      component: 'Section',
+      selector,
+      componentProps: { title: group.title },
+      children: group.entries.map(leaf),
+    });
+  }
+  return out;
 }
 
 export function intentFromAnalysis(
@@ -221,16 +360,22 @@ export function intentFromAnalysis(
     name: a.name,
     itemInterfaceName: itemInterfaceOf(a.name),
     itemFields: a.itemFields.map(fieldIntentOf),
+    // Подпись строки массива в спеке — заголовок его секции («Товары»).
+    ...(a.label ? { componentProps: { title: a.label } } : {}),
     // Пустой массив — честное начало: строки добавляет человек. Без значения узел массива
     // ломается на первом `add` (см. `ArrayIntent.initialValue`).
     initialValue: [],
   }));
 
+  const layoutRoot = layoutOf(analysis, warnings);
+  const submit = submitOf(analysis, target, layoutRoot, warnings);
   return normalizeIntent(
     {
       formName: analysis.formName,
       target,
-      layoutRoot: layoutOf(analysis, warnings),
+      layoutRoot,
+      ...(submit.nodes.length > 0 ? { nodes: submit.nodes } : {}),
+      ...(submit.operators ? { operators: submit.operators } : {}),
       fields: analysis.fields.map(fieldIntentOf),
       arrays,
       validation,

@@ -728,3 +728,170 @@ describe('круг «спека → intent → повторное чтение»
     expect(buildBundle(reread, CATALOGS).files).toEqual(buildBundle(planned, CATALOGS).files);
   });
 });
+
+describe('массивы спеки стенда: «список строк» и таблица строки (ReFormer-f2fs.21)', () => {
+  const ORDER = join(dirname(fileURLToPath(import.meta.url)), '../eval/scenarios/order/spec.md');
+
+  it('спека заказа: 27 полей и два массива с полями строк, подписи и значения из своих колонок', () => {
+    const analysis = analyzeSpec(readFileSync(ORDER, 'utf8'));
+    const names = analysis.fields.map((field) => field.name);
+    expect(names).toHaveLength(27);
+    // Столбцы строк — не поля формы; email получателя не сливается с email покупателя.
+    for (const name of [
+      'items',
+      'recipients',
+      'title',
+      'quantity',
+      'price',
+      'lineTotal',
+      'primary',
+    ])
+      expect(names).not.toContain(name);
+    expect(names.filter((name) => name === 'email')).toHaveLength(1);
+    expect(
+      analysis.arrayDefs.map((array) => [
+        array.name,
+        array.label,
+        array.itemFields.map((field) => `${field.name}:${field.component}`),
+      ])
+    ).toEqual([
+      [
+        'items',
+        'Товары',
+        ['title:Input', 'quantity:InputNumber', 'price:InputNumber', 'lineTotal:InputNumber'],
+      ],
+      ['recipients', 'Кому отправлять уведомления', ['email:Input', 'primary:Checkbox']],
+    ]);
+    const field = (name: string) => analysis.fields.find((entry) => entry.name === name);
+    expect(field('customerType')).toMatchObject({
+      label: 'Тип покупателя',
+      component: 'RadioGroup',
+      initialValue: 'person',
+    });
+    // «Только для чтения» и «Необязательное» колонки «Валидация» — свойства поля, не правила.
+    expect(field('subtotal')?.readOnly).toBe(true);
+    expect(field('total')?.readOnly).toBe(true);
+    expect(analysis.fields.filter((entry) => entry.optional).map((entry) => entry.name)).toEqual([
+      'promoCode',
+      'sources',
+    ]);
+    // Множественный выбор — поле-список, а не массив строк; `[]` ему и подходит.
+    expect(field('sources')).toMatchObject({
+      type: 'array',
+      component: 'SelectMulti',
+      initialValue: [],
+    });
+  });
+
+  it('черновик спеки заказа собирается: массивы с заголовком секции', () => {
+    const intent = intentFromSpec(readFileSync(ORDER, 'utf8'), 'renderer-react');
+    expect(intent.arrays.map((array) => [array.name, array.componentProps?.title])).toEqual([
+      ['items', 'Товары'],
+      ['recipients', 'Кому отправлять уведомления'],
+    ]);
+    expect(intent.fields.find((field) => field.name === 'total')?.componentProps).toEqual({
+      readOnly: true,
+    });
+    const { problems } = readIntent(JSON.parse(JSON.stringify(intent)), { uiKit: CATALOGS.uiKit });
+    expect(problems).toEqual([]);
+  });
+
+  it('таблица строки — только под заголовком строки с ключом; шаг мастера — не массив', () => {
+    const spec = [
+      '# Форма: Тест',
+      '',
+      '| Ключ | Подпись | Компонент | Начальное значение |',
+      '| --- | --- | --- | --- |',
+      '| `name` | Имя | Input | `` |',
+      '| `rows` | Строки | список строк | — |',
+      '| `tags` | Метки | Input | [] |',
+      '',
+      '### Строка (`rows`)',
+      '',
+      '| Ключ | Подпись | Компонент |',
+      '| --- | --- | --- |',
+      '| `amount` | Сумма | InputNumber |',
+      '',
+      '### Шаг 2: Позиция (`item`)',
+      '',
+      '| Ключ | Подпись | Компонент |',
+      '| --- | --- | --- |',
+      '| `note` | Заметка | Input |',
+    ].join('\n');
+    const analysis = analyzeSpec(spec);
+    expect(analysis.fields.map((field) => field.name)).toEqual(['name', 'tags', 'note']);
+    expect(
+      analysis.arrayDefs.map((array) => [array.name, array.itemFields.map((f) => f.name)])
+    ).toEqual([['rows', ['amount']]]);
+    // `[]` строковому полю не подходит — начального значения нет, а не неверный тип.
+    expect(analysis.fields.find((field) => field.name === 'tags')?.initialValue).toBeUndefined();
+  });
+});
+
+describe('секции черновика из колонки «Раздел» (ReFormer-f2fs.26)', () => {
+  const ORDER = join(dirname(fileURLToPath(import.meta.url)), '../eval/scenarios/order/spec.md');
+  type Node = {
+    kind: string;
+    selector?: string;
+    componentProps?: { title?: string };
+    children?: unknown[];
+  };
+
+  it('спека заказа: шесть секций в порядке спеки, массивы внутри, кнопка после них', () => {
+    const intent = intentFromSpec(readFileSync(ORDER, 'utf8'), 'renderer-react');
+    const children = (intent.layoutRoot as Node).children as Node[];
+    expect(children.map((node) => [node.selector, node.componentProps?.title])).toEqual([
+      ['pokupatel', 'Покупатель'],
+      // Все поля секции в одной группе модели — её имя: так же селектор и у эталона.
+      ['company', 'Компания'],
+      ['dostavka', 'Доставка'],
+      ['tovary', 'Товары'],
+      ['oplata', 'Оплата'],
+      ['podtverzhdenie', 'Подтверждение'],
+      ['submit', undefined],
+    ]);
+    expect(children[3].children).toEqual([
+      { kind: 'array', ref: 'items' },
+      { kind: 'field', ref: 'subtotal' },
+    ]);
+    expect(
+      readIntent(JSON.parse(JSON.stringify(intent)), { uiKit: CATALOGS.uiKit }).problems
+    ).toEqual([]);
+  });
+
+  it('один раздел на всю форму — без секции; повтор раздела не подряд — своя секция и селектор', () => {
+    const table = (rows: string[][]) =>
+      [
+        '# Форма: Тест',
+        '',
+        '| Раздел | Ключ | Подпись | Компонент |',
+        '| --- | --- | --- | --- |',
+        ...rows.map((row) => `| ${row[0]} | \`${row[1]}\` | ${row[1]} | Input |`),
+      ].join('\n');
+    const single = intentFromSpec(
+      table([
+        ['Общее', 'firstName'],
+        ['Общее', 'lastName'],
+      ]),
+      'core'
+    );
+    expect((single.layoutRoot as Node).children).toEqual([
+      { kind: 'field', ref: 'firstName' },
+      { kind: 'field', ref: 'lastName' },
+    ]);
+    const repeated = intentFromSpec(
+      table([
+        ['Общее', 'firstName'],
+        ['Доп', 'lastName'],
+        ['Общее', 'email'],
+        ['—', 'phone'],
+      ]),
+      'core'
+    );
+    expect(
+      ((repeated.layoutRoot as Node).children as Node[]).map((node) =>
+        node.kind === 'container' ? node.selector : (node as unknown as { ref: string }).ref
+      )
+    ).toEqual(['obschee', 'dop', 'obschee-2', 'phone']);
+  });
+});

@@ -15,7 +15,6 @@
  * @module reformer-mcp/core/tools/guided
  */
 
-import { buildAssemblyTsx, buildMessagesTs } from '../generate/builders.js';
 import { catalogsOf, type FormCatalogs } from '../generate/catalogs.js';
 import {
   readIntent,
@@ -33,9 +32,10 @@ import {
   crossWord,
   featuresFromSpec,
   featuresFromText,
+  mergeFeatures,
   validationWord,
 } from '../guided/features.js';
-import { buildCoreMarkup, MARKUP_MARK, submitLabelOf } from '../guided/markup.js';
+import { coreAssembly, MARKUP_MARK } from '../guided/markup.js';
 import {
   baselineOf,
   editCall,
@@ -64,7 +64,7 @@ import type { Knowledge } from '../knowledge.js';
 import { analyzeSpec } from '../spec/analyze.js';
 import type { FormDirectory } from '../workspace/form-workspace.js';
 import { formBuildTool, INTENT_FILE } from './form-build.js';
-import { planFormTool } from './plan-form.js';
+import { draftFromSpec, planFormTool } from './plan-form.js';
 import { invalidCall, type ToolTextResult } from './tool-result.js';
 
 const TARGETS = 'core | renderer-react | renderer-json';
@@ -224,13 +224,22 @@ function fieldsLine(intent: FormIntent | null): string[] {
  * Ответ сборки в профиле guided. Совет сборки «на core пиши разметку сам» противоречит плану: её
  * пишет сервер на этапе markup — строка убирается, этап назовёт `Next:`.
  */
-export function guidedBuildText(text: string): string {
-  return text
-    .split('\n')
-    .filter((line) => !BUILD_LINES_DROPPED.some((start) => line.startsWith(start)))
-    .map(guidedBuildLine)
-    .join('\n');
+export function guidedBuildText(text: string, serverMarkup = false): string {
+  return (
+    text
+      .split('\n')
+      .filter((line) => !BUILD_LINES_DROPPED.some((start) => line.startsWith(start)))
+      // Тексты и кнопку раскладки разметка сервера рисует сама: совет «write them there too» звал
+      // переписывать её index.tsx руками (order-delete на core, ReFormer-f2fs.22).
+      .filter((line) => !(serverMarkup && /^- texts in the layout .*draws the markup/.test(line)))
+      .map(guidedBuildLine)
+      .join('\n')
+  );
 }
+
+/** `index.tsx` каталога — разметка сервера (`{"op":"markup"}`). */
+const serverMarkupIn = (directory: FormDirectory): boolean =>
+  directory.read('index.tsx')?.includes(MARKUP_MARK) === true;
 
 /**
  * Строки ответа обычной сборки, которых в профиле нет. Каждая звала модель к файлам: список файлов
@@ -496,8 +505,30 @@ function draftLine(line: string): string {
  * `SdelatFormuRegistratsiiSPolyamiForm`, и модель переименовывала его в разметке руками (батч
  * 20261114T215823Z-1be3).
  */
+/**
+ * Задание, которое само — спецификация: заголовок `# …`, разделы `## …` и таблица полей. Модель
+ * вставляла текст spec.md в «task» вместо `specPath`: черновика не было, имя формы выходило
+ * «# Форма» (order-create, батч 20261114T235104Z-4e30, ReFormer-f2fs.20).
+ */
+export function isSpecText(task: string): boolean {
+  const lines = task.split('\n').map((line) => line.trim());
+  const first = lines.find((line) => line !== '') ?? '';
+  return (
+    /^#\s+\S/.test(first) &&
+    lines.some((line) => /^##\s+\S/.test(line)) &&
+    lines.filter((line) => /^\|.*\|$/.test(line)).length >= 3 &&
+    analyzeSpec(task).fields.length >= 2
+  );
+}
+
 export function formNameOf(task: string): string {
-  const head = (task.split(/[:.!?\n]/)[0]?.trim() ?? '')
+  // Заголовок markdown: «# Форма: Оформление заказа» — имя после «Форма:», без решёток.
+  const heading = /^\s*#{1,6}\s+(?:(?:форма|form)\s*:\s*)?([^\n]+)/i.exec(task)?.[1];
+  const head = (
+    heading?.replace(/\s*\(`[^`]*`\)\s*$/, '').trim() ??
+    task.split(/[:.!?\n]/)[0]?.trim() ??
+    ''
+  )
     .replace(
       /^(?:сделай(?:те)?|сделать|создай(?:те)?|создать|собери(?:те)?|собрать)\s+форму(?![а-яё])/i,
       'Форма'
@@ -554,6 +585,8 @@ export async function formStartTool(
       lines.push(`"specPath" taken from the task: ${found} — the server drafts the form from it.`);
     }
   }
+  // Задание — сама спецификация (текст spec.md вместо `specPath`): черновик из него.
+  const specText = !specPath && isSpecText(task) ? task : null;
   // Форма уже лежит в каталоге, а плана нет (или он — план правки): задание её меняет. План — один
   // этап правки со сверкой по дельте; иначе проверки создания формы шли по тексту правки.
   const previous = parsePlan(directory.read(PLAN_FILE));
@@ -601,24 +634,46 @@ export async function formStartTool(
   }
   let features = featuresFromText(task);
   let source: GuidedPlan['source'] = 'task';
+  let specSubmit: GuidedPlan['specSubmit'];
+  let specOptional: string[] | undefined;
   let formName =
     typeof args.formName === 'string' && args.formName.trim()
       ? args.formName.trim()
       : formNameOf(task);
-  if (specPath) {
-    const spec = k.spec.read(specPath);
+  if (specPath || specText !== null) {
+    const spec = specText ?? k.spec.read(specPath);
     if (spec === null) {
       return invalidCall(
         `✗ form_start: spec not found — \`${specPath}\`. The task is in the message? Call form_start with "task" instead.`
       );
     }
     const analysis = analyzeSpec(spec);
-    features = featuresFromSpec(analysis, spec);
+    // Задание поверх спеки («по spec.md, но мастером») добавляет свои признаки; задание, которое само
+    // спека, — нет: «шаг 5» слайдера в ней не мастер.
+    features =
+      specText === null
+        ? mergeFeatures(featuresFromSpec(analysis, spec), featuresFromText(task))
+        : featuresFromSpec(analysis, spec);
+    // «Необязательное» спеки — сразу в план: этап валидации таких полей не ждёт, а обрезанный текст
+    // задания строк спеки уже не держит (ReFormer-f2fs.20).
+    const unrequired = analysis.fields.filter((field) => field.optional).map((field) => field.name);
+    if (unrequired.length > 0) specOptional = unrequired;
+    if (analysis.submitLabel || analysis.submitHandler) {
+      specSubmit = {
+        ...(analysis.submitLabel ? { label: analysis.submitLabel } : {}),
+        ...(analysis.submitHandler ? { handler: analysis.submitHandler } : {}),
+      };
+    }
     source = 'spec';
     if (!(typeof args.formName === 'string' && args.formName.trim()))
       formName = analysis.formName || formName;
+    if (specText !== null)
+      lines.push('The task is a spec itself — the server drafts the form from it.');
     if (directory.read(INTENT_FILE) === null) {
-      const drafted = await planFormTool({ specPath, dir: args.dir, target }, k);
+      const drafted =
+        specText !== null
+          ? await draftFromSpec(specText, 'the task', { dir: args.dir, target }, k)
+          : await planFormTool({ specPath, dir: args.dir, target }, k);
       const draft = drafted.content[0].text.split('\n');
       // Черновик и что дописать руками — из ответа plan_form, без его «Next»: следующий шаг здесь свой.
       lines.push(
@@ -643,6 +698,8 @@ export async function formStartTool(
       target,
       source,
       ...(specPath ? { specPath } : {}),
+      ...(specSubmit ? { specSubmit } : {}),
+      ...(specOptional ? { optional: specOptional } : {}),
       ...(task ? { task: task.length > TASK_LIMIT ? `${task.slice(0, TASK_LIMIT)}…` : task } : {}),
       stages,
       skipped: [],
@@ -799,7 +856,7 @@ export async function formStatusTool(
     const gaps = intent
       ? plan.mode === 'edit'
         ? editGaps(plan.task, intent, plan.baseline)
-        : taskGaps(plan.task, intent)
+        : taskGaps(plan.task, intent, plan.specSubmit?.label)
       : [];
     if (gaps.length > 0 && plan.confirmTried !== true) {
       plan = { ...plan, confirmTried: true };
@@ -1013,6 +1070,7 @@ export async function formEditTool(
           wizard: plan.stages.includes('wizard') && !plan.skipped.includes('wizard'),
         }),
     ...(plan.task ? { task: plan.task } : {}),
+    ...(plan.specSubmit?.handler ? { submitHandler: plan.specSubmit.handler } : {}),
   });
   if (
     applied.outcomes.some((outcome) => !outcome.ok && outcome.message.startsWith(NO_ROWS)) &&
@@ -1023,6 +1081,10 @@ export async function formEditTool(
   }
   const accepted = applied.outcomes.filter((outcome) => outcome.ok).length;
   if (editing && accepted > 0 && plan.edited !== true) plan = { ...plan, edited: true };
+  // Поля, объявленные необязательными (`required:false`), — в план: этап валидации их не ждёт.
+  if (applied.optional.length > 0) {
+    plan = { ...plan, optional: [...new Set([...(plan.optional ?? []), ...applied.optional])] };
+  }
   const report = [
     `form_edit: ${accepted} of ${applied.outcomes.length} edits applied.`,
     ...reportLines(applied.outcomes),
@@ -1061,14 +1123,7 @@ export async function formEditTool(
           '- markup: index.tsx was edited by hand, the server does not overwrite it. Delete index.tsx and add {"op":"markup"} again to get the server markup.'
         );
       } else {
-        const messages = buildMessagesTs(verdict.intent).content !== null;
-        directory.write(
-          'index.tsx',
-          buildAssemblyTsx(
-            verdict.intent,
-            buildCoreMarkup(verdict.intent, messages, submitLabelOf(plan.task))
-          )
-        );
+        directory.write('index.tsx', coreAssembly(verdict.intent, plan.task));
         if (applied.markup)
           report.push(
             // Разметка сервера — готовый этап: модель на core читала её и переписывала руками с
@@ -1081,7 +1136,7 @@ export async function formEditTool(
 
   const removed = restoreServerFiles(directory, plan.target);
   const built = await formBuildTool({ dir: args.dir }, k);
-  const buildText = guidedBuildText(built.content[0]?.text ?? '');
+  const buildText = guidedBuildText(built.content[0]?.text ?? '', serverMarkupIn(directory));
   const ok = built.isError !== true && buildText.startsWith('✓ form_build');
   if (!ok) putBack(directory, removed);
   report.push(...restoredLine(removed, ok));
@@ -1162,7 +1217,7 @@ export async function formBuildGuidedTool(
     if (directory.read(INTENT_FILE) === null) return noPlan('form_build', dir, directory);
     const built = await formBuildTool(args, k);
     const text = [
-      guidedBuildText(built.content[0]?.text ?? ''),
+      guidedBuildText(built.content[0]?.text ?? '', serverMarkupIn(directory)),
       ...noPlanLines('form_build', dir, directory).slice(1),
     ].join('\n');
     return { ...built, content: [{ type: 'text', text }] };
@@ -1170,7 +1225,7 @@ export async function formBuildGuidedTool(
   const guarded = guardIntent(plan, directory);
   const restored = restoreServerFiles(directory, plan.target);
   const built = await formBuildTool(args, k);
-  const buildText = guidedBuildText(built.content[0]?.text ?? '');
+  const buildText = guidedBuildText(built.content[0]?.text ?? '', serverMarkupIn(directory));
   const ok = built.isError !== true && buildText.startsWith('✓ form_build');
   if (!ok) putBack(directory, restored);
   plan = withBuild(plan, directory, buildText, ok);

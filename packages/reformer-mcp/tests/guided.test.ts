@@ -13,7 +13,14 @@ import { RUN_SCRIPT_TOOL } from '../src/core/codemode/run-script';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { applyEdits, maskToPattern, type EditContext } from '../src/core/guided/edits';
 import { behaviorWord, featuresFromText } from '../src/core/guided/features';
-import { buildCoreMarkup, MARKUP_MARK, submitLabelOf } from '../src/core/guided/markup';
+import {
+  buildCoreMarkup,
+  coreAssembly,
+  formSubmitLabel,
+  MARKUP_MARK,
+  submitLabelOf,
+  taskSubmitLabel,
+} from '../src/core/guided/markup';
 import {
   baselineOf,
   changesLine,
@@ -25,8 +32,13 @@ import {
   taskFragment,
   taskGaps,
   uncomputed,
+  unruled,
 } from '../src/core/guided/plan';
 import { readIntent } from '../src/core/generate/form-intent';
+import { intentFromAnalysis } from '../src/core/generate/from-spec';
+import { originOf, withMarker } from '../src/core/generate/generated-marker';
+import { namedSubmitHandler, namedSubmitLabel } from '../src/core/generate/submit';
+import { analyzeSpec } from '../src/core/spec/analyze';
 import type { Knowledge } from '../src/core/knowledge';
 import {
   dropUnreadable,
@@ -36,6 +48,7 @@ import {
   formStartTool,
   formStatusTool,
   guidedBuildText,
+  isSpecText,
 } from '../src/core/tools/guided';
 import { createCliFormWorkspace, TYPECHECK_ROOT_ENV } from '../src/platform/cli/form-workspace';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
@@ -2723,6 +2736,31 @@ describe('сверка без ложных чисел и с пересказом
     expect(text).toMatch(/⟪here⟫/);
     expect(text).toMatch(/Nothing in this script ran/);
   });
+
+  it('code-guided: import и fs в скрипте — ответ ведёт в formStart, а не «исправь синтаксис»', async () => {
+    const catalog = createToolCatalog(() => cliKnowledge(), {
+      profile: 'node',
+      guided: true,
+      codeMode: createQuickJsSandbox(),
+    });
+    for (const code of [
+      "import { readFileSync } from 'fs';\nconsole.log(readFileSync('form/model.ts', 'utf8'));",
+      "const fs = require('fs');\nfs.writeFileSync('form/model.ts', '');",
+    ]) {
+      const result = await catalog.call(RUN_SCRIPT_TOOL, { code });
+      const text = result.content.map((block) => (block.type === 'text' ? block.text : '')).join();
+      expect(text).toMatch(/a script has no import, require or file access/);
+      expect(text).toMatch(/reformer\.formStart\(\{ dir: "form"/);
+      expect(text).not.toMatch(/fix the code at that place/);
+    }
+    const empty = await catalog.call(RUN_SCRIPT_TOOL, {});
+    const emptyText = empty.content
+      .map((block) => (block.type === 'text' ? block.text : ''))
+      .join();
+    expect(emptyText).toMatch(
+      /pass the script text in "code", e\.g\. \{"code": "console\.log\(await reformer\.formStart/
+    );
+  });
 });
 
 describe('скрытый ввод пароля — не поведение', () => {
@@ -2795,9 +2833,9 @@ describe('сверка: формат email и маска в правке', () =>
 });
 
 describe('кнопка — не поле, email без «@», нечитаемые ключи', () => {
-  it('add_field и add_item_field кнопки — отказ', () => {
+  it('add_field кнопки задания — кнопка отправки; по одному имени и в строке — отказ', () => {
     const task = 'Регистрация: логин (login), внизу кнопка «Зарегистрироваться».';
-    const { outcomes } = applyEdits(
+    const { outcomes, file } = applyEdits(
       {},
       [
         { op: 'add_field', name: 'submitButton', label: 'Отправить', type: 'boolean' },
@@ -2811,7 +2849,13 @@ describe('кнопка — не поле, email без «@», нечитаемы
     );
     expect(outcomes[0]).toMatchObject({ ok: false });
     expect(outcomes[0].message).toMatch(/«Отправить» is a button, not an input/);
-    expect(outcomes[1].message).toMatch(/«Зарегистрироваться» is a button, not an input/);
+    expect(outcomes[0].message).toMatch(/\{"op":"submit","label":/);
+    // Подпись, которую задание называет кнопкой, — кнопка отправки, а не отказ.
+    expect(outcomes[1]).toMatchObject({ ok: true });
+    expect(outcomes[1].message).toMatch(
+      /the submit button «Зарегистрироваться» added .*read as \{"op":"submit"\}/
+    );
+    expect(fields(file).map((field) => field.name)).toEqual(['login', 'radioButton']);
     expect(outcomes[2].ok).toBe(true);
     expect(outcomes[3].ok).toBe(true);
     expect(outcomes[5].message).toMatch(/is a button, not an input/);
@@ -2829,8 +2873,9 @@ describe('кнопка — не поле, email без «@», нечитаемы
     const task = 'email (email) — обязателен, проверяется формат.';
     const wrong = form(['required()', 'pattern(/^[a-zA-Z0-9_]+$/)']);
     expect(taskGaps(task, wrong).join('\n')).toMatch(
-      /format of email .* lets no "@" through, so every address fails: replace it with the "email" rule/
+      /`email` has pattern\(\/\^\[a-zA-Z0-9_\]\+\$\/\), which rejects a valid address \(«user@example\.com»\) — remove_rule "pattern", then add_rule "email":true/
     );
+    expect(taskGaps(task, wrong).join('\n')).not.toMatch(/no "email" rule on it/);
     const fixes = gapFixes(task, wrong);
     const remove = fixes.findIndex((fix) => fix.op === 'remove_rule');
     expect(fixes[remove]).toEqual({ op: 'remove_rule', field: 'email', rule: 'pattern' });
@@ -2938,6 +2983,98 @@ describe('кнопка — не поле, email без «@», нечитаемы
     expect(editGaps(task, fixed)).toEqual([]);
   });
 
+  it('шаблоны проверяются на образцах: цифра, маска, адрес', () => {
+    const task =
+      '2. Пароль — минимум 10 символов и хотя бы одна цифра.\n3. Сразу после email добавь телефон (`phone`) с маской `+7 (999) 999-99-99`.';
+    const intent = readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: [
+        { name: 'email', type: 'string', component: 'Input', label: 'Email' },
+        { name: 'password', type: 'string', component: 'Input', label: 'Пароль' },
+        {
+          name: 'phone',
+          type: 'string',
+          component: 'InputMask',
+          label: 'Телефон',
+          componentProps: { mask: '+7 (999) 999-99-99' },
+        },
+      ],
+      validation: [
+        { target: 'email', rules: ['required()', 'email()', 'pattern(/^[0-9].*$/)'] },
+        { target: 'password', rules: ['required()', 'minLength(10)', 'pattern(/^[0-9].*$/)'] },
+        { target: 'phone', rules: ['minLength(10)', 'pattern(/^[0-9].*$/)'] },
+      ],
+    }).intent!;
+    const gaps = editGaps(task, intent).join('\n');
+    expect(gaps).toMatch(
+      /at least one digit in password .* rejects a value with a digit like «abcdefgh12»/
+    );
+    expect(gaps).toMatch(
+      /`phone` has pattern\(\/\^\[0-9\]\.\*\$\/\), which rejects its own mask format/
+    );
+    expect(gaps).toMatch(
+      /`email` has pattern\(\/\^\[0-9\]\.\*\$\/\), which rejects a valid address/
+    );
+    expect(gapFixes(task, intent)).toEqual(
+      expect.arrayContaining([
+        { op: 'remove_rule', field: 'email', rule: 'pattern' },
+        { op: 'remove_rule', field: 'password', rule: 'pattern' },
+        { op: 'add_rule', field: 'password', pattern: '\\d' },
+        { op: 'remove_rule', field: 'phone', rule: 'pattern' },
+        { op: 'set_field', name: 'phone', mask: '+7 (999) 999-99-99' },
+      ])
+    );
+    const right = readIntent({
+      ...intent,
+      validation: [
+        { target: 'email', rules: ['required()', 'email()'] },
+        { target: 'password', rules: ['required()', 'minLength(10)', 'pattern(/\\d/)'] },
+        { target: 'phone', rules: ['pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/)'] },
+      ],
+    }).intent!;
+    expect(editGaps(task, right)).toEqual([]);
+  });
+
+  it('«должен совпадать с паролем» без правила между полями — расхождение с готовой правкой', () => {
+    const base = (validation: Rec[]) =>
+      readIntent({
+        formName: 'F',
+        target: 'renderer-react',
+        fields: [
+          { name: 'login', type: 'string', component: 'Input', label: 'Логин' },
+          { name: 'password', type: 'string', component: 'InputPassword', label: 'Пароль' },
+          {
+            name: 'confirmPassword',
+            type: 'string',
+            component: 'InputPassword',
+            label: 'Повтор пароля',
+          },
+        ],
+        validation,
+      }).intent!;
+    const ru =
+      '- логин (`login`) — обязателен;\n- пароль (`password`) — обязателен, минимум 8 символов, ввод скрыт;\n- повтор пароля (`confirmPassword`) — обязателен и должен совпадать с паролем;';
+    const en =
+      'Fields: login (required), password (required), confirmPassword (required, must match password).';
+    const without = base([{ target: 'confirmPassword', rules: ['required()'] }]);
+    for (const task of [ru, en]) {
+      expect(taskGaps(task, without).join('\n')).toMatch(
+        /the task makes confirmPassword match password .* add_rule "equals":"password"/
+      );
+      expect(gapFixes(task, without)).toContainEqual({
+        op: 'add_rule',
+        field: 'confirmPassword',
+        equals: 'password',
+      });
+    }
+    const withCross = base([
+      { target: 'confirmPassword', rules: ['required()'] },
+      { target: 'confirmPassword', cross: 'values.confirmPassword === values.password' },
+    ]);
+    expect(taskGaps(ru, withCross).join('\n')).not.toMatch(/match password/);
+  });
+
   it('регулярное выражение в "rule" — отказ ведёт в "pattern"', () => {
     const { outcomes } = applyEdits(
       { fields: [{ name: 'password', type: 'string', label: 'Пароль' }] },
@@ -2947,6 +3084,46 @@ describe('кнопка — не поле, email без «@», нечитаемы
     expect(outcomes[0].message).toMatch(
       /a regular expression goes in "pattern": "pattern":"\[a-z0-9\]\+" \(it matches anywhere in the value: "\\\\d" — at least one digit/
     );
+  });
+
+  it('«hidden input» у пароля — не видимость по условию', () => {
+    const task =
+      'Registration form with fields: login (required), password (required, min 8 chars, hidden input).';
+    const intent = readIntent({
+      formName: 'F',
+      target: 'renderer-react',
+      fields: [
+        { name: 'login', type: 'string', component: 'Input', label: 'Login' },
+        { name: 'password', type: 'string', component: 'InputPassword', label: 'Password' },
+      ],
+      validation: [
+        { target: 'login', rules: ['required()'] },
+        { target: 'password', rules: ['required()', 'minLength(8)'] },
+      ],
+    }).intent!;
+    expect(taskGaps(task, intent).join('\n')).not.toMatch(/only on a condition/);
+  });
+
+  it('values.x в поведении — model.x, model.x в правиле между полями — values.x', () => {
+    const { file, outcomes } = applyEdits(
+      {},
+      [
+        { op: 'add_field', name: 'password', label: 'Пароль' },
+        { op: 'add_field', name: 'confirmPassword', label: 'Повтор' },
+        { op: 'add_field', name: 'note', label: 'Заметка' },
+        { op: 'add_behavior', kind: 'enableWhen', target: 'note', expr: "values.password !== ''" },
+        {
+          op: 'add_rule',
+          field: 'confirmPassword',
+          cross: 'values.confirmPassword === model.password',
+        },
+      ],
+      ctx()
+    );
+    expect(outcomes.every((outcome) => outcome.ok)).toBe(true);
+    expect(JSON.stringify(file.behavior)).toContain("model.password !== ''");
+    expect(JSON.stringify(file.behavior)).not.toContain('values.');
+    expect(JSON.stringify(file.validation)).toContain('values.confirmPassword === values.password');
   });
 
   it('нечитаемые ключи — прочь, похожий ключ — под своим именем', () => {
@@ -3050,4 +3227,1065 @@ describe('кнопка — не поле, email без «@», нечитаемы
       SLOW
     );
   });
+});
+
+describe('кнопка отправки и асинхронная проверка (ReFormer-f2fs.12)', () => {
+  const registration = {
+    formName: 'RegistrationForm',
+    interfaceName: 'Registration',
+    target: 'renderer-react',
+    fields: [
+      { name: 'login', type: 'string', component: 'Input', label: 'Логин', initialValue: '' },
+      { name: 'captcha', type: 'string', component: 'Input', label: 'Капча', initialValue: '' },
+    ],
+  };
+
+  it('submit: узел Button в конце раскладки, повтор — новая подпись, новое поле — перед кнопкой', () => {
+    const first = applyEdits(registration, [{ op: 'submit', label: 'Зарегистрироваться' }], ctx());
+    expect(first.outcomes[0]).toMatchObject({ ok: true });
+    const root = first.file.layoutRoot as Rec;
+    expect(root.children).toEqual([
+      'login',
+      'captcha',
+      {
+        kind: 'container',
+        component: 'Button',
+        selector: 'submit',
+        componentProps: { type: 'button' },
+        children: [{ text: 'Зарегистрироваться' }],
+      },
+    ]);
+    const second = applyEdits(
+      first.file,
+      [
+        { op: 'submit', label: 'Создать аккаунт' },
+        { op: 'add_field', name: 'phone', label: 'Телефон' },
+      ],
+      ctx()
+    );
+    expect(second.outcomes[0].message).toMatch(
+      /the submit button: «Зарегистрироваться» → «Создать аккаунт»/
+    );
+    const children = (second.file.layoutRoot as Rec).children as unknown[];
+    expect(children.slice(0, 3)).toEqual(['login', 'captcha', 'phone']);
+    expect(children[3]).toMatchObject({ children: [{ text: 'Создать аккаунт' }] });
+    expect(readIntent(second.file).problems).toEqual([]);
+    expect(formSubmitLabel(readIntent(second.file).intent)).toBe('Создать аккаунт');
+    // Без подписи — отказ с образцом.
+    expect(applyEdits(registration, [{ op: 'submit' }], ctx()).outcomes[0]).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/"label" — the text of the button/),
+    });
+  });
+
+  it('submit у мастера — подпись FormWizard: и в сокращении steps, и в дереве', () => {
+    const steps = applyEdits(
+      {
+        ...registration,
+        steps: [
+          { title: 'Вход', fields: ['login'] },
+          { title: 'Проверка', fields: ['captcha'] },
+        ],
+      },
+      [{ op: 'submit', label: 'Оформить заказ' }],
+      ctx()
+    );
+    expect(steps.file.wizard).toEqual({ submitLabel: 'Оформить заказ' });
+    expect(formSubmitLabel(readIntent(steps.file).intent)).toBe('Оформить заказ');
+    const tree = applyEdits(
+      {
+        ...registration,
+        layoutRoot: {
+          kind: 'container',
+          component: 'FormWizard',
+          selector: 'wizard',
+          children: [
+            { kind: 'step', title: 'Вход', children: ['login'] },
+            { kind: 'step', title: 'Проверка', children: ['captcha'] },
+          ],
+        },
+      },
+      [{ op: 'submit', label: 'Оформить заказ' }],
+      ctx()
+    );
+    expect((tree.file.layoutRoot as Rec).componentProps).toEqual({ submitLabel: 'Оформить заказ' });
+  });
+
+  it('add_rule async: функцию пишет сервер — задержка, поле как value, свой код и текст', () => {
+    const { outcomes, file } = applyEdits(
+      registration,
+      [
+        {
+          op: 'add_rule',
+          field: 'captcha',
+          required: true,
+          async: "String(model.captcha).toUpperCase() === 'ABC123'",
+          delay: 300,
+          message: 'Символы не совпадают',
+        },
+      ],
+      ctx()
+    );
+    expect(outcomes[0]).toMatchObject({ ok: true });
+    expect(outcomes[0].message).toMatch(
+      /async check on `captcha` added; rule on `captcha`: required/
+    );
+    const rows = file.validation as Rec[];
+    expect(rows).toEqual([
+      {
+        target: 'captcha',
+        rules: [],
+        async:
+          "async (value) => { if (!value) return null; await new Promise((resolve) => setTimeout(resolve, 300)); return (String(value).toUpperCase() === 'ABC123') ? null : { code: 'captcha.async' }; }",
+        code: 'captcha.async',
+        message: 'Символы не совпадают',
+      },
+      { target: 'captcha', rules: ['required()'] },
+    ]);
+    // Повтор заменяет прежнюю асинхронную проверку; remove_rule "async" снимает только её.
+    const again = applyEdits(
+      file,
+      [{ op: 'add_rule', field: 'captcha', async: "value === 'X'" }],
+      ctx()
+    );
+    expect(again.outcomes[0].message).toMatch(/\(replaced the previous one\)/);
+    expect((again.file.validation as Rec[]).filter((row) => row.async)).toHaveLength(1);
+    const kept = applyEdits(
+      file,
+      [{ op: 'remove_rule', field: 'captcha', rule: 'required' }],
+      ctx()
+    );
+    expect((kept.file.validation as Rec[]).map((row) => Boolean(row.async))).toEqual([true]);
+    const dropped = applyEdits(
+      file,
+      [{ op: 'remove_rule', field: 'captcha', rule: 'async' }],
+      ctx()
+    );
+    expect(dropped.file.validation).toEqual([{ target: 'captcha', rules: ['required()'] }]);
+  });
+
+  it('async: флаг, код вместо условия и чужое поле — отказ с образцом', () => {
+    const { outcomes } = applyEdits(
+      registration,
+      [
+        { op: 'add_rule', field: 'captcha', async: true },
+        { op: 'add_rule', field: 'captcha', async: "return value === 'A';" },
+        { op: 'add_rule', field: 'captcha', async: 'value === model.login' },
+        { op: 'add_rule', field: 'captcha', async: "'ABC123'" },
+      ],
+      ctx()
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([false, false, false, false]);
+    expect(outcomes[0].message).toMatch(
+      /"async" is a condition, not true: "async":"String\(value\)/
+    );
+    expect(outcomes[1].message).toMatch(/is code, not a condition/);
+    expect(outcomes[2].message).toMatch(
+      /reads `model\.login` — an async check sees only the value/
+    );
+    expect(outcomes[3].message).toMatch(/does not read value/);
+  });
+
+  it('разметка core: кнопка на месте узла, подформа — под своей группой, подпись мастера', () => {
+    const intent = readIntent({
+      formName: 'Order',
+      interfaceName: 'Order',
+      target: 'core',
+      fields: [
+        { name: 'name', type: 'string', component: 'Input', label: 'Имя', initialValue: '' },
+        {
+          name: 'delivery.city',
+          type: 'string',
+          component: 'Input',
+          label: 'Город',
+          initialValue: '',
+        },
+      ],
+      parts: { address: { kind: 'container', component: 'Box', children: ['city'] } },
+      layoutRoot: {
+        kind: 'container',
+        component: 'Box',
+        children: [
+          'name',
+          { kind: 'part', ref: 'delivery', part: 'address' },
+          {
+            kind: 'container',
+            component: 'Button',
+            selector: 'submit',
+            componentProps: { type: 'button' },
+            children: [{ text: 'Оформить' }],
+          },
+        ],
+      },
+    }).intent;
+    const body = buildCoreMarkup(intent, false, 'Отправить').body.join('\n');
+    expect(body).toMatch(/<FormField control=\{bundle\.form\.delivery\.city\} \/>/);
+    expect(body).toMatch(/<Button type="submit">Оформить<\/Button>/);
+    expect(body.match(/<Button/g)).toHaveLength(1);
+    expect(body).not.toMatch(/<p>Оформить<\/p>/);
+    expect(coreAssembly(intent, 'кнопка «Другое»')).toContain(MARKUP_MARK);
+    // Без узла кнопки — подпись из задания: «кнопка мастера «…»» тоже.
+    expect(taskSubmitLabel('на последнем шаге — кнопка мастера «Оформить заказ»')).toBe(
+      'Оформить заказ'
+    );
+    expect(taskSubmitLabel('Кнопка добавления — «+ Добавить товар»')).toBeNull();
+    expect(submitLabelOf('Форма без кнопки')).toBe('Отправить');
+  });
+
+  it('сверка: кнопка задания и асинхронная проверка — расхождения с готовой правкой', () => {
+    const task =
+      '- капча (`captcha`) — обязательна. Сервера капчи пока нет: проверяй асинхронно заглушкой — верный код `ABC123`, ответ через 300 мс;\n- внизу кнопка «Зарегистрироваться».';
+    const bare = readIntent(registration).intent;
+    const gaps = taskGaps(task, bare).join('\n');
+    expect(gaps).toMatch(
+      /the task names the button «Зарегистрироваться» — the form has no submit button: \{"op":"submit","label":"Зарегистрироваться"\}/
+    );
+    expect(gaps).toMatch(/the task checks captcha asynchronously .* no async check on it/);
+    expect(gapFixes(task, bare)).toContainEqual({ op: 'submit', label: 'Зарегистрироваться' });
+    // На core кнопку без узла рисует разметка: расхождения нет.
+    expect(taskGaps(task, { ...bare, target: 'core' }).join('\n')).not.toMatch(/button/);
+
+    const done = applyEdits(
+      registration,
+      [
+        { op: 'submit', label: 'Зарегистрироваться' },
+        {
+          op: 'add_rule',
+          field: 'captcha',
+          required: true,
+          async: "String(value).toUpperCase() === 'ABC123'",
+          delay: 300,
+        },
+      ],
+      ctx()
+    );
+    const ready = taskGaps(task, readIntent(done.file).intent).join('\n');
+    expect(ready).not.toMatch(/button|async|names 300/);
+
+    // Правка: «переименуй в» — подпись кнопки формы другая.
+    const edit = '4. Кнопку «Зарегистрироваться» переименуй в «Создать аккаунт».';
+    expect(editGaps(edit, readIntent(done.file).intent).join('\n')).toMatch(
+      /the submit button of the form is «Зарегистрироваться» — the task names «Создать аккаунт»: \{"op":"submit","label":"Создать аккаунт"\}/
+    );
+  });
+});
+
+describe('удаление полей групп и подформ; массив на месте поля (ReFormer-f2fs.22, .23)', () => {
+  const address = (group: string) => [
+    { name: `${group}.city`, type: 'string', component: 'Input', label: 'Город', initialValue: '' },
+    {
+      name: `${group}.street`,
+      type: 'string',
+      component: 'Input',
+      label: 'Улица',
+      initialValue: '',
+    },
+  ];
+  const order = {
+    formName: 'Order',
+    interfaceName: 'Order',
+    target: 'renderer-react',
+    fields: [
+      ...address('deliveryAddress'),
+      {
+        name: 'billingSame',
+        type: 'boolean',
+        component: 'Checkbox',
+        label: 'Совпадает',
+        initialValue: true,
+      },
+      ...address('billingAddress'),
+    ],
+    parts: { address: { kind: 'container', component: 'Box', children: ['city', 'street'] } },
+    layoutRoot: {
+      kind: 'container',
+      component: 'Box',
+      children: [
+        {
+          kind: 'container',
+          component: 'Section',
+          selector: 'delivery',
+          componentProps: { title: 'Доставка' },
+          children: [{ kind: 'part', ref: 'deliveryAddress', part: 'address' }],
+        },
+        'billingSame',
+        {
+          kind: 'container',
+          component: 'Section',
+          selector: 'billing',
+          componentProps: { title: 'Адрес для счёта' },
+          children: [{ kind: 'part', ref: 'billingAddress', part: 'address' }],
+        },
+      ],
+    },
+    validation: [{ target: 'billingAddress.city', rules: ['required()'] }],
+    behavior: [
+      {
+        kind: 'disableWhen',
+        target: 'billingAddress',
+        sources: ['billingSame'],
+        expr: 'model.billingSame === true',
+      },
+    ],
+  };
+  const root = (file: Rec) => (file.layoutRoot as Rec).children as Rec[];
+
+  it('поля группы по одному: группа без полей уходит с узлом подформы, поведением и пустой секцией', () => {
+    const { outcomes, file } = applyEdits(
+      order,
+      [
+        { op: 'remove_field', name: 'billingAddress.city' },
+        { op: 'remove_field', name: 'billingAddress.street' },
+      ],
+      ctx()
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, true]);
+    // После первого поля подформа раскрыта в оставшееся поле, после второго группы нет вовсе.
+    expect(root(file).map((node) => (typeof node === 'string' ? node : node.selector))).toEqual([
+      'delivery',
+      'billingSame',
+    ]);
+    expect(file.behavior).toEqual([]);
+    expect(file.validation).toEqual([]);
+    // Подформа ещё нужна адресу доставки.
+    expect(file.parts).toEqual(order.parts);
+    expect(readIntent(file).problems).toEqual([]);
+  });
+
+  it('одно поле группы с подформой: подформа раскрывается в оставшиеся поля на своём месте', () => {
+    const { file } = applyEdits(
+      order,
+      [{ op: 'remove_field', name: 'deliveryAddress.street' }],
+      ctx()
+    );
+    expect(root(file)[0]).toEqual({
+      kind: 'container',
+      component: 'Section',
+      selector: 'delivery',
+      componentProps: { title: 'Доставка' },
+      children: [{ kind: 'container', component: 'Box', children: ['deliveryAddress.city'] }],
+    });
+    // У адреса для счёта подформа своя и цела.
+    expect((root(file)[2].children as Rec[])[0]).toEqual({
+      kind: 'part',
+      ref: 'billingAddress',
+      part: 'address',
+    });
+    expect(readIntent(file).problems).toEqual([]);
+  });
+
+  it('обе группы: подформа без подключений уходит и названа в ответе', () => {
+    const { outcomes, file } = applyEdits(
+      order,
+      [
+        { op: 'remove_field', name: 'deliveryAddress' },
+        { op: 'remove_field', name: 'billingAddress' },
+      ],
+      ctx()
+    );
+    expect(outcomes[1].message).toMatch(/no longer used, removed too: part address/);
+    expect(file.parts).toBeUndefined();
+    expect(root(file)).toEqual(['billingSame']);
+  });
+
+  it('add_array на месте поля с тем же именем — строки там же; add_item_field на поле — подсказка', () => {
+    const form = {
+      formName: 'Order',
+      interfaceName: 'Order',
+      target: 'renderer-react',
+      fields: [
+        { name: 'name', type: 'string', component: 'Input', label: 'Имя', initialValue: '' },
+        { name: 'items', type: 'string', component: 'Input', label: 'Товары', initialValue: '' },
+        {
+          name: 'total',
+          type: 'number',
+          component: 'InputNumber',
+          label: 'Итого',
+          initialValue: 0,
+        },
+      ],
+      layoutRoot: { kind: 'container', component: 'Box', children: ['name', 'items', 'total'] },
+      validation: [{ target: 'items', rules: ['required()'] }],
+    };
+    const refused = applyEdits(
+      form,
+      [{ op: 'add_item_field', array: 'items', name: 'title' }],
+      ctx()
+    );
+    expect(refused.outcomes[0].message).toBe(
+      '`items` is a field, not an array of rows — {"op":"add_array","name":"items","label":"<its label>"} turns it into rows in its place, then add_item_field'
+    );
+    const { outcomes, file } = applyEdits(
+      form,
+      [
+        { op: 'add_array', name: 'items', label: 'Товары', minItems: 1 },
+        { op: 'add_item_field', array: 'items', name: 'title', label: 'Наименование' },
+      ],
+      { ...ctx(), rows: true }
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, true]);
+    expect(outcomes[0].message).toBe(
+      'array `items` added in place of the field `items`; `items` was a field — it is an array of rows now (its 1 rules dropped) — now add_item_field for its row'
+    );
+    expect((file.fields as Rec[]).map((field) => field.name)).toEqual(['name', 'total']);
+    expect((file.layoutRoot as Rec).children).toEqual([
+      'name',
+      { kind: 'array', ref: 'items' },
+      'total',
+    ]);
+    expect(file.validation).toEqual([]);
+    expect(readIntent(file).problems).toEqual([]);
+  });
+});
+
+describe('этап validation не ждёт правил, которых задание не даёт (ReFormer-f2fs.20)', () => {
+  const order = {
+    formName: 'Order',
+    interfaceName: 'Order',
+    target: 'core',
+    fields: [
+      {
+        name: 'price',
+        type: 'number',
+        component: 'InputNumber',
+        label: 'Цена',
+        initialValue: null,
+      },
+      { name: 'total', type: 'number', component: 'InputNumber', label: 'Итого', initialValue: 0 },
+      {
+        name: 'same',
+        type: 'boolean',
+        component: 'Checkbox',
+        label: 'Адрес совпадает',
+        initialValue: true,
+      },
+      {
+        name: 'agree',
+        type: 'boolean',
+        component: 'Checkbox',
+        label: 'Согласен с офертой',
+        initialValue: false,
+      },
+      { name: 'promo', type: 'string', component: 'Input', label: 'Промокод', initialValue: '' },
+      {
+        name: 'comment',
+        type: 'string',
+        component: 'Textarea',
+        label: 'Комментарий',
+        initialValue: '',
+      },
+    ],
+    validation: [{ target: 'price', rules: ['required()'] }],
+    behavior: [
+      { kind: 'compute', target: 'total', sources: ['price'], expr: '(model.price ?? 0) * 2' },
+    ],
+  };
+  const task = [
+    '| `price` | Цена | Обязательное |',
+    '| `total` | Итого | Только для чтения |',
+    '| `same` | Адрес совпадает | — |',
+    '| `agree` | Согласен с офертой | Обязательно отметить |',
+    '| `promo` | Промокод | Необязательное; в верхнем регистре |',
+    '| `comment` | Комментарий | Не больше 500 символов |',
+  ].join('\n');
+
+  it('вычисляемое, флажок и необязательное по заданию — без правила; флажок «отметить» и лимит — ждут', () => {
+    const intent = readIntent(order).intent;
+    expect(unruled(intent, { task })).toEqual(['agree', 'comment']);
+    // Решение модели «необязательное» — из плана.
+    expect(unruled(intent, { task, optional: ['comment'] })).toEqual(['agree']);
+    // Без задания флажок не ждёт правила, остальное — по-старому.
+    expect(unruled(intent)).toEqual(['promo', 'comment']);
+  });
+
+  it('add_rule required:false — поле необязательное: обязательность снимается, план его запоминает', () => {
+    const marked: string[] = [];
+    const { outcomes, file, optional } = applyEdits(
+      order,
+      [
+        { op: 'add_rule', field: 'price', required: false },
+        { op: 'add_rule', field: 'comment', required: false, maxLength: 500 },
+        { op: 'add_rule', field: 'nope', required: false },
+      ],
+      { ...ctx('core'), onOptional: (path) => marked.push(path) }
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, true, false]);
+    expect(outcomes[0].message).toBe(
+      '`price` is optional: it stays without a rule (its required rule removed)'
+    );
+    expect(outcomes[1].message).toMatch(/^rule on `comment`: maxLength/);
+    expect(file.validation).toEqual([{ target: 'comment', rules: ['maxLength(500)'] }]);
+    // Отклонённая правка ничего не объявляет.
+    expect(optional).toEqual(['price', 'comment']);
+    expect(marked).toEqual(['price', 'comment']);
+  });
+
+  it('задание — сама спецификация; имя формы — из заголовка markdown', () => {
+    const spec = readFileSync(
+      join(repoRoot, 'packages/reformer-mcp/eval/scenarios/order/spec.md'),
+      'utf8'
+    );
+    expect(isSpecText(spec)).toBe(true);
+    expect(isSpecText('Сделай форму по спецификации из файла `spec.md`.')).toBe(false);
+    expect(formNameOf(spec)).toBe('Оформление заказа');
+    expect(formNameOf('## Регистрация\nПоля: логин')).toBe('Регистрация');
+  });
+});
+
+describe('form_start: задание-спецификация даёт черновик (ReFormer-f2fs.20)', () => {
+  let project: string;
+  let knowledge: Knowledge;
+  beforeEach(() => {
+    project = mkdtempSync(join(tmpdir(), 'guided-spec-task-'));
+    writeFileSync(
+      join(project, 'package.json'),
+      JSON.stringify({ name: 'consumer', dependencies: { '@reformer/core': '*' } })
+    );
+    knowledge = { ...cliKnowledge(), forms: createCliFormWorkspace(project) };
+  });
+  afterEach(() => rmSync(project, { recursive: true, force: true }));
+
+  it('текст spec.md в task — черновик с полями и массивами, источник плана — спека', async () => {
+    const spec = readFileSync(
+      join(repoRoot, 'packages/reformer-mcp/eval/scenarios/order/spec.md'),
+      'utf8'
+    );
+    const started = await formStartTool({ dir: 'form', target: 'core', task: spec }, knowledge);
+    const text = started.content[0].text;
+    expect(text).toMatch(/The task is a spec itself — the server drafts the form from it\./);
+    expect(text).toMatch(/plan of «Оформление заказа»/);
+    const intent = JSON.parse(readFileSync(join(project, 'form', 'form.intent.json'), 'utf8'));
+    expect(intent.fields).toHaveLength(27);
+    expect(intent.arrays.map((array: Rec) => array.name)).toEqual(['items', 'recipients']);
+    const plan = JSON.parse(readFileSync(join(project, 'form', 'form.plan.json'), 'utf8'));
+    expect(plan.source).toBe('spec');
+    expect(plan.specSubmit).toEqual({ label: 'Оформить заказ', handler: 'submitOrder' });
+    // «Необязательное» спеки — сразу в план: этап валидации этих полей не ждёт.
+    expect(plan.optional).toEqual(['promoCode', 'sources']);
+  });
+
+  it('задание поверх specPath добавляет свои этапы (мастер); задание-спецификация — нет', async () => {
+    const specPath = join(repoRoot, 'packages/reformer-mcp/eval/scenarios/order/spec.md');
+    const wizardTask = readFileSync(
+      join(repoRoot, 'packages/reformer-mcp/eval/scenarios/wizard/create/prompt.md'),
+      'utf8'
+    );
+    await formStartTool(
+      { dir: 'wizard', target: 'renderer-react', task: wizardTask, specPath },
+      knowledge
+    );
+    const wizard = JSON.parse(readFileSync(join(project, 'wizard', 'form.plan.json'), 'utf8'));
+    expect(wizard.stages).toContain('wizard');
+    expect(wizard.stages).toContain('arrays');
+    // В тексте спеки «шаг 5» — шаг слайдера, а не мастер.
+    await formStartTool(
+      { dir: 'page', target: 'renderer-react', task: readFileSync(specPath, 'utf8') },
+      knowledge
+    );
+    const page = JSON.parse(readFileSync(join(project, 'page', 'form.plan.json'), 'utf8'));
+    expect(page.stages).not.toContain('wizard');
+  });
+});
+
+describe('разделы — шаги мастера, хвосты удаления, шапка файлов (ReFormer-f2fs.18, .19, .15)', () => {
+  const sectioned = {
+    formName: 'OrderForm',
+    interfaceName: 'Order',
+    target: 'renderer-react',
+    fields: [
+      { name: 'note', type: 'string', component: 'Input', label: 'Заметка', initialValue: '' },
+      { name: 'name', type: 'string', component: 'Input', label: 'Имя', initialValue: '' },
+      { name: 'inn', type: 'string', component: 'Input', label: 'ИНН', initialValue: '' },
+      {
+        name: 'comment',
+        type: 'string',
+        component: 'Input',
+        label: 'Комментарий',
+        initialValue: '',
+      },
+      {
+        name: 'method',
+        type: 'string',
+        component: 'Select',
+        label: 'Способ',
+        initialValue: '',
+        optionsSource: 'METHODS',
+      },
+    ],
+    layoutRoot: {
+      kind: 'container',
+      component: 'Box',
+      children: [
+        'note',
+        {
+          kind: 'container',
+          component: 'Section',
+          selector: 'buyer',
+          componentProps: { title: 'Покупатель' },
+          children: ['name'],
+        },
+        {
+          kind: 'container',
+          component: 'Section',
+          selector: 'company',
+          componentProps: { title: 'Компания' },
+          children: [
+            'inn',
+            {
+              kind: 'container',
+              component: 'Section',
+              selector: 'delivery',
+              componentProps: { title: 'Доставка' },
+              children: ['method'],
+            },
+          ],
+        },
+        'comment',
+        {
+          kind: 'container',
+          component: 'Button',
+          selector: 'submit',
+          componentProps: { type: 'button' },
+          children: [{ text: 'Оформить заказ' }],
+        },
+      ],
+    },
+    dataSources: [
+      { name: 'METHODS', values: [{ value: 'courier', label: 'Курьер' }] },
+      { name: 'OTHER', values: [{ value: 'x', label: 'X' }] },
+    ],
+    validation: [{ target: 'inn', rules: ["innChecksum({ code: 'inn.innChecksum' })"] }],
+    visibility: [{ selector: 'company', condition: "model.name === ''" }],
+    behavior: [
+      {
+        kind: 'onComponentEvent',
+        selector: 'submit',
+        event: 'onClick',
+        expr: 'if (await validateModel(model, formValidation, { touch: true })) await submitOrder(model.get());',
+      },
+    ],
+    operators: { innChecksum: './operators', submitOrder: './api' },
+  };
+
+  it('add_step с заголовком раздела: разделы — шаги в том же порядке, кнопка — кнопка мастера', () => {
+    const { outcomes, file } = applyEdits(
+      sectioned,
+      [
+        { op: 'add_step', title: 'покупатель' },
+        { op: 'add_step', title: 'Компания' },
+        { op: 'add_step', title: 'Компания', fields: ['comment'] },
+      ],
+      ctx()
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, true, true]);
+    expect(outcomes[0].message).toBe(
+      'every section is a step of a wizard now, in the same order: «Покупатель», «Компания»; the submit button «Оформить заказ» is the button of the last step now'
+    );
+    expect(outcomes[1].message).toBe('step «Компания» is in the form already');
+    expect(outcomes[2].message).toBe('comment moved to step «Компания»');
+    expect(file.layoutRoot).toEqual({
+      kind: 'container',
+      component: 'FormWizard',
+      selector: 'wizard',
+      componentProps: { submitLabel: 'Оформить заказ' },
+      children: [
+        // Поле до первого раздела — в первый шаг.
+        { kind: 'step', title: 'Покупатель', selector: 'buyer', children: ['note', 'name'] },
+        {
+          kind: 'step',
+          title: 'Компания',
+          selector: 'company',
+          children: [
+            'inn',
+            {
+              kind: 'container',
+              component: 'Section',
+              selector: 'delivery',
+              componentProps: { title: 'Доставка' },
+              children: ['method'],
+            },
+            'comment',
+          ],
+        },
+      ],
+    });
+    // Нажатие кнопки — отправка мастера; видимость раздела — видимость шага того же селектора.
+    expect(file.behavior).toEqual([
+      {
+        kind: 'onComponentEvent',
+        selector: 'wizard',
+        event: 'onSubmit',
+        expr: 'await submitOrder(model.get())',
+      },
+    ]);
+    expect(file.visibility).toEqual([{ selector: 'company', condition: "model.name === ''" }]);
+    const read = readIntent(file);
+    expect(read.problems).toEqual([]);
+    expect(formSubmitLabel(read.intent)).toBe('Оформить заказ');
+  });
+
+  it('черновик спеки заказа с разделами — мастер одним add_step (ReFormer-f2fs.26)', () => {
+    const spec = readFileSync(
+      join(repoRoot, 'packages/reformer-mcp/eval/scenarios/order/spec.md'),
+      'utf8'
+    );
+    const draft = JSON.parse(
+      JSON.stringify(intentFromAnalysis(analyzeSpec(spec), 'renderer-react'))
+    ) as Rec;
+    const { outcomes, file } = applyEdits(draft, [{ op: 'add_step', title: 'Покупатель' }], ctx());
+    expect(outcomes[0].ok).toBe(true);
+    const read = readIntent(file);
+    expect(read.problems).toEqual([]);
+    expect(
+      ((file.layoutRoot as Rec).children as Rec[]).map((step) => [step.title, step.selector])
+    ).toEqual([
+      ['Покупатель', 'pokupatel'],
+      ['Компания', 'company'],
+      ['Доставка', 'dostavka'],
+      ['Товары', 'tovary'],
+      ['Оплата', 'oplata'],
+      ['Подтверждение', 'podtverzhdenie'],
+    ]);
+    expect(formSubmitLabel(read.intent)).toBe('Оформить заказ');
+  });
+
+  it('форма с разделами: чужой заголовок, place и rename_step — отказ с готовой правкой', () => {
+    const { outcomes } = applyEdits(
+      sectioned,
+      [
+        { op: 'add_step', title: 'Шаг 1', fields: ['name'] },
+        { op: 'place', name: 'name', step: 'Покупатель' },
+        { op: 'rename_step', title: 'Покупатель', to: 'Клиент' },
+      ],
+      ctx()
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([false, false, false]);
+    const hint =
+      'the form has sections «Покупатель», «Компания»: {"op":"add_step","title":"Покупатель"} makes every section a step of a wizard, in the same order';
+    expect(outcomes[0].message).toBe(`"Шаг 1" is not a section of the form — ${hint}`);
+    expect(outcomes[1].message).toBe(`the form has no steps yet — add_step first — ${hint}`);
+    expect(outcomes[2].message).toBe(`the form has no steps yet — add_step first — ${hint}`);
+  });
+
+  it('удаление уносит справочник без полей и оператор только удалённых правил', () => {
+    const { outcomes, file } = applyEdits(
+      sectioned,
+      [
+        { op: 'remove_field', name: 'method' },
+        { op: 'remove_field', name: 'inn' },
+      ],
+      ctx()
+    );
+    expect(outcomes[0].message).toBe(
+      '`method` removed; no longer used, removed too: data source METHODS, data source OTHER'
+    );
+    expect(outcomes[1].message).toBe(
+      '`inn` removed, with 1 rules on it; no longer used, removed too: operator innChecksum'
+    );
+    expect(file.dataSources).toEqual([]);
+    // Функцию отправки intent зовёт — она остаётся; оператор, которого не звал никто, тоже.
+    expect(file.operators).toEqual({ submitOrder: './api' });
+    expect(readIntent(file).problems).toEqual([]);
+  });
+
+  it('шапка файла сборки зовёт к серверу; старые файлы со старой шапкой — всё ещё файлы сборки', () => {
+    const marked = withMarker('export const a = 1;\n', 'model.ts');
+    expect(marked.split('\n')[0]).toMatch(/form_start, затем form_edit/);
+    expect(originOf(marked, 'model.ts')).toBe('generated');
+    const old = marked.replace(
+      /^(\/\/ @reformer-form-build \S+) .*$/m,
+      '$1 собран из form.intent.json; правка руками отсоединит файл от сборки'
+    );
+    expect(originOf(old, 'model.ts')).toBe('generated');
+  });
+});
+
+describe('отправка по кнопке и кнопка из спеки (ReFormer-f2fs.16, ReFormer-f2fs.17)', () => {
+  const form = {
+    formName: 'OrderForm',
+    interfaceName: 'Order',
+    target: 'renderer-react',
+    fields: [
+      { name: 'name', type: 'string', component: 'Input', label: 'Имя', initialValue: '' },
+      { name: 'email', type: 'string', component: 'Input', label: 'Email', initialValue: '' },
+    ],
+  };
+  const CLICK =
+    'if (await validateModel(model, formValidation, { touch: true })) await submitForm(model.get());';
+
+  it('submit на рендерере: нажатие проверяет форму и зовёт функцию из ./api, повтор не дублирует', () => {
+    const first = applyEdits(form, [{ op: 'submit', label: 'Оформить заказ' }], ctx());
+    expect(first.outcomes[0].message).toMatch(
+      /a click checks the form, then sends with submitForm\(values\) from \.\/api/
+    );
+    expect(first.file.operators).toEqual({ submitForm: './api' });
+    expect(first.file.behavior).toEqual([
+      { kind: 'onComponentEvent', selector: 'submit', event: 'onClick', expr: CLICK },
+    ]);
+    const read = readIntent(first.file);
+    expect(read.problems).toEqual([]);
+    expect(read.intent.nodes).toHaveLength(1);
+    // Повтор с новой подписью: обработчик тот же, второй строки нет.
+    const again = applyEdits(first.file, [{ op: 'submit', label: 'Купить' }], ctx());
+    expect(again.file.behavior).toHaveLength(1);
+    // Функция, названная правкой, заменяет обработчик; имя — только идентификатор.
+    const named = applyEdits(
+      first.file,
+      [
+        { op: 'submit', label: 'Купить', handler: 'submitOrder' },
+        { op: 'submit', label: 'Купить', handler: 'submit order' },
+      ],
+      ctx()
+    );
+    expect((named.file.behavior as Rec[])[0].expr).toMatch(/await submitOrder\(model\.get\(\)\);$/);
+    expect(named.file.operators).toMatchObject({ submitOrder: './api' });
+    expect(named.outcomes[1]).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/"handler" is the name of the send function/),
+    });
+    // Функция из спеки плана и из текста задания.
+    expect(
+      applyEdits(form, [{ op: 'submit', label: 'Оформить' }], {
+        ...ctx(),
+        submitHandler: 'placeOrder',
+      }).file.operators
+    ).toEqual({ placeOrder: './api' });
+    expect(
+      applyEdits(form, [{ op: 'submit', label: 'Оформить' }], {
+        ...ctx(),
+        task: 'Кнопка «Оформить» отправляет значения функцией `sendOrder(values)` из `./api`.',
+      }).file.operators
+    ).toEqual({ sendOrder: './api' });
+  });
+
+  it('submit на core: функция в operators, правила узла нет — её зовёт разметка', () => {
+    const core = applyEdits(
+      { ...form, target: 'core' },
+      [{ op: 'submit', label: 'Оформить заказ' }],
+      ctx('core')
+    );
+    expect(core.outcomes[0].message).toMatch(/the markup calls it/);
+    expect(core.file.operators).toEqual({ submitForm: './api' });
+    expect(core.file.behavior).toBeUndefined();
+    const intent = readIntent(core.file).intent;
+    const markup = buildCoreMarkup(intent, false, 'Отправить');
+    expect(markup.imports).toContain("import { submitForm } from './api';");
+    expect(markup.body.join('\n')).toMatch(/void bundle\.submission\.submit\(submitForm\);/);
+    // Без функции — значения в консоль, как раньше.
+    expect(
+      buildCoreMarkup(readIntent({ ...form, target: 'core' }).intent, false).body.join('\n')
+    ).toMatch(/submit\(\(values\) => console\.log\(values\)\)/);
+  });
+
+  it('мастер: отправка — событие onSubmit мастера; первый add_step забирает кнопку плоской формы', () => {
+    const steps = applyEdits(
+      {
+        ...form,
+        steps: [
+          { title: 'Имя', fields: ['name'] },
+          { title: 'Почта', fields: ['email'] },
+        ],
+      },
+      [{ op: 'submit', label: 'Оформить заказ' }],
+      ctx()
+    );
+    expect(steps.outcomes[0].message).toMatch(/the wizard sends with submitForm/);
+    expect(steps.file.behavior).toEqual([
+      {
+        kind: 'onComponentEvent',
+        selector: 'wizard',
+        event: 'onSubmit',
+        expr: 'await submitForm(model.get())',
+      },
+    ]);
+    expect(readIntent(steps.file).problems).toEqual([]);
+
+    const flat = applyEdits(form, [{ op: 'submit', label: 'Оформить заказ' }], ctx()).file;
+    const wizard = applyEdits(
+      flat,
+      [
+        { op: 'add_step', title: 'Имя', fields: ['name'] },
+        { op: 'add_step', title: 'Почта', fields: ['email'] },
+      ],
+      ctx()
+    );
+    expect(wizard.outcomes.map((outcome) => outcome.ok)).toEqual([true, true]);
+    expect(wizard.outcomes[0].message).toMatch(
+      /the submit button «Оформить заказ» is the button of the last step now/
+    );
+    expect(wizard.file.layoutRoot).toBeUndefined();
+    expect(wizard.file.wizard).toEqual({ submitLabel: 'Оформить заказ' });
+    expect(wizard.file.behavior).toEqual([
+      {
+        kind: 'onComponentEvent',
+        selector: 'wizard',
+        event: 'onSubmit',
+        expr: 'await submitForm(model.get())',
+      },
+    ]);
+    const read = readIntent(wizard.file);
+    expect(read.problems).toEqual([]);
+    expect(formSubmitLabel(read.intent)).toBe('Оформить заказ');
+  });
+
+  it('спека: подпись кнопки и функция отправки; черновик несёт кнопку и обработчик', () => {
+    const spec = readFileSync(
+      join(repoRoot, 'packages/reformer-mcp/eval/scenarios/order/spec.md'),
+      'utf8'
+    );
+    expect(namedSubmitLabel(spec)).toBe('Оформить заказ');
+    expect(namedSubmitHandler(spec)).toBe('submitOrder');
+    // Кнопка массива и функция не отправки — не кнопка отправки.
+    expect(namedSubmitLabel('Кнопка добавления — «+ Добавить товар».')).toBeNull();
+    expect(namedSubmitHandler('Город грузится функцией `loadCities()` из `./api`.')).toBeNull();
+
+    const mini = [
+      '# Форма: Заявка',
+      '',
+      'Внизу страницы — кнопка «Отправить заявку».',
+      '',
+      '| Ключ | Подпись | Компонент | Валидация |',
+      '| --- | --- | --- | --- |',
+      '| `name` | Имя | Input | Обязательное |',
+      '',
+      '| Что | Как |',
+      '| --- | --- |',
+      '| Кнопка «Отправить заявку» | Отправляет значения функцией `sendRequest(values)` из `./api` |',
+    ].join('\n');
+    const analysis = analyzeSpec(mini);
+    expect(analysis.submitLabel).toBe('Отправить заявку');
+    expect(analysis.submitHandler).toBe('sendRequest');
+    const react = intentFromAnalysis(analysis, 'renderer-react');
+    const root = react.layoutRoot as Extract<typeof react.layoutRoot, { kind: 'container' }>;
+    expect(root.children.at(-1)).toEqual({
+      kind: 'container',
+      component: 'Button',
+      selector: 'submit',
+      componentProps: { type: 'button' },
+      children: [{ kind: 'text', text: 'Отправить заявку' }],
+    });
+    expect(react.operators).toEqual({ sendRequest: './api' });
+    expect(react.nodes).toEqual([
+      {
+        kind: 'onComponentEvent',
+        selector: 'submit',
+        event: 'onClick',
+        expr: 'if (await validateModel(model, formValidation, { touch: true })) await sendRequest(model.get());',
+      },
+    ]);
+    // На core правил узлов нет: функцию зовёт разметка.
+    const core = intentFromAnalysis(analyzeSpec(mini), 'core');
+    expect(core.nodes).toBeUndefined();
+    expect(core.operators).toEqual({ sendRequest: './api' });
+  });
+
+  it('сверка по спеке: задание кнопку не называет — подпись из спеки плана', () => {
+    const bare = readIntent(form).intent;
+    const task = 'Сделай форму по спецификации из файла `spec.md`.';
+    expect(taskGaps(task, bare, 'Оформить заказ')).toContain(
+      'the spec names the button «Оформить заказ» — the form has no submit button: {"op":"submit","label":"Оформить заказ"}'
+    );
+    expect(gapFixes(task, bare, 'Оформить заказ')).toContainEqual({
+      op: 'submit',
+      label: 'Оформить заказ',
+    });
+    // Без текста задания (только спека) — тоже.
+    expect(gapFixes(undefined, bare, 'Оформить заказ')).toEqual([
+      { op: 'submit', label: 'Оформить заказ' },
+    ]);
+    // Подпись задания сильнее спеки.
+    expect(taskGaps('Внизу кнопка «Купить».', bare, 'Оформить заказ').join('\n')).toMatch(
+      /the task names the button «Купить»/
+    );
+    const done = applyEdits(form, [{ op: 'submit', label: 'Оформить заказ' }], ctx()).file;
+    expect(taskGaps(task, readIntent(done).intent, 'Оформить заказ').join('\n')).not.toMatch(
+      /button/
+    );
+  });
+});
+
+describe('кнопка и асинхронная проверка — сборка с проверкой типов', () => {
+  let project: string;
+  let knowledge: Knowledge;
+  const previousRoot = process.env[TYPECHECK_ROOT_ENV];
+  const text = (result: { content: Array<{ text: string }> }) => result.content[0].text;
+
+  beforeAll(() => {
+    process.env[TYPECHECK_ROOT_ENV] = repoRoot;
+  });
+  afterAll(() => {
+    if (previousRoot === undefined) delete process.env[TYPECHECK_ROOT_ENV];
+    else process.env[TYPECHECK_ROOT_ENV] = previousRoot;
+  });
+  beforeEach(() => {
+    project = mkdtempSync(join(tmpdir(), 'guided-submit-'));
+    writeFileSync(
+      join(project, 'package.json'),
+      JSON.stringify({ name: 'consumer', dependencies: { '@reformer/core': '*' } })
+    );
+    knowledge = { ...cliKnowledge(), forms: createCliFormWorkspace(project) };
+  });
+  afterEach(() => rmSync(project, { recursive: true, force: true }));
+
+  for (const target of ['renderer-react', 'core'] as const) {
+    it(
+      `${target}: асинхронная заглушка и кнопка проходят сборку`,
+      async () => {
+        await formStartTool(
+          {
+            dir: 'form',
+            target,
+            task: 'Капча (captcha) — обязательна, проверяй асинхронно заглушкой: верный код ABC123, ответ через 300 мс. Внизу кнопка «Проверить».',
+          },
+          knowledge
+        );
+        const built = await formEditTool(
+          {
+            dir: 'form',
+            edits: [
+              { op: 'add_field', name: 'captcha', label: 'Капча' },
+              { op: 'submit', label: 'Проверить' },
+              {
+                op: 'add_rule',
+                field: 'captcha',
+                required: true,
+                async: "String(value).toUpperCase() === 'ABC123'",
+                delay: 300,
+                message: 'Символы не совпадают',
+              },
+              ...(target === 'core' ? [{ op: 'markup' }] : []),
+            ],
+          },
+          knowledge
+        );
+        const answer = text(built);
+        expect(answer).toMatch(/✓ form_build/);
+        expect(answer).toMatch(/Types checked, no errors\./);
+        const read = (name: string) => readFileSync(join(project, 'form', name), 'utf8');
+        expect(read('form.validation.ts')).toMatch(/validateAsync\(model\.\$\.captcha, \[async/);
+        // Отправка — заглушка api.ts без метки TODO: она рабочая, напоминания о ней нет.
+        expect(read('api.ts')).toMatch(
+          /export async function submitForm\(values: \w+\): Promise<void> \{\n {2}console\.info\('submitForm', values\);/
+        );
+        expect(read('api.ts')).not.toMatch(/TODO\(form_build\)/);
+        expect(answer).not.toMatch(/stubs/);
+        // На core функцию отправки зовёт разметка — не «intent never calls it».
+        expect(answer).not.toMatch(/never calls/);
+        if (target === 'core') {
+          expect(read('index.tsx')).toMatch(/<Button type="submit">Проверить<\/Button>/);
+          expect(read('index.tsx')).toMatch(/bundle\.submission\.submit\(submitForm\)/);
+          expect(read('index.tsx')).not.toMatch(/renderer-react/);
+        } else {
+          expect(read('form.schema.ts')).toMatch(/Проверить/);
+          expect(read('form.behavior.ts')).toMatch(
+            /import \{ formValidation \} from '\.\/form\.validation';/
+          );
+          expect(read('form.behavior.ts')).toMatch(
+            /onComponentEvent\(schema\.node\('submit'\), 'onClick', async \(\) => \{ if \(await validateModel\(model, formValidation, \{ touch: true \}\)\) await submitForm\(model\.get\(\)\); \}\);/
+          );
+        }
+      },
+      SLOW
+    );
+  }
 });

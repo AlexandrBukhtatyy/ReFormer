@@ -137,6 +137,19 @@ export function dropEmptyEdits(code: string): { code: string; dropped: number } 
   return { code: out.join(''), dropped };
 }
 
+/** Импорт, `require` или модуль файлов в скрипте: в песочнице их нет. */
+const FILE_ACCESS = /^\s*import\s|\brequire\s*\(|\bfrom\s+['"](?:node:)?fs(?:\/promises)?['"]/m;
+
+/**
+ * Скрипт с `import … from 'fs'` в связке с guided получал «SyntaxError: expecting '(' — исправь код в
+ * этом месте», и модель уходила переписывать файлы формы руками, ни разу не вызвав `formStart`
+ * (батч 20261114T225122Z-f433, registration-edit на core). Ответ называет путь через сервер.
+ */
+const START_EXAMPLE =
+  'console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word>" }))';
+
+const FILE_ACCESS_HINT = `Nothing in this script ran: a script has no import, require or file access — the files of the form folder belong to the server. Change a form only through \`reformer\`: no plan yet (also for a form that already lies in the folder) — ${START_EXAMPLE}; with a plan — the reformer.formEdit call of the last "Next:".`;
+
 /**
  * Исполнить `run_script`.
  *
@@ -154,10 +167,13 @@ export async function runScriptTool(
 ): Promise<CallToolResult> {
   const code = args?.code;
   if (typeof code !== 'string' || code.trim() === '') {
-    return {
-      content: [{ type: 'text', text: 'run_script: pass the script text in "code".' }],
-      isError: true,
-    };
+    // Связка с guided: пустой вызов (сбой разбора у Ollama) без образца — и модель уходила писать
+    // файлы формы руками (батч 20261114T225122Z-f433, registration-delete на renderer-react).
+    const text =
+      options.returnErrors === true
+        ? `run_script: pass the script text in "code", e.g. {"code": ${JSON.stringify(START_EXAMPLE)}} — no plan yet (also for a form that already lies in the folder), start with that; with a plan — the reformer.formEdit call of the last "Next:".`
+        : 'run_script: pass the script text in "code".';
+    return { content: [{ type: 'text', text }], isError: true };
   }
 
   const inner: InnerCall[] = [];
@@ -204,7 +220,9 @@ export async function runScriptTool(
     parts.push(`✗ script error: ${outcome.error}`);
     // Связка с guided: после синтаксической ошибки модель считала правки сделанными или уходила
     // править файлы руками — сказать, что не выполнилось ничего (батч 20261114T192434Z-731c).
-    if (options.returnErrors === true && /^SyntaxError/.test(outcome.error)) {
+    if (options.returnErrors === true && FILE_ACCESS.test(fixed.code)) {
+      parts.push(FILE_ACCESS_HINT);
+    } else if (options.returnErrors === true && /^SyntaxError/.test(outcome.error)) {
       parts.push(
         'Nothing in this script ran — fix the code at that place (quotes, commas, brackets) and send the same call again.'
       );

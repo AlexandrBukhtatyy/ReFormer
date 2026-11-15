@@ -34,6 +34,7 @@ export const EDIT_OPS = [
   'remove_behavior',
   'add_visibility',
   'set_form',
+  'submit',
   'markup',
 ] as const;
 export type EditOp = (typeof EDIT_OPS)[number];
@@ -111,7 +112,11 @@ const KEYS = {
     ts: 'string[]',
     doc: 'Keys of the fields and arrays of the step, in order.',
   },
-  required: { schema: { type: 'boolean' }, ts: 'boolean', doc: 'true — the value is required.' },
+  required: {
+    schema: { type: 'boolean' },
+    ts: 'boolean',
+    doc: 'true — the value is required; false — the task leaves the field optional: it stays without a rule.',
+  },
   email: { schema: { type: 'boolean' }, ts: 'boolean', doc: 'true — the value must be an email.' },
   min: {
     schema: { type: 'number' },
@@ -144,10 +149,25 @@ const KEYS = {
     ts: 'string',
     doc: 'An expression over values.<field>, TRUE when the value is valid: "values.end >= values.start".',
   },
+  async: {
+    schema: STRING,
+    ts: 'string',
+    doc: 'A check that waits for an answer (a server, a stub of it): a condition over value, TRUE when the value is valid — "String(value).toUpperCase() === \'ABC123\'". The server writes the async function around it.',
+  },
+  delay: {
+    schema: { type: 'number' },
+    ts: 'number',
+    doc: 'The answer of the async check comes after this many milliseconds (the delay of the task).',
+  },
   equals: {
     schema: STRING,
     ts: 'string',
     doc: 'The key of the field this one must match (a repeated password).',
+  },
+  handler: {
+    schema: STRING,
+    ts: 'string',
+    doc: 'The send function the task or spec names ("submitOrder"); the server puts its stub in api.ts.',
   },
   when: {
     schema: STRING,
@@ -315,9 +335,9 @@ export const EDIT_SPECS: readonly OpSpec[] = [
     op: 'add_rule',
     doc: 'Checks of a field: all checks of one field may go into one add_rule.',
     signature:
-      'add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,when?,message?}',
+      'add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,async?,delay?,when?,message?}',
     required: ['field'],
-    optional: ['array', 'rule', 'cross', 'equals', 'when'],
+    optional: ['array', 'rule', 'cross', 'equals', 'async', 'delay', 'when'],
     groups: ['Checks'],
   },
   {
@@ -327,7 +347,7 @@ export const EDIT_SPECS: readonly OpSpec[] = [
     required: ['field'],
     optional: ['rule'],
     docs: {
-      rule: 'The check to remove by its name ("minLength"); none — every check of the field.',
+      rule: 'The check to remove by its name ("minLength", "async"); none — every check of the field.',
     },
   },
   {
@@ -357,6 +377,14 @@ export const EDIT_SPECS: readonly OpSpec[] = [
     doc: 'The title of the form.',
     signature: 'set_form {formName}',
     required: ['formName'],
+  },
+  {
+    op: 'submit',
+    doc: 'The submit button of the form with the label of the task; again — a new label. A click checks the form and sends it with a stub function from api.ts. A button is not an input: never add_field.',
+    signature: 'submit {label,handler?}',
+    required: ['label'],
+    optional: ['handler'],
+    docs: { label: 'The text of the button: the words of the task, in its language.' },
   },
   {
     op: 'markup',
