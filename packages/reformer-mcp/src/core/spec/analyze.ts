@@ -60,6 +60,11 @@ export interface SpecField {
 export interface SpecArray {
   name: string;
   label?: string;
+  /** Границы строк из колонки «Валидация» строки массива: «От 1 до 10 строк». */
+  minItems?: number;
+  maxItems?: number;
+  /** Строк в начале из колонки «Значение»: «одна пустая строка» — 1. */
+  startRows?: number;
   /** Шаг, на котором массив впервые встретился. */
   step?: number;
   /** Индекс заголовка шага (вариант шага), под которым массив впервые встретился. */
@@ -346,6 +351,56 @@ function cellByHeader(
     if (idx !== undefined && idx < cells.length) return cells[idx];
   }
   return undefined;
+}
+
+/** Число словом или цифрами: «одна», «две», «3», «one». */
+function countOf(word: string): number | undefined {
+  if (/^\d+$/.test(word)) return Number(word);
+  const lower = word.toLowerCase();
+  if (/^(?:одн|один|one)/.test(lower)) return 1;
+  if (/^(?:дв|two)/.test(lower)) return 2;
+  if (/^(?:тр[иёе]|three)/.test(lower)) return 3;
+  return undefined;
+}
+
+const COUNT = '(\\d+|одн\\p{L}*|один|дв\\p{L}*|тр\\p{L}*|one|two|three)';
+const ROWS = '(?:строк|позици|элемент|запис|rows?|items?|entries)';
+
+/**
+ * Границы строк массива из ячейки «Валидация»: «От 1 до 10 строк», «не меньше 1 строки», «не больше
+ * 5 позиций», «1 to 10 rows», «at least one row».
+ */
+export function rowBounds(cell: string | undefined): { min?: number; max?: number } {
+  const raw = (cell ?? '').replace(/<[^>]+>/g, ' ');
+  const range = new RegExp(
+    `(?:от|from)?\\s*${COUNT}\\s*(?:до|to|-|–|—)\\s*(\\d+)\\s+${ROWS}`,
+    'iu'
+  ).exec(raw);
+  if (range) return { min: countOf(range[1]), max: Number(range[2]) };
+  const out: { min?: number; max?: number } = {};
+  const min = new RegExp(
+    `(?:не\\s+меньше|минимум|хотя\\s+бы|at\\s+least|min(?:imum)?)\\s*:?\\s*${COUNT}\\s+${ROWS}`,
+    'iu'
+  ).exec(raw);
+  if (min) out.min = countOf(min[1]);
+  const max = new RegExp(
+    `(?:не\\s+больше|максимум|не\\s+более|at\\s+most|up\\s+to|max(?:imum)?)\\s*:?\\s*${COUNT}\\s+${ROWS}`,
+    'iu'
+  ).exec(raw);
+  if (max) out.max = countOf(max[1]);
+  return out;
+}
+
+/** Строк в начале из ячейки «Значение»: «одна пустая строка», «две строки», «пусто» — 0. */
+export function startRows(cell: string | undefined): number | undefined {
+  const raw = (cell ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/`/g, '')
+    .trim();
+  if (!raw) return undefined;
+  if (/^(?:\[\]|пуст\p{L}*|нет|empty|none)$/iu.test(raw)) return 0;
+  const rows = new RegExp(`^${COUNT}\\s+(?:пуст\\p{L}*\\s+|empty\\s+)?${ROWS}`, 'iu').exec(raw);
+  return rows ? countOf(rows[1]) : undefined;
 }
 
 /** `Input[number]` → number/Input, `Select` → string/Select. `null`, если ячейка не опознана. */
@@ -1042,6 +1097,13 @@ export function extractEntries(content: string, dropped?: string[]): SpecEntries
             // Строка самого массива: объявляет его и даёт подпись, полем модели не становится.
             const array = arrayOf(key, step);
             if (label?.trim()) array.label = label.trim();
+            // Границы и стартовые строки: без них черновик давал пустой массив, и форма заказа
+            // начиналась без товаров (ReFormer-f2fs.29).
+            const bounds = rowBounds(cellByHeader(cells, headers, VALIDATION_COLUMN));
+            if (bounds.min !== undefined) array.minItems = bounds.min;
+            if (bounds.max !== undefined) array.maxItems = bounds.max;
+            const start = startRows(cellByHeader(cells, headers, VALUE_COLUMN));
+            if (start !== undefined) array.startRows = start;
             continue;
           }
           pushField(read(key));

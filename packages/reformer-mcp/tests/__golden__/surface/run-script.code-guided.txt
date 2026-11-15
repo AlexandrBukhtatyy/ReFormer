@@ -55,12 +55,18 @@ interface AddField extends FieldProps, Checks {
 /** set_field — Change a field: only the keys you give change. */
 interface SetField extends FieldProps, Checks {
   op: "set_field";
-  /** An existing field (its key). */
+  /** An existing field or array (its key); with "array" — a column of its rows. */
   name: string;
   /** The label: the words of the task, in its language. */
   label?: string;
   /** Title or number of the wizard step to put it in. */
   step?: string;
+  /** The array whose column this is: the edit changes that column of every row. */
+  array?: string;
+  /** On an array: at least this many rows. */
+  minItems?: number;
+  /** On an array: at most this many rows. */
+  maxItems?: number;
 }
 
 /** rename_field — Rename a field, a group or an array: the server rewrites its rules, behaviors, conditions and the layout. */
@@ -81,7 +87,7 @@ interface RemoveField {
   name: string;
 }
 
-/** add_array — Repeating rows the user adds; then add_item_field for each column of a row. */
+/** add_array — Repeating rows the user adds; then add_item_field for each column of a row. The name of an array the form has already: its label and row bounds change. */
 interface AddArray {
   op: "add_array";
   /** Key of the array: one latin camelCase word. */
@@ -107,13 +113,17 @@ interface AddItemField extends FieldProps, Checks {
   label: string;
 }
 
-/** add_step — A wizard step with its fields, in order. */
+/** add_step — A wizard step with its fields, in order; after or before — its place among the steps (the title of a step the form has: the step moves there). */
 interface AddStep {
   op: "add_step";
   /** Title of the step: the words of the task. */
   title: string;
   /** Keys of the fields and arrays of the step, in order. */
   fields: string[];
+  /** Put the step right after this step (its title or number); none — at the end. */
+  after?: string;
+  /** Put the step right before this step (its title or number). */
+  before?: string;
 }
 
 /** rename_step — Change the title of a wizard step. */
@@ -160,6 +170,8 @@ interface AddRule extends Checks {
   delay?: number;
   /** Only while this condition over model.<field> holds: "model.method === 'courier'". */
   when?: string;
+  /** true — a warning: the check shows its message and does not block sending ("больше 100 000 — предупреждение"). */
+  warning?: boolean;
 }
 
 /** remove_rule — Remove checks of a field. */
@@ -171,7 +183,7 @@ interface RemoveRule {
   rule?: string;
 }
 
-/** add_behavior — A reaction: a computed value, a field active only on a condition, a value cleared on a condition… */
+/** add_behavior — A reaction: a computed value, a field active only on a condition, a value cleared on a condition, a value rewritten as typed (transformValue, expr over value), a reaction to a change (onChange on the field that changes: "if (…) model.<other> = …;"), two fields kept equal (syncFields)… */
 interface AddBehavior {
   op: "add_behavior";
   /** compute — a formula; enableWhen / disableWhen — the field is active only on a condition; resetWhen — cleared on a condition; the rest as named. */

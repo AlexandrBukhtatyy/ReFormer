@@ -262,7 +262,10 @@ describe('плоские правки', () => {
       initialValue: [{ phone: '' }],
       componentProps: { title: 'Contacts', addButtonLabel: '+ Contacts', minItems: 1, maxItems: 5 },
     });
+    // Границы строк — и правила длины массива (ReFormer-f2fs.29).
     expect(file.validation).toEqual([
+      { target: 'contacts', rules: ["minLength(1, { code: 'contacts.minLength' })"] },
+      { target: 'contacts', rules: ["maxLength(5, { code: 'contacts.maxLength' })"] },
       { target: 'contacts.phone', each: 'contacts', rules: ['required()'] },
     ]);
     expect((file.layoutRoot as Rec).children).toEqual([{ kind: 'array', ref: 'contacts' }]);
@@ -3625,7 +3628,7 @@ describe('удаление полей групп и подформ; массив
     );
     expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, true]);
     expect(outcomes[0].message).toBe(
-      'array `items` added in place of the field `items`; `items` was a field — it is an array of rows now (its 1 rules dropped) — now add_item_field for its row'
+      'array `items` added in place of the field `items`; `items` was a field — it is an array of rows now (its 1 rules dropped); rule on `items`: minLength(1) (the text of the task for it: add_rule with "message") — now add_item_field for its row'
     );
     expect((file.fields as Rec[]).map((field) => field.name)).toEqual(['name', 'total']);
     expect((file.layoutRoot as Rec).children).toEqual([
@@ -3633,7 +3636,9 @@ describe('удаление полей групп и подформ; массив
       { kind: 'array', ref: 'items' },
       'total',
     ]);
-    expect(file.validation).toEqual([]);
+    expect(file.validation).toEqual([
+      { target: 'items', rules: ["minLength(1, { code: 'items.minLength' })"] },
+    ]);
     expect(readIntent(file).problems).toEqual([]);
   });
 });

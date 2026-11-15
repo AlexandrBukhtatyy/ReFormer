@@ -356,16 +356,41 @@ export function intentFromAnalysis(
   }
   dependencyBehaviors(analysis, fieldTypes, new Set(computed), behavior, warnings);
 
-  const arrays: ArrayIntent[] = analysis.arrayDefs.map((a) => ({
-    name: a.name,
-    itemInterfaceName: itemInterfaceOf(a.name),
-    itemFields: a.itemFields.map(fieldIntentOf),
-    // Подпись строки массива в спеке — заголовок его секции («Товары»).
-    ...(a.label ? { componentProps: { title: a.label } } : {}),
-    // Пустой массив — честное начало: строки добавляет человек. Без значения узел массива
-    // ломается на первом `add` (см. `ArrayIntent.initialValue`).
-    initialValue: [],
-  }));
+  const arrays: ArrayIntent[] = analysis.arrayDefs.map((a) => {
+    const itemFields = a.itemFields.map(fieldIntentOf);
+    // Границы спеки — и правила длины: `minItems` только рисует строки, форму без товаров не
+    // останавливает (проба items-at-least-one).
+    const bounds = [
+      ...(a.minItems !== undefined && a.minItems > 0 ? [`minLength(${a.minItems})`] : []),
+      ...(a.maxItems !== undefined ? [`maxLength(${a.maxItems})`] : []),
+    ];
+    if (bounds.length > 0) validation.push({ target: a.name, rules: bounds });
+    // Стартовые строки спеки («одна пустая строка») — и минимум строк: документ renderer-json
+    // держит стартовые строки только числом `minItems` (document.ts). Без них форма заказа
+    // начиналась без товаров, и пробы падали на «нет пути items.0.title» (ReFormer-f2fs.29).
+    const start = Math.max(a.startRows ?? 0, a.minItems ?? 0);
+    const minItems = a.minItems ?? (start > 0 ? start : undefined);
+    const props = {
+      // Подпись строки массива в спеке — заголовок его секции («Товары»).
+      ...(a.label ? { title: a.label } : {}),
+      ...(minItems !== undefined ? { minItems } : {}),
+      ...(a.maxItems !== undefined ? { maxItems: a.maxItems } : {}),
+    };
+    const blank = (field: FieldIntent): unknown =>
+      field.initialValue ??
+      (field.type === 'string' ? '' : field.type === 'boolean' ? false : null);
+    return {
+      name: a.name,
+      itemInterfaceName: itemInterfaceOf(a.name),
+      itemFields,
+      ...(Object.keys(props).length > 0 ? { componentProps: props } : {}),
+      // Без стартовых строк — пустой массив: строки добавляет человек. Без значения узел массива
+      // ломается на первом `add` (см. `ArrayIntent.initialValue`).
+      initialValue: Array.from({ length: start }, () =>
+        Object.fromEntries(itemFields.map((field) => [field.name, blank(field)]))
+      ),
+    };
+  });
 
   const layoutRoot = layoutOf(analysis, warnings);
   const submit = submitOf(analysis, target, layoutRoot, warnings);

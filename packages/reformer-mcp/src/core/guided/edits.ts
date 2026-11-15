@@ -350,7 +350,11 @@ function fieldRecord(edit: Rec, ctx: EditContext, existing?: Rec): Rec {
       : undefined
     : rawType;
   const type = typeGiven ?? (typeof record.type === 'string' ? record.type : 'string');
-  if (!(FIELD_TYPES as readonly string[]).includes(type)) {
+  // Тип, которого правка не задаёт, остаётся: мультивыбор черновика спеки («array», SelectMulti)
+  // отказывал на любой правке поля — «"type" is one of string…», и модель делала его строкой
+  // (wizard-create, 20261115T100154Z-c856, runtime.structure.types: sources).
+  const kept = typeGiven === undefined && existing !== undefined && record.type === type;
+  if (!kept && !(FIELD_TYPES as readonly string[]).includes(type)) {
     throw new EditError(
       `"type" is one of ${FIELD_TYPES.join(', ')}${didYouMean(type, FIELD_TYPES)}`
     );
@@ -1109,14 +1113,30 @@ function clearMask(file: Rec, record: Rec, edit: Rec, ctx: EditContext): string 
 function setField(file: Rec, edit: Rec, ctx: EditContext): string {
   const name = fieldName(edit);
   const arrayName = text(edit, 'array');
+  // Массив, а не поле: подпись и границы строк (`{"name":"items","min":1}` модель слала после отказа
+  // add_array и получала «is an array, not a field» — wizard-create, ReFormer-f2fs.29).
+  const rows = arrayName ? undefined : findArray(file, name);
+  if (rows && !findField(file, name)) return updateArray(file, rows, edit, ctx);
   if (arrayName) {
-    const items = itemFieldsOf(requireArray(file, arrayName));
+    const array = requireArray(file, arrayName);
+    const items = itemFieldsOf(array);
     const index = items.findIndex((item) => nameOf(item) === name);
     if (index < 0)
       throw new EditError(
         `no field \`${name}\` in rows of \`${arrayName}\`${didYouMean(name, items.map(nameOf))}`
       );
-    items[index] = { name, ...fieldRecord(edit, ctx, items[index]) };
+    const before = items[index];
+    items[index] = { name, ...fieldRecord(edit, ctx, before) };
+    // Стартовые строки — с новым значением колонки: иначе после смены типа в строке оставалось
+    // старое ('' у числа) и тип строки расходился с колонкой (как в addItemField).
+    if (
+      Array.isArray(array.initialValue) &&
+      (items[index].type !== before.type || items[index].initialValue !== before.initialValue)
+    ) {
+      for (const row of array.initialValue as unknown[]) {
+        if (isRecord(row)) row[name] = items[index].initialValue;
+      }
+    }
     return `row field \`${arrayName}.${name}\` changed${liftFieldRules(file, edit, ctx, name, arrayName)}`;
   }
   const fields = fieldsOf(file);
@@ -1562,7 +1582,86 @@ function removeStep(file: Rec, edit: Rec): string {
   return `step «${title}» removed with ${refs.length} items (${refs.join(', ') || 'none'})${droppedNote(dropped, readers, orphans)}`;
 }
 
+/**
+ * Подпись и границы готового массива. `add_array` с его именем отказывал «already exists — use
+ * set_field», а у `set_field` ключей границ не было: черновик по спеке оставался без строк, и
+ * пробы падали на «нет пути items.0.title» (order-create, 20261115T083423Z-ad6e, ReFormer-f2fs.29).
+ * Границы — `minItems`/`maxItems` или, у `set_field` на массиве, `min`/`max`; строк в начале не
+ * меньше минимума.
+ */
+/**
+ * Границы строк — и правило длины массива, если его ещё нет: `minItems` только рисует строки и
+ * кнопки, а форму без товаров не останавливал никто (order-create, 20261115T094500Z-40da,
+ * проба items-at-least-one). Правило с текстом задания модель даёт через add_rule — оно заменит это.
+ */
+function boundRules(file: Rec, name: string, minItems?: number, maxItems?: number): string {
+  const rows = list(file, 'validation');
+  const has = (call: string): boolean =>
+    rows.some(
+      (row) =>
+        row.target === name &&
+        Array.isArray(row.rules) &&
+        (row.rules as unknown[]).some((rule) => typeof rule === 'string' && rule.startsWith(call))
+    );
+  const added: string[] = [];
+  if (minItems !== undefined && minItems > 0 && !has('minLength(')) {
+    rows.push({ target: name, rules: [`minLength(${minItems}, { code: '${name}.minLength' })`] });
+    added.push(`minLength(${minItems})`);
+  }
+  if (maxItems !== undefined && !has('maxLength(')) {
+    rows.push({ target: name, rules: [`maxLength(${maxItems}, { code: '${name}.maxLength' })`] });
+    added.push(`maxLength(${maxItems})`);
+  }
+  file.validation = rows;
+  return added.length > 0
+    ? `; rule on \`${name}\`: ${added.join(', ')} (the text of the task for it: add_rule with "message")`
+    : '';
+}
+
+function updateArray(file: Rec, array: Rec, edit: Rec, ctx: EditContext): string {
+  const name = nameOf(array);
+  const props: Rec = isRecord(array.componentProps) ? { ...array.componentProps } : {};
+  const changed: string[] = [];
+  const label = text(edit, 'label');
+  if (label && props.title !== label) {
+    if (
+      typeof props.addButtonLabel !== 'string' ||
+      props.addButtonLabel === `+ ${String(props.title ?? '')}`
+    )
+      props.addButtonLabel = `+ ${label}`;
+    props.title = label;
+    changed.push(`label «${label}»`);
+  }
+  const minItems = number(edit, 'minItems') ?? number(edit, 'min');
+  const maxItems = number(edit, 'maxItems') ?? number(edit, 'max');
+  if (minItems !== undefined && maxItems !== undefined && minItems > maxItems)
+    throw new EditError(`"minItems" ${minItems} is more than "maxItems" ${maxItems}`);
+  if (minItems !== undefined) {
+    props.minItems = minItems;
+    changed.push(`at least ${minItems} row${minItems === 1 ? '' : 's'}`);
+  }
+  if (maxItems !== undefined) {
+    props.maxItems = maxItems;
+    changed.push(`at most ${maxItems} rows`);
+  }
+  array.componentProps = props;
+  const rows = Array.isArray(array.initialValue) ? (array.initialValue as unknown[]) : [];
+  const blank = (): Rec =>
+    Object.fromEntries(
+      itemFieldsOf(array).map((item) => [nameOf(item), item.initialValue ?? null])
+    );
+  while (minItems !== undefined && rows.length < minItems) rows.push(blank());
+  array.initialValue = rows;
+  const { step, note } = stepOf(edit, ctx);
+  const moved = `${step ? `, moved to ${place(file, name, true, step)}` : note}${boundRules(file, name, minItems, maxItems)}`;
+  if (changed.length === 0 && !step)
+    return `array \`${name}\` is in the form already — nothing changed (a new column: add_item_field)`;
+  return `array \`${name}\` changed: ${changed.join(', ') || 'placed'}${moved}`;
+}
+
 function addArray(file: Rec, edit: Rec, ctx: EditContext): string {
+  const existing = findArray(file, text(edit, 'name', true)!);
+  if (existing) return updateArray(file, existing, edit, ctx);
   if (ctx.rows === false) {
     throw new EditError(
       'the plan has no rows: the task names no repeating rows. A choice from a list is a field with "options". Rows needed after all (the task or its spec lists rows)? Send the same add_array again — the plan gets a rows stage'
@@ -1598,10 +1697,11 @@ function addArray(file: Rec, edit: Rec, ctx: EditContext): string {
     itemFields: [],
   });
   const { step, note } = stepOf(edit, ctx);
+  const bounds = boundRules(file, name, minItems, maxItems);
   if (converted?.placed && step === undefined) {
-    return `array \`${name}\` added in place of the field \`${name}\`${converted.note} — now add_item_field for its row`;
+    return `array \`${name}\` added in place of the field \`${name}\`${converted.note}${bounds} — now add_item_field for its row`;
   }
-  return `array \`${name}\` added to ${place(file, name, true, step)}${note}${converted?.note ?? ''} — now add_item_field for its row`;
+  return `array \`${name}\` added to ${place(file, name, true, step)}${note}${converted?.note ?? ''}${bounds} — now add_item_field for its row`;
 }
 
 /**
@@ -1645,6 +1745,10 @@ function addItemField(file: Rec, edit: Rec, ctx: EditContext): string {
   const arrayName = text(edit, 'array', true)!;
   const array = requireArray(file, arrayName);
   const name = text(edit, 'name', true)!;
+  // Колонка уже есть (черновик спеки): правка меняет её, а не отказывает «already exists».
+  if (itemFieldsOf(array).some((item) => nameOf(item) === name)) {
+    return `${setField(file, edit, ctx)} (it was in the rows already)`;
+  }
   checkNewName(name, itemFieldsOf(array).map(nameOf));
   if (name.includes('.')) throw new EditError('a row field name is one word');
   const button = buttonOf(name, String(edit.label ?? '').trim(), ctx.task);
@@ -1658,6 +1762,45 @@ function addItemField(file: Rec, edit: Rec, ctx: EditContext): string {
     }
   }
   return `row field \`${arrayName}.${name}\` added${liftFieldRules(file, edit, ctx, name, arrayName)}`;
+}
+
+/** Родитель узла дерева раскладки. */
+function parentOf(node: unknown, target: Rec): Rec | null {
+  if (!isRecord(node) || !Array.isArray(node.children)) return null;
+  if (node.children.includes(target)) return node;
+  for (const child of node.children) {
+    const found = parentOf(child, target);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Шаг — после или перед другим шагом (`after`/`before`: заголовок или номер). «Между «Товары» и
+ * «Оплата» добавь шаг» уходил в конец, и модель переставляла заголовки четырьмя rename_step
+ * (wizard-edit, 20261115T092608Z-48ed, ReFormer-f2fs.30).
+ */
+function positionStep(file: Rec, step: Rec, edit: Rec): string {
+  const after = text(edit, 'after');
+  const before = after === undefined ? text(edit, 'before') : undefined;
+  const key = after ?? before;
+  if (key === undefined) return '';
+  const steps = allSteps(file);
+  const others = steps.filter((other) => other !== step);
+  const anchor = findStep(others, key);
+  const siblings =
+    Array.isArray(file.steps) && file.steps.length > 0
+      ? (file.steps as unknown[])
+      : (parentOf(file.layoutRoot, step)?.children as unknown[] | undefined);
+  if (!siblings || !siblings.includes(anchor)) {
+    throw new EditError(
+      `step «${String(anchor.title)}» is not next to «${String(step.title)}» in the layout`
+    );
+  }
+  siblings.splice(siblings.indexOf(step), 1);
+  const at = siblings.indexOf(anchor);
+  siblings.splice(after !== undefined ? at + 1 : at, 0, step);
+  return `, ${after !== undefined ? 'after' : 'before'} «${String(anchor.title)}»`;
 }
 
 function addStep(file: Rec, edit: Rec): string {
@@ -1690,6 +1833,11 @@ function addStep(file: Rec, edit: Rec): string {
         .toLowerCase() === title.trim().toLowerCase()
   );
   if (existing) {
+    const moved = positionStep(file, existing, edit);
+    if (moved) {
+      const fields = refs.length > 0 ? `; ${moveToStep(file, title, refs)}` : '';
+      return `step «${String(existing.title)}» moved${moved}${fields}`;
+    }
     return refs.length > 0
       ? moveToStep(file, title, refs)
       : `step «${String(existing.title)}» is in the form already`;
@@ -1710,12 +1858,13 @@ function addStep(file: Rec, edit: Rec): string {
       return null;
     })(layout.root)!;
     refs.forEach((ref) => unplace(file, ref));
-    childrenOf(wizard).push({
+    const node: Rec = {
       kind: 'step',
       title,
       children: refs.map((ref) => (isArray(ref) ? { kind: 'array', ref } : ref)),
-    });
-    return `step «${title}» added with ${refs.length} items`;
+    };
+    childrenOf(wizard).push(node);
+    return `step «${title}» added with ${refs.length} items${positionStep(file, node, edit)}`;
   }
   if (layout.kind === 'tree') {
     // Первый шаг: раскладка становится сокращением `steps`. Всё, что стояло в корне, уходит в этот
@@ -1734,8 +1883,9 @@ function addStep(file: Rec, edit: Rec): string {
     return `step «${title}» added; the form now has steps${button ? buttonToWizard(file, button) : ''}`;
   }
   refs.forEach((ref) => unplace(file, ref));
-  layout.steps.push({ title, fields: refs });
-  return `step «${title}» added with ${refs.length} items`;
+  const added: Rec = { title, fields: refs };
+  layout.steps.push(added);
+  return `step «${title}» added with ${refs.length} items${positionStep(file, added, edit)}`;
 }
 
 /**
@@ -1971,8 +2121,20 @@ function unknownNames(expr: string): string[] {
   return [...new Set(names.filter((name) => !KNOWN_NAMES.has(name) && !params.has(name)))];
 }
 
-function rejectUnknownNames(key: string, expr: string, file: Rec): void {
-  const unknown = unknownNames(expr);
+/**
+ * Имена реакций сверх выражения: `value` — новое значение поля (transformValue, onChange), `if`
+ * и `else` — тело реакции onChange. Отказ «"expr" names `value`» не давал записать ни приведение
+ * промокода к верхнему регистру, ни смену способа оплаты (ReFormer-f2fs.31).
+ */
+const REACTION_NAMES: ReadonlySet<string> = new Set(['value', 'if', 'else', 'return']);
+
+function rejectUnknownNames(
+  key: string,
+  expr: string,
+  file: Rec,
+  allowed?: ReadonlySet<string>
+): void {
+  const unknown = unknownNames(expr).filter((name) => !allowed?.has(name));
   if (unknown.length === 0) return;
   throw new EditError(
     `"${key}" names ${unknown.map((name) => `\`${name}\``).join(', ')} — not a field of the form; an expression reads only the fields: ${modelPaths(file).join(', ')} (as model.<field>)`
@@ -2087,6 +2249,14 @@ function crossOf(edit: Rec, path: string, file: Rec): string | undefined {
   if (equals) return equalTo(equals.replace(/^values\./, ''));
   const raw = text(edit, 'cross')?.trim();
   if (!raw) return undefined;
+  // Функция строкой («v => v.customerType !== 'company' || …») — не выражение: краткая запись ниже
+  // находила в ней одно поле и молча делала «values.company.inn === values.customerType»
+  // (wizard-create, 20261115T100154Z-c856).
+  if (/^(?:async\s+)?(?:\([^()]*\)|[A-Za-z_$][\w$]*)\s*=>|^(?:async\s+)?function\b/.test(raw)) {
+    throw new EditError(
+      `"cross" is an expression over values, not a function: "values.${path} === values.<other field>" — the parameter of an arrow is values`
+    );
+  }
   // Выражение с голыми именами полей — над values; краткая запись без операторов — ниже.
   const value = /[=<>!]/.test(raw) ? withScope(raw, file, 'values') : raw;
   const sample = `"equals":"<other field>" (must match it), or "cross":"values.${path} === values.<other field>"`;
@@ -2189,6 +2359,25 @@ function rulesWhileShown(file: Rec, path: string, show: string): number {
     changed++;
   }
   return changed;
+}
+
+/**
+ * Условие активности поля из его `enableWhen`/`disableWhen`. На core видимости нет — поле «видно и
+ * обязательно только при упаковке» модель делала `enableWhen`, а правило оставалось безусловным:
+ * выключенное поле не давало отправить форму (wizard-edit, 20261115T092608Z-48ed, ReFormer-f2fs.30).
+ */
+function activeWhen(file: Rec, path: string): string | undefined {
+  const row = list(file, 'behavior').find(
+    (entry) =>
+      entry.target === path &&
+      entry.each === undefined &&
+      (entry.kind === 'enableWhen' || entry.kind === 'disableWhen') &&
+      typeof entry.expr === 'string' &&
+      entry.expr.trim() !== ''
+  );
+  if (!row) return undefined;
+  const expr = String(row.expr).trim();
+  return row.kind === 'enableWhen' ? expr : `!(${expr})`;
 }
 
 /**
@@ -2332,13 +2521,18 @@ function addRule(file: Rec, given: Rec, ctx: EditContext): string {
       text(edit, 'equals') !== undefined;
     return more ? `${done}; ${addRule(file, rest, ctx)}` : `${done}${note}`;
   }
+  // Предупреждение: текст показывается, отправку не держит. «Больше 100 000 — предупреждение»
+  // модель делала обычной проверкой, и форма становилась невалидной (order-create,
+  // 20261115T094500Z-40da, проба large-order-warning, ReFormer-f2fs.31).
+  const warning = edit.warning === true || /^warn/i.test(text(edit, 'severity') ?? '');
+  if (warning) row.severity = 'warning';
   const cross = crossOf(edit, path, file);
   if (cross) {
     row.cross = cross;
-    row.code = text(edit, 'code') ?? `${path}.cross`;
+    row.code = text(edit, 'code') ?? `${path}.${warning ? 'warning' : 'cross'}`;
     if (message) row.message = message;
     list(file, 'validation').push(row);
-    return `cross rule on \`${path}\` added`;
+    return `${warning ? 'warning' : 'cross rule'} on \`${path}\` added${warning ? ' — it shows the message and does not block sending' : ''}`;
   }
   const found = checksOf(edit, ctx);
   // «"required":false» — поле необязательное по решению модели: прежняя обязательность снимается, а
@@ -2384,10 +2578,11 @@ function addRule(file: Rec, given: Rec, ctx: EditContext): string {
     if (rest.length > 0) kept.push({ ...old, rules: rest });
   }
   const shown = row.when === undefined && !row.each ? shownWhen(file, path) : undefined;
-  if (shown) row.when = shown;
+  const active = row.when === undefined && !row.each && !shown ? activeWhen(file, path) : undefined;
+  if (shown ?? active) row.when = shown ?? active;
   kept.push(row);
   file.validation = kept;
-  return `rule on \`${path}\`: ${checks.map(ruleName).join(', ')}${implied ? (row.when !== undefined ? ' (a condition with no check read as "required" on it)' : ' (no check given — the task makes the field required)') : ''}${replaced ? ' (replaced the previous one)' : ''}${note}${shown ? ` (checked only while shown: ${shown})` : ''}${unrequiredNote}`;
+  return `rule on \`${path}\`: ${checks.map(ruleName).join(', ')}${implied ? (row.when !== undefined ? ' (a condition with no check read as "required" on it)' : ' (no check given — the task makes the field required)') : ''}${replaced ? ' (replaced the previous one)' : ''}${note}${shown ? ` (checked only while shown: ${shown})` : ''}${active ? ` (checked only while active: ${active})` : ''}${unrequiredNote}`;
 }
 
 /** Снять обязательность поля: `required()` из его строк; опустевшая строка уходит. */
@@ -2463,7 +2658,28 @@ function addBehavior(file: Rec, edit: Rec): string {
     );
   }
   const expr = rawExpr && !arrayName ? withScope(rawExpr, file) : rawExpr;
-  if (expr && !arrayName) rejectUnknownNames('expr', expr, file);
+  const reaction = kind === 'transformValue' || kind === 'onChange';
+  if (expr && !arrayName)
+    rejectUnknownNames('expr', expr, file, reaction ? REACTION_NAMES : undefined);
+  // Поле, вычисленное из самого себя, не меняется: промокод «String(model.promoCode).toUpperCase()»
+  // считался один раз, а «оплата = физлицо и счёт ? карта : оплата» гасила проверку «счёт — только
+  // юрлицу» (order-create, 20261115T094500Z-40da, ReFormer-f2fs.31).
+  // Только у поля ввода: вычисляемое поле «только чтение» само себя не перезапишет вводом.
+  const targetRecord = findField(file, target);
+  const input =
+    targetRecord !== undefined &&
+    !(isRecord(targetRecord.componentProps) && targetRecord.componentProps.readOnly === true);
+  if (
+    (kind === 'compute' || kind === 'computeFrom') &&
+    !arrayName &&
+    input &&
+    expr &&
+    new RegExp(`(?<![\\w$])model\\.${escapeRegExp(target)}(?![\\w$])`).test(expr)
+  ) {
+    throw new EditError(
+      `a computed field does not read itself (\`${target}\`): to rewrite the value as it is typed — "kind":"transformValue" with "expr" over value ("(value ?? '').toUpperCase()"); to set it when another field changes — "kind":"onChange" on that field with "expr" "if (…) model.${target} = …;"`
+    );
+  }
   if (!expr && kind !== 'syncFields' && kind !== 'exclusiveFlag') {
     throw new EditError(
       `"expr" is required for ${kind} — TypeScript over model, e.g. "model.price * 2"`
@@ -2475,8 +2691,10 @@ function addBehavior(file: Rec, edit: Rec): string {
     throw new EditError(
       `no field \`${unknownSource}\` in "sources"${didYouMean(unknownSource, paths)}`
     );
+  // Своё поле — не источник сброса: resetWhen пишет отложенно и сверяет peek(), сброс сходится за
+  // шаг, а судья видел цикл «paymentMethod → paymentMethod» и не давал собрать (ReFormer-f2fs.31).
   const sources = (given.length > 0 ? given : sourcesOf(expr ?? '', paths, arrayName)).filter(
-    (source) => !(source === target && kind === 'compute')
+    (source) => !(source === target && (kind === 'compute' || kind === 'resetWhen'))
   );
   const promoted =
     !arrayName && (kind === 'compute' || kind === 'computeFrom') && expr && /[*/+-]/.test(expr)
@@ -2505,7 +2723,13 @@ function addBehavior(file: Rec, edit: Rec): string {
   const note = promoted.length
     ? `; ${promoted.join(', ')} made numbers — the formula computes with them`
     : '';
-  return `${kind} on \`${target}\`${sources.length ? ` reading ${sources.join(', ')}` : ''}${note}${replaced > 0 ? ' (replaced the previous one)' : ''}`;
+  // Выключенное поле не проверяется: его правила — пока оно активно (ReFormer-f2fs.30).
+  const gate =
+    !arrayName && expr && (kind === 'enableWhen' || kind === 'disableWhen')
+      ? rulesWhileShown(file, target, kind === 'enableWhen' ? expr : `!(${expr})`)
+      : 0;
+  const gated = gate > 0 ? '; its rules are checked only while it is active' : '';
+  return `${kind} on \`${target}\`${sources.length ? ` reading ${sources.join(', ')}` : ''}${note}${replaced > 0 ? ' (replaced the previous one)' : ''}${gated}`;
 }
 
 /** Убрать поведения поля: все или одного вида (`kind`). */
@@ -2646,6 +2870,9 @@ export function applyEdits(
     },
   };
   const items = Array.isArray(edits) ? edits : [];
+  // Поведения удалённых полей и исходы их повторного добавления — для предупреждения о потерянном.
+  const removedBehaviors = new Map<string, Rec[]>();
+  const readded = new Map<string, number>();
   items.forEach((given, index) => {
     marked = [];
     // Ключ с пробелом или кавычками (`" op"`) — тот же ключ: отказ «"op" is one of …» на правку с
@@ -2753,6 +2980,19 @@ export function applyEdits(
             return setForm(next, edit);
         }
       })();
+      if (op === 'remove_field') {
+        const name = text(edit, 'name') ?? text(edit, 'field');
+        if (name && !removedBehaviors.has(name)) {
+          removedBehaviors.set(
+            name,
+            list(file, 'behavior').filter((row) => row.target === name && row.each === undefined)
+          );
+        }
+      }
+      if ((op === 'add_field' || op === 'add_array') && isRecord(fieldEdit)) {
+        const name = text(fieldEdit, 'name');
+        if (name && removedBehaviors.has(name)) readded.set(name, outcomes.length);
+      }
       file = next;
       optional.push(...marked);
       outcomes.push({ index, op, ok: true, message: `${message}${maskNote}${note}` });
@@ -2761,8 +3001,36 @@ export function applyEdits(
       outcomes.push({ index, op: op || '?', ok: false, message: error.message });
     }
   });
+  for (const [name, at] of readded) {
+    const lost = lostBehaviors(removedBehaviors.get(name) ?? [], file, name);
+    if (lost.length > 0) {
+      outcomes[at] = {
+        ...outcomes[at],
+        message: `${outcomes[at].message}; ⚠ \`${name}\` was removed and added again without ${lost.join(', ')} it had — add_behavior again if the task keeps it (to change a field, set_field and add_behavior keep the rest)`,
+      };
+    }
+  }
   nullSafeFormulas(file);
   return { file, outcomes, markup, optional: [...new Set(optional)] };
+}
+
+/**
+ * Поведения удалённого поля, которых нет у поля с тем же именем после правок. Модель удаляла скидку
+ * и добавляла заново с `enableWhen`, но без `resetOnDisable` — сброс для физлица терялся молча
+ * (order-edit, 20261115T092608Z-48ed, ReFormer-f2fs.30).
+ */
+function lostBehaviors(before: readonly Rec[], file: Rec, name: string): string[] {
+  const now = list(file, 'behavior').filter((row) => row.target === name && row.each === undefined);
+  const resets = (row: Rec): boolean =>
+    isRecord(row.options) && row.options.resetOnDisable === true;
+  const lost: string[] = [];
+  for (const old of before) {
+    const same = now.find((row) => row.kind === old.kind);
+    const expr = typeof old.expr === 'string' ? ` (${old.expr})` : '';
+    if (!same) lost.push(`${String(old.kind)}${expr}`);
+    else if (resets(old) && !resets(same)) lost.push(`resetOnDisable of ${String(old.kind)}`);
+  }
+  return lost;
 }
 
 /**

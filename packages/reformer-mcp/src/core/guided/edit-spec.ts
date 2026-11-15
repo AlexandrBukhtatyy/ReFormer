@@ -203,6 +203,21 @@ const KEYS = {
   },
   formName: { schema: STRING, ts: 'string', doc: 'Title of the form in the language of the task.' },
   to: { schema: STRING, ts: 'string', doc: 'The new key or title.' },
+  warning: {
+    schema: { type: 'boolean' },
+    ts: 'boolean',
+    doc: 'true — a warning: the check shows its message and does not block sending ("больше 100 000 — предупреждение").',
+  },
+  after: {
+    schema: STRING,
+    ts: 'string',
+    doc: 'Put the step right after this step (its title or number); none — at the end.',
+  },
+  before: {
+    schema: STRING,
+    ts: 'string',
+    doc: 'Put the step right before this step (its title or number).',
+  },
 } as const satisfies Record<string, KeySpec>;
 
 export type EditKey = keyof typeof KEYS;
@@ -260,11 +275,16 @@ export const EDIT_SPECS: readonly OpSpec[] = [
   {
     op: 'set_field',
     doc: 'Change a field: only the keys you give change.',
-    signature: 'set_field {name,…}',
+    signature: 'set_field {name,array?,…}',
     required: ['name'],
-    optional: ['label', 'step'],
+    optional: ['label', 'step', 'array', 'minItems', 'maxItems'],
     groups: ['FieldProps', 'Checks'],
-    docs: { name: 'An existing field (its key).' },
+    docs: {
+      name: 'An existing field or array (its key); with "array" — a column of its rows.',
+      array: 'The array whose column this is: the edit changes that column of every row.',
+      minItems: 'On an array: at least this many rows.',
+      maxItems: 'On an array: at most this many rows.',
+    },
   },
   {
     op: 'rename_field',
@@ -287,7 +307,7 @@ export const EDIT_SPECS: readonly OpSpec[] = [
   },
   {
     op: 'add_array',
-    doc: 'Repeating rows the user adds; then add_item_field for each column of a row.',
+    doc: 'Repeating rows the user adds; then add_item_field for each column of a row. The name of an array the form has already: its label and row bounds change.',
     signature: 'add_array {name,label,minItems?,maxItems?}',
     required: ['name', 'label'],
     optional: ['minItems', 'maxItems', 'step'],
@@ -303,9 +323,10 @@ export const EDIT_SPECS: readonly OpSpec[] = [
   },
   {
     op: 'add_step',
-    doc: 'A wizard step with its fields, in order.',
-    signature: 'add_step {title,fields}',
+    doc: 'A wizard step with its fields, in order; after or before — its place among the steps (the title of a step the form has: the step moves there).',
+    signature: 'add_step {title,fields,after?|before?}',
     required: ['title', 'fields'],
+    optional: ['after', 'before'],
   },
   {
     op: 'rename_step',
@@ -337,7 +358,7 @@ export const EDIT_SPECS: readonly OpSpec[] = [
     signature:
       'add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,async?,delay?,when?,message?}',
     required: ['field'],
-    optional: ['array', 'rule', 'cross', 'equals', 'async', 'delay', 'when'],
+    optional: ['array', 'rule', 'cross', 'equals', 'async', 'delay', 'when', 'warning'],
     groups: ['Checks'],
   },
   {
@@ -352,7 +373,7 @@ export const EDIT_SPECS: readonly OpSpec[] = [
   },
   {
     op: 'add_behavior',
-    doc: 'A reaction: a computed value, a field active only on a condition, a value cleared on a condition…',
+    doc: 'A reaction: a computed value, a field active only on a condition, a value cleared on a condition, a value rewritten as typed (transformValue, expr over value), a reaction to a change (onChange on the field that changes: "if (…) model.<other> = …;"), two fields kept equal (syncFields)…',
     signature: 'add_behavior {kind,target,expr,array?,when?,resetOnDisable?}',
     required: ['kind', 'target'],
     optional: ['expr', 'array', 'when', 'resetOnDisable'],

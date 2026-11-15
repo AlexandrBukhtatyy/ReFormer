@@ -48,7 +48,7 @@
         },
         "edits": {
           "type": "array",
-          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,…} · rename_field {name,to,label?} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields} · rename_step {title,to} · remove_step {title} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,async?,delay?,when?,message?} · remove_rule {field,rule?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · submit {label,handler?} · markup (core: the server writes index.tsx)",
+          "description": "add_field {name,label,type?,options?,mask?,placeholder?,readonly?,step?} · set_field {name,array?,…} · rename_field {name,to,label?} · remove_field {name} · add_array {name,label,minItems?,maxItems?} · add_item_field {array,name,label,type?} · add_step {title,fields,after?|before?} · rename_step {title,to} · remove_step {title} · place {name,step} · add_rule {field,array?,required?,email?,min?,max?,minLength?,maxLength?,pattern?,rule?,cross?,async?,delay?,when?,message?} · remove_rule {field,rule?} · add_behavior {kind,target,expr,array?,when?,resetOnDisable?} · remove_behavior {target,kind?} · add_visibility {field,showWhen|hideWhen} · set_form {formName} · submit {label,handler?} · markup (core: the server writes index.tsx)",
           "items": {
             "type": "object",
             "properties": {
@@ -218,6 +218,15 @@
                 "type": "string"
               },
               "to": {
+                "type": "string"
+              },
+              "warning": {
+                "type": "boolean"
+              },
+              "after": {
+                "type": "string"
+              },
+              "before": {
                 "type": "string"
               }
             },
