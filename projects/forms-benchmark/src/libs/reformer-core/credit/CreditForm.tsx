@@ -184,8 +184,8 @@ interface RowProps<T extends object> {
  * Строка массива — отдельный компонент под `React.memo` по `control` строки, как велит
  * `@reformer/cdk` (02-field-array.md: «wrap heavy rows in `React.memo` on `control`»;
  * 07-troubleshooting.md, «FieldArray.List ререндерит весь массив»): `useFieldArray` перерисовывает
- * список на каждую правку внутри любой строки, memo оставляет перерисовку строке, у которой сменился
- * индекс. Удаление — `rows.removeAt(index)`: замыкание `item.remove` новое на каждый пересчёт
+ * список при смене состава строк и их замечаний, memo оставляет перерисовку строке, у которой
+ * сменился индекс. Удаление — `rows.removeAt(index)`: замыкание `item.remove` новое на каждый пересчёт
  * `items` и сбивало бы memo. Путь DOM-контракта поля строки (`properties-0-description`) поле
  * берёт из своего живого пути в модели — префикс строки разметке массива задавать не нужно.
  */
