@@ -137,6 +137,14 @@ function processRow(batch, record) {
     exitReason: record.exitReason,
     turns: record.usage?.turns ?? steps.length,
     inputTokens: record.usage?.inputTokens ?? 0,
+    // Claude CLI считает во «входе» только некэшированное; контекст шага — вместе с кэшем.
+    inputAll:
+      (record.usage?.inputTokens ?? 0) +
+      (record.usage?.cacheReadTokens ?? 0) +
+      (record.usage?.cacheCreationTokens ?? 0),
+    cost: record.usage?.costUsd ?? 0,
+    operation: /-(create|edit|delete|split)$/.exec(record.scenario.id)?.[1] ?? 'create',
+    repeat: record.repeat?.index ?? 1,
     outputTokens: record.usage?.outputTokens ?? 0,
     peak,
     minutes: (record.durationMs ?? 0) / 60000,
@@ -187,7 +195,8 @@ function collect(batchDirectories) {
   const latest = new Map();
   for (const batch of batchDirectories) {
     for (const record of loadRecords(batch)) {
-      const key = `${record.scenario.id}.${record.scenario.target}.${record.approach.id}`;
+      // Повторы — разные прогоны: ключ с номером повтора, иначе в отчёте оставался последний.
+      const key = `${record.scenario.id}.${record.scenario.target}.${record.approach.id}.r${record.repeat?.index ?? 1}`;
       latest.set(key, { batch, record });
     }
   }
@@ -253,11 +262,47 @@ if (options.save) {
 const { rows } = snapshot;
 
 const approaches = [...new Set(rows.map((row) => row.approach))];
-const scenarios = [...new Set(rows.map((row) => row.scenario))].sort();
-const pick = (scenario, approach) =>
-  rows.find((row) => row.scenario === scenario && row.approach === approach);
+// Ячейка — сценарий на стеке; повторы ячейки сводятся (k/n, медианы).
+const cellOf = (row) => `${row.scenario} · ${row.target}`;
+const scenarios = [...new Set(rows.map(cellOf))].sort();
+const pickAll = (scenario, approach) =>
+  rows.filter((row) => cellOf(row) === scenario && row.approach === approach);
+const pick = (scenario, approach) => {
+  const all = pickAll(scenario, approach);
+  if (all.length === 0) return undefined;
+  const mid = (field) => median(all.map((row) => row[field]));
+  return {
+    ...all[0],
+    passes: all.filter((row) => row.verdict === 'pass').length,
+    runs: all.length,
+    score: all.reduce((total, row) => total + (row.score ?? 0), 0) / all.length,
+    turns: mid('turns'),
+    inputAll: mid('inputAll'),
+    peak: mid('peak'),
+    outputTokens: mid('outputTokens'),
+    minutes: mid('minutes'),
+    cost: mid('cost'),
+    mcpCalls: mid('mcpCalls'),
+    fileCalls: mid('fileCalls'),
+    wroteIntent: all.some((row) => row.wroteIntent),
+    builds: mid('builds'),
+    buildsOk: mid('buildsOk'),
+    scripts: mid('scripts'),
+    scriptErrors: mid('scriptErrors'),
+    inner: mid('inner'),
+    truncations: mid('truncations'),
+  };
+};
 const verdictMark = (row) =>
-  !row ? '—' : row.verdict === 'pass' ? '✅' : row.verdict === 'invalid' ? '⚠️' : '❌';
+  !row
+    ? '—'
+    : row.passes === row.runs
+      ? '✅'
+      : row.passes > 0
+        ? '🟡'
+        : row.verdict === 'invalid'
+          ? '⚠️'
+          : '❌';
 const num = (value, digits = 0) =>
   value === undefined || value === null ? '—' : Number(value).toFixed(digits);
 const k = (value) => (value === undefined ? '—' : `${(value / 1000).toFixed(1)}k`);
@@ -271,26 +316,26 @@ const median = (values) => {
 
 console.log(`## По сценариям\n`);
 console.log(
-  '| Сценарий | Таргет | ' +
-    approaches.map((a) => `${a}: вердикт · счёт · выход`).join(' | ') +
-    ' |'
+  '| Сценарий | Таргет | ' + approaches.map((a) => `${a}: пройдено · счёт · $`).join(' | ') + ' |'
 );
 console.log('| --- | --- | ' + approaches.map(() => '---').join(' | ') + ' |');
 for (const scenario of scenarios) {
-  const any = rows.find((row) => row.scenario === scenario);
+  const any = rows.find((row) => cellOf(row) === scenario);
   const cells = approaches.map((approach) => {
     const row = pick(scenario, approach);
-    return row ? `${verdictMark(row)} ${num(row.score, 2)} · ${row.exitReason}` : '—';
+    return row
+      ? `${verdictMark(row)} ${row.passes}/${row.runs} · ${num(row.score, 2)} · ${num(row.cost, 2)}`
+      : '—';
   });
-  console.log(`| ${scenario} | ${any.target} | ${cells.join(' | ')} |`);
+  console.log(`| ${any.scenario} | ${any.target} | ${cells.join(' | ')} |`);
 }
 
 console.log(`\n## Процесс по сценариям\n`);
 console.log(
-  '| Сценарий | Подход | шагов | вход, ток. | пик шага | выход, ток. | мин | MCP | файлов | intent | сборок ✓/всего | скриптов (ошибок) | внутр. вызовов | усечений |'
+  '| Ячейка | Подход | шагов | вход с кэшем | пик шага | выход, ток. | мин | $ | MCP | файлов | intent | сборок ✓/всего | скриптов (ошибок) | внутр. вызовов | усечений |'
 );
 console.log(
-  '| --- | --- | --: | --: | --: | --: | --: | --: | --: | :-: | --: | --: | --: | --: |'
+  '| --- | --- | --: | --: | --: | --: | --: | --: | --: | --: | :-: | --: | --: | --: | --: |'
 );
 for (const scenario of scenarios) {
   for (const approach of approaches) {
@@ -300,10 +345,11 @@ for (const scenario of scenarios) {
       scenario,
       approach,
       row.turns,
-      k(row.inputTokens),
+      k(row.inputAll),
       k(row.peak),
       k(row.outputTokens),
       num(row.minutes, 1),
+      num(row.cost, 2),
       row.mcpCalls,
       row.fileCalls,
       row.wroteIntent ? '✓' : '—',
@@ -323,8 +369,20 @@ const line = (label, fn) =>
   console.log(
     `| ${label} | ${approaches.map((approach) => fn(rows.filter((row) => row.approach === approach))).join(' | ')} |`
   );
+const passed = (rs) => rs.filter((r) => r.verdict === 'pass').length;
+const share = (rs) => (rs.length ? `${Math.round((passed(rs) / rs.length) * 100)}%` : '—');
 line('Прогонов', (rs) => rs.length);
-line('Пройдено (pass)', (rs) => `${rs.filter((r) => r.verdict === 'pass').length}`);
+line('Пройдено (pass)', (rs) => `${passed(rs)} (${share(rs)})`);
+line('Пройдено: создание / правка / удаление', (rs) =>
+  ['create', 'edit', 'delete']
+    .map((op) => {
+      const ops = rs.filter((r) =>
+        op === 'edit' ? r.operation === 'edit' || r.operation === 'split' : r.operation === op
+      );
+      return `${passed(ops)}/${ops.length}`;
+    })
+    .join(' / ')
+);
 line('Недействительных', (rs) => rs.filter((r) => r.verdict === 'invalid').length);
 line('Средний счёт', (rs) => num(rs.reduce((s, r) => s + (r.score ?? 0), 0) / (rs.length || 1), 3));
 line('Записали form.intent.json', (rs) => rs.filter((r) => r.wroteIntent).length);
@@ -336,10 +394,17 @@ line(
     `${rs.filter((r) => r.exitReason === 'timeout').length} / ${rs.filter((r) => r.exitReason === 'maxSteps').length}`
 );
 line('Шагов модели, медиана', (rs) => num(median(rs.map((r) => r.turns))));
-line('Входных токенов, медиана', (rs) => k(median(rs.map((r) => r.inputTokens))));
+line('Вход без кэша, медиана', (rs) => k(median(rs.map((r) => r.inputTokens))));
 line('Пик входа за шаг, медиана', (rs) => k(median(rs.map((r) => r.peak))));
 line('Выходных токенов, медиана', (rs) => k(median(rs.map((r) => r.outputTokens))));
 line('Время прогона, мин, медиана', (rs) => num(median(rs.map((r) => r.minutes)), 1));
+line('Время всех прогонов, мин', (rs) => num(sum(rs, 'minutes'), 0));
+line('Вход с кэшем, медиана', (rs) => k(median(rs.map((r) => r.inputAll))));
+line('Стоимость, $ всего', (rs) => num(sum(rs, 'cost'), 2));
+line('Стоимость прогона, $ медиана', (rs) => num(median(rs.map((r) => r.cost)), 3));
+line('Стоимость пройденной ячейки, $', (rs) =>
+  passed(rs) ? num(sum(rs, 'cost') / passed(rs), 3) : '∞'
+);
 line('Вызовов MCP, всего', (rs) => sum(rs, 'mcpCalls'));
 line('Ошибок MCP, всего', (rs) => sum(rs, 'mcpErrors'));
 line('Скриптов / с ошибкой', (rs) => `${sum(rs, 'scripts')} / ${sum(rs, 'scriptErrors')}`);
@@ -355,7 +420,9 @@ line('Усечений стенда', (rs) => sum(rs, 'truncations'));
 
 console.log(`\n## Не пройденные проверки\n`);
 for (const row of rows.filter((r) => r.verdict !== 'pass')) {
-  console.log(`- ${row.scenario} · ${row.approach}: ${row.failed.slice(0, 6).join(', ') || '—'}`);
+  console.log(
+    `- ${cellOf(row)} · ${row.approach} · r${row.repeat}: ${row.failed.slice(0, 6).join(', ') || '—'}`
+  );
 }
 
 if (options.sequence) {

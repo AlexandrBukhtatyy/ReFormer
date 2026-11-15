@@ -9,6 +9,7 @@
 
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -25,6 +26,45 @@ import { intentForTarget } from '../lib/intent-target.mjs';
 const INTENT_FILE = 'form.intent.json';
 
 export const scenariosDirectory = path.dirname(fileURLToPath(import.meta.url));
+
+/** Пакеты, которые задание называет установленными («Пакеты `@reformer/*` уже установлены»). */
+export const CONSUMER_PACKAGES = [
+  'reformer',
+  'reformer-renderer-react',
+  'reformer-renderer-json',
+  'reformer-ui-kit',
+  'reformer-cdk',
+];
+
+/**
+ * Пакеты `@reformer/*` в `node_modules` рабочего каталога — как у потребителя: только то, что
+ * уходит в npm (`files` из package.json): сборка с типами, README, llms.txt, docs/llms. Подход с
+ * `"packages": true`; без него агенту без MCP неоткуда узнать API, и сравнение «с MCP и без»
+ * было бы нечестным. Копия, а не ссылка: поиск по файлам (Grep, Glob) ссылки не обходит.
+ *
+ * @param {string} workspaceDirectory - рабочий каталог агента
+ * @param {string} [packagesRoot] - каталог пакетов репозитория
+ * @returns {string[]} имена разложенных пакетов
+ */
+export function installConsumerPackages(
+  workspaceDirectory,
+  packagesRoot = path.join(repoRoot, 'packages')
+) {
+  const installed = [];
+  for (const directory of CONSUMER_PACKAGES) {
+    const source = path.join(packagesRoot, directory);
+    const manifest = JSON.parse(readFileSync(path.join(source, 'package.json'), 'utf8'));
+    const target = path.join(workspaceDirectory, 'node_modules', ...manifest.name.split('/'));
+    mkdirSync(target, { recursive: true });
+    copyFileSync(path.join(source, 'package.json'), path.join(target, 'package.json'));
+    for (const entry of manifest.files ?? []) {
+      const from = path.join(source, entry);
+      if (existsSync(from)) cpSync(from, path.join(target, entry), { recursive: true });
+    }
+    installed.push(manifest.name);
+  }
+  return installed;
+}
 const packageDirectory = path.resolve(scenariosDirectory, '../..');
 
 /** Метка разметки сервера в `index.tsx` (`MARKUP_MARK`, `src/core/guided/markup.ts`). */

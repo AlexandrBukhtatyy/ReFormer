@@ -25,5 +25,22 @@
   "code-guided-dsl": {
     "description": "Задание как у bare, сервер в профиле code-guided-dsl (REFORMER_SURFACE=code-guided-dsl): два инструмента по образцу Cloudflare Code Mode — search (код только читает форму, задание, API конструктора и план) и execute (reformer.formStart и конструктор reformer.form() с цепочками; save() шлёт одну правку form_edit). Строки Next: приходят кодом конструктора.",
     "serverEnv": { "REFORMER_SURFACE": "code-guided-dsl" }
+  },
+  "no-mcp": {
+    "description": "Задание как у bare и раскладка модуля (_shared/module-convention.md), MCP-сервера нет: агент видит только рабочий каталог с установленными пакетами @reformer/* (их публикуемые файлы: сборка с типами, README, llms.txt, docs/llms) и работает файловыми инструментами. Нулевая точка сравнения «с MCP и без».",
+    "mcp": false,
+    "packages": true,
+    "moduleConvention": true
+  },
+  "mcp-default": {
+    "description": "Как no-mcp — те же установленные пакеты в рабочем каталоге — плюс MCP-сервер в поверхности по умолчанию (набор инструментов). То, что пользователь получает из коробки.",
+    "packages": true,
+    "moduleConvention": true
+  },
+  "mcp-dsl": {
+    "description": "Как no-mcp — те же установленные пакеты — плюс MCP-сервер в профиле code-guided-dsl: search и execute с конструктором форм.",
+    "packages": true,
+    "serverEnv": { "REFORMER_SURFACE": "code-guided-dsl" },
+    "moduleConvention": true
   }
 }

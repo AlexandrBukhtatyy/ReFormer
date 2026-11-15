@@ -54,7 +54,12 @@ import {
 import { verifyInBrowser } from '../verify/browser.mjs';
 import { contractText, readContract } from '../verify/contract.mjs';
 import { summarize, verifyBundle } from '../verify/index.mjs';
-import { loadScenarios, scenariosDirectory, writeSeedBundle } from './catalog.mjs';
+import {
+  installConsumerPackages,
+  loadScenarios,
+  scenariosDirectory,
+  writeSeedBundle,
+} from './catalog.mjs';
 
 const argv = process.argv.slice(2);
 rejectPublishFlag(argv);
@@ -110,6 +115,10 @@ const convention = readFileSync(
   path.join(scenariosDirectory, '_shared/output-convention.md'),
   'utf8'
 );
+const moduleConvention = readFileSync(
+  path.join(scenariosDirectory, '_shared/module-convention.md'),
+  'utf8'
+).trim();
 /** Откуда начинается работа: с пустого `form/` или с готовой формы, которую надо изменить. */
 const FORM_WORDS = {
   fresh: 'Положи модуль формы в каталог `form/` текущего рабочего каталога.',
@@ -131,6 +140,12 @@ if (!existsSync(serverPath)) {
 for (const id of approachIds) {
   if (!allApproaches[id]) {
     console.error(`Нет подхода «${id}» в approaches.json`);
+    process.exit(2);
+  }
+  // Без MCP умеет только агент Claude Code: у остальных инструменты формы — это и есть сервер.
+  const without = matrix.agents.find((agent) => agent.kind !== 'claude-code');
+  if (allApproaches[id].mcp === false && without) {
+    console.error(`Подход «${id}» без MCP — только для агента claude-code, не ${without.kind}`);
     process.exit(2);
   }
 }
@@ -168,7 +183,10 @@ async function buildPrompt({ scenario, target, approach, workspaceDirectory }) {
       client.close();
     }
   }
-  return `${approach.promptPrefix ?? ''}${task}\n\n${rules}`;
+  // Раскладка модуля — одним текстом во всех плечах сравнения «с MCP и без»: проверка поведения
+  // читает части createForm по файлам, и агент без сервера иначе о них не узнал бы.
+  const layout = approach.moduleConvention ? `\n\n${moduleConvention}` : '';
+  return `${approach.promptPrefix ?? ''}${task}\n\n${rules}${layout}`;
 }
 
 /** Каталоги рабочего каталога агента, которых нет в `workspace/` прогона. */
@@ -332,6 +350,7 @@ async function runCell(cell) {
     recursive: true,
   });
   if (scenario.specFile) cpSync(scenario.specFile, path.join(workspaceDirectory, 'spec.md'));
+  if (approach.packages) installConsumerPackages(workspaceDirectory);
 
   const startedAt = new Date();
   const base = {

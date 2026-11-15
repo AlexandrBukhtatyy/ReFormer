@@ -154,7 +154,7 @@ export function authMode(environment = process.env, platform = process.platform)
 export const authKind = () => authMode().auth;
 
 /** Проблемы изоляции по событию `system/init`. Чистая функция — проверяется тестом. */
-export function initProblems(init, { workspaceDirectory }) {
+export function initProblems(init, { workspaceDirectory, mcp = true }) {
   const problems = [];
   const root = normalize(repoRoot);
   if (normalize(init.cwd).startsWith(root + path.sep) || normalize(init.cwd) === root) {
@@ -172,7 +172,9 @@ export function initProblems(init, { workspaceDirectory }) {
   if (forbidden.length > 0) problems.push(`лишние инструменты: ${forbidden.join(', ')}`);
   const servers = init.mcp_servers ?? [];
   const reformer = servers.find((server) => server.name === 'reformer');
-  if (!reformer || reformer.status !== 'connected') {
+  // Плечо без MCP: сервера быть не должно — иначе сравнение «с MCP и без» нечестно.
+  if (!mcp && reformer) problems.push('сервер reformer подключён, а подход — без MCP');
+  if (mcp && (!reformer || reformer.status !== 'connected')) {
     problems.push(`сервер reformer: ${reformer?.status ?? 'нет'}`);
   }
   const others = servers.filter((server) => server.name !== 'reformer');
@@ -195,26 +197,24 @@ export function runAgent(input) {
   const startedAt = Date.now();
   const { limits, workspaceDirectory, runDirectory } = input;
   const mcpConfig = path.join(runDirectory, 'mcp.json');
-  writeFileSync(
-    mcpConfig,
-    JSON.stringify({
-      mcpServers: {
-        reformer: {
-          command: process.execPath,
-          args: [input.serverPath],
-          env: {
-            REFORMER_TRACE_FILE: input.traceFile,
-            // Полная трасса: аргументы и ответы целиком — для разбора прогона (`npm run mcp:log`).
-            REFORMER_TRACE_FULL: '1',
-            REFORMER_ISSUE_REPORTS_DIR: path.join(runDirectory, 'issue-reports'),
-            // Агент вне репозитория, а типы формы form_build проверяет с настоящими пакетами.
-            REFORMER_TYPECHECK_ROOT: repoRoot,
-            ...input.approach.serverEnv,
-          },
-        },
+  // Подход без MCP (`"mcp": false`): пустой конфиг и `--strict-mcp-config` — у агента только файлы.
+  const withMcp = input.approach.mcp !== false;
+  const reformerServer = {
+    reformer: {
+      command: process.execPath,
+      args: [input.serverPath],
+      env: {
+        REFORMER_TRACE_FILE: input.traceFile,
+        // Полная трасса: аргументы и ответы целиком — для разбора прогона (`npm run mcp:log`).
+        REFORMER_TRACE_FULL: '1',
+        REFORMER_ISSUE_REPORTS_DIR: path.join(runDirectory, 'issue-reports'),
+        // Агент вне репозитория, а типы формы form_build проверяет с настоящими пакетами.
+        REFORMER_TYPECHECK_ROOT: repoRoot,
+        ...input.approach.serverEnv,
       },
-    })
-  );
+    },
+  };
+  writeFileSync(mcpConfig, JSON.stringify({ mcpServers: withMcp ? reformerServer : {} }));
 
   const disallowed = (input.approach.withoutTools ?? []).map((tool) => `${MCP_PREFIX}${tool}`);
   const args = [
@@ -231,7 +231,7 @@ export function runAgent(input) {
     '--tools',
     FILE_TOOLS.join(','),
     '--allowedTools',
-    [`${MCP_PREFIX}*`, ...FILE_TOOLS].join(','),
+    (withMcp ? [`${MCP_PREFIX}*`, ...FILE_TOOLS] : FILE_TOOLS).join(','),
     ...(disallowed.length ? ['--disallowedTools', disallowed.join(',')] : []),
     '--permission-mode',
     'acceptEdits',
@@ -257,7 +257,7 @@ export function runAgent(input) {
   const handleEvent = (event) => {
     if (event.type === 'system' && event.subtype === 'init') {
       sawInit = true;
-      problems.push(...initProblems(event, { workspaceDirectory }));
+      problems.push(...initProblems(event, { workspaceDirectory, mcp: withMcp }));
     } else if (event.type === 'assistant') {
       for (const part of event.message?.content ?? []) {
         if (part.type !== 'tool_use') continue;
