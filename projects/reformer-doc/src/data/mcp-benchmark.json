@@ -1,0 +1,1118 @@
+{
+  "batches": ["20261115T103021Z-107a"],
+  "date": "2026-11-15",
+  "model": "sonnet",
+  "repeats": 3,
+  "targets": ["core", "renderer-json", "renderer-react"],
+  "arms": ["no-mcp", "mcp-default", "mcp-dsl"],
+  "summary": {
+    "no-mcp": {
+      "runs": 90,
+      "passes": 72,
+      "score": 0.957,
+      "minutesTotal": 156.4,
+      "minutesMedian": 0.84,
+      "costTotal": 40.97,
+      "costMedian": 0.235,
+      "costPerPass": 0.569,
+      "turnsMedian": 34,
+      "outputMedian": 7701,
+      "inputMedian": 176273,
+      "mcpCalls": 0,
+      "operations": {
+        "create": {
+          "runs": 27,
+          "passes": 10,
+          "minutesMedian": 3.54,
+          "costTotal": 25.26
+        },
+        "edit": {
+          "runs": 36,
+          "passes": 36,
+          "minutesMedian": 0.76,
+          "costTotal": 10
+        },
+        "delete": {
+          "runs": 27,
+          "passes": 26,
+          "minutesMedian": 0.64,
+          "costTotal": 5.71
+        }
+      },
+      "createFailures": [
+        {
+          "check": "workspace.layout",
+          "runs": 16
+        },
+        {
+          "check": "runtime.form",
+          "runs": 8
+        },
+        {
+          "check": "static.tsc",
+          "runs": 5
+        },
+        {
+          "check": "runtime.probe.delivery-date-future",
+          "runs": 3
+        },
+        {
+          "check": "runtime.structure.steps",
+          "runs": 2
+        }
+      ]
+    },
+    "mcp-default": {
+      "runs": 90,
+      "passes": 72,
+      "score": 0.995,
+      "minutesTotal": 60.9,
+      "minutesMedian": 0.52,
+      "costTotal": 14.1,
+      "costMedian": 0.128,
+      "costPerPass": 0.196,
+      "turnsMedian": 14,
+      "outputMedian": 4011,
+      "inputMedian": 159429,
+      "mcpCalls": 313,
+      "operations": {
+        "create": {
+          "runs": 27,
+          "passes": 9,
+          "minutesMedian": 1.05,
+          "costTotal": 5.75
+        },
+        "edit": {
+          "runs": 36,
+          "passes": 36,
+          "minutesMedian": 0.5,
+          "costTotal": 5.18
+        },
+        "delete": {
+          "runs": 27,
+          "passes": 27,
+          "minutesMedian": 0.48,
+          "costTotal": 3.17
+        }
+      },
+      "createFailures": [
+        {
+          "check": "runtime.probe.invoice-only-for-company",
+          "runs": 18
+        },
+        {
+          "check": "runtime.probe.step-5-blocks-invoice-for-person",
+          "runs": 9
+        }
+      ]
+    },
+    "mcp-dsl": {
+      "runs": 90,
+      "passes": 87,
+      "score": 0.995,
+      "minutesTotal": 47.5,
+      "minutesMedian": 0.4,
+      "costTotal": 10.13,
+      "costMedian": 0.075,
+      "costPerPass": 0.116,
+      "turnsMedian": 10,
+      "outputMedian": 2035,
+      "inputMedian": 117474,
+      "mcpCalls": 661,
+      "operations": {
+        "create": {
+          "runs": 27,
+          "passes": 24,
+          "minutesMedian": 0.85,
+          "costTotal": 4.73
+        },
+        "edit": {
+          "runs": 36,
+          "passes": 36,
+          "minutesMedian": 0.47,
+          "costTotal": 4.31
+        },
+        "delete": {
+          "runs": 27,
+          "passes": 27,
+          "minutesMedian": 0.25,
+          "costTotal": 1.1
+        }
+      },
+      "createFailures": [
+        {
+          "check": "runtime.probe.primary-recipient-fallback",
+          "runs": 3
+        },
+        {
+          "check": "runtime.probe.large-order-warning",
+          "runs": 2
+        },
+        {
+          "check": "runtime.probe.birth-date-required-for-person",
+          "runs": 1
+        },
+        {
+          "check": "runtime.probe.primary-recipient-exclusive",
+          "runs": 1
+        },
+        {
+          "check": "runtime.probe.item-quantity-integer",
+          "runs": 1
+        }
+      ]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "registration-create",
+      "title": "Регистрация: создание формы",
+      "level": 1,
+      "operation": "create",
+      "tags": ["validation", "cross", "async", "submit"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 6,
+          "score": 0.875,
+          "minutesTotal": 12.8,
+          "minutesMedian": 1.55,
+          "costTotal": 3.54,
+          "costMedian": 0.352,
+          "costPerPass": 0.59,
+          "turnsMedian": 35,
+          "outputMedian": 10858,
+          "inputMedian": 571267,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 3.3,
+          "minutesMedian": 0.33,
+          "costTotal": 0.56,
+          "costMedian": 0.055,
+          "costPerPass": 0.062,
+          "turnsMedian": 7,
+          "outputMedian": 2115,
+          "inputMedian": 67353,
+          "mcpCalls": 37,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 2,
+          "minutesMedian": 0.21,
+          "costTotal": 0.31,
+          "costMedian": 0.035,
+          "costPerPass": 0.035,
+          "turnsMedian": 4,
+          "outputMedian": 1159,
+          "inputMedian": 43259,
+          "mcpCalls": 31,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-delete",
+      "title": "Регистрация: удаление полей с их правилами",
+      "level": 1,
+      "operation": "delete",
+      "tags": ["delete", "cross", "async"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 5.5,
+          "minutesMedian": 0.59,
+          "costTotal": 1.08,
+          "costMedian": 0.12,
+          "costPerPass": 0.12,
+          "turnsMedian": 24,
+          "outputMedian": 5558,
+          "inputMedian": 77708,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 3.3,
+          "minutesMedian": 0.36,
+          "costTotal": 0.54,
+          "costMedian": 0.059,
+          "costPerPass": 0.06,
+          "turnsMedian": 10,
+          "outputMedian": 2246,
+          "inputMedian": 106023,
+          "mcpCalls": 16,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 1.6,
+          "minutesMedian": 0.17,
+          "costTotal": 0.21,
+          "costMedian": 0.022,
+          "costPerPass": 0.023,
+          "turnsMedian": 5,
+          "outputMedian": 661,
+          "inputMedian": 40667,
+          "mcpCalls": 36,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-edit",
+      "title": "Регистрация: правка готовой формы",
+      "level": 1,
+      "operation": "edit",
+      "tags": ["edit", "rename", "validation"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 6.3,
+          "minutesMedian": 0.72,
+          "costTotal": 1.25,
+          "costMedian": 0.138,
+          "costPerPass": 0.139,
+          "turnsMedian": 24,
+          "outputMedian": 6365,
+          "inputMedian": 108091,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.4,
+          "minutesMedian": 0.5,
+          "costTotal": 0.85,
+          "costMedian": 0.095,
+          "costPerPass": 0.094,
+          "turnsMedian": 17,
+          "outputMedian": 3894,
+          "inputMedian": 135548,
+          "mcpCalls": 20,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 5.3,
+          "minutesMedian": 0.56,
+          "costTotal": 0.92,
+          "costMedian": 0.098,
+          "costPerPass": 0.102,
+          "turnsMedian": 15,
+          "outputMedian": 2950,
+          "inputMedian": 194873,
+          "mcpCalls": 99,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "order-create",
+      "title": "Оформление заказа: создание формы по спецификации",
+      "level": 2,
+      "operation": "create",
+      "tags": [
+        "spec",
+        "array",
+        "computed",
+        "conditional",
+        "cross",
+        "async",
+        "operators",
+        "submit",
+        "heavy"
+      ],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 3,
+          "score": 0.863,
+          "minutesTotal": 31.6,
+          "minutesMedian": 3.54,
+          "costTotal": 8.89,
+          "costMedian": 1.035,
+          "costPerPass": 2.964,
+          "turnsMedian": 45,
+          "outputMedian": 28059,
+          "inputMedian": 1782503,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 1
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 2
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 0,
+          "score": 0.983,
+          "minutesTotal": 10.9,
+          "minutesMedian": 1.23,
+          "costTotal": 2.45,
+          "costMedian": 0.266,
+          "costPerPass": null,
+          "turnsMedian": 14,
+          "outputMedian": 11220,
+          "inputMedian": 292069,
+          "mcpCalls": 53,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 0
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 8,
+          "score": 0.977,
+          "minutesTotal": 8.1,
+          "minutesMedian": 0.86,
+          "costTotal": 2.08,
+          "costMedian": 0.227,
+          "costPerPass": 0.26,
+          "turnsMedian": 13,
+          "outputMedian": 5759,
+          "inputMedian": 346862,
+          "mcpCalls": 95,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "order-delete",
+      "title": "Оформление заказа: удаление полей вместе с зависимостями",
+      "level": 2,
+      "operation": "delete",
+      "tags": ["delete", "computed", "async", "copy"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 5.7,
+          "minutesMedian": 0.63,
+          "costTotal": 1.52,
+          "costMedian": 0.166,
+          "costPerPass": 0.168,
+          "turnsMedian": 24,
+          "outputMedian": 6025,
+          "inputMedian": 107733,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.4,
+          "minutesMedian": 0.48,
+          "costTotal": 1.09,
+          "costMedian": 0.114,
+          "costPerPass": 0.121,
+          "turnsMedian": 12,
+          "outputMedian": 3723,
+          "inputMedian": 93977,
+          "mcpCalls": 11,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 2.4,
+          "minutesMedian": 0.27,
+          "costTotal": 0.44,
+          "costMedian": 0.049,
+          "costPerPass": 0.049,
+          "turnsMedian": 7,
+          "outputMedian": 1320,
+          "inputMedian": 65474,
+          "mcpCalls": 52,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "order-edit",
+      "title": "Оформление заказа: переименование, новое вычисление, условное правило",
+      "level": 2,
+      "operation": "edit",
+      "tags": ["edit", "rename", "computed", "conditional"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 6.8,
+          "minutesMedian": 0.75,
+          "costTotal": 1.79,
+          "costMedian": 0.191,
+          "costPerPass": 0.199,
+          "turnsMedian": 34,
+          "outputMedian": 7450,
+          "inputMedian": 112488,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.7,
+          "minutesMedian": 0.46,
+          "costTotal": 1.28,
+          "costMedian": 0.129,
+          "costPerPass": 0.143,
+          "turnsMedian": 14,
+          "outputMedian": 3366,
+          "inputMedian": 136337,
+          "mcpCalls": 20,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 7.2,
+          "minutesMedian": 0.75,
+          "costTotal": 1.38,
+          "costMedian": 0.136,
+          "costPerPass": 0.153,
+          "turnsMedian": 17,
+          "outputMedian": 4182,
+          "inputMedian": 274418,
+          "mcpCalls": 88,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-create",
+      "title": "Мастер оформления заказа: создание по спецификации",
+      "level": 3,
+      "operation": "create",
+      "tags": [
+        "spec",
+        "wizard",
+        "array",
+        "computed",
+        "conditional",
+        "cross",
+        "async",
+        "operators",
+        "heavy"
+      ],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 1,
+          "score": 0.868,
+          "minutesTotal": 45,
+          "minutesMedian": 5.21,
+          "costTotal": 12.83,
+          "costMedian": 1.519,
+          "costPerPass": 12.826,
+          "turnsMedian": 65,
+          "outputMedian": 39320,
+          "inputMedian": 3713738,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 1
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 0,
+          "score": 0.971,
+          "minutesTotal": 12.5,
+          "minutesMedian": 1.16,
+          "costTotal": 2.73,
+          "costMedian": 0.222,
+          "costPerPass": null,
+          "turnsMedian": 15,
+          "outputMedian": 10559,
+          "inputMedian": 259364,
+          "mcpCalls": 61,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 0
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 7,
+          "score": 0.975,
+          "minutesTotal": 9.5,
+          "minutesMedian": 0.94,
+          "costTotal": 2.34,
+          "costMedian": 0.24,
+          "costPerPass": 0.334,
+          "turnsMedian": 13,
+          "outputMedian": 6541,
+          "inputMedian": 395486,
+          "mcpCalls": 96,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-delete",
+      "title": "Мастер оформления заказа: удаление шагов вместе с полями и зависимостями",
+      "level": 3,
+      "operation": "delete",
+      "tags": ["delete", "wizard", "copy", "operators"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 8,
+          "score": 0.968,
+          "minutesTotal": 13.4,
+          "minutesMedian": 1.5,
+          "costTotal": 3.11,
+          "costMedian": 0.352,
+          "costPerPass": 0.389,
+          "turnsMedian": 39,
+          "outputMedian": 13509,
+          "inputMedian": 235137,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 6.2,
+          "minutesMedian": 0.69,
+          "costTotal": 1.54,
+          "costMedian": 0.172,
+          "costPerPass": 0.171,
+          "turnsMedian": 16,
+          "outputMedian": 6296,
+          "inputMedian": 205034,
+          "mcpCalls": 12,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 2.3,
+          "minutesMedian": 0.26,
+          "costTotal": 0.45,
+          "costMedian": 0.049,
+          "costPerPass": 0.05,
+          "turnsMedian": 6,
+          "outputMedian": 1287,
+          "inputMedian": 65909,
+          "mcpCalls": 46,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-edit",
+      "title": "Мастер оформления заказа: новый шаг, перенос поля, переименование шага",
+      "level": 3,
+      "operation": "edit",
+      "tags": ["edit", "wizard", "conditional"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 5.7,
+          "minutesMedian": 0.59,
+          "costTotal": 1.73,
+          "costMedian": 0.186,
+          "costPerPass": 0.192,
+          "turnsMedian": 22,
+          "outputMedian": 5564,
+          "inputMedian": 112076,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4,
+          "minutesMedian": 0.41,
+          "costTotal": 1.13,
+          "costMedian": 0.117,
+          "costPerPass": 0.125,
+          "turnsMedian": 12,
+          "outputMedian": 2980,
+          "inputMedian": 128272,
+          "mcpCalls": 33,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 2.9,
+          "minutesMedian": 0.33,
+          "costTotal": 0.52,
+          "costMedian": 0.058,
+          "costPerPass": 0.058,
+          "turnsMedian": 7,
+          "outputMedian": 1646,
+          "inputMedian": 79734,
+          "mcpCalls": 53,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-split",
+      "title": "Мастер оформления заказа: одностраничная форма → шаги",
+      "level": 3,
+      "operation": "split",
+      "tags": ["edit", "wizard"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 23.5,
+          "minutesMedian": 2.62,
+          "costTotal": 5.23,
+          "costMedian": 0.58,
+          "costPerPass": 0.582,
+          "turnsMedian": 56,
+          "outputMedian": 17673,
+          "inputMedian": 1159172,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-default": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 7.1,
+          "minutesMedian": 0.57,
+          "costTotal": 1.92,
+          "costMedian": 0.154,
+          "costPerPass": 0.213,
+          "turnsMedian": 19,
+          "outputMedian": 4191,
+          "inputMedian": 224841,
+          "mcpCalls": 50,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 6.3,
+          "minutesMedian": 0.43,
+          "costTotal": 1.49,
+          "costMedian": 0.111,
+          "costPerPass": 0.165,
+          "turnsMedian": 13,
+          "outputMedian": 2410,
+          "inputMedian": 177334,
+          "mcpCalls": 65,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    }
+  ]
+}

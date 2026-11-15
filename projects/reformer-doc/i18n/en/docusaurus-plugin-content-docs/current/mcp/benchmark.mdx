@@ -1,0 +1,172 @@
+---
+sidebar_position: 1.5
+title: 'Measurements: with MCP and without'
+description: The same agent builds and edits ReFormer forms without the MCP server and with it — quality, speed, tokens and cost over 270 runs.
+---
+
+import {
+  McpCreateFailures,
+  McpLegend,
+  McpOperations,
+  McpRunInfo,
+  McpScenario,
+  McpSummary,
+} from '@site/src/components/mcp-benchmark/McpBenchmark';
+
+# Measurements: with MCP and without
+
+The `@reformer/*` packages ship with their documentation — `llms.txt`, `docs/llms`, types. Why an
+MCP server then? To answer with numbers, the same agent — Claude Sonnet in Claude Code — solved the
+same form tasks under three conditions:
+
+- **No MCP** — file tools only and the installed packages with their documentation;
+- **MCP, default** — the same plus the `@reformer/mcp` server in the surface a user gets out of the
+  box;
+- **MCP · code-guided-dsl** — the same plus the server in the form builder profile
+  (`REFORMER_SURFACE=code-guided-dsl`).
+
+The same verifier checks every run: the build and types first, then the behavior of the form —
+values, rules, reactions, wizard steps. The conditions are in [How it was measured](#how-it-was-measured).
+
+<McpRunInfo />
+
+## Summary
+
+<McpSummary />
+
+- **Creating a form is the main difference.** Without the server the agent writes the module by
+  hand from the package docs and more often goes wrong in the file layout, the build and the types;
+  on a large form from a spec that is minutes and dollars per run. With MCP the server does the
+  plan, the build and the type check.
+- **Editing and removing** in a ready form pass in all three arms almost without failures, but
+  with MCP it is faster and cheaper.
+- **MCP, default** does not yet beat working without the server by the number of passed runs,
+  though its mean check score is higher: its failures on creation are one known issue (the rule
+  “pay by invoice — companies only” does not reach the form), and it is being fixed.
+
+## By task
+
+Create — a new form from a description or a spec; edit — a change of a ready form (fields, rules,
+wizard steps); remove — fields and steps with everything that depends on them. Under the passed
+share — the median run time and the cost of all runs of the task.
+
+<McpOperations />
+
+On creation runs fail for different reasons — they show how working without the server differs
+from working with it:
+
+<McpCreateFailures />
+
+## By scenario
+
+Ten scenarios of three levels, each on three stacks (`@reformer/core` with JSX markup,
+`@reformer/renderer-react`, `@reformer/renderer-json`), three repeats each. The tables show: passed
+in total and per stack, the mean check score, the median run time, the cost of nine runs, the
+median agent steps and output tokens.
+
+<McpLegend />
+
+### Registration: create the form
+
+Login, email, a password with its repeat, an async check of a stub captcha, a submit button.
+
+<McpScenario id="registration-create" />
+
+### Registration: edit a ready form
+
+Rename the login, tighten the password (at least 10 characters and a digit), add an optional phone
+with a mask after the email, rename the button.
+
+<McpScenario id="registration-edit" />
+
+### Registration: remove fields with their rules
+
+Remove the captcha and the password repeat — the fields and all their checks, the async and the
+cross-field one included.
+
+<McpScenario id="registration-delete" />
+
+### Checkout: create the form from a spec
+
+A 27-field spec: customer type, addresses with copying, item rows with totals, a discount, a promo
+code with an async check, payment, notification recipients.
+
+<McpScenario id="order-create" />
+
+### Checkout: edit
+
+Rename a field everywhere the form relies on it; raise the discount limit; add a computed delivery
+cost and a new total formula; a comment required when paying by invoice.
+
+<McpScenario id="order-edit" />
+
+### Checkout: remove fields with their dependencies
+
+Remove the promo code with its async check, the discount with everything that depends on it (the
+total now equals the items sum), and the billing address with its copying from the delivery
+address.
+
+<McpScenario id="order-delete" />
+
+### Checkout wizard: create from a spec
+
+The same spec, but the form is a wizard: a step per section, the “Company” step for companies only,
+moving on only with a correctly filled step, submitting with the wizard button.
+
+<McpScenario id="wizard-create" />
+
+### Checkout wizard: one page → steps
+
+Turn a ready one-page form into a wizard with the same step rules, without changing the fields,
+rules and behavior.
+
+<McpScenario id="wizard-split" />
+
+### Checkout wizard: a new step, a moved field, a renamed step
+
+Rename a step, move a field to another step and insert a new step between two existing ones — with
+a switch and a card message shown and required only with gift wrapping.
+
+<McpScenario id="wizard-edit" />
+
+### Checkout wizard: remove steps with their fields and dependencies
+
+Remove the “Company” and “Delivery” steps entirely — fields, rules, behavior and everything only they
+needed.
+
+<McpScenario id="wizard-delete" />
+
+## How it was measured
+
+- **Agent** — Claude Code in non-interactive mode, model `sonnet`. Tools — file tools only (`Read`,
+  `Write`, `Edit`, `Glob`, `Grep`) inside the working directory, no shell. The MCP server is
+  connected only in the MCP arms; the harness checks this at the start of every run.
+- **The working directory** is the same in every arm: the installed `@reformer/*` packages — exactly
+  what is published to npm (the build with types, README, `llms.txt`, `docs/llms`); `spec.md` for
+  the spec scenarios; a ready form for edits and removals.
+- **The task** is the same in every arm: the task text, the delivery rules and the module layout —
+  which parts of `createForm` go into which files. Without the layout the behavior check would not
+  find a form written without the server.
+- **Limits** per run are the same in every arm and set by the scenario: money, steps, time.
+- **The check** — static (types, stack, file layout) and behavioral: probes from the scenario
+  contract fill the form and compare values, rule errors, reactions and wizard steps. A run
+  **passes** when every required check passes; the **score** is the share of passed checks.
+- **Order** — one run at a time, no parallelism; the arms alternate within every cell, so API speed
+  changes over the hours of the measurement fall on all arms alike.
+- **Cost and tokens** — from the Claude Code report of the run; input tokens include cache reads
+  and writes.
+
+Limitations: one model; edits and removals start from a form the server built — this helps the arm
+without MCP, as the layout is already in front of it.
+
+### How to reproduce
+
+```bash
+npm run build -w @reformer/mcp
+npm run mcp:scenarios -- --agent claude-code --model sonnet \
+  --approach no-mcp,mcp-default,mcp-dsl --repeats 3 --max-usd-batch 120
+npm run mcp:approaches -- <batch> --save packages/reformer-mcp/eval/runs/approaches/mcp-value-sonnet.json
+node packages/reformer-mcp/eval/scenarios/mcp-value-docs.mjs \
+  packages/reformer-mcp/eval/runs/approaches/mcp-value-sonnet.json \
+  projects/reformer-doc/src/data/mcp-benchmark.json
+```
