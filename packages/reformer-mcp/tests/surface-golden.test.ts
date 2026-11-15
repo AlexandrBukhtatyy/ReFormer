@@ -20,6 +20,7 @@ import { GUIDE_LIMIT_BYTES } from '../src/core/server/resource-catalog';
 import { createToolCatalog } from '../src/core/server/tool-catalog';
 import { cliKnowledge } from '../src/platform/cli/knowledge';
 import {
+  CODE_GUIDED_DSL_INSTRUCTIONS,
   CODE_GUIDED_INSTRUCTIONS,
   createNodeServer,
   GUIDED_INSTRUCTIONS,
@@ -80,6 +81,28 @@ describe('поверхность сервера', () => {
     await expect(
       `${runScript.description}\n\n--- code\n${JSON.stringify(runScript.inputSchema, null, 2)}\n`
     ).toMatchFileSnapshot('__golden__/surface/run-script.code-guided.txt');
+  });
+
+  it('search и execute профиля code-guided-dsl совпадают со снимком и держат потолок', async () => {
+    const sandbox = { run: async () => ({ logs: [] }) };
+    const tools = createToolCatalog(cliKnowledge, {
+      profile: 'node',
+      guided: true,
+      codeMode: sandbox,
+      dsl: { typescript: null },
+    }).list();
+    expect(tools.map((tool) => tool.name)).toEqual(['search', 'execute']);
+    // Оба описания вместе — не дороже run_script связки code-guided.
+    expect(tokensOf(tools)).toBeLessThanOrEqual(4200);
+    expect(CODE_GUIDED_DSL_INSTRUCTIONS.length).toBeLessThan(750);
+    await expect(
+      tools
+        .map(
+          (tool) =>
+            `=== ${tool.name}\n${tool.description}\n\n--- input\n${JSON.stringify(tool.inputSchema, null, 2)}\n`
+        )
+        .join('\n')
+    ).toMatchFileSnapshot('__golden__/surface/tools.code-guided-dsl.txt');
   });
 
   it('промпты совпадают со снимком', async () => {
@@ -184,7 +207,7 @@ describe('тексты профиля node — один путь (аудит 202
 
 describe('поверхность профилей guided', () => {
   it('ресурсов-справки нет: только run_script или инструменты guided', async () => {
-    for (const surface of ['guided', 'code-guided'] as const) {
+    for (const surface of ['guided', 'code-guided', 'code-guided-dsl'] as const) {
       const server = createNodeServer({ version: '0.0.0', debug: false, surface });
       const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
       await server.connect(serverTransport);

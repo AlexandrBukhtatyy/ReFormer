@@ -34,9 +34,23 @@ export interface ScriptOutcome {
   readonly error?: string;
 }
 
+/**
+ * Код вокруг скрипта модели (профиль `code-guided-dsl`): `prelude` исполняется после установки
+ * `reformer` и до скрипта, `epilogue` — функция одного аргумента «скрипт упал», её зовут, когда
+ * скрипт кончился (не по лимиту времени и не на синтаксисе).
+ */
+export interface ScriptRunOptions {
+  readonly prelude?: string;
+  readonly epilogue?: string;
+}
+
 /** Песочница: исполнить тело async-функции с данными глобальными функциями `reformer.*`. */
 export interface ScriptSandbox {
-  run(code: string, functions: Readonly<Record<string, ScriptFunction>>): Promise<ScriptOutcome>;
+  run(
+    code: string,
+    functions: Readonly<Record<string, ScriptFunction>>,
+    options?: ScriptRunOptions
+  ): Promise<ScriptOutcome>;
 }
 
 /** Вызов инструмента изнутри скрипта — для трассы сервера (модель его не видит). */
@@ -114,6 +128,13 @@ export interface RunScriptOptions {
    * это как ошибку своего скрипта (батч 20261114T183644Z-ab51).
    */
   readonly returnErrors?: boolean;
+  /** Код вокруг скрипта — см. {@link ScriptRunOptions}. */
+  readonly prelude?: string;
+  readonly epilogue?: string;
+  /** Имя инструмента в подсказках ответа (`run_script` по умолчанию). */
+  readonly toolName?: string;
+  /** Скрипт перед исполнением: например, async-стрелка → тело функции. */
+  readonly transform?: (code: string) => string;
 }
 
 /**
@@ -169,10 +190,11 @@ export async function runScriptTool(
   if (typeof code !== 'string' || code.trim() === '') {
     // Связка с guided: пустой вызов (сбой разбора у Ollama) без образца — и модель уходила писать
     // файлы формы руками (батч 20261114T225122Z-f433, registration-delete на renderer-react).
+    const tool = options.toolName ?? RUN_SCRIPT_TOOL;
     const text =
       options.returnErrors === true
-        ? `run_script: pass the script text in "code", e.g. {"code": ${JSON.stringify(START_EXAMPLE)}} — no plan yet (also for a form that already lies in the folder), start with that; with a plan — the reformer.formEdit call of the last "Next:".`
-        : 'run_script: pass the script text in "code".';
+        ? `${tool}: pass the script text in "code", e.g. {"code": ${JSON.stringify(START_EXAMPLE)}} — no plan yet (also for a form that already lies in the folder), start with that; with a plan — the ${options.toolName ? 'code' : 'reformer.formEdit call'} of the last "Next:".`
+        : `${tool}: pass the script text in "code".`;
     return { content: [{ type: 'text', text }], isError: true };
   }
 
@@ -205,8 +227,18 @@ export async function runScriptTool(
     };
   }
 
-  const fixed = options.dropEmptyEdits ? dropEmptyEdits(code) : { code, dropped: 0 };
-  const outcome = await sandbox.run(fixed.code, functions);
+  const source = options.transform ? options.transform(code) : code;
+  const fixed = options.dropEmptyEdits ? dropEmptyEdits(source) : { code: source, dropped: 0 };
+  const around =
+    options.prelude !== undefined || options.epilogue !== undefined
+      ? {
+          ...(options.prelude !== undefined ? { prelude: options.prelude } : {}),
+          ...(options.epilogue !== undefined ? { epilogue: options.epilogue } : {}),
+        }
+      : undefined;
+  const outcome = around
+    ? await sandbox.run(fixed.code, functions, around)
+    : await sandbox.run(fixed.code, functions);
   const parts = [
     ...(fixed.dropped > 0
       ? [

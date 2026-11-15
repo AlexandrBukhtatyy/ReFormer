@@ -54,7 +54,8 @@ const loadQuickJs = (): Promise<QuickJSWASMModule> =>
   (quickjs ??= newQuickJSWASMModuleFromVariant(variant));
 
 let typescript: typeof Ts | null | undefined;
-function loadTypescript(): typeof Ts | null {
+/** Модуль `typescript`, если он установлен: снятие типов, место синтаксической ошибки, лямбды. */
+export function loadTypescript(): typeof Ts | null {
   if (typescript === undefined) {
     try {
       typescript = createRequire(import.meta.url)('typescript') as typeof Ts;
@@ -145,7 +146,7 @@ export function createQuickJsSandbox(options: QuickJsSandboxOptions = {}): Scrip
   const maxOutputChars = options.maxOutputChars ?? 200_000;
 
   return {
-    async run(code, functions): Promise<ScriptOutcome> {
+    async run(code, functions, around = {}): Promise<ScriptOutcome> {
       const module = await loadQuickJs();
       const runtime = module.newRuntime();
       runtime.setMemoryLimit(memoryBytes);
@@ -182,6 +183,50 @@ export function createQuickJsSandbox(options: QuickJsSandboxOptions = {}): Scrip
           }
         );
 
+        // Прелюдия — до скрипта и отдельным файлом: номера строк ошибок скрипта не сдвигаются.
+        if (around.prelude !== undefined) {
+          const prelude = context.evalCode(around.prelude, 'prelude.js');
+          if (prelude.error) {
+            const error = formatError(context.dump(prelude.error));
+            prelude.error.dispose();
+            return { logs, error: `the server prelude failed: ${error}` };
+          }
+          prelude.value.dispose();
+        }
+        const deadline = Date.now() + timeoutMs;
+        /** Эпилог после скрипта: в оставшееся время, его вывод — в те же строки. */
+        const finish = async (failed: boolean): Promise<string | undefined> => {
+          if (around.epilogue === undefined) return undefined;
+          resume();
+          const started = context.evalCode(`(${around.epilogue})(${failed})`, 'epilogue.js');
+          if (started.error) {
+            const error = formatError(context.dump(started.error));
+            started.error.dispose();
+            return error;
+          }
+          const finished = context.resolvePromise(started.value);
+          runtime.executePendingJobs();
+          let epilogueTimer: ReturnType<typeof setTimeout> | undefined;
+          const late = new Promise<'timeout'>((resolve) => {
+            epilogueTimer = setTimeout(
+              () => resolve('timeout'),
+              Math.max(0, deadline - Date.now())
+            );
+          });
+          const done = await Promise.race([finished, late]).finally(() =>
+            clearTimeout(epilogueTimer)
+          );
+          started.value.dispose();
+          if (done === 'timeout')
+            return `InternalError: the script did not finish in ${timeoutMs / 1000} s`;
+          if (done.error) {
+            const error = formatError(context.dump(done.error));
+            done.error.dispose();
+            return error;
+          }
+          done.value.dispose();
+          return undefined;
+        };
         const evaluate = (source: string) => context.evalCode(`${source}\n${ENTRY}()`, 'script.js');
         let evaluated = evaluate(wrapScript(code));
         // Синтаксическая ошибка случается до исполнения: повтор с TypeScript без побочных эффектов.
@@ -245,11 +290,17 @@ export function createQuickJsSandbox(options: QuickJsSandboxOptions = {}): Scrip
         if (settled.error) {
           const error = formatError(context.dump(settled.error));
           settled.error.dispose();
+          await finish(true);
           return { logs, error };
         }
         const value = context.dump(settled.value);
         settled.value.dispose();
-        return { logs, ...(value === undefined ? {} : { returned: formatValue(value) }) };
+        const epilogueError = await finish(false);
+        return {
+          logs,
+          ...(value === undefined ? {} : { returned: formatValue(value) }),
+          ...(epilogueError === undefined ? {} : { error: epilogueError }),
+        };
       } catch (error) {
         return { logs, error: String((error as Error)?.message ?? error) };
       } finally {

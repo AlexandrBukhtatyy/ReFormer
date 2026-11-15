@@ -221,7 +221,8 @@ export const KEEP_WHOLE_TOOLS = new Set(['plan_form', 'form_build', 'form_start'
  * Code Mode: скрипт, вызвавший сборку или черновик intent, несёт в ответе их текст. В связке с
  * guided сборку делает и formEdit, а план — formStart.
  */
-const BUILD_IN_SCRIPT = /reformer\s*\.\s*(formBuild|planForm|formStart|formEdit)\s*\(/;
+const BUILD_IN_SCRIPT =
+  /reformer\s*\.\s*(formBuild|planForm|formStart|formEdit|form)\s*\(|\.\s*(save|build|confirm)\s*\(/;
 
 /**
  * Держать ли ответ целиком. В Code Mode грамматика и диагностика `form_build` приходят ответом
@@ -229,7 +230,11 @@ const BUILD_IN_SCRIPT = /reformer\s*\.\s*(formBuild|planForm|formStart|formEdit)
  */
 export function keepsWhole(name, args) {
   if (KEEP_WHOLE_TOOLS.has(name)) return true;
-  return name === 'run_script' && typeof args?.code === 'string' && BUILD_IN_SCRIPT.test(args.code);
+  return (
+    (name === 'run_script' || name === 'execute') &&
+    typeof args?.code === 'string' &&
+    BUILD_IN_SCRIPT.test(args.code)
+  );
 }
 
 /** Грубая оценка символов на токен: код и английский текст. */

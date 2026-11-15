@@ -77,6 +77,20 @@ function resolveBatch(argument) {
 const loadRecords = (batch) =>
   readBatchRecords(batch).records.filter((record) => record.harness === 'scenario');
 
+/** Инструменты-скрипты: `run_script` Code Mode и `execute` профиля code-guided-dsl. */
+const SCRIPT_TOOLS = new Set(['run_script', 'execute']);
+
+/** Самая длинная серия `search` подряд — блуждание в чтении вместо правок. */
+function longestSearchRun(trace) {
+  let best = 0;
+  let run = 0;
+  for (const entry of trace) {
+    run = entry.name === 'search' ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return best;
+}
+
 /** Вызовы MCP прогона по трассе сервера. */
 const toolTrace = (runDir) =>
   jsonl(path.join(runDir, 'server-trace.jsonl')).filter((entry) => entry.kind === 'tool');
@@ -101,7 +115,7 @@ function processRow(batch, record) {
     if (entry.name === 'form_edit' && /form_build:/.test(entry.result ?? '')) {
       builds.push({ ok: written > 0 });
     }
-    if (entry.name === 'run_script') {
+    if (SCRIPT_TOOLS.has(entry.name)) {
       // В связке с guided сборку делает и вложенный form_edit.
       const innerBuilds = (entry.inner ?? []).filter(
         (inner) => inner.name === 'form_build' || inner.name === 'form_edit'
@@ -111,7 +125,7 @@ function processRow(batch, record) {
       for (let i = 0; i < innerBuilds - grammarOnly; i++) builds.push({ ok: i < written });
     }
   }
-  const scripts = trace.filter((entry) => entry.name === 'run_script');
+  const scripts = trace.filter((entry) => SCRIPT_TOOLS.has(entry.name));
   const metric = (id) => record.metrics?.find((item) => item.id === id)?.value;
   return {
     scenario: record.scenario.id,
@@ -139,6 +153,14 @@ function processRow(batch, record) {
     scripts: scripts.length,
     scriptErrors: scripts.filter((entry) => entry.isError).length,
     inner: scripts.reduce((sum, entry) => sum + (entry.inner?.length ?? 0), 0),
+    syntaxErrors: scripts.filter((entry) => /SyntaxError/.test(entry.result ?? '')).length,
+    // Отклонённые правки и цепочки: строки «- ✗ …» в ответах скриптов.
+    rejected: scripts.reduce(
+      (sum, entry) => sum + ((entry.result ?? '').match(/^- ✗ /gm)?.length ?? 0),
+      0
+    ),
+    searches: trace.filter((entry) => entry.name === 'search').length,
+    searchRun: longestSearchRun(trace),
     truncations: metric('harness.truncations') ?? 0,
     textualCalls: metric('harness.textualCalls') ?? 0,
     failed: Object.entries(record.checks ?? {})
@@ -152,7 +174,7 @@ function processRow(batch, record) {
 /** Последовательность вызовов MCP прогона: `run_script` — в скобках со вложенными вызовами. */
 const callSequence = (runDir) =>
   toolTrace(runDir).map((entry) => {
-    if (entry.name !== 'run_script') return `${entry.name}${entry.isError ? '✗' : ''}`;
+    if (!SCRIPT_TOOLS.has(entry.name)) return `${entry.name}${entry.isError ? '✗' : ''}`;
     const inner =
       (entry.inner ?? []).map((call) => call.name + (call.ok ? '' : '✗')).join('+') || '∅';
     const error = (entry.result ?? '').match(/script error: ([A-Za-z]+Error)/)?.[1] ?? '';
@@ -322,6 +344,12 @@ line('Вызовов MCP, всего', (rs) => sum(rs, 'mcpCalls'));
 line('Ошибок MCP, всего', (rs) => sum(rs, 'mcpErrors'));
 line('Скриптов / с ошибкой', (rs) => `${sum(rs, 'scripts')} / ${sum(rs, 'scriptErrors')}`);
 line('Вызовов внутри скриптов', (rs) => sum(rs, 'inner'));
+line('Скриптов с SyntaxError', (rs) => sum(rs, 'syntaxErrors'));
+line('Отклонённых правок (✗)', (rs) => sum(rs, 'rejected'));
+line(
+  'Вызовов search / длиннейшая серия',
+  (rs) => `${sum(rs, 'searches')} / ${Math.max(0, ...rs.map((r) => r.searchRun ?? 0))}`
+);
 line('Вызовов «текстом»', (rs) => sum(rs, 'textualCalls'));
 line('Усечений стенда', (rs) => sum(rs, 'truncations'));
 

@@ -21,5 +21,9 @@
   "code-guided": {
     "description": "Задание как у bare, сервер — связка Code Mode и guided (REFORMER_SURFACE=code-guided): один run_script, в песочнице reformer.formStart/formEdit/formStatus/formBuild; строки Next: приходят кодом скрипта.",
     "serverEnv": { "REFORMER_SURFACE": "code-guided" }
+  },
+  "code-guided-dsl": {
+    "description": "Задание как у bare, сервер в профиле code-guided-dsl (REFORMER_SURFACE=code-guided-dsl): два инструмента по образцу Cloudflare Code Mode — search (код только читает форму, задание, API конструктора и план) и execute (reformer.formStart и конструктор reformer.form() с цепочками; save() шлёт одну правку form_edit). Строки Next: приходят кодом конструктора.",
+    "serverEnv": { "REFORMER_SURFACE": "code-guided-dsl" }
   }
 }

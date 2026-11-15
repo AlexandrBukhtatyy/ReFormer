@@ -1,0 +1,242 @@
+=== search
+Read-only look at the form with code: the body of an async function (an async arrow works too) over the frozen data declared below. Return or console.log only what you need — at most 4000 characters come back. It changes nothing: change the form with execute.
+
+/** A field of the form; rules are the checks as code: "required()", "minLength(3)", "cross: …". */
+interface FieldView { name: string; label?: string; type: string; component: string; mask?: string; options?: unknown[]; readonly?: boolean; initial?: unknown; step?: string; rules: string[] }
+
+/** The form now; null — nothing is built yet. */
+declare const form: null | {
+  title: string; target: string;
+  fields: FieldView[];
+  arrays: Array<{ name: string; label?: string; step?: string; rules: string[]; columns: FieldView[] }>;
+  steps: Array<{ title: string; fields: string[] }>;
+  behaviors: Array<{ kind: string; target: string; expr?: string; when?: string; sources: string[] }>;
+  visibility: Array<{ field: string; condition: string }>;
+  submit?: string;
+};
+
+/** The task of the plan; spec — the parsed markdown spec when the task has one. */
+declare const task: {
+  text: string; specPath?: string;
+  spec?: { title: string; steps: string[]; fields: object[]; arrays: object[]; computed: string[]; conditional: string[] };
+};
+
+/** The builder API: every method with its signature, what it does and an example. */
+declare const api: Array<{ name: string; on: string; signature: string; doc: string; example?: string }>;
+
+/** The plan: stages, the current one, the last build. */
+declare const plan: {
+  target: string; mode: "create" | "edit";
+  stages: Array<{ id: string; done: boolean; skipped: boolean }>;
+  pending: string | null; built: boolean; complete: boolean;
+};
+
+--- input
+{
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "JavaScript over form, task, api and plan, e.g. `return form.fields.filter(f => f.rules.length === 0).map(f => f.name)`."
+    },
+    "dir": {
+      "type": "string",
+      "description": "Form folder (default \"form\")."
+    }
+  },
+  "required": [
+    "code"
+  ]
+}
+
+=== execute
+Change a ReFormer form with code: the body of an async function (an async arrow works too). The global `reformer` (declared below): `reformer.formStart({…})` once, then the builder — `const f = reformer.form(); f.add("key", "Label").required().minLength(2); console.log(await f.save())`. Chains only record edits; save() applies them in ONE call and builds, and edits left unsaved are saved at the end of the script. A condition or a formula is an arrow over the form: `m => m.method === "courier"`; a check across fields — over its values: `v => v.end >= v.start`. Print every answer with console.log: a line per chain (✓, or ✗ with the fix), then "Next:" with code to run, or "Done:". The server writes every file of the form folder — never write them yourself. Plain JavaScript: no import, require, fs or network. To look at the current form, the task or this API, use the search tool.
+
+/** A stage of the plan. */
+type Stage = "arrays" | "wizard" | "validation" | "cross" | "behavior";
+
+/** The form inside a condition or a formula: m.<field> is the value of a field. */
+type Model = Record<string, any>;
+
+/** A condition or a formula: an arrow with ONE parameter and one expression — m => m.method === "courier". The server reads its text: use only the parameter, literals, Math, Number, String. */
+type Fn<T> = ((it: T) => unknown) | string;
+
+/** An input of the form (or a column of rows). Every method records an edit and returns the same Field. */
+interface Field {
+  /** A new label: the words of the task. */
+  label(text: string): Field;
+  /** Text is the default; "number"; "boolean" — a checkbox or switch; "date". */
+  type(type: "string" | "number" | "boolean" | "date"): Field;
+  /** The choices the task lists, 2 or more. A length or a range is a check, not options. */
+  options(choices: Array<string | number | { value: string | number; label: string }>): Field;
+  /** An input format of the task, 9 for a digit: "+7 (999) 999-99-99". The check of the format comes with it. */
+  mask(format: string): Field;
+  /** A hint inside the empty input. */
+  placeholder(text: string): Field;
+  /** The form computes the value or only shows it. */
+  readonly(): Field;
+  /** The default value the task names (for a choice — its value). */
+  initial(value: string | number | boolean): Field;
+  /** Only to override the server's choice by type: Textarea, RadioGroup, Switch, Slider, SelectMulti, InputPassword (a hidden password), DatePicker. */
+  component(name: string): Field;
+  /** Put the field (or array) into this wizard step: its title or number. */
+  toStep(step: string): Field;
+  /** The value is required. A message closes a group of checks: it is the text of the checks before it. */
+  required(message?: string): Field;
+  /** The task leaves the field optional: it stays without a rule. */
+  optional(): Field;
+  /** The value must be an email. */
+  email(message?: string): Field;
+  /** The smallest number the task allows (for a text — its shortest length). */
+  min(n: number, message?: string): Field;
+  /** The largest number the task allows (for a text — its longest length). */
+  max(n: number, message?: string): Field;
+  /** The shortest text the task allows. */
+  minLength(n: number, message?: string): Field;
+  /** The longest text the task allows. */
+  maxLength(n: number, message?: string): Field;
+  /** A text from min to max characters ("от 3 до 20 символов"). */
+  length(min: number, max?: number, message?: string): Field;
+  /** A regular expression the value must match: /^[A-Za-z0-9_]+$/ — the whole value; /\d/ — a digit anywhere. */
+  pattern(regex: RegExp | string, message?: string): Field;
+  /** At least one digit in the value. */
+  digit(message?: string): Field;
+  /** A validator call of @reformer/core the builder has no method for: "integer()". */
+  rule(call: string, message?: string): Field;
+  /** Must equal another field: a repeated password. */
+  sameAs(field: string, message?: string): Field;
+  /** A check across fields over the values of the form, TRUE when valid. */
+  check(test: Fn<Model>, message: string): Field;
+  /** A warning over the values of the form, TRUE when fine: it shows the message and does not block sending ("больше 100 000 — предупреждение"). */
+  warning(test: Fn<Model>, message: string): Field;
+  /** A date after today ("не раньше завтрашнего дня"). */
+  future(message?: string): Field;
+  /** A check that waits for a server or its stub — the condition only, over the value: the server waits delay ms itself. */
+  asyncCheck(test: Fn<any>, options: { delay?: number; message: string }): Field;
+  /** The checks of this chain apply only while the condition holds. */
+  when(condition: Fn<Model>): Field;
+  /** Show the field only while the condition holds. */
+  showWhen(condition: Fn<Model>): Field;
+  /** Hide the field while the condition holds. */
+  hideWhen(condition: Fn<Model>): Field;
+  /** The field is active only while the condition holds. */
+  enableWhen(condition: Fn<Model>, options?: { resetOnDisable?: boolean }): Field;
+  /** The field is disabled while the condition holds. */
+  disableWhen(condition: Fn<Model>, options?: { resetOnDisable?: boolean }): Field;
+  /** Clear the value when the condition holds. */
+  resetWhen(condition: Fn<Model>): Field;
+  /** A computed value over the form; in an array column — over its row. */
+  compute(formula: Fn<Model>): Field;
+  /** Copy the value of another field or group, while the condition holds. */
+  copyFrom(source: string, condition?: Fn<Model>): Field;
+  /** Rewrite the value as it is typed, over the value: upper case, trimmed. Not .compute(): a field never computes from itself. */
+  transform(fn: Fn<any>): Field;
+  /** Keep this field equal to another one both ways; the user may still type here ("чек на тот же email"). */
+  sync(field: string): Field;
+  /** When the source field changes and the condition holds, set this field to the value ("смена на физлицо: оплата по счёту → картой"). */
+  setOnChange(source: string, condition: Fn<Model>, value: string | number | boolean | null): Field;
+  /** A new key (and label): the server rewrites rules, conditions and the layout. */
+  rename(to: string, label?: string): Field;
+  /** Remove the field, group or array with its rules and reactions. */
+  remove(): Field;
+  /** Remove a check by its name ("minLength", "pattern"); none — every check of the field. */
+  removeRule(name?: string): Field;
+  /** Remove a reaction by its kind ("compute"); none — every reaction of the field. */
+  removeBehavior(kind?: string): Field;
+}
+
+/** Repeating rows of the form. */
+interface Rows {
+  /** At least one row — the message of the task when there is none. */
+  required(message?: string): Rows;
+  /** At least n rows. */
+  min(n: number, message?: string): Rows;
+  /** At most n rows. */
+  max(n: number, message?: string): Rows;
+  /** A value of each row: with a label — a new column; without — an existing one. */
+  column(name: string, label?: string): Field;
+}
+
+/** A wizard step. */
+interface Step {
+  /** A new step with these fields and arrays, in order. In a form with sections, a section title turns every section into a step. */
+  fields(...names: string[]): Step;
+  /** Put this step right after another step (its title or number) — a new step or one the form has. */
+  after(step: string): Step;
+  /** Put this step right before another step (its title or number). */
+  before(step: string): Step;
+  /** A new title of the step. */
+  rename(to: string): Step;
+  /** Remove the step with every field, rule and reaction in it. */
+  remove(): Step;
+}
+
+/** The builder of one form: chains record edits, save() applies them. */
+interface Form {
+  /** A new input of the task: its key (latin camelCase; a group path like contact.email is allowed) and the label in the words of the task. */
+  add(name: string, label: string): Field;
+  /** An existing field, group or array of the form — to change, rename or remove it. */
+  field(name: string): Field;
+  /** Repeating rows: with a label — a new array, then a column per value of a row; without — an existing array. The name of an array the form has, with a label or rows: its label and row bounds change. */
+  array(name: string, label?: string, rows?: { min?: number; max?: number; step?: string }): Rows;
+  /** A wizard step by its title (or number). */
+  step(title: string): Step;
+  /** The title of the form. */
+  title(text: string): Form;
+  /** The submit button with the label of the task (handler — the send function the task names). A button is not an input: never add() it. */
+  submit(label: string, handler?: string): Form;
+  /** core only: the server writes the JSX markup of index.tsx. */
+  markup(): Form;
+  /** A raw form_edit edit — only when a Next: line gives one. */
+  edit(edit: { op: string; [key: string]: unknown }): Form;
+  /** Apply every recorded edit in ONE call and build. The answer: a line per chain (✓, or ✗ with the fix), the build, "Plan:", then "Next:" with code or "Done:". Unsaved edits are saved at the end of the script too. */
+  save(): Promise<string>;
+  /** The plan: stages, the last build, "Next:". */
+  status(): Promise<string>;
+  /** The form was checked against the task: validation — every limit of the task has a rule; edit — every change is made. */
+  confirm(stage: "validation" | "edit"): Promise<string>;
+  /** Drop a stage the task does not need. */
+  skip(stage: Stage): Promise<string>;
+  /** Add a stage the task needs. */
+  addStage(stage: Stage): Promise<string>;
+  /** Build the module again from the current files — only when an answer asks to build. */
+  build(): Promise<string>;
+}
+
+declare const reformer: {
+  /**
+   * Start the work on a form — the first call, once. Pass the task text word for word, in its language. Three cases:
+   * - a new form: { dir, target, task };
+   * - the task names a markdown spec file: add specPath — the server drafts the whole form from it;
+   * - a form already lies in dir and the task changes it: { dir, target, task } with the text of the change — the plan is that change.
+   * @returns the plan, then "Next:" with the code of the next call.
+   * @example console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))
+   * @example console.log(await reformer.formStart({ dir: "form", target: "core", task: "<the task text>", specPath: "<the .md file the task names>" }))
+   */
+  formStart(args: {
+    /** Form folder (default "form"). */
+    dir?: string;
+    /** The stack named in the task. */
+    target: "core" | "renderer-react" | "renderer-json";
+    /** The task text word for word, in its own language, with the stack line: do not translate or retell it. */
+    task: string;
+    /** The markdown spec file the task names. */
+    specPath?: string;
+  }): Promise<string>;
+  /** The builder of the form in dir ("form" by default). Chains only record edits; save() applies them in ONE call and builds. */
+  form(args?: { dir?: string }): Form;
+};
+
+--- input
+{
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "JavaScript: the body of an async function, e.g. `console.log(await reformer.formStart({ dir: \"form\", target: \"<stack from the task>\", task: \"<the task text, word for word, with the stack line>\" }))`."
+    }
+  },
+  "required": [
+    "code"
+  ]
+}

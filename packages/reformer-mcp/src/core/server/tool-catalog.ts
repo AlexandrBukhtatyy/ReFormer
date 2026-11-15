@@ -57,6 +57,16 @@ import {
   type ScriptSandbox,
 } from '../codemode/run-script.js';
 import { asScriptCalls } from '../codemode/declaration.js';
+import {
+  EXECUTE_TOOL,
+  executeToolDefinition,
+  searchToolDefinition,
+} from '../codemode/dsl/declaration.js';
+import { asBody, dslFormEdit } from '../codemode/dsl/host.js';
+import type { TypeScriptModule } from '../codemode/dsl/lambda.js';
+import { DSL_EPILOGUE, DSL_PRELUDE } from '../codemode/dsl/prelude.js';
+import { asBuilderCalls } from '../codemode/dsl/printer.js';
+import { runSearch, SEARCH_TOOL } from '../codemode/dsl/search.js';
 
 /** Объявление инструмента — в том виде, в каком его отдаёт `tools/list`. */
 export interface ToolDefinition {
@@ -88,6 +98,12 @@ export interface ToolCatalogOptions {
    * Вместе с `codeMode` — связка `REFORMER_SURFACE=code-guided`: эти четыре функции в `run_script`.
    */
   readonly guided?: boolean;
+  /**
+   * Профиль `code-guided-dsl` (вместе с `codeMode` и `guided`): два инструмента, как в Code Mode MCP
+   * Cloudflare, — `search` (код над данными формы, только чтение) и `execute` (`reformer.formStart`
+   * и конструктор форм). Модуль TypeScript разбирает лямбды конструктора; `null` — его нет.
+   */
+  readonly dsl?: { readonly typescript: TypeScriptModule | null };
 }
 
 export interface ToolCatalog {
@@ -233,6 +249,44 @@ export function createToolCatalog(
   };
 
   const sandbox = options.codeMode;
+  if (sandbox && guided && options.dsl) {
+    const ts = options.dsl.typescript;
+    const scriptTools = catalog.list();
+    const toolNames = scriptTools.map((tool) => tool.name);
+    // Ответы guided — кодом конструктора; `form_start` остаётся вызовом `reformer.formStart`.
+    const dslCall = async (name: string, args: Record<string, unknown>) => {
+      const result =
+        name === 'form_edit' ? await dslFormEdit(args, observed, ts) : await observed(name, args);
+      return {
+        ...result,
+        content: result.content.map((block) =>
+          block.type === 'text'
+            ? { ...block, text: asScriptCalls(asBuilderCalls(block.text), toolNames) }
+            : block
+        ),
+      };
+    };
+    const tools = [searchToolDefinition(), executeToolDefinition()];
+    return {
+      list: () => tools,
+      async call(name, args) {
+        if (name === SEARCH_TOOL) return await runSearch(args, knowledge(), sandbox);
+        // `run_script` — привычное имя Code Mode: тот же `execute`, а не «Unknown tool».
+        if (name !== EXECUTE_TOOL && name !== RUN_SCRIPT_TOOL) {
+          throw new Error(`Unknown tool: ${name}`);
+        }
+        const result = await runScriptTool(args, scriptTools, dslCall, sandbox, {
+          echoLast: true,
+          returnErrors: true,
+          prelude: DSL_PRELUDE,
+          epilogue: DSL_EPILOGUE,
+          toolName: EXECUTE_TOOL,
+          transform: asBody,
+        });
+        return withRunHint(result, DSL_RUN_HINT);
+      },
+    };
+  }
   if (sandbox) {
     // Скрипту доступны те же инструменты, что видит клиент обычного режима, и с той же пометкой
     // повторов: меняется только форма подачи, не знание.
@@ -282,16 +336,17 @@ export function createToolCatalog(
  */
 const RUN_HINT = '→ Run that call with run_script: code written in a message runs nothing.';
 
-function withRunHint(result: CallToolResult): CallToolResult {
+/** То же для `code-guided-dsl`: код `Next:` — блок конструктора. */
+const DSL_RUN_HINT = '→ Run that code with execute: code written in a message runs nothing.';
+
+function withRunHint(result: CallToolResult, hint = RUN_HINT): CallToolResult {
   const text = result.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n');
-  if (!/await reformer\.\w+\(/.test(text) || /^Done:/m.test(text)) return result;
+  if (!/await (?:reformer|f)\.\w+\(/.test(text) || /^Done:/m.test(text)) return result;
   const last = result.content.map((block) => block.type).lastIndexOf('text');
   return {
     ...result,
     content: result.content.map((block, index) =>
-      index === last && block.type === 'text'
-        ? { ...block, text: `${block.text}\n${RUN_HINT}` }
-        : block
+      index === last && block.type === 'text' ? { ...block, text: `${block.text}\n${hint}` } : block
     ),
   };
 }
