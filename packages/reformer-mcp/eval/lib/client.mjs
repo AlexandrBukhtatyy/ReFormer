@@ -17,6 +17,14 @@ export function estimateTokens(text) {
   return Math.round(String(text).length / 4);
 }
 
+/**
+ * Поверхность сервера на стенде, если подход не задаёт свою (`serverEnv.REFORMER_SURFACE`): набор
+ * инструментов. Умолчание самого сервера с 2026-11-15 — `code-guided-dsl`, а проверки стенда
+ * (`mcp:evaluate`, верификатор, затравки сценариев, калибровка) и подходы без `serverEnv` меряли и
+ * меряют набор `tools`: без закрепления их ряды разошлись бы с историей.
+ */
+export const EVAL_SURFACE = 'tools';
+
 export class McpClient {
   #child;
   #buf = '';
@@ -29,7 +37,7 @@ export class McpClient {
   constructor(serverPath, { env = {}, cwd } = {}) {
     this.#child = spawn(process.execPath, [serverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...env },
+      env: { ...process.env, REFORMER_SURFACE: EVAL_SURFACE, ...env },
       cwd,
     });
     // stderr сервера — его логи; в stdout только JSON-RPC.

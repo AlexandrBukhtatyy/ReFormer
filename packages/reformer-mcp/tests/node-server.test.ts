@@ -3,7 +3,11 @@
  * режим, шаблоны ресурсов, журнал вызовов.
  *
  * Большая часть идёт поверх транспорта в памяти. Один набор запускает собранный `dist/index.js`
- * через stdio: только там проверяются чтение версии и `REFORMER_TRACE_FILE` от начала до конца.
+ * через stdio: только там проверяются чтение версии, `REFORMER_SURFACE` и `REFORMER_TRACE_FILE`
+ * от начала до конца.
+ *
+ * Промпты, справка и ресурсы есть только в наборе инструментов (`REFORMER_SURFACE=tools`), поэтому
+ * проверки ниже поднимают его явно; умолчание (`code-guided-dsl`) проверяется отдельным набором.
  */
 
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -15,7 +19,14 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ReformerServerCall } from '../src/core/server/mount';
-import { createNodeServer, type NodeServerOptions } from '../src/platform/cli/server';
+import {
+  CODE_GUIDED_DSL_INSTRUCTIONS,
+  createNodeServer,
+  DEFAULT_SURFACE,
+  type NodeServerOptions,
+  SERVER_SURFACES,
+  surfaceFromEnv,
+} from '../src/platform/cli/server';
 import { precondition } from './support/preconditions';
 
 const packageRoot = resolve(__dirname, '..');
@@ -39,7 +50,7 @@ const LISTED_PROMPTS = [
 const clients: Client[] = [];
 
 async function connect(options: Partial<NodeServerOptions> = {}): Promise<Client> {
-  const server = createNodeServer({ version: '1.2.3', debug: false, ...options });
+  const server = createNodeServer({ version: '1.2.3', debug: false, surface: 'tools', ...options });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: 'node-server-test', version: '0.0.0' });
@@ -60,6 +71,37 @@ async function protocolError(call: Promise<unknown>): Promise<McpError> {
   expect(error).toBeInstanceOf(McpError);
   return error as McpError;
 }
+
+describe('сервер под Node: поверхность по умолчанию', () => {
+  it('без REFORMER_SURFACE — code-guided-dsl, tools — набор инструментов, чужое имя не принято', () => {
+    expect(DEFAULT_SURFACE).toBe('code-guided-dsl');
+    expect(surfaceFromEnv(undefined)).toBe('code-guided-dsl');
+    expect(surfaceFromEnv('  ')).toBe('code-guided-dsl');
+    expect(surfaceFromEnv('tools')).toBe('tools');
+    for (const surface of SERVER_SURFACES) expect(surfaceFromEnv(surface)).toBe(surface);
+    expect(surfaceFromEnv('toolz')).toBeUndefined();
+  });
+
+  it('createNodeServer без surface: search и execute, инструкции профиля, без промптов и ресурсов', async () => {
+    const client = await connect({ surface: undefined });
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name)).toEqual(['search', 'execute']);
+    expect(client.getInstructions()).toBe(CODE_GUIDED_DSL_INSTRUCTIONS);
+    expect((await client.listPrompts()).prompts).toEqual([]);
+    expect((await client.listResources()).resources).toEqual([]);
+  });
+
+  it('в профилях guided промптов нет: все ведут в form_build', async () => {
+    for (const surface of ['guided', 'code-guided', 'code-guided-dsl'] as const) {
+      const client = await connect({ surface });
+      expect((await client.listPrompts()).prompts).toEqual([]);
+      const error = await protocolError(
+        client.getPrompt({ name: 'create-form', arguments: { description: 'x' } })
+      );
+      expect(error.code).toBe(ErrorCode.InvalidParams);
+    }
+  });
+});
 
 describe('сервер под Node: инструкции', () => {
   it('ведут агента к form_build, не к чтению справки', async () => {
@@ -191,11 +233,16 @@ describe.runIf(hasDist)('dist/index.js через stdio', () => {
     traceDirectory = undefined;
   });
 
+  /** Сервер из `dist` в наборе инструментов, если `environment` не задаёт поверхность сам. */
   async function spawnServer(environment: Record<string, string> = {}): Promise<Client> {
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: [distEntry],
-      env: { ...(process.env as Record<string, string>), ...environment },
+      env: {
+        ...(process.env as Record<string, string>),
+        REFORMER_SURFACE: 'tools',
+        ...environment,
+      },
       stderr: 'ignore',
     });
     const client = new Client({ name: 'node-server-test', version: '0.0.0' });
@@ -262,8 +309,24 @@ describe.runIf(hasDist)('dist/index.js через stdio', () => {
     expect(guide.result).toBe((resource.contents[0] as { text: string }).text);
   });
 
-  it('без REFORMER_TRACE_FILE сервер работает и файла не заводит', async () => {
+  it('без REFORMER_SURFACE — code-guided-dsl: search и execute', async () => {
     const environment = { ...(process.env as Record<string, string>) };
+    delete environment.REFORMER_SURFACE;
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [distEntry],
+      env: environment,
+      stderr: 'ignore',
+    });
+    const client = new Client({ name: 'node-server-test', version: '0.0.0' });
+    await client.connect(transport);
+    clients.push(client);
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name)).toEqual(['search', 'execute']);
+  });
+
+  it('без REFORMER_TRACE_FILE сервер работает и файла не заводит', async () => {
+    const environment = { ...(process.env as Record<string, string>), REFORMER_SURFACE: 'tools' };
     delete environment.REFORMER_TRACE_FILE;
     const transport = new StdioClientTransport({
       command: process.execPath,

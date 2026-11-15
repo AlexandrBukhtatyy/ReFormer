@@ -38,7 +38,7 @@ describe('поверхность сервера', () => {
   let client: Client;
 
   beforeAll(async () => {
-    const server = createNodeServer({ version: '0.0.0', debug: false });
+    const server = createNodeServer({ version: '0.0.0', debug: false, surface: 'tools' });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
     client = new Client({ name: 'surface-golden', version: '0.0.0' });
@@ -135,7 +135,7 @@ describe('тексты профиля node — один путь (аудит 202
 
   let client: Client;
   beforeAll(async () => {
-    const server = createNodeServer({ version: '0.0.0', debug: false });
+    const server = createNodeServer({ version: '0.0.0', debug: false, surface: 'tools' });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
     client = new Client({ name: 'one-path', version: '0.0.0' });

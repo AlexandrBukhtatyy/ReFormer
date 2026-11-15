@@ -1,8 +1,9 @@
 # @reformer/mcp
 
-MCP-сервер (Model Context Protocol) для библиотеки `@reformer/*`. Даёт ИИ-ассистентам (Claude Code,
-Cursor и другим MCP-клиентам) документацию пакетов, рецепты, индекс публичных символов, проверку
-кода формы и сборку модуля формы из описания.
+MCP-сервер (Model Context Protocol) для библиотеки `@reformer/*`. ИИ-ассистент (Claude Code, Cursor,
+другой MCP-клиент) создаёт и меняет через него формы: сервер ведёт план, собирает модуль формы,
+проверяет типы и сам пишет файлы. Набор инструментов `REFORMER_SURFACE=tools` добавляет
+документацию пакетов, рецепты, индекс публичных символов и проверку кода.
 
 ## Установка
 
@@ -20,17 +21,62 @@ claude mcp list
 ```
 
 Знания о пакетах сервер берёт из их `llms.txt`, `llms-index.json` и `docs/llms` — эти файлы
-публикуются в npm вместе с пакетами. Начинать работу агенту — с ресурса `reformer://guide`:
-порядок шагов и раскладка файлов формы.
+публикуются в npm вместе с пакетами.
 
+## Поверхности
+
+Что сервер отдаёт агенту, выбирает переменная окружения `REFORMER_SURFACE`:
+
+| Поверхность                      | Что видит агент                                                         | Когда брать                                                              |
+| -------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `code-guided-dsl` (по умолчанию) | два инструмента, `search` и `execute`; оба принимают JavaScript         | создать или изменить форму                                               |
+| `tools`                          | набор инструментов ниже, ресурсы и промпты                              | справка по API для своего кода, `validate_form`, свой `form.intent.json` |
+| `code`, `guided`, `code-guided`  | эксперименты: Code Mode (один `run_script`) и профили для малых моделей | замеры                                                                   |
+
+На неизвестное значение сервер пишет предупреждение в stderr и поднимает умолчание.
+
+### По умолчанию: `code-guided-dsl`
+
+Работу ведёт сервер. `execute` начинает её вызовом `reformer.formStart` с текстом задания (или
+спецификацией) и меняет форму конструктором: цепочки методов записывают правки, `save()` отправляет
+их и собирает модуль. Все файлы каталога формы пишет сервер, разметку JSX для `@reformer/core` тоже.
+
+```js
+// execute — начало работы
+console.log(await reformer.formStart({ dir: 'form', target: 'renderer-react', task: '<задание>' }));
+
+// execute — правки конструктором
+const f = reformer.form();
+f.add('email', 'Email').required().email();
+f.add('company', 'Компания')
+  .required()
+  .showWhen((m) => m.customerType === 'company');
+console.log(await f.save());
+```
+
+Каждый ответ кончается строкой `Next:` с готовым кодом для `execute` — до ответа `Done`. `search`
+только читает: текущую форму, задание и разбор спецификации, методы конструктора, план. Методы и
+ответы — в [docs/llms/02-tools.md](./docs/llms/02-tools.md), раздел «Guided profile».
+
+Почему это умолчание: на замере «с MCP и без» (Claude Sonnet, 10 сценариев на трёх стеках, 270
+прогонов) с `code-guided-dsl` все проверки прошли 97% прогонов, с набором инструментов — 80%, без
+MCP — 80%; работа шла в 3,3 раза быстрее и стоила в 4 раза меньше, чем без сервера. Сводка и
+результаты по сценариям — на странице
+[«Замеры: с MCP и без»](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/benchmark).
+
+### Набор инструментов: `REFORMER_SURFACE=tools`
+
+```bash
+claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @reformer/mcp
+```
+
+Начинать работу агенту — с ресурса `reformer://guide`: порядок шагов и раскладка файлов формы.
 Пример вызова инструмента:
 
 ```jsonc
 // find_recipe — рецепт по теме из docs/llms пакетов либо @example символа
 { "topic": "copy-from", "package": "core" } // package необязателен: без него — все пакеты
 ```
-
-## Инструменты
 
 | Tool              | Для чего                                                                                  |
 | ----------------- | ----------------------------------------------------------------------------------------- |
@@ -46,14 +92,14 @@ claude mcp list
 | `report_issue`    | Сохранить проблему и её решение JSON-отчётом в `<корень проекта>/.reformer/issue_reports` |
 | `debug`           | Только при `REFORMER_DEBUG=true` — внутренний инструмент для разработки самого сервера    |
 
-По умолчанию — 10 инструментов; `debug` добавляется в режиме отладки. Форму создаёт один путь:
+В этой поверхности 10 инструментов; `debug` добавляется в режиме отладки. Форму создаёт один путь:
 грамматика `form_build {"grammar":"base"}` → свой `form.intent.json` → `form_build {"dir":…}`.
 Аргументы каждого инструмента — в [docs/llms/02-tools.md](./docs/llms/02-tools.md).
 
-**Ресурсы:** `reformer://guide` (с чего начать, до 6 КБ), `reformer://status` (что сервер нашёл в
+**Ресурсы** (только в `tools`)**:** `reformer://guide` (с чего начать, до 6 КБ), `reformer://status` (что сервер нашёл в
 окружении), `reformer://catalog` (карта разделов), `reformer://docs/<пакет>` и
 `reformer://docs/<пакет>/<раздел>` — подробно в
-[docs/llms/04-resources.md](./docs/llms/04-resources.md). **Промпты:** `start-here`, `plan-form`, `create-form`,
+[docs/llms/04-resources.md](./docs/llms/04-resources.md). **Промпты** (только в `tools`)**:** `start-here`, `plan-form`, `create-form`,
 `add-feature`, `to-renderer`, `review` и другие — [docs/llms/03-prompts.md](./docs/llms/03-prompts.md).
 
 ## Входы пакета
@@ -77,6 +123,7 @@ claude mcp list
 
 | Переменная                   | По умолчанию                               | Что делает                                                                                           |
 | ---------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `REFORMER_SURFACE`           | `code-guided-dsl`                          | Поверхность сервера: `code-guided-dsl`, `tools`, `code`, `guided`, `code-guided` — см. «Поверхности» |
 | `REFORMER_ISSUE_REPORTS_DIR` | `<корень проекта>/.reformer/issue_reports` | Каталог отчётов `report_issue`; абсолютный путь (`~` — домашний каталог), относительный отклоняется  |
 | `REFORMER_DEBUG`             | не задана                                  | `true` — режим отладки: инструмент и промпт `debug`, ресурс `reformer://debug`                       |
 | `REFORMER_TRACE_FILE`        | не задана                                  | Журнал вызовов для замеров: строка JSON на вызов (номер, размеры, отпечаток и начало аргументов)     |
@@ -84,6 +131,15 @@ claude mcp list
 | `REFORMER_TYPECHECK_ROOT`    | не задана                                  | Запасной корень, откуда `form_build` берёт `@reformer/*` и `typescript` для проверки типов формы     |
 
 Задаются при регистрации (`claude mcp add … -e REFORMER_DEBUG=true`) или в `env` конфига клиента.
+
+## Миграция: поверхность по умолчанию — `code-guided-dsl`
+
+- **Без `REFORMER_SURFACE` сервер отдаёт два инструмента**, `search` и `execute`, а не набор
+  `get_context` … `report_issue`. Ресурсов и промптов в этой поверхности нет.
+- **Прежнее поведение** — `REFORMER_SURFACE=tools` в `env` конфига клиента или
+  `claude mcp add … -e REFORMER_SURFACE=tools`. Он нужен, если агент или своя обвязка зовёт
+  `form_build`, `plan_form`, `validate_form` или справочные инструменты, читает `reformer://…` или
+  берёт промпты.
 
 ## Миграция 6 → 7
 
@@ -121,7 +177,8 @@ npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
 ## Ссылки
 
 - Документация: [обзор MCP](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/overview),
-  [инструменты](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/tools)
+  [инструменты](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/tools),
+  [замеры: с MCP и без](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/benchmark)
 - Справка сервера (`reformer://docs/mcp`, начало — `reformer://guide`): [`docs/llms`](./docs/llms)
 - Конвенция документации пакетов: [docs/llms-convention.md](../../docs/llms-convention.md)
 

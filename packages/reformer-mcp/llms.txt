@@ -91,6 +91,17 @@ Prompts: `start-here`, `create-form` (from a description), `plan-form` (from a s
 Callable tools exposed by the server (use ListTools to enumerate at runtime). Names and
 arguments are exact.
 
+The environment variable `REFORMER_SURFACE` picks what the server exposes:
+
+- unset or `code-guided-dsl` — **the default**: two tools, `execute` and `search`, both take
+  JavaScript. The server plans the form and writes every file of it; see
+  [Guided profile](#guided-profile-reformer_surfaceguided) below.
+- `tools` — the tool set from `get_context` to `report_issue` on this page, with the resources
+  and the prompts: reference for custom code, `validate_form`, an intent written by the client.
+- `guided`, `code-guided`, `code` — experimental surfaces: small models and Code Mode.
+
+An unknown value gets a warning on stderr and the default.
+
 Assembled context for ONE step of work: operator + signature + a canonical example + rules,
 anti-patterns and links, deduplicated and cut to a budget.
 
@@ -337,8 +348,8 @@ answer layout under `@returns` and `@example` calls; the preamble says the serve
 of the form folder. A call there does not throw: a failed build after applied edits is an answer
 with `✗ form_build`, not a script error. The plain Code Mode surface is unchanged.
 
-`REFORMER_SURFACE=code-guided-dsl` gives two tools that both take code, after Cloudflare's Code Mode
-MCP:
+`REFORMER_SURFACE=code-guided-dsl` — the default surface, also with the variable unset — gives two
+tools that both take code, after Cloudflare's Code Mode MCP:
 
 - **`execute`** — `reformer.formStart({…})` once, then a form builder instead of JSON edits:
   `const f = reformer.form()`, then chains like `f.add("password", "Пароль").required().digit()`

@@ -5,7 +5,12 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { createNodeServer } from './platform/cli/server.js';
+import {
+  createNodeServer,
+  DEFAULT_SURFACE,
+  SERVER_SURFACES,
+  surfaceFromEnv,
+} from './platform/cli/server.js';
 import {
   createTraceSink,
   isTraceFull,
@@ -34,15 +39,20 @@ function readServerVersion(): string {
 }
 
 // Server instance
-// REFORMER_SURFACE=code — эксперимент Code Mode: один инструмент run_script, API сервера в песочнице
-// QuickJS (замер — docs/mcp-eval/code-mode.md). REFORMER_SURFACE=guided — профиль для малых моделей:
-// план от сервера и плоские правки (docs/plans/lucky-popping-wall.md). REFORMER_SURFACE=code-guided —
-// их связка: API guided внутри run_script. REFORMER_SURFACE=code-guided-dsl — та же связка с
-// конструктором форм: search (чтение данных формы) и execute (правки цепочками).
-// Иначе — обычный набор.
-const SURFACES = ['code', 'guided', 'code-guided', 'code-guided-dsl'] as const;
+// REFORMER_SURFACE выбирает поверхность (SERVER_SURFACES в platform/cli/server.ts). По умолчанию —
+// code-guided-dsl: search (чтение данных формы) и execute (конструктор форм), замер — страница
+// документации «Замеры: с MCP и без». tools — прежний набор: сборка из intent, справка, ресурсы,
+// промпты. code — Code Mode: один run_script (docs/mcp-eval/code-mode.md). guided — план от сервера
+// и плоские правки для малых моделей (docs/plans/lucky-popping-wall.md). code-guided — API guided
+// внутри run_script.
 const surfaceEnv = process.env.REFORMER_SURFACE;
-const surface = SURFACES.find((name) => name === surfaceEnv) ?? 'tools';
+const knownSurface = surfaceFromEnv(surfaceEnv);
+if (!knownSurface) {
+  console.error(
+    `REFORMER_SURFACE="${surfaceEnv}" is unknown — using ${DEFAULT_SURFACE}. Values: ${SERVER_SURFACES.join(', ')}.`
+  );
+}
+const surface = knownSurface ?? DEFAULT_SURFACE;
 
 const server = createNodeServer({
   version: readServerVersion(),

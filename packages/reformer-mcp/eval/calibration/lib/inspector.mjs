@@ -23,7 +23,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { McpClient } from '../../lib/client.mjs';
+import { EVAL_SURFACE, McpClient } from '../../lib/client.mjs';
 
 export const INSPECTOR_VERSION = '2.12.0';
 
@@ -129,7 +129,9 @@ export async function inspect(channel, method, opts = {}) {
   const cli = ensureInspector();
   const target = opts.target ?? [process.execPath, CHANNELS[channel].script];
   const args = [cli, '--cli', ...target, '--method', method, '--format', 'json', '-q'];
-  for (const [k, v] of Object.entries(opts.env ?? {})) args.push('-e', `${k}=${v}`);
+  // Как у McpClient: калибровка меряет набор инструментов, если вызов не задал поверхность сам.
+  const env = { REFORMER_SURFACE: EVAL_SURFACE, ...(opts.env ?? {}) };
+  for (const [k, v] of Object.entries(env)) args.push('-e', `${k}=${v}`);
   if (opts.toolName) args.push('--tool-name', opts.toolName);
   if (argsJson !== undefined) args.push('--tool-args-json', argsJson);
   if (opts.uri) args.push('--uri', opts.uri);

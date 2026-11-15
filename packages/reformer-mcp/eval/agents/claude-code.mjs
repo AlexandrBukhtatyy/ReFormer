@@ -12,6 +12,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createWriteStream, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { treeKillCommand } from '../../../../scripts/run-vitest-verdict.mjs';
+import { EVAL_SURFACE } from '../lib/client.mjs';
 import { repoRoot } from '../records/record.mjs';
 
 export const kind = 'claude-code';
@@ -210,6 +211,8 @@ export function runAgent(input) {
         REFORMER_ISSUE_REPORTS_DIR: path.join(runDirectory, 'issue-reports'),
         // Агент вне репозитория, а типы формы form_build проверяет с настоящими пакетами.
         REFORMER_TYPECHECK_ROOT: repoRoot,
+        // Как у McpClient: подход без своей поверхности получает набор инструментов.
+        REFORMER_SURFACE: EVAL_SURFACE,
         ...input.approach.serverEnv,
       },
     },

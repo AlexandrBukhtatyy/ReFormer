@@ -85,11 +85,6 @@ export const CODE_GUIDED_INSTRUCTIONS =
 export const CODE_GUIDED_DSL_INSTRUCTIONS =
   'This server has two tools; both take JavaScript. execute changes a form. Start every form task with execute `console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word, with the stack line>" }))` — target "core" for @reformer/core (the server writes its JSX too); also when the form already lies in the folder; a task naming a .md spec also passes specPath. Then change the form only with the builder: `const f = reformer.form(); f.add("key", "Label").required(); console.log(await f.save())`. search only reads. Never write files of the form folder yourself. Every answer ends with "Next:" and code — run it with execute. Stop only when an answer says "Done".';
 
-/**
- * Поверхность сервера: обычная (набор инструментов), Code Mode (один `run_script`), guided (план и
- * правки для малых моделей), их связка `code-guided` (API guided внутри `run_script`) или
- * `code-guided-dsl` (конструктор форм в `execute` и чтение данных в `search`).
- */
 /** Пустой каталог ресурсов — для профилей guided. */
 const NO_RESOURCES: ResourceCatalog = {
   list: () => [],
@@ -101,12 +96,45 @@ const NO_RESOURCES: ResourceCatalog = {
   },
 };
 
-export type ServerSurface = 'tools' | 'code' | 'guided' | 'code-guided' | 'code-guided-dsl';
+/**
+ * Поверхности сервера — значения `REFORMER_SURFACE`: `code-guided-dsl` (конструктор форм в `execute`
+ * и чтение данных в `search`), `tools` (набор инструментов: сборка из intent, справка, ресурсы и
+ * промпты), `code` (Code Mode: один `run_script`), `guided` (план и плоские правки для малых
+ * моделей) и `code-guided` (API guided внутри `run_script`).
+ */
+export const SERVER_SURFACES = [
+  'code-guided-dsl',
+  'tools',
+  'code',
+  'guided',
+  'code-guided',
+] as const;
+
+export type ServerSurface = (typeof SERVER_SURFACES)[number];
+
+/**
+ * Поверхность по умолчанию — `code-guided-dsl`. На замере «с MCP и без» (Claude Sonnet, 270
+ * прогонов, батч 20261115T103021Z-107a, страница документации «Замеры: с MCP и без») профиль прошёл
+ * 97% прогонов против 80% у набора инструментов и у работы без сервера, и вышел быстрее и дешевле
+ * обоих. Набор инструментов остаётся под `REFORMER_SURFACE=tools`: справка по API для своего кода,
+ * `validate_form`, ресурсы и промпты есть только в нём.
+ */
+export const DEFAULT_SURFACE: ServerSurface = 'code-guided-dsl';
+
+/**
+ * Поверхность по значению `REFORMER_SURFACE`: пустое — {@link DEFAULT_SURFACE}, неизвестное имя —
+ * `undefined` (вызывающий решает, что с ним делать; CLI предупреждает и берёт умолчание).
+ */
+export function surfaceFromEnv(value: string | undefined): ServerSurface | undefined {
+  const name = value?.trim();
+  if (!name) return DEFAULT_SURFACE;
+  return SERVER_SURFACES.find((surface) => surface === name);
+}
 
 export interface NodeServerOptions {
   readonly version: string;
   readonly debug: boolean;
-  /** `code` — эксперимент Code Mode (`REFORMER_SURFACE=code`); по умолчанию `tools`. */
+  /** Поверхность (`REFORMER_SURFACE`); без неё — {@link DEFAULT_SURFACE}. */
   readonly surface?: ServerSurface;
   /** Наблюдатель вызовов инструментов, ресурсов и промптов (см. `MountOptions.onCall`). */
   readonly onCall?: (call: ReformerServerCall) => void;
@@ -124,9 +152,10 @@ type AnyPromptDefinition =
 
 export function createNodeServer(options: NodeServerOptions): Server {
   const { version, debug, onCall } = options;
-  const dsl = options.surface === 'code-guided-dsl';
-  const codeMode = options.surface === 'code' || options.surface === 'code-guided' || dsl;
-  const guided = options.surface === 'guided' || options.surface === 'code-guided' || dsl;
+  const surface = options.surface ?? DEFAULT_SURFACE;
+  const dsl = surface === 'code-guided-dsl';
+  const codeMode = surface === 'code' || surface === 'code-guided' || dsl;
+  const guided = surface === 'guided' || surface === 'code-guided' || dsl;
 
   const server = new Server(
     {
@@ -184,8 +213,13 @@ export function createNodeServer(options: NodeServerOptions): Server {
 
   // ==================== PROMPTS ====================
 
-  /** Промпты, которые видит клиент: `debug` — только в отладочном режиме. */
+  /**
+   * Промпты, которые видит клиент: `debug` — только в отладочном режиме. В профилях guided промптов
+   * нет: все они ведут через грамматику, `plan_form` и `form_build`, а в этих профилях работу ведёт
+   * план сервера и таких инструментов нет.
+   */
   function listedPrompts(): AnyPromptDefinition[] {
+    if (guided) return [];
     const prompts: AnyPromptDefinition[] = [
       startHerePromptDefinition,
       discoverContextPromptDefinition,

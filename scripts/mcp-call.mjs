@@ -17,6 +17,9 @@ if (argv.length === 0) {
       '  node scripts/mcp-call.mjs resources/read \'{"uri":"reformer://docs/cdk"}\'',
       '  cat args.json | node scripts/mcp-call.mjs prompts/get -',
       '',
+      'The server starts with REFORMER_SURFACE=tools (the full tool set) unless the env sets another',
+      'surface, e.g. REFORMER_SURFACE=code-guided-dsl node scripts/mcp-call.mjs tools/list',
+      '',
     ].join('\n')
   );
   process.exit(2);
@@ -30,7 +33,8 @@ const params = paramsRaw ? JSON.parse(paramsRaw) : {};
 const SERVER_PATH = 'packages/reformer-mcp/dist/index.js';
 const child = spawn(process.execPath, [SERVER_PATH], {
   stdio: ['pipe', 'pipe', 'inherit'],
-  env: { ...process.env },
+  // Набор инструментов, если окружение не задаёт поверхность: умолчание сервера — code-guided-dsl.
+  env: { REFORMER_SURFACE: 'tools', ...process.env },
 });
 
 let buf = '';
