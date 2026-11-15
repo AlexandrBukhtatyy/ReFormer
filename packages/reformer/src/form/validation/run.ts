@@ -161,10 +161,23 @@ interface IssueTarget {
 }
 
 /** Одно замечание из двух определений с одними правилами (шаг внутри формы) — один раз. */
-function mergeIssues(lists: Iterable<readonly ValidationIssue[]>): readonly ValidationIssue[] {
+function mergeIssues(
+  byOrigin: ReadonlyMap<object, readonly ValidationIssue[]>
+): readonly ValidationIssue[] {
+  // Частый случай — у поля одно замечание или ни одного: дублей нет, сравнивать нечего. Живая
+  // проверка разносит итог каждому полю формы на каждую клавишу.
+  let single: ValidationIssue | undefined;
+  let count = 0;
+  for (const list of byOrigin.values()) {
+    count += list.length;
+    if (count > 1) break;
+    if (list.length === 1) single = list[0];
+  }
+  if (count === 0) return [];
+  if (count === 1) return [single!];
   const seen = new Set<string>();
   const out: ValidationIssue[] = [];
-  for (const list of lists) {
+  for (const list of byOrigin.values()) {
     for (const issue of list) {
       const key = JSON.stringify([issue.code, issue.severity ?? null, issue.params ?? null]);
       if (seen.has(key)) continue;
@@ -205,7 +218,7 @@ function settleOn(
       if (list.length > 0) byOrigin.set(origin, list);
     });
   }
-  const written = byOrigin.size === 0 ? [] : mergeIssues(byOrigin.values());
+  const written = byOrigin.size === 0 ? [] : mergeIssues(byOrigin);
   // Тот же итог не пишется: правила создают замечания заново на каждом прогоне, и новый список с
   // прежним содержимым будил бы подписчиков поля и агрегаты контейнеров — живая проверка
   // перерисовывала бы все поля с замечаниями на каждую клавишу в любом из них.
@@ -296,32 +309,47 @@ const isDisabledNode = (sig: unknown, nodes: NodeScope): boolean =>
   typeof sig === 'object' &&
   (nodes.get(sig) as { disabled?: { peek(): boolean } } | undefined)?.disabled?.peek() === true;
 
+/** Контейнер выключен или по пути к нему не контейнер — всё под ним в проверке не участвует. */
+const INACTIVE = Symbol('inactive');
+
 /**
- * Поле в проверке формы не участвует. Причин две. Выключена его нода или нода контейнера на пути к
- * нему: агрегат `valid` выключенную группу пропускает целиком, даже если поведение включило поле
- * внутри неё. Либо ручки уже нет в модели: строку массива могли удалить, пока прогон ждал
- * async-правил, — тогда по её пути пусто или другая строка.
+ * Проверка «поле в проверке формы не участвует». Причин две. Выключена его нода или нода контейнера
+ * на пути к нему: агрегат `valid` выключенную группу пропускает целиком, даже если поведение
+ * включило поле внутри неё. Либо ручки уже нет в модели: строку массива могли удалить, пока прогон
+ * ждал async-правил, — тогда по её пути пусто или другая строка.
  *
  * Путь ручки абсолютный — от корня всей модели. Форма бывает собрана над её частью (`app.user`),
  * поэтому путь сначала переводится в путь от модели формы; ручка вне её — тоже неактивна.
+ *
+ * Проверка живёт один прогон и помнит пройденные контейнеры: поля одной группы делят путь, а живая
+ * проверка спрашивает о каждом поле формы на каждую клавишу.
  */
-function isInactive(
+function inactiveCheck(
   model: FormModel<unknown>,
-  handle: PathAwareSignal<unknown>,
   nodes: NodeScope
-): boolean {
+): (handle: PathAwareSignal<unknown>) => boolean {
   // Путь есть у любой модели: у корня — '', у под-модели — путь её группы.
   const base = (model as unknown as { __path: string }).__path;
-  if (handle.__path === base) return isDisabledNode(handle, nodes);
   const prefix = base === '' ? '' : `${base}.`;
-  if (!handle.__path.startsWith(prefix)) return true;
-  let current: unknown = model.$;
-  for (const segment of handle.__path.slice(prefix.length).split('.')) {
-    if (current === null || typeof current !== 'object') return true;
-    current = (current as Record<string, unknown>)[segment];
-    if (isDisabledNode(current, nodes)) return true;
-  }
-  return current !== handle;
+  // Относительный путь → что по нему лежит; INACTIVE — выключено по пути или путь оборван.
+  const reached = new Map<string, unknown>([['', model.$]]);
+  const at = (path: string): unknown => {
+    if (reached.has(path)) return reached.get(path);
+    const cut = path.lastIndexOf('.');
+    const parent = at(cut < 0 ? '' : path.slice(0, cut));
+    let found: unknown = INACTIVE;
+    if (parent !== INACTIVE && parent !== null && typeof parent === 'object') {
+      const current = (parent as Record<string, unknown>)[path.slice(cut + 1)];
+      if (!isDisabledNode(current, nodes)) found = current;
+    }
+    reached.set(path, found);
+    return found;
+  };
+  return (handle) => {
+    if (handle.__path === base) return isDisabledNode(handle, nodes);
+    if (!handle.__path.startsWith(prefix)) return true;
+    return at(handle.__path.slice(prefix.length)) !== handle;
+  };
 }
 
 /**
@@ -338,14 +366,15 @@ function dropInactive(
   origins: Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>,
   nodes: NodeScope
 ): void {
+  const isInactive = inactiveCheck(model, nodes);
   for (const sig of issues.keys()) {
-    if (!isInactive(model, sig, nodes)) continue;
+    if (!isInactive(sig)) continue;
     issues.set(sig, []);
     origins.get(sig)?.forEach((_, origin, byOrigin) => byOrigin.set(origin, []));
     checked.delete(sig);
   }
   for (let i = failures.length - 1; i >= 0; i--) {
-    if (isInactive(model, failures[i].handle, nodes)) failures.splice(i, 1);
+    if (isInactive(failures[i].handle)) failures.splice(i, 1);
   }
 }
 
@@ -455,7 +484,14 @@ async function collect<T>(
   // правила поля, которое вот-вот выключится. Записей нет — это один микротаск, как раньше.
   else if (skipDisabled) await deferredWritesSettled();
   // Список поля в результате — объединение списков определений (async-правила дописали свои).
-  for (const [sig, byOrigin] of ctx.origins) ctx.issues.set(sig, [...byOrigin.values()].flat());
+  for (const [sig, byOrigin] of ctx.origins) {
+    // Обычно у поля одно определение-источник: копия его списка, без промежуточного массива.
+    const lists = byOrigin.values();
+    ctx.issues.set(
+      sig,
+      byOrigin.size === 1 ? [...(lists.next().value as ValidationIssue[])] : [...lists].flat()
+    );
+  }
   if (skipDisabled) {
     dropInactive(
       model as FormModel<unknown>,
