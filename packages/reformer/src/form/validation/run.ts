@@ -17,6 +17,7 @@
 
 import { batch } from '@preact/signals-core';
 import { deepEqual, deferredWritesSettled } from '../../model/index';
+import { abortRun } from '../../model/abort';
 import type { FormModel, PathAwareSignal } from '../../model/types';
 import { GLOBAL_NODES, type NodeScope } from '../signal-node-registry';
 import type { ValidationIssue } from '../types/contracts';
@@ -357,7 +358,7 @@ function dropInactive(
  * @internal
  */
 export function cancelRun(model: object, schema: object, nodes: NodeScope = GLOBAL_NODES): void {
-  stateRegistry.get(ownerOf(model, nodes))?.get(schema)?.ac?.abort();
+  abortRun(stateRegistry.get(ownerOf(model, nodes))?.get(schema)?.ac);
 }
 
 /**
@@ -409,7 +410,7 @@ async function collect<T>(
   live = false
 ): Promise<{ result: ValidationResult; release: () => void }> {
   const state = runStateFor(ownerOf(model as object, nodes), schema as object);
-  state.ac?.abort(); // отменяем предыдущий in-flight прогон этой (model, schema)
+  abortRun(state.ac); // отменяем предыдущий in-flight прогон этой (model, schema)
   const ac = new AbortController();
   state.ac = ac;
 

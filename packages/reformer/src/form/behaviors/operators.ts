@@ -20,6 +20,7 @@ import {
   type ResetWhenOptionsArg,
 } from '../../model/behaviors-value';
 import { markDerived, unmarkDerived } from '../../model/derived-registry';
+import { abortRun } from '../../model/abort';
 import { deferredWrites } from '../../model/safe-effect';
 import { availabilityWrites, enableWhen as coreEnableWhen, type AvailabilityTarget } from './node';
 import type { NodeScope } from '../signal-node-registry';
@@ -157,7 +158,7 @@ export function onChange<T>(
   // выполненные — колбэк после dispose не вызывается.
   const calls = deferredWrites();
   const fire = (v: T): void => {
-    controller?.abort(); // аннулируем предыдущий in-flight вызов
+    abortRun(controller); // аннулируем предыдущий in-flight вызов
     controller = new AbortController();
     const { signal } = controller;
     calls.schedule(() => cb(v, { signal }));
@@ -171,7 +172,7 @@ export function onChange<T>(
       source,
       (v) => {
         // Значение сменилось — ответ на прежнее устарел уже сейчас, а не через задержку.
-        controller?.abort();
+        abortRun(controller);
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => fire(v), options.debounce);
       },
@@ -184,7 +185,7 @@ export function onChange<T>(
   }
   onDispose(() => {
     calls.cancelAll();
-    controller?.abort();
+    abortRun(controller);
   });
 }
 
