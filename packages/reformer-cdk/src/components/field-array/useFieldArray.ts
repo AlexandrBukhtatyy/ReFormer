@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { type FormGroup, type ValidationIssue } from '@reformer/core';
-import { useFormControl } from '@reformer/core/react';
+import { type FormArray, type FormGroup, type ValidationIssue } from '@reformer/core';
+import { useComputed } from '@reformer/core/react';
 // FieldArrayItem объявлен один раз в FieldArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FieldArrayItem } from './FieldArrayContext';
 import type { FieldArrayControl } from './types';
@@ -108,16 +108,22 @@ export interface UseFieldArrayReturn<T extends object> {
 export function useFieldArray<T extends object>(
   control: FieldArrayControl<T>
 ): UseFieldArrayReturn<T> {
-  // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
-  // the same length — without it the memo below would not recompute and the UI would not reorder.
-  const { length, value, issues, ownIssues, valid, invalid } = useFormControl(control);
+  // Подписка — на состав строк и замечания массива, но не на его значение: значение массива
+  // производно от значений строк и меняется на каждую клавишу в любой строке, а список от этого
+  // не меняется. Состав (`control.map`) меняют только добавление, удаление и перестановка.
+  const { rows, issues, ownIssues, valid, invalid } = useComputed(
+    () => arrayState(control),
+    [control],
+    sameArrayState
+  );
+  const length = rows.length;
 
-  // Memoize items array - recalculates when the array value changes: on add/remove/reorder and on
-  // any edit inside a row (the array value is derived from its rows). Хелперы reorder выводятся на
-  // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FieldArray.List.
+  // Строки пересобираются при смене состава: добавление, удаление, `move`/`swap`. Хелперы reorder
+  // выводятся на базовый элемент, чтобы консументы сырого хука получали тот же набор, что и
+  // FieldArray.List.
   const items = useMemo(
     () =>
-      control.map((itemControl, index) => ({
+      rows.map((itemControl, index) => ({
         control: itemControl,
         index,
         id: control.keyAt(index),
@@ -125,10 +131,9 @@ export function useFieldArray<T extends object>(
         moveUp: () => control.move(index, index - 1),
         moveDown: () => control.move(index, index + 1),
         canMoveUp: index > 0,
-        canMoveDown: index < length - 1,
+        canMoveDown: index < rows.length - 1,
       })),
-    // `value` is intentionally in deps: its reference changes on add/remove/reorder and row edits.
-    [control, length, value]
+    [control, rows]
   );
 
   return {
@@ -149,4 +154,37 @@ export function useFieldArray<T extends object>(
     valid,
     invalid,
   };
+}
+
+/** То, на что подписан список: строки по порядку и замечания массива. */
+interface ArrayState<T extends object> {
+  rows: FormGroup<T>[];
+  issues: ValidationIssue[];
+  ownIssues: ValidationIssue[];
+  valid: boolean;
+  invalid: boolean;
+}
+
+function arrayState<T extends object>(control: FormArray<T>): ArrayState<T> {
+  return {
+    rows: control.map((row) => row),
+    issues: control.issues.value as ValidationIssue[],
+    ownIssues: control.ownIssues.value as ValidationIssue[],
+    valid: control.valid.value,
+    invalid: control.invalid.value,
+  };
+}
+
+const sameItems = (a: readonly unknown[], b: readonly unknown[]): boolean =>
+  a.length === b.length && a.every((item, index) => item === b[index]);
+
+/** Те же строки в том же порядке и те же замечания — список перерисовывать незачем. */
+function sameArrayState<T extends object>(a: ArrayState<T>, b: ArrayState<T>): boolean {
+  return (
+    a.valid === b.valid &&
+    a.invalid === b.invalid &&
+    sameItems(a.rows, b.rows) &&
+    sameItems(a.issues, b.issues) &&
+    sameItems(a.ownIssues, b.ownIssues)
+  );
 }
