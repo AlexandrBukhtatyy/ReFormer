@@ -22,9 +22,5 @@
   "logo.alt": {
     "message": "ReFormer Logo",
     "description": "The alt text of navbar logo"
-  },
-  "item.label.Open builder": {
-    "message": "Открыть билдер",
-    "description": "Navbar item with label Open builder"
   }
 }
