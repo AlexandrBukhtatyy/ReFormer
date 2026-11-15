@@ -1322,30 +1322,6 @@
   "homepage.builder.lead": {
     "message": "A visual form builder: assemble a form from kit components, see it live right away and export it as code — a ready module for your React app."
   },
-  "homepage.builder.f1.title": {
-    "message": "The AI assistant edits the form on request"
-  },
-  "homepage.builder.f1.text": {
-    "message": "“Add an email field”, “make the phone required”, “split the form into three steps”. Every turn can be undone as a whole."
-  },
-  "homepage.builder.f2.title": {
-    "message": "Bring your own model"
-  },
-  "homepage.builder.f2.text": {
-    "message": "Anthropic or OpenAI with an API key, or a local one: Ollama, LM Studio. The builder has no server of its own — requests go straight from the browser."
-  },
-  "homepage.builder.f3.title": {
-    "message": "Code as the output"
-  },
-  "homepage.builder.f3.text": {
-    "message": "Export prints a TypeScript form module: schema, model, rules, behavior, page. Edits go into the same JSON form file that lives in your repository."
-  },
-  "homepage.builder.f4.title": {
-    "message": "Your project, your kit"
-  },
-  "homepage.builder.f4.text": {
-    "message": "The project folder opens straight from disk; the form is drawn with ReFormer UI Kit or your design system's kit."
-  },
   "homepage.builder.open": {
     "message": "Open the builder ↗"
   },
@@ -1363,5 +1339,41 @@
   },
   "homepage.ecosystem.core.p5": {
     "message": "Arrays, nesting, wizards"
+  },
+  "homepage.builder.ai.title": {
+    "message": "The AI assistant edits the form on request"
+  },
+  "homepage.builder.ai.text": {
+    "message": "“Add an email field”, “make the phone required”, “split the form into three steps”. Every turn can be undone as a whole."
+  },
+  "homepage.builder.model.title": {
+    "message": "Bring your own model"
+  },
+  "homepage.builder.model.text": {
+    "message": "Anthropic or OpenAI with an API key, or a local one: Ollama, LM Studio."
+  },
+  "homepage.builder.noBackend.title": {
+    "message": "No server"
+  },
+  "homepage.builder.noBackend.text": {
+    "message": "The builder runs entirely in the browser: it opens the project folder straight from disk and saves back to it. Model requests go from the browser too — there is no backend to deploy."
+  },
+  "homepage.builder.plugins.title": {
+    "message": "Extensible with plugins"
+  },
+  "homepage.builder.plugins.text": {
+    "message": "The file tree, editors, preview, code generation and the assistant are plugins themselves. Your own plugin can add a panel, a command, an editor, a component kit or a tool for the assistant."
+  },
+  "homepage.builder.config.title": {
+    "message": "Configured per project"
+  },
+  "homepage.builder.config.text": {
+    "message": "The .ui_builder/ folder sets the title, language and theme, the plugin set, the default kit, form templates and code printing templates."
+  },
+  "homepage.builder.code.title": {
+    "message": "Code as the output"
+  },
+  "homepage.builder.code.text": {
+    "message": "Export prints a TypeScript form module: schema, model, rules, behavior, page. Edits go into the same JSON form file that lives in your repository."
   }
 }

@@ -9,30 +9,43 @@ import styles from './landing.module.css';
 
 type Feature = { titleId: string; title: string; textId: string; text: string };
 
+// Шесть пунктов — сетка 3×2 на десктопе: ассистент и модель, без сервера; плагины, настройка, код.
 const FEATURES: Feature[] = [
   {
-    titleId: 'homepage.builder.f1.title',
+    titleId: 'homepage.builder.ai.title',
     title: 'ИИ-ассистент правит форму по просьбе',
-    textId: 'homepage.builder.f1.text',
+    textId: 'homepage.builder.ai.text',
     text: '«Добавь поле email», «сделай телефон обязательным», «разложи анкету на три шага». Каждый ход отменяется целиком.',
   },
   {
-    titleId: 'homepage.builder.f2.title',
+    titleId: 'homepage.builder.model.title',
     title: 'Модель — ваша',
-    textId: 'homepage.builder.f2.text',
-    text: 'Anthropic или OpenAI по ключу API либо локальная: Ollama, LM Studio. Своего сервера у билдера нет — запросы идут прямо из браузера.',
+    textId: 'homepage.builder.model.text',
+    text: 'Anthropic или OpenAI по ключу API либо локальная: Ollama, LM Studio.',
   },
   {
-    titleId: 'homepage.builder.f3.title',
+    titleId: 'homepage.builder.noBackend.title',
+    title: 'Без сервера',
+    textId: 'homepage.builder.noBackend.text',
+    text: 'Билдер целиком работает в браузере: открывает папку проекта прямо с диска и сохраняет в неё же. Запросы к модели тоже идут из браузера — бэкенд разворачивать не нужно.',
+  },
+  {
+    titleId: 'homepage.builder.plugins.title',
+    title: 'Расширяется плагинами',
+    textId: 'homepage.builder.plugins.text',
+    text: 'Дерево файлов, редакторы, превью, генерация кода и ассистент — сами плагины. Свой плагин добавит панель, команду, редактор, кит компонентов или инструмент ассистенту.',
+  },
+  {
+    titleId: 'homepage.builder.config.title',
+    title: 'Настраивается под проект',
+    textId: 'homepage.builder.config.text',
+    text: 'Каталог .ui_builder/ задаёт заголовок, язык и тему, состав плагинов, кит по умолчанию, шаблоны форм и шаблоны печати кода.',
+  },
+  {
+    titleId: 'homepage.builder.code.title',
     title: 'На выходе — код',
-    textId: 'homepage.builder.f3.text',
+    textId: 'homepage.builder.code.text',
     text: 'Экспорт печатает модуль формы на TypeScript: схема, модель, правила, поведение, страница. Правки ложатся в тот же JSON-файл формы, что лежит в репозитории.',
-  },
-  {
-    titleId: 'homepage.builder.f4.title',
-    title: 'Ваш проект и ваш кит',
-    textId: 'homepage.builder.f4.text',
-    text: 'Папка проекта открывается прямо с диска, форма рисуется ReFormer UI Kit или китом вашей дизайн-системы.',
   },
 ];
 
