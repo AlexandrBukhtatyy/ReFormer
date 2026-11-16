@@ -94,7 +94,8 @@ export interface FormValidationController {
   /**
    * Вернуть стратегию в исходную фазу — для сброса формы: `afterFirstSubmit` снова молчит до
    * следующей попытки отправки. Отложенный (`debounce`) и идущий прогоны отменяются — они о
-   * значениях до сброса (идущий `validate()` или `run()` получит `cancelled`). Подписки остаются,
+   * значениях до сброса (идущий `validate()` или `run()` получит `cancelled`). Подписки
+   * `afterFirstSubmit` снимаются до следующей попытки отправки, остальных стратегий — остаются;
    * значения и замечания не трогаются: их сбрасывает форма.
    *
    * Сборка `createForm` зовёт его сама из `form.reset()` своей формы.
@@ -143,6 +144,8 @@ export function createFormValidation<T>(
   const _validating = signal(false);
   let inFlight = 0;
   let submitted = false;
+  /** Стратегия запущена (`start()` без `dispose()`); подписки живой фазы — отдельно, в `disposeFx`. */
+  let started = false;
   // Признак «стратегия армирована» — он же гарант идемпотентности start(). Отдельного флага
   // `disposed` НЕТ намеренно: контроллер переиспользуемый, см. док `start()`.
   let disposeFx: (() => void) | undefined;
@@ -219,12 +222,51 @@ export function createFormValidation<T>(
       return (await controller.run()).status === 'valid';
     },
     run(options) {
-      // Живую фазу afterFirstSubmit включает только попытка отправки.
-      if (options?.submit) submitted = true;
+      // Живую фазу afterFirstSubmit включает только попытка отправки — с ней же заводятся
+      // подписки, если стратегия уже запущена: до отправки им нечего делать.
+      if (options?.submit) {
+        submitted = true;
+        if (started && !disposeFx) armLive();
+      }
       return run(options?.touch ?? true);
     },
     start() {
-      if (disposeFx) return () => controller.dispose(); // уже армирован — идемпотентно
+      if (started) return () => controller.dispose(); // уже запущена — идемпотентно
+      started = true;
+      // `afterFirstSubmit` до первой попытки отправки молчит: подписка на все поля формы заводится
+      // вместе с живой фазой, а не при монтировании.
+      if (strategy !== 'afterFirstSubmit' || submitted) armLive();
+      return () => controller.dispose();
+    },
+    resetPhase() {
+      submitted = false;
+      // Тихая фаза `afterFirstSubmit` подписок не держит — до следующей попытки отправки.
+      if (strategy === 'afterFirstSubmit') {
+        disposeFx?.();
+        disposeFx = undefined;
+      }
+      // Отложенный и идущий прогоны — о значениях до сброса: их замечания легли бы на сброшенную
+      // форму невидимыми и проявились бы при первом вводе.
+      cancelPending();
+    },
+    dispose() {
+      started = false;
+      disposeFx?.();
+      disposeFx = undefined;
+      // Идущий прогон тоже отменяется: его async-правило иначе ответило бы уже снятой форме.
+      cancelPending();
+    },
+    get isValidating() {
+      return _validating.value;
+    },
+    get validating() {
+      return _validating;
+    },
+  };
+
+  /** Завести реактивные подписки живой фазы. */
+  function armLive(): void {
+    {
       const mode = strategy === 'afterFirstSubmit' ? liveAfterSubmit : strategy;
       if (mode === 'change') {
         disposeFx = arm((sig) => void sig.value, fireLiveDebounced);
@@ -261,27 +303,8 @@ export function createFormValidation<T>(
         );
       }
       // 'submit' — реактивно ничего не арминг (работает только validate()).
-      return () => controller.dispose();
-    },
-    resetPhase() {
-      submitted = false;
-      // Отложенный и идущий прогоны — о значениях до сброса: их замечания легли бы на сброшенную
-      // форму невидимыми и проявились бы при первом вводе.
-      cancelPending();
-    },
-    dispose() {
-      disposeFx?.();
-      disposeFx = undefined;
-      // Идущий прогон тоже отменяется: его async-правило иначе ответило бы уже снятой форме.
-      cancelPending();
-    },
-    get isValidating() {
-      return _validating.value;
-    },
-    get validating() {
-      return _validating;
-    },
-  };
+    }
+  }
 
   return controller;
 }

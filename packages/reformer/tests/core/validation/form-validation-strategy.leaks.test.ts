@@ -92,12 +92,20 @@ function countedRules(): { runs: ReturnType<typeof vi.fn>; rules: ValidationDefi
   return { runs, rules };
 }
 
-/** Стратегия в таблице: опции контроллера и сколько effect'ов держит армированная стратегия. */
+/**
+ * Стратегия в таблице: опции контроллера и сколько effect'ов держит стратегия в живой фазе.
+ * `afterFirstSubmit` до первой попытки отправки молчит и подписок не держит: её effect заводится
+ * вместе с живой фазой.
+ */
 interface Strategy {
   readonly name: string;
   readonly options: ValidationStrategyOptions;
   readonly effects: number;
 }
+
+/** Сколько effect'ов стратегия держит сразу после `start()`. */
+const effectsAtStart = ({ options, effects }: Strategy): number =>
+  options.strategy === 'afterFirstSubmit' ? 0 : effects;
 
 const DEBOUNCE = 300;
 
@@ -142,7 +150,9 @@ function userAction(
 }
 
 describe("form-validation-strategy — счёт effect'ов", () => {
-  for (const { name, options, effects } of strategies) {
+  for (const strategy of strategies) {
+    const { name, options } = strategy;
+    const effects = effectsAtStart(strategy);
     it(`${name}: до start() чисто, start() держит effect'ов — ${effects}, dispose() возвращает к базе`, () => {
       const { model } = createProfile();
       const { rules } = countedRules();
@@ -164,6 +174,56 @@ describe("form-validation-strategy — счёт effect'ов", () => {
         disposed: 0,
         again: 0,
       });
+    });
+  }
+
+  for (const strategy of strategies.filter(
+    ({ options }) => options.strategy === 'afterFirstSubmit'
+  )) {
+    it(`${strategy.name}: effect заводит попытка отправки, сброс фазы его снимает`, async () => {
+      const { model } = createProfile();
+      const { rules } = countedRules();
+      const base = liveEffects();
+      const controller = createFormValidation(model, rules, strategy.options);
+      controller.start();
+      const quiet = liveEffects() - base;
+
+      await controller.run({ submit: true });
+      await controller.run({ submit: true });
+      const live = liveEffects() - base;
+      controller.resetPhase();
+      const reset = liveEffects() - base;
+      await controller.run({ submit: true });
+      const again = liveEffects() - base;
+      // Снятие и новый запуск уже после отправки: живая фаза продолжается, подписки нужны сразу.
+      controller.dispose();
+      controller.start();
+      const restarted = liveEffects() - base;
+      controller.dispose();
+
+      expect({ quiet, live, reset, again, restarted, disposed: liveEffects() - base }).toEqual({
+        quiet: 0,
+        live: 1,
+        reset: 0,
+        again: 1,
+        restarted: 1,
+        disposed: 0,
+      });
+    });
+
+    it(`${strategy.name}: отправка до start() подписок не заводит — их заведёт start()`, async () => {
+      const { model } = createProfile();
+      const { rules } = countedRules();
+      const base = liveEffects();
+      const controller = createFormValidation(model, rules, strategy.options);
+
+      await controller.run({ submit: true });
+      const headless = liveEffects() - base;
+      controller.start();
+      const started = liveEffects() - base;
+      controller.dispose();
+
+      expect({ headless, started }).toEqual({ headless: 0, started: 1 });
     });
   }
 
@@ -233,6 +293,7 @@ describe('form-validation-strategy — живая фаза и снятие', () 
       const controller = createFormValidation(model, rules, options);
       const base = liveEffects();
       controller.start();
+      if (options.strategy === 'afterFirstSubmit') await controller.run({ submit: true });
       const createdBefore = createdEffects();
 
       for (let index = 0; index < 5; index++) model.rows.push({ label: `строка ${index}` });

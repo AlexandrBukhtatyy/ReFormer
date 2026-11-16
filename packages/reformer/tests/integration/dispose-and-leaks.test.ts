@@ -245,11 +245,12 @@ describe("dispose-and-leaks — живые effect'ы заявки", () => {
       { name: 'change', options: { strategy: 'change' }, effects: 1 },
       { name: 'change + debounce', options: { strategy: 'change', debounce: 300 }, effects: 1 },
       { name: 'blur', options: { strategy: 'blur' }, effects: 1 },
-      { name: 'afterFirstSubmit', options: { strategy: 'afterFirstSubmit' }, effects: 1 },
+      // `afterFirstSubmit` до первой попытки отправки молчит: её effect заводит отправка.
+      { name: 'afterFirstSubmit', options: { strategy: 'afterFirstSubmit' }, effects: 0 },
       {
         name: 'afterFirstSubmit + blur',
         options: { strategy: 'afterFirstSubmit', liveAfterSubmit: 'blur' },
-        effects: 1,
+        effects: 0,
       },
     ];
 
