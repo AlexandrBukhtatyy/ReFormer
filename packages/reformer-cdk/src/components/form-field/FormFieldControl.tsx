@@ -92,7 +92,9 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       'aria-required': required ? (true as const) : undefined,
     };
 
-    const seam: FieldSeam = {
+    // Seam корня несёт и подписку его снимка на значение: неуправляемая привязка не заводит своего
+    // effect. Контекст без seam (собран вручную) — seam из самого контекста.
+    const seam: FieldSeam = context.seam ?? {
       control,
       get value() {
         return context.value;

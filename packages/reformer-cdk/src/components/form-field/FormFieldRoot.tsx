@@ -1,5 +1,5 @@
 import { useId, useMemo } from 'react';
-import { useFormControl } from '@reformer/core/react';
+import { useFormControl, watchValueOf } from '@reformer/core/react';
 import { FormFieldContext } from './FormFieldContext';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
 import { primaryIssueIndex } from '../../validation/primary-issue';
@@ -141,6 +141,15 @@ function FormFieldRoot<T>({
         ids,
         hasDescription,
         hasHint,
+        seam: {
+          control,
+          get value() {
+            return raw.value;
+          },
+          onChange: (v: unknown) => control.setValue(v as T),
+          onBlur: () => control.markAsTouched(),
+          watch: watchValueOf(raw),
+        },
       },
       { get: (target, key) => (STATE_KEYS.has(key) ? read(key) : Reflect.get(target, key)) }
     ) as unknown as FormFieldContextValue<T>;

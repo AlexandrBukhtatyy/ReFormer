@@ -1,5 +1,6 @@
 import type { HTMLAttributes, LabelHTMLAttributes, ReactNode } from 'react';
 import type { FormControl, ValidationIssue } from '@reformer/core';
+import type { FieldSeam } from '@reformer/core/react';
 
 /**
  * Stable IDs for all accessible elements of a form field
@@ -54,6 +55,13 @@ export interface FormFieldContextValue<T = unknown> {
   hasDescription: boolean;
   /** Whether a FormField.Hint is present (drives aria-describedby on Control) */
   hasHint: boolean;
+  /**
+   * Seam for `bindFieldProps` from `@reformer/core/react` — the same as `useFormField().seam`: the
+   * field node, the value (read on access), callbacks and the value subscription of the root. A
+   * custom control inside `FormField.Root` with an `uncontrolled` adapter is bound with it and
+   * typing does not re-render the field. Set by `FormField.Root`.
+   */
+  seam?: FieldSeam;
 }
 
 /**

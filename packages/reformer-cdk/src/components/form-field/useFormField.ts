@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 import { type FormControl, type ValidationIssue } from '@reformer/core';
-import { useFormControl, type FieldSeam } from '@reformer/core/react';
+import { useFormControl, watchValueOf, type FieldSeam } from '@reformer/core/react';
 import type { FormFieldIds } from './types';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
 import { primaryIssueIndex } from '../../validation/primary-issue';
@@ -253,6 +253,7 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
         },
         onChange,
         onBlur,
+        watch: watchValueOf(raw),
       },
       ids,
       labelProps: {

@@ -26,6 +26,7 @@ import { defineIssueMessages } from '@reformer/core/i18n';
 import { ValidationMessagesProvider } from '../../validation/error-resolver';
 import { FormField } from './FormField';
 import { useFormField } from './useFormField';
+import { useFormFieldContext } from './FormFieldContext';
 
 const MESSAGES = defineIssueMessages({ taken: 'Логин занят' });
 
@@ -179,5 +180,32 @@ describe('useFormField — seam', () => {
     });
     expect(view.getByRole('alert').textContent).toBe('Логин занят');
     expect(renders.count).toBe(before + 1);
+  });
+});
+
+describe('seam с подпиской снимка', () => {
+  it('seam хука и контекста несёт watch: у неуправляемой привязки нет своего effect', () => {
+    const login = buildLogin();
+    const seen = vi.fn();
+    function Hook() {
+      seen('hook', useFormField(login).seam.watch);
+      return null;
+    }
+    function Context() {
+      seen('context', useFormFieldContext().seam?.watch);
+      return null;
+    }
+    render(
+      <>
+        <Hook />
+        <FormField.Root control={login}>
+          <Context />
+        </FormField.Root>
+      </>
+    );
+    expect(seen.mock.calls.map(([where, watch]) => [where, typeof watch])).toEqual([
+      ['hook', 'function'],
+      ['context', 'function'],
+    ]);
   });
 });
