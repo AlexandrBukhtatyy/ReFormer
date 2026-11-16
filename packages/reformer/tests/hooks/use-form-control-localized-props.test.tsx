@@ -13,6 +13,7 @@ import { createForm } from '../../src/form/form-bundle';
 import { createModel } from '../../src/model/index';
 import { msg } from '../../src/i18n/descriptor';
 import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
+import { watchValueOf } from '../../src/platforms/react/hooks/useSignalSubscription';
 import { I18nProvider } from '../../src/platforms/react/i18n/provider';
 import type { FormLocale } from '../../src/i18n/locale';
 import { act, cleanup, render, screen } from '../test-utils/react';
@@ -57,6 +58,21 @@ describe('useFormControl — описатели msg() в componentProps', () => 
 
     expect(renders).toBe(before);
     expect(screen.getByTestId('out').textContent).toBe('Почта');
+  });
+
+  it('снимок с раскрытыми пропсами отдаёт подписку на значение (неуправляемая привязка)', () => {
+    const { form } = createProfile({ label: msg('profile.email') });
+    const seen: unknown[] = [];
+    function Probe() {
+      seen.push(typeof watchValueOf(useFormControl(form.email)));
+      return null;
+    }
+    render(
+      <I18nProvider locale={ru}>
+        <Probe />
+      </I18nProvider>
+    );
+    expect(seen.at(-1)).toBe('function');
   });
 
   it('раскрываются по локали провайдера, в том числе в опциях, и следуют смене языка', () => {

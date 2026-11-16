@@ -4,6 +4,7 @@ import { isFormArray } from '../../../form/type-guards';
 import { useLocalized } from '../i18n/hooks';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
+  SNAPSHOT_WATCH,
   useSignalSubscription,
   type SignalConfig,
   type ExtractSignalValues,
@@ -25,6 +26,9 @@ function withComponentProps<S extends object>(state: S, componentProps: unknown)
         : { enumerable: true, configurable: true, get: () => state[key as keyof S] }
     );
   }
+  // Подписка снимка на значение (неуправляемая привязка поля) — та же, скрытая от перечисления.
+  const watch = (state as { [SNAPSHOT_WATCH]?: unknown })[SNAPSHOT_WATCH];
+  if (watch !== undefined) Object.defineProperty(out, SNAPSHOT_WATCH, { value: watch });
   return out;
 }
 

@@ -133,6 +133,12 @@ export interface FieldSeam {
   onBlur: () => void;
   /** Нода поля — источник значения неуправляемой привязки. Без неё привязка управляемая. */
   control?: FieldValueSource;
+  /**
+   * Подписка на значение поля через подписку хука, который уже следит за полем
+   * (`watchValueOf(useFormControl(control))`). С ней неуправляемая привязка не заводит своего
+   * effect на поле. `seam` у `useFormField` из `@reformer/cdk` несёт её сам.
+   */
+  watch?: (listener: (value: unknown) => void) => () => void;
 }
 
 const identity = (x: unknown): unknown => x;
@@ -192,7 +198,8 @@ export function bindFieldProps(
         seam.control,
         adapter,
         rest,
-        defaultProp !== undefined ? initial : NOT_RENDERED
+        defaultProp !== undefined ? initial : NOT_RENDERED,
+        seam.watch
       ),
     };
   }

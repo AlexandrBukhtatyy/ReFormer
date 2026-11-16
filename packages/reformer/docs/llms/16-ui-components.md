@@ -240,7 +240,8 @@ TextInput.reformerAdapter = nativeTextAdapter; // TextInput передаёт ref
   пишет в DOM, только если оно отличается от значения поля. Поэтому собственный ввод не
   перетирается: `5.` числового поля, текст маски, позиция курсора.
 - **Seam несёт ноду поля (`seam.control`), а `value` читается при обращении.** `FormField.Control`
-  из `@reformer/cdk` делает это сам. Своё поле на хуке берёт готовый `seam` из `useFormField`:
+  из `@reformer/cdk` и рендерер `@reformer/renderer-react` делают это сами. Своё поле на хуке берёт
+  готовый `seam` из `useFormField`:
 
   ```tsx
   const { seam, state } = useFormField(control); // @reformer/cdk/form-field
@@ -248,7 +249,9 @@ TextInput.reformerAdapter = nativeTextAdapter; // TextInput передаёт ref
   return <Control {...bindFieldProps(getFieldAdapter(Control), seam, rest, Control)} />;
   ```
 
-  Seam без `control` (рендерер `@reformer/renderer-react`) даёт обычную управляемую привязку.
+  Seam без `control` даёт обычную управляемую привязку. `seam.watch` — подписка на значение через
+  хук, который уже следит за полем (`watchValueOf(useFormControl(control))`): с ней привязка не
+  заводит своего effect на поле. Готовые `seam` из cdk и рендерер передают её сами.
 - **Компонент не читает значение при рендере** (`state.value`, `useFormControl(control).value`).
   Иначе ввод снова перерисовывает поле: работает, но выигрыша нет.
 

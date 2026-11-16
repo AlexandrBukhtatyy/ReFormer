@@ -297,6 +297,7 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
   "useMessages": "функция",
   "useSignalSnapshot": "функция",
   "useStore": "функция",
+  "watchValueOf": "функция",
 }
 `;
 

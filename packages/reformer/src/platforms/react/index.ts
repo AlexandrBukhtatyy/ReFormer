@@ -41,5 +41,6 @@ export {
 } from './field-binding/field-adapter';
 export type { FieldAdapter, FieldAdapterCarrier, FieldSeam } from './field-binding/field-adapter';
 export type { FieldValueSource } from './field-binding/uncontrolled';
+export { watchValueOf } from './hooks/useSignalSubscription';
 export { makeElementFieldHandle, useFieldHandleRef } from './field-binding/field-handle';
 export type { FieldHandle } from './field-binding/field-handle';

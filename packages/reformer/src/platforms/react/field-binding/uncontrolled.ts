@@ -20,6 +20,9 @@ type FormElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 type FieldRef = (element: Element | null) => (() => void) | undefined;
 
+/** Подписка на значение поля: слушатель вызывается на каждую смену; возвращает отписку. */
+type ValueWatch = (listener: (value: unknown) => void) => () => void;
+
 /**
  * Привязка ноды: ссылка `ref` стабильна между рендерами. Адаптер и прочие props — последнего
  * рендера; другой адаптер (компонент поля сменился) заводит новую привязку.
@@ -34,6 +37,8 @@ interface Binding {
    * {@link NOT_RENDERED}. Подключённый элемент его уже показывает — первая сверка не нужна.
    */
   rendered: unknown;
+  /** Подписка хука на значение поля последнего рендера; без неё — свой effect на элемент. */
+  watch: ValueWatch | undefined;
   /** Подключённые элементы и снятие их синхронизации; несколько — у радиогруппы. */
   readonly attached: Map<FormElement, () => void>;
 }
@@ -104,6 +109,7 @@ function createBinding(source: FieldValueSource, adapter: FieldAdapter): Binding
     adapter,
     rest: {},
     rendered: NOT_RENDERED,
+    watch: undefined,
     attached,
     ref: (element) => {
       if (element === null) {
@@ -116,17 +122,7 @@ function createBinding(source: FieldValueSource, adapter: FieldAdapter): Binding
       }
       const target = element as FormElement;
       if (!attached.has(target)) {
-        // Запись в DOM чтений сигналов не делает: подписка effect — только значение поля.
-        let first = true;
-        const stop = effect(() => {
-          const value = source.value.value;
-          // Элемент смонтирован с начальным значением этого рендера: сверять нечего.
-          if (first) {
-            first = false;
-            if (Object.is(value, binding.rendered)) return;
-          }
-          write(target, value, binding);
-        });
+        const stop = follow(target, source, binding);
         const release = forward(binding.rest.ref, target);
         attached.set(target, () => {
           stop();
@@ -137,6 +133,65 @@ function createBinding(source: FieldValueSource, adapter: FieldAdapter): Binding
     },
   };
   return binding;
+}
+
+/**
+ * Следить за значением поля и писать его в элемент; у списка — ещё и за его опциями. Элемент
+ * смонтирован с начальным значением рендера — сверка с ним не нужна.
+ */
+function follow(target: FormElement, source: FieldValueSource, binding: Binding): () => void {
+  const stop = subscribe(target, source, binding);
+  if (target.tagName !== 'SELECT' || typeof MutationObserver === 'undefined') return stop;
+  // Список без значения поля среди опций показывает пустой выбор, а `defaultValue` React
+  // применяет только при монтировании: опции, пришедшие позже (справочник), выбор не вернут.
+  // Сверяем выбор при каждой смене опций — общим наблюдателем всех списков.
+  const resync = (): void => write(target, source.value.peek(), binding);
+  selects.set(target, resync);
+  (optionsObserver ??= new MutationObserver(onOptionsChange)).observe(target, {
+    childList: true,
+    subtree: true,
+  });
+  return () => {
+    if (selects.get(target) === resync) selects.delete(target);
+    stop();
+  };
+}
+
+/** Сверка выбора подключённых списков по смене их опций. */
+const selects = new WeakMap<Element, () => void>();
+let optionsObserver: MutationObserver | undefined;
+
+/** Смена опций: сверить выбор каждого затронутого списка один раз. */
+function onOptionsChange(records: MutationRecord[]): void {
+  const touched = new Set<() => void>();
+  for (const record of records) {
+    let node: Node | null = record.target;
+    while (node !== null && (node as Element).tagName !== 'SELECT') node = node.parentNode;
+    const resync = node === null ? undefined : selects.get(node as Element);
+    if (resync !== undefined) touched.add(resync);
+  }
+  for (const resync of touched) resync();
+}
+
+/** Подписаться на значение поля: слушатель на подписке хука (`watch`) либо свой effect. */
+function subscribe(target: FormElement, source: FieldValueSource, binding: Binding): () => void {
+  const { watch } = binding;
+  if (watch !== undefined) {
+    const value = source.value.peek();
+    if (!Object.is(value, binding.rendered)) write(target, value, binding);
+    return watch((next) => write(target, next, binding));
+  }
+  // Запись в DOM чтений сигналов не делает: подписка effect — только значение поля.
+  let first = true;
+  return effect(() => {
+    const value = source.value.value;
+    // Элемент смонтирован с начальным значением этого рендера: сверять нечего.
+    if (first) {
+      first = false;
+      if (Object.is(value, binding.rendered)) return;
+    }
+    write(target, value, binding);
+  });
 }
 
 /**
@@ -153,7 +208,8 @@ export function uncontrolledRef(
   source: FieldValueSource,
   adapter: FieldAdapter,
   rest: Record<string, unknown>,
-  rendered: unknown = NOT_RENDERED
+  rendered: unknown = NOT_RENDERED,
+  watch?: ValueWatch
 ): FieldRef {
   let binding = bindings.get(source);
   if (binding === undefined || binding.adapter !== adapter) {
@@ -161,5 +217,6 @@ export function uncontrolledRef(
   }
   binding.rest = rest;
   binding.rendered = rendered;
+  binding.watch = watch;
   return binding.ref;
 }

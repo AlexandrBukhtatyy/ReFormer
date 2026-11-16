@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
-import { effect, type Signal } from '@preact/signals-core';
+import { effect, untracked, type Signal } from '@preact/signals-core';
 import { shallowEqual } from '../../../model/scope';
 
 /** @internal */
@@ -23,6 +23,53 @@ export interface SignalConfig<K extends string> {
 }
 
 /**
+ * Ключ скрытой подписки снимка на значение ключа: `snapshot[SNAPSHOT_WATCH](key, listener)`.
+ * Слушателей вызывает effect подписки хука — отдельный effect на слушателя не заводится.
+ * @internal
+ */
+export const SNAPSHOT_WATCH: unique symbol = Symbol('reformer.snapshot-watch');
+
+/** Подписка снимка на смену значения ключа; возвращает отписку. @internal */
+export type SnapshotWatch = (key: string, listener: (value: unknown) => void) => () => void;
+
+/** Слушатели ключа и значение, о котором они знают. */
+interface Watched {
+  last: unknown;
+  readonly listeners: Set<(value: unknown) => void>;
+}
+
+/** Текущие сигналы хука — их держит ref, подписка и снимок читают через него. */
+type SignalsRef = { readonly current: SignalMap };
+
+/**
+ * Подписка снимка на значения ключей: слушатели живут в `watched` кеша хука и переживают
+ * переподписку.
+ */
+function watchOf(owner: { __watched?: Map<string, Watched> }, signals: SignalsRef): SnapshotWatch {
+  return (key, listener) => {
+    const watched = (owner.__watched ??= new Map());
+    let entry = watched.get(key);
+    if (entry === undefined) {
+      entry = { last: signals.current[key]?.peek(), listeners: new Set() };
+      watched.set(key, entry);
+    }
+    const { listeners } = entry;
+    listeners.add(listener);
+    return () => void listeners.delete(listener);
+  };
+}
+
+/** Сообщить слушателям ключей, чьё значение сменилось с прошлого раза. */
+function notifyWatched(watched: Map<string, Watched>, signals: SignalMap): void {
+  for (const [key, entry] of watched) {
+    const value = signals[key]?.peek();
+    if (Object.is(value, entry.last)) continue;
+    entry.last = value;
+    for (const listener of entry.listeners) listener(value);
+  }
+}
+
+/**
  * Хук для подписки на набор сигналов с кешированием.
  *
  * Подписка — только на сигналы из `configs`: их смена пересобирает снапшот. Остальные сигналы
@@ -34,10 +81,14 @@ export interface SignalConfig<K extends string> {
  * над объектом текущих значений: одна аллокация на снимок, а копия (`{ ...snapshot }`),
  * `Object.keys` и сравнение в тестах видят обычные поля объекта.
  */
-function trackingHandler(used: Set<string>): ProxyHandler<Record<string, unknown>> {
+function trackingHandler(
+  used: Set<string>,
+  watch: SnapshotWatch
+): ProxyHandler<Record<string, unknown>> {
   return {
     get(target, key) {
       if (typeof key === 'string') used.add(key);
+      else if (key === SNAPSHOT_WATCH) return watch;
       return target[key as string];
     },
   };
@@ -75,6 +126,9 @@ export function useSignalSubscription<
     /** Текущие значения — цель снимков подписки по прочитанному, только ключи сигналов. */
     __values?: Record<string, unknown>;
     __handler?: ProxyHandler<Record<string, unknown>>;
+    /** Слушатели значений ключей — {@link SNAPSHOT_WATCH}. */
+    __watched?: Map<string, Watched>;
+    __watch?: SnapshotWatch;
   };
 
   const cacheRef = useRef<CacheType | null>(null);
@@ -110,6 +164,7 @@ export function useSignalSubscription<
 
       const dispose = effect(() => {
         const currentSignals = signalsRef.current;
+        const cache = cacheRef.current!;
         // Подписка — только на сигналы из configs: сигнал вне них снапшот всё равно не
         // пересобирает, а будил бы effect впустую.
         //
@@ -122,6 +177,10 @@ export function useSignalSubscription<
         for (const { key } of configsRef.current) {
           currentSignals[key]?.valueOf();
         }
+        // Слушатели значений — здесь же, без своих effect. Первый запуск тоже: подписка заводится
+        // после фиксации, и смена значения между ними иначе прошла бы мимо слушателя.
+        if (cache.__watched !== undefined)
+          untracked(() => notifyWatched(cache.__watched!, currentSignals));
 
         if (isFirstRun) {
           isFirstRun = false;
@@ -199,7 +258,10 @@ export function useSignalSubscription<
         values[key] = value;
       }
       cache.__key = subscriptionKey;
-      cache.__handler ??= trackingHandler(cache.__used);
+      cache.__handler ??= trackingHandler(
+        cache.__used,
+        (cache.__watch ??= watchOf(cache, signalsRef))
+      );
       // Цель у снимков общая: непрочитанное поле, изменённое без перерисовки, первое чтение увидит
       // свежим и в прежнем снимке.
       cache.__snapshot = new Proxy(values, cache.__handler) as TSnapshot;
@@ -217,4 +279,18 @@ export function useSignalSubscription<
   }, [subscriptionKey, tracked]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
+ * Подписка на значение поля через подписку его снимка `useFormControl` — для
+ * `FieldSeam.watch`: неуправляемая привязка (`FieldAdapter.uncontrolled`) получает смены значения от
+ * хука и не заводит своего effect на поле. Снимок не поля (массив, чужой объект) — `undefined`.
+ *
+ * @param state - Снимок `useFormControl(control)` поля.
+ */
+export function watchValueOf(
+  state: object
+): ((listener: (value: unknown) => void) => () => void) | undefined {
+  const watch = (state as { [SNAPSHOT_WATCH]?: SnapshotWatch })[SNAPSHOT_WATCH];
+  return watch === undefined ? undefined : (listener) => watch('value', listener);
 }

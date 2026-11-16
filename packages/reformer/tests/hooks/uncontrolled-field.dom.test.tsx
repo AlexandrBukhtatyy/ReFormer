@@ -5,12 +5,13 @@
  * Компонент поля здесь — как у потребителя: `useFormControl` и seam, где `value` читается при
  * обращении.
  */
-import { Profiler, createRef, type ChangeEvent, type ReactNode } from 'react';
+import { Profiler, createRef, useLayoutEffect, type ChangeEvent, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { createForm } from '../../src/form/form-bundle';
 import type { FormControl } from '../../src/form/types/index';
 import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
+import { watchValueOf } from '../../src/platforms/react/hooks/useSignalSubscription';
 import {
   bindFieldProps,
   type FieldAdapter,
@@ -208,6 +209,31 @@ describe('неуправляемая привязка — чекбокс, спи
     expect(select.value).toBe('msk');
   });
 
+  it('список: опции, пришедшие после монтирования, возвращают выбор значения поля', async () => {
+    const { form } = createProfile();
+    function City({ cities }: { cities: string[] }) {
+      const { seam } = useSeam(form.city as FormControl<unknown>);
+      return (
+        <select data-testid="control" {...bindFieldProps(textAdapter, seam)}>
+          {cities.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    const view = render(<City cities={[]} />);
+    const select = view.getByTestId('control') as HTMLSelectElement;
+
+    view.rerender(<City cities={['spb', 'msk']} />);
+    // Наблюдатель опций — микрозадача после вставки.
+    await Promise.resolve();
+
+    expect(select.value).toBe('msk');
+    expect(form.city.value.value).toBe('msk');
+  });
+
   it('радиогруппа: одна ссылка на все кнопки, отмечена кнопка значения поля', () => {
     const { form } = createProfile();
     function Cities() {
@@ -276,5 +302,56 @@ describe('неуправляемая привязка — жизненный ц�
     expect(liveEffects()).toBe(baseline);
     act(() => form.name.setValue('Пётр'));
     expect(control.value).toBe('Анна');
+  });
+});
+
+describe('неуправляемая привязка — подписка хука (seam.watch)', () => {
+  /** Поле, чей seam несёт подписку снимка на значение. */
+  function WatchedField({ control }: { control: FormControl<unknown> }) {
+    const { seam, state } = useSeam(control);
+    return (
+      <input
+        data-testid="control"
+        {...bindFieldProps(textAdapter, { ...seam, watch: watchValueOf(state) })}
+      />
+    );
+  }
+
+  it('своего effect на поле нет; запись извне доходит до DOM', () => {
+    const { form } = createProfile();
+    const baseline = liveEffects();
+    const plain = render(
+      <Field control={form.name as FormControl<unknown>} adapter={textAdapter} />
+    );
+    const withEffect = liveEffects() - baseline;
+    plain.unmount();
+
+    const { view, control } = renderCounting(
+      <WatchedField control={form.name as FormControl<unknown>} />
+    );
+    expect(liveEffects() - baseline).toBe(withEffect - 1);
+
+    fireEvent.change(control, { target: { value: 'Анна Ивановна' } });
+    expect(form.name.value.value).toBe('Анна Ивановна');
+    act(() => form.name.setValue('Пётр'));
+    expect(control.value).toBe('Пётр');
+    act(() => form.name.reset());
+    expect(control.value).toBe('Анна');
+
+    view.unmount();
+    expect(liveEffects()).toBe(baseline);
+    act(() => form.name.setValue('Олег'));
+    expect(control.value).toBe('Анна');
+  });
+
+  it('запись между фиксацией и подпиской хука доходит до DOM', () => {
+    const { form } = createProfile();
+    // Эффект раскладки родителя — после подключения ref, до пассивной подписки хука поля.
+    function Host() {
+      useLayoutEffect(() => form.name.setValue('Пётр'), []);
+      return <WatchedField control={form.name as FormControl<unknown>} />;
+    }
+    const { control } = renderCounting(<Host />);
+    expect(control.value).toBe('Пётр');
   });
 });
