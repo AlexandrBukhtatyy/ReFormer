@@ -2746,7 +2746,7 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 Контролы говорят на разных диалектах (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие
 в `onChange`), форма — на value-based seam (`value` + `onChange(value)` + `onBlur`). Перевод
 описывает `FieldAdapter` (`valueProp`, `changeProp`, `fromEmit`, `toValue`, `bindBlur`, `strip`,
-`passControl` — все необязательны). Компонент объявляет его статикой `reformerAdapter`, а обёртка
+`passControl`, `uncontrolled` — все необязательны). Компонент объявляет его статикой `reformerAdapter`, а обёртка
 поля (`FormField.Control` из `@reformer/cdk`, рендерер `@reformer/renderer-react`) читает статику
 и связывает поле сама — отдельные «field-версии» компонентов не нужны.
 
@@ -2773,6 +2773,55 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 В приложении обычно достаточно `defineFieldControl(MyControl, { adapter })` из
 `@reformer/ui-kit/fields` (плюс готовые пресеты `checkedAdapter`, `valueChangeAdapter`, …); для
 компонентов чужой библиотеки без статики — `RendererSettings.resolveFieldAdapter`.
+
+#### Ввод без рендера — `uncontrolled: true`
+
+Управляемый контрол получает `value` пропом, поэтому каждая клавиша перерисовывает компонент поля
+(обёртку, рамку и сам контрол). Нативному элементу формы это не нужно: значение можно писать прямо в
+DOM. Адаптер с `uncontrolled: true` так и делает. `bindFieldProps` отдаёт контролу вместо `value`:
+
+- `defaultValue` / `defaultChecked` — начальное значение, первый кадр и SSR;
+- `ref`, который пишет в элемент каждую смену значения поля: `setValue`, `reset`, `computeFrom`,
+  `copyFrom`.
+
+Ввод доходит до поля через `onChange` и `fromEmit`, как обычно. Компонент поля перерисовывается
+только на то, что читает при рендере: ошибку, доступность, пропсы.
+
+```tsx
+import type { ChangeEvent } from 'react';
+import type { FieldAdapter } from '@reformer/core/react';
+
+export const nativeTextAdapter: FieldAdapter = {
+  uncontrolled: true,
+  fromEmit: (e) => (e as ChangeEvent<HTMLInputElement>).target.value,
+  toValue: (v) => v ?? '',
+};
+TextInput.reformerAdapter = nativeTextAdapter; // TextInput передаёт ref в <input>
+```
+
+Условия:
+
+- **Контрол передаёт `ref` нативному элементу.** `input`, `textarea`, `select`, чекбокс; у
+  радиогруппы — каждой кнопке. В React 19 `ref` — обычный проп, в React 18 нужен `forwardRef`.
+  Без `ref` значение извне до элемента не дойдёт.
+- **`fromEmit` читает значение из `event.target`.** Привязка разбирает им показанное в элементе и
+  пишет в DOM, только если оно отличается от значения поля. Поэтому собственный ввод не
+  перетирается: `5.` числового поля, текст маски, позиция курсора.
+- **Seam несёт ноду поля (`seam.control`), а `value` читается при обращении.** `FormField.Control`
+  из `@reformer/cdk` делает это сам. Своё поле на хуке берёт готовый `seam` из `useFormField`:
+
+  ```tsx
+  const { seam, state } = useFormField(control); // @reformer/cdk/form-field
+  const Control = control.component;
+  return <Control {...bindFieldProps(getFieldAdapter(Control), seam, rest, Control)} />;
+  ```
+
+  Seam без `control` (рендерер `@reformer/renderer-react`) даёт обычную управляемую привязку.
+- **Компонент не читает значение при рендере** (`state.value`, `useFormControl(control).value`).
+  Иначе ввод снова перерисовывает поле: работает, но выигрыша нет.
+
+Контролам со своим состоянием — Radix, комбобоксу, календарю — флаг не нужен: они остаются
+управляемыми.
 
 ### Integration with UI libraries (shadcn etc.)
 
@@ -10112,6 +10161,19 @@ export interface FieldAdapter {
   /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
   strip?: string[];
   /**
+   * Неуправляемая привязка: контрол — нативный элемент формы (`input`, `textarea`, `select`,
+   * чекбокс, радиокнопки) либо передаёт `ref` такому элементу. Значение поля пишется прямо в
+   * DOM-свойство `valueProp` (`value` или `checked`), а не пропом React: компонент поля, который не
+   * читает `value` при рендере, на ввод не перерисовывается. Ввод доходит до поля через `changeProp`
+   * и `fromEmit`, запись в поле извне (`setValue`, `reset`, `computeFrom`) — до элемента.
+   *
+   * Работает, когда seam несёт ноду поля (`seam.control`); без неё привязка управляемая. `fromEmit`
+   * должен читать значение из `event.target` — так привязка сверяет показанное с полем и не
+   * перетирает ввод (`5.` числового поля, текст маски). Контролы со своим состоянием (Radix,
+   * комбобокс) остаются управляемыми.
+   */
+  uncontrolled?: boolean;
+  /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
    * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
    * `useFormControl(control)`.
@@ -10484,13 +10546,35 @@ Seam поля: текущее значение и value-based колбэки.
 **Signature:**
 ```typescript
 export interface FieldSeam {
+  /**
+   * Значение поля. Неуправляемая привязка ({@link FieldAdapter.uncontrolled}) его не читает:
+   * передавайте seam, где `value` читается при обращении (`seam` хука `useFormField` из
+   * `@reformer/cdk`), — тогда компонент не подписан на значение.
+   */
   value: unknown;
   onChange: (value: unknown) => void;
   onBlur: () => void;
+  /** Нода поля — источник значения неуправляемой привязки. Без неё привязка управляемая. */
+  control?: FieldValueSource;
 }
 ```
 
 _Source: src/platforms/react/field-binding/field-adapter.ts_
+
+### FieldValueSource
+
+**Kind:** `interface`
+
+Источник значения неуправляемой привязки — нода поля формы (`FormControl`).
+
+**Signature:**
+```typescript
+export interface FieldValueSource {
+  readonly value: ReadonlySignal<unknown>;
+}
+```
+
+_Source: src/platforms/react/field-binding/uncontrolled.ts_
 
 ### FileLike
 

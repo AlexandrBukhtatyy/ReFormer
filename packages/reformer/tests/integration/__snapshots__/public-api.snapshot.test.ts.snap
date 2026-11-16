@@ -266,6 +266,7 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
   "FieldControlState": "тип",
   "FieldHandle": "тип",
   "FieldSeam": "тип",
+  "FieldValueSource": "тип",
   "FormBundleContext": "объект",
   "FormBundleLike": "тип",
   "FormFlowSnapshot": "тип",

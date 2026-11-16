@@ -10,6 +10,8 @@
  * @module platforms/react/field-binding
  */
 
+import { NOT_RENDERED, uncontrolledRef, type FieldValueSource } from './uncontrolled';
+
 /**
  * Адаптер поля: описывает диалект контрола (`checked`/`onCheckedChange`, `value`/`onValueChange`,
  * DOM-событие в `onChange`, …). Все ключи необязательны — по умолчанию seam проходит как есть.
@@ -40,6 +42,19 @@ export interface FieldAdapter {
   bindBlur?: (onBlur: () => void) => Record<string, unknown>;
   /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
   strip?: string[];
+  /**
+   * Неуправляемая привязка: контрол — нативный элемент формы (`input`, `textarea`, `select`,
+   * чекбокс, радиокнопки) либо передаёт `ref` такому элементу. Значение поля пишется прямо в
+   * DOM-свойство `valueProp` (`value` или `checked`), а не пропом React: компонент поля, который не
+   * читает `value` при рендере, на ввод не перерисовывается. Ввод доходит до поля через `changeProp`
+   * и `fromEmit`, запись в поле извне (`setValue`, `reset`, `computeFrom`) — до элемента.
+   *
+   * Работает, когда seam несёт ноду поля (`seam.control`); без неё привязка управляемая. `fromEmit`
+   * должен читать значение из `event.target` — так привязка сверяет показанное с полем и не
+   * перетирает ввод (`5.` числового поля, текст маски). Контролы со своим состоянием (Radix,
+   * комбобокс) остаются управляемыми.
+   */
+  uncontrolled?: boolean;
   /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
    * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
@@ -108,12 +123,25 @@ export function getFieldAdapter(component: unknown): FieldAdapter | undefined {
 
 /** Seam поля: текущее значение и value-based колбэки. */
 export interface FieldSeam {
+  /**
+   * Значение поля. Неуправляемая привязка ({@link FieldAdapter.uncontrolled}) его не читает:
+   * передавайте seam, где `value` читается при обращении (`seam` хука `useFormField` из
+   * `@reformer/cdk`), — тогда компонент не подписан на значение.
+   */
   value: unknown;
   onChange: (value: unknown) => void;
   onBlur: () => void;
+  /** Нода поля — источник значения неуправляемой привязки. Без неё привязка управляемая. */
+  control?: FieldValueSource;
 }
 
 const identity = (x: unknown): unknown => x;
+
+/** Проп начального значения нативного элемента по `valueProp` адаптера. */
+const DEFAULT_PROPS: Readonly<Record<string, string>> = {
+  value: 'defaultValue',
+  checked: 'defaultChecked',
+};
 
 /**
  * Props контрола под адаптер: срезает служебные ключи обёртки и `strip` адаптера, кладёт значение
@@ -148,9 +176,29 @@ export function bindFieldProps(
   }
 
   const fromEmit = adapter.fromEmit ?? identity;
+  const valueProp = adapter.valueProp ?? 'value';
+  if (adapter.uncontrolled === true && seam.control !== undefined) {
+    // Значение — в DOM через ref; начальное — пропом `default*`, без подписки на значение.
+    const defaultProp = DEFAULT_PROPS[valueProp];
+    const initial = seam.control.value.peek();
+    return {
+      ...rest,
+      ...(defaultProp !== undefined
+        ? { [defaultProp]: (adapter.toValue ?? identity)(initial) }
+        : {}),
+      [adapter.changeProp ?? 'onChange']: (arg: unknown) => seam.onChange(fromEmit(arg, rest)),
+      ...(adapter.bindBlur ? adapter.bindBlur(seam.onBlur) : { onBlur: seam.onBlur }),
+      ref: uncontrolledRef(
+        seam.control,
+        adapter,
+        rest,
+        defaultProp !== undefined ? initial : NOT_RENDERED
+      ),
+    };
+  }
   return {
     ...rest,
-    [adapter.valueProp ?? 'value']: (adapter.toValue ?? identity)(seam.value),
+    [valueProp]: (adapter.toValue ?? identity)(seam.value),
     [adapter.changeProp ?? 'onChange']: (arg: unknown) => seam.onChange(fromEmit(arg, rest)),
     ...(adapter.bindBlur ? adapter.bindBlur(seam.onBlur) : { onBlur: seam.onBlur }),
   };

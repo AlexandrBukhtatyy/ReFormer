@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { forwardRef } from 'react';
+import { signal } from '@preact/signals-core';
 import {
   bindFieldProps,
   getFieldAdapter,
@@ -13,6 +14,9 @@ const seam = (value: unknown = null) => ({
   onChange: vi.fn<(v: unknown) => void>(),
   onBlur: vi.fn<() => void>(),
 });
+
+/** Источник значения неуправляемой привязки — как у ноды поля. */
+const signalSource = (initial: unknown) => ({ value: signal(initial) });
 
 describe('bindFieldProps', () => {
   it('без адаптера: value-based seam как есть, componentProps сохраняются', () => {
@@ -100,6 +104,47 @@ describe('bindFieldProps', () => {
   it('seam перекрывает одноимённые componentProps', () => {
     const props = bindFieldProps(undefined, seam('real'), { value: 'stale' });
     expect(props.value).toBe('real');
+  });
+
+  const uncontrolled: FieldAdapter = {
+    uncontrolled: true,
+    fromEmit: (e) => (e as { target: { value: string } }).target.value,
+    toValue: (v) => v ?? '',
+  };
+
+  it('uncontrolled без ноды в seam — управляемая привязка', () => {
+    const props = bindFieldProps(uncontrolled, seam('Анна'));
+    expect(props.value).toBe('Анна');
+    expect(props.ref).toBeUndefined();
+  });
+
+  it('uncontrolled с нодой: defaultValue и ref вместо value, seam.value не читается', () => {
+    const control = signalSource(null);
+    const read = vi.fn(() => 'Анна');
+    const s = {
+      ...seam(),
+      control,
+      get value() {
+        return read();
+      },
+    };
+    const props = bindFieldProps(uncontrolled, s, { placeholder: 'Имя' });
+    expect(props).not.toHaveProperty('value');
+    expect(props.defaultValue).toBe('');
+    expect(props.placeholder).toBe('Имя');
+    expect(typeof props.ref).toBe('function');
+    expect(read).not.toHaveBeenCalled();
+    (props.onChange as (e: unknown) => void)({ target: { value: 'Пётр' } });
+    expect(s.onChange).toHaveBeenCalledWith('Пётр');
+    // Ссылка стабильна между рендерами: React не переподключает элемент.
+    expect(bindFieldProps(uncontrolled, s).ref).toBe(props.ref);
+  });
+
+  it('uncontrolled чекбокс — defaultChecked', () => {
+    const adapter: FieldAdapter = { uncontrolled: true, valueProp: 'checked', toValue: Boolean };
+    const props = bindFieldProps(adapter, { ...seam(), control: signalSource(1) });
+    expect(props.defaultChecked).toBe(true);
+    expect(props).not.toHaveProperty('checked');
   });
 });
 
