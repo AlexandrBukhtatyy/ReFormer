@@ -14,6 +14,13 @@ import { buildFormProxy } from '../form-proxy-builder';
 import { isDerived } from '../../model/derived-registry';
 import { NODE_KIND, rawNode, type InternalFormNode } from './node-kind';
 import { createAvailability, createIssues, createPending } from './state';
+import { isLazyLeaf, type LazyLeaf } from './lazy-leaf';
+
+/** Ребёнок группы: готовая нода либо ленивый лист (нода поля создаётся при первом обращении). */
+export type GroupChild = InternalFormNode | LazyLeaf;
+
+/** Нода ребёнка; ленивый лист её создаёт. */
+const nodeOf = (child: GroupChild): InternalFormNode => (isLazyLeaf(child) ? child.node : child);
 
 export class FormGroupNode<T> implements InternalFormNode<T> {
   readonly [NODE_KIND] = 'group' as const;
@@ -28,8 +35,10 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
   readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
 
-  /** Сырые ноды детей по именам полей данных. */
-  private readonly children: ReadonlyMap<string, InternalFormNode>;
+  /** Дети по именам полей данных: ноды и ленивые листья. */
+  private readonly children: ReadonlyMap<string, GroupChild>;
+  /** Ноды всех детей — для сводных сигналов; создаются при первом их вычислении. */
+  private allNodes: readonly InternalFormNode[] | undefined;
   /** Замечания самой группы (ответ сервера на форму целиком). */
   private readonly own = createIssues();
   private readonly availability = createAvailability();
@@ -48,28 +57,26 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   private readonly unbound: ReadonlySet<string>;
 
   /**
-   * @param children - Готовые ноды детей по именам полей данных. Вид ребёнка задан нодой: по
-   *   именам и значениям группа ничего не угадывает.
+   * @param children - Дети по именам полей данных: готовые ноды либо ленивые листья. Вид ребёнка
+   *   задан нодой: по именам и значениям группа ничего не угадывает.
    * @param unbound - Имена полей-массивов модели, для которых сборка ноду не построила.
    */
-  constructor(
-    children: Iterable<readonly [string, InternalFormNode]>,
-    unbound: Iterable<string> = []
-  ) {
+  constructor(children: Iterable<readonly [string, GroupChild]>, unbound: Iterable<string> = []) {
     this.children = new Map(children);
     this.unbound = new Set(unbound);
-    const nodes = [...this.children.values()];
 
     this.value = computed(() => {
       const result: Record<string, unknown> = {};
+      // Значение ленивого листа — из сигнала модели: ноду ради чтения не строим.
       this.children.forEach((child, key) => {
-        result[key] = child.value.value;
+        result[key] = isLazyLeaf(child) ? child.signal.value : child.value.value;
       });
       return result as T;
     });
     const { disabled } = this.availability;
     const aggregate = createAggregateSignals({
-      getChildren: () => nodes,
+      // Сводное состояние читает каждого ребёнка: при первом вычислении строятся все ноды.
+      getChildren: () => (this.allNodes ??= [...this.children.values()].map(nodeOf)),
       ownIssues: this.own.list,
       ownPending: computed(() => !disabled.value && this.ownPending.active.value),
       disabled,
@@ -84,6 +91,11 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     this.disabled = this.availability.disabled;
   }
 
+  /** Ребёнок по имени поля — нода либо ленивый лист, без создания ноды. @internal */
+  childAt(key: string): GroupChild | undefined {
+    return this.children.get(key);
+  }
+
   /** Лицо группы: прокси с нодами полей. Строится один раз. */
   get proxy(): FormGroup<T> {
     this.face ??= buildFormProxy<T>(this, this.children, this.unbound);
@@ -93,9 +105,15 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   getValue(): T {
     const result: Record<string, unknown> = {};
     this.children.forEach((child, key) => {
-      result[key] = child.getValue();
+      result[key] = isLazyLeaf(child) ? child.signal.peek() : child.getValue();
     });
     return result as T;
+  }
+
+  /** Записываемый источник значения ребёнка: сигнал модели листа либо `value` ноды. */
+  private sourceOf(child: GroupChild): Signal<unknown> | ReadonlySignal<unknown> {
+    if (isLazyLeaf(child)) return child.signal;
+    return this.leafSignals.get(child) ?? child.value;
   }
 
   /** Записать значения полей; цели `compute` пропускаются — ими владеет поведение. */
@@ -106,9 +124,8 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     for (const [key, fieldValue] of Object.entries(value as Record<string, unknown>)) {
       const child = this.children.get(key);
       if (!child) continue;
-      const source = this.leafSignals.get(child) ?? child.value;
-      if (isDerived(source as Signal<unknown>)) continue;
-      (child as FormNode<unknown>).setValue(fieldValue);
+      if (isDerived(this.sourceOf(child) as Signal<unknown>)) continue;
+      (nodeOf(child) as FormNode<unknown>).setValue(fieldValue);
     }
   }
 
@@ -125,39 +142,46 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
     this.beforeReset?.();
     this.own.clear();
     this.children.forEach((child, key) => {
-      const source = this.leafSignals.get(child) ?? child.value;
-      const next = isDerived(source as Signal<unknown>)
+      const next = isDerived(this.sourceOf(child) as Signal<unknown>)
         ? undefined
         : (value as Record<string, unknown> | undefined)?.[key];
-      child.reset(next);
+      nodeOf(child).reset(next);
     });
   }
 
   /** Сброс всех полей группы к значениям создания, у целей `compute` тоже. @internal */
   resetToCreation(): void {
     this.own.clear();
-    this.children.forEach((child) => rawNode(child).resetToCreation());
+    this.children.forEach((child) => rawNode(nodeOf(child)).resetToCreation());
   }
 
   markAsTouched(): void {
-    this.children.forEach((child) => child.markAsTouched());
+    this.children.forEach((child) => nodeOf(child).markAsTouched());
   }
 
+  /** Лист без ноды и так не тронут. */
   markAsUntouched(): void {
-    this.children.forEach((child) => child.markAsUntouched());
+    this.children.forEach((child) => {
+      const node = isLazyLeaf(child) ? child.peek() : child;
+      node?.markAsUntouched();
+    });
   }
 
   disable(): void {
     this.availability.setDisabled(true);
     // Как у поля: выключенная нода замечаний не держит.
     this.own.clear();
-    this.children.forEach((child) => child.disable());
+    this.children.forEach((child) => nodeOf(child).disable());
   }
 
   /** Включить группу и детей; поля с блокировкой из схемы (`disabled: true`) остаются выключенными. */
   enable(): void {
     this.availability.setDisabled(false);
-    this.children.forEach((child) => rawNode(child).enableFromParent());
+    // Лист без ноды не выключен: выключение строит ноду.
+    this.children.forEach((child) => {
+      const node = isLazyLeaf(child) ? child.peek() : child;
+      if (node) rawNode(node).enableFromParent();
+    });
   }
 
   /** Каскад от контейнера — то же, что `enable()`: своей блокировки из схемы у группы нет. @internal */
@@ -171,7 +195,10 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
 
   clearIssues(): void {
     this.own.clear();
-    this.children.forEach((child) => child.clearIssues());
+    this.children.forEach((child) => {
+      const node = isLazyLeaf(child) ? child.peek() : child;
+      node?.clearIssues();
+    });
   }
 
   /** Своё ожидание async-правила на ручке группы; ожидание детей агрегат добавит сам. @internal */
@@ -198,6 +225,9 @@ export class FormGroupNode<T> implements InternalFormNode<T> {
   dispose(): void {
     this.behaviorCleanup?.();
     this.behaviorCleanup = undefined;
-    this.children.forEach((child) => child.dispose());
+    this.children.forEach((child) => {
+      const node = isLazyLeaf(child) ? child.peek() : child;
+      node?.dispose();
+    });
   }
 }

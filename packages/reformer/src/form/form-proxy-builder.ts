@@ -11,6 +11,7 @@
 
 import type { FormGroup, FormNode } from './types/nodes';
 import { RAW_NODE, kindOf, type InternalFormNode } from './nodes/node-kind';
+import { isLazyLeaf, type LazyLeaf } from './nodes/lazy-leaf';
 
 /** Члены контракта {@link FormNode}: их имя у группы — член ноды, а не поле. */
 const NODE_MEMBERS = [
@@ -45,8 +46,9 @@ const MEMBER_NAMES: ReadonlySet<PropertyKey> = new Set(NODE_MEMBERS);
 const FIELDS_NAMESPACE = '$';
 
 /** Лицо ноды ребёнка: у группы — её прокси, у поля и массива — сама нода. */
-function faceOf(node: InternalFormNode): unknown {
-  return kindOf(node) === 'group' ? (node as unknown as { proxy: unknown }).proxy : node;
+function faceOf(child: InternalFormNode | LazyLeaf): unknown {
+  if (isLazyLeaf(child)) return child.node;
+  return kindOf(child) === 'group' ? (child as unknown as { proxy: unknown }).proxy : child;
 }
 
 /**
@@ -73,11 +75,12 @@ function warnUnbound(key: string): void {
  */
 export function buildFormProxy<T>(
   target: InternalFormNode<T>,
-  children: ReadonlyMap<string, InternalFormNode>,
+  children: ReadonlyMap<string, InternalFormNode | LazyLeaf>,
   unbound: ReadonlySet<string> = new Set()
 ): FormGroup<T> {
   const warned = new Set<string>();
   let fields: Record<string, unknown> | undefined;
+  // Пространство `$` перечисляет все поля — строит ноды всех ленивых листьев.
   const fieldsRecord = (): Record<string, unknown> => {
     if (!fields) {
       const record: Record<string, unknown> = {};
@@ -88,6 +91,8 @@ export function buildFormProxy<T>(
     }
     return fields;
   };
+  // Одно поле — только его нода.
+  const fieldAt = (key: string): unknown => faceOf(children.get(key)!);
   // Методы привязаны к сырому узлу: `this` внутри метода — класс, а не прокси с полями.
   const bound = new Map<PropertyKey, unknown>();
   const memberOf = (prop: PropertyKey): unknown => {
@@ -106,7 +111,7 @@ export function buildFormProxy<T>(
       if (prop === RAW_NODE) return target;
       if (prop === FIELDS_NAMESPACE) return fieldsRecord();
       if (MEMBER_NAMES.has(prop)) return memberOf(prop);
-      if (typeof prop === 'string' && children.has(prop)) return fieldsRecord()[prop];
+      if (typeof prop === 'string' && children.has(prop)) return fieldAt(prop);
       if (typeof prop === 'string' && unbound.has(prop)) {
         if (!warned.has(prop)) {
           warned.add(prop);
@@ -129,7 +134,7 @@ export function buildFormProxy<T>(
     ownKeys: () => [...new Set([...Reflect.ownKeys(target), ...children.keys()])],
     getOwnPropertyDescriptor: (_, prop) =>
       typeof prop === 'string' && children.has(prop)
-        ? { enumerable: true, configurable: true, value: fieldsRecord()[prop] }
+        ? { enumerable: true, configurable: true, value: fieldAt(prop) }
         : Reflect.getOwnPropertyDescriptor(target, prop),
   }) as FormGroup<T>;
 }

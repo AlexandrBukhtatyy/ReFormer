@@ -9,18 +9,24 @@
  */
 
 import type { Signal } from '@preact/signals-core';
-import { FormControlNode } from './nodes/form-control-node';
-import { FormGroupNode } from './nodes/form-group-node';
+import { FormGroupNode, type GroupChild } from './nodes/form-group-node';
+import { LazyLeaf } from './nodes/lazy-leaf';
 import { FormArrayNode, type ModelArrayControl } from './nodes/form-array-node';
 import { rawNode, type InternalFormNode } from './nodes/node-kind';
 import { createNodeScope, type NodeScope } from './signal-node-registry';
-import { isModelArraySignal, isModelContainerSignal } from '../model/model-signals-proxy';
+import {
+  containerNodeOf,
+  isModelArraySignal,
+  isModelContainerSignal,
+  signalsProxy,
+} from '../model/model-signals-proxy';
 import { modelOf, provideArrayBlank } from '../model/model-value-proxy';
 import { compileSchema } from './schema/compile';
 import type { CompiledArrayNode, CompiledFieldNode, CompiledSchema } from './schema/compiled';
-import type { FieldConfig, FormGroup } from './types/index';
+import type { FormGroup } from './types/index';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormModel } from '../model/types';
+import type { ModelNode } from '../model/model-nodes';
 import type { FormBehavior } from './behaviors';
 import type { SchemaController } from './schema-controller';
 import type { FormFlow } from './flow/flow';
@@ -70,7 +76,7 @@ const rowFormBuilder =
   (array: CompiledArrayNode, nodes: NodeScope) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (rowModel: any): FormGroup<any> =>
-    createFormFromCompiled({ model: rowModel, compiled: array.row(rowModel), nodes });
+    createFormFromCompiled({ model: rowModel, compiled: array.row(rowModel), nodes, row: true });
 
 /**
  * Строит ноды группы по дереву сигналов модели (`model.$`) и сразу заполняет реестр ручка→нода.
@@ -94,61 +100,63 @@ function buildGroupNode(
   context: BuildContext,
   nodes: NodeScope
 ): FormGroupNode<unknown> {
-  const fields = new Map<string, InternalFormNode>();
-  const leaves: Array<[FormControlNode<unknown>, Signal<unknown>]> = [];
+  const fields = new Map<string, GroupChild>();
   const unbound: string[] = [];
 
-  const addField = (key: string, signal: Signal<unknown>): void => {
-    // Правила валидации живут вне дерева схемы (`@reformer/core/validation`), нода их не
-    // исполняет: из узла схемы она берёт только UI-конфиг.
-    const field = context.fields.get(signal);
-    const config: Omit<FieldConfig<unknown>, 'valueSignal'> = field
-      ? {
-          component: field.component,
-          componentProps: field.source.componentProps,
-          disabled: field.disabled,
-        }
-      : {};
-    const node = new FormControlNode<unknown>({ ...config, valueSignal: signal });
-    fields.set(key, node);
-    nodes.register(signal, node);
-    leaves.push([node, signal]);
+  // Нода поля — при первом обращении (ленивый лист): в мастере при монтировании видны поля одного
+  // шага. Правила валидации живут вне дерева схемы (`@reformer/core/validation`), нода их не
+  // исполняет: из узла схемы она берёт только UI-конфиг. Значение создания снимается сейчас — к
+  // нему возвращает `resetToCreation`, сколько бы ни прошло до создания ноды.
+  const addField = (key: string, signal: Signal<unknown>, modelNode?: ModelNode): void => {
+    const leaf = new LazyLeaf(signal, context.fields.get(signal), signal.peek(), nodes);
+    fields.set(key, leaf);
+    if (modelNode !== undefined) nodes.bind(modelNode, leaf);
+    else nodes.register(signal, leaf);
   };
 
-  for (const key of Object.keys(signals)) {
-    const handle = signals[key];
-
+  const visit = (key: string, handle: unknown, modelNode?: ModelNode): void => {
     if (isModelArraySignal(handle)) {
       const array = context.arrays.get(handle as object);
       if (array) {
         const control = modelOf(handle as { peek(): unknown[] }) as ModelArrayControl<object>;
         const node = new FormArrayNode(control, rowFormBuilder(array, nodes));
         fields.set(key, node as unknown as InternalFormNode);
-        nodes.register(handle as object, node);
+        if (modelNode !== undefined) nodes.bind(modelNode, node);
+        else nodes.register(handle as object, node);
       } else if (context.fields.has(handle as object)) {
-        addField(key, handle as Signal<unknown>);
+        addField(key, handle as Signal<unknown>, modelNode);
       } else {
         unbound.push(key);
       }
-      continue;
+      return;
     }
 
     if (isModelContainerSignal(handle)) {
       // Группа: её узел в дереве `$` перечисляет поля как собственные ключи.
       const node = buildGroupNode(handle as Record<string, unknown>, context, nodes);
       fields.set(key, node);
-      nodes.register(handle as object, node.proxy);
-      continue;
+      if (modelNode !== undefined) nodes.bind(modelNode, node.proxy);
+      else nodes.register(handle as object, node.proxy);
+      return;
     }
 
-    addField(key, handle as Signal<unknown>);
+    addField(key, handle as Signal<unknown>, modelNode);
+  };
+
+  // Дети — из узла модели напрямую: ключи и ручки те же, что у дерева `$`, но без ловушек прокси
+  // (`ownKeys`, `get`) на каждое поле. Ручка листа — его сигнал, контейнера — узел дерева `$`.
+  const group = containerNodeOf(signals);
+  if (group?.kind === 'group') {
+    for (const [key, child] of group.children) {
+      visit(key, child.kind === 'leaf' ? child.signal : signalsProxy(child), child);
+    }
+  } else {
+    for (const key of Object.keys(signals)) visit(key, signals[key]);
   }
 
-  const group = new FormGroupNode<unknown>(fields, unbound);
-  // Связать лист с его сигналом модели на ВЛАДЕЮЩЕЙ группе: групповой setValue сверяет цели
-  // compute с записываемым сигналом, а не с computed-обёрткой value ноды (её markDerived не помечает).
-  for (const [node, signal] of leaves) group.registerLeafSignal(node, signal);
-  return group;
+  // Лист связан со своим сигналом модели в самом листе: групповой setValue сверяет цели compute с
+  // записываемым сигналом, а не с computed-обёрткой value ноды (её markDerived не помечает).
+  return new FormGroupNode<unknown>(fields, unbound);
 }
 
 /**
@@ -248,6 +256,8 @@ export interface CreateFormFromCompiledArgs<T> extends Omit<CreateFormFromModelA
    * проверку в исходную фазу.
    */
   onReset?: () => void;
+  /** Форма строки массива: её корень — не корень сборки, область находит её через массив. */
+  row?: boolean;
 }
 
 /**
@@ -277,6 +287,10 @@ export function createFormFromCompiled<T>(args: CreateFormFromCompiledArgs<T>): 
   if (args.onReset) groupNode.attachResetHook(args.onReset);
   // Корень тоже регистрируется: у формы строки массива он — ручка этой строки.
   nodes.register(model.$ as object, form);
+  // Корень сборки: от него область найдёт свою ноду по пути, если запись в узле модели перезапишет
+  // другая сборка над той же моделью.
+  const rootModel = containerNodeOf(model.$);
+  if (!args.row && rootModel !== undefined) nodes.attachRoot(form, rootModel);
 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
   // cleanup отдаём форме — отпишется в dispose() группы.

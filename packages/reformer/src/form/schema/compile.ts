@@ -77,8 +77,13 @@ const KEY_HINTS: Record<string, string> = {
 
 const EMPTY_PROPS: Readonly<Record<string, unknown>> = Object.freeze({});
 
-/** Узлы, которые выдал компилятор, — их отличает {@link isCompiledNode}. */
-const compiledNodes = new WeakSet<object>();
+/**
+ * Метка узла, который выдал компилятор, — по ней его отличает {@link isCompiledNode}: ссылка узла
+ * на самого себя. Копия узла (`{ ...node }`) метку несёт, но та указывает на оригинал, поэтому копия
+ * скомпилированной не считается. Свойство самого узла, а не запись в `WeakSet`: запись в слабую
+ * коллекцию на каждый узел заметно дороже.
+ */
+const COMPILED: unique symbol = Symbol('reformer.compiled');
 
 /**
  * Узел скомпилированной схемы, а не авторский узел?
@@ -95,7 +100,11 @@ const compiledNodes = new WeakSet<object>();
  * @group Schema
  */
 export function isCompiledNode(value: unknown): value is CompiledNode {
-  return value !== null && typeof value === 'object' && compiledNodes.has(value);
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as { [COMPILED]?: unknown })[COMPILED] === value
+  );
 }
 
 /** Опции {@link compileSchema}. */
@@ -109,7 +118,17 @@ interface ScopeContext {
   readonly scope: SchemaScopeId;
   /** Путь модели области (`phones.0`); пути групп и массивов внутри неё пишутся относительно. */
   readonly basePath: string | undefined;
-  readonly nodes: Map<SchemaNodeId, CompiledNode>;
+  /**
+   * Узлы области в порядке регистрации. Индекс по идентификатору ({@link CompiledSchema.nodes})
+   * строится из них при первом чтении: сборке формы он не нужен, а `Map` по свежим строкам-путям на
+   * каждый узел заметно дорог.
+   */
+  readonly list: CompiledNode[];
+  /**
+   * Есть селектор, похожий на позиционный путь (`#…`): только такой может совпасть с
+   * идентификатором другого узла, и тогда индекс строится сразу — чтобы ошибка была при компиляции.
+   */
+  pathLikeSelector: boolean;
   readonly fields: Map<object, CompiledFieldNode>;
   readonly arrays: Map<object, CompiledArrayNode>;
   /** Позиции узлов по `selector` — для сообщения о повторе. */
@@ -189,21 +208,35 @@ function baseOf(
   };
 }
 
-/** Зарегистрировать узел: в индекс области и в набор скомпилированных. */
+/** Зарегистрировать узел: в список узлов области и как скомпилированный. */
 function register<N extends CompiledNode>(node: N, context: ScopeContext): N {
-  const taken = context.nodes.get(node.id);
-  if (taken !== undefined) {
-    // Повтор селектора ловит `baseOf`; сюда доходит селектор, совпавший с позиционным путём
-    // соседа (`#/1`), — иначе один узел вытеснил бы другой из индекса области.
-    throw new Error(
-      `${AT}: в области «${context.scope}» идентификатор «${node.id}» занят — узлы ` +
-        `${taken.path} и ${node.path}. Селектор не может совпадать с позиционным путём узла ` +
-        '(`#/…`): дайте узлу другой селектор.'
-    );
-  }
-  compiledNodes.add(node);
-  context.nodes.set(node.id, node);
+  (node as { [COMPILED]?: unknown })[COMPILED] = node;
+  context.list.push(node);
+  if (node.selector !== undefined && node.selector.startsWith('#')) context.pathLikeSelector = true;
   return node;
+}
+
+/**
+ * Индекс узлов области по идентификатору. Повтор селектора ловит `baseOf`; здесь — селектор,
+ * совпавший с позиционным путём соседа (`#/1`): иначе один узел вытеснил бы другой из индекса.
+ */
+function indexNodes(
+  list: readonly CompiledNode[],
+  scope: SchemaScopeId
+): Map<SchemaNodeId, CompiledNode> {
+  const nodes = new Map<SchemaNodeId, CompiledNode>();
+  for (const node of list) {
+    const taken = nodes.get(node.id);
+    if (taken !== undefined) {
+      throw new Error(
+        `${AT}: в области «${scope}» идентификатор «${node.id}» занят — узлы ` +
+          `${taken.path} и ${node.path}. Селектор не может совпадать с позиционным путём узла ` +
+          '(`#/…`): дайте узлу другой селектор.'
+      );
+    }
+    nodes.set(node.id, node);
+  }
+  return nodes;
 }
 
 /** Привязать поле к ручке; повторная привязка той же ручки в области — dev-предупреждение. */
@@ -428,7 +461,8 @@ function compileScopeWith(
   const context: ScopeContext = {
     scope,
     basePath: modelPathOf(modelRoot),
-    nodes: new Map(),
+    list: [],
+    pathLikeSelector: false,
     fields: new Map(),
     arrays: new Map(),
     selectorPaths: new Map(),
@@ -436,11 +470,14 @@ function compileScopeWith(
     unknownKeys,
   };
   const root = compileNode(tree, '#', context);
+  let nodes = context.pathLikeSelector ? indexNodes(context.list, scope) : undefined;
   return {
     scope,
     model,
     root,
-    nodes: context.nodes,
+    get nodes() {
+      return (nodes ??= indexNodes(context.list, scope));
+    },
     fields: context.fields,
     arrays: context.arrays,
   };

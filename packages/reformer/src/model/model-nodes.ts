@@ -228,14 +228,23 @@ export function arrayOf<U>(blank: () => U, items: readonly U[] = []): U[] {
 
 export type ModelNode = ModelLeafNode | ModelGroupNode | ModelArrayNode;
 
-/** Лист модели по его сигналу — сигнал и есть ручка, к которой привязано поле формы. */
-const leafBySignal = new WeakMap<object, ModelLeafNode>();
+/**
+ * Лист модели в его сигнале — сигнал и есть ручка, к которой привязано поле формы. Свойство сигнала,
+ * а не запись в `WeakMap`: сигнал листа и так несёт `__path`, а запись в слабую коллекцию на каждый
+ * лист модели заметно дороже.
+ */
+const LEAF: unique symbol = Symbol('reformer.model-leaf');
+
+/** Узел листа модели по его сигналу; `undefined` — сигнал не из модели. @internal */
+export function leafNodeOf(handle: object): ModelLeafNode | undefined {
+  return (handle as { [LEAF]?: ModelLeafNode })[LEAF];
+}
 
 /** Лист модели, чей это сигнал; `undefined` — сигнал не из модели. @internal */
 export function leafOfSignal(
   handle: object
 ): { reference(): unknown; livePath(): ReadonlySignal<string> } | undefined {
-  return leafBySignal.get(handle);
+  return leafNodeOf(handle);
 }
 
 /**
@@ -257,6 +266,8 @@ class PathCell {
 class ModelLeafNode {
   readonly kind = 'leaf' as const;
   readonly signal: PathAwareSignal<unknown>;
+  /** Слот ноды формы последней сборки над узлом — его ведёт реестр форм. @internal */
+  formSlot: unknown = undefined;
   private initial: unknown;
   private readonly pathCell = new PathCell();
 
@@ -264,11 +275,11 @@ class ModelLeafNode {
     initial: unknown,
     public path: string
   ) {
-    const s = signal(initial) as Signal<unknown> & { __path: string };
+    const s = signal(initial) as Signal<unknown> & { __path: string; [LEAF]: ModelLeafNode };
     s.__path = path;
+    s[LEAF] = this;
     this.signal = s as PathAwareSignal<unknown>;
     this.initial = clone(initial);
-    leafBySignal.set(this.signal, this);
   }
 
   rebase(path: string): void {
@@ -324,6 +335,8 @@ class ModelLeafNode {
 export class ModelGroupNode {
   readonly kind = 'group' as const;
   readonly children = new Map<string, ModelNode>();
+  /** Слот ноды формы последней сборки над узлом — его ведёт реестр форм. @internal */
+  formSlot: unknown = undefined;
   private readonly pathCell = new PathCell();
 
   /**
@@ -447,6 +460,8 @@ export class ModelGroupNode {
 export class ModelArrayNode {
   readonly kind = 'array' as const;
   readonly items: Signal<ModelNode[]>;
+  /** Слот ноды формы последней сборки над узлом — его ведёт реестр форм. @internal */
+  formSlot: unknown = undefined;
   private initial: unknown[];
   // Шаблон нового элемента (`arrayOf`). Принадлежит узлу, а не значению: `set`/`reset` заменяют
   // элементы, узел остаётся — и шаблон с ним.

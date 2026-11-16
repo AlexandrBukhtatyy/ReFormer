@@ -11,6 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { tick } from '../test-utils/async';
 import { issueCodes } from '../test-utils/issues';
 import { arrayOf, createModel } from '../../src/model';
+import type { FormModel } from '../../src/model/types';
 import { createForm } from '../../src/form/form-bundle';
 import { applyEach, defineFormBehavior, enableWhen } from '../../src/form/behaviors';
 import { defineValidation, validate } from '../../src/form/validation';
@@ -245,6 +246,29 @@ describe('несколько форм над одной моделью', () => {
     expect(first.render.nodeOf(app.$.user.email)).toBe(first.form.user.email);
     expect(second.render.nodeOf(app.$.user.email)).toBe(second.form.user.email);
     expect(getNodeForSignal(app.$.user.email)).toBe(second.form.user.email);
+  });
+
+  it('то же для группы и поля строки массива: первая сборка находит свои ноды по пути', () => {
+    const app = createApp();
+    const schema = (model: typeof app) => ({
+      children: [
+        {
+          model: model.$.phones,
+          item: (row: FormModel<Phone>) => ({
+            children: [{ model: row.$.number }],
+          }),
+        },
+      ],
+    });
+    const first = createForm<App>({ model: app, schema });
+    const second = createForm<App>({ model: app, schema });
+    const number = app.phones.at(0)!.$.number;
+
+    expect(first.render.nodeOf(number)).toBe(first.form.phones.at(0)!.number);
+    expect(first.render.nodeOf(app.$.user)).toBe(first.form.user);
+    expect(first.render.nodeOf(app.$.phones)).toBe(first.form.phones);
+    expect(second.render.nodeOf(number)).toBe(second.form.phones.at(0)!.number);
+    expect(getNodeForSignal(number)).toBe(second.form.phones.at(0)!.number);
   });
 
   it('явная перепривязка ручки после сборки главнее её собственной ноды', async () => {

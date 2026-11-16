@@ -27,6 +27,9 @@ import {
 /** Путь поля не из модели: его нет, и он не меняется. */
 const NO_PATH: ReadonlySignal<string> = computed(() => '');
 
+/** Значение создания не передано — берётся текущее значение сигнала. */
+const CURRENT = Symbol('current');
+
 export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   readonly [NODE_KIND] = 'control' as const;
 
@@ -72,9 +75,14 @@ export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
   private readonly pendingState = createPending();
   private readonly componentState: ReturnType<typeof createComponentState>;
 
-  constructor(config: FieldConfig<T>) {
+  /**
+   * @param config - Сигнал значения и конфиг из схемы.
+   * @param initial - Значение создания, если нода строится позже сборки формы (ленивый лист);
+   *   по умолчанию — текущее значение сигнала.
+   */
+  constructor(config: FieldConfig<T>, initial: T | typeof CURRENT = CURRENT) {
     this.source = config.valueSignal;
-    this.initialValue = this.source.peek();
+    this.initialValue = initial === CURRENT ? this.source.peek() : initial;
     this.component = config.component;
     this.availability = createAvailability(config.disabled === true);
     this.locked = config.disabled === true;

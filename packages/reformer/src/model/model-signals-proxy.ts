@@ -20,7 +20,13 @@
 import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
 import { isSignal } from '../signals';
 import type { PathAwareSignal } from './types';
-import { type ModelNode, ModelGroupNode, ModelArrayNode, isIndexKey } from './model-nodes';
+import {
+  type ModelNode,
+  ModelGroupNode,
+  ModelArrayNode,
+  isIndexKey,
+  leafNodeOf,
+} from './model-nodes';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -177,6 +183,15 @@ export function containerNodeOf(handle: unknown): ModelGroupNode | ModelArrayNod
 }
 
 /**
+ * Узел модели за ручкой: сигнал листа либо контейнер дерева `$`. Для всего остального — `undefined`.
+ *
+ * @internal
+ */
+export function modelNodeOf(handle: object): ModelNode | undefined {
+  return leafNodeOf(handle) ?? nodeByContainer.get(handle);
+}
+
+/**
  * Узел дерева `model.$` — контейнер (группа/массив), а не лист?
  *
  * Контейнерный узел структурно совместим с `ReadonlySignal` (`peek`/`value`/`subscribe`), поэтому
@@ -230,6 +245,8 @@ export function resolveSignalAt(
   path: string
 ): PathAwareSignal<unknown> | undefined {
   if (!path) return undefined;
+  // Поле верхнего уровня — без разбора пути.
+  if (path.indexOf('.') === -1) return handleOf(root.children.get(path));
   let node: ModelNode | undefined = root;
   for (const seg of path.split('.')) {
     if (!node) return undefined;
@@ -237,6 +254,11 @@ export function resolveSignalAt(
     else if (node.kind === 'array') node = node.items.peek()[Number(seg)];
     else return undefined;
   }
+  return handleOf(node);
+}
+
+/** Ручка значения узла: сигнал листа либо массив целиком. Группа ручкой значения не является. */
+function handleOf(node: ModelNode | undefined): PathAwareSignal<unknown> | undefined {
   if (!node) return undefined;
   if (node.kind === 'leaf') return node.signal;
   // Массив — тоже ручка значения: путь к нему резолвится так же, как к листу. Группа — нет.

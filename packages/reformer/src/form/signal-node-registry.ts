@@ -9,7 +9,11 @@
  * Путь для этого не годится: он абсолютный (`items.0.phones`) и меняется при перестановке строк, а
  * форма строки массива — отдельный корень со своими относительными путями.
  *
- * Используется `WeakMap`, поэтому записи авто-собираются GC вместе с ручками.
+ * Где лежит запись. Сборка не пишет по записи на каждое поле в `WeakMap`: ссылку на ноду (или на
+ * ленивый лист, который построит ноду при первом чтении) она оставляет в самом узле модели — узел у
+ * сборки под рукой, а запись поля дешевле записи в `WeakMap`. Узел модели помнит последнюю сборку;
+ * сборка, чья запись уже перезаписана (над моделью собрана ещё одна форма), находит свою ноду по
+ * пути узла от своего корня. Ручки не из модели (их привязывают только явно) лежат в `WeakMap`.
  *
  * Кто пишет и кто читает. Пишет сборка формы (`create-form`). Читают валидация — разнос замечаний,
  * `pending`, касание полей, триггер `blur` — и поведение — state-операции и подключение под-схем.
@@ -31,23 +35,50 @@
  */
 
 import type { FormNode } from './types/nodes';
+import { isLazyLeaf, type LazyLeaf } from './nodes/lazy-leaf';
+import { kindOf, rawNode } from './nodes/node-kind';
+import { modelNodeOf } from '../model/model-signals-proxy';
+import type { ModelNode } from '../model/model-nodes';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNode = FormNode<any>;
 
+/** Запись реестра: нода либо ленивый лист — его нода строится при чтении. */
+type Slot = AnyNode | LazyLeaf;
+
+const resolve = (slot: Slot | undefined): AnyNode | undefined =>
+  isLazyLeaf(slot) ? slot.node : slot;
+
 /** Запись с порядковым номером: из двух записей одной ручки главнее более поздняя. */
 interface Entry {
-  readonly node: AnyNode;
+  readonly node: Slot;
   readonly seq: number;
 }
 
-/** Общий реестр: последняя записанная нода ручки — сборкой или явной перепривязкой. */
-const registry = new WeakMap<object, AnyNode>();
+/**
+ * Привязка узла модели к ноде сборки — в поле `formSlot` узла. Ленивый лист и есть такая привязка
+ * (`scope` + `node`); у контейнеров — пара.
+ */
+interface Bound {
+  readonly scope: NodeScope;
+  readonly node: AnyNode;
+}
+
+/** Ручки не из модели: последняя записанная нода — сборкой или явной перепривязкой. */
+const registry = new WeakMap<object, Slot>();
 
 /** Явные перепривязки {@link registerSignalNode} — их сверяет с собственными нодами область сборки. */
 const explicit = new WeakMap<object, Entry>();
 
 let seq = 0;
+
+/** Последняя запись: привязка сборки или явная перепривязка, если она позже. */
+function latest(bound: Bound | undefined, redirect: Entry | undefined): AnyNode | undefined {
+  if (redirect !== undefined && (bound === undefined || redirect.seq > bound.scope.seq)) {
+    return resolve(redirect.node);
+  }
+  return bound?.node;
+}
 
 /**
  * Связать ручку модели с её нодой формы.
@@ -72,8 +103,8 @@ let seq = 0;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerSignalNode(signal: object, node: FormNode<any>): void {
-  registry.set(signal, node);
   explicit.set(signal, { node, seq: ++seq });
+  if (modelNodeOf(signal) === undefined) registry.set(signal, node);
 }
 
 /**
@@ -109,7 +140,9 @@ export function registerSignalNode(signal: object, node: FormNode<any>): void {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getNodeForSignal(signal: object): FormNode<any> | undefined {
-  return registry.get(signal);
+  const modelNode = modelNodeOf(signal);
+  if (modelNode === undefined) return resolve(registry.get(signal));
+  return latest(modelNode.formSlot as Bound | undefined, explicit.get(signal));
 }
 
 /**
@@ -122,13 +155,69 @@ export function getNodeForSignal(signal: object): FormNode<any> | undefined {
  * @internal
  */
 export interface NodeScope {
-  /** Записать ноду ручки в область — и в общий реестр, как последнюю собранную. */
-  register(handle: object, node: AnyNode): void;
+  /**
+   * Порядковый номер сборки: явная перепривязка с большим номером главнее нод сборки. Задаётся,
+   * когда сборка заканчивает строить ноды ({@link NodeScope.attachRoot}). @internal
+   */
+  readonly seq: number;
+  /**
+   * Записать ноду ручки в область — и как последнюю собранную для общего реестра. Ленивый лист
+   * строит ноду при первом чтении.
+   */
+  register(handle: object, node: Slot): void;
+  /** То же для узла модели, который у сборки уже есть: без поиска узла по ручке. @internal */
+  bind(modelNode: ModelNode, node: Slot): void;
+  /**
+   * Корень сборки: от него область находит свою ноду по пути узла, если запись в узле модели
+   * перезаписала другая сборка. @internal
+   */
+  attachRoot(root: AnyNode, rootModel: ModelNode): void;
   /**
    * Нода ручки: своя нода сборки, если после неё ручку явно не перепривязали; для чужой ручки —
    * нода общего реестра.
    */
   get(handle: object): AnyNode | undefined;
+}
+
+/** Путь узла относительно корня сборки; `undefined` — узел вне её модели. */
+function relativeTo(path: string, base: string): string | undefined {
+  if (base === '') return path;
+  if (path === base) return '';
+  return path.startsWith(`${base}.`) ? path.slice(base.length + 1) : undefined;
+}
+
+/** Узел модели по пути от корня модели сборки — чтобы путь не совпал случайно с чужой моделью. */
+function modelNodeAt(root: ModelNode, path: string): ModelNode | undefined {
+  let node: ModelNode | undefined = root;
+  if (path === '') return node;
+  for (const segment of path.split('.')) {
+    if (node === undefined) return undefined;
+    if (node.kind === 'group') node = node.children.get(segment);
+    else if (node.kind === 'array') node = node.items.peek()[Number(segment)];
+    else return undefined;
+  }
+  return node;
+}
+
+/** Нода сборки по пути от её корня: группа → ребёнок по имени, массив → строка по индексу. */
+function findByPath(root: AnyNode, path: string): AnyNode | undefined {
+  let node: unknown = rawNode(root);
+  if (path !== '') {
+    for (const segment of path.split('.')) {
+      const kind = kindOf(node);
+      if (kind === 'group') {
+        node = (node as { childAt(key: string): unknown }).childAt(segment);
+      } else if (kind === 'array') {
+        const row = (node as { rowAt(index: number): object | undefined }).rowAt(Number(segment));
+        node = row === undefined ? undefined : rawNode(row);
+      } else {
+        return undefined;
+      }
+      if (isLazyLeaf(node)) node = node.node;
+      if (node === undefined) return undefined;
+    }
+  }
+  return (kindOf(node) === 'group' ? (node as { proxy: AnyNode }).proxy : node) as AnyNode;
 }
 
 /**
@@ -137,20 +226,56 @@ export interface NodeScope {
  * @internal
  */
 export function createNodeScope(): NodeScope {
-  const own = new WeakMap<object, Entry>();
-  return {
+  /** Ручки не из модели — их привязывают только явно. */
+  let own: WeakMap<object, Entry> | undefined;
+  let root: { node: AnyNode; model: ModelNode } | undefined;
+  const scope: NodeScope & { seq: number } = {
+    seq: 0,
+    bind(modelNode, node) {
+      modelNode.formSlot = isLazyLeaf(node) ? node : { scope, node };
+    },
     register(handle, node) {
-      own.set(handle, { node, seq: ++seq });
+      const modelNode = modelNodeOf(handle);
+      if (modelNode !== undefined) {
+        scope.bind(modelNode, node);
+        return;
+      }
+      (own ??= new WeakMap()).set(handle, { node, seq: ++seq });
       registry.set(handle, node);
     },
+    attachRoot(node, rootModel) {
+      scope.seq = ++seq;
+      root = { node, model: rootModel };
+    },
     get(handle) {
-      const mine = own.get(handle);
-      // Чужая ручка — как в общем реестре: последняя запись, сборкой или перепривязкой.
-      if (mine === undefined) return registry.get(handle);
+      const modelNode = modelNodeOf(handle);
+      if (modelNode === undefined) {
+        const mine = own?.get(handle);
+        // Чужая ручка — как в общем реестре: последняя запись, сборкой или перепривязкой.
+        if (mine === undefined) return resolve(registry.get(handle));
+        const redirect = explicit.get(handle);
+        return resolve(
+          redirect !== undefined && redirect.seq > mine.seq ? redirect.node : mine.node
+        );
+      }
+      const bound = modelNode.formSlot as Bound | undefined;
+      let mine: AnyNode | undefined;
+      if (bound !== undefined && bound.scope === scope) {
+        mine = bound.node;
+      } else if (root !== undefined) {
+        // Запись в узле перезаписала другая сборка над той же моделью — своя нода по пути.
+        const path = relativeTo(modelNode.path, root.model.path);
+        if (path !== undefined && modelNodeAt(root.model, path) === modelNode) {
+          mine = findByPath(root.node, path);
+        }
+      }
+      // Чужая ручка — как в общем реестре.
+      if (mine === undefined) return getNodeForSignal(handle);
       const redirect = explicit.get(handle);
-      return redirect !== undefined && redirect.seq > mine.seq ? redirect.node : mine.node;
+      return redirect !== undefined && redirect.seq > scope.seq ? resolve(redirect.node) : mine;
     },
   };
+  return scope;
 }
 
 /**
@@ -159,6 +284,12 @@ export function createNodeScope(): NodeScope {
  * @internal
  */
 export const GLOBAL_NODES: NodeScope = {
-  register: registerSignalNode,
+  seq: 0,
+  register: (handle, node) => registerSignalNode(handle, resolve(node)!),
+  bind: (modelNode, node) => {
+    void modelNode;
+    void node;
+  },
+  attachRoot: () => {},
   get: getNodeForSignal,
 };

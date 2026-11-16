@@ -147,6 +147,11 @@ export class FormArrayNode<T extends object> implements FormArray<T>, InternalFo
     return this.rows.value[index];
   }
 
+  /** Строка по индексу без подписки на состав — для поиска ноды по пути. @internal */
+  rowAt(index: number): FormGroup<T> | undefined {
+    return this.rows.peek()[index];
+  }
+
   map<R>(callback: (row: FormGroup<T>, index: number) => R): R[] {
     return this.rows.value.map(callback);
   }
