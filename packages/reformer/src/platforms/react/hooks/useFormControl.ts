@@ -9,6 +9,25 @@ import {
   type ExtractSignalValues,
 } from './useSignalSubscription';
 
+/**
+ * Снимок с другими `componentProps` (раскрытыми по локали). Остальные поля читаются из исходного
+ * снимка при обращении, а не копируются: копия прочитала бы все поля разом, и подписка по
+ * прочитанному перерисовывала бы компонент на любую их смену.
+ */
+function withComponentProps<S extends object>(state: S, componentProps: unknown): S {
+  const out = {} as S;
+  for (const key of Object.keys(state)) {
+    Object.defineProperty(
+      out,
+      key,
+      key === 'componentProps'
+        ? { enumerable: true, configurable: true, value: componentProps }
+        : { enumerable: true, configurable: true, get: () => state[key as keyof S] }
+    );
+  }
+  return out;
+}
+
 /** @internal */
 function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
   const signals = {
@@ -58,7 +77,9 @@ function useFieldControl<T>(control: FormControl<T>): FieldControlState<T> {
     path: values.path as string,
   });
 
-  return useSignalSubscription(signals, configs, buildSnapshot, control);
+  // Подписка по прочитанному: поле, которое не показывает `pending` или `valid`, не
+  // перерисовывается на каждую их смену (серверная проверка, живая проверка на каждую клавишу).
+  return useSignalSubscription(signals, configs, buildSnapshot, control, true);
 }
 
 /** @internal */
@@ -404,7 +425,7 @@ export function useFormControl(
   const rawProps = (state as { componentProps?: Record<string, unknown> }).componentProps;
   const props = useLocalized(rawProps);
   return useMemo(
-    () => (props === rawProps ? state : { ...state, componentProps: props }),
+    () => (props === rawProps ? state : withComponentProps(state, props)),
     [state, props, rawProps]
   ) as FieldControlState<unknown> | ArrayControlState<object>;
 }

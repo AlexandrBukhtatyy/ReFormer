@@ -40,9 +40,12 @@ const rules = defineValidation<Signup>(({ model }) => {
   validate(model.$.fullName, [required('fullName.required')]);
 });
 
-/** Поле, которое сообщает о каждом своём рендере. */
+/**
+ * Поле, которое сообщает о каждом своём рендере. Читает всё состояние: подписка по прочитанному
+ * будит компонент только на смену прочитанного, а тест ловит лишнюю смену любого члена.
+ */
 function Field({ control, onRender }: { control: FormControl<string>; onRender: () => void }) {
-  useFormControl(control);
+  void { ...useFormControl(control) };
   onRender();
   return null;
 }

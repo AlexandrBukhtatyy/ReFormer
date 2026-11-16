@@ -69,7 +69,7 @@
 
 | Hook | Return Type | Subscribes To | Use Case |
 |------|-------------|---------------|----------|
-| `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, shouldShowIssues, componentProps }` | Все сигналы поля | Полное состояние поля, инпуты |
+| `useFormControl(field)` | `{ value, issues, disabled, touched, dirty, valid, invalid, pending, shouldShowError, shouldShowIssues, componentProps, path }` | Поле — прочитанные в рендере члены (деструктуризация — тоже чтение); массив — все | Полное состояние поля, инпуты |
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
 | `useSignalSnapshot(signal)` | `T` (значение сигнала) | Один сигнал или `computed` | `bundle.validating`, `bundle.submission.submitting`, группа модели |

@@ -6,8 +6,10 @@
 ### В React-компоненте — хуки
 
 ```typescript
-// Полное состояние поля (объект); текст замечания — useIssueMessage(messages)(issues[0])
-// shouldShowIssues — показывать ли тексты замечаний; shouldShowError — aria-invalid
+// Состояние поля (объект); текст замечания — useIssueMessage(messages)(issues[0])
+// shouldShowIssues — показывать ли тексты замечаний; shouldShowError — aria-invalid.
+// Компонент перерисовывается на смену прочитанных членов: здесь — пяти деструктурированных;
+// смена pending или valid его не будит.
 const { value, issues, disabled, touched, shouldShowIssues } = useFormControl(control.email);
 
 // Только значение (напрямую, БЕЗ деструктуризации!)

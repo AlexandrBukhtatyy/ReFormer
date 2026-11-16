@@ -76,11 +76,21 @@ const createContacts = (initial: Partial<Contacts> = {}) =>
 
 type ContactsForm = ReturnType<typeof createContacts>['form'];
 
+/**
+ * Читает в рендере все поля снимка — как компонент, который показывает всё состояние. Подписка по
+ * прочитанному будит компонент только на смену прочитанного, поэтому тест, который смотрит на
+ * перерисовки от любого члена состояния, читает их все.
+ */
+const readAll = <S extends object>(state: S): S => {
+  void { ...state };
+  return state;
+};
+
 const renderField = (control: FormControl<string>, strict = false) =>
-  renderHookCounting((props: { control: FormControl<string> }) => useFormControl(props.control), {
-    initialProps: { control },
-    strict,
-  });
+  renderHookCounting(
+    (props: { control: FormControl<string> }) => readAll(useFormControl(props.control)),
+    { initialProps: { control }, strict }
+  );
 
 type AnyControl = FormControl<string> | FormArray<Phone> | undefined;
 type AnyState = FieldControlState<string> | ArrayControlState<Phone>;
@@ -92,7 +102,7 @@ type AnyState = FieldControlState<string> | ArrayControlState<Phone>;
 const renderAny = (control: AnyControl) =>
   renderHookCounting(
     (props: { control: AnyControl }): AnyState =>
-      useFormControl(props.control as FormArray<Phone> | undefined),
+      readAll(useFormControl(props.control as FormArray<Phone> | undefined)),
     { initialProps: { control } }
   );
 
@@ -247,6 +257,95 @@ describe('useFormControl — поле', () => {
     act(() => form.phones.push());
 
     expect(hook.renders()).toBe(before);
+  });
+});
+
+describe('useFormControl — подписка по прочитанному', () => {
+  /** Поле, которое читает в рендере только `value`. */
+  const renderValueOnly = (control: FormControl<string>) =>
+    renderHookCounting(
+      (props: { control: FormControl<string> }) => {
+        const state = useFormControl(props.control);
+        void state.value;
+        return state;
+      },
+      { initialProps: { control } }
+    );
+
+  it('смена непрочитанных членов не перерисовывает; прочитанного — перерисовывает', () => {
+    const { form } = createContacts();
+    const hook = renderValueOnly(form.email);
+    const before = hook.renders();
+
+    act(() => {
+      form.email.markAsTouched();
+      form.email.setIssues([{ code: 'required' }]);
+      form.email.disable();
+      form.email.enable();
+    });
+    expect(hook.renders()).toBe(before);
+
+    act(() => form.email.setValue('x@y.z'));
+    expect(hook.renders()).toBe(before + 1);
+    expect(hook.result.current.value).toBe('x@y.z');
+  });
+
+  it('первое чтение члена после его смены без перерисовки — свежее значение', () => {
+    const { form } = createContacts();
+    const hook = renderValueOnly(form.email);
+
+    act(() => {
+      form.email.markAsTouched();
+      form.email.setIssues([{ code: 'required' }]);
+    });
+
+    expect(hook.result.current).toMatchObject({
+      touched: true,
+      issues: [{ code: 'required' }],
+      shouldShowError: true,
+    });
+  });
+
+  it('член, прочитанный хотя бы раз, перерисовывает на свою смену', () => {
+    const { form } = createContacts();
+    const hook = renderHookCounting(
+      (props: { control: FormControl<string>; showTouched: boolean }) => {
+        const state = useFormControl(props.control);
+        void state.value;
+        if (props.showTouched) void state.touched;
+        return state;
+      },
+      { initialProps: { control: form.email, showTouched: false } }
+    );
+    hook.rerender({ control: form.email, showTouched: true });
+    const before = hook.renders();
+
+    act(() => form.email.markAsTouched());
+
+    expect(hook.renders()).toBe(before + 1);
+  });
+
+  it('снимок — обычный объект: копия и ключи — все члены состояния', () => {
+    const { form } = createContacts();
+    const hook = renderValueOnly(form.email);
+
+    expect(Object.keys(hook.result.current).sort()).toEqual(
+      [
+        'componentProps',
+        'dirty',
+        'disabled',
+        'invalid',
+        'issues',
+        'path',
+        'pending',
+        'shouldShowError',
+        'shouldShowIssues',
+        'touched',
+        'valid',
+        'value',
+      ].sort()
+    );
+    expect({ ...hook.result.current }).toMatchObject({ value: '', touched: false, path: 'email' });
   });
 });
 

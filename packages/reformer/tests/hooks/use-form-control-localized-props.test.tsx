@@ -15,7 +15,7 @@ import { msg } from '../../src/i18n/descriptor';
 import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
 import { I18nProvider } from '../../src/platforms/react/i18n/provider';
 import type { FormLocale } from '../../src/i18n/locale';
-import { cleanup, render, screen } from '../test-utils/react';
+import { act, cleanup, render, screen } from '../test-utils/react';
 
 afterEach(cleanup);
 
@@ -38,6 +38,27 @@ function createProfile(componentProps: Record<string, unknown>) {
 }
 
 describe('useFormControl — описатели msg() в componentProps', () => {
+  it('раскрытые пропсы не отменяют подписку по прочитанному: касание поле не будит', () => {
+    const { form } = createProfile({ label: msg('profile.email') });
+    let renders = 0;
+    function Probe() {
+      const { componentProps } = useFormControl(form.email);
+      renders++;
+      return <span data-testid="out">{String(componentProps.label)}</span>;
+    }
+    render(
+      <I18nProvider locale={ru}>
+        <Probe />
+      </I18nProvider>
+    );
+    const before = renders;
+
+    act(() => form.email.markAsTouched());
+
+    expect(renders).toBe(before);
+    expect(screen.getByTestId('out').textContent).toBe('Почта');
+  });
+
   it('раскрываются по локали провайдера, в том числе в опциях, и следуют смене языка', () => {
     const { form } = createProfile({
       label: msg('profile.email'),

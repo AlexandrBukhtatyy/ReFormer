@@ -29,6 +29,20 @@ export interface SignalConfig<K extends string> {
  * `signals` в снапшот попадают значением на момент сборки и сами компонент не будят.
  * @internal
  */
+/**
+ * Обработчик снимка с подпиской по прочитанному: чтение поля запоминает его ключ. Снимок — `Proxy`
+ * над объектом текущих значений: одна аллокация на снимок, а копия (`{ ...snapshot }`),
+ * `Object.keys` и сравнение в тестах видят обычные поля объекта.
+ */
+function trackingHandler(used: Set<string>): ProxyHandler<Record<string, unknown>> {
+  return {
+    get(target, key) {
+      if (typeof key === 'string') used.add(key);
+      return target[key as string];
+    },
+  };
+}
+
 export function useSignalSubscription<
   TSignals extends SignalMap,
   TSnapshot extends ExtractSignalValues<TSignals>,
@@ -42,13 +56,25 @@ export function useSignalSubscription<
    * который ключует по `[control]`. Это убирает per-render churn (dispose+recreate preact-effect),
    * сохраняя реактивность при подмене контрола на другой узел.
    */
-  subscriptionKey?: unknown
+  subscriptionKey?: unknown,
+  /**
+   * Подписка по прочитанному: компонент перерисовывается, только когда изменился ключ, который он
+   * читал. Снимок — ключи сигналов (`buildSnapshot` не зовётся), поля — геттеры; изменённый
+   * непрочитанный ключ обновляется в том же снимке, и первое чтение потом видит свежее значение.
+   * Режим постоянен на всё время жизни хука.
+   */
+  tracked = false
 ): TSnapshot {
   // `__key` — ключ подписки, для которого собран снапшот: при пустом `configs` сравнение значений
   // смену ключа не заметит, и наружу ушёл бы снапшот прежнего контрола.
   type CacheType = ExtractSignalValues<TSignals> & {
     __snapshot: TSnapshot | null;
     __key?: unknown;
+    /** Прочитанные ключи — у подписки по прочитанному. */
+    __used: Set<string>;
+    /** Текущие значения — цель снимков подписки по прочитанному, только ключи сигналов. */
+    __values?: Record<string, unknown>;
+    __handler?: ProxyHandler<Record<string, unknown>>;
   };
 
   const cacheRef = useRef<CacheType | null>(null);
@@ -75,7 +101,7 @@ export function useSignalSubscription<
     for (const key in signals) {
       (initialValues as Record<string, unknown>)[key] = signals[key].value;
     }
-    cacheRef.current = { ...initialValues, __snapshot: null } as CacheType;
+    cacheRef.current = { ...initialValues, __snapshot: null, __used: new Set() } as CacheType;
   }
 
   const subscribe = useCallback(
@@ -132,6 +158,19 @@ export function useSignalSubscription<
       const currentValue = (currentValues as Record<string, unknown>)[key];
       const cachedValue = (cache as Record<string, unknown>)[key];
 
+      if (tracked) {
+        const same =
+          useShallowObjectEqual || useArrayEqual
+            ? shallowEqual(cachedValue, currentValue)
+            : cachedValue === currentValue;
+        if (same) continue;
+        // Непрочитанный ключ меняется в том же снимке: перерисовывать не из-за чего.
+        (cache as Record<string, unknown>)[key] = currentValue;
+        if (cache.__values) cache.__values[key] = currentValue;
+        if (cache.__used.has(key)) hasChanged = true;
+        continue;
+      }
+
       if (useShallowObjectEqual) {
         if (!shallowEqual(cachedValue, currentValue)) {
           hasChanged = true;
@@ -152,6 +191,21 @@ export function useSignalSubscription<
       return cache.__snapshot;
     }
 
+    if (tracked) {
+      const values = (cache.__values ??= {});
+      for (const key in currentSignals) {
+        const value = (currentValues as Record<string, unknown>)[key];
+        (cache as Record<string, unknown>)[key] = value;
+        values[key] = value;
+      }
+      cache.__key = subscriptionKey;
+      cache.__handler ??= trackingHandler(cache.__used);
+      // Цель у снимков общая: непрочитанное поле, изменённое без перерисовки, первое чтение увидит
+      // свежим и в прежнем снимке.
+      cache.__snapshot = new Proxy(values, cache.__handler) as TSnapshot;
+      return cache.__snapshot;
+    }
+
     // Обновляем кеш
     for (const key in currentSignals) {
       (cache as Record<string, unknown>)[key] = (currentValues as Record<string, unknown>)[key];
@@ -160,7 +214,7 @@ export function useSignalSubscription<
     cache.__key = subscriptionKey;
     cache.__snapshot = buildSnapshotRef.current(currentValues);
     return cache.__snapshot;
-  }, [subscriptionKey]);
+  }, [subscriptionKey, tracked]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
