@@ -5,7 +5,7 @@
  */
 
 import { memo, useCallback, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { effect, type Signal } from '@reformer/core/signals';
+import { effect, untracked, type Signal } from '@reformer/core/signals';
 import type {
   CompiledArrayNode,
   CompiledChild,
@@ -94,6 +94,11 @@ interface RenderNodeComponentProps<T> {
  * поля строки массива он меняется с индексом строки, из него рендерер выводит `data-testid` и ref
  * по пути. Снапшот кэшируется по четвёрке значений: иначе useSyncExternalStore получал бы свежий
  * объект каждый getSnapshot и зациклился бы. SSR-safe.
+ *
+ * Неуправляемый контрол (`FieldAdapter.uncontrolled`, `trackValue: false`) значение получает в DOM, а
+ * не пропом: смена значения поле не перерисовывает. Её слушатели — привязка контрола через `watch` —
+ * узнают о ней из того же effect подписки, своего effect на поле привязка не заводит. Первый запуск
+ * effect тоже сообщает: подписка заводится после фиксации, а ref контрола подключён уже в ней.
  */
 interface FieldRenderState {
   value: unknown;
@@ -102,7 +107,29 @@ interface FieldRenderState {
   path: string;
 }
 
-function useFieldRenderState(fieldNode: FormControl<unknown>): FieldRenderState {
+/** Слушатели значения поля и значение, о котором они знают. */
+interface ValueWatchers {
+  last: unknown;
+  readonly listeners: Set<(value: unknown) => void>;
+  readonly watch: (listener: (value: unknown) => void) => () => void;
+}
+
+function useFieldRenderState(
+  fieldNode: FormControl<unknown>,
+  trackValue: boolean
+): FieldRenderState & { watch: ValueWatchers['watch'] } {
+  const watchersRef = useRef<ValueWatchers | null>(null);
+  if (watchersRef.current === null) {
+    const listeners = new Set<(value: unknown) => void>();
+    watchersRef.current = {
+      last: fieldNode.value.peek(),
+      listeners,
+      watch: (listener) => {
+        listeners.add(listener);
+        return () => void listeners.delete(listener);
+      },
+    };
+  }
   const cacheRef = useRef<FieldRenderState>({
     value: fieldNode.value.value,
     disabled: fieldNode.disabled.value,
@@ -113,12 +140,19 @@ function useFieldRenderState(fieldNode: FormControl<unknown>): FieldRenderState 
     (onStoreChange: () => void) => {
       let first = true;
       return effect(() => {
-        void fieldNode.value.value; // зависимость: сигнал value
+        const value = fieldNode.value.value; // зависимость: сигнал value
         void fieldNode.disabled.value; // зависимость: сигнал disabled
         void fieldNode.componentProps.value; // зависимость: реактивные componentProps ноды
         // Путь поля строки массива меняется с индексом строки, а поддерево строки при удалении
         // соседки не перерисовывается: без подписки `data-testid` и ref по пути устаревали бы.
         void fieldNode.path.value;
+        const watchers = watchersRef.current!;
+        if (!Object.is(value, watchers.last)) {
+          watchers.last = value;
+          untracked(() => {
+            for (const listener of watchers.listeners) listener(value);
+          });
+        }
         if (first) {
           first = false;
           return;
@@ -135,7 +169,7 @@ function useFieldRenderState(fieldNode: FormControl<unknown>): FieldRenderState 
     const path = fieldNode.path.value;
     const prev = cacheRef.current;
     if (
-      prev.value === value &&
+      (!trackValue || prev.value === value) &&
       prev.disabled === disabled &&
       prev.componentProps === componentProps &&
       prev.path === path
@@ -144,8 +178,9 @@ function useFieldRenderState(fieldNode: FormControl<unknown>): FieldRenderState 
     const next = { value, disabled, componentProps, path };
     cacheRef.current = next;
     return next;
-  }, [fieldNode]);
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  }, [fieldNode, trackValue]);
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return { ...state, watch: watchersRef.current.watch };
 }
 
 /** Обработчики `onComponentEvent` узла: событие → колбэк поведения. */
@@ -220,13 +255,24 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }): ReactNode {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Component = node.component as React.ComponentType<any> | undefined;
+  // Адаптер по компоненту поля: контрол получает seam в своём диалекте (`checked`+событие,
+  // `value`+`(value, option)` и т.д.). Явный резолв из настроек (чужие компоненты) приоритетнее
+  // статики `reformerAdapter`; нет ни того, ни другого → value-based seam как есть. Нужен до
+  // подписки: неуправляемому контролу значение в снимке не нужно.
+  const adapter = Component
+    ? (resolveFieldAdapter?.(Component) ?? getFieldAdapter(Component))
+    : undefined;
+  const uncontrolled = adapter?.uncontrolled === true;
   // Подписка на value+disabled+реактивные componentProps ноды (не на все 9 сигналов useFormControl).
   const {
     value,
     disabled,
     componentProps: nodeComponentProps,
     path,
-  } = useFieldRenderState(fieldNode);
+    watch,
+  } = useFieldRenderState(fieldNode, !uncontrolled);
   const nodeRef = selectorRef ?? (path ? pathRefs?.get(path) : undefined);
   // Стабильные колбэки: fieldNode стабилен для данного сигнала → не пересоздаются каждый рендер,
   // поэтому React.memo на пользовательском Component держится.
@@ -240,8 +286,6 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   const localizedProps = useLocalized(
     useLocalizableFieldProps(node.props, nodeComponentProps, propsOverride)
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Component = node.component as React.ComponentType<any> | undefined;
   if (!Component) {
     if (typeof console !== 'undefined') {
       console.warn('[RenderSchema] Model field has no component — nothing to render.');
@@ -274,11 +318,6 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         ? path.replace(/\./g, '-')
         : undefined;
 
-  // Адаптер по компоненту поля: контрол получает seam в своём диалекте (`checked`+событие,
-  // `value`+`(value, option)` и т.д.). Явный резолв из настроек (чужие компоненты) приоритетнее
-  // статики `reformerAdapter`; нет ни того, ни другого → value-based seam как есть.
-  const adapter = resolveFieldAdapter?.(Component) ?? getFieldAdapter(Component);
-
   // §3.1 (BREAKING): нода формы (`control`) передаётся контролу ТОЛЬКО по явному запросу — статикой
   // `Component.reformerNeedsControl === true` либо `adapter.passControl`. По умолчанию НЕ передаётся:
   // leaf-контролы UI-kit её не потребляют, а errors/touched/label обслуживает FieldWrapper — он
@@ -291,10 +330,19 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   // Подпись, описание и `required` рисует обёртка поля — контролу они не уходят (нативный
   // `required` блокировал бы отправку проверкой браузера). Контрол с inline-подписью получает
   // `label` и `required` — для этого `bindFieldProps` нужен сам компонент.
+  //
+  // Неуправляемый контрол получает в seam ноду и подписку на значение: значение идёт в DOM без
+  // перерисовки поля. Ручка поля — в прочие props: привязка занимает `ref` элемента сама и
+  // передаёт его ей; управляемому контролу она уходит пропом `ref`, как раньше.
   const inputProps = bindFieldProps(
     adapter,
-    { value, onChange, onBlur },
-    inputComponentProps as Record<string, unknown>,
+    uncontrolled
+      ? { value, onChange, onBlur, control: fieldNode, watch }
+      : { value, onChange, onBlur },
+    {
+      ...(inputComponentProps as Record<string, unknown>),
+      ...(nodeRef !== undefined ? { ref: handleRef } : {}),
+    },
     Component
   );
   if (testId && inputProps['data-testid'] === undefined) {
@@ -305,7 +353,6 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
       {...withComponentEvents(inputProps, events)}
       disabled={disabled}
       {...(needsControl ? { control: fieldNode } : {})}
-      {...(nodeRef !== undefined ? { ref: handleRef } : {})}
     />
   );
 
