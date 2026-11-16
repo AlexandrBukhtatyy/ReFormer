@@ -136,6 +136,28 @@ export interface UseFormFieldReturn<T = unknown> {
  * };
  * ```
  */
+/** Ключи `state` и `controlProps`, которые читаются из снимка поля при обращении. */
+const LAZY_KEYS: ReadonlySet<string | symbol> = new Set([
+  'value',
+  'issues',
+  'error',
+  'isPending',
+  'isDisabled',
+  'isValid',
+  'isInvalid',
+  'isTouched',
+  'shouldShowError',
+  'shouldShowIssues',
+  'label',
+  'required',
+  'componentProps',
+  'path',
+  'disabled',
+  'aria-invalid',
+  'aria-errormessage',
+  'aria-required',
+]);
+
 export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFieldReturn<T> {
   const reactId = useId();
   const baseId = id ?? reactId;
@@ -154,22 +176,58 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
 
   const raw = useFormControl(control);
 
+  // Состояние читается из снимка при обращении, а не раскладывается целиком: снимок
+  // `useFormControl` подписывает компонент только на прочитанное, и поле, которое не показывает
+  // `isPending` или `isValid`, не перерисовывается на их смену (серверная проверка, живая
+  // проверка на каждую клавишу). `state` и `controlProps` — `Proxy` над объектами с теми же
+  // ключами: копия (`{ ...controlProps }`) и перечисление видят обычные поля.
   return useMemo<UseFormFieldReturn<T>>(() => {
-    const {
-      value,
-      issues,
-      pending,
-      disabled,
-      valid,
-      invalid,
-      touched,
-      shouldShowError,
-      shouldShowIssues,
-      componentProps,
-      path,
-    } = raw;
-    const required = Boolean(componentProps.required);
-    const primary = issues[primaryIssueIndex(issues)];
+    const read = (key: string | symbol): unknown => {
+      switch (key) {
+        case 'value':
+          return raw.value;
+        case 'issues':
+          return raw.issues;
+        case 'error': {
+          const primary = raw.issues[primaryIssueIndex(raw.issues)];
+          return raw.shouldShowIssues && primary ? resolveError(primary) : undefined;
+        }
+        case 'isPending':
+          return raw.pending;
+        case 'isDisabled':
+        case 'disabled':
+          return raw.disabled;
+        case 'isValid':
+          return raw.valid;
+        case 'isInvalid':
+          return raw.invalid;
+        case 'isTouched':
+          return raw.touched;
+        case 'shouldShowError':
+          return raw.shouldShowError;
+        case 'shouldShowIssues':
+          return raw.shouldShowIssues;
+        case 'label':
+          return raw.componentProps.label;
+        case 'required':
+          return Boolean(raw.componentProps.required);
+        case 'componentProps':
+          return raw.componentProps;
+        case 'path':
+          return raw.path;
+        case 'aria-invalid':
+          return raw.shouldShowError ? true : undefined;
+        case 'aria-errormessage':
+          return raw.shouldShowError && raw.issues.length > 0 ? ids.errorId : undefined;
+        case 'aria-required':
+          return raw.componentProps.required ? true : undefined;
+        default:
+          return undefined;
+      }
+    };
+    const lazy: ProxyHandler<Record<string, unknown>> = {
+      get: (target, key) => (LAZY_KEYS.has(key) ? read(key) : Reflect.get(target, key)),
+    };
 
     return {
       ids,
@@ -177,17 +235,20 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
         id: ids.labelId,
         htmlFor: ids.controlId,
       },
-      controlProps: {
-        id: ids.controlId,
-        value: value as T,
-        disabled,
-        'aria-labelledby': ids.labelId,
-        'aria-invalid': shouldShowError ? true : undefined,
-        'aria-errormessage': shouldShowError && issues.length > 0 ? ids.errorId : undefined,
-        'aria-required': required ? true : undefined,
-        onChange: (v: unknown) => control.setValue(v as T),
-        onBlur: () => control.markAsTouched(),
-      },
+      controlProps: new Proxy(
+        {
+          id: ids.controlId,
+          value: undefined,
+          disabled: undefined,
+          'aria-labelledby': ids.labelId,
+          'aria-invalid': undefined,
+          'aria-errormessage': undefined,
+          'aria-required': undefined,
+          onChange: (v: unknown) => control.setValue(v as T),
+          onBlur: () => control.markAsTouched(),
+        },
+        lazy
+      ) as unknown as UseFormFieldReturn<T>['controlProps'],
       errorProps: {
         id: ids.errorId,
         role: 'alert' as const,
@@ -198,22 +259,25 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
       hintProps: {
         id: ids.hintId,
       },
-      state: {
-        value: value as T,
-        issues,
-        error: shouldShowIssues && primary ? resolveError(primary) : undefined,
-        isPending: pending,
-        isDisabled: disabled,
-        isValid: valid,
-        isInvalid: invalid,
-        isTouched: touched,
-        shouldShowError,
-        shouldShowIssues,
-        label: componentProps.label as string | undefined,
-        required,
-        componentProps: componentProps as Record<string, unknown>,
-        path,
-      },
+      state: new Proxy(
+        {
+          value: undefined,
+          issues: undefined,
+          error: undefined,
+          isPending: undefined,
+          isDisabled: undefined,
+          isValid: undefined,
+          isInvalid: undefined,
+          isTouched: undefined,
+          shouldShowError: undefined,
+          shouldShowIssues: undefined,
+          label: undefined,
+          required: undefined,
+          componentProps: undefined,
+          path: undefined,
+        },
+        lazy
+      ) as unknown as UseFormFieldState<T>,
       actions: {
         setValue: (v: T) => control.setValue(v),
         markAsTouched: () => control.markAsTouched(),
