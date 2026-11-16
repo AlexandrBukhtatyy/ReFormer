@@ -9,6 +9,7 @@ import { NumberInput } from '../../../shared/ui/controls';
 import { formatNumberInput, parseNumberInput } from '../../../shared/domain/credit';
 
 export const numberEventAdapter: FieldAdapter = {
+  uncontrolled: true,
   fromEmit: (e) => parseNumberInput((e as ChangeEvent<HTMLInputElement>).target.value),
   toValue: (v) => formatNumberInput(v as number | null),
 };

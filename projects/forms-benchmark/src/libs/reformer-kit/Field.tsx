@@ -28,16 +28,13 @@ const INLINE_LABEL = new Set<unknown>([Checkbox]);
 const domPath = (path: string): string => path.replace(/\./g, '-');
 
 export function Field<T>({ control }: { control: FormControl<T> }) {
-  const { controlProps, state } = useFormField(control);
+  const { seam, state } = useFormField(control);
   const Component = control.component as ComponentType<Record<string, unknown>>;
   const { label, ...rest } = state.componentProps as { label: string };
   const path = domPath(state.path);
-  const bound = bindFieldProps(
-    getFieldAdapter(Component),
-    { value: state.value, onChange: controlProps.onChange, onBlur: controlProps.onBlur },
-    rest,
-    Component
-  );
+  // Значение — в DOM-элемент (неуправляемые адаптеры, ./adapters.ts): рендер его не читает, и
+  // поле на клавишу не перерисовывается.
+  const bound = bindFieldProps(getFieldAdapter(Component), seam, rest, Component);
   return (
     <FieldFrame path={path} label={label} error={state.error} inline={INLINE_LABEL.has(Component)}>
       <Component {...bound} {...controlAttrs(path, state.error)} disabled={state.isDisabled} />
