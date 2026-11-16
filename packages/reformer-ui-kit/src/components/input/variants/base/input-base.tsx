@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 import { defineFieldControl } from '@/fields/field-control';
-import { nativeInputAdapter } from '@/fields/adapters';
+import { uncontrolledInputAdapter } from '@/fields/adapters';
 import { withFieldTooltip, INSIDE_INPUT } from '@/fields/field-tooltip';
 
 // Дословный порт shadcn/ui (new-york-v4) input. Правки только: `@/lib/utils`. Чистый native input —
@@ -34,10 +34,11 @@ function InputPrimitive({ className, type, ...props }: React.ComponentProps<'inp
  * Input кита: порт shadcn + проп `tooltip` (иконка-подсказка у правого края). Без подсказки DOM
  * побайтно как у порта. В форме кладётся в `component` как есть: диалект (`onChange(event)` →
  * `e.target.value || null`) объявлен статикой, связывает поле обёртка (`FormField.Control` /
- * рендерер). Числовое поле — {@link import('../number/input-number').InputNumber}.
+ * рендерер). Привязка неуправляемая ({@link uncontrolledInputAdapter}): значение поля — прямо в
+ * DOM, ввод не перерисовывает поле. Числовое поле — {@link import('../number/input-number').InputNumber}.
  */
 const Input = defineFieldControl(withFieldTooltip(InputPrimitive, INSIDE_INPUT), {
-  adapter: nativeInputAdapter,
+  adapter: uncontrolledInputAdapter,
 });
 Input.displayName = 'Input';
 

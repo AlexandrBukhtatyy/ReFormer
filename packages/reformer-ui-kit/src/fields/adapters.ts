@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import { version, type ChangeEvent } from 'react';
 import type { FieldAdapter } from '@reformer/core/react';
 
 /**
@@ -25,6 +25,26 @@ export const nativeInputAdapter: KitFieldAdapter = {
     (e as ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>).target.value ||
     null,
   toValue: (v) => v ?? '',
+};
+
+/**
+ * `ref` — обычный проп функционального компонента (React 19+). В React 18 его получает только
+ * `forwardRef`, а примитивы кита — порты shadcn без него.
+ */
+const REF_IS_PROP = Number.parseInt(version, 10) >= 19;
+
+/**
+ * Input / Textarea / Native Select кита — {@link nativeInputAdapter} с неуправляемой привязкой
+ * (`uncontrolled`): значение поля пишется прямо в DOM-элемент, и ввод не перерисовывает поле. Нужен
+ * `ref` до нативного элемента — поэтому только в React 19+; в React 18 пресет управляемый, как
+ * `nativeInputAdapter`.
+ *
+ * Для своего нативного контрола: он должен передавать `ref` элементу и не держать значение в своём
+ * состоянии. Контролам со своим состоянием (Radix, комбобокс) пресет не подходит.
+ */
+export const uncontrolledInputAdapter: KitFieldAdapter = {
+  ...nativeInputAdapter,
+  uncontrolled: REF_IS_PROP,
 };
 
 /**

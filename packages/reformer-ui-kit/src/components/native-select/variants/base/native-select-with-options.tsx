@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { defineFieldControl } from '@/fields/field-control';
-import { nativeInputAdapter } from '@/fields/adapters';
+import { uncontrolledInputAdapter } from '@/fields/adapters';
 import { withFieldTooltip, INSIDE_NATIVE_SELECT } from '@/fields/field-tooltip';
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from './native-select-base';
 
@@ -68,11 +68,12 @@ function NativeSelectWithOptionsBase({
 /**
  * Нативный select из декларативных `options` — компонент для формы (`component:
  * NativeSelectWithOptions`, registry `NativeSelect`): `e.target.value || null` через
- * {@link nativeInputAdapter} (статика) + проп `tooltip`.
+ * {@link uncontrolledInputAdapter} (статика; значение — прямо в DOM, ввод без рендера поля) + проп
+ * `tooltip`.
  */
 const NativeSelectWithOptions = defineFieldControl(
   withFieldTooltip(NativeSelectWithOptionsBase, INSIDE_NATIVE_SELECT),
-  { adapter: nativeInputAdapter }
+  { adapter: uncontrolledInputAdapter }
 );
 NativeSelectWithOptions.displayName = 'NativeSelectWithOptions';
 

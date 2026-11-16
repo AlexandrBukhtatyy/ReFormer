@@ -399,8 +399,8 @@ function App() {
 
 | Компонент       | Собственный контракт                                     | Как связывается с формой                               |
 | --------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| `Input`         | нативный `<input>`: `value`, `onChange(event)`           | статика `nativeInputAdapter`: `e.target.value \|\| null` |
-| `Textarea`      | нативный `<textarea>`: `value`, `onChange(event)`        | статика `nativeInputAdapter`                           |
+| `Input`         | нативный `<input>`: `value`, `onChange(event)`           | статика `uncontrolledInputAdapter`: `e.target.value \|\| null` |
+| `Textarea`      | нативный `<textarea>`: `value`, `onChange(event)`        | статика `uncontrolledInputAdapter`                     |
 | `InputNumber`   | `value: number \| null`, `onChange(number \| null)`      | seam как есть (уже value-based)                        |
 | `InputSuggest`  | `value: string \| null`, `onChange(string)`              | статика `textValueAdapter`: пустой текст → `null`      |
 | `InputMask`     | `value: string \| null`, `onChange(string \| null)`      | seam как есть                                          |
@@ -409,6 +409,14 @@ function App() {
 Во всех случаях в модель уходит значение, а не событие: пустая строка → `null`, `onBlur()`
 помечает поле `touched`. Формальный `FieldAdapter` в `RendererSettings.resolveFieldAdapter`
 для них не нужен — он нужен только чужим компонентам без статики `reformerAdapter`.
+
+**Ввод без рендера.** `Input`, `Textarea` и `NativeSelectWithOptions` привязаны неуправляемо
+(`uncontrolledInputAdapter` — `nativeInputAdapter` с `uncontrolled: true`, React 19+). Значение поля
+обёртка пишет прямо в DOM-элемент, а не пропом `value`. Поэтому ввод не перерисовывает ни поле, ни
+`FormField`, а запись в поле из кода (`setValue`, `reset`, `computeFrom`, `copyFrom`) доходит до
+элемента. В React 18 `ref` до нативного элемента у портов shadcn не доходит, и пресет там
+управляемый. Свой нативный контрол может взять тот же пресет, если передаёт `ref` элементу. Условия —
+core `16-ui-components.md`, раздел «Ввод без рендера».
 
 > **Вне формы** (standalone) `Input` и `Textarea` — обычные нативные контролы: их `onChange`
 > получает событие. Value-based `onChange(value)` у них появляется только внутри обёртки поля.
@@ -4037,7 +4045,7 @@ Handle строит **обёртка поля** (`FormField.Control` из `@refo
 Поэтому своему контролу для baseline-handle делать ничего не нужно — достаточно пробросить `ref`
 на DOM-элемент (`forwardRef` или React 19 ref-as-prop). Слой создания полей публикуется точкой
 `@reformer/ui-kit/fields`: `defineFieldControl`, адаптеры-пресеты (`nativeInputAdapter`,
-`textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
+`uncontrolledInputAdapter`, `textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
 `sliderAdapter`, `dateAdapter`, `datePickerAdapter`, `dateRangeAdapter`), `makeElementFieldHandle`
 и типы `FieldAdapter` / `FieldHandle`.
 
@@ -8509,6 +8517,19 @@ export interface FieldAdapter {
   /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
   strip?: string[];
   /**
+   * Неуправляемая привязка: контрол — нативный элемент формы (`input`, `textarea`, `select`,
+   * чекбокс, радиокнопки) либо передаёт `ref` такому элементу. Значение поля пишется прямо в
+   * DOM-свойство `valueProp` (`value` или `checked`), а не пропом React: компонент поля, который не
+   * читает `value` при рендере, на ввод не перерисовывается. Ввод доходит до поля через `changeProp`
+   * и `fromEmit`, запись в поле извне (`setValue`, `reset`, `computeFrom`) — до элемента.
+   *
+   * Работает, когда seam несёт ноду поля (`seam.control`); без неё привязка управляемая. `fromEmit`
+   * должен читать значение из `event.target` — так привязка сверяет показанное с полем и не
+   * перетирает ввод (`5.` числового поля, текст маски). Контролы со своим состоянием (Radix,
+   * комбобокс) остаются управляемыми.
+   */
+  uncontrolled?: boolean;
+  /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
    * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
    * `useFormControl(control)`.
@@ -10127,7 +10148,8 @@ _Source: src/components/info-hint/variants/base/info-hint-base.tsx_
 Input кита: порт shadcn + проп `tooltip` (иконка-подсказка у правого края). Без подсказки DOM
 побайтно как у порта. В форме кладётся в `component` как есть: диалект (`onChange(event)` →
 `e.target.value || null`) объявлен статикой, связывает поле обёртка (`FormField.Control` /
-рендерер). Числовое поле — {@link import('../number/input-number').InputNumber}.
+рендерер). Привязка неуправляемая ({@link uncontrolledInputAdapter}): значение поля — прямо в
+DOM, ввод не перерисовывает поле. Числовое поле — {@link import('../number/input-number').InputNumber}.
 
 **Signature:**
 ```typescript
@@ -11816,7 +11838,8 @@ _Source: src/components/native-select/variants/base/native-select-with-options.t
 
 Нативный select из декларативных `options` — компонент для формы (`component:
 NativeSelectWithOptions`, registry `NativeSelect`): `e.target.value || null` через
-{@link nativeInputAdapter} (статика) + проп `tooltip`.
+{@link uncontrolledInputAdapter} (статика; значение — прямо в DOM, ввод без рендера поля) + проп
+`tooltip`.
 
 **Signature:**
 ```typescript
@@ -14540,7 +14563,8 @@ _Source: src/components/tabs/variants/base/tabs-base.tsx_
 **Kind:** `const`
 
 Textarea кита: порт shadcn + проп `tooltip` (иконка в правом верхнем углу). Диалект формы —
-{@link nativeInputAdapter} (статика; связывает обёртка поля).
+{@link uncontrolledInputAdapter} (статика; связывает обёртка поля, значение — прямо в DOM, ввод без
+рендера поля).
 
 **Signature:**
 ```typescript
@@ -15701,6 +15725,25 @@ export const typographySmallPropsSchema
 ```
 
 _Source: src/components/typography/variants/base/typography-base.props.ts_
+
+### uncontrolledInputAdapter
+
+**Kind:** `const`
+
+Input / Textarea / Native Select кита — {@link nativeInputAdapter} с неуправляемой привязкой
+(`uncontrolled`): значение поля пишется прямо в DOM-элемент, и ввод не перерисовывает поле. Нужен
+`ref` до нативного элемента — поэтому только в React 19+; в React 18 пресет управляемый, как
+`nativeInputAdapter`.
+
+Для своего нативного контрола: он должен передавать `ref` элементу и не держать значение в своём
+состоянии. Контролам со своим состоянием (Radix, комбобокс) пресет не подходит.
+
+**Signature:**
+```typescript
+export const uncontrolledInputAdapter: KitFieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
 
 ### useChart
 

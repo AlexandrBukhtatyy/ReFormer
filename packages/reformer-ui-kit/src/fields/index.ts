@@ -55,6 +55,7 @@ export type { FieldHandle } from './field-handle';
 // Пресеты event-shape под семейства shadcn-контролов.
 export {
   nativeInputAdapter,
+  uncontrolledInputAdapter,
   textValueAdapter,
   checkedAdapter,
   pressedAdapter,

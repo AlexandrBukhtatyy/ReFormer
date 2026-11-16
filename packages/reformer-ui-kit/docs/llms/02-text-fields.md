@@ -6,8 +6,8 @@
 
 | Компонент       | Собственный контракт                                     | Как связывается с формой                               |
 | --------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| `Input`         | нативный `<input>`: `value`, `onChange(event)`           | статика `nativeInputAdapter`: `e.target.value \|\| null` |
-| `Textarea`      | нативный `<textarea>`: `value`, `onChange(event)`        | статика `nativeInputAdapter`                           |
+| `Input`         | нативный `<input>`: `value`, `onChange(event)`           | статика `uncontrolledInputAdapter`: `e.target.value \|\| null` |
+| `Textarea`      | нативный `<textarea>`: `value`, `onChange(event)`        | статика `uncontrolledInputAdapter`                     |
 | `InputNumber`   | `value: number \| null`, `onChange(number \| null)`      | seam как есть (уже value-based)                        |
 | `InputSuggest`  | `value: string \| null`, `onChange(string)`              | статика `textValueAdapter`: пустой текст → `null`      |
 | `InputMask`     | `value: string \| null`, `onChange(string \| null)`      | seam как есть                                          |
@@ -16,6 +16,14 @@
 Во всех случаях в модель уходит значение, а не событие: пустая строка → `null`, `onBlur()`
 помечает поле `touched`. Формальный `FieldAdapter` в `RendererSettings.resolveFieldAdapter`
 для них не нужен — он нужен только чужим компонентам без статики `reformerAdapter`.
+
+**Ввод без рендера.** `Input`, `Textarea` и `NativeSelectWithOptions` привязаны неуправляемо
+(`uncontrolledInputAdapter` — `nativeInputAdapter` с `uncontrolled: true`, React 19+). Значение поля
+обёртка пишет прямо в DOM-элемент, а не пропом `value`. Поэтому ввод не перерисовывает ни поле, ни
+`FormField`, а запись в поле из кода (`setValue`, `reset`, `computeFrom`, `copyFrom`) доходит до
+элемента. В React 18 `ref` до нативного элемента у портов shadcn не доходит, и пресет там
+управляемый. Свой нативный контрол может взять тот же пресет, если передаёт `ref` элементу. Условия —
+core `16-ui-components.md`, раздел «Ввод без рендера».
 
 > **Вне формы** (standalone) `Input` и `Textarea` — обычные нативные контролы: их `onChange`
 > получает событие. Value-based `onChange(value)` у них появляется только внутри обёртки поля.

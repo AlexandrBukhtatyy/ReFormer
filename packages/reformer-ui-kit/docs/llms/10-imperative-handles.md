@@ -227,7 +227,7 @@ Handle строит **обёртка поля** (`FormField.Control` из `@refo
 Поэтому своему контролу для baseline-handle делать ничего не нужно — достаточно пробросить `ref`
 на DOM-элемент (`forwardRef` или React 19 ref-as-prop). Слой создания полей публикуется точкой
 `@reformer/ui-kit/fields`: `defineFieldControl`, адаптеры-пресеты (`nativeInputAdapter`,
-`textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
+`uncontrolledInputAdapter`, `textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
 `sliderAdapter`, `dateAdapter`, `datePickerAdapter`, `dateRangeAdapter`), `makeElementFieldHandle`
 и типы `FieldAdapter` / `FieldHandle`.
 
