@@ -12,6 +12,8 @@
     "site-data": "node scripts/site-data.mjs",
     "compare": "node scripts/compare.mjs",
     "idle-check": "node --disable-warning=ExperimentalWarning scripts/idle-check.mjs",
+    "ab": "node --disable-warning=ExperimentalWarning scripts/ab/ab.mjs",
+    "ab:profile": "node --disable-warning=ExperimentalWarning scripts/ab/profile.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
