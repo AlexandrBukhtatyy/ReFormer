@@ -869,7 +869,7 @@ Headless compound component для построения доступной (a11y
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
 | `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `issues`, `error` (текст главного замечания: первой ошибки, без ошибок — первого предупреждения), `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                                                                              |
-| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `hintProps`, `state`, `actions`, `ids`.                  | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                                                                              |
+| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `hintProps`, `state`, `actions`, `ids`, `seam` (для `bindFieldProps`).                  | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                                                                              |
 
 ## 26. Examples
 
@@ -925,6 +925,20 @@ MyCheckbox.reformerAdapter = checkedAdapter; // в ui-kit: defineFieldControl(My
 В режиме `asChild`/`children` привязки добавляются в диалекте ребёнка и **только те, которых у
 него ещё нет**: рендерер отдаёт обёртке поля уже привязанный контрол, и повторная привязка
 склеила бы два `onChange`.
+
+**Ввод без рендера.** Нативный контрол, который передаёт `ref` в `<input>`, может объявить адаптер с
+`uncontrolled: true`. Тогда `Control` пишет значение прямо в DOM-элемент (`defaultValue` и `ref`), и
+ввод не перерисовывает ни `FormField.Root`, ни его части. Корень читает состояние поля при
+обращении: перерисовка — только на то, что показывают части (ошибку, доступность, подпись). Поле на
+`useFormField` получает то же через `seam`:
+
+```tsx
+const { seam, state } = useFormField(control);
+const Control = control.component;
+return <Control {...bindFieldProps(getFieldAdapter(Control), seam, {}, Control)} />;
+```
+
+Подробно, с условиями флага, — `@reformer/core`, `16-ui-components.md`, раздел «Ввод без рендера».
 
 ### Custom layout — обёртки и стилизация
 
@@ -8558,47 +8572,9 @@ _Source: src/components/file-upload/useFileUpload.ts_
 
 **Kind:** `function`
 
-Primary hook for building accessible form fields.
-
-Returns partitioned prop collections and structured state that you can spread
-directly onto your own elements. No prescribed DOM structure.
-
 **Signature:**
 ```typescript
 export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFieldReturn<T>
-```
-
-**Examples:**
-
-Basic usage
-```tsx
-function EmailField({ control }: { control: FormControl<string> }) {
-const { labelProps, controlProps, errorProps, state } = useFormField(control);
-
-return (
-<div>
-<label {...labelProps}>{state.label}</label>
-<input {...controlProps} type="email" />
-{state.shouldShowIssues && (
-<p {...errorProps}>{state.error}</p>
-)}
-</div>
-);
-}
-```
-
-With description (manual aria-describedby wiring)
-```tsx
-const { labelProps, controlProps, errorProps, descriptionProps, state, ids } =
-useFormField(control);
-
-const enrichedControlProps = {
-...controlProps,
-'aria-describedby': [
-ids.descriptionId,
-state.shouldShowIssues ? ids.errorId : null,
-].filter(Boolean).join(' ') || undefined,
-};
 ```
 
 _Source: src/components/form-field/useFormField.ts_
@@ -8757,6 +8733,20 @@ export interface UseFormFieldReturn<T = unknown> {
   hintProps: UseFormFieldHintProps;
   /** Structured field state */
   state: UseFormFieldState<T>;
+  /**
+   * Seam for `bindFieldProps` from `@reformer/core/react`: the field node, the value (read on
+   * access) and value-based callbacks. With an `uncontrolled` adapter the value goes straight to
+   * the DOM element and typing does not re-render the component — as long as the render does not
+   * read `state.value` itself.
+   *
+   * @example
+   * ```tsx
+   * const { seam, state } = useFormField(control);
+   * const Component = control.component;
+   * return <Component {...bindFieldProps(getFieldAdapter(Component), seam, {}, Component)} />;
+   * ```
+   */
+  seam: FieldSeam;
   /** Field actions */
   actions: {
     setValue: (value: T) => void;

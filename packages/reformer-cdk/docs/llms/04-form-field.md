@@ -22,7 +22,7 @@ Headless compound component для построения доступной (a11y
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
 | `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `issues`, `error` (текст главного замечания: первой ошибки, без ошибок — первого предупреждения), `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                                                                              |
-| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `hintProps`, `state`, `actions`, `ids`.                  | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                                                                              |
+| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `hintProps`, `state`, `actions`, `ids`, `seam` (для `bindFieldProps`).                  | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                                                                              |
 
 ## Examples
 
@@ -78,6 +78,20 @@ MyCheckbox.reformerAdapter = checkedAdapter; // в ui-kit: defineFieldControl(My
 В режиме `asChild`/`children` привязки добавляются в диалекте ребёнка и **только те, которых у
 него ещё нет**: рендерер отдаёт обёртке поля уже привязанный контрол, и повторная привязка
 склеила бы два `onChange`.
+
+**Ввод без рендера.** Нативный контрол, который передаёт `ref` в `<input>`, может объявить адаптер с
+`uncontrolled: true`. Тогда `Control` пишет значение прямо в DOM-элемент (`defaultValue` и `ref`), и
+ввод не перерисовывает ни `FormField.Root`, ни его части. Корень читает состояние поля при
+обращении: перерисовка — только на то, что показывают части (ошибку, доступность, подпись). Поле на
+`useFormField` получает то же через `seam`:
+
+```tsx
+const { seam, state } = useFormField(control);
+const Control = control.component;
+return <Control {...bindFieldProps(getFieldAdapter(Control), seam, {}, Control)} />;
+```
+
+Подробно, с условиями флага, — `@reformer/core`, `16-ui-components.md`, раздел «Ввод без рендера».
 
 ### Custom layout — обёртки и стилизация
 

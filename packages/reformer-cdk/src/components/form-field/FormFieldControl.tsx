@@ -52,9 +52,11 @@ import type { FormFieldControlProps } from './types';
  */
 export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldControlProps>(
   ({ asChild = false, children, ...props }, ref) => {
+    const context = useFormFieldContext();
+    // `value` не деструктурируется: контрол с неуправляемым адаптером его не читает, и корень поля
+    // не подписан на значение — ввод не перерисовывает поле (`FieldAdapter.uncontrolled`).
     const {
       control,
-      value,
       disabled,
       shouldShowError,
       shouldShowIssues,
@@ -64,7 +66,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       hasDescription,
       hasHint,
       componentProps,
-    } = useFormFieldContext();
+    } = context;
     // Хук — безусловно (правила хуков); ref контролу вешается только в авто-рендере и только
     // когда потребитель его запросил.
     const handleRef = useFieldHandleRef(ref);
@@ -91,7 +93,10 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
     };
 
     const seam: FieldSeam = {
-      value,
+      control,
+      get value() {
+        return context.value;
+      },
       onChange: (v: unknown) => control.setValue(v),
       onBlur: () => control.markAsTouched(),
     };
@@ -108,12 +113,15 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
       const childProps = isValidElement(child) ? (child.props as Record<string, unknown>) : {};
       const adapter = isValidElement(child) ? getFieldAdapter(child.type) : undefined;
       const fieldBindings: Record<string, unknown> = { disabled };
-      for (const [key, bound] of Object.entries(bindFieldProps(adapter, seam))) {
+      // Ref потребителя — в прочие props: неуправляемая привязка занимает ref элемента сама и
+      // передаёт элемент ему; у управляемой он возвращается как есть.
+      const { ref: slotRef, ...bindings } = bindFieldProps(adapter, seam, ref ? { ref } : {});
+      for (const [key, bound] of Object.entries(bindings)) {
         if (childProps[key] === undefined) fieldBindings[key] = bound;
       }
       return (
         <Slot
-          ref={ref as React.Ref<HTMLElement>}
+          ref={slotRef as React.Ref<HTMLElement>}
           {...(accessibleProps as Record<string, unknown>)}
           {...(props as Record<string, unknown>)}
           {...fieldBindings}
@@ -135,6 +143,7 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
     // Подпись, описание и `required` рисует обёртка — `bindFieldProps` срезает их у контрола
     // (нативный `required` на `<input>` блокировал бы отправку проверкой браузера). Компонент
     // передаётся, чтобы контрол с inline-подписью (чекбокс) получил `label` и `required`.
+    // Ручка поля — в прочие props контрола: неуправляемая привязка передаёт ей элемент сама.
     const bound = bindFieldProps(
       getFieldAdapter(Component),
       seam,
@@ -142,10 +151,11 @@ export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldC
         ...domComponentProps,
         ...(accessibleProps as Record<string, unknown>),
         ...(props as Record<string, unknown>),
+        ...(ref ? { ref: handleRef } : {}),
       },
       Component
     );
-    return <Component {...(ref ? { ref: handleRef } : {})} {...bound} disabled={disabled} />;
+    return <Component {...bound} disabled={disabled} />;
   }
 );
 

@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 import { type FormControl, type ValidationIssue } from '@reformer/core';
-import { useFormControl } from '@reformer/core/react';
+import { useFormControl, type FieldSeam } from '@reformer/core/react';
 import type { FormFieldIds } from './types';
 import { useIssueMessageResolver } from '../../validation/error-resolver';
 import { primaryIssueIndex } from '../../validation/primary-issue';
@@ -88,6 +88,20 @@ export interface UseFormFieldReturn<T = unknown> {
   hintProps: UseFormFieldHintProps;
   /** Structured field state */
   state: UseFormFieldState<T>;
+  /**
+   * Seam for `bindFieldProps` from `@reformer/core/react`: the field node, the value (read on
+   * access) and value-based callbacks. With an `uncontrolled` adapter the value goes straight to
+   * the DOM element and typing does not re-render the component — as long as the render does not
+   * read `state.value` itself.
+   *
+   * @example
+   * ```tsx
+   * const { seam, state } = useFormField(control);
+   * const Component = control.component;
+   * return <Component {...bindFieldProps(getFieldAdapter(Component), seam, {}, Component)} />;
+   * ```
+   */
+  seam: FieldSeam;
   /** Field actions */
   actions: {
     setValue: (value: T) => void;
@@ -228,8 +242,18 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
     const lazy: ProxyHandler<Record<string, unknown>> = {
       get: (target, key) => (LAZY_KEYS.has(key) ? read(key) : Reflect.get(target, key)),
     };
+    const onChange = (v: unknown): void => control.setValue(v as T);
+    const onBlur = (): void => control.markAsTouched();
 
     return {
+      seam: {
+        control,
+        get value() {
+          return raw.value;
+        },
+        onChange,
+        onBlur,
+      },
       ids,
       labelProps: {
         id: ids.labelId,
@@ -244,8 +268,8 @@ export function useFormField<T>(control: FormControl<T>, id?: string): UseFormFi
           'aria-invalid': undefined,
           'aria-errormessage': undefined,
           'aria-required': undefined,
-          onChange: (v: unknown) => control.setValue(v as T),
-          onBlur: () => control.markAsTouched(),
+          onChange,
+          onBlur,
         },
         lazy
       ) as unknown as UseFormFieldReturn<T>['controlProps'],
