@@ -86,29 +86,32 @@ export function validateAsync<TField>(
       if (issue) recall.push(() => void bucket.push(issue));
       continue;
     }
-    ctx.asyncFields.add(handle);
-    ctx.pending.push(
-      // Вызов внутри исполнителя промиса: синхронное исключение правила — такой же сбой.
-      new Promise<ValidationIssue | null>((resolve) => resolve(rule(value, { signal }))).then(
-        (err) => {
-          if (signal.aborted) return;
-          // Запоминается только ответ: сбой и отмена ответом не считаются, их правило спросят снова.
-          if (answers !== undefined) {
-            known ??= answers.get(handle);
-            if (known === undefined) answers.set(handle, (known = new Map()));
-            known.set(rule, { value, issue: err ?? null });
-          }
-          if (err) bucket.push(err);
-        },
-        (error: unknown) => {
-          if (signal.aborted) return;
-          ctx.failures.push({ handle, error });
-          if (!bucket.some((existing) => existing.code === RULE_FAILED)) {
-            bucket.push({ code: RULE_FAILED });
-          }
+    // Вызов внутри исполнителя промиса: синхронное исключение правила — такой же сбой.
+    const answered = new Promise<ValidationIssue | null>((resolve) =>
+      resolve(rule(value, { signal }))
+    ).then(
+      (err) => {
+        if (signal.aborted) return;
+        // Запоминается только ответ: сбой и отмена ответом не считаются, их правило спросят снова.
+        if (answers !== undefined) {
+          known ??= answers.get(handle);
+          if (known === undefined) answers.set(handle, (known = new Map()));
+          known.set(rule, { value, issue: err ?? null });
         }
-      )
+        if (err) bucket.push(err);
+      },
+      (error: unknown) => {
+        if (signal.aborted) return;
+        ctx.failures.push({ handle, error });
+        if (!bucket.some((existing) => existing.code === RULE_FAILED)) {
+          bucket.push({ code: RULE_FAILED });
+        }
+      }
     );
+    ctx.pending.push(answered);
+    let ofField = ctx.asyncFields.get(handle);
+    if (ofField === undefined) ctx.asyncFields.set(handle, (ofField = []));
+    ofField.push(answered);
   }
 }
 

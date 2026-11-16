@@ -118,6 +118,11 @@ validate(model.$.inn, [required(), pattern(/^\d{12}$/)]); // формат — sy
 validateAsync(model.$.inn, [checkInnInRegistry]); // обращение к API — отдельным оператором
 ```
 
+Замечания разносятся по готовности, а не в конце прогона. Поля без async-правил получают их
+сразу: «обязательное поле» видно, пока сервер проверяет ИНН. Поле с async-правилами получает итог
+целиком, когда ответили все его правила, — прежнее «ИНН не найден» держится до нового ответа и не
+мигает. Итог прогона (`submit()`, `flow.next()`, `validate()`) по-прежнему ждёт всех правил.
+
 ### UI integration
 
 Пока идут async-правила поля, раннер держит его ноду в `pending` — индикатор проверки поля
@@ -174,6 +179,7 @@ return pending ? <Spinner /> : shouldShowIssues ? <Error text={message(issues[0]
   ```
 
   Либо оборачивай в свой debounce колбэк `revalidateWhen([...], () => void validateModel(...))`.
+
 - **Async cross-field** — инлайн `validateAsync`-правило, замыкающее `model` и читающее снимок
   соседей `model.get()` до первого `await` (`AsyncRule` получает только `value` и `signal`;
   `cross` — синхронный):

@@ -421,12 +421,66 @@ function touchByValidation(action: () => void): void {
 export const isTouchByValidation = (): boolean => touchesByValidation > 0;
 
 /**
+ * Разнести замечания части полей прогона, не дожидаясь его конца. Async-правило пишет только в
+ * своё поле, поэтому итог поля готов, как только ответили ЕГО правила: у полей без async-правил —
+ * сразу после синхронной части, у остальных — по ответу их правил. Ошибку «обязательное поле»
+ * незачем держать до ответа сервера о соседнем поле. Поле с async-правилами разносится целиком,
+ * когда ответили все его правила, — иначе его прежнее замечание («имя занято») мигало бы.
+ *
+ * Итоговый разнос пишет этим полям тот же список (запись пропускается) и гасит поля, не
+ * проверенные прогоном, — здесь гашения по разности нет. Замечания полей без нод (на корень
+ * формы) тоже ждут итога.
+ *
+ * `touch` — как у итогового разноса: проверенные поля метятся тронутыми; при `'all'` и блокирующей
+ * ошибке — вся форма: итог прогона с такой ошибкой уже не `valid`. `afterWrite` выполняется в том
+ * же пакете записей — снять `pending` поля вместе с его замечаниями, без промежуточного статуса.
+ */
+function settleNow(
+  model: FormModel<unknown>,
+  ctx: VContext,
+  nodes: NodeScope,
+  skipDisabled: boolean,
+  touch: ValidationTouch,
+  include: (sig: PathAwareSignal<unknown>) => boolean,
+  afterWrite?: () => void
+): void {
+  const origins = new Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>();
+  const issues = new Map<PathAwareSignal<unknown>, ValidationIssue[]>();
+  for (const [sig, byOrigin] of ctx.origins) {
+    if (!include(sig)) continue;
+    // Копия: гашение неактивных полей ниже не должно трогать сбор прогона.
+    const lists = new Map<object, ValidationIssue[]>();
+    byOrigin.forEach((list, origin) => lists.set(origin, [...list]));
+    origins.set(sig, lists);
+    issues.set(sig, [...lists.values()].flat());
+  }
+  if (issues.size === 0 && afterWrite === undefined) return;
+  const checked = new Set<PathAwareSignal<unknown>>();
+  for (const sig of ctx.checked) if (issues.has(sig)) checked.add(sig);
+  if (skipDisabled) dropInactive(model, issues, [], checked, origins, nodes);
+  const tagged: TaggedIssues = { origins, executed: ctx.executed };
+  const write = (): void => {
+    const orphans = new Map<object, ValidationIssue[]>();
+    for (const [sig, list] of issues) settleIssues(sig, tagged, list, orphans, nodes);
+    if (touch !== false) {
+      for (const sig of checked) nodes.get(sig)?.markAsTouched();
+      if (touch === 'all' && hasBlocking(issues)) nodes.get(model.$ as object)?.markAsTouched();
+    }
+    afterWrite?.();
+  };
+  if (touch !== false) touchByValidation(write);
+  else batch(write);
+}
+
+/**
  * Сбор: прогон схемы и ожидание async-правил.
  *
- * @param markPending - держать ноды полей с async-правилами в `pending` до вызова `release`.
+ * @param markPending - держать ноды полей с async-правилами в `pending` до вызова `release`; пока
+ *   правила ждут ответа, замечания полей разносятся по готовности ({@link settleNow}).
  * @param skipDisabled - не учитывать поля выключенных нод (проверка уровня формы).
  * @param live - живой прогон: async-правило поля, не менявшегося с полученного ответа, не
  *   вызывается — берётся его прежний ответ.
+ * @param touch - касание полей при раннем разносе — то же, что у итогового.
  * @returns Результат и `release` — снять `pending` (вызывается после разноса, чтобы поле не
  *   мигнуло прежним статусом между концом ожидания и новыми ошибками).
  */
@@ -436,7 +490,8 @@ async function collect<T>(
   markPending: boolean,
   skipDisabled = false,
   nodes: NodeScope = GLOBAL_NODES,
-  live = false
+  live = false,
+  touch: ValidationTouch = false
 ): Promise<{ result: ValidationResult; release: () => void }> {
   const state = runStateFor(ownerOf(model as object, nodes), schema as object);
   abortRun(state.ac); // отменяем предыдущий in-flight прогон этой (model, schema)
@@ -449,7 +504,7 @@ async function collect<T>(
     issues: new Map(),
     checked: new Set(),
     pending: [],
-    asyncFields: new Set(),
+    asyncFields: new Map(),
     failures,
     whenStack: [],
     signal: ac.signal,
@@ -467,13 +522,43 @@ async function collect<T>(
   // Прежние ответы async-правил — после синхронных замечаний, как легли бы ответы вызванных.
   if (ctx.recall) for (const write of ctx.recall) write();
 
-  const busy: PendingTarget[] = [];
+  const busy = new Map<PathAwareSignal<unknown>, PendingTarget>();
+  /** Ноды, с которых `pending` уже снят: снятие — счётчик, второй раз его снимать нельзя. */
+  const released = new Set<PendingTarget>();
+  const releaseOf = (node: PendingTarget | undefined): void => {
+    if (node === undefined || released.has(node)) return;
+    released.add(node);
+    node.setPending(false);
+  };
   if (markPending) {
-    for (const sig of ctx.asyncFields) {
+    for (const sig of ctx.asyncFields.keys()) {
       const node = nodes.get(sig) as PendingTarget | undefined;
-      if (node) busy.push(node);
+      if (node) busy.set(sig, node);
     }
-    for (const node of busy) node.setPending(true);
+    for (const node of busy.values()) node.setPending(true);
+    if (ctx.pending.length > 0) {
+      // Доступность полей `enableWhen` пишется на микротаске — до разноса, как и в итоге.
+      if (skipDisabled) await deferredWritesSettled();
+      const at = model as FormModel<unknown>;
+      if (!ac.signal.aborted) {
+        settleNow(at, ctx, nodes, skipDisabled, touch, (sig) => !ctx.asyncFields.has(sig));
+      }
+      // Поле с async-правилами — по ответу его правил, не дожидаясь остальных полей.
+      for (const [field, answers] of ctx.asyncFields) {
+        void Promise.all(answers).then(() => {
+          if (ac.signal.aborted) return;
+          settleNow(
+            at,
+            ctx,
+            nodes,
+            skipDisabled,
+            touch,
+            (sig) => sig === field,
+            () => releaseOf(busy.get(field))
+          );
+        });
+      }
+    }
   }
 
   // Дожидаемся async-правил, но размыкаем ожидание по отмене (устаревший прогон не висит на
@@ -525,7 +610,7 @@ async function collect<T>(
   return {
     result,
     release: () => {
-      for (const node of busy) node.setPending(false);
+      for (const node of busy.values()) releaseOf(node);
     },
   };
 }
@@ -637,7 +722,8 @@ export async function runAndApply<T>(
     true,
     options?.skipDisabled,
     nodes,
-    options?.live
+    options?.live,
+    options?.touch ?? false
   );
   const touch = options?.touch ?? false;
   const write = (): void => {

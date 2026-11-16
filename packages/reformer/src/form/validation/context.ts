@@ -36,8 +36,11 @@ export interface VContext {
   checked: Set<PathAwareSignal<unknown>>;
   /** Незавершённые async-правила (раннер их дожидается). */
   pending: Promise<void>[];
-  /** Поля с async-правилами: на время ожидания раннер держит их ноды в `pending`. */
-  asyncFields: Set<PathAwareSignal<unknown>>;
+  /**
+   * Поля с async-правилами и промисы их правил: на время ожидания раннер держит ноды полей в
+   * `pending`, а поле, чьи правила ответили, разносит, не дожидаясь остальных.
+   */
+  asyncFields: Map<PathAwareSignal<unknown>, Promise<void>[]>;
   /**
    * Правила, которые не вернули результат. Список — один на весь прогон: области `apply` /
    * `applyEach` получают поверхностную копию контекста и пишут в ту же ссылку.

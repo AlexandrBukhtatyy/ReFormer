@@ -46,7 +46,7 @@ function contextOf(model: object = createModel({ a: '' })): VContext {
     issues: new Map(),
     checked: new Set(),
     pending: [],
-    asyncFields: new Set(),
+    asyncFields: new Map(),
     failures: [],
     whenStack: [],
     signal: new AbortController().signal,

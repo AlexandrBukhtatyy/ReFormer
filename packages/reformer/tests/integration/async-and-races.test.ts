@@ -133,7 +133,7 @@ describe('async-правило ИНН — ожидание проверки ша
     expect([bundle.validating.value, bundle.flow!.validating.value]).toEqual([false, false]);
   });
 
-  it('AR-02: замечания шага разносятся целиком после ответа сервера — синхронные не обгоняют проверку ИНН', async () => {
+  it('AR-02: синхронные замечания шага видны сразу, поле с проверкой ИНН ждёт ответа сервера', async () => {
     const server = createLoanServer({ manual: ['checkInn'] });
     const { bundle } = await atApplicantStep({ server });
     bundle.model.applicant.lastName = '';
@@ -142,12 +142,35 @@ describe('async-правило ИНН — ожидание проверки ша
     const next = bundle.flow!.next();
     await settle();
 
-    // Фамилия пуста, но её замечание ждёт прогон целиком: поле не мигает статусом до ответа.
-    expect(form.applicant.lastName.issues.value).toEqual([]);
+    // Фамилию сервер не проверяет: её ошибка готова сразу и видна, пока ИНН ждёт ответа. Итог
+    // прогона её уже не меняет — поле не мигает.
+    expect(issueCodes(form.applicant.lastName)).toEqual(['required']);
+    expect(form.applicant.lastName.shouldShowError.value).toBe(true);
+    // Поле с async-правилом ждёт ответа целиком: ни замечаний, ни статуса до него.
+    expect(form.applicant.inn.pending.value).toBe(true);
+    expect(form.applicant.inn.issues.value).toEqual([]);
     server.last('checkInn').resolve({ status: 'found' });
 
     expect(await next).toMatchObject({ status: 'stayed', step: 'applicant', reason: 'invalid' });
     expect(issueCodes(form.applicant.lastName)).toEqual(['required']);
+    expect(form.applicant.inn.issues.value).toEqual([]);
+  });
+
+  it('AR-02b: прежнее замечание поля с проверкой ИНН держится до нового ответа — без мигания', async () => {
+    const server = createLoanServer({ manual: ['checkInn'] });
+    const { bundle } = await atApplicantStep({ server });
+    const { form } = bundle;
+    form.applicant.inn.setIssues([{ code: 'applicant.inn.notFound' }]);
+    bundle.model.applicant.lastName = '';
+
+    const next = bundle.flow!.next();
+    await settle();
+
+    expect(issueCodes(form.applicant.lastName)).toEqual(['required']);
+    expect(issueCodes(form.applicant.inn)).toEqual(['applicant.inn.notFound']);
+    server.last('checkInn').resolve({ status: 'found' });
+
+    expect(await next).toMatchObject({ status: 'stayed', reason: 'invalid' });
     expect(form.applicant.inn.issues.value).toEqual([]);
   });
 
@@ -406,11 +429,13 @@ describe('строка удалена, пока ждали её async-прави
     expect(form.coBorrowers.issues.value).toEqual([]);
   });
 
-  it('AR-12: поведение под вопросом [ReFormer-hn34]: проверка ждёт ответа по удалённой строке, её запрос не отменён', async () => {
-    // поведение под вопросом: удаление строки прогон не отменяет — он ждёт и её async-правило,
-    // хотя его ответ уже ни на что не влияет. Запрос по удалённому созаёмщику продолжается (его
-    // сигнал не сработал), а поле оставшейся строки держится в pending до этого ответа: медленный
-    // ответ по строке, которой больше нет, задерживает проверку всей формы.
+  it('AR-12: поле оставшейся строки не ждёт ответа по удалённой; прогон его ждёт [ReFormer-hn34]', async () => {
+    // Поле разносится и снимает pending по ответу СВОЕГО правила: медленный ответ по строке,
+    // которой больше нет, его не задерживает.
+    //
+    // Поведение под вопросом [ReFormer-hn34]: удаление строки прогон не отменяет — он ждёт и её
+    // async-правило, хотя ответ уже ни на что не влияет; запрос по удалённому созаёмщику
+    // продолжается (его сигнал не сработал), и проверка формы (`validating`) идёт до этого ответа.
     const check = controlledAsyncRule<string>();
     const { bundle } = await twoCoBorrowers(check);
     const { form, model } = bundle;
@@ -421,7 +446,7 @@ describe('строка удалена, пока ждали её async-прави
     await settle();
 
     expect(check.signals.map((signal) => signal.aborted)).toEqual([false, false]);
-    expect(form.coBorrowers.at(0)!.fullName.pending.value).toBe(true);
+    expect(form.coBorrowers.at(0)!.fullName.pending.value).toBe(false);
     expect(bundle.validating.value).toBe(true);
 
     check.answers[1].resolve(null);
