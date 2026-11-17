@@ -34,9 +34,11 @@ test.describe('Ассистент: правила формы в коде мод�
     );
     await panel.ask('Сделай почту обязательной.');
 
-    // Правило легло в код модуля, и файл сохраняется, как любой файл.
+    // Правило легло в код модуля и сразу на диск: ход сохраняет свои файлы сам, без Ctrl+S
+    // (ReFormer-v5f1). Диск читается напрямую — savedText сохранил бы грязную вкладку за ход.
     await builder.openFile(RULES_CODE);
-    const code = await savedText(builder, disk, RULES_CODE);
+    await expect(builder.dirtyMark(RULES_CODE)).toHaveCount(0);
+    const code = await disk.readText(RULES_CODE);
     expect(code).toContain('validate(model.$.email');
     expect(code).toContain('required()');
     expect(code).toContain('email()');
@@ -50,17 +52,18 @@ test.describe('Ассистент: правила формы в коде мод�
     await panel.ask('Какие правила?');
     expect(lastUserText(model.requests[2])).toContain('validate email: required, email');
 
-    // Отмена хода с правилами возвращает файл правил к тексту без них.
+    // Отмена хода с правилами возвращает файл правил к тексту без них — и на диске тоже сразу.
     model.reply(
       call('set_form_rules', { validation: [{ target: 'name', rules: ['required'] }] }),
       say('Имя обязательно.')
     );
     await panel.ask('Сделай имя обязательным.');
-    await expect.poll(() => savedText(builder, disk, RULES_CODE)).toContain('model.$.name');
+    await expect.poll(() => disk.readText(RULES_CODE)).toContain('model.$.name');
     await builder.activateTab(FORM_A);
     await panel.undoTurnButton.click();
-    await expect.poll(() => savedText(builder, disk, RULES_CODE)).not.toContain('model.$.name');
-    expect(await savedText(builder, disk, RULES_CODE)).toContain('validate(model.$.email');
+    await expect.poll(() => disk.readText(RULES_CODE)).not.toContain('model.$.name');
+    expect(await disk.readText(RULES_CODE)).toContain('validate(model.$.email');
+    await expect(builder.dirtyMark(RULES_CODE)).toHaveCount(0);
   });
 
   test('[T13] значения источника данных из хода — в константах модуля и в живой форме', async ({

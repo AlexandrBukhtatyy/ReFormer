@@ -18,6 +18,8 @@ import type {
   FormCreatorService,
   ModuleGeneratorService,
   ResourceId,
+  WorkspaceSaveOptions,
+  WorkspaceSaveService,
 } from '@reformer/builder-plugin-api';
 import { createAgentBridge } from './bridge';
 import type { AiAssistant } from '../plugin';
@@ -112,6 +114,7 @@ interface HarnessOptions {
   readonly assistantTools?: readonly ContributedToolEntry[];
   readonly formCreator?: FormCreatorService;
   readonly generator?: ModuleGeneratorService;
+  readonly saver?: WorkspaceSaveService;
 }
 
 /** Мост с каналом к модели, двойником платформы и стеками. */
@@ -142,6 +145,7 @@ function harness(script: readonly FakeStep[], options: HarnessOptions = {}) {
     assistantTools: () => options.assistantTools ?? [],
     formCreator: () => options.formCreator,
     generator: () => options.generator,
+    saver: () => options.saver,
     stacks: options.stacks ?? (() => [stack]),
   });
   return { host, session, bridge, stack, execute, loadConfig };
@@ -1160,5 +1164,135 @@ describe('форма хода — не только активная вклад�
     bridge.reset();
     expect(session.get().pinned).toBeNull();
     subscription.dispose();
+  });
+});
+
+/** Сохранение на диск: что и с какими опциями просили сохранить. */
+/** Служба сохранения: `clean` — адреса без несохранённого (сохранены человеком, переехали). */
+function fakeSaver(ok = true, clean: readonly ResourceId[] = []) {
+  const calls: { readonly ids: readonly ResourceId[]; readonly options?: WorkspaceSaveOptions }[] =
+    [];
+  const saver: WorkspaceSaveService = {
+    save: (ids, options) => {
+      calls.push({ ids: [...ids], ...(options === undefined ? {} : { options }) });
+      return Promise.resolve(ok);
+    },
+    saveAll: () => Promise.resolve(ok),
+    isDirty: (ids) => ids === undefined || ids.some((id) => !clean.includes(id)),
+  };
+  return { saver, calls };
+}
+
+/** Строки журнала последней реплики с этим именем. */
+const linesOf = (session: AiSession, name: string) =>
+  session
+    .get()
+    .entries.at(-1)
+    ?.tools.filter((tool) => tool.name === name) ?? [];
+
+describe('сохранение на диск после хода (ReFormer-v5f1)', () => {
+  it('структурный ход сохраняет документ и сопутствующий файл — без чужих правок модуля', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY, 'forms/notes.txt': 'было\n' });
+    const { saver, calls } = fakeSaver();
+    const { session, bridge } = harness([addField('email')], { files, saver });
+
+    await bridge.send('добавь поле');
+
+    expect(calls).toHaveLength(1);
+    expect([...calls[0].ids].sort()).toEqual([FORM, 'forms/notes.txt'].sort());
+    expect(calls[0].options).toBeUndefined();
+    expect(linesOf(session, 'save')).toEqual([
+      expect.objectContaining({ ok: true, summary: expect.stringContaining('turn.saved') }),
+    ]);
+  });
+
+  it('службе называются только изменённые файлы хода — чистый адрес не сохраняется', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY, 'forms/notes.txt': 'было\n' });
+    // Сопутствующий файл человек за время хода уже сохранил (или переименовал).
+    const { saver, calls } = fakeSaver(true, ['forms/notes.txt' as ResourceId]);
+    const { session, bridge } = harness([addField('email')], { files, saver });
+
+    await bridge.send('добавь поле');
+
+    expect(calls.map((call) => call.ids)).toEqual([[FORM]]);
+    expect(linesOf(session, 'save').map((line) => line.summary)).toEqual([
+      expect.stringContaining('"count":"1"'),
+    ]);
+  });
+
+  it('строка о коде модуля не просит сохранить вручную', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const { saver } = fakeSaver();
+    const stack = createFakeFormStack({ moduleFiles: ['create.ts'] });
+    const { session, bridge } = harness([addField('email')], {
+      files,
+      saver,
+      stacks: () => [stack],
+    });
+
+    await bridge.send('добавь поле');
+
+    expect(linesOf(session, 'generate_code').map((line) => line.summary)).toEqual([
+      expect.stringContaining('turn.code.updated.auto'),
+    ]);
+  });
+
+  it('ход без правок ничего не сохраняет', async () => {
+    const { saver, calls } = fakeSaver();
+    const { session, bridge } = harness([{ text: 'Форма уже в порядке.' }], { saver });
+
+    await bridge.send('проверь форму');
+
+    expect(calls).toEqual([]);
+    expect(linesOf(session, 'save')).toEqual([]);
+  });
+
+  it('сохранение не удалось — предупреждение в журнале, ход закрыт', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const { saver } = fakeSaver(false);
+    const { session, bridge } = harness([addField('email')], { files, saver });
+
+    await bridge.send('добавь поле');
+
+    expect(linesOf(session, 'save')).toEqual([
+      expect.objectContaining({ ok: false, error: 'turn.save.failed' }),
+    ]);
+    expect(session.get().status).not.toBe('running');
+  });
+
+  it('без службы сохранения — прежняя строка и ничего не сохраняется', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const stack = createFakeFormStack({ moduleFiles: ['create.ts'] });
+    const { session, bridge } = harness([addField('email')], { files, stacks: () => [stack] });
+
+    await bridge.send('добавь поле');
+
+    expect(linesOf(session, 'save')).toEqual([]);
+    expect(linesOf(session, 'generate_code')[0]?.summary).toContain('turn.code.updated');
+    expect(linesOf(session, 'generate_code')[0]?.summary).not.toContain('.auto');
+  });
+
+  it('отмена хода сохраняет вернувшиеся файлы', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY, 'forms/notes.txt': 'было\n' });
+    const { saver, calls } = fakeSaver();
+    const { bridge } = harness([addField('email')], { files, saver });
+    await bridge.send('добавь поле');
+
+    await expect(bridge.undoLastTurn()).resolves.toBe('undone');
+
+    expect(calls).toHaveLength(2);
+    expect([...calls[1].ids].sort()).toEqual([FORM, 'forms/notes.txt'].sort());
+    expect(files.text('forms/notes.txt')).toBe('было\n');
+  });
+
+  it('«Восстановить» сохраняет документ вместе с сопутствующими файлами — это действие человека', async () => {
+    const files = createFakeFiles({ [FORM]: EMPTY });
+    const { saver, calls } = fakeSaver();
+    const { session, bridge } = harness([addField('email')], { files, saver });
+    await bridge.send('добавь поле');
+
+    await bridge.restoreTo(session.get().entries[0].id);
+
+    expect(calls.at(-1)).toEqual({ ids: [FORM], options: { companions: true } });
   });
 });

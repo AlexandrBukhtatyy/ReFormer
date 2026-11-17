@@ -1,5 +1,5 @@
 import { call, say, toolNames, toolResults } from './shared/model-mock';
-import { FORM_A } from './shared/forms';
+import { expectOnDisk, FORM_A } from './shared/forms';
 import { expect, test } from './shared/fixtures';
 
 /**
@@ -170,6 +170,7 @@ test.describe('Ассистент: build_form', () => {
 
   test('[B4] «Отменить ход» снимает всю сборку одним шагом', async ({
     builder,
+    disk,
     model,
     page,
     panel,
@@ -193,11 +194,14 @@ test.describe('Ассистент: build_form', () => {
     );
     await panel.ask('Добавь почту и телефон.');
     await expect(page.getByText('Телефон E2E', { exact: true })).toBeVisible();
-    await expect(builder.dirtyMark(FORM_A)).toHaveCount(1);
+    await expectOnDisk(builder, disk, FORM_A, 'Телефон E2E');
 
     await panel.undoTurnButton.click();
     await expect(page.getByText('Почта E2E', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Телефон E2E', { exact: true })).toHaveCount(0);
     await expect(panel.undoTurnButton).toBeDisabled();
+    // Отмена — на диске так же сразу, как ход.
+    await expect(builder.dirtyMark(FORM_A)).toHaveCount(0);
+    await expect.poll(() => disk.readText(FORM_A)).not.toContain('Телефон E2E');
   });
 });

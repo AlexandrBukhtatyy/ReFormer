@@ -101,7 +101,7 @@ test.describe('Ассистент: режим файлов — шаги в св�
     2
   )}\n`;
 
-  test('[F10] файл шага, созданный ходом, сохраняется вместе с корнем', async ({
+  test('[F10] файл шага, созданный ходом, уходит на диск вместе с корнем', async ({
     builder,
     disk,
     model,
@@ -123,15 +123,10 @@ test.describe('Ассистент: режим файлов — шаги в св�
     );
     await panel.ask('Сделай мастер.');
     await expect(panel.message(panel.answer(0))).toHaveText('Готово: мастер с шагом.');
-    // Файл шага вкладки не имеет, но он несохранённый: на диске его нет до сохранения корня.
-    // Строка состояния считает и модуль, который ход напечатал в конце, — точного числа нет.
-    await expect(builder.statusBar).toContainText('несохранённ');
-    expect(await disk.exists(STEP_FILE)).toBe(false);
-
-    await builder.activateTab(FORM_B);
-    await builder.save();
+    // Ход сохраняет свои файлы сам (ReFormer-v5f1): у файла шага вкладки нет, но и он на диске —
+    // без Ctrl+S, вместе с корнем и модулем, который ход напечатал в конце.
     await expect(builder.dirtyMark(FORM_B)).toHaveCount(0);
-
+    await expect(builder.statusBar).toContainText('Всё сохранено');
     await expect.poll(() => disk.exists(STEP_FILE)).toBe(true);
     expect(await disk.readText(STEP_FILE)).toContain('$model(lastName)');
     // Корень ушёл на диск форматом 2: ссылка на шаг — в children мастера.

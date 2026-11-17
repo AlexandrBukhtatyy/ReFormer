@@ -1,5 +1,5 @@
 import { call, say } from './shared/model-mock';
-import { FORM_A, inputNode } from './shared/forms';
+import { expectOnDisk, FORM_A, inputNode } from './shared/forms';
 import { expect, test } from './shared/fixtures';
 
 /** Ассистент: ход структурного режима. Каталог сценариев — `SCENARIOS.md`, группа T. */
@@ -9,6 +9,7 @@ test.describe('Ассистент: структурный ход', () => {
 
   test('[T2] вставка поля: узел в дереве, строка журнала, «Восстановить» на реплике', async ({
     builder,
+    disk,
     model,
     page,
     panel,
@@ -29,7 +30,8 @@ test.describe('Ассистент: структурный ход', () => {
     await expect(panel.failedToolLines(panel.answer(0))).toHaveCount(0);
     await expect(panel.restoreButton(panel.request(0))).toBeVisible();
     await expect(page.getByText('Телефон', { exact: true })).toBeVisible();
-    await expect(builder.dirtyMark(FORM_A)).toHaveCount(1);
+    // Ход сохранён сам: метки несохранённого нет, поле уже в файле (ReFormer-v5f1).
+    await expectOnDisk(builder, disk, FORM_A, 'Телефон');
   });
 
   test('[T5] все правки хода упали, а модель «отчиталась» — предупреждение', async ({
@@ -83,6 +85,7 @@ test.describe('Ассистент: структурный ход — ответ�
 
   test('[T3] несколько вызовов в одном шаге применяются по порядку', async ({
     builder,
+    disk,
     model,
     page,
     panel,
@@ -105,7 +108,7 @@ test.describe('Ассистент: структурный ход — ответ�
     await expect(panel.failedToolLines(panel.answer(0))).toHaveCount(0);
     await expect(page.getByText('Телефон', { exact: true })).toBeVisible();
     await expect(page.getByText('Город', { exact: true })).toBeVisible();
-    await expect(builder.dirtyMark(FORM_A)).toHaveCount(1);
+    await expectOnDisk(builder, disk, FORM_A, 'Город');
   });
 
   test('[T9] ответ несколькими кусками складывается в одну реплику', async ({ model, panel }) => {

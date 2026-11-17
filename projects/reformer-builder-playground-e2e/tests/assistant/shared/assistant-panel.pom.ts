@@ -160,15 +160,17 @@ export class AssistantPanel {
     return entry.getByTestId('ai-message');
   }
 
-  /** Строки журнала инструментов реплики ассистента. */
   /**
-   * Строки вызовов модели — без строки моста о напечатанном модуле («Код модуля обновлён»): её
-   * пишет запись хода, а не вызов.
+   * Строки вызовов модели — без строк моста: о напечатанном модуле («Код модуля обновлён») и о
+   * сохранении файлов хода («Сохранено на диск», ReFormer-v5f1). Их пишет запись хода, а не вызов.
    */
   callLines(entry: Locator): Locator {
-    return this.toolLines(entry).filter({ hasNotText: 'Код модуля обновлён' });
+    return this.toolLines(entry)
+      .filter({ hasNotText: 'Код модуля обновлён' })
+      .filter({ hasNotText: 'Сохранено на диск' });
   }
 
+  /** Строки журнала инструментов реплики ассистента. */
   toolLines(entry: Locator): Locator {
     return entry.getByTestId('ai-tool-line');
   }

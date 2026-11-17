@@ -50,6 +50,7 @@ import {
   RESOURCE_CONTEXT_MENU,
   ResourceDecorationPoint,
   whenResource,
+  WorkspaceSaveServiceToken,
   type AssistantAttachArgs,
   type CommandContribution,
   type MenuContribution,
@@ -392,6 +393,9 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         // поднять позже ассистента или не поднять вовсе.
         generator: () => ctx.services.get(ModuleGeneratorCapability),
         formCreator: () => ctx.services.get(FormCreatorCapability),
+        // Сохранение на диск — привилегированная служба: без права `workspace.save` её нет, и
+        // файлы хода ждут сохранения человеком (ReFormer-v5f1).
+        saver: () => ctx.services.get(WorkspaceSaveServiceToken),
       });
 
       ctx.subscriptions.push(ctx.services.register(AI_SERVICE_TOKEN, assistant));

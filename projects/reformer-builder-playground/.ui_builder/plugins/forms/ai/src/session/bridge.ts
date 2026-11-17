@@ -54,6 +54,8 @@ import {
   type GenerateReport,
   type ModuleGeneratorService,
   type ResourceId,
+  type WorkspaceSaveOptions,
+  type WorkspaceSaveService,
   type FormAskAnswer,
   type FormAskOutcome,
   type FormChangeOp,
@@ -240,6 +242,15 @@ export interface BridgeDeps {
    * «откройте форму».
    */
   readonly formCreator?: () => FormCreatorService | undefined;
+  /**
+   * Сохранение в источник проекта — привилегированная служба (`workspace.save` в манифесте).
+   * С ней файлы, которые изменил ход, сохраняются на диск сразу после хода (ReFormer-v5f1):
+   * правки, оставшиеся только в рабочей копии, человек принимал за потерянные — ассистент
+   * отвечал «добавил», а в файле было пусто. Отмена хода и «Восстановить» сохраняются так же.
+   * Функция по той же причине, что {@link generator}; нет службы — файлы ждут сохранения
+   * человеком, как раньше, и лента просит сохранить.
+   */
+  readonly saver?: () => WorkspaceSaveService | undefined;
   /**
    * Наблюдатель замера хода (`./telemetry`): получает сводку в конце каждого хода. Нужен замеру на
    * живой модели — консольная строка ему не годится.
@@ -1257,7 +1268,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
     const kept = report.skipped
       .filter((file) => file.reason !== 'refused')
       .map((file) => file.path);
-    const done = t('turn.generate.done', { dir: report.dir, count: String(report.written.length) });
+    const done = t(autosaves() ? 'turn.generate.done.auto' : 'turn.generate.done', {
+      dir: report.dir,
+      count: String(report.written.length),
+    });
     line(
       true,
       kept.length === 0 ? done : `${done} ${t('turn.generate.kept', { files: kept.join(', ') })}`
@@ -1270,7 +1284,10 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    */
   const printedLine = (code: FormLandCode, ordered: boolean): void => {
     if (code.written === 0 && code.kept.length === 0 && !ordered) return;
-    const done = t('turn.code.updated', { dir: code.dir, count: String(code.written) });
+    const done = t(autosaves() ? 'turn.code.updated.auto' : 'turn.code.updated', {
+      dir: code.dir,
+      count: String(code.written),
+    });
     session.logTool({
       name: generateCodeTool.name,
       ok: true,
@@ -1291,6 +1308,66 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   const note = (message: string): void => {
     session.finishTurn(session.get().pending, message);
   };
+
+  /** Сохраняются ли файлы хода сами: есть служба сохранения (`workspace.save` выдано). */
+  const autosaves = (): boolean => deps.saver?.() !== undefined;
+
+  /**
+   * Сохранить на диск файлы, которые изменил ход, его отмена или восстановление (ReFormer-v5f1).
+   *
+   * Сохраняются ровно названные ресурсы: несохранённые правки человека в других файлах модуля —
+   * не решение ассистента (`WorkspaceSaveOptions.companions` просит только действие человека —
+   * отмена и «Восстановить»). Корень составного документа при сохранении пишет и свои части,
+   * поэтому файлы шагов мастера называть не нужно.
+   *
+   * @returns `off` — службы нет; `none` — сохранять нечего; `saved` и число сохранённых файлов;
+   *   `failed` — не всё сохранилось (расхождение с диском оболочка показывает диалогом слияния).
+   */
+  const persist = async (
+    ids: Iterable<ResourceId>,
+    options?: WorkspaceSaveOptions
+  ): Promise<
+    | { readonly status: 'off' | 'none' | 'failed' }
+    | { readonly status: 'saved'; readonly count: number }
+  > => {
+    const saver = deps.saver?.();
+    if (saver === undefined) return { status: 'off' };
+    const named = [...new Set(ids)];
+    if (named.length === 0) return { status: 'none' };
+    // Сохраняется только изменённое: файл хода человек мог за время хода сохранить сам или
+    // переименовать — прежний адрес тогда чист или пуст, и называть его службе незачем.
+    // «Восстановить» (`companions`) называет всё: его модуль перепечатывается и при чистом корне.
+    const dirty = named.filter((id) => saver.isDirty([id]));
+    if (dirty.length === 0 && options?.companions !== true) return { status: 'none' };
+    try {
+      return (await saver.save(options?.companions === true ? named : dirty, options))
+        ? { status: 'saved', count: dirty.length }
+        : { status: 'failed' };
+    } catch (error) {
+      console.warn('[plugins/forms/ai] сохранение файлов хода упало', error);
+      return { status: 'failed' };
+    }
+  };
+
+  /** Сохранить файлы хода и сказать об этом строкой журнала — до закрытия хода. */
+  const saveTurnFiles = async (ids: Iterable<ResourceId>): Promise<void> => {
+    const result = await persist(ids);
+    if (result.status === 'saved') {
+      session.logTool({
+        name: 'save',
+        ok: true,
+        summary: t('turn.saved', { count: String(result.count) }),
+      });
+    } else if (result.status === 'failed') {
+      session.logTool({ name: 'save', ok: false, error: t('turn.save.failed') });
+    }
+  };
+
+  /** Файлы структурного хода: документ и код модуля из приземления, записи инструментов. */
+  const structuredTurnFiles = (txId: string, writes: TurnWrites): ResourceId[] => [
+    ...(lastTurn !== null && lastTurn.txId === txId ? lastTurn.files.keys() : []),
+    ...writes.entries().keys(),
+  ];
 
   /**
    * Запомнить приземлившийся ход — то, чем его потом отменять.
@@ -1784,6 +1861,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
       if (!needsSecondPass(first, landed, signal)) {
         await generate(first, landed);
+        await saveTurnFiles(structuredTurnFiles(txId, writes));
         closeTurn(first, landed, writes.count > 0);
         return;
       }
@@ -1793,6 +1871,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       // что у первой попытки, а не активная: человек мог открыть другую, пока модель думала.
       const next = await resolveTarget(loaded.resource);
       if (next === null) {
+        await saveTurnFiles(structuredTurnFiles(txId, writes));
         closeTurn(first, landed, writes.count > 0);
         return;
       }
@@ -1807,10 +1886,12 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       const landedSecond = await landAttempt(second, next);
       if (await resumed()) return;
       await generate(second, landedSecond);
+      await saveTurnFiles(structuredTurnFiles(txId, writes));
       closeTurn(second, landedSecond, writes.count > 0);
     } catch (error) {
       // Ход не должен уметь оставить панель в «running» навсегда: цикл ошибки не бросает,
-      // но чтение настроек и запись в буфер — могут.
+      // но чтение настроек и запись в буфер — могут. Легшее до ошибки — тоже на диск.
+      await saveTurnFiles(structuredTurnFiles(txId, writes)).catch(() => undefined);
       closeTurn(
         { set: NO_CHANGES, reason: 'error', message: messageOf(error) },
         { status: 'nothing' },
@@ -2079,8 +2160,12 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
 
       const error = last.reason === 'error' ? (last.message ?? t('turn.error')) : undefined;
       const silent = journal.size === 0 && writes.count === 0;
+      await saveTurnFiles([...journal.entries().keys(), ...writes.entries().keys()]);
       session.finishTurn(null, error ?? (silent ? noEditsNote(last.reason) : undefined));
     } catch (error) {
+      await saveTurnFiles([...journal.entries().keys(), ...writes.entries().keys()]).catch(
+        () => undefined
+      );
       session.finishTurn(null, messageOf(error));
     } finally {
       // Даже ход, упавший посередине, отменяем: его записи уже лежат в рабочей копии.
@@ -2138,28 +2223,33 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
    *
    * Пометки происхождения нет — по той же причине, что у структурного восстановления.
    *
-   * @returns `false` — запись отказала, и об этом уже сказано в ленте.
+   * @returns Файлы, которым вернули прежний текст; `null` — запись отказала, и об этом уже сказано
+   *   в ленте.
    */
-  const revertFrom = async (txId: string): Promise<boolean> => {
+  const revertFrom = async (txId: string): Promise<ResourceId[] | null> => {
     // Ход без записей в списке не лежит — поэтому ищется по номеру хода, а не по месту в списке:
     // откатить надо всё, что легло ПОСЛЕ него, даже если сам он ничего не записал.
     const from = turnOrder.get(txId) ?? Number.POSITIVE_INFINITY;
     const undone = landedTurns.filter((turn) => (turnOrder.get(turn.txId) ?? -1) >= from);
     landedTurns.splice(0, landedTurns.length, ...landedTurns.filter((t) => !undone.includes(t)));
     const created: string[] = [];
+    const reverted: ResourceId[] = [];
     try {
       for (const turn of undone.reverse()) {
         for (const [id, file] of turn.files) {
           if (file.before === null) created.push(id);
-          else await accessOf(file).write(id, file.before);
+          else {
+            await accessOf(file).write(id, file.before);
+            reverted.push(id);
+          }
         }
       }
     } catch (error) {
       session.finishTurn(null, t('turn.restoreFailed', { error: messageOf(error) }));
-      return false;
+      return null;
     }
     if (created.length > 0) note(t('turn.undo.created', { files: created.join(', ') }));
-    return true;
+    return reverted;
   };
 
   /**
@@ -2367,10 +2457,15 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       if (pending === null || current !== null) return;
       const outcome = await landPending(pending, force);
       switch (outcome.status) {
-        case 'applied':
+        case 'applied': {
           if (outcome.broken !== undefined) session.finishTurn(null, brokenNote(outcome.broken));
           else session.resolvePending();
+          // Применённый набор — правки хода, как и приземлённые сразу: на диск.
+          const turn = lastTurn !== null && lastTurn.txId === pending.txId ? lastTurn : null;
+          const saved = await persist(turn === null ? [] : turn.files.keys());
+          if (saved.status === 'failed') note(t('turn.save.failed'));
           break;
+        }
         case 'empty':
           session.resolvePending();
           break;
@@ -2392,11 +2487,16 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
       const snapshot = session.restoreTo(entryId);
       if (snapshot === null) return;
       if (isFilesSnapshot(snapshot)) {
-        if (await revertFrom(snapshot.txId)) setLastTurn(null);
+        const reverted = await revertFrom(snapshot.txId);
+        if (reverted === null) return;
+        setLastTurn(null);
+        // Восстановление заказал человек — оно на диске так же сразу, как правки хода.
+        if ((await persist(reverted)).status === 'failed') note(t('turn.save.failed'));
         return;
       }
       // Записи инструментов плагинов этого хода и следующих — первыми: форма вернётся снимком.
-      if (snapshot.txId !== undefined && !(await revertFrom(snapshot.txId))) return;
+      const reverted = snapshot.txId === undefined ? [] : await revertFrom(snapshot.txId);
+      if (reverted === null) return;
       // Возврат идёт тем же `writeText`, что и правка: восстановление — обычная правка буфера,
       // а не отдельный механизм, поэтому оно и в журнале обычная запись, и отменяется само.
       //
@@ -2414,7 +2514,12 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
         setLastTurn(null);
       } catch (error) {
         session.finishTurn(null, t('turn.restoreFailed', { error: messageOf(error) }));
+        return;
       }
+      // На диск — документ со всем, что `rewind` перепечатал в модуле (своих адресов он не
+      // отдаёт): восстановление заказал человек, поэтому сопутствующие файлы — его решение.
+      const saved = await persist([snapshot.resource, ...reverted], { companions: true });
+      if (saved.status === 'failed') note(t('turn.save.failed'));
     },
 
     canUndoTurn: () => current === null && lastTurn !== null,
@@ -2464,6 +2569,11 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
           ?.session.structured.rewind(turn.rewind, { files: false });
       }
       const notes: string[] = [];
+      // Отмену заказал человек — на диске она так же сразу, как сам ход (ReFormer-v5f1).
+      const restored = [...turn.files].filter(([, file]) => file.before !== null);
+      if ((await persist(restored.map(([id]) => id))).status === 'failed') {
+        notes.push(t('turn.save.failed'));
+      }
       // Ход шёл по форме, которой сейчас нет на экране, — отмена правит её, и человек, глядящий
       // на другую форму, иначе не увидел бы ничего.
       const active = host.activeResource();

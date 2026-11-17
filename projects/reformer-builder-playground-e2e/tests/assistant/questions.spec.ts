@@ -1,6 +1,6 @@
 import path from 'path';
 import { call, say, toolResults } from './shared/model-mock';
-import { FORM_A, inputNode } from './shared/forms';
+import { expectOnDisk, FORM_A, inputNode } from './shared/forms';
 import { expect, test } from './shared/fixtures';
 
 /** Скриншоты — в общий каталог e2e-скриншотов репозитория (он в .gitignore). */
@@ -38,6 +38,7 @@ test.describe('Ассистент: вопросы модели', () => {
 
   test('[Q1] выбор варианта продолжает тот же ход: правка после ответа применяется', async ({
     builder,
+    disk,
     model,
     panel,
   }) => {
@@ -60,7 +61,7 @@ test.describe('Ассистент: вопросы модели', () => {
     await expect(panel.message(panel.answer(0))).toHaveText('Добавил обязательное поле «Телефон».');
     await expect(card.getByTestId('ai-question-answer')).toHaveText('Ответ: Обязательное');
     await expect(panel.userEntries).toHaveCount(1);
-    await expect(builder.dirtyMark(FORM_A)).toHaveCount(1);
+    await expectOnDisk(builder, disk, FORM_A, 'Телефон');
     // Ответ ушёл модели результатом вызова — в следующем запросе того же хода.
     expect(toolResults(model.requests[1]).join('\n')).toContain(
       '1) "Сделать поле обязательным?" → "Обязательное"'

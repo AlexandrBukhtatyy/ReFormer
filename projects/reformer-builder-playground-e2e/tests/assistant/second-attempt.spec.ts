@@ -1,5 +1,5 @@
 import { call, say, textOf } from './shared/model-mock';
-import { FORM_A, inputNode } from './shared/forms';
+import { expectOnDisk, FORM_A, inputNode } from './shared/forms';
 import { expect, test } from './shared/fixtures';
 
 /**
@@ -24,6 +24,7 @@ test.describe('Ассистент: вторая попытка', () => {
 
   test('[R1] оборванный ответ — ровно одна повторная попытка, реплика одна', async ({
     builder,
+    disk,
     model,
     panel,
   }) => {
@@ -38,12 +39,13 @@ test.describe('Ассистент: вторая попытка', () => {
     expect(textOf(model.requests[1])).toContain('was cut off');
     await expect(panel.userEntries).toHaveCount(1);
     await expect(panel.message(panel.answer(0))).toHaveText('Готово.');
-    await expect(builder.dirtyMark(FORM_A)).toHaveCount(1);
+    await expectOnDisk(builder, disk, FORM_A, 'Телефон');
     await expect(panel.errorAlert).toHaveCount(0);
   });
 
   test('[R2] вызов, написанный текстом, — повтор с подсказкой вызвать инструмент', async ({
     builder,
+    disk,
     model,
     panel,
   }) => {
@@ -63,7 +65,7 @@ test.describe('Ассистент: вторая попытка', () => {
 
     expect(model.requests).toHaveLength(3);
     expect(textOf(model.requests[1])).toContain('written as text');
-    await expect(builder.dirtyMark(FORM_A)).toHaveCount(1);
+    await expectOnDisk(builder, disk, FORM_A, 'Телефон');
   });
 
   test('[R3] обе попытки оборваны — третьей нет, ошибка видна', async ({ model, panel }) => {

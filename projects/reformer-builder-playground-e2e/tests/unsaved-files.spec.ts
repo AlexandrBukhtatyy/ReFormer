@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
-import { inputNode } from './assistant/shared/forms';
-import { call, say, type ModelMock } from './assistant/shared/model-mock';
+import { FORM_A } from './assistant/shared/forms';
+import { call, say, type Gate, type ModelMock } from './assistant/shared/model-mock';
 import type { AssistantPanel } from './assistant/shared/assistant-panel.pom';
 import type { BuilderApp } from './shared/builder-app.pom';
 import { expect, test } from './assistant/shared/fixtures';
@@ -13,11 +13,16 @@ import { expect, test } from './assistant/shared/fixtures';
  * - ReFormer-13j2: F2 и копирование не работали на файлах, которых на диске ещё нет;
  * - ReFormer-obou: сохранение такого файла молча затирало тёзку, появившегося на диске.
  *
- * Файлы без диска печатает ход ассистента — код модуля после `create_form`, как в [T19].
+ * Файлы без диска даёт ход ассистента ПОСРЕДИ хода: файл, записанный `write_file` в режиме
+ * файлов, лежит только в рабочей копии — на диск ход уносит свои файлы лишь в конце
+ * (ReFormer-v5f1). С медленной локальной моделью это минуты, и человек работает с деревом, пока
+ * ход идёт.
  */
 
-const MODULE = 'forms/saved';
-const TYPES = `${MODULE}/types/saved.ts`;
+const MODULE = 'forms/contact';
+const DRAFTS = `${MODULE}/drafts`;
+const DRAFT = `${DRAFTS}/draft.ts`;
+const DRAFT_TEXT = 'export const draft = 1;\n';
 
 const NOTES = 'notes.ts';
 const ORIGINAL = ['// notes', 'export const first = 1;', ''].join('\n');
@@ -38,23 +43,32 @@ async function rename(builder: BuilderApp, path: string, name: string): Promise<
   await expect(dialog).toBeHidden();
 }
 
-/** Ход ассистента печатает модуль формы: код в `types/`, `model/`, `validation/` — только в рабочей копии. */
-async function printModule(
+/**
+ * Ход ассистента записал черновик в модуль формы A и ждёт следующего ответа модели: черновик —
+ * только в рабочей копии. Шлюз отпускает ход; тест обязан его отпустить.
+ */
+async function draftMidTurn(
   builder: BuilderApp,
   model: ModelMock,
   panel: AssistantPanel
-): Promise<void> {
+): Promise<Gate> {
   await builder.openPlayground({ plugins: ['reformer/ai'] });
-  await panel.connect();
-  model.reply(
-    call('create_form', { name: 'saved' }),
-    call('insert_node', { parent: '/root', nodes: [inputNode('email', 'Почта')] }),
-    say('Анкета готова.')
-  );
-  await panel.ask('Сделай анкету с полем «Почта».');
+  await builder.openFile(FORM_A);
+  await panel.connect({ mode: 'files' });
+  model.reply(call('write_file', { path: 'drafts/draft.ts', content: DRAFT_TEXT }));
+  const gate = model.held(say('Черновик готов.'));
+  await panel.send('Сделай черновик.');
+  await gate.reached;
   await expect(builder.statusBar).toContainText('несохранённ');
-  await builder.expandFolder(`${MODULE}/types`);
-  await expect(builder.treeItem(TYPES)).toBeVisible();
+  await builder.expandFolder(DRAFTS);
+  await expect(builder.treeItem(DRAFT)).toBeVisible();
+  return gate;
+}
+
+/** Ход отпущен и закончился — после проверок, чтобы его сохранение их не задело. */
+async function finishTurn(gate: Gate, panel: AssistantPanel): Promise<void> {
+  gate.release();
+  await panel.waitIdle();
 }
 
 test.describe('Несохранённое в дереве', () => {
@@ -90,13 +104,14 @@ test.describe('Несохранённое в дереве', () => {
 
   test('F2 на файле, которого на диске ещё нет', async ({ builder, disk, model, panel }) => {
     test.setTimeout(150_000);
-    await printModule(builder, model, panel);
+    const gate = await draftMidTurn(builder, model, panel);
 
-    await rename(builder, TYPES, 'saved.types.ts');
+    await rename(builder, DRAFT, 'renamed.ts');
 
-    await expect(builder.treeItem(`${MODULE}/types/saved.types.ts`)).toBeVisible();
-    await expect(builder.treeItem(TYPES)).toHaveCount(0);
-    expect(await disk.exists(`${MODULE}/types/saved.types.ts`)).toBe(false);
+    await expect(builder.treeItem(`${DRAFTS}/renamed.ts`)).toBeVisible();
+    await expect(builder.treeItem(DRAFT)).toHaveCount(0);
+    expect(await disk.exists(`${DRAFTS}/renamed.ts`)).toBe(false);
+    await finishTurn(gate, panel);
   });
 
   test('копия каталога, которого на диске ещё нет', async ({
@@ -107,17 +122,18 @@ test.describe('Несохранённое в дереве', () => {
     panel,
   }) => {
     test.setTimeout(150_000);
-    await printModule(builder, model, panel);
+    const gate = await draftMidTurn(builder, model, panel);
 
-    await builder.treeItem(`${MODULE}/types`).click();
+    await builder.treeItem(DRAFTS).click();
     await page.keyboard.press('ControlOrMeta+c');
     // Щелчок по каталогу сворачивает его — вставка уходит в него же.
     await builder.treeItem(MODULE).click();
     await page.keyboard.press('ControlOrMeta+v');
 
-    await builder.expandFolder(`${MODULE}/types-2`);
-    await expect(builder.treeItem(`${MODULE}/types-2/saved.ts`)).toBeVisible();
-    expect(await disk.exists(`${MODULE}/types-2/saved.ts`)).toBe(false);
+    await builder.expandFolder(`${MODULE}/drafts-2`);
+    await expect(builder.treeItem(`${MODULE}/drafts-2/draft.ts`)).toBeVisible();
+    expect(await disk.exists(`${MODULE}/drafts-2/draft.ts`)).toBe(false);
+    await finishTurn(gate, panel);
   });
 
   test('сохранение не затирает тёзку, появившегося на диске: вопрос о слиянии', async ({
@@ -128,18 +144,19 @@ test.describe('Несохранённое в дереве', () => {
     panel,
   }) => {
     test.setTimeout(150_000);
-    await printModule(builder, model, panel);
+    const gate = await draftMidTurn(builder, model, panel);
     const theirs = '// написано снаружи\n';
-    await disk.writeText(TYPES, theirs);
+    await disk.writeText(DRAFT, theirs);
 
     await page.keyboard.press('ControlOrMeta+Alt+s');
 
-    const dialog = page.getByRole('dialog', { name: 'Файл «saved.ts» изменился в источнике' });
+    const dialog = page.getByRole('dialog', { name: 'Файл «draft.ts» изменился в источнике' });
     await expect(dialog).toBeVisible();
-    expect(await disk.readText(TYPES)).toBe(theirs);
+    expect(await disk.readText(DRAFT)).toBe(theirs);
 
     await dialog.getByRole('button', { name: 'Переписать своей версией' }).click();
     await expect(dialog).toBeHidden();
-    await expect.poll(() => disk.readText(TYPES)).toContain('email');
+    await expect.poll(() => disk.readText(DRAFT)).toBe(DRAFT_TEXT);
+    await finishTurn(gate, panel);
   });
 });

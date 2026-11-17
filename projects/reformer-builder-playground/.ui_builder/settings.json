@@ -25,6 +25,7 @@
     "reformer.codegen": ["workspace.save"],
     "reformer.codegen-schema": ["workspace.save"],
     "reformer.templates": ["workspace.save"],
+    "reformer.ai": ["workspace.save"],
     "reformer.rjsf.editor": ["workspace.save"]
   }
 }

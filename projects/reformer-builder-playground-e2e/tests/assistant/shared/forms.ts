@@ -37,6 +37,20 @@ export async function savedText(
   return disk.readText(path);
 }
 
+/**
+ * Правка хода — на диске: файлы хода ассистент сохраняет сам, сразу после хода (ReFormer-v5f1).
+ * Поэтому «правка легла» видно не по метке несохранённого на вкладке — её нет, — а по файлу.
+ */
+export async function expectOnDisk(
+  builder: BuilderApp,
+  disk: PlaygroundDisk,
+  path: string,
+  text: string
+): Promise<void> {
+  await expect(builder.dirtyMark(path)).toHaveCount(0);
+  await expect.poll(() => disk.readText(path)).toContain(text);
+}
+
 /** Форма A — плоская раскладка, поля «Имя», «Email», «Как связаться». */
 export const FORM_A = 'forms/contact/form.schema.json';
 
