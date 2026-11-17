@@ -210,7 +210,7 @@ declare const reformer: {
    * - the task names a markdown spec file: add specPath — the server drafts the whole form from it;
    * - a form already lies in dir and the task changes it: { dir, target, task } with the text of the change — the plan is that change.
    * @returns the plan, then "Next:" with the code of the next call.
-   * @example console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))
+   * @example console.log(await reformer.formStart({ dir: "form", target: "<stack from the task>", task: "<the task text, word for word>" }))
    * @example console.log(await reformer.formStart({ dir: "form", target: "core", task: "<the task text>", specPath: "<the .md file the task names>" }))
    */
   formStart(args: {

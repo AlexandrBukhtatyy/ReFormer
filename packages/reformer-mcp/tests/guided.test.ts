@@ -2402,10 +2402,10 @@ describe('правка готовой формы и спецификация: с
   });
   afterEach(() => rmSync(project, { recursive: true, force: true }));
 
-  const seedForm = (): void => {
+  const seedForm = (target = 'renderer-react'): void => {
     const intent = {
       formName: 'Регистрация',
-      target: 'renderer-react',
+      target,
       fields: [
         { name: 'login', type: 'string', component: 'Input', label: 'Логин', initialValue: '' },
         { name: 'email', type: 'string', component: 'Input', label: 'Email', initialValue: '' },
@@ -2480,6 +2480,94 @@ describe('правка готовой формы и спецификация: с
       seedForm();
       const result = await formEditTool({ dir: 'form', edits: [] }, knowledge);
       expect(text(result)).toMatch(/the form is already in form: start the change first/);
+    },
+    SLOW
+  );
+
+  // Модель ставила renderer-react готовой форме на core без строки стека в задании, и form_edit
+  // переписывал стек формы по плану: 7 ячеек правки из 10 на core (батч 20261115T083423Z-ad6e).
+  it(
+    'готовая форма на core: чужой стек в вызове её не переводит (ReFormer-f2fs.28)',
+    async () => {
+      seedForm('core');
+      const start = await formStartTool(
+        { dir: 'form', target: 'renderer-react', task: 'Добавь необязательный телефон (`phone`).' },
+        knowledge
+      );
+      expect(text(start)).toMatch(/the plan of the change on core is saved/);
+      expect(text(start)).toMatch(
+        /The form is on core — kept \(not "renderer-react"\): a change does not move a form to another stack\./
+      );
+      expect(JSON.parse(file('form.plan.json'))).toMatchObject({ mode: 'edit', target: 'core' });
+
+      const edited = await formEditTool(
+        {
+          dir: 'form',
+          edits: [{ op: 'add_field', name: 'phone', label: 'Телефон' }, { op: 'markup' }],
+        },
+        knowledge
+      );
+      expect(text(edited)).toMatch(/^form_edit: 2 of 2 edits applied/);
+      expect(text(edited)).not.toMatch(/target set back/);
+      expect(JSON.parse(file('form.intent.json')).target).toBe('core');
+      expect(file('index.tsx')).toMatch(/@reformer\/core/);
+      expect(file('index.tsx')).not.toMatch(/@reformer\/renderer-react/);
+    },
+    SLOW
+  );
+
+  it(
+    'готовая форма: стек из задания её не переводит, вызов без target — не отказ (ReFormer-f2fs.28)',
+    async () => {
+      seedForm();
+      const named = await formStartTool(
+        { dir: 'form', target: 'core', task: 'Стек: @reformer/core. Убери капчу (`captcha`).' },
+        knowledge
+      );
+      expect(text(named)).toMatch(/the plan of the change on renderer-react is saved/);
+      expect(text(named)).toMatch(/The form is on renderer-react — kept \(not "core"\)/);
+      expect(text(named)).not.toMatch(/taken from the task/);
+      expect(JSON.parse(file('form.plan.json')).target).toBe('renderer-react');
+
+      const bare = await formStartTool(
+        { dir: 'form', task: 'Убери капчу (`captcha`).' },
+        knowledge
+      );
+      expect(text(bare)).toMatch(/the plan of the change on renderer-react is saved/);
+      expect(text(bare)).not.toMatch(/kept/);
+      expect(JSON.parse(file('form.plan.json')).target).toBe('renderer-react');
+    },
+    SLOW
+  );
+
+  // `readTargetStack` ищет подстроку: «<core | renderer-react | renderer-json>» из подсказки сервера,
+  // вставленная как есть, читалась как renderer-json.
+  it(
+    'заглушка стека, вставленная как есть, — не стек (ReFormer-f2fs.28)',
+    async () => {
+      const hint = await formEditTool({ dir: 'form', edits: [] }, knowledge);
+      expect(text(hint)).toMatch(/"target":"<stack from the task>"/);
+      for (const target of ['<stack from the task>', '<core | renderer-react | renderer-json>']) {
+        const refused = await formStartTool(
+          { dir: 'form', target, task: 'Форма: имя и email' },
+          knowledge
+        );
+        expect(text(refused)).toMatch(
+          /✗ form_start: "target" is the stack from the task — one of core \| renderer-react \| renderer-json\./
+        );
+        expect(() => file('form.plan.json')).toThrow();
+      }
+      // Стек, названный в задании пакетом, заглушку заменяет.
+      const named = await formStartTool(
+        {
+          dir: 'form',
+          target: '<stack from the task>',
+          task: 'Форма: имя и email. Стек: @reformer/core, разметку пишешь сам в JSX.',
+        },
+        knowledge
+      );
+      expect(text(named)).toMatch(/on core is saved/);
+      expect(JSON.parse(file('form.plan.json')).target).toBe('core');
     },
     SLOW
   );

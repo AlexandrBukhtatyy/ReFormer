@@ -69,6 +69,13 @@ import { invalidCall, type ToolTextResult } from './tool-result.js';
 
 const TARGETS = 'core | renderer-react | renderer-json';
 
+/**
+ * Заглушка стека в готовых вызовах. Названий стеков в ней нет намеренно: `readTargetStack` ищет
+ * подстроку, и «<core | renderer-react | renderer-json>», вставленная как есть, читалась как
+ * renderer-json.
+ */
+const TARGET_SLOT = '<stack from the task>';
+
 export const formStartToolDefinition = {
   name: 'form_start',
   description:
@@ -165,11 +172,11 @@ function noPlanLines(tool: string, dir: string, directory?: FormDirectory): stri
   return existing
     ? [
         `✗ ${tool}: no plan yet — the form is already in ${dir}: start the change first, with the text of the change:`,
-        `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text of the change, word for word>"}`,
+        `Next: form_start {"dir":${JSON.stringify(dir)},"target":"${TARGET_SLOT}","task":"<the task text of the change, word for word>"}`,
       ]
     : [
         `✗ ${tool}: no plan yet — start the form first:`,
-        `Next: form_start {"dir":${JSON.stringify(dir)},"target":"<${TARGETS}>","task":"<the task text, word for word>"}`,
+        `Next: form_start {"dir":${JSON.stringify(dir)},"target":"${TARGET_SLOT}","task":"<the task text, word for word>"}`,
       ];
 }
 
@@ -413,6 +420,16 @@ function guardIntent(plan: GuidedPlan, directory: FormDirectory): string[] {
   ];
 }
 
+/**
+ * Текст формы, которую держит сервер: файл на диске, а если его переписали руками — версия из
+ * плана. То же, что останется в каталоге после `guardIntent`, но без записи.
+ */
+function heldIntent(plan: GuidedPlan | null, directory: FormDirectory): string | null {
+  const now = directory.read(INTENT_FILE);
+  if (!plan || plan.intentPrint === undefined || fingerprint(now) === plan.intentPrint) return now;
+  return typeof plan.intentCopy === 'string' ? plan.intentCopy : null;
+}
+
 function withBuild(
   plan: GuidedPlan,
   directory: FormDirectory,
@@ -546,7 +563,8 @@ export async function formStartTool(
   args: Record<string, unknown>,
   k: Knowledge
 ): Promise<ToolTextResult> {
-  const given = readTargetStack(args?.target);
+  // Заглушка, вставленная как есть («<stack from the task>», «<core | …>»), — не стек.
+  const given = /[<|]/.test(String(args?.target ?? '')) ? null : readTargetStack(args?.target);
   // Стек, названный в задании пакетом, сильнее аргумента: модель ставила renderer-react при
   // «Стек: @reformer/core, разметку пишешь сам в JSX» (L1-login, 20261113T224423Z-b31c).
   const named = [
@@ -556,13 +574,26 @@ export async function formStartTool(
       ].map((match) => match[1])
     ),
   ];
-  const target = named.length === 1 ? readTargetStack(named[0]) : given;
-  if (!target) {
-    return invalidCall(`✗ form_start: "target" is the stack from the task — one of ${TARGETS}.`);
-  }
+  const asked = named.length === 1 ? readTargetStack(named[0]) : given;
   const opened = openDir(args, k, 'form_start');
   if (!isOpened(opened)) return opened;
   const { directory, dir } = opened;
+  // Форма уже лежит в каталоге, а плана нет (или он — план правки): задание её меняет. План — один
+  // этап правки со сверкой по дельте; иначе проверки создания формы шли по тексту правки.
+  const previous = parsePlan(directory.read(PLAN_FILE));
+  const existing = intentOf(heldIntent(previous, directory));
+  const editing =
+    existing !== null &&
+    existing.fields.length + existing.arrays.length > 0 &&
+    (previous === null || previous.mode === 'edit');
+  // Стек готовой формы — её собственный: правка форму на другой стек не переводит. Модель ставила
+  // renderer-react готовой форме на core, и form_edit переписывал её стек по плану — 7 ячеек правки
+  // из 10 на core (батч 20261115T083423Z-ad6e). Вызов без "target" здесь не отказ: стек известен.
+  const built = editing ? readTargetStack(existing.target) : null;
+  const target = built ?? asked;
+  if (!target) {
+    return invalidCall(`✗ form_start: "target" is the stack from the task — one of ${TARGETS}.`);
+  }
   const task = typeof args.task === 'string' ? args.task.trim() : '';
   let specPath = typeof args.specPath === 'string' ? args.specPath.trim() : '';
   if (!task && !specPath) {
@@ -572,7 +603,12 @@ export async function formStartTool(
   }
 
   const lines: string[] = [];
-  if (given && target !== given) {
+  const other = [given, asked].find((stack) => stack && stack !== target);
+  if (built && other) {
+    lines.push(
+      `The form is on ${built} — kept (not "${other}"): a change does not move a form to another stack.`
+    );
+  } else if (given && target !== given) {
     lines.push(`"target" taken from the task: @reformer/${target} → "${target}" (not "${given}").`);
   }
   // Спецификация, названная в задании файлом, — `specPath`: модель читала spec.md сама и вызывала
@@ -587,16 +623,8 @@ export async function formStartTool(
   }
   // Задание — сама спецификация (текст spec.md вместо `specPath`): черновик из него.
   const specText = !specPath && isSpecText(task) ? task : null;
-  // Форма уже лежит в каталоге, а плана нет (или он — план правки): задание её меняет. План — один
-  // этап правки со сверкой по дельте; иначе проверки создания формы шли по тексту правки.
-  const previous = parsePlan(directory.read(PLAN_FILE));
   // Форма, переписанная руками после прошлого плана, — назад к версии сервера до нового плана.
   if (previous) lines.push(...guardIntent(previous, directory));
-  const existing = intentOf(directory.read(INTENT_FILE));
-  const editing =
-    existing !== null &&
-    existing.fields.length + existing.arrays.length > 0 &&
-    (previous === null || previous.mode === 'edit');
   if (editing) {
     const plan: GuidedPlan = withIntent(
       {
@@ -747,7 +775,7 @@ const GUIDED_MEMBERS: Readonly<Record<string, string>> = {
  * - the task names a markdown spec file: add specPath — the server drafts the whole form from it;
  * - a form already lies in dir and the task changes it: { dir, target, task } with the text of the change — the plan is that change.
  * @returns the plan, then "Next:" with the code of the next call.
- * @example console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))
+ * @example console.log(await reformer.formStart({ dir: "form", target: "${TARGET_SLOT}", task: "<the task text, word for word>" }))
  * @example console.log(await reformer.formStart({ dir: "form", target: "core", task: "<the task text>", specPath: "<the .md file the task names>" }))
  */
 formStart(args: {
@@ -798,8 +826,7 @@ ${FORM_DIR_DOC}
 /** Подача `run_script` в связке `code-guided`. */
 export const GUIDED_SCRIPT_SURFACE = {
   preamble: GUIDED_PREAMBLE,
-  codeExample:
-    'console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "<the task text, word for word>" }))',
+  codeExample: `console.log(await reformer.formStart({ dir: "form", target: "${TARGET_SLOT}", task: "<the task text, word for word>" }))`,
   declarations: {
     types: `/** A stage of the plan. */\ntype Stage = ${STAGE_TYPE};\n\n${editDeclaration()}`,
     members: GUIDED_MEMBERS,
