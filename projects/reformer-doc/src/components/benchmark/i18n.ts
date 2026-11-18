@@ -68,19 +68,22 @@ const METRICS_EN: Record<string, string> = {
   'remount/mountSync': 'Mount: render + commit + effects',
   'remount/mountReady': 'Mount: until the frame with the ready form',
   'remount/scriptPerCycle': 'JS per mount + unmount cycle (CDP)',
-  'remount/heapSlope': 'Heap growth per remount (leak)',
+  'remount/retainedPerCycle': 'Objects retained after unmount',
+  'remount/heapGrowth': 'Heap growth per remount after warm-up (incl. JIT code)',
   'remount/nodesSlope': 'DOM node growth per remount',
 };
 
 /** Пояснения под фазами — по точному русскому тексту: изменённый текст покажется как есть. */
 const NOTES_EN: Record<string, string> = {
+  'Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код) у всех участников, даже у пустой страницы. «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля. «Рост heap» — наклон кучи после прогрева вместе с кодом JIT: движок оптимизирует код и дальше, это не утечка.':
+    'Before measuring, the form is remounted for warm-up without recording: in the first few dozen cycles the heap grows with engine code (bytecode, feedback vectors, optimized code) for every participant, even the empty page. “Objects retained” is the growth of live page objects between heap snapshots before and after the series, without JIT code: a leak is when it is above zero. “Heap growth” is the heap slope after warm-up together with JIT code: the engine keeps optimizing code, which is not a leak.',
   '«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше.':
     '“UI settled” is the last DOM change. Formik and RHF run the synchronous rules together with the server check and clear the error only on its response; RJSF and ReFormer clear the synchronous error at once. If the DOM does not change on the server response, the phase settles earlier.',
   'Formik валидирует с первой клавиши, включая серверные проверки (submitCount скрывает только показ ошибок, см. README Formik), поэтому проверяет код ещё до первой отправки; остальные — при отправке.':
     'Formik validates from the first keystroke, server checks included (submitCount only hides the errors, see the Formik README), so it checks the code before the first submit; the others check it on submit.',
 };
 
-const UNITS_EN: Record<string, string> = { мс: 'ms', КБ: 'KB', шт: '' };
+const UNITS_EN: Record<string, string> = { мс: 'ms', КБ: 'KB', 'КБ/цикл': 'KB/cycle', шт: '' };
 
 const FORMS_EN: Record<FormId, string> = {
   registration: 'registration with a captcha',

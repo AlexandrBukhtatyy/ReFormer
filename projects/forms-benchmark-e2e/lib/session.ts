@@ -7,6 +7,7 @@
  */
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { Cdp, delta, type Metrics } from './cdp';
+import { netGrowth, objectBytes, totalsByType } from './heap';
 import {
   installLatencyProbe,
   installRenderCounter,
@@ -125,6 +126,16 @@ export class BenchSession {
   }
 
   /**
+   * Граница фазы в трассе: `performance.mark('bench:phase:<id>:start|end')` — событие
+   * `blink.user_timing` с общим clock трассы. По ним `scripts/traces.mjs` выравнивает участников
+   * по началам фаз. Только в trace-прогоне: замеряемые прогоны не получают лишней работы.
+   */
+  private async mark(phase: string, edge: 'start' | 'end'): Promise<void> {
+    if (this.info.mode !== 'trace') return;
+    await this.page.evaluate((name) => performance.mark(name), `bench:phase:${phase}:${edge}`);
+  }
+
+  /**
    * Центры элементов по testid (координаты viewport) — считаются ДО окна замера. Элемент вне
    * видимой области сначала прокручивается к центру: фокус на кнопке или длинный массив сдвигают
    * прокрутку, и старые координаты ушли бы за край экрана. Прокрутка — тоже вне окна; следующий
@@ -206,11 +217,14 @@ export class BenchSession {
     // TaskDuration): берётся дельта от момента перед переходом. Если навигация всё же сменила процесс
     // рендерера и счётчики пошли заново (они меньше стартовых), берутся абсолютные значения.
     const start = await this.cdp.metrics();
+    // Метка начала — ещё в старом документе: у событий трассы общий clock, документ не важен.
+    await this.mark(phase, 'start');
     await this.page.goto(url, { waitUntil: 'domcontentloaded' });
     const readyAt = await this.page.evaluate(
       () => (window as unknown as BenchGlobals).__bench.ready
     );
     await this.page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
+    await this.mark(phase, 'end');
     const end = await this.cdp.metrics();
     const reset =
       end.DevToolsCommandDuration < start.DevToolsCommandDuration ||
@@ -287,8 +301,10 @@ export class BenchSession {
     await page.evaluate((label) => (window as unknown as BenchGlobals).__probe.start(label), name);
     const before = await this.cdp.metrics();
 
+    await this.mark(name, 'start');
     await action();
     await page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
+    await this.mark(name, 'end');
 
     const after = await this.cdp.metrics();
     const probe = await page.evaluate(() => (window as unknown as BenchGlobals).__probe.stop());
@@ -318,14 +334,36 @@ export class BenchSession {
     });
   }
 
-  /** Перемонтирования: длительность каждого (in-page), наклон heap и DOM-узлов по контрольным точкам. */
+  /**
+   * Перемонтирования: длительность каждого (in-page), наклон heap и DOM-узлов по контрольным точкам,
+   * удержание объектов по снимкам кучи до и после серии.
+   *
+   * Сначала — прогрев без записи (`BENCH_REMOUNT_WARMUP`): в первые десятки циклов кучу растит код
+   * движка — байт-код, векторы обратной связи, оптимизированный код, — у всех участников, даже у
+   * пустой страницы. Без прогрева наклон heap мерил этот рост, а не удержание [ReFormer-2o1j.24].
+   * Удержание (`retained`) — прирост объектов страницы без типов JIT между снимками
+   * (`lib/heap.ts`); снимки — только в замеряемых прогонах: трассу они бы засорили.
+   */
   async remount(name: string, count: number): Promise<void> {
     const page = this.page;
-    await page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
+    const warmup = benchConfig.remountWarmup;
+    const idle = () => page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
+    await idle();
+    await this.mark(name, 'start');
     await page.evaluate(() => (window as unknown as BenchGlobals).__bench.unmount());
+    await page.evaluate(async (n) => {
+      const bench = (window as unknown as BenchGlobals).__bench;
+      for (let i = 0; i < n; i++) {
+        await bench.mount();
+        await bench.unmount();
+      }
+    }, warmup);
+    await idle();
     await this.cdp.gc();
     const base = await this.cdp.metrics();
     const baseDom = await this.cdp.domCounters();
+    const snapshots = this.info.mode === 'timing';
+    const heapBefore = snapshots ? totalsByType(await this.cdp.heapSnapshot()) : null;
     if (this.info.mode === 'renders')
       await page.evaluate(() => (window as unknown as BenchGlobals).__renders.reset());
     const syncMs: number[] = [];
@@ -344,6 +382,7 @@ export class BenchSession {
       const d = delta(after, before);
       for (const k of Object.keys(d) as Array<keyof Metrics>) cdpTotals[k] += d[k];
       if (i % 5 === 0) {
+        await idle();
         await this.cdp.gc();
         const m = await this.cdp.metrics();
         const dom = await this.cdp.domCounters();
@@ -359,19 +398,31 @@ export class BenchSession {
       this.info.mode === 'renders'
         ? await page.evaluate(() => (window as unknown as BenchGlobals).__renders.snapshot())
         : null;
+    let retained: { bytes: number; byType: ReturnType<typeof netGrowth> } | null = null;
+    if (heapBefore !== null) {
+      await idle();
+      const heapAfter = totalsByType(await this.cdp.heapSnapshot());
+      retained = {
+        bytes: objectBytes(heapAfter) - objectBytes(heapBefore),
+        byType: netGrowth(heapBefore, heapAfter),
+      };
+    }
     // Средние CDP-дельты на один цикл mount+unmount.
     const perCycle = {} as Metrics;
     for (const k of Object.keys(cdpTotals) as Array<keyof Metrics>)
       perCycle[k] = cdpTotals[k] / count;
     cdpTotals = perCycle;
+    await this.mark(name, 'end');
     this.record(name, {
       count,
       mountSyncMs: syncMs,
       mountReadyMs: readyMs,
       cdp: pickMetrics(cdpTotals),
+      warmup,
       baseHeap: base.JSHeapUsedSize,
       baseNodes: baseDom.nodes,
       checkpoints,
+      retained,
       renders,
     });
   }

@@ -110,16 +110,20 @@ export function aggregate(runDirs) {
           // строки строятся по нему, иначе сравнивать было бы нечего.
           const ranked = contenders.length ? contenders : libs.filter((l) => stats[l].n > 0);
           if (!ranked.length) continue;
-          const best = ranked.reduce((a, b) => (stats[b].median < stats[a].median ? b : a));
+          // Величина против нуля (удержание памяти): ни отношений, ни «лучшего» — см. metrics.mjs.
+          const best = metric.absolute
+            ? null
+            : ranked.reduce((a, b) => (stats[b].median < stats[a].median ? b : a));
           const cells = {};
           for (const lib of libs) {
             const s = stats[lib];
             if (!s.n) continue;
-            const ratio = stats[best].median ? s.median / stats[best].median : null;
+            const ratio =
+              best !== null && stats[best].median ? s.median / stats[best].median : null;
             cells[lib] = {
               ...s,
               ratio,
-              ratioCI: lib === best ? null : ratioCI(values[lib], values[best]),
+              ratioCI: best === null || lib === best ? null : ratioCI(values[lib], values[best]),
             };
           }
           // Шум A/A: насколько расходятся две одинаковые сборки ReFormer core.
@@ -135,7 +139,7 @@ export function aggregate(runDirs) {
             noise,
             cells,
           };
-          if (values[COMPARE_TO]?.length) {
+          if (!metric.absolute && values[COMPARE_TO]?.length) {
             for (const lib of contenders.filter((l) => l !== COMPARE_TO)) {
               const p = mannWhitney(values[lib], values[COMPARE_TO]);
               const ref = { form, cpu, phase: phase.id, metric: metric.id, lib, p, adj: null };

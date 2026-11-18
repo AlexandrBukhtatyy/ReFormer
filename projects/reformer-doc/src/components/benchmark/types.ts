@@ -24,8 +24,8 @@ export type Cell = [
 export interface Row {
   /** id метрики (metrics.mjs); подпись — в `FormData.metrics['<kind>/<id>']`. */
   id: string;
-  /** Лучший участник строки (без baseline). */
-  best: string;
+  /** Лучший участник строки (без baseline); `null` — величина против нуля (удержание памяти). */
+  best: string | null;
   /** Разброс по прогонам выше 15 % (CV) хотя бы у одного участника. */
   noisy: boolean;
   cells: Record<string, Cell>;

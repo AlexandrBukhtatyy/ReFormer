@@ -51,6 +51,7 @@
     "bench:idle-check": "npm run idle-check -w forms-benchmark-e2e --",
     "bench:ab": "npm run ab -w forms-benchmark-e2e --",
     "bench:ab:profile": "npm run ab:profile -w forms-benchmark-e2e --",
+    "bench:leak": "npm run leak -w forms-benchmark-e2e --",
     "scripts:analize:imports": "node scripts/analyze-imports/index.js",
     "diagram": "node scripts/diagrams/index.mjs",
     "diagram:redraw": "node scripts/diagrams/index.mjs --skip-analyze",

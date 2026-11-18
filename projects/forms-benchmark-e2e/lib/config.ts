@@ -6,6 +6,8 @@
  * BENCH_CPU         — профили троттлинга CPU через запятую (4; например "1,4")
  * BENCH_CADENCE     — интервал между клавишами при наборе, мс (80)
  * BENCH_REMOUNTS    — перемонтирований в фазе remount (20)
+ * BENCH_REMOUNT_WARMUP — перемонтирований прогрева перед замером фазы remount, без записи (30;
+ *                     BENCH_QUICK=1 → 10): первые циклы растят кучу кодом JIT у всех участников
  * BENCH_RENDERS     — проход подсчёта рендеров (1 — да)
  * BENCH_TRACE       — трассируемый прогон на участника (1 — да)
  * BENCH_SEED        — сид перемешивания порядка участников (по умолчанию от времени запуска)
@@ -37,6 +39,7 @@ export const benchConfig = {
    */
   thinkMs: num('BENCH_THINK', 400),
   remounts: num('BENCH_REMOUNTS', quick ? 10 : 20),
+  remountWarmup: num('BENCH_REMOUNT_WARMUP', quick ? 10 : 30),
   renders: process.env.BENCH_RENDERS !== '0',
   trace: process.env.BENCH_TRACE !== '0',
   seed: num('BENCH_SEED', Date.now() % 2 ** 31),

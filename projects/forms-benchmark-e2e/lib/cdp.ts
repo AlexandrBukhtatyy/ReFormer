@@ -1,7 +1,9 @@
 /**
- * CDP-обвязка для замеров: метрики рендерера, троттлинг CPU, сборка мусора, DOM-счётчики.
+ * CDP-обвязка для замеров: метрики рендерера, троттлинг CPU, сборка мусора, DOM-счётчики, снимки
+ * кучи.
  */
 import type { CDPSession, Page } from '@playwright/test';
+import { takeHeapSnapshot, type HeapSnapshot } from './heap';
 
 /** Метрики `Performance.getMetrics`, которые берём в дельты фаз. */
 export const METRIC_KEYS = [
@@ -59,6 +61,11 @@ export class Cdp {
 
   async domCounters(): Promise<{ documents: number; nodes: number; jsEventListeners: number }> {
     return this.session.send('Memory.getDOMCounters');
+  }
+
+  /** Снимок кучи (с полной сборкой мусора) — для удержания объектов, см. `lib/heap.ts`. */
+  heapSnapshot(): Promise<HeapSnapshot> {
+    return takeHeapSnapshot(this.session);
   }
 
   async detach(): Promise<void> {

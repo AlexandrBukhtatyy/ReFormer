@@ -14,6 +14,7 @@
     "idle-check": "node --disable-warning=ExperimentalWarning scripts/idle-check.mjs",
     "ab": "node --disable-warning=ExperimentalWarning scripts/ab/ab.mjs",
     "ab:profile": "node --disable-warning=ExperimentalWarning scripts/ab/profile.mjs",
+    "leak": "node --disable-warning=ExperimentalWarning scripts/leak/leak.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
