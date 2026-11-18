@@ -6,10 +6,13 @@
  * различает участников (их подписывает ось), а выделяет: ReFormer — акцентный синий, конкуренты —
  * серый, baseline — контур (форма «emphasis», см. dataviz). Палитра проверена валидатором в светлой
  * и тёмной теме. Подписи значений у баров + таблицы под графиками — данные не только цветом.
+ * Исключение — раздел трейсов (traces-html.mjs): там линии участников во времени, и цвет
+ * различает участников.
  */
-import { HEADLINE, NOTES } from './metrics.mjs';
+import { FORM_ABOUT, FORM_ORDER, HEADLINE, NOTES } from './metrics.mjs';
 import { DRIFT_THRESHOLD, RUN_DRIFT_SHARE, describeFlags, pct, pctAbs } from './calibration.mjs';
 import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
+import { TRACE_CSS, TRACE_SCRIPT, traceSection } from './traces-html.mjs';
 
 const esc = (s) =>
   String(s).replace(
@@ -291,12 +294,16 @@ function backgroundSection(summary) {
   return out.join('\n');
 }
 
-export function renderHtml(summary, labels) {
+export function renderHtml(summary, labels, traces = {}) {
   const out = [];
   const env = summary.forms[0]?.env;
   for (const f of summary.forms) {
     const libs = f.libs;
-    out.push(`<section><h2>Форма: ${FORM_TITLES[f.form] ?? f.form}</h2>`);
+    // Раздел формы сворачивается по заголовку; по умолчанию развёрнут.
+    out.push(
+      `<section class="form-section" id="form-${esc(f.form)}"><details open><summary><h2>Форма: ${esc(FORM_TITLES[f.form] ?? f.form)}</h2></summary>`
+    );
+    if (FORM_ABOUT[f.form]) out.push(`<p class="form-about">${esc(FORM_ABOUT[f.form])}</p>`);
     if (f.failures.length)
       out.push(
         `<p class="warn">Неудачных прогонов: ${f.failures.length} — не входят в статистику.</p>`
@@ -310,6 +317,8 @@ export function renderHtml(summary, labels) {
       out.push(
         `<p class="warn">Фоновая нагрузка: ${esc(describeBackgroundFlags(f.background))}. Числа этой сессии шумные и несравнимы с прогонами на тихой машине, см. «Фоновая нагрузка».</p>`
       );
+    // Сначала трейсы — картина формы во времени, затем ключевые метрики и таблицы фаз.
+    out.push(traceSection(traces[f.form], labels, FORM_TITLES[f.form] ?? f.form));
     for (const cpu of f.cpus) {
       out.push(`<h3>Ключевые метрики, CPU ${cpu}x</h3><div class="grid">`);
       for (const h of HEADLINE[f.form] ?? []) {
@@ -373,7 +382,7 @@ export function renderHtml(summary, labels) {
         )
       );
     }
-    out.push('</section>');
+    out.push('</details></section>');
   }
 
   out.push(calibrationSection(summary, labels));
@@ -381,7 +390,11 @@ export function renderHtml(summary, labels) {
 
   if (summary.bundle) {
     out.push('<section><h2>Размер бандла</h2><div class="grid">');
-    for (const form of [...new Set(summary.bundle.entries.map((e) => e.form))]) {
+    const bundleForms = [...new Set(summary.bundle.entries.map((e) => e.form))];
+    const rank = (form) =>
+      FORM_ORDER.includes(form) ? FORM_ORDER.indexOf(form) : FORM_ORDER.length;
+    bundleForms.sort((a, b) => rank(a) - rank(b));
+    for (const form of bundleForms) {
       const entries = summary.bundle.entries.filter((e) => e.form === form && labels[e.id]);
       const order = Object.keys(labels);
       entries.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
@@ -441,18 +454,21 @@ export function renderHtml(summary, labels) {
   color-scheme: light;
   --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --accent: #2a78d6; --rest: #898781; --warn: #d03b3b;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; --series-5: #e87ba4; --series-6: #008300;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --accent: #3987e5; --rest: #898781; --warn: #e66767;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --series-6: #0ca30c;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
   --grid: #2c2c2a; --axis: #383835; --accent: #3987e5; --rest: #898781; --warn: #e66767;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --series-6: #0ca30c;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
@@ -489,10 +505,19 @@ th { color: var(--ink-2); font-weight: 600; }
 .num { text-align: right; white-space: nowrap; }
 details { margin: 12px 0; }
 summary { cursor: pointer; color: var(--accent); }
+.form-section > details { margin: 0; }
+.form-section > details > summary { list-style: none; color: var(--ink); border-radius: 4px; }
+.form-section > details > summary::-webkit-details-marker { display: none; }
+.form-section > details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.form-section > details > summary h2 { display: flex; align-items: center; gap: 10px; }
+.form-section > details > summary h2::before { content: ''; flex: none; width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+.form-section > details[open] > summary h2::before { transform: rotate(45deg); }
+.form-section > details > summary:hover h2::before { border-color: var(--ink-2); }
+.form-about { color: var(--ink-2); max-width: 820px; margin: 0 0 8px; }
 .warn { color: var(--warn); }
 #tip { position: fixed; pointer-events: none; max-width: 360px; background: var(--surface); color: var(--ink); border: 1px solid var(--axis); border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgb(0 0 0 / .15); display: none; z-index: 10; }
 @media (max-width: 600px) { body { font-size: 14px; } h1 { font-size: 22px; } }
-</style>
+${TRACE_CSS}</style>
 </head>
 <body>
 <main>
@@ -520,6 +545,7 @@ for (const el of document.querySelectorAll('.row')) {
   el.addEventListener('blur', () => (tip.style.display = 'none'));
 }
 </script>
+<script>${TRACE_SCRIPT}</script>
 </body>
 </html>`;
 }

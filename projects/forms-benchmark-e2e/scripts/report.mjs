@@ -9,13 +9,14 @@
  * сырые мс сессии; калибровка скорости машины (calibration.mjs) показывается отдельным разделом и
  * их не нормирует — нормировка только при сравнении отчётов (compare.mjs).
  *
- * Опции: --runs <dir>[,<dir>] (по умолчанию — последний прогон каждой формы), --publish (копия в
+ * Опции: --runs <dir>[,<dir>] (по умолчанию — последний прогон каждой формы), --traces <dir>[,<dir>]
+ * (графики трейсов формы — из этого прогона, а не из прогона замеров), --publish (копия в
  * docs/benchmarks/forms/ и данные страницы /benchmark сайта документации — site-data.mjs).
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { holm } from './stats.mjs';
-import { HEADLINE, NOTES } from './metrics.mjs';
+import { FORM_ABOUT, HEADLINE, NOTES, byFormOrder } from './metrics.mjs';
 import { renderHtml } from './report-html.mjs';
 import {
   COMPARE_TO,
@@ -37,6 +38,7 @@ import {
 } from './calibration.mjs';
 import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
 import { writeSiteData } from './site-data.mjs';
+import { traceSeries } from './traces.mjs';
 
 const appDist = path.resolve(e2eDir, '../forms-benchmark/dist');
 const repoRoot = path.resolve(e2eDir, '../..');
@@ -55,6 +57,9 @@ if (!runs.length) {
   process.exit(1);
 }
 const { forms, comparisons } = aggregate(runs);
+// aggregate() кладёт форму на каждый каталог по порядку — запоминаем каталог формы до сортировки.
+const runOf = Object.fromEntries(forms.map((f, i) => [f.form, runs[i]]));
+forms.sort(byFormOrder);
 
 // Holm по всем сравнениям отчёта.
 const adjusted = holm(comparisons.map((c) => c.p));
@@ -65,6 +70,56 @@ for (const f of forms)
     for (const r of s.rows)
       for (const lib of Object.keys(r.cells)) r.cells[lib].marker = marker(r, lib).trim() || null;
 
+// Ряды графиков трейсов — только в HTML, не в summary.json: публикуемый summary пишется с
+// отступами, и тысячи точек раздули бы его.
+// `--traces` берёт трассы формы из другого прогона (например, перетрассировка без замеров:
+// BENCH_ITERATIONS=0 BENCH_WARMUP=0 BENCH_RENDERS=0) — раздел тогда называет оба прогона и
+// сверяет сборку страниц.
+const readEnv = (dir) => JSON.parse(readFileSync(path.join(dir, 'env.json'), 'utf8'));
+const traceRuns = Object.fromEntries(
+  (argValue('--traces') ? resolveRuns(argValue('--traces')) : []).map((dir) => [
+    readEnv(dir).form,
+    dir,
+  ])
+);
+/** Одна сборка страниц: время сборки, коммит и хэши dist пакетов ReFormer совпадают. */
+const buildKey = (env) =>
+  JSON.stringify([
+    env.build?.builtAt,
+    env.build?.git,
+    Object.values(env.build?.reformerPackages ?? {}).map((p) => p.distHash),
+  ]);
+const traces = {};
+for (const f of forms) {
+  const t0 = Date.now();
+  const run = runOf[f.form];
+  const traceDir = traceRuns[f.form] ?? run;
+  const traceEnv = traceDir === run ? f.env : readEnv(traceDir);
+  const series = await traceSeries(traceDir, f.form);
+  traces[f.form] = {
+    ...series,
+    cpu: traceEnv.config?.cpuRates?.[0] ?? null,
+    source:
+      traceDir === run
+        ? null
+        : {
+            traceRun: path.basename(traceDir),
+            run: path.basename(run),
+            sameBuild: buildKey(traceEnv) === buildKey(f.env),
+            builtAt: traceEnv.build?.builtAt ?? null,
+          },
+  };
+  const shown = Object.keys(series.libs).length;
+  const src = traces[f.form].source;
+  if (src)
+    console.log(
+      `трассы ${f.form} — из ${src.traceRun}${src.sameBuild ? ' (та же сборка страниц)' : ' — ДРУГАЯ сборка страниц'}`
+    );
+  console.log(
+    `трассы ${f.form}: ${shown ? `${shown} участников, ${series.phases.length} фаз` : 'графиков нет'}${series.unmarked.length ? `; без меток фаз: ${series.unmarked.join(', ')}` : ''} (${series.cached ? 'кэш' : `${((Date.now() - t0) / 1000).toFixed(1)} с`})`
+  );
+}
+
 const bundle = existsSync(path.join(appDist, 'bundle-report.json'))
   ? JSON.parse(readFileSync(path.join(appDist, 'bundle-report.json'), 'utf8'))
   : null;
@@ -74,7 +129,7 @@ const code = existsSync(path.join(appDist, 'code-report.json'))
 
 const summary = {
   generatedAt: new Date().toISOString(),
-  runs: runs.map((r) => path.basename(r)),
+  runs: forms.map((f) => path.basename(runOf[f.form])),
   forms,
   /** Калибровка скорости машины по всему отчёту (формы обычно мерятся в разных сессиях). */
   calibration: reportCalibration(forms),
@@ -179,6 +234,7 @@ for (const f of forms) {
   const header = `| Метрика | ${libs.map((l) => LABELS[l] ?? l).join(' | ')} |`;
   const sep = `|---|${libs.map(() => '---:').join('|')}|`;
   push(`## Форма: ${FORM_TITLES[f.form] ?? f.form}`, '');
+  if (FORM_ABOUT[f.form]) push(FORM_ABOUT[f.form], '');
   if (f.failures.length) {
     push(
       `> ⚠️ Неудачных прогонов: ${f.failures.length} — они не входят в статистику (см. runs.ndjson).`,
@@ -198,6 +254,11 @@ for (const f of forms) {
       ''
     );
   }
+  if (Object.keys(traces[f.form]?.libs ?? {}).length)
+    push(
+      '_Трейсы — JS heap, DOM-узлы и обработчики событий во времени по участникам, начала фаз выровнены — графиками в `report.html`._',
+      ''
+    );
   for (const cpu of f.cpus) {
     push(`### Итог, CPU ${cpu}x`, '', header, sep);
     for (const h of HEADLINE[f.form] ?? []) {
@@ -274,7 +335,7 @@ if (bundle) {
   const order = (e) => (LIB_ORDER.indexOf(e.id) === -1 ? 99 : LIB_ORDER.indexOf(e.id));
   for (const e of [...bundle.entries]
     .filter((e) => e.id !== CONTROL)
-    .sort((a, b) => a.form.localeCompare(b.form) || order(a) - order(b))) {
+    .sort((a, b) => byFormOrder(a, b) || order(a) - order(b))) {
     const top = Object.entries(e.packages)
       .filter(([k]) => !k.startsWith('[') && !['react-dom', 'react', 'scheduler'].includes(k))
       .sort((a, b) => b[1] - a[1])
@@ -477,7 +538,7 @@ const outDir = path.join(resultsDir, '_reports', stamp);
 mkdirSync(outDir, { recursive: true });
 writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
 writeFileSync(path.join(outDir, 'report.md'), lines.join('\n'));
-writeFileSync(path.join(outDir, 'report.html'), renderHtml(summary, LABELS));
+writeFileSync(path.join(outDir, 'report.html'), renderHtml(summary, LABELS, traces));
 console.log(`отчёт → ${path.relative(process.cwd(), outDir)}/report.md, report.html`);
 
 if (args.includes('--publish')) {
