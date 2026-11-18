@@ -19,6 +19,17 @@
  *
  * Ход прогона — через `onProgress`: строка на шаг ({@link stepLine}) и пульс, пока модель отвечает
  * дольше минуты ({@link waitLine}). Одна Ollama — один батч ({@link claimOllama}).
+ *
+ * Сырого вывода модели в ответе Ollama нет: у моделей со своим шаблоном (qwen3.5: `RENDERER` и
+ * `PARSER` в Modelfile) вызовы разбирает сама Ollama и отдаёт уже `tool_calls`. Поэтому ошибки
+ * формата вызова видны по косвенным признакам (ReFormer-mhsh.8):
+ * - вызов без аргументов при обязательных параметрах ({@link isEmptyCall}) — помечается в журнале,
+ *   в строке шага (`∅`) и в счётчике `harness.emptyCalls`. Это ошибка модели, а не разбора: такой
+ *   шаг у qwen3.5:4b — ровно 13 токенов, то есть пустая обёртка вызова без кода;
+ * - ответ, который Ollama не разобрала ({@link isToolCallParseError}: «XML syntax error», 500 на весь
+ *   запрос) — реплика модели потеряна. Модель получает сообщение об ошибке и продолжает, шаг
+ *   засчитан, счётчик `harness.unparsedCalls`. Прежде такой прогон становился недействительным и
+ *   выпадал из статистики, хотя это та же ошибка формата вызова со стороны модели.
  */
 
 import { createWriteStream, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -161,14 +172,17 @@ export const WAIT_PULSE_MS = 60_000;
  * Строка о сделанном шаге (ReFormer-qo9b.41). Раннер пишет строку только в конце ячейки, а шаг малой
  * модели идёт до двух минут: батч 20261112T050352Z-2bb5 сочли зависшим после ошибки `validate_form`,
  * хотя модель сделала ещё четыре шага — файловыми инструментами, которых нет в трассе сервера.
+ * `∅` — вызов без аргументов ({@link isEmptyCall}).
  *
  * @param {{ at: Date, slug: string, step: number, modelMs: number,
- *   calls: Array<{ name: string, ok: boolean }> }} entry
+ *   calls: Array<{ name: string, ok: boolean, empty?: boolean }> }} entry
  */
 export function stepLine({ at, slug, step, modelMs, calls }) {
   const tools =
     calls.length > 0
-      ? calls.map((call) => `${call.name}${call.ok ? '' : ' ✗'}`).join(', ')
+      ? calls
+          .map((call) => `${call.name}${call.empty ? ' ∅' : ''}${call.ok ? '' : ' ✗'}`)
+          .join(', ')
       : 'ответ без вызова';
   return `  ${clock(at)} · ${slug} · шаг ${step} · модель ${Math.round(modelMs / 1000)} с · ${tools}`;
 }
@@ -194,13 +208,59 @@ function postChat(body, signal) {
         response.on('end', () => {
           const text = Buffer.concat(chunks).toString('utf8');
           if (response.statusCode === 200) resolve(JSON.parse(text));
-          else reject(new Error(`Ollama ${response.statusCode}: ${text.slice(0, 300)}`));
+          else
+            reject(
+              Object.assign(new Error(`Ollama ${response.statusCode}: ${text.slice(0, 300)}`), {
+                status: response.statusCode,
+                body: text,
+              })
+            );
         });
       }
     );
     request.on('error', reject);
     request.end(JSON.stringify(body));
   });
+}
+
+/**
+ * Ошибка разбора вызова инструмента в ответе модели. Ollama разбирает вызовы qwen3.5 как XML и на
+ * ошибке отвечает 500 на весь запрос: «XML syntax error on line 3: element <function> closed by
+ * </parameter>» (батч 20261117T091909Z-934c, order-create.renderer-react).
+ */
+const TOOL_CALL_PARSE_ERROR =
+  /XML syntax error|pars\w*[^"]{0,40}tool[ _-]?call|tool[ _-]?call[^"]{0,40}pars/i;
+
+/**
+ * Ollama не разобрала вызов в ответе модели — ошибка формата со стороны модели, а не сбой канала.
+ * Нехватка памяти, переполнение контекста и прочие 500 сюда не входят: они остаются сбоем канала.
+ */
+export function isToolCallParseError(error) {
+  return error?.status === 500 && TOOL_CALL_PARSE_ERROR.test(String(error.body ?? error.message));
+}
+
+/**
+ * Вызов без аргументов у инструмента с обязательными параметрами. Модель отдала пустую обёртку
+ * вызова: у qwen3.5:4b такой шаг — 13 токенов (батч 20261117T091909Z-934c: 41 вызов `execute` с `{}`,
+ * в registration-create.renderer-react — все 30 шагов).
+ */
+export function isEmptyCall(argumentsValue, inputSchema) {
+  const empty =
+    argumentsValue === null ||
+    argumentsValue === undefined ||
+    (typeof argumentsValue === 'object' && Object.keys(argumentsValue).length === 0);
+  return empty && (inputSchema?.required?.length ?? 0) > 0;
+}
+
+/** Сообщение модели, когда Ollama не разобрала её вызов: реплика потеряна, шаг засчитан. */
+export function unparsedNotice(error) {
+  let reason = String(error?.body ?? error?.message ?? '');
+  try {
+    reason = JSON.parse(reason).error ?? reason;
+  } catch {
+    // Тело не JSON — берём как есть.
+  }
+  return `Вызов инструмента в твоём ответе не разобран (${reason.slice(0, 200)}), ответ потерян. Вызови инструмент ещё раз: имя и аргументы — по его схеме.`;
 }
 
 const toFunction = (tool) => ({
@@ -311,6 +371,8 @@ export async function runAgent(input) {
     keptWhole: 0,
     keptWholeMaxChars: 0,
     overflows: 0,
+    emptyCalls: 0,
+    unparsedCalls: 0,
   };
   const cap = responseCap(settings.numCtx ?? 32768);
   const slug = path.basename(input.runDirectory);
@@ -329,6 +391,7 @@ export async function runAgent(input) {
     const mcpNames = new Set(mcpTools.map((tool) => tool.name));
     const tools = [...mcpTools, READ_RESOURCE_TOOL, ...WORKSPACE_TOOLS];
     const toolNames = tools.map((tool) => tool.name);
+    const schemaOf = new Map(tools.map((tool) => [tool.name, tool.inputSchema]));
 
     const messages = [
       { role: 'system', content: system },
@@ -377,6 +440,28 @@ export async function runAgent(input) {
           },
           controller.signal
         );
+      } catch (error) {
+        if (controller.signal.aborted || !isToolCallParseError(error)) throw error;
+        // Ollama не разобрала вызов в ответе модели: реплика потеряна, но шаг сделан. Модель узнаёт
+        // об ошибке и продолжает — как после ошибки инструмента; предел шагов ограничивает повторы.
+        const modelMs = Date.now() - waitStarted;
+        usage.turns++;
+        usage.modelMs += modelMs;
+        harness.unparsedCalls++;
+        log({ step, role: 'harness', unparsed: String(error.body ?? error.message), modelMs });
+        const notice = unparsedNotice(error);
+        messages.push({ role: 'user', content: notice });
+        log({ step, role: 'user', content: notice, nudge: true });
+        progress?.(
+          stepLine({
+            at: new Date(),
+            slug,
+            step,
+            modelMs,
+            calls: [{ name: 'вызов не разобран', ok: false }],
+          })
+        );
+        continue;
       } finally {
         if (pulse) clearInterval(pulse);
       }
@@ -424,6 +509,8 @@ export async function runAgent(input) {
       for (const call of calls) {
         const name = call.function?.name;
         const argumentsValue = call.function?.arguments ?? {};
+        const empty = isEmptyCall(argumentsValue, schemaOf.get(name));
+        if (empty) harness.emptyCalls++;
         let result;
         let source = 'unknown';
         if (mcpNames.has(name)) {
@@ -445,7 +532,7 @@ export async function runAgent(input) {
           result = { ok: false, text: `Неизвестный инструмент: ${name}` };
         }
         toolCalls.push({ name, ok: result.ok });
-        stepCalls.push({ name, ok: result.ok });
+        stepCalls.push({ name, ok: result.ok, ...(empty ? { empty: true } : {}) });
         const whole = keepsWhole(name, argumentsValue);
         if (whole) {
           harness.keptWhole++;
@@ -462,6 +549,7 @@ export async function runAgent(input) {
             ? { call: mcpCalls, argumentsDigest: argumentsDigest(argumentsValue) }
             : {}),
           arguments: argumentsValue,
+          ...(empty ? { emptyArguments: true } : {}),
           ok: result.ok,
           chars: result.text.length,
           content: result.text,

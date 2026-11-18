@@ -160,6 +160,8 @@ function dashboard(history) {
     'process.validatedAfterLastWrite': 'Проверка после последней записи',
     'harness.truncations': 'Усечений стенда, медиана',
     'harness.textualCalls': 'Вызовов «текстом», медиана',
+    'harness.emptyCalls': 'Вызовов без аргументов, медиана',
+    'harness.unparsedCalls': 'Ответов, не разобранных Ollama, медиана',
     hitRate: 'Доля найденного',
     firstPassRate: 'Найдено с первого вызова',
   };

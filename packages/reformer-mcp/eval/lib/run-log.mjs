@@ -129,6 +129,11 @@ function fromOllama(entries) {
       meta.prompt = entry.content;
     } else if (entry.role === 'user') {
       pendingNotes.push(`Подсказка стенда: ${entry.content}`);
+    } else if (entry.role === 'harness' && entry.unparsed !== undefined) {
+      // Ollama не разобрала вызов в ответе модели: реплики нет, есть только ошибка (ReFormer-mhsh.8).
+      pendingNotes.push(
+        `Ответ модели перед этим шагом потерян: Ollama не разобрала в нём вызов (${Math.round((entry.modelMs ?? 0) / 1000)} с) — ${entry.unparsed}`
+      );
     } else if (entry.role === 'harness') {
       pendingNotes.push(`Стенд усёк старых ответов: ${entry.truncated}.`);
     } else if (entry.role === 'assistant') {
@@ -155,6 +160,7 @@ function fromOllama(entries) {
         ok: entry.ok,
         chars: entry.chars,
         ...(entry.arguments === undefined ? {} : { arguments: entry.arguments }),
+        ...(entry.emptyArguments ? { empty: true } : {}),
         ...(entry.call === undefined ? {} : { call: entry.call }),
         ...(entry.argumentsDigest === undefined ? {} : { digest: entry.argumentsDigest }),
         ...(entry.content === undefined ? {} : { result: entry.content }),
@@ -346,6 +352,7 @@ function callLine(call) {
   const trace = call.trace;
   const where = call.source === 'mcp' ? '' : ` _(${call.source})_`;
   const facts = [
+    call.empty ? '**без аргументов**' : null,
     trace?.call === undefined ? null : `вызов #${trace.call}`,
     trace ? `${trace.durationMs} мс` : null,
     call.result === undefined ? null : `ответ ${call.result.length} симв.`,

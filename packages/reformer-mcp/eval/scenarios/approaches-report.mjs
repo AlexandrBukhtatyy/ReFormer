@@ -171,6 +171,9 @@ function processRow(batch, record) {
     searchRun: longestSearchRun(trace),
     truncations: metric('harness.truncations') ?? 0,
     textualCalls: metric('harness.textualCalls') ?? 0,
+    // Канал Ollama: вызовы без аргументов и ответы, которые Ollama не разобрала (ReFormer-mhsh.8).
+    emptyCalls: metric('harness.emptyCalls') ?? 0,
+    unparsedCalls: metric('harness.unparsedCalls') ?? 0,
     failed: Object.entries(record.checks ?? {})
       .filter(([, value]) => Array.isArray(value) && value[0] === 'fail')
       .map(([id]) => id),
@@ -306,7 +309,8 @@ const verdictMark = (row) =>
 const num = (value, digits = 0) =>
   value === undefined || value === null ? '—' : Number(value).toFixed(digits);
 const k = (value) => (value === undefined ? '—' : `${(value / 1000).toFixed(1)}k`);
-const sum = (rs, field) => rs.reduce((total, row) => total + row[field], 0);
+// `?? 0`: в снимках, сохранённых до нового поля, его нет — иначе сумма вышла бы NaN.
+const sum = (rs, field) => rs.reduce((total, row) => total + (row[field] ?? 0), 0);
 const median = (values) => {
   const sorted = [...values].sort((a, b) => a - b);
   if (sorted.length === 0) return undefined;
@@ -416,6 +420,10 @@ line(
   (rs) => `${sum(rs, 'searches')} / ${Math.max(0, ...rs.map((r) => r.searchRun ?? 0))}`
 );
 line('Вызовов «текстом»', (rs) => sum(rs, 'textualCalls'));
+line(
+  'Вызовов без аргументов / не разобрано Ollama',
+  (rs) => `${sum(rs, 'emptyCalls')} / ${sum(rs, 'unparsedCalls')}`
+);
 line('Усечений стенда', (rs) => sum(rs, 'truncations'));
 
 console.log(`\n## Не пройденные проверки\n`);

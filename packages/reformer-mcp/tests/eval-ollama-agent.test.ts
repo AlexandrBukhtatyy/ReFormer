@@ -10,11 +10,14 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   claimOllama,
+  isEmptyCall,
+  isToolCallParseError,
   ollamaLockFile,
   releaseOllama,
   runAgent,
   stepLine,
   systemPrompt,
+  unparsedNotice,
   waitLine,
 } from '../eval/agents/ollama.mjs';
 import { argumentsDigest } from '../eval/lib/digest.mjs';
@@ -32,7 +35,10 @@ interface ChatBody {
   readonly messages: readonly ChatMessage[];
 }
 
-/** Ответы «модели» по порядку и тела запросов к ней. */
+/**
+ * Ответы «модели» по порядку и тела запросов к ней. Ответ с `failure` — ошибка Ollama: код и тело
+ * как есть.
+ */
 const chat = vi.hoisted(() => ({ replies: [] as unknown[], bodies: [] as ChatBody[] }));
 
 vi.mock('node:http', async () => {
@@ -41,11 +47,12 @@ vi.mock('node:http', async () => {
     const outgoing = Object.assign(new EventEmitter(), {
       end(body: string) {
         chat.bodies.push(JSON.parse(body) as ChatBody);
-        const reply = chat.replies.shift();
-        const response = Object.assign(new EventEmitter(), { statusCode: 200 });
+        const reply = chat.replies.shift() as { failure?: { status: number; body: string } };
+        const failure = reply?.failure;
+        const response = Object.assign(new EventEmitter(), { statusCode: failure?.status ?? 200 });
         onResponse(response);
         setImmediate(() => {
-          response.emit('data', Buffer.from(JSON.stringify(reply)));
+          response.emit('data', Buffer.from(failure ? failure.body : JSON.stringify(reply)));
           response.emit('end');
         });
       },
@@ -115,6 +122,16 @@ describe('агент Ollama: ход прогона и одна Ollama на ба�
     expect(stepLine({ at, slug: 'L2.r1', step: 7, modelMs: 400, calls: [] })).toBe(
       '  08:07:26 · L2.r1 · шаг 7 · модель 0 с · ответ без вызова'
     );
+    // Вызов без аргументов — `∅` перед пометкой ошибки [ReFormer-mhsh.8].
+    expect(
+      stepLine({
+        at,
+        slug: 'L2.r1',
+        step: 8,
+        modelMs: 1200,
+        calls: [{ name: 'execute', ok: false, empty: true }],
+      })
+    ).toBe('  08:07:26 · L2.r1 · шаг 8 · модель 1 с · execute ∅ ✗');
     expect(waitLine({ at, slug: 'L2.r1', step: 10, waitedMs: 120_400 })).toBe(
       '  08:07:26 · L2.r1 · шаг 10 · ждёт модель 120 с'
     );
@@ -159,6 +176,50 @@ describe('агент Ollama: ход прогона и одна Ollama на ба�
     expect(existsSync(lockFile)).toBe(true);
     releaseOllama({ lockFile, pid: 333 });
     expect(existsSync(lockFile)).toBe(false);
+  });
+});
+
+describe('агент Ollama: ошибки формата вызова [ReFormer-mhsh.8]', () => {
+  const xml = {
+    status: 500,
+    body: '{"error":"XML syntax error on line 3: element \\u003cfunction\\u003e closed by \\u003c/parameter\\u003e"}',
+  };
+
+  it('ошибка разбора вызова — только 500 с разбором вызова; память и контекст — сбой канала', () => {
+    expect(isToolCallParseError(xml)).toBe(true);
+    expect(
+      isToolCallParseError({ status: 500, body: '{"error":"error parsing tool call: x"}' })
+    ).toBe(true);
+    expect(
+      isToolCallParseError({
+        status: 500,
+        body: '{"error":"model requires 16.9 GiB but only 11.3 GiB are available"}',
+      })
+    ).toBe(false);
+    expect(isToolCallParseError({ status: 500, body: '{"error":"no user query found"}' })).toBe(
+      false
+    );
+    expect(isToolCallParseError({ status: 400, body: xml.body })).toBe(false);
+    expect(isToolCallParseError(new Error('socket hang up'))).toBe(false);
+  });
+
+  it('вызов без аргументов — пустые аргументы при обязательных параметрах', () => {
+    const schema = { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] };
+    expect(isEmptyCall({}, schema)).toBe(true);
+    expect(isEmptyCall(undefined, schema)).toBe(true);
+    expect(isEmptyCall({ code: 'x' }, schema)).toBe(false);
+    // Инструмент без обязательных параметров зовут без аргументов законно.
+    expect(isEmptyCall({}, { type: 'object', properties: {} })).toBe(false);
+    expect(isEmptyCall({}, undefined)).toBe(false);
+  });
+
+  it('сообщение модели называет ошибку Ollama, а не тело ответа целиком', () => {
+    const notice = unparsedNotice(xml);
+    expect(notice).toContain('не разобран');
+    expect(notice).toContain(
+      'XML syntax error on line 3: element <function> closed by </parameter>'
+    );
+    expect(notice).not.toContain('{"error"');
   });
 });
 
@@ -275,5 +336,84 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
     expect(dialog).toContain('**→ read_mcp_resource** _(resource)_');
     expect(dialog).toContain('> Подсказка стенда: Ты написал вызов choose_api текстом');
     expect(dialog).toContain('## Итог модели\n\n> Готово.');
+  }, 60_000);
+
+  const runWith = async (slug: string) => {
+    const runDirectory = path.join(root, 'batch', slug);
+    const workspaceDirectory = path.join(root, `workspace-${slug}`);
+    mkdirSync(runDirectory, { recursive: true });
+    mkdirSync(workspaceDirectory, { recursive: true });
+    const progress: string[] = [];
+    const result = await runAgent({
+      scenario: { id: 'L1-test' },
+      target: 'core',
+      workspaceDirectory,
+      runDirectory,
+      prompt: 'Сделай форму обратной связи.',
+      model: 'fake-model',
+      approach: { id: 'bare' },
+      serverPath: distEntry,
+      traceFile: path.join(runDirectory, 'server-trace.jsonl'),
+      limits: { timeoutMs: 60_000, maxUsd: 0, maxSteps: 5 },
+      settings: { numCtx: 32768 },
+      onProgress: (line: string) => progress.push(line),
+    });
+    return { result, progress, runDirectory };
+  };
+
+  it('пустой вызов помечен; неразобранный ответ — шаг с сообщением модели, прогон идёт дальше [ReFormer-mhsh.8]', async () => {
+    chat.replies.push(
+      reply({ tool_calls: [{ function: { name: 'choose_api', arguments: {} } }] }),
+      {
+        failure: {
+          status: 500,
+          body: '{"error":"XML syntax error on line 3: element \\u003cfunction\\u003e closed by \\u003c/parameter\\u003e"}',
+        },
+      },
+      reply({ content: 'Готово.' })
+    );
+    const { result, progress, runDirectory } = await runWith('L1-test.core.bare.empty.r1');
+
+    // Ошибка формата вызова — ошибка модели: прогон не обрывается и не становится сбоем канала.
+    expect(result.exitReason).toBe('completed');
+    expect(result.harness).toMatchObject({ emptyCalls: 1, unparsedCalls: 1 });
+    expect(result.usage.turns).toBe(3);
+    expect(progress[0]).toMatch(/· шаг 0 · модель 2 с · choose_api ∅ ✗$/);
+    expect(progress[1]).toMatch(/· шаг 1 · модель \d+ с · вызов не разобран ✗$/);
+
+    // Модель узнаёт об ошибке сообщением после своего прежнего контекста.
+    const lastSent = chat.bodies[2].messages.at(-1);
+    expect(lastSent?.role).toBe('user');
+    expect(lastSent?.content).toContain('XML syntax error on line 3');
+
+    const transcript = readJsonl(path.join(runDirectory, 'transcript.jsonl'));
+    expect(transcript.find((entry) => entry.role === 'tool')).toMatchObject({
+      name: 'choose_api',
+      emptyArguments: true,
+      ok: false,
+    });
+    expect(transcript.find((entry) => entry.role === 'harness')).toMatchObject({
+      step: 1,
+      unparsed: expect.stringContaining('XML syntax error'),
+    });
+
+    const dialog = renderRun(readRun(runDirectory));
+    expect(dialog).toContain('**→ choose_api** · **без аргументов**');
+    expect(dialog).toContain(
+      '> Ответ модели перед этим шагом потерян: Ollama не разобрала в нём вызов'
+    );
+  }, 60_000);
+
+  it('прочая ошибка Ollama — сбой канала: прогон кончается ошибкой', async () => {
+    chat.replies.push({
+      failure: {
+        status: 500,
+        body: '{"error":"model requires 16.9 GiB but only 11.3 GiB are available"}',
+      },
+    });
+    const { result } = await runWith('L1-test.core.bare.memory.r1');
+    expect(result.exitReason).toBe('error');
+    expect(result.finalText).toContain('model requires 16.9 GiB');
+    expect(result.harness.unparsedCalls).toBe(0);
   }, 60_000);
 });
