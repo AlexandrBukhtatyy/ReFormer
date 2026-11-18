@@ -283,7 +283,7 @@ export function createToolCatalog(
           toolName: EXECUTE_TOOL,
           transform: asBody,
         });
-        return withRunHint(result, DSL_RUN_HINT);
+        return withRunHint(result, args, DSL_RUN_HINT);
       },
     };
   }
@@ -321,7 +321,7 @@ export function createToolCatalog(
           dropEmptyEdits: guided,
           returnErrors: guided,
         });
-        return guided ? withRunHint(result) : result;
+        return guided ? withRunHint(result, args) : result;
       },
     };
   }
@@ -339,7 +339,18 @@ const RUN_HINT = '→ Run that call with run_script: code written in a message r
 /** То же для `code-guided-dsl`: код `Next:` — блок конструктора. */
 const DSL_RUN_HINT = '→ Run that code with execute: code written in a message runs nothing.';
 
-function withRunHint(result: CallToolResult, hint = RUN_HINT): CallToolResult {
+/**
+ * Ответ на вызов без скрипта — без напоминания. Выполнять там нечего, а пример в ответе («pass the
+ * script text in "code", e.g. …») несёт `await reformer.formStart(`, и строка «Run that code with
+ * execute» читалась как «вызови execute ещё раз»: qwen3.5:4b повторял пустой вызов в 7 пробах из 10
+ * после одного пустого вызова и в 10 из 10 после трёх, без строки — в 0 из 10 (ReFormer-f2fs.35).
+ */
+function withRunHint(
+  result: CallToolResult,
+  args: Record<string, unknown> | undefined,
+  hint = RUN_HINT
+): CallToolResult {
+  if (typeof args?.code !== 'string' || args.code.trim() === '') return result;
   const text = result.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n');
   if (!/await (?:reformer|f)\.\w+\(/.test(text) || /^Done:/m.test(text)) return result;
   const last = result.content.map((block) => block.type).lastIndexOf('text');

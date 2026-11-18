@@ -61,6 +61,19 @@ describe('профиль code-guided-dsl', () => {
     ).toEqual([SEARCH_TOOL, EXECUTE_TOOL]);
   });
 
+  it('execute без кода — образец формы без напоминания «Run that code» [ReFormer-f2fs.35]', async () => {
+    // qwen3.5:4b читал напоминание как «вызови execute ещё раз»: после одного пустого вызова
+    // повторял его в 7 пробах из 10, после трёх — в 10 из 10; без напоминания — в 0 из 10.
+    for (const args of [{}, { code: '' }]) {
+      const result = await catalog().call(EXECUTE_TOOL, args);
+      const answer = text(result);
+      expect(result.isError).toBe(true);
+      expect(answer).toMatch(/pass the script text in "code", e\.g\. \{"code": /);
+      expect(answer).toMatch(/reformer\.formStart\(/);
+      expect(answer).not.toMatch(/Run that code with execute/);
+    }
+  });
+
   it(
     'formStart → Next кодом конструктора → цепочки → сборка; лямбда становится выражением над model',
     async () => {

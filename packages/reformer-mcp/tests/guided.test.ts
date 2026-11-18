@@ -2131,6 +2131,19 @@ describe('связка Code Mode и guided', () => {
     );
   });
 
+  it('вызов без скрипта — образец кода без напоминания «Run that call» [ReFormer-f2fs.35]', async () => {
+    for (const args of [{}, { code: '  ' }]) {
+      const result = await catalogFor(project).call(RUN_SCRIPT_TOOL, args);
+      const answer = result.content
+        .map((block) => (block.type === 'text' ? block.text : ''))
+        .join();
+      expect(result.isError).toBe(true);
+      expect(answer).toMatch(/pass the script text in "code", e\.g\. \{"code": /);
+      // Строка звучала как «вызови run_script ещё раз» — и малая модель повторяла пустой вызов.
+      expect(answer).not.toMatch(/Run that call with run_script/);
+    }
+  });
+
   it('стек, названный в задании пакетом, сильнее аргумента target', async () => {
     const result = await catalogFor(project).call(RUN_SCRIPT_TOOL, {
       code: 'console.log(await reformer.formStart({ dir: "form", target: "renderer-react", task: "Вход: логин. Стек: @reformer/core, разметку пишешь сам в JSX." }))',

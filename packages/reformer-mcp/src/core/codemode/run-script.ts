@@ -188,8 +188,9 @@ export async function runScriptTool(
 ): Promise<CallToolResult> {
   const code = args?.code;
   if (typeof code !== 'string' || code.trim() === '') {
-    // Связка с guided: пустой вызов (сбой разбора у Ollama) без образца — и модель уходила писать
-    // файлы формы руками (батч 20261114T225122Z-f433, registration-delete на renderer-react).
+    // Связка с guided: пустой вызов без образца — и модель уходила писать файлы формы руками (батч
+    // 20261114T225122Z-f433, registration-delete на renderer-react). Пустой вызов шлёт сама модель —
+    // пустую обёртку вызова, 13 токенов у qwen3.5:4b; разбор Ollama код не теряет (ReFormer-mhsh.8).
     const tool = options.toolName ?? RUN_SCRIPT_TOOL;
     const text =
       options.returnErrors === true
