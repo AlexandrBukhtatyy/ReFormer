@@ -162,11 +162,12 @@ function dashboard(history) {
     'harness.textualCalls': 'Вызовов «текстом», медиана',
     'harness.emptyCalls': 'Вызовов без аргументов, медиана',
     'harness.unparsedCalls': 'Ответов, не разобранных Ollama, медиана',
+    'harness.lengthStops': 'Ответов, оборванных пределом выхода, медиана',
     hitRate: 'Доля найденного',
     firstPassRate: 'Найдено с первого вызова',
   };
   const COUNT_LIKE =
-    /errors|tokens|calls|chars|turns|minutes|cost|truncations|overflows|kept|forms/i;
+    /errors|tokens|calls|chars|turns|minutes|cost|truncations|overflows|kept|forms|stops/i;
 
   const time = (iso) => Date.parse(iso.length === 10 ? `${iso}T00:00:00Z` : iso);
   const keyOf = (point) => `${point.harness} · ${point.agent} · ${point.approach}`;

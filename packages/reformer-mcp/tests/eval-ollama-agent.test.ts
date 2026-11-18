@@ -10,9 +10,11 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   claimOllama,
+  cutNotice,
   isEmptyCall,
   isToolCallParseError,
   ollamaLockFile,
+  OUTPUT_LIMIT,
   releaseOllama,
   runAgent,
   stepLine,
@@ -33,6 +35,7 @@ interface ChatMessage {
 
 interface ChatBody {
   readonly messages: readonly ChatMessage[];
+  readonly options?: { readonly num_ctx?: number; readonly num_predict?: number };
 }
 
 /**
@@ -338,7 +341,7 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
     expect(dialog).toContain('## Итог модели\n\n> Готово.');
   }, 60_000);
 
-  const runWith = async (slug: string) => {
+  const runWith = async (slug: string, settings: Record<string, unknown> = {}) => {
     const runDirectory = path.join(root, 'batch', slug);
     const workspaceDirectory = path.join(root, `workspace-${slug}`);
     mkdirSync(runDirectory, { recursive: true });
@@ -355,7 +358,7 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
       serverPath: distEntry,
       traceFile: path.join(runDirectory, 'server-trace.jsonl'),
       limits: { timeoutMs: 60_000, maxUsd: 0, maxSteps: 5 },
-      settings: { numCtx: 32768 },
+      settings: { numCtx: 32768, ...settings },
       onProgress: (line: string) => progress.push(line),
     });
     return { result, progress, runDirectory };
@@ -415,5 +418,53 @@ describe.runIf(hasDist)('агент Ollama: журнал прогона', () => 
     expect(result.exitReason).toBe('error');
     expect(result.finalText).toContain('model requires 16.9 GiB');
     expect(result.harness.unparsedCalls).toBe(0);
+  }, 60_000);
+
+  it('выход ограничен; обрыв без вызова — сообщение модели и шаг дальше, а не «готово» [ReFormer-mhsh.9]', async () => {
+    const cut = (message: Record<string, unknown>) => ({
+      ...reply(message),
+      done_reason: 'length',
+      eval_count: 500,
+    });
+    chat.replies.push(
+      // Ollama отбрасывает недописанный вызов: ответ пустой, без tool_calls.
+      cut({ content: '' }),
+      // Вызов успел дописаться до предела — выполняется как обычно.
+      cut({ tool_calls: [{ function: { name: 'choose_api', arguments: { requirement: 'x' } } }] }),
+      reply({ content: 'Готово.' })
+    );
+    const { result, progress, runDirectory } = await runWith('L1-test.core.bare.cut.r1', {
+      numPredict: 500,
+    });
+
+    expect(chat.bodies.map((body) => body.options?.num_predict)).toEqual([500, 500, 500]);
+    expect(result.exitReason).toBe('completed');
+    expect(result.finalText).toBe('Готово.');
+    expect(result.harness.lengthStops).toBe(2);
+    expect(progress[0]).toMatch(/· шаг 0 · модель 2 с · ответ оборван на 500 токенах ✗$/);
+    expect(progress[1]).toMatch(/· шаг 1 · модель 2 с · choose_api$/);
+
+    // Обрывок в историю не идёт: за заданием сразу сообщение об обрыве.
+    const second = chat.bodies[1].messages;
+    expect(second.map((message) => message.role)).toEqual(['system', 'user', 'user']);
+    expect(second.at(-1)?.content).toBe(cutNotice(500));
+
+    const transcript = readJsonl(path.join(runDirectory, 'transcript.jsonl'));
+    expect(transcript.filter((entry) => entry.role === 'assistant')[0]).toMatchObject({
+      cut: true,
+      outputLimit: 500,
+    });
+    const dialog = renderRun(readRun(runDirectory));
+    expect(dialog).toContain(
+      '> Ответ оборван пределом выхода (500 токенов): недописанный вызов отброшен'
+    );
+  }, 60_000);
+
+  it('предел выхода по умолчанию — с запасом над самым длинным законным шагом', async () => {
+    expect(OUTPUT_LIMIT).toBeGreaterThan(9328 * 1.5);
+    chat.replies.push(reply({ content: 'Готово.' }));
+    const { result } = await runWith('L1-test.core.bare.limit.r1');
+    expect(chat.bodies[0].options?.num_predict).toBe(OUTPUT_LIMIT);
+    expect(result.harness.lengthStops).toBe(0);
   }, 60_000);
 });

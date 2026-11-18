@@ -145,7 +145,12 @@ function fromOllama(entries) {
           name: call.function?.name,
           arguments: call.function?.arguments ?? {},
         })),
-        notes: pendingNotes,
+        notes: entry.cut
+          ? [
+              ...pendingNotes,
+              `Ответ оборван пределом выхода (${entry.outputLimit} токенов)${(entry.tool_calls ?? []).length === 0 ? ': недописанный вызов отброшен, ответ в историю не попал' : ''} (ReFormer-mhsh.9).`,
+            ]
+          : pendingNotes,
       };
       pendingNotes = [];
       steps.push(current);

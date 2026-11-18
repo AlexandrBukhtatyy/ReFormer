@@ -174,6 +174,7 @@ function processRow(batch, record) {
     // Канал Ollama: вызовы без аргументов и ответы, которые Ollama не разобрала (ReFormer-mhsh.8).
     emptyCalls: metric('harness.emptyCalls') ?? 0,
     unparsedCalls: metric('harness.unparsedCalls') ?? 0,
+    lengthStops: metric('harness.lengthStops') ?? 0,
     failed: Object.entries(record.checks ?? {})
       .filter(([, value]) => Array.isArray(value) && value[0] === 'fail')
       .map(([id]) => id),
@@ -424,6 +425,7 @@ line(
   'Вызовов без аргументов / не разобрано Ollama',
   (rs) => `${sum(rs, 'emptyCalls')} / ${sum(rs, 'unparsedCalls')}`
 );
+line('Ответов, оборванных пределом выхода', (rs) => sum(rs, 'lengthStops'));
 line('Усечений стенда', (rs) => sum(rs, 'truncations'));
 
 console.log(`\n## Не пройденные проверки\n`);

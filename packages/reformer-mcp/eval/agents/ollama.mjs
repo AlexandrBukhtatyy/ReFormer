@@ -30,6 +30,12 @@
  *   запрос) — реплика модели потеряна. Модель получает сообщение об ошибке и продолжает, шаг
  *   засчитан, счётчик `harness.unparsedCalls`. Прежде такой прогон становился недействительным и
  *   выпадал из статистики, хотя это та же ошибка формата вызова со стороны модели.
+ *
+ * Выход модели на шаг ограничен ({@link OUTPUT_LIMIT}): срыв в бесконечную генерацию больше не съедает
+ * бюджет ячейки молча. Ответ, оборванный пределом (`done_reason: "length"`), помечен в журнале
+ * (`cut`) и считается в `harness.lengthStops`; если вызова в нём нет — Ollama отбрасывает
+ * недописанный вызов целиком, — модель узнаёт об обрыве ({@link cutNotice}) и продолжает
+ * (ReFormer-mhsh.9).
  */
 
 import { createWriteStream, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -252,6 +258,25 @@ export function isEmptyCall(argumentsValue, inputSchema) {
   return empty && (inputSchema?.required?.length ?? 0) > 0;
 }
 
+/**
+ * Предел выхода модели на шаг, токенов (`num_predict`). Без него один срыв в бесконечную генерацию
+ * съедал весь бюджет ячейки и не оставлял реплики: батч 20261118T171549Z-3f45, r5 — шаг 6 шёл 1755 с
+ * до таймаута (≈26 тыс. токенов при ~15 ток/с), в логах ещё 3041 и 7700 с (ReFormer-mhsh.9). Самый
+ * длинный законный шаг во всех журналах — 9328 токенов (`write_file` целого модуля L5-credit, 39 тыс.
+ * символов): предел с запасом в 1,75 раза. Свой предел — `settings.numPredict`.
+ */
+export const OUTPUT_LIMIT = 16384;
+
+/**
+ * Сообщение модели, когда её ответ оборван пределом выхода и вызова в нём нет. Просьба «пиши короче»
+ * загоняла qwen3.5:4b в пустые вызовы — самый короткий вызов из возможных: на шаге после двух обрывов
+ * пустой вызов в 8 пробах из 8; «только факт обрыва» — 6 из 8; «повтори вызов целиком, с
+ * аргументами» — 8 из 20 (батч 20261118T190011Z-e9dd, предел 200 токенов, ReFormer-mhsh.9).
+ */
+export function cutNotice(limit) {
+  return `Твой ответ оборван на пределе ${limit} токенов: вызов в нём не дописан и отброшен, ничего не выполнено. Повтори вызов целиком, с аргументами — вызов без аргументов тоже ничего не выполнит. Длинный код или файл раздели на несколько вызовов.`;
+}
+
 /** Сообщение модели, когда Ollama не разобрала её вызов: реплика потеряна, шаг засчитан. */
 export function unparsedNotice(error) {
   let reason = String(error?.body ?? error?.message ?? '');
@@ -373,7 +398,9 @@ export async function runAgent(input) {
     overflows: 0,
     emptyCalls: 0,
     unparsedCalls: 0,
+    lengthStops: 0,
   };
+  const outputLimit = settings.numPredict ?? OUTPUT_LIMIT;
   const cap = responseCap(settings.numCtx ?? 32768);
   const slug = path.basename(input.runDirectory);
   const progress = input.onProgress ?? null;
@@ -436,7 +463,7 @@ export async function runAgent(input) {
             stream: false,
             think: settings.think ?? false,
             keep_alive: '30m',
-            options: { num_ctx: settings.numCtx ?? 32768 },
+            options: { num_ctx: settings.numCtx ?? 32768, num_predict: outputLimit },
           },
           controller.signal
         );
@@ -471,21 +498,44 @@ export async function runAgent(input) {
       usage.outputTokens += reply.eval_count ?? 0;
       usage.modelMs += modelMs;
       const { message } = reply;
+      const cut = reply.done_reason === 'length';
       log({
         step,
         role: 'assistant',
         content: message.content,
         ...(message.thinking ? { thinking: message.thinking } : {}),
         tool_calls: message.tool_calls,
+        ...(cut ? { cut: true, outputLimit } : {}),
         usage: {
           inputTokens: reply.prompt_eval_count ?? 0,
           outputTokens: reply.eval_count ?? 0,
           modelMs,
         },
       });
-      messages.push(message);
 
       const calls = message.tool_calls ?? [];
+      if (cut) harness.lengthStops++;
+      if (cut && calls.length === 0) {
+        // Ответ оборван пределом выхода, и вызова в нём нет: недописанный вызов Ollama отбрасывает
+        // целиком. Это не конец работы — без этой ветки прогон кончался бы «completed» с пустым
+        // итогом. Обрывок в историю не идёт (повтор текста раздул бы контекст), модель узнаёт об
+        // обрыве и продолжает.
+        const notice = cutNotice(outputLimit);
+        messages.push({ role: 'user', content: notice });
+        log({ step, role: 'user', content: notice, nudge: true });
+        progress?.(
+          stepLine({
+            at: new Date(),
+            slug,
+            step,
+            modelMs,
+            calls: [{ name: `ответ оборван на ${outputLimit} токенах`, ok: false }],
+          })
+        );
+        continue;
+      }
+      messages.push(message);
+
       /** Вызовы этого шага — для строки прогресса. */
       const stepCalls = [];
       if (calls.length === 0) {
