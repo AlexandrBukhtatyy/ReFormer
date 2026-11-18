@@ -144,33 +144,18 @@ function follow(target: FormElement, source: FieldValueSource, binding: Binding)
   if (target.tagName !== 'SELECT' || typeof MutationObserver === 'undefined') return stop;
   // Список без значения поля среди опций показывает пустой выбор, а `defaultValue` React
   // применяет только при монтировании: опции, пришедшие позже (справочник), выбор не вернут.
-  // Сверяем выбор при каждой смене опций — общим наблюдателем всех списков.
-  const resync = (): void => write(target, source.value.peek(), binding);
-  selects.set(target, resync);
-  (optionsObserver ??= new MutationObserver(onOptionsChange)).observe(target, {
-    childList: true,
-    subtree: true,
-  });
+  // Сверяем выбор при каждой смене опций — один раз на пачку записей микрозадачи.
+  //
+  // Наблюдатель — свой у списка и отключается вместе с привязкой: снять наблюдение с одного
+  // элемента `MutationObserver` не умеет, и общий наблюдатель копил бы все когда-либо привязанные
+  // списки. Браузер держит наблюдаемые узлы слабо, а DOM-реализации тестов (happy-dom) — сильно:
+  // там общий наблюдатель держал размонтированные списки с их поддеревом [ReFormer-2o1j.23].
+  const observer = new MutationObserver(() => write(target, source.value.peek(), binding));
+  observer.observe(target, { childList: true, subtree: true });
   return () => {
-    if (selects.get(target) === resync) selects.delete(target);
+    observer.disconnect();
     stop();
   };
-}
-
-/** Сверка выбора подключённых списков по смене их опций. */
-const selects = new WeakMap<Element, () => void>();
-let optionsObserver: MutationObserver | undefined;
-
-/** Смена опций: сверить выбор каждого затронутого списка один раз. */
-function onOptionsChange(records: MutationRecord[]): void {
-  const touched = new Set<() => void>();
-  for (const record of records) {
-    let node: Node | null = record.target;
-    while (node !== null && (node as Element).tagName !== 'SELECT') node = node.parentNode;
-    const resync = node === null ? undefined : selects.get(node as Element);
-    if (resync !== undefined) touched.add(resync);
-  }
-  for (const resync of touched) resync();
 }
 
 /** Подписаться на значение поля: слушатель на подписке хука (`watch`) либо свой effect. */

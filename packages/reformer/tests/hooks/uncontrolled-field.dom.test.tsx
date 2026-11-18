@@ -19,6 +19,7 @@ import {
 } from '../../src/platforms/react/field-binding/field-adapter';
 import { act, StrictWrapper } from '../test-utils/react';
 import { createdEffects, liveEffects } from '../test-utils/effect-tracker';
+import { collectUntilReleased } from '../test-utils/gc';
 
 vi.mock('@preact/signals-core', async (importOriginal) =>
   (await import('../test-utils/effect-tracker')).trackEffects(await importOriginal())
@@ -302,6 +303,60 @@ describe('неуправляемая привязка — жизненный ц�
     expect(liveEffects()).toBe(baseline);
     act(() => form.name.setValue('Пётр'));
     expect(control.value).toBe('Анна');
+  });
+
+  /** Список, привязанный к полю города. */
+  function cityField(form: ReturnType<typeof createProfile>['form']) {
+    return function City() {
+      const { seam } = useSeam(form.city as FormControl<unknown>);
+      return (
+        <select data-testid="control" {...bindFieldProps(textAdapter, seam)}>
+          <option value="msk">Москва</option>
+          <option value="spb">Петербург</option>
+        </select>
+      );
+    };
+  }
+
+  it('наблюдатель опций — свой у каждого списка и отключается при размонтировании [ReFormer-2o1j.23]', () => {
+    const { form } = createProfile();
+    const City = cityField(form);
+    const observe = vi.spyOn(MutationObserver.prototype, 'observe');
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    try {
+      const first = render(<City />);
+      const second = render(<City />);
+      const observers = observe.mock.calls.flatMap(([target], i) =>
+        (target as Element).tagName === 'SELECT' ? [observe.mock.contexts[i]] : []
+      );
+      expect(new Set(observers).size).toBe(2);
+
+      first.unmount();
+      second.unmount();
+      expect(observers.every((observer) => disconnect.mock.contexts.includes(observer))).toBe(true);
+    } finally {
+      observe.mockRestore();
+      disconnect.mockRestore();
+    }
+  });
+
+  it('размонтированные списки уходят сборщику мусора — наблюдатель опций их не держит [ReFormer-2o1j.23]', async () => {
+    const { form } = createProfile();
+    const City = cityField(form);
+    // Смонтировать и размонтировать; наружу — только слабая ссылка на список.
+    const mountOnce = (): WeakRef<HTMLSelectElement> => {
+      const view = render(<City />);
+      const select = new WeakRef(view.getByTestId('control') as HTMLSelectElement);
+      view.unmount();
+      return select;
+    };
+    const selects = [mountOnce(), mountOnce(), mountOnce()];
+
+    await collectUntilReleased(selects);
+
+    expect(selects.map((select) => select.deref() === undefined)).toEqual([true, true, true]);
+    // Поле живо: списки отпустила привязка, а не сборщик вместе с формой.
+    expect(form.city.value.value).toBe('msk');
   });
 });
 
