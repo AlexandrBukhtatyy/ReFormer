@@ -25,7 +25,7 @@ const ctx = (target: EditContext['target'] = 'renderer-react'): EditContext => (
 });
 
 const arrays = (file: Rec) => file.arrays as Rec[];
-const messages = (outcomes: Array<{ ok: boolean; message: string }>) =>
+const messages = (outcomes: ReadonlyArray<{ ok: boolean; message: string }>) =>
   outcomes.map((outcome) => `${outcome.ok ? '✓' : '✗'} ${outcome.message}`);
 
 /** Форма с массивом без границ — как черновик спеки до правки. */
@@ -171,6 +171,111 @@ describe('колонка готового массива и стартовые �
     const title = (items.itemFields as Rec[]).find((item) => item.name === 'title')!;
     expect(items.initialValue).toEqual([{ title: title.initialValue, price: 100 }]);
     expect(title.initialValue).not.toBe('');
+  });
+});
+
+describe('стартовые строки со своими значениями и флажок строки (ReFormer-f2fs.36)', () => {
+  /** Получатели: email и флажок «основной», одна стартовая строка. */
+  const recipients = (): Rec =>
+    applyEdits(
+      {},
+      [
+        { op: 'add_array', name: 'recipients', label: 'Получатели', minItems: 1 },
+        { op: 'add_item_field', array: 'recipients', name: 'email', label: 'Email' },
+        {
+          op: 'add_item_field',
+          array: 'recipients',
+          name: 'primary',
+          label: 'Основной',
+          type: 'boolean',
+          initialValue: false,
+        },
+      ],
+      ctx()
+    ).file;
+
+  it('startRows: значения строк поверх умолчаний колонок, не меньше minItems', () => {
+    const { file, outcomes } = applyEdits(
+      recipients(),
+      [{ op: 'add_array', name: 'recipients', startRows: [{ primary: true }] }],
+      ctx()
+    );
+    expect(messages(outcomes)).toEqual([
+      '✓ array `recipients` changed: start rows [{"primary":true}]',
+    ]);
+    expect(arrays(file)[0].initialValue).toEqual([{ email: '', primary: true }]);
+
+    // Пустой список при minItems 1 — одна строка умолчаний, а не ноль.
+    const empty = applyEdits(
+      recipients(),
+      [{ op: 'add_array', name: 'recipients', startRows: [] }],
+      ctx()
+    ).file;
+    expect(arrays(empty)[0].initialValue).toEqual([{ email: '', primary: false }]);
+  });
+
+  it('startRows: чужая колонка и не значение — отказ с подсказкой', () => {
+    const { outcomes } = applyEdits(
+      recipients(),
+      [
+        { op: 'add_array', name: 'recipients', startRows: [{ primery: true }] },
+        { op: 'add_array', name: 'recipients', startRows: [{ email: ['a'] }] },
+        { op: 'add_array', name: 'recipients', startRows: { primary: true } },
+      ],
+      ctx()
+    );
+    expect(messages(outcomes)).toEqual([
+      expect.stringMatching(/^✗ .*no column `primery` in rows of `recipients`.*primary/),
+      expect.stringMatching(/^✗ .*start row value of `email` is a string, number, boolean or null/),
+      expect.stringMatching(/^✗ .*"startRows" is a list of rows/),
+    ]);
+  });
+
+  it('смена умолчания колонки не трогает значение, заданное строке явно; смена типа — трогает', () => {
+    const start = applyEdits(
+      recipients(),
+      [
+        {
+          op: 'add_array',
+          name: 'recipients',
+          startRows: [{ primary: true }, { email: 'a@b.ru' }],
+        },
+      ],
+      ctx()
+    ).file;
+    const kept = applyEdits(
+      start,
+      [{ op: 'set_field', array: 'recipients', name: 'primary', initialValue: false }],
+      ctx()
+    ).file;
+    expect(arrays(kept)[0].initialValue).toEqual([
+      { email: '', primary: true },
+      { email: 'a@b.ru', primary: false },
+    ]);
+  });
+
+  it('exclusiveFlag — только на колонке да/нет', () => {
+    const { outcomes, file } = applyEdits(
+      recipients(),
+      [
+        { op: 'add_behavior', kind: 'exclusiveFlag', target: 'primary', array: 'recipients' },
+        { op: 'add_behavior', kind: 'exclusiveFlag', target: 'email', array: 'recipients' },
+        {
+          op: 'add_behavior',
+          kind: 'aggregateInto',
+          target: 'recipients',
+          array: 'recipients',
+          expr: 'rows.length === 0 || rows.some((row) => row.primary) ? [] : [{ index: 0, patch: { primary: true } }]',
+        },
+      ],
+      ctx()
+    );
+    expect(outcomes.map((outcome) => outcome.ok)).toEqual([true, false, true]);
+    expect(outcomes[1].message).toMatch(/exclusiveFlag needs a yes\/no column — type boolean/);
+    expect((file.behavior as Rec[]).map((row) => `${row.kind} ${row.target}`)).toEqual([
+      'exclusiveFlag recipients.primary',
+      'aggregateInto recipients',
+    ]);
   });
 });
 

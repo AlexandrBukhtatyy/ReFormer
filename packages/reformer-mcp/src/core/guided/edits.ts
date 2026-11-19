@@ -1128,13 +1128,17 @@ function setField(file: Rec, edit: Rec, ctx: EditContext): string {
     const before = items[index];
     items[index] = { name, ...fieldRecord(edit, ctx, before) };
     // Стартовые строки — с новым значением колонки: иначе после смены типа в строке оставалось
-    // старое ('' у числа) и тип строки расходился с колонкой (как в addItemField).
+    // старое ('' у числа) и тип строки расходился с колонкой (как в addItemField). Значение, заданное
+    // строке явно (startRows), при смене одного умолчания остаётся (ReFormer-f2fs.36).
+    const retyped = items[index].type !== before.type;
     if (
       Array.isArray(array.initialValue) &&
-      (items[index].type !== before.type || items[index].initialValue !== before.initialValue)
+      (retyped || items[index].initialValue !== before.initialValue)
     ) {
       for (const row of array.initialValue as unknown[]) {
-        if (isRecord(row)) row[name] = items[index].initialValue;
+        if (!isRecord(row)) continue;
+        if (retyped || row[name] === undefined || row[name] === before.initialValue)
+          row[name] = items[index].initialValue;
       }
     }
     return `row field \`${arrayName}.${name}\` changed${liftFieldRules(file, edit, ctx, name, arrayName)}`;
@@ -1618,6 +1622,39 @@ function boundRules(file: Rec, name: string, minItems?: number, maxItems?: numbe
     : '';
 }
 
+/**
+ * Стартовые строки массива со своими значениями (`startRows`): по объекту на строку, ключи —
+ * колонки массива. Умолчание колонки одно на все строки, и «в стартовой строке — основной» было не
+ * выразить: проба primary-recipient-fallback не прошла ни в одном прогоне батча
+ * 20261118T203341Z-edd8 (ReFormer-f2fs.36).
+ */
+function startRowsOf(array: Rec, edit: Rec): Rec[] | undefined {
+  const given = edit.startRows;
+  if (given === undefined) return undefined;
+  const example = '[{"primary":true}]';
+  if (!Array.isArray(given) || !given.every(isRecord)) {
+    throw new EditError(
+      `"startRows" is a list of rows — an object per row, column → value: ${example}`
+    );
+  }
+  const columns = itemFieldsOf(array).map(nameOf);
+  for (const row of given as Rec[]) {
+    for (const [key, value] of Object.entries(row)) {
+      if (!columns.includes(key)) {
+        throw new EditError(
+          `no column \`${key}\` in rows of \`${nameOf(array)}\`${didYouMean(key, columns)} — start rows come after the columns`
+        );
+      }
+      if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) {
+        throw new EditError(
+          `start row value of \`${key}\` is a string, number, boolean or null: ${example}`
+        );
+      }
+    }
+  }
+  return given as Rec[];
+}
+
 function updateArray(file: Rec, array: Rec, edit: Rec, ctx: EditContext): string {
   const name = nameOf(array);
   const props: Rec = isRecord(array.componentProps) ? { ...array.componentProps } : {};
@@ -1645,12 +1682,18 @@ function updateArray(file: Rec, array: Rec, edit: Rec, ctx: EditContext): string
     changed.push(`at most ${maxItems} rows`);
   }
   array.componentProps = props;
-  const rows = Array.isArray(array.initialValue) ? (array.initialValue as unknown[]) : [];
+  let rows = Array.isArray(array.initialValue) ? (array.initialValue as unknown[]) : [];
   const blank = (): Rec =>
     Object.fromEntries(
       itemFieldsOf(array).map((item) => [nameOf(item), item.initialValue ?? null])
     );
-  while (minItems !== undefined && rows.length < minItems) rows.push(blank());
+  const startRows = startRowsOf(array, edit);
+  if (startRows) {
+    rows = startRows.map((row) => ({ ...blank(), ...row }));
+    changed.push(`start rows ${JSON.stringify(startRows)}`);
+  }
+  const atLeast = minItems ?? (startRows ? number(props, 'minItems') : undefined);
+  while (atLeast !== undefined && rows.length < atLeast) rows.push(blank());
   array.initialValue = rows;
   const { step, note } = stepOf(edit, ctx);
   const moved = `${step ? `, moved to ${place(file, name, true, step)}` : note}${boundRules(file, name, minItems, maxItems)}`;
@@ -2651,6 +2694,21 @@ function addBehavior(file: Rec, edit: Rec): string {
     target = `${arrayName}.${target}`;
   if (!paths.includes(target))
     throw new EditError(`no field \`${target}\`${didYouMean(target, paths)}`);
+  // Флажок «ровно у одной строки» — колонка да/нет: у текста и числа «снять в остальных» нечего.
+  if (kind === 'exclusiveFlag') {
+    const each = arrayName ?? target.split('.').slice(0, -1).join('.');
+    const column = itemFieldsOf(findArray(file, each) ?? {}).find(
+      (item) => `${each}.${nameOf(item)}` === target
+    );
+    if (!column)
+      throw new EditError(
+        `exclusiveFlag is for a yes/no column of rows: "array" and the column, e.g. {"array":"recipients","target":"primary"}`
+      );
+    if (column.type !== 'boolean')
+      throw new EditError(
+        `\`${target}\` is ${String(column.type ?? 'string')}: exclusiveFlag needs a yes/no column — type boolean`
+      );
+  }
   const rawExpr = text(edit, 'expr');
   if (rawExpr && /<[^>]*\b(formula|task|field)\b[^>]*>/i.test(rawExpr)) {
     throw new EditError(

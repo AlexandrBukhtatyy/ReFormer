@@ -116,6 +116,12 @@
                 "type": "boolean"
               },
               "initialValue": {},
+              "startRows": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
               "step": {
                 "type": "string"
               },

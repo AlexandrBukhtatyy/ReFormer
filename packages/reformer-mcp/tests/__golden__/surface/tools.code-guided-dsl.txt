@@ -133,6 +133,8 @@ interface Field {
   transform(fn: Fn<any>): Field;
   /** Keep this field equal to another one both ways; the user may still type here ("чек на тот же email"). */
   sync(field: string): Field;
+  /** A yes/no column true in ONE row only ("основной", "ровно один"): ticking it clears it in the other rows; no row has it — the first row gets it ({ first: false } — no such fallback). No check is needed for it. */
+  exclusive(options?: { first?: boolean }): Field;
   /** When the source field changes and the condition holds, set this field to the value ("смена на физлицо: оплата по счёту → картой"). */
   setOnChange(source: string, condition: Fn<Model>, value: string | number | boolean | null): Field;
   /** A new key (and label): the server rewrites rules, conditions and the layout. */
@@ -155,6 +157,8 @@ interface Rows {
   max(n: number, message?: string): Rows;
   /** A value of each row: with a label — a new column; without — an existing one. */
   column(name: string, label?: string): Field;
+  /** The rows the form starts with, when the task gives them values (after the columns): an object per row, a column left out keeps its default. */
+  startRows(rows: Array<Record<string, string | number | boolean | null>>): Rows;
 }
 
 /** A wizard step. */

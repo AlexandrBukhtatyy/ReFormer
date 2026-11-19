@@ -196,6 +196,15 @@ function printKnown(edit: Rec, used: Set<string>): string | null {
       mark('name');
       return `f.field(${show(edit.name)}).remove()`;
     case 'add_array': {
+      // Только стартовые строки — свой метод; вместе с другими ключами — сырой правкой.
+      const keys = Object.keys(edit).filter((key) => key !== 'op');
+      if (
+        edit.startRows !== undefined &&
+        keys.every((key) => key === 'name' || key === 'startRows')
+      ) {
+        mark('name', 'startRows');
+        return `f.array(${show(edit.name)}).startRows(${JSON.stringify(edit.startRows)})`;
+      }
       mark('name', 'label', 'minItems', 'maxItems', 'step');
       const rows = [
         edit.minItems === undefined ? '' : `min: ${show(edit.minItems)}`,
@@ -296,6 +305,10 @@ function printBehavior(edit: Rec, used: Set<string>): string | null {
         edit.expr === undefined || edit.expr === 'true' ? '' : `, ${lambda(edit.expr, scope)}`;
       return `${start}.copyFrom(${show(sources[0])}${condition})`;
     }
+    // Одна правка — без отката на первую строку: .exclusive() без аргумента даёт ещё aggregateInto.
+    case 'exclusiveFlag':
+      if (typeof edit.array !== 'string' || edit.expr !== undefined) return null;
+      return `${start}.exclusive({ first: false })`;
     default:
       return null;
   }

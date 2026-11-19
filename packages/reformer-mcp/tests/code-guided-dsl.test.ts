@@ -178,6 +178,40 @@ console.log(await f.save())`,
   );
 
   it(
+    'основной получатель: .exclusive() и .startRows() собираются в модуль [ReFormer-f2fs.36]',
+    async () => {
+      const tools = catalog();
+      await tools.call(EXECUTE_TOOL, {
+        code: `await reformer.formStart({ dir: "form", target: "renderer-react", task: "Уведомления: получатели (recipients) — строки с email (email) и отметкой «основной» (primary); основной ровно один, в стартовой строке — основной" })`,
+      });
+      const built = text(
+        await tools.call(EXECUTE_TOOL, {
+          code: `const f = reformer.form()
+const r = f.array("recipients", "Получатели", { min: 1 })
+r.column("email", "Email").required()
+r.column("primary", "Основной").type("boolean").initial(false).exclusive()
+r.startRows([{ primary: true }])
+console.log(await f.save())`,
+        })
+      );
+      expect(built).toMatch(/- ✓ .*\.exclusive\(\): exclusiveFlag on `recipients\.primary`/);
+      expect(built).toMatch(/- ✓ .*\.exclusive\(\): aggregateInto on `recipients`/);
+      expect(built).toMatch(
+        /- ✓ f\.array\("recipients".*\.startRows\(\[\{"primary":true\}\]\): array `recipients` changed: start rows/
+      );
+      expect(built).toMatch(/^✓ form_build/m);
+      const form = intent();
+      expect(form.arrays[0].initialValue).toEqual([{ email: '', primary: true }]);
+      expect(
+        form.behavior.map((row: { kind: string; target: string }) => `${row.kind} ${row.target}`)
+      ).toEqual(['exclusiveFlag recipients.primary', 'aggregateInto recipients']);
+      const model = readFileSync(join(project, 'form', 'model.ts'), 'utf8');
+      expect(model).toMatch(/arrayOf\(blank\w+, \[\{"email":"","primary":true\}\]\)/);
+    },
+    SLOW
+  );
+
+  it(
     'search читает форму, задание и API и ничего не меняет',
     async () => {
       const tools = catalog();

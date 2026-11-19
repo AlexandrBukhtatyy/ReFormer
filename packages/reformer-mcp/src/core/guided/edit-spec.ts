@@ -94,6 +94,11 @@ const KEYS = {
     ts: 'string | number | boolean',
     doc: 'The default value the task names (for a choice — its value).',
   },
+  startRows: {
+    schema: { type: 'array', items: { type: 'object' } },
+    ts: 'Array<Record<string, string | number | boolean | null>>',
+    doc: 'The rows an array starts with: an object per row, a column left out keeps its default.',
+  },
   step: {
     schema: STRING,
     ts: 'string',
@@ -310,7 +315,7 @@ export const EDIT_SPECS: readonly OpSpec[] = [
     doc: 'Repeating rows the user adds; then add_item_field for each column of a row. The name of an array the form has already: its label and row bounds change.',
     signature: 'add_array {name,label,minItems?,maxItems?}',
     required: ['name', 'label'],
-    optional: ['minItems', 'maxItems', 'step'],
+    optional: ['minItems', 'maxItems', 'step', 'startRows'],
     docs: { name: 'Key of the array: one latin camelCase word.' },
   },
   {

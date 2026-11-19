@@ -208,6 +208,23 @@ const SOURCE = String.raw`(function () {
         note(chain, 'sync', arguments);
         return behavior('syncFields', undefined, { sources: [other] });
       };
+      // Флажок строки «ровно у одной»: exclusiveFlag снимает его в остальных строках, aggregateInto
+      // отдаёт его первой строке, когда не отмечен ни у кого (ReFormer-f2fs.36).
+      t.exclusive = function (options) {
+        note(chain, 'exclusive', arguments);
+        if (!array) {
+          fail(chain, '.exclusive() is for a yes/no column of rows: f.array("recipients").column("primary").exclusive()');
+          return proxy;
+        }
+        behavior('exclusiveFlag');
+        if (!(options && options.first === false)) {
+          push(chain, {
+            op: 'add_behavior', kind: 'aggregateInto', target: array, array: array,
+            expr: 'rows.length === 0 || rows.some((row) => row.' + name + ') ? [] : [{ index: 0, patch: { ' + name + ': true } }]'
+          });
+        }
+        return proxy;
+      };
       // Реакция на смену другого поля: onChange на нём, тело — «если условие, то это поле = значение».
       t.setOnChange = function (source, condition, value) {
         note(chain, 'setOnChange', arguments);
@@ -322,6 +339,12 @@ const SOURCE = String.raw`(function () {
       t.min = function (n, message) { return rowsRule('min', 'minLength', n, message, arguments); };
       t.max = function (n, message) { return rowsRule('max', 'maxLength', n, message, arguments); };
       t.required = function (message) { return rowsRule('required', 'minLength', 1, message, arguments); };
+      // Значения стартовых строк — после колонок: до них сверять ключи строк не с чем (ReFormer-f2fs.36).
+      t.startRows = function (values) {
+        note(chain, 'startRows', arguments);
+        push(chain, { op: 'add_array', name: name, startRows: values });
+        return proxy;
+      };
       t.column = function (column, columnLabel) {
         var sub = at(chain.via + '.column(' + listed(arguments) + ')');
         var added = columnLabel === undefined

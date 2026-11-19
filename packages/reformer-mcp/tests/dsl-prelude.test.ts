@@ -235,6 +235,47 @@ describe('прелюдия конструктора', () => {
     ]);
   });
 
+  it('стартовые строки и флажок «ровно у одной строки» [ReFormer-f2fs.36]', async () => {
+    const { edits } = await run(`
+      const f = reformer.form()
+      const r = f.array("recipients", "Получатели", { min: 1 })
+      r.column("email", "Email")
+      r.column("primary", "Основной").type("boolean").initial(false).exclusive()
+      r.startRows([{ primary: true }])
+      f.array("contacts").column("main").exclusive({ first: false })
+      f.field("email").exclusive()
+      await f.save()
+    `);
+    expect(strip(edits)).toEqual([
+      { op: 'add_array', name: 'recipients', label: 'Получатели', minItems: 1 },
+      { op: 'add_item_field', array: 'recipients', name: 'email', label: 'Email' },
+      {
+        op: 'add_item_field',
+        array: 'recipients',
+        name: 'primary',
+        label: 'Основной',
+        type: 'boolean',
+        initialValue: false,
+      },
+      { op: 'add_behavior', kind: 'exclusiveFlag', target: 'primary', array: 'recipients' },
+      {
+        op: 'add_behavior',
+        kind: 'aggregateInto',
+        target: 'recipients',
+        array: 'recipients',
+        expr: 'rows.length === 0 || rows.some((row) => row.primary) ? [] : [{ index: 0, patch: { primary: true } }]',
+      },
+      { op: 'add_array', name: 'recipients', startRows: [{ primary: true }] },
+      // { first: false } — без отката на первую строку.
+      { op: 'add_behavior', kind: 'exclusiveFlag', target: 'main', array: 'contacts' },
+      // Не колонка строк — ошибка цепочки с подсказкой, скрипт идёт дальше.
+      {
+        $error:
+          '.exclusive() is for a yes/no column of rows: f.array("recipients").column("primary").exclusive()',
+      },
+    ]);
+  });
+
   it('предупреждение, дата в будущем, приведение, синхронизация, реакция на смену', async () => {
     const { edits } = await run(`
       const f = reformer.form()

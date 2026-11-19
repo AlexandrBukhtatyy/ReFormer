@@ -76,6 +76,9 @@ const SAMPLES: Rec[] = [
   { op: 'add_array', name: 'items', label: 'Товары' },
   { op: 'add_array', name: 'items', label: 'Товары', minItems: 1, maxItems: 5, step: 'Корзина' },
   { op: 'add_item_field', array: 'items', name: 'price', label: 'Цена', type: 'number' },
+  // Стартовые строки и флажок «ровно у одной строки» [ReFormer-f2fs.36].
+  { op: 'add_array', name: 'recipients', startRows: [{ primary: true }] },
+  { op: 'add_behavior', kind: 'exclusiveFlag', target: 'primary', array: 'recipients' },
   { op: 'add_step', title: 'Контакты', fields: ['email', 'phone'] },
   { op: 'add_step', title: 'Упаковка', fields: ['giftWrap'], after: 'Товары' },
   { op: 'add_step', title: 'Упаковка', fields: ['giftWrap'], before: '4' },

@@ -423,6 +423,15 @@ export const BUILDER_METHODS: readonly BuilderMethod[] = [
   },
   {
     on: 'Field',
+    name: 'exclusive',
+    params: 'options?: { first?: boolean }',
+    returns: FIELD,
+    doc: 'A yes/no column true in ONE row only ("основной", "ровно один"): ticking it clears it in the other rows; no row has it — the first row gets it ({ first: false } — no such fallback). No check is needed for it.',
+    example: 'f.array("recipients").column("primary").exclusive()',
+    ops: ['add_behavior'],
+  },
+  {
+    on: 'Field',
     name: 'setOnChange',
     params: 'source: string, condition: Fn<Model>, value: string | number | boolean | null',
     returns: FIELD,
@@ -497,6 +506,15 @@ export const BUILDER_METHODS: readonly BuilderMethod[] = [
     example:
       'f.array("items").column("lineTotal", "Сумма").type("number").readonly().compute(r => r.price * r.quantity)',
     ops: ['add_item_field'],
+  },
+  {
+    on: 'Rows',
+    name: 'startRows',
+    params: 'rows: Array<Record<string, string | number | boolean | null>>',
+    returns: 'Rows',
+    doc: 'The rows the form starts with, when the task gives them values (after the columns): an object per row, a column left out keeps its default.',
+    example: 'f.array("recipients").startRows([{ primary: true }])',
+    ops: ['add_array'],
   },
 
   {
