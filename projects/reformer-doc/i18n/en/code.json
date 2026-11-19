@@ -1122,6 +1122,12 @@
   "benchmark.traces.tip.phase": {
     "message": "{n}. {title} · +{ms} ms from the phase start"
   },
+  "benchmark.traces.tip.since": {
+    "message": "+{ms} ms from the phase start"
+  },
+  "benchmark.traces.tip.phaseTitle": {
+    "message": "{n}. {title}"
+  },
   "benchmark.traces.tip.gap": {
     "message": "after phase {n} ({title}) — outside the measurement"
   },

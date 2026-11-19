@@ -54,8 +54,14 @@
 }
 
 /* ── Стопка графиков ───────────────────────────────────────────────────── */
+/*
+ * Прокрутка только по горизонтали (узкий экран). overflow-x: auto без overflow-y делает
+ * прокручиваемой и вертикаль, и полоса появлялась от подписей нижних делений, которые
+ * выступают за низ графика на половину строки; запас снизу — в padding-bottom у .inner.
+ */
 .scroll {
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 /* Высота области графика — PLOT_PX в TraceCharts.tsx. */
@@ -65,7 +71,7 @@
   --plot-h: 132px;
   position: relative;
   min-width: 520px;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.6rem;
   touch-action: pan-y;
   border-radius: 6px;
 }
@@ -255,6 +261,15 @@
 .tipHead {
   margin-bottom: 0.35rem;
   font-weight: 600;
+}
+
+/* Время от начала фазы — над названием, цифры одной ширины: строка не дёргается при движении. */
+.tipSince {
+  margin-bottom: 0.1rem;
+  font-size: 0.7rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-700);
 }
 
 .tipGap {

@@ -495,6 +495,42 @@ function phaseLine(hit: ReturnType<typeof phaseAt>, form: BenchForm, t: BenchTex
       );
 }
 
+/**
+ * Заголовок подсказки. Внутри окна фазы время от её начала — отдельной строкой над названием:
+ * число меняется при движении курсора, а название фазы остаётся на месте и не прыгает. Вне окна —
+ * одна строка «после фазы N — вне замера».
+ */
+function TipHead({
+  hit,
+  form,
+  t,
+}: {
+  hit: ReturnType<typeof phaseAt>;
+  form: BenchForm;
+  t: BenchText;
+}): ReactNode {
+  if (!hit || !hit.inWindow) {
+    return (
+      <div className={clsx(styles.tipHead, hit && styles.tipGap)}>{phaseLine(hit, form, t)}</div>
+    );
+  }
+  const title = t.phaseTitle(form, hit.phase.id, hit.phase.title);
+  return (
+    <div className={styles.tipHead}>
+      <div className={styles.tipSince}>
+        {translate(
+          { id: 'benchmark.traces.tip.since', message: '+{ms} мс от начала фазы' },
+          { ms: Math.round(hit.since) }
+        )}
+      </div>
+      {translate(
+        { id: 'benchmark.traces.tip.phaseTitle', message: '{n}. {title}' },
+        { n: hit.index + 1, title }
+      )}
+    </div>
+  );
+}
+
 function tooltipText(
   trace: TraceForm,
   lines: Lines,
@@ -563,9 +599,7 @@ function Tooltip({
   });
   return createPortal(
     <div ref={ref} className={styles.tooltip} aria-hidden="true">
-      <div className={clsx(styles.tipHead, hit && !hit.inWindow && styles.tipGap)}>
-        {phaseLine(hit, form, t)}
-      </div>
+      <TipHead hit={hit} form={form} t={t} />
       <table className={styles.tipTable}>
         <thead>
           <tr>
