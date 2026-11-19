@@ -1117,7 +1117,37 @@
     "message": "No traces for this form — the values are in the tables above."
   },
   "benchmark.traces.aria": {
-    "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide."
+    "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide; plus and minus — zoom, 0 — the whole trace."
+  },
+  "benchmark.traces.zoom.group": {
+    "message": "Time zoom"
+  },
+  "benchmark.traces.zoom.out": {
+    "message": "Zoom out"
+  },
+  "benchmark.traces.zoom.in": {
+    "message": "Zoom in"
+  },
+  "benchmark.traces.zoom.reset": {
+    "message": "Whole trace"
+  },
+  "benchmark.traces.zoom.state": {
+    "message": "×{k} · {where} · double-click a chart for the whole trace"
+  },
+  "benchmark.traces.zoom.where.gap": {
+    "message": "after phase {a}"
+  },
+  "benchmark.traces.zoom.where.one": {
+    "message": "phase {a}"
+  },
+  "benchmark.traces.zoom.where.many": {
+    "message": "phases {a}–{b}"
+  },
+  "benchmark.traces.zoom.hint": {
+    "message": "Drag over a stretch or click a phase number to zoom in; Ctrl/⌘ + wheel — zoom"
+  },
+  "benchmark.traces.zoom.phase": {
+    "message": "Zoom into phase {n}"
   },
   "benchmark.traces.tip.phase": {
     "message": "{n}. {title} · +{ms} ms from the phase start"

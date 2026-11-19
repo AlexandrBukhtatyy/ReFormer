@@ -77,6 +77,78 @@ export function valueAt(segs: number[][], x: number): number | null {
   return null;
 }
 
+/**
+ * Значение линии в момент `x` или последнее до него — подпись у правого края окна: участник мог
+ * закончить раньше. До первой точки — `null`.
+ */
+export function valueAtOrBefore(segs: number[][], x: number): number | null {
+  let best: number | null = null;
+  let bestX = -Infinity;
+  for (const s of segs) {
+    for (let i = 0; i < s.length; i += 2) {
+      if (s[i] > x) break;
+      if (s[i] >= bestX) {
+        bestX = s[i];
+        best = s[i + 1];
+      }
+    }
+  }
+  return best;
+}
+
+/** Максимум линии на участке `[x0, x1]` — вместе со значением, действовавшим в момент `x0`. */
+export function maxInRange(segs: number[][], x0: number, x1: number): number {
+  let max = valueAt(segs, x0) ?? 0;
+  for (const s of segs) {
+    for (let i = 0; i < s.length; i += 2) {
+      if (s[i] > x1) break;
+      if (s[i] >= x0 && s[i + 1] > max) max = s[i + 1];
+    }
+  }
+  return max;
+}
+
+/** Окно оси X в мс: видимый участок трассы. */
+export interface View {
+  x0: number;
+  x1: number;
+}
+
+/** Самое узкое окно — 1/400 трассы, но не меньше 20 мс. */
+export const minSpan = (total: number): number => Math.max(total / 400, 20);
+
+/** Окно в пределах трассы: ширина от `minSpan` до всей трассы, края внутри `[0, total]`. */
+export function clampView(view: View, total: number): View {
+  const span = Math.min(total, Math.max(minSpan(total), view.x1 - view.x0));
+  const x0 = Math.min(Math.max(0, view.x0), total - span);
+  return { x0, x1: x0 + span };
+}
+
+/** Масштаб вокруг точки окна (`at` — доля ширины, 0–1): `factor` < 1 приближает. */
+export function zoomView(view: View, total: number, at: number, factor: number): View {
+  const span = view.x1 - view.x0;
+  const anchor = view.x0 + at * span;
+  const next = Math.min(total, Math.max(minSpan(total), span * factor));
+  return clampView({ x0: anchor - at * next, x1: anchor - at * next + next }, total);
+}
+
+/** Сдвиг окна на `dx` мс без смены ширины. */
+export const panView = (view: View, total: number, dx: number): View =>
+  clampView({ x0: view.x0 + dx, x1: view.x1 + dx }, total);
+
+/** Номера фаз (с 0), которые видны в окне хотя бы частично. */
+export function phasesInView(phases: TracePhase[], view: View): [number, number] | null {
+  let first = -1;
+  let last = -1;
+  phases.forEach((p, i) => {
+    if (p.offset + p.width > view.x0 && p.offset < view.x1) {
+      if (first < 0) first = i;
+      last = i;
+    }
+  });
+  return first < 0 ? null : [first, last];
+}
+
 /** Последнее значение линии (подпись на конце). */
 export function lastValue(segs: number[][]): number | null {
   for (let k = segs.length - 1; k >= 0; k--) if (segs[k].length >= 2) return segs[k].at(-1) ?? null;
