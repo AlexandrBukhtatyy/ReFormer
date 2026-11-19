@@ -126,7 +126,7 @@ export default function BuilderShowcase(): ReactNode {
             to={builderUrl}
             autoAddBaseUrl={false}
           >
-            <Translate id="homepage.builder.open">Открыть билдер ↗</Translate>
+            <Translate id="homepage.builder.open">Открыть билдер</Translate>
           </Link>
           <Link
             className="button button--secondary button--outline button--lg"

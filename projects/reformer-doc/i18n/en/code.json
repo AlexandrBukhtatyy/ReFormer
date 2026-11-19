@@ -1477,7 +1477,7 @@
     "message": "A visual form builder: assemble a form from kit components, see it live right away and export it as code — a ready module for your React app."
   },
   "homepage.builder.open": {
-    "message": "Open the builder ↗"
+    "message": "Open the builder"
   },
   "homepage.builder.docs": {
     "message": "How it works"
