@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import Translate from '@docusaurus/Translate';
 import BarChart from './BarChart';
+import { LIB_ORDER, isDashed, libStyle } from './colors';
 import { type Tile, bundleClaim } from './highlights';
 import { useBenchText } from './i18n';
 import { CORE, fmt, libLabel } from './types';
@@ -30,24 +31,37 @@ export function formatDate(iso: string, isEn: boolean): string {
   }).format(new Date(iso));
 }
 
+/** Образцы цветов участников: имя рядом с цветом, baseline — контуром (`line` — линией). */
+export function LibSwatches({ line = false }: { line?: boolean }): ReactNode {
+  return (
+    <>
+      {LIB_ORDER.map((lib) => (
+        <li key={lib} style={libStyle(lib)}>
+          <span
+            className={clsx(
+              line ? styles.swatchLine : styles.swatch,
+              isDashed(lib) && styles.swatchBaseline
+            )}
+            aria-hidden="true"
+          />
+          {lib === 'baseline' ? (
+            <Translate id="benchmark.legend.baseline">
+              baseline — та же разметка без библиотеки форм
+            </Translate>
+          ) : (
+            libLabel(lib)
+          )}
+        </li>
+      ))}
+    </>
+  );
+}
+
 /** Легенда графиков: цвет + форма маркера + текст — не только цвет. */
 export function Legend(): ReactNode {
   return (
     <ul className={styles.legend}>
-      <li>
-        <span className={clsx(styles.swatch, styles.swatchCore)} aria-hidden="true" />
-        <Translate id="benchmark.legend.reformer">ReFormer (core и JSON)</Translate>
-      </li>
-      <li>
-        <span className={styles.swatch} aria-hidden="true" />
-        <Translate id="benchmark.legend.rivals">Formik, RHF, RJSF</Translate>
-      </li>
-      <li>
-        <span className={clsx(styles.swatch, styles.swatchBaseline)} aria-hidden="true" />
-        <Translate id="benchmark.legend.baseline">
-          baseline — та же разметка без библиотеки форм
-        </Translate>
-      </li>
+      <LibSwatches />
       <li>
         <span className={styles.swatchWhisker} aria-hidden="true" />
         <Translate id="benchmark.legend.iqr">разброс по прогонам (q25–q75)</Translate>

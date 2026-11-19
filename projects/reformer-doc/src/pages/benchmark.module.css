@@ -106,11 +106,8 @@
   display: flex;
   flex-direction: column;
   padding-left: 0.65rem;
-  border-left: 3px solid var(--ifm-color-emphasis-500);
-}
-
-.participants li.participant_subject {
-  border-left-color: var(--ifm-color-primary);
+  /* --c — цвет участника, тот же, что в графиках (colors.ts). */
+  border-left: 3px solid var(--c, var(--ifm-color-emphasis-500));
 }
 
 .participants li.participant_baseline {
@@ -577,6 +574,16 @@
 
 .phase .tableWrap {
   margin: 0 0.75rem 0.75rem;
+}
+
+/* Графики раскрытой фазы — над её таблицей. */
+.phaseCharts {
+  margin: 0.25rem 0.75rem 0.75rem;
+}
+
+/* Карта «Все фазы» раскрывает фазу и прокручивает к ней — не под липкую навигацию. */
+.phase {
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 3.5rem);
 }
 
 .phaseNotes {

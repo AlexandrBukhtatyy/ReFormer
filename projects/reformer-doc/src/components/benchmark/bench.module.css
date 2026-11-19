@@ -1,8 +1,55 @@
 /**
- * Графики и плитки бенчмарка (страница /benchmark и лендинг). Только переменные Infima: обе темы
- * сайта работают без отдельных цветов. Цвет выделяет ReFormer (акцент сайта), конкуренты — серые,
- * baseline — контур; лучший в строке — жирным, значимость — знаком, поэтому не только цветом.
+ * Графики и плитки бенчмарка (страница /benchmark и лендинг). У каждого участника свой цвет —
+ * один и тот же во всех графиках: ReFormer — насыщенные тона акцента сайта (core — сам акцент,
+ * JSON — светлее), конкуренты — бледные приглушённые оттенки, чтобы ReFormer на их фоне
+ * выделялся, baseline — серый контур (в линиях — пунктир). Цвет не единственный носитель: у каждой метки есть
+ * подпись, лучший в строке — жирным, значимость — знаком.
+ *
+ * Палитра проверена validate_palette.js (dataviz) по всем парам: светлая тема — ΔE ≥ 15.9 при
+ * обычном зрении и 7.1 при дальтонизме (поэтому подписи обязательны), тёмная — 15.1 и 13.1.
+ * Контраст конкурентов с фоном ниже 3:1 намеренно (они бледные) — значения подписаны, таблицы
+ * остаются. Меняя цвет, прогоните валидатор снова для обеих тем.
  */
+
+:root {
+  --bench-lib-reformer-core: var(--ifm-color-primary);
+  --bench-lib-reformer-json: #52c385;
+  --bench-lib-formik: #85b9e3;
+  --bench-lib-rhf: #d47fac;
+  --bench-lib-rjsf: #c3903f;
+  --bench-lib-baseline: #9aa0a8;
+
+  /*
+   * Тепловая карта (Heatmap.tsx): расходящаяся шкала, середина — серый. pos — ReFormer core
+   * быстрее (оттенок акцента), neg — медленнее (фиолетовый, не совпадает ни с одним участником).
+   * Шаги проверены validate_palette.js --ordinal (светлота монотонна, ΔL ≥ 0.06, крайний шаг ≥ 2:1
+   * к фону); текст ячеек (--bench-div-ink) — ≥ 4.6:1 на каждом шаге.
+   */
+  --bench-div-pos-1: #83c49a;
+  --bench-div-pos-2: #59b47d;
+  --bench-div-pos-3: #3aa167;
+  --bench-div-neg-1: #c0a4e1;
+  --bench-div-neg-2: #b08ada;
+  --bench-div-neg-3: #9d75c9;
+  --bench-div-mid: var(--ifm-color-emphasis-200);
+  --bench-div-ink: var(--ifm-font-color-base);
+}
+
+[data-theme='dark'] {
+  --bench-lib-reformer-json: #92ebce;
+  --bench-lib-formik: #588fbf;
+  --bench-lib-rhf: #875b6d;
+  --bench-lib-rjsf: #948641;
+  --bench-lib-baseline: #6b7078;
+
+  --bench-div-pos-1: #2a583c;
+  --bench-div-pos-2: #236e44;
+  --bench-div-pos-3: #238450;
+  --bench-div-neg-1: #59466f;
+  --bench-div-neg-2: #6e518e;
+  --bench-div-neg-3: #845fab;
+  --bench-div-ink: #fff;
+}
 
 .chart,
 .legend,
@@ -94,16 +141,13 @@
   min-width: 2px;
   /* Скругление 4px только на конце данных, у нулевой линии угол прямой. */
   border-radius: 0 4px 4px 0;
-  background: var(--bench-rival);
-}
-
-.role_subject .barFill {
-  background: var(--bench-core);
+  /* --c — цвет участника (colors.ts → libStyle), ставится на строку. */
+  background: var(--c, var(--bench-rival));
 }
 
 .role_baseline .barFill {
   background: transparent;
-  border: 1.5px dashed var(--bench-rival);
+  border: 1.5px dashed var(--c, var(--bench-rival));
   border-left: none;
 }
 
@@ -219,21 +263,31 @@
 
 .swatch {
   display: inline-block;
+  flex: none;
   width: 18px;
   height: 10px;
   border-radius: 0 3px 3px 0;
-  background: var(--bench-rival);
+  background: var(--c, var(--bench-rival));
 }
 
 /* Два класса: минификатор CSS переставляет правила одинаковой специфичности. */
-.swatch.swatchCore {
-  background: var(--bench-core);
-}
-
 .swatch.swatchBaseline {
   background: transparent;
-  border: 1.5px dashed var(--bench-rival);
+  border: 1.5px dashed var(--c, var(--bench-rival));
   border-left: none;
+}
+
+/* Образец линии (графики трейсов): 2px, у baseline — пунктир. */
+.swatchLine {
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 0;
+  border-top: 2.5px solid var(--c);
+}
+
+.swatchLine.swatchBaseline {
+  border-top-style: dashed;
 }
 
 .swatchWhisker {

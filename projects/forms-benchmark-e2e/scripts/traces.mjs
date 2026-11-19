@@ -139,7 +139,7 @@ function piecesOf(marks, lastTs) {
  * плюс первая и последняя точка отрезка, чтобы линия начиналась и кончалась на месте.
  * `points` — [x, y] по возрастанию x. Возвращает плоский массив x0, y0, x1, y1, …
  */
-function decimate(points, bucketMs, digits) {
+export function decimate(points, bucketMs, digits) {
   const out = [];
   const push = (p) => {
     const x = Math.round(p[0]);
@@ -170,6 +170,75 @@ function decimate(points, bucketMs, digits) {
   flush();
   if (points.length) push(points[points.length - 1]);
   return out;
+}
+
+/** Корзин прореживания для сайта: графики там уже, чем в отчёте, — хватает половины. */
+export const SITE_BUCKETS = 300;
+/** Знаков после запятой на сайте: heap до десятых МБ, счётчики — целые. */
+const SITE_DIGITS = { heap: 1, nodes: 0, listeners: 0 };
+
+/**
+ * Ряды для сайта: каждый отрезок заново прорежен на `buckets` корзин (минимум и максимум — «пила»
+ * GC остаётся), x внутри отрезка — дельтой от предыдущей точки: `[x0, y0, dx1, y1, …]`. Сетка
+ * подсказок (`grid`) не нужна — страница ищет значение по линиям; пик и конец — из полной трассы.
+ */
+export function thinSeries(series, buckets = SITE_BUCKETS) {
+  const bucketMs = series.total / buckets || 1;
+  const libs = {};
+  const stats = {};
+  for (const [lib, v] of Object.entries(series.libs)) {
+    libs[lib] = {};
+    stats[lib] = {};
+    for (const m of TRACE_METRICS) {
+      libs[lib][m.id] = (v.lines[m.id] ?? []).map((flat) => {
+        const pts = [];
+        for (let i = 0; i < flat.length; i += 2) pts.push([flat[i], flat[i + 1]]);
+        const thin = decimate(pts, bucketMs, SITE_DIGITS[m.id]);
+        for (let i = thin.length - 2; i >= 2; i -= 2) thin[i] -= thin[i - 2];
+        return thin;
+      });
+      stats[lib][m.id] = [v.stats[m.id]?.max ?? null, v.stats[m.id]?.end ?? null];
+    }
+  }
+  return {
+    total: series.total,
+    phases: series.phases.map(({ id, title, offset, width, gap }) => ({
+      id,
+      title,
+      offset,
+      width,
+      gap,
+    })),
+    libs,
+    stats,
+    missing: series.missing ?? [],
+    unmarked: series.unmarked ?? [],
+  };
+}
+
+export const readEnv = (dir) => JSON.parse(readFileSync(path.join(dir, 'env.json'), 'utf8'));
+
+/** Одна сборка страниц: время сборки, коммит и хэши dist пакетов ReFormer совпадают. */
+export const buildKey = (env) =>
+  JSON.stringify([
+    env.build?.builtAt,
+    env.build?.git,
+    Object.values(env.build?.reformerPackages ?? {}).map((p) => p.distHash),
+  ]);
+
+/**
+ * Откуда трассы формы: каталог прогона, та же ли сборка страниц, что у замеров (`measuredEnv` —
+ * env.json прогона с числами отчёта), коммит, время сборки и троттлинг CPU трассы.
+ */
+export function traceSource(traceDir, measuredEnv) {
+  const env = readEnv(traceDir);
+  return {
+    traceRun: path.basename(traceDir),
+    sameBuild: measuredEnv ? buildKey(env) === buildKey(measuredEnv) : null,
+    builtAt: env.build?.builtAt ?? null,
+    sha: env.build?.git?.sha?.slice(0, 8) ?? null,
+    cpu: env.config?.cpuRates?.[0] ?? null,
+  };
 }
 
 /** Ключ кэша: размер и mtime каждой трассы формы. */

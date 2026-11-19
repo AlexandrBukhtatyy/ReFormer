@@ -268,3 +268,47 @@ export function lossesOf(form: BenchForm): Loss[] {
     }
   return out.sort((a, b) => b.factor - a.factor);
 }
+
+/**
+ * Графики трейсов: src/data/forms-benchmark-traces.json (site-data.mjs, прореженные ряды
+ * traces.mjs). Один трассируемый проход на участника — часто из отдельного trace-прогона на той же
+ * сборке страниц: `traceRun`, `sameBuild`.
+ */
+export type TraceMetric = 'heap' | 'nodes' | 'listeners';
+
+/** Фаза на общей оси: окно замера `[offset, offset + width)`, следом промежуток `gap`, мс. */
+export interface TracePhase {
+  id: string;
+  title: string;
+  offset: number;
+  width: number;
+  gap: number;
+}
+
+export interface TraceForm {
+  id: FormId;
+  /** Прогон с числами таблиц для этой формы. */
+  run: string | null;
+  traceRun: string;
+  /** Та же сборка страниц, что у замеров; `null` — сравнить не с чем. */
+  sameBuild: boolean | null;
+  builtAt: string | null;
+  sha: string | null;
+  cpu: number | null;
+  /** Длина оси, мс. */
+  total: number;
+  phases: TracePhase[];
+  /** Отрезки линии: `[x0, y0, dx1, y1, …]` — x внутри отрезка дельтой, мс; heap — МБ. */
+  libs: Record<string, Record<TraceMetric, number[][]>>;
+  /** Пик и значение в конце — по полной трассе. */
+  stats: Record<string, Record<TraceMetric, [max: number | null, end: number | null]>>;
+  missing: string[];
+  unmarked: string[];
+}
+
+export interface TraceData {
+  schema: number;
+  /** Прогоны отчёта, для которого записаны трейсы: страница сверяет с `BenchData.meta.runs`. */
+  measuredRuns: string[];
+  forms: TraceForm[];
+}

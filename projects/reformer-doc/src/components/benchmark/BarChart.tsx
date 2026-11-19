@@ -2,14 +2,16 @@
  * Горизонтальные бары по участникам: длина — медиана по прогонам, ус — IQR (q25–q75), справа —
  * значение, отношение к лучшему и значок значимости против ReFormer core.
  *
- * Цвет участников не различает (их подписывает строка), а выделяет: ReFormer — акцентный цвет
- * сайта, конкуренты — нейтральный серый, baseline — контур. Лучший в строке — жирным, значимость —
- * знаком ▲/▼, поэтому ничего не передаётся одним цветом. Без библиотек графиков: бары — CSS, ширина
- * в процентах от максимума строки, поэтому график тянется от телефона до десктопа.
+ * У каждого участника свой цвет, общий для всех графиков страницы (colors.ts): ReFormer — тона
+ * акцента сайта, конкуренты — бледнее, baseline — контур. Строку подписывает имя, лучший в строке —
+ * жирным, значимость — знаком ▲/▼, поэтому ничего не передаётся одним цветом. Без библиотек
+ * графиков: бары — CSS, ширина в процентах от максимума строки, поэтому график тянется от телефона
+ * до десктопа.
  */
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import { translate } from '@docusaurus/Translate';
+import { libStyle } from './colors';
 import { type Cell, fmt, fmtRatio, libLabel, roleOf, sigMark } from './types';
 import styles from './bench.module.css';
 
@@ -108,6 +110,7 @@ export default function BarChart({
               key={lib}
               role="listitem"
               title={tip}
+              style={libStyle(lib)}
               className={clsx(
                 styles.barRow,
                 styles[`role_${role}`],

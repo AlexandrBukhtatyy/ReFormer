@@ -38,7 +38,7 @@ import {
 } from './calibration.mjs';
 import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
 import { writeSiteData } from './site-data.mjs';
-import { traceSeries } from './traces.mjs';
+import { buildKey, readEnv, traceSeries, traceSource } from './traces.mjs';
 
 const appDist = path.resolve(e2eDir, '../forms-benchmark/dist');
 const repoRoot = path.resolve(e2eDir, '../..');
@@ -75,25 +75,20 @@ for (const f of forms)
 // `--traces` берёт трассы формы из другого прогона (например, перетрассировка без замеров:
 // BENCH_ITERATIONS=0 BENCH_WARMUP=0 BENCH_RENDERS=0) — раздел тогда называет оба прогона и
 // сверяет сборку страниц.
-const readEnv = (dir) => JSON.parse(readFileSync(path.join(dir, 'env.json'), 'utf8'));
 const traceRuns = Object.fromEntries(
   (argValue('--traces') ? resolveRuns(argValue('--traces')) : []).map((dir) => [
     readEnv(dir).form,
     dir,
   ])
 );
-/** Одна сборка страниц: время сборки, коммит и хэши dist пакетов ReFormer совпадают. */
-const buildKey = (env) =>
-  JSON.stringify([
-    env.build?.builtAt,
-    env.build?.git,
-    Object.values(env.build?.reformerPackages ?? {}).map((p) => p.distHash),
-  ]);
 const traces = {};
+/** Каталог трасс формы — для данных сайта при `--publish`. */
+const traceDirs = {};
 for (const f of forms) {
   const t0 = Date.now();
   const run = runOf[f.form];
   const traceDir = traceRuns[f.form] ?? run;
+  traceDirs[f.form] = traceDir;
   const traceEnv = traceDir === run ? f.env : readEnv(traceDir);
   const series = await traceSeries(traceDir, f.form);
   traces[f.form] = {
@@ -549,7 +544,16 @@ if (args.includes('--publish')) {
   console.log(`опубликовано → ${path.relative(process.cwd(), pub)}`);
   // Сайт берёт опубликованный summary.json: страница /benchmark и лендинг всегда совпадают с отчётом.
   const published = JSON.parse(readFileSync(path.join(pub, 'summary.json'), 'utf8'));
-  for (const { file, bytes } of writeSiteData(published))
+  // Графики трейсов на сайте — только когда трассы есть (прогон с BENCH_TRACE или `--traces`);
+  // иначе файл трейсов сайта не трогается.
+  const traceEntries = forms
+    .filter((f) => Object.keys(traces[f.form].libs).length)
+    .map((f) => ({
+      form: f.form,
+      series: traces[f.form],
+      source: traceSource(traceDirs[f.form], f.env),
+    }));
+  for (const { file, bytes } of writeSiteData(published, undefined, traceEntries))
     console.log(
       `данные сайта → ${path.relative(process.cwd(), file)} (${(bytes / 1024).toFixed(1)} КБ)`
     );

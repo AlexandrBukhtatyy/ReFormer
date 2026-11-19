@@ -83,7 +83,13 @@ const NOTES_EN: Record<string, string> = {
     'Formik validates from the first keystroke, server checks included (submitCount only hides the errors, see the Formik README), so it checks the code before the first submit; the others check it on submit.',
 };
 
-const UNITS_EN: Record<string, string> = { мс: 'ms', КБ: 'KB', 'КБ/цикл': 'KB/cycle', шт: '' };
+const UNITS_EN: Record<string, string> = {
+  мс: 'ms',
+  КБ: 'KB',
+  МБ: 'MB',
+  'КБ/цикл': 'KB/cycle',
+  шт: '',
+};
 
 const FORMS_EN: Record<FormId, string> = {
   registration: 'registration with a captcha',

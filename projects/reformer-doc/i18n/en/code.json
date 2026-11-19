@@ -983,6 +983,9 @@
   "benchmark.nav.phases": {
     "message": "All phases"
   },
+  "benchmark.nav.traces": {
+    "message": "Traces"
+  },
   "benchmark.nav.renders": {
     "message": "Renders"
   },
@@ -1025,12 +1028,6 @@
   "benchmark.score.losses": {
     "message": "slower: {n}"
   },
-  "benchmark.legend.reformer": {
-    "message": "ReFormer (core and JSON)"
-  },
-  "benchmark.legend.rivals": {
-    "message": "Formik, RHF, RJSF"
-  },
   "benchmark.legend.baseline": {
     "message": "baseline — the same markup without a form library"
   },
@@ -1039,6 +1036,127 @@
   },
   "benchmark.legend.sig": {
     "message": "▲ / ▼ — significantly worse / better than ReFormer core; no mark — the difference is not proven"
+  },
+  "benchmark.phases.noisyKicker": {
+    "message": "spread > 15 %"
+  },
+  "benchmark.heatmap.title": {
+    "message": "Summary by phase: how many times slower than ReFormer core"
+  },
+  "benchmark.heatmap.lead": {
+    "message": "Geometric mean of the median ratios over the phase metrics: ×1.34 — 34 % slower on average, ×0.80 — 20 % faster. Under the number — how many metrics are significantly worse (▲) and better (▼) out of all comparable ones. Colour only when the difference is above 5 % and backed by significance. Hover a cell for the per-metric breakdown; Enter or a click on a phase opens its table."
+  },
+  "benchmark.heatmap.caption": {
+    "message": "Ratio to ReFormer core by phase: {form}"
+  },
+  "benchmark.heatmap.col.phase": {
+    "message": "Phase"
+  },
+  "benchmark.heatmap.col.baseline": {
+    "message": "reference"
+  },
+  "benchmark.heatmap.cell.n": {
+    "message": "of {n}",
+    "description": "Число сравнимых метрик фазы"
+  },
+  "benchmark.heatmap.sr.none": {
+    "message": "{lib}: no comparable metrics in the phase “{phase}”"
+  },
+  "benchmark.heatmap.sr.baseline": {
+    "message": "baseline: {ratio} to ReFormer core, average over {n} metrics of the phase “{phase}”; significance is not tested"
+  },
+  "benchmark.heatmap.sr.slower": {
+    "message": "{lib} is {ratio} times slower than ReFormer core, average over {n} metrics of the phase “{phase}”; significantly worse in {up}, better in {down}"
+  },
+  "benchmark.heatmap.sr.faster": {
+    "message": "{lib} is {ratio} times faster than ReFormer core, average over {n} metrics of the phase “{phase}”; significantly worse in {up}, better in {down}"
+  },
+  "benchmark.heatmap.tip.head": {
+    "message": "{lib} vs ReFormer core — {phase}"
+  },
+  "benchmark.heatmap.tip.noisy": {
+    "message": "noisy"
+  },
+  "benchmark.heatmap.tip.foot": {
+    "message": "Geometric mean over {n}: {g}"
+  },
+  "benchmark.heatmap.legend.slower": {
+    "message": "← participant faster than ReFormer core"
+  },
+  "benchmark.heatmap.legend.faster": {
+    "message": "ReFormer core faster →"
+  },
+  "benchmark.heatmap.legend.unproven": {
+    "message": "grey — the difference is below 5 % or not proven by significance"
+  },
+  "benchmark.heatmap.legend.baseline": {
+    "message": "baseline — reference without a form library, significance is not tested"
+  },
+  "benchmark.traces.title": {
+    "message": "Memory and DOM over time"
+  },
+  "benchmark.traces.lead": {
+    "message": "JS heap, DOM nodes and event listeners over the whole form scenario — one line per participant. Phases are aligned: a phase measurement window is a band as wide as the slowest participant, and between the bands is a gap without measurement (pauses, checks, garbage collection). Hover a chart or press ←/→ — the tooltip shows every participant’s values at that moment."
+  },
+  "benchmark.traces.metric.heap": {
+    "message": "JS heap"
+  },
+  "benchmark.traces.metric.nodes": {
+    "message": "DOM nodes"
+  },
+  "benchmark.traces.metric.listeners": {
+    "message": "Event listeners"
+  },
+  "benchmark.traces.legendHint": {
+    "message": "hover a name to highlight its line"
+  },
+  "benchmark.traces.loading": {
+    "message": "Loading the chart…"
+  },
+  "benchmark.traces.missing": {
+    "message": "No traces for this form — the values are in the tables above."
+  },
+  "benchmark.traces.aria": {
+    "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide."
+  },
+  "benchmark.traces.tip.phase": {
+    "message": "{n}. {title} · +{ms} ms from the phase start"
+  },
+  "benchmark.traces.tip.gap": {
+    "message": "after phase {n} ({title}) — outside the measurement"
+  },
+  "benchmark.traces.source": {
+    "message": "The charts are a single traced pass per participant from a separate run {traceRun} on the same page build (git {sha}, built {date}), CPU {cpu}x: not a median but the shape of the curve. The table numbers are medians of run {run}."
+  },
+  "benchmark.traces.sourceSame": {
+    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables above."
+  },
+  "benchmark.traces.sourceOtherBuild": {
+    "message": "⚠️ The charts are a single traced pass per participant from run {traceRun} on a different page build (git {sha}, built {date}), CPU {cpu}x; the table numbers are medians of run {run}. The forms may have changed between builds."
+  },
+  "benchmark.traces.stale": {
+    "message": "⚠️ The traces were recorded for the previous report — the table numbers on this page are newer."
+  },
+  "benchmark.traces.unmarked": {
+    "message": "No phase marks in the trace (not shown): {list}."
+  },
+  "benchmark.traces.phases": {
+    "message": "Phases on the axis ({n})"
+  },
+  "benchmark.traces.untraced": {
+    "message": "Not traced (a separate page load): {list}."
+  },
+  "benchmark.traces.table": {
+    "message": "Table: peak and end of the trace"
+  },
+  "benchmark.traces.col.lib": {
+    "message": "Participant"
+  },
+  "benchmark.traces.col.peak": {
+    "message": "peak"
+  },
+  "benchmark.traces.col.end": {
+    "message": "at the end"
   },
   "benchmark.sig.worse": {
     "message": "significantly worse than ReFormer core"

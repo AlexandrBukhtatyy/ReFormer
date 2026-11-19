@@ -10,13 +10,21 @@
  * несколько).
  *
  * Запуск: `npm run bench:site-data` (из корня) или `node scripts/site-data.mjs
- * [--summary <summary.json>] [--out <каталог>]`. По умолчанию — опубликованный отчёт
- * docs/benchmarks/forms/summary.json. report.mjs вызывает writeSiteData при `--publish`.
+ * [--summary <summary.json>] [--out <каталог>] [--traces <прогон>[,<прогон>]]`. По умолчанию —
+ * опубликованный отчёт docs/benchmarks/forms/summary.json. report.mjs вызывает writeSiteData при
+ * `--publish`.
+ *
+ * Графики трейсов (heap, DOM-узлы, обработчики во времени) — третий файл,
+ * forms-benchmark-traces.json: прореженные ряды traces.mjs. Его пишут только при наличии трасс —
+ * `--traces` с каталогами trace-прогонов (BENCH_TRACE, можно без замеров) или `--publish` отчёта с
+ * трассами; без них файл не трогается, чтобы прогон без трасс не стёр графики сайта.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HEADLINE, NOTES } from './metrics.mjs';
+import { resolveRuns } from './aggregate.mjs';
+import { readEnv, thinSeries, traceSeries, traceSource } from './traces.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
@@ -349,8 +357,37 @@ export function stringifyCompact(value, indent = '') {
 /** `["пакет", 12.3]` — пара из списка крупнейших пакетов бандла. */
 const isPair = (v) => Array.isArray(v) && v.every((x) => x === null || typeof x !== 'object');
 
-/** Пишет оба файла; возвращает пути и размеры. */
-export function writeSiteData(summary, outDir = DEFAULT_OUT) {
+/** Файл графиков трейсов: страница грузит его отдельным чанком. */
+export const TRACES_FILE = 'forms-benchmark-traces.json';
+/** Выше — предупреждение: файл едет в чанк страницы /benchmark. */
+const TRACES_WARN_BYTES = 120 * 1024;
+
+/**
+ * Графики трейсов для сайта. `entries` — `[{ form, series, source }]`: ряды traceSeries и источник
+ * traceSource. Числа таблиц — медианы прогонов отчёта (`measuredRuns`), трассы — один проход на
+ * участника, часто из отдельного trace-прогона: страница называет оба и сверяет сборку.
+ */
+export function buildTraceData(summary, entries) {
+  const order = summary.forms.map((f) => f.form);
+  return {
+    schema: SITE_DATA_SCHEMA,
+    measuredRuns: summary.runs,
+    forms: [...entries]
+      .sort((a, b) => order.indexOf(a.form) - order.indexOf(b.form))
+      .map(({ form, series, source }) => ({
+        id: form,
+        run: summary.forms.find((f) => f.form === form)?.runId ?? null,
+        ...source,
+        ...thinSeries(series),
+      })),
+  };
+}
+
+/**
+ * Пишет файлы страницы и лендинга; при непустом `traceEntries` — ещё и файл трейсов. Возвращает
+ * пути и размеры.
+ */
+export function writeSiteData(summary, outDir = DEFAULT_OUT, traceEntries = []) {
   const full = buildSiteData(summary);
   const headline = buildHeadlineData(full);
   mkdirSync(outDir, { recursive: true });
@@ -358,10 +395,17 @@ export function writeSiteData(summary, outDir = DEFAULT_OUT) {
     [path.join(outDir, 'forms-benchmark.json'), full],
     [path.join(outDir, 'forms-benchmark-headline.json'), headline],
   ];
+  if (traceEntries.length)
+    files.push([path.join(outDir, TRACES_FILE), buildTraceData(summary, traceEntries)]);
   return files.map(([file, data]) => {
     const text = `${stringifyCompact(data)}\n`;
     writeFileSync(file, text);
-    return { file, bytes: Buffer.byteLength(text) };
+    const bytes = Buffer.byteLength(text);
+    if (file.endsWith(TRACES_FILE) && bytes > TRACES_WARN_BYTES)
+      console.warn(
+        `⚠ ${TRACES_FILE}: ${(bytes / 1024).toFixed(0)} КБ — больше ${TRACES_WARN_BYTES / 1024} КБ, проверьте прореживание (SITE_BUCKETS в traces.mjs)`
+      );
+    return { file, bytes };
   });
 }
 
@@ -379,9 +423,25 @@ if (isMain) {
     process.exit(1);
   }
   const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
+  const traceEntries = [];
+  for (const dir of argValue('--traces') ? resolveRuns(argValue('--traces')) : []) {
+    const { form } = readEnv(dir);
+    const series = await traceSeries(dir, form);
+    if (!Object.keys(series.libs).length) {
+      console.error(`в ${path.basename(dir)} нет трасс формы ${form} — графики не обновлены`);
+      process.exit(1);
+    }
+    const source = traceSource(dir, summary.forms.find((f) => f.form === form)?.env);
+    console.log(
+      `трассы ${form} — ${source.traceRun}${source.sameBuild ? ' (та же сборка страниц)' : ' — ДРУГАЯ сборка страниц'}`
+    );
+    traceEntries.push({ form, series, source });
+  }
+  if (!traceEntries.length) console.log(`графики трейсов: ${TRACES_FILE} не тронут (нет --traces)`);
   for (const { file, bytes } of writeSiteData(
     summary,
-    path.resolve(argValue('--out') ?? DEFAULT_OUT)
+    path.resolve(argValue('--out') ?? DEFAULT_OUT),
+    traceEntries
   ))
     console.log(
       `данные сайта → ${path.relative(process.cwd(), file)} (${(bytes / 1024).toFixed(1)} КБ)`

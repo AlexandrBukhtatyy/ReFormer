@@ -14,3 +14,9 @@ declare module '@site/src/data/forms-benchmark-headline.json' {
   const data: HeadlineData;
   export default data;
 }
+
+declare module '@site/src/data/forms-benchmark-traces.json' {
+  import type { TraceData } from '@site/src/components/benchmark/types';
+  const data: TraceData;
+  export default data;
+}

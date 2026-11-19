@@ -18,6 +18,9 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import data from '@site/src/data/forms-benchmark.json';
 import BarChart, { sigTitle } from '@site/src/components/benchmark/BarChart';
+import Heatmap, { phaseDomId } from '@site/src/components/benchmark/Heatmap';
+import TraceCharts from '@site/src/components/benchmark/TraceCharts';
+import { libStyle } from '@site/src/components/benchmark/colors';
 import { type BenchText, useBenchText } from '@site/src/components/benchmark/i18n';
 import { Legend, ScoreTile, formatDate, joinNames } from '@site/src/components/benchmark/parts';
 import {
@@ -178,7 +181,7 @@ function Hero(): ReactNode {
         </dl>
         <ul className={styles.participants}>
           {data.participants.map((p) => (
-            <li key={p.id} className={styles[`participant_${p.role}`]}>
+            <li key={p.id} className={styles[`participant_${p.role}`]} style={libStyle(p.id)}>
               <span className={styles.participantName}>{p.label}</span>
               <span className={styles.participantStack}>
                 {p.id === 'baseline' ? (
@@ -211,6 +214,7 @@ const NAV: Array<{ id: string; label: ReactNode }> = [
   { id: 'results', label: <Translate id="benchmark.nav.results">Итог</Translate> },
   { id: 'losses', label: <Translate id="benchmark.nav.losses">Где уступает</Translate> },
   { id: 'phases', label: <Translate id="benchmark.nav.phases">Все фазы</Translate> },
+  { id: 'traces', label: <Translate id="benchmark.nav.traces">Трейсы</Translate> },
   { id: 'renders', label: <Translate id="benchmark.nav.renders">Рендеры</Translate> },
   { id: 'bundle', label: <Translate id="benchmark.nav.bundle">Бандл</Translate> },
   { id: 'code', label: <Translate id="benchmark.nav.code">Объём кода</Translate> },
@@ -496,8 +500,14 @@ function PhaseDetails({ form, section }: { form: BenchForm; section: Section }):
   const t = useBenchText();
   const coreBest = section.rows.filter((r) => r.best === CORE).length;
   const noisy = section.rows.filter((r) => r.noisy);
+  // Графики строятся только у раскрытой фазы: свёрнутые (и HTML с сервера) их не несут.
+  const [open, setOpen] = useState(false);
   return (
-    <details className={styles.phase}>
+    <details
+      className={styles.phase}
+      id={phaseDomId(form.id, section.id)}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
       <summary className={styles.phaseSummary}>
         <span className={styles.phaseTitle}>{t.phaseTitle(form, section.id, section.title)}</span>
         <span className={styles.phaseMeta}>
@@ -509,6 +519,28 @@ function PhaseDetails({ form, section }: { form: BenchForm; section: Section }):
           </Translate>
         </span>
       </summary>
+      {open && (
+        <div className={clsx(styles.chartGrid, styles.phaseCharts)}>
+          {section.rows.map((row) => (
+            <div key={row.id} className={styles.chartCard}>
+              <BarChart
+                kicker={
+                  row.noisy
+                    ? translate({ id: 'benchmark.phases.noisyKicker', message: 'разброс > 15 %' })
+                    : undefined
+                }
+                title={t.metricLabel(form, section.kind, row.id)}
+                unit={unitOf(form, section, row)}
+                unitLabel={t.unit(unitOf(form, section, row))}
+                rows={form.libs
+                  .filter((lib) => row.cells[lib])
+                  .map((lib) => ({ lib, cell: row.cells[lib] }))}
+                best={row.best ?? undefined}
+              />
+            </div>
+          ))}
+        </div>
+      )}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -633,7 +665,37 @@ function AllPhases(): ReactNode {
             }
           </Translate>
         </p>
-        <FormTabs>{(form) => <PhaseList form={form} />}</FormTabs>
+        <FormTabs>
+          {(form) => (
+            <>
+              <Heatmap form={form} />
+              <PhaseList form={form} />
+            </>
+          )}
+        </FormTabs>
+      </div>
+    </section>
+  );
+}
+
+// ── Трейсы во времени ───────────────────────────────────────────────────────
+function Traces(): ReactNode {
+  return (
+    <section className={clsx(styles.section, styles.sectionAlt)}>
+      <div className="container">
+        <Heading as="h2" id="traces" className={styles.sectionTitle}>
+          <Translate id="benchmark.traces.title">Память и DOM во времени</Translate>
+        </Heading>
+        <p className={styles.sectionLead}>
+          <Translate id="benchmark.traces.lead">
+            JS heap, DOM-узлы и обработчики событий по ходу всего сценария формы — у каждого
+            участника своя линия. Фазы выровнены: окно замера фазы — полоса шириной самого долгого
+            участника, между полосами — промежуток без замера (паузы, проверки, сборка мусора).
+            Наведите на график или нажмите ←/→ — подсказка покажет значения всех участников в этот
+            момент.
+          </Translate>
+        </p>
+        <FormTabs>{(form) => <TraceCharts form={form} measuredRuns={data.meta.runs} />}</FormTabs>
       </div>
     </section>
   );
@@ -643,7 +705,7 @@ function AllPhases(): ReactNode {
 function Renders(): ReactNode {
   const t = useBenchText();
   return (
-    <section className={clsx(styles.section, styles.sectionAlt)}>
+    <section className={styles.section}>
       <div className="container">
         <Heading as="h2" id="renders" className={styles.sectionTitle}>
           <Translate id="benchmark.renders.title">Рендеры React</Translate>
@@ -742,7 +804,7 @@ function Bundle(): ReactNode {
   const kb = t.unit('КБ');
   if (!data.bundle.length) return null;
   return (
-    <section className={styles.section}>
+    <section className={clsx(styles.section, styles.sectionAlt)}>
       <div className="container">
         <Heading as="h2" id="bundle" className={styles.sectionTitle}>
           <Translate id="benchmark.bundle.title">Размер бандла</Translate>
@@ -847,7 +909,7 @@ function CodeSize(): ReactNode {
   const t = useBenchText();
   if (!data.code.length) return null;
   return (
-    <section className={clsx(styles.section, styles.sectionAlt)}>
+    <section className={styles.section}>
       <div className="container">
         <Heading as="h2" id="code" className={styles.sectionTitle}>
           <Translate id="benchmark.code.title">Объём кода реализаций</Translate>
@@ -1018,7 +1080,7 @@ BENCH_REQUIRE_IDLE=1 npm run bench`;
 function Methodology(): ReactNode {
   const t = useBenchText();
   return (
-    <section className={styles.section}>
+    <section className={clsx(styles.section, styles.sectionAlt)}>
       <div className="container">
         <Heading as="h2" id="method" className={styles.sectionTitle}>
           <Translate id="benchmark.method.title">Методика и ограничения</Translate>
@@ -1153,6 +1215,7 @@ export default function BenchmarkPage(): ReactNode {
         <KeyResults />
         <Losses />
         <AllPhases />
+        <Traces />
         <Renders />
         <Bundle />
         <CodeSize />
