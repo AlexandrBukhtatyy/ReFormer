@@ -17,6 +17,8 @@ import {
   McpScenarioMap,
   McpTimeCost,
 } from '@site/src/components/mcp-benchmark/McpCharts';
+import TabItem from '@theme/TabItem';
+import Tabs from '@theme/Tabs';
 
 # Measurements: with MCP and without
 
@@ -95,41 +97,47 @@ median agent steps and output tokens.
 
 <McpLegend />
 
-### Registration: create the form
+<Tabs groupId="mcp-form">
+<TabItem value="registration" label="Registration">
+
+#### Create the form
 
 Login, email, a password with its repeat, an async check of a stub captcha, a submit button.
 
 <McpScenario id="registration-create" />
 
-### Registration: edit a ready form
+#### Edit a ready form
 
 Rename the login, tighten the password (at least 10 characters and a digit), add an optional phone
 with a mask after the email, rename the button.
 
 <McpScenario id="registration-edit" />
 
-### Registration: remove fields with their rules
+#### Remove fields with their rules
 
 Remove the captcha and the password repeat — the fields and all their checks, the async and the
 cross-field one included.
 
 <McpScenario id="registration-delete" />
 
-### Checkout: create the form from a spec
+</TabItem>
+<TabItem value="order" label="Checkout">
+
+#### Create the form from a spec
 
 A 27-field spec: customer type, addresses with copying, item rows with totals, a discount, a promo
 code with an async check, payment, notification recipients.
 
 <McpScenario id="order-create" />
 
-### Checkout: edit
+#### Edit
 
 Rename a field everywhere the form relies on it; raise the discount limit; add a computed delivery
 cost and a new total formula; a comment required when paying by invoice.
 
 <McpScenario id="order-edit" />
 
-### Checkout: remove fields with their dependencies
+#### Remove fields with their dependencies
 
 Remove the promo code with its async check, the discount with everything that depends on it (the
 total now equals the items sum), and the billing address with its copying from the delivery
@@ -137,33 +145,39 @@ address.
 
 <McpScenario id="order-delete" />
 
-### Checkout wizard: create from a spec
+</TabItem>
+<TabItem value="wizard" label="Checkout wizard">
+
+#### Create from a spec
 
 The same spec, but the form is a wizard: a step per section, the “Company” step for companies only,
 moving on only with a correctly filled step, submitting with the wizard button.
 
 <McpScenario id="wizard-create" />
 
-### Checkout wizard: one page → steps
+#### One page → steps
 
 Turn a ready one-page form into a wizard with the same step rules, without changing the fields,
 rules and behavior.
 
 <McpScenario id="wizard-split" />
 
-### Checkout wizard: a new step, a moved field, a renamed step
+#### A new step, a moved field, a renamed step
 
 Rename a step, move a field to another step and insert a new step between two existing ones — with
 a switch and a card message shown and required only with gift wrapping.
 
 <McpScenario id="wizard-edit" />
 
-### Checkout wizard: remove steps with their fields and dependencies
+#### Remove steps with their fields and dependencies
 
 Remove the “Company” and “Delivery” steps entirely — fields, rules, behavior and everything only they
 needed.
 
 <McpScenario id="wizard-delete" />
+
+</TabItem>
+</Tabs>
 
 ## How it was measured
 
