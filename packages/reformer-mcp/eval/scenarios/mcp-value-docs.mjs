@@ -8,7 +8,8 @@
  *
  * Снимок — `npm run mcp:approaches -- <батч> --save <файл>`: по строке на прогон. Здесь прогоны
  * сводятся по плечам (подходам), видам задач и сценариям; повторы ячейки — k/n и медианы.
- * Страница только рисует этот файл: цифры не вычисляются в браузере.
+ * Сводки страница только рисует. Для графиков разброса в файл идут и сами прогоны (`runs`) — по
+ * строке на прогон, поэтому файл исключён из Prettier.
  */
 
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -174,8 +175,40 @@ const data = {
   }),
 };
 
+/** Прогоны для графиков разброса: плечо, ячейка, вердикт и ход работы. */
+const runs = rows.map((row) => ({
+  arm: row.approach,
+  scenario: row.scenario,
+  target: row.target,
+  kind: kindOf(row),
+  repeat: row.repeat ?? 1,
+  pass: row.verdict === 'pass',
+  score: round(row.score ?? 0, 3),
+  minutes: round(row.minutes, 2),
+  cost: round(row.cost, 3),
+  output: row.outputTokens,
+  input: row.inputAll,
+  turns: row.turns,
+}));
+
+// Сводки — с отступами, прогоны — по строке на прогон: так diff перегенерации читается построчно.
+// Массив строк и чисел, который влезает в 100 знаков, — в строку, как его записал бы Prettier.
+const PRINT_WIDTH = 100;
+const RUNS = '"__runs__"';
+const text = JSON.stringify({ ...data, runs: '__runs__' }, null, 2)
+  .replace(
+    /^([^\n]*)\[\n((?:[ ]*(?:"[^"\n]*"|-?[\d.]+|true|false|null),?\n)+)[ ]*\](,?)$/gm,
+    (whole, head, items, comma) => {
+      const inline = `${head}[${items
+        .trim()
+        .split(/,?\n[ ]*/)
+        .join(', ')}]${comma}`;
+      return inline.length <= PRINT_WIDTH ? inline : whole;
+    }
+  )
+  .replace(RUNS, `[\n${runs.map((run) => `    ${JSON.stringify(run)}`).join(',\n')}\n  ]`);
 mkdirSync(path.dirname(path.resolve(outputFile)), { recursive: true });
-writeFileSync(outputFile, `${JSON.stringify(data, null, 2)}\n`);
+writeFileSync(outputFile, `${text}\n`);
 console.error(
   `${outputFile}: ${rows.length} прогонов, ${data.scenarios.length} сценариев, плечи ${ARMS.join(', ')}`
 );

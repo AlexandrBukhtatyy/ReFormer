@@ -76,3 +76,6 @@ docs/benchmarks/forms/
 # …и данные страницы /benchmark сайта из того же отчёта (site-data.mjs, `npm run bench:site-data`):
 # листья записаны в строку — prettier развернул бы их, и каждая публикация оставляла бы diff
 projects/reformer-doc/src/data/forms-benchmark*.json
+# …и данные страницы «Замеры: с MCP и без» (packages/reformer-mcp/eval/scenarios/mcp-value-docs.mjs):
+# прогоны записаны по строке — prettier развернул бы их, и каждая перегенерация оставляла бы diff
+projects/reformer-doc/src/data/mcp-benchmark.json

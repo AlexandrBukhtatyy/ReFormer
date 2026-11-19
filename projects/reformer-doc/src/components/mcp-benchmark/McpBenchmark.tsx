@@ -4,7 +4,7 @@
  * сводки из `src/data/mcp-benchmark.json`; здесь только отрисовка и подписи на двух языках.
  *
  * Без библиотек графиков: бары — CSS, ширина в процентах от максимума метрики, поэтому графики
- * тянутся от телефона до десктопа.
+ * тянутся от телефона до десктопа. Графики по отдельным прогонам — в McpCharts.tsx.
  */
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
@@ -13,20 +13,20 @@ import data from '@site/src/data/mcp-benchmark.json';
 import type { ArmId, ArmSummary, Operation, ScenarioResult } from './types';
 import styles from './mcp-benchmark.module.css';
 
-type Lang = 'ru' | 'en';
+export type Lang = 'ru' | 'en';
 
-function useLang(): Lang {
+export function useLang(): Lang {
   const { i18n } = useDocusaurusContext();
   return i18n.currentLocale === 'en' ? 'en' : 'ru';
 }
 
-const ARM_LABELS: Record<ArmId, Record<Lang, string>> = {
+export const ARM_LABELS: Record<ArmId, Record<Lang, string>> = {
   'no-mcp': { ru: 'Без MCP', en: 'No MCP' },
   'mcp-default': { ru: 'MCP · инструменты', en: 'MCP · tool set' },
   'mcp-dsl': { ru: 'MCP · code-guided-dsl', en: 'MCP · code-guided-dsl' },
 };
 
-const ARM_FILL: Record<ArmId, string> = {
+export const ARM_FILL: Record<ArmId, string> = {
   'no-mcp': styles.fill_none,
   'mcp-default': styles.fill_default,
   'mcp-dsl': styles.fill_dsl,
@@ -136,7 +136,7 @@ const TAGS: Record<string, Record<Lang, string>> = {
   wizard: { ru: 'мастер с шагами', en: 'wizard' },
 };
 
-const TITLES_EN: Record<string, string> = {
+export const TITLES_EN: Record<string, string> = {
   'registration-create': 'Registration: create the form',
   'registration-edit': 'Registration: edit a ready form',
   'registration-delete': 'Registration: remove fields with their rules',
@@ -152,7 +152,7 @@ const TITLES_EN: Record<string, string> = {
 /** Порядок стеков в подписях: от ядра к рендерерам. */
 const STACK_ORDER = ['core', 'renderer-react', 'renderer-json'];
 
-const STACKS: Record<string, string> = {
+export const STACKS: Record<string, string> = {
   core: 'core',
   'renderer-react': 'react',
   'renderer-json': 'json',
@@ -175,11 +175,11 @@ function checkLabel(check: string, lang: Lang): string {
   return check;
 }
 
-const fmtMinutes = (value: number | null, lang: Lang): string =>
+export const fmtMinutes = (value: number | null, lang: Lang): string =>
   value === null ? '—' : `${value < 10 ? value.toFixed(1) : Math.round(value)} ${TEXT[lang].min}`;
-const fmtUsd = (value: number | null): string =>
+export const fmtUsd = (value: number | null): string =>
   value === null ? '—' : `$${value < 1 ? value.toFixed(3) : value.toFixed(2)}`;
-const fmtTokens = (value: number): string =>
+export const fmtTokens = (value: number): string =>
   value >= 100_000 ? `${Math.round(value / 1000)}k` : `${(value / 1000).toFixed(1)}k`;
 const fmtRatio = (value: number): string => (value >= 10 ? value.toFixed(0) : value.toFixed(1));
 const percent = (passes: number, runs: number): number => (runs ? (passes / runs) * 100 : 0);

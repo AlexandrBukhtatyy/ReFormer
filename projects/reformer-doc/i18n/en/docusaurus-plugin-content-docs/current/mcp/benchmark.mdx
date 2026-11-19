@@ -12,6 +12,11 @@ import {
   McpScenario,
   McpSummary,
 } from '@site/src/components/mcp-benchmark/McpBenchmark';
+import {
+  McpRunSpread,
+  McpScenarioMap,
+  McpTimeCost,
+} from '@site/src/components/mcp-benchmark/McpCharts';
 
 # Measurements: with MCP and without
 
@@ -44,6 +49,25 @@ values, rules, reactions, wizard steps. The conditions are in [How it was measur
   its mean check score is higher: its failures on creation are one known issue (the rule “pay by
   invoice — companies only” does not reach the form), and it is being fixed.
 
+## Spread of runs
+
+Medians hide the tails. Here every one of the 270 runs is a separate mark: a filled one passed every
+check, a hollow one did not; the bar is the median of the arm. Hover a mark to see the scenario, the
+stack and the numbers of the run.
+
+<McpRunSpread />
+
+Without the server 25 runs of 90 took longer than two minutes: 19 of them create a form, and 15 of
+those nineteen failed the checks; six more turn a one-page form into a wizard. With the tool set two
+runs took longer than two minutes, with code-guided-dsl none did: the longest took 1.7 minutes. All
+twenty most expensive runs of the measurement are without MCP.
+
+Run time and cost grow together, so on one chart the arms spread along the diagonal: code-guided-dsl
+sits in the lower left corner, runs without MCP stretch up and to the right. The median cost of
+creating a form is $0.90 without MCP and $0.22 with it; on edits and removals the clouds are closer.
+
+<McpTimeCost />
+
 ## By task
 
 Create — a new form from a description or a spec; edit — a change of a ready form (fields, rules,
@@ -58,6 +82,11 @@ from working with it:
 <McpCreateFailures />
 
 ## By scenario
+
+First the overview: how many of the nine runs of a scenario passed in each arm; the split by stack
+is in the tooltip of a tile.
+
+<McpScenarioMap />
 
 Ten scenarios of three levels, each on three stacks (`@reformer/core` with JSX markup,
 `@reformer/renderer-react`, `@reformer/renderer-json`), three repeats each. The tables show: passed

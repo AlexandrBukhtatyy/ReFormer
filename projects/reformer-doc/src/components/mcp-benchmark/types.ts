@@ -51,6 +51,26 @@ export interface ScenarioResult {
   arms: Record<ArmId, ScenarioArm>;
 }
 
+/** Один прогон замера — для графиков разброса. */
+export interface RunResult {
+  arm: ArmId;
+  scenario: string;
+  target: string;
+  kind: Operation;
+  repeat: number;
+  pass: boolean;
+  /** Доля пройденных проверок, 0–1. */
+  score: number;
+  minutes: number;
+  /** Стоимость прогона по отчёту Claude Code, $. */
+  cost: number;
+  /** Выходные токены. */
+  output: number;
+  /** Входные токены вместе с чтением и записью кэша. */
+  input: number;
+  turns: number;
+}
+
 export interface McpBenchData {
   batches: string[];
   /** Дата батча, YYYY-MM-DD. */
@@ -61,4 +81,5 @@ export interface McpBenchData {
   arms: ArmId[];
   summary: Record<ArmId, ArmTotals>;
   scenarios: ScenarioResult[];
+  runs: RunResult[];
 }
