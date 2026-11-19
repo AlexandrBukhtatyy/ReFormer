@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "meta": {
-    "generatedAt": "2026-11-17T23:57:38.158Z",
-    "runs": ["2026-11-17T22-24-24Z_credit_3a88e600","2026-11-17T23-28-48Z_registration_3a88e600"],
+    "generatedAt": "2026-11-19T21:07:25.270Z",
+    "runs": ["2026-11-19T19-33-41Z_registration_3a1ec926","2026-11-19T20-02-23Z_credit_3a1ec926"],
     "machine": {"cpu":"Apple M1","cores":8,"memoryGb":16,"platform":"darwin 25.6.0"},
     "browser": "chromium 143.0.7499.4",
     "headless": "new headless (channel: chromium)",
@@ -11,8 +11,8 @@
     "warmup": 1,
     "cpuRates": [4],
     "cadenceMs": 80,
-    "seed": 1805415881,
-    "git": {"sha":"3a88e600","dirty":true},
+    "seed": 1967972750,
+    "git": {"sha":"3a1ec926","dirty":true},
     "versions": {
       "@reformer/core": "6.0.0",
       "@reformer/renderer-json": "6.0.0",
@@ -36,9 +36,1046 @@
   ],
   "forms": [
     {
+      "id": "registration",
+      "title": "регистрация с капчей",
+      "runId": "2026-11-19T19-33-41Z_registration_3a1ec926",
+      "cpu": 4,
+      "libs": ["reformer-core","reformer-json","formik","rhf","rjsf","baseline"],
+      "failures": 0,
+      "headline": [
+        {"phase":"load","metric":"ready"},
+        {"phase":"load","metric":"script"},
+        {"phase":"typing-pristine","metric":"keyProc"},
+        {"phase":"typing-live","metric":"keyProc"},
+        {"phase":"typing-live","metric":"keyProcP95"},
+        {"phase":"typing-live","metric":"scriptPerKey"},
+        {"phase":"submit-invalid","metric":"settle"},
+        {"phase":"remount","metric":"mountSync"},
+        {"phase":"load","metric":"heap"}
+      ],
+      "metrics": {
+        "load/ready": {"label":"Готовность формы (от начала навигации)","unit":"мс"},
+        "load/fcp": {"label":"First Contentful Paint","unit":"мс"},
+        "load/script": {"label":"Выполнение JS (CDP ScriptDuration)","unit":"мс"},
+        "load/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "load/heap": {"label":"JS heap после GC","unit":"КБ"},
+        "load/nodes": {"label":"DOM-узлы","unit":""},
+        "load/hydrate": {"label":"Гидратация: ответ префилла → готово","unit":"мс"},
+        "typing/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "typing/keyProcP95": {"label":"Клавиша → конец обработки (p95 прогона)","unit":"мс"},
+        "typing/keyFrame": {"label":"Клавиша → конец кадра (медиана)","unit":"мс"},
+        "typing/scriptPerKey": {"label":"JS на клавишу (CDP)","unit":"мс"},
+        "typing/layoutPerKey": {"label":"Layout + style на клавишу","unit":"мс"},
+        "typing/slowEvents": {"label":"События ≥ 16 мс (Event Timing)","unit":"шт"},
+        "typing/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "click/clickFrame": {"label":"Клик → конец кадра","unit":"мс"},
+        "click/settle": {"label":"Клик → UI затих","unit":"мс"},
+        "click/script": {"label":"Выполнение JS (CDP)","unit":"мс"},
+        "click/layout": {"label":"Layout + style","unit":"мс"},
+        "async/settle": {"label":"Ввод → UI затих (вкл. debounce 300 мс и сеть 20 мс)","unit":"мс"},
+        "async/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "async/script": {"label":"Выполнение JS за фазу (CDP)","unit":"мс"},
+        "remount/mountSync": {"label":"Монтирование: рендер + commit + эффекты","unit":"мс"},
+        "remount/mountReady": {"label":"Монтирование: до кадра с готовой формой","unit":"мс"},
+        "remount/scriptPerCycle": {"label":"JS на цикл mount + unmount (CDP)","unit":"мс"},
+        "remount/retainedPerCycle": {"label":"Удержание объектов после размонтирования","unit":"КБ/цикл"},
+        "remount/heapGrowth": {"label":"Рост heap на перемонтирование после прогрева (с кодом JIT)","unit":"КБ/цикл"},
+        "remount/nodesSlope": {"label":"Прирост DOM-узлов на перемонтирование","unit":"шт"}
+      },
+      "sections": [
+        {
+          "id": "load",
+          "title": "Холодная загрузка",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [104,103.48,112.7,1,0],
+                "reformer-json": [115.2,112,119.9,1.107,0],
+                "formik": [146.8,146.3,148.2,1.411,1],
+                "rhf": [117.1,116.6,120.2,1.126,1],
+                "rjsf": [143.3,143,144.3,1.378,1],
+                "baseline": [86.55000000000001,84.15,92.85000000000001,0.8322,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [148,148,151,1,0],
+                "reformer-json": [160,157,167,1.081,0],
+                "formik": [196,192,196,1.324,1],
+                "rhf": [164,164,167,1.108,1],
+                "rjsf": [188,185,192,1.27,1],
+                "baseline": [132,128,135,0.8919,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [67.78,67.39,68.53,1,0],
+                "reformer-json": [76.83,76.3,77.33,1.133,1],
+                "formik": [114.6,114.3,115.1,1.691,1],
+                "rhf": [78.59,77.87,79.19,1.159,1],
+                "rjsf": [104.8,104.4,105.4,1.546,1],
+                "baseline": [47.82,47.09,48.6,0.7055,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [37,36.25,37,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [24,23.25,24.75,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1867,1867,1867,1,0],
+                "reformer-json": [2104,2104,2104,1.127,1],
+                "formik": [1885,1885,1885,1.01,1],
+                "rhf": [2070,2070,2070,1.109,1],
+                "rjsf": [2335,2334,2335,1.251,1],
+                "baseline": [1395,1395,1398,0.7475,0]
+              }
+            },
+            {
+              "id": "nodes",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [102,102,102,1,0],
+                "reformer-json": [102,102,102,1,0],
+                "formik": [102,102,102,1,0],
+                "rhf": [102,102,102,1,0],
+                "rjsf": [102,102,102,1,0],
+                "baseline": [102,102,102,1,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "load-invite",
+          "title": "Загрузка по приглашению (гидратация префиллом)",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [141.3,140.9,142.6,1.171,0],
+                "reformer-json": [147.1,145.6,148.9,1.219,1],
+                "formik": [201.4,198.3,204.5,1.669,1],
+                "rhf": [120.7,119.9,127.2,1,-1],
+                "rjsf": [178.8,177.9,181.3,1.482,1]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [120,116,123,1,0],
+                "reformer-json": [176,172,184,1.467,1],
+                "formik": [196,192,196,1.633,1],
+                "rhf": [136,133,136,1.133,1],
+                "rjsf": [156,152,159,1.3,1]
+              }
+            },
+            {
+              "id": "hydrate",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [31.85,31.8,32.22,2.806,0],
+                "reformer-json": [53.95,53.73,54.83,4.753,1],
+                "formik": [11.350000000000001,9.975,15.350000000000001,1,-1],
+                "rhf": [12.05,11.93,19.9,1.062,-1],
+                "rjsf": [32.5,32.32,32.88,2.863,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [70.96,70.355,72.05,1,0],
+                "reformer-json": [78.94,78.47,79.81,1.113,1],
+                "formik": [121.2,119.5,122.1,1.708,1],
+                "rhf": [80.95,79.51,81.27,1.141,1],
+                "rjsf": [108.5,107.5,109.1,1.53,1]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [37.5,37,38,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [25,24.25,25,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1819,1815,1820,1,0],
+                "reformer-json": [2042,2040,2044,1.122,1],
+                "formik": [1953,1953,1953,1.073,1],
+                "rhf": [2028,2027,2028,1.114,1],
+                "rjsf": [2284,2284,2284,1.2552,1]
+              }
+            },
+            {
+              "id": "nodes",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [104,104,104,1,0],
+                "reformer-json": [104,104,104,1,0],
+                "formik": [104,104,104,1,0],
+                "rhf": [104,104,104,1,0],
+                "rjsf": [104,104,104,1,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "typing-pristine",
+          "title": "Ввод до первой отправки (username, email)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [3.55,3.5,3.6,1,0],
+                "reformer-json": [3.65,3.65,3.688,1.028,0],
+                "formik": [6.7,6.575,6.787,1.887,1],
+                "rhf": [3.625,3.438,3.65,1.021,0],
+                "rjsf": [5.1,5.063,5.175,1.437,1],
+                "baseline": [3.45,3.3249999999999997,3.487,0.9718,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [4.295,4.211,4.39,1,0],
+                "reformer-json": [4.502,4.411,4.53,1.048,0],
+                "formik": [8.848,8.68,9.086,2.06,0],
+                "rhf": [4.535,4.402,4.671,1.056,0],
+                "rjsf": [6.212,6.154,6.346,1.446,0],
+                "baseline": [4.412,4.344,4.635,1.027,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.175000000000001,4.1,4.275,1,0],
+                "reformer-json": [4.25,4.125,4.3,1.018,0],
+                "formik": [7.324999999999999,7.3,7.4,1.754,1],
+                "rhf": [4.2,4.112,4.275,1.006,0],
+                "rjsf": [5.574999999999999,5.5,5.675,1.3353,1],
+                "baseline": [4.025,3.9,4.15,0.9641,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.073,1.014,1.121,1.006,0],
+                "reformer-json": [1.073,1.01,1.116,1.006,0],
+                "formik": [4.432,4.412,4.483,4.156,1],
+                "rhf": [1.066,0.9792,1.1249,1,0],
+                "rjsf": [2.67,2.6353,2.714,2.504,1],
+                "baseline": [0.823,0.7529,0.8849,0.7717,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.4562,0.4237,0.4906,1,0],
+                "reformer-json": [0.4822,0.4109,0.5473,1.057,0],
+                "formik": [0.4662,0.4444,0.5224,1.022,0],
+                "rhf": [0.4645,0.4047,0.5043,1.018,0],
+                "rjsf": [0.4908,0.449,0.5145,1.076,0],
+                "baseline": [0.5105,0.4968,0.5453,1.119,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [149,148,150,1,0],
+                "reformer-json": [150.5,150,151,1.01,0],
+                "formik": [151,148.5,151.8,1.013,0],
+                "rhf": [150,149.3,151,1.007,0],
+                "rjsf": [150,148.3,151,1.007,0],
+                "baseline": [149.5,148,151,1.003,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": {
+            "reformer-core": {},
+            "reformer-json": {},
+            "formik": {"check-email":1,"check-username":1},
+            "rhf": {},
+            "rjsf": {}
+          }
+        },
+        {
+          "id": "submit-invalid",
+          "title": "Отправка с ошибками → ошибки на экране",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [22.35,22.1,22.65,2.069,0],
+                "reformer-json": [22.6,22.02,22.849999999999998,2.093,0],
+                "formik": [18,17.6,18.43,1.667,-1],
+                "rhf": [10.8,10.22,14.9,1,-1],
+                "rjsf": [63.95,63.3,64.85,5.921,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [16.95,16.47,17.3,1.351,0],
+                "reformer-json": [16.85,16.63,17.18,1.343,0],
+                "formik": [12.55,12.27,12.82,1,-1],
+                "rhf": [34,33.73,34.3,2.709,1],
+                "rjsf": [57.85,57.45,58.67,4.61,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [12.62,11.67,12.83,1.234,0],
+                "reformer-json": [12.12,11.54,12.8,1.185,0],
+                "formik": [10.32,9.125,10.49,1.01,-1],
+                "rhf": [10.22,9.255,10.77,1,0],
+                "rjsf": [56.45,54.83,56.8,5.524,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [2.58,2.438,2.635,1.032,0],
+                "reformer-json": [2.705,2.337,3.027,1.082,0],
+                "formik": [2.615,2.373,2.6950000000000003,1.046,0],
+                "rhf": [2.5,2.24,2.8,1,0],
+                "rjsf": [2.52,2.3049999999999997,3.025,1.008,0]
+              }
+            }
+          ],
+          "notes": ["Имя и email к этому моменту введены и требуют серверной проверки. Formik проверяет с первой клавиши, поэтому ответы сервера у него уже в кеше и отправка их не ждёт. ReFormer, RHF и RJSF впервые спрашивают сервер при отправке и показывают ошибки — в том числе синхронные — после его ответа (20 мс). «Клик → конец кадра» этой фазы сервер не включает."],
+          "apiCalls": {
+            "reformer-core": {"check-email":1,"check-username":1},
+            "reformer-json": {"check-email":1,"check-username":1},
+            "formik": {},
+            "rhf": {"check-email":1,"check-username":1},
+            "rjsf": {"check-email":1,"check-username":1}
+          }
+        },
+        {
+          "id": "typing-live",
+          "title": "Ввод после отправки — живая валидация (пароль, имя, телефон)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.074999999999999,4.013,4.2,1,0],
+                "reformer-json": [4.2,4.125,4.287,1.031,0],
+                "formik": [6.025,6,6.1,1.479,1],
+                "rhf": [4.35,4.263,4.45,1.067,0],
+                "rjsf": [5.4,5.3,5.475,1.3252,1],
+                "baseline": [3.4,3.3,3.487,0.8344,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [6.16,6.026,6.305,1,0],
+                "reformer-json": [6.3149999999999995,5.953,6.409,1.0252,0],
+                "formik": [7.62,7.519,7.776,1.237,1],
+                "rhf": [6.342,6.144,6.497,1.03,0],
+                "rjsf": [6.89,6.729,7.101,1.119,1],
+                "baseline": [4.268,4.095,4.322,0.6928,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.675000000000001,4.612,4.775,1,0],
+                "reformer-json": [4.85,4.725,4.9,1.037,0],
+                "formik": [6.7,6.612,6.8,1.433,1],
+                "rhf": [5,4.9,5,1.07,1],
+                "rjsf": [5.975,5.9,6.074999999999999,1.278,1],
+                "baseline": [3.925,3.862,4,0.8396,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.317,1.252,1.394,1,0],
+                "reformer-json": [1.502,1.446,1.574,1.141,0],
+                "formik": [3.365,3.338,3.436,2.556,1],
+                "rhf": [1.357,1.296,1.435,1.031,0],
+                "rjsf": [2.745,2.693,2.76,2.08504,1],
+                "baseline": [0.6641,0.6361,0.7236,0.5043,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.5112,0.486,0.5363,1,0],
+                "reformer-json": [0.527,0.4734,0.5464,1.031,0],
+                "formik": [0.5226,0.478,0.5791,1.022,0],
+                "rhf": [0.5187,0.5038,0.5586,1.015,0],
+                "rjsf": [0.5141,0.4912,0.5335,1.006,0],
+                "baseline": [0.4789,0.4552,0.4951,0.9369,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "rjsf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [176,175.3,177,1.006,0],
+                "reformer-json": [176,174.3,177,1.006,0],
+                "formik": [176,175,177.8,1.006,0],
+                "rhf": [176,176,177.8,1.006,0],
+                "rjsf": [175,174,176.8,1,0],
+                "baseline": [175,174,176.5,1,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "async-taken",
+          "title": "Занятое имя: ввод → ошибка от сервера",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [947.2,938.2,955.7,1.008,0],
+                "reformer-json": [948,940.4,953.5,1.009,0],
+                "formik": [956.9,949.8,958,1.018,0],
+                "rhf": [939.8,935.1,945.6,1,0],
+                "rjsf": [948.5,939.4,950,1.009,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.8,4.475,4.975,1.157,0],
+                "reformer-json": [4.75,4.7,4.912,1.1446,0],
+                "formik": [6,5.913,6.175,1.446,1],
+                "rhf": [4.15,4.1,4.2,1,-1],
+                "rjsf": [5.375,5.213,5.438,1.2952,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [14.43,13.71,14.7,1.318,0],
+                "reformer-json": [14.52,13.93,16.02,1.326,0],
+                "formik": [25.76,25.07,26.06,2.354,1],
+                "rhf": [10.95,10.02,11.65,1,0],
+                "rjsf": [23.13,22.64,24.62,2.113,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
+          "apiCalls": null
+        },
+        {
+          "id": "async-fix",
+          "title": "Исправление имени: ввод → ошибка снята",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [884.7,879.9,890.8,1.0052,0],
+                "reformer-json": [880.8,875.7,891,1.001,0],
+                "formik": [898.2,887.3,905.4,1.021,0],
+                "rhf": [880.1,877.1,888.2,1,0],
+                "rjsf": [895.8,885.3,902.7,1.018,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.3,4.2,4.4,1.024,0],
+                "reformer-json": [4.3,3.95,4.4,1.024,0],
+                "formik": [5.6,5.5,5.775,1.333,1],
+                "rhf": [4.2,4.025,4.275,1,0],
+                "rjsf": [5.2,5,5.35,1.238,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [13.01,12.43,15.453,1.018,0],
+                "reformer-json": [14.92,13.37,15.99,1.168,0],
+                "formik": [28.25,28.22,28.43,2.211,1],
+                "rhf": [12.77,11.76,12.91,1,0],
+                "rjsf": [25.44,24.61,26.34,1.991,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
+          "apiCalls": null
+        },
+        {
+          "id": "captcha-refresh",
+          "title": "Обновление капчи",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [8.1,4.25,12.63,1.102,0],
+                "reformer-json": [13.15,6.275,16.18,1.789,0],
+                "formik": [10.4,7.8,15.47,1.41497,0],
+                "rhf": [7.35,4.475000000000001,12.22,1,0],
+                "rjsf": [10.75,4.575,14.75,1.463,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [23.95,23.8,24.08,1,0],
+                "reformer-json": [24.55,24.13,24.849999999999998,1.0251,0],
+                "formik": [30.25,29.92,30.4,1.263,1],
+                "rhf": [25.3,25.2,25.5,1.056,1],
+                "rjsf": [26,25.8,26.2,1.086,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [1.81,1.7,2.308,1.049,0],
+                "reformer-json": [1.725,1.417,1.92,1,0],
+                "formik": [5.205,5.058,5.598,3.017,1],
+                "rhf": [1.78,1.0550000000000002,2.518,1.032,0],
+                "rjsf": [2.49,2.348,3.047,1.443,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.19,0.08,0.6975,2.714,0],
+                "reformer-json": [0.185,0.08,0.625,2.643,0],
+                "formik": [0.08,0.08,0.4425,1.143,0],
+                "rhf": [0.07,0.07,0.1825,1,0],
+                "rjsf": [0.08,0.08,0.1925,1.143,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "captcha-type",
+          "title": "Ввод капчи с проверкой на сервере",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "rjsf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [771.45,769.2,774.8,1.7,0],
+                "reformer-json": [772.4,769.9,776.3,1.702,0],
+                "formik": [776,768.5,781.3,1.71,0],
+                "rhf": [768.8,765.3,774.6,1.694,0],
+                "rjsf": [453.8,449.2,457.4,1,-1]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [5.575,5.263,5.688,1.199,0],
+                "reformer-json": [5.5,5.35,5.638,1.183,0],
+                "formik": [5.824999999999999,5.563,5.9,1.253,0],
+                "rhf": [4.65,4.5,4.813,1,-1],
+                "rjsf": [5.525,5.45,5.688,1.188,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [13.98,13.34,14.79,1.053,0],
+                "reformer-json": [15.950000000000001,15.17,16.96,1.202,0],
+                "formik": [19.84,19.2,20.89,1.495,1],
+                "rhf": [13.27,12.89,14.02,1,0],
+                "rjsf": [19.14,17.21,19.87,1.443,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
+          "apiCalls": null
+        },
+        {
+          "id": "terms",
+          "title": "Чекбокс условий",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [12.65,7.05,13.78,1.234,0],
+                "reformer-json": [11.2,6.975,13.53,1.093,0],
+                "formik": [15.8,10.32,17.45,1.541,0],
+                "rhf": [10.25,7,11.8,1,0],
+                "rjsf": [12.05,7.75,15.22,1.176,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.7,4.35,4.8,1.08,0],
+                "reformer-json": [4.35,4.225,4.5,1,0],
+                "formik": [7.25,7.125,7.775,1.667,1],
+                "rhf": [4.8,4.575,4.975,1.103,0],
+                "rjsf": [5.55,5.35,5.775,1.276,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [3.115,2.502,3.4,1.097,0],
+                "reformer-json": [2.84,2.657,3.288,1,0],
+                "formik": [5.47,5.16,6.08,1.926,1],
+                "rhf": [2.97,2.745,3.66,1.046,0],
+                "rjsf": [3.84,3.655,4.107,1.352,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.185,0.1,0.6225,1.85,0],
+                "reformer-json": [0.315,0.11,0.66,3.15,0],
+                "formik": [0.17,0.1,0.6825,1.7,0],
+                "rhf": [0.1,0.0925,0.25,1,0],
+                "rjsf": [0.34,0.1,0.625,3.4,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "submit-valid",
+          "title": "Успешная отправка",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [9.4,6.525,14.55,1,0],
+                "reformer-json": [11.15,6.3,12.93,1.186,0],
+                "formik": [9.7,8.175,13.6,1.032,0],
+                "rhf": [9.4,7,15.22,1,0],
+                "rjsf": [10.95,8.35,12.92,1.1649,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [27.3,27.23,27.77,1.03,0],
+                "reformer-json": [27.1,26.32,27.27,1.023,0],
+                "formik": [28.55,28.07,28.8,1.077,0],
+                "rhf": [26.5,26.1,26.6,1,0],
+                "rjsf": [27.85,27.47,27.98,1.051,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [4.025,3.5949999999999998,4.595,1.134,0],
+                "reformer-json": [3.55,3.1050000000000004,4.057,1,0],
+                "formik": [5.785,5.41,6.19,1.63,1],
+                "rhf": [5.925,4.272,6.492,1.669,0],
+                "rjsf": [5.755,4.612,5.878,1.621,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.5,0.2575,0.8075,1.2346,0],
+                "reformer-json": [0.625,0.2925,0.8275,1.543,0],
+                "formik": [0.405,0.1725,0.7849999999999999,1,0],
+                "rhf": [0.745,0.38,0.8625,1.84,0],
+                "rjsf": [0.565,0.245,0.8625,1.395,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "remount",
+          "title": "Перемонтирование формы",
+          "kind": "remount",
+          "rows": [
+            {
+              "id": "mountSync",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [2.8,2.8,2.875,1.474,0],
+                "reformer-json": [3.45,3.4,3.525,1.816,1],
+                "formik": [1.9,1.813,1.938,1,-1],
+                "rhf": [2.925,2.85,3,1.539,0],
+                "rjsf": [2.75,2.613,2.837,1.447,0],
+                "baseline": [1.475,1.275,1.55,0.7763,0]
+              }
+            },
+            {
+              "id": "mountReady",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [13.28,10.8,14.7,1.0453,0],
+                "reformer-json": [13.15,10.64,14.63,1.0354,0],
+                "formik": [13.25,10.8,14.46,1.043,0],
+                "rhf": [12.7,11.02,14.57,1,0],
+                "rjsf": [13.1,11.5,14.78,1.031,0],
+                "baseline": [13.15,11.649999999999999,14.63,1.0354,0]
+              }
+            },
+            {
+              "id": "scriptPerCycle",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.53,0.5025,0.6325,1.06,0],
+                "reformer-json": [0.61,0.525,0.64,1.22,0],
+                "formik": [1.01,0.955,1.063,2.02,1],
+                "rhf": [0.5,0.4225,0.52,1,0],
+                "rjsf": [0.525,0.505,0.5675,1.05,0],
+                "baseline": [0.475,0.44,0.5175,0.95,0]
+              }
+            },
+            {
+              "id": "retainedPerCycle",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0.03516,0.03516,0.03516,null,0],
+                "reformer-json": [0.03516,0.03516,0.03516,null,0],
+                "formik": [0.03516,0.03472,0.03516,null,0],
+                "rhf": [0.03457,0.03457,0.03516,null,0],
+                "rjsf": [0.03516,0.03472,0.03516,null,0],
+                "baseline": [0.02754,0.02754,0.02798,null,0]
+              }
+            },
+            {
+              "id": "heapGrowth",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.6,1.6,1.601,null,0],
+                "reformer-json": [2.557,2.53,2.595,null,0],
+                "formik": [0.7689,0.7682,0.7697,null,0],
+                "rhf": [3.029,3.026,3.046,null,0],
+                "rjsf": [4.508,4.507,4.509,null,0],
+                "baseline": [0.9567,0.9563,0.9584,null,0]
+              }
+            },
+            {
+              "id": "nodesSlope",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": ["Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код) у всех участников, даже у пустой страницы. «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля. «Рост heap» — наклон кучи после прогрева вместе с кодом JIT: движок оптимизирует код и дальше, это не утечка."],
+          "apiCalls": null
+        }
+      ],
+      "renders": [
+        {
+          "phase": "load",
+          "cells": {
+            "reformer-core": [31,1,null,null],
+            "reformer-json": [61,1,null,null],
+            "formik": [59,2,null,null],
+            "rhf": [58,2,null,null],
+            "rjsf": [90,1,null,null],
+            "baseline": [21,1,null,null]
+          }
+        },
+        {
+          "phase": "load-invite",
+          "cells": {
+            "reformer-core": [34,2,null,null],
+            "reformer-json": [63,2,null,null],
+            "formik": [118,4,null,null],
+            "rhf": [33,3,null,null],
+            "rjsf": [92,2,null,null]
+          }
+        },
+        {
+          "phase": "typing-pristine",
+          "cells": {
+            "reformer-core": [0,0,0,null],
+            "reformer-json": [0,0,0,null],
+            "formik": [1701,63,53.16,null],
+            "rhf": [0,0,0,null],
+            "rjsf": [736,32,23,null],
+            "baseline": [0,0,0,null]
+          }
+        },
+        {
+          "phase": "submit-invalid",
+          "cells": {
+            "reformer-core": [18,2,null,null],
+            "reformer-json": [18,2,null,null],
+            "formik": [135,5,null,null],
+            "rhf": [24,1,null,null],
+            "rjsf": [89,3,null,null]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "cells": {
+            "reformer-core": [42,14,1.105,null],
+            "reformer-json": [42,14,1.105,null],
+            "formik": [2214,82,58.26,null],
+            "rhf": [51,17,1.342,null],
+            "rjsf": [864,38,22.74,null],
+            "baseline": [0,0,0,null]
+          }
+        },
+        {
+          "phase": "async-taken",
+          "cells": {
+            "reformer-core": [15,5,1.875,null],
+            "reformer-json": [15,5,1.875,null],
+            "formik": [432,16,54,null],
+            "rhf": [6,2,0.75,null],
+            "rjsf": [189,9,23.63,null]
+          }
+        },
+        {
+          "phase": "async-fix",
+          "cells": {
+            "reformer-core": [18,6,1.636,null],
+            "reformer-json": [18,6,1.636,null],
+            "formik": [513,19,46.64,null],
+            "rhf": [6,2,0.5455,null],
+            "rjsf": [258,11,23.455,null]
+          }
+        },
+        {
+          "phase": "captcha-refresh",
+          "cells": {
+            "reformer-core": [0,0,null,null],
+            "reformer-json": [0,0,null,null],
+            "formik": [81,3,null,null],
+            "rhf": [0,0,null,null],
+            "rjsf": [14,1,null,null]
+          }
+        },
+        {
+          "phase": "captcha-type",
+          "cells": {
+            "reformer-core": [36,12,6,null],
+            "reformer-json": [42,12,7,null],
+            "formik": [324,12,54,null],
+            "rhf": [24,8,4,null],
+            "rjsf": [132,6,22,null]
+          }
+        },
+        {
+          "phase": "terms",
+          "cells": {
+            "reformer-core": [3,1,null,null],
+            "reformer-json": [3,1,null,null],
+            "formik": [108,4,null,null],
+            "rhf": [3,1,null,null],
+            "rjsf": [22,1,null,null]
+          }
+        },
+        {
+          "phase": "submit-valid",
+          "cells": {
+            "reformer-core": [29,1,null,null],
+            "reformer-json": [4,1,null,null],
+            "formik": [136,5,null,null],
+            "rhf": [54,2,null,null],
+            "rjsf": [86,3,null,null]
+          }
+        },
+        {
+          "phase": "remount",
+          "cells": {
+            "reformer-core": [620,40,null,31],
+            "reformer-json": [1220,40,null,61],
+            "formik": [1180,60,null,59],
+            "rhf": [1160,60,null,58],
+            "rjsf": [1800,40,null,90],
+            "baseline": [420,40,null,21]
+          }
+        }
+      ],
+      "calibration": {
+        "n": 70,
+        "median": 47.2,
+        "spread": 0.03814,
+        "trend": 0,
+        "runDriftMedian": -0.008484,
+        "runDriftMaxAbs": 0.0911,
+        "flags": []
+      },
+      "background": {
+        "n": 70,
+        "foreignCores": {"median":0.19,"max":1.21},
+        "gpu": {"median":0.5,"max":15},
+        "ownCores": 0.15,
+        "dirtyRuns": 2,
+        "flags": [],
+        "preflight": {"dirty":false,"foreignCores":0.71},
+        "neighbours": [{"label":"duetexpertd","kind":"other","busy":1,"medianPct":33.8}]
+      }
+    },
+    {
       "id": "credit",
       "title": "кредитная заявка",
-      "runId": "2026-11-17T22-24-24Z_credit_3a88e600",
+      "runId": "2026-11-19T20-02-23Z_credit_3a1ec926",
       "cpu": 4,
       "libs": ["reformer-core","reformer-json","formik","rhf","rjsf","baseline"],
       "failures": 0,
@@ -94,12 +1131,12 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [125.4,124.6,126.5,1,0],
-                "reformer-json": [143.6,134.2,145.8,1.1447,0],
-                "formik": [172.6,172.1,173,1.377,1],
-                "rhf": [140.9,140.4,143.2,1.124,1],
-                "rjsf": [231.8,231.4,234.9,1.849,1],
-                "baseline": [94.65,93.88,102.8,0.7548,0]
+                "reformer-core": [126.3,125.8,135.8,1,0],
+                "reformer-json": [136,134.47,144.4,1.077,0],
+                "formik": [174.6,173.1,175,1.382,1],
+                "rhf": [141.3,140.5,142.3,1.118,1],
+                "rjsf": [235.4,232.6,236.6,1.864,1],
+                "baseline": [96,95.1,103.3,0.7601,0]
               }
             },
             {
@@ -107,12 +1144,12 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [180,180,180,1,0],
-                "reformer-json": [184,180,191,1.022,0],
-                "formik": [228,225,231,1.267,1],
-                "rhf": [192,188,192,1.067,1],
-                "rjsf": [268,268,275,1.489,1],
-                "baseline": [148,147,148,0.8222,0]
+                "reformer-core": [178,176,180,1,0],
+                "reformer-json": [186,181,188,1.045,0],
+                "formik": [232,224,235,1.303,1],
+                "rhf": [196,193,199,1.101,1],
+                "rjsf": [276,276,283,1.551,1],
+                "baseline": [148,144,152,0.8315,0]
               }
             },
             {
@@ -120,24 +1157,24 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [84.07,83.7,84.63,1,0],
-                "reformer-json": [93.53,92.92,93.74,1.112,1],
-                "formik": [138.2,136.9,138.8,1.644,1],
-                "rhf": [99.3,98.76,101.1,1.181,1],
-                "rjsf": [192.4,190.7,196.4,2.288,1],
-                "baseline": [52.86,52.14,53.7,0.6287,0]
+                "reformer-core": [85.57,84.51,85.8,1,0],
+                "reformer-json": [94.31,93.448,94.88,1.102,0],
+                "formik": [137.7,136.4,139.1,1.609,1],
+                "rhf": [99.72,99.43,100,1.165,1],
+                "rjsf": [193.4,190.8,194.2,2.26,1],
+                "baseline": [53.34,52.91,53.62,0.6233,0]
               }
             },
             {
               "id": "tbt",
               "best": "reformer-core",
-              "noisy": true,
+              "noisy": false,
               "cells": {
                 "reformer-core": [0,0,0,null,0],
                 "reformer-json": [0,0,0,null,0],
-                "formik": [51,50,51.75,null,0],
+                "formik": [50,50,51,null,0],
                 "rhf": [12,12,13,null,0],
-                "rjsf": [79,77.5,80.5,null,0],
+                "rjsf": [79.5,79,81.75,null,0],
                 "baseline": [0,0,0,null,0]
               }
             },
@@ -149,9 +1186,9 @@
                 "reformer-core": [2093,2093,2093,1,0],
                 "reformer-json": [2346,2346,2347,1.121,1],
                 "formik": [2211,2211,2211,1.056,1],
-                "rhf": [2492,2490,2493,1.191,1],
-                "rjsf": [3062,3062,3103,1.463,1],
-                "baseline": [1387,1387,1389,0.6629,0]
+                "rhf": [2492,2490,2493,1.19,1],
+                "rjsf": [3062,3062,3062,1.463,1],
+                "baseline": [1387,1387,1391,0.6629,0]
               }
             },
             {
@@ -181,11 +1218,11 @@
               "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [167.3,166.9,168.7,1.177,0],
-                "reformer-json": [173.4,172.1,174.5,1.221,0],
-                "formik": [218.1,215.4,221.9,1.535,1],
-                "rhf": [142.1,141.6,159.5,1,-1],
-                "rjsf": [267.8,265.1,270.6,1.884,1]
+                "reformer-core": [168.6,166.4,169,1.043,0],
+                "reformer-json": [175.6,174.2,176.5,1.086,1],
+                "formik": [220.8,216.9,224.3,1.366,1],
+                "rhf": [161.6,160.3,162.6,1,0],
+                "rjsf": [266,263.48,267.4,1.646,1]
               }
             },
             {
@@ -193,11 +1230,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [126,124,128,1,0],
-                "reformer-json": [212,204,212,1.683,1],
-                "formik": [230,228,236,1.8254,1],
-                "rhf": [152,148,155,1.206,1],
-                "rjsf": [164,160,164,1.302,1]
+                "reformer-core": [122,120,127,1,0],
+                "reformer-json": [216,212,216,1.77,1],
+                "formik": [230,228,235,1.885,1],
+                "rhf": [154,152,156,1.262,1],
+                "rjsf": [160,156,163,1.311,1]
               }
             },
             {
@@ -205,11 +1242,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [88.56,88.04,90.17,1,0],
-                "reformer-json": [97.74,96.41,98.16,1.104,1],
-                "formik": [143.7,143.1,144.2,1.623,1],
-                "rhf": [99.63,98.92,100.6,1.125,1],
-                "rjsf": [197.3,193.1,199.9,2.228,1]
+                "reformer-core": [88.34,88.22,89.47,1,0],
+                "reformer-json": [97.42,96.2,98.52,1.103,1],
+                "formik": [143,141.9,143.8,1.619,1],
+                "rhf": [99.66,99.03,100.6,1.128,1],
+                "rjsf": [194.7,194,196.4,2.204,1]
               }
             },
             {
@@ -219,9 +1256,9 @@
               "cells": {
                 "reformer-core": [0,0,0,null,0],
                 "reformer-json": [0,0,0,null,0],
-                "formik": [52.5,51.25,53,null,0],
-                "rhf": [14,13,14,null,0],
-                "rjsf": [73,72,75,null,0]
+                "formik": [52,52,52.75,null,0],
+                "rhf": [14,13.25,14.75,null,0],
+                "rjsf": [71,70,72.5,null,0]
               }
             },
             {
@@ -230,10 +1267,10 @@
               "noisy": false,
               "cells": {
                 "reformer-core": [2126,2125,2126,1,0],
-                "reformer-json": [2367,2367,2368,1.114,1],
-                "formik": [2248,2248,2262,1.058,1],
+                "reformer-json": [2368,2367,2368,1.114,1],
+                "formik": [2262,2248,2262,1.064,1],
                 "rhf": [2404,2404,2404,1.131,1],
-                "rjsf": [3090,3084,3092,1.453,1]
+                "rjsf": [3090,3086,3090,1.454,1]
               }
             },
             {
@@ -259,14 +1296,14 @@
           "rows": [
             {
               "id": "clickFrame",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [52.4,52.15,52.83,1.021,0],
-                "reformer-json": [51.3,51,51.72,1,0],
-                "formik": [55.75,54.8,55.98,1.087,1],
-                "rhf": [60.65,60.32,61.8,1.182,1],
-                "rjsf": [59.1,58.82,60.05,1.152,1]
+                "reformer-core": [51.5,51.32,51.83,1,0],
+                "reformer-json": [51.9,51.33,52.15000000000001,1.008,0],
+                "formik": [56.84999999999999,56.58,57.15000000000001,1.104,1],
+                "rhf": [60.34999999999999,59.98,60.75,1.172,1],
+                "rjsf": [59.5,59.42,59.85,1.155,1]
               }
             },
             {
@@ -274,11 +1311,11 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [18.2,18.1,18.98,1.071,0],
-                "reformer-json": [17,16.82,17.27,1,-1],
-                "formik": [22.3,22.02,22.75,1.312,1],
-                "rhf": [27.15,26.8,27.58,1.597,1],
-                "rjsf": [25.75,25.52,26.4,1.515,1]
+                "reformer-core": [18.35,18.02,18.68,1.076,0],
+                "reformer-json": [17.05,16.85,17.18,1,-1],
+                "formik": [22.8,22.52,23,1.337,1],
+                "rhf": [27.2,26.73,27.58,1.5953,1],
+                "rjsf": [25.65,25.3,26.15,1.504,1]
               }
             },
             {
@@ -286,11 +1323,11 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [15.57,14.94,15.95,1.023,0],
-                "reformer-json": [15.22,14.7,15.59,1,0],
-                "formik": [20.24,19.63,20.48,1.329,1],
-                "rhf": [21,20.84,21.49,1.379,1],
-                "rjsf": [25.12,24.65,25.4,1.65,1]
+                "reformer-core": [16.1,15.62,16.52,1.018,0],
+                "reformer-json": [15.82,15.13,15.95,1,0],
+                "formik": [21.1,20.25,21.26,1.334,1],
+                "rhf": [21.3,20.87,21.66,1.346,1],
+                "rjsf": [24.36,23.62,24.64,1.54,1]
               }
             },
             {
@@ -298,11 +1335,11 @@
               "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.79,0.6275,0.9850000000000001,1,0],
-                "reformer-json": [0.7949999999999999,0.62,0.875,1.006,0],
-                "formik": [1.0150000000000001,0.635,1.35,1.285,0],
-                "rhf": [1.075,1.008,1.388,1.361,0],
-                "rjsf": [0.99,0.845,1.125,1.253,0]
+                "reformer-core": [0.845,0.7275,1.2149999999999999,1,0],
+                "reformer-json": [0.905,0.7775,1.215,1.071,0],
+                "formik": [0.87,0.7175,1.032,1.03,0],
+                "rhf": [0.89,0.64,0.9275,1.053,0],
+                "rjsf": [0.905,0.6425,1.097,1.071,0]
               }
             }
           ],
@@ -319,23 +1356,23 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [48.2,43.92,51.32,1.015,0],
-                "reformer-json": [47.5,43.5,52.3,1,0],
-                "formik": [53.65000000000001,51.7,57.4,1.129,0],
-                "rhf": [58,52.92,61.13,1.221,0],
-                "rjsf": [61.85,57.9,67.72,1.302,1]
+                "reformer-core": [48.9,42.98,51.85,1.039,0],
+                "reformer-json": [47.05,44.58,51.1,1,0],
+                "formik": [53.6,50.78,56.52,1.139,0],
+                "rhf": [59.3,56.1,62.6,1.26,0],
+                "rjsf": [62.3,60.13,67.55,1.324,1]
               }
             },
             {
               "id": "script",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [6.615,6.36,6.77,1.056,0],
-                "reformer-json": [6.265,5.623,6.915,1,0],
-                "formik": [9.385,9.053,10.4,1.498,1],
-                "rhf": [9.21,8.69,9.88,1.47,1],
-                "rjsf": [21.44,20.94,21.547,3.421,1]
+                "reformer-core": [6.335,5.963,6.89,1,0],
+                "reformer-json": [6.345000000000001,6.053,7.06,1.002,0],
+                "formik": [9.684999999999999,9.3,10.11,1.529,1],
+                "rhf": [9.1,8.965,9.607,1.436,1],
+                "rjsf": [21.73,21.37,22.29,3.431,1]
               }
             },
             {
@@ -343,11 +1380,11 @@
               "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [1.405,1.222,1.625,1.052,0],
-                "reformer-json": [1.5150000000000001,1.407,1.673,1.1348,0],
-                "formik": [1.77,1.42,1.8250000000000002,1.326,0],
-                "rhf": [1.335,1.167,1.497,1,0],
-                "rjsf": [1.47,1.202,1.695,1.101,0]
+                "reformer-core": [1.5,1.232,1.552,1.103,0],
+                "reformer-json": [1.54,1.507,1.585,1.132,0],
+                "formik": [1.475,1.203,1.948,1.085,0],
+                "rhf": [1.36,1.115,1.54,1,0],
+                "rjsf": [1.79,1.5750000000000002,1.962,1.316,0]
               }
             }
           ],
@@ -364,12 +1401,12 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [4.875,4.8,4.987,1,0],
-                "reformer-json": [4.95,4.813,5,1.0154,0],
-                "formik": [6.725,6.575,6.837,1.379,1],
-                "rhf": [6.175000000000001,6.1,6.287,1.267,1],
-                "rjsf": [7.525,7.375,7.55,1.544,1],
-                "baseline": [3.2,3.125,3.275,0.6564,0]
+                "reformer-core": [4.85,4.75,4.9,1,0],
+                "reformer-json": [4.9,4.787,5.025,1.01,0],
+                "formik": [6.7,6.663,6.7,1.381,1],
+                "rhf": [5.925000000000001,5.787,6.05,1.222,1],
+                "rjsf": [7.425000000000001,7.313,7.525,1.531,1],
+                "baseline": [3.2,3.2,3.3,0.6598,0]
               }
             },
             {
@@ -377,12 +1414,12 @@
               "best": "reformer-json",
               "noisy": true,
               "cells": {
-                "reformer-core": [8.713,8.125,9.825,1.007,0],
-                "reformer-json": [8.65,8,9.156,1,0],
-                "formik": [10.79,9.594,11.22,1.247,0],
-                "rhf": [9.863,9.162,10.17,1.14,0],
-                "rjsf": [12.16,11.92,12.46,1.406,1],
-                "baseline": [5.33,4.16,6.48499999999999,0.6162,0]
+                "reformer-core": [8.813,8.275,9.325,1.07,0],
+                "reformer-json": [8.238,7.856,8.769,1,0],
+                "formik": [9.662,8.981,10.88,1.173,0],
+                "rhf": [9.35,8.938,9.987,1.135,0],
+                "rjsf": [12.1,11.81,12.4,1.469,0],
+                "baseline": [4.07,3.91,5.56,0.4941,0]
               }
             },
             {
@@ -390,12 +1427,12 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [5.425000000000001,5.362,5.487,1,0],
-                "reformer-json": [5.475,5.362,5.55,1.009,0],
-                "formik": [7.275,7.213,7.337,1.341,1],
-                "rhf": [6.65,6.6,6.875,1.226,1],
-                "rjsf": [8.1,8.012,8.225,1.493,1],
-                "baseline": [3.6,3.6,3.7,0.6636,0]
+                "reformer-core": [5.425000000000001,5.35,5.45,1,0],
+                "reformer-json": [5.475,5.45,5.574999999999999,1.009,0],
+                "formik": [7.3,7.213,7.3,1.346,1],
+                "rhf": [6.6,6.412,6.837,1.217,1],
+                "rjsf": [7.85,7.775,7.987,1.447,1],
+                "baseline": [3.75,3.7,3.8,0.6912,0]
               }
             },
             {
@@ -403,38 +1440,38 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [1.784,1.703,1.847,1,0],
-                "reformer-json": [1.831,1.821,1.902,1.026,0],
-                "formik": [4.015,3.933,4.096,2.25,1],
-                "rhf": [2.361,2.337,2.4455,1.323,1],
-                "rjsf": [4.616,4.567,4.633,2.587,1],
-                "baseline": [0.732,0.6855,0.7671,0.4102,0]
+                "reformer-core": [1.771,1.64,1.804,1,0],
+                "reformer-json": [1.804,1.744,1.932,1.019,0],
+                "formik": [3.998,3.933,4.0349,2.258,1],
+                "rhf": [2.353,2.309,2.379,1.329,1],
+                "rjsf": [4.662,4.612,4.698,2.633,1],
+                "baseline": [0.6964,0.6744,0.7827,0.3933,0]
               }
             },
             {
               "id": "layoutPerKey",
-              "best": "rhf",
-              "noisy": false,
+              "best": "rjsf",
+              "noisy": true,
               "cells": {
-                "reformer-core": [0.5304,0.5273,0.5633,1.009,0],
-                "reformer-json": [0.5624,0.5394,0.6103,1.07,0],
-                "formik": [0.5567,0.5031,0.583,1.059,0],
-                "rhf": [0.5256,0.4965,0.5392,1,0],
-                "rjsf": [0.6085,0.5825,0.629,1.158,0],
-                "baseline": [0.446,0.4257,0.4717,0.8486,0]
+                "reformer-core": [0.5921,0.5351,0.6352,1.022,0],
+                "reformer-json": [0.5882,0.5567,0.6452,1.0151,0],
+                "formik": [0.5844,0.5528,0.6403,1.009,0],
+                "rhf": [0.5918,0.5374,0.6103,1.021,0],
+                "rjsf": [0.5794,0.5681,0.6269,1,0],
+                "baseline": [0.4404,0.4034,0.4965,0.76,0]
               }
             },
             {
               "id": "slowEvents",
-              "best": "reformer-json",
+              "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [180,179,180,1.006,0],
-                "reformer-json": [179,178.3,180,1,0],
-                "formik": [180,179,181,1.006,0],
-                "rhf": [179,178.3,181,1,0],
-                "rjsf": [179,178,179,1,0],
-                "baseline": [103,102,104,0.5754,0]
+                "reformer-core": [179.5,179,181,1.003,0],
+                "reformer-json": [180,180,181,1.006,0],
+                "formik": [180,179,180.8,1.006,0],
+                "rhf": [179,178,180,1,0],
+                "rjsf": [179,177.3,180,1,0],
+                "baseline": [105,104,105.8,0.5866,0]
               }
             },
             {
@@ -464,11 +1501,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [26.65,26.52,26.98,1,0],
-                "reformer-json": [28.85,28.63,29.3,1.083,1],
-                "formik": [31.05,30.3,31.32,1.165,1],
-                "rhf": [31.1,30.85,31.38,1.167,1],
-                "rjsf": [31.049999999999997,30.55,31.3,1.165,1]
+                "reformer-core": [27.2,26.97,27.7,1,0],
+                "reformer-json": [28.95,28.8,29.3,1.064,0],
+                "formik": [31.15,31,31.38,1.145,1],
+                "rhf": [31.65,31.1,32.13,1.164,1],
+                "rjsf": [30.4,30.05,30.93,1.118,1]
               }
             },
             {
@@ -476,11 +1513,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [15.4,15.2,15.5,1,0],
-                "reformer-json": [17.8,17.32,18.1,1.156,1],
-                "formik": [19.75,18.97,20.05,1.282,1],
-                "rhf": [19.45,19.13,19.8,1.263,1],
-                "rjsf": [19.45,19.2,19.7,1.263,1]
+                "reformer-core": [15.649999999999999,15.07,15.78,1,0],
+                "reformer-json": [17.3,17.13,17.58,1.1054,1],
+                "formik": [19.6,19.6,19.77,1.252,1],
+                "rhf": [19.65,19.42,20,1.256,1],
+                "rjsf": [18.95,18.8,19.65,1.211,1]
               }
             },
             {
@@ -488,23 +1525,23 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [13.85,13.15,14.31,1,0],
-                "reformer-json": [15.91,15.3,16.52,1.148,0],
-                "formik": [17.39,16.47,18.01,1.256,1],
-                "rhf": [14.62,14.14,15.79,1.0552,0],
-                "rjsf": [17.8,17.44,18.33,1.2852,1]
+                "reformer-core": [14.29,13.39,14.88,1,0],
+                "reformer-json": [15.18,14.6,15.78,1.062,0],
+                "formik": [17.41,17,18.5,1.218,1],
+                "rhf": [15.16,14.86,15.74,1.061,0],
+                "rjsf": [18.27,17.4,18.91,1.279,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-core",
+              "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [5.88,5.8,6.492,1,0],
-                "reformer-json": [6.145,5.955,6.508,1.0451,0],
-                "formik": [6.415,6.223,6.485,1.091,0],
-                "rhf": [6.62,6.22,6.74,1.126,0],
-                "rjsf": [6.285,5.897,6.427,1.069,0]
+                "reformer-core": [6.38,6.092,6.58,1.012,0],
+                "reformer-json": [6.305,5.78,6.862,1,0],
+                "formik": [6.45,6.303,6.878,1.023,0],
+                "rhf": [6.31,5.973,6.45,1.001,0],
+                "rjsf": [6.52,6.085000000000001,6.813,1.034,0]
               }
             }
           ],
@@ -521,23 +1558,23 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [4.1,4.025,4.1,1,0],
-                "reformer-json": [4.2,4.2,4.2,1.024,0],
-                "formik": [8,7.9,8.1,1.951,1],
-                "rhf": [4.2,4.2,4.3,1.024,0],
-                "rjsf": [6.2,6.2,6.3,1.512,1]
+                "reformer-core": [4.1,4,4.1,1,0],
+                "reformer-json": [4.1,4,4.175,1,0],
+                "formik": [8,7.925000000000001,8,1.951,1],
+                "rhf": [4.3,4.2,4.4,1.049,0],
+                "rjsf": [6.3,6.225,6.3,1.537,1]
               }
             },
             {
               "id": "keyProcP95",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [8.62,6.25,9.795,1.13496,0],
-                "reformer-json": [7.595,5.467,10.59,1,0],
-                "formik": [10.48,9.515,11,1.38,0],
-                "rhf": [8.71,5.767,10.17,1.147,0],
-                "rjsf": [8.65,8.12,9.08,1.139,0]
+                "reformer-core": [6.16,5.587,7.462,1,0],
+                "reformer-json": [6.62,6.312,9.917,1.075,0],
+                "formik": [9.89,9.607,11.41,1.606,1],
+                "rhf": [7.395,5.8549999999999995,9.302,1.2,0],
+                "rjsf": [8.545,8,9.83,1.387,0]
               }
             },
             {
@@ -546,10 +1583,10 @@
               "noisy": false,
               "cells": {
                 "reformer-core": [4.9,4.825,4.975,1,0],
-                "reformer-json": [5,5,5.074999999999999,1.02,0],
-                "formik": [9.05,9,9.1,1.847,1],
-                "rhf": [5.2,5.2,5.275,1.061,1],
-                "rjsf": [7.3,7.2,7.3,1.49,1]
+                "reformer-json": [4.9,4.9,5,1,0],
+                "formik": [9,8.9,9.075,1.837,1],
+                "rhf": [5.3,5.3,5.3,1.082,1],
+                "rjsf": [7.25,7.2,7.3,1.48,1]
               }
             },
             {
@@ -557,23 +1594,23 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [1.02,0.9916,1.087,1,0],
-                "reformer-json": [1.068,1.048,1.102,1.047,0],
-                "formik": [5.438,5.39,5.474,5.33,1],
-                "rhf": [1.197,1.109,1.218,1.174,0],
-                "rjsf": [3.369,3.309,3.393,3.302,1]
+                "reformer-core": [1.061,0.9947,1.1,1,0],
+                "reformer-json": [1.081,1.056,1.12,1.019,0],
+                "formik": [5.334,5.257,5.402,5.03,1],
+                "rhf": [1.113,1.054,1.132,1.05,0],
+                "rjsf": [3.271,3.216,3.319,3.084,1]
               }
             },
             {
               "id": "layoutPerKey",
-              "best": "reformer-core",
+              "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [0.4576,0.4413,0.4848,1,0],
-                "reformer-json": [0.4649,0.4428,0.5023,1.016,0],
-                "formik": [0.5249,0.4984,0.5595,1.147,0],
-                "rhf": [0.5144,0.4965,0.5439,1.124,0],
-                "rjsf": [0.4897,0.4716,0.5158,1.07,0]
+                "reformer-core": [0.4826,0.4504,0.5275,1.069,0],
+                "reformer-json": [0.4514,0.4258,0.468,1,0],
+                "formik": [0.4798,0.4408,0.5184,1.063,0],
+                "rhf": [0.5263,0.5069,0.5833,1.166,0],
+                "rjsf": [0.4747,0.4481,0.5163,1.052,0]
               }
             },
             {
@@ -581,11 +1618,11 @@
               "best": "formik",
               "noisy": false,
               "cells": {
-                "reformer-core": [179.5,177.5,180,1.011,0],
-                "reformer-json": [178.5,177.3,180.8,1.006,0],
-                "formik": [177.5,175.3,179.8,1,0],
-                "rhf": [179,178,179.8,1.008,0],
-                "rjsf": [179.5,176.5,180.8,1.011,0]
+                "reformer-core": [177.5,176,179.8,1.006,0],
+                "reformer-json": [179.5,179,181,1.017,0],
+                "formik": [176.5,176,179.8,1,0],
+                "rhf": [178,176.5,179.8,1.008,0],
+                "rjsf": [178,177,180.5,1.008,0]
               }
             },
             {
@@ -614,11 +1651,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [20.1,19.82,20.43,1,0],
-                "reformer-json": [20.55,20.3,20.77,1.022,0],
-                "formik": [22.5,22.32,22.9,1.119,1],
-                "rhf": [25.1,24.47,25.48,1.249,1],
-                "rjsf": [35,34.65,35.18,1.741,1]
+                "reformer-core": [20.25,19.97,20.6,1,0],
+                "reformer-json": [20.8,20.45,20.98,1.027,0],
+                "formik": [22.5,22.4,22.75,1.111,1],
+                "rhf": [25.25,24.52,25.4,1.247,1],
+                "rjsf": [34.6,34.02,34.95,1.709,1]
               }
             },
             {
@@ -626,11 +1663,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [12.9,12.55,13.149999999999999,1,0],
-                "reformer-json": [13.25,13.2,13.649999999999999,1.027,0],
-                "formik": [15.4,15.13,15.98,1.194,1],
-                "rhf": [17.55,17.3,17.77,1.36,1],
-                "rjsf": [27.95,27.8,28.349999999999998,2.167,1]
+                "reformer-core": [13.05,12.75,13.17,1,0],
+                "reformer-json": [13.5,13.07,13.78,1.034,0],
+                "formik": [15.649999999999999,15.18,15.8,1.199,1],
+                "rhf": [17.7,17.18,18.15,1.356,1],
+                "rjsf": [27.95,27.5,28.57,2.142,1]
               }
             },
             {
@@ -638,23 +1675,23 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [11.31,10.96,11.55,1,0],
-                "reformer-json": [11.65,11.21,12.34,1.03,0],
-                "formik": [13.39,12.54,14.36,1.183,1],
-                "rhf": [13.66,13.06,13.87,1.208,1],
-                "rjsf": [25.59,24.97,26.13,2.262,1]
+                "reformer-core": [11.34,11.07,12.09,1,0],
+                "reformer-json": [12.08,11.68,12.35,1.0653,0],
+                "formik": [13.350000000000001,12.14,13.78,1.177,0],
+                "rhf": [14.04,13.54,14.39,1.238,1],
+                "rjsf": [25.53,25.02,26.12,2.251,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-json",
+              "best": "formik",
               "noisy": true,
               "cells": {
-                "reformer-core": [2.895,2.8,3.272,1.032,0],
-                "reformer-json": [2.8049999999999997,2.685,3.06,1,0],
-                "formik": [3.035,2.873,3.192,1.082,0],
-                "rhf": [3.205,2.847,3.603,1.143,0],
-                "rjsf": [3.28,3.042,3.5,1.169,0]
+                "reformer-core": [2.95,2.755,3.188,1.002,0],
+                "reformer-json": [3.295,2.84,3.558,1.119,0],
+                "formik": [2.945,2.8,3.105,1,0],
+                "rhf": [3.18,2.882,3.26,1.08,0],
+                "rjsf": [3.135,2.897,3.54,1.065,0]
               }
             }
           ],
@@ -671,11 +1708,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [3.6,3.5,3.6750000000000003,1,0],
-                "reformer-json": [3.6,3.6,3.7,1,0],
-                "formik": [7.2,7.2,7.3,2,1],
-                "rhf": [3.7,3.6,3.8,1.028,0],
-                "rjsf": [5.8,5.725,5.9,1.611,1]
+                "reformer-core": [3.55,3.5,3.6,1,0],
+                "reformer-json": [3.55,3.5,3.6,1,0],
+                "formik": [7.2,7.1,7.2,2.028,1],
+                "rhf": [3.7,3.6,3.7,1.042,0],
+                "rjsf": [5.8,5.7,5.875,1.634,1]
               }
             },
             {
@@ -683,11 +1720,11 @@
               "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [4.52,4.4,4.86499999999999,1,0],
-                "reformer-json": [4.68,4.33,5.914999999999996,1.0354,0],
-                "formik": [8.61,8.435,8.87,1.9049,1],
-                "rhf": [4.95,4.704999999999997,5.385,1.0951,0],
-                "rjsf": [7.15,6.9,7.295,1.582,1]
+                "reformer-core": [4.42,4.205,4.8,1,0],
+                "reformer-json": [4.45,4.345,5.36,1.007,0],
+                "formik": [8.41,8.23,8.64,1.903,0],
+                "rhf": [4.56,4.415,4.6,1.032,0],
+                "rjsf": [7.05,6.975,7.255,1.59502,0]
               }
             },
             {
@@ -695,11 +1732,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [4.25,4.2,4.4,1,0],
-                "reformer-json": [4.4,4.325,4.475,1.0353,0],
-                "formik": [8.2,8.125,8.275,1.929,1],
-                "rhf": [4.55,4.5,4.675,1.071,0],
-                "rjsf": [6.7,6.6,6.7,1.576,1]
+                "reformer-core": [4.3,4.3,4.375,1,0],
+                "reformer-json": [4.35,4.3,4.4,1.012,0],
+                "formik": [8.1,8,8.1,1.884,1],
+                "rhf": [4.5,4.5,4.6,1.047,0],
+                "rjsf": [6.65,6.525,6.7,1.547,1]
               }
             },
             {
@@ -707,35 +1744,35 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [0.8018,0.7572,0.8175,1,0],
-                "reformer-json": [0.8369,0.7422,0.8733,1.044,0],
-                "formik": [4.493,4.46,4.544,5.604,1],
-                "rhf": [0.9316,0.8889,0.9735,1.162,0],
-                "rjsf": [3.084,2.986,3.114,3.846,1]
+                "reformer-core": [0.7753,0.7586,0.8023,1,0],
+                "reformer-json": [0.8678,0.7927,0.9046,1.119,0],
+                "formik": [4.557,4.46,4.623,5.878,1],
+                "rhf": [0.899,0.8746,0.91496,1.16,0],
+                "rjsf": [3.07,3.029,3.129,3.959,1]
               }
             },
             {
               "id": "layoutPerKey",
-              "best": "rjsf",
+              "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [0.3988,0.3583,0.4151,1.008,0],
-                "reformer-json": [0.4167,0.3699,0.4558,1.053,0],
-                "formik": [0.4404,0.4304,0.4669,1.113,0],
-                "rhf": [0.4061,0.3854,0.4207,1.026,0],
-                "rjsf": [0.3958,0.3722,0.4184,1,0]
+                "reformer-core": [0.3971,0.3823,0.4129,1.008,0],
+                "reformer-json": [0.4018,0.3756,0.4289,1.02,0],
+                "formik": [0.4139,0.3835,0.4203,1.051,0],
+                "rhf": [0.3939,0.3796,0.4036,1,0],
+                "rjsf": [0.4,0.3882,0.4069,1.0154,0]
               }
             },
             {
               "id": "slowEvents",
-              "best": "formik",
+              "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [236,234.3,237,1.013,0],
-                "reformer-json": [234,234,234,1.004,0],
-                "formik": [233,233,234.8,1,0],
-                "rhf": [233.5,233,234.8,1.002,0],
-                "rjsf": [234,232.3,235.8,1.004,0]
+                "reformer-core": [233,231.5,234.8,1.002,0],
+                "reformer-json": [233.5,233,235,1.004,0],
+                "formik": [233.5,233,236.5,1.004,0],
+                "rhf": [232.5,231,235.5,1,0],
+                "rjsf": [234,232.3,235,1.006,0]
               }
             },
             {
@@ -761,14 +1798,14 @@
           "rows": [
             {
               "id": "clickFrame",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [18.2,18.02,18.3,1,0],
-                "reformer-json": [18.2,18.1,18.53,1,0],
-                "formik": [21.1,20.73,21.38,1.159,1],
-                "rhf": [24.2,23.7,24.38,1.33,1],
-                "rjsf": [33.95,33.8,35.08,1.8654,1]
+                "reformer-core": [18.2,18.02,18.48,1,0],
+                "reformer-json": [18.6,18.38,18.6,1.022,0],
+                "formik": [21.4,20.95,21.6,1.176,1],
+                "rhf": [24,23.68,24.2,1.319,1],
+                "rjsf": [34.4,33.9,34.58,1.89,1]
               }
             },
             {
@@ -776,35 +1813,35 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [11.75,11.53,12.05,1,0],
-                "reformer-json": [12.1,11.93,12.4,1.03,0],
-                "formik": [15.05,14.9,15.28,1.281,1],
-                "rhf": [18,17.68,18.18,1.532,1],
-                "rjsf": [27.9,27.63,28.8,2.374,1]
+                "reformer-core": [12,11.65,12.17,1,0],
+                "reformer-json": [12.05,11.9,12.43,1.004,0],
+                "formik": [15.2,14.72,15.28,1.267,1],
+                "rhf": [17.6,17.35,17.98,1.467,1],
+                "rjsf": [28.35,27.68,28.9,2.363,1]
               }
             },
             {
               "id": "script",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [11,10.38,11.12,1.038,0],
-                "reformer-json": [10.59,9.943,10.76,1,0],
-                "formik": [12.61,12.34,12.93,1.19,1],
-                "rhf": [14.43,14.25,14.58,1.363,1],
-                "rjsf": [25.45,24.74,26.14,2.403,1]
+                "reformer-core": [10.74,9.57,11.24,1,0],
+                "reformer-json": [10.87,10.55,11.548,1.012,0],
+                "formik": [12.3,12.1,12.67,1.146,0],
+                "rhf": [14.17,13.69,14.58,1.319,1],
+                "rjsf": [25.62,24.62,26.74,2.38501,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [2.68,2.482,2.928,1.114,0],
-                "reformer-json": [2.4050000000000002,2.275,2.72,1,0],
-                "formik": [2.545,2.22,2.692,1.058,0],
-                "rhf": [2.68,2.375,3.07,1.114,0],
-                "rjsf": [2.535,2.362,2.815,1.054,0]
+                "reformer-core": [2.45,2.183,2.797,1,0],
+                "reformer-json": [2.53,2.237,2.712,1.033,0],
+                "formik": [2.475,2.285,2.998,1.01,0],
+                "rhf": [2.56,2.397,2.788,1.045,0],
+                "rjsf": [2.645,2.567,2.95,1.08,0]
               }
             }
           ],
@@ -821,11 +1858,11 @@
               "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [9.8,9.6,11.82,1.0652,0],
-                "reformer-json": [10,9.675,10.28,1.087,0],
-                "formik": [13.1,12.63,13.85,1.424,0],
-                "rhf": [9.2,9.125,11.78,1,0],
-                "rjsf": [12.2,12.03,12.4,1.326,0]
+                "reformer-core": [9.45,9.4,9.775,1.016,0],
+                "reformer-json": [9.65,9.45,9.95,1.038,0],
+                "formik": [12.95,12.65,13.25,1.392,1],
+                "rhf": [9.3,8.875,9.55,1,0],
+                "rjsf": [12.2,12,13.13,1.312,0]
               }
             },
             {
@@ -833,35 +1870,35 @@
               "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [6.15,5.925000000000001,6.375,1.042,0],
-                "reformer-json": [6.4,6.25,6.574999999999999,1.085,0],
-                "formik": [9.35,9.225,9.5,1.585,1],
-                "rhf": [5.9,5.8,5.9,1,0],
-                "rjsf": [8.75,8.35,8.875,1.483,1]
+                "reformer-core": [6.3,5.775,6.4,1.059,0],
+                "reformer-json": [6.4,6.15,6.574999999999999,1.076,0],
+                "formik": [9.25,9.05,9.575,1.555,1],
+                "rhf": [5.95,5.55,6,1,0],
+                "rjsf": [8.7,8.35,9.025,1.462,1]
               }
             },
             {
               "id": "script",
               "best": "rhf",
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "reformer-core": [4.545,3.643,4.865,1.053,0],
-                "reformer-json": [4.905,4.49,5.228,1.137,0],
-                "formik": [7.63,7.473,8.113,1.768,1],
-                "rhf": [4.3149999999999995,4.04,4.475,1,0],
-                "rjsf": [7.675,7.215,8.125,1.779,1]
+                "reformer-core": [4.73,4.558,5.387,1.0653,0],
+                "reformer-json": [4.8,4.087,4.97,1.081,0],
+                "formik": [7.455,7.305,7.665,1.679,1],
+                "rhf": [4.44,4.232,4.57,1,0],
+                "rjsf": [7.64,7.127,8.375,1.721,1]
               }
             },
             {
               "id": "layout",
-              "best": "formik",
+              "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [1.245,1.078,1.677,1.221,0],
-                "reformer-json": [1.2650000000000001,0.97,1.4,1.24,0],
-                "formik": [1.02,0.9375,1.087,1,0],
-                "rhf": [1.38,0.98,1.593,1.353,0],
-                "rjsf": [1.06,1.01,1.327,1.039,0]
+                "reformer-core": [0.91,0.7725,1.04,1,0],
+                "reformer-json": [1.02,0.94,1.17,1.121,0],
+                "formik": [1.14,0.8175,1.395,1.253,0],
+                "rhf": [0.975,0.91,1.185,1.071,0],
+                "rjsf": [1.07,0.945,1.26,1.176,0]
               }
             }
           ],
@@ -878,11 +1915,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [4.175000000000001,4.1,4.275,1,0],
-                "reformer-json": [4.35,4.263,4.513,1.042,0],
-                "formik": [7.05,7.013,7.1,1.689,1],
-                "rhf": [4.425000000000001,4.263,4.537,1.06,0],
-                "rjsf": [7.3,7.25,7.4,1.749,1]
+                "reformer-core": [4.1,4.063,4.237,1,0],
+                "reformer-json": [4.324999999999999,4.25,4.388,1.055,0],
+                "formik": [7,6.963,7.138,1.707,1],
+                "rhf": [4.4,4.3,4.438,1.073,0],
+                "rjsf": [7.25,7.2,7.425,1.768,1]
               }
             },
             {
@@ -890,11 +1927,11 @@
               "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [8.225,6.888,10.14,1,0],
-                "reformer-json": [9.55,5.538,10.49,1.161,0],
-                "formik": [9.438,9.081,11.76,1.147,0],
-                "rhf": [8.325,6.625,9.987,1.012,0],
-                "rjsf": [8.762,8.319,11.06,1.0653,0]
+                "reformer-core": [7.725000000000001,5.625,10.98,1,0],
+                "reformer-json": [8.488,5.831,12.26,1.099,0],
+                "formik": [8.6,8.369,11.57,1.113,0],
+                "rhf": [9.75,9.044,11.11,1.262,0],
+                "rjsf": [8.713,8.35,10.01,1.128,0]
               }
             },
             {
@@ -902,11 +1939,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [5.05,5.013,5.138,1,0],
-                "reformer-json": [5.125,5.063,5.2,1.015,0],
-                "formik": [7.925000000000001,7.862,8.038,1.569,1],
-                "rhf": [5.175000000000001,5.1,5.3,1.025,0],
-                "rjsf": [8.05,8.05,8.2,1.594,1]
+                "reformer-core": [5.05,4.9,5.1,1,0],
+                "reformer-json": [5.05,5,5.087,1,0],
+                "formik": [7.925,7.85,7.987,1.569,1],
+                "rhf": [5.275,5.213,5.375,1.045,0],
+                "rjsf": [8.15,8.05,8.238,1.614,1]
               }
             },
             {
@@ -914,35 +1951,35 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [1.089,1.052,1.132,1,0],
-                "reformer-json": [1.292,1.214,1.37,1.187,0],
-                "formik": [4.906,4.723,4.972,4.50502,1],
-                "rhf": [1.274,1.171,1.302,1.17,0],
-                "rjsf": [4.333,4.193,4.394,3.978,1]
+                "reformer-core": [1.082,0.9463,1.109,1,0],
+                "reformer-json": [1.231,1.211,1.295,1.138,0],
+                "formik": [4.906,4.839,4.982,4.534,1],
+                "rhf": [1.213,1.1248,1.275,1.121,0],
+                "rjsf": [4.222,4.127,4.376,3.901,1]
               }
             },
             {
               "id": "layoutPerKey",
-              "best": "reformer-core",
+              "best": "reformer-json",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.6209,0.5917,0.7239,1,0],
-                "reformer-json": [0.6456,0.5533,0.7163,1.04,0],
-                "formik": [0.6825,0.5977,0.7381,1.099,0],
-                "rhf": [0.6663,0.5786,0.7186,1.073,0],
-                "rjsf": [0.6859,0.6272,0.7173,1.105,0]
+                "reformer-core": [0.6984,0.6745,0.732,1.207,0],
+                "reformer-json": [0.5787,0.5452,0.5959,1,0],
+                "formik": [0.6875,0.6244,0.7928,1.188,0],
+                "rhf": [0.8013,0.6516,0.833,1.384,0],
+                "rjsf": [0.6481,0.5944,0.6995,1.12,0]
               }
             },
             {
               "id": "slowEvents",
-              "best": "formik",
+              "best": "rjsf",
               "noisy": false,
               "cells": {
-                "reformer-core": [68,66.25,68.75,1.023,0],
-                "reformer-json": [67.5,66.25,69,1.01504,0],
-                "formik": [66.5,66,67.75,1,0],
-                "rhf": [67,67,67.75,1.008,0],
-                "rjsf": [66.5,66,67.75,1,0]
+                "reformer-core": [67.5,67,68.75,1.023,0],
+                "reformer-json": [67.5,66.25,68,1.023,0],
+                "formik": [67,67,68,1.0152,0],
+                "rhf": [68,67.25,68.75,1.03,0],
+                "rjsf": [66,66,66.75,1,0]
               }
             },
             {
@@ -968,14 +2005,14 @@
           "rows": [
             {
               "id": "clickFrame",
-              "best": "reformer-core",
+              "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [14.7,14.45,15.28,1,0],
-                "reformer-json": [15.05,14.63,15.28,1.024,0],
-                "formik": [17.1,16.650000000000002,17.5,1.163,1],
-                "rhf": [19.3,19.13,19.65,1.313,1],
-                "rjsf": [30.9,30.02,31.25,2.102,1]
+                "reformer-core": [14.6,14.43,15.149999999999999,1.01,0],
+                "reformer-json": [14.45,14.4,14.67,1,0],
+                "formik": [17.1,16.77,17.3,1.183,0],
+                "rhf": [19.25,18.95,19.63,1.332,0],
+                "rjsf": [30.4,30.13,30.98,2.104,1]
               }
             },
             {
@@ -983,11 +2020,11 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [9.6,9.225,9.95,1,0],
-                "reformer-json": [9.6,9.35,9.925,1,0],
-                "formik": [12.4,11.75,12.5,1.292,1],
-                "rhf": [14.3,14.03,14.5,1.49,1],
-                "rjsf": [25.35,24.92,25.849999999999998,2.641,1]
+                "reformer-core": [9.5,9.2,9.8,1.0053,0],
+                "reformer-json": [9.45,9.3,9.7,1,0],
+                "formik": [12.149999999999999,11.77,12.45,1.286,1],
+                "rhf": [14.1,13.75,14.45,1.492,1],
+                "rjsf": [25.15,24.92,25.77,2.661,1]
               }
             },
             {
@@ -995,23 +2032,23 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [7.77,7.352,8.348,1,0],
-                "reformer-json": [7.875,7.008,8.527,1.014,0],
-                "formik": [10.41,9.377,10.953,1.34,0],
-                "rhf": [11.72,10.61,11.91,1.509,1],
-                "rjsf": [23.63,22.98,23.747,3.041,1]
+                "reformer-core": [7.83,7.592,8.524999999999999,1,0],
+                "reformer-json": [8.375,7.79,8.762,1.07,0],
+                "formik": [9.67,9.078,9.902,1.23499,0],
+                "rhf": [10.54,10.41,10.75,1.346,1],
+                "rjsf": [23.11,22.63,23.78,2.951,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-json",
+              "best": "formik",
               "noisy": true,
               "cells": {
-                "reformer-core": [2.39,2.005,2.542,1.453,0],
-                "reformer-json": [1.645,1.37,2.172,1,0],
-                "formik": [1.74,1.565,2.183,1.058,0],
-                "rhf": [2.005,1.835,2.297,1.219,0],
-                "rjsf": [2.22,1.848,2.438,1.35,0]
+                "reformer-core": [1.935,1.598,2.4,1.099,0],
+                "reformer-json": [1.95,1.395,2.29,1.108,0],
+                "formik": [1.76,1.65,2.2,1,0],
+                "rhf": [1.805,1.647,2.65,1.026,0],
+                "rjsf": [1.94,1.573,2.058,1.102,0]
               }
             }
           ],
@@ -1028,11 +2065,11 @@
               "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [14.65,14.350000000000001,15.45,1.11,0],
-                "reformer-json": [13.9,13.63,13.9,1.053,0],
-                "formik": [15.850000000000001,15.72,16.15,1.201,0],
-                "rhf": [13.2,13.03,13.4,1,0],
-                "rjsf": [18.55,17.93,18.77,1.405,1]
+                "reformer-core": [15.2,14.9,15.57,1.134,0],
+                "reformer-json": [13.85,13.53,14.2,1.034,0],
+                "formik": [16,15.75,16.3,1.194,0],
+                "rhf": [13.4,13,13.67,1,-1],
+                "rjsf": [18.6,18.5,18.68,1.388,1]
               }
             },
             {
@@ -1040,11 +2077,11 @@
               "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [8.95,8.7,9.325,1.105,0],
-                "reformer-json": [8.6,8.175,8.775,1.062,0],
-                "formik": [9.4,9.325000000000001,9.575,1.16,0],
-                "rhf": [8.1,7.925000000000001,8.425,1,0],
-                "rjsf": [13.350000000000001,13.13,13.5,1.648,1]
+                "reformer-core": [9.5,9.325000000000001,9.725000000000001,1.18,0],
+                "reformer-json": [8.8,8.55,8.95,1.093,-1],
+                "formik": [9.55,9.35,9.775,1.186,0],
+                "rhf": [8.05,7.8,8.5,1,-1],
+                "rjsf": [13.25,13.13,13.63,1.646,1]
               }
             },
             {
@@ -1052,23 +2089,23 @@
               "best": "rhf",
               "noisy": false,
               "cells": {
-                "reformer-core": [8.094999999999999,7.867,8.992,1.204,0],
-                "reformer-json": [7.33,6.62,7.797,1.09,0],
-                "formik": [9.395,8.428,9.89,1.397,0],
-                "rhf": [6.725,6.615,7.543,1,0],
-                "rjsf": [12.01,11.67,12.42,1.786,1]
+                "reformer-core": [8.37,7.613,8.448,1.24,0],
+                "reformer-json": [7.425,7.293,7.617,1.1,0],
+                "formik": [9.475000000000001,8.78,9.83,1.404,0],
+                "rhf": [6.75,6.175,6.795,1,-1],
+                "rjsf": [11.89,11.06,12.66,1.761,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [2.04,1.92,2.41,1.007,0],
-                "reformer-json": [2.025,1.853,2.228,1,0],
-                "formik": [2.19,2.05,2.292,1.081,0],
-                "rhf": [2.1,1.96,2.292,1.037,0],
-                "rjsf": [2.11,1.988,2.245,1.042,0]
+                "reformer-core": [1.99,1.853,2.407,1,0],
+                "reformer-json": [2.14,1.955,2.44,1.0754,0],
+                "formik": [2.085,1.99,2.282,1.048,0],
+                "rhf": [2.09,1.9049999999999998,2.263,1.05,0],
+                "rjsf": [2.035,1.928,2.24,1.023,0]
               }
             }
           ],
@@ -1085,11 +2122,11 @@
               "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [12,11.63,17.82,1,0],
-                "reformer-json": [12.6,12.5,18.73,1.05,0],
-                "formik": [19.7,19.07,29,1.642,0],
-                "rhf": [13.1,12.47,19.63,1.092,0],
-                "rjsf": [15.7,15.6,24.75,1.308,0]
+                "reformer-core": [12,11.65,18.2,1,0],
+                "reformer-json": [12.45,12.3,18.2,1.037,0],
+                "formik": [19.55,19.02,19.75,1.629,0],
+                "rhf": [13.350000000000001,12.77,22.68,1.113,0],
+                "rjsf": [15.5,15.5,25.2,1.292,0]
               }
             },
             {
@@ -1097,11 +2134,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [665.5,653.2,681.1,1,0],
-                "reformer-json": [674.8,663.6,684.1,1.014,0],
-                "formik": [731,711.1,741.1,1.098,1],
-                "rhf": [693.5,680.3,706.4,1.042,0],
-                "rjsf": [694.7,683.8,706.9,1.044,0]
+                "reformer-core": [667.5,656.4,678.1,1,0],
+                "reformer-json": [672.9,660,688.2,1.008,0],
+                "formik": [726.3,710.6,735.8,1.088,1],
+                "rhf": [691.9,679.5,705.3,1.037,0],
+                "rjsf": [695,681.3,703.5,1.041,0]
               }
             },
             {
@@ -1109,23 +2146,23 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [31.63,30.98,32.79,1,0],
-                "reformer-json": [41.945,40.3,42.97,1.326,1],
-                "formik": [88.45,86.88,90.23,2.797,1],
-                "rhf": [58.5,56.33,60.2,1.849,1],
-                "rjsf": [60.7,60.59,61.45,1.919,1]
+                "reformer-core": [32.31,30.39,33.19,1,0],
+                "reformer-json": [40.22,39.45,42.56,1.2447,1],
+                "formik": [89.23,88.32,89.76,2.762,1],
+                "rhf": [57.13,56.98,58.33,1.768,1],
+                "rjsf": [59.75,59.19,61.07,1.849,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-json",
+              "best": "formik",
               "noisy": false,
               "cells": {
-                "reformer-core": [29.97,29.43,30.14,1.017,0],
-                "reformer-json": [29.48,28.98,29.92,1,0],
-                "formik": [29.87,29.43,30.348,1.013,0],
-                "rhf": [29.88,29.23,30.18,1.013,0],
-                "rjsf": [29.76,29.51,30.41,1.009,0]
+                "reformer-core": [29.7,29.155,29.82,1.002,0],
+                "reformer-json": [29.88,29.38,30.59,1.008,0],
+                "formik": [29.64,29.16,30.5,1,0],
+                "rhf": [29.86,29.61,30.62,1.007,0],
+                "rjsf": [29.83,29.51,30.39,1.007,0]
               }
             }
           ],
@@ -1142,71 +2179,71 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [4.375,4.25,4.5,1,0],
-                "reformer-json": [4.5,4.3,4.625,1.029,0],
-                "formik": [17.02,16.84,17.1,3.891,1],
-                "rhf": [4.425000000000001,4.35,4.487,1.011,0],
-                "rjsf": [9.375,9.262,9.5,2.143,1]
+                "reformer-core": [4.2,4.15,4.375,1,0],
+                "reformer-json": [4.324999999999999,4.212,4.45,1.03,0],
+                "formik": [16.98,16.75,17.05,4.042,1],
+                "rhf": [4.45,4.313,4.6,1.06,0],
+                "rjsf": [9.4,9.063,9.575000000000001,2.238,1]
               }
             },
             {
               "id": "keyProcP95",
-              "best": "reformer-core",
+              "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [5.775,5.45,7.075,1,0],
-                "reformer-json": [6.662,5.244,10.53,1.154,0],
-                "formik": [19.41,19.23,19.59,3.361,1],
-                "rhf": [6.55,5.831,7.531,1.134,0],
-                "rjsf": [12.46,11.9,13.12,2.158,0]
+                "reformer-core": [8.762,5.675,11.19,1.463,0],
+                "reformer-json": [6.425000000000001,6.119,11.79,1.073,0],
+                "formik": [19.08,18.9,19.61,3.186,1],
+                "rhf": [5.988,5.681,6.106,1,0],
+                "rjsf": [12.5,11.81,13.29,2.088,0]
               }
             },
             {
               "id": "keyFrame",
-              "best": "reformer-json",
+              "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [5.675000000000001,5.6,5.75,1.009,0],
-                "reformer-json": [5.625,5.513,6.037,1,0],
-                "formik": [18.85,18.7,19.09,3.351,1],
-                "rhf": [5.625,5.563,5.787,1,0],
-                "rjsf": [10.850000000000001,10.69,11.049999999999999,1.929,1]
+                "reformer-core": [5.574999999999999,5.4,5.7,1,0],
+                "reformer-json": [5.6,5.6,5.763,1.004,0],
+                "formik": [18.77,18.75,19.02,3.368,1],
+                "rhf": [5.775,5.55,5.85,1.036,0],
+                "rjsf": [10.78,10.53,10.91,1.933,1]
               }
             },
             {
               "id": "scriptPerKey",
-              "best": "reformer-core",
+              "best": "reformer-json",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.755,0.6625,0.9754,1,0],
-                "reformer-json": [0.8217,0.7008,0.9125,1.088,0],
-                "formik": [13.26,13.05,13.47,17.56,1],
-                "rhf": [1.137,0.9754,1.33,1.506,0],
-                "rjsf": [6.164,5.997,6.257,8.164,1]
+                "reformer-core": [0.8192,0.6417,1.067,1.081,0],
+                "reformer-json": [0.7575,0.62,0.8325,1,0],
+                "formik": [13.38,12.99,13.52,17.66,1],
+                "rhf": [0.9383,0.8492,1.057,1.239,0],
+                "rjsf": [6.015,5.832,6.203,7.941,1]
               }
             },
             {
               "id": "layoutPerKey",
-              "best": "rhf",
+              "best": "reformer-json",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.6508,0.5133,0.6721,1.392,0],
-                "reformer-json": [0.6383,0.4875,0.7929,1.3654,0],
-                "formik": [0.5025,0.4429,0.6563,1.075,0],
-                "rhf": [0.4675,0.4225,0.5354,1,0],
-                "rjsf": [0.5017,0.4758,0.5408,1.073,0]
+                "reformer-core": [0.5567,0.37,0.7983,1.047,0],
+                "reformer-json": [0.5317,0.4504,0.6246,1,0],
+                "formik": [0.6025,0.5433,0.7967,1.133,0],
+                "rhf": [0.6583,0.6154,0.7117,1.238,0],
+                "rjsf": [0.6308,0.5208,0.7025,1.187,0]
               }
             },
             {
               "id": "slowEvents",
-              "best": "reformer-core",
+              "best": "formik",
               "noisy": false,
               "cells": {
-                "reformer-core": [34,34,34,1,0],
-                "reformer-json": [34,33.25,34,1,0],
-                "formik": [34,33,34,1,0],
-                "rhf": [34,33,34,1,0],
-                "rjsf": [34,34,34,1,0]
+                "reformer-core": [34,34,34,1.03,0],
+                "reformer-json": [34,34,34,1.03,0],
+                "formik": [33,33,33,1,0],
+                "rhf": [34,33,34,1.03,0],
+                "rjsf": [34,33,34,1.03,0]
               }
             },
             {
@@ -1235,11 +2272,11 @@
               "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [9.2,8.925,9.875,1,0],
-                "reformer-json": [10.05,9.925,10.7,1.092,0],
-                "formik": [24.3,23.9,24.73,2.641,1],
-                "rhf": [14.149999999999999,13.72,14.45,1.538,1],
-                "rjsf": [11.45,11.2,12,1.2446,0]
+                "reformer-core": [9.25,9.025,11.78,1,0],
+                "reformer-json": [10.45,10.13,12.07,1.13,0],
+                "formik": [24.15,24.1,24.55,2.611,1],
+                "rhf": [14,13.72,14.07,1.514,1],
+                "rjsf": [11.85,11.47,12.47,1.281,0]
               }
             },
             {
@@ -1247,35 +2284,35 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [5.55,5.225,5.875,1,0],
-                "reformer-json": [6.7,6.225,6.925,1.207,1],
-                "formik": [18.9,18.42,19,3.4054,1],
-                "rhf": [10.45,10.15,10.78,1.883,1],
-                "rjsf": [8.5,8.025,8.6,1.532,1]
+                "reformer-core": [5.65,5.5,5.9,1,0],
+                "reformer-json": [6.75,6.375,6.975,1.1947,0],
+                "formik": [18.75,18.4,18.9,3.319,1],
+                "rhf": [10.5,9.85,10.57,1.858,1],
+                "rjsf": [8,7.9,8.2,1.416,1]
               }
             },
             {
               "id": "script",
               "best": "reformer-core",
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "reformer-core": [4.245,4.032,4.74,1,0],
-                "reformer-json": [6.095000000000001,5.008,6.25,1.436,0],
-                "formik": [19.52,19.41,19.81,4.597,1],
-                "rhf": [9.225000000000001,8.825,9.844999999999999,2.173,1],
-                "rjsf": [6.5649999999999995,6.298,6.74,1.547,1]
+                "reformer-core": [4.65,4.465,5.1,1,0],
+                "reformer-json": [5.45,4.72,5.827,1.172,0],
+                "formik": [19.27,18.98,20.13,4.143,1],
+                "rhf": [9.16,8.532,9.627,1.97,1],
+                "rjsf": [6.72,6.4,6.933,1.445,1]
               }
             },
             {
               "id": "layout",
-              "best": "rhf",
+              "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.8150000000000001,0.52,0.8825,2.547,0],
-                "reformer-json": [0.42500000000000004,0.1425,0.9275,1.328,0],
-                "formik": [0.875,0.31,1.3050000000000002,2.734,0],
-                "rhf": [0.32,0.14,0.6675,1,0],
-                "rjsf": [0.53,0.20500000000000002,0.7775,1.656,0]
+                "reformer-core": [0.15,0.14,0.3825,1,0],
+                "reformer-json": [0.7150000000000001,0.29,0.9625,4.767,0],
+                "formik": [0.54,0.15,1.01,3.6,0],
+                "rhf": [0.805,0.4175,1.002,5.367,0],
+                "rjsf": [0.5750000000000001,0.5,0.8025,3.833,0]
               }
             }
           ],
@@ -1290,13 +2327,13 @@
             {
               "id": "clickFrame",
               "best": "reformer-json",
-              "noisy": false,
+              "noisy": true,
               "cells": {
-                "reformer-core": [15.850000000000001,15.45,16.32,1.043,0],
-                "reformer-json": [15.2,14.9,15.75,1,0],
-                "formik": [16.75,16.23,17.18,1.102,0],
-                "rhf": [18.55,17.95,18.93,1.22,0],
-                "rjsf": [17.6,17.4,18.68,1.158,0]
+                "reformer-core": [15.75,15.38,15.9,1.043,0],
+                "reformer-json": [15.1,14.83,17.32,1,0],
+                "formik": [16.65,15.75,16.9,1.103,0],
+                "rhf": [18.65,17.7,20.5,1.235,1],
+                "rjsf": [17.6,17.13,17.98,1.166,1]
               }
             },
             {
@@ -1304,23 +2341,23 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [7.3,7.025,7.574999999999999,1.081,0],
-                "reformer-json": [6.75,6.45,7.05,1,0],
-                "formik": [7.55,7.425000000000001,7.9,1.119,0],
-                "rhf": [9.85,9.625,10,1.459,1],
-                "rjsf": [8.9,8.725,9.1,1.319,1]
+                "reformer-core": [7.25,7.05,7.675,1.098,0],
+                "reformer-json": [6.6,6.425000000000001,6.7,1,0],
+                "formik": [7.8,7.7,7.9,1.182,0],
+                "rhf": [9.85,9.55,10.3,1.492,1],
+                "rjsf": [8.95,8.725,9,1.356,1]
               }
             },
             {
               "id": "script",
               "best": "reformer-json",
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "reformer-core": [4.58,4.473,4.89,1.152,0],
-                "reformer-json": [3.975,3.405,4.475,1,0],
-                "formik": [5.37,5.105,5.578,1.351,0],
-                "rhf": [7.025,6.835,7.482,1.767,1],
-                "rjsf": [6.275,5.965,6.97,1.579,0]
+                "reformer-core": [4.27,3.973,4.768,1.048,0],
+                "reformer-json": [4.074999999999999,4.03,4.3,1,0],
+                "formik": [5.47,5.217,5.688,1.342,0],
+                "rhf": [7.1850000000000005,6.822,7.452,1.763,1],
+                "rjsf": [5.93,5.6049999999999995,6.272,1.455,1]
               }
             },
             {
@@ -1328,11 +2365,11 @@
               "best": "reformer-core",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.655,0.545,1.1150000000000002,1,0],
-                "reformer-json": [0.8350000000000001,0.705,0.9550000000000001,1.275,0],
-                "formik": [1.03,0.9425,1.268,1.573,0],
-                "rhf": [1.02,0.315,1.408,1.557,0],
-                "rjsf": [0.88,0.725,1.23,1.344,0]
+                "reformer-core": [0.645,0.3775,0.7475,1,0],
+                "reformer-json": [0.65,0.5425,0.8725,1.008,0],
+                "formik": [0.92,0.66,1.01,1.426,0],
+                "rhf": [1.055,0.5,1.188,1.636,0],
+                "rjsf": [0.805,0.6525,0.955,1.248,0]
               }
             }
           ],
@@ -1349,11 +2386,11 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [16.549999999999997,16.25,17.03,1.149,0],
-                "reformer-json": [14.4,14.2,14.88,1,-1],
-                "formik": [20.25,20.13,20.53,1.406,1],
-                "rhf": [22,21.5,22.27,1.528,1],
-                "rjsf": [38,37.73,38.550000000000004,2.639,1]
+                "reformer-core": [16.55,16.35,16.77,1.122,0],
+                "reformer-json": [14.75,14.6,15.05,1,0],
+                "formik": [20.9,20.18,21.23,1.417,1],
+                "rhf": [21.75,21.52,22.27,1.4746,1],
+                "rjsf": [37.7,37.3,37.88,2.556,1]
               }
             },
             {
@@ -1361,11 +2398,11 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [14.350000000000001,13.72,14.47,1.206,0],
-                "reformer-json": [11.9,11.7,12.28,1,-1],
-                "formik": [18,17.75,18.27,1.513,1],
-                "rhf": [19.3,19.13,19.45,1.622,1],
-                "rjsf": [33.95,33.9,34.45,2.853,1]
+                "reformer-core": [13.85,13.55,14.17,1.174,0],
+                "reformer-json": [11.8,11.5,12.28,1,-1],
+                "formik": [18.05,17.75,18.57,1.53,1],
+                "rhf": [19.25,18.82,19.53,1.631,1],
+                "rjsf": [33.65000000000001,33.3,33.88,2.852,1]
               }
             },
             {
@@ -1373,23 +2410,23 @@
               "best": "reformer-json",
               "noisy": false,
               "cells": {
-                "reformer-core": [10.41,9.703,10.77,1.245,0],
-                "reformer-json": [8.36,7.723,8.63,1,0],
-                "formik": [12.64,12.28,13.6,1.513,0],
-                "rhf": [12.73,11.55,13.33,1.522,0],
-                "rjsf": [29.56,29.24,29.86,3.536,1]
+                "reformer-core": [10.34,9.707,10.51,1.289,0],
+                "reformer-json": [8.02,7.095000000000001,8.578,1,0],
+                "formik": [12.71,12.48,13.51,1.585,1],
+                "rhf": [12.32,11.59,13.25,1.537,1],
+                "rjsf": [28.97,28.3,29.27,3.612,1]
               }
             },
             {
               "id": "layout",
-              "best": "reformer-core",
+              "best": "formik",
               "noisy": true,
               "cells": {
-                "reformer-core": [1.575,1.46,2.188,1,0],
-                "reformer-json": [1.87,1.61,1.948,1.187,0],
-                "formik": [1.91,1.642,2.35,1.213,0],
-                "rhf": [1.9249999999999998,1.627,2.25,1.222,0],
-                "rjsf": [2.075,1.945,2.39,1.317,0]
+                "reformer-core": [2.0549999999999997,1.932,2.367,1.269,0],
+                "reformer-json": [2.12,1.732,2.622,1.309,0],
+                "formik": [1.62,1.475,2.342,1,0],
+                "rhf": [2.2,1.9249999999999998,2.44,1.358,0],
+                "rjsf": [2.38,2.182,2.987,1.469,0]
               }
             }
           ],
@@ -1406,11 +2443,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [442.3,434.6,454.4,1,0],
-                "reformer-json": [444.1,435.8,451.6,1.004,0],
-                "formik": [780.45,769.1,783.7,1.765,1],
-                "rhf": [445.4,437.3,452.2,1.007,0],
-                "rjsf": [452.9,448.8,462.4,1.024,0]
+                "reformer-core": [445.3,434.7,452.8,1,0],
+                "reformer-json": [446.1,436.3,452.1,1.002,0],
+                "formik": [778,770.4,786,1.747,1],
+                "rhf": [449.4,438.9,455.6,1.009,0],
+                "rjsf": [456.1,447.9,463.1,1.024,0]
               }
             },
             {
@@ -1418,11 +2455,11 @@
               "best": "reformer-core",
               "noisy": false,
               "cells": {
-                "reformer-core": [3.2,3.013,3.387,1,0],
-                "reformer-json": [3.35,3.2,3.462,1.047,0],
-                "formik": [5.375,5.263,5.587,1.68,1],
-                "rhf": [3.225,3.2,3.3249999999999997,1.008,0],
-                "rjsf": [4.7,4.65,4.888,1.469,1]
+                "reformer-core": [3.25,3.1750000000000003,3.3,1,0],
+                "reformer-json": [3.35,3.25,3.462,1.031,0],
+                "formik": [5.4,5.287,5.6,1.662,1],
+                "rhf": [3.35,3.1,3.388,1.031,0],
+                "rjsf": [4.75,4.637,4.85,1.462,1]
               }
             },
             {
@@ -1430,11 +2467,11 @@
               "best": "reformer-json",
               "noisy": true,
               "cells": {
-                "reformer-core": [4.9,4.003,5.6,1.141,0],
-                "reformer-json": [4.295,3.555,4.975,1,0],
-                "formik": [21.99,20.39,23.01,5.121,1],
-                "rhf": [4.64,3.888,5.547,1.08,0],
-                "rjsf": [15.29,14.68,15.65,3.56,1]
+                "reformer-core": [5.115,4.232,5.607,1.069,0],
+                "reformer-json": [4.785,4.22,5.313,1,0],
+                "formik": [22.18,21.68,23.16,4.636,1],
+                "rhf": [4.995,4.64,5.843,1.044,0],
+                "rjsf": [14.86,14.38,15.047,3.106,1]
               }
             }
           ],
@@ -1451,11 +2488,11 @@
               "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [10.25,9.85,11.649999999999999,1.414,0],
-                "reformer-json": [10.2,9.975,10.35,1.407,0],
-                "formik": [13,12.9,14.07,1.793,0],
-                "rhf": [7.25,7.05,7.375,1,0],
-                "rjsf": [57.6,57.34999999999999,58.23,7.9448,1]
+                "reformer-core": [9.9,9.7,10.5,1.329,0],
+                "reformer-json": [10.149999999999999,9.8,10.45,1.362,0],
+                "formik": [13.149999999999999,12.8,13.63,1.7651,0],
+                "rhf": [7.45,7.05,8.7,1,0],
+                "rjsf": [58.5,57.7,59.1,7.852,1]
               }
             },
             {
@@ -1463,23 +2500,23 @@
               "best": "formik",
               "noisy": false,
               "cells": {
-                "reformer-core": [52,51.48,52.550000000000004,1.55,0],
-                "reformer-json": [51.84999999999999,51.23,52.15000000000001,1.5455,0],
-                "formik": [33.55,33.15,33.68,1,-1],
-                "rhf": [49.9,49.63,50.18,1.487,-1],
-                "rjsf": [97.35,96.5,98.78,2.902,1]
+                "reformer-core": [52.1,51.7,52.38,1.551,0],
+                "reformer-json": [51.7,51.2,51.9,1.539,0],
+                "formik": [33.6,33.23,34.13,1,-1],
+                "rhf": [49.65000000000001,49.5,50.02,1.478,-1],
+                "rjsf": [97.95,97.6,98.38,2.915,1]
               }
             },
             {
               "id": "script",
-              "best": "reformer-json",
-              "noisy": true,
+              "best": "rhf",
+              "noisy": false,
               "cells": {
-                "reformer-core": [7.555,7.04,7.633,1.2655,0],
-                "reformer-json": [5.97,5.53,6.613,1,0],
-                "formik": [6.135,5.873,6.357,1.028,0],
-                "rhf": [6.83,6.143,7.34,1.144,0],
-                "rjsf": [55.11,54.68,56.34,9.231,1]
+                "reformer-core": [6.59,6.105,7.658,1.112,0],
+                "reformer-json": [6.59,6.2,7.377,1.112,0],
+                "formik": [6.76,6.158,7.063,1.141,0],
+                "rhf": [5.925000000000001,5.31,6.305,1,0],
+                "rjsf": [55.58,54.52,55.77,9.381,1]
               }
             },
             {
@@ -1487,11 +2524,11 @@
               "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.63,0.4875,0.7875,2.739,0],
-                "reformer-json": [0.47,0.2325,0.725,2.043,0],
-                "formik": [0.565,0.26,0.705,2.457,0],
-                "rhf": [0.23,0.19,0.4775,1,0],
-                "rjsf": [0.49,0.215,0.6425,2.13,0]
+                "reformer-core": [0.7050000000000001,0.225,1.495,3.917,0],
+                "reformer-json": [0.42500000000000004,0.3,0.75,2.361,0],
+                "formik": [0.5750000000000001,0.3625,1.203,3.194,0],
+                "rhf": [0.18,0.17,0.33,1,0],
+                "rjsf": [0.555,0.3575,0.7625,3.083,0]
               }
             }
           ],
@@ -1514,25 +2551,25 @@
               "best": "formik",
               "noisy": false,
               "cells": {
-                "reformer-core": [3.8249999999999997,3.725,3.9,1.53,0],
-                "reformer-json": [4.775,4.625,4.8,1.91,1],
-                "formik": [2.5,2.413,2.587,1,-1],
-                "rhf": [3.3,3.138,3.337,1.32,-1],
-                "rjsf": [3.875,3.8,3.9,1.55,0],
-                "baseline": [1.6,1.55,1.6,0.64,0]
+                "reformer-core": [3.85,3.763,3.938,1.54,0],
+                "reformer-json": [4.9,4.725,4.9,1.96,1],
+                "formik": [2.5,2.5,2.537,1,-1],
+                "rhf": [3.2,3.2,3.25,1.28,-1],
+                "rjsf": [3.85,3.85,3.887,1.54,0],
+                "baseline": [1.6,1.462,1.6,0.64,0]
               }
             },
             {
               "id": "mountReady",
-              "best": "formik",
+              "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [8.125,8.012,10.28,1.1246,0],
-                "reformer-json": [9.274999999999999,8.9,10.99,1.284,0],
-                "formik": [7.225000000000001,7,10.53,1,0],
-                "rhf": [7.425000000000001,7.325,10.56,1.028,0],
-                "rjsf": [8.325,8,9.737,1.152,0],
-                "baseline": [6,5.088,9.175,0.8304,0]
+                "reformer-core": [8.75,7.912,10.81,1.178,0],
+                "reformer-json": [9.2,8.9,11.01,1.239,0],
+                "formik": [7.525,6.963,9.825,1.013,0],
+                "rhf": [7.425,7.112,10.91,1,0],
+                "rjsf": [8.425,7.85,11.45,1.1347,0],
+                "baseline": [5.25,5.1,9.263,0.7071,0]
               }
             },
             {
@@ -1540,12 +2577,12 @@
               "best": "rhf",
               "noisy": true,
               "cells": {
-                "reformer-core": [0.585,0.5325,0.66,1.17,0],
-                "reformer-json": [0.675,0.605,0.7675,1.35,0],
-                "formik": [0.955,0.9125,1.018,1.91,1],
-                "rhf": [0.5,0.4925,0.6125,1,0],
-                "rjsf": [0.51,0.445,0.6275,1.02,0],
-                "baseline": [0.165,0.1425,0.195,0.33,0]
+                "reformer-core": [0.615,0.5475,0.71,1.242,0],
+                "reformer-json": [0.6950000000000001,0.6,0.7475,1.404,0],
+                "formik": [0.9,0.87,1.0150000000000001,1.818,1],
+                "rhf": [0.495,0.45,0.5525,1,0],
+                "rjsf": [0.59,0.5425,0.6925,1.192,0],
+                "baseline": [0.125,0.11,0.1475,0.2525,0]
               }
             },
             {
@@ -1553,12 +2590,12 @@
               "best": null,
               "noisy": false,
               "cells": {
-                "reformer-core": [0.03438,0.03394,0.03438,null,0],
-                "reformer-json": [0.03438,0.03394,0.03438,null,0],
-                "formik": [0.03516,0.03516,0.03516,null,0],
-                "rhf": [0.03496,0.03496,0.0354,null,0],
-                "rjsf": [0.03379,0.03379,0.03423,null,0],
-                "baseline": [0.03516,0.03457,0.03516,null,0]
+                "reformer-core": [0.03438,0.03438,0.03438,null,0],
+                "reformer-json": [0.03438,0.03438,0.03438,null,0],
+                "formik": [0.03516,0.03472,0.03516,null,0],
+                "rhf": [0.03496,0.03496,0.03496,null,0],
+                "rjsf": [0.03379,0.02896,0.03438,null,0],
+                "baseline": [0.03516,0.03472,0.03516,null,0]
               }
             },
             {
@@ -1566,12 +2603,12 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "reformer-core": [3.404,3.397,3.411,null,0],
-                "reformer-json": [1.388,1.363,1.408,null,0],
-                "formik": [0.05867,0.05844,0.05937,null,0],
-                "rhf": [0.1472,0.1434,0.622,null,0],
-                "rjsf": [0.4167,0.4163,0.4174,null,0],
-                "baseline": [0.6387,0.6377,0.6395,null,0]
+                "reformer-core": [3.399,3.397,3.404,null,0],
+                "reformer-json": [1.369,1.3653,1.406,null,0],
+                "formik": [0.05797,0.05639,0.05979,null,0],
+                "rhf": [0.1441,0.1439,0.1477,null,0],
+                "rjsf": [0.4179,0.3889,0.4183,null,0],
+                "baseline": [0.6389,0.6382,0.6393,null,0]
               }
             },
             {
@@ -1810,1067 +2847,30 @@
           "cells": {
             "reformer-core": [520,40,null,26],
             "reformer-json": [960,40,null,48],
-            "formik": [1220,60,null,61],
+            "formik": [1288,62,null,64.4],
             "rhf": [1160,60,null,58],
-            "rjsf": [1492,42,null,74.6],
+            "rjsf": [1636,46,null,81.8],
             "baseline": [340,40,null,17]
           }
         }
       ],
       "calibration": {
         "n": 70,
-        "median": 47.1,
-        "spread": 0.03291,
-        "trend": -0.004246,
-        "runDriftMedian": -0.008466,
-        "runDriftMaxAbs": 0.06387,
+        "median": 46.9,
+        "spread": 0.03198,
+        "trend": 0.001063,
+        "runDriftMedian": -0.005308,
+        "runDriftMaxAbs": 0.1569,
         "flags": []
       },
       "background": {
         "n": 70,
-        "foreignCores": {"median":0.2,"max":0.45},
-        "gpu": {"median":0.5,"max":12.5},
-        "ownCores": 0.17,
+        "foreignCores": {"median":0.13,"max":0.69},
+        "gpu": {"median":0.5,"max":22.5},
+        "ownCores": 0.175,
         "dirtyRuns": 0,
         "flags": [],
-        "preflight": {"dirty":false,"foreignCores":0.4},
-        "neighbours": []
-      }
-    },
-    {
-      "id": "registration",
-      "title": "регистрация с капчей",
-      "runId": "2026-11-17T23-28-48Z_registration_3a88e600",
-      "cpu": 4,
-      "libs": ["reformer-core","reformer-json","formik","rhf","rjsf","baseline"],
-      "failures": 0,
-      "headline": [
-        {"phase":"load","metric":"ready"},
-        {"phase":"load","metric":"script"},
-        {"phase":"typing-pristine","metric":"keyProc"},
-        {"phase":"typing-live","metric":"keyProc"},
-        {"phase":"typing-live","metric":"keyProcP95"},
-        {"phase":"typing-live","metric":"scriptPerKey"},
-        {"phase":"submit-invalid","metric":"settle"},
-        {"phase":"remount","metric":"mountSync"},
-        {"phase":"load","metric":"heap"}
-      ],
-      "metrics": {
-        "load/ready": {"label":"Готовность формы (от начала навигации)","unit":"мс"},
-        "load/fcp": {"label":"First Contentful Paint","unit":"мс"},
-        "load/script": {"label":"Выполнение JS (CDP ScriptDuration)","unit":"мс"},
-        "load/tbt": {"label":"Total Blocking Time","unit":"мс"},
-        "load/heap": {"label":"JS heap после GC","unit":"КБ"},
-        "load/nodes": {"label":"DOM-узлы","unit":""},
-        "load/hydrate": {"label":"Гидратация: ответ префилла → готово","unit":"мс"},
-        "typing/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
-        "typing/keyProcP95": {"label":"Клавиша → конец обработки (p95 прогона)","unit":"мс"},
-        "typing/keyFrame": {"label":"Клавиша → конец кадра (медиана)","unit":"мс"},
-        "typing/scriptPerKey": {"label":"JS на клавишу (CDP)","unit":"мс"},
-        "typing/layoutPerKey": {"label":"Layout + style на клавишу","unit":"мс"},
-        "typing/slowEvents": {"label":"События ≥ 16 мс (Event Timing)","unit":"шт"},
-        "typing/tbt": {"label":"Total Blocking Time","unit":"мс"},
-        "click/clickFrame": {"label":"Клик → конец кадра","unit":"мс"},
-        "click/settle": {"label":"Клик → UI затих","unit":"мс"},
-        "click/script": {"label":"Выполнение JS (CDP)","unit":"мс"},
-        "click/layout": {"label":"Layout + style","unit":"мс"},
-        "async/settle": {"label":"Ввод → UI затих (вкл. debounce 300 мс и сеть 20 мс)","unit":"мс"},
-        "async/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
-        "async/script": {"label":"Выполнение JS за фазу (CDP)","unit":"мс"},
-        "remount/mountSync": {"label":"Монтирование: рендер + commit + эффекты","unit":"мс"},
-        "remount/mountReady": {"label":"Монтирование: до кадра с готовой формой","unit":"мс"},
-        "remount/scriptPerCycle": {"label":"JS на цикл mount + unmount (CDP)","unit":"мс"},
-        "remount/retainedPerCycle": {"label":"Удержание объектов после размонтирования","unit":"КБ/цикл"},
-        "remount/heapGrowth": {"label":"Рост heap на перемонтирование после прогрева (с кодом JIT)","unit":"КБ/цикл"},
-        "remount/nodesSlope": {"label":"Прирост DOM-узлов на перемонтирование","unit":"шт"}
-      },
-      "sections": [
-        {
-          "id": "load",
-          "title": "Холодная загрузка",
-          "kind": "load",
-          "rows": [
-            {
-              "id": "ready",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [108.8,103.8,113.3,1,0],
-                "reformer-json": [112.1,111.3,112.3,1.03,0],
-                "formik": [145.9,145.8,146.3,1.342,1],
-                "rhf": [116.3,115.8,118,1.069,1],
-                "rjsf": [143.7,142.5,144.1,1.321,1],
-                "baseline": [85.9,83.75,92.47,0.7899,0]
-              }
-            },
-            {
-              "id": "fcp",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [144,144,148,1,0],
-                "reformer-json": [160,157,160,1.111,0],
-                "formik": [192,188,195,1.333,1],
-                "rhf": [162,160,167,1.125,1],
-                "rjsf": [184,184,192,1.278,1],
-                "baseline": [128,125,131,0.8889,0]
-              }
-            },
-            {
-              "id": "script",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [67.65,66.9,68,1,0],
-                "reformer-json": [76.31,75.47,77.9,1.128,1],
-                "formik": [114.4,113.4,115.2,1.691,1],
-                "rhf": [77.3,76.97,78.38,1.143,1],
-                "rjsf": [105.46,105.1,106.4,1.559,1],
-                "baseline": [47.84,46.9,48.19,0.7072,0]
-              }
-            },
-            {
-              "id": "tbt",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0,0,0,null,0],
-                "reformer-json": [0,0,0,null,0],
-                "formik": [36.5,35.25,37,null,0],
-                "rhf": [0,0,0,null,0],
-                "rjsf": [24,24,25,null,0],
-                "baseline": [0,0,0,null,0]
-              }
-            },
-            {
-              "id": "heap",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [1867,1867,1867,1,0],
-                "reformer-json": [2104,2104,2104,1.127,1],
-                "formik": [1885,1884,1885,1.01,1],
-                "rhf": [2070,2070,2070,1.109,1],
-                "rjsf": [2335,2335,2335,1.251,1],
-                "baseline": [1395,1395,1398,0.7475,0]
-              }
-            },
-            {
-              "id": "nodes",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [102,102,102,1,0],
-                "reformer-json": [102,102,102,1,0],
-                "formik": [102,102,102,1,0],
-                "rhf": [102,102,102,1,0],
-                "rjsf": [102,102,102,1,0],
-                "baseline": [102,102,102,1,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": null
-        },
-        {
-          "id": "load-invite",
-          "title": "Загрузка по приглашению (гидратация префиллом)",
-          "kind": "load",
-          "rows": [
-            {
-              "id": "ready",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [140.6,139.7,141.7,1.168,0],
-                "reformer-json": [147,146.3,147.5,1.221,1],
-                "formik": [202.9,199,204.7,1.686,1],
-                "rhf": [120.3,119.6,127.2,1,-1],
-                "rjsf": [179.8,178.9,180,1.494,1]
-              }
-            },
-            {
-              "id": "fcp",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [118,113,120,1,0],
-                "reformer-json": [178,172,183,1.508,1],
-                "formik": [196,192,196,1.661,1],
-                "rhf": [136,136,139,1.153,1],
-                "rjsf": [154,148,160,1.3051,1]
-              }
-            },
-            {
-              "id": "hydrate",
-              "best": "rhf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [31.45,31.3,31.65,2.476,0],
-                "reformer-json": [54.15000000000001,53.75,54.48,4.264,1],
-                "formik": [14.5,12.85,16.35,1.142,-1],
-                "rhf": [12.7,11.88,20.75,1,-1],
-                "rjsf": [32.34999999999999,32.2,32.77,2.547,1]
-              }
-            },
-            {
-              "id": "script",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [69.97,69.42,71.22,1,0],
-                "reformer-json": [78.63,77.98,79.45,1.124,1],
-                "formik": [120,119.45,121.3,1.715,1],
-                "rhf": [79.6,78.95,81.18,1.138,1],
-                "rjsf": [107.7,106.9,108.4,1.539,1]
-              }
-            },
-            {
-              "id": "tbt",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0,0,0,null,0],
-                "reformer-json": [0,0,0,null,0],
-                "formik": [37.5,36.25,39,null,0],
-                "rhf": [0,0,0,null,0],
-                "rjsf": [25,24.25,25,null,0]
-              }
-            },
-            {
-              "id": "heap",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [1820,1819,1820,1,0],
-                "reformer-json": [2042,2040,2044,1.122,1],
-                "formik": [1953,1953,1953,1.073,1],
-                "rhf": [2024,2024,2028,1.113,1],
-                "rjsf": [2284,2284,2284,1.2552,1]
-              }
-            },
-            {
-              "id": "nodes",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [104,104,104,1,0],
-                "reformer-json": [104,104,104,1,0],
-                "formik": [104,104,104,1,0],
-                "rhf": [104,104,104,1,0],
-                "rjsf": [104,104,104,1,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": null
-        },
-        {
-          "id": "typing-pristine",
-          "title": "Ввод до первой отправки (username, email)",
-          "kind": "typing",
-          "rows": [
-            {
-              "id": "keyProc",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [3.65,3.5,3.7,1,0],
-                "reformer-json": [3.75,3.7,3.8,1.027,0],
-                "formik": [6.8,6.8,6.838,1.863,1],
-                "rhf": [3.6750000000000003,3.65,3.737,1.007,0],
-                "rjsf": [5.125,5.063,5.188,1.404,1],
-                "baseline": [3.5,3.5,3.537,0.9589,0]
-              }
-            },
-            {
-              "id": "keyProcP95",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.313,4.22,4.487,1,0],
-                "reformer-json": [4.412,4.311,4.563,1.023,0],
-                "formik": [8.712,8.636,8.875,2.02,1],
-                "rhf": [4.8149999999999995,4.621,4.856,1.117,1],
-                "rjsf": [6.268,6.084,6.479,1.453,1],
-                "baseline": [4.385,4.324999999999999,4.584,1.017,0]
-              }
-            },
-            {
-              "id": "keyFrame",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.275,4.213,4.375,1,0],
-                "reformer-json": [4.35,4.225,4.4,1.018,0],
-                "formik": [7.425000000000001,7.35,7.6,1.737,1],
-                "rhf": [4.3,4.225,4.337,1.006,0],
-                "rjsf": [5.7,5.65,5.8,1.333,1],
-                "baseline": [4.1,4,4.1,0.9591,0]
-              }
-            },
-            {
-              "id": "scriptPerKey",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0.9642,0.9356,1.01,1,0],
-                "reformer-json": [1.041,1.0051,1.057,1.08,0],
-                "formik": [4.453,4.384,4.468,4.619,1],
-                "rhf": [1,0.9398,1.047,1.038,0],
-                "rjsf": [2.659,2.592,2.74,2.758,1],
-                "baseline": [0.7531,0.718,0.8098,0.7811,0]
-              }
-            },
-            {
-              "id": "layoutPerKey",
-              "best": "formik",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [0.4984,0.461,0.5425,1.106,0],
-                "reformer-json": [0.4811,0.4576,0.5515,1.067,0],
-                "formik": [0.4508,0.4167,0.4942,1,0],
-                "rhf": [0.505,0.4634,0.5117,1.12,0],
-                "rjsf": [0.4658,0.4558,0.4848,1.033,0],
-                "baseline": [0.4498,0.412,0.4866,0.9979,0]
-              }
-            },
-            {
-              "id": "slowEvents",
-              "best": "reformer-json",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [151,149.3,151,1.01,0],
-                "reformer-json": [149.5,149,151,1,0],
-                "formik": [151,150,151.8,1.01,0],
-                "rhf": [150.5,149,151,1.007,0],
-                "rjsf": [149.5,149,150.8,1,0],
-                "baseline": [150,147.3,150,1.003,0]
-              }
-            },
-            {
-              "id": "tbt",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0,0,0,null,0],
-                "reformer-json": [0,0,0,null,0],
-                "formik": [0,0,0,null,0],
-                "rhf": [0,0,0,null,0],
-                "rjsf": [0,0,0,null,0],
-                "baseline": [0,0,0,null,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": {
-            "reformer-core": {},
-            "reformer-json": {},
-            "formik": {"check-email":1,"check-username":1},
-            "rhf": {},
-            "rjsf": {}
-          }
-        },
-        {
-          "id": "submit-invalid",
-          "title": "Отправка с ошибками → ошибки на экране",
-          "kind": "click",
-          "rows": [
-            {
-              "id": "clickFrame",
-              "best": "rhf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [22.1,21.57,22.43,2,0],
-                "reformer-json": [22,21.8,22.45,1.991,0],
-                "formik": [17.5,17.35,17.6,1.584,-1],
-                "rhf": [11.05,10.5,15.15,1,-1],
-                "rjsf": [62.3,62.23,62.88,5.638,1]
-              }
-            },
-            {
-              "id": "settle",
-              "best": "formik",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [16.45,16.3,16.58,1.36,0],
-                "reformer-json": [16.5,16.4,16.6,1.364,0],
-                "formik": [12.1,12.03,12.2,1,-1],
-                "rhf": [33.84999999999999,33.55,34.27,2.798,1],
-                "rjsf": [56.25,55.88,56.7,4.649,1]
-              }
-            },
-            {
-              "id": "script",
-              "best": "formik",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [12.04,11.28,12.56,1.318,0],
-                "reformer-json": [12.88,12.36,13.11,1.411,0],
-                "formik": [9.13,8.788,10.01,1,-1],
-                "rhf": [10.01,9.622,10.32,1.096,-1],
-                "rjsf": [55.11,54.65000000000001,55.48,6.036,1]
-              }
-            },
-            {
-              "id": "layout",
-              "best": "rhf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [2.475,2.348,2.607,1.184,0],
-                "reformer-json": [2.16,2.007,2.4,1.033,0],
-                "formik": [2.495,2.183,2.81,1.194,0],
-                "rhf": [2.09,1.69,2.96,1,0],
-                "rjsf": [2.515,2.473,2.873,1.203,0]
-              }
-            }
-          ],
-          "notes": ["Имя и email к этому моменту введены и требуют серверной проверки. Formik проверяет с первой клавиши, поэтому ответы сервера у него уже в кеше и отправка их не ждёт. ReFormer, RHF и RJSF впервые спрашивают сервер при отправке и показывают ошибки — в том числе синхронные — после его ответа (20 мс). «Клик → конец кадра» этой фазы сервер не включает."],
-          "apiCalls": {
-            "reformer-core": {"check-email":1,"check-username":1},
-            "reformer-json": {"check-email":1,"check-username":1},
-            "formik": {},
-            "rhf": {"check-email":1,"check-username":1},
-            "rjsf": {"check-email":1,"check-username":1}
-          }
-        },
-        {
-          "id": "typing-live",
-          "title": "Ввод после отправки — живая валидация (пароль, имя, телефон)",
-          "kind": "typing",
-          "rows": [
-            {
-              "id": "keyProc",
-              "best": "reformer-json",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.225,4.162,4.3,1.006,0],
-                "reformer-json": [4.2,4.2,4.2,1,0],
-                "formik": [6,6,6.237,1.429,1],
-                "rhf": [4.4,4.35,4.4,1.048,0],
-                "rjsf": [5.4,5.313,5.475,1.286,1],
-                "baseline": [3.4,3.313,3.5,0.8095,0]
-              }
-            },
-            {
-              "id": "keyProcP95",
-              "best": "reformer-json",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [6.16,5.877,6.504,1.037,0],
-                "reformer-json": [5.94,5.851,6.294,1,0],
-                "formik": [7.534999999999998,7.345,7.8,1.269,1],
-                "rhf": [6.505,6.244999999999999,6.726,1.0951,0],
-                "rjsf": [7.252,7.07,7.401,1.221,0],
-                "baseline": [4.223,4.201,4.294,0.7109,0]
-              }
-            },
-            {
-              "id": "keyFrame",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.824999999999999,4.725,4.888,1,0],
-                "reformer-json": [4.875,4.813,4.95,1.01,0],
-                "formik": [6.7,6.537,6.787,1.389,1],
-                "rhf": [5,4.913,5,1.036,0],
-                "rjsf": [6.1,6.025,6.188,1.264,1],
-                "baseline": [3.95,3.9,4.037,0.8187,0]
-              }
-            },
-            {
-              "id": "scriptPerKey",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [1.315,1.26,1.379,1,0],
-                "reformer-json": [1.447,1.384,1.488,1.101,0],
-                "formik": [3.327,3.282,3.407,2.531,1],
-                "rhf": [1.347,1.275,1.408,1.025,0],
-                "rjsf": [2.724,2.645,2.81,2.072,1],
-                "baseline": [0.6817,0.6055,0.725,0.5185,0]
-              }
-            },
-            {
-              "id": "layoutPerKey",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0.4951,0.4889,0.5418,1,0],
-                "reformer-json": [0.5478,0.497,0.5595,1.106,0],
-                "formik": [0.5361,0.4941,0.5795,1.083,0],
-                "rhf": [0.5333,0.5214,0.5626,1.077,0],
-                "rjsf": [0.5597,0.5396,0.5874,1.13,0],
-                "baseline": [0.4718,0.4147,0.5247,0.953,0]
-              }
-            },
-            {
-              "id": "slowEvents",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [177,176,177.8,1.011,0],
-                "reformer-json": [178,176.3,179,1.017,0],
-                "formik": [177,177,178,1.011,0],
-                "rhf": [175,174,176.8,1,0],
-                "rjsf": [177.5,177,179,1.014,0],
-                "baseline": [176.5,174.5,178,1.009,0]
-              }
-            },
-            {
-              "id": "tbt",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0,0,0,null,0],
-                "reformer-json": [0,0,0,null,0],
-                "formik": [0,0,0,null,0],
-                "rhf": [0,0,0,null,0],
-                "rjsf": [0,0,0,null,0],
-                "baseline": [0,0,0,null,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": null
-        },
-        {
-          "id": "async-taken",
-          "title": "Занятое имя: ввод → ошибка от сервера",
-          "kind": "async",
-          "rows": [
-            {
-              "id": "settle",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [945,941,950.1,1.005,0],
-                "reformer-json": [944.6,941.4,951.7,1.004,0],
-                "formik": [953.8,949.2,960.9,1.014,0],
-                "rhf": [940.4,935.3,950.6,1,0],
-                "rjsf": [953.1,944.8,956.6,1.014,0]
-              }
-            },
-            {
-              "id": "keyProc",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.8,4.612,5.05,1.15,0],
-                "reformer-json": [4.8,4.5,4.95,1.15,0],
-                "formik": [5.925,5.8,6.175,1.419,1],
-                "rhf": [4.175,4.063,4.324999999999999,1,-1],
-                "rjsf": [5.45,5.287,5.6,1.3054,0]
-              }
-            },
-            {
-              "id": "script",
-              "best": "rhf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [13.68,12.64,14.853,1.216,0],
-                "reformer-json": [13.81,13.39,15.26,1.228,0],
-                "formik": [25.3,25.152,26.77,2.248,1],
-                "rhf": [11.25,10.18,11.54,1,0],
-                "rjsf": [22.27,21.71,23.46,1.979,1]
-              }
-            }
-          ],
-          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
-          "apiCalls": null
-        },
-        {
-          "id": "async-fix",
-          "title": "Исправление имени: ввод → ошибка снята",
-          "kind": "async",
-          "rows": [
-            {
-              "id": "settle",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [887,879.7,895,1.009,0],
-                "reformer-json": [886.3,879.9,894.6,1.008,0],
-                "formik": [892.4,889.9,900.4,1.015,0],
-                "rhf": [879.3,871.3,887.1,1,0],
-                "rjsf": [895.8,885.7,903.5,1.019,0]
-              }
-            },
-            {
-              "id": "keyProc",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.4,4.4,4.475,1.086,0],
-                "reformer-json": [4.25,4.125,4.4,1.049,0],
-                "formik": [5.6,5.5,5.6,1.383,1],
-                "rhf": [4.05,4,4.175,1,0],
-                "rjsf": [5.35,5.3,5.574999999999999,1.321,1]
-              }
-            },
-            {
-              "id": "script",
-              "best": "rhf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [14,13.32,15.14,1.289,0],
-                "reformer-json": [14.32,13.81,15.45,1.318,0],
-                "formik": [29.09,27.37,30.81,2.677,1],
-                "rhf": [10.87,9.957,11.27,1,0],
-                "rjsf": [27.59,26.37,28.66,2.54,1]
-              }
-            }
-          ],
-          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
-          "apiCalls": null
-        },
-        {
-          "id": "captcha-refresh",
-          "title": "Обновление капчи",
-          "kind": "click",
-          "rows": [
-            {
-              "id": "clickFrame",
-              "best": "reformer-json",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [9.95,5.7,16.17,1.221,0],
-                "reformer-json": [8.15,4.175,13.73,1,0],
-                "formik": [12.45,7.55,15.22,1.528,0],
-                "rhf": [12.7,8.725,14,1.558,0],
-                "rjsf": [15.55,10.27,16.98,1.908,0]
-              }
-            },
-            {
-              "id": "settle",
-              "best": "reformer-json",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [24.15,23.73,24.38,1.013,0],
-                "reformer-json": [23.85,23.7,23.98,1,0],
-                "formik": [29.8,29.8,30.27,1.249,1],
-                "rhf": [25.05,24.7,25.18,1.05,1],
-                "rjsf": [25.85,25.52,25.9,1.084,1]
-              }
-            },
-            {
-              "id": "script",
-              "best": "reformer-json",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [1.975,1.758,2.258,1.113,0],
-                "reformer-json": [1.775,1.252,2.323,1,0],
-                "formik": [5.355,5.127,5.525,3.017,1],
-                "rhf": [2.06,1.722,2.403,1.161,0],
-                "rjsf": [2.72,2.027,3.228,1.532,0]
-              }
-            },
-            {
-              "id": "layout",
-              "best": "reformer-core",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [0.08,0.0725,0.515,1,0],
-                "reformer-json": [0.185,0.08,0.6425,2.313,0],
-                "formik": [0.16499999999999998,0.08,0.505,2.062,0],
-                "rhf": [0.08,0.0725,0.1625,1,0],
-                "rjsf": [0.08,0.0725,0.08,1,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": null
-        },
-        {
-          "id": "captcha-type",
-          "title": "Ввод капчи с проверкой на сервере",
-          "kind": "async",
-          "rows": [
-            {
-              "id": "settle",
-              "best": "rjsf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [771.9,768,778.2,1.699,0],
-                "reformer-json": [774.5,771.7,776.4,1.7049,0],
-                "formik": [773,769.9,780.45,1.702,0],
-                "rhf": [769.8,764.7,771.9,1.6946,0],
-                "rjsf": [454.3,449.6,459.48,1,-1]
-              }
-            },
-            {
-              "id": "keyProc",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [5.4,5.313,5.587,1.155,0],
-                "reformer-json": [5.525,5.4,5.65,1.182,0],
-                "formik": [5.65,5.563,5.875,1.209,0],
-                "rhf": [4.675,4.525,4.7,1,-1],
-                "rjsf": [5.525,5.4,5.587,1.182,0]
-              }
-            },
-            {
-              "id": "script",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [14.77,13.41,15.34,1.08,0],
-                "reformer-json": [15.59,14.97,16.44,1.139,0],
-                "formik": [20,19.55,21.01,1.462,1],
-                "rhf": [13.68,12.61,13.92,1,0],
-                "rjsf": [17.49,16.13,17.93,1.279,0]
-              }
-            }
-          ],
-          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
-          "apiCalls": null
-        },
-        {
-          "id": "terms",
-          "title": "Чекбокс условий",
-          "kind": "click",
-          "rows": [
-            {
-              "id": "clickFrame",
-              "best": "reformer-json",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [8.7,6.5,13.22,1.338,0],
-                "reformer-json": [6.5,6.025,7.074999999999999,1,0],
-                "formik": [9.7,9.2,12.35,1.492,0],
-                "rhf": [7,6.575,12.549999999999999,1.077,0],
-                "rjsf": [7.85,7.125,11.13,1.208,0]
-              }
-            },
-            {
-              "id": "settle",
-              "best": "reformer-json",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [4.6,4.5,4.675,1.057,0],
-                "reformer-json": [4.35,4.125,4.65,1,0],
-                "formik": [7.15,6.95,7.3,1.644,1],
-                "rhf": [4.9,4.65,5.074999999999999,1.126,0],
-                "rjsf": [5.4,5.2,5.475,1.241,0]
-              }
-            },
-            {
-              "id": "script",
-              "best": "reformer-json",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [2.455,2.118,3.6350000000000002,1.056,0],
-                "reformer-json": [2.325,2.105,2.46,1,0],
-                "formik": [5.23,4.527,5.66,2.249,1],
-                "rhf": [2.705,2.598,3.08,1.163,0],
-                "rjsf": [3.785,3.368,3.985,1.628,0]
-              }
-            },
-            {
-              "id": "layout",
-              "best": "formik",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [0.66,0.4975,0.8775,4.552,0],
-                "reformer-json": [0.19,0.1,0.5850000000000001,1.31,0],
-                "formik": [0.14500000000000002,0.1,0.47500000000000003,1,0],
-                "rhf": [0.525,0.3875,0.8,3.621,0],
-                "rjsf": [0.32,0.1,0.6175,2.207,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": null
-        },
-        {
-          "id": "submit-valid",
-          "title": "Успешная отправка",
-          "kind": "click",
-          "rows": [
-            {
-              "id": "clickFrame",
-              "best": "rjsf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [11.45,6.05,14.88,1.294,0],
-                "reformer-json": [9.35,6.1,14.43,1.056,0],
-                "formik": [10.2,8.3,15.8,1.153,0],
-                "rhf": [9.8,7.075,15.28,1.107,0],
-                "rjsf": [8.85,7.425000000000001,15.950000000000001,1,0]
-              }
-            },
-            {
-              "id": "settle",
-              "best": "rhf",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [27.4,27.05,27.58,1.038,0],
-                "reformer-json": [26.7,26.35,26.98,1.011,0],
-                "formik": [28.65,28.13,29,1.0852,0],
-                "rhf": [26.4,26,26.58,1,0],
-                "rjsf": [27.2,26.95,27.98,1.03,0]
-              }
-            },
-            {
-              "id": "script",
-              "best": "reformer-json",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [4.605,3.743,4.713,1.253,0],
-                "reformer-json": [3.675,2.647,3.795,1,0],
-                "formik": [6.08,5.885,6.355,1.654,1],
-                "rhf": [4.44,3.597,5.547,1.208,0],
-                "rjsf": [4.785,4.555,5.098,1.302,0]
-              }
-            },
-            {
-              "id": "layout",
-              "best": "reformer-core",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [0.21,0.17,0.5375,1,0],
-                "reformer-json": [0.47,0.1975,0.745,2.238,0],
-                "formik": [0.585,0.3875,0.8049999999999999,2.786,0],
-                "rhf": [0.3,0.17,0.6025,1.429,0],
-                "rjsf": [0.43,0.175,0.8075,2.048,0]
-              }
-            }
-          ],
-          "notes": [],
-          "apiCalls": null
-        },
-        {
-          "id": "remount",
-          "title": "Перемонтирование формы",
-          "kind": "remount",
-          "rows": [
-            {
-              "id": "mountSync",
-              "best": "formik",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [2.8,2.8,2.8,1.556,0],
-                "reformer-json": [3.5,3.4,3.587,1.944,1],
-                "formik": [1.8,1.762,1.85,1,-1],
-                "rhf": [2.85,2.813,2.887,1.583,0],
-                "rjsf": [2.6750000000000003,2.6,2.737,1.486,0],
-                "baseline": [1.35,1.3,1.4,0.75,0]
-              }
-            },
-            {
-              "id": "mountReady",
-              "best": "reformer-json",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [13.1,10.22,14.71,1.04,0],
-                "reformer-json": [12.6,11.09,14.66,1,0],
-                "formik": [13.15,10.89,14.75,1.044,0],
-                "rhf": [13.03,10.7,14.73,1.034,0],
-                "rjsf": [13.03,10.16,14.24,1.034,0],
-                "baseline": [12.8,10.64,14.3,1.016,0]
-              }
-            },
-            {
-              "id": "scriptPerCycle",
-              "best": "rhf",
-              "noisy": true,
-              "cells": {
-                "reformer-core": [0.555,0.5425,0.5875,1.22,0],
-                "reformer-json": [0.52,0.48,0.55,1.143,0],
-                "formik": [0.955,0.87,0.9975,2.099,1],
-                "rhf": [0.455,0.41,0.54,1,0],
-                "rjsf": [0.565,0.5125,0.6025,1.242,0],
-                "baseline": [0.475,0.4375,0.5875,1.044,0]
-              }
-            },
-            {
-              "id": "retainedPerCycle",
-              "best": null,
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0.03516,0.03516,0.03516,null,0],
-                "reformer-json": [0.03516,0.03457,0.03516,null,0],
-                "formik": [0.03457,0.03457,0.03516,null,0],
-                "rhf": [0.03457,0.03457,0.03516,null,0],
-                "rjsf": [0.03516,0.03516,0.03516,null,0],
-                "baseline": [0.02813,0.02754,0.03354,null,0]
-              }
-            },
-            {
-              "id": "heapGrowth",
-              "best": null,
-              "noisy": false,
-              "cells": {
-                "reformer-core": [1.601,1.6,1.601,null,0],
-                "reformer-json": [2.536,2.531,2.594,null,0],
-                "formik": [0.7683,0.7676,0.769,null,0],
-                "rhf": [3.03,3.028,3.05,null,0],
-                "rjsf": [4.51,4.509,4.51,null,0],
-                "baseline": [0.9562,0.9546,0.9577,null,0]
-              }
-            },
-            {
-              "id": "nodesSlope",
-              "best": "reformer-core",
-              "noisy": false,
-              "cells": {
-                "reformer-core": [0,0,0,null,0],
-                "reformer-json": [0,0,0,null,0],
-                "formik": [0,0,0,null,0],
-                "rhf": [0,0,0,null,0],
-                "rjsf": [0,0,0,null,0],
-                "baseline": [0,0,0,null,0]
-              }
-            }
-          ],
-          "notes": ["Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код) у всех участников, даже у пустой страницы. «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля. «Рост heap» — наклон кучи после прогрева вместе с кодом JIT: движок оптимизирует код и дальше, это не утечка."],
-          "apiCalls": null
-        }
-      ],
-      "renders": [
-        {
-          "phase": "load",
-          "cells": {
-            "reformer-core": [31,1,null,null],
-            "reformer-json": [61,1,null,null],
-            "formik": [59,2,null,null],
-            "rhf": [58,2,null,null],
-            "rjsf": [90,1,null,null],
-            "baseline": [21,1,null,null]
-          }
-        },
-        {
-          "phase": "load-invite",
-          "cells": {
-            "reformer-core": [34,2,null,null],
-            "reformer-json": [63,2,null,null],
-            "formik": [118,4,null,null],
-            "rhf": [33,3,null,null],
-            "rjsf": [92,2,null,null]
-          }
-        },
-        {
-          "phase": "typing-pristine",
-          "cells": {
-            "reformer-core": [0,0,0,null],
-            "reformer-json": [0,0,0,null],
-            "formik": [1701,63,53.16,null],
-            "rhf": [0,0,0,null],
-            "rjsf": [736,32,23,null],
-            "baseline": [0,0,0,null]
-          }
-        },
-        {
-          "phase": "submit-invalid",
-          "cells": {
-            "reformer-core": [18,2,null,null],
-            "reformer-json": [18,2,null,null],
-            "formik": [135,5,null,null],
-            "rhf": [24,1,null,null],
-            "rjsf": [89,3,null,null]
-          }
-        },
-        {
-          "phase": "typing-live",
-          "cells": {
-            "reformer-core": [42,14,1.105,null],
-            "reformer-json": [42,14,1.105,null],
-            "formik": [2214,82,58.26,null],
-            "rhf": [51,17,1.342,null],
-            "rjsf": [864,38,22.74,null],
-            "baseline": [0,0,0,null]
-          }
-        },
-        {
-          "phase": "async-taken",
-          "cells": {
-            "reformer-core": [15,5,1.875,null],
-            "reformer-json": [15,5,1.875,null],
-            "formik": [432,16,54,null],
-            "rhf": [6,2,0.75,null],
-            "rjsf": [189,9,23.63,null]
-          }
-        },
-        {
-          "phase": "async-fix",
-          "cells": {
-            "reformer-core": [18,6,1.636,null],
-            "reformer-json": [18,6,1.636,null],
-            "formik": [513,19,46.64,null],
-            "rhf": [6,2,0.5455,null],
-            "rjsf": [258,11,23.455,null]
-          }
-        },
-        {
-          "phase": "captcha-refresh",
-          "cells": {
-            "reformer-core": [0,0,null,null],
-            "reformer-json": [0,0,null,null],
-            "formik": [81,3,null,null],
-            "rhf": [0,0,null,null],
-            "rjsf": [14,1,null,null]
-          }
-        },
-        {
-          "phase": "captcha-type",
-          "cells": {
-            "reformer-core": [36,12,6,null],
-            "reformer-json": [42,12,7,null],
-            "formik": [324,12,54,null],
-            "rhf": [24,8,4,null],
-            "rjsf": [132,6,22,null]
-          }
-        },
-        {
-          "phase": "terms",
-          "cells": {
-            "reformer-core": [3,1,null,null],
-            "reformer-json": [3,1,null,null],
-            "formik": [108,4,null,null],
-            "rhf": [3,1,null,null],
-            "rjsf": [22,1,null,null]
-          }
-        },
-        {
-          "phase": "submit-valid",
-          "cells": {
-            "reformer-core": [29,1,null,null],
-            "reformer-json": [4,1,null,null],
-            "formik": [136,5,null,null],
-            "rhf": [54,2,null,null],
-            "rjsf": [86,3,null,null]
-          }
-        },
-        {
-          "phase": "remount",
-          "cells": {
-            "reformer-core": [620,40,null,31],
-            "reformer-json": [1220,40,null,61],
-            "formik": [1180,60,null,59],
-            "rhf": [1160,60,null,58],
-            "rjsf": [1800,40,null,90],
-            "baseline": [420,40,null,21]
-          }
-        }
-      ],
-      "calibration": {
-        "n": 70,
-        "median": 47.02,
-        "spread": 0.02881,
-        "trend": -0.003191,
-        "runDriftMedian": -0.004215,
-        "runDriftMaxAbs": 0.05567,
-        "flags": []
-      },
-      "background": {
-        "n": 70,
-        "foreignCores": {"median":0.37,"max":0.47},
-        "gpu": {"median":8.5,"max":9},
-        "ownCores": 0.15,
-        "dirtyRuns": 0,
-        "flags": [],
-        "preflight": {"dirty":false,"foreignCores":0.62},
+        "preflight": {"dirty":false,"foreignCores":0.52},
         "neighbours": []
       }
     }
@@ -3107,5 +3107,5 @@
       "gzip": 2767
     }
   ],
-  "calibration": {"cpu":4,"median":47.1,"spread":0.03089,"betweenForms":0.001595,"flags":[]}
+  "calibration": {"cpu":4,"median":47.05,"spread":0.03741,"betweenForms":0.006397,"flags":[]}
 }
