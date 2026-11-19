@@ -14,7 +14,7 @@
  *   у одной видимой серии доля pass идёт с интервалом Уилсона;
  * - события — вертикальные отметки; вид события кодирует форма значка, а не цвет;
  * - калибровка и извлечение знания — малые графики по метрике, линия рвётся при смене прибора;
- * - тепловая карта ячеек выбранной серии: средний счёт ячейки по батчам;
+ * - ячейки «сценарий × стек» выбранной серии: плитки выбранного батча и шкала батчей над ними;
  * - события списком; у каждого графика — табличный вид.
  *
  * Holdout по ячейкам не разбирается и здесь: в истории он только агрегатом.
@@ -35,8 +35,8 @@ const STYLE = `
   --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11, 11, 11, 0.10); --wash: rgba(11, 11, 11, 0.05);
   --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
   --series-5: #e87ba4; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948;
-  --heat-1: #cde2fb; --heat-2: #9ec5f4; --heat-3: #6da7ec; --heat-4: #3987e5; --heat-5: #256abf; --heat-6: #184f95;
-  --heat-ink-1: #0b0b0b; --heat-ink-2: #0b0b0b; --heat-ink-3: #0b0b0b; --heat-ink-4: #ffffff; --heat-ink-5: #ffffff; --heat-ink-6: #ffffff;
+  /* Статусы — одни и те же в обеих темах; цвет всегда идёт со значком и подписью. */
+  --status-good: #0ca30c; --status-warning: #fab219; --status-critical: #d03b3b;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -45,8 +45,6 @@ const STYLE = `
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.06);
     --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
     --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
-    --heat-1: #104281; --heat-2: #1c5cab; --heat-3: #2a78d6; --heat-4: #5598e7; --heat-5: #86b6ef; --heat-6: #b7d3f6;
-    --heat-ink-1: #ffffff; --heat-ink-2: #ffffff; --heat-ink-3: #ffffff; --heat-ink-4: #0b0b0b; --heat-ink-5: #0b0b0b; --heat-ink-6: #0b0b0b;
   }
 }
 :root[data-theme="dark"] {
@@ -55,8 +53,6 @@ const STYLE = `
   --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10); --wash: rgba(255, 255, 255, 0.06);
   --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
   --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
-  --heat-1: #104281; --heat-2: #1c5cab; --heat-3: #2a78d6; --heat-4: #5598e7; --heat-5: #86b6ef; --heat-6: #b7d3f6;
-  --heat-ink-1: #ffffff; --heat-ink-2: #ffffff; --heat-ink-3: #ffffff; --heat-ink-4: #0b0b0b; --heat-ink-5: #0b0b0b; --heat-ink-6: #0b0b0b;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink);
@@ -82,7 +78,8 @@ label.chip input { margin: 0; }
 .card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
 .card-head .note { color: var(--ink-2); font-size: 13px; }
 select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 3px 6px; }
+  border-radius: 8px; padding: 3px 6px; max-width: 100%; }
+.card-head > * { min-width: 0; max-width: 100%; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 4px 0 8px; }
 .legend button { font: inherit; font-size: 13px; color: var(--ink); background: none; border: 1px solid transparent;
   border-radius: 6px; padding: 2px 6px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
@@ -103,12 +100,45 @@ svg .cross { stroke: var(--ink-2); stroke-width: 1; }
 svg .hit { fill: transparent; cursor: crosshair; }
 svg .hit:focus { outline: none; }
 svg .hit:focus-visible { stroke: var(--ink-2); stroke-width: 1; }
-svg .cell:hover, svg .cell:focus { stroke: var(--ink); stroke-width: 1.5; outline: none; }
 .multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .multiple h3 { font-size: 13px; font-weight: 600; margin: 0; }
 .multiple .value { color: var(--ink-2); font-size: 12px; margin: 0 0 4px; }
-.scale { display: flex; gap: 2px; align-items: center; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
-.scale span.swatch { width: 24px; height: 10px; border-radius: 2px; display: inline-block; }
+.batch-nav { margin: 4px 0 14px; }
+svg.batches { height: auto; }
+svg.batches .bar { opacity: 0.4; cursor: pointer; }
+svg.batches .bar:hover { opacity: 0.75; }
+svg.batches .bar.on { opacity: 1; }
+svg.batches .track { fill: var(--wash); }
+svg.batches .bar.on .track { stroke: var(--ink-2); stroke-width: 1; }
+.batch-caption { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 13px;
+  color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.batch-caption strong { color: var(--ink); font-weight: 600; }
+button.step { font: inherit; width: 26px; height: 26px; padding: 0; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+button.step:hover { background: var(--wash); }
+button.step:disabled { color: var(--muted); opacity: 0.5; cursor: default; background: var(--surface); }
+table.grid { width: auto; border-collapse: separate; border-spacing: 6px 4px; margin-left: -6px; font-size: 13px; }
+table.grid th, table.grid td { border: none; padding: 0; }
+table.grid thead th { color: var(--muted); font-weight: 500; font-size: 12px; text-align: center; }
+table.grid tbody th { font-weight: 400; color: var(--ink); padding-right: 14px; }
+table.grid tr.group th { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; padding-top: 10px; }
+.tile { display: flex; gap: 5px; align-items: center; justify-content: center; width: 76px; height: 30px;
+  border-radius: 8px; font-variant-numeric: tabular-nums; cursor: default; }
+.tile .mark { color: var(--ink-2); font-size: 12px; }
+.tile.good { background: color-mix(in srgb, var(--status-good) 16%, var(--surface)); }
+.tile.part { background: color-mix(in srgb, var(--status-warning) 30%, var(--surface)); }
+.tile.bad { background: color-mix(in srgb, var(--status-critical) 22%, var(--surface)); }
+.tile.none { box-shadow: inset 0 0 0 1px var(--axis); color: var(--muted); }
+.tile.absent { color: var(--muted); }
+.tile:not(.absent):hover { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.tile.mini { width: 22px; height: 18px; border-radius: 5px; }
+@media (max-width: 480px) { .tile { width: 58px; } table.grid tbody th { padding-right: 8px; } }
+.matrix-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12px;
+  color: var(--ink-2); margin-top: 10px; }
+.matrix-legend > span { display: inline-flex; gap: 6px; align-items: center; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; }
 details { margin-top: 8px; }
 summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
 .table-wrap { overflow-x: auto; margin-top: 8px; }
@@ -181,8 +211,24 @@ function dashboard(history) {
   const runSeries = allSeries.filter((key) => RUN_HARNESSES.includes(key.split(' · ')[0]));
   const standSeries = allSeries.filter((key) => !runSeries.includes(key));
   // Цвет закреплён за серией по всему файлу, а не по видимым: фильтр не перекрашивает выживших.
+  // Цветов восемь, серий больше: цвет получают серии с самыми свежими точками, серии только из
+  // smoke-точек (путь без модели, скрыт по умолчанию) — последними, остальные серые.
+  const seriesRank = new Map(
+    runSeries.map((key) => {
+      const own = points.filter((point) => point.key === key);
+      return [key, { smoke: own.every((p) => p.tags.includes('smoke')), last: own.at(-1).t }];
+    })
+  );
+  const colorOrder = runSeries
+    .slice()
+    .sort(
+      (a, b) =>
+        seriesRank.get(a).smoke - seriesRank.get(b).smoke ||
+        seriesRank.get(b).last - seriesRank.get(a).last ||
+        a.localeCompare(b)
+    );
   const colorOf = new Map(
-    runSeries.map((key, index) => [key, index < 8 ? `var(--series-${index + 1})` : 'var(--muted)'])
+    colorOrder.map((key, index) => [key, index < 8 ? `var(--series-${index + 1})` : 'var(--muted)'])
   );
   const allTags = [...new Set(points.flatMap((point) => point.tags))].sort();
   const runMetrics = [
@@ -198,15 +244,12 @@ function dashboard(history) {
     hidden: new Set(),
     metric: 'passRate',
     axis: 'batch',
-    // Тепловая карта по умолчанию — сценарная серия с моделью, где больше всего точек.
+    // Матрица ячеек по умолчанию — самая свежая сценарная серия с моделью.
     heat:
-      runSeries
-        .filter((key) => key.startsWith('scenario') && !key.includes('replay'))
-        .sort(
-          (a, b) =>
-            points.filter((point) => point.key === b).length -
-            points.filter((point) => point.key === a).length
-        )[0] ?? runSeries[0],
+      colorOrder.find((key) => key.startsWith('scenario') && !seriesRank.get(key).smoke) ??
+      runSeries[0],
+    // Батч матрицы; null — последний из самых полных батчей серии.
+    heatBatch: null,
   };
   let contentWidth = 1100;
 
@@ -847,29 +890,144 @@ function dashboard(history) {
     return cards;
   }
 
+  // ---------- Ячейки «сценарий × стек» ----------
+  const TARGET_ORDER = ['core', 'renderer-react', 'renderer-json'];
+  const OPERATION_ORDER = ['create', 'edit', 'delete'];
+  const STATUS = {
+    good: { glyph: '✓', label: 'все повторы прошли' },
+    part: { glyph: '◐', label: 'прошла часть повторов' },
+    bad: { glyph: '✗', label: 'ни один повтор не прошёл' },
+    none: { glyph: '—', label: 'нет засчитанных прогонов' },
+  };
+  const statusOf = ([passed, total]) =>
+    total === 0 ? 'none' : passed === total ? 'good' : passed === 0 ? 'bad' : 'part';
+  /** Ячейка `сценарий.стек` → [сценарий, стек]. */
+  const splitCell = (cell) => {
+    const dot = cell.lastIndexOf('.');
+    return dot < 0 ? [cell, ''] : [cell.slice(0, dot), cell.slice(dot + 1)];
+  };
+  /** Сценарий → [форма, порядок операции, операция]: форма — часть до первого дефиса. */
+  const scenarioParts = (id) => {
+    const dash = id.indexOf('-');
+    const form = dash < 0 ? id : id.slice(0, dash);
+    const operation = dash < 0 ? id : id.slice(dash + 1);
+    const index = OPERATION_ORDER.indexOf(operation);
+    return [form, index < 0 ? OPERATION_ORDER.length : index, operation];
+  };
+  const compareScenarios = (a, b) => {
+    const [x, y] = [scenarioParts(a), scenarioParts(b)];
+    return x[0].localeCompare(y[0]) || x[1] - y[1] || x[2].localeCompare(y[2]);
+  };
+  const compareTargets = (a, b) => {
+    const [x, y] = [TARGET_ORDER.indexOf(a), TARGET_ORDER.indexOf(b)];
+    return (x < 0 ? 99 : x) - (y < 0 ? 99 : y) || a.localeCompare(b);
+  };
+  const batchSummary = (point) =>
+    `ячеек ${Object.keys(point.cells).length} · pass ${point.passed}/${point.counted}`;
+  const tile = (status, text, attrs = {}) =>
+    el(
+      'span',
+      { ...attrs, class: `tile ${status}${attrs.class ? ` ${attrs.class}` : ''}` },
+      el('span', { class: 'mark', 'aria-hidden': 'true' }, STATUS[status].glyph),
+      text,
+      text ? el('span', { class: 'visually-hidden' }, ` — ${STATUS[status].label}`) : null
+    );
+
+  /** Шкала батчей серии: столбик на батч, высота — доля pass; щелчок выбирает батч. */
+  function batchNavigator(batches, current, color, go) {
+    const BAR = 12;
+    const GAP = 4;
+    const H = 28;
+    const LABEL = 14;
+    const width = Math.max(batches.length * (BAR + GAP) - GAP, 80);
+    const index = batches.indexOf(current);
+    const bars = el(
+      'svg:svg',
+      {
+        class: 'batches',
+        viewBox: `0 0 ${width} ${H + LABEL}`,
+        style: `max-width:${width}px`,
+        role: 'img',
+        'aria-label': 'Батчи серии: доля прошедших прогонов',
+      },
+      batches.map((point, i) => {
+        const share = point.counted ? point.passed / point.counted : 0;
+        const height = Math.max(2, Math.round(share * H));
+        const x = i * (BAR + GAP);
+        return el(
+          'svg:g',
+          {
+            class: point === current ? 'bar on' : 'bar',
+            onclick: () => go(point),
+            onpointermove: (event) =>
+              showTip(event.clientX, event.clientY, [
+                el('div', { class: 'head' }, `${dateLabel(point.t, true)} · ${point.batch}`),
+                el('div', {}, batchSummary(point)),
+              ]),
+            onpointerleave: hideTip,
+          },
+          el('svg:rect', { class: 'track', x, y: 0, width: BAR, height: H, rx: 3 }),
+          el('svg:rect', { x, y: H - height, width: BAR, height, rx: 3, fill: color })
+        );
+      }),
+      // Период шкалы: дата первого и последнего батча.
+      el('svg:text', { x: 0, y: H + LABEL - 2 }, dateLabel(batches[0].t)),
+      batches.length > 1
+        ? el(
+            'svg:text',
+            { x: width, y: H + LABEL - 2, 'text-anchor': 'end' },
+            dateLabel(batches.at(-1).t)
+          )
+        : null
+    );
+    const step = (offset, label, glyph) =>
+      el(
+        'button',
+        {
+          class: 'step',
+          type: 'button',
+          'aria-label': label,
+          disabled: !batches[index + offset],
+          onclick: () => go(batches[index + offset]),
+        },
+        glyph
+      );
+    return el(
+      'div',
+      { class: 'batch-nav' },
+      bars,
+      el(
+        'div',
+        { class: 'batch-caption' },
+        step(-1, 'Предыдущий батч', '‹'),
+        step(1, 'Следующий батч', '›'),
+        el('strong', {}, dateLabel(current.t, true)),
+        el('span', {}, batchSummary(current))
+      )
+    );
+  }
+
   function heatSection() {
     const key = state.heat;
     const own = points.filter((point) => point.key === key && visiblePoint(point) && point.cells);
+    const batches = own.filter((point) => Object.keys(point.cells).length > 0);
+    const most = Math.max(0, ...batches.map((point) => Object.keys(point.cells).length));
+    const fallback = batches.filter((point) => Object.keys(point.cells).length === most).at(-1);
+    const current = batches.find((point) => point.batch === state.heatBatch) ?? fallback;
     const select = el(
       'select',
       {
         'aria-label': 'Серия',
         onchange: (event) => {
           state.heat = event.target.value;
+          state.heatBatch = null;
           render();
         },
       },
       runSeries.map((item) => el('option', { value: item, selected: item === key }, item))
     );
-    const head = el(
-      'div',
-      { class: 'card-head' },
-      el('h2', {}, 'Ячейки по батчам'),
-      el('span', { class: 'note' }, 'цвет — средний счёт ячейки, ✓ — все прогоны прошли'),
-      select
-    );
-    const cells = [...new Set(own.flatMap((point) => Object.keys(point.cells)))].sort();
-    if (own.length === 0 || cells.length === 0) {
+    const head = el('div', { class: 'card-head' }, el('h2', {}, 'Ячейки: сценарий × стек'), select);
+    if (!current) {
       return el(
         'section',
         { class: 'card' },
@@ -877,112 +1035,116 @@ function dashboard(history) {
         el('div', { class: 'empty' }, 'Нет точек под фильтром')
       );
     }
-    const cellW = 28;
-    const cellH = 22;
-    const left = 200;
-    const top = 44;
-    const width = left + own.length * cellW + 8;
-    const height = top + cells.length * cellH + 4;
-    const svg = el('svg:svg', {
-      viewBox: `0 0 ${width} ${height}`,
-      role: 'img',
-      'aria-label': `Ячейки серии ${key} по батчам`,
-      style: `max-width:${width}px`,
-    });
-    // Дата — у первого батча дня: батчи одного дня идут подряд без повтора подписи.
-    own.forEach((point, column) => {
-      if (column > 0 && dateLabel(own[column - 1].t) === dateLabel(point.t)) return;
-      const cx = left + column * cellW + cellW / 2;
-      svg.append(
+    const go = (point) => {
+      state.heatBatch = point.batch;
+      hideTip();
+      render();
+    };
+    const cells = Object.keys(current.cells);
+    const scenarios = [...new Set(cells.map((cell) => splitCell(cell)[0]))].sort(compareScenarios);
+    const targets = [...new Set(cells.map((cell) => splitCell(cell)[1]))].sort(compareTargets);
+    const before = batches.slice(0, batches.indexOf(current));
+    const cellTip = (cell, value) => {
+      const [passed, total, score, contract] = value;
+      const previous = before.filter((point) => point.cells[cell]).at(-1);
+      const was = previous?.cells[cell];
+      return [
+        el('div', { class: 'head' }, `${dateLabel(current.t, true)} · ${current.batch}`),
         el(
-          'svg:text',
-          { x: cx, y: top - 8, 'text-anchor': 'start', transform: `rotate(-45 ${cx} ${top - 8})` },
-          dateLabel(point.t)
+          'div',
+          { class: 'row' },
+          el('strong', {}, `${passed}/${total}`),
+          el('span', { class: 'name' }, `${cell} — ${STATUS[statusOf(value)].label}`)
+        ),
+        el(
+          'div',
+          { class: 'sub' },
+          `счёт ${score == null ? '—' : score.toFixed(2)} · контракт ${contract ?? '—'}`
+        ),
+        el(
+          'div',
+          { class: 'sub' },
+          was
+            ? `до этого: ${was[0]}/${was[1]} · ${dateLabel(previous.t, true)}` +
+                (was[3] && contract && was[3] !== contract ? ' · контракт был другой' : '')
+            : 'раньше в серии не запускалась'
+        ),
+      ];
+    };
+    const body = [];
+    let form = null;
+    for (const scenario of scenarios) {
+      const [rowForm, , operation] = scenarioParts(scenario);
+      if (rowForm !== form) {
+        form = rowForm;
+        body.push(el('tr', { class: 'group' }, el('th', { colspan: targets.length + 1 }, rowForm)));
+      }
+      body.push(
+        el(
+          'tr',
+          {},
+          el('th', { scope: 'row', title: scenario }, operation),
+          targets.map((target) => {
+            const cell = target ? `${scenario}.${target}` : scenario;
+            const value = current.cells[cell];
+            if (!value) return el('td', {}, el('span', { class: 'tile absent' }, '·'));
+            return el(
+              'td',
+              {},
+              tile(statusOf(value), `${value[0]}/${value[1]}`, {
+                onpointermove: (event) =>
+                  showTip(event.clientX, event.clientY, cellTip(cell, value)),
+                onpointerleave: hideTip,
+              })
+            );
+          })
         )
       );
-    });
-    cells.forEach((cell, row) => {
-      svg.append(
+    }
+    const grid = el(
+      'table',
+      { class: 'grid' },
+      el(
+        'thead',
+        {},
         el(
-          'svg:text',
-          { x: left - 8, y: top + row * cellH + cellH / 2 + 4, 'text-anchor': 'end' },
-          cell
+          'tr',
+          {},
+          el('th', {}, ''),
+          targets.map((target) =>
+            el('th', { scope: 'col', title: target }, target.replace(/^renderer-/, '') || '—')
+          )
         )
-      );
-      own.forEach((point, column) => {
-        const value = point.cells[cell];
-        if (!value) return;
-        const [passed, total, score] = value;
-        const step = score == null ? 1 : Math.min(6, 1 + Math.floor(score * 5.999));
-        const rect = el('svg:rect', {
-          class: 'cell',
-          x: left + column * cellW + 1,
-          y: top + row * cellH + 1,
-          width: cellW - 2,
-          height: cellH - 2,
-          rx: 3,
-          fill: `var(--heat-${step})`,
-          tabindex: -1,
-          onpointermove: (event) =>
-            showTip(event.clientX, event.clientY, [
-              el('div', { class: 'head' }, `${dateLabel(point.t, true)} · ${point.batch}`),
-              el(
-                'div',
-                { class: 'row' },
-                el('strong', {}, score == null ? '—' : score.toFixed(2)),
-                el('span', { class: 'name' }, cell)
-              ),
-              el(
-                'div',
-                { class: 'sub' },
-                `pass ${passed}/${total}${value[3] ? ` · контракт ${value[3]}` : ''}`
-              ),
-            ]),
-          onpointerleave: hideTip,
-        });
-        svg.append(rect);
-        if (total > 0 && passed === total) {
-          svg.append(
-            el(
-              'svg:text',
-              {
-                x: left + column * cellW + cellW / 2,
-                y: top + row * cellH + cellH / 2 + 4,
-                'text-anchor': 'middle',
-                style: `fill:var(--heat-ink-${step});pointer-events:none`,
-              },
-              '✓'
-            )
-          );
-        }
-      });
-    });
-    const scale = el(
-      'div',
-      { class: 'scale' },
-      'счёт 0',
-      [1, 2, 3, 4, 5, 6].map((step) =>
-        el('span', { class: 'swatch', style: `background:var(--heat-${step})` })
       ),
-      '1'
+      el('tbody', {}, body)
+    );
+    const legend = el(
+      'div',
+      { class: 'matrix-legend' },
+      ['good', 'part', 'bad'].map((status) =>
+        el('span', {}, tile(status, '', { class: 'mini' }), STATUS[status].label)
+      ),
+      el('span', {}, el('span', { class: 'tile mini absent' }, '·'), 'в этом батче не запускалась')
     );
     const rows = own.flatMap((point) =>
-      Object.entries(point.cells).map(([cell, [passed, total, score, contract]]) => [
+      Object.entries(point.cells).map(([cell, value]) => [
         dateLabel(point.t, true),
         point.batch,
         cell,
-        `${passed}/${total}`,
-        score == null ? '—' : score.toFixed(2),
-        contract ?? '—',
+        `${value[0]}/${value[1]}`,
+        STATUS[statusOf(value)].label,
+        value[2] == null ? '—' : value[2].toFixed(2),
+        value[3] ?? '—',
       ])
     );
     return el(
       'section',
       { class: 'card' },
       head,
-      el('div', { class: 'table-wrap' }, svg),
-      scale,
-      tableView(['Время', 'Батч', 'Ячейка', 'pass', 'Счёт', 'Контракт'], rows, [3, 4])
+      batchNavigator(batches, current, colorOf.get(key) ?? 'var(--ink-2)', go),
+      el('div', { class: 'table-wrap' }, grid),
+      legend,
+      tableView(['Время', 'Батч', 'Ячейка', 'pass', 'Итог', 'Счёт', 'Контракт'], rows, [3, 5])
     );
   }
 
