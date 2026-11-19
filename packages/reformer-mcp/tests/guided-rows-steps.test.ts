@@ -174,6 +174,49 @@ describe('колонка готового массива и стартовые �
   });
 });
 
+describe('умолчание поля при правке типа (ReFormer-f2fs.38)', () => {
+  const field = (file: Rec, name: string) =>
+    (file.fields as Rec[]).find((record) => record.name === name)!;
+
+  it('тот же тип — умолчание остаётся: скидка черновика спеки сохраняет 0', () => {
+    const spec = readFileSync(resolve(__dirname, '../eval/scenarios/order/spec.md'), 'utf8');
+    const draft = intentFromSpec(spec, 'renderer-react', CATALOGS.uiKit) as unknown as Rec;
+    expect(field(draft, 'discount').initialValue).toBe(0);
+    // Правка модели из прогона r3 батча 20261119T124506Z-bff7 как есть.
+    const { file, outcomes } = applyEdits(
+      draft,
+      [{ op: 'set_field', name: 'discount', type: 'number', component: 'Slider' }],
+      ctx()
+    );
+    expect(outcomes[0].ok).toBe(true);
+    expect(field(file, 'discount').initialValue).toBe(0);
+  });
+
+  it('смена типа: подходящее значение переносится, остальное — пустое значение типа', () => {
+    const start = applyEdits(
+      {},
+      [
+        { op: 'add_field', name: 'count', label: 'Количество', initialValue: '3' },
+        { op: 'add_field', name: 'note', label: 'Заметка', initialValue: 'нет' },
+        { op: 'add_field', name: 'agree', label: 'Согласие', type: 'boolean', initialValue: true },
+      ],
+      ctx()
+    ).file;
+    const { file } = applyEdits(
+      start,
+      [
+        { op: 'set_field', name: 'count', type: 'number' },
+        { op: 'set_field', name: 'note', type: 'number' },
+        { op: 'set_field', name: 'agree', type: 'string' },
+      ],
+      ctx()
+    );
+    expect(field(file, 'count').initialValue).toBe(3);
+    expect(field(file, 'note').initialValue).toBeNull();
+    expect(field(file, 'agree').initialValue).toBe('');
+  });
+});
+
 describe('стартовые строки со своими значениями и флажок строки (ReFormer-f2fs.36)', () => {
   /** Получатели: email и флажок «основной», одна стартовая строка. */
   const recipients = (): Rec =>

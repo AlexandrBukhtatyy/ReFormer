@@ -453,8 +453,24 @@ function fieldRecord(edit: Rec, ctx: EditContext, existing?: Rec): Rec {
         )?.value ?? given)
       : given;
   if (initial !== undefined) record.initialValue = initial;
-  else if (record.initialValue === undefined || typeGiven) record.initialValue = blankOf(type);
+  else if (record.initialValue === undefined) record.initialValue = blankOf(type);
+  // Умолчание сбрасывается только при смене типа: «.type("number")» у скидки, которая и так число с
+  // умолчанием 0 из спеки, давал null — форма начиналась не с 0, сброс при выключении возвращал null
+  // (order-create на renderer-react, батч 20261119T124506Z-bff7, ReFormer-f2fs.38).
+  else if (typeGiven !== undefined && existing?.type !== type)
+    record.initialValue = retypedValue(record.initialValue, type);
   return record;
+}
+
+/** Умолчание при смене типа: подходящее переносится («0» → 0), остальное — пустое значение типа. */
+function retypedValue(value: unknown, type: string): unknown {
+  if (type === 'number') {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string' && /^\s*-?\d+(\.\d+)?\s*$/.test(value)) return Number(value);
+    return blankOf(type);
+  }
+  if (type === 'boolean') return typeof value === 'boolean' ? value : blankOf(type);
+  return typeof value === 'string' ? value : blankOf(type);
 }
 
 // ---------- Раскладка ----------
