@@ -5,7 +5,7 @@ does not — a host with its own language picks its text by the code. Codes come
 
 - `RF0xx` — the codes of `validate_form`. In `kind="bundle"` a finding of the judge is wrapped into
   an `RF` code and keeps its own code at the start of the message (`RF014 … unknown-key: …`).
-- `C1`–`C13` — cross-checks of the intent against the layout it builds.
+- `C1`–`C14` — cross-checks of the intent against the layout it builds.
 - codes of reading and of the judge (`unknown-key`, `unplaced`, …) — what `form_build` prints first in
   a finding line, `<code> at <place>: <what is wrong> → <what to do>`, and what `@reformer/mcp/intent`
   returns in `problems`, `notices`, `errors` and `warnings`.
@@ -19,7 +19,7 @@ The list is complete: a test checks it against the code.
 | `RF001` | INVALID_API_USAGE | An API used against its signature or context; also C1, C9, C12 and module notes of `bundle` | Follow the suggestion; check the signature with `get_symbol_docs` |
 | `RF002` | UNKNOWN_SYMBOL | An `@reformer/*` symbol that does not exist | Take a suggested name or find it: `list_symbols`, `choose_api` |
 | `RF003` | WRONG_PACKAGE | A symbol imported from the wrong package or subpath | Import from the path the diagnostic names |
-| `RF004` | VALIDATION_OUTSIDE_SCHEMA | A validation operator outside the validation schema; also C4 and `lost-message` | Move the call into the validation schema; fix the rule target or its message |
+| `RF004` | VALIDATION_OUTSIDE_SCHEMA | A validation operator outside the validation schema; also C4, C14 and `lost-message` | Move the call into the validation schema; fix the rule target or its message |
 | `RF005` | BEHAVIOR_OUTSIDE_SCHEMA | A behavior operator outside the behavior schema; also C5 | Move the call into the behavior schema; fix the target or source |
 | `RF006` | BEHAVIOR_CYCLE | A cycle in computed fields; also C7 | Break the cycle: one field must not compute from itself through others |
 | `RF007` | INVALID_RENDER_SCHEMA | A wrong layout or form document; also C6, C8, C10, C11, C13, `unplaced` | Fix the node the diagnostic points to |
@@ -50,6 +50,7 @@ The list is complete: a test checks it against the code.
 | `C11` | A layout reference leads to nothing declared |
 | `C12` | An own operator is not declared or cannot be imported |
 | `C13` | Steps mixed with other nodes in one container |
+| `C14` | A field shown or active only on a condition is required always: give the rule the same `when` |
 
 ## Reading problems — the record is not read
 

@@ -328,6 +328,7 @@ const FINDING_RF: Readonly<Record<string, Diagnostic['code']>> = {
   C11: 'RF007',
   C12: 'RF001',
   C13: 'RF007',
+  C14: 'RF004',
   unplaced: 'RF007',
   'lost-message': 'RF004',
   'unknown-component': 'RF008',

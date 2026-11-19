@@ -212,6 +212,36 @@ console.log(await f.save())`,
   );
 
   it(
+    'на core .showWhen() цепочки — enableWhen, правила цепочки получают условие [ReFormer-f2fs.37]',
+    async () => {
+      const tools = catalog();
+      await tools.call(EXECUTE_TOOL, {
+        code: `await reformer.formStart({ dir: "form", target: "core", task: "Покупатель: тип (customerType: person или company), ИНН (company.inn) — только для юрлица: обязательное, ровно 10 цифр. Стек: @reformer/core, разметку пишешь сам в JSX." })`,
+      });
+      // Цепочка r1 батча 20261118T203341Z-edd8 как есть: условие — видимостью, без .when().
+      const built = text(
+        await tools.call(EXECUTE_TOOL, {
+          code: `const f = reformer.form()
+f.add("customerType", "Тип покупателя").options([{ value: "person", label: "Физлицо" }, { value: "company", label: "Юрлицо" }]).initial("person").required()
+f.add("company.inn", "ИНН").required("Введите ИНН").pattern(/^\\d{10}$/, "ИНН — 10 цифр").showWhen(m => m.customerType === "company")
+console.log(await f.save())`,
+        })
+      );
+      expect(built).not.toMatch(/- ✗ /);
+      expect(built).toMatch(/on core the server hides no field — enableWhen instead/);
+      expect(built).toMatch(/^✓ form_build/m);
+      const form = intent();
+      expect(form.visibility ?? []).toEqual([]);
+      const rows = form.validation.filter(
+        (row: { target: string }) => row.target === 'company.inn'
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) expect(row.when).toMatch(/customerType === .company./);
+    },
+    SLOW
+  );
+
+  it(
     'search читает форму, задание и API и ничего не меняет',
     async () => {
       const tools = catalog();

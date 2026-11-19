@@ -48,7 +48,8 @@ export type CrossCheckCode =
   | 'C10'
   | 'C11'
   | 'C12'
-  | 'C13';
+  | 'C13'
+  | 'C14';
 
 export interface CrossCheckIssue {
   code: CrossCheckCode;
@@ -486,6 +487,9 @@ export function crossCheckBundle(
   // смешанный рисовался обычным контейнером со «Step» внутри, и визард молча не работал.
   for (const message of inspectSteps(intent)) err('C13', message);
 
+  // C14 — обязательность без условия у поля, которое видно или активно только при условии.
+  for (const message of inspectConditionalRequired(intent)) warn('C14', message);
+
   checkOperators(intent, opts?.core ?? NO_CORE_OPERATORS, err, warn);
 
   return { ok: errors.length === 0, errors, warnings };
@@ -637,6 +641,78 @@ export function inspectLayoutRefs(intent: FormIntent): { placed: Set<string>; un
   };
   walk(intent.layoutRoot, null, []);
   return { placed, unknown };
+}
+
+/**
+ * C14: правило `required` без `when` у поля, которое видно или активно только при условии. Пока
+ * условие ложно, поле скрыто или выключено, а правило всё равно требует его — форму не отправить
+ * (кнопка модуля проверяет модель целиком, выключенные поля тоже). ИНН «только для юрлица»
+ * требовался и от физлица (order-create на core, батч 20261118T203341Z-edd8, ReFormer-f2fs.37).
+ * Правка guided сама даёт правилу условие, когда видимость или активность стоит на самом поле;
+ * C14 ловит условие на группе (`enableWhen` на `company` при правиле на `company.inn`), на разделе
+ * раскладки и intent, написанный руками. Подсказка — правка с условием показа: в профиле DSL она
+ * печатается кодом конструктора.
+ *
+ * @returns Сообщения C14, по одному на поле.
+ */
+export function inspectConditionalRequired(intent: FormIntent): string[] {
+  const paths = intent.fields.map((field) => field.modelPath ?? field.name);
+  const under = (prefix: string): string[] =>
+    paths.filter((path) => path === prefix || path.startsWith(`${prefix}.`));
+  // Раздел раскладки с селектором — поля под ним.
+  const sections = new Map<string, string[]>();
+  const walk = (node: LayoutNode | undefined, owners: string[]): void => {
+    if (!node || typeof node !== 'object') return;
+    if (node.kind === 'field') {
+      for (const owner of owners) sections.get(owner)?.push(node.ref);
+      return;
+    }
+    if (node.kind !== 'container' && node.kind !== 'step') return;
+    const next = node.selector ? [...owners, node.selector] : owners;
+    if (node.selector && !sections.has(node.selector)) sections.set(node.selector, []);
+    for (const child of node.children ?? []) walk(child, next);
+  };
+  walk(intent.layoutRoot, []);
+
+  /** Поле → условие, при котором оно видно и активно (выражение над model). */
+  const live = new Map<string, string>();
+  const mark = (fields: string[], condition: string): void => {
+    for (const field of fields) if (!live.has(field)) live.set(field, condition);
+  };
+  // «!(x)» и «!model.price» — без отрицания; иначе — в скобки.
+  const negate = (expr: string): string => {
+    const inner = /^!\((.*)\)$/.exec(expr.trim()) ?? /^!\s*([\w$.]+)$/.exec(expr.trim());
+    return inner ? inner[1] : `!(${expr.trim()})`;
+  };
+  for (const row of intent.visibility ?? []) {
+    if (typeof row.condition !== 'string' || row.condition.trim() === '') continue;
+    mark(sections.get(row.selector) ?? under(row.selector), negate(row.condition));
+  }
+  for (const row of intent.behavior ?? []) {
+    if (row.each !== undefined || typeof row.expr !== 'string' || row.expr.trim() === '') continue;
+    if (row.kind === 'enableWhen') mark(under(row.target), row.expr.trim());
+    if (row.kind === 'disableWhen') mark(under(row.target), negate(row.expr));
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const rule of intent.validation ?? []) {
+    if (rule.when !== undefined || rule.each !== undefined || seen.has(rule.target)) continue;
+    if (!(rule.rules ?? []).some((call) => /^\s*required\s*\(/.test(call))) continue;
+    const condition = live.get(rule.target);
+    if (condition === undefined) continue;
+    seen.add(rule.target);
+    const fix = JSON.stringify({
+      op: 'add_rule',
+      field: rule.target,
+      required: true,
+      when: condition,
+    });
+    out.push(
+      `\`${rule.target}\` is shown and active only when ${condition}, but it is required always — while the condition is false the form cannot be sent. The rule with the condition: ${fix}`
+    );
+  }
+  return out;
 }
 
 /**

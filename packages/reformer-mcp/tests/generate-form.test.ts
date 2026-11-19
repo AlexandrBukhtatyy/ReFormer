@@ -30,7 +30,7 @@ import {
   buildBehaviorTs,
   collectUsedComponents,
 } from '../src/core/generate/builders.js';
-import { crossCheckBundle } from '../src/core/generate/cross-check.js';
+import { crossCheckBundle, inspectConditionalRequired } from '../src/core/generate/cross-check.js';
 import { groupUiKitImports } from '../src/core/generate/ui-kit-components.js';
 import { buildFormSchemaJson } from '../src/core/generate/schema-emit.js';
 import { planFormTool } from '../src/core/tools/plan-form';
@@ -992,6 +992,104 @@ describe('cross-check', () => {
     };
     const messages = run(intent).errors.filter((e) => e.code === 'C11');
     expect(messages.map((e) => e.message).join()).toMatch(/ghost.*ghostRows.*ghostPart/);
+  });
+
+  it('C14 — обязательное всегда поле, видное только при условии: предупреждение с правкой [ReFormer-f2fs.37]', () => {
+    const intent = goodIntent();
+    // currency скрыта, пока не введена цена, — а обязательна всегда.
+    intent.validation.push({ target: 'currency', rules: ['required()'] });
+    const report = run(intent);
+    expect(report.ok).toBe(true);
+    const c14 = report.warnings.filter((w) => w.code === 'C14');
+    expect(c14).toHaveLength(1);
+    expect(c14[0].message).toMatch(
+      /`currency` is shown and active only when model\.price, but it is required always/
+    );
+    expect(c14[0].message).toContain(
+      '{"op":"add_rule","field":"currency","required":true,"when":"model.price"}'
+    );
+  });
+
+  it('C14 — условие на группе и на разделе раскладки; правило с when — без предупреждения', () => {
+    const base = (): FormIntent =>
+      normalizeIntent({
+        formName: 'Buyer',
+        target: 'renderer-react',
+        fields: [
+          {
+            name: 'customerType',
+            type: 'string',
+            component: 'RadioGroup',
+            componentProps: { options: ['person', 'company'] },
+          },
+          { name: 'company.name', type: 'string', component: 'Input' },
+          { name: 'company.inn', type: 'string', component: 'Input' },
+          { name: 'birthDate', type: 'string', component: 'Input' },
+        ],
+        validation: [
+          { target: 'company.name', rules: ['required()'] },
+          { target: 'company.inn', rules: ['required()', 'pattern(/^\\d{10}$/)'] },
+          {
+            target: 'birthDate',
+            rules: ['required()'],
+            when: "model.customerType === 'person'",
+          },
+        ],
+      });
+
+    // enableWhen на группе `company`, правила — на её полях.
+    const group = base();
+    group.behavior.push({
+      kind: 'enableWhen',
+      target: 'company',
+      sources: ['customerType'],
+      expr: "model.customerType === 'company'",
+    });
+    group.behavior.push({
+      kind: 'disableWhen',
+      target: 'birthDate',
+      sources: ['customerType'],
+      expr: "model.customerType !== 'person'",
+    });
+    expect(inspectConditionalRequired(group)).toEqual([
+      expect.stringMatching(
+        /^`company\.name` is shown and active only when model\.customerType === 'company'/
+      ),
+      expect.stringMatching(
+        /^`company\.inn` is shown and active only when model\.customerType === 'company'/
+      ),
+    ]);
+
+    // Раздел раскладки с селектором скрыт для физлица.
+    const section = base();
+    section.layoutRoot = {
+      kind: 'container',
+      component: 'Box',
+      children: [
+        { kind: 'field', ref: 'customerType' },
+        {
+          kind: 'container',
+          component: 'Box',
+          selector: 'company-section',
+          children: [
+            { kind: 'field', ref: 'company.name' },
+            { kind: 'field', ref: 'company.inn' },
+          ],
+        },
+        { kind: 'field', ref: 'birthDate' },
+      ],
+    };
+    section.visibility.push({
+      selector: 'company-section',
+      condition: "!(model.customerType === 'company')",
+    });
+    expect(inspectConditionalRequired(section).map((m) => m.split(' ')[0])).toEqual([
+      '`company.name`',
+      '`company.inn`',
+    ]);
+
+    // Без условий у полей — молчит.
+    expect(inspectConditionalRequired(base())).toEqual([]);
   });
 });
 

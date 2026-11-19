@@ -2810,11 +2810,6 @@ function removeBehavior(file: Rec, edit: Rec): string {
 }
 
 function addVisibility(file: Rec, edit: Rec, ctx: EditContext): string {
-  if (ctx.target === 'core') {
-    throw new EditError(
-      'on core visibility is drawn by your JSX — use add_behavior "kind":"enableWhen" (the field is active only on the condition)'
-    );
-  }
   // Несколько полей с одним условием — модель писала «fields»: [...] (L3-delivery).
   const targets = names(edit, 'fields');
   // «"target":"address,deliveryDate"» — список полей через запятую.
@@ -2832,6 +2827,7 @@ function addVisibility(file: Rec, edit: Rec, ctx: EditContext): string {
   const hideGiven = showGiven ? undefined : text(edit, 'hideWhen');
   if (!showGiven && !hideGiven)
     throw new EditError('give "showWhen" (or "hideWhen") — a condition over the form');
+  if (ctx.target === 'core') return activeOnCore(file, fields, showGiven, hideGiven);
   const show = showGiven ? conditionOf(showGiven, file) : undefined;
   const hide = hideGiven ? conditionOf(hideGiven, file) : undefined;
   if (!show && !hide)
@@ -2842,6 +2838,32 @@ function addVisibility(file: Rec, edit: Rec, ctx: EditContext): string {
     gated += rulesWhileShown(file, field, show ?? `!(${hide})`);
   }
   return `${fields.map((field) => `\`${field}\``).join(', ')} ${show ? `shown only when ${show}` : `hidden when ${hide}`}${gated ? `; its rules are checked only while shown` : ''}`;
+}
+
+/**
+ * Видимость на core — активность поля. Разметку core сервер не прячет, и `showWhen` прежде
+ * отвергался («use enableWhen»), а правила той же цепочки ложились безусловно: ИНН «только для
+ * юрлица» становился обязателен и физлицу, и форма физлица не проходила (order-create на core,
+ * r1 и r3 батча 20261118T203341Z-edd8, ReFormer-f2fs.37). Теперь условие показа — enableWhen
+ * (скрытия — disableWhen): поле активно только при нём, а его правила проверяются только тогда.
+ */
+function activeOnCore(
+  file: Rec,
+  fields: string[],
+  show: string | undefined,
+  hide: string | undefined
+): string {
+  const arrays = fields.filter((field) => findArray(file, field));
+  if (arrays.length > 0) {
+    throw new EditError(
+      `on core the server hides nothing: \`${arrays[0]}\` is rows — a condition on its columns: add_behavior "kind":"enableWhen" with "array"`
+    );
+  }
+  const kind = show ? 'enableWhen' : 'disableWhen';
+  const lines = fields.map((field) =>
+    addBehavior(file, { op: 'add_behavior', kind, target: field, expr: show ?? hide })
+  );
+  return `on core the server hides no field — ${kind} instead: ${lines.join('; ')}`;
 }
 
 function setForm(file: Rec, edit: Rec): string {

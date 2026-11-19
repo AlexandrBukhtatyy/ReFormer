@@ -328,6 +328,54 @@ describe('условно активное поле, пересоздание, м
     }
   });
 
+  it('на core showWhen — enableWhen, hideWhen — disableWhen: правила цепочки не безусловны [ReFormer-f2fs.37]', () => {
+    // Цепочка f.field("giftMessage").required().maxLength(200).showWhen(…) — правила раньше видимости.
+    const shown = applyEdits(
+      giftForm(),
+      [
+        { op: 'add_rule', field: 'giftMessage', required: true, maxLength: 200 },
+        { op: 'add_visibility', field: 'giftMessage', showWhen: 'model.giftWrap === true' },
+      ],
+      ctx('core')
+    );
+    expect(messages(shown.outcomes)[1]).toMatch(
+      /^✓ on core the server hides no field — enableWhen instead: enableWhen on `giftMessage`.*its rules are checked only while it is active/
+    );
+    expect(shown.file.visibility ?? []).toEqual([]);
+    expect(shown.file.behavior).toEqual([
+      expect.objectContaining({
+        kind: 'enableWhen',
+        target: 'giftMessage',
+        expr: 'model.giftWrap === true',
+      }),
+    ]);
+    const rows = (shown.file.validation as Rec[]).filter((row) => row.target === 'giftMessage');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.when).toBe('model.giftWrap === true');
+
+    const hidden = applyEdits(
+      giftForm(),
+      [{ op: 'add_visibility', field: 'giftMessage', hideWhen: 'model.giftWrap !== true' }],
+      ctx('core')
+    );
+    expect(hidden.outcomes[0].ok).toBe(true);
+    expect((hidden.file.behavior as Rec[])[0]).toMatchObject({
+      kind: 'disableWhen',
+      target: 'giftMessage',
+    });
+
+    // Строки на core не скрыть и не выключить целиком — отказ с подсказкой.
+    const rowsForm = applyEdits(
+      giftForm(),
+      [
+        { op: 'add_array', name: 'cards', label: 'Открытки' },
+        { op: 'add_visibility', field: 'cards', showWhen: 'model.giftWrap === true' },
+      ],
+      ctx('core')
+    );
+    expect(messages(rowsForm.outcomes)[1]).toMatch(/^✗ .*`cards` is rows/);
+  });
+
   it('удалить и добавить снова — предупреждение о потерянном сбросе и поведении', () => {
     const start = applyEdits(
       giftForm(),
