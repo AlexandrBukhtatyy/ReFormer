@@ -7,6 +7,8 @@
  * Данные (~110 КБ) грузятся отдельным чанком после монтирования: в HTML страницы — только рамки
  * фиксированной высоты, подписи и легенда, раскладка не прыгает. Перекрестье общее для трёх
  * графиков; оно и подсказка — слой поверх линий, движение курсора пути не перерисовывает.
+ * Подсказка рисуется в document.body по координатам окна: контейнер графиков прокручивается по
+ * горизонтали и обрезал бы её у своих краёв.
  */
 import {
   type CSSProperties,
@@ -14,12 +16,15 @@ import {
   type PointerEvent,
   type Ref,
   type ReactNode,
+  type RefObject,
   memo,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import Translate, { translate } from '@docusaurus/Translate';
 import { LIB_ORDER, isDashed, libStyle } from './colors';
@@ -224,6 +229,16 @@ function TracePlots({
   const x = frac * trace.total;
   const hit = cursor ? phaseAt(trace.phases, x) : null;
 
+  // Подсказка стоит по координатам окна: при прокрутке страницы или контейнера она отстала бы от
+  // перекрестья — прячем её до следующего движения курсора.
+  const shown = cursor !== null;
+  useEffect(() => {
+    if (!shown) return undefined;
+    const hide = () => setCursor(null);
+    window.addEventListener('scroll', hide, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', hide, { capture: true });
+  }, [shown]);
+
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const plot = plotRef.current?.getBoundingClientRect();
     const layer = layerRef.current?.getBoundingClientRect();
@@ -309,6 +324,8 @@ function TracePlots({
             x={x}
             frac={frac}
             y={cursor.y}
+            plotRef={plotRef}
+            layerRef={layerRef}
             hit={hit}
             form={form}
             t={t}
@@ -494,6 +511,10 @@ function tooltipText(
   return [phaseLine(hit, form, t), ...rows].filter(Boolean).join('. ');
 }
 
+/** Отступ подсказки от перекрестья и от краёв окна, px. */
+const TIP_GAP = 14;
+const TIP_EDGE = 8;
+
 function Tooltip({
   lines,
   libs,
@@ -503,28 +524,45 @@ function Tooltip({
   hit,
   form,
   t,
+  plotRef,
+  layerRef,
 }: {
   trace: TraceForm;
   lines: Lines;
   libs: string[];
   x: number;
   frac: number;
+  /** Курсор по вертикали, px от верха слоя графиков. */
   y: number;
   hit: ReturnType<typeof phaseAt>;
   form: BenchForm;
   t: BenchText;
+  plotRef: RefObject<HTMLDivElement | null>;
+  layerRef: RefObject<HTMLDivElement | null>;
 }): ReactNode {
-  const right = frac > 0.55;
-  return (
-    <div
-      className={styles.tooltip}
-      aria-hidden="true"
-      style={{
-        left: `calc(var(--gl) + (100% - var(--gl) - var(--gr)) * ${frac})`,
-        top: `${Math.max(0, y - 12)}px`,
-        transform: right ? 'translateX(calc(-100% - 14px))' : 'translateX(14px)',
-      }}
-    >
+  const ref = useRef<HTMLDivElement>(null);
+  // Справа от перекрестья, у правого края окна — слева от него; по вертикали — у курсора. Размер
+  // известен только после отрисовки, поэтому позиция ставится до кадра, а до неё подсказка скрыта.
+  useLayoutEffect(() => {
+    const node = ref.current;
+    const plot = plotRef.current?.getBoundingClientRect();
+    const layer = layerRef.current?.getBoundingClientRect();
+    if (!node || !plot || !layer) return;
+    const { width, height } = node.getBoundingClientRect();
+    const anchorX = plot.left + plot.width * frac;
+    let left = anchorX + TIP_GAP;
+    if (left + width > window.innerWidth - TIP_EDGE) left = anchorX - TIP_GAP - width;
+    left = Math.max(TIP_EDGE, Math.min(left, window.innerWidth - width - TIP_EDGE));
+    const top = Math.max(
+      TIP_EDGE,
+      Math.min(layer.top + y - 12, window.innerHeight - height - TIP_EDGE)
+    );
+    node.style.left = `${left}px`;
+    node.style.top = `${top}px`;
+    node.style.visibility = 'visible';
+  });
+  return createPortal(
+    <div ref={ref} className={styles.tooltip} aria-hidden="true">
       <div className={clsx(styles.tipHead, hit && !hit.inWindow && styles.tipGap)}>
         {phaseLine(hit, form, t)}
       </div>
@@ -555,7 +593,8 @@ function Tooltip({
           ))}
         </tbody>
       </table>
-    </div>
+    </div>,
+    document.body
   );
 }
 

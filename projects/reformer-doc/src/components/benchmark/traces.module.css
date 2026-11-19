@@ -227,11 +227,20 @@
 }
 
 /* ── Подсказка ─────────────────────────────────────────────────────────── */
+/*
+ * Подсказка — в document.body, по координатам окна (TraceCharts.tsx ставит left/top и делает её
+ * видимой после замера). Ширина — по содержимому, но не шире окна: длинные заголовки столбцов
+ * переносятся, а не вылезают за рамку.
+ */
 .tooltip {
-  position: absolute;
-  z-index: 2;
-  min-width: 17rem;
-  max-width: 24rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--ifm-z-index-overlay);
+  visibility: hidden;
+  width: max-content;
+  min-width: min(17rem, calc(100vw - 16px));
+  max-width: min(26rem, calc(100vw - 16px));
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: 8px;
@@ -280,6 +289,8 @@
 .tipTable thead th {
   font-size: 0.68rem;
   font-weight: 400;
+  white-space: normal;
+  vertical-align: bottom;
   color: var(--ifm-color-emphasis-700);
 }
 
