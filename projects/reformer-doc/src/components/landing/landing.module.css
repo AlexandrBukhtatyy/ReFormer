@@ -36,6 +36,20 @@
   color: var(--ifm-color-emphasis-800);
 }
 
+/* ── Какие задачи решает ───────────────────────────────────────────────── */
+/* Шесть карточек — сетка 3×2: главная мысль и пять ролей. Карточки — те же, что у экосистемы. */
+.whyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+/* Двойной класс: `.pkgCard` объявлен ниже и при равной специфичности перебил бы фон и рамку. */
+.pkgCard.whyCardRoot {
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 70%, transparent);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-surface-color));
+}
+
 /* ── Экосистема ────────────────────────────────────────────────────────── */
 .pkgGrid {
   display: grid;
@@ -252,6 +266,7 @@
 
 @media screen and (max-width: 1200px) {
   .pkgGrid,
+  .whyGrid,
   .featureList {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -268,6 +283,7 @@
   }
 
   .pkgGrid,
+  .whyGrid,
   .featureList {
     grid-template-columns: minmax(0, 1fr);
   }

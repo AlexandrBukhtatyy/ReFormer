@@ -57,6 +57,7 @@ const sidebars: SidebarsConfig = {
   // поведение, React, паттерны) + Core API Reference (typedoc). ──────────────
   coreSidebar: [
     'intro',
+    'why-reformer',
     {
       type: 'category',
       label: 'Начало работы',

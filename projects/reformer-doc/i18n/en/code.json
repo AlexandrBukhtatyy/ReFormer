@@ -1529,5 +1529,176 @@
   },
   "homepage.builder.code.text": {
     "message": "Export prints a TypeScript form module: schema, model, rules, behavior, page. Edits go into the same JSON form file that lives in your repository."
+  },
+  "homepage.why.kicker": {
+    "message": "What it solves"
+  },
+  "homepage.why.title": {
+    "message": "One standard for every form in the project"
+  },
+  "homepage.why.lead": {
+    "message": "A form is values, rules, reactions to input, steps and submission. ReFormer gives them one way of writing. That brings readable code, easy review and maintenance — whoever wrote the form: a person, an AI assistant or the builder."
+  },
+  "homepage.why.more": {
+    "message": "Read more →"
+  },
+  "homepage.why.standard.role": {
+    "message": "The key idea"
+  },
+  "homepage.why.standard.title": {
+    "message": "One standard, many consequences"
+  },
+  "homepage.why.standard.p1": {
+    "message": "Every form is written the same way: model, schema, rules, behavior"
+  },
+  "homepage.why.standard.p2": {
+    "message": "Hence readability, less cognitive load and painless review"
+  },
+  "homepage.why.standard.p3": {
+    "message": "The MCP server and the builder write to the same standard"
+  },
+  "homepage.why.developer.role": {
+    "message": "For developers"
+  },
+  "homepage.why.developer.title": {
+    "message": "No useEffect chains, no extra re-renders"
+  },
+  "homepage.why.developer.p1": {
+    "message": "Typing re-renders only its own field"
+  },
+  "homepage.why.developer.p2": {
+    "message": "Rules, calculations, arrays and steps — declaratively"
+  },
+  "homepage.why.developer.p3": {
+    "message": "Typed fields and logic tests without React"
+  },
+  "homepage.why.team.role": {
+    "message": "For leads and reviewers"
+  },
+  "homepage.why.team.title": {
+    "message": "Every form in the project is built the same way"
+  },
+  "homepage.why.team.p1": {
+    "message": "A form file is found by its name, not by searching"
+  },
+  "homepage.why.team.p2": {
+    "message": "A rule change is a diff in one file"
+  },
+  "homepage.why.team.p3": {
+    "message": "Someone else's form reads like your own"
+  },
+  "homepage.why.ai.role": {
+    "message": "With an AI assistant"
+  },
+  "homepage.why.ai.title": {
+    "message": "AI code you can review"
+  },
+  "homepage.why.ai.p1": {
+    "message": "The MCP server writes to the same standard"
+  },
+  "homepage.why.ai.p2": {
+    "message": "“Done” only after a build and a type check"
+  },
+  "homepage.why.ai.p3": {
+    "message": "96% of runs pass the checks against 83% without MCP, 4.4 times cheaper"
+  },
+  "homepage.why.builder.role": {
+    "message": "For product and analysts"
+  },
+  "homepage.why.builder.title": {
+    "message": "The form in the editor, the code in the repo"
+  },
+  "homepage.why.builder.p1": {
+    "message": "Build it with the mouse or by asking in plain words"
+  },
+  "homepage.why.builder.p2": {
+    "message": "Export is a plain ReFormer module, not tied to the editor"
+  },
+  "homepage.why.builder.p3": {
+    "message": "Your own UI kit and your own AI model"
+  },
+  "homepage.why.platform.role": {
+    "message": "For architects"
+  },
+  "homepage.why.platform.title": {
+    "message": "Forms across teams and from the server"
+  },
+  "homepage.why.platform.p1": {
+    "message": "Micro-frontends: one team registers a form, another mounts it"
+  },
+  "homepage.why.platform.p2": {
+    "message": "A form from a JSON document — 3.5 times lighter than RJSF in the benchmark"
+  },
+  "homepage.why.platform.p3": {
+    "message": "Your own design system on top of headless components"
+  },
+  "diagram.standardEffects.title": {
+    "message": "One form standard and its consequences"
+  },
+  "diagram.standardEffects.caption": {
+    "message": "A person, MCP and the builder write a form the same way, so the consequences of the standard apply to any form code — whoever wrote it."
+  },
+  "diagram.standardEffects.human": {
+    "message": "Person"
+  },
+  "diagram.standardEffects.human.sub": {
+    "message": "writes by hand"
+  },
+  "diagram.standardEffects.mcp.sub": {
+    "message": "AI assistant"
+  },
+  "diagram.standardEffects.builder": {
+    "message": "Builder"
+  },
+  "diagram.standardEffects.builder.sub": {
+    "message": "visual editor"
+  },
+  "diagram.standardEffects.writes": {
+    "message": "follow the standard"
+  },
+  "diagram.standardEffects.root": {
+    "message": "One form standard"
+  },
+  "diagram.standardEffects.root.sub": {
+    "message": "model · schema · rules · behavior"
+  },
+  "diagram.standardEffects.effects": {
+    "message": "Consequences"
+  },
+  "diagram.standardEffects.readability": {
+    "message": "Readability"
+  },
+  "diagram.standardEffects.readability.sub": {
+    "message": "one file, one question"
+  },
+  "diagram.standardEffects.load": {
+    "message": "Less mental load"
+  },
+  "diagram.standardEffects.load.sub": {
+    "message": "less to keep in mind"
+  },
+  "diagram.standardEffects.review": {
+    "message": "Painless review"
+  },
+  "diagram.standardEffects.review.sub": {
+    "message": "a change is a one-file diff"
+  },
+  "diagram.standardEffects.maintenance": {
+    "message": "Maintenance"
+  },
+  "diagram.standardEffects.maintenance.sub": {
+    "message": "markup and rules apart"
+  },
+  "diagram.standardEffects.onboarding": {
+    "message": "Onboarding"
+  },
+  "diagram.standardEffects.onboarding.sub": {
+    "message": "a file is found by name"
+  },
+  "diagram.standardEffects.aiCode": {
+    "message": "AI code is plain"
+  },
+  "diagram.standardEffects.aiCode.sub": {
+    "message": "a person edits it too"
   }
 }

@@ -7,6 +7,7 @@ import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import Ecosystem from '@site/src/components/landing/Ecosystem';
 import BuilderShowcase from '@site/src/components/landing/BuilderShowcase';
+import WhyReformer from '@site/src/components/landing/WhyReformer';
 import LandingBenchmark from '@site/src/components/benchmark/LandingBenchmark';
 
 import styles from './index.module.css';
@@ -62,6 +63,7 @@ export default function Home(): ReactNode {
     >
       <HomepageHeader />
       <main>
+        <WhyReformer />
         <LandingBenchmark />
         <Ecosystem />
         <BuilderShowcase />
