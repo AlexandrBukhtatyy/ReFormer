@@ -64,6 +64,12 @@ export const lazyModules: readonly (readonly [specifier: string, load: () => Pro
     // Русские тексты замечаний ядра: по ним кодоген печатает словарь формы
     // (`validation/messages.ts`) — тем же переводом, что у локали, а не своей копией строк.
     ['@reformer/core/locale/ru', () => import('@reformer/core/locale/ru')],
+    // Уровни UI над моделью. Таблицу просит DataGrid кита (`@reformer/ui-kit/table`): без записи
+    // превью взяло бы вторую копию ядра — со своей областью и своими сигналами.
+    ['@reformer/core/table', () => import('@reformer/core/table')],
+    ['@reformer/core/resource', () => import('@reformer/core/resource')],
+    ['@reformer/core/theme', () => import('@reformer/core/theme')],
+    ['@reformer/core/language', () => import('@reformer/core/language')],
     ['@reformer/form-registry', () => import('@reformer/form-registry')],
     ['@reformer/form-registry/react', () => import('@reformer/form-registry/react')],
     ['@reformer/form-registry/storage', () => import('@reformer/form-registry/storage')],

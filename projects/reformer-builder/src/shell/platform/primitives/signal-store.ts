@@ -15,7 +15,7 @@
  * @module shell/platform/primitives/signal-store
  */
 
-import { effect, signal, untracked, type ReadonlySignal } from '@reformer/core/signals';
+import { effect, untracked, type ReadonlySignal } from '@reformer/core/signals';
 import { getCurrentScope, onScopeDispose } from '@reformer/core/model';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 
@@ -47,11 +47,8 @@ export const logListenerErrors =
   };
 
 /**
- * Сигнал над событийным источником: значение — `read()`, обновляется по событию источника.
- *
- * Подписка берётся сразу, а не при первом читателе: `get()` без подписчиков (команда, проверка
- * перед закрытием) обязан видеть свежее значение. Подписка принадлежит текущей области; вне
- * области её некому снять — в разработке ядро об этом предупредит.
+ * Сигнал над событийным источником — теперь примитив ядра (`@reformer/core/model`): на нём же
+ * стоят уровни темы и языка. Ре-экспорт оставлен, чтобы места импорта оболочки не менялись.
  *
  * @example
  * ```ts
@@ -61,17 +58,7 @@ export const logListenerErrors =
  * );
  * ```
  */
-export function signalFrom<T>(
-  read: () => T,
-  subscribe: (onChange: () => void) => Disposable
-): ReadonlySignal<T> {
-  const value = signal(read());
-  const subscription = subscribe(() => {
-    value.value = read();
-  });
-  onScopeDispose(() => subscription.dispose());
-  return value;
-}
+export { signalFrom } from '@reformer/core/model';
 
 /**
  * Порт `{ get, subscribe }` над сигналом.

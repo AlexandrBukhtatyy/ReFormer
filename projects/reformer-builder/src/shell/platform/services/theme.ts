@@ -23,11 +23,11 @@
  * @module shell/platform/services/theme
  */
 
-import { createStore, onScopeDispose } from '@reformer/core/model';
-import { computed, untracked } from '@reformer/core/signals';
+import { createStore, onScopeDispose, watchField } from '@reformer/core/model';
+import { signal } from '@reformer/core/signals';
+import { createTheme, type ThemeTarget } from '@reformer/core/theme';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { createEventBus } from '@/shell/platform/primitives/event';
-import { signalFrom } from '@/shell/platform/primitives/signal-store';
 import { defineEvent } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import {
@@ -123,13 +123,19 @@ export function createThemeService(options: ThemeServiceOptions): HostThemeServi
     return isThemePreference(stored) ? stored : 'system';
   };
 
-  const apply = (theme: ThemeKind): void => {
-    if (root === null) return;
-    if (theme === 'dark') root.classList.add(DARK_CLASS);
-    else root.classList.remove(DARK_CLASS);
-  };
+  // Цель уровня темы: класс кита на корне оболочки. Корень — своя узкая форма (`ThemeRoot`), а не
+  // `HTMLElement`, поэтому цель своя, а не `documentTheme` ядра.
+  const target: ThemeTarget | null =
+    root === null
+      ? null
+      : {
+          apply(theme: ThemeKind): void {
+            if (theme === 'dark') root.classList.add(DARK_CLASS);
+            else root.classList.remove(DARK_CLASS);
+          },
+        };
 
-  return createStore((scope) => {
+  return createStore(() => {
     // Умолчание — до первого чтения предпочтения: без него `get` вернул бы `undefined`.
     const defaultRegistration = settings.registerDefault<ThemePreference>(
       THEME_SETTINGS_KEY,
@@ -137,44 +143,36 @@ export function createThemeService(options: ThemeServiceOptions): HostThemeServi
     );
     onScopeDispose(() => defaultRegistration.dispose());
 
-    const preference = signalFrom(readPreference, (onChange) =>
-      settings.onDidChange((key) => {
-        if (key === THEME_SETTINGS_KEY) onChange();
-      })
-    );
-    // Подписку на систему держим всегда, а не только при `system`: иначе возврат к «как
-    // в системе» требовал бы завести её заново, и до первого переключения ОС тема осталась
-    // бы прежней.
-    const systemTheme = signalFrom(
-      () => system.current(),
-      (onChange) => system.subscribe(() => onChange())
-    );
-    /**
-     * Тема из настроек и системы. Один расчёт на все источники изменения (запись настройки,
-     * правка настройки снаружи, переключение системы) — иначе появились бы две ветки,
-     * применяющие класс по-разному. Новое значение — только при смене темы.
-     */
-    const theme = computed(
-      (): ThemeKind => (preference.value === 'system' ? systemTheme.value : preference.value)
-    );
-
-    let initial = true;
-    scope.effect(() => {
-      const next = theme.value;
-      apply(next);
-      if (initial) {
-        initial = false;
-        return;
-      }
-      untracked(() => bus.emit(ThemeDidChange, next));
+    // Предпочтение живёт в настройках: и запись из `setPreference`, и правка снаружи приходят
+    // одним путём — подпиской на настройку.
+    const preference = signal<ThemePreference>(readPreference());
+    const subscription = settings.onDidChange((key) => {
+      if (key === THEME_SETTINGS_KEY) preference.value = readPreference();
     });
+    onScopeDispose(() => subscription.dispose());
+
+    // Расчёт «предпочтение × система» и применение к корню — уровень темы ядра. Подписку на
+    // систему он держит всегда: возврат к «как в системе» сразу подхватывает её тему.
+    const theme = createTheme({
+      preference,
+      system: {
+        current: () => system.current(),
+        subscribe(onChange) {
+          const listening = system.subscribe(() => onChange());
+          return () => listening.dispose();
+        },
+      },
+      target,
+    });
+    // Событие — только на смену действующей темы, без первого прогона.
+    watchField(theme.resolved, (next) => bus.emit(ThemeDidChange, next));
 
     return {
       get theme(): ThemeKind {
-        return theme.peek();
+        return theme.resolved.peek();
       },
       get preference(): ThemePreference {
-        return preference.peek();
+        return theme.preference.peek();
       },
 
       async setPreference(next: ThemePreference): Promise<void> {
