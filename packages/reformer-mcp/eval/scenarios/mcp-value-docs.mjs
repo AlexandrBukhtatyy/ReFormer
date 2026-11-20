@@ -134,7 +134,6 @@ const data = {
       arm,
       {
         ...summarize(byArm(arm)),
-        targets: byTarget(byArm(arm)),
         operations: Object.fromEntries(
           OPERATIONS.map((kind) => {
             const runs = byArm(arm, (row) => kindOf(row) === kind);

@@ -195,8 +195,9 @@ needed.
 - **The check** — static (types, stack, file layout) and behavioral: probes from the scenario
   contract fill the form and compare values, rule errors, reactions and wizard steps. A run
   **passes** when every required check passes; the **score** is the share of passed checks.
-- **Order** — one run at a time, no parallelism; the arms alternate within every cell, so API speed
-  changes over the hours of the measurement fall on all arms alike.
+- **Order** — one run at a time, no parallelism; every “scenario × stack” cell goes through all
+  three arms back to back, so API speed changes over the hours of the measurement fall on all arms
+  almost alike.
 - **Cost and tokens** — from the Claude Code report of the run; input tokens include cache reads
   and writes.
 

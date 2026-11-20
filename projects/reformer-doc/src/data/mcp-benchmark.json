@@ -19,20 +19,6 @@
       "outputMedian": 7780,
       "inputMedian": 179587,
       "mcpCalls": 0,
-      "targets": {
-        "core": {
-          "runs": 30,
-          "passes": 25
-        },
-        "renderer-json": {
-          "runs": 30,
-          "passes": 21
-        },
-        "renderer-react": {
-          "runs": 30,
-          "passes": 29
-        }
-      },
       "operations": {
         "create": {
           "runs": 27,
@@ -89,20 +75,6 @@
       "outputMedian": 3797,
       "inputMedian": 137817,
       "mcpCalls": 329,
-      "targets": {
-        "core": {
-          "runs": 30,
-          "passes": 25
-        },
-        "renderer-json": {
-          "runs": 30,
-          "passes": 24
-        },
-        "renderer-react": {
-          "runs": 30,
-          "passes": 24
-        }
-      },
       "operations": {
         "create": {
           "runs": 27,
@@ -147,20 +119,6 @@
       "outputMedian": 2060,
       "inputMedian": 125535,
       "mcpCalls": 658,
-      "targets": {
-        "core": {
-          "runs": 30,
-          "passes": 29
-        },
-        "renderer-json": {
-          "runs": 30,
-          "passes": 27
-        },
-        "renderer-react": {
-          "runs": 30,
-          "passes": 30
-        }
-      },
       "operations": {
         "create": {
           "runs": 27,
