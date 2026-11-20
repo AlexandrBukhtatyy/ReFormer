@@ -18,6 +18,7 @@ import DatePickerDemo from './pages/demo/date-picker/DatePickerDemo';
 import InputSuggestDemo from './pages/demo/input-suggest/InputSuggestDemo';
 import FieldTooltipsDemo from './pages/demo/field-tooltips/FieldTooltipsDemo';
 import TreeDemo from './pages/demo/tree/TreeDemo';
+import UiLevelsDemo from './pages/demo/ui-levels/UiLevelsDemo';
 import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
 import BuilderAbBench from './pages/debug/builder-ab';
@@ -49,6 +50,7 @@ type ExamplePage =
   | 'input-suggest'
   | 'field-tooltips'
   | 'tree'
+  | 'ui-levels'
   | 'form-registry-lab'
   | 'ui-builder'
   | 'builder-ab';
@@ -173,6 +175,13 @@ const exampleGroups: ExampleGroup[] = [
         title: 'Подсказки-иконки (i)',
         description:
           'labelTooltip — иконка после подписи (FormField), tooltip — иконка в самом контроле: Input/Select внутри, Checkbox/Radio после текста',
+      },
+      {
+        id: 'ui-levels',
+        path: '/demo/ui-levels',
+        title: 'Уровни UI: тема, язык, таблицы',
+        description:
+          'Одна модель приложения: форма настроек меняет тему и язык, клиентская таблица над массивом модели, серверная — с отменой запросов',
       },
       {
         id: 'tree',
@@ -400,6 +409,7 @@ function Layout() {
             <Route path="/demo/input-suggest" element={<InputSuggestDemo />} />
             <Route path="/demo/field-tooltips" element={<FieldTooltipsDemo />} />
             <Route path="/demo/tree" element={<TreeDemo />} />
+            <Route path="/demo/ui-levels" element={<UiLevelsDemo />} />
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/debug/builder-ab" element={<BuilderAbBench />} />
             <Route path="/debug/clean-test" element={<CleanTestPage />} />
