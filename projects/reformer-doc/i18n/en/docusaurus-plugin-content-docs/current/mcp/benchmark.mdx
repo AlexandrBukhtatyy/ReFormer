@@ -28,9 +28,10 @@ same form tasks under three conditions:
 
 - **No MCP** — file tools only and the installed packages with their documentation;
 - **MCP · tool set** — the same plus the `@reformer/mcp` server with its tool set
-  (`REFORMER_SURFACE=tools`), the server default at the time of the measurement;
+  (`REFORMER_SURFACE=tools`), the server default until November 15, 2026;
 - **MCP · code-guided-dsl** — the same plus the server with the form builder
-  (`REFORMER_SURFACE=code-guided-dsl`). After the measurement this surface became the default.
+  (`REFORMER_SURFACE=code-guided-dsl`). After the November 15 measurement this surface became the
+  default; this page shows a repeat measurement on the current code.
 
 The same verifier checks every run: the build and types first, then the behavior of the form —
 values, rules, reactions, wizard steps. The conditions are in [How it was measured](#how-it-was-measured).
@@ -43,8 +44,8 @@ values, rules, reactions, wizard steps. The conditions are in [How it was measur
 
 - **Creating a form is the main difference.** Without the server the agent writes the module by
   hand from the package docs and more often goes wrong in the file layout, the build and the types;
-  on a large form from a spec that is minutes and dollars per run. With MCP the server does the
-  plan, the build and the type check.
+  on a large form from a spec that is about four minutes and over a dollar per run. With MCP the
+  server does the plan, the build and the type check.
 - **Editing and removing** in a ready form pass in all three arms almost without failures, but
   with MCP it is faster and cheaper.
 - **The tool set** does not beat working without the server by the number of passed runs, though
@@ -59,14 +60,14 @@ stack and the numbers of the run.
 
 <McpRunSpread />
 
-Without the server 25 runs of 90 took longer than two minutes: 19 of them create a form, and 15 of
-those nineteen failed the checks; six more turn a one-page form into a wizard. With the tool set two
-runs took longer than two minutes, with code-guided-dsl none did: the longest took 1.7 minutes. All
-twenty most expensive runs of the measurement are without MCP.
+Without the server 24 runs of 90 took longer than two minutes: 18 of them create a form, and 11 of
+those eighteen failed the checks; six more turn a one-page form into a wizard. With MCP no run took
+longer than two minutes: the longest took 1.9 minutes with the tool set and 1.5 with
+code-guided-dsl. All twenty-seven most expensive runs of the measurement are without MCP.
 
 Run time and cost grow together, so on one chart the arms spread along the diagonal: code-guided-dsl
 sits in the lower left corner, runs without MCP stretch up and to the right. The median cost of
-creating a form is $0.90 without MCP and $0.22 with it; on edits and removals the clouds are closer.
+creating a form is $0.99 without MCP and $0.21 with it; on edits and removals the clouds are closer.
 
 <McpTimeCost />
 

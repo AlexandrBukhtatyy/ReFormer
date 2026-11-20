@@ -18,8 +18,8 @@ recipes, code checking) and workflow **prompts**.
 
 The same agent with the server builds and edits forms more reliably, faster and cheaper than from
 the package documentation alone. Over 270 Claude Sonnet runs, with the `code-guided-dsl` surface —
-now the default — 97% of runs passed every check against 80% without MCP, the work went 3.3 times
-faster and cost 4 times less. The summary infographic and the results per scenario are on the
+now the default — 96% of runs passed every check against 83% without MCP, the work went 3.5 times
+faster and cost 4.4 times less. The summary infographic and the results per scenario are on the
 [Measurements: with MCP and without](./benchmark) page.
 
 ## What is MCP?
