@@ -7266,13 +7266,13 @@ _Source: src/components/context-menu/variants/base/context-menu-base.tsx_
 
 **Kind:** `function`
 
-Data-driven таблица поверх презентационного {@link Table}. Держит состояние
-пагинации / сортировки / фильтров, получает строки из `settings.dataProvider`
-(server-driven, `manual*` у
+Data-driven таблица — вид над уровнем таблицы `@reformer/core/table` поверх презентационного
+{@link Table}. Режим `settings` создаёт серверную таблицу из `dataProvider`; режим `table`
+рисует готовую таблицу из стора приложения — клиентскую над массивом модели или серверную.
 
 **Signature:**
 ```typescript
-export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): React.ReactNode
+export function DataGrid<Row>(props: DataGridProps<Row>): React.ReactNode
 ```
 
 **Examples:**
@@ -7288,8 +7288,8 @@ columns: [
 ],
 pageSize: 20,
 rowKey: (u) => u.id,
-dataProvider: async ({ pagination, sorting }) => {
-const res = await fetch(`/api/users?page=${pagination.pageIndex}&sort=${sorting[0]?.id ?? ''}`);
+dataProvider: async ({ pagination, sorting }, { signal }) => {
+const res = await fetch(`/api/users?page=${pagination.pageIndex}&sort=${sorting[0]?.id ?? ''}`, { signal });
 const { rows, total } = await res.json();
 return { rows, total };
 },
@@ -7298,37 +7298,58 @@ return { rows, total };
 <DataGrid settings={settings} />
 ```
 
-Выбор строк для массового действия
+Таблица из стора приложения: строки — массив модели
 ```tsx
-const [selected, setSelected] = useState<User[]>([]);
+import { arrayOf, createModel, createStore } from '@reformer/core/model';
+import { createTable } from '@reformer/core/table';
+
+const app = createStore(() => {
+const model = createModel({ users: arrayOf(blankUser, users) });
+const table = createTable({
+data: model.$.users,
+columns: [{ id: 'name', sortable: true, filterable: true }, { id: 'email' }],
+getRowKey: (u) => u.id,
+selection: 'multiple',
+});
+return { model, table };
+});
 
 <DataGrid
-settings={{
-...settings,
-selection: 'multiple',
-rowKey: (u) => u.id, // без rowKey выбор сбрасывается при смене страницы
-onSelectionChange: ({ rows }) => setSelected(rows),
-}}
+table={app.table}
+columns={[
+{ id: 'name', header: 'Имя', accessor: (u) => u.name },
+{ id: 'email', header: 'E-mail', accessor: (u) => u.email },
+]}
 />
-<Button disabled={selected.length === 0} onClick={() => archive(selected)}>В архив</Button>
 ```
 
 _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
 
 ### DataGridProps
 
-**Kind:** `interface`
+**Kind:** `type`
 
-Props {@link DataGrid}.
+Props {@link DataGrid}: настройки серверной таблицы или готовая таблица уровня.
 
 **Signature:**
 ```typescript
-export interface DataGridProps<Row> {
-  /** Настройки грида (data-provider, колонки, пагинация, выделение). */
-  settings: TableSettings<Row>;
-  /** Доп. className контейнера. */
-  className?: string;
-}
+export type DataGridProps<Row> =
+  | {
+      /** Настройки грида (data-provider, колонки, пагинация, выделение). */
+      settings: TableSettings<Row>;
+      /** Доп. className контейнера. */
+      className?: string;
+    }
+  | {
+      /** Таблица уровня (`createTable` из `@reformer/core/table`) — её создаёт стор приложения. */
+      table: TableLevel<Row, string>;
+      /** Отрисовка колонок по id. Колонка без пары в таблице рисуется как есть (действия). */
+      columns: TableColumn<Row>[];
+      /** Изменение выделения. Режим выделения задаёт таблица. */
+      onSelectionChange?: (selection: TableSelection<Row>) => void;
+      /** Доп. className контейнера. */
+      className?: string;
+    };
 ```
 
 _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
@@ -14283,7 +14304,7 @@ _Source: src/components/table/variants/base/table-base.tsx_
 
 **Kind:** `interface`
 
-Описание одной колонки DataGrid.
+Описание одной колонки DataGrid — отрисовка; состояние колонки держит уровень таблицы.
 
 **Signature:**
 ```typescript
@@ -14294,9 +14315,15 @@ export interface TableColumn<Row> {
   header: React.ReactNode;
   /** Извлекатель содержимого ячейки из строки. Если не задан — ячейка пустая. */
   accessor?: (row: Row) => React.ReactNode;
-  /** Разрешить сортировку по колонке (кликабельный заголовок). По умолчанию `false`. */
+  /**
+   * Разрешить сортировку по колонке (кликабельный заголовок). По умолчанию `false`. Режим `table`
+   * берёт это из колонки уровня таблицы.
+   */
   sortable?: boolean;
-  /** Разрешить фильтрацию по колонке (текстовый инпут в тулбаре). По умолчанию `false`. */
+  /**
+   * Разрешить фильтрацию по колонке (текстовый инпут в тулбаре). По умолчанию `false`. Режим
+   * `table` берёт это из колонки уровня таблицы.
+   */
   filterable?: boolean;
   /** Плейсхолдер для фильтр-инпута колонки. По умолчанию — `id`. */
   filterPlaceholder?: string;
@@ -14318,11 +14345,11 @@ _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
 
 **Kind:** `type`
 
-Плоская карта активных фильтров: id колонки → значение фильтра.
+Реэкспорт `TableFilters` из `@reformer/core/table`.
 
 **Signature:**
 ```typescript
-export type TableFilters = Record<string, unknown>;
+export type { TableFilters } from '@reformer/core/table';
 ```
 
 _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
@@ -14362,38 +14389,26 @@ _Source: src/components/table/variants/base/table-base.tsx_
 
 ### TablePage
 
-**Kind:** `interface`
+**Kind:** `type`
 
-Результат {@link TableSettings.dataProvider}: строки текущей страницы + общее число строк.
+Реэкспорт `TablePage` из `@reformer/core/table`.
 
 **Signature:**
 ```typescript
-export interface TablePage<Row> {
-  /** Строки текущей страницы. */
-  rows: Row[];
-  /** Общее число строк во всём наборе (для расчёта числа страниц). */
-  total: number;
-}
+export type { TablePage } from '@reformer/core/table';
 ```
 
 _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
 
 ### TableQuery
 
-**Kind:** `interface`
+**Kind:** `type`
 
-Аргумент запроса, который DataGrid передаёт в {@link TableSettings.dataProvider}.
+Реэкспорт `TableQuery` из `@reformer/core/table`.
 
 **Signature:**
 ```typescript
-export interface TableQuery {
-  /** Активные фильтры колонок (id → значение). Пустая карта, если фильтров нет. */
-  filters: TableFilters;
-  /** Текущая страница (`pageIndex` с 0) и размер страницы. */
-  pagination: { pageIndex: number; pageSize: number };
-  /** Активная сортировка (порядок значим). `desc` — по убыванию. */
-  sorting: { id: string; desc: boolean }[];
-}
+export type { TableQuery } from '@reformer/core/table';
 ```
 
 _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
@@ -14413,7 +14428,7 @@ _Source: src/components/table/variants/base/table-base.tsx_
 
 **Kind:** `interface`
 
-Выбранные строки DataGrid — аргумент {@link TableSettings.onSelectionChange}.
+Выбранные строки DataGrid — аргумент `onSelectionChange`.
 
 **Signature:**
 ```typescript
@@ -14435,7 +14450,7 @@ _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
 
 **Signature:**
 ```typescript
-export type TableSelectionMode = 'none' | 'single' | 'multiple';
+export type TableSelectionMode = SelectionMode;
 ```
 
 _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
@@ -14444,18 +14459,22 @@ _Source: src/components/table/variants/data-grid/table-data-grid.tsx_
 
 **Kind:** `interface`
 
-Контракт настроек DataGrid.
+Контракт настроек DataGrid (режим `settings`).
 
 **Signature:**
 ```typescript
 export interface TableSettings<Row> {
   /**
    * Провайдер данных. Вызывается при монтировании и при любом изменении
-   * pagination / sorting / filters. Должен вернуть строки текущей страницы и общее
-   * число строк. Отклонение промиса → состояние ошибки с кнопкой «Повторить».
+   * pagination / sorting / filters — одно действие, один вызов. Должен вернуть строки текущей
+   * страницы и общее число строк. Отклонение промиса → состояние ошибки с кнопкой «Повторить».
+   * `signal` отменяется, когда запрос устарел (новая страница, фильтр, размонтирование).
    */
-  dataProvider: (query: TableQuery) => Promise<TablePage<Row>>;
-  /** Колонки таблицы. */
+  dataProvider: (query: TableQuery, ctx: { signal: AbortSignal }) => Promise<TablePage<Row>>;
+  /**
+   * Колонки таблицы. Смена состава (id, сортируемость, фильтруемость) пересоздаёт таблицу:
+   * состояние сортировки, фильтров и выбора начинается заново.
+   */
   columns: TableColumn<Row>[];
   /**
    * Размер страницы. По умолчанию `10`. Смена значения перезапрашивает данные с первой страницы.

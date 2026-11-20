@@ -2999,7 +2999,7 @@ export type AsyncResourceAction<T, E> =
   | { kind: 'abort' };
 ```
 
-_Source: src/components/async-boundary/async-resource.ts_
+_Source: ../reformer/src/resource/machine.ts_
 
 ### asyncResourceReducer
 
@@ -3042,7 +3042,7 @@ failed.status; // 'error'
 failed.data;   // прежние данные на месте — их можно показать рядом с ошибкой
 ```
 
-_Source: src/components/async-boundary/async-resource.ts_
+_Source: ../reformer/src/resource/machine.ts_
 
 ### AsyncResourceState
 
@@ -3064,7 +3064,7 @@ export interface AsyncResourceState<T, E> {
 }
 ```
 
-_Source: src/components/async-boundary/async-resource.ts_
+_Source: ../reformer/src/resource/machine.ts_
 
 ### AsyncStatus
 
@@ -3501,7 +3501,7 @@ defaultToError('boom');                              // 'boom'
 defaultToError({});                                  // 'Unknown error'
 ```
 
-_Source: src/components/async-boundary/async-resource.ts_
+_Source: ../reformer/src/resource/machine.ts_
 
 ### en
 
@@ -6777,7 +6777,7 @@ _Source: src/components/option-source/option-source.ts_
 export function initialAsyncResourceState<T, E>(): AsyncResourceState<T, E>
 ```
 
-_Source: src/components/async-boundary/async-resource.ts_
+_Source: ../reformer/src/resource/machine.ts_
 
 ### initialAutocompleteState
 
