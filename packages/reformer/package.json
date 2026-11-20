@@ -41,6 +41,22 @@
       "types": "./dist/model.d.ts",
       "import": "./dist/model.js"
     },
+    "./resource": {
+      "types": "./dist/resource.d.ts",
+      "import": "./dist/resource.js"
+    },
+    "./theme": {
+      "types": "./dist/theme.d.ts",
+      "import": "./dist/theme.js"
+    },
+    "./language": {
+      "types": "./dist/language.d.ts",
+      "import": "./dist/language.js"
+    },
+    "./table": {
+      "types": "./dist/table.d.ts",
+      "import": "./dist/table.js"
+    },
     "./behaviors": {
       "types": "./dist/behaviors.d.ts",
       "import": "./dist/behaviors.js"

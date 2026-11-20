@@ -24,7 +24,10 @@
  * - **сравнение значений** — `deepEqual`, на нём стоят `isDirty` и сверка «модель изменилась»;
  *   `shallowEqual` — для селекторов;
  * - **область жизни и стор** — `createScope`/`getCurrentScope`/`onScopeDispose` и `createStore`:
- *   реакции, созданные в области, снимаются одним `dispose()` — модель как стор приложения.
+ *   реакции, созданные в области, снимаются одним `dispose()` — модель как стор приложения;
+ * - **уровни над моделью** — `signalFrom` (сигнал над событийным источником) и `defineBehavior`
+ *   (правило между уровнями: тема, язык, таблица, форма — см. `@reformer/core/theme`,
+ *   `/language`, `/table`).
  *
  * Запасной шаблон элемента массива модель принимает от того, кто строит её извне (сборка формы
  * передаёт `initialValue` узла-массива); что это узел схемы, модель не знает.
@@ -84,3 +87,11 @@ export { deepEqual } from './model-nodes';
 // Область жизни реакций и стор приложения: всё созданное в области снимается одним `dispose()`.
 export { createScope, getCurrentScope, onScopeDispose, createStore, shallowEqual } from './scope';
 export type { Scope, Store } from './scope';
+
+// Мост из событийного источника (`subscribe`/`getState`) в сигнал только для чтения.
+export { signalFrom } from './signal-from';
+export type { SourceSubscription } from './signal-from';
+
+// Правило между уровнями (модель, форма, тема, язык, таблица): attach(ctx) → отписка.
+export { defineBehavior } from './behavior';
+export type { Behavior } from './behavior';

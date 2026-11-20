@@ -31,6 +31,13 @@ export default defineConfig({
         // headless-валидация + producer-флаг. Импортирует из тех же core-файлов, что и index →
         // общий chunk (один derived-WeakMap, единая идентичность Signal). Основа доменных модулей.
         model: resolve(__dirname, 'src/model/index.ts'),
+        // Уровни UI над моделью: тема, язык, таблица, и загрузка (resource), на которой стоит
+        // серверная таблица. Импортируют модель из тех же файлов, что и `/model` → общий chunk
+        // (одна область, один реестр, одна идентичность Signal).
+        resource: resolve(__dirname, 'src/resource/index.ts'),
+        theme: resolve(__dirname, 'src/theme/index.ts'),
+        language: resolve(__dirname, 'src/language/index.ts'),
+        table: resolve(__dirname, 'src/table/index.ts'),
         // Декларативный контракт схемы поведения. Импортирует примитивы из index → общий chunk
         // (единый реестр сигнал→нода и единый ambient-сток).
         behaviors: resolve(__dirname, 'src/form/behaviors/index.ts'),

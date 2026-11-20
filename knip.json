@@ -10,6 +10,10 @@
     "packages/reformer": {
       "entry": [
         "src/model/index.ts",
+        "src/resource/index.ts",
+        "src/theme/index.ts",
+        "src/language/index.ts",
+        "src/table/index.ts",
         "src/form/behaviors/index.ts",
         "src/form/validation/index.ts",
         "src/form/validators/*.ts",

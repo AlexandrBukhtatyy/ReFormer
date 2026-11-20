@@ -24,6 +24,7 @@ export type {
   I18nProviderProps,
   I18nStaticProviderProps,
   I18nLoadingProviderProps,
+  I18nLanguageProviderProps,
 } from './platforms/react/i18n/provider';
 export { useI18n, useMessages, useIssueMessage, useLocalized } from './platforms/react/i18n/hooks';
 export { I18N_CONTEXT_MARKER } from './platforms/react/i18n/context';

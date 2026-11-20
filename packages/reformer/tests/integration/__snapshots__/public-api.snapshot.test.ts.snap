@@ -190,6 +190,21 @@ exports[`public API — входы сабпатов > PA-02 · ./i18n — име
 }
 `;
 
+exports[`public API — входы сабпатов > PA-02 · ./language — имена и виды экспортов 1`] = `
+{
+  "Language": "тип",
+  "LanguageOptions": "тип",
+  "LanguageTarget": "тип",
+  "StorageAdapter": "тип",
+  "TextDirection": "тип",
+  "browserLanguage": "функция",
+  "createLanguage": "функция",
+  "documentLang": "функция",
+  "textDirection": "функция",
+  "webStorage": "функция",
+}
+`;
+
 exports[`public API — входы сабпатов > PA-02 · ./locale — имена и виды экспортов 1`] = `
 {
   "CORE_LOCALES": "массив",
@@ -211,6 +226,7 @@ exports[`public API — входы сабпатов > PA-02 · ./locale/ru — �
 
 exports[`public API — входы сабпатов > PA-02 · ./model — имена и виды экспортов 1`] = `
 {
+  "Behavior": "тип",
   "BehaviorCleanup": "тип",
   "DeepPartial": "тип",
   "FormModel": "тип",
@@ -226,6 +242,7 @@ exports[`public API — входы сабпатов > PA-02 · ./model — им�
   "PathAwareSignal": "тип",
   "ResetWhenOptionsArg": "тип",
   "Scope": "тип",
+  "SourceSubscription": "тип",
   "Store": "тип",
   "arrayOf": "функция",
   "computeFrom": "функция",
@@ -235,6 +252,7 @@ exports[`public API — входы сабпатов > PA-02 · ./model — им�
   "createStore": "функция",
   "deepEqual": "функция",
   "deferredWritesSettled": "функция",
+  "defineBehavior": "функция",
   "eachLeafSignal": "функция",
   "eachValueSignal": "функция",
   "getCurrentScope": "функция",
@@ -250,6 +268,7 @@ exports[`public API — входы сабпатов > PA-02 · ./model — им�
   "safeCallback": "функция",
   "safeDebouncedCallback": "функция",
   "shallowEqual": "функция",
+  "signalFrom": "функция",
   "syncFields": "функция",
   "transformValue": "функция",
   "unmarkDerived": "функция",
@@ -272,6 +291,7 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
   "FormFlowSnapshot": "тип",
   "I18N_CONTEXT_MARKER": "константа: string",
   "I18nContextValue": "тип",
+  "I18nLanguageProviderProps": "тип",
   "I18nLoadingProviderProps": "тип",
   "I18nProvider": "функция",
   "I18nProviderProps": "тип",
@@ -301,6 +321,21 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
 }
 `;
 
+exports[`public API — входы сабпатов > PA-02 · ./resource — имена и виды экспортов 1`] = `
+{
+  "AsyncResourceAction": "тип",
+  "AsyncResourceState": "тип",
+  "AsyncStatus": "тип",
+  "Resource": "тип",
+  "ResourceOptions": "тип",
+  "asyncResourceReducer": "функция",
+  "defaultToError": "функция",
+  "initialAsyncResourceState": "функция",
+  "rejectionMessage": "функция",
+  "resource": "функция",
+}
+`;
+
 exports[`public API — входы сабпатов > PA-02 · ./signals — имена и виды экспортов 1`] = `
 {
   "ReadonlySignal": "тип",
@@ -311,6 +346,49 @@ exports[`public API — входы сабпатов > PA-02 · ./signals — и�
   "isSignal": "функция",
   "signal": "функция",
   "untracked": "функция",
+}
+`;
+
+exports[`public API — входы сабпатов > PA-02 · ./table — имена и виды экспортов 1`] = `
+{
+  "ClientTableOptions": "тип",
+  "ColumnDef": "тип",
+  "RowKey": "тип",
+  "RowModel": "тип",
+  "SelectionMode": "тип",
+  "ServerTableOptions": "тип",
+  "SortDirection": "тип",
+  "SortEntry": "тип",
+  "Table": "тип",
+  "TableColumnFace": "тип",
+  "TableCommonOptions": "тип",
+  "TableFilters": "тип",
+  "TableOptions": "тип",
+  "TablePage": "тип",
+  "TableQuery": "тип",
+  "TableRow": "тип",
+  "TableSelection": "тип",
+  "TableStateBindings": "тип",
+  "createTable": "функция",
+}
+`;
+
+exports[`public API — входы сабпатов > PA-02 · ./theme — имена и виды экспортов 1`] = `
+{
+  "DocumentThemeOptions": "тип",
+  "StorageAdapter": "тип",
+  "SystemThemeSource": "тип",
+  "Theme": "тип",
+  "ThemeKind": "тип",
+  "ThemeOptions": "тип",
+  "ThemePreference": "тип",
+  "ThemeTarget": "тип",
+  "createTheme": "функция",
+  "documentTheme": "функция",
+  "fixedSystemTheme": "функция",
+  "isThemePreference": "функция",
+  "mediaQuerySystemTheme": "функция",
+  "webStorage": "функция",
 }
 `;
 
@@ -474,5 +552,6 @@ exports[`public API — входы сабпатов > PA-03: одно имя в 
   "syncFields": "./model ./behaviors — разные значения",
   "transformValue": "./model ./behaviors — разные значения",
   "unmarkDerived": ". ./model — одно значение",
+  "webStorage": "./theme ./language — одно значение",
 }
 `;

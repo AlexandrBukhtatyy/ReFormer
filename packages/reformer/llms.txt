@@ -45,6 +45,11 @@
 - 38-form-flow.md — Уровень формы и поток шагов — validate, submit и FormFlow
 - 39-overview.md — Overview — карта @reformer/core
 - 40-app-state-store.md — Модель как стор приложения — createModel, createStore, useComputed
+- 41-resource.md — Загрузка на сигналах — resource
+- 43-ui-theme.md — Уровень темы — createTheme
+- 44-ui-language.md — Уровень языка — createLanguage
+- 45-data-table.md — Уровень таблицы — createTable
+- 46-cross-level-rules.md — Правила между уровнями — defineBehavior, signalFrom
 - API Reference (auto-generated from JSDoc)
 
 ## 1. 1. API Reference
@@ -8184,7 +8189,446 @@ const store = useStore(createFilters);
 - `28-submit-and-reset.md` — отправка и сброс формы над моделью.
 - `39-overview.md` — карта входов пакета.
 
-## 129. API Reference
+## 129. Purpose
+
+**Загрузка на сигналах — resource**
+
+`resource()` из `@reformer/core/resource` грузит данные по реактивному ключу: смена сигналов,
+которые читает `key`, запускает новую загрузку, а прежний запрос отменяется через `AbortSignal`.
+Ответ устаревшего запроса не применяется, даже если `load` сигнал отмены не слушает.
+
+- Состояние — сигналы `state`, `data`, `status` (`idle | loading | ready | error`), `error`,
+  `refreshing`, `isFetching`.
+- Несколько смен ключа в одном тике дают один запрос — с последним ключом.
+- Ресурс принадлежит текущей области (`createStore`) и снимается вместе с ней.
+- На нём стоит серверный режим таблицы (`@reformer/core/table`).
+
+## 130. API
+
+```typescript
+resource<T, K = void, E = unknown>({
+  key?: () => K | null | undefined, // null/undefined — idle
+  load: (key: K, ctx: { signal: AbortSignal; previous: T | undefined }) => Promise<T>,
+  enabled?: () => boolean,
+  initialData?: T,
+  keepPrevious?: boolean, // true: новый ключ — ready + refreshing
+  equals?: (a: K, b: K) => boolean, // по умолчанию глубокое
+  toError?: (error: unknown) => E,
+  onSuccess?: (data: T) => void,
+  onError?: (error: E) => void,
+}): Resource<T, E>; // + reload, abort, mutate, settled, dispose
+```
+
+Машина состояний (`asyncResourceReducer`, `initialAsyncResourceState`, `defaultToError`,
+`rejectionMessage`) — та же, что у `AsyncBoundary` в `@reformer/cdk`.
+
+## 131. Examples
+
+### Загрузка по полю модели
+
+```typescript
+import { createModel, createStore } from '@reformer/core/model';
+import { resource } from '@reformer/core/resource';
+
+const page = createStore(() => {
+  const model = createModel({ userId: 0 });
+  const user = resource({
+    key: () => (model.userId > 0 ? model.userId : null),
+    load: (id, { signal }) => fetch(`/api/users/${id}`, { signal }).then((r) => r.json()),
+  });
+  return { model, user };
+});
+
+page.model.userId = 7; // запрос /api/users/7
+```
+
+### В компоненте
+
+```tsx
+import { useSignalSnapshot, useStore } from '@reformer/core/react';
+
+function User({ id }: { id: number }) {
+  const user = useStore(() => resource({ load: () => api.user(id) }));
+  const state = useSignalSnapshot(user.state);
+  if (state.status === 'loading') return <Spinner />;
+  return <p>{state.data?.name}</p>;
+}
+```
+
+## 132. Anti-patterns
+
+### Своя проверка «ответ устарел»
+
+```typescript
+// ❌ флаг cancelled и счётчик запросов вручную
+// ✅ resource(): отмена и отсев устаревших ответов уже внутри
+```
+
+## 133. See also
+
+- `45-data-table.md` — серверная таблица поверх `resource()`.
+- `40-app-state-store.md` — стор приложения.
+
+## 134. Purpose
+
+**Уровень темы — createTheme**
+
+`createTheme` из `@reformer/core/theme` — уровень UI над моделью приложения: выбор пользователя
+(`light | dark | system`), тема системы и действующая тема — сигналами. Каждая смена действующей
+темы применяется к корню документа тем же маркером, что читают стили `@reformer/ui-kit`
+(класс `dark` или `data-theme`).
+
+- Главный путь — привязка к полю модели: `createTheme({ preference: app.$.settings.theme })`.
+  Форма настроек над `app.settings` меняет тему без всякого клея.
+- DOM, `matchMedia` и `localStorage` — только через адаптеры: на сервере и в тестах уровень
+  работает без них.
+
+## 135. API
+
+```typescript
+createTheme({
+  preference?: Signal<ThemePreference>, // поле модели
+  initial?: ThemePreference, // 'system'
+  system?: SystemThemeSource | null, // mediaQuerySystemTheme(); null — светлая
+  target?: ThemeTarget | null, // documentTheme(); null — DOM не трогать
+  storage?: StorageAdapter | null, // webStorage()
+  storageKey?: string, // 'reformer.theme'
+}): Theme; // preference, system, resolved, set, toggle, dispose
+
+documentTheme({ root?, attribute?: 'class' | 'data-theme', colorScheme?: boolean });
+mediaQuerySystemTheme(); fixedSystemTheme(initial?); isThemePreference(value);
+```
+
+## 136. Examples
+
+### Тема в сторе приложения
+
+```typescript
+import { createModel, createStore } from '@reformer/core/model';
+import { createTheme, webStorage, type ThemePreference } from '@reformer/core/theme';
+
+export const app = createStore(() => {
+  const model = createModel({ settings: { theme: 'system' as ThemePreference } });
+  const theme = createTheme({ preference: model.$.settings.theme, storage: webStorage() });
+  return { model, theme };
+});
+```
+
+### Переключатель
+
+```tsx
+import { useSignalSnapshot } from '@reformer/core/react';
+
+function ThemeToggle() {
+  const resolved = useSignalSnapshot(app.theme.resolved);
+  return <Button onClick={app.theme.toggle}>{resolved === 'dark' ? 'Светлая' : 'Тёмная'}</Button>;
+}
+```
+
+### Без мигания до гидратации (SSR, статический сайт)
+
+```html
+<script>
+  try {
+    var p = JSON.parse(localStorage.getItem('reformer.theme'));
+    var dark = p === 'dark' || (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+  } catch (e) {}
+</script>
+```
+
+## 137. Anti-patterns
+
+### Своя подписка на prefers-color-scheme и ручной classList
+
+```typescript
+// ❌ matchMedia(...).addEventListener + document.documentElement.classList.add('dark')
+// ✅ createTheme(): система, выбор и применение — один computed и один эффект
+```
+
+### React-контекст темы поверх уровня
+
+```tsx
+// ❌ <ThemeContext.Provider value={theme}> ради чтения
+// ✅ useSignalSnapshot(app.theme.resolved) — компонент перерисуется только при смене темы
+```
+
+## 138. See also
+
+- `44-ui-language.md`, `45-data-table.md`, `46-cross-level-rules.md`.
+
+## 139. Purpose
+
+**Уровень языка — createLanguage**
+
+`createLanguage` из `@reformer/core/language` — уровень UI над моделью: запрошенный язык (`lang`),
+язык на экране (`code`), локаль, перевод (`t`, `i18n`), загрузка (`pending`, `error`) и
+направление письма (`dir`) — сигналами. Загрузку делает тот же `createLocaleStore`, что у
+`I18nProvider`: прежний язык остаётся на экране, пока новый не загрузится, а применяется только
+последний запрос.
+
+- Язык меняют полем модели (форма настроек), `language.set(code)` или из другой вкладки
+  (хранилище) — без перерисовки сверху.
+- Показанный язык попадает на `<html lang dir>` и в хранилище; язык, загрузка которого упала,
+  не сохраняется.
+- В React — `<I18nProvider language={language}>`: компоненты cdk и ui-kit говорят этим языком.
+
+## 140. API
+
+```typescript
+createLanguage({
+  load: LocaleLoad, // createLocaleLoader([...]) из @reformer/core/i18n
+  lang?: Signal<string>, // поле модели
+  initial?: string,
+  fallback?: string, // 'en'
+  supported?: readonly string[],
+  detect?: (() => string | undefined) | null, // browserLanguage({ supported })
+  storage?: StorageAdapter | null, // webStorage()
+  storageKey?: string, // 'reformer.lang'
+  document?: LanguageTarget | null, // documentLang()
+  onError?: (error: unknown, lang: string) => void,
+}): Language; // lang, code, locale, i18n, pending, error, dir, t, set, retry, dispose
+```
+
+Начальный язык: хранилище → поле модели → `initial` → `detect()` → `fallback`.
+
+## 141. Examples
+
+### Язык в сторе приложения и провайдер
+
+```tsx
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { createLanguage, webStorage } from '@reformer/core/language';
+import { I18nProvider } from '@reformer/core/react';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+export const app = createStore(() => {
+  const model = createModel({ settings: { lang: 'ru' } });
+  const language = createLanguage({
+    lang: model.$.settings.lang,
+    load: createLocaleLoader([loadKitLocale, appMessages]),
+    supported: ['ru', 'en'],
+    storage: webStorage(),
+  });
+  return { model, language };
+});
+
+<I18nProvider language={app.language} fallback={<Spinner />}>
+  <App />
+</I18nProvider>;
+```
+
+### Перевод вне React
+
+```typescript
+const title = computed(() => app.language.t('app.title')); // пересчитается при смене языка
+await app.language.set('en'); // промис — язык показан
+```
+
+## 142. Anti-patterns
+
+### Язык в useState корня приложения
+
+```tsx
+// ❌ const [lang, setLang] = useState('ru'); <I18nProvider lang={lang} load={load}>
+// ✅ createLanguage в сторе: язык меняют полем модели или set(), дерево сверху не перерисовывается
+```
+
+## 143. See also
+
+- `43-ui-theme.md`, `46-cross-level-rules.md`.
+
+## 144. Purpose
+
+**Уровень таблицы — createTable**
+
+`createTable` из `@reformer/core/table` — уровень UI над моделью: сортировка (в том числе по
+нескольким колонкам), фильтры, страницы, видимость колонок и выбор строк — сигналами. Строками
+владеет модель (клиентский режим) или провайдер (серверный); таблица владеет только состоянием
+вида.
+
+- **Клиентский режим** — `data: model.$.users`: фильтр → сортировка → страница на `computed`.
+  Правка строки модели (формой, кодом) сразу видна таблице. `row.model` — под-модель строки.
+- **Серверный режим** — `dataProvider(query, { signal })` поверх `resource()`: одно действие
+  пользователя — один вызов провайдера, устаревший запрос отменяется.
+- Новый фильтр и новый размер страницы возвращают на первую страницу; строк стало меньше —
+  номер страницы не дальше последней; пропавшие строки уходят из выбора.
+- Вид — `<DataGrid table={…} columns={…}>` из `@reformer/ui-kit/table` или своя разметка.
+
+## 145. API
+
+```typescript
+createTable({
+  columns: [{ id, value?, sortable?, filterable?, compare?, match?, initialFilter?, visible?, meta? }],
+  data: model.$.rows | signal | array, // или dataProvider: (query, { signal }) => Promise<{ rows, total }>
+  getRowKey?: (row) => string | number,
+  pageSize?: number, // 10
+  selection?: 'none' | 'single' | 'multiple',
+  multiSort?: boolean, // true
+  locale?: () => string | undefined, // коллация клиентской сортировки
+  state?: { sorting?, filters?, pageIndex?, pageSize?, selected?, hidden? }, // привязка к модели
+  enabled?: () => boolean, // серверный режим
+});
+
+table.columns.name; // sort, sortIndex, filter, visible, toggleSort({ multi }), setSort, setFilter, setVisible
+table.rows; // строки страницы: key, value, model, selected, select, toggle
+table.selection; // keys, rows, allOnPage, someOnPage, toggleAllOnPage, clear
+table.query; // { filters, pagination, sorting } — ключ загрузки и источник для адреса
+```
+
+## 146. Examples
+
+### Клиентская таблица над моделью
+
+```typescript
+const app = createStore(() => {
+  const model = createModel({ users: arrayOf(blankUser, users) });
+  const table = createTable({
+    data: model.$.users,
+    columns: [
+      { id: 'name', sortable: true, filterable: true },
+      { id: 'role', sortable: true },
+    ],
+    getRowKey: (u) => u.id,
+    selection: 'multiple',
+  });
+  return { model, table };
+});
+
+app.table.columns.name.toggleSort(); // по имени
+app.table.columns.name.setFilter('ив'); // и на первую страницу
+```
+
+### DataGrid над таблицей
+
+```tsx
+<DataGrid
+  table={app.table}
+  columns={[
+    { id: 'name', header: 'Имя', accessor: (u) => u.name },
+    { id: 'role', header: 'Роль', accessor: (u) => u.role },
+  ]}
+/>
+```
+
+### Страница таблицы в адресе
+
+```typescript
+const pageIndex = signal(Number(new URLSearchParams(location.search).get('page') ?? 0));
+const table = createTable({ dataProvider, columns, state: { pageIndex } });
+// Страница из адреса не обрезается до первого ответа: число строк ещё неизвестно.
+```
+
+## 147. Anti-patterns
+
+### Сброс страницы эффектом после смены фильтра
+
+```typescript
+// ❌ watchField(filters, () => table.setPage(0)) — два запроса: с фильтром и со сбросом
+// ✅ column.setFilter(value) — фильтр и первая страница в одной записи, один запрос
+```
+
+### Копия строк в состоянии таблицы
+
+```typescript
+// ❌ createTable({ data: model.users.toArray() }) — снимок, правки модели не видны
+// ✅ createTable({ data: model.$.users }) — сигнал массива
+```
+
+## 148. Ограничения текущей версии
+
+- Состав колонок фиксируется при создании, как ключи модели.
+- Редактирование в таблице — позже, отдельным сабпатом `@reformer/core/table/edit`.
+- Клиентский режим пересчитывает снимок массива при правке ячейки — для больших наборов серверный.
+
+## 149. See also
+
+- `41-resource.md`, `46-cross-level-rules.md`.
+
+## 150. Purpose
+
+**Правила между уровнями — defineBehavior, signalFrom**
+
+Уровни UI (форма, тема, язык, таблица) не знают друг о друге. Их связывают модель приложения и
+правила:
+
+1. **Привязка к полю модели — первый выбор.** Тема и язык над `app.$.settings.*`, таблица над
+   `app.$.users`: форма пишет поле, уровень читает тот же сигнал. Правило не нужно.
+2. **`computed`** — чтение между уровнями: `locale: () => language.code.value` у таблицы.
+3. **`defineBehavior`** из `@reformer/core/model` — побочный эффект или запись в чужой уровень:
+   «сменился язык — перезапросить серверную таблицу», «таблица — в адресной строке».
+
+`signalFrom(read, subscribe)` превращает событийный источник (`getState`/`subscribe`, события
+DOM) в сигнал только для чтения — так внешнее состояние входит в модель уровней.
+
+## 151. API
+
+```typescript
+defineBehavior<Ctx>(setup: (ctx: Ctx, scope: Scope) => void, options?: { name?: string }): {
+  name: string | undefined;
+  attach(ctx: Ctx): () => void; // отписка; внутри createStore — снимается со стором
+};
+
+signalFrom<T>(read: () => T, subscribe: (onChange) => (() => void) | { dispose(): void }): ReadonlySignal<T>;
+```
+
+## 152. Examples
+
+### Язык → серверная таблица
+
+```typescript
+import { defineBehavior, watchField } from '@reformer/core/model';
+
+export const reloadOnLanguage = defineBehavior<{ language: Language; table: Table<Order> }>(
+  ({ language, table }) => {
+    watchField(language.code, () => table.reload());
+  },
+  { name: 'reloadOnLanguage' }
+);
+
+const app = createStore(() => {
+  const language = createLanguage({ load });
+  const orders = createTable({ dataProvider, columns });
+  reloadOnLanguage.attach({ language, table: orders });
+  return { language, orders };
+});
+```
+
+### Таблица в адресной строке
+
+```typescript
+export const tableInUrl = defineBehavior<{ table: Table<unknown>; param: string }>(
+  ({ table, param }, scope) => {
+    scope.effect(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.set(param, JSON.stringify(table.query.value));
+      window.history.replaceState(null, '', url);
+    });
+  }
+);
+```
+
+## 153. Anti-patterns
+
+### Правило там, где хватает привязки
+
+```typescript
+// ❌ watchField(app.$.settings.theme, (t) => theme.set(t))
+// ✅ createTheme({ preference: app.$.settings.theme })
+```
+
+### Эффект вне области
+
+```typescript
+// ❌ effect(() => …) в модуле — снять некому
+// ✅ defineBehavior(...).attach(ctx) внутри createStore — снимется со стором
+```
+
+## 154. See also
+
+- `40-app-state-store.md`, `43-ui-theme.md`, `44-ui-language.md`, `45-data-table.md`.
+
+## 155. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -8546,6 +8990,94 @@ model.coBorrowers.push({ name: 'Анна' }); // { name: 'Анна', phones: [] 
 
 _Source: src/model/model-nodes.ts_
 
+### AsyncResourceAction
+
+**Kind:** `type`
+
+Действия машины состояний.
+
+**Signature:**
+```typescript
+export type AsyncResourceAction<T, E> =
+  /** Загрузка отключена (`enabled: false`) — грузить нечего. */
+  | { kind: 'skip' }
+  /** Запрос отправлен. */
+  | { kind: 'load-start' }
+  /** Запрос успешно завершён. */
+  | { kind: 'load-success'; data: T }
+  /** Запрос завершился ошибкой. */
+  | { kind: 'load-error'; error: E }
+  /** Загрузка прервана вручную (`handle.abort()`). */
+  | { kind: 'abort' };
+```
+
+_Source: src/resource/machine.ts_
+
+### asyncResourceReducer
+
+**Kind:** `function`
+
+Редьюсер загрузки.
+
+Ключевое правило перехода `load-start`: если данные уже есть, состояние остаётся
+`ready` с поднятым `refreshing` (stale-while-revalidate) — иначе при каждом обновлении
+контент подменялся бы спиннером и пользователь терял бы позицию на экране.
+
+**Signature:**
+```typescript
+export function asyncResourceReducer<T, E>(
+  state: AsyncResourceState<T, E>,
+  action: AsyncResourceAction<T, E>
+): AsyncResourceState<T, E>
+```
+
+**Parameters:**
+- `state` — - Текущее состояние.
+- `action` — - Действие.
+
+**Returns:** Новое состояние.
+
+**Examples:**
+
+Перезагрузка поверх данных не роняет экран в loading
+```ts
+let s = initialAsyncResourceState<User, string>();
+s = asyncResourceReducer(s, { kind: 'load-start' });                  // status: 'loading'
+s = asyncResourceReducer(s, { kind: 'load-success', data: user });    // status: 'ready'
+s = asyncResourceReducer(s, { kind: 'load-start' });                  // 'ready' + refreshing
+```
+
+Ошибка не стирает ранее загруженные данные
+```ts
+const failed = asyncResourceReducer(ready, { kind: 'load-error', error: 'timeout' });
+failed.status; // 'error'
+failed.data;   // прежние данные на месте — их можно показать рядом с ошибкой
+```
+
+_Source: src/resource/machine.ts_
+
+### AsyncResourceState
+
+**Kind:** `interface`
+
+Снимок состояния загрузки.
+
+**Signature:**
+```typescript
+export interface AsyncResourceState<T, E> {
+  /** Текущее состояние операции. */
+  status: AsyncStatus;
+  /** Последние успешно загруженные данные (сохраняются при ошибке и перезагрузке). */
+  data: T | undefined;
+  /** Ошибка последней попытки. */
+  error: E | null;
+  /** Идёт повторная загрузка поверх уже показанных данных. */
+  refreshing: boolean;
+}
+```
+
+_Source: src/resource/machine.ts_
+
 ### AsyncRule
 
 **Kind:** `type`
@@ -8567,6 +9099,27 @@ export type AsyncRule<TField> = (
 
 _Source: src/form/validation/types.ts_
 
+### AsyncStatus
+
+**Kind:** `type`
+
+Состояние асинхронной операции.
+
+- `'idle'` — загрузка не запускалась и не планируется (ключа нет, загрузка выключена).
+- `'loading'` — запрос выполняется, данных ещё нет.
+- `'ready'` — данные получены.
+- `'error'` — запрос завершился ошибкой.
+
+Фоновое обновление поверх показанных данных — не отдельный статус, а флаг `refreshing` при
+`status === 'ready'` (stale-while-revalidate).
+
+**Signature:**
+```typescript
+export type AsyncStatus = 'idle' | 'loading' | 'ready' | 'error';
+```
+
+_Source: src/resource/machine.ts_
+
 ### batch
 
 **Kind:** `function`
@@ -8579,6 +9132,30 @@ export { batch } from '@preact/signals-core';
 ```
 
 _Source: src/signals.ts_
+
+### Behavior
+
+**Kind:** `interface`
+
+Правило, которое можно подключить к контексту.
+
+**Signature:**
+```typescript
+export interface Behavior<Ctx> {
+  /** Имя правила — для отладки и сообщений об ошибках. */
+  readonly name: string | undefined;
+  /**
+   * Подключить правило. Всё, что `setup` создал (операторы модели, `scope.effect`, уровни,
+   * `onScopeDispose`), снимается возвращённой отпиской. Повторный вызов отписки — no-op.
+   *
+   * Внутри `createStore` или `scope.run` правило принадлежит текущей области и снимается вместе
+   * с ней.
+   */
+  attach(ctx: Ctx): () => void;
+}
+```
+
+_Source: src/model/behavior.ts_
 
 ### BehaviorCleanup
 
@@ -8651,6 +9228,34 @@ inline-подписью ({@link hasInlineLabel}); без него эти props �
 
 _Source: src/platforms/react/field-binding/field-adapter.ts_
 
+### browserLanguage
+
+**Kind:** `function`
+
+Язык браузера (`navigator.languages`), подходящий под список поддерживаемых.
+
+Сначала ищется точное совпадение тега (`pt-BR`), затем базовый язык (`pt`).
+
+**Signature:**
+```typescript
+export function browserLanguage(
+  options: { supported?: readonly string[] } = {}
+): () => string | undefined
+```
+
+**Parameters:**
+- `options` — - `supported` — языки приложения; без списка подходит первый язык браузера.
+
+**Returns:** Функция определения: язык или `undefined`, если подходящего нет (или нет `navigator`).
+
+**Examples:**
+
+```typescript
+createLanguage({ load, detect: browserLanguage({ supported: ['ru', 'en'] }) });
+```
+
+_Source: src/language/adapters.ts_
+
 ### bundledLocaleSource
 
 **Kind:** `function`
@@ -8694,6 +9299,60 @@ export interface ChangeContext {
 ```
 
 _Source: src/form/behaviors/types.ts_
+
+### ClientTableOptions
+
+**Kind:** `interface`
+
+Клиентский режим: строки — массив модели, сигнал массива или массив.
+
+**Signature:**
+```typescript
+export interface ClientTableOptions<Row, Id extends string> extends TableCommonOptions<Row, Id> {
+  /** Строки. Массив модели (`model.$.users`) даёт строкам под-модель (`row.model`). */
+  data: ReadonlySignal<readonly Row[]> | readonly Row[];
+}
+```
+
+_Source: src/table/types.ts_
+
+### ColumnDef
+
+**Kind:** `interface`
+
+Колонка таблицы — состояние, а не отрисовка: заголовок и ячейку рисует вид.
+
+**Signature:**
+```typescript
+export interface ColumnDef<Row, Id extends string = string> {
+  /** Уникальный id: ключ в `table.columns`, `sorting[].id` и `filters`. */
+  id: Id;
+  /** Значение для сортировки и фильтра. По умолчанию — `row[id]`. */
+  value?: (row: Row) => unknown;
+  /** Разрешить сортировку по колонке. По умолчанию `false`. */
+  sortable?: boolean;
+  /** Разрешить фильтр по колонке. По умолчанию `false`. */
+  filterable?: boolean;
+  /**
+   * Сравнение значений клиентского режима. По умолчанию: пустые — в конце, числа и даты — по
+   * величине, остальное — коллацией языка таблицы (`numeric: true`).
+   */
+  compare?: (a: unknown, b: unknown, collator: Intl.Collator) => number;
+  /**
+   * Проверка фильтра клиентского режима. По умолчанию: строковый фильтр — подстрока без учёта
+   * регистра, массив — значение из списка, прочее — равенство.
+   */
+  match?: (value: unknown, filter: unknown) => boolean;
+  /** Фильтр на старте. */
+  initialFilter?: unknown;
+  /** Колонка видна на старте. По умолчанию `true`. */
+  visible?: boolean;
+  /** Данные для вида (заголовок, выравнивание); ядро их не читает. */
+  meta?: Readonly<Record<string, unknown>>;
+}
+```
+
+_Source: src/table/types.ts_
 
 ### CompiledArrayNode
 
@@ -9409,6 +10068,53 @@ i18n.fileSize(1536);                 // '1,5 КБ'
 
 _Source: src/i18n/translator.ts_
 
+### createLanguage
+
+**Kind:** `function`
+
+Создать уровень языка.
+
+Начальный язык — первый подходящий из: хранилища, привязанного поля, `initial`, `detect()`,
+иначе `fallback`; он записывается и в привязанное поле. Дальше каждая запись в поле (формой,
+кодом, `set`) запрашивает язык, а показанный язык попадает на `<html lang dir>` и в хранилище.
+
+Уровень принадлежит текущей области (`createStore`) и снимается вместе с ней. В React — провайдер
+`I18nProvider({ language })` из `@reformer/core/react`: компоненты cdk и ui-kit говорят этим языком.
+
+**Signature:**
+```typescript
+export function createLanguage(options: LanguageOptions): Language
+```
+
+**Parameters:**
+- `options` — - См. {@link LanguageOptions}.
+
+**Returns:** Уровень языка.
+
+**Examples:**
+
+```typescript
+import { createModel, createStore } from '@reformer/core/model';
+import { createLocaleLoader } from '@reformer/core/i18n';
+import { createLanguage, webStorage } from '@reformer/core/language';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+const app = createStore(() => {
+  const model = createModel({ settings: { lang: 'ru' } });
+  const language = createLanguage({
+    lang: model.$.settings.lang,
+    load: createLocaleLoader([loadKitLocale]),
+    supported: ['ru', 'en'],
+    storage: webStorage(),
+  });
+  return { model, language };
+});
+
+await app.language.set('en'); // словарь загружен, <html lang="en">
+```
+
+_Source: src/language/create-language.ts_
+
 ### createLocaleLoader
 
 **Kind:** `function`
@@ -9666,6 +10372,112 @@ if (outcome.status === 'failed') showToast('Не удалось сохранит
 
 _Source: src/form/submission.ts_
 
+### createTable
+
+**Kind:** `function`
+
+Создать уровень таблицы.
+
+Режим задаёт конфиг: `data` — клиентский (фильтр → сортировка → страница на `computed` над
+строками; массив модели даёт строкам под-модель и стабильный ключ), `dataProvider` — серверный
+(запрос страницы на каждую смену состояния; устаревший запрос отменяется).
+
+Команды держат инварианты сами: новый фильтр и новый размер страницы возвращают на первую
+страницу в той же записи, поэтому одно действие даёт один запрос. Те же правила следят и за
+внешними записями в привязанные поля (`state`): фильтр сменился — первая страница; строк
+стало меньше — номер страницы не дальше последней; строки пропали — их ключи уходят из выбора.
+
+Таблица принадлежит текущей области (`createStore`) и снимается вместе с ней.
+
+**Signature:**
+```typescript
+export function createTable<Row, const Id extends string = string>(
+  options: TableOptions<Row, Id>
+): Table<Row, Id>
+```
+
+**Parameters:**
+- `options` — - См. {@link TableOptions}.
+
+**Returns:** Уровень таблицы.
+
+**Examples:**
+
+Клиентская таблица над массивом модели
+```typescript
+import { arrayOf, createModel, createStore } from '@reformer/core/model';
+import { createTable } from '@reformer/core/table';
+
+const page = createStore(() => {
+const model = createModel({ users: arrayOf(() => ({ id: 0, name: '', role: 'user' })) });
+const users = createTable({
+data: model.$.users,
+columns: [
+{ id: 'name', sortable: true, filterable: true },
+{ id: 'role', sortable: true },
+],
+getRowKey: (u) => u.id,
+selection: 'multiple',
+});
+return { model, users };
+});
+
+page.users.columns.name.toggleSort(); // по имени, по возрастанию
+page.users.columns.name.setFilter('ив'); // и на первую страницу
+page.users.rows.value; // строки страницы
+```
+
+Серверная таблица
+```typescript
+const orders = createTable({
+dataProvider: (query, { signal }) =>
+fetch(`/api/orders?${toSearchParams(query)}`, { signal }).then((r) => r.json()),
+columns: [{ id: 'number', sortable: true }, { id: 'customer', filterable: true }],
+getRowKey: (order: Order) => order.id,
+});
+```
+
+_Source: src/table/create-table.ts_
+
+### createTheme
+
+**Kind:** `function`
+
+Создать уровень темы.
+
+Действующая тема — `computed` из выбора пользователя и темы системы; каждая её смена
+применяется к цели (по умолчанию — класс `dark` на `<html>`, как ждут стили `@reformer/ui-kit`).
+Уровень принадлежит текущей области (`createStore`) и снимается вместе с ней.
+
+**Signature:**
+```typescript
+export function createTheme(options: ThemeOptions = {}): Theme
+```
+
+**Parameters:**
+- `options` — - См. {@link ThemeOptions}.
+
+**Returns:** Уровень темы.
+
+**Examples:**
+
+Тема из настроек приложения
+```typescript
+import { createModel, createStore } from '@reformer/core/model';
+import { createTheme, webStorage } from '@reformer/core/theme';
+
+const app = createStore(() => {
+const model = createModel({ settings: { theme: 'system' as ThemePreference } });
+const theme = createTheme({ preference: model.$.settings.theme, storage: webStorage() });
+return { model, theme };
+});
+
+app.model.settings.theme = 'dark'; // <html class="dark">
+app.theme.toggle(); // 'light'
+```
+
+_Source: src/theme/create-theme.ts_
+
 ### deepEqual
 
 **Kind:** `const`
@@ -9727,6 +10539,35 @@ export const DEFAULT_LOCALE: FormLocale
 
 _Source: src/i18n/locale.ts_
 
+### defaultToError
+
+**Kind:** `function`
+
+Приведение неизвестного отказа промиса к человекочитаемой строке. Функция чистая и языка не
+знает: отказ без текста даёт английское `Unknown error`. `useAsyncResource` без своего
+`toError` действует так же, но этот запасной текст берёт из словаря локали
+(`cdk.asyncBoundary.unknownError`).
+
+**Signature:**
+```typescript
+export function defaultToError(e: unknown): string
+```
+
+**Parameters:**
+- `e` — - Значение, с которым отклонился промис.
+
+**Returns:** Сообщение об ошибке.
+
+**Examples:**
+
+```ts
+defaultToError(new Error('Ошибка загрузки заявки')); // 'Ошибка загрузки заявки'
+defaultToError('boom');                              // 'boom'
+defaultToError({});                                  // 'Unknown error'
+```
+
+_Source: src/resource/machine.ts_
+
 ### defer
 
 **Kind:** `function`
@@ -9771,6 +10612,52 @@ const values = model.get(); // уже с записями поведения
 ```
 
 _Source: src/model/safe-effect.ts_
+
+### defineBehavior
+
+**Kind:** `function`
+
+Описать правило между уровнями.
+
+`setup` выполняется в собственной области при каждом `attach`. Операторы модели
+(`watchField`, `computeFrom`, `copyFrom`, …) и `scope.effect`, созданные внутри, принадлежат
+этой области. Если `setup` бросил — созданное до ошибки снимается, ошибка летит дальше.
+
+Чтение между уровнями удобнее строить на `computed` и привязке к полям модели; правило нужно
+для побочных эффектов и записи в чужой уровень.
+
+**Signature:**
+```typescript
+export function defineBehavior<Ctx>(
+  setup: (ctx: Ctx, scope: Scope) => void,
+  options: { name?: string } = {}
+): Behavior<Ctx>
+```
+
+**Parameters:**
+- `setup` — - Тело правила. Получает контекст и область правила.
+- `options` — - `name` — имя для отладки.
+
+**Returns:** Правило с методом `attach`.
+
+**Examples:**
+
+```typescript
+import { defineBehavior, watchField } from '@reformer/core/model';
+
+// Серверная таблица сортирует коллацией сервера: при смене языка перезапросить страницу.
+export const reloadOnLanguage = defineBehavior<{ language: Language; table: Table<Order> }>(
+  ({ language, table }) => {
+    watchField(language.code, () => table.reload());
+  },
+  { name: 'reloadOnLanguage' }
+);
+
+const stop = reloadOnLanguage.attach({ language, table: orders });
+stop(); // правило снято
+```
+
+_Source: src/model/behavior.ts_
 
 ### defineFormBehavior
 
@@ -9919,6 +10806,79 @@ disposeForm(form);
 ```
 
 _Source: src/form/create-form.ts_
+
+### documentLang
+
+**Kind:** `function`
+
+Ставить `lang` и `dir` на корень документа: экранные дикторы, переносы, CSS `:lang()`.
+
+**Signature:**
+```typescript
+export function documentLang(root?: HTMLElement): LanguageTarget | null
+```
+
+**Parameters:**
+- `root` — - Элемент. По умолчанию `document.documentElement`.
+
+**Returns:** Цель или `null` без `document` (сервер).
+
+**Examples:**
+
+```typescript
+createLanguage({ load, document: documentLang() }); // так и по умолчанию
+```
+
+_Source: src/language/adapters.ts_
+
+### documentTheme
+
+**Kind:** `function`
+
+Применять тему к корню документа тем же маркером, что читают стили `@reformer/ui-kit`.
+
+**Signature:**
+```typescript
+export function documentTheme(options: DocumentThemeOptions = {}): ThemeTarget | null
+```
+
+**Parameters:**
+- `options` — - См. {@link DocumentThemeOptions}.
+
+**Returns:** Цель темы или `null` без `document` (сервер).
+
+**Examples:**
+
+```typescript
+// Docusaurus и сайты на data-theme:
+createTheme({ target: documentTheme({ attribute: 'data-theme' }) });
+```
+
+_Source: src/theme/adapters.ts_
+
+### DocumentThemeOptions
+
+**Kind:** `interface`
+
+Настройки {@link documentTheme}.
+
+**Signature:**
+```typescript
+export interface DocumentThemeOptions {
+  /** Элемент, на который ставится маркер темы. По умолчанию `document.documentElement`. */
+  root?: HTMLElement;
+  /**
+   * Маркер тёмной темы. `'class'` — класс `dark` (светлая — без класса); `'data-theme'` —
+   * атрибут `data-theme="dark|light"`. Оба читает `@custom-variant dark` у `@reformer/ui-kit`.
+   * По умолчанию `'class'`.
+   */
+  attribute?: 'class' | 'data-theme';
+  /** Ставить `color-scheme` (полосы прокрутки, системные контролы). По умолчанию `true`. */
+  colorScheme?: boolean;
+}
+```
+
+_Source: src/theme/adapters.ts_
 
 ### eachLeafSignal
 
@@ -10644,6 +11604,35 @@ validate(model.$.documents, [fileType('image/*,.pdf', { code: 'documents.fileTyp
 ```
 
 _Source: src/form/validators/file-type.ts_
+
+### fixedSystemTheme
+
+**Kind:** `function`
+
+Системная тема, которую задаёт код: для тестов, SSR и превью.
+
+**Signature:**
+```typescript
+export function fixedSystemTheme(
+  initial: ThemeKind = 'light'
+): SystemThemeSource & { set(theme: ThemeKind): void }
+```
+
+**Parameters:**
+- `initial` — - Тема системы на старте. По умолчанию `'light'`.
+
+**Returns:** Источник с методом `set` — «переключить систему».
+
+**Examples:**
+
+```typescript
+const system = fixedSystemTheme('light');
+const theme = createTheme({ system, target: null });
+system.set('dark');
+theme.resolved.value; // 'dark' — предпочтение «как в системе»
+```
+
+_Source: src/theme/adapters.ts_
 
 ### FlowStayReason
 
@@ -11717,6 +12706,28 @@ export interface I18nHandle {
 
 _Source: src/i18n/translator.ts_
 
+### I18nLanguageProviderProps
+
+**Kind:** `interface`
+
+Режим «уровень языка»: язык живёт в `createLanguage`, провайдер его только показывает.
+
+**Signature:**
+```typescript
+export interface I18nLanguageProviderProps {
+  /**
+   * Уровень языка (`createLanguage` из `@reformer/core/language`). Язык меняют им самим или полем
+   * модели, к которому он привязан, — перерисовки родителя для этого не нужно.
+   */
+  language: Language;
+  /** Что показать, пока не загружена самая первая локаль. Как у режима `lang` + `load`. */
+  fallback?: ReactNode;
+  children?: ReactNode;
+}
+```
+
+_Source: src/platforms/react/i18n/provider.ts_
+
 ### I18nLoadingProviderProps
 
 **Kind:** `interface`
@@ -11779,6 +12790,19 @@ const [lang, setLang] = useState('ru');
 </I18nProvider>
 ```
 
+Уровень языка — язык меняют вне React
+```tsx
+import { createLanguage } from '@reformer/core/language';
+
+const language = createLanguage({ load: loadLocale, supported: ['ru', 'en'] });
+
+<I18nProvider language={language} fallback={<Spinner />}>
+<CreditForm />
+</I18nProvider>;
+
+language.set('en'); // компоненты переключатся, когда словарь загрузится
+```
+
 Готовая локаль — SSR и тесты
 ```tsx
 import { ru } from '@reformer/ui-kit/locale/ru';
@@ -11794,7 +12818,10 @@ _Source: src/platforms/react/i18n/provider.ts_
 
 **Signature:**
 ```typescript
-export type I18nProviderProps = I18nStaticProviderProps | I18nLoadingProviderProps;
+export type I18nProviderProps =
+  | I18nStaticProviderProps
+  | I18nLoadingProviderProps
+  | I18nLanguageProviderProps;
 ```
 
 _Source: src/platforms/react/i18n/provider.ts_
@@ -11815,6 +12842,19 @@ export interface I18nStaticProviderProps {
 ```
 
 _Source: src/platforms/react/i18n/provider.ts_
+
+### initialAsyncResourceState
+
+**Kind:** `function`
+
+Начальное состояние: до первого эффекта загрузка ещё не запускалась.
+
+**Signature:**
+```typescript
+export function initialAsyncResourceState<T, E>(): AsyncResourceState<T, E>
+```
+
+_Source: src/resource/machine.ts_
 
 ### integer
 
@@ -12178,6 +13218,31 @@ export type IssueMessages = Readonly<Record<string, IssueMessage>>;
 
 _Source: src/i18n/validation-message.ts_
 
+### isThemePreference
+
+**Kind:** `function`
+
+Значение — допустимый выбор темы.
+
+**Signature:**
+```typescript
+export function isThemePreference(value: unknown): value is ThemePreference
+```
+
+**Parameters:**
+- `value` — - Что угодно: значение из хранилища, поле модели.
+
+**Returns:** `true` для `'light'`, `'dark'` и `'system'`.
+
+**Examples:**
+
+```typescript
+isThemePreference('dark'); // true
+isThemePreference('blue'); // false
+```
+
+_Source: src/theme/adapters.ts_
+
 ### isValueSignal
 
 **Kind:** `function`
@@ -12203,6 +13268,97 @@ isValueSignal(model.$.address); // false — группа
 ```
 
 _Source: src/model/model-signals-proxy.ts_
+
+### Language
+
+**Kind:** `interface`
+
+Уровень языка.
+
+**Signature:**
+```typescript
+export interface Language {
+  /** Запрошенный язык. Пока он грузится, на экране прежний. */
+  readonly lang: ReadonlySignal<string>;
+  /** Код языка на экране (код показанной локали). */
+  readonly code: ReadonlySignal<string>;
+  /** Показанная локаль; `null` — ни одна ещё не загружена. */
+  readonly locale: ReadonlySignal<FormLocale | null>;
+  /** Перевод и форматирование показанного языка; до первой загрузки — встроенный английский. */
+  readonly i18n: ReadonlySignal<I18nHandle>;
+  /** Идёт загрузка запрошенного языка. */
+  readonly pending: ReadonlySignal<boolean>;
+  /** Ошибка последней загрузки; `undefined` — ошибки нет. */
+  readonly error: ReadonlySignal<unknown>;
+  /** Направление письма показанного языка. */
+  readonly dir: ReadonlySignal<TextDirection>;
+  /** Перевести ключ показанным языком. Внутри `computed` и эффектов — реактивно. */
+  t(key: string, values?: MessageValues, defaultMessage?: string): string;
+  /**
+   * Запросить язык. Промис выполняется, когда язык показан или вытеснен новым запросом, и
+   * отклоняется ошибкой загрузки. Повтор языка, загрузка которого упала, — повторная попытка.
+   */
+  set(lang: string): Promise<void>;
+  /** Повторить упавшую загрузку. */
+  retry(): void;
+  /** Перестать следить за привязкой и хранилищем. Атрибуты документа не снимаются. */
+  dispose(): void;
+}
+```
+
+_Source: src/language/create-language.ts_
+
+### LanguageOptions
+
+**Kind:** `interface`
+
+Настройки {@link createLanguage}.
+
+**Signature:**
+```typescript
+export interface LanguageOptions {
+  /** Загрузчик локалей — `createLocaleLoader([...])` из `@reformer/core/i18n`. */
+  load: LocaleLoad;
+  /**
+   * Поле модели с языком (`app.$.settings.lang`): форма настроек над этим полем переключает язык.
+   * Без привязки уровень заводит свой сигнал.
+   */
+  lang?: Signal<string>;
+  /** Язык на старте, если его не дали хранилище и привязка. */
+  initial?: string;
+  /** Язык, если ничего не подошло. По умолчанию `'en'`. */
+  fallback?: string;
+  /** Языки приложения: сохранённый, привязанный и определённый язык вне списка пропускается. */
+  supported?: readonly string[];
+  /** Определение языка пользователя. По умолчанию {@link browserLanguage}; `null` — не определять. */
+  detect?: (() => string | undefined) | null;
+  /** Где помнить выбор. Сохраняется язык, который загрузился: неудачный не переживёт перезагрузку. */
+  storage?: StorageAdapter | null;
+  /** Ключ в хранилище. По умолчанию `'reformer.lang'`. */
+  storageKey?: string;
+  /** Куда применять язык. По умолчанию {@link documentLang}; `null` — DOM не трогать. */
+  document?: LanguageTarget | null;
+  /** Отказ загрузки языка, который всё ещё запрошен. */
+  onError?: (error: unknown, lang: string) => void;
+}
+```
+
+_Source: src/language/create-language.ts_
+
+### LanguageTarget
+
+**Kind:** `interface`
+
+Куда применяется язык на экране: корень документа.
+
+**Signature:**
+```typescript
+export interface LanguageTarget {
+  apply(code: string, dir: TextDirection): void;
+}
+```
+
+_Source: src/language/adapters.ts_
 
 ### loadCoreLocale
 
@@ -12734,6 +13890,28 @@ validate(model.$.documents, [maxTotalFileSize(20 * 1024 * 1024, { code: 'documen
 ```
 
 _Source: src/form/validators/max-total-file-size.ts_
+
+### mediaQuerySystemTheme
+
+**Kind:** `function`
+
+Системная тема из медиазапроса `prefers-color-scheme`.
+
+**Signature:**
+```typescript
+export function mediaQuerySystemTheme(): SystemThemeSource | null
+```
+
+**Returns:** Источник или `null`, если спросить некого (сервер, воркер, среда без `matchMedia`) —
+тогда уровень считает систему светлой.
+
+**Examples:**
+
+```typescript
+const theme = createTheme({ system: mediaQuerySystemTheme() }); // так и по умолчанию
+```
+
+_Source: src/theme/adapters.ts_
 
 ### MESSAGE_DESCRIPTOR
 
@@ -13968,6 +15146,24 @@ registerSignalNode(model.$.profile.email, profileForm.email);
 
 _Source: src/form/signal-node-registry.ts_
 
+### rejectionMessage
+
+**Kind:** `function`
+
+Текст отказа промиса, если он у отказа есть: сообщение `Error` или непустая строка.
+
+**Signature:**
+```typescript
+export function rejectionMessage(e: unknown): string | undefined
+```
+
+**Parameters:**
+- `e` — - Значение, с которым отклонился промис.
+
+**Returns:** Текст либо `undefined`, когда из отказа его не достать.
+
+_Source: src/resource/machine.ts_
+
 ### renderEffect
 
 **Kind:** `function`
@@ -14153,6 +15349,126 @@ resolveLocalized({ label: msg('profile.email.label'), options: [{ value: 'a', la
 
 _Source: src/i18n/resolve-localized.ts_
 
+### resource
+
+**Kind:** `function`
+
+Асинхронная загрузка на сигналах.
+
+Ключ (`key`) — реактивный: смена прочитанных сигналов перезапускает загрузку, а предыдущий
+запрос отменяется через `AbortSignal`. Ответ устаревшего запроса не применяется, даже если
+загрузка сигнал отмены не слушает.
+
+Запрос уходит в микрозадаче: несколько смен ключа в одном тике (фильтр и сброс страницы)
+дают один запрос — с последним ключом. Статус `loading` (или `refreshing`) виден сразу.
+
+Ресурс принадлежит текущей области (`createStore`, `scope.run`) и снимается вместе с ней.
+
+**Signature:**
+```typescript
+export function resource<T, K = void, E = unknown>(
+  options: ResourceOptions<T, K, E>
+): Resource<T, E>
+```
+
+**Parameters:**
+- `options` — - См. {@link ResourceOptions}.
+
+**Returns:** Ресурс.
+
+**Examples:**
+
+```typescript
+import { createModel, createStore } from '@reformer/core/model';
+import { resource } from '@reformer/core/resource';
+
+const page = createStore(() => {
+  const model = createModel({ userId: 0 });
+  const user = resource({
+    key: () => (model.userId > 0 ? model.userId : null),
+    load: (id, { signal }) => fetch(`/api/users/${id}`, { signal }).then((r) => r.json()),
+  });
+  return { model, user };
+});
+
+page.model.userId = 7; // запрос /api/users/7; прежний, если шёл, отменён
+page.user.status.value; // 'loading' → 'ready'
+```
+
+_Source: src/resource/resource.ts_
+
+### Resource
+
+**Kind:** `interface`
+
+Ресурс: состояние загрузки сигналами и команды.
+
+**Signature:**
+```typescript
+export interface Resource<T, E = unknown> {
+  /** Состояние целиком — одна подписка на все поля. */
+  readonly state: ReadonlySignal<AsyncResourceState<T, E>>;
+  /** Последние успешно загруженные данные (сохраняются при ошибке и перезагрузке). */
+  readonly data: ReadonlySignal<T | undefined>;
+  readonly status: ReadonlySignal<AsyncStatus>;
+  readonly error: ReadonlySignal<E | null>;
+  /** Идёт загрузка поверх показанных данных. */
+  readonly refreshing: ReadonlySignal<boolean>;
+  /** Идёт любая загрузка: первая (`loading`) или фоновая (`refreshing`). */
+  readonly isFetching: ReadonlySignal<boolean>;
+  /** Перезапросить текущий ключ. Без ключа (`idle`) — no-op. */
+  reload(): void;
+  /** Отменить текущий запрос. Ресурс возвращается к показанным данным или к `idle`. */
+  abort(): void;
+  /** Заменить данные без запроса (оптимистичное обновление). */
+  mutate(next: T | ((previous: T | undefined) => T)): void;
+  /** Дождаться, пока не останется запланированных и идущих запросов. */
+  settled(): Promise<void>;
+  /** Отменить запрос и перестать следить за ключом. */
+  dispose(): void;
+}
+```
+
+_Source: src/resource/resource.ts_
+
+### ResourceOptions
+
+**Kind:** `interface`
+
+Настройки {@link resource}.
+
+**Signature:**
+```typescript
+export interface ResourceOptions<T, K = void, E = unknown> {
+  /**
+   * Ключ загрузки — реактивно: читает сигналы, и их смена перезапускает загрузку. `null` или
+   * `undefined` — грузить нечего (`idle`). Без `key` ресурс грузится один раз с ключом `undefined`.
+   */
+  key?: () => K | null | undefined;
+  /** Загрузка. `signal` отменяется, когда запрос устарел (новый ключ, `abort`, `dispose`). */
+  load: (key: K, ctx: { signal: AbortSignal; previous: T | undefined }) => Promise<T>;
+  /** Загрузка включена — реактивно. Выключенная загрузка сбрасывает ресурс в `idle`. */
+  enabled?: () => boolean;
+  /** Данные до первой загрузки: ресурс сразу `ready`, первый запрос идёт фоном (`refreshing`). */
+  initialData?: T;
+  /**
+   * Показывать прежние данные, пока грузятся данные нового ключа (`ready` + `refreshing`).
+   * `false` — новый ключ сбрасывает данные и показывает `loading`. По умолчанию `true`.
+   */
+  keepPrevious?: boolean;
+  /** Равенство ключей: ключ, равный загруженному, нового запроса не даёт. По умолчанию — глубокое. */
+  equals?: (a: K, b: K) => boolean;
+  /** Приведение отказа к ошибке ресурса. По умолчанию ошибка — сам отказ. */
+  toError?: (error: unknown) => E;
+  /** Успешная загрузка актуального запроса. */
+  onSuccess?: (data: T) => void;
+  /** Отказ актуального запроса. Отмена отказом не считается. */
+  onError?: (error: E) => void;
+}
+```
+
+_Source: src/resource/resource.ts_
+
 ### revalidateWhen
 
 **Kind:** `function`
@@ -14175,6 +15491,32 @@ revalidateWhen([model.$.maxAmount], () => void validateModel(model, schema));
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### RowKey
+
+**Kind:** `type`
+
+Ключ строки: `String(getRowKey(row))`, ключ под-модели или индекс.
+
+**Signature:**
+```typescript
+export type RowKey = string;
+```
+
+_Source: src/table/types.ts_
+
+### RowModel
+
+**Kind:** `type`
+
+Под-модель строки: у строки-объекта массива модели — её модель, у примитива — нет.
+
+**Signature:**
+```typescript
+export type RowModel<Row> = Row extends object ? Model<Row> : never;
+```
+
+_Source: src/table/types.ts_
 
 ### ru
 
@@ -14852,6 +16194,44 @@ export interface Scope {
 
 _Source: src/model/scope.ts_
 
+### SelectionMode
+
+**Kind:** `type`
+
+Режим выбора строк.
+
+**Signature:**
+```typescript
+export type SelectionMode = 'none' | 'single' | 'multiple';
+```
+
+_Source: src/table/types.ts_
+
+### ServerTableOptions
+
+**Kind:** `interface`
+
+Серверный режим: страницу отдаёт провайдер.
+
+**Signature:**
+```typescript
+export interface ServerTableOptions<Row, Id extends string> extends TableCommonOptions<Row, Id> {
+  /**
+   * Провайдер страницы. Вызывается на каждую смену запроса (одно действие — один вызов);
+   * устаревший запрос отменяется через `signal`, его ответ не применяется.
+   */
+  dataProvider: (query: TableQuery, ctx: { signal: AbortSignal }) => Promise<TablePage<Row>>;
+  /**
+   * Загрузка включена — реактивно. Пока выключена, провайдер не вызывается, таблица — `idle`.
+   * Например, вид включает загрузку после монтирования: на сервере (SSR) и в отброшенном рендере
+   * запроса нет.
+   */
+  enabled?: () => boolean;
+}
+```
+
+_Source: src/table/types.ts_
+
 ### shallowEqual
 
 **Kind:** `function`
@@ -14899,6 +16279,118 @@ export { Signal } from '@preact/signals-core';
 ```
 
 _Source: src/signals.ts_
+
+### signalFrom
+
+**Kind:** `function`
+
+Сигнал над событийным источником: значение — `read()`, обновляется по событию источника.
+
+Подписка берётся сразу, а не при первом читателе: `peek()` без подписчиков (команда, проверка
+перед закрытием) обязан видеть свежее значение. Подписка принадлежит текущей области
+(`createStore`, `scope.run`) и снимается вместе с ней; вне области её некому снять — в режиме
+разработки ядро об этом предупредит.
+
+Сигнал снаружи только читается: запись `.value` бросает `TypeError`. Новое значение приходит
+только из источника.
+
+**Signature:**
+```typescript
+export function signalFrom<T>(
+  read: () => T,
+  subscribe: (onChange: () => void) => SourceSubscription
+): ReadonlySignal<T>
+```
+
+**Parameters:**
+- `read` — - Текущее значение источника. Вызывается сразу и на каждое событие.
+- `subscribe` — - Подписка на изменения источника; возвращает отписку.
+
+**Returns:** Сигнал только для чтения со значением источника.
+
+**Examples:**
+
+```typescript
+import { createStore, signalFrom } from '@reformer/core/model';
+
+const online = createStore(() => ({
+  value: signalFrom(
+    () => navigator.onLine,
+    (onChange) => {
+      window.addEventListener('online', onChange);
+      window.addEventListener('offline', onChange);
+      return () => {
+        window.removeEventListener('online', onChange);
+        window.removeEventListener('offline', onChange);
+      };
+    }
+  ),
+}));
+```
+
+_Source: src/model/signal-from.ts_
+
+### SortDirection
+
+**Kind:** `type`
+
+Направление сортировки.
+
+**Signature:**
+```typescript
+export type SortDirection = 'asc' | 'desc';
+```
+
+_Source: src/table/types.ts_
+
+### SortEntry
+
+**Kind:** `interface`
+
+Элемент сортировки: колонка и направление. Порядок элементов — приоритет.
+
+**Signature:**
+```typescript
+export interface SortEntry {
+  id: string;
+  desc: boolean;
+}
+```
+
+_Source: src/table/types.ts_
+
+### SourceSubscription
+
+**Kind:** `type`
+
+То, что возвращает подписка источника: функция отписки или объект с `dispose()`.
+
+**Signature:**
+```typescript
+export type SourceSubscription = (() => void) | { dispose(): void };
+```
+
+_Source: src/model/signal-from.ts_
+
+### StorageAdapter
+
+**Kind:** `interface`
+
+Хранилище выбора уровня: `localStorage`, настройки приложения, cookie.
+
+**Signature:**
+```typescript
+export interface StorageAdapter {
+  /** Сохранённое значение ключа; `undefined` — ничего не сохранено. */
+  get(key: string): unknown;
+  /** Сохранить значение. Промис — для асинхронных хранилищ; ошибку уровень не ждёт. */
+  set(key: string, value: unknown): void | Promise<void>;
+  /** Правка ключа снаружи (другая вкладка, панель настроек). Возвращает отписку. */
+  subscribe?(key: string, onChange: () => void): () => void;
+}
+```
+
+_Source: src/levels/storage.ts_
 
 ### Store
 
@@ -14980,6 +16472,403 @@ syncFields(model.$.field1, model.$.field2);
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### SystemThemeSource
+
+**Kind:** `interface`
+
+Источник системной темы.
+
+**Signature:**
+```typescript
+export interface SystemThemeSource {
+  /** Тема системы сейчас. */
+  current(): ThemeKind;
+  /** Смена темы системы. Возвращает отписку. */
+  subscribe(onChange: () => void): () => void;
+}
+```
+
+_Source: src/theme/adapters.ts_
+
+### Table
+
+**Kind:** `interface`
+
+Уровень таблицы.
+
+**Signature:**
+```typescript
+export interface Table<Row, Id extends string = string> {
+  /** `'client'` — строки в памяти, `'server'` — страницу отдаёт провайдер. */
+  readonly mode: 'client' | 'server';
+  readonly columns: { readonly [K in Id]: TableColumnFace<K> };
+  /** Id видимых колонок в порядке объявления. */
+  readonly visibleColumns: ReadonlySignal<readonly Id[]>;
+  /** Строки текущей страницы. */
+  readonly rows: ReadonlySignal<readonly TableRow<Row>[]>;
+  /** Строка текущей страницы по ключу. */
+  row(key: RowKey): TableRow<Row> | undefined;
+  readonly sorting: ReadonlySignal<readonly SortEntry[]>;
+  readonly filters: ReadonlySignal<TableFilters>;
+  readonly pageIndex: ReadonlySignal<number>;
+  readonly pageSize: ReadonlySignal<number>;
+  /** Число страниц (не меньше 1). */
+  readonly pageCount: ReadonlySignal<number>;
+  /** Число строк после фильтра (серверный режим — `total` ответа). */
+  readonly total: ReadonlySignal<number>;
+  /** Запрос страницы: ключ загрузки, источник для адресной строки. */
+  readonly query: ReadonlySignal<TableQuery>;
+  readonly status: ReadonlySignal<AsyncStatus>;
+  /** Идёт загрузка поверх показанной страницы. */
+  readonly refreshing: ReadonlySignal<boolean>;
+  readonly error: ReadonlySignal<unknown>;
+  readonly selection: TableSelection<Row>;
+  setPage(index: number): void;
+  nextPage(): void;
+  prevPage(): void;
+  /** Задать размер страницы и вернуться на первую страницу. */
+  setPageSize(size: number): void;
+  setSorting(sorting: readonly SortEntry[]): void;
+  /** Снять все фильтры и вернуться на первую страницу. */
+  clearFilters(): void;
+  /** Перезапросить страницу (серверный режим). */
+  reload(): void;
+  dispose(): void;
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableColumnFace
+
+**Kind:** `interface`
+
+Лицо колонки: `table.columns.<id>`.
+
+**Signature:**
+```typescript
+export interface TableColumnFace<Id extends string = string> {
+  readonly id: Id;
+  readonly sortable: boolean;
+  readonly filterable: boolean;
+  readonly meta: Readonly<Record<string, unknown>> | undefined;
+  /** Направление сортировки колонки; `null` — не сортирует. */
+  readonly sort: ReadonlySignal<SortDirection | null>;
+  /** Приоритет в сортировке (с 0); `-1` — не сортирует. */
+  readonly sortIndex: ReadonlySignal<number>;
+  /** Фильтр колонки; `undefined` — нет фильтра. */
+  readonly filter: ReadonlySignal<unknown>;
+  readonly visible: ReadonlySignal<boolean>;
+  /** Цикл «по возрастанию → по убыванию → без сортировки». `multi` — добавить к остальным. */
+  toggleSort(options?: { multi?: boolean }): void;
+  setSort(direction: SortDirection | null, options?: { multi?: boolean }): void;
+  /** Задать фильтр и вернуться на первую страницу. Пустое значение снимает фильтр. */
+  setFilter(value: unknown): void;
+  clearFilter(): void;
+  setVisible(visible: boolean): void;
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableCommonOptions
+
+**Kind:** `interface`
+
+Общие настройки обоих режимов.
+
+**Signature:**
+```typescript
+export interface TableCommonOptions<Row, Id extends string> {
+  /** Колонки. Состав фиксируется при создании, как ключи модели. */
+  columns: readonly ColumnDef<Row, Id>[];
+  /**
+   * Стабильный ключ строки: выбор переживает сортировку, страницы и перезагрузку. Без него в
+   * клиентском режиме над массивом модели ключ — ключ под-модели строки, иначе — индекс.
+   */
+  getRowKey?: (row: Row) => string | number;
+  /** Размер страницы. По умолчанию `10`. */
+  pageSize?: number;
+  /** Режим выбора. По умолчанию `'none'`. */
+  selection?: SelectionMode;
+  /** Разрешить сортировку по нескольким колонкам (`toggleSort({ multi: true })`). По умолчанию `true`. */
+  multiSort?: boolean;
+  /** Язык коллации клиентской сортировки — реактивно: смена языка пересортирует таблицу. */
+  locale?: () => string | undefined;
+  /** Привязка состояния к полям модели. */
+  state?: TableStateBindings;
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableFilters
+
+**Kind:** `type`
+
+Активные фильтры: id колонки → значение фильтра. Пустой фильтр (`''`, `null`, `undefined`) в
+карту не попадает.
+
+**Signature:**
+```typescript
+export type TableFilters = Record<string, unknown>;
+```
+
+_Source: src/table/types.ts_
+
+### TableOptions
+
+**Kind:** `type`
+
+Настройки {@link createTable}: `data` — клиентский режим, `dataProvider` — серверный.
+
+**Signature:**
+```typescript
+export type TableOptions<Row, Id extends string> =
+  | ClientTableOptions<Row, Id>
+  | ServerTableOptions<Row, Id>;
+```
+
+_Source: src/table/types.ts_
+
+### TablePage
+
+**Kind:** `interface`
+
+Ответ провайдера серверного режима: строки страницы и общее число строк.
+
+**Signature:**
+```typescript
+export interface TablePage<Row> {
+  rows: Row[];
+  total: number;
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableQuery
+
+**Kind:** `interface`
+
+Запрос страницы — ключ загрузки серверного режима и источник для синхронизации с адресом.
+Совпадает с `TableQuery` DataGrid из `@reformer/ui-kit/table`.
+
+**Signature:**
+```typescript
+export interface TableQuery {
+  /** Активные фильтры колонок. */
+  filters: TableFilters;
+  /** Текущая страница (с 0) и размер страницы. */
+  pagination: { pageIndex: number; pageSize: number };
+  /** Сортировка; порядок — приоритет. */
+  sorting: SortEntry[];
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableRow
+
+**Kind:** `interface`
+
+Лицо строки текущей страницы.
+
+**Signature:**
+```typescript
+export interface TableRow<Row> {
+  readonly key: RowKey;
+  readonly value: Row;
+  /** Под-модель строки (клиентский режим над массивом модели) — шов для редактирования. */
+  readonly model: RowModel<Row> | undefined;
+  readonly selected: ReadonlySignal<boolean>;
+  /** Выбрать (`true`, по умолчанию) или снять выбор. В режиме `single` выбор — только эта строка. */
+  select(on?: boolean): void;
+  toggle(): void;
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableSelection
+
+**Kind:** `interface`
+
+Выбор строк.
+
+**Signature:**
+```typescript
+export interface TableSelection<Row> {
+  readonly mode: SelectionMode;
+  readonly keys: ReadonlySignal<ReadonlySet<RowKey>>;
+  /** Выбранные строки, в том числе с других страниц. */
+  readonly rows: ReadonlySignal<readonly Row[]>;
+  /** Выбраны все строки страницы (страница не пуста). */
+  readonly allOnPage: ReadonlySignal<boolean>;
+  /** Выбрана часть строк страницы — для неопределённого чекбокса шапки. */
+  readonly someOnPage: ReadonlySignal<boolean>;
+  /** Все строки страницы выбраны — снять их; иначе — выбрать все. Только режим `multiple`. */
+  toggleAllOnPage(): void;
+  clear(): void;
+}
+```
+
+_Source: src/table/types.ts_
+
+### TableStateBindings
+
+**Kind:** `interface`
+
+Состояние таблицы, которое можно привязать к полям модели (адрес, настройки пользователя).
+
+**Signature:**
+```typescript
+export interface TableStateBindings {
+  sorting?: Signal<readonly SortEntry[]>;
+  filters?: Signal<TableFilters>;
+  pageIndex?: Signal<number>;
+  pageSize?: Signal<number>;
+  selected?: Signal<ReadonlySet<RowKey>>;
+  hidden?: Signal<ReadonlySet<string>>;
+}
+```
+
+_Source: src/table/types.ts_
+
+### textDirection
+
+**Kind:** `function`
+
+Направление письма языка.
+
+**Signature:**
+```typescript
+export function textDirection(code: string): TextDirection
+```
+
+**Parameters:**
+- `code` — - Код языка (`ar`, `he-IL`, `ru`).
+
+**Returns:** `'rtl'` или `'ltr'`.
+
+**Examples:**
+
+```typescript
+textDirection('ar'); // 'rtl'
+textDirection('ru'); // 'ltr'
+```
+
+_Source: src/language/adapters.ts_
+
+### TextDirection
+
+**Kind:** `type`
+
+Направление письма.
+
+**Signature:**
+```typescript
+export type TextDirection = 'ltr' | 'rtl';
+```
+
+_Source: src/language/adapters.ts_
+
+### Theme
+
+**Kind:** `interface`
+
+Уровень темы.
+
+**Signature:**
+```typescript
+export interface Theme {
+  /** Выбор пользователя. Непонятное значение в привязанном поле читается как `'system'`. */
+  readonly preference: ReadonlySignal<ThemePreference>;
+  /** Тема системы. */
+  readonly system: ReadonlySignal<ThemeKind>;
+  /** Действующая тема: выбор пользователя, а при `'system'` — тема системы. */
+  readonly resolved: ReadonlySignal<ThemeKind>;
+  /** Выбрать тему или «как в системе». */
+  set(preference: ThemePreference): void;
+  /** Переключить действующую тему на противоположную (выбор становится явным). */
+  toggle(): void;
+  /** Снять подписки (система, хранилище) и перестать применять тему. Маркер с корня не снимается. */
+  dispose(): void;
+}
+```
+
+_Source: src/theme/create-theme.ts_
+
+### ThemeKind
+
+**Kind:** `type`
+
+Светлая или тёмная тема.
+
+**Signature:**
+```typescript
+export type ThemeKind = 'light' | 'dark';
+```
+
+_Source: src/theme/adapters.ts_
+
+### ThemeOptions
+
+**Kind:** `interface`
+
+Настройки {@link createTheme}.
+
+**Signature:**
+```typescript
+export interface ThemeOptions {
+  /**
+   * Поле модели с выбором пользователя (`app.$.settings.theme`): форма настроек над этим полем
+   * переключает тему без всякого клея. Без привязки уровень заводит свой сигнал.
+   */
+  preference?: Signal<ThemePreference>;
+  /** Выбор на старте без привязки. По умолчанию `'system'`. */
+  initial?: ThemePreference;
+  /** Системная тема. По умолчанию {@link mediaQuerySystemTheme}; `null` — система светлая. */
+  system?: SystemThemeSource | null;
+  /** Куда применять тему. По умолчанию {@link documentTheme}; `null` — DOM не трогать. */
+  target?: ThemeTarget | null;
+  /** Где помнить выбор пользователя. Без хранилища выбор живёт до перезагрузки. */
+  storage?: StorageAdapter | null;
+  /** Ключ в хранилище. По умолчанию `'reformer.theme'`. */
+  storageKey?: string;
+}
+```
+
+_Source: src/theme/create-theme.ts_
+
+### ThemePreference
+
+**Kind:** `type`
+
+Выбор пользователя: тема или «как в системе».
+
+**Signature:**
+```typescript
+export type ThemePreference = ThemeKind | 'system';
+```
+
+_Source: src/theme/adapters.ts_
+
+### ThemeTarget
+
+**Kind:** `interface`
+
+Куда применяется действующая тема: корень документа, контейнер превью.
+
+**Signature:**
+```typescript
+export interface ThemeTarget {
+  apply(theme: ThemeKind): void;
+}
+```
+
+_Source: src/theme/adapters.ts_
 
 ### toFileArray
 
@@ -16495,6 +18384,37 @@ export function watchValueOf(
 - `state` — - Снимок `useFormControl(control)` поля.
 
 _Source: src/platforms/react/hooks/useSignalSubscription.ts_
+
+### webStorage
+
+**Kind:** `function`
+
+Хранилище над Web Storage (`localStorage` по умолчанию): значения в JSON.
+
+Без `localStorage` (сервер, воркер, запрет политикой) хранилище пустое и ничего не пишет —
+уровень работает, просто не помнит выбор. Битый JSON читается как «ничего не сохранено»,
+ошибка записи (квота, приватный режим) молча пропускается. Правки из других вкладок приходят
+событием `storage`.
+
+**Signature:**
+```typescript
+export function webStorage(storage: Storage | null = defaultStorage()): StorageAdapter
+```
+
+**Parameters:**
+- `storage` — - Web Storage; `null` — пустое хранилище. По умолчанию `localStorage`.
+
+**Returns:** Адаптер для опции `storage` уровней.
+
+**Examples:**
+
+```typescript
+import { createTheme, webStorage } from '@reformer/core/theme';
+
+const theme = createTheme({ storage: webStorage() });
+```
+
+_Source: src/levels/storage.ts_
 
 ### WeekStart
 

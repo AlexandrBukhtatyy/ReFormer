@@ -27,6 +27,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { disposeForm } from '../test-utils/dispose-form';
 import * as root from '../../src/index';
 import * as model from '../../src/model/index';
+import * as resource from '../../src/resource/index';
+import * as theme from '../../src/theme/index';
+import * as language from '../../src/language/index';
+import * as table from '../../src/table/index';
 import * as behaviors from '../../src/form/behaviors/index';
 import * as validation from '../../src/form/validation/index';
 import * as validators from '../../src/form/validators/index';
@@ -59,6 +63,26 @@ const ENTRIES: Readonly<Record<string, Entry>> = {
     source: 'src/model/index.ts',
     module: model,
     load: () => import('../../src/model/index'),
+  },
+  './resource': {
+    source: 'src/resource/index.ts',
+    module: resource,
+    load: () => import('../../src/resource/index'),
+  },
+  './theme': {
+    source: 'src/theme/index.ts',
+    module: theme,
+    load: () => import('../../src/theme/index'),
+  },
+  './language': {
+    source: 'src/language/index.ts',
+    module: language,
+    load: () => import('../../src/language/index'),
+  },
+  './table': {
+    source: 'src/table/index.ts',
+    module: table,
+    load: () => import('../../src/table/index'),
   },
   './behaviors': {
     source: 'src/form/behaviors/index.ts',

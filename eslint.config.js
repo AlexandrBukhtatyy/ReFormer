@@ -28,6 +28,15 @@ const NO_REACT_PATHS = [
   'use-sync-external-store/shim',
 ].map((name) => ({ name, allowTypeImports: false, message: REACT_MESSAGE }));
 
+/** Каталоги уровней UI над моделью — модель о них не знает. */
+const LEVEL_DIRS = [
+  '**/levels/**',
+  '**/theme/**',
+  '**/language/**',
+  '**/table/**',
+  '**/resource/**',
+];
+
 const NO_PLATFORMS = {
   group: ['**/platforms/**', '**/platforms'],
   message:
@@ -246,6 +255,49 @@ export default defineConfig([
                 'Граница model⇏form: модуль model (src/model, src/signals) не импортирует form-слой ' +
                 '(src/form/**: ноды/create-form/реестр/валидацию/схемы/DSL). Обратное направление ' +
                 'form→model разрешено. model — строго реактивный: без форм/валидации/схем.',
+            },
+            {
+              group: LEVEL_DIRS,
+              message:
+                'Граница model⇏уровни: модель не знает об уровнях над ней (тема, язык, таблица, ' +
+                'загрузка). Уровни строятся на модели, обратного направления нет.',
+            },
+            NO_PLATFORMS,
+          ],
+          paths: NO_REACT_PATHS,
+        },
+      ],
+    },
+  },
+
+  // Уровни UI над моделью (src/{levels,theme,language,table,resource}): строятся на модели и
+  // сигналах, без формы, React и платформ, и не импортируют друг друга — их связывает модель
+  // приложения и defineBehavior. Таблица опирается на загрузку (resource) — это разрешено: resource
+  // не уровень UI, а примитив загрузки.
+  {
+    files: [
+      'packages/reformer/src/levels/**/*.ts',
+      'packages/reformer/src/theme/**/*.ts',
+      'packages/reformer/src/language/**/*.ts',
+      'packages/reformer/src/table/**/*.ts',
+      'packages/reformer/src/resource/**/*.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/form/**', '**/form'],
+              message:
+                'Уровни UI не импортируют form-слой: состояние формы им недоступно напрямую. ' +
+                'Связь с формой — через общую модель приложения (форма и уровень пишут одни сигналы).',
+            },
+            {
+              group: ['**/theme/**', '**/language/**', '**/table/**'],
+              message:
+                'Уровни не импортируют друг друга: их связывает модель приложения (привязка к полю) ' +
+                'и defineBehavior из @reformer/core/model.',
             },
             NO_PLATFORMS,
           ],

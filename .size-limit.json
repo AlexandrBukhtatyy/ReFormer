@@ -17,7 +17,27 @@
   {
     "name": "@reformer/core (model only)",
     "path": ["packages/reformer/dist/model.js", "packages/reformer/dist/model-core-*.js"],
-    "limit": "10 kB"
+    "limit": "11 kB"
+  },
+  {
+    "name": "@reformer/core (resource)",
+    "path": ["packages/reformer/dist/resource.js", "packages/reformer/dist/resource-*.js"],
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/core (theme)",
+    "path": ["packages/reformer/dist/theme.js", "packages/reformer/dist/storage-*.js"],
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/core (language)",
+    "path": ["packages/reformer/dist/language.js", "packages/reformer/dist/storage-*.js"],
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/core (table)",
+    "path": ["packages/reformer/dist/table.js", "packages/reformer/dist/resource-*.js"],
+    "limit": "6 kB"
   },
   {
     "name": "@reformer/core (i18n only)",

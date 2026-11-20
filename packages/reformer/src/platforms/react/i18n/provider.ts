@@ -1,8 +1,9 @@
 /**
  * Провайдер локализации.
  *
- * Два режима:
+ * Три режима:
  * - `lang` + `load` — провайдер грузит локаль сам (основной путь);
+ * - `language` — уровень языка `@reformer/core/language`: язык меняют сигналом, вне React;
  * - `locale` — готовый объект, синхронно (SSR, тесты, приложение со своей загрузкой).
  *
  * Файл без JSX намеренно: `react/jsx-runtime` не входит во внешние зависимости сборки ядра.
@@ -25,6 +26,8 @@ import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { DEFAULT_LOCALE, type FormLocale } from '../../../i18n/locale';
 import { createLocaleStore, type LocaleLoad } from '../../../i18n/locale-store';
 import { createI18n } from '../../../i18n/translator';
+import type { Language } from '../../../language/create-language';
+import { useComputed } from '../hooks/useComputed';
 import {
   contextValue,
   createI18nSource,
@@ -94,7 +97,22 @@ export interface I18nLoadingProviderProps {
   children?: ReactNode;
 }
 
-export type I18nProviderProps = I18nStaticProviderProps | I18nLoadingProviderProps;
+/** Режим «уровень языка»: язык живёт в `createLanguage`, провайдер его только показывает. */
+export interface I18nLanguageProviderProps {
+  /**
+   * Уровень языка (`createLanguage` из `@reformer/core/language`). Язык меняют им самим или полем
+   * модели, к которому он привязан, — перерисовки родителя для этого не нужно.
+   */
+  language: Language;
+  /** Что показать, пока не загружена самая первая локаль. Как у режима `lang` + `load`. */
+  fallback?: ReactNode;
+  children?: ReactNode;
+}
+
+export type I18nProviderProps =
+  | I18nStaticProviderProps
+  | I18nLoadingProviderProps
+  | I18nLanguageProviderProps;
 
 function StaticProvider({ locale, children }: I18nStaticProviderProps): ReactElement {
   const value = useMemo(() => contextValue(createI18n(locale), false, undefined), [locale]);
@@ -152,6 +170,29 @@ function LoadingProvider({
   return provide(value, children);
 }
 
+function LanguageProvider({
+  language,
+  fallback,
+  children,
+}: I18nLanguageProviderProps): ReactElement | null {
+  // Дети уже показаны: дальше провайдер их не размонтирует, даже если локали всё ещё нет
+  // (повтор упавшей первой загрузки).
+  const childrenShownRef = useRef(false);
+  // Одна подписка на все поля уровня: значение пересобирается только при смене локали, загрузки
+  // или ошибки. Упала первая загрузка — дети на встроенном английском, как в режиме `lang` + `load`.
+  const state = useComputed(() => {
+    const error = language.error.value;
+    return {
+      ready: language.locale.value !== null || error !== undefined,
+      value: contextValue(language.i18n.value, language.pending.value, error, language.retry),
+    };
+  }, [language]);
+  if (!state.ready && !childrenShownRef.current)
+    return fallback === undefined ? null : createElement(Fragment, null, fallback);
+  childrenShownRef.current = true;
+  return provide(state.value, children);
+}
+
 /**
  * Провайдер локализации для подписей компонентов, ошибок валидации и авторских подписей формы.
  * Без провайдера компоненты говорят встроенным английским.
@@ -170,6 +211,19 @@ function LoadingProvider({
  * </I18nProvider>
  * ```
  *
+ * @example Уровень языка — язык меняют вне React
+ * ```tsx
+ * import { createLanguage } from '@reformer/core/language';
+ *
+ * const language = createLanguage({ load: loadLocale, supported: ['ru', 'en'] });
+ *
+ * <I18nProvider language={language} fallback={<Spinner />}>
+ *   <CreditForm />
+ * </I18nProvider>;
+ *
+ * language.set('en'); // компоненты переключатся, когда словарь загрузится
+ * ```
+ *
  * @example Готовая локаль — SSR и тесты
  * ```tsx
  * import { ru } from '@reformer/ui-kit/locale/ru';
@@ -178,6 +232,7 @@ function LoadingProvider({
  * ```
  */
 export function I18nProvider(props: I18nProviderProps): ReactElement | null {
+  if ('language' in props) return createElement(LanguageProvider, props);
   return 'locale' in props
     ? createElement(StaticProvider, props)
     : createElement(LoadingProvider, props);
