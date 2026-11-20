@@ -32,14 +32,22 @@ export interface OperationSummary {
   costTotal: number;
 }
 
+/** Прогоны и пройденные в одном стеке (`core`, `renderer-react`, `renderer-json`). */
+export interface TargetCell {
+  runs: number;
+  passes: number;
+}
+
 export interface ArmTotals extends ArmSummary {
+  /** Пройдено по стекам — на всём наборе сценариев. */
+  targets: Record<string, TargetCell>;
   operations: Record<Operation, OperationSummary>;
   /** Частые не пройденные проверки на создании формы. */
   createFailures: Array<{ check: string; runs: number }>;
 }
 
 export interface ScenarioArm extends ArmSummary {
-  targets: Record<string, { runs: number; passes: number }>;
+  targets: Record<string, TargetCell>;
 }
 
 export interface ScenarioResult {

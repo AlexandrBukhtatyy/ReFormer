@@ -95,6 +95,18 @@ const scenarioIds = [...new Set(rows.map((row) => row.scenario))].sort(
 const byArm = (arm, filter = () => true) =>
   rows.filter((row) => row.approach === arm && filter(row));
 
+/** Пройдено по стекам: число прогонов и пройденных в каждом. */
+const byTarget = (runs) =>
+  Object.fromEntries(
+    targets.map((target) => {
+      const cell = runs.filter((row) => row.target === target);
+      return [
+        target,
+        { runs: cell.length, passes: cell.filter((row) => row.verdict === 'pass').length },
+      ];
+    })
+  );
+
 /** Частые причины провала создания по плечу: проверки и число прогонов с ними. */
 function createFailures(arm) {
   const counts = new Map();
@@ -122,6 +134,7 @@ const data = {
       arm,
       {
         ...summarize(byArm(arm)),
+        targets: byTarget(byArm(arm)),
         operations: Object.fromEntries(
           OPERATIONS.map((kind) => {
             const runs = byArm(arm, (row) => kindOf(row) === kind);
@@ -151,24 +164,7 @@ const data = {
       arms: Object.fromEntries(
         ARMS.map((arm) => {
           const runs = byArm(arm, (row) => row.scenario === id);
-          return [
-            arm,
-            {
-              ...summarize(runs),
-              targets: Object.fromEntries(
-                targets.map((target) => {
-                  const cell = runs.filter((row) => row.target === target);
-                  return [
-                    target,
-                    {
-                      runs: cell.length,
-                      passes: cell.filter((row) => row.verdict === 'pass').length,
-                    },
-                  ];
-                })
-              ),
-            },
-          ];
+          return [arm, { ...summarize(runs), targets: byTarget(runs) }];
         })
       ),
     };

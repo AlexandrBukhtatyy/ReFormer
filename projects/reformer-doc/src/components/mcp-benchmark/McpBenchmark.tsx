@@ -38,6 +38,8 @@ const BEST_MCP: ArmId = 'mcp-dsl';
 const TEXT = {
   ru: {
     quality: 'Качество',
+    byStack: 'по стекам',
+    withoutMcp: (p: number) => `без MCP ${p}%`,
     speed: 'Скорость',
     cost: 'Стоимость',
     tokens: 'Токены',
@@ -78,6 +80,8 @@ const TEXT = {
   },
   en: {
     quality: 'Quality',
+    byStack: 'by stack',
+    withoutMcp: (p: number) => `no MCP ${p}%`,
     speed: 'Speed',
     cost: 'Cost',
     tokens: 'Tokens',
@@ -255,6 +259,38 @@ function MetricChart({ metric }: { metric: Metric }): ReactNode {
   );
 }
 
+interface StackQuality {
+  target: string;
+  /** Доля пройденных у лучшего MCP-плеча, %. */
+  best: number;
+  /** Доля пройденных без MCP, %. */
+  base: number;
+}
+
+/**
+ * Какой стек надёжнее: доля пройденных прогонов по стекам у лучшего MCP-плеча и без MCP. От
+ * лучшего стека к худшему; при равенстве решает работа без сервера, затем порядок STACK_ORDER.
+ */
+function stackQuality(): StackQuality[] {
+  const best = data.summary[BEST_MCP].targets;
+  const base = data.summary[BASELINE].targets;
+  return STACK_ORDER.filter((target) => best[target] && base[target])
+    .map((target) => ({
+      target,
+      best: percent(best[target].passes, best[target].runs),
+      base: percent(base[target].passes, base[target].runs),
+    }))
+    .sort((a, b) => b.best - a.best || b.base - a.base);
+}
+
+interface Tile {
+  kicker: string;
+  value: string;
+  caption: string;
+  note: string;
+  stacks?: StackQuality[];
+}
+
 /** Итог прогонов: плитки с главными кратностями и бар-чарты по метрикам. */
 export function McpSummary(): ReactNode {
   const lang = useLang();
@@ -263,10 +299,11 @@ export function McpSummary(): ReactNode {
   const dsl = data.summary[BEST_MCP];
   const def = data.summary['mcp-default'];
   const pct = (s: ArmSummary) => Math.round(percent(s.passes, s.runs));
-  const tiles = [
+  const tiles: Tile[] = [
     {
       kicker: t.quality,
       value: `${pct(dsl)}%`,
+      stacks: stackQuality(),
       caption:
         lang === 'en'
           ? `of runs pass every check with MCP · code-guided-dsl ${t.vs} ${pct(none)}% without MCP`
@@ -379,6 +416,24 @@ export function McpSummary(): ReactNode {
             <span className={styles.tileKicker}>{tile.kicker}</span>
             <span className={styles.tileValue}>{tile.value}</span>
             <span className={styles.tileCaption}>{tile.caption}</span>
+            {tile.stacks && (
+              <div className={styles.tileStacks}>
+                <span className={styles.tileStacksTitle}>{t.byStack}</span>
+                <ol>
+                  {tile.stacks.map((stack) => (
+                    <li key={stack.target}>
+                      <span className={styles.tileStackName}>
+                        {STACKS[stack.target] ?? stack.target}
+                      </span>
+                      <span className={styles.tileStackValue}>{Math.round(stack.best)}%</span>
+                      <span className={styles.tileStackBase}>
+                        {t.withoutMcp(Math.round(stack.base))}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
             <span className={styles.tileNote}>{tile.note}</span>
           </div>
         ))}
