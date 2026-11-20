@@ -149,6 +149,50 @@ form.email.touched.value; // false — касание есть только у �
 находит реестр, который сборка заполняет, когда строит ноды. Поэтому одни и те же правила
 подходят к форме из кода и к форме из JSON.
 
+### Уровни UI: тема, язык, таблица
+
+Кроме формы, ядро даёт готовые уровни для остального интерфейса. Каждый отдаёт **лицо**: объект
+со стабильной идентичностью, у которого состояние — сигналы только для чтения, а изменения —
+команды.
+
+| Уровень | Сабпат                    | Чтение                                      | Команды                              |
+| ------- | ------------------------- | ------------------------------------------- | ------------------------------------ |
+| тема    | `@reformer/core/theme`    | `theme.resolved`, `theme.preference`        | `set`, `toggle`                      |
+| язык    | `@reformer/core/language` | `language.code`, `language.t(…)`, `pending` | `set`, `retry`                       |
+| таблица | `@reformer/core/table`    | `table.rows`, `table.columns.name.sort`     | `toggleSort`, `setFilter`, `setPage` |
+
+Главное — **привязка к полю модели**. Уровень может читать и писать поле модели приложения вместо
+своего сигнала, и тогда форма над этим полем управляет уровнем без всякого клея:
+
+```typescript
+import { arrayOf, createModel, createStore } from '@reformer/core/model';
+import { createTheme, type ThemePreference } from '@reformer/core/theme';
+import { createLanguage } from '@reformer/core/language';
+import { createTable } from '@reformer/core/table';
+
+export const app = createStore(() => {
+  const model = createModel({
+    settings: { theme: 'system' as ThemePreference, lang: 'ru' },
+    users: arrayOf(blankUser),
+  });
+  const theme = createTheme({ preference: model.$.settings.theme });
+  const language = createLanguage({ lang: model.$.settings.lang, load: loadLocale });
+  const users = createTable({
+    data: model.$.users,
+    columns: [{ id: 'name', sortable: true, filterable: true }],
+    locale: () => language.code.value, // сортировка по коллации языка
+  });
+  return { model, theme, language, users };
+});
+
+app.model.settings.theme = 'dark'; // <html class="dark">
+app.model.settings.lang = 'en'; // словарь загрузится, <html lang="en">, таблица пересортируется
+```
+
+Если уровню нужно действие в ответ на другой уровень (перезапросить серверную таблицу при смене
+языка), правило описывают `defineBehavior` из `@reformer/core/model` и подключают внутри
+`createStore` — оно снимется вместе со стором.
+
 ### Свой уровень
 
 Уровень — любой код, который читает сигналы модели. Ему не нужен отдельный API: хватает прокси
