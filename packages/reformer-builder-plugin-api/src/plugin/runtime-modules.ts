@@ -127,6 +127,12 @@ export const PLUGIN_RUNTIME_MODULES: readonly string[] = Object.freeze([
   '@reformer/core/signals',
   '@reformer/core/validation',
   '@reformer/core/validators',
+  // Уровни UI над моделью: таблицу берёт `@reformer/ui-kit/table`, тему и язык — плагины,
+  // которые меняют их у оболочки. Одна копия ядра — одна область и одни сигналы.
+  '@reformer/core/resource',
+  '@reformer/core/theme',
+  '@reformer/core/language',
+  '@reformer/core/table',
   '@reformer/renderer-json',
   '@reformer/renderer-json/validate',
   '@reformer/renderer-react',
