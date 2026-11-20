@@ -8505,6 +8505,22 @@
               "kind": "readonly"
             }
           },
+          "columns": {
+            "type": "array",
+            "description": "Отрисовка колонок по id. Колонка без пары в таблице рисуется как есть (действия).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "TableColumn<Row>[]"
+            }
+          },
+          "onSelectionChange": {
+            "description": "Изменение выделения. Режим выделения задаёт таблица.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "((selection: TableSelection<Row>) => void)",
+              "kind": "readonly"
+            }
+          },
           "settings": {
             "type": "object",
             "description": "Конфигурация грида: dataProvider строк, описание колонок, размер страницы, ключ строки и режим выделения.",
@@ -8512,6 +8528,14 @@
               "group": "Options",
               "type": "TableSettings<Row>",
               "kind": "readonly"
+            }
+          },
+          "table": {
+            "type": "object",
+            "description": "Таблица уровня (`createTable` из `@reformer/core/table`) — её создаёт стор приложения.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "Table<Row, string>"
             }
           }
         }

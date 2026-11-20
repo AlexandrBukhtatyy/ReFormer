@@ -1,20 +1,21 @@
 import { useKitMessages } from '@/i18n/messages';
 import * as React from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  type ColumnDef,
-  type OnChangeFn,
-  type SortingState,
-  type PaginationState,
-  type ColumnFiltersState,
-  type RowSelectionState,
-} from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
+import { createStore, watchField } from '@reformer/core/model';
+import { useSignalSnapshot, useStore } from '@reformer/core/react';
+import { signal } from '@reformer/core/signals';
+import {
+  createTable,
+  type SelectionMode,
+  type Table as TableLevel,
+  type TableColumnFace,
+  type TableFilters,
+  type TablePage,
+  type TableQuery,
+} from '@reformer/core/table';
 
 import { cn } from '@/lib/utils';
-import { AsyncBoundary, type AsyncStatus } from '@/components/async-boundary';
+import { AsyncBoundary } from '@/components/async-boundary';
 import {
   Pagination,
   PaginationContent,
@@ -26,40 +27,19 @@ import {
 } from '@/components/pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../base/table-base';
 
-// DataGrid — data-driven обёртка над презентационным Table (variants/base). Не form-control.
-// Держит состояние pagination / sorting / column-filters / row-selection, а данные получает
-// из `dataProvider` (server-driven): движок @tanstack/react-table с manual* = true, поэтому
-// сортировка / пагинация / фильтрация НЕ выполняются в памяти — их реализует dataProvider.
-// Состояния loading / error / empty показываются через AsyncBoundary (его встроенные блоки
-// загрузки и ошибки); навигация по страницам — через компонент Pagination. Тяжёлая dep
-// @tanstack/react-table (optional peer) — компонент живёт вне главного barrel, subpath
-// `@reformer/ui-kit/table`.
+// DataGrid — вид над уровнем таблицы `@reformer/core/table` поверх презентационного Table
+// (variants/base). Не form-control. Состояние (сортировка, фильтры, страницы, выбор, загрузка)
+// держит уровень таблицы, вид только рисует его сигналы и вызывает команды. Два режима:
+// `settings` — грид сам создаёт серверную таблицу из `dataProvider`; `table` — грид рисует
+// готовую таблицу (клиентскую над массивом модели или серверную), созданную в сторе приложения.
+// Состояния loading / error / empty — через AsyncBoundary; навигация по страницам — Pagination.
+
+export type { TableFilters, TablePage, TableQuery };
 
 /** Режим выделения строк DataGrid. */
-export type TableSelectionMode = 'none' | 'single' | 'multiple';
+export type TableSelectionMode = SelectionMode;
 
-/** Плоская карта активных фильтров: id колонки → значение фильтра. */
-export type TableFilters = Record<string, unknown>;
-
-/** Аргумент запроса, который DataGrid передаёт в {@link TableSettings.dataProvider}. */
-export interface TableQuery {
-  /** Активные фильтры колонок (id → значение). Пустая карта, если фильтров нет. */
-  filters: TableFilters;
-  /** Текущая страница (`pageIndex` с 0) и размер страницы. */
-  pagination: { pageIndex: number; pageSize: number };
-  /** Активная сортировка (порядок значим). `desc` — по убыванию. */
-  sorting: { id: string; desc: boolean }[];
-}
-
-/** Результат {@link TableSettings.dataProvider}: строки текущей страницы + общее число строк. */
-export interface TablePage<Row> {
-  /** Строки текущей страницы. */
-  rows: Row[];
-  /** Общее число строк во всём наборе (для расчёта числа страниц). */
-  total: number;
-}
-
-/** Описание одной колонки DataGrid. */
+/** Описание одной колонки DataGrid — отрисовка; состояние колонки держит уровень таблицы. */
 export interface TableColumn<Row> {
   /** Уникальный id колонки (ключ; попадает в `sorting[].id` и `filters`). */
   id: string;
@@ -67,9 +47,15 @@ export interface TableColumn<Row> {
   header: React.ReactNode;
   /** Извлекатель содержимого ячейки из строки. Если не задан — ячейка пустая. */
   accessor?: (row: Row) => React.ReactNode;
-  /** Разрешить сортировку по колонке (кликабельный заголовок). По умолчанию `false`. */
+  /**
+   * Разрешить сортировку по колонке (кликабельный заголовок). По умолчанию `false`. Режим `table`
+   * берёт это из колонки уровня таблицы.
+   */
   sortable?: boolean;
-  /** Разрешить фильтрацию по колонке (текстовый инпут в тулбаре). По умолчанию `false`. */
+  /**
+   * Разрешить фильтрацию по колонке (текстовый инпут в тулбаре). По умолчанию `false`. Режим
+   * `table` берёт это из колонки уровня таблицы.
+   */
   filterable?: boolean;
   /** Плейсхолдер для фильтр-инпута колонки. По умолчанию — `id`. */
   filterPlaceholder?: string;
@@ -84,7 +70,7 @@ export interface TableColumn<Row> {
   className?: string;
 }
 
-/** Выбранные строки DataGrid — аргумент {@link TableSettings.onSelectionChange}. */
+/** Выбранные строки DataGrid — аргумент `onSelectionChange`. */
 export interface TableSelection<Row> {
   /** Ключи выбранных строк: `String(rowKey(row))`, без `rowKey` — индекс строки на странице. */
   keys: string[];
@@ -92,15 +78,19 @@ export interface TableSelection<Row> {
   rows: Row[];
 }
 
-/** Контракт настроек DataGrid. */
+/** Контракт настроек DataGrid (режим `settings`). */
 export interface TableSettings<Row> {
   /**
    * Провайдер данных. Вызывается при монтировании и при любом изменении
-   * pagination / sorting / filters. Должен вернуть строки текущей страницы и общее
-   * число строк. Отклонение промиса → состояние ошибки с кнопкой «Повторить».
+   * pagination / sorting / filters — одно действие, один вызов. Должен вернуть строки текущей
+   * страницы и общее число строк. Отклонение промиса → состояние ошибки с кнопкой «Повторить».
+   * `signal` отменяется, когда запрос устарел (новая страница, фильтр, размонтирование).
    */
-  dataProvider: (query: TableQuery) => Promise<TablePage<Row>>;
-  /** Колонки таблицы. */
+  dataProvider: (query: TableQuery, ctx: { signal: AbortSignal }) => Promise<TablePage<Row>>;
+  /**
+   * Колонки таблицы. Смена состава (id, сортируемость, фильтруемость) пересоздаёт таблицу:
+   * состояние сортировки, фильтров и выбора начинается заново.
+   */
   columns: TableColumn<Row>[];
   /**
    * Размер страницы. По умолчанию `10`. Смена значения перезапрашивает данные с первой страницы.
@@ -121,15 +111,24 @@ export interface TableSettings<Row> {
   onSelectionChange?: (selection: TableSelection<Row>) => void;
 }
 
-/** Props {@link DataGrid}. */
-export interface DataGridProps<Row> {
-  /** Настройки грида (data-provider, колонки, пагинация, выделение). */
-  settings: TableSettings<Row>;
-  /** Доп. className контейнера. */
-  className?: string;
-}
-
-const SELECT_COLUMN_ID = '__select__';
+/** Props {@link DataGrid}: настройки серверной таблицы или готовая таблица уровня. */
+export type DataGridProps<Row> =
+  | {
+      /** Настройки грида (data-provider, колонки, пагинация, выделение). */
+      settings: TableSettings<Row>;
+      /** Доп. className контейнера. */
+      className?: string;
+    }
+  | {
+      /** Таблица уровня (`createTable` из `@reformer/core/table`) — её создаёт стор приложения. */
+      table: TableLevel<Row, string>;
+      /** Отрисовка колонок по id. Колонка без пары в таблице рисуется как есть (действия). */
+      columns: TableColumn<Row>[];
+      /** Изменение выделения. Режим выделения задаёт таблица. */
+      onSelectionChange?: (selection: TableSelection<Row>) => void;
+      /** Доп. className контейнера. */
+      className?: string;
+    };
 
 /** Формирует набор индексов страниц с многоточиями для компактной навигации. */
 function pageWindow(pageIndex: number, pageCount: number): (number | 'ellipsis')[] {
@@ -157,10 +156,9 @@ const ALIGN_CLASS: Record<NonNullable<TableColumn<unknown>['align']>, string> = 
 };
 
 /**
- * Data-driven таблица поверх презентационного {@link Table}. Держит состояние
- * пагинации / сортировки / фильтров, получает строки из `settings.dataProvider`
- * (server-driven, `manual*` у @tanstack/react-table), а loading / error / empty
- * показывает через AsyncBoundary + State. Навигация по страницам — Pagination.
+ * Data-driven таблица — вид над уровнем таблицы `@reformer/core/table` поверх презентационного
+ * {@link Table}. Режим `settings` создаёт серверную таблицу из `dataProvider`; режим `table`
+ * рисует готовую таблицу из стора приложения — клиентскую над массивом модели или серверную.
  *
  * @example Server-driven список с сортировкой и пагинацией
  * ```tsx
@@ -173,8 +171,8 @@ const ALIGN_CLASS: Record<NonNullable<TableColumn<unknown>['align']>, string> = 
  *   ],
  *   pageSize: 20,
  *   rowKey: (u) => u.id,
- *   dataProvider: async ({ pagination, sorting }) => {
- *     const res = await fetch(`/api/users?page=${pagination.pageIndex}&sort=${sorting[0]?.id ?? ''}`);
+ *   dataProvider: async ({ pagination, sorting }, { signal }) => {
+ *     const res = await fetch(`/api/users?page=${pagination.pageIndex}&sort=${sorting[0]?.id ?? ''}`, { signal });
  *     const { rows, total } = await res.json();
  *     return { rows, total };
  *   },
@@ -183,202 +181,172 @@ const ALIGN_CLASS: Record<NonNullable<TableColumn<unknown>['align']>, string> = 
  * <DataGrid settings={settings} />
  * ```
  *
- * @example Выбор строк для массового действия
+ * @example Таблица из стора приложения: строки — массив модели
  * ```tsx
- * const [selected, setSelected] = useState<User[]>([]);
+ * import { arrayOf, createModel, createStore } from '@reformer/core/model';
+ * import { createTable } from '@reformer/core/table';
+ *
+ * const app = createStore(() => {
+ *   const model = createModel({ users: arrayOf(blankUser, users) });
+ *   const table = createTable({
+ *     data: model.$.users,
+ *     columns: [{ id: 'name', sortable: true, filterable: true }, { id: 'email' }],
+ *     getRowKey: (u) => u.id,
+ *     selection: 'multiple',
+ *   });
+ *   return { model, table };
+ * });
  *
  * <DataGrid
- *   settings={{
- *     ...settings,
- *     selection: 'multiple',
- *     rowKey: (u) => u.id, // без rowKey выбор сбрасывается при смене страницы
- *     onSelectionChange: ({ rows }) => setSelected(rows),
- *   }}
+ *   table={app.table}
+ *   columns={[
+ *     { id: 'name', header: 'Имя', accessor: (u) => u.name },
+ *     { id: 'email', header: 'E-mail', accessor: (u) => u.email },
+ *   ]}
  * />
- * <Button disabled={selected.length === 0} onClick={() => archive(selected)}>В архив</Button>
  * ```
  */
-export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): React.ReactNode {
+export function DataGrid<Row>(props: DataGridProps<Row>): React.ReactNode {
+  if ('table' in props) {
+    return (
+      <DataGridView
+        table={props.table}
+        columns={props.columns}
+        onSelectionChange={props.onSelectionChange}
+        className={props.className}
+      />
+    );
+  }
+  const { settings } = props;
+  // Состав таблицы фиксируется при создании: сменился — новая таблица (ключ компонента).
+  const shape = [
+    settings.selection ?? 'none',
+    settings.rowKey ? 'key' : 'index',
+    ...settings.columns.map((c) => `${c.id}:${c.sortable ? 's' : ''}${c.filterable ? 'f' : ''}`),
+  ].join('|');
+  return <SettingsDataGrid key={shape} settings={settings} className={props.className} />;
+}
+
+/** Режим `settings`: серверная таблица уровня, созданная гридом. */
+function SettingsDataGrid<Row>({
+  settings,
+  className,
+}: {
+  settings: TableSettings<Row>;
+  className?: string;
+}): React.ReactNode {
+  // Свежие колбэки — через ref: их идентичность меняется на каждый рендер родителя.
+  const latest = React.useRef(settings);
+  latest.current = settings;
+  // Загрузка — после монтирования: на сервере и в отброшенном рендере StrictMode запроса нет.
+  const store = useStore(() =>
+    createStore(() => {
+      const mounted = signal(false);
+      const table = createTable<Row, string>({
+        dataProvider: (query, ctx) => latest.current.dataProvider(query, ctx),
+        enabled: () => mounted.value,
+        columns: settings.columns.map((c) => ({
+          id: c.id,
+          sortable: c.sortable ?? false,
+          filterable: c.filterable ?? false,
+        })),
+        getRowKey: settings.rowKey ? (row) => latest.current.rowKey!(row) : undefined,
+        pageSize: settings.pageSize ?? 10,
+        selection: settings.selection ?? 'none',
+      });
+      return {
+        table,
+        mount: (): void => {
+          mounted.value = true;
+        },
+      };
+    })
+  );
+  const { table } = store;
+  React.useEffect(() => store.mount(), [store]);
+
+  // `pageSize` из настроек — не только начальное значение: смена — на первую страницу.
+  const pageSize = settings.pageSize ?? 10;
+  React.useEffect(() => {
+    if (table.pageSize.peek() !== pageSize) table.setPageSize(pageSize);
+  }, [table, pageSize]);
+
+  return (
+    <DataGridView
+      table={table}
+      columns={settings.columns}
+      onSelectionChange={(selection) => latest.current.onSelectionChange?.(selection)}
+      className={className}
+    />
+  );
+}
+
+/** Вид: рисует сигналы таблицы уровня и вызывает её команды. */
+function DataGridView<Row>({
+  table,
+  columns,
+  onSelectionChange,
+  className,
+}: {
+  table: TableLevel<Row, string>;
+  columns: TableColumn<Row>[];
+  onSelectionChange?: (selection: TableSelection<Row>) => void;
+  className?: string;
+}): React.ReactNode {
   const t = useKitMessages();
-  const {
-    dataProvider,
-    columns,
-    pageSize = 10,
-    rowKey,
-    selection = 'none',
-    onSelectionChange,
-  } = settings;
   // Общее имя радио-группы режима `single`: без него радио не связаны — стрелки не переводят выбор,
   // а Tab заходит в каждую строку по отдельности.
   const radioGroupName = React.useId();
 
-  const [rows, setRows] = React.useState<Row[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [status, setStatus] = React.useState<AsyncStatus>('loading');
-  // Первая страница уже показана. Дальше перезагрузка не подменяет таблицу индикатором: подмена
-  // размонтировала кнопку сортировки или ссылку страницы под фокусом, и фокус улетал в body.
-  const [loadedOnce, setLoadedOnce] = React.useState(false);
-  // Текст сбоя без сообщения ошибки — из словаря при показе, чтобы менялся вместе с языком.
-  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [reloadKey, setReloadKey] = React.useState(0);
+  const rows = useSignalSnapshot(table.rows);
+  const status = useSignalSnapshot(table.status);
+  const refreshing = useSignalSnapshot(table.refreshing);
+  const error = useSignalSnapshot(table.error);
+  const pageIndex = useSignalSnapshot(table.pageIndex);
+  const pageCount = useSignalSnapshot(table.pageCount);
+  const sorting = useSignalSnapshot(table.sorting);
+  const filters = useSignalSnapshot(table.filters);
+  const visibleIds = useSignalSnapshot(table.visibleColumns);
+  const selectedKeys = useSignalSnapshot(table.selection.keys);
+  const allOnPage = useSignalSnapshot(table.selection.allOnPage);
+  const selection = table.selection.mode;
 
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize,
-  });
-  // `pageSize` из настроек — не только начальное значение. Подстройка во время рендера, а не
-  // эффектом: эффект успел бы отправить запрос со старым размером.
-  const [appliedPageSize, setAppliedPageSize] = React.useState(pageSize);
-  if (appliedPageSize !== pageSize) {
-    setAppliedPageSize(pageSize);
-    setPagination({ pageIndex: 0, pageSize });
-  }
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-
-  // Пагинация серверная (`manualPagination`), а при ней @tanstack страницу сам не сбрасывает:
-  // фильтр, сузивший выборку, оставлял на 3-й странице — «Нет данных».
-  const onColumnFiltersChange: OnChangeFn<ColumnFiltersState> = (updater) => {
-    setColumnFilters(updater);
-    setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
-  };
-
-  const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize));
-
-  // Стабильная ссылка на dataProvider — чтобы её identity не гоняла fetch-эффект.
-  const dataProviderRef = React.useRef(dataProvider);
-  dataProviderRef.current = dataProvider;
-  const hasRowKeyRef = React.useRef(rowKey !== undefined);
-  hasRowKeyRef.current = rowKey !== undefined;
-
-  const reqId = React.useRef(0);
-  React.useEffect(() => {
-    const id = ++reqId.current;
-    setStatus('loading');
-    const filters: TableFilters = Object.fromEntries(columnFilters.map((f) => [f.id, f.value]));
-    Promise.resolve(
-      dataProviderRef.current({
-        filters,
-        pagination: { pageIndex: pagination.pageIndex, pageSize: pagination.pageSize },
-        sorting: sorting.map((s) => ({ id: s.id, desc: s.desc })),
-      })
-    )
-      .then((res) => {
-        if (id !== reqId.current) return;
-        setRows(res.rows);
-        setTotal(res.total);
-        setStatus('ready');
-        setLoadedOnce(true);
-        // Без rowKey ключ строки — её индекс: в новых строках тот же индекс — уже другая строка,
-        // и выбор «переехал» бы на неё.
-        if (!hasRowKeyRef.current) {
-          setRowSelection((current) => (Object.keys(current).length === 0 ? current : {}));
-        }
-      })
-      .catch((err: unknown) => {
-        if (id !== reqId.current) return;
-        setErrorMsg(err instanceof Error ? err.message : null);
-        setStatus('error');
-      });
-  }, [sorting, pagination, columnFilters, reloadKey]);
-
-  // Выделение наружу. Строки выбранных ключей копятся здесь: выбранная на другой странице строка
-  // в `rows` уже не лежит, а снаружи нужна сама строка, а не только её ключ.
+  // Выделение наружу — после каждого изменения выбора (не на старте).
   const onSelectionChangeRef = React.useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
-  const selectedRowsRef = React.useRef(new Map<string, Row>());
-  const notifiedSelectionRef = React.useRef(rowSelection);
-  React.useEffect(() => {
-    // Сравнение со снимком, а не флаг «первый запуск»: StrictMode запускает эффект дважды.
-    if (notifiedSelectionRef.current === rowSelection) return;
-    notifiedSelectionRef.current = rowSelection;
-    const pageRows = new Map(rows.map((row, i) => [rowKey ? String(rowKey(row)) : String(i), row]));
-    const selected = new Map<string, Row>();
-    for (const [key, isSelected] of Object.entries(rowSelection)) {
-      if (!isSelected) continue;
-      const row = pageRows.get(key) ?? selectedRowsRef.current.get(key);
-      if (row !== undefined) selected.set(key, row);
-    }
-    selectedRowsRef.current = selected;
-    onSelectionChangeRef.current?.({ keys: [...selected.keys()], rows: [...selected.values()] });
-  }, [rowSelection, rows, rowKey]);
+  React.useEffect(
+    () =>
+      watchField(table.selection.keys, (keys) =>
+        onSelectionChangeRef.current?.({
+          keys: [...keys],
+          rows: [...table.selection.rows.peek()],
+        })
+      ),
+    [table]
+  );
 
-  const tableColumns = React.useMemo<ColumnDef<Row>[]>(() => {
-    const defs: ColumnDef<Row>[] = columns.map((col) => ({
-      id: col.id,
-      // Без `accessorFn` @tanstack считает колонку несортируемой (`getCanSort()` ложно), и клик по
-      // заголовку ничего не делал. Само значение в сортировку не идёт: она серверная.
-      accessorFn: (row) => col.accessor?.(row) ?? null,
-      // Первый клик — по возрастанию. Иначе направление выводится из значения первой строки, и для
-      // не-строки (число, элемент) первым шло бы «по убыванию».
-      sortDescFirst: false,
-      header: () => col.header,
-      cell: (ctx) => col.accessor?.(ctx.row.original) ?? null,
-      enableSorting: col.sortable ?? false,
-    }));
-    if (selection !== 'none') {
-      defs.unshift({
-        id: SELECT_COLUMN_ID,
-        enableSorting: false,
-        header: ({ table }) =>
-          selection === 'multiple' ? (
-            <input
-              type="checkbox"
-              aria-label={t('kit.table.selectAll')}
-              checked={table.getIsAllPageRowsSelected()}
-              onChange={table.getToggleAllPageRowsSelectedHandler()}
-            />
-          ) : null,
-        cell: ({ row }) => (
-          <input
-            type={selection === 'multiple' ? 'checkbox' : 'radio'}
-            name={selection === 'single' ? radioGroupName : undefined}
-            aria-label={t('kit.table.selectRow')}
-            checked={row.getIsSelected()}
-            disabled={!row.getCanSelect()}
-            onChange={row.getToggleSelectedHandler()}
-          />
-        ),
-      });
-    }
-    return defs;
-  }, [columns, selection, t, radioGroupName]);
+  const faces = table.columns as Readonly<Record<string, TableColumnFace>>;
+  const faceOf = (id: string): TableColumnFace | undefined =>
+    Object.prototype.hasOwnProperty.call(faces, id) ? faces[id] : undefined;
+  // Колонка уровня видна по его состоянию; колонка без пары (действия) — всегда.
+  const shown = columns.filter((col) => !faceOf(col.id) || visibleIds.includes(col.id));
+  const filterable = shown.filter((col) => faceOf(col.id)?.filterable);
+  const leafCount = shown.length + (selection === 'none' ? 0 : 1);
 
-  const table = useReactTable({
-    data: rows,
-    columns: tableColumns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    manualSorting: true,
-    manualFiltering: true,
-    pageCount,
-    enableRowSelection: selection !== 'none',
-    enableMultiRowSelection: selection === 'multiple',
-    state: { sorting, pagination, columnFilters, rowSelection },
-    onSortingChange: setSorting,
-    onPaginationChange: setPagination,
-    onColumnFiltersChange,
-    onRowSelectionChange: setRowSelection,
-    getRowId: rowKey ? (row) => String(rowKey(row)) : undefined,
-  });
+  // Ни разу не грузили (`idle` до монтирования) — тот же индикатор, что и первая загрузка.
+  const shownStatus = status === 'idle' ? 'loading' : status;
+  const errorMessage = error instanceof Error && error.message ? error.message : null;
+  const canPrev = pageIndex > 0;
+  const canNext = pageIndex < pageCount - 1;
 
-  const filterableColumns = columns.filter((c) => c.filterable);
-  const leafCount = tableColumns.length;
-
-  const goToPage = (pageIndex: number) =>
-    table.setPageIndex(Math.min(Math.max(pageIndex, 0), pageCount - 1));
-
-  // Перезагрузка после первой страницы — фоновое обновление: таблица остаётся (и фокус в ней),
-  // регион помечается `aria-busy`.
-  const refreshing = loadedOnce && status === 'loading';
+  const cellClass = (col: TableColumn<Row>) =>
+    cn(col.align ? ALIGN_CLASS[col.align] : undefined, col.className);
 
   return (
     <div data-slot="data-grid" className={cn('w-full space-y-3', className)}>
-      {filterableColumns.length > 0 && (
+      {filterable.length > 0 && (
         <div data-slot="data-grid-toolbar" className="flex flex-wrap items-center gap-2">
-          {filterableColumns.map((col) => {
-            const column = table.getColumn(col.id);
+          {filterable.map((col) => {
             // Плейсхолдер — не подпись: он исчезает при вводе и читается не всеми скринридерами.
             const headerText =
               typeof col.header === 'string' || typeof col.header === 'number'
@@ -392,8 +360,8 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
                 data-testid={`filter-${col.id}`}
                 aria-label={col.filterLabel ?? t('kit.table.filter', { column: headerText })}
                 placeholder={col.filterPlaceholder ?? col.id}
-                value={String(column?.getFilterValue() ?? '')}
-                onChange={(e) => column?.setFilterValue(e.target.value || undefined)}
+                value={String(filters[col.id] ?? '')}
+                onChange={(e) => faceOf(col.id)!.setFilter(e.target.value || undefined)}
                 className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             );
@@ -402,10 +370,10 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
       )}
 
       <AsyncBoundary
-        status={refreshing ? 'ready' : status}
+        status={shownStatus}
         refreshing={refreshing}
-        error={errorMsg ?? t('kit.table.loadError')}
-        onRetry={() => setReloadKey((k) => k + 1)}
+        error={errorMessage ?? t('kit.table.loadError')}
+        onRetry={() => table.reload()}
       >
         <div
           data-slot="data-grid-ready"
@@ -413,53 +381,53 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
         >
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const col = columns.find((c) => c.id === header.column.id);
-                    const canSort = header.column.getCanSort();
-                    const sortDir = header.column.getIsSorted();
-                    // aria-sort — только у главной колонки сортировки: по ARIA он ставится на
-                    // один заголовок за раз.
-                    const ariaSort =
-                      sortDir && header.column.getSortIndex() === 0
-                        ? sortDir === 'asc'
-                          ? 'ascending'
-                          : 'descending'
-                        : undefined;
-                    return (
-                      <TableHead
-                        key={header.id}
-                        aria-sort={ariaSort}
-                        className={cn(
-                          col?.align ? ALIGN_CLASS[col.align] : undefined,
-                          col?.className
-                        )}
-                      >
-                        {header.isPlaceholder ? null : canSort ? (
-                          <button
-                            type="button"
-                            data-slot="data-grid-sort"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="inline-flex items-center gap-1 select-none hover:text-foreground"
-                          >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {sortDir === 'asc' ? (
-                              <ArrowUp className="size-3.5" />
-                            ) : sortDir === 'desc' ? (
-                              <ArrowDown className="size-3.5" />
-                            ) : (
-                              <ChevronsUpDown className="size-3.5 opacity-50" />
-                            )}
-                          </button>
-                        ) : (
-                          flexRender(header.column.columnDef.header, header.getContext())
-                        )}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
+              <TableRow>
+                {selection !== 'none' && (
+                  <TableHead>
+                    {selection === 'multiple' ? (
+                      <input
+                        type="checkbox"
+                        aria-label={t('kit.table.selectAll')}
+                        checked={allOnPage}
+                        onChange={() => table.selection.toggleAllOnPage()}
+                      />
+                    ) : null}
+                  </TableHead>
+                )}
+                {shown.map((col) => {
+                  const face = faceOf(col.id);
+                  const sortIndex = sorting.findIndex((entry) => entry.id === col.id);
+                  const sortDir =
+                    sortIndex === -1 ? null : sorting[sortIndex]!.desc ? 'desc' : 'asc';
+                  // aria-sort — только у главной колонки сортировки: по ARIA он ставится на
+                  // один заголовок за раз.
+                  const ariaSort =
+                    sortIndex === 0 ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined;
+                  return (
+                    <TableHead key={col.id} aria-sort={ariaSort} className={cellClass(col)}>
+                      {face?.sortable ? (
+                        <button
+                          type="button"
+                          data-slot="data-grid-sort"
+                          onClick={(e) => face.toggleSort({ multi: e.shiftKey })}
+                          className="inline-flex items-center gap-1 select-none hover:text-foreground"
+                        >
+                          {col.header}
+                          {sortDir === 'asc' ? (
+                            <ArrowUp className="size-3.5" />
+                          ) : sortDir === 'desc' ? (
+                            <ArrowDown className="size-3.5" />
+                          ) : (
+                            <ChevronsUpDown className="size-3.5 opacity-50" />
+                          )}
+                        </button>
+                      ) : (
+                        col.header
+                      )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
@@ -469,24 +437,31 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
                   </TableCell>
                 </TableRow>
               ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
-                    {row.getVisibleCells().map((cell) => {
-                      const col = columns.find((c) => c.id === cell.column.id);
-                      return (
-                        <TableCell
-                          key={cell.id}
-                          className={cn(
-                            col?.align ? ALIGN_CLASS[col.align] : undefined,
-                            col?.className
-                          )}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                rows.map((row) => {
+                  const selected = selectedKeys.has(row.key);
+                  return (
+                    <TableRow key={row.key} data-state={selected ? 'selected' : undefined}>
+                      {selection !== 'none' && (
+                        <TableCell>
+                          <input
+                            type={selection === 'multiple' ? 'checkbox' : 'radio'}
+                            name={selection === 'single' ? radioGroupName : undefined}
+                            aria-label={t('kit.table.selectRow')}
+                            checked={selected}
+                            onChange={() =>
+                              selection === 'multiple' ? row.toggle() : row.select()
+                            }
+                          />
                         </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))
+                      )}
+                      {shown.map((col) => (
+                        <TableCell key={col.id} className={cellClass(col)}>
+                          {col.accessor?.(row.value) ?? null}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -497,15 +472,15 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
-                    aria-disabled={!table.getCanPreviousPage()}
-                    className={cn(!table.getCanPreviousPage() && 'pointer-events-none opacity-50')}
+                    aria-disabled={!canPrev}
+                    className={cn(!canPrev && 'pointer-events-none opacity-50')}
                     onClick={(e) => {
                       e.preventDefault();
-                      if (table.getCanPreviousPage()) table.previousPage();
+                      table.prevPage();
                     }}
                   />
                 </PaginationItem>
-                {pageWindow(pagination.pageIndex, pageCount).map((p, i) =>
+                {pageWindow(pageIndex, pageCount).map((p, i) =>
                   p === 'ellipsis' ? (
                     <PaginationItem key={`e-${i}`}>
                       <PaginationEllipsis />
@@ -514,10 +489,10 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
                     <PaginationItem key={p}>
                       <PaginationLink
                         href="#"
-                        isActive={p === pagination.pageIndex}
+                        isActive={p === pageIndex}
                         onClick={(e) => {
                           e.preventDefault();
-                          goToPage(p);
+                          table.setPage(p);
                         }}
                       >
                         {p + 1}
@@ -528,11 +503,11 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    aria-disabled={!table.getCanNextPage()}
-                    className={cn(!table.getCanNextPage() && 'pointer-events-none opacity-50')}
+                    aria-disabled={!canNext}
+                    className={cn(!canNext && 'pointer-events-none opacity-50')}
                     onClick={(e) => {
                       e.preventDefault();
-                      if (table.getCanNextPage()) table.nextPage();
+                      table.nextPage();
                     }}
                   />
                 </PaginationItem>

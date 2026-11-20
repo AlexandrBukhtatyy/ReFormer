@@ -1,11 +1,11 @@
 // table — два уровня:
 //  1) base — дословный shadcn Table (презентационный набор: Table / TableHeader / TableBody /
 //     TableFooter / TableRow / TableHead / TableCell / TableCaption) для ручной вёрстки.
-//  2) DataGrid — data-driven обёртка (движок @tanstack/react-table, manual pagination/sorting/
-//     filtering): держит состояние, тянет строки из dataProvider, показывает loading/error/empty
-//     через AsyncBoundary + State, навигация — Pagination.
-// Не form-control. SUBPATH-ONLY: тяжёлая dep @tanstack/react-table (optional peer) — компонент
-// живёт вне главного barrel, импортируется через `@reformer/ui-kit/table`.
+//  2) DataGrid — вид над уровнем таблицы `@reformer/core/table`: состояние (сортировка, фильтры,
+//     страницы, выбор, загрузка) держит уровень, грид рисует его и вызывает команды. Режимы:
+//     `settings` (серверная таблица из dataProvider) и `table` (готовая таблица из стора).
+//     Loading/error/empty — через AsyncBoundary, навигация — Pagination.
+// Не form-control. SUBPATH-ONLY: импортируется через `@reformer/ui-kit/table`.
 export {
   Table,
   TableHeader,
