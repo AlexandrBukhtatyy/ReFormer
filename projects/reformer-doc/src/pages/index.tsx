@@ -63,9 +63,9 @@ export default function Home(): ReactNode {
     >
       <HomepageHeader />
       <main>
-        <WhyReformer />
         <LandingBenchmark />
         <Ecosystem />
+        <WhyReformer />
         <BuilderShowcase />
       </main>
     </Layout>
