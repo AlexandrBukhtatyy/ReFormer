@@ -15,6 +15,8 @@ sidebar_position: 1
   `useFormControlValue`.
 - Нарисовать строки массива — `useArrayLength`.
 - Свои кнопки и индикатор шагов — `useFormFlow`.
+- Показать значение модели приложения или свой `computed` — `useSignalSnapshot`, `useComputed`.
+- Держать стор экрана или виджета, который живёт, пока смонтирован компонент, — `useStore`.
 
 С `FormField` из `@reformer/ui-kit` хуки чтения обычно не нужны: он подписывается сам.
 
@@ -28,6 +30,9 @@ sidebar_position: 1
 | `useIssueMessage(messages?)`   | функцию «замечание → текст»            | текст замечания в своём компоненте                      |
 | `useFormValidation(options)`   | `{ submit, validate, isValidating }`   | стратегия валидации для формы без сборки                |
 | `useFormBundleContext()`       | сборку из контекста или `null`         | компонент внутри `FormRenderer` или `FormBundleContext` |
+| `useSignalSnapshot(signal)`    | значение одного сигнала                | сигнал модели, `computed`, `bundle.validating`          |
+| `useComputed(fn, deps?, eq?)`  | результат селектора                    | часть модели приложения: строка корзины, сумма          |
+| `useStore(factory)`            | стор, один на компонент                | состояние экрана: фильтры, черновик, загрузка данных    |
 
 ## Пример
 
@@ -81,7 +86,10 @@ StrictMode вызывает фабрику дважды. Второй экзем
 
 ## useFormControl
 
-Полное состояние поля — объект. Компонент перерисовывается, когда меняется любое из его свойств.
+Состояние поля — объект. Хук запоминает, какие свойства компонент прочитал, и перерисовывает его
+только при их смене. Деструктуризация — тоже чтение: в примере ниже прочитаны семь свойств, и смена
+`valid` или `dirty` компонент не будит. Поэтому поле, которое не показывает `pending`, не
+перерисовывается, пока сервер проверяет значение.
 
 ```tsx
 import { useFormControl, useIssueMessage } from '@reformer/core/react';
@@ -123,10 +131,14 @@ function TextField({ control }: { control: FormControl<string> }) {
 | `shouldShowError`  | `boolean`                 | поле невалидно, его трогали или меняли — для `aria-invalid` и рамки |
 | `shouldShowIssues` | `boolean`                 | есть замечания (ошибки или предупреждения), поле трогали или меняли |
 | `componentProps`   | `Record<string, unknown>` | пропсы компонента из узла схемы: `label`, `options`, …              |
+| `path`             | `string`                  | путь поля в модели (`items.0.name`); у строки массива — с индексом  |
+
+Путь поля строки массива меняется вместе с индексом строки, когда строки переставляют или удаляют.
+Из него выводят `id`, `name` и `data-testid`.
 
 Для массива `useFormControl(form.items)` возвращает `value`, `length`, `issues` (свои и строк),
 `ownIssues` (только правила на самом массиве), `valid`, `invalid`, `touched`, `dirty`, `disabled`,
-`pending`.
+`pending`, `path`. Массив перерисовывает компонент на смену любого из них.
 
 Текста в замечании нет — только код и параметры. Текст даёт `useIssueMessage(messages)`, а внутри
 `ValidationMessagesProvider` из `@reformer/cdk` — `useIssueMessageResolver()`. Подробнее — в
@@ -214,8 +226,88 @@ function StepButtons({ flow }: { flow: FormFlow }) {
 
 Подробнее о потоке — в [FormWizard](/docs/cdk/form-wizard).
 
+## useSignalSnapshot
+
+Значение одного сигнала: поля модели, группы модели, `computed` или сигнала сборки. Компонент
+перерисовывается, когда меняется этот сигнал.
+
+```tsx
+import type { FormBundle } from '@reformer/core';
+import { computed } from '@reformer/core/signals';
+import { useSignalSnapshot } from '@reformer/core/react';
+
+// app — модель приложения (createModel), как на странице «Модель как стор приложения».
+const headerTitle = computed(() => `${app.user.name} · ${app.cart.items.length}`);
+
+function Header() {
+  return <h1>{useSignalSnapshot(headerTitle)}</h1>;
+}
+
+function SubmitButton({ bundle }: { bundle: FormBundle<Profile> }) {
+  const submitting = useSignalSnapshot(bundle.submission.submitting);
+  return <button disabled={submitting}>Сохранить</button>;
+}
+```
+
+Сигнал группы (`app.$.user`) отдаёт новый снимок на правку любого её поля. Если компоненту нужна
+часть группы, берите `useComputed`.
+
+## useComputed
+
+Селектор над моделями и сигналами: `useComputed(fn, deps?, isEqual?)`. Функция читает что угодно, а
+компонент перерисовывается, только когда меняется её результат.
+
+```tsx
+import { shallowEqual } from '@reformer/core/model';
+import { useComputed } from '@reformer/core/react';
+
+function CartLine({ id }: { id: string }) {
+  // Перерисовка — когда меняется эта строка, а не вся корзина.
+  const line = useComputed(
+    () => app.$.cart.items.value.find((item) => item.id === id),
+    [id],
+    shallowEqual
+  );
+  return line ? (
+    <div>
+      {line.title} × {line.qty}
+    </div>
+  ) : null;
+}
+```
+
+- **`deps`** — значения из пропсов и состояния, которые читает функция. При их смене селектор
+  пересобирается, как у `useMemo`.
+- **`isEqual`** нужен, когда селектор каждый раз собирает новый объект или массив (`find`, `map`,
+  `{ ... }`). Без него новая ссылка будит компонент на любую правку. `shallowEqual` из
+  `@reformer/core/model` сравнивает по первому уровню.
+
+## useStore
+
+Стор, которым владеет компонент: `useStore(() => createStore(...))`. Фабрика вызывается один раз,
+стор снимается после размонтирования. Повторный монтаж в StrictMode и Fast Refresh стор не убивает.
+
+```tsx
+import { createModel, createStore } from '@reformer/core/model';
+import { useComputed, useStore } from '@reformer/core/react';
+
+const createFilters = () =>
+  createStore(() => ({ model: createModel({ query: '', onlyActive: false }) }));
+
+function Filters() {
+  const filters = useStore(createFilters);
+  const query = useComputed(() => filters.model.$.query.value, [filters]);
+  return <input value={query} onChange={(e) => (filters.model.query = e.target.value)} />;
+}
+```
+
+Стор приложения, который живёт всё время работы, создают в модуле, а не в хуке. Что такое стор и что
+он снимает — в [Модели как сторе приложения](../core-concepts/app-store.md).
+
 ## Подводные камни
 
+- **Не раскрывайте состояние поля целиком.** `{ ...state }` и `<Input {...state} />` читают все
+  свойства, и компонент снова перерисовывается на любое изменение. Берите только нужные свойства.
 - **Не создавайте сборку в теле компонента.** `const form = createForm(...)` без `useFormBundle`
   собирает форму на каждый рендер и теряет введённое.
 - **Сборку, созданную снаружи, не отдавайте в `useFormBundle`.** Хук снимет её при размонтировании.
@@ -226,6 +318,7 @@ function StepButtons({ flow }: { flow: FormFlow }) {
 ## См. также
 
 - [Свои компоненты полей](./custom-fields.md) — поле на `useFormControl`.
+- [Модель как стор приложения](../core-concepts/app-store.md) — `useComputed`, `useStore` и стор.
 - [Ноды формы](../core-concepts/nodes) — что форма строит поверх модели.
 - [Стратегии валидации](../validation/validation-strategies.md) — `useFormValidation` для формы без
   сборки.

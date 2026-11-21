@@ -72,6 +72,7 @@ const sidebars: SidebarsConfig = {
         'core-concepts/levels',
         'core-concepts/reactive-state',
         'core-concepts/model',
+        'core-concepts/app-store',
         'core-concepts/nodes',
         {
           type: 'category',
