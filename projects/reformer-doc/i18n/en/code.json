@@ -1632,6 +1632,72 @@
   "homepage.why.platform.p3": {
     "message": "Your own design system on top of headless components"
   },
+  "homepage.hidden.kicker": {
+    "message": "Hidden benefits"
+  },
+  "homepage.hidden.title": {
+    "message": "What the feature list does not show"
+  },
+  "homepage.hidden.lead": {
+    "message": "You will not find this in the API: these benefits follow from the standard and the architecture. They are the easiest to miss when choosing a library, and they are the ones that add up over the life of a project."
+  },
+  "homepage.hidden.more": {
+    "message": "Read more →"
+  },
+  "homepage.hidden.review.title": {
+    "message": "Faster review, no debates"
+  },
+  "homepage.hidden.review.text": {
+    "message": "How to lay out a form is settled in advance. Reviews discuss what a change means, not style, and read a diff of one file."
+  },
+  "homepage.hidden.architecture.title": {
+    "message": "Architecture out of the box"
+  },
+  "homepage.hidden.architecture.text": {
+    "message": "The model is the single source of truth; data, rules, reactions and the look are separated. The library holds this, not team discipline."
+  },
+  "homepage.hidden.flexibility.title": {
+    "message": "Three ways to render, one logic"
+  },
+  "homepage.hidden.flexibility.text": {
+    "message": "JSX by hand, from the schema or from JSON. The model, rules and behavior stay the same; the way is chosen per form."
+  },
+  "homepage.hidden.tokens.title": {
+    "message": "Token savings"
+  },
+  "homepage.hidden.tokens.text": {
+    "message": "With MCP, creating a form takes about 6 times fewer tokens. Form code is 2–2.5 times shorter — less for the model to read and write."
+  },
+  "homepage.hidden.bugs.title": {
+    "message": "Fewer bugs by design"
+  },
+  "homepage.hidden.bugs.text": {
+    "message": "Value copies do not diverge, calculations do not loop, a stale check is aborted. These bugs need no tests to catch."
+  },
+  "homepage.hidden.merge.title": {
+    "message": "Fewer merge conflicts"
+  },
+  "homepage.hidden.merge.text": {
+    "message": "Markup, rules and behavior live in different files. The look, the rules and the fields of one form are edited in parallel."
+  },
+  "homepage.hidden.growth.title": {
+    "message": "No dead ends as a form grows"
+  },
+  "homepage.hidden.growth.text": {
+    "message": "Start with fields in JSX, plug in the renderer, move the schema to JSON or to another bundle — rules and behavior stay."
+  },
+  "homepage.hidden.knowledge.title": {
+    "message": "Knowledge does not leave with the author"
+  },
+  "homepage.hidden.knowledge.text": {
+    "message": "Understand one form and you understand them all. A form whose author has left is maintained by anyone on the team."
+  },
+  "homepage.hidden.beyond.title": {
+    "message": "Not only forms"
+  },
+  "homepage.hidden.beyond.text": {
+    "message": "The signal model is also the app store. A form is built over a part of it, so values are not copied back and forth."
+  },
   "diagram.standardEffects.title": {
     "message": "One form standard and its consequences"
   },

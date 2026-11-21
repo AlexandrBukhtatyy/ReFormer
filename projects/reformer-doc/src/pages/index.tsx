@@ -8,6 +8,7 @@ import Heading from '@theme/Heading';
 import Ecosystem from '@site/src/components/landing/Ecosystem';
 import BuilderShowcase from '@site/src/components/landing/BuilderShowcase';
 import WhyReformer from '@site/src/components/landing/WhyReformer';
+import HiddenBenefits from '@site/src/components/landing/HiddenBenefits';
 import LandingBenchmark from '@site/src/components/benchmark/LandingBenchmark';
 
 import styles from './index.module.css';
@@ -66,6 +67,7 @@ export default function Home(): ReactNode {
         <LandingBenchmark />
         <Ecosystem />
         <WhyReformer />
+        <HiddenBenefits />
         <BuilderShowcase />
       </main>
     </Layout>

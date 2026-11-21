@@ -50,6 +50,14 @@
   background: color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-surface-color));
 }
 
+/* ── Неочевидные выгоды ────────────────────────────────────────────────── */
+/* Девять карточек в той же сетке 3×3, что и роли; вместо списка — один абзац. */
+.benefitText {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
 /* ── Экосистема ────────────────────────────────────────────────────────── */
 .pkgGrid {
   display: grid;
