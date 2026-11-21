@@ -56,6 +56,8 @@ page.model.userId = 7; // запрос /api/users/7
 ```tsx
 import { useSignalSnapshot, useStore } from '@reformer/core/react';
 
+// Фабрика useStore вызывается один раз: смену `id` ресурс не увидит. Ключ из пропса —
+// перемонтированием: <User key={id} id={id} />; ключ из модели — key: () => model.userId.
 function User({ id }: { id: number }) {
   const user = useStore(() => resource({ load: () => api.user(id) }));
   const state = useSignalSnapshot(user.state);

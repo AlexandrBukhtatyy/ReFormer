@@ -22,6 +22,9 @@ import {
   useFormControl,
   useFormControlValue,
   useArrayLength,
+  useSignalSnapshot, // значение одного сигнала или computed
+  useComputed, // селектор над моделью: перерисовка только при смене результата
+  useStore, // стор, которым владеет компонент; снимается после размонтирования
   useFormFlow, // снимок потока шагов для рендера
   useFormValidation, // стратегия без сборки: submit() — попытка отправки, validate() — проверка
   useIssueMessage, // текст замечания: словарь формы → локаль → английский → код
@@ -105,6 +108,24 @@ import {
   deepEqual, // сравнение значений модели (на нём isDirty)
   deferredWritesSettled, // дождаться отложенных записей поведения тика; undefined — ждать нечего
 } from '@reformer/core/model';
+
+// Стор приложения: область жизни реакций, внешний источник, правило между уровнями — тоже из /model
+import {
+  createStore, // стор: API из setup + dispose(), снимающий всё созданное в нём
+  createScope, // область без стора: run(fn), add(cleanup), effect(fn), dispose()
+  onScopeDispose, // своя очистка в текущей области: таймер, подписка
+  shallowEqual, // равенство для селекторов useComputed, собирающих новый объект
+  signalFrom, // сигнал только для чтения над источником с subscribe/getState
+  defineBehavior, // правило между уровнями: attach(ctx) → отписка
+} from '@reformer/core/model';
+
+// Загрузка по реактивному ключу — из /resource
+import { resource } from '@reformer/core/resource';
+
+// Уровни UI над моделью приложения — каждый своим входом
+import { createTheme } from '@reformer/core/theme';
+import { createLanguage } from '@reformer/core/language';
+import { createTable } from '@reformer/core/table';
 ```
 
 ### Форма данных — `interface` или `type`

@@ -76,11 +76,19 @@
 | `FormValidationController`, `FormValidationRunOptions`, `ValidationStrategyKind` (типы стратегии)      | `@reformer/core/validation`                      |
 | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormValidation` | `@reformer/core/react`                           |
 | `useFormFlow`, `FormBundleContext`, `useFormBundleContext`                                             | `@reformer/core/react`                           |
+| `useComputed` (селектор над моделью), `useStore` (стор, которым владеет компонент)                     | `@reformer/core/react`                           |
 | `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля)  | `@reformer/core/react`                           |
+| `watchValueOf`, `FieldValueSource`, `FieldSeam` (неуправляемая привязка `uncontrolled: true`)          | `@reformer/core/react`                           |
 | `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                            | `@reformer/core/react`                           |
 | `defineIssueMessages`, `resolveIssueMessage`, `createI18n`, `extendLocale`, `createLocaleLoader`       | `@reformer/core/i18n`                            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |
 | `deepEqual`, `deferredWritesSettled` (сравнение значений, ожидание отложенных записей поведения)       | `@reformer/core/model`                           |
+| `createStore`, `createScope`, `onScopeDispose`, `getCurrentScope`, `shallowEqual`, `Store`, `Scope`    | `@reformer/core/model` (стор приложения)         |
+| `signalFrom` (сигнал над событийным источником), `defineBehavior` (правило между уровнями)             | `@reformer/core/model`                           |
+| `resource`, `Resource`, `ResourceOptions`, `AsyncResourceState`, `AsyncStatus`                         | `@reformer/core/resource`                        |
+| `createTheme`, `Theme`, `ThemePreference`, `documentTheme`, `mediaQuerySystemTheme`, `webStorage`      | `@reformer/core/theme`                           |
+| `createLanguage`, `Language`, `browserLanguage`, `documentLang`, `textDirection`, `webStorage`         | `@reformer/core/language`                        |
+| `createTable`, `Table`, `ColumnDef`, `TableOptions`, `TableQuery`, `TableRow`, `TableSelection`        | `@reformer/core/table`                           |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                 | `@reformer/core/validators`                      |
 | `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators`                      |
 | `isDate`, `minDate`, `maxDate`, `pastDate`, `futureDate`, `minAge`, `maxAge`                           | `@reformer/core/validators`                      |
@@ -129,6 +137,8 @@
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
 | `useSignalSnapshot(signal)` | `T` (значение сигнала) | Один сигнал или `computed` | `bundle.validating`, `bundle.submission.submitting`, группа модели |
+| `useComputed(fn, deps?, isEqual?)` | `T` (результат селектора) | Прочитанные в `fn` сигналы; будит только при смене результата | Часть модели приложения; новый объект — с `shallowEqual` |
+| `useStore(factory)` | стор (`Store<T>`) | — (держит стор, снимает после размонтирования) | Стор экрана или виджета, `resource` в компоненте |
 | `useFormFlow(bundle.flow)` | `{ current, index, completed, isFirst, isLast, validating }` | Сигналы потока шагов | Свои кнопки и индикатор шагов |
 | `useIssueMessage(messages?)` | `(issue) => string` | Локаль | Текст замечания в своём компоненте |
 
@@ -1273,6 +1283,9 @@ import {
   useFormControl,
   useFormControlValue,
   useArrayLength,
+  useSignalSnapshot, // значение одного сигнала или computed
+  useComputed, // селектор над моделью: перерисовка только при смене результата
+  useStore, // стор, которым владеет компонент; снимается после размонтирования
   useFormFlow, // снимок потока шагов для рендера
   useFormValidation, // стратегия без сборки: submit() — попытка отправки, validate() — проверка
   useIssueMessage, // текст замечания: словарь формы → локаль → английский → код
@@ -1356,6 +1369,24 @@ import {
   deepEqual, // сравнение значений модели (на нём isDirty)
   deferredWritesSettled, // дождаться отложенных записей поведения тика; undefined — ждать нечего
 } from '@reformer/core/model';
+
+// Стор приложения: область жизни реакций, внешний источник, правило между уровнями — тоже из /model
+import {
+  createStore, // стор: API из setup + dispose(), снимающий всё созданное в нём
+  createScope, // область без стора: run(fn), add(cleanup), effect(fn), dispose()
+  onScopeDispose, // своя очистка в текущей области: таймер, подписка
+  shallowEqual, // равенство для селекторов useComputed, собирающих новый объект
+  signalFrom, // сигнал только для чтения над источником с subscribe/getState
+  defineBehavior, // правило между уровнями: attach(ctx) → отписка
+} from '@reformer/core/model';
+
+// Загрузка по реактивному ключу — из /resource
+import { resource } from '@reformer/core/resource';
+
+// Уровни UI над моделью приложения — каждый своим входом
+import { createTheme } from '@reformer/core/theme';
+import { createLanguage } from '@reformer/core/language';
+import { createTable } from '@reformer/core/table';
 ```
 
 ### Форма данных — `interface` или `type`
@@ -7825,6 +7856,12 @@ await credit.submission.submit(sendApplication);
 `validateStep(id)`, `submission.submit(handler)`, `flow` (поток шагов) и `dispose()`. В React
 сборку создают один раз — `useFormBundle(фабрика)`.
 
+Модель живёт и без формы. В ней держат состояние приложения: стор с реакциями и их снятием —
+`createStore` (`40-app-state-store.md`). Над той же моделью стоят готовые уровни UI: загрузка
+`resource` (`41-resource.md`), тема, язык и таблица (`43-ui-theme.md`, `44-ui-language.md`,
+`45-data-table.md`), правила между ними — `defineBehavior` (`46-cross-level-rules.md`). Форма
+собирается над частью этой модели: `createForm({ model: app.user })`.
+
 ## 119. Installation
 
 ```bash
@@ -7838,13 +7875,17 @@ npm install @reformer/core
 | Вход                                               | Что внутри                                                                                                          |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `@reformer/core`                                   | `createForm`, `createModel`, `arrayOf`, `compileSchema`, `createFormFlow`, `createSubmission`; типы `FormModel`, `FormGroup`, `FormControl`, `FormArray`, `FormSchemaNode`, `ValidationIssue` |
-| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormFlow`, `useFormValidation`, `FormBundleContext`, `I18nProvider`, `useIssueMessage`, `bindFieldProps` |
+| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useComputed`, `useStore`, `useFormFlow`, `useFormValidation`, `FormBundleContext`, `I18nProvider`, `useIssueMessage`, `bindFieldProps` |
 | `@reformer/core/validation`                        | `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`, `validateModel`, `createFormValidation` |
 | `@reformer/core/validators`                        | фабрики правил: `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`, числа, даты, файлы |
 | `@reformer/core/validators/<имя>`                  | одно правило на вход: `required`, `email`, `min-length`, `is-date`, `min-age` и другие (правил для файлов здесь нет — только в `validators`) |
 | `@reformer/core/behaviors`                         | `defineFormBehavior`, `compute`, `computeFrom`, `copyFrom`, `onChange`, `enableWhen`, `disableWhen`, `resetWhen`, `syncFields`, `transformValue`, `revalidateWhen`, `applyEach`, `apply`, `hideWhen`, `onComponentEvent` |
-| `@reformer/core/model`                             | низкоуровневая модель без форм: `createModel`, `arrayOf`, `modelOf`, value-операции, `deepEqual`                    |
+| `@reformer/core/model`                             | модель без форм: `createModel`, `arrayOf`, `modelOf`, value-операции, `deepEqual`; стор приложения: `createStore`, `createScope`, `onScopeDispose`, `shallowEqual`, `signalFrom`, `defineBehavior` |
 | `@reformer/core/signals`                           | `signal`, `computed`, `effect`, `batch`, `untracked`, `isSignal` — единственная копия реактивного рантайма        |
+| `@reformer/core/resource`                          | `resource` — загрузка по реактивному ключу, устаревший запрос отменяется                                           |
+| `@reformer/core/theme`                             | `createTheme` — уровень темы: `light`, `dark`, `system`, привязка к полю модели                                      |
+| `@reformer/core/language`                          | `createLanguage` — уровень языка: загрузка словаря, `<html lang>`, направление текста                               |
+| `@reformer/core/table`                             | `createTable` — уровень таблицы: сортировка, фильтры, страницы, выбор строк; клиентский и серверный режим           |
 | `@reformer/core/i18n`                              | локализация без React: `defineIssueMessages`, `createLocaleLoader`, `createI18n`, `extendLocale`, `msg`             |
 | `@reformer/core/locale`                            | `loadCoreLocale` — загрузчик встроенных локалей (`en`, `ru`) по чанку на язык                                       |
 | `@reformer/core/locale/en`, `/locale/ru`           | синхронные модули локали — для SSR и тестов                                                                         |
@@ -7925,6 +7966,10 @@ export function ContactForm() {
 | Вычисляемые и связанные поля                   | `compute-vs-watch`, `copy-from`, `sync-fields`, `reset-when` |
 | Отправка, сброс, загрузка начальных значений   | `submit-and-reset`, `async-preload`     |
 | Многошаговая форма                             | `form-flow`, `multi-step`               |
+| Свой контрол поля, ввод без перерисовки        | `ui-components`                         |
+| Состояние приложения в модели, стор, селекторы | `app-state-store`                       |
+| Загрузка данных по ключу из модели             | `resource`                              |
+| Тема, язык, таблица над моделью приложения     | `ui-theme`, `ui-language`, `data-table`, `cross-level-rules` |
 | Частые ошибки                                  | `common-mistakes`, `troubleshooting`    |
 
 ## 123. Purpose
@@ -8247,6 +8292,8 @@ page.model.userId = 7; // запрос /api/users/7
 ```tsx
 import { useSignalSnapshot, useStore } from '@reformer/core/react';
 
+// Фабрика useStore вызывается один раз: смену `id` ресурс не увидит. Ключ из пропса —
+// перемонтированием: <User key={id} id={id} />; ключ из модели — key: () => model.userId.
 function User({ id }: { id: number }) {
   const user = useStore(() => resource({ load: () => api.user(id) }));
   const state = useSignalSnapshot(user.state);

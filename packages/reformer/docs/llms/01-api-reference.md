@@ -20,11 +20,19 @@
 | `FormValidationController`, `FormValidationRunOptions`, `ValidationStrategyKind` (типы стратегии)      | `@reformer/core/validation`                      |
 | `useFormBundle`, `useFormControl`, `useFormControlValue`, `useArrayLength`, `useSignalSnapshot`, `useFormValidation` | `@reformer/core/react`                           |
 | `useFormFlow`, `FormBundleContext`, `useFormBundleContext`                                             | `@reformer/core/react`                           |
+| `useComputed` (селектор над моделью), `useStore` (стор, которым владеет компонент)                     | `@reformer/core/react`                           |
 | `bindFieldProps`, `getFieldAdapter`, `FieldAdapter`, `FieldHandle`, `FieldControlState` (связка поля)  | `@reformer/core/react`                           |
+| `watchValueOf`, `FieldValueSource`, `FieldSeam` (неуправляемая привязка `uncontrolled: true`)          | `@reformer/core/react`                           |
 | `I18nProvider`, `useI18n`, `useMessages`, `useIssueMessage`                                            | `@reformer/core/react`                           |
 | `defineIssueMessages`, `resolveIssueMessage`, `createI18n`, `extendLocale`, `createLocaleLoader`       | `@reformer/core/i18n`                            |
 | `computeFrom`, `copyFrom`, `watchField`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` | `@reformer/core/model` (примитивы над сигналами) |
 | `deepEqual`, `deferredWritesSettled` (сравнение значений, ожидание отложенных записей поведения)       | `@reformer/core/model`                           |
+| `createStore`, `createScope`, `onScopeDispose`, `getCurrentScope`, `shallowEqual`, `Store`, `Scope`    | `@reformer/core/model` (стор приложения)         |
+| `signalFrom` (сигнал над событийным источником), `defineBehavior` (правило между уровнями)             | `@reformer/core/model`                           |
+| `resource`, `Resource`, `ResourceOptions`, `AsyncResourceState`, `AsyncStatus`                         | `@reformer/core/resource`                        |
+| `createTheme`, `Theme`, `ThemePreference`, `documentTheme`, `mediaQuerySystemTheme`, `webStorage`      | `@reformer/core/theme`                           |
+| `createLanguage`, `Language`, `browserLanguage`, `documentLang`, `textDirection`, `webStorage`         | `@reformer/core/language`                        |
+| `createTable`, `Table`, `ColumnDef`, `TableOptions`, `TableQuery`, `TableRow`, `TableSelection`        | `@reformer/core/table`                           |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                 | `@reformer/core/validators`                      |
 | `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`                                          | `@reformer/core/validators`                      |
 | `isDate`, `minDate`, `maxDate`, `pastDate`, `futureDate`, `minAge`, `maxAge`                           | `@reformer/core/validators`                      |
@@ -73,6 +81,8 @@
 | `useFormControlValue(field)` | `T` (значение напрямую) | Только сигнал value | Условный рендеринг |
 | `useArrayLength(array)` | `number` | Только длина массива | Реактивная длина массива |
 | `useSignalSnapshot(signal)` | `T` (значение сигнала) | Один сигнал или `computed` | `bundle.validating`, `bundle.submission.submitting`, группа модели |
+| `useComputed(fn, deps?, isEqual?)` | `T` (результат селектора) | Прочитанные в `fn` сигналы; будит только при смене результата | Часть модели приложения; новый объект — с `shallowEqual` |
+| `useStore(factory)` | стор (`Store<T>`) | — (держит стор, снимает после размонтирования) | Стор экрана или виджета, `resource` в компоненте |
 | `useFormFlow(bundle.flow)` | `{ current, index, completed, isFirst, isLast, validating }` | Сигналы потока шагов | Свои кнопки и индикатор шагов |
 | `useIssueMessage(messages?)` | `(issue) => string` | Локаль | Текст замечания в своём компоненте |
 

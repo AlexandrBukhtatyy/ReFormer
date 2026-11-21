@@ -83,26 +83,31 @@ Issue texts come from the locale (`I18nProvider`) and a form dictionary
 
 ## Package entries
 
-| Import                                             | Contains                                                                                                         |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `@reformer/core`                                   | `createForm`, `createModel`, `arrayOf`, `compileSchema`, `createFormFlow`, `createSubmission`, node types        |
-| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormFlow`, `useFormValidation`, `I18nProvider`, `useIssueMessage`         |
-| `@reformer/core/validation`                        | `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`, `validateModel`           |
-| `@reformer/core/validators`                        | rule factories: `required`, `min`, `max`, `minLength`, `email`, `pattern`, `url`, `phone`, numbers, dates, files |
-| `@reformer/core/validators/<name>`                 | one rule per entry (`required`, `email`, `min-length`, `is-date`, `min-age`, …)                                  |
-| `@reformer/core/behaviors`                         | `defineFormBehavior`, `compute`, `copyFrom`, `onChange`, `enableWhen`, `resetWhen`, `hideWhen`, …                |
-| `@reformer/core/model`                             | the low-level model without forms: `createModel`, `arrayOf`, `modelOf`, value operations                         |
-| `@reformer/core/signals`                           | `signal`, `computed`, `effect`, `batch`, `untracked` — the single copy of the reactive runtime                   |
-| `@reformer/core/i18n`                              | localization without React: `defineIssueMessages`, `createLocaleLoader`, `createI18n`, `msg`                     |
-| `@reformer/core/locale`                            | `loadCoreLocale` — built-in locales (`en`, `ru`), one chunk per language                                         |
-| `@reformer/core/locale/en`, `/locale/ru`           | synchronous locale modules (SSR, tests)                                                                          |
-| `@reformer/core/locale/en.json`, `/locale/ru.json` | dictionaries as JSON                                                                                             |
+| Import                                             | Contains                                                                                                                                                                       |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@reformer/core`                                   | `createForm`, `createModel`, `arrayOf`, `compileSchema`, `createFormFlow`, `createSubmission`, node types                                                                      |
+| `@reformer/core/react`                             | `useFormBundle`, `useFormControl`, `useFormFlow`, `useFormValidation`, `I18nProvider`, `useIssueMessage`; model and store hooks `useSignalSnapshot`, `useComputed`, `useStore` |
+| `@reformer/core/validation`                        | `defineValidation`, `validate`, `validateAsync`, `validateWhen`, `apply`, `applyEach`, `validateModel`                                                                         |
+| `@reformer/core/validators`                        | rule factories: `required`, `min`, `max`, `minLength`, `email`, `pattern`, `url`, `phone`, numbers, dates, files                                                               |
+| `@reformer/core/validators/<name>`                 | one rule per entry (`required`, `email`, `min-length`, `is-date`, `min-age`, …)                                                                                                |
+| `@reformer/core/behaviors`                         | `defineFormBehavior`, `compute`, `copyFrom`, `onChange`, `enableWhen`, `resetWhen`, `hideWhen`, …                                                                              |
+| `@reformer/core/model`                             | the model without forms: `createModel`, `arrayOf`, `modelOf`, value operations; app store: `createStore`, `createScope`, `signalFrom`, `defineBehavior`                        |
+| `@reformer/core/signals`                           | `signal`, `computed`, `effect`, `batch`, `untracked` — the single copy of the reactive runtime                                                                                 |
+| `@reformer/core/resource`                          | `resource` — loading by a reactive key; stale requests are aborted and their answers dropped                                                                                   |
+| `@reformer/core/theme`                             | `createTheme` — light, dark or system theme, bound to a model field                                                                                                            |
+| `@reformer/core/language`                          | `createLanguage` — interface language: dictionary loading, `<html lang>` and text direction                                                                                    |
+| `@reformer/core/table`                             | `createTable` — sorting, filters, paging and selection over a model array or a server source                                                                                   |
+| `@reformer/core/i18n`                              | localization without React: `defineIssueMessages`, `createLocaleLoader`, `createI18n`, `msg`                                                                                   |
+| `@reformer/core/locale`                            | `loadCoreLocale` — built-in locales (`en`, `ru`), one chunk per language                                                                                                       |
+| `@reformer/core/locale/en`, `/locale/ru`           | synchronous locale modules (SSR, tests)                                                                                                                                        |
+| `@reformer/core/locale/en.json`, `/locale/ru.json` | dictionaries as JSON                                                                                                                                                           |
 
 ## Links
 
 - Documentation: [quick start](https://alexandrbukhtatyy.github.io/ReFormer/docs/getting-started/quick-start),
   [validation](https://alexandrbukhtatyy.github.io/ReFormer/docs/validation/overview),
   [behaviors](https://alexandrbukhtatyy.github.io/ReFormer/docs/behaviors/overview),
+  [the model as an app store](https://alexandrbukhtatyy.github.io/ReFormer/docs/core-concepts/app-store),
   [API reference](https://alexandrbukhtatyy.github.io/ReFormer/docs/api)
 - Recipes for AI assistants: [`docs/llms`](./docs/llms) (start with
   [`39-overview.md`](./docs/llms/39-overview.md)); they ship in the package together with `llms.txt`
