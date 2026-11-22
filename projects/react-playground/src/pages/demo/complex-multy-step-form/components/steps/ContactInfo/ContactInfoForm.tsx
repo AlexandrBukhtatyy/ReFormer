@@ -1,0 +1,54 @@
+/**
+ * ContactInfoForm (Step 3)
+ *
+ * Демонстрирует:
+ * - Переиспользование AddressForm для двух разных адресов
+ * - Операции с группами: getValue(), setValue()
+ * - Условное отображение вложенных форм
+ */
+
+import type { FormGroup } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
+import { FormField } from '@reformer/ui-kit';
+import { AddressForm } from '../../nested-forms/Address/AddressForm';
+import { livesElsewhere } from '../../../model/predicates';
+import type { CreditApplicationForm } from '../../../types/credit-application';
+import { ResidenceAddressSection } from '../../ui/ResidenceAddressSection';
+
+interface ContactInfoFormProps {
+  control: FormGroup<CreditApplicationForm>;
+}
+
+export function ContactInfoForm({ control }: ContactInfoFormProps) {
+  const { value: sameAsRegistration } = useFormControl(control.sameAsRegistration);
+
+  return (
+    <div className="space-y-6" data-testid="step-contact-info">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Контактная информация
+      </h2>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Контакты</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={control.phoneMain} testId="phoneMain" />
+          <FormField control={control.phoneAdditional} testId="phoneAdditional" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={control.email} testId="email" />
+          <FormField control={control.emailAdditional} testId="emailAdditional" />
+        </div>
+        <FormField control={control.sameEmail} testId="sameEmail" />
+      </div>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Адрес регистрации</h3>
+        <AddressForm control={control.registrationAddress} testIdPrefix="registrationAddress" />
+      </div>
+      <FormField control={control.sameAsRegistration} testId="sameAsRegistration" />
+      {livesElsewhere(sameAsRegistration) && (
+        <ResidenceAddressSection>
+          <AddressForm control={control.residenceAddress} testIdPrefix="residenceAddress" />
+        </ResidenceAddressSection>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,218 @@
+/**
+ * Провайдер модели схемы формы: разбор, печать и правка одного формата.
+ *
+ * Это ядро плагина. Всё остальное — канвас, палитра, инспектор — рисует то, что провайдер
+ * разобрал, и правит его операциями, которые провайдер умеет применять.
+ *
+ * ## Берётся по содержимому, а не по расширению
+ *
+ * `.json` бывает и схемой формы, и `package.json`, и мета-схемой. Поэтому {@link applies}
+ * отвечает по РАЗБОРУ: текст обязан быть объектом с узлом в `root` ({@link isFormSchema}
+ * домена). Проба отдаёт содержимое синхронно (`peek`), потому что его уже прочитал тот, кто
+ * открывает документ, — второго чтения ради этого решения не происходит.
+ *
+ * Проба без `peek` означает, что содержимого сейчас нет (дерево ресурсов даёт ленивую пробу).
+ * Тогда ответ — «не берусь»: угадать по имени файла значило бы дать модель конфигу пакета.
+ *
+ * ## Разбор выдаёт идентификаторы и чинит двойников
+ *
+ * Узел без `$nodeId` получает его сразу, поэтому адресация работает с момента открытия,
+ * а не с первой правки. `ensureNodeIds` сохраняет structural sharing: ветка, где все
+ * идентификаторы уже есть, возвращается той же по ссылке.
+ *
+ * **Два узла с одним `$nodeId` — тоже вход разбора, а не аварийный случай.** Схему пишут руками
+ * и генерируют чужими инструментами; копипаста поддерева приносит двойника, и с ним ломается
+ * адресация целиком: правка уходит не в тот узел, диагностика встаёт не на тот, выделение
+ * подсвечивает не то. Разбор его снимает — второму носителю адрес перевыдаётся
+ * (`assignNodeIds` из `@/plugins/reformer/core/form-model`), — и **отказывать в открытии файла
+ * из-за этого нельзя**: отказ оставил бы человека наедине с текстовым редактором ровно там,
+ * где структурный и нужен. Правило то же, что для отсутствующего и для негодного по форме
+ * адреса: адрес выдаёт машина, и починка его — её работа, а не пользователя.
+ *
+ * Цена названа честно: **починка молчалива до первого сохранения**, как и первичная выдача.
+ * Сообщить о ней — дело валидатора: он получает исходный ТЕКСТ (`ValidateContext.text()`),
+ * то есть единственное место, где двойник ещё видно; модель после разбора уже исправна.
+ *
+ * ## Прежний формат переводится на входе
+ *
+ * Файл на диске может быть прежнего формата: привязка в `value` / `array`, шаги визарда в
+ * `componentProps.steps`, поля `format` нет. Разбор переводит его в формат 2 (`ensureSchema`
+ * домена) — ключ привязки `model`, шаги в `children` визарда, `format: 2` в шапке, — и дальше
+ * ни канвас, ни операции, ни печать прежних ключей не знают. Проба {@link looksLikeFormSchema}
+ * узнаёт оба формата: вопрос «схема ли это» задаётся файлу до перевода.
+ *
+ * Цена та же, что у выдачи идентификаторов: **перевод молчалив до первой правки**. Буфер
+ * открытого файла остаётся каким был, а первая же операция печатает модель — уже формата 2.
+ * Открыть, поправить и сохранить документ значит перевести его; открыть и закрыть — не тронуть.
+ *
+ * ## Печать детерминированна и хранит идентификаторы
+ *
+ * Два пробела отступа, порядок ключей — тот, что в модели (домен его не переставляет).
+ * `$nodeId` печатается вместе с узлом: иначе повторный разбор выдал бы НОВЫЕ адреса, и
+ * круговой обход «разобрать → напечатать → разобрать» перестал бы давать ту же модель —
+ * а на нём стоит и сравнение с буфером, и переживание перезагрузки выделением.
+ *
+ * ## Принтер один на редактор, ассистента и кодоген
+ *
+ * Документ печатает `printJson` ядра — тот же, которым кодоген пишет `schema/form.schema.json`
+ * и файлы шагов: объекты развёрнуты, а массив без объектов — в строку, если помещается
+ * (`"children": ["Отправить"]`), то есть так, как документ оставит форматтер репозитория.
+ * Собственный `JSON.stringify(…, null, 2)` клал каждый элемент на свою строку, и раскладка
+ * массивов в одном и том же файле «прыгала» между сохранением из редактора и генерацией кода,
+ * а сохранённый редактором документ переставал проходить `prettier --check`. Отсюда же
+ * свойство, на котором стоит сравнение с буфером: документ, напечатанный кодогеном, после
+ * «разобрать → напечатать» возвращается байт в байт. Отличиться текст может только адресами:
+ * узлу без `$nodeId` разбор его выдаёт (см. выше), и печать его сохранит. Совпадение трёх
+ * печатей держит `./print-parity.test`.
+ *
+ * Принтер берётся из его модуля (`core/codegen/print/js`), а не из входа `core/codegen`: вход
+ * тянет за собой шаблоны модуля формы и мост к билдерам `@reformer/form-intent`, которые редактору
+ * не нужны, а сам принтер зависит только от раскладчика.
+ *
+ * @module plugins/reformer/editor/model/provider
+ */
+
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import { ensureNodeIds, newNodeId, type NodeIdFactory } from '../../../core/form-model';
+import {
+  ensureSchema,
+  indexNodePaths,
+  isFormSchema,
+  type JsonPath,
+} from '../../../core/form-model';
+import type { CatalogEntry } from '../../../core/catalog';
+import { printJson } from '../../../core/codegen/print/js';
+import { moduleRootPathOf } from '../../../core/codegen/layout';
+import type { Disposable, EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
+import { applyEditOp } from './ops';
+import { completeModelPath, formJsonSchema, formStepJsonSchema } from './hints';
+import { formSchemaComposition } from './composition';
+import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
+
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { SCHEMA_MODEL_PROVIDER_ID } from '../contract';
+export { SCHEMA_MODEL_PROVIDER_ID };
+
+/**
+ * Разбирает текст в схему формы формата 2 с выданными идентификаторами; документ прежнего
+ * формата переводится здесь же. @throws если текст не схема.
+ */
+export function parseFormSchema(text: string, newId: NodeIdFactory = newNodeId): JsonFormSchema {
+  const parsed: unknown = JSON.parse(text);
+  return ensureNodeIds(ensureSchema(parsed), newId);
+}
+
+/**
+ * Печатает модель — принтером документа формы, общим с кодогеном (см. шапку модуля).
+ * Детерминированна: одна и та же модель даёт байт в байт один текст; завершается переводом строки.
+ */
+export function printFormSchema(model: JsonFormSchema): string {
+  return printJson(model);
+}
+
+/**
+ * Похож ли текст на схему формы.
+ *
+ * Дешёвая проверка на `JSON.parse` + структурный дискриминатор домена. Ошибка разбора здесь
+ * не диагностика, а ответ «не моё»: сообщать о синтаксисе будет валидатор того, кто за файл
+ * взялся.
+ *
+ * Отвечает «да» документу ЛЮБОГО формата и значения наружу не отдаёт: работать со схемой
+ * можно только после {@link parseFormSchema}, который её переводит.
+ */
+export function looksLikeFormSchema(text: string): boolean {
+  try {
+    return isFormSchema(JSON.parse(text));
+  } catch {
+    return false;
+  }
+}
+
+/** Проба, умеющая отдать текст синхронно. Структурная копия `SyncEditorProbe` платформы. */
+function peekText(probe: EditorProbe): string | null {
+  const peek = (probe as { peek?: () => string }).peek;
+  return typeof peek === 'function' ? peek() : null;
+}
+
+/**
+ * Синхронный ответ «это схема формы» по ссылке и пробе.
+ *
+ * Общий для {@link SchemaModelProviderSpec.applies} и для `canOpen` редактора: два разных
+ * ответа на один вопрос означали бы документ, у которого есть модель, но нет редактора
+ * (или наоборот).
+ */
+export function isFormSchemaResource(ref: ResourceRef, probe: EditorProbe): boolean {
+  if (!ref.mediaType.includes('json')) return false;
+  const text = peekText(probe);
+  return text === null ? false : looksLikeFormSchema(text);
+}
+
+export interface SchemaModelProviderOptions {
+  /** Генератор идентификаторов. В тестах — детерминированный. */
+  readonly newId?: NodeIdFactory;
+  /**
+   * Каталог активного кита — для JSON Schema подсказок. Функция, а не список: провайдер
+   * собирается до активации плагина, а кит переключают. Без него схема подсказок не строится.
+   */
+  readonly catalog?: () => readonly CatalogEntry[];
+  /** Каталог сменился — схема подсказок устарела. */
+  readonly onCatalogChange?: (cb: () => void) => Disposable;
+}
+
+/**
+ * Пути узлов по модели — запоминаются по ССЫЛКЕ на модель.
+ *
+ * `WeakMap`, а не поле: модель — замороженный объект со structural sharing, и новая ссылка
+ * означает новую правку; та же ссылка — тот же ответ. Текстовый редактор спрашивает пути на
+ * каждую публикацию находок, а обход схемы ради того же ответа стоил бы столько же, сколько
+ * сам показ. Кэш общий на все провайдеры: ответ зависит только от модели.
+ */
+const nodePathsCache = new WeakMap<object, ReadonlyMap<string, JsonPath>>();
+
+function nodePathsOf(model: JsonFormSchema): ReadonlyMap<string, JsonPath> {
+  let paths = nodePathsCache.get(model);
+  if (paths === undefined) {
+    paths = indexNodePaths(model);
+    nodePathsCache.set(model, paths);
+  }
+  return paths;
+}
+
+/** Собирает провайдер модели. Отдельно от плагина, чтобы тест звал его без реестров. */
+export function createSchemaModelProvider(
+  options: SchemaModelProviderOptions = {}
+): SchemaModelProviderSpec {
+  const newId = options.newId ?? newNodeId;
+  const { catalog, onCatalogChange } = options;
+  return {
+    id: SCHEMA_MODEL_PROVIDER_ID,
+    applies: (ref, probe) => isFormSchemaResource(ref, probe),
+    parse: (text) => parseFormSchema(text, newId),
+    print: printFormSchema,
+    apply: (model: JsonFormSchema, op: EditOp): ApplyResult<JsonFormSchema> =>
+      applyEditOp(model, op, { newId }),
+    // Пути узлов — для текстового редактора: подчеркнуть находку на узле без `$nodeId` в тексте.
+    nodePaths: nodePathsOf,
+    // Как узел записан в тексте: идентификатор — служебным ключом, а без него узел подчёркивают
+    // по имени компонента. Редактор кода формата не знает и берёт ключи отсюда.
+    nodeAnchor: { idKey: '$nodeId', labelKey: 'component' },
+    // Подсказки текстового редактора: схема кита и пути модели под курсором. Схема строится
+    // и при пустом каталоге — структура узлов и теги `$html` от кита не зависят.
+    ...(catalog === undefined
+      ? {}
+      : {
+          jsonSchema: () => formJsonSchema(catalog()),
+          ...(onCatalogChange === undefined ? {} : { onDidChangeJsonSchema: onCatalogChange }),
+        }),
+    completeString: completeModelPath,
+    // Визард, разбитый по шагам: шаги — в своих файлах, редактор видит одну форму.
+    composition: {
+      ...formSchemaComposition(newId),
+      // Подсказки в файле шага — схема шага из того же каталога кита.
+      ...(catalog === undefined ? {} : { partJsonSchema: () => formStepJsonSchema(catalog()) }),
+    },
+    // Модуль формы: Ctrl+S на форме сохраняет и код, который напечатал ход ассистента.
+    companionsDir: (ref) => moduleRootPathOf(ref.path),
+  };
+}

@@ -1,0 +1,275 @@
+/**
+ * Unit-тесты FieldArraySection — ReFormer-специфичный carry-компонент (не shadcn),
+ * стилизованная UI-обёртка поверх headless-compound `@reformer/cdk/field-array`.
+ *
+ * SSR-подход (renderToStaticMarkup + regex): проверяем разметку, метки, кнопки
+ * (add/remove/reorder), пустое состояние, maxItems и guard-ветки (hasItems=false,
+ * невалидный control). События не вызываются.
+ */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, it, expect, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import {
+  createForm,
+  createModel,
+  createFormFromModel,
+  type FormModel,
+  type FormGroup,
+} from '@reformer/core';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { minLength } from '@reformer/core/validators';
+import { I18nProvider } from '@reformer/core/react';
+import { ru } from '@/locale/ru';
+import { FieldArraySection } from './index';
+
+type Item = { name: string };
+
+/** Поднимает форму с массивом `items` (узел схемы `{ model, item }`). */
+function buildArray(initial: Item[]): any {
+  const model = createModel<{ items: Item[] }>({ items: initial });
+  const itemFn = (item: FormModel<Item>) => ({
+    children: [{ model: item.$.name }],
+  });
+  const schema = { children: [{ model: model.$.items, item: itemFn }] };
+  const form = createFormFromModel<{ items: Item[] }>({ model, schema });
+  return (form as any).items;
+}
+
+/** Тонкий item-компонент: маркер, чтобы отследить рендер каждого элемента. */
+const ItemMarker = (_: { control: FormGroup<Item> }) => (
+  <div data-slot="item-body">тело-элемента</div>
+);
+
+describe('FieldArraySection (base carry)', () => {
+  it('рендерит заголовок, кнопку добавления и карточки элементов', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        title="Имущество"
+        itemLabel="Имущество"
+        addButtonLabel="+ Добавить имущество"
+      />
+    );
+    // data-slot корневой секции (добавлен при порте v7).
+    expect(html).toContain('data-slot="field-array-section"');
+    // Заголовок секции — h3.
+    expect(html).toMatch(/<h3[^>]*>Имущество<\/h3>/);
+    // Кнопка добавления с меткой.
+    expect(html).toContain('data-testid="array-add"');
+    expect(html).toContain('+ Добавить имущество');
+    // Обе карточки-элемента.
+    expect(html).toContain('data-testid="array-item-0"');
+    expect(html).toContain('data-testid="array-item-1"');
+    // Метки элементов «Имущество #N».
+    expect(html).toContain('Имущество #1');
+    expect(html).toContain('Имущество #2');
+    // itemComponent отрендерен для каждого элемента.
+    expect(html).toContain('data-slot="item-body"');
+  });
+
+  it('при length > 1 показывает кнопки «Удалить» на каждом элементе', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        title="Список"
+        removeButtonLabel="Удалить"
+      />
+    );
+    expect(html).toContain('data-testid="array-item-0-remove"');
+    expect(html).toContain('data-testid="array-item-1-remove"');
+    expect(html).toContain('Удалить');
+  });
+
+  it('единственный элемент по умолчанию без «Удалить» (showRemoveOnSingle=false)', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }])}
+        itemComponent={ItemMarker}
+        title="Список"
+      />
+    );
+    expect(html).not.toContain('data-testid="array-item-0-remove"');
+  });
+
+  it('showRemoveOnSingle=true показывает «Удалить» даже для одного элемента', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }])}
+        itemComponent={ItemMarker}
+        title="Список"
+        showRemoveOnSingle
+      />
+    );
+    expect(html).toContain('data-testid="array-item-0-remove"');
+  });
+
+  it('reorderable рендерит кнопки перестановки ↑/↓ с aria-label', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        title="Список"
+        reorderable
+      />
+    );
+    expect(html).toContain('data-testid="array-item-0-move-up"');
+    expect(html).toContain('data-testid="array-item-0-move-down"');
+    // Имя кнопки — действие плюс метка строки: у каждой строки свои ↑/↓.
+    expect(html).toContain('aria-label="Move up: Список #1"');
+    expect(html).toContain('aria-label="Move down: Список #1"');
+    expect(html).toContain('aria-label="Move up: Список #2"');
+    // Первый элемент не может двигаться вверх — кнопка disabled.
+    expect(html).toMatch(/array-item-0-move-up[^>]*disabled|disabled[^>]*array-item-0-move-up/);
+  });
+
+  it('пустой массив с emptyMessage рендерит сообщение и подсказку', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([])}
+        itemComponent={ItemMarker}
+        emptyMessage="Нажмите «Добавить» для добавления информации"
+        emptyMessageHint="Можно добавить несколько записей"
+      />
+    );
+    expect(html).toContain('Нажмите «Добавить» для добавления информации');
+    expect(html).toContain('Можно добавить несколько записей');
+  });
+
+  it('без title кнопка добавления рендерится как футер', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([])}
+        itemComponent={ItemMarker}
+        addButtonLabel="+ Добавить"
+      />
+    );
+    // Нет h3-заголовка, но есть add-кнопка (footer-вариант).
+    expect(html).not.toContain('<h3');
+    expect(html).toContain('data-testid="array-add"');
+    expect(html).toContain('+ Добавить');
+  });
+
+  it('maxItems достигнут — кнопка добавления скрыта', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        title="Список"
+        maxItems={2}
+      />
+    );
+    expect(html).not.toContain('data-testid="array-add"');
+  });
+
+  it('без title/itemLabel у карточек есть шапка с «Удалить» и ↑/↓ (без метки)', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        reorderable
+      />
+    );
+    // Было: шапку рисовали только при title/itemLabel — кнопки пропадали вместе с ней.
+    expect(html).toContain('data-testid="array-item-0-remove"');
+    expect(html).toContain('data-testid="array-item-1-remove"');
+    expect(html).toContain('data-testid="array-item-0-move-down"');
+    // Видимой метки нет, но имя кнопки всё равно различимо — по метке по умолчанию.
+    expect(html).not.toContain('<h4');
+    expect(html).toContain('aria-label="Remove: Item #1"');
+    expect(html).toContain('aria-label="Remove: Item #2"');
+  });
+
+  it('без title/itemLabel и без кнопок шапки нет', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item> control={buildArray([{ name: 'a' }])} itemComponent={ItemMarker} />
+    );
+    expect(html).not.toContain('data-testid="array-item-0-remove"');
+    expect(html).not.toContain('justify-end');
+  });
+
+  it('«Удалить» у разных строк различимы: текст кнопки плюс метка строки, на языке локали', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FieldArraySection<Item>
+          control={buildArray([{ name: 'a' }, { name: 'b' }])}
+          itemComponent={ItemMarker}
+          title="Имущество"
+        />
+      </I18nProvider>
+    );
+    expect(html).toContain('aria-label="Удалить: Имущество #1"');
+    expect(html).toContain('aria-label="Удалить: Имущество #2"');
+    // Видимый текст не меняется.
+    expect(html).toMatch(/>Удалить<\/button>/);
+  });
+
+  it('свой removeButtonLabel — начало имени кнопки', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }, { name: 'b' }])}
+        itemComponent={ItemMarker}
+        itemLabel={(_c, i) => `Созаёмщик ${i + 1}`}
+        removeButtonLabel="Убрать"
+      />
+    );
+    expect(html).toContain('aria-label="Убрать: Созаёмщик 2"');
+  });
+
+  it('показывает замечания самого массива (minItems) после проверки', async () => {
+    type Shape = { items: Item[] };
+    const rules = defineValidation<Shape>(({ model }) => {
+      validate(model.$.items, [minLength(1)]);
+    });
+    const bundle = createForm<Shape>({
+      initial: { items: [] },
+      schema: (model: FormModel<Shape>) => ({
+        children: [
+          {
+            model: model.$.items,
+            item: (row: FormModel<Item>) => ({ children: [{ model: row.$.name }] }),
+          },
+        ],
+      }),
+      validation: { rules },
+    });
+    const section = () =>
+      renderToStaticMarkup(
+        <FieldArraySection<Item>
+          control={(bundle.form as any).items}
+          itemComponent={ItemMarker}
+          title="Список"
+        />
+      );
+
+    // До проверки замечаний нет — и текста нет.
+    expect(section()).not.toContain('data-testid="array-error"');
+
+    await bundle.validate();
+    // Было: секция замечаний массива не показывала, и FieldArray.Error некуда было поставить.
+    expect(section()).toMatch(/<p[^>]*role="alert"[^>]*data-testid="array-error"/);
+  });
+
+  it('hasItems=false скрывает секцию целиком (пустая строка)', () => {
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item>
+        control={buildArray([{ name: 'a' }])}
+        itemComponent={ItemMarker}
+        title="Имущество"
+        hasItems={false}
+      />
+    );
+    expect(html).toBe('');
+  });
+
+  it('невалидный control (не FormArray) → предупреждение и пустая строка', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const html = renderToStaticMarkup(
+      <FieldArraySection<Item> control={{} as any} itemComponent={ItemMarker} title="X" />
+    );
+    expect(html).toBe('');
+    expect(warn).toHaveBeenCalledWith('[FieldArraySection] control is not a FormArray.');
+    warn.mockRestore();
+  });
+});

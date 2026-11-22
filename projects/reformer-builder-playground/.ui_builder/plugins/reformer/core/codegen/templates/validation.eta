@@ -1,0 +1,58 @@
+<%
+const T = it.names.TypeName;
+const v = it.rules.validation;
+// Тело уже с отступом: если оператор не разберётся, он уедет в файл как есть.
+const rulesBody =
+  v.block !== null && v.block.body.length > 0
+    ? it.indent(v.block.body, 2)
+    : '  // TODO: правила формы';
+// Живая проверка: замечание уходит, как только значение поля исправили.
+const config =
+  v.block !== null ? `{ ${v.field}: ${v.rulesName}, strategy: 'change' }` : "{ strategy: 'change' }";
+-%>
+// <%= it.layout.files.validation %> — валидация формы: поле `validation` сборки (<%= it.layout.files.create %>).
+<% if (it.layout.isWizard) { -%>
+// Правила шагов — в validation/<шаг>.ts (их проверяет «Далее»); здесь — только правила вне шагов.
+<% } -%>
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import type { FormValidation } from '@reformer/core';
+<% if (v.block !== null) { -%>
+<%~ v.block.imports.join('\n') %>
+<% } -%>
+import type { <%= T %> } from '<%= it.rel('validation', 'types') %>';
+
+<% if (v.block !== null) { -%>
+<% if (it.layout.isWizard) { -%>
+/** Правила вне шагов: проверяются целиком, при отправке. */
+<% } else { -%>
+/** Правила формы: проверяются при отправке и живой проверкой. */
+<% } -%>
+<%~ it.format(`export const ${v.rulesName} = defineValidation<${T}>((${v.block.params}) => {
+${rulesBody}
+});`) %>
+
+<% } -%>
+/**
+ * Валидация формы — поле `validation` сборки.
+<% if (it.layout.isWizard && v.block === null) { -%>
+ *
+ * Правил вне шагов нет: полный набор сборка собирает из правил шагов потока. Появятся —
+ * объявите их здесь и передайте полем `extras`.
+<% } -%>
+ *
+ * `strategy` — когда поле проверяется само, не дожидаясь отправки:
+ * - `'submit'` — никогда: замечание висит под исправленным полем до следующей отправки;
+ * - `'blur'` — когда поле теряет фокус. Замечание под исправленным полем уходит в момент
+ *   щелчка по кнопке (фокус покидает поле), кнопка сдвигается — и щелчок приходится мимо неё;
+ * - `'change'` — на каждое изменение (`debounce` — пауза в мс): замечание уходит, как только
+ *   значение исправили. Выбрана она;
+ * - `'afterFirstSubmit'` — как `'change'`, но только после первой отправки. Включает её проверка
+<% if (it.layout.isWizard) { -%>
+ *   через сборку (`form.validate()` / `form.submit()`).
+<% } else { -%>
+ *   через сборку (`form.validate()` / `form.submit()`), а здесь кнопка проверяет форму сама
+ *   (<%= it.layout.files.submit %>), мимо сборки.
+<% } -%>
+ */
+<%~ it.format(`export const formValidation: FormValidation<${T}> = ${config};`) %>

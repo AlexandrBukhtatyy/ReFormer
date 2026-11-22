@@ -1,0 +1,241 @@
+{
+  "name": "@reformer/core",
+  "version": "6.0.0",
+  "description": "Reactive form state management on signals: a UI-agnostic core with React bindings in @reformer/core/react",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./signals": {
+      "types": "./dist/signals.d.ts",
+      "import": "./dist/signals.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "import": "./dist/i18n.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js"
+    },
+    "./locale/en": {
+      "types": "./dist/locale/en.d.ts",
+      "import": "./dist/locale/en.js"
+    },
+    "./locale/ru": {
+      "types": "./dist/locale/ru.d.ts",
+      "import": "./dist/locale/ru.js"
+    },
+    "./locale/en.json": "./dist/locale/en.json",
+    "./locale/ru.json": "./dist/locale/ru.json",
+    "./model": {
+      "types": "./dist/model.d.ts",
+      "import": "./dist/model.js"
+    },
+    "./resource": {
+      "types": "./dist/resource.d.ts",
+      "import": "./dist/resource.js"
+    },
+    "./theme": {
+      "types": "./dist/theme.d.ts",
+      "import": "./dist/theme.js"
+    },
+    "./language": {
+      "types": "./dist/language.d.ts",
+      "import": "./dist/language.js"
+    },
+    "./table": {
+      "types": "./dist/table.d.ts",
+      "import": "./dist/table.js"
+    },
+    "./behaviors": {
+      "types": "./dist/behaviors.d.ts",
+      "import": "./dist/behaviors.js"
+    },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "import": "./dist/validation.js"
+    },
+    "./validators": {
+      "types": "./dist/validators.d.ts",
+      "import": "./dist/validators.js"
+    },
+    "./validators/required": {
+      "types": "./dist/validators/required.d.ts",
+      "import": "./dist/validators/required.js"
+    },
+    "./validators/email": {
+      "types": "./dist/validators/email.d.ts",
+      "import": "./dist/validators/email.js"
+    },
+    "./validators/min": {
+      "types": "./dist/validators/min.d.ts",
+      "import": "./dist/validators/min.js"
+    },
+    "./validators/max": {
+      "types": "./dist/validators/max.d.ts",
+      "import": "./dist/validators/max.js"
+    },
+    "./validators/min-length": {
+      "types": "./dist/validators/min-length.d.ts",
+      "import": "./dist/validators/min-length.js"
+    },
+    "./validators/max-length": {
+      "types": "./dist/validators/max-length.d.ts",
+      "import": "./dist/validators/max-length.js"
+    },
+    "./validators/pattern": {
+      "types": "./dist/validators/pattern.d.ts",
+      "import": "./dist/validators/pattern.js"
+    },
+    "./validators/url": {
+      "types": "./dist/validators/url.d.ts",
+      "import": "./dist/validators/url.js"
+    },
+    "./validators/phone": {
+      "types": "./dist/validators/phone.d.ts",
+      "import": "./dist/validators/phone.js"
+    },
+    "./validators/is-number": {
+      "types": "./dist/validators/is-number.d.ts",
+      "import": "./dist/validators/is-number.js"
+    },
+    "./validators/integer": {
+      "types": "./dist/validators/integer.d.ts",
+      "import": "./dist/validators/integer.js"
+    },
+    "./validators/multiple-of": {
+      "types": "./dist/validators/multiple-of.d.ts",
+      "import": "./dist/validators/multiple-of.js"
+    },
+    "./validators/non-negative": {
+      "types": "./dist/validators/non-negative.d.ts",
+      "import": "./dist/validators/non-negative.js"
+    },
+    "./validators/non-zero": {
+      "types": "./dist/validators/non-zero.d.ts",
+      "import": "./dist/validators/non-zero.js"
+    },
+    "./validators/is-date": {
+      "types": "./dist/validators/is-date.d.ts",
+      "import": "./dist/validators/is-date.js"
+    },
+    "./validators/min-date": {
+      "types": "./dist/validators/min-date.d.ts",
+      "import": "./dist/validators/min-date.js"
+    },
+    "./validators/max-date": {
+      "types": "./dist/validators/max-date.d.ts",
+      "import": "./dist/validators/max-date.js"
+    },
+    "./validators/past-date": {
+      "types": "./dist/validators/past-date.d.ts",
+      "import": "./dist/validators/past-date.js"
+    },
+    "./validators/future-date": {
+      "types": "./dist/validators/future-date.d.ts",
+      "import": "./dist/validators/future-date.js"
+    },
+    "./validators/min-age": {
+      "types": "./dist/validators/min-age.d.ts",
+      "import": "./dist/validators/min-age.js"
+    },
+    "./validators/max-age": {
+      "types": "./dist/validators/max-age.d.ts",
+      "import": "./dist/validators/max-age.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
+    "build": "npm run generate:llms && vite build",
+    "build:stackblitz": "vite build",
+    "dev": "vite",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch",
+    "coverage": "node ../../scripts/run-vitest.mjs --coverage && node ../../scripts/check-coverage-per-file.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json"
+  },
+  "keywords": [
+    "react",
+    "forms",
+    "form-validation",
+    "validation",
+    "state-management",
+    "signals",
+    "reactive",
+    "typescript",
+    "hooks",
+    "form-builder",
+    "dynamic-forms"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt",
+    "llms-index.json",
+    "docs/llms"
+  ],
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+    "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@preact/signals-core": "^1.8.0",
+    "use-sync-external-store": "^1.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.3.0",
+    "@types/use-sync-external-store": "^0.0.6",
+    "@vitest/coverage-v8": "4.0.15",
+    "fast-check": "^4.10.2",
+    "happy-dom": "^20.14.6",
+    "intl-messageformat": "^12.1.2",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

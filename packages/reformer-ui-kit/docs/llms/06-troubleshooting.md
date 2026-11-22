@@ -1,0 +1,406 @@
+# Troubleshooting / FAQ
+
+Частые ошибки при использовании `@reformer/ui-kit` и пути их решения.
+
+## 1. Числовое поле возвращает строку, а не число (или `null`)
+
+**Симптом.** В модели поле `age: number`, но в `getValue()` приходит `'42'` или
+никогда не приходит `null` для пустого ввода.
+
+**Причина.** В `component` поля стоит `Input` с `type: 'number'`. `Input` — нативный `<input>`:
+его адаптер (`nativeInputAdapter`) отдаёт в модель `e.target.value`, то есть строку, даже при
+`type="number"`. Props-схема `Input` `type: 'number'` не объявляет — в JSON-DSL такой
+`componentProps` отклоняется.
+
+**Решение.** Числовое поле — отдельный компонент `InputNumber` (registry `InputNumber`):
+
+```tsx
+{ model: model.$.age, component: InputNumber, componentProps: { label: 'Возраст', min: 0 } }
+// в модель приходит number | null. Пустой ввод → null. Частичный ввод («-», «.») не эмитится.
+```
+
+В модели поле должно быть `number | null`, а не `number`:
+
+```typescript
+interface Form {
+  age: number | null;
+}
+```
+
+## 2. `SelectAsync` не показывает options (пустой дропдаун)
+
+**Симптом.** Триггер открывается, но в нём `No options found.` (или «Failed to load options.» с
+кнопкой «Retry»).
+
+**Причины и решения:**
+
+- **Передан `resource`, но не передан `options`** — `resource.load()` упал или вернул пусто:
+  при ошибке список показывает «Failed to load options.» и повтор. Открой DevTools Network и
+  посмотри статус. Скорее всего бек вернул не тот формат (`items: [...]` обязательно, `id`
+  обязательно у каждого item).
+
+- **Передан `options`, но `value` не строка** — внутри `SelectAsync` все `value`
+  приводятся к строке (`String(opt.value)`). Если ты передаёшь
+  `value: 42` (число), а `options[i].value: '42'` (строка) — Radix не
+  подсветит выбранный вариант, но options будут.
+
+- **Сразу и `options`, и `resource`** — `options` приоритетнее, но
+  `resource.load` всё равно вызовется. Если сеть упала, `loading` может
+  остаться `true`, и UI блокируется. Используй один источник.
+
+## 3. `InputMask` пропускает символы или не вставляет литералы
+
+**Симптом.** Пользователь вводит цифры, но скобки/тире из маски не
+появляются автоматически.
+
+**Причина.** `InputMask` в текущей реализации **не** трансформирует ввод — он
+лишь служит подсказкой `placeholder`-ом, равной маске. Литералы из `mask`
+рендерятся в placeholder, но не вставляются в `value`.
+
+**Решение.** Использовать поверх ui-kit отдельный mask-инструмент, либо
+форматировать значение в `behavior` `transformValue` и хранить в форме либо
+форматированное, либо «голое» значение:
+
+```typescript
+// behaviors на форме:
+transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
+```
+
+Если для UX критичен реальный mask (с автоматической вставкой скобок), на
+данный момент компонент не покрывает эту задачу — оборачивай сторонний пакет
+(`react-imask`, `imask`) и подключай через [`05-form-field-integration.md`](05-form-field-integration.md)
+сценарий 3 (`<FormField><MaskedInput /></FormField>`).
+
+## 4. `forwardRef` + Radix `Slot` конфликты
+
+**Симптом.** При `<Button asChild><Link to="/">Go</Link></Button>` падает с
+`Slot: only one child or React.cloneElement is not a function`.
+
+**Причины.**
+
+- В `children` несколько элементов или текст рядом с элементом:
+  `<Button asChild>Hello <span>!</span></Button>` — Slot допускает ровно
+  один React-элемент.
+- Дочерний компонент не пробрасывает `ref` (через `React.forwardRef` или
+  React 19 ref-as-prop). Slot пытается прокинуть `ref`, и если получатель —
+  обычная функция, ничего не произойдёт; если внутри Slot вычисляется
+  `ref`-композиция, бросает ошибку.
+
+**Решение.** Проверь, что:
+
+```tsx
+<Button asChild>
+  <Link to="/">Go</Link> {/* один элемент, без текста рядом */}
+</Button>
+```
+
+Для собственных контейнеров используй `React.forwardRef`:
+
+```tsx
+const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: ReactNode }>(
+  ({ href, children, ...props }, ref) => (
+    <a ref={ref} href={href} {...props}>
+      {children}
+    </a>
+  )
+);
+<Button asChild>
+  <MyLink href="/x">Go</MyLink>
+</Button>;
+```
+
+## 5. `CheckboxWithLabel` value не сохраняется (всегда `false`)
+
+**Симптом.** Пользователь чекает, в форме пишется `true`, но при следующем
+рендере чекбокс снова пуст.
+
+**Причины.**
+
+- Чекбокс используется руками вне формы с `value`/`onChange` (`<CheckboxWithLabel value={...}>`)
+  — standalone это Radix-контрол: нужны `checked` + `onCheckedChange`. `value`/`onChange` ему
+  подставляет только обёртка поля (`FormField` / рендерер) по статике `checkedAdapter`.
+- В модели поле имеет тип `boolean`, но начальное значение `undefined` —
+  компонент отрендерится как `false`, и при `setValue(true)` без вмешательства
+  React re-render не произойдёт. Указывай `accept: false` явно в initial-значениях
+  модели.
+
+```typescript
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false }, // false, не undefined!
+  schema: (model) => ({
+    children: [{ model: model.$.accept, component: CheckboxWithLabel }],
+  }),
+});
+```
+
+## 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
+
+**Симптом.** Поле невалидно, в `form.email.issues.value` замечание есть, но в DOM ошибка не
+рендерится.
+
+**Причины.**
+
+- Используется headless-`FormField` из `@reformer/cdk` без подключения
+  `<FormField.Error>`. ui-kit-`FormField` всегда вставляет `Error`, поэтому
+  чаще всего проблема — путаница импортов.
+- Поле не тронуто. Замечание видно, только когда оно есть и поле `touched` или `dirty`
+  (`shouldShowIssues`).
+  Правила, запущенные в обход сборки (свой `runValidation` без `applyValidationResult(…, { touch: true })`),
+  ставят замечания, но не помечают поля `touched` — пользователь их не увидит.
+- Правила вообще не запускались. По умолчанию (`strategy: 'submit'`) живой проверки нет: замечания
+  появляются после `bundle.submission.submit(handler)` / `bundle.validate()`.
+
+**Решение.** Правила — в сборке (`createForm({ validation })` или правила шагов `flow`), а отправка —
+через `bundle.submission.submit(handler)`: один прогон всех правил, замечания разнесены по нодам,
+при провале (`invalid` / `error`) тронутой помечена вся форма, обработчик не вызывается:
+
+```tsx
+const onSubmit = async () => {
+  const outcome = await bundle.submission.submit((values) => api.send(values));
+  if (outcome.status === 'invalid') return; // ошибки уже на экране
+};
+```
+
+Нужна живая проверка — стратегия сборки: `validation: { rules, strategy: 'blur' }`. Методов
+`form.submit()` / `form.validate()` у нод нет — проверку и отправку держит сборка.
+
+И импорт:
+
+```tsx
+import { FormField } from '@reformer/ui-kit'; // готовый wrapper
+// а не
+import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
+```
+
+## 7. `onBlur` не срабатывает на `SelectAsync` / `RadioGroupOptions`
+
+**Симптом.** `touched`-флаг не появляется при выборе значения, поле «вечно»
+без подсветки ошибки.
+
+**Причины.**
+
+- `SelectAsync` (Radix) — `onBlur` пробрасывается через `onOpenChange(false)`, то
+  есть срабатывает при закрытии дропдауна. Если пользователь кликает мимо без
+  открытия — `onBlur` не сработает.
+- `RadioGroupOptions` — `onBlur` приходит на каждый `<input>` радио. Если фокус
+  перемещается между radio внутри группы, `blur`/`focus` чередуются. Это
+  нормально для нативного поведения.
+
+**Решение.** Для гарантированного `touched` используй изменение значения как trigger
+(ведь выбор — это явное взаимодействие):
+
+```tsx
+const city = useFormControlValue(form.city); // @reformer/core/react: значение для рендера
+
+<SelectAsync
+  value={city}
+  onChange={(v) => {
+    form.city.setValue(v);
+    form.city.markAsTouched(); // принудительно помечаем touched
+  }}
+  options={CITIES}
+/>
+```
+
+Проблема обычно возникает, если контрол используется руками без `FormField`: внутри формы
+`value`/`onChange`/`onBlur` подключает обёртка поля.
+
+## 8. `cn` стирает мои классы или, наоборот, оставляет лишние
+
+**Симптом.** Передал `className="px-2 py-1"` в компонент, ожидая, что
+overrideнет дефолт `px-3`, но получил оба.
+
+**Причина.** В компоненте `className` подставлен **до** дефолтов. Внутри
+`Input`/`Button`/`Textarea` всё построено правильно: дефолты идут первыми,
+твой `className` — последним, и `tailwind-merge` оставляет последний
+конфликтующий класс.
+
+Если это не работает — проверь, что пользовательский `className` действительно
+доходит до `cn(...)`. Например, в `ExampleCard` `className` идёт сразу после
+дефолтов; в кастомных обёртках убедись:
+
+```tsx
+<div className={cn('rounded-lg border p-4', className)} />
+//                                    ↑ user override побеждает
+```
+
+## 9. `AsyncBoundary` не переключает состояние
+
+**Симптом.** Пропал `loading`, но `children` не появились.
+
+**Причины.**
+
+- В `status` всё ещё `'loading'` или `'error'` — `children` рендерятся только при
+  `'ready'` и `'idle'`. Проверь setState внутри `then(...)`.
+- Забыт `error` при `status: 'error'` — блок ошибки отрисуется, но без текста
+  причины. Передавай сообщение пропом, а не хардкодь в отдельном компоненте.
+- Кнопка «Повторить» не появилась — не передан `onRetry`. Компонент намеренно
+  скрывает контрол, который ничего не делает.
+
+**Решение:**
+
+```tsx
+<AsyncBoundary status={status} error={error} onRetry={reload}>
+  <Content />
+</AsyncBoundary>
+```
+
+Если нужен полный контроль над составом состояний (свой порядок слотов,
+`Empty`, `Idle`, собственная разметка) — headless-версия:
+
+```tsx
+import { AsyncBoundary } from '@reformer/cdk/async-boundary';
+
+<AsyncBoundary.Root status={status} error={error} onRetry={reload}>
+  <AsyncBoundary.Loading>…</AsyncBoundary.Loading>
+  <AsyncBoundary.Error>{({ error, retry }) => …}</AsyncBoundary.Error>
+  <AsyncBoundary.Content>…</AsyncBoundary.Content>
+</AsyncBoundary.Root>;
+```
+
+## 10. `InputPassword`: иконка-«глаз» не появляется
+
+**Симптом.** Прокинул `showToggle={true}` (или оставил дефолт), но в правом
+углу ничего нет.
+
+**Причина.** Иконка появляется **только** если `value` непустой:
+
+```tsx
+const hasValue = Boolean(value);
+{
+  showToggle && hasValue && <button>…</button>;
+}
+```
+
+**Решение.** Это работает as-designed: для пустого пароля смысла переключать
+видимость нет. Если нужно показывать иконку всегда — тонкая обёртка:
+
+```tsx
+<div className="relative">
+  <InputPassword value={pwd} onChange={setPwd} showToggle={false} />
+  <button onClick={...} className="absolute right-2 top-1/2">👁</button>
+</div>
+```
+
+## 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
+
+**Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
+в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
+
+**Причина.** `SelectAsync` (registry `Select`) ждёт `options: Array<{value, label, group?}>`, а
+`'$LOAN_TYPES'` — не оператор, а обычная строка: голые строки-ссылки в документе не резолвятся.
+
+**Решение.** Справочник адресуется только оператором `$dataSource(...)`:
+
+```jsonc
+{
+  "model": "$model(loanType)",
+  "component": "$component(Select)",
+  "componentProps": { "options": "$dataSource(LOAN_TYPES)" },
+}
+```
+
+Подробнее — [`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
+Внутри `SelectAsync` дальнейших магий нет — он читает `options` один в один.
+
+## 12. Мультивыбор не рендерится, а submit молча не проходит
+
+**Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `ComboboxTreeMulti` /
+`NativeSelectMulti` / `ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо
+рисуется контейнером — с подписью и опциями, но без реакции на клик. Кнопка submit при этом не
+срабатывает, и **ни одной** ошибки на экране нет.
+
+**Причина.** У массива в форме нет ноды поля. Массив становится полем, только когда схема
+привязывает к нему компонент узлом `{ model: model.$.<путь>, component }`; без такой привязки
+`createForm` его пропускает, и реестр сигнал→нода пуст. Дальше проверка находит замечание и
+`bundle.submission.submit` возвращает `{ status: 'invalid' }`, но разнос замечаний делает
+`getNodeForSignal(sig)?.setIssues(...)` — optional chaining без `else`, поэтому показать ошибку
+некому.
+
+Привязки не оказывается в трёх случаях:
+
+- в `model` узла стоит value-фасад массива `model.tags`, а не ручка значения `model.$.tags` (в
+  dev-режиме `createForm` пишет об этом предупреждение);
+- узел поля не попал в схему, с которой собрана форма (собран другой билдер, поле под условием);
+- `@reformer/core` старше версии, где массив стал значением поля, — там начальное `[]` убирало
+  поле всегда, и мультивыборы жили на `string[] | null` с начальным `null`.
+
+**Лечение.**
+
+```typescript
+createForm<{ tags: string[] }>({
+  initial: { tags: [] },
+  schema: (model) => ({
+    children: [{ model: model.$.tags, component: SelectMulti }], // ручка значения, не model.tags
+  }),
+  validation: tagsRules, // validate(model.$.tags, [required()])
+});
+```
+
+Смежное: префилл выбранных значений допустим и до, и после `createForm`; если он пришёл после,
+нужен `model.captureInitial()`, иначе модель считает себя изменённой сразу после загрузки, а
+`form.<поле>.reset()` вернёт значение, с которым форма собиралась.
+
+## 13. Поиск в дереве не находит файл, который точно есть
+
+**Симптом.** В `Tree` (или в поповере `ComboboxTree` / `ComboboxTreeMulti`) вводится имя файла,
+который лежит в неоткрытом каталоге, — в выдаче его нет. Тот же запрос после раскрытия каталога
+руками срабатывает.
+
+**Причина.** Фильтр видит только **прочитанные** уровни. У ленивого источника (`loadChildren`)
+непрочитанный уровень — это данные, которых ещё нет; чтобы поиск их видел, дереву пришлось бы
+обойти весь источник ради подсветки одной строки. Непрочитанная ветка поэтому остаётся в выдаче
+как есть — её содержимое ещё не за что судить.
+
+**Решение.** Сквозной поиск делает тот, кто владеет данными:
+
+```tsx
+// Ищем на сервере и подаём уже отфильтрованное дерево; локальный `search` при этом не нужен.
+const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
+<Tree nodes={found ?? roots} loadChildren={found === undefined ? fs.list : undefined} />;
+```
+
+Для полностью объявленного дерева (`nodes` без `loadChildren`) ограничения нет: прочитано всё.
+
+## 14. Две строки дерева ведут себя как одна
+
+**Симптом.** Раскрытие одного каталога раскрывает и другой; выделение прыгает не на ту строку;
+в `ComboboxTreeMulti` галочка появляется сразу у двух файлов.
+
+**Причина.** Совпали `node.id`. Адрес узла — ключ сразу для всего: раскрытия, выделения,
+отмеченного набора, `data-testid` строки и значения поля. Типичная ошибка — брать `id` из имени
+файла: `index.ts` в `src/` и в `src/utils/` дают один и тот же ключ.
+
+**Решение.** `id` — полный путь, уникальный в пределах всего дерева; `label` — то, что видно:
+
+```typescript
+// ❌ ключ повторится в каждом каталоге
+{ id: 'index.ts', label: 'index.ts' }
+
+// ✅ адрес уникален, подпись остаётся короткой
+{ id: 'src/utils/index.ts', label: 'index.ts' }
+```
+
+## 15. При серверной отрисовке в разметку дерева попадает девять строк
+
+**Симптом.** На странице, отрисованной на сервере (или в снапшот-тесте без layout), у дерева из
+сотни узлов в HTML оказывается девять строк; остальные появляются только после гидратации.
+
+**Причина.** Виртуальный скролл включён по умолчанию и рисует окно по метрикам вьюпорта. Без
+браузера высота вьюпорта — ноль, и окно вырождается в одну строку плюс запас отрисовки.
+
+**Решение.** Там, где разметка нужна целиком — а это ровно случай серверной отрисовки страницы
+документации, — виртуализацию выключают:
+
+```tsx
+<Tree nodes={sections} virtualized={false} />
+```
+
+Обратная сторона честная: без виртуализации в разметке живёт каждая строка со своими
+обработчиками, поэтому для дерева проекта на тысячи узлов так делать нельзя.
+
+## See also
+
+- [01-overview.md](01-overview.md) — список компонентов и их назначения.
+- [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту; `Tree` в 04, его варианты комбобокса в 03.
+- [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.

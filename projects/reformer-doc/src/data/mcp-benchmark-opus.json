@@ -1,0 +1,960 @@
+{
+  "batches": ["20261121T110312Z-opus"],
+  "date": "2026-11-21",
+  "model": "opus",
+  "repeats": 3,
+  "targets": ["core", "renderer-json", "renderer-react"],
+  "arms": ["no-mcp", "mcp-dsl"],
+  "summary": {
+    "no-mcp": {
+      "runs": 90,
+      "passes": 72,
+      "score": 0.96,
+      "minutesTotal": 193.7,
+      "minutesMedian": 1.35,
+      "costTotal": 97.51,
+      "costMedian": 0.663,
+      "costPerPass": 1.354,
+      "turnsMedian": 37,
+      "outputMedian": 9695,
+      "inputMedian": 324776,
+      "mcpCalls": 0,
+      "operations": {
+        "create": {
+          "runs": 27,
+          "passes": 11,
+          "minutesMedian": 4.11,
+          "costTotal": 59.1
+        },
+        "edit": {
+          "runs": 36,
+          "passes": 34,
+          "minutesMedian": 1.21,
+          "costTotal": 24.6
+        },
+        "delete": {
+          "runs": 27,
+          "passes": 27,
+          "minutesMedian": 1.22,
+          "costTotal": 13.81
+        }
+      },
+      "createFailures": [
+        {
+          "check": "workspace.layout",
+          "runs": 16
+        },
+        {
+          "check": "runtime.form",
+          "runs": 10
+        },
+        {
+          "check": "runtime.probe.delivery-date-future",
+          "runs": 5
+        },
+        {
+          "check": "static.tsc",
+          "runs": 3
+        }
+      ]
+    },
+    "mcp-dsl": {
+      "runs": 90,
+      "passes": 89,
+      "score": 1,
+      "minutesTotal": 88.2,
+      "minutesMedian": 0.52,
+      "costTotal": 27.23,
+      "costMedian": 0.127,
+      "costPerPass": 0.306,
+      "turnsMedian": 8,
+      "outputMedian": 1781,
+      "inputMedian": 89175,
+      "mcpCalls": 714,
+      "operations": {
+        "create": {
+          "runs": 27,
+          "passes": 26,
+          "minutesMedian": 1.64,
+          "costTotal": 16.81
+        },
+        "edit": {
+          "runs": 36,
+          "passes": 36,
+          "minutesMedian": 0.55,
+          "costTotal": 7.95
+        },
+        "delete": {
+          "runs": 27,
+          "passes": 27,
+          "minutesMedian": 0.42,
+          "costTotal": 2.47
+        }
+      },
+      "createFailures": [
+        {
+          "check": "runtime.probe.invoice-only-for-company",
+          "runs": 1
+        },
+        {
+          "check": "runtime.probe.step-5-blocks-invoice-for-person",
+          "runs": 1
+        }
+      ]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "registration-create",
+      "title": "Регистрация: создание формы",
+      "level": 1,
+      "operation": "create",
+      "tags": ["validation", "cross", "async", "submit"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 6,
+          "score": 0.875,
+          "minutesTotal": 11.4,
+          "minutesMedian": 1.28,
+          "costTotal": 6.41,
+          "costMedian": 0.632,
+          "costPerPass": 1.068,
+          "turnsMedian": 26,
+          "outputMedian": 8729,
+          "inputMedian": 520848,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 3.7,
+          "minutesMedian": 0.42,
+          "costTotal": 0.88,
+          "costMedian": 0.088,
+          "costPerPass": 0.098,
+          "turnsMedian": 6,
+          "outputMedian": 1592,
+          "inputMedian": 62876,
+          "mcpCalls": 45,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-delete",
+      "title": "Регистрация: удаление полей с их правилами",
+      "level": 1,
+      "operation": "delete",
+      "tags": ["delete", "cross", "async"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 6.6,
+          "minutesMedian": 0.73,
+          "costTotal": 2.02,
+          "costMedian": 0.225,
+          "costPerPass": 0.225,
+          "turnsMedian": 24,
+          "outputMedian": 5319,
+          "inputMedian": 69031,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 2.6,
+          "minutesMedian": 0.29,
+          "costTotal": 0.43,
+          "costMedian": 0.049,
+          "costPerPass": 0.048,
+          "turnsMedian": 5,
+          "outputMedian": 711,
+          "inputMedian": 44477,
+          "mcpCalls": 35,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-edit",
+      "title": "Регистрация: правка готовой формы",
+      "level": 1,
+      "operation": "edit",
+      "tags": ["edit", "rename", "validation"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 9,
+          "minutesMedian": 1,
+          "costTotal": 2.88,
+          "costMedian": 0.318,
+          "costPerPass": 0.32,
+          "turnsMedian": 29,
+          "outputMedian": 7815,
+          "inputMedian": 131473,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 3.9,
+          "minutesMedian": 0.42,
+          "costTotal": 0.95,
+          "costMedian": 0.099,
+          "costPerPass": 0.105,
+          "turnsMedian": 8,
+          "outputMedian": 1613,
+          "inputMedian": 79556,
+          "mcpCalls": 44,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "order-create",
+      "title": "Оформление заказа: создание формы по спецификации",
+      "level": 2,
+      "operation": "create",
+      "tags": [
+        "spec",
+        "array",
+        "computed",
+        "conditional",
+        "cross",
+        "async",
+        "operators",
+        "submit",
+        "heavy"
+      ],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 4,
+          "score": 0.888,
+          "minutesTotal": 37.9,
+          "minutesMedian": 4.11,
+          "costTotal": 22.1,
+          "costMedian": 2.323,
+          "costPerPass": 5.526,
+          "turnsMedian": 49,
+          "outputMedian": 28149,
+          "inputMedian": 2958422,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 1
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 16.4,
+          "minutesMedian": 1.64,
+          "costTotal": 5.84,
+          "costMedian": 0.62,
+          "costPerPass": 0.649,
+          "turnsMedian": 20,
+          "outputMedian": 7360,
+          "inputMedian": 633248,
+          "mcpCalls": 126,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "order-delete",
+      "title": "Оформление заказа: удаление полей вместе с зависимостями",
+      "level": 2,
+      "operation": "delete",
+      "tags": ["delete", "computed", "async", "copy"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 11,
+          "minutesMedian": 1.22,
+          "costTotal": 5.3,
+          "costMedian": 0.587,
+          "costPerPass": 0.588,
+          "turnsMedian": 37,
+          "outputMedian": 9608,
+          "inputMedian": 214782,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.2,
+          "minutesMedian": 0.47,
+          "costTotal": 0.93,
+          "costMedian": 0.104,
+          "costPerPass": 0.104,
+          "turnsMedian": 7,
+          "outputMedian": 1392,
+          "inputMedian": 81140,
+          "mcpCalls": 51,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "order-edit",
+      "title": "Оформление заказа: переименование, новое вычисление, условное правило",
+      "level": 2,
+      "operation": "edit",
+      "tags": ["edit", "rename", "computed", "conditional"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 11.3,
+          "minutesMedian": 1.25,
+          "costTotal": 5.5,
+          "costMedian": 0.62,
+          "costPerPass": 0.611,
+          "turnsMedian": 41,
+          "outputMedian": 9264,
+          "inputMedian": 362958,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 9.1,
+          "minutesMedian": 0.98,
+          "costTotal": 2.47,
+          "costMedian": 0.274,
+          "costPerPass": 0.275,
+          "turnsMedian": 16,
+          "outputMedian": 3884,
+          "inputMedian": 279691,
+          "mcpCalls": 90,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-create",
+      "title": "Мастер оформления заказа: создание по спецификации",
+      "level": 3,
+      "operation": "create",
+      "tags": [
+        "spec",
+        "wizard",
+        "array",
+        "computed",
+        "conditional",
+        "cross",
+        "async",
+        "operators",
+        "heavy"
+      ],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 1,
+          "score": 0.857,
+          "minutesTotal": 57.5,
+          "minutesMedian": 6.16,
+          "costTotal": 30.59,
+          "costMedian": 3.684,
+          "costPerPass": 30.592,
+          "turnsMedian": 76,
+          "outputMedian": 40283,
+          "inputMedian": 7024459,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 1
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 8,
+          "score": 0.997,
+          "minutesTotal": 29.8,
+          "minutesMedian": 3.24,
+          "costTotal": 10.09,
+          "costMedian": 1.071,
+          "costPerPass": 1.261,
+          "turnsMedian": 40,
+          "outputMedian": 12974,
+          "inputMedian": 1666326,
+          "mcpCalls": 158,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-delete",
+      "title": "Мастер оформления заказа: удаление шагов вместе с полями и зависимостями",
+      "level": 3,
+      "operation": "delete",
+      "tags": ["delete", "wizard", "copy", "operators"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 15.4,
+          "minutesMedian": 1.69,
+          "costTotal": 6.49,
+          "costMedian": 0.717,
+          "costPerPass": 0.721,
+          "turnsMedian": 37,
+          "outputMedian": 13557,
+          "inputMedian": 283202,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.2,
+          "minutesMedian": 0.44,
+          "costTotal": 1.11,
+          "costMedian": 0.114,
+          "costPerPass": 0.123,
+          "turnsMedian": 7,
+          "outputMedian": 1620,
+          "inputMedian": 84214,
+          "mcpCalls": 52,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-edit",
+      "title": "Мастер оформления заказа: новый шаг, перенос поля, переименование шага",
+      "level": 3,
+      "operation": "edit",
+      "tags": ["edit", "wizard", "conditional"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 8,
+          "score": 0.981,
+          "minutesTotal": 10.3,
+          "minutesMedian": 1.06,
+          "costTotal": 5.11,
+          "costMedian": 0.528,
+          "costPerPass": 0.638,
+          "turnsMedian": 29,
+          "outputMedian": 7709,
+          "inputMedian": 202790,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.1,
+          "minutesMedian": 0.43,
+          "costTotal": 1.2,
+          "costMedian": 0.127,
+          "costPerPass": 0.133,
+          "turnsMedian": 7,
+          "outputMedian": 1822,
+          "inputMedian": 88813,
+          "mcpCalls": 54,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wizard-split",
+      "title": "Мастер оформления заказа: одностраничная форма → шаги",
+      "level": 3,
+      "operation": "split",
+      "tags": ["edit", "wizard"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 8,
+          "score": 0.998,
+          "minutesTotal": 23.4,
+          "minutesMedian": 2.72,
+          "costTotal": 11.11,
+          "costMedian": 1.278,
+          "costPerPass": 1.389,
+          "turnsMedian": 44,
+          "outputMedian": 16987,
+          "inputMedian": 1562098,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 10.2,
+          "minutesMedian": 0.67,
+          "costTotal": 3.33,
+          "costMedian": 0.229,
+          "costPerPass": 0.37,
+          "turnsMedian": 14,
+          "outputMedian": 2834,
+          "inputMedian": 190447,
+          "mcpCalls": 59,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    }
+  ],
+  "runs": [
+    {"arm":"no-mcp","scenario":"registration-create","target":"core","kind":"create","repeat":1,"pass":true,"score":0.955,"minutes":0.85,"cost":0.488,"output":5985,"input":298732,"turns":18,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"core","kind":"create","repeat":2,"pass":true,"score":0.955,"minutes":1.28,"cost":0.632,"output":8729,"input":459593,"turns":26,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"core","kind":"create","repeat":3,"pass":true,"score":0.955,"minutes":1.32,"cost":0.627,"output":8932,"input":520848,"turns":26,"failed":["workspace.layout"]},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":1,"pass":true,"score":1,"minutes":0.42,"cost":0.145,"output":1611,"input":63242,"turns":6},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":2,"pass":true,"score":1,"minutes":0.43,"cost":0.088,"output":1592,"input":62876,"turns":6},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":3,"pass":true,"score":1,"minutes":0.43,"cost":0.1,"output":1600,"input":65520,"turns":6},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":0.955,"minutes":1.1,"cost":0.62,"output":7083,"input":462705,"turns":20,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":2,"pass":true,"score":0.955,"minutes":1.16,"cost":0.595,"output":7442,"input":421168,"turns":24,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":3,"pass":true,"score":0.955,"minutes":1.58,"cost":0.9,"output":9361,"input":962563,"turns":34,"failed":["workspace.layout"]},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":1,"minutes":0.37,"cost":0.088,"output":1470,"input":50643,"turns":6},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":2,"pass":true,"score":1,"minutes":0.38,"cost":0.078,"output":1433,"input":50505,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":3,"pass":true,"score":1,"minutes":0.44,"cost":0.099,"output":1659,"input":77591,"turns":7},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":1,"pass":false,"score":0.714,"minutes":1.53,"cost":0.887,"output":9695,"input":866898,"turns":30,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":2,"pass":false,"score":0.714,"minutes":1.53,"cost":0.871,"output":9695,"input":846583,"turns":29,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":3,"pass":false,"score":0.714,"minutes":1.08,"cost":0.787,"output":7175,"input":547550,"turns":22,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":1,"pass":true,"score":1,"minutes":0.35,"cost":0.086,"output":1459,"input":50386,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":2,"pass":true,"score":1,"minutes":0.53,"cost":0.122,"output":1890,"input":108504,"turns":9},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":3,"pass":true,"score":1,"minutes":0.34,"cost":0.076,"output":1386,"input":49866,"turns":5},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1,"cost":0.318,"output":7843,"input":99351,"turns":27},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.08,"cost":0.334,"output":8217,"input":152007,"turns":30},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.96,"cost":0.311,"output":7537,"input":112994,"turns":29},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.44,"cost":0.12,"output":1709,"input":79556,"turns":8},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.39,"cost":0.105,"output":1613,"input":79060,"turns":7},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.41,"cost":0.097,"output":1626,"input":86570,"turns":9},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.81,"cost":0.265,"output":5759,"input":129161,"turns":20},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.93,"cost":0.296,"output":7056,"input":131473,"turns":23},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.11,"cost":0.349,"output":8209,"input":188029,"turns":31},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.4,"cost":0.095,"output":1452,"input":73883,"turns":7},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.42,"cost":0.099,"output":1521,"input":76928,"turns":7},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.48,"cost":0.092,"output":1534,"input":85879,"turns":8},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.92,"cost":0.306,"output":7209,"input":99851,"turns":24},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.01,"cost":0.338,"output":7815,"input":139224,"turns":32},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.13,"cost":0.364,"output":8638,"input":161756,"turns":32},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.51,"cost":0.129,"output":2058,"input":104468,"turns":10},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.5,"cost":0.122,"output":1938,"input":104009,"turns":10},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.4,"cost":0.085,"output":1426,"input":74505,"turns":7},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.73,"cost":0.225,"output":5283,"input":58233,"turns":24},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.75,"cost":0.227,"output":5527,"input":68711,"turns":24},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.8,"cost":0.238,"output":5840,"input":75879,"turns":25},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.29,"cost":0.051,"output":676,"input":44216,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.3,"cost":0.05,"output":818,"input":44875,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.29,"cost":0.049,"output":760,"input":44875,"turns":5},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.69,"cost":0.223,"output":5229,"input":58717,"turns":23},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.72,"cost":0.221,"output":5301,"input":68426,"turns":23},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.75,"cost":0.226,"output":5446,"input":69031,"turns":24},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.29,"cost":0.052,"output":689,"input":44418,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.28,"cost":0.047,"output":731,"input":44477,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.27,"cost":0.038,"output":639,"input":34197,"turns":4},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.72,"cost":0.219,"output":5194,"input":83273,"turns":22},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.72,"cost":0.222,"output":5319,"input":69738,"turns":24},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.73,"cost":0.225,"output":5331,"input":85834,"turns":23},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.28,"cost":0.052,"output":711,"input":44479,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.29,"cost":0.046,"output":702,"input":44481,"turns":5},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.3,"cost":0.046,"output":717,"input":44436,"turns":5},
+    {"arm":"no-mcp","scenario":"order-create","target":"core","kind":"create","repeat":1,"pass":false,"score":0.967,"minutes":3.76,"cost":2.219,"output":25714,"input":2934894,"turns":48,"failed":["workspace.layout","runtime.probe.delivery-date-future"]},
+    {"arm":"no-mcp","scenario":"order-create","target":"core","kind":"create","repeat":2,"pass":true,"score":0.983,"minutes":4.11,"cost":2.323,"output":27488,"input":2769011,"turns":49,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"order-create","target":"core","kind":"create","repeat":3,"pass":false,"score":0.95,"minutes":4.09,"cost":2.148,"output":28149,"input":2671643,"turns":46,"failed":["static.tsc","workspace.layout","runtime.probe.delivery-date-future"]},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"core","kind":"create","repeat":1,"pass":true,"score":1,"minutes":1.57,"cost":0.569,"output":6848,"input":450468,"turns":16},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"core","kind":"create","repeat":2,"pass":true,"score":1,"minutes":1.8,"cost":0.643,"output":7360,"input":669265,"turns":20},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"core","kind":"create","repeat":3,"pass":true,"score":1,"minutes":1.57,"cost":0.516,"output":7060,"input":404295,"turns":16},
+    {"arm":"no-mcp","scenario":"order-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":0.983,"minutes":4.39,"cost":2.484,"output":29404,"input":3688660,"turns":56,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"order-create","target":"renderer-react","kind":"create","repeat":2,"pass":true,"score":0.983,"minutes":3.88,"cost":2.147,"output":25943,"input":2958422,"turns":49,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"order-create","target":"renderer-react","kind":"create","repeat":3,"pass":true,"score":0.983,"minutes":3.28,"cost":1.988,"output":22110,"input":2341796,"turns":40,"failed":["workspace.layout"]},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":1,"minutes":2.94,"cost":0.953,"output":10960,"input":1193265,"turns":31},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"renderer-react","kind":"create","repeat":2,"pass":true,"score":1,"minutes":2.52,"cost":0.906,"output":9444,"input":1181460,"turns":31},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"renderer-react","kind":"create","repeat":3,"pass":true,"score":1,"minutes":1.64,"cost":0.623,"output":7959,"input":633248,"turns":21},
+    {"arm":"no-mcp","scenario":"order-create","target":"renderer-json","kind":"create","repeat":1,"pass":false,"score":0.714,"minutes":5.34,"cost":3.333,"output":35780,"input":5167714,"turns":67,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"order-create","target":"renderer-json","kind":"create","repeat":2,"pass":false,"score":0.714,"minutes":4.47,"cost":2.65,"output":30615,"input":4046704,"turns":58,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"order-create","target":"renderer-json","kind":"create","repeat":3,"pass":false,"score":0.714,"minutes":4.56,"cost":2.811,"output":30775,"input":4110773,"turns":55,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"renderer-json","kind":"create","repeat":1,"pass":true,"score":1,"minutes":1.69,"cost":0.62,"output":7842,"input":696080,"turns":24},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"renderer-json","kind":"create","repeat":2,"pass":true,"score":1,"minutes":1.16,"cost":0.446,"output":6286,"input":275040,"turns":13},
+    {"arm":"mcp-dsl","scenario":"order-create","target":"renderer-json","kind":"create","repeat":3,"pass":true,"score":1,"minutes":1.48,"cost":0.565,"output":7310,"input":550111,"turns":18},
+    {"arm":"no-mcp","scenario":"order-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1.25,"cost":0.62,"output":9236,"input":348268,"turns":41},
+    {"arm":"no-mcp","scenario":"order-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.49,"cost":0.683,"output":11176,"input":411654,"turns":49},
+    {"arm":"no-mcp","scenario":"order-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.35,"cost":0.664,"output":10098,"input":362958,"turns":44},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.86,"cost":0.255,"output":3884,"input":208978,"turns":14},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.84,"cost":0.228,"output":3553,"input":207937,"turns":14},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.98,"cost":0.259,"output":3438,"input":277731,"turns":16},
+    {"arm":"no-mcp","scenario":"order-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1.42,"cost":0.668,"output":10002,"input":449935,"turns":41},
+    {"arm":"no-mcp","scenario":"order-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.23,"cost":0.609,"output":9264,"input":379249,"turns":40},
+    {"arm":"no-mcp","scenario":"order-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.18,"cost":0.57,"output":8592,"input":290250,"turns":38},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1.1,"cost":0.299,"output":4133,"input":334344,"turns":17},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.04,"cost":0.25,"output":3925,"input":260241,"turns":16},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.94,"cost":0.274,"output":3496,"input":284426,"turns":15},
+    {"arm":"no-mcp","scenario":"order-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.92,"cost":0.481,"output":6899,"input":286160,"turns":39},
+    {"arm":"no-mcp","scenario":"order-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.53,"cost":0.719,"output":11709,"input":467374,"turns":52},
+    {"arm":"no-mcp","scenario":"order-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.89,"cost":0.487,"output":6811,"input":209007,"turns":40},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.89,"cost":0.284,"output":3446,"input":279691,"turns":16},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.27,"cost":0.325,"output":4485,"input":331423,"turns":16},
+    {"arm":"mcp-dsl","scenario":"order-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.22,"cost":0.299,"output":4047,"input":319645,"turns":17},
+    {"arm":"no-mcp","scenario":"order-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":1.23,"cost":0.586,"output":9631,"input":165451,"turns":36},
+    {"arm":"no-mcp","scenario":"order-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":1.22,"cost":0.587,"output":9598,"input":214782,"turns":37},
+    {"arm":"no-mcp","scenario":"order-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":1.25,"cost":0.59,"output":9704,"input":214939,"turns":37},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.43,"cost":0.105,"output":1392,"input":79871,"turns":7},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.4,"cost":0.094,"output":1297,"input":68153,"turns":6},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.44,"cost":0.099,"output":1382,"input":80540,"turns":7},
+    {"arm":"no-mcp","scenario":"order-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":1.22,"cost":0.585,"output":9578,"input":211527,"turns":35},
+    {"arm":"no-mcp","scenario":"order-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":1.19,"cost":0.574,"output":9378,"input":210806,"turns":35},
+    {"arm":"no-mcp","scenario":"order-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":1.22,"cost":0.579,"output":9546,"input":211688,"turns":35},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.55,"cost":0.114,"output":1546,"input":81945,"turns":8},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.53,"cost":0.102,"output":1431,"input":81140,"turns":7},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.51,"cost":0.1,"output":1325,"input":81563,"turns":7},
+    {"arm":"no-mcp","scenario":"order-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":1.26,"cost":0.606,"output":9851,"input":218344,"turns":37},
+    {"arm":"no-mcp","scenario":"order-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":1.24,"cost":0.597,"output":9786,"input":217592,"turns":37},
+    {"arm":"no-mcp","scenario":"order-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":1.22,"cost":0.592,"output":9608,"input":217245,"turns":37},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.44,"cost":0.106,"output":1353,"input":80768,"turns":7},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.47,"cost":0.104,"output":1541,"input":82533,"turns":7},
+    {"arm":"mcp-dsl","scenario":"order-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.47,"cost":0.108,"output":1539,"input":82625,"turns":8},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"core","kind":"create","repeat":1,"pass":false,"score":0.971,"minutes":6.09,"cost":2.762,"output":40283,"input":4114654,"turns":59,"failed":["workspace.layout","runtime.probe.delivery-date-future"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"core","kind":"create","repeat":2,"pass":false,"score":0.971,"minutes":5.87,"cost":2.819,"output":39157,"input":3779690,"turns":58,"failed":["workspace.layout","runtime.probe.delivery-date-future"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"core","kind":"create","repeat":3,"pass":false,"score":0.957,"minutes":5.47,"cost":2.349,"output":37930,"input":2519408,"turns":46,"failed":["static.tsc","workspace.layout","runtime.probe.delivery-date-future"]},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"core","kind":"create","repeat":1,"pass":true,"score":1,"minutes":2.61,"cost":0.991,"output":14014,"input":1146722,"turns":40},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"core","kind":"create","repeat":2,"pass":true,"score":1,"minutes":3.16,"cost":1.329,"output":16088,"input":1995884,"turns":44},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"core","kind":"create","repeat":3,"pass":false,"score":0.971,"minutes":3.24,"cost":1.226,"output":14690,"input":1716393,"turns":40,"failed":["runtime.probe.invoice-only-for-company","runtime.probe.step-5-blocks-invoice-for-person"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":0.986,"minutes":6.68,"cost":4.088,"output":42943,"input":7674656,"turns":78,"failed":["workspace.layout"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"renderer-react","kind":"create","repeat":2,"pass":false,"score":0.714,"minutes":4.89,"cost":2.74,"output":30046,"input":4424583,"turns":61,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"renderer-react","kind":"create","repeat":3,"pass":false,"score":0.971,"minutes":7.97,"cost":4.286,"output":49147,"input":8544493,"turns":87,"failed":["static.tsc","workspace.layout"]},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":1,"minutes":2.97,"cost":1.071,"output":11442,"input":1650017,"turns":37},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"renderer-react","kind":"create","repeat":2,"pass":true,"score":1,"minutes":4.05,"cost":1.255,"output":12940,"input":2070128,"turns":43},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"renderer-react","kind":"create","repeat":3,"pass":true,"score":1,"minutes":3.63,"cost":1.004,"output":12427,"input":1479143,"turns":36},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"renderer-json","kind":"create","repeat":1,"pass":false,"score":0.714,"minutes":7.65,"cost":4.028,"output":47906,"input":7342227,"turns":81,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"renderer-json","kind":"create","repeat":2,"pass":false,"score":0.714,"minutes":6.68,"cost":3.684,"output":40836,"input":7024459,"turns":82,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"wizard-create","target":"renderer-json","kind":"create","repeat":3,"pass":false,"score":0.714,"minutes":6.16,"cost":3.837,"output":37844,"input":7540560,"turns":76,"failed":["workspace.layout","runtime.form"]},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"renderer-json","kind":"create","repeat":1,"pass":true,"score":1,"minutes":3.27,"cost":1.066,"output":12550,"input":1666326,"turns":40},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"renderer-json","kind":"create","repeat":2,"pass":true,"score":1,"minutes":3.93,"cost":1.025,"output":12974,"input":1650202,"turns":40},
+    {"arm":"mcp-dsl","scenario":"wizard-create","target":"renderer-json","kind":"create","repeat":3,"pass":true,"score":1,"minutes":2.95,"cost":1.124,"output":12995,"input":1812387,"turns":40},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":2.23,"cost":1.278,"output":13971,"input":1788158,"turns":43},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.94,"cost":1.024,"output":12697,"input":1045554,"turns":29},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":2.3,"cost":1.165,"output":15190,"input":1133316,"turns":35},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1.5,"cost":0.487,"output":4527,"input":448576,"turns":19},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":2.75,"cost":0.755,"output":12537,"input":880755,"turns":41},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":2.37,"cost":0.799,"output":12735,"input":901227,"turns":41},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":3.01,"cost":1.394,"output":18843,"input":1835960,"turns":46},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":3.07,"cost":1.32,"output":19126,"input":1562098,"turns":51},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":2.31,"cost":1.11,"output":15623,"input":1207607,"turns":42},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.68,"cost":0.229,"output":2834,"input":190447,"turns":14},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.67,"cost":0.255,"output":3282,"input":227792,"turns":15},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.55,"cost":0.199,"output":2685,"input":152127,"turns":12},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":2.85,"cost":1.28,"output":16987,"input":1753742,"turns":49},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"renderer-json","kind":"edit","repeat":2,"pass":false,"score":0.986,"minutes":3.02,"cost":1.42,"output":19436,"input":1793239,"turns":48,"failed":["static.tsc"]},
+    {"arm":"no-mcp","scenario":"wizard-split","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":2.72,"cost":1.119,"output":17761,"input":1238349,"turns":44},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.57,"cost":0.209,"output":2748,"input":150304,"turns":14},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.57,"cost":0.191,"output":2434,"input":172436,"turns":12},
+    {"arm":"mcp-dsl","scenario":"wizard-split","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.57,"cost":0.209,"output":2722,"input":173097,"turns":13},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1.35,"cost":0.663,"output":9549,"input":371427,"turns":35},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.37,"cost":0.659,"output":9672,"input":370378,"turns":35},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.39,"cost":0.663,"output":9878,"input":365617,"turns":36},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.54,"cost":0.168,"output":2368,"input":107461,"turns":9},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.51,"cost":0.15,"output":2275,"input":105633,"turns":9},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.55,"cost":0.152,"output":2403,"input":133172,"turns":10},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.97,"cost":0.535,"output":6811,"input":209280,"turns":26},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.06,"cost":0.518,"output":7709,"input":201861,"turns":29},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":1.05,"cost":0.516,"output":7667,"input":201848,"turns":29},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.41,"cost":0.127,"output":1707,"input":86358,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.42,"cost":0.114,"output":1686,"input":84244,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.43,"cost":0.126,"output":1822,"input":88813,"turns":7},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":1.07,"cost":0.528,"output":7743,"input":201026,"turns":28},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":1.02,"cost":0.509,"output":7666,"input":159602,"turns":29},
+    {"arm":"no-mcp","scenario":"wizard-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":false,"score":0.833,"minutes":1.03,"cost":0.514,"output":7502,"input":202790,"turns":28,"failed":["runtime.load"]},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.44,"cost":0.136,"output":1885,"input":100090,"turns":8},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.4,"cost":0.118,"output":1736,"input":85642,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.39,"cost":0.104,"output":1582,"input":70624,"turns":6},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":1.62,"cost":0.703,"output":12923,"input":274989,"turns":37},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":1.61,"cost":0.676,"output":13144,"input":247417,"turns":37},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":1.67,"cost":0.707,"output":13370,"input":273730,"turns":37},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.52,"cost":0.119,"output":1693,"input":83444,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.53,"cost":0.114,"output":1620,"input":84017,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.56,"cost":0.113,"output":1604,"input":84214,"turns":7},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":1.73,"cost":0.717,"output":13626,"input":272965,"turns":37},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":1.69,"cost":0.717,"output":13557,"input":319795,"turns":37},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":1.67,"cost":0.705,"output":13088,"input":318372,"turns":37},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.36,"cost":0.107,"output":1565,"input":68754,"turns":6},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.4,"cost":0.117,"output":1582,"input":86233,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.39,"cost":0.148,"output":1705,"input":89537,"turns":7},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":1.79,"cost":0.758,"output":14324,"input":329756,"turns":39},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":1.81,"cost":0.758,"output":14889,"input":284166,"turns":39},
+    {"arm":"no-mcp","scenario":"wizard-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":1.77,"cost":0.745,"output":14342,"input":283202,"turns":42},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.53,"cost":0.165,"output":2282,"input":139469,"turns":10},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.42,"cost":0.112,"output":1598,"input":84712,"turns":7},
+    {"arm":"mcp-dsl","scenario":"wizard-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.44,"cost":0.109,"output":1740,"input":81427,"turns":7}
+  ]
+}

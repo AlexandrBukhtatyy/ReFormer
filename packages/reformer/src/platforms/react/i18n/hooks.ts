@@ -1,0 +1,134 @@
+/**
+ * Хуки локализации.
+ *
+ * @module platforms/react/i18n/hooks
+ */
+
+import { useCallback, useContext, useMemo, useRef } from 'react';
+import { useSyncExternalStore } from 'use-sync-external-store/shim';
+import type { ValidationIssue } from '../../../form/types/contracts';
+import type { Messages } from '../../../i18n/locale';
+import type { MessageValues } from '../../../i18n/message-format';
+import { createI18n, translateBuiltin } from '../../../i18n/translator';
+import { resolveIssueMessage, type IssueMessages } from '../../../i18n/validation-message';
+import { resolveLocalized } from '../../../i18n/resolve-localized';
+import type { I18nHandle } from '../../../i18n/translator';
+import { I18nContext, I18nSourceContext, type I18nContextValue } from './context';
+
+/**
+ * Активная локаль: перевод ключей приложения, форматирование чисел, дат и размеров, состояние
+ * загрузки языка. Без провайдера — английский с пустым словарём.
+ *
+ * @example
+ * ```tsx
+ * function LangBadge() {
+ *   const { code, pending, t } = useI18n();
+ *   return <span aria-busy={pending}>{t('app.language')}: {code}</span>;
+ * }
+ * ```
+ */
+export function useI18n(): I18nContextValue {
+  return useContext(I18nContext);
+}
+
+/**
+ * Переводчик пакета: ищет ключ в локали провайдера, а при промахе берёт встроенную английскую
+ * таблицу этого пакета. Так пакет говорит по-английски без провайдера и не зависит от того, знает
+ * ли локаль его ключи. Тип ключа выводится из таблицы — опечатка в ключе не скомпилируется.
+ *
+ * `defaults` должен быть стабильной ссылкой (импорт JSON-модуля), иначе переводчик будет
+ * пересоздаваться на каждый рендер.
+ *
+ * @param defaults - Встроенная английская таблица пакета.
+ * @returns Функция `(ключ, значения?) => строка`; её идентичность меняется вместе с локалью.
+ *
+ * @example
+ * ```tsx
+ * import en from './locale/en.json';
+ *
+ * const useKitMessages = () => useMessages(en);
+ *
+ * function ClearButton() {
+ *   const t = useKitMessages();
+ *   return <button aria-label={t('kit.select.clear')} />;
+ * }
+ * ```
+ */
+export function useMessages<D extends Messages>(
+  defaults: D
+): (key: keyof D & string, values?: MessageValues) => string {
+  const { locale } = useContext(I18nContext);
+  return useMemo(
+    () => (key: keyof D & string, values?: MessageValues) =>
+      translateBuiltin(locale, defaults, key, values),
+    [locale, defaults]
+  );
+}
+
+/**
+ * Резолвер текста замечания валидации: словарь формы → словарь активной локали по коду →
+ * встроенный английский → код. Идентичность функции меняется вместе с локалью и словарём,
+ * поэтому показанные замечания переводятся при смене языка без повторной валидации.
+ *
+ * `FormField` из `@reformer/cdk` использует его сам; вызывайте напрямую, если рисуете замечания
+ * своим компонентом.
+ *
+ * @param messages - Словарь формы (`defineIssueMessages`). Стабильная ссылка — константа
+ *   модуля, иначе резолвер будет пересоздаваться на каждый рендер.
+ *
+ * @example
+ * ```tsx
+ * const messages = defineIssueMessages({ 'phone.required': 'Укажите телефон' });
+ *
+ * function FieldIssues({ control }: { control: FormControl<string> }) {
+ *   const message = useIssueMessage(messages);
+ *   const { issues } = useFormControl(control);
+ *   return <>{issues.map((issue) => <span key={issue.code}>{message(issue)}</span>)}</>;
+ * }
+ * ```
+ */
+export function useIssueMessage(messages?: IssueMessages): (issue: ValidationIssue) => string {
+  const { locale } = useContext(I18nContext);
+  return useMemo(() => {
+    const i18n = createI18n(locale);
+    return (issue: ValidationIssue) => resolveIssueMessage(issue, i18n, messages);
+  }, [locale, messages]);
+}
+
+/**
+ * Значение с раскрытыми описателями `msg('…')` по активной локали — строками, в том числе внутри
+ * массивов и объектов-литералов (подписи опций). Сигналы, React-элементы и узлы формы не трогает.
+ *
+ * Перерисовывает компонент при смене языка, только если результат изменился: значение без
+ * описателей возвращается тем же объектом, и смену языка компонент не замечает. Этим хук
+ * отличается от `resolveLocalized(value, useI18n())`, который перерисовывает при каждой смене.
+ *
+ * @param value - Пропсы, массив или одиночное значение.
+ * @returns То же значение, где описатели заменены строками.
+ *
+ * @example
+ * ```tsx
+ * function SectionTitle({ title }: { title: LocalizableText }) {
+ *   return <h3>{useLocalized(title)}</h3>;
+ * }
+ * ```
+ */
+export function useLocalized<T>(value: T): T {
+  const source = useContext(I18nSourceContext);
+  // Кэш по паре (значение, ручка локали): `useSyncExternalStore` зовёт getSnapshot повторно и
+  // ждёт тот же результат, пока ничего не менялось.
+  const cache = useRef<{ value: T; handle: I18nHandle; resolved: T } | null>(null);
+  const getSnapshot = (): T => {
+    const handle = source.get();
+    const hit = cache.current;
+    if (hit !== null && hit.value === value && hit.handle === handle) return hit.resolved;
+    const resolved = resolveLocalized(value, handle);
+    cache.current = { value, handle, resolved };
+    return resolved;
+  };
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => source.subscribe(onStoreChange),
+    [source]
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}

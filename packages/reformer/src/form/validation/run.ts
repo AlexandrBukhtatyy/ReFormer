@@ -1,0 +1,774 @@
+/**
+ * `defineValidation` и раннер схемы валидации.
+ *
+ * Прогон делится на сбор и разнос. Сбор ({@link runValidation}) открывает ambient-окно на время
+ * СИНХРОННОГО прогона схемы (`./context`), дожидается async-правил и возвращает
+ * {@link ValidationResult} — нод формы он не трогает. Разнос ({@link applyValidationResult})
+ * раскладывает собранные ошибки по нодам через реестр «ручка → нода» и гасит поля, ставшие
+ * валидными. {@link validateModel} делает оба шага и отвечает одним `boolean`.
+ *
+ * Точки контакта валидации с нодами — только здесь и в стратегии (`./strategy`): разнос замечаний,
+ * `pending` полей с async-правилами, касание проверенных полей или всей формы (`touch: 'all'`),
+ * пропуск выключенных нод и триггер `blur`. Правила и схема о нодах не знают.
+ *
+ * @group Validation
+ * @module form/validation/run
+ */
+
+import { batch } from '@preact/signals-core';
+import { deepEqual, deferredWritesSettled } from '../../model/index';
+import { abortRun } from '../../model/abort';
+import type { FormModel, PathAwareSignal } from '../../model/types';
+import { GLOBAL_NODES, type NodeScope } from '../signal-node-registry';
+import type { ValidationIssue } from '../types/contracts';
+import { runWithContext, type AsyncAnswers, type OriginEntry, type VContext } from './context';
+import { scopeOf } from './operators';
+import type { ValidationFailure, ValidationResult, ValidationDefinition } from './types';
+
+export type { NodeScope };
+
+/**
+ * Тонкая identity-обёртка для типизации/discoverability (как `defineFormBehavior`). Возвращает схему как есть.
+ *
+ * @example
+ * ```ts
+ * export const step1 = defineValidation<LoanForm>(({ model }) => {
+ *   validate(model.$.loanAmount, [required(), min(50000)]);
+ * });
+ * ```
+ */
+export function defineValidation<T>(schema: ValidationDefinition<T>): ValidationDefinition<T> {
+  return schema;
+}
+
+/**
+ * Состояние гашения/отмены на пару (владелец, schema). Владелец — область нод сборки, а у прогона
+ * без сборки — модель: две формы над одной моделью и с одними правилами не отменяют прогоны друг
+ * друга и не гасят чужие поля.
+ */
+interface RunState {
+  /** Поля, чьи ошибки разнёс последний применённый прогон, — для очистки ставших валидными. */
+  fields: Set<PathAwareSignal<unknown>>;
+  /** Контроллер текущего прогона (отменяет предыдущий in-flight прогон той же (model, schema)). */
+  ac: AbortController | null;
+  /** Ответы async-правил: их переиспользует живой прогон, пока значение поля не изменилось. */
+  answers: AsyncAnswers;
+}
+const stateRegistry = new WeakMap<object, WeakMap<object, RunState>>();
+
+/** Состояние пары (model, schema), с которой собран результат: по нему разнос гасит поля диффом. */
+const stateOfResult = new WeakMap<ValidationResult, RunState>();
+
+/**
+ * Поля, правила которых прогон действительно выполнил (ветка `validateWhen` активна, поле не
+ * выключено в проверке формы). Разнос с `touch` метит тронутыми только их. Результат, собранный не
+ * раннером, здесь не записан — для него проверенными считаются все поля `issues`.
+ */
+const checkedOfResult = new WeakMap<ValidationResult, ReadonlySet<PathAwareSignal<unknown>>>();
+
+/** Поля, проверенные прогоном, — все и по входам в определения: для {@link checkedUnder}. */
+interface CheckedEntries {
+  readonly checked: ReadonlySet<PathAwareSignal<unknown>>;
+  readonly byEntry: ReadonlyMap<OriginEntry, ReadonlySet<PathAwareSignal<unknown>>>;
+}
+const entriesOfResult = new WeakMap<ValidationResult, CheckedEntries>();
+
+/**
+ * Поля, которые прогон проверил правилами определения — его собственными и подключёнными в нём
+ * (`apply`, `applyEach`) на любой глубине, — по каждому определению прогона. Поля, выпавшие из
+ * проверки формы (выключенные, удалённая строка), не входят. Результат, собранный не раннером, —
+ * пустая карта.
+ *
+ * Ответ берётся из самого прогона — правила заново не исполняются. Поле относится к определениям
+ * по входам прогона: схема, подключённая в двух местах, отдаёт поле тому, через кого прогон дошёл
+ * до него (см. {@link OriginEntry}).
+ *
+ * @internal
+ */
+export function checkedUnder(
+  result: ValidationResult
+): ReadonlyMap<object, ReadonlySet<PathAwareSignal<unknown>>> {
+  const under = new Map<object, Set<PathAwareSignal<unknown>>>();
+  const recorded = entriesOfResult.get(result);
+  if (recorded === undefined) return under;
+  for (const [entry, direct] of recorded.byEntry) {
+    const fields = [...direct].filter((sig) => recorded.checked.has(sig));
+    // Вверх по цепочке входов: поле вложенной схемы проверено и каждым определением над ней.
+    for (let at: OriginEntry | undefined = entry; at !== undefined; at = at.parent) {
+      let set = under.get(at.origin);
+      if (set === undefined) under.set(at.origin, (set = new Set()));
+      for (const sig of fields) set.add(sig);
+    }
+  }
+  return under;
+}
+
+/** Замечания результата по определениям-источникам и определения, исполненные прогоном. */
+interface TaggedIssues {
+  readonly origins: ReadonlyMap<PathAwareSignal<unknown>, ReadonlyMap<object, ValidationIssue[]>>;
+  readonly executed: ReadonlySet<object>;
+}
+const taggedOfResult = new WeakMap<ValidationResult, TaggedIssues>();
+
+/**
+ * Замечания, разнесённые на ноду, — по определениям-источникам, и сам записанный список. Ключ —
+ * нода, а не ручка поля: у ручки бывает несколько нод (две формы над одной моделью), и у каждой
+ * свой итог.
+ *
+ * Прогоны разных схем (шаг и вся форма, отправка) пишут в одну ноду. Список ноды — объединение
+ * списков определений; прогон заменяет списки только тех определений, которые сам исполнял: шаг
+ * не стирает замечание `extras` полной проверки, а устаревшее замечание правил шага — стирает.
+ * Если ноду с тех пор правили мимо разноса (`reset`, `clearIssues`, `setIssues`), хранилище
+ * забывается: решение того, кто правил, главнее.
+ */
+const shownIssues = new WeakMap<
+  object,
+  { byOrigin: Map<object, readonly ValidationIssue[]>; written: readonly ValidationIssue[] }
+>();
+
+/**
+ * Ключ хранилища для замечаний полей без нод, разнесённых на корень формы. Отдельный от ключа
+ * самой ноды корня: правило на корень (`validate(model.$, …)`) и сборщик таких замечаний пишут в
+ * одну ноду, но каждый — свой список, и один не должен стирать другой.
+ */
+const orphanKeys = new WeakMap<object, object>();
+const orphanKeyOf = (root: object): object => {
+  let key = orphanKeys.get(root);
+  if (key === undefined) orphanKeys.set(root, (key = {}));
+  return key;
+};
+
+/** Результат, собранный не раннером: меток нет, и он отвечает за весь список поля. */
+const UNTAGGED = {};
+
+/** Замечания корня, поставленные мимо разноса (ошибка сервера на форме), — их прогон не стирает. */
+const FOREIGN = {};
+
+/** Модель, по которой собран результат: от неё разнос находит корень формы. */
+const modelOfResult = new WeakMap<ValidationResult, FormModel<unknown>>();
+
+/** Ноды, по которым разносится результат: область сборки либо общий реестр. */
+const nodesOfResult = new WeakMap<ValidationResult, NodeScope>();
+
+/** Владелец состояния прогонов: область сборки, а без сборки — модель. */
+const ownerOf = (model: object, nodes: NodeScope): object =>
+  nodes === GLOBAL_NODES ? model : nodes;
+
+/** Нода, на которую ложится итог: `setIssues` и собственный список для сверки. */
+interface IssueTarget {
+  setIssues(issues: readonly ValidationIssue[]): void;
+  ownIssues?: { peek(): readonly ValidationIssue[] };
+}
+
+/** Одно замечание из двух определений с одними правилами (шаг внутри формы) — один раз. */
+function mergeIssues(
+  byOrigin: ReadonlyMap<object, readonly ValidationIssue[]>
+): readonly ValidationIssue[] {
+  // Частый случай — у поля одно замечание или ни одного: дублей нет, сравнивать нечего. Живая
+  // проверка разносит итог каждому полю формы на каждую клавишу.
+  let single: ValidationIssue | undefined;
+  let count = 0;
+  for (const list of byOrigin.values()) {
+    count += list.length;
+    if (count > 1) break;
+    if (list.length === 1) single = list[0];
+  }
+  if (count === 0) return [];
+  if (count === 1) return [single!];
+  const seen = new Set<string>();
+  const out: ValidationIssue[] = [];
+  for (const list of byOrigin.values()) {
+    for (const issue of list) {
+      const key = JSON.stringify([issue.code, issue.severity ?? null, issue.params ?? null]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(issue);
+    }
+  }
+  return out;
+}
+
+/**
+ * Записать ноде итог прогона с учётом замечаний других определений — см. {@link shownIssues}.
+ *
+ * @param key - Ключ хранилища: нода, на которую ложится итог, либо ключ сирот её корня.
+ * @param lists - Списки прогона по определениям; `undefined` — поле в прогоне не проверялось.
+ * @param keepForeign - Список, поставленный мимо разноса, сохранить, а не забыть (корень формы).
+ */
+function settleOn(
+  key: object,
+  node: IssueTarget,
+  tagged: TaggedIssues | undefined,
+  lists: ReadonlyMap<object, readonly ValidationIssue[]> | undefined,
+  flat: readonly ValidationIssue[] | undefined,
+  keepForeign = false
+): void {
+  const previous = shownIssues.get(key);
+  const current = node.ownIssues?.peek() ?? [];
+  const untouched = previous !== undefined && current === previous.written;
+  const byOrigin = untouched ? previous.byOrigin : new Map<object, readonly ValidationIssue[]>();
+  if (!untouched && keepForeign && current.length > 0) byOrigin.set(FOREIGN, current);
+  byOrigin.delete(UNTAGGED);
+  if (tagged === undefined) {
+    for (const origin of [...byOrigin.keys()]) if (origin !== FOREIGN) byOrigin.delete(origin);
+    if (flat !== undefined && flat.length > 0) byOrigin.set(UNTAGGED, flat);
+  } else {
+    for (const origin of tagged.executed) byOrigin.delete(origin);
+    lists?.forEach((list, origin) => {
+      if (list.length > 0) byOrigin.set(origin, list);
+    });
+  }
+  const written = byOrigin.size === 0 ? [] : mergeIssues(byOrigin);
+  // Тот же итог не пишется: правила создают замечания заново на каждом прогоне, и новый список с
+  // прежним содержимым будил бы подписчиков поля и агрегаты контейнеров — живая проверка
+  // перерисовывала бы все поля с замечаниями на каждую клавишу в любом из них.
+  if (node.ownIssues === undefined || !deepEqual(current, written)) node.setIssues(written);
+  shownIssues.set(key, { byOrigin, written: node.ownIssues?.peek() ?? written });
+}
+
+/** Записать полю итог прогона; поле без ноды — в сборщик замечаний корня. */
+function settleIssues(
+  sig: PathAwareSignal<unknown>,
+  tagged: TaggedIssues | undefined,
+  issues: readonly ValidationIssue[] | undefined,
+  orphans: Map<object, ValidationIssue[]>,
+  nodes: NodeScope
+): void {
+  const node = nodes.get(sig) as IssueTarget | undefined;
+  const lists = issues === undefined ? undefined : tagged?.origins.get(sig);
+  if (node === undefined) {
+    // Правило на поле без ноды (массив примитивов без узла в схеме): замечанию негде показаться
+    // у поля, и оно ложится на корень формы — так статус прогона совпадает с `form.valid`.
+    lists?.forEach((list, origin) => {
+      const bucket = orphans.get(origin) ?? [];
+      bucket.push(...list);
+      orphans.set(origin, bucket);
+    });
+    if (tagged === undefined && issues !== undefined) {
+      const bucket = orphans.get(UNTAGGED) ?? [];
+      bucket.push(...issues);
+      orphans.set(UNTAGGED, bucket);
+    }
+    return;
+  }
+  settleOn(node, node, tagged, lists, issues);
+}
+
+/**
+ * Разнести на корень формы замечания полей без нод. Корень трогается, только если такие замечания
+ * есть сейчас или были разнесены раньше: его собственные замечания (ошибка сервера) — не дело прогона.
+ */
+function settleOrphans(
+  model: FormModel<unknown> | undefined,
+  tagged: TaggedIssues | undefined,
+  orphans: Map<object, ValidationIssue[]>,
+  nodes: NodeScope
+): void {
+  if (model === undefined) return;
+  const root = nodes.get(model.$ as object) as IssueTarget | undefined;
+  if (root === undefined) return;
+  const key = orphanKeyOf(root);
+  if (orphans.size === 0 && !shownIssues.has(key)) return;
+  if (tagged === undefined) {
+    settleOn(key, root, undefined, undefined, orphans.get(UNTAGGED) ?? [], true);
+    return;
+  }
+  settleOn(key, root, tagged, orphans, undefined, true);
+}
+
+function runStateFor(owner: object, schema: object): RunState {
+  let perModel = stateRegistry.get(owner);
+  if (!perModel) stateRegistry.set(owner, (perModel = new WeakMap()));
+  let state = perModel.get(schema);
+  if (!state)
+    perModel.set(schema, (state = { fields: new Set(), ac: null, answers: new WeakMap() }));
+  return state;
+}
+
+const hasBlocking = (errs: Map<unknown, ValidationIssue[]>): boolean => {
+  for (const list of errs.values()) for (const e of list) if (e.severity !== 'warning') return true;
+  return false;
+};
+
+/** Промис, резолвящийся при abort сигнала — размыкает ожидание устаревшего прогона (не висим на чужих медленных промисах). */
+function whenAborted(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    signal.addEventListener('abort', () => resolve(), { once: true });
+  });
+}
+
+/** Нода, которую раннер держит в `pending`, пока идут async-правила её поля. */
+interface PendingTarget {
+  setPending(pending: boolean): void;
+}
+
+/** Нода ручки выключена (`enableWhen` / `disable()`, в том числе каскадом от группы). */
+const isDisabledNode = (sig: unknown, nodes: NodeScope): boolean =>
+  sig !== null &&
+  typeof sig === 'object' &&
+  (nodes.get(sig) as { disabled?: { peek(): boolean } } | undefined)?.disabled?.peek() === true;
+
+/** Контейнер выключен или по пути к нему не контейнер — всё под ним в проверке не участвует. */
+const INACTIVE = Symbol('inactive');
+
+/**
+ * Проверка «поле в проверке формы не участвует». Причин две. Выключена его нода или нода контейнера
+ * на пути к нему: агрегат `valid` выключенную группу пропускает целиком, даже если поведение
+ * включило поле внутри неё. Либо ручки уже нет в модели: строку массива могли удалить, пока прогон
+ * ждал async-правил, — тогда по её пути пусто или другая строка.
+ *
+ * Путь ручки абсолютный — от корня всей модели. Форма бывает собрана над её частью (`app.user`),
+ * поэтому путь сначала переводится в путь от модели формы; ручка вне её — тоже неактивна.
+ *
+ * Проверка живёт один прогон и помнит пройденные контейнеры: поля одной группы делят путь, а живая
+ * проверка спрашивает о каждом поле формы на каждую клавишу.
+ */
+function inactiveCheck(
+  model: FormModel<unknown>,
+  nodes: NodeScope
+): (handle: PathAwareSignal<unknown>) => boolean {
+  // Путь есть у любой модели: у корня — '', у под-модели — путь её группы.
+  const base = (model as unknown as { __path: string }).__path;
+  const prefix = base === '' ? '' : `${base}.`;
+  // Относительный путь → что по нему лежит; INACTIVE — выключено по пути или путь оборван.
+  const reached = new Map<string, unknown>([['', model.$]]);
+  const at = (path: string): unknown => {
+    if (reached.has(path)) return reached.get(path);
+    const cut = path.lastIndexOf('.');
+    const parent = at(cut < 0 ? '' : path.slice(0, cut));
+    let found: unknown = INACTIVE;
+    if (parent !== INACTIVE && parent !== null && typeof parent === 'object') {
+      const current = (parent as Record<string, unknown>)[path.slice(cut + 1)];
+      if (!isDisabledNode(current, nodes)) found = current;
+    }
+    reached.set(path, found);
+    return found;
+  };
+  return (handle) => {
+    if (handle.__path === base) return isDisabledNode(handle, nodes);
+    if (!handle.__path.startsWith(prefix)) return true;
+    return at(handle.__path.slice(prefix.length)) !== handle;
+  };
+}
+
+/**
+ * Выключенное поле, поле выключенной группы и поле удалённой строки в проверке формы не участвуют:
+ * их замечания гасятся (пустой список — нода очищается при разносе), сбои их async-правил
+ * отбрасываются. Так статус прогона совпадает с агрегатом `valid` формы, который такие поля тоже не
+ * считает.
+ */
+function dropInactive(
+  model: FormModel<unknown>,
+  issues: Map<PathAwareSignal<unknown>, ValidationIssue[]>,
+  failures: ValidationFailure[],
+  checked: Set<PathAwareSignal<unknown>>,
+  origins: Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>,
+  nodes: NodeScope
+): void {
+  const isInactive = inactiveCheck(model, nodes);
+  for (const sig of issues.keys()) {
+    if (!isInactive(sig)) continue;
+    issues.set(sig, []);
+    origins.get(sig)?.forEach((_, origin, byOrigin) => byOrigin.set(origin, []));
+    checked.delete(sig);
+  }
+  for (let i = failures.length - 1; i >= 0; i--) {
+    if (isInactive(failures[i].handle)) failures.splice(i, 1);
+  }
+}
+
+/**
+ * Отменить идущий прогон пары (model, schema): его `AbortSignal` срабатывает, ожидание async-правил
+ * размыкается, результат получает статус `cancelled` и по нодам не разносится. Контроллер живой
+ * проверки зовёт это при снятии — иначе ответ правила лёг бы на ноды уже снятой формы.
+ *
+ * @param nodes - Область нод сборки, чей прогон отменить; без неё — прогон без сборки.
+ * @internal
+ */
+export function cancelRun(model: object, schema: object, nodes: NodeScope = GLOBAL_NODES): void {
+  abortRun(stateRegistry.get(ownerOf(model, nodes))?.get(schema)?.ac);
+}
+
+/**
+ * Какие поля пометить тронутыми при разносе: `false` — никакие, `true` — проверенные правилами,
+ * `'all'` — проверенные, а при отказе (`invalid`, `error`) ещё и всю форму.
+ *
+ * @internal
+ */
+export type ValidationTouch = boolean | 'all';
+
+/** Сколько разносов результата прямо сейчас метят поля `touched` от имени проверки. */
+let touchesByValidation = 0;
+
+/**
+ * Пометить поля `touched` от имени проверки, а не пользователя. Стратегия `blur` такую метку за
+ * уход из поля не принимает: иначе прогон с касанием будил бы лишний живой прогон, а тот отменял
+ * бы его самого. Эффекты отрабатывают в конце `batch` — ещё внутри окна.
+ *
+ * Окно открывает только раннер: касание всей формы при отказе отправки — опция `touch: 'all'`.
+ */
+function touchByValidation(action: () => void): void {
+  touchesByValidation++;
+  try {
+    batch(action);
+  } finally {
+    touchesByValidation--;
+  }
+}
+
+/** Идёт ли сейчас касание полей от имени проверки ({@link touchByValidation}). @internal */
+export const isTouchByValidation = (): boolean => touchesByValidation > 0;
+
+/**
+ * Разнести замечания части полей прогона, не дожидаясь его конца. Async-правило пишет только в
+ * своё поле, поэтому итог поля готов, как только ответили ЕГО правила: у полей без async-правил —
+ * сразу после синхронной части, у остальных — по ответу их правил. Ошибку «обязательное поле»
+ * незачем держать до ответа сервера о соседнем поле. Поле с async-правилами разносится целиком,
+ * когда ответили все его правила, — иначе его прежнее замечание («имя занято») мигало бы.
+ *
+ * Итоговый разнос пишет этим полям тот же список (запись пропускается) и гасит поля, не
+ * проверенные прогоном, — здесь гашения по разности нет. Замечания полей без нод (на корень
+ * формы) тоже ждут итога.
+ *
+ * `touch` — как у итогового разноса: проверенные поля метятся тронутыми; при `'all'` и блокирующей
+ * ошибке — вся форма: итог прогона с такой ошибкой уже не `valid`. `afterWrite` выполняется в том
+ * же пакете записей — снять `pending` поля вместе с его замечаниями, без промежуточного статуса.
+ */
+function settleNow(
+  model: FormModel<unknown>,
+  ctx: VContext,
+  nodes: NodeScope,
+  skipDisabled: boolean,
+  touch: ValidationTouch,
+  include: (sig: PathAwareSignal<unknown>) => boolean,
+  afterWrite?: () => void
+): void {
+  const origins = new Map<PathAwareSignal<unknown>, Map<object, ValidationIssue[]>>();
+  const issues = new Map<PathAwareSignal<unknown>, ValidationIssue[]>();
+  for (const [sig, byOrigin] of ctx.origins) {
+    if (!include(sig)) continue;
+    // Копия: гашение неактивных полей ниже не должно трогать сбор прогона.
+    const lists = new Map<object, ValidationIssue[]>();
+    byOrigin.forEach((list, origin) => lists.set(origin, [...list]));
+    origins.set(sig, lists);
+    issues.set(sig, [...lists.values()].flat());
+  }
+  if (issues.size === 0 && afterWrite === undefined) return;
+  const checked = new Set<PathAwareSignal<unknown>>();
+  for (const sig of ctx.checked) if (issues.has(sig)) checked.add(sig);
+  if (skipDisabled) dropInactive(model, issues, [], checked, origins, nodes);
+  const tagged: TaggedIssues = { origins, executed: ctx.executed };
+  const write = (): void => {
+    const orphans = new Map<object, ValidationIssue[]>();
+    for (const [sig, list] of issues) settleIssues(sig, tagged, list, orphans, nodes);
+    if (touch !== false) {
+      for (const sig of checked) nodes.get(sig)?.markAsTouched();
+      if (touch === 'all' && hasBlocking(issues)) nodes.get(model.$ as object)?.markAsTouched();
+    }
+    afterWrite?.();
+  };
+  if (touch !== false) touchByValidation(write);
+  else batch(write);
+}
+
+/**
+ * Сбор: прогон схемы и ожидание async-правил.
+ *
+ * @param markPending - держать ноды полей с async-правилами в `pending` до вызова `release`; пока
+ *   правила ждут ответа, замечания полей разносятся по готовности ({@link settleNow}).
+ * @param skipDisabled - не учитывать поля выключенных нод (проверка уровня формы).
+ * @param live - живой прогон: async-правило поля, не менявшегося с полученного ответа, не
+ *   вызывается — берётся его прежний ответ.
+ * @param touch - касание полей при раннем разносе — то же, что у итогового.
+ * @returns Результат и `release` — снять `pending` (вызывается после разноса, чтобы поле не
+ *   мигнуло прежним статусом между концом ожидания и новыми ошибками).
+ */
+async function collect<T>(
+  model: FormModel<T>,
+  schema: ValidationDefinition<T>,
+  markPending: boolean,
+  skipDisabled = false,
+  nodes: NodeScope = GLOBAL_NODES,
+  live = false,
+  touch: ValidationTouch = false
+): Promise<{ result: ValidationResult; release: () => void }> {
+  const state = runStateFor(ownerOf(model as object, nodes), schema as object);
+  abortRun(state.ac); // отменяем предыдущий in-flight прогон этой (model, schema)
+  const ac = new AbortController();
+  state.ac = ac;
+
+  const failures: ValidationFailure[] = [];
+  const ctx: VContext = {
+    model: model as FormModel<unknown>,
+    issues: new Map(),
+    checked: new Set(),
+    pending: [],
+    asyncFields: new Map(),
+    failures,
+    whenStack: [],
+    signal: ac.signal,
+    origin: schema as object,
+    origins: new Map(),
+    executed: new Set([schema as object]),
+    entry: { origin: schema as object, parent: undefined },
+    checkedIn: new Map(),
+    answers: state.answers,
+    ...(live ? { recall: [] } : {}),
+  };
+  // Синхронная регистрация: validate/cross/apply/applyEach отрабатывают здесь. Ambient-окно
+  // закрывается до любого await — этим владеет runWithContext.
+  runWithContext(ctx, () => schema(scopeOf(model)));
+  // Прежние ответы async-правил — после синхронных замечаний, как легли бы ответы вызванных.
+  if (ctx.recall) for (const write of ctx.recall) write();
+
+  const busy = new Map<PathAwareSignal<unknown>, PendingTarget>();
+  /** Ноды, с которых `pending` уже снят: снятие — счётчик, второй раз его снимать нельзя. */
+  const released = new Set<PendingTarget>();
+  const releaseOf = (node: PendingTarget | undefined): void => {
+    if (node === undefined || released.has(node)) return;
+    released.add(node);
+    node.setPending(false);
+  };
+  if (markPending) {
+    for (const sig of ctx.asyncFields.keys()) {
+      const node = nodes.get(sig) as PendingTarget | undefined;
+      if (node) busy.set(sig, node);
+    }
+    for (const node of busy.values()) node.setPending(true);
+    if (ctx.pending.length > 0) {
+      // Доступность полей `enableWhen` пишется на микротаске — до разноса, как и в итоге.
+      if (skipDisabled) await deferredWritesSettled();
+      const at = model as FormModel<unknown>;
+      if (!ac.signal.aborted) {
+        settleNow(at, ctx, nodes, skipDisabled, touch, (sig) => !ctx.asyncFields.has(sig));
+      }
+      // Поле с async-правилами — по ответу его правил, не дожидаясь остальных полей.
+      for (const [field, answers] of ctx.asyncFields) {
+        void Promise.all(answers).then(() => {
+          if (ac.signal.aborted) return;
+          settleNow(
+            at,
+            ctx,
+            nodes,
+            skipDisabled,
+            touch,
+            (sig) => sig === field,
+            () => releaseOf(busy.get(field))
+          );
+        });
+      }
+    }
+  }
+
+  // Дожидаемся async-правил, но размыкаем ожидание по отмене (устаревший прогон не висит на
+  // медленных промисах). Промисы правил не отклоняются: сбой правила записан в `failures`.
+  if (ctx.pending.length) await Promise.race([Promise.all(ctx.pending), whenAborted(ac.signal)]);
+  // Без async-правил проверка формы всё равно ждёт отложенных записей рантайма: доступность полей
+  // `enableWhen` пишется на микротаске, и живой прогон сразу после правки условия иначе засчитал бы
+  // правила поля, которое вот-вот выключится. Записей нет — это один микротаск, как раньше.
+  else if (skipDisabled) await deferredWritesSettled();
+  // Список поля в результате — объединение списков определений (async-правила дописали свои).
+  for (const [sig, byOrigin] of ctx.origins) {
+    // Обычно у поля одно определение-источник: копия его списка, без промежуточного массива.
+    const lists = byOrigin.values();
+    ctx.issues.set(
+      sig,
+      byOrigin.size === 1 ? [...(lists.next().value as ValidationIssue[])] : [...lists].flat()
+    );
+  }
+  if (skipDisabled) {
+    dropInactive(
+      model as FormModel<unknown>,
+      ctx.issues,
+      failures,
+      ctx.checked,
+      ctx.origins,
+      nodes
+    );
+  }
+
+  // Приоритет статуса: отменённому прогону нельзя доверять вовсе (его async-часть оборвана);
+  // сбой правила важнее обычной ошибки — результата проверки нет.
+  const result: ValidationResult = {
+    status: ac.signal.aborted
+      ? 'cancelled'
+      : failures.length > 0
+        ? 'error'
+        : hasBlocking(ctx.issues)
+          ? 'invalid'
+          : 'valid',
+    issues: ctx.issues,
+    failures,
+  };
+  stateOfResult.set(result, state);
+  checkedOfResult.set(result, ctx.checked);
+  entriesOfResult.set(result, { checked: ctx.checked, byEntry: ctx.checkedIn });
+  taggedOfResult.set(result, { origins: ctx.origins, executed: ctx.executed });
+  modelOfResult.set(result, model as FormModel<unknown>);
+  nodesOfResult.set(result, nodes);
+  return {
+    result,
+    release: () => {
+      for (const node of busy.values()) releaseOf(node);
+    },
+  };
+}
+
+/**
+ * Собрать результат проверки модели схемой — без формы и без побочных эффектов на нодах.
+ *
+ * Открывает ambient-окно на время синхронного прогона `schema`, дожидается async-правил и
+ * возвращает {@link ValidationResult}. Нод формы не трогает: ошибки по ним разносит
+ * {@link applyValidationResult}. Подходит для проверки данных без UI (сервер, тест, предпросмотр).
+ *
+ * Статус результата:
+ *  - `cancelled` — прогон устарел: пока он шёл, для той же пары (model, schema) запущен следующий;
+ *  - `error` — хотя бы одно async-правило не вернуло результат (сеть, исключение) — см. `failures`;
+ *  - `invalid` — есть блокирующие ошибки (`severity: 'warning'` не блокирует);
+ *  - `valid` — блокирующих ошибок нет.
+ *
+ * ⚠️ `schema` должна быть СТАБИЛЬНОЙ ссылкой: отмена устаревших прогонов ключится по идентичности
+ * `schema`. Держите схемы в `const` / `defineValidation`.
+ *
+ * @param model - Модель данных формы.
+ * @param schema - Схема валидации (стабильная ссылка).
+ *
+ * @example
+ * ```ts
+ * const result = await runValidation(model, formRules);
+ * if (result.status === 'error') showToast('Не удалось проверить форму, повторите попытку');
+ * else if (result.status !== 'cancelled') applyValidationResult(result, { touch: true });
+ * ```
+ */
+export async function runValidation<T>(
+  model: FormModel<T>,
+  schema: ValidationDefinition<T>
+): Promise<ValidationResult> {
+  return (await collect(model, schema, false)).result;
+}
+
+/**
+ * Разнести собранный результат по нодам формы: поставить ошибки проверенным полям и погасить поля,
+ * которые были с ошибкой в прошлом разнесённом прогоне той же пары (model, schema), а теперь не
+ * проверялись (удалённая строка массива, выключенная ветка).
+ *
+ * Отменённый результат (`status: 'cancelled'`) не разносится: его async-часть оборвана.
+ *
+ * `options.touch`: пометить `touched` ИМЕННО поля, которые схема проверяла (не всё поддерево):
+ * поля выключенной ветки `validateWhen` и, в проверке уровня формы, выключенные поля не метятся —
+ * пользователь их не видел, и после включения их ошибка не должна быть видна с первой проверки.
+ * Замечания становятся видимыми (`shouldShowIssues`: есть замечания и `touched || dirty`) без
+ * ручного `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается
+ * «тронутым».
+ *
+ * @param result - Результат {@link runValidation}.
+ * @param options - `{ touch }` — пометить проверенные поля `touched` для показа ошибок.
+ */
+export function applyValidationResult(
+  result: ValidationResult,
+  options?: { touch?: boolean }
+): void {
+  if (result.status === 'cancelled') return;
+  const nodes = nodesOfResult.get(result) ?? GLOBAL_NODES;
+  const state = stateOfResult.get(result);
+  const validated = new Set(result.issues.keys());
+  const checked = checkedOfResult.get(result) ?? validated;
+  const tagged = taggedOfResult.get(result);
+  const write = (): void => {
+    const orphans = new Map<object, ValidationIssue[]>();
+    // Гашение диффом (без неограниченного накопления): поля, которых НЕ коснулись в этом прогоне,
+    // гасятся один раз и отпускаются на GC — от замечаний определений этого прогона.
+    if (state) {
+      for (const sig of state.fields) {
+        if (!validated.has(sig)) settleIssues(sig, tagged, undefined, orphans, nodes);
+      }
+    }
+    for (const [sig, issues] of result.issues) settleIssues(sig, tagged, issues, orphans, nodes);
+    settleOrphans(modelOfResult.get(result), tagged, orphans, nodes);
+    if (options?.touch) for (const sig of checked) nodes.get(sig)?.markAsTouched();
+  };
+  if (options?.touch) touchByValidation(write);
+  else batch(write);
+  if (state) state.fields = validated;
+}
+
+/**
+ * Прогон с разносом и полным результатом — общий движок {@link validateModel}, контроллера
+ * стратегии и прогонов шага. На время async-правил держит ноды их полей в `pending`.
+ * `skipDisabled` — проверка уровня формы: поля выключенных нод не учитываются.
+ *
+ * `touch`: `true` — пометить тронутыми проверенные поля; `'all'` — то же, а при отказе (`invalid`,
+ * `error`) ещё и всю форму: так попытка отправки раскрывает замечания полей, которых правила не
+ * касались. Отменённый результат не разносится и ничего не трогает.
+ *
+ * `nodes` — область нод сборки: замечания ложатся в её ноды, даже если над моделью собрана ещё
+ * одна форма. Без неё — общий реестр, последняя собранная форма.
+ *
+ * `live` — прогон живой проверки: async-правило поля, не менявшегося с полученного ответа, не
+ * вызывается, и поле не ждёт проверки. Отправка и явная проверка спрашивают правила всегда.
+ *
+ * @internal
+ */
+export async function runAndApply<T>(
+  model: FormModel<T>,
+  schema: ValidationDefinition<T>,
+  options?: { touch?: ValidationTouch; skipDisabled?: boolean; nodes?: NodeScope; live?: boolean }
+): Promise<ValidationResult> {
+  const nodes = options?.nodes ?? GLOBAL_NODES;
+  const { result, release } = await collect(
+    model,
+    schema,
+    true,
+    options?.skipDisabled,
+    nodes,
+    options?.live,
+    options?.touch ?? false
+  );
+  const touch = options?.touch ?? false;
+  const write = (): void => {
+    applyValidationResult(result, { touch: touch !== false });
+    if (touch === 'all' && (result.status === 'invalid' || result.status === 'error')) {
+      // Корень формы метит тронутыми все поля, в том числе непроверенные правилами.
+      nodes.get(model.$ as object)?.markAsTouched();
+    }
+    release();
+  };
+  // Окно касания — вокруг внешнего batch: эффекты отрабатывают в его конце.
+  if (touch !== false) touchByValidation(write);
+  else batch(write);
+  return result;
+}
+
+/**
+ * Провалидировать модель ЛЮБОЙ схемой (шаг или вся форма): собрать результат и разнести ошибки по
+ * нодам формы. Возвращает `true` только для статуса `valid`: ошибки, сбой правила и отмена дают
+ * `false` (**fail-closed**). Чтобы различить их, берите {@link runValidation} либо
+ * `bundle.validate()` / `bundle.validateStep(id)` сборки формы.
+ *
+ * Гашение — на пару (model, schema): `validateModel(model, step2)` и `validateModel(model, form)`
+ * не мешают друг другу. Устаревший прогон (быстрый повторный вызов той же (model, schema))
+ * отменяется через `AbortSignal`.
+ *
+ * ⚠️ `schema` должна быть СТАБИЛЬНОЙ ссылкой: отмена устаревших прогонов ключится по идентичности
+ * `schema`. Инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз создаёт НОВЫЙ
+ * прогон без дедупликации — держите схемы в `const` / `defineValidation`.
+ *
+ * @param model - Модель данных формы.
+ * @param schema - Схема валидации (стабильная ссылка).
+ * @param options - `{ touch }` — пометить провалидированные поля `touched` для показа ошибок.
+ *
+ * @example
+ * ```ts
+ * const ok = await validateModel(model, step2Validation);              // один шаг
+ * const all = await validateModel(model, formValidation);              // вся форма
+ * const stepOk = await validateModel(model, step2Validation, { touch: true }); // + показать ошибки шага
+ * ```
+ */
+export async function validateModel<T>(
+  model: FormModel<T>,
+  schema: ValidationDefinition<T>,
+  options?: { touch?: boolean }
+): Promise<boolean> {
+  return (await runAndApply(model, schema, options)).status === 'valid';
+}

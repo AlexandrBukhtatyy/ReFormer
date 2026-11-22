@@ -1,0 +1,246 @@
+/**
+ * Правила строки в разделе настроек «Плагины»: что показать и что разрешить нажать.
+ *
+ * Модуль ЧИСТЫЙ и без React намеренно. Правила состояний — единственное, что в этом разделе
+ * можно проверить дёшево и без браузера, и они же — то, что разъедется с палитрой первым:
+ * обе поверхности зовут один каталог, но решают отдельно, где кнопка активна. Держать решение
+ * здесь означает, что расхождение видно в одном diff'е.
+ *
+ * Порт объявлен СТРУКТУРНО, а не импортом каталога: `shell/platform/plugin/catalog` уже
+ * зависит от `shell/platform/ui/keyboard/keymap`, и прямой импорт в обратную сторону замкнул бы
+ * подсистемы в цикл. Тот же приём и та же причина, что у `PluginManagerHost`.
+ *
+ * @module shell/boot/settings/plugins-list
+ */
+
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+
+/** Состояние плагина в каталоге. Копия перечисления каталога — структурно, без импорта. */
+export type PluginRowState = 'disabled' | 'enabled' | 'failed';
+
+/** Отказ загрузки: то, что показывается человеку. `cause` сюда не попадает — он для консоли. */
+export interface PluginRowProblem {
+  readonly code: string;
+  readonly message: string;
+  readonly file?: string;
+}
+
+/**
+ * Откуда плагин взят. Копия перечисления каталога — структурно, без импорта.
+ *
+ * `installed` — слой OPFS (приехал из npm), `project` — папка открытого проекта,
+ * `application` — приехал вместе с приложением и работает для любого проекта.
+ */
+export type PluginLayer = 'installed' | 'project' | 'application';
+
+/** Запись каталога в том объёме, в каком её читает раздел. */
+export interface PluginCatalogEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly version?: string;
+  readonly state: PluginRowState;
+  readonly dev: boolean;
+  readonly problem?: PluginRowProblem;
+  readonly manifest?: { readonly apiVersion?: string };
+  /** Слой, из которого взят действующий плагин. Отсутствует у сборок без установки. */
+  readonly layer?: PluginLayer;
+  /** Слой, который перекрыт: тот же `id` нашёлся и там, но работает не он. */
+  readonly shadowed?: PluginLayer;
+  /** Эта копия уступила плагину приложения с тем же `id` и не грузится. */
+  readonly overridden?: 'application';
+}
+
+/**
+ * Один список из двух каталогов: плагины приложения и плагины проекта.
+ *
+ * Копия плагина приложения, лежащая в проекте, отдельной строкой не показана: работает
+ * экземпляр приложения, и две строки с одним именем читались бы как два плагина. Вместо этого
+ * строка приложения помечена «перекрывает копию из проекта» — тем же `shadowed`, которым
+ * проект помечает перекрытый установленный. Без пометки человек правил бы файлы плагина
+ * в проекте, не понимая, почему правки не видны.
+ */
+export function mergePluginLayers(
+  application: readonly PluginCatalogEntry[],
+  project: readonly PluginCatalogEntry[]
+): readonly PluginCatalogEntry[] {
+  const overridden = new Set(
+    project.filter((entry) => entry.overridden !== undefined).map((entry) => entry.id)
+  );
+  return [
+    ...application.map((entry) =>
+      overridden.has(entry.id) ? { ...entry, shadowed: 'project' as const } : entry
+    ),
+    ...project.filter((entry) => entry.overridden === undefined),
+  ];
+}
+
+/**
+ * Строка, которой распоряжается служба каталога (`PluginsCatalogService`), — а через неё палитра.
+ *
+ * Плагином приложения распоряжаться нечем: его набор задаёт сборка. Копией, перекрытой плагином
+ * приложения, — тоже: она не грузится, что бы ей ни сказали, и «включить» в палитре молча
+ * ничего не делало бы. Раздел настроек такую копию не показывает вовсе ({@link mergePluginLayers}),
+ * и палитра обязана решать так же — иначе две поверхности одного каталога предлагали бы разное.
+ */
+export function isManageablePlugin<T extends PluginCatalogEntry>(
+  entry: T
+): entry is T & { readonly layer?: Exclude<PluginLayer, 'application'> } {
+  return entry.layer !== 'application' && entry.overridden === undefined;
+}
+
+/**
+ * Что разделу нужно от каталога плагинов.
+ *
+ * `subscribe` обязателен: набор и состояния меняются мимо окна — из палитры, авто-перезагрузкой
+ * dev-плагина, обходом проекта. Без подписки раздел показывал бы снимок на момент открытия.
+ */
+export interface PluginsSettingsPort {
+  list(): readonly PluginCatalogEntry[];
+  subscribe(listener: () => void): Disposable;
+  enable(id: string): Promise<boolean>;
+  disable(id: string): void;
+  setDev(id: string, on: boolean): void;
+  reload(id: string): Promise<boolean>;
+  /**
+   * Синхронизирован ли каталог с ОТКРЫТЫМ сейчас проектом.
+   *
+   * Не «открыт ли проект»: между сменой проекта и перечитыванием каталога список ещё содержит
+   * плагины прежнего, и показывать их как действующие — врать. В это окно раздел говорит
+   * «читаю каталог», а не «плагинов нет».
+   */
+  synced(): boolean;
+  /** Открыт ли проект. Без него каталогу неоткуда взяться, и это отдельный ответ человеку. */
+  hasProject(): boolean;
+  /**
+   * Перечитать каталог. Необязателен: разделу он нужен только после установки и обновления,
+   * а список плагинов работал и без установки вовсе.
+   */
+  refresh?(): Promise<unknown>;
+}
+
+/** Что делает переключатель строки. У `failed` включение — это «попробовать снова». */
+export type PluginToggleAction = 'enable' | 'disable' | 'retry';
+
+/** Строка раздела: всё решено заранее, компоненту остаётся отрисовать. */
+export interface PluginRow {
+  readonly id: string;
+  readonly name: string;
+  /** Подпись версии, уже готовая к показу. `null` — версии нет, место не занимаем. */
+  readonly version: string | null;
+  readonly state: PluginRowState;
+  readonly dev: boolean;
+  /** Включён ли переключатель. У `failed` — выключен: вклады сняты, и врать нельзя. */
+  readonly on: boolean;
+  readonly toggle: PluginToggleAction;
+  /** Перезагрузка имеет смысл только у работающего: у выключенного она ничего не включит. */
+  readonly canReload: boolean;
+  readonly problem: PluginRowProblem | null;
+  readonly apiVersion: string | null;
+  /** Слой действующего плагина; `null` — сборка без установки, вопрос не стоит. */
+  readonly layer: PluginLayer | null;
+  /**
+   * Тот же `id` есть и в другом слое, но работает не он.
+   *
+   * Показывается словами, а не скрывается: без пометки человек правит файлы в проекте
+   * (или, наоборот, ждёт установленную версию) и не понимает, почему ничего не меняется.
+   */
+  readonly shadowed: PluginLayer | null;
+  /**
+   * Строкой нельзя управлять: плагин приложения включён тем, кто приложение развернул.
+   *
+   * Выключить его отсюда значило бы выключить часть приложения до перезапуска — и только
+   * до него: набор задаёт сборка, а не настройки. Поэтому переключатель, пометка
+   * «в разработке» и перезагрузка у такой строки недоступны.
+   */
+  readonly locked: boolean;
+}
+
+/** Строки раздела в порядке показа. */
+export function toRows(entries: readonly PluginCatalogEntry[]): readonly PluginRow[] {
+  return (
+    [...entries]
+      // Порядок каталога — порядок обхода файловой системы, то есть произвольный на вид.
+      // Сортировка по имени делает список стабильным между обходами: строка не прыгает
+      // под курсором из-за того, что плагин перезагрузился.
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        version: entry.version ?? null,
+        state: entry.state,
+        dev: entry.dev,
+        on: entry.state === 'enabled',
+        toggle:
+          entry.state === 'enabled' ? 'disable' : entry.state === 'failed' ? 'retry' : 'enable',
+        canReload: entry.state === 'enabled' && entry.layer !== 'application',
+        problem: entry.problem ?? null,
+        apiVersion: entry.manifest?.apiVersion ?? null,
+        layer: entry.layer ?? null,
+        shadowed: entry.shadowed ?? null,
+        locked: entry.layer === 'application',
+      }))
+  );
+}
+
+/**
+ * Что разделу нужно, чтобы показать НАСТРОЙКИ плагина.
+ *
+ * Отдельный порт, а не поля в {@link PluginsSettingsPort}: список плагинов и их настройки —
+ * разные способности, и раздел обязан работать, когда второй нет (так собран его тест-двойник,
+ * так же он вёл себя до появления настроек).
+ */
+export interface PluginSettingsHost {
+  /**
+   * Схема настроек плагина либо `null`, если он их не объявлял.
+   *
+   * Уже проверенная: непригодную композиция отсекает раньше, чтобы чужая схема не роняла
+   * карточку. Тип широкий по той же причине, что и у вклада, — сужает вызывающий.
+   */
+  schemaOf(pluginId: string): unknown;
+  /** Действующие значения: сохранённые поверх умолчаний, объявленных самим плагином. */
+  read(pluginId: string): Readonly<Record<string, unknown>>;
+  /** Записать введённое. Отказ пробрасывается: молча потерянная настройка хуже видимой ошибки. */
+  write(pluginId: string, values: Readonly<Record<string, unknown>>): Promise<void>;
+  /** Подписка на смену состава вкладов и значений: и то и другое меняется мимо окна. */
+  subscribe(listener: () => void): Disposable;
+}
+
+/** Что показать в карточке на месте формы настроек. */
+export type SettingsCardState =
+  /** Плагин внёс схему и работает — рисуем форму. */
+  | 'form'
+  /** Схема есть, но плагин выключен: вклад снят вместе с ним, настраивать нечего. */
+  | 'plugin-off'
+  /** Плагин работает и настроек не объявлял. */
+  | 'none';
+
+/**
+ * Что делать с формой настроек в карточке.
+ *
+ * Вклад живёт ровно столько, сколько плагин: `ctx.subscriptions` снимает его при выключении.
+ * Поэтому «выключен» и «настроек нет» — РАЗНЫЕ ответы: в первом случае человеку надо включить
+ * плагин, во втором делать нечего вовсе, и обещать ему настройки нельзя.
+ */
+export function settingsCardStateOf(row: PluginRow, hasContribution: boolean): SettingsCardState {
+  // Не работает — вкладов нет по построению, и спрашивать про схему бессмысленно.
+  if (row.state !== 'enabled') return 'plugin-off';
+  return hasContribution ? 'form' : 'none';
+}
+
+/** Что показывает раздел вместо списка. `null` — показывать список. */
+export type PluginsEmptyState = 'loading' | 'no-project' | 'no-plugins' | null;
+
+/**
+ * Пустые состояния разведены на три: они требуют разных действий от человека.
+ *
+ * «Читаю каталог» — подождать; «проект не открыт» — открыть папку; «плагинов нет» — положить
+ * плагин в `.ui_builder/plugins`. Один общий текст на все три говорил бы «плагинов нет» там,
+ * где их просто ещё не прочитали, и человек пошёл бы искать несуществующую поломку.
+ */
+export function emptyStateOf(port: PluginsSettingsPort): PluginsEmptyState {
+  // Плагины приложения видны и без проекта: «проект не открыт» — ответ только там, где
+  // показать действительно нечего.
+  if (!port.hasProject()) return port.list().length === 0 ? 'no-project' : null;
+  if (!port.synced()) return 'loading';
+  return port.list().length === 0 ? 'no-plugins' : null;
+}

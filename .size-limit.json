@@ -1,0 +1,185 @@
+[
+  {
+    "name": "@reformer/core",
+    "path": "packages/reformer/dist/index.js",
+    "limit": "22.5 kB"
+  },
+  {
+    "name": "@reformer/core (validators only)",
+    "path": "packages/reformer/dist/validators.js",
+    "limit": "5 kB"
+  },
+  {
+    "name": "@reformer/core (behaviors only)",
+    "path": "packages/reformer/dist/behaviors.js",
+    "limit": "5 kB"
+  },
+  {
+    "name": "@reformer/core (model only)",
+    "path": ["packages/reformer/dist/model.js", "packages/reformer/dist/model-core-*.js"],
+    "limit": "11 kB"
+  },
+  {
+    "name": "@reformer/core (resource)",
+    "path": ["packages/reformer/dist/resource.js", "packages/reformer/dist/resource-*.js"],
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/core (theme)",
+    "path": ["packages/reformer/dist/theme.js", "packages/reformer/dist/storage-*.js"],
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/core (language)",
+    "path": ["packages/reformer/dist/language.js", "packages/reformer/dist/storage-*.js"],
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/core (table)",
+    "path": ["packages/reformer/dist/table.js", "packages/reformer/dist/resource-*.js"],
+    "limit": "6 kB"
+  },
+  {
+    "name": "@reformer/core (i18n only)",
+    "path": "packages/reformer/dist/i18n.js",
+    "limit": "4 kB"
+  },
+  {
+    "name": "@reformer/core (react only)",
+    "path": "packages/reformer/dist/react.js",
+    "limit": "5 kB"
+  },
+  {
+    "name": "@reformer/core (i18n: ICU + loader chunk)",
+    "path": "packages/reformer/dist/loader-*.js",
+    "limit": "4 kB"
+  },
+  {
+    "name": "@reformer/cdk",
+    "path": "packages/reformer-cdk/dist/index.js",
+    "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/renderer-react",
+    "path": "packages/reformer-renderer-react/dist/index.js",
+    "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/ui-kit (index shim)",
+    "path": "packages/reformer-ui-kit/dist/index.js",
+    "limit": "15 kB"
+  },
+  {
+    "name": "@reformer/ui-kit (utils chunk: clsx + tailwind-merge)",
+    "path": "packages/reformer-ui-kit/dist/utils-*.js",
+    "limit": "13 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/chart (recharts external)",
+    "path": "packages/reformer-ui-kit/dist/chart.js",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/table (@tanstack/react-table external)",
+    "path": "packages/reformer-ui-kit/dist/table.js",
+    "limit": "3.75 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/sidebar (composite)",
+    "path": "packages/reformer-ui-kit/dist/sidebar.js",
+    "limit": "4.75 kB"
+  },
+  {
+    "name": "@reformer/ui-kit Select subpath (Select + SelectAsync + SelectMulti)",
+    "path": [
+      "packages/reformer-ui-kit/dist/select.js",
+      "packages/reformer-ui-kit/dist/select-multi-*.js"
+    ],
+    "limit": "6.5 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/message-scroller (@shadcn/react external)",
+    "path": "packages/reformer-ui-kit/dist/message-scroller.js",
+    "limit": "8 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/calendar (react-day-picker external)",
+    "path": "packages/reformer-ui-kit/dist/calendar-base-*.js",
+    "limit": "2.2 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/carousel (embla-carousel-react external)",
+    "path": "packages/reformer-ui-kit/dist/carousel.js",
+    "limit": "1.4 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/command (cmdk external)",
+    "path": "packages/reformer-ui-kit/dist/command-base-*.js",
+    "limit": "1.3 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/input-otp (input-otp external)",
+    "path": "packages/reformer-ui-kit/dist/input-otp.js",
+    "limit": "1.25 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/drawer (vaul external)",
+    "path": "packages/reformer-ui-kit/dist/drawer.js",
+    "limit": "1 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/date-picker (date-fns external)",
+    "path": "packages/reformer-ui-kit/dist/date-picker.js",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/resizable (react-resizable-panels external)",
+    "path": "packages/reformer-ui-kit/dist/resizable.js",
+    "limit": "0.75 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/sonner (sonner external)",
+    "path": "packages/reformer-ui-kit/dist/sonner.js",
+    "limit": "1.25 kB"
+  },
+  {
+    "name": "@reformer/renderer-json",
+    "path": "packages/reformer-renderer-json/dist/index.js",
+    "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/form-registry",
+    "path": "packages/reformer-form-registry/dist/index.js",
+    "limit": "3.5 kB"
+  },
+  {
+    "name": "@reformer/form-registry/react",
+    "path": "packages/reformer-form-registry/dist/react.js",
+    "limit": "2 kB"
+  },
+  {
+    "name": "@reformer/form-registry/storage",
+    "path": "packages/reformer-form-registry/dist/storage.js",
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/form-registry/manifest",
+    "path": "packages/reformer-form-registry/dist/manifest.js",
+    "limit": "1 kB"
+  },
+  {
+    "name": "@reformer/form-registry/guard",
+    "path": "packages/reformer-form-registry/dist/guard.js",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "плагин reformer.ai проекта-образца (ассистент, код)",
+    "path": "projects/reformer-builder-playground/.ui_builder/plugins/forms/ai/main.js",
+    "limit": "80 kB"
+  },
+  {
+    "name": "плагин reformer.ai-schema проекта-образца (стек форм ReFormer в ассистенте, код)",
+    "path": "projects/reformer-builder-playground/.ui_builder/plugins/reformer/ai/main.js",
+    "limit": "120 kB"
+  }
+]

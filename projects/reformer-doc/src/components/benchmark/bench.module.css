@@ -1,0 +1,464 @@
+/**
+ * Графики и плитки бенчмарка (страница /benchmark и лендинг). У каждого участника свой цвет —
+ * один и тот же во всех графиках: ReFormer — насыщенные тона акцента сайта (core — сам акцент,
+ * JSON — светлее). Конкуренты — фирменные цвета с их сайтов, приглушённые прозрачностью 0.35,
+ * чтобы не спорить с ReFormer: Formik — голубой логотипа #4C9AFF, React Hook Form — розовый
+ * #EC5990, RJSF — графит (логотип у него чёрный; синий сайта документации — стандартный
+ * Docusaurus и совпал бы с Formik). В тёмной теме графит светлый, иначе он пропал бы на фоне.
+ * baseline — серый контур (в линиях — пунктир); его тон отодвинут от графита RJSF. Цвет не
+ * единственный носитель: у каждой метки есть подпись, лучший в строке — жирным, значимость —
+ * знаком.
+ *
+ * Проверено validate_palette.js (dataviz) по всем парам, конкуренты — смешанными с фоном карточки
+ * (#fff и #242526). Цена бледности: конкуренты различаются между собой слабее порога — ΔE 9.3 в
+ * светлой теме и 11.3 в тёмной при обычном зрении, 5.6 и 7.2 при дальтонизме; их различают
+ * подписи, подсказка и выделение линии наведением на имя. RJSF и baseline — ΔE 18.7 и 15.0.
+ * Контраст конкурентов с фоном ниже 3:1 намеренно. Меняя цвет или прозрачность, прогоните
+ * валидатор снова для обеих тем, смешав цвета конкурентов с фоном.
+ */
+
+:root {
+  --bench-lib-reformer-core: var(--ifm-color-primary);
+  --bench-lib-reformer-json: #52c385;
+  --bench-lib-formik: rgb(76 154 255 / 0.35);
+  --bench-lib-rhf: rgb(236 89 144 / 0.35);
+  --bench-lib-rjsf: rgb(58 63 74 / 0.35);
+  --bench-lib-baseline: #7d838c;
+
+  /*
+   * Тепловая карта (Heatmap.tsx): расходящаяся шкала, середина — серый. pos — ReFormer core
+   * быстрее (оттенок акцента), neg — медленнее (фиолетовый, не совпадает ни с одним участником).
+   * Шаги проверены validate_palette.js --ordinal (светлота монотонна, ΔL ≥ 0.06, крайний шаг ≥ 2:1
+   * к фону); текст ячеек (--bench-div-ink) — ≥ 4.6:1 на каждом шаге.
+   */
+  --bench-div-pos-1: #83c49a;
+  --bench-div-pos-2: #59b47d;
+  --bench-div-pos-3: #3aa167;
+  --bench-div-neg-1: #c0a4e1;
+  --bench-div-neg-2: #b08ada;
+  --bench-div-neg-3: #9d75c9;
+  --bench-div-mid: var(--ifm-color-emphasis-200);
+  --bench-div-ink: var(--ifm-font-color-base);
+}
+
+[data-theme='dark'] {
+  --bench-lib-reformer-json: #92ebce;
+  --bench-lib-formik: rgb(76 154 255 / 0.35);
+  --bench-lib-rhf: rgb(236 89 144 / 0.35);
+  --bench-lib-rjsf: rgb(212 216 222 / 0.35);
+  --bench-lib-baseline: #8a9099;
+
+  --bench-div-pos-1: #2a583c;
+  --bench-div-pos-2: #236e44;
+  --bench-div-pos-3: #238450;
+  --bench-div-neg-1: #59466f;
+  --bench-div-neg-2: #6e518e;
+  --bench-div-neg-3: #845fab;
+  --bench-div-ink: #fff;
+}
+
+.chart,
+.legend,
+.tile,
+.scoreTile {
+  --bench-core: var(--ifm-color-primary);
+  /* #8d949e в обеих темах: в светлой — emphasis-600, в тёмной шкала Infima перевёрнута. */
+  --bench-rival: var(--ifm-color-emphasis-600);
+  --bench-whisker: var(--ifm-color-emphasis-900);
+  --bench-axis: var(--ifm-color-emphasis-300);
+  --bench-surface: var(--ifm-background-surface-color);
+}
+
+[data-theme='dark'] .chart,
+[data-theme='dark'] .legend,
+[data-theme='dark'] .tile,
+[data-theme='dark'] .scoreTile {
+  --bench-rival: var(--ifm-color-emphasis-400);
+  --bench-surface: var(--ifm-background-color);
+}
+
+/* ── Бар-чарт ──────────────────────────────────────────────────────────── */
+.chart {
+  container-type: inline-size;
+  margin: 0;
+  min-width: 0;
+}
+
+.chartCaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.65rem;
+  line-height: 1.3;
+}
+
+.chartKicker {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.chartTitle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+}
+
+.chartUnit {
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr) 7.25rem;
+  grid-template-areas: 'name track value';
+  align-items: center;
+  column-gap: 0.65rem;
+  min-height: 1.35rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.barName {
+  grid-area: name;
+  color: var(--ifm-color-emphasis-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barTrack {
+  grid-area: track;
+  position: relative;
+  height: 14px;
+  /* Нулевая линия — волосяная, на фоне. */
+  border-left: 1px solid var(--bench-axis);
+}
+
+.barFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 2px;
+  /* Скругление 4px только на конце данных, у нулевой линии угол прямой. */
+  border-radius: 0 4px 4px 0;
+  /* --c — цвет участника (colors.ts → libStyle), ставится на строку. */
+  background: var(--c, var(--bench-rival));
+}
+
+.role_baseline .barFill {
+  background: transparent;
+  border: 1.5px dashed var(--c, var(--bench-rival));
+  border-left: none;
+}
+
+/* Ус IQR: тонкая линия q25–q75 с засечками; ореол цвета фона отделяет её от бара. */
+.whisker {
+  position: absolute;
+  top: 50%;
+  height: 10px;
+  transform: translateY(-50%);
+  border-left: 1.5px solid var(--bench-whisker);
+  border-right: 1.5px solid var(--bench-whisker);
+  min-width: 3px;
+}
+
+.whisker::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1.5px;
+  transform: translateY(-50%);
+  background: var(--bench-whisker);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bench-surface) 55%, transparent);
+}
+
+.barValue {
+  grid-area: value;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.barNumber {
+  color: var(--ifm-font-color-base);
+}
+
+.barRatio {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.barSig {
+  color: var(--ifm-font-color-base);
+  cursor: help;
+}
+
+.barBest .barName,
+.barBest .barNumber,
+.barBest .barRatio {
+  font-weight: 700;
+  color: var(--ifm-font-color-base);
+}
+
+.role_baseline .barName,
+.role_baseline .barNumber {
+  font-style: italic;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Узкий контейнер: имя и значение — строкой над баром, бар на всю ширину. */
+@container (max-width: 420px) {
+  .chart .barRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name value'
+      'track track';
+    row-gap: 0.2rem;
+  }
+}
+
+/*
+ * Компактный вид (плитки лендинга): имя и значение строкой, тонкий бар под ними на всю ширину —
+ * в плитке шириной 250px бар в одной строке с подписями был бы слишком коротким.
+ */
+.chartCompact .bars {
+  gap: 0.35rem;
+}
+
+.chart.chartCompact .barRow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name value'
+    'track track';
+  row-gap: 0.15rem;
+  min-height: 0;
+  font-size: 0.75rem;
+}
+
+.chartCompact .barTrack {
+  height: 8px;
+}
+
+/* ── Легенда ───────────────────────────────────────────────────────────── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.swatch {
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 10px;
+  border-radius: 0 3px 3px 0;
+  background: var(--c, var(--bench-rival));
+}
+
+/* Два класса: минификатор CSS переставляет правила одинаковой специфичности. */
+.swatch.swatchBaseline {
+  background: transparent;
+  border: 1.5px dashed var(--c, var(--bench-rival));
+  border-left: none;
+}
+
+/* Образец линии (графики трейсов): 2px, у baseline — пунктир. */
+.swatchLine {
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 0;
+  border-top: 2.5px solid var(--c);
+}
+
+.swatchLine.swatchBaseline {
+  border-top-style: dashed;
+}
+
+.swatchWhisker {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 10px;
+  border-left: 1.5px solid var(--bench-whisker);
+  border-right: 1.5px solid var(--bench-whisker);
+}
+
+.swatchWhisker::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1.5px;
+  transform: translateY(-50%);
+  background: var(--bench-whisker);
+}
+
+/* ── Плитки ────────────────────────────────────────────────────────────── */
+.tile {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 1.25rem 1.25rem 1.1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-top: 3px solid var(--ifm-color-primary);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+}
+
+.tileValue {
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ifm-color-primary);
+}
+
+.tileValueUnit {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-left: 0.2rem;
+}
+
+.tileClaim {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ifm-font-color-base);
+}
+
+.tileContext {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Оговорка: где ReFormer уступает в смежной метрике — рядом с утверждением, а не только в отчёте. */
+.tileCaveat {
+  margin: 0;
+  padding-left: 0.55rem;
+  border-left: 2px solid var(--ifm-color-warning);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.tile .chart {
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+/* Счёт против конкурента: тонкая сегментная полоса «быстрее / без разницы / медленнее». */
+.scoreTile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+}
+
+.scoreHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.scoreRival {
+  font-weight: 700;
+  color: var(--ifm-font-color-base);
+}
+
+.scoreValue {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--ifm-font-color-base);
+}
+
+.scoreValueOf {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.scoreBar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+
+.scoreBar span {
+  min-width: 2px;
+  border-radius: 4px;
+}
+
+.scoreWin {
+  background: var(--bench-core);
+}
+
+.scoreTie {
+  background: var(--ifm-color-emphasis-300);
+}
+
+.scoreLoss {
+  background: var(--bench-rival);
+}
+
+.scoreLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.scoreLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.scoreLegend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.scoreLegend b {
+  font-variant-numeric: tabular-nums;
+}

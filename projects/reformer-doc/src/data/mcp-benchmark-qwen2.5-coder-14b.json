@@ -1,0 +1,369 @@
+{
+  "batches": ["20261121T004231Z-e54f"],
+  "date": "2026-11-21",
+  "model": "qwen2.5-coder-14b",
+  "repeats": 3,
+  "targets": ["core", "renderer-json", "renderer-react"],
+  "arms": ["no-mcp", "mcp-dsl"],
+  "summary": {
+    "no-mcp": {
+      "runs": 25,
+      "passes": 0,
+      "score": 0.58,
+      "minutesTotal": 33.2,
+      "minutesMedian": 0.8,
+      "costTotal": null,
+      "costMedian": null,
+      "costPerPass": null,
+      "turnsMedian": 3,
+      "outputMedian": 1344,
+      "inputMedian": 8930,
+      "mcpCalls": 0,
+      "operations": {
+        "create": {
+          "runs": 7,
+          "passes": 0,
+          "minutesMedian": 0.67,
+          "costTotal": null
+        },
+        "edit": {
+          "runs": 9,
+          "passes": 0,
+          "minutesMedian": 1.28,
+          "costTotal": null
+        },
+        "delete": {
+          "runs": 9,
+          "passes": 0,
+          "minutesMedian": 0.8,
+          "costTotal": null
+        }
+      },
+      "createFailures": [
+        {
+          "check": "workspace.layout",
+          "runs": 7
+        },
+        {
+          "check": "static.tsc",
+          "runs": 6
+        },
+        {
+          "check": "runtime.form",
+          "runs": 4
+        },
+        {
+          "check": "runtime.load",
+          "runs": 3
+        },
+        {
+          "check": "static.stack",
+          "runs": 2
+        }
+      ]
+    },
+    "mcp-dsl": {
+      "runs": 27,
+      "passes": 24,
+      "score": 0.96,
+      "minutesTotal": 15.3,
+      "minutesMedian": 0.47,
+      "costTotal": null,
+      "costMedian": null,
+      "costPerPass": null,
+      "turnsMedian": 4,
+      "outputMedian": 487,
+      "inputMedian": 26043,
+      "mcpCalls": 95,
+      "operations": {
+        "create": {
+          "runs": 9,
+          "passes": 6,
+          "minutesMedian": 0.85,
+          "costTotal": null
+        },
+        "edit": {
+          "runs": 9,
+          "passes": 9,
+          "minutesMedian": 0.42,
+          "costTotal": null
+        },
+        "delete": {
+          "runs": 9,
+          "passes": 9,
+          "minutesMedian": 0.28,
+          "costTotal": null
+        }
+      },
+      "createFailures": [
+        {
+          "check": "runtime.probe.captcha-any-case",
+          "runs": 2
+        },
+        {
+          "check": "workspace.entry",
+          "runs": 1
+        },
+        {
+          "check": "static.tsc",
+          "runs": 1
+        },
+        {
+          "check": "runtime.load",
+          "runs": 1
+        }
+      ]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "registration-create",
+      "title": "Регистрация: создание формы",
+      "level": 1,
+      "operation": "create",
+      "tags": ["validation", "cross", "async", "submit"],
+      "arms": {
+        "no-mcp": {
+          "runs": 7,
+          "passes": 0,
+          "score": 0.456,
+          "minutesTotal": 5,
+          "minutesMedian": 0.67,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 2,
+          "outputMedian": 1100,
+          "inputMedian": 3667,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 2,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 2,
+              "passes": 0
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 6,
+          "score": 0.879,
+          "minutesTotal": 8.4,
+          "minutesMedian": 0.85,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 6,
+          "outputMedian": 1012,
+          "inputMedian": 48318,
+          "mcpCalls": 47,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 2
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-delete",
+      "title": "Регистрация: удаление полей с их правилами",
+      "level": 1,
+      "operation": "delete",
+      "tags": ["delete", "cross", "async"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 0,
+          "score": 0.776,
+          "minutesTotal": 13.5,
+          "minutesMedian": 0.8,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 6,
+          "outputMedian": 1344,
+          "inputMedian": 12416,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 0
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 2.8,
+          "minutesMedian": 0.28,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 4,
+          "outputMedian": 202,
+          "inputMedian": 22954,
+          "mcpCalls": 25,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-edit",
+      "title": "Регистрация: правка готовой формы",
+      "level": 1,
+      "operation": "edit",
+      "tags": ["edit", "rename", "validation"],
+      "arms": {
+        "no-mcp": {
+          "runs": 9,
+          "passes": 0,
+          "score": 0.482,
+          "minutesTotal": 14.7,
+          "minutesMedian": 1.28,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 3,
+          "outputMedian": 1908,
+          "inputMedian": 8974,
+          "mcpCalls": 0,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 0
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 0
+            }
+          }
+        },
+        "mcp-dsl": {
+          "runs": 9,
+          "passes": 9,
+          "score": 1,
+          "minutesTotal": 4.1,
+          "minutesMedian": 0.42,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 4,
+          "outputMedian": 487,
+          "inputMedian": 26043,
+          "mcpCalls": 23,
+          "targets": {
+            "core": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-json": {
+              "runs": 3,
+              "passes": 3
+            },
+            "renderer-react": {
+              "runs": 3,
+              "passes": 3
+            }
+          }
+        }
+      }
+    }
+  ],
+  "runs": [
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":1,"pass":false,"score":0.955,"minutes":0.87,"cost":null,"output":855,"input":48318,"turns":6,"failed":["runtime.probe.captcha-any-case"]},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":2,"pass":true,"score":1,"minutes":0.83,"cost":null,"output":887,"input":58856,"turns":7},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":3,"pass":true,"score":1,"minutes":0.85,"cost":null,"output":1012,"input":38971,"turns":5},
+    {"arm":"no-mcp","scenario":"registration-create","target":"core","kind":"create","repeat":1,"pass":false,"score":0.167,"minutes":1.25,"cost":null,"output":1945,"input":4742,"turns":2,"failed":["static.stack","static.tsc","workspace.layout","static.validateCode","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"core","kind":"create","repeat":2,"pass":false,"score":0.667,"minutes":0.7,"cost":null,"output":1100,"input":3915,"turns":2,"failed":["workspace.layout","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"core","kind":"create","repeat":3,"pass":false,"score":0.571,"minutes":0.52,"cost":null,"output":767,"input":3375,"turns":2,"failed":["static.tsc","workspace.layout","runtime.form"]},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":1,"pass":true,"score":1,"minutes":1,"cost":null,"output":1035,"input":61348,"turns":7},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":2,"pass":true,"score":1,"minutes":0.75,"cost":null,"output":817,"input":47352,"turns":6},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":3,"pass":false,"score":0,"minutes":0.75,"cost":null,"output":1139,"input":19486,"turns":3,"failed":["workspace.entry","static.tsc","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":2,"pass":false,"score":0.429,"minutes":0.75,"cost":null,"output":1215,"input":3404,"turns":2,"failed":["static.stack","static.tsc","workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":3,"pass":false,"score":0.429,"minutes":0.57,"cost":null,"output":943,"input":3667,"turns":2,"failed":["static.tsc","workspace.layout","static.validateCode","runtime.form"]},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":1,"minutes":1.07,"cost":null,"output":1221,"input":49756,"turns":6},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":2,"pass":true,"score":1,"minutes":1.57,"cost":null,"output":1741,"input":78250,"turns":8},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":3,"pass":false,"score":0.955,"minutes":0.72,"cost":null,"output":681,"input":45722,"turns":6,"failed":["runtime.probe.captcha-any-case"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":2,"pass":false,"score":0.429,"minutes":0.53,"cost":null,"output":867,"input":8930,"turns":5,"failed":["workspace.entry","static.tsc","workspace.layout","runtime.form"]},
+    {"arm":"no-mcp","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":3,"pass":false,"score":0.5,"minutes":0.67,"cost":null,"output":1109,"input":3527,"turns":2,"failed":["static.tsc","workspace.layout","runtime.load"]},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.38,"cost":null,"output":295,"input":24737,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.22,"cost":null,"output":192,"input":22861,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.28,"cost":null,"output":241,"input":30185,"turns":5},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"core","kind":"delete","repeat":1,"pass":false,"score":0.474,"minutes":3.28,"cost":null,"output":4675,"input":223072,"turns":30,"failed":["workspace.entry","runtime.structure.absent","runtime.probe.login-required","runtime.probe.login-too-short","runtime.probe.login-too-long","runtime.probe.login-alphabet","runtime.probe.email-required","runtime.probe.email-format","runtime.probe.password-required","runtime.probe.password-too-short"]},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"core","kind":"delete","repeat":2,"pass":false,"score":0.5,"minutes":0.65,"cost":null,"output":1073,"input":14660,"turns":9,"failed":["workspace.entry","static.tsc","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"core","kind":"delete","repeat":3,"pass":false,"score":0.714,"minutes":1.02,"cost":null,"output":1702,"input":4860,"turns":3,"failed":["static.tsc","runtime.form"]},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.67,"cost":null,"output":288,"input":23707,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.23,"cost":null,"output":170,"input":17141,"turns":3},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.3,"cost":null,"output":202,"input":22954,"turns":4},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":false,"score":0.667,"minutes":4.08,"cost":null,"output":6148,"input":189937,"turns":30,"failed":["static.tsc","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":2,"pass":false,"score":0.947,"minutes":0.7,"cost":null,"output":1116,"input":12416,"turns":6,"failed":["runtime.structure.absent"]},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":3,"pass":false,"score":0.947,"minutes":0.68,"cost":null,"output":1101,"input":11677,"turns":6,"failed":["runtime.structure.absent"]},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.25,"cost":null,"output":173,"input":17143,"turns":3},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":true,"score":1,"minutes":0.3,"cost":null,"output":247,"input":24328,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":true,"score":1,"minutes":0.2,"cost":null,"output":174,"input":17148,"turns":3},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":false,"score":0.947,"minutes":1.53,"cost":null,"output":2410,"input":10201,"turns":4,"failed":["static.tsc"]},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":2,"pass":false,"score":0.947,"minutes":0.77,"cost":null,"output":1174,"input":17189,"turns":7,"failed":["runtime.structure.absent"]},
+    {"arm":"no-mcp","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":3,"pass":false,"score":0.842,"minutes":0.8,"cost":null,"output":1344,"input":5952,"turns":3,"failed":["runtime.structure.absent","runtime.probe.sample-valid","runtime.probe.no-confirm-needed"]},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.48,"cost":null,"output":502,"input":26112,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.47,"cost":null,"output":489,"input":26927,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.38,"cost":null,"output":451,"input":19409,"turns":3},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"core","kind":"edit","repeat":1,"pass":false,"score":0.286,"minutes":1.28,"cost":null,"output":1875,"input":23759,"turns":5,"failed":["static.tsc","runtime.probe.sample-valid","runtime.probe.login-required","runtime.probe.login-too-short","runtime.probe.login-too-long","runtime.probe.login-alphabet","runtime.probe.email-required","runtime.probe.email-format","runtime.probe.password-required","runtime.probe.password-too-short","runtime.probe.confirm-required","runtime.probe.confirm-mismatch","runtime.probe.captcha-required","runtime.probe.captcha-wrong","runtime.probe.captcha-any-case","runtime.probe.password-needs-digit","runtime.probe.password-ten-with-digit","runtime.probe.phone-optional","runtime.probe.phone-format","runtime.probe.phone-valid"]},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"core","kind":"edit","repeat":2,"pass":false,"score":0.5,"minutes":0.58,"cost":null,"output":949,"input":4523,"turns":2,"failed":["workspace.entry","static.tsc","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"core","kind":"edit","repeat":3,"pass":false,"score":0.5,"minutes":1.8,"cost":null,"output":2858,"input":8974,"turns":3,"failed":["workspace.entry","static.tsc","runtime.load"]},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.4,"cost":null,"output":365,"input":19432,"turns":3},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.38,"cost":null,"output":440,"input":19495,"turns":3},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.42,"cost":null,"output":487,"input":26043,"turns":4},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":false,"score":0.286,"minutes":0.85,"cost":null,"output":1394,"input":3207,"turns":2,"failed":["workspace.entry","static.tsc","runtime.structure.fields","runtime.structure.absent","runtime.probe.login-required","runtime.probe.login-too-short","runtime.probe.login-too-long","runtime.probe.login-alphabet","runtime.probe.email-required","runtime.probe.email-format","runtime.probe.password-required","runtime.probe.password-too-short","runtime.probe.confirm-required","runtime.probe.confirm-mismatch","runtime.probe.captcha-required","runtime.probe.captcha-wrong","runtime.probe.password-needs-digit","runtime.probe.phone-optional","runtime.probe.phone-format","runtime.probe.phone-valid"]},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":2,"pass":false,"score":0.667,"minutes":1.32,"cost":null,"output":2151,"input":8909,"turns":4,"failed":["static.tsc","runtime.load"]},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":3,"pass":false,"score":0.667,"minutes":2.5,"cost":null,"output":3971,"input":24054,"turns":6,"failed":["static.tsc","runtime.load"]},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.4,"cost":null,"output":390,"input":19365,"turns":3},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":true,"score":1,"minutes":0.65,"cost":null,"output":754,"input":29941,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":true,"score":1,"minutes":0.48,"cost":null,"output":525,"input":27169,"turns":4},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":false,"score":0.643,"minutes":4.47,"cost":null,"output":6909,"input":12008,"turns":3,"failed":["runtime.structure.fields","runtime.structure.absent","runtime.probe.sample-valid","runtime.probe.password-too-short","runtime.probe.captcha-any-case","runtime.probe.password-needs-digit","runtime.probe.password-ten-with-digit","runtime.probe.phone-optional","runtime.probe.phone-format","runtime.probe.phone-valid"]},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":2,"pass":false,"score":0.571,"minutes":0.65,"cost":null,"output":1051,"input":5649,"turns":3,"failed":["static.tsc","static.validateCode","runtime.form"]},
+    {"arm":"no-mcp","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":3,"pass":false,"score":0.214,"minutes":1.22,"cost":null,"output":1908,"input":10190,"turns":4,"failed":["static.tsc","runtime.structure.fields","runtime.structure.absent","runtime.probe.sample-valid","runtime.probe.login-required","runtime.probe.login-too-short","runtime.probe.login-too-long","runtime.probe.login-alphabet","runtime.probe.email-required","runtime.probe.email-format","runtime.probe.password-required","runtime.probe.password-too-short","runtime.probe.confirm-required","runtime.probe.confirm-mismatch","runtime.probe.captcha-required","runtime.probe.captcha-wrong","runtime.probe.captcha-any-case","runtime.probe.password-needs-digit","runtime.probe.password-ten-with-digit","runtime.probe.phone-optional","runtime.probe.phone-format","runtime.probe.phone-valid"]}
+  ]
+}

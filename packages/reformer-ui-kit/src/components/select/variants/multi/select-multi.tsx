@@ -1,0 +1,515 @@
+import * as React from 'react';
+import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
+
+import { useKitMessages } from '@/i18n/messages';
+import { cn } from '@/lib/utils';
+import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { multiValueAdapter } from '@/fields/adapters';
+import { followFieldFontSize } from '@/fields/field-font-size';
+
+import {
+  useFieldTooltip,
+  CHEVRON_RESERVE,
+  TRAILING_CLEAR,
+  TRAILING_CLUSTER,
+} from '@/fields/field-tooltip';
+import { Badge } from '@/components/badge';
+import { Button } from '@/components/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
+import { Spinner } from '@/components/spinner';
+import { isNearBottom, type ResourceConfig, type NormalizedOption } from '../async/select-resource';
+import { useResourceOptions } from '../async/use-resource-options';
+
+/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N». */
+const DEFAULT_SUMMARY_THRESHOLD = 3;
+
+/**
+ * Пункты одной группы — подряд, группы в порядке первого появления (как у `SelectAsync`), внутри
+ * группы порядок исходный. Без этого перемешанные группы дали бы повторяющиеся заголовки.
+ */
+function groupInOrder(options: NormalizedOption[]): NormalizedOption[] {
+  if (!options.some((o) => o.group)) return options;
+  const buckets = new Map<string | undefined, NormalizedOption[]>();
+  for (const opt of options) {
+    const bucket = buckets.get(opt.group);
+    if (bucket) bucket.push(opt);
+    else buckets.set(opt.group, [opt]);
+  }
+  return [...buckets.values()].flat();
+}
+
+/** Опция мультивыбора, заданная inline (сериализуемый источник для формы/DSL). */
+export interface SelectMultiOption {
+  value: string;
+  label: string;
+  group?: string;
+}
+
+/** Props компонента {@link SelectMulti}. */
+export interface SelectMultiProps {
+  className?: string;
+  /**
+   * Выбранные значения. Приходит массивом всегда: `multiValueAdapter` разворачивает `null` в `[]`.
+   */
+  value?: string[];
+  /** Изменение выбора. Всегда получает НОВЫЙ массив — см. `multiValueAdapter`. */
+  onChange?: (value: string[]) => void;
+  /** Срабатывает при закрытии popover (снятие фокуса). */
+  onBlur?: () => void;
+  /** Inline-опции. Взаимоисключающи с `resource`: если заданы — источник не опрашивается. */
+  options?: SelectMultiOption[];
+  /**
+   * Асинхронный источник опций (`static` / `preload` / `partial`). В JSON-форме недостижим:
+   * требует функцию `load` — передаётся через реестр компонентов.
+   */
+  resource?: ResourceConfig<unknown>;
+  /**
+   * Лейблы для уже выбранных значений, которых может не быть в текущей странице опций.
+   *
+   * Нужен именно при `resource`: выбранное значение легко оказывается вне загруженной страницы
+   * (сменили поисковый запрос, перезагрузили источник, выбрали на первой странице и пролистали
+   * дальше). Без справочника чип показывал бы сырой `value`. Сериализуем — доступен и из JSON-DSL.
+   */
+  selectedOptions?: SelectMultiOption[];
+  /** Подсказка в триггере, пока ничего не выбрано. */
+  placeholder?: string;
+  /** Подсказка в поле поиска. */
+  searchPlaceholder?: string;
+  /** Текст пустого состояния (ничего не найдено). */
+  emptyText?: string;
+  /** Показывать крестик сброса ВСЕГО выбора. */
+  clearable?: boolean;
+  /** Подсказка-тултип у иконки (i) внутри поля: правее крестика очистки, левее шеврона. */
+  tooltip?: string;
+  /**
+   * Потолок числа выбранных: по достижении невыбранные пункты выключаются.
+   * Подсказка интерфейса, а НЕ правило формы — ограничение задавайте валидатором `maxLength(n)`.
+   */
+  maxItems?: number;
+  /** Сколько чипов показать в триггере до схлопывания в сводку. По умолчанию 3. */
+  summaryThreshold?: number;
+  disabled?: boolean;
+  /** id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке. */
+  id?: string;
+  /** Префикс `data-testid`; на триггер + `-<value>` на каждый пункт списка. */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+
+/**
+ * Императивный handle {@link SelectMulti}: baseline {@link FieldHandle} на кнопке-триггере +
+ * управление popover'ом и асинхронным источником.
+ */
+export interface SelectMultiHandle extends FieldHandle {
+  /** Открыть popover со списком. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить весь выбор. */
+  clear(): void;
+  /** Перезагрузить источник опций с первой страницы. */
+  reload(): void;
+  /** Догрузить следующую страницу (стратегия `partial`). */
+  loadMore(): void;
+}
+
+/**
+ * Select в режиме множественного выбора (вариант `multi`).
+ *
+ * Radix Select мультивыбора не поддерживает в принципе: его `Root` типизирован строго под одно
+ * значение, `SelectValue` рисует одно, а `SelectItem` даёт `role=option` в listbox без
+ * `aria-multiselectable`. Поэтому вариант НЕ переиспользует `select-base.tsx`, а строится на
+ * `Popover` со своим listbox.
+ *
+ * На cmdk (как `ComboboxMulti`) он тоже построен быть не может, и это ограничение упаковки, а не
+ * вкуса: каталоги `command` и `combobox` лежат в HEAVY и держат cmdk опциональным peer'ом, а
+ * `select` — лёгкий и попадает в главный barrel. Импорт `Command` сюда протащил бы cmdk в
+ * `dist/index.js` и сделал бы его обязательным для КАЖДОГО потребителя barrel'а. Отсюда свой
+ * listbox и своё поле поиска — ровно такое же, как уже есть в `select-async.tsx`.
+ *
+ * Стратегии источника, поиск и пагинация переиспользуются из соседнего варианта без изменений
+ * (`use-resource-options.ts` поверх чистого редьюсера `select-resource.ts`).
+ */
+const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(function SelectMulti(
+  {
+    className,
+    value,
+    onChange,
+    onBlur,
+    options: directOptions,
+    resource,
+    selectedOptions,
+    placeholder,
+    searchPlaceholder,
+    emptyText,
+    clearable = false,
+    tooltip,
+    maxItems,
+    summaryThreshold = DEFAULT_SUMMARY_THRESHOLD,
+    disabled,
+    id,
+    'data-testid': dataTestId,
+    'aria-invalid': ariaInvalid,
+    'aria-labelledby': ariaLabelledBy,
+    'aria-describedby': ariaDescribedBy,
+    'aria-errormessage': ariaErrorMessage,
+    'aria-required': ariaRequired,
+  },
+  ref
+) {
+  const t = useKitMessages();
+  const ro = useResourceOptions(resource);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const listRef = React.useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = React.useState(false);
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  // loadMore/reload меняют identity на каждом изменении состояния ресурса — держим их в ref,
+  // чтобы handle оставался стабильным, но звал всегда актуальные.
+  const roRef = React.useRef(ro);
+  roRef.current = ro;
+
+  const selected = React.useMemo(() => value ?? [], [value]);
+
+  const options: NormalizedOption[] = React.useMemo(() => {
+    const flat = directOptions
+      ? directOptions.map((opt) => ({
+          id: opt.value,
+          label: opt.label,
+          value: String(opt.value),
+          group: opt.group,
+        }))
+      : ro.options;
+    return groupInOrder(flat);
+  }, [directOptions, ro.options]);
+
+  // Опции уже упорядочены по группам — режем на секции подряд идущих пунктов одной группы.
+  // Клавиатура ходит по плоскому `options`, поэтому индексы секций совпадают с `activeIndex`.
+  const sections = React.useMemo(() => {
+    const out: { group?: string; start: number; items: NormalizedOption[] }[] = [];
+    options.forEach((opt, index) => {
+      const last = out[out.length - 1];
+      if (last && last.group === opt.group) last.items.push(opt);
+      else out.push({ group: opt.group, start: index, items: [opt] });
+    });
+    return out;
+  }, [options]);
+
+  // id пунктов — для aria-activedescendant: фокус остаётся на listbox, а скринридер должен
+  // слышать пункт, подсвеченный стрелками.
+  const listId = React.useId();
+  const optionId = (index: number) => `${listId}-option-${index}`;
+
+  /**
+   * Лейблы всех значений, которые когда-либо попадались в опциях этой сессии.
+   *
+   * Без кэша чип «слепнет» и показывает сырой `value` сразу же, как выбранное значение уходит из
+   * текущей страницы: сменили поисковый запрос, догрузили следующую страницу, перезагрузили
+   * источник. Кэш только пополняется — выбранные значения из `value` не выбрасываются никогда.
+   */
+  const labelCache = React.useRef<Map<string, string>>(new Map());
+  React.useEffect(() => {
+    for (const opt of options) labelCache.current.set(opt.value, opt.label);
+  }, [options]);
+  React.useEffect(() => {
+    for (const opt of selectedOptions ?? []) labelCache.current.set(opt.value, opt.label);
+  }, [selectedOptions]);
+
+  /** Порядок резолва: текущие опции → кэш → справочник выбранных → сырой value. */
+  const labelOf = React.useCallback(
+    (v: string) =>
+      options.find((o) => o.value === v)?.label ??
+      labelCache.current.get(v) ??
+      selectedOptions?.find((o) => o.value === v)?.label ??
+      v,
+    [options, selectedOptions]
+  );
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      ...makeElementFieldHandle(triggerRef),
+      open: () => setOpen(true),
+      close: () => setOpen(false),
+      clear: () => onChange?.([]),
+      reload: () => roRef.current.reload(),
+      loadMore: () => roRef.current.loadMore(),
+    }),
+    [onChange]
+  );
+
+  const atLimit = maxItems !== undefined && selected.length >= maxItems;
+  const showSearch = !directOptions && !!resource && ro.flags.searchable;
+  const initialLoading = !directOptions && ro.loading;
+  const loadError = !directOptions && ro.error && options.length === 0;
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) onBlur?.();
+    else setActiveIndex(0);
+  };
+
+  /** Тогл значения. Массив ВСЕГДА новый: сигнал бэйлится по `!==`. */
+  const toggle = (optionValue: string) => {
+    const has = selected.includes(optionValue);
+    if (!has && atLimit) return;
+    onChange?.(has ? selected.filter((v) => v !== optionValue) : [...selected, optionValue]);
+  };
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange?.([]);
+    // Крестик пропадает вместе с выбором — без переноса фокус клавиатуры упал бы на body.
+    triggerRef.current?.focus();
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!ro.flags.paginated) return;
+    if (isNearBottom(e.currentTarget)) ro.loadMore();
+  };
+
+  const handleListKeyDown = (e: React.KeyboardEvent) => {
+    if (options.length === 0) return;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, options.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+        break;
+      case 'Home':
+        e.preventDefault();
+        setActiveIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setActiveIndex(options.length - 1);
+        break;
+      case ' ':
+      case 'Enter': {
+        e.preventDefault();
+        const opt = options[activeIndex];
+        if (opt) toggle(opt.value);
+        break;
+      }
+    }
+  };
+
+  const showClearButton = clearable && selected.length > 0 && !disabled && !initialLoading;
+
+  // Правая зона — кластер [крестик][(i)] левее шеврона (он flex-ребёнок триггера и остаётся у края).
+
+  const hint = useFieldTooltip(tooltip, { id, describedBy: ariaDescribedBy, testId: dataTestId });
+
+  const trailingCount = (showClearButton ? 1 : 0) + (hint.node ? 1 : 0);
+  const collapsed = selected.length > summaryThreshold;
+
+  return (
+    <div className="relative w-full">
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            ref={triggerRef}
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            disabled={disabled || initialLoading}
+            id={id}
+            data-testid={dataTestId}
+            aria-invalid={ariaInvalid}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={hint.describedBy}
+            aria-errormessage={ariaErrorMessage}
+            aria-required={ariaRequired}
+            className={cn('h-auto min-h-9 w-full justify-between font-normal', className)}
+          >
+            {initialLoading ? (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Spinner className="size-4" />
+                {t('kit.select.loading')}
+              </span>
+            ) : selected.length === 0 ? (
+              <span className="truncate text-muted-foreground">
+                {placeholder ?? t('kit.select.placeholderMulti')}
+              </span>
+            ) : collapsed ? (
+              <span className="truncate" data-slot="select-multi-summary">
+                {t('kit.select.selected', { count: selected.length })}
+              </span>
+            ) : (
+              <span className="flex flex-wrap gap-1" data-slot="select-multi-chips">
+                {selected.map((v) => (
+                  <Badge key={v} variant="secondary" data-slot="select-multi-chip">
+                    {labelOf(v)}
+                  </Badge>
+                ))}
+              </span>
+            )}
+            <ChevronsUpDownIcon
+              className={cn('size-4 shrink-0 opacity-50', CHEVRON_RESERVE[trailingCount])}
+            />
+          </Button>
+        </PopoverTrigger>
+        {/* `text-sm` — размер списка, пока поле не найдено; пункты, поиск и служебные строки
+            своего размера не задают и идут за полем (`followFieldFontSize`). */}
+        <PopoverContent
+          ref={followFieldFontSize}
+          align="start"
+          className="w-(--radix-popover-trigger-width) p-0 text-sm"
+        >
+          {showSearch && (
+            <div className="sticky top-0 z-10 border-b bg-popover p-1">
+              <input
+                type="text"
+                value={ro.searchInput}
+                onChange={(e) => ro.setSearchInput(e.target.value)}
+                placeholder={searchPlaceholder ?? t('kit.select.search')}
+                className="w-full rounded-sm border border-input px-2 py-1 outline-none focus:border-ring"
+                aria-label={t('kit.select.searchLabel')}
+              />
+            </div>
+          )}
+          <div
+            ref={listRef}
+            role="listbox"
+            aria-multiselectable="true"
+            aria-activedescendant={options[activeIndex] ? optionId(activeIndex) : undefined}
+            tabIndex={0}
+            onKeyDown={handleListKeyDown}
+            onScroll={handleScroll}
+            className="max-h-60 overflow-y-auto p-1 outline-none"
+            data-slot="select-multi-list"
+          >
+            {loadError && (
+              <div className="px-2 py-1.5 text-destructive">{t('kit.select.loadError')}</div>
+            )}
+            {!loadError && options.length === 0 && !ro.loadingMore && (
+              <div className="px-2 py-1.5 text-muted-foreground">
+                {emptyText ?? t('kit.select.empty')}
+              </div>
+            )}
+            {sections.map((section) => {
+              const items = section.items.map((option, offset) => {
+                const index = section.start + offset;
+                const checked = selected.includes(option.value);
+                const blocked = atLimit && !checked;
+                return (
+                  <div
+                    key={option.value}
+                    id={optionId(index)}
+                    role="option"
+                    aria-selected={checked}
+                    aria-disabled={blocked || undefined}
+                    data-active={index === activeIndex ? '' : undefined}
+                    data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
+                    onClick={() => !blocked && toggle(option.value)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={cn(
+                      'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 select-none',
+                      'data-[active]:bg-accent data-[active]:text-accent-foreground',
+                      blocked && 'pointer-events-none opacity-50'
+                    )}
+                  >
+                    {option.label}
+                    {/* Отметка — у правого края, как у составного `Select`; место под неё
+                        занято и у невыбранного пункта. */}
+                    <CheckIcon
+                      data-slot="select-multi-check"
+                      className={cn(
+                        'ml-auto size-4 shrink-0',
+                        checked ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </div>
+                );
+              });
+              if (!section.group) return items;
+              // Заголовок группы — как `SelectLabel` у одиночного Select; группа подписана им.
+              const labelId = `${listId}-group-${section.start}`;
+              return (
+                <div
+                  key={`group-${section.start}`}
+                  role="group"
+                  aria-labelledby={labelId}
+                  data-slot="select-multi-group"
+                >
+                  <div
+                    id={labelId}
+                    data-slot="select-multi-group-label"
+                    className="px-2 py-1.5 text-xs text-muted-foreground"
+                  >
+                    {section.group}
+                  </div>
+                  {items}
+                </div>
+              );
+            })}
+            {ro.loadingMore && (
+              <div className="flex justify-center py-2">
+                <Spinner className="size-4" />
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {trailingCount > 0 && (
+        <div data-slot="select-trailing" className={TRAILING_CLUSTER}>
+          {showClearButton && (
+            <button
+              type="button"
+              // Крестик в порядке Tab; `TRAILING_CLEAR` гасит outline — видимый фокус даёт кольцо.
+              className={cn(
+                TRAILING_CLEAR,
+                'rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50'
+              )}
+              onClick={handleClear}
+              aria-label={t('kit.select.clear')}
+            >
+              <XIcon className="size-4" />
+            </button>
+          )}
+          {hint.node}
+        </div>
+      )}
+    </div>
+  );
+});
+SelectMulti.displayName = 'SelectMulti';
+
+/**
+ * Value-based контракт SelectMulti в форме. Значение — `string[] | null`; форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`
+ * (кроме `resource` — он требует функцию и передаётся через реестр компонентов).
+ * Служит типом для стража props-схемы.
+ */
+export interface SelectMultiFormProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: SelectMultiOption[];
+  selectedOptions?: SelectMultiOption[];
+  resource?: ResourceConfig<unknown>;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  className?: string;
+}
+
+// Диалект формы: `string[] | null` ↔ массив композита (пустой выбор → null) — статика.
+defineFieldControl(SelectMulti, { adapter: multiValueAdapter });
+
+export { SelectMulti };

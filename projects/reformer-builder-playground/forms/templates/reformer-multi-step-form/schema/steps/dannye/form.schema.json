@@ -1,0 +1,64 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "selector": "personal-step",
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Данные"
+    },
+    "children": [
+      {
+        "component": "$component(Box)",
+        "componentProps": {
+          "className": "space-y-4"
+        },
+        "children": [
+          {
+            "model": "$model(lastName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Фамилия",
+              "placeholder": "Иванов",
+              "required": true
+            }
+          },
+          {
+            "model": "$model(firstName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "placeholder": "Иван",
+              "required": true
+            }
+          },
+          {
+            "model": "$model(fullName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Полное имя",
+              "description": "Собирается из фамилии и имени",
+              "readOnly": true
+            }
+          },
+          {
+            "model": "$model(birthDate)",
+            "component": "$component(DatePicker)",
+            "componentProps": {
+              "label": "Дата рождения",
+              "placeholder": "ДД.ММ.ГГГГ",
+              "dateFormat": "dd.MM.yyyy"
+            }
+          },
+          {
+            "model": "$model(gender)",
+            "component": "$component(RadioGroup)",
+            "componentProps": {
+              "label": "Пол",
+              "options": "$dataSource(GENDERS)"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

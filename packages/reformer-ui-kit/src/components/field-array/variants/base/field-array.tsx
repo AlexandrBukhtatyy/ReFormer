@@ -1,0 +1,200 @@
+/**
+ * FieldArray — editable-секция массива для renderer-json (`$component(FieldArray)`).
+ *
+ * Редактируемый двойник {@link List}: элементы приходят **уже отрендеренными** в пропе `items`
+ * (`{ key, index, model, children }`), а FieldArray добавляет хром — заголовок, кнопку «Добавить»,
+ * карточку с меткой на элемент, кнопки удаления и (опц.) перестановки ↑/↓. Мутации массива идут
+ * через колбэки `onAdd`/`onRemove`/`onMove`, поэтому компонент не знает ни про модель, ни про
+ * рендерер: итерация, подписка и кэш — на вызывающей стороне.
+ *
+ * `data-testid` (`array-add`, `array-item-N`, `-remove`, `-move-up/down`) — стабильный публичный
+ * контракт: на них завязаны e2e-тесты. Отличается от `FieldArraySection` тем, что рассчитан на
+ * рендерер (`items` из схемы), а не на headless-контрол `@reformer/cdk/field-array`.
+ */
+import type { ReactNode } from 'react';
+import { useKitMessages } from '@/i18n/messages';
+import type { ArrayComponentProps, ArrayItemSlot } from '@/lib/array-slot';
+
+export interface FieldArrayProps extends ArrayComponentProps {
+  /** Отрендеренные элементы массива (инъектится рендерером). */
+  items?: ArrayItemSlot[];
+  /** Добавить элемент (инъектится рендерером; элемент берётся из шаблона массива модели). */
+  onAdd?: () => void;
+  /** Удалить элемент по индексу (инъектится рендерером). */
+  onRemove?: (index: number) => void;
+  /** Переместить элемент (инъектится рендерером). Нужен при `reorderable`. */
+  onMove?: (from: number, to: number) => void;
+  /** Заголовок секции (h3). */
+  title?: string;
+  /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  itemLabel?: string | ((model: any, index: number) => string);
+  /**
+   * Текст кнопки добавления. По умолчанию — из словаря локали.
+   * @defaultMessage kit.fieldArray.add
+   */
+  addButtonLabel?: string;
+  /**
+   * Текст кнопки удаления. По умолчанию — из словаря локали. Имя кнопки для скринридера —
+   * этот текст плюс метка строки (`kit.fieldArray.itemAction`: «Удалить: Элемент #2»), чтобы
+   * кнопки разных строк различались; так же подписаны ↑/↓.
+   * @defaultMessage kit.fieldArray.remove
+   */
+  removeButtonLabel?: string;
+  /** Сообщение пустого состояния. */
+  emptyMessage?: string;
+  /** Подсказка под пустым состоянием. */
+  emptyMessageHint?: string;
+  /** Кнопки ↑/↓ перестановки. По умолчанию `false`. */
+  reorderable?: boolean;
+  /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
+  showRemoveOnSingle?: boolean;
+  /**
+   * Максимум элементов: на пределе кнопка «Добавить» скрыта, как у `FieldArraySection`. Предел
+   * для данных задаёт правило `maxLength(n)` на массив (замечание `maxItems`), а этот проп только
+   * не даёт его превысить из разметки.
+   */
+  maxItems?: number;
+  /**
+   * Минимум элементов — пара к `maxItems`: на минимуме кнопка «Удалить» скрыта (перекрывает
+   * `showRemoveOnSingle`). Ассистент конструктора начинает массив с этим числом пустых строк, так
+   * задание «минимум один контакт» стартует с одной строкой. Правило для данных — `minLength(n)` на
+   * массив (замечание `minItems`).
+   */
+  minItems?: number;
+  /** Внешний className секции. */
+  className?: string;
+  /** Класс card-обёртки элемента. */
+  cardClassName?: string;
+}
+
+const ADD_BTN =
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
+const REMOVE_BTN =
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-white shadow hover:bg-destructive/90 h-9 px-4 py-2';
+const MOVE_BTN =
+  'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9';
+
+export function FieldArray({
+  items = [],
+  onAdd,
+  onRemove,
+  onMove,
+  title,
+  itemLabel,
+  addButtonLabel,
+  removeButtonLabel,
+  emptyMessage,
+  emptyMessageHint,
+  reorderable = false,
+  showRemoveOnSingle = false,
+  maxItems,
+  minItems,
+  className = 'space-y-3 mt-2',
+  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
+}: FieldArrayProps): ReactNode {
+  const t = useKitMessages();
+  const length = items.length;
+  const atMaxItems = maxItems != null && length >= maxItems;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getItemLabel = (model: any, index: number): string =>
+    typeof itemLabel === 'function'
+      ? itemLabel(model, index)
+      : `${(itemLabel as string) ?? title ?? t('kit.fieldArray.item')} #${index + 1}`;
+  // Подпись действия над строкой для скринридера: «Удалить: Имущество #2» — как у
+  // `FieldArraySection`, иначе все «Удалить» и ↑/↓ звучат одинаково.
+  const itemAction = (action: string, item: string): string =>
+    t('kit.fieldArray.itemAction', { action, item });
+
+  const addBtn = (cls: string) =>
+    atMaxItems ? null : (
+      <button type="button" data-testid="array-add" className={cls} onClick={onAdd}>
+        {addButtonLabel ?? t('kit.fieldArray.add')}
+      </button>
+    );
+
+  return (
+    <section className={className} data-slot="field-array">
+      {title ? (
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          {addBtn(ADD_BTN)}
+        </div>
+      ) : null}
+
+      {items.map((it) => {
+        const showRemove = minItems != null ? length > minItems : showRemoveOnSingle || length > 1;
+        const label = getItemLabel(it.model, it.index);
+        const removeLabel = removeButtonLabel ?? t('kit.fieldArray.remove');
+        // Шапка — когда в ней есть что показать: метка или кнопки. Без title/itemLabel её раньше
+        // не было вовсе, и вместе с ней пропадали «Удалить» и ↑/↓.
+        const showLabel = Boolean(title || itemLabel);
+        const showHeader = showLabel || showRemove || reorderable;
+        return (
+          <div key={it.key} className={cardClassName} data-testid={`array-item-${it.index}`}>
+            {showHeader ? (
+              <div
+                className={`flex items-center mb-3 ${showLabel ? 'justify-between' : 'justify-end'}`}
+              >
+                {showLabel ? <h4 className="font-medium">{label}</h4> : null}
+                <div className="flex items-center gap-2">
+                  {reorderable ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={itemAction(t('kit.fieldArray.moveUp'), label)}
+                        data-testid={`array-item-${it.index}-move-up`}
+                        className={MOVE_BTN}
+                        disabled={it.index === 0}
+                        onClick={() => onMove?.(it.index, it.index - 1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={itemAction(t('kit.fieldArray.moveDown'), label)}
+                        data-testid={`array-item-${it.index}-move-down`}
+                        className={MOVE_BTN}
+                        disabled={it.index === length - 1}
+                        onClick={() => onMove?.(it.index, it.index + 1)}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  ) : null}
+                  {showRemove ? (
+                    <button
+                      type="button"
+                      // Видимая подпись — начало имени (WCAG 2.5.3 «Label in Name»).
+                      aria-label={itemAction(removeLabel, label)}
+                      data-testid={`array-item-${it.index}-remove`}
+                      className={REMOVE_BTN}
+                      onClick={() => onRemove?.(it.index)}
+                    >
+                      {removeLabel}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {it.children}
+          </div>
+        );
+      })}
+
+      {length === 0 && emptyMessage ? (
+        <div className="p-4 bg-muted border rounded text-center text-muted-foreground">
+          {emptyMessage}
+          {emptyMessageHint ? (
+            <div className="mt-2 text-xs text-muted-foreground/80">{emptyMessageHint}</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!title ? (
+        <div>{addBtn('text-sm text-primary hover:text-primary/80 hover:underline')}</div>
+      ) : null}
+    </section>
+  );
+}

@@ -1,0 +1,16 @@
+/**
+ * Словарь плагина управления плагинами.
+ *
+ * Строки везёт и вносит сам плагин (`ctx.i18n.contribute` при активации). Вклад в словарь не
+ * снимается вместе с плагином, значит и частью его подписок быть не может, а тексты лежат в JSON,
+ * чтобы их можно было отдать переводчику, не показывая TypeScript.
+ *
+ * @module plugins/base/plugin-manager/messages
+ */
+
+import en from './locales/en.json';
+import ru from './locales/ru.json';
+
+/** Локаль → ключ (без пространства имён) → сообщение. */
+export const PLUGIN_MANAGER_MESSAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
+  Object.freeze({ ru, en });

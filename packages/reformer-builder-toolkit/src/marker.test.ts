@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest';
+import {
+  acceptsMarker,
+  isGenerated,
+  keepOrigin,
+  MARKER_PREFIX,
+  originOf,
+  withMarker,
+} from '@reformer/builder-toolkit';
+
+describe('маркер происхождения', () => {
+  it('приписывается первой строкой и идемпотентен', () => {
+    const once = withMarker('export const a = 1;\n');
+    const twice = withMarker(once);
+    expect(once.startsWith(MARKER_PREFIX)).toBe(true);
+    expect(twice).toBe(once);
+  });
+
+  it('различает три состояния файла', () => {
+    const generated = withMarker('body\n');
+    expect(originOf(generated)).toBe('generated');
+    expect(originOf(`${generated}// правка\n`)).toBe('edited');
+    expect(originOf('просто файл\n')).toBe('handwritten');
+    expect(originOf(null)).toBe('handwritten');
+  });
+
+  it('перезапись разрешена только своему нетронутому файлу', () => {
+    expect(isGenerated(withMarker('x\n'))).toBe(true);
+    expect(isGenerated(`${withMarker('x\n')} `)).toBe(false);
+    expect(isGenerated('x\n')).toBe(false);
+  });
+
+  it('разный текст даёт разный хэш', () => {
+    const a = withMarker('a\n').split('\n')[0];
+    const b = withMarker('b\n').split('\n')[0];
+    expect(a).not.toBe(b);
+  });
+});
+
+describe(`где маркер допустим`, () => {
+  it(`строка // — комментарий только в части форматов`, () => {
+    expect(acceptsMarker(`model.ts`)).toBe(true);
+    expect(acceptsMarker(`index.tsx`)).toBe(true);
+    expect(acceptsMarker(`theme.css`)).toBe(true);
+    // JSON комментариев не знает: маркер сделал бы файл неразбираемым — и для редактора
+    // схемы, и для импорта в сгенерированном модуле.
+    expect(acceptsMarker(`form.schema.json`)).toBe(false);
+    expect(acceptsMarker(`renderer.schema.json`)).toBe(false);
+    expect(acceptsMarker(`README.md`)).toBe(false);
+    // Неизвестный формат безопаснее оставить без пометки, чем испортить.
+    expect(acceptsMarker(`LICENSE`)).toBe(false);
+  });
+});
+
+describe('происхождение после подстановки', () => {
+  it('нетронутый вывод генератора остаётся «сгенерированным» и после замены имени', () => {
+    const before = withMarker('export const fooForm = 1;\n');
+    const after = before.replace('fooForm', 'barForm');
+    expect(isGenerated(after)).toBe(false);
+    expect(isGenerated(keepOrigin(before, after))).toBe(true);
+  });
+
+  it('файл человека и правленный — как есть: маркер им не выдумывается и не чинится', () => {
+    expect(keepOrigin('мой файл\n', 'мой файл 2\n')).toBe('мой файл 2\n');
+    const edited = `${withMarker('x\n')}// правка\n`;
+    expect(keepOrigin(edited, `${edited}// ещё\n`)).toBe(`${edited}// ещё\n`);
+  });
+});

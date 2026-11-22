@@ -1,0 +1,76 @@
+{
+  "name": "@reformer/builder-plugin-cli",
+  "version": "1.0.0",
+  "description": "Command-line tools for ReFormer Builder plugin authors: scaffold, validate, build, develop and pack a plugin, generate a kit catalog from TypeScript types",
+  "type": "module",
+  "bin": {
+    "reformer-plugin": "./bin/reformer-plugin.mjs"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "import": "./dist/catalog/index.js"
+    },
+    "./catalog-config": {
+      "types": "./dist/catalog/config.d.ts",
+      "import": "./dist/catalog/config.js"
+    }
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "test": "node ../../scripts/run-vitest.mjs"
+  },
+  "keywords": [
+    "reformer",
+    "builder",
+    "plugin",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-builder-plugin-cli"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "es-module-lexer": "^1.7.0",
+    "esbuild": "^0.27.1"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0 <6"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}

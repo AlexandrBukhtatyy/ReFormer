@@ -1,0 +1,13 @@
+<% const T = it.names.TypeName; -%>
+<% const rules = it.step.validation; -%>
+<% const rulesBody = rules.body.length > 0 ? it.indent(rules.body, 2) : '  // TODO: правила шага'; -%>
+// <%= it.step.files.validation %> — правила шага «<%= it.step.title %>»: их проверяет «Далее», отправка — все шаги сразу.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+<%~ rules.imports.join('\n') %>
+import type { <%= T %> } from '<%= it.step.imports.types %>';
+
+/** Правила шага «<%= it.step.title %>»: их проверяет «Далее». */
+<%~ it.format(`export const stepRules = defineValidation<${T}>((${rules.params}) => {
+${rulesBody}
+});`) %>

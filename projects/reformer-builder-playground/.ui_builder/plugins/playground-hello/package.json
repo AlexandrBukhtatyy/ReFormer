@@ -1,0 +1,22 @@
+{
+  "name": "playground-hello",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Плагин-образец ReFormer Builder: одна команда, подпись которой берётся из словаря плагина",
+  "scripts": {
+    "validate": "reformer-plugin validate src",
+    "build:dev": "reformer-plugin build src --out .",
+    "build:dist": "reformer-plugin build src --out dist --minify",
+    "dev": "reformer-plugin dev src --project ../../..",
+    "pack": "reformer-plugin pack src --out .",
+    "test": "node ../../../../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-plugin-cli": "*",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.8"
+  }
+}

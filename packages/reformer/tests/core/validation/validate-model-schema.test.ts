@@ -1,0 +1,267 @@
+/**
+ * Unit-тесты нового контракта валидации — `@reformer/core/validation` (validateModel + операторы).
+ *
+ * Покрывает: boolean-результат, warning-неблокирование, validateWhen-гейтинг + гашение, validateAsync,
+ * cross (снапшот), apply-композицию, applyEach-массивы, роутинг ошибок в ноды + очистку, owned на пару
+ * (model, schema), defineValidation (identity), вызов оператора вне прогона.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { InputStub as C } from '../../test-utils/stubs';
+import { createModel } from '../../../src/model/index';
+import { createFormFromModel } from '../../../src/form/create-form';
+import { required, min, minLength, email, pattern } from '../../../src/form/validators';
+import {
+  validate,
+  validateAsync,
+  validateWhen,
+  apply,
+  applyEach,
+  defineValidation,
+  validateModel,
+  type ValidationDefinition,
+} from '../../../src/form/validation';
+
+interface F {
+  name: string;
+  age: number;
+  loanType: 'a' | 'b';
+  extra: string;
+  ratio: number;
+  optionalEmail: string | null; // nullable-строка — проверка расширенных string-валидаторов
+  items: { email: string; amount: number }[];
+}
+
+const INITIAL: F = {
+  name: '',
+  age: 0,
+  loanType: 'a',
+  extra: '',
+  ratio: 0,
+  optionalEmail: null,
+  items: [],
+};
+
+/** Модель без формы — для проверки boolean-результата (роутинг no-op). */
+const makeModel = (over: Partial<F> = {}) => createModel<F>({ ...INITIAL, ...over });
+
+/** Модель + форма (ноды зарегистрированы) — для проверки роутинга/очистки. */
+function makeForm(over: Partial<F> = {}) {
+  const model = createModel<F>({ ...INITIAL, ...over });
+  const schema = {
+    component: C,
+    children: [
+      { model: model.$.name, component: C },
+      { model: model.$.age, component: C },
+      { model: model.$.loanType, component: C },
+      { model: model.$.extra, component: C },
+      { model: model.$.ratio, component: C },
+    ],
+  };
+  const form = createFormFromModel<F>({ model, schema });
+  return { model, form };
+}
+
+describe('@reformer/core/validation — validateModel + операторы', () => {
+  it('boolean: валидная модель → true, невалидная → false', async () => {
+    const schema: ValidationDefinition<F> = ({ model }) => {
+      validate(model.$.name, [required(), minLength(2)]);
+    };
+    expect(await validateModel(makeModel({ name: '' }), schema)).toBe(false);
+    expect(await validateModel(makeModel({ name: 'x' }), schema)).toBe(false); // minLength
+    expect(await validateModel(makeModel({ name: 'Иван' }), schema)).toBe(true);
+  });
+
+  it('warning не блокирует submit (severity:"warning" → valid)', async () => {
+    const schema: ValidationDefinition<F> = ({ model, cross }) => {
+      cross(model.$.ratio, (f) =>
+        f.ratio > 40 ? { code: 'warn', message: 'высокая нагрузка', severity: 'warning' } : null
+      );
+    };
+    expect(await validateModel(makeModel({ ratio: 50 }), schema)).toBe(true); // warning, но valid
+  });
+
+  it('validateWhen: правило в выключенной ветке не срабатывает; во включённой — блокирует', async () => {
+    const schema: ValidationDefinition<F> = ({ model }) => {
+      validateWhen(
+        () => model.loanType === 'b',
+        () => validate(model.$.extra, [required()])
+      );
+    };
+    expect(await validateModel(makeModel({ loanType: 'a', extra: '' }), schema)).toBe(true);
+    expect(await validateModel(makeModel({ loanType: 'b', extra: '' }), schema)).toBe(false);
+    expect(await validateModel(makeModel({ loanType: 'b', extra: 'ok' }), schema)).toBe(true);
+  });
+
+  it('validateAsync: async-ошибка блокирует; async-успех — нет', async () => {
+    const asyncFail: ValidationDefinition<F> = ({ model }) => {
+      validateAsync(model.$.name, [
+        async (v) => {
+          await Promise.resolve();
+          return v === 'taken' ? { code: 'taken', message: 'занято' } : null;
+        },
+      ]);
+    };
+    expect(await validateModel(makeModel({ name: 'taken' }), asyncFail)).toBe(false);
+    expect(await validateModel(makeModel({ name: 'free' }), asyncFail)).toBe(true);
+  });
+
+  it('validateAsync: сбой правила (throw) блокирует — результата проверки нет', async () => {
+    const schema: ValidationDefinition<F> = ({ model }) => {
+      validateAsync(model.$.name, [
+        async () => {
+          throw new Error('network');
+        },
+      ]);
+    };
+    expect(await validateModel(makeModel({ name: 'x' }), schema)).toBe(false);
+  });
+
+  it('applyEach: per-item валидация массива', async () => {
+    const itemRules = defineValidation<F['items'][number]>(({ model }) => {
+      validate(model.$.email, [required(), email()]);
+      validate(model.$.amount, [min(100)]);
+    });
+    const schema: ValidationDefinition<F> = ({ model }) => {
+      applyEach(model.$.items, itemRules);
+    };
+    expect(await validateModel(makeModel({ items: [] }), schema)).toBe(true); // пустой массив
+    expect(
+      await validateModel(makeModel({ items: [{ email: 'a@b.c', amount: 200 }] }), schema)
+    ).toBe(true);
+    expect(await validateModel(makeModel({ items: [{ email: '', amount: 200 }] }), schema)).toBe(
+      false
+    );
+    expect(await validateModel(makeModel({ items: [{ email: 'a@b.c', amount: 5 }] }), schema)).toBe(
+      false
+    );
+  });
+
+  it('apply: композиция под-схем валидирует все', async () => {
+    const s1 = defineValidation<F>(({ model }) => validate(model.$.name, [required()]));
+    const s2 = defineValidation<F>(({ model }) => validate(model.$.age, [min(18)]));
+    const form = defineValidation<F>(({ model: _m }) => apply(s1, s2));
+    expect(await validateModel(makeModel({ name: 'Иван', age: 20 }), form)).toBe(true);
+    expect(await validateModel(makeModel({ name: '', age: 20 }), form)).toBe(false);
+    expect(await validateModel(makeModel({ name: 'Иван', age: 5 }), form)).toBe(false);
+  });
+
+  it('роутинг: ошибки доезжают до нод; поле, ставшее валидным, гасится', async () => {
+    const { model, form } = makeForm({ name: '' });
+    const schema: ValidationDefinition<F> = ({ model }) => validate(model.$.name, [required()]);
+
+    await validateModel(model, schema);
+    expect(form.name.issues.value.map((e) => e.code)).toEqual(['required']);
+
+    form.name.setValue('Иван'); // поле стало валидным
+    await validateModel(model, schema);
+    expect(form.name.issues.value).toEqual([]); // очищено через owned
+  });
+
+  it('validateWhen гасит ошибки полей при выключении ветки', async () => {
+    const { model, form } = makeForm({ loanType: 'b', extra: '' });
+    const schema: ValidationDefinition<F> = ({ model }) =>
+      validateWhen(
+        () => model.loanType === 'b',
+        () => validate(model.$.extra, [required()])
+      );
+
+    await validateModel(model, schema);
+    expect(form.extra.issues.value.map((e) => e.code)).toEqual(['required']);
+
+    form.loanType.setValue('a'); // ветка выключилась
+    await validateModel(model, schema);
+    expect(form.extra.issues.value).toEqual([]); // touch без gate → setIssues([])
+  });
+
+  it('owned на пару (model, schema): валидация одной схемы не гасит ошибки другой', async () => {
+    const { model, form } = makeForm({ name: '', age: 0 });
+    const sName = defineValidation<F>(({ model }) => validate(model.$.name, [required()]));
+    const sAge = defineValidation<F>(({ model }) => validate(model.$.age, [min(18)]));
+
+    await validateModel(model, sName);
+    expect(form.name.issues.value).toHaveLength(1);
+
+    await validateModel(model, sAge); // другая схема — НЕ должна гасить name
+    expect(form.age.issues.value).toHaveLength(1);
+    expect(form.name.issues.value).toHaveLength(1); // ошибка name сохранилась
+  });
+
+  it('cross: снапшот модели читается через fn', async () => {
+    const { model, form } = makeForm({ age: 10 });
+    const schema: ValidationDefinition<F> = ({ model, cross }) =>
+      cross(model.$.age, (f) => (f.age < 18 ? { code: 'minor' } : null));
+    await validateModel(model, schema);
+    expect(form.age.issues.value.map((e) => e.code)).toEqual(['minor']);
+  });
+
+  it('nullable-строковое поле (string|null) принимает встроенные string-валидаторы', async () => {
+    // Тип-проверка (контракт): email()/pattern() должны присваиваться в validate() на поле string|null.
+    const schema: ValidationDefinition<F> = ({ model }) => {
+      validate(model.$.optionalEmail, [email(), pattern(/^\S+$/)]);
+    };
+    expect(await validateModel(makeModel({ optionalEmail: null }), schema)).toBe(true); // null пропускается
+    expect(await validateModel(makeModel({ optionalEmail: 'a@b.c' }), schema)).toBe(true);
+    expect(await validateModel(makeModel({ optionalEmail: 'not-email' }), schema)).toBe(false);
+  });
+
+  it('оператор вне validateModel бросает понятную ошибку', () => {
+    const model = makeModel();
+    expect(() => validate(model.$.name, [required()])).toThrow(/вне схемы валидации/);
+  });
+
+  it('устаревший (отменённый) прогон fail-closed: не рапортует «валидно»', async () => {
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const model = makeModel({ name: 'taken' });
+    // async-правило: занятое имя → ошибка; при отмене возвращает null (skip)
+    const schema = defineValidation<F>(({ model }) => {
+      validateAsync(model.$.name, [
+        async (_v, { signal }) => {
+          await delay(20);
+          return signal.aborted ? null : { code: 'taken', message: 'занято' };
+        },
+      ]);
+    });
+    const p1 = validateModel(model, schema); // устаревает (p2 его аортит)
+    const p2 = validateModel(model, schema); // побеждает
+    const [r1, r2] = await Promise.all([p1, p2]);
+    expect(r1).toBe(false); // без fail-closed фикса вернулось бы true (async-ошибка скипнута отменой)
+    expect(r2).toBe(false); // честный: name='taken' занято
+  });
+
+  describe('опция { touch } (§6)', () => {
+    it('метит touched ТОЛЬКО провалидированные поля (не всё поддерево)', async () => {
+      const { model, form } = makeForm({ name: '' });
+      const schema: ValidationDefinition<F> = ({ model }) => validate(model.$.name, [required()]); // проверяет только name
+
+      expect(form.name.touched.value).toBe(false);
+      expect(form.age.touched.value).toBe(false);
+
+      await validateModel(model, schema, { touch: true });
+
+      expect(form.name.touched.value).toBe(true); // провалидированное → touched
+      expect(form.name.issues.value.map((e) => e.code)).toEqual(['required']); // ошибка теперь видима
+      expect(form.age.touched.value).toBe(false); // не упомянутое схемой → НЕ тронуто
+    });
+
+    it('без { touch } валидация не метит touched (обратная совместимость)', async () => {
+      const { model, form } = makeForm({ name: '' });
+      const schema: ValidationDefinition<F> = ({ model }) => validate(model.$.name, [required()]);
+
+      await validateModel(model, schema);
+
+      expect(form.name.touched.value).toBe(false); // touched не тронут
+      expect(form.name.issues.value.map((e) => e.code)).toEqual(['required']); // ошибка есть, но невидима
+    });
+
+    it('метит и валидные провалидированные поля (безвредно)', async () => {
+      const { model, form } = makeForm({ name: 'Иван' });
+      const schema: ValidationDefinition<F> = ({ model }) => validate(model.$.name, [required()]);
+
+      await validateModel(model, schema, { touch: true });
+
+      expect(form.name.touched.value).toBe(true);
+      expect(form.name.issues.value).toEqual([]); // валидно → ошибок нет, touched безвреден
+    });
+  });
+});

@@ -1,0 +1,168 @@
+/**
+ * Сохранение и «изменён ли» с учётом документов из нескольких файлов.
+ *
+ * Составной документ (корень + части, `workspace/model/model-document`) для человека — одна
+ * вкладка. Значит и звёздочка на ней, и Ctrl+S обязаны касаться ВСЕХ его файлов: правка шага
+ * в канвасе пишет файл шага, а не корень, и без этого вкладка корня выглядела бы чистой, а
+ * сохранение корня оставляло бы шаг несохранённым.
+ *
+ * Удаление выпавших частей — тоже здесь, а не в документе: оно идёт мимо рабочей копии прямо в
+ * источник, и до сохранения его откладывают ровно затем, чтобы отмена возвращала часть без следа.
+ *
+ * И ещё одно «сначала»: правка модели доходит до буфера асинхронно. Сохранение, начатое сразу
+ * за ней (Ctrl+S следом за выбором в инспекторе), записало бы прежний текст и сообщило бы, что
+ * всё сохранено. Поэтому перед записью модель догоняет буфер (`flush`).
+ *
+ * Сопутствующие файлы (`DocumentModelProvider.companionsDir`) уезжают только по просьбе человека
+ * ({@link DocumentSaveOptions}): его Ctrl+S на форме значит «сохрани форму», а форма без кода
+ * модуля на диске не работает. На звёздочку вкладки они не влияют: она говорит о правках самого
+ * документа, а правка в файле модуля помечается на его собственной вкладке и в строке состояния.
+ *
+ * @module shell/boot/project/document-save
+ */
+
+import {
+  isInside,
+  parseResourceId,
+  toDisposable,
+  type Disposable,
+  type ResourceId,
+  type WorkspaceSaveOptions,
+} from '@reformer/builder-plugin-api/internal';
+import type { ResourceOperations } from '@/shell/platform/workspace/resource-ops';
+import type { SaveResult, Workspace } from '@/shell/platform/workspace/workspace';
+import type { DocumentModels } from './document-models';
+
+export type DocumentSaveOptions = WorkspaceSaveOptions;
+
+export interface DocumentSaveDeps {
+  readonly workspace: Pick<
+    Workspace,
+    'save' | 'isDirty' | 'readBase' | 'revert' | 'forget' | 'dirtyResources'
+  >;
+  readonly models: Pick<DocumentModels, 'handleOf' | 'opened'>;
+  readonly resources: Pick<ResourceOperations, 'remove'>;
+  /**
+   * Каталог сопутствующих файлов документа — ответ его провайдера модели; `null` — их нет.
+   * Необязателен: сборке без провайдеров спрашивать не у кого.
+   */
+  readonly companionsDirOf?: (id: ResourceId) => string | null;
+}
+
+export interface DocumentSave {
+  /** Сохранить ресурс вместе с частями его документа; без аргумента — всё изменённое. */
+  save(id?: ResourceId, options?: DocumentSaveOptions): Promise<SaveResult>;
+  /** Изменён ли ресурс — вместе с частями и с частями, ждущими удаления. */
+  isDirty(id: ResourceId): boolean;
+  /**
+   * Удаление частей документа закончено: его изменённость поменялась без единой записи рабочей
+   * области, и вкладка иначе так и осталась бы со звёздочкой.
+   */
+  onDidSave(cb: (root: ResourceId) => void): Disposable;
+}
+
+function merged(results: readonly SaveResult[]): SaveResult {
+  return {
+    ok: results.every((result) => result.ok),
+    saved: results.flatMap((result) => result.saved),
+    conflicts: results.flatMap((result) => result.conflicts),
+    failures: results.flatMap((result) => result.failures),
+  };
+}
+
+export function createDocumentSave(deps: DocumentSaveDeps): DocumentSave {
+  const { workspace, models, resources } = deps;
+  const listeners = new Set<(root: ResourceId) => void>();
+
+  /**
+   * Удалить части, выпавшие из документа. Локально созданная и не сохранённая ни разу часть
+   * в источнике не существует — её достаточно откатить в рабочей копии.
+   */
+  const removeParts = async (root: ResourceId): Promise<void> => {
+    const handle = models.handleOf(root);
+    const gone = handle?.removedParts() ?? [];
+    if (handle === null || gone.length === 0) return;
+    const done: ResourceId[] = [];
+    const inSource: ResourceId[] = [];
+    for (const id of gone) {
+      const base = await workspace.readBase(id).catch(() => null);
+      if (base === null) {
+        await workspace.revert(id).catch(() => undefined);
+        done.push(id);
+      } else {
+        inSource.push(id);
+      }
+    }
+    if (inSource.length > 0) {
+      const result = await resources.remove(inSource);
+      done.push(...result.done);
+      for (const failure of result.failed) {
+        // Файла в источнике уже нет — удалять нечего; остаётся забыть рабочую копию.
+        if ((failure.error as { kind?: unknown } | null)?.kind === 'not-found') {
+          await workspace.forget(failure.id).catch(() => undefined);
+          done.push(failure.id);
+          continue;
+        }
+        console.error(`[workspace] часть «${failure.id}» не удалена`, failure.error);
+      }
+    }
+    handle.forgetRemoved(done);
+    for (const cb of [...listeners]) cb(root);
+  };
+
+  /** Модель догоняет буфер. Её отказ сохранение не отменяет: буфер сохраняется, какой есть. */
+  const settle = async (handle: { flush(): Promise<void> } | null): Promise<void> => {
+    try {
+      await handle?.flush();
+    } catch (error) {
+      console.error('[workspace] модель не догнала буфер перед сохранением', error);
+    }
+  };
+
+  /**
+   * Изменённые сопутствующие файлы документа. Каталог `''` — документ в корне проекта: сопутствующим
+   * оказался бы весь проект, а это уже «Сохранить всё», о котором человек не просил.
+   */
+  const companionsOf = (id: ResourceId): readonly ResourceId[] => {
+    const dir = deps.companionsDirOf?.(id) ?? null;
+    if (dir === null || dir === '') return [];
+    return workspace.dirtyResources().filter((one) => isInside(parseResourceId(one).path, dir));
+  };
+
+  return {
+    async save(id, options) {
+      if (id === undefined) {
+        for (const handle of models.opened().values()) await settle(handle);
+        const result = await workspace.save();
+        for (const root of [...models.opened().keys()]) await removeParts(root);
+        return result;
+      }
+      await settle(models.handleOf(id));
+      const parts = models.handleOf(id)?.parts() ?? [];
+      const companions = options?.companions === true ? companionsOf(id) : [];
+      const results: SaveResult[] = [];
+      // Части лежат и в каталоге сопутствующих: каждый файл пишется один раз.
+      for (const one of new Set([id, ...parts, ...companions])) {
+        results.push(await workspace.save(one));
+      }
+      await removeParts(id);
+      return merged(results);
+    },
+
+    isDirty(id) {
+      if (workspace.isDirty(id)) return true;
+      const handle = models.handleOf(id);
+      if (handle === null) return false;
+      return (
+        handle.removedParts().length > 0 || handle.parts().some((part) => workspace.isDirty(part))
+      );
+    },
+
+    onDidSave(cb) {
+      listeners.add(cb);
+      return toDisposable(() => {
+        listeners.delete(cb);
+      });
+    },
+  };
+}

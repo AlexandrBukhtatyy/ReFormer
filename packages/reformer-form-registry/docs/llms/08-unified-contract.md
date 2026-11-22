@@ -1,0 +1,145 @@
+# Запись единого контракта: документ формата 2 и одно поведение
+
+## Purpose
+
+Реестр форм собирает форму единой сборкой: `createForm` из `@reformer/core` и `FormRenderer` из
+`@reformer/renderer-react`. Документ схемы — формата 2, поведение формы одно.
+
+Формат документа — `reformer://docs/renderer-json`, раздел «JSON-схема: формат 2». Контракт
+целиком — раздел «Единый контракт формы» в `reformer://docs/core`.
+
+## Запись
+
+```ts
+import type { FormEntry } from '@reformer/form-registry';
+import { defineFormBehavior, enableWhen, hideWhen, onComponentEvent } from '@reformer/core/behaviors';
+
+const checkoutBehavior = (options: Record<string, unknown>) =>
+  defineFormBehavior<CheckoutForm>(({ model, schema }) => {
+    enableWhen(model.$.deliveryAddress, () => model.delivery === 'courier');
+    hideWhen(schema.node('courier'), () => model.delivery !== 'courier');
+    // Кнопка отправки визарда зовёт обработчик через `bundle.submission.submit` — только после
+    // успешной проверки всей формы; `values` — значения формы.
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CheckoutForm) => {
+      const result = await submitOrder(values);
+      (options.onResult as ((result: unknown) => void) | undefined)?.(result);
+    });
+  });
+
+export const checkoutEntry: FormEntry<CheckoutForm> = {
+  id: 'checkout',
+  version: '1.0.0',
+  owner: 'mfe-orders',
+
+  schema: { kind: 'http', url: '/forms/checkout.json' }, // документ формата 2
+  compatibleSchema: '^1.0.0',
+
+  registry: { kind: 'inline', value: createCheckoutRegistry() },
+  model: { kind: 'inline', value: createCheckoutModel },
+  behavior: { kind: 'inline', value: checkoutBehavior },
+  // Правила вне шагов — проверяются только при отправке.
+  validation: { kind: 'inline', value: { extras: checkoutCrossRules } },
+  // Поток шагов: id шага = selector узла шага в документе, rules — правила шага.
+  flow: {
+    kind: 'inline',
+    value: { steps: [{ id: 'cart' }, { id: 'delivery', rules: deliveryRules }, { id: 'confirm' }] },
+  },
+};
+```
+
+Устройство записи:
+
+- Правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) и навигация
+  (`flow.goTo(id)`) пишутся в том же `behavior`, через `schema.node(selector)` и `flow` области.
+- `behavior` — поведение либо фабрика `(options) => поведение`
+  (`FormBehaviorFactory`). Фабрика получает настройки места монтирования.
+- Шаги визарда — дети узла визарда в документе; правила шагов — поле `flow` записи
+  (`FormFlowConfig` из `@reformer/core`): `flow.steps[].id` равен `selector` узла шага. Форму, поток
+  шагов и отправку визард берёт из сборки сам.
+- `validation` — правила формы (`FormValidation`: `rules` | `extras`, `strategy`); без `rules` полный
+  набор сборка собирает из правил шагов потока и `extras`.
+
+## Настройки места монтирования
+
+```tsx
+<FormOutlet id="checkout" behaviorOptions={{ onResult: showToast }} />
+```
+
+Колбэки вроде `onResult` принадлежат хосту, а запись одна на все места, где форму покажут, —
+поэтому они приходят пропом и попадают в фабрику поведения аргументом. Без пропа фабрика получает
+пустой объект. Фабрика вызывается один раз, при сборке формы.
+
+## Документ прежнего формата
+
+Загрузчик (`loadForm`) приводит документ к формату 2 сам — `migrateJsonSchema` на каждой загрузке:
+
+- документ из бандла, по сети и из постоянного кэша обрабатывается одинаково;
+- в кэше остаётся ответ сервера: перевод идёт после чтения, а не перед записью. Кэш переживает
+  выкладку, и документ, сохранённый прежним кодом, откроется новым;
+- исходный объект не мутируется.
+
+Компонент-визард узнаётся по имени в реестре. Имена по умолчанию — `Wizard`,
+`RendererFormWizard`, `FormWizard`; свои добавляются опцией:
+
+```tsx
+<FormRegistryProvider options={{ stepHosts: STEP_HOSTS }} … />
+```
+
+```ts
+await loadForm(entry, baseRegistry, { stepHosts: ['Wizard', 'CheckoutStepper'] });
+```
+
+Массив держите стабильным по ссылке.
+
+Документ с полем `format`, отличным от `2`, по сети отвергается до кэша (`not-a-form-schema`):
+документ выкатили вперёд кода.
+
+`LoadedForm.schema` — всегда формат 2.
+
+## onReady
+
+```tsx
+<FormOutlet id="checkout" onReady={(bundle) => bundle.model.patch(prefill)} />
+```
+
+`onReady` получает собранный бандл (`MountedFormBundle`) — `FormBundle` из `createForm`:
+`{ model, form, render, flow, validate, validateStep, submission, … }`.
+
+## Preflight и части документа
+
+Проверки идут по корневому дереву и по именованным частям (`parts`):
+
+- имена `$component` / `$dataSource` / `$fn` внутри частей сверяются с реестром;
+- селекторы внутри частей считаются известными для шагов потока (`flow.steps[].id`);
+- `$part(name)` без объявления в `parts` — `missing-parts` (error), с перечнем объявленных;
+- путь `$model(...)` внутри части достраивается от группы, к которой часть подключена:
+  `$model(city)` в части, подключённой к `registrationAddress`, проверяется как
+  `registrationAddress.city`;
+- шаблон строки массива (`item`) против начальных значений не проверяется: его пути относительны
+  элементу, а массив на старте обычно пуст.
+
+## Обёртка поля и адаптеры
+
+Обёртку поля (`FIELD_WRAPPER`) сборка берёт из реестра формы — базового, скомпонованного с
+расширением записи. Реестр уходит в сборку явно, а не через React-контекст: провайдер хоста и
+рендерер ремоута могут жить в разных бандлах.
+
+`resolveFieldAdapter` для компонентов чужого кита задаётся в опциях провайдера реестра
+(`<FormRegistryProvider options={{ resolveFieldAdapter }}>`) — смонтированные `FormOutlet` /
+`FormSlot` / `FormRoute` формы передают его рендереру как `settings.resolveFieldAdapter`. При
+ручной сборке — проп `<MountedForm resolveFieldAdapter={…}>`. Свой компонент проще пометить
+статикой (`defineFieldControl(ForeignInput, { adapter })` из `@reformer/ui-kit/fields`), см.
+`03-mounting.md`.
+
+## Частые ошибки
+
+| Симптом | Причина |
+| --- | --- |
+| ошибка типа: `renderBehavior` нет в `FormEntry` | поле удалено вместе с прежним контрактом — правила узлов пишутся в `behavior` |
+| ошибка типа: `renderBehaviorOptions` у `FormOutlet` | проп удалён — `behaviorOptions` |
+| шаги визарда после перевода остались в `componentProps.steps` | визард зарегистрирован под своим именем — добавьте его в `stepHosts` |
+| `missing-parts` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
+| `onResult` не вызывается | `behavior` записи — готовое поведение, а не фабрика: настройки места получает только фабрика |
+| `unknown-step-selectors` | `id` шага в `flow.steps` не совпадает ни с одним `selector` документа — шаг переименовали в одном месте |
+| визард: «шаги схемы и шаги потока расходятся» | набор `flow.steps` не совпадает с узлами шагов визарда в документе (порядок шагов визард берёт из потока сам) |
+| правило `hideWhen` узла внутри подформы не срабатывает | корневое поведение не видит узлы частей — подключите поведение подформы через `apply(model.$.group, behavior)` |

@@ -1,0 +1,181 @@
+import * as React from 'react';
+import { PaperclipIcon, XIcon } from 'lucide-react';
+import {
+  FileUpload as CdkFileUpload,
+  useFileUploadContext,
+  type FileUploadHandle,
+  type FileUploadItemData,
+} from '@reformer/cdk/file-upload';
+import { useIssueMessageResolver } from '@reformer/cdk';
+
+import { useKitMessages } from '@/i18n/messages';
+import { cn } from '@/lib/utils';
+import { useFieldTooltip } from '@/fields/field-tooltip';
+import { makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { fileUploadAdapter } from '../base/file-upload-base';
+import {
+  splitFileUploadProps,
+  type FileUploadBaseProps,
+  type FileUploadFieldHandle,
+} from '../base/file-upload-base';
+
+export type FileUploadInputProps = FileUploadBaseProps;
+
+function itemName(item: FileUploadItemData): string {
+  return item.status === 'uploaded' ? (item.file?.name ?? item.remote.name) : item.file.name;
+}
+
+/** Текст внутри «инпута»: имена выбранных файлов либо placeholder. Читает контекст CDK Root. */
+function InputValueText({ placeholder }: { placeholder: string }) {
+  const { items } = useFileUploadContext();
+  if (items.length === 0) {
+    return (
+      <span data-slot="file-upload-placeholder" className="truncate text-muted-foreground">
+        {placeholder}
+      </span>
+    );
+  }
+  return (
+    <span data-slot="file-upload-value-text" className="truncate">
+      {items.map(itemName).join(', ')}
+    </span>
+  );
+}
+
+/** Кнопка очистки (крестик) — видна только при выбранных файлах. Сосед зоны, не потомок. */
+function InputClearButton() {
+  const { items, clear, disabled } = useFileUploadContext();
+  const t = useKitMessages();
+  if (items.length === 0 || disabled) return null;
+  return (
+    <button
+      type="button"
+      aria-label={t('kit.fileUpload.clear')}
+      onClick={clear}
+      className="pointer-events-auto flex size-6 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+    >
+      <XIcon className="size-4" />
+    </button>
+  );
+}
+
+/** Отклонения последнего отбора — компактный текст под полем. */
+function InputRejections() {
+  const { rejections } = useFileUploadContext();
+  const resolveError = useIssueMessageResolver();
+  if (rejections.length === 0) return null;
+  return (
+    <ul
+      data-slot="file-upload-rejections"
+      className="m-0 flex list-none flex-col gap-1 p-0 text-xs text-destructive"
+    >
+      {rejections.map((rejection, i) => (
+        <li key={`${rejection.file.name}-${i}`}>
+          {rejection.file.name}: {resolveError(rejection.errors[0])}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * FileUpload (вариант `input`) — поле в виде текстового инпута с кнопкой-иконкой
+ * (скрепка): клик по полю или иконке открывает пикер, drop на поле принимает файлы,
+ * выбранные имена показываются внутри строкой, крестик очищает выбор. Списка-превью
+ * нет — компактный вариант для форм, где вложения второстепенны.
+ *
+ * `aria-*`/`id` из FormField ложатся на зону; `invalid` (или aria-invalid от FormField)
+ * подсвечивает рамку как у Input.
+ */
+export function FileUploadInput({
+  ref,
+  ...props
+}: FileUploadInputProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
+  const { options, placeholder, hint, tooltip, invalid, className, id, rest } =
+    splitFileUploadProps(props);
+  const t = useKitMessages();
+
+  const tooltipHint = useFieldTooltip(tooltip, {
+    id,
+    describedBy: rest['aria-describedby'] as string | undefined,
+    testId: rest['data-testid'] as string | undefined,
+  });
+
+  const cdkRef = React.useRef<FileUploadHandle>(null);
+  const zoneRef = React.useRef<HTMLElement | null>(null);
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      ...makeElementFieldHandle(zoneRef),
+      openFilePicker: () => cdkRef.current?.openFilePicker(),
+      clear: () => cdkRef.current?.clear(),
+      upload: () => cdkRef.current?.upload(),
+      abort: () => cdkRef.current?.abort(),
+    }),
+    []
+  );
+
+  return (
+    <div
+      data-slot="file-upload"
+      data-variant="input"
+      className={cn('flex min-w-0 flex-col gap-1.5', className)}
+    >
+      <CdkFileUpload.Root ref={cdkRef} {...options} id={id}>
+        <div className="relative">
+          <CdkFileUpload.Dropzone
+            ref={zoneRef}
+            id={id}
+            // Явный `invalid` — до rest: aria-invalid от FormField (ошибка валидации) главнее.
+            aria-invalid={invalid || undefined}
+            {...rest}
+            aria-describedby={tooltipHint.describedBy}
+            className={cn(
+              // Визуально — Input (shadcn), но это кликабельная зона (role=button).
+              'flex h-9 w-full min-w-0 cursor-pointer items-center rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm dark:bg-input/30',
+              'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              'aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 dark:aria-[invalid=true]:ring-destructive/40',
+              'data-[dragging]:border-ring data-[dragging]:bg-muted/50',
+              'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
+              // Резерв под правый кластер: [крестик][скрепка] — pr-16, с иконкой-подсказкой — pr-23.
+              tooltipHint.node ? 'pr-23' : 'pr-16'
+            )}
+          >
+            <InputValueText placeholder={placeholder ?? t('kit.fileUpload.inputPlaceholder')} />
+          </CdkFileUpload.Dropzone>
+          {/* Кнопки-иконки — СОСЕДИ зоны (не потомки role=button): клик не открывает пикер лишний раз. */}
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0.5">
+            <InputClearButton />
+            {/* Порядок кластера: [крестик][(i)][скрепка]. Ячейка size-6 — как у соседних кнопок. */}
+            {tooltipHint.node && (
+              <span className="pointer-events-auto flex size-6 items-center justify-center">
+                {tooltipHint.node}
+              </span>
+            )}
+            <CdkFileUpload.Trigger asChild>
+              <button
+                aria-label={t('kit.fileUpload.choose')}
+                // `disabled` приходит от CdkFileUpload.Trigger; гасим ещё и наведение — `:hover` у
+                // disabled-кнопки иначе продолжает работать.
+                className="pointer-events-auto flex size-6 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <PaperclipIcon className="size-4" />
+              </button>
+            </CdkFileUpload.Trigger>
+          </div>
+        </div>
+        {hint && (
+          <span data-slot="file-upload-hint" className="text-xs text-muted-foreground">
+            {hint}
+          </span>
+        )}
+        <InputRejections />
+      </CdkFileUpload.Root>
+    </div>
+  );
+}
+
+// Тот же контракт значения, что у base (визуал разный) — статика адаптера.
+defineFieldControl(FileUploadInput, { adapter: fileUploadAdapter });

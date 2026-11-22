@@ -1,0 +1,23 @@
+// model/initial-value.ts — начальные значения формы (из мока). Регенерируется.
+
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Начальные значения: задают форму данных и снимок, к которому возвращает сброс. */
+export function createInitialValues(): ZayavkaNaKreditForm {
+  return {
+    sameAddress: false,
+    home: {
+      region: '',
+      city: '',
+      noApartment: false,
+      apartment: '',
+    },
+    work: {
+      region: '',
+      city: '',
+      noApartment: false,
+      apartment: '',
+    },
+    guests: [],
+  } as ZayavkaNaKreditForm;
+}

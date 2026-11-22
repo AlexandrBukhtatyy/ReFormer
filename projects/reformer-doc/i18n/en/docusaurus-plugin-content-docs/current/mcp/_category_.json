@@ -1,0 +1,8 @@
+{
+  "label": "MCP",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "AI-assisted form development with @reformer/mcp"
+  }
+}

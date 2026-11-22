@@ -1,0 +1,57 @@
+/**
+ * Валидатор максимальной даты (фабрика).
+ *
+ * @group Validation
+ * @category Validators
+ * @module form/validators/max-date
+ */
+
+import type { RuleOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
+import { parseDate, normalizeDate } from './date-utils';
+import { validationIssue } from './validation-issue';
+
+/**
+ * Фабрика валидатора максимальной даты (включительно).
+ *
+ * Сравнение по нормализованным датам (время обнуляется). Пустые и невалидные даты
+ * пропускаются (используйте {@link required} и {@link isDate}).
+ *
+ * @param maxDateValue - Максимально допустимая дата (включительно)
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
+ *   попадает `maxDate`.
+ * @appliesTo date
+ * @returns Правило {@link Rule} для поля даты (`string | Date`)
+ *
+ * @example Максимальная дата
+ * ```typescript
+ * import { defineValidation, validate } from '@reformer/core/validation';
+ * import { maxDate } from '@reformer/core/validators';
+ *
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [maxDate(new Date(), { code: 'birthDate.maxDate' })]);
+ * });
+ * ```
+ */
+export function maxDate(
+  maxDateValue: Date,
+  options?: RuleOptions
+): Rule<string | Date | null | undefined> {
+  return (value) => {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const parsed = parseDate(value);
+    if (parsed === null) {
+      return null;
+    }
+    const normalizedValue = normalizeDate(parsed);
+    const normalizedMax = normalizeDate(maxDateValue);
+
+    if (normalizedValue > normalizedMax) {
+      return validationIssue('date_max', options, { maxDate: maxDateValue });
+    }
+    return null;
+  };
+}

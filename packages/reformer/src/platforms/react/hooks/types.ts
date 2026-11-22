@@ -1,0 +1,422 @@
+import type { ValidationIssue } from '../../../form/types/index';
+
+/**
+ * Состояние поля формы, возвращаемое хуком {@link useFormControl} для {@link FormControl}.
+ *
+ * Содержит реактивные данные поля: значение, состояние валидации, флаги взаимодействия
+ * и пользовательские props для компонентов.
+ *
+ * @typeParam T - Тип значения поля (string, number, boolean и т.д.)
+ *
+ * @example Базовое использование
+ * ```tsx
+ * interface Props {
+ *   control: FormControl<string>;
+ * }
+ *
+ * function TextField({ control }: Props) {
+ *   const state = useFormControl(control);
+ *   const message = useIssueMessage(); // из '@reformer/core/react'
+ *
+ *   return (
+ *     <div>
+ *       <input
+ *         value={state.value}
+ *         disabled={state.disabled}
+ *         onChange={e => control.setValue(e.target.value)}
+ *       />
+ *       {state.shouldShowIssues && state.issues[0] && (
+ *         <span className="error">{message(state.issues[0])}</span>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @see {@link useFormControl} - хук для получения состояния
+ * @see {@link ArrayControlState} - состояние для массивов
+ *
+ * @group Types
+ */
+export interface FieldControlState<T> {
+  /**
+   * Текущее значение поля.
+   *
+   * @example
+   * ```tsx
+   * const { value } = useFormControl(emailField);
+   * console.log(value); // "user@example.com"
+   * ```
+   */
+  value: T;
+
+  /**
+   * Флаг асинхронной валидации или загрузки.
+   * `true` когда выполняется асинхронный валидатор.
+   *
+   * @example
+   * ```tsx
+   * const { pending } = useFormControl(usernameField);
+   *
+   * return (
+   *   <div>
+   *     <input {...props} />
+   *     {pending && <Spinner size="small" />}
+   *   </div>
+   * );
+   * ```
+   */
+  pending: boolean;
+
+  /**
+   * Флаг отключения поля.
+   * `true` когда поле недоступно для редактирования.
+   *
+   * @example
+   * ```tsx
+   * const { disabled, value } = useFormControl(field);
+   *
+   * return (
+   *   <input
+   *     value={value}
+   *     disabled={disabled}
+   *     className={disabled ? 'opacity-50' : ''}
+   *   />
+   * );
+   * ```
+   */
+  disabled: boolean;
+
+  /**
+   * Массив ошибок валидации.
+   * Пустой массив означает отсутствие ошибок.
+   *
+   * @example
+   * ```tsx
+   * const { issues } = useFormControl(field);
+   * const message = useIssueMessage(); // из '@reformer/core/react'
+   *
+   * return (
+   *   <ul className="error-list">
+   *     {issues.map((error, i) => (
+   *       <li key={i}>{message(error)}</li>
+   *     ))}
+   *   </ul>
+   * );
+   * ```
+   */
+  issues: ValidationIssue[];
+
+  /**
+   * Флаг валидности поля.
+   * `true` когда поле прошло все валидации (issues.length === 0).
+   *
+   * @example
+   * ```tsx
+   * const { valid } = useFormControl(field);
+   *
+   * return (
+   *   <input className={valid ? 'border-green' : 'border-gray'} />
+   * );
+   * ```
+   */
+  valid: boolean;
+
+  /**
+   * Флаг невалидности поля.
+   * `true` когда есть ошибки валидации (issues.length > 0).
+   * Противоположность {@link valid}.
+   *
+   * @example
+   * ```tsx
+   * const { invalid } = useFormControl(field);
+   *
+   * return (
+   *   <input
+   *     aria-invalid={invalid}
+   *     className={invalid ? 'border-red' : ''}
+   *   />
+   * );
+   * ```
+   */
+  invalid: boolean;
+
+  /**
+   * Флаг взаимодействия с полем.
+   * `true` после того как поле потеряло фокус (blur) хотя бы один раз.
+   *
+   * @example
+   * ```tsx
+   * const { touched, invalid } = useFormControl(field);
+   *
+   * // Показываем ошибку только после взаимодействия
+   * const showError = touched && invalid;
+   * ```
+   */
+  touched: boolean;
+
+  /**
+   * Показывать ли состояние ошибки — `aria-invalid`, рамку: поле невалидно и его трогали или
+   * меняли. Предупреждение (`severity: 'warning'`) поле невалидным не делает, поэтому для текстов
+   * замечаний есть {@link FieldControlState.shouldShowIssues}.
+   *
+   * @example
+   * ```tsx
+   * const { shouldShowError } = useFormControl(field);
+   *
+   * return <input {...props} aria-invalid={shouldShowError} />;
+   * ```
+   */
+  shouldShowError: boolean;
+
+  /**
+   * Показывать ли тексты замечаний: у поля есть замечания — ошибки или предупреждения, — и его
+   * трогали или меняли.
+   *
+   * @example
+   * ```tsx
+   * const { shouldShowError, shouldShowIssues, issues } = useFormControl(field);
+   * const message = useIssueMessage(); // из '@reformer/core/react'
+   *
+   * return (
+   *   <div>
+   *     <input {...props} aria-invalid={shouldShowError} />
+   *     {shouldShowIssues &&
+   *       issues.map((issue) => (
+   *         <span key={issue.code} className={issue.severity === 'warning' ? 'warning' : 'error'}>
+   *           {message(issue)}
+   *         </span>
+   *       ))}
+   *   </div>
+   * );
+   * ```
+   */
+  shouldShowIssues: boolean;
+
+  /**
+   * Пользовательские props для передачи в UI-компоненты.
+   * Устанавливаются через {@link FormControl.updateComponentProps}.
+   *
+   * Описатели сообщений (`msg('profile.email.label')` из `@reformer/core/i18n`) приходят уже
+   * раскрытыми по локали `I18nProvider` — строками, в том числе внутри массивов и объектов-литералов
+   * (подписи опций). Смена языка перерисовывает компонент с новыми строками.
+   *
+   * @example
+   * ```tsx
+   * // Установка props
+   * field.updateComponentProps({
+   *   placeholder: 'Enter email...',
+   *   maxLength: 100,
+   *   autoComplete: 'email'
+   * });
+   *
+   * // Использование в компоненте
+   * const { componentProps, value } = useFormControl(field);
+   *
+   * return (
+   *   <input
+   *     value={value}
+   *     placeholder={componentProps.placeholder}
+   *     maxLength={componentProps.maxLength}
+   *     autoComplete={componentProps.autoComplete}
+   *   />
+   * );
+   * ```
+   */
+  componentProps: Record<string, unknown>;
+
+  /**
+   * Флаг изменения поля.
+   * `true` когда значение поля отличается от начального.
+   *
+   * Реактивный аналог `control.dirty` — паритет с {@link ArrayControlState.dirty}.
+   *
+   * @example
+   * ```tsx
+   * const { dirty } = useFormControl(field);
+   *
+   * return dirty ? <span className="badge">Изменено</span> : null;
+   * ```
+   */
+  dirty: boolean;
+
+  /**
+   * Путь поля в модели (`items.0.name`) — реактивный аналог `control.path`. У поля строки массива
+   * меняется вместе с индексом строки, и компонент перерисовывается: из пути выводят
+   * `data-testid`, `id` и `name`. У поля не из модели — `''`.
+   *
+   * @example
+   * ```tsx
+   * const { path } = useFormControl(row.name);
+   *
+   * return <input id={path} data-testid={`input-${path.replace(/\./g, '-')}`} />;
+   * ```
+   */
+  path: string;
+}
+
+/**
+ * Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link FormArray}.
+ *
+ * Содержит реактивные данные массива: значения элементов, длину, состояние валидации
+ * и флаги взаимодействия.
+ *
+ * @typeParam T - Тип элемента массива (обычно объект с полями формы)
+ *
+ * @example Список с динамическим добавлением
+ * ```tsx
+ * interface Phone {
+ *   type: string;
+ *   number: string;
+ * }
+ *
+ * interface Props {
+ *   control: FormArray<Phone>;
+ * }
+ *
+ * function PhoneList({ control }: Props) {
+ *   const { length, valid } = useFormControl(control);
+ *
+ *   return (
+ *     <div>
+ *       {control.map((item, index) => (
+ *         <PhoneItem
+ *           key={control.keyAt(index)}
+ *           control={item}
+ *           onRemove={() => control.removeAt(index)}
+ *         />
+ *       ))}
+ *
+ *       {length === 0 && <p>No phones added</p>}
+ *
+ *       <button onClick={() => control.push({ type: 'mobile', number: '' })}>
+ *         Add Phone
+ *       </button>
+ *
+ *       {!valid && <p className="error">Please fix phone issues</p>}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @see {@link useFormControl} - хук для получения состояния
+ * @see {@link FieldControlState} - состояние для полей
+ *
+ * @group Types
+ */
+export interface ArrayControlState<T> {
+  /**
+   * Массив текущих значений всех элементов.
+   *
+   * @example
+   * ```tsx
+   * const { value } = useFormControl(phonesArray);
+   * console.log(value);
+   * // [{ type: 'mobile', number: '+1234567890' }, { type: 'home', number: '+0987654321' }]
+   * ```
+   */
+  value: T[];
+
+  /**
+   * Количество элементов в массиве.
+   * Эквивалентно value.length, но оптимизировано для реактивности.
+   *
+   * @example
+   * ```tsx
+   * const { length } = useFormControl(itemsArray);
+   *
+   * return (
+   *   <div>
+   *     <span>Items: {length}</span>
+   *     {length >= 10 && <span>Maximum reached</span>}
+   *   </div>
+   * );
+   * ```
+   */
+  length: number;
+
+  /**
+   * Флаг асинхронной валидации.
+   * `true` когда выполняется асинхронный валидатор массива или любого элемента.
+   */
+  pending: boolean;
+
+  /**
+   * Замечания массива: собственные (правила на ручке массива) и замечания всех его строк.
+   *
+   * @example
+   * ```tsx
+   * // Правило массива — в схеме валидации
+   * validate(model.$.phones, [minLength(1, { code: 'phones.minLength' })]);
+   *
+   * // В компоненте
+   * const { issues } = useFormControl(phonesArray);
+   * // для пустого массива issues содержит замечание с кодом 'phones.minLength'
+   * ```
+   */
+  issues: ValidationIssue[];
+
+  /**
+   * Собственные замечания массива — только правила на его ручке (`minLength` и т.п.), без
+   * замечаний строк. Их показывает ошибка уровня массива (`FieldArray.Error`).
+   */
+  ownIssues: ValidationIssue[];
+
+  /**
+   * Флаг валидности массива и всех его элементов.
+   * `true` только когда массив и все вложенные элементы валидны.
+   */
+  valid: boolean;
+
+  /**
+   * Флаг невалидности.
+   * `true` когда есть ошибки в массиве или любом элементе.
+   */
+  invalid: boolean;
+
+  /**
+   * Флаг взаимодействия.
+   * `true` после взаимодействия с любым элементом массива.
+   */
+  touched: boolean;
+
+  /**
+   * Флаг изменения.
+   * `true` после правки любого элемента или изменения состава через форму (`push`, `removeAt`,
+   * `move`, `setValue`…). Как у поля, запись в модель (загрузка данных) и операция, которая состав
+   * не поменяла, изменением не считаются; снимает `reset`.
+   *
+   * @example
+   * ```tsx
+   * const { dirty } = useFormControl(itemsArray);
+   *
+   * return (
+   *   <div>
+   *     {dirty && <span>* Unsaved changes</span>}
+   *     <button disabled={!dirty}>Save</button>
+   *   </div>
+   * );
+   * ```
+   */
+  dirty: boolean;
+
+  /**
+   * Флаг отключения массива.
+   * `true` когда массив отключён (`FormArray.disable()`), в том числе через
+   * распространение disable от родительской группы.
+   *
+   * Используйте для отключения UI-действий добавления/удаления, когда массив
+   * структурно неизменяем.
+   *
+   * @example
+   * ```tsx
+   * const { disabled } = useFormControl(itemsArray);
+   *
+   * return <button disabled={disabled} onClick={() => control.push()}>Add</button>;
+   * ```
+   */
+  disabled: boolean;
+
+  /** Путь массива в модели (`items`) — реактивный аналог `control.path`. */
+  path: string;
+}

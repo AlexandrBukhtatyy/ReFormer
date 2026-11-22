@@ -1,0 +1,41 @@
+// application/submit.ts — отправка формы: запрос → исход → текст для человека.
+// Ваш файл: пишется один раз и при регенерации не затирается.
+
+import { onComponentEvent, type BehaviorScope } from '@reformer/core/behaviors';
+import { createFormValidation } from '@reformer/core/validation';
+import { submitForm } from '../api';
+import type { ContactHexaForm } from '../types/contact-hexa';
+import { formRules } from '../validation/form';
+
+/** Что отправке нужно от места подключения. */
+export interface SubmitOptions {
+  /** Показать итог: баннер на странице, тост, переход. */
+  onResult?: (message: string, ok: boolean) => void;
+}
+
+/**
+ * Связать узел отправки схемы с отправкой формы.
+ *
+ * Пишется над областью поведения, а не над собранной формой: поведение — единственный канал,
+ * общий для страницы и для записи реестра форм (`application/entry.ts`).
+ */
+export function wireSubmit(
+  { model, schema }: BehaviorScope<ContactHexaForm>,
+  { onResult }: SubmitOptions = {}
+): void {
+  // Проверка отправки — та же, что у сборки формы (`bundle.submission`): выключенное поле
+  // (`enableWhen`), поле выключенной группы или массива не проверяются, а при отказе замечания
+  // раскрываются по всей форме — поля помечаются тронутыми (киты показывают ошибку только у
+  // тронутого поля). Это попытка отправки, а не проверка: `touch: 'all'`, `submit: true`.
+  const check = createFormValidation(model, formRules);
+
+  onComponentEvent(schema.node('submit'), 'onClick', async () => {
+    const validation = await check.run({ touch: 'all', submit: true });
+    if (validation.status !== 'valid') {
+      onResult?.('Проверьте заполнение формы', false);
+      return;
+    }
+    const result = await submitForm(model.get());
+    onResult?.(result.success ? 'Форма отправлена' : result.error, result.success);
+  });
+}

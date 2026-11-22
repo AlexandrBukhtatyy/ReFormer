@@ -1,0 +1,1826 @@
+{
+  "formName": "Заявка на кредит",
+  "interfaceName": "CreditApplication",
+  "target": "renderer-react",
+  "fields": [
+    {
+      "name": "loanType",
+      "type": "string",
+      "component": "Select",
+      "label": "Тип кредита",
+      "initialValue": "consumer",
+      "optionsSource": "LOAN_TYPES",
+      "componentProps": { "placeholder": "Выберите тип кредита" }
+    },
+    {
+      "name": "loanAmount",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Сумма кредита (₽)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Введите сумму", "step": 10000 }
+    },
+    {
+      "name": "loanTerm",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Срок кредита (месяцев)",
+      "initialValue": 12,
+      "componentProps": { "placeholder": "Введите срок" }
+    },
+    {
+      "name": "loanPurpose",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Цель кредита",
+      "initialValue": "",
+      "componentProps": {
+        "placeholder": "Опишите, на что планируете потратить средства",
+        "maxLength": 500
+      }
+    },
+    {
+      "name": "propertyValue",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Стоимость недвижимости (₽)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Введите стоимость" }
+    },
+    {
+      "name": "initialPayment",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Первоначальный взнос (₽)",
+      "initialValue": null
+    },
+    {
+      "name": "carBrand",
+      "type": "string",
+      "component": "Input",
+      "label": "Марка автомобиля",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Например: Toyota" }
+    },
+    {
+      "name": "carModel",
+      "type": "string",
+      "component": "Input",
+      "label": "Модель автомобиля",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Например: Camry" }
+    },
+    {
+      "name": "carYear",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Год выпуска",
+      "initialValue": null,
+      "componentProps": { "placeholder": "2020" }
+    },
+    {
+      "name": "carPrice",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Стоимость автомобиля (₽)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Введите стоимость" }
+    },
+    {
+      "name": "interestRate",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Процентная ставка (%)",
+      "initialValue": null
+    },
+    {
+      "name": "monthlyPayment",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Ежемесячный платеж (₽)",
+      "initialValue": null
+    },
+    {
+      "name": "personalData.lastName",
+      "type": "string",
+      "component": "Input",
+      "label": "Фамилия",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите фамилию" }
+    },
+    {
+      "name": "personalData.firstName",
+      "type": "string",
+      "component": "Input",
+      "label": "Имя",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите имя" }
+    },
+    {
+      "name": "personalData.middleName",
+      "type": "string",
+      "component": "Input",
+      "label": "Отчество",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите отчество" }
+    },
+    {
+      "name": "personalData.birthDate",
+      "type": "date",
+      "component": "Input",
+      "label": "Дата рождения",
+      "initialValue": "",
+      "componentProps": { "type": "date" }
+    },
+    {
+      "name": "personalData.gender",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Пол",
+      "initialValue": "male",
+      "componentProps": {
+        "options": [
+          { "value": "male", "label": "Мужской" },
+          { "value": "female", "label": "Женский" }
+        ]
+      }
+    },
+    {
+      "name": "personalData.birthPlace",
+      "type": "string",
+      "component": "Input",
+      "label": "Место рождения",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите место рождения" }
+    },
+    {
+      "name": "passportData.series",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Серия паспорта",
+      "initialValue": "",
+      "componentProps": { "mask": "99 99", "placeholder": "12 34" }
+    },
+    {
+      "name": "passportData.number",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Номер паспорта",
+      "initialValue": "",
+      "componentProps": { "mask": "999999", "placeholder": "123456" }
+    },
+    {
+      "name": "passportData.issueDate",
+      "type": "date",
+      "component": "Input",
+      "label": "Дата выдачи",
+      "initialValue": "",
+      "componentProps": { "type": "date" }
+    },
+    {
+      "name": "passportData.issuedBy",
+      "type": "string",
+      "component": "Input",
+      "label": "Кем выдан",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите название органа" }
+    },
+    {
+      "name": "passportData.departmentCode",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Код подразделения",
+      "initialValue": "",
+      "componentProps": { "mask": "999-999", "placeholder": "123-456" }
+    },
+    {
+      "name": "inn",
+      "type": "string",
+      "component": "InputMask",
+      "label": "ИНН",
+      "initialValue": "",
+      "componentProps": { "mask": "999999999999", "placeholder": "123456789012" }
+    },
+    {
+      "name": "snils",
+      "type": "string",
+      "component": "InputMask",
+      "label": "СНИЛС",
+      "initialValue": "",
+      "componentProps": { "mask": "999-999-999 99", "placeholder": "123-456-789 00" }
+    },
+    {
+      "name": "fullName",
+      "type": "string",
+      "component": "Input",
+      "label": "Полное имя",
+      "initialValue": ""
+    },
+    {
+      "name": "age",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Возраст (лет)",
+      "initialValue": null
+    },
+    {
+      "name": "phoneMain",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Основной телефон",
+      "initialValue": "",
+      "componentProps": { "mask": "+7 (999) 999-99-99", "placeholder": "+7 (___) ___-__-__" }
+    },
+    {
+      "name": "phoneAdditional",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Дополнительный телефон",
+      "initialValue": null,
+      "componentProps": { "mask": "+7 (999) 999-99-99", "placeholder": "+7 (___) ___-__-__" }
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "component": "Input",
+      "label": "Email",
+      "initialValue": "",
+      "componentProps": { "type": "email", "placeholder": "example@mail.com" }
+    },
+    {
+      "name": "sameEmail",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Дополнительный email совпадает с основным",
+      "initialValue": false
+    },
+    {
+      "name": "emailAdditional",
+      "type": "string",
+      "component": "Input",
+      "label": "Дополнительный email",
+      "initialValue": null,
+      "componentProps": { "type": "email", "placeholder": "example@mail.com" }
+    },
+    {
+      "name": "registrationAddress.region",
+      "type": "string",
+      "component": "Input",
+      "label": "Регион",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите регион" }
+    },
+    {
+      "name": "registrationAddress.city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите город" }
+    },
+    {
+      "name": "registrationAddress.street",
+      "type": "string",
+      "component": "Input",
+      "label": "Улица",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите улицу" }
+    },
+    {
+      "name": "registrationAddress.house",
+      "type": "string",
+      "component": "Input",
+      "label": "Дом",
+      "initialValue": "",
+      "componentProps": { "placeholder": "№" }
+    },
+    {
+      "name": "registrationAddress.apartment",
+      "type": "string",
+      "component": "Input",
+      "label": "Квартира",
+      "initialValue": "",
+      "componentProps": { "placeholder": "№" }
+    },
+    {
+      "name": "registrationAddress.postalCode",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Индекс",
+      "initialValue": "",
+      "componentProps": { "mask": "999999", "placeholder": "000000" }
+    },
+    {
+      "name": "sameAsRegistration",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Адрес проживания совпадает с адресом регистрации",
+      "initialValue": true
+    },
+    {
+      "name": "residenceAddress.region",
+      "type": "string",
+      "component": "Input",
+      "label": "Регион",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите регион" }
+    },
+    {
+      "name": "residenceAddress.city",
+      "type": "string",
+      "component": "Input",
+      "label": "Город",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите город" }
+    },
+    {
+      "name": "residenceAddress.street",
+      "type": "string",
+      "component": "Input",
+      "label": "Улица",
+      "initialValue": "",
+      "componentProps": { "placeholder": "Введите улицу" }
+    },
+    {
+      "name": "residenceAddress.house",
+      "type": "string",
+      "component": "Input",
+      "label": "Дом",
+      "initialValue": "",
+      "componentProps": { "placeholder": "№" }
+    },
+    {
+      "name": "residenceAddress.apartment",
+      "type": "string",
+      "component": "Input",
+      "label": "Квартира",
+      "initialValue": "",
+      "componentProps": { "placeholder": "№" }
+    },
+    {
+      "name": "residenceAddress.postalCode",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Индекс",
+      "initialValue": "",
+      "componentProps": { "mask": "999999", "placeholder": "000000" }
+    },
+    {
+      "name": "employmentStatus",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Статус занятости",
+      "initialValue": "employed",
+      "componentProps": {
+        "options": [
+          { "value": "employed", "label": "Работаю по найму" },
+          { "value": "selfEmployed", "label": "Самозанятый / ИП" },
+          { "value": "unemployed", "label": "Не работаю" },
+          { "value": "retired", "label": "Пенсионер" },
+          { "value": "student", "label": "Студент" }
+        ]
+      }
+    },
+    {
+      "name": "companyName",
+      "type": "string",
+      "component": "Input",
+      "label": "Название компании",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Введите название" }
+    },
+    {
+      "name": "companyInn",
+      "type": "string",
+      "component": "InputMask",
+      "label": "ИНН компании",
+      "initialValue": null,
+      "componentProps": { "mask": "9999999999", "placeholder": "1234567890" }
+    },
+    {
+      "name": "companyPhone",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Телефон компании",
+      "initialValue": null,
+      "componentProps": { "mask": "+7 (999) 999-99-99", "placeholder": "+7 (___) ___-__-__" }
+    },
+    {
+      "name": "companyAddress",
+      "type": "string",
+      "component": "Input",
+      "label": "Адрес компании",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Полный адрес" }
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "component": "Input",
+      "label": "Должность",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Ваша должность" }
+    },
+    {
+      "name": "workExperienceTotal",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Общий стаж работы (месяцев)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "0" }
+    },
+    {
+      "name": "workExperienceCurrent",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Стаж на текущем месте (месяцев)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "0" }
+    },
+    {
+      "name": "monthlyIncome",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Ежемесячный доход (₽)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "0" }
+    },
+    {
+      "name": "additionalIncome",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Дополнительный доход (₽)",
+      "initialValue": null,
+      "componentProps": { "placeholder": "0" }
+    },
+    {
+      "name": "additionalIncomeSource",
+      "type": "string",
+      "component": "Input",
+      "label": "Источник дополнительного дохода",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Опишите источник" }
+    },
+    {
+      "name": "businessType",
+      "type": "string",
+      "component": "Input",
+      "label": "Тип бизнеса",
+      "initialValue": null,
+      "componentProps": { "placeholder": "ИП, ООО и т.д." }
+    },
+    {
+      "name": "businessInn",
+      "type": "string",
+      "component": "InputMask",
+      "label": "ИНН ИП",
+      "initialValue": null,
+      "componentProps": { "mask": "999999999999", "placeholder": "123456789012" }
+    },
+    {
+      "name": "businessActivity",
+      "type": "string",
+      "component": "Textarea",
+      "label": "Вид деятельности",
+      "initialValue": null,
+      "componentProps": { "placeholder": "Опишите вид деятельности" }
+    },
+    {
+      "name": "totalIncome",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Общий доход (₽)",
+      "initialValue": null
+    },
+    {
+      "name": "paymentToIncomeRatio",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Процент платежа от дохода (%)",
+      "initialValue": null
+    },
+    {
+      "name": "maritalStatus",
+      "type": "string",
+      "component": "RadioGroup",
+      "label": "Семейное положение",
+      "initialValue": "single",
+      "componentProps": {
+        "options": [
+          { "value": "single", "label": "Не женат / не замужем" },
+          { "value": "married", "label": "Женат / замужем" },
+          { "value": "divorced", "label": "Разведен(а)" },
+          { "value": "widowed", "label": "Вдовец / вдова" }
+        ]
+      }
+    },
+    {
+      "name": "dependents",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Количество иждивенцев",
+      "initialValue": 0,
+      "componentProps": { "placeholder": "0" }
+    },
+    {
+      "name": "education",
+      "type": "string",
+      "component": "Select",
+      "label": "Образование",
+      "initialValue": "higher",
+      "componentProps": {
+        "placeholder": "Выберите уровень образования",
+        "options": [
+          { "value": "secondary", "label": "Среднее" },
+          { "value": "specialized", "label": "Среднее специальное" },
+          { "value": "higher", "label": "Высшее" },
+          { "value": "postgraduate", "label": "Послевузовское" }
+        ]
+      }
+    },
+    {
+      "name": "hasProperty",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "У меня есть имущество",
+      "initialValue": false
+    },
+    {
+      "name": "hasExistingLoans",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "У меня есть другие кредиты",
+      "initialValue": false
+    },
+    {
+      "name": "hasCoBorrower",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Добавить созаемщика",
+      "initialValue": false
+    },
+    {
+      "name": "coBorrowersIncome",
+      "type": "number",
+      "component": "InputNumber",
+      "label": "Доход созаемщиков (₽)",
+      "initialValue": null
+    },
+    {
+      "name": "agreePersonalData",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие на обработку персональных данных",
+      "initialValue": false
+    },
+    {
+      "name": "agreeCreditHistory",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие на проверку кредитной истории",
+      "initialValue": false
+    },
+    {
+      "name": "agreeMarketing",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие на получение маркетинговых материалов",
+      "initialValue": false
+    },
+    {
+      "name": "agreeTerms",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Согласие с условиями кредитования",
+      "initialValue": false
+    },
+    {
+      "name": "confirmAccuracy",
+      "type": "boolean",
+      "component": "Checkbox",
+      "label": "Подтверждаю точность введенных данных",
+      "initialValue": false
+    },
+    {
+      "name": "electronicSignature",
+      "type": "string",
+      "component": "InputMask",
+      "label": "Код подтверждения из СМС",
+      "initialValue": "",
+      "componentProps": { "mask": "999999", "placeholder": "123456" }
+    }
+  ],
+  "arrays": [
+    {
+      "name": "properties",
+      "itemInterfaceName": "Property",
+      "initialValue": [],
+      "component": "FieldArray",
+      "componentProps": {
+        "title": "Имущество",
+        "addButtonLabel": "+ Добавить имущество",
+        "itemLabel": "Имущество"
+      },
+      "itemFields": [
+        {
+          "name": "type",
+          "type": "string",
+          "component": "Select",
+          "label": "Тип имущества",
+          "initialValue": "apartment",
+          "componentProps": {
+            "placeholder": "Выберите тип",
+            "options": [
+              { "value": "apartment", "label": "Квартира" },
+              { "value": "house", "label": "Дом" },
+              { "value": "car", "label": "Автомобиль" },
+              { "value": "land", "label": "Земельный участок" },
+              { "value": "other", "label": "Другое" }
+            ]
+          }
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "component": "Textarea",
+          "label": "Описание",
+          "initialValue": "",
+          "componentProps": { "placeholder": "Опишите имущество" }
+        },
+        {
+          "name": "estimatedValue",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Оценочная стоимость",
+          "initialValue": 0
+        },
+        {
+          "name": "hasEncumbrance",
+          "type": "boolean",
+          "component": "Checkbox",
+          "label": "Имеется обременение (залог)",
+          "initialValue": false
+        }
+      ]
+    },
+    {
+      "name": "existingLoans",
+      "itemInterfaceName": "ExistingLoan",
+      "initialValue": [],
+      "component": "FieldArray",
+      "componentProps": {
+        "title": "Существующие кредиты",
+        "addButtonLabel": "+ Добавить кредит",
+        "itemLabel": "Кредит"
+      },
+      "itemFields": [
+        {
+          "name": "bank",
+          "type": "string",
+          "component": "Input",
+          "label": "Банк",
+          "initialValue": "",
+          "componentProps": { "placeholder": "Название банка" }
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "component": "Input",
+          "label": "Тип кредита",
+          "initialValue": "",
+          "componentProps": { "placeholder": "Тип кредита" }
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Сумма кредита",
+          "initialValue": 0
+        },
+        {
+          "name": "remainingAmount",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Остаток задолженности",
+          "initialValue": 0
+        },
+        {
+          "name": "monthlyPayment",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Ежемесячный платеж",
+          "initialValue": 0
+        },
+        {
+          "name": "maturityDate",
+          "type": "date",
+          "component": "Input",
+          "label": "Дата погашения",
+          "initialValue": "",
+          "componentProps": { "type": "date" }
+        }
+      ]
+    },
+    {
+      "name": "coBorrowers",
+      "itemInterfaceName": "CoBorrower",
+      "initialValue": [],
+      "component": "FieldArray",
+      "componentProps": {
+        "title": "Созаемщики",
+        "addButtonLabel": "+ Добавить созаемщика",
+        "itemLabel": "Созаемщик"
+      },
+      "itemFields": [
+        {
+          "name": "lastName",
+          "type": "string",
+          "component": "Input",
+          "label": "Фамилия",
+          "initialValue": ""
+        },
+        {
+          "name": "firstName",
+          "type": "string",
+          "component": "Input",
+          "label": "Имя",
+          "initialValue": ""
+        },
+        {
+          "name": "middleName",
+          "type": "string",
+          "component": "Input",
+          "label": "Отчество",
+          "initialValue": ""
+        },
+        {
+          "name": "birthDate",
+          "type": "date",
+          "component": "Input",
+          "label": "Дата рождения",
+          "initialValue": "",
+          "componentProps": { "type": "date" }
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "component": "InputMask",
+          "label": "Телефон",
+          "initialValue": "",
+          "componentProps": { "mask": "+7 (999) 999-99-99", "placeholder": "+7 (___) ___-__-__" }
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "component": "Input",
+          "label": "Email",
+          "initialValue": "",
+          "componentProps": { "type": "email", "placeholder": "example@mail.com" }
+        },
+        {
+          "name": "relationship",
+          "type": "string",
+          "component": "Input",
+          "label": "Родство",
+          "initialValue": "",
+          "componentProps": { "placeholder": "Укажите родство" }
+        },
+        {
+          "name": "monthlyIncome",
+          "type": "number",
+          "component": "InputNumber",
+          "label": "Ежемесячный доход",
+          "initialValue": 0
+        }
+      ]
+    }
+  ],
+  "parts": {
+    "address": {
+      "kind": "container",
+      "component": "Box",
+      "children": ["region", "city", "street", "house", "apartment", "postalCode"]
+    }
+  },
+  "layoutRoot": {
+    "kind": "container",
+    "component": "Box",
+    "selector": "wizard",
+    "componentProps": { "submitLabel": "Отправить заявку" },
+    "children": [
+      {
+        "kind": "step",
+        "title": "Кредит",
+        "selector": "s1",
+        "children": [
+          "loanType",
+          "loanAmount",
+          "loanTerm",
+          "loanPurpose",
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "mortgage-section",
+            "componentProps": { "title": "Ипотека" },
+            "children": ["propertyValue", "initialPayment"]
+          },
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "car-section",
+            "componentProps": { "title": "Автокредит" },
+            "children": ["carBrand", "carModel", "carYear", "carPrice"]
+          },
+          "interestRate",
+          "monthlyPayment"
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Личные данные",
+        "selector": "s2",
+        "children": [
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "personal-section",
+            "componentProps": { "title": "Личные данные" },
+            "children": [
+              "personalData.lastName",
+              "personalData.firstName",
+              "personalData.middleName",
+              "fullName",
+              "personalData.birthDate",
+              "age",
+              "personalData.gender",
+              "personalData.birthPlace"
+            ]
+          },
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "passport-section",
+            "componentProps": { "title": "Паспортные данные" },
+            "children": [
+              "passportData.series",
+              "passportData.number",
+              "passportData.issueDate",
+              "passportData.issuedBy",
+              "passportData.departmentCode"
+            ]
+          },
+          "inn",
+          "snils"
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Контакты",
+        "selector": "s3",
+        "children": [
+          "phoneMain",
+          "phoneAdditional",
+          "email",
+          "sameEmail",
+          "emailAdditional",
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "reg-section",
+            "componentProps": { "title": "Адрес регистрации" },
+            "children": [{ "kind": "part", "ref": "registrationAddress", "part": "address" }]
+          },
+          "sameAsRegistration",
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "res-section",
+            "componentProps": { "title": "Адрес проживания" },
+            "children": [{ "kind": "part", "ref": "residenceAddress", "part": "address" }]
+          }
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Работа",
+        "selector": "s4",
+        "children": [
+          "employmentStatus",
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "employed-section",
+            "componentProps": { "title": "Работа по найму" },
+            "children": ["companyName", "companyInn", "companyPhone", "companyAddress", "position"]
+          },
+          {
+            "kind": "container",
+            "component": "Section",
+            "selector": "self-section",
+            "componentProps": { "title": "ИП" },
+            "children": ["businessType", "businessInn", "businessActivity"]
+          },
+          "workExperienceTotal",
+          "workExperienceCurrent",
+          "monthlyIncome",
+          "additionalIncome",
+          "additionalIncomeSource",
+          "totalIncome",
+          "paymentToIncomeRatio"
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Дополнительно",
+        "selector": "s5",
+        "children": [
+          "maritalStatus",
+          "dependents",
+          "education",
+          "hasProperty",
+          {
+            "kind": "container",
+            "component": "Box",
+            "selector": "properties-box",
+            "children": [{ "kind": "array", "ref": "properties" }]
+          },
+          "hasExistingLoans",
+          {
+            "kind": "container",
+            "component": "Box",
+            "selector": "loans-box",
+            "children": [{ "kind": "array", "ref": "existingLoans" }]
+          },
+          "hasCoBorrower",
+          {
+            "kind": "container",
+            "component": "Box",
+            "selector": "cob-box",
+            "children": [{ "kind": "array", "ref": "coBorrowers" }, "coBorrowersIncome"]
+          }
+        ]
+      },
+      {
+        "kind": "step",
+        "title": "Подтверждение",
+        "selector": "s6",
+        "children": [
+          "agreePersonalData",
+          "agreeCreditHistory",
+          "agreeMarketing",
+          "agreeTerms",
+          "confirmAccuracy",
+          "electronicSignature"
+        ]
+      }
+    ]
+  },
+  "validation": [
+    {
+      "target": "loanType",
+      "rules": ["required({ code: 'loanType.required' })"],
+      "message": "Выберите тип кредита"
+    },
+    {
+      "target": "loanAmount",
+      "rules": ["required({ code: 'loanAmount.required' })"],
+      "message": "Укажите сумму кредита"
+    },
+    {
+      "target": "loanAmount",
+      "rules": ["min(50000, { code: 'loanAmount.min' })"],
+      "message": "Сумма не менее 50 000 ₽"
+    },
+    {
+      "target": "loanAmount",
+      "rules": ["max(10000000, { code: 'loanAmount.max' })"],
+      "message": "Сумма не более 10 000 000 ₽"
+    },
+    {
+      "target": "loanTerm",
+      "rules": ["required({ code: 'loanTerm.required' })"],
+      "message": "Укажите срок"
+    },
+    {
+      "target": "loanTerm",
+      "rules": ["min(6, { code: 'loanTerm.min' })"],
+      "message": "Срок не менее 6 месяцев"
+    },
+    {
+      "target": "loanTerm",
+      "rules": ["max(240, { code: 'loanTerm.max' })"],
+      "message": "Срок не более 240 месяцев"
+    },
+    {
+      "target": "loanPurpose",
+      "rules": ["required({ code: 'loanPurpose.required' })"],
+      "message": "Опишите цель кредита"
+    },
+    {
+      "target": "loanPurpose",
+      "rules": ["minLength(10, { code: 'loanPurpose.min' })"],
+      "message": "Не менее 10 символов"
+    },
+    {
+      "target": "loanPurpose",
+      "rules": ["maxLength(500, { code: 'loanPurpose.max' })"],
+      "message": "Не более 500 символов"
+    },
+    {
+      "target": "propertyValue",
+      "when": "model.loanType === 'mortgage'",
+      "rules": ["required({ code: 'propertyValue.required' })"],
+      "message": "Укажите стоимость недвижимости"
+    },
+    {
+      "target": "propertyValue",
+      "when": "model.loanType === 'mortgage'",
+      "rules": ["min(1000000, { code: 'propertyValue.min' })"],
+      "message": "Стоимость не менее 1 000 000 ₽"
+    },
+    {
+      "target": "carBrand",
+      "when": "model.loanType === 'car'",
+      "rules": ["required({ code: 'carBrand.required' })"],
+      "message": "Укажите марку"
+    },
+    {
+      "target": "carBrand",
+      "when": "model.loanType === 'car'",
+      "rules": ["minLength(2, { code: 'carBrand.min' })"],
+      "message": "Не менее 2 символов"
+    },
+    {
+      "target": "carBrand",
+      "when": "model.loanType === 'car'",
+      "rules": ["maxLength(50, { code: 'carBrand.max' })"],
+      "message": "Не более 50 символов"
+    },
+    {
+      "target": "carModel",
+      "when": "model.loanType === 'car'",
+      "rules": ["required({ code: 'carModel.required' })"],
+      "message": "Укажите модель"
+    },
+    {
+      "target": "carModel",
+      "when": "model.loanType === 'car'",
+      "rules": ["maxLength(50, { code: 'carModel.max' })"],
+      "message": "Не более 50 символов"
+    },
+    {
+      "target": "carYear",
+      "when": "model.loanType === 'car'",
+      "rules": ["required({ code: 'carYear.required' })"],
+      "message": "Укажите год выпуска"
+    },
+    {
+      "target": "carYear",
+      "when": "model.loanType === 'car'",
+      "rules": ["min(2000, { code: 'carYear.min' })"],
+      "message": "Год не ранее 2000"
+    },
+    {
+      "target": "carYear",
+      "when": "model.loanType === 'car'",
+      "rules": ["max(new Date().getFullYear() + 1, { code: 'carYear.max' })"],
+      "message": "Год не позднее текущего + 1"
+    },
+    {
+      "target": "carPrice",
+      "when": "model.loanType === 'car'",
+      "rules": ["required({ code: 'carPrice.required' })"],
+      "message": "Укажите стоимость автомобиля"
+    },
+    {
+      "target": "carPrice",
+      "when": "model.loanType === 'car'",
+      "rules": ["min(300000, { code: 'carPrice.min' })"],
+      "message": "Стоимость не менее 300 000 ₽"
+    },
+    {
+      "target": "carPrice",
+      "when": "model.loanType === 'car'",
+      "rules": ["max(10000000, { code: 'carPrice.max' })"],
+      "message": "Стоимость не более 10 000 000 ₽"
+    },
+    {
+      "target": "personalData.lastName",
+      "rules": ["required({ code: 'ln.required' })"],
+      "message": "Введите фамилию"
+    },
+    {
+      "target": "personalData.firstName",
+      "rules": ["required({ code: 'fn.required' })"],
+      "message": "Введите имя"
+    },
+    {
+      "target": "personalData.middleName",
+      "rules": ["required({ code: 'mn.required' })"],
+      "message": "Введите отчество"
+    },
+    {
+      "target": "personalData.birthDate",
+      "rules": ["required({ code: 'bd.required' })"],
+      "message": "Укажите дату рождения"
+    },
+    {
+      "target": "personalData.gender",
+      "rules": ["required({ code: 'gender.required' })"],
+      "message": "Укажите пол"
+    },
+    {
+      "target": "personalData.birthPlace",
+      "rules": ["required({ code: 'bp.required' })"],
+      "message": "Введите место рождения"
+    },
+    {
+      "target": "passportData.series",
+      "rules": ["required({ code: 'ps.required' })"],
+      "message": "Введите серию паспорта"
+    },
+    {
+      "target": "passportData.number",
+      "rules": ["required({ code: 'pn.required' })"],
+      "message": "Введите номер паспорта"
+    },
+    {
+      "target": "passportData.issueDate",
+      "rules": ["required({ code: 'pi.required' })"],
+      "message": "Укажите дату выдачи"
+    },
+    {
+      "target": "passportData.issuedBy",
+      "rules": ["required({ code: 'pb.required' })"],
+      "message": "Укажите, кем выдан паспорт"
+    },
+    {
+      "target": "passportData.departmentCode",
+      "rules": ["required({ code: 'pd.required' })"],
+      "message": "Введите код подразделения"
+    },
+    {
+      "target": "inn",
+      "rules": ["required({ code: 'inn.required' })"],
+      "message": "Введите ИНН (12 цифр)"
+    },
+    {
+      "target": "snils",
+      "rules": ["required({ code: 'snils.required' })"],
+      "message": "Введите СНИЛС"
+    },
+    {
+      "target": "phoneMain",
+      "rules": ["required({ code: 'phoneMain.required' })"],
+      "message": "Введите основной телефон"
+    },
+    {
+      "target": "email",
+      "rules": ["required({ code: 'email.required' })"],
+      "message": "Введите email"
+    },
+    {
+      "target": "email",
+      "rules": ["email({ code: 'email.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "emailAdditional",
+      "when": "!!model.emailAdditional",
+      "rules": ["email({ code: 'emailAdd.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "registrationAddress.region",
+      "rules": ["required({ code: 'rr.required' })"],
+      "message": "Введите регион"
+    },
+    {
+      "target": "registrationAddress.city",
+      "rules": ["required({ code: 'rc.required' })"],
+      "message": "Введите город"
+    },
+    {
+      "target": "registrationAddress.street",
+      "rules": ["required({ code: 'rs.required' })"],
+      "message": "Введите улицу"
+    },
+    {
+      "target": "registrationAddress.house",
+      "rules": ["required({ code: 'rh.required' })"],
+      "message": "Введите дом"
+    },
+    {
+      "target": "registrationAddress.postalCode",
+      "rules": ["required({ code: 'rp.required' })"],
+      "message": "Введите индекс"
+    },
+    {
+      "target": "residenceAddress.region",
+      "when": "model.sameAsRegistration === false",
+      "rules": ["required({ code: 'sr.required' })"],
+      "message": "Введите регион"
+    },
+    {
+      "target": "residenceAddress.city",
+      "when": "model.sameAsRegistration === false",
+      "rules": ["required({ code: 'sc.required' })"],
+      "message": "Введите город"
+    },
+    {
+      "target": "residenceAddress.street",
+      "when": "model.sameAsRegistration === false",
+      "rules": ["required({ code: 'ss.required' })"],
+      "message": "Введите улицу"
+    },
+    {
+      "target": "residenceAddress.house",
+      "when": "model.sameAsRegistration === false",
+      "rules": ["required({ code: 'sh.required' })"],
+      "message": "Введите дом"
+    },
+    {
+      "target": "residenceAddress.postalCode",
+      "when": "model.sameAsRegistration === false",
+      "rules": ["required({ code: 'sp.required' })"],
+      "message": "Введите индекс"
+    },
+    {
+      "target": "employmentStatus",
+      "rules": ["required({ code: 'es.required' })"],
+      "message": "Укажите статус занятости"
+    },
+    {
+      "target": "companyName",
+      "when": "model.employmentStatus === 'employed'",
+      "rules": ["required({ code: 'cn.required' })"],
+      "message": "Введите название компании"
+    },
+    {
+      "target": "companyInn",
+      "when": "model.employmentStatus === 'employed'",
+      "rules": ["required({ code: 'ci.required' })"],
+      "message": "Введите ИНН компании"
+    },
+    {
+      "target": "position",
+      "when": "model.employmentStatus === 'employed'",
+      "rules": ["required({ code: 'pos.required' })"],
+      "message": "Введите должность"
+    },
+    {
+      "target": "businessType",
+      "when": "model.employmentStatus === 'selfEmployed'",
+      "rules": ["required({ code: 'bt.required' })"],
+      "message": "Укажите тип бизнеса"
+    },
+    {
+      "target": "businessInn",
+      "when": "model.employmentStatus === 'selfEmployed'",
+      "rules": ["required({ code: 'bi.required' })"],
+      "message": "Введите ИНН ИП"
+    },
+    {
+      "target": "workExperienceTotal",
+      "rules": ["required({ code: 'wet.required' })"],
+      "message": "Укажите общий стаж"
+    },
+    {
+      "target": "workExperienceTotal",
+      "rules": ["min(0, { code: 'wet.min' })"],
+      "message": "Стаж не может быть отрицательным"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rules": ["required({ code: 'wec.required' })"],
+      "message": "Укажите стаж на текущем месте"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rules": ["min(0, { code: 'wec.min' })"],
+      "message": "Стаж не может быть отрицательным"
+    },
+    {
+      "target": "monthlyIncome",
+      "rules": ["required({ code: 'mi.required' })"],
+      "message": "Укажите доход"
+    },
+    {
+      "target": "monthlyIncome",
+      "rules": ["min(10000, { code: 'mi.min' })"],
+      "message": "Доход не менее 10 000 ₽"
+    },
+    {
+      "target": "additionalIncome",
+      "when": "model.additionalIncome != null",
+      "rules": ["min(0, { code: 'ai.min' })"],
+      "message": "Доход не может быть отрицательным"
+    },
+    {
+      "target": "additionalIncomeSource",
+      "when": "(model.additionalIncome ?? 0) > 0",
+      "rules": ["required({ code: 'ais.required' })"],
+      "message": "Укажите источник дополнительного дохода"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rules": [],
+      "cross": "(values.workExperienceCurrent ?? 0) <= (values.workExperienceTotal ?? 0)",
+      "code": "wec.gtTotal",
+      "message": "Стаж на текущем месте не может быть больше общего"
+    },
+    {
+      "target": "loanAmount",
+      "rules": [],
+      "cross": "values.loanType !== 'mortgage' || values.propertyValue == null || (values.loanAmount ?? 0) <= values.propertyValue - (values.initialPayment ?? 0)",
+      "code": "loanAmount.mortgage",
+      "message": "Сумма кредита не должна превышать стоимость минус первоначальный взнос"
+    },
+    {
+      "target": "age",
+      "rules": [],
+      "cross": "values.age == null || (values.age >= 18 && values.age <= 70)",
+      "code": "age.range",
+      "message": "Возраст заемщика должен быть от 18 до 70 лет"
+    },
+    {
+      "target": "paymentToIncomeRatio",
+      "rules": [],
+      "cross": "values.paymentToIncomeRatio == null || values.paymentToIncomeRatio <= 50",
+      "code": "ratio.max",
+      "message": "Платеж не должен превышать 50% дохода"
+    },
+    {
+      "target": "paymentToIncomeRatio",
+      "rules": [],
+      "cross": "values.paymentToIncomeRatio == null || values.paymentToIncomeRatio <= 40",
+      "code": "ratio.warn",
+      "severity": "warning",
+      "message": "Высокая долговая нагрузка"
+    },
+    {
+      "target": "age",
+      "rules": [],
+      "cross": "values.age == null || values.age <= 60",
+      "code": "age.warn",
+      "severity": "warning",
+      "message": "Могут потребоваться дополнительные гарантии"
+    },
+    {
+      "target": "workExperienceCurrent",
+      "rules": [],
+      "cross": "values.workExperienceCurrent == null || values.workExperienceCurrent >= 3",
+      "code": "wec.warn",
+      "severity": "warning",
+      "message": "Малый стаж на текущем месте работы"
+    },
+    {
+      "target": "maritalStatus",
+      "rules": ["required({ code: 'ms.required' })"],
+      "message": "Укажите семейное положение"
+    },
+    {
+      "target": "dependents",
+      "rules": ["required({ code: 'dep.required' })"],
+      "message": "Укажите количество иждивенцев"
+    },
+    { "target": "dependents", "rules": ["min(0, { code: 'dep.min' })"], "message": "Не менее 0" },
+    { "target": "dependents", "rules": ["max(10, { code: 'dep.max' })"], "message": "Не более 10" },
+    {
+      "target": "education",
+      "rules": ["required({ code: 'edu.required' })"],
+      "message": "Выберите образование"
+    },
+    {
+      "target": "description",
+      "each": "properties",
+      "rules": ["required({ code: 'prop.desc.required' })"],
+      "message": "Опишите имущество"
+    },
+    {
+      "target": "estimatedValue",
+      "each": "properties",
+      "rules": ["required({ code: 'prop.val.required' })"],
+      "message": "Укажите стоимость"
+    },
+    {
+      "target": "estimatedValue",
+      "each": "properties",
+      "rules": ["min(0, { code: 'prop.val.min' })"],
+      "message": "Не менее 0"
+    },
+    {
+      "target": "bank",
+      "each": "existingLoans",
+      "rules": ["required({ code: 'loan.bank.required' })"],
+      "message": "Укажите банк"
+    },
+    {
+      "target": "type",
+      "each": "existingLoans",
+      "rules": ["required({ code: 'loan.type.required' })"],
+      "message": "Укажите тип кредита"
+    },
+    {
+      "target": "amount",
+      "each": "existingLoans",
+      "rules": ["required({ code: 'loan.amount.required' })"],
+      "message": "Укажите сумму"
+    },
+    {
+      "target": "amount",
+      "each": "existingLoans",
+      "rules": ["min(0, { code: 'loan.amount.min' })"],
+      "message": "Не менее 0"
+    },
+    {
+      "target": "remainingAmount",
+      "each": "existingLoans",
+      "rules": ["required({ code: 'loan.rem.required' })"],
+      "message": "Укажите остаток"
+    },
+    {
+      "target": "remainingAmount",
+      "each": "existingLoans",
+      "rules": ["min(0, { code: 'loan.rem.min' })"],
+      "message": "Не менее 0"
+    },
+    {
+      "target": "remainingAmount",
+      "each": "existingLoans",
+      "rules": [],
+      "cross": "(values.remainingAmount ?? 0) <= (values.amount ?? 0)",
+      "code": "loan.rem.gt",
+      "message": "Остаток не может быть больше суммы кредита"
+    },
+    {
+      "target": "monthlyPayment",
+      "each": "existingLoans",
+      "rules": ["required({ code: 'loan.mp.required' })"],
+      "message": "Укажите платеж"
+    },
+    {
+      "target": "monthlyPayment",
+      "each": "existingLoans",
+      "rules": ["min(0, { code: 'loan.mp.min' })"],
+      "message": "Не менее 0"
+    },
+    {
+      "target": "maturityDate",
+      "each": "existingLoans",
+      "rules": ["required({ code: 'loan.md.required' })"],
+      "message": "Укажите дату погашения"
+    },
+    {
+      "target": "lastName",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.ln.required' })"],
+      "message": "Введите фамилию"
+    },
+    {
+      "target": "firstName",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.fn.required' })"],
+      "message": "Введите имя"
+    },
+    {
+      "target": "middleName",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.mn.required' })"],
+      "message": "Введите отчество"
+    },
+    {
+      "target": "birthDate",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.bd.required' })"],
+      "message": "Укажите дату рождения"
+    },
+    {
+      "target": "phone",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.phone.required' })"],
+      "message": "Введите телефон"
+    },
+    {
+      "target": "email",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.email.required' })"],
+      "message": "Введите email"
+    },
+    {
+      "target": "email",
+      "each": "coBorrowers",
+      "rules": ["email({ code: 'cb.email.format' })"],
+      "message": "Некорректный email"
+    },
+    {
+      "target": "relationship",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.rel.required' })"],
+      "message": "Укажите родство"
+    },
+    {
+      "target": "monthlyIncome",
+      "each": "coBorrowers",
+      "rules": ["required({ code: 'cb.inc.required' })"],
+      "message": "Укажите доход"
+    },
+    {
+      "target": "monthlyIncome",
+      "each": "coBorrowers",
+      "rules": ["min(0, { code: 'cb.inc.min' })"],
+      "message": "Не менее 0"
+    },
+    {
+      "target": "agreePersonalData",
+      "rules": [],
+      "cross": "values.agreePersonalData === true",
+      "code": "ag1.true",
+      "message": "Необходимо согласие на обработку данных"
+    },
+    {
+      "target": "agreeCreditHistory",
+      "rules": [],
+      "cross": "values.agreeCreditHistory === true",
+      "code": "ag2.true",
+      "message": "Необходимо согласие на проверку кредитной истории"
+    },
+    {
+      "target": "agreeTerms",
+      "rules": [],
+      "cross": "values.agreeTerms === true",
+      "code": "ag3.true",
+      "message": "Необходимо согласие с условиями кредитования"
+    },
+    {
+      "target": "confirmAccuracy",
+      "rules": [],
+      "cross": "values.confirmAccuracy === true",
+      "code": "conf.true",
+      "message": "Подтвердите точность данных"
+    },
+    {
+      "target": "electronicSignature",
+      "rules": ["required({ code: 'sig.required' })"],
+      "message": "Введите 6-значный код из СМС"
+    }
+  ],
+  "behavior": [
+    {
+      "kind": "enableWhen",
+      "target": "propertyValue",
+      "sources": ["loanType"],
+      "expr": "model.loanType === 'mortgage'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "initialPayment",
+      "sources": ["loanType"],
+      "expr": "model.loanType === 'mortgage'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carBrand",
+      "sources": ["loanType"],
+      "expr": "model.loanType === 'car'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carModel",
+      "sources": ["loanType"],
+      "expr": "model.loanType === 'car'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carYear",
+      "sources": ["loanType"],
+      "expr": "model.loanType === 'car'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "carPrice",
+      "sources": ["loanType"],
+      "expr": "model.loanType === 'car'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "compute",
+      "target": "initialPayment",
+      "sources": ["propertyValue"],
+      "when": "model.loanType === 'mortgage'",
+      "expr": "model.propertyValue == null ? null : Math.round(model.propertyValue * 0.2)"
+    },
+    {
+      "kind": "resetWhen",
+      "target": "carModel",
+      "sources": ["carBrand"],
+      "expr": "true",
+      "options": { "resetValue": null }
+    },
+    {
+      "kind": "resetWhen",
+      "target": "registrationAddress.city",
+      "sources": ["registrationAddress.region"],
+      "expr": "true",
+      "options": { "resetValue": "" }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyName",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'employed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyInn",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'employed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyPhone",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'employed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "companyAddress",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'employed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "position",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'employed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "businessType",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'selfEmployed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "businessInn",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'selfEmployed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "enableWhen",
+      "target": "businessActivity",
+      "sources": ["employmentStatus"],
+      "expr": "model.employmentStatus === 'selfEmployed'",
+      "options": { "resetOnDisable": true }
+    },
+    {
+      "kind": "disableWhen",
+      "target": "residenceAddress",
+      "sources": ["sameAsRegistration"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress.region",
+      "sources": ["registrationAddress.region"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress.city",
+      "sources": ["registrationAddress.city"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress.street",
+      "sources": ["registrationAddress.street"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress.house",
+      "sources": ["registrationAddress.house"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress.apartment",
+      "sources": ["registrationAddress.apartment"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "residenceAddress.postalCode",
+      "sources": ["registrationAddress.postalCode"],
+      "expr": "model.sameAsRegistration === true"
+    },
+    {
+      "kind": "copyFrom",
+      "target": "emailAdditional",
+      "sources": ["email"],
+      "expr": "model.sameEmail === true"
+    },
+    {
+      "kind": "onChange",
+      "target": "hasProperty",
+      "sources": [],
+      "expr": "if (!value) model.properties.clear();"
+    },
+    {
+      "kind": "onChange",
+      "target": "hasExistingLoans",
+      "sources": [],
+      "expr": "if (!value) model.existingLoans.clear();"
+    },
+    {
+      "kind": "onChange",
+      "target": "hasCoBorrower",
+      "sources": [],
+      "expr": "if (!value) model.coBorrowers.clear();"
+    },
+    {
+      "kind": "compute",
+      "target": "interestRate",
+      "sources": ["loanType", "registrationAddress.region", "hasProperty", "properties"],
+      "expr": "(({ consumer: 15, mortgage: 9, car: 12, business: 14, refinancing: 11 } as Record<string, number>)[model.loanType ?? 'consumer'] ?? 15) - (model.hasProperty && model.properties.length > 0 ? 1 : 0)"
+    },
+    {
+      "kind": "compute",
+      "target": "monthlyPayment",
+      "sources": ["loanAmount", "loanTerm", "interestRate"],
+      "expr": "(() => { const p = model.loanAmount ?? 0; const n = model.loanTerm ?? 0; const i = (model.interestRate ?? 0) / 100 / 12; if (!p || !n) return null; if (!i) return Math.round(p / n); const k = Math.pow(1 + i, n); return Math.round(p * (i * k) / (k - 1)); })()"
+    },
+    {
+      "kind": "compute",
+      "target": "fullName",
+      "sources": ["personalData.lastName", "personalData.firstName", "personalData.middleName"],
+      "expr": "[model.personalData.lastName, model.personalData.firstName, model.personalData.middleName].filter(Boolean).join(' ')"
+    },
+    {
+      "kind": "compute",
+      "target": "age",
+      "sources": ["personalData.birthDate"],
+      "expr": "(() => { const s = model.personalData.birthDate as unknown as string; if (!s) return null; const b = new Date(s); if (isNaN(b.getTime())) return null; const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; })()"
+    },
+    {
+      "kind": "compute",
+      "target": "totalIncome",
+      "sources": ["monthlyIncome", "additionalIncome"],
+      "expr": "(model.monthlyIncome ?? 0) + (model.additionalIncome ?? 0)"
+    },
+    {
+      "kind": "compute",
+      "target": "paymentToIncomeRatio",
+      "sources": ["monthlyPayment", "totalIncome"],
+      "expr": "(model.totalIncome ?? 0) > 0 && model.monthlyPayment != null ? Math.round(((model.monthlyPayment / (model.totalIncome as number)) * 100) * 10) / 10 : null"
+    },
+    {
+      "kind": "compute",
+      "target": "coBorrowersIncome",
+      "sources": ["coBorrowers", "coBorrowers.monthlyIncome"],
+      "expr": "model.coBorrowers.map((row) => row.monthlyIncome).reduce((sum, v) => sum + (v || 0), 0)"
+    },
+    {
+      "kind": "onComponentEvent",
+      "selector": "wizard",
+      "event": "onSubmit",
+      "expr": "await submitApplication(model.get())"
+    }
+  ],
+  "visibility": [
+    { "selector": "mortgage-section", "condition": "model.loanType !== 'mortgage'" },
+    { "selector": "car-section", "condition": "model.loanType !== 'car'" },
+    { "selector": "employed-section", "condition": "model.employmentStatus !== 'employed'" },
+    { "selector": "self-section", "condition": "model.employmentStatus !== 'selfEmployed'" },
+    { "selector": "res-section", "condition": "model.sameAsRegistration === true" },
+    { "selector": "properties-box", "condition": "!model.hasProperty" },
+    { "selector": "loans-box", "condition": "!model.hasExistingLoans" },
+    { "selector": "cob-box", "condition": "!model.hasCoBorrower" }
+  ],
+  "dataSources": [
+    {
+      "name": "LOAN_TYPES",
+      "values": [
+        { "value": "consumer", "label": "Потребительский" },
+        { "value": "mortgage", "label": "Ипотека" },
+        { "value": "car", "label": "Автокредит" },
+        { "value": "business", "label": "Бизнес" },
+        { "value": "refinancing", "label": "Рефинансирование" }
+      ]
+    }
+  ],
+  "operators": { "submitApplication": "./api" }
+}

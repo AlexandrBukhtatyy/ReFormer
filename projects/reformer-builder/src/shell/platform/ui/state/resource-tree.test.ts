@@ -1,0 +1,547 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import {
+  makeResourceId,
+  mediaTypeFor,
+  type ResourceId,
+  type ResourceRef,
+} from '@reformer/builder-plugin-api/internal';
+import {
+  collapseNode,
+  createResourceTreeStore,
+  createTreeState,
+  expandNode,
+  flattenTree,
+  invalidateLevel,
+  levelStatus,
+  actionTargets,
+  rangeIds,
+  selectNode,
+  setChecked,
+  setChildren,
+  toggleChecked,
+  setLevelStatus,
+  sortEntries,
+  staleLevels,
+  NO_UNSAVED,
+  sameUnsaved,
+  unsavedMarks,
+  type ResourceTreeState,
+  type TreeChange,
+} from './resource-tree';
+import type { WorkspaceChange } from '@/shell/platform/workspace/workspace';
+
+const ROOT = 'mem:';
+
+function dir(path: string): ResourceRef {
+  return {
+    id: makeResourceId('mem', path),
+    sourceId: 'mem',
+    path,
+    name: path.slice(path.lastIndexOf('/') + 1),
+    kind: 'directory',
+    mediaType: 'inode/directory',
+  };
+}
+
+function file(path: string): ResourceRef {
+  return {
+    id: makeResourceId('mem', path),
+    sourceId: 'mem',
+    path,
+    name: path.slice(path.lastIndexOf('/') + 1),
+    kind: 'file',
+    mediaType: mediaTypeFor(path),
+  };
+}
+
+/** Дерево проекта: два каталога и файлы. Уровни отдаются по одному обращению. */
+const LEVELS: Readonly<Record<string, readonly ResourceRef[]>> = {
+  'mem:': [file('package.json'), dir('forms'), dir('shared')],
+  'mem:forms': [dir('forms/credit'), file('forms/index.ts')],
+  'mem:forms/credit': [file('forms/credit/schema.json'), file('forms/credit/README.md')],
+  'mem:shared': [file('shared/rules.ts')],
+};
+
+/**
+ * Подставная рабочая область для дерева — с журналом обращений.
+ *
+ * `readText` объявлен намеренно и обязан остаться нетронутым: тип {@link TreeWorkspace}
+ * его не содержит, но проверять надо не типы, а поведение — дерево не читает тел файлов.
+ */
+function fakeWorkspace() {
+  const listCalls: ResourceId[] = [];
+  const readText = vi.fn(() => Promise.resolve(''));
+  const workspace = {
+    list(id: ResourceId): Promise<readonly ResourceRef[]> {
+      listCalls.push(id);
+      const level = LEVELS[id];
+      if (level === undefined) return Promise.reject(new Error(`нет каталога: ${id}`));
+      return Promise.resolve(level);
+    },
+    readText,
+  };
+  return { workspace, listCalls, readText };
+}
+
+describe('sortEntries', () => {
+  it('каталоги выше файлов, дальше — по имени с числами и без регистра', () => {
+    const sorted = sortEntries([
+      file('form10.json'),
+      file('Form2.json'),
+      dir('shared'),
+      file('a.json'),
+      dir('Assets'),
+    ]);
+    expect(sorted.map((entry) => entry.name)).toEqual([
+      'Assets',
+      'shared',
+      'a.json',
+      'Form2.json',
+      'form10.json',
+    ]);
+  });
+});
+
+describe('состояние уровня', () => {
+  it('неспрошенный каталог — `unloaded`, а не пустой список', () => {
+    const state = createTreeState(ROOT);
+    expect(levelStatus(state, ROOT)).toBe('unloaded');
+    expect(flattenTree(state)).toEqual([]);
+  });
+
+  it('setChildren наводит порядок сам и помечает уровень прочитанным', () => {
+    const state = setChildren(createTreeState(ROOT), ROOT, [file('b.json'), dir('a')]);
+    expect(state.children.get(ROOT)?.map((entry) => entry.name)).toEqual(['a', 'b.json']);
+    expect(levelStatus(state, ROOT)).toBe('loaded');
+  });
+
+  it('повторная запись того же статуса снимок не пересоздаёт', () => {
+    const state = setLevelStatus(createTreeState(ROOT), ROOT, 'loading');
+    expect(setLevelStatus(state, ROOT, 'loading')).toBe(state);
+  });
+
+  it('сворачивание НЕ забывает прочитанный уровень', () => {
+    let state = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT]);
+    state = expandNode(state, 'mem:forms');
+    state = setChildren(state, 'mem:forms', LEVELS['mem:forms']);
+    const collapsed = collapseNode(state, 'mem:forms');
+    expect(collapsed.children.has('mem:forms')).toBe(true);
+    expect(levelStatus(collapsed, 'mem:forms')).toBe('loaded');
+  });
+
+  it('invalidateLevel забывает уровень целиком', () => {
+    const state = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT]);
+    const dropped = invalidateLevel(state, ROOT);
+    expect(dropped.children.has(ROOT)).toBe(false);
+    expect(levelStatus(dropped, ROOT)).toBe('unloaded');
+    // Уровня и не было — значит забывать нечего и снимок остаётся той же ссылкой.
+    const fresh = createTreeState(ROOT);
+    expect(invalidateLevel(fresh, ROOT)).toBe(fresh);
+  });
+});
+
+describe('flattenTree', () => {
+  function loaded(): ResourceTreeState {
+    let state = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT]);
+    state = expandNode(state, 'mem:forms');
+    state = setChildren(state, 'mem:forms', LEVELS['mem:forms']);
+    return state;
+  }
+
+  it('дети раскрытого каталога идут сразу за ним и глубже на уровень', () => {
+    const rows = flattenTree(loaded());
+    expect(rows.map((row) => `${row.depth}:${row.ref.name}`)).toEqual([
+      '0:forms',
+      '1:credit',
+      '1:index.ts',
+      '0:shared',
+      '0:package.json',
+    ]);
+  });
+
+  it('свёрнутый каталог детей не показывает, хотя они прочитаны', () => {
+    const rows = flattenTree(collapseNode(loaded(), 'mem:forms'));
+    expect(rows.map((row) => row.ref.name)).toEqual(['forms', 'shared', 'package.json']);
+  });
+
+  it('раскрытый, но ещё не прочитанный каталог строк не добавляет', () => {
+    const state = expandNode(loaded(), 'mem:shared');
+    expect(flattenTree(state).map((row) => row.ref.name)).toEqual([
+      'forms',
+      'credit',
+      'index.ts',
+      'shared',
+      'package.json',
+    ]);
+  });
+
+  it('несёт состояние строки: раскрытость, чтение, отказ, выделение', () => {
+    let state = expandNode(loaded(), 'mem:shared');
+    state = setLevelStatus(state, 'mem:shared', 'loading');
+    state = setLevelStatus(state, 'mem:forms/credit', 'failed');
+    state = selectNode(state, 'mem:forms/index.ts');
+    const rows = flattenTree(state);
+
+    expect(rows.find((row) => row.ref.name === 'forms')?.expanded).toBe(true);
+    expect(rows.find((row) => row.ref.name === 'shared')?.loading).toBe(true);
+    expect(rows.find((row) => row.ref.name === 'credit')?.failed).toBe(true);
+    expect(rows.find((row) => row.ref.name === 'index.ts')?.selected).toBe(true);
+  });
+
+  it('файл раскрытым не считается, даже если попал в набор раскрытых', () => {
+    const state = expandNode(loaded(), 'mem:package.json');
+    expect(flattenTree(state).find((row) => row.ref.name === 'package.json')?.expanded).toBe(false);
+  });
+});
+
+describe('createResourceTreeStore — ленивое раскрытие', () => {
+  it('уровень берётся ОДНИМ обращением, а тела файлов не читаются', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+
+    await store.expand(ROOT);
+
+    expect(fake.listCalls).toEqual([ROOT]);
+    expect(fake.readText).not.toHaveBeenCalled();
+    expect(flattenTree(store.get()).map((row) => row.ref.name)).toEqual([
+      'forms',
+      'shared',
+      'package.json',
+    ]);
+    store.dispose();
+  });
+
+  it('раскрытие идёт по уровням: соседний каталог не читается заранее', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+
+    await store.expand(ROOT);
+    await store.expand('mem:forms');
+
+    // Ни `shared`, ни `forms/credit` не спрошены: их никто не раскрывал.
+    expect(fake.listCalls).toEqual([ROOT, 'mem:forms']);
+    expect(fake.readText).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('свернуть и раскрыть обратно не стоит ни одного обращения', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+
+    await store.expand(ROOT);
+    await store.toggle('mem:forms');
+    await store.toggle('mem:forms');
+    await store.toggle('mem:forms');
+
+    expect(fake.listCalls).toEqual([ROOT, 'mem:forms']);
+    store.dispose();
+  });
+
+  it('два раскрытия подряд не порождают двух листингов', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+
+    await Promise.all([store.expand(ROOT), store.expand(ROOT)]);
+
+    expect(fake.listCalls).toEqual([ROOT]);
+    store.dispose();
+  });
+
+  it('refresh перечитывает уровень: файлы могли появиться', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+
+    await store.expand(ROOT);
+    await store.refresh(ROOT);
+
+    expect(fake.listCalls).toEqual([ROOT, ROOT]);
+    store.dispose();
+  });
+
+  it('отказ уровня — состояние строки, а не авария дерева', async () => {
+    const fake = fakeWorkspace();
+    const onError = vi.fn();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT, onError });
+
+    await store.expand(ROOT);
+    await store.expand('mem:package.json');
+
+    expect(levelStatus(store.get(), 'mem:package.json')).toBe('failed');
+    expect(onError).toHaveBeenCalledOnce();
+    // Остальное дерево цело.
+    expect(flattenTree(store.get())).toHaveLength(3);
+    store.dispose();
+  });
+
+  it('подписчик получает уведомление, а снимок между изменениями стабилен', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    const before = store.get();
+    await store.expand(ROOT);
+    const after = store.get();
+
+    expect(listener).toHaveBeenCalled();
+    expect(after).not.toBe(before);
+    expect(store.get()).toBe(after);
+    store.dispose();
+  });
+
+  it('выделение — часть состояния дерева, а не отдельная переменная отрисовки', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+
+    store.select('mem:package.json');
+    expect(flattenTree(store.get()).find((row) => row.selected)?.ref.name).toBe('package.json');
+
+    store.select(null);
+    expect(flattenTree(store.get()).some((row) => row.selected)).toBe(false);
+    store.dispose();
+  });
+});
+
+describe('отмеченный набор', () => {
+  it('щелчок с Ctrl добавляет строку и убирает её обратно', () => {
+    const state = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT] ?? []);
+
+    const added = toggleChecked(state, 'mem:package.json');
+    expect(flattenTree(added).filter((row) => row.checked)).toHaveLength(1);
+
+    const removed = toggleChecked(added, 'mem:package.json');
+    expect(flattenTree(removed).some((row) => row.checked)).toBe(false);
+  });
+
+  it('повторная установка того же набора не меняет состояние', () => {
+    const state = setChecked(setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT] ?? []), [
+      'mem:package.json',
+    ]);
+
+    expect(setChecked(state, ['mem:package.json'])).toBe(state);
+  });
+
+  it('диапазон считается по ВИДИМЫМ строкам, а не по дереву', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+    await store.expand('mem:forms');
+
+    const rows = flattenTree(store.get());
+    expect(rangeIds(rows, 'mem:forms', 'mem:forms/index.ts')).toEqual([
+      'mem:forms',
+      'mem:forms/credit',
+      'mem:forms/index.ts',
+    ]);
+
+    // Свёрнутый каталог прячет своих детей — и из диапазона они тоже уходят.
+    store.collapse('mem:forms');
+    expect(rangeIds(flattenTree(store.get()), 'mem:forms', 'mem:package.json')).toEqual([
+      'mem:forms',
+      'mem:shared',
+      'mem:package.json',
+    ]);
+    store.dispose();
+  });
+
+  it('неизвестная граница диапазона не выделяет ничего', () => {
+    const state = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT] ?? []);
+
+    expect(rangeIds(flattenTree(state), 'mem:package.json', 'mem:gone.ts')).toEqual([]);
+  });
+
+  it('действие применяется к набору, только если фокус стоит внутри него', () => {
+    const base = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT] ?? []);
+    const checked = setChecked(base, ['mem:package.json', 'mem:shared']);
+
+    // Фокус внутри набора — действуют все отмеченные, в порядке строк.
+    const inside = flattenTree(selectNode(checked, 'mem:package.json'));
+    expect(actionTargets(inside).map((ref) => ref.id)).toEqual(['mem:shared', 'mem:package.json']);
+
+    // Фокус ушёл на строку вне набора — действует она одна.
+    const outside = flattenTree(selectNode(checked, 'mem:forms'));
+    expect(actionTargets(outside).map((ref) => ref.id)).toEqual(['mem:forms']);
+  });
+
+  it('без выделения и без отметок действовать не над чем', () => {
+    const state = setChildren(createTreeState(ROOT), ROOT, LEVELS[ROOT] ?? []);
+
+    expect(actionTargets(flattenTree(state))).toEqual([]);
+  });
+
+  it('хранилище переносит набор в строки', async () => {
+    const fake = fakeWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+
+    store.check(['mem:package.json', 'mem:shared']);
+    expect(flattenTree(store.get()).filter((row) => row.checked)).toHaveLength(2);
+
+    store.toggleCheck('mem:shared');
+    expect(flattenTree(store.get()).filter((row) => row.checked)).toHaveLength(1);
+
+    store.check([]);
+    expect(flattenTree(store.get()).some((row) => row.checked)).toBe(false);
+    store.dispose();
+  });
+});
+
+describe('staleLevels — что перечитать после изменения рабочей области', () => {
+  /** Прочитаны корень и `forms`; `shared` и `forms/credit` не раскрывали. */
+  function shown(): ResourceTreeState {
+    let state = createTreeState(ROOT);
+    state = setChildren(state, ROOT, LEVELS['mem:'] ?? []);
+    return setChildren(state, 'mem:forms', LEVELS['mem:forms'] ?? []);
+  }
+  const appeared = (path: string): TreeChange => ({ id: `mem:${path}`, kind: 'appeared' });
+  const gone = (path: string): TreeChange => ({ id: `mem:${path}`, kind: 'gone' });
+
+  it('открытие показанного файла листинга не стоит', () => {
+    expect(staleLevels(shown(), [appeared('forms/index.ts')])).toEqual([]);
+  });
+
+  it('файл в нераскрытом каталоге не стоит: каталог уже на месте', () => {
+    expect(staleLevels(shown(), [appeared('shared/rules.ts'), appeared('shared/new.ts')])).toEqual(
+      []
+    );
+  });
+
+  it('новый файл перечитывает свой прочитанный каталог — один раз на пакет', () => {
+    expect(staleLevels(shown(), [appeared('forms/new.ts'), appeared('forms/other.ts')])).toEqual([
+      'mem:forms',
+    ]);
+  });
+
+  it('файл в новом каталоге перечитывает уровень, где каталог должен появиться', () => {
+    expect(staleLevels(shown(), [appeared('forms/contact/schema/model.ts')])).toEqual([
+      'mem:forms',
+    ]);
+    expect(staleLevels(shown(), [appeared('modules/contact/index.ts')])).toEqual([ROOT]);
+  });
+
+  it('исчезнувшая запись перечитывает родителя, только если ещё показана в нём', () => {
+    expect(staleLevels(shown(), [gone('forms/index.ts')])).toEqual(['mem:forms']);
+    expect(staleLevels(shown(), [gone('forms/never-shown.ts')])).toEqual([]);
+    expect(staleLevels(shown(), [gone('shared/rules.ts')])).toEqual([]);
+  });
+
+  it('чужой источник и непрочитанное дерево — нечего сверять', () => {
+    expect(staleLevels(shown(), [{ id: 'other:forms/new.ts', kind: 'appeared' }])).toEqual([]);
+    expect(staleLevels(createTreeState(ROOT), [appeared('forms/new.ts')])).toEqual([]);
+  });
+});
+
+describe('createResourceTreeStore — сверка с рабочей областью', () => {
+  /** Рабочая область, у которой меняется содержимое и которая сообщает об изменениях. */
+  function changingWorkspace() {
+    const levels = new Map<ResourceId, readonly ResourceRef[]>(Object.entries(LEVELS));
+    const listCalls: ResourceId[] = [];
+    const listeners = new Set<(e: WorkspaceChange) => void>();
+    const workspace = {
+      list(id: ResourceId): Promise<readonly ResourceRef[]> {
+        listCalls.push(id);
+        return Promise.resolve(levels.get(id) ?? []);
+      },
+      onDidChange(cb: (e: WorkspaceChange) => void) {
+        listeners.add(cb);
+        return { dispose: () => listeners.delete(cb) };
+      },
+    };
+    const emit = (change: WorkspaceChange): void => {
+      for (const listener of [...listeners]) listener(change);
+    };
+    return { workspace, levels, listCalls, listeners, emit };
+  }
+
+  it('записанное мимо команд дерева появляется без «Обновить»', async () => {
+    const fake = changingWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+
+    // Кодоген сохранил модуль в новый каталог: в листинге корня он есть, в дереве — ещё нет.
+    fake.levels.set(ROOT, [...(LEVELS['mem:'] ?? []), dir('modules')]);
+    fake.emit({ changes: [{ id: 'mem:modules/contact/index.ts', type: 'saved' }] });
+
+    await vi.waitFor(() => {
+      expect(flattenTree(store.get()).map((row) => row.ref.name)).toContain('modules');
+    });
+    expect(fake.listCalls).toEqual([ROOT, ROOT]);
+    store.dispose();
+  });
+
+  it('набор текста и открытие показанного файла листинга не вызывают', async () => {
+    const fake = changingWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    await store.expand(ROOT);
+
+    fake.emit({
+      changes: [
+        { id: 'mem:package.json', type: 'materialized' },
+        { id: 'mem:package.json', type: 'written' },
+        { id: 'mem:package.json', type: 'evicted' },
+      ],
+    });
+    await Promise.resolve();
+
+    expect(fake.listCalls).toEqual([ROOT]);
+    store.dispose();
+  });
+
+  it('dispose снимает подписку', () => {
+    const fake = changingWorkspace();
+    const store = createResourceTreeStore({ workspace: fake.workspace, rootId: ROOT });
+    expect(fake.listeners.size).toBe(1);
+
+    store.dispose();
+
+    expect(fake.listeners.size).toBe(0);
+  });
+});
+
+describe('unsavedMarks — несохранённое в дереве', () => {
+  const id = (path: string): ResourceId => makeResourceId('mem', path);
+
+  it('файл помечен сам, а каталоги над ним — до корня включительно', () => {
+    const marks = unsavedMarks([id('src/forms/guest/schema.json')]);
+
+    expect([...marks.files]).toEqual([id('src/forms/guest/schema.json')]);
+    expect([...marks.dirs].sort()).toEqual(
+      [id('src/forms/guest'), id('src/forms'), id('src'), ROOT].sort()
+    );
+  });
+
+  it('соседний каталог не помечается: только предки изменённого', () => {
+    const marks = unsavedMarks([id('src/forms/guest/schema.json')]);
+
+    expect(marks.dirs.has(id('src/forms/other'))).toBe(false);
+    expect(marks.dirs.has(id('src/forms/guest/schema.json'))).toBe(false);
+  });
+
+  it('адреса каталогов совпадают с адресами строк дерева', () => {
+    const marks = unsavedMarks([id('a/b.txt')]);
+
+    expect(marks.dirs.has(dir('a').id)).toBe(true);
+  });
+
+  it('несколько файлов в одном каталоге дают его один раз', () => {
+    const marks = unsavedMarks([id('form/a.ts'), id('form/b.ts'), id('form/steps/c.ts')]);
+
+    expect(marks.files.size).toBe(3);
+    expect([...marks.dirs].sort()).toEqual([id('form'), id('form/steps'), ROOT].sort());
+  });
+
+  it('пустой список — общий пустой снимок', () => {
+    expect(unsavedMarks([])).toBe(NO_UNSAVED);
+  });
+
+  it('тот же состав в другом порядке — «ничего не изменилось»', () => {
+    const a = unsavedMarks([id('x.ts'), id('y.ts')]);
+    const b = unsavedMarks([id('y.ts'), id('x.ts')]);
+
+    expect(sameUnsaved(a, b)).toBe(true);
+    expect(sameUnsaved(a, unsavedMarks([id('x.ts')]))).toBe(false);
+    expect(sameUnsaved(a, unsavedMarks([id('x.ts'), id('z.ts')]))).toBe(false);
+  });
+});

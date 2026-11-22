@@ -1,0 +1,53 @@
+import type { PropsSchema } from '@/fields/props-schema';
+
+/**
+ * Props-схема Calendar (single-date, компонент формы `CalendarSingle`) — единый источник `api.controls[]` (reformer-doc)
+ * и DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+ *
+ * `value`/`onChange` — seam (маппятся адаптером на `selected`/`onSelect`), поэтому в `x-runtimeProps`,
+ * а не в `properties`. `mode` в схеме нет: у `CalendarSingle` он зашит (`single`), период и
+ * несколько дат — отдельные поля `DatePickerRange` / `DatePickerMulti`. `x-registryName: 'Calendar'` → экспорт `CalendarSingle` (`x-exportName`).
+ */
+export const calendarBasePropsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  'x-registryName': 'Calendar',
+  'x-exportName': 'CalendarSingle',
+  properties: {
+    captionLayout: {
+      type: 'string',
+      enum: ['label', 'dropdown', 'dropdown-months', 'dropdown-years'],
+      default: 'label',
+      description: 'Шапка месяца: статичная подпись или дропдауны выбора месяца/года.',
+      'x-doc': {
+        group: 'Behavior',
+        type: "'label' | 'dropdown' | 'dropdown-months' | 'dropdown-years'",
+        kind: 'enum',
+      },
+    },
+    showOutsideDays: {
+      type: 'boolean',
+      default: true,
+      description: 'Показывать дни соседних месяцев в первой и последней неделе.',
+      'x-doc': { group: 'Behavior', type: 'boolean' },
+    },
+    className: {
+      type: 'string',
+      description: 'Доп. CSS-класс корневого элемента.',
+      'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
+    },
+  },
+  'x-runtimeProps': {
+    // Только СВОЁ: seam (onBlur/disabled) подмешает mergeFieldPropsSchema.
+    value: {
+      group: 'Control',
+      type: 'Date | null',
+      description: 'Выбранная дата. null — ничего не выбрано.',
+    },
+    onChange: {
+      group: 'Control',
+      type: '(value: Date | null) => void',
+      description: 'Выбор даты. Повторный клик по выбранной дате сбрасывает значение в null.',
+    },
+  },
+} as const satisfies PropsSchema;

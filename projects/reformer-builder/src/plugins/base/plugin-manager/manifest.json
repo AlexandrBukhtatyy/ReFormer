@@ -1,0 +1,6 @@
+{
+  "id": "reformer.plugin-manager",
+  "name": "Управление плагинами",
+  "apiVersion": "^1",
+  "permissions": ["plugins.manage"]
+}

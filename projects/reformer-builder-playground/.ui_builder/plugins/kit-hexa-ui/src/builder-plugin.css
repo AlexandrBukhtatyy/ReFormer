@@ -1,0 +1,11 @@
+/*
+ * Стили кита HexaUI для ReFormer Builder.
+ *
+ * Оболочка ставит эту таблицу с изоляцией `scoped` (поле `styles` манифеста): каждый селектор
+ * уходит под `[data-rb-plugin="kit-hexa-ui"]`, а этот атрибут вешает рамка кита вокруг формы
+ * в превью. Ресет antd внутри (`html`, `body`, `*`) поэтому перекрашивает форму, а не билдер.
+ *
+ * `@import` сборка плагина (`reformer-plugin build`) разворачивает из node_modules: в собранную
+ * таблицу он не попадает — оболочка `@import` не принимает.
+ */
+@import '@kaspersky/hexa-ui/design-system/global-style/styles.css';

@@ -1,0 +1,22 @@
+import type { ComponentType } from 'react';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { FormField } from '@reformer/ui-kit';
+import { useDemoField, type DemoFieldConfig } from './harness';
+
+/**
+ * Собирает готовый React-компонент, который поднимает поле формы и рендерит его
+ * через `<FormField>`. Используется для variant-карточек и example-демо
+ * field-bound компонентов ui-kit (schema-driven путь).
+ */
+export function makeFieldVariant(config: DemoFieldConfig): ComponentType {
+  return function FieldVariant() {
+    const { control } = useDemoField(config);
+    return (
+      <div style={{ maxWidth: config.fullWidth ? undefined : 380, width: '100%' }}>
+        <ValidationMessagesProvider messages={config.messages}>
+          <FormField control={control} />
+        </ValidationMessagesProvider>
+      </div>
+    );
+  };
+}

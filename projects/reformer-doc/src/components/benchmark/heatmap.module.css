@@ -1,0 +1,392 @@
+/**
+ * Тепловая карта (Heatmap.tsx): карточка как у графиков страницы, шкала — токены --bench-div-* из
+ * bench.module.css. Текст в цветных ячейках — --bench-div-ink (контраст ≥ 4.6:1 на каждом шаге), в
+ * серых — цвет текста сайта.
+ */
+
+.heatmap {
+  position: relative;
+  min-width: 0;
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.15rem 1.1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.85rem;
+  line-height: 1.35;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+}
+
+.lead {
+  max-width: 860px;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* ── Шкала ─────────────────────────────────────────────────────────────── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 2rem;
+  margin-bottom: 1rem;
+}
+
+.scale {
+  flex: 0 1 26rem;
+  min-width: 0;
+}
+
+.scaleBar,
+.scaleTicks {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.scaleBar span {
+  height: 12px;
+}
+
+.scaleBar span:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.scaleBar span:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.scaleTicks {
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.scaleEnds {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.legendNotes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.legendNotes li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.legendChip {
+  flex: none;
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legendBaseline {
+  border: 1.5px dashed var(--bench-lib-baseline);
+}
+
+/* ── Таблица ───────────────────────────────────────────────────────────── */
+.wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 0.8rem;
+}
+
+.table thead,
+.table tr,
+.tipTable thead {
+  border: 0;
+  background: transparent;
+}
+
+.table th,
+.table td {
+  border: 0;
+  padding: 0;
+}
+
+.table thead th {
+  padding: 0 0.4rem 0.35rem;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: bottom;
+  white-space: nowrap;
+  color: var(--ifm-font-color-base);
+}
+
+.colHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.colSub {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Колонка фаз прилипает слева: на телефоне карта прокручивается вбок, названия остаются. */
+.table .phaseCol {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--ifm-background-surface-color);
+}
+
+.table thead .phaseCol {
+  text-align: left;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.table tbody .phaseCol {
+  font-weight: 400;
+  width: 40%;
+  min-width: 13rem;
+  padding-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.phaseButton {
+  display: block;
+  width: 100%;
+  padding: 0.3rem 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--ifm-color-emphasis-800);
+  cursor: pointer;
+}
+
+.phaseButton:hover {
+  color: var(--ifm-font-color-base);
+  text-decoration: underline;
+}
+
+.cell {
+  min-width: 5.5rem;
+  height: 2.6rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--bench-div-ink);
+  cursor: pointer;
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--ifm-font-color-base);
+  outline-offset: 1px;
+}
+
+.cellActive {
+  box-shadow: inset 0 0 0 2px var(--ifm-font-color-base);
+}
+
+.ratio {
+  display: block;
+  font-weight: 600;
+}
+
+.counts {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.9;
+}
+
+.countsOf {
+  opacity: 0.8;
+}
+
+.none {
+  color: var(--ifm-color-emphasis-600);
+}
+
+.pos1 {
+  background: var(--bench-div-pos-1);
+}
+
+.pos2 {
+  background: var(--bench-div-pos-2);
+}
+
+.pos3 {
+  background: var(--bench-div-pos-3);
+}
+
+.neg1 {
+  background: var(--bench-div-neg-1);
+}
+
+.neg2 {
+  background: var(--bench-div-neg-2);
+}
+
+.neg3 {
+  background: var(--bench-div-neg-3);
+}
+
+.mid {
+  background: var(--bench-div-mid);
+}
+
+.cell.mid {
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* baseline: без заливки, пунктирный контур — ориентир, а не участник сравнения. */
+.cell.baselineCell {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ifm-color-emphasis-300);
+  font-style: italic;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.cell.baselineCell.cellActive {
+  box-shadow: inset 0 0 0 2px var(--ifm-font-color-base);
+}
+
+.baselineCol {
+  font-style: italic;
+}
+
+/* ── Подсказка ─────────────────────────────────────────────────────────── */
+.tip {
+  position: absolute;
+  z-index: 3;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--ifm-global-shadow-md);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--ifm-font-color-base);
+  pointer-events: none;
+}
+
+.tipHead {
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.tipTable {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+}
+
+.tipTable tr {
+  border: 0;
+  background: transparent;
+}
+
+.tipTable th,
+.tipTable td {
+  padding: 0.12rem 0 0.12rem 0.6rem;
+  border: 0;
+  text-align: right;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tipTable thead th {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.tipTable th:first-child {
+  padding-left: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.tipTable tbody th {
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.tipUnit,
+.tipNoisy {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.tipNoisy {
+  font-style: italic;
+}
+
+.tipFoot {
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-800);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media screen and (max-width: 600px) {
+  .heatmap {
+    padding: 0.85rem 0.75rem 0.9rem;
+  }
+
+  .table tbody .phaseCol {
+    min-width: 8.5rem;
+    max-width: 8.5rem;
+    font-size: 0.75rem;
+  }
+
+  .cell {
+    min-width: 4.5rem;
+  }
+}

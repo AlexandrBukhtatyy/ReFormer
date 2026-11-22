@@ -1,0 +1,211 @@
+/**
+ * Модель данных реестра форм.
+ *
+ * Ключевое разделение, из которого следует всё остальное: **форма — это один файл данных
+ * из многих**. Канонический пакет формы состоит из документа схемы (данные) и файлов кода —
+ * `form.validation.ts`, `form.behavior.ts`, `api.ts`, `registry.ts`, `data-sources.ts`,
+ * `model.ts`, `types.ts`, `index.tsx` и необязательных `form.flow.ts`, `form.messages.ts`.
+ * Секции валидации в мета-схеме JSON-DSL нет вовсе: верхний уровень схемы — только `$schema`,
+ * `format`, `id`, `version`, `meta`, `parts`, `root`.
+ *
+ * Поэтому форму **нельзя доставить по сети целиком**. По сети едет схема, обращающаяся к коду
+ * по имени (`$component`/`$dataSource`/`$fn`/`$locale`) и по `selector`. Запись реестра
+ * якорится кодом: микрофронт, несущий поведение и валидацию, обязан быть загружен.
+ *
+ * @module reformer/form-registry/types
+ */
+
+import type { FormFlowConfig, FormModel, FormValidation } from '@reformer/core';
+import type { FormBehavior } from '@reformer/core/behaviors';
+import type { ComponentRegistry, JsonFormSchema } from '@reformer/renderer-json';
+
+/**
+ * Документ прежнего формата (без `format: 2`): загрузчик переводит его `migrateJsonSchema` при
+ * каждой загрузке. Тип структурный — типов прежнего формата в пакетах больше нет, а документ обычно
+ * приходит данными (JSON из бандла, по сети, из кэша).
+ */
+export interface LegacyFormSchemaDocument {
+  readonly root: unknown;
+  readonly format?: undefined;
+  readonly [key: string]: unknown;
+}
+
+/** Документ схемы, который может прийти в запись: формата 2 либо прежнего. */
+export type FormSchemaDocument<T> = JsonFormSchema<T> | LegacyFormSchemaDocument;
+
+/**
+ * Фабрика поведения формы от настроек МЕСТА МОНТИРОВАНИЯ.
+ *
+ * Колбэки вроде `onResult` принадлежат хосту — он решает, где и как показать результат, — поэтому
+ * в записи реестра их быть не может: она одна на все места, где форму покажут. Хост передаёт их
+ * пропом `behaviorOptions` у `FormOutlet` / `FormSlot`, запись получает их аргументом фабрики.
+ *
+ * @example
+ * ```ts
+ * behavior: {
+ *   kind: 'inline',
+ *   value: (options) =>
+ *     defineFormBehavior<MyForm>(({ model, schema }) => {
+ *       onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+ *         (options.onResult as (r: unknown) => void)?.(await submit(model.get()));
+ *       });
+ *     }),
+ * }
+ * ```
+ */
+export type FormBehaviorFactory<T> = (options: Record<string, unknown>) => FormBehavior<T>;
+
+/**
+ * Источник ДАННЫХ: сериализуем, поэтому может приехать по сети.
+ *
+ * Применим к схеме и начальным значениям — единственным частям формы, которые не являются кодом.
+ */
+export type DataSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> }
+  | { kind: 'http'; url: string; init?: RequestInit };
+
+/**
+ * Источник КОДА: только из бандла.
+ *
+ * Варианта `'http'` здесь намеренно НЕТ — тянуть поведение или валидацию по сети означало бы
+ * исполнять удалённый код. Всё, что описано функциями, приходит статическим или динамическим
+ * импортом внутри микрофронта.
+ */
+export type CodeSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> };
+
+/**
+ * Валидация формы — общий тип семейства фабрик, живёт в `@reformer/core`.
+ *
+ * Реестр не описывает свой формат правил: те же данные принимает `createForm`, который собирает
+ * из них уровень формы (`validate`, отправка, поток шагов). Реестр лишь доставляет правила и поток.
+ *
+ * Идентификаторы шагов потока (`flow.steps[].id`) — селекторы узлов `Step` в JSON-схеме; их
+ * совпадение с реальными селекторами проверяет preflight.
+ */
+export type { FormValidation, FormFlowConfig };
+
+/** Ключ формы: идентификатор плюс версия. */
+export interface FormKey {
+  id: string;
+  version?: string;
+}
+
+/** Куда и когда форму разрешено рендерить. */
+export interface FormPlacement {
+  /** Именованные слоты хоста: `'checkout.sidebar'`, `'profile.tabs.documents'`. */
+  slots?: readonly string[];
+  /** Шаблоны маршрутов: `'/loans/:id/apply'`. Компилируются в RegExp при регистрации. */
+  routes?: readonly string[];
+  /** Порядок внутри слота, по убыванию. По умолчанию 0. */
+  priority?: number;
+}
+
+/** Гейт доступа. Пустой объект и отсутствие поля означают «доступно всем». */
+export interface FormAccess {
+  /** Нужны ВСЕ перечисленные права. */
+  permissions?: readonly string[];
+  /** Нужны ВСЕ перечисленные флаги. */
+  flags?: readonly string[];
+  /** Escape-hatch для сложной логики. Обязана быть чистой и синхронной. */
+  canRender?: (ctx: ResolveContext) => boolean;
+}
+
+/**
+ * Что делать, если схема ссылается на незарегистрированный компонент. Читает загрузчик
+ * (`loadForm`), поэтому политика одинаково действует в `FormOutlet` / `FormSlot` / `FormRoute`
+ * и при ручной сборке через `useFormResource` + `MountedForm`.
+ */
+export type DegradePolicy =
+  /**
+   * Не показывать форму: preflight даёт `missing-components` уровня `error`, и при режиме
+   * preflight `'error'` загрузка падает `FormPreflightError` — место монтирования рисует
+   * `loadErrorFallback`. Безопасно для значимых форм. Политика по умолчанию.
+   */
+  | 'error'
+  /**
+   * Отрисовать форму, на месте узла — нейтральный стаб плюс диагностика `placeholder-components`
+   * (уровень `warn`). Стаб своей разметки не имеет: контейнер рисует детей, поле — обёртку без
+   * контрола.
+   */
+  | 'placeholder';
+
+/** Запись реестра форм. */
+export interface FormEntry<T extends object = Record<string, unknown>> {
+  /** Стабильный идентификатор. Сверяется со `schema.id`, если тот задан. */
+  id: string;
+  /**
+   * Версия записи (semver). Со `schema.version` не сверяется: preflight проверяет версию схемы
+   * только против диапазона {@link FormEntry.compatibleSchema}.
+   */
+  version: string;
+  /** Кто зарегистрировал — для диагностики коллизий `id` между микрофронтами. */
+  owner: string;
+
+  /**
+   * Схема формы. Единственная часть, которую можно тянуть по сети.
+   *
+   * Документ прежнего формата (без `format: 2`) загрузчик переводит в формат 2 сам — в том числе
+   * тот, что лежит в постоянном кэше.
+   */
+  schema: DataSource<FormSchemaDocument<T>>;
+  /**
+   * Диапазон версий схемы, с которыми совместим ЭТОТ код (semver-range).
+   * Закрывает режим отказа «схема ушла вперёд кода»: CDN отдал v2, а микрофронт
+   * с поведением v1 ещё не выкачен.
+   */
+  compatibleSchema?: string;
+
+  /** Начальные значения — данные. */
+  initial?: DataSource<T>;
+  /** Готовая фабрика модели — код. Приоритетнее `initial`. */
+  model?: CodeSource<() => FormModel<T>>;
+
+  /** Расширение реестра компонентов поверх базового. */
+  registry?: CodeSource<ComponentRegistry>;
+  /**
+   * Поведение формы — единственное: и модель (compute / copyFrom / enableWhen / onChange), и узлы
+   * схемы (hideWhen / onComponentEvent / onMount через `schema.node(...)`).
+   *
+   * Либо само поведение, либо фабрика от настроек места монтирования ({@link FormBehaviorFactory}):
+   * хост передаёт их пропом `behaviorOptions`.
+   */
+  behavior?: CodeSource<FormBehavior<T> | FormBehaviorFactory<T>>;
+  /** Правила валидации. См. {@link FormValidation} про стабильность ссылок. */
+  validation?: CodeSource<FormValidation<T>>;
+  /** Поток шагов: идентификатор шага (`selector` узла шага) и его правила. */
+  flow?: CodeSource<FormFlowConfig<T>>;
+  placement?: FormPlacement;
+  access?: FormAccess;
+  /** Политика деградации для ЭТОЙ формы. По умолчанию `'error'` — см. {@link DegradePolicy}. */
+  degrade?: DegradePolicy;
+
+  /** Каталожные метаданные: выбор формы в UI, поиск, админка. */
+  meta?: { name?: string; description?: string; tags?: readonly string[] };
+}
+
+/** Контекст разрешения. Подаёт хост: реестр не знает ни о роутере, ни о модели прав. */
+export interface ResolveContext {
+  permissions: ReadonlySet<string>;
+  flags: ReadonlySet<string>;
+  /** Текущий маршрут — из роутера хоста, каким бы он ни был. */
+  route?: { path: string; params?: Readonly<Record<string, string>> };
+  locale?: string;
+}
+
+/** Способ адресации формы. Права и флаги — не часть запроса, а общий фильтр. */
+export type FormQuery =
+  | { by: 'id'; id: string; version?: string }
+  | { by: 'slot'; slot: string }
+  | { by: 'route'; path: string }
+  | { by: 'tag'; tag: string };
+
+/** Диагностическое сообщение реестра (конфликт id, промах preflight, дубль рантайма). */
+export interface Diagnostic {
+  level: 'warn' | 'error';
+  code: string;
+  message: string;
+  entry?: Pick<FormEntry, 'id' | 'version' | 'owner'>;
+}

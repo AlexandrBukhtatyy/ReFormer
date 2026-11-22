@@ -1,0 +1,109 @@
+---
+id: item
+title: Item
+sidebar_label: Item
+description: Строка с иконкой, заголовком, описанием и действиями — для списков и меню настроек.
+hide_title: true
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { itemDocConfig } from '@site/src/components/demo/examples/item';
+
+<ComponentDoc config={itemDocConfig}>
+Строка из трёх зон: медиа слева, текст в центре, действия справа. Собирается из частей, любую
+можно опустить. Строки объединяют в список `ItemGroup` с разделителями `ItemSeparator`. Это
+оформление, а не поле формы.
+
+## Когда брать
+
+- **Item** — однотипные строки: файлы, участники, уведомления, пункты настроек со ссылкой или
+  кнопкой.
+- [List](./list.mdx) — строки берутся из массива [модели](../reference/glossary.md) формы. List
+  оформляет массив, а саму строку внутри удобно рисовать через Item.
+- [Card](./card.mdx) — отдельный блок с шапкой, содержимым и подвалом, а не строка в ряду
+  похожих.
+- [Table](./table.mdx) — у строк есть столбцы, которые нужно сравнивать и сортировать.
+
+## Анатомия
+
+```tsx
+import {
+  Button,
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemSeparator,
+  ItemTitle,
+} from '@reformer/ui-kit'; // или '@reformer/ui-kit/item'
+import { FileText } from 'lucide-react';
+
+<ItemGroup>
+  <Item variant="outline">
+    <ItemMedia variant="icon">
+      <FileText />
+    </ItemMedia>
+    <ItemContent>
+      <ItemTitle>Отчёт.pdf</ItemTitle>
+      <ItemDescription>2,4 МБ</ItemDescription>
+    </ItemContent>
+    <ItemActions>
+      <Button size="sm" variant="ghost">
+        Скачать
+      </Button>
+    </ItemActions>
+  </Item>
+  <ItemSeparator />
+  {/* следующая строка */}
+</ItemGroup>;
+```
+
+| Часть                       | Что это                                                    | Ключевые пропсы                       |
+| --------------------------- | ---------------------------------------------------------- | ------------------------------------- |
+| `Item`                      | Строка: ряд с переносом, скругление, кольцо фокуса.        | `variant`, `size`, `asChild`          |
+| `ItemMedia`                 | Слот слева: иконка, аватар, картинка.                      | `variant`: `default`, `icon`, `image` |
+| `ItemContent`               | Колонка текста, занимает свободное место.                  | —                                     |
+| `ItemTitle`                 | Заголовок строки (`div`).                                  | —                                     |
+| `ItemDescription`           | Описание приглушённым цветом, не длиннее двух строк (`p`). | —                                     |
+| `ItemActions`               | Кнопки и бейджи справа.                                    | —                                     |
+| `ItemHeader` / `ItemFooter` | Ряд на всю ширину над основным рядом и под ним.            | —                                     |
+| `ItemGroup`                 | Контейнер списка строк, `role="list"`.                     | `role`                                |
+| `ItemSeparator`             | Горизонтальная линия между строками.                       | —                                     |
+
+- `variant`: `default` — без рамки, `outline` — с рамкой, `muted` — серый фон. `size="sm"` уменьшает
+  отступы.
+- `asChild` отдаёт стили строки дочернему элементу. Так строка становится ссылкой `<a>` целиком,
+  с подсветкой при наведении.
+- `itemVariants` и `itemMediaVariants` — классы строки и медиа-слота (cva) для своих элементов с
+  тем же видом.
+
+## Доступность
+
+- `ItemGroup` ставит `role="list"`, а `Item` внутри него сам получает `role="listitem"`. Строке
+  с `asChild` роль ставится на обёртку, чтобы ссылка или кнопка сохранили свою роль. Явный `role`
+  у `Item` перекрывает умолчание.
+- Своя роль у `ItemGroup` (например, `role="none"`, когда строки несут роли дерева или меню)
+  снимает и `listitem` у строк. Вне `ItemGroup` своей роли у `Item` нет.
+- `ItemSeparator` декоративный (`role="none"`): скринридер его пропускает.
+- Сама строка не фокусируется. Чтобы вся строка была ссылкой или кнопкой, используйте `asChild`
+  с `<a>` или `<button>`: стили фокуса строки достанутся этому элементу. Кнопки внутри такой
+  строки не ставьте: интерактивный элемент внутри ссылки — неверная разметка.
+- `ItemTitle` — `div`, а не заголовок. Если строки должны попадать в навигацию по заголовкам,
+  задайте `role="heading"` и `aria-level`.
+- Иконки lucide без подписи сами получают `aria-hidden="true"`. Своей картинке в `ItemMedia`
+  задайте `alt`.
+
+## Локализация
+
+Своих строк компонент не рисует.
+
+## См. также
+
+- [List](./list.mdx) — массив модели в виде списка строк.
+- [Card](./card.mdx) — отдельная карточка.
+- [Empty](./empty.mdx) — что показать, когда строк нет.
+- [Badge](./badge.mdx) — метки статуса в `ItemActions`.
+
+</ComponentDoc>

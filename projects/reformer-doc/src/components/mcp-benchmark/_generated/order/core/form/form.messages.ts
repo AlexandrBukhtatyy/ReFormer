@@ -1,0 +1,53 @@
+// @reformer-form-build 9738fbe700d5acc8 собран сервером ReFormer из form.intent.json: форму меняют через сервер (form_build; в guided — form_start, затем form_edit), а не этот файл — правка руками отсоединит его от сборки, guided её отменит
+/**
+ * Тексты замечаний формы «Оформление заказа»: правило несёт код, строку по коду даёт словарь.
+ * Подключение: `<ValidationMessagesProvider messages={formMessages}>` (`@reformer/cdk`) над формой.
+ */
+import { defineIssueMessages } from '@reformer/core/i18n';
+
+export const formMessages = defineIssueMessages({
+  'customerType.required': 'Выберите тип покупателя',
+  'contact.lastName.required': 'Введите фамилию',
+  'contact.lastName.minLength': 'Минимум 2 символа',
+  'contact.firstName.required': 'Введите имя',
+  'contact.firstName.minLength': 'Минимум 2 символа',
+  'email.required': 'Введите email',
+  'email.email': 'Некорректный email',
+  'phone.required': 'Введите телефон',
+  'phone.pattern': 'Формат +7 (999) 999-99-99',
+  'company.name.required': 'Введите название организации',
+  'company.inn.required': 'Введите ИНН',
+  'company.inn.pattern': 'ИНН — 10 цифр',
+  'company.inn.cross': 'Неверная контрольная сумма ИНН',
+  'deliveryMethod.required': 'Выберите способ получения',
+  'deliveryAddress.city.required': 'Введите город',
+  'billingAddress.city.required': 'Введите город',
+  'deliveryAddress.street.required': 'Введите улицу',
+  'billingAddress.street.required': 'Введите улицу',
+  'deliveryAddress.house.required': 'Введите дом',
+  'billingAddress.house.required': 'Введите дом',
+  'deliveryDate.required': 'Выберите дату доставки',
+  'deliveryDate.futureDate': 'Дата доставки — не раньше завтрашнего дня',
+  'promoCode.async': 'Промокод не найден',
+  'discount.min': 'Скидка не может быть отрицательной',
+  'discount.max': 'Скидка не больше 30%',
+  'total.warning': 'Крупный заказ: менеджер свяжется для подтверждения',
+  'paymentMethod.required': 'Выберите способ оплаты',
+  'paymentMethod.cross': 'Оплата по счёту — только для юридических лиц',
+  'receiptEmail.email': 'Некорректный email для чека',
+  'comment.maxLength': 'Не больше 500 символов',
+  'agreeTerms.cross': 'Нужно принять условия оферты',
+  'items.minLength': 'Добавьте хотя бы один товар',
+  'items.maxLength': 'Не больше 10 товаров',
+  'items.title.required': 'Введите наименование',
+  'items.quantity.required': 'Укажите количество',
+  'items.quantity.integer': 'Количество — целое число',
+  'items.quantity.min': 'Минимум 1',
+  'items.quantity.max': 'Максимум 99',
+  'items.price.required': 'Укажите цену',
+  'items.price.min': 'Цена не может быть отрицательной',
+  'recipients.email.required': 'Введите email получателя',
+  'recipients.email.email': 'Некорректный email получателя',
+  'birthDate.required': 'Укажите дату рождения',
+  'birthDate.cross': 'Покупателю должно быть не меньше 18 лет',
+});

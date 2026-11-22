@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+@import '@reformer/ui-kit/styles';
+
+/* @source держит consumer: монорепо → на `src` пакета, чтобы HMR видел ещё несобранные
+   Tailwind-классы компонентов. Токены/анимации/`@custom-variant dark` приходят из `…/styles`. */
+@source "../../../packages/reformer-ui-kit/src";
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

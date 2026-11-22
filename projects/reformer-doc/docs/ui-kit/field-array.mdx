@@ -1,0 +1,148 @@
+---
+id: field-array
+title: FieldArraySection
+sidebar_label: FieldArraySection
+hide_title: true
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { uiKitFieldArrayDocConfig } from '@site/src/components/demo/examples/field-array';
+
+<ComponentDoc config={uiKitFieldArrayDocConfig}>
+Оформленная секция массива под-форм: телефоны, адреса, созаёмщики. Заголовок, кнопка
+«Добавить», карточка на каждую строку, удаление, перестановка и пустое состояние уже готовы.
+Строку вы описываете один раз — секция повторяет её для каждого элемента массива.
+
+## Когда брать
+
+В ките два компонента массива с одинаковым видом. Они отличаются тем, кто рисует строки:
+
+- **`FieldArraySection`** — разметка руками. Получает ноду массива `form.phones` и компонент
+  строки `itemComponent`.
+- **`FieldArray`** — массив в схеме формы, в том числе в форме из JSON. Строку строит функция
+  `item` узла схемы, строки и кнопки подключает рендерер.
+
+Соседи:
+
+- нужна своя разметка массива — [FieldArray из cdk](/docs/cdk/field-array): кнопки, список и
+  пустое состояние без оформления;
+- массив простых значений, а не под-форм (теги, несколько дат) — поле множественного выбора:
+  [Combobox](./combobox.mdx), [Select](./select.mdx), [DatePicker](./date-picker.mdx);
+- показать массив без редактирования — [List](./list.mdx).
+
+## Анатомия
+
+Секция сверху вниз: заголовок `title` с кнопкой «Добавить» → карточки строк → пустое состояние
+→ замечания массива. У каждой карточки — шапка с меткой `itemLabel` («Телефон #1»), кнопками ↑/↓
+(`reorderable`) и «Удалить», ниже — сама строка.
+
+- **Без `title`** кнопка «Добавить» переезжает под список и выглядит как ссылка.
+- **Без `title` и `itemLabel`** у шапки карточки нет метки, но кнопки ↑/↓ и «Удалить» в ней
+  остаются.
+- **«Удалить»** у единственной строки скрыта, пока не задан `showRemoveOnSingle`.
+- **`maxItems`** скрывает кнопку «Добавить», когда строк столько же или больше. Удалили строку —
+  кнопка вернулась. Сами данные проп не проверяет: предел для данных — правило
+  `maxLength(n)` на массив в схеме валидации.
+
+Новая строка берётся из шаблона массива в модели — `arrayOf(blank)` из `@reformer/core`:
+
+```tsx
+import { arrayOf, createModel } from '@reformer/core';
+
+const blankPhone = (): Phone => ({ kind: '', number: '' });
+const model = createModel<PhonesForm>({ phones: arrayOf(blankPhone) });
+```
+
+Если шаблона в модели нет, его можно передать секции пропом `initialValue` — простыми значениями
+по форме строки.
+
+**FieldArraySection** в разметке:
+
+```tsx
+const PhoneItem = ({ control }: { control: FormGroup<Phone> }) => (
+  <>
+    <FormField control={control.kind} />
+    <FormField control={control.number} />
+  </>
+);
+
+<FieldArraySection
+  control={form.phones}
+  itemComponent={PhoneItem}
+  title="Телефоны"
+  itemLabel="Телефон"
+/>;
+```
+
+Формы строк появляются, только если массив есть в схеме сборки узлом
+`{ model: model.$.phones, item: (row) => узел }`.
+
+**FieldArray** в схеме формы:
+
+```tsx
+{
+  model: model.$.phones,
+  component: FieldArray,
+  componentProps: { title: 'Телефоны', itemLabel: 'Телефон' },
+  item: (row) => ({
+    children: [
+      { model: row.$.kind, component: Input, componentProps: { label: 'Тип' } },
+      { model: row.$.number, component: InputMask, componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' } },
+    ],
+  }),
+}
+```
+
+В форме из JSON регистрируйте именно `FieldArray`. `FieldArraySection` там не нарисуется: ему
+нужны `control` и `itemComponent`, а рендерер их не передаёт.
+
+Добавлять и удалять строки из кода можно через модель (`model.phones.push()`,
+`model.phones.removeAt(0)`) или ноду (`form.phones.move(0, 1)`) — секция обновится сама.
+Подробнее о массивах — в руководстве [Массивы](/docs/patterns/arrays).
+
+## Доступность
+
+- Все кнопки — настоящие `<button type="button">`: работают с клавиатуры (Tab, Enter, пробел) и не
+  отправляют форму.
+- У кнопок ↑/↓ есть подписи для скринридера «Переместить вверх» и «Переместить вниз». Крайняя
+  строка не двигается дальше: кнопка выключена.
+- Метка строки — заголовок `h4`, заголовок секции — `h3`: по ним скринридер перемещается между
+  строками.
+- Имя кнопок строки для скринридера — действие и метка строки: «Удалить: Телефон #2»,
+  «Переместить вверх: Телефон #2». Видимый текст «Удалить» стоит в начале имени, поэтому голосовой
+  ввод «нажать Удалить» кнопку находит. Без `title` и `itemLabel` метка — «Элемент #2». Ещё
+  понятнее метка из значений строки: `itemLabel` функцией `(control, index) => string`.
+- Фокус после добавления и удаления остаётся там, где был: секция его не переносит.
+- Замечания массива целиком — `minItems`, `maxItems` от правил `minLength` / `maxLength` —
+  `FieldArraySection` выводит под списком (`FieldArray.Error` из [cdk](/docs/cdk/field-array), с
+  `role="alert"`). `FieldArray` в схеме формы их не выводит.
+
+## Локализация
+
+Секция рисует свои строки:
+
+| Ключ                        | По-русски          | Проп для замены      |
+| --------------------------- | ------------------ | -------------------- |
+| `kit.fieldArray.add`        | + Добавить         | `addButtonLabel`     |
+| `kit.fieldArray.remove`     | Удалить            | `removeButtonLabel`  |
+| `kit.fieldArray.item`       | Элемент            | `itemLabel`, `title` |
+| `kit.fieldArray.moveUp`     | Переместить вверх  | —                    |
+| `kit.fieldArray.moveDown`   | Переместить вниз   | —                    |
+| `kit.fieldArray.itemAction` | `{action}: {item}` | —                    |
+
+`kit.fieldArray.itemAction` собирает имя кнопки строки для скринридера из действия и метки
+строки: «Удалить: Телефон #2».
+
+`kit.fieldArray.item` — запасная метка строки («Элемент #1»), когда нет ни `itemLabel`, ни
+`title`. Текст пустого состояния задаёте вы: `emptyMessage`, `emptyMessageHint`. Как включить
+русскую локаль кита и переопределить ключ во всём приложении — в
+[обзоре](./overview.md#локализация).
+
+## См. также
+
+- [Массивы](/docs/patterns/arrays) — модель, шаблон строки, операции и валидация массива.
+- [FieldArray из cdk](/docs/cdk/field-array) — те же части без оформления.
+- [FormField](./form-field.mdx) — поле внутри строки.
+- [FormWizard](./form-navigation.mdx) — массив внутри шага мастера.
+
+</ComponentDoc>

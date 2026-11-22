@@ -1,0 +1,80 @@
+{
+  "name": "@reformer/mcp",
+  "version": "6.0.0",
+  "description": "MCP-сервер ReFormer для агента (Claude Code, Cursor и др.): тонкий клиент сервиса ReFormer — каталог формы, проверка типов и спека на вашей машине, инструменты и сборка формы — в сервисе",
+  "type": "module",
+  "bin": {
+    "reformer-mcp": "./dist/index.js"
+  },
+  "exports": {
+    "./contract/*": {
+      "types": "./dist/contract/*.d.ts",
+      "import": "./dist/contract/*.js"
+    },
+    "./local/*": {
+      "types": "./dist/local/*.d.ts",
+      "import": "./dist/local/*.js"
+    },
+    "./host/*": {
+      "types": "./dist/host/*.d.ts",
+      "import": "./dist/host/*.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/index.js"
+  ],
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch",
+    "check:packaging": "node scripts/check-packaging.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "reformer",
+    "claude",
+    "ai",
+    "forms",
+    "react",
+    "model-context-protocol"
+  ],
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/packages/reformer-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0 <6"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

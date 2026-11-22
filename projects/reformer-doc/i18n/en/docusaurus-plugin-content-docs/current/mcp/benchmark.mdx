@@ -1,0 +1,292 @@
+---
+sidebar_position: 1.5
+title: 'Measurements: with MCP and without'
+description: The same agent builds and edits ReFormer forms without the MCP server and with it — quality, speed, tokens and cost over 180 runs.
+---
+
+import {
+  McpApproaches,
+  McpCreateFailures,
+  McpOperations,
+  McpRunInfo,
+  McpScenario,
+  McpScenarioControls,
+  McpSummary,
+} from '@site/src/components/mcp-benchmark/McpBenchmark';
+import {
+  McpRunSpread,
+  McpScenarioMap,
+  McpTimeCost,
+} from '@site/src/components/mcp-benchmark/McpCharts';
+import { McpFormExample } from '@site/src/components/mcp-benchmark/McpFormExample';
+import TabItem from '@theme/TabItem';
+import Tabs from '@theme/Tabs';
+
+# Measurements: with MCP and without
+
+The `@reformer/*` packages ship with their documentation — `llms.txt`, `docs/llms`, types. Why an
+MCP server then? To answer with numbers, the same agent — Claude Sonnet in Claude Code — solved the
+same form tasks under two conditions:
+
+- **No MCP** — file tools only and the installed packages with their documentation;
+- **With MCP** — the same plus the `@reformer/mcp` server connected as is, with no settings: the
+  agent builds the form with the server's form builder.
+
+The same verifier checks every run: the build and types first, then the behavior of the form —
+values, rules, reactions, wizard steps. The conditions are in [How it was measured](#how-it-was-measured).
+
+Every chart has its own switches — the **model** (one, Sonnet and Opus together, or all) and the
+**arm** (no MCP, with MCP, or both) — and they change only that chart; the scenario cards switch
+above their tabs. The text describes the Claude Sonnet measurement — it has both arms and all ten
+scenarios. Claude Opus ran the same full matrix; compare the two with the “Sonnet and Opus” option.
+So far Qwen2.5-Coder 14B (LM Studio) has run the three registration scenarios in both arms, three
+repeats each; Gemma 4 26B (Ollama) — only the arm with MCP on registration, one repeat each. Full
+measurements of both local models are under way. Their cost is not counted, and a run is capped at
+25 minutes. With several models the summaries and the spread use only the scenario × stack cells
+every one of them ran; hover a model to fade the others.
+
+<McpRunInfo />
+
+## Summary
+
+<McpSummary />
+
+- **Creating a form is the main difference.** Without the server the agent writes the module by
+  hand from the package docs and more often goes wrong in the file layout, the build and the types;
+  on a large form from a spec that is about four minutes and over a dollar per run. With MCP the
+  server does the plan, the build and the type check.
+- **Editing and removing** in a ready form pass in both arms almost without failures, but with
+  MCP it is faster and cheaper.
+- **A stronger model does not replace the server.** Claude Opus passed 72 runs of 90 without MCP
+  and 89 of 90 with it. Sonnet with MCP passed 87 of 90 for $10.99 — almost nine times cheaper than
+  Opus without the server ($97.51). In every arm Opus costs 2–2.5 times as much as Sonnet.
+- **The server carries a weak local model.** On registration Qwen2.5-Coder 14B passed 24 runs of
+  27 with MCP and none of 25 without the server: the model writes a couple of files outside the
+  module layout and stops.
+
+## The approaches side by side
+
+How each approach did for each model. A row is a model on all of its runs, a column is an
+approach. A cell shows how many runs passed every check, the split by kind of task, the median run
+time and the cost of all runs of the approach. Compare within a row: the models ran different sets
+of tasks — Sonnet and Opus all ten scenarios, the local models only registration so far.
+
+<McpApproaches />
+
+- **No MCP** passes editing and removing almost without failures but breaks on creating a form: 15
+  creations of 27 for Sonnet and 11 of 27 for Opus. It is the slowest and the most expensive
+  approach for both models; the local model passed no run with it.
+- **With MCP** passes more runs for every model and costs less: 87 of 90 for Sonnet, 89 of 90 for
+  Opus, 24 of 27 for Qwen2.5-Coder 14B. Creating a form passes almost every time for Sonnet and
+  Opus — 25 and 26 of 27.
+
+## Spread of runs
+
+Medians hide the tails. Here every one of the 180 runs is a separate mark: a filled one passed every
+check, a hollow one did not; the bar is the median of the arm. Hover a mark to see the scenario, the
+stack and the numbers of the run.
+
+<McpRunSpread />
+
+Without the server 21 runs of 90 took longer than two minutes: 18 of them create a form, and half
+of those eighteen failed the checks; three more turn a one-page form into a wizard. With MCP one
+run took longer than two minutes — creating the wizard, 2.3 minutes, and it failed the checks. All
+twenty most expensive runs of the measurement are without MCP.
+
+Run time and cost grow together, so on one chart the arms spread along the diagonal: runs with MCP
+sit in the lower left corner, runs without MCP stretch up and to the right. The median cost of
+creating a form is $1.41 without MCP and $0.23 with it; on edits and removals the clouds are closer.
+
+<McpTimeCost />
+
+## By task
+
+Create — a new form from a description or a spec; edit — a change of a ready form (fields, rules,
+wizard steps); remove — fields and steps with everything that depends on them. Under the passed
+share — the median run time and the cost of all runs of the task.
+
+<McpOperations />
+
+On creation runs fail for different reasons — they show how working without the server differs
+from working with it:
+
+<McpCreateFailures />
+
+## By scenario
+
+First the overview: how many runs of a scenario passed in each arm. The **stack** switch keeps one
+of the three — `core`, `react` or `json`. With all stacks a tile holds the nine runs of a scenario,
+the split by stack is in its tooltip, and the rows under “Total” give the total of each stack.
+Without the server the stacks drift apart: 29 runs of 30 passed on `renderer-react`, 26 on `core`,
+20 on `renderer-json`; with MCP — 30, 28 and 29.
+
+<McpScenarioMap />
+
+Ten scenarios of three levels, each on three stacks (`@reformer/core` with JSX markup,
+`@reformer/renderer-react`, `@reformer/renderer-json`), three repeats each. The tables show: passed
+in total and per stack, the mean check score, the median run time, the cost of nine runs, the
+median agent steps and output tokens.
+
+<McpScenarioControls />
+
+<Tabs groupId="mcp-form">
+<TabItem value="registration" label="Registration">
+
+#### Create the form
+
+Login, email, a password with its repeat, an async check of a stub captcha, a submit button.
+
+<McpScenario id="registration-create" />
+
+#### Edit a ready form
+
+Rename the login, tighten the password (at least 10 characters and a digit), add an optional phone
+with a mask after the email, rename the button.
+
+<McpScenario id="registration-edit" />
+
+#### Remove fields with their rules
+
+Remove the captcha and the password repeat — the fields and all their checks, the async and the
+cross-field one included.
+
+<McpScenario id="registration-delete" />
+
+</TabItem>
+<TabItem value="order" label="Checkout">
+
+#### Create the form from a spec
+
+A 27-field spec: customer type, addresses with copying, item rows with totals, a discount, a promo
+code with an async check, payment, notification recipients.
+
+<McpScenario id="order-create" />
+
+#### Edit
+
+Rename a field everywhere the form relies on it; raise the discount limit; add a computed delivery
+cost and a new total formula; a comment required when paying by invoice.
+
+<McpScenario id="order-edit" />
+
+#### Remove fields with their dependencies
+
+Remove the promo code with its async check, the discount with everything that depends on it (the
+total now equals the items sum), and the billing address with its copying from the delivery
+address.
+
+<McpScenario id="order-delete" />
+
+</TabItem>
+<TabItem value="wizard" label="Checkout wizard">
+
+#### Create from a spec
+
+The same spec, but the form is a wizard: a step per section, the “Company” step for companies only,
+moving on only with a correctly filled step, submitting with the wizard button.
+
+<McpScenario id="wizard-create" />
+
+#### One page → steps
+
+Turn a ready one-page form into a wizard with the same step rules, without changing the fields,
+rules and behavior.
+
+<McpScenario id="wizard-split" />
+
+#### A new step, a moved field, a renamed step
+
+Rename a step, move a field to another step and insert a new step between two existing ones — with
+a switch and a card message shown and required only with gift wrapping.
+
+<McpScenario id="wizard-edit" />
+
+#### Remove steps with their fields and dependencies
+
+Remove the “Company” and “Delivery” steps entirely — fields, rules, behavior and everything only they
+needed.
+
+<McpScenario id="wizard-delete" />
+
+</TabItem>
+</Tabs>
+
+## Forms from the measurement
+
+What the agent built, you can try. Below are the three forms of the measurement built with
+MCP: on each stack — a Claude Sonnet run that passed every check and in which the
+agent did not edit the form files by hand. The code is exactly what the run left. The forms are in
+Russian: the tasks were written in Russian, and labels and messages are part of the module.
+
+The “Code” tab starts with the prompt the run was started with — exactly the text the agent got:
+the task, the delivery rules and the module layout. For the checkout and the wizard the task points
+to `spec.md` — it is the next item, as it lay in the working directory. Then come the agent's calls
+to the server: `search` reads the builder API, `execute` runs `reformer.formStart` and chains like
+`f.add("login", "Логин").required()` with `save()`; under each call is the outcome of the server's
+answer. Then come the module files the server built from those calls.
+
+<Tabs groupId="mcp-form" lazy>
+<TabItem value="registration" label="Registration">
+
+Try a login shorter than three characters, different passwords and the captcha: the right code is
+`ABC123` in any case, the async check answers in 300 ms.
+
+<McpFormExample form="registration" />
+
+</TabItem>
+<TabItem value="order" label="Checkout">
+
+Try switching the buyer type to a company — the “Компания” section (a valid INN is `7707083893`),
+the discount and paying by invoice appear; add item rows — the sums compute themselves; promo
+codes `SALE10` and `SALE20` are valid.
+
+<McpFormExample form="order" />
+
+</TabItem>
+<TabItem value="wizard" label="Checkout wizard">
+
+The same spec as steps: the wizard does not move on while a step is filled in wrong. For a company
+the “Компания” step follows “Покупатель”; for a private buyer that step stays empty — the wizard
+flow cannot skip steps yet.
+
+<McpFormExample
+  form="wizard"
+  notes={{
+    core: 'On core the server does not build wizard steps yet: the step flow is wired into the form, but the markup the server writes puts every section on one page.',
+  }}
+/>
+
+</TabItem>
+</Tabs>
+
+## How it was measured
+
+- **Agent** — Claude Code in non-interactive mode, model `sonnet`, `opus` in the second
+  measurement. Tools — file tools only (`Read`, `Write`, `Edit`, `Glob`, `Grep`) inside the working
+  directory, no shell. The MCP server is
+  connected only in the arm with MCP — in its default surface (`code-guided-dsl`); the harness
+  checks this at the start of every run.
+- **The working directory** is the same in every arm: the installed `@reformer/*` packages — exactly
+  what is published to npm (the build with types, README, `llms.txt`, `docs/llms`); `spec.md` for
+  the spec scenarios; a ready form for edits and removals.
+- **The task** is the same in every arm: the task text, the delivery rules and the module layout —
+  which parts of `createForm` go into which files. Without the layout the behavior check would not
+  find a form written without the server.
+- **Limits** per run are the same in every arm and set by the scenario: money, steps, time.
+- **Local models** work in the harness loop: file tools `read_file`, `write_file`, `list_files`
+  inside the working directory, plus the server tools in the arm with MCP. A run's time is the
+  scenario limit adjusted for a slow model, but no more than 25 minutes: a model stuck in an edit
+  loop would go on for up to 100 minutes a run. The cap does not touch the Claude models: the
+  longest Sonnet run took 5.3 minutes, the longest Opus run 8 minutes.
+- **The check** — static (types, stack, file layout) and behavioral: probes from the scenario
+  contract fill the form and compare values, rule errors, reactions and wizard steps. A run
+  **passes** when every required check passes; the **score** is the share of passed checks.
+- **Order** — one run at a time, no parallelism; every “scenario × stack” cell goes through both
+  arms back to back, so API speed changes over the hours of the measurement fall on both arms
+  almost alike.
+- **Cost and tokens** — from the Claude Code report of the run; it is an estimate at API prices.
+  Input tokens include cache reads and writes.
+
+Limitations: the full matrix so far only for Claude Sonnet and Claude Opus; edits and removals
+start from a form the server built — this helps the arm without MCP, as the layout is already in
+front of it.

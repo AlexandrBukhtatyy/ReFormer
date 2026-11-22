@@ -1,0 +1,73 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "$nodeId": "aoumk954",
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "$nodeId": "ruaqsnpi",
+        "component": "$html(div)",
+        "componentProps": {
+          "className": "flex gap-4"
+        },
+        "children": [
+          {
+            "$nodeId": "r64mr9ti",
+            "selector": "name",
+            "model": "$model(name)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "required": true,
+              "type": "text"
+            }
+          },
+          {
+            "$nodeId": "5k6zh7qa",
+            "selector": "email",
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Email",
+              "required": true
+            }
+          }
+        ]
+      },
+      {
+        "$nodeId": "pslgns7a",
+        "selector": "city",
+        "model": "$model(city)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Город",
+          "placeholder": "Выберите город"
+        }
+      },
+      {
+        "$nodeId": "6ika59bj",
+        "selector": "agree",
+        "model": "$model(agree)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Согласен на обработку данных"
+        }
+      },
+      {
+        "$nodeId": "3agdoozo",
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": ["Отправить"]
+      }
+    ],
+    "selector": "contact-section"
+  }
+}

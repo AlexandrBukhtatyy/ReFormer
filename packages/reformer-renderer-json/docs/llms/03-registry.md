@@ -1,0 +1,168 @@
+# Component Registry
+
+Реестр — это карта от имени в операторе схемы (`$component(Name)` / `$dataSource(NAME)` / `$fn(name)`) на React-компонент, source-значение или функцию; плюс единственный сервис локализации для `$locale(key)`. Без регистрации компонент не отрендерится — будет ошибка вида _Component "X" not found in registry_.
+
+## Key Concepts
+
+- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `model: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`model` vs `children`), а не тем, как компонент зарегистрирован. Лист получает seam рендерера (`value` + `onChange(value)` + `onBlur`) в диалекте контрола: компонент объявляет его статикой `reformerAdapter` (у компонентов `@reformer/ui-kit` она уже есть — регистрируйте их как есть, отдельных «field-версий» нет), без статики seam проходит как есть. Сырой контрол чужой библиотеки с другим диалектом (Checkbox — `checked` + `onChange(event)`, Select — `value` + `onChange(value, option)`, Radio — `value` + `onChange(event)`) регистрируется тем же `reg.component`, а диалект ему задаёт либо статика (`defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`), либо `resolveFieldAdapter` в настройках рендерера — `<FormRenderer settings>` (приоритетнее статики) — см. `FieldAdapter` / `RendererSettings.resolveFieldAdapter` в renderer-react. Обычным value-based контролам адаптер не нужен.
+- **`control` — только по запросу (§3.1, BREAKING)** — leaf-контрол по умолчанию больше **НЕ** получает проп `control` (ноду формы). Для двустороннего обмена значением ему хватает value-based seam (`value` + `onChange`); реактивные рантайм-пропы (догруженные `options`, `loading`, …) мёржит сам рендерер; label/error/touched обслуживает `FieldWrapper` (`FIELD_WRAPPER` / `FormField`) — а он `control` получает как раньше. Раньше `control` попадал в контрол по умолчанию, и адаптер нередко заводили лишь чтобы его вырезать (иначе нода текла бы в DOM) — теперь этого делать не нужно, `control` просто не передаётся. Если же контрол сам потребляет ноду (напр. вызывает `useFormControl(control)` ради её сигналов), включи передачу **явно**: статикой `Component.reformerNeedsControl = true` на самом компоненте либо `passControl: true` в его `FieldAdapter`. Оба флага независимы от seam-адаптации — контролу можно отдать `control`, не заводя адаптер, и наоборот (адаптер, переложивший диалект, `control` по-прежнему не передаёт, пока не выставлен `passControl`).
+- **dataSource value** — именованная константа, функция или React-компонент, на которые ссылаются строкой `'$dataSource(NAME)'` из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
+- **fn** — функция (форматтер/компаратор/itemLabel/обработчик), на которую ссылаются строкой `'$fn(name)'` из `componentProps`. Регистрируется через `reg.fn(name, fn)`. Отдельный от `dataSource` вид: `reg.fn` бросает при регистрации не-функции, а `validateFormSchema` ловит перепутанные `$fn`/`$dataSource`. Рантайм передаёт функцию в проп по ссылке (как `$dataSource`-функцию), новизна — в статической проверке.
+- **locale service** — сервис локализации для `$locale(key)` (строковый путь) и компонента `I18n` (реактивный путь). Регистрируется через `reg.locale(serviceOrResolver)` (ключ `LOCALE_SERVICE`) и/или подаётся в `LocaleProvider`. Интерфейс `LocaleService`: `resolve(key, params?) => string` (+ опциональный `render(key, params?) => ReactNode` для markdown/JSX, + `keys` для validate-проверки). Фабрики без зависимостей: `createLocaleResolver(catalog)` (плоский каталог), `createLocaleService(table)` (`ключ → (params) => строка` — параметры/склонение без ICU). ICU (`intl-messageformat`) и markdown подключает потребитель своей реализацией сервиса. Полный гид — [08-i18n.md](08-i18n.md).
+- **`FIELD_WRAPPER`** — зарезервированное имя (`'$fieldWrapper'`) для контейнера-обёртки полей (label, error, hint). Обычно регистрируется как `FormField` из `@reformer/ui-kit`.
+
+## Builder API
+
+| Method                           | Purpose                                               |
+| -------------------------------- | ----------------------------------------------------- |
+| `reg.component(name, Component)` | Регистрирует компонент (лист или контейнер — роль решает структура узла). |
+| `reg.dataSource(name, value)`    | Регистрирует dataSource-значение (константу или функцию). |
+| `reg.fn(name, fn)`               | Регистрирует функцию для `$fn(name)` (бросает на не-функцию). |
+| `reg.locale(serviceOrResolver)`  | Регистрирует единственный сервис локализации для `$locale(key)`. |
+
+## Examples
+
+Минимальный реестр:
+
+```typescript
+import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+import { Input, InputNumber, SelectAsync, Box, FormField } from '@reformer/ui-kit';
+
+// Компоненты кита — как есть: диалект поля они объявляют статикой `reformerAdapter`.
+const registry = defineRegistry((reg) => {
+  reg.component('Input', Input);
+  reg.component('InputNumber', InputNumber);
+  reg.component('Select', SelectAsync); // имя в реестре ≠ имя экспорта
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
+});
+```
+
+dataSource values для `componentProps` (в схеме — ссылка `'$dataSource(NAME)'`):
+
+```typescript
+const registry = defineRegistry((reg) => {
+  reg.component('Select', SelectAsync);
+  reg.dataSource('LOAN_TYPES', [
+    { value: 'consumer', label: 'Потребительский' },
+    { value: 'mortgage', label: 'Ипотека' },
+  ]);
+});
+
+// В JSON-схеме (лист + операторы):
+{
+  model: '$model(loanType)',
+  component: '$component(Select)',
+  componentProps: { options: '$dataSource(LOAN_TYPES)' },
+}
+```
+
+Функции (`$fn`) и сервис локализации (`$locale`):
+
+```typescript
+import { defineRegistry, createLocaleResolver } from '@reformer/renderer-json';
+
+const registry = defineRegistry((reg) => {
+  reg.component('Input', Input);
+  // функции — форматтеры, компараторы, itemLabel
+  reg.fn('propertyItemLabel', (_control, index) => `Имущество #${index + 1}`);
+  reg.fn('formatCurrency', (v: number) => `${v} ₽`);
+  // единственный сервис локализации; каталог включает validate-time проверку ключей
+  reg.locale(
+    createLocaleResolver({
+      'fields.email.label': 'Email',
+      'fields.email.placeholder': 'you@example.com',
+    })
+  );
+});
+
+// В JSON-схеме:
+{
+  model: '$model(email)',
+  component: '$component(Input)',
+  componentProps: {
+    label: '$locale(fields.email.label)',   // → строка
+  },
+}
+```
+
+`$fn` подставляется так же — но только в проп, который у компонента действительно есть и
+действительно принимает функцию. Каноничный случай — `itemLabel` у массива:
+
+```jsonc
+{
+  model: '$model(properties)',
+  component: '$component(FieldArray)',
+  componentProps: {
+    itemLabel: '$fn(propertyItemLabel)',    // → функция по ссылке
+  },
+}
+```
+
+> Проп, которого у компонента нет, `$fn` не создаёт: значение резолвится и уходит в
+> `componentProps`, где его никто не читает. Форматирование значения — не проп контрола:
+> модель хранит число, а отображением занимается сам компонент (см. ui-kit
+> `02-text-fields.md`).
+
+Смена языка — пересобрать сервис на другом каталоге и передать новый ref в `reg.locale` (плюс пересборка дерева); `$locale` резолвится в строку при конвертации, «живого» переключения нет.
+
+Контрол, который сам потребляет ноду формы (§3.1) — включи передачу `control` явно:
+
+```typescript
+import type { FormControl } from '@reformer/core';
+import { useFormControl } from '@reformer/core/react';
+import type { RendererSettings } from '@reformer/renderer-react';
+
+// Контрол читает ноду напрямую (свои сигналы valid/issues/…):
+function StepDots({ control }: { control: FormControl<number> }) {
+  const { value, issues } = useFormControl(control);
+  // …
+}
+StepDots.reformerNeedsControl = true; // статика на компоненте — без адаптера
+
+const registry = defineRegistry((reg) => {
+  reg.component('StepDots', StepDots);
+});
+
+// Альтернатива без статики — тем же адаптером (control + seam-диалект независимы):
+const settings: RendererSettings = {
+  resolveFieldAdapter: (Component) =>
+    Component === StepDots ? { passControl: true } : undefined,
+};
+// <FormRenderer form={bundle} settings={settings} />
+```
+
+Обычным value-based контролам (Input/Select/…) ничего из этого не нужно — `control` им не передаётся, и это норма.
+
+### Прежние имена переименованных компонентов
+
+Документ схемы хранится отдельно от кода и переживает релиз библиотеки, поэтому реестр понимает
+имя, под которым компонент назывался раньше:
+
+| В документе                    | Запись реестра      |
+| ------------------------------ | ------------------- |
+| `$component(FormArray)`        | `FieldArray`        |
+| `$component(FormArraySection)` | `FieldArraySection` |
+
+Псевдоним срабатывает, только когда записи под прежним именем в реестре нет: зарегистрировал
+`reg.component('FormArray', Свой)` — получишь свою запись. `registry.get` и `registry.has` прежнее
+имя разрешают, `registry.names()` его не перечисляет, `validateFormSchema` считает известным. В dev
+реестр один раз на имя пишет в консоль, что документ пора обновить. Новые документы пиши с
+`$component(FieldArray)`.
+
+## Anti-patterns
+
+- **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
+- **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
+- **Путать приоритет при композиции реестров** — `composeRegistries(base, ...overrides)` сливает реестры слева направо, и при дублях выигрывает **последний**, как у `Object.assign`. Результат уходит в сборку `createForm({ registry })`.
+- **Использовать `$dataSource(NAME)` без регистрации** — сборка бросит `Data source "NAME" not found in registry`; `validateFormSchema` назовёт это заранее: `unknown dataSource "NAME"`.
+- **Ссылаться на dataSource как на компонент** — `component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
+- **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)`, а `validateFormSchema` её отклонит.
+- **Регистрировать несколько сервисов локализации** — сервис один (кладётся под `LOCALE_SERVICE`); повторный `reg.locale(...)` перезапишет предыдущий. Разные языки — это разные каталоги, передаваемые в `reg.locale` по одному за раз.
+- **Регистрировать сырой контрол без адаптера** — `reg.component('Checkbox', RawCheckbox)`, где контрол читает значение из `checked` и эмитит DOM-событие (`onChange(event)`), при value-based seam запишет в модель сам объект события вместо булева. Такому контролу нужен адаптер: статика `reformerAdapter` (`defineFieldControl(RawCheckbox, { adapter })` из `@reformer/ui-kit/fields`) либо `resolveFieldAdapter` в настройках рендерера (`<FormRenderer settings>`), который переложит seam на его диалект; компонентам `@reformer/ui-kit` и уже-value-based контролам ничего не требуется.
+- **Полагаться на проп `control` в leaf-контроле по умолчанию** (§3.1, BREAKING) — теперь он **НЕ** передаётся. Контрол, который вызывает `useFormControl(control)` (или иначе читает ноду), без opt-in получит `control === undefined` и упадёт/тихо не подпишется. Включи передачу явно: `Component.reformerNeedsControl = true` на компоненте либо `passControl: true` в его `FieldAdapter`. `FieldWrapper` (`FIELD_WRAPPER` / `FormField`) это не касается — обёртка `control` получает как прежде. И наоборот — **заводить адаптер лишь чтобы `strip`-нуть `control`** больше не нужно: по умолчанию его в пропах контрола нет.
+
+## See also
+
+- [01-overview.md](01-overview.md) — как реестр уходит в сборку `createForm({ registry })`.
+- [02-json-schema.md](02-json-schema.md) — где имена появляются в схеме (операторы `$component`/`$dataSource`/`$fn`/`$locale`).

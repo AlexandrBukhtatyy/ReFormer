@@ -1,0 +1,80 @@
+node_modules
+dist
+build
+*.log
+# сборка клиента @reformer/builder для публикации (`npm run build:client`), в git не едет
+projects/reformer-builder/client/
+
+# generated — produced/validated by their own generators, not prettier
+# (formatting these here conflicts with gen scripts / the form-schema CI gate)
+.docusaurus/
+**/docs/llms/
+# llms-index.json пишет scripts/generate-llms-txt через JSON.stringify; prettier
+# переформатирует его иначе, и тогда КАЖДАЯ сборка помечает файл изменённым
+**/llms-index.json
+# baseline eval-гейта MCP пишет его раннер через JSON.stringify;
+# prettier сжимает toolset.tools в одну строку — тогда КАЖДЫЙ --save оставлял бы файл
+# изменённым после lint-staged
+packages/*/eval/baselines/baseline.json
+# снимки отчёта сравнения подходов пишет стенд замеров (`--save`) по строке на прогон;
+# prettier развернул бы строки в объекты, и каждый --save оставлял бы файл изменённым
+packages/*/eval/runs/approaches/
+# историю метрик стенд пишет по строке на точку и событие — по той же причине
+packages/*/eval/runs/history.json
+# живые формы страницы «Замеры» — модули прогонов стенда байт в байт (пишет стенд замеров
+# MCP): страница показывает код таким, каким
+# его оставил прогон, и переформатирование подменило бы показанное
+projects/reformer-doc/src/components/mcp-benchmark/_generated/
+projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/form-schema.schema.json
+
+# planning artifacts — authored ad-hoc by plan mode / agents, not prod docs
+docs/plans/
+
+# Шаблоны промптов MCP с подстановками {{имя}}: prettier ломает {{code}} внутри ```typescript
+# fence в невалидный `{ { code; } }` (парсит как объект-литерал) — подстановка молча
+# перестаёт работать. Это .md по расширению, но не markdown, а шаблон.
+packages/*/src/prompts/templates/
+
+# beads issue tracker — файлы ведёт bd (jsonl/yaml/backup), не prettier
+.beads/
+
+# Рабочие копии сеансов Claude Code (EnterWorktree): `prettier --write .` иначе переписывал бы
+# файлы в чужих рабочих копиях (исключение Claude Code лежит в .git/info/exclude, prettier его
+# не читает)
+.claude/worktrees/
+
+# Сборка плагинов проекта-образца для билдера (`npm run build:dev` в пакете плагина) лежит в корне
+# каталога плагина и исключена ЕГО .gitignore — а вложенные .gitignore prettier не читает
+# и переформатировал бы main.js. Плагин лежит либо прямо в каталоге плагинов, либо в каталоге
+# домена (`reformer/editor`), поэтому шаблонов два уровня
+projects/reformer-builder-playground/.ui_builder/plugins/*/manifest.json
+projects/reformer-builder-playground/.ui_builder/plugins/*/main.js
+projects/reformer-builder-playground/.ui_builder/plugins/*/styles.css
+projects/reformer-builder-playground/.ui_builder/plugins/*/locales/
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/manifest.json
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/main.js
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/styles.css
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/locales/
+# Модули данных той же сборки: JSON, который плагин импортирует отложенно (у ассистента —
+# корпус знаний, мегабайты в одну строку)
+projects/reformer-builder-playground/.ui_builder/plugins/*/chunks/
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/chunks/
+# …а исходники плагина первого уровня (`kit-hexa-ui/src/manifest.json`) под шаблон второго
+# уровня попадать не должны: это рукописные файлы, их prettier обязан проверять
+!projects/reformer-builder-playground/.ui_builder/plugins/*/src/manifest.json
+!projects/reformer-builder-playground/.ui_builder/plugins/*/src/styles.css
+!projects/reformer-builder-playground/.ui_builder/plugins/*/src/locales/
+# Таблицы стилей плагинов-движков — выход генератора (`npm run generate:styles`), в git не едут
+projects/reformer-builder-playground/.ui_builder/plugins/*/*/src/styles.css
+# снимки сравниваются побайтно: форматирование при коммите сломало бы их
+packages/*/tests/__golden__/
+# отчёт бенчмарка форм пишет projects/forms-benchmark-e2e/scripts/report.mjs (`npm run bench:report
+# -- --publish`); prettier переформатировал бы сгенерированные таблицы и summary.json при каждой
+# публикации
+docs/benchmarks/forms/
+# …и данные страницы /benchmark сайта из того же отчёта (site-data.mjs, `npm run bench:site-data`):
+# листья записаны в строку — prettier развернул бы их, и каждая публикация оставляла бы diff
+projects/reformer-doc/src/data/forms-benchmark*.json
+# …и данные страницы «Замеры: с MCP и без» (их пишет стенд замеров MCP):
+# прогоны записаны по строке — prettier развернул бы их, и каждая перегенерация оставляла бы diff
+projects/reformer-doc/src/data/mcp-benchmark*.json

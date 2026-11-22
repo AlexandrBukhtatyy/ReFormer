@@ -1,0 +1,268 @@
+---
+sidebar_position: 2
+title: What problems ReFormer solves
+sidebar_label: What it solves
+description: The problems ReFormer takes away — for the form developer, the team lead and reviewer, a team working with an AI assistant, product people and the platform architect. And where it falls behind.
+---
+
+import { StandardEffects } from '@site/src/components/diagrams/StandardEffects';
+
+# What problems ReFormer solves
+
+A form is more than fields. It holds values, rules, reactions to input, steps, submission and
+error texts. Without a common frame every developer assembles all of that in their own way, and
+every form in a project ends up built differently.
+
+ReFormer sets one standard for a form. Part of the value comes straight from the library features.
+But most of it follows from the standard: readable code, easy review, simple maintenance. Below are
+the standard itself, the [hidden benefits](#hidden) you will not find in the API list, and the
+problems grouped by role — find yours.
+
+## One standard, many consequences {#one-standard}
+
+Every ReFormer form is described the same way: a [model](/docs/core-concepts/model) with the
+values, a [schema](/docs/core-concepts/schemas/overview) with the fields, rules and behavior —
+each on its own — and a single `createForm` call puts it together. A person, the
+[MCP server](/docs/mcp/overview) for AI assistants and the [visual builder](/docs/builder/overview)
+all write to this same standard.
+
+<StandardEffects />
+
+One standard leads to a chain of consequences:
+
+1. **Readability.** A form file answers one question: rules live in the rules file, calculations
+   in the behavior file. Someone else's form reads like your own.
+2. **Less cognitive load.** To fix a rule you do not keep the markup, effects and component state
+   in your head.
+3. **Painless review.** A rule change is a diff in the rules file. The reviewer sees what changed
+   and does not hunt for logic inside JSX.
+4. **Simple maintenance.** You change the markup without touching the rules, and the other way
+   round. A year later the form is laid out the same way as on the day it was written.
+5. **Fast onboarding.** A newcomer finds a file by its name, not by searching: there is one layout
+   for the whole project.
+6. **AI code is plain code.** MCP and the builder write to the same standard. A generated form is
+   read, reviewed and edited by hand like one a person wrote.
+
+## What the feature list does not show {#hidden}
+
+Part of ReFormer's value is not in the API: you do not turn it on with a flag, it comes by itself —
+because a form is written to one standard and split into layers. These benefits are the easiest to
+miss when choosing a library, and they are the ones that add up over the life of a project.
+
+### Faster review, no debates {#review}
+
+Form reviews are more often a debate about how to write than about business logic: where to keep
+rules, how to name a file, whether a calculation should be an effect or a computed value. In
+ReFormer this is settled before the review: there is one layout, every part of a form has its own
+place, every reaction has its own operator — `compute`, `enableWhen`, `resetWhen`. The reviewer is
+left to check what the change means: is the rule right, is the reaction needed.
+
+A rule change is a diff in the rules file; there is no markup to read. Code from MCP and the
+builder is laid out the same way, so it is reviewed the same way.
+
+### Architecture out of the box {#architecture}
+
+Good form architecture usually rests on team discipline, and over time it erodes. In ReFormer the
+library itself sets it — the [M1 architecture](/docs/#философия-архитектура-m1):
+
+- **The model is the single source of truth.** Values live in signals; nodes, rules and hooks
+  keep no copies — there is nothing to get out of sync.
+- **Responsibilities are separated.** "What data" (model and schema), "is it correct" (rules),
+  "how it reacts" (behavior) and "how it looks" (components) are different layers and different
+  files.
+- **The core does not depend on the UI.** Form logic is plain TypeScript: it is tested without
+  React and does not change when you swap components.
+- **Outcomes are values, not exceptions.** Submission returns a `SubmitResult`, a rule returns an
+  issue code whose text comes from a dictionary.
+
+A form written by a newcomer is laid out like one written by a senior developer. A year later it
+is built the same way as on the day it was written.
+
+### Three ways to render, one logic {#flexibility}
+
+| Way                                                                                    | When it fits                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| [JSX by hand](/docs/getting-started/quick-start): `<FormField control={form.email} />` | a few fields, custom markup                            |
+| [From the schema](/docs/packages/renderer-react): `@reformer/renderer-react`           | a large form with uniform markup, a step wizard        |
+| [From JSON](/docs/packages/renderer-json): `@reformer/renderer-json`                   | the schema comes from a server, a CMS or a form editor |
+
+The model, rules, behavior and step flow are the same in all three cases. Rules point at a field
+by its model signal, not by a component, so they fit both a form from code and a form from JSON.
+The way is chosen per form, and all three live side by side in one project. One JSON document is
+rendered with different component sets: the registry changes, the document does not.
+
+On top of the three ways work the [form registry](/docs/packages/form-registry) for
+micro-frontends, the [builder](/docs/builder/overview) and the [MCP server](/docs/mcp/overview) —
+it writes a form on any of the three stacks.
+
+### Token savings {#tokens}
+
+When an AI assistant writes or edits a form, the standard saves tokens — which means money and
+time.
+
+- **With the MCP server** the assistant does not write the form module itself: it describes the
+  form with builder calls, and the server prints the code. In the [measurement](/docs/mcp/benchmark)
+  over 180 runs (Claude Sonnet, November 19, 2026) creating a form with the server took about
+  6 times fewer tokens by median: 5,007 output tokens against 29,952. Over the whole measurement
+  almost 5 times fewer input and output tokens were spent, hence the cost — 4.4 times lower.
+- **Without the server** compactness and the layout save tokens. The form code itself is 2–2.5
+  times shorter than with Formik, React Hook Form and RJSF: 399 lines against 890–992 in the
+  [benchmark](/benchmark). The model has less to read and write, and to fix a rule it opens the
+  rules file, not the whole form.
+- **Documentation ships with the packages.** `llms.txt` and the documentation index sit in npm
+  next to the code, so the assistant does not need to look for them on the web.
+
+### Fewer bugs by design {#fewer-bugs}
+
+Many typical form bugs cannot happen in ReFormer because of how the library is built, so there is
+no need to catch them with tests and in review:
+
+- value copies do not diverge — there are no copies, everyone reads the model signals;
+- calculations do not loop — behavior operators replace `useEffect` chains, and subscriptions are
+  removed on their own;
+- a stale server check does not overwrite a fresh one — `validateAsync` aborts it through an
+  `AbortSignal`;
+- an error does not move to another array row — a row has a stable key;
+- renaming a field does not break string paths — fields are addressed with types, and the compiler
+  catches a mismatch.
+
+### Fewer merge conflicts {#merge}
+
+Markup, rules, behavior and steps live in different files: `form.schema.ts`,
+`form.validation.ts`, `form.behavior.ts`, `form.flow.ts` — see
+[Project structure](/docs/patterns/project-structure). One person changes the look, another the
+rules, a third assembles fields in the builder, and their edits rarely meet in the same file. The
+builder does not reprint a rules file edited by hand, and it notices outside edits (IDE, `git`)
+and offers to merge them.
+
+### No dead ends as a form grows {#growth}
+
+You can start small and not rewrite the logic as the form grows:
+
+1. A form with a few fields — `FormField` in JSX.
+2. The form grew — plug in the [renderer](/docs/packages/renderer-react): the schema stays the
+   same.
+3. The schema has to live on a server — describe it as a
+   [JSON document](/docs/packages/renderer-json); rules and behavior stay in TypeScript.
+4. Another team builds the form — the [form registry](/docs/packages/form-registry) mounts it by
+   id.
+
+Your own design plugs in on top of [headless components](/docs/cdk/overview), and the
+[builder export](/docs/builder/codegen-and-templates) is a plain ReFormer module. At every step the
+model, rules and behavior stay the same.
+
+### Knowledge does not leave with the author {#knowledge}
+
+Whoever understands one ReFormer form understands them all: the layout, terms and operators are
+the same. A form whose author has left is maintained by anyone on the team. A developer moves
+between teams and projects on ReFormer without relearning, and AI code is read by the same people
+the same way.
+
+### Not only forms {#beyond-forms}
+
+The signal model works as the state of the whole app: the user, the cart, the settings. A form is
+built over the whole app model or a part of it, so values are not copied from the form to a store
+and back. The form and the app share one reactive runtime and one mental model — see
+[Signals, proxies and levels](/docs/core-concepts/levels).
+
+## For the form developer {#developer}
+
+| Problem                                                                  | How ReFormer takes it away                                                                                                                                                              | Read more                                           |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Typing in one field re-renders the whole form                            | Values live in signals, and a component subscribes to its own field only. In the benchmark, typing in an array row costs 0 re-renders per key, as with React Hook Form; Formik does 455 | [Reactivity](/docs/core-concepts/reactive-state)    |
+| Copies of values in `useState`, the form and a store drift apart         | Values belong to the model. Nodes, rules, behavior and hooks read the same signals and keep no copies                                                                                   | [Signals and levels](/docs/core-concepts/levels)    |
+| Calculations and field availability are `useEffect` chains that loop     | Behavior is described with operators: `compute`, `enableWhen`, `resetWhen`, `copyFrom`, `onChange`. Subscriptions are released on their own                                             | [Behavior](/docs/behaviors/overview)                |
+| Rules are scattered across JSX and mixed with markup                     | Rules are a separate `defineValidation` schema, and a rule over several fields (`cross`) lives there too. One `strategy` option decides when errors show                                | [Validation](/docs/validation/overview)             |
+| Server checks race each other, and a server failure looks like bad input | `validateAsync` receives an `AbortSignal`: a stale check is cancelled. A failed rule gets the `error` status, not "invalid value"                                                       | [Async validation](/docs/validation/async)          |
+| In an array an error moves to another row after a removal                | The `arrayOf` row template, the stable `keyAt` key, and `applyEach` rules that also cover rows added later                                                                              | [Arrays](/docs/patterns/arrays)                     |
+| The step wizard is written by hand                                       | `createForm({ flow })`: "Next" checks only the current step, jumping ahead is closed, and on submit the form can open the first step with an error                                      | [Multi-step forms](/docs/guides/multi-step-forms)   |
+| Submission bypasses validation, the outcome is caught with `try/catch`   | `submission.submit` validates and sends in one call. The outcome is a `SubmitResult` value, not an exception. A server error is shown at its field                                      | [Submit and reset](/docs/patterns/submit-and-reset) |
+| String paths like `'address.city'` break on rename                       | Fields are addressed with types: `form.address.city`, `model.$.email`. All types are inferred from one form data type                                                                   | [TypeScript](/docs/reference/typescript)            |
+| Testing a rule needs a rendered component                                | The core works without React: the model, rules, behavior and steps are checked with a plain unit test                                                                                   | [Testing](/docs/guides/testing)                     |
+| Error texts are hard-coded into rules and components                     | A rule returns a code, and the text comes from a dictionary when shown. Switching the language translates errors already on screen without re-validation                                | [Localization](/docs/guides/localization)           |
+
+## For the team lead and reviewer {#team}
+
+This is where the standard pays off most. Forms in a project stop being "each one its own way".
+
+| Problem                                                         | How ReFormer takes it away                                                                                                                                                        | Read more                                                        |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Every form is laid out differently, and you search for things   | One form is one folder with a file per part: `form.schema.ts`, `form.validation.ts`, `form.behavior.ts`. A file is found by its name                                              | [Project structure](/docs/patterns/project-structure)            |
+| Reviewing a form means reading logic spread across JSX          | The model, schema, rules and behavior are separate. A rule change is a diff in the rules file; the reviewer does not need to read the markup                                      | [Schemas](/docs/core-concepts/schemas/overview)                  |
+| High cognitive load: everything is tied to everything           | Each file answers one question: "which fields", "is the data valid", "how fields react"                                                                                           | [Introduction](/docs/)                                           |
+| Everyone assembles a form the way they are used to              | There is one way — `createForm`. A form in JSX, by schema and from JSON is assembled the same way                                                                                 | [Large forms](/docs/patterns/project-structure-large)            |
+| Everyone describes operation outcomes differently               | Shared contracts: the `SubmitResult` submit outcome, the `{ code, params, severity }` issue, step transitions with a status and a reason                                          | [Submit and reset](/docs/patterns/submit-and-reset)              |
+| Repeated field groups are copied, and their rules get forgotten | A group module keeps the schema, rules and behavior together. The group type checks that the module is attached to matching fields                                                | [Group module](/docs/core-concepts/schemas/modules)              |
+| Form code is bloated                                            | In the benchmark credit application the form itself is 399 lines against 890–992 for Formik, React Hook Form and RJSF. With the reusable glue code — 1007 lines against 1085–1456 | [Benchmark](/benchmark)                                          |
+| A newcomer takes long to get into the project                   | One layout, one glossary, common mistakes collected in one place                                                                                                                  | [Glossary](/docs/reference/glossary), [FAQ](/docs/reference/faq) |
+| Generated code cannot be reviewed                               | MCP and the builder write plain ReFormer code by the same rules. It is reviewed and edited by hand like hand-written code                                                         | [For teams with AI](#ai)                                         |
+
+## For a team with an AI assistant {#ai}
+
+The `@reformer/mcp` [MCP server](/docs/mcp/overview) connects to Claude Code, Cursor and other MCP
+clients. The assistant builds the form with the server's builder API, and the server writes the
+form module — to the same standard a person follows.
+
+| Problem                                                       | How ReFormer takes it away                                                                                                                                           | Read more                                      |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| AI writes every form its own way, and the code is a black box | The server prints the module to the ReFormer standard. Every consequence of the standard — readability, review, maintenance — carries over to generated code         | [MCP overview](/docs/mcp/overview)             |
+| AI makes up APIs                                              | The server builds the form and checks the types. For an unknown method, symbol or package it answers with the correct name                                           | [Diagnostic codes](/docs/mcp/diagnostic-codes) |
+| The model says "done", but the form does not work             | "Done" (`Done`) comes from the server, and only after a build and a type check on the current files                                                                  | [Tools](/docs/mcp/tools)                       |
+| Documentation for the AI has to come from somewhere           | `llms.txt` and the documentation index ship to npm with the packages. The server answers from them, not from the model's memory                                      | [MCP overview](/docs/mcp/overview)             |
+| The agent goes in circles and costs a lot                     | Measured on 19 November 2026, Claude Sonnet, 180 runs: with the server 96% of runs passed every check against 83% without it, 3.5 times faster and 4.4 times cheaper | [With MCP and without](/docs/mcp/benchmark)    |
+
+## For product people and analysts {#builder}
+
+The [visual builder](/docs/builder/overview) is a form editor in the browser. A form is built
+there with the mouse or by asking the AI assistant in plain words.
+
+| Problem                                                        | How ReFormer takes it away                                                                                                                     | Read more                                                                    |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Building a form needs a developer                              | A form is built in the editor or by asking: "add an email field", "split the survey into three steps". An assistant turn is undone as a whole  | [Builder AI assistant](/docs/builder/assistant)                              |
+| A form builder keeps the form to itself                        | The builder opens the project folder on disk and saves into it. Export gives a plain ReFormer module, and the builder has no server of its own | [Code generation](/docs/builder/codegen-and-templates)                       |
+| Developer edits and builder edits overwrite each other         | The builder stops reprinting a rules file once it was edited by hand. It notices outside edits (IDE, `git`) and offers to merge them           | [Editing](/docs/builder/editing)                                             |
+| The builder shows someone else's components, not the product's | The builder plugs in your UI kit and embeds into your app: the app itself renders the preview with its own styles and data                     | [Kits](/docs/builder/kits-and-engines), [Embedding](/docs/builder/embedding) |
+| Data must not go to someone else's cloud                       | The assistant model is yours: a cloud one with an API key or a local one (Ollama, LM Studio)                                                   | [Builder AI assistant](/docs/builder/assistant)                              |
+
+## For the platform architect {#platform}
+
+| Problem                                           | How ReFormer takes it away                                                                                                                                             | Read more                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| One team builds a form, another app shows it      | `@reformer/form-registry`: one bundle registers a form, another mounts it by id, slot or route. Access rights are checked the same way for every lookup                | [Form registry](/docs/packages/form-registry)                                          |
+| The form schema and the code drift apart silently | The registry checks an entry before assembly: schema version, components, steps, model paths. A separate check catches two copies of the runtime                       | [Registry checks](/docs/packages/form-registry/checks)                                 |
+| The form arrives from the server as data          | `@reformer/renderer-json` renders a form from a JSON document. The document is checked as a whole with a list of all errors, and HTML only from allowed tags           | [JSON renderer](/docs/packages/renderer-json)                                          |
+| Schema-driven rendering pulls heavy dependencies  | In the benchmark the JSON form adds 36.7 KB gzip to the page, RJSF adds 129.5 KB                                                                                       | [Benchmark](/benchmark)                                                                |
+| The company has its own design system             | `@reformer/cdk` is logic and accessibility without styles. Your own control plugs in through an adapter, and the same JSON document renders with another component set | [CDK](/docs/cdk/overview), [Component registry](/docs/packages/renderer-json/registry) |
+| A library ties you to a React version             | The core does not depend on React and works without a UI. The React binding covers 16.8 to 19                                                                          | [Installation](/docs/getting-started/installation)                                     |
+| The form drifts from the API contract             | A type from an OpenAPI generator goes into `createForm<T>`, and the compiler catches the mismatch                                                                      | [OpenAPI generation](/docs/patterns/openapi-generation)                                |
+
+## Where ReFormer falls behind {#limits}
+
+ReFormer does not solve everything and is not faster everywhere. Full numbers are in the
+[benchmark](/benchmark).
+
+- **Loading with prefilled data is slower.** Prefill hydration takes 31.9 ms against 11.4 for
+  Formik and 12.1 for React Hook Form. Mounting the form is also slower than with Formik.
+- **The bundle is larger than Formik's.** On top of an empty page: 28.9 KB gzip against 24.5. On
+  a small form there is a little more code than with React Hook Form.
+- **Zero re-renders per key is not a given.** You get it with an
+  [uncontrolled field adapter](/docs/react/custom-fields#uncontrolled). Controlled controls — a combobox, Radix components — re-render their own field.
+- **There is a learning curve.** One value has three access points: `model.email`, `model.$.email`
+  and `form.email`. Their roles take some understanding — see
+  [Signals, proxies and levels](/docs/core-concepts/levels).
+- **MCP owns the form as a whole.** By default the files in the form folder belong to the server:
+  it reverts a hand edit to its own version on the next build. From there, keep the form either
+  through MCP or by hand. A form written by hand from scratch cannot be picked up by MCP for
+  editing yet.
+- **MCP and the builder lay out files differently.** The API standard is one, but each has its own
+  form folder layout.
+- **The builder runs in Chromium only.** It needs the File System Access API.
+- **Components support React 18 and 19 only.** This covers `@reformer/cdk`, `@reformer/ui-kit` and
+  the renderers; the core supports a wider range.
+
+## See also
+
+- [Introduction](/docs/) — how ReFormer is built and its packages.
+- [Quick start](/docs/getting-started/quick-start) — your first form.
+- [Benchmark](/benchmark) — ReFormer against Formik, React Hook Form and RJSF.
+- [With MCP and without](/docs/mcp/benchmark) — what the server gives an AI assistant.

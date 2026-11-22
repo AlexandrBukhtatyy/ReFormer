@@ -1,0 +1,240 @@
+import { describe, it, expect } from 'vitest';
+import { validateFormSchema } from './validate';
+import type { ComponentPropsSchema } from './schema';
+
+/**
+ * Фаза (d) валидации DSL — проверка `componentProps` по карте `propSchemas`.
+ *
+ * Фикстуры заданы ПРЯМО здесь (без импорта `@reformer/ui-kit`): renderer-json не зависит от ui-kit,
+ * а карта `propSchemas` — это уже слитая `mergeFieldPropsSchema` схема (враппер `label`/`required`/
+ * `testId` + пропы варианта). `x-doc`/`x-runtimeProps`/`x-registryName` намеренно вписаны, чтобы
+ * доказать, что `stripDocExtensions` вырезает их до компиляции ajv (иначе strict бросил бы).
+ */
+
+// Слитая схема Select (враппер + вариант async): строгая (`additionalProperties: false`).
+const selectPropsSchema: ComponentPropsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  'x-registryName': 'Select',
+  'x-runtimeProps': {
+    value: { group: 'Control', type: 'string | null', description: 'резолвит seam' },
+  },
+  properties: {
+    // контракт враппера
+    label: { type: 'string', description: 'Подпись поля' },
+    required: { type: 'boolean' },
+    testId: { type: 'string' },
+    // контракт варианта примитива
+    className: {
+      type: 'string',
+      'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
+    },
+    placeholder: {
+      type: 'string',
+      default: 'Select an option...',
+      'x-doc': { group: 'Textfield', type: 'string' },
+    },
+    clearable: {
+      type: 'boolean',
+      default: false,
+      'x-doc': { group: 'Behavior', type: 'boolean' },
+    },
+    options: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          value: { type: ['string', 'number'] },
+          label: { type: 'string' },
+        },
+      },
+      'x-doc': { group: 'Options', type: 'Array<{ value; label }>', kind: 'readonly' },
+    },
+  },
+};
+
+// Слитая схема Input — с union-типами (min/max/step), проверяет allowUnionTypes при компиляции.
+const inputPropsSchema: ComponentPropsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  'x-registryName': 'Input',
+  properties: {
+    label: { type: 'string' },
+    required: { type: 'boolean' },
+    testId: { type: 'string' },
+    type: { type: 'string', enum: ['text', 'number', 'email', 'password'] },
+    min: { type: ['number', 'string'] },
+    max: { type: ['number', 'string'] },
+    step: { type: ['number', 'string'] },
+  },
+};
+
+const propSchemas = { Select: selectPropsSchema, Input: inputPropsSchema };
+
+describe('validateFormSchema — componentProps (phase d)', () => {
+  it('(1a) catches a typo in componentProps of a component node', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(loanType)',
+        component: '$component(Select)',
+        componentProps: { label: 'Тип', lable: 'oops', options: '$dataSource(LOAN_TYPES)' },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { propSchemas });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/has unknown property "lable"/);
+  });
+
+  it('(1b) reaches a component node nested inside componentProps (reachability regress)', () => {
+    const schema = {
+      format: 2,
+      root: {
+        // карточка: сама НЕ в карте propSchemas → её props пропускаются, но обход доходит до узлов
+        component: '$component(Card)',
+        componentProps: {
+          sections: [
+            {
+              model: '$model(amount)',
+              component: '$component(Input)',
+              componentProps: { label: 'Сумма', maxx: 100 },
+            },
+          ],
+        },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { propSchemas });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/has unknown property "maxx"/);
+    // путь указывает на вложенную ноду, а не на корень
+    expect(errors.join('\n')).toMatch(/sections\[0\]\.componentProps/);
+  });
+
+  it('(2) accepts an operator string in place of a literal prop value ($dataSource)', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(loanType)',
+        component: '$component(Select)',
+        componentProps: { options: '$dataSource(LOAN_TYPES)' },
+      },
+    };
+    expect(validateFormSchema(schema, { propSchemas }).valid).toBe(true);
+  });
+
+  it('(3) skips a component that is absent from the propSchemas map', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(x)',
+        component: '$component(Custom)',
+        componentProps: { whatever: 123, nonsense: true },
+      },
+    };
+    expect(validateFormSchema(schema, { propSchemas }).valid).toBe(true);
+  });
+
+  it('(4) is unchanged (backward compatible) when propSchemas is not provided', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(loanType)',
+        component: '$component(Select)',
+        componentProps: { lable: 'typo', clearable: 'not-a-bool' },
+      },
+    };
+    // Без propSchemas фаза (d) не запускается — структурно схема валидна.
+    expect(validateFormSchema(schema, {}).valid).toBe(true);
+    // Регресс-контроль: те же данные С картой — уже невалидно (фаза (d) сработала).
+    expect(validateFormSchema(schema, { propSchemas }).valid).toBe(false);
+  });
+
+  it('(5) names the mistyped prop and leaks no operatorOp/anyOf noise', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(loanType)',
+        component: '$component(Select)',
+        componentProps: { lable: 'typo', clearable: 'yes' },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { propSchemas });
+    expect(valid).toBe(false);
+    const joined = errors.join('\n');
+    // называет опечатанный проп
+    expect(joined).toMatch(/has unknown property "lable"/);
+    // честная ветка сохранена: clearable должен быть boolean
+    expect(joined).toMatch(/clearable/);
+    expect(joined).toMatch(/boolean/i);
+    // шум escape-hatch'а операторов НЕ течёт
+    expect(joined).not.toMatch(/operatorOp/i);
+    expect(joined).not.toMatch(/anyOf/i);
+    expect(joined).not.toMatch(/must match pattern/i);
+    // ветка структурной `$locale` — тоже escape-hatch, её «must be object» — шум
+    expect(joined).not.toMatch(/localeObjectOp/i);
+    expect(joined).not.toMatch(/must be object/i);
+  });
+
+  // Регресс ReFormer-3vz: конвертер резолвит `{ $locale, params }` на месте любого значения
+  // componentProps, а валидатор с propSchemas отвергал её как «label must be string» — и MCP
+  // `validate_json_schema` браковал пример из docs/llms/08-i18n.md.
+  it('(6) accepts the structural $locale form in place of a string prop', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(password)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.min', params: { count: 8 } } },
+      },
+    };
+    expect(validateFormSchema(schema, { propSchemas })).toEqual({ valid: true, errors: [] });
+    // Без params — тоже структурная форма.
+    const bare = {
+      format: 2,
+      root: {
+        model: '$model(loanType)',
+        component: '$component(Select)',
+        componentProps: { placeholder: { $locale: 'fields.loanType.placeholder' } },
+      },
+    };
+    expect(validateFormSchema(bare, { propSchemas }).valid).toBe(true);
+  });
+
+  it('(7) a malformed structural $locale is still rejected', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(password)',
+        component: '$component(Input)',
+        // опечатка: `param` вместо `params`; объект без `$locale` — не локаль вовсе
+        componentProps: { label: { $locale: 'fields.min', param: { count: 8 } } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { propSchemas });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/label/);
+    expect(
+      validateFormSchema(
+        { ...schema, root: { ...schema.root, componentProps: { label: { key: 'x' } } } },
+        { propSchemas }
+      ).valid
+    ).toBe(false);
+  });
+
+  it('(8) checks the key of a structural $locale against localeKeys', () => {
+    const schema = {
+      format: 2,
+      root: {
+        model: '$model(password)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.nope', params: { count: 8 } } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, {
+      propSchemas,
+      localeKeys: ['fields.min'],
+    });
+    expect(valid).toBe(false);
+    expect(errors).toEqual([expect.stringMatching(/unknown locale key "fields\.nope"/)]);
+  });
+});

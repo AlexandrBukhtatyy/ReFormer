@@ -1,0 +1,15 @@
+{
+  "cell.title": "Application profile",
+  "cell.hint": "Profile: {label}. Click to change",
+  "menu.title": "Application profile",
+  "menu.restarts": "reloads the application",
+  "menu.reset": "As in the launch config",
+  "palette.switch": "Profile: {label}",
+  "palette.reset": "Profile: as in the launch config",
+  "palette.active": "Active",
+  "palette.restarts": "Reloads the application",
+  "confirm.title": "Switch the profile to “{profile}”?",
+  "confirm.description": "The application will reload: the set of built-in plugins will change. Edits to open files stay in the working copy.",
+  "confirm.accept": "Switch and reload",
+  "switch.failed": "Could not change the profile: {detail}"
+}

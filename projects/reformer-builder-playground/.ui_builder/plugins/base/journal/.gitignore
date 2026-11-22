@@ -1,0 +1,12 @@
+# Сборка для билдера — `npm run build:dev`: он грузит плагин из корня этого каталога.
+# Исходники — в src/, сборка для поставки (`npm run build:dist`) — в dist/.
+/manifest.json
+/main.js
+/styles.css
+# Отложенные модули сборки: код и данные, которые плагин импортирует через `import()`.
+/chunks/
+/locales/
+
+# Таблица стилей плагина — её собирает `npm run generate:styles`: утилиты Tailwind,
+# которых нет в CSS билдера (см. `.shared/plugin-styles.mjs`).
+/src/styles.css

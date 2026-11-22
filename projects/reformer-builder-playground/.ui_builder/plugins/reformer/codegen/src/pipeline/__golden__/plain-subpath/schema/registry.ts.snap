@@ -1,0 +1,26 @@
+// schema/registry.ts — реестр компонентов и источников данных схемы. Регенерируется.
+
+import { Box, Button, FormField, Input } from '@reformer/ui-kit';
+import { Carousel, CarouselContent, CarouselItem } from '@reformer/ui-kit/carousel';
+import { Combobox, ComboboxMulti } from '@reformer/ui-kit/combobox';
+import { DatePicker } from '@reformer/ui-kit/date-picker';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+import { POSITIONS, SKILLS } from '../constants/zayavka-na-kredit';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, FormField);
+    reg.component('Box', Box);
+    reg.component('Input', Input);
+    reg.component('DatePicker', DatePicker);
+    reg.component('Combobox', Combobox);
+    reg.component('ComboboxMulti', ComboboxMulti);
+    reg.component('Carousel', Carousel);
+    reg.component('CarouselContent', CarouselContent);
+    reg.component('CarouselItem', CarouselItem);
+    reg.component('Button', Button);
+
+    reg.dataSource('POSITIONS', POSITIONS);
+    reg.dataSource('SKILLS', SKILLS);
+  });
+}

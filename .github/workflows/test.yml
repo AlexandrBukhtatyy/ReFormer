@@ -1,0 +1,365 @@
+name: Test
+
+# Переиспользуемый workflow с проверками качества (lint + format + build + tests).
+# Вызывается из ci.yml (push/PR) и из release.yml (как gate перед публикацией) —
+# единый источник правды, чтобы шаги не разъезжались между двумя workflow.
+# Сам по себе не запускается (только workflow_call).
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    # Образ закреплён: 2026-11-05 `ubuntu-latest` стал 26.04, а Playwright 1.57 ставит Chromium
+    # только до 24.04 («does not support chromium on ubuntu26.04-x64»). Вернуть `ubuntu-latest`
+    # вместе с обновлением Playwright — ReFormer-897l.
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Peer-диапазоны
+        # Два правила разом. Внешние: открытый peer вида ">=8" делает чужой мажорный релиз
+        # нашей поломкой — песочница шага «Subpath smoke» ставит peer'ы по объявленному
+        # диапазону, то есть latest, и @tanstack/react-table 9.0.0 (2026-08-04) уронил релиз
+        # без единого коммита в репозиторий. Внутренние @reformer/*: наоборот, обязаны быть
+        # "*" — любой версионный диапазон отсекает prerelease соседа, и потребитель не ставит
+        # @beta без --legacy-peer-deps. Гейт манифестный (сборка не нужна) → стоит до build-ов.
+        run: npm run check:peer-ranges
+
+      - name: Установка prerelease-версий дефолтным npm
+        # Поведенческая половина предыдущего шага: пакеты пересобираются с фальшивыми
+        # prerelease-версиями и ставятся в чистый проект без --legacy-peer-deps. Ловит то,
+        # чего манифестный гейт не видит, и то, что не воспроизводится внутри монорепо
+        # (в рабочем дереве версии стабильные, а корневой .npmrc глушил ошибку флагом).
+        # Тарболы манифестные, сборка не нужна — поэтому шаг тоже стоит до build-ов.
+        run: npm run check:peer-prerelease
+
+      - name: Корпус знаний ↔ живое API
+        # JSDoc и docs/llms пакетов — справка агентов (llms.txt, описания символов) — не должны
+        # УЧИТЬ снятому из core API (`validateFormModel`, `ModelValidator`, leaf `validators: [...]`).
+        # Ловится только так: поле `validators` осталось в типах, поэтому такой код
+        # компилируется — tsc и ESLint чисты, а форма молча шлёт пустые обязательные
+        # поля. Упоминания разрешены лишь в отрицательном контексте («removed», «❌» …).
+        run: npm run check:llms-corpus
+
+      - name: Открытая часть без ссылок на закрытый сервер
+        # Сервер MCP — в закрытом репозитории, открытая часть о нём не знает: ни манифест, ни
+        # импорт, ни документация не называют его пакет. Иначе открытое дерево не собирается без
+        # закрытого или выдаёт его устройство. Сборка не нужна — шаг стоит до build-ов.
+        run: npm run check:no-closed-refs
+
+      - name: Build @reformer/core
+        run: npm run build -w @reformer/core
+
+      - name: Tests and coverage gate @reformer/core
+        # Один прогон вместо двух: `coverage` исполняет весь набор тестов ядра под покрытием,
+        # отдельный шаг `test` гонял бы его повторно. Гейт двухуровневый. Агрегатные пороги в
+        # packages/reformer/vitest.config.ts — храповик (замер минус 1–2 п.п.), ловит общий
+        # регресс. Минимум на файл (packages/reformer/coverage.per-file.json,
+        # scripts/check-coverage-per-file.mjs) ловит новый модуль без тестов, которого агрегат
+        # не замечает; исключение из минимума — только с причиной и задачей beads.
+        run: npm run coverage -w @reformer/core
+
+      - name: Build @reformer/cdk
+        run: npm run build -w @reformer/cdk
+
+      - name: Run @reformer/cdk tests
+        run: npm run test -w @reformer/cdk
+
+      - name: Build @reformer/renderer-react
+        run: npm run build -w @reformer/renderer-react
+
+      - name: Run @reformer/renderer-react tests
+        run: npm run test -w @reformer/renderer-react
+
+      - name: Build @reformer/ui-kit
+        run: npm run build -w @reformer/ui-kit
+
+      - name: Run @reformer/ui-kit tests
+        run: npm run test -w @reformer/ui-kit
+
+      - name: Subpath smoke @reformer/ui-kit
+        # npm pack + установка тарбола в чистый проект в os.tmpdir() и динамический
+        # импорт всех subpath из exports. Вне репозитория намеренно: внутри него
+        # недостающая зависимость ложно находится в корневом node_modules и проверка
+        # зеленеет. Соседи ставятся по списку из peerDependencies, поэтому
+        # незадекларированный импорт в песочнице не резолвится. Заодно проверяет поле
+        # "files" (subpath объявлен, а файла в тарболе нет). Требует собранных
+        # core / cdk / renderer-react — они пакуются локальными тарболами, чтобы
+        # проверять текущий код, а не последний релиз в npm.
+        run: npm run check:subpaths -w @reformer/ui-kit
+
+      - name: Build @reformer/renderer-json
+        run: npm run build -w @reformer/renderer-json
+
+      - name: Run @reformer/renderer-json tests
+        run: npm run test -w @reformer/renderer-json
+
+      # form-registry — публикуемый пакет: реестр форм для микрофронтов. Идёт после
+      # core / renderer-react / renderer-json: он их peer-зависимый потребитель и
+      # резолвит их через собранные dist. Сборка нужна ещё и трём шагам ниже
+      # (dist-deps, exports-dist, ajv-isolation сканируют dist/ всех packages/*).
+      - name: Build @reformer/form-registry
+        run: npm run build -w @reformer/form-registry
+
+      - name: Run @reformer/form-registry tests
+        run: npm run test -w @reformer/form-registry
+
+      # Сайт документации. Его сборка — единственная проверка ссылок, якорей и MDX
+      # (onBrokenLinks / onBrokenAnchors / onBrokenMarkdownLinks: throw). Раньше сайт собирал
+      # только деплой из develop, и битая ссылка обнаруживалась уже после слияния. Пакеты,
+      # которые сайт импортирует по `exports` (→ dist/), к этому шагу собраны выше.
+      - name: Build documentation site
+        run: npm run build -w reformer-doc
+
+      # form-intent — контракт intent и печать правил в код. Зависимостей нет; его dist нужен
+      # плагинам ReFormer билдера.
+      - name: Build @reformer/form-intent
+        run: npm run build -w @reformer/form-intent
+
+      - name: Run @reformer/form-intent tests
+        run: npm run test -w @reformer/form-intent
+
+      # mcp — публикуемый клиент MCP: stdio-прокси к сервису ReFormer. Папка формы, проверка типов
+      # и отчёты остаются у пользователя, компилятор и справка — в сервисе. Сборка нужна ещё и шагам
+      # «Dist deps ↔ manifest» и «No node globals» ниже: они сканируют dist/ пакетов.
+      - name: Build @reformer/mcp
+        run: npm run build -w @reformer/mcp
+
+      - name: Run @reformer/mcp tests
+        # Прокси против фейкового сервиса по HTTP: добор фактов и повтор, запись операций на диск,
+        # состояние сеанса, недоступный сервис.
+        run: npm run test -w @reformer/mcp
+
+      - name: MCP client packaging
+        # npm pack клиента: в архиве только dist и README — без корпуса знаний и промптов; импорты
+        # dist — только SDK и node; запуск без ключа облачного сервиса — понятная ошибка, а не трасса.
+        run: npm run check:packaging -w @reformer/mcp
+
+      # builder-plugin-api — публикуемый контракт плагинов билдера. Собираем ДО билдера:
+      # он его workspace-зависимость. Проверка «Dist deps ↔ manifest» ниже сканирует dist/
+      # всех packages/*, поэтому без сборки она падала бы на «нет dist/».
+      - name: Build @reformer/builder-plugin-api
+        run: npm run build -w @reformer/builder-plugin-api
+
+      - name: Run @reformer/builder-plugin-api tests
+        run: npm run test -w @reformer/builder-plugin-api
+
+      # toolkit — нейтральные помощники печати стеков (Eta, маркер, имена). Предметный код
+      # доменов живёт ядрами в каталоге плагинов проекта-образца (`.ui_builder/plugins/<домен>/core`)
+      # и проверяется тестами своих пакетов — шаг «Тесты доменов-плагинов» ниже. Сборка плагина
+      # вкладывает toolkit в `main.js` по его dist, а «Dist deps ↔ manifest» и «Exports ↔ dist»
+      # ниже сканируют dist/ всех packages/*.
+      - name: Build @reformer/builder-toolkit
+        run: npm run build -w @reformer/builder-toolkit
+
+      - name: Run @reformer/builder-toolkit tests
+        run: npm run test -w @reformer/builder-toolkit
+
+      # builder-plugin-cli — `reformer-plugin`, инструменты автора плагина. Берёт из dist контракта
+      # вход ./tooling, а его тесты собирают плагины, вкладывающие toolkit, — поэтому идёт
+      # ПОСЛЕ его сборки: сборка плагина находит toolkit по dist.
+      - name: Build @reformer/builder-plugin-cli
+        run: npm run build -w @reformer/builder-plugin-cli
+
+      - name: Run @reformer/builder-plugin-cli tests
+        run: npm run test -w @reformer/builder-plugin-cli
+
+      # Кит HexaUI — внешний плагин билдера (приватный пакет, в выпуск не входит). Собирается тем же
+      # CLI, что у автора плагина: разбор манифеста, сухая активация, каталог кита по контракту SDK.
+      - name: Run @reformer/kit-hexa-ui tests
+        run: npm run test -w @reformer/kit-hexa-ui
+
+      - name: Build @reformer/kit-hexa-ui builder plugin
+        run: npm run build:dist -w @reformer/kit-hexa-ui
+
+      # Тема RJSF из кита — рантайм домена rjsf (приватный пакет). Плагин `reformer.rjsf.render`
+      # вкладывает её в свою сборку и находит по dist — поэтому идёт ДО сборки плагинов; его же
+      # сканируют «Dist deps ↔ manifest» и «Exports ↔ dist» ниже. Идёт после @reformer/core: тема
+      # берёт адаптеры полей из его dist.
+      - name: Build @reformer/rjsf-kit-theme
+        run: npm run build -w @reformer/rjsf-kit-theme
+
+      - name: Run @reformer/rjsf-kit-theme tests
+        run: npm run test -w @reformer/rjsf-kit-theme
+
+      # Основа (домен base: дерево файлов), платформа форм (домен forms: киты, превью-хост)
+      # и движки форм (домены reformer и rjsf) — плагины проекта-образца билдера, по пакету на плагин
+      # (`.ui_builder/plugins/<домен>/<плагин>`). Собираются тем же CLI, что у автора плагина, —
+      # на место, в корень каталога плагина: оттуда их грузит билдер. Сборке нужны dist контракта,
+      # CLI, toolkit, темы RJSF и @reformer/form-intent (печать правил и типы intent). Компилятор
+      # intent и справка ассистента — в сервисе ReFormer, в сборку плагинов они не входят.
+      - name: Сборка плагинов проекта-образца
+        run: npm run plugins:build -w reformer-builder-playground
+
+      - name: Тесты доменов-плагинов
+        # Юниты плагинов и ядер доменов, плюс `integration/` — проверки собранного приложения с этими
+        # плагинами в составе. Здесь же живёт храповик `TOOL_SURFACE_BUDGET` ассистента
+        # (reformer/ai/src/model/types.ts, тест reformer/integration/assistant-surface.test.ts):
+        # поверхность инструментов уходит в запрос модели на каждом шаге хода, её рост стоит токенов
+        # в каждом ходе каждого пользователя. Сервис ReFormer этим тестам не нужен: клиент компилятора
+        # intent проверяется на заглушке.
+        run: >-
+          npm run test
+          -w projects/reformer-builder-playground/.ui_builder/plugins/base
+          -w projects/reformer-builder-playground/.ui_builder/plugins/forms
+          -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
+          -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf
+
+      - name: Build @reformer/builder
+        run: npm run build -w @reformer/builder
+
+      - name: Плагины приложения — рядом со сборкой билдера
+        # Платформа форм и движки едут вместе с билдером слоем «плагины приложения»: сборки пакетов для
+        # поставки (`build:dist`) складываются в `dist/plugins/` с индексом, по которому оболочка
+        # их находит. Тот же шаг делают release.yml и deploy-docs.yml; здесь он проверяет, что
+        # набор из `application-plugins.json` собирается, — иначе о несобранном плагине узнал бы
+        # только релиз. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
+        run: |
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
+
+      - name: Builder packaging smoke
+        # `npm pack` билдера → чистый проект в os.tmpdir(): раскладка `files` (клиент собранным,
+        # плагин Vite, dist с плагинами, без `src/`), импорт трёх входов, прод-сборка приложения
+        # с плагином — без клиента билдера, типы обоих входов. Внутри монорепозитория это не видно:
+        # workspace-симлинк отдаёт всё дерево, и так 3.0.0-beta.14 ушёл в реестр без `exports`
+        # и клиента. Идёт ПОСЛЕ плагинов приложения: тарболу нужен полный `dist`.
+        run: npm run check:packaging -w @reformer/builder
+
+      - name: Run @reformer/builder tests
+        # Оболочка, основа конструктора и киты. Движков форм в составе билдера нет — их тесты
+        # шагом выше.
+        run: npm run test -w @reformer/builder
+
+      - name: Chromium для браузерных тестов и e2e
+        # Браузерные тесты и e2e билдера идут в настоящем Chromium: File System Access, на котором
+        # стоит работа с проектом, есть только в нём. Ставится он один, с системными зависимостями.
+        run: npx playwright install --with-deps chromium
+
+      - name: Браузерные тесты билдера и плагинов
+        # Часть проверок оболочки и плагинов проекта-образца — vitest в браузере: DOM, OPFS, Monaco,
+        # живое превью. Узловые тесты выше их не запускают, и до этого шага они шли только руками.
+        # `--if-present`: браузерные тесты есть не у каждого плагина.
+        run: >-
+          npm run test:browser --if-present
+          -w @reformer/builder
+          -w projects/reformer-builder-playground/.ui_builder/plugins/base
+          -w projects/reformer-builder-playground/.ui_builder/plugins/forms
+          -w projects/reformer-builder-playground/.ui_builder/plugins/reformer
+          -w projects/reformer-builder-playground/.ui_builder/plugins/rjsf
+
+      - name: e2e собранного билдера
+        # Ровно то, что получает человек из `npx reformer-builder`: собранный билдер с плагинами
+        # приложения под лаунчером, проект-образец открыт рабочим каталогом. Цель `dist` — без vite
+        # dev и его холодной оптимизации зависимостей. Упавший тест Playwright в CI повторяет дважды
+        # (playwright.config.ts). Идёт после «Плагины приложения»: нужен готовый `dist` билдера.
+        run: npm run test:e2e:dist -w reformer-builder-playground-e2e
+
+      - name: Отчёт e2e билдера
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-e2e-report
+          path: |
+            projects/reformer-builder-playground-e2e/playwright-report
+            projects/reformer-builder-playground-e2e/test-results
+          retention-days: 7
+
+      - name: Dist deps ↔ manifest
+        # Каждый внешний импорт dist/ должен быть объявлен в dependencies или
+        # peerDependencies пакета. Ловит зависимость, оставленную в devDependencies:
+        # локально и в CI всё зелёное (devDeps установлены), а у потребителя subpath
+        # падает с ERR_MODULE_NOT_FOUND — так разъехались 11 heavy-deps @reformer/ui-kit
+        # (recharts / cmdk / @tanstack/react-table / …). Идёт после всех build-шагов:
+        # проверяются dist/ всех packages/*.
+        run: npm run check:dist-deps
+
+      - name: Exports ↔ dist
+        # Карта exports и список lib.entry в vite.config.ts — два РУЧНЫХ списка одного
+        # и того же, и они разъезжаются. Ловит обе стороны: (а) экспорт объявлен, файла
+        # в dist нет → у потребителя ERR_MODULE_NOT_FOUND; (б) entry собирается, но в
+        # exports не объявлен → при strict exports недоступен, даже лёжа в тарболе.
+        # Так после «split date validator into atomic validators» остался мёртвый
+        # ./validators/date, а 7 собранных date-валидаторов были недостижимы.
+        # Идёт после всех build-шагов: проверяются dist/ всех packages/*.
+        run: npm run check:exports-dist
+
+      - name: i18n context singleton
+        # React-контекст локализации обязан существовать в одном экземпляре — в dist ядра.
+        # Пакет, не вынесший `@reformer/core/i18n` во внешние зависимости сборки, получает
+        # свою копию контекста, и его компоненты перестают видеть I18nProvider приложения:
+        # молча, без ошибок, только в собранном артефакте (vitest резолвит один экземпляр
+        # модуля и расхождения не видит). Идёт после всех build-шагов.
+        run: npm run check:i18n-singleton
+
+      - name: No node globals in browser bundles
+        # `process.env.NODE_ENV` — привычный способ отличить dev от prod, и со сборщиком
+        # он работает: бандлер подставляет значение. Но пакет, загруженный как ГОЛЫЙ ESM
+        # (import map, web-component, Module Federation без прогона через define), получает
+        # `ReferenceError: process is not defined` — падение не там, где ошибка, и не с тем
+        # сообщением. Проверка узкая: только пакеты, обязанные работать без сборщика.
+        run: npm run check:no-node-globals
+
+      - name: ajv isolation
+        # ajv тяжелее, чем всё ядро реестра форм вместе взятое, поэтому он вынесен в
+        # отдельные точки входа (renderer-json → validate.js, form-registry → manifest.js).
+        # До сих пор инвариант держался ОДНИМ комментарием в исходнике: достаточно одного
+        # импорта из основного модуля, чтобы ajv поехал в каждое приложение, и заметить это
+        # можно было бы только по размеру бандла. Проверка идёт по графу импортов dist/,
+        # поэтому ловит и ajv, пришедший через общий chunk.
+        run: npm run check:ajv-isolation
+
+      - name: Bundle size (size-limit)
+        # Enforces brotli caps in .size-limit.json against the freshly built dist/
+        # of every @reformer/* package (all builds above ran, so the artifacts
+        # exist). Guards the heavy @reformer/ui-kit subpaths (chart/table/sidebar/
+        # calendar/carousel/command/drawer/date-picker/resizable/sonner/input-otp)
+        # and the shared utils chunk — if the vite `external` predicate ever stops
+        # excluding a heavy dep, its subpath balloons and this step goes red.
+        # @size-limit/file measures brotli and does NOT follow imports.
+        # Последние две записи — плагины ИИ проекта-образца (ассистент и стек форм ReFormer), их
+        # `main.js`. Файлы появляются на шаге «Сборка плагинов проекта-образца» выше.
+        run: npm run size
+
+      - name: Check generated form-schema is up to date
+        run: |
+          npm run gen:form-schema -w react-playground
+          git diff --exit-code -- 'projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/form-schema.schema.json'
+
+      - name: Check generated llms.txt and llms-index.json are up to date
+        # llms.txt собирается из docs/llms/*.md + JSDoc и публикуется в npm (поле files).
+        # Build каждого пакета уже прогнал generate:llms, поэтому расхождение здесь
+        # значит, что закоммиченный файл отстал от исходников: правки в docs/llms или
+        # в JSDoc до потребителя не доедут. Так llms.txt @reformer/ui-kit целый релизный
+        # цикл отдавал устаревший список peer-зависимостей.
+        # llms-index.json — тот же артефакт для инструментов MCP (символы, входы пакета,
+        # секции): сервер читает его из установленного пакета, и отставший индекс давал бы
+        # неверные подпути импорта в validate_form и get_symbol_docs.
+        run: git diff --exit-code -- 'packages/*/llms.txt' 'packages/*/llms-index.json'
+
+      - name: Typecheck
+        # Runs AFTER package builds so @reformer/* dist type declarations exist —
+        # packages resolve each other through built dist, not src. Package "build"
+        # is vite/esbuild (transpile only, no type check), so type errors slip past
+        # CI and only surface later in typedoc (Deploy Documentation). This gate
+        # catches them before merge to main. @reformer/cdk is excluded pending a
+        # fix of its generic React-Context variance errors (tracked separately).
+        run: npm run typecheck

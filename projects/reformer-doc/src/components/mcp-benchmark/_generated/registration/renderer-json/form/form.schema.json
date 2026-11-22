@@ -1,0 +1,66 @@
+{
+  "format": 2,
+  "meta": {
+    "description": "@reformer-form-build ad3c25443a70187f собран сервером ReFormer из form.intent.json: форму меняют через сервер (form_build; в guided — form_start, затем form_edit), а не этот файл — правка руками отсоединит его от сборки, guided её отменит"
+  },
+  "root": {
+    "component": "$component(Box)",
+    "children": [
+      {
+        "selector": "login",
+        "model": "$model(login)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Логин",
+          "testId": "login"
+        }
+      },
+      {
+        "selector": "email",
+        "model": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Email",
+          "testId": "email"
+        }
+      },
+      {
+        "selector": "password",
+        "model": "$model(password)",
+        "component": "$component(InputPassword)",
+        "componentProps": {
+          "label": "Пароль",
+          "testId": "password"
+        }
+      },
+      {
+        "selector": "confirmPassword",
+        "model": "$model(confirmPassword)",
+        "component": "$component(InputPassword)",
+        "componentProps": {
+          "label": "Повтор пароля",
+          "testId": "confirmPassword"
+        }
+      },
+      {
+        "selector": "captcha",
+        "model": "$model(captcha)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Код с картинки",
+          "testId": "captcha"
+        }
+      },
+      {
+        "selector": "submit",
+        "component": "$component(Button)",
+        "componentProps": {
+          "type": "button"
+        },
+        "children": [
+          "Зарегистрироваться"
+        ]
+      }
+    ]
+  }
+}

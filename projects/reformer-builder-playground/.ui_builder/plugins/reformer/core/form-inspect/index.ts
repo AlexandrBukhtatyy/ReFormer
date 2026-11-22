@@ -1,0 +1,205 @@
+/**
+ * Чтение и правка живой модели формы по `$model`-пути.
+ *
+ * ## Одна цепочка на чтение и на запись
+ *
+ * ```text
+ * $model-путь → model.signalAt(path) → getNodeForSignal(sig) → FormNode
+ * ```
+ *
+ * Оба звена — публичный API `@reformer/core`. Пишет панель ТЕМ ЖЕ вызовом, каким пишет контрол:
+ * рендерер зовёт `fieldNode.setValue(v)` на изменение и `fieldNode.markAsTouched()` на blur
+ * (`renderer-react/src/core/render-node.tsx`). Поэтому «вторая точка ввода разойдётся с формой»
+ * здесь не наступает — точка одна, и `compute`, `copyFrom`, `onChange`, `enableWhen`, `resetWhen`
+ * отрабатывают сами: они подписаны на сигнал, а не на событие интерфейса.
+ *
+ * ## Писать через УЗЛЫ, а не через `model.set`
+ *
+ * Запись модели (`set`, `patch`) не поднимает `touched` и не проходит тем путём, которым пишет
+ * контрол. Панель пишет так же, как ввод человеком, — вызовами узла; отсюда и массовая вставка:
+ * по узлам поштучно, а не одним вызовом.
+ *
+ * ## Производные пути не редактируются
+ *
+ * Целями `compute` владеет само поведение: групповая запись сверяется с derived-guard и записанное
+ * ИГНОРИРУЕТ. Панель обязана знать это заранее ({@link readNodeState}) — иначе человек пишет,
+ * значение возвращается, и он идёт искать несуществующий баг.
+ *
+ * @module plugins/reformer/core/form-inspect/index
+ */
+
+import { getNodeForSignal, isDerived, isFormNode, type FormNode } from '@reformer/core';
+
+/** Значения модели. Приходят из схемы, и сузить их нечем. */
+type Shape = Record<string, unknown>;
+
+/** Что панель умеет показать про один путь. */
+export type RowKind = 'leaf' | 'group' | 'array';
+
+/** Одна строка дерева значений. */
+export interface ModelRow {
+  /** `$model`-путь: то же, чем адресует схема. */
+  readonly path: string;
+  readonly value: unknown;
+  readonly kind: RowKind;
+  /** Глубина вложенности — для отступа. */
+  readonly depth: number;
+}
+
+function isPlainObject(value: unknown): value is Shape {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Плоский список путей модели в порядке обхода.
+ *
+ * Массивы НЕ раскрываются поэлементно: элементы адресуются `items[0].name`, а панель работает
+ * с `$model`-путями схемы, где такого пути нет. Массив показывается одной строкой и правится
+ * целиком — этого хватает, чтобы добавить и убрать элементы.
+ */
+export function collectRows(model: unknown, prefix = '', depth = 0): ModelRow[] {
+  if (!isPlainObject(model)) return [];
+  const out: ModelRow[] = [];
+  for (const [key, value] of Object.entries(model)) {
+    const path = prefix === '' ? key : `${prefix}.${key}`;
+    if (Array.isArray(value)) {
+      out.push({ path, value, kind: 'array', depth });
+      continue;
+    }
+    if (isPlainObject(value)) {
+      out.push({ path, value, kind: 'group', depth });
+      out.push(...collectRows(value, path, depth + 1));
+      continue;
+    }
+    out.push({ path, value, kind: 'leaf', depth });
+  }
+  return out;
+}
+
+/** Что известно про узел пути. */
+export interface NodeState {
+  readonly touched: boolean;
+  readonly dirty: boolean;
+  readonly disabled: boolean;
+  /** Идёт асинхронная проверка: раннер валидации отмечает поле на время async-правил. */
+  readonly pending: boolean;
+  readonly errors: readonly string[];
+  /** Цель `compute`: запись игнорируется поведением, и панель обязана сказать это заранее. */
+  readonly derived: boolean;
+}
+
+/** Модель в объёме, которым пользуется панель. */
+interface ModelLike {
+  signalAt?(path: string): unknown;
+  get?(): unknown;
+}
+
+/** Сигнал пути либо `undefined`. Отдельно, потому что нужен и чтению, и записи. */
+function signalAt(model: unknown, path: string): unknown {
+  const api = model as ModelLike | null;
+  return typeof api?.signalAt === 'function' ? api.signalAt(path) : undefined;
+}
+
+/** Узел пути либо `null`. `null` — путь есть в значениях, но формой не представлен. */
+export function nodeAt(model: unknown, path: string): FormNode<unknown> | null {
+  const signal = signalAt(model, path);
+  if (signal === undefined || signal === null) return null;
+  const node: unknown = getNodeForSignal(signal as never);
+  return isFormNode(node) ? node : null;
+}
+
+/** Значение по пути прямо из сигнала: снимок модели может отставать от только что записанного. */
+export function valueAt(model: unknown, path: string): unknown {
+  const signal = signalAt(model, path) as { value?: unknown } | undefined;
+  return signal?.value;
+}
+
+/**
+ * Состояние узла пути. `null` — узла нет (чистый контейнер, путь вне формы).
+ */
+export function readNodeState(model: unknown, path: string): NodeState | null {
+  const node = nodeAt(model, path);
+  if (node === null) return null;
+  const signal = signalAt(model, path);
+  return {
+    touched: node.touched.value,
+    dirty: node.dirty.value,
+    disabled: node.disabled.value,
+    pending: node.pending.value,
+    errors: node.issues.value.map((issue) => issue.code),
+    derived: signal === undefined ? false : isDerived(signal as never),
+  };
+}
+
+/** Как писать значение. */
+export interface WriteOptions {
+  /**
+   * Сырая запись: значение ложится в модель, `touched` не поднимается.
+   *
+   * Ради этого режима правка модели и заводится: подать форме то, чего интерфейс не производит —
+   * `null` в обязательном, число вне `min`, значение вне списка опций. Так выглядят данные,
+   * пришедшие с бэкенда или из формы прежней версии схемы.
+   */
+  readonly raw?: boolean;
+}
+
+/** Почему запись не прошла. */
+export type WriteFailure = 'no-node' | 'derived' | 'read-only';
+
+/**
+ * Пишет значение по пути тем же вызовом, каким пишет контрол.
+ *
+ * @returns `null` при успехе либо причину отказа.
+ */
+export function writeValue(
+  model: unknown,
+  path: string,
+  value: unknown,
+  options: WriteOptions = {}
+): WriteFailure | null {
+  const state = readNodeState(model, path);
+  if (state === null) return 'no-node';
+  // Отказ ДО записи: поведение всё равно вернёт своё значение, но человек узнает почему.
+  if (state.derived) return 'derived';
+
+  const node = nodeAt(model, path);
+  if (node === null) return 'read-only';
+
+  node.setValue(value);
+  // Как ввод человеком: контрол на blur зовёт ровно это.
+  if (options.raw !== true) node.markAsTouched();
+  return null;
+}
+
+/** Операции над узлом сверх записи значения — по одному вызову каждая. */
+export function resetNode(model: unknown, path: string): boolean {
+  const node = nodeAt(model, path);
+  if (node === null) return false;
+  node.reset();
+  return true;
+}
+
+export function setNodeDisabled(model: unknown, path: string, disabled: boolean): boolean {
+  const node = nodeAt(model, path);
+  if (node === null) return false;
+  if (disabled) node.disable();
+  else node.enable();
+  return true;
+}
+
+/**
+ * Подставляет ошибку, как будто её вернул сервер. Текста у замечания нет, поэтому кодом служит
+ * сам текст: в словарях формы и локали такого кода нет, и резолвер показывает его как есть.
+ */
+export function setNodeError(model: unknown, path: string, message: string): boolean {
+  const node = nodeAt(model, path);
+  if (node === null) return false;
+  node.setIssues(message === '' ? [] : [{ code: message }]);
+  return true;
+}
+
+/** Снимок модели целиком — для копирования в буфер и вставки в фикстуру. */
+export function snapshot(model: unknown): unknown {
+  const api = model as ModelLike | null;
+  return typeof api?.get === 'function' ? api.get() : undefined;
+}

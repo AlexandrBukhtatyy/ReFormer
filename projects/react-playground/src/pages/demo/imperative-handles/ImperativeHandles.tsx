@@ -1,0 +1,241 @@
+/**
+ * Императивные handle полей UI-kit, доступные из схемы формы по селектору.
+ *
+ * Демонстрирует мост «селектор → живой компонент»: `schema.node(sel).getRef<H>()` отдаёт
+ * императивный handle поля, которым behaviors/кнопки управляют тем, что НЕ выражается реактивно
+ * (focus / scrollIntoView / открыть дропдаун / переключить видимость пароля / очистить выбор).
+ *
+ * Реактивное состояние (value / disabled / visible / options / validation) через handle НЕ трогаем —
+ * оно остаётся в слое behaviors. См. docs/plans/useimperativehandle-refactored-blossom.md.
+ *
+ * Покрывает оба способа адресации листа:
+ *  - явный `selector` (поле пароля — `'pwd'`);
+ *  - неявный `__path` сигнала модели (`email`, `city`, `amount`, `nickname`) — фича Фазы 4,
+ *    благодаря которой ошибки из нод (по `__path`: `getNodeForSignal(model.signalAt(path))`)
+ *    адресуют поле по тому же ключу ref.
+ *
+ * Валидация — контракт `@reformer/core/validation`: правила живут в отдельной `ValidationDefinition`,
+ * `validateModel` разносит ошибки по нодам; «первое невалидное» находим чтением нод (не картой путей).
+ */
+
+import {
+  createForm,
+  getNodeForSignal,
+  type FormModel,
+  type FormRender,
+  type FormSchemaNode,
+} from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { validate, defineValidation, validateModel } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import { FormRenderer } from '@reformer/renderer-react';
+import {
+  Box,
+  FormField,
+  Input,
+  InputPassword,
+  SelectAsync,
+  type FieldHandle,
+  type InputPasswordHandle,
+  type SelectAsyncHandle,
+  InputNumber,
+} from '@reformer/ui-kit';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { imperativeHandlesMessages } from './messages';
+
+interface ImperativeDemoForm {
+  email: string;
+  password: string;
+  city: string;
+  amount: number | null;
+  nickname: string;
+}
+
+const INITIAL: ImperativeDemoForm = {
+  email: '',
+  password: '',
+  city: '',
+  amount: null,
+  nickname: '',
+};
+
+const CITIES = [
+  { value: 'msk', label: 'Москва' },
+  { value: 'spb', label: 'Санкт-Петербург' },
+  { value: 'nsk', label: 'Новосибирск' },
+];
+
+/**
+ * Схема формы: узел поля несёт `model` (ручку модели) + `component` + `componentProps`.
+ * Селектор задан ТОЛЬКО у пароля — остальные адресуются по `__path` сигнала.
+ */
+function buildSchema(model: FormModel<ImperativeDemoForm>): FormSchemaNode {
+  return {
+    component: Box,
+    componentProps: { className: 'space-y-4 bg-white p-6 rounded-lg shadow-md' },
+    children: [
+      {
+        model: model.$.email,
+        component: Input,
+        componentProps: { label: 'Email', placeholder: 'you@example.com' },
+      },
+      {
+        // Явный selector — проверяет ветку адресации по селектору (а не по __path).
+        selector: 'pwd',
+        model: model.$.password,
+        component: InputPassword,
+        componentProps: { label: 'Пароль', placeholder: 'Пароль' },
+      },
+      {
+        model: model.$.city,
+        component: SelectAsync,
+        componentProps: {
+          label: 'Город',
+          placeholder: 'Выберите город',
+          options: CITIES,
+          clearable: true,
+        },
+      },
+      {
+        model: model.$.amount,
+        component: InputNumber,
+        componentProps: { label: 'Сумма', placeholder: '0' },
+      },
+      {
+        model: model.$.nickname,
+        component: Input,
+        componentProps: { label: 'Никнейм', placeholder: 'nickname' },
+      },
+    ],
+  };
+}
+
+/**
+ * Слой валидации (отдельно от схемы формы): email и nickname обязательны. Стабильный module-level
+ * `const` — прогоняется по требованию через `validateModel`, ошибки сами доезжают до нод.
+ */
+const imperativeValidation = defineValidation<ImperativeDemoForm>(({ model }) => {
+  validate(model.$.email, [required({ code: 'email.required' })]);
+  validate(model.$.nickname, [required({ code: 'nickname.required' })]);
+});
+
+/** Порядок полей для сценария «сфокусировать первое невалидное» (ключи = __path/selector). */
+const FIELD_ORDER: Array<{ path: string; refKey: string }> = [
+  { path: 'email', refKey: 'email' },
+  { path: 'password', refKey: 'pwd' },
+  { path: 'city', refKey: 'city' },
+  { path: 'amount', refKey: 'amount' },
+  { path: 'nickname', refKey: 'nickname' },
+];
+
+// Прогрев ref'ов вынесен в фазу `setup` фабрики (см. компонент ниже). КЛЮЧЕВОЕ: `getRef()` обязан
+// вызваться ДО первого рендера — он намеренно не бампает version-сигнал, поэтому ref, запрошенный
+// позже, уже не прикрепится к ноде.
+
+function ControlPanel({
+  schema,
+  model,
+}: {
+  schema: FormRender;
+  model: FormModel<ImperativeDemoForm>;
+}) {
+  const btn =
+    'rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-700 disabled:opacity-50';
+
+  const focusFirstInvalid = async () => {
+    const ok = await validateModel(model, imperativeValidation);
+    if (ok) return;
+    // Ошибки после validateModel лежат в НОДАХ; путь → сигнал (signalAt) → нода (getNodeForSignal).
+    const first = FIELD_ORDER.find(({ path }) => {
+      const sig = model.signalAt(path);
+      return sig ? (getNodeForSignal(sig)?.issues.value.length ?? 0) > 0 : false;
+    });
+    if (!first) return;
+    const ref = schema.node(first.refKey).getRef<FieldHandle>();
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ref.current?.focus();
+  };
+
+  return (
+    <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <p className="mb-3 text-sm font-semibold text-blue-800">
+        Императивное управление компонентами по селектору (schema.node(sel).getRef())
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <button
+          className={btn}
+          data-testid="btn-focus-email"
+          onClick={() => schema.node('email').getRef<FieldHandle>().current?.focus()}
+        >
+          Focus email (по __path)
+        </button>
+        <button
+          className={btn}
+          data-testid="btn-toggle-password"
+          onClick={() =>
+            schema.node('pwd').getRef<InputPasswordHandle>().current?.toggleVisibility()
+          }
+        >
+          Переключить видимость пароля (по selector)
+        </button>
+        <button
+          className={btn}
+          data-testid="btn-open-city"
+          onClick={() => schema.node('city').getRef<SelectAsyncHandle>().current?.open()}
+        >
+          Открыть список городов
+        </button>
+        <button
+          className={btn}
+          data-testid="btn-close-city"
+          onClick={() => schema.node('city').getRef<SelectAsyncHandle>().current?.close()}
+        >
+          Закрыть список
+        </button>
+        <button
+          className={btn}
+          data-testid="btn-clear-city"
+          onClick={() => schema.node('city').getRef<SelectAsyncHandle>().current?.clear()}
+        >
+          Очистить город
+        </button>
+        <button
+          className={btn}
+          data-testid="btn-focus-amount"
+          onClick={() => schema.node('amount').getRef<FieldHandle>().current?.focus()}
+        >
+          Focus суммы (number-буфер)
+        </button>
+        <button className={btn} data-testid="btn-focus-first-invalid" onClick={focusFirstInvalid}>
+          Focus первого невалидного
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ImperativeHandles() {
+  // Сборка одним вызовом. `setup` — фаза до первого рендера: ref'ы регистрируются заранее, иначе
+  // панель управления получила бы пустые ссылки (getRef намеренно не бампает version-сигнал).
+  const demoForm = useFormBundle(() =>
+    createForm<ImperativeDemoForm>({
+      initial: { ...INITIAL },
+      schema: buildSchema,
+      setup: ({ render }) => {
+        for (const { refKey } of FIELD_ORDER) render.node(refKey).getRef();
+      },
+    })
+  );
+  const { model, render: schema } = demoForm;
+
+  return (
+    <ValidationMessagesProvider messages={imperativeHandlesMessages}>
+      <div className="w-full">
+        <ControlPanel schema={schema} model={model} />
+        <FormRenderer form={demoForm} settings={{ fieldWrapper: FormField }} />
+      </div>
+    </ValidationMessagesProvider>
+  );
+}
+
+export default ImperativeHandles;

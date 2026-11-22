@@ -1,0 +1,245 @@
+# JSON-схема: формат 2
+
+## Purpose
+
+Формат 2 — запись единого контракта формы данными. Документ собирает та же сборка, что и
+TS-схему: `createForm` из `@reformer/core`, рисует тот же `FormRenderer` из
+`@reformer/renderer-react`. Отличие от TS-варианта одно: схема — JSON, а компоненты и источники
+приходят из реестра.
+
+Полное описание контракта — раздел «Единый контракт формы» в `reformer://docs/core`.
+
+## Документ
+
+```json
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "parts": {
+    "address": {
+      "component": "$component(Box)",
+      "children": [
+        {
+          "model": "$model(city)",
+          "component": "$component(Input)",
+          "componentProps": { "label": "Город" }
+        },
+        { "model": "$model(street)", "component": "$component(Input)" }
+      ]
+    },
+    "coBorrower": { "model": "$model(name)", "component": "$component(Input)" }
+  },
+  "root": {
+    "component": "$component(Box)",
+    "children": [
+      { "model": "$model(loanType)", "component": "$component(SelectAsync)" },
+      { "model": "$model(registrationAddress)", "part": "$part(address)" },
+      { "model": "$model(residenceAddress)", "part": "$part(address)" },
+      {
+        "model": "$model(coBorrowers)",
+        "component": "$component(FieldArray)",
+        "item": "$part(coBorrower)"
+      }
+    ]
+  }
+}
+```
+
+- `format: 2` обязателен. Документ без поля — прежний формат; его переводит `migrateJsonSchema`.
+- `version` — версия содержимого формы (её сверяет реестр форм). К формату документа не относится.
+- `parts` — именованные части документа: подформы и шаблоны строк массивов.
+
+## Узлы
+
+Привязка к модели — один ключ `model`. Чем является узел, решают соседние ключи.
+
+| Узел            | Запись                                                                    |
+| --------------- | ------------------------------------------------------------------------- |
+| поле            | `{ "model": "$model(email)", "component": "$component(Input)" }`          |
+| массив под-форм | `{ "model": "$model(items)", "component": "$component(FieldArray)", "item" }` |
+| подформа        | `{ "model": "$model(address)", "part": "$part(address)" }`                |
+| контейнер       | `{ "component": "$component(Box)", "children": [] }`                      |
+
+Порядок распознавания: `item` → `part` → поле → контейнер. Гарды — `isArrayNode`, `isPartNode`,
+`isFieldNode`, `isContainerNode`.
+
+Массив без `item` — значение одного поля (мультивыбор, теги), а не массив под-форм:
+
+```json
+{ "model": "$model(tags)", "component": "$component(SelectMulti)" }
+```
+
+## Именованные части
+
+Часть объявляется один раз в `parts` и подключается оператором `$part(name)`:
+
+- узлом-подформой `{ "model": "$model(group)", "part": "$part(name)" }` — для группы модели;
+- шаблоном строки `"item": "$part(name)"` — для каждого элемента массива.
+
+Пути `$model(...)` внутри части относительны под-модели места подключения: `$model(city)` в части
+`address` — это `registrationAddress.city` в одном месте и `residenceAddress.city` в другом.
+
+Шаблон строки можно и вписать на месте:
+
+```json
+{
+  "model": "$model(phones)",
+  "component": "$component(FieldArray)",
+  "item": { "$template": { "model": "$model(number)", "component": "$component(Input)" } }
+}
+```
+
+Часть может подключать другие части — например, строка массива со вложенным массивом.
+
+`selector` внутри части ищется в области этой части: поведение подформы подключается через
+`apply(model.$.group, behavior)`, поведение строки — через `applyEach(model.$.items, behavior)`.
+Корневое поведение узлы частей не видит.
+
+## Шаблон нового элемента массива
+
+Шаблон для кнопки «Добавить» живёт в модели — `arrayOf(blank)`:
+
+```typescript
+import { arrayOf, createModel } from '@reformer/core';
+
+const blankCoBorrower = () => ({ name: '', phones: arrayOf(blankPhone) });
+
+export const createMyModel = () =>
+  createModel<MyForm>({ loanType: 'consumer', coBorrowers: arrayOf(blankCoBorrower) });
+```
+
+`initialValue` в узле массива необязателен. Это запасной путь для формы, у которой модель
+создаётся из данных без кода; шаблон модели главнее. Если `initialValue` задан, он обязан нести
+все ключи строки — это проверяет `validateFormSchema`.
+
+## Шаги визарда
+
+Шаги — обычные дети узла визарда. `selector` шага — идентификатор шага в потоке сборки:
+`createForm({ flow: { steps: [{ id: 'loan', rules: loanRules }] } })`. Визард
+(`$component(FormWizard)` → `FormWizard` из `@reformer/ui-kit`) рисует шаги в порядке потока и
+берёт форму, поток и отправку из сборки.
+
+```json
+{
+  "selector": "wizard",
+  "component": "$component(FormWizard)",
+  "children": [
+    {
+      "selector": "loan",
+      "component": "$component(Step)",
+      "componentProps": { "title": "Кредит" },
+      "children": [{ "model": "$model(loanType)", "component": "$component(SelectAsync)" }]
+    }
+  ]
+}
+```
+
+Шаг в отдельном файле стоит ссылкой `{ "$ref": "./steps/loan/form.schema.json" }` в `children`.
+Перед сборкой формы документ собирает `composeJsonFormSchema(document, stepSchemas)`.
+
+## Сборка и рендер
+
+```tsx
+import { createForm } from '@reformer/core';
+import { useFormBundle } from '@reformer/core/react';
+import { FormRenderer } from '@reformer/renderer-react';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import rawSchema from './form.schema.json';
+import { registry } from './registry';
+
+const schema = rawSchema as JsonFormSchema<MyForm>;
+
+function MyFormPage() {
+  const bundle = useFormBundle(() =>
+    createForm<MyForm>({
+      model: createMyModel(),
+      schema,
+      registry,
+      behavior: myBehavior,
+      validation: { extras: crossStepRules },
+      flow: { steps: [{ id: 'loan', rules: loanRules }] }, // id = selector узла шага
+    })
+  );
+  return <FormRenderer form={bundle} />;
+}
+```
+
+- Дерево из документа строит реестр (`registry.resolveSchema`) — один раз, при сборке. Реестр из
+  `defineRegistry` и `composeRegistries` этот метод несёт.
+- Обёртка поля — запись `FIELD_WRAPPER` реестра: сборка кладёт её в бандл, `FormRenderer` берёт
+  оттуда. Проп `settings.fieldWrapper` её перекрывает.
+- Граница ошибок схемы (`SchemaErrorBoundary`) тоже приходит из бандла.
+- Несколько реестров объединяет `composeRegistries` — вложенные провайдеры не нужны.
+- Поведение — одно: `defineFormBehavior(({ model, form, schema, flow }) => …)`. Правила узлов
+  (`hideWhen`, `onComponentEvent`, `onMount`) и навигация (`flow.goTo(id)`) пишутся в нём.
+- Тексты замечаний — словарь формы `defineIssueMessages` и `ValidationMessagesProvider messages`
+  из `@reformer/cdk` вокруг `FormRenderer`; правила несут только коды.
+
+Проверка документа в dev — явный вызов:
+
+```tsx
+import { validateFormSchema } from '@reformer/renderer-json/validate';
+import { SchemaErrorPanel } from '@reformer/renderer-json';
+
+const { valid, errors } = validateFormSchema(schema, { registry });
+if (!valid) return <SchemaErrorPanel errors={errors} />;
+```
+
+Проверяются структура узлов, синтаксис операторов, имена компонентов, источников и функций,
+имена частей (`$part(...)`), полнота заданного `initialValue` и несобранные ссылки на шаги.
+
+## Перевод документа прежнего формата
+
+```typescript
+import { migrateJsonSchema } from '@reformer/renderer-json';
+
+const schema = migrateJsonSchema(await loadSchema(id)); // документ любого формата
+const bundle = createForm({ model, schema, registry });
+```
+
+`migrateJsonSchema(document, { stepHosts })`:
+
+- переименовывает ключи привязки: `value` → `model`, `array` → `model`;
+- переносит шаги визарда из `componentProps.steps` в `children`;
+- ставит `format: 2`.
+
+Что считать визардом, определяется именем компонента. По умолчанию — `DEFAULT_STEP_HOSTS`
+(`Wizard`, `RendererFormWizard`, `FormWizard`); свои имена добавляются параметром `stepHosts`.
+Имя компонента функция не меняет: на какой компонент оно указывает, решает реестр приложения.
+
+Функция чистая, документ формата 2 возвращает как есть — её можно вызывать на любом документе.
+Части (`parts`) она не выделяет: повторяющиеся фрагменты выносятся вручную.
+
+## Удалённый API прежнего пути { #removed-api }
+
+Рантайм читает только документ формата 2. Документ без `format` сборка (`convertJsonSchema`) и
+проверка (`validateFormSchema`) отвергают с отсылкой к `migrateJsonSchema`;
+`composeJsonFormSchema`, `collectOperatorNames` и `collectSchemaSelectors` принимают документ
+формата 2. API, который читал прежний формат, удалён:
+
+| Было | Стало |
+| --- | --- |
+| `createJsonForm`, `useJsonForm`, типы `JsonForm`, `CreateJsonFormConfig` | `createForm({ model, schema, registry })` из `@reformer/core`, `useFormBundle` из `@reformer/core/react` |
+| `JsonFormRenderer`, `JsonFormRendererProps` | `<FormRenderer form={bundle} />` из `@reformer/renderer-react` |
+| `JsonRendererProvider`, `useJsonRendererSettings`, `useJsonRendererSettingsUnchecked`, `JsonRendererSettings`, `JsonRendererProviderProps` | реестр — в `createForm({ registry })` (несколько — `composeRegistries`); настройки рендерера (`resolveFieldAdapter`, `fieldWrapper`) — `<FormRenderer settings>` |
+| проп `renderBehavior`, тип `RenderBehaviorFn` | правила узлов (`hideWhen`, `onComponentEvent`, `onMount`) в поведении формы — поле `behavior` сборки |
+| `JsonFormSchemaV1`, `JsonNodeV1`, `JsonFieldNodeV1`, `JsonArrayNodeV1`, `JsonContainerNodeV1`, `JsonChildV1`, `JsonFormStepV1` | `migrateJsonSchema(document)` → `JsonFormSchema`, `JsonNode`, `JsonFieldNode`, `JsonArrayNode`, `JsonContainerNode`, `JsonChild`, `JsonFormStep` |
+| `isFieldNodeV1`, `isArrayNodeV1`, `isContainerNodeV1`, `defineJsonSchemaV1` | `isFieldNode`, `isArrayNode`, `isContainerNode`, `defineJsonSchema` |
+| `formSchemaMetaSchemaV1`, `buildFormSchemaMetaSchemaV1`, `buildFormStepMetaSchemaV1` | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `buildFormStepMetaSchema` |
+| `convertJsonToM1Tree`, `createRenderSchemaFromJsonM1` | `convertJsonSchema` (обычно его зовёт реестр при сборке) |
+
+## Частые ошибки
+
+| Симптом | Причина |
+| --- | --- |
+| `The document is in the previous JSON schema format` / `/: the document is in the previous JSON schema format` | у документа нет `format: 2` (сборка / `validateFormSchema`) — переведи его `migrateJsonSchema` |
+| `The document is not a form document` / `/: not a form document` | нет ни `format: 2`, ни корня `root` — например, JSON Schema данных; документ формы собирают заново, `migrateJsonSchema` не поможет |
+| `Part "x" not found in the document "parts"` | опечатка в `$part(...)` либо часть не объявлена в `parts` |
+| `"$model(x)" is not a group of the model` | подформа подключена к полю; `part` ставится на объект модели |
+| `"$model(x)" is not an array of the model` | узел с `item` привязан не к массиву либо начальное значение массива — `null` |
+| `Step reference … is not resolved` | в `children` осталась ссылка `$ref` — собери документ `composeJsonFormSchema` |
+| `unknown property "value"` | ключ прежнего формата в документе формата 2 — должно быть `model` |
+| «Добавить» бросает ошибку про шаблон | у массива нет ни `arrayOf(blank)` в модели, ни `initialValue` в узле |
+| `[ComponentRegistry] Компонент "FormArray" переименован в "FieldArray"` | документ называет компонент прежним именем; псевдоним работает, но документ стоит обновить на `$component(FieldArray)` |
+| визард: «шаги схемы и шаги потока расходятся» | `selector` узла шага не совпадает с `id` шага в `flow.steps` |

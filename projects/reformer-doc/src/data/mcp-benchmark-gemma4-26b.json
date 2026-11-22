@@ -1,0 +1,169 @@
+{
+  "batches": ["20261120T231531Z-4e86"],
+  "date": "2026-11-20",
+  "model": "gemma4-26b",
+  "repeats": 1,
+  "targets": ["core", "renderer-json", "renderer-react"],
+  "arms": ["mcp-dsl"],
+  "summary": {
+    "mcp-dsl": {
+      "runs": 9,
+      "passes": 9,
+      "score": 1,
+      "minutesTotal": 5.8,
+      "minutesMedian": 0.51,
+      "costTotal": null,
+      "costMedian": null,
+      "costPerPass": null,
+      "turnsMedian": 4,
+      "outputMedian": 606,
+      "inputMedian": 23681,
+      "mcpCalls": 41,
+      "operations": {
+        "create": {
+          "runs": 3,
+          "passes": 3,
+          "minutesMedian": 1.06,
+          "costTotal": null
+        },
+        "edit": {
+          "runs": 3,
+          "passes": 3,
+          "minutesMedian": 0.41,
+          "costTotal": null
+        },
+        "delete": {
+          "runs": 3,
+          "passes": 3,
+          "minutesMedian": 0.42,
+          "costTotal": null
+        }
+      },
+      "createFailures": []
+    }
+  },
+  "scenarios": [
+    {
+      "id": "registration-create",
+      "title": "Регистрация: создание формы",
+      "level": 1,
+      "operation": "create",
+      "tags": ["validation", "cross", "async", "submit"],
+      "arms": {
+        "mcp-dsl": {
+          "runs": 3,
+          "passes": 3,
+          "score": 1,
+          "minutesTotal": 3.1,
+          "minutesMedian": 1.06,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 8,
+          "outputMedian": 1203,
+          "inputMedian": 57869,
+          "mcpCalls": 21,
+          "targets": {
+            "core": {
+              "runs": 1,
+              "passes": 1
+            },
+            "renderer-json": {
+              "runs": 1,
+              "passes": 1
+            },
+            "renderer-react": {
+              "runs": 1,
+              "passes": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-delete",
+      "title": "Регистрация: удаление полей с их правилами",
+      "level": 1,
+      "operation": "delete",
+      "tags": ["delete", "cross", "async"],
+      "arms": {
+        "mcp-dsl": {
+          "runs": 3,
+          "passes": 3,
+          "score": 1,
+          "minutesTotal": 1.4,
+          "minutesMedian": 0.42,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 4,
+          "outputMedian": 516,
+          "inputMedian": 22349,
+          "mcpCalls": 11,
+          "targets": {
+            "core": {
+              "runs": 1,
+              "passes": 1
+            },
+            "renderer-json": {
+              "runs": 1,
+              "passes": 1
+            },
+            "renderer-react": {
+              "runs": 1,
+              "passes": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-edit",
+      "title": "Регистрация: правка готовой формы",
+      "level": 1,
+      "operation": "edit",
+      "tags": ["edit", "rename", "validation"],
+      "arms": {
+        "mcp-dsl": {
+          "runs": 3,
+          "passes": 3,
+          "score": 1,
+          "minutesTotal": 1.3,
+          "minutesMedian": 0.41,
+          "costTotal": null,
+          "costMedian": null,
+          "costPerPass": null,
+          "turnsMedian": 4,
+          "outputMedian": 476,
+          "inputMedian": 23572,
+          "mcpCalls": 9,
+          "targets": {
+            "core": {
+              "runs": 1,
+              "passes": 1
+            },
+            "renderer-json": {
+              "runs": 1,
+              "passes": 1
+            },
+            "renderer-react": {
+              "runs": 1,
+              "passes": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "runs": [
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"core","kind":"create","repeat":1,"pass":true,"score":1,"minutes":1.08,"cost":null,"output":1265,"input":67652,"turns":9},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-react","kind":"create","repeat":1,"pass":true,"score":1,"minutes":1.06,"cost":null,"output":1203,"input":48683,"turns":7},
+    {"arm":"mcp-dsl","scenario":"registration-create","target":"renderer-json","kind":"create","repeat":1,"pass":true,"score":1,"minutes":0.94,"cost":null,"output":1058,"input":57869,"turns":8},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"core","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.41,"cost":null,"output":421,"input":23483,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-react","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.51,"cost":null,"output":606,"input":23681,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-edit","target":"renderer-json","kind":"edit","repeat":1,"pass":true,"score":1,"minutes":0.4,"cost":null,"output":476,"input":23572,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"core","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.42,"cost":null,"output":516,"input":22349,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-react","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.3,"cost":null,"output":183,"input":21400,"turns":4},
+    {"arm":"mcp-dsl","scenario":"registration-delete","target":"renderer-json","kind":"delete","repeat":1,"pass":true,"score":1,"minutes":0.65,"cost":null,"output":641,"input":37111,"turns":6}
+  ]
+}

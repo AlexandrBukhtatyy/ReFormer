@@ -1,0 +1,237 @@
+/**
+ * FormControlNode — реализация {@link FormControl}: нода поля над сигналом модели.
+ *
+ * Значением не владеет — ссылается на сигнал модели. Правил не исполняет: замечания разносит
+ * раннер валидации через {@link FormControlNode.setIssues}.
+ *
+ * @internal
+ * @module form/nodes/form-control-node
+ */
+
+import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
+import type { FieldConfig } from '../types/field-config';
+import type { ValidationIssue } from '../types/contracts';
+import type { ComponentRef } from '../types/schema-node';
+import type { FormControl } from '../types/nodes';
+import { isDerived } from '../../model/derived-registry';
+import { livePathOf, referenceOf } from '../../model/model-value-proxy';
+import { NODE_KIND, type InternalFormNode } from './node-kind';
+import {
+  createAvailability,
+  createComponentState,
+  createInteraction,
+  createIssues,
+  createPending,
+} from './state';
+
+/** Путь поля не из модели: его нет, и он не меняется. */
+const NO_PATH: ReadonlySignal<string> = computed(() => '');
+
+/** Значение создания не передано — берётся текущее значение сигнала. */
+const CURRENT = Symbol('current');
+
+export class FormControlNode<T> implements FormControl<T>, InternalFormNode<T> {
+  readonly [NODE_KIND] = 'control' as const;
+
+  readonly disabled: ReadonlySignal<boolean>;
+  readonly touched: ReadonlySignal<boolean>;
+  /** Уходы из поля, включая повторные, — триггер стратегии `blur`. @internal */
+  readonly touches: ReadonlySignal<number>;
+  readonly dirty: ReadonlySignal<boolean>;
+  readonly issues: ReadonlySignal<readonly ValidationIssue[]>;
+  readonly ownIssues: ReadonlySignal<readonly ValidationIssue[]>;
+  readonly component: ComponentRef | undefined;
+  readonly componentProps: ReadonlySignal<Readonly<Record<string, unknown>>>;
+
+  /*
+   * Производные состояния — при первом чтении. В мастере поля невидимых шагов их не читает никто:
+   * ни разметка, ни сводные значения (те читают детей внутри своих `computed`, то есть только при
+   * вычислении). Создавать их при построении — по объекту и замыканию на каждое такое поле.
+   */
+  private valueSignal: ReadonlySignal<T> | undefined;
+  private pendingSignal: ReadonlySignal<boolean> | undefined;
+  private invalidSignal: ReadonlySignal<boolean> | undefined;
+  private validSignal: ReadonlySignal<boolean> | undefined;
+  private revealedSignal: ReadonlySignal<boolean> | undefined;
+  private shouldShowErrorSignal: ReadonlySignal<boolean> | undefined;
+  private shouldShowIssuesSignal: ReadonlySignal<boolean> | undefined;
+  private pathSignal: ReadonlySignal<string> | undefined;
+
+  private readonly source: Signal<T>;
+  /**
+   * Значение на момент построения. К нему возвращает `resetToCreation` (`resetOnDisable`), а
+   * {@link reset} — только поле над собственным сигналом, без модели за ним.
+   */
+  private readonly initialValue: T;
+  private readonly interaction = createInteraction();
+  private readonly issueState = createIssues();
+  private readonly availability: ReturnType<typeof createAvailability>;
+  /**
+   * Блокировка из схемы (`disabled: true` узла — вычисляемые `total`, `fullName`). Постоянная:
+   * `enable()` контейнера её не снимает, иначе «выключить форму на время отправки → включить»
+   * разблокировало бы такие поля. Снимает её только явный `enable()` этого поля.
+   */
+  private locked: boolean;
+  private readonly pendingState = createPending();
+  private readonly componentState: ReturnType<typeof createComponentState>;
+
+  /**
+   * @param config - Сигнал значения и конфиг из схемы.
+   * @param initial - Значение создания, если нода строится позже сборки формы (ленивый лист);
+   *   по умолчанию — текущее значение сигнала.
+   */
+  constructor(config: FieldConfig<T>, initial: T | typeof CURRENT = CURRENT) {
+    this.source = config.valueSignal;
+    this.initialValue = initial === CURRENT ? this.source.peek() : initial;
+    this.component = config.component;
+    this.availability = createAvailability(config.disabled === true);
+    this.locked = config.disabled === true;
+    this.componentState = createComponentState(config.componentProps ?? {});
+
+    this.disabled = this.availability.disabled;
+    this.touched = this.interaction.touched;
+    this.touches = this.interaction.touches;
+    this.dirty = this.interaction.dirty;
+    this.issues = this.issueState.list;
+    this.ownIssues = this.issueState.list;
+    this.componentProps = this.componentState.props;
+  }
+
+  get value(): ReadonlySignal<T> {
+    return (this.valueSignal ??= computed(() => this.source.value));
+  }
+
+  get pending(): ReadonlySignal<boolean> {
+    return (this.pendingSignal ??= computed(
+      () => !this.disabled.value && this.pendingState.active.value
+    ));
+  }
+
+  get invalid(): ReadonlySignal<boolean> {
+    return (this.invalidSignal ??= computed(
+      () => !this.disabled.value && !this.pending.value && this.issueState.blocking.value
+    ));
+  }
+
+  get valid(): ReadonlySignal<boolean> {
+    return (this.validSignal ??= computed(
+      () => !this.disabled.value && !this.pending.value && !this.issueState.blocking.value
+    ));
+  }
+
+  /** Живой путь поля в модели; сигнал пути модель тоже заводит по первому запросу. */
+  get path(): ReadonlySignal<string> {
+    return (this.pathSignal ??= livePathOf(this.source) ?? NO_PATH);
+  }
+
+  get shouldShowError(): ReadonlySignal<boolean> {
+    return (this.shouldShowErrorSignal ??= computed(
+      () => this.invalid.value && this.revealed.value
+    ));
+  }
+
+  /**
+   * То же условие, что у ошибки, но для любого замечания: предупреждение поле невалидным не делает,
+   * а показать его нужно.
+   */
+  get shouldShowIssues(): ReadonlySignal<boolean> {
+    return (this.shouldShowIssuesSignal ??= computed(
+      () =>
+        !this.disabled.value &&
+        !this.pending.value &&
+        this.issues.value.length > 0 &&
+        this.revealed.value
+    ));
+  }
+
+  /** Трогали или меняли — тогда замечания поля видны. */
+  private get revealed(): ReadonlySignal<boolean> {
+    return (this.revealedSignal ??= computed(() => this.touched.value || this.dirty.value));
+  }
+
+  getValue(): T {
+    return this.source.peek();
+  }
+
+  setValue(value: T): void {
+    this.source.value = value;
+    this.interaction.setDirty(true);
+  }
+
+  /**
+   * Сбросить поле: значение, замечания, `touched` и `dirty`. Без аргумента — к точке отсчёта модели,
+   * той же, к которой возвращает `model.reset()`: значению создания модели либо последнему
+   * `captureInitial()` (загруженные данные). Поле над собственным сигналом, без модели, — к значению,
+   * с которым нода создана.
+   *
+   * У производного поля (цель `compute`) без аргумента сбрасывается только состояние: значением
+   * владеет поведение, а значение создания ноды снято до первого расчёта — запись вернула бы
+   * «сырое» значение, которое `compute` пересчитает лишь при смене источников.
+   */
+  reset(value?: T): void {
+    if (value !== undefined) this.source.value = value;
+    else if (!isDerived(this.source)) this.source.value = this.referenceValue();
+    this.resetState();
+  }
+
+  /** Точка отсчёта модели за полем; у поля без модели — значение создания. */
+  private referenceValue(): T {
+    const reference = referenceOf(this.source);
+    return reference === undefined ? this.initialValue : (reference.value as T);
+  }
+
+  /** Значение создания и чистое состояние, у цели `compute` тоже — для `resetOnDisable`. @internal */
+  resetToCreation(): void {
+    this.source.value = this.initialValue;
+    this.resetState();
+  }
+
+  private resetState(): void {
+    this.issueState.clear();
+    this.interaction.setTouched(false);
+    this.interaction.setDirty(false);
+  }
+
+  markAsTouched(): void {
+    this.interaction.setTouched(true);
+  }
+
+  markAsUntouched(): void {
+    this.interaction.setTouched(false);
+  }
+
+  disable(): void {
+    this.availability.setDisabled(true);
+    this.issueState.clear();
+  }
+
+  enable(): void {
+    this.locked = false;
+    this.availability.setDisabled(false);
+  }
+
+  /** Каскад от контейнера: блокировку из схемы не снимает. @internal */
+  enableFromParent(): void {
+    if (!this.locked) this.availability.setDisabled(false);
+  }
+
+  setIssues(issues: readonly ValidationIssue[]): void {
+    this.issueState.set(issues);
+  }
+
+  clearIssues(): void {
+    this.issueState.clear();
+  }
+
+  updateComponentProps(patch: Record<string, unknown>): void {
+    this.componentState.update(patch);
+  }
+
+  /** Раннер валидации: начало (`true`) и конец (`false`) async-правил поля. @internal */
+  setPending(pending: boolean): void {
+    this.pendingState.mark(pending);
+  }
+
+  /** У поля подписок нет. @internal */
+  dispose(): void {}
+}

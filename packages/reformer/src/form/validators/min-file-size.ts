@@ -1,0 +1,59 @@
+/**
+ * Валидатор минимального размера файла (фабрика).
+ *
+ * @group Validation
+ * @category Validators
+ * @module form/validators/min-file-size
+ */
+
+import type { RuleOptions } from '../types/validation-schema';
+import type { Rule } from '../validation/types';
+import { toFileArray } from './file-utils';
+import { validationIssue } from './validation-issue';
+
+/**
+ * Фабрика валидатора минимального размера файла.
+ *
+ * Работает с одиночным файлом или массивом (`File` либо файлоподобный дескриптор с
+ * `name`/`size`). Проверяется каждый файл; в ошибку попадает первый нарушивший.
+ * Типовой сценарий — отсев пустых (0-байтовых) файлов: `minFileSize(1)`.
+ * Пустые значения (`null`/`undefined`/`''`/`[]`) и элементы без числового `size`
+ * пропускаются (используйте {@link required} для обязательности).
+ *
+ * @param minSize - Минимально допустимый размер файла в байтах (включительно)
+ * @param options - Опции валидатора ({@link RuleOptions}). В `params` ошибки автоматически
+ *   попадают `minFileSize`, `fileName` и `actualSize`.
+ * @appliesTo file
+ * @returns Правило {@link Rule} для файла или массива файлов
+ *
+ * @example Отсев пустых файлов
+ * ```typescript
+ * import { defineValidation, validate } from '@reformer/core/validation';
+ * import { minFileSize } from '@reformer/core/validators';
+ *
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidation<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [minFileSize(1, { code: 'documents.minFileSize' })]);
+ * });
+ * ```
+ */
+export function minFileSize(minSize: number, options?: RuleOptions): Rule<unknown> {
+  return (value) => {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const files = toFileArray(value);
+    if (files === null || files.length === 0) return null;
+    for (const file of files) {
+      if (typeof file.size !== 'number') continue;
+      if (file.size < minSize) {
+        return validationIssue('minFileSize', options, {
+          minFileSize: minSize,
+          fileName: file.name,
+          actualSize: file.size,
+        });
+      }
+    }
+    return null;
+  };
+}

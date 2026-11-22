@@ -1,0 +1,81 @@
+---
+id: icon
+title: Icon
+sidebar_label: Icon
+description: Иконка lucide по имени-строке — годится для схемы формы и JSON-документа.
+hide_title: true
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { iconDocConfig } from '@site/src/components/demo/examples/icon';
+
+<ComponentDoc config={iconDocConfig}>
+Иконка из набора [lucide](https://lucide.dev/icons/), заданная именем-строкой: `iconName="Mail"`.
+Компонент входит в [кит](../reference/glossary.md#пакеты) `@reformer/ui-kit`, это не поле формы.
+
+## Когда брать
+
+- **Icon** — иконку нужно задать данными, а не импортом: в [схеме формы](../reference/glossary.md#форма-и-данные),
+  в JSON-документе для renderer-json, в настройках, которые приходят с сервера. Имя — обычная
+  строка, его можно сохранить и передать.
+- **Компонент lucide напрямую** (`import { Mail } from 'lucide-react'`) — иконка известна при
+  написании кода: внутри кнопки, пункта меню, плашки. Такой импорт тянет в сборку только нужную
+  иконку.
+- [Avatar](./avatar.mdx) — фото или инициалы человека.
+- [Badge](./badge.mdx) — короткая текстовая метка.
+
+`Icon` подключает весь набор lucide (больше 1600 иконок), чтобы найти иконку по имени. Если
+иконки известны заранее, импортируйте их из `lucide-react` — сборка будет легче.
+
+## Анатомия
+
+```tsx
+import { Icon } from '@reformer/ui-kit'; // или '@reformer/ui-kit/icon'
+
+<Icon iconName="CircleCheck" size={20} className="text-primary" />;
+```
+
+Рисует один `<svg>` иконки lucide.
+
+| Проп          | Тип      | По умолчанию   | Что делает                                             |
+| ------------- | -------- | -------------- | ------------------------------------------------------ |
+| `iconName`    | `string` | `Circle`       | Имя иконки lucide в PascalCase: `House`, `ArrowRight`. |
+| `size`        | `number` | `24`           | Ширина и высота в пикселях.                            |
+| `color`       | `string` | `currentColor` | Цвет линий; без него иконка берёт цвет текста.         |
+| `strokeWidth` | `number` | `2`            | Толщина линий.                                         |
+| `className`   | `string` | —              | Классы `<svg>`: цвет темы (`text-primary`), отступы.   |
+| `title`       | `string` | —              | Имя иконки для скринридера: `<title>` внутри `<svg>`.  |
+
+- Имя пишется так же, как экспорт `lucide-react`: `CircleCheck`, `Trash2`, `ArrowRight`. Полный
+  список — на [lucide.dev](https://lucide.dev/icons/) (там имена в kebab-case: `circle-check` →
+  `CircleCheck`).
+- Работают только основные имена. Старые псевдонимы lucide (`Home` вместо `House`) не находятся.
+- Неизвестное имя ничего не рисует и ошибку не бросает. Проверяйте имена, которые приходят из
+  данных.
+- Остальные атрибуты — `style`, `aria-*`, `data-*`, обработчики событий — доходят до `<svg>`.
+
+В схеме формы иконка — узел `{ component: Icon, componentProps: { iconName: 'Info' } }`. Для
+формы из JSON положите компонент в [реестр](../reference/glossary.md#рендеринг):
+`reg.component('Icon', Icon)`.
+
+## Доступность
+
+- По умолчанию иконка декоративная и скрыта от скринридера (`aria-hidden="true"`). Иконка рядом с
+  текстом — украшение, так и должно быть.
+- Если иконка несёт смысл сама по себе (галочка «проверено» без подписи), дайте ей имя: `title`
+  (рисует `<title>` внутри `<svg>`) или `aria-label` / `aria-labelledby`. С именем иконка получает
+  `role="img"` и перестаёт быть скрытой: `<Icon iconName="BadgeCheck" title="Проверено" />`.
+- Кнопке с иконкой имя даёт сама кнопка: `<Button size="icon" aria-label="Удалить">`.
+- Не передавайте смысл только цветом иконки — продублируйте его текстом.
+
+## Локализация
+
+Своих строк компонент не рисует. `title` и `aria-label` — ваш текст.
+
+## См. также
+
+- [Button](./button.mdx) — кнопка с иконкой.
+- [Avatar](./avatar.mdx) — изображение человека.
+- [Список иконок lucide](https://lucide.dev/icons/) — поиск имени.
+
+</ComponentDoc>

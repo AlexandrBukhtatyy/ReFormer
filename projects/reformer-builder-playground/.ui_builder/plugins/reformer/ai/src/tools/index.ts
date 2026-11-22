@@ -1,0 +1,142 @@
+/**
+ * Инструменты редактора: чтение и запись.
+ *
+ * Write-инструменты 1:1 ложатся на `@/plugins/reformer/core/form-model` и возвращают новую схему ЧЕРНОВИКА —
+ * открытый документ они не трогают. Единственная их общая логика (гейт качества, журнал операций)
+ * живёт в `core/gate`, а не размазана по файлам.
+ *
+ * ## Почему набор собирается функцией, а не лежит константой
+ *
+ * Ровно один инструмент зависит от того, чего у ядра нет: `ask_reformer` спрашивает справку по
+ * библиотеке (`../reference`) — встроенную, которая читает файлы открытого проекта, или плагина-
+ * поставщика. Остальные четырнадцать — чистые функции над схемой и каталогом, и каталог им
+ * приходит контекстом вызова.
+ *
+ * Набор при этом ПОСТОЯНЕН по составу: `ask_reformer` в нём есть всегда, даже когда справки нет —
+ * тогда он честно отвечает «справка недоступна». Иначе поверхность инструментов зависела бы от
+ * состояния сборки, а храповик (`core/tool-surface.test.ts`) мерил бы разное в разных запусках.
+ *
+ * @module plugins/reformer/ai/tools/index
+ */
+
+import type { FormToolSlot } from '@reformer/builder-plugin-api';
+import type { ResolveLibraryReference } from '../reference';
+import type { AgentTool } from '../model/types';
+import { describeComponentTool } from './describe-component';
+import { duplicateNodeTool } from './duplicate-node';
+import { extractPartTool } from './extract-part';
+import { getFormNode } from './get-form-node';
+import { getFormOutline } from './get-form-outline';
+import { groupNodesTool } from './group-nodes';
+import { insertNodeTool } from './insert-node';
+import { listComponentsTool } from './list-components';
+import { createBuildFormTool } from './build-form';
+import type { FormCompiler } from '../service/compiler';
+import { createReformerDocsTool } from './reformer-docs';
+import { moveNodeTool } from './move-node';
+import { removeNodeTool } from './remove-node';
+import { setFormRulesTool } from './set-form-rules';
+import { setLayoutTool } from './set-layout';
+import { setRenderRulesTool } from './set-render-rules';
+import { setNodeModelTool } from './set-node-model';
+import { setNodePropTool } from './set-node-prop';
+import { validateForm } from './validate-form';
+
+export {
+  createBuildFormTool,
+  createReformerDocsTool,
+  describeComponentTool,
+  duplicateNodeTool,
+  extractPartTool,
+  getFormNode,
+  getFormOutline,
+  groupNodesTool,
+  insertNodeTool,
+  listComponentsTool,
+  moveNodeTool,
+  removeNodeTool,
+  setFormRulesTool,
+  setLayoutTool,
+  setNodeModelTool,
+  setNodePropTool,
+  setRenderRulesTool,
+  validateForm,
+};
+
+/** Чем ядру приходится снабдить набор инструментов. */
+export interface ToolsOptions {
+  /** Справка по библиотеке; без неё `ask_reformer` отвечает «недоступно». */
+  reference?: ResolveLibraryReference;
+  /**
+   * `build_form` в наборе (план mcp-misty-graham, этап 2): крупная сборка одним intent. По
+   * умолчанию включён, когда есть компилятор; `false` — набор без него, на нём снята база замера.
+   */
+  buildForm?: boolean;
+  /** Компилятор intent сервиса ReFormer; без него `build_form` в наборе нет. */
+  compiler?: FormCompiler;
+}
+
+/** Есть ли `build_form` в наборе с этими опциями. */
+export function hasBuildForm(options: ToolsOptions): boolean {
+  return options.buildForm !== false && options.compiler !== undefined;
+}
+
+/** Инструменты, не меняющие схему. */
+export function readOnlyTools(options: ToolsOptions = {}): readonly AgentTool[] {
+  return [
+    getFormOutline,
+    getFormNode,
+    listComponentsTool,
+    describeComponentTool,
+    validateForm,
+    createReformerDocsTool(options.reference),
+  ];
+}
+
+/** Инструменты, меняющие черновик схемы. */
+export const WRITE_TOOLS: readonly AgentTool[] = [
+  insertNodeTool,
+  setNodePropTool,
+  setNodeModelTool,
+  removeNodeTool,
+  moveNodeTool,
+  duplicateNodeTool,
+  groupNodesTool,
+  extractPartTool,
+  setLayoutTool,
+  setFormRulesTool,
+  setRenderRulesTool,
+];
+
+/** Инструменты стека: чтение и запись черновика. */
+export function allTools(options: ToolsOptions = {}): readonly AgentTool[] {
+  return [...readOnlyTools(options), ...writeTools(options)];
+}
+
+/** Инструменты записи набора: с `build_form` первым, если он не выключен. */
+function writeTools(options: ToolsOptions): readonly AgentTool[] {
+  return options.compiler === undefined || options.buildForm === false
+    ? WRITE_TOOLS
+    : [createBuildFormTool(options.compiler), ...WRITE_TOOLS];
+}
+
+/**
+ * Инструменты структурного режима, как их видит модель, — по порядку.
+ *
+ * Вопрос человеку (`ask_user`), генерацию кода (`generate_code`) и новую форму (`create_form`)
+ * исполняет ассистент: здесь стоят их имена. Порядок модель видит, и он не должен зависеть от
+ * того, кто инструмент исполняет. Генерация и новая форма — в конце: они работают над ПРОЕКТОМ, а
+ * не над черновиком. Шаблонов у ассистента нет вовсе: `create_form` создаёт пустую форму, а
+ * собирает её `build_form` (ReFormer-u7g0). Новую форму при открытой просят НЕ редко: после
+ * `create_form` вкладкой становится созданная, и следующая просьба о другой форме приходит сюда.
+ * Куда её вести, говорят затравка непустой формы и отказ `build_form` (ReFormer-9a9c).
+ */
+export function structuredSlots(options: ToolsOptions = {}): readonly FormToolSlot[] {
+  return [
+    ...readOnlyTools(options),
+    'ask_user',
+    ...writeTools(options),
+    'generate_code',
+    'create_form',
+  ];
+}

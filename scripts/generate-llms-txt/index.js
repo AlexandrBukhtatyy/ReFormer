@@ -1,0 +1,966 @@
+#!/usr/bin/env node
+
+import fs from 'fs';
+import path from 'path';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { buildIndex } from './index-builder.js';
+
+const require = createRequire(import.meta.url);
+const ts = require('typescript');
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+/**
+ * Эталонные формы монорепо — источник сигнала «насколько популярен символ» для ранжирования
+ * (см. countUsage в index-builder.js). У потребителя этого каталога нет, и это нормально:
+ * поле `usage` просто не появится.
+ *
+ * Берём только витрину (`pages/demo`): в `pages/debug` лежат стенды и формы, сгенерированные
+ * самим MCP, — считать их сигналом популярности значило бы ранжировать API по собственному выводу.
+ */
+const EXAMPLES_DIR = path.join(repoRoot, 'projects/react-playground/src/pages/demo');
+
+// ---------------------------------------------------------------------------
+// CLI
+// ---------------------------------------------------------------------------
+
+const rawArgs = process.argv.slice(2);
+const flags = new Set(rawArgs.filter((a) => a.startsWith('--')));
+const positional = rawArgs.filter((a) => !a.startsWith('--'));
+
+if (positional.length !== 1 || flags.has('--help') || flags.has('-h')) {
+  console.error(
+    'Usage: node scripts/generate-llms-txt <package-path> [--audit]\n' +
+      '  --audit  Do not write llms.txt; print public symbols missing JSDoc/@example.'
+  );
+  process.exit(positional.length === 0 ? 1 : 0);
+}
+
+const pkgPath = path.resolve(positional[0]);
+
+if (!fs.existsSync(pkgPath) || !fs.statSync(pkgPath).isDirectory()) {
+  console.error(`Error: ${pkgPath} is not a directory.`);
+  process.exit(1);
+}
+
+if (flags.has('--audit')) {
+  audit(pkgPath);
+} else {
+  main(pkgPath);
+}
+
+// ---------------------------------------------------------------------------
+// Main orchestration
+// ---------------------------------------------------------------------------
+
+function main(pkg) {
+  const meta = loadPackageMeta(pkg);
+  const docs = parseDocsFiles(pkg);
+  const symbols = parsePublicSymbols(pkg);
+
+  const output = renderLlmsTxt({ meta, docs, symbols });
+  const outPath = path.join(pkg, 'llms.txt');
+  fs.writeFileSync(outPath, output, 'utf8');
+
+  // Тот же разбор, но машиночитаемо. Публикуется рядом с llms.txt и избавляет
+  // @reformer/mcp от разбора TypeScript-AST в рантайме (и от 23 MB `typescript`
+  // в рантаймных зависимостях). Подробности и обоснование — в index-builder.js.
+  const index = buildIndex({ meta, docs, symbols, examplesDir: EXAMPLES_DIR, pkgDir: pkg });
+  const indexPath = path.join(pkg, 'llms-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index) + '\n', 'utf8');
+
+  console.log(
+    `Generated ${path.relative(process.cwd(), outPath)} ` +
+      `(${docs.length} doc files, ${symbols.length} public symbols)`
+  );
+  console.log(
+    `Generated ${path.relative(process.cwd(), indexPath)} ` +
+      `(${index.topics.length} topics, ${index.symbols.length} symbols, ` +
+      `${(fs.statSync(indexPath).size / 1024).toFixed(0)} kB)`
+  );
+}
+
+function audit(pkg) {
+  const meta = loadPackageMeta(pkg);
+  const symbols = parsePublicSymbols(pkg);
+  const strict = flags.has('--strict');
+
+  // Callable symbols: example is required by convention.
+  const callable = (s) => s.kind === 'function' || s.kind === 'class' || s.kind === 'const';
+
+  const noDescription = symbols.filter((s) => !s.description);
+  const noExample = symbols
+    .filter((s) => !s.tags.some((t) => t.tag === 'example'))
+    .filter((s) => strict || callable(s));
+
+  console.log(`Audit: ${meta.name} (${symbols.length} public symbols)`);
+  console.log(`  Missing description:        ${noDescription.length}`);
+  console.log(
+    `  Missing @example${strict ? ' (strict)' : ' (callable only)'}: ${noExample.length}`
+  );
+  if (noDescription.length > 0) {
+    console.log('\n  No description:');
+    for (const s of noDescription) console.log(`    - ${s.kind} ${s.name}`);
+  }
+  if (noExample.length > 0) {
+    console.log('\n  No @example:');
+    for (const s of noExample) console.log(`    - ${s.kind} ${s.name}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Package metadata
+// ---------------------------------------------------------------------------
+
+function loadPackageMeta(pkg) {
+  const pkgJsonPath = path.join(pkg, 'package.json');
+  if (!fs.existsSync(pkgJsonPath)) {
+    throw new Error(`No package.json at ${pkgJsonPath}`);
+  }
+  const json = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+  // `llms.package` / `llms.description` — имя и описание пакета в корпусе знаний, когда они не
+  // совпадают с манифестом npm: агенты адресуют корпус по имени (`reformer://docs/<пакет>`), и
+  // переименование пакета не должно менять адресов и шапки его справки.
+  const name = json.llms?.package ?? json.name ?? path.basename(pkg);
+  return {
+    name,
+    version: json.version ?? '0.0.0',
+    description: json.llms?.description ?? json.description ?? '',
+    displayName: humanizeName(name),
+  };
+}
+
+function humanizeName(name) {
+  // @reformer/cdk → ReFormer CDK ; @reformer/core → ReFormer Core
+  const tail = name.replace(/^@reformer\//, '');
+  if (!tail || tail === name) return name;
+  if (tail === 'core' || tail === 'cdk') {
+    return `ReFormer ${tail.toUpperCase()}`;
+  }
+  return `ReFormer ${tail
+    .split('-')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(' ')}`;
+}
+
+// ---------------------------------------------------------------------------
+// docs/llms/*.md parsing
+// ---------------------------------------------------------------------------
+
+function parseDocsFiles(pkg) {
+  const docsDir = path.join(pkg, 'docs', 'llms');
+  if (!fs.existsSync(docsDir)) return [];
+
+  const files = fs
+    .readdirSync(docsDir)
+    .filter((f) => f.endsWith('.md'))
+    .sort();
+
+  return files.map((file) => {
+    const filePath = path.join(docsDir, file);
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return {
+      file,
+      title: extractH1(raw) ?? stripExtension(file),
+      lead: extractLead(raw),
+      sections: extractH2Sections(raw),
+      raw,
+    };
+  });
+}
+
+function extractH1(md) {
+  const m = md.match(/^#\s+(.+)$/m);
+  return m ? m[1].trim() : null;
+}
+
+/**
+ * Шапка файла — всё до первого `## ` за вычетом строки H1.
+ *
+ * Раньше терялась целиком: в llms.txt переносились только `## `-секции, поэтому H1 и вводный
+ * абзац — ровно то место, где документ назван своими словами («Form directory layout», «How to
+ * organize the files of one form»), — не доезжали ни до одного канала. Отсюда провал поиска:
+ * `search_docs` индексирует секции llms.txt, и запрос «form directory layout» не находил §1
+ * гайда раскладки, потому что этих слов не было ни в заголовке секции («1. Minimalist
+ * (default) — flat, one file per concern»), ни в её теле.
+ */
+function extractLead(md) {
+  const lines = md.split(/\r?\n/);
+  const end = lines.findIndex((l) => /^##\s+/.test(l));
+  const head = (end === -1 ? lines : lines.slice(0, end)).join('\n');
+  return head.replace(/^#\s+.+$/m, '').trim();
+}
+
+function stripExtension(name) {
+  return name.replace(/\.md$/, '').replace(/^\d+-/, '');
+}
+
+/**
+ * Split markdown into sections by `## ` headings.
+ * Returns [{ heading, body }] preserving order.
+ */
+function extractH2Sections(md) {
+  const lines = md.split(/\r?\n/);
+  const sections = [];
+  let current = null;
+  for (const line of lines) {
+    const m = line.match(/^##\s+(.+)$/);
+    if (m) {
+      if (current) sections.push(current);
+      current = { heading: m[1].trim(), body: [] };
+      continue;
+    }
+    if (current) current.body.push(line);
+  }
+  if (current) sections.push(current);
+  return sections.map((s) => ({
+    heading: s.heading,
+    body: s.body.join('\n').trim(),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Public symbols parsing (TypeScript Compiler API)
+// ---------------------------------------------------------------------------
+
+function parsePublicSymbols(pkg) {
+  const entries = findEntriesWithSpecifier(pkg);
+  if (entries.length === 0) return [];
+
+  const merged = new Map(); // name → SymbolDoc (+ entries[])
+
+  // Собираем КАЖДУЮ точку входа отдельно, чтобы знать, из каких подпутей символ доступен.
+  // Не всё видно из корня: `validate` экспортируется только из `@reformer/core/validation`,
+  // и импорт его из `@reformer/core` соберётся в монорепо, но упадёт у потребителя. Без
+  // списка спецификаторов эту ошибку отличить не от чего — а `tsc` покажет её лишь при
+  // сборке проекта потребителя.
+  for (const { specifier, file } of entries) {
+    const collected = new Map();
+    collectFromFile(file, new Set(), collected, null);
+    for (const sym of collected.values()) {
+      const existing = merged.get(sym.name);
+      if (!existing) {
+        merged.set(sym.name, { ...sym, entries: [specifier] });
+        continue;
+      }
+      if (!existing.entries.includes(specifier)) existing.entries.push(specifier);
+      // Более богатое описание (с примерами) выигрывает — как и раньше.
+      if (isRicher(sym, existing)) {
+        merged.set(sym.name, { ...sym, entries: existing.entries });
+      }
+    }
+  }
+
+  // Sort alphabetically by name for deterministic output.
+  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Точки входа вместе со СПЕЦИФИКАТОРОМ импорта: `.` для главной, `./behaviors` и т.п. для
+ * подпутей. Спецификатор — это то, что консумент пишет в `import … from`, поэтому именно он
+ * должен попасть в индекс, а не путь файла на диске.
+ */
+function findEntriesWithSpecifier(pkg) {
+  const out = [];
+  const main = findEntry(pkg);
+  if (main) out.push({ specifier: '.', file: main });
+
+  try {
+    const pkgJson = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json'), 'utf8'));
+    for (const [key, val] of Object.entries(pkgJson.exports ?? {})) {
+      if (key === '.') continue;
+      // Глубокие подпути (`./locale/ru`, `./validators/required`) — тоже публичный API: `ru` из
+      // `@reformer/ui-kit/locale/ru` только так и импортируется. Раньше они отбрасывались, и
+      // validate_form объявлял рабочий импорт несуществующим (RF002; калибровка MCP, трек T5).
+      // Шаблоны `*` и JSON-локали — не модули с символами.
+      if (key.includes('*') || key.endsWith('.json')) continue;
+      const imp = typeof val === 'string' ? val : val?.import;
+      if (!imp) continue;
+      const sub = imp
+        .replace(/^\.\//, '')
+        .replace(/\.(js|mjs|cjs)$/, '')
+        .replace(/^dist\//, '');
+      const file = findSubpathSource(pkg, sub);
+      if (file) out.push({ specifier: key, file });
+    }
+  } catch {
+    /* нет package.json / неразбираемые exports — только главная точка */
+  }
+
+  return out;
+}
+
+function findEntry(pkg) {
+  const candidates = [path.join(pkg, 'src', 'index.ts'), path.join(pkg, 'src', 'index.tsx')];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+/**
+ * Исходник для подпути пакета (`./behaviors` → `src/form/behaviors/index.ts`).
+ *
+ * Прямой маппинг `dist/<sub>.js` → `src/<sub>.ts` не работает: реальная раскладка задаётся
+ * entry-картой vite (`behaviors: src/form/behaviors/index.ts`), а не зеркалит dist. Полагаться
+ * на собранный `dist/<sub>.d.ts` тоже нельзя — генератор запускается ДО `vite build`
+ * (`npm run build` = `generate:llms && vite build`), и dist был бы от прошлой сборки.
+ * Поэтому ищем по дереву исходников, детерминированно (обход отсортирован), и лишь в
+ * последнюю очередь падаем на dist.
+ */
+function findSubpathSource(pkg, sub) {
+  const direct = [
+    path.join(pkg, 'src', `${sub}.ts`),
+    path.join(pkg, 'src', `${sub}.tsx`),
+    path.join(pkg, 'src', sub, 'index.ts'),
+    path.join(pkg, 'src', sub, 'index.tsx'),
+  ];
+  for (const abs of direct) {
+    if (fs.existsSync(abs)) return abs;
+  }
+
+  const leaf = sub.split('/').pop();
+  const srcRoot = path.join(pkg, 'src');
+  const found = [];
+  const walk = (dir, depth) => {
+    if (depth > 4 || found.length > 0) return;
+    let entries;
+    try {
+      entries = fs
+        .readdirSync(dir, { withFileTypes: true })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (found.length > 0) return;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name === leaf) {
+          for (const idx of ['index.ts', 'index.tsx']) {
+            if (fs.existsSync(path.join(p, idx))) {
+              found.push(path.join(p, idx));
+              return;
+            }
+          }
+        }
+        walk(p, depth + 1);
+      } else if (e.name === `${leaf}.ts` || e.name === `${leaf}.tsx`) {
+        found.push(p);
+        return;
+      }
+    }
+  };
+  walk(srcRoot, 0);
+  if (found.length > 0) return found[0];
+
+  const dts = path.join(pkg, 'dist', `${sub}.d.ts`);
+  return fs.existsSync(dts) ? dts : null;
+}
+
+/**
+ * @typedef {object} SymbolDoc
+ * @property {string} name
+ * @property {string} kind        e.g. 'function' | 'class' | 'interface' | 'type' | 'const' | 'enum'
+ * @property {string} signature   Source text of the declaration (trimmed)
+ * @property {string} description Leading description from JSDoc
+ * @property {Array<{tag: string, name?: string, text: string}>} tags
+ * @property {string} sourcePath  Repo-relative path to the file
+ */
+
+/**
+ * Как текущий модуль должен выставить наружу имена, объявленные глубже: ключ — имя, под
+ * которым выставляет ЭТОТ модуль, значение — имя после всех переименований по цепочке.
+ *
+ * Раньше здесь был `Set` ЛОКАЛЬНЫХ имён, и переименование терялось:
+ * `export { X as Y } from '...'` попадал в API Reference как `X`. Так 15 field-обёрток
+ * ui-kit (`SelectAsync`, `CheckboxWithLabel`, …) — то, что консумент реально пишет — были
+ * задокументированы под внутренними именами (`SelectAsync`, `CheckboxWithLabel`, …),
+ * которые не пишет никто.
+ *
+ * `null` — фильтра нет, имя берётся из объявления.
+ */
+function resolveExposed(aliasFilter, exposedHere) {
+  if (!aliasFilter) return exposedHere;
+  return aliasFilter.has(exposedHere) ? aliasFilter.get(exposedHere) : null;
+}
+
+/**
+ * Recursively collect public symbols. `aliasFilter` — карта «имя здесь → имя наружу»
+ * для `export { A, B as C } from './foo'`; null означает «брать всё».
+ */
+function collectFromFile(filePath, visited, collected, aliasFilter) {
+  const key =
+    filePath +
+    '||' +
+    (aliasFilter
+      ? [...aliasFilter]
+          .map(([local, exposed]) => local + '>' + exposed)
+          .sort()
+          .join(',')
+      : '*');
+  if (visited.has(key)) return;
+  visited.add(key);
+
+  if (!fs.existsSync(filePath)) return;
+  const text = fs.readFileSync(filePath, 'utf8');
+  const sf = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true);
+
+  for (const stmt of sf.statements) {
+    // export * from './foo'
+    if (
+      ts.isExportDeclaration(stmt) &&
+      !stmt.exportClause &&
+      stmt.moduleSpecifier &&
+      ts.isStringLiteral(stmt.moduleSpecifier)
+    ) {
+      const target = resolveModule(filePath, stmt.moduleSpecifier.text);
+      if (target) collectFromFile(target, visited, collected, aliasFilter);
+      continue;
+    }
+
+    // export * as ns from './foo' — flatten namespace contents into the public set
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamespaceExport(stmt.exportClause) &&
+      stmt.moduleSpecifier &&
+      ts.isStringLiteral(stmt.moduleSpecifier)
+    ) {
+      const target = resolveModule(filePath, stmt.moduleSpecifier.text);
+      if (target) collectFromFile(target, visited, collected, null);
+      continue;
+    }
+
+    // export { A, B } from './foo'
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamedExports(stmt.exportClause) &&
+      stmt.moduleSpecifier &&
+      ts.isStringLiteral(stmt.moduleSpecifier)
+    ) {
+      const target = resolveModule(filePath, stmt.moduleSpecifier.text);
+      if (!target) {
+        // Реэкспорт из сторонней зависимости (`export { signal } from '@preact/signals-core'`) —
+        // публичный API пакета, хоть объявлен не здесь. Без записи такие имена выпадали из
+        // индекса целиком: validate_form объявлял рабочий `signal` из `@reformer/core/signals`
+        // несуществующим (RF002), а get_symbol_docs его не находил (калибровка MCP, трек T5).
+        if (!stmt.moduleSpecifier.text.startsWith('.')) {
+          addExternalReexports(collected, stmt, aliasFilter, filePath);
+        }
+        continue;
+      }
+      // Локальное имя в целевом модуле → имя, под которым символ должен выйти наружу.
+      const names = new Map();
+      for (const el of stmt.exportClause.elements) {
+        const finalName = resolveExposed(aliasFilter, el.name.text);
+        if (finalName === null) continue;
+        names.set((el.propertyName ?? el.name).text, finalName);
+      }
+      if (names.size > 0) collectFromFile(target, visited, collected, names);
+      continue;
+    }
+
+    // export { A, B }  (re-export of in-file names) — locally declared symbols
+    // are already handled via direct export modifier; skip non-source-of-truth.
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamedExports(stmt.exportClause) &&
+      !stmt.moduleSpecifier
+    ) {
+      // Local re-exports — symbols are declared in the same file with non-export modifiers.
+      // Capture them as exports.
+      for (const el of stmt.exportClause.elements) {
+        const finalName = resolveExposed(aliasFilter, el.name.text);
+        if (finalName === null) continue;
+        const localName = (el.propertyName ?? el.name).text;
+        const decl = findLocalDeclaration(sf, localName);
+        if (decl) {
+          addSymbol(collected, finalName, decl, sf, filePath);
+          continue;
+        }
+        // Имя не объявлено, а импортировано и отдано дальше (`import type { ReadonlySignal } from
+        // '@preact/signals-core'; export type { ReadonlySignal }`) — идём по импорту. Без этого
+        // `ReadonlySignal` из `@reformer/core/behaviors` числился только за `./signals`, и
+        // validate_form отвечал RF003 на рабочий импорт (калибровка MCP, трек T5).
+        const imported = findImport(sf, localName);
+        if (!imported) continue;
+        const target = imported.from.startsWith('.')
+          ? resolveModule(filePath, imported.from)
+          : null;
+        if (target) {
+          collectFromFile(target, visited, collected, new Map([[imported.name, finalName]]));
+        } else if (!imported.from.startsWith('.') && !collected.has(finalName)) {
+          const typeOnly = stmt.isTypeOnly || el.isTypeOnly || imported.typeOnly;
+          collected.set(finalName, {
+            name: finalName,
+            kind: typeOnly ? 'type' : /^[A-Z]/.test(imported.name) ? 'class' : 'function',
+            signature:
+              'export ' +
+              (typeOnly ? 'type ' : '') +
+              '{ ' +
+              (imported.name === finalName ? finalName : imported.name + ' as ' + finalName) +
+              " } from '" +
+              imported.from +
+              "';",
+            description: 'Реэкспорт `' + imported.name + '` из `' + imported.from + '`.',
+            tags: [],
+            sourcePath: filePath,
+          });
+        }
+      }
+      continue;
+    }
+
+    // Direct exports: export const|function|class|interface|type|enum
+    if (hasExportModifier(stmt)) {
+      const items = describeExportStatement(stmt, sf);
+      for (const item of items) {
+        const finalName = resolveExposed(aliasFilter, item.name);
+        if (finalName === null) continue;
+        addSymbol(collected, finalName, item.decl, sf, filePath, item.kind);
+      }
+    }
+  }
+}
+
+function hasExportModifier(node) {
+  return Boolean(
+    node.modifiers && node.modifiers.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+  );
+}
+
+function describeExportStatement(stmt, _sf) {
+  if (ts.isFunctionDeclaration(stmt) && stmt.name) {
+    return [{ name: stmt.name.text, decl: stmt, kind: 'function' }];
+  }
+  if (ts.isClassDeclaration(stmt) && stmt.name) {
+    return [{ name: stmt.name.text, decl: stmt, kind: 'class' }];
+  }
+  if (ts.isInterfaceDeclaration(stmt)) {
+    return [{ name: stmt.name.text, decl: stmt, kind: 'interface' }];
+  }
+  if (ts.isTypeAliasDeclaration(stmt)) {
+    return [{ name: stmt.name.text, decl: stmt, kind: 'type' }];
+  }
+  if (ts.isEnumDeclaration(stmt)) {
+    return [{ name: stmt.name.text, decl: stmt, kind: 'enum' }];
+  }
+  if (ts.isVariableStatement(stmt)) {
+    return stmt.declarationList.declarations
+      .filter((d) => ts.isIdentifier(d.name))
+      .map((d) => ({ name: d.name.text, decl: stmt, kind: 'const' }));
+  }
+  return [];
+}
+
+function findLocalDeclaration(sf, name) {
+  for (const stmt of sf.statements) {
+    if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name) return stmt;
+    if (ts.isClassDeclaration(stmt) && stmt.name?.text === name) return stmt;
+    if (ts.isInterfaceDeclaration(stmt) && stmt.name.text === name) return stmt;
+    if (ts.isTypeAliasDeclaration(stmt) && stmt.name.text === name) return stmt;
+    if (ts.isEnumDeclaration(stmt) && stmt.name.text === name) return stmt;
+    if (ts.isVariableStatement(stmt)) {
+      for (const d of stmt.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && d.name.text === name) return stmt;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Именованный импорт локального имени: `import { A as B } from 'x'` → для `B`
+ * `{ from: 'x', name: 'A', typeOnly }`; `null` — имя не импортировано именованно.
+ */
+function findImport(sf, localName) {
+  for (const stmt of sf.statements) {
+    if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+    const bindings = stmt.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const el of bindings.elements) {
+      if (el.name.text !== localName) continue;
+      return {
+        from: stmt.moduleSpecifier.text,
+        name: (el.propertyName ?? el.name).text,
+        typeOnly: Boolean(stmt.importClause.isTypeOnly || el.isTypeOnly),
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Имена, реэкспортированные из сторонней зависимости. Объявления под рукой нет (оно в чужом
+ * пакете), поэтому вид угадывается: только-тип → `type`, PascalCase → `class`, прочее →
+ * `function`; описание называет источник.
+ */
+function addExternalReexports(map, stmt, aliasFilter, filePath) {
+  const from = stmt.moduleSpecifier.text;
+  for (const el of stmt.exportClause.elements) {
+    const name = resolveExposed(aliasFilter, el.name.text);
+    if (name === null || map.has(name)) continue;
+    const local = (el.propertyName ?? el.name).text;
+    const typeOnly = stmt.isTypeOnly || el.isTypeOnly;
+    map.set(name, {
+      name,
+      kind: typeOnly ? 'type' : /^[A-Z]/.test(local) ? 'class' : 'function',
+      signature: `export ${typeOnly ? 'type ' : ''}{ ${local === name ? name : `${local} as ${name}`} } from '${from}';`,
+      description: 'Реэкспорт `' + local + '` из `' + from + '`.',
+      tags: [],
+      sourcePath: filePath,
+    });
+  }
+}
+
+function addSymbol(map, name, decl, sf, filePath, kind) {
+  const jsdoc = extractJSDoc(decl);
+  const candidate = {
+    name,
+    kind: kind ?? guessKind(decl),
+    signature: extractSignature(decl, sf),
+    description: jsdoc.description,
+    tags: jsdoc.tags,
+    sourcePath: filePath,
+  };
+  const existing = map.get(name);
+  if (!existing || isRicher(candidate, existing)) {
+    map.set(name, candidate);
+  }
+}
+
+/**
+ * Pick the "richer" declaration when overloads collide. Priority:
+ * 1. Has any @example > none.
+ * 2. Longer description.
+ * 3. More JSDoc tags overall.
+ */
+function isRicher(a, b) {
+  const aEx = a.tags.filter((t) => t.tag === 'example').length;
+  const bEx = b.tags.filter((t) => t.tag === 'example').length;
+  if (aEx !== bEx) return aEx > bEx;
+  if (a.description.length !== b.description.length) {
+    return a.description.length > b.description.length;
+  }
+  return a.tags.length > b.tags.length;
+}
+
+function guessKind(decl) {
+  if (ts.isFunctionDeclaration(decl)) return 'function';
+  if (ts.isClassDeclaration(decl)) return 'class';
+  if (ts.isInterfaceDeclaration(decl)) return 'interface';
+  if (ts.isTypeAliasDeclaration(decl)) return 'type';
+  if (ts.isEnumDeclaration(decl)) return 'enum';
+  if (ts.isVariableStatement(decl)) return 'const';
+  return 'unknown';
+}
+
+/**
+ * Extract the source signature: just the declaration text without the JSDoc
+ * preamble. For variable statements with initializers we strip the initializer
+ * to keep the signature short.
+ */
+function extractSignature(decl, sf) {
+  let text = decl.getText(sf).trim();
+  // Drop trailing semicolon noise.
+  text = text.replace(/\s+$/, '');
+
+  if (ts.isVariableStatement(decl)) {
+    // export const foo = …  →  export const foo: <type>
+    text = text
+      .replace(/=\s*[\s\S]*$/, '')
+      .trim()
+      .replace(/[,;]?$/, '');
+  }
+  if (ts.isFunctionDeclaration(decl) && decl.body) {
+    // Drop function body for readability.
+    const bodyStart = decl.body.getStart(sf) - decl.getStart(sf);
+    text = text
+      .slice(0, bodyStart)
+      .trim()
+      .replace(/[{;,]?$/, '');
+  }
+  if (ts.isClassDeclaration(decl) && decl.members.length > 0) {
+    const firstMember = decl.members[0];
+    const offset = firstMember.getStart(sf) - decl.getStart(sf);
+    // Keep `export class Foo extends Bar { … }` shell.
+    text = text.slice(0, offset).trim() + ' /* … */ }';
+  }
+  return text;
+}
+
+/**
+ * Extract JSDoc from a declaration. Returns { description, tags }.
+ */
+function extractJSDoc(decl) {
+  const jsDocs = decl.jsDoc ?? [];
+  if (jsDocs.length === 0) return { description: '', tags: [] };
+  const block = jsDocs[jsDocs.length - 1]; // the immediately-preceding block
+
+  const description = (block.comment ? renderComment(block.comment) : '').trim();
+  const tags = (block.tags ?? []).map((t) => ({
+    tag: t.tagName.text,
+    name: tagName(t),
+    text: renderComment(t.comment ?? '').trim(),
+  }));
+  return { description, tags };
+}
+
+function tagName(tag) {
+  if (ts.isJSDocParameterTag(tag) && tag.name && ts.isIdentifier(tag.name)) {
+    return tag.name.text;
+  }
+  if (ts.isJSDocTypedefTag(tag) || ts.isJSDocCallbackTag(tag)) {
+    if (tag.name && ts.isIdentifier(tag.name)) return tag.name.text;
+  }
+  if (tag.name && ts.isIdentifier(tag.name)) return tag.name.text;
+  return undefined;
+}
+
+function renderComment(comment) {
+  if (typeof comment === 'string') return comment;
+  if (!Array.isArray(comment)) return '';
+  return comment
+    .map((part) => {
+      if (typeof part === 'string') return part;
+      if (part.kind === ts.SyntaxKind.JSDocText) return part.text;
+      if (part.kind === ts.SyntaxKind.JSDocLink) {
+        const name = part.name ? part.name.getText() : '';
+        return `{@link ${name}${part.text ?? ''}}`;
+      }
+      return part.text ?? '';
+    })
+    .join('');
+}
+
+/**
+ * Markdown inside JSDoc descriptions/examples may use `##`/`###` headings.
+ * They would clash with the top-level llms.txt structure (parser treats `##`
+ * as section dividers). Demote any heading with two or more `#` by two levels,
+ * capping at six.
+ */
+function demoteHeadings(text) {
+  return text.replace(/^(#{2,})(\s+)/gm, (_match, hashes, sp) => {
+    const next = '#'.repeat(Math.min(6, hashes.length + 2));
+    return next + sp;
+  });
+}
+
+/** `@reformer/core` → `packages/reformer`; остальные — `packages/reformer-<tail>`. */
+function reformerPackageDir(pkgName) {
+  const tail = pkgName.replace(/^@reformer\//, '');
+  return path.join(repoRoot, 'packages', tail === 'core' ? 'reformer' : `reformer-${tail}`);
+}
+
+/**
+ * Файлы-кандидаты для абсолютного пути модуля `base` (без расширения либо с JS-суффиксом) — в
+ * порядке предпочтения.
+ *
+ * Исходники с `moduleResolution: node16/nodenext` пишут относительные импорты с суффиксом
+ * выходного файла — `export * from './intent.js'` при исходнике `intent.ts`. Склейка `base + '.ts'`
+ * давала `intent.js.ts`, реэкспорт не резолвился, и все символы за ним молча выпадали из
+ * llms.txt и llms-index.json (так пропадали `readIntent`, `findCycle` из `@reformer/mcp/intent`).
+ * Поэтому JS-суффикс сначала меняется на TS-исходник, как это делает сам `tsc`.
+ */
+function moduleFileCandidates(base) {
+  const jsToTs = { '.js': ['.ts', '.tsx'], '.jsx': ['.tsx'], '.mjs': ['.mts'], '.cjs': ['.cts'] };
+  const ext = path.extname(base);
+  const fromJs = jsToTs[ext] ? jsToTs[ext].map((tsExt) => base.slice(0, -ext.length) + tsExt) : [];
+  return [
+    ...fromJs,
+    base + '.ts',
+    base + '.tsx',
+    path.join(base, 'index.ts'),
+    path.join(base, 'index.tsx'),
+  ];
+}
+
+function resolveModule(fromFile, spec) {
+  // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше отбрасывался вместе со всеми
+  // не-относительными путями, и кросс-пакетный реэкспорт (так жил ныне удалённый алиас
+  // `useFormBundle` в renderer-react) терялся целиком — символ есть в публичном API, но ни в
+  // llms.txt, ни в индексе его не было.
+  // Path-alias `@/…` → `src/…` (tsconfig paths; в ui-kit так написаны 177 файлов).
+  // Без этого терялись публичные типы, объявленные через алиас: `ArrayItemSlot` и
+  // `ArrayComponentProps` реэкспортируются как `from '@/lib/array-slot'` и в API Reference
+  // не попадали — при том что это контракт, который реализует пользовательский
+  // array-компонент.
+  if (spec.startsWith('@/')) {
+    for (const abs of moduleFileCandidates(path.join(pkgPath, 'src', spec.slice(2)))) {
+      if (fs.existsSync(abs)) return abs;
+    }
+    return null;
+  }
+
+  if (!spec.startsWith('.')) {
+    if (!spec.startsWith('@reformer/')) return null; // react и прочие зависимости — вне зоны
+    const root = reformerPackageDir(spec.split('/').slice(0, 2).join('/'));
+    const sub = spec.split('/').slice(2).join('/');
+    // Подпуть ищется там, где пакеты монорепо его на самом деле держат: `src/<sub>.ts`
+    // (core, renderer-json), `src/<sub>/index.ts` и `src/components/<sub>/index.ts` (cdk:
+    // `@reformer/cdk/option-source` → `src/components/option-source/index.ts`), и только
+    // потом — собранная декларация `dist/<sub>.d.ts`, как у разбора AST в @reformer/mcp
+    // (symbols-parser). Без последних вариантов реэкспорт из cdk пропадал молча: ui-kit
+    // реэкспортирует типы источника опций (`ResourceConfig`, `NormalizedOption`, …) из
+    // `@reformer/cdk/option-source`, и в llms-index их не было, а сервер их видел — тест
+    // паритета mcp (index-artifacts) падал.
+    const candidates = sub
+      ? [
+          path.join(root, 'src', `${sub}.ts`),
+          path.join(root, 'src', `${sub}.tsx`),
+          path.join(root, 'src', sub, 'index.ts'),
+          path.join(root, 'src', sub, 'index.tsx'),
+          path.join(root, 'src', 'components', sub, 'index.ts'),
+          path.join(root, 'src', 'components', sub, 'index.tsx'),
+          path.join(root, 'dist', `${sub}.d.ts`),
+        ]
+      : [path.join(root, 'src', 'index.ts'), path.join(root, 'src', 'index.tsx')];
+    for (const abs of candidates) {
+      if (fs.existsSync(abs)) return abs;
+    }
+    return null;
+  }
+  for (const abs of moduleFileCandidates(path.resolve(path.dirname(fromFile), spec))) {
+    if (fs.existsSync(abs)) return abs;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Renderer
+// ---------------------------------------------------------------------------
+
+function renderLlmsTxt({ meta, docs, symbols }) {
+  const lines = [];
+
+  // Header
+  lines.push(`# ${meta.displayName} - LLM Integration Guide`);
+  lines.push(
+    `# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.`
+  );
+  lines.push('');
+  if (meta.description) lines.push(`> ${meta.description}`);
+  lines.push(`> Package: ${meta.name}  •  Version: ${meta.version}`);
+  lines.push('');
+
+  // Table of contents
+  if (docs.length > 0) {
+    lines.push('## Table of Contents');
+    for (const doc of docs) {
+      lines.push(`- ${doc.file} — ${doc.title}`);
+    }
+    if (symbols.length > 0) {
+      lines.push('- API Reference (auto-generated from JSDoc)');
+    }
+    lines.push('');
+  }
+
+  // Doc sections
+  let n = 1;
+  for (const doc of docs) {
+    doc.sections.forEach((section, i) => {
+      lines.push(`## ${n}. ${section.heading}`);
+      lines.push('');
+      // Шапка файла (H1 + вводный текст) — в теле ПЕРВОЙ его секции, ПЕРЕД самим телом.
+      //
+      // Заголовком её сделать нельзя: тело секции сервер читает до следующего заголовка
+      // уровня ≤ 2, и строка вида `# …` обрезала бы секцию на себе. Поэтому имя документа
+      // идёт жирной строкой, а вводный текст — как есть.
+      //
+      // Именно перед телом, а не после: это рамка, задающая, о чём весь файл. Она нужна
+      // первой и тому, кто читает секцию по URI, и тому, кто читает llms.txt подряд.
+      if (i === 0) {
+        lines.push(`**${doc.title}**`);
+        lines.push('');
+        if (doc.lead) {
+          lines.push(doc.lead);
+          lines.push('');
+        }
+      }
+      if (section.body) {
+        lines.push(section.body);
+        lines.push('');
+      }
+      n++;
+    });
+  }
+
+  // API Reference
+  if (symbols.length > 0) {
+    lines.push(`## ${n}. API Reference`);
+    lines.push('');
+    lines.push('_Auto-generated from JSDoc on public exports._');
+    lines.push('');
+
+    for (const sym of symbols) {
+      lines.push(`### ${sym.name}`);
+      lines.push('');
+      lines.push(`**Kind:** \`${sym.kind}\``);
+      lines.push('');
+      if (sym.description) {
+        lines.push(demoteHeadings(sym.description));
+        lines.push('');
+      }
+      lines.push('**Signature:**');
+      lines.push('```typescript');
+      lines.push(sym.signature);
+      lines.push('```');
+      lines.push('');
+
+      const params = sym.tags.filter((t) => t.tag === 'param' && t.name);
+      if (params.length > 0) {
+        lines.push('**Parameters:**');
+        for (const p of params) lines.push(`- \`${p.name}\` — ${p.text}`);
+        lines.push('');
+      }
+
+      const typeParams = sym.tags.filter((t) => t.tag === 'typeParam' && t.name);
+      if (typeParams.length > 0) {
+        lines.push('**Type Parameters:**');
+        for (const p of typeParams) lines.push(`- \`${p.name}\` — ${p.text}`);
+        lines.push('');
+      }
+
+      const ret = sym.tags.find((t) => t.tag === 'returns' || t.tag === 'return');
+      if (ret) {
+        lines.push(`**Returns:** ${ret.text}`);
+        lines.push('');
+      }
+
+      const examples = sym.tags.filter((t) => t.tag === 'example');
+      if (examples.length > 0) {
+        lines.push('**Examples:**');
+        lines.push('');
+        for (const ex of examples) {
+          lines.push(demoteHeadings(ex.text));
+          lines.push('');
+        }
+      }
+
+      const deprecated = sym.tags.find((t) => t.tag === 'deprecated');
+      if (deprecated) {
+        lines.push(`**Deprecated:** ${deprecated.text || '(no message)'}`);
+        lines.push('');
+      }
+
+      const sees = sym.tags.filter((t) => t.tag === 'see');
+      if (sees.length > 0) {
+        lines.push('**See also:**');
+        for (const s of sees) lines.push(`- ${s.text}`);
+        lines.push('');
+      }
+
+      const relSource = path.relative(process.cwd(), sym.sourcePath).replace(/\\/g, '/');
+      lines.push(`_Source: ${relSource}_`);
+      lines.push('');
+    }
+  }
+
+  // Trim trailing blank lines, then ensure single newline at EOF.
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+  return lines.join('\n') + '\n';
+}

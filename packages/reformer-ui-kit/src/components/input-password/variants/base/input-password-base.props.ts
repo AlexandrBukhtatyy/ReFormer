@@ -1,0 +1,68 @@
+import { messageDefault } from '@/i18n/message-default';
+import type { PropsSchema } from '@/fields/props-schema';
+
+/**
+ * Props-схема InputPassword — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+ * `componentProps` (renderer-json). Реальная поверхность в DSL — 5 ключей; `additionalProperties: false`
+ * ловит опечатки (`lable` вместо `label` подмешивается враппером).
+ *
+ * `x-registryName: 'InputPassword'` — компонент `InputPassword`.
+ */
+export const inputPasswordBasePropsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  'x-registryName': 'InputPassword',
+  'x-variantGroup': 'Input',
+  'x-variant': 'Пароль',
+  properties: {
+    placeholder: {
+      type: 'string',
+      ...messageDefault('kit.inputPassword.placeholder'),
+      description: 'Подсказка внутри поля.',
+      'x-doc': { group: 'Textfield', type: 'string' },
+    },
+    showToggle: {
+      type: 'boolean',
+      default: true,
+      description:
+        'Показывать иконку переключения видимости (eye/eye-off). Появляется при непустом value.',
+      'x-doc': { group: 'Behavior', type: 'boolean' },
+    },
+    autoComplete: {
+      type: 'string',
+      enum: ['current-password', 'new-password', 'one-time-code', 'off'],
+      description:
+        'Подсказка менеджеру паролей: current-password — вход, new-password — регистрация и смена пароля (браузер предложит сгенерировать), one-time-code — код из SMS. Не задан — браузер решает сам.',
+      'x-doc': {
+        group: 'Behavior',
+        type: "'current-password' | 'new-password' | 'one-time-code' | 'off'",
+        kind: 'enum',
+      },
+    },
+    readOnly: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.',
+      'x-doc': { group: 'State', type: 'boolean' },
+    },
+    className: {
+      type: 'string',
+      description: 'Доп. CSS-класс.',
+      'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
+    },
+  },
+  'x-runtimeProps': {
+    // Только СВОЁ: seam (value/onChange/onBlur/disabled) подмешает mergeFieldPropsSchema.
+    value: {
+      group: 'Control',
+      type: 'string | null',
+      description: 'Значение пароля. null/пусто — пустое поле.',
+    },
+    onChange: {
+      group: 'Control',
+      type: '(value: string | null) => void',
+      description: 'Изменение. Пустой ввод приводится к null.',
+    },
+  },
+} as const satisfies PropsSchema;

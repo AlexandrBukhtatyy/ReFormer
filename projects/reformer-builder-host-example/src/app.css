@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+@import '@reformer/ui-kit/styles';
+
+/* Кит форм свёрстан утилитами; в монорепо их источник — исходники пакета. */
+@source "../../../packages/reformer-ui-kit/src";
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Ниже — само приложение: обычный CSS, со своими именами классов. */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  color: #f8fafc;
+  background: #1e3a5f;
+}
+
+.app-header__brand {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.app-header__nav {
+  display: flex;
+  gap: 16px;
+}
+
+.app-link {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+.app-link:hover,
+.app-link--current {
+  color: #ffffff;
+}
+
+.app-link--current {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px;
+}
+
+.app-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.app-page p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.app-page a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.app-page__title {
+  margin-bottom: 16px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.app-page__lead {
+  color: #475569;
+}
+
+.app-toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 56px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+}
+
+.app-toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-left: 4px solid #16a34a;
+  border-radius: 6px;
+  color: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgb(15 23 42 / 0.18);
+}
+
+.app-toast--error {
+  border-left-color: #dc2626;
+}
+
+.app-toast__close {
+  flex: none;
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+}

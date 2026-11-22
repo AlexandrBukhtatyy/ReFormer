@@ -1,0 +1,12 @@
+// model/model.ts — фабрика модели формы. Регенерируется.
+
+import { createModel, type FormModel } from '@reformer/core';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+import { createInitialValues } from './initial-value';
+
+/** Реактивная модель формы — источник истины значений. */
+export function createZayavkaNaKreditFormModel(
+  initial?: Partial<ZayavkaNaKreditForm>
+): FormModel<ZayavkaNaKreditForm> {
+  return createModel<ZayavkaNaKreditForm>({ ...createInitialValues(), ...initial });
+}

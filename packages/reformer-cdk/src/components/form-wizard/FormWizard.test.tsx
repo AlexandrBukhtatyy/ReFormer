@@ -1,0 +1,301 @@
+/**
+ * FormWizard — адаптер потока шагов ядра (`FormFlow`).
+ *
+ * Правила доступности шагов и проверку шага держит поток (их тесты — в ядре,
+ * `tests/core/flow/form-flow.test.ts`); здесь — что визард берёт поток из пропа или сборки,
+ * без них строит позиционный, рисует номер шага и отправляет через сборку.
+ *
+ * DOM-окружения в пакете нет (только `react-dom/server`), поэтому клик не имитируется:
+ * render-props отдают обработчики функциями — их и вызываем.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createForm, createFormFlow, type FormBundle } from '@reformer/core';
+import { FormBundleContext, I18nProvider } from '@reformer/core/react';
+import { ru } from '../../locale/ru';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import { FormWizard } from './FormWizard';
+import { useFormWizard, type FormWizardContextValue } from './FormWizardContext';
+import type { FormWizardActionsRenderProps } from './FormWizardActions';
+import type { FormWizardIndicatorRenderProps } from './FormWizardIndicator';
+
+interface Shape {
+  amount: string;
+  phone: string;
+}
+
+const amountRules = defineValidation<Shape>(({ model }) => {
+  validate(model.$.amount, [required()]);
+});
+
+const createBundle = (initial: Shape = { amount: '', phone: '' }): FormBundle<Shape> =>
+  createForm<Shape>({
+    initial,
+    flow: { steps: [{ id: 'loan', rules: amountRules }, { id: 'confirm' }] },
+  });
+
+const Empty = () => null;
+
+/** Нарисовать визард и вернуть render-props кнопок и индикатора. */
+function capture(
+  element: (slots: {
+    actions: (props: FormWizardActionsRenderProps) => null;
+    indicator: (props: FormWizardIndicatorRenderProps) => null;
+  }) => React.ReactElement
+) {
+  const captured: {
+    actions?: FormWizardActionsRenderProps;
+    indicator?: FormWizardIndicatorRenderProps;
+  } = {};
+  const html = renderToStaticMarkup(
+    element({
+      actions: (props) => {
+        captured.actions = props;
+        return null;
+      },
+      indicator: (props) => {
+        captured.indicator = props;
+        return null;
+      },
+    })
+  );
+  return { html, ...captured };
+}
+
+const flush = async (): Promise<void> => {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+};
+
+describe('FormWizard — поток шагов', () => {
+  it('без потока — позиционный: live-region «Step 1 of 2»', () => {
+    const { form } = createBundle();
+    const html = renderToStaticMarkup(
+      <FormWizard form={form}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+      </FormWizard>
+    );
+
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('Step 1 of 2');
+  });
+
+  it('поток из пропа: номер и пройденные шаги — из потока', async () => {
+    const { form } = createBundle();
+    const flow = createFormFlow({ steps: ['a', 'b', 'c'] });
+    await flow.next();
+
+    const { html, indicator } = capture(({ indicator: render }) => (
+      <FormWizard form={form} flow={flow}>
+        <FormWizard.Indicator steps={[1, 2, 3].map((number) => ({ number, title: `${number}` }))}>
+          {render}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+      </FormWizard>
+    ));
+
+    expect(html).toContain('Step 2 of 3');
+    expect(indicator?.steps.map((step) => step.isCompleted)).toEqual([true, false, false]);
+  });
+
+  it('live-регион говорит на языке локали I18nProvider', () => {
+    const { form } = createBundle();
+
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FormWizard form={form}>
+          <FormWizard.Step component={Empty} control={form} />
+          <FormWizard.Step component={Empty} control={form} />
+        </FormWizard>
+      </I18nProvider>
+    );
+
+    expect(html).toContain('Шаг 1 из 2');
+  });
+
+  it('поток сборки из контекста: «Далее» проверяет правила шага', async () => {
+    const bundle = createBundle();
+    const { actions } = capture(({ actions: render }) => (
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard>
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Actions>{render}</FormWizard.Actions>
+        </FormWizard>
+      </FormBundleContext.Provider>
+    ));
+
+    actions!.next.onClick();
+    await flush();
+
+    expect(bundle.flow!.current.value).toBe('loan');
+    expect(bundle.form.amount.shouldShowError.value).toBe(true);
+    // Поле следующего шага не трогается — его замечания не всплывут раньше времени.
+    expect(bundle.form.phone.touched.value).toBe(false);
+
+    bundle.model.amount = '100';
+    actions!.next.onClick();
+    await flush();
+    expect(bundle.flow!.current.value).toBe('confirm');
+  });
+});
+
+describe('FormWizard — кнопки на краях потока', () => {
+  const twoSteps = (
+    form: FormBundle<Shape>['form'],
+    render: (props: FormWizardActionsRenderProps) => null
+  ) => (
+    <FormWizard form={form}>
+      <FormWizard.Step component={Empty} control={form} />
+      <FormWizard.Step component={Empty} control={form} />
+      <FormWizard.Actions>{render}</FormWizard.Actions>
+    </FormWizard>
+  );
+
+  it('render-props: «Назад» отключена на первом шаге, «Далее» — на последнем', async () => {
+    const { form } = createBundle();
+    const flow = createFormFlow({ steps: ['a', 'b'] });
+
+    const first = capture(({ actions: render }) => (
+      <FormWizard form={form} flow={flow}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions>{render}</FormWizard.Actions>
+      </FormWizard>
+    )).actions!;
+    // Было: `disabled` учитывал только проверку/отправку, и разметка, которая не прячет кнопку,
+    // а отключает её по `disabled`, получала живую «Назад» на первом шаге.
+    expect(first.prev.disabled).toBe(true);
+    expect(first.next.disabled).toBe(false);
+
+    await flow.next();
+    const last = capture(({ actions: render }) => (
+      <FormWizard form={form} flow={flow}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions>{render}</FormWizard.Actions>
+      </FormWizard>
+    )).actions!;
+    expect(last.prev.disabled).toBe(false);
+    expect(last.next.disabled).toBe(true);
+  });
+
+  it('render-props совпадают с compound-кнопками Prev/Next', () => {
+    const { form } = createBundle();
+    const { actions } = capture(({ actions: render }) => twoSteps(form, render));
+    const html = renderToStaticMarkup(
+      <FormWizard form={form}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions>
+          <FormWizard.Prev>Back</FormWizard.Prev>
+          <FormWizard.Next>Next</FormWizard.Next>
+        </FormWizard.Actions>
+      </FormWizard>
+    );
+
+    expect(actions!.prev.disabled).toBe(true);
+    expect(html).toMatch(/<button type="button" disabled=""[^>]*>Back<\/button>/);
+  });
+});
+
+describe('FormWizard — отправка', () => {
+  it('FormWizard.Submit — type="button": внутри <form> приложения нет второй, нативной отправки', () => {
+    const { form } = createBundle();
+    const html = renderToStaticMarkup(
+      <form>
+        <FormWizard form={form}>
+          <FormWizard.Step component={Empty} control={form} />
+          <FormWizard.Actions>
+            <FormWizard.Submit>Send</FormWizard.Submit>
+          </FormWizard.Actions>
+        </FormWizard>
+      </form>
+    );
+
+    expect(html).toMatch(/<button type="button"[^>]*>Send<\/button>/);
+    expect(html).not.toContain('type="submit"');
+  });
+
+  it('в сборке: замечания — обработчик не вызывается', async () => {
+    const bundle = createBundle();
+    const onSubmit = vi.fn();
+    const { actions } = capture(({ actions: render }) => (
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard>
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Actions onSubmit={onSubmit}>{render}</FormWizard.Actions>
+        </FormWizard>
+      </FormBundleContext.Provider>
+    ));
+
+    actions!.submit.onClick();
+    await flush();
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(bundle.form.amount.touched.value).toBe(true);
+  });
+
+  it('в сборке: форма прошла проверку — обработчик ровно один раз', async () => {
+    const bundle = createBundle({ amount: '100', phone: '' });
+    const onSubmit = vi.fn();
+    const { actions } = capture(({ actions: render }) => (
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard>
+          <FormWizard.Step component={Empty} control={bundle.form} />
+          <FormWizard.Actions onSubmit={onSubmit}>{render}</FormWizard.Actions>
+        </FormWizard>
+      </FormBundleContext.Provider>
+    ));
+
+    actions!.submit.onClick();
+    await flush();
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('без сборки обработчик зовётся по нажатию: проверку делает приложение', async () => {
+    const { form } = createBundle();
+    const onSubmit = vi.fn();
+    const { actions } = capture(({ actions: render }) => (
+      <FormWizard form={form}>
+        <FormWizard.Step component={Empty} control={form} />
+        <FormWizard.Actions onSubmit={onSubmit}>{render}</FormWizard.Actions>
+      </FormWizard>
+    ));
+
+    actions!.submit.onClick();
+    await flush();
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('без сборки: исключение обработчика — итог failed, а не исключение наружу', async () => {
+    const { form } = createBundle();
+    let wizard: FormWizardContextValue<Shape> | undefined;
+    const Probe = ({ onWizard }: { onWizard: (value: FormWizardContextValue<Shape>) => void }) => {
+      onWizard(useFormWizard<Shape>());
+      return null;
+    };
+    renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FormWizard form={form}>
+          <FormWizard.Step component={Empty} control={form} />
+          <Probe onWizard={(value) => (wizard = value)} />
+        </FormWizard>
+      </I18nProvider>
+    );
+    const error = new Error('500');
+
+    const outcome = await wizard!.submit(() => {
+      throw error;
+    });
+
+    expect(outcome).toEqual({ status: 'failed', error });
+    expect(wizard!.isSubmitting).toBe(false);
+  });
+});

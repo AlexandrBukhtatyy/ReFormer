@@ -1,0 +1,29 @@
+// schema/registry.ts — реестр компонентов и источников данных схемы. Регенерируется.
+
+import {
+  Box,
+  Button,
+  CheckboxWithLabel,
+  FieldArray,
+  FormField,
+  Input,
+  Section,
+  SelectAsync,
+} from '@reformer/ui-kit';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+import { REGIONS } from '../constants/zayavka-na-kredit';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, FormField);
+    reg.component('Box', Box);
+    reg.component('Checkbox', CheckboxWithLabel);
+    reg.component('Section', Section);
+    reg.component('FieldArray', FieldArray);
+    reg.component('Button', Button);
+    reg.component('Select', SelectAsync);
+    reg.component('Input', Input);
+
+    reg.dataSource('REGIONS', REGIONS);
+  });
+}

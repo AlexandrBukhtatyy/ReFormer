@@ -1,0 +1,14 @@
+{
+  // Строгая проверка живых примеров сайта (`npm run typecheck`, второй проход).
+  //
+  // Базовый tsconfig сайта нестрогий (`@docusaurus/tsconfig`), а живые примеры — это код, который
+  // читатель копирует в свой проект, где `strict` почти всегда включён. Нестрогая проверка
+  // пропускала в них ошибки, которые у читателя не соберутся (неявный `any`, `null` без проверки).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src/components/demo/live/**/*"]
+}

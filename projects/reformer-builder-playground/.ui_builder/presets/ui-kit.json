@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../reformer-builder/runtime-config.schema.json",
+  "defaults": {
+    "locale": "ru",
+    "theme": "light",
+    "settings": {
+      "plugin.kits.active": "reformer-ui-kit"
+    }
+  }
+}

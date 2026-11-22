@@ -1,0 +1,153 @@
+/**
+ * Unit-тесты ui-kit FieldArray — editable-секция массива для renderer-json (`$component(FieldArray)`).
+ * (Отдельно от field-array.test.tsx, который покрывает FieldArraySection — React/TS-контракт.)
+ *
+ * Рендерим настоящий путь: узел `{ array, item, component: FieldArray }` через `FormRenderer`.
+ * Проверяем хром + data-testid, совместимые со встроенной секцией (миграция эквивалентна).
+ */
+import { describe, it, expect } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createModel } from '@reformer/core';
+import { FormRenderer } from '@reformer/renderer-react';
+import { FieldArray } from './variants/base/field-array';
+import { FieldArraySection } from './variants/base/field-array-section';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Массив под-форм привязывается к настоящему массиву модели — ручкой `model.$.<массив>`. */
+function modelArray(items: any[]): any {
+  return createModel<{ items: any[] }>({ items }).$.items;
+}
+
+const render = (node: any): string => renderToStaticMarkup(<FormRenderer render={() => node} />);
+
+const faNode = (items: any[], componentProps?: any) => ({
+  model: modelArray(items),
+  item: (im: any) => ({ component: 'span', children: [im.name] }),
+  component: FieldArray,
+  initialValue: () => ({}),
+  componentProps,
+});
+
+describe('FieldArray (ui-kit, renderer-json)', () => {
+  it('рендерит заголовок, кнопку «Добавить» и карточки элементов', () => {
+    const html = render(
+      faNode([{ name: 'a' }, { name: 'b' }], { title: 'Созаёмщики', addButtonLabel: '+ Добавить' })
+    );
+    expect(html).toContain('Созаёмщики');
+    expect(html).toContain('data-testid="array-add"');
+    expect(html).toContain('data-testid="array-item-0"');
+    expect(html).toContain('data-testid="array-item-1"');
+  });
+
+  it('itemLabel-функция получает (model, index)', () => {
+    const html = render(
+      faNode([{ name: 'x' }, { name: 'y' }], {
+        title: 'T',
+        itemLabel: (_m: any, i: number) => `Строка #${i + 1}`,
+      })
+    );
+    expect(html).toContain('Строка #1');
+    expect(html).toContain('Строка #2');
+  });
+
+  it('кнопка удаления на элемент при length>1, и нет при единственном', () => {
+    const many = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T' }));
+    expect(many).toContain('data-testid="array-item-0-remove"');
+    const one = render(faNode([{ name: 'a' }], { title: 'T' }));
+    expect(one).not.toContain('-remove"');
+  });
+
+  it('reorderable добавляет кнопки перестановки', () => {
+    const html = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', reorderable: true }));
+    expect(html).toContain('array-item-0-move-up');
+    expect(html).toContain('array-item-0-move-down');
+  });
+
+  it('без title/itemLabel кнопки строки остаются, а их имена различимы', () => {
+    const html = renderToStaticMarkup(
+      <FieldArray
+        reorderable
+        items={[
+          { key: 'a', index: 0, children: <span>Первый</span> },
+          { key: 'b', index: 1, children: <span>Второй</span> },
+        ]}
+      />
+    );
+    // Было: шапки без title/itemLabel не было — с ней пропадали «Удалить» и ↑/↓.
+    expect(html).toContain('data-testid="array-item-0-remove"');
+    expect(html).toContain('data-testid="array-item-1-move-up"');
+    expect(html).not.toContain('<h4');
+    expect(html).toContain('aria-label="Remove: Item #1"');
+    expect(html).toContain('aria-label="Remove: Item #2"');
+    expect(html).toContain('aria-label="Move down: Item #1"');
+  });
+
+  it('maxItems достигнут — кнопка добавления скрыта, ниже предела — на месте', () => {
+    const full = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', maxItems: 2 }));
+    expect(full).not.toContain('data-testid="array-add"');
+    const free = render(faNode([{ name: 'a' }], { title: 'T', maxItems: 2 }));
+    expect(free).toContain('data-testid="array-add"');
+    const footer = render(faNode([{ name: 'a' }], { maxItems: 1 }));
+    expect(footer).not.toContain('data-testid="array-add"');
+  });
+
+  it('minItems: на минимуме «Удалить» скрыта, выше минимума — на месте', () => {
+    const atMin = render(
+      faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', minItems: 2, showRemoveOnSingle: true })
+    );
+    expect(atMin).not.toContain('-remove"');
+    const above = render(faNode([{ name: 'a' }, { name: 'b' }], { title: 'T', minItems: 1 }));
+    expect(above).toContain('data-testid="array-item-0-remove"');
+    // minItems: 0 разрешает удалить и единственную строку.
+    const none = render(faNode([{ name: 'a' }], { title: 'T', minItems: 0 }));
+    expect(none).toContain('data-testid="array-item-0-remove"');
+  });
+
+  it('emptyMessage при пустом массиве', () => {
+    const html = render(faNode([], { title: 'T', emptyMessage: 'Пусто пока' }));
+    expect(html).toContain('Пусто пока');
+  });
+
+  // Гарантия развязки: компонент — чистая презентация, ему не нужны ни форма, ни рендерер.
+  // Если этот тест начнёт требовать FormRenderer — связь с renderer-react вернулась.
+  it('рендерится на фейковых items без формы и без рендерера', () => {
+    const html = renderToStaticMarkup(
+      <FieldArray
+        title="Созаёмщики"
+        reorderable
+        items={[
+          { key: 'a', index: 0, model: { name: 'a' }, children: <span>Первый</span> },
+          { key: 'b', index: 1, model: { name: 'b' }, children: <span>Второй</span> },
+        ]}
+      />
+    );
+    expect(html).toContain('data-testid="array-add"');
+    expect(html).toContain('data-testid="array-item-0"');
+    expect(html).toContain('array-item-1-move-down');
+    expect(html).toContain('Первый');
+  });
+
+  // Регресс: под `$component(FieldArray)` легко зарегистрировать соседний FieldArraySection —
+  // имена похожи, а JSDoc называл его «готовой UI-секцией для массива». Контракты разные:
+  // рендерер шлёт items/onAdd, а Section ждёт control+itemComponent, поэтому секция уходила
+  // в `return null` — пустой экран без единого сигнала. Диагностика этого стоила ~40 минут.
+  it('FieldArraySection вместо FieldArray: пустой рендер сопровождается подсказкой в консоли', () => {
+    const warnings: string[] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => void warnings.push(args.join(' '));
+    let html = '';
+    try {
+      // Реальный путь: тот же array-узел, что и выше, но под `component` — соседний компонент.
+      // Рендерер даёт ему seam массива (items/onAdd/...) и не даёт `control`.
+      html = render({
+        ...faNode([{ name: 'a' }], { title: 'Имущество' }),
+        component: FieldArraySection,
+      });
+    } finally {
+      console.warn = original;
+    }
+    expect(html).not.toContain('Имущество');
+    expect(warnings.join('\n')).toMatch(/FieldArray.*@reformer\/ui-kit\/field-array/s);
+  });
+});

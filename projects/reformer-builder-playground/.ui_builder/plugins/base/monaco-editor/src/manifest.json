@@ -1,0 +1,17 @@
+{
+  "id": "reformer.editor-monaco",
+  "name": "Редактор кода",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "main.ts",
+  "styles": {
+    "file": "styles.css",
+    "isolation": "scoped"
+  },
+  "provides": [
+    {
+      "id": "reformer.editor",
+      "version": "1.0.0"
+    }
+  ]
+}

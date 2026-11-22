@@ -1,0 +1,263 @@
+name: Release
+
+# Единый release-workflow для всех пакетов monorepo. Один последовательный джоб:
+# один checkout + один `npm ci` + одна сборка всех пакетов в топо-порядке, затем
+# semantic-release по каждому пакету последовательно в цикле.
+#
+# Почему не matrix: раньше был matrix с `max-parallel: 1` (сериализация ради
+# race на общий ref `refs/notes/semantic-release`). Но max-parallel:1 не даёт
+# параллелизма — только оверхед: 6× checkout, 6× npm ci, 18 пересборок. Единый
+# джоб убирает это (1× npm ci, 7 build-ов) и попутно снимает саму гонку notes
+# (один процесс, локальный ref обновляется сам — max-parallel не нужен).
+#
+# Изоляция сбоев (замена fail-fast: false): release-цикл ловит падение каждого
+# пакета через `if ( … )`, копит упавшие и падает в конце — один сбой не
+# блокирует публикацию остальных. Падение СБОРКИ линейно прерывает джоб до
+# релиза (нельзя публиковать из несобранного; needs: test уже собрал те же
+# пакеты). Если в пакете нет новых коммитов — semantic-release пишет
+# "no release needed" и выходит с code 0.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/**'
+      - 'projects/reformer-builder/**'
+      # Плагины приложения едут в dist билдера: их правка — тоже повод для выпуска.
+      - 'projects/reformer-builder-playground/.ui_builder/plugins/**'
+      - '.github/workflows/release.yml'
+  workflow_dispatch: # для ручного re-run без коммита (например после исправления git tags)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Gate: ничего не публикуется, пока CI не зелёный (lint + format + build + tests).
+  # Тот же переиспользуемый workflow, что и в ci.yml — единый источник правды.
+  test:
+    uses: ./.github/workflows/test.yml
+
+  release:
+    name: Release all packages
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all packages in dependency order
+        # Один раз собираем ВСЕ пакеты в топологическом порядке (тот же, что в
+        # test.yml и align-versions.yml). Корневой `npm run build --workspaces`
+        # НЕ годится: npm не топо-сортирует workspaces (пакет на tsc собрался бы до
+        # своих dist-зависимостей → TS2307) и захватил бы projects/*.
+        run: |
+          for pkg in @reformer/core @reformer/cdk @reformer/renderer-react \
+                     @reformer/ui-kit @reformer/renderer-json @reformer/form-registry \
+                     @reformer/form-intent \
+                     @reformer/mcp @reformer/builder-plugin-api @reformer/builder-plugin-cli \
+                     @reformer/builder-toolkit; do
+            echo "::group::Build $pkg"
+            npm run build -w "$pkg"
+            echo "::endgroup::"
+          done
+
+      - name: Build @reformer/builder (относительный base)
+        # Билдер — Vite-SPA (projects/*), публикуется prebuilt-бандлом. Собираем ПОСЛЕ 6 пакетов:
+        # tsc -b / vite build резолвят @reformer/* из их собранного dist. BUILDER_BASE НЕ выставляем
+        # → base './' (в отличие от Pages-сборки в deploy-docs.yml): один и тот же dist отдаёт
+        # и лаунчер с корня своего сервера, и плагин dev-сервера приложения под своим префиксом.
+        run: npm run build -w @reformer/builder
+
+      - name: Плагины приложения — в dist билдера
+        # Опубликованный билдер везёт движки форм сам: сборки пакетов плагинов для поставки
+        # складываются в `dist/plugins/` (поле `files` пакета уже включает `dist`). Без этого шага
+        # `npx reformer-builder` открывал бы форму текстом. В каталог идут оба набора — своей
+        # вкладки и билдера, встроенного в приложение; индекс лаунчера называет первый. Тема RJSF — рантайм плагина
+        # `reformer.rjsf.render`, сборка находит её по dist; остальное (CLI, toolkit, контракт intent) собрано
+        # выше. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
+        run: |
+          npm run build -w @reformer/rjsf-kit-theme
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
+
+      # Тесты не повторяем: needs: test (reusable test.yml) уже собрал и прогнал
+      # тесты всех пакетов + dist-deps/size/typecheck.
+
+      - name: Fetch git notes
+        # checkout не тянет refs/notes/*, а semantic-release хранит там каналы
+        # релиза. Тянем ОДИН раз перед циклом — внутри одного джоба каждый
+        # semantic-release сам обновляет локальный ref, между пакетами fetch не
+        # нужен, а гонки параллельных runner-ов больше нет.
+        run: git fetch origin refs/notes/semantic-release:refs/notes/semantic-release || true
+
+      - name: Release all packages (sequential, fault-isolated)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # workspace:dir в топологическом порядке.
+          packages=(
+            "@reformer/core:packages/reformer"
+            "@reformer/cdk:packages/reformer-cdk"
+            "@reformer/renderer-react:packages/reformer-renderer-react"
+            "@reformer/ui-kit:packages/reformer-ui-kit"
+            "@reformer/renderer-json:packages/reformer-renderer-json"
+            "@reformer/form-registry:packages/reformer-form-registry"
+            "@reformer/form-intent:packages/reformer-form-intent"
+            "@reformer/mcp:packages/reformer-mcp"
+            "@reformer/builder-plugin-api:packages/reformer-builder-plugin-api"
+            "@reformer/builder-plugin-cli:packages/reformer-builder-plugin-cli"
+            "@reformer/builder-toolkit:packages/reformer-builder-toolkit"
+            "@reformer/builder:projects/reformer-builder"
+          )
+          failed=()
+          for entry in "${packages[@]}"; do
+            ws="${entry%%:*}"
+            dir="${entry#*:}"
+            echo "::group::Release $ws"
+            # Команда в условии `if` не срабатывает под set -e, поэтому один
+            # упавший пакет не рвёт цикл. "no release needed" → exit 0 (не сбой);
+            # реальный сбой публикации → exit != 0 → копим и падаем в конце.
+            if ( cd "$dir" && npx semantic-release ); then
+              echo "$ws: done"
+            else
+              echo "::error::semantic-release failed for $ws"
+              failed+=("$ws")
+            fi
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -ne 0 ]; then
+            echo "::error::Release failed for: ${failed[*]}"
+            exit 1
+          fi
+
+      - name: Sync dist-tag beta → develop
+        # semantic-release публикует prerelease под dist-tag, равным имени ветки, то
+        # есть `develop` — привычное `npm i @reformer/core@beta` не работает.
+        #
+        # Задать "channel": "beta" в .releaserc.json НЕЛЬЗЯ: канал участвует в расчёте
+        # номера prerelease. На «пустом» канале beta отсчёт начинается заново с
+        # X.Y.Z-beta.1 (проверено dry-run: с channel → 10.0.0-beta.1 вместо beta.4), а
+        # эти версии уже опубликованы — npm ответил бы E403 "cannot publish over the
+        # previously published versions". Поэтому канал остаётся develop, а beta
+        # навешивается алиасом на ту же версию.
+        #
+        # Список пакетов не дублируем: берём каждый каталог, где лежит .releaserc.json.
+        # Алиас — косметика поверх состоявшейся публикации, поэтому его сбой не должен
+        # ронять джоб: только ::warning::.
+        #
+        # Версию НЕ спрашиваем у `npm view`: для только что созданного пакета документ
+        # /<pkg> может отдавать 404 из-за отрицательного кэша CDN (URL запрашивали до
+        # публикации). Так @reformer/form-registry остался без алиаса на своём первом
+        # релизе: publish прошёл в 08:04:20, а шаг через 39 секунд получил «в npm нет».
+        #
+        # Источник правды для свежей публикации — рабочее дерево: @semantic-release/npm
+        # вписывает новую версию в package.json пакета, а коммита не делает (плагина
+        # @semantic-release/git в конфигах нет). Значит расхождение с `git show HEAD:` —
+        # точный признак того, что публикация состоялась ИМЕННО в этом прогоне, и заодно
+        # её версия; сеть не опрашивается, кэш помешать не может.
+        #
+        # Если же пакет в этом прогоне не публиковался, шаг ДОГОНЯЕТ отставший тег через
+        # `npm view @develop` — здесь кэш не страшен, пакет давно существует. Без этого
+        # ветвления тег, однажды пропущенный (как beta у form-registry), не проставился бы
+        # до следующей публикации пакета: шаг стал бы одноразовым вместо идемпотентного.
+        if: github.ref == 'refs/heads/develop'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          shopt -s nullglob
+          readVersion() { node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0,'utf8')).version||'')"; }
+
+          for rc in packages/*/.releaserc.json projects/*/.releaserc.json; do
+            dir=$(dirname "$rc")
+            ws=$(node -p "require('./$dir/package.json').name")
+
+            now=$(readVersion < "$dir/package.json")
+            was=$(git show "HEAD:$dir/package.json" 2>/dev/null | readVersion || true)
+
+            if [ -n "$now" ] && [ "$now" != "$was" ]; then
+              target="$now" # опубликован прямо сейчас
+            else
+              # не публиковался — сверяем уже опубликованные теги и догоняем при отставании
+              target=$(npm view "$ws@develop" version 2>/dev/null || true)
+              if [ -z "$target" ]; then
+                echo "$ws: не публиковался, develop-версии в npm нет — пропуск"
+                continue
+              fi
+              if [ "$(npm view "$ws@beta" version 2>/dev/null || true)" = "$target" ]; then
+                echo "$ws: beta уже указывает на $target"
+                continue
+              fi
+              echo "$ws: beta отстаёт от develop ($target) — догоняем"
+            fi
+
+            # dist-tag add — запись через api registry, отрицательный кэш чтения ей не
+            # мешает. Ретраи на случай, если запись по свежесозданному пакету ещё не
+            # прошла консистентность.
+            tagged=0
+            for attempt in 1 2 3; do
+              if npm dist-tag add "$ws@$target" beta; then
+                tagged=1
+                break
+              fi
+              echo "  $ws: попытка $attempt не удалась, повтор через 10s"
+              sleep 10
+            done
+
+            if [ "$tagged" = 1 ]; then
+              echo "$ws: beta → $target"
+            else
+              echo "::warning::не удалось навесить dist-tag beta на $ws@$target"
+            fi
+          done
+
+      - name: Back-merge main → develop
+        # Stable-теги semantic-release ставит на HEAD main, а это merge-коммит PR
+        # develop→main (49376483, 8c20c448, …). Такой коммит НЕ предок develop, поэтому
+        # на develop не виден ни один stable-тег: база для prerelease берётся от
+        # последней беты, и беты нумеруются от устаревшего мажора (core: latest 10.2.0
+        # против develop-беты 10.0.0-beta.3). Возвращаем main в develop сразу после
+        # публикации — следующая бета считается уже от актуального тега.
+        #
+        # Только на main: на develop релизится сама develop, мержить нечего.
+        # Merge пустой по содержимому (develop уже имеет эти изменения, не хватает
+        # только merge-коммита), поэтому paths-фильтр обычно не триггерит новый
+        # Release — беты поедут со следующим реальным коммитом, но уже от верной базы.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin develop
+          git checkout -B develop origin/develop
+          if git merge --no-edit origin/main; then
+            git push origin develop
+            echo "develop синхронизирован с main"
+          else
+            git merge --abort || true
+            echo "::error::Back-merge main → develop конфликтует. Публикация пакетов" \
+                 "УЖЕ ПРОШЛА успешно — красный джоб означает только то, что слияние" \
+                 "надо сделать руками: git checkout develop && git merge main."
+            exit 1
+          fi

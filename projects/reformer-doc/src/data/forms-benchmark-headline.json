@@ -1,0 +1,372 @@
+{
+  "schema": 1,
+  "meta": {"generatedAt":"2026-11-19T21:07:25.270Z","iterations":10,"cpuRates":[4]},
+  "forms": [
+    {
+      "id": "registration",
+      "cpu": 4,
+      "rows": [
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "ready",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [104,103.48,112.7,1,0],
+            "reformer-json": [115.2,112,119.9,1.107,0],
+            "formik": [146.8,146.3,148.2,1.411,1],
+            "rhf": [117.1,116.6,120.2,1.126,1],
+            "rjsf": [143.3,143,144.3,1.378,1],
+            "baseline": [86.55000000000001,84.15,92.85000000000001,0.8322,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "script",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [67.78,67.39,68.53,1,0],
+            "reformer-json": [76.83,76.3,77.33,1.133,1],
+            "formik": [114.6,114.3,115.1,1.691,1],
+            "rhf": [78.59,77.87,79.19,1.159,1],
+            "rjsf": [104.8,104.4,105.4,1.546,1],
+            "baseline": [47.82,47.09,48.6,0.7055,0]
+          }
+        },
+        {
+          "phase": "typing-pristine",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [3.55,3.5,3.6,1,0],
+            "reformer-json": [3.65,3.65,3.688,1.028,0],
+            "formik": [6.7,6.575,6.787,1.887,1],
+            "rhf": [3.625,3.438,3.65,1.021,0],
+            "rjsf": [5.1,5.063,5.175,1.437,1],
+            "baseline": [3.45,3.3249999999999997,3.487,0.9718,0]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [4.074999999999999,4.013,4.2,1,0],
+            "reformer-json": [4.2,4.125,4.287,1.031,0],
+            "formik": [6.025,6,6.1,1.479,1],
+            "rhf": [4.35,4.263,4.45,1.067,0],
+            "rjsf": [5.4,5.3,5.475,1.3252,1],
+            "baseline": [3.4,3.3,3.487,0.8344,0]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProcP95",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [6.16,6.026,6.305,1,0],
+            "reformer-json": [6.3149999999999995,5.953,6.409,1.0252,0],
+            "formik": [7.62,7.519,7.776,1.237,1],
+            "rhf": [6.342,6.144,6.497,1.03,0],
+            "rjsf": [6.89,6.729,7.101,1.119,1],
+            "baseline": [4.268,4.095,4.322,0.6928,0]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "scriptPerKey",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [1.317,1.252,1.394,1,0],
+            "reformer-json": [1.502,1.446,1.574,1.141,0],
+            "formik": [3.365,3.338,3.436,2.556,1],
+            "rhf": [1.357,1.296,1.435,1.031,0],
+            "rjsf": [2.745,2.693,2.76,2.08504,1],
+            "baseline": [0.6641,0.6361,0.7236,0.5043,0]
+          }
+        },
+        {
+          "phase": "submit-invalid",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": "formik",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [16.95,16.47,17.3,1.351,0],
+            "reformer-json": [16.85,16.63,17.18,1.343,0],
+            "formik": [12.55,12.27,12.82,1,-1],
+            "rhf": [34,33.73,34.3,2.709,1],
+            "rjsf": [57.85,57.45,58.67,4.61,1]
+          }
+        },
+        {
+          "phase": "remount",
+          "kind": "remount",
+          "unit": "мс",
+          "id": "mountSync",
+          "best": "formik",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [2.8,2.8,2.875,1.474,0],
+            "reformer-json": [3.45,3.4,3.525,1.816,1],
+            "formik": [1.9,1.813,1.938,1,-1],
+            "rhf": [2.925,2.85,3,1.539,0],
+            "rjsf": [2.75,2.613,2.837,1.447,0],
+            "baseline": [1.475,1.275,1.55,0.7763,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "КБ",
+          "id": "heap",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [1867,1867,1867,1,0],
+            "reformer-json": [2104,2104,2104,1.127,1],
+            "formik": [1885,1885,1885,1.01,1],
+            "rhf": [2070,2070,2070,1.109,1],
+            "rjsf": [2335,2334,2335,1.251,1],
+            "baseline": [1395,1395,1398,0.7475,0]
+          }
+        }
+      ],
+      "renders": [
+        {
+          "phase": "load",
+          "cells": {
+            "reformer-core": [31,1,null,null],
+            "reformer-json": [61,1,null,null],
+            "formik": [59,2,null,null],
+            "rhf": [58,2,null,null],
+            "rjsf": [90,1,null,null],
+            "baseline": [21,1,null,null]
+          }
+        }
+      ]
+    },
+    {
+      "id": "credit",
+      "cpu": 4,
+      "rows": [
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "ready",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [126.3,125.8,135.8,1,0],
+            "reformer-json": [136,134.47,144.4,1.077,0],
+            "formik": [174.6,173.1,175,1.382,1],
+            "rhf": [141.3,140.5,142.3,1.118,1],
+            "rjsf": [235.4,232.6,236.6,1.864,1],
+            "baseline": [96,95.1,103.3,0.7601,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "script",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [85.57,84.51,85.8,1,0],
+            "reformer-json": [94.31,93.448,94.88,1.102,0],
+            "formik": [137.7,136.4,139.1,1.609,1],
+            "rhf": [99.72,99.43,100,1.165,1],
+            "rjsf": [193.4,190.8,194.2,2.26,1],
+            "baseline": [53.34,52.91,53.62,0.6233,0]
+          }
+        },
+        {
+          "phase": "step1-typing",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [4.85,4.75,4.9,1,0],
+            "reformer-json": [4.9,4.787,5.025,1.01,0],
+            "formik": [6.7,6.663,6.7,1.381,1],
+            "rhf": [5.925000000000001,5.787,6.05,1.222,1],
+            "rjsf": [7.425000000000001,7.313,7.525,1.531,1],
+            "baseline": [3.2,3.2,3.3,0.6598,0]
+          }
+        },
+        {
+          "phase": "step1-typing",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "scriptPerKey",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [1.771,1.64,1.804,1,0],
+            "reformer-json": [1.804,1.744,1.932,1.019,0],
+            "formik": [3.998,3.933,4.0349,2.258,1],
+            "rhf": [2.353,2.309,2.379,1.329,1],
+            "rjsf": [4.662,4.612,4.698,2.633,1],
+            "baseline": [0.6964,0.6744,0.7827,0.3933,0]
+          }
+        },
+        {
+          "phase": "step4-typing",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [4.1,4.063,4.237,1,0],
+            "reformer-json": [4.324999999999999,4.25,4.388,1.055,0],
+            "formik": [7,6.963,7.138,1.707,1],
+            "rhf": [4.4,4.3,4.438,1.073,0],
+            "rjsf": [7.25,7.2,7.425,1.768,1]
+          }
+        },
+        {
+          "phase": "next-1",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [15.649999999999999,15.07,15.78,1,0],
+            "reformer-json": [17.3,17.13,17.58,1.1054,1],
+            "formik": [19.6,19.6,19.77,1.252,1],
+            "rhf": [19.65,19.42,20,1.256,1],
+            "rjsf": [18.95,18.8,19.65,1.211,1]
+          }
+        },
+        {
+          "phase": "next-invalid",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": "reformer-json",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [18.35,18.02,18.68,1.076,0],
+            "reformer-json": [17.05,16.85,17.18,1,-1],
+            "formik": [22.8,22.52,23,1.337,1],
+            "rhf": [27.2,26.73,27.58,1.5953,1],
+            "rjsf": [25.65,25.3,26.15,1.504,1]
+          }
+        },
+        {
+          "phase": "array-add",
+          "kind": "click",
+          "unit": "мс",
+          "id": "script",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [32.31,30.39,33.19,1,0],
+            "reformer-json": [40.22,39.45,42.56,1.2447,1],
+            "formik": [89.23,88.32,89.76,2.762,1],
+            "rhf": [57.13,56.98,58.33,1.768,1],
+            "rjsf": [59.75,59.19,61.07,1.849,1]
+          }
+        },
+        {
+          "phase": "array-type-last",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [4.2,4.15,4.375,1,0],
+            "reformer-json": [4.324999999999999,4.212,4.45,1.03,0],
+            "formik": [16.98,16.75,17.05,4.042,1],
+            "rhf": [4.45,4.313,4.6,1.06,0],
+            "rjsf": [9.4,9.063,9.575000000000001,2.238,1]
+          }
+        },
+        {
+          "phase": "remount",
+          "kind": "remount",
+          "unit": "мс",
+          "id": "mountSync",
+          "best": "formik",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [3.85,3.763,3.938,1.54,0],
+            "reformer-json": [4.9,4.725,4.9,1.96,1],
+            "formik": [2.5,2.5,2.537,1,-1],
+            "rhf": [3.2,3.2,3.25,1.28,-1],
+            "rjsf": [3.85,3.85,3.887,1.54,0],
+            "baseline": [1.6,1.462,1.6,0.64,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "КБ",
+          "id": "heap",
+          "best": "reformer-core",
+          "noisy": false,
+          "cells": {
+            "reformer-core": [2093,2093,2093,1,0],
+            "reformer-json": [2346,2346,2347,1.121,1],
+            "formik": [2211,2211,2211,1.056,1],
+            "rhf": [2492,2490,2493,1.19,1],
+            "rjsf": [3062,3062,3062,1.463,1],
+            "baseline": [1387,1387,1391,0.6629,0]
+          }
+        }
+      ],
+      "renders": [
+        {
+          "phase": "load",
+          "cells": {
+            "reformer-core": [26,1,null,null],
+            "reformer-json": [48,1,null,null],
+            "formik": [95,3,null,null],
+            "rhf": [87,3,null,null],
+            "rjsf": [143,3,null,null],
+            "baseline": [17,1,null,null]
+          }
+        }
+      ]
+    }
+  ],
+  "bundle": [
+    {"lib":"reformer-core","form":"credit","gzip":106,"overBaselineGzip":38.06},
+    {"lib":"reformer-json","form":"credit","gzip":114.3,"overBaselineGzip":46.3},
+    {"lib":"formik","form":"credit","gzip":100.8,"overBaselineGzip":32.8},
+    {"lib":"rhf","form":"credit","gzip":117.4,"overBaselineGzip":49.46},
+    {"lib":"rjsf","form":"credit","gzip":201.2,"overBaselineGzip":133.2},
+    {"lib":"baseline","form":"credit","gzip":67.97,"overBaselineGzip":0},
+    {"lib":"reformer-core","form":"registration","gzip":92.84,"overBaselineGzip":28.92},
+    {"lib":"reformer-json","form":"registration","gzip":100.6,"overBaselineGzip":36.67},
+    {"lib":"formik","form":"registration","gzip":88.45,"overBaselineGzip":24.53},
+    {"lib":"rhf","form":"registration","gzip":103.2,"overBaselineGzip":39.245},
+    {"lib":"rjsf","form":"registration","gzip":193.5,"overBaselineGzip":129.5},
+    {"lib":"baseline","form":"registration","gzip":63.92,"overBaselineGzip":0}
+  ]
+}

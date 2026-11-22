@@ -1,0 +1,164 @@
+import { version, type ChangeEvent } from 'react';
+import type { FieldAdapter } from '@reformer/core/react';
+
+/**
+ * Переиспользуемые пресеты {@link FieldAdapter} под event-shapes shadcn-контролов.
+ * У shadcn НЕТ единого `onChange` — у каждого семейства свой контракт, поэтому пресетов несколько.
+ *
+ * Пресет вешается на компонент статикой (`defineFieldControl(Checkbox, { adapter: checkedAdapter })`),
+ * а применяет его обёртка поля — `FormField.Control` из `@reformer/cdk` или рендерер.
+ */
+
+/** Пресет с явно заданными ключами — чтобы его можно было вызывать напрямую (тесты, композиция). */
+export interface KitFieldAdapter extends FieldAdapter {
+  valueProp: string;
+  changeProp: string;
+  fromEmit: (arg: unknown, rest: Record<string, unknown>) => unknown;
+  toValue: (value: unknown) => unknown;
+}
+
+/** Input / Textarea / Native Select — нативный `onChange(e)` → `e.target.value`. */
+export const nativeInputAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (e) =>
+    (e as ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>).target.value ||
+    null,
+  toValue: (v) => v ?? '',
+};
+
+/**
+ * `ref` — обычный проп функционального компонента (React 19+). В React 18 его получает только
+ * `forwardRef`, а примитивы кита — порты shadcn без него.
+ */
+const REF_IS_PROP = Number.parseInt(version, 10) >= 19;
+
+/**
+ * Input / Textarea / Native Select кита — {@link nativeInputAdapter} с неуправляемой привязкой
+ * (`uncontrolled`): значение поля пишется прямо в DOM-элемент, и ввод не перерисовывает поле. Нужен
+ * `ref` до нативного элемента — поэтому только в React 19+; в React 18 пресет управляемый, как
+ * `nativeInputAdapter`.
+ *
+ * Для своего нативного контрола: он должен передавать `ref` элементу и не держать значение в своём
+ * состоянии. Контролам со своим состоянием (Radix, комбобокс) пресет не подходит.
+ */
+export const uncontrolledInputAdapter: KitFieldAdapter = {
+  ...nativeInputAdapter,
+  uncontrolled: REF_IS_PROP,
+};
+
+/**
+ * Текстовые композиты с value-based `onChange(text: string)` (Input с подсказками) — та же
+ * семантика, что у {@link nativeInputAdapter}, но без события: пустой текст → `null`.
+ */
+export const textValueAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (v) => (v as string) || null,
+  toValue: (v) => v ?? '',
+};
+
+/** Checkbox / Switch — Radix `checked` + `onCheckedChange(boolean | 'indeterminate')`. */
+export const checkedAdapter: KitFieldAdapter = {
+  valueProp: 'checked',
+  changeProp: 'onCheckedChange',
+  fromEmit: (c) => c === true, // 'indeterminate' → false
+  toValue: (v) => v ?? false,
+};
+
+/** Toggle — Radix `pressed` + `onPressedChange(boolean)`. */
+export const pressedAdapter: KitFieldAdapter = {
+  valueProp: 'pressed',
+  changeProp: 'onPressedChange',
+  fromEmit: (p) => p === true,
+  toValue: (v) => v ?? false,
+};
+
+/** Select / Radio Group / Toggle Group — `value` + `onValueChange(string)`. */
+export const valueChangeAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onValueChange',
+  fromEmit: (v) => (v as string) || null,
+  toValue: (v) => v ?? '',
+};
+
+/**
+ * Мультивыбор (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` / `ToggleGroupMulti`) —
+ * value-based `value: string[] | null` + `onChange(string[] | null)`. Тот же пресет у
+ * `DatePickerMulti`: там элементы — даты (`Date[] | null`), семантика пустого выбора та же.
+ *
+ * Пустой выбор нормализуется в `null`, а не в `[]`: «ничего не выбрано» у контрола одно, а как
+ * его хранить, решает поле модели. Поле-массив (`string[]`, начальное `[]`) сохранит `null` как
+ * `[]` — узел-массив хранит только массив; nullable-поле (`string[] | null`, начальное `null`)
+ * сохранит `null`. `required()` ловит пустой выбор в обоих случаях. Тот же приём — у
+ * `fileUploadAdapter` (file-upload-base.tsx).
+ *
+ * `fromEmit` копирует массив: preact-сигнал бэйлится по `!==`, поэтому контрол, вернувший
+ * мутированный на месте массив, подписчиков бы не уведомил — а `_dirty` при этом уже взвёлся бы.
+ * Копия делает такой контрол безопасным.
+ *
+ * `toValue` отдаёт массив (`null` → `[]`): мульти-презентации ходят по значению `.map`/`.includes`,
+ * и `''` от `valueChangeAdapter` их бы уронил.
+ */
+export const multiValueAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (v) => (Array.isArray(v) && v.length > 0 ? [...(v as string[])] : null),
+  toValue: (v) => (Array.isArray(v) ? (v as string[]) : []),
+};
+
+/**
+ * Slider — `value: number[]` + `onValueChange(number[])`. Одно-thumb режим: берём первый.
+ *
+ * `null` поля уходит в контрол как `[0]`: `toValue` не видит props контрола, и `min` ему не узнать,
+ * а пустой массив Radix рисует без ручки. Ставить ручку пустого поля в диапазон — дело контрола:
+ * `Slider` кита прижимает значение к `[min, max]`, и при `min ≥ 0` ручка встаёт на `min`.
+ */
+export const sliderAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onValueChange',
+  fromEmit: (arr) => (arr as number[])[0] ?? null,
+  toValue: (v) => [v ?? 0],
+};
+
+/** Calendar (single) — `selected` + `onSelect(Date | undefined)`. */
+export const dateAdapter: KitFieldAdapter = {
+  valueProp: 'selected',
+  changeProp: 'onSelect',
+  fromEmit: (d) => d ?? null,
+  toValue: (v) => v ?? undefined,
+};
+
+/**
+ * DatePicker — value-based `value: Date | undefined` + `onChange(Date | undefined)`. Контракт поля —
+ * `Date | null`: `undefined` от сброса даты сворачивается в `null`, `null` на входе — в `undefined`.
+ */
+export const datePickerAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (d) => d ?? null,
+  toValue: (v) => v ?? undefined,
+};
+
+/** Полный период: ровно две даты. */
+const isDateRange = (v: unknown): v is [Date, Date] =>
+  Array.isArray(v) && v.length === 2 && v[0] instanceof Date && v[1] instanceof Date;
+
+/**
+ * DatePickerRange — value-based `value: [Date, Date] | undefined` + `onChange([Date, Date] | undefined)`.
+ * Контракт поля — `[Date, Date] | null`: сброс периода → `null`.
+ *
+ * Значение — кортеж, а не объект `{ from, to }`: массив, к которому схема привязала компонент, ядро
+ * делает полем при любом начальном значении (`null` или готовый период). Объект в начальных
+ * значениях модель превратила бы в группу, и поля бы не было.
+ *
+ * Поле-кортеж (начальное `[from, to]`) сохранит `null` сброса как `[]` — узел-массив хранит только
+ * массив, — поэтому на входе всё, что не две даты, читается как «период не выбран».
+ * `fromEmit` копирует кортеж: сигнал бэйлится по `!==` (см. {@link multiValueAdapter}).
+ */
+export const dateRangeAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (range) => (isDateRange(range) ? [range[0], range[1]] : null),
+  toValue: (v) => (isDateRange(v) ? v : undefined),
+};

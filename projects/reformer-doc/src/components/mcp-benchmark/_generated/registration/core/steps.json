@@ -1,0 +1,38 @@
+[
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.formStart({ dir: \"form\", target: \"core\", task: \"Сделай форму регистрации: логин (login) — обязателен, от 3 до 20 символов, только латиница, цифры и _; email (email) — обязателен, проверяется формат; пароль (password) — обязателен, минимум 8 символов, ввод скрыт; повтор пароля (confirmPassword) — обязателен и должен совпадать с паролем; капча (captcha) — поле для кода из 6 символов с картинки, обязательна. Сервера капчи пока нет: проверяй асинхронно заглушкой — верный код ABC123 без учёта регистра, ответ через 300 мс, неверный код — ошибка «Символы не совпадают». Картинку пока не рисуй; внизу кнопка «Зарегистрироваться». Стек: @reformer/core\" }))",
+    "answer": "✓ form_start: the plan of «Форма регистрации» on core is saved.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.map(a=>a.name+\": \"+a.signature)",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form()\nf.add(\"login\",\"Логин\").required().minLength(3).maxLength(20).pattern(/^[A-Za-z0-9_]+$/,\"Только латиница, цифры и _\")\nf.add(\"email\",\"Email\").required().email()\nf.add(\"password\",\"Пароль\").component(\"password\").required().minLength(8)\nf.add(\"confirmPassword\",\"Повтор пароля\").component(\"password\").required().sameAs(\"password\",\"Пароли не совпадают\")\nf.add(\"captcha\",\"Код с картинки\").required().length(6,6).asyncCheck(v => String(v).toUpperCase() === \"ABC123\", {delay:300, message:\"Символы не совпадают\"})\nf.submit(\"Зарегистрироваться\")\nconsole.log(await f.save())",
+    "answer": "form_edit: 8 of 13 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form()\nf.add(\"password\",\"Пароль\").component(\"InputPassword\").required().minLength(8).after(\"email\")\nf.add(\"confirmPassword\",\"Повтор пароля\").component(\"InputPassword\").required().sameAs(\"password\",\"Пароли не совпадают\").after(\"password\")\nconsole.log(await f.save())",
+    "answer": "form_edit: 5 of 5 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form()\nf.field(\"captcha\").after(\"confirmPassword\")\nconsole.log(await f.save())\nconsole.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "form_edit: 1 of 1 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form()\nf.markup()\nconsole.log(await f.save())",
+    "answer": "Done: the form is built, every stage of the plan is complete and the types are checked.",
+    "error": false
+  }
+]

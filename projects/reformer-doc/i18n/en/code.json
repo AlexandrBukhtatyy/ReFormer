@@ -1,0 +1,1792 @@
+{
+  "demo.loading": {
+    "message": "Loading demo…"
+  },
+  "demo.preview": {
+    "message": "Preview"
+  },
+  "demo.code": {
+    "message": "Code"
+  },
+  "demo.codeFormat": {
+    "message": "Code format"
+  },
+  "demo.darkMode": {
+    "message": "Dark mode"
+  },
+  "demo.background": {
+    "message": "Background"
+  },
+  "demo.hint": {
+    "message": "Hint"
+  },
+  "demo.resize.title": {
+    "message": "Drag to change the preview width. Double-click to reset."
+  },
+  "demo.resize.label": {
+    "message": "Change preview width"
+  },
+  "demo.tab.description": {
+    "message": "Description"
+  },
+  "demo.tab.variants": {
+    "message": "Variants"
+  },
+  "demo.tab.examples": {
+    "message": "Examples"
+  },
+  "demo.tab.api": {
+    "message": "API"
+  },
+  "demo.tabs.label": {
+    "message": "{name} documentation"
+  },
+  "demo.tabs.hint.label": {
+    "message": "Variants vs. examples"
+  },
+  "demo.tabs.hint.variants": {
+    "message": "ready-made configurations of the component: the same component with different props. A showcase of states — for example, a plain Select and a Select with extra details."
+  },
+  "demo.tabs.hint.examples": {
+    "message": "techniques in code: how to solve a task. For example, how different data sources work with the component."
+  },
+  "demo.noPlayground": {
+    "message": "This component has no interactive example."
+  },
+  "demo.props.type": {
+    "message": "Type"
+  },
+  "demo.props.default": {
+    "message": "Default"
+  },
+  "demo.props.description": {
+    "message": "Description"
+  },
+  "demo.api.value": {
+    "message": "Value"
+  },
+  "demo.api.formData": {
+    "message": "Form data"
+  },
+  "demo.api.reset": {
+    "message": "Reset"
+  },
+  "demo.api.submit": {
+    "message": "Submit"
+  },
+  "demo.api.valid": {
+    "message": "✅ no errors"
+  },
+  "demo.api.invalid": {
+    "message": "❌ has errors"
+  },
+  "diagram.packages.title": {
+    "message": "ReFormer packages and their dependencies"
+  },
+  "diagram.packages.caption": {
+    "message": "An arrow means “builds on”. @reformer/core is enough for a form; add the rest as needed."
+  },
+  "diagram.packages.mcp": {
+    "message": "docs and form generation for AI"
+  },
+  "diagram.packages.formRegistry": {
+    "message": "forms across micro-frontends"
+  },
+  "diagram.packages.uiKit": {
+    "message": "ready-made styled fields"
+  },
+  "diagram.packages.rendererJson": {
+    "message": "a form from a JSON document"
+  },
+  "diagram.packages.cdk": {
+    "message": "headless components: field, array, wizard"
+  },
+  "diagram.packages.rendererReact": {
+    "message": "renders a form from its schema tree"
+  },
+  "diagram.packages.core": {
+    "message": "model, form, validation, behavior, React hooks"
+  },
+  "diagram.builder.shell.title": {
+    "message": "Builder window layout"
+  },
+  "diagram.builder.shell.caption": {
+    "message": "Rails open the left and right panels. Plugins decide which panels exist: a ReFormer form adds \"Components\" and \"Properties\", a markdown file does not."
+  },
+  "diagram.builder.shell.rail": {
+    "message": "rail: panel buttons"
+  },
+  "diagram.builder.shell.toolbar": {
+    "message": "Toolbar: application title, \"File\" and \"Help\" menus"
+  },
+  "diagram.builder.shell.left": {
+    "message": "Left panel"
+  },
+  "diagram.builder.shell.left.project": {
+    "message": "\"Project\" — file tree"
+  },
+  "diagram.builder.shell.left.components": {
+    "message": "\"Components\" — palette"
+  },
+  "diagram.builder.shell.left.templates": {
+    "message": "\"Form templates\""
+  },
+  "diagram.builder.shell.tabs": {
+    "message": "Document tabs and view buttons"
+  },
+  "diagram.builder.shell.editor": {
+    "message": "Editor"
+  },
+  "diagram.builder.shell.editor.line1": {
+    "message": "the open document in the chosen view:"
+  },
+  "diagram.builder.shell.editor.line2": {
+    "message": "\"Tree\" — form nodes as a list"
+  },
+  "diagram.builder.shell.editor.line3": {
+    "message": "\"Schematic\" — layout as blocks"
+  },
+  "diagram.builder.shell.editor.line4": {
+    "message": "\"Form\" — the live form"
+  },
+  "diagram.builder.shell.editor.line5": {
+    "message": "\"Source\" — the file text"
+  },
+  "diagram.builder.shell.bottom": {
+    "message": "Bottom panel"
+  },
+  "diagram.builder.shell.bottom.journal": {
+    "message": "\"Log\" — \"Problems\" and \"Events\" views"
+  },
+  "diagram.builder.shell.bottom.model": {
+    "message": "\"Model\" — live form values"
+  },
+  "diagram.builder.shell.right": {
+    "message": "Right panel"
+  },
+  "diagram.builder.shell.right.inspector": {
+    "message": "Node \"Properties\""
+  },
+  "diagram.builder.shell.right.codegen": {
+    "message": "\"Export form\""
+  },
+  "diagram.builder.shell.right.assistant": {
+    "message": "\"Assistant\""
+  },
+  "diagram.builder.shell.right.mcp": {
+    "message": "\"MCP servers\""
+  },
+  "diagram.builder.shell.right.preview": {
+    "message": "\"Preview\" (inside an app)"
+  },
+  "diagram.builder.shell.status": {
+    "message": "Status bar"
+  },
+  "diagram.builder.shell.status.line": {
+    "message": "left: \"All saved\" or the number of unsaved files, language · right: profile and kit"
+  },
+  "diagram.builder.embedding.title": {
+    "message": "Builder inside an app: nested documents"
+  },
+  "diagram.builder.embedding.caption": {
+    "message": "The builder is a separate document in a frame over the page. The app itself renders the form in the preview; the builder writes project files straight to disk."
+  },
+  "diagram.builder.embedding.page": {
+    "message": "App page in the browser"
+  },
+  "diagram.builder.embedding.app": {
+    "message": "App"
+  },
+  "diagram.builder.embedding.app.line": {
+    "message": "your pages, providers, API"
+  },
+  "diagram.builder.embedding.button": {
+    "message": "\"Builder\" button"
+  },
+  "diagram.builder.embedding.shell": {
+    "message": "Shell frame — the builder itself"
+  },
+  "diagram.builder.embedding.formView": {
+    "message": "Tab \"Form\" view"
+  },
+  "diagram.builder.embedding.stand": {
+    "message": "Preview frame: stand"
+  },
+  "diagram.builder.embedding.stand.line1": {
+    "message": "one form — the component"
+  },
+  "diagram.builder.embedding.stand.line2": {
+    "message": "exported by default from index.ts"
+  },
+  "diagram.builder.embedding.stand.line3": {
+    "message": "of its module; the app renders it"
+  },
+  "diagram.builder.embedding.panel": {
+    "message": "\"Preview\" panel"
+  },
+  "diagram.builder.embedding.pageFrame": {
+    "message": "Preview frame: page"
+  },
+  "diagram.builder.embedding.pageFrame.line1": {
+    "message": "the whole app,"
+  },
+  "diagram.builder.embedding.pageFrame.line2": {
+    "message": "with an address bar;"
+  },
+  "diagram.builder.embedding.pageFrame.line3": {
+    "message": "↗ — in a separate tab"
+  },
+  "diagram.builder.embedding.server": {
+    "message": "Vite dev server"
+  },
+  "diagram.builder.embedding.server.line1": {
+    "message": "serves the builder UI,"
+  },
+  "diagram.builder.embedding.server.line2": {
+    "message": "launch config and plugins"
+  },
+  "diagram.builder.embedding.server.line3": {
+    "message": "at /__reformer-builder/"
+  },
+  "diagram.builder.embedding.disk": {
+    "message": "Project folder on disk"
+  },
+  "diagram.builder.embedding.disk.line1": {
+    "message": "app and form sources,"
+  },
+  "diagram.builder.embedding.disk.line2": {
+    "message": ".ui_builder/ directory"
+  },
+  "diagram.builder.embedding.serves": {
+    "message": "serves"
+  },
+  "diagram.builder.embedding.writes": {
+    "message": "Ctrl+S"
+  },
+  "diagram.builder.embedding.reloads": {
+    "message": "sees the change"
+  },
+  "demo.props.name": {
+    "message": "Prop"
+  },
+  "diagram.bundle.title": {
+    "message": "What a form bundle is made of"
+  },
+  "diagram.bundle.caption": {
+    "message": "Parts of the object returned by createForm. An arrow points to the part another one uses. Dashed — the part exists only if the config describes it."
+  },
+  "diagram.bundle.render": {
+    "message": "schema tree for the renderer"
+  },
+  "diagram.bundle.flow": {
+    "message": "steps: next(), goTo()"
+  },
+  "diagram.bundle.submission": {
+    "message": "submit(handler), submitting"
+  },
+  "diagram.bundle.form": {
+    "message": "nodes: touched, issues, availability"
+  },
+  "diagram.bundle.validate": {
+    "message": "checks the form and a step against the rules"
+  },
+  "diagram.bundle.model": {
+    "message": "form values and field signals model.$.x"
+  },
+  "diagram.bundle.arrowDraws": {
+    "message": "draws fields"
+  },
+  "diagram.bundle.arrowStepRules": {
+    "message": "step rules"
+  },
+  "diagram.bundle.arrowCheckFirst": {
+    "message": "checks first"
+  },
+  "diagram.bundle.arrowIssues": {
+    "message": "sets issues"
+  },
+  "diagram.bundle.arrowValues": {
+    "message": "reads and writes values"
+  },
+  "diagram.bundle.arrowReads": {
+    "message": "reads values"
+  },
+  "diagram.jsonRender.title": {
+    "message": "How a JSON form gets onto the page"
+  },
+  "diagram.jsonRender.caption": {
+    "message": "The document is data; the registry links names in the document to code. createForm builds the form and FormRenderer renders it — the same ones used for a TypeScript schema."
+  },
+  "diagram.jsonRender.document": {
+    "message": "JSON document"
+  },
+  "diagram.jsonRender.registry": {
+    "message": "Registry"
+  },
+  "diagram.jsonRender.registryHint": {
+    "message": "names → components and data"
+  },
+  "diagram.jsonRender.code": {
+    "message": "Form code"
+  },
+  "diagram.jsonRender.codeHint": {
+    "message": "model, rules, behavior"
+  },
+  "diagram.jsonRender.createFormHint": {
+    "message": "builds the tree and nodes"
+  },
+  "diagram.jsonRender.rendererHint": {
+    "message": "renders the form bundle"
+  },
+  "diagram.jsonRender.page": {
+    "message": "Form on the page"
+  },
+  "diagram.jsonRender.pageHint": {
+    "message": "fields, issues, steps"
+  },
+  "diagram.m1.title": {
+    "message": "M1 architecture: four layers of a form"
+  },
+  "diagram.m1.caption": {
+    "message": "Each layer is described separately and meets in createForm. Model and schema say what data is collected, validation whether it is correct, behavior how it reacts."
+  },
+  "diagram.m1.model": {
+    "message": "Model"
+  },
+  "diagram.m1.modelHint": {
+    "message": "form values"
+  },
+  "diagram.m1.schema": {
+    "message": "Schema"
+  },
+  "diagram.m1.schemaHint1": {
+    "message": "a tree of nodes:"
+  },
+  "diagram.m1.schemaHint2": {
+    "message": "field ↔ component"
+  },
+  "diagram.m1.validation": {
+    "message": "Validation"
+  },
+  "diagram.m1.validationHint": {
+    "message": "rules"
+  },
+  "diagram.m1.behavior": {
+    "message": "Behavior"
+  },
+  "diagram.m1.behaviorHint": {
+    "message": "reactions to changes"
+  },
+  "diagram.m1.form": {
+    "message": "the form: field nodes on top of model signals"
+  },
+  "diagram.computed.reads": {
+    "message": "reads"
+  },
+  "diagram.computed.writes": {
+    "message": "writes"
+  },
+  "diagram.computed.deps.title": {
+    "message": "Which fields an operator reads and which it writes"
+  },
+  "diagram.computed.deps.caption": {
+    "message": "An operator subscribes to the fields it reads and writes only to its target. Behavior operators are highlighted."
+  },
+  "diagram.computed.promoCode": {
+    "message": "promoCode field"
+  },
+  "diagram.computed.toggles": {
+    "message": "enables\nand disables"
+  },
+  "diagram.computed.cycle.title": {
+    "message": "A computation cycle"
+  },
+  "diagram.computed.cycle.caption": {
+    "message": "Each computation reads the other one's target. The cycle converges when the next recalculation leaves the values unchanged."
+  },
+  "diagram.computed.cycle.computeB": {
+    "message": "compute for b"
+  },
+  "diagram.computed.cycle.computeA": {
+    "message": "compute for a"
+  },
+  "diagram.reactive.title": {
+    "message": "How a change reaches the screen"
+  },
+  "diagram.reactive.caption": {
+    "message": "A new value reaches only the hook that reads this node, so only one field re-renders."
+  },
+  "diagram.reactive.write": {
+    "message": "Field input"
+  },
+  "diagram.reactive.writeHint": {
+    "message": "or a write to the model"
+  },
+  "diagram.reactive.signal": {
+    "message": "Field signal"
+  },
+  "diagram.reactive.node": {
+    "message": "Node state"
+  },
+  "diagram.reactive.hook": {
+    "message": "React hook"
+  },
+  "diagram.reactive.render": {
+    "message": "Re-render"
+  },
+  "diagram.reactive.renderHint": {
+    "message": "of this field only"
+  },
+  "diagram.submit.title": {
+    "message": "Form submission outcomes"
+  },
+  "diagram.submit.caption": {
+    "message": "Every outcome is a SubmitResult object with a status. The handler runs only when there are no blocking issues."
+  },
+  "diagram.submit.check": {
+    "message": "rules check"
+  },
+  "diagram.submit.invalid": {
+    "message": "blocking issues\nfound"
+  },
+  "diagram.submit.error": {
+    "message": "a rule did not answer"
+  },
+  "diagram.submit.cancelled": {
+    "message": "a newer check replaced it\nor the model changed"
+  },
+  "diagram.submit.handler": {
+    "message": "no issues"
+  },
+  "diagram.submit.submitted": {
+    "message": "returned a result"
+  },
+  "diagram.submit.failed": {
+    "message": "threw an exception"
+  },
+  "diagram.reset.title": {
+    "message": "The reset point"
+  },
+  "diagram.reset.caption": {
+    "message": "form.reset() returns both values and node state to the reset point; model.reset() returns only values."
+  },
+  "diagram.reset.initial": {
+    "message": "initial values"
+  },
+  "diagram.reset.patch": {
+    "message": "model.patch(loaded)"
+  },
+  "diagram.reset.point": {
+    "message": "reset point"
+  },
+  "diagram.reset.form": {
+    "message": "values restored,\nissues and touched cleared"
+  },
+  "diagram.reset.model": {
+    "message": "only values restored,\nnodes untouched"
+  },
+  "diagram.steps.title": {
+    "message": "The step machine"
+  },
+  "diagram.steps.caption": {
+    "message": "Forward only through the step rules check; back at any time, without a check."
+  },
+  "diagram.steps.current": {
+    "message": "Step N"
+  },
+  "diagram.steps.check": {
+    "message": "Rules check of step N"
+  },
+  "diagram.steps.next": {
+    "message": "Step N+1"
+  },
+  "diagram.steps.earlier": {
+    "message": "Passed step"
+  },
+  "diagram.steps.earlierHint": {
+    "message": "before N"
+  },
+  "diagram.steps.first": {
+    "message": "first step"
+  },
+  "diagram.steps.stayed": {
+    "message": "issues or failure —\nstayed"
+  },
+  "diagram.steps.moved": {
+    "message": "no issues —\nmoved"
+  },
+  "diagram.steps.back": {
+    "message": "previous()\nor goTo(id)"
+  },
+  "diagram.steps.forwardAgain": {
+    "message": "next()\nstep by step"
+  },
+  "diagram.wizard.passed": {
+    "message": "next()\nstep passed"
+  },
+  "diagram.wizard.title": {
+    "message": "Transitions between wizard steps"
+  },
+  "diagram.wizard.caption": {
+    "message": "Forward is next(): a step with issues does not let you through. Back is previous() at any time."
+  },
+  "diagram.wizard.blocked": {
+    "message": "next() — issues found"
+  },
+  "diagram.issueText.noKey": {
+    "message": "no key"
+  },
+  "diagram.issueText.title": {
+    "message": "Where an issue text comes from"
+  },
+  "diagram.issueText.caption": {
+    "message": "The text is looked up along a chain of dictionaries when shown. Found nowhere — the code itself is shown."
+  },
+  "diagram.issueText.issue": {
+    "message": "issue"
+  },
+  "diagram.issueText.issueHint": {
+    "message": "code and params"
+  },
+  "diagram.issueText.form": {
+    "message": "form dictionary"
+  },
+  "diagram.issueText.locale": {
+    "message": "locale dictionary"
+  },
+  "diagram.issueText.localeHint": {
+    "message": "key validation.*"
+  },
+  "diagram.issueText.builtIn": {
+    "message": "built-in"
+  },
+  "diagram.issueText.builtInHint": {
+    "message": "English"
+  },
+  "diagram.issueText.code": {
+    "message": "the code itself"
+  },
+  "diagram.issueText.noCode": {
+    "message": "no code"
+  },
+  "diagram.validation.title": {
+    "message": "How a check runs"
+  },
+  "diagram.validation.caption": {
+    "message": "An issue carries a code and params; its text is picked only when shown. Dashed — a reply."
+  },
+  "diagram.validation.user": {
+    "message": "User"
+  },
+  "diagram.validation.strategy": {
+    "message": "Strategy"
+  },
+  "diagram.validation.rules": {
+    "message": "Rules"
+  },
+  "diagram.validation.node": {
+    "message": "Field node"
+  },
+  "diagram.validation.trigger": {
+    "message": "input, blur\nor submit"
+  },
+  "diagram.validation.run": {
+    "message": "run rules\non model values"
+  },
+  "diagram.validation.issues": {
+    "message": "issues\n{ code, params }"
+  },
+  "diagram.validation.text": {
+    "message": "text by code from a dictionary"
+  },
+  "diagram.assistant.title": {
+    "message": "How an assistant turn goes"
+  },
+  "diagram.assistant.caption": {
+    "message": "In one turn the model can take several steps. Edits land in the working copy, not on disk. Dashed — a reply."
+  },
+  "diagram.assistant.human": {
+    "message": "Person"
+  },
+  "diagram.assistant.panel": {
+    "message": "Panel"
+  },
+  "diagram.assistant.panelHint": {
+    "message": "“Assistant”"
+  },
+  "diagram.assistant.model": {
+    "message": "Model"
+  },
+  "diagram.assistant.stack": {
+    "message": "Form stack"
+  },
+  "diagram.assistant.copy": {
+    "message": "Working copy"
+  },
+  "diagram.assistant.ask": {
+    "message": "“add a\nPhone field”"
+  },
+  "diagram.assistant.request": {
+    "message": "request, form,\ntool list"
+  },
+  "diagram.assistant.loop": {
+    "message": "turn steps"
+  },
+  "diagram.assistant.call": {
+    "message": "tool call —\ninsert a node,\nset a property"
+  },
+  "diagram.assistant.result": {
+    "message": "result\nor error"
+  },
+  "diagram.assistant.answer": {
+    "message": "text answer"
+  },
+  "diagram.assistant.edits": {
+    "message": "edits as one record\nand updated\nmodule code"
+  },
+  "diagram.assistant.reply": {
+    "message": "answer,\ncall lines,\n“Restore”"
+  },
+  "diagram.codegen.title": {
+    "message": "How a form module is printed"
+  },
+  "diagram.codegen.caption": {
+    "message": "Generation reads the form document and the module rules and puts the module files into the working copy; they reach the disk by a write."
+  },
+  "diagram.codegen.document": {
+    "message": "Form document"
+  },
+  "diagram.codegen.rules": {
+    "message": "Rules in module code"
+  },
+  "diagram.codegen.stack": {
+    "message": "ReFormer stack"
+  },
+  "diagram.codegen.stackHint": {
+    "message": "what a form\nand its module are"
+  },
+  "diagram.codegen.targets": {
+    "message": "Codegen targets"
+  },
+  "diagram.codegen.targetsHint": {
+    "message": "built-in and from\n.ui_builder/codegen"
+  },
+  "diagram.codegen.copy": {
+    "message": "Working copy"
+  },
+  "diagram.codegen.disk": {
+    "message": "Disk"
+  },
+  "diagram.codegen.files": {
+    "message": "module files"
+  },
+  "diagram.codegen.write": {
+    "message": "write"
+  },
+  "diagram.pluginBuild.title": {
+    "message": "Plugin build pipeline"
+  },
+  "diagram.pluginBuild.caption": {
+    "message": "build checks the output by the same rules as the builder. The builder loads the build directory as is; pack wraps it for npm."
+  },
+  "diagram.pluginBuild.sources": {
+    "message": "Sources"
+  },
+  "diagram.pluginBuild.validate": {
+    "message": "manifest and files"
+  },
+  "diagram.pluginBuild.build": {
+    "message": "code, deferred\nmodules, styles"
+  },
+  "diagram.pluginBuild.checks": {
+    "message": "Checks"
+  },
+  "diagram.pluginBuild.checksHint": {
+    "message": "manifest,\nfile count,\ntrial activation"
+  },
+  "diagram.pluginBuild.out": {
+    "message": "Build directory"
+  },
+  "diagram.pluginBuild.project": {
+    "message": "Project"
+  },
+  "diagram.pluginBuild.pack": {
+    "message": "npm archive"
+  },
+  "diagram.pluginLayers.title": {
+    "message": "Where plugins come from"
+  },
+  "diagram.pluginLayers.caption": {
+    "message": "Layers load in turn: built-in at startup, then app plugins, project plugins after a folder is opened. A person enables plugins from npm."
+  },
+  "diagram.pluginLayers.builtin": {
+    "message": "Built-in"
+  },
+  "diagram.pluginLayers.builtinHint": {
+    "message": "bundled in the shell: project, plugin management, profile"
+  },
+  "diagram.pluginLayers.app": {
+    "message": "App plugins"
+  },
+  "diagram.pluginLayers.appHint": {
+    "message": "ship with the builder"
+  },
+  "diagram.pluginLayers.project": {
+    "message": "Project plugins"
+  },
+  "diagram.pluginLayers.projectHint": {
+    "message": ".ui_builder/plugins/ of the open folder"
+  },
+  "diagram.pluginLayers.npm": {
+    "message": "Installed from npm"
+  },
+  "diagram.pluginLayers.npmHint": {
+    "message": "downloaded to this browser,\nwork once enabled"
+  },
+  "diagram.pluginLayers.atStart": {
+    "message": "at startup, right after them"
+  },
+  "diagram.pluginLayers.afterOpen": {
+    "message": "after a folder is opened"
+  },
+  "diagram.formRegistry.title": {
+    "message": "How the form registry works"
+  },
+  "diagram.formRegistry.caption": {
+    "message": "The provider registers a form, the host finds it by id, slot or route, the loader assembles and checks the parts. Dashed — a schema from the server."
+  },
+  "diagram.formRegistry.provider": {
+    "message": "Micro-frontend provider"
+  },
+  "diagram.formRegistry.host": {
+    "message": "Host application"
+  },
+  "diagram.formRegistry.entry": {
+    "message": "schema + form code"
+  },
+  "diagram.formRegistry.registry": {
+    "message": "Form registry"
+  },
+  "diagram.formRegistry.server": {
+    "message": "Server"
+  },
+  "diagram.formRegistry.serverHint": {
+    "message": "JSON schema"
+  },
+  "diagram.formRegistry.providerHint": {
+    "message": "permissions, flags, base registry"
+  },
+  "diagram.formRegistry.outletHint": {
+    "message": "or FormSlot, FormRoute"
+  },
+  "diagram.formRegistry.loadHint": {
+    "message": "loading and checks"
+  },
+  "diagram.formRegistry.lookup": {
+    "message": "id, slot, route"
+  },
+  "diagram.levels.title": {
+    "message": "Levels on top of the model"
+  },
+  "diagram.levels.caption": {
+    "message": "Only the model tree holds values. Any level above reads it through both proxies and adds its own state; a new level is added without changing the model."
+  },
+  "diagram.levels.form": {
+    "message": "Form level"
+  },
+  "diagram.levels.formHint": {
+    "message": "nodes and form.x proxy,\nchecks, steps, rendering"
+  },
+  "diagram.levels.app": {
+    "message": "Application"
+  },
+  "diagram.levels.appHint": {
+    "message": "components and computations:\nuseSignalSnapshot, computed"
+  },
+  "diagram.levels.custom": {
+    "message": "Your level"
+  },
+  "diagram.levels.customHint": {
+    "message": "autosave, address bar,\nanalytics"
+  },
+  "diagram.levels.model": {
+    "message": "Model level"
+  },
+  "diagram.levels.signals": {
+    "message": "Signal proxy"
+  },
+  "diagram.levels.values": {
+    "message": "Value proxy"
+  },
+  "diagram.levels.tree": {
+    "message": "Model tree"
+  },
+  "diagram.levels.treeHint": {
+    "message": "a signal under every field and the reset point — values live only here"
+  },
+  "diagram.levels.runtime": {
+    "message": "Signals"
+  },
+  "diagram.overlap.title": {
+    "message": "Proxies and model values overlap"
+  },
+  "diagram.overlap.caption": {
+    "message": "One proxy points to several values, several proxies lead to one value. A write through any of them is visible to all."
+  },
+  "diagram.overlap.computed": {
+    "message": "own computed"
+  },
+  "diagram.overlap.group": {
+    "message": "group signal"
+  },
+  "diagram.overlap.node": {
+    "message": "form node"
+  },
+  "diagram.overlap.value": {
+    "message": "value proxy"
+  },
+  "diagram.overlap.model": {
+    "message": "Model app — values"
+  },
+  "homepage.title": {
+    "message": "Reactive Forms Library"
+  },
+  "homepage.tagline": {
+    "message": "Reactive forms library with signals"
+  },
+  "homepage.lead": {
+    "message": "A signal-based model is the single source of truth. One schema ties together fields, rules and form behavior. Render the form by hand, from a schema or from JSON."
+  },
+  "homepage.getStarted": {
+    "message": "Get Started"
+  },
+  "homepage.examples": {
+    "message": "Examples"
+  },
+  "homepage.tryPlayground": {
+    "message": "Try Playground"
+  },
+  "homepage.benchmark": {
+    "message": "Benchmark"
+  },
+  "homepage.benchmark.kicker": {
+    "message": "Forms benchmark · {date}"
+  },
+  "homepage.benchmark.title": {
+    "message": "ReFormer vs Formik, React Hook Form and RJSF"
+  },
+  "homepage.benchmark.lead": {
+    "message": "Two forms from real specifications — a registration form with a captcha and a six-step credit application — built on every library. Production builds, identical UI and behavior, measured in Chromium."
+  },
+  "homepage.benchmark.footnote": {
+    "message": "CPU {cpu}x, medians over {runs} runs · the report also shows where ReFormer falls behind"
+  },
+  "homepage.benchmark.cta": {
+    "message": "View the report →"
+  },
+  "homepage.benchmark.ready.claim": {
+    "message": "faster to a ready form than {rivals}"
+  },
+  "homepage.benchmark.ready.context": {
+    "message": "Registration, cold load: {core} vs {others} {unit}"
+  },
+  "homepage.benchmark.ready.caveat": {
+    "message": "Remounting a ready form is faster with {rivals}: {others} vs {core} {unit}"
+  },
+  "homepage.benchmark.bundle.claimLevel": {
+    "message": "gzip on top of React without a form library — on par with {rival}"
+  },
+  "homepage.benchmark.bundle.claimSmallest": {
+    "message": "gzip on top of React without a form library — the smallest of all competitors"
+  },
+  "homepage.benchmark.bundle.claimPlain": {
+    "message": "gzip on top of React without a form library"
+  },
+  "homepage.benchmark.bundle.context": {
+    "message": "Registration: the production bundle of the page minus the same page without a form library"
+  },
+  "homepage.benchmark.renders.unit": {
+    "message": "render|renders",
+    "description": "Plural forms of the word after the render count on the landing tile"
+  },
+  "homepage.benchmark.renders.claimLevel": {
+    "message": "on form mount — on par with {rival}"
+  },
+  "homepage.benchmark.renders.claimSmallest": {
+    "message": "on form mount — the fewest of all competitors"
+  },
+  "homepage.benchmark.renders.claimPlain": {
+    "message": "on form mount"
+  },
+  "homepage.benchmark.renders.context": {
+    "message": "Registration, React component renders on the first render of the form: {core} vs {others}; the same markup without a form library — {baseline}"
+  },
+  "homepage.benchmark.memory.claimLevel": {
+    "message": "JS heap on top of React without a form library — on par with {rival}"
+  },
+  "homepage.benchmark.memory.claimSmallest": {
+    "message": "JS heap on top of React without a form library — the smallest of all competitors"
+  },
+  "homepage.benchmark.memory.claimPlain": {
+    "message": "JS heap on top of React without a form library"
+  },
+  "homepage.benchmark.memory.context": {
+    "message": "Registration: JS memory after load and garbage collection minus the same page without a form library"
+  },
+  "benchmark.page.title": {
+    "message": "Forms benchmark"
+  },
+  "benchmark.page.description": {
+    "message": "ReFormer vs Formik, React Hook Form and RJSF: load, typing, wizard, arrays, bundle and code size on two real forms — medians, spread and significance, losses included."
+  },
+  "benchmark.hero.kicker": {
+    "message": "Forms benchmark · {date}"
+  },
+  "benchmark.hero.title": {
+    "message": "ReFormer vs Formik, React Hook Form and RJSF — real numbers from the browser"
+  },
+  "benchmark.hero.lead": {
+    "message": "Two forms from real specifications — a registration form with a captcha and a six-step credit application — are implemented on every library, plus ReFormer on a JSON schema and a baseline without a form library. We measure what a user feels: loading, typing, clicks, wizard steps, arrays and remounting."
+  },
+  "benchmark.hero.toResults": {
+    "message": "To the results"
+  },
+  "benchmark.hero.toLosses": {
+    "message": "Where ReFormer falls behind"
+  },
+  "benchmark.fact.prod": {
+    "message": "{b} build of every page on its own"
+  },
+  "benchmark.fact.conformance": {
+    "message": "identical UI and behavior: {b} before measuring"
+  },
+  "benchmark.fact.cpu": {
+    "message": "{b} throttling"
+  },
+  "benchmark.fact.runs": {
+    "message": "medians over {b} runs (+{warmup} warm-up)"
+  },
+  "benchmark.fact.stats": {
+    "message": "exact {b}, p < 0.05"
+  },
+  "benchmark.fact.aa": {
+    "message": "a difference below the {b} noise is no difference"
+  },
+  "benchmark.env.machine": {
+    "message": "Machine"
+  },
+  "benchmark.env.machineValue": {
+    "message": "{cpu}, {cores} cores, {memory} GB"
+  },
+  "benchmark.env.browser": {
+    "message": "Browser"
+  },
+  "benchmark.env.date": {
+    "message": "Run"
+  },
+  "benchmark.env.build": {
+    "message": "Build"
+  },
+  "benchmark.participant.baseline": {
+    "message": "{react}, no form library"
+  },
+  "benchmark.nav.label": {
+    "message": "Report sections"
+  },
+  "benchmark.nav.results": {
+    "message": "Summary"
+  },
+  "benchmark.nav.losses": {
+    "message": "Where it falls behind"
+  },
+  "benchmark.nav.phases": {
+    "message": "All phases"
+  },
+  "benchmark.nav.traces": {
+    "message": "Traces"
+  },
+  "benchmark.nav.renders": {
+    "message": "Renders"
+  },
+  "benchmark.nav.bundle": {
+    "message": "Bundle"
+  },
+  "benchmark.nav.code": {
+    "message": "Code size"
+  },
+  "benchmark.nav.method": {
+    "message": "Methodology"
+  },
+  "benchmark.results.title": {
+    "message": "Key results"
+  },
+  "benchmark.results.scoreLead": {
+    "message": "The score over every row of the report — both forms, all phases and metrics: in how many rows ReFormer core is significantly faster than a competitor, in how many it is slower, and where the difference is not proven."
+  },
+  "benchmark.results.headlineTitle": {
+    "message": "Key metrics per form"
+  },
+  "benchmark.results.coreBest": {
+    "message": "ReFormer core is the best in {n} of {total} key metrics of this form. Lower is better."
+  },
+  "benchmark.score.vs": {
+    "message": "vs {rival}"
+  },
+  "benchmark.score.rows": {
+    "message": "{total} rows"
+  },
+  "benchmark.score.winsLabel": {
+    "message": "— ReFormer core significantly faster"
+  },
+  "benchmark.score.wins": {
+    "message": "faster: {n}"
+  },
+  "benchmark.score.ties": {
+    "message": "not proven: {n}"
+  },
+  "benchmark.score.losses": {
+    "message": "slower: {n}"
+  },
+  "benchmark.legend.baseline": {
+    "message": "baseline — the same markup without a form library"
+  },
+  "benchmark.legend.iqr": {
+    "message": "spread across runs (q25–q75)"
+  },
+  "benchmark.legend.sig": {
+    "message": "▲ / ▼ — significantly worse / better than ReFormer core; no mark — the difference is not proven"
+  },
+  "benchmark.phases.noisyKicker": {
+    "message": "spread > 15 %"
+  },
+  "benchmark.heatmap.title": {
+    "message": "Summary by phase: how many times slower than ReFormer core"
+  },
+  "benchmark.heatmap.lead": {
+    "message": "Geometric mean of the median ratios over the phase metrics: ×1.34 — 34 % slower on average, ×0.80 — 20 % faster. Under the number — how many metrics are significantly worse (▲) and better (▼) out of all comparable ones. Colour only when the difference is above 5 % and backed by significance. Hover a cell for the per-metric breakdown; Enter or a click on a phase opens its table."
+  },
+  "benchmark.heatmap.caption": {
+    "message": "Ratio to ReFormer core by phase: {form}"
+  },
+  "benchmark.heatmap.col.phase": {
+    "message": "Phase"
+  },
+  "benchmark.heatmap.col.baseline": {
+    "message": "reference"
+  },
+  "benchmark.heatmap.cell.n": {
+    "message": "of {n}",
+    "description": "Число сравнимых метрик фазы"
+  },
+  "benchmark.heatmap.sr.none": {
+    "message": "{lib}: no comparable metrics in the phase “{phase}”"
+  },
+  "benchmark.heatmap.sr.baseline": {
+    "message": "baseline: {ratio} to ReFormer core, average over {n} metrics of the phase “{phase}”; significance is not tested"
+  },
+  "benchmark.heatmap.sr.slower": {
+    "message": "{lib} is {ratio} times slower than ReFormer core, average over {n} metrics of the phase “{phase}”; significantly worse in {up}, better in {down}"
+  },
+  "benchmark.heatmap.sr.faster": {
+    "message": "{lib} is {ratio} times faster than ReFormer core, average over {n} metrics of the phase “{phase}”; significantly worse in {up}, better in {down}"
+  },
+  "benchmark.heatmap.tip.head": {
+    "message": "{lib} vs ReFormer core — {phase}"
+  },
+  "benchmark.heatmap.tip.noisy": {
+    "message": "noisy"
+  },
+  "benchmark.heatmap.tip.foot": {
+    "message": "Geometric mean over {n}: {g}"
+  },
+  "benchmark.heatmap.legend.slower": {
+    "message": "← participant faster than ReFormer core"
+  },
+  "benchmark.heatmap.legend.faster": {
+    "message": "ReFormer core faster →"
+  },
+  "benchmark.heatmap.legend.unproven": {
+    "message": "grey — the difference is below 5 % or not proven by significance"
+  },
+  "benchmark.heatmap.legend.baseline": {
+    "message": "baseline — reference without a form library, significance is not tested"
+  },
+  "benchmark.traces.title": {
+    "message": "Memory and DOM over time"
+  },
+  "benchmark.traces.lead": {
+    "message": "JS heap, DOM nodes and event listeners over the whole form scenario — one line per participant. Phases are aligned: a phase measurement window is a band as wide as the slowest participant, and between the bands is a gap without measurement (pauses, checks, garbage collection). Hover a chart or press ←/→ — the tooltip shows every participant’s values at that moment."
+  },
+  "benchmark.traces.metric.heap": {
+    "message": "JS heap"
+  },
+  "benchmark.traces.metric.nodes": {
+    "message": "DOM nodes"
+  },
+  "benchmark.traces.metric.listeners": {
+    "message": "Event listeners"
+  },
+  "benchmark.traces.legendHint": {
+    "message": "hover a name to highlight its line"
+  },
+  "benchmark.traces.loading": {
+    "message": "Loading the chart…"
+  },
+  "benchmark.traces.missing": {
+    "message": "No traces for this form — the values are in the tables above."
+  },
+  "benchmark.traces.aria": {
+    "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide; plus and minus — zoom, 0 — the whole trace."
+  },
+  "benchmark.traces.zoom.group": {
+    "message": "Time zoom"
+  },
+  "benchmark.traces.zoom.out": {
+    "message": "Zoom out"
+  },
+  "benchmark.traces.zoom.in": {
+    "message": "Zoom in"
+  },
+  "benchmark.traces.zoom.reset": {
+    "message": "Whole trace"
+  },
+  "benchmark.traces.zoom.state": {
+    "message": "×{k} · {where} · double-click a chart for the whole trace"
+  },
+  "benchmark.traces.zoom.where.gap": {
+    "message": "after phase {a}"
+  },
+  "benchmark.traces.zoom.where.one": {
+    "message": "phase {a}"
+  },
+  "benchmark.traces.zoom.where.many": {
+    "message": "phases {a}–{b}"
+  },
+  "benchmark.traces.zoom.hint": {
+    "message": "Drag over a stretch or click a phase number to zoom in; Ctrl/⌘ + wheel — zoom"
+  },
+  "benchmark.traces.zoom.phase": {
+    "message": "Zoom into phase {n}"
+  },
+  "benchmark.traces.tip.phase": {
+    "message": "{n}. {title} · +{ms} ms from the phase start"
+  },
+  "benchmark.traces.tip.since": {
+    "message": "+{ms} ms from the phase start"
+  },
+  "benchmark.traces.tip.phaseTitle": {
+    "message": "{n}. {title}"
+  },
+  "benchmark.traces.tip.gap": {
+    "message": "after phase {n} ({title}) — outside the measurement"
+  },
+  "benchmark.traces.source": {
+    "message": "The charts are a single traced pass per participant from a separate run {traceRun} on the same page build (git {sha}, built {date}), CPU {cpu}x: not a median but the shape of the curve. The table numbers are medians of run {run}."
+  },
+  "benchmark.traces.sourceSame": {
+    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables above."
+  },
+  "benchmark.traces.sourceOtherBuild": {
+    "message": "⚠️ The charts are a single traced pass per participant from run {traceRun} on a different page build (git {sha}, built {date}), CPU {cpu}x; the table numbers are medians of run {run}. The forms may have changed between builds."
+  },
+  "benchmark.traces.stale": {
+    "message": "⚠️ The traces were recorded for the previous report — the table numbers on this page are newer."
+  },
+  "benchmark.traces.unmarked": {
+    "message": "No phase marks in the trace (not shown): {list}."
+  },
+  "benchmark.traces.phases": {
+    "message": "Phases on the axis ({n})"
+  },
+  "benchmark.traces.untraced": {
+    "message": "Not traced (a separate page load): {list}."
+  },
+  "benchmark.traces.table": {
+    "message": "Table: peak and end of the trace"
+  },
+  "benchmark.traces.col.lib": {
+    "message": "Participant"
+  },
+  "benchmark.traces.col.peak": {
+    "message": "peak"
+  },
+  "benchmark.traces.col.end": {
+    "message": "at the end"
+  },
+  "benchmark.sig.worse": {
+    "message": "significantly worse than ReFormer core"
+  },
+  "benchmark.sig.better": {
+    "message": "significantly better than ReFormer core"
+  },
+  "benchmark.chart.tooltip": {
+    "message": "{lib}: median {median}, IQR {q25}–{q75}{unit}"
+  },
+  "benchmark.losses.title": {
+    "message": "Where ReFormer falls behind"
+  },
+  "benchmark.losses.lead": {
+    "message": "The report publishes everything, losses included. Below is every row where a competitor is significantly faster than ReFormer core (▼ in the full report), from the largest gap to the smallest."
+  },
+  "benchmark.losses.summary": {
+    "message": "There are {n} such rows out of {total}. Who is ahead (a row can have several): {list}."
+  },
+  "benchmark.losses.byRival": {
+    "message": "{lib} — {n}"
+  },
+  "benchmark.losses.col.metric": {
+    "message": "Phase and metric"
+  },
+  "benchmark.losses.col.winner": {
+    "message": "Significantly faster"
+  },
+  "benchmark.losses.col.factor": {
+    "message": "Gap"
+  },
+  "benchmark.losses.also": {
+    "message": "also {list}"
+  },
+  "benchmark.phases.title": {
+    "message": "All phases"
+  },
+  "benchmark.phases.lead": {
+    "message": "A cell is the median over {runs} runs at CPU {cpu}x (each run is reduced first: for example, the median latency over all keys of the phase); below it is the q25–q75 spread. ×1.44 means 1.44 times worse than the best in the row; the best is in bold. Lower is better."
+  },
+  "benchmark.phases.coreBest": {
+    "message": "ReFormer core is the best in {n} of {total}"
+  },
+  "benchmark.phases.noisy": {
+    "message": "Spread above 15 % (CV): {list}."
+  },
+  "benchmark.phases.apiCalls": {
+    "message": "API requests during the phase differ (part of the work moved to another phase): {list}."
+  },
+  "benchmark.phases.failures": {
+    "message": "⚠️ Failed runs: {n} — they are not included in the statistics."
+  },
+  "benchmark.phases.expandAll": {
+    "message": "Expand all"
+  },
+  "benchmark.phases.collapseAll": {
+    "message": "Collapse all"
+  },
+  "benchmark.table.metric": {
+    "message": "Metric"
+  },
+  "benchmark.table.phase": {
+    "message": "Phase"
+  },
+  "benchmark.renders.title": {
+    "message": "React renders"
+  },
+  "benchmark.renders.lead": {
+    "message": "Components rendered during the phase (commits in parentheses); for typing — per key, for remounting — per mount. Counted by a DevTools hook (the PerformedWork flag, like React DevTools) in a separate pass at CPU 1x."
+  },
+  "benchmark.renders.perKey": {
+    "message": "{n}/key ({commits})"
+  },
+  "benchmark.renders.perMount": {
+    "message": "{n}/mount"
+  },
+  "benchmark.bundle.title": {
+    "message": "Bundle size"
+  },
+  "benchmark.bundle.lead": {
+    "message": "A separate production build of every page, the static closure of the entry. The main number is gzip over the baseline: how much the form library and the form code add to the same page without a library. Compression is measured on the whole entry; package attribution is minified bytes from the sourcemap."
+  },
+  "benchmark.bundle.chartTitle": {
+    "message": "gzip over baseline"
+  },
+  "benchmark.bundle.col.page": {
+    "message": "Page"
+  },
+  "benchmark.bundle.col.raw": {
+    "message": "JS raw, {kb}"
+  },
+  "benchmark.bundle.col.over": {
+    "message": "gzip over baseline, {kb}"
+  },
+  "benchmark.bundle.col.top": {
+    "message": "Largest packages (raw, {kb})"
+  },
+  "benchmark.code.title": {
+    "message": "Implementation code size"
+  },
+  "benchmark.code.lead": {
+    "message": "Implementation sources that end up in the page bundle (from the sourcemap): lines without blanks and comments after prettier. “Form” is the files of the form folder, “glue” is the rest of the library integration code (field adapters, the RJSF theme, shared ReFormer rules and behavior). The shared benchmark layer is identical for everyone and is not counted. The credit JSON document of ReFormer JSON was generated once from shared field metadata; RJSF and ReFormer core build their schemas from the same metadata in code."
+  },
+  "benchmark.code.col.impl": {
+    "message": "Implementation"
+  },
+  "benchmark.code.col.formTs": {
+    "message": "Form TS"
+  },
+  "benchmark.code.col.formJson": {
+    "message": "Form JSON"
+  },
+  "benchmark.code.col.kitTs": {
+    "message": "Glue TS"
+  },
+  "benchmark.code.col.total": {
+    "message": "Total lines"
+  },
+  "benchmark.code.col.files": {
+    "message": "Files"
+  },
+  "benchmark.code.col.gzip": {
+    "message": "Source gzip, B"
+  },
+  "benchmark.method.title": {
+    "message": "Methodology and limitations"
+  },
+  "benchmark.method.contract.title": {
+    "message": "Behavior contract."
+  },
+  "benchmark.method.contract.text": {
+    "message": "One specification per form; shared UI, fake API and messages for everyone. Competitors are written idiomatically from their official docs, without relying on ReFormer code, with the same optimization budget: no React Compiler and no manual memo beyond what the docs recommend."
+  },
+  "benchmark.method.conformance.title": {
+    "message": "Conformance before measuring."
+  },
+  "benchmark.method.conformance.text": {
+    "message": "Before measuring, Playwright runs 171 tests: conformance of every implementation — errors and the quiet phase, server checks, masks, the wizard, arrays, the canonical payload — and the calibration of the render counter. Measuring starts only after a green run."
+  },
+  "benchmark.method.stats.title": {
+    "message": "Statistics."
+  },
+  "benchmark.method.stats.text": {
+    "message": "Each run is reduced first (for example, the median over all keys of a phase); over {runs} runs — the median and IQR. Significance against ReFormer core is an exact Mann–Whitney U test with the Holm correction over all comparisons of the report, p < 0.05; a difference below the A/A noise (two identical builds of ReFormer core) is not counted as a difference."
+  },
+  "benchmark.method.health.title": {
+    "message": "Calibration and background load."
+  },
+  "benchmark.method.health.text": {
+    "message": "At the start and the end of every run there is a calibration JS workload (machine speed drift) and a snapshot of neighbouring processes and the GPU; with BENCH_REQUIRE_IDLE=1 measuring does not start on a busy machine."
+  },
+  "benchmark.method.drift.title": {
+    "message": "Machine drift."
+  },
+  "benchmark.method.drift.text": {
+    "message": "Absolute numbers from different sessions are not comparable even on the same machine: the baseline (the same code) differed by up to 1.6× between runs on one day. Compare ratios within one report: participants alternate in a shuffled order within a run, so drift affects everyone equally."
+  },
+  "benchmark.method.limits.title": {
+    "message": "Limitations."
+  },
+  "benchmark.method.limits.text": {
+    "message": "CPU throttling in Chromium slows down only the main thread, so the cost of large bundles is understated. One machine and one browser. “Key → end of frame” is quantized by the frame rate; “key → end of processing” and JS per key are more precise."
+  },
+  "benchmark.method.sources": {
+    "message": "Sources and the raw report"
+  },
+  "benchmark.method.link.contract": {
+    "message": "methodology and fairness rules"
+  },
+  "benchmark.method.link.report": {
+    "message": "the full report of this run"
+  },
+  "benchmark.method.link.libs": {
+    "message": "implementations of all participants; each README lists its deviations"
+  },
+  "benchmark.method.reproduce": {
+    "message": "How to reproduce"
+  },
+  "benchmark.method.healthTitle": {
+    "message": "Machine state in this report"
+  },
+  "benchmark.method.noHealth": {
+    "message": "The published report was taken before calibration and the background-load detector existed: machine speed drift and neighbouring processes were not measured in these runs."
+  },
+  "benchmark.health.col.form": {
+    "message": "Form"
+  },
+  "benchmark.health.col.calMedian": {
+    "message": "Calibration, median"
+  },
+  "benchmark.health.col.spread": {
+    "message": "Spread p10–p90"
+  },
+  "benchmark.health.col.trend": {
+    "message": "Drift over the session"
+  },
+  "benchmark.health.col.foreign": {
+    "message": "Foreign load, cores"
+  },
+  "benchmark.health.col.dirty": {
+    "message": "“Dirty” runs"
+  },
+  "benchmark.fact.conformanceCount": {
+    "message": "171 tests"
+  },
+  "homepage.ecosystem.kicker": {
+    "message": "Ecosystem"
+  },
+  "homepage.ecosystem.title": {
+    "message": "Everything for forms — from the core to the AI assistant"
+  },
+  "homepage.ecosystem.lead": {
+    "message": "The packages stack in layers — take exactly what you need: the ready look of ui-kit, your own design system on top of cdk, or just the logic of core. MCP teaches all of it to your AI assistant."
+  },
+  "homepage.ecosystem.docs": {
+    "message": "Documentation →"
+  },
+  "homepage.ecosystem.core.role": {
+    "message": "Core"
+  },
+  "homepage.ecosystem.core.title": {
+    "message": "A signal model and one form assembly"
+  },
+  "homepage.ecosystem.core.p1": {
+    "message": "Fine-grained reactivity on signals"
+  },
+  "homepage.ecosystem.core.p2": {
+    "message": "Type safety"
+  },
+  "homepage.ecosystem.core.p3": {
+    "message": "Framework-agnostic"
+  },
+  "homepage.ecosystem.core.p4": {
+    "message": "Declarative validation and behavior"
+  },
+  "homepage.ecosystem.cdk.role": {
+    "message": "Headless"
+  },
+  "homepage.ecosystem.cdk.title": {
+    "message": "Logic and accessibility — the markup is yours"
+  },
+  "homepage.ecosystem.cdk.p1": {
+    "message": "State, aria attributes and keyboard support built in"
+  },
+  "homepage.ecosystem.cdk.p2": {
+    "message": "FormField, FormWizard, FieldArray, Autocomplete, FileUpload"
+  },
+  "homepage.ecosystem.cdk.p3": {
+    "message": "Zero CSS: made for your company's design system"
+  },
+  "homepage.ecosystem.uikit.role": {
+    "message": "Ready UI"
+  },
+  "homepage.ecosystem.uikit.title": {
+    "message": "70+ components in the shadcn/ui style"
+  },
+  "homepage.ecosystem.uikit.p1": {
+    "message": "Tailwind CSS v4 and Radix UI"
+  },
+  "homepage.ecosystem.uikit.p2": {
+    "message": "Masks, OTP codes, dates, combobox, file upload, step wizard and arrays"
+  },
+  "homepage.ecosystem.uikit.p3": {
+    "message": "A field goes into the schema as is, and onto the screen in one line"
+  },
+  "homepage.ecosystem.mcp.role": {
+    "message": "For AI"
+  },
+  "homepage.ecosystem.mcp.title": {
+    "message": "Your AI assistant writes forms from the docs, not by guessing"
+  },
+  "homepage.ecosystem.mcp.p1": {
+    "message": "Claude Code, Cursor and other MCP clients get docs and examples right in the conversation"
+  },
+  "homepage.ecosystem.mcp.benchmark": {
+    "message": "Measurements: with MCP and without →"
+  },
+  "homepage.builder.kicker": {
+    "message": "ReFormer Builder · in development"
+  },
+  "homepage.builder.title": {
+    "message": "Build a form with the mouse — or just ask the AI"
+  },
+  "homepage.builder.lead": {
+    "message": "A visual form builder: assemble a form from kit components, see it live right away and export it as code — a ready module for your React app."
+  },
+  "homepage.builder.open": {
+    "message": "Open the builder"
+  },
+  "homepage.builder.docs": {
+    "message": "How it works"
+  },
+  "homepage.builder.note": {
+    "message": "Requires a Chromium-based browser: Chrome, Edge, Arc or Brave."
+  },
+  "homepage.builder.shotAlt": {
+    "message": "The builder: the form tree and the assistant panel — asked to “Add a Phone field”, the assistant added the field and updated the module code"
+  },
+  "homepage.builder.caption": {
+    "message": "One assistant turn: the field is added and the form module code is updated"
+  },
+  "homepage.ecosystem.core.p5": {
+    "message": "Arrays, nesting, wizards"
+  },
+  "homepage.builder.ai.title": {
+    "message": "The AI assistant edits the form on request"
+  },
+  "homepage.builder.ai.text": {
+    "message": "“Add an email field”, “make the phone required”, “split the form into three steps”. Every turn can be undone as a whole."
+  },
+  "homepage.builder.model.title": {
+    "message": "Bring your own model"
+  },
+  "homepage.builder.model.text": {
+    "message": "Anthropic or OpenAI with an API key, or a local one: Ollama, LM Studio."
+  },
+  "homepage.builder.noBackend.title": {
+    "message": "No server"
+  },
+  "homepage.builder.noBackend.text": {
+    "message": "The builder runs entirely in the browser: it opens the project folder straight from disk and saves back to it. Model requests go from the browser too — there is no backend to deploy."
+  },
+  "homepage.builder.plugins.title": {
+    "message": "Extensible with plugins"
+  },
+  "homepage.builder.plugins.text": {
+    "message": "The file tree, editors, preview, code generation and the assistant are plugins themselves. Your own plugin can add a panel, a command, an editor, a component kit or a tool for the assistant."
+  },
+  "homepage.builder.config.title": {
+    "message": "Configured per project"
+  },
+  "homepage.builder.config.text": {
+    "message": "The .ui_builder/ folder sets the title, language and theme, the plugin set, the default kit, form templates and code printing templates."
+  },
+  "homepage.builder.code.title": {
+    "message": "Code as the output"
+  },
+  "homepage.builder.code.text": {
+    "message": "Export prints a TypeScript form module: schema, model, rules, behavior, page. Edits go into the same JSON form file that lives in your repository."
+  },
+  "homepage.why.kicker": {
+    "message": "What it solves"
+  },
+  "homepage.why.title": {
+    "message": "One standard for every form in the project"
+  },
+  "homepage.why.lead": {
+    "message": "A form is values, rules, reactions to input, steps and submission. ReFormer gives them one way of writing. That brings readable code, easy review and maintenance — whoever wrote the form: a person, an AI assistant or the builder."
+  },
+  "homepage.why.more": {
+    "message": "Read more →"
+  },
+  "homepage.why.standard.role": {
+    "message": "The key idea"
+  },
+  "homepage.why.standard.title": {
+    "message": "One standard, many consequences"
+  },
+  "homepage.why.standard.p1": {
+    "message": "Every form is written the same way: model, schema, rules, behavior"
+  },
+  "homepage.why.standard.p2": {
+    "message": "Hence readability, less cognitive load and painless review"
+  },
+  "homepage.why.standard.p3": {
+    "message": "The MCP server and the builder write to the same standard"
+  },
+  "homepage.why.developer.role": {
+    "message": "For developers"
+  },
+  "homepage.why.developer.title": {
+    "message": "No useEffect chains, no extra re-renders"
+  },
+  "homepage.why.developer.p1": {
+    "message": "Typing re-renders only its own field"
+  },
+  "homepage.why.developer.p2": {
+    "message": "Rules, calculations, arrays and steps — declaratively"
+  },
+  "homepage.why.developer.p3": {
+    "message": "Typed fields and logic tests without React"
+  },
+  "homepage.why.team.role": {
+    "message": "For leads and reviewers"
+  },
+  "homepage.why.team.title": {
+    "message": "Every form in the project is built the same way"
+  },
+  "homepage.why.team.p1": {
+    "message": "A form file is found by its name, not by searching"
+  },
+  "homepage.why.team.p2": {
+    "message": "A rule change is a diff in one file"
+  },
+  "homepage.why.team.p3": {
+    "message": "Someone else's form reads like your own"
+  },
+  "homepage.why.ai.role": {
+    "message": "With an AI assistant"
+  },
+  "homepage.why.ai.title": {
+    "message": "AI code you can review"
+  },
+  "homepage.why.ai.p1": {
+    "message": "The MCP server writes to the same standard"
+  },
+  "homepage.why.ai.p2": {
+    "message": "“Done” only after a build and a type check"
+  },
+  "homepage.why.ai.p3": {
+    "message": "96% of runs pass the checks against 83% without MCP, 4.4 times cheaper"
+  },
+  "homepage.why.builder.role": {
+    "message": "For product and analysts"
+  },
+  "homepage.why.builder.title": {
+    "message": "The form in the editor, the code in the repo"
+  },
+  "homepage.why.builder.p1": {
+    "message": "Build it with the mouse or by asking in plain words"
+  },
+  "homepage.why.builder.p2": {
+    "message": "Export is a plain ReFormer module, not tied to the editor"
+  },
+  "homepage.why.builder.p3": {
+    "message": "Your own UI kit and your own AI model"
+  },
+  "homepage.why.platform.role": {
+    "message": "For architects"
+  },
+  "homepage.why.platform.title": {
+    "message": "Forms across teams and from the server"
+  },
+  "homepage.why.platform.p1": {
+    "message": "Micro-frontends: one team registers a form, another mounts it"
+  },
+  "homepage.why.platform.p2": {
+    "message": "A form from a JSON document — 3.5 times lighter than RJSF in the benchmark"
+  },
+  "homepage.why.platform.p3": {
+    "message": "Your own design system on top of headless components"
+  },
+  "homepage.hidden.kicker": {
+    "message": "Hidden benefits"
+  },
+  "homepage.hidden.title": {
+    "message": "What the feature list does not show"
+  },
+  "homepage.hidden.lead": {
+    "message": "You will not find this in the API: these benefits follow from the standard and the architecture. They are the easiest to miss when choosing a library, and they are the ones that add up over the life of a project."
+  },
+  "homepage.hidden.more": {
+    "message": "Read more →"
+  },
+  "homepage.hidden.review.title": {
+    "message": "Faster review, no debates"
+  },
+  "homepage.hidden.review.text": {
+    "message": "How to lay out a form is settled in advance. Reviews discuss what a change means, not style, and read a diff of one file."
+  },
+  "homepage.hidden.architecture.title": {
+    "message": "Architecture out of the box"
+  },
+  "homepage.hidden.architecture.text": {
+    "message": "The model is the single source of truth; data, rules, reactions and the look are separated. The library holds this, not team discipline."
+  },
+  "homepage.hidden.flexibility.title": {
+    "message": "Three ways to render, one logic"
+  },
+  "homepage.hidden.flexibility.text": {
+    "message": "JSX by hand, from the schema or from JSON. The model, rules and behavior stay the same; the way is chosen per form."
+  },
+  "homepage.hidden.tokens.title": {
+    "message": "Token savings"
+  },
+  "homepage.hidden.tokens.text": {
+    "message": "With MCP, creating a form takes about 6 times fewer tokens. Form code is 2–2.5 times shorter — less for the model to read and write."
+  },
+  "homepage.hidden.bugs.title": {
+    "message": "Fewer bugs by design"
+  },
+  "homepage.hidden.bugs.text": {
+    "message": "Value copies do not diverge, calculations do not loop, a stale check is aborted. These bugs need no tests to catch."
+  },
+  "homepage.hidden.merge.title": {
+    "message": "Fewer merge conflicts"
+  },
+  "homepage.hidden.merge.text": {
+    "message": "Markup, rules and behavior live in different files. The look, the rules and the fields of one form are edited in parallel."
+  },
+  "homepage.hidden.growth.title": {
+    "message": "No dead ends as a form grows"
+  },
+  "homepage.hidden.growth.text": {
+    "message": "Start with fields in JSX, plug in the renderer, move the schema to JSON or to another bundle — rules and behavior stay."
+  },
+  "homepage.hidden.knowledge.title": {
+    "message": "Knowledge does not leave with the author"
+  },
+  "homepage.hidden.knowledge.text": {
+    "message": "Understand one form and you understand them all. A form whose author has left is maintained by anyone on the team."
+  },
+  "homepage.hidden.beyond.title": {
+    "message": "Not only forms"
+  },
+  "homepage.hidden.beyond.text": {
+    "message": "The signal model is also the app store. A form is built over a part of it, so values are not copied back and forth."
+  },
+  "diagram.standardEffects.title": {
+    "message": "One form standard and its consequences"
+  },
+  "diagram.standardEffects.caption": {
+    "message": "A person, MCP and the builder write a form the same way, so the consequences of the standard apply to any form code — whoever wrote it."
+  },
+  "diagram.standardEffects.human": {
+    "message": "Person"
+  },
+  "diagram.standardEffects.human.sub": {
+    "message": "writes by hand"
+  },
+  "diagram.standardEffects.mcp.sub": {
+    "message": "AI assistant"
+  },
+  "diagram.standardEffects.builder": {
+    "message": "Builder"
+  },
+  "diagram.standardEffects.builder.sub": {
+    "message": "visual editor"
+  },
+  "diagram.standardEffects.writes": {
+    "message": "follow the standard"
+  },
+  "diagram.standardEffects.root": {
+    "message": "One form standard"
+  },
+  "diagram.standardEffects.root.sub": {
+    "message": "model · schema · rules · behavior"
+  },
+  "diagram.standardEffects.effects": {
+    "message": "Consequences"
+  },
+  "diagram.standardEffects.readability": {
+    "message": "Readability"
+  },
+  "diagram.standardEffects.readability.sub": {
+    "message": "one file, one question"
+  },
+  "diagram.standardEffects.load": {
+    "message": "Less mental load"
+  },
+  "diagram.standardEffects.load.sub": {
+    "message": "less to keep in mind"
+  },
+  "diagram.standardEffects.review": {
+    "message": "Painless review"
+  },
+  "diagram.standardEffects.review.sub": {
+    "message": "a change is a one-file diff"
+  },
+  "diagram.standardEffects.maintenance": {
+    "message": "Maintenance"
+  },
+  "diagram.standardEffects.maintenance.sub": {
+    "message": "markup and rules apart"
+  },
+  "diagram.standardEffects.onboarding": {
+    "message": "Onboarding"
+  },
+  "diagram.standardEffects.onboarding.sub": {
+    "message": "a file is found by name"
+  },
+  "diagram.standardEffects.aiCode": {
+    "message": "AI code is plain"
+  },
+  "diagram.standardEffects.aiCode.sub": {
+    "message": "a person edits it too"
+  }
+}

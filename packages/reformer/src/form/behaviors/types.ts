@@ -1,0 +1,60 @@
+/**
+ * Типы контракта схемы поведения.
+ *
+ * `BehaviorScope` — то, что видит автор схемы внутри `defineFormBehavior`; `FormBehavior` —
+ * результат, который принимает `createForm({ behavior })`. Реэкспорт сигнальных типов здесь же,
+ * чтобы пользовательские операторы писались одним импортом из `@reformer/core/behaviors`.
+ *
+ * @group Behaviors
+ * @module form/behaviors/types
+ */
+
+import type { Signal, ReadonlySignal } from '@preact/signals-core';
+import type { BehaviorCleanup } from '../../model/behaviors-value';
+import type { FormModel } from '../../model/types';
+import type { FormGroup } from '../types/index';
+import type { SchemaController, SchemaScope } from '../schema-controller';
+import type { FormFlow } from '../flow/flow';
+import type { NodeScope } from '../signal-node-registry';
+
+/**
+ * Область схемы поведения: модель (значения и сигналы), форма (ноды) и схема (узлы разметки).
+ *
+ * `schema` адресует узлы СВОЕЙ области: в корневом поведении — корневое дерево, в поведении
+ * подформы (`apply`) и строки массива (`applyEach`) — поддерево этой части. Правила узлов
+ * (`hideWhen`, `onComponentEvent`, `onMount`) исполняет рендерер; без него они ничего не делают.
+ */
+export type BehaviorScope<T> = {
+  model: FormModel<T>;
+  form: FormGroup<T>;
+  schema: SchemaScope;
+  /**
+   * Поток шагов сборки (`createForm({ flow })`); без потока — `undefined`. Один на сборку: его
+   * же получают поведения подформ и строк массива.
+   */
+  flow: FormFlow | undefined;
+};
+
+/** Результат {@link defineFormBehavior}; передаётся в `createForm({ behavior })`. */
+export interface FormBehavior<T> {
+  /**
+   * @internal Запускается сборкой формы после построения нод и заполнения реестра сигнал→нода.
+   * `controller` — схема-контроллер сборки; без него поведение получает собственный, который
+   * никто не читает (модель без рендерера). `flow` — поток шагов сборки. `nodes` — ноды сборки:
+   * по ним операторы находят поле, которое включить или выключить; без них — общий реестр.
+   */
+  __run(
+    model: FormModel<T>,
+    form: FormGroup<T>,
+    controller?: SchemaController,
+    flow?: FormFlow,
+    nodes?: NodeScope
+  ): BehaviorCleanup;
+}
+
+export type { Signal, ReadonlySignal, BehaviorCleanup };
+
+/** Контекст async-реакции: `signal` аннулируется, когда поле меняется снова до завершения колбэка. */
+export interface ChangeContext {
+  signal: AbortSignal;
+}

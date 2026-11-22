@@ -1,0 +1,64 @@
+dist
+node_modules
+
+# TypeScript declaration files generated alongside source
+packages/*/src/**/*.d.ts
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+test-results
+playwright-report
+.playwright-mcp
+.claude/settings.local.json
+# Рабочие копии сеансов Claude Code (EnterWorktree): у каждой свой `.git`-файл. Claude Code пишет
+# это правило только в локальный .git/info/exclude — в свежем клоне его нет, и `git add -A`
+# добавил бы копии вложенными репозиториями.
+.claude/worktrees/
+
+.env
+
+TODO.md
+
+# Auto-generated API documentation
+projects/reformer-doc/docs/api/
+projects/react-playground/src/mocks/_generated/
+
+# Temporary docs
+docs/_temp/
+
+# Orchestrator scratch (mcp prompt outputs, dev.log) — see PROMT.md
+.tmp/
+
+# Playwright smoke-test screenshots (mcp validation runs)
+projects/react-playground-e2e/screenshots/
+
+# Iter walkthrough videos (большие webm-файлы, локальные/CI-only)
+# См. docs/iter-prompts/orchestrator.md
+projects/react-playground-e2e/videos/
+
+# E2E
+*/**/*.spec.ts-snapshots
+projects/react-playground-e2e/projects
+
+# Test coverage reports (vitest --coverage)
+coverage/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
+# report_issue MCP output (REFORMER_ISSUE_REPORTS_DIR)
+.reformer/
+
+# Конфиг запуска разработчика для `npm run dev` билдера (dev-эндпоинт runtime.json в vite.config):
+# у каждого свой состав и свои умолчания — в репозиторий не едет.
+projects/reformer-builder/.ui_builder/
+
+# Слоты стендов MCP (калибровка, сценарии): страницы и их `routes.tsx` пишет стенд при запуске,
+# `App.tsx` подхватывает любой `pages/debug/<слот>/routes.tsx`.
+projects/react-playground/src/pages/debug/mcp-*/
+
+# Бенчмарк форм: сырые результаты прогонов, трассы DevTools и отчёты (публикуемый снимок —
+# docs/benchmarks/forms/, по `npm run bench:report -- --publish`).
+projects/forms-benchmark-e2e/results/

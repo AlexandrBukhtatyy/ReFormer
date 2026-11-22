@@ -1,0 +1,418 @@
+/**
+ * Уровень формы: проверка, проверка шага, поток шагов и отправка — с результатом-объектом.
+ *
+ * Сборка `createForm` (и монтирование формы из реестра через неё) собирает его одной функцией
+ * {@link createFormLevel}, поэтому `validate`, отправка и поток ведут себя одинаково, как бы форма ни
+ * рисовалась.
+ *
+ * Уровень собирает правила, владеет контроллером живой проверки и проверкой «для действия» — её
+ * получают переход шага (`flow.next()`) и отправка (`./submission`). Сама отправка — отдельный
+ * объект: уровень её только собирает.
+ *
+ * @group Form
+ * @module form/form-level
+ */
+
+import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
+import { deepEqual, deferredWritesSettled } from '../model/index';
+import type { FormModel } from '../model/types';
+import { createFormFlow, type FormFlow } from './flow/flow';
+import { createSubmission, type ActionCheck, type FormSubmission } from './submission';
+import { apply } from './validation/operators';
+import {
+  cancelRun,
+  checkedUnder,
+  defineValidation,
+  runAndApply,
+  type NodeScope,
+} from './validation/run';
+import {
+  createFormValidation,
+  type FormValidationController,
+  type ValidationStrategyKind,
+} from './validation/strategy';
+import type { ValidationDefinition, ValidationResult } from './validation/types';
+import { createStepLiveController, type StepLiveController } from './step-live';
+
+/**
+ * Правила валидации формы и стратегия живой проверки.
+ *
+ * ⚠️ `rules` и `extras` обязаны быть **стабильными ссылками** (`defineValidation` в модуле): отмена
+ * устаревших прогонов ключится по паре «модель + правила».
+ *
+ * @group Form
+ */
+export interface FormValidation<T> {
+  /** Полный набор правил. Без него собирается из правил шагов потока и `extras`. */
+  rules?: ValidationDefinition<T>;
+  /** Правила, которые проверяются только целиком (отправка), но не по шагам. */
+  extras?: ValidationDefinition<T>;
+  /** Когда запускать живую проверку. По умолчанию `'submit'` — живой проверки нет. */
+  strategy?: ValidationStrategyKind;
+  debounce?: number;
+  /** Режим живой фазы для `afterFirstSubmit`. По умолчанию `'change'`. */
+  liveAfterSubmit?: 'change' | 'blur';
+  /**
+   * Живая фаза шагов потока и её режим: шаг молчит до первой попытки «Далее» на нём
+   * (`flow.next()`), дальше его правила проверяются на каждую правку (`'change'`) либо уход из
+   * поля (`'blur'`), с той же задержкой `debounce`. Живой прогон шага проверяет только его правила
+   * и, как живая проверка формы, полей не касается: ошибку видно у полей, которые проверил
+   * «Далее» или изменил пользователь.
+   *
+   * Живой — только текущий шаг потока: правила пройденных шагов на правки другого шага не
+   * гоняются, межшаговые замечания ловит отправка. Возврат на шаг, где уже было «Далее», снова
+   * делает его живым и один раз перепроверяет его правила.
+   *
+   * Для стратегий `submit` и `afterFirstSubmit`; у `change` и `blur` форма живая и так — опция
+   * не действует. При `afterFirstSubmit` попытка отправки делает живой всю форму, и живые фазы
+   * шагов больше не нужны. Сброс формы (`form.reset()`) возвращает тихую фазу и шагам.
+   */
+  liveAfterStep?: 'change' | 'blur';
+}
+
+/**
+ * Шаг потока: идентификатор (он же `selector` узла шага в схеме) и правила шага.
+ *
+ * @group Form
+ */
+export interface FlowStep<T> {
+  readonly id: string;
+  /** Правила шага; `null` или без поля — шаг без правил. */
+  readonly rules?: ValidationDefinition<T> | null;
+}
+
+/**
+ * Поток шагов в конфиге сборки.
+ *
+ * @group Form
+ */
+export interface FormFlowConfig<T> {
+  readonly steps: readonly FlowStep<T>[];
+  /**
+   * Что делает поток, когда отправка (`submission.submit`) отказала с итогом `invalid`. По
+   * умолчанию `'stay'` — поток остаётся, где стоял.
+   *
+   * `'firstInvalidStep'` — до того как `submit()` вернёт итог, поток переходит на первый по порядку
+   * шаг, правила которого в этом прогоне проверили поле с блокирующим замечанием (правила шага
+   * вместе с подключёнными в них `apply` / `applyEach`). Источник замечания не важен — правила шага
+   * или `extras`: шаг выбирается по полю. Так видно замечание раннего шага: межшаговое правило,
+   * устаревшее после правки на позднем шаге, у визарда с размонтированными неактивными шагами иначе
+   * осталось бы на невидимом шаге, и «Отправить» на последнем шаге не показало бы ничего.
+   *
+   * Переход — `flow.goTo`: назад — всегда (пройденными остаются шаги до цели), вперёд на закрытый
+   * шаг (`locked`) — нет. Поток остаётся, если шаг с ошибкой — текущий либо замечание стоит на
+   * поле, которого не проверял ни один шаг (только `extras`). Итоги `error` и `cancelled` поток не
+   * трогают. Шаг находится по результату того же прогона: правила заново не исполняются, запросов
+   * к серверу нет. С полным набором `validation.rules` шаг находится, только если набор подключает
+   * правила шагов через `apply`.
+   *
+   * @example
+   * ```typescript
+   * createForm<Order>({
+   *   initial,
+   *   validation: { extras: crossStepRules },
+   *   flow: {
+   *     steps: [
+   *       { id: 'budget', rules: budgetRules }, // межшаговое правило: сумма позиций ≤ лимита
+   *       { id: 'items', rules: itemsRules },
+   *       { id: 'confirm' },
+   *     ],
+   *     onInvalidSubmit: 'firstInvalidStep',
+   *   },
+   * });
+   * ```
+   */
+  readonly onInvalidSubmit?: 'stay' | 'firstInvalidStep';
+}
+
+/**
+ * Правила формы и контроллер живой проверки — его армирует `useFormBundle`.
+ *
+ * @group Form
+ */
+export interface FormValidationState<T> {
+  /** Полный набор правил (стабильная ссылка). */
+  readonly rules: ValidationDefinition<T>;
+  readonly controller: FormValidationController;
+}
+
+/**
+ * Уровень формы в бандле сборки.
+ *
+ * @group Form
+ */
+export interface FormLevel<T> {
+  /** Поток шагов; без `flow` в конфиге — `undefined`. */
+  readonly flow: FormFlow | undefined;
+  /** Идёт ли проверка: полная или шага. */
+  readonly validating: ReadonlySignal<boolean>;
+  /** Правила и контроллер живой проверки; без правил — `undefined`. */
+  readonly validation: FormValidationState<T> | undefined;
+  /**
+   * Отправка: `submission.submit(handler)` — один прогон всех правил и обработчик со значениями,
+   * которые они видели; `submission.submitting` — идёт ли обработчик. С
+   * `flow.onInvalidSubmit: 'firstInvalidStep'` отказ `invalid` переводит поток на шаг с ошибкой.
+   */
+  readonly submission: FormSubmission<T>;
+  /**
+   * Проверить всю форму и показать замечания. Поля выключенных нод (`enableWhen`, `disable()`)
+   * не учитываются — статус совпадает с `valid` формы.
+   *
+   * Правила читают модель в момент вызова. Исключение — вызов в одном тике со сборкой формы или
+   * правкой поля: поведение ещё пишет отложенно (колбэк `onChange`, сброс `resetOnDisable`), и
+   * проверка сначала дожидается этих записей; `validating` поднят сразу. Так же ведут себя
+   * `validateStep` и отправка.
+   *
+   * Попыткой отправки проверка не считается: стратегия `afterFirstSubmit` остаётся в тихой фазе.
+   */
+  validate(): Promise<ValidationResult>;
+  /**
+   * Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение.
+   *
+   * Это отчёт о шаге, как `validate` — о форме. Переход делает `flow.next()`: он сверяет модель
+   * и не переходит, если её изменили, пока шла проверка шага.
+   */
+  validateStep(stepId: string): Promise<ValidationResult>;
+  /**
+   * Снять уровень формы: подписки и таймеры живой проверки; идущие проверки — полная, шага,
+   * отправки — получают `cancelled`, и их замечания на ноды не ложатся. Идемпотентно. Ноды формы
+   * уровень не снимает — это делает сборка (`bundle.dispose()`).
+   */
+  dispose(): void;
+}
+
+/** Результат проверки без правил: замечаний нет. */
+const VALID: ValidationResult = Object.freeze({
+  status: 'valid',
+  issues: new Map(),
+  failures: [],
+});
+
+const AT = '[@reformer/core] createForm';
+
+/**
+ * Собрать уровень формы: правила, контроллер живой проверки, поток шагов и отправку.
+ *
+ * @typeParam T - Форма данных модели.
+ * @param model - Модель формы.
+ * @param config - Правила (`validation`), поток (`flow`) и ноды сборки (`nodes`): в них ложатся
+ *   замечания. Без `nodes` — общий реестр, то есть последняя собранная над моделью форма.
+ * @returns {@link FormLevel}.
+ * @throws Error если в потоке повторяется шаг.
+ *
+ * @example
+ * ```typescript
+ * const level = createFormLevel(model, {
+ *   validation: { extras: crossRules },
+ *   flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
+ * });
+ * const result = await level.submission.submit(sendApplication);
+ * if (result.status === 'invalid') showErrors();
+ * ```
+ *
+ * @group Form
+ */
+export function createFormLevel<T>(
+  model: FormModel<T>,
+  config: {
+    validation?: FormValidation<T> | ValidationDefinition<T>;
+    flow?: FormFlowConfig<T>;
+    /** @internal Ноды сборки — их передаёт `createForm`. */
+    nodes?: NodeScope;
+  }
+): FormLevel<T> {
+  const { nodes } = config;
+  const validation: FormValidation<T> =
+    typeof config.validation === 'function'
+      ? { rules: config.validation }
+      : (config.validation ?? {});
+
+  const stepRules = new Map<string, ValidationDefinition<T> | null>();
+  for (const step of config.flow?.steps ?? []) {
+    if (stepRules.has(step.id)) throw new Error(`${AT}: шаг потока «${step.id}» повторяется.`);
+    stepRules.set(step.id, step.rules ?? null);
+  }
+  const onInvalidSubmit = config.flow?.onInvalidSubmit ?? 'stay';
+  const stepSchemas = [...stepRules.values()].filter(
+    (rules): rules is ValidationDefinition<T> => rules != null
+  );
+
+  // Полный набор правил — стабильная ссылка, собранная один раз: на ней держится отмена
+  // устаревших прогонов.
+  const rules =
+    validation.rules ??
+    (stepSchemas.length > 0 || validation.extras
+      ? defineValidation<T>(() =>
+          apply(...stepSchemas, ...(validation.extras ? [validation.extras] : []))
+        )
+      : undefined);
+
+  // Поток — раньше контроллера: живая фаза шагов следит за текущим шагом. Проверку шага поток
+  // зовёт только при переходе — уровень к тому времени собран.
+  const flow =
+    config.flow !== undefined
+      ? createFormFlow({
+          steps: [...stepRules.keys()],
+          validateStep: (stepId) => validateStepToMove(stepId),
+        })
+      : undefined;
+
+  const formController =
+    rules !== undefined
+      ? createFormValidation(model, rules, {
+          strategy: validation.strategy,
+          debounce: validation.debounce,
+          liveAfterSubmit: validation.liveAfterSubmit,
+          nodes,
+        })
+      : undefined;
+  // Живая фаза шагов — поверх стратегии, которая сама форму не оживляет до отправки.
+  const strategy = validation.strategy ?? 'submit';
+  const stepLive: StepLiveController<T> | undefined =
+    formController !== undefined &&
+    flow !== undefined &&
+    validation.liveAfterStep !== undefined &&
+    stepSchemas.length > 0 &&
+    (strategy === 'submit' || strategy === 'afterFirstSubmit')
+      ? createStepLiveController(formController, {
+          model,
+          mode: validation.liveAfterStep,
+          debounce: validation.debounce,
+          nodes,
+          submitMakesFormLive: strategy === 'afterFirstSubmit',
+          current: flow.current,
+        })
+      : undefined;
+  const controller: FormValidationController | undefined = stepLive ?? formController;
+
+  // Идущие проверки шага и проверки, ждущие отложенных записей поведения.
+  const checks = signal(0);
+
+  /**
+   * Запустить проверку, когда отработали отложенные записи поведения этого тика (колбэк
+   * `onChange`, сброс выключенного поля): правила читают модель после них. Записей нет — запуск
+   * синхронный, как обычно.
+   */
+  const afterBehaviorWrites = <R>(run: () => Promise<R>): Promise<R> => {
+    const settling = deferredWritesSettled();
+    if (!settling) return run();
+    checks.value++;
+    return settling.then(run).finally(() => {
+      checks.value--;
+    });
+  };
+
+  /**
+   * Проверка для действия по её результату — отправки, перехода шага. Модель читается в момент
+   * запуска правил и после прогона: пока идёт async-правило, форма не заперта, и успех проверки
+   * может относиться к значениям, которых в модели уже нет (`stale`).
+   */
+  const checkForAction = async (run: () => Promise<ValidationResult>): Promise<ActionCheck<T>> => {
+    let seen: unknown;
+    const result = await afterBehaviorWrites(() => {
+      seen = model.get();
+      return run();
+    });
+    const values = model.get() as T;
+    return { result, values, stale: result.status === 'valid' && !deepEqual(seen, values) };
+  };
+
+  const validate = (): Promise<ValidationResult> =>
+    controller ? afterBehaviorWrites(() => controller.run()) : Promise.resolve(VALID);
+
+  /** Правила шага: без правил — `null`, неизвестный шаг — исключение. */
+  const rulesOfStep = (stepId: string): ValidationDefinition<T> | null => {
+    if (!stepRules.has(stepId)) {
+      const known = [...stepRules.keys()];
+      throw new Error(
+        `${AT}: шага «${stepId}» нет в потоке. ` +
+          (known.length > 0 ? `Шаги потока: ${known.join(', ')}.` : 'Поток не задан: `flow`.')
+      );
+    }
+    return stepRules.get(stepId) ?? null;
+  };
+
+  const runStep = async (step: ValidationDefinition<T>): Promise<ValidationResult> => {
+    checks.value++;
+    try {
+      return await runAndApply(model, step, { touch: true, skipDisabled: true, nodes });
+    } finally {
+      checks.value--;
+    }
+  };
+
+  const validateStep = async (stepId: string): Promise<ValidationResult> => {
+    const step = rulesOfStep(stepId);
+    return step ? afterBehaviorWrites(() => runStep(step)) : VALID;
+  };
+
+  /**
+   * Проверка шага для перехода `flow.next()`. Переход — действие по результату: успех проверки о
+   * значениях, которых в модели уже нет, — отмена, а не пройденный шаг.
+   */
+  const validateStepToMove = async (stepId: string): Promise<ValidationResult> => {
+    const step = rulesOfStep(stepId);
+    if (!step) return VALID;
+    // Попытка «Далее» включает живую фазу шага (`liveAfterStep`), каким бы ни был итог.
+    stepLive?.armStep(stepId, step);
+    const { result, stale } = await checkForAction(() => runStep(step));
+    return stale ? { ...result, status: 'cancelled' } : result;
+  };
+
+  /**
+   * Первый по порядку потока шаг, правила которого в этом прогоне проверили поле с блокирующим
+   * замечанием. Ответ — из результата прогона: правила заново не исполняются.
+   */
+  const firstInvalidStep = (result: ValidationResult): string | undefined => {
+    const blocking = new Set<unknown>();
+    for (const [sig, issues] of result.issues) {
+      if (issues.some((issue) => issue.severity !== 'warning')) blocking.add(sig);
+    }
+    const under = checkedUnder(result);
+    for (const [stepId, rules] of stepRules) {
+      const fields = rules ? under.get(rules) : undefined;
+      if (fields && [...fields].some((sig) => blocking.has(sig))) return stepId;
+    }
+    return undefined;
+  };
+
+  /** Перевести поток на первый шаг с замечанием отказа отправки; шаг не найден — остаться. */
+  const showFirstInvalidStep = (steps: FormFlow, result: ValidationResult): void => {
+    const stepId = firstInvalidStep(result);
+    if (stepId === undefined || stepId === steps.current.peek()) return;
+    const move = (): void => void steps.goTo(stepId);
+    // Правила шага только что проверила отправка: перепроверять его при возврате незачем.
+    if (stepLive) stepLive.moveChecked(move);
+    else move();
+  };
+
+  // Отправка — попытка отправки: при отказе раскрыта вся форма, `afterFirstSubmit` переходит в
+  // живую фазу; с `onInvalidSubmit: 'firstInvalidStep'` отказ `invalid` переводит поток к ошибке
+  // до того, как `submit()` вернёт итог. Без правил сверять нечего: обработчик получает модель как
+  // есть.
+  const submitCheck = async (run: FormValidationController): Promise<ActionCheck<T>> => {
+    const checked = await checkForAction(() => run.run({ touch: 'all', submit: true }));
+    if (flow && onInvalidSubmit === 'firstInvalidStep' && checked.result.status === 'invalid') {
+      showFirstInvalidStep(flow, checked.result);
+    }
+    return checked;
+  };
+  const submission = createSubmission<T>({
+    check: controller ? () => submitCheck(controller) : undefined,
+    values: () => model.get() as T,
+  });
+
+  return {
+    flow,
+    validating: computed(() => (controller?.validating.value ?? false) || checks.value > 0),
+    validation: rules !== undefined && controller ? { rules, controller } : undefined,
+    submission,
+    validate,
+    validateStep,
+    dispose() {
+      controller?.dispose();
+      // Проверки шага идут своими правилами, мимо контроллера: их прогоны отменяются отдельно.
+      for (const step of stepSchemas) cancelRun(model as object, step as object, nodes);
+    },
+  };
+}

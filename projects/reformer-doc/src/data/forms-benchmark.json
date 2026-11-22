@@ -1,0 +1,3111 @@
+{
+  "schema": 1,
+  "meta": {
+    "generatedAt": "2026-11-19T21:07:25.270Z",
+    "runs": ["2026-11-19T19-33-41Z_registration_3a1ec926","2026-11-19T20-02-23Z_credit_3a1ec926"],
+    "machine": {"cpu":"Apple M1","cores":8,"memoryGb":16,"platform":"darwin 25.6.0"},
+    "browser": "chromium 143.0.7499.4",
+    "headless": "new headless (channel: chromium)",
+    "node": "v24.2.0",
+    "iterations": 10,
+    "warmup": 1,
+    "cpuRates": [4],
+    "cadenceMs": 80,
+    "seed": 1967972750,
+    "git": {"sha":"3a1ec926","dirty":true},
+    "versions": {
+      "@reformer/core": "6.0.0",
+      "@reformer/renderer-json": "6.0.0",
+      "formik": "2.4.9",
+      "yup": "1.7.1",
+      "react-hook-form": "7.91.0",
+      "@hookform/resolvers": "6.0.2",
+      "zod": "4.6.7",
+      "@rjsf/core": "6.10.1",
+      "@rjsf/validator-ajv8": "6.10.1",
+      "react": "19.2.1"
+    }
+  },
+  "participants": [
+    {"id":"reformer-core","label":"ReFormer core","role":"subject","stack":"ReFormer (core)"},
+    {"id":"reformer-json","label":"ReFormer JSON","role":"subject","stack":"ReFormer (renderer-json)"},
+    {"id":"formik","label":"Formik","role":"competitor","stack":"Formik + Yup"},
+    {"id":"rhf","label":"RHF","role":"competitor","stack":"React Hook Form + zod"},
+    {"id":"rjsf","label":"RJSF","role":"competitor","stack":"RJSF + ajv8"},
+    {"id":"baseline","label":"baseline","role":"baseline","stack":"Baseline (без библиотеки)"}
+  ],
+  "forms": [
+    {
+      "id": "registration",
+      "title": "регистрация с капчей",
+      "runId": "2026-11-19T19-33-41Z_registration_3a1ec926",
+      "cpu": 4,
+      "libs": ["reformer-core","reformer-json","formik","rhf","rjsf","baseline"],
+      "failures": 0,
+      "headline": [
+        {"phase":"load","metric":"ready"},
+        {"phase":"load","metric":"script"},
+        {"phase":"typing-pristine","metric":"keyProc"},
+        {"phase":"typing-live","metric":"keyProc"},
+        {"phase":"typing-live","metric":"keyProcP95"},
+        {"phase":"typing-live","metric":"scriptPerKey"},
+        {"phase":"submit-invalid","metric":"settle"},
+        {"phase":"remount","metric":"mountSync"},
+        {"phase":"load","metric":"heap"}
+      ],
+      "metrics": {
+        "load/ready": {"label":"Готовность формы (от начала навигации)","unit":"мс"},
+        "load/fcp": {"label":"First Contentful Paint","unit":"мс"},
+        "load/script": {"label":"Выполнение JS (CDP ScriptDuration)","unit":"мс"},
+        "load/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "load/heap": {"label":"JS heap после GC","unit":"КБ"},
+        "load/nodes": {"label":"DOM-узлы","unit":""},
+        "load/hydrate": {"label":"Гидратация: ответ префилла → готово","unit":"мс"},
+        "typing/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "typing/keyProcP95": {"label":"Клавиша → конец обработки (p95 прогона)","unit":"мс"},
+        "typing/keyFrame": {"label":"Клавиша → конец кадра (медиана)","unit":"мс"},
+        "typing/scriptPerKey": {"label":"JS на клавишу (CDP)","unit":"мс"},
+        "typing/layoutPerKey": {"label":"Layout + style на клавишу","unit":"мс"},
+        "typing/slowEvents": {"label":"События ≥ 16 мс (Event Timing)","unit":"шт"},
+        "typing/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "click/clickFrame": {"label":"Клик → конец кадра","unit":"мс"},
+        "click/settle": {"label":"Клик → UI затих","unit":"мс"},
+        "click/script": {"label":"Выполнение JS (CDP)","unit":"мс"},
+        "click/layout": {"label":"Layout + style","unit":"мс"},
+        "async/settle": {"label":"Ввод → UI затих (вкл. debounce 300 мс и сеть 20 мс)","unit":"мс"},
+        "async/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "async/script": {"label":"Выполнение JS за фазу (CDP)","unit":"мс"},
+        "remount/mountSync": {"label":"Монтирование: рендер + commit + эффекты","unit":"мс"},
+        "remount/mountReady": {"label":"Монтирование: до кадра с готовой формой","unit":"мс"},
+        "remount/scriptPerCycle": {"label":"JS на цикл mount + unmount (CDP)","unit":"мс"},
+        "remount/retainedPerCycle": {"label":"Удержание объектов после размонтирования","unit":"КБ/цикл"},
+        "remount/heapGrowth": {"label":"Рост heap на перемонтирование после прогрева (с кодом JIT)","unit":"КБ/цикл"},
+        "remount/nodesSlope": {"label":"Прирост DOM-узлов на перемонтирование","unit":"шт"}
+      },
+      "sections": [
+        {
+          "id": "load",
+          "title": "Холодная загрузка",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [104,103.48,112.7,1,0],
+                "reformer-json": [115.2,112,119.9,1.107,0],
+                "formik": [146.8,146.3,148.2,1.411,1],
+                "rhf": [117.1,116.6,120.2,1.126,1],
+                "rjsf": [143.3,143,144.3,1.378,1],
+                "baseline": [86.55000000000001,84.15,92.85000000000001,0.8322,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [148,148,151,1,0],
+                "reformer-json": [160,157,167,1.081,0],
+                "formik": [196,192,196,1.324,1],
+                "rhf": [164,164,167,1.108,1],
+                "rjsf": [188,185,192,1.27,1],
+                "baseline": [132,128,135,0.8919,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [67.78,67.39,68.53,1,0],
+                "reformer-json": [76.83,76.3,77.33,1.133,1],
+                "formik": [114.6,114.3,115.1,1.691,1],
+                "rhf": [78.59,77.87,79.19,1.159,1],
+                "rjsf": [104.8,104.4,105.4,1.546,1],
+                "baseline": [47.82,47.09,48.6,0.7055,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [37,36.25,37,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [24,23.25,24.75,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1867,1867,1867,1,0],
+                "reformer-json": [2104,2104,2104,1.127,1],
+                "formik": [1885,1885,1885,1.01,1],
+                "rhf": [2070,2070,2070,1.109,1],
+                "rjsf": [2335,2334,2335,1.251,1],
+                "baseline": [1395,1395,1398,0.7475,0]
+              }
+            },
+            {
+              "id": "nodes",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [102,102,102,1,0],
+                "reformer-json": [102,102,102,1,0],
+                "formik": [102,102,102,1,0],
+                "rhf": [102,102,102,1,0],
+                "rjsf": [102,102,102,1,0],
+                "baseline": [102,102,102,1,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "load-invite",
+          "title": "Загрузка по приглашению (гидратация префиллом)",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [141.3,140.9,142.6,1.171,0],
+                "reformer-json": [147.1,145.6,148.9,1.219,1],
+                "formik": [201.4,198.3,204.5,1.669,1],
+                "rhf": [120.7,119.9,127.2,1,-1],
+                "rjsf": [178.8,177.9,181.3,1.482,1]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [120,116,123,1,0],
+                "reformer-json": [176,172,184,1.467,1],
+                "formik": [196,192,196,1.633,1],
+                "rhf": [136,133,136,1.133,1],
+                "rjsf": [156,152,159,1.3,1]
+              }
+            },
+            {
+              "id": "hydrate",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [31.85,31.8,32.22,2.806,0],
+                "reformer-json": [53.95,53.73,54.83,4.753,1],
+                "formik": [11.350000000000001,9.975,15.350000000000001,1,-1],
+                "rhf": [12.05,11.93,19.9,1.062,-1],
+                "rjsf": [32.5,32.32,32.88,2.863,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [70.96,70.355,72.05,1,0],
+                "reformer-json": [78.94,78.47,79.81,1.113,1],
+                "formik": [121.2,119.5,122.1,1.708,1],
+                "rhf": [80.95,79.51,81.27,1.141,1],
+                "rjsf": [108.5,107.5,109.1,1.53,1]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [37.5,37,38,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [25,24.25,25,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1819,1815,1820,1,0],
+                "reformer-json": [2042,2040,2044,1.122,1],
+                "formik": [1953,1953,1953,1.073,1],
+                "rhf": [2028,2027,2028,1.114,1],
+                "rjsf": [2284,2284,2284,1.2552,1]
+              }
+            },
+            {
+              "id": "nodes",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [104,104,104,1,0],
+                "reformer-json": [104,104,104,1,0],
+                "formik": [104,104,104,1,0],
+                "rhf": [104,104,104,1,0],
+                "rjsf": [104,104,104,1,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "typing-pristine",
+          "title": "Ввод до первой отправки (username, email)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [3.55,3.5,3.6,1,0],
+                "reformer-json": [3.65,3.65,3.688,1.028,0],
+                "formik": [6.7,6.575,6.787,1.887,1],
+                "rhf": [3.625,3.438,3.65,1.021,0],
+                "rjsf": [5.1,5.063,5.175,1.437,1],
+                "baseline": [3.45,3.3249999999999997,3.487,0.9718,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [4.295,4.211,4.39,1,0],
+                "reformer-json": [4.502,4.411,4.53,1.048,0],
+                "formik": [8.848,8.68,9.086,2.06,0],
+                "rhf": [4.535,4.402,4.671,1.056,0],
+                "rjsf": [6.212,6.154,6.346,1.446,0],
+                "baseline": [4.412,4.344,4.635,1.027,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.175000000000001,4.1,4.275,1,0],
+                "reformer-json": [4.25,4.125,4.3,1.018,0],
+                "formik": [7.324999999999999,7.3,7.4,1.754,1],
+                "rhf": [4.2,4.112,4.275,1.006,0],
+                "rjsf": [5.574999999999999,5.5,5.675,1.3353,1],
+                "baseline": [4.025,3.9,4.15,0.9641,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.073,1.014,1.121,1.006,0],
+                "reformer-json": [1.073,1.01,1.116,1.006,0],
+                "formik": [4.432,4.412,4.483,4.156,1],
+                "rhf": [1.066,0.9792,1.1249,1,0],
+                "rjsf": [2.67,2.6353,2.714,2.504,1],
+                "baseline": [0.823,0.7529,0.8849,0.7717,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.4562,0.4237,0.4906,1,0],
+                "reformer-json": [0.4822,0.4109,0.5473,1.057,0],
+                "formik": [0.4662,0.4444,0.5224,1.022,0],
+                "rhf": [0.4645,0.4047,0.5043,1.018,0],
+                "rjsf": [0.4908,0.449,0.5145,1.076,0],
+                "baseline": [0.5105,0.4968,0.5453,1.119,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [149,148,150,1,0],
+                "reformer-json": [150.5,150,151,1.01,0],
+                "formik": [151,148.5,151.8,1.013,0],
+                "rhf": [150,149.3,151,1.007,0],
+                "rjsf": [150,148.3,151,1.007,0],
+                "baseline": [149.5,148,151,1.003,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": {
+            "reformer-core": {},
+            "reformer-json": {},
+            "formik": {"check-email":1,"check-username":1},
+            "rhf": {},
+            "rjsf": {}
+          }
+        },
+        {
+          "id": "submit-invalid",
+          "title": "Отправка с ошибками → ошибки на экране",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [22.35,22.1,22.65,2.069,0],
+                "reformer-json": [22.6,22.02,22.849999999999998,2.093,0],
+                "formik": [18,17.6,18.43,1.667,-1],
+                "rhf": [10.8,10.22,14.9,1,-1],
+                "rjsf": [63.95,63.3,64.85,5.921,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [16.95,16.47,17.3,1.351,0],
+                "reformer-json": [16.85,16.63,17.18,1.343,0],
+                "formik": [12.55,12.27,12.82,1,-1],
+                "rhf": [34,33.73,34.3,2.709,1],
+                "rjsf": [57.85,57.45,58.67,4.61,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [12.62,11.67,12.83,1.234,0],
+                "reformer-json": [12.12,11.54,12.8,1.185,0],
+                "formik": [10.32,9.125,10.49,1.01,-1],
+                "rhf": [10.22,9.255,10.77,1,0],
+                "rjsf": [56.45,54.83,56.8,5.524,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [2.58,2.438,2.635,1.032,0],
+                "reformer-json": [2.705,2.337,3.027,1.082,0],
+                "formik": [2.615,2.373,2.6950000000000003,1.046,0],
+                "rhf": [2.5,2.24,2.8,1,0],
+                "rjsf": [2.52,2.3049999999999997,3.025,1.008,0]
+              }
+            }
+          ],
+          "notes": ["Имя и email к этому моменту введены и требуют серверной проверки. Formik проверяет с первой клавиши, поэтому ответы сервера у него уже в кеше и отправка их не ждёт. ReFormer, RHF и RJSF впервые спрашивают сервер при отправке и показывают ошибки — в том числе синхронные — после его ответа (20 мс). «Клик → конец кадра» этой фазы сервер не включает."],
+          "apiCalls": {
+            "reformer-core": {"check-email":1,"check-username":1},
+            "reformer-json": {"check-email":1,"check-username":1},
+            "formik": {},
+            "rhf": {"check-email":1,"check-username":1},
+            "rjsf": {"check-email":1,"check-username":1}
+          }
+        },
+        {
+          "id": "typing-live",
+          "title": "Ввод после отправки — живая валидация (пароль, имя, телефон)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.074999999999999,4.013,4.2,1,0],
+                "reformer-json": [4.2,4.125,4.287,1.031,0],
+                "formik": [6.025,6,6.1,1.479,1],
+                "rhf": [4.35,4.263,4.45,1.067,0],
+                "rjsf": [5.4,5.3,5.475,1.3252,1],
+                "baseline": [3.4,3.3,3.487,0.8344,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [6.16,6.026,6.305,1,0],
+                "reformer-json": [6.3149999999999995,5.953,6.409,1.0252,0],
+                "formik": [7.62,7.519,7.776,1.237,1],
+                "rhf": [6.342,6.144,6.497,1.03,0],
+                "rjsf": [6.89,6.729,7.101,1.119,1],
+                "baseline": [4.268,4.095,4.322,0.6928,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.675000000000001,4.612,4.775,1,0],
+                "reformer-json": [4.85,4.725,4.9,1.037,0],
+                "formik": [6.7,6.612,6.8,1.433,1],
+                "rhf": [5,4.9,5,1.07,1],
+                "rjsf": [5.975,5.9,6.074999999999999,1.278,1],
+                "baseline": [3.925,3.862,4,0.8396,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.317,1.252,1.394,1,0],
+                "reformer-json": [1.502,1.446,1.574,1.141,0],
+                "formik": [3.365,3.338,3.436,2.556,1],
+                "rhf": [1.357,1.296,1.435,1.031,0],
+                "rjsf": [2.745,2.693,2.76,2.08504,1],
+                "baseline": [0.6641,0.6361,0.7236,0.5043,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.5112,0.486,0.5363,1,0],
+                "reformer-json": [0.527,0.4734,0.5464,1.031,0],
+                "formik": [0.5226,0.478,0.5791,1.022,0],
+                "rhf": [0.5187,0.5038,0.5586,1.015,0],
+                "rjsf": [0.5141,0.4912,0.5335,1.006,0],
+                "baseline": [0.4789,0.4552,0.4951,0.9369,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "rjsf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [176,175.3,177,1.006,0],
+                "reformer-json": [176,174.3,177,1.006,0],
+                "formik": [176,175,177.8,1.006,0],
+                "rhf": [176,176,177.8,1.006,0],
+                "rjsf": [175,174,176.8,1,0],
+                "baseline": [175,174,176.5,1,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "async-taken",
+          "title": "Занятое имя: ввод → ошибка от сервера",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [947.2,938.2,955.7,1.008,0],
+                "reformer-json": [948,940.4,953.5,1.009,0],
+                "formik": [956.9,949.8,958,1.018,0],
+                "rhf": [939.8,935.1,945.6,1,0],
+                "rjsf": [948.5,939.4,950,1.009,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.8,4.475,4.975,1.157,0],
+                "reformer-json": [4.75,4.7,4.912,1.1446,0],
+                "formik": [6,5.913,6.175,1.446,1],
+                "rhf": [4.15,4.1,4.2,1,-1],
+                "rjsf": [5.375,5.213,5.438,1.2952,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [14.43,13.71,14.7,1.318,0],
+                "reformer-json": [14.52,13.93,16.02,1.326,0],
+                "formik": [25.76,25.07,26.06,2.354,1],
+                "rhf": [10.95,10.02,11.65,1,0],
+                "rjsf": [23.13,22.64,24.62,2.113,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
+          "apiCalls": null
+        },
+        {
+          "id": "async-fix",
+          "title": "Исправление имени: ввод → ошибка снята",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [884.7,879.9,890.8,1.0052,0],
+                "reformer-json": [880.8,875.7,891,1.001,0],
+                "formik": [898.2,887.3,905.4,1.021,0],
+                "rhf": [880.1,877.1,888.2,1,0],
+                "rjsf": [895.8,885.3,902.7,1.018,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.3,4.2,4.4,1.024,0],
+                "reformer-json": [4.3,3.95,4.4,1.024,0],
+                "formik": [5.6,5.5,5.775,1.333,1],
+                "rhf": [4.2,4.025,4.275,1,0],
+                "rjsf": [5.2,5,5.35,1.238,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [13.01,12.43,15.453,1.018,0],
+                "reformer-json": [14.92,13.37,15.99,1.168,0],
+                "formik": [28.25,28.22,28.43,2.211,1],
+                "rhf": [12.77,11.76,12.91,1,0],
+                "rjsf": [25.44,24.61,26.34,1.991,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
+          "apiCalls": null
+        },
+        {
+          "id": "captcha-refresh",
+          "title": "Обновление капчи",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [8.1,4.25,12.63,1.102,0],
+                "reformer-json": [13.15,6.275,16.18,1.789,0],
+                "formik": [10.4,7.8,15.47,1.41497,0],
+                "rhf": [7.35,4.475000000000001,12.22,1,0],
+                "rjsf": [10.75,4.575,14.75,1.463,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [23.95,23.8,24.08,1,0],
+                "reformer-json": [24.55,24.13,24.849999999999998,1.0251,0],
+                "formik": [30.25,29.92,30.4,1.263,1],
+                "rhf": [25.3,25.2,25.5,1.056,1],
+                "rjsf": [26,25.8,26.2,1.086,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [1.81,1.7,2.308,1.049,0],
+                "reformer-json": [1.725,1.417,1.92,1,0],
+                "formik": [5.205,5.058,5.598,3.017,1],
+                "rhf": [1.78,1.0550000000000002,2.518,1.032,0],
+                "rjsf": [2.49,2.348,3.047,1.443,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.19,0.08,0.6975,2.714,0],
+                "reformer-json": [0.185,0.08,0.625,2.643,0],
+                "formik": [0.08,0.08,0.4425,1.143,0],
+                "rhf": [0.07,0.07,0.1825,1,0],
+                "rjsf": [0.08,0.08,0.1925,1.143,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "captcha-type",
+          "title": "Ввод капчи с проверкой на сервере",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "rjsf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [771.45,769.2,774.8,1.7,0],
+                "reformer-json": [772.4,769.9,776.3,1.702,0],
+                "formik": [776,768.5,781.3,1.71,0],
+                "rhf": [768.8,765.3,774.6,1.694,0],
+                "rjsf": [453.8,449.2,457.4,1,-1]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [5.575,5.263,5.688,1.199,0],
+                "reformer-json": [5.5,5.35,5.638,1.183,0],
+                "formik": [5.824999999999999,5.563,5.9,1.253,0],
+                "rhf": [4.65,4.5,4.813,1,-1],
+                "rjsf": [5.525,5.45,5.688,1.188,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [13.98,13.34,14.79,1.053,0],
+                "reformer-json": [15.950000000000001,15.17,16.96,1.202,0],
+                "formik": [19.84,19.2,20.89,1.495,1],
+                "rhf": [13.27,12.89,14.02,1,0],
+                "rjsf": [19.14,17.21,19.87,1.443,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше."],
+          "apiCalls": null
+        },
+        {
+          "id": "terms",
+          "title": "Чекбокс условий",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [12.65,7.05,13.78,1.234,0],
+                "reformer-json": [11.2,6.975,13.53,1.093,0],
+                "formik": [15.8,10.32,17.45,1.541,0],
+                "rhf": [10.25,7,11.8,1,0],
+                "rjsf": [12.05,7.75,15.22,1.176,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.7,4.35,4.8,1.08,0],
+                "reformer-json": [4.35,4.225,4.5,1,0],
+                "formik": [7.25,7.125,7.775,1.667,1],
+                "rhf": [4.8,4.575,4.975,1.103,0],
+                "rjsf": [5.55,5.35,5.775,1.276,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [3.115,2.502,3.4,1.097,0],
+                "reformer-json": [2.84,2.657,3.288,1,0],
+                "formik": [5.47,5.16,6.08,1.926,1],
+                "rhf": [2.97,2.745,3.66,1.046,0],
+                "rjsf": [3.84,3.655,4.107,1.352,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.185,0.1,0.6225,1.85,0],
+                "reformer-json": [0.315,0.11,0.66,3.15,0],
+                "formik": [0.17,0.1,0.6825,1.7,0],
+                "rhf": [0.1,0.0925,0.25,1,0],
+                "rjsf": [0.34,0.1,0.625,3.4,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "submit-valid",
+          "title": "Успешная отправка",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [9.4,6.525,14.55,1,0],
+                "reformer-json": [11.15,6.3,12.93,1.186,0],
+                "formik": [9.7,8.175,13.6,1.032,0],
+                "rhf": [9.4,7,15.22,1,0],
+                "rjsf": [10.95,8.35,12.92,1.1649,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [27.3,27.23,27.77,1.03,0],
+                "reformer-json": [27.1,26.32,27.27,1.023,0],
+                "formik": [28.55,28.07,28.8,1.077,0],
+                "rhf": [26.5,26.1,26.6,1,0],
+                "rjsf": [27.85,27.47,27.98,1.051,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [4.025,3.5949999999999998,4.595,1.134,0],
+                "reformer-json": [3.55,3.1050000000000004,4.057,1,0],
+                "formik": [5.785,5.41,6.19,1.63,1],
+                "rhf": [5.925,4.272,6.492,1.669,0],
+                "rjsf": [5.755,4.612,5.878,1.621,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.5,0.2575,0.8075,1.2346,0],
+                "reformer-json": [0.625,0.2925,0.8275,1.543,0],
+                "formik": [0.405,0.1725,0.7849999999999999,1,0],
+                "rhf": [0.745,0.38,0.8625,1.84,0],
+                "rjsf": [0.565,0.245,0.8625,1.395,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "remount",
+          "title": "Перемонтирование формы",
+          "kind": "remount",
+          "rows": [
+            {
+              "id": "mountSync",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [2.8,2.8,2.875,1.474,0],
+                "reformer-json": [3.45,3.4,3.525,1.816,1],
+                "formik": [1.9,1.813,1.938,1,-1],
+                "rhf": [2.925,2.85,3,1.539,0],
+                "rjsf": [2.75,2.613,2.837,1.447,0],
+                "baseline": [1.475,1.275,1.55,0.7763,0]
+              }
+            },
+            {
+              "id": "mountReady",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [13.28,10.8,14.7,1.0453,0],
+                "reformer-json": [13.15,10.64,14.63,1.0354,0],
+                "formik": [13.25,10.8,14.46,1.043,0],
+                "rhf": [12.7,11.02,14.57,1,0],
+                "rjsf": [13.1,11.5,14.78,1.031,0],
+                "baseline": [13.15,11.649999999999999,14.63,1.0354,0]
+              }
+            },
+            {
+              "id": "scriptPerCycle",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.53,0.5025,0.6325,1.06,0],
+                "reformer-json": [0.61,0.525,0.64,1.22,0],
+                "formik": [1.01,0.955,1.063,2.02,1],
+                "rhf": [0.5,0.4225,0.52,1,0],
+                "rjsf": [0.525,0.505,0.5675,1.05,0],
+                "baseline": [0.475,0.44,0.5175,0.95,0]
+              }
+            },
+            {
+              "id": "retainedPerCycle",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0.03516,0.03516,0.03516,null,0],
+                "reformer-json": [0.03516,0.03516,0.03516,null,0],
+                "formik": [0.03516,0.03472,0.03516,null,0],
+                "rhf": [0.03457,0.03457,0.03516,null,0],
+                "rjsf": [0.03516,0.03472,0.03516,null,0],
+                "baseline": [0.02754,0.02754,0.02798,null,0]
+              }
+            },
+            {
+              "id": "heapGrowth",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.6,1.6,1.601,null,0],
+                "reformer-json": [2.557,2.53,2.595,null,0],
+                "formik": [0.7689,0.7682,0.7697,null,0],
+                "rhf": [3.029,3.026,3.046,null,0],
+                "rjsf": [4.508,4.507,4.509,null,0],
+                "baseline": [0.9567,0.9563,0.9584,null,0]
+              }
+            },
+            {
+              "id": "nodesSlope",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": ["Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код) у всех участников, даже у пустой страницы. «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля. «Рост heap» — наклон кучи после прогрева вместе с кодом JIT: движок оптимизирует код и дальше, это не утечка."],
+          "apiCalls": null
+        }
+      ],
+      "renders": [
+        {
+          "phase": "load",
+          "cells": {
+            "reformer-core": [31,1,null,null],
+            "reformer-json": [61,1,null,null],
+            "formik": [59,2,null,null],
+            "rhf": [58,2,null,null],
+            "rjsf": [90,1,null,null],
+            "baseline": [21,1,null,null]
+          }
+        },
+        {
+          "phase": "load-invite",
+          "cells": {
+            "reformer-core": [34,2,null,null],
+            "reformer-json": [63,2,null,null],
+            "formik": [118,4,null,null],
+            "rhf": [33,3,null,null],
+            "rjsf": [92,2,null,null]
+          }
+        },
+        {
+          "phase": "typing-pristine",
+          "cells": {
+            "reformer-core": [0,0,0,null],
+            "reformer-json": [0,0,0,null],
+            "formik": [1701,63,53.16,null],
+            "rhf": [0,0,0,null],
+            "rjsf": [736,32,23,null],
+            "baseline": [0,0,0,null]
+          }
+        },
+        {
+          "phase": "submit-invalid",
+          "cells": {
+            "reformer-core": [18,2,null,null],
+            "reformer-json": [18,2,null,null],
+            "formik": [135,5,null,null],
+            "rhf": [24,1,null,null],
+            "rjsf": [89,3,null,null]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "cells": {
+            "reformer-core": [42,14,1.105,null],
+            "reformer-json": [42,14,1.105,null],
+            "formik": [2214,82,58.26,null],
+            "rhf": [51,17,1.342,null],
+            "rjsf": [864,38,22.74,null],
+            "baseline": [0,0,0,null]
+          }
+        },
+        {
+          "phase": "async-taken",
+          "cells": {
+            "reformer-core": [15,5,1.875,null],
+            "reformer-json": [15,5,1.875,null],
+            "formik": [432,16,54,null],
+            "rhf": [6,2,0.75,null],
+            "rjsf": [189,9,23.63,null]
+          }
+        },
+        {
+          "phase": "async-fix",
+          "cells": {
+            "reformer-core": [18,6,1.636,null],
+            "reformer-json": [18,6,1.636,null],
+            "formik": [513,19,46.64,null],
+            "rhf": [6,2,0.5455,null],
+            "rjsf": [258,11,23.455,null]
+          }
+        },
+        {
+          "phase": "captcha-refresh",
+          "cells": {
+            "reformer-core": [0,0,null,null],
+            "reformer-json": [0,0,null,null],
+            "formik": [81,3,null,null],
+            "rhf": [0,0,null,null],
+            "rjsf": [14,1,null,null]
+          }
+        },
+        {
+          "phase": "captcha-type",
+          "cells": {
+            "reformer-core": [36,12,6,null],
+            "reformer-json": [42,12,7,null],
+            "formik": [324,12,54,null],
+            "rhf": [24,8,4,null],
+            "rjsf": [132,6,22,null]
+          }
+        },
+        {
+          "phase": "terms",
+          "cells": {
+            "reformer-core": [3,1,null,null],
+            "reformer-json": [3,1,null,null],
+            "formik": [108,4,null,null],
+            "rhf": [3,1,null,null],
+            "rjsf": [22,1,null,null]
+          }
+        },
+        {
+          "phase": "submit-valid",
+          "cells": {
+            "reformer-core": [29,1,null,null],
+            "reformer-json": [4,1,null,null],
+            "formik": [136,5,null,null],
+            "rhf": [54,2,null,null],
+            "rjsf": [86,3,null,null]
+          }
+        },
+        {
+          "phase": "remount",
+          "cells": {
+            "reformer-core": [620,40,null,31],
+            "reformer-json": [1220,40,null,61],
+            "formik": [1180,60,null,59],
+            "rhf": [1160,60,null,58],
+            "rjsf": [1800,40,null,90],
+            "baseline": [420,40,null,21]
+          }
+        }
+      ],
+      "calibration": {
+        "n": 70,
+        "median": 47.2,
+        "spread": 0.03814,
+        "trend": 0,
+        "runDriftMedian": -0.008484,
+        "runDriftMaxAbs": 0.0911,
+        "flags": []
+      },
+      "background": {
+        "n": 70,
+        "foreignCores": {"median":0.19,"max":1.21},
+        "gpu": {"median":0.5,"max":15},
+        "ownCores": 0.15,
+        "dirtyRuns": 2,
+        "flags": [],
+        "preflight": {"dirty":false,"foreignCores":0.71},
+        "neighbours": [{"label":"duetexpertd","kind":"other","busy":1,"medianPct":33.8}]
+      }
+    },
+    {
+      "id": "credit",
+      "title": "кредитная заявка",
+      "runId": "2026-11-19T20-02-23Z_credit_3a1ec926",
+      "cpu": 4,
+      "libs": ["reformer-core","reformer-json","formik","rhf","rjsf","baseline"],
+      "failures": 0,
+      "headline": [
+        {"phase":"load","metric":"ready"},
+        {"phase":"load","metric":"script"},
+        {"phase":"step1-typing","metric":"keyProc"},
+        {"phase":"step1-typing","metric":"scriptPerKey"},
+        {"phase":"step4-typing","metric":"keyProc"},
+        {"phase":"next-1","metric":"settle"},
+        {"phase":"next-invalid","metric":"settle"},
+        {"phase":"array-add","metric":"script"},
+        {"phase":"array-type-last","metric":"keyProc"},
+        {"phase":"remount","metric":"mountSync"},
+        {"phase":"load","metric":"heap"}
+      ],
+      "metrics": {
+        "load/ready": {"label":"Готовность формы (от начала навигации)","unit":"мс"},
+        "load/fcp": {"label":"First Contentful Paint","unit":"мс"},
+        "load/script": {"label":"Выполнение JS (CDP ScriptDuration)","unit":"мс"},
+        "load/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "load/heap": {"label":"JS heap после GC","unit":"КБ"},
+        "load/nodes": {"label":"DOM-узлы","unit":""},
+        "click/clickFrame": {"label":"Клик → конец кадра","unit":"мс"},
+        "click/settle": {"label":"Клик → UI затих","unit":"мс"},
+        "click/script": {"label":"Выполнение JS (CDP)","unit":"мс"},
+        "click/layout": {"label":"Layout + style","unit":"мс"},
+        "typing/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "typing/keyProcP95": {"label":"Клавиша → конец обработки (p95 прогона)","unit":"мс"},
+        "typing/keyFrame": {"label":"Клавиша → конец кадра (медиана)","unit":"мс"},
+        "typing/scriptPerKey": {"label":"JS на клавишу (CDP)","unit":"мс"},
+        "typing/layoutPerKey": {"label":"Layout + style на клавишу","unit":"мс"},
+        "typing/slowEvents": {"label":"События ≥ 16 мс (Event Timing)","unit":"шт"},
+        "typing/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "async/settle": {"label":"Ввод → UI затих (вкл. debounce 300 мс и сеть 20 мс)","unit":"мс"},
+        "async/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "async/script": {"label":"Выполнение JS за фазу (CDP)","unit":"мс"},
+        "remount/mountSync": {"label":"Монтирование: рендер + commit + эффекты","unit":"мс"},
+        "remount/mountReady": {"label":"Монтирование: до кадра с готовой формой","unit":"мс"},
+        "remount/scriptPerCycle": {"label":"JS на цикл mount + unmount (CDP)","unit":"мс"},
+        "remount/retainedPerCycle": {"label":"Удержание объектов после размонтирования","unit":"КБ/цикл"},
+        "remount/heapGrowth": {"label":"Рост heap на перемонтирование после прогрева (с кодом JIT)","unit":"КБ/цикл"},
+        "remount/nodesSlope": {"label":"Прирост DOM-узлов на перемонтирование","unit":"шт"}
+      },
+      "sections": [
+        {
+          "id": "load",
+          "title": "Холодная загрузка",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [126.3,125.8,135.8,1,0],
+                "reformer-json": [136,134.47,144.4,1.077,0],
+                "formik": [174.6,173.1,175,1.382,1],
+                "rhf": [141.3,140.5,142.3,1.118,1],
+                "rjsf": [235.4,232.6,236.6,1.864,1],
+                "baseline": [96,95.1,103.3,0.7601,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [178,176,180,1,0],
+                "reformer-json": [186,181,188,1.045,0],
+                "formik": [232,224,235,1.303,1],
+                "rhf": [196,193,199,1.101,1],
+                "rjsf": [276,276,283,1.551,1],
+                "baseline": [148,144,152,0.8315,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [85.57,84.51,85.8,1,0],
+                "reformer-json": [94.31,93.448,94.88,1.102,0],
+                "formik": [137.7,136.4,139.1,1.609,1],
+                "rhf": [99.72,99.43,100,1.165,1],
+                "rjsf": [193.4,190.8,194.2,2.26,1],
+                "baseline": [53.34,52.91,53.62,0.6233,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [50,50,51,null,0],
+                "rhf": [12,12,13,null,0],
+                "rjsf": [79.5,79,81.75,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [2093,2093,2093,1,0],
+                "reformer-json": [2346,2346,2347,1.121,1],
+                "formik": [2211,2211,2211,1.056,1],
+                "rhf": [2492,2490,2493,1.19,1],
+                "rjsf": [3062,3062,3062,1.463,1],
+                "baseline": [1387,1387,1391,0.6629,0]
+              }
+            },
+            {
+              "id": "nodes",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [143,143,143,1,0],
+                "reformer-json": [143,143,143,1,0],
+                "formik": [143,143,143,1,0],
+                "rhf": [143,143,143,1,0],
+                "rjsf": [143,143,143,1,0],
+                "baseline": [143,143,143,1,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "load-application",
+          "title": "Загрузка сохранённой заявки (гидратация данными)",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [168.6,166.4,169,1.043,0],
+                "reformer-json": [175.6,174.2,176.5,1.086,1],
+                "formik": [220.8,216.9,224.3,1.366,1],
+                "rhf": [161.6,160.3,162.6,1,0],
+                "rjsf": [266,263.48,267.4,1.646,1]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [122,120,127,1,0],
+                "reformer-json": [216,212,216,1.77,1],
+                "formik": [230,228,235,1.885,1],
+                "rhf": [154,152,156,1.262,1],
+                "rjsf": [160,156,163,1.311,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [88.34,88.22,89.47,1,0],
+                "reformer-json": [97.42,96.2,98.52,1.103,1],
+                "formik": [143,141.9,143.8,1.619,1],
+                "rhf": [99.66,99.03,100.6,1.128,1],
+                "rjsf": [194.7,194,196.4,2.204,1]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [52,52,52.75,null,0],
+                "rhf": [14,13.25,14.75,null,0],
+                "rjsf": [71,70,72.5,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [2126,2125,2126,1,0],
+                "reformer-json": [2368,2367,2368,1.114,1],
+                "formik": [2262,2248,2262,1.064,1],
+                "rhf": [2404,2404,2404,1.131,1],
+                "rjsf": [3090,3086,3090,1.454,1]
+              }
+            },
+            {
+              "id": "nodes",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [146,146,146,1.007,0],
+                "reformer-json": [146,146,146,1.007,0],
+                "formik": [146,146,146,1.007,0],
+                "rhf": [145,145,145,1,-1],
+                "rjsf": [146,146,146,1.007,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-invalid",
+          "title": "«Далее» на пустом шаге 1 → ошибки",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [51.5,51.32,51.83,1,0],
+                "reformer-json": [51.9,51.33,52.15000000000001,1.008,0],
+                "formik": [56.84999999999999,56.58,57.15000000000001,1.104,1],
+                "rhf": [60.34999999999999,59.98,60.75,1.172,1],
+                "rjsf": [59.5,59.42,59.85,1.155,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [18.35,18.02,18.68,1.076,0],
+                "reformer-json": [17.05,16.85,17.18,1,-1],
+                "formik": [22.8,22.52,23,1.337,1],
+                "rhf": [27.2,26.73,27.58,1.5953,1],
+                "rjsf": [25.65,25.3,26.15,1.504,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [16.1,15.62,16.52,1.018,0],
+                "reformer-json": [15.82,15.13,15.95,1,0],
+                "formik": [21.1,20.25,21.26,1.334,1],
+                "rhf": [21.3,20.87,21.66,1.346,1],
+                "rjsf": [24.36,23.62,24.64,1.54,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.845,0.7275,1.2149999999999999,1,0],
+                "reformer-json": [0.905,0.7775,1.215,1.071,0],
+                "formik": [0.87,0.7175,1.032,1.03,0],
+                "rhf": [0.89,0.64,0.9275,1.053,0],
+                "rjsf": [0.905,0.6425,1.097,1.071,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "loan-type",
+          "title": "Тип кредита → ипотека: условные поля и ставка",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [48.9,42.98,51.85,1.039,0],
+                "reformer-json": [47.05,44.58,51.1,1,0],
+                "formik": [53.6,50.78,56.52,1.139,0],
+                "rhf": [59.3,56.1,62.6,1.26,0],
+                "rjsf": [62.3,60.13,67.55,1.324,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [6.335,5.963,6.89,1,0],
+                "reformer-json": [6.345000000000001,6.053,7.06,1.002,0],
+                "formik": [9.684999999999999,9.3,10.11,1.529,1],
+                "rhf": [9.1,8.965,9.607,1.436,1],
+                "rjsf": [21.73,21.37,22.29,3.431,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [1.5,1.232,1.552,1.103,0],
+                "reformer-json": [1.54,1.507,1.585,1.132,0],
+                "formik": [1.475,1.203,1.948,1.085,0],
+                "rhf": [1.36,1.115,1.54,1,0],
+                "rjsf": [1.79,1.5750000000000002,1.962,1.316,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step1-typing",
+          "title": "Шаг 1: сумма, срок, цель, стоимость (живая валидация, вычисляемые)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.85,4.75,4.9,1,0],
+                "reformer-json": [4.9,4.787,5.025,1.01,0],
+                "formik": [6.7,6.663,6.7,1.381,1],
+                "rhf": [5.925000000000001,5.787,6.05,1.222,1],
+                "rjsf": [7.425000000000001,7.313,7.525,1.531,1],
+                "baseline": [3.2,3.2,3.3,0.6598,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [8.813,8.275,9.325,1.07,0],
+                "reformer-json": [8.238,7.856,8.769,1,0],
+                "formik": [9.662,8.981,10.88,1.173,0],
+                "rhf": [9.35,8.938,9.987,1.135,0],
+                "rjsf": [12.1,11.81,12.4,1.469,0],
+                "baseline": [4.07,3.91,5.56,0.4941,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [5.425000000000001,5.35,5.45,1,0],
+                "reformer-json": [5.475,5.45,5.574999999999999,1.009,0],
+                "formik": [7.3,7.213,7.3,1.346,1],
+                "rhf": [6.6,6.412,6.837,1.217,1],
+                "rjsf": [7.85,7.775,7.987,1.447,1],
+                "baseline": [3.75,3.7,3.8,0.6912,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.771,1.64,1.804,1,0],
+                "reformer-json": [1.804,1.744,1.932,1.019,0],
+                "formik": [3.998,3.933,4.0349,2.258,1],
+                "rhf": [2.353,2.309,2.379,1.329,1],
+                "rjsf": [4.662,4.612,4.698,2.633,1],
+                "baseline": [0.6964,0.6744,0.7827,0.3933,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "rjsf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.5921,0.5351,0.6352,1.022,0],
+                "reformer-json": [0.5882,0.5567,0.6452,1.0151,0],
+                "formik": [0.5844,0.5528,0.6403,1.009,0],
+                "rhf": [0.5918,0.5374,0.6103,1.021,0],
+                "rjsf": [0.5794,0.5681,0.6269,1,0],
+                "baseline": [0.4404,0.4034,0.4965,0.76,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [179.5,179,181,1.003,0],
+                "reformer-json": [180,180,181,1.006,0],
+                "formik": [180,179,180.8,1.006,0],
+                "rhf": [179,178,180,1,0],
+                "rjsf": [179,177.3,180,1,0],
+                "baseline": [105,104,105.8,0.5866,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-1",
+          "title": "Переход на шаг 2",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [27.2,26.97,27.7,1,0],
+                "reformer-json": [28.95,28.8,29.3,1.064,0],
+                "formik": [31.15,31,31.38,1.145,1],
+                "rhf": [31.65,31.1,32.13,1.164,1],
+                "rjsf": [30.4,30.05,30.93,1.118,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [15.649999999999999,15.07,15.78,1,0],
+                "reformer-json": [17.3,17.13,17.58,1.1054,1],
+                "formik": [19.6,19.6,19.77,1.252,1],
+                "rhf": [19.65,19.42,20,1.256,1],
+                "rjsf": [18.95,18.8,19.65,1.211,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [14.29,13.39,14.88,1,0],
+                "reformer-json": [15.18,14.6,15.78,1.062,0],
+                "formik": [17.41,17,18.5,1.218,1],
+                "rhf": [15.16,14.86,15.74,1.061,0],
+                "rjsf": [18.27,17.4,18.91,1.279,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [6.38,6.092,6.58,1.012,0],
+                "reformer-json": [6.305,5.78,6.862,1,0],
+                "formik": [6.45,6.303,6.878,1.023,0],
+                "rhf": [6.31,5.973,6.45,1.001,0],
+                "rjsf": [6.52,6.085000000000001,6.813,1.034,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step2-typing",
+          "title": "Шаг 2: ФИО, паспорт, ИНН (маски)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.1,4,4.1,1,0],
+                "reformer-json": [4.1,4,4.175,1,0],
+                "formik": [8,7.925000000000001,8,1.951,1],
+                "rhf": [4.3,4.2,4.4,1.049,0],
+                "rjsf": [6.3,6.225,6.3,1.537,1]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [6.16,5.587,7.462,1,0],
+                "reformer-json": [6.62,6.312,9.917,1.075,0],
+                "formik": [9.89,9.607,11.41,1.606,1],
+                "rhf": [7.395,5.8549999999999995,9.302,1.2,0],
+                "rjsf": [8.545,8,9.83,1.387,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.9,4.825,4.975,1,0],
+                "reformer-json": [4.9,4.9,5,1,0],
+                "formik": [9,8.9,9.075,1.837,1],
+                "rhf": [5.3,5.3,5.3,1.082,1],
+                "rjsf": [7.25,7.2,7.3,1.48,1]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.061,0.9947,1.1,1,0],
+                "reformer-json": [1.081,1.056,1.12,1.019,0],
+                "formik": [5.334,5.257,5.402,5.03,1],
+                "rhf": [1.113,1.054,1.132,1.05,0],
+                "rjsf": [3.271,3.216,3.319,3.084,1]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0.4826,0.4504,0.5275,1.069,0],
+                "reformer-json": [0.4514,0.4258,0.468,1,0],
+                "formik": [0.4798,0.4408,0.5184,1.063,0],
+                "rhf": [0.5263,0.5069,0.5833,1.166,0],
+                "rjsf": [0.4747,0.4481,0.5163,1.052,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [177.5,176,179.8,1.006,0],
+                "reformer-json": [179.5,179,181,1.017,0],
+                "formik": [176.5,176,179.8,1,0],
+                "rhf": [178,176.5,179.8,1.008,0],
+                "rjsf": [178,177,180.5,1.008,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-2",
+          "title": "Переход на шаг 3",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [20.25,19.97,20.6,1,0],
+                "reformer-json": [20.8,20.45,20.98,1.027,0],
+                "formik": [22.5,22.4,22.75,1.111,1],
+                "rhf": [25.25,24.52,25.4,1.247,1],
+                "rjsf": [34.6,34.02,34.95,1.709,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [13.05,12.75,13.17,1,0],
+                "reformer-json": [13.5,13.07,13.78,1.034,0],
+                "formik": [15.649999999999999,15.18,15.8,1.199,1],
+                "rhf": [17.7,17.18,18.15,1.356,1],
+                "rjsf": [27.95,27.5,28.57,2.142,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [11.34,11.07,12.09,1,0],
+                "reformer-json": [12.08,11.68,12.35,1.0653,0],
+                "formik": [13.350000000000001,12.14,13.78,1.177,0],
+                "rhf": [14.04,13.54,14.39,1.238,1],
+                "rjsf": [25.53,25.02,26.12,2.251,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [2.95,2.755,3.188,1.002,0],
+                "reformer-json": [3.295,2.84,3.558,1.119,0],
+                "formik": [2.945,2.8,3.105,1,0],
+                "rhf": [3.18,2.882,3.26,1.08,0],
+                "rjsf": [3.135,2.897,3.54,1.065,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step3-typing",
+          "title": "Шаг 3: телефон, email, адрес",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [3.55,3.5,3.6,1,0],
+                "reformer-json": [3.55,3.5,3.6,1,0],
+                "formik": [7.2,7.1,7.2,2.028,1],
+                "rhf": [3.7,3.6,3.7,1.042,0],
+                "rjsf": [5.8,5.7,5.875,1.634,1]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [4.42,4.205,4.8,1,0],
+                "reformer-json": [4.45,4.345,5.36,1.007,0],
+                "formik": [8.41,8.23,8.64,1.903,0],
+                "rhf": [4.56,4.415,4.6,1.032,0],
+                "rjsf": [7.05,6.975,7.255,1.59502,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.3,4.3,4.375,1,0],
+                "reformer-json": [4.35,4.3,4.4,1.012,0],
+                "formik": [8.1,8,8.1,1.884,1],
+                "rhf": [4.5,4.5,4.6,1.047,0],
+                "rjsf": [6.65,6.525,6.7,1.547,1]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0.7753,0.7586,0.8023,1,0],
+                "reformer-json": [0.8678,0.7927,0.9046,1.119,0],
+                "formik": [4.557,4.46,4.623,5.878,1],
+                "rhf": [0.899,0.8746,0.91496,1.16,0],
+                "rjsf": [3.07,3.029,3.129,3.959,1]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0.3971,0.3823,0.4129,1.008,0],
+                "reformer-json": [0.4018,0.3756,0.4289,1.02,0],
+                "formik": [0.4139,0.3835,0.4203,1.051,0],
+                "rhf": [0.3939,0.3796,0.4036,1,0],
+                "rjsf": [0.4,0.3882,0.4069,1.0154,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [233,231.5,234.8,1.002,0],
+                "reformer-json": [233.5,233,235,1.004,0],
+                "formik": [233.5,233,236.5,1.004,0],
+                "rhf": [232.5,231,235.5,1,0],
+                "rjsf": [234,232.3,235,1.006,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-3",
+          "title": "Переход на шаг 4",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [18.2,18.02,18.48,1,0],
+                "reformer-json": [18.6,18.38,18.6,1.022,0],
+                "formik": [21.4,20.95,21.6,1.176,1],
+                "rhf": [24,23.68,24.2,1.319,1],
+                "rjsf": [34.4,33.9,34.58,1.89,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [12,11.65,12.17,1,0],
+                "reformer-json": [12.05,11.9,12.43,1.004,0],
+                "formik": [15.2,14.72,15.28,1.267,1],
+                "rhf": [17.6,17.35,17.98,1.467,1],
+                "rjsf": [28.35,27.68,28.9,2.363,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [10.74,9.57,11.24,1,0],
+                "reformer-json": [10.87,10.55,11.548,1.012,0],
+                "formik": [12.3,12.1,12.67,1.146,0],
+                "rhf": [14.17,13.69,14.58,1.319,1],
+                "rjsf": [25.62,24.62,26.74,2.38501,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [2.45,2.183,2.797,1,0],
+                "reformer-json": [2.53,2.237,2.712,1.033,0],
+                "formik": [2.475,2.285,2.998,1.01,0],
+                "rhf": [2.56,2.397,2.788,1.045,0],
+                "rjsf": [2.645,2.567,2.95,1.08,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "employment-switch",
+          "title": "Статус занятости → ИП: смена секций",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [9.45,9.4,9.775,1.016,0],
+                "reformer-json": [9.65,9.45,9.95,1.038,0],
+                "formik": [12.95,12.65,13.25,1.392,1],
+                "rhf": [9.3,8.875,9.55,1,0],
+                "rjsf": [12.2,12,13.13,1.312,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [6.3,5.775,6.4,1.059,0],
+                "reformer-json": [6.4,6.15,6.574999999999999,1.076,0],
+                "formik": [9.25,9.05,9.575,1.555,1],
+                "rhf": [5.95,5.55,6,1,0],
+                "rjsf": [8.7,8.35,9.025,1.462,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.73,4.558,5.387,1.0653,0],
+                "reformer-json": [4.8,4.087,4.97,1.081,0],
+                "formik": [7.455,7.305,7.665,1.679,1],
+                "rhf": [4.44,4.232,4.57,1,0],
+                "rjsf": [7.64,7.127,8.375,1.721,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.91,0.7725,1.04,1,0],
+                "reformer-json": [1.02,0.94,1.17,1.121,0],
+                "formik": [1.14,0.8175,1.395,1.253,0],
+                "rhf": [0.975,0.91,1.185,1.071,0],
+                "rjsf": [1.07,0.945,1.26,1.176,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step4-typing",
+          "title": "Шаг 4: стаж и доход (кросс-правила, доля платежа)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.1,4.063,4.237,1,0],
+                "reformer-json": [4.324999999999999,4.25,4.388,1.055,0],
+                "formik": [7,6.963,7.138,1.707,1],
+                "rhf": [4.4,4.3,4.438,1.073,0],
+                "rjsf": [7.25,7.2,7.425,1.768,1]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [7.725000000000001,5.625,10.98,1,0],
+                "reformer-json": [8.488,5.831,12.26,1.099,0],
+                "formik": [8.6,8.369,11.57,1.113,0],
+                "rhf": [9.75,9.044,11.11,1.262,0],
+                "rjsf": [8.713,8.35,10.01,1.128,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [5.05,4.9,5.1,1,0],
+                "reformer-json": [5.05,5,5.087,1,0],
+                "formik": [7.925,7.85,7.987,1.569,1],
+                "rhf": [5.275,5.213,5.375,1.045,0],
+                "rjsf": [8.15,8.05,8.238,1.614,1]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [1.082,0.9463,1.109,1,0],
+                "reformer-json": [1.231,1.211,1.295,1.138,0],
+                "formik": [4.906,4.839,4.982,4.534,1],
+                "rhf": [1.213,1.1248,1.275,1.121,0],
+                "rjsf": [4.222,4.127,4.376,3.901,1]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.6984,0.6745,0.732,1.207,0],
+                "reformer-json": [0.5787,0.5452,0.5959,1,0],
+                "formik": [0.6875,0.6244,0.7928,1.188,0],
+                "rhf": [0.8013,0.6516,0.833,1.384,0],
+                "rjsf": [0.6481,0.5944,0.6995,1.12,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "rjsf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [67.5,67,68.75,1.023,0],
+                "reformer-json": [67.5,66.25,68,1.023,0],
+                "formik": [67,67,68,1.0152,0],
+                "rhf": [68,67.25,68.75,1.03,0],
+                "rjsf": [66,66,66.75,1,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-4",
+          "title": "Переход на шаг 5",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [14.6,14.43,15.149999999999999,1.01,0],
+                "reformer-json": [14.45,14.4,14.67,1,0],
+                "formik": [17.1,16.77,17.3,1.183,0],
+                "rhf": [19.25,18.95,19.63,1.332,0],
+                "rjsf": [30.4,30.13,30.98,2.104,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [9.5,9.2,9.8,1.0053,0],
+                "reformer-json": [9.45,9.3,9.7,1,0],
+                "formik": [12.149999999999999,11.77,12.45,1.286,1],
+                "rhf": [14.1,13.75,14.45,1.492,1],
+                "rjsf": [25.15,24.92,25.77,2.661,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [7.83,7.592,8.524999999999999,1,0],
+                "reformer-json": [8.375,7.79,8.762,1.07,0],
+                "formik": [9.67,9.078,9.902,1.23499,0],
+                "rhf": [10.54,10.41,10.75,1.346,1],
+                "rjsf": [23.11,22.63,23.78,2.951,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [1.935,1.598,2.4,1.099,0],
+                "reformer-json": [1.95,1.395,2.29,1.108,0],
+                "formik": [1.76,1.65,2.2,1,0],
+                "rhf": [1.805,1.647,2.65,1.026,0],
+                "rjsf": [1.94,1.573,2.058,1.102,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-toggle-on",
+          "title": "Массив имущества: включение (первая строка)",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [15.2,14.9,15.57,1.134,0],
+                "reformer-json": [13.85,13.53,14.2,1.034,0],
+                "formik": [16,15.75,16.3,1.194,0],
+                "rhf": [13.4,13,13.67,1,-1],
+                "rjsf": [18.6,18.5,18.68,1.388,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [9.5,9.325000000000001,9.725000000000001,1.18,0],
+                "reformer-json": [8.8,8.55,8.95,1.093,-1],
+                "formik": [9.55,9.35,9.775,1.186,0],
+                "rhf": [8.05,7.8,8.5,1,-1],
+                "rjsf": [13.25,13.13,13.63,1.646,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [8.37,7.613,8.448,1.24,0],
+                "reformer-json": [7.425,7.293,7.617,1.1,0],
+                "formik": [9.475000000000001,8.78,9.83,1.404,0],
+                "rhf": [6.75,6.175,6.795,1,-1],
+                "rjsf": [11.89,11.06,12.66,1.761,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [1.99,1.853,2.407,1,0],
+                "reformer-json": [2.14,1.955,2.44,1.0754,0],
+                "formik": [2.085,1.99,2.282,1.048,0],
+                "rhf": [2.09,1.9049999999999998,2.263,1.05,0],
+                "rjsf": [2.035,1.928,2.24,1.023,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-add",
+          "title": "Массив имущества: добавление строк до N",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [12,11.65,18.2,1,0],
+                "reformer-json": [12.45,12.3,18.2,1.037,0],
+                "formik": [19.55,19.02,19.75,1.629,0],
+                "rhf": [13.350000000000001,12.77,22.68,1.113,0],
+                "rjsf": [15.5,15.5,25.2,1.292,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [667.5,656.4,678.1,1,0],
+                "reformer-json": [672.9,660,688.2,1.008,0],
+                "formik": [726.3,710.6,735.8,1.088,1],
+                "rhf": [691.9,679.5,705.3,1.037,0],
+                "rjsf": [695,681.3,703.5,1.041,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [32.31,30.39,33.19,1,0],
+                "reformer-json": [40.22,39.45,42.56,1.2447,1],
+                "formik": [89.23,88.32,89.76,2.762,1],
+                "rhf": [57.13,56.98,58.33,1.768,1],
+                "rjsf": [59.75,59.19,61.07,1.849,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [29.7,29.155,29.82,1.002,0],
+                "reformer-json": [29.88,29.38,30.59,1.008,0],
+                "formik": [29.64,29.16,30.5,1,0],
+                "rhf": [29.86,29.61,30.62,1.007,0],
+                "rjsf": [29.83,29.51,30.39,1.007,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-type-last",
+          "title": "Массив имущества: ввод в последней строке",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.2,4.15,4.375,1,0],
+                "reformer-json": [4.324999999999999,4.212,4.45,1.03,0],
+                "formik": [16.98,16.75,17.05,4.042,1],
+                "rhf": [4.45,4.313,4.6,1.06,0],
+                "rjsf": [9.4,9.063,9.575000000000001,2.238,1]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [8.762,5.675,11.19,1.463,0],
+                "reformer-json": [6.425000000000001,6.119,11.79,1.073,0],
+                "formik": [19.08,18.9,19.61,3.186,1],
+                "rhf": [5.988,5.681,6.106,1,0],
+                "rjsf": [12.5,11.81,13.29,2.088,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [5.574999999999999,5.4,5.7,1,0],
+                "reformer-json": [5.6,5.6,5.763,1.004,0],
+                "formik": [18.77,18.75,19.02,3.368,1],
+                "rhf": [5.775,5.55,5.85,1.036,0],
+                "rjsf": [10.78,10.53,10.91,1.933,1]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.8192,0.6417,1.067,1.081,0],
+                "reformer-json": [0.7575,0.62,0.8325,1,0],
+                "formik": [13.38,12.99,13.52,17.66,1],
+                "rhf": [0.9383,0.8492,1.057,1.239,0],
+                "rjsf": [6.015,5.832,6.203,7.941,1]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.5567,0.37,0.7983,1.047,0],
+                "reformer-json": [0.5317,0.4504,0.6246,1,0],
+                "formik": [0.6025,0.5433,0.7967,1.133,0],
+                "rhf": [0.6583,0.6154,0.7117,1.238,0],
+                "rjsf": [0.6308,0.5208,0.7025,1.187,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [34,34,34,1.03,0],
+                "reformer-json": [34,34,34,1.03,0],
+                "formik": [33,33,33,1,0],
+                "rhf": [34,33,34,1.03,0],
+                "rjsf": [34,33,34,1.03,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-remove",
+          "title": "Массив имущества: удаление последней строки",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [9.25,9.025,11.78,1,0],
+                "reformer-json": [10.45,10.13,12.07,1.13,0],
+                "formik": [24.15,24.1,24.55,2.611,1],
+                "rhf": [14,13.72,14.07,1.514,1],
+                "rjsf": [11.85,11.47,12.47,1.281,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [5.65,5.5,5.9,1,0],
+                "reformer-json": [6.75,6.375,6.975,1.1947,0],
+                "formik": [18.75,18.4,18.9,3.319,1],
+                "rhf": [10.5,9.85,10.57,1.858,1],
+                "rjsf": [8,7.9,8.2,1.416,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.65,4.465,5.1,1,0],
+                "reformer-json": [5.45,4.72,5.827,1.172,0],
+                "formik": [19.27,18.98,20.13,4.143,1],
+                "rhf": [9.16,8.532,9.627,1.97,1],
+                "rjsf": [6.72,6.4,6.933,1.445,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.15,0.14,0.3825,1,0],
+                "reformer-json": [0.7150000000000001,0.29,0.9625,4.767,0],
+                "formik": [0.54,0.15,1.01,3.6,0],
+                "rhf": [0.805,0.4175,1.002,5.367,0],
+                "rjsf": [0.5750000000000001,0.5,0.8025,3.833,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-toggle-off",
+          "title": "Массив имущества: выключение (очистка)",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [15.75,15.38,15.9,1.043,0],
+                "reformer-json": [15.1,14.83,17.32,1,0],
+                "formik": [16.65,15.75,16.9,1.103,0],
+                "rhf": [18.65,17.7,20.5,1.235,1],
+                "rjsf": [17.6,17.13,17.98,1.166,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [7.25,7.05,7.675,1.098,0],
+                "reformer-json": [6.6,6.425000000000001,6.7,1,0],
+                "formik": [7.8,7.7,7.9,1.182,0],
+                "rhf": [9.85,9.55,10.3,1.492,1],
+                "rjsf": [8.95,8.725,9,1.356,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [4.27,3.973,4.768,1.048,0],
+                "reformer-json": [4.074999999999999,4.03,4.3,1,0],
+                "formik": [5.47,5.217,5.688,1.342,0],
+                "rhf": [7.1850000000000005,6.822,7.452,1.763,1],
+                "rjsf": [5.93,5.6049999999999995,6.272,1.455,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "reformer-core",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.645,0.3775,0.7475,1,0],
+                "reformer-json": [0.65,0.5425,0.8725,1.008,0],
+                "formik": [0.92,0.66,1.01,1.426,0],
+                "rhf": [1.055,0.5,1.188,1.636,0],
+                "rjsf": [0.805,0.6525,0.955,1.248,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-5",
+          "title": "Переход на шаг 6",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [16.55,16.35,16.77,1.122,0],
+                "reformer-json": [14.75,14.6,15.05,1,0],
+                "formik": [20.9,20.18,21.23,1.417,1],
+                "rhf": [21.75,21.52,22.27,1.4746,1],
+                "rjsf": [37.7,37.3,37.88,2.556,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [13.85,13.55,14.17,1.174,0],
+                "reformer-json": [11.8,11.5,12.28,1,-1],
+                "formik": [18.05,17.75,18.57,1.53,1],
+                "rhf": [19.25,18.82,19.53,1.631,1],
+                "rjsf": [33.65000000000001,33.3,33.88,2.852,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [10.34,9.707,10.51,1.289,0],
+                "reformer-json": [8.02,7.095000000000001,8.578,1,0],
+                "formik": [12.71,12.48,13.51,1.585,1],
+                "rhf": [12.32,11.59,13.25,1.537,1],
+                "rjsf": [28.97,28.3,29.27,3.612,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "formik",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [2.0549999999999997,1.932,2.367,1.269,0],
+                "reformer-json": [2.12,1.732,2.622,1.309,0],
+                "formik": [1.62,1.475,2.342,1,0],
+                "rhf": [2.2,1.9249999999999998,2.44,1.358,0],
+                "rjsf": [2.38,2.182,2.987,1.469,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "sms-type",
+          "title": "Код из СМС с проверкой на сервере",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [445.3,434.7,452.8,1,0],
+                "reformer-json": [446.1,436.3,452.1,1.002,0],
+                "formik": [778,770.4,786,1.747,1],
+                "rhf": [449.4,438.9,455.6,1.009,0],
+                "rjsf": [456.1,447.9,463.1,1.024,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [3.25,3.1750000000000003,3.3,1,0],
+                "reformer-json": [3.35,3.25,3.462,1.031,0],
+                "formik": [5.4,5.287,5.6,1.662,1],
+                "rhf": [3.35,3.1,3.388,1.031,0],
+                "rjsf": [4.75,4.637,4.85,1.462,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "reformer-json",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [5.115,4.232,5.607,1.069,0],
+                "reformer-json": [4.785,4.22,5.313,1,0],
+                "formik": [22.18,21.68,23.16,4.636,1],
+                "rhf": [4.995,4.64,5.843,1.044,0],
+                "rjsf": [14.86,14.38,15.047,3.106,1]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM. Formik и RHF прогоняют синхронные правила вместе с серверной проверкой и снимают ошибку только по её ответу; RJSF и ReFormer снимают синхронную ошибку сразу. Если по ответу сервера DOM не меняется, фаза затихает раньше.","Formik валидирует с первой клавиши, включая серверные проверки (submitCount скрывает только показ ошибок, см. README Formik), поэтому проверяет код ещё до первой отправки; остальные — при отправке."],
+          "apiCalls": {"reformer-core":{},"reformer-json":{},"formik":{"sms-verify":1},"rhf":{},"rjsf":{}}
+        },
+        {
+          "id": "submit-valid",
+          "title": "Отправка заявки",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [9.9,9.7,10.5,1.329,0],
+                "reformer-json": [10.149999999999999,9.8,10.45,1.362,0],
+                "formik": [13.149999999999999,12.8,13.63,1.7651,0],
+                "rhf": [7.45,7.05,8.7,1,0],
+                "rjsf": [58.5,57.7,59.1,7.852,1]
+              }
+            },
+            {
+              "id": "settle",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [52.1,51.7,52.38,1.551,0],
+                "reformer-json": [51.7,51.2,51.9,1.539,0],
+                "formik": [33.6,33.23,34.13,1,-1],
+                "rhf": [49.65000000000001,49.5,50.02,1.478,-1],
+                "rjsf": [97.95,97.6,98.38,2.915,1]
+              }
+            },
+            {
+              "id": "script",
+              "best": "rhf",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [6.59,6.105,7.658,1.112,0],
+                "reformer-json": [6.59,6.2,7.377,1.112,0],
+                "formik": [6.76,6.158,7.063,1.141,0],
+                "rhf": [5.925000000000001,5.31,6.305,1,0],
+                "rjsf": [55.58,54.52,55.77,9.381,1]
+              }
+            },
+            {
+              "id": "layout",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.7050000000000001,0.225,1.495,3.917,0],
+                "reformer-json": [0.42500000000000004,0.3,0.75,2.361,0],
+                "formik": [0.5750000000000001,0.3625,1.203,3.194,0],
+                "rhf": [0.18,0.17,0.33,1,0],
+                "rjsf": [0.555,0.3575,0.7625,3.083,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": {
+            "reformer-core": {"sms-verify":1,"submit-application":1},
+            "reformer-json": {"sms-verify":1,"submit-application":1},
+            "formik": {"submit-application":1},
+            "rhf": {"sms-verify":1,"submit-application":1},
+            "rjsf": {"sms-verify":1,"submit-application":1}
+          }
+        },
+        {
+          "id": "remount",
+          "title": "Перемонтирование формы",
+          "kind": "remount",
+          "rows": [
+            {
+              "id": "mountSync",
+              "best": "formik",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [3.85,3.763,3.938,1.54,0],
+                "reformer-json": [4.9,4.725,4.9,1.96,1],
+                "formik": [2.5,2.5,2.537,1,-1],
+                "rhf": [3.2,3.2,3.25,1.28,-1],
+                "rjsf": [3.85,3.85,3.887,1.54,0],
+                "baseline": [1.6,1.462,1.6,0.64,0]
+              }
+            },
+            {
+              "id": "mountReady",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [8.75,7.912,10.81,1.178,0],
+                "reformer-json": [9.2,8.9,11.01,1.239,0],
+                "formik": [7.525,6.963,9.825,1.013,0],
+                "rhf": [7.425,7.112,10.91,1,0],
+                "rjsf": [8.425,7.85,11.45,1.1347,0],
+                "baseline": [5.25,5.1,9.263,0.7071,0]
+              }
+            },
+            {
+              "id": "scriptPerCycle",
+              "best": "rhf",
+              "noisy": true,
+              "cells": {
+                "reformer-core": [0.615,0.5475,0.71,1.242,0],
+                "reformer-json": [0.6950000000000001,0.6,0.7475,1.404,0],
+                "formik": [0.9,0.87,1.0150000000000001,1.818,1],
+                "rhf": [0.495,0.45,0.5525,1,0],
+                "rjsf": [0.59,0.5425,0.6925,1.192,0],
+                "baseline": [0.125,0.11,0.1475,0.2525,0]
+              }
+            },
+            {
+              "id": "retainedPerCycle",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0.03438,0.03438,0.03438,null,0],
+                "reformer-json": [0.03438,0.03438,0.03438,null,0],
+                "formik": [0.03516,0.03472,0.03516,null,0],
+                "rhf": [0.03496,0.03496,0.03496,null,0],
+                "rjsf": [0.03379,0.02896,0.03438,null,0],
+                "baseline": [0.03516,0.03472,0.03516,null,0]
+              }
+            },
+            {
+              "id": "heapGrowth",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "reformer-core": [3.399,3.397,3.404,null,0],
+                "reformer-json": [1.369,1.3653,1.406,null,0],
+                "formik": [0.05797,0.05639,0.05979,null,0],
+                "rhf": [0.1441,0.1439,0.1477,null,0],
+                "rjsf": [0.4179,0.3889,0.4183,null,0],
+                "baseline": [0.6389,0.6382,0.6393,null,0]
+              }
+            },
+            {
+              "id": "nodesSlope",
+              "best": "reformer-core",
+              "noisy": false,
+              "cells": {
+                "reformer-core": [0,0,0,null,0],
+                "reformer-json": [0,0,0,null,0],
+                "formik": [0,0,0,null,0],
+                "rhf": [0,0,0,null,0],
+                "rjsf": [0,0,0,null,0],
+                "baseline": [0,0,0,null,0]
+              }
+            }
+          ],
+          "notes": ["Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код) у всех участников, даже у пустой страницы. «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля. «Рост heap» — наклон кучи после прогрева вместе с кодом JIT: движок оптимизирует код и дальше, это не утечка."],
+          "apiCalls": null
+        }
+      ],
+      "renders": [
+        {
+          "phase": "load",
+          "cells": {
+            "reformer-core": [26,1,null,null],
+            "reformer-json": [48,1,null,null],
+            "formik": [95,3,null,null],
+            "rhf": [87,3,null,null],
+            "rjsf": [143,3,null,null],
+            "baseline": [17,1,null,null]
+          }
+        },
+        {
+          "phase": "load-application",
+          "cells": {
+            "reformer-core": [29,2,null,null],
+            "reformer-json": [50,2,null,null],
+            "formik": [116,4,null,null],
+            "rhf": [33,3,null,null],
+            "rjsf": [143,4,null,null]
+          }
+        },
+        {
+          "phase": "next-invalid",
+          "cells": {
+            "reformer-core": [50,3,null,null],
+            "reformer-json": [42,3,null,null],
+            "formik": [69,3,null,null],
+            "rhf": [41,2,null,null],
+            "rjsf": [70,3,null,null]
+          }
+        },
+        {
+          "phase": "loan-type",
+          "cells": {
+            "reformer-core": [30,3,null,null],
+            "reformer-json": [18,3,null,null],
+            "formik": [37,2,null,null],
+            "rhf": [15,2,null,null],
+            "rjsf": [133,3,null,null]
+          }
+        },
+        {
+          "phase": "step1-typing",
+          "cells": {
+            "reformer-core": [116,41,3.222,null],
+            "reformer-json": [116,41,3.222,null],
+            "formik": [744,76,20.67,null],
+            "rhf": [95,31,2.639,null],
+            "rjsf": [1515,105,42.08,null],
+            "baseline": [0,0,0,null]
+          }
+        },
+        {
+          "phase": "next-1",
+          "cells": {
+            "reformer-core": [78,2,null,null],
+            "reformer-json": [101,2,null,null],
+            "formik": [229,6,null,null],
+            "rhf": [79,2,null,null],
+            "rjsf": [251,2,null,null]
+          }
+        },
+        {
+          "phase": "step2-typing",
+          "cells": {
+            "reformer-core": [42,21,0.9767,null],
+            "reformer-json": [42,21,0.9767,null],
+            "formik": [770,96,17.91,null],
+            "rhf": [63,21,1.465,null],
+            "rjsf": [1994,129,46.37,null]
+          }
+        },
+        {
+          "phase": "next-2",
+          "cells": {
+            "reformer-core": [93,2,null,null],
+            "reformer-json": [101,2,null,null],
+            "formik": [220,6,null,null],
+            "rhf": [102,3,null,null],
+            "rjsf": [165,2,null,null]
+          }
+        },
+        {
+          "phase": "step3-typing",
+          "cells": {
+            "reformer-core": [0,0,0,null],
+            "reformer-json": [0,0,0,null],
+            "formik": [2440,120,42.81,null],
+            "rhf": [0,0,0,null],
+            "rjsf": [2123,171,37.246,null]
+          }
+        },
+        {
+          "phase": "next-3",
+          "cells": {
+            "reformer-core": [107,2,null,null],
+            "reformer-json": [108,2,null,null],
+            "formik": [309,6,null,null],
+            "rhf": [112,2,null,null],
+            "rjsf": [179,2,null,null]
+          }
+        },
+        {
+          "phase": "employment-switch",
+          "cells": {
+            "reformer-core": [43,2,null,null],
+            "reformer-json": [30,2,null,null],
+            "formik": [64,2,null,null],
+            "rhf": [15,1,null,null],
+            "rjsf": [76,3,null,null]
+          }
+        },
+        {
+          "phase": "step4-typing",
+          "cells": {
+            "reformer-core": [36,11,2.25,null],
+            "reformer-json": [36,11,2.25,null],
+            "formik": [404,40,25.25,null],
+            "rhf": [33,11,2.063,null],
+            "rjsf": [944,48,59,null]
+          }
+        },
+        {
+          "phase": "next-4",
+          "cells": {
+            "reformer-core": [61,2,null,null],
+            "reformer-json": [64,2,null,null],
+            "formik": [159,6,null,null],
+            "rhf": [61,2,null,null],
+            "rjsf": [85,2,null,null]
+          }
+        },
+        {
+          "phase": "array-toggle-on",
+          "cells": {
+            "reformer-core": [37,2,null,null],
+            "reformer-json": [35,3,null,null],
+            "formik": [69,2,null,null],
+            "rhf": [23,1,null,null],
+            "rjsf": [92,3,null,null]
+          }
+        },
+        {
+          "phase": "array-add",
+          "cells": {
+            "reformer-core": [144,9,null,null],
+            "reformer-json": [657,9,null,null],
+            "formik": [2730,29,null,null],
+            "rhf": [972,9,null,null],
+            "rjsf": [774,27,null,null]
+          }
+        },
+        {
+          "phase": "array-type-last",
+          "cells": {
+            "reformer-core": [0,0,0,null],
+            "reformer-json": [0,0,0,null],
+            "formik": [2728,18,454.7,null],
+            "rhf": [0,0,0,null],
+            "rjsf": [491,18,81.83,null]
+          }
+        },
+        {
+          "phase": "array-remove",
+          "cells": {
+            "reformer-core": [2,1,null,null],
+            "reformer-json": [84,1,null,null],
+            "formik": [712,5,null,null],
+            "rhf": [159,1,null,null],
+            "rjsf": [53,3,null,null]
+          }
+        },
+        {
+          "phase": "array-toggle-off",
+          "cells": {
+            "reformer-core": [19,1,null,null],
+            "reformer-json": [1,1,null,null],
+            "formik": [20,2,null,null],
+            "rhf": [5,1,null,null],
+            "rjsf": [25,3,null,null]
+          }
+        },
+        {
+          "phase": "next-5",
+          "cells": {
+            "reformer-core": [141,2,null,null],
+            "reformer-json": [54,2,null,null],
+            "formik": [601,6,null,null],
+            "rhf": [128,2,null,null],
+            "rjsf": [153,2,null,null]
+          }
+        },
+        {
+          "phase": "sms-type",
+          "cells": {
+            "reformer-core": [0,0,0,null],
+            "reformer-json": [0,0,0,null],
+            "formik": [102,14,17,null],
+            "rhf": [0,0,0,null],
+            "rjsf": [168,18,28,null]
+          }
+        },
+        {
+          "phase": "submit-valid",
+          "cells": {
+            "reformer-core": [26,1,null,null],
+            "reformer-json": [2,1,null,null],
+            "formik": [74,5,null,null],
+            "rhf": [51,2,null,null],
+            "rjsf": [22,4,null,null]
+          }
+        },
+        {
+          "phase": "remount",
+          "cells": {
+            "reformer-core": [520,40,null,26],
+            "reformer-json": [960,40,null,48],
+            "formik": [1288,62,null,64.4],
+            "rhf": [1160,60,null,58],
+            "rjsf": [1636,46,null,81.8],
+            "baseline": [340,40,null,17]
+          }
+        }
+      ],
+      "calibration": {
+        "n": 70,
+        "median": 46.9,
+        "spread": 0.03198,
+        "trend": 0.001063,
+        "runDriftMedian": -0.005308,
+        "runDriftMaxAbs": 0.1569,
+        "flags": []
+      },
+      "background": {
+        "n": 70,
+        "foreignCores": {"median":0.13,"max":0.69},
+        "gpu": {"median":0.5,"max":22.5},
+        "ownCores": 0.175,
+        "dirtyRuns": 0,
+        "flags": [],
+        "preflight": {"dirty":false,"foreignCores":0.52},
+        "neighbours": []
+      }
+    }
+  ],
+  "bundle": [
+    {
+      "lib": "reformer-core",
+      "form": "credit",
+      "raw": 338.8,
+      "gzip": 106,
+      "brotli": 91.45,
+      "overBaselineGzip": 38.06,
+      "top": [["@reformer/core",77.8],["bench: shared",39.69],["implementation",16.26],["@reformer/cdk",11.21],["@preact/signals-core",4.615]]
+    },
+    {
+      "lib": "reformer-json",
+      "form": "credit",
+      "raw": 370.1,
+      "gzip": 114.3,
+      "brotli": 98.02,
+      "overBaselineGzip": 46.3,
+      "top": [["@reformer/core",77.35],["bench: shared",38.48],["implementation",30.69],["@reformer/renderer-json",11.49],["@reformer/renderer-react",10.352]]
+    },
+    {
+      "lib": "formik",
+      "form": "credit",
+      "raw": 326.5,
+      "gzip": 100.8,
+      "brotli": 87.54,
+      "overBaselineGzip": 32.8,
+      "top": [["bench: shared",40.53],["yup",34.39],["formik",19.61],["implementation",17.73],["lodash-es",14.62]]
+    },
+    {
+      "lib": "rhf",
+      "form": "credit",
+      "raw": 381.9,
+      "gzip": 117.4,
+      "brotli": 101.7,
+      "overBaselineGzip": 49.46,
+      "top": [["zod",85.94],["react-hook-form",44.98],["bench: shared",41.16],["implementation",16.952],["@hookform/resolvers",3.302]]
+    },
+    {
+      "lib": "rjsf",
+      "form": "credit",
+      "raw": 620.4,
+      "gzip": 201.2,
+      "brotli": 172,
+      "overBaselineGzip": 133.2,
+      "top": [["ajv",103.6],["markdown-to-jsx",77.4],["@rjsf/core",67.747],["@rjsf/utils",48.947],["bench: shared",43.349]]
+    },
+    {
+      "lib": "baseline",
+      "form": "credit",
+      "raw": 216.8,
+      "gzip": 67.97,
+      "brotli": 58.69,
+      "overBaselineGzip": 0,
+      "top": [["bench: shared",23.62],["implementation",4.468]]
+    },
+    {
+      "lib": "reformer-core",
+      "form": "registration",
+      "raw": 288.4,
+      "gzip": 92.84,
+      "brotli": 80.647,
+      "overBaselineGzip": 28.92,
+      "top": [["@reformer/core",70.72],["bench: shared",12.55],["@reformer/cdk",7.85],["@preact/signals-core",4.615],["implementation",3.641]]
+    },
+    {
+      "lib": "reformer-json",
+      "form": "registration",
+      "raw": 310.9,
+      "gzip": 100.6,
+      "brotli": 87.18,
+      "overBaselineGzip": 36.67,
+      "top": [["@reformer/core",70.81],["bench: shared",11.94],["@reformer/renderer-json",11.41],["@reformer/renderer-react",10.34],["@reformer/cdk",7.849]]
+    },
+    {
+      "lib": "formik",
+      "form": "registration",
+      "raw": 274.7,
+      "gzip": 88.45,
+      "brotli": 76.76,
+      "overBaselineGzip": 24.53,
+      "top": [["yup",30.72],["lodash-es",14.62],["formik",13.48],["bench: shared",12.55],["implementation",3.75]]
+    },
+    {
+      "lib": "rhf",
+      "form": "registration",
+      "raw": 326.8,
+      "gzip": 103.2,
+      "brotli": 89.46,
+      "overBaselineGzip": 39.245,
+      "top": [["zod",79.44],["react-hook-form",38.7],["bench: shared",12.6],["@hookform/resolvers",3.302],["implementation",3.254]]
+    },
+    {
+      "lib": "rjsf",
+      "form": "registration",
+      "raw": 591.3,
+      "gzip": 193.5,
+      "brotli": 165.4,
+      "overBaselineGzip": 129.5,
+      "top": [["ajv",103.6],["markdown-to-jsx",77.4],["@rjsf/core",67.747],["@rjsf/utils",48.947],["fast-uri",31.07]]
+    },
+    {
+      "lib": "baseline",
+      "form": "registration",
+      "raw": 201.1,
+      "gzip": 63.92,
+      "brotli": 55.28,
+      "overBaselineGzip": 0,
+      "top": [["bench: shared",11.02],["implementation",1.375]]
+    }
+  ],
+  "code": [
+    {
+      "lib": "reformer-core",
+      "form": "registration",
+      "formTs": 132,
+      "formJson": 0,
+      "kitTs": 146,
+      "total": 278,
+      "files": 5,
+      "gzip": 3040
+    },
+    {
+      "lib": "reformer-core",
+      "form": "credit",
+      "formTs": 399,
+      "formJson": 0,
+      "kitTs": 608,
+      "total": 1007,
+      "files": 10,
+      "gzip": 8127
+    },
+    {
+      "lib": "reformer-json",
+      "form": "registration",
+      "formTs": 57,
+      "formJson": 87,
+      "kitTs": 205,
+      "total": 349,
+      "files": 9,
+      "gzip": 3884
+    },
+    {
+      "lib": "reformer-json",
+      "form": "credit",
+      "formTs": 76,
+      "formJson": 1012,
+      "kitTs": 739,
+      "total": 1827,
+      "files": 14,
+      "gzip": 11716
+    },
+    {
+      "lib": "formik",
+      "form": "registration",
+      "formTs": 125,
+      "formJson": 0,
+      "kitTs": 243,
+      "total": 368,
+      "files": 7,
+      "gzip": 3413
+    },
+    {
+      "lib": "formik",
+      "form": "credit",
+      "formTs": 890,
+      "formJson": 0,
+      "kitTs": 243,
+      "total": 1133,
+      "files": 10,
+      "gzip": 9027
+    },
+    {
+      "lib": "rhf",
+      "form": "registration",
+      "formTs": 179,
+      "formJson": 0,
+      "kitTs": 72,
+      "total": 251,
+      "files": 5,
+      "gzip": 2621
+    },
+    {
+      "lib": "rhf",
+      "form": "credit",
+      "formTs": 964,
+      "formJson": 0,
+      "kitTs": 121,
+      "total": 1085,
+      "files": 8,
+      "gzip": 8906
+    },
+    {
+      "lib": "rjsf",
+      "form": "registration",
+      "formTs": 293,
+      "formJson": 0,
+      "kitTs": 464,
+      "total": 757,
+      "files": 8,
+      "gzip": 5630
+    },
+    {
+      "lib": "rjsf",
+      "form": "credit",
+      "formTs": 992,
+      "formJson": 0,
+      "kitTs": 464,
+      "total": 1456,
+      "files": 11,
+      "gzip": 11356
+    },
+    {
+      "lib": "baseline",
+      "form": "registration",
+      "formTs": 73,
+      "formJson": 0,
+      "kitTs": 0,
+      "total": 73,
+      "files": 2,
+      "gzip": 857
+    },
+    {
+      "lib": "baseline",
+      "form": "credit",
+      "formTs": 325,
+      "formJson": 0,
+      "kitTs": 0,
+      "total": 325,
+      "files": 2,
+      "gzip": 2767
+    }
+  ],
+  "calibration": {"cpu":4,"median":47.05,"spread":0.03741,"betweenForms":0.006397,"flags":[]}
+}

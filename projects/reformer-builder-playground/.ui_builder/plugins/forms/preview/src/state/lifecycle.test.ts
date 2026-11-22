@@ -1,0 +1,263 @@
+/**
+ * Жизненный цикл состояний превью: не дольше открытых файлов модуля формы.
+ *
+ * Проверяется шов между рабочей областью и реестром состояний — тот же, что раньше жил
+ * в порту композиции (`shell/boot/ports/preview`) и проверялся там же. Двойник теперь
+ * не проект, а служба документов: перевешивание подписки на вкладки при смене проекта —
+ * забота службы (`shell/boot/ports/documents`), а не правила жизни. Здесь проверяется само
+ * правило, и «проект закрыли» выглядит как «открытых документов не осталось».
+ *
+ * @module plugins/forms/preview/state/lifecycle.test
+ */
+
+import { describe, expect, it } from 'vitest';
+import {
+  attachPreviewLifecycle,
+  moduleDirectoryOf,
+  type PreviewLifecycleDocuments,
+  type PreviewLifecycleFiles,
+} from './lifecycle';
+import { createPreviewSessions } from './sessions';
+
+/** Рабочая область в объёме правила: список открытых, каталог адреса и одно уведомление. */
+function fakeDocuments() {
+  const listeners = new Set<() => void>();
+  let open: string[] = [];
+
+  const documents: PreviewLifecycleDocuments = {
+    openDocuments: () => open,
+    onDidChange: (cb) => {
+      listeners.add(cb);
+      return {
+        dispose: () => {
+          listeners.delete(cb);
+        },
+      };
+    },
+  };
+
+  /** Та же арифметика, что у службы: до последнего «/», без подъёма выше корня источника. */
+  const files: PreviewLifecycleFiles = {
+    parentOf: (id) => {
+      const at = id.lastIndexOf('/');
+      return at === -1 ? id : id.slice(0, at);
+    },
+    resolve: (dir, ...segments) => [dir, ...segments].join('/'),
+  };
+
+  return {
+    documents,
+    files,
+    subscribers: () => listeners.size,
+    setOpen(next: string[]): void {
+      open = next;
+      for (const cb of [...listeners]) cb();
+    },
+  };
+}
+
+describe('attachPreviewLifecycle', () => {
+  it('закрытая вкладка забывает своё состояние, открытые остаются', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    w.setOpen(['src:a/form.json', 'src:b/form.json']);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor('src:a/form.json').select(['a1b2c3d4']);
+    sessions.storeFor('src:b/form.json');
+
+    w.setOpen(['src:b/form.json']);
+
+    expect(sessions.ids()).toEqual(['src:b/form.json']);
+    // Новое обращение к «a» даёт свежее состояние — выбор закрытой вкладки не переживает её.
+    expect(sessions.storeFor('src:a/form.json').get().selection).toEqual([]);
+  });
+
+  it('состояние формы живёт, пока открыт хоть один файл её каталога', () => {
+    // Одиночный щелчок по сайдкару в дереве замещает вкладку предпросмотра формы: человек
+    // пошёл чинить validation.ts, и находки формы обязаны пережить этот щелчок.
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    w.setOpen(['src:credit/form.json']);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor('src:credit/form.json');
+
+    w.setOpen(['src:credit/validation.ts']);
+    expect(sessions.ids()).toEqual(['src:credit/form.json']);
+
+    w.setOpen(['src:other/readme.md']);
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('состояние формы из schema/ живёт, пока открыт файл из любой папки её модуля', () => {
+    // Модуль разложен по ролям: документ — в `schema/`, правила — в `validation/`. Человек
+    // пошёл чинить правила — вкладка формы заместилась, а каталог у файла уже другой.
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/credit/schema/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    w.setOpen(['src:forms/credit/validation/form.ts']);
+    expect(sessions.ids()).toEqual([form]);
+
+    // Файл в корне модуля — тоже его файл.
+    w.setOpen(['src:forms/credit/index.ts']);
+    expect(sessions.ids()).toEqual([form]);
+
+    // Самый глубокий файл раскладки: часть документа в папке шага.
+    w.setOpen(['src:forms/credit/schema/steps/kontakty/form.schema.json']);
+    expect(sessions.ids()).toEqual([form]);
+
+    // Соседний файл той же папки `schema/`.
+    w.setOpen(['src:forms/credit/schema/registry.ts']);
+    expect(sessions.ids()).toEqual([form]);
+  });
+
+  it('файл соседней формы состояние не держит', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/credit/schema/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    // У соседней формы своя папка `schema/`: общего у них только родитель модулей.
+    w.setOpen(['src:forms/loan/schema/form.schema.json', 'src:forms/readme.md']);
+
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('файл глубже папок модуля состояние не держит: иначе форма в корне жила бы вечно', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/credit/schema/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    w.setOpen(['src:forms/credit/a/b/c/d/deep.ts']);
+
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('у формы прежней плоской раскладки файлы папок шагов тоже держат состояние', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    const form = 'src:forms/contact/form.schema.json';
+    w.setOpen([form]);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor(form);
+
+    w.setOpen(['src:forms/contact/steps/kontakty/form.validation.ts']);
+
+    expect(sessions.ids()).toEqual([form]);
+  });
+
+  it('без открытых документов забывается всё: проект закрыли', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    w.setOpen(['src:a/form.json']);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor('src:a/form.json');
+
+    w.setOpen([]);
+
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('сводит СРАЗУ, а не ждёт первого уведомления', () => {
+    // Плагин поднимается позже рабочей области, и состояние могло пережить перезагрузку
+    // плагина: без немедленного сведения оно висело бы до следующего движения вкладок.
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    sessions.storeFor('src:a/form.json');
+
+    attachPreviewLifecycle(w.documents, w.files, sessions);
+
+    expect(sessions.ids()).toEqual([]);
+  });
+
+  it('каталог модуля: каталог документа, а из папки schema — её родитель', () => {
+    const { files } = fakeDocuments();
+    expect(moduleDirectoryOf(files, 'src:forms/credit/schema/form.schema.json')).toBe(
+      'src:forms/credit'
+    );
+    expect(moduleDirectoryOf(files, 'src:forms/credit/form.schema.json')).toBe('src:forms/credit');
+    // Решает имя папки целиком, а не его часть, и только один уровень.
+    expect(moduleDirectoryOf(files, 'src:forms/credit/schemas/form.schema.json')).toBe(
+      'src:forms/credit/schemas'
+    );
+    expect(moduleDirectoryOf(files, 'src:forms/schema/schema/form.schema.json')).toBe(
+      'src:forms/schema'
+    );
+  });
+
+  describe('место модуля называет стек', () => {
+    // Документ ReFormer со свободным именем: модуль — подкаталог по имени документа, а каталог
+    // самого документа — общий с модулями других форм.
+    const form = 'src:forms/credit.schema.json';
+    const module = 'src:forms/credit';
+
+    /** Стек отвечает о своём документе, пока тот открыт, — как точка `FormModulePoint`. */
+    const stackOf =
+      (w: ReturnType<typeof fakeDocuments>) =>
+      (id: string): string | null =>
+        id === form && w.documents.openDocuments().includes(id) ? module : null;
+
+    it('файл соседней формы в том же каталоге состояние не держит', () => {
+      const sessions = createPreviewSessions();
+      const w = fakeDocuments();
+      w.setOpen([form]);
+      attachPreviewLifecycle(w.documents, w.files, sessions, stackOf(w));
+      sessions.storeFor(form);
+
+      // По общему правилу модуль — `src:forms`, и файл соседней формы держал бы состояние.
+      w.setOpen(['src:forms/loan/validation/form.ts']);
+
+      expect(sessions.ids()).toEqual([]);
+    });
+
+    it('файл шага разбитого визарда держит, хотя документ уже закрыт', () => {
+      // Одиночный щелчок замещает вкладку документа файлом шага одним движением: к сведению
+      // документ закрыт, и ответ стека должен быть запомнен ещё при рождении состояния.
+      const sessions = createPreviewSessions();
+      const w = fakeDocuments();
+      w.setOpen([form]);
+      attachPreviewLifecycle(w.documents, w.files, sessions, stackOf(w));
+      sessions.storeFor(form);
+
+      w.setOpen(['src:forms/credit/schema/steps/kontakty/form.schema.json']);
+      expect(sessions.ids()).toEqual([form]);
+
+      w.setOpen(['src:forms/readme.md']);
+      expect(sessions.ids()).toEqual([]);
+    });
+
+    it('открытый документ держит своё состояние, хотя лежит вне каталога модуля', () => {
+      const sessions = createPreviewSessions();
+      const w = fakeDocuments();
+      w.setOpen([form]);
+      attachPreviewLifecycle(w.documents, w.files, sessions, stackOf(w));
+      sessions.storeFor(form);
+
+      w.setOpen([form, 'src:notes.md']);
+
+      expect(sessions.ids()).toEqual([form]);
+    });
+  });
+
+  it('снятие прекращает слежение, но состояний не трогает', () => {
+    const sessions = createPreviewSessions();
+    const w = fakeDocuments();
+    w.setOpen(['src:a/form.json']);
+    const lifecycle = attachPreviewLifecycle(w.documents, w.files, sessions);
+    sessions.storeFor('src:a/form.json');
+
+    lifecycle.dispose();
+    w.setOpen([]);
+
+    expect(w.subscribers()).toBe(0);
+    expect(sessions.ids()).toEqual(['src:a/form.json']);
+  });
+});

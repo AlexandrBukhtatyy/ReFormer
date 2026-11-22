@@ -1,0 +1,26 @@
+[
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.formStart({ dir: \"form\", target: \"renderer-react\", task: \"Сделай форму регистрации: логин (login) — обязателен, от 3 до 20 символов, только латиница, цифры и _; email (email) — обязателен, формат; пароль (password) — обязателен, минимум 8, ввод скрыт; повтор пароля (confirmPassword) — обязателен, совпадает с паролем; капча (captcha) — код из 6 символов, обязательна, асинхронная заглушка: верный ABC123 без учёта регистра, ответ через 300 мс, неверный — ошибка «Символы не совпадают», картинку не рисовать; внизу кнопка «Зарегистрироваться». Стек: @reformer/renderer-react\" }))",
+    "answer": "✓ form_start: the plan of «Форма регистрации» on renderer-react is saved.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.filter(a=>/secret|password|asyncCheck|sameAs|pattern|secure|minLength|email|submit|component/i.test(a.name+a.doc)).map(a=>a.signature+\" | \"+a.doc.slice(0,200)+\" | \"+(a.example||\"\"))",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form()\nf.add(\"login\",\"Логин\").required().minLength(3).maxLength(20).pattern(/^[A-Za-z0-9_]+$/,\"Только латиница, цифры и _\")\nf.add(\"email\",\"Email\").required().email()\nf.add(\"password\",\"Пароль\").component(\"InputPassword\").required().minLength(8)\nf.add(\"confirmPassword\",\"Повтор пароля\").component(\"InputPassword\").required().sameAs(\"password\",\"Пароли не совпадают\")\nf.add(\"captcha\",\"Код с картинки\").required().minLength(6).maxLength(6).asyncCheck(v => String(v).toUpperCase() === \"ABC123\", { delay: 300, message: \"Символы не совпадают\" })\nf.submit(\"Зарегистрироваться\")\nconsole.log(await f.save())",
+    "answer": "form_edit: 13 of 13 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "Done: the form is built, every stage of the plan is complete and the types are checked.",
+    "error": false
+  }
+]

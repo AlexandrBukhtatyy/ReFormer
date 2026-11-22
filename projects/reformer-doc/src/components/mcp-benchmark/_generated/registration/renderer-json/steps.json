@@ -1,0 +1,38 @@
+[
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.formStart({ dir: \"form\", target: \"renderer-json\", task: \"Сделай форму регистрации: логин (login) — обязателен, от 3 до 20 символов, только латиница, цифры и _; email (email) — обязателен, проверяется формат; пароль (password) — обязателен, минимум 8 символов, ввод скрыт; повтор пароля (confirmPassword) — обязателен и должен совпадать с паролем; капча (captcha) — поле для кода из 6 символов с картинки, обязательна. Сервера капчи пока нет: проверяй асинхронно заглушкой — верный код ABC123 без учёта регистра, ответ через 300 мс, неверный код — ошибка «Символы не совпадают». Картинку пока не рисуй; внизу кнопка «Зарегистрироваться». Стек: @reformer/renderer-json, разметка — документ JSON-схемы и реестр компонентов.\" }))",
+    "answer": "✓ form_start: the plan of «Форма регистрации» on renderer-json is saved.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.map(a=>a.name+\": \"+a.signature+\" — \"+a.doc.slice(0,150))",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.title(\"Регистрация\");\nf.add(\"login\",\"Логин\");\nf.add(\"email\",\"Email\");\nf.add(\"password\",\"Пароль\").component(\"InputPassword\");\nf.add(\"confirmPassword\",\"Повтор пароля\").component(\"InputPassword\");\nf.add(\"captcha\",\"Код с картинки\");\nf.submit(\"Зарегистрироваться\");\nconsole.log(await f.save())",
+    "answer": "form_edit: 7 of 7 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.filter(a=>[\"pattern\",\"minLength\",\"maxLength\",\"asyncCheck\",\"sameAs\",\"check\"].includes(a.name)).map(a=>a.signature+\" — \"+a.doc+\" \"+(a.example||\"\"))",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.field(\"login\").required().minLength(3).maxLength(20).pattern(/^[A-Za-z0-9_]+$/, \"Только латиница, цифры и _\");\nf.field(\"email\").required().email();\nf.field(\"password\").required().minLength(8);\nf.field(\"confirmPassword\").required().sameAs(\"password\", \"Пароли не совпадают\");\nf.field(\"captcha\").required().minLength(6).maxLength(6).asyncCheck(v => String(v).toUpperCase() === \"ABC123\", { delay: 300, message: \"Символы не совпадают\" });\nconsole.log(await f.save())",
+    "answer": "form_edit: 7 of 7 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "Done: the form is built, every stage of the plan is complete and the types are checked.",
+    "error": false
+  }
+]

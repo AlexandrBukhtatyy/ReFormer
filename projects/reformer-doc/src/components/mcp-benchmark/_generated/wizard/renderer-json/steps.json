@@ -1,0 +1,50 @@
+[
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.formStart({ dir: \"form\", target: \"renderer-json\", specPath: \"spec.md\", task: `Сделай форму по спецификации из файла spec.md, но пошаговую — мастер вместо одной страницы:\n\n- каждый раздел спецификации — отдельный шаг, в том же порядке, заголовок шага — название раздела;\n- шаг «Компания» показывается только юрлицу;\n- перейти на следующий шаг нельзя, пока поля текущего шага не заполнены верно;\n- на последнем шаге вместо кнопки внизу страницы — кнопка мастера «Оформить заказ», она отправляет заказ так же, как описано в спецификации.\n\nСтек: @reformer/renderer-json, разметка — документ JSON-схемы и реестр компонентов.` }))",
+    "answer": "✓ form_start: the plan of «Оформление заказа» on renderer-json is saved.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return {steps: form.steps, fields: form.fields.map(f=>f.name+\":\"+f.type+\":\"+f.rules.join(\"|\")), arrays: form.arrays.map(a=>a.name+\":\"+a.rules.join(\"|\")+\":\"+a.columns.map(c=>c.name+\":\"+c.type+\":\"+c.rules.join(\"|\"))), api: api.map(a=>a.signature)}",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "const n=[\"rule\",\"exclusive\",\"setOnChange\",\"submit\",\"array\",\"column\",\"step\",\"fields\",\"copyFrom\",\"transform\",\"sync\",\"future\",\"digit\",\"minAge\",\"revalidate\",\"min\",\"component\",\"hideWhen\",\"initial\"];return api.filter(a=>n.includes(a.name)||/revalid|Age|column|fields|setOn/.test(a.name)).map(a=>a.on+\".\"+a.signature+\" — \"+a.doc+(a.example?\" EX: \"+a.example:\"\")).join(\"\\n\").slice(0,3900)",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.field(\"customerType\").options([{value:\"person\",label:\"Физическое лицо\"},{value:\"company\",label:\"Юридическое лицо\"}]).component(\"RadioGroup\").initial(\"person\").required(\"Выберите тип покупателя\");\nf.field(\"contact.lastName\").required(\"Введите фамилию\").minLength(2,\"Минимум 2 символа\");\nf.field(\"contact.firstName\").required(\"Введите имя\").minLength(2,\"Минимум 2 символа\");\nf.field(\"email\").required(\"Введите email\").email(\"Некорректный email\");\nf.field(\"phone\").mask(\"+7 (999) 999-99-99\").required(\"Введите телефон\").pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/,\"Формат +7 (999) 999-99-99\");\nf.field(\"birthDate\").type(\"date\").required(\"Укажите дату рождения\").rule(\"minAge(18)\",\"Покупателю должно быть не меньше 18 лет\").when(m=>m.customerType===\"person\");\nf.field(\"company.name\").required(\"Введите название организации\").when(m=>m.customerType===\"company\");\nf.field(\"company.inn\").required(\"Введите ИНН\").pattern(/^\\d{10}$/,\"ИНН — 10 цифр\").check(m=>{const s=String(m.company.inn);return !/^\\d{10}$/.test(s)||((Number(s[0])*2+Number(s[1])*4+Number(s[2])*10+Number(s[3])*3+Number(s[4])*5+Number(s[5])*9+Number(s[6])*4+Number(s[7])*6+Number(s[8])*8)%11)%10===Number(s[9])},\"Неверная контрольная сумма ИНН\").when(m=>m.customerType===\"company\");\nf.field(\"deliveryMethod\").options([{value:\"pickup\",label:\"Самовывоз\"},{value:\"courier\",label:\"Курьер\"},{value:\"post\",label:\"Почта\"}]).initial(\"pickup\").required(\"Выберите способ получения\");\nf.field(\"deliveryAddress.city\").required(\"Введите город\").when(m=>m.deliveryMethod!==\"pickup\").disableWhen(m=>m.deliveryMethod===\"pickup\",{resetOnDisable:true});\nf.field(\"deliveryAddress.street\").required(\"Введите улицу\").when(m=>m.deliveryMethod!==\"pickup\").disableWhen(m=>m.deliveryMethod===\"pickup\",{resetOnDisable:true});\nf.field(\"deliveryAddress.house\").required(\"Введите дом\").when(m=>m.deliveryMethod!==\"pickup\").disableWhen(m=>m.deliveryMethod===\"pickup\",{resetOnDisable:true});\nf.field(\"deliveryDate\").component(\"DatePicker\").required(\"Выберите дату доставки\").future(\"Дата доставки — не раньше завтрашнего дня\").when(m=>m.deliveryMethod===\"courier\").showWhen(m=>m.deliveryMethod===\"courier\").resetWhen(m=>m.deliveryMethod!==\"courier\");\nf.field(\"billingSame\").initial(true);\nfor (const [k,l] of [[\"city\",\"Введите город\"],[\"street\",\"Введите улицу\"],[\"house\",\"Введите дом\"]]) f.field(\"billingAddress.\"+k).required(l).when(m=>!m.billingSame);\nf.field(\"billingAddress\").copyFrom(\"deliveryAddress\", m=>m.billingSame).disableWhen(m=>m.billingSame);\nf.field(\"subtotal\").readonly().compute(m=>m.items.reduce((s,r)=>s+(Number(r.quantity)||0)*(Number(r.price)||0),0));\nf.field(\"promoCode\").transform(v=>(v??\"\").toUpperCase()).asyncCheck(v=>!v||v===\"SALE10\"||v===\"SALE20\",{delay:300,message:\"Промокод не найден\"});\nf.field(\"discount\").component(\"Slider\").min(0,\"Скидка не может быть отрицательной\").max(30,\"Скидка не больше 30%\").initial(0).enableWhen(m=>m.customerType===\"company\",{resetOnDisable:true});\nf.field(\"total\").readonly().compute(m=>Math.round(m.subtotal*(1-m.discount/100)*100)/100).warning(m=>m.total<=100000,\"Крупный заказ: менеджер свяжется для подтверждения\");\nf.field(\"paymentMethod\").options([{value:\"card\",label:\"Картой онлайн\"},{value:\"cash\",label:\"При получении\"},{value:\"invoice\",label:\"По счёту\"}]).component(\"RadioGroup\").initial(\"card\").required(\"Выберите способ оплаты\").check(m=>m.paymentMethod!==\"invoice\"||m.customerType===\"company\",\"Оплата по счёту — только для юридических лиц\").setOnChange(\"customerType\",m=>m.customerType===\"person\"&&m.paymentMethod===\"invoice\",\"card\");\nf.field(\"receiptEmail\").email(\"Некорректный email для чека\").sync(\"email\");\nf.field(\"comment\").component(\"Textarea\").maxLength(500,\"Не больше 500 символов\");\nf.field(\"agreeTerms\").required(\"Нужно принять условия оферты\");\nf.field(\"newsletter\").component(\"Switch\");\nf.field(\"sources\").component(\"SelectMulti\").options([{value:\"search\",label:\"Поиск\"},{value:\"friends\",label:\"Друзья\"},{value:\"ads\",label:\"Реклама\"},{value:\"other\",label:\"Другое\"}]);\nconst it=f.array(\"items\",\"Товары\",{min:1,max:10});\nit.min(1,\"Добавьте хотя бы один товар\");\nf.field(\"items\").maxLength(10,\"Не больше 10 товаров\");\nit.column(\"title\").required(\"Введите наименование\");\nit.column(\"quantity\").initial(1).required(\"Укажите количество\").rule(\"integer()\",\"Количество — целое число\").min(1,\"Минимум 1\").max(99,\"Максимум 99\");\nit.column(\"price\").required(\"Укажите цену\").min(0,\"Цена не может быть отрицательной\");\nit.column(\"lineTotal\").readonly().compute(r=>(Number(r.quantity)||0)*(Number(r.price)||0));\nconst rc=f.array(\"recipients\",\"Кому отправлять уведомления\");\nrc.column(\"email\").required(\"Введите email получателя\").email(\"Некорректный email получателя\");\nrc.column(\"primary\").exclusive();\nf.step(\"Покупатель\").fields(\"customerType\",\"contact.lastName\",\"contact.firstName\",\"email\",\"phone\",\"birthDate\");\nf.step(\"Компания\").fields(\"company.name\",\"company.inn\").showWhen(m=>m.customerType===\"company\");\nf.step(\"Доставка\").fields(\"deliveryMethod\",\"deliveryAddress.city\",\"deliveryAddress.street\",\"deliveryAddress.house\",\"deliveryDate\",\"billingSame\",\"billingAddress.city\",\"billingAddress.street\",\"billingAddress.house\");\nf.step(\"Товары\").fields(\"items\",\"subtotal\");\nf.step(\"Оплата\").fields(\"promoCode\",\"discount\",\"total\",\"paymentMethod\",\"receiptEmail\",\"comment\");\nf.step(\"Подтверждение\").fields(\"recipients\",\"agreeTerms\",\"newsletter\",\"sources\");\nf.submit(\"Оформить заказ\",\"submitOrder\");\nconsole.log(await f.save())",
+    "answer": "form_edit: 81 of 84 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.filter(a=>/sum|rows|aggregate|step|visib|Step|edit|mask/i.test(a.name+a.doc)).map(a=>a.on+\".\"+a.signature+\" — \"+a.doc.slice(0,300)).join(\"\\n\").slice(0,3800)",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.field(\"phone\").mask(\"+7 (999) 999-99-99\");\nfor (const k of [\"city\",\"street\",\"house\"]) f.field(\"billingAddress.\"+k).copyFrom(\"deliveryAddress.\"+k, m=>m.billingSame).disableWhen(m=>m.billingSame);\nf.field(\"company.name\").showWhen(m=>m.customerType===\"company\");\nf.field(\"company.inn\").showWhen(m=>m.customerType===\"company\");\nf.field(\"subtotal\").compute(m=>m.items.map(r=>(Number(r.quantity)||0)*(Number(r.price)||0)).reduce((a,b)=>a+b,0));\nconsole.log(await f.save())",
+    "answer": "form_edit: 10 of 10 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "Not confirmed yet — the form differs from the task:",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "Done: the form is built, every stage of the plan is complete and the types are checked.",
+    "error": false
+  }
+]

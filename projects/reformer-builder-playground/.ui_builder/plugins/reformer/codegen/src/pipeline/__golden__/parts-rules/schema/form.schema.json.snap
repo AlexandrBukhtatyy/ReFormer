@@ -1,0 +1,142 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "parts": {
+    "address": {
+      "component": "$component(Box)",
+      "componentProps": {
+        "className": "space-y-2"
+      },
+      "children": [
+        {
+          "model": "$model(region)",
+          "component": "$component(Select)",
+          "componentProps": {
+            "label": "Регион",
+            "options": "$dataSource(REGIONS)"
+          }
+        },
+        {
+          "model": "$model(city)",
+          "component": "$component(Input)",
+          "componentProps": {
+            "label": "Город",
+            "required": true
+          }
+        },
+        {
+          "model": "$model(noApartment)",
+          "component": "$component(Checkbox)",
+          "componentProps": {
+            "label": "Частный дом"
+          }
+        },
+        {
+          "selector": "address-apartment",
+          "model": "$model(apartment)",
+          "component": "$component(Input)",
+          "componentProps": {
+            "label": "Квартира"
+          }
+        }
+      ]
+    },
+    "guest": {
+      "component": "$component(Box)",
+      "componentProps": {
+        "className": "space-y-2"
+      },
+      "children": [
+        {
+          "selector": "guest-name",
+          "model": "$model(name)",
+          "component": "$component(Input)",
+          "componentProps": {
+            "label": "Имя",
+            "required": true
+          }
+        },
+        {
+          "model": "$model(hasPhone)",
+          "component": "$component(Checkbox)",
+          "componentProps": {
+            "label": "Есть телефон"
+          }
+        },
+        {
+          "selector": "guest-phone",
+          "model": "$model(phone)",
+          "component": "$component(Input)",
+          "componentProps": {
+            "label": "Телефон"
+          }
+        },
+        {
+          "model": "$model(address)",
+          "part": "$part(address)"
+        }
+      ]
+    }
+  },
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "model": "$model(sameAddress)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Работаю из дома"
+        }
+      },
+      {
+        "model": "$model(home)",
+        "part": "$part(address)"
+      },
+      {
+        "selector": "work-section",
+        "component": "$component(Section)",
+        "componentProps": {
+          "title": "Рабочий адрес"
+        },
+        "children": [
+          {
+            "model": "$model(work)",
+            "part": "$part(address)"
+          }
+        ]
+      },
+      {
+        "selector": "guests",
+        "model": "$model(guests)",
+        "component": "$component(FieldArray)",
+        "componentProps": {
+          "title": "Гости"
+        },
+        "initialValue": {
+          "name": "",
+          "hasPhone": false,
+          "phone": "",
+          "address": {
+            "region": "",
+            "city": "",
+            "noApartment": false,
+            "apartment": ""
+          }
+        },
+        "item": "$part(guest)"
+      },
+      {
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": ["Отправить"]
+      }
+    ]
+  }
+}

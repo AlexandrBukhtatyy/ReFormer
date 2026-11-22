@@ -1,0 +1,18 @@
+// schema/registry.ts — реестр компонентов и источников данных схемы. Регенерируется.
+
+import type { ReactNode } from 'react';
+import { HexBox, HexField, HexInput } from '@hexa/ui';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+
+/** Заглушка для компонента без прямого соответствия в ките (замените реальным). */
+const Placeholder = ({ children }: { children?: ReactNode }): ReactNode => children ?? null;
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, HexField);
+    reg.component('Box', HexBox);
+    reg.component('Input', HexInput);
+    reg.component('Checkbox', Placeholder); // TODO: нет в каталоге кита «HexaUI»
+    reg.component('Button', Placeholder); // TODO: нет в каталоге кита «HexaUI»
+  });
+}

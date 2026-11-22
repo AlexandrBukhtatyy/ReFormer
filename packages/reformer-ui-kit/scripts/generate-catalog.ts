@@ -1,0 +1,662 @@
+#!/usr/bin/env tsx
+/**
+ * Генерирует `component-catalog.json` — каталог ВСЕХ компонентов ui-kit по контракту билдера
+ * (`component-catalog.schema.json`, живёт в SDK плагинов `@reformer/builder-plugin-api`). Клиент
+ * (ui-kit) поставляет валидный JSON со списком компонентов; билдер грузит его в палитру/инспектор.
+ * Цель — «все компоненты доступны в билдере»: в каталог попадает КАЖДЫЙ визуальный компонент
+ * из `src/components/*`.
+ *
+ * ## Откуда берётся НАБОР пропсов
+ *
+ * Из TS-типов компонентов ({@link introspectProps}), а не из ручных списков. Ручной список
+ * неизбежно отстаёт: до перехода каталог описывал 377 пропсов при 1 647 реальных — медиана
+ * 1 проп на запись, 91 часть compound'а несла только `className`. Теперь добавили проп в
+ * компонент — он появился в каталоге на следующей сборке, и разойтись они не могут.
+ *
+ * Ручные `*.props.ts` остаются ОВЕРЛЕЕМ поверх типов: они несут HTML-атрибуты, которые политика
+ * намеренно не разворачивает (`Input.placeholder`, `BreadcrumbLink.href`, `AvatarImage.src`),
+ * сужения enum'ов (`Input.type` — 7 значений вместо 22 нативных) и выверенные формулировки.
+ * Описания и секции инспектора живут в самом `component-catalog.json` и переносятся из его
+ * предыдущей версии ({@link readCuratedDocs}) — отдельного файла с текстами нет.
+ *
+ * ## Четыре вида записей
+ *  - **rich** — есть variant props.ts (`x-registryName`): оверлей мержится с типами. Каждый вариант =
+ *    ОТДЕЛЬНЫЙ компонент. Field-роль (seam `x-runtimeProps.value`) мержится с враппером
+ *    (`mergeFieldPropsSchema`) → label/required/… в инспекторе.
+ *  - **minimal** — props.ts ещё нет; набор пропсов всё равно приходит из типов.
+ *  - **part** — часть compound-компонента (`AlertTitle`, `CardHeader`, `TabsList`…): несёт
+ *    `compoundParent` — имя корня, из которого она собирается. Без частей корень вроде `Alert`
+ *    (grid `grid-cols-[0_1fr]`) собрать в билдере нечем: голый текст падает анонимным grid item
+ *    в колонку нулевой ширины и рассыпается по словам. Отбор — {@link PART_NAME_SKIP}/{@link NO_PARTS_DIRS}.
+ *  - **прочие экспорты** — всё остальное, что кит экспортирует: порталы, оверлеи, провайдеры,
+ *    части оверлеев и меню, инфраструктурные каталоги. Записи несут `palette: false` — данные
+ *    для документации/MCP/инспектора есть, а палитру билдера они не меняют.
+ *
+ * Синтетические `$html`/array-записи добавляет билдер.
+ *
+ * Помимо компонентов файл несёт блок `kit` — всё, что кит рассказывает о себе: личность,
+ * инфраструктуру, адаптеры, категории палитры, словарь классов ({@link CLASS_GROUPS}) и кодоген
+ * (данные — `./catalog-kit`). Записи получают флаги превью и листьев оттуда же. Своих таблиц про
+ * этот кит у билдера больше нет.
+ *
+ * ## Подпуть записи — по факту, а не по таблице
+ *
+ * `subpath` записи значит одно: откуда импортируется её символ (`@reformer/ui-kit/<subpath>`).
+ * Выводится он из того же, из чего собран пакет: главный вход (`src/index.ts`) реэкспортирует не
+ * все каталоги компонентов — тяжёлые живут только за своим подпутём. Каталог экспорта есть в
+ * главном входе — подпути у записи нет, иначе подпуть равен имени каталога ({@link subpathOf}).
+ *
+ * Запуск: `npm run generate:catalog` (в цепочке `generate:barrels` после `generate:meta`).
+ *
+ * @module reformer-ui-kit/scripts/generate-catalog
+ */
+
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { format, resolveConfig } from 'prettier';
+import * as meta from '../src/meta';
+import { mergeFieldPropsSchema, type PropsSchema } from '../src/fields/props-schema';
+import { CLASS_GROUPS, FIELD_CLASS_GROUPS } from '../src/styles/class-catalog';
+import {
+  introspectProps,
+  type IntrospectedComponent,
+  type IntrospectedProp,
+} from './introspect-props';
+import {
+  CATEGORY_BY_NAME,
+  KIT_ADAPTERS,
+  KIT_CODEGEN,
+  KIT_IDENTITY,
+  KIT_INFRA,
+  LEAVES,
+  OVERLAY_REASON,
+  OVERLAYS,
+  ROOT_EXPORTS,
+} from './catalog-kit';
+
+const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const componentsDir = join(pkgRoot, 'src/components');
+const outFile = join(pkgRoot, 'component-catalog.json');
+
+/**
+ * Не-палитровые каталоги: провайдеры/утилиты/структурные ReFormer-обёртки — не визуальные узлы формы.
+ * array/form-* обрабатываются билдером синтетически; direction/seam/async-boundary — рантайм-инфра.
+ *
+ * ВАЖНО: это список «не узлы палитры», а НЕ «не описывать». Их пропсы каталог всё равно несёт —
+ * записями с `palette: false` (у одного `AsyncBoundary` их 17). Раньше такие компоненты выпадали
+ * из файла целиком, и отсутствие записи читалось как «пропсов нет».
+ */
+const NON_PALETTE_DIRS = new Set([
+  'direction',
+  'async-boundary',
+  'example-card',
+  'seam',
+  'field',
+  'form-field',
+  // info-hint — строительный блок подсказок полей (`labelTooltip`/`tooltip`), в форме его рисуют
+  // FormField и сами контролы; отдельным узлом палитры не идёт.
+  'info-hint',
+  'field-array',
+  'form-wizard',
+  'list',
+  'sonner',
+]);
+
+/**
+ * Каталоги, чьи части в палитру НЕ идут: оверлеи и меню. Их корень билдер и так рисует стабом
+ * («предпросмотр ограничен», см. render-policy) — набор из десятков `*Portal`/`*Content`/`*Item`
+ * дал бы шум без пользы. Части ЭТИХ компонентов добавим отдельной задачей, если понадобятся.
+ */
+const NO_PARTS_DIRS = new Set([
+  'dialog',
+  'alert-dialog',
+  'sheet',
+  'drawer',
+  'dropdown-menu',
+  'context-menu',
+  'menubar',
+  'navigation-menu',
+  'command',
+  'sidebar',
+  'popover',
+  'hover-card',
+  'tooltip',
+  'chart',
+]);
+
+/**
+ * Суффиксы служебных экспортов, которые частями компонента НЕ являются: cva-функции (`alertVariants`),
+ * провайдеры/порталы/оверлеи (рантайм-инфра без своего визуала).
+ */
+const PART_NAME_SKIP = /(Variants|Provider|Portal|Overlay|Style)$/;
+
+/**
+ * Пропсы частей, без которых часть не работает (Radix-`value`, ссылки, источники картинок). Знание
+ * о собственных компонентах принадлежит ui-kit, поэтому карта живёт здесь, а не в билдере. Остальные
+ * части получают только `className` ({@link partPropsSchema}); полноценные `props.ts` — по мере надобности.
+ */
+const PART_PROPS: Record<string, Record<string, PropsSchema>> = {
+  AccordionItem: { value: str('Значение секции — по нему Accordion её открывает.') },
+  TabsTrigger: { value: str('Значение вкладки — связывает кнопку с TabsContent.') },
+  TabsContent: { value: str('Значение вкладки, содержимое которой показывает панель.') },
+  AvatarImage: { src: str('URL изображения.'), alt: str('Альтернативный текст.') },
+  BreadcrumbLink: { href: str('URL ссылки.') },
+  PaginationLink: {
+    href: str('URL страницы.'),
+    isActive: {
+      type: 'boolean',
+      description: 'Текущая страница (подсвечена).',
+      'x-doc': { group: 'State', type: 'boolean', kind: 'boolean' },
+    },
+  },
+  InputGroupAddon: {
+    align: {
+      type: 'string',
+      enum: ['inline-start', 'inline-end', 'block-start', 'block-end'],
+      default: 'inline-start',
+      description: 'Сторона, с которой аддон прижат к контролу.',
+      'x-doc': {
+        group: 'Control',
+        type: "'inline-start' | 'inline-end' | 'block-start' | 'block-end'",
+        kind: 'enum',
+      },
+    },
+  },
+};
+
+/** Строковый проп части с описанием (сахар для {@link PART_PROPS}). */
+function str(description: string): PropsSchema {
+  return { type: 'string', description, 'x-doc': { group: 'Control', type: 'string' } };
+}
+
+/** kebab-каталог → PascalCase имя компонента (fallback для minimal-записей без props.ts). */
+function pascalCase(dir: string): string {
+  return dir
+    .split('-')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
+}
+
+/** Роль записи: наличие seam `x-runtimeProps.value` → form-control (field), иначе container. */
+function roleOf(schema: PropsSchema): 'field' | 'container' {
+  const runtime = schema['x-runtimeProps'];
+  return runtime != null && 'value' in runtime ? 'field' : 'container';
+}
+
+/** Есть ли в каталоге компонента хоть один `*.props.ts` (рекурсивно по variants/**). */
+function hasPropsFile(dir: string): boolean {
+  const stack = [dir];
+  while (stack.length) {
+    const cur = stack.pop()!;
+    for (const name of readdirSync(cur)) {
+      const full = join(cur, name);
+      if (statSync(full).isDirectory()) stack.push(full);
+      else if (name.endsWith('.props.ts')) return true;
+    }
+  }
+  return false;
+}
+
+type Record = {
+  name: string;
+  role: 'field' | 'container';
+  propsSchema: object;
+  /** Имя символа в barrel, когда оно отличается от `name` записи (`Checkbox` → `CheckboxWithLabel`). */
+  exportName?: string;
+  variantGroup?: string;
+  variant?: string;
+  compoundParent?: string;
+  /** `false` — запись существует ради полноты пропсов, но узлом палитры не является. */
+  palette?: boolean;
+  /** Подпуть кита, откуда импортируется символ, — в главном входе его нет. */
+  subpath?: string;
+  /** Запрет живого превью (оверлеи). */
+  preview?: { mode: 'limited'; reason: string };
+  /** Лист: детей не держит. */
+  leaf?: boolean;
+};
+
+/** Именованные value-экспорты `index.ts` (типы отбрасываются): `export { Alert, AlertTitle } from …`. */
+function namedExports(indexFile: string): string[] {
+  const src = readFileSync(indexFile, 'utf8');
+  const out: string[] = [];
+  const re = /export\s+(type\s+)?\{([^}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) {
+    if (m[1]) continue; // export type { … }
+    for (const raw of m[2].split(',')) {
+      // `X as Y` → экспортируемое имя Y.
+      const name = raw
+        .trim()
+        .split(/\s+as\s+/)
+        .pop()
+        ?.trim();
+      if (name && /^[A-Z]/.test(name)) out.push(name);
+    }
+  }
+  return out;
+}
+
+/** Props-схема части: класс контейнера + критичные пропсы из {@link PART_PROPS}, если объявлены. */
+function partPropsSchema(name: string): object {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      className: {
+        type: 'string',
+        description: 'CSS-класс части (Tailwind).',
+        'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
+      },
+      ...(PART_PROPS[name] ?? {}),
+    },
+  };
+}
+
+// ── слияние: набор пропсов из типов + курированные метаданные + ручной оверлей ─
+//
+// Разделение ответственности:
+//  - НАБОР пропсов даёт интроспекция типов ({@link introspectProps}) — он не может отстать от кода;
+//  - ОПИСАНИЕ и секцию инспектора несёт предыдущая версия этого же файла (типы их не выражают),
+//    поэтому отдельного файла с описаниями нет — тексты переносятся round-trip'ом;
+//  - ручные `*.props.ts` остаются ОВЕРЛЕЕМ и кладутся последними: они несут HTML-атрибуты, которые
+//    политика намеренно не разворачивает (`Input.placeholder`, `BreadcrumbLink.href`,
+//    `AvatarImage.src`), сужения enum'ов (`Input.type` — 7 значений вместо 22 нативных) и
+//    выверенные формулировки. Потеря оверлея была бы регрессией: схемы частей строгие
+//    (`additionalProperties: false`), и уже написанные формы перестали бы валидироваться.
+
+/** Курированные метаданные пропа: описание и секция инспектора. */
+interface PropDocEntry {
+  description?: string;
+  'x-doc'?: { group?: string; type?: string; kind?: string };
+}
+
+/**
+ * Курирование читается из ПРЕДЫДУЩЕЙ версии самого `component-catalog.json` — отдельного файла
+ * с описаниями нет. Набор пропсов каждый раз выводится из типов заново, а русские тексты и секции
+ * инспектора переносятся из старой записи в новую по имени пропа: проп исчез из кода — исчезло и
+ * его описание, проп появился — приходит без описания (его допишут в этом же файле).
+ *
+ * Обратная сторона: файл одновременно генерируемый и правимый руками. Правки описаний переживают
+ * перегенерацию, правки НАБОРА пропсов — нет, они будут затёрты типами. Это и есть требуемая
+ * гарантия точности: состав пропсов руками не задаётся.
+ */
+function readCuratedDocs(): Map<string, PropDocEntry> {
+  const curated = new Map<string, PropDocEntry>();
+  if (!existsSync(outFile)) return curated;
+  const previous = JSON.parse(readFileSync(outFile, 'utf8')) as {
+    components?: Array<{ name: string; propsSchema?: PropsSchema }>;
+  };
+  for (const record of previous.components ?? [])
+    for (const [prop, schema] of Object.entries(record.propsSchema?.properties ?? {}))
+      if (schema.description || schema['x-doc'])
+        curated.set(`${record.name}.${prop}`, {
+          ...(typeof schema.description === 'string' ? { description: schema.description } : {}),
+          ...(schema['x-doc'] ? { 'x-doc': schema['x-doc'] as PropDocEntry['x-doc'] } : {}),
+        });
+  return curated;
+}
+
+const curatedDocs = readCuratedDocs();
+
+const introspected = introspectProps();
+/**
+ * Запись каталога ↔ экспорт: по `x-registryName` (`Select` → `SelectAsync`), иначе по имени.
+ * Один файл может объявлять несколько компонентов (`calendar-base.tsx` — `Calendar` и
+ * `CalendarDayButton`), и тогда `registryName` соседнего `props.ts` относится ко ВСЕМ его экспортам.
+ * Приоритет — у экспорта, чьё имя совпадает с registry-именем, иначе побеждал бы последний
+ * объявленный (`Calendar` получал пропсы кнопки дня).
+ */
+const byRegistryName = new Map<string, IntrospectedComponent>();
+for (const c of introspected.values()) {
+  if (!c.registryName) continue;
+  const current = byRegistryName.get(c.registryName);
+  if (!current || c.name === c.registryName) byRegistryName.set(c.registryName, c);
+}
+
+/**
+ * Имя символа field-записи — компонента, который кладут в `component` поля. Под именем записи
+ * (`Checkbox`) barrel может отдавать базовый примитив, а форме нужен вариант (`CheckboxWithLabel`):
+ * его называет `x-exportName` props-схемы, иначе — само имя записи. Экспорт обязан существовать,
+ * иначе запись молча указывала бы не на тот компонент.
+ */
+function fieldExportName(name: string, variant: PropsSchema): { exportName?: string } {
+  const exportName = (variant['x-exportName'] as string | undefined) ?? name;
+  if (!introspected.has(exportName))
+    throw new Error(
+      `field-запись '${name}': экспорта '${exportName}' нет среди экспортов кита — каталог не может назвать символ.`
+    );
+  return exportName === name ? {} : { exportName };
+}
+
+/** Отображаемый TS-тип для `x-doc.type`: для enum'а — сам union, иначе тип без `| undefined`. */
+function displayType(p: IntrospectedProp): string {
+  if (p.enum) return p.enum.map((v) => `'${v}'`).join(' | ');
+  return p.tsType
+    .split('|')
+    .map((s) => s.trim())
+    .filter((s) => s !== 'undefined')
+    .join(' | ');
+}
+
+/**
+ * Один извлечённый проп → узел JSON Schema с `x-doc`.
+ *
+ * Структура (`type`/`enum`/`default`) — всегда из типов, она не переносится из прошлой версии:
+ * иначе устаревший вручную поправленный enum пережил бы правку компонента. Переносятся только
+ * `description` и секция/виджет `x-doc`, которых в типах нет.
+ */
+function propToSchema(p: IntrospectedProp, doc: PropDocEntry | undefined): PropsSchema {
+  const description = doc?.description ?? p.description;
+  // Без `jsonType` проп не выражается в JSON (функция, React-нода, сложный объект) — инспектор
+  // покажет его серым полем, но каталог о нём всё-таки сообщает.
+  const kind = doc?.['x-doc']?.kind ?? (p.jsonType ? undefined : 'readonly');
+  return {
+    ...(p.jsonType ? { type: p.jsonType } : {}),
+    ...(p.enum ? { enum: p.enum } : {}),
+    ...(p.default !== undefined ? { default: p.default } : {}),
+    ...(p.messageKey !== undefined ? { 'x-messageKey': p.messageKey } : {}),
+    ...(description ? { description } : {}),
+    'x-doc': {
+      group: doc?.['x-doc']?.group ?? 'Behavior',
+      type: displayType(p),
+      ...(kind ? { kind } : {}),
+    },
+  } as PropsSchema;
+}
+
+/**
+ * `properties` записи каталога: извлечённые пропсы, поверх — ручной оверлей.
+ * Швы формы (`value`/`onChange`/…) в `properties` не попадают: их дом — `x-runtimeProps`,
+ * и `input.props.test.ts` стережёт непересечение этих множеств.
+ */
+function buildProperties(
+  intro: IntrospectedComponent | undefined,
+  overlay: Record<string, PropsSchema>,
+  runtimeNames: Set<string>
+): Record<string, PropsSchema> {
+  const out: Record<string, PropsSchema> = {};
+  for (const p of intro?.props ?? []) {
+    if (runtimeNames.has(p.name)) continue; // шов формы живёт в `x-runtimeProps`
+    out[p.name] = propToSchema(p, curatedDocs.get(`${intro!.name}.${p.name}`));
+  }
+  for (const [key, schema] of Object.entries(overlay)) {
+    if (runtimeNames.has(key)) continue;
+    out[key] = key in out ? ({ ...out[key], ...schema } as PropsSchema) : schema;
+  }
+  return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+/** Маркер `x-inherits` — что компонент принимает сверх `properties` (HTML/ARIA/события). */
+function inheritsOf(intro: IntrospectedComponent | undefined): object {
+  return intro?.inherits ? { 'x-inherits': intro.inherits } : {};
+}
+
+// ── rich: variant-схемы из meta.ts (у кого есть props.ts) ────────────────────
+const seen = new Set<string>();
+const rich: Record[] = Object.values(meta)
+  .filter(
+    (v): v is PropsSchema =>
+      Boolean(v) && typeof v === 'object' && 'x-registryName' in (v as object)
+  )
+  .map((variant) => {
+    const name = variant['x-registryName'] as string;
+    if (seen.has(name)) {
+      throw new Error(
+        `Коллизия x-registryName='${name}': два варианта делят имя — вариант должен быть отдельным компонентом с уникальным registryName.`
+      );
+    }
+    seen.add(name);
+    const role = roleOf(variant);
+    const overlay = role === 'field' ? mergeFieldPropsSchema(variant) : variant;
+    // Типы — у того экспорта, что реально кладут в форму (`x-exportName`), иначе по registry-имени.
+    const exportName = variant['x-exportName'] as string | undefined;
+    const intro =
+      (exportName ? introspected.get(exportName) : undefined) ??
+      byRegistryName.get(name) ??
+      introspected.get(name);
+    const propsSchema: PropsSchema = {
+      ...overlay,
+      properties: buildProperties(
+        intro,
+        (overlay.properties ?? {}) as Record<string, PropsSchema>,
+        new Set(Object.keys(overlay['x-runtimeProps'] ?? {}))
+      ),
+      ...inheritsOf(intro),
+    };
+    // variant-группа читается из СЫРОГО варианта: mergeFieldPropsSchema не копирует x-* в merged-схему.
+    const variantGroup = variant['x-variantGroup'];
+    const variantLabel = variant['x-variant'];
+    return {
+      name,
+      role,
+      ...(role === 'field' ? fieldExportName(name, variant) : {}),
+      propsSchema,
+      ...(variantGroup ? { variantGroup } : {}),
+      ...(variantLabel ? { variant: variantLabel } : {}),
+    };
+  });
+
+// ── minimal: каталоги компонентов без props.ts (кроме не-палитровых) ─────────
+const MINIMAL_PROPS = { type: 'object', additionalProperties: true } as const;
+const dirs = readdirSync(componentsDir).filter((d) =>
+  statSync(join(componentsDir, d)).isDirectory()
+);
+const minimal: Record[] = dirs
+  .filter((d) => !NON_PALETTE_DIRS.has(d) && !hasPropsFile(join(componentsDir, d)))
+  .map((d) => {
+    // `props.ts` нет — но типы компонента есть всегда, поэтому «minimal» больше не значит «пустой».
+    const intro = introspected.get(pascalCase(d));
+    return {
+      name: pascalCase(d),
+      role: 'container' as const,
+      propsSchema: {
+        ...MINIMAL_PROPS,
+        properties: buildProperties(intro, {}, new Set()),
+        ...inheritsOf(intro),
+      },
+    };
+  })
+  // registryName из rich имеет приоритет (например file-upload уже покрыт FileUpload/FileUploadAvatar)
+  .filter((r) => !seen.has(r.name));
+
+// ── part: части compound-компонентов (AlertTitle, CardHeader, TabsList…) ─────
+// Корень compound'а собирается ТОЛЬКО из своих частей: у Alert это grid `grid-cols-[0_1fr]`, куда
+// голый текст падает в колонку нулевой ширины. Части берём из именованных экспортов `index.ts`
+// каталога компонента — тот же источник, что и barrel, поэтому имя всегда резолвится в превью.
+const rootRoleByName = new Map([...rich, ...minimal].map((r) => [r.name, r.role]));
+const parts: Record[] = dirs
+  .filter((d) => !NON_PALETTE_DIRS.has(d) && !NO_PARTS_DIRS.has(d))
+  .flatMap((d) => {
+    const indexFile = join(componentsDir, d, 'index.ts');
+    if (!existsSync(indexFile)) return [];
+    const parent = pascalCase(d);
+    // Части form-control'ов (SelectItem, RadioGroupItem, NativeSelectOption…) в палитру не идут:
+    // варианты выбора задаются пропом `options`/`$dataSource`, а не детьми узла.
+    if (rootRoleByName.get(parent) === 'field') return [];
+    return namedExports(indexFile)
+      .filter((n) => n !== parent && n.startsWith(parent) && !PART_NAME_SKIP.test(n))
+      .filter((n) => !seen.has(n) && !rootRoleByName.has(n))
+      .map((name): Record => {
+        const intro = introspected.get(name);
+        const overlay = partPropsSchema(name) as PropsSchema;
+        return {
+          name,
+          role: 'container',
+          propsSchema: {
+            ...overlay,
+            properties: buildProperties(
+              intro,
+              (overlay.properties ?? {}) as Record<string, PropsSchema>,
+              new Set()
+            ),
+            ...inheritsOf(intro),
+          },
+          compoundParent: parent,
+        };
+      });
+  });
+
+// ── остальные экспорты кита: всё, что не покрыли rich/minimal/part ────────────
+// Раньше каталог описывал 168 записей из 392 экспортов: за бортом оставались части оверлеев и меню
+// ({@link NO_PARTS_DIRS}) и каталоги-инфраструктура ({@link NON_PALETTE_DIRS}) — 227 экспортов и
+// 962 пропса, то есть БОЛЬШЕ, чем каталог содержал. Отсутствие записи означало не «этих пропсов
+// нет», а «мы про них не рассказали»: у `AsyncBoundary` 17 пропсов, у `ChartTooltipContent` — 37.
+// Теперь описываются все; шума в палитре это не создаёт — части несут `compoundParent`, а такие
+// записи по контракту предлагаются в контексте своего корня, а не в общем списке.
+// Экспорт, названный записью через `exportName` (`CheckboxWithLabel` у записи `Checkbox`), уже описан ею.
+const covered = new Set(
+  [...rich, ...minimal, ...parts].flatMap((r) => (r.exportName ? [r.name, r.exportName] : [r.name]))
+);
+const extra: Record[] = [...introspected.values()]
+  // Экспорт без единого пропа не несёт информации.
+  .filter((c) => !covered.has(c.name) && c.props.length > 0)
+  .map((c) => {
+    const root = pascalCase(c.dir);
+    const isPart = c.name !== root && c.name.startsWith(root);
+    return {
+      name: c.name,
+      role: 'container' as const,
+      propsSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: buildProperties(c, {}, new Set()),
+        ...inheritsOf(c),
+      },
+      ...(isPart && covered.has(root) ? { compoundParent: root } : {}),
+      // Данные — да, узел палитры — нет. Эти записи заводятся ради полноты пропсов (документация,
+      // MCP, инспектор), но палитру билдера они менять не должны: среди них порталы, оверлеи,
+      // провайдеры и части form-control'ов (варианты выбора задаются пропом `options`, а не детьми),
+      // а имя `FieldArray` вдобавок занято синтетической array-записью самого билдера.
+      // Решение «показывать ли запись» принадлежит консументу — здесь мы лишь не меняем его палитру.
+      palette: false,
+    };
+  });
+
+const sorted = [...rich, ...minimal, ...parts, ...extra].sort((a, b) =>
+  a.name.localeCompare(b.name)
+);
+
+// ── флаги записей из `./catalog-kit` ───────────────────────────────────────────
+// Имя из таблицы, не нашедшее ПАЛИТРОВОЙ записи, — ошибка генерации, а не тихий пропуск:
+// переименованный компонент иначе терял бы категорию или запрет превью, и заметили бы это
+// только по невидимому узлу на канвасе.
+const byName = new Map(sorted.map((r) => [r.name, r]));
+function requirePaletteRecord(name: string, table: string): void {
+  const record = byName.get(name);
+  if (record === undefined || record.palette === false) {
+    throw new Error(
+      `${table}: '${name}' — нет палитровой записи с таким именем. Поправьте scripts/catalog-kit.ts.`
+    );
+  }
+}
+for (const name of Object.keys(CATEGORY_BY_NAME)) requirePaletteRecord(name, 'CATEGORY_BY_NAME');
+for (const name of OVERLAYS) requirePaletteRecord(name, 'OVERLAYS');
+for (const name of LEAVES) requirePaletteRecord(name, 'LEAVES');
+for (const name of Object.keys(ROOT_EXPORTS)) requirePaletteRecord(name, 'ROOT_EXPORTS');
+
+// ── символ записи и откуда он импортируется ───────────────────────────────────
+// Каталоги компонентов, которые главный вход реэкспортирует. Источник — сам `src/index.ts`
+// (его пишет `generate-exports.mjs`, в цепочке `generate:barrels` он идёт раньше каталога), а не
+// копия списка тяжёлых каталогов: копия разошлась бы с ним на первом же новом компоненте.
+const mainEntryDirs = new Set(
+  [
+    ...readFileSync(join(pkgRoot, 'src/index.ts'), 'utf8').matchAll(
+      /from '\.\/components\/([^']+)'/g
+    ),
+  ].map((m) => m[1])
+);
+if (mainEntryDirs.size === 0)
+  throw new Error(
+    'src/index.ts не реэкспортирует ни одного каталога компонентов — сначала npm run generate:exports.'
+  );
+
+/**
+ * Имя символа записи, если оно отличается от её имени.
+ *
+ * Поля называют символ сами (`x-exportName` → {@link fieldExportName}); остальным записям его
+ * даёт {@link ROOT_EXPORTS} — корень составного компонента, под именем каталога которого кит
+ * ничего не экспортирует. Названный символ обязан принадлежать тому же компоненту, иначе запись
+ * описывала бы пропсы одного компонента, а импортировала другой.
+ */
+function exportNameOf(r: Record): string | undefined {
+  const root = ROOT_EXPORTS[r.name];
+  if (root === undefined) return r.exportName;
+  if (introspected.get(root)?.registryName !== r.name)
+    throw new Error(
+      `ROOT_EXPORTS: '${r.name}' → '${root}' — такого экспорта нет либо его props-схема названа иначе (x-registryName). Поправьте scripts/catalog-kit.ts.`
+    );
+  return root;
+}
+
+/**
+ * Подпуть, откуда импортируется символ записи; `undefined` — символ лежит в главном входе.
+ *
+ * Запись, чьего символа кит не экспортирует вовсе, — ошибка генерации, а не тихий пропуск:
+ * выгруженная из билдера форма импортировала бы имя, которого в пакете нет (так было у `Chart`
+ * и `Resizable`, пока их не назвал {@link ROOT_EXPORTS}).
+ */
+function subpathOf(r: Record, exportName: string | undefined): string | undefined {
+  const symbol = exportName ?? r.name;
+  const home = introspected.get(symbol);
+  if (home === undefined)
+    throw new Error(
+      `запись '${r.name}': экспорта '${symbol}' нет среди экспортов кита — каталог не может назвать символ. ` +
+        `Назовите его в ROOT_EXPORTS (scripts/catalog-kit.ts) либо в x-exportName props-схемы.`
+    );
+  return mainEntryDirs.has(home.dir) ? undefined : home.dir;
+}
+
+const overlays = new Set(OVERLAYS);
+const leaves = new Set(LEAVES);
+const components: Record[] = sorted.map((r) => {
+  const exportName = exportNameOf(r);
+  const subpath = subpathOf(r, exportName);
+  return {
+    ...r,
+    ...(exportName !== undefined ? { exportName } : {}),
+    ...(subpath !== undefined ? { subpath } : {}),
+    ...(overlays.has(r.name)
+      ? { preview: { mode: 'limited' as const, reason: OVERLAY_REASON } }
+      : {}),
+    ...(leaves.has(r.name) ? { leaf: true } : {}),
+  };
+});
+
+// $schema — ссылка на контракт (владелец — SDK плагинов билдера) для подсказок в IDE.
+// Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
+const SCHEMA_REF = '../reformer-builder-plugin-api/src/kits/component-catalog.schema.json';
+// Блок `kit` — то, что кит рассказывает о себе сам. Словарь классов (своего списка у билдера
+// нет) и дефолт «чем разрешено стилизовать» по роли: полю можно править расположение в форме,
+// но не вид. Остальное — из `./catalog-kit`.
+const kit = {
+  ...KIT_IDENTITY,
+  infra: KIT_INFRA,
+  adapters: KIT_ADAPTERS,
+  palette: { categoryByName: CATEGORY_BY_NAME },
+  styles: {
+    mode: 'tokens',
+    classNames: CLASS_GROUPS,
+    classGroupsByRole: { field: FIELD_CLASS_GROUPS, container: '*', array: '*' },
+  },
+  codegen: KIT_CODEGEN,
+};
+// Версия контракта, а не пакета: `3.0` = визард кита по протоколу (`kit.adapters.wizard`), без
+// прослоек `codegen.needsShim`; `kit.infra.fieldFrame` — с `2.1`.
+const catalog = { $schema: SCHEMA_REF, version: '3.0', kit, components };
+
+const cfg = await resolveConfig(outFile);
+const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'json' });
+writeFileSync(outFile, json);
+
+const classCount = CLASS_GROUPS.reduce((n, g) => n + g.classes.length, 0);
+const propCount = components.reduce(
+  (n, r) => n + Object.keys((r.propsSchema as PropsSchema).properties ?? {}).length,
+  0
+);
+console.log(
+  `component-catalog.json: ${components.length} компонентов (rich: ${rich.length}, minimal: ${minimal.length}, ` +
+    `частей compound: ${parts.length}, прочих экспортов: ${extra.length}), ${propCount} пропсов; ` +
+    `словарь классов: ${CLASS_GROUPS.length} групп / ${classCount} классов, полям разрешено: ${FIELD_CLASS_GROUPS.join(', ')}`
+);

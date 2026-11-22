@@ -1,0 +1,38 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4",
+      "title": "Личные данные"
+    },
+    "children": [
+      {
+        "model": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя",
+          "required": true
+        }
+      },
+      {
+        "model": "$model(agreed)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Согласен"
+        }
+      },
+      {
+        "component": "$component(Button)",
+        "selector": "submit",
+        "componentProps": {
+          "type": "submit"
+        },
+        "children": ["Отправить"]
+      }
+    ],
+    "selector": "lichnye-dannye-section"
+  }
+}

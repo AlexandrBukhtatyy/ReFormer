@@ -1,0 +1,348 @@
+/**
+ * Чтение файлов модуля: пути для компилятора, адреса для свода диагностик.
+ *
+ * @module plugins/reformer/render/compiling/read.test
+ */
+
+import { describe, expect, it } from 'vitest';
+import { createFakeHost, fakeRef } from '../testing';
+import { attributeProblems, readSidecars } from './read';
+
+const DOC = 'fake:form/form.json';
+
+describe('readSidecars', () => {
+  it('отдаёт и исходники по именам, и адреса по именам', async () => {
+    const host = createFakeHost({
+      siblings: { 'validation.ts': 'export const formValidation = {};', 'model.ts': 'export {};' },
+    });
+    const sources = await readSidecars(host, DOC);
+    expect([...sources.files.keys()].sort()).toEqual(['model.ts', 'validation.ts']);
+    expect(sources.resources.get('validation.ts')).toBe('fake:form/validation.ts');
+    expect(sources.problems).toEqual([]);
+  });
+
+  it('отказ чтения одного файла адресуется этим файлом и не отменяет остальных', async () => {
+    const host = createFakeHost({ siblings: { 'validation.ts': 'ok', 'model.ts': 'ok' } });
+    const broken = {
+      ...host,
+      readText: (id: string) =>
+        id.endsWith('model.ts') ? Promise.reject(new Error('нет доступа')) : host.readText(id),
+    };
+    const sources = await readSidecars(broken, DOC);
+    expect([...sources.files.keys()]).toEqual(['validation.ts']);
+    expect(sources.problems).toEqual([
+      {
+        file: 'model.ts',
+        phase: 'resolve',
+        message: 'нет доступа',
+        resource: 'fake:form/model.ts',
+      },
+    ]);
+  });
+});
+
+describe('readSidecars — обход папок шагов', () => {
+  /** Порт с листингом: плоская карта «путь от каталога формы → текст». */
+  function treeHost(tree: Record<string, string>, failing: readonly string[] = []) {
+    const base = createFakeHost();
+    const ROOT = 'fake:form';
+    const list = async (dir: string) => {
+      if (failing.includes(dir)) throw new Error(`нет доступа: ${dir}`);
+      const prefix = dir === ROOT ? '' : `${dir.slice(ROOT.length + 1)}/`;
+      const names = new Map<string, 'file' | 'directory'>();
+      for (const path of Object.keys(tree)) {
+        if (!path.startsWith(prefix)) continue;
+        const rest = path.slice(prefix.length);
+        const cut = rest.indexOf('/');
+        names.set(cut === -1 ? rest : rest.slice(0, cut), cut === -1 ? 'file' : 'directory');
+      }
+      return [...names].map(([name, kind]) => fakeRef(`${dir}/${name}`, { kind }));
+    };
+    return {
+      ...base,
+      list,
+      parentOf: (id: string) => id.slice(0, id.lastIndexOf('/')),
+      readText: async (id: string) => {
+        const text = tree[id.slice(ROOT.length + 1)];
+        if (text === undefined) throw new Error(`нет файла ${id}`);
+        return text;
+      },
+    };
+  }
+
+  it('ключи — пути от каталога формы; steps/index.ts на месте, корневой index — нет', async () => {
+    const host = treeHost({
+      'index.tsx': 'страница',
+      'validation.ts': 'x',
+      'steps/index.ts': 'x',
+      'steps/kontakty/validation.ts': 'x',
+      'steps/kontakty/form.render.ts': 'x',
+      'steps/kontakty/validation.test.ts': 'x',
+    });
+    const sources = await readSidecars(host, DOC);
+    expect([...sources.files.keys()]).toEqual([
+      'steps/index.ts',
+      'steps/kontakty/form.render.ts',
+      'steps/kontakty/validation.ts',
+      'validation.ts',
+    ]);
+    expect(sources.resources.get('steps/kontakty/validation.ts')).toBe(
+      'fake:form/steps/kontakty/validation.ts'
+    );
+  });
+
+  it('не спускается в node_modules, .ui_builder, скрытые папки и глубже трёх уровней', async () => {
+    const host = treeHost({
+      'model.ts': 'x',
+      'node_modules/pkg/index.ts': 'x',
+      '.ui_builder/codegen/a.ts': 'x',
+      '.hidden/b.ts': 'x',
+      'a/b/c/ok.ts': 'x',
+      'a/b/c/d/deep.ts': 'x',
+    });
+    const sources = await readSidecars(host, DOC);
+    expect([...sources.files.keys()]).toEqual(['a/b/c/ok.ts', 'model.ts']);
+  });
+
+  it('отказ листинга вложенной папки — находка, а не конец чтения', async () => {
+    const host = treeHost({ 'model.ts': 'x', 'steps/a/validation.ts': 'x' }, ['fake:form/steps']);
+    const sources = await readSidecars(host, DOC);
+    expect([...sources.files.keys()]).toEqual(['model.ts']);
+    expect(sources.problems).toEqual([
+      expect.objectContaining({ file: 'steps/', phase: 'resolve', resource: 'fake:form/steps' }),
+    ]);
+  });
+});
+
+describe('readSidecars — модуль с папками ролей', () => {
+  /** Модуль, как его печатает кодоген для разбитого визарда; документ лежит в `schema/`. */
+  const MODULE = {
+    'forms/zayavka/ZayavkaForm.tsx': 'x',
+    'forms/zayavka/index.ts': 'x',
+    'forms/zayavka/README.md': 'x',
+    'forms/zayavka/fixture.ts': 'x',
+    'forms/zayavka/application/create.ts': 'x',
+    'forms/zayavka/application/submit.ts': 'x',
+    'forms/zayavka/api/index.ts': 'x',
+    'forms/zayavka/behavior/index.ts': 'x',
+    'forms/zayavka/flow/zayavka-flow.ts': 'x',
+    'forms/zayavka/model/initial-value.ts': 'x',
+    'forms/zayavka/schema/form.schema.json': '{}',
+    'forms/zayavka/schema/registry.ts': 'x',
+    'forms/zayavka/schema/steps/shag-1/form.schema.json': '{}',
+    'forms/zayavka/validation/form.ts': 'x',
+    'forms/zayavka/validation/form.test.ts': 'x',
+    'forms/zayavka/validation/shag-1.ts': 'x',
+    // Соседняя форма того же каталога: читать её незачем.
+    'forms/sosed/validation/form.ts': 'x',
+  };
+  const DOCUMENT = 'fake:forms/zayavka/schema/form.schema.json';
+
+  it('читает от корня модуля — родителя schema/: ключи — пути от него', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: MODULE }), DOCUMENT);
+
+    expect(sources.problems).toEqual([]);
+    expect([...sources.files.keys()]).toEqual([
+      'api/index.ts',
+      'application/create.ts',
+      'application/submit.ts',
+      'behavior/index.ts',
+      'flow/zayavka-flow.ts',
+      'model/initial-value.ts',
+      'schema/registry.ts',
+      'schema/steps/shag-1/form.schema.json',
+      'validation/form.ts',
+      'validation/shag-1.ts',
+      'ZayavkaForm.tsx',
+    ]);
+    expect(sources.resources.get('schema/registry.ts')).toBe(
+      'fake:forms/zayavka/schema/registry.ts'
+    );
+  });
+
+  it('глубина обхода покрывает файл шага: schema/steps/<шаг>/form.schema.json', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: MODULE }), DOCUMENT);
+    expect(sources.files.get('schema/steps/shag-1/form.schema.json')).toBe('{}');
+  });
+
+  it('сам документ в набор не идёт: его превью берёт из модели редактора', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: MODULE }), DOCUMENT);
+    expect(sources.files.has('schema/form.schema.json')).toBe(false);
+    expect(sources.resources.has('schema/form.schema.json')).toBe(false);
+  });
+
+  it('путь документа можно назвать явно: открытый документ спрашивать не обязательно', async () => {
+    const host = { ...createFakeHost({ tree: MODULE }), documentOf: () => null };
+    const sources = await readSidecars(host, DOCUMENT, 'forms/zayavka/schema/form.schema.json');
+    expect(sources.files.has('validation/form.ts')).toBe(true);
+  });
+
+  it('документ прежней плоской раскладки читается от своего каталога, как раньше', async () => {
+    const flat = {
+      'forms/contact/form.schema.json': '{}',
+      'forms/contact/index.tsx': 'x',
+      'forms/contact/model.ts': 'x',
+      'forms/contact/steps/index.ts': 'x',
+      'forms/contact/steps/kontakty/form.schema.json': '{}',
+      'forms/zayavka/validation/form.ts': 'x',
+    };
+    const sources = await readSidecars(
+      createFakeHost({ tree: flat }),
+      'fake:forms/contact/form.schema.json'
+    );
+    expect([...sources.files.keys()]).toEqual([
+      'model.ts',
+      'steps/index.ts',
+      'steps/kontakty/form.schema.json',
+    ]);
+  });
+
+  it('без листинга порт отдаёт только соседей документа — папки ролей ему не видны', async () => {
+    const host = createFakeHost({ tree: MODULE });
+    const { list: _list, ...flatHost } = host;
+    const sources = await readSidecars(flatHost, DOCUMENT);
+    // Один уровень каталога документа: это честная деградация, а не выдуманный модуль.
+    expect([...sources.files.keys()]).toEqual(['registry.ts']);
+  });
+});
+
+describe('readSidecars — документ со свободным именем', () => {
+  /**
+   * Каталог со свободно названными документами: модуль каждого кодоген заводит подкаталогом по
+   * имени формы и кладёт копию документа в его `schema/form.schema.json`.
+   */
+  const FORMS = {
+    'forms/credit.schema.json': '{ "документ": "открыт в редакторе" }',
+    'forms/credit/CreditForm.tsx': 'x',
+    'forms/credit/index.ts': 'x',
+    'forms/credit/application/submit.ts': 'x',
+    'forms/credit/behavior/index.ts': 'x',
+    'forms/credit/model/initial-value.ts': 'x',
+    'forms/credit/schema/form.schema.json': '{ "копия": "её печатает кодоген" }',
+    'forms/credit/schema/registry.ts': 'x',
+    'forms/credit/schema/steps/shag-1/form.schema.json': '{}',
+    'forms/credit/validation/form.ts': 'x',
+    'forms/credit/validation/messages.ts': 'x',
+    // Соседний документ того же каталога и его модуль.
+    'forms/loan.schema.json': '{}',
+    'forms/loan/validation/form.ts': 'x',
+    // Файл рядом с документами: ничьему модулю он не принадлежит.
+    'forms/registry.ts': 'x',
+  };
+  const DOCUMENT = 'fake:forms/credit.schema.json';
+
+  it('модуль читается из подкаталога, куда его кладёт кодоген', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: FORMS }), DOCUMENT);
+
+    expect(sources.problems).toEqual([]);
+    expect(sources.detached).toBe(true);
+    // Ключи — пути от корня МОДУЛЯ, а не от каталога документа.
+    expect([...sources.files.keys()]).toEqual([
+      'application/submit.ts',
+      'behavior/index.ts',
+      'CreditForm.tsx',
+      'model/initial-value.ts',
+      'schema/registry.ts',
+      'schema/steps/shag-1/form.schema.json',
+      'validation/form.ts',
+      'validation/messages.ts',
+    ]);
+    expect(sources.resources.get('validation/form.ts')).toBe(
+      'fake:forms/credit/validation/form.ts'
+    );
+  });
+
+  it('копия документа в schema/ в набор не идёт: схему даёт открытый документ', async () => {
+    const sources = await readSidecars(createFakeHost({ tree: FORMS }), DOCUMENT);
+    expect(sources.files.has('schema/form.schema.json')).toBe(false);
+    expect(sources.resources.has('schema/form.schema.json')).toBe(false);
+  });
+
+  it('соседний документ читает свой подкаталог, а не чужой', async () => {
+    const sources = await readSidecars(
+      createFakeHost({ tree: FORMS }),
+      'fake:forms/loan.schema.json'
+    );
+    expect(sources.detached).toBe(true);
+    expect([...sources.files.keys()]).toEqual(['validation/form.ts']);
+    expect(sources.resources.get('validation/form.ts')).toBe('fake:forms/loan/validation/form.ts');
+  });
+
+  it('подкаталога нет (код не генерировали) — читается каталог документа, как раньше', async () => {
+    const beside = {
+      'forms/zayavka.schema.json': '{}',
+      'forms/model.ts': 'x',
+      'forms/form.validation.ts': 'x',
+    };
+    const sources = await readSidecars(
+      createFakeHost({ tree: beside }),
+      'fake:forms/zayavka.schema.json'
+    );
+    expect(sources.problems).toEqual([]);
+    expect(sources.detached).toBe(false);
+    expect([...sources.files.keys()]).toEqual(['form.validation.ts', 'model.ts']);
+  });
+
+  it('файл с именем формы — не подкаталог: модуль ищется только среди каталогов', async () => {
+    const sources = await readSidecars(
+      createFakeHost({ tree: { 'forms/credit.schema.json': '{}', 'forms/credit': 'x' } }),
+      DOCUMENT
+    );
+    expect(sources.detached).toBe(false);
+  });
+
+  it('документ с каноническим именем подкаталог не ищет, даже если тот есть', async () => {
+    const nested = {
+      'forms/zayavka/schema/form.schema.json': '{}',
+      'forms/zayavka/validation/form.ts': 'x',
+      // Каталог с именем формы рядом с документом — папка шагов, а не модуль.
+      'forms/zayavka/schema/zayavka/validation/form.ts': 'x',
+    };
+    const sources = await readSidecars(
+      createFakeHost({ tree: nested }),
+      'fake:forms/zayavka/schema/form.schema.json'
+    );
+    expect(sources.detached).toBe(false);
+    expect(sources.resources.get('validation/form.ts')).toBe(
+      'fake:forms/zayavka/validation/form.ts'
+    );
+  });
+
+  it('отказ листинга каталога документа — одна находка чтения, а не две', async () => {
+    const host = createFakeHost({ tree: FORMS });
+    const failing = { ...host, list: () => Promise.reject(new Error('нет доступа')) };
+    const sources = await readSidecars(failing, DOCUMENT);
+    expect(sources.detached).toBe(false);
+    expect(sources.problems).toEqual([{ file: '', phase: 'resolve', message: 'нет доступа' }]);
+  });
+});
+
+describe('attributeProblems', () => {
+  const resources = new Map([['validation.ts', 'fake:form/validation.ts']]);
+
+  it('находка, названная именем сайдкара, получает его адрес', () => {
+    const [problem] = attributeProblems(
+      [{ file: 'validation.ts', phase: 'transpile', message: 'x' }],
+      resources
+    );
+    expect(problem.resource).toBe('fake:form/validation.ts');
+  });
+
+  it('уже адресованная находка и находка без файла остаются как есть', () => {
+    const input = [
+      { file: 'validation.ts', phase: 'transpile' as const, message: 'x', resource: 'own' },
+      { file: '', phase: 'render' as const, message: 'y' },
+    ];
+    const out = attributeProblems(input, resources);
+    expect(out[0]).toBe(input[0]);
+    expect(out[1]).toBe(input[1]);
+  });
+
+  it('имя, которого среди сайдкаров нет, адреса не получает', () => {
+    const [problem] = attributeProblems(
+      [{ file: '__preview-entry__.js', phase: 'evaluate', message: 'x' }],
+      resources
+    );
+    expect(problem.resource).toBeUndefined();
+  });
+});

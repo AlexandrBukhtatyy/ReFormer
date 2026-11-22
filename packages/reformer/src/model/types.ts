@@ -1,0 +1,334 @@
+/**
+ * Типы слоя данных FormModel
+ *
+ * FormModel — реактивный proxy над обычным JS-объектом: держит ТОЛЬКО значения
+ * (как сигналы `@preact/signals-core`). Источник истины значения.
+ *
+ * - value-доступ: `model.field` читает/пишет значение «как у обычного объекта»;
+ *   вложенные объекты → под-модель {@link FormModel} (с `.$` и {@link ModelApi}), массивы → {@link ModelArray}.
+ * - escape-hatch: `model.$.field` отдаёт сам {@link PathAwareSignal} (для привязки в схеме);
+ *   узлы-контейнеры дерева `$` (корень, группы, массивы) — тоже сигналы (`ReadonlySignal`
+ *   агрегированного значения), поэтому `model.$.subscribe(…)` / `model.$.group.value` работают.
+ *
+ * @group Model
+ * @module model/types
+ */
+
+import type { ReadonlySignal, Signal } from '@preact/signals-core';
+
+/**
+ * Сигнал, который знает свой путь в модели (`'personalData.lastName'`).
+ * Используется как «ручка поля»: и привязка value в схеме, и идентичность для testId/devtools.
+ *
+ * @group Model
+ */
+export type PathAwareSignal<T> = Signal<T> & {
+  /** Путь поля в модели (dot-нотация). На элементах массива включает индекс. */
+  readonly __path: string;
+};
+
+/**
+ * Спец-объекты, которые трактуются как листья (не разворачиваются в под-модель): даты, файлы и
+ * встроенные коллекции и значения — их модель держит целиком, а сравнивает Map/Set по содержимому.
+ * @internal
+ */
+type Opaque =
+  | Date
+  | File
+  | Blob
+  | ReadonlyMap<unknown, unknown>
+  | ReadonlySet<unknown>
+  | WeakMap<object, unknown>
+  | WeakSet<object>
+  | RegExp
+  | Promise<unknown>
+  | ArrayBuffer
+  | ArrayBufferView;
+
+/**
+ * Значение одного ключа в {@link DeepPartial}: вложенная группа — частично, массив и спец-объект
+ * (Date/File/Blob) — целиком.
+ * @internal
+ */
+type DeepPartialValue<V> =
+  NonNullable<V> extends ReadonlyArray<unknown> | Opaque
+    ? V
+    : NonNullable<V> extends object
+      ? DeepPartial<NonNullable<V>> | Extract<V, null | undefined>
+      : V;
+
+/**
+ * Частичное значение модели для {@link ModelApi.patch}: любой ключ можно опустить на любой
+ * глубине вложенных групп. Массив передаётся целиком — он заменяется, а не сливается.
+ *
+ * @example
+ * ```typescript
+ * type Profile = { name: string; address: { city: string; street: string }; tags: string[] };
+ * const update: DeepPartial<Profile> = { address: { city: 'Казань' } };
+ * ```
+ *
+ * @group Model
+ */
+export type DeepPartial<T> = {
+  [K in keyof T]?: DeepPartialValue<T[K]>;
+};
+
+/**
+ * `null` входит в тип `V`. Без `strictNullChecks` у потребителя `null` подходит любому типу —
+ * тогда признак ложен, и тип контейнера остаётся фасадом, как без `null`.
+ * @internal
+ */
+type IncludesNull<V> = null extends string ? false : null extends V ? true : false;
+
+/**
+ * Фасад элемента массива при обходе (`at`/`map`/`forEach`): массив → {@link ModelArray},
+ * Opaque (Date/File/Blob) и примитив → значение, объект → под-модель {@link FormModel}.
+ * Зеркалит листовой/объектный сплит {@link ModelValue} (но объект → под-модель с API),
+ * чтобы `files: File[]`/`dates: Date[]`/вложенные массивы не мис-типизировались как `FormModel`.
+ * @internal
+ */
+type ModelArrayItem<U> =
+  IncludesNull<U> extends true
+    ? U
+    : NonNullable<U> extends ReadonlyArray<infer E>
+      ? ModelArray<E>
+      : NonNullable<U> extends Opaque
+        ? U
+        : NonNullable<U> extends object
+          ? FormModel<NonNullable<U>>
+          : U;
+
+/**
+ * Значение поля в value-доступе модели:
+ * - массив → {@link ModelArray}
+ * - спец-объект (Date/File/Blob) → как есть
+ * - объект → под-модель {@link FormModel} (value-доступ + `.$`-сигналы + API get/set/patch/…);
+ *   промоутится рантаймом (`makeFormModel`); сигналы идентичны `model.$.<path>`
+ * - примитив → значение
+ * - тип с `null` (`File[] | null`, `Address | null`) → значение как есть, без фасада: поле,
+ *   которое бывает `null`, начинают с `null`, а такое поле в рантайме — лист (значение целиком).
+ *   Контейнер, созданный из `[]` или `{}`, стал бы фасадом — nullable-контейнер начинают с `null`.
+ *
+ * @group Model
+ */
+export type ModelValue<V> =
+  IncludesNull<V> extends true
+    ? V
+    : NonNullable<V> extends ReadonlyArray<infer U>
+      ? ModelArray<U>
+      : NonNullable<V> extends Opaque
+        ? V
+        : NonNullable<V> extends object
+          ? FormModel<NonNullable<V>>
+          : V;
+
+/**
+ * Карта value-полей объекта (value-половина {@link FormModel}): поля доступны как обычные свойства
+ * (чтение реактивно внутри `effect`/`computed`, запись — присваиванием). Вложенные объекты-поля
+ * резолвятся в под-модели {@link FormModel} (см. {@link ModelValue}), массивы — в {@link ModelArray}.
+ *
+ * @group Model
+ */
+export type ModelObject<T> = {
+  [K in keyof T]: ModelValue<T[K]>;
+};
+
+/**
+ * Реактивный массив модели. Мутации (`push`/`removeAt`/…) меняют длину реактивно;
+ * `map`/`forEach`/`at` отдают под-модель элемента ({@link FormModel}) для объектных элементов.
+ *
+ * @group Model
+ */
+export interface ModelArray<U> {
+  /**
+   * Путь массива в модели (dot-нотация). Предоставляется рантаймом (value-прокси) и требуется
+   * рендер-слою для резолва узла массива (напр. `ArrayRenderNode` в `@reformer/renderer-react`).
+   */
+  readonly __path: string;
+  /** Реактивная длина. */
+  readonly length: number;
+  /**
+   * Добавить элемент в конец (значение элемента целиком). Без значения — элемент по шаблону
+   * массива (`arrayOf(blank)` в модели); шаблона нет — ошибка.
+   */
+  push(item?: U): void;
+  /** Вставить элемент по индексу. Без значения — элемент по шаблону, как у {@link push}. */
+  insertAt(index: number, item?: U): void;
+  /** Удалить элемент по индексу. */
+  removeAt(index: number): void;
+  /** Переместить элемент. */
+  move(from: number, to: number): void;
+  /** Поменять местами два элемента. */
+  swap(a: number, b: number): void;
+  /** Очистить массив. */
+  clear(): void;
+  /** Элемент по индексу: объект → под-модель, массив → {@link ModelArray}, лист → значение. */
+  at(
+    index: number
+  ): NonNullable<U> extends object ? ModelArrayItem<U> : ModelArrayItem<U> | undefined;
+  /** Map по элементам (объект → {@link FormModel}, Opaque/примитив → значение, массив → {@link ModelArray}). */
+  map<R>(fn: (item: ModelArrayItem<U>, index: number) => R): R[];
+  /** Итерация по элементам (см. {@link ModelArrayItem}). */
+  forEach(fn: (item: ModelArrayItem<U>, index: number) => void): void;
+  /** Снимок массива значений (без подписки). */
+  toArray(): U[];
+  /** Обход `for…of` / spread — те же элементы, что у {@link forEach}. */
+  [Symbol.iterator](): IterableIterator<ModelArrayItem<U>>;
+  /** Индексный value-доступ. */
+  [index: number]: ModelValue<U>;
+}
+
+/**
+ * Карта под-сигналов объекта в дереве `model.$` (без свойств самого узла — их добавляет
+ * {@link ModelGroupSignals}).
+ *
+ * @group Model
+ */
+export type ModelSignals<T> = {
+  [K in keyof T]: ModelSignalNode<T[K]>;
+};
+
+/**
+ * Свойства контейнерного узла дерева `$`, «поверх» карты детей. Ключи детей вырезаются из
+ * {@link ReadonlySignal}: доступ к полю формы всегда выигрывает у одноимённого свойства сигнала
+ * (так же ведёт себя рантайм), поэтому `{ value: string }` не порождает конфликта типов.
+ * @internal
+ */
+type ContainerSignal<T, TKeys extends PropertyKey> = Omit<ReadonlySignal<T>, TKeys>;
+
+/**
+ * Узел-группа дерева `model.$`: доступ к под-сигналам полей ({@link ModelSignals}) И одновременно
+ * {@link ReadonlySignal} агрегированного значения группы — `.value`/`.peek()`/`.subscribe()`.
+ *
+ * ⚠️ Поле формы с именем `value`/`peek`/`subscribe`/`valueOf`/`toString`/`toJSON`/`brand` затеняет
+ * одноимённое свойство сигнала (редкий краевой случай); `subscribe` при этом продолжает работать.
+ *
+ * @group Model
+ */
+export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>;
+
+/**
+ * Узел-массив дерева `model.$`: индексируемый доступ к под-сигналам элементов, реактивная `length`
+ * и сигнал значения массива целиком (реагирует и на правку элемента, и на изменение состава —
+ * push/removeAt/move).
+ *
+ * В отличие от группы, узел ЗАПИСЫВАЕМ: `model.$.tags.value = ['a']` заменяет массив целиком. Это
+ * делает его {@link PathAwareSignal} — к нему привязывают поле (`{ model: model.$.tags, component }`),
+ * правило (`validate(model.$.tags, …)`) и поведение, как к листу. Так массив служит ОДНИМ значением
+ * поля: мультивыбор, теги, список файлов.
+ *
+ * `V` — объявленный тип поля, включая `undefined`. Поле с `null` в типе (`string[] | null`) — не
+ * узел-массив, а лист {@link PathAwareSignal}: его начинают с `null`, и `length` с индексами у него
+ * в рантайме нет (см. {@link ModelValue}).
+ *
+ * @group Model
+ */
+export type ModelArraySignals<U, V> = Signal<V> & {
+  /** Путь массива в модели (dot-нотация). */
+  readonly __path: string;
+  readonly length: number;
+  readonly [index: number]: ModelSignalNode<U>;
+};
+
+/**
+ * Узел дерева сигналов `model.$`: массив → {@link ModelArraySignals}, Opaque (Date/File/Blob)
+ * и примитив → {@link PathAwareSignal}, объект → {@link ModelGroupSignals}. Для примитивных
+ * и Opaque массивов элемент — сам сигнал листа (а не под-дерево), поэтому `model.$.tags[0]` — это
+ * `PathAwareSignal<string>`, а не `ModelGroupSignals<never>`. Тип с `null` — лист
+ * {@link PathAwareSignal}: такое поле начинают с `null`, и под-сигналов у него нет.
+ * @internal
+ */
+type ModelSignalNode<V> =
+  IncludesNull<V> extends true
+    ? PathAwareSignal<V>
+    : NonNullable<V> extends ReadonlyArray<infer U>
+      ? ModelArraySignals<U, V>
+      : NonNullable<V> extends Opaque
+        ? PathAwareSignal<V>
+        : NonNullable<V> extends object
+          ? ModelGroupSignals<NonNullable<V>>
+          : PathAwareSignal<V>;
+
+/**
+ * API уровня модели (доступно на корне, под-моделях вложенных объектов-групп и элементов массива).
+ *
+ * ⚠️ Имена методов (`$`/`get`/`set`/`patch`/`isDirty`/`reset`/`signalAt`/`captureInitial`)
+ * зарезервированы: одноимённое поле формы их затеняет (редкий краевой случай).
+ *
+ * @group Model
+ */
+export interface ModelApi<T> {
+  /**
+   * Escape-hatch к сигналам: `model.$.loanType` → `PathAwareSignal<LoanType>`.
+   * Сам узел — {@link ReadonlySignal} модели целиком: `model.$.subscribe(v => …)`.
+   */
+  readonly $: ModelGroupSignals<T>;
+  /** Снимок значений (без подписки) — для submit. */
+  get(): T;
+  /**
+   * Полная установка значений: принимает объект целиком (все ключи `T`) и записывает их в модель.
+   * Производными полями (цели `compute`) владеет compute — их значения из payload игнорируются.
+   * Не меняет initial-снимок. Для частичного обновления (только переданные ключи) — {@link ModelApi.patch}.
+   *
+   * Если в объекте не хватает ключей (значение пришло без типа — например, с сервера), эти поля
+   * остаются прежними, а в dev выводится предупреждение со списком.
+   */
+  set(value: T): void;
+  /**
+   * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
+   * отсутствующие ключи НЕ трогаются. Вложенные группы сливаются так же, массив заменяется
+   * целиком. Не меняет initial-снимок.
+   */
+  patch(value: DeepPartial<T>): void;
+  /**
+   * Отличаются ли текущие значения от initial-снимка (value-diff). Производные поля — цели
+   * `compute` / `computeFrom` и поля с `markDerived` — не в счёт: их пишет поведение, а не
+   * пользователь, и форма без единой правки изменённой не считается.
+   */
+  isDirty(): boolean;
+  /**
+   * Сбросить значения к initial-снимку. Производные поля сброс не пишет, как `set` и `patch`:
+   * цель `compute` пересчитает поведение, когда вернутся её источники.
+   *
+   * Ноды формы не трогает: замечания погаснут при следующей проверке. Сброс для пользователя —
+   * `form.reset()`: та же точка отсчёта и чистые ноды.
+   */
+  reset(): void;
+  /**
+   * Зафиксировать текущие значения как новый initial-снимок («точка отсчёта»). К нему возвращают
+   * и `model.reset()`, и `form.reset()`.
+   */
+  captureInitial(): void;
+  /**
+   * Резолв строкового пути в сигнал (для error-routing/мостов): лист либо массив целиком
+   * (ручка значения массива — см. {@link ModelArraySignals}). Для пути группы — `undefined`.
+   */
+  signalAt(path: string): PathAwareSignal<unknown> | undefined;
+}
+
+/**
+ * Модель объекта `T`: value-доступ ({@link ModelObject}) + `.$`-сигналы + {@link ModelApi}
+ * (get/set/patch/isDirty/reset/signalAt). Вложенные объекты-группы модели — тоже модели
+ * (доступны как `model.<group>`), поэтому `model.<group>.$.<field>` эквивалентно `model.$.<group>.<field>`.
+ *
+ * То, что возвращает `createModel`, — и для формы, и для состояния приложения вне форм. Для кода
+ * форм то же самое называется {@link FormModel}.
+ *
+ * @example
+ * ```typescript
+ * interface App { user: { name: string }; ui: { theme: 'light' | 'dark' } }
+ * const app: Model<App> = createModel<App>({ user: { name: '' }, ui: { theme: 'light' } });
+ * app.ui.theme = 'dark';
+ * ```
+ *
+ * @group Model
+ */
+export type Model<T> = ModelObject<T> & ModelApi<T>;
+
+/**
+ * Модель формы — то же, что {@link Model}: имя для кода форм (схемы, правила, поведение).
+ * Синонимы взаимозаменяемы.
+ *
+ * @group Model
+ */
+export type FormModel<T> = Model<T>;

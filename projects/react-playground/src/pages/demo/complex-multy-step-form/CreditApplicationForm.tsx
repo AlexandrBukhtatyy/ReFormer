@@ -1,0 +1,85 @@
+/**
+ * CreditApplicationForm — вариант «React руками».
+ *
+ * Сборка та же, что у renderer-вариантов (`application/create.ts`). Из схемы эта страница берёт
+ * поля, из потока — список шагов; разметку шагов рисует JSX. Условия видимости секций — общие с
+ * поведением и правилами (`model/predicates.ts`), загрузка и отправка — общие с
+ * renderer-вариантами (`application/`).
+ */
+
+import { useFormBundle } from '@reformer/core/react';
+import { AsyncBoundary, FormWizard, type FormWizardStep } from '@reformer/ui-kit';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { createCreditApplication } from './application/create';
+import { loadCreditApplication, type CreditApplicationData } from './application/load';
+import { applyCreditApplication } from './application/mapping';
+import { reportSubmitOutcome, sendCreditApplication } from './application/submit';
+import { creditApplicationFlow, type StepSelector } from './flow/credit-application-flow';
+import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
+import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
+import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm';
+import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
+import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
+import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
+import { creditApplicationMessages } from './validation/messages';
+import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
+
+type Step = FormWizardStep<CreditApplicationFormType>;
+
+/** JSX тела шага. Тип требует компонент для каждого шага потока. */
+const STEP_BODIES: Record<StepSelector, Step['body']> = {
+  loan: BasicInfoForm,
+  applicant: PersonalInfoForm,
+  contacts: ContactInfoForm,
+  employment: EmploymentForm,
+  additional: AdditionalInfoForm,
+  confirmation: ConfirmationForm,
+};
+
+/** Шаги визарда: порядок, заголовки и значки — из потока заявки. */
+const STEPS: Step[] = creditApplicationFlow.map((step, index) => ({
+  number: index + 1,
+  title: step.title,
+  icon: step.icon,
+  body: STEP_BODIES[step.selector],
+}));
+
+function CreditApplicationForm() {
+  // Модель, форма и валидация — одной сборкой. useFormBundle зовёт фабрику ровно один раз и
+  // держит бандл стабильным.
+  const bundle = useFormBundle(() => createCreditApplication());
+  const { form } = bundle;
+
+  // ID заявки: '1' / '2' — редактирование, null — пустая форма (создание).
+  const applicationId: string | null = '1';
+
+  const submitApplication = async () => {
+    // Один прогон всех правил: при замечаниях обработчик не вызывается, поля помечены тронутыми.
+    const outcome = await bundle.submission.submit(sendCreditApplication);
+    if (outcome.status === 'submitted') reportSubmitOutcome(outcome.result);
+    else alert('Пожалуйста, исправьте ошибки в форме');
+  };
+
+  // Загрузкой управляет AsyncBoundary: состояние, отмена устаревшего запроса, «Повторить».
+  return (
+    // Тексты замечаний формы: правила несут коды, строки по кодам — в словаре формы.
+    <ValidationMessagesProvider messages={creditApplicationMessages}>
+      <AsyncBoundary<CreditApplicationData>
+        load={(signal) => loadCreditApplication(applicationId!, signal)}
+        loadKey={applicationId}
+        enabled={applicationId !== null}
+        onSuccess={(data) => applyCreditApplication(bundle, data)}
+      >
+        <FormWizard
+          form={form}
+          flow={bundle.flow}
+          steps={STEPS}
+          onSubmit={submitApplication}
+          submitLabel="Отправить заявку"
+        />
+      </AsyncBoundary>
+    </ValidationMessagesProvider>
+  );
+}
+
+export default CreditApplicationForm;

@@ -1,0 +1,62 @@
+[
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.formStart({ dir: \"form\", target: \"renderer-json\", task: \"Сделай форму по спецификации из файла `spec.md`. Стек: `@reformer/renderer-json`, разметка — документ JSON-схемы и реестр компонентов.\", specPath: \"spec.md\" }))",
+    "answer": "✓ form_start: the plan of «Оформление заказа» on renderer-json is saved.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return {fields: form.fields.map(f=>`${f.name}|${f.type}|${f.component}|${JSON.stringify(f.initial)}|${f.rules.join(';')}`), arrays: form.arrays.map(a=>a.name+':'+a.rules.join(';')+' cols '+a.columns.map(c=>c.name+'|'+c.type+'|'+c.component+'|'+c.rules.join(';')).join(', ')), api: api.map(a=>a.on+'.'+a.name+': '+a.signature)}",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.slice(36).map(a=>a.on+'.'+a.name+': '+a.signature+' — '+a.doc.slice(0,150)).join('\\n')",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.title(\"Оформление заказа\");\nf.field(\"customerType\").label(\"Тип покупателя\").options([{value:\"person\",label:\"Физическое лицо\"},{value:\"company\",label:\"Юридическое лицо\"}]).required(\"Выберите тип покупателя\");\nf.field(\"contact.lastName\").label(\"Фамилия\").required(\"Введите фамилию\").minLength(2,\"Минимум 2 символа\");\nf.field(\"contact.firstName\").label(\"Имя\").required(\"Введите имя\").minLength(2,\"Минимум 2 символа\");\nf.field(\"email\").required(\"Введите email\").email(\"Некорректный email\");\nf.field(\"phone\").label(\"Телефон\").mask(\"+7 (999) 999-99-99\").required(\"Введите телефон\").pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/,\"Формат +7 (999) 999-99-99\");\nf.field(\"birthDate\").label(\"Дата рождения\").type(\"date\").showWhen(m=>m.customerType===\"person\").required(\"Укажите дату рождения\").when(m=>m.customerType===\"person\");\nf.field(\"company.name\").label(\"Название организации\").showWhen(m=>m.customerType===\"company\").required(\"Введите название организации\").when(m=>m.customerType===\"company\");\nf.field(\"company.inn\").label(\"ИНН\").showWhen(m=>m.customerType===\"company\").required(\"Введите ИНН\").pattern(/^\\d{10}$/,\"ИНН — 10 цифр\").when(m=>m.customerType===\"company\");\nf.field(\"deliveryMethod\").label(\"Способ получения\").options([{value:\"pickup\",label:\"Самовывоз\"},{value:\"courier\",label:\"Курьер\"},{value:\"post\",label:\"Почта\"}]).required(\"Выберите способ получения\");\nfor (const [k,l,msg] of [[\"city\",\"Город\",\"Введите город\"],[\"street\",\"Улица\",\"Введите улицу\"],[\"house\",\"Дом\",\"Введите дом\"]]) {\n  f.field(\"deliveryAddress.\"+k).label(l).required(msg).when(m=>m.deliveryMethod!==\"pickup\").disableWhen(m=>m.deliveryMethod===\"pickup\",{resetOnDisable:true});\n  f.field(\"billingAddress.\"+k).label(l).required(msg).when(m=>!m.billingSame);\n}\nf.field(\"deliveryDate\").label(\"Дата доставки\").showWhen(m=>m.deliveryMethod===\"courier\").required(\"Выберите дату доставки\").future(\"Дата доставки — не раньше завтрашнего дня\").when(m=>m.deliveryMethod===\"courier\").resetWhen(m=>m.deliveryMethod!==\"courier\");\nf.field(\"billingSame\").label(\"Адрес для счёта совпадает с адресом доставки\");\nf.field(\"subtotal\").label(\"Сумма товаров\").readonly().compute(m=>m.items.reduce((s,r)=>s+(Number(r.quantity)||0)*(Number(r.price)||0),0));\nf.field(\"promoCode\").label(\"Промокод\").transform(v=>String(v).toUpperCase()).asyncCheck(v=>!v||v===\"SALE10\"||v===\"SALE20\",{delay:300,message:\"Промокод не найден\"});\nf.field(\"discount\").label(\"Скидка, %\").min(0,\"Скидка не может быть отрицательной\").max(30,\"Скидка не больше 30%\").enableWhen(m=>m.customerType===\"company\",{resetOnDisable:true});\nf.field(\"total\").label(\"Итого\").readonly().compute(m=>Math.round(m.subtotal*(1-m.discount/100)*100)/100).warning(m=>m.total<=100000,\"Крупный заказ: менеджер свяжется для подтверждения\");\nf.field(\"paymentMethod\").label(\"Способ оплаты\").options([{value:\"card\",label:\"Картой онлайн\"},{value:\"cash\",label:\"При получении\"},{value:\"invoice\",label:\"По счёту\"}]).required(\"Выберите способ оплаты\").check(m=>m.paymentMethod!==\"invoice\"||m.customerType===\"company\",\"Оплата по счёту — только для юридических лиц\").setOnChange(\"customerType\",m=>m.customerType===\"person\"&&m.paymentMethod===\"invoice\",\"card\");\nf.field(\"receiptEmail\").label(\"Email для чека\").email(\"Некорректный email для чека\").sync(\"email\");\nf.field(\"comment\").label(\"Комментарий к заказу\").maxLength(500,\"Не больше 500 символов\");\nf.field(\"agreeTerms\").label(\"Согласен с условиями оферты\").required(\"Нужно принять условия оферты\");\nf.field(\"newsletter\").label(\"Получать новости и акции\");\nf.field(\"sources\").label(\"Как вы о нас узнали\").options([{value:\"search\",label:\"Поиск\"},{value:\"friends\",label:\"Друзья\"},{value:\"ads\",label:\"Реклама\"},{value:\"other\",label:\"Другое\"}]);\nconst it=f.array(\"items\",\"Товары\",{min:1,max:10});\nit.min(1,\"Добавьте хотя бы один товар\");it.max(10,\"Не больше 10 товаров\");\nit.column(\"title\",\"Наименование\").required(\"Введите наименование\");\nit.column(\"quantity\",\"Количество\").initial(1).required(\"Укажите количество\").rule(\"integer()\",\"Количество — целое число\").min(1,\"Минимум 1\").max(99,\"Максимум 99\");\nit.column(\"price\",\"Цена\").required(\"Укажите цену\").min(0,\"Цена не может быть отрицательной\");\nit.column(\"lineTotal\",\"Сумма\").readonly().compute(r=>(Number(r.quantity)||0)*(Number(r.price)||0));\nconst rc=f.array(\"recipients\",\"Кому отправлять уведомления\");\nrc.column(\"email\",\"Email получателя\").required(\"Введите email получателя\").email(\"Некорректный email получателя\");\nrc.column(\"primary\",\"Основной получатель\").exclusive({first:true});\nrc.startRows([{email:\"\",primary:true}]);\nf.submit(\"Оформить заказ\",\"submitOrder\");\nconsole.log(await f.save());",
+    "answer": "form_edit: 96 of 96 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.filter(a=>['compute','mask','rule','check','copyFrom'].includes(a.name)).map(a=>a.on+'.'+a.name+'\\n'+a.doc+'\\n'+(a.example||'')).join('\\n---\\n')",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.field(\"subtotal\").removeBehavior(\"compute\");\nf.field(\"subtotal\").compute(m=>Number(m.items.map(r=>(Number(r.quantity)||0)*(Number(r.price)||0)).reduce((s,x)=>s+x,0)));\nf.field(\"billingAddress\").copyFrom(\"deliveryAddress\", m=>m.billingSame);\nf.field(\"billingAddress.city\").disableWhen(m=>m.billingSame);\nf.field(\"billingAddress.street\").disableWhen(m=>m.billingSame);\nf.field(\"billingAddress.house\").disableWhen(m=>m.billingSame);\nf.field(\"birthDate\").rule(\"minAge(18)\",\"Покупателю должно быть не меньше 18 лет\");\nf.field(\"phone\").mask(\"+7 (999) 999-99-99\");\nconsole.log(await f.save());",
+    "answer": "form_edit: 7 of 8 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nfor (const k of [\"city\",\"street\",\"house\"]) f.field(\"billingAddress.\"+k).copyFrom(\"deliveryAddress.\"+k, m=>m.billingSame);\nconst w=[2,4,10,3,5,9,4,6,8];\nconst sum=w.map((x,i)=>`${x}*Number(String(m.company.inn).charAt(${i}))`).join(\"+\");\nf.field(\"company.inn\").check(new Function(\"m\",`return m.customerType!==\"company\"||!/^\\\\d{10}$/.test(String(m.company.inn))||((${sum})%11)%10===Number(String(m.company.inn).charAt(9))`) ,\"Неверная контрольная сумма ИНН\");\nconsole.log(await f.save());",
+    "answer": "form_edit: 4 of 4 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "Not confirmed yet — the form differs from the task:",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log((await reformer.form().confirm(\"validation\")).slice(0,600))",
+    "answer": "Stage validation checked against the task.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log((await reformer.form().status()).slice(-700))",
+    "answer": "Done: the form is built, every stage of the plan is complete and the types are checked.",
+    "error": false
+  }
+]

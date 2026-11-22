@@ -1,0 +1,58 @@
+{
+  "name": "@reformer/form-intent",
+  "version": "0.1.0",
+  "description": "ReFormer form intent contract: intent types, normalization and printing of validation and behavior rules to code",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./emit": {
+      "types": "./dist/emit.d.ts",
+      "import": "./dist/emit.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch"
+  },
+  "keywords": [
+    "reformer",
+    "forms",
+    "intent",
+    "codegen",
+    "validation",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-form-intent"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.8"
+  }
+}

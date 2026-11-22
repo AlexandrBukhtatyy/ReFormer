@@ -1,0 +1,95 @@
+/**
+ * AdditionalInfoForm (Step 5)
+ *
+ * Демонстрирует работу с массивами форм через готовые компоненты:
+ * - PropertyForm (имущество)
+ * - ExistingLoanForm (кредиты)
+ * - CoBorrowerForm (созаемщики с вложенной personalData)
+ *
+ * Шаблон нового элемента секции берут из модели (`arrayOf` в `model/initial-value.ts`) — проп
+ * `initialValue` им не нужен.
+ */
+
+import type { FormGroup } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
+import { FormField, FieldArraySection } from '@reformer/ui-kit';
+import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
+import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
+import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
+import type { CreditApplicationForm } from '../../../types/credit-application';
+
+interface AdditionalInfoFormProps {
+  control: FormGroup<CreditApplicationForm>;
+}
+
+export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
+  const hasProperty = useFormControlValue(control.hasProperty);
+  const hasExistingLoans = useFormControlValue(control.hasExistingLoans);
+  const hasCoBorrower = useFormControlValue(control.hasCoBorrower);
+
+  return (
+    <div className="space-y-6" data-testid="step-additional-info">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Дополнительная информация
+      </h2>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Общая информация</h3>
+
+        <FormField control={control.maritalStatus} testId="maritalStatus" />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={control.dependents} testId="dependents" />
+          <FormField control={control.education} testId="education" />
+        </div>
+
+        <FormField control={control.documents} testId="documents" />
+      </div>
+
+      <div className="space-y-4">
+        <FormField control={control.hasProperty} testId="hasProperty" />
+
+        <FieldArraySection
+          title="Имущество"
+          control={control.properties}
+          itemComponent={PropertyForm}
+          itemLabel="Имущество"
+          addButtonLabel="+ Добавить имущество"
+          emptyMessage='Нажмите "Добавить имущество" для добавления информации'
+          hasItems={hasProperty}
+          reorderable
+        />
+      </div>
+
+      <div className="space-y-4">
+        <FormField control={control.hasExistingLoans} testId="hasExistingLoans" />
+
+        <FieldArraySection
+          title="Существующие кредиты"
+          control={control.existingLoans}
+          itemComponent={ExistingLoanForm}
+          itemLabel="Кредит"
+          addButtonLabel="+ Добавить кредит"
+          emptyMessage='Нажмите "Добавить кредит" для добавления информации'
+          hasItems={hasExistingLoans}
+          reorderable
+        />
+      </div>
+
+      <div className="space-y-4">
+        <FormField control={control.hasCoBorrower} testId="hasCoBorrower" />
+
+        <FieldArraySection
+          title="Созаемщики"
+          control={control.coBorrowers}
+          itemComponent={CoBorrowerForm}
+          itemLabel="Созаемщик"
+          addButtonLabel="+ Добавить созаемщика"
+          emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
+          hasItems={hasCoBorrower}
+          reorderable
+        />
+      </div>
+    </div>
+  );
+}

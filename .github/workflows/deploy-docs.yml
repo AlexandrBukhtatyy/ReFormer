@@ -1,0 +1,126 @@
+name: Deploy Pages (docs + builder)
+
+on:
+  push:
+    branches:
+      - develop
+    # Пакеты целиком, а не поимённо. Раньше здесь стоял `packages/reformer/src/**`, то есть
+    # только core, — а сайт собирается ещё из cdk, renderer-json, renderer-react и ui-kit (см.
+    # шаг «Build workspace packages»). Правка кита не публиковалась: на Pages оставался старый
+    # каталог компонентов, и заметить это было нечем. Точный список уже один раз разошёлся со
+    # сборкой и разойдётся снова при следующем пакете, поэтому здесь намеренно широкий шаблон.
+    #
+    # Цена — лишний прогон, когда менялись только тесты или пакет, в сайт не входящий (mcp,
+    # CLI плагинов). form-registry к таким не относится: он попадает на Pages через билдер
+    # (см. «Build workspace packages»). Цена мала: цикл 5–8 минут, а `concurrency` ниже
+    # схлопывает серию пушей в один деплой. Пропущенная публикация обошлась бы дороже — она
+    # молчалива.
+    paths:
+      - 'projects/reformer-doc/**'
+      - 'projects/reformer-builder/**'
+      # Плагины приложения едут на Pages внутри билдера.
+      - 'projects/reformer-builder-playground/.ui_builder/plugins/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # npm ci использует package-lock.json для повторяемой сборки.
+        # Раньше тут было `rm package-lock.json && npm install` — это давало
+        # каждый раз свежий resolve с npm, что приводило к несовместимости
+        # transitive deps (например webpackbar с новым webpack ProgressPlugin
+        # после bump Node 22).
+        run: npm ci
+
+      - name: Build workspace packages
+        # reformer-doc импортирует @reformer/* по их `exports` (→ dist/),
+        # поэтому пакеты нужно собрать ДО сборки доков (в порядке зависимостей).
+        # Иначе docusaurus build падает с «no valid target file was found».
+        #
+        # @reformer/mcp в списке нет: докам и билдеру он не нужен — это клиент MCP для агентов в
+        # терминале, а ассистент билдера ходит в сервис ReFormer по сети.
+        #
+        # @reformer/form-registry — тоже ради билдера: его реестр модулей отдаёт пакет коду формы
+        # (`shell/boot/plugin-modules.ts`), а `tsc -b` билдера берёт типы пакета из `dist/`.
+        # test.yml и release.yml его собирали, а этот список нет, и деплой падал на «Build
+        # builder» с TS2307 «Cannot find module '@reformer/form-registry'». Порядок — как
+        # в release.yml: после core, renderer-json и renderer-react, от которых он зависит пирами.
+        run: |
+          npm run build -w @reformer/core
+          npm run build -w @reformer/cdk
+          npm run build -w @reformer/renderer-json
+          npm run build -w @reformer/renderer-react
+          npm run build -w @reformer/ui-kit
+          npm run build -w @reformer/form-registry
+          npm run build -w @reformer/builder-plugin-api
+
+      - name: Build documentation
+        run: npm run build -w reformer-doc
+
+      - name: Build builder
+        # Vite-SPA. base=/ReFormer/builder/ нужен, чтобы ассеты и Monaco-воркеры
+        # (резолвятся относительно base через import.meta.url) грузились из подкаталога.
+        env:
+          BUILDER_BASE: /ReFormer/builder/
+        run: npm run build -w @reformer/builder
+
+      - name: Плагины приложения — в dist билдера
+        # Билдер на Pages везёт движки форм сам: сборки пакетов плагинов для поставки складываются
+        # в `dist/plugins/`, и оболочка читает их от своего базового адреса (`/ReFormer/builder/`).
+        # Плагинам нужны dist CLI, toolkit, темы RJSF и контракта intent (печать правил) — докам
+        # они не нужны, поэтому собираются здесь, а не в общем списке выше. Идёт ПОСЛЕ сборки билдера: `vite build` очищает `dist`.
+        run: |
+          npm run build -w @reformer/form-intent
+          npm run build -w @reformer/builder-toolkit
+          npm run build -w @reformer/builder-plugin-cli
+          npm run build -w @reformer/rjsf-kit-theme
+          npm run plugins:dist -w reformer-builder-playground
+          npm run build:plugins -w @reformer/builder
+
+      - name: Assemble site (docs at root, builder under /builder)
+        # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder.
+        # .nojekyll из docs-сборки попадает в корень и отключает Jekyll для всего сайта.
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp -r projects/reformer-doc/build/. _site/
+          mkdir -p _site/builder
+          cp -r projects/reformer-builder/dist/. _site/builder/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

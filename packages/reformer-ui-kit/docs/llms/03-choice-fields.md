@@ -1,0 +1,859 @@
+# Choice fields
+
+Поля выбора: `CheckboxWithLabel`, `RadioGroupOptions`, `SelectAsync` (+ 8 sub-компонентов
+`Select*` из Radix для ручной сборки). В форме каждое кладётся в `component` поля как есть:
+форма говорит на `value`/`onChange(value)`/`onBlur`, а в диалект контрола её переводит обёртка
+поля по статике `reformerAdapter`. Значение в модели бывает разных типов:
+
+| Component           | Значение в модели | Собственный диалект контрола (standalone)                 |
+| ------------------- | ----------------- | --------------------------------------------------------- |
+| `CheckboxWithLabel` | `boolean`         | `checked` + `onCheckedChange(boolean)` (`checkedAdapter`) |
+| `RadioGroupOptions` | `string \| null`  | `value` + `onValueChange(string)` (`valueChangeAdapter`)  |
+| `SelectAsync`       | `string \| null`  | `value` + `onChange(string \| null)` — уже value-based    |
+
+## Подсказка-иконка (i) — `tooltip`
+
+Поля выбора принимают `tooltip: string` — иконку (i) с тултипом в самом контроле:
+
+| Поле                                                                  | Где иконка                                                                                                |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `CheckboxWithLabel`, `SwitchWithLabel`                                | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
+| `RadioGroupOptions`                                                   | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
+| `SelectAsync`, `SelectMulti`                                          | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
+| `Combobox` (все 4 варианта)                                           | То же, что у `SelectAsync`.                                                                               |
+| `NativeSelectWithOptions`                                             | Внутри, левее шеврона.                                                                                    |
+| `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
+| `DatePicker`, `DatePickerRange`, `DatePickerMulti`                    | Внутри кнопки у правого края; у вариантов с `clearable` — **крестик очистки → (i)**.                      |
+
+Крестик очистки — обычная кнопка в порядке Tab (`Clear selection` / `Clear dates` из словаря):
+до неё доходят с клавиатуры, а после очистки фокус возвращается на триггер поля.
+
+```tsx
+<SelectAsync value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
+
+<RadioGroupOptions
+  value={plan}
+  onValueChange={setPlan}
+  options={[
+    { value: 'basic', label: 'Базовый', tooltip: 'До 3 пользователей' },
+    { value: 'pro', label: 'Профи' },
+  ]}
+/>
+```
+
+Иконка у ПОДПИСИ поля — отдельный проп `labelTooltip`, его рисует `FormField`
+(см. [05-form-field-integration.md](05-form-field-integration.md)).
+
+## Размер выпадающего списка
+
+Список поля рисуется в портале, но набран тем же размером шрифта, что и само поле: при
+раскрытии он берёт размер у своего триггера. Чтобы сделать компактными и поле, и список,
+достаточно сжать поле — пункты отдельно стилизовать не нужно:
+
+```tsx
+<SelectMulti className="min-h-7 text-[12px]" value={flags} onChange={setFlags} options={options} />
+
+<Select value={size} onValueChange={setSize}>
+  <SelectTrigger size="sm" className="w-full text-[12px]">
+    <SelectValue placeholder="Размер" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="sm">Малый</SelectItem>
+    <SelectItem value="lg">Большой</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+Так ведут себя составной `Select`, `SelectAsync`, `SelectMulti`, `Combobox`, `ComboboxMulti`
+и `InputSuggest`. У `ComboboxTree` / `ComboboxTreeMulti` за полем идёт только поле поиска:
+строки дерева своего размера, их высоту задаёт `rowHeight` у `Tree`. Размер, заданный
+списку явно (`style={{ fontSize }}` на `SelectContent`), не перебивается.
+
+## Отметка выбора в списке
+
+Во всех выпадающих списках отметка выбранного пункта стоит **у правого края**, а подпись
+начинается сразу за левым отступом пункта — списки разных компонентов в одной форме читаются
+одинаково:
+
+| Компонент               | Отметка                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `Select`, `SelectAsync` | галочка у выбранного пункта                                     |
+| `Combobox`              | галочка у выбранного пункта                                     |
+| `SelectMulti`           | галочка у каждого выбранного                                    |
+| `ComboboxMulti`         | чекбокс у каждого пункта                                        |
+| `ComboboxTreeMulti`     | галочка у каждой отмеченной строки (слева — раскрытие и значок) |
+
+У плоских списков место под отметку занято и у невыбранного пункта: длинная подпись
+переносится одинаково у выбранного и остальных. Значок действия — «плюс» у пункта создания
+в `creatable`-режиме — отметкой не считается и остаётся слева от текста.
+
+## Checkbox
+
+В форму — `CheckboxWithLabel` (registry `Checkbox`): чекбокс с подписью справа. Голый `Checkbox`
+тоже связывается с полем (у него та же статика `checkedAdapter`), но подписи не рисует.
+
+### API
+
+```typescript
+interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
+  checked?: boolean | 'indeterminate';
+  onCheckedChange?: (checked: boolean | 'indeterminate') => void;
+  label?: string;
+  tooltip?: string;
+  disabled?: boolean;
+  'data-testid'?: string;
+}
+```
+
+| Prop              | Тип                                             | Default | Описание                                                                   |
+| ----------------- | ----------------------------------------------- | ------- | -------------------------------------------------------------------------- |
+| `checked`         | `boolean \| 'indeterminate'`                    | `false` | Чекнут или нет. В форме — из значения поля (`null`/`undefined` → `false`). |
+| `onCheckedChange` | `(checked: boolean \| 'indeterminate') => void` | —       | Radix-колбэк. В форме в модель уходит `checked === true`.                  |
+| `label`           | `string`                                        | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс.   |
+| `disabled`        | `boolean`                                       | `false` | Блокирует переключение.                                                    |
+
+### Common Patterns
+
+В составе формы (`FormField` видит маркер `reformerLayout = 'inline-label'` и не дублирует
+label сверху):
+
+```tsx
+import { createForm } from '@reformer/core';
+import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
+
+const { form } = createForm<{ accept: boolean }>({
+  initial: { accept: false },
+  schema: (model) => ({
+    children: [
+      { model: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
+    ],
+  }),
+});
+
+<FormField control={form.accept} testId="accept" />;
+```
+
+Вне формы — Radix-диалект:
+
+```tsx
+import { CheckboxWithLabel } from '@reformer/ui-kit';
+
+<CheckboxWithLabel
+  checked={agree}
+  onCheckedChange={(c) => setAgree(c === true)}
+  label="Согласен с условиями"
+/>;
+```
+
+### Anti-patterns
+
+- Передавать `value: 'yes' | 'no'` (строку) — `CheckboxWithLabel` ожидает `boolean`. Для
+  строкового выбора используйте `RadioGroupOptions` (два варианта) или `SelectAsync`.
+- Вне формы писать `<CheckboxWithLabel value={x} onChange={…}>` — standalone это Radix-контрол:
+  `checked` + `onCheckedChange`. Value-based `value`/`onChange` у него появляются только внутри
+  обёртки поля (`FormField` / рендерер).
+- **Ставить в форму составной примитив вместо form-компонента.** Radix-`RadioGroup` без
+  `RadioGroupItem` отрисуется пустым — нужен `RadioGroupOptions`; Radix-`Select` не понимает
+  `onChange` — нужен `SelectAsync`. Голый `Checkbox` связывается, но теряет подпись — для
+  поля с label берите `CheckboxWithLabel`.
+
+## RadioGroup
+
+В форму — `RadioGroupOptions` (registry `RadioGroup`): рисует пункты из `options`.
+Radix-`RadioGroup` с `RadioGroupItem` — для ручной вёрстки вне формы.
+
+### API
+
+```typescript
+interface RadioOption {
+  value: string;
+  label: string;
+  tooltip?: string; // иконка (i) после подписи варианта
+}
+
+interface RadioGroupOptionsProps {
+  className?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  onBlur?: () => void;
+  tooltip?: string;
+  options: RadioOption[];
+  disabled?: boolean;
+  'data-testid'?: string;
+}
+```
+
+| Prop            | Тип                       | Default | Описание                                                             |
+| --------------- | ------------------------- | ------- | -------------------------------------------------------------------- |
+| `options`       | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                       |
+| `value`         | `string`                  | —       | Выбранный вариант. Должен совпадать с одним из `options[i].value`.   |
+| `onValueChange` | `(value: string) => void` | —       | Radix-колбэк выбора. В форме в модель уходит строка (`''` → `null`). |
+| `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                              |
+
+По умолчанию варианты стоят столбцом: контейнер группы — сетка `grid gap-3`.
+
+### Common Patterns
+
+Вертикальная раскладка (default):
+
+```tsx
+import { RadioGroupOptions } from '@reformer/ui-kit';
+
+const LOAN_TYPES = [
+  { value: 'consumer', label: 'Потребительский' },
+  { value: 'mortgage', label: 'Ипотека' },
+  { value: 'auto', label: 'Авто' },
+];
+
+<RadioGroupOptions value={loanType} onValueChange={setLoanType} options={LOAN_TYPES} />;
+```
+
+Горизонтальная раскладка — через `className`. Классы сливаются через tailwind-merge, поэтому `flex`
+заменяет `grid` контейнера; `flex-row` на сетке ничего бы не сделал:
+
+```tsx
+<RadioGroupOptions
+  value={size}
+  onValueChange={setSize}
+  options={[
+    { value: 's', label: 'S' },
+    { value: 'm', label: 'M' },
+    { value: 'l', label: 'L' },
+  ]}
+  className="flex flex-wrap gap-6"
+/>
+```
+
+В составе формы:
+
+```tsx
+import { createForm } from '@reformer/core';
+
+const { form } = createForm<{ loanType: string }>({
+  initial: { loanType: 'consumer' },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.loanType,
+        component: RadioGroupOptions,
+        componentProps: { options: LOAN_TYPES },
+      },
+    ],
+  }),
+});
+
+<FormField control={form.loanType} testId="loan-type" />;
+```
+
+### Anti-patterns
+
+- Передавать `options` с числовыми `value` — компонент ставит их в DOM-атрибут
+  `value`, который всегда строка, и в модель уйдёт строка. Это рассинхронит
+  типы. Если нужны числа — конвертируй на уровне behavior `transformValue`.
+- Динамически менять список `options` без пересоздания компонента — текущее
+  `value` может оказаться вне набора, и ничего не выбрано визуально.
+- Ожидать, что `onBlur` сработает после клика на radio — он срабатывает на
+  `blur` нативного input, как обычно. Для пометки `touched` после взаимодействия
+  обычно достаточно выбора (изменение значения).
+
+## Select
+
+В форму — `SelectAsync` (registry `Select`), построенный поверх `@radix-ui/react-select`.
+Контракт уже value-based (`value` / `onChange(string | null)`), поэтому и вне формы он
+используется так же. Имеет два режима источника данных:
+
+- **Inline**: `options={[…]}` — массив `{ value, label, group? }`.
+- **Resource**: `resource={{ type, load }}` — асинхронная загрузка со стратегией `type`:
+  - `static` — один `load({})` при маунте, без поиска (снимок);
+  - `preload` — грузит всё сразу, поиск фильтрует опции **на клиенте**;
+  - `partial` — **серверные** поиск (`load({ search })` с debounce ~300 мс) и
+    пагинация (`load({ page })` по мере прокрутки списка до `totalCount`).
+
+  Для `preload`/`partial` в дропдауне появляется поле поиска.
+
+### API
+
+```typescript
+interface ResourceConfig<T> {
+  /** Стратегия загрузки. Если не задана — трактуется как `static`. */
+  type: 'static' | 'preload' | 'partial';
+  load: (params?: {
+    search?: string; // серверная фильтрация (partial)
+    page?: number; // 1-based, пагинация (partial)
+    pageSize?: number;
+  }) => Promise<{
+    items: Array<{ id: string | number; label: string; value: T; group?: string }>;
+    totalCount: number; // общее число опций — для пагинации (partial)
+  }>;
+  pageSize?: number; // размер страницы для partial (по умолчанию 20)
+}
+
+interface SelectAsyncProps<T> {
+  className?: string;
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  resource?: ResourceConfig<T>;
+  options?: Array<{ value: string | number; label: string; group?: string }>;
+  placeholder?: string;
+  disabled?: boolean;
+  clearable?: boolean; // показать кнопку очистки (X)
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+}
+```
+
+| Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                               |
+| ------------- | --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                        |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `SelectAsync` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`. |
+| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                                  |
+| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                          |
+| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                                  |
+| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                                                                                            |
+| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                                                                                       |
+
+### Sub-components
+
+Все рендерятся `SelectAsync` автоматически, но при необходимости их можно
+импортировать и собрать кастомный layout:
+
+| Component                | Purpose                                                                                 |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `SelectGroup`            | Обёртка над `Radix.Select.Group`. Группирует `SelectItem`.                              |
+| `SelectValue`            | Отображает выбранное значение в триггере.                                               |
+| `SelectTrigger`          | Кнопка-открывалка. Принимает `size: 'sm' \| 'default'`.                                 |
+| `SelectContent`          | Дропдаун-портал со списком. Включает `SelectScrollUpButton` / `SelectScrollDownButton`. |
+| `SelectLabel`            | Заголовок группы (рендерится в `SelectGroup`).                                          |
+| `SelectItem`             | Одна опция. С `CheckIcon`-индикатором, если выбрана.                                    |
+| `SelectScrollUpButton`   | Стрелка скролла вверх.                                                                  |
+| `SelectScrollDownButton` | Стрелка скролла вниз.                                                                   |
+
+### Common Patterns
+
+Inline `options`:
+
+```tsx
+import { SelectAsync } from '@reformer/ui-kit';
+
+<SelectAsync
+  value={loanType}
+  onChange={setLoanType}
+  placeholder="Тип кредита"
+  options={[
+    { value: 'consumer', label: 'Потребительский' },
+    { value: 'mortgage', label: 'Ипотека' },
+  ]}
+/>;
+```
+
+Async `resource`, стратегия `preload` (грузим всё, поиск на клиенте):
+
+```tsx
+import { SelectAsync, type ResourceConfig } from '@reformer/ui-kit';
+
+const banksResource: ResourceConfig<string> = {
+  type: 'preload',
+  load: async () => {
+    const res = await fetch('/api/banks');
+    const banks: Array<{ id: number; name: string }> = await res.json();
+    return {
+      items: banks.map((b) => ({ id: b.id, value: String(b.id), label: b.name })),
+      totalCount: banks.length,
+    };
+  },
+};
+
+<SelectAsync value={bankId} onChange={setBankId} resource={banksResource} />;
+```
+
+Стратегия `partial` (серверные поиск + пагинация больших списков):
+
+```tsx
+const usersResource: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: async ({ search = '', page = 1, pageSize = 20 } = {}) => {
+    const res = await fetch(`/api/users?q=${search}&page=${page}&size=${pageSize}`);
+    const { rows, total }: { rows: Array<{ id: number; name: string }>; total: number } =
+      await res.json();
+    return {
+      items: rows.map((u) => ({ id: u.id, value: String(u.id), label: u.name })),
+      totalCount: total, // SelectAsync догружает страницы, пока items.length < totalCount
+    };
+  },
+};
+
+<SelectAsync value={userId} onChange={setUserId} resource={usersResource} clearable />;
+```
+
+Grouped options:
+
+```tsx
+<SelectAsync
+  value={city}
+  onChange={setCity}
+  options={[
+    { value: 'msk', label: 'Москва', group: 'Россия' },
+    { value: 'spb', label: 'Санкт-Петербург', group: 'Россия' },
+    { value: 'minsk', label: 'Минск', group: 'Беларусь' },
+    { value: 'kiev', label: 'Киев', group: 'Украина' },
+  ]}
+/>
+```
+
+`clearable` (с очисткой):
+
+```tsx
+<SelectAsync
+  value={status}
+  onChange={setStatus}
+  clearable
+  placeholder="Любой"
+  options={[
+    { value: 'open', label: 'Открыт' },
+    { value: 'closed', label: 'Закрыт' },
+  ]}
+/>
+```
+
+В составе формы:
+
+```tsx
+import { createForm } from '@reformer/core';
+
+const { form } = createForm<{ city: string | null }>({
+  initial: { city: null },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.city,
+        component: SelectAsync,
+        componentProps: {
+          placeholder: 'Город',
+          options: [
+            { value: 'msk', label: 'Москва' },
+            { value: 'spb', label: 'Санкт-Петербург' },
+          ],
+        },
+      },
+    ],
+  }),
+});
+
+<FormField control={form.city} testId="city" />;
+```
+
+### Anti-patterns
+
+- Передавать одновременно `options` и `resource` — `options` приоритетнее,
+  `resource.load` всё равно вызовется на маунт (лишний запрос). Выбирай один
+  источник.
+- Опускать `value` (`undefined`) — Radix покажет placeholder, но сам компонент
+  всегда мапит `undefined` в пустую строку. Лучше явно `null`.
+- Использовать `value: number` напрямую — `SelectAsync` приводит к строке внутри
+  (`String(value)`); `onChange` вернёт строку. В schema формы тип поля должен
+  быть `string` или `string | null`.
+- Ждать русский плейсхолдер без `I18nProvider` — без провайдера `SelectAsync` покажет
+  встроенное английское `'Select an option...'`. Русский текст даёт локаль
+  (`<I18nProvider lang="ru" load={…}>`, см. 01-overview.md → Localization) либо проп `placeholder`.
+
+## Multi-select
+
+Пять контролов множественного выбора. Все пять — **отдельные записи реестра**, а не режим
+одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
+`FileUpload` / `FileUploadAvatar`).
+
+| Компонент           | На чём построен                     | Когда брать                                                   |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| `ToggleGroupMulti`  | Radix ToggleGroup `type="multiple"` | 2–7 вариантов, все видны сразу                                |
+| `ComboboxMulti`     | Popover + Command (cmdk) + Badge    | длинный список с поиском; есть `creatable`                    |
+| `SelectMulti`       | Popover + свой listbox              | длинный список, в т.ч. асинхронный (`resource`); **без cmdk** |
+| `NativeSelectMulti` | нативный `<select multiple>`        | no-JS / legacy / киоски. **Не для тач-устройств**             |
+| `ComboboxTreeMulti` | Popover + `Tree` кита; **без cmdk** | значения лежат в иерархии: файлы, разделы каталога            |
+
+### Единый контракт значения
+
+```typescript
+value: string[] | null;
+onChange: (value: string[] | null) => void;
+```
+
+Это контракт **контрола**. Поле модели под него — обычный массив:
+
+```typescript
+// ✅ поле мультивыбора: массив, пустой выбор — []
+const model = createModel({ tags: [] as string[] });
+
+// ✅ тоже работает: nullable-поле, пустой выбор — null
+const model = createModel({ tags: null as string[] | null });
+```
+
+Массив в модели бывает двух видов, и решает это **схема**, а не данные: узел
+`{ model: model.$.tags, component }` делает его ОДНИМ значением поля (мультивыбор, теги, файлы),
+узел `{ model: model.$.items, component: FieldArray, item }` — набором под-форм. Массив, к которому
+в схеме ничего не привязано, в форму не попадает.
+
+Что хранит модель на пустом выборе, зависит от начального значения: поле с `[]` хранит `[]`
+(контрол отдаёт `null`, узел-массив приводит его к `[]`), поле с `null` — `null`. Выбирайте
+первое, если нет причины различать «не выбирали» и «выбрали ничего».
+
+### Использование в схеме
+
+```typescript
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { ToggleGroupMulti } from '@reformer/ui-kit';
+import { ComboboxMulti } from '@reformer/ui-kit/combobox'; // combobox — только subpath
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = { tags: string[] };
+
+const tagsSchema = (model: FormModel<Form>): FormSchemaNode => ({
+  children: [
+    {
+      // `model.$.tags` — ручка значения массива целиком: читается и пишется, как сигнал листа.
+      model: model.$.tags,
+      component: ToggleGroupMulti,
+      componentProps: {
+        label: 'Теги',
+        options: [
+          { value: 'ru', label: 'Россия' },
+          { value: 'by', label: 'Беларусь' },
+        ],
+        maxItems: 3,
+      },
+    },
+  ],
+});
+
+// Правила — отдельной схемой над моделью: у узла схемы ключа `validators` нет.
+const tagsRules = defineValidation<Form>(({ model }) => {
+  validate(model.$.tags, [required(), maxLength(3)]);
+});
+
+const { form } = createForm<Form>({
+  initial: { tags: [] },
+  schema: tagsSchema,
+  validation: tagsRules,
+});
+```
+
+### Common Patterns
+
+- **Обязательность** — `required()`: отклоняет и `[]`, и `null`. `minLength(1)` годится только
+  для поля-массива: на `null` он делает ранний `return null` и пропускает пустой выбор.
+- **Ограничение количества** — `maxLength(n)` / `minLength(n)` (оба читают `value.length`). Проп
+  `maxItems` у контрола — это **подсказка интерфейса** (гасит невыбранные пункты), а не правило
+  формы; авторитетное ограничение задаёт валидатор.
+- **Префилл выбранного** — где удобно: начальным значением (`createModel({ tags: ['ru'] })`),
+  `model.patch({ tags: ['ru'] })` до или после `createForm`, либо записью
+  `model.$.tags.value = ['ru']`. Если префилл пришёл ПОСЛЕ сборки формы, нужен
+  `model.captureInitial()` — иначе модель считает себя изменённой сразу после загрузки.
+  `form.tags.reset()` при этом всё равно вернёт значение, с которым форма собиралась, поэтому
+  данные с сервера надёжнее класть в модель ДО `createForm`.
+- **Запись значения** — заменой массива: `model.$.tags.value = [...]` или `form.tags.setValue([...])`.
+  У поля-массива работают и точечные `model.tags.push(x)` / `removeAt(i)` — это тот же массив;
+  у nullable-поля `model.tags` — сырое значение, и мутация на месте формой не замечается.
+- **Группы в `SelectMulti`** — `options: [{ value, label, group }]`: пункты одной группы
+  собираются под её заголовком (как `SelectLabel` у `SelectAsync`), группы — в порядке первого
+  появления. Список — `role="listbox"` с `aria-activedescendant` на пункте, подсвеченном стрелками.
+- **Лейблы выбранного вне текущей страницы** (`SelectMulti` + `resource`) — проп
+  `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
+  пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
+  поискового запроса или перезагрузки источника.
+- **Ошибка вспыхивает посреди выбора** — так бывает при живой проверке по изменению
+  (`validation: { rules, strategy: 'change' }` либо `afterFirstSubmit` с `liveAfterSubmit:
+  'change'`): каждый пункт — новое значение, `FormControl.setValue` взводит `dirty` безусловно, а
+  `shouldShowError = invalid && (touched || dirty)`. Для мультивыбора берите `strategy: 'blur'`
+  (`liveAfterSubmit: 'blur'`) — `onBlur` списков приходит на закрытии поповера — и не стройте
+  логику на `dirty`. По умолчанию (`strategy: 'submit'`) живой проверки нет вовсе.
+
+### Anti-patterns
+
+- `model: model.tags` вместо `model: model.$.tags` — value-фасад массива не ручка значения, узел
+  не распознаётся как поле (в dev-режиме `createForm` об этом предупреждает). Ключа `value:` у
+  узла схемы нет — привязка только `model:`.
+- Привязка через `model.signalAt('tags')!` — рабочая, но лишняя: `model.$.tags` типизирован и не
+  требует `!`.
+- Мутация массива на месте: `arr.push(x); onChange(arr)` — preact-сигнал бэйлится по `!==`, UI не
+  обновится, но поле уже станет `dirty`, и валидация прогонится по старому значению. `onChange`
+  обязан отдавать **новый** массив.
+- `minFiles` / `maxFiles` на массиве строк — тихий no-op: они фильтруют значение до file-like и
+  получают пустой массив. Для количества — `minLength` / `maxLength`.
+- `compute` / `copyFrom` / `transformValue` над мультивыбором — peek-guard сравнивает по ссылке,
+  поэтому новый массив на каждом прогоне даёт запись на каждом прогоне; пара взаимных `compute`
+  сходит в расходящийся цикл или в `Cycle detected`. Сравнивайте содержимое руками и выходите до
+  записи.
+- `componentProps.disabled` для выключения отдельных опций — мёртв (враппер ставит `disabled`
+  после спреда `componentProps`). Выключить можно только контрол целиком (`control.disable()`).
+- `NativeSelectMulti` на тач-устройствах — множественный выбор в нативном листбоксе там
+  практически недоступен и не имеет аффорданса «можно несколько». Берите `ToggleGroupMulti` или
+  `SelectMulti`.
+- `placeholder` у `NativeSelectMulti` — его нет намеренно: в multiple-листбоксе `<option value="">`
+  становится выбираемым мусорным пунктом.
+
+## Combobox: варианты дерева
+
+Два варианта комбобокса показывают в поповере не плоский список, а иерархию — тот самый `Tree`
+кита (см. [04-layout-and-buttons.md](04-layout-and-buttons.md)). Берут их там, где значение
+адресуется путём, а не выбирается из перечня: файл в репозитории, раздел каталога, узел
+оргструктуры.
+
+| Компонент           | `value` в модели                  | Что выбирается            |
+| ------------------- | --------------------------------- | ------------------------- |
+| `ComboboxTree`      | `string \| null` — адрес узла     | один узел, обычно файл    |
+| `ComboboxTreeMulti` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
+
+Оба живут вне главного barrel:
+
+```typescript
+import { ComboboxTree, ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
+```
+
+Subpath `./combobox` тянет опциональный peer `cmdk` — не ради дерева (в нём cmdk нет намеренно),
+а ради базового варианта, который отдаёт тот же barrel.
+
+### Key Concepts
+
+- **Значение — `node.id`, а не подпись.** Подпись в триггере берётся из объявленного дерева, а
+  если узел пришёл из лениво прочитанного уровня — показывается сам адрес. Для файлов это и
+  нужно: путь однозначен, имя файла — нет.
+- **`selectable` по умолчанию `'leaf'`** — в отличие от самого `Tree`, где умолчание `'all'`.
+  Щелчок по каталогу раскрывает его, а не выбирает; выбрать можно только лист. `'all'` ставят
+  там, где значением бывает и ветка (раздел каталога).
+- **Поле мульти — массив** (`string[]` с начальным `[]`), как у остальных мультивыборов, см.
+  «Единый контракт значения» выше. Компонент всегда видит массив: `multiValueAdapter`
+  разворачивает `null` в `[]` на входе и сворачивает пустой выбор в `null` на выходе, а
+  поле-массив хранит его как `[]`.
+- **Обязательность — `required()`**: отклоняет и `[]`, и `null`. `minLength(1)` на `null` делает
+  ранний `return null` и пропускает пустой выбор nullable-поля.
+- **Одиночный закрывает поповер по выбору**, мульти — **нет**: набор файлов собирают одним
+  заходом, и поиск между выборами тоже не сбрасывается. `onBlur` у обоих эмитится на закрытии
+  поповера, а не на каждом выборе.
+- **Членство в мульти переключается щелчком по строке**, отметка — галочка справа. Чекбокса
+  слева нет намеренно: там уже треугольник раскрытия и значок типа узла, третий значок сделал бы
+  уровень нечитаемым.
+- **Поиск свой, не cmdk**: фильтрует само дерево, достраивая путь до совпадения. Видит только
+  **прочитанные** уровни; непрочитанная ветка при этом остаётся в выдаче — её содержимое ещё не
+  за что судить, и человек может открыть её руками.
+- **`maxItems` — подсказка интерфейса**, а не правило формы: по достижении потолка невыбранные
+  строки гаснут. Авторитетное ограничение задаёт `maxLength(n)`.
+- **Путь до выбранного раскрывается сам** — но только по объявленному `nodes`. У ленивого
+  источника предков не знает никто, пока уровень не прочитан; нужные ветки перечисляют в
+  `defaultExpandedIds`.
+
+Остальные пропы обоих вариантов: `placeholder` (`'Select a file...'` / `'Select files...'`),
+`searchPlaceholder` (`'Search...'`), `emptyText` (`'No results found.'`), `clearable` (`false`),
+`maxRows` (12 строк до прокрутки), у мульти ещё `summaryThreshold` (3 — дальше чипы схлопываются
+в «Selected: N»). Текстовые умолчания — английские строки словаря `kit.combobox.*`; под
+`I18nProvider` они берутся из активной локали («Выберите файл...», «Выбрано: N»).
+
+### Common Patterns
+
+Выбор одного файла из объявленного дерева:
+
+```tsx
+import { createForm } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
+import { ComboboxTree } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
+
+// id — полный путь: два index.ts в разных каталогах обязаны различаться.
+const FILES: TreeNode[] = [
+  {
+    id: 'src',
+    label: 'src',
+    children: [
+      { id: 'src/index.ts', label: 'index.ts' },
+      { id: 'src/app.tsx', label: 'app.tsx' },
+    ],
+  },
+  { id: 'package.json', label: 'package.json' },
+];
+
+const { form } = createForm<{ entry: string | null }>({
+  initial: { entry: null },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.entry,
+        component: ComboboxTree,
+        componentProps: {
+          label: 'Точка входа',
+          nodes: FILES,
+          defaultExpandedIds: ['src'],
+          clearable: true,
+          testId: 'entry',
+        },
+      },
+    ],
+  }),
+});
+
+<FormField control={form.entry} testId="entry" />;
+```
+
+Набор файлов из ленивого источника — поле-массив `string[]`; правила живут в отдельной
+validation-схеме:
+
+```typescript
+import { createForm } from '@reformer/core';
+import type { TreeNode } from '@reformer/ui-kit';
+import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = { attachments: string[] };
+
+const attachmentsRules = defineValidation<Form>(({ model }) => {
+  validate(model.$.attachments, [required(), maxLength(5)]);
+});
+
+const { form } = createForm<Form>({
+  initial: { attachments: [] },
+  schema: (model) => ({
+    children: [
+      {
+        model: model.$.attachments,
+        component: ComboboxTreeMulti,
+        componentProps: {
+          label: 'Файлы заявки',
+          // Уровень читается при первом раскрытии ветки; null — верхний уровень.
+          loadChildren: (node: TreeNode | null) => fs.list(node?.id ?? '/'),
+          maxItems: 5,
+          testId: 'attachments',
+        },
+      },
+    ],
+  }),
+  validation: attachmentsRules,
+});
+```
+
+### Anti-patterns
+
+- Массив мульти без привязки компонента в схеме (или `model: model.attachments` вместо
+  `model: model.$.attachments`) — поля в форме нет; симптомы разобраны в
+  [06-troubleshooting.md](06-troubleshooting.md), пункт 12.
+- `minLength(1)` вместо `required()` для обязательности nullable-поля — на `null` правило выходит
+  раньше проверки.
+- Одинаковые `node.id` у разных узлов (имя файла вместо полного пути) — раскрытие, выделение и
+  отметка адресуются одним и тем же ключом, поэтому две строки начинают вести себя как одна.
+- Ждать, что поиск найдёт файл в непрочитанном каталоге. Фильтр не ходит за уровнями: ради
+  подсветки одной строки пришлось бы обойти весь источник. Нужен сквозной поиск — ищите на
+  сервере и подавайте `nodes` уже отфильтрованными.
+- Полагаться на `maxItems` как на валидацию — это только гашение строк в интерфейсе, форма о нём
+  ничего не знает.
+- Импортировать `ComboboxTree*` из `'@reformer/ui-kit'` — их там нет, `combobox` живёт только в
+  своём subpath.
+- Ставить в схему сам `Tree` вместо `ComboboxTree` / `ComboboxTreeMulti` — `Tree` не поле формы:
+  value-seam остаётся неподключённым, дерево рисуется и не пишет выбор в модель.
+
+## Dates: DatePicker, DatePickerRange, DatePickerMulti
+
+Три варианта выбора дат — **отдельные записи реестра**, а не проп `mode`: тип значения у каждого
+свой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у `SelectMulti`). Все три —
+только subpath `@reformer/ui-kit/date-picker` (react-day-picker и date-fns — опциональные peer).
+
+| Компонент         | Значение в модели      | Поведение календаря                                                     |
+| ----------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `DatePicker`      | `Date \| null`         | Выбор даты закрывает календарь.                                         |
+| `DatePickerRange` | `[Date, Date] \| null` | Два клика: начало, затем конец; после второго календарь закрывается.    |
+| `DatePickerMulti` | `Date[] \| null`       | Клик добавляет день, повторный — снимает; календарь остаётся открытым. |
+
+### Период — кортеж `[from, to]`
+
+Период хранится кортежем, а не объектом `{ from, to }`: кортеж — массив модели, и привязка
+компонента делает его полем при любом начальном значении. Объект в начальных значениях модель
+превратила бы в группу — поля бы не было.
+
+```typescript
+import { createForm, type FormModel, type FormSchemaNode } from '@reformer/core';
+import { DatePickerRange, DatePickerMulti, type DateRangeValue } from '@reformer/ui-kit/date-picker';
+import { defineValidation, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = {
+  vacation: DateRangeValue | null; // период не выбран — null
+  stay: DateRangeValue; // период с префиллом
+  meetings: Date[]; // несколько дат, пустой выбор — []
+};
+
+const schema = (model: FormModel<Form>): FormSchemaNode => ({
+  children: [
+    {
+      model: model.$.vacation,
+      component: DatePickerRange,
+      componentProps: { label: 'Отпуск', clearable: true },
+    },
+    { model: model.$.stay, component: DatePickerRange, componentProps: { label: 'Проживание' } },
+    {
+      model: model.$.meetings,
+      component: DatePickerMulti,
+      componentProps: { label: 'Встречи', maxItems: 4 },
+    },
+  ],
+});
+
+const rules = defineValidation<Form>(({ model }) => {
+  validate(model.$.vacation, [required()]); // отклоняет и null, и []
+  validate(model.$.meetings, [required(), maxLength(4)]);
+});
+
+const { form } = createForm<Form>({
+  initial: {
+    vacation: null,
+    stay: [new Date(2026, 9, 10), new Date(2026, 9, 14)], // кортеж в начальном значении — поле
+    meetings: [],
+  },
+  schema,
+  validation: rules,
+});
+```
+
+Чтение периода — значение ручки: `const [from, to] = model.$.vacation.value ?? []`. Порядок дат
+гарантирует контрол: `from <= to`, однодневный период — две одинаковые даты.
+
+### Common Patterns
+
+- **Что хранит модель после сброса** — как у мультивыбора: nullable-поле (начальное `null`) хранит
+  `null`, поле-кортеж (начальное `[from, to]`) — `[]`: узел-массив хранит только массив. Контрол
+  оба читает как «период не выбран», `required()` ловит оба.
+- **Черновик периода** — после первого клика выбрано только начало: оно подсвечено в календаре,
+  но значение поля прежнее, `onChange` не зовётся. Закрытие календаря на черновике его отбрасывает.
+  Повторный клик по выбранному однодневному периоду сбрасывает значение.
+- **Сброс** — `clearable` (крестик у правого края кнопки) либо `.clear()` handle
+  (`DatePickerRangeHandle`, `DatePickerMultiHandle`).
+- **Несколько дат** — значение всегда по возрастанию, порядок кликов в модель не попадает.
+  `maxItems` гасит невыбранные дни по достижении потолка — это подсказка интерфейса; правило
+  формы — `maxLength(n)`.
+- **Подпись в кнопке** — `dateFormat` (токены date-fns: `dd.MM.yyyy`), иначе `dateFormat` локали,
+  иначе `Intl`: у периода `dateStyle: 'long'`, у списка дат — `'medium'`. Список дат сверх
+  `summaryThreshold` (по умолчанию 3) схлопывается в сводку «Выбрано дат: N».
+- **Сколько месяцев рядом** — `numberOfMonths`: 2 у периода, 1 у списка дат. Календарь
+  открывается на месяце выбранного значения.
+- **Живая проверка** — `onBlur` у `DatePickerRange` и `DatePickerMulti` приходит на закрытии
+  календаря, поэтому для них берите `strategy: 'blur'`, как для мультивыбора. У `DatePicker` —
+  тоже на закрытии календаря либо при уходе фокуса с кнопки, пока календарь закрыт; открытие
+  календаря (фокус уходит в него) поле `touched` не делает.
+
+### Anti-patterns
+
+- Период объектом `{ from, to }` в начальных значениях — модель сделает из него группу, поле не
+  появится (в dev-режиме `createForm` предупреждает о нераспознанной привязке).
+- Даты строками (`['2026-10-10', '2026-10-14']`, ответ сервера как есть) — контрол читает их как
+  «период не выбран». Приводите к `Date` до `createForm`.
+- `DatePicker` с пропом `mode="range"` — такого пропа нет: период и несколько дат — отдельные
+  компоненты.
+- Мутация массива на месте (`dates.push(d)`) — сигнал бэйлится по `!==`. Пишите новый массив:
+  `model.$.meetings.value = [...dates, d]`.
+
+## See also
+
+- [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов и выбора дат (open/close/clear).
+- [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
+- [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт inline-label контролы (`CheckboxWithLabel`, `SwitchWithLabel`) и не дублирует label.
+- [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».

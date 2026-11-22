@@ -1,0 +1,1187 @@
+{
+  "nodes": [
+    {
+      "key": "root",
+      "title": "UI Builder v2",
+      "type": "epic",
+      "priority": 1,
+      "labels": ["builder-v2"],
+      "description": "Вторая версия визуального конструктора форм: host + плагины + workspace. План и контракты — projects/reformer-builder-v2/docs/. Кода нет, публикация не отсюда."
+    },
+    {
+      "key": "esp",
+      "title": "Спайки: проверить утверждения до кода",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Три утверждения в документах записаны как проверенные, но по коду не проверялись. Каждое блокирует свой этап."
+    },
+    {
+      "key": "s1",
+      "title": "Спайк: поле ID узла в схеме renderer-json",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "esp",
+      "labels": ["builder-v2", "spike"],
+      "description": "Проверить, что конвертер json-to-render-schema игнорирует новое поле НА УЗЛЕ так же, как игнорирует $schema/id/meta на корне. Если нет — правка перестаёт быть дешёвой и затрагивает рендерер. Блокирует t6-1. Оценка: 0.5д"
+    },
+    {
+      "key": "s2",
+      "title": "Спайк: обёртка CSS плагина в @scope",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "esp",
+      "labels": ["builder-v2", "spike"],
+      "description": "Проверить, что обёртка всего текста стилей в @scope — текстовая операция без разбора CSS. Известный подвох: @import обязан идти первым в файле, обёртка его сломает. Блокирует t9-4. Оценка: 0.5д"
+    },
+    {
+      "key": "s3",
+      "title": "Спайк: формат сообщений i18n на Intl.PluralRules",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "esp",
+      "labels": ["builder-v2", "spike"],
+      "description": "Замерить подмножество ICU (подстановка + множественные формы) на Intl.PluralRules. В документах стоит оценка ~100 строк, она не проверена. Блокирует t4-3. Оценка: 0.5д"
+    },
+    {
+      "key": "e0",
+      "title": "Э0 Каркас проекта",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Приватный vite+react+tailwind проект на своей теме. Рецепт проверен и записан."
+    },
+    {
+      "key": "t0-1",
+      "title": "Поднять каркас projects/reformer-builder-v2",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e0",
+      "labels": ["builder-v2"],
+      "description": "package.json private без bin/files/publishConfig, порт 5174 strictPort, ~20 зависимостей, dedupe react/react-dom/radix-ui/@preact/signals-core. Плюс dev:builder-v2 и typecheck в корневом package.json. Готово: dev/build/lint/tsc зелёные. Оценка: 1д"
+    },
+    {
+      "key": "t0-2",
+      "title": "Правила границ импорта в eslint",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e0",
+      "labels": ["builder-v2"],
+      "description": "no-restricted-imports по слоям: host не импортирует lib и plugins, plugins не импортируют друг друга и host напрямую, lib не импортирует host. Готово: нарушение границы валит npm run lint. Оценка: 1д"
+    },
+    {
+      "key": "e1",
+      "title": "Э1 Пять примитивов",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Resource, Service, ExtensionPoint, Command, Event. Ни один не знает слова «форма» — проверяется грепом в CI. Пять задач независимы между собой."
+    },
+    {
+      "key": "t1-1",
+      "title": "Resource: ссылка, нормализация путей",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e1",
+      "labels": ["builder-v2"],
+      "description": "ResourceId как строка, ResourceRef как описание, ResourceStat отдельно. Ядро владеет нормализацией (posix, без ведущего слэша, запрет выхода за корень). Текст — основной API, байты — запасной. Оценка: 2д"
+    },
+    {
+      "key": "t1-2",
+      "title": "Service: типизированные токены и реестр",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e1",
+      "labels": ["builder-v2"],
+      "description": "defineService, register/get/require. Правило доступности: сервисы Host через require, сервисы плагинов только через get с деградацией. Оценка: 1д"
+    },
+    {
+      "key": "t1-3",
+      "title": "ExtensionPoint: обобщённый реестр вкладов",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e1",
+      "labels": ["builder-v2"],
+      "description": "defineExtensionPoint, contribute/get/observe. Каждый вклад несёт pluginId и order. Вклады снимаемые. Оценка: 2д"
+    },
+    {
+      "key": "t1-4",
+      "title": "Command: реестр и WhenContext",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e1",
+      "labels": ["builder-v2"],
+      "description": "WhenContext проектируется РАНЬШЕ реестра: пять полей, включая режим превью — без него не выражается «курсор на канвасе». Команды и ввод разведены. Оценка: 2д"
+    },
+    {
+      "key": "t1-5",
+      "title": "Event: типизированная шина",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e1",
+      "labels": ["builder-v2"],
+      "description": "defineEvent, emit/on. Доставка синхронная — иначе события нельзя публиковать из контура правки. Порядок между плагинами не гарантируется. Оценка: 1д"
+    },
+    {
+      "key": "e2",
+      "title": "Э2 Workspace и хранилище",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Рабочий набор, а не зеркало проекта. OPFS — файлы и BASE, IndexedDB — метаданные, снимки, журнал."
+    },
+    {
+      "key": "t2-1",
+      "title": "Хранилище: OPFS files/base и IndexedDB",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e2",
+      "labels": ["builder-v2"],
+      "description": "ws/{id}/files и ws/{id}/base в OPFS; workspaces/opened/stats/history в IndexedDB. BASE хранится содержимым, а не хешем: перезапросить базу у источника нельзя. Оценка: 3д"
+    },
+    {
+      "key": "t2-2",
+      "title": "Workspace API: open/close/read/write/save",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e2",
+      "labels": ["builder-v2"],
+      "description": "Два множества: opened (вкладки) и materialized (кэш). writeText пишет в рабочую копию, единственный путь наружу — save. Оценка: 4д"
+    },
+    {
+      "key": "t2-3",
+      "title": "Материализация по требованию и бюджет замыкания",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e2",
+      "labels": ["builder-v2"],
+      "description": "Резолвер импортов просит путь, Workspace достаёт из источника. Бюджет: глубина 8, 200 файлов, 8 МБ, только относительные спецификаторы. При превышении — диагностика, не молчаливое усечение. Оценка: 3д"
+    },
+    {
+      "key": "t2-4",
+      "title": "Вытеснение материализованного",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e2",
+      "labels": ["builder-v2"],
+      "description": "Открытые закреплены; зависимости вытесняются по давности и не раньше, чем перестают быть нужны; close снимает закрепление, удаление ленивое; BASE вытесняется в паре с содержимым. Оценка: 2д"
+    },
+    {
+      "key": "t2-5",
+      "title": "Dirty-состояние и опорные снимки",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e2",
+      "labels": ["builder-v2"],
+      "description": "Признак изменённости от BASE. Опорные снимки каждые ~200 записей или ~1 МБ — на них держится вся политика хранения журнала. Оценка: 2д"
+    },
+    {
+      "key": "e3",
+      "title": "Э3 Source",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Единый контракт источника. Реальная реализация одна — File System Access; роль второй берёт тестовый двойник."
+    },
+    {
+      "key": "t3-1",
+      "title": "Контракт Source: возможности, ошибки, дескриптор",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e3",
+      "labels": ["builder-v2"],
+      "description": "read/list/stat обязательны; write/mkdir/remove/move/listForms/watch по возможностям. Типизированные отказы. Сериализуемый дескриптор плюс реестр фабрик для переоткрытия. executesCode=false по умолчанию для всего, кроме локальной ФС. Оценка: 2д"
+    },
+    {
+      "key": "t3-2",
+      "title": "Адаптер File System Access",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e3",
+      "labels": ["builder-v2"],
+      "description": "Переписывается против контракта, а не переносится: stat вместо двойной проверки существования, list уровня одним обращением, уникальное имя одним листингом вместо тысячи проверок. Оценка: 4д"
+    },
+    {
+      "key": "t3-3",
+      "title": "Тестовый двойник источника",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e3",
+      "labels": ["builder-v2"],
+      "description": "Обязан быть устроен ИНАЧЕ, иначе не проверяет ничего: плоское пространство имён, строковые ревизии, ненулевые задержки, намеренные отказы, часть возможностей выключена. Оценка: 2д"
+    },
+    {
+      "key": "t3-4",
+      "title": "Общий набор тестов на обеих реализациях",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e3",
+      "labels": ["builder-v2"],
+      "description": "ПРАВИЛО ПРИЁМКИ Э3: один набор тестов проходит и на File System Access, и на двойнике. Ветвление теста по виду источника означает дырявый контракт. Оценка: 2д"
+    },
+    {
+      "key": "e4",
+      "title": "Э4 Plugin Runtime и сервисы Host",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Две параллельные дорожки: рантайм плагинов и сервисы платформы. i18n обязан появиться до первой строки UI."
+    },
+    {
+      "key": "t4-1",
+      "title": "Plugin Runtime: контекст, реестр, жизненный цикл",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e4",
+      "labels": ["builder-v2"],
+      "description": "activate синхронный — только регистрирует. Порядок активации ничего не значит: сервис ищется в момент использования. ПРАВИЛО ПРИЁМКИ: активация в обратном порядке даёт то же поведение. Оценка: 4д"
+    },
+    {
+      "key": "t4-2",
+      "title": "PluginStorage и SecretStorage",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e4",
+      "labels": ["builder-v2"],
+      "description": "Пространство имён по идентификатору плагина в IndexedDB. Секреты по умолчанию только в памяти сессии. localStorage не используется нигде. Оценка: 2д"
+    },
+    {
+      "key": "t4-3",
+      "title": "i18n: сервис, формат сообщений, словари ru/en",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e4",
+      "labels": ["builder-v2"],
+      "description": "Подмножество ICU на Intl.PluralRules; контракт — t(), внутренности сменные. Резервная локаль en, ключи семантические. Отсутствующий ключ виден маркером. Словари везёт плагин. Оценка: 4д"
+    },
+    {
+      "key": "t4-4",
+      "title": "Settings: три области видимости",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e4",
+      "labels": ["builder-v2"],
+      "description": "host.* и plugin.<id>.* в области user, workspace.* в записи рабочей области. Разрешение: workspace перекрывает user, user перекрывает умолчание вклада. Оценка: 2д"
+    },
+    {
+      "key": "t4-5",
+      "title": "Theme и Notifications",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e4",
+      "labels": ["builder-v2"],
+      "description": "Светлая и тёмная тема классом на корне; оболочка прибита к встроенному киту. Уведомления поверх sonner. Оценка: 1д"
+    },
+    {
+      "key": "t4-6",
+      "title": "Проверка в CI: полнота словарей",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e4",
+      "labels": ["builder-v2"],
+      "description": "Скрипт сверяет, что все использованные в коде ключи есть во всех словарях. Дешевле генерации типов и ловит настоящую ошибку — непереведённую строку. Оценка: 1д"
+    },
+    {
+      "key": "e5",
+      "title": "Э5 Точки расширения и оболочка",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Оболочка не знает ни одной предметной сущности. Панели регистрируются глобально, when управляет только видимостью."
+    },
+    {
+      "key": "t5-1",
+      "title": "Слоты и каркас оболочки",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Фиксированный набор: rail.left, panel.left, panel.right, panel.bottom, toolbar, statusbar, editor.main. Раскладка с сохранением размеров. Оценка: 4д"
+    },
+    {
+      "key": "t5-2",
+      "title": "Панели как вклады с when-контекстом",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Регистрация глобальная, when фильтрует видимость — иначе рейл мигает при переключении вкладок. Чинит дефект v1: палитра на markdown-вкладке. Оценка: 3д"
+    },
+    {
+      "key": "t5-3",
+      "title": "Диспетчер горячих клавиш",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Один обработчик на корне в фазе всплытия; редактор, обработавший ввод, останавливает распространение. Фокус в поле ввода пропускает сочетание, кроме помеченных allowInEditable. Оценка: 2д"
+    },
+    {
+      "key": "t5-4",
+      "title": "Палитра команд и поставщики динамических пунктов",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Статические команды показываются сразу, динамические доливаются; запросы отменяемы и с задержкой. Общая поверхность с ассистентом. Оценка: 3д"
+    },
+    {
+      "key": "t5-5",
+      "title": "Дерево ресурсов и вклады-декорации",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Навигация принадлежит Host (это про источник и Workspace), знание «этот JSON — схема формы» приходит вкладом. Тем же механизмом позже вешаются ошибки валидации. Оценка: 4д"
+    },
+    {
+      "key": "t5-6",
+      "title": "Вкладки документов",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Вкладка — открытый ресурс, поэтому принадлежит Host. Режим предпросмотра и закрепление. Оценка: 2д"
+    },
+    {
+      "key": "t5-7",
+      "title": "Строка состояния",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e5",
+      "labels": ["builder-v2"],
+      "description": "Единственное место, где видно состояние Workspace: несохранённое, «изменён снаружи», активный кит, локаль. Оценка: 1д"
+    },
+    {
+      "key": "e6",
+      "title": "Э6 Документы и редакторы",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Два вида документов: с моделью и текстовый. Перенос домена начинается здесь и может идти параллельно с ядром."
+    },
+    {
+      "key": "t6-1",
+      "title": "Перенос lib/form-model и стабильные ID узлов",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e6",
+      "labels": ["builder-v2", "port"],
+      "description": "model/ из v1 почти дословно плюс выдача идентификаторов: 8 символов base36, при разборе, запись при первом сохранении, копирование выдаёт новые. Зависит только от каркаса и спайка s1 — можно вести параллельно с ядром. Оценка: 5д"
+    },
+    {
+      "key": "t6-2",
+      "title": "Перенос lib/catalog",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e6",
+      "labels": ["builder-v2", "port"],
+      "description": "Контракт каталога компонентов с проверкой по схеме. Дословно. Оценка: 2д"
+    },
+    {
+      "key": "t6-3",
+      "title": "Перенос lib/kits: дескрипторы",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e6",
+      "labels": ["builder-v2", "port"],
+      "description": "Чистые данные о дизайн-системах. Активный кит — отдельная задача, это состояние. Оценка: 2д"
+    },
+    {
+      "key": "t6-4",
+      "title": "DocumentModelProvider и два вида документов",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e6",
+      "labels": ["builder-v2"],
+      "description": "Провайдер регистрируется на тип ресурса, а не на редактор. Состояние расхождения: буфер не разбирается — структурные редакторы на чтение, сохранение пишет буфер, а не устаревшую модель. Оценка: 4д"
+    },
+    {
+      "key": "t6-5",
+      "title": "История модели: снимки и схлопывание",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e6",
+      "labels": ["builder-v2"],
+      "description": "Снимок при structural sharing — три указателя. Схлопывание по ключу свойство@узел. Выделение входит в снимок: оно часть модели правки, а не состояния вида. Оценка: 3д"
+    },
+    {
+      "key": "t6-6",
+      "title": "История текста: патчи и журнал изменений",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e6",
+      "labels": ["builder-v2"],
+      "description": "Нейтральный формат: offset в кодовых единицах UTF-16, removed для обратимости. Общий конверт на текст и модель. Хранение: опорные снимки, схлопывание, возраст 30д, объём 32МБ — в этом порядке. Оценка: 4д"
+    },
+    {
+      "key": "t6-7",
+      "title": "Редактор Monaco как плагин",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e6",
+      "labels": ["builder-v2"],
+      "description": "Локальный бандл, воркеры через Vite. Перерисовка текста из модели только когда редактор не в фокусе. Оценка: 4д"
+    },
+    {
+      "key": "t6-8",
+      "title": "Визуальный редактор схемы",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e6",
+      "labels": ["builder-v2"],
+      "description": "Канвас, палитра, инспектор, перетаскивание, навигация и блочные операции. Вносит свои панели в чужие слоты. Самая крупная задача проекта: переписывается ~9k строк v1. Оценка: 12д"
+    },
+    {
+      "key": "t6-9",
+      "title": "Активный кит как сервис",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e6",
+      "labels": ["builder-v2"],
+      "description": "Переключение без перезагрузки страницы — в v1 она требовалась из-за мемоизации на уровне модулей. Оценка: 3д"
+    },
+    {
+      "key": "e7",
+      "title": "Э7 Валидаторы и диагностика",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Единый канал. У диагностики одна цель: узел, диапазон или ресурс. Сообщение — код и параметры, а не строка."
+    },
+    {
+      "key": "t7-1",
+      "title": "DiagnosticsService",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e7",
+      "labels": ["builder-v2"],
+      "description": "publish замещает результаты одного источника, а не добавляет — иначе исправленная ошибка останется висеть. Зависит только от реестра сервисов. Оценка: 2д"
+    },
+    {
+      "key": "t7-2",
+      "title": "Контракт валидатора: два уровня",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e7",
+      "labels": ["builder-v2"],
+      "description": "Быстрый уровень синхронный — на нём стоит гейт ассистента; дорогой асинхронный, отменяемый. Асинхронный гейт означал бы асинхронный цикл ассистента. Оценка: 2д"
+    },
+    {
+      "key": "t7-3",
+      "title": "Перенос валидации схемы и коды ошибок",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e7",
+      "labels": ["builder-v2", "port"],
+      "description": "Логика дословно, но сообщения переводятся в {code, params} с быстрыми исправлениями. В v1 это русские строки прямо в коде проверок — отдельная работа, а не побочный эффект. Оценка: 4д"
+    },
+    {
+      "key": "t7-4",
+      "title": "Отображение диагностики: Monaco, канвас, дерево",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e7",
+      "labels": ["builder-v2"],
+      "description": "Перевод «узел → диапазон» делает тот, кто рисует, разбором с позициями. Это убирает механизм v1, который симулирует сериализацию и потому врёт. Оценка: 3д"
+    },
+    {
+      "key": "e8",
+      "title": "Э8 Модули, компиляция и превью",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Реестр модулей неприкосновенен. host/modules не зависит ни от чего, кроме каркаса, и разблокирует загрузчик плагинов."
+    },
+    {
+      "key": "t8-1",
+      "title": "host/modules: реестр, линковщик, транспиляторы",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e8",
+      "labels": ["builder-v2"],
+      "description": "CommonJS через new Function с подстановкой require. Реестр допускает добавление, но не подмену react, @reformer/* и @builder/sdk — проверка списком обязательна. Не зависит ни от чего, кроме каркаса. Оценка: 4д"
+    },
+    {
+      "key": "t8-2",
+      "title": "Поверхность превью: каркасная",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e8",
+      "labels": ["builder-v2"],
+      "description": "Схематичное дерево без рендера. hitTest да, executesCode нет. Оценка: 2д"
+    },
+    {
+      "key": "t8-3",
+      "title": "Поверхность превью: рантайм",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e8",
+      "labels": ["builder-v2"],
+      "description": "Реальный рендерер по схеме, без сайдкаров. Мок-данные в OPFS как авторский артефакт: состояние живёт вне поверхности, поэтому держим одну и свободно размонтируем. Оценка: 4д"
+    },
+    {
+      "key": "t8-4",
+      "title": "Поверхность превью: компилирующая",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e8",
+      "labels": ["builder-v2"],
+      "description": "Сайдкары транспилируются и исполняются в том же realm. Не монтируется, если у источника executesCode=false — отказ виден, а не подменяет режим молча. Оценка: 4д"
+    },
+    {
+      "key": "t8-5",
+      "title": "Выбор узла кликом по превью",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e8",
+      "labels": ["builder-v2"],
+      "description": "Классы-токены в эфемерной копии схемы, хит-тест по DOM, перетаскивание. Синхронный хит-тест: preventDefault обязан идти после него. Оценка: 4д"
+    },
+    {
+      "key": "e9",
+      "title": "Э9 Загрузчик плагинов из каталога",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Плагины из .ui_builder рядом с проектом, модель Obsidian. Зависит от host/modules, а не от всего Э8 — может идти параллельно с поверхностями превью."
+    },
+    {
+      "key": "t9-1",
+      "title": "Обнаружение плагинов и манифест",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e9",
+      "labels": ["builder-v2"],
+      "description": ".ui_builder/plugins/<id>/manifest.json. Поле apiVersion заводим сразу, политику совместимости не строим: отказ грузить при расхождении мажора. Поле permissions не вводим. Оценка: 2д"
+    },
+    {
+      "key": "t9-2",
+      "title": "Загрузка кода плагина через host/modules",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e9",
+      "labels": ["builder-v2"],
+      "description": "sdk подставляется как @builder/sdk при линковке. main.ts транспилируется на лету тем же транспилятором, что и сайдкары. Оценка: 3д"
+    },
+    {
+      "key": "t9-3",
+      "title": "Включение, выключение, перезагрузка плагина",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e9",
+      "labels": ["builder-v2"],
+      "description": "Каждый плагин включается явно, список включённых виден и отзываем. Выключение снимает вклады через subscriptions. Упавший при активации выключается и показывается, автоповтора нет. Оценка: 3д"
+    },
+    {
+      "key": "t9-4",
+      "title": "Стили плагина с изоляцией",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e9",
+      "labels": ["builder-v2"],
+      "description": "По умолчанию плагин без своего CSS и пользуется токенами оболочки. Объявленный styles включает изоляцию областью. Токены доступны при любом варианте. Приёмка: плагин со своим ресетом не меняет вид оболочки. Оценка: 2д"
+    },
+    {
+      "key": "e10",
+      "title": "Э10 Ассистент как плагин",
+      "type": "epic",
+      "priority": 1,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Ядро переносится почти дословно, мост переписывается. Инструменты — проекция команд, а не отдельный список."
+    },
+    {
+      "key": "t10-1",
+      "title": "Перенос ядра ассистента",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e10",
+      "labels": ["builder-v2", "port"],
+      "description": "agent/core из v1: реестр инструментов с проверкой аргументов, бюджет ответа, гейт, корпус знаний. Ядро уже без React и без состояния. Обязателен чеклист из 17 уроков живых прогонов. Оценка: 5д"
+    },
+    {
+      "key": "t10-2",
+      "title": "Блок agent в командах и храповик как тест",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e10",
+      "labels": ["builder-v2"],
+      "description": "Команда опционально объявляет описание и схему аргументов для модели. Проверка складывает длины описаний и падает при превышении потолка — храповик перестаёт быть договорённостью. Оценка: 3д"
+    },
+    {
+      "key": "t10-3",
+      "title": "Мост ассистента к Workspace и командам",
+      "type": "task",
+      "priority": 1,
+      "parent_key": "e10",
+      "labels": ["builder-v2"],
+      "description": "Ассистент не знает ни об одном источнике. Ход = одна запись отмены через транзакцию журнала. Оценка: 4д"
+    },
+    {
+      "key": "t10-4",
+      "title": "Панель чата, провайдеры, ключ в SecretStorage",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e10",
+      "labels": ["builder-v2"],
+      "description": "BYOK-каналы. Ключ в SecretStorage плагина, по умолчанию память сессии — в localStorage не попадает. Предпросмотр изменений до применения. Оценка: 4д"
+    },
+    {
+      "key": "e11",
+      "title": "Э11 Трёхстороннее слияние",
+      "type": "epic",
+      "priority": 2,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Независим от редакторов: нужен только Workspace с BASE. Может идти параллельно с Э6-Э8."
+    },
+    {
+      "key": "t11-1",
+      "title": "Обнаружение расхождения с источником",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e11",
+      "labels": ["builder-v2"],
+      "description": "При возврате фокуса — stat только открытых ресурсов, содержимое не тянем. При сохранении — write с ожидаемой ревизией. Наблюдения за файлами нет: File System Access его не даёт. Оценка: 2д"
+    },
+    {
+      "key": "t11-2",
+      "title": "Слияние трёх сторон поверх io/diff.ts",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e11",
+      "labels": ["builder-v2", "port"],
+      "description": "В v1 уже есть построчный LCS с тестами — переносится, дописывается сведение двух сторон относительно базы. Текстовое слияние для всех документов; после автослияния обязательный разбор. Оценка: 4д"
+    },
+    {
+      "key": "t11-3",
+      "title": "Диалог разрешения конфликта",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e11",
+      "labels": ["builder-v2"],
+      "description": "Три колонки и три исхода; ручное слияние в Monaco. Молча выбрать сторону нельзя ни в каком случае. Оценка: 3д"
+    },
+    {
+      "key": "e12",
+      "title": "Э12 Хвост переноса: генерация кода и шаблоны",
+      "type": "epic",
+      "priority": 2,
+      "parent_key": "root",
+      "labels": ["builder-v2"],
+      "description": "Части домена, которым нет места на других этапах. Без них паритета с v1 не будет."
+    },
+    {
+      "key": "t12-1",
+      "title": "Генерация кода: цели как вклады",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e12",
+      "labels": ["builder-v2", "port"],
+      "description": "13 генераторов из v1; захардкоженный список вызовов становится реестром целей. Закрывает давнюю задачу: экспорт под чужой кит перестаёт писать @reformer/ui-kit. Оценка: 6д"
+    },
+    {
+      "key": "t12-2",
+      "title": "Шаблоны форм",
+      "type": "task",
+      "priority": 2,
+      "parent_key": "e12",
+      "labels": ["builder-v2", "port"],
+      "description": "Три источника: встроенные, проектные из .ui_builder/templates, локальные. Переписывается: в v1 это ~2.3k строк накопленного объёма. Оценка: 5д"
+    }
+  ],
+  "edges": [
+    {
+      "from_key": "t0-2",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t1-1",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t1-2",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t1-3",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t1-4",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t1-5",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-1",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-2",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-3",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-1",
+      "to_key": "s1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-1",
+      "to_key": "t0-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-3",
+      "to_key": "s3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-4",
+      "to_key": "s2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-1",
+      "to_key": "t1-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-2",
+      "to_key": "t1-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-2",
+      "to_key": "t2-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-3",
+      "to_key": "t2-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-4",
+      "to_key": "t2-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-5",
+      "to_key": "t2-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t2-5",
+      "to_key": "t2-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t3-1",
+      "to_key": "t1-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t3-1",
+      "to_key": "t2-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t3-2",
+      "to_key": "t3-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t3-3",
+      "to_key": "t3-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t3-4",
+      "to_key": "t3-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t3-4",
+      "to_key": "t3-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-1",
+      "to_key": "t1-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-1",
+      "to_key": "t1-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-1",
+      "to_key": "t1-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-1",
+      "to_key": "t1-5",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-2",
+      "to_key": "t4-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-3",
+      "to_key": "t1-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-4",
+      "to_key": "t1-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-5",
+      "to_key": "t1-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t4-6",
+      "to_key": "t4-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-1",
+      "to_key": "t4-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-1",
+      "to_key": "t4-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-2",
+      "to_key": "t5-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-3",
+      "to_key": "t1-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-3",
+      "to_key": "t5-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-4",
+      "to_key": "t5-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-5",
+      "to_key": "t5-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-5",
+      "to_key": "t3-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-6",
+      "to_key": "t5-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-6",
+      "to_key": "t2-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t5-7",
+      "to_key": "t5-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-4",
+      "to_key": "t2-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-4",
+      "to_key": "t6-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-5",
+      "to_key": "t6-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-6",
+      "to_key": "t6-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-6",
+      "to_key": "t2-5",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-7",
+      "to_key": "t4-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-7",
+      "to_key": "t5-6",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-8",
+      "to_key": "t6-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-8",
+      "to_key": "t5-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-8",
+      "to_key": "t6-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-9",
+      "to_key": "t6-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-9",
+      "to_key": "t4-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-1",
+      "to_key": "t1-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-2",
+      "to_key": "t7-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-3",
+      "to_key": "t7-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-3",
+      "to_key": "t6-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-4",
+      "to_key": "t7-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-4",
+      "to_key": "t6-7",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t7-4",
+      "to_key": "t6-8",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-2",
+      "to_key": "t6-8",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-3",
+      "to_key": "t6-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-3",
+      "to_key": "t6-9",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-4",
+      "to_key": "t8-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-4",
+      "to_key": "t8-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-4",
+      "to_key": "t2-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-5",
+      "to_key": "t8-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t8-5",
+      "to_key": "t6-8",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-1",
+      "to_key": "t4-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-1",
+      "to_key": "t3-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-2",
+      "to_key": "t9-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-2",
+      "to_key": "t8-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-3",
+      "to_key": "t9-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t9-4",
+      "to_key": "t9-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-1",
+      "to_key": "t6-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-2",
+      "to_key": "t1-4",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-2",
+      "to_key": "t10-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-3",
+      "to_key": "t10-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-3",
+      "to_key": "t6-5",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-4",
+      "to_key": "t4-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-4",
+      "to_key": "t5-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t10-4",
+      "to_key": "t10-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t11-1",
+      "to_key": "t2-5",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t11-1",
+      "to_key": "t3-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t11-2",
+      "to_key": "t11-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t11-3",
+      "to_key": "t11-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t12-1",
+      "to_key": "t6-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t12-1",
+      "to_key": "t1-3",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t12-2",
+      "to_key": "t6-1",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t12-2",
+      "to_key": "t5-2",
+      "type": "blocks"
+    },
+    {
+      "from_key": "t6-4",
+      "to_key": "t1-3",
+      "type": "blocks"
+    }
+  ]
+}

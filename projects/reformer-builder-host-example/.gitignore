@@ -1,0 +1,3 @@
+# Сборка кита HexaUI для билдера (`npm run plugins:kit`): собирается из исходников
+# `@reformer/kit-hexa-ui`, в git не едет.
+/.ui_builder/plugins/kit-hexa-ui/

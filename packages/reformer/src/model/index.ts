@@ -1,0 +1,97 @@
+/**
+ * `@reformer/core/model` — низкоуровневый реактивный субстрат и barrel модуля `model`.
+ *
+ * Это «прокси-объект с сигналами» и инструментарий для построения доменных модулей поверх него
+ * (form, table, …). Модуль СТРОГО реактивный: НИЧЕГО связанного с формами/валидацией/схемами здесь
+ * нет — только модель, value-операции, producer-флаг и утилиты субстрата. Граница model⇏form
+ * зафиксирована ESLint-правилом (`no-restricted-imports` на `src/model/**`).
+ *
+ * Реактивный рантайм (`signal/computed/effect/…`) живёт в отдельном subpath `@reformer/core/signals`
+ * (единый владелец `@preact/signals-core`) — импортируй его оттуда; здесь он НЕ реэкспортируется,
+ * чтобы зонтичный barrel `.` не разрастался рантаймом.
+ *
+ * Состав (реэкспорты — из тех же файлов, что использует зонтик `.`, поэтому `.` и `/model` — один
+ * module-инстанс: общий `derived`-WeakMap, единая идентичность `Signal`):
+ * - **модель** — `createModel` + типы `FormModel`/`ModelArray`/… + `PathAwareSignal`;
+ * - **шаблон элемента массива** — `arrayOf(blank)`: что кладёт `push()` без значения;
+ * - **обход значений** — `eachLeafSignal` (листья) и `eachValueSignal` (листья и массивы целиком);
+ * - **ручка → фасад** — `modelOf(model.$.<группа | массив>)`: под-модель или фасад массива;
+ * - **value-операции** (реактивные правила) — `computeFrom`/`copyFrom`/`watchField`/`transformValue`/
+ *   `resetWhen`/`syncFields`/`revalidateWhen`;
+ * - **producer-owned флаг** — `markDerived`/`isDerived`/`unmarkDerived`;
+ * - **утилиты субстрата** — `runOutsideEffect`/`safeCallback`/`safeDebouncedCallback` и
+ *   `deferredWritesSettled` (дождаться отложенных записей текущего тика);
+ * - **сравнение значений** — `deepEqual`, на нём стоят `isDirty` и сверка «модель изменилась»;
+ *   `shallowEqual` — для селекторов;
+ * - **область жизни и стор** — `createScope`/`getCurrentScope`/`onScopeDispose` и `createStore`:
+ *   реакции, созданные в области, снимаются одним `dispose()` — модель как стор приложения;
+ * - **уровни над моделью** — `signalFrom` (сигнал над событийным источником) и `defineBehavior`
+ *   (правило между уровнями: тема, язык, таблица, форма — см. `@reformer/core/theme`,
+ *   `/language`, `/table`).
+ *
+ * Запасной шаблон элемента массива модель принимает от того, кто строит её извне (сборка формы
+ * передаёт `initialValue` узла-массива); что это узел схемы, модель не знает.
+ *
+ * @group Model
+ * @module model
+ */
+
+// Реактивная модель данных.
+export { createModel, eachLeafSignal, eachValueSignal } from './create-model';
+// Массив модели с шаблоном нового элемента — `push()` / «Добавить» без значения.
+export { arrayOf } from './model-nodes';
+export type {
+  DeepPartial,
+  FormModel,
+  Model,
+  ModelArray,
+  ModelArraySignals,
+  ModelGroupSignals,
+  ModelObject,
+  ModelValue,
+  ModelSignals,
+  ModelApi,
+  PathAwareSignal,
+} from './types';
+export { isModelContainerSignal, isValueSignal } from './model-signals-proxy';
+// Ручка `$` → value-фасад (под-модель группы или фасад массива), по идентичности.
+export { modelOf } from './model-value-proxy';
+export type { ModelOf } from './model-value-proxy';
+
+// Value-операции behavior (читают/пишут сигналы, нод/валидации не касаются).
+export {
+  computeFrom,
+  copyFrom,
+  watchField,
+  transformValue,
+  resetWhen,
+  syncFields,
+  revalidateWhen,
+} from './behaviors-value';
+export type { BehaviorCleanup, ResetWhenOptionsArg } from './behaviors-value';
+
+// Producer-owned флаг: bulk-set/patch не затирает вычисляемые (compute) поля.
+export { markDerived, isDerived, unmarkDerived } from './derived-registry';
+
+// Утилиты субстрата (реактивные правила / lifecycle).
+export {
+  runOutsideEffect,
+  safeCallback,
+  safeDebouncedCallback,
+  deferredWritesSettled,
+} from './safe-effect';
+
+// Сравнение значений модели — то же, на котором стоят `isDirty` и сверка «модель изменилась».
+export { deepEqual } from './model-nodes';
+
+// Область жизни реакций и стор приложения: всё созданное в области снимается одним `dispose()`.
+export { createScope, getCurrentScope, onScopeDispose, createStore, shallowEqual } from './scope';
+export type { Scope, Store } from './scope';
+
+// Мост из событийного источника (`subscribe`/`getState`) в сигнал только для чтения.
+export { signalFrom } from './signal-from';
+export type { SourceSubscription } from './signal-from';
+
+// Правило между уровнями (модель, форма, тема, язык, таблица): attach(ctx) → отписка.
+export { defineBehavior } from './behavior';
+export type { Behavior } from './behavior';

@@ -1,0 +1,10 @@
+{
+  "$schema": "../../reformer-builder/runtime-config.schema.json",
+  "branding": {
+    "title": "ReFormer Builder · Playground"
+  },
+  "defaults": {
+    "locale": "ru",
+    "theme": "light"
+  }
+}

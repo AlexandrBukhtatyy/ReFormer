@@ -1,0 +1,220 @@
+/**
+ * Операторы JSON-схемы (M1) — СТРОКОВЫЕ ссылки на модель/реестр.
+ *
+ * JSON нельзя «вызвать функцию», поэтому привязки кодируются СТРОКАМИ функц-стиля с дискриминатором:
+ *
+ * - `"$model(path)"`        — путь к полю/массиву модели: лист → `model.signalAt(path)`, массив → `model.<path>`.
+ * - `"$component(Name)"`    — имя компонента в реестре (`reg.component`).
+ * - `"$html(tag)"`          — нативный HTML-тег для презентационной вёрстки без регистрации компонента.
+ * - `"$dataSource(NAME)"`   — имя registry-source (`reg.dataSource`): options/itemLabel/константы/loading-компоненты.
+ * - `"$fn(name)"`           — имя функции в реестре (`reg.fn`): форматтеры/компараторы/itemLabel/обработчики.
+ * - `"$locale(key)"`        — ключ строки для сервиса локализации (`reg.locale`): резолвится в строку.
+ * - `"$part(name)"`         — именованная часть документа (`parts`): подформа или шаблон строки массива.
+ *
+ * Схема остаётся чистым JSON (копируется в `.json`, приходит строкой с сервера). Типобезопасность
+ * на этапе компиляции даётся template-literal типами ({@link ModelOp} и т.д.) — литерал
+ * `'$model(loanType)'` проверяется без вызова функций. Голые строки (не-`$`, напр. `label`) не резолвятся.
+ *
+ * @module reformer/renderer-json/operators
+ */
+
+type PathPrimitive = string | number | boolean | bigint | symbol | null | undefined;
+
+/**
+ * Внутренняя рекурсия {@link Path}: точечные пути по форме `T` с ограничением глубины (5),
+ * чтобы не уронить компилятор на рекурсивных/глубоких типах.
+ */
+type PathImpl<T, Depth extends unknown[] = []> = Depth['length'] extends 5
+  ? never
+  : T extends PathPrimitive
+    ? never
+    : T extends readonly (infer U)[]
+      ? `${number}` | `${number}.${PathImpl<U, [...Depth, unknown]>}`
+      : {
+          [K in keyof T & string]: T[K] extends PathPrimitive
+            ? K
+            : K | `${K}.${PathImpl<T[K], [...Depth, unknown]>}`;
+        }[keyof T & string];
+
+/**
+ * Все точечные пути к полям формы `T` (`'loanType'`, `'personalData.firstName'`, `'items.0.amount'`).
+ * Для `unknown`/`any` (схема пришла строкой с сервера — тип формы неизвестен) деградирует в `string`,
+ * поэтому нетипизированный сценарий продолжает работать как раньше.
+ *
+ * @typeParam T - Форма данных модели.
+ */
+export type Path<T> = unknown extends T ? string : PathImpl<T>;
+
+/**
+ * Строка-оператор привязки к полю/массиву модели: `` `$model(${path})` ``.
+ *
+ * Параметризуется формой модели `T`: при `ModelOp<CreditForm>` путь сужается до {@link Path}<T>
+ * (опечатка `$model(loanTyp)` — ошибка компиляции). Без параметра (`ModelOp`) — `T = unknown`,
+ * путь = любая строка (обратная совместимость и схема-строкой-с-сервера).
+ *
+ * @typeParam T - Форма данных модели (по умолчанию `unknown` → `` `$model(${string})` ``).
+ */
+export type ModelOp<T = unknown> = `$model(${Path<T>})`;
+
+/** Строка-оператор ссылки на компонент реестра: `` `$component(${name})` ``. */
+export type ComponentOp = `$component(${string})`;
+
+/**
+ * Строка-оператор нативного HTML-тега: `` `$html(${tag})` ``. Позволяет верстать презентационные
+ * блоки (заголовки, абзацы, разделители) прямо в схеме, не регистрируя ради них компонент.
+ * Тег проверяется по whitelist (`isAllowedHtmlTag`) и конвертером, и `validateFormSchema`.
+ */
+export type HtmlOp = `$html(${string})`;
+
+/** Строка-оператор ссылки на registry-source: `` `$dataSource(${name})` ``. */
+export type DataSourceOp = `$dataSource(${string})`;
+
+/** Строка-оператор ссылки на функцию реестра: `` `$fn(${name})` ``. */
+export type FnOp = `$fn(${string})`;
+
+/** Строка-оператор ссылки на ключ локализации: `` `$locale(${key})` ``. */
+export type LocaleOp = `$locale(${string})`;
+
+/**
+ * Строка-оператор ссылки на именованную часть документа: `` `$part(${name})` ``. Часть лежит в
+ * корневом словаре `parts` схемы и подключается узлом-подформой (`{ model, part }`) либо шаблоном
+ * строки массива (`"item": "$part(name)"`).
+ */
+export type PartOp = `$part(${string})`;
+
+/** Любой строковый оператор JSON-схемы. */
+export type JsonOperator = ModelOp | ComponentOp | HtmlOp | DataSourceOp | FnOp | LocaleOp | PartOp;
+
+/** Разобранный оператор: тип + аргумент (путь/имя/ключ/тег). */
+export interface ParsedOperator {
+  op: 'model' | 'component' | 'html' | 'dataSource' | 'fn' | 'locale' | 'part';
+  arg: string;
+}
+
+const OPERATOR_RE = /^\$(model|component|html|dataSource|fn|locale|part)\((.+)\)$/;
+
+/**
+ * Разбор строки-оператора `"$op(arg)"`. Возвращает `null` для не-операторов (обычных строк),
+ * чтобы вызывающий оставил значение как есть.
+ *
+ * @param value - Проверяемое значение (не-строки сразу дают `null`).
+ * @returns {@link ParsedOperator} (`{ op, arg }`) либо `null`, если строка — не оператор.
+ *
+ * @example
+ * ```ts
+ * parseOperator('$model(loanType)');   // { op: 'model', arg: 'loanType' }
+ * parseOperator('$dataSource(LOAN_TYPES)'); // { op: 'dataSource', arg: 'LOAN_TYPES' }
+ * parseOperator('Введите сумму');       // null  (обычная строка)
+ * ```
+ */
+export function parseOperator(value: unknown): ParsedOperator | null {
+  if (typeof value !== 'string') return null;
+  const m = OPERATOR_RE.exec(value);
+  return m ? { op: m[1] as ParsedOperator['op'], arg: m[2] } : null;
+}
+
+/**
+ * Type-guard: строка — оператор `"$model(...)"` (привязка к полю/массиву модели).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link ModelOp}.
+ *
+ * @example Сузить тип значения prop до ModelOp
+ * ```ts
+ * if (isModelOp(value)) {
+ *   const path = parseOperator(value)!.arg; // 'loanType'
+ * }
+ * ```
+ */
+export const isModelOp = (v: unknown): v is ModelOp => parseOperator(v)?.op === 'model';
+
+/**
+ * Type-guard: строка — оператор `"$component(...)"` (ссылка на компонент реестра).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link ComponentOp}.
+ *
+ * @example
+ * ```ts
+ * if (isComponentOp(node.component)) {
+ *   const name = parseOperator(node.component)!.arg; // 'Select'
+ * }
+ * ```
+ */
+export const isComponentOp = (v: unknown): v is ComponentOp => parseOperator(v)?.op === 'component';
+
+/**
+ * Type-guard: строка — оператор `"$html(...)"` (нативный HTML-тег).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link HtmlOp}.
+ *
+ * @example
+ * ```ts
+ * if (isHtmlOp(node.component)) {
+ *   const tag = parseOperator(node.component)!.arg; // 'p'
+ * }
+ * ```
+ */
+export const isHtmlOp = (v: unknown): v is HtmlOp => parseOperator(v)?.op === 'html';
+
+/**
+ * Type-guard: строка — оператор `"$dataSource(...)"` (ссылка на registry-source).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link DataSourceOp}.
+ *
+ * @example
+ * ```ts
+ * if (isDataSourceOp(props.options)) {
+ *   const name = parseOperator(props.options)!.arg; // 'LOAN_TYPES'
+ * }
+ * ```
+ */
+export const isDataSourceOp = (v: unknown): v is DataSourceOp =>
+  parseOperator(v)?.op === 'dataSource';
+
+/**
+ * Type-guard: строка — оператор `"$fn(...)"` (ссылка на функцию реестра).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link FnOp}.
+ *
+ * @example
+ * ```ts
+ * if (isFnOp(props.itemLabel)) {
+ *   const name = parseOperator(props.itemLabel)!.arg; // 'propertyItemLabel'
+ * }
+ * ```
+ */
+export const isFnOp = (v: unknown): v is FnOp => parseOperator(v)?.op === 'fn';
+
+/**
+ * Type-guard: строка — оператор `"$locale(...)"` (ключ строки для сервиса локализации).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link LocaleOp}.
+ *
+ * @example
+ * ```ts
+ * if (isLocaleOp(props.label)) {
+ *   const key = parseOperator(props.label)!.arg; // 'fields.email.label'
+ * }
+ * ```
+ */
+export const isLocaleOp = (v: unknown): v is LocaleOp => parseOperator(v)?.op === 'locale';
+
+/**
+ * Type-guard: строка — оператор `"$part(...)"` (именованная часть документа).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link PartOp}.
+ *
+ * @example
+ * ```ts
+ * if (isPartOp(node.part)) {
+ *   const name = parseOperator(node.part)!.arg; // 'address'
+ * }
+ * ```
+ */
+export const isPartOp = (v: unknown): v is PartOp => parseOperator(v)?.op === 'part';

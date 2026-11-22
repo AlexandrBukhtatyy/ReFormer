@@ -1,0 +1,18 @@
+// <%= it.layout.files.constants %> — опции и константы источников данных ($dataSource).
+// МОК: значения синтезированы, замените реальными. Ваш файл: пишется один раз и при
+// регенерации не затирается.
+
+<% if (it.dataSources.isEmpty) { -%>
+// Источников данных в схеме нет. Появятся — их значения объявляются здесь.
+export {};
+<% } else { -%>
+<% if (it.dataSources.options.length > 0) { -%>
+import type { SelectOption } from '<%= it.rel('constants', 'types') %>';
+
+<% } -%>
+<%~ it.blocks([
+  it.dataSources.options.map((d) => d.code).join('\n\n'),
+  it.dataSources.scalars.map((d) => d.code).join('\n'),
+  it.dataSources.labelSources.map((d) => d.code).join('\n\n'),
+]) %>
+<% } -%>

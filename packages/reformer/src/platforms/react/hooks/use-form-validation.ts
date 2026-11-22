@@ -1,0 +1,93 @@
+import { useCallback, useEffect, useMemo } from 'react';
+import { useSyncExternalStore } from 'use-sync-external-store/shim';
+import type { FormModel } from '../../../model/types';
+import type { ValidationDefinition } from '../../../form/validation';
+import {
+  createFormValidation,
+  type ValidationStrategyKind,
+} from '../../../form/validation/strategy';
+
+export interface UseFormValidationArgs<T> {
+  /** Модель данных формы. */
+  model: FormModel<T>;
+  /** Схема валидации. **Стабильная ссылка** (module-level `const` / `useMemo`) — иначе ломается дедуп раннера. */
+  schema: ValidationDefinition<T>;
+  /** Стратегия запуска. Default `'submit'`. */
+  strategy?: ValidationStrategyKind;
+  /** Debounce (мс) для live-фаз (`change` / live-часть `afterFirstSubmit`). */
+  debounce?: number;
+  /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
+  liveAfterSubmit?: 'change' | 'blur';
+}
+
+export interface UseFormValidationResult {
+  /**
+   * Попытка отправки: полный прогон; при замечаниях раскрыта вся форма, `afterFirstSubmit`
+   * переходит в живую фазу. `true` — только статус `valid`. Для `onSubmit`. Стабильная ссылка.
+   */
+  submit: () => Promise<boolean>;
+  /**
+   * Проверка без отправки: полный прогон, раскрыты замечания проверенных полей, фаза
+   * `afterFirstSubmit` не меняется. Для кнопки «Проверить». Стабильная ссылка.
+   */
+  validate: () => Promise<boolean>;
+  /**
+   * Вернуть стратегию в исходную фазу — вместе со сбросом формы (`form.reset()`):
+   * `afterFirstSubmit` снова молчит до попытки отправки, отложенный и идущий прогоны отменяются.
+   * Значения и замечания не трогает. Стабильная ссылка.
+   */
+  resetPhase: () => void;
+  /** Идёт ли прогон (submit или live) — для блокировки кнопки. */
+  isValidating: boolean;
+}
+
+/**
+ * Декларативный выбор стратегии валидации формы: одна точка вместо ручной разводки
+ * `validateModel`/`revalidateWhen`. Собирает стабильный {@link createFormValidation}-контроллер,
+ * армит реактивную стратегию на клиенте (`useEffect` → SSR-safe) и отдаёт `submit`/`isValidating`.
+ *
+ * Схема-валидации — **стабильная ссылка** (обязанность вызывающего): контроллер мемоизируется по
+ * `[model, schema, strategy, debounce, liveAfterSubmit]`.
+ *
+ * @example
+ * ```tsx
+ * const validation = defineValidation<Form>(({ model }) => { ... }); // module-level
+ *
+ * function MyForm() {
+ *   const { submit, isValidating } = useFormValidation({
+ *     model, schema: validation, strategy: 'afterFirstSubmit', debounce: 300,
+ *   });
+ *   const onSubmit = async (e: React.FormEvent) => {
+ *     e.preventDefault();
+ *     if (await submit()) await api.save(model.get());
+ *   };
+ *   return <form onSubmit={onSubmit}>{ ... }<button disabled={isValidating}>Отправить</button></form>;
+ * }
+ * ```
+ */
+export function useFormValidation<T>(args: UseFormValidationArgs<T>): UseFormValidationResult {
+  const { model, schema, strategy, debounce, liveAfterSubmit } = args;
+
+  const controller = useMemo(
+    () => createFormValidation(model, schema, { strategy, debounce, liveAfterSubmit }),
+    [model, schema, strategy, debounce, liveAfterSubmit]
+  );
+
+  // Арм реактивной стратегии только на клиенте (эффект не бежит при SSR); cleanup → dispose.
+  useEffect(() => controller.start(), [controller]);
+
+  const isValidating = useSyncExternalStore(
+    useCallback((onChange) => controller.validating.subscribe(onChange), [controller]),
+    () => controller.validating.peek(),
+    () => false // SSR: прогон не идёт
+  );
+
+  const submit = useCallback(
+    async () => (await controller.run({ touch: 'all', submit: true })).status === 'valid',
+    [controller]
+  );
+  const validate = useCallback(() => controller.validate(), [controller]);
+  const resetPhase = useCallback(() => controller.resetPhase(), [controller]);
+
+  return { submit, validate, resetPhase, isValidating };
+}

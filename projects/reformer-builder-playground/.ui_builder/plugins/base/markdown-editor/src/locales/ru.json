@@ -1,0 +1,10 @@
+{
+  "command.cycleView": "Следующий вид markdown",
+  "command.openPreview": "Открыть предпросмотр",
+  "command.showCode": "Показать исходник",
+  "command.showPreview": "Показать предпросмотр",
+  "command.showSplit": "Показать рядом",
+  "command.toggleView": "Переключить исходник и предпросмотр",
+  "editor.label": "Markdown",
+  "editor.opening": "Документ открывается…"
+}

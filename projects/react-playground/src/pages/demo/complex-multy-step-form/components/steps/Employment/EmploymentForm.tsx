@@ -1,0 +1,67 @@
+import type { FormGroup } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
+import { FormField } from '@reformer/ui-kit';
+import { isEmployed, isSelfEmployed, isUnemployed } from '../../../model/predicates';
+import type { CreditApplicationForm } from '../../../types/credit-application';
+import { UnemployedWarning } from '../../ui/UnemployedWarning';
+
+interface EmploymentFormProps {
+  control: FormGroup<CreditApplicationForm>;
+}
+
+export function EmploymentForm({ control }: EmploymentFormProps) {
+  const employmentStatus = useFormControlValue(control.employmentStatus);
+
+  return (
+    <div className="space-y-6" data-testid="step-employment">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Информация о занятости
+      </h2>
+
+      <div className="space-y-4">
+        <FormField control={control.employmentStatus} testId="employmentStatus" />
+      </div>
+
+      {isEmployed(employmentStatus) && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold mt-6">Информация о работодателе</h3>
+          <FormField control={control.companyName} testId="companyName" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={control.companyInn} testId="companyInn" />
+            <FormField control={control.companyPhone} testId="companyPhone" />
+          </div>
+          <FormField control={control.companyAddress} testId="companyAddress" />
+
+          <h3 className="text-lg font-semibold mt-6">Должность и стаж</h3>
+          <FormField control={control.position} testId="position" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={control.workExperienceTotal} testId="workExperienceTotal" />
+            <FormField control={control.workExperienceCurrent} testId="workExperienceCurrent" />
+          </div>
+        </div>
+      )}
+
+      {isSelfEmployed(employmentStatus) && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold mt-6">Информация о бизнесе</h3>
+          <FormField control={control.businessType} testId="businessType" />
+          <FormField control={control.businessInn} testId="businessInn" />
+          <FormField control={control.businessActivity} testId="businessActivity" />
+        </div>
+      )}
+
+      {!isUnemployed(employmentStatus) && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold mt-6">Доход</h3>
+          <FormField control={control.monthlyIncome} testId="monthlyIncome" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={control.additionalIncome} testId="additionalIncome" />
+            <FormField control={control.additionalIncomeSource} testId="additionalIncomeSource" />
+          </div>
+        </div>
+      )}
+
+      {isUnemployed(employmentStatus) && <UnemployedWarning className={'mt-6'} />}
+    </div>
+  );
+}

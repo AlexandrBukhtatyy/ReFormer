@@ -1,0 +1,467 @@
+/**
+ * Unit tests for FormNode.reset()
+ *
+ * Tests resetting to initial values vs reset() with new values
+ */
+
+import { describe, it, expect, beforeEach } from 'vitest';
+import { signal } from '@preact/signals-core';
+import { FormControlNode } from '../../../src/form/nodes/form-control-node';
+import type { FormArray } from '../../../src/form/types/index';
+import { ComponentInstance } from '../../test-utils/types';
+import type { FormGroup } from '../../../src';
+import { arrayFromFields, formFromFields } from '../../test-utils/form-from-fields';
+import { createModel } from '../../../src/model/index';
+import { createFormFromModel } from '../../../src/form/create-form';
+import { defineFormBehavior, enableWhen } from '../../../src/form/behaviors';
+import { tick } from '../../test-utils/async';
+
+describe('FormNode - reset()', () => {
+  describe('FieldNode', () => {
+    it('should reset to initialValue', () => {
+      const field = new FormControlNode({
+        valueSignal: signal('initial'),
+        component: null as ComponentInstance,
+      });
+
+      field.setValue('changed');
+      expect(field.value.value).toBe('changed');
+
+      field.reset();
+      expect(field.value.value).toBe('initial');
+    });
+
+    it('should reset after reset() with new value', () => {
+      const field = new FormControlNode({
+        valueSignal: signal('initial'),
+        component: null as ComponentInstance,
+      });
+
+      field.setValue('changed');
+      field.reset('temp value');
+      expect(field.value.value).toBe('temp value');
+
+      // reset() should restore to 'initial', not 'temp value'
+      field.reset();
+      expect(field.value.value).toBe('initial');
+    });
+
+    it('should clear validation state', () => {
+      const field = new FormControlNode({
+        valueSignal: signal(''),
+        component: null as ComponentInstance,
+      });
+
+      field.setValue('valid');
+      field.markAsTouched();
+      field.setIssues([{ code: 'required' }]);
+
+      expect(field.touched.value).toBe(true);
+      expect(field.dirty.value).toBe(true);
+      expect(field.issues.value).toHaveLength(1);
+
+      field.reset();
+
+      expect(field.value.value).toBe('');
+      expect(field.touched.value).toBe(false);
+      expect(field.dirty.value).toBe(false);
+      expect(field.issues.value).toHaveLength(0);
+    });
+  });
+
+  describe('GroupNode', () => {
+    interface TestForm {
+      email: string;
+      name: string;
+      age: number;
+    }
+
+    let form: FormGroup<TestForm>;
+
+    beforeEach(() => {
+      form = formFromFields({
+        email: { value: 'initial@mail.com', component: null as ComponentInstance },
+        name: { value: 'John', component: null as ComponentInstance },
+        age: { value: 25, component: null as ComponentInstance },
+      });
+    });
+
+    it('should reset all fields to initialValues', () => {
+      form.email.setValue('changed@mail.com');
+      form.name.setValue('Jane');
+      form.age.setValue(30);
+
+      expect(form.getValue()).toEqual({
+        email: 'changed@mail.com',
+        name: 'Jane',
+        age: 30,
+      });
+
+      form.reset();
+
+      expect(form.getValue()).toEqual({
+        email: 'initial@mail.com',
+        name: 'John',
+        age: 25,
+      });
+    });
+
+    it('should reset after reset() with new values', () => {
+      form.reset({
+        email: 'temp@mail.com',
+        name: 'Temp',
+        age: 99,
+      });
+
+      expect(form.getValue()).toEqual({
+        email: 'temp@mail.com',
+        name: 'Temp',
+        age: 99,
+      });
+
+      // reset() should restore to initial values
+      form.reset();
+
+      expect(form.getValue()).toEqual({
+        email: 'initial@mail.com',
+        name: 'John',
+        age: 25,
+      });
+    });
+
+    it('should clear validation state for all fields', () => {
+      form.email.markAsTouched();
+      form.name.setValue(form.name.getValue());
+      form.email.setIssues([{ code: 'required' }]);
+
+      expect(form.email.touched.value).toBe(true);
+      expect(form.name.dirty.value).toBe(true);
+
+      form.reset();
+
+      expect(form.email.touched.value).toBe(false);
+      expect(form.name.dirty.value).toBe(false);
+      expect(form.email.issues.value).toHaveLength(0);
+    });
+  });
+
+  describe('GroupNode - nested', () => {
+    interface NestedForm {
+      user: {
+        name: string;
+        email: string;
+      };
+      settings: {
+        theme: string;
+      };
+    }
+
+    let form: FormGroup<NestedForm>;
+
+    beforeEach(() => {
+      form = formFromFields<NestedForm>({
+        user: {
+          name: { value: 'Initial Name', component: null as ComponentInstance },
+          email: { value: 'initial@mail.com', component: null as ComponentInstance },
+        },
+        settings: {
+          theme: { value: 'light', component: null as ComponentInstance },
+        },
+      });
+    });
+
+    it('should reset nested fields to initialValues', () => {
+      form.user.name.setValue('Changed');
+      form.user.email.setValue('changed@mail.com');
+      form.settings.theme.setValue('dark');
+
+      form.reset();
+
+      expect(form.user.name.value.value).toBe('Initial Name');
+      expect(form.user.email.value.value).toBe('initial@mail.com');
+      expect(form.settings.theme.value.value).toBe('light');
+    });
+
+    it('should reset nested group independently', () => {
+      form.user.name.setValue('Changed');
+      form.settings.theme.setValue('dark');
+
+      // Reset only user group
+      form.user.reset();
+
+      expect(form.user.name.value.value).toBe('Initial Name');
+      expect(form.settings.theme.value.value).toBe('dark'); // Not affected
+    });
+  });
+
+  describe('ModelArrayNode', () => {
+    interface ItemForm {
+      name: string;
+      price: number;
+    }
+
+    let arrayNode: FormArray<ItemForm>;
+
+    beforeEach(() => {
+      arrayNode = arrayFromFields<ItemForm>(
+        {
+          name: { value: '', component: null as ComponentInstance },
+          price: { value: 0, component: null as ComponentInstance },
+        },
+        [
+          { name: 'Initial 1', price: 100 },
+          { name: 'Initial 2', price: 200 },
+        ]
+      );
+    });
+
+    it('should reset to initialItems', () => {
+      // Modify array
+      arrayNode.push({ name: 'New Item', price: 300 });
+      expect(arrayNode.length).toBe(3);
+
+      arrayNode.reset();
+
+      expect(arrayNode.length).toBe(2);
+      expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
+      expect(arrayNode.at(1)?.name.value.value).toBe('Initial 2');
+    });
+
+    it('should reset after reset() with new values', () => {
+      arrayNode.reset([{ name: 'Temp 1', price: 999 }]);
+
+      expect(arrayNode.length).toBe(1);
+      expect(arrayNode.at(0)?.name.value.value).toBe('Temp 1');
+
+      // reset() should restore initialItems
+      arrayNode.reset();
+
+      expect(arrayNode.length).toBe(2);
+      expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
+      expect(arrayNode.at(1)?.name.value.value).toBe('Initial 2');
+    });
+
+    it('should reset from empty array', () => {
+      arrayNode.clear();
+      expect(arrayNode.length).toBe(0);
+
+      arrayNode.reset();
+
+      expect(arrayNode.length).toBe(2);
+      expect(arrayNode.at(0)?.name.value.value).toBe('Initial 1');
+    });
+
+    it('should work with empty initialItems', () => {
+      const emptyArray = arrayFromFields<ItemForm>({
+        name: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
+      });
+
+      emptyArray.push({ name: 'Item', price: 100 });
+      expect(emptyArray.length).toBe(1);
+
+      emptyArray.reset();
+
+      expect(emptyArray.length).toBe(0);
+    });
+  });
+
+  describe('Real-world scenarios', () => {
+    it('should handle Cancel button in form', () => {
+      interface UserForm {
+        email: string;
+        name: string;
+        bio: string;
+      }
+
+      const form = formFromFields<UserForm>({
+        email: { value: 'user@example.com', component: null as ComponentInstance },
+        name: { value: 'John Doe', component: null as ComponentInstance },
+        bio: { value: 'Initial bio', component: null as ComponentInstance },
+      });
+
+      // User edits form
+      form.email.setValue('newemail@example.com');
+      form.name.setValue('Jane Doe');
+      form.bio.setValue('New bio text');
+
+      // User clicks Cancel button
+      form.reset();
+
+      // Form restored to initial state
+      expect(form.getValue()).toEqual({
+        email: 'user@example.com',
+        name: 'John Doe',
+        bio: 'Initial bio',
+      });
+    });
+
+    it('should handle dynamic form with array', () => {
+      interface TodoForm {
+        title: string;
+        items: Array<{ task: string; done: boolean }>;
+      }
+
+      const form = formFromFields<TodoForm>({
+        title: { value: 'My TODO List', component: null as ComponentInstance },
+        items: [
+          {
+            task: { value: 'Initial task', component: null as ComponentInstance },
+            done: { value: false, component: null as ComponentInstance },
+          },
+        ],
+      });
+
+      // User modifies
+      form.title.setValue('Changed Title');
+      form.items.push({ task: 'New task', done: false });
+      form.items.at(0)?.task.setValue('Modified task');
+
+      // Cancel changes
+      form.reset();
+
+      expect(form.title.value.value).toBe('My TODO List');
+      expect(form.items.length).toBe(1);
+      expect(form.items.at(0)?.task.value.value).toBe('Initial task');
+    });
+
+    it('should handle reset with a value and reset without it', () => {
+      const field = new FormControlNode({
+        valueSignal: signal('original'),
+        component: null as ComponentInstance,
+      });
+
+      // Scenario 1: User makes change
+      field.setValue('user change');
+      expect(field.value.value).toBe('user change');
+
+      // Scenario 2: Server updates value via reset()
+      field.reset('server value');
+      expect(field.value.value).toBe('server value');
+
+      // Scenario 3: User cancels and wants original
+      field.reset();
+      expect(field.value.value).toBe('original'); // Back to initial, not server value
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('should work when initial value is null', () => {
+      const field = new FormControlNode<string | null>({
+        valueSignal: signal(null),
+        component: null as ComponentInstance,
+      });
+
+      field.setValue('changed');
+      field.reset();
+
+      expect(field.value.value).toBeNull();
+    });
+
+    it('should work when initial value is empty string', () => {
+      const field = new FormControlNode({
+        valueSignal: signal(''),
+        component: null as ComponentInstance,
+      });
+
+      field.setValue('changed');
+      field.reset();
+
+      expect(field.value.value).toBe('');
+    });
+
+    it('should work when initial value is 0', () => {
+      const field = new FormControlNode({
+        valueSignal: signal(0),
+        component: null as ComponentInstance,
+      });
+
+      field.setValue(100);
+      field.reset();
+
+      expect(field.value.value).toBe(0);
+    });
+
+    it('should work multiple times', () => {
+      const field = new FormControlNode({
+        valueSignal: signal('initial'),
+        component: null as ComponentInstance,
+      });
+
+      // First reset
+      field.setValue('change1');
+      field.reset();
+      expect(field.value.value).toBe('initial');
+
+      // Second reset
+      field.setValue('change2');
+      field.reset();
+      expect(field.value.value).toBe('initial');
+
+      // Third reset
+      field.reset('temp');
+      field.reset();
+      expect(field.value.value).toBe('initial');
+    });
+  });
+});
+
+// Один сброс (решение по ReFormer-k152.14): form.reset() возвращает к той же точке отсчёта, что
+// model.reset(), — значениям создания модели либо последнему captureInitial — и чистит ноды.
+describe('reset() — точка отсчёта модели', () => {
+  interface Loan {
+    enabled: boolean;
+    amount: number;
+  }
+  const initial = (): Loan => ({ enabled: true, amount: 0 });
+
+  // Массив — в интеграционном RL-10: нодой формы он становится по схеме.
+  it('поле возвращается к загруженному (captureInitial), форма и модель не изменены', () => {
+    const model = createModel<Loan>(initial());
+    const form = createFormFromModel<Loan>({ model }) as FormGroup<Loan>;
+    model.patch({ amount: 500 });
+    model.captureInitial();
+
+    form.amount.setValue(900);
+    form.reset();
+
+    expect(model.amount).toBe(500);
+    expect([form.dirty.value, model.isDirty()]).toEqual([false, false]);
+  });
+
+  it('без captureInitial — значения создания модели, как и раньше', () => {
+    const model = createModel<Loan>(initial());
+    const form = createFormFromModel<Loan>({ model }) as FormGroup<Loan>;
+
+    form.amount.setValue(900);
+    form.reset();
+
+    expect(model.amount).toBe(0);
+  });
+
+  it('resetOnDisable — к значению создания ноды, а не к загруженному', async () => {
+    const model = createModel<Loan>(initial());
+    const behavior = defineFormBehavior<Loan>(({ model: m }) => {
+      enableWhen(m.$.amount, () => m.enabled, { resetOnDisable: true });
+    });
+    createFormFromModel<Loan>({ model, behavior });
+    model.patch({ amount: 500 });
+    model.captureInitial();
+    await tick();
+
+    model.enabled = false;
+    await tick();
+
+    expect(model.amount).toBe(0);
+  });
+
+  it('поле над собственным сигналом — к значению, с которым создано', () => {
+    const field = new FormControlNode({
+      valueSignal: signal('created'),
+      component: null as ComponentInstance,
+    });
+    field.setValue('changed');
+    field.reset();
+    expect(field.value.value).toBe('created');
+  });
+});

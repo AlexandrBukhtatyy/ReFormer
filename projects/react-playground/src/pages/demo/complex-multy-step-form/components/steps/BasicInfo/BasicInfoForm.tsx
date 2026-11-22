@@ -1,0 +1,54 @@
+import type { FormGroup } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core/react';
+import { FormField } from '@reformer/ui-kit';
+import { isBusinessLoan, isCarLoan, isMortgage } from '../../../model/predicates';
+import type { CreditApplicationForm } from '../../../types/credit-application';
+
+interface BasicInfoFormProps {
+  control: FormGroup<CreditApplicationForm>;
+}
+
+export function BasicInfoForm({ control }: BasicInfoFormProps) {
+  const loanType = useFormControlValue(control.loanType);
+
+  return (
+    <div className="space-y-6" data-testid="step-basic-info">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Основная информация о кредите
+      </h2>
+      <FormField control={control.loanType} testId="loanType" />
+      <FormField control={control.loanAmount} testId="loanAmount" />
+      <FormField control={control.loanTerm} testId="loanTerm" />
+      <FormField control={control.loanPurpose} testId="loanPurpose" />
+
+      {isMortgage(loanType) && (
+        <>
+          <h3 className="text-lg font-semibold mt-4">Информация о недвижимости</h3>
+          <FormField control={control.propertyValue} testId="propertyValue" />
+          <FormField control={control.initialPayment} testId="initialPayment" />
+        </>
+      )}
+
+      {isCarLoan(loanType) && (
+        <>
+          <h3 className="text-lg font-semibold mt-4">Информация об автомобиле</h3>
+          <FormField control={control.carBrand} testId="carBrand" />
+          <FormField control={control.carModel} testId="carModel" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={control.carYear} testId="carYear" />
+            <FormField control={control.carPrice} testId="carPrice" />
+          </div>
+        </>
+      )}
+
+      {isBusinessLoan(loanType) && (
+        <>
+          <h3 className="text-lg font-semibold mt-4">Информация о бизнесе</h3>
+          <FormField control={control.businessType} testId="businessType" />
+          <FormField control={control.businessInn} testId="businessInn" />
+          <FormField control={control.businessActivity} testId="businessActivity" />
+        </>
+      )}
+    </div>
+  );
+}

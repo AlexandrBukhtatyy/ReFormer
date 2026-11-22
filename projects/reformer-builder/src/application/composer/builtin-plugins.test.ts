@@ -1,0 +1,651 @@
+/**
+ * Проверка САМОЙ композиции — единственного места, где структурные копии типов встречаются
+ * с настоящими вещами платформы.
+ *
+ * Каждый плагин покрыт своими тестами, и все они зелёные, — но проверяют они плагин на своих
+ * двойниках. Ошибка сборки живёт между ними, и её не видит никто: служба, которой плагин ждёт,
+ * а оболочка не даёт, — это не ошибка компиляции, а пустая панель; вклад, ушедший в точку
+ * с другим `id`, теряется молча, потому что реестр ключуется ИМЕНЕМ точки.
+ *
+ * Оба случая в этом проекте уже происходили. Отсюда этот файл.
+ *
+ * С появлением профилей это тест ПОЛНОГО профиля — того состава, который получает человек,
+ * открывший инструмент. Он собирается ровно тем же значением, что уходит в `boot` из
+ * `main.tsx` (`builderApplication`), а не отдельным списком «всех, кого знаем»: список,
+ * собранный для теста, проверял бы сам себя. Что даёт КОРОТКИЙ профиль — вопрос
+ * `compose.test`, и проверяется он там поимённо.
+ *
+ * @module application/composer/builtin-plugins.test
+ */
+
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { describe, expect, it, vi } from 'vitest';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { ExtensionPoint, Plugin } from '@reformer/builder-plugin-api/internal';
+import { createServiceRegistry } from '@/shell/platform/primitives/service';
+import { createSelectionService } from '@/shell/platform/services/selection';
+import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createPluginRegistry } from '@/shell/platform/plugin/registry';
+import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
+import { EditorPoint } from '@reformer/builder-plugin-api/internal';
+import { PanelPoint } from '@reformer/builder-plugin-api/internal';
+import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
+import { builderApplication } from '../builder-application';
+import { PROFILES } from '../profiles/registry';
+import {
+  builtinPluginDirectory,
+  BUILTIN_MANIFESTS,
+  BUILTIN_PLUGIN_NAMESPACE,
+  BUILTIN_PLUGINS,
+  canonicalPluginId,
+} from './builtin-plugins';
+import { fromProfile } from './compose';
+import { stubHostCapabilities } from './testing';
+
+/**
+ * Нижняя граница числа встроенных. Предметное уезжает в плагины приложения, и встроенных
+ * остаётся всё меньше; порог держит одно — что обход папок не пуст.
+ */
+const MIN_BUILTIN = 3;
+
+/** Фабрика состава — `export default` бареля встроенного плагина. Аргументов у неё нет. */
+type BuiltinFactory = () => Plugin;
+
+/**
+ * Барели всех встроенных плагинов — тем же обходом папок, что у карты, но СВОИМ шаблоном:
+ * совпадение найденного с картой и есть проверка, а общий шаблон сверял бы себя с собой.
+ */
+const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>(
+  '../../plugins/*/*/index.ts'
+);
+
+/**
+ * Русский словарь плагина или `null`, если словаря у него нет.
+ *
+ * Читается ДИНАМИЧЕСКИМ импортом по идентификатору, а не статическим списком: список
+ * отстал бы от репозитория молча, и проверка стала бы проверять подмножество, о котором
+ * никто не помнит. Русский, а не английский, потому что он основная локаль, а совпадение
+ * наборов ключей между локалями проверяет отдельный тест.
+ *
+ * Каталог берётся у {@link builtinPluginDirectory}: он зовётся `reformer/ai`, а плагин —
+ * `reformer.ai`, и это РАЗНЫЕ строки.
+ */
+async function loadPluginLocale(id: string): Promise<Record<string, string> | null> {
+  const [domain, plugin] = builtinPluginDirectory(id).split('/');
+  try {
+    // Две подстановки, а не одна: `import()` с шаблоном Vite превращает в glob, где каждая
+    // подстановка — ОДИН сегмент пути, и `plugins/${'домен/плагин'}/…` не нашёл бы ничего.
+    const mod = (await import(`../../plugins/${domain}/${plugin}/locales/ru.json`)) as {
+      default: Record<string, string>;
+    };
+    return mod.default;
+  } catch {
+    return null;
+  }
+}
+
+async function harness() {
+  const services = createServiceRegistry();
+  // Возможности оболочки — до активации, как в `boot`: плагин берёт их из контекста.
+  stubHostCapabilities(services);
+  const extensions = createExtensionRegistry();
+  const commands = createCommandRegistry();
+  const events = createEventBus();
+  const onError = vi.fn();
+  const plugins = createPluginRegistry({
+    services,
+    extensions,
+    commands,
+    events,
+    storage: createMemoryStorageBackend(),
+    onError,
+  });
+
+  // Ждём ОБЕ фазы: состав проверяется целиком, а не только той половиной, что едет в entry.
+  const composed = await builderApplication.load();
+  const built = composed.map((entry) => entry.plugin);
+
+  /** Регистрация как в `boot`: вместе с плагином уходит то, что он ОБЕЩАЛ дать остальным. */
+  const registerComposed = (): void => {
+    for (const entry of composed) plugins.register(entry.plugin, entry.provides);
+  };
+
+  return { built, composed, registerComposed, plugins, extensions, commands, services, onError };
+}
+
+describe('карта встроенных плагинов', () => {
+  it('идентификаторы в карте уникальны: запись не может перекрыть соседнюю', () => {
+    // Идентификатор приезжает из манифеста, и два манифеста с одним именем дали бы карту, где
+    // один плагин молча перекрыл другой. Карта на это бросает при загрузке; здесь то же
+    // утверждается на собранном значении.
+    expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(MIN_BUILTIN);
+  });
+
+  it('в карте — каждая папка с манифестом, и ни одной другой', () => {
+    // Карта собрана обходом папок, а не списком, поэтому проверяется сам обход: шаблон, который
+    // перестал совпадать (переехал файл карты, сменилась глубина каталогов), дал бы пустую
+    // карту и зелёные тесты состава на ней. Диск читается здесь напрямую, мимо шаблона.
+    const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    const onDisk = readdirSync(`${root}/plugins`)
+      .filter((domain) => statSync(`${root}/plugins/${domain}`).isDirectory())
+      .flatMap((domain) =>
+        readdirSync(`${root}/plugins/${domain}`)
+          .filter((plugin) => {
+            const dir = `${root}/plugins/${domain}/${plugin}`;
+            return statSync(dir).isDirectory() && readdirSync(dir).includes('manifest.json');
+          })
+          .map((plugin) => `${domain}/${plugin}`)
+      );
+
+    expect([...BUILTIN_PLUGINS.values()].map((entry) => entry.directory).sort()).toEqual(
+      onDisk.sort()
+    );
+    expect(onDisk.length).toBeGreaterThanOrEqual(MIN_BUILTIN);
+  });
+
+  it('каталог каждого встроенного плагина — `домен/плагин` с его же манифестом', () => {
+    // Каталог — путь, по которому найден манифест (`builtinPluginDirectory`), а не производная
+    // идентификатора: `reformer.editor-schema` лежит в `reformer/editor`. Ошибись он — словарь
+    // не найдётся, а храповики, адресующие папку, замолчат на пустом множестве.
+    const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    const wrong: string[] = [];
+    for (const id of BUILTIN_PLUGINS.keys()) {
+      const directory = builtinPluginDirectory(id);
+      if (directory.split('/').length !== 2) {
+        wrong.push(`${id}: «${directory}» — не «домен/плагин»`);
+        continue;
+      }
+      try {
+        const manifest = JSON.parse(
+          readFileSync(`${root}/plugins/${directory}/manifest.json`, 'utf8')
+        ) as { id?: unknown };
+        if (manifest.id !== id)
+          wrong.push(`${id}: в ${directory} манифест «${String(manifest.id)}»`);
+      } catch {
+        wrong.push(`${id}: нет ${directory}/manifest.json`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('ключ карты — настоящий идентификатор плагина, а не соседнее имя', async () => {
+    // Ключ карты — идентификатор из МАНИФЕСТА, а плагин называет себя сам (`plugin.id`).
+    // Разойтись они могут, и ловится это только здесь — сборкой настоящих плагинов из карты:
+    // заодно проверяется, что у каждой найденной папки фабрика состава есть и отдаёт плагин.
+    const mismatched: string[] = [];
+    for (const [id, entry] of BUILTIN_PLUGINS) {
+      const plugin = await entry.create();
+      if (plugin.id !== id) mismatched.push(`${id} → ${plugin.id}`);
+    }
+
+    expect(mismatched).toEqual([]);
+    // Сборка настоящих плагинов на холодном кэше трансформации не укладывается в 5 с умолчания.
+  }, 30_000);
+
+  it('каждый встроенный живёт в пространстве имён, и прежнее имя ведёт к нему', () => {
+    // Таблица прежних имён ВЫВОДИТСЯ из ключей карты снятием префикса, поэтому запись
+    // без префикса дала бы псевдоним самому себе — то есть прежний конфиг перестал бы
+    // называть этот плагин, и заметить это можно было бы только по собранному составу.
+    const outside = [...BUILTIN_PLUGINS.keys()].filter(
+      (id) => !id.startsWith(BUILTIN_PLUGIN_NAMESPACE)
+    );
+    expect(outside).toEqual([]);
+
+    for (const id of BUILTIN_PLUGINS.keys()) {
+      expect(canonicalPluginId(id.slice(BUILTIN_PLUGIN_NAMESPACE.length))).toBe(id);
+      // Нынешнее имя через таблицу проходит НЕИЗМЕННЫМ: иначе повторное приведение
+      // (конфиг уже переписан человеком) уводило бы имя в несуществующее.
+      expect(canonicalPluginId(id)).toBe(id);
+    }
+  });
+
+  it('встроенные ничего не обещают остальным: возможности дают плагины приложения', () => {
+    // Последним встроенным с возможностью был редактор кода (`reformer.editor`); он уехал
+    // в плагины приложения вместе с проверкой «объявленное манифестом совпадает с токеном» —
+    // она теперь в стенде домена base. Встроенный, который снова что-то пообещает, обязан
+    // получить такую же сверку здесь: версия в манифесте и в токене расходится молча.
+    const promising = [...BUILTIN_PLUGINS.values()]
+      .filter((entry) => (entry.manifest.provides ?? []).length > 0)
+      .map((entry) => entry.manifest.id);
+
+    expect(promising).toEqual([]);
+  });
+
+  it('манифест ЕСТЬ у каждого, он встроенной поставки и назван своим каталогом', () => {
+    // Разбор происходит при загрузке модуля карты и бросает: сюда доходят только разобранные
+    // манифесты, поэтому проверять здесь остаётся то, чего разбор не знает, — что манифест
+    // взят у того плагина, чью фабрику зовёт запись.
+    for (const [id, entry] of BUILTIN_PLUGINS) {
+      expect(entry.manifest.id).toBe(id);
+      expect(entry.manifest.source).toEqual({ kind: 'builtin' });
+    }
+
+    expect(BUILTIN_MANIFESTS.map((manifest) => manifest.id).sort()).toEqual(
+      [...BUILTIN_PLUGINS.keys()].sort()
+    );
+  });
+});
+
+describe('фабрика состава', () => {
+  it('у каждого плагина она есть и не принимает НИЧЕГО: портов оболочка не даёт', async () => {
+    // Раньше фабрика получала набор портов, собранных оболочкой. Теперь всё, что плагину нужно,
+    // он берёт из контекста службами SDK — встроенный наравне с плагином каталога. Параметр
+    // у фабрики означал бы, что кто-то снова собирается что-то передать мимо контекста.
+    const withParameters: string[] = [];
+    const found: string[] = [];
+
+    for (const [file, load] of Object.entries(BARRELS)) {
+      const directory = /\/plugins\/([^/]+\/[^/]+)\/index\.ts$/.exec(file)?.[1] ?? file;
+      found.push(directory);
+      const factory = (await load()).default;
+      if (factory.length > 0) withParameters.push(directory);
+
+      const plugin = factory();
+      expect(builtinPluginDirectory(plugin.id)).toBe(directory);
+    }
+
+    expect(withParameters).toEqual([]);
+    // Обход теста и обход карты нашли одно и то же.
+    expect(found.sort()).toEqual([...BUILTIN_PLUGINS.values()].map((e) => e.directory).sort());
+  }, 30_000);
+});
+
+describe('состав встроенных плагинов', () => {
+  it('активируются ВСЕ до единого', async () => {
+    // Упавший плагин не роняет остальных — это правило платформы, и оно верное. Цена в том,
+    // что здесь отказ выглядел бы как «просто нет панели», а не как красный тест.
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const failed = h.plugins.statuses().filter((s) => s.state !== 'active');
+    expect(failed).toEqual([]);
+    expect(h.onError).not.toHaveBeenCalled();
+  });
+
+  it('объявленное в карте состава РЕГИСТРИРУЕТСЯ: обещание доезжает до реестра служб', async () => {
+    // Объявление `provides` читается ДО загрузки кода и решает, поднимется ли внешний плагин
+    // с `requires`. Соврать в нём — значит отказать соседу по причине, которой нет, или
+    // пустить его к службе, которой не будет. У плагина каталога это стережёт проверка
+    // обещанного (`plugin/registry`, фаза `provides`); здесь проверяется, что встроенные
+    // регистрируются ТЕМ ЖЕ путём — парой «плагин + объявление», как в `boot`.
+    const h = await harness();
+    h.registerComposed();
+    h.plugins.activateAll();
+
+    const declared = h.composed.flatMap((entry) => entry.provides ?? []);
+    // Сегодня встроенные ничего не обещают: обещающие плагины — плагины приложения, и что их
+    // обещанное зарегистрировано, проверяют стенды доменов. Утверждение оставлено для
+    // встроенного, который пообещает снова, — пустой список оно проходит честно.
+    expect(declared.filter((capability) => h.services.get(capability) === undefined)).toEqual([]);
+    // Обратная сторона: ни один не переведён в `failed` за неисполненное обещание.
+    expect(h.plugins.failures().filter((failure) => failure.phase === 'provides')).toEqual([]);
+  });
+
+  it('идентификаторы уникальны', async () => {
+    const ids = (await harness()).built.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('вклады доезжают до НАСТОЯЩИХ точек расширения, а не до двойников', async () => {
+    // Ровно та ошибка, ради которой файл и заведён: плагин объявляет структурную копию точки,
+    // композиция подставляет настоящую, и разойдись они по `id` — вклад ушёл бы в никуда молча.
+    //
+    // Сверяется ПОИМЁННЫЙ состав, а не количество. Порог «не меньше N» эту ошибку
+    // не ловит — проверено мутацией: подмена точки у плагина файлов оставляет панелей
+    // достаточно, чтобы порог прошёл, и вклад теряется незаметно.
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const owners = <T>(point: ExtensionPoint<T>): string[] =>
+      [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
+
+    expect(owners(PanelPoint)).toEqual([
+      // Дерева файлов и панели проблем среди встроенных нет: плагин файлов — плагин приложения.
+      // Ячейка выбора профиля — первая панель слота `statusbar`.
+      'reformer.profile-switch',
+      // Стартовая страница в слоте `editor.main`.
+      'reformer.project',
+    ]);
+    // Поверхности вносит плагин стека: чем рисовать схему — знание стека. Стеки форм и сам
+    // превью-хост — плагины приложения, и в составе встроенных поверхностей нет.
+    expect(owners(PreviewSurfacePoint)).toEqual([]);
+    // Редакторов среди встроенных нет вовсе: и редактор кода — плагин приложения.
+    expect(owners(EditorPoint)).toEqual([]);
+    // Модель документа — вклад редактора стека; без него всё открывается текстом.
+    expect(owners(DocumentModelPoint)).toEqual([]);
+  });
+
+  it('у каждого вклада есть владелец, и он настоящий плагин', async () => {
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const ids = new Set(h.built.map((p) => p.id));
+    // Явными вызовами, а не циклом по массиву точек: точки разнотипны, и массив из них
+    // получил бы тип-объединение, к которому `get` уже не применить.
+    const check = <T>(point: ExtensionPoint<T>): void => {
+      for (const contribution of h.extensions.get(point)) {
+        expect(ids).toContain(contribution.pluginId);
+      }
+    };
+    check(PanelPoint);
+    check(EditorPoint);
+    check(DocumentModelPoint);
+  });
+
+  it('порядок активации ничего не значит', async () => {
+    // Правило объявлено в контракте Э4 и проверено там на выдуманных плагинах. Здесь оно
+    // проверяется на НАСТОЯЩИХ: именно они могут завести неявную зависимость друг от друга
+    // через сервис, которого при обратном порядке ещё нет.
+    const forward = await harness();
+    forward.plugins.registerAll(forward.built);
+    forward.plugins.activateAll();
+
+    const backward = await harness();
+    backward.plugins.registerAll([...backward.built].reverse());
+    backward.plugins.activateAll();
+
+    expect(backward.plugins.statuses().filter((s) => s.state !== 'active')).toEqual([]);
+    expect(backward.extensions.get(PanelPoint).length).toBe(
+      forward.extensions.get(PanelPoint).length
+    );
+  });
+
+  it('каждая команда знает своего владельца', async () => {
+    // Без владельца заголовок команды плагина ищется в словаре оболочки и всегда промахивается.
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const ids = new Set(h.built.map((p) => p.id));
+    const orphans = h.commands
+      .getAll()
+      .filter((c) => c.pluginId === undefined || !ids.has(c.pluginId));
+    expect(orphans.map((c) => c.id)).toEqual([]);
+  });
+
+  it('снятие плагинов убирает все вклады', async () => {
+    // Утечка вклада после выключения означала бы панель от плагина, которого больше нет.
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+    for (const plugin of h.built) h.plugins.deactivate(plugin.id);
+
+    expect(h.extensions.get(PanelPoint)).toEqual([]);
+    expect(h.extensions.get(EditorPoint)).toEqual([]);
+    expect(h.commands.getAll()).toEqual([]);
+  });
+});
+
+describe('проверки выше не пусты', () => {
+  it('вкладов и команд действительно много, а не ноль', async () => {
+    // Тест, который проверяет отсутствие нарушений в пустом списке, проходит всегда
+    // и не значит ничего. Эти числа — нижняя граница того, что композиция обязана дать.
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    expect(h.built.length).toBeGreaterThanOrEqual(MIN_BUILTIN);
+    expect(h.plugins.statuses().length).toBe(h.built.length);
+    // Ячейка профиля и стартовая страница: панели файлов уехали вместе с плагином файлов.
+    expect(h.extensions.get(PanelPoint).length).toBeGreaterThanOrEqual(2);
+    expect(h.commands.getAll().length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('заголовки команд разрешаются в словаре владельца', () => {
+  it('ни одна команда не показывает маркер промаха', async () => {
+    // Дефект, который этот тест ловит, полгода прятался ЗА ТЕСТОМ: проверка палитры была
+    // написана на правильном ключе, которого в коде не было. Она проверяла выдуманный
+    // случай и потому оставалась зелёной.
+    //
+    // Ловушка в том, что пространство имён — ОТДЕЛЬНОЕ ИЗМЕРЕНИЕ, а не приставка к ключу.
+    // `titleKey: 'editor-schema.command.delete'` ищется внутри словаря плагина целиком,
+    // а там лежат `command.delete`, `palette.title` и прочие голые ключи. Промах.
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const dictionaries = new Map<string, Set<string>>();
+    for (const plugin of h.built) {
+      const locale = await loadPluginLocale(plugin.id);
+      if (locale !== null) dictionaries.set(plugin.id, new Set(Object.keys(locale)));
+    }
+
+    const missing = h.commands
+      .getAll()
+      .filter((c) => c.pluginId !== undefined)
+      .filter((c) => {
+        const keys = dictionaries.get(c.pluginId as string);
+        // Плагин без словаря — отдельный разговор: его строки не локализуемы вовсе,
+        // и это дыра контракта, а не промах конкретной команды.
+        return keys !== undefined && !keys.has(c.titleKey);
+      })
+      .map((c) => `${c.pluginId}: ${c.titleKey}`);
+
+    expect(missing).toEqual([]);
+  });
+
+  it('проверка не пуста: словари найдены и команды с владельцем есть', async () => {
+    const h = await harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const owned = h.commands.getAll().filter((c) => c.pluginId !== undefined);
+    expect(owned.length).toBeGreaterThanOrEqual(3);
+
+    // Громкость динамического пути: `import(\`../../plugins/…\`)` в loadPluginLocale резолвится
+    // относительно ЭТОГО файла, а отказ глотается try/catch. Сломай переезд файла этот путь —
+    // проверка ключей выше осталась бы зелёной, сверив пустое множество словарей. Поэтому здесь
+    // утверждается сам факт загрузки: словари у встроенных плагинов действительно находятся.
+    const dictionaries = await Promise.all(h.built.map((p) => loadPluginLocale(p.id)));
+    expect(dictionaries.filter((d) => d !== null).length).toBeGreaterThanOrEqual(MIN_BUILTIN);
+  });
+});
+
+describe('канал выделения насквозь: настоящая служба и оба плагина', () => {
+  /**
+   * Отражение выделения проверено с обеих сторон по отдельности — но во всех тех тестах
+   * канал был ДВОЙНИКОМ службы: плагин не видит платформу и не видит соседний плагин,
+   * это держит линтер. Значит проверка «настоящая служба плюс оба плагина» может жить
+   * только здесь, в композиции, — и без неё двойник остаётся утверждением о службе,
+   * а не её проверкой.
+   */
+  async function connected() {
+    const h = await harness();
+    const selection = createSelectionService();
+    h.services.register(SelectionServiceToken, selection);
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+    return { ...h, selection };
+  }
+
+  it('оба плагина подключились к ОДНОЙ службе, а не к своим двойникам', async () => {
+    const c = await connected();
+    let seen = 0;
+    const off = c.selection.onDidChange(() => (seen += 1));
+
+    c.selection.set('mem:form.json', ['aaaaaaaa']);
+
+    expect(seen).toBe(1);
+    expect(c.selection.get('mem:form.json')).toEqual(['aaaaaaaa']);
+    off.dispose();
+  });
+
+  it('эхо затухает: повтор того же значения не рассылается', async () => {
+    // Единственная защита от бесконечного отражения между канвасом и превью. Рассылка
+    // синхронная, поэтому круг проявился бы переполнением стека, а не медленной работой.
+    const c = await connected();
+    let seen = 0;
+    const off = c.selection.onDidChange(() => (seen += 1));
+
+    c.selection.set('mem:form.json', ['aaaaaaaa']);
+    c.selection.set('mem:form.json', ['aaaaaaaa']);
+    c.selection.set('mem:form.json', [...['aaaaaaaa']]);
+
+    expect(seen).toBe(1);
+    off.dispose();
+  });
+
+  it('выделения разных ресурсов независимы', async () => {
+    // Единственное выделение на приложение пришлось бы гасить при каждом переключении
+    // вкладки, то есть решать за плагины, когда их состояние умирает.
+    const c = await connected();
+
+    c.selection.set('mem:a.json', ['aaaaaaaa']);
+    c.selection.set('mem:b.json', ['bbbbbbbb']);
+
+    expect(c.selection.get('mem:a.json')).toEqual(['aaaaaaaa']);
+    expect(c.selection.get('mem:b.json')).toEqual(['bbbbbbbb']);
+  });
+
+  it('снятие плагинов не оставляет подписок на службе', async () => {
+    // Живая подписка выключенного плагина — это ход, уходящий в объект, которого больше нет.
+    const c = await connected();
+    for (const plugin of c.built) c.plugins.deactivate(plugin.id);
+
+    expect(() => c.selection.set('mem:form.json', ['aaaaaaaa'])).not.toThrow();
+  });
+});
+
+describe('состав и карта: каждый плагин своим файлом', () => {
+  it('ни одна запись карты не осталась невостребованной: её собирает хоть один профиль', async () => {
+    // Карта и профили — разные списки, и разъехаться они могут в обе стороны. Плагин,
+    // добавленный в карту и забытый во всех профилях, не попал бы в приложение вовсе, а тест
+    // состава остался бы зелёным: он проверяет то, что собралось.
+    const used = new Set<string>();
+    for (const profile of PROFILES.values()) {
+      for (const composed of await fromProfile(profile).load()) {
+        used.add(composed.plugin.id);
+      }
+    }
+
+    expect([...used].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
+  });
+
+  it('профиль по умолчанию — вся карта', async () => {
+    // Движков форм среди встроенных нет: всё, что лежит в карте, нужно любому конструктору
+    // и входит в состав по умолчанию. Встроенный плагин вне этого состава был бы предметным
+    // редактором, спорящим за `.json` с движком, который принёс проект.
+    const all = await builderApplication.load();
+
+    expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
+      [...BUILTIN_PLUGINS.keys()].sort()
+    );
+  });
+
+  /**
+   * ХРАПОВИК, ради которого плагины и приезжают своими файлами.
+   *
+   * Плагин приезжает своим файлом ровно до тех пор, пока ни один модуль стартового
+   * графа не импортирует его барель ЗНАЧЕНИЕМ: один такой импорт возвращает плагин в этот граф
+   * целиком, и заметить это можно только сравнив размеры сборки. Именно так и случилось —
+   * шесть портов тянули идентификаторы из барелей, и первая же сборка показала, что из шести
+   * плагинов отделился один. Отсюда проверка: импортировать можно ТИП (стирается компилятором)
+   * и подмодуль `contract` (лист без импортов значений), но не барель.
+   *
+   * Обходятся ДВЕ зоны, и вторая появилась вместе с `application/`: состав уехал из оболочки,
+   * а вместе с ним уехала и возможность промахнуться. Статический импорт бареля плагина
+   * сегодня естественнее всего написать именно здесь — рядом с картой. Обходи храповик один
+   * `shell/`, он стерёг бы то место, где ошибку уже никто не сделает.
+   *
+   * Стережёт он ВСЕ плагины: статических нет, и исключений у правила тоже.
+   */
+  it('стартовый граф не импортирует барель плагина значением', () => {
+    const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    const offenders: string[] = [];
+
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir)) {
+        const full = dir + '/' + entry;
+        if (statSync(full).isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
+        const text = readFileSync(full, 'utf8');
+        for (const id of BUILTIN_PLUGINS.keys()) {
+          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/base/project`, а плагин
+          // зовётся `reformer.project`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
+          // и храповик молча перестал бы стеречь.
+          const directory = builtinPluginDirectory(id);
+          // Барель — это ТОЧНО `@/plugins/<каталог>`: `@/plugins/<каталог>/contract`
+          // под шаблон не подходит.
+          const pattern = new RegExp(
+            "(^|\\n)import\\s+(?!type)[^;]*?from '@/plugins/" + directory + "';",
+            's'
+          );
+          if (pattern.test(text)) offenders.push(full.slice(root.length) + ' → ' + id);
+        }
+      }
+    };
+
+    walk(root + '/shell');
+    walk(root + '/application');
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('храповик не пуст: зоны обойдены и плагины у него есть', () => {
+    // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(MIN_BUILTIN);
+  });
+});
+
+/**
+ * ХРАПОВИК границы «оболочка не знает плагинов».
+ *
+ * Плагин берёт от оболочки всё возможностями, а не портами, — и держится это ровно до первого
+ * импорта: одна строка `import { … } from '@/plugins/base/files'` в `boot` возвращает порт,
+ * а вместе с ним знание о плагине. Импортов `@/plugins` в оболочке нет НИ ОДНОГО: последние
+ * три порта (файлы, редактор кода, markdown) сняты, когда всё нужное им появилось службами SDK.
+ * Отсюда и следствие, ради которого это делалось: любой встроенный плагин можно вынести
+ * из сборки, не тронув оболочку.
+ *
+ * Обходится `shell/` целиком, с тестами, КРОМЕ `shell/boot/integration/`: интеграционные тесты
+ * проверяют собранное приложение и обязаны знать его состав (то же исключение у линтера).
+ * Импорт ТИПА тоже нарушение: тип порта — это и есть знание, которое убрали.
+ */
+describe('оболочка не знает плагинов', () => {
+  const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+
+  const scan = (): { readonly files: number; readonly imported: readonly string[] } => {
+    const imported: string[] = [];
+    let files = 0;
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir)) {
+        const full = dir + '/' + entry;
+        if (statSync(full).isDirectory()) {
+          if (full.endsWith('/shell/boot/integration')) continue;
+          walk(full);
+          continue;
+        }
+        if (!/\.tsx?$/.test(entry)) continue;
+        files += 1;
+        const text = readFileSync(full, 'utf8');
+        // Барель и любой подмодуль: `@/plugins/base/files`, `@/plugins/base/files/contract`.
+        for (const match of text.matchAll(/from '(@\/plugins\/[^']*)'/g)) {
+          imported.push(full.slice(root.length) + ' → ' + String(match[1]));
+        }
+      }
+    };
+    walk(root + '/shell');
+    return { files, imported };
+  };
+
+  it('src/shell не импортирует @/plugins вовсе', () => {
+    expect(scan().imported).toEqual([]);
+  });
+
+  it('храповик не пуст: файлы оболочки обойдены, и плагины, которые можно импортировать, есть', () => {
+    // Сломайся путь обхода — проверка выше осталась бы зелёной на пустом множестве файлов.
+    expect(scan().files).toBeGreaterThan(100);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(MIN_BUILTIN);
+  });
+});

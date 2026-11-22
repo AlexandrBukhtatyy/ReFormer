@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../runtime-config.schema.json",
+  "preset": "builder",
+  "presetChoices": ["builder"],
+  "profiles": [
+    {
+      "id": "builder.base",
+      "name": "Основа конструктора",
+      "plugins": ["reformer.project", "reformer.plugin-manager", "reformer.profile-switch"]
+    },
+    {
+      "id": "builder",
+      "name": "Конструктор",
+      "extends": "builder.base",
+      "plugins": []
+    }
+  ]
+}

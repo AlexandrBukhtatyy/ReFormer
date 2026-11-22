@@ -1,0 +1,20 @@
+{
+  "name": "@reformer/builder-rjsf-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ядро домена RJSF билдера: модель формы rjsf-form/1, разбор, операции, проверка и печать. Не плагин — вкладывается в сборку плагинов домена",
+  "scripts": {
+    "test": "node ../../../../../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-toolkit": "*",
+    "@rjsf/core": "^6.10.1",
+    "@rjsf/utils": "^6.10.1",
+    "@rjsf/validator-ajv8": "^6.10.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

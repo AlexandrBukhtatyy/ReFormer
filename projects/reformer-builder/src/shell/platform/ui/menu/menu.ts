@@ -1,0 +1,671 @@
+/**
+ * Меню приложения: модель вкладов и построение дерева. Всё, что здесь является правилом,
+ * а не отрисовкой.
+ *
+ * ## Меню — проекция реестра команд, а не второй набор действий
+ *
+ * У пункта нет `run`: он ссылается на команду по идентификатору. Это главное решение модуля,
+ * и оно не про экономию. Позволь пункту носить своё тело — и появится действие, которого нет
+ * ни в палитре, ни у ассистента, ни под сочетанием клавиш; дальше оно разойдётся с одноимённой
+ * командой, и разойдётся молча. Отсюда же ответ на «доступен ли пункт»: его даёт
+ * `CommandRegistry.isEnabled`, то есть тот же предикат, что гасит команду везде.
+ *
+ * Единственная добавка к этому ответу — {@link MenuPlacement.enabledWhen}, и она ровно про то,
+ * чего реестр команд знать не может: по чему щёлкнули. Команда одинакова в палитре и в меню,
+ * а «в папку можно, в файл нельзя» — свойство ЦЕЛИ, и вне контекстного меню вопроса не
+ * существует. Вкладом, а не телом пункта: действие остаётся одной командой.
+ *
+ * Следствие, названное явно: **пункт, за которым нет зарегистрированной команды, не рисуется**.
+ * Не серым, а никак — потому что серый пункт обещает, что когда-нибудь станет доступен, а этот
+ * не станет: команды нет вовсе. Та же политика, что у быстрых исправлений (`usableFixes`).
+ *
+ * ## Разделители выводятся из групп, а не вносятся
+ *
+ * Вклада «разделитель» не существует. Пункт объявляет `group`, группы идут по алфавиту
+ * (отсюда соглашение `1_new`, `2_open`), и между соседними НЕПУСТЫМИ группами появляется линия.
+ * Внести висящий разделитель в чужое меню невозможно, а группа, все пункты которой скрылись
+ * по `when`, не оставляет после себя следа — чего вручную расставленные разделители не умеют.
+ *
+ * ## Вложенность — не отдельная возможность
+ *
+ * Подменю адресуется тем же путём, что корень (`file/recent`), поэтому «расширять не только
+ * верхний уровень» — это не функция, а следствие адресации: плагин вносит пункт в `file/recent`
+ * ровно так же, как в `file`. Циклы (подменю, которое содержит себя) обрываются на повторе пути,
+ * а глубина ограничена {@link MAX_MENU_DEPTH} — меню глубже уже не меню.
+ *
+ * ## Что здесь и чего здесь нет
+ *
+ * Есть: отбор по `when`, группы, порядок, разрешение заголовков, рекурсия подменю, зоны корней.
+ * Нет: React, DOM, i18n-сервиса, платформы. Окружение тестов — `node`, и правило «пустая группа
+ * не даёт разделителя» обязано проверяться без браузера. Сочетание возвращается каноническим
+ * (`mod+s`), а не форматированным: как оно выглядит, знает только то место, где известна
+ * платформа.
+ *
+ * Вклады в меню и точка расширения живут в пакете `@reformer/builder-plugin-api`; здесь — сборка
+ * дерева меню, сортировка корней и проверка неизвестных путей.
+ *
+ * @module shell/platform/ui/menu/menu
+ */
+
+import type { ComponentType } from 'react';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
+import { normalizeChord } from '@reformer/builder-plugin-api/internal';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
+import type { TranslateKey } from './palette';
+import {
+  CONTEXT_MENU_IDS,
+  MENU_ROOT_IDS,
+  type MenuContribution,
+  type MenuDynamicContribution,
+  type MenuDynamicItem,
+  type MenuPath,
+  type MenuRootContribution,
+  type MenuRootId,
+  type MenuSubmenuContribution,
+  type MenuTarget,
+} from '@reformer/builder-plugin-api/internal';
+
+/** Ключи заголовков корневых меню в словаре Host. */
+export const MENU_ROOT_TITLE_KEYS: Readonly<Record<MenuRootId, string>> = Object.freeze({
+  file: 'shell.menu.file',
+  help: 'shell.menu.help',
+});
+
+/** Максимальная глубина: корень, подменю, подменю подменю. Дальше — уже не меню. */
+export const MAX_MENU_DEPTH = 3;
+
+/**
+ * Запись, из которой строится меню: вклад плагина либо встроенная запись оболочки.
+ *
+ * `Contribution<MenuContribution>` подходит под этот тип структурно, поэтому реестр отдаёт
+ * свои вклады как есть, а оболочка добавляет собственные через {@link hostMenuEntry} —
+ * с `pluginId: undefined`, что означает «заголовок разрешается словарём Host».
+ */
+export interface MenuEntry {
+  readonly id: string;
+  readonly pluginId?: string;
+  readonly order: number;
+  readonly value: MenuContribution;
+}
+
+/**
+ * Подписка на сигналы вкладов: одна на весь набор.
+ *
+ * Возвращает снятие всех подписок разом. Упавший вклад не мешает остальным: отказ подписки
+ * — его поломка, а не повод оставить поверхность без обновлений вовсе.
+ */
+export function observeMenuEntries(entries: readonly MenuEntry[], cb: () => void): Disposable {
+  const subscriptions: Disposable[] = [];
+  for (const entry of entries) {
+    const observe = entry.value.kind === 'root' ? undefined : entry.value.onDidChange;
+    if (observe === undefined) continue;
+    try {
+      subscriptions.push(observe(cb));
+    } catch (error) {
+      console.error(`[shell] вклад меню «${entry.id}»: подписка отказала`, error);
+    }
+  }
+  return {
+    dispose: () => {
+      for (const subscription of subscriptions) subscription.dispose();
+      subscriptions.length = 0;
+    },
+  };
+}
+
+/** Встроенная запись оболочки: то же, что вклад, но без владельца. */
+export function hostMenuEntry(id: string, value: MenuContribution, order = 0): MenuEntry {
+  return Object.freeze({ id, order, value });
+}
+
+/** Что построению нужно от реестра команд. Сужение ради тестов: подделывать весь реестр незачем. */
+export interface MenuCommandLookup {
+  get(id: string): CommandContribution | undefined;
+  isEnabled(id: string, ctx?: WhenContext): boolean;
+}
+
+/** Почему запись не попала в меню. Код, а не фраза: по нему видно, чинить вклад или команду. */
+export type MenuIssueKind =
+  | 'unknown-command'
+  | 'unknown-menu'
+  | 'predicate-failed'
+  | 'duplicate-root'
+  | 'reserved-root'
+  | 'cycle'
+  | 'too-deep';
+
+/** Что именно не так и у кого. `entryId` — адрес вклада, по нему находится виновник. */
+export interface MenuIssue {
+  readonly kind: MenuIssueKind;
+  readonly entryId: string;
+  readonly pluginId?: string;
+  /** Путь, команда или подменю — то, на что запись ссылалась. */
+  readonly target?: string;
+  readonly error?: unknown;
+}
+
+export interface MenuBuildOptions {
+  readonly entries: readonly MenuEntry[];
+  readonly ctx: WhenContext;
+  /**
+   * По чему вызвали меню. Для шапки отсутствует, для контекстного меню — то, по чему щёлкнули.
+   *
+   * Уходит в предикаты и в {@link MenuItemContribution.argsOf} как есть; сама модель меню
+   * его не интерпретирует (см. {@link MenuTarget}).
+   */
+  readonly target?: MenuTarget;
+  readonly commands: MenuCommandLookup;
+  readonly translate: TranslateKey;
+  /** Запуск команды. Всегда через реестр — общая дверь с палитрой, клавишами и ассистентом. */
+  readonly execute: (commandId: string, args?: unknown) => void;
+  /**
+   * ДЕЙСТВУЮЩЕЕ сочетание команды: ступени в каноническом написании.
+   *
+   * Входом, а не чтением раскладки изнутри, — тем же приёмом, что `translate` и `execute`:
+   * правило сборки меню не тянет за собой службу. Без входа берётся сочетание, объявленное
+   * у команды, — оно верно, пока переопределять его нечем.
+   */
+  readonly chordOf?: (commandId: string) => readonly string[] | undefined;
+  /**
+   * Куда сообщать о записи, которая не попала в меню.
+   *
+   * Молчание здесь хуже шума: пункт, промахнувшийся мимо пути, просто не появляется, и без
+   * сообщения виновника ищут чтением всех плагинов сразу. Раздел «прочее» для промахов был бы
+   * ещё хуже — он превращает опечатку в видимую пользователю строку.
+   */
+  readonly onIssue?: (issue: MenuIssue) => void;
+}
+
+/** Разделитель между группами. Собственного вклада не имеет — выводится из групп. */
+export interface MenuSeparatorNode {
+  readonly kind: 'separator';
+  readonly id: string;
+}
+
+/** Пункт, готовый к показу: заголовок — строка, применимость — уже посчитана. */
+export interface MenuActionNode {
+  readonly kind: 'item';
+  readonly id: string;
+  readonly title: string;
+  readonly enabled: boolean;
+  /** Значок пункта, если он объявлен. Рисует его та поверхность, которой значки нужны. */
+  readonly icon?: ComponentType;
+  /**
+   * Чей это пункт. Есть, когда пункт внесён плагином; у пунктов оболочки отсутствует.
+   *
+   * Нужен не подписи, а СТИЛЯМ: значок рисует чужой компонент, и без контейнера скоупа
+   * (ui/chrome/PluginScope) его CSS не применяется ни к чему. Едет вместе с узлом по той же
+   * причине, по которой рядом едет владелец словаря у декорации: слияние теряет
+   * происхождение, а вернуть его потом неоткуда.
+   */
+  readonly pluginId?: string;
+  /** Галочка/радио. `undefined` — обычный пункт. */
+  readonly checked?: boolean;
+  /**
+   * ДЕЙСТВУЮЩЕЕ сочетание команды: ступени в каноническом написании (`['mod+s']`).
+   * Форматирует его тот, кто знает платформу.
+   *
+   * Массив, а не строка: аккорд — это два НАЖАТИЯ, и подпись обязана показывать их
+   * раздельно, иначе `Ctrl+K Ctrl+S` выглядело бы одним сочетанием из четырёх клавиш.
+   */
+  readonly chord?: readonly string[];
+  readonly run: () => void;
+}
+
+/** Подменю с уже построенным содержимым. Пустых не бывает — они не доходят до этого типа. */
+export interface MenuSubmenuNode {
+  readonly kind: 'submenu';
+  readonly id: string;
+  readonly title: string;
+  /**
+   * Открывается ли подменю. `false` — заголовок на месте, но серый и не раскрывается.
+   *
+   * Отдельно от «пустое подменю не рисуется»: пустое не рисуется потому, что открывать нечего,
+   * а серое — потому, что открывать НЕ К ЧЕМУ ПРИМЕНИТЬ. Первое чинит тот, кто вносил пункты,
+   * второе — тот, кто щёлкнул не по той строке, и разница обязана быть видна ему, а не только
+   * в коде. Содержимое при этом построено: гасит подменю целиком
+   * {@link MenuPlacement.enabledWhen} его заголовка, а не отсутствие доступных пунктов внутри.
+   */
+  readonly enabled: boolean;
+  readonly items: readonly MenuNode[];
+}
+
+export type MenuNode = MenuSeparatorNode | MenuActionNode | MenuSubmenuNode;
+
+/**
+ * Корневое меню шапки.
+ *
+ * `enabled: false` — это «сейчас пусто», и корень остаётся на месте серым. Прятать его нельзя:
+ * «Правка» пуста на markdown-вкладке, и исчезни она — «Вид» уехал бы влево ровно в тот момент,
+ * когда человек к нему тянется.
+ */
+export interface MenuBarNode {
+  readonly id: MenuPath;
+  readonly title: string;
+  readonly enabled: boolean;
+  readonly items: readonly MenuNode[];
+}
+
+/** Действующий порядок записи: собственный `order` важнее порядка регистрации. */
+function entryOrder(entry: MenuEntry): number {
+  return entry.value.order ?? entry.order;
+}
+
+/** Группа записи. Отсутствие — безымянная группа, она идёт первой. */
+function entryGroup(entry: MenuEntry): string {
+  return entry.value.kind === 'root' ? '' : (entry.value.group ?? '');
+}
+
+/**
+ * Видна ли запись сейчас.
+ *
+ * Упавший предикат считается запретом — та же политика, что у панелей и команд: показать
+ * пункт, чей `when` не отработал, значит открыть действие в состоянии, для которого оно
+ * не писалось.
+ */
+function isVisible(
+  entry: MenuEntry,
+  ctx: WhenContext,
+  target: MenuTarget,
+  onIssue?: (i: MenuIssue) => void
+): boolean {
+  if (entry.value.kind === 'root') return true;
+  const when = entry.value.when;
+  if (when === undefined) return true;
+  try {
+    return when(ctx, target) === true;
+  } catch (error) {
+    onIssue?.({ kind: 'predicate-failed', entryId: entry.id, pluginId: entry.pluginId, error });
+    return false;
+  }
+}
+
+/**
+ * Доступность по цели щелчка. Упавший предикат — «недоступен»: запустить действие, условие
+ * которого неизвестно, хуже, чем оставить его серым.
+ */
+function isEnabledAt(
+  entry: MenuEntry,
+  ctx: WhenContext,
+  target: MenuTarget,
+  onIssue?: (i: MenuIssue) => void
+): boolean {
+  if (entry.value.kind === 'root') return true;
+  const enabledWhen = entry.value.enabledWhen;
+  if (enabledWhen === undefined) return true;
+  try {
+    return enabledWhen(ctx, target) === true;
+  } catch (error) {
+    onIssue?.({ kind: 'predicate-failed', entryId: entry.id, pluginId: entry.pluginId, error });
+    return false;
+  }
+}
+
+/** Заголовок пункта: свой ключ разрешается словарём внёсшего, иначе берётся заголовок команды. */
+function itemTitle(
+  entry: MenuEntry,
+  command: CommandContribution,
+  titleKey: string | undefined,
+  translate: TranslateKey
+): string {
+  if (titleKey === undefined) return translate(command.titleKey, command);
+  return translate(titleKey, entry);
+}
+
+/** Состояние переключателя. Упавший предикат — «не отмечен»: галочка не стоит падения меню. */
+function readToggled(
+  entry: MenuEntry,
+  toggled: ((ctx: WhenContext, target: MenuTarget) => boolean) | undefined,
+  ctx: WhenContext,
+  target: MenuTarget,
+  onIssue?: (i: MenuIssue) => void
+): boolean | undefined {
+  if (toggled === undefined) return undefined;
+  try {
+    return toggled(ctx, target) === true;
+  } catch (error) {
+    onIssue?.({ kind: 'predicate-failed', entryId: entry.id, pluginId: entry.pluginId, error });
+    return false;
+  }
+}
+
+/**
+ * Пункт из ссылки на команду — общий путь для статических пунктов и динамических групп.
+ *
+ * `null` означает «команды нет»: пункт не рисуется вовсе, а причина уходит в
+ * {@link MenuBuildOptions.onIssue}.
+ */
+function actionNode(
+  options: MenuBuildOptions,
+  entry: MenuEntry,
+  nodeId: string,
+  spec: {
+    readonly command: string;
+    readonly args?: unknown;
+    readonly title?: string;
+    readonly titleKey?: string;
+    readonly checked?: boolean;
+    readonly icon?: ComponentType;
+    /**
+     * Доступность по цели щелчка — И с ответом реестра команд, а не вместо него.
+     *
+     * Именно И: `enabledWhen` отвечает «применимо ли к этой цели», реестр — «есть ли чему
+     * сработать», и обойти второе первым значило бы дать вкладу включать чужую команду.
+     */
+    readonly enabledAt?: boolean;
+  }
+): MenuActionNode | null {
+  const command = options.commands.get(spec.command);
+  if (command === undefined) {
+    options.onIssue?.({
+      kind: 'unknown-command',
+      entryId: entry.id,
+      pluginId: entry.pluginId,
+      target: spec.command,
+    });
+    return null;
+  }
+  return {
+    kind: 'item',
+    id: nodeId,
+    title: spec.title ?? itemTitle(entry, command, spec.titleKey, options.translate),
+    enabled: options.commands.isEnabled(command.id, options.ctx) && spec.enabledAt !== false,
+    checked: spec.checked,
+    icon: spec.icon,
+    ...(entry.pluginId === undefined ? {} : { pluginId: entry.pluginId }),
+    // Сочетание показывается ТОЛЬКО у пункта без аргументов, потому что клавиши вызывают
+    // команду без них. Найдено запуском: подменю «Панели» — это одна команда с адресом
+    // панели, и каждая строка обещала «Ctrl+B», хотя это сочетание переключает боковую
+    // панель, а не ту, что в строке. Подпись, которая врёт, хуже отсутствующей.
+    chord: spec.args === undefined ? chordOfCommand(options, command) : undefined,
+    run: () => {
+      options.execute(command.id, spec.args);
+    },
+  };
+}
+
+/**
+ * Действующее сочетание команды.
+ *
+ * Раскладка знает про переопределения, объявление у команды — нет. Разбор объявленной строки
+ * идёт через ту же `normalizeChord`, которой пользуется реестр: разъедься написание, подпись
+ * в меню перестала бы совпадать с тем, что нажимают.
+ */
+function chordOfCommand(
+  options: MenuBuildOptions,
+  command: { readonly id: string; readonly keybinding?: string }
+): readonly string[] | undefined {
+  const fromKeymap = options.chordOf?.(command.id);
+  if (fromKeymap !== undefined) return fromKeymap;
+  if (command.keybinding === undefined) return undefined;
+  try {
+    return normalizeChord(command.keybinding);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Пункты одной динамической группы. Упавший поставщик даёт пустую группу, а не пустое меню. */
+function dynamicNodes(
+  options: MenuBuildOptions,
+  entry: MenuEntry,
+  contribution: MenuDynamicContribution,
+  enabledAt: boolean
+): readonly MenuNode[] {
+  let items: readonly MenuDynamicItem[];
+  try {
+    items = contribution.items(options.ctx, options.target);
+  } catch (error) {
+    options.onIssue?.({
+      kind: 'predicate-failed',
+      entryId: entry.id,
+      pluginId: entry.pluginId,
+      error,
+    });
+    return [];
+  }
+
+  const nodes: MenuNode[] = [];
+  for (const item of items) {
+    const node = actionNode(options, entry, `${entry.id}:${item.id}`, {
+      command: item.command,
+      args: item.args,
+      title: item.title,
+      titleKey: item.titleKey,
+      checked: item.toggled,
+      // Группа объявила доступность один раз — на всю группу: её пункты рождаются из одного
+      // ответа на один вопрос, и различать их по цели было бы нечем.
+      enabledAt,
+    });
+    if (node !== null) nodes.push(node);
+  }
+  return nodes;
+}
+
+/**
+ * Узел подменю. `null` — не рисовать: цикл, перебор глубины или пустое содержимое.
+ *
+ * Пустое подменю скрывается целиком, в отличие от пустого корня. Разница не в
+ * непоследовательности: корень держит МЕСТО в шапке, и его исчезновение двигает соседей,
+ * а подменю внутри списка не двигает ничего, зато открывается в никуда.
+ */
+function submenuNode(
+  options: MenuBuildOptions,
+  entry: MenuEntry,
+  contribution: MenuSubmenuContribution,
+  trail: readonly MenuPath[]
+): MenuSubmenuNode | null {
+  const target = contribution.submenu;
+
+  if (trail.includes(target)) {
+    options.onIssue?.({ kind: 'cycle', entryId: entry.id, pluginId: entry.pluginId, target });
+    return null;
+  }
+  if (trail.length >= MAX_MENU_DEPTH) {
+    options.onIssue?.({ kind: 'too-deep', entryId: entry.id, pluginId: entry.pluginId, target });
+    return null;
+  }
+
+  const items = buildItems(options, target, [...trail, target]);
+  if (items.length === 0) return null;
+
+  return {
+    kind: 'submenu',
+    id: entry.id,
+    title: options.translate(contribution.titleKey, entry),
+    // Содержимое строится и у серого подменю: пустое не рисуется вовсе, и не построив его,
+    // отличить «нечего показывать» от «не к чему применить» было бы нечем.
+    enabled: isEnabledAt(entry, options.ctx, options.target, options.onIssue),
+    items,
+  };
+}
+
+/**
+ * Содержимое одного меню: группы, разделители между непустыми, рекурсия в подменю.
+ *
+ * `trail` — путь, по которому сюда пришли. Он и есть защита от цикла: подменю, встретившее
+ * себя, не строится, а сообщает. Иначе проверить нельзя — граф собирается из вкладов
+ * независимых плагинов, и ни один из них не видит целого.
+ */
+function buildItems(
+  options: MenuBuildOptions,
+  path: MenuPath,
+  trail: readonly MenuPath[]
+): readonly MenuNode[] {
+  const groups = new Map<string, MenuNode[]>();
+
+  const placed = options.entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(
+      ({ entry }) =>
+        entry.value.kind !== 'root' &&
+        entry.value.menu === path &&
+        isVisible(entry, options.ctx, options.target, options.onIssue)
+    )
+    .sort(
+      (a, b) =>
+        entryGroup(a.entry).localeCompare(entryGroup(b.entry)) ||
+        entryOrder(a.entry) - entryOrder(b.entry) ||
+        a.index - b.index
+    );
+
+  for (const { entry } of placed) {
+    const value = entry.value;
+    const group = entryGroup(entry);
+    const bucket = groups.get(group) ?? [];
+
+    if (value.kind === 'item') {
+      const node = actionNode(options, entry, entry.id, {
+        command: value.command,
+        // Аргументы по цели важнее объявленных: они и есть ответ на «к чему применить»,
+        // а `args` рядом с ними означал бы два разных ответа на один вопрос.
+        args: value.argsOf === undefined ? value.args : value.argsOf(options.target),
+        titleKey: value.titleKey,
+        icon: value.icon,
+        checked: readToggled(entry, value.toggled, options.ctx, options.target, options.onIssue),
+        enabledAt: isEnabledAt(entry, options.ctx, options.target, options.onIssue),
+      });
+      if (node !== null) bucket.push(node);
+    } else if (value.kind === 'submenu') {
+      const node = submenuNode(options, entry, value, trail);
+      if (node !== null) bucket.push(node);
+    } else if (value.kind === 'dynamic') {
+      bucket.push(
+        ...dynamicNodes(
+          options,
+          entry,
+          value,
+          isEnabledAt(entry, options.ctx, options.target, options.onIssue)
+        )
+      );
+    }
+
+    if (bucket.length > 0) groups.set(group, bucket);
+  }
+
+  const nodes: MenuNode[] = [];
+  for (const [group, bucket] of groups) {
+    if (nodes.length > 0) nodes.push({ kind: 'separator', id: `${path}:${group}:separator` });
+    nodes.push(...bucket);
+  }
+  return nodes;
+}
+
+/** Корни плагинов: отбор, отсев занятых и повторных имён, порядок между собой. */
+function pluginRoots(options: MenuBuildOptions): readonly MenuEntry[] {
+  const seen = new Set<MenuPath>(MENU_ROOT_IDS);
+  const roots: { entry: MenuEntry; index: number }[] = [];
+
+  options.entries.forEach((entry, index) => {
+    if (entry.value.kind !== 'root') return;
+    const id = entry.value.id;
+    if (seen.has(id)) {
+      options.onIssue?.({
+        kind: (MENU_ROOT_IDS as readonly string[]).includes(id)
+          ? 'reserved-root'
+          : 'duplicate-root',
+        entryId: entry.id,
+        pluginId: entry.pluginId,
+        target: id,
+      });
+      return;
+    }
+    seen.add(id);
+    roots.push({ entry, index });
+  });
+
+  return roots
+    .sort((a, b) => entryOrder(a.entry) - entryOrder(b.entry) || a.index - b.index)
+    .map(({ entry }) => entry);
+}
+
+/**
+ * Порядок корней: `file`, затем корни плагинов, затем `help`.
+ *
+ * Зонами, а не сквозным числом. Число пришлось бы объяснять («бери order от 300 до 899»),
+ * и первый же плагин, оставивший `order` незаполненным, встал бы перед «Файлом» — не по злому
+ * умыслу, а потому что ноль это то, что получается само.
+ */
+export function sortMenuRoots(
+  builtin: readonly MenuRootId[],
+  plugins: readonly MenuPath[]
+): readonly MenuPath[] {
+  const head = builtin.filter((id) => id !== 'help');
+  const tail = builtin.filter((id) => id === 'help');
+  return [...head, ...plugins, ...tail];
+}
+
+/**
+ * Строит содержимое ОДНОГО меню по его адресу — то, чем пользуется контекстное меню.
+ *
+ * Та же модель вкладов, тот же отбор, те же группы и разделители, что у шапки: контекстное
+ * меню — не второй механизм, а другой корень. Отсюда прямое следствие: плагин, добавляющий
+ * пункт в меню дерева, пишет ровно такой же вклад, как для «Файла», и его действие остаётся
+ * той же командой — доступной из палитры, с клавиши и ассистенту.
+ *
+ * Пустой результат означает «показывать нечего»: вызывающий сам решает, рисовать ли пустое
+ * меню или не открывать его вовсе.
+ */
+export function buildMenu(options: MenuBuildOptions, path: MenuPath): readonly MenuNode[] {
+  return buildItems(options, path, [path]);
+}
+
+/**
+ * Строит шапку меню целиком.
+ *
+ * Пересчитывается на каждое изменение контекста применимости — как и отбор панелей, и по той
+ * же причине: «виден ли пункт» и «доступен ли он» меняются от переключения вкладки, а не от
+ * перерегистрации вкладов. Отсюда требование к предикатам: чистые и дешёвые.
+ */
+export function buildMenuBar(options: MenuBuildOptions): readonly MenuBarNode[] {
+  const plugins = pluginRoots(options);
+  const titles = new Map<MenuPath, string>();
+  for (const id of MENU_ROOT_IDS) titles.set(id, options.translate(MENU_ROOT_TITLE_KEYS[id]));
+  for (const entry of plugins) {
+    const root = entry.value as MenuRootContribution;
+    titles.set(root.id, options.translate(root.titleKey, entry));
+  }
+
+  const order = sortMenuRoots(
+    MENU_ROOT_IDS,
+    plugins.map((entry) => (entry.value as MenuRootContribution).id)
+  );
+
+  return order.map((id) => {
+    const items = buildItems(options, id, [id]);
+    return { id, title: titles.get(id) ?? id, enabled: items.length > 0, items };
+  });
+}
+
+/**
+ * Пути, на которые ссылаются вклады, но которых нет ни среди корней, ни среди подменю.
+ *
+ * Отдельной функцией, а не проверкой внутри построения: промах по пути нельзя обнаружить,
+ * строя одно меню, — надо знать все объявленные адреса сразу. Зовётся диагностикой и тестом;
+ * само построение такую запись молча пропускает, потому что рисовать её негде.
+ */
+export function unknownMenuPaths(entries: readonly MenuEntry[]): readonly MenuIssue[] {
+  // Контекстные корни известны наравне с корнями шапки: пункт в меню дерева — такой же
+  // законный адрес, как пункт в «Файле», хотя в шапке его никто не увидит.
+  const known = new Set<MenuPath>([...MENU_ROOT_IDS, ...CONTEXT_MENU_IDS]);
+  for (const entry of entries) {
+    const value = entry.value;
+    if (value.kind === 'root') known.add(value.id);
+    if (value.kind === 'submenu') known.add(value.submenu);
+  }
+
+  const issues: MenuIssue[] = [];
+  for (const entry of entries) {
+    const value = entry.value;
+    if (value.kind === 'root') continue;
+    if (known.has(value.menu)) continue;
+    issues.push({
+      kind: 'unknown-menu',
+      entryId: entry.id,
+      pluginId: entry.pluginId,
+      target: value.menu,
+    });
+  }
+  return issues;
+}

@@ -1,0 +1,13 @@
+// validation/gosti.ts — правила шага «Гости»: их проверяет «Далее», отправка — все шаги сразу.
+// Пока файл не правили руками, билдер перегенерирует его из правил формы; правленный не трогает.
+
+import { validate, defineValidation, applyEach } from '@reformer/core/validation';
+import { minLength, required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+
+/** Правила шага «Гости»: их проверяет «Далее». */
+export const stepRules = defineValidation<ZayavkaNaKreditForm>(({ model }) => {
+  applyEach(model.$.guests, ({ model: item }) => {
+    validate(item.$.name, [required(), minLength(2)]);
+  });
+});

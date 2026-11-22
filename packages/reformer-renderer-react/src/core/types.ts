@@ -1,0 +1,442 @@
+/**
+ * Типы для RenderSchema - декларативное описание структуры страницы формы
+ *
+ * RenderSchema отвечает только за layout и условия отображения,
+ * а не за конфигурацию полей (это делает ModelSchema).
+ *
+ * @module reformer/renderer-react/types
+ */
+
+import type { ComponentType, ElementType } from 'react';
+import type { Signal } from '@reformer/core/signals';
+import type {
+  CompiledNode,
+  FormRender,
+  SchemaArrayControl,
+  SchemaArrayNode,
+  SchemaContainerNode,
+  SchemaFieldNode,
+  SchemaPartNode,
+} from '@reformer/core';
+
+// ============================================================================
+// RENDER SCHEMA
+// ============================================================================
+
+/**
+ * Функция создания RenderSchema.
+ *
+ * Возвращает дерево узлов рендеринга. Привязка к данным — ручкой модели в узле
+ * (`model: model.$.x`), поэтому аргумент-путь не нужен.
+ *
+ * @example
+ * ```typescript
+ * const renderSchema: RenderSchemaFn<MyForm> = () => ({
+ *   component: Box,
+ *   children: [
+ *     { model: model.$.email, component: Input },
+ *     { model: model.$.password, component: InputPassword },
+ *   ],
+ * });
+ * ```
+ */
+export type RenderSchemaFn<T> = () => RenderNode<T>;
+
+// ============================================================================
+// RENDER NODE - дискриминированный union
+// ============================================================================
+
+/**
+ * Узел рендеринга формы
+ *
+ * Дискриминированный union из типов узлов:
+ * - ModelFieldRenderNode — поле формы, привязанное к ручке модели: `{ model: model.$.x, component }`
+ * - ArrayRenderNode — массив под-форм: `{ model: model.$.items, item }`, рендер-секция
+ * - PartRenderNode — подформа: `{ model: model.$.group, part }`
+ * - ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
+ */
+export type RenderNode<T> =
+  | ModelFieldRenderNode
+  | ArrayRenderNode<T>
+  | PartRenderNode<T>
+  | ContainerRenderNode<T>;
+
+// ============================================================================
+// TEXT CONTENT
+// ============================================================================
+
+/**
+ * Часть текстового содержимого узла: литерал либо сигнал модели (`model.$.<path>`).
+ * Сигнал подписывается точечно — при его изменении перерисовывается только текст,
+ * а не поддерево узла.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RenderTextPart = string | number | Signal<any>;
+
+/**
+ * Ребёнок контейнера: вложенный узел ЛИБО текстовая часть. Текст — такой же ребёнок, как узел,
+ * поэтому его можно ставить в любую позицию (в том числе ПОСЛЕ вложенного узла), а подряд идущие
+ * части склеиваются без разделителя.
+ *
+ * @example
+ * ```typescript
+ * { component: 'h3', children: ['Итого'] }
+ * { component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] }
+ * { component: 'p', children: [{ component: 'b', children: ['Важно:'] }, ' и далее текст'] }
+ * ```
+ */
+export type RenderChild<T> = RenderNode<T> | RenderTextPart;
+
+// ============================================================================
+// MODEL FIELD / ARRAY RENDER NODE (M1 — единая схема, привязка через сигнал)
+// ============================================================================
+
+/**
+ * Узел-поле единой схемы (M1): значение приходит из СИГНАЛА модели (`model.$.x`),
+ * `component` + `componentProps` — конфиг поля (как в схеме формы). State-нода (errors/disabled)
+ * резолвится по сигналу через реестр сигнал→нода (заполняется `createForm`).
+ *
+ * @example
+ * ```typescript
+ * { model: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип', options } }
+ * ```
+ */
+export interface ModelFieldRenderNode extends SchemaFieldNode {
+  /** UI-компонент поля (в рендере обязателен, в отличие от узла ядра {@link SchemaFieldNode}). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
+  /** Props компонента (+ опц. `testId`/`className`/`fieldWrapper`/`wrapper`). */
+  componentProps?: Record<string, unknown> & {
+    testId?: string;
+    className?: string;
+    fieldWrapper?: ComponentType<FieldWrapperProps>;
+    wrapper?: ElementType;
+  };
+}
+
+/**
+ * Контракт реактивного массива модели для рендера: базовый {@link SchemaArrayControl}
+ * (`__path`/`length`/`at`/`push`/`removeAt`) + `move` для реордера.
+ */
+export interface RenderModelArrayControl extends SchemaArrayControl {
+  /** Переместить элемент (реордер; runtime-фасад модель-массива это уже умеет). */
+  move(from: number, to: number): void;
+}
+
+/**
+ * Один элемент массива, **уже отрендеренный** рендерером и готовый к вставке в разметку.
+ *
+ * Рендерер сам итерирует массив (подписка на структуру, кэш поддеревьев, стабильные ключи) и
+ * отдаёт компоненту-рендереру массива результат — компоненту остаётся только оформление.
+ * Так UI-библиотека не обязана знать ни про сигналы, ни про {@link RenderNode}, ни про хуки
+ * рендерера: она получает обычные props (см. {@link ArrayComponentProps}).
+ */
+export interface ArrayItemSlot {
+  /** Стабильный React-ключ (по идентичности под-модели элемента). */
+  key: React.Key;
+  /** Живой индекс в массиве — для `onRemove(index)` / `onMove(index, …)`. */
+  index: number;
+  /** Под-модель элемента — для меток вида `itemLabel(model, index)`. */
+  model?: unknown;
+  /** Отрендеренное поддерево элемента. */
+  children: React.ReactNode;
+}
+
+/**
+ * Контракт компонента-рендерера массива (`{ array, item, component }` → `$component(FieldArray)`
+ * / `$component(List)`): готовые элементы + мутации массива обычными колбэками.
+ *
+ * Компонент — «humble object»: он не подписывается на модель и не вызывает хуки рендерера,
+ * поэтому реализовать его может любая UI-библиотека (и протестировать на фейковых `items`
+ * вообще без формы). Всё, что сверх этих полей, приходит из `componentProps` узла.
+ *
+ * @example Минимальный список
+ * ```tsx
+ * function MyList({ items }: ArrayComponentProps) {
+ *   return <ul>{items.map((it) => <li key={it.key}>{it.children}</li>)}</ul>;
+ * }
+ * ```
+ */
+export interface ArrayComponentProps {
+  /** Отрендеренные элементы массива в порядке следования. */
+  items: ArrayItemSlot[];
+  /** Добавить элемент по шаблону массива: `arrayOf(blank)` в модели либо `initialValue` узла. */
+  onAdd(): void;
+  /** Удалить элемент по индексу. */
+  onRemove(index: number): void;
+  /** Переместить элемент (реордер). */
+  onMove(from: number, to: number): void;
+}
+
+/**
+ * Узел-массив единой схемы (M1): данные принадлежат модели, форма элемента описывается
+ * `item(model)`. `createForm` материализует `FormArray`, рендерер итерирует элементы и рисует
+ * поддерево строки (листья на сигналах под-модели). Шаблон нового элемента для «Добавить» — в
+ * модели: `arrayOf(blank)`.
+ *
+ * @example
+ * ```typescript
+ * { model: model.$.coBorrowers, component: FieldArray,
+ *   item: (model) => ({ component: Box, children: [{ model: model.$.phone, component: Input }] }) }
+ * ```
+ */
+export interface ArrayRenderNode<T> extends SchemaArrayNode {
+  /**
+   * Компонент-рендерер массива (из `$component(...)`): секция с add/remove/reorder либо
+   * chrome-less список. Итерирует **рендерер**, а компонент получает результат обычными props —
+   * {@link ArrayComponentProps} (`items` + `onAdd`/`onRemove`/`onMove`) плюс `componentProps` узла.
+   *
+   * Без `component` узел рендерится безхромным fallback'ом (только элементы, без кнопок) —
+   * зарегистрируй `FieldArray` из `@reformer/ui-kit` или свой компонент, если нужен UI управления.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component?: ComponentType<any>;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (model: any) => RenderNode<T>;
+  /** Оформление секции массива. */
+  componentProps?: {
+    title?: string;
+    addButtonLabel?: string;
+    removeButtonLabel?: string;
+    emptyMessage?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemLabel?: string | ((itemModel: any, index: number) => string);
+    className?: string;
+    cardClassName?: string;
+    /** Показывать кнопки ↑/↓ перестановки элементов. По умолчанию `false`. */
+    reorderable?: boolean;
+    [key: string]: unknown;
+  };
+}
+
+// ============================================================================
+// PART RENDER NODE — подформа
+// ============================================================================
+
+/**
+ * Узел-подформа: часть схемы, подключённая к группе модели. Часть объявляется один раз как
+ * функция от под-модели и ставится в схему сколько угодно раз — к разным группам той же формы
+ * данных.
+ *
+ * У части своя область схемы: `selector` внутри неё ищется из поведения, подключённого к той же
+ * группе (`apply(model.$.group, groupBehavior)`), и два монтирования одной части не конфликтуют.
+ *
+ * @example
+ * ```typescript
+ * const address = (model: FormModel<Address>) => ({
+ *   component: Box,
+ *   children: [{ model: model.$.city, component: Input, componentProps: { label: 'Город' } }],
+ * });
+ *
+ * { model: model.$.registrationAddress, part: address }
+ * ```
+ */
+export interface PartRenderNode<T> extends SchemaPartNode {
+  /** Часть схемы: под-модель группы → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  part: (model: any) => RenderNode<T>;
+}
+
+// ============================================================================
+// CONTAINER RENDER NODE
+// ============================================================================
+
+/**
+ * Props контейнера **в узле схемы** (`ContainerRenderNode.componentProps`) — декларативный конфиг.
+ * Дочерние узлы задаются через `ContainerRenderNode.children`, а не здесь; `children` тут нет.
+ *
+ * Не путать с {@link ContainerComponentProps} — тот описывает **runtime-props**, которые
+ * компонент-контейнер получает при рендере (уже с отрисованными `children: ReactNode`).
+ */
+export interface ContainerRenderNodeProps {
+  /** CSS класс для контейнера */
+  className?: string;
+
+  /** Произвольные props для компонента контейнера */
+  [key: string]: unknown;
+}
+
+/**
+ * Узел контейнера (Box, Section, Collapsible и т.д.) либо нативной HTML-вёрстки (`'div'`, `'p'`,
+ * `'h3'`, `'hr'`) — они различаются только типом `component` и рендерятся одной веткой.
+ *
+ * **Важно:** `children` — это TOP-LEVEL свойство узла, НЕ часть `componentProps`.
+ * Если положить `children` внутрь `componentProps`, то `node.children` будет undefined
+ * и рендерер ничего не отрисует (он деструктурирует `const { children } = node`).
+ *
+ * @example Контейнер-компонент
+ * ```typescript
+ * {
+ *   component: Section,
+ *   componentProps: {
+ *     title: 'Личные данные',
+ *     className: 'grid grid-cols-2 gap-4',
+ *   },
+ *   children: [
+ *     { model: model.$.firstName, component: Input },
+ *     { model: model.$.lastName, component: Input },
+ *   ],
+ * }
+ * ```
+ *
+ * @example HTML-тег с текстом (реактивным)
+ * ```typescript
+ * {
+ *   component: 'div',
+ *   componentProps: { className: 'p-4 bg-blue-50 rounded-md' },
+ *   children: [
+ *     { component: 'h3', children: ['Итого'] },
+ *     { component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
+ *   ],
+ * }
+ * ```
+ */
+export interface ContainerRenderNode<T> extends SchemaContainerNode {
+  /**
+   * React-компонент контейнера либо нативный HTML-тег строкой (`'div'`, `'section'`, `'p'`).
+   * В рендере обязателен. Для тега `componentProps` — это DOM-атрибуты (`className`, `id`,
+   * `aria-*`), а `selector` в DOM НЕ пробрасывается (он адресует узел, а не элемент).
+   */
+  component: ElementType;
+
+  /**
+   * Содержимое узла: вложенные узлы и текстовые части ({@link RenderChild}) в любом порядке.
+   * Текст — литерал, число или сигнал модели; подряд идущие части склеиваются без разделителя,
+   * а сигнал подписывается точечно (перерисовывается только текст, а не поддерево).
+   * Void-теги (`hr`, `br`, `img`) содержимого не имеют — `children` для них игнорируются.
+   */
+  children?: RenderChild<T>[];
+
+  /** Props для компонента-контейнера (className, title и т.д.) */
+  componentProps?: ContainerRenderNodeProps;
+}
+
+// ============================================================================
+// FORM RENDERER
+// ============================================================================
+
+/**
+ * Props для компонента-обёртки поля
+ *
+ * Обёртка получает control и рендерит label, input и errors.
+ */
+export interface FieldWrapperProps {
+  /** Контрол поля */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: any;
+  /** CSS класс */
+  className?: string;
+  /** Дочерний элемент (отрендеренный input) */
+  children: React.ReactNode;
+  /**
+   * testId для генерации data-testid на wrapper/label/error.
+   * Выводится рендерером из пути сигнала (`model.$.<path>`, точки → дефисы)
+   * или переопределяется через `componentProps.testId`.
+   */
+  testId?: string;
+}
+
+/**
+ * Адаптер поля — общий тип ядра (`@reformer/core`). Реэкспортируется здесь для обратной
+ * совместимости импорта из рендерера. Контрол объявляет свой адаптер статикой
+ * `reformerAdapter`; {@link RendererSettings.resolveFieldAdapter} нужен только для чужих
+ * компонентов, на которые статику не повесить.
+ */
+export type { FieldAdapter } from '@reformer/core/react';
+import type { FieldAdapter } from '@reformer/core/react';
+
+/**
+ * Настройки рендерера формы
+ */
+export interface RendererSettings {
+  /**
+   * Компонент-обёртка для полей (опционально)
+   *
+   * Если указан, каждое поле будет обёрнуто этим компонентом.
+   * Обёртка отвечает за рендеринг label, errors и т.д.
+   */
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /**
+   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`) — для компонентов, которые
+   * НЕ объявляют свой диалект статикой `reformerAdapter` (компоненты сторонних библиотек).
+   * Приоритет: этот резолв → статика компонента → value-based seam как есть. Позволяет подключать
+   * сырые компоненты любого UI-kit, не оборачивая каждый контрол.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
+}
+
+/**
+ * Props для FormRenderer
+ */
+export interface FormRendererProps<T> {
+  /**
+   * Функция создания RenderSchema (или RenderSchemaProxy из createRenderSchema).
+   * Опционален, если задан `form`.
+   */
+  render?: RenderSchemaFn<T>;
+
+  /**
+   * Бандл сборки `createForm` (`@reformer/core`) — готовое дерево и схема-контроллер в
+   * `form.render`. Тип структурный намеренно: слой типов рендерера не зависит от сборки.
+   *
+   * Приоритет: явный `render` → `form`.
+   */
+  form?: { render: FormRender };
+
+  /**
+   * Настройки рендерера
+   *
+   * @example
+   * ```tsx
+   * <FormRenderer form={myForm} settings={{ fieldWrapper: FormField }} />
+   * ```
+   */
+  settings?: RendererSettings;
+}
+
+// ============================================================================
+// SELF-MANAGED CHILDREN
+// ============================================================================
+
+/**
+ * Функция отрисовки узла схемы — проп `renderNode`, который рендерер передаёт компонентам со
+ * статикой `__selfManagedChildren = true` (визард, табы). Компонент получает узлы-детей данными —
+ * узлы скомпилированной схемы ({@link CompiledNode}: `selector`, `props`, `children`) — и рисует
+ * нужные сам, не импортируя рендерер.
+ *
+ * @example
+ * ```tsx
+ * function Tabs({ children, renderNode }: { children: CompiledNode[]; renderNode: RenderNodeFn }) {
+ *   const [active] = useState(0);
+ *   return <div>{renderNode(children[active])}</div>;
+ * }
+ * Tabs.__selfManagedChildren = true;
+ * ```
+ */
+export type RenderNodeFn = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  node: CompiledNode | RenderNode<any>,
+  key?: React.Key
+) => React.ReactNode;
+
+// ============================================================================
+// CONTAINER COMPONENT PROPS
+// ============================================================================
+
+/**
+ * **Runtime-props** компонента-контейнера: то, что компонент получает при рендере (с уже
+ * отрисованными `children`). Не путать с {@link ContainerRenderNodeProps} — тот описывает
+ * декларативный `componentProps` контейнера в узле схемы (без `children`).
+ */
+export interface ContainerComponentProps {
+  /** CSS класс */
+  className?: string;
+
+  /** Дочерние элементы (рендерятся FormRenderer) */
+  children?: React.ReactNode;
+
+  /** Произвольные дополнительные props */
+  [key: string]: unknown;
+}

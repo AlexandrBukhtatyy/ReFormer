@@ -1,0 +1,62 @@
+[
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.formStart({ dir: \"form\", target: \"@reformer/renderer-react\", task: \"Сделай форму по спецификации из файла `spec.md`. Стек: `@reformer/renderer-react`, разметку рисует `FormRenderer` по схеме на TS.\", specPath: \"spec.md\" }))",
+    "answer": "✓ form_start: the plan of «Оформление заказа» on renderer-react is saved.",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return {f: form.fields.map(f=>[f.name,f.type,f.component,f.rules.join('|'),f.options?1:0].join(';')), a: form.arrays, v: form.visibility, b: form.behaviors, api: api.map(a=>a.signature)}",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.slice(16).map(a=>a.on+'.'+a.signature+' — '+a.doc.slice(0,160)).join('\\n')",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "search",
+    "code": "return api.slice(16).slice(35).map(a=>a.on+'.'+a.signature+' — '+a.doc.slice(0,200)+(a.example?' EX: '+a.example:'')).join('\\n')",
+    "answer": "",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.field(\"customerType\").initial(\"person\").options([{value:\"person\",label:\"Физическое лицо\"},{value:\"company\",label:\"Юридическое лицо\"}]).required(\"Выберите тип покупателя\");\nf.field(\"contact.lastName\").removeRule().required(\"Введите фамилию\").minLength(2,\"Минимум 2 символа\");\nf.field(\"contact.firstName\").removeRule().required(\"Введите имя\").minLength(2,\"Минимум 2 символа\");\nf.field(\"email\").removeRule().required(\"Введите email\").email(\"Некорректный email\");\nf.field(\"phone\").mask(\"+7 (999) 999-99-99\").removeRule().required(\"Введите телефон\").pattern(/^\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}$/,\"Формат +7 (999) 999-99-99\");\nf.field(\"birthDate\").type(\"date\").removeRule().required(\"Укажите дату рождения\").rule(\"minAge(18)\",\"Покупателю должно быть не меньше 18 лет\").when(m=>m.customerType===\"person\").showWhen(m=>m.customerType===\"person\");\nf.field(\"company.name\").removeRule().required(\"Введите название организации\").when(m=>m.customerType===\"company\").showWhen(m=>m.customerType===\"company\");\nf.field(\"company.inn\").removeRule().required(\"Введите ИНН\").pattern(/^\\d{10}$/,\"ИНН — 10 цифр\").check(m=>!/^\\d{10}$/.test(m.company.inn)||((2*Number(m.company.inn[0])+4*Number(m.company.inn[1])+10*Number(m.company.inn[2])+3*Number(m.company.inn[3])+5*Number(m.company.inn[4])+9*Number(m.company.inn[5])+4*Number(m.company.inn[6])+6*Number(m.company.inn[7])+8*Number(m.company.inn[8]))%11)%10===Number(m.company.inn[9]),\"Неверная контрольная сумма ИНН\").when(m=>m.customerType===\"company\").showWhen(m=>m.customerType===\"company\");\nf.field(\"deliveryMethod\").initial(\"pickup\").options([{value:\"pickup\",label:\"Самовывоз\"},{value:\"courier\",label:\"Курьер\"},{value:\"post\",label:\"Почта\"}]).required(\"Выберите способ получения\");\nconst da={\"deliveryAddress.city\":\"Введите город\",\"deliveryAddress.street\":\"Введите улицу\",\"deliveryAddress.house\":\"Введите дом\"};\nfor(const k in da) f.field(k).removeRule().required(da[k]).when(m=>m.deliveryMethod!==\"pickup\").disableWhen(m=>m.deliveryMethod===\"pickup\",{resetOnDisable:true});\nf.field(\"deliveryDate\").removeRule().required(\"Выберите дату доставки\").future(\"Дата доставки — не раньше завтрашнего дня\").when(m=>m.deliveryMethod===\"courier\").showWhen(m=>m.deliveryMethod===\"courier\").resetWhen(m=>m.deliveryMethod!==\"courier\");\nf.field(\"billingSame\").initial(true);\nconst ba={\"billingAddress.city\":\"Введите город\",\"billingAddress.street\":\"Введите улицу\",\"billingAddress.house\":\"Введите дом\"};\nconst src={\"billingAddress.city\":\"deliveryAddress.city\",\"billingAddress.street\":\"deliveryAddress.street\",\"billingAddress.house\":\"deliveryAddress.house\"};\nfor(const k in ba) f.field(k).removeRule().required(ba[k]).when(m=>!m.billingSame).disableWhen(m=>m.billingSame).copyFrom(src[k],m=>m.billingSame);\nconst it=f.array(\"items\",\"Товары\",{min:1,max:10});\nit.required(\"Добавьте хотя бы один товар\").max(10,\"Не больше 10 товаров\");\nit.column(\"title\").required(\"Введите наименование\");\nit.column(\"quantity\").required(\"Укажите количество\").rule(\"integer()\",\"Количество — целое число\").min(1,\"Минимум 1\").max(99,\"Максимум 99\");\nit.column(\"price\").required(\"Укажите цену\").min(0,\"Цена не может быть отрицательной\");\nit.column(\"lineTotal\").readonly().compute(r=>(r.quantity||0)*(r.price||0));\nf.field(\"subtotal\").readonly().compute(m=>m.items.reduce((s,r)=>s+(r.lineTotal||0),0));\nf.field(\"promoCode\").transform(v=>(v??\"\").toUpperCase()).asyncCheck(v=>!v||v===\"SALE10\"||v===\"SALE20\",{delay:300,message:\"Промокод не найден\"});\nf.field(\"discount\").component(\"Slider\").initial(0).min(0,\"Скидка не может быть отрицательной\").max(30,\"Скидка не больше 30%\").enableWhen(m=>m.customerType===\"company\",{resetOnDisable:true});\nf.field(\"total\").readonly().compute(m=>Math.round(m.subtotal*(1-m.discount/100)*100)/100).warning(m=>m.total<=100000,\"Крупный заказ: менеджер свяжется для подтверждения\");\nf.field(\"paymentMethod\").initial(\"card\").options([{value:\"card\",label:\"Картой онлайн\"},{value:\"cash\",label:\"При получении\"},{value:\"invoice\",label:\"По счёту\"}]).removeRule().required(\"Выберите способ оплаты\").check(m=>m.paymentMethod!==\"invoice\"||m.customerType===\"company\",\"Оплата по счёту — только для юридических лиц\").setOnChange(\"customerType\",m=>m.customerType===\"person\"&&m.paymentMethod===\"invoice\",\"card\");\nf.field(\"receiptEmail\").removeRule().email(\"Некорректный email для чека\").sync(\"email\");\nf.field(\"comment\").maxLength(500,\"Не больше 500 символов\");\nconst rc=f.array(\"recipients\",\"Кому отправлять уведомления\");\nrc.column(\"email\").required(\"Введите email получателя\").email(\"Некорректный email получателя\");\nrc.column(\"primary\").exclusive();\nrc.startRows([{primary:true}]);\nf.field(\"agreeTerms\").removeRule().required(\"Нужно принять условия оферты\");\nf.field(\"sources\").options([{value:\"search\",label:\"Поиск\"},{value:\"friends\",label:\"Друзья\"},{value:\"ads\",label:\"Реклама\"},{value:\"other\",label:\"Другое\"}]);\nf.submit(\"Оформить заказ\");\nconsole.log(await f.save())",
+    "answer": "form_edit: 99 of 99 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nconst s = i => `Number(String(m.company.inn ?? \"\")[${i}])`;\nf.field(\"company.inn\").removeRule().required(\"Введите ИНН\").pattern(/^\\d{10}$/,\"ИНН — 10 цифр\").check(m=>!/^\\d{10}$/.test(String(m.company.inn ?? \"\"))||((2*Number(String(m.company.inn ?? \"\")[0])+4*Number(String(m.company.inn ?? \"\")[1])+10*Number(String(m.company.inn ?? \"\")[2])+3*Number(String(m.company.inn ?? \"\")[3])+5*Number(String(m.company.inn ?? \"\")[4])+9*Number(String(m.company.inn ?? \"\")[5])+4*Number(String(m.company.inn ?? \"\")[6])+6*Number(String(m.company.inn ?? \"\")[7])+8*Number(String(m.company.inn ?? \"\")[8]))%11)%10===Number(String(m.company.inn ?? \"\")[9]),\"Неверная контрольная сумма ИНН\").when(m=>m.customerType===\"company\");\nf.field(\"subtotal\").removeBehavior(\"compute\").compute(m=>m.items.toArray().reduce((s,r)=>s+(r.lineTotal||0),0));\nconsole.log(await f.save())",
+    "answer": "form_edit: 5 of 6 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "const f = reformer.form();\nf.field(\"subtotal\").compute(m=>Array.from(m.items).reduce((s,r)=>s+(r.lineTotal||0),0));\nconsole.log(await f.save())",
+    "answer": "form_edit: 1 of 1 edits applied.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log(await reformer.form().confirm(\"validation\"))",
+    "answer": "Not confirmed yet — the form differs from the task:",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log((await reformer.form().confirm(\"validation\")).slice(0,600))",
+    "answer": "Stage validation checked against the task.",
+    "error": false
+  },
+  {
+    "tool": "execute",
+    "code": "console.log((await reformer.form().status()).slice(-700))",
+    "answer": "Done: the form is built, every stage of the plan is complete and the types are checked.",
+    "error": false
+  }
+]

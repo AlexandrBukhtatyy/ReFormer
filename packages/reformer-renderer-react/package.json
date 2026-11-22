@@ -1,0 +1,77 @@
+{
+  "name": "@reformer/renderer-react",
+  "version": "6.0.0",
+  "description": "UI renderer for @reformer/core",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
+    "build": "npm run generate:llms && vite build",
+    "build:stackblitz": "vite build",
+    "dev": "vite",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch"
+  },
+  "keywords": [
+    "react",
+    "forms",
+    "reformer",
+    "renderer",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-renderer-react"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt",
+    "llms-index.json",
+    "docs/llms"
+  ],
+  "peerDependencies": {
+    "@reformer/core": "*",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/utils": "^4.0.8",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

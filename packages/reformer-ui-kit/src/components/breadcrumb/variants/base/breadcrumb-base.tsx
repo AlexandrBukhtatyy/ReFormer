@@ -1,0 +1,110 @@
+import { useKitMessages } from '@/i18n/messages';
+import * as React from 'react';
+import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
+import { Slot } from 'radix-ui';
+
+import { cn } from '@/lib/utils';
+
+// Порт shadcn/ui (new-york-v4) breadcrumb. Правки: unified `radix-ui` (Slot.Root),
+// `@/lib/utils`, lucide-иконки с суффиксом `Icon` (конвенция репозитория), снят 'use client'.
+// Презентационный compound-набор семантической разметки (nav / ol / li / a / span) — не Radix-примитив
+// и не form-control. Каждая часть несёт собственный data-slot. Стили — Tailwind внутри реализации.
+
+function Breadcrumb({ ...props }: React.ComponentProps<'nav'>) {
+  const t = useKitMessages();
+  return <nav aria-label={t('kit.breadcrumb.label')} data-slot="breadcrumb" {...props} />;
+}
+
+function BreadcrumbList({ className, ...props }: React.ComponentProps<'ol'>) {
+  return (
+    <ol
+      data-slot="breadcrumb-list"
+      className={cn(
+        'flex flex-wrap items-center gap-1.5 text-sm break-words text-muted-foreground sm:gap-2.5',
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function BreadcrumbItem({ className, ...props }: React.ComponentProps<'li'>) {
+  return (
+    <li
+      data-slot="breadcrumb-item"
+      className={cn('inline-flex items-center gap-1.5', className)}
+      {...props}
+    />
+  );
+}
+
+function BreadcrumbLink({
+  asChild,
+  className,
+  ...props
+}: React.ComponentProps<'a'> & {
+  asChild?: boolean;
+}) {
+  const Comp = asChild ? Slot.Root : 'a';
+
+  return (
+    <Comp
+      data-slot="breadcrumb-link"
+      className={cn('transition-colors hover:text-foreground', className)}
+      {...props}
+    />
+  );
+}
+
+function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
+  return (
+    <span
+      data-slot="breadcrumb-page"
+      role="link"
+      aria-disabled="true"
+      aria-current="page"
+      className={cn('font-normal text-foreground', className)}
+      {...props}
+    />
+  );
+}
+
+function BreadcrumbSeparator({ children, className, ...props }: React.ComponentProps<'li'>) {
+  return (
+    <li
+      data-slot="breadcrumb-separator"
+      role="presentation"
+      aria-hidden="true"
+      className={cn('[&>svg]:size-3.5', className)}
+      {...props}
+    >
+      {children ?? <ChevronRightIcon />}
+    </li>
+  );
+}
+
+function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<'span'>) {
+  const t = useKitMessages();
+  // Расхождение с апстримом: там `role="presentation"` + `aria-hidden` на всей обёртке прятали
+  // и sr-only подпись «Ещё» — свёрнутые звенья скринридер не объявлял. Иконку lucide прячет сама.
+  return (
+    <span
+      data-slot="breadcrumb-ellipsis"
+      className={cn('flex size-9 items-center justify-center', className)}
+      {...props}
+    >
+      <MoreHorizontalIcon className="size-4" />
+      <span className="sr-only">{t('kit.breadcrumb.more')}</span>
+    </span>
+  );
+}
+
+export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
+};

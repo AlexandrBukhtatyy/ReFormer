@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    # main — для promote develop → main; develop — чтобы feature → develop
+    # PR проверялись ДО merge (раньше PR в develop шли без CI).
+    branches: [main, develop]
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  # e2e стенда react-playground из CI временно снят: прогон не укладывался в 90 минут и
+  # отменялся, ничего не сообщая. Вернуть быстрым — техдолг ReFormer-f2cd (там же прежняя
+  # конфигурация джоба). Локально: `npx playwright test` в projects/react-playground-e2e.

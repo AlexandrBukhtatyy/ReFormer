@@ -1,0 +1,127 @@
+{
+  "name": "@reformer/cdk",
+  "version": "6.0.0",
+  "description": "Headless UI components for @reformer/core - form arrays, multi-step wizards, and more",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./async-boundary": {
+      "types": "./dist/async-boundary.d.ts",
+      "import": "./dist/async-boundary.js"
+    },
+    "./field-array": {
+      "types": "./dist/field-array.d.ts",
+      "import": "./dist/field-array.js"
+    },
+    "./list": {
+      "types": "./dist/list.d.ts",
+      "import": "./dist/list.js"
+    },
+    "./form-wizard": {
+      "types": "./dist/form-wizard.d.ts",
+      "import": "./dist/form-wizard.js"
+    },
+    "./form-field": {
+      "types": "./dist/form-field.d.ts",
+      "import": "./dist/form-field.js"
+    },
+    "./file-upload": {
+      "types": "./dist/file-upload.d.ts",
+      "import": "./dist/file-upload.js"
+    },
+    "./option-source": {
+      "types": "./dist/option-source.d.ts",
+      "import": "./dist/option-source.js"
+    },
+    "./autocomplete": {
+      "types": "./dist/autocomplete.d.ts",
+      "import": "./dist/autocomplete.js"
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js"
+    },
+    "./locale/en": {
+      "types": "./dist/locale/en.d.ts",
+      "import": "./dist/locale/en.js"
+    },
+    "./locale/ru": {
+      "types": "./dist/locale/ru.d.ts",
+      "import": "./dist/locale/ru.js"
+    },
+    "./locale/en.json": "./dist/locale/en.json",
+    "./locale/ru.json": "./dist/locale/ru.json",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
+    "build": "npm run generate:llms && vite build",
+    "build:stackblitz": "vite build",
+    "dev": "vite",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch"
+  },
+  "keywords": [
+    "react",
+    "forms",
+    "headless-ui",
+    "compound-components",
+    "field-array",
+    "multi-step-form",
+    "wizard",
+    "reformer",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-cdk"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt",
+    "llms-index.json",
+    "docs/llms"
+  ],
+  "peerDependencies": {
+    "@reformer/core": "*",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/utils": "^4.0.8",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

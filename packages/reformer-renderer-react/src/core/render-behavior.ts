@@ -1,0 +1,243 @@
+/**
+ * Операторы узлов схемы и хуки, которыми рендерер исполняет записанные ими правила.
+ *
+ * Сами операторы (`hideWhen`, `onComponentEvent`, `renderEffect`, `onInit`, `onMount`,
+ * `onUnmount`) живут в ядре — `@reformer/core/behaviors` — и вызываются прямо в поведении формы:
+ * `defineFormBehavior(({ model, form, schema }) => …)`. Отсюда они реэкспортируются для
+ * низкоуровневого рендера по `createRenderSchema`. Здесь остаются React-хуки, которыми рендерер
+ * исполняет записанные правила.
+ *
+ * @module reformer/renderer-react/render-behavior
+ */
+
+import { useCallback, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+import { computed, effect } from '@reformer/core/signals';
+import type { NodeLifecycleHooks, SchemaScope } from '@reformer/core';
+import {
+  hideWhen as coreHideWhen,
+  onComponentEvent as coreOnComponentEvent,
+  renderEffect as coreRenderEffect,
+  onInit as coreOnInit,
+  onMount as coreOnMount,
+  onUnmount as coreOnUnmount,
+} from '@reformer/core/behaviors';
+import type { RenderNodeControl, RenderSchemaProxy } from './render-schema-proxy';
+
+// ============================================================================
+// Standalone helpers — тонкие обёртки над операторами ядра
+// ============================================================================
+
+/**
+ * Объявить условие скрытия для ноды.
+ *
+ * Условие реактивно — пересчитывается при изменении любого Preact-сигнала,
+ * прочитанного внутри conditionFn (значения модели, сигналы нод формы).
+ *
+ * Тот же оператор, что `hideWhen` из `@reformer/core/behaviors`: в поведении формы он
+ * вызывается со схемой своей области — `hideWhen(schema.node('…'), () => model.x === …)`.
+ *
+ * @example
+ * ```typescript
+ * hideWhen(schema.node('mortgage-section'), () => model.loanType !== 'mortgage');
+ * ```
+ */
+export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): void {
+  coreHideWhen(node, conditionFn);
+}
+
+/**
+ * Зарегистрировать колбэк на проп-событие компонента.
+ *
+ * Позволяет объявить обработчики (onSubmit, onChange и т.п.) в behavior
+ * вместо жёсткого указания в componentProps схемы.
+ * Колбэк получает ровно те же аргументы, что и оригинальный проп компонента. У поля и массива он
+ * вызывается после привязки (запись значения, кнопки массива), а не вместо неё; у подформы правило
+ * не действует — своего компонента у неё нет.
+ *
+ * @example
+ * ```typescript
+ * onComponentEvent(schema.node('region'), 'onChange', (value: string) => {
+ *   loadCities(value);
+ * });
+ * ```
+ *
+ * Обработчик отправки визарда — `onComponentEvent(schema.node('wizard'), 'onSubmit', …)`:
+ * внутри сборки кнопка мастера зовёт его через `bundle.submission` — только после успешной проверки
+ * всей формы.
+ */
+export function onComponentEvent(
+  node: RenderNodeControl,
+  event: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: (...args: any[]) => any
+): void {
+  coreOnComponentEvent(node, event, handler);
+}
+
+/**
+ * Зарегистрировать реактивный side-effect.
+ *
+ * effectFn оборачивается в Preact effect() — автоматически перезапускается
+ * при изменении любого сигнала, прочитанного внутри effectFn.
+ * Может вернуть функцию очистки.
+ *
+ * @example
+ * ```typescript
+ * renderEffect(schema, () => {
+ *   if (model.loanType === 'mortgage') flow.goTo('loan');
+ * });
+ * ```
+ */
+export function renderEffect<T>(
+  schema: RenderSchemaProxy<T> | SchemaScope,
+  effectFn: () => void | (() => void)
+): void {
+  coreRenderEffect(schema, effectFn);
+}
+
+/**
+ * Синхронный build-time hook. Вызывается один раз при применении behavior к схеме
+ * (до первого рендера ноды). Это единственный хук, способный повлиять на первый
+ * рендер — внутри можно дергать `schema.node(selector).patchProps({ ... })`
+ * для установки/обновления componentProps.
+ *
+ * В ОТЛИЧИЕ от {@link onMount}/{@link onUnmount} это НЕ пер-нодовый lifecycle-хук: он не
+ * привязан к монтированию какой-либо ноды и не хранится в lifecycleRegistry. Аргумент `node`
+ * принимается только ради симметрии сигнатуры с onMount/onUnmount — `fn` вызывается синхронно
+ * в момент применения behavior к схеме.
+ *
+ * @example
+ * ```typescript
+ * onInit(schema.node('summary'), () => {
+ *   schema.node('summary').patchProps({ currency: detectCurrency() });
+ * });
+ * ```
+ */
+export function onInit(node: RenderNodeControl, fn: () => void): void {
+  coreOnInit(node, fn);
+}
+
+/**
+ * Post-mount hook. Срабатывает после первого mount ноды (через useEffect).
+ * Может вернуть cleanup, который выполнится при unmount.
+ *
+ * @example
+ * ```typescript
+ * onMount(schema.node('wizard'), () => {
+ *   console.log('wizard mounted');
+ *   return () => console.log('wizard cleanup from onMount');
+ * });
+ * ```
+ */
+export function onMount(node: RenderNodeControl, fn: () => void | (() => void)): void {
+  coreOnMount(node, fn);
+}
+
+/**
+ * Pre-unmount hook. Срабатывает при unmount ноды.
+ *
+ * @example
+ * ```typescript
+ * onUnmount(schema.node('wizard'), () => {
+ *   console.log('wizard unmounted');
+ * });
+ * ```
+ */
+export function onUnmount(node: RenderNodeControl, fn: () => void): void {
+  coreOnUnmount(node, fn);
+}
+
+// ============================================================================
+// Internal hooks
+// ============================================================================
+
+/**
+ * @internal
+ * Подписывается на реактивное условие через Preact computed().
+ * При изменении любого сигнала формы, прочитанного внутри fn, компонент перерендерится.
+ */
+export function useCondition(fn: (() => boolean) | undefined): boolean {
+  const getSnapshot = useCallback(() => fn?.() ?? false, [fn]);
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (!fn) return () => {};
+      const c = computed(fn);
+      return c.subscribe(notify);
+    },
+    [fn]
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
+ * @internal
+ * Монтирует реактивные effects из effectRegistry.
+ * Каждый effect оборачивается в Preact effect() — автоматически перезапускается
+ * при изменении любого сигнала, прочитанного внутри effectFn.
+ */
+export function RenderBehaviorEffects({
+  effectRegistry,
+}: {
+  effectRegistry: Array<() => void | (() => void)>;
+}): null {
+  useEffect(() => {
+    const disposes = effectRegistry.map((effectFn) =>
+      effect(() => {
+        const cleanup = effectFn();
+        return typeof cleanup === 'function' ? cleanup : undefined;
+      })
+    );
+    return () => disposes.forEach((dispose) => dispose());
+  }, []); // effectRegistry стабилен — создаётся один раз при createRenderSchema
+
+  return null;
+}
+
+/**
+ * @internal
+ * Подключает lifecycle-хуки ноды (onMount/onUnmount).
+ * onMount может вернуть cleanup-функцию — она вызовется до onUnmount.
+ */
+export function useNodeLifecycle(hooks: NodeLifecycleHooks | undefined): void {
+  useEffect(() => {
+    if (!hooks) return;
+    const mountCleanup = hooks.onMount?.();
+    return () => {
+      if (typeof mountCleanup === 'function') mountCleanup();
+      hooks.onUnmount?.();
+    };
+  }, [hooks]);
+}
+
+/**
+ * @internal
+ * Предупреждает, если под селектором стоит компонент, не принимающий `ref`.
+ *
+ * `schema.node(selector).getRef()` работает только когда компонент пробрасывает `ref` в DOM
+ * или в дочерний компонент с императивным handle. Прикладные шимы (обёртки над ui-kit
+ * `FormWizard` для `$component(Wizard)`) об этом требовании регулярно забывают, и тогда
+ * `getRef().current` молча остаётся `null`: ломается императивный доступ к компоненту из
+ * поведения. Ни TypeScript, ни валидаторы схемы этого не видят —
+ * поэтому проверка рантаймовая и только в dev.
+ *
+ * Проверка идёт после коммита: до него ref по определению не прикреплён.
+ */
+export function useRefAttachmentWarning(
+  selector: string | undefined,
+  nodeRef: { current: unknown } | undefined,
+  skip: boolean
+): void {
+  useEffect(() => {
+    if (skip || !nodeRef || !selector) return;
+    if (nodeRef.current != null) return;
+    if (process.env.NODE_ENV === 'production' || typeof console === 'undefined') return;
+
+    console.warn(
+      `[RenderSchema] ref для узла "${selector}" не прикрепился: компонент под этим селектором ` +
+        'не принимает проп `ref`. `getRef().current` останется null — императивные вызовы ' +
+        'через ref работать не будут. Пробросьте `ref` в целевой компонент ' +
+        '(React 19 — проп `ref`, ранее — `forwardRef`).'
+    );
+  });
+}

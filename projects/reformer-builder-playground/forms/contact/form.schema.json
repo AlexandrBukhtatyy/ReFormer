@@ -1,0 +1,111 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "$nodeId": "demoroot",
+    "component": "$html(div)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "$nodeId": "2fvbboa1",
+        "component": "$html(div)",
+        "componentProps": {
+          "className": "flex gap-4"
+        },
+        "children": [
+          {
+            "$nodeId": "demoname",
+            "selector": "name",
+            "model": "$model(name)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "placeholder": "Как к вам обращаться"
+            }
+          },
+          {
+            "$nodeId": "demomail",
+            "selector": "email",
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Email"
+            }
+          }
+        ]
+      },
+      {
+        "$nodeId": "demochan",
+        "selector": "channel",
+        "model": "$model(channel)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Как связаться",
+          "options": [
+            {
+              "value": "email",
+              "label": "Email"
+            },
+            {
+              "value": "phone",
+              "label": "Телефон"
+            }
+          ]
+        }
+      },
+      {
+        "$nodeId": "um6zmmom",
+        "selector": "topic",
+        "model": "$model(topic)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Тема обращения",
+          "options": [
+            {
+              "value": "question",
+              "label": "Вопрос"
+            },
+            {
+              "value": "order",
+              "label": "Заказ"
+            },
+            {
+              "value": "other",
+              "label": "Другое"
+            }
+          ]
+        }
+      },
+      {
+        "$nodeId": "lse4h9pg",
+        "selector": "age",
+        "model": "$model(age)",
+        "component": "$component(InputNumber)",
+        "componentProps": {
+          "label": "Возраст"
+        }
+      },
+      {
+        "$nodeId": "ggjp5tr9",
+        "selector": "subscribe",
+        "model": "$model(subscribe)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Присылать новости"
+        }
+      },
+      {
+        "$nodeId": "demoagre",
+        "selector": "agree",
+        "model": "$model(agree)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Согласен на обработку данных"
+        }
+      }
+    ]
+  }
+}

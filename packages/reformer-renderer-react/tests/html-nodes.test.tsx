@@ -1,0 +1,142 @@
+/**
+ * HTML-узлы RenderSchema: `component` строкой-тегом + текстовое содержимое (текстовые части в
+ * `children`), в том числе реактивное (сигналы модели).
+ *
+ * Рендер проверяется через `renderToStaticMarkup` — тот же приём, что в тестах `@reformer/ui-kit`
+ * (DOM-окружения в пакетах нет). Живую перерисовку по сигналу SSR не покажет, поэтому реактивность
+ * проверяется как «рендер читает текущее значение сигнала» + отдельно склейка частей.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { signal } from '@reformer/core/signals';
+import { compileSchema } from '@reformer/core';
+import { FormRenderer } from '../src/core/form-renderer';
+import { isHtmlTagRenderNode, VOID_HTML_TAGS } from '../src/core/utils';
+import type { RenderNode } from '../src/core/types';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+const render = (node: RenderNode<any>): string =>
+  renderToStaticMarkup(<FormRenderer render={() => node} />);
+
+describe('HTML-узлы — type guards', () => {
+  it('строка-тег распознаётся как контейнер', () => {
+    expect(compileSchema({ component: 'div' }).root.kind).toBe('container');
+    expect(isHtmlTagRenderNode({ component: 'div' } as any)).toBe(true);
+  });
+
+  it('React-компонент — контейнер, но не html-тег', () => {
+    const Comp = (): null => null;
+    expect(compileSchema({ component: Comp }).root.kind).toBe('container');
+    expect(isHtmlTagRenderNode({ component: Comp } as any)).toBe(false);
+  });
+
+  it('пустая строка компонентом не считается: рисуются только дети', () => {
+    expect(render({ component: '', children: ['текст'] } as any)).toBe('текст');
+  });
+
+  it('void-теги перечислены', () => {
+    expect(VOID_HTML_TAGS.has('hr')).toBe(true);
+    expect(VOID_HTML_TAGS.has('br')).toBe(true);
+    expect(VOID_HTML_TAGS.has('div')).toBe(false);
+  });
+});
+
+describe('HTML-узлы — рендер', () => {
+  it('рендерит нативный тег с DOM-атрибутами', () => {
+    const html = render({
+      component: 'div',
+      componentProps: { className: 'p-4 bg-blue-50', id: 'notice' },
+    } as any);
+    expect(html).toContain('<div');
+    expect(html).toContain('class="p-4 bg-blue-50"');
+    expect(html).toContain('id="notice"');
+  });
+
+  it('рендерит статический текст узла', () => {
+    const html = render({ component: 'h3', children: ['Итого'] } as any);
+    expect(html).toBe('<h3>Итого</h3>');
+  });
+
+  it('склеивает соседние текстовые части без разделителя', () => {
+    const html = render({ component: 'p', children: ['Платёж: ', 30000, ' ₽'] } as any);
+    expect(html).toBe('<p>Платёж: 30000 ₽</p>');
+  });
+
+  it('читает значение сигнала в тексте', () => {
+    const monthlyPayment = signal(42500);
+    const html = render({
+      component: 'p',
+      children: ['Платёж: ', monthlyPayment, ' ₽'],
+    } as any);
+    expect(html).toBe('<p>Платёж: 42500 ₽</p>');
+  });
+
+  it('отражает изменение сигнала в следующем рендере', () => {
+    const name = signal('Иван');
+    const node = { component: 'span', children: [name] } as any;
+    expect(render(node)).toBe('<span>Иван</span>');
+    name.value = 'Пётр';
+    expect(render(node)).toBe('<span>Пётр</span>');
+  });
+
+  it('null/undefined в сигнале дают пустой текст, а не строку "null"', () => {
+    const empty = signal<string | null>(null);
+    const html = render({ component: 'span', children: ['Имя: ', empty] } as any);
+    expect(html).toBe('<span>Имя: </span>');
+  });
+
+  it('текст и узлы идут в порядке children — inline-разметка без обёрток', () => {
+    const html = render({
+      component: 'p',
+      children: ['Внимание! ', { component: 'b', children: ['платёж высокий'] }],
+    } as any);
+    expect(html).toBe('<p>Внимание! <b>платёж высокий</b></p>');
+  });
+
+  it('текст после вложенного узла — то, чего не позволял отдельный слот text', () => {
+    const html = render({
+      component: 'p',
+      children: [{ component: 'b', children: ['Важно:'] }, ' и далее текст'],
+    } as any);
+    expect(html).toBe('<p><b>Важно:</b> и далее текст</p>');
+  });
+
+  it('вкладывает html-теги и компоненты друг в друга', () => {
+    const Card = ({ children }: any): any => <section data-slot="card">{children}</section>;
+    const html = render({
+      component: 'div',
+      children: [{ component: Card, children: [{ component: 'h4', children: ['Заголовок'] }] }],
+    } as any);
+    expect(html).toBe('<div><section data-slot="card"><h4>Заголовок</h4></section></div>');
+  });
+
+  it('void-тег рендерится без содержимого (React не должен бросить)', () => {
+    const html = render({
+      component: 'div',
+      children: [{ component: 'hr', componentProps: { className: 'my-4' } }],
+    } as any);
+    expect(html).toBe('<div><hr class="my-4"/></div>');
+  });
+
+  it('selector не утекает в DOM-атрибуты html-тега', () => {
+    const html = render({ component: 'div', selector: 'notice', children: ['x'] } as any);
+    expect(html).toBe('<div>x</div>');
+    expect(html).not.toContain('selector');
+  });
+
+  it('компоненту, который рендерит детей сам, текстовые части не передаются', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Такой компонент (wizard, секция массива) обходит children как узлы — строка среди них
+    // сломала бы его обход, поэтому отсеивается с предупреждением.
+    const SelfManaged = ({ children }: any): any => <div>{`nodes: ${children.length}`}</div>;
+    (SelfManaged as any).__selfManagedChildren = true;
+    const html = render({
+      component: SelfManaged,
+      children: ['текст', { component: 'span', children: ['узел'] }],
+    } as any);
+    expect(html).toBe('<div>nodes: 1</div>');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('текстовых частей'));
+    warn.mockRestore();
+  });
+});

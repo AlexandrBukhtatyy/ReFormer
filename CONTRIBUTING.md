@@ -1,0 +1,201 @@
+# Contributing to Reformer
+
+Thank you for your interest in contributing to Reformer! This document provides guidelines and instructions for contributing.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 24 — та же версия, что во всех workflow. Опубликованные пакеты поддерживают Node >= 18, это ограничение только для разработки в репозитории
+- npm идёт вместе с Node (24 → npm 11); отдельно ставить не нужно
+
+> Более старый npm сейчас тоже соберёт дерево: `legacy-peer-deps=true` в корневом [.npmrc](.npmrc) выключает размещение peer-зависимостей, и в этом режиме `package-lock.json` одинаково принимают npm 10 и 11. Расходятся они только в строгом режиме — `npm ci` тогда падает с `Missing: fsevents@2.3.3 from lock file`, и это версия npm, а не проблема зависимостей. Поэтому версию держим общей с CI: когда `.npmrc` удастся снять, расхождение станет ошибкой.
+
+### Setup
+
+1. Fork the repository
+2. Clone your fork:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/ReFormer.git
+   cd ReFormer
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Build the library:
+   ```bash
+   npm run build -w @reformer/core
+   ```
+5. Run tests:
+   ```bash
+   npm run test -w @reformer/core
+   ```
+
+## Development Workflow
+
+### Branch Naming
+
+- `feat/description` - for new features
+- `fix/description` - for bug fixes
+- `docs/description` - for documentation changes
+- `refactor/description` - for code refactoring
+
+### Commit Messages
+
+We use [Conventional Commits](https://www.conventionalcommits.org/). Your commit messages should follow this format:
+
+```
+type(scope): description
+
+[optional body]
+
+[optional refs]
+```
+
+Три части, каждая следующая — через пустую строку:
+
+1. **Заголовок** — `type(scope): тема`, обязателен.
+2. **Тело** — что и зачем, необязательно. Сюда же абзацем `BREAKING CHANGE: …`, если он есть.
+3. **Ссылки на задачи** — необязательно, всегда последний абзац (см. [ниже](#ссылки-на-задачи)).
+
+**Types:**
+
+- `feat` - new feature
+- `fix` - bug fix
+- `docs` - documentation changes
+- `style` - code style changes (formatting, etc.)
+- `refactor` - code refactoring
+- `perf` - performance improvements
+- `test` - adding or updating tests
+- `build` - build system changes
+- `ci` - CI/CD changes
+- `chore` - other changes
+
+**Scopes** — список закрыт и проверяется линтером, см. [commitlint.config.js](commitlint.config.js). Имя scope совпадает с именем директории пакета/проекта:
+
+Package scopes:
+
+- `reformer` — `@reformer/core` (`packages/reformer/`)
+- `reformer-cdk` — `@reformer/cdk`
+- `reformer-ui-kit` — `@reformer/ui-kit`
+- `reformer-renderer-react` — `@reformer/renderer-react`
+- `reformer-renderer-json` — `@reformer/renderer-json`
+- `reformer-form-registry` — `@reformer/form-registry`
+- `reformer-form-intent` — `@reformer/form-intent` (контракт intent формы и печать её правил в код)
+- `reformer-mcp` — `@reformer/mcp` (MCP-сервер для агента: тонкий клиент сервиса ReFormer)
+- `reformer-builder-plugin-api` — `@reformer/builder-plugin-api` (контракт плагинов билдера)
+- `reformer-builder-plugin-cli` — `@reformer/builder-plugin-cli` (CLI `reformer-plugin` для авторов плагинов)
+- `reformer-builder-toolkit` — `@reformer/builder-toolkit` (нейтральные кирпичи стеков билдера: печать, маркер, имена)
+
+Project scopes (не публикуются в npm):
+
+- `reformer-builder`, `react-playground`, `react-playground-e2e`
+- `reformer-builder-playground` — проект-образец, который билдер открывает как рабочий каталог (`projects/reformer-builder-playground`); сюда же — движки форм ReFormer и RJSF, пакеты плагинов в его `.ui_builder/plugins/{reformer,rjsf}`
+- `reformer-builder-playground-e2e` — e2e-тесты билдера на этом проекте (`projects/reformer-builder-playground-e2e`)
+- `reformer-hexa-ui` — кит HexaUI и внешний плагин билдера (`projects/reformer-builder-playground/.ui_builder/plugins/kit-hexa-ui`)
+- `rjsf-kit-theme` — тема RJSF из любого кита (`packages/rjsf-kit-theme`; её вкладывает в свою сборку плагин `reformer.rjsf.render`)
+- `forms-benchmark` — бенчмарк форм: страницы ReFormer, Formik, RHF и RJSF на общем UI (`projects/forms-benchmark`)
+- `forms-benchmark-e2e` — conformance и профилирование бенчмарка форм, отчёты (`projects/forms-benchmark-e2e`)
+
+Other scopes:
+
+- `docs`, `ci`, `deps`, `repo` (корневой tooling: конфиги, хуки, скрипты), `beads` (синхронизация трекера задач)
+
+> Принадлежность коммита пакету `semantic-release-monorepo` определяет по **путям изменённых файлов**, а не по scope. Scope нужен для читаемости истории и группировки в release notes; версию бампает `type` (`feat` → minor, `fix` → patch, `!`/`BREAKING CHANGE` → major).
+
+**Что блокирует коммит** (правила уровня `error`; scope вне списка — только предупреждение):
+
+| Правило                | Требование                                                                                                                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subject-case`         | Тема — **строчными целиком**: и аббревиатуры (`api`, `json`), и имена типов/компонентов (`form-field hook`, а не `FormField hook`). Точное имя символа — в теле коммита, там регистр не проверяется. |
+| `subject-full-stop`    | Без точки в конце темы.                                                                                                                                                                              |
+| `header-max-length`    | Первая строка ≤ 100 символов **вместе** с `type(scope): `.                                                                                                                                           |
+| `body-max-line-length` | Каждая строка тела ≤ 100 символов — длинные абзацы переносите вручную.                                                                                                                               |
+| `type-enum`            | Только типы из списка выше.                                                                                                                                                                          |
+| `refs-trailer`         | Секция ссылок на задачи, если она есть, — по формату из раздела [«Ссылки на задачи»](#ссылки-на-задачи).                                                                                             |
+
+**Examples:**
+
+```
+feat(reformer): add new validation rule for phone numbers
+fix(reformer): resolve race condition in async validation
+feat(reformer-cdk): introduce new form-field hook + wrapper
+feat(reformer)!: rewrite form-proxy generic          # BREAKING
+chore(beads): sync issues jsonl
+docs: update installation instructions
+```
+
+Все примеры выше проверены линтером. Обрати внимание на третий и четвёртый: `FormField` и
+`FormProxy<T>` в теме дали бы `subject must be lower-case` — имена символов пиши в теле коммита.
+
+#### Ссылки на задачи
+
+Если коммит сделан по задаче — задаче [beads](https://github.com/steveyegge/beads) (`ReFormer-…`)
+или GitHub issue, — последним абзацем идёт строка `Refs:`:
+
+```
+feat(reformer-ui-kit): отметка выбора в выпадающих списках — у правого края пункта
+
+Отметка стояла перед текстом пункта и сдвигала его относительно пунктов без отметки.
+
+Refs: ReFormer-3548, ReFormer-um17, #12
+Closes: #12
+```
+
+- **Порядок значим.** Первый ID — задача, по которой сделан коммит. Следом — задачи, на которые
+  коммит повлиял. Поэтому список держится одной строкой через `, `, а не строкой на каждый ID.
+- **Виды ID:** задача beads `ReFormer-<id>` (с вложенностью `.N`: `ReFormer-k152.13`),
+  GitHub issue `#N` или `owner/repo#N`. Дубли запрещены.
+- **`Closes:`** — необязательная строка после `Refs:`, только для GitHub issue, который коммит
+  закрывает. GitHub закроет его, когда коммит попадёт в `main`. Каждый такой issue указывается и
+  в `Refs`. Задачу beads коммит не закрывает — её закрывает `bd close`.
+- **Последний абзац — только строки `Ключ: значение`.** Кроме `Refs`/`Closes` допустимы другие
+  трейлеры git (`Co-authored-by: …`). Абзац `BREAKING CHANGE: …` ставится выше, отдельно. Так git
+  читает секцию сам: `git log --format='%h %(trailers:key=Refs,valueonly)'`. Строка другого вида
+  в абзаце (`Closes #12` без двоеточия, `BREAKING CHANGE` с пробелом в ключе) ломает этот разбор.
+- Нет задачи — нет секции. `chore(beads): sync issues jsonl` пишется без `Refs`.
+
+Правило `refs-trailer` ([scripts/commitlint/refs-trailer.mjs](scripts/commitlint/refs-trailer.mjs))
+проверяет формат секции: ключи (`refs:`, `Ref:`, `Fixes #12` → ошибка), место, вид ID, дубли и
+строку ID без ключа в конце тела (старый стиль). Существование задачи в beads не проверяется.
+
+Подробности про release flow и scopes см. в [docs/guides/release-and-publishing.md](docs/guides/release-and-publishing.md).
+
+### Pull Request Process
+
+1. Create a new branch from `develop`
+2. Make your changes
+3. Ensure all tests pass: `npm run test -w @reformer/core`
+4. Ensure code is formatted: `npm run format`
+5. Push your branch and create a Pull Request to `develop`
+6. Fill in the PR template with relevant information
+7. Wait for review and address any feedback
+8. Merge через **Rebase and merge** (или merge commit) — **не Squash**. Squash схлопывает все коммиты в один, трогающий все пакеты, из-за чего `semantic-release-monorepo` бампает major сразу для всех. Подробнее — в [docs/guides/release-and-publishing.md](docs/guides/release-and-publishing.md).
+
+## Code Style
+
+- We use ESLint and Prettier for code formatting
+- Run `npm run lint` to check for linting errors
+- Run `npm run format` to auto-format code
+
+## Testing
+
+- Write tests for all new features and bug fixes
+- Tests are located in `packages/reformer/tests/`
+- Run tests with `npm run test -w @reformer/core`
+- Run tests in watch mode with `npm run test:watch -w @reformer/core`
+
+## Documentation
+
+- Update documentation for any API changes
+- Documentation is located in `projects/reformer-doc/`
+- Build docs locally: `cd projects/reformer-doc && npm run start`
+
+## Questions?
+
+Feel free to open an issue if you have any questions or need help getting started.
+
+## License
+
+By contributing to Reformer, you agree that your contributions will be licensed under the MIT License.

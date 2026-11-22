@@ -1,0 +1,243 @@
+import { validateFormSchema } from '@reformer/renderer-json/validate';
+import { builtinEntries } from '../../../core/testing';
+import { describe, expect, it } from 'vitest';
+import { emptyRules } from '../../../core/form-model';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import { getAt } from '../../../core/form-model';
+import { P, sampleSchema } from '../../../core/testing';
+import { createEditorToolRegistry } from './registry';
+import type { ToolContext } from '../model/types';
+
+const catalog = builtinEntries();
+const reg = createEditorToolRegistry();
+
+const ctx = (schema: JsonFormSchema = sampleSchema()): ToolContext => ({
+  rules: emptyRules(),
+  draft: schema,
+  base: schema,
+  catalog,
+  validateForm: validateFormSchema,
+});
+
+describe('get_form_outline', () => {
+  it('отдаёт карту с адресами узлов', async () => {
+    const res = await reg.invoke('get_form_outline', {}, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('/root/children/0');
+  });
+});
+
+describe('get_form_node', () => {
+  it('отдаёт узел без дочерних поддеревьев, но сообщает об их наличии', async () => {
+    const res = await reg.invoke('get_form_node', { ref: '/root/children/0' }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('"$component(Step)"');
+    // Дети опущены — иначе точечный запрос выгружал бы всю форму.
+    expect(res.text).not.toContain('loanType');
+    expect(res.text).toContain('children: 2');
+  });
+
+  it('шаги визарда не утекают в ответ по корню', async () => {
+    // Шаги — `children` визарда, то есть самое тяжёлое поддерево формы; в ответе от них остаётся
+    // счётчик слота, и слот назван шагами, а не детьми.
+    const res = await reg.invoke('get_form_node', { ref: '/root' }, ctx());
+    expect(res.text).not.toContain('$component(Step)');
+    expect(res.text).toContain('steps: 2');
+    expect(res.text).not.toContain('children: ');
+    // componentProps сохраняются целиком.
+    expect(res.text).toContain('bg-white');
+  });
+
+  it('шаблон массива опущен, а ссылка на часть документа остаётся', async () => {
+    const schema = {
+      format: 2,
+      parts: {
+        address: {
+          component: '$component(Box)',
+          children: [{ model: '$model(city)', component: '$component(Input)' }],
+        },
+      },
+      root: {
+        component: '$component(Box)',
+        children: [
+          { model: '$model(registrationAddress)', part: '$part(address)' },
+          { model: '$model(previousAddresses)', item: '$part(address)' },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+
+    // Вписанный шаблон — поддерево, и его адреса есть в карте формы.
+    const inline = await reg.invoke('get_form_node', { ref: '/root/children/1/children/0' }, ctx());
+    expect(inline.text).toContain('"$model(properties)"');
+    expect(inline.text).not.toContain('$template');
+    expect(inline.text).toContain('template: 1');
+
+    // Ссылка на часть — одна строка, и без неё по узлу не видно, откуда массив берёт шаблон.
+    const array = await reg.invoke('get_form_node', { ref: '/root/children/1' }, ctx(schema));
+    expect(array.ok).toBe(true);
+    expect(array.text).toContain('"item":"$part(address)"');
+    expect(array.text).not.toContain('Child nodes');
+
+    const part = await reg.invoke('get_form_node', { ref: '/root/children/0' }, ctx(schema));
+    expect(part.ok).toBe(true);
+    expect(part.text).toContain('"part":"$part(address)"');
+    expect(part.text).not.toContain('Child nodes');
+  });
+
+  it('битый адрес → STALE_POINTER', async () => {
+    const res = await reg.invoke('get_form_node', { ref: '/root/children/9' }, ctx());
+    expect(res.error?.code).toBe('STALE_POINTER');
+  });
+});
+
+describe('describe_component', () => {
+  it('выдуманное имя → UNKNOWN_COMPONENT с подсказками', async () => {
+    const res = await reg.invoke('describe_component', { name: 'TextInput' }, ctx());
+    expect(res.ok).toBe(false);
+    expect(res.error?.code).toBe('UNKNOWN_COMPONENT');
+    expect(res.error?.suggestions?.length).toBeGreaterThan(0);
+  });
+});
+
+describe('describe_component пачкой [ReFormer-6sj]', () => {
+  const fields = catalog.filter((entry) => entry.role === 'field').map((entry) => entry.name);
+
+  it('несколько имён — строка на компонент со свойствами, одним вызовом', async () => {
+    const [first, second] = fields;
+    const res = await reg.invoke('describe_component', { names: [first, second] }, ctx());
+    expect(res.ok).toBe(true);
+    const lines = res.text.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0].startsWith(`${first} (field)`)).toBe(true);
+    expect(lines[1].startsWith(`${second} (field)`)).toBe(true);
+  });
+
+  it('девять полей спеки умещаются в один ответ без обрезки реестром', async () => {
+    const names = fields.slice(0, 9);
+    expect(names).toHaveLength(9);
+    const res = await reg.invoke('describe_component', { names }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).not.toContain('response truncated');
+    expect(res.text.split('\n')).toHaveLength(9);
+  });
+
+  it('неизвестное имя в пачке не роняет вызов — отмечено с подсказкой', async () => {
+    const res = await reg.invoke('describe_component', { names: [fields[0], 'TextInput'] }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('Not in the catalog: TextInput (did you mean');
+  });
+
+  it('все имена неизвестны — UNKNOWN_COMPONENT; ни name, ни names — INVALID_PARAMS', async () => {
+    const unknown = await reg.invoke(
+      'describe_component',
+      { names: ['TextInput', 'Emailer'] },
+      ctx()
+    );
+    expect(unknown.error?.code).toBe('UNKNOWN_COMPONENT');
+    expect((await reg.invoke('describe_component', {}, ctx())).error?.code).toBe('INVALID_PARAMS');
+  });
+});
+
+describe('list_components', () => {
+  it('роль отражена в выводе', async () => {
+    const res = await reg.invoke('list_components', { role: 'field' }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('(field)');
+  });
+
+  it('недопустимое значение role отклоняется схемой', async () => {
+    expect((await reg.invoke('list_components', { role: 'widget' }, ctx())).error?.code).toBe(
+      'INVALID_PARAMS'
+    );
+  });
+});
+
+describe('describe_component для имён вне каталога', () => {
+  it('компонент из реестра проекта объясняется, а не отвергается', async () => {
+    // Корень реальных схем и фикстуры — RendererFormWizard: каталогу билдера он неизвестен, но в
+    // форме законен и гейтом пропускается. Ответ «нет в каталоге» про узел, который прямо сейчас
+    // стоит в форме, читался как «форма сломана».
+    const res = await reg.invoke('describe_component', { name: 'RendererFormWizard' }, ctx());
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('get_form_node');
+  });
+
+  it('выдуманное имя по-прежнему отвергается', async () => {
+    const res = await reg.invoke('describe_component', { name: 'EmailField' }, ctx());
+    expect(res.error?.code).toBe('UNKNOWN_COMPONENT');
+  });
+});
+
+describe('expect в write-инструментах', () => {
+  it('null в expect — это «не проверять», а не ошибка аргументов', async () => {
+    // Модели заполняют объект целиком и ставят null там, где проверять нечего (у контейнера нет
+    // модели). В живом прогоне такой вызов дважды отвергался как INVALID_PARAMS — два шага хода
+    // из двадцати четырёх ушли на форму записи, а не на работу.
+    const res = await reg.invoke(
+      'remove_node',
+      {
+        refs: ['/root/children/0/children/0'],
+        expect: { component: 'Select', model: null },
+      },
+      ctx()
+    );
+    expect(res.error?.code).not.toBe('INVALID_PARAMS');
+    expect(res.ok).toBe(true);
+  });
+});
+
+describe('validate_form', () => {
+  it('компонент, выдуманный агентом, падает гейтом', async () => {
+    // База — то, что было у пользователя; черновик — то, что предложил агент.
+    const base = sampleSchema();
+    const draft = sampleSchema();
+    const children = getAt(draft, P.step0children) as unknown[];
+    children.push({ model: '$model(email)', component: '$component(EmailField)' });
+
+    const res = await reg.invoke(
+      'validate_form',
+      {},
+      { base, draft, rules: emptyRules(), catalog, validateForm: validateFormSchema }
+    );
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('EmailField');
+  });
+
+  it('нетронутая форма валидна, хотя её компонентов нет в каталоге билдера', async () => {
+    const res = await reg.invoke('validate_form', {}, ctx());
+    expect(res.text).toContain('no errors');
+  });
+
+  it('адрес ошибки — тот же диалект, которым правят инструменты', async () => {
+    // Валидатор адресует точками (root.children[0]), write-инструменты — JSON Pointer. Пока
+    // трансляции не было, модель получала диагноз, который некуда подставить.
+    const base = sampleSchema();
+    const draft = sampleSchema();
+    const field = getAt(draft, [...P.step0field1]) as { componentProps: Record<string, unknown> };
+    field.componentProps = { ...field.componentProps, labl: 'опечатка' };
+
+    const res = await reg.invoke(
+      'validate_form',
+      {},
+      { base, draft, rules: emptyRules(), catalog, validateForm: validateFormSchema }
+    );
+    expect(res.text).toContain('/root/children/0/children/1');
+    expect(res.text).not.toContain('root.children[');
+    // Рядом с адресом — компонент: он же нужен для expect в следующей правке.
+    expect(res.text).toContain('(InputNumber)');
+  });
+
+  it('свойство, из-за которого ошибка, названо явно', async () => {
+    const base = sampleSchema();
+    const draft = sampleSchema();
+    const field = getAt(draft, [...P.step0field1]) as { componentProps: Record<string, unknown> };
+    field.componentProps = { ...field.componentProps, min: 'не-число' };
+
+    const res = await reg.invoke(
+      'validate_form',
+      {},
+      { base, draft, rules: emptyRules(), catalog, validateForm: validateFormSchema }
+    );
+    expect(res.text).toContain('min');
+  });
+});

@@ -1,0 +1,84 @@
+/**
+ * Провайдер кита: HexaUI — это styled-components со своей темой, поэтому поддерево превью надо
+ * обернуть в `ConfigProvider` и вставить `GlobalStyle`. Билдер находит этот компонент в namespace
+ * кита по имени из `descriptor.adapters.provider.symbol` и кладёт его в рамку кита.
+ *
+ * Готового CSS дизайн-системы здесь нет. В билдере его приносит манифест плагина
+ * (`src/builder-plugin.css`), и оболочка ставит его с изоляцией `scoped` — под атрибутом
+ * `[data-rb-plugin="kit-hexa-ui"]`, который вешает рамка кита. Вне билдера CSS подключает вход
+ * пакета (`src/index.ts`), а ограничивает его Vite-плагин приложения (`@reformer/kit-hexa-ui/vite`):
+ * ресет antd и голые селекторы уходят под контейнер, который ставит этот провайдер, —
+ * `[data-hexa-root]`. Контейнер — `display: contents`: в раскладке его нет, а наследуемые
+ * свойства (шрифт, цвет) через него проходят.
+ *
+ * Всплывающие окна полей (выпадающие списки, дерево, календари) провайдер оставляет внутри своего
+ * поддерева — в контейнере в его конце (`./popup-container`). Иначе antd кладёт их в
+ * `document.body`, мимо изоляции стилей, и они рисуются без темы.
+ *
+ * Контейнеры и простые примитивы (`Box`/`Section`) живут здесь же: в HexaUI их нет — это
+ * layout-заготовки ReFormer, и киту достаточно отдать честный `div` с `className`.
+ *
+ * @module reformer/kit-hexa-ui/provider
+ */
+
+import * as React from 'react';
+import { ConfigProvider, GlobalStyle } from '@kaspersky/hexa-ui/design-system';
+import { useI18n } from '@reformer/core/react';
+import { hexaLocaleOf } from './locale';
+import { KitPopupScope } from './popup-container';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Атрибут контейнера провайдера. Тот же литерал ограничивает CSS HexaUI в Vite-плагине
+ * (`vite/scope-css.mjs`); совпадение держит тест.
+ */
+export const HEXA_SCOPE_ATTRIBUTE = 'data-hexa-root';
+
+/** Тема кита следует теме оболочки: билдер ставит класс `dark` на `<html>`. */
+function useIsDark(): boolean {
+  const [dark, setDark] = React.useState(
+    () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  React.useEffect(() => {
+    const el = document.documentElement;
+    const observer = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
+}
+
+/**
+ * Обёртка поддерева превью темой HexaUI.
+ *
+ * ВАЖНО: `ConfigProvider` ждёт КЛЮЧ темы (`'light' | 'dark'`, enum `ThemeKey`), а не объект.
+ * Экспортируемые `LIGHT_THEME`/`DARK_THEME` — это `ThemeConfig` для другого провайдера
+ * (`ThemeProvider` из `design-system/theme`), и передача их сюда роняет рендер с
+ * «ThemeProvider: "theme" prop is required».
+ *
+ * Язык HexaUI (кнопки визарда, календарь) — язык активной локали ReFormer (`./locale`): в билдере —
+ * его интерфейса, в приложении — формы. Без `I18nProvider` выше — английский, как у HexaUI.
+ */
+export function KitProvider({ children }: { children?: React.ReactNode }) {
+  const dark = useIsDark();
+  const { code } = useI18n();
+  const Provider = ConfigProvider as any;
+  return (
+    <Provider theme={dark ? 'dark' : 'light'} locale={hexaLocaleOf(code)}>
+      <GlobalStyle />
+      {/* Граница стилей в приложении: контейнер всплывающих окон — внутри неё. */}
+      <div {...{ [HEXA_SCOPE_ATTRIBUTE]: '' }} style={{ display: 'contents' }}>
+        <KitPopupScope>{children}</KitPopupScope>
+      </div>
+    </Provider>
+  );
+}
+
+/** Универсальный контейнер ReFormer: в HexaUI аналога нет, отдаём div с классом. */
+export function Box({ className, children }: { className?: string; children?: React.ReactNode }) {
+  return <div className={className}>{children}</div>;
+}
+
+/** Секция — тот же контейнер; отдельное имя нужно палитре и схемам. */
+export const Section = Box;

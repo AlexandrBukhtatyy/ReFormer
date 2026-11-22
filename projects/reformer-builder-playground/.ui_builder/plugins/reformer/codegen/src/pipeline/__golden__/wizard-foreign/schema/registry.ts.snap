@@ -1,0 +1,17 @@
+// schema/registry.ts — реестр компонентов и источников данных схемы. Регенерируется.
+
+import { HexBox, HexField, HexInput } from '@hexa/ui';
+import { HexWizard } from '@hexa/ui/wizard';
+import { Step } from '@reformer/cdk/form-wizard';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, HexField);
+    // Визард — библиотечный: шаги берёт из узлов-детей, форму и поток — из сборки.
+    reg.component('Wizard', HexWizard);
+    reg.component('Step', Step);
+    reg.component('Box', HexBox);
+    reg.component('Input', HexInput);
+  });
+}

@@ -1,0 +1,198 @@
+/**
+ * Рабочая область стека ReFormer: то, что стек берёт у оболочки сам, мимо ассистента.
+ *
+ * Ассистенту — общему для стеков — каталог кита, раскладка модуля формы и составная форма ни к
+ * чему: это знание ReFormer. Поэтому стек собирает их из возможностей контекста сам — тем же
+ * приёмом, что и рабочая область ассистента (`../workspace`).
+ *
+ * ## Составная форма — своей дверью
+ *
+ * Ассистент правит ТЕКСТ формы. У разбитой формы (визард по шагам) текст корня — скелет со
+ * ссылками на шаги, и править его значило бы не видеть шагов вовсе. Поэтому такой документ ход
+ * видит собранной схемой, а записывает операцией через ручку модели: раскладку по файлам делает
+ * документ, и ход остаётся одной записью истории. Форма одним файлом идёт обычной дверью — текстом.
+ *
+ * Той же ручкой ход и РАЗБИВАЕТ форму (`splitWriter`): визард, собранный ассистентом, ложится по
+ * файлам шагов, как у шаблона «Пошаговая форма», — операция и раскладка одной записью истории.
+ *
+ * @module plugins/reformer/ai/stack/workspace
+ */
+
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import {
+  DocumentModelsCapability,
+  DocumentsServiceToken,
+  KitsCapability,
+  WorkspaceFilesServiceToken,
+  resourceNameOf,
+  type FormDocumentDoor,
+  type FormListing,
+  type FormWriteMark,
+  type ModelDocumentHandle,
+  type PluginContext,
+  type ResourceId,
+} from '@reformer/builder-plugin-api';
+import { projectCatalog, type CatalogEntry } from '../../../core/catalog';
+import {
+  formNameOfSchemaPath,
+  moduleRootOfDocument,
+  moduleRootPathOf,
+  modulePlacementOf,
+} from '../../../core/codegen/layout';
+import type { FileScope } from '../files/scope';
+import { parseSchemaText, printSchemaText } from '../model/schema-text';
+import { formPathOf, projectFormPaths, type ProjectFilesView } from './project-forms';
+
+const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
+
+/** Что стек берёт у оболочки. */
+export interface SchemaStackWorkspace {
+  /**
+   * Каталог активного кита. Функция, а не список: кит переключают, и ход обязан идти против того
+   * каталога, который действует СЕЙЧАС, а не против того, что был на активации плагина.
+   */
+  catalog(): readonly CatalogEntry[];
+  /** Модуль формы документа или `null`: документа нет либо у него нет своей папки модуля. */
+  scopeOf(id: ResourceId): FileScope | null;
+  /** Дверь составной формы; `null` — форма одним файлом, и ход правит её текст как есть. */
+  door(id: ResourceId): FormDocumentDoor | null;
+  /**
+   * Запись формы, разносящая её шаги по файлам; `null` — разносить нечем: у документа нет модели
+   * или его провайдер не умеет составную раскладку. Нет метода — то же самое.
+   */
+  splitWriter?(id: ResourceId): FormSplitWriter | null;
+  /** Документ формы, которой принадлежит файл (`./project-forms`); `null` — ни одной. */
+  formOf?(id: ResourceId): Promise<ResourceId | null>;
+  /**
+   * Формы проекта (`./project-forms`); пусто — проекта нет. `recognizes` — разбор стека: форма ли
+   * это, решает он, а не имя файла.
+   */
+  forms?(recognizes: (text: string) => boolean): Promise<readonly FormListing[]>;
+}
+
+/** Записать текст формы и разнести её шаги по файлам — одной записью истории. */
+export type FormSplitWriter = (text: string, mark?: FormWriteMark) => Promise<void>;
+
+/**
+ * Собрать рабочую область стека. Службы рабочей области берутся `require` — их даёт сама
+ * оболочка; кит и модели документов `get` — их дают плагины, вправе подняться позже.
+ */
+export function schemaStackWorkspace(ctx: PluginContext): SchemaStackWorkspace {
+  const documents = ctx.services.require(DocumentsServiceToken);
+  const files = ctx.services.require(WorkspaceFilesServiceToken);
+
+  /** Ручка документа из нескольких файлов — или `null`. */
+  const compositeOf = (id: ResourceId): ModelDocumentHandle<unknown> | null => {
+    const handle = ctx.services.get(DocumentModelsCapability)?.handleOf(id) ?? null;
+    const parts = handle?.document.getComposition?.()?.parts.length ?? 0;
+    return handle !== null && parts > 0 ? handle : null;
+  };
+
+  /**
+   * Файлы проекта путями от корня — для `./project-forms`; `null` — проекта нет. Путь ресурса
+   * считается от корня проекта, а не источника: проект может быть папкой внутри источника.
+   */
+  const projectView = (): {
+    readonly view: ProjectFilesView;
+    readonly idOf: (path: string) => ResourceId;
+    readonly pathOf: (id: ResourceId) => string | null;
+  } | null => {
+    const root = files.projectRoot();
+    if (root === null) return null;
+    const rootPath = resourceNameOf(root).path;
+    const idOf = (path: string): ResourceId => files.fromRoot(root, path);
+    const pathOf = (id: ResourceId): string | null => {
+      const path = resourceNameOf(id).path;
+      if (rootPath === '') return path;
+      if (path === rootPath) return '';
+      return path.startsWith(`${rootPath}/`) ? path.slice(rootPath.length + 1) : null;
+    };
+    return {
+      idOf,
+      pathOf,
+      view: {
+        list: async (dir) =>
+          (await files.list(idOf(dir))).map((ref) => ({ name: ref.name, kind: ref.kind })),
+        exists: (path) => files.exists(idOf(path)),
+        read: (path) => files.readText(idOf(path)),
+      },
+    };
+  };
+
+  return {
+    // Записи — ReFormer-проекция сырого каталога службы китов: служба нейтральна.
+    catalog: () => {
+      const kits = ctx.services.get(KitsCapability);
+      return kits === undefined ? NO_CATALOG : projectCatalog(kits.catalogJson()).entries;
+    },
+
+    scopeOf(id): FileScope | null {
+      const document = documents.documentOf(id);
+      if (document === null) return null;
+      const path = document.ref.path;
+      // Документу со свободным именем своей папки модуля ещё не заведено: модуль появится при
+      // генерации кода, а до неё модели некуда писать правила.
+      if (modulePlacementOf(path).kind === 'detached') return null;
+      const rootPath = moduleRootPathOf(path);
+      return {
+        root: moduleRootOfDocument(files, id, path),
+        rootPath,
+        document: id,
+        schemaPath: rootPath === '' ? path : path.slice(rootPath.length + 1),
+      };
+    },
+
+    door(id) {
+      const handle = compositeOf(id);
+      if (handle === null) return null;
+      return {
+        getText: () => printSchemaText(handle.document.getModel() as JsonFormSchema),
+        write: (text, mark) => {
+          // Пометка — дальше, в запись каждого файла, который ход трогает: корня и шагов.
+          const outcome = handle.apply(
+            { type: 'replace-schema', params: { schema: parseSchemaText(text) } },
+            mark === undefined ? undefined : { write: mark }
+          );
+          return outcome.status === 'applied'
+            ? Promise.resolve()
+            : Promise.reject(new Error(`форма не принимает правку: ${outcome.reason}`));
+        },
+      };
+    },
+
+    splitWriter(id) {
+      const handle = ctx.services.get(DocumentModelsCapability)?.handleOf(id) ?? null;
+      if (handle === null || handle.restructure === undefined) return null;
+      return async (text, mark) => {
+        const outcome = handle.apply(
+          { type: 'replace-schema', params: { schema: parseSchemaText(text) } },
+          { ...(mark === undefined ? {} : { write: mark }), restructure: 'split' }
+        );
+        if (outcome.status !== 'applied') {
+          throw new Error(`форма не принимает правку: ${outcome.reason}`);
+        }
+        // Файлы шагов пишутся отложенно; генерация после хода читает их — дождаться записи.
+        await handle.flush();
+      };
+    },
+
+    async formOf(id) {
+      const project = projectView();
+      const path = project?.pathOf(id) ?? null;
+      if (project === null || path === null) return null;
+      const form = await formPathOf(path, project.view);
+      return form === null ? null : project.idOf(form);
+    },
+
+    async forms(recognizes) {
+      const project = projectView();
+      if (project === null) return [];
+      const paths = await projectFormPaths(project.view, recognizes);
+      return paths.map((path) => ({
+        resource: project.idOf(path),
+        path,
+        name: formNameOfSchemaPath(path),
+      }));
+    },
+  };
+}

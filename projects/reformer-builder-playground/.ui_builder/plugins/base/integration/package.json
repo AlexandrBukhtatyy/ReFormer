@@ -1,0 +1,19 @@
+{
+  "name": "@reformer/builder-base-integration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Интеграционные тесты домена base: его плагины вместе с настоящей оболочкой ReFormer Builder. Не плагин",
+  "scripts": {
+    "test": "node ../../../../../../scripts/run-vitest.mjs",
+    "test:browser": "node ../../../../../../scripts/run-vitest.mjs -c vitest.browser.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder": "*",
+    "@reformer/builder-plugin-api": "*",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

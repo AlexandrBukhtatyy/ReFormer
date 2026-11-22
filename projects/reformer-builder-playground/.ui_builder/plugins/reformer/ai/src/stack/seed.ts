@@ -1,0 +1,226 @@
+/**
+ * Затравка формы ReFormer: карта формы и её правила на начало попытки структурного хода, модуль
+ * формы — на начало попытки хода режима файлов.
+ *
+ * Первым делом всякого хода по существующей форме модель звала `get_form_outline` — это
+ * гарантированный лишний обход «модель → инструмент → модель» перед любой полезной работой, а в
+ * живых прогонах карта запрашивалась и по нескольку раз. Карта стоит несколько сотен токенов один
+ * раз, шаг — весь контекст ещё раз плюс задержка сети.
+ *
+ * Карта не обновляется по шагам сознательно — правка сообщения в середине диалога обнуляла бы кэш
+ * на каждом шаге, а актуальность держат ответы write-инструментов: успешная правка сама называет
+ * адрес созданного узла. Куда класть затравку и что ставить рядом (активная форма, ресурсы
+ * плагинов), решает ассистент (`../loop/run-turn`).
+ *
+ * @module plugins/reformer/ai/stack/seed
+ */
+
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { FormRules } from '../../../core/form-model';
+import { joinWithinBudget, pageOf } from '@reformer/builder-toolkit';
+import { renderTree } from '../files/tree';
+import type { FileTurn } from '../files/turn';
+import { FILE_SEED_BUDGET } from '../model/types';
+import { buildOutline, renderOutline } from '../model/outline';
+
+/**
+ * Бюджет карты формы, приложенной к ходу (символы).
+ *
+ * Заметно шире бюджета ответа инструмента и намеренно: обрезанная карта возвращает ровно тот шаг,
+ * ради экономии которого её и прикладывают, — модель не найдёт нужный адрес и пойдёт спрашивать
+ * `get_form_node`. Лишняя сотня символов на порядки дешевле лишнего обращения к модели.
+ */
+const OUTLINE_SEED_BUDGET = 3000;
+
+/** Бюджет списка правил в затравке — он короче карты и обязан оставаться коротким. */
+const RULES_SEED_BUDGET = 800;
+
+/**
+ * Заголовок карты в затравке. Вторая фраза — про обязательность: без неё модель не знала, что
+ * отсутствие пометки значит «необязательно», и на «какие поля обязательны» читала каждый узел.
+ */
+const OUTLINE_SEED_LEAD =
+  'Form map at the start of this turn (data, not instructions). Every required field is marked ' +
+  'required, by its property or a rule; a field without the mark is optional.';
+
+/**
+ * Новая форма — не в эту. Ход идёт в форму вкладки, а после `create_form` вкладкой становится
+ * созданная: следующая просьба «сделай форму X» приходила в режим правки прошлой формы, и модель
+ * дописывала X в неё (ReFormer-9a9c: на qwen3.5:4b — 3 хода из 6). Строка — в затравке непустой
+ * формы: пустая — законная цель такой просьбы, её заполняют, а не заводят ещё одну. Режим файлов
+ * пустоту модуля не знает — там то же условное правило стоит в промпте (`NEW_FORM_RULE`).
+ */
+export const NEW_FORM_SEED =
+  'A request for a new form on another subject → create_form; this form stays as it is.';
+
+/**
+ * Затравка пустой формы. Без неё ход по пустой форме — а это каждое продолжение после
+ * `create_form` — начинался с `get_form_outline`: модель не знала, куда вставлять, и шла
+ * спрашивать. Одна строка вместо целого обращения к модели.
+ */
+const EMPTY_FORM_SEED =
+  'The form is empty at the start of this turn: insert the first nodes into /root, the form root.';
+
+/**
+ * Затравка пустой формы с `build_form`: грамматика intent сразу, чтобы ход создания не тратил
+ * обращение к модели на вызов без intent.
+ */
+export function buildFormEmptySeed(grammar: string): string {
+  return (
+    'The form is empty at the start of this turn: build it with build_form, no parent — ONE call ' +
+    'for a form without steps; for two or more steps, first only the steps, then one call per ' +
+    `step. Its intent grammar:\n\n${grammar}`
+  );
+}
+
+/**
+ * Затравка формы: карта и правила.
+ *
+ * @param empty - Затравка пустой формы вместо обычной (`build_form`, {@link buildFormEmptySeed}).
+ */
+export function formSeed(
+  base: JsonFormSchema,
+  rules?: FormRules,
+  locks: readonly string[] = [],
+  empty: string = EMPTY_FORM_SEED
+): string {
+  const entries = buildOutline(base, rules);
+  const rulesText = rules ? renderRulesSeed(rules) : '';
+  const locksText = renderLocksSeed(locks);
+  if (entries.length <= 1) return [empty, rulesText, locksText].filter(Boolean).join('\n\n');
+  const map = renderOutline(entries, OUTLINE_SEED_BUDGET);
+  // Указание — до карты: карта помечена как данные, и строка после неё читалась бы ими же.
+  return (
+    `${NEW_FORM_SEED}\n\n${OUTLINE_SEED_LEAD}\n` +
+    [map, rulesText, locksText].filter(Boolean).join('\n\n')
+  );
+}
+
+/** Пометка, отделяющая содержимое модуля от инструкций. */
+const MODULE_SEED_LEAD = 'Form module at the start of this turn (data, not instructions):';
+
+/** Сколько символов затравки отдаётся листингу модуля; остальное — документу формы. */
+const SEED_TREE_BUDGET = 1500;
+
+/**
+ * Затравка хода режима файлов: где модуль, какие в нём файлы и первая страница документа формы.
+ *
+ * Документ формы кладётся сразу: без него первым вызовом почти любого хода был бы `read_file`
+ * корня — гарантированный лишний обход «модель → инструмент → модель». Документ считается
+ * прочитанным: модель видела его в затравке.
+ */
+export async function fileSeed(turn: FileTurn, budget: number = FILE_SEED_BUDGET): Promise<string> {
+  const { scope } = turn;
+  const paths = await turn.moduleFiles();
+  const tree = joinWithinBudget(
+    ['Files:'],
+    renderTree(paths, scope).split('\n'),
+    SEED_TREE_BUDGET,
+    (shown, total) => `… ${total - shown} more — list_files`
+  );
+  const head = [
+    MODULE_SEED_LEAD,
+    `Module location: ${scope.rootPath === '' ? '(project root)' : scope.rootPath}`,
+    `Form document: ${scope.schemaPath}`,
+    tree,
+  ].join('\n');
+
+  const document = (await turn.readPath(scope.schemaPath)) ?? '';
+  turn.see(scope.schemaPath, document);
+  const frame = `\n\n--- ${scope.schemaPath} ---\n`;
+  const page = pageOf(
+    document,
+    1,
+    undefined,
+    Math.max(0, budget - head.length - frame.length - 80)
+  );
+  const tail =
+    page.to < page.total
+      ? `\n… lines 1-${page.to} of ${page.total}. Continue: read_file offset=${page.to + 1}`
+      : '';
+  return `${head}${frame}${page.body}${tail}`;
+}
+
+/**
+ * Правила, которые ход не сможет записать (`./rule-code`), — заранее: иначе модель узнала бы об
+ * этом отказом инструмента и потратила бы на него шаг.
+ */
+function renderLocksSeed(locks: readonly string[]): string {
+  const unique = [...new Set(locks)];
+  if (unique.length === 0) return '';
+  return ['Rules this turn cannot change:', ...unique.map((lock) => `  ${lock}`)].join('\n');
+}
+
+/**
+ * Проверка без своего кода: `required({ code: 'phone.required' })` → `required`. Код — служебная
+ * связка текста правила со словарём формы (`set_form_rules`), модели в затравке он только шумит.
+ */
+function withoutCode(check: string): string {
+  return check
+    .replace(/,?\s*\{\s*code\s*:\s*(['"])(?:(?!\1).)+\1\s*\}\s*(?=\))/, '')
+    .replace(/\(\s*\)$/, '');
+}
+
+/**
+ * Правила формы — в ту же затравку, что и карта.
+ *
+ * Без этого модель на КАЖДОМ ходу правит правила вслепую: прочитать их было нечем — `ctx.rules`
+ * читается только внутри самих инструментов правил, — и единственной безопасной стратегией
+ * оставался `merge`. То есть «сделай email НЕ обязательным» добавляло второе правило рядом с
+ * первым вместо замены. Стоит это десятки токенов и ноль поверхности инструментов.
+ */
+function renderRulesSeed(rules: FormRules): string {
+  const lines: string[] = [];
+  // Проверки одного поля — одной строкой, как их печатает код (`mergeFieldChecks`). Чтение
+  // раскладывает `validate` с несколькими проверками на правило с проверкой, чтобы у каждой был
+  // свой текст, и без группировки модель видела бы два правила там, где в коде одно.
+  const groups: Array<{ target: string; parts: string[]; when?: string }> = [];
+  const byField = new Map<string, (typeof groups)[number]>();
+  for (const r of rules.validation) {
+    const plain = r.rules.length > 0 && !r.cross && !r.async && !r.call;
+    const checks = [
+      ...r.rules.map(withoutCode),
+      ...(r.cross ? [`cross ${r.cross}`] : []),
+      ...(r.async ? ['async check'] : []),
+    ];
+    // Текст обычного правила — после его проверок: модель должна видеть, что он уже задан.
+    const text = plain && r.message !== undefined ? ` "${r.message}"` : '';
+    const part = `${checks.join(', ')}${text}`;
+    const key = plain ? JSON.stringify([r.each ?? '', r.when?.trim() ?? '', r.target]) : '';
+    const group = plain ? byField.get(key) : undefined;
+    if (group) {
+      group.parts.push(part);
+      continue;
+    }
+    const own = { target: r.target, parts: [part], when: r.when };
+    groups.push(own);
+    if (plain) byField.set(key, own);
+  }
+  for (const g of groups) {
+    lines.push(`  validate ${g.target}: ${g.parts.join(', ')}${g.when ? ` when ${g.when}` : ''}`);
+  }
+  for (const b of rules.behavior) {
+    lines.push(`  ${b.kind} ${b.target}${b.sources.length ? ` <- ${b.sources.join(', ')}` : ''}`);
+  }
+  for (const [name, value] of Object.entries(rules.dataSources ?? {})) {
+    lines.push(
+      `  $dataSource(${name}): ${Array.isArray(value) ? `${value.length} option(s)` : 'a value'}`
+    );
+  }
+  for (const r of rules.render) {
+    const what =
+      r.kind === 'hideWhen'
+        ? `hideWhen ${r.condition}`
+        : r.kind === 'onEvent'
+          ? `on ${r.event}`
+          : `props ${Object.keys(r.props).join(', ')}`;
+    lines.push(`  ${r.selector}: ${what}`);
+  }
+  if (!lines.length) return '';
+  return joinWithinBudget(
+    ['Rules already set (change them with set_form_rules / set_render_rules):'],
+    lines,
+    RULES_SEED_BUDGET,
+    (shown, total) => '  … ' + (total - shown) + ' more rule(s) not listed'
+  );
+}

@@ -1,0 +1,1003 @@
+/**
+ * Каталог плагинов проекта: что найдено, что включено, что упало.
+ *
+ * Загрузчик (`./loader`) отвечает на вопрос «что лежит в каталоге и как это превратить
+ * в объект плагина», рантайм (`./registry`) — на вопрос «как плагин живёт». Между ними
+ * остаётся третий, и он про человека: **какие плагины включены прямо сейчас, и по чьему
+ * решению.** Этот модуль — ответ на него.
+ *
+ * ## Каждый плагин включается явно
+ *
+ * Найденный в каталоге плагин НЕ запускается сам: он появляется в списке выключенным
+ * (plugin-and-shell.md, «Уровень доверия называется явно»). Это единственная граница, которая
+ * у нас есть: плагин исполняется в том же realm, где живут дескрипторы файлов и секреты,
+ * поэтому решение «пусть этот код работает» обязано быть решением человека. Автоматически
+ * поднимается только то, что человек уже включал — и ровно поэтому список включённых
+ * сохраняется ({@link EnabledPluginsStore}), а не выводится из содержимого каталога.
+ *
+ * ## Упавший при активации выключается и показывается
+ *
+ * Открытый вопрос №2 контракта закрыт так: активация, бросившая исключение, снимает плагин
+ * с включённых и оставляет причину в списке. Автоповтора нет — он вернул бы плагин, который
+ * роняет запуск снова и снова, а вместе с ним и невозможность открыть проект, чтобы этот
+ * плагин выключить. Повторная попытка — действие человека: {@link ProjectPluginCatalog.enable}
+ * или {@link ProjectPluginCatalog.reload}.
+ *
+ * ## Выключение снимает вклады
+ *
+ * `deactivate` рантайма освобождает `subscriptions` контекста, то есть панели, команды, вклады
+ * и подписки уходят вместе с плагином. Именно поэтому динамические плагины сделали `deactivate`
+ * необходимостью, а не удобством для тестов.
+ *
+ * Исключение ровно одно, и оно названо: **словарь, объявленный манифестом, не снимается.**
+ * Это правило самого i18n (вклад в словарь не снимается ни у кого — см. `contributeMessages`
+ * ниже), а не поблажка каталогу.
+ *
+ * ## Перезагрузка: команда — всегда, автоматика — для помеченных «в разработке»
+ *
+ * {@link ProjectPluginCatalog.reload} снимает вклады, перечитывает манифест и файлы, поднимает
+ * плагин заново. Порядок именно такой — сначала снять, потом читать: он же гарантирует, что
+ * после неудачной перезагрузки в системе не останется вкладов от прошлой версии кода.
+ *
+ * Наблюдения за файлами File System Access не даёт, поэтому автоматика (`./dev-watch`) строится
+ * не на нём, а на двух событиях, которые у приложения уже есть: сохранение файла плагина
+ * из встроенного редактора и возврат фокуса в окно (правка во внешнем IDE). Сам каталог об этом
+ * не знает — он только хранит пометку {@link ProjectPluginCatalog.setDev} и исполняет команды.
+ *
+ * @module shell/platform/plugin/catalog
+ */
+
+import {
+  meetsRequirement,
+  type CapabilityProvider,
+  type CapabilityRequirement,
+} from '@reformer/builder-plugin-api/internal';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { PluginPermission } from '@reformer/builder-plugin-api/internal';
+import type { DiscoveredPlugin, PluginLoader } from './loader';
+import type { PluginManifest, PluginProblem } from '@reformer/builder-plugin-api/internal';
+import { normalizeChord } from '@reformer/builder-plugin-api/internal';
+import { compileWhen, WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
+import type { KeymapService } from '@reformer/builder-plugin-api/internal';
+import type { PluginRegistry } from './registry';
+import { traced } from '@/shell/platform/primitives/trace';
+
+/**
+ * Состояние строки в списке плагинов.
+ *
+ * - `disabled` — найден, разобран, выключен. Ровно то, в чём плагин появляется впервые;
+ * - `enabled` — работает, вклады на месте;
+ * - `failed` — не грузится или упал при активации; причина в `problem`.
+ */
+export type ProjectPluginState = 'disabled' | 'enabled' | 'failed';
+
+/**
+ * Откуда плагин взялся.
+ *
+ * Показывается человеку и потому обязано существовать: при совпадении идентификаторов
+ * побеждает каталог проекта, и без этой пометки человек правил бы файлы в проекте, не понимая,
+ * почему работает не он, — или наоборот.
+ *
+ * `application` — плагины, приехавшие вместе с приложением (`./application/files`). Каталог
+ * у них свой, отдельный экземпляр: они живут дольше проекта и доверены на уровне запуска.
+ */
+export type ProjectPluginLayer = 'project' | 'installed' | 'application';
+
+/** Строка списка плагинов — всё, что нужно показать человеку. */
+export interface ProjectPluginEntry {
+  readonly id: string;
+  /**
+   * Каталог плагина внутри источника его слоя. Идентификатору он равен не всегда: плагин
+   * из каталога домена лежит в `<домен>/<плагин>`.
+   */
+  readonly dir: string;
+  /** Имя из манифеста; у неразобранного — идентификатор каталога. */
+  readonly name: string;
+  readonly version?: string;
+  readonly state: ProjectPluginState;
+  /**
+   * Помечен «в разработке»: файлы этого плагина наблюдаются, перезагрузка автоматическая.
+   *
+   * Пометка независима от включённости: она про НАМЕРЕНИЕ человека работать над кодом,
+   * а не про текущее состояние. Упавший dev-плагин остаётся dev — иначе первый же отказ
+   * компиляции выключал бы автоматику ровно в тот момент, когда она нужнее всего.
+   */
+  readonly dev: boolean;
+  /** Слой, из которого взят ДЕЙСТВУЮЩИЙ экземпляр. */
+  readonly layer: ProjectPluginLayer;
+  /** Тот же плагин есть и в другом слое — значит этот его перекрыл. */
+  readonly shadowed?: ProjectPluginLayer;
+  /**
+   * Плагин с этим идентификатором уже работает в слое приложения — эта копия не грузится.
+   *
+   * Обратное `shadowed`: там этот экземпляр победил, здесь — уступил. Строка остаётся в списке,
+   * иначе человек правил бы файлы плагина в проекте, не понимая, почему правки не видны.
+   */
+  readonly overridden?: 'application';
+  readonly manifest?: PluginManifest;
+  /** Почему `failed`. У остальных состояний отсутствует. */
+  readonly problem?: PluginProblem;
+}
+
+/**
+ * Где живёт список включённых плагинов.
+ *
+ * Отдельный контракт, а не сервис настроек: каталогу нужны две операции, и подстановка
+ * памяти в тестах не должна тащить за собой хранилище. Композиция кладёт его в настройки
+ * рабочей области — список принадлежит проекту, а не оболочке.
+ */
+export interface EnabledPluginsStore {
+  read(): Promise<readonly string[]>;
+  write(ids: readonly string[]): Promise<void>;
+}
+
+export interface ProjectPluginCatalogDeps {
+  /**
+   * Установка таблицы стилей плагина. Возвращает, как её снять, либо описание отказа.
+   *
+   * ФУНКЦИЕЙ, а не документом, и это выяснилось проверкой: настоящая установка требует
+   * `CSSStyleSheet`, которого в окружении `node` не существует вовсе. Передай мы документ —
+   * жизненный цикл (поставили на включении, сняли на выключении, заменили на перезагрузке)
+   * проверялся бы только в браузере, вместе с разбором CSS. А это разные вещи: разбор
+   * проверяется браузерным прогоном, жизненный цикл — здесь.
+   *
+   * Отсутствие означает «стили не ставим»: плагин работает, просто выглядит как оболочка.
+   * Деградация, а не отказ — код плагина важнее его вида.
+   */
+  readonly installStyles?: (
+    css: string,
+    pluginId: string
+  ) => { ok: true; subscription: Disposable } | { ok: false; problem: PluginProblem };
+  /**
+   * Раскладка клавиш. Необязательна: без неё манифестные сочетания не публикуются,
+   * а всё остальное в каталоге работает как прежде.
+   */
+  readonly keymap?: Pick<KeymapService, 'registerRules'>;
+  /**
+   * Локализация — ради словарей, объявленных манифестом (`contributes.messages`).
+   *
+   * Необязательна, и деградация та же, что у стилей: без неё плагин работает, просто
+   * показывает маркеры промаха вместо заголовков собственных команд.
+   */
+  readonly i18n?: Pick<RootI18nService, 'forPlugin'>;
+  readonly loader: PluginLoader;
+  /** Тот же рантайм, в котором живут встроенные плагины: контракт у них один. */
+  readonly plugins: PluginRegistry;
+  /**
+   * Что предоставляет ОСТАЛЬНОЕ приложение: встроенные плагины состава.
+   *
+   * Функция, а не массив: состав известен при сборке, но каталог живёт дольше и обязан
+   * спрашивать заново — профиль сменился, плагин упал, возможность исчезла. Возможности
+   * СОСЕДЕЙ по каталогу сюда не входят: их каталог знает сам, из манифестов включённых.
+   *
+   * Отсутствие означает «за пределами каталога возможностей нет»: тогда обязательное
+   * требование к встроенной службе не выполняется, и плагин честно не включается. Это
+   * и есть проверяемое поведение, а не деградация, — поэтому композиция обязана её передать.
+   */
+  readonly capabilities?: () => readonly CapabilityProvider[];
+  /**
+   * Загрузчик слоя УСТАНОВЛЕННЫХ из npm (`./installed`).
+   *
+   * Отдельной зависимостью, а не списком загрузчиков: слоёв ровно два, они неравноправны
+   * (проект перекрывает установленное), и список из двух элементов с правилом «побеждает
+   * второй» читался бы хуже, чем два названных поля. Отсутствие — законный состав:
+   * приложение без установки из npm работает как раньше.
+   */
+  readonly installed?: PluginLoader;
+  /**
+   * Каким слоем называть найденное основным загрузчиком. По умолчанию — `project`.
+   *
+   * Каталог плагинов приложения — тот же каталог над другим загрузчиком, и слой в строке
+   * списка обязан говорить правду о том, откуда плагин взялся.
+   */
+  readonly layer?: ProjectPluginLayer;
+  /**
+   * Идентификаторы, занятые слоем приложения: копия такого плагина здесь не грузится.
+   *
+   * Плагин приложения — преемник встроенного, а встроенный из каталога подменить нельзя.
+   * Отличие в том, КАК об этом сказано: занятый встроенным идентификатор — ошибка автора
+   * (`id-taken`), а копия плагина приложения в проекте — обычное дело (образец открывает
+   * каталог, из которого плагины приложения и собраны), поэтому она просто помечена
+   * {@link ProjectPluginEntry.overridden} и молчит.
+   *
+   * Функция: набор известен после запуска слоя приложения и меняется, если его плагин упал.
+   */
+  readonly reserved?: () => ReadonlySet<string>;
+  /**
+   * Имя источника манифестных клавиш в раскладке. По умолчанию — {@link CATALOG_KEYBINDINGS_SOURCE}.
+   *
+   * Каталог публикует свои клавиши разом и замещает прежние под тем же именем, поэтому двум
+   * каталогам нужны два имени — иначе второй стирал бы клавиши первого.
+   */
+  readonly keybindingsSource?: string;
+  /** Без него включённые не переживают перезагрузку вкладки — но каталог работает. */
+  readonly enabled?: EnabledPluginsStore;
+  /**
+   * Где живут пометки «в разработке». Контракт тот же, что у списка включённых, и по той же
+   * причине отдельный: пометка принадлежит проекту, а каталог обязан проверяться без хранилища.
+   */
+  readonly dev?: EnabledPluginsStore;
+  /** Куда сообщать об отказе плагина. По умолчанию — `console.error`. */
+  readonly onProblem?: (id: string, problem: PluginProblem) => void;
+  /**
+   * Где живут подтверждённые права: идентификатор → список.
+   *
+   * Отдельно от списка включённых, хотя и там и там решение человека: включённость
+   * плагин теряет и возвращает сам (упал, выключили, перезагрузили), а подтверждение права
+   * переживает всё это. Связать их значило бы переспрашивать разрешение после каждого отказа
+   * активации — то есть приучать соглашаться не глядя.
+   */
+  readonly permissions?: PluginPermissionsStore;
+  /**
+   * Спросить человека про права, которых плагину ещё не подтверждали.
+   *
+   * Отсутствие — ОТКАЗ, а не «разрешить»: каталог без канала к человеку не вправе решать
+   * за него. Тесты, которым права не важны, ставят плагины без `permissions` в манифесте
+   * и вопроса не видят вовсе.
+   */
+  readonly confirmPermissions?: (
+    id: string,
+    permissions: readonly PluginPermission[]
+  ) => Promise<boolean>;
+}
+
+/**
+ * Хранилище подтверждённых прав. Форма как у {@link EnabledPluginsStore} и по той же причине:
+ * каталог обязан проверяться без хранилища, а живёт оно в настройках рабочей области.
+ */
+export interface PluginPermissionsStore {
+  read(): Promise<Readonly<Record<string, readonly PluginPermission[]>>>;
+  write(granted: Readonly<Record<string, readonly PluginPermission[]>>): Promise<void>;
+}
+
+export interface ProjectPluginCatalog extends Disposable {
+  /** Снимок списка. Порядок — как в каталоге, то есть по имени папки. */
+  list(): readonly ProjectPluginEntry[];
+  /** Подписка на изменения списка. Форма та же, что у хранилищ оболочки. */
+  subscribe(listener: () => void): Disposable;
+  /**
+   * Перечитывает каталог проекта. Код не исполняется, включённые продолжают работать.
+   *
+   * Плагин, исчезнувший из каталога, выключается: его файлов больше нет, и оставлять его
+   * вклады значило бы иметь панель, за которой ничего не стоит.
+   */
+  refresh(): Promise<readonly ProjectPluginEntry[]>;
+  /** Загружает и активирует плагин. `true` — работает. */
+  enable(id: string): Promise<boolean>;
+  /** Снимает вклады и убирает плагин из включённых. Для выключенного — ничего не делает. */
+  disable(id: string): void;
+  /**
+   * Ставит или снимает пометку «в разработке». На вклады не влияет — это сигнал наблюдателю
+   * (`./dev-watch`), а не операция над плагином. Неизвестный идентификатор игнорируется.
+   */
+  setDev(id: string, on: boolean): void;
+  /**
+   * Снимает вклады, перечитывает манифест и файлы, поднимает заново.
+   *
+   * Выключенный плагин перезагрузкой не включается — только обновляется его манифест:
+   * «перезагрузить» не должно быть вторым способом сказать «включить».
+   */
+  reload(id: string): Promise<boolean>;
+  /**
+   * Восстанавливает включённые: читает сохранённый список и поднимает то, что нашлось.
+   *
+   * Это восьмой шаг запуска. Возвращает идентификаторы тех, кто действительно поднялся, —
+   * упавший при активации сюда не попадает и из сохранённого списка вычёркивается.
+   */
+  restoreEnabled(): Promise<readonly string[]>;
+  /**
+   * Выключает все работающие плагины, НЕ трогая сохранённый список.
+   *
+   * Ровно то, что нужно при смене проекта: плагины прежнего каталога обязаны уйти вместе
+   * с ним, а память о том, что человек их включал, — остаться.
+   */
+  deactivateAll(): void;
+  /**
+   * Дочитывает отложенный код работающих плагинов — по одному, в порядке включения.
+   *
+   * Зовётся в простое после запуска. Касается только плагинов, читаемых по графу сборки
+   * (слой приложения); остальным дочитывать нечего. Отказы молчат: это ускорение.
+   */
+  preloadDeferred(): Promise<void>;
+}
+
+interface CatalogRecord {
+  found: DiscoveredPlugin;
+  /** Каким загрузчиком он найден — им же и грузится. */
+  layer: ProjectPluginLayer;
+  /** Перекрытый слой, если тот же идентификатор нашёлся дважды. */
+  shadowed?: ProjectPluginLayer;
+  /** Отказ загрузки или активации. Отказ разбора живёт в `found.problem` — он неустраним. */
+  problem?: PluginProblem;
+}
+
+/** Имя источника манифестных клавиш в раскладке. Одно на каталог: он публикует их разом. */
+export const CATALOG_KEYBINDINGS_SOURCE = 'plugin-catalog';
+
+function defaultOnProblem(id: string, problem: PluginProblem): void {
+  console.error(`[plugins] «${id}»: ${problem.code} — ${problem.message}`, problem.cause);
+}
+
+export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): ProjectPluginCatalog {
+  const onProblem = deps.onProblem ?? defaultOnProblem;
+  const records = new Map<string, CatalogRecord>();
+  /** Что человек включил. Это и есть содержимое {@link EnabledPluginsStore}. */
+  const enabled = new Set<string>();
+  /** Подтверждённые права по плагинам. Пусто, пока хранилище не прочитано. */
+  let grants: Record<string, readonly PluginPermission[]> = {};
+  /** Что человек пометил «в разработке». Живёт по тем же правилам, что и `enabled`. */
+  const dev = new Set<string>();
+  /**
+   * Кого этот каталог уже зарегистрировал в рантайме.
+   *
+   * Отдельный набор, а не поле записи, потому что живёт он ДОЛЬШЕ записи: плагин, исчезнувший
+   * из каталога и вернувшийся, в рантайме всё это время оставался зарегистрированным. Поле
+   * записи обнулилось бы вместе с ней, и повторное включение пошло бы через `register` —
+   * то есть уткнулось бы в «уже зарегистрирован» вместо подмены экземпляра.
+   */
+  const registered = new Set<string>();
+  const listeners = new Set<() => void>();
+
+  const notify = (): void => {
+    for (const listener of [...listeners]) {
+      try {
+        listener();
+      } catch (error) {
+        console.error('[plugins] подписчик списка плагинов упал', error);
+      }
+    }
+  };
+
+  const persist = (): void => {
+    if (deps.enabled === undefined) return;
+    // Запись не ждём: список плагинов уже изменился, и держать интерфейс ради подтверждения
+    // хранилища не за что. Отказ записи сообщаем — тихо потерянный выбор человека хуже.
+    void deps.enabled.write([...enabled]).catch((error: unknown) => {
+      console.error('[plugins] список включённых плагинов не сохранён', error);
+    });
+  };
+
+  const persistDev = (): void => {
+    if (deps.dev === undefined) return;
+    void deps.dev.write([...dev]).catch((error: unknown) => {
+      console.error('[plugins] пометки «в разработке» не сохранены', error);
+    });
+  };
+
+  /** Занят ли идентификатор слоем приложения — тогда копия из этого каталога не грузится. */
+  const isOverridden = (id: string): boolean => deps.reserved?.().has(id) ?? false;
+
+  const entryOf = (record: CatalogRecord): ProjectPluginEntry => {
+    const problem = record.found.problem ?? record.problem;
+    const manifest = record.found.manifest;
+    const overridden = isOverridden(record.found.id);
+    // Перекрытая копия не работает, что бы ни говорил список включённых: работает плагин
+    // приложения, а эта строка — про файлы в проекте.
+    const state: ProjectPluginState =
+      problem !== undefined
+        ? 'failed'
+        : enabled.has(record.found.id) && !overridden
+          ? 'enabled'
+          : 'disabled';
+    return {
+      id: record.found.id,
+      dir: record.found.dir,
+      name: manifest?.name ?? record.found.id,
+      version: manifest?.version,
+      state,
+      dev: dev.has(record.found.id),
+      layer: record.layer,
+      ...(record.shadowed === undefined ? {} : { shadowed: record.shadowed }),
+      ...(overridden ? { overridden: 'application' as const } : {}),
+      manifest,
+      problem,
+    };
+  };
+
+  const report = (id: string, problem: PluginProblem): void => {
+    try {
+      onProblem(id, problem);
+    } catch {
+      /* отказ канала диагностики не должен превращаться в отказ каталога */
+    }
+  };
+
+  /** Снимает вклады, если плагин действительно зарегистрирован в рантайме. */
+  /**
+   * Установленные таблицы стилей: идентификатор плагина → как её снять.
+   *
+   * Карта, а не список: перезагрузка плагина обязана снять ПРЕЖНЮЮ таблицу, иначе после
+   * нескольких перезагрузок на странице лежало бы несколько её поколений, и побеждало бы
+   * последнее по порядку, а не последнее по времени.
+   */
+  const styles = new Map<string, Disposable>();
+
+  const uninstallStyles = (id: string): void => {
+    styles.get(id)?.dispose();
+    styles.delete(id);
+  };
+
+  const installStyles = (id: string, sheet?: { readonly css: string }): void => {
+    uninstallStyles(id);
+    if (sheet === undefined || deps.installStyles === undefined) return;
+    const result = deps.installStyles(sheet.css, id);
+    if (result.ok) {
+      styles.set(id, result.subscription);
+      return;
+    }
+    // Отказ уже несёт готовую проблему с кодом — свою не выдумываем, иначе тот же случай
+    // назывался бы двумя разными кодами в зависимости от того, кто его заметил.
+    report(id, result.problem);
+  };
+
+  /**
+   * Вносит словари плагина.
+   *
+   * **Снятия здесь нет, и это правило i18n, а не упущение.** Вклад в словарь не снимается
+   * ни у кого: композиция вносит словарь встроенного плагина файлов прямо при запуске, вне
+   * его подписок (`boot.ts`). Снять его было бы нечем, да и незачем — показывать заголовок
+   * уже снятой команды некому. Поэтому и перезагрузка ничего не откатывает: `contribute`
+   * просто перекрывает ключи теми, что приехали с новой версией кода.
+   *
+   * Отказ разбора сообщения плагин не роняет: как и с CSS, он уходит в отчёт, а плагин
+   * продолжает работать — с маркерами промаха вместо заголовков. Регистрация атомарна
+   * по локалям, поэтому одна битая локаль не мешает остальным.
+   */
+  const contributeMessages = (
+    id: string,
+    messages?: Readonly<Record<string, Readonly<Record<string, string>>>>
+  ): void => {
+    if (messages === undefined || deps.i18n === undefined) return;
+    const view = deps.i18n.forPlugin(id);
+    for (const [locale, bundle] of Object.entries(messages)) {
+      try {
+        view.contribute(locale, bundle);
+      } catch (error) {
+        report(id, {
+          code: 'messages-invalid',
+          message:
+            `словарь локали «${locale}» не принят: ` +
+            (error instanceof Error ? error.message : String(error)),
+          cause: error,
+        });
+      }
+    }
+  };
+
+  /**
+   * Графы модулей включённых плагинов: идентификатор → как выгрузить.
+   *
+   * Плагин приложения дочитывает свой код по отложенному импорту, и чтение может закончиться
+   * уже после выключения. Выгруженный граф такое чтение отвергает — иначе исполнился бы код
+   * плагина, вклады которого сняты.
+   */
+  const graphs = new Map<
+    string,
+    { readonly dispose?: () => void; readonly preload?: () => Promise<void> }
+  >();
+
+  const releaseGraph = (id: string): void => {
+    graphs.get(id)?.dispose?.();
+    graphs.delete(id);
+  };
+
+  const deactivate = (id: string): void => {
+    uninstallStyles(id);
+    if (registered.has(id)) deps.plugins.deactivate(id);
+    releaseGraph(id);
+  };
+
+  /** Подписка на манифестные клавиши: одна на весь каталог, замещается целиком. */
+  let keybindingsSubscription: Disposable | null = null;
+
+  const rediscover = async (): Promise<void> => {
+    // Порядок несущий: установленные читаются ПЕРВЫМИ, проект вторым и затирает совпадения.
+    // Так «положить плагин в проект» всегда значит «работать будет он» — то самое правило,
+    // которым автор плагина правит его у себя, не удаляя установленную версию.
+    // Читаются слои разом — друг от друга они не зависят; несущий здесь порядок РАЗБОРА.
+    const [installed, own] = await Promise.all([
+      deps.installed?.discover() ?? [],
+      deps.loader.discover(),
+    ]);
+    const layers: readonly { layer: ProjectPluginLayer; found: readonly DiscoveredPlugin[] }[] = [
+      { layer: 'installed', found: installed },
+      { layer: deps.layer ?? 'project', found: own },
+    ];
+    const seen = new Set<string>();
+
+    for (const { layer, found } of layers) {
+      for (const item of found) {
+        const shadowed = seen.has(item.id) ? 'installed' : undefined;
+        seen.add(item.id);
+        const previous = records.get(item.id);
+        if (previous === undefined) {
+          records.set(item.id, {
+            found: item,
+            layer,
+            ...(shadowed === undefined ? {} : { shadowed }),
+          });
+          continue;
+        }
+        previous.found = item;
+        // Слой пересчитывается на каждом обходе: плагин, положенный в проект поверх
+        // установленного, обязан перехватить его без перезапуска приложения.
+        previous.layer = layer;
+        previous.shadowed = shadowed;
+      }
+    }
+
+    for (const id of [...records.keys()]) {
+      if (seen.has(id)) continue;
+      // Каталога больше нет: снимаем вклады, но включённость помним — плагин может вернуться
+      // вместе с проектом, и заново включать его руками человеку незачем.
+      deactivate(id);
+      records.delete(id);
+    }
+
+    publishKeybindings();
+  };
+
+  /**
+   * Публикует клавиши, объявленные манифестами, — на ОБНАРУЖЕНИИ, а не на включении.
+   *
+   * Это и есть смысл декларации: сочетание видно в таблице клавиш и переназначаемо до того,
+   * как плагин включён. Публикуй мы их при активации — человек узнавал бы о занятой клавише
+   * ровно в тот момент, когда она перестала делать привычное.
+   *
+   * Правило, ссылающееся на команду выключенного плагина, просто не срабатывает: диспетчер
+   * пропускает кандидата, у которого нет команды в реестре.
+   */
+  function publishKeybindings(): void {
+    if (deps.keymap === undefined) return;
+
+    const declared = [...records.values()].flatMap((record) => {
+      // Клавиши перекрытой копии публикует каталог приложения — из манифеста того экземпляра,
+      // который работает. Второе правило на ту же команду было бы дублем в таблице клавиш.
+      if (isOverridden(record.found.id)) return [];
+      const keybindings = record.found.manifest?.contributes?.keybindings ?? [];
+      return keybindings.map((item) => ({ pluginId: record.found.id, item }));
+    });
+
+    keybindingsSubscription?.dispose();
+    keybindingsSubscription =
+      declared.length === 0
+        ? null
+        : deps.keymap.registerRules(
+            deps.keybindingsSource ?? CATALOG_KEYBINDINGS_SOURCE,
+            'catalog-plugin',
+            declared.flatMap(({ pluginId, item }) => {
+              // Манифест уже проверен разбором: сюда попадает только разбираемое сочетание
+              // и разбираемое условие. Отказ здесь означал бы, что проверка разошлась
+              // с применением, поэтому запись просто пропускается.
+              try {
+                return [
+                  {
+                    chord: normalizeChord(item.key),
+                    commandId: item.command,
+                    when: item.when === undefined ? WHEN_TRUE : compileWhen(item.when),
+                    ...(item.args === undefined ? {} : { args: item.args }),
+                    ...(item.allowInEditable === undefined
+                      ? {}
+                      : { allowInEditable: item.allowInEditable }),
+                    pluginId,
+                  },
+                ];
+              } catch {
+                return [];
+              }
+            })
+          );
+  }
+
+  /**
+   * Что доступно ПРЯМО СЕЙЧАС: встроенные плюс включённые соседи по каталогу.
+   *
+   * Соседи считаются по манифестам ВКЛЮЧЁННЫХ, а не всех найденных: возможность выключенного
+   * плагина никому не доступна, и включать один плагин потому, что другой когда-нибудь
+   * пообещал службу, — это и есть тот неявный порядок активации, которого у нас нет.
+   *
+   * Сам включаемый из списка исключается вызывающим: требовать собственную возможность плагин
+   * не может, а разрешать это значило бы, что он удовлетворяет требование обещанием.
+   */
+  const availableCapabilities = (): readonly CapabilityProvider[] => {
+    const own = [...records.values()].flatMap((record) => {
+      if (!enabled.has(record.found.id)) return [];
+      const provides = record.found.manifest?.provides ?? [];
+      return provides.map((item) => ({ ...item, by: record.found.id }));
+    });
+    return [...(deps.capabilities?.() ?? []), ...own];
+  };
+
+  /** Требование → строка отказа. Называет и то, что просили, и то, что есть на самом деле. */
+  const describeUnmet = (
+    requirement: CapabilityRequirement,
+    available: readonly CapabilityProvider[]
+  ): string => {
+    const sameId = available.filter((item) => item.id === requirement.id);
+    if (sameId.length === 0) {
+      return `«${requirement.id}» версии ${requirement.range} — её не предоставляет никто`;
+    }
+    const actual = sameId.map((item) => `${item.version} (плагин «${item.by}»)`).join(', ');
+    return `«${requirement.id}» версии ${requirement.range} — доступно: ${actual}`;
+  };
+
+  /**
+   * Проверяет обязательные требования ДО загрузки кода.
+   *
+   * Именно до, а не после: смысл проверки в том, чтобы чужой код не исполнялся в мире, где
+   * ему нечем работать. Проверь мы после загрузки — плагин уже был бы разобран, слинкован
+   * и исполнен, то есть всё, чего проверка должна была избежать, уже случилось бы.
+   *
+   * Необязательные требования здесь не смотрят вовсе: их невыполнение — названная деградация,
+   * а не отказ, и плагин узнаёт о ней сам через `ctx.capabilities.get`.
+   */
+  /**
+   * Спрашивает про недостающие права и запоминает ответ.
+   *
+   * Вопрос задаётся ОДИН раз на набор: «этому плагину — вот это», а не по праву на диалог.
+   * Отказ не запоминается: человек, передумавший завтра, включит плагин и подтвердит, а запись
+   * «отказано» превратила бы это в поиск места, где отказ отменяют.
+   */
+  /** Права из манифеста, которых этому плагину ещё не подтвердили. */
+  const missingPermissions = (id: string, manifest?: PluginManifest): PluginPermission[] => {
+    const already = grants[id] ?? [];
+    return (manifest?.permissions ?? []).filter((permission) => !already.includes(permission));
+  };
+
+  const permissionsGranted = async (
+    id: string,
+    manifest?: PluginManifest
+  ): Promise<PluginProblem | undefined> => {
+    const already = grants[id] ?? [];
+    const missing = missingPermissions(id, manifest);
+    if (missing.length === 0) return undefined;
+
+    const agreed = (await deps.confirmPermissions?.(id, missing)) ?? false;
+    if (!agreed) {
+      return {
+        code: 'permissions-denied',
+        message:
+          `плагин просит права, которых ему не подтвердили: ${missing.join(', ')}. ` +
+          'Без них он не получит служб, ради которых их просил, поэтому не включается',
+        file: 'manifest.json',
+      };
+    }
+
+    grants = { ...grants, [id]: [...already, ...missing] };
+    await deps.permissions?.write(grants).catch((error: unknown) => {
+      // Не откатываем: право подтверждено человеком здесь и сейчас, и терять его из-за
+      // хранилища неверно. Цена незаписи — вопрос повторится после перезагрузки вкладки.
+      console.error('не удалось сохранить подтверждённые права', error);
+    });
+    return undefined;
+  };
+
+  const unsatisfiedRequires = (
+    id: string,
+    manifest?: PluginManifest
+  ): PluginProblem | undefined => {
+    const required = manifest?.requires?.required ?? [];
+    if (required.length === 0) return undefined;
+
+    const available = availableCapabilities().filter((item) => item.by !== id);
+    const unmet = required.filter(
+      (requirement) => !available.some((item) => meetsRequirement(item, requirement))
+    );
+    if (unmet.length === 0) return undefined;
+
+    return {
+      code: 'requires-unsatisfied',
+      message:
+        `плагину нужно то, чего в этом приложении нет: ` +
+        `${unmet.map((item) => describeUnmet(item, available)).join('; ')}`,
+      file: 'manifest.json',
+    };
+  };
+
+  /**
+   * Стоит ли читать файлы плагина заранее — дойдёт ли включение до загрузки.
+   *
+   * Те же проверки, что стоят в {@link enablePlugin} перед `load`, но без их последствий:
+   * здесь ничего не сообщается и не записывается, отказ выскажет само включение. Чтение — не
+   * исполнение, и ошибиться в сторону «прочитали зря» безопасно; важно не читать заведомо
+   * лишнего. Образец открывает каталог, из которого собран слой приложения: все его плагины
+   * там перекрыты, и без проверки каждый был бы прочитан с диска впустую.
+   *
+   * Плагин, которому права ещё не подтверждены, не предзагружается: человек может отказать.
+   * У слоя приложения вопроса нет — права там выдаются из манифеста.
+   */
+  const worthPrefetching = (id: string, record: CatalogRecord): boolean => {
+    if (record.found.problem !== undefined) return false;
+    if (deps.plugins.isActive(id) && registered.has(id)) return false;
+    if (isOverridden(id)) return false;
+    if (unsatisfiedRequires(id, record.found.manifest) !== undefined) return false;
+    return (
+      deps.layer === 'application' || missingPermissions(id, record.found.manifest).length === 0
+    );
+  };
+
+  const enablePlugin = async (id: string): Promise<boolean> => {
+    const record = records.get(id);
+    if (record === undefined) return false;
+    if (record.found.problem !== undefined) {
+      // Манифеста нет или он чужой мажор — грузить нечего, и это не изменится до `refresh`.
+      report(id, record.found.problem);
+      return false;
+    }
+    if (deps.plugins.isActive(id) && registered.has(id)) {
+      enabled.add(id);
+      return true;
+    }
+    // Плагин приложения с этим идентификатором уже работает: копия молча уступает. Список
+    // включённых не трогаем — исчезнет слой приложения (dev-запуск), и она поднимется сама.
+    if (isOverridden(id)) return false;
+
+    // Требования сверяются ДО загрузки: чужой код не должен исполниться в мире, где ему
+    // нечем работать. Отказ не гасит строку в списке — он её и объясняет, ровно как
+    // `styles-invalid` и `messages-invalid`.
+    const unmet = unsatisfiedRequires(id, record.found.manifest);
+    if (unmet !== undefined) {
+      record.problem = unmet;
+      enabled.delete(id);
+      persist();
+      report(id, unmet);
+      notify();
+      return false;
+    }
+
+    // Права — после требований и ДО загрузки: чужой код не должен исполниться, если главной
+    // его службы ему всё равно не дадут. Вопрос человеку задаётся здесь же, на включении:
+    // это единственный момент, когда он думает именно об этом плагине.
+    const denied = await permissionsGranted(id, record.found.manifest);
+    if (denied !== undefined) {
+      record.problem = denied;
+      enabled.delete(id);
+      persist();
+      report(id, denied);
+      notify();
+      return false;
+    }
+
+    const loader = record.layer === 'installed' ? deps.installed : deps.loader;
+    if (loader === undefined) return false;
+    const result = await loader.load(record.found);
+    if (!result.ok) {
+      record.problem = result.problem;
+      enabled.delete(id);
+      persist();
+      report(id, result.problem);
+      notify();
+      return false;
+    }
+
+    if (!registered.has(id)) {
+      // Занятый идентификатор — почти всегда столкновение со встроенным плагином. Регистрация
+      // бросила бы, а нам нужна строка в списке с внятной причиной, а не отказ включения.
+      if (deps.plugins.status(id) !== undefined) {
+        const problem: PluginProblem = {
+          code: 'id-taken',
+          message:
+            `идентификатор «${id}» уже занят другим плагином оболочки. ` +
+            'Переименуйте каталог и поле «id» в манифесте',
+        };
+        result.loaded.dispose?.();
+        record.problem = problem;
+        enabled.delete(id);
+        persist();
+        report(id, problem);
+        notify();
+        return false;
+      }
+      // Объявленное манифестом уезжает в рантайм вместе с плагином: сверить обещание
+      // с фактической регистрацией может только тот, кто видит реестр служб после `activate`.
+      deps.plugins.register(
+        result.loaded.plugin,
+        record.found.manifest?.provides,
+        grants[id] ?? []
+      );
+      registered.add(id);
+      traced(`plugin.activate:${id}`, () => deps.plugins.activate(id));
+    } else {
+      // Уже зарегистрирован — значит это повторное включение или перезагрузка: подменяем
+      // экземпляр под тем же идентификатором, для чего `reload` и существует. Манифест
+      // перечитан вместе с кодом, поэтому и объявление передаётся заново.
+      deps.plugins.reload(
+        id,
+        result.loaded.plugin,
+        record.found.manifest?.provides ?? [],
+        grants[id] ?? []
+      );
+    }
+
+    // Граф прежнего экземпляра (перезагрузка) выгружается ПОСЛЕ замены: до неё им ещё
+    // пользуется работающий код.
+    releaseGraph(id);
+    graphs.set(id, { dispose: result.loaded.dispose, preload: result.loaded.preload });
+
+    const status = deps.plugins.status(id);
+    if (status?.state !== 'active') {
+      releaseGraph(id);
+      const failure = status?.failure;
+      const problem: PluginProblem = {
+        // Обещание, не выполненное к концу `activate`, — отдельная причина: `activate`
+        // при этом НЕ бросал, и чинить надо сам плагин, а не его окружение.
+        code: failure?.phase === 'provides' ? 'provides-unregistered' : 'activate-failed',
+        message: failure?.message ?? 'плагин не активировался',
+        cause: failure?.error,
+      };
+      record.problem = problem;
+      // Выключается и показывается: автоповтора при следующем запуске не будет.
+      enabled.delete(id);
+      persist();
+      report(id, problem);
+      notify();
+      return false;
+    }
+
+    // Стили ставятся ПОСЛЕ активации: упавший при активации плагин своих таблиц
+    // на странице не оставляет. Отказ разбора CSS плагин не роняет — он записывается
+    // в отчёт и виден человеком, а сам плагин продолжает работать без оформления.
+    traced(`plugin.styles:${id}`, () => installStyles(id, result.loaded.styles));
+    // Словари — сразу за стилями и по тем же правилам: после активации, отказ не роняет
+    // плагин. Разница одна, и она в комментарии к `contributeMessages`: это единственный
+    // вклад, который выключение плагина НЕ снимает.
+    traced(`plugin.messages:${id}`, () => contributeMessages(id, result.loaded.messages));
+
+    record.problem = undefined;
+    enabled.add(id);
+    persist();
+    notify();
+    return true;
+  };
+
+  const disablePlugin = (id: string): void => {
+    const record = records.get(id);
+    if (record === undefined) return;
+    deactivate(id);
+    // Отказ загрузки снимается вместе с выключением: он был про попытку включить, а её больше
+    // нет. Отказ разбора (`found.problem`) остаётся — он про сам каталог.
+    record.problem = undefined;
+    const wasEnabled = enabled.delete(id);
+    if (wasEnabled) persist();
+    notify();
+  };
+
+  return {
+    list(): readonly ProjectPluginEntry[] {
+      return [...records.values()].map(entryOf);
+    },
+
+    subscribe(listener: () => void): Disposable {
+      listeners.add(listener);
+      return toDisposable(() => listeners.delete(listener));
+    },
+
+    async refresh(): Promise<readonly ProjectPluginEntry[]> {
+      await rediscover();
+      notify();
+      return [...records.values()].map(entryOf);
+    },
+
+    enable: enablePlugin,
+    disable: disablePlugin,
+
+    setDev(id: string, on: boolean): void {
+      if (!records.has(id)) return;
+      if (dev.has(id) === on) return;
+      if (on) dev.add(id);
+      else dev.delete(id);
+      persistDev();
+      notify();
+    },
+
+    async reload(id: string): Promise<boolean> {
+      const record = records.get(id);
+      if (record === undefined) return false;
+
+      const wasEnabled = enabled.has(id);
+      // Сначала снять вклады, потом читать: иначе неудачная перезагрузка оставила бы
+      // в системе панели и команды кода, которого уже нет на диске.
+      deactivate(id);
+      record.problem = undefined;
+      await rediscover();
+      if (records.get(id) === undefined) {
+        notify();
+        return false;
+      }
+      if (!wasEnabled) {
+        notify();
+        return true;
+      }
+      return enablePlugin(id);
+    },
+
+    async restoreEnabled(): Promise<readonly string[]> {
+      if (deps.dev !== undefined) {
+        try {
+          // Хранилище — истина, по тому же правилу, что и список включённых ниже: пометки
+          // принадлежат проекту, и перенос их между проектами был бы наблюдением за чужим кодом.
+          const marks = await deps.dev.read();
+          dev.clear();
+          for (const id of marks) dev.add(id);
+        } catch (error) {
+          console.error('[plugins] пометки «в разработке» не прочитаны', error);
+        }
+      }
+
+      if (deps.permissions !== undefined) {
+        try {
+          // Как и включённые: хранилище — истина, и подтверждения принадлежат ПРОЕКТУ.
+          // Перенести разрешение, данное в одном проекте, на другой значило бы отдать
+          // чужому каталогу право, о котором человека спрашивали не про него.
+          grants = { ...(await deps.permissions.read()) };
+        } catch (error) {
+          grants = {};
+          console.error('[plugins] подтверждённые права не прочитаны', error);
+        }
+      }
+
+      if (deps.enabled !== undefined) {
+        try {
+          // Читаем КАЖДЫЙ раз и берём хранилище за истину, а не дополняем им память.
+          // Восстановление зовётся ещё и при смене проекта, а список включённых принадлежит
+          // проекту: перенести в новый каталог выбор, сделанный в прежнем, было бы способом
+          // включить чужой код без спроса. Гонки с записью тут нет — она идёт через тот же
+          // список, и её значение видно сразу, не дожидаясь подтверждения хранилища.
+          const stored = new Set(await deps.enabled.read());
+          // Тот, кого в списке больше нет, обязан и работать перестать: иначе строка
+          // сказала бы «выключен», а вклады остались бы на месте.
+          for (const id of enabled) if (!stored.has(id)) deactivate(id);
+          enabled.clear();
+          for (const id of stored) enabled.add(id);
+        } catch (error) {
+          console.error('[plugins] список включённых плагинов не прочитан', error);
+        }
+      }
+
+      // Чтение — заранее и разом; включение ниже остаётся по одному. Предзагружаются только
+      // те, кого цикл действительно дойдёт грузить, — по тем же догрузочным проверкам.
+      for (const [id, record] of records) {
+        if (!enabled.has(id) || !worthPrefetching(id, record)) continue;
+        const loader = record.layer === 'installed' ? deps.installed : deps.loader;
+        loader?.prefetch?.(record.found);
+      }
+
+      const started: string[] = [];
+      // Порядок обхода — по каталогу, а не по сохранённому списку: он ничего не значит,
+      // как и порядок активации вообще (см. `./registry`).
+      for (const id of [...records.keys()]) {
+        if (!enabled.has(id)) continue;
+        if (await enablePlugin(id)) started.push(id);
+      }
+      notify();
+      return started;
+    },
+
+    async preloadDeferred(): Promise<void> {
+      // По одному: дочитка идёт в простое и не должна занять сеть разом, если человек уже
+      // что-то открывает. Снимок идентификаторов — список за это время может измениться.
+      for (const id of [...graphs.keys()]) {
+        const graph = graphs.get(id);
+        // Плагин выключен или перезагружен, пока шла очередь, — его граф уже другой.
+        if (graph?.preload === undefined) continue;
+        await graph.preload().catch(() => undefined);
+      }
+    },
+
+    deactivateAll(): void {
+      for (const id of records.keys()) deactivate(id);
+      notify();
+    },
+
+    dispose(): void {
+      for (const id of records.keys()) deactivate(id);
+      // Клавиши манифестов уходят вместе с каталогом: правило, ссылающееся на плагин
+      // закрытого проекта, показывалось бы в таблице как действующее.
+      keybindingsSubscription?.dispose();
+      keybindingsSubscription = null;
+      records.clear();
+      listeners.clear();
+    },
+  };
+}

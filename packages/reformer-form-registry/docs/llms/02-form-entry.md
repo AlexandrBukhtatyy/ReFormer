@@ -1,0 +1,149 @@
+# FormEntry — запись реестра
+
+`FormEntry` описывает форму целиком: что она такое, откуда её части взять, где её показывать и кому.
+
+```ts
+import type { FormEntry } from '@reformer/form-registry';
+
+export const checkoutEntry: FormEntry<CheckoutForm> = {
+  id: 'checkout',
+  version: '1.0.0',
+  owner: 'mfe-orders',
+
+  // ── данные
+  schema: { kind: 'inline', value: checkoutSchema },
+  compatibleSchema: '^1.0.0',
+  initial: { kind: 'inline', value: { items: [], total: 0 } },
+
+  // ── код
+  registry: { kind: 'inline', value: createCheckoutRegistry() },
+  model: { kind: 'inline', value: createCheckoutModel },
+  behavior: { kind: 'inline', value: checkoutBehavior }, // поведение либо фабрика (options) => поведение
+  validation: { kind: 'inline', value: { extras: checkoutCrossRules } },
+  flow: { kind: 'inline', value: { steps: [{ id: 'cart' }, { id: 'delivery', rules: deliveryRules }] } },
+
+  // ── где и кому
+  placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
+  access: { permissions: ['orders.write'], flags: ['checkout-v2'] },
+
+  degrade: 'error', // дефолт; 'placeholder' — заглушки вместо незарегистрированных компонентов
+  meta: { name: 'Оформление заказа', tags: ['orders'] },
+};
+```
+
+## Два вида источников
+
+```ts
+type DataSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> }
+  | { kind: 'http'; url: string; init?: RequestInit };
+
+type CodeSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> };
+```
+
+Разница в одном варианте — и она принципиальная. `kind: 'http'` есть у данных и **намеренно
+отсутствует** у кода: загрузка кода по сети означала бы исполнение того, что отдал сервер. Это не
+пробел в реализации, а граница, закреплённая системой типов.
+
+`kind: 'module'` — динамический `import()`: код остаётся в бандле, но отдельным чанком.
+
+## Поля
+
+| поле | тип | зачем |
+| --- | --- | --- |
+| `id` | `string` | адрес формы |
+| `version` | `string` | разные версии одной формы сосуществуют в реестре |
+| `owner` | `string` | кто зарегистрировал — по нему разводятся коллизии `id` между микрофронтами |
+| `schema` | `DataSource` | layout формы |
+| `compatibleSchema` | `string?` | semver-диапазон версий схемы, с которыми совместим ЭТОТ код |
+| `initial` | `DataSource?` | начальные значения |
+| `model` | `CodeSource?` | фабрика модели — если нужна не пустая модель, а собранная |
+| `registry` | `CodeSource?` | расширение реестра компонентов поверх базового |
+| `behavior` | `CodeSource?` | поведение формы — и модель (`compute`/`enableWhen`/`onChange`), и узлы схемы (`hideWhen`/`onComponentEvent`/`onMount`); либо фабрика `(options) => поведение` |
+| `validation` | `CodeSource?` | правила формы — `FormValidation` (`rules` \| `extras`, `strategy`) |
+| `flow` | `CodeSource?` | поток шагов — `FormFlowConfig`: `{ steps: [{ id, rules? }] }`, `id` = `selector` узла шага |
+| `placement` | `object?` | слоты, маршруты, приоритет |
+| `access` | `object?` | права, флаги, `canRender` |
+| `degrade` | `'error' \| 'placeholder'` | что делать с незарегистрированным компонентом схемы; дефолт `'error'` |
+
+### `owner` обязателен не для красоты
+
+Хранилище кэша общее на origin, а реестр общий на realm. Два микрофронта, назвавшие форму одинаково
+(`checkout`), без `owner` затирали бы друг друга — и в реестре, и в кэше. Ключ кэша строится как
+`${owner}/${id}@${version}`.
+
+### `model` против `initial`
+
+Нужен один из двух — иначе `loadForm` бросит внятную ошибку до сборки формы. Приоритет при
+монтировании: проп `model` → `model` записи → проп `initial` → `initial` записи.
+
+Фабрика модели нужна там, где начальное состояние вычисляется, а не лежит константой. Всё, что
+раньше делалось «после сборки формы», должно переехать в фабрику: хука «после сборки» в реестре нет
+намеренно — работа с моделью относится к модели и должна происходить до сборки.
+
+### `behavior` и настройки места
+
+```ts
+type FormBehaviorFactory<T> = (options: Record<string, unknown>) => FormBehavior<T>;
+```
+
+`behavior` — готовое поведение либо фабрика от настроек **места монтирования**. Колбэки вроде
+`onResult` принадлежат хосту: он решает, где и как показать результат. В записи им не место — она
+одна на все места, где форму покажут. Хост передаёт их пропом, фабрика получает их аргументом:
+
+```tsx
+<FormOutlet id="checkout" behaviorOptions={{ onResult: showToast }} />
+```
+
+```ts
+const checkoutBehavior: FormBehaviorFactory<CheckoutForm> = (options) =>
+  defineFormBehavior<CheckoutForm>(({ schema }) => {
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CheckoutForm) => {
+      (options.onResult as (r: unknown) => void)?.(await submitOrder(values));
+    });
+  });
+```
+
+### `degrade` — форма с незарегистрированным компонентом
+
+Схема, приехавшая по сети, может сослаться на компонент, которого в реестре нет: схему выкатили
+вперёд кода. Что тогда делать, решает запись — политику читает загрузчик (`loadForm`), поэтому она
+одинаково действует в `FormOutlet` / `FormSlot` / `FormRoute` и при ручной сборке.
+
+| политика | что происходит |
+| --- | --- |
+| `'error'` (дефолт) | preflight даёт `missing-components` уровня `error`, форма не монтируется — место монтирования рисует `loadErrorFallback` |
+| `'placeholder'` | на месте каждого пропавшего компонента — нейтральная заглушка, форма монтируется; `onDiagnostic` получает `placeholder-components` (`warn`) со списком имён — при любом режиме preflight |
+
+Заглушка своей разметки не рисует: контейнер показывает только своих детей (поля внутри пропавшей
+карточки остаются на месте), у поля остаётся обёртка — подпись и ошибки — без контрола. Список
+подменённых имён — в `loaded.placeholders`.
+
+```ts
+const loaded = await loadForm({ ...entry, degrade: 'placeholder' }, baseRegistry, {
+  onDiagnostic: (d) => telemetry.warn(d.code, d.message), // placeholder-components
+});
+loaded.placeholders; // ['PromoBanner']
+```
+
+Политика касается только `$component`: пропавший `$dataSource` / `$fn` по-прежнему
+`missing-data-sources` / `missing-fns` уровня `error`. Для значимых форм (оплата, согласия)
+оставляйте `'error'`: форма без части полей хуже, чем явный отказ.
+
+## Конфликты `id`
+
+```ts
+registry.register(entry); // дефолт: бросить, назвав ОБОИХ владельцев
+registry.register(entry, { onConflict: 'replace' }); // заменить + диагностика
+registry.register(entry, { onConflict: 'keep' }); // оставить прежнюю + диагностика
+```
+
+Дефолт строгий: молчаливая перезапись формы чужим микрофронтом хуже явного отказа при старте.
+Повторная регистрация **той же** записи конфликтом не считается — так переживаются StrictMode и HMR.
+
+`register` возвращает `unregister`, и возвращает его не для симметрии: в single-spa `unmount`
+микрофронта обязан снять свои записи, иначе слот продолжит показывать форму выгруженного
+приложения. Снятие идемпотентно и не удаляет запись, которую успел перезаписать другой владелец.

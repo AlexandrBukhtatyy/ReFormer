@@ -1,0 +1,27 @@
+{
+  "name": "@reformer/builder-reformer-templates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Плагин ReFormer Builder «Шаблоны форм: формы ReFormer»: стек ReFormer в шаблонах — документ формы, имена модуля, встроенные шаблоны",
+  "scripts": {
+    "validate": "reformer-plugin validate src",
+    "build:dev": "reformer-plugin build src --out .",
+    "build:dist": "reformer-plugin build src --out dist --minify",
+    "dev": "reformer-plugin dev src --out .",
+    "test": "node ../../../../../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-plugin-cli": "*",
+    "@reformer/builder-toolkit": "*",
+    "@reformer/core": "*",
+    "@reformer/form-intent": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/ui-kit": "*",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

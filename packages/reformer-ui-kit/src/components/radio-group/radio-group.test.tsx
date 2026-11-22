@@ -1,0 +1,106 @@
+import { describe, it, expect } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { RadioGroup, RadioGroupItem, RadioGroupOptions } from './index';
+import { Bound } from '@/test-utils/bound';
+
+const LOAN = [
+  { value: 'consumer', label: 'Потребительский' },
+  { value: 'mortgage', label: 'Ипотека' },
+];
+
+describe('RadioGroup (base, pure shadcn)', () => {
+  it('контейнер рендерит role=radiogroup + data-slot', () => {
+    const html = renderToStaticMarkup(
+      <RadioGroup>
+        <RadioGroupItem value="a" />
+      </RadioGroup>
+    );
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain('data-slot="radio-group"');
+  });
+
+  it('Item рендерит role=radio + data-slot', () => {
+    const html = renderToStaticMarkup(
+      <RadioGroup>
+        <RadioGroupItem value="a" />
+      </RadioGroup>
+    );
+    expect(html).toContain('role="radio"');
+    expect(html).toContain('data-slot="radio-group-item"');
+  });
+});
+
+describe('RadioGroupOptions (вариант base, рендерит options)', () => {
+  it('рендерит по одному Item на опцию + подписи', () => {
+    const html = renderToStaticMarkup(
+      <Bound component={RadioGroupOptions} value={null} options={LOAN} />
+    );
+    const radios = html.match(/role="radio"/g) ?? [];
+    expect(radios).toHaveLength(2);
+    expect(html).toContain('Потребительский');
+    expect(html).toContain('Ипотека');
+  });
+
+  it('per-option data-testid = input-<field>-<value>', () => {
+    const html = renderToStaticMarkup(
+      <Bound
+        component={RadioGroupOptions}
+        value={null}
+        options={LOAN}
+        data-testid="input-loanType"
+      />
+    );
+    expect(html).toContain('data-testid="input-loanType-consumer"');
+    expect(html).toContain('data-testid="input-loanType-mortgage"');
+  });
+
+  it('value → выбран только соответствующий Item', () => {
+    const html = renderToStaticMarkup(
+      <Bound component={RadioGroupOptions} value="mortgage" options={LOAN} />
+    );
+    // из двух опций ровно одна остаётся unchecked (consumer), значит mortgage — единственный checked
+    const unchecked = html.match(/data-state="unchecked"/g) ?? [];
+    expect(unchecked).toHaveLength(1);
+    expect(html).toContain('data-state="checked"');
+  });
+
+  it('value=null → ничего не выбрано (нет checked)', () => {
+    const html = renderToStaticMarkup(
+      <Bound component={RadioGroupOptions} value={null} options={LOAN} />
+    );
+    expect(html).not.toContain('data-state="checked"');
+  });
+
+  it('прокидывает id/aria-* на контейнер (seam-контракт)', () => {
+    const html = renderToStaticMarkup(
+      <Bound
+        component={RadioGroupOptions}
+        value="consumer"
+        options={LOAN}
+        id="control-x"
+        aria-labelledby="label-x"
+        aria-invalid
+      />
+    );
+    expect(html).toContain('id="control-x"');
+    expect(html).toContain('aria-labelledby="label-x"');
+  });
+
+  it('id пунктов уникальны у групп с одинаковым data-testid (строки FieldArray)', () => {
+    // В строках массива testId поля одинаков (`input-<field>`): id из него дублировались,
+    // и клик по подписи во второй строке выбирал пункт первой.
+    const html = renderToStaticMarkup(
+      <>
+        <Bound component={RadioGroupOptions} value={null} options={LOAN} data-testid="input-t" />
+        <Bound component={RadioGroupOptions} value={null} options={LOAN} data-testid="input-t" />
+      </>
+    );
+    const ids = [
+      ...html.matchAll(/role="radio"[^>]*?id="([^"]+)"|id="([^"]+)"[^>]*?role="radio"/g),
+    ].map((m) => m[1] ?? m[2]);
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(4);
+    const fors = [...html.matchAll(/for="([^"]+)"/g)].map((m) => m[1]);
+    expect(fors.sort()).toEqual([...ids].sort());
+  });
+});

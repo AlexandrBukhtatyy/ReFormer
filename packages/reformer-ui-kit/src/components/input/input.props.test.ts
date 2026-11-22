@@ -1,0 +1,47 @@
+import * as React from 'react';
+import { describe, it, expect } from 'vitest';
+import { inputBasePropsSchema } from './variants/base/input-base.props';
+import type { InputSuggestProps } from './variants/suggest/input-suggest';
+
+/**
+ * Страж от дрейфа. Для Input тип варианта — `React.ComponentProps<'input'>` (native, ~300 ключей),
+ * поэтому доступно только направление A (ключи схемы ⊆ props): оно ловит опечатки/чужие ключи, но не
+ * «непокрытые props» (их у native слишком много) — осознанное ограничение (§ Props-компаньоны, Риск №8).
+ */
+
+type Assert<T extends true> = T;
+
+type SchemaPropKeys = keyof typeof inputBasePropsSchema.properties;
+type SchemaRuntimeKeys = keyof (typeof inputBasePropsSchema)['x-runtimeProps'];
+type SchemaKeys = SchemaPropKeys | SchemaRuntimeKeys;
+
+/**
+ * A: каждый ключ схемы существует среди props native input или варианта `suggest`
+ * (нет опечаток/чужих ключей).
+ */
+type _A_NoStrayKeys = Assert<
+  SchemaKeys extends keyof React.ComponentProps<'input'> | keyof InputSuggestProps ? true : false
+>;
+
+describe('input props-схема — страж от дрейфа', () => {
+  it('рантайм: properties ∩ x-runtimeProps = ∅', () => {
+    const propKeys = Object.keys(inputBasePropsSchema.properties);
+    const runtimeKeys = Object.keys(inputBasePropsSchema['x-runtimeProps']);
+    expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
+  });
+
+  it('x-registryName = Input (алиас Input)', () => {
+    expect(inputBasePropsSchema['x-registryName']).toBe('Input');
+  });
+
+  it('type enum включает date (боевая форма), но не number — для чисел вариант InputNumber', () => {
+    expect(inputBasePropsSchema.properties.type.enum).toContain('date');
+    expect(inputBasePropsSchema.properties.type.enum).not.toContain('number');
+  });
+  it('readOnly объявлен: вычисляемое поле выражается без disabled', () => {
+    // disabled резолвит форма (seam), и componentProps.disabled мёртв — вычисляемому полю
+    // остаётся readOnly, поэтому он обязан быть в авторских props, а не в x-runtimeProps.
+    expect(inputBasePropsSchema.properties.readOnly.type).toBe('boolean');
+    expect(Object.keys(inputBasePropsSchema['x-runtimeProps'])).not.toContain('readOnly');
+  });
+});

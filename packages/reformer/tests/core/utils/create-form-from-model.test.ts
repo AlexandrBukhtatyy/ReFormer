@@ -1,0 +1,111 @@
+/**
+ * Unit tests: createFormFromModel({ model, schema }) — сборка формы из FormModel + единой схемы (M1).
+ *
+ * Проверяет:
+ * - дерево нод строится из структуры модели (objects + leaves)
+ * - конфиг поля (component/componentProps) харвестится из схемы по идентичности сигнала
+ *   (устойчиво к вложенности: children внутри контейнеров); легаси-`validators` на узле
+ *   срезаются (schema-валидация — внешний `validateModel` из `@reformer/core/validation`)
+ * - двусторонняя связь form-node ↔ model
+ * - массивы пока дают явную ошибку (следующий шаг)
+ */
+
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { InputStub, SectionStub } from '../../test-utils/stubs';
+import { createFormFromModel } from '../../../src/form/create-form';
+import { createModel } from '../../../src/model/index';
+
+// Заглушки UI-компонентов (просто маркеры идентичности).
+
+interface Form {
+  email: string;
+  profile: { name: string; age: number };
+}
+
+const build = () => {
+  const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
+  const schema = {
+    component: SectionStub,
+    componentProps: { title: 'Root' },
+    children: [
+      { model: model.$.email, component: InputStub },
+      {
+        component: SectionStub,
+        children: [
+          { model: model.$.profile.name, component: InputStub },
+          { model: model.$.profile.age, component: InputStub },
+        ],
+      },
+    ],
+  };
+  const form = createFormFromModel<Form>({ model, schema });
+  return { model, form, schema };
+};
+
+describe('createFormFromModel({ model, schema })', () => {
+  it('строит ноды и читает значения из модели', () => {
+    const { model, form } = build();
+    expect(form.email.value.value).toBe('');
+    model.email = 'a@b.c';
+    expect(form.email.value.value).toBe('a@b.c');
+  });
+
+  it('node.setValue пишет в модель', () => {
+    const { model, form } = build();
+    form.email.setValue('new@mail.com');
+    expect(model.email).toBe('new@mail.com');
+  });
+
+  it('вложенные поля привязаны к модели', () => {
+    const { model, form } = build();
+    form.profile.name.setValue('Иван');
+    expect(model.get().profile.name).toBe('Иван');
+    model.profile.age = 30;
+    expect(form.profile.age.value.value).toBe(30);
+  });
+
+  it('харвестит component из схемы (по сигналу, через вложенность)', () => {
+    const { form } = build();
+    expect(form.email.component).toBe(InputStub);
+    expect(form.profile.name.component).toBe(InputStub);
+  });
+
+  it('массивы не материализуются в родительской форме (model-owned)', () => {
+    const model = createModel<{ name: string; tags: string[] }>({ name: '', tags: [] });
+    const form = createFormFromModel<{ name: string; tags: string[] }>({
+      model,
+      schema: { children: [{ model: model.$.name, component: InputStub }] },
+    });
+    form.name.setValue('ok');
+    expect(model.name).toBe('ok');
+    // массив пропущен — им управляют модель + рендер (см. create-form-arrays.test.ts)
+    expect((form as unknown as Record<string, unknown>).tags).toBeUndefined();
+  });
+});
+
+describe('createFormFromModel({ model, schema }) — узел формы внутри схемы', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('FormGroup в componentProps сборке не мешает: пропсы обход не читает', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
+    const form = createFormFromModel<Form>({
+      model,
+      schema: { children: [{ model: model.$.email, component: InputStub }] },
+    });
+
+    // Дерево, куда уже положили форму (типичный визард). Прокси формы самоссылочен, но в
+    // `componentProps` обход не заглядывает.
+    const rebuilt = createFormFromModel<Form>({
+      model,
+      schema: {
+        component: SectionStub,
+        componentProps: { form },
+        children: [{ model: model.$.email, component: InputStub }],
+      },
+    });
+
+    expect(rebuilt.email.component).toBe(InputStub);
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

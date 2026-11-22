@@ -1,0 +1,138 @@
+/**
+ * StepIndicator — визуальная цепочка шагов с иконками и навигацией.
+ *
+ * Получает props через render-prop API из `<FormWizard.Indicator>` слота.
+ * Aria-метки опциональные, по умолчанию — из словаря локали.
+ */
+
+import type { FC, KeyboardEvent } from 'react';
+import type {
+  FormWizardIndicatorStepWithState,
+  FormWizardIndicatorRenderProps,
+} from '@reformer/cdk/form-wizard';
+import { useKitMessages } from '@/i18n/messages';
+
+/**
+ * Пропсы {@link StepIndicator}: render-props индикатора из слота
+ * `<FormWizard.Indicator>` (`steps` со статусами, `goToStep`) плюс `className`
+ * и настройка aria-меток.
+ */
+export interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
+  /** Внешний CSS-класс контейнера. */
+  className?: string;
+  /**
+   * Aria-label контейнера навигации. По умолчанию — из словаря локали.
+   * @defaultMessage kit.formWizard.stepsNav
+   */
+  navAriaLabel?: string;
+  /**
+   * Кастомный шаблон aria-label для шага. Получает {step}. По умолчанию — строка
+   * `kit.formWizard.stepLabel` из словаря локали («Step 2: Address (current)»).
+   */
+  stepAriaLabel?: (step: FormWizardIndicatorStepWithState) => string;
+}
+
+/**
+ * Визуальная цепочка шагов wizard'а — иконки, заголовки и соединительные линии
+ * с подсветкой текущего / завершённого шага. Клик (и Enter / Space) по доступному шагу
+ * вызывает `goToStep`; недоступные шаги приглушены и не кликабельны. Разметка
+ * доступна для скринридеров (`role="navigation"`, `aria-current="step"`,
+ * настраиваемые aria-метки).
+ *
+ * Рендерится из headless-слота `<FormWizard.Indicator>` через render-prop
+ * (`steps` со статусами и `goToStep` приходят автоматически). Готовый
+ * {@link FormWizard} уже подключает этот компонент; напрямую нужен только для
+ * кастомной раскладки.
+ *
+ * @example Индикатор с кастомной aria-меткой контейнера
+ * ```tsx
+ * <FormWizard.Indicator steps={steps}>
+ *   {(indicator) => (
+ *     <StepIndicator {...indicator} navAriaLabel="Этапы заявки" className="mb-8" />
+ *   )}
+ * </FormWizard.Indicator>
+ * ```
+ */
+export const StepIndicator: FC<StepIndicatorProps> = ({
+  steps,
+  goToStep,
+  className,
+  navAriaLabel,
+  stepAriaLabel,
+}) => {
+  const t = useKitMessages();
+  const stepLabel = (step: FormWizardIndicatorStepWithState): string =>
+    stepAriaLabel
+      ? stepAriaLabel(step)
+      : t('kit.formWizard.stepLabel', {
+          number: step.number,
+          title: String(step.title),
+          current: step.isCurrent ? 'yes' : 'no',
+          completed: step.isCompleted ? 'yes' : 'no',
+        });
+
+  // Только токены темы: зашитый зелёный не перекрашивался темой (в тёмной — тот же оттенок) и на
+  // `bg-muted` давал контраст ниже нормы. Завершённость передаёт галочка ✓ и линия цвета
+  // `primary` — тот же акцент, что у текущего шага.
+  const getStepClasses = (step: FormWizardIndicatorStepWithState) => {
+    if (step.isCurrent) return 'bg-primary text-primary-foreground';
+    if (step.isCompleted) return 'text-foreground hover:bg-accent';
+    if (step.canNavigate) return 'hover:bg-accent';
+    return 'opacity-50';
+  };
+
+  // `role="button"` обязывает к клавиатуре нативной кнопки: Enter и Space. Space без
+  // preventDefault ещё и прокрутил бы страницу.
+  const onStepKeyDown = (
+    e: KeyboardEvent<HTMLDivElement>,
+    step: FormWizardIndicatorStepWithState
+  ) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    if (step.canNavigate) goToStep(step.number);
+  };
+
+  return (
+    <div
+      data-slot="step-indicator"
+      className={`flex items-center justify-between p-4 bg-muted rounded-lg ${className || ''}`}
+      data-testid="step-indicator"
+      role="navigation"
+      aria-label={navAriaLabel ?? t('kit.formWizard.stepsNav')}
+    >
+      {steps.map((step: FormWizardIndicatorStepWithState, index: number) => (
+        <div key={step.number} className="flex items-center flex-1">
+          <div
+            className={`flex items-center gap-2 p-3 rounded-lg transition-all ${getStepClasses(step)} ${step.canNavigate ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+            onClick={() => step.canNavigate && goToStep(step.number)}
+            onKeyDown={(e) => onStepKeyDown(e, step)}
+            data-testid={`step-indicator-${step.number}`}
+            data-step-number={step.number}
+            data-step-current={step.isCurrent}
+            data-step-completed={step.isCompleted}
+            data-step-can-navigate={step.canNavigate}
+            role="button"
+            aria-label={stepLabel(step)}
+            aria-current={step.isCurrent ? 'step' : undefined}
+            // Недоступный шаг — неактивный элемент: скринридер объявляет его недоступным, а
+            // приглушённый текст не подпадает под требование контраста WCAG 1.4.3.
+            aria-disabled={step.canNavigate ? undefined : true}
+            tabIndex={step.canNavigate ? 0 : -1}
+          >
+            <div className="text-2xl" aria-hidden="true">
+              {step.isCompleted ? '✓' : step.icon}
+            </div>
+            <div className="text-sm font-semibold">{step.title}</div>
+            <div className="text-sm">{step.number}</div>
+          </div>
+          {index < steps.length - 1 && (
+            <div
+              className={`flex-1 h-0.5 mx-2 ${step.isCompleted ? 'bg-primary' : 'bg-border'}`}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};

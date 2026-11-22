@@ -1,0 +1,109 @@
+import {
+  forwardRef,
+  cloneElement,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type ReactElement,
+} from 'react';
+import { Slot } from './Slot';
+import { useFormWizard } from './FormWizardContext';
+import { useFormWizardActions } from './FormWizardActions';
+
+/**
+ * Props for FormWizard.Submit component
+ */
+export interface FormWizardSubmitProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
+  /** Button content */
+  children: ReactNode;
+  /** Render as child element (merge props into child) */
+  asChild?: boolean;
+  /** Additional disabled state (merged with automatic via OR) */
+  disabled?: boolean;
+  /** Content to show during submission (replaces children) */
+  loadingText?: ReactNode;
+}
+
+/**
+ * FormWizard.Submit - Form submission button component
+ *
+ * Renders a button that submits the form on the last step.
+ * Automatically disabled when not on the last step, during validation, or during submission.
+ * Shows `loadingText` content during submission if provided.
+ *
+ * The button is `type="button"`: submission goes only through the wizard's `submit` (inside a
+ * bundle — `bundle.submission.submit`). Inside an app `<form>` it does not trigger the native form
+ * submit, so the handler is never called twice.
+ *
+ * @example Basic usage
+ * ```tsx
+ * <FormWizard.Actions onSubmit={handleSubmit}>
+ *   <FormWizard.Submit>Submit</FormWizard.Submit>
+ * </FormWizard.Actions>
+ * ```
+ *
+ * @example With loading text
+ * ```tsx
+ * <FormWizard.Submit loadingText="Submitting...">
+ *   Submit Application
+ * </FormWizard.Submit>
+ * ```
+ *
+ * @example With custom button (asChild)
+ * ```tsx
+ * <FormWizard.Submit asChild loadingText={<Spinner />}>
+ *   <MyButton variant="success">Complete</MyButton>
+ * </FormWizard.Submit>
+ * ```
+ */
+export const FormWizardSubmit = forwardRef<HTMLButtonElement, FormWizardSubmitProps>(
+  ({ children, asChild = false, disabled: disabledProp, loadingText, ...props }, ref) => {
+    const { isLastStep, isValidating, isSubmitting, submit } = useFormWizard();
+    const { onSubmit } = useFormWizardActions();
+
+    // Merge disabled states (OR logic)
+    const isAutoDisabled = !isLastStep || isValidating || isSubmitting;
+    const disabled = disabledProp || isAutoDisabled;
+
+    const Comp = asChild ? Slot : 'button';
+
+    // Determine what content to show
+    const showLoading = isSubmitting && loadingText;
+
+    // For asChild mode with loadingText: clone the child element with new content
+    // The Slot expects a single React element, not a string
+    let slotChildren = children;
+    if (asChild && showLoading && isValidElement(children)) {
+      slotChildren = cloneElement(children as ReactElement, {}, loadingText);
+    }
+
+    // For non-asChild mode, just swap the content
+    const content = asChild ? slotChildren : showLoading ? loadingText : children;
+
+    return (
+      <Comp
+        ref={ref}
+        // `button`, не `submit`: отправка идёт только через `submit` мастера (onClick ниже). Внутри
+        // `<form>` приложения кнопка-submit запускала бы ещё и нативную отправку — второй вызов
+        // обработчика формы либо перезагрузку страницы.
+        type={asChild ? undefined : 'button'}
+        // Через `submit` из контекста: внутри сборки он зовёт `onSubmit` только после
+        // успешной проверки всей формы. Гейт общий с render-props веткой FormWizardActions.
+        onClick={() => {
+          void submit(() => onSubmit?.());
+        }}
+        disabled={disabled}
+        data-submitting={isSubmitting || undefined}
+        data-not-last-step={!isLastStep || undefined}
+        {...props}
+      >
+        {content}
+      </Comp>
+    );
+  }
+);
+
+FormWizardSubmit.displayName = 'FormWizard.Submit';

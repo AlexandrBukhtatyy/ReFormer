@@ -1,0 +1,50 @@
+// application/entry.ts — запись формы в реестре форм (`@reformer/form-registry`).
+// Регенерируется билдером; правки будут перезаписаны.
+
+import type { FormEntry } from '@reformer/form-registry';
+import { createZayavkaNaKreditFormModel } from '../model/model';
+import { createRegistry } from '../schema/registry';
+import type { ZayavkaNaKreditForm } from '../types/zayavka-na-kredit';
+import { formValidation } from '../validation/form';
+import { createFormBehavior, formSchema } from './create';
+import type { SubmitOptions } from './submit';
+
+/**
+ * Запись формы «Zayavka na kredit» в реестре форм.
+ *
+ * Регистрация в приложении — одна строка:
+ * ```ts
+ * import { getFormRegistry } from '@reformer/form-registry';
+ * import { zayavkaNaKreditFormEntry } from './pages/demo/zayavka-na-kredit';
+ *
+ * getFormRegistry().register(zayavkaNaKreditFormEntry);
+ * ```
+ *
+ * После этого форма монтируется где угодно: `<FormOutlet id="zayavka-na-kredit" />`, либо через
+ * слот или маршрут, если заполнить `placement`.
+ */
+export const zayavkaNaKreditFormEntry: FormEntry<ZayavkaNaKreditForm> = {
+  id: 'zayavka-na-kredit',
+  version: '1.0.0',
+  // Кто зарегистрировал: по этому полю различаются одинаковые id из разных микрофронтов.
+  owner: 'app', // TODO: имя вашего приложения-хоста
+
+  // Данные — единственная часть, которую можно доставить по сети.
+  schema: { kind: 'inline', value: formSchema },
+
+  // Код — только из бандла.
+  registry: { kind: 'inline', value: createRegistry() },
+  model: { kind: 'inline', value: createZayavkaNaKreditFormModel },
+  // Фабрика: настройки места монтирования (`onResult`) хост передаёт пропом `behaviorOptions`.
+  behavior: { kind: 'inline', value: (options) => createFormBehavior(options as SubmitOptions) },
+  validation: { kind: 'inline', value: formValidation },
+
+  // Где показывать. Пусто — форма доступна только по id; заполните, чтобы показывать её
+  // в слоте хоста или на маршруте.
+  placement: { slots: [], routes: ['/examples/zayavka-na-kredit'] },
+
+  meta: {
+    name: 'Zayavka na kredit',
+    tags: ['renderer-json', 'form-registry'],
+  },
+};
