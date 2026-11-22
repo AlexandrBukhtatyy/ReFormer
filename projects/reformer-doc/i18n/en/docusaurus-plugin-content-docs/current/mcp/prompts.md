@@ -13,16 +13,17 @@ Prompts exist only in the tool set (`REFORMER_SURFACE=tools`): every one of them
 `form_build`. In the default surface (`code-guided-dsl`) the server's plan leads the work, and it has
 no prompts — see [surfaces](./overview#surfaces).
 
-| Prompt             | Arguments                                | What it does                                                                                              |
-| ------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `start-here`       | —                                        | The canonical workflow of the unified form contract and a map: which prompt, tool, resource at which step |
-| `discover-context` | `description`, `projectPath?`            | Determine the project's target stack: `core` / `renderer-react` / `renderer-json`                         |
-| `plan-form`        | `specPath`, `target?`, `projectPath?`    | Parse a form spec (markdown): a `plan_form` draft, finishing the intent, `form_build`                     |
-| `create-form`      | `description`, `target?`, `projectPath?` | Create a form from a description                                                                          |
-| `add-feature`      | `feature`, `requirements`, `code?`       | Add one capability to an existing form: `validation` / `behavior` / `array` / `wizard`                    |
-| `to-renderer`      | `code?`, `target?`                       | Switch the rendering approach: `renderer-react` (default) or `renderer-json` (format 2 document)          |
-| `review`           | `code`                                   | A cross-package code review checklist                                                                     |
-| `debug`            | `code`                                   | Only with `REFORMER_DEBUG=true` — analysis of a problematic form using the core troubleshooting guide     |
+| Prompt        | Arguments                          | What it does                                                                                              |
+| ------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `start-here`  | —                                  | The canonical workflow of the unified form contract and a map: which prompt, tool, resource at which step |
+| `add-feature` | `feature`, `requirements`, `code?` | Add one capability to an existing form: `validation` / `behavior` / `array` / `wizard`                    |
+| `to-renderer` | `code?`, `target?`                 | Switch the rendering approach: `renderer-react` (default) or `renderer-json` (format 2 document)          |
+| `review`      | `code`                             | A cross-package code review checklist                                                                     |
+
+Creating a form from a description or a spec and detecting the project stack is the job of tools,
+not prompts: `plan_form` parses a spec (the client reads the spec file in your project),
+`form_build` builds the module, and in the default surface `reformer.formStart` in `execute` does
+the same.
 
 All prompts produce the same result for any rendering approach: a model, one schema, one
 `createForm` bundle (rules — `validation` and the `flow` of steps, behavior — `behavior`); the only

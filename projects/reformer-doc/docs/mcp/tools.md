@@ -69,9 +69,9 @@ return form.fields.filter((field) => field.step === 'Оплата');
 
 ## Набор инструментов: REFORMER_SURFACE=tools
 
-Десять инструментов; одиннадцатый, `debug`, появляется только при `REFORMER_DEBUG=true`. Во
-встроенном профиле (так сервер работает внутри ассистента билдера) только справочные инструменты и
-`validate_form`: `plan_form`, `form_build` и `report_issue` пишут файлы на диск. Инструменты удобно
+Десять инструментов. Работают они в сервисе, а файлы — каталог формы, черновик `plan_form`, отчёты
+`report_issue` — пишет на диск клиент `@reformer/mcp` по ответу сервиса
+([что остаётся у вас](./overview#что-остаётся-у-вас-и-что-уходит-в-сервис)). Инструменты удобно
 сгруппировать по шагам работы над формой.
 
 | Шаг                     | Инструменты                                                                                                  |
@@ -117,8 +117,8 @@ return form.fields.filter((field) => field.step === 'Оплата');
   (ошибка называет файл, который править) и требует окружение: `@reformer/core` и `@reformer/ui-kit`
   в проекте.
 
-Состав модуля и формат intent — в рецепте `06-form-directory-layout` пакета `@reformer/mcp` (раздел
-«`form.intent.json`»), его же отдаёт `find_recipe`.
+Состав модуля и формат intent — в рецепте `06-form-directory-layout` справки сервиса
+(`reformer://docs/mcp`, раздел «`form.intent.json`»), его же отдаёт `find_recipe`.
 
 ## plan_form
 

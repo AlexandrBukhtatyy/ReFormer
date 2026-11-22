@@ -4,15 +4,28 @@ sidebar_position: 1
 
 # Overview
 
-`@reformer/mcp` is an MCP (Model Context Protocol) server for the `@reformer/*` library. Through it
-an AI assistant (Claude Code, Cursor, another MCP client) creates and changes ReFormer forms: the
-server plans the work, builds the form module, checks the types and writes the files itself, and the
-assistant does not need to read the library sources.
+The ReFormer MCP server is a service for AI assistants (Claude Code, Cursor, another MCP client):
+through it an assistant creates and changes forms built on `@reformer/*`. The service plans the
+work, builds the form module, checks the types and answers API questions, and the assistant does not
+need to read the library sources.
+
+The service is closed and paid. The open [`@reformer/mcp`](#packages) client (MIT) connects it to
+your IDE: the reference, the tools and the form build run in the service, and everything that
+concerns your files stays on your machine.
 
 A form follows the unified contract: model → one schema → one `createForm` bundle → rules →
 behavior → wizard (step flow) → rendering. The tool set (`REFORMER_SURFACE=tools`) adds the package
 documentation as **resources**, reference **tools** (API selection, a JSDoc index of public symbols,
 recipes, code checking) and workflow **prompts**.
+
+## Access
+
+The service is in early access: the `REFORMER_API_KEY` key is issued on request. Write to us — the
+contacts (Telegram, email) are in the site footer.
+
+For teams that cannot send form code and specs to an external service, the service is deployed on
+your own infrastructure under a license, by agreement. The client points to it with the
+`REFORMER_SERVICE_URL` variable.
 
 ## Why MCP — in numbers
 
@@ -31,30 +44,39 @@ integrating AI assistants with external tools and data. An MCP server declares t
 - **Tools** — tools the AI can call
 - **Prompts** — ready-made workflow scenarios
 
-## Installation / setup
+## Connection
+
+The client runs through `npx`, the key is passed in an environment variable. Registering it in
+Claude Code:
 
 ```bash
-# Globally
-npm install -g @reformer/mcp
-
-# Or via npx without installing
-npx @reformer/mcp
+claude mcp add --transport stdio reformer -e REFORMER_API_KEY=<your key> -- npx -y @reformer/mcp
 ```
 
-The binary is called `reformer-mcp`. Registering it in Claude Code:
+The client binary is called `reformer-mcp`: after `npm install -g @reformer/mcp` you can write
+`reformer-mcp` instead of `npx -y @reformer/mcp`. Check the connection with `claude mcp list`. Setup
+for other IDEs (Cursor, Windsurf, Cline) is in the [Quick Start](./quick-start).
 
-```bash
-# Global install
-claude mcp add --transport stdio reformer -- reformer-mcp
+| Variable               | What it sets                                                                                             |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| `REFORMER_API_KEY`     | the service key; without it the cloud service does not answer, and the client says so right away         |
+| `REFORMER_SERVICE_URL` | the service address without a path — for a service deployed on your side; the cloud one by default       |
+| `REFORMER_SURFACE`     | what the server gives the assistant: `code-guided-dsl` (default), `tools`, … — see [surfaces](#surfaces) |
+| `REFORMER_TRACE_FILE`  | a call log to a file (JSON Lines)                                                                        |
 
-# Via npx
-claude mcp add --transport stdio reformer -- npx @reformer/mcp
-```
+## What stays with you and what goes to the service
 
-Check the connection with `claude mcp list`. Setup for other IDEs (Cursor, Windsurf, Cline) is in the
-[Quick Start](./quick-start). In the tool set debug mode is enabled with the `REFORMER_DEBUG=true`
-environment variable (it adds the `debug` tool, the `reformer://debug` resource and a prompt of the
-same name).
+On your machine the client:
+
+- reads and writes the form directory;
+- type-checks with your project's compiler and your package versions;
+- reads the form spec;
+- saves `report_issue` reports to `.reformer/issue_reports`.
+
+With each call the client sends the service only what that call needs: the files of the form
+directory, the spec, the type-check result and the component catalog of `@reformer/ui-kit` if it is
+installed. The service returns writes as operations — the client writes them to disk. MCP does not
+work without a network connection and a key.
 
 ## Surfaces
 
@@ -70,8 +92,8 @@ The `REFORMER_SURFACE` environment variable picks what the server gives the assi
 
 The server leads the work. The assistant starts it in `execute` with a `reformer.formStart` call
 carrying the task text or a spec, then changes the form with the builder: method chains record
-edits, `save()` sends them, and the server builds the module. The server writes every file of the
-form folder, the JSX markup of `@reformer/core` too.
+edits, `save()` sends them, and the server builds the module. Every file of the form folder — from
+the server's response — is written by the client, the JSX markup of `@reformer/core` too.
 
 ```js
 // execute — edits with the builder
@@ -90,12 +112,12 @@ Details are in [Tools](./tools#default-search-and-execute).
 ### The tool set
 
 ```bash
-claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @reformer/mcp
+claude mcp add --transport stdio reformer -e REFORMER_API_KEY=<your key> -e REFORMER_SURFACE=tools -- npx -y @reformer/mcp
 ```
 
-This is how the server worked before `code-guided-dsl` became the default. Use the tool set when the
-assistant writes its own code next to a form and needs API reference, when your tooling writes
-`form.intent.json` itself and calls `form_build`, or when the client works through prompts.
+Use the tool set when the assistant writes its own code next to a form and needs API reference,
+when your tooling writes `form.intent.json` itself and calls `form_build`, or when the client works
+through prompts.
 
 ## Tools
 
@@ -113,23 +135,24 @@ The server gives this set with `REFORMER_SURFACE=tools`.
 | `form_build`      | A form module on disk from a single `form.intent.json`: compiling, type-checking and writing the files; the agent edits only the intent.            |
 | `validate_form`   | Pre-run checking: code (`kind: "code"`), JSON schema, behavior cycles, the whole bundle and the module's file names (`kind: "layout"`).             |
 | `report_issue`    | Save a problem you found and its solution as a separate JSON report in `<project root>/.reformer/issue_reports`.                                    |
-| `debug`           | Only with `REFORMER_DEBUG=true` — an internal tool for developing the server itself.                                                                |
 
 A form is created along one path: the grammar `form_build {"grammar":"base"}` → your own
 `<dir>/form.intent.json` (or a `plan_form` draft from a spec) → `form_build {"dir": …}`. The former
 `generate_form` and the aliases `validate_json_schema` and `check_behaviors` were removed in 7.0.
 
-The embedded, browser profile (how the server runs inside the builder assistant) has only the
-reference tools and `validate_form`: `plan_form`, `form_build` and `report_issue` write to disk.
-Each tool is described in detail in [Tools](./tools).
+The [builder AI assistant](/docs/builder/assistant) uses the same service with the same key: it takes
+the reference and the form build from a description from the service and edits the form in the
+editor. Each tool is described in detail in [Tools](./tools).
 
-### Package entry points
+## Packages
 
-| Entry point             | What for                                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `@reformer/mcp`         | the server for IDEs, the `reformer-mcp` binary                                                                                       |
-| `@reformer/mcp/browser` | the server's knowledge — docs and the symbol index — from the build artifact, without a file system: the same tools run in a browser |
-| `@reformer/mcp/intent`  | the `FormIntent` compiler without the server: parsing, the verdict of `form_build`, layout, rules — for your own tools               |
+| Package                 | License | What for                                                                                                                                                |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@reformer/mcp`         | MIT     | the service client for IDEs, the `reformer-mcp` binary: form files, type-checking, the spec and reports stay local, everything else runs in the service |
+| `@reformer/form-intent` | MIT     | the `FormIntent` contract for your own tools: types, normalization, printing validation and behavior rules to code, layout document types, `findCycle`  |
+
+The `FormIntent` compiler (parsing the model's answer, the `form_build` verdict, building the module)
+is part of the service and is not published as a separate package.
 
 ## Prompts
 
@@ -137,22 +160,17 @@ Only in the `REFORMER_SURFACE=tools` set: every prompt leads through `form_build
 
 - `start-here` — the entry point: the canonical workflow of the unified contract and a map of which
   prompt, tool or resource to use at each step.
-- `discover-context` — determine the project's target stack (`core` / `renderer-react` /
-  `renderer-json`) from the form description and the project directory.
-- `plan-form` — parse a form spec (markdown) and lead along the path: a `plan_form` draft, finishing
-  the intent against the spec, `form_build`.
-- `create-form` — create a form from a description (`description`, `target`).
 - `add-feature` — add one capability to a form built with `form_build`: `feature` = `validation` |
   `behavior` | `array` | `wizard`.
 - `to-renderer` — switch the rendering approach: `FormRenderer` over the same TS schema
   (`renderer-react`) or the schema as a format 2 JSON document + a registry (`renderer-json`); the
   model, rules, behavior and the `createForm` call stay the same.
 - `review` — a cross-package code review checklist.
-- `debug` — only with `REFORMER_DEBUG=true`.
 
 Prompts do not reach every client: some agents have no access to `prompts/list`. That is why the same
 content is also available in the tools (`get_context`, `plan_form`, `form_build` with `grammar`) and
-in the `reformer://guide` resource.
+in the `reformer://guide` resource. Parsing a spec and creating a form from a description are done
+by the `plan_form` and `form_build` tools, or by `reformer.formStart` in the default surface.
 
 ## Resources
 
@@ -162,9 +180,8 @@ Only in the `REFORMER_SURFACE=tools` set.
   tool and resource to use at each step.
 - `reformer://catalog` — a JSON map of packages and their sections (slug + title) — where to get
   section URIs from.
-- `reformer://status` — what the server found in the project: the `@reformer/*` packages, indexes,
-  whether type-checking is available. Read it when docs come back empty or a tool reports an
-  environment problem.
+- `reformer://status` — what the client found in the project: the `@reformer/*` packages, whether
+  type-checking is available. Read it when a tool reports an environment problem.
 - `reformer://docs/<pkg>` — the full documentation of one package, for example `reformer://docs/cdk`.
   `<pkg>` is the name without the `@reformer/` prefix: `core`, `cdk`, `ui-kit`, `renderer-react`,
   `renderer-json`, …
@@ -176,7 +193,7 @@ Only in the `REFORMER_SURFACE=tools` set.
 
 ## Next
 
-- [Quick Start](./quick-start) — installation and IDE setup in 2 minutes.
+- [Quick Start](./quick-start) — the key and IDE setup in 2 minutes.
 - [Tools](./tools) — each tool in detail.
 - [Prompts](./prompts) — workflow scenarios.
 - [Examples](./examples) — usage scenarios.

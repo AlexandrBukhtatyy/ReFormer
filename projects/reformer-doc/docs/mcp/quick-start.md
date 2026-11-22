@@ -4,31 +4,28 @@ sidebar_position: 2
 
 # Быстрый старт
 
-Настройка @reformer/mcp занимает меньше 2 минут.
+Подключение MCP-сервера ReFormer занимает пару минут: нужен ключ сервиса и одна запись в настройках
+IDE.
 
 ## Требования
 
 - Node.js 18 или выше
 - Одна из поддерживаемых IDE
+- Ключ сервиса ReFormer `REFORMER_API_KEY` — сервис в раннем доступе, ключ выдаётся по запросу:
+  напишите нам, контакты (Telegram, почта) в подвале сайта
 
 ## Установка
 
-### Вариант 1: Глобальная установка
-
-```bash
-npm install -g @reformer/mcp
-```
-
-### Вариант 2: Через npx (без установки)
-
-Можно использовать напрямую через npx — установка не требуется.
+Ставить ничего не нужно: IDE запускает клиент `@reformer/mcp` через `npx`. Если удобнее
+глобальная установка — `npm install -g @reformer/mcp`, и тогда вместо `npx -y @reformer/mcp`
+пишите `reformer-mcp`.
 
 ## Настройка IDE
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport stdio reformer -- npx @reformer/mcp
+claude mcp add --transport stdio reformer -e REFORMER_API_KEY=<ваш ключ> -- npx -y @reformer/mcp
 ```
 
 Проверка:
@@ -46,7 +43,8 @@ claude mcp list
   "mcpServers": {
     "reformer": {
       "command": "npx",
-      "args": ["@reformer/mcp"]
+      "args": ["-y", "@reformer/mcp"],
+      "env": { "REFORMER_API_KEY": "<ваш ключ>" }
     }
   }
 }
@@ -63,7 +61,8 @@ claude mcp list
   "mcpServers": {
     "reformer": {
       "command": "npx",
-      "args": ["@reformer/mcp"]
+      "args": ["-y", "@reformer/mcp"],
+      "env": { "REFORMER_API_KEY": "<ваш ключ>" }
     }
   }
 }
@@ -78,11 +77,16 @@ claude mcp list
   "mcpServers": {
     "reformer": {
       "command": "npx",
-      "args": ["@reformer/mcp"]
+      "args": ["-y", "@reformer/mcp"],
+      "env": { "REFORMER_API_KEY": "<ваш ключ>" }
     }
   }
 }
 ```
+
+Ключ — секрет. Если файл настроек лежит в репозитории проекта (`.cursor/mcp.json`, `.mcp.json`),
+не коммитьте его с ключом: задайте `REFORMER_API_KEY` в окружении, из которого запускается IDE, а из
+файла уберите.
 
 ### Набор инструментов вместо умолчания
 
@@ -91,22 +95,29 @@ claude mcp list
 ([поверхности](./overview#поверхности)). Чтобы включить его, задайте переменную окружения:
 
 ```bash
-claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @reformer/mcp
+claude mcp add --transport stdio reformer -e REFORMER_API_KEY=<ваш ключ> -e REFORMER_SURFACE=tools -- npx -y @reformer/mcp
 ```
 
-В JSON-конфиге Cursor, Windsurf и Cline — ключ `env`:
+В JSON-конфиге Cursor, Windsurf и Cline — в том же ключе `env`:
 
 ```json
 {
   "mcpServers": {
     "reformer": {
       "command": "npx",
-      "args": ["@reformer/mcp"],
-      "env": { "REFORMER_SURFACE": "tools" }
+      "args": ["-y", "@reformer/mcp"],
+      "env": { "REFORMER_API_KEY": "<ваш ключ>", "REFORMER_SURFACE": "tools" }
     }
   }
 }
 ```
+
+### Сервис, развёрнутый у себя
+
+Если сервис развёрнут в вашей инфраструктуре (по лицензии), укажите его адрес без пути переменной
+`REFORMER_SERVICE_URL`, например `"REFORMER_SERVICE_URL": "https://reformer.internal.example"`.
+Ключ — тот, который принимает ваш сервис; если ваш сервис ключа не требует, `REFORMER_API_KEY`
+можно не задавать.
 
 ## Первый запрос
 
@@ -118,8 +129,8 @@ claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @refo
 
 Ассистент начнёт с `execute` и вызова `reformer.formStart` с текстом запроса. Сервер составит план и
 поведёт по нему: ассистент добавит поля и правила конструктором, а сервер соберёт модуль формы —
-модель, схему с компонентами, правила валидации и разметку — и проверит типы. Работа закончена, когда
-ответ сервера говорит `Done`.
+модель, схему с компонентами, правила валидации и разметку — и проверит типы. Файлы формы пишет
+клиент у вас в проекте. Работа закончена, когда ответ сервера говорит `Done`.
 
 ## Проверка работы
 
@@ -141,7 +152,17 @@ claude mcp add --transport stdio reformer -e REFORMER_SURFACE=tools -- npx @refo
 Как сделать условное отображение полей?
 ```
 
+## Если не работает
+
+| Симптом                                                   | Что делать                                                                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| клиент пишет `REFORMER_API_KEY is not set`                | ключ не дошёл до процесса клиента: проверьте `env` в настройках IDE или переменную окружения                |
+| инструменты отвечают ошибкой доступа                      | ключ неверный или истёк — запросите новый                                                                   |
+| сервис недоступен                                         | нужна сеть до сервиса; для своего сервиса проверьте `REFORMER_SERVICE_URL` — адрес без пути (без `/mcp`)    |
+| форма собирается, но проверка типов жалуется на окружение | откройте ресурс `reformer://status` (набор инструментов): какие пакеты `@reformer/*` клиент нашёл в проекте |
+
 ## Следующие шаги
 
+- [Обзор](./overview) — поверхности, что уходит в сервис, пакеты
 - [Инструменты](./tools) — доступные tools
 - [Примеры](./examples) — сценарии использования

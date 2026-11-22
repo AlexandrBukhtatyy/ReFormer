@@ -69,10 +69,10 @@ return form.fields.filter((field) => field.step === 'Payment');
 
 ## The tool set: REFORMER_SURFACE=tools
 
-Ten tools; the eleventh, `debug`, appears only with `REFORMER_DEBUG=true`. The embedded profile (how
-the server runs inside the builder assistant) has only the reference tools and `validate_form`:
-`plan_form`, `form_build` and `report_issue` write files to disk. It is convenient to group the tools
-by the steps of working on a form.
+Ten tools. They run in the service, and the files — the form directory, the `plan_form` draft, the
+`report_issue` reports — are written to disk by the `@reformer/mcp` client from the service's
+response ([what stays with you](./overview#what-stays-with-you-and-what-goes-to-the-service)). It is
+convenient to group the tools by the steps of working on a form.
 
 | Step                    | Tools                                                                                                    |
 | ----------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -119,7 +119,8 @@ all module files itself. The answer is diagnostics only.
   `@reformer/core` and `@reformer/ui-kit` installed in the project.
 
 The module layout and the intent format are in the `06-form-directory-layout` recipe of the
-`@reformer/mcp` package (the "`form.intent.json`" section); `find_recipe` returns it too.
+service's reference (`reformer://docs/mcp`, the "`form.intent.json`" section); `find_recipe` returns
+it too.
 
 ## plan_form
 

@@ -762,23 +762,29 @@ function LoginPage() {
 
 ## MCP-сервер (интеграция с ИИ)
 
-Для ИИ-ассистентов вроде Claude установите MCP-сервер:
+MCP-сервер ReFormer помогает ИИ-ассистентам (Claude Code, Cursor и другим клиентам MCP) собирать и
+править формы: ведёт план работы, собирает модуль формы, проверяет типы и отвечает на вопросы по API.
+Сервер — закрытый платный сервис; к IDE его подключает открытый клиент `@reformer/mcp` (MIT), а файлы
+формы читает и пишет клиент у вас в проекте.
 
-```bash
-npm install -g @reformer/mcp
-```
-
-Добавьте в конфиг Claude:
+Сервис в раннем доступе: ключ `REFORMER_API_KEY` выдаётся по запросу — как его получить, на странице
+[Быстрый старт MCP](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/quick-start). Подключение в
+`.mcp.json` проекта:
 
 ```json
 {
   "mcpServers": {
     "reformer": {
-      "command": "reformer-mcp"
+      "command": "npx",
+      "args": ["-y", "@reformer/mcp"],
+      "env": { "REFORMER_API_KEY": "<ваш ключ>" }
     }
   }
 }
 ```
+
+Что уходит в сервис и как развернуть его у себя — в
+[обзоре MCP](https://alexandrbukhtatyy.github.io/ReFormer/docs/mcp/overview).
 
 ## Лицензия
 

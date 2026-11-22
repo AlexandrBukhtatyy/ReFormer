@@ -24,7 +24,7 @@
 claude mcp add --transport stdio reformer --env REFORMER_API_KEY=<ключ> -- npx -y @reformer/mcp
 ```
 
-Доступно: 10 tools (`choose_api`, `get_context`, `get_symbol_docs`, `find_recipe`, `search_docs`, `list_symbols`, `plan_form`, `form_build`, `validate_form`, `report_issue`; `debug` — под `REFORMER_DEBUG=true`); resources `reformer://guide`, `reformer://status`, `reformer://catalog`, `reformer://docs/<пакет>[/<раздел>]`; prompts `start-here`, `discover-context`, `plan-form`, `create-form`, `add-feature`, `to-renderer`, `review`. Форма создаётся одним путём: грамматика `form_build {"grammar":"base"}` → `<dir>/form.intent.json` → `form_build {"dir":…}` (сервер сам пишет модуль); `generate_form` удалён в 7.0. Подробно — [packages/reformer-mcp/README.md](packages/reformer-mcp/README.md).
+По умолчанию — два инструмента, `search` и `execute` (форма собирается конструктором по плану сервиса). С `REFORMER_SURFACE=tools`: 10 tools (`choose_api`, `get_context`, `get_symbol_docs`, `find_recipe`, `search_docs`, `list_symbols`, `plan_form`, `form_build`, `validate_form`, `report_issue`); resources `reformer://guide`, `reformer://status`, `reformer://catalog`, `reformer://docs/<пакет>[/<раздел>]`; prompts `start-here`, `add-feature`, `to-renderer`, `review`. Форма создаётся одним путём: грамматика `form_build {"grammar":"base"}` → `<dir>/form.intent.json` → `form_build {"dir":…}` (модуль собирает сервис, файлы пишет клиент); `generate_form` удалён в 7.0. Подробно — [packages/reformer-mcp/README.md](packages/reformer-mcp/README.md) и [обзор MCP](projects/reformer-doc/docs/mcp/overview.md).
 
 ### Эталонные примеры
 
