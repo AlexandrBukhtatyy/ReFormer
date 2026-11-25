@@ -1,0 +1,339 @@
+/**
+ * Модель формы «Заявка на кредит» — источник истины для всех остальных файлов.
+ * Валидация, поведение и схема ссылаются на ЭТИ пути; менять их надо здесь.
+ */
+import { arrayOf, createModel } from '@reformer/core';
+
+export type Property = {
+  /** Тип имущества */
+  type: 'apartment' | 'house' | 'land' | 'commercial' | 'car' | 'other';
+  /** Описание */
+  description: string;
+  /** Оценочная стоимость */
+  estimatedValue: number;
+  /** Имеется обременение (залог) */
+  hasEncumbrance: boolean;
+};
+
+export type ExistingLoan = {
+  /** Банк */
+  bank: string;
+  /** Тип кредита */
+  type: 'consumer' | 'mortgage' | 'car' | 'creditCard' | 'other';
+  /** Сумма кредита (₽) */
+  amount: number;
+  /** Остаток долга (₽) */
+  remainingAmount: number;
+  /** Ежемесячный платеж (₽) */
+  monthlyPayment: number;
+  /** Дата погашения */
+  maturityDate: string;
+};
+
+export type CoBorrower = {
+  personalData: {
+    /** Фамилия */
+    lastName: string;
+    /** Имя */
+    firstName: string;
+    /** Отчество */
+    middleName: string;
+    /** Дата рождения */
+    birthDate: string;
+  };
+  /** Телефон */
+  phone: string;
+  /** Email */
+  email: string;
+  /** Отношение к заемщику */
+  relationship: 'spouse' | 'parent' | 'child' | 'sibling' | 'relative' | 'other';
+  /** Ежемесячный доход (₽) */
+  monthlyIncome: number;
+};
+
+export type CreditApplicationForm = {
+  properties: Property[];
+  existingLoans: ExistingLoan[];
+  coBorrowers: CoBorrower[];
+  /** Тип кредита */
+  loanType: 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
+  /** Сумма кредита (₽) */
+  loanAmount: number | null;
+  /** Срок кредита (месяцев) */
+  loanTerm: number;
+  /** Цель кредита */
+  loanPurpose: string;
+  /** Стоимость недвижимости (₽) */
+  propertyValue: number | null;
+  /** Первоначальный взнос (₽) */
+  initialPayment: number | null;
+  /** Марка автомобиля */
+  carBrand: string | null;
+  /** Модель автомобиля */
+  carModel: string | null;
+  /** Год выпуска */
+  carYear: number | null;
+  /** Стоимость автомобиля (₽) */
+  carPrice: number | null;
+  personalData: {
+    /** Фамилия */
+    lastName: string;
+    /** Имя */
+    firstName: string;
+    /** Отчество */
+    middleName: string;
+    /** Дата рождения */
+    birthDate: string;
+    /** Пол */
+    gender: 'male' | 'female';
+    /** Место рождения */
+    birthPlace: string;
+  };
+  passportData: {
+    /** Серия паспорта */
+    series: string;
+    /** Номер паспорта */
+    number: string;
+    /** Кем выдан */
+    issuedBy: string;
+    /** Дата выдачи */
+    issueDate: string;
+    /** Код подразделения */
+    departmentCode: string;
+  };
+  /** ИНН */
+  inn: string;
+  /** СНИЛС */
+  snils: string;
+  /** Основной телефон */
+  phoneMain: string;
+  /** Дополнительный телефон */
+  phoneAdditional: string | null;
+  /** Email */
+  email: string;
+  /** Дополнительный email */
+  emailAdditional: string | null;
+  /** Дублировать email */
+  sameEmail: boolean;
+  registrationAddress: {
+    /** Регион */
+    region: string;
+    /** Город */
+    city: string;
+    /** Улица */
+    street: string;
+    /** Дом */
+    house: string;
+    /** Квартира */
+    apartment: string | null;
+    /** Индекс */
+    postalCode: string;
+  };
+  /** Адрес проживания совпадает с адресом регистрации */
+  sameAsRegistration: boolean;
+  residenceAddress: {
+    /** Регион */
+    region: string | null;
+    /** Город */
+    city: string | null;
+    /** Улица */
+    street: string | null;
+    /** Дом */
+    house: string | null;
+    /** Квартира */
+    apartment: string | null;
+    /** Индекс */
+    postalCode: string | null;
+  };
+  /** Статус занятости */
+  employmentStatus: 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
+  /** Название компании */
+  companyName: string | null;
+  /** ИНН компании */
+  companyInn: string | null;
+  /** Телефон компании */
+  companyPhone: string | null;
+  /** Адрес компании */
+  companyAddress: string | null;
+  /** Должность */
+  position: string | null;
+  /** Общий стаж работы (месяцев) */
+  workExperienceTotal: number | null;
+  /** Стаж на текущем месте (месяцев) */
+  workExperienceCurrent: number | null;
+  /** Тип бизнеса */
+  businessType: string | null;
+  /** ИНН ИП */
+  businessInn: string | null;
+  /** Вид деятельности */
+  businessActivity: string | null;
+  /** Ежемесячный доход (₽) */
+  monthlyIncome: number | null;
+  /** Дополнительный доход (₽) */
+  additionalIncome: number | null;
+  /** Источник дополнительного дохода */
+  additionalIncomeSource: string | null;
+  /** Семейное положение */
+  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
+  /** Количество иждивенцев */
+  dependents: number;
+  /** Образование */
+  education: 'secondary' | 'specialized' | 'higher' | 'postgraduate';
+  /** Документы */
+  documents: unknown[] | null;
+  /** У меня есть имущество */
+  hasProperty: boolean;
+  /** У меня есть другие кредиты */
+  hasExistingLoans: boolean;
+  /** Добавить созаемщика */
+  hasCoBorrower: boolean;
+  /** Согласие на обработку персональных данных */
+  agreePersonalData: boolean;
+  /** Согласие на проверку кредитной истории */
+  agreeCreditHistory: boolean;
+  /** Согласие с условиями кредитования */
+  agreeTerms: boolean;
+  /** Подтверждаю точность введенных данных */
+  confirmAccuracy: boolean;
+  /** Согласие на получение маркетинговых материалов */
+  agreeMarketing: boolean;
+  /** Код подтверждения из СМС */
+  electronicSignature: string;
+  /** Процентная ставка */
+  interestRate: number;
+  /** Ежемесячный платеж */
+  monthlyPayment: number;
+  /** ФИО */
+  fullName: string | null;
+  /** Возраст */
+  age: number | null;
+  /** Общий доход */
+  totalIncome: number;
+  /** Платеж/Доход */
+  paymentToIncomeRatio: number;
+  /** Доход созаемщиков */
+  coBorrowersIncome: number;
+};
+
+/** Шаблон нового элемента массива `properties`. */
+const blankProperty = (): Property => ({
+  type: 'apartment',
+  description: '',
+  estimatedValue: 0,
+  hasEncumbrance: false,
+});
+
+/** Шаблон нового элемента массива `existingLoans`. */
+const blankExistingLoan = (): ExistingLoan => ({
+  bank: '',
+  type: 'consumer',
+  amount: 0,
+  remainingAmount: 0,
+  monthlyPayment: 0,
+  maturityDate: '',
+});
+
+/** Шаблон нового элемента массива `coBorrowers`. */
+const blankCoBorrower = (): CoBorrower => ({
+  personalData: {
+    lastName: '',
+    firstName: '',
+    middleName: '',
+    birthDate: '',
+  },
+  phone: '',
+  email: '',
+  relationship: 'spouse',
+  monthlyIncome: 0,
+});
+
+/** Модель формы — по одной на сборку: `createForm({ model: createFormModel(), … })`. */
+export const createFormModel = () =>
+  createModel<CreditApplicationForm>({
+    properties: arrayOf(blankProperty),
+    existingLoans: arrayOf(blankExistingLoan),
+    coBorrowers: arrayOf(blankCoBorrower),
+    loanType: 'consumer',
+    loanAmount: null,
+    loanTerm: 12,
+    loanPurpose: '',
+    propertyValue: null,
+    initialPayment: null,
+    carBrand: '',
+    carModel: '',
+    carYear: null,
+    carPrice: null,
+    personalData: {
+      lastName: '',
+      firstName: '',
+      middleName: '',
+      birthDate: '',
+      gender: 'male',
+      birthPlace: '',
+    },
+    passportData: {
+      series: '',
+      number: '',
+      issuedBy: '',
+      issueDate: '',
+      departmentCode: '',
+    },
+    inn: '',
+    snils: '',
+    phoneMain: '',
+    phoneAdditional: '',
+    email: '',
+    emailAdditional: '',
+    sameEmail: false,
+    registrationAddress: {
+      region: '',
+      city: '',
+      street: '',
+      house: '',
+      apartment: '',
+      postalCode: '',
+    },
+    sameAsRegistration: true,
+    residenceAddress: {
+      region: '',
+      city: '',
+      street: '',
+      house: '',
+      apartment: '',
+      postalCode: '',
+    },
+    employmentStatus: 'employed',
+    companyName: '',
+    companyInn: '',
+    companyPhone: '',
+    companyAddress: '',
+    position: '',
+    workExperienceTotal: null,
+    workExperienceCurrent: null,
+    businessType: '',
+    businessInn: '',
+    businessActivity: '',
+    monthlyIncome: null,
+    additionalIncome: null,
+    additionalIncomeSource: '',
+    maritalStatus: 'single',
+    dependents: 0,
+    education: 'higher',
+    documents: null,
+    hasProperty: false,
+    hasExistingLoans: false,
+    hasCoBorrower: false,
+    agreePersonalData: false,
+    agreeCreditHistory: false,
+    agreeTerms: false,
+    confirmAccuracy: false,
+    agreeMarketing: false,
+    electronicSignature: '',
+    interestRate: 0,
+    monthlyPayment: 0,
+    fullName: '',
+    age: null,
+    totalIncome: 0,
+    paymentToIncomeRatio: 0,
+    coBorrowersIncome: 0,
+  });

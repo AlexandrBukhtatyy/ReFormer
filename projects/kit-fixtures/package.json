@@ -1,0 +1,24 @@
+{
+  "name": "kit-fixtures",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Формы на именах каталога компонентов для тестов китов ReFormer: регистрация, заём, кредитная заявка",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@reformer/core": "*",
+    "@reformer/renderer-json": "*"
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@reformer/renderer-json": "*",
+    "typescript": "~5.9.3"
+  }
+}

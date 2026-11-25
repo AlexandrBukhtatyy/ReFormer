@@ -1,0 +1,79 @@
+/**
+ * Валидация формы «RegistrationForm» — правила над МОДЕЛЬЮ, не в схеме разметки.
+ * Подключение: createForm({ …, validation: formValidation }).
+ */
+import { defineValidation, validate, validateAsync } from '@reformer/core/validation';
+import type { AsyncRule } from '@reformer/core/validation';
+import { email, minLength, pattern, required } from '@reformer/core/validators';
+import type { RegistrationFormData } from './model';
+
+/** Асинхронная проверка поля `username`. Константа модуля: ядро помнит ответ по ссылке на правило. */
+const usernameTakenRule: AsyncRule<RegistrationFormData['username']> = async (
+  value,
+  { signal }
+) => {
+  if (!value || value.length < 3) return null;
+  try {
+    const res = await fetch(`/api/v1/auth/check-username?username=${encodeURIComponent(value)}`, {
+      signal,
+    });
+    const json = await res.json();
+    return json.available
+      ? null
+      : { code: 'username-taken', params: { serverMessage: json.message } };
+  } catch {
+    return null;
+  }
+};
+
+/** Асинхронная проверка поля `email`. Константа модуля: ядро помнит ответ по ссылке на правило. */
+const emailTakenRule: AsyncRule<RegistrationFormData['email']> = async (value, { signal }) => {
+  if (!value || !value.includes('@')) return null;
+  try {
+    const res = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(value)}`, {
+      signal,
+    });
+    const json = await res.json();
+    return json.available ? null : { code: 'email-taken', message: json.message || 'Email занят' };
+  } catch {
+    return null;
+  }
+};
+
+export const formValidation = defineValidation<RegistrationFormData>(({ model, cross }) => {
+  validate(model.$.username, [
+    required({ code: 'username.required' }),
+    minLength(3, { code: 'username.minLength' }),
+    pattern(/^[a-zA-Z0-9_]{3,20}$/, { code: 'username.pattern' }),
+  ]);
+  validateAsync(model.$.username, [usernameTakenRule]);
+  validate(model.$.email, [required({ code: 'email.required' }), email({ code: 'email.email' })]);
+  validateAsync(model.$.email, [emailTakenRule]);
+  validate(model.$.password, [
+    required({ code: 'password.required' }),
+    minLength(8, { code: 'password.minLength' }),
+    (value) =>
+      !value || (/[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value))
+        ? null
+        : { code: 'weak-password' },
+  ]);
+  validate(model.$.confirmPassword, [required({ code: 'confirmPassword.required' })]);
+  cross(model.$.confirmPassword, (values) =>
+    !values.confirmPassword || !values.password || values.confirmPassword === values.password
+      ? null
+      : { code: 'passwords-mismatch' }
+  );
+  validate(model.$.fullName, [
+    required({ code: 'fullName.required' }),
+    minLength(2, { code: 'fullName.minLength' }),
+  ]);
+  validate(model.$.phone, [
+    required({ code: 'phone.required' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { code: 'phone.pattern' }),
+  ]);
+  validate(model.$.captcha, [
+    required({ code: 'captcha.required' }),
+    (value) => (value !== 'ABC123' ? { code: 'invalid-captcha' } : null),
+  ]);
+  validate(model.$.acceptTerms, [(value) => (value ? null : { code: 'terms-required' })]);
+});
