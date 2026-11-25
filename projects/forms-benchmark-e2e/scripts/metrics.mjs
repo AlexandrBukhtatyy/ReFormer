@@ -180,8 +180,8 @@ function slope(points, key) {
 }
 
 /**
- * Порядок форм в отчёте и на странице /benchmark — от простой к сложной. Без него порядок зависел
- * от времени каталогов прогонов (aggregate берёт их по алфавиту).
+ * Порядок форм в отчёте и на странице /benchmark/forms — от простой к сложной. Без него порядок
+ * зависел от времени каталогов прогонов (aggregate берёт их по алфавиту).
  */
 export const FORM_ORDER = ['registration', 'credit'];
 export const byFormOrder = (a, b) => {

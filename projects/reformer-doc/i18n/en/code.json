@@ -1489,6 +1489,85 @@
   "benchmark.fact.conformanceCount": {
     "message": "171 tests"
   },
+  "benchmark.backToHub": {
+    "message": "← All benchmarks"
+  },
+  "benchmark.hub.page.title": {
+    "message": "Benchmarks"
+  },
+  "benchmark.hub.page.description": {
+    "message": "ReFormer benchmark reports: comparison with Formik, React Hook Form and RJSF, an AI assistant with MCP and without, the library in React, Vue and Angular."
+  },
+  "benchmark.hub.kicker": {
+    "message": "Benchmarks"
+  },
+  "benchmark.hub.title": {
+    "message": "ReFormer measured on real runs"
+  },
+  "benchmark.hub.lead": {
+    "message": "How ReFormer looks next to other form libraries, what the MCP server gives an AI assistant and — soon — how the library works in React, Vue and Angular. Every report has an open methodology, and the numbers come from runs, including those where ReFormer falls behind."
+  },
+  "benchmark.hub.forms.kicker": {
+    "message": "Form libraries"
+  },
+  "benchmark.hub.forms.title": {
+    "message": "ReFormer against Formik, React Hook Form and RJSF"
+  },
+  "benchmark.hub.forms.description": {
+    "message": "Registration with a captcha and a six-step credit application — on every library, plus ReFormer on a JSON schema. Loading, typing, the wizard, arrays, remounting, bundle and code size; prod builds, identical behaviour, measured in Chromium."
+  },
+  "benchmark.hub.forms.meta": {
+    "message": "{date} · CPU {cpu}x · medians over {runs} runs"
+  },
+  "benchmark.hub.forms.statsNote": {
+    "message": "Numbers — ReFormer core on the registration form"
+  },
+  "benchmark.hub.mcp.kicker": {
+    "message": "AI assistant"
+  },
+  "benchmark.hub.mcp.title": {
+    "message": "Measurements: with MCP and without"
+  },
+  "benchmark.hub.mcp.description": {
+    "message": "The same agent builds, edits and cleans up ReFormer forms without the MCP server and with it. Quality by one verifier, time, tokens and cost; scenarios, stacks and the resulting forms themselves."
+  },
+  "benchmark.hub.mcp.meta": {
+    "message": "{date} · {model} · {runs}"
+  },
+  "benchmark.hub.mcp.runs": {
+    "message": "run|runs",
+    "description": "Plural forms of the word after the run count on the MCP report card"
+  },
+  "benchmark.hub.mcp.quality": {
+    "message": "of runs pass every check with MCP against {none}% without it"
+  },
+  "benchmark.hub.mcp.speed": {
+    "message": "faster with MCP: time of all runs"
+  },
+  "benchmark.hub.mcp.cost": {
+    "message": "cheaper with MCP: cost of all runs"
+  },
+  "benchmark.hub.frameworks.kicker": {
+    "message": "Frameworks"
+  },
+  "benchmark.hub.frameworks.title": {
+    "message": "ReFormer in React, Vue and Angular"
+  },
+  "benchmark.hub.frameworks.description": {
+    "message": "The same forms — registration and a credit application — on three stacks: React with @reformer/ui-kit, Vue with Vuetify, Angular with Taiga UI. Behaviour is checked by shared scenarios."
+  },
+  "benchmark.hub.soon": {
+    "message": "In progress"
+  },
+  "benchmark.hub.soonNote": {
+    "message": "The report will appear here"
+  },
+  "benchmark.hub.open": {
+    "message": "Open the report →"
+  },
+  "moved.text": {
+    "message": "This page has moved:"
+  },
   "homepage.ecosystem.kicker": {
     "message": "Ecosystem"
   },

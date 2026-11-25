@@ -1,6 +1,7 @@
 /**
- * Раздел бенчмарка на лендинге: плитки из данных опубликованного отчёта и ссылка на /benchmark.
- * Берёт только сводный файл (строки «Итога» и бандл), а не полные данные страницы отчёта.
+ * Раздел бенчмарка на лендинге: плитки из данных опубликованного отчёта и ссылка на отчёт
+ * /benchmark/forms. Берёт только сводный файл (строки «Итога» и бандл), а не полные данные
+ * страницы отчёта.
  */
 import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
@@ -52,7 +53,7 @@ export default function LandingBenchmark(): ReactNode {
           </Translate>
         </p>
         <div className={styles.cta}>
-          <Link className="button button--primary button--lg" to="/benchmark">
+          <Link className="button button--primary button--lg" to="/benchmark/forms">
             <Translate id="homepage.benchmark.cta">Смотреть отчёт →</Translate>
           </Link>
         </div>

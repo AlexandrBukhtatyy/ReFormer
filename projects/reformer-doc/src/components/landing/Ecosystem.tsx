@@ -102,7 +102,7 @@ const PACKAGES: PackageCard[] = [
     ],
     extraLinks: [
       {
-        to: '/docs/mcp/benchmark',
+        to: '/benchmark/mcp',
         label: { id: 'homepage.ecosystem.mcp.benchmark', message: 'Замеры: с MCP и без →' },
       },
     ],

@@ -293,8 +293,10 @@ const config: Config = {
           className: 'navbar-builder-dev',
         },
         {
-          // Отчёт бенчмарка форм (src/pages/benchmark.tsx); подпись на en — i18n/en/docusaurus-theme-classic/navbar.json.
+          // Список отчётов бенчмарков (src/pages/benchmark/index.tsx), сами отчёты — /benchmark/*;
+          // подсвечен на всех них. Подпись на en — i18n/en/docusaurus-theme-classic/navbar.json.
           to: '/benchmark',
+          activeBasePath: 'benchmark',
           label: 'Бенчмарк',
           position: 'left',
         },

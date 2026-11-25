@@ -40,7 +40,7 @@ import {
   sigMark,
 } from '@site/src/components/benchmark/types';
 
-import styles from './benchmark.module.css';
+import styles from './forms.module.css';
 
 const REPO = 'https://github.com/AlexandrBukhtatyy/ReFormer';
 /** Сайт публикуется из develop (deploy-docs.yml) — ссылки на файлы бенчмарка ведут туда же. */
@@ -114,6 +114,9 @@ function Hero(): ReactNode {
   return (
     <header className={styles.hero}>
       <div className="container">
+        <Link className={styles.backLink} to="/benchmark">
+          <Translate id="benchmark.backToHub">← Все бенчмарки</Translate>
+        </Link>
         <p className={styles.kicker}>
           <Translate
             id="benchmark.hero.kicker"

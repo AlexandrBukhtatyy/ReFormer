@@ -74,7 +74,7 @@ packages/*/tests/__golden__/
 # -- --publish`); prettier переформатировал бы сгенерированные таблицы и summary.json при каждой
 # публикации
 docs/benchmarks/forms/
-# …и данные страницы /benchmark сайта из того же отчёта (site-data.mjs, `npm run bench:site-data`):
+# …и данные /benchmark/forms на сайте из того же отчёта (site-data.mjs, `npm run bench:site-data`):
 # листья записаны в строку — prettier развернул бы их, и каждая публикация оставляла бы diff
 projects/reformer-doc/src/data/forms-benchmark*.json
 # …и данные страницы «Замеры: с MCP и без» (их пишет стенд замеров MCP):

@@ -20,6 +20,18 @@
   border-bottom: 1px solid var(--ifm-color-emphasis-200);
 }
 
+.backLink {
+  display: block;
+  width: fit-content;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.backLink:hover {
+  color: var(--ifm-color-primary);
+}
+
 .kicker {
   display: inline-block;
   margin: 0 0 1rem;

@@ -101,14 +101,14 @@ When an AI assistant writes or edits a form, the standard saves tokens — which
 time.
 
 - **With the MCP server** the assistant does not write the form module itself: it describes the
-  form with builder calls, and the server prints the code. In the [measurement](/docs/mcp/benchmark)
+  form with builder calls, and the server prints the code. In the [measurement](/benchmark/mcp)
   over 180 runs (Claude Sonnet, November 21, 2026) creating a form with the server took about
   6 times fewer tokens by median: 5,142 output tokens against 31,217. Over the whole measurement
   almost 5 times fewer input and output tokens were spent, hence the cost — 4.3 times lower.
 - **Without the server** compactness and the layout save tokens. The form code itself is 2–2.5
   times shorter than with Formik, React Hook Form and RJSF: 399 lines against 890–992 in the
-  [benchmark](/benchmark). The model has less to read and write, and to fix a rule it opens the
-  rules file, not the whole form.
+  [benchmark](/benchmark/forms). The model has less to read and write, and to fix a rule it opens
+  the rules file, not the whole form.
 - **Documentation ships with the packages.** `llms.txt` and the documentation index sit in npm
   next to the code, so the assistant does not need to look for them on the web.
 
@@ -193,7 +193,7 @@ This is where the standard pays off most. Forms in a project stop being "each on
 | Everyone assembles a form the way they are used to              | There is one way — `createForm`. A form in JSX, by schema and from JSON is assembled the same way                                                                                 | [Large forms](/docs/patterns/project-structure-large)            |
 | Everyone describes operation outcomes differently               | Shared contracts: the `SubmitResult` submit outcome, the `{ code, params, severity }` issue, step transitions with a status and a reason                                          | [Submit and reset](/docs/patterns/submit-and-reset)              |
 | Repeated field groups are copied, and their rules get forgotten | A group module keeps the schema, rules and behavior together. The group type checks that the module is attached to matching fields                                                | [Group module](/docs/core-concepts/schemas/modules)              |
-| Form code is bloated                                            | In the benchmark credit application the form itself is 399 lines against 890–992 for Formik, React Hook Form and RJSF. With the reusable glue code — 1007 lines against 1085–1456 | [Benchmark](/benchmark)                                          |
+| Form code is bloated                                            | In the benchmark credit application the form itself is 399 lines against 890–992 for Formik, React Hook Form and RJSF. With the reusable glue code — 1007 lines against 1085–1456 | [Benchmark](/benchmark/forms)                                    |
 | A newcomer takes long to get into the project                   | One layout, one glossary, common mistakes collected in one place                                                                                                                  | [Glossary](/docs/reference/glossary), [FAQ](/docs/reference/faq) |
 | Generated code cannot be reviewed                               | MCP and the builder write plain ReFormer code by the same rules. It is reviewed and edited by hand like hand-written code                                                         | [For teams with AI](#ai)                                         |
 
@@ -210,7 +210,7 @@ person follows.
 | AI makes up APIs                                              | The server builds the form and checks the types. For an unknown method, symbol or package it answers with the correct name                                           | [Diagnostic codes](/docs/mcp/diagnostic-codes) |
 | The model says "done", but the form does not work             | "Done" (`Done`) comes from the server, and only after a build and a type check on the current files                                                                  | [Tools](/docs/mcp/tools)                       |
 | Documentation for the AI has to come from somewhere           | `llms.txt` and the documentation index ship to npm with the packages. The server answers from them, not from the model's memory                                      | [MCP overview](/docs/mcp/overview)             |
-| The agent goes in circles and costs a lot                     | Measured on 21 November 2026, Claude Sonnet, 180 runs: with the server 97% of runs passed every check against 83% without it, 2.6 times faster and 4.3 times cheaper | [With MCP and without](/docs/mcp/benchmark)    |
+| The agent goes in circles and costs a lot                     | Measured on 21 November 2026, Claude Sonnet, 180 runs: with the server 97% of runs passed every check against 83% without it, 2.6 times faster and 4.3 times cheaper | [With MCP and without](/benchmark/mcp)         |
 
 ## For product people and analysts {#builder}
 
@@ -232,7 +232,7 @@ there with the mouse or by asking the AI assistant in plain words.
 | One team builds a form, another app shows it      | `@reformer/form-registry`: one bundle registers a form, another mounts it by id, slot or route. Access rights are checked the same way for every lookup                | [Form registry](/docs/packages/form-registry)                                          |
 | The form schema and the code drift apart silently | The registry checks an entry before assembly: schema version, components, steps, model paths. A separate check catches two copies of the runtime                       | [Registry checks](/docs/packages/form-registry/checks)                                 |
 | The form arrives from the server as data          | `@reformer/renderer-json` renders a form from a JSON document. The document is checked as a whole with a list of all errors, and HTML only from allowed tags           | [JSON renderer](/docs/packages/renderer-json)                                          |
-| Schema-driven rendering pulls heavy dependencies  | In the benchmark the JSON form adds 36.7 KB gzip to the page, RJSF adds 129.5 KB                                                                                       | [Benchmark](/benchmark)                                                                |
+| Schema-driven rendering pulls heavy dependencies  | In the benchmark the JSON form adds 36.7 KB gzip to the page, RJSF adds 129.5 KB                                                                                       | [Benchmark](/benchmark/forms)                                                          |
 | The company has its own design system             | `@reformer/cdk` is logic and accessibility without styles. Your own control plugs in through an adapter, and the same JSON document renders with another component set | [CDK](/docs/cdk/overview), [Component registry](/docs/packages/renderer-json/registry) |
 | A library ties you to a React version             | The core does not depend on React and works without a UI. The React binding covers 16.8 to 19                                                                          | [Installation](/docs/getting-started/installation)                                     |
 | The form drifts from the API contract             | A type from an OpenAPI generator goes into `createForm<T>`, and the compiler catches the mismatch                                                                      | [OpenAPI generation](/docs/patterns/openapi-generation)                                |
@@ -240,7 +240,7 @@ there with the mouse or by asking the AI assistant in plain words.
 ## Where ReFormer falls behind {#limits}
 
 ReFormer does not solve everything and is not faster everywhere. Full numbers are in the
-[benchmark](/benchmark).
+[benchmark](/benchmark/forms).
 
 - **Loading with prefilled data is slower.** Prefill hydration takes 31.9 ms against 11.4 for
   Formik and 12.1 for React Hook Form. Mounting the form is also slower than with Formik.
@@ -265,5 +265,5 @@ ReFormer does not solve everything and is not faster everywhere. Full numbers ar
 
 - [Introduction](/docs/) — how ReFormer is built and its packages.
 - [Quick start](/docs/getting-started/quick-start) — your first form.
-- [Benchmark](/benchmark) — ReFormer against Formik, React Hook Form and RJSF.
-- [With MCP and without](/docs/mcp/benchmark) — what the server gives an AI assistant.
+- [Benchmark](/benchmark/forms) — ReFormer against Formik, React Hook Form and RJSF.
+- [With MCP and without](/benchmark/mcp) — what the server gives an AI assistant.

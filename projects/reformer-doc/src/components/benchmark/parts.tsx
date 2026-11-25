@@ -148,11 +148,22 @@ export function ScoreTile({
   );
 }
 
+/** Тексты плитки: число, утверждение, контекст и оговорка. */
+export interface TileText {
+  value: ReactNode;
+  claim: ReactNode;
+  context: ReactNode;
+  caveat: ReactNode;
+  /** Единица плитки на языке страницы. */
+  unit: string;
+}
+
 /**
- * Плитка лендинга. Формулировки привязаны к id плитки (форма и метрика задаются в highlights.ts —
- * меняя их там, поправьте и текст здесь); числа — из данных.
+ * Тексты плитки — для лендинга (HighlightTile) и карточки отчёта на странице-списке /benchmark:
+ * одни формулировки и правила честности. Формулировки привязаны к id плитки (форма и метрика
+ * задаются в highlights.ts — меняя их там, поправьте и текст здесь); числа — из данных.
  */
-export function HighlightTile({ tile }: { tile: Tile }): ReactNode {
+export function useTileText(tile: Tile): TileText {
   const t = useBenchText();
   const { selectMessage } = usePluralForm();
   const unit = t.unit(tile.unit);
@@ -303,6 +314,12 @@ export function HighlightTile({ tile }: { tile: Tile }): ReactNode {
       break;
   }
 
+  return { value, claim, context, caveat, unit };
+}
+
+/** Плитка лендинга: тексты — useTileText, под ними мини-график ReFormer и конкурентов. */
+export function HighlightTile({ tile }: { tile: Tile }): ReactNode {
+  const { value, claim, context, caveat, unit } = useTileText(tile);
   return (
     <div className={styles.tile}>
       <div className={styles.tileValue}>{value}</div>
