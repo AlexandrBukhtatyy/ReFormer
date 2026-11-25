@@ -7,9 +7,12 @@
   "scripts": {
     "dev": "vite",
     "bench:build": "node scripts/build-entries.mjs",
+    "bench:build:frameworks": "node scripts/build-frameworks.mjs",
     "serve": "node scripts/serve.mjs",
     "size": "node scripts/bundle-size.mjs",
     "loc": "node scripts/code-size.mjs",
+    "size:frameworks": "node scripts/bundle-size.mjs --frameworks",
+    "loc:frameworks": "node scripts/code-size.mjs --frameworks",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {

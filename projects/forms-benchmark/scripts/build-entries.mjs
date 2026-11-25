@@ -12,11 +12,11 @@
  * Опции: --only <id>[,<id>] — собрать только этих участников; --form <form>.
  */
 import { build } from 'vite';
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { checkReformerPackages } from './lib/reformer-packages.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repo = path.resolve(root, '../..');
@@ -32,52 +32,17 @@ const only = argValue('--only')?.split(',');
 const onlyForm = argValue('--form');
 
 // ── Защита от устаревшего dist @reformer/* ───────────────────────────────────
-const REFORMER_PACKAGES = ['reformer', 'reformer-cdk', 'reformer-renderer-react', 'reformer-renderer-json'];
-
-function newestMtime(dir) {
-  let newest = 0;
-  const walk = (d) => {
-    for (const name of readdirSync(d)) {
-      const p = path.join(d, name);
-      const s = statSync(p);
-      if (s.isDirectory()) walk(p);
-      else newest = Math.max(newest, s.mtimeMs);
-    }
-  };
-  walk(dir);
-  return newest;
-}
-
-function hashDir(dir) {
-  const h = createHash('sha256');
-  const walk = (d) => {
-    for (const name of readdirSync(d).sort()) {
-      const p = path.join(d, name);
-      if (statSync(p).isDirectory()) walk(p);
-      else h.update(name).update(readFileSync(p));
-    }
-  };
-  walk(dir);
-  return h.digest('hex').slice(0, 16);
-}
-
-const packages = {};
-for (const pkg of REFORMER_PACKAGES) {
-  const pkgDir = path.join(repo, 'packages', pkg);
-  const pkgDist = path.join(pkgDir, 'dist');
-  if (!existsSync(pkgDist)) {
-    throw new Error(`packages/${pkg}/dist отсутствует — соберите пакеты: npm run build:stackblitz -w <пакет>`);
-  }
-  const srcTime = newestMtime(path.join(pkgDir, 'src'));
-  const distTime = newestMtime(pkgDist);
-  if (srcTime > distTime) {
-    throw new Error(
-      `packages/${pkg}/dist старее src — пересоберите (core → cdk → renderer-react → renderer-json)`
-    );
-  }
-  const { name, version } = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
-  packages[name] = { version, distHash: hashDir(pkgDist) };
-}
+const REFORMER_PACKAGES = [
+  'reformer',
+  'reformer-cdk',
+  'reformer-renderer-react',
+  'reformer-renderer-json',
+];
+const packages = checkReformerPackages(
+  repo,
+  REFORMER_PACKAGES,
+  'core → cdk → renderer-react → renderer-json'
+);
 
 // ── Список входов ────────────────────────────────────────────────────────────
 const targets = [];
@@ -90,13 +55,25 @@ for (const entry of manifest.entries) {
       console.log(`· пропуск ${entry.id}/${form}: нет ${main}`);
       continue;
     }
-    targets.push({ id: entry.id, form, main, outDir: path.join(dist, entry.id, form), base: `/${entry.id}/${form}/` });
+    targets.push({
+      id: entry.id,
+      form,
+      main,
+      outDir: path.join(dist, entry.id, form),
+      base: `/${entry.id}/${form}/`,
+    });
   }
 }
 for (const page of manifest.pages ?? []) {
   if (only && !only.includes(page.id)) continue;
   if (onlyForm) continue;
-  targets.push({ id: page.id, form: null, main: page.entry, outDir: path.join(dist, page.id), base: `/${page.id}/` });
+  targets.push({
+    id: page.id,
+    form: null,
+    main: page.entry,
+    outDir: path.join(dist, page.id),
+    base: `/${page.id}/`,
+  });
 }
 
 // ── Сборка ───────────────────────────────────────────────────────────────────
@@ -166,7 +143,10 @@ for (const name of Object.keys(dependencies)) {
 // сборки (--only) не теряют чужие входы.
 for (const t of built) {
   const dir = t.form ? path.join(dist, t.id, t.form) : path.join(dist, t.id);
-  writeFileSync(path.join(dir, 'build-entry.json'), JSON.stringify({ ...t, builtAt: new Date().toISOString() }));
+  writeFileSync(
+    path.join(dir, 'build-entry.json'),
+    JSON.stringify({ ...t, builtAt: new Date().toISOString() })
+  );
 }
 const entries = [];
 for (const id of readdirSync(dist)) {

@@ -13,6 +13,13 @@
  * «Форма» — файлы в `src/libs/<impl>/<form>/`, «обвязка» — остальные файлы `src/libs/**` страницы.
  *
  * Результат: dist/code-report.json + таблица в консоль.
+ *
+ * `--frameworks` — страницы стеков набора «ReFormer в React, Vue и Angular»
+ * (scripts/build-frameworks.mjs, маркер frameworks-entry.json). «Форма» — общее у трёх стеков:
+ * документ формы, правила и поведение (`src/cross/**` и попавшие в бандл `src/libs/**`); «обвязка» —
+ * своё у стека: реестр кита, вход страницы, компоненты приложения (`<хост>/src/cross/**`). Код
+ * библиотек компонентов и рендереров — пакеты, `src/shared/**` — общий слой: не считаются.
+ * Результат — dist/frameworks-code-report.json.
  */
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -102,7 +109,9 @@ function bundledLibFiles(entryDir) {
   // JSON-модули vite встраивает без sourcemap — добавляем JSON, импортированный попавшими исходниками.
   for (const file of [...files]) {
     if (!/\.tsx?$/.test(file)) continue;
-    for (const m of readFileSync(file, 'utf8').matchAll(/from\s+['"](\.{1,2}\/[^'"]+\.json)['"]/g)) {
+    for (const m of readFileSync(file, 'utf8').matchAll(
+      /from\s+['"](\.{1,2}\/[^'"]+\.json)['"]/g
+    )) {
       const json = path.resolve(path.dirname(file), m[1]);
       if (json.startsWith(libsDir) && existsSync(json)) files.add(json);
     }
@@ -110,8 +119,73 @@ function bundledLibFiles(entryDir) {
   return files;
 }
 
+const FRAMEWORKS = process.argv.includes('--frameworks');
+const crossDir = path.join(root, 'src/cross') + path.sep;
+
+/** Все `.js.map` каталога страницы (у Vite — в assets/, у Angular CLI — в корне). */
+function mapFiles(dir) {
+  const out = [];
+  for (const name of readdirSync(dir, { recursive: true })) {
+    if (String(name).endsWith('.js.map')) out.push(path.join(dir, String(name)));
+  }
+  return out;
+}
+
+/**
+ * Исходники страницы стека под каталогами `roots`, попавшие в бандл. Пути карт: у Vite — от
+ * каталога карты, у Angular CLI — от каталога приложения.
+ */
+function bundledFiles(entryDir, sourceRoot, roots) {
+  const inside = (file) => roots.some((dir) => file.startsWith(dir));
+  const files = new Set();
+  for (const mapFile of mapFiles(entryDir)) {
+    const map = JSON.parse(readFileSync(mapFile, 'utf8'));
+    for (const source of map.sources) {
+      const abs = path.resolve(sourceRoot ?? path.dirname(mapFile), source);
+      if (inside(abs) && /\.(tsx?|json)$/.test(abs)) files.add(abs);
+    }
+  }
+  for (const file of [...files]) {
+    if (!/\.tsx?$/.test(file)) continue;
+    for (const m of readFileSync(file, 'utf8').matchAll(
+      /from\s+['"](\.{1,2}\/[^'"]+\.json)['"]/g
+    )) {
+      const json = path.resolve(path.dirname(file), m[1]);
+      if (inside(json) && existsSync(json)) files.add(json);
+    }
+  }
+  return files;
+}
+
 const report = {};
-for (const entry of manifest.entries) {
+for (const id of FRAMEWORKS ? readdirSync(dist) : []) {
+  const idDir = path.join(dist, id);
+  if (!statSync(idDir).isDirectory()) continue;
+  for (const form of readdirSync(idDir)) {
+    const entryDir = path.join(idDir, form);
+    const marker = path.join(entryDir, 'frameworks-entry.json');
+    if (!existsSync(marker)) continue;
+    const { bundler, host } = JSON.parse(readFileSync(marker, 'utf8'));
+    const hostDir = path.join(root, '..', host);
+    const hostCross = path.join(hostDir, 'src/cross') + path.sep;
+    const files = bundledFiles(entryDir, bundler === 'angular' ? hostDir : null, [
+      crossDir,
+      libsDir,
+      hostCross,
+    ]);
+    const own = [...files].filter((f) => !f.startsWith(hostCross));
+    const kit = [...files].filter((f) => f.startsWith(hostCross));
+    report[id] ??= {};
+    report[id][form] = {
+      form: await measure(own),
+      kit: await measure(kit),
+      total: await measure([...files]),
+      kitFiles: kit.map((f) => path.relative(hostDir, f).split(path.sep).join('/')).sort(),
+    };
+  }
+}
+
+for (const entry of FRAMEWORKS ? [] : manifest.entries) {
   if (entry.role === 'control') continue; // A/A-копия — тот же код
   for (const form of manifest.forms) {
     const entryDir = path.join(dist, entry.id, form);
@@ -131,11 +205,20 @@ for (const entry of manifest.entries) {
 }
 
 writeFileSync(
-  path.join(dist, 'code-report.json'),
-  JSON.stringify({ generatedAt: new Date().toISOString(), basis: 'bundled sources', report }, null, 2)
+  path.join(dist, FRAMEWORKS ? 'frameworks-code-report.json' : 'code-report.json'),
+  JSON.stringify(
+    { generatedAt: new Date().toISOString(), basis: 'bundled sources', report },
+    null,
+    2
+  )
 );
 
-console.log('реализация/форма'.padEnd(28), 'форма TS JSON', '| обвязка TS JSON', '| итого TS+JSON  gzip');
+console.log(
+  'реализация/форма'.padEnd(28),
+  'форма TS JSON',
+  '| обвязка TS JSON',
+  '| итого TS+JSON  gzip'
+);
 for (const [impl, forms] of Object.entries(report)) {
   for (const [form, r] of Object.entries(forms)) {
     console.log(
