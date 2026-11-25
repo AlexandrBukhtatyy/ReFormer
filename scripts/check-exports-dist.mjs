@@ -82,10 +82,19 @@ function viteEntryKeys(pkgDir) {
  * Пакеты с входами без React: имя пакета → ключи `exports`, которым React разрешён.
  * Всем остальным входам такого пакета он запрещён во всём замыкании импортов.
  */
-const REACT_ALLOWED_ENTRIES = new Map([['@reformer/core', new Set(['./react'])]]);
+const REACT_ALLOWED_ENTRIES = new Map([
+  ['@reformer/core', new Set(['./react'])],
+  // Документ формы рисуют и Vue, и Angular: им отдан вход `./neutral`. Основной вход несёт
+  // React-границу ошибок и компоненты локализации.
+  ['@reformer/renderer-json', new Set(['.'])],
+]);
 
-/** Спецификаторы, означающие зависимость от React. */
-const REACT_SPECIFIER = /^(react|react-dom|use-sync-external-store)(\/|$)/;
+/**
+ * Спецификаторы, означающие зависимость от React: он сам и пакеты, которые без него не живут.
+ * Вход ядра для React — тоже: сосед, импортирующий `@reformer/core/react`, React получит через него.
+ */
+const REACT_SPECIFIER =
+  /^(react|react-dom|use-sync-external-store|@reformer\/(renderer-react|cdk|ui-kit)|@reformer\/core\/react)(\/|$)/;
 
 /** Спецификаторы модуля: `from '…'`, `import '…'` и `import('…')`. */
 function importSpecifiers(file) {

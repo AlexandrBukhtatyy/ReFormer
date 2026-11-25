@@ -67,10 +67,68 @@ describe('sanitizeHtmlProps', () => {
     expect(out).toEqual({ title: 'ok' });
   });
 
-  it('не путает обработчик с обычным атрибутом на "on"', () => {
-    const props = { onlyChild: true, once: 'x' };
+  // React строковый `onclick` проигнорирует, а Vue и Angular поставят его атрибутом разметки —
+  // и браузер исполнит. Чистка не знает, кто нарисует узел, поэтому регистр не различает.
+  it('выбрасывает обработчики в написании разметки — строчными', () => {
+    silenceWarn();
+    const out = sanitizeHtmlProps(
+      { onclick: 'alert(1)', onerror: 'alert(2)', ONLOAD: 'alert(3)', title: 'ok' },
+      'img'
+    );
+    expect(out).toEqual({ title: 'ok' });
+  });
+
+  it('выбрасывает обработчики в написании Vue: событие модели, префиксы привязки, кебаб', () => {
+    silenceWarn();
+    const out = sanitizeHtmlProps(
+      {
+        'onUpdate:modelValue': () => {},
+        '^onclick': 'alert(1)',
+        '.onclick': () => {},
+        'on-click': 'alert(1)',
+        onVnodeMounted: () => {},
+        id: 'x',
+      },
+      'div'
+    );
+    expect(out).toEqual({ id: 'x' });
+  });
+
+  // Атрибутов разметки на `on…`, которые не обработчики, в HTML нет: список известных событий
+  // пропускал бы каждое новое, поэтому отбрасывается любое такое имя.
+  it('отбрасывает любое имя на "on" — списка «безопасных» нет', () => {
+    silenceWarn();
+    expect(sanitizeHtmlProps({ onlyChild: true, once: 'x', lang: 'ru' }, 'div')).toEqual({
+      lang: 'ru',
+    });
+  });
+
+  it('не трогает имена, где "on" не в начале', () => {
+    const props = { 'aria-controls': 'panel', 'data-on': '1', loading: 'lazy', on: 'x' };
     expect(sanitizeHtmlProps(props, 'div')).toBe(props);
   });
+
+  // Vue и Angular пишут такие props прямо в свойство DOM — это тот же вектор, что
+  // `dangerouslySetInnerHTML` в React.
+  it.each(['innerHTML', 'innerhtml', '.innerHTML', 'outerHTML', 'srcdoc', 'srcDoc'])(
+    'выбрасывает сырую разметку: %s',
+    (key) => {
+      silenceWarn();
+      expect(sanitizeHtmlProps({ [key]: '<img src=x onerror=alert(1)>', id: 'x' }, 'div')).toEqual({
+        id: 'x',
+      });
+    }
+  );
+
+  it.each(['srcset', 'srcSet', 'formaction', 'formAction', 'xlink:href', 'xlinkHref', 'HREF'])(
+    'проверяет URL-атрибут в любом написании: %s',
+    (key) => {
+      silenceWarn();
+      expect(sanitizeHtmlProps({ [key]: 'javascript:alert(1)' }, 'a')).toEqual({});
+      const safe = { [key]: '/static/logo.png' };
+      expect(sanitizeHtmlProps(safe, 'a')).toBe(safe);
+    }
+  );
 
   it('выбрасывает javascript:-URL', () => {
     silenceWarn();

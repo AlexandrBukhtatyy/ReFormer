@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./neutral": {
+      "types": "./dist/neutral.d.ts",
+      "import": "./dist/neutral.js"
+    },
     "./validate": {
       "types": "./dist/validate.d.ts",
       "import": "./dist/validate.js"
@@ -64,6 +68,17 @@
     "@reformer/renderer-react": "*",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@reformer/renderer-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "dependencies": {
     "ajv": "^8.17.1"

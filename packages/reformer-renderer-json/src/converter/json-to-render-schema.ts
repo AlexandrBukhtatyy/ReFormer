@@ -1,5 +1,6 @@
 /**
- * Конвертер JSON-схемы → RenderNode-дерево `@reformer/renderer-react`.
+ * Конвертер JSON-схемы → дерево узлов схемы ядра (`FormSchemaNode`). Слой представления он не
+ * знает: дерево одинаково рисуют рендереры React, Vue и Angular.
  *
  * Привязки — СТРОКИ-операторы (`operators.ts`); голые строки НЕ резолвятся. Читается только
  * документ формата 2 ({@link convertJsonSchema}):
@@ -15,8 +16,12 @@
  * @module reformer/renderer-json/converter
  */
 
-import { type RenderNode } from '@reformer/renderer-react';
-import { isModelContainerSignal, isValueSignal, type FormModel } from '@reformer/core';
+import {
+  isModelContainerSignal,
+  isValueSignal,
+  type FormModel,
+  type FormSchemaNode,
+} from '@reformer/core';
 import { schemaFormatOf, type JsonFormSchema } from '../types/json-schema';
 import {
   parseOperator,
@@ -310,10 +315,10 @@ function rowTemplateOf(item: unknown, ctx: ConvertContext): unknown {
 }
 
 /**
- * Конвертирует узел JSON-схемы в RenderNode. Дискриминация — по привязке `model` и соседним
+ * Конвертирует узел JSON-схемы в узел схемы ядра. Дискриминация — по привязке `model` и соседним
  * ключам: массив под-форм (`item`) → подформа (`part`) → поле → контейнер (`component`).
  */
-function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderNode<T> {
+function convertNode(node: unknown, scope: any, ctx: ConvertContext): FormSchemaNode {
   const n = node as Record<string, unknown>;
   const { registry } = ctx;
   const selector = typeof n.selector === 'string' && n.selector ? { selector: n.selector } : {};
@@ -343,7 +348,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
       ...(initial !== undefined ? { initialValue: () => cloneLiteral(initial) } : {}),
       item,
       componentProps,
-    } as unknown as RenderNode<T>;
+    } as unknown as FormSchemaNode;
   }
 
   // Подформа: именованная часть, подключённая к группе модели. Пути внутри части относительны
@@ -362,7 +367,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
       ...selector,
       model: handle,
       part: (subModel: FormModel<unknown>) => convertNode(partNode, subModel, ctx),
-    } as unknown as RenderNode<T>;
+    } as unknown as FormSchemaNode;
   }
 
   // Поле: привязка — сигнал модели по пути из '$model(...)'
@@ -386,7 +391,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
       ...(n.disabled === true ? { disabled: true } : {}),
       component: resolveComponent(n.component as string | undefined, registry),
       componentProps: fieldWrapper ? { ...(componentProps ?? {}), fieldWrapper } : componentProps,
-    } as unknown as RenderNode<T>;
+    } as unknown as FormSchemaNode;
   }
 
   // Контейнер: компонент реестра либо нативный HTML-тег
@@ -416,7 +421,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
         }
         return convertNode(c, scope, ctx);
       }),
-    } as unknown as RenderNode<T>;
+    } as unknown as FormSchemaNode;
   }
 
   throw new Error(`Invalid JSON node: ${JSON.stringify(node)}`);
@@ -434,7 +439,7 @@ function convertNode<T>(node: unknown, scope: any, ctx: ConvertContext): RenderN
  * @param schema - Документ JSON-схемы формата 2 ({@link JsonFormSchema}).
  * @param registry - Реестр компонентов/источников (см. {@link defineRegistry}).
  * @param model - Модель данных — источник значений (`FormModel`).
- * @returns Корневой {@link RenderNode}.
+ * @returns Корневой узел дерева — `FormSchemaNode` ядра.
  * @throws Error если документ — прежнего формата (его переводит `migrateJsonSchema`) либо вовсе не
  *   документ формы: без `format` и без корня `root`, например JSON Schema данных.
  *
@@ -450,7 +455,7 @@ export function convertJsonSchema<T>(
   schema: JsonFormSchema,
   registry: ComponentRegistry,
   model: FormModel<T>
-): RenderNode<T> {
+): FormSchemaNode {
   if (documentShapeProblem(schema) === 'not-a-form') {
     // JSON Schema данных или конфиг: переводить нечего, совет про migrateJsonSchema увёл бы в тупик.
     throw new Error(`The document is ${notAFormText(schema)}`);

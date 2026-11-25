@@ -2271,10 +2271,8 @@ _Source: src/collect-schema-selectors.ts_
 
 **Signature:**
 ```typescript
-export interface ComponentMetadata<P = any> {
+export interface ComponentMetadata<P = any> extends NeutralComponentMetadata {
   component: ComponentType<P> | unknown;
-  type: 'component' | 'dataSource' | 'fn' | 'locale';
-  description?: string;
 }
 ```
 
@@ -2285,7 +2283,7 @@ const meta: ComponentMetadata = registry.get('Input')!;
 meta.type; // 'component'
 ```
 
-_Source: src/registry/types.ts_
+_Source: src/registry/react-types.ts_
 
 ### ComponentOp
 
@@ -2406,7 +2404,9 @@ _Source: src/compose.ts_
 
 Нужна там, где реестр собирается из нескольких источников по порядку ВЛАДЕНИЯ (форма →
 микрофронт → общее ядро): результат передаётся сборке формы одним реестром
-(`createForm({ model, schema, registry })`), без React-контекста.
+(`createForm({ model, schema, registry })`).
+
+Граница ошибок схемы у результата — от последнего реестра, у которого она есть.
 
 **Signature:**
 ```typescript
@@ -2422,11 +2422,13 @@ export function composeRegistries(...registries: readonly ComponentRegistry[]): 
 
 Общее ядро + расширения микрофронта + специфика формы
 ```typescript
+import { composeRegistries } from '@reformer/renderer-json/neutral';
+
 const registry = composeRegistries(coreRegistry, mfeRegistry, formRegistry);
 // formRegistry перекрывает mfeRegistry, тот — coreRegistry
 ```
 
-_Source: src/registry/component-registry.ts_
+_Source: src/registry/registry-core.ts_
 
 ### convertJsonSchema
 
@@ -2462,7 +2464,7 @@ const tree = convertJsonSchema<MyForm>(document, registry, model);
 const form = createFormFromModel<MyForm>({ model, schema: tree });
 ```
 
-_Source: src/converter/json-to-render-schema.ts_
+_Source: src/converter/react.ts_
 
 ### createLocaleResolver
 
@@ -2626,18 +2628,24 @@ _Source: src/types/json-schema.ts_
 
 **Kind:** `function`
 
-Создаёт реестр компонентов через builder-callback.
+Создаёт реестр компонентов через builder-callback — без привязки к слою представления.
 
-Реестр обязателен для сборки формы из документа — иначе компоненты, упомянутые в JSON-схеме,
-не отрезолвятся.
+Компонентом записи может быть что угодно, что умеет рисовать рендерер стека: компонент Vue,
+класс компонента Angular, компонент React. Тип компонента задаёт параметр `C` — рендерер стека
+подставляет свой.
 
 **Signature:**
 ```typescript
-export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentRegistry
+export function defineRegistry<C = unknown>(
+  fn: (reg: RegistryBuilder<C>) => void,
+  options: RegistryOptions = {}
+): ComponentRegistry
 ```
 
 **Parameters:**
-- `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `component`, `dataSource`.
+- `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `component`,
+`dataSource`, `fn`, `locale`.
+- `options` — - Настройки, зависящие от слоя представления ({@link RegistryOptions}).
 
 **Returns:** Готовый {@link ComponentRegistry}, который передаётся сборке:
 `createForm({ model, schema: document, registry })`.
@@ -2645,14 +2653,12 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
 **Examples:**
 
 ```typescript
-import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Input, SelectAsync, FormField } from '@reformer/ui-kit';
+import { defineRegistry } from '@reformer/renderer-json/neutral';
+import { TextInput, Select } from './kit';
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
-  // Поле выбора — `SelectAsync`; базовый `Select` кита — shadcn-примитив, не поле формы.
-  reg.component('Select', SelectAsync);
-  reg.component(FIELD_WRAPPER, FormField);
+  reg.component('TextInput', TextInput);
+  reg.component('Select', Select);
   reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
@@ -2660,10 +2666,7 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-**See also:**
-- [docs/llms/03-registry.md](../../docs/llms/03-registry.md)
-
-_Source: src/registry/component-registry.ts_
+_Source: src/registry/registry-core.ts_
 
 ### FIELD_WRAPPER
 
@@ -3704,14 +3707,14 @@ _Source: src/locale/locale-service.ts_
 
 **Signature:**
 ```typescript
-export interface LocaleService {
+export interface LocaleService<R = any> {
   /** Ключ (+params) → локализованная строка (при промахе — сам ключ). Для label/placeholder и fallback `Trans`. */
   resolve: LocaleResolver;
   /**
    * Ключ (+params) → rich-контент (markdown/JSX). Опционален. Используется `Trans`/`RichText`, когда
    * нужен не голый текст, а разметка. Реализуется потребителем (напр. через `react-markdown`).
    */
-  render?(key: string, params?: LocaleParams): ReactNode;
+  render?(key: string, params?: LocaleParams): R;
   /** Множество известных ключей. Есть → `validate` ловит `unknown locale key`; нет → проверка мягко пропускается (как для `$model`). */
   keys?: readonly string[];
 }
@@ -3915,15 +3918,14 @@ Builder, который попадает в callback {@link defineRegistry}.
 
 **Signature:**
 ```typescript
-export interface RegistryBuilder {
+export interface RegistryBuilder<C = unknown> {
   /**
-   * Зарегистрировать React-компонент под именем — доступен в схеме как
-   * `$component(name)`. Одним методом регистрируются и компоненты-листья
-   * (Input/Select), и контейнеры (Box/Section/FormField): роль узла (лист vs
-   * контейнер) определяется структурой узла схемы (`model` vs `children`),
-   * а не регистрацией.
+   * Зарегистрировать компонент под именем — доступен в схеме как `$component(name)`. Одним
+   * методом регистрируются и компоненты-листья (Input/Select), и контейнеры
+   * (Box/Section/FormField): роль узла (лист vs контейнер) определяется структурой узла схемы
+   * (`model` vs `children`), а не регистрацией.
    */
-  component<P>(name: string, component: ComponentType<P>, description?: string): void;
+  component(name: string, component: C, description?: string): void;
   dataSource<T>(name: string, value: T, description?: string): void;
   /**
    * Зарегистрировать функцию под именем — доступна в схеме как `$fn(name)` (форматтеры,
@@ -3955,17 +3957,49 @@ defineRegistry((reg: RegistryBuilder) => {
 
 _Source: src/registry/types.ts_
 
+### RegistryOptions
+
+**Kind:** `interface`
+
+Настройки реестра, зависящие от слоя представления.
+
+**Signature:**
+```typescript
+export interface RegistryOptions {
+  /**
+   * Граница ошибок схемы — компонент слоя представления, которым рендерер оборачивает дерево.
+   * Сборка формы отдаёт его рендереру вместе с деревом; без него рендерер рисует дерево как есть.
+   */
+  errorBoundary?: unknown;
+}
+```
+
+**Examples:**
+
+```ts
+import { defineRegistry } from '@reformer/renderer-json/neutral';
+
+const registry = defineRegistry((reg) => reg.component('TextInput', TextInput), {
+  errorBoundary: SchemaErrorBoundary,
+});
+```
+
+_Source: src/registry/registry-core.ts_
+
 ### sanitizeHtmlProps
 
 **Kind:** `function`
 
-Чистит props HTML-узла: убирает `dangerouslySetInnerHTML`, обработчики `on*` и URL-атрибуты
-с исполняемой схемой. Возвращает НОВЫЙ объект (исходный не мутируется); если чистить нечего —
-исходную ссылку.
+Чистит props HTML-узла: убирает сырую разметку (`dangerouslySetInnerHTML`, `innerHTML`,
+`outerHTML`, `srcdoc`), обработчики `on*` и URL-атрибуты с исполняемой схемой. Возвращает НОВЫЙ
+объект (исходный не мутируется); если чистить нечего — исходную ссылку.
 
-Обработчики выкидываются, а не пропускаются: из JSON они приходят строками, React такой проп
-молча проигнорирует с предупреждением, но `$fn(...)`-резолв мог бы подставить туда и функцию —
-а исполняемое поведение недоверенной разметке не положено.
+Обработчики выкидываются, а не пропускаются: из JSON они приходят строками, и `$fn(...)`-резолв
+мог бы подставить туда и функцию — а исполняемое поведение недоверенной разметке не положено.
+
+Имена сравниваются без регистра и разделителей: чистка не знает, кто нарисует узел. React
+строковый `onclick` проигнорирует, а Vue и Angular поставят его атрибутом — и браузер его
+исполнит; то же с `innerHTML`, который у них пишется прямо в свойство DOM.
 
 **Signature:**
 ```typescript
@@ -4190,7 +4224,7 @@ _Source: src/schema/index.ts_
 export function unwrapSignalValues(values?: LocaleParams): LocaleParams | undefined
 ```
 
-_Source: src/locale/use-signal-value.ts_
+_Source: src/locale/unwrap-signal-values.ts_
 
 ### useLocale
 

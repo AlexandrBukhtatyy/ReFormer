@@ -1,17 +1,15 @@
 /**
- * Типы для реестра компонентов
+ * Типы для реестра компонентов — без привязки к слою представления. Типы, уточнённые под React
+ * (`ComponentType`), — в `react-types.ts`.
  *
  * @module reformer/renderer-json/registry/types
  */
 
-import type { ComponentType } from 'react';
 import type { FormModel, ResolvedSchema } from '@reformer/core';
 import type { LocaleResolver, LocaleService } from '../locale/locale-service';
 
 /**
  * Запись реестра. Хранит значение (компонент / dataSource / функцию / сервис локализации) и его роль.
- *
- * @typeParam P - Пропсы компонента (для `component`).
  *
  * @example
  * ```typescript
@@ -19,9 +17,8 @@ import type { LocaleResolver, LocaleService } from '../locale/locale-service';
  * meta.type; // 'component'
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface ComponentMetadata<P = any> {
-  component: ComponentType<P> | unknown;
+export interface ComponentMetadata {
+  component: unknown;
   type: 'component' | 'dataSource' | 'fn' | 'locale';
   description?: string;
 }
@@ -66,6 +63,9 @@ export interface ComponentRegistry {
 /**
  * Builder, который попадает в callback {@link defineRegistry}.
  *
+ * @typeParam C - Тип компонента слоя представления: рендерер стека подставляет свой (компонент
+ *   Vue, класс компонента Angular). Вход пакета для React уточняет его до `ComponentType`.
+ *
  * @example
  * ```typescript
  * defineRegistry((reg: RegistryBuilder) => {
@@ -77,15 +77,14 @@ export interface ComponentRegistry {
  * });
  * ```
  */
-export interface RegistryBuilder {
+export interface RegistryBuilder<C = unknown> {
   /**
-   * Зарегистрировать React-компонент под именем — доступен в схеме как
-   * `$component(name)`. Одним методом регистрируются и компоненты-листья
-   * (Input/Select), и контейнеры (Box/Section/FormField): роль узла (лист vs
-   * контейнер) определяется структурой узла схемы (`model` vs `children`),
-   * а не регистрацией.
+   * Зарегистрировать компонент под именем — доступен в схеме как `$component(name)`. Одним
+   * методом регистрируются и компоненты-листья (Input/Select), и контейнеры
+   * (Box/Section/FormField): роль узла (лист vs контейнер) определяется структурой узла схемы
+   * (`model` vs `children`), а не регистрацией.
    */
-  component<P>(name: string, component: ComponentType<P>, description?: string): void;
+  component(name: string, component: C, description?: string): void;
   dataSource<T>(name: string, value: T, description?: string): void;
   /**
    * Зарегистрировать функцию под именем — доступна в схеме как `$fn(name)` (форматтеры,

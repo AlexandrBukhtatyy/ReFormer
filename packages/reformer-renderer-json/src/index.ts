@@ -88,9 +88,12 @@ export { ALLOWED_HTML_TAGS, isAllowedHtmlTag, sanitizeHtmlProps } from './html/h
 // Component Registry
 // ============================================================================
 
+// Реестр для React: граница ошибок схемы подставлена, компонент записи — `ComponentType`. Тот же
+// реестр без привязки к слою представления — во входе `@reformer/renderer-json/neutral`.
 export { defineRegistry, composeRegistries } from './registry/component-registry';
 export { FIELD_WRAPPER, LOCALE_SERVICE } from './registry/constants';
-export type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './registry/types';
+export type { ComponentRegistry } from './registry/types';
+export type { ComponentMetadata, RegistryBuilder } from './registry/react-types';
 
 // ============================================================================
 // Анализ схемы (preflight: что схема требует от реестра и какие селекторы в ней объявлены)
@@ -120,7 +123,7 @@ export { useSignalValues, unwrapSignalValues } from './locale/use-signal-value';
 // Converter (for advanced use cases)
 // ============================================================================
 
-export { convertJsonSchema } from './converter/json-to-render-schema';
+export { convertJsonSchema } from './converter/react';
 
 // ============================================================================
 // JSON Schema (мета-схема form-DSL) — ajv-free утилиты

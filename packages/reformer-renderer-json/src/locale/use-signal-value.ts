@@ -13,26 +13,10 @@ import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { type Signal, effect } from '@reformer/core/signals';
 import { isValueSignal } from '@reformer/core';
 import type { LocaleParams } from './locale-service';
+import { unwrapSignalValues } from './unwrap-signal-values';
 
-/**
- * Разворачивает значения-сигналы в обычные (читает `.value`), литералы отдаёт как есть. Если сигналов
- * не было — возвращает исходный объект (стабильная ссылка). Pure — тестируется без DOM.
- */
-export function unwrapSignalValues(values?: LocaleParams): LocaleParams | undefined {
-  if (!values) return values;
-  let hasSignal = false;
-  const out: Record<string, unknown> = {};
-  for (const key of Object.keys(values)) {
-    const v = values[key];
-    if (isValueSignal(v)) {
-      out[key] = v.value;
-      hasSignal = true;
-    } else {
-      out[key] = v;
-    }
-  }
-  return hasSignal ? out : values;
-}
+// Чистая часть живёт отдельно, без React: её берёт и вход пакета для других слоёв представления.
+export { unwrapSignalValues };
 
 /** Собирает сигналы из `values` (для подписки). */
 function collectSignals(values?: LocaleParams): Array<Signal<unknown>> {

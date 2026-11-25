@@ -114,20 +114,43 @@ export function isAllowedHtmlTag(tag: string): boolean {
   return ALLOWED_HTML_TAGS.has(tag.toLowerCase());
 }
 
-/** Атрибуты, чьё значение браузер трактует как URL — их схема может превратить в исполнение кода. */
+/**
+ * Имя атрибута для сравнения: без регистра, разделителей и префиксов привязки.
+ *
+ * Один и тот же атрибут пишут по-разному: React — `srcSet` и `xlinkHref`, разметка, Vue и Angular —
+ * `srcset` и `xlink:href`; Vue вдобавок понимает `.innerHTML` (свойство DOM) и `^onclick` (атрибут).
+ * Сравнение по точному написанию пропускало бы всё, что написано не так, как в React.
+ */
+function normalizedPropName(key: string): string {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Атрибуты, чьё значение браузер трактует как URL — их схема может превратить в исполнение кода.
+ * Имена — в виде {@link normalizedPropName}.
+ */
 const URL_PROPS: ReadonlySet<string> = new Set([
   'href',
   'src',
-  'srcSet',
   'srcset',
   'poster',
   'action',
-  'formAction',
   'formaction',
   'data',
-  'xlinkHref',
+  'xlinkhref',
   'cite',
   'ping',
+]);
+
+/**
+ * Атрибуты и свойства DOM, значение которых браузер разбирает как разметку. Имена — в виде
+ * {@link normalizedPropName}.
+ */
+const RAW_HTML_PROPS: ReadonlySet<string> = new Set([
+  'dangerouslysetinnerhtml',
+  'innerhtml',
+  'outerhtml',
+  'srcdoc',
 ]);
 
 /**
@@ -148,13 +171,16 @@ function isDangerousUrl(value: string): boolean {
 }
 
 /**
- * Чистит props HTML-узла: убирает `dangerouslySetInnerHTML`, обработчики `on*` и URL-атрибуты
- * с исполняемой схемой. Возвращает НОВЫЙ объект (исходный не мутируется); если чистить нечего —
- * исходную ссылку.
+ * Чистит props HTML-узла: убирает сырую разметку (`dangerouslySetInnerHTML`, `innerHTML`,
+ * `outerHTML`, `srcdoc`), обработчики `on*` и URL-атрибуты с исполняемой схемой. Возвращает НОВЫЙ
+ * объект (исходный не мутируется); если чистить нечего — исходную ссылку.
  *
- * Обработчики выкидываются, а не пропускаются: из JSON они приходят строками, React такой проп
- * молча проигнорирует с предупреждением, но `$fn(...)`-резолв мог бы подставить туда и функцию —
- * а исполняемое поведение недоверенной разметке не положено.
+ * Обработчики выкидываются, а не пропускаются: из JSON они приходят строками, и `$fn(...)`-резолв
+ * мог бы подставить туда и функцию — а исполняемое поведение недоверенной разметке не положено.
+ *
+ * Имена сравниваются без регистра и разделителей: чистка не знает, кто нарисует узел. React
+ * строковый `onclick` проигнорирует, а Vue и Angular поставят его атрибутом — и браузер его
+ * исполнит; то же с `innerHTML`, который у них пишется прямо в свойство DOM.
  *
  * @param props - `componentProps` html-узла (уже после резолва операторов).
  * @param tag - Тег узла — только для текста предупреждения.
@@ -175,11 +201,13 @@ export function sanitizeHtmlProps(
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(props)) {
     const value = props[key];
-    const isEventHandler =
-      key.length > 2 && key.startsWith('on') && key[2] === key[2].toUpperCase();
+    const name = normalizedPropName(key);
+    // Любое имя на `on…`: и `onClick`, и `onclick`, и `onUpdate:modelValue`. Атрибутов разметки,
+    // которые начинаются с `on` и при этом не обработчики, в HTML нет.
+    const isEventHandler = name.length > 2 && name.startsWith('on');
     const isDangerousUrlProp =
-      URL_PROPS.has(key) && typeof value === 'string' && isDangerousUrl(value);
-    if (key === 'dangerouslySetInnerHTML' || isEventHandler || isDangerousUrlProp) {
+      URL_PROPS.has(name) && typeof value === 'string' && isDangerousUrl(value);
+    if (RAW_HTML_PROPS.has(name) || isEventHandler || isDangerousUrlProp) {
       (dropped ??= []).push(key);
       continue;
     }

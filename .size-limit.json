@@ -50,6 +50,11 @@
     "limit": "5 kB"
   },
   {
+    "name": "@reformer/core (render: привязка поля без React)",
+    "path": ["packages/reformer/dist/render.js", "packages/reformer/dist/render-*.js"],
+    "limit": "1 kB"
+  },
+  {
     "name": "@reformer/core (i18n: ICU + loader chunk)",
     "path": "packages/reformer/dist/loader-*.js",
     "limit": "4 kB"
@@ -144,8 +149,19 @@
   },
   {
     "name": "@reformer/renderer-json",
-    "path": "packages/reformer-renderer-json/dist/index.js",
+    "path": [
+      "packages/reformer-renderer-json/dist/index.js",
+      "packages/reformer-renderer-json/dist/neutral-core-*.js"
+    ],
     "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/renderer-json (neutral: без React)",
+    "path": [
+      "packages/reformer-renderer-json/dist/neutral.js",
+      "packages/reformer-renderer-json/dist/neutral-core-*.js"
+    ],
+    "limit": "8 kB"
   },
   {
     "name": "@reformer/form-registry",

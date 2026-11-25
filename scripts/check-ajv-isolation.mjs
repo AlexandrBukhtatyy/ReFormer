@@ -30,7 +30,7 @@ const RULES = [
   {
     name: '@reformer/renderer-json',
     dir: 'packages/reformer-renderer-json/dist',
-    entries: ['index.js'],
+    entries: ['index.js', 'neutral.js'],
     allowed: ['validate.js'],
   },
   {

@@ -37,6 +37,10 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
+        // Вход без React: документ, реестр, операторы и локализация для рендереров других слоёв
+        // представления (`@reformer/renderer-json/neutral`). Общий с `index` код rollup выносит в
+        // чанк; что вход не тянет React, стережёт `npm run check:exports-dist`.
+        neutral: resolve(__dirname, 'src/neutral.ts'),
         // Отдельная точка входа: тянет ajv, поэтому изолирована от основного бандла
         // (экспортируется как `@reformer/renderer-json/validate`).
         validate: resolve(__dirname, 'src/validate.ts'),
@@ -47,6 +51,16 @@ export default defineConfig({
       external: (id) => EXTERNAL.some((re) => re.test(id)),
       output: {
         entryFileNames: '[name].js',
+        // Общий код входов `index` и `neutral` (реестр, конвертер, операторы) — в чанке со
+        // стабильным префиксом `neutral-core-`. Иначе rollup называет чанк по случайному модулю, и
+        // size-limit не может его найти: лимит входа мерил бы один реэкспорт-шим. Раскладку чанков
+        // это не меняет — только имя.
+        chunkFileNames(chunk) {
+          const sharedCore = chunk.moduleIds.some((id) =>
+            /[\\/]src[\\/]registry[\\/]registry-core\.ts$/.test(id)
+          );
+          return sharedCore ? 'neutral-core-[hash].js' : '[name]-[hash].js';
+        },
       },
     },
   },

@@ -18,10 +18,10 @@
  * для неизвестного кода показывает сам код: пропущенная локализация деградирует до ключа, а не роняет
  * форму.
  *
+ * Модуль не зависит от слоя представления: что отдаёт `render`, решает потребитель (параметр `R`).
+ *
  * @module reformer/renderer-json/locale
  */
-
-import type { ReactNode } from 'react';
 
 /** Параметры для интерполяции/склонения (ICU-values, i18next-values и т.п.). */
 export type LocaleParams = Record<string, unknown>;
@@ -33,15 +33,19 @@ export type LocaleResolver = (key: string, params?: LocaleParams) => string;
  * Сервис локализации в реестре / контексте. `resolve` обязателен (строковый путь); `render`
  * опционален (rich/markdown-путь через `Trans`/`RichText`); `keys` (если задан — напр., из каталога)
  * включает проверку опечаток ключей на этапе `validateFormSchema`.
+ *
+ * @typeParam R - Rich-контент, который отдаёт `render`: в React — `ReactNode`, во Vue — `VNode`.
+ *   Пакет его не разбирает, только передаёт компоненту вывода, поэтому по умолчанию тип открыт.
  */
-export interface LocaleService {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface LocaleService<R = any> {
   /** Ключ (+params) → локализованная строка (при промахе — сам ключ). Для label/placeholder и fallback `Trans`. */
   resolve: LocaleResolver;
   /**
    * Ключ (+params) → rich-контент (markdown/JSX). Опционален. Используется `Trans`/`RichText`, когда
    * нужен не голый текст, а разметка. Реализуется потребителем (напр. через `react-markdown`).
    */
-  render?(key: string, params?: LocaleParams): ReactNode;
+  render?(key: string, params?: LocaleParams): R;
   /** Множество известных ключей. Есть → `validate` ловит `unknown locale key`; нет → проверка мягко пропускается (как для `$model`). */
   keys?: readonly string[];
 }
