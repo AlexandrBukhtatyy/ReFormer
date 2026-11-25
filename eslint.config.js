@@ -170,6 +170,8 @@ export default defineConfig([
     ignores: [
       'packages/reformer-renderer-vue/**',
       'packages/reformer-renderer-angular/**',
+      'packages/reformer-kit-vuetify/**',
+      'packages/reformer-kit-taiga/**',
       'projects/vue-playground/**',
       'projects/angular-playground/**',
     ],

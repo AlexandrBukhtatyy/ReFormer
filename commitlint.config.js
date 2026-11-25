@@ -32,6 +32,9 @@ export default {
         // Рендереры скомпилированной схемы для Vue и Angular — аналоги renderer-react, пока приватные.
         'reformer-renderer-vue',
         'reformer-renderer-angular',
+        // Киты на Vuetify и Taiga UI: компоненты под именами каталога для рендереров Vue и Angular.
+        'reformer-kit-vuetify',
+        'reformer-kit-taiga',
         'reformer-form-registry',
         'reformer-form-intent',
         'reformer-cdk',
@@ -60,6 +63,8 @@ export default {
         'angular-playground',
         'renderer-contract',
         'cross-framework-e2e',
+        // Формы на именах каталога для тестов китов (projects/kit-fixtures).
+        'kit-fixtures',
         'docs',
         'ci',
         'deps',
