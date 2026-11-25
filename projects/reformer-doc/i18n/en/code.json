@@ -1258,6 +1258,12 @@
   "benchmark.traces.sourceSame": {
     "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables of the “All phases” section."
   },
+  "benchmark.traces.garbage": {
+    "message": "The counters are shown without forced garbage collection: an unmounted form stays in the heap, DOM nodes and listeners until GC collects it — hence the sawtooth and the peaks, which do not mean a leak. Values after GC are in the phase tables."
+  },
+  "benchmark.traces.warmupHidden": {
+    "message": "The warm-up before the remount is not shown on the charts. It is dozens of form mounts and unmounts in a row without measuring: the engine warms up the code (compiles and optimizes functions), and unmounted forms pile up in memory until it collects them — the line creeps up and looks like a leak, although after garbage collection everything returns to the initial level. The remount window starts after the warm-up and a forced garbage collection."
+  },
   "benchmark.traces.sourceOtherBuild": {
     "message": "⚠️ The charts are a single traced pass per participant from run {traceRun} on a different page build (git {sha}, built {date}), CPU {cpu}x; the table numbers are medians of run {run}. The forms may have changed between builds."
   },
