@@ -46,14 +46,31 @@ export function expectedScreen(form: FormId): ScreenExpectation {
   }
 }
 
+/**
+ * Отмечен ли флажок. Нативный `<input>` — свойством `checked`; виджет библиотеки компонентов без
+ * нативного элемента (кнопка с `role="checkbox"`) — атрибутом `aria-checked`.
+ */
+function isChecked(el: Element): boolean {
+  return el instanceof HTMLInputElement ? el.checked : el.getAttribute('aria-checked') === 'true';
+}
+
+/**
+ * Значение контрола. Нативный элемент формы — свойством `value`; виджет библиотеки компонентов,
+ * у которого значения в `value` нет (список со всплывающей панелью), объявляет его атрибутом
+ * `data-value` на элементе `input-{path}` — он и читается первым.
+ */
+function valueOf(el: Element): string | undefined {
+  return el.getAttribute('data-value') ?? (el as Partial<HTMLInputElement>).value;
+}
+
 export function isScreenReady(root: ParentNode, exp: ScreenExpectation): boolean {
   for (const sel of exp.selectors) if (!root.querySelector(sel)) return false;
   for (const [path, expected] of Object.entries(exp.values)) {
-    const el = root.querySelector<HTMLInputElement>(`[data-testid="input-${path}"]`);
+    const el = root.querySelector(`[data-testid="input-${path}"]`);
     if (!el) return false;
     if (typeof expected === 'boolean') {
-      if (el.checked !== expected) return false;
-    } else if (el.value !== expected) return false;
+      if (isChecked(el) !== expected) return false;
+    } else if (valueOf(el) !== expected) return false;
   }
   return true;
 }
