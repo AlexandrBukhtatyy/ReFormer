@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { Input } from '@/components/input';
 import { withFieldTooltip, INSIDE_INPUT } from '@/fields/field-tooltip';
+import { applyMask } from '@/lib/apply-mask';
 
 /** Props компонента {@link InputMask}. */
 export interface InputMaskProps extends Omit<
@@ -18,7 +19,8 @@ export interface InputMaskProps extends Omit<
   onBlur?: () => void;
   /**
    * Шаблон маски: символ `'9'` означает «цифра», все остальные символы (`+`,
-   * `-`, `(`, `)`, пробел, точка) — литералы и используются в `placeholder`.
+   * `-`, `(`, `)`, пробел, точка) — литералы. Ввод форматируется по маске: цифры
+   * встают в слоты, литералы подставляются; шаблон же — `placeholder` по умолчанию.
    * Пример: `'+7 (999) 999-99-99'`.
    */
   mask?: string;
@@ -29,9 +31,10 @@ export interface InputMaskProps extends Omit<
 }
 
 /**
- * Текстовое поле с поддержкой простой маски-подсказки (через шаблон вида
- * `'9'` для цифр). Маска показывается в `placeholder`, но автоматическая
- * вставка литералов **не** выполняется — компонент просто помечает формат.
+ * Текстовое поле с простой маской (шаблон вида `'9'` для цифр). Ввод форматируется по
+ * маске: нецифровые символы отбрасываются, цифры встают в слоты, литералы шаблона
+ * подставляются перед следующей цифрой — `9001234567` в маске `+7 (999) 999-99-99`
+ * даёт `+7 (900) 123-45-67`. Шаблон же показывается в `placeholder`.
  *
  * Рендерит canonical shadcn {@link Input} (`@/components/input`), надстраивая
  * value-based контракт (`value: string | null` / `onChange(string | null)` / `onBlur`).
@@ -62,7 +65,8 @@ export interface InputMaskProps extends Omit<
 const InputMaskBase = React.forwardRef<HTMLInputElement, InputMaskProps>(
   ({ className, value, onChange, onBlur, mask, placeholder, disabled, ...props }, ref) => {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = event.target.value;
+      const typed = event.target.value;
+      const newValue = mask ? applyMask(typed, mask) : typed;
       onChange?.(newValue || null);
     };
 

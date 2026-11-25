@@ -24,6 +24,9 @@ import {
   SelectValue,
 } from '../base/select-base';
 
+/** Префикс `data-testid` контрола поля: форма отдаёт контролу `input-{id}`. */
+const INPUT_TESTID_PREFIX = 'input-';
+
 // Публичные типы источника опций реэкспортируются отсюда.
 export type {
   ResourceConfig,
@@ -180,6 +183,13 @@ const SelectAsync = React.forwardRef<
 
     const showClearButton = clearable && value && !disabled && !initialLoading;
 
+    // Пункты открытой панели — `option-{id}-{значение}`: так их находят e2e без знания разметки
+    // Radix. `id` поля — из `data-testid="input-{id}"`, который форма отдаёт контролу; ту же роль
+    // ставят списки китов других библиотек.
+    const optionTestIdPrefix = dataTestId?.startsWith(INPUT_TESTID_PREFIX)
+      ? `option-${dataTestId.slice(INPUT_TESTID_PREFIX.length)}-`
+      : undefined;
+
     // Правая зона — кластер [крестик][(i)] левее шеврона (он flex-ребёнок триггера и остаётся у края).
     const hint = useFieldTooltip(tooltip, { id, describedBy: ariaDescribedBy, testId: dataTestId });
     const trailingCount = (showClearButton ? 1 : 0) + (hint.node ? 1 : 0);
@@ -221,6 +231,8 @@ const SelectAsync = React.forwardRef<
             disabled={initialLoading}
             id={id}
             data-testid={dataTestId}
+            // На экране — подпись пункта, а не значение: выбранное значение читается отсюда.
+            data-value={value ?? ''}
             aria-invalid={ariaInvalid}
             aria-labelledby={ariaLabelledBy}
             aria-describedby={hint.describedBy}
@@ -277,7 +289,13 @@ const SelectAsync = React.forwardRef<
                     <SelectGroup key={groupName}>
                       {groupName !== 'default' && <SelectLabel>{groupName}</SelectLabel>}
                       {groupOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.value}>
+                        <SelectItem
+                          key={option.id}
+                          value={option.value}
+                          data-testid={
+                            optionTestIdPrefix ? `${optionTestIdPrefix}${option.value}` : undefined
+                          }
+                        >
                           {option.label}
                         </SelectItem>
                       ))}

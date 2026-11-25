@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { SelectAsync, SelectMulti, type SelectMultiHandle } from './index';
+import { SelectAsync, SelectMulti, type SelectAsyncHandle, type SelectMultiHandle } from './index';
 
 afterEach(cleanup);
 
@@ -100,5 +100,36 @@ describe('SelectMulti (DOM): listbox', () => {
     openMulti(<SelectMulti value={[]} options={OPTS} />);
     expect(screen.queryAllByRole('group')).toHaveLength(0);
     expect(screen.getAllByRole('option')).toHaveLength(2);
+  });
+});
+
+describe('SelectAsync (DOM): роли e2e — как у списков китов других библиотек', () => {
+  it('выбранное значение — в data-value триггера (на экране — подпись пункта)', () => {
+    render(<SelectAsync value="b" options={OPTS} data-testid="input-city" />);
+    const trigger = screen.getByTestId('input-city');
+    expect(trigger.getAttribute('data-value')).toBe('b');
+    expect(trigger.textContent).toContain('Бета');
+  });
+
+  it('без выбора data-value пуст', () => {
+    render(<SelectAsync value={null} options={OPTS} data-testid="input-city" />);
+    expect(screen.getByTestId('input-city').getAttribute('data-value')).toBe('');
+  });
+
+  it('пункты открытой панели — option-{id}-{значение}, id — из data-testid контрола', () => {
+    const ref = React.createRef<SelectAsyncHandle>();
+    render(<SelectAsync ref={ref} value={null} options={OPTS} data-testid="input-city" />);
+    act(() => ref.current?.open());
+    expect(screen.getByTestId('option-city-a').textContent).toContain('Альфа');
+    expect(screen.getByTestId('option-city-b').textContent).toContain('Бета');
+  });
+
+  it('контрол без testid поля — пункты без testid', () => {
+    const ref = React.createRef<SelectAsyncHandle>();
+    render(<SelectAsync ref={ref} value={null} options={OPTS} />);
+    act(() => ref.current?.open());
+    for (const option of screen.getAllByRole('option')) {
+      expect(option.hasAttribute('data-testid')).toBe(false);
+    }
   });
 });
