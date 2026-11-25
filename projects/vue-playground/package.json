@@ -1,0 +1,25 @@
+{
+  "name": "vue-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Формы ReFormer во Vue 3 на Vuetify: страницы кросс-фреймворк проверки",
+  "scripts": {
+    "dev": "vite --port 4192 --strictPort",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@preact/signals-core": "^1.8.0",
+    "@reformer/core": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/renderer-vue": "*",
+    "vue": "^3.5.13",
+    "vuetify": "4.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2"
+  }
+}
