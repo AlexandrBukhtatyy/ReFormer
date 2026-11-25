@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../packages/reformer-builder-plugin-api/src/kits/component-catalog.schema.json",
-  "version": "3.0",
+  "version": "3.1",
   "kit": {
     "id": "hexa-ui",
     "label": "Kaspersky HexaUI",

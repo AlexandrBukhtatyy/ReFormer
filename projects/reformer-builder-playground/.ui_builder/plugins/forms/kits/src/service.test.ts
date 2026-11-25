@@ -709,6 +709,45 @@ describe('киты плагинов', () => {
     expect(names(kits.catalogJson())).toEqual(['Hexa']);
   });
 
+  it('кит не на React (`kit.framework`, контракт 3.1) — отказ и пустой каталог', async () => {
+    const { kits, problems } = withPlugins();
+    const base = catalogOf('vuetify', 'Vuetify', 'Input');
+    const source: KitSource = {
+      catalog: { ...base, version: '3.1', kit: { ...base.kit, framework: 'vue' } },
+    };
+    kits.syncContributed([{ source, pluginId: 'acme' }]);
+
+    await kits.activate('vuetify');
+    await kits.whenReady();
+
+    expect(kits.catalogJson().components).toEqual([]);
+    expect(problems).toEqual([
+      expect.objectContaining({
+        code: 'foreign-framework',
+        pluginId: 'acme',
+        kitId: 'vuetify',
+        detail: 'vue',
+      }),
+    ]);
+  });
+
+  it('кит, объявивший React явно, принимается как кит без поля', async () => {
+    const { kits, problems } = withPlugins();
+    const base = catalogOf('hexa', 'Hexa', 'Hexa');
+    kits.syncContributed([
+      {
+        source: { catalog: { ...base, version: '3.1', kit: { ...base.kit, framework: 'react' } } },
+        pluginId: 'acme',
+      },
+    ]);
+
+    await kits.activate('hexa');
+    await kits.whenReady();
+
+    expect(names(kits.catalogJson())).toEqual(['Hexa']);
+    expect(problems).toEqual([]);
+  });
+
   it('каталог, не прошедший контракт, — отказ и пустой каталог', async () => {
     const { kits, problems } = withPlugins();
     const source: KitSource = {

@@ -243,3 +243,35 @@ describe('импорты кита — по входам пакета', () => {
     ]);
   });
 });
+
+describe('кит без обёртки поля (`infra.fieldWrapper: null`, контракт каталога 3.1)', () => {
+  const kit = (): ReturnType<typeof foreignKit> => {
+    const base = foreignKit();
+    return foreignKit({ infra: { ...base.kit.infra, fieldWrapper: null } });
+  };
+
+  it('обёртка не импортируется и не регистрируется — поле рисует сам контрол', () => {
+    const registry = registryView(ctxOf({ kit: kit() }));
+    expect(registry.fieldWrapper).toBeNull();
+    expect(registry.kitSymbols).not.toContain('HexField');
+
+    const code = renderTemplate(
+      'test.registry',
+      registryTemplate,
+      buildView(ctxOf({ kit: kit() }))
+    );
+    expect(code).not.toContain('FIELD_WRAPPER');
+    expect(code).toContain(
+      "import { defineRegistry, type ComponentRegistry } from '@reformer/renderer-json';"
+    );
+  });
+
+  it('кит с обёрткой регистрирует её, как прежде', () => {
+    const code = renderTemplate(
+      'test.registry',
+      registryTemplate,
+      buildView(ctxOf({ kit: foreignKit() }))
+    );
+    expect(code).toContain('reg.component(FIELD_WRAPPER, HexField);');
+  });
+});

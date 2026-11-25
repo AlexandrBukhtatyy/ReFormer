@@ -70,6 +70,9 @@ export function buildComponents(
 
   const infra = resolveInfra(descriptor, namespace);
   for (const name of INFRA_NAMES) {
+    // Кит без обёртки поля (`infra.fieldWrapper: null`): поле рисует сам контрол, и стаб на её
+    // месте обернул бы каждое поле лишней рамкой.
+    if (name === 'FormField' && descriptor.infra.fieldWrapper === null) continue;
     const component = infra[name];
     // Кит, не поставивший инфраструктурный компонент, не должен ронять сборку реестра:
     // показываем стаб с причиной.
@@ -182,8 +185,9 @@ export function buildPreviewRegistry(input: PreviewRegistryInput): ComponentRegi
 
   return defineRegistry((builder) => {
     for (const [name, component] of Object.entries(components)) builder.component(name, component);
-    // Враппер поля адресуется рендерером служебным именем, а не каталожным.
-    builder.component(FIELD_WRAPPER, components.FormField);
+    // Враппер поля адресуется рендерером служебным именем, а не каталожным. Нет его у кита —
+    // поле рисуется без обёртки.
+    if (components.FormField !== undefined) builder.component(FIELD_WRAPPER, components.FormField);
     for (const name of unknown) builder.component(name, makeUnknownComponent(name));
     registerSources(builder, input.schema, input.dataSources, input.fns, input.locale);
   });

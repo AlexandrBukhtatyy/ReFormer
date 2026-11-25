@@ -7,7 +7,11 @@ import type { ReactNode } from 'react';
 <% for (const extra of it.registry.extraImports) { -%>
 <%~ it.imports(extra.symbols, extra.from) %>
 <% } -%>
+<% if (it.registry.fieldWrapper !== null) { -%>
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+<% } else { -%>
+import { defineRegistry, type ComponentRegistry } from '@reformer/renderer-json';
+<% } -%>
 <% if (it.registry.dataSourceNames.length > 0) { -%>
 <%~ it.imports(it.registry.dataSourceNames, it.rel('registry', 'constants')) %>
 <% } -%>
@@ -19,7 +23,9 @@ const Placeholder = ({ children }: { children?: ReactNode }): ReactNode => child
 
 export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
+<% if (it.registry.fieldWrapper !== null) { -%>
     reg.component(FIELD_WRAPPER, <%= it.registry.fieldWrapper %>);
+<% } -%>
 <% if (it.registry.wizard !== null) { -%>
     // Визард — библиотечный: шаги берёт из узлов-детей, форму и поток — из сборки.
 <% for (const name of it.registry.wizard.hostNames) { -%>

@@ -11,6 +11,7 @@
   "problem.duplicate": "Плагин «{plugin}» внёс кит «{kit}», но это имя уже занято — кит не подключён.",
   "problem.invalid-catalog": "Каталог кита «{kit}» из плагина «{plugin}» не прошёл проверку: {detail}",
   "problem.mismatch": "Каталог кита «{kit}» из плагина «{plugin}» называет себя иначе: {detail}",
+  "problem.foreign-framework": "Кит «{kit}» из плагина «{plugin}» написан не на React ({detail}) — билдер рисует и выгружает формы на React, кит не подключён.",
   "problem.load-failed": "Каталог кита «{kit}» из плагина «{plugin}» не загрузился: {detail}",
   "switch.failed": "Не удалось сменить кит: {detail}"
 }

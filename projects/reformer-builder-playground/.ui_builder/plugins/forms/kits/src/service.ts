@@ -40,6 +40,7 @@
 import {
   CATALOG_CONTRACT_VERSION,
   declaredKitId,
+  DEFAULT_KIT_FRAMEWORK,
   toDescriptor,
   type CatalogJson,
   type Disposable,
@@ -76,10 +77,18 @@ export interface ContributedKit {
  * - `duplicate` — идентификатор занят встроенным китом или китом, внесённым раньше;
  * - `invalid-catalog` — каталог не прошёл контракт `component-catalog.schema.json`;
  * - `mismatch` — загруженный каталог назвал себя иначе, чем объявила шапка;
+ * - `foreign-framework` — компоненты кита написаны не на React (`kit.framework`), а билдер
+ *   рисует превью и выгружает код на React;
  * - `load-failed` — каталог не загрузился.
  */
 export interface KitProblem {
-  readonly code: 'no-id' | 'duplicate' | 'invalid-catalog' | 'mismatch' | 'load-failed';
+  readonly code:
+    | 'no-id'
+    | 'duplicate'
+    | 'invalid-catalog'
+    | 'mismatch'
+    | 'foreign-framework'
+    | 'load-failed';
   readonly pluginId?: string;
   readonly kitId?: string;
   readonly detail?: string;
@@ -308,6 +317,12 @@ export function createKitsService(options: KitsServiceOptions): OwnedKitsService
         refuse(entry, 'invalid-catalog', check.errors.slice(0, 5).join('; '));
         return;
       }
+    }
+    // Превью и выгруженный код билдера — на React: кит Vue или Angular в нём не нарисовать.
+    const framework = json.kit?.framework ?? DEFAULT_KIT_FRAMEWORK;
+    if (framework !== 'react') {
+      refuse(entry, 'foreign-framework', framework);
+      return;
     }
     // Запись могли снять, пока каталог ехал: плагин выключили — принимать некуда.
     if (entries.get(entry.id) !== entry) return;

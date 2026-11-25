@@ -77,8 +77,8 @@ export interface RegistryWizardView {
 
 /** Реестр глазами шаблона. */
 export interface RegistryView {
-  /** Символ обёртки поля из `infra` кита. */
-  readonly fieldWrapper: string;
+  /** Символ обёртки поля из `infra` кита; `null` — кит её не поставляет, поле без обёртки. */
+  readonly fieldWrapper: string | null;
   /**
    * Символы для импорта из ГЛАВНОГО ВХОДА кита: без повторов, по алфавиту, вместе с обёрткой
    * поля и символом визарда, если тот лежит в главном входе.
@@ -156,7 +156,7 @@ export function registryView(ctx: EmitContext): RegistryView {
     });
 
   // Символы по входам пакета кита: главный вход — одной строкой, каждый подпуть — своей.
-  const kitSymbols = new Set<string>([fieldWrapper]);
+  const kitSymbols = new Set<string>(fieldWrapper === null ? [] : [fieldWrapper]);
   const bySubpath = new Map<string, Set<string>>();
   const importSymbol = (symbol: string, from: string): void => {
     if (from === specifier) {

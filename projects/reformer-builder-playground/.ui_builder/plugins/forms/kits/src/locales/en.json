@@ -11,6 +11,7 @@
   "problem.duplicate": "Plugin \"{plugin}\" contributed kit \"{kit}\", but the name is taken — the kit is not connected.",
   "problem.invalid-catalog": "The catalog of kit \"{kit}\" from plugin \"{plugin}\" failed validation: {detail}",
   "problem.mismatch": "The catalog of kit \"{kit}\" from plugin \"{plugin}\" names itself differently: {detail}",
+  "problem.foreign-framework": "Kit \"{kit}\" from plugin \"{plugin}\" is not built on React ({detail}) — the builder previews and exports forms on React, so the kit is not connected.",
   "problem.load-failed": "The catalog of kit \"{kit}\" from plugin \"{plugin}\" failed to load: {detail}",
   "switch.failed": "Could not switch the kit: {detail}"
 }

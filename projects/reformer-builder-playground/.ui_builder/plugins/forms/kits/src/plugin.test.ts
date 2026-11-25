@@ -398,7 +398,14 @@ describe('словарь', () => {
   });
 
   it('на каждый отказ принять кит есть сообщение', () => {
-    for (const code of ['no-id', 'duplicate', 'invalid-catalog', 'mismatch', 'load-failed']) {
+    for (const code of [
+      'no-id',
+      'duplicate',
+      'invalid-catalog',
+      'mismatch',
+      'foreign-framework',
+      'load-failed',
+    ]) {
       expect(KITS_MESSAGES.ru![`problem.${code}`]).toBeDefined();
     }
   });

@@ -159,8 +159,10 @@ export function resolveInfra(
   descriptor: KitDescriptor,
   namespace: KitNamespace
 ): Readonly<Record<string, unknown>> {
+  const { fieldWrapper } = descriptor.infra;
   return {
-    FormField: namespace[descriptor.infra.fieldWrapper],
+    // `null` — кит обёртки поля не поставляет (контракт каталога `3.1`).
+    FormField: fieldWrapper === null ? undefined : namespace[fieldWrapper],
     AsyncBoundary: namespace[descriptor.infra.asyncBoundary],
     List: namespace[descriptor.infra.list],
   };
