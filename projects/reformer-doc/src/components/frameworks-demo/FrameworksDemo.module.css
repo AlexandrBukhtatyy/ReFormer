@@ -270,10 +270,9 @@
   font-size: 0.9rem;
 }
 
-/* Форма — в оформлении своего кита: фон белый и в тёмной теме сайта. */
+/* Фон рисует сама страница формы — в теме сайта (`color-scheme` у iframe). */
 .frameBox {
   overflow: hidden;
-  background: #fff;
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: var(--ifm-global-radius);
 }

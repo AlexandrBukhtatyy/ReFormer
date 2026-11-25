@@ -24,6 +24,7 @@ import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Translate, { translate } from '@docusaurus/Translate';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import { useColorMode } from '@docusaurus/theme-common';
 import CodeBlock from '@theme/CodeBlock';
 import IconExternalLink from '@theme/Icon/ExternalLink';
 import {
@@ -385,6 +386,9 @@ export default function FrameworksDemo(): ReactNode {
   const [reload, setReload] = useState(0);
   const frame = useRef<HTMLIFrameElement>(null);
   const appsBase = useAppsBase();
+  // Тема сайта — формам: `color-scheme` у iframe задаёт prefers-color-scheme внутри него, а по нему
+  // тему выбирают все три страницы (Vuetify и Taiga UI — сами, ui-kit — скрипт страницы).
+  const { colorMode } = useColorMode();
 
   const page = `${appsBase}${stack}/${form}/`;
   const src = `${page}?demo${prefill ? `&${PREFILL_QUERY[form]}` : ''}`;
@@ -549,7 +553,7 @@ export default function FrameworksDemo(): ReactNode {
                 }
               )}
               className={styles.frame}
-              style={{ height }}
+              style={{ height, colorScheme: colorMode }}
               onLoad={onLoad}
             />
           </div>
