@@ -1,0 +1,48 @@
+/*
+ * Раскладка кита поверх Vuetify. Стили Vuetify лежат в каскадных слоях: правило вне слоя их
+ * перебивает, поэтому здесь только классы самого кита — ни сброса, ни правил по классам библиотеки.
+ */
+.kit-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.kit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kit-section__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+}
+
+.kit-array__row {
+  padding: 1rem;
+  border: 1px solid rgb(0 0 0 / 12%);
+  border-radius: 6px;
+}
+
+.kit-array__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kit-array__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.kit-array__add {
+  align-self: flex-start;
+}
+
+.kit-array__empty {
+  margin: 0;
+  opacity: 0.7;
+}

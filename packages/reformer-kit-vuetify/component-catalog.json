@@ -1,0 +1,1314 @@
+{
+  "$schema": "../reformer-builder-plugin-api/src/kits/component-catalog.schema.json",
+  "version": "3.1",
+  "kit": {
+    "id": "reformer-kit-vuetify",
+    "label": "Vuetify",
+    "package": "@reformer/kit-vuetify",
+    "framework": "vue",
+    "peerRanges": {
+      "vue": "^3.5.0",
+      "vuetify": "^4.3.0"
+    },
+    "infra": {
+      "fieldWrapper": null
+    },
+    "adapters": {
+      "wizard": {
+        "symbol": "FormWizard"
+      },
+      "step": {
+        "symbol": "Step"
+      },
+      "provider": {
+        "symbol": "createKitVuetify"
+      }
+    },
+    "palette": {
+      "categoryByName": {
+        "Input": "Поля ввода",
+        "InputPassword": "Поля ввода",
+        "InputMask": "Поля ввода",
+        "InputNumber": "Поля ввода",
+        "Textarea": "Поля ввода",
+        "DatePicker": "Поля ввода",
+        "Checkbox": "Выбор и переключатели",
+        "Switch": "Выбор и переключатели",
+        "RadioGroup": "Выбор и переключатели",
+        "Select": "Выбор и переключатели",
+        "Box": "Контейнеры",
+        "Card": "Контейнеры",
+        "Section": "Контейнеры"
+      }
+    },
+    "codegen": {
+      "importSpecifier": "@reformer/kit-vuetify"
+    }
+  },
+  "components": [
+    {
+      "name": "Input",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "email", "tel", "url", "password", "date"],
+            "default": "text",
+            "description": "HTML-тип input. Для чисел — вариант InputNumber.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "'text' | 'email' | 'tel' | 'url' | 'password' | 'date'",
+              "kind": "enum"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. Пустой ввод — null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputPassword",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "autoComplete": {
+            "description": "Подсказка менеджеру паролей: current-password — вход, new-password — регистрация и смена пароля (браузер предложит сгенерировать), one-time-code — код из SMS. Не задан — браузер решает сам.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'current-password' | 'new-password' | 'one-time-code' | 'off'",
+              "kind": "enum"
+            },
+            "type": "string",
+            "enum": ["current-password", "new-password", "one-time-code", "off"]
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Password",
+            "x-messageKey": "kit.inputPassword.placeholder",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "showToggle": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать иконку переключения видимости (eye/eye-off). Появляется при непустом value.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение пароля. null/пусто — пустое поле."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод приводится к null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputMask",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "mask": {
+            "type": "string",
+            "description": "Шаблон маски: '9' — цифра, прочие символы — литералы. Ввод форматируется по маске: цифры встают в слоты, литералы подставляются. Напр. '+7 (999) 999-99-99'; шаблон же — placeholder по умолчанию.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля. По умолчанию равна mask.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. null/undefined → пустое поле."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputNumber",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "max": {
+            "type": "number",
+            "description": "Максимум.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "min": {
+            "type": "number",
+            "description": "Минимум. При min>=0 отрицательные значения зажимаются к 0.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "step": {
+            "type": "number",
+            "description": "Шаг.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "number | null",
+            "description": "Текущее число. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: number | null) => void",
+            "description": "Изменение. Пустой ввод → null; частичный ввод («-», «1.») не эмитится."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Textarea",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxLength": {
+            "type": "number",
+            "description": "Максимальная длина ввода (HTML-атрибут maxLength). Не заменяет валидацию.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "rows": {
+            "type": "number",
+            "description": "Число видимых строк (HTML-атрибут rows).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. Пустой ввод → null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "DatePicker",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "dateFormat": {
+            "type": "string",
+            "description": "Формат выбранной даты — токены date-fns (напр. dd.MM.yyyy). Без него — dateFormat локали, а без того — по правилам языка (Intl, dateStyle long).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Pick a date",
+            "x-messageKey": "kit.datePicker.placeholder",
+            "description": "Текст кнопки-триггера, когда дата не выбрана.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля — строка `YYYY-MM-DD`; пусто — `null`."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор даты в календаре. Повторный клик по выбранной дате сбрасывает в null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Checkbox",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            },
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние чекбокса. undefined/null трактуется как false."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Изменение. indeterminate приводится к false."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Switch",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            },
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
+          },
+          "size": {
+            "type": "string",
+            "enum": ["sm", "default"],
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'sm' | 'default'"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние переключателя (true — включён). Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Переключение; эмитит boolean (Radix onCheckedChange, indeterminate → false)."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "RadioGroup",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "array",
+            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа; `tooltip` — иконка-подсказка (i) после подписи варианта.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; tooltip? }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "tooltip": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            },
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор варианта; пустой выбор → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Select",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик очистки (сброс в null).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля — её рисует сам контрол рядом с нативным элементом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "array",
+            "description": "Inline-опции. Одинаковый group объединяется в секцию SelectLabel.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": ["string", "number"]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка в триггере.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Select an option...",
+            "x-messageKey": "kit.select.placeholder"
+          },
+          "required": {
+            "type": "boolean",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            },
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e: `field-{testId}` на корне поля, `input-{testId}` — на нативном элементе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка у иконки (i) в контроле.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор; при очистке приходит null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Box",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс layout-контейнера (atomic CSS / Tailwind: flex, grid, gap-*).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "Card",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс карточки-контейнера (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "Section",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера `<section>` (напр. `grid grid-cols-2 gap-4`).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "Заголовок секции. Не задан — заголовок не рендерится (только обёртка).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "titleAs": {
+            "type": "string",
+            "enum": ["h1", "h2", "h3", "h4", "h5", "h6"],
+            "default": "h3",
+            "description": "HTML-элемент заголовка (уровень h1-h6).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'",
+              "kind": "enum"
+            }
+          },
+          "titleClassName": {
+            "type": "string",
+            "description": "Доп. CSS-класс заголовка.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "FieldArray",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "addButtonLabel": {
+            "type": "string",
+            "default": "+ Add",
+            "x-messageKey": "kit.fieldArray.add",
+            "description": "Текст кнопки добавления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "cardClassName": {
+            "type": "string",
+            "default": "mb-4 p-4 bg-card text-card-foreground rounded border",
+            "description": "Класс card-обёртки элемента.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "default": "space-y-3 mt-2",
+            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "emptyMessage": {
+            "type": "string",
+            "description": "Сообщение пустого состояния.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "emptyMessageHint": {
+            "type": "string",
+            "description": "Подсказка под пустым состоянием.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "itemLabel": {
+            "description": "Метка элемента — префикс-строка или функция `(model, index) => string`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string | ((model: any, index: number) => string)",
+              "kind": "readonly"
+            }
+          },
+          "items": {
+            "type": "array",
+            "description": "Отрендеренные элементы массива (инъектится рендерером).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ArrayItemSlot[]"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Максимум элементов: на пределе кнопка «Добавить» скрыта, как у `FieldArraySection`. Предел для данных задаёт правило `maxLength(n)` на массив (замечание `maxItems`), а этот проп только не даёт его превысить из разметки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "minItems": {
+            "type": "number",
+            "description": "Минимум элементов — пара к `maxItems`: на минимуме кнопка «Удалить» скрыта (перекрывает `showRemoveOnSingle`). Ассистент конструктора начинает массив с этим числом пустых строк, так задание «минимум один контакт» стартует с одной строкой. Правило для данных — `minLength(n)` на массив (замечание `minItems`).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "onAdd": {
+            "description": "Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "(() => void)",
+              "kind": "readonly"
+            }
+          },
+          "onMove": {
+            "description": "Переместить элемент (инъектится рендерером). Нужен при `reorderable`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "((from: number, to: number) => void)",
+              "kind": "readonly"
+            }
+          },
+          "onRemove": {
+            "description": "Удалить элемент по индексу (инъектится рендерером).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "((index: number) => void)",
+              "kind": "readonly"
+            }
+          },
+          "removeButtonLabel": {
+            "type": "string",
+            "default": "Remove",
+            "x-messageKey": "kit.fieldArray.remove",
+            "description": "Текст кнопки удаления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "reorderable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Кнопки ↑/↓ перестановки. По умолчанию `false`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "showRemoveOnSingle": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать «Удалить» когда остался один элемент. По умолчанию `false`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "Заголовок блока — выводится над содержимым.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "palette": false
+    },
+    {
+      "name": "FormWizard",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "submitLabel": {
+            "type": "string",
+            "default": "Submit",
+            "x-messageKey": "kit.formWizard.submit",
+            "description": "Подпись кнопки отправки на последнем шаге. По умолчанию — из словаря локали.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "palette": false
+    },
+    {
+      "name": "Step",
+      "role": "container",
+      "palette": false,
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Заголовок шага — подпись пункта в шапке визарда.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "icon": {
+            "type": "string",
+            "description": "Значок шага (эмодзи или символ) рядом с заголовком.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}
