@@ -218,11 +218,23 @@ export type LayoutNode =
 
 export type ReformerTargetStack = 'core' | 'renderer-react' | 'renderer-json';
 
+/**
+ * Фреймворк формы на `renderer-json`: реестр и документ у трёх одни, различаются кит и вход
+ * формы. Фреймворк — свойство кита (`kit.framework` его каталога); в intent его пишут, чтобы
+ * пересборка не зависела от того, откуда её запустили.
+ */
+export type ReformerFramework = 'react' | 'vue' | 'angular';
+
 export interface FormIntent {
   formName: string;
   /** Имя интерфейса модели, PascalCase. */
   interfaceName: string;
   target: ReformerTargetStack;
+  /**
+   * Фреймворк формы на `renderer-json`. Нет — фреймворк кита приложения (`kit.framework`), без
+   * кита — `react`. У `core` и `renderer-react` — только `react`.
+   */
+  framework?: ReformerFramework;
   layout: 'minimalist' | 'folders';
   layoutRoot: LayoutNode;
   /**
@@ -497,6 +509,7 @@ export function normalizeWith(
     formName,
     interfaceName: partial.interfaceName?.trim() || deriveInterfaceName(formName),
     target: partial.target ?? 'core',
+    ...(partial.framework ? { framework: partial.framework } : {}),
     layout: partial.layout ?? 'minimalist',
     layoutRoot: partial.layoutRoot ?? {
       kind: 'container',

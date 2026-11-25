@@ -31,6 +31,7 @@ export {
   type IntentWarningCode,
   type LayoutNode,
   type NodeRuleIntent,
+  type ReformerFramework,
   type ReformerTargetStack,
   type ValidationRuleIntent,
   type VisibilityIntent,
@@ -59,6 +60,7 @@ export {
   normalizeFieldComponent,
   type NormalizedFieldComponent,
   type UiKitComponents,
+  type UiKitSymbol,
 } from './ui-kit.js';
 export { NO_CORE_OPERATORS, type CoreOperators, type CoreRule } from './core-operators.js';
 export {

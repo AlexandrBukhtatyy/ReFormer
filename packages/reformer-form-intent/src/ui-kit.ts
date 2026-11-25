@@ -21,6 +21,34 @@ export interface UiKitComponents {
   readonly groups?: Readonly<Record<string, readonly string[]>>;
   /** Части составного компонента: корень → части (`Card` → `CardHeader`, `CardContent`, …). */
   readonly parts?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Пакет для импорта компонентов: `kit.codegen.importSpecifier`, иначе `kit.package` каталога.
+   * Нет — `@reformer/ui-kit`.
+   */
+  readonly importSpecifier?: string;
+  /**
+   * Обёртка поля (`kit.infra.fieldWrapper`). `null` — у кита её нет: контрол сам рисует подпись и
+   * ошибку, и реестр её не регистрирует. Нет поля — `FormField` по соглашению.
+   */
+  readonly fieldWrapper?: string | null;
+  /**
+   * Шаг визарда (`kit.adapters.step`). Нет или `null` — `Step` из `@reformer/cdk/form-wizard`
+   * (React).
+   */
+  readonly step?: UiKitSymbol | null;
+  /**
+   * Что приложение ставит один раз, чтобы компоненты кита рисовались (`kit.adapters.provider`):
+   * на React — обёртка поддерева, на Vue — фабрика плагина, на Angular — функция провайдеров.
+   */
+  readonly provider?: UiKitSymbol | null;
+  /** Фреймворк кита (`kit.framework`); нет — `react`. */
+  readonly framework?: 'react' | 'vue' | 'angular';
+}
+
+/** Символ кита и подпуть, откуда он импортируется, если его нет в главном входе. */
+export interface UiKitSymbol {
+  readonly symbol: string;
+  readonly subpath?: string;
 }
 
 export const NO_UI_KIT: UiKitComponents = { found: false, fields: {}, exports: {}, subpaths: {} };
