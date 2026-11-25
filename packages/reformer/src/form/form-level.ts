@@ -18,7 +18,7 @@ import { deepEqual, deferredWritesSettled } from '../model/index';
 import type { FormModel } from '../model/types';
 import { createFormFlow, type FormFlow } from './flow/flow';
 import { createSubmission, type ActionCheck, type FormSubmission } from './submission';
-import { apply } from './validation/operators';
+import { apply, validateWhen } from './validation/operators';
 import {
   cancelRun,
   checkedUnder,
@@ -73,6 +73,11 @@ export interface FormValidation<T> {
 /**
  * Шаг потока: идентификатор (он же `selector` узла шага в схеме) и правила шага.
  *
+ * Условный шаг — скрытый узел шага: `hideWhen(schema.node('<id шага>'), условие)` в поведении
+ * формы либо `schema.node('<id шага>').setHidden(true)`. Пока узел скрыт, поток шаг пропускает
+ * (его нет в `flow.activeSteps`, индикаторе и переходах), а его правила не исполняются ни
+ * переходом, ни отправкой. Узел адресуется по `selector`, даже если шаги нарисованы в JSX.
+ *
  * @group Form
  */
 export interface FlowStep<T> {
@@ -100,7 +105,8 @@ export interface FormFlowConfig<T> {
    * осталось бы на невидимом шаге, и «Отправить» на последнем шаге не показало бы ничего.
    *
    * Переход — `flow.goTo`: назад — всегда (пройденными остаются шаги до цели), вперёд на закрытый
-   * шаг (`locked`) — нет. Поток остаётся, если шаг с ошибкой — текущий либо замечание стоит на
+   * шаг (`locked`) — нет. Шаг, который не участвует в потоке (скрытый узел шага), отправка не
+   * проверяет — на него поток не переходит. Поток остаётся, если шаг с ошибкой — текущий либо замечание стоит на
    * поле, которого не проверял ни один шаг (только `extras`). Итоги `error` и `cancelled` поток не
    * трогают. Шаг находится по результату того же прогона: правила заново не исполняются, запросов
    * к серверу нет. С полным набором `validation.rules` шаг находится, только если набор подключает
@@ -167,7 +173,8 @@ export interface FormLevel<T> {
    */
   validate(): Promise<ValidationResult>;
   /**
-   * Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение.
+   * Проверить шаг потока (без выключенных полей); неизвестный шаг — исключение. Шаг, который не
+   * участвует в потоке (скрытый узел шага), не проверяется: результат — без замечаний.
    *
    * Это отчёт о шаге, как `validate` — о форме. Переход делает `flow.next()`: он сверяет модель
    * и не переходит, если её изменили, пока шла проверка шага.
@@ -195,8 +202,9 @@ const AT = '[@reformer/core] createForm';
  *
  * @typeParam T - Форма данных модели.
  * @param model - Модель формы.
- * @param config - Правила (`validation`), поток (`flow`) и ноды сборки (`nodes`): в них ложатся
- *   замечания. Без `nodes` — общий реестр, то есть последняя собранная над моделью форма.
+ * @param config - Правила (`validation`), поток (`flow`), ноды сборки (`nodes`): в них ложатся
+ *   замечания (без `nodes` — общий реестр, то есть последняя собранная над моделью форма) — и
+ *   условие участия шага (`stepActive`): его передаёт сборка по скрытию узла шага.
  * @returns {@link FormLevel}.
  * @throws Error если в потоке повторяется шаг.
  *
@@ -219,9 +227,14 @@ export function createFormLevel<T>(
     flow?: FormFlowConfig<T>;
     /** @internal Ноды сборки — их передаёт `createForm`. */
     nodes?: NodeScope;
+    /**
+     * @internal Участвует ли шаг в потоке сейчас (реактивная функция). Сборка `createForm`
+     * передаёт сюда «узел шага не скрыт». Без неё участвуют все шаги.
+     */
+    stepActive?: (stepId: string) => boolean;
   }
 ): FormLevel<T> {
-  const { nodes } = config;
+  const { nodes, stepActive } = config;
   const validation: FormValidation<T> =
     typeof config.validation === 'function'
       ? { rules: config.validation }
@@ -238,13 +251,23 @@ export function createFormLevel<T>(
   );
 
   // Полный набор правил — стабильная ссылка, собранная один раз: на ней держится отмена
-  // устаревших прогонов.
+  // устаревших прогонов. Правила условного шага — под условием его участия: шаг, который поток
+  // пропускает, отправку не блокирует, а прежние замечания его полей гасятся.
   const rules =
     validation.rules ??
     (stepSchemas.length > 0 || validation.extras
-      ? defineValidation<T>(() =>
-          apply(...stepSchemas, ...(validation.extras ? [validation.extras] : []))
-        )
+      ? defineValidation<T>(() => {
+          for (const [stepId, step] of stepRules) {
+            if (step == null) continue;
+            if (stepActive) {
+              validateWhen(
+                () => stepActive(stepId),
+                () => apply(step)
+              );
+            } else apply(step);
+          }
+          if (validation.extras) apply(validation.extras);
+        })
       : undefined);
 
   // Поток — раньше контроллера: живая фаза шагов следит за текущим шагом. Проверку шага поток
@@ -254,6 +277,7 @@ export function createFormLevel<T>(
       ? createFormFlow({
           steps: [...stepRules.keys()],
           validateStep: (stepId) => validateStepToMove(stepId),
+          ...(stepActive ? { isActive: stepActive } : {}),
         })
       : undefined;
 
@@ -343,7 +367,11 @@ export function createFormLevel<T>(
 
   const validateStep = async (stepId: string): Promise<ValidationResult> => {
     const step = rulesOfStep(stepId);
-    return step ? afterBehaviorWrites(() => runStep(step)) : VALID;
+    if (!step) return VALID;
+    // Условие участия шага читается после отложенных записей поведения — как и правила.
+    return afterBehaviorWrites(async () =>
+      stepActive && !stepActive(stepId) ? VALID : runStep(step)
+    );
   };
 
   /**

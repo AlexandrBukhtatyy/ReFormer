@@ -5,7 +5,8 @@
  * `addEventHandler`, `addLifecycleHook`, `addRenderEffect`) и регистрирует его снятие; как правила
  * хранятся, знает схема-контроллер, а исполняет их рендерер. Там, где схему
  * рисуют руками (JSX без рендерера), правила узлов не действуют — видимость и обработчики
- * остаются в разметке.
+ * остаются в разметке. Исключение — скрытие узла шага потока: его читает сама сборка
+ * (`createForm({ flow })`), и условный шаг работает и без рендерера.
  *
  * Узел берётся из схемы своей области: `schema.node(selector)`. Внутри `defineFormBehavior`
  * запись живёт столько же, сколько поведение, и снимается вместе с ним.
@@ -28,11 +29,21 @@ import { onDisposeIfActive } from './context';
  * Только видимость: поля скрытого узла не выключаются и проверяются правилами — переход шага
  * откажет без замечаний на экране. Поля узла выключай тем же условием через `enableWhen`.
  *
+ * Условный шаг: узел с идентификатором шага потока сборки (`createForm({ flow })`) — не только
+ * видимость. Пока он скрыт, поток шаг пропускает — его нет в `flow.activeSteps`, индикаторе и
+ * навигации визарда, — а правила шага не исполняются ни переходом, ни отправкой.
+ *
  * @example
  * ```typescript
  * const mortgage = () => model.loanType === 'mortgage';
  * enableWhen([model.$.propertyValue, model.$.initialPayment], mortgage, { resetOnDisable: true });
  * hideWhen(schema.node('mortgage'), () => !mortgage());
+ * ```
+ *
+ * @example Условный шаг визарда: «Компания» — только для юрлица
+ * ```typescript
+ * // flow: { steps: [{ id: 'buyer', … }, { id: 'company', rules: companyRules }, { id: 'delivery', … }] }
+ * hideWhen(schema.node('company'), () => model.customerType !== 'company');
  * ```
  */
 export function hideWhen(node: SchemaNodeControl, condition: () => boolean): void {

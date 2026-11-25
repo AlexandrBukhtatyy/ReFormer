@@ -74,6 +74,9 @@ export interface SchemaNodeControl {
    * Только видимость: поля скрытого узла остаются включёнными, правила их проверяют, и шаг с
    * незаполненным скрытым полем не пройдёт — а замечаний на экране не будет. Скрываешь узел с
    * полями — выключи их тем же условием (`enableWhen`).
+   *
+   * Исключение — узел шага потока (`selector` — идентификатор шага в `flow.steps`): скрытый шаг
+   * поток пропускает, и правила шага не исполняются, пока он скрыт.
    */
   setHidden(value: boolean): this;
   /** Убрать принудительное значение — снова действует условие `hideWhen`. */
@@ -269,6 +272,9 @@ export function createSchemaScope(
           list = conditions;
           hide.set(selector, conditions);
           maps.conditionRegistry.set(selector, () => conditions.value.some((test) => test()));
+          // У узла появилось условие: тот, кто уже прочитал «условий нет» ({@link isNodeHidden}),
+          // должен перечитать.
+          bump(selector);
         }
         list.value = [...list.value, condition];
         const own = list;
@@ -282,6 +288,7 @@ export function createSchemaScope(
           if (hide.get(selector) === own) {
             hide.delete(selector);
             maps.conditionRegistry.delete(selector);
+            bump(selector);
           }
         };
       },
@@ -341,6 +348,31 @@ export function createSchemaScope(
       __overrideMaps: maps,
     }),
   };
+}
+
+/**
+ * Скрыт ли узел области сейчас: принудительное значение (`setHidden`), иначе условия `hideWhen`,
+ * иначе виден. Чтение реактивно — внутри `computed` / `effect` оно подписывается и на сигналы
+ * условия, и на принудительное значение узла. Так же видимость узла считает рендерер.
+ *
+ * @param maps - Хранилище области.
+ * @param selector - Селектор узла.
+ *
+ * @example
+ * ```typescript
+ * const root = controller.scopeOf(model);
+ * hideWhen(root.node('company'), () => model.customerType !== 'company');
+ * isNodeHidden(root.__overrideMaps, 'company'); // true — у физлица
+ * ```
+ *
+ * @group Schema
+ */
+export function isNodeHidden(maps: SchemaOverrideMaps, selector: string): boolean {
+  // Версия селектора — подписка на `setHidden` / `resetHidden` и на появление условия у узла.
+  void maps.versionFor(selector).value;
+  const forced = maps.hiddenOverrides.get(selector) ?? null;
+  if (forced != null) return forced;
+  return maps.conditionRegistry.get(selector)?.() ?? false;
 }
 
 /**

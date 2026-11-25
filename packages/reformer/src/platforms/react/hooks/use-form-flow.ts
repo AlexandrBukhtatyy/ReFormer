@@ -17,8 +17,10 @@ import type { FormFlow } from '../../../form/flow/flow';
 export interface FormFlowSnapshot {
   /** Текущий шаг. */
   readonly current: string;
-  /** Номер текущего шага с нуля. */
+  /** Номер текущего шага с нуля — среди участвующих шагов. */
   readonly index: number;
+  /** Шаги, которые участвуют в потоке сейчас (без скрытых условных шагов), по порядку. */
+  readonly activeSteps: readonly string[];
   /** Пройденные шаги. */
   readonly completed: ReadonlySet<string>;
   readonly isFirst: boolean;
@@ -30,6 +32,7 @@ export interface FormFlowSnapshot {
 const read = (flow: FormFlow): FormFlowSnapshot => ({
   current: flow.current.value,
   index: flow.index.value,
+  activeSteps: flow.activeSteps.value,
   completed: flow.completed.value,
   isFirst: flow.isFirst.value,
   isLast: flow.isLast.value,
@@ -39,12 +42,13 @@ const read = (flow: FormFlow): FormFlowSnapshot => ({
 const same = (left: FormFlowSnapshot, right: FormFlowSnapshot): boolean =>
   left.current === right.current &&
   left.index === right.index &&
+  left.activeSteps === right.activeSteps &&
   left.completed === right.completed &&
   left.validating === right.validating;
 
 /**
- * Подписаться на поток шагов: компонент перерисовывается при смене шага, пройденных шагов и
- * состояния проверки. Переходы — методами самого потока (`flow.next()`, `flow.goTo(id)`).
+ * Подписаться на поток шагов: компонент перерисовывается при смене шага, состава участвующих
+ * шагов, пройденных шагов и состояния проверки. Переходы — методами самого потока (`flow.next()`, `flow.goTo(id)`).
  *
  * @param flow - Поток шагов (`bundle.flow`).
  * @returns {@link FormFlowSnapshot}.

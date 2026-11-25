@@ -9,6 +9,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { signal } from '@preact/signals-core';
 import { createFormFlow, type FormFlow } from '../../src/form/flow/flow';
 import { createForm } from '../../src/form/form-bundle';
 import type { ValidationResult } from '../../src/form/validation/types';
@@ -53,10 +54,33 @@ describe('useFormFlow — снимок потока', () => {
     expect(hook.result.current).toEqual({
       current: 'loan',
       index: 0,
+      activeSteps: STEPS,
       completed: new Set(),
       isFirst: true,
       isLast: false,
       validating: false,
+    });
+  });
+
+  it('условный шаг: состав участвующих шагов в снимке, один ререндер на его смену', () => {
+    const contacts = signal(true);
+    const hook = renderFlow(
+      createFormFlow({
+        steps: STEPS,
+        isActive: (step) => step !== 'contacts' || contacts.value,
+      })
+    );
+    const before = hook.renders();
+
+    act(() => {
+      contacts.value = false;
+    });
+
+    expect(hook.renders()).toBe(before + 1);
+    expect(hook.result.current).toMatchObject({
+      current: 'loan',
+      index: 0,
+      activeSteps: ['loan', 'confirm'],
     });
   });
 

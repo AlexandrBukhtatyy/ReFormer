@@ -66,7 +66,15 @@ export function transitionTypeChecks(transition: FlowTransition): void {
   // @ts-expect-error — итог перехода только для чтения
   transition.status = 'moved';
 
-  const reasons: FlowStayReason[] = ['invalid', 'error', 'cancelled', 'edge', 'locked'];
+  const reasons: FlowStayReason[] = [
+    'invalid',
+    'error',
+    'cancelled',
+    'edge',
+    'locked',
+    'current',
+    'inactive',
+  ];
   // @ts-expect-error — причины — закрытый список
   const unknownReason: FlowStayReason = 'timeout';
   const moved: FlowTransition = { status: 'moved', from: 'loan', to: 'contacts' };
@@ -82,6 +90,8 @@ export function transitionTypeChecks(transition: FlowTransition): void {
 /** Поток: сигналы только для чтения и методы переходов. */
 export async function flowTypeChecks(flow: FormFlow): Promise<void> {
   const steps: readonly string[] = flow.steps;
+  // Участвующие шаги — сигнал: состав меняется вместе с условием шага.
+  const activeSteps: readonly string[] = flow.activeSteps.value;
   const current: ReadonlySignal<string> = flow.current;
   const index: number = flow.index.value;
   const completed: ReadonlySet<string> = flow.completed.value;
@@ -108,7 +118,8 @@ export async function flowTypeChecks(flow: FormFlow): Promise<void> {
   // `goTo('summary')` компилируется и бросает исключение в рантайме.
   flow.goTo('summary');
 
-  void [steps, current, index, completed, edges, validating, canGo, next, back, jump, notAwaited];
+  void [steps, activeSteps, current, index, completed, edges, validating, canGo, next, back, jump];
+  void notAwaited;
 }
 
 /** Шаги в конфиге сборки: правила той же формы данных, шаги без правил. */
@@ -151,6 +162,14 @@ export function flowConfigTypeChecks(): void {
   // @ts-expect-error — проверка шага возвращает результат проверки, а не `boolean`
   createFormFlow({ steps: ['loan'], validateStep: async () => true });
 
+  // Условный шаг: участие шага — функция от идентификатора.
+  const conditional: FormFlow = createFormFlow({
+    steps: ['buyer', 'company'],
+    isActive: (stepId) => stepId !== 'company',
+  });
+  // @ts-expect-error — условие участия шага возвращает `boolean`
+  createFormFlow({ steps: ['buyer'], isActive: () => 'company' });
+
   void [step, fromList, withoutId, foreignRules, idsOnly, jumping, staying, toStep];
-  void [flow, positional];
+  void [flow, positional, conditional];
 }

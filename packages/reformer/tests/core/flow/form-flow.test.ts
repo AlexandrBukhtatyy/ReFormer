@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { signal } from '@preact/signals-core';
 import { deferred } from '../../test-utils/async';
 import { createFormFlow } from '../../../src/form/flow/flow';
 import type { ValidationResult, ValidationStatus } from '../../../src/form/validation/types';
@@ -355,5 +356,170 @@ describe('createFormFlow — next при ошибке шага', () => {
     await expect(flow.next()).rejects.toThrow('схема упала');
     expect(flow.validating.value).toBe(false);
     expect(flow.current.value).toBe('a');
+  });
+});
+
+describe('createFormFlow — условный шаг (isActive)', () => {
+  /** Поток заказа: шаг «company» участвует, пока `company.value` истинно. */
+  const orderFlow = (company: { value: boolean }) =>
+    createFormFlow({
+      steps: ['buyer', 'company', 'delivery', 'payment'],
+      isActive: (step) => step !== 'company' || company.value,
+    });
+
+  it('без isActive участвуют все шаги', () => {
+    const flow = flowOf();
+
+    expect(flow.activeSteps.value).toEqual(['loan', 'applicant', 'contacts']);
+    expect(flow.activeSteps.value).toBe(flow.steps);
+  });
+
+  it('шаг, который не участвует, в списке всех шагов есть, в участвующих — нет', () => {
+    const flow = orderFlow(signal(false));
+
+    expect(flow.steps).toEqual(['buyer', 'company', 'delivery', 'payment']);
+    expect(flow.activeSteps.value).toEqual(['buyer', 'delivery', 'payment']);
+  });
+
+  it('next и previous проходят мимо шага, который не участвует', async () => {
+    const flow = orderFlow(signal(false));
+
+    expect(await flow.next()).toEqual({ status: 'moved', from: 'buyer', to: 'delivery' });
+    expect(flow.index.value).toBe(1);
+    expect([...flow.completed.value]).toEqual(['buyer']);
+    expect(flow.previous()).toEqual({ status: 'moved', from: 'delivery', to: 'buyer' });
+    expect(flow.isFirst.value).toBe(true);
+  });
+
+  it('условие стало истинным — шаг возвращается в поток на своё место', async () => {
+    const company = signal(false);
+    const flow = orderFlow(company);
+
+    company.value = true;
+
+    expect(flow.activeSteps.value).toEqual(['buyer', 'company', 'delivery', 'payment']);
+    expect(await flow.next()).toEqual({ status: 'moved', from: 'buyer', to: 'company' });
+    expect(await flow.next()).toEqual({ status: 'moved', from: 'company', to: 'delivery' });
+  });
+
+  it('index, isFirst и isLast считаются по участвующим шагам', async () => {
+    const flow = createFormFlow({
+      steps: ['intro', 'buyer', 'summary'],
+      isActive: (step) => step === 'buyer',
+    });
+
+    expect(flow.current.value).toBe('buyer');
+    expect(flow.index.value).toBe(0);
+    expect(flow.isFirst.value).toBe(true);
+    expect(flow.isLast.value).toBe(true);
+    expect(await flow.next()).toMatchObject({ status: 'stayed', step: 'buyer', reason: 'edge' });
+    expect(flow.previous()).toEqual({ status: 'stayed', step: 'buyer', reason: 'edge' });
+  });
+
+  it('goTo на шаг, который не участвует, — stayed с причиной inactive', () => {
+    const flow = orderFlow(signal(false));
+
+    expect(flow.canGoTo('company')).toBe(false);
+    expect(flow.goTo('company')).toEqual({ status: 'stayed', step: 'buyer', reason: 'inactive' });
+    expect(flow.current.value).toBe('buyer');
+  });
+
+  it('шаг после пропущенного открыт, когда пройден предыдущий участвующий', async () => {
+    const flow = orderFlow(signal(false));
+
+    expect(flow.canGoTo('delivery')).toBe(false);
+    await flow.next();
+    flow.previous();
+    expect(flow.canGoTo('delivery')).toBe(false);
+    await flow.next();
+    await flow.next();
+    flow.goTo('buyer');
+    await flow.next();
+
+    expect(flow.canGoTo('delivery')).toBe(true);
+    expect(flow.canGoTo('payment')).toBe(false);
+  });
+
+  it('текущий шаг перестал участвовать — поток встаёт на ближайший участвующий перед ним', async () => {
+    const company = signal(true);
+    const flow = orderFlow(company);
+    await flow.next();
+    expect(flow.current.value).toBe('company');
+
+    company.value = false;
+
+    expect(flow.current.value).toBe('buyer');
+    expect(flow.index.value).toBe(0);
+    expect(await flow.next()).toEqual({ status: 'moved', from: 'buyer', to: 'delivery' });
+  });
+
+  it('перед текущим шагом участвующих нет — поток встаёт на следующий', () => {
+    const first = signal(true);
+    const flow = createFormFlow({
+      steps: ['intro', 'buyer', 'summary'],
+      isActive: (step) => step !== 'intro' || first.value,
+    });
+
+    first.value = false;
+
+    expect(flow.current.value).toBe('buyer');
+    expect(flow.isFirst.value).toBe(true);
+  });
+
+  it('не участвует ни один шаг — поток стоит на первом', () => {
+    const flow = createFormFlow({ steps: ['a', 'b'], isActive: () => false });
+
+    expect(flow.activeSteps.value).toEqual(['a']);
+    expect(flow.current.value).toBe('a');
+    expect(flow.isLast.value).toBe(true);
+  });
+
+  it('тот же состав участвующих шагов — та же ссылка списка', () => {
+    const company = signal(false);
+    const other = signal(0);
+    const flow = createFormFlow({
+      steps: ['buyer', 'company', 'delivery'],
+      isActive: (step) => {
+        void other.value;
+        return step !== 'company' || company.value;
+      },
+    });
+    const before = flow.activeSteps.value;
+
+    other.value = 1;
+
+    expect(flow.activeSteps.value).toBe(before);
+  });
+
+  it('шаг перестал участвовать, пока шла его проверка, — next() отменён', async () => {
+    const company = signal(true);
+    const check = deferred<ValidationResult>();
+    const flow = createFormFlow({
+      steps: ['buyer', 'company', 'delivery'],
+      isActive: (step) => step !== 'company' || company.value,
+      validateStep: async (step) => (step === 'company' ? check.promise : resultOf('valid')),
+    });
+    await flow.next();
+    const next = flow.next();
+
+    company.value = false;
+    check.resolve(resultOf('valid'));
+
+    expect(await next).toMatchObject({ status: 'stayed', step: 'buyer', reason: 'cancelled' });
+    expect([...flow.completed.value]).toEqual(['buyer']);
+  });
+
+  it('reset возвращает на первый участвующий шаг', async () => {
+    const first = signal(false);
+    const flow = createFormFlow({
+      steps: ['intro', 'buyer', 'summary'],
+      isActive: (step) => step !== 'intro' || first.value,
+    });
+    await flow.next();
+
+    flow.reset();
+
+    expect(flow.current.value).toBe('buyer');
+    expect([...flow.completed.value]).toEqual([]);
   });
 });

@@ -20,6 +20,7 @@ import { createFormFromCompiled, disposeForm } from './create-form';
 import type { FormBehavior } from './behaviors';
 import {
   createSchemaController,
+  isNodeHidden,
   type SchemaController,
   type SchemaNodeControl,
   type SchemaOverrideMaps,
@@ -145,6 +146,23 @@ export interface CreateFormConfig<T> {
    * Поток шагов: `{ steps: [{ id, rules }] }`. Идентификатор шага — `selector` узла шага в схеме;
    * `next()` потока проверяет правила текущего шага. `onInvalidSubmit: 'firstInvalidStep'` —
    * отказ отправки переводит поток на первый шаг с ошибкой (по умолчанию поток остаётся).
+   *
+   * Условный шаг — скрытый узел шага: пока `hideWhen(schema.node('<id шага>'), условие)` в
+   * поведении скрывает узел, поток шаг пропускает, а его правила не исполняются.
+   *
+   * @example Шаг «Компания» — только юрлицу
+   * ```typescript
+   * const orderBehavior = defineFormBehavior<Order>(({ model, schema }) => {
+   *   hideWhen(schema.node('company'), () => model.customerType !== 'company');
+   * });
+   *
+   * createForm<Order>({
+   *   initial,
+   *   schema: orderSchema,
+   *   behavior: orderBehavior,
+   *   flow: { steps: [{ id: 'buyer', rules: buyerRules }, { id: 'company', rules: companyRules }] },
+   * });
+   * ```
    */
   flow?: FormFlowConfig<T>;
   /**
@@ -173,7 +191,12 @@ function checkSelectors<T>(
   flow: CreateFormConfig<T>['flow']
 ): void {
   if (compiled === undefined) return;
-  const unknown = unknownSchemaSelectors(maps, compiled);
+  // Узел шага потока адресуется и без узла в дереве (визард собран в JSX): правило скрытия такого
+  // узла работает — поток пропускает шаг.
+  const stepIds = new Set((flow?.steps ?? []).map((step) => step.id));
+  const unknown = unknownSchemaSelectors(maps, compiled).filter(
+    (selector) => !stepIds.has(selector)
+  );
   if (unknown.length > 0) {
     console.warn(
       `${AT}: поведение обращается к узлам схемы, которых нет в корневом дереве: ` +
@@ -284,6 +307,9 @@ export function createForm<T extends object>(config: CreateFormConfig<T>): FormB
     validation: config.validation,
     flow: config.flow,
     nodes,
+    // Условный шаг: скрытый узел шага (`hideWhen`, `setHidden`) поток пропускает. Условие
+    // читается лениво — поведение записывает его позже, при сборке нод.
+    stepActive: (stepId) => !isNodeHidden(root.__overrideMaps, stepId),
   });
   const { validation } = level;
   // Первые записи поведения (копия `syncFields`, нормализация, сброс выключенного поля) выполняются
