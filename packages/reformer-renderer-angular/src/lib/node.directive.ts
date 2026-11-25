@@ -261,6 +261,14 @@ export class ReformerNode implements OnChanges, OnDestroy {
     return (this.bundle?.render?.nodeOf ?? getNodeForSignal)(handle);
   }
 
+  /** Инжектор, в настройках которого обёртка поля поддерева, — для компонента, ведущего детей сам. */
+  private withFieldWrapper(fieldWrapper: Type<unknown>): Injector {
+    return Injector.create({
+      providers: [{ provide: RENDERER_SETTINGS, useValue: { ...this.settings, fieldWrapper } }],
+      parent: this.injector,
+    });
+  }
+
   private setup(
     node: CompiledNode,
     fieldWrapper: Type<unknown> | undefined
@@ -297,7 +305,7 @@ export class ReformerNode implements OnChanges, OnDestroy {
   private mount(node: CompiledNode, fieldWrapper: Type<unknown> | undefined): Content {
     switch (node.kind) {
       case 'container':
-        return this.mountContainer(node);
+        return this.mountContainer(node, fieldWrapper);
       case 'field':
         return this.mountField(node, fieldWrapper ?? this.settings?.fieldWrapper);
       case 'array':
@@ -313,14 +321,20 @@ export class ReformerNode implements OnChanges, OnDestroy {
   // Контейнер
   // -------------------------------------------------------------------------
 
-  /** Контейнер: компонент или HTML-тег с детьми; без компонента — одни дети. */
-  private mountContainer(node: CompiledContainerNode): Content {
+  /**
+   * Контейнер: компонент или HTML-тег с детьми; без компонента — одни дети. Обёртка поля,
+   * переданная узлу, уходит детям — она действует на всё поддерево.
+   */
+  private mountContainer(
+    node: CompiledContainerNode,
+    fieldWrapper: Type<unknown> | undefined
+  ): Content {
     const { component, children, selector } = node;
     const maps = this.maps;
     const anchor = this.anchor;
 
     if (component === undefined || component === null || component === '') {
-      const stopChildren = this.renderChildrenInPlace(children);
+      const stopChildren = this.renderChildrenInPlace(children, fieldWrapper);
       return {
         destroy: (detach) => {
           stopChildren();
@@ -364,7 +378,7 @@ export class ReformerNode implements OnChanges, OnDestroy {
       });
       host.changeDetectorRef.detectChanges();
       const stopChildren = placeholder
-        ? this.renderChildrenInside(children, this.injector, placeholder)
+        ? this.renderChildrenInside(children, this.injector, placeholder, fieldWrapper)
         : () => {};
       if (nodeRef) nodeRef.current = element;
 
@@ -401,7 +415,9 @@ export class ReformerNode implements OnChanges, OnDestroy {
     const placeholder =
       !selfManaged && children.length > 0 ? this.document.createComment('') : undefined;
     const host = anchor.createComponent(type, {
-      injector: this.injector,
+      // Узлы, которые компонент рисует сам директивой `reformerNode`, берут обёртку поля из
+      // настроек: переданная узлу обёртка встаёт туда — так она доходит и до них.
+      injector: selfManaged && fieldWrapper ? this.withFieldWrapper(fieldWrapper) : this.injector,
       projectableNodes: placeholder ? [[placeholder]] : undefined,
     });
     const binding = new ComponentBinding(host, type);
@@ -418,7 +434,7 @@ export class ReformerNode implements OnChanges, OnDestroy {
     });
     host.changeDetectorRef.detectChanges();
     const stopChildren = placeholder
-      ? this.renderChildrenInside(children, host.injector, placeholder, type)
+      ? this.renderChildrenInside(children, host.injector, placeholder, fieldWrapper, type)
       : () => {};
     const instance: unknown = host.instance;
     if (nodeRef) nodeRef.current = instance;
@@ -459,7 +475,10 @@ export class ReformerNode implements OnChanges, OnDestroy {
    *
    * @returns Остановка подписок текста.
    */
-  private renderChildrenInPlace(children: readonly CompiledChild[]): () => void {
+  private renderChildrenInPlace(
+    children: readonly CompiledChild[],
+    fieldWrapper: Type<unknown> | undefined
+  ): () => void {
     const stops: Array<() => void> = [];
     for (const child of children) {
       if (child.kind === 'text') {
@@ -470,7 +489,7 @@ export class ReformerNode implements OnChanges, OnDestroy {
         this.anchor
           .createEmbeddedView(
             this.templates.node,
-            { $implicit: child, fieldWrapper: undefined },
+            { $implicit: child, fieldWrapper },
             { injector: this.injector }
           )
           .detectChanges();
@@ -495,6 +514,7 @@ export class ReformerNode implements OnChanges, OnDestroy {
     children: readonly CompiledChild[],
     injector: Injector,
     placeholder: Comment,
+    fieldWrapper: Type<unknown> | undefined,
     owner?: Type<unknown>
   ): () => void {
     if (placeholder.parentNode === null) {
@@ -519,10 +539,7 @@ export class ReformerNode implements OnChanges, OnDestroy {
         stops.push(this.watchText(child, textView));
         view = textView;
       } else {
-        view = this.templates.node.createEmbeddedView(
-          { $implicit: child, fieldWrapper: undefined },
-          injector
-        );
+        view = this.templates.node.createEmbeddedView({ $implicit: child, fieldWrapper }, injector);
       }
       this.appRef.attachView(view);
       views.push(view);
