@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATALOG_CONTRACT_VERSION,
+  DEFAULT_KIT_FRAMEWORK,
+  KIT_FRAMEWORKS,
   SUPPORTED_CATALOG_CONTRACT_VERSIONS,
   type CatalogJson,
   type CatalogRecord,
@@ -115,21 +117,45 @@ describe('блок kit', () => {
 
   it('контракт 3.0: визард по протоколу, прослоек нет; прежние версии читаются [ReFormer-qxdk]', () => {
     const d = toDescriptor({
-      version: CATALOG_CONTRACT_VERSION,
+      version: '3.0',
       components: [record('FormWizard')],
       kit: { adapters: { wizard: { symbol: 'FormWizard' }, step: null } },
     });
-    expect({
-      current: CATALOG_CONTRACT_VERSION,
-      supported: [...SUPPORTED_CATALOG_CONTRACT_VERSIONS],
-      wizard: d.adapters.wizard,
-      shims: d.codegen.needsShim.size,
-    }).toEqual({
-      current: '3.0',
-      supported: ['1.0', '2.0', '2.1', '3.0'],
+    expect({ wizard: d.adapters.wizard, shims: d.codegen.needsShim.size }).toEqual({
       wizard: { symbol: 'FormWizard' },
       shims: 0,
     });
+  });
+
+  it('контракт 3.1 — текущий; все прежние версии по-прежнему принимаются', () => {
+    expect({
+      current: CATALOG_CONTRACT_VERSION,
+      supported: [...SUPPORTED_CATALOG_CONTRACT_VERSIONS],
+    }).toEqual({ current: '3.1', supported: ['1.0', '2.0', '2.1', '3.0', '3.1'] });
+  });
+});
+
+describe('контракт 3.1: фреймворк кита и кит без обёртки поля', () => {
+  it('каталог без kit.framework — React-кит, как все каталоги до 3.1', () => {
+    expect(toDescriptor(catalog()).framework).toBe('react');
+    expect(toDescriptor(catalog({ kit: { id: 'x' } })).framework).toBe(DEFAULT_KIT_FRAMEWORK);
+  });
+
+  it('фреймворк, объявленный китом, доходит как есть', () => {
+    for (const framework of KIT_FRAMEWORKS) {
+      expect(toDescriptor(catalog({ kit: { framework } })).framework).toBe(framework);
+    }
+  });
+
+  it('fieldWrapper: null — обёртки нет, и соглашение её не подставляет', () => {
+    const d = toDescriptor(catalog({ kit: { infra: { fieldWrapper: null } } }));
+    expect(d.infra.fieldWrapper).toBeNull();
+    // Остальная инфраструктура по-прежнему достраивается соглашением.
+    expect(d.infra.list).toBe(CONVENTIONAL_KIT_INFRA.list);
+  });
+
+  it('промолчавший кит получает обёртку по соглашению', () => {
+    expect(toDescriptor(catalog({ kit: { infra: {} } })).infra.fieldWrapper).toBe('FormField');
   });
 
   it('подсказки стекам (2.1) доходят как есть', () => {

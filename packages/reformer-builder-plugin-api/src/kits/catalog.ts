@@ -24,16 +24,38 @@
  * поменялся смысл `adapters.wizard`: визард кита, написанный под шим, без протокола работать
  * перестанет. Кит без визарда (`wizard: null`) не меняется.
  *
+ * `3.1` — `kit.framework`: фреймворк, на котором написаны компоненты кита. Без поля кит — на
+ * React, как все киты прежних версий.
+ *
  * Модуль — лист графа: только типы и константы, без React и без рантайма платформы.
  *
  * @module @reformer/builder-plugin-api/kits/catalog
  */
 
 /** Текущая версия контракта каталога. Не путать с версией пакета кита (`kit.version`). */
-export const CATALOG_CONTRACT_VERSION = '3.0';
+export const CATALOG_CONTRACT_VERSION = '3.1';
 
 /** Версии контракта, которые принимает платформа. `1.0` поддерживается бессрочно. */
-export const SUPPORTED_CATALOG_CONTRACT_VERSIONS: readonly string[] = ['1.0', '2.0', '2.1', '3.0'];
+export const SUPPORTED_CATALOG_CONTRACT_VERSIONS: readonly string[] = [
+  '1.0',
+  '2.0',
+  '2.1',
+  '3.0',
+  '3.1',
+];
+
+/**
+ * Фреймворк, на котором написаны компоненты кита (контракт `3.1`). Реестр формы на
+ * `@reformer/renderer-json` устроен одинаково, рисует его рендерер этого фреймворка:
+ * `@reformer/renderer-react`, `@reformer/renderer-vue` или `@reformer/renderer-angular`.
+ */
+export type KitFramework = 'react' | 'vue' | 'angular';
+
+/** Фреймворки кита в порядке объявления. */
+export const KIT_FRAMEWORKS: readonly KitFramework[] = ['react', 'vue', 'angular'];
+
+/** Фреймворк кита без `kit.framework`: каталоги до `3.1` писали только React-киты. */
+export const DEFAULT_KIT_FRAMEWORK: KitFramework = 'react';
 
 /** Роль записи: поле формы (несёт значение), контейнер (держит детей), повторяющийся блок. */
 export type CatalogRole = 'field' | 'container' | 'array';
@@ -117,8 +139,11 @@ export type KitPeerRanges = Record<string, string>;
 
 /** Имена компонентов вне палитры, без которых стекам нечем рисовать форму. */
 export interface KitInfra {
-  /** Обёртка поля (реестр renderer-json зовёт её `FIELD_WRAPPER`). */
-  fieldWrapper?: string;
+  /**
+   * Обёртка поля (реестр renderer-json зовёт её `FIELD_WRAPPER`). `null` (контракт `3.1`) — кит
+   * обёртки не поставляет: контрол сам рисует подпись и ошибку, поле регистрируется без неё.
+   */
+  fieldWrapper?: string | null;
   /** Граница асинхронной загрузки. */
   asyncBoundary?: string;
   /** Обёртка списка, которой схемы адресуют повторяющиеся узлы. */
@@ -168,9 +193,10 @@ export interface KitWizardProps<TNode extends KitWizardStepNode = KitWizardStepN
  *
  * 1. несёт статику `__selfManagedChildren = true` — по ней рендерер отдаёт ему шаги данными,
  *    вместе с `renderNode` ({@link KitWizardProps});
- * 2. форму, проверку шагов и поток берёт из контекста сборки — `useFormBundleContext()` из
- *    `@reformer/core/react` (`bundle.form`, `bundle.flow`, `bundle.validateStep`), а не
- *    из пропсов;
+ * 2. форму, проверку шагов и поток берёт из контекста сборки своего рендерера, а не из пропсов
+ *    (`bundle.form`, `bundle.flow`, `bundle.validateStep`): на React — `useFormBundleContext()`
+ *    из `@reformer/core/react`, на Vue и Angular — контекст `@reformer/renderer-vue` и
+ *    `@reformer/renderer-angular`;
  * 3. связывает шаг схемы с шагом потока по `selector` узла.
  *
  * Реализация-образец — `FormWizard` из `@reformer/ui-kit`. Прежний шим (переходник
@@ -193,6 +219,10 @@ export interface KitAdapters {
   /**
    * Обёртка поддерева, без которой компоненты кита рисуются неправильно: тема
    * styled-components, словарь, конфиг портала. Рамка превью кладёт форму внутрь неё.
+   *
+   * У кита не на React (`kit.framework`, контракт `3.1`) это то, что приложение ставит один раз:
+   * на Vue — фабрика плагина (`app.use(symbol())`), на Angular — функция провайдеров
+   * (`providers: [symbol()]`).
    */
   provider?: KitAdapter | null;
 }
@@ -302,6 +332,8 @@ export interface KitDescriptorJson {
   package?: string;
   /** Версия ПАКЕТА кита (версия контракта — поле `version` каталога). */
   version?: string;
+  /** Фреймворк компонентов кита (контракт `3.1`); нет — {@link DEFAULT_KIT_FRAMEWORK}. */
+  framework?: KitFramework;
   peerRanges?: KitPeerRanges;
   infra?: KitInfra;
   adapters?: KitAdapters;

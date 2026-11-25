@@ -109,6 +109,10 @@
           "type": "string",
           "description": "Версия ПАКЕТА кита (не путать с version на верхнем уровне — та относится к контракту каталога)."
         },
+        "framework": {
+          "enum": ["react", "vue", "angular"],
+          "description": "Контракт 3.1. Фреймворк, на котором написаны компоненты кита: реестр формы рисует рендерер этого фреймворка. Нет поля — react."
+        },
         "peerRanges": {
           "type": "object",
           "additionalProperties": { "type": "string" },
@@ -120,8 +124,8 @@
           "description": "Компоненты вне палитрового каталога, обязательные для рендерера.",
           "properties": {
             "fieldWrapper": {
-              "type": "string",
-              "description": "Враппер поля (он же FIELD_WRAPPER реестра renderer-json)."
+              "type": ["string", "null"],
+              "description": "Враппер поля (он же FIELD_WRAPPER реестра renderer-json). null (контракт 3.1) — кит обёртки не поставляет: контрол сам рисует подпись и ошибку."
             },
             "asyncBoundary": { "type": "string", "description": "Граница асинхронной загрузки." },
             "list": { "type": "string", "description": "Обёртка display-списка для array-узлов." },

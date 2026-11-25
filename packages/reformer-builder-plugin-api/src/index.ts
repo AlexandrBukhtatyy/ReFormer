@@ -475,7 +475,12 @@ export type {
 // а ставит его плагин, который видит только SDK. Поэтому здесь весь контракт: данные каталога,
 // дескриптор, точка источников, служба активного кита и пропсы рамки поля. Проверка каталога
 // против схемы — во входе `./tooling` (она тянет ajv и нужна не каждому).
-export { CATALOG_CONTRACT_VERSION, SUPPORTED_CATALOG_CONTRACT_VERSIONS } from './kits/catalog.js';
+export {
+  CATALOG_CONTRACT_VERSION,
+  DEFAULT_KIT_FRAMEWORK,
+  KIT_FRAMEWORKS,
+  SUPPORTED_CATALOG_CONTRACT_VERSIONS,
+} from './kits/catalog.js';
 export type {
   CatalogInherits,
   CatalogJson,
@@ -492,6 +497,7 @@ export type {
   KitClassGroupsByRole,
   KitCodegen,
   KitDescriptorJson,
+  KitFramework,
   KitInfra,
   KitNamespace,
   KitPalette,
@@ -510,7 +516,7 @@ export {
   toDescriptor,
   UNKNOWN_KIT_VERSION,
 } from './kits/descriptor.js';
-export type { KitDescriptor } from './kits/descriptor.js';
+export type { KitDescriptor, ResolvedKitInfra } from './kits/descriptor.js';
 export { declaredKitId, KitSourcePoint } from './kits/source.js';
 export type { CatalogLoader, KitSource } from './kits/source.js';
 export { KitsCapability } from './kits/service.js';

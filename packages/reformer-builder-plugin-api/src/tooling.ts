@@ -74,4 +74,10 @@ export type { CatalogCheck, CatalogValidator } from './kits/validator.js';
 // Версия контракта каталога — для генератора каталога из типов (`reformer-plugin catalog`): он
 // пишет каталог текущей версии. Те же константы, что у главного входа, но без его рантайма
 // (главный вход тянет React, а инструмент работает в голом Node).
-export { CATALOG_CONTRACT_VERSION, SUPPORTED_CATALOG_CONTRACT_VERSIONS } from './kits/catalog.js';
+export {
+  CATALOG_CONTRACT_VERSION,
+  DEFAULT_KIT_FRAMEWORK,
+  KIT_FRAMEWORKS,
+  SUPPORTED_CATALOG_CONTRACT_VERSIONS,
+} from './kits/catalog.js';
+export type { KitFramework } from './kits/catalog.js';

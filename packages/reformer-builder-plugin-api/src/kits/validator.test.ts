@@ -128,3 +128,18 @@ describe('контракт 2.1: рамка поля и подсказки сте
     );
   });
 });
+
+describe('контракт 3.1: фреймворк кита и кит без обёртки поля', () => {
+  it('kit.framework — один из трёх фреймворков', () => {
+    for (const framework of ['react', 'vue', 'angular']) {
+      expect(validate(withKit({ id: 'acme', framework })).errors).toEqual([]);
+    }
+    expect(validate(withKit({ id: 'acme', framework: 'svelte' })).valid).toBe(false);
+    expect(validate(withKit({ id: 'acme', framework: '' })).valid).toBe(false);
+  });
+
+  it('fieldWrapper: null — кит обёртки не поставляет; другие имена инфраструктуры — строки', () => {
+    expect(validate(withKit({ id: 'acme', infra: { fieldWrapper: null } })).errors).toEqual([]);
+    expect(validate(withKit({ id: 'acme', infra: { list: null } })).valid).toBe(false);
+  });
+});

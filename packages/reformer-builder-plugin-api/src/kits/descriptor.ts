@@ -26,17 +26,19 @@
  * @module @reformer/builder-plugin-api/kits/descriptor
  */
 
-import type {
-  CatalogJson,
-  CatalogRecord,
-  KitAdapters,
-  KitCodegen,
-  KitInfra,
-  KitPalette,
-  KitPeerRanges,
-  KitRecordPreview,
-  KitRenderers,
-  KitStyles,
+import {
+  DEFAULT_KIT_FRAMEWORK,
+  type CatalogJson,
+  type CatalogRecord,
+  type KitAdapters,
+  type KitCodegen,
+  type KitFramework,
+  type KitInfra,
+  type KitPalette,
+  type KitPeerRanges,
+  type KitRecordPreview,
+  type KitRenderers,
+  type KitStyles,
 } from './catalog.js';
 
 /** Версия кита, когда он её не сообщил: пакет взят из рабочей копии, и номер недостоверен. */
@@ -46,12 +48,23 @@ export const UNKNOWN_KIT_VERSION = 'workspace';
  * Имена инфраструктуры по соглашению renderer-json. Кит, назвавший свои компоненты так же,
  * может их не объявлять; кит с другими именами объявляет их в `kit.infra`.
  */
-export const CONVENTIONAL_KIT_INFRA: Readonly<Required<KitInfra>> = Object.freeze({
+export const CONVENTIONAL_KIT_INFRA: Readonly<Required<NonNullableInfra>> = Object.freeze({
   fieldWrapper: 'FormField',
   asyncBoundary: 'AsyncBoundary',
   list: 'List',
   fieldFrame: 'FieldFrame',
 });
+
+/** Инфраструктура, где каждое имя названо: так её объявляет соглашение. */
+type NonNullableInfra = { [K in keyof KitInfra]: NonNullable<KitInfra[K]> };
+
+/**
+ * Инфраструктура разрешённого дескриптора: всё названо, кроме обёртки поля — её у кита может не
+ * быть (`kit.infra.fieldWrapper: null`, контракт `3.1`).
+ */
+export type ResolvedKitInfra = Omit<Required<NonNullableInfra>, 'fieldWrapper'> & {
+  fieldWrapper: string | null;
+};
 
 /**
  * Разрешённый дескриптор: то же, что блок `kit`, но всё, от чего зависит рантайм, заполнено —
@@ -63,8 +76,10 @@ export interface KitDescriptor {
   label: string;
   package: string;
   version: string;
+  /** Фреймворк компонентов кита; каталог без `kit.framework` — React. */
+  framework: KitFramework;
   peerRanges: KitPeerRanges;
-  infra: Required<KitInfra>;
+  infra: ResolvedKitInfra;
   adapters: KitAdapters;
   palette: Required<Pick<KitPalette, 'categoryByName'>> & KitPalette;
   styles: Required<Pick<KitStyles, 'mode' | 'classNames'>> & KitStyles;
@@ -178,9 +193,14 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
     label: kit.label ?? id,
     package: pkg,
     version: kit.version ?? UNKNOWN_KIT_VERSION,
+    framework: kit.framework ?? DEFAULT_KIT_FRAMEWORK,
     peerRanges: kit.peerRanges ?? {},
     infra: {
-      fieldWrapper: kit.infra?.fieldWrapper ?? CONVENTIONAL_KIT_INFRA.fieldWrapper,
+      // `null` — кит обёртки не поставляет; умолчание по соглашению — только когда кит промолчал.
+      fieldWrapper:
+        kit.infra?.fieldWrapper === null
+          ? null
+          : (kit.infra?.fieldWrapper ?? CONVENTIONAL_KIT_INFRA.fieldWrapper),
       asyncBoundary: kit.infra?.asyncBoundary ?? CONVENTIONAL_KIT_INFRA.asyncBoundary,
       list: kit.infra?.list ?? CONVENTIONAL_KIT_INFRA.list,
       fieldFrame: kit.infra?.fieldFrame ?? CONVENTIONAL_KIT_INFRA.fieldFrame,
