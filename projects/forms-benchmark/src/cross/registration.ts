@@ -13,6 +13,7 @@ import { createForm, type FormBundle, type SchemaResolver } from '@reformer/core
 import type { JsonFormSchema } from '@reformer/renderer-json/neutral';
 import { api } from '../shared/api/client';
 import { serverConfig } from '../shared/api/server';
+import { connectDemo } from '../shared/harness/demo';
 import {
   REGISTRATION_INITIAL,
   toRegistrationPayload,
@@ -37,17 +38,22 @@ export async function loadRegistrationInitial(): Promise<RegistrationValues> {
   return { ...REGISTRATION_INITIAL, ...(await api.getRegistrationPrefill(invite)) };
 }
 
-/** Сборка формы на реестре компонентов хоста. Владелец сборки — хост: он же зовёт `dispose()`. */
+/**
+ * Сборка формы на реестре компонентов хоста. Владелец сборки — хост: он же зовёт `dispose()`.
+ * Страница с `?demo` в `iframe` публикует её значения и состояние демо на сайте.
+ */
 export function createRegistrationForm(
   registry: SchemaResolver,
   initial: RegistrationValues
 ): FormBundle<RegistrationValues> {
-  return createForm<RegistrationValues>({
+  const bundle = createForm<RegistrationValues>({
     schema,
     registry,
     initial,
     validation: { rules: registrationRules, strategy: 'afterFirstSubmit' },
   });
+  connectDemo(bundle);
+  return bundle;
 }
 
 /** Отправка валидной формы; возвращает текст подтверждения. */

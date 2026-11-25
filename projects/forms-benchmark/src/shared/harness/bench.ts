@@ -55,9 +55,13 @@ export interface BenchHost {
   unmount(): void;
 }
 
-/** id участника — первый сегмент пути (`/<id>/<form>/`), на dev-сервере тоже. */
+/**
+ * id участника — сегмент пути перед формой (`/<id>/<form>/`), на dev-сервере тоже. Не первый: под
+ * префиксом публикации на сайте (`/ReFormer/benchmark-apps/<id>/<form>/`) первым идёт префикс.
+ */
 function benchId(): string {
-  return location.pathname.split('/').filter(Boolean)[0] ?? 'unknown';
+  const segments = location.pathname.split('/').filter((s) => s && s !== 'index.html');
+  return segments.at(-2) ?? segments[0] ?? 'unknown';
 }
 
 /**

@@ -8,6 +8,7 @@
     "dev": "vite",
     "bench:build": "node scripts/build-entries.mjs",
     "bench:build:frameworks": "node scripts/build-frameworks.mjs",
+    "demo:build": "node scripts/build-frameworks.mjs --demo --base /demo --out dist/demo",
     "serve": "node scripts/serve.mjs",
     "size": "node scripts/bundle-size.mjs",
     "loc": "node scripts/code-size.mjs",

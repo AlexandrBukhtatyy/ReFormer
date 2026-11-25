@@ -29,6 +29,7 @@ import {
 } from '@reformer/renderer-json/neutral';
 import { creditApi } from '../shared/api/credit-client';
 import { serverConfig } from '../shared/api/server';
+import { connectDemo } from '../shared/harness/demo';
 import {
   CREDIT_INITIAL,
   emptyCoBorrower,
@@ -128,6 +129,8 @@ const creditBehavior = (onSubmitted: (message: string) => void) =>
  * @param initial - Начальные значения из {@link CreditStart.load}.
  * @param dictionaries - Справочники страницы из {@link createCreditStart}.
  * @param onSubmitted - Заявка отправлена: текст подтверждения для `submit-result`.
+ *
+ * Страница с `?demo` в `iframe` публикует значения и состояние сборки демо на сайте.
  */
 export function createCreditForm(
   registry: ComponentRegistry,
@@ -135,7 +138,7 @@ export function createCreditForm(
   dictionaries: CreditDictionaries,
   onSubmitted: (message: string) => void
 ): FormBundle<CreditValues> {
-  return createForm<CreditValues>({
+  const bundle = createForm<CreditValues>({
     schema,
     registry: composeRegistries(
       registry,
@@ -149,6 +152,8 @@ export function createCreditForm(
     flow: creditFlow,
     behavior: creditBehavior(onSubmitted),
   });
+  connectDemo(bundle);
+  return bundle;
 }
 
 /** Отправка валидной формы: канонический payload, текст подтверждения — из ответа. */

@@ -15,6 +15,14 @@
  * `dist/frameworks-info.json`.
  *
  * Опции: --only <stack>[,<stack>]; --form <form>.
+ *
+ * Сборка для демо на сайте (`/benchmark/frameworks/demo`) — с тремя опциями сразу:
+ * - --demo — мост страницы к демо (`src/shared/harness/demo.ts`, флаг `globalThis.__BENCH_DEMO__`);
+ *   без опции флаг `false`, и мост вырезается из сборки целиком;
+ * - --base <префикс> — адрес страниц `<префикс>/<stack>/<form>/` вместо `/<stack>/<form>/`;
+ * - --out <каталог> — вместо `dist/`.
+ * На сайт: `--demo --base /ReFormer/benchmark-apps --out <каталог>` (deploy-docs.yml); локально —
+ * `npm run demo:build` (`dist/demo/`, его отдаёт тот же `npm run serve`). Замеры — по сборке без них.
  */
 import { build } from 'vite';
 import { execFileSync } from 'node:child_process';
@@ -37,7 +45,9 @@ import { checkReformerPackages } from './lib/reformer-packages.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projects = path.resolve(root, '..');
 const repo = path.resolve(root, '../..');
-const dist = path.join(root, 'dist');
+const dist = process.argv.includes('--out')
+  ? path.resolve(process.argv[process.argv.indexOf('--out') + 1])
+  : path.join(root, 'dist');
 
 /** Стеки: id — как `StackId` кросс-e2e (`cross-framework-e2e/stacks.ts`). */
 const STACKS = [
@@ -56,6 +66,12 @@ const argValue = (name) => {
 };
 const only = argValue('--only')?.split(',');
 const onlyForm = argValue('--form');
+const basePrefix = (argValue('--base') ?? '').replace(/\/+$/, '');
+/** Адрес страницы стека: от него Vite и Angular строят пути ресурсов. */
+const baseOf = (stack, form) => `${basePrefix}/${stack.id}/${form}/`;
+/** Флаг моста к демо — `define` обоих сборщиков; `false` вырезает мост из сборки. */
+const DEMO_FLAG = 'globalThis.__BENCH_DEMO__';
+const demo = args.includes('--demo');
 
 // ── Пакеты @reformer/* — из dist: устаревшая сборка дала бы чужие числа ──────────
 const packages = checkReformerPackages(
@@ -82,9 +98,10 @@ async function buildWithVite(stack, form, outDir) {
     root: hostDir,
     configFile: path.join(hostDir, 'vite.config.ts'),
     mode: 'production',
-    base: `/${stack.id}/${form}/`,
+    base: baseOf(stack, form),
     publicDir: false,
     logLevel: 'warn',
+    define: { [DEMO_FLAG]: JSON.stringify(demo) },
     build: {
       outDir,
       emptyOutDir: true,
@@ -113,9 +130,11 @@ function buildWithAngular(stack, form, outDir) {
         '--configuration',
         `bench-${form}`,
         '--base-href',
-        `/${stack.id}/${form}/`,
+        baseOf(stack, form),
         '--output-path',
         out,
+        '--define',
+        `${DEMO_FLAG}=${demo}`,
       ],
       { cwd: hostDir, stdio: 'inherit', shell: process.platform === 'win32' }
     );
@@ -175,7 +194,7 @@ for (const { stack, form } of targets) {
     JSON.stringify({
       id: stack.id,
       form,
-      base: `/${stack.id}/${form}/`,
+      base: baseOf(stack, form),
       bundler: stack.bundler,
       host: stack.host,
       builtAt: new Date().toISOString(),
@@ -226,6 +245,9 @@ for (const stack of STACKS) {
 }
 const info = {
   builtAt: new Date().toISOString(),
+  // Сборка для демо на сайте (`--demo`, `--base`): в замеры она не идёт.
+  demo,
+  base: `${basePrefix}/`,
   git: { sha: git('rev-parse', 'HEAD'), dirty: Boolean(git('status', '--porcelain')) },
   reformerPackages: packages,
   versions,
