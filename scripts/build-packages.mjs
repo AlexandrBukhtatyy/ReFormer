@@ -19,6 +19,8 @@ const PACKAGES = [
   '@reformer/core',
   '@reformer/cdk',
   '@reformer/renderer-react',
+  '@reformer/renderer-vue',
+  '@reformer/renderer-angular',
   '@reformer/ui-kit',
   '@reformer/renderer-json',
   '@reformer/form-registry',

@@ -7,10 +7,11 @@
 // всё зелёное (devDeps установлены), а у потребителя `import "@reformer/<pkg>/<subpath>"`
 // падает с ERR_MODULE_NOT_FOUND. Именно так разъехались 11 heavy-deps @reformer/ui-kit.
 //
-// Скрипт обходит dist/**/*.js, вынимает спецификаторы модулей (es-module-lexer —
-// настоящий парсер ESM, а не регексп по `from "..."`, который ловит ложные
-// срабатывания на строковых литералах внутри кода), нормализует до имени пакета
-// и вычитает dependencies + peerDependencies + optionalDependencies.
+// Скрипт обходит модули dist/ (`.js` у vite, `.mjs` у ng-packagr), вынимает
+// спецификаторы модулей (es-module-lexer — настоящий парсер ESM, а не регексп
+// по `from "..."`, который ловит ложные срабатывания на строковых литералах
+// внутри кода), нормализует до имени пакета и вычитает dependencies +
+// peerDependencies + optionalDependencies.
 // Непустой остаток → exit 1.
 //
 // Использование:
@@ -36,12 +37,15 @@ function toPackageName(specifier) {
   return PACKAGE_NAME.test(name) ? name : null;
 }
 
+/** Модуль сборки: `.js` у vite, `.mjs` у ng-packagr. */
+const MODULE_FILE = /\.m?js$/;
+
 function walk(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...walk(full));
-    else if (entry.name.endsWith('.js')) out.push(full);
+    else if (MODULE_FILE.test(entry.name)) out.push(full);
   }
   return out;
 }
@@ -66,7 +70,11 @@ function checkPackage(pkgDir) {
   }
   const files = walk(distDir);
   if (files.length === 0) {
-    return { ok: false, name: pkg.name, message: 'в dist/ нет .js — сначала соберите пакет' };
+    return {
+      ok: false,
+      name: pkg.name,
+      message: 'в dist/ нет модулей (.js, .mjs) — сначала соберите пакет',
+    };
   }
 
   const declared = new Set([

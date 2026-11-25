@@ -12,6 +12,81 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
 
+  cross-framework-e2e:
+    # Одна форма ReFormer в React, Vue и Angular — общие сценарии по DOM-контракту
+    # (projects/cross-framework-e2e/DOM-CONTRACT.md). Стек — задание матрицы: собираются только
+    # пакеты его хоста, и поднимается только его сервер (`CROSS_STACKS`). Падение одного стека не
+    # отменяет остальные: расхождение стеков и есть то, что проверка ищет.
+    name: cross-framework e2e (${{ matrix.stack }})
+    # Образ закреплён по той же причине, что в test.yml: Playwright 1.57 ставит Chromium только до
+    # Ubuntu 24.04.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: react
+            packages: >-
+              @reformer/core @reformer/cdk @reformer/renderer-react @reformer/ui-kit
+              @reformer/renderer-json
+            # Конфиг Vite хоста импортирует сгенерированные обработчики моков: без них сервер не
+            # стартует, хотя страницам проверки моки не нужны.
+            prepare: npm run generate:mocks -w react-playground
+          - stack: vue
+            packages: >-
+              @reformer/core @reformer/renderer-react @reformer/renderer-json
+              @reformer/renderer-vue
+          - stack: angular
+            packages: >-
+              @reformer/core @reformer/renderer-react @reformer/renderer-json
+              @reformer/renderer-angular
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Сборка пакетов хоста
+        # По зависимостям: хост берёт пакеты из их dist. JSON-слою нужны типы рендерера React —
+        # поэтому он в списке каждого стека.
+        run: |
+          for pkg in ${{ matrix.packages }}; do
+            npm run build -w "$pkg"
+          done
+
+      - name: Подготовка хоста
+        if: matrix.prepare
+        run: ${{ matrix.prepare }}
+
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: e2e стека
+        working-directory: projects/cross-framework-e2e
+        env:
+          CROSS_STACKS: ${{ matrix.stack }}
+          NG_CLI_ANALYTICS: 'false'
+        run: npx playwright test
+
+      - name: Отчёт e2e
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-framework-e2e-${{ matrix.stack }}
+          path: |
+            projects/cross-framework-e2e/playwright-report
+            projects/cross-framework-e2e/test-results
+          retention-days: 7
+
   # e2e стенда react-playground из CI временно снят: прогон не укладывался в 90 минут и
   # отменялся, ничего не сообщая. Вернуть быстрым — техдолг ReFormer-f2cd (там же прежняя
   # конфигурация джоба). Локально: `npx playwright test` в projects/react-playground-e2e.

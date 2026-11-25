@@ -87,7 +87,23 @@ jobs:
         run: npm run build -w @reformer/renderer-react
 
       - name: Run @reformer/renderer-react tests
+        # В наборе — контрактные сценарии рендереров (projects/renderer-contract): те же сценарии
+        # проходят рендереры Vue и Angular.
         run: npm run test -w @reformer/renderer-react
+
+      - name: Build @reformer/renderer-vue
+        run: npm run build -w @reformer/renderer-vue
+
+      - name: Run @reformer/renderer-vue tests
+        run: npm run test -w @reformer/renderer-vue
+
+      - name: Build @reformer/renderer-angular
+        # ng-packagr: FESM-бандл и объявления типов в dist/.
+        run: npm run build -w @reformer/renderer-angular
+
+      - name: Run @reformer/renderer-angular tests
+        # vitest с компилятором Angular (плагин Analog) и happy-dom, без зоны и без TestBed.
+        run: npm run test -w @reformer/renderer-angular
 
       - name: Build @reformer/ui-kit
         run: npm run build -w @reformer/ui-kit
