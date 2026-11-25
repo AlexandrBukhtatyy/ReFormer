@@ -9,6 +9,8 @@ packages/*/src/**/*.d.ts
 test-results
 playwright-report
 .playwright-mcp
+# Кэш сборки Angular CLI (projects/angular-playground)
+.angular/
 .claude/settings.local.json
 # Рабочие копии сеансов Claude Code (EnterWorktree): у каждой свой `.git`-файл. Claude Code пишет
 # это правило только в локальный .git/info/exclude — в свежем клоне его нет, и `git add -A`

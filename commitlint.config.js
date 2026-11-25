@@ -29,6 +29,9 @@ export default {
         'reformer',
         'reformer-renderer-react',
         'reformer-renderer-json',
+        // Рендереры скомпилированной схемы для Vue и Angular — аналоги renderer-react, пока приватные.
+        'reformer-renderer-vue',
+        'reformer-renderer-angular',
         'reformer-form-registry',
         'reformer-form-intent',
         'reformer-cdk',
@@ -51,6 +54,12 @@ export default {
         // Бенчмарк форм: приложение со страницами участников и e2e с профилированием.
         'forms-benchmark',
         'forms-benchmark-e2e',
+        // Одна форма на трёх фреймворках: хосты Vue и Angular с китами над библиотеками компонентов,
+        // общий набор сценариев рендереров и e2e по DOM-контракту бенчмарка.
+        'vue-playground',
+        'angular-playground',
+        'renderer-contract',
+        'cross-framework-e2e',
         'docs',
         'ci',
         'deps',

@@ -110,6 +110,8 @@ export default defineConfig([
     '**/coverage',
     '**/build',
     '**/.docusaurus',
+    // Кэш сборки Angular CLI (angular-playground)
+    '**/.angular',
     '**/.tmp',
     '**/.playwright-mcp',
     // Рабочие копии сеансов Claude Code (EnterWorktree) — копии всего репозитория, по 1–2 ГБ.
@@ -160,9 +162,17 @@ export default defineConfig([
     },
   },
 
-  // React hooks plugin — для всех TSX и для hooks/use* файлов
+  // React hooks plugin — для всех TSX и для hooks/use* файлов.
+  // Рендереры и хосты Vue и Angular исключены: `use*.ts` там — composable Vue или сервис Angular,
+  // правила хуков React к ним неприменимы и дают ложные срабатывания.
   {
     files: ['**/*.{jsx,tsx}', '**/hooks/**/*.{ts,tsx}', '**/use*.{ts,tsx}'],
+    ignores: [
+      'packages/reformer-renderer-vue/**',
+      'packages/reformer-renderer-angular/**',
+      'projects/vue-playground/**',
+      'projects/angular-playground/**',
+    ],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -354,12 +364,17 @@ export default defineConfig([
   //
   // Сюда же — корневой вход и вход i18n: они собирают слои и обязаны оставаться без React,
   // иначе `import '@reformer/core'` снова потянет его на сервере.
+  //
+  // И вход render с его слоем: общее для рендереров схемы на React, Vue и Angular. Импорт React
+  // здесь сломал бы рендереры двух других слоёв представления.
   {
     files: [
       'packages/reformer/src/i18n/**/*.ts',
       'packages/reformer/src/locale/**/*.ts',
+      'packages/reformer/src/render/**/*.ts',
       'packages/reformer/src/index.ts',
       'packages/reformer/src/i18n.ts',
+      'packages/reformer/src/render.ts',
     ],
     rules: {
       '@typescript-eslint/no-restricted-imports': [

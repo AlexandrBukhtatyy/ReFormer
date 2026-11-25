@@ -2,6 +2,8 @@ node_modules
 dist
 build
 *.log
+# кэш сборки Angular CLI (projects/angular-playground)
+.angular/
 # сборка клиента @reformer/builder для публикации (`npm run build:client`), в git не едет
 projects/reformer-builder/client/
 

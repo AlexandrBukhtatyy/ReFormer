@@ -81,6 +81,8 @@ Package scopes:
 - `reformer-ui-kit` — `@reformer/ui-kit`
 - `reformer-renderer-react` — `@reformer/renderer-react`
 - `reformer-renderer-json` — `@reformer/renderer-json`
+- `reformer-renderer-vue` — `@reformer/renderer-vue` (рендерер скомпилированной схемы для Vue, пока не публикуется)
+- `reformer-renderer-angular` — `@reformer/renderer-angular` (то же для Angular, пока не публикуется)
 - `reformer-form-registry` — `@reformer/form-registry`
 - `reformer-form-intent` — `@reformer/form-intent` (контракт intent формы и печать её правил в код)
 - `reformer-mcp` — `@reformer/mcp` (MCP-сервер для агента: тонкий клиент сервиса ReFormer)
@@ -97,6 +99,9 @@ Project scopes (не публикуются в npm):
 - `rjsf-kit-theme` — тема RJSF из любого кита (`packages/rjsf-kit-theme`; её вкладывает в свою сборку плагин `reformer.rjsf.render`)
 - `forms-benchmark` — бенчмарк форм: страницы ReFormer, Formik, RHF и RJSF на общем UI (`projects/forms-benchmark`)
 - `forms-benchmark-e2e` — conformance и профилирование бенчмарка форм, отчёты (`projects/forms-benchmark-e2e`)
+- `vue-playground`, `angular-playground` — хосты одной и той же формы на Vue и Angular с китами над библиотеками компонентов (`projects/vue-playground`, `projects/angular-playground`)
+- `renderer-contract` — общий набор сценариев, который проходят рендереры React, Vue и Angular (`projects/renderer-contract`)
+- `cross-framework-e2e` — e2e одной формы на трёх фреймворках по DOM-контракту бенчмарка (`projects/cross-framework-e2e`)
 
 Other scopes:
 
