@@ -22,12 +22,10 @@
             "tsConfig": "tsconfig.app.json",
             "styles": [
               "@taiga-ui/styles/taiga-ui-theme.css",
+              "@reformer/kit-taiga/styles.css",
               "src/styles.css",
               "src/cross/cross.css"
-            ],
-            "loader": {
-              ".svg": "text"
-            }
+            ]
           },
           "configurations": {
             "production": {
@@ -37,6 +35,44 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "bench-registration": {
+              "browser": "src/bench/registration.ts",
+              "outputHashing": "all",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": false
+              },
+              "sourceMap": {
+                "scripts": true,
+                "styles": false,
+                "vendor": true,
+                "hidden": true
+              },
+              "statsJson": true
+            },
+            "bench-credit": {
+              "browser": "src/bench/credit.ts",
+              "outputHashing": "all",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": false
+              },
+              "sourceMap": {
+                "scripts": true,
+                "styles": false,
+                "vendor": true,
+                "hidden": true
+              },
+              "statsJson": true
             }
           },
           "defaultConfiguration": "production"

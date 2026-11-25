@@ -13,8 +13,8 @@ import {
   type Type,
 } from '@angular/core';
 import { createApplication } from '@angular/platform-browser';
+import { provideKitTaiga } from '@reformer/kit-taiga';
 import { installBench, type FormId } from '../../../forms-benchmark/src/cross/page';
-import { TAIGA_PROVIDERS } from '../kit/taiga';
 
 export async function startCrossPage(
   form: FormId,
@@ -22,7 +22,8 @@ export async function startCrossPage(
   page: Type<unknown>
 ): Promise<void> {
   const app = await createApplication({
-    providers: [provideZonelessChangeDetection(), ...TAIGA_PROVIDERS],
+    // Анимации выключены: сценарии читают DOM сразу после покоя страницы.
+    providers: [provideZonelessChangeDetection(), ...provideKitTaiga({ animations: false })],
   });
 
   let ref: ComponentRef<unknown> | null = null;

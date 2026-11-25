@@ -11,7 +11,6 @@ interface PageModule {
 const PAGES: Record<string, () => Promise<PageModule>> = {
   '/cross/registration/': () => import('./cross/registration/page'),
   '/cross/credit/': () => import('./cross/credit/page'),
-  '/spike/': () => import('./spike/page'),
 };
 
 const container = document.getElementById('root');

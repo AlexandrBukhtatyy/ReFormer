@@ -1,11 +1,12 @@
 /**
- * Страница кросс-фреймворк проверки: кредитная заявка на Angular и Taiga UI.
+ * Страница кросс-фреймворк проверки: кредитная заявка на Angular и `@reformer/kit-taiga`.
  *
  * Документ формы, правила шагов, поведение и API — общие с React- и Vue-страницами
- * (forms-benchmark/src/cross/credit.ts); здесь — реестр компонентов Taiga UI и рендерер Angular.
- * «Сервер» формы живёт в памяти страницы. `window.__bench` публикует общий харнесс (готовность
- * первого экрана, покой, вызовы API, отправленные данные) — по нему e2e ведёт три стека одним
- * сценарием.
+ * (forms-benchmark/src/cross/credit.ts); здесь — реестр кита Taiga UI (../registry.ts), рендерер
+ * Angular и оболочка страницы: заголовок, `<form>` и подтверждение отправки. Кнопки шагов и
+ * «Отправить» рисует визард кита. «Сервер» формы живёт в памяти страницы. `window.__bench`
+ * публикует общий харнесс (готовность первого экрана, покой, вызовы API, отправленные данные) — по
+ * нему e2e ведёт три стека одним сценарием.
  */
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormRenderer, ownFormBundle } from '@reformer/renderer-angular';
@@ -14,24 +15,39 @@ import {
   createCreditForm,
   createCreditStart,
   creditMessages,
-  submitCredit,
   type CreditValues,
 } from '../../../../forms-benchmark/src/cross/credit';
-import { FORM_ACTIONS } from '../../kit/layout';
-import { creditRegistry } from '../../kit/registry';
 import { startCrossPage } from '../host';
+import { creditRegistry } from '../registry';
 
-/** Форма: сборка — одна на компонент, создаётся, когда пришли данные заявки. */
+/**
+ * Форма с оболочкой: сборка — одна на компонент, создаётся, когда пришли данные заявки. Текст
+ * подтверждения приходит из поведения формы: визард кита проверил и отправил заявку. Кнопки
+ * визарда — `type="button"`; Enter в поле не отправляет форму в обход визарда.
+ */
 @Component({
   selector: 'app-credit-form',
   imports: [FormRenderer],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<reformer-form [form]="bundle" [messages]="messages" />`,
+  template: `
+    <form novalidate class="cross-form" (submit)="$event.preventDefault()">
+      <reformer-form [form]="bundle" [messages]="messages" />
+      @if (result(); as text) {
+        <p role="status" data-testid="submit-result">{{ text }}</p>
+      }
+    </form>
+  `,
 })
 class CreditForm {
   private readonly page = inject(CreditPage);
+  protected readonly result = signal<string | null>(null);
   protected readonly bundle = ownFormBundle(() =>
-    createCreditForm(creditRegistry, this.page.initial()!, this.page.start.dictionaries)
+    createCreditForm(
+      creditRegistry,
+      this.page.initial()!,
+      this.page.start.dictionaries,
+      (message) => this.result.set(message)
+    )
   );
   protected readonly messages = creditMessages;
 }
@@ -40,17 +56,14 @@ class CreditForm {
   selector: 'app-credit-page',
   imports: [CreditForm, TuiRoot],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: FORM_ACTIONS,
-      useValue: { submit: (values: unknown) => submitCredit(values as CreditValues) },
-    },
-  ],
   template: `
     <tui-root>
-      @if (initial()) {
-        <app-credit-form />
-      }
+      <main class="cross-page">
+        <h1>Заявка на кредит</h1>
+        @if (initial()) {
+          <app-credit-form />
+        }
+      </main>
     </tui-root>
   `,
 })

@@ -6,6 +6,10 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="data:," />
+    <!-- Первая отметка страницы: до загрузки и исполнения модулей (замеры, forms-benchmark). -->
+    <script>
+      performance.mark('bench:html');
+    </script>
   </head>
   <body>
     <div id="root"></div>
