@@ -1,0 +1,102 @@
+---
+id: renderers
+title: 'Рендереры: обзор'
+sidebar_label: 'Обзор'
+---
+
+import { RendererEcosystem } from '@site/src/components/diagrams/sketch/RendererEcosystem';
+
+# Рендереры: обзор
+
+Рендерер рисует форму по её [схеме формы](/docs/reference/glossary) — дереву узлов «какое поле,
+каким компонентом, в какой секции». Модель, схему, правила и поведение собирает `createForm` из
+`@reformer/core`, и от фреймворка эта сборка не зависит. Рендерер обходит её дерево и связывает
+каждый компонент с нодой поля: значением, замечаниями и доступностью. Поэтому одна и та же форма
+рисуется в React, Vue и Angular — меняются рендерер и компоненты, а код формы остаётся прежним.
+
+## Карта
+
+<RendererEcosystem />
+
+- **ReFormer** (штриховка) — ядро и рендереры. `@reformer/core` от фреймворка не зависит,
+  рендерер — по одному на стек.
+- **Полосы React, Vue и Angular** — что подключает приложение на своём стеке: рендерер и кит —
+  компоненты полей над библиотекой компонентов. В React кит — `@reformer/ui-kit` на shadcn/ui
+  поверх headless `@reformer/cdk`, во Vue — `@reformer/kit-vuetify`, в Angular —
+  `@reformer/kit-taiga`. Кит заменяемый: свой пишется под любую библиотеку.
+- **Renderer-JSON** описывает схему JSON-документом. В React документ рисует
+  `@reformer/renderer-react`, а вход `@reformer/renderer-json/neutral` собирает тот же документ без
+  React — для Vue и Angular.
+- **Справа — инструменты.** [MCP-сервер](/docs/mcp/overview) даёт ИИ-ассистенту справку по
+  пакетам и печатает код формы, [билдер](/docs/builder/overview) собирает форму мышью и пишет
+  JSON-документ. Значок документа — то, что читает ассистент: `llms.txt` пакетов, каталог
+  компонентов кита, спецификация формы.
+
+## Пакеты
+
+| Пакет                                                 | Стек       | Статус            | Что делает                                               |
+| ----------------------------------------------------- | ---------- | ----------------- | -------------------------------------------------------- |
+| [`@reformer/renderer-react`](./renderer-react.md)     | React      | в npm             | рисует сборку формы, исполняет правила узлов             |
+| [`@reformer/renderer-vue`](./renderer-vue.md)         | Vue 3.5+   | экспериментальный | то же для Vue                                            |
+| [`@reformer/renderer-angular`](./renderer-angular.md) | Angular 21 | экспериментальный | то же для Angular, standalone и без zone.js              |
+| [`@reformer/renderer-json`](./renderer-json.mdx)      | любой      | в npm             | схема формы JSON-документом; вход `/neutral` — без React |
+| [`@reformer/ui-kit`](/docs/ui-kit/overview)           | React      | в npm             | компоненты полей, обёртка поля, мастер на shadcn/ui      |
+| [`@reformer/cdk`](/docs/cdk/overview)                 | React      | в npm             | headless-основа ui-kit: поле, мастер, массив без вёрстки |
+| `@reformer/kit-vuetify`                               | Vue        | экспериментальный | компоненты каталога ui-kit над Vuetify                   |
+| `@reformer/kit-taiga`                                 | Angular    | экспериментальный | компоненты каталога ui-kit над Taiga UI                  |
+| [`@reformer/form-registry`](./form-registry.md)       | React      | в npm             | формы между микрофронтендами                             |
+
+Экспериментальные пакеты ещё не опубликованы в npm и живут в монорепозитории: их API доводится до
+уровня `@reformer/renderer-react` и может меняться.
+
+## Общее у всех рендереров
+
+- **Одна сборка.** Рендерер получает сборку `createForm` целиком: модель, ноды, скомпилированное
+  дерево схемы, правила, поток шагов и отправку. Схема, правила и поведение пишутся один раз и
+  переносятся между стеками без изменений.
+- **Одни правила узлов.** `hideWhen`, `onComponentEvent`, `renderEffect`, `onMount` и управление
+  снаружи (`bundle.render.node(selector)`) исполняет любой рендерер —
+  см. [Управление узлами](./renderer-react/node-control.md).
+- **Одна привязка поля.** Правила, как значение и замечания доходят до компонента, лежат во входе
+  `@reformer/core/render`: адаптер поля (`reformerAdapter`), ноду по запросу
+  (`reformerNeedsControl`), подпись внутри контрола (`reformerLayout`), `testId` из пути поля.
+- **Один DOM-контракт.** Киты ставят одинаковые `data-testid` (`input-{testId}`,
+  `error-{testId}`, …), поэтому одни и те же e2e-сценарии проходят на трёх стеках.
+- **Один контрактный набор.** Каждый рендерер проходит общие сценарии
+  [renderer-contract](https://github.com/AlexandrBukhtatyy/ReFormer/tree/develop/projects/renderer-contract):
+  дерево, области и видимость, пропсы и события, привязка поля, обёртка.
+
+## Чем отличаются
+
+|                        | React                                     | Vue                                         | Angular                                         |
+| ---------------------- | ----------------------------------------- | ------------------------------------------- | ----------------------------------------------- |
+| Сборка в компоненте    | `useFormBundle` из `@reformer/core/react` | `useFormBundle` из `@reformer/renderer-vue` | `ownFormBundle` из `@reformer/renderer-angular` |
+| Где рисуется форма     | `<FormRenderer form={…} />`               | `h(FormRenderer, { form })`                 | `<reformer-form [form]="…" />`                  |
+| Значение контрола      | `value` + `onChange`                      | `modelValue` + `update:modelValue`          | `value` + `valueChange` (`[(value)]`)           |
+| Касание поля           | `onBlur`                                  | эмит `blur`                                 | выход `blur`, иначе `focusout` на хосте         |
+| Контрол в обёртке поля | `children`                                | слот `default`                              | `<ng-content />`                                |
+| Состояние ноды в коде  | `useFormControl`, `useSignalSnapshot`     | `useFormControl`, `useSignalValue`          | `formControlSignals`, `fromCoreSignal`          |
+| Кит                    | `@reformer/ui-kit`                        | `@reformer/kit-vuetify`                     | `@reformer/kit-taiga`                           |
+
+Во Vue и Angular пока нет неуправляемой привязки поля, низкоуровневого пути `render` и смены
+локали на лету; в Angular — ещё границы ошибок вокруг компонентов реестра. Подробно — в разделах
+«Чего нет в этой версии» на страницах пакетов.
+
+## Как выбрать
+
+- **Приложение на React** — `@reformer/renderer-react` и `@reformer/ui-kit`. Это основной и
+  опубликованный путь.
+- **Приложение на Vue или Angular** — `@reformer/renderer-vue` или `@reformer/renderer-angular` с
+  китом над вашей библиотекой компонентов. Пакеты экспериментальные: для прототипов и проверки,
+  что форма переезжает между стеками.
+- **Схема приходит данными** — из CMS, с сервера, из билдера — `@reformer/renderer-json`: в React
+  через вход `.`, во Vue и Angular через `/neutral`.
+- **Форму поставляет другое приложение** — `@reformer/form-registry`.
+
+## См. также
+
+- [@reformer/renderer-react](./renderer-react.md), [@reformer/renderer-vue](./renderer-vue.md),
+  [@reformer/renderer-angular](./renderer-angular.md) — рендереры по стекам.
+- [@reformer/renderer-json](./renderer-json.mdx) — форма из JSON-документа.
+- [Схема формы](/docs/core-concepts/schemas/form-schema) — виды узлов и `selector`.
+- [MCP-сервер](/docs/mcp/overview) и [билдер](/docs/builder/overview) — инструменты на карте.

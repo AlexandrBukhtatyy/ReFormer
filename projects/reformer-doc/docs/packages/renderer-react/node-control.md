@@ -150,6 +150,12 @@ Tabs.__selfManagedChildren = true;
 `FormWizard` из `@reformer/ui-kit`: шаги — его дети в схеме, порядок и правила — поток шагов
 сборки. См. [FormWizard (CDK)](/docs/cdk/form-wizard).
 
+**Своя обёртка полей.** Узел можно нарисовать с другой обёрткой поля:
+`<RenderNodeComponent node={node} fieldWrapper={CompactField} />`. Она главнее
+`settings.fieldWrapper` и действует на всё поддерево узла: на поля в контейнерах, строках массивов,
+подформах и в узлах, которые рисует вложенный компонент с `__selfManagedChildren`. Обёртка в
+`componentProps` самого поля главнее её.
+
 ## Подводные камни
 
 - **Правило ничего не делает** — у узла нет `selector`, или селектор с опечаткой. `schema.node('x')`

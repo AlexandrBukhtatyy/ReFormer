@@ -1860,5 +1860,35 @@
   },
   "diagram.standardEffects.aiCode.sub": {
     "message": "a person edits it too"
+  },
+  "diagram.rendererEcosystem.title": {
+    "message": "ReFormer ecosystem: React, Vue and Angular renderers and the tools around them"
+  },
+  "diagram.rendererEcosystem.caption": {
+    "message": "The ReFormer core and renderers, framework lanes with their kits, and the tools around them — the MCP server, the AI assistant and the builder. Renderer-JSON draws a document through Renderer-React, and the /neutral entry builds the same document for Vue and Angular. Blocks link to package pages."
+  },
+  "diagram.rendererEcosystem.experimental": {
+    "message": "experimental"
+  },
+  "diagram.rendererEcosystem.legendDepends": {
+    "message": "depends on"
+  },
+  "diagram.rendererEcosystem.legendReads": {
+    "message": "reads and writes: documents, kit catalog"
+  },
+  "diagram.rendererEcosystem.legendWorks": {
+    "message": "works with"
+  },
+  "diagram.rendererEcosystem.legendDocs": {
+    "message": "documents for AI: llms.txt, kit catalog,"
+  },
+  "diagram.rendererEcosystem.legendDocs2": {
+    "message": "form specification"
+  },
+  "diagram.rendererEcosystem.legendKit": {
+    "message": "the kit is replaceable: write your own"
+  },
+  "diagram.rendererEcosystem.legendKit2": {
+    "message": "for any component library"
   }
 }

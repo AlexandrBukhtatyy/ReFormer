@@ -19,6 +19,8 @@ import jsonFormSource from '@site/src/components/demo/live/rendering/json-form.t
 
 - Схема хранится или приходит данными: с сервера, из CMS, из конструктора форм.
 - Одна схема рисуется разными наборами компонентов: меняется реестр, документ — нет.
+- Та же форма нужна во Vue или Angular: вход `/neutral` собирает документ без React, а рисуют его
+  [@reformer/renderer-vue](./renderer-vue.md) и [@reformer/renderer-angular](./renderer-angular.md).
 - Форму поставляет другое приложение — см. [@reformer/form-registry](./form-registry.md).
 
 **Когда не нужен.** Форма живёт в коде вашего приложения. Тогда проще схема на TypeScript и
@@ -84,6 +86,7 @@ npm install @reformer/renderer-json @reformer/renderer-react @reformer/core
 | ---------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `@reformer/renderer-json`          | реестр, типы и гарды документа, разбор операторов, локализация, `SchemaErrorPanel`, мета-схема |
 | `@reformer/renderer-json/validate` | `validateFormSchema` — полная проверка документа; тянет ajv, поэтому вынесен отдельно          |
+| `@reformer/renderer-json/neutral`  | то же без React: реестр, типы и гарды, операторы, локализация — для Vue и Angular              |
 
 ## Разделы
 
@@ -111,6 +114,8 @@ npm install @reformer/renderer-json @reformer/renderer-react @reformer/core
 ## См. также
 
 - [@reformer/renderer-react](./renderer-react.md) — рендерер, которым рисуется форма.
+- [@reformer/renderer-vue](./renderer-vue.md) и [@reformer/renderer-angular](./renderer-angular.md) —
+  тот же документ во Vue и Angular через вход `/neutral`.
 - [@reformer/form-registry](./form-registry.md) — формы из JSON между микрофронтендами.
 - [Обзор валидации](/docs/validation/overview) — правила формы.
 - [Обзор поведения](/docs/behaviors/overview) — правила узлов и связи полей.

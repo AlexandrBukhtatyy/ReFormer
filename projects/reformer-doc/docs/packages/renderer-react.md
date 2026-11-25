@@ -130,5 +130,7 @@ export function SignInPage() {
 
 - [Схема формы](/docs/core-concepts/schemas/form-schema) — виды узлов и `selector`.
 - [@reformer/renderer-json](./renderer-json.mdx) — та же форма из JSON-документа.
+- [Рендереры: обзор](./renderers.mdx) — та же форма во Vue и Angular:
+  [@reformer/renderer-vue](./renderer-vue.md), [@reformer/renderer-angular](./renderer-angular.md).
 - [Поведение формы](/docs/behaviors/overview) — где пишутся правила узлов.
 - [Свои компоненты полей](/docs/react/custom-fields) — как подключить свой контрол.

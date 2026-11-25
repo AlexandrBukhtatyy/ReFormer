@@ -330,8 +330,10 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  // ── Renderer: оба пакета (renderer-react + renderer-json) ──────────────────
+  // ── Renderer: обзор, рендереры по стекам, JSON-документ, микрофронтенды ────
+  // Обзор — первым: на него ведёт пункт navbar «Renderer».
   rendererSidebar: [
+    'packages/renderers',
     {
       type: 'category',
       label: '@reformer/renderer-react',
@@ -342,6 +344,30 @@ const sidebars: SidebarsConfig = {
         'packages/renderer-react/layout',
         'packages/renderer-react/arrays-and-parts',
         'packages/renderer-react/node-control',
+      ],
+    },
+    {
+      type: 'category',
+      label: '@reformer/renderer-vue',
+      collapsed: false,
+      link: { type: 'doc', id: 'packages/renderer-vue' },
+      items: [
+        'packages/renderer-vue/fields',
+        'packages/renderer-vue/layout',
+        'packages/renderer-vue/arrays-and-parts',
+        'packages/renderer-vue/node-control',
+      ],
+    },
+    {
+      type: 'category',
+      label: '@reformer/renderer-angular',
+      collapsed: false,
+      link: { type: 'doc', id: 'packages/renderer-angular' },
+      items: [
+        'packages/renderer-angular/fields',
+        'packages/renderer-angular/layout',
+        'packages/renderer-angular/arrays-and-parts',
+        'packages/renderer-angular/node-control',
       ],
     },
     {
