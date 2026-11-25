@@ -1,0 +1,20 @@
+/*
+ * Tailwind и токены ui-kit для страниц кросс-фреймворк проверки — как у приложения на ui-kit:
+ * классы ищутся только в коде этих страниц и в ките (`source(none)` выключает автоматический обход
+ * всего playground'а: его классы раздували бы CSS страницы, а её размер идёт в замеры). Токены,
+ * анимации и `@custom-variant dark` — из `@reformer/ui-kit/styles`; база — как в ../index.css.
+ */
+@import 'tailwindcss' source(none);
+@import '@reformer/ui-kit/styles';
+
+@source "./";
+@source "../../../../packages/reformer-ui-kit/src";
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

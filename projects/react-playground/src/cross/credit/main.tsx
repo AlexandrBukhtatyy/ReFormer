@@ -2,10 +2,12 @@
  * Страница кросс-фреймворк проверки: кредитная заявка на React и `@reformer/ui-kit`.
  *
  * Документ формы, правила шагов, поведение и API — общие с Vue- и Angular-страницами
- * (forms-benchmark/src/cross/credit.ts); здесь — реестр компонентов ui-kit и рендерер React.
- * Страница идёт мимо `main.tsx` приложения: без роутера и без моков сети — «сервер» формы живёт в
- * памяти страницы. `window.__bench` публикует общий харнесс (готовность первого экрана, покой,
- * вызовы API, отправленные данные) — по нему e2e ведёт три стека одним сценарием.
+ * (forms-benchmark/src/cross/credit.ts); здесь — реестр кита ui-kit (../registry.ts), рендерер React
+ * и оболочка страницы: заголовок, `<form>` и подтверждение отправки. Кнопки шагов и «Отправить»
+ * рисует визард кита. Страница идёт мимо `main.tsx` приложения: без роутера и без моков сети —
+ * «сервер» формы живёт в памяти страницы. `window.__bench` публикует общий харнесс (готовность
+ * первого экрана, покой, вызовы API, отправленные данные) — по нему e2e ведёт три стека одним
+ * сценарием.
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
@@ -18,28 +20,36 @@ import {
   createCreditForm,
   createCreditStart,
   creditMessages,
-  submitCredit,
   type CreditDictionaries,
   type CreditValues,
 } from '../../../../forms-benchmark/src/cross/credit';
-import { FormActionsContext, type FormActions } from '../kit/form-actions';
-import { creditRegistry } from '../kit/registry';
-import '../../index.css';
+import { creditRegistry } from '../registry';
+import '../styles.css';
 import '../cross.css';
 
-const actions: FormActions = {
-  submit: (values) => submitCredit(values as CreditValues),
-};
-
-function CreditRenderer({
+function CreditForm({
   initial,
   dictionaries,
 }: {
   initial: CreditValues;
   dictionaries: CreditDictionaries;
 }): ReactNode {
-  const bundle = useFormBundle(() => createCreditForm(creditRegistry, initial, dictionaries));
-  return <FormRenderer<CreditValues> form={bundle} />;
+  // Текст подтверждения приходит из поведения формы: визард кита проверил и отправил заявку.
+  const [result, setResult] = useState<string | null>(null);
+  const bundle = useFormBundle(() =>
+    createCreditForm(creditRegistry, initial, dictionaries, setResult)
+  );
+  // Кнопки визарда — `type="button"`; Enter в поле не отправляет форму в обход визарда.
+  return (
+    <form noValidate onSubmit={(event) => event.preventDefault()} className="flex flex-col gap-4">
+      <FormRenderer<CreditValues> form={bundle} />
+      {result ? (
+        <p role="status" data-testid="submit-result" className="text-sm font-medium">
+          {result}
+        </p>
+      ) : null}
+    </form>
+  );
 }
 
 function CreditPage(): ReactNode {
@@ -60,9 +70,10 @@ function CreditPage(): ReactNode {
 
   return (
     <ValidationMessagesProvider messages={creditMessages}>
-      <FormActionsContext.Provider value={actions}>
-        {initial ? <CreditRenderer initial={initial} dictionaries={start.dictionaries} /> : null}
-      </FormActionsContext.Provider>
+      <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+        <h1 className="text-2xl font-semibold">Заявка на кредит</h1>
+        {initial ? <CreditForm initial={initial} dictionaries={start.dictionaries} /> : null}
+      </main>
     </ValidationMessagesProvider>
   );
 }
