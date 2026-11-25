@@ -10,6 +10,7 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createForm } from '@reformer/core';
 import { FormBundleContext } from '@reformer/core/react';
+import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
 import { defineValidation, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormWizard, type FormWizardStepNode } from './index';
@@ -175,5 +176,62 @@ describe('Сверка шагов схемы с шагами потока', () =
       withoutNode: ['loan', 'contacts'],
       withoutFlowStep: [],
     });
+  });
+});
+
+describe('Условный шаг — скрытый узел шага', () => {
+  interface Order {
+    customerType: 'person' | 'company';
+    companyName: string;
+  }
+
+  const orderNodes: FormWizardStepNode[] = [
+    { selector: 'buyer', props: { title: 'Покупатель' } },
+    { selector: 'company', props: { title: 'Компания' } },
+    { selector: 'delivery', props: { title: 'Доставка' } },
+  ];
+
+  /** Шаг «Компания» нужен только юрлицу: узел шага скрыт правилом поведения. */
+  const createOrder = (customerType: Order['customerType']) =>
+    createForm<Order>({
+      initial: { customerType, companyName: '' },
+      behavior: defineFormBehavior<Order>(({ model, schema }) => {
+        hideWhen(schema.node('company'), () => model.customerType !== 'company');
+      }),
+      flow: { steps: [{ id: 'buyer' }, { id: 'company' }, { id: 'delivery' }] },
+    });
+
+  const renderOrder = (bundle: ReturnType<typeof createOrder>): string =>
+    renderToStaticMarkup(
+      <FormBundleContext.Provider value={bundle}>
+        <FormWizard<Order> renderNode={renderNode}>{orderNodes}</FormWizard>
+      </FormBundleContext.Provider>
+    );
+
+  it('физлицо: шага «Компания» нет в индикаторе, шагов два', () => {
+    const html = renderOrder(createOrder('person'));
+
+    expect(html).toContain('Покупатель');
+    expect(html).toContain('Доставка');
+    expect(html).not.toContain('Компания');
+    expect(html).toContain('Step 1 of 2');
+  });
+
+  it('юрлицо: шаг «Компания» в индикаторе есть, шагов три', () => {
+    const html = renderOrder(createOrder('company'));
+
+    expect(html).toContain('Компания');
+    expect(html).toContain('Step 1 of 3');
+  });
+
+  it('«Далее» у физлица рисует тело шага «Доставка», а не пустой шаг «Компания»', async () => {
+    const bundle = createOrder('person');
+    await bundle.flow!.next();
+
+    const html = renderOrder(bundle);
+
+    expect(html).toContain('data-step-body="delivery"');
+    expect(html).not.toContain('data-step-body="company"');
+    expect(html).toContain('Step 2 of 2');
   });
 });

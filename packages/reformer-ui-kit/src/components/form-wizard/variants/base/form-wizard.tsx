@@ -439,6 +439,10 @@ type FormWizardCompound = typeof FormWizardBase & {
  * (`createForm({ flow })`): проп `flow` либо сборка из контекста. Навигация снаружи дерева — через
  * сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submission.submit(handler)`.
  *
+ * Условный шаг — скрытый узел шага: `hideWhen(schema.node('<шаг>'), условие)` в поведении формы.
+ * Пока узел скрыт, поток шаг пропускает: его нет в индикаторе и счёте «шаг N из M», «Далее» ведёт
+ * мимо, а правила шага не исполняются ни переходом, ни отправкой.
+ *
  * Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
  * `.Progress` для кастомной раскладки.
  *
@@ -504,6 +508,17 @@ type FormWizardCompound = typeof FormWizardBase & {
  *   })
  * );
  * return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
+ * ```
+ *
+ * @example Условный шаг: «Компания» — только для юрлица
+ * ```tsx
+ * import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
+ *
+ * // Шаги потока: buyer, company, delivery; узел шага — `selector: 'company'`.
+ * const orderBehavior = defineFormBehavior<Order>(({ model, schema }) => {
+ *   hideWhen(schema.node('company'), () => model.customerType !== 'company');
+ * });
+ * // У физлица в индикаторе два шага — «Покупатель» и «Доставка»; правила шага company не проверяются.
  * ```
  *
  * @example Тело шага — узел схемы при разметке в JSX: стратегия отрисовки обязательна

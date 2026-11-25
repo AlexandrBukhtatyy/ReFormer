@@ -8547,12 +8547,15 @@ export interface FieldAdapter {
    * должен читать значение из `event.target` — так привязка сверяет показанное с полем и не
    * перетирает ввод (`5.` числового поля, текст маски). Контролы со своим состоянием (Radix,
    * комбобокс) остаются управляемыми.
+   *
+   * Ключ читает привязка к React (`bindFieldProps` из `@reformer/core/react`); управляемая привязка
+   * этого модуля ({@link bindControlledFieldProps}) его не учитывает.
    */
   uncontrolled?: boolean;
   /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
-   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
-   * `useFormControl(control)`.
+   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам читает состояние поля
+   * (в React — вызывает `useFormControl(control)`).
    */
   passControl?: boolean;
 }
@@ -8570,7 +8573,7 @@ toValue: (v) => v ?? false,
 };
 ```
 
-_Source: ../reformer/src/platforms/react/field-binding/field-adapter.ts_
+_Source: ../reformer/src/render/field-adapter.ts_
 
 ### FieldArray
 
@@ -9554,6 +9557,10 @@ Actions (Назад / Далее / Отправить) и Progress в едины
 (`createForm({ flow })`): проп `flow` либо сборка из контекста. Навигация снаружи дерева — через
 сам поток (`bundle.flow.goTo('loan')`), отправка — `bundle.submission.submit(handler)`.
 
+Условный шаг — скрытый узел шага: `hideWhen(schema.node('<шаг>'), условие)` в поведении формы.
+Пока узел скрыт, поток шаг пропускает: его нет в индикаторе и счёте «шаг N из M», «Далее» ведёт
+мимо, а правила шага не исполняются ни переходом, ни отправкой.
+
 Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
 `.Progress` для кастомной раскладки.
 
@@ -9624,6 +9631,17 @@ flow: { steps: [{ id: 'loan', rules: loanRules }, { id: 'confirm' }] },
 })
 );
 return <FormRenderer form={credit} settings={{ fieldWrapper: FormField }} />;
+```
+
+Условный шаг: «Компания» — только для юрлица
+```tsx
+import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
+
+// Шаги потока: buyer, company, delivery; узел шага — `selector: 'company'`.
+const orderBehavior = defineFormBehavior<Order>(({ model, schema }) => {
+hideWhen(schema.node('company'), () => model.customerType !== 'company');
+});
+// У физлица в индикаторе два шага — «Покупатель» и «Доставка»; правила шага company не проверяются.
 ```
 
 Тело шага — узел схемы при разметке в JSX: стратегия отрисовки обязательна
