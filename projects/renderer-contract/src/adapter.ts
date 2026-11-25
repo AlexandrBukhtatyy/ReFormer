@@ -92,6 +92,15 @@ export interface ContractKit {
   /** Вторая обёртка поля, чтобы отличить одну от другой: `<div data-wrap="plain">`. */
   PlainWrapper: KitComponent;
   /**
+   * Компонент, который ведёт детей сам (`__selfManagedChildren = true`) и рисует каждый узел
+   * отдельным узлом рендерера с обёрткой поля {@link ContractKit.PlainWrapper} вместо обёртки из
+   * настроек: `RenderNodeComponent` с пропом `fieldWrapper` в React, `RenderNode` с пропом
+   * `fieldWrapper` во Vue, `[reformerNode]` с `[reformerNodeFieldWrapper]` в Angular.
+   *
+   * `<div data-scope="plain">`, внутри — узлы по порядку.
+   */
+  PlainScope: KitComponent;
+  /**
    * Компонент узла, который читает сборку из контекста рендерера.
    *
    * `<b data-testid="bundle-probe">` с текстом `форма:{значение поля kind}`; вне сборки —

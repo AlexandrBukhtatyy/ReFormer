@@ -10,7 +10,9 @@ import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider, useFormBundleContext, useFormControl } from '@reformer/core/react';
 import { describeRendererContract, type ContractKit, type Mounted } from 'renderer-contract';
+import type { CompiledNode } from '@reformer/core';
 import { FormRenderer } from '../src/core/form-renderer';
+import { RenderNodeComponent } from '../src/core/render-node';
 import type { ArrayComponentProps, FieldWrapperProps } from '../src/core/types';
 
 // ---------------------------------------------------------------------------
@@ -228,6 +230,18 @@ function PlainWrapper({ className, children }: FieldWrapperProps): ReactElement 
   );
 }
 
+/** Ведёт детей сам и рисует их с обёрткой `PlainWrapper` вместо обёртки из настроек. */
+function PlainScope({ children }: { children: CompiledNode[] }): ReactElement {
+  return (
+    <div data-scope="plain">
+      {children.map((child) => (
+        <RenderNodeComponent key={child.id} node={child} fieldWrapper={PlainWrapper} />
+      ))}
+    </div>
+  );
+}
+PlainScope.__selfManagedChildren = true;
+
 function BundleProbe(): ReactElement {
   const bundle = useFormBundleContext<{ kind: string }>();
   return (
@@ -247,6 +261,7 @@ const kit: ContractKit = {
   Steps,
   FieldWrapper,
   PlainWrapper,
+  PlainScope,
   BundleProbe,
 };
 

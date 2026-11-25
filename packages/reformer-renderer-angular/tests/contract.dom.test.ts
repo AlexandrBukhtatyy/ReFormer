@@ -265,6 +265,25 @@ class ProbePlainWrapper {
   readonly testId = input<string>();
 }
 
+/** Ведёт детей сам и рисует их с обёрткой `PlainWrapper` вместо обёртки из настроек. */
+@Component({
+  selector: 'div[probePlainScope]',
+  imports: [ReformerNode],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    @for (child of children(); track child.id) {
+      <ng-container [reformerNode]="child" [reformerNodeFieldWrapper]="wrapper" />
+    }
+  `,
+  host: { 'data-scope': 'plain' },
+})
+class ProbePlainScope {
+  static readonly __selfManagedChildren = true;
+
+  readonly children = input<readonly CompiledNode[]>([]);
+  protected readonly wrapper = ProbePlainWrapper;
+}
+
 @Component({
   selector: 'b[probeBundle]',
   template: '{{ text() }}',
@@ -288,6 +307,7 @@ const kit: ContractKit = {
   Steps: ProbeSteps,
   FieldWrapper: ProbeFieldWrapper,
   PlainWrapper: ProbePlainWrapper,
+  PlainScope: ProbePlainScope,
   BundleProbe: ProbeBundle,
 };
 

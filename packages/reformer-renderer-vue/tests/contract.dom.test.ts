@@ -11,6 +11,7 @@ import { createI18n } from '@reformer/core/i18n';
 import { describeRendererContract, type ContractKit, type Mounted } from 'renderer-contract';
 import {
   FormRenderer,
+  RenderNode,
   provideI18n,
   useFormBundleContext,
   useFormControl,
@@ -254,6 +255,29 @@ const PlainWrapper = defineComponent({
   },
 });
 
+/** Ведёт детей сам и рисует их с обёрткой `PlainWrapper` вместо обёртки из настроек. */
+const PlainScope = Object.assign(
+  defineComponent({
+    name: 'ProbePlainScope',
+    props: {
+      children: { type: Array as PropType<readonly CompiledNode[]>, default: () => [] },
+      // Рендерер передаёт и его: необъявленный проп ушёл бы атрибутом на корень.
+      renderNode: { type: Function as PropType<RenderNodeFn>, default: undefined },
+    },
+    setup(props) {
+      return () =>
+        h(
+          'div',
+          { 'data-scope': 'plain' },
+          props.children.map((child) =>
+            h(RenderNode, { key: child.id, node: child, fieldWrapper: PlainWrapper })
+          )
+        );
+    },
+  }),
+  { __selfManagedChildren: true }
+);
+
 const BundleProbe = defineComponent({
   name: 'ProbeBundle',
   setup() {
@@ -274,6 +298,7 @@ const kit: ContractKit = {
   Steps,
   FieldWrapper,
   PlainWrapper,
+  PlainScope,
   BundleProbe,
 };
 

@@ -7,10 +7,10 @@
 import { describe, expect, it } from 'vitest';
 import type { FormModel, FormSchemaNode } from '@reformer/core';
 import type { ScenarioContext } from '../context';
-import { get, getByTestId } from '../dom';
+import { all, get, getByTestId } from '../dom';
 import { createShape, type Shape } from '../fixture';
 
-export function wrapperScenarios({ form, kit, mount }: ScenarioContext): void {
+export function wrapperScenarios({ fixture, form, kit, mount }: ScenarioContext): void {
   describe('обёртка поля', () => {
     it('подпись, описание и `required` контролу не уходят; контрол с inline-подписью получает подпись и `required`', async () => {
       const wrapperProps = { label: 'Подпись', description: 'Описание', required: true };
@@ -111,6 +111,50 @@ export function wrapperScenarios({ form, kit, mount }: ScenarioContext): void {
       expect(
         root.querySelector('[data-wrap="plain"] [data-testid="input-registration-city"]')
       ).not.toBeNull();
+    });
+
+    it('обёртка, которую компонент передал вместе с узлом, доходит до полей всего поддерева', async () => {
+      const bundle = form<Shape>({
+        model: createShape(),
+        schema: (model) => ({
+          children: [
+            { model: model.$.kind, component: kit.Input },
+            {
+              component: kit.PlainScope,
+              children: [
+                { model: model.$.registration.city, component: kit.Input },
+                {
+                  component: kit.Section,
+                  children: [{ model: model.$.registration.street, component: kit.Input }],
+                },
+                { model: model.$.rows, component: kit.List, item: fixture.row },
+                {
+                  component: kit.Steps,
+                  children: [{ model: model.$.residence.city, component: kit.Input }],
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const { root } = await mount(bundle, { fieldWrapper: kit.FieldWrapper });
+      const wrapOf = (input: Element): string | null | undefined =>
+        input.closest('[data-wrap]')?.getAttribute('data-wrap');
+
+      // Вне компонента — обёртка из настроек.
+      expect(wrapOf(getByTestId(root, 'input-kind'))).toBe('field');
+      // Внутри — его обёртка: у поля-узла, в контейнере, у компонента, который ведёт детей сам, в
+      // строке массива и в контейнере строки.
+      expect(wrapOf(getByTestId(root, 'input-registration-city'))).toBe('plain');
+      expect(wrapOf(getByTestId(root, 'input-registration-street'))).toBe('plain');
+      expect(wrapOf(getByTestId(root, 'input-residence-city'))).toBe('plain');
+      const rowInputs = [
+        ...all(root, '[data-caption="Имя"]'),
+        ...all(root, '[data-caption="Заметка"]'),
+      ];
+      expect(rowInputs).toHaveLength(4);
+      expect(rowInputs.map(wrapOf)).toEqual(['plain', 'plain', 'plain', 'plain']);
     });
 
     it('без обёртки поля контрол стоит в теге `wrapper` из пропсов поля', async () => {
