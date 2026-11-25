@@ -8,6 +8,20 @@
     <script>
       performance.mark('bench:html');
     </script>
+    <!--
+      Тема — как у соседних страниц на Vuetify и Taiga UI: по prefers-color-scheme. ui-kit включает
+      тёмную тему классом .dark; в демо на сайте тему задаёт color-scheme у iframe.
+    -->
+    <script>
+      (function () {
+        var media = matchMedia('(prefers-color-scheme: dark)');
+        var apply = function () {
+          document.documentElement.classList.toggle('dark', media.matches);
+        };
+        apply();
+        media.addEventListener('change', apply);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -18,3 +18,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * Тёмная тема (класс .dark ставит скрипт страницы по prefers-color-scheme): фон — как у Taiga UI
+ * (`--tui-background-base` #222, `--tui-background-elevation-1` #292929), чтобы три стека выглядели
+ * одинаково; у ui-kit по умолчанию фон почти чёрный. Правило после токенов кита — побеждает оно.
+ */
+.dark {
+  color-scheme: dark;
+  --background: #222;
+  --card: #292929;
+  --popover: #292929;
+}
