@@ -2110,5 +2110,110 @@
   },
   "diagram.rendererEcosystem.legendKit2": {
     "message": "for any component library"
+  },
+  "benchmark.frameworks.hero.toDemo": {
+    "message": "Forms live"
+  },
+  "benchmark.demo.pageTitle": {
+    "message": "Benchmark forms live: ReFormer in React, Vue and Angular"
+  },
+  "benchmark.demo.pageDescription": {
+    "message": "The registration and credit application forms from the benchmark report in React, Vue and Angular: the form code, model values and form state next to the working form."
+  },
+  "benchmark.demo.title": {
+    "message": "Benchmark forms live"
+  },
+  "benchmark.demo.lead": {
+    "message": "The same pages that the {report} report measures: one form — one document, one set of rules and one behavior — on three stacks. On the left, the form code and live model values with the form state; on the right, the form itself."
+  },
+  "benchmark.demo.lead.report": {
+    "message": "“ReFormer in React, Vue and Angular”"
+  },
+  "benchmark.demo.formLabel": {
+    "message": "Form"
+  },
+  "benchmark.demo.stackLabel": {
+    "message": "Stack"
+  },
+  "benchmark.demo.dataLabel": {
+    "message": "Data"
+  },
+  "benchmark.demo.form.registration": {
+    "message": "Registration"
+  },
+  "benchmark.demo.form.credit": {
+    "message": "Credit application"
+  },
+  "benchmark.demo.data.empty": {
+    "message": "Empty form"
+  },
+  "benchmark.demo.data.filled": {
+    "message": "Fill with data"
+  },
+  "benchmark.demo.reload": {
+    "message": "Reload the form"
+  },
+  "benchmark.demo.openAlone": {
+    "message": "Open separately"
+  },
+  "benchmark.demo.prefill.registration": {
+    "message": "“Fill with data” for registration is an invitation link: the email and name come from the “server”."
+  },
+  "benchmark.demo.prefill.credit": {
+    "message": "“Fill with data” for the credit form is a saved application: every step is filled, you can go “Next” all the way to submitting."
+  },
+  "benchmark.demo.code.label": {
+    "message": "Model and form code"
+  },
+  "benchmark.demo.tab.document": {
+    "message": "Form document"
+  },
+  "benchmark.demo.tab.assembly": {
+    "message": "Form assembly"
+  },
+  "benchmark.demo.tab.rules": {
+    "message": "Rules"
+  },
+  "benchmark.demo.tab.behavior": {
+    "message": "Behavior"
+  },
+  "benchmark.demo.tab.stack": {
+    "message": "Glue: {stack}"
+  },
+  "benchmark.demo.code.sharedNote": {
+    "message": "Shared by React, Vue and Angular: this code does not change when you switch the stack."
+  },
+  "benchmark.demo.code.stackNote": {
+    "message": "Specific to the stack: the kit component registry under catalog names and the page entry — shell, buttons, mounting. The form document, assembly and rules are shared by all three stacks."
+  },
+  "benchmark.demo.model.title": {
+    "message": "Model and state"
+  },
+  "benchmark.demo.model.waiting": {
+    "message": "Waiting for the form…"
+  },
+  "benchmark.demo.state.note": {
+    "message": "Form signals. The rules stay silent until the first submit attempt (the afterFirstSubmit strategy), so valid = true even for an empty form; after a submit, validation is live."
+  },
+  "benchmark.demo.issues.title": {
+    "message": "Rule issues: {n}"
+  },
+  "benchmark.demo.issues.none": {
+    "message": "No issues."
+  },
+  "benchmark.demo.values.title": {
+    "message": "Model values"
+  },
+  "benchmark.demo.timeout.dev": {
+    "message": "The form page does not respond. Locally it is served by the forms-benchmark server: build the demo pages (npm run demo:build -w forms-benchmark) and run npm run serve -w forms-benchmark (port 4180)."
+  },
+  "benchmark.demo.timeout": {
+    "message": "The form page does not respond — try reloading the form."
+  },
+  "benchmark.demo.frameTitle": {
+    "message": "{form} — {stack}"
+  },
+  "benchmark.demo.state.title": {
+    "message": "Form state"
   }
 }

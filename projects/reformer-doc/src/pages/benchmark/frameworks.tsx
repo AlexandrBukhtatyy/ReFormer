@@ -229,6 +229,9 @@ function Hero(): ReactNode {
           <Link className="button button--secondary button--lg" to="#method">
             <Translate id="benchmark.frameworks.hero.toMethod">Как читать числа</Translate>
           </Link>
+          <Link className="button button--secondary button--lg" to="/benchmark/frameworks/demo">
+            <Translate id="benchmark.frameworks.hero.toDemo">Формы вживую</Translate>
+          </Link>
         </div>
       </div>
     </header>

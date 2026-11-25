@@ -1,0 +1,286 @@
+/* Демо форм бенчмарка: слева код и модель, справа форма в iframe. */
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.segmentedLabel {
+  margin-right: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Кнопки — Infima (`button-group`, `button--outline`); здесь только вес и подпись кита. */
+.group {
+  flex-wrap: nowrap;
+}
+
+/* `button--sm` Infima мельчит текст — размер как у текста панели, отступы — как у малой кнопки. */
+.segment,
+.action {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.action {
+  align-items: center;
+}
+
+.segmentHint {
+  font-size: 0.75em;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.prefillNote {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Слева — вкладки модели и кода, справа — форма; на узком экране панель под формой. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/*
+ * Панель стоит на месте, пока прокручивается длинная форма, и прокручивается внутри себя — модель
+ * видна, пока заполняешь форму.
+ */
+.side {
+  position: sticky;
+  top: calc(var(--ifm-navbar-height) + 1rem);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - var(--ifm-navbar-height) - 2rem);
+}
+
+.sidePanel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.formColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+@media (max-width: 996px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .formColumn {
+    order: -1;
+  }
+  /* Под формой панель не липнет и не держит высоту окна — только ограничена по высоте. */
+  .side {
+    position: static;
+    height: auto;
+  }
+  .tabScroll {
+    max-height: 70vh;
+  }
+}
+
+.panel {
+  padding: 1rem;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+}
+
+.subTitle {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.subTitle:first-child {
+  margin-top: 0;
+}
+
+.panelNote {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Вкладки — одной строкой: не влезли — прокрутка строки, а не перенос. */
+.tabs {
+  display: flex;
+  flex: none;
+  gap: 0.125rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.tab {
+  flex: none;
+  white-space: nowrap;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-800);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ifm-color-primary);
+}
+
+/* Подчёркивание — внутренней тенью: строка вкладок прокручивается и обрезала бы вынесенную рамку. */
+.tabActive {
+  color: var(--ifm-color-primary);
+  box-shadow: inset 0 -2px 0 var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+.tabScroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.75rem;
+  overflow: auto;
+}
+
+.file + .file {
+  margin-top: 1rem;
+}
+
+.fileHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.filePath {
+  overflow-wrap: anywhere;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.fileLink {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.code {
+  margin-bottom: 0;
+  font-size: 0.8rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.chip {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+}
+
+.flagName {
+  padding: 0;
+  font-size: inherit;
+  background: none;
+  border: 0;
+}
+
+.chipOn {
+  color: var(--ifm-font-color-base);
+  border-color: var(--ifm-color-emphasis-500);
+}
+
+/* Пары фона и текста — те же, что у алертов Infima: контраст держится в обеих темах. */
+.chip_ok {
+  color: var(--ifm-color-success-contrast-foreground);
+  background: var(--ifm-color-success-contrast-background);
+  border-color: var(--ifm-color-success-dark);
+}
+
+.chip_bad {
+  color: var(--ifm-color-danger-contrast-foreground);
+  background: var(--ifm-color-danger-contrast-background);
+  border-color: var(--ifm-color-danger-dark);
+}
+
+.chip_busy {
+  color: var(--ifm-color-warning-contrast-foreground);
+  background: var(--ifm-color-warning-contrast-background);
+  border-color: var(--ifm-color-warning-dark);
+}
+
+.issues {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+}
+
+.issueWarning {
+  color: var(--ifm-color-warning-dark);
+}
+
+.alert {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Форма — в оформлении своего кита: фон белый и в тёмной теме сайта. */
+.frameBox {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  min-height: 480px;
+  border: 0;
+}
