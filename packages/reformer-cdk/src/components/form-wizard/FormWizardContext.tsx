@@ -3,7 +3,8 @@ import type { FormFlow, FormGroup, SubmitResult } from '@reformer/core';
 
 /**
  * Контекст визарда: форма, поток шагов и производные для кнопок и индикатора (номер шага с
- * единицы — `flow.index + 1`).
+ * единицы — `flow.index + 1`). Номера и число шагов — по шагам, которые участвуют в потоке
+ * сейчас (`flow.activeSteps`): условный шаг, который поток пропускает, в них не входит.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormWizardContextValue<T extends Record<string, any>> {
@@ -11,13 +12,22 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   // State
   // ============================================================================
 
-  /** Current step (1-based) */
+  /** Номер текущего шага с единицы — среди участвующих шагов. */
   currentStep: number;
 
-  /** Total number of steps */
+  /** Идентификатор текущего шага в потоке (`flow.current`). */
+  currentStepId: string;
+
+  /**
+   * Идентификаторы шагов, которые участвуют в потоке сейчас, по порядку
+   * (`flow.activeSteps`): `activeStepIds[currentStep - 1]` — текущий шаг.
+   */
+  activeStepIds: readonly string[];
+
+  /** Число участвующих шагов. */
   totalSteps: number;
 
-  /** Completed steps */
+  /** Номера пройденных шагов — среди участвующих. */
   completedSteps: number[];
 
   /** Is this the first step */
@@ -48,7 +58,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   /** Go to previous step */
   goToPreviousStep: () => void;
 
-  /** Go to specific step */
+  /** Перейти на шаг по номеру среди участвующих шагов. */
   goToStep: (step: number) => boolean;
 
   // ============================================================================
@@ -86,8 +96,8 @@ export const FormWizardContext = createContext<FormWizardContextValue<any> | nul
  * Хук для доступа к контексту {@link FormWizard} из любого потомка.
  *
  * Возвращает форму и поток шагов (`form`, `flow`), производное состояние мастера
- * (`currentStep` с единицы, `totalSteps`, `completedSteps`, `isFirstStep`, `isLastStep`,
- * `isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
+ * (`currentStep` с единицы, `currentStepId`, `activeStepIds`, `totalSteps`, `completedSteps`,
+ * `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
  * `goToStep`) и `submit` — отправку: внутри сборки через `bundle.submission`, результат — объект
  * со статусом. Бросает исключение, если вызван вне `<FormWizard>`.
  *

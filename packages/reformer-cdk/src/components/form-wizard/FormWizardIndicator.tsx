@@ -6,7 +6,7 @@ import type { FormGroup } from '@reformer/core';
  * Step definition for the indicator
  */
 export interface FormWizardIndicatorStep {
-  /** Step number (1-based) */
+  /** Место шага среди всех шагов потока (с единицы): по нему шаг связан с шагом потока. */
   number: number;
   /** Step title/label */
   title: string;
@@ -23,7 +23,11 @@ export interface FormWizardIndicatorStep {
 }
 
 /**
- * Enriched step with state information
+ * Enriched step with state information.
+ *
+ * `number` здесь — номер среди шагов, которые участвуют в потоке сейчас: условный шаг, который
+ * поток пропускает, в список не попадает, остальные нумеруются подряд. Этот номер принимает
+ * `goToStep`.
  */
 export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorStep {
   /** Whether this is the current step */
@@ -40,13 +44,13 @@ export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorSte
 export interface FormWizardIndicatorRenderProps {
   /** Steps with their current state */
   steps: FormWizardIndicatorStepWithState[];
-  /** Navigate to a specific step */
+  /** Перейти на шаг по его номеру из `steps` (среди участвующих шагов). */
   goToStep: (step: number) => boolean;
-  /** Current step number */
+  /** Номер текущего шага — среди участвующих. */
   currentStep: number;
-  /** Total number of steps */
+  /** Число участвующих шагов. */
   totalSteps: number;
-  /** Completed step numbers */
+  /** Номера пройденных шагов — среди участвующих. */
   completedSteps: number[];
 }
 
@@ -65,6 +69,9 @@ export interface FormWizardIndicatorProps {
  *
  * Provides step data with state for building custom step indicators.
  * No default UI - you build exactly what you need.
+ *
+ * Условный шаг: шаг, который поток сейчас пропускает (`flow.activeSteps`), в `steps` render-props
+ * не попадает, остальные нумеруются подряд.
  *
  * ## Render Props
  * - `steps` - array of steps with state (`isCurrent`, `isCompleted`, `canNavigate`)
@@ -131,14 +138,26 @@ export function FormWizardIndicator({ steps, children }: FormWizardIndicatorProp
     );
   }
 
-  const { currentStep, totalSteps, completedSteps, goToStep } = useFormWizard();
+  const { flow, activeStepIds, currentStep, totalSteps, completedSteps, goToStep } =
+    useFormWizard();
 
-  const stepsWithState: FormWizardIndicatorStepWithState[] = steps.map((step) => ({
-    ...step,
-    isCurrent: currentStep === step.number,
-    isCompleted: completedSteps.includes(step.number),
-    canNavigate: step.number === 1 || completedSteps.includes(step.number - 1),
-  }));
+  // Шаг индикатора ↔ шаг потока по месту среди всех шагов. Шаг, который поток пропускает, не
+  // рисуется; остальные получают номер среди участвующих. Шаг без шага потока остаётся как есть.
+  const stepsWithState: FormWizardIndicatorStepWithState[] = steps.flatMap((step) => {
+    const stepId = flow.steps[step.number - 1];
+    const at = stepId === undefined ? -1 : activeStepIds.indexOf(stepId);
+    if (stepId !== undefined && at < 0) return [];
+    const number = at < 0 ? step.number : at + 1;
+    return [
+      {
+        ...step,
+        number,
+        isCurrent: currentStep === number,
+        isCompleted: completedSteps.includes(number),
+        canNavigate: number === 1 || completedSteps.includes(number - 1),
+      },
+    ];
+  });
 
   const renderProps: FormWizardIndicatorRenderProps = {
     steps: stepsWithState,

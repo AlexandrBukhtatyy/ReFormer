@@ -6086,7 +6086,8 @@ _Source: src/components/form-wizard/FormWizardContext.tsx_
 **Kind:** `interface`
 
 Контекст визарда: форма, поток шагов и производные для кнопок и индикатора (номер шага с
-единицы — `flow.index + 1`).
+единицы — `flow.index + 1`). Номера и число шагов — по шагам, которые участвуют в потоке
+сейчас (`flow.activeSteps`): условный шаг, который поток пропускает, в них не входит.
 
 **Signature:**
 ```typescript
@@ -6095,13 +6096,22 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   // State
   // ============================================================================
 
-  /** Current step (1-based) */
+  /** Номер текущего шага с единицы — среди участвующих шагов. */
   currentStep: number;
 
-  /** Total number of steps */
+  /** Идентификатор текущего шага в потоке (`flow.current`). */
+  currentStepId: string;
+
+  /**
+   * Идентификаторы шагов, которые участвуют в потоке сейчас, по порядку
+   * (`flow.activeSteps`): `activeStepIds[currentStep - 1]` — текущий шаг.
+   */
+  activeStepIds: readonly string[];
+
+  /** Число участвующих шагов. */
   totalSteps: number;
 
-  /** Completed steps */
+  /** Номера пройденных шагов — среди участвующих. */
   completedSteps: number[];
 
   /** Is this the first step */
@@ -6132,7 +6142,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   /** Go to previous step */
   goToPreviousStep: () => void;
 
-  /** Go to specific step */
+  /** Перейти на шаг по номеру среди участвующих шагов. */
   goToStep: (step: number) => boolean;
 
   // ============================================================================
@@ -6158,6 +6168,9 @@ FormWizard.Indicator - Headless component for step indicator
 
 Provides step data with state for building custom step indicators.
 No default UI - you build exactly what you need.
+
+Условный шаг: шаг, который поток сейчас пропускает (`flow.activeSteps`), в `steps` render-props
+не попадает, остальные нумеруются подряд.
 
 #### Render Props
 - `steps` - array of steps with state (`isCurrent`, `isCompleted`, `canNavigate`)
@@ -6253,13 +6266,13 @@ Render props passed to children function
 export interface FormWizardIndicatorRenderProps {
   /** Steps with their current state */
   steps: FormWizardIndicatorStepWithState[];
-  /** Navigate to a specific step */
+  /** Перейти на шаг по его номеру из `steps` (среди участвующих шагов). */
   goToStep: (step: number) => boolean;
-  /** Current step number */
+  /** Номер текущего шага — среди участвующих. */
   currentStep: number;
-  /** Total number of steps */
+  /** Число участвующих шагов. */
   totalSteps: number;
-  /** Completed step numbers */
+  /** Номера пройденных шагов — среди участвующих. */
   completedSteps: number[];
 }
 ```
@@ -6275,7 +6288,7 @@ Step definition for the indicator
 **Signature:**
 ```typescript
 export interface FormWizardIndicatorStep {
-  /** Step number (1-based) */
+  /** Место шага среди всех шагов потока (с единицы): по нему шаг связан с шагом потока. */
   number: number;
   /** Step title/label */
   title: string;
@@ -6298,7 +6311,11 @@ _Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
 **Kind:** `interface`
 
-Enriched step with state information
+Enriched step with state information.
+
+`number` здесь — номер среди шагов, которые участвуют в потоке сейчас: условный шаг, который
+поток пропускает, в список не попадает, остальные нумеруются подряд. Этот номер принимает
+`goToStep`.
 
 **Signature:**
 ```typescript
@@ -8815,8 +8832,8 @@ _Source: src/components/form-field/useFormField.ts_
 Хук для доступа к контексту {@link FormWizard} из любого потомка.
 
 Возвращает форму и поток шагов (`form`, `flow`), производное состояние мастера
-(`currentStep` с единицы, `totalSteps`, `completedSteps`, `isFirstStep`, `isLastStep`,
-`isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
+(`currentStep` с единицы, `currentStepId`, `activeStepIds`, `totalSteps`, `completedSteps`,
+`isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`), методы навигации (`goToNextStep`, `goToPreviousStep`,
 `goToStep`) и `submit` — отправку: внутри сборки через `bundle.submission`, результат — объект
 со статусом. Бросает исключение, если вызван вне `<FormWizard>`.
 

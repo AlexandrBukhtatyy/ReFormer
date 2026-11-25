@@ -98,6 +98,10 @@ const positionalSteps = (total: number): string[] =>
  * из контекста, иначе позиционный поток без правил по числу `FormWizard.Step`. Визард рисует
  * поток и зовёт его переходы; правила доступности шагов и проверку шага держит поток.
  *
+ * Условный шаг: шаг, который поток сейчас пропускает (`flow.activeSteps` — в сборке это скрытый
+ * узел шага), визард не рисует и не считает. Номер шага, число шагов и пройденные шаги — по
+ * участвующим шагам; `FormWizard.Step` связан с шагом потока по месту среди всех шагов.
+ *
  * Смена шага: `onStepChange` и прокрутка к началу (`scrollToTop`) идут от потока — на любую смену
  * `flow.current`, кто бы ни перевёл поток: кнопки визарда, `flow.goTo` снаружи или из поведения,
  * отказ отправки с `onInvalidSubmit: 'firstInvalidStep'`, `flow.reset()`. Один раз на смену, после
@@ -148,14 +152,16 @@ function FormWizardBase<T extends Record<string, any>>({
     );
   }
 
-  const totalSteps = countSteps(children);
+  const stepCount = countSteps(children);
   const givenFlow = flowProp ?? bundle?.flow;
   const positional = useMemo(
-    () => (givenFlow ? undefined : createFormFlow({ steps: positionalSteps(totalSteps) })),
-    [givenFlow, totalSteps]
+    () => (givenFlow ? undefined : createFormFlow({ steps: positionalSteps(stepCount) })),
+    [givenFlow, stepCount]
   );
   const flow = (givenFlow ?? positional) as FormFlow;
   const state = useFormFlow(flow);
+  // Идентификатор текущего шага и участвующие шаги — отдельными значениями: зависимости хуков.
+  const { current: currentStepId, activeSteps: activeStepIds } = state;
 
   // Отправка сборки; без сборки — своя, без проверки: значения формы как есть.
   const submission = useMemo<FormSubmission<T>>(
@@ -174,17 +180,18 @@ function FormWizardBase<T extends Record<string, any>>({
   // так их получают и переходы снаружи (`flow.goTo` из кода или поведения, переход отказа отправки
   // `onInvalidSubmit: 'firstInvalidStep'`, `flow.reset()`). Эффект идёт после фиксации, когда новый
   // шаг уже нарисован: в колбэке в него можно перевести фокус. Первая отрисовка — точка отсчёта,
-  // не смена; смена самого потока (другой проп `flow`, пересобранный позиционный) — тоже.
-  const shown = useRef<{ flow: FormFlow; index: number } | null>(null);
+  // не смена; смена самого потока (другой проп `flow`, пересобранный позиционный) — тоже. Смена —
+  // это другой шаг, а не другой номер: шаг перед текущим скрылся — номер стал меньше, шаг тот же.
+  const shown = useRef<{ flow: FormFlow; step: string } | null>(null);
   useEffect(() => {
     const last = shown.current;
-    shown.current = { flow, index: state.index };
-    if (last === null || last.flow !== flow || last.index === state.index) return;
+    shown.current = { flow, step: currentStepId };
+    if (last === null || last.flow !== flow || last.step === currentStepId) return;
     onStepChange?.(state.index + 1);
     if (scrollToTop && typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [flow, state.index, onStepChange, scrollToTop]);
+  }, [flow, currentStepId, state.index, onStepChange, scrollToTop]);
 
   const goToNextStep = useCallback(async (): Promise<boolean> => {
     const transition = await flow.next();
@@ -202,7 +209,8 @@ function FormWizardBase<T extends Record<string, any>>({
 
   const goToStep = useCallback(
     (step: number): boolean => {
-      const stepId = flow.steps[step - 1];
+      // Номер шага — среди участвующих шагов, как в индикаторе.
+      const stepId = flow.activeSteps.peek()[step - 1];
       return stepId !== undefined && flow.goTo(stepId).status === 'moved';
     },
     [flow]
@@ -215,9 +223,10 @@ function FormWizardBase<T extends Record<string, any>>({
 
   const currentStep = state.index + 1;
   const t = useCdkMessages();
+  const totalSteps = activeStepIds.length;
   const completedSteps = useMemo(
-    () => flow.steps.flatMap((step, index) => (state.completed.has(step) ? [index + 1] : [])),
-    [flow, state.completed]
+    () => activeStepIds.flatMap((step, index) => (state.completed.has(step) ? [index + 1] : [])),
+    [activeStepIds, state.completed]
   );
 
   const contextValue = useMemo<FormWizardContextValue<T>>(
@@ -225,7 +234,9 @@ function FormWizardBase<T extends Record<string, any>>({
       form,
       flow,
       currentStep,
-      totalSteps: flow.steps.length,
+      currentStepId,
+      activeStepIds,
+      totalSteps,
       completedSteps,
       isFirstStep: state.isFirst,
       isLastStep: state.isLast,
@@ -240,6 +251,9 @@ function FormWizardBase<T extends Record<string, any>>({
       form,
       flow,
       currentStep,
+      currentStepId,
+      activeStepIds,
+      totalSteps,
       completedSteps,
       state.isFirst,
       state.isLast,
@@ -261,7 +275,7 @@ function FormWizardBase<T extends Record<string, any>>({
        * фокусом остаётся за потребителем через onStepChange.
        */}
       <div role="status" aria-live="polite" aria-atomic="true" style={srOnlyStyle}>
-        {t('cdk.formWizard.stepStatus', { current: currentStep, total: flow.steps.length })}
+        {t('cdk.formWizard.stepStatus', { current: currentStep, total: totalSteps })}
       </div>
       {numberSteps(children)}
     </FormWizardContext.Provider>

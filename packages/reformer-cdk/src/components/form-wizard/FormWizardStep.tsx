@@ -31,7 +31,7 @@ export interface FormWizardStepProps<T extends Record<string, any>> {
 export interface FormWizardStepInternalProps<
   T extends Record<string, any>,
 > extends FormWizardStepProps<T> {
-  /** Step index (1-based), set internally by FormWizard */
+  /** Место шага среди всех шагов потока (с единицы) — проставляет FormWizard. */
   _stepIndex?: number;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -67,10 +67,11 @@ export function FormWizardStep<T extends Record<string, any>>({
   _stepIndex,
   ...restProps
 }: FormWizardStepInternalProps<T>) {
-  const { currentStep } = useFormWizard<T>();
+  const { flow, currentStepId } = useFormWizard<T>();
 
-  // Only render if this is the current step
-  if (_stepIndex === undefined || currentStep !== _stepIndex) {
+  // Шаг разметки ↔ шаг потока по месту среди всех шагов: рисуется только текущий. Шаг, который
+  // поток пропускает, текущим не бывает.
+  if (_stepIndex === undefined || flow.steps[_stepIndex - 1] !== currentStepId) {
     return null;
   }
 
