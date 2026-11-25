@@ -6,12 +6,14 @@
  * они знают только DOM-контракт (./DOM-CONTRACT.md) и `window.__bench`.
  *
  * Хосты — dev-серверы playground'ов, каждый на своём порту (./stacks.ts); `CROSS_STACKS` оставляет
- * часть стеков. Настройки браузера — как у conformance: тот же viewport, локаль и пояс.
+ * часть стеков. `CROSS_BASE` — prod-сборки стеков с одного источника, те же страницы, что идут в
+ * замеры: сервер — `forms-benchmark/scripts/serve.mjs`. Настройки браузера — как у conformance: тот же viewport, локаль и пояс.
  */
 import { defineConfig } from '@playwright/test';
-import { pageUrl, selectedStacks, stackOrigin } from './stacks';
+import { pageUrl, prodBase, selectedStacks, stackOrigin } from './stacks';
 
 const stacks = selectedStacks();
+const base = prodBase();
 
 export default defineConfig({
   testDir: './tests',
@@ -43,11 +45,22 @@ export default defineConfig({
       use: { baseURL: stackOrigin(stack) },
     }))
   ),
-  webServer: stacks.map((stack) => ({
-    command: stack.command,
-    cwd: stack.host,
-    url: pageUrl(stack, stack.forms[0]),
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  })),
+  webServer: base
+    ? [
+        {
+          command: 'npm run serve',
+          cwd: '../forms-benchmark',
+          url: `${base}/frameworks-info.json`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
+          env: { PORT: new URL(base).port || '80' },
+        },
+      ]
+    : stacks.map((stack) => ({
+        command: stack.command,
+        cwd: stack.host,
+        url: pageUrl(stack, stack.forms[0]),
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      })),
 });

@@ -51,10 +51,21 @@ const STACKS: Stack[] = [
 /** Сегмент пути страниц хоста — им же страница называется в `window.__bench`. */
 export const CROSS_PAGE = 'cross';
 
-export const stackOrigin = (stack: Stack): string => `http://127.0.0.1:${stack.port}`;
+/**
+ * Prod-сборки стеков с одного источника — те же страницы, что идут в замеры
+ * (`forms-benchmark/scripts/build-frameworks.mjs`, сервер `forms-benchmark/scripts/serve.mjs`):
+ * `CROSS_BASE=http://127.0.0.1:4180`. Страница стека тогда — `/<стек>/<форма>/`, серверы хостов не
+ * поднимаются.
+ */
+export const prodBase = (): string | null => process.env.CROSS_BASE?.replace(/\/+$/, '') || null;
+
+export const stackOrigin = (stack: Stack): string => prodBase() ?? `http://127.0.0.1:${stack.port}`;
+
+/** Первый сегмент пути страниц стека: `cross` у сервера хоста, id стека у prod-источника. */
+export const pageSegment = (stack: StackId): string => (prodBase() ? stack : CROSS_PAGE);
 
 export const pageUrl = (stack: Stack, form: FormId): string =>
-  `${stackOrigin(stack)}/${CROSS_PAGE}/${form}/`;
+  `${stackOrigin(stack)}/${pageSegment(stack.id)}/${form}/`;
 
 /**
  * Стеки прогона. `CROSS_STACKS=react,vue` оставляет названные: сервер хоста поднимается только

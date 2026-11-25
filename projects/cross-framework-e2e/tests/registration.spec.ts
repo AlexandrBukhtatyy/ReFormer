@@ -4,6 +4,10 @@
  */
 import { RegistrationPage } from '../../forms-benchmark-e2e/pom/registration';
 import { registrationScenarios } from '../../forms-benchmark-e2e/scenarios/registration';
-import { CROSS_PAGE } from '../stacks';
+import { pageSegment, type StackId } from '../stacks';
 
-registrationScenarios('регистрация', (page) => new RegistrationPage(page, CROSS_PAGE));
+registrationScenarios(
+  'регистрация',
+  (page, testInfo) =>
+    new RegistrationPage(page, pageSegment(testInfo.project.metadata.stack as StackId))
+);
