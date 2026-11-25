@@ -321,6 +321,36 @@ exports[`public API — входы сабпатов > PA-02 · ./react — им�
 }
 `;
 
+exports[`public API — входы сабпатов > PA-02 · ./render — имена и виды экспортов 1`] = `
+{
+  "ArrayReader": "тип",
+  "ComponentEvents": "тип",
+  "FIELD_WRAPPER_ONLY_PROPS": "массив",
+  "FieldAdapter": "тип",
+  "FieldAdapterCarrier": "тип",
+  "FieldOwnProps": "тип",
+  "FieldSeam": "тип",
+  "FieldValueSource": "тип",
+  "VOID_HTML_TAGS": "объект",
+  "bindControlledFieldProps": "функция",
+  "fieldTestId": "функция",
+  "formIndexOf": "функция",
+  "getFieldAdapter": "функция",
+  "hasInlineLabel": "функция",
+  "joinTextParts": "функция",
+  "mergeNodeProps": "функция",
+  "needsControl": "функция",
+  "nodesOnly": "функция",
+  "overrideWithEvents": "функция",
+  "primaryIssue": "функция",
+  "signalPropKeys": "функция",
+  "splitFieldProps": "функция",
+  "stableKey": "функция",
+  "unwrapSignalProps": "функция",
+  "withComponentEvents": "функция",
+}
+`;
+
 exports[`public API — входы сабпатов > PA-02 · ./resource — имена и виды экспортов 1`] = `
 {
   "AsyncResourceAction": "тип",
@@ -530,6 +560,7 @@ exports[`public API — входы сабпатов > PA-02 · ./validators/<п�
 
 exports[`public API — входы сабпатов > PA-03: одно имя в нескольких входах — одно значение либо намеренно разные 1`] = `
 {
+  "FIELD_WRAPPER_ONLY_PROPS": "./react ./render — одно значение",
   "apply": "./behaviors ./validation — разные значения",
   "applyEach": "./behaviors ./validation — разные значения",
   "arrayOf": ". ./model — одно значение",
@@ -539,6 +570,8 @@ exports[`public API — входы сабпатов > PA-03: одно имя в 
   "eachLeafSignal": ". ./model — одно значение",
   "eachValueSignal": ". ./model — одно значение",
   "effect": "./behaviors ./signals — разные значения",
+  "getFieldAdapter": "./react ./render — одно значение",
+  "hasInlineLabel": "./react ./render — одно значение",
   "isDerived": ". ./model — одно значение",
   "isModelContainerSignal": ". ./model — одно значение",
   "isValueSignal": ". ./model — одно значение",

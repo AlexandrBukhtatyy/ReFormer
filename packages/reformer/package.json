@@ -23,6 +23,10 @@
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
     },
+    "./render": {
+      "types": "./dist/render.d.ts",
+      "import": "./dist/render.js"
+    },
     "./locale": {
       "types": "./dist/locale.d.ts",
       "import": "./dist/locale.js"

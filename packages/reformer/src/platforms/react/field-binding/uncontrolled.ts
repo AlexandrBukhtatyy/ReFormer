@@ -7,13 +7,10 @@
  * @module platforms/react/field-binding/uncontrolled
  */
 
-import { effect, type ReadonlySignal } from '@preact/signals-core';
-import type { FieldAdapter } from './field-adapter';
+import { effect } from '@preact/signals-core';
+import type { FieldAdapter, FieldValueSource } from '../../../render/field-adapter';
 
-/** Источник значения неуправляемой привязки — нода поля формы (`FormControl`). */
-export interface FieldValueSource {
-  readonly value: ReadonlySignal<unknown>;
-}
+export type { FieldValueSource };
 
 /** Элемент формы, которому привязка пишет значение. */
 type FormElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;

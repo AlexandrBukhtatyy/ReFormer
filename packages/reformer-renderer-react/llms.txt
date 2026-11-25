@@ -1749,12 +1749,15 @@ export interface FieldAdapter {
    * должен читать значение из `event.target` — так привязка сверяет показанное с полем и не
    * перетирает ввод (`5.` числового поля, текст маски). Контролы со своим состоянием (Radix,
    * комбобокс) остаются управляемыми.
+   *
+   * Ключ читает привязка к React (`bindFieldProps` из `@reformer/core/react`); управляемая привязка
+   * этого модуля ({@link bindControlledFieldProps}) его не учитывает.
    */
   uncontrolled?: boolean;
   /**
    * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
-   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
-   * `useFormControl(control)`.
+   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам читает состояние поля
+   * (в React — вызывает `useFormControl(control)`).
    */
   passControl?: boolean;
 }
@@ -1772,7 +1775,7 @@ toValue: (v) => v ?? false,
 };
 ```
 
-_Source: ../reformer/src/platforms/react/field-binding/field-adapter.ts_
+_Source: ../reformer/src/render/field-adapter.ts_
 
 ### FieldWrapperProps
 

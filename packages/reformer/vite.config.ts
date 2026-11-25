@@ -51,6 +51,9 @@ export default defineConfig({
         // Единственный entry с импортом `react`. Контекст локализации существует в одном чанке,
         // и остальные пакеты (cdk, ui-kit, рендереры) получают его как внешнюю зависимость.
         react: resolve(__dirname, 'src/react.ts'),
+        // Общее для рендереров схемы на любом слое представления: привязка поля к контролу.
+        // Без React — этот вход берут рендереры на Vue и Angular.
+        render: resolve(__dirname, 'src/render.ts'),
         // Встроенные локали ядра: загрузчик (чанк на язык) и синхронные модули по языкам.
         locale: resolve(__dirname, 'src/locale/index.ts'),
         'locale/en': resolve(__dirname, 'src/locale/en.ts'),

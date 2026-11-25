@@ -1,145 +1,28 @@
 /**
- * Адаптер поля — как свести value-based seam формы (`value` + `onChange(value)` + `onBlur`) к
- * контракту конкретного контрола. Чистые данные и чистые функции (без React): один механизм на
- * всех, кто связывает поле с контролом, — `FormField.Control` из `@reformer/cdk` и рендерер
- * `@reformer/renderer-react`.
+ * Привязка поля к контролу в React. Диалект контрола (`reformerAdapter`), срез служебных props и
+ * управляемая привязка — общие для всех слоёв представления и лежат в `render/field-adapter`; этот
+ * модуль добавляет к ним неуправляемую привязку: значение пишется прямо в DOM-элемент через `ref`.
  *
- * Контрол объявляет свой диалект статикой `reformerAdapter` (см. {@link getFieldAdapter}), поэтому
- * отдельные «field-версии» компонентов не нужны: в `component` поля кладётся сам компонент.
+ * Один механизм на всех, кто связывает поле с контролом в React, — `FormField.Control` из
+ * `@reformer/cdk` и рендерер `@reformer/renderer-react`.
  *
  * @module platforms/react/field-binding
  */
 
-import { NOT_RENDERED, uncontrolledRef, type FieldValueSource } from './uncontrolled';
+import {
+  bindControlledSeam,
+  controlPropsOf,
+  type FieldAdapter,
+  type FieldSeam,
+} from '../../../render/field-adapter';
+import { NOT_RENDERED, uncontrolledRef } from './uncontrolled';
 
-/**
- * Адаптер поля: описывает диалект контрола (`checked`/`onCheckedChange`, `value`/`onValueChange`,
- * DOM-событие в `onChange`, …). Все ключи необязательны — по умолчанию seam проходит как есть.
- *
- * @example Radix Checkbox
- * ```ts
- * const checkedAdapter: FieldAdapter = {
- *   valueProp: 'checked',
- *   changeProp: 'onCheckedChange',
- *   fromEmit: (c) => c === true,
- *   toValue: (v) => v ?? false,
- * };
- * ```
- */
-export interface FieldAdapter {
-  /** Проп, из которого контрол читает значение (по умолчанию `'value'`). */
-  valueProp?: string;
-  /** Колбэк, через который контрол эмитит изменение (по умолчанию `'onChange'`). */
-  changeProp?: string;
-  /**
-   * Эмит контрола → значение поля (по умолчанию — как есть). `rest` — прочие props контрола
-   * (например, чтобы достать `options` при резолве значения).
-   */
-  fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
-  /** Значение поля → `valueProp` контрола (коэрсия `null`/`undefined`; по умолчанию — как есть). */
-  toValue?: (value: unknown) => unknown;
-  /** Проброс blur нестандартным каналом (по умолчанию — `onBlur`). */
-  bindBlur?: (onBlur: () => void) => Record<string, unknown>;
-  /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
-  strip?: string[];
-  /**
-   * Неуправляемая привязка: контрол — нативный элемент формы (`input`, `textarea`, `select`,
-   * чекбокс, радиокнопки) либо передаёт `ref` такому элементу. Значение поля пишется прямо в
-   * DOM-свойство `valueProp` (`value` или `checked`), а не пропом React: компонент поля, который не
-   * читает `value` при рендере, на ввод не перерисовывается. Ввод доходит до поля через `changeProp`
-   * и `fromEmit`, запись в поле извне (`setValue`, `reset`, `computeFrom`) — до элемента.
-   *
-   * Работает, когда seam несёт ноду поля (`seam.control`); без неё привязка управляемая. `fromEmit`
-   * должен читать значение из `event.target` — так привязка сверяет показанное с полем и не
-   * перетирает ввод (`5.` числового поля, текст маски). Контролы со своим состоянием (Radix,
-   * комбобокс) остаются управляемыми.
-   */
-  uncontrolled?: boolean;
-  /**
-   * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
-   * issues/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
-   * `useFormControl(control)`.
-   */
-  passControl?: boolean;
-}
-
-/** Компонент, объявивший свой диалект статикой. */
-export interface FieldAdapterCarrier {
-  reformerAdapter?: FieldAdapter;
-}
-
-/**
- * Props, которые адресованы обёртке поля, а не контролу: подпись (`label`), звёздочку
- * обязательности (`required`), описание под полем (`description`) и иконку у подписи
- * (`labelTooltip`) рисует `FormField`. Они приходят в общем мешке `componentProps`, и без среза
- * утекли бы в DOM контрола: `label="Имя"` атрибутом на `<input>`, а нативный `required` включил бы
- * проверку браузера, которая блокирует отправку формы раньше её собственной валидации.
- *
- * Исключение — контрол с inline-подписью ({@link hasInlineLabel}): `label` и `required` он рисует сам.
- */
-export const FIELD_WRAPPER_ONLY_PROPS: readonly string[] = [
-  'label',
-  'description',
-  'required',
-  'labelTooltip',
-];
-
-/** Props обёртки, которые контрол с inline-подписью получает: подпись он рисует рядом с собой. */
-const INLINE_LABEL_PROPS: ReadonlySet<string> = new Set(['label', 'required']);
-
-/**
- * Рисует ли контрол подпись сам — рядом с собой (чекбокс, переключатель). Такой компонент
- * объявляет статику `reformerLayout = 'inline-label'`: обёртка поля тогда не рисует подпись
- * сверху, а `label` и `required` отдаёт контролу.
- *
- * @example
- * ```ts
- * CheckboxWithLabel.reformerLayout = 'inline-label';
- * hasInlineLabel(CheckboxWithLabel); // → true
- * ```
- */
-export function hasInlineLabel(component: unknown): boolean {
-  if (component == null || (typeof component !== 'function' && typeof component !== 'object')) {
-    return false;
-  }
-  return (component as { reformerLayout?: unknown }).reformerLayout === 'inline-label';
-}
-
-/**
- * Адаптер, объявленный компонентом статикой `reformerAdapter`, либо `undefined`.
- *
- * @example
- * ```ts
- * Checkbox.reformerAdapter = checkedAdapter;
- * getFieldAdapter(Checkbox); // → checkedAdapter
- * ```
- */
-export function getFieldAdapter(component: unknown): FieldAdapter | undefined {
-  if (component == null || (typeof component !== 'function' && typeof component !== 'object')) {
-    return undefined;
-  }
-  return (component as FieldAdapterCarrier).reformerAdapter;
-}
-
-/** Seam поля: текущее значение и value-based колбэки. */
-export interface FieldSeam {
-  /**
-   * Значение поля. Неуправляемая привязка ({@link FieldAdapter.uncontrolled}) его не читает:
-   * передавайте seam, где `value` читается при обращении (`seam` хука `useFormField` из
-   * `@reformer/cdk`), — тогда компонент не подписан на значение.
-   */
-  value: unknown;
-  onChange: (value: unknown) => void;
-  onBlur: () => void;
-  /** Нода поля — источник значения неуправляемой привязки. Без неё привязка управляемая. */
-  control?: FieldValueSource;
-  /**
-   * Подписка на значение поля через подписку хука, который уже следит за полем
-   * (`watchValueOf(useFormControl(control))`). С ней неуправляемая привязка не заводит своего
-   * effect на поле. `seam` у `useFormField` из `@reformer/cdk` несёт её сам.
-   */
-  watch?: (listener: (value: unknown) => void) => () => void;
-}
+export {
+  FIELD_WRAPPER_ONLY_PROPS,
+  getFieldAdapter,
+  hasInlineLabel,
+} from '../../../render/field-adapter';
+export type { FieldAdapter, FieldAdapterCarrier, FieldSeam } from '../../../render/field-adapter';
 
 const identity = (x: unknown): unknown => x;
 
@@ -170,22 +53,12 @@ export function bindFieldProps(
   componentProps: Record<string, unknown> = {},
   component?: unknown
 ): Record<string, unknown> {
-  const rest: Record<string, unknown> = { ...componentProps };
-  const inlineLabel = hasInlineLabel(component);
-  for (const key of FIELD_WRAPPER_ONLY_PROPS) {
-    if (!(inlineLabel && INLINE_LABEL_PROPS.has(key))) delete rest[key];
-  }
-  for (const key of adapter?.strip ?? []) delete rest[key];
+  const rest = controlPropsOf(adapter, componentProps, component);
 
-  if (!adapter) {
-    return { ...rest, value: seam.value, onChange: seam.onChange, onBlur: seam.onBlur };
-  }
-
-  const fromEmit = adapter.fromEmit ?? identity;
-  const valueProp = adapter.valueProp ?? 'value';
-  if (adapter.uncontrolled === true && seam.control !== undefined) {
+  if (adapter?.uncontrolled === true && seam.control !== undefined) {
     // Значение — в DOM через ref; начальное — пропом `default*`, без подписки на значение.
-    const defaultProp = DEFAULT_PROPS[valueProp];
+    const fromEmit = adapter.fromEmit ?? identity;
+    const defaultProp = DEFAULT_PROPS[adapter.valueProp ?? 'value'];
     const initial = seam.control.value.peek();
     return {
       ...rest,
@@ -203,10 +76,5 @@ export function bindFieldProps(
       ),
     };
   }
-  return {
-    ...rest,
-    [valueProp]: (adapter.toValue ?? identity)(seam.value),
-    [adapter.changeProp ?? 'onChange']: (arg: unknown) => seam.onChange(fromEmit(arg, rest)),
-    ...(adapter.bindBlur ? adapter.bindBlur(seam.onBlur) : { onBlur: seam.onBlur }),
-  };
+  return bindControlledSeam(adapter, seam, rest);
 }

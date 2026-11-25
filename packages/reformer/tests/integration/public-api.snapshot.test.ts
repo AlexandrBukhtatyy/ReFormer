@@ -37,6 +37,7 @@ import * as validators from '../../src/form/validators/index';
 import * as i18n from '../../src/i18n';
 import * as signals from '../../src/signals';
 import * as react from '../../src/react';
+import * as render from '../../src/render';
 import * as locale from '../../src/locale/index';
 import * as localeEn from '../../src/locale/en';
 import * as localeRu from '../../src/locale/ru';
@@ -106,6 +107,7 @@ const ENTRIES: Readonly<Record<string, Entry>> = {
     load: () => import('../../src/signals'),
   },
   './react': { source: 'src/react.ts', module: react, load: () => import('../../src/react') },
+  './render': { source: 'src/render.ts', module: render, load: () => import('../../src/render') },
   './locale': {
     source: 'src/locale/index.ts',
     module: locale,

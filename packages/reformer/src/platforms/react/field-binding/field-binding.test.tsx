@@ -7,6 +7,7 @@ import {
   hasInlineLabel,
   type FieldAdapter,
 } from './field-adapter';
+import { bindControlledFieldProps } from '../../../render/field-adapter';
 import { resolveFieldHandle, type FieldHandle } from './field-handle';
 
 const seam = (value: unknown = null) => ({
@@ -104,6 +105,28 @@ describe('bindFieldProps', () => {
   it('seam перекрывает одноимённые componentProps', () => {
     const props = bindFieldProps(undefined, seam('real'), { value: 'stale' });
     expect(props.value).toBe('real');
+  });
+
+  // Управляемая ветка — общая с рендерерами схемы на других слоях представления: одна схема
+  // даёт контролу одни и те же props в React, Vue и Angular.
+  it('управляемая ветка совпадает с нейтральной привязкой bindControlledFieldProps', () => {
+    const adapter: FieldAdapter = {
+      valueProp: 'checked',
+      changeProp: 'onCheckedChange',
+      toValue: (value) => value === true,
+      strip: ['mask'],
+    };
+    const componentProps = { label: 'L', mask: '9', placeholder: 'p' };
+    const s = seam(true);
+    const react = bindFieldProps(adapter, s, componentProps);
+    const neutral = bindControlledFieldProps(adapter, s, componentProps);
+
+    expect(Object.keys(react)).toEqual(Object.keys(neutral));
+    expect(react.checked).toBe(neutral.checked);
+    expect(react.onBlur).toBe(neutral.onBlur);
+    (react.onCheckedChange as (v: unknown) => void)(false);
+    (neutral.onCheckedChange as (v: unknown) => void)(true);
+    expect(s.onChange.mock.calls).toEqual([[false], [true]]);
   });
 
   const uncontrolled: FieldAdapter = {
