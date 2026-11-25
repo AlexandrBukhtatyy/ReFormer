@@ -1133,7 +1133,7 @@
     "message": "Loading the chart…"
   },
   "benchmark.traces.missing": {
-    "message": "No traces for this form — the values are in the tables above."
+    "message": "No traces for this form — the values are in the tables of the “All phases” section."
   },
   "benchmark.traces.aria": {
     "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide; plus and minus — zoom, 0 — the whole trace."
@@ -1184,7 +1184,7 @@
     "message": "The charts are a single traced pass per participant from a separate run {traceRun} on the same page build (git {sha}, built {date}), CPU {cpu}x: not a median but the shape of the curve. The table numbers are medians of run {run}."
   },
   "benchmark.traces.sourceSame": {
-    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables above."
+    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables of the “All phases” section."
   },
   "benchmark.traces.sourceOtherBuild": {
     "message": "⚠️ The charts are a single traced pass per participant from run {traceRun} on a different page build (git {sha}, built {date}), CPU {cpu}x; the table numbers are medians of run {run}. The forms may have changed between builds."

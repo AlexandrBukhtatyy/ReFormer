@@ -211,10 +211,10 @@ function Hero(): ReactNode {
 }
 
 const NAV: Array<{ id: string; label: ReactNode }> = [
+  { id: 'traces', label: <Translate id="benchmark.nav.traces">Трейсы</Translate> },
   { id: 'results', label: <Translate id="benchmark.nav.results">Итог</Translate> },
   { id: 'losses', label: <Translate id="benchmark.nav.losses">Где уступает</Translate> },
   { id: 'phases', label: <Translate id="benchmark.nav.phases">Все фазы</Translate> },
-  { id: 'traces', label: <Translate id="benchmark.nav.traces">Трейсы</Translate> },
   { id: 'renders', label: <Translate id="benchmark.nav.renders">Рендеры</Translate> },
   { id: 'bundle', label: <Translate id="benchmark.nav.bundle">Бандл</Translate> },
   { id: 'code', label: <Translate id="benchmark.nav.code">Объём кода</Translate> },
@@ -255,7 +255,7 @@ function FormTabs({ children }: { children: (form: BenchForm) => ReactNode }): R
 function KeyResults(): ReactNode {
   const t = useBenchText();
   return (
-    <section className={styles.section}>
+    <section className={clsx(styles.section, styles.sectionAlt)}>
       <div className="container">
         <Heading as="h2" id="results" className={styles.sectionTitle}>
           <Translate id="benchmark.results.title">Ключевые результаты</Translate>
@@ -337,7 +337,7 @@ function Losses(): ReactNode {
     .filter((r) => r.n > 0)
     .sort((a, b) => b.n - a.n);
   return (
-    <section className={clsx(styles.section, styles.sectionAlt)}>
+    <section className={styles.section}>
       <div className="container">
         <Heading as="h2" id="losses" className={styles.sectionTitle}>
           <Translate id="benchmark.losses.title">Где ReFormer уступает</Translate>
@@ -650,7 +650,7 @@ function PhaseList({ form }: { form: BenchForm }): ReactNode {
 
 function AllPhases(): ReactNode {
   return (
-    <section className={styles.section}>
+    <section className={clsx(styles.section, styles.sectionAlt)}>
       <div className="container">
         <Heading as="h2" id="phases" className={styles.sectionTitle}>
           <Translate id="benchmark.phases.title">Все фазы</Translate>
@@ -681,7 +681,7 @@ function AllPhases(): ReactNode {
 // ── Трейсы во времени ───────────────────────────────────────────────────────
 function Traces(): ReactNode {
   return (
-    <section className={clsx(styles.section, styles.sectionAlt)}>
+    <section className={styles.section}>
       <div className="container">
         <Heading as="h2" id="traces" className={styles.sectionTitle}>
           <Translate id="benchmark.traces.title">Память и DOM во времени</Translate>
@@ -1212,10 +1212,10 @@ export default function BenchmarkPage(): ReactNode {
       <Hero />
       <SectionNav />
       <main className={styles.main}>
+        <Traces />
         <KeyResults />
         <Losses />
         <AllPhases />
-        <Traces />
         <Renders />
         <Bundle />
         <CodeSize />

@@ -189,7 +189,7 @@ export default function TraceCharts({
                       <Translate id="benchmark.traces.loading">Загрузка графика…</Translate>
                     ) : (
                       <Translate id="benchmark.traces.missing">
-                        Трейсов для этой формы нет — значения есть в таблицах выше.
+                        Трейсов для этой формы нет — значения есть в таблицах раздела «Все фазы».
                       </Translate>
                     )}
                   </div>
@@ -970,7 +970,7 @@ function SourceNote({
         {trace.traceRun === trace.run ? (
           <Translate id="benchmark.traces.sourceSame" values={values}>
             {
-              'Графики — один трассируемый проход на участника из прогона {run}, CPU {cpu}x: это не медиана, а форма кривой. Точные числа — в таблицах выше.'
+              'Графики — один трассируемый проход на участника из прогона {run}, CPU {cpu}x: это не медиана, а форма кривой. Точные числа — в таблицах раздела «Все фазы».'
             }
           </Translate>
         ) : trace.sameBuild === false ? (
