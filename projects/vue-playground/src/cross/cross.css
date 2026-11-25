@@ -1,11 +1,15 @@
 /*
- * Стили страниц кросс-фреймворк проверки поверх Vuetify.
+ * Стили страниц кросс-фреймворк проверки поверх Vuetify и стилей кита
+ * (`@reformer/kit-vuetify/styles.css`).
  *
  * Стили Vuetify лежат в каскадных слоях: правило вне слоя их перебивает. Поэтому здесь только
- * классы собственной разметки страницы — ни сброса, ни правил по тегам и классам библиотеки.
+ * классы собственной разметки страницы — оболочки, капчи и вычисляемого значения; ни сброса, ни
+ * правил по тегам и классам библиотеки.
  *
- * Документ формы общий для трёх стеков и размечает ряд полей HTML-узлом с классом `b-grid`.
- * Библиотека компонентов о нём не знает — раскладку ряда задаёт страница.
+ * Документ формы общий для трёх стеков, и раскладку размечает классами страницы: `b-stack` —
+ * колонка полей (контейнеры `Box`, `Section`, `FormWizard`), `b-grid` — ряд полей. Библиотека
+ * компонентов о них не знает — раскладку задаёт страница. `Box` кита — блок без оформления: без
+ * `b-stack` поля в нём стояли бы вплотную.
  */
 .cross-page {
   display: flex;
@@ -36,47 +40,16 @@
   gap: 0.5rem;
 }
 
-.b-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.cross-wizard,
-.cross-step,
-.cross-section__body,
-.cross-row {
+.b-stack {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.cross-wizard__title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.75rem;
-}
-
-.cross-row {
-  padding: 1rem;
-  border: 1px solid rgb(0 0 0 / 12%);
-  border-radius: 6px;
-}
-
-.cross-row__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cross-row__title {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.cross-add {
-  align-self: flex-start;
+.b-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .cross-readonly {

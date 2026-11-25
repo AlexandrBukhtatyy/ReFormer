@@ -1,11 +1,12 @@
 /**
- * Страница кросс-фреймворк проверки: форма регистрации на Vue и Vuetify.
+ * Страница кросс-фреймворк проверки: форма регистрации на Vue и `@reformer/kit-vuetify`.
  *
  * Документ формы, правила и API — общие с React- и Angular-страницами
- * (forms-benchmark/src/cross/registration.ts); здесь — реестр компонентов Vuetify и рендерер Vue.
- * «Сервер» формы живёт в памяти страницы. `window.__bench` публикует общий харнесс (готовность
- * первого экрана, покой, вызовы API, отправленные данные) — по нему e2e ведёт три стека одним
- * сценарием.
+ * (forms-benchmark/src/cross/registration.ts); здесь — реестр кита Vuetify (../registry.ts),
+ * рендерер Vue и оболочка страницы: заголовок, `<form>`, «Зарегистрироваться», «Очистить» и
+ * подтверждение отправки. «Сервер» формы живёт в памяти страницы. `window.__bench` публикует общий
+ * харнесс (готовность первого экрана, покой, вызовы API, отправленные данные) — по нему e2e ведёт
+ * три стека одним сценарием.
  */
 import {
   createApp,
@@ -13,13 +14,16 @@ import {
   h,
   onBeforeUnmount,
   onMounted,
-  provide,
   shallowRef,
   type App,
+  type Component,
   type PropType,
 } from 'vue';
 import 'vuetify/styles';
+import '@reformer/kit-vuetify/styles.css';
 import { VApp } from 'vuetify/components/VApp';
+import { VBtn } from 'vuetify/components/VBtn';
+import { createKitVuetify } from '@reformer/kit-vuetify';
 import { FormRenderer, useFormBundle } from '@reformer/renderer-vue';
 import { installBench } from '../../../../forms-benchmark/src/cross/page';
 import {
@@ -29,17 +33,51 @@ import {
   submitRegistration,
   type RegistrationValues,
 } from '../../../../forms-benchmark/src/cross/registration';
-import { FORM_ACTIONS } from '../../kit/form-actions';
-import { registrationRegistry } from '../../kit/registry';
-import { createKitVuetify } from '../../vuetify';
+import { registrationRegistry } from '../registry';
 import '../cross.css';
 
-const RegistrationRenderer = defineComponent({
-  name: 'RegistrationRenderer',
+/**
+ * Форма с оболочкой. Отправка — `submission.submit(handler)`: проверяет форму и зовёт обработчик.
+ * «Очистить» — `form.reset()`: значения, ноды и тихая фаза живой проверки; подтверждение прежней
+ * отправки при этом скрывается.
+ */
+const RegistrationForm = defineComponent({
+  name: 'RegistrationForm',
   props: { initial: { type: Object as PropType<RegistrationValues>, required: true } },
   setup(props) {
     const bundle = useFormBundle(() => createRegistrationForm(registrationRegistry, props.initial));
-    return () => h(FormRenderer, { form: bundle, messages: registrationMessages });
+    const result = shallowRef<string | null>(null);
+
+    const submit = async (event: Event): Promise<void> => {
+      event.preventDefault();
+      const outcome = await bundle.submission.submit(submitRegistration);
+      if (outcome.status === 'submitted') result.value = outcome.result;
+    };
+
+    const reset = (): void => {
+      bundle.form.reset();
+      result.value = null;
+    };
+
+    return () =>
+      h('form', { novalidate: true, class: 'cross-form', onSubmit: submit }, [
+        h(FormRenderer, { form: bundle, messages: registrationMessages }),
+        h('div', { class: 'cross-actions' }, [
+          h(
+            VBtn as Component,
+            { type: 'submit', color: 'primary', 'data-testid': 'btn-submit' },
+            { default: () => 'Зарегистрироваться' }
+          ),
+          h(
+            VBtn as Component,
+            { type: 'button', variant: 'outlined', 'data-testid': 'btn-reset', onClick: reset },
+            { default: () => 'Очистить' }
+          ),
+        ]),
+        result.value
+          ? h('p', { role: 'status', 'data-testid': 'submit-result' }, result.value)
+          : null,
+      ]);
   },
 });
 
@@ -58,13 +96,13 @@ const RegistrationPage = defineComponent({
       mounted = false;
     });
 
-    provide(FORM_ACTIONS, {
-      submit: (values) => submitRegistration(values as RegistrationValues),
-    });
-
     return () =>
       h(VApp, null, {
-        default: () => (initial.value ? h(RegistrationRenderer, { initial: initial.value }) : null),
+        default: () =>
+          h('main', { class: 'cross-page' }, [
+            h('h1', 'Регистрация'),
+            initial.value ? h(RegistrationForm, { initial: initial.value }) : null,
+          ]),
       });
   },
 });
@@ -79,12 +117,17 @@ const unmount = (): void => {
   app = null;
 };
 
+// Кит ставится один раз на страницу, как провайдеры Angular-хоста: перемонтирование — новое
+// приложение Vue с формой (как новый корень React), а не новая настройка библиотеки компонентов.
+// Анимации выключены: сценарии читают DOM сразу после покоя страницы.
+const vuetify = createKitVuetify({ animations: false });
+
 // Первое монтирование приложения Vue синхронно: рендер, запись в DOM и хуки монтирования
 // заканчиваются до возврата из `mount()` — отдельного синхронного режима хосту не нужно.
 const mount = (): void => {
   unmount();
   app = createApp(RegistrationPage);
-  app.use(createKitVuetify());
+  app.use(vuetify);
   app.mount(container);
 };
 
