@@ -1,0 +1,25 @@
+{
+  "name": "renderer-contract",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Контрактный набор рендереров ReFormer: одни сценарии для React, Vue и Angular",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@reformer/core": "*",
+    "vitest": "^4.0.8"
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@types/node": "^24.10.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.8"
+  }
+}
