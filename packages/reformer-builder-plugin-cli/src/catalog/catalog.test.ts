@@ -68,7 +68,7 @@ describe('generateKitCatalog — каталог из типов', () => {
     const validate = await loadCatalogValidator();
 
     expect(validate(result.catalog)).toEqual({ valid: true, errors: [] });
-    expect(result.catalog.version).toBe('3.0');
+    expect(result.catalog.version).toBe('3.1');
     expect(result.catalog.$schema).toBe(acmeConfig().schemaRef);
     expect(result.stats).toMatchObject({ records: 15, palette: 11 });
   });

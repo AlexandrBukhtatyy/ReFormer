@@ -413,7 +413,11 @@ export function buildRecords(input: RecordsInput): RecordsResult {
   }
 
   // ── Символы блока kit ──
-  for (const [role, symbol] of entriesOf(config.kit.infra as Record<string, string> | undefined)) {
+  for (const [role, symbol] of entriesOf(
+    config.kit.infra as Record<string, string | null> | undefined
+  )) {
+    // `null` — кит такого не поставляет (`fieldWrapper: null`, контракт 3.1): сверять нечего.
+    if (symbol === null) continue;
     if (!byExport.has(symbol))
       symbolMissing(`kit.infra.${role}: экспорта «${symbol}» у входа кита нет`);
   }
