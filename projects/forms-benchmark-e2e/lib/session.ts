@@ -370,13 +370,18 @@ export class BenchSession {
    * пустой страницы. Без прогрева наклон heap мерил этот рост, а не удержание [ReFormer-2o1j.24].
    * Удержание (`retained`) — прирост объектов страницы без типов JIT между снимками
    * (`lib/heap.ts`); снимки — только в замеряемых прогонах: трассу они бы засорили.
+   *
+   * В трассе прогрев — свой кусок `<name>-warmup` перед окном фазы, вместе с принудительной сборкой
+   * мусора после него; графики его вырезают (`TRACE_CUT` в `scripts/metrics.mjs`). Циклы прогрева
+   * идут подряд без GC, и снятые формы копятся в куче, DOM-узлах и обработчиках, пока движок их не
+   * соберёт. Внутри окна фазы этот подъём читался как цена перемонтирования или утечка.
    */
   async remount(name: string, count: number): Promise<void> {
     const page = this.page;
     const warmup = benchConfig.remountWarmup;
     const idle = () => page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
     await idle();
-    await this.mark(name, 'start');
+    await this.mark(`${name}-warmup`, 'start');
     await page.evaluate(() => (window as unknown as BenchGlobals).__bench.unmount());
     await page.evaluate(async (n) => {
       const bench = (window as unknown as BenchGlobals).__bench;
@@ -387,12 +392,14 @@ export class BenchSession {
     }, warmup);
     await idle();
     await this.cdp.gc();
+    await this.mark(`${name}-warmup`, 'end');
     const base = await this.cdp.metrics();
     const baseDom = await this.cdp.domCounters();
     const snapshots = this.info.mode === 'timing';
     const heapBefore = snapshots ? totalsByType(await this.cdp.heapSnapshot()) : null;
     if (this.info.mode === 'renders')
       await page.evaluate(() => (window as unknown as BenchGlobals).__renders.reset());
+    await this.mark(name, 'start');
     const syncMs: number[] = [];
     const readyMs: number[] = [];
     const checkpoints: Array<{ i: number; heap: number; nodes: number; listeners: number }> = [];

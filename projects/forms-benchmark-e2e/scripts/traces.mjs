@@ -18,10 +18,11 @@
 import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { PHASES } from './metrics.mjs';
+import { PHASES, TRACE_CUT } from './metrics.mjs';
 import { LIB_ORDER } from './aggregate.mjs';
 
-const VERSION = 2;
+/** 3 — вырезаются куски `TRACE_CUT` (прогрев перемонтирования). */
+const VERSION = 3;
 /** Корзин прореживания на всю ось: в каждой — минимум и максимум, «пила» GC сохраняется. */
 const BUCKETS = 600;
 
@@ -289,7 +290,9 @@ export async function traceSeries(runDir, form) {
   const unmarked = [];
   for (const { lib, file } of present) {
     const { samples, marks } = await readTrace(file);
-    const pieces = piecesOf(marks, samples.at(-1)?.ts);
+    // Окно и промежуток вырезанного куска выпадают с оси вместе с его точками; промежуток фазы
+    // перед ним кончается на его начале.
+    const pieces = piecesOf(marks, samples.at(-1)?.ts).filter((p) => !TRACE_CUT.has(p.phase));
     if (!pieces.length) {
       unmarked.push(lib);
       continue;
